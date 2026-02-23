@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import api from "@kahade/utils";
+import { api } from "@kahade/utils";
 // Date formatting utility
 const formatDistanceToNow = (date: Date): string => {
  const now = new Date();
