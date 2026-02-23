@@ -1,4 +1,0 @@
-# ── SPA Routing untuk Kahade Dashboard ───────────────────────────────────────
-# Letakkan file ini di: apps/dashboard/public/_redirects
-
-/*    /index.html    200
