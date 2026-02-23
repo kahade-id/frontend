@@ -117,7 +117,7 @@ export function getInitials(name: string, maxLength = 2): string {
  const parts = name.trim().split(/\s+/);
  
  if (parts.length === 1) {
- return parts[0].slice(0, maxLength).toUpperCase();
+ return parts[0]!.slice(0, maxLength).toUpperCase();
  }
  
  return parts
@@ -303,7 +303,7 @@ export function debounce<T extends (...args: any[]) => any>(
  func: T,
  wait: number
 ): (...args: Parameters<T>) => void {
- let timeout: NodeJS.Timeout;
+ let timeout: ReturnType<typeof setTimeout>;
  
  return function executedFunction(...args: Parameters<T>) {
  const later = () => {
