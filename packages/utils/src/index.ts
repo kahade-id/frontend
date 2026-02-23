@@ -14,3 +14,5 @@ export * from './security-utils'
 export * from './validation-utils'
 export * from './validation/common'
 export * from './validation/schemas'
+
+export { default as api } from './api';
