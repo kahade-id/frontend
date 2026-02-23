@@ -55,7 +55,7 @@ export function generateSecureToken(length = 32): string {
 export function maskEmail(email: string): string {
   const [local, domain] = email.split('@');
   if (!domain) return email;
-  const masked = local.charAt(0) + '***' + local.charAt(local.length - 1);
+  const masked = local!.charAt(0) + '***' + local!.charAt(local!.length - 1);
   return `${masked}@${domain}`;
 }
 
@@ -72,7 +72,7 @@ export function createRateLimiter(maxCalls: number, windowMs: number) {
   return function isAllowed(): boolean {
     const now = Date.now();
     // Remove calls outside the window
-    while (calls.length > 0 && calls[0] < now - windowMs) {
+    while (calls.length > 0 && calls[0]! < now - windowMs) {
       calls.shift();
     }
     if (calls.length >= maxCalls) return false;
