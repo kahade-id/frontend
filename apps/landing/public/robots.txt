@@ -1,0 +1,10 @@
+# Kahade - robots.txt
+# https://kahade.id
+
+# FIX (Issue V2-8): Merged duplicate User-agent blocks
+User-agent: *
+Allow: /
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://kahade.id/sitemap.xml
