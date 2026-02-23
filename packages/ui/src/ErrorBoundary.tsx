@@ -87,7 +87,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
  });
 
  // Log to console in development
- if (process.env.NODE_ENV === 'development') {
+ if (import.meta.env.DEV) {
  }
 
  // Call custom error handler
@@ -211,7 +211,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
  </p>
 
  {/* Error Details (Development Only) */}
- {process.env.NODE_ENV === 'development' && error && (
+ {import.meta.env.DEV && error && (
  <div className="mb-6 rounded-md bg-gray-100 p-4">
  <h3 className="mb-2 text-sm font-semibold text-gray-700">
  Error Details (Dev Mode)
