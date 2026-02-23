@@ -1,0 +1,51 @@
+# AuthContext.tsx — Empty Catch Block Fix
+# FIX (Issue V2-5)
+#
+# Karena AuthContext.tsx adalah file besar (400+ baris), berikut ini adalah
+# dua patch yang perlu diterapkan secara manual (atau gunakan str_replace).
+#
+# ─── PATCH 1: logout() catch ──────────────────────────────────────────────
+#
+# SEBELUM:
+  } catch (error) {
+    if (import.meta.env.DEV) {
+    }
+  } finally {
+    // SECURITY FIX [FE-SEC-002]: Clear all cached data
+    sessionStorage.removeItem(USER_CACHE_KEY);
+#
+# SESUDAH:
+  } catch (error) {
+    // Logout API call failed (e.g. session already expired)
+    // This is a best-effort call — we always clear local state regardless.
+    // FIX (Issue V2-5): Log error in dev so it's not silently swallowed.
+    if (import.meta.env.DEV) {
+      logger.warn('Logout API call failed (non-fatal):', error);
+    }
+  } finally {
+    // SECURITY FIX [FE-SEC-002]: Clear all cached data
+    sessionStorage.removeItem(USER_CACHE_KEY);
+#
+# ─── PATCH 2: refreshUser() catch ─────────────────────────────────────────
+#
+# SEBELUM:
+  } catch (error) {
+    if (import.meta.env.DEV) {
+    }
+  }
+  }, [fetchCurrentUser]);
+#
+# SESUDAH:
+  } catch (error) {
+    // refreshUser failure is non-fatal (user stays logged out)
+    // FIX (Issue V2-5): Log error in dev instead of silently swallowing.
+    if (import.meta.env.DEV) {
+      logger.warn('Failed to refresh user session:', error);
+    }
+  }
+  }, [fetchCurrentUser]);
+#
+# ─── PASTIKAN IMPORT logger ADA ──────────────────────────────────────────
+#
+# Tambahkan ke import jika belum ada:
+# import { logger } from '@kahade/utils';
