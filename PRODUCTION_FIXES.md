@@ -1,6 +1,0 @@
-- Applied production fixes: env var standardization to VITE_API_BASE_URL across README and GitHub workflows.
-- Removed stray *.bak files and added *.bak to .gitignore.
-- Added root ESLint v9 flat config + required devDependencies.
-- Made all packages buildable with tsup to dist/ and updated package exports to dist outputs.
-- Updated turbo.json: lint/type-check no longer depend on build for faster CI.
-- Refactored api-config.ts to remove hardcoded production domains and rely on VITE_API_BASE_URL.
