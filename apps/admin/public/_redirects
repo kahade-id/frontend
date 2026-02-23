@@ -1,0 +1,4 @@
+# ── SPA Routing untuk Kahade Admin ───────────────────────────────────────────
+# Letakkan file ini di: apps/admin/public/_redirects
+
+/*    /index.html    200
