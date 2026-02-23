@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next';
 import { Globe } from '@phosphor-icons/react';
 import { Button } from "./button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "./dropdown-menu";
-import i18n from '@kahade/utils';
+import i18n from 'i18next';
 
 const languages = [
  { code: 'id', name: 'Indonesia', flag: '🇮🇩' },
