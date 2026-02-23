@@ -1,0 +1,22 @@
+{
+  "name": "kahade-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "packageManager": "pnpm@9.0.0",
+  "scripts": {
+    "dev:landing": "pnpm --filter @kahade/landing dev",
+    "dev:app": "pnpm --filter @kahade/dashboard dev",
+    "dev:admin": "pnpm --filter @kahade/admin dev",
+    "build:landing": "pnpm --filter @kahade/landing... build",
+    "build:app": "pnpm --filter @kahade/dashboard... build",
+    "build:admin": "pnpm --filter @kahade/admin... build",
+    "build": "pnpm run build:landing && pnpm run build:app && pnpm run build:admin",
+    "preview:landing": "pnpm --filter @kahade/landing preview",
+    "preview:app": "pnpm --filter @kahade/dashboard preview",
+    "preview:admin": "pnpm --filter @kahade/admin preview"
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0"
+  }
+}
