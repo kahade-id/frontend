@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import api from '@kahade/utils';
+import { api } from '@kahade/utils';
 import {
  ShieldCheck, DeviceMobile, EnvelopeSimple, Key, Check, X,
  Warning, QrCode, Copy, Eye, EyeSlash, Trash, Monitor, ArrowsClockwise,
