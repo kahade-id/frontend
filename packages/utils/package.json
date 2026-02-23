@@ -1,0 +1,35 @@
+{
+  "name": "@kahade/utils",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "dependencies": {
+    "axios": "^1.6.5",
+    "dayjs": "^1.11.19",
+    "dompurify": "^3.3.1",
+    "zod": "^3.22.4",
+    "framer-motion": "^11.0.3"
+  },
+  "peerDependencies": {
+    "react": "^18.2.0"
+  },
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "tsup": "^8.2.4",
+    "typescript": "^5.3.3"
+  }
+}

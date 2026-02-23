@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./apps/landing"
+    },
+    {
+      "path": "./apps/dashboard"
+    },
+    {
+      "path": "./apps/admin"
+    }
+  ]
+}

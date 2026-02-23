@@ -1,0 +1,3 @@
+# Kahade App - Authenticated area, not for indexing
+User-agent: *
+Disallow: /
