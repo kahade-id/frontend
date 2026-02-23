@@ -1,0 +1,67 @@
+{
+  "_comment": "CloudFront Distribution Config Template — one per app (landing, dashboard, admin)",
+  "_usage": "Use with: aws cloudfront create-distribution --distribution-config file://cloudfront-distribution.json",
+
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "kahade-s3-origin",
+        "DomainName": "YOUR-BUCKET.s3.YOUR-REGION.amazonaws.com",
+        "_comment": "Use S3 REST endpoint, NOT the website endpoint, so OAC works",
+        "S3OriginConfig": {
+          "OriginAccessIdentity": ""
+        },
+        "OriginAccessControlId": "YOUR-OAC-ID"
+      }
+    ]
+  },
+
+  "DefaultCacheBehavior": {
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "Compress": true,
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": ["GET", "HEAD"]
+    },
+    "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+    "_comment_cache": "CachePolicyId above = 'CachingOptimized' managed policy",
+    "FunctionAssociations": {
+      "Quantity": 2,
+      "Items": [
+        {
+          "FunctionARN": "arn:aws:cloudfront::ACCOUNT_ID:function/kahade-spa-routing",
+          "EventType": "viewer-request"
+        },
+        {
+          "FunctionARN": "arn:aws:cloudfront::ACCOUNT_ID:function/kahade-security-headers",
+          "EventType": "viewer-response"
+        }
+      ]
+    }
+  },
+
+  "CustomErrorResponses": {
+    "_comment": "CRITICAL: These redirect S3 403/404 back to index.html for SPA routing",
+    "Quantity": 2,
+    "Items": [
+      {
+        "ErrorCode": 403,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 0
+      },
+      {
+        "ErrorCode": 404,
+        "ResponsePagePath": "/index.html",
+        "ResponseCode": "200",
+        "ErrorCachingMinTTL": 0
+      }
+    ]
+  },
+
+  "HttpVersion": "http2and3",
+  "PriceClass": "PriceClass_All",
+  "Enabled": true,
+  "Comment": "Kahade Frontend — change per app"
+}
