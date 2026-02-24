@@ -48,17 +48,13 @@ const signals = [
   },
 ];
 
-// Issue #23: Data aktivitas terpusat di sini saja (tidak duplikat di Hero)
 const activities = [
-  '🟢 Transaksi #KHD-2483 selesai · Rp 5.200.000 diamankan',
-  '🟢 Dana cair ke penjual dalam 8 jam',
-  '🔵 Pengguna baru bergabung dari Surabaya',
-  '🟢 Sengketa diselesaikan dalam 2 hari',
-  '🟢 Transaksi #KHD-2491 dikonfirmasi · Rp 12.000.000',
-  '🟢 Transaksi #KHD-2499 selesai · Rp 3.800.000 diamankan',
-  '🔵 Pengguna baru bergabung dari Medan',
-  '🟢 KYC #U-3841 disetujui',
-  // Semua data adalah simulasi untuk ilustrasi platform
+  'Transaksi #KHD-2483 selesai · Rp 5.200.000 diamankan',
+  'Dana cair ke penjual dalam 8 jam',
+  'Pengguna baru bergabung dari Surabaya',
+  'Sengketa diselesaikan dalam 2 hari',
+  'Transaksi #KHD-2491 dikonfirmasi · Rp 12.000.000',
+  'KYC #U-3841 disetujui',
 ];
 
 function StatCard({
@@ -104,48 +100,24 @@ function StatCard({
   );
 }
 
-// Issue #12: Marquee bisa di-pause saat hover untuk keterbacaan lebih baik.
-// prefers-reduced-motion sudah ditangani oleh CSS global (animation: none),
-// tapi kita tambahkan kontrol hover eksplisit di sini.
-function ActivityMarquee() {
-  const [paused, setPaused] = useState(false);
-
+function ActivityStrip() {
   return (
-    <div
-      className="overflow-hidden border-t border-border py-3 bg-background"
-      aria-label="Aktivitas transaksi real-time (simulasi)"
-    >
-      {/* Tombol pause/play aksesibel (Issue #12) */}
-      <div className="container flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => setPaused(p => !p)}
-          className="shrink-0 text-[0.6875rem] font-semibold text-muted-foreground
-            hover:text-foreground transition-colors px-2 py-1 rounded border border-border
-            focus:outline-none focus:ring-2 focus:ring-primary"
-          aria-label={paused ? 'Lanjutkan scrolling aktivitas' : 'Jeda scrolling aktivitas'}
-          aria-pressed={paused}
-        >
-          {paused ? '▶ Play' : '⏸ Jeda'}
-        </button>
-
-        <div className="overflow-hidden flex-1">
-          <motion.div
-            animate={paused ? { x: '0%' } : { x: ['0%', '-50%'] }}
-            transition={paused ? { duration: 0 } : { duration: 25, repeat: Infinity, ease: 'linear' }}
-            className="flex gap-12 whitespace-nowrap text-sm text-muted-foreground"
-            style={{ willChange: 'transform' }}
-          >
-            {[...activities, ...activities].map((a, i) => (
-              <span key={i} className="shrink-0">{a}</span>
-            ))}
-          </motion.div>
+    <div className="border-t border-border py-3 bg-background" aria-label="Aktivitas transaksi terbaru (simulasi)">
+      <div className="container">
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {activities.map((activity) => (
+            <span
+              key={activity}
+              className="shrink-0 text-xs md:text-sm text-muted-foreground px-3 py-1.5 rounded-full border border-border bg-muted/40"
+            >
+              {activity}
+            </span>
+          ))}
         </div>
       </div>
 
-      {/* Disclaimer simulasi (Issue #29) */}
-      <p className="text-center text-[0.625rem] text-muted-foreground/50 mt-1">
-        * Data aktivitas di atas adalah ilustrasi simulasi platform
+      <p className="text-center text-[0.625rem] text-muted-foreground/50 mt-2">
+        * Aktivitas bersifat ilustrasi agar alur platform mudah dipahami
       </p>
     </div>
   );
@@ -154,7 +126,6 @@ function ActivityMarquee() {
 export default function TrustSignals() {
   return (
     <section className="border-y border-border bg-muted">
-      {/* Stats bar */}
       <div className="container py-10">
         <div className="grid grid-cols-2 md:grid-cols-4 divide-x divide-border">
           {signals.map((signal, index) => (
@@ -163,8 +134,7 @@ export default function TrustSignals() {
         </div>
       </div>
 
-      {/* Live activity marquee */}
-      <ActivityMarquee />
+      <ActivityStrip />
     </section>
   );
 }

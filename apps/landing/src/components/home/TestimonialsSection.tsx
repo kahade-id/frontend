@@ -20,37 +20,21 @@ import { viewport } from '@kahade/utils';
 import { SectionLabel } from '@kahade/ui';
 import { testimonials } from './HomeData';
 
-function TestimonialMarquee({
-  items,
-  direction = 'left',
-}: {
-  items: typeof testimonials;
-  direction?: 'left' | 'right';
-}) {
-  // Issue #12: State untuk pause-on-hover
+function TestimonialMarquee({ items }: { items: typeof testimonials }) {
   const [paused, setPaused] = useState(false);
-
-  const animateFrom = direction === 'left' ? '0%'   : '-50%';
-  const animateTo   = direction === 'left' ? '-50%' : '0%';
 
   return (
     <div
       className="overflow-hidden"
-      // Issue #12: Pause on hover
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
-      // Issue #12: Pause on focus (keyboard user)
       onFocusCapture={() => setPaused(true)}
       onBlurCapture={() => setPaused(false)}
       aria-label="Scroll otomatis ulasan pengguna — hover atau fokus untuk menjeda"
     >
       <motion.div
-        animate={paused ? { x: animateFrom } : { x: [animateFrom, animateTo] }}
-        transition={
-          paused
-            ? { duration: 0 }
-            : { duration: 35, repeat: Infinity, ease: 'linear' }
-        }
+        animate={paused ? { x: '0%' } : { x: ['0%', '-50%'] }}
+        transition={paused ? { duration: 0 } : { duration: 48, repeat: Infinity, ease: 'linear' }}
         className="flex gap-6 w-max"
         style={{ willChange: 'transform' }}
       >
@@ -59,14 +43,12 @@ function TestimonialMarquee({
             key={i}
             className="w-80 shrink-0 card p-6 transition-shadow duration-300"
           >
-            {/* Stars */}
             <div className="flex gap-1 mb-4" aria-label={`Rating: ${t.rating} dari 5 bintang`}>
               {[...Array(t.rating)].map((_, j) => (
                 <Star key={j} weight="fill" className="w-4 h-4 text-warning" aria-hidden="true" />
               ))}
             </div>
 
-            {/* Issue #13: Kutipan teks dari HomeData — sudah tanpa klaim statistik absolut */}
             <blockquote className="text-sm text-muted-foreground leading-relaxed mb-5 line-clamp-4">
               "{t.content}"
             </blockquote>
@@ -87,24 +69,20 @@ function TestimonialMarquee({
         ))}
       </motion.div>
 
-      {/* Issue #12: Hint hover bagi pengguna yang ingin membaca */}
       <p className="text-center text-[0.6875rem] text-muted-foreground/50 mt-3">
-        Hover untuk menjeda scroll
+        Scroll diperlambat agar lebih mudah dibaca
       </p>
     </div>
   );
 }
 
 export default function TestimonialsSection() {
-  // Issue #26: Data dari HomeData (bukan lokal)
-  const firstHalf  = testimonials.slice(0, 5);
-  const secondHalf = testimonials.slice(5);
+  const featuredTestimonials = testimonials.slice(0, 5);
 
   return (
     <section className="section-padding-lg bg-background overflow-hidden">
       <div className="container mb-12">
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-8">
-          {/* Left: heading */}
           <motion.div
             initial={{ opacity: 0, y: 24 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -116,7 +94,6 @@ export default function TestimonialsSection() {
             </h2>
           </motion.div>
 
-          {/* Right: rating overview */}
           <motion.div
             initial={{ opacity: 0, x: 24 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -130,32 +107,12 @@ export default function TestimonialsSection() {
             </div>
             <p className="text-3xl font-black">4,9<span className="text-lg font-medium text-muted-foreground">/5</span></p>
             <p className="text-sm text-muted-foreground">2.100+ ulasan</p>
-
-            {/* Rating bars */}
-            <div className="mt-4 space-y-1.5 w-40">
-              {[{ stars: 5, pct: 87 }, { stars: 4, pct: 11 }, { stars: 3, pct: 2 }].map(({ stars, pct }) => (
-                <div key={stars} className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground w-10">{stars} ★</span>
-                  <div className="flex-1 h-1.5 bg-muted rounded-full overflow-hidden">
-                    <div className="h-full bg-warning rounded-full" style={{ width: `${pct}%` }} />
-                  </div>
-                  <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
-                </div>
-              ))}
-            </div>
           </motion.div>
         </div>
       </div>
 
-      {/* Marquee rows */}
-      <div className="space-y-6">
-        <TestimonialMarquee items={firstHalf}  direction="left"  />
-        <TestimonialMarquee items={secondHalf} direction="right" />
-      </div>
+      <TestimonialMarquee items={featuredTestimonials} />
 
-      {/* Issue #8: CTA tidak lagi ke /blog (mismatch intent).
-          Diarahkan ke /contact sebagai halaman yang relevan.
-          Catatan: Idealnya ganti ke /reviews ketika halaman tersebut sudah ada. */}
       <div className="container mt-12 text-center">
         <a
           href="/contact"

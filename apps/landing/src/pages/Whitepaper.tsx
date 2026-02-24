@@ -28,10 +28,10 @@ const tableOfContents = [
 ];
 
 const highlights = [
- { icon: Globe, stat: '$2.5T', label: 'Global P2P Market Size', description: 'The peer-to-peer marketplace is growing at 15% annually' },
- { icon: Shield, stat: '99.9%', label: 'Fraud Prevention Rate', description: 'Our escrow system prevents virtually all transaction fraud' },
- { icon: Users, stat: '10M+', label: 'Target Users by 2028', description: 'Projected user base across Southeast Asia and beyond' },
- { icon: ChartLine, stat: '40%', label: 'YoY Growth Target', description: 'Sustainable growth through product excellence' },
+ { icon: Globe, stat: '$2.5T', label: 'Global P2P Market (est.)', description: 'External market benchmark for long-term opportunity mapping' },
+ { icon: Shield, stat: '99.9%', label: 'Target System Reliability', description: 'Reliability target based on infrastructure and monitoring design' },
+ { icon: Users, stat: '10M+', label: 'Long-term User Target', description: 'Growth projection presented as scenario planning, not guarantee' },
+ { icon: ChartLine, stat: '40%', label: 'YoY Growth Scenario', description: 'Modeling assumption for strategic planning in the whitepaper' },
 ];
 
 const keyPoints = [

@@ -9,7 +9,7 @@ import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 
-const badges = ['SSL 256-bit', 'OJK Compliant', 'ISO 27001', 'Bank-grade Security'];
+const badges = ['SSL 256-bit', 'KYC + 2FA Aktif'];
 
 const features = [
  {
@@ -27,10 +27,10 @@ const features = [
 ];
 
 const compliance = [
- { icon: Certificate, name: 'OJK', desc: 'Terdaftar di Otoritas Jasa Keuangan Republik Indonesia.' },
- { icon: SealCheck, name: 'ISO 27001', desc: 'Standar internasional untuk keamanan informasi.' },
+ { icon: Certificate, name: 'OJK Ready', desc: 'Standar operasional disiapkan mengikuti ketentuan regulator Indonesia.' },
+ { icon: SealCheck, name: 'ISO 27001 Framework', desc: 'Kontrol keamanan informasi mengacu pada praktik terbaik ISO 27001.' },
  { icon: Detective, name: 'KYC/AML', desc: 'Patuh pada regulasi Know Your Customer dan Anti Money Laundering.' },
- { icon: Database, name: 'Bank Indonesia', desc: 'Mengikuti panduan dan regulasi Bank Indonesia untuk fintech.' },
+ { icon: Database, name: 'Regulasi BI', desc: 'Alur pembayaran dan operasional disesuaikan dengan ketentuan Bank Indonesia.' },
 ];
 
 export default function Security() {
@@ -39,7 +39,7 @@ export default function Security() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
  <div className="container text-center max-w-3xl mx-auto">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">
  <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-6">
@@ -115,9 +115,9 @@ export default function Security() {
  <motion.div variants={fadeInUp} initial="initial" whileInView="animate" viewport={viewport}>
  <h2 className="text-2xl font-bold mb-3">Transparansi Total</h2>
  <p className="text-muted-foreground mb-6">Unduh laporan keamanan dan audit kami yang tersedia untuk publik.</p>
- <button className="btn-secondary">
- <DownloadSimple size={18} /> Unduh Laporan Keamanan
- </button>
+ <a href="/contact" className="btn-secondary inline-flex items-center">
+ <DownloadSimple size={18} /> Minta Ringkasan Keamanan
+ </a>
  </motion.div>
  </div>
  </section>
