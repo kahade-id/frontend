@@ -104,7 +104,7 @@ export default function IntegrationDocs() {
  Panduan langkah demi langkah untuk mengintegrasikan escrow P2P Kahade.
  Dari sandbox hingga produksi dalam waktu singkat.
  </p>
- <Link href="/docs/api" className="block block">
+ <Link href="/docs/api" className="block">
  <Button className="btn-primary btn-lg">
  Lihat Referensi API
  <ArrowRight className="ml-2 w-5 h-5" weight="bold" aria-hidden="true" />
@@ -260,13 +260,13 @@ export default function IntegrationDocs() {
  <section className="section-padding bg-muted/30">
  <div className="container">
  <div className="max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 justify-center">
- <Link href="/docs/api" className="block block">
+ <Link href="/docs/api" className="block">
  <Button className="btn-primary w-full sm:w-auto">
  <Code className="mr-2 w-4 h-4" weight="duotone" aria-hidden="true" />
  Referensi API Lengkap
  </Button>
  </Link>
- <Link href="/docs" className="block block">
+ <Link href="/docs" className="block">
  <Button variant="outline" className="w-full sm:w-auto">
  Kembali ke Dokumentasi
  </Button>

@@ -5,9 +5,9 @@ import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 
 const pressReleases = [
- { date: '15 Januari 2025', title: 'Kahade Mencapai 10.000 Pengguna Aktif', summary: 'Platform escrow Kahade mengumumkan pencapaian 10.000 pengguna aktif dengan total dana yang diamankan melebihi Rp 50 Miliar.' },
- { date: '2 Oktober 2024', title: 'Kahade Luncurkan Fitur Resolusi Sengketa AI', summary: 'Fitur baru berbasis kecerdasan buatan memungkinkan penyelesaian sengketa otomatis dalam waktu kurang dari 24 jam.' },
- { date: '10 Juli 2024', title: 'Kahade Raih Pendanaan Seed dari Investor Lokal', summary: 'Pendanaan akan digunakan untuk pengembangan produk dan ekspansi ke kota-kota besar di Indonesia.' },
+ { date: '15 Januari 2025', title: 'Kahade Mencapai 10.000 Pengguna Aktif', summary: 'Platform escrow Kahade mengumumkan pencapaian 10.000 pengguna aktif dengan total dana yang diamankan melebihi Rp 50 Miliar.', link: '/blog/tips-transaksi-online-aman' },
+ { date: '2 Oktober 2024', title: 'Kahade Luncurkan Fitur Resolusi Sengketa AI', summary: 'Fitur baru berbasis kecerdasan buatan memungkinkan penyelesaian sengketa otomatis dalam waktu kurang dari 24 jam.', link: '/blog/kahade-v2-update' },
+ { date: '10 Juli 2024', title: 'Kahade Raih Pendanaan Seed dari Investor Lokal', summary: 'Pendanaan akan digunakan untuk pengembangan produk dan ekspansi ke kota-kota besar di Indonesia.', link: '/about' },
 ];
 
 const mediaLogos = ['Kompas', 'Bisnis Indonesia', 'TechInAsia', 'DailySocial', 'CNBC Indonesia', 'Forbes Indonesia', 'Katadata', 'Kontan'];
@@ -55,7 +55,7 @@ export default function Press() {
  </motion.div>
  <div className="space-y-4">
  {pressReleases.map((pr) => (
- <motion.div key={pr.title} variants={staggerItem} className="card p-6 group hover:border-primary transition-colors cursor-pointer">
+ <motion.a href={pr.link} key={pr.title} variants={staggerItem} className="card p-6 group hover:border-primary transition-colors block">
  <div className="flex items-start justify-between gap-4">
  <div>
  <p className="text-xs text-muted-foreground mb-2">{pr.date}</p>
@@ -64,7 +64,7 @@ export default function Press() {
  </div>
  <ArrowRight size={20} className="text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all shrink-0 mt-1" />
  </div>
- </motion.div>
+ </motion.a>
  ))}
  </div>
  </motion.div>
@@ -78,16 +78,16 @@ export default function Press() {
  <div className="card p-8">
  <h3 className="font-bold text-xl mb-3">Media Kit</h3>
  <p className="text-muted-foreground text-sm mb-6">Unduh logo, panduan merek, dan aset visual resmi Kahade.</p>
- <button className="btn-primary">
+ <a href="/files/kahade-media-kit.pdf" className="btn-primary inline-flex items-center">
  <DownloadSimple size={18} /> Unduh Media Kit
- </button>
+ </a>
  </div>
  <div className="card p-8">
  <h3 className="font-bold text-xl mb-3">Kontak Pers</h3>
  <p className="text-muted-foreground text-sm mb-3">Tim komunikasi kami siap membantu keperluan liputan Anda.</p>
- <div className="flex items-center gap-2 text-sm text-primary font-medium">
+ <a href="mailto:pers@kahade.id" className="flex items-center gap-2 text-sm text-primary font-medium">
  <Envelope size={16} /> pers@kahade.id
- </div>
+ </a>
  </div>
  </div>
  </div>

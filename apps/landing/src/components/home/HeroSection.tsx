@@ -116,7 +116,7 @@ export default function HeroSection() {
             >
               {/* Opsi 1: Link as anchor styled as button — VALID secara semantik */}
               <Link
-                href="/register"
+                href="https://app.kahade.id/register"
                 className="btn-primary btn-lg flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 Mulai Transaksi

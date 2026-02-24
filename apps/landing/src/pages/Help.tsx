@@ -75,7 +75,7 @@ export default function Help() {
  {categories.map((cat) => {
  const Icon = cat.icon;
  return (
- <motion.div key={cat.title} variants={staggerItem} className="card p-6 group hover:border-primary cursor-pointer transition-all hover:-translate-y-1">
+ <motion.div key={cat.title} variants={staggerItem} className="card p-6 group hover:border-primary transition-all hover:-translate-y-1">
  <div className="flex items-start justify-between mb-4">
  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
  <Icon size={24} className="text-primary" weight="duotone" />
@@ -101,7 +101,7 @@ export default function Help() {
  </motion.div>
  <div className="space-y-3">
  {popularArticles.map((article, i) => (
- <motion.div key={i} variants={staggerItem} className="card p-4 flex items-center justify-between group hover:border-primary cursor-pointer transition-colors">
+ <motion.div key={i} variants={staggerItem} className="card p-4 flex items-center justify-between group hover:border-primary transition-colors">
  <div className="flex items-center gap-4">
  <span className="text-2xl font-bold text-muted-foreground/30 w-8 text-center">{i + 1}</span>
  <div>
@@ -127,18 +127,14 @@ export default function Help() {
  <h2 className="text-2xl font-bold mb-3">Tidak menemukan jawaban?</h2>
  <p className="text-muted-foreground mb-8">Tim dukungan kami siap membantu Anda.</p>
  <div className="flex flex-col sm:flex-row gap-4 justify-center">
- <button className="btn-primary">
+ <a href="mailto:halo@kahade.id?subject=Live%20Chat%20Request" className="btn-primary inline-flex items-center justify-center">
  <ChatCircle size={18} /> Chat Live
- </button>
- <Link href="/support">
- <button className="btn-secondary">
+ </a>
+ <Link href="/contact" className="btn-secondary inline-flex items-center justify-center">
  <Ticket size={18} /> Kirim Tiket
- </button>
  </Link>
- <a href="mailto:halo@kahade.id">
- <button className="btn-secondary">
+ <a href="mailto:halo@kahade.id" className="btn-secondary inline-flex items-center justify-center">
  <Envelope size={18} /> Email
- </button>
  </a>
  </div>
  </motion.div>

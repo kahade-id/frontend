@@ -90,11 +90,11 @@ export default function Partners() {
  {submitted ? (
  <div className="card p-10 text-center">
  <CheckCircle size={48} className="text-green-600 mx-auto mb-4" weight="fill" />
- <h3 className="font-bold text-xl mb-2">Formulir Terkirim!</h3>
- <p className="text-muted-foreground">Tim partnership kami akan menghubungi Anda segera.</p>
+ <h3 className="font-bold text-xl mb-2">Draft Kemitraan Siap Dikirim!</h3>
+ <p className="text-muted-foreground">Kami membuka draft email ke tim partnership. Silakan kirim untuk melanjutkan proses.</p>
  </div>
  ) : (
- <form onSubmit={e => { e.preventDefault(); setSubmitted(true); }} className="card p-8 space-y-5">
+ <form onSubmit={e => { e.preventDefault(); const subject = encodeURIComponent(`Kemitraan - ${form.company}`); const body = encodeURIComponent(`Perusahaan: ${form.company}\nPIC: ${form.name}\nEmail: ${form.email}\n\nKebutuhan:\n${form.message}`); window.location.href = `mailto:partnership@kahade.id?subject=${subject}&body=${body}`; setSubmitted(true); }} className="card p-8 space-y-5">
  <div className="grid md:grid-cols-2 gap-5">
  <div>
  <label className="text-sm font-medium mb-1.5 block">Nama Perusahaan</label>

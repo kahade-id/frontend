@@ -248,14 +248,14 @@ export default function Navbar() {
               <>
                 {/* Link as styled anchor — VALID */}
                 <Link
-                  href="/login"
+                  href="https://app.kahade.id/login"
                   className="inline-flex items-center px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted"
                   aria-label="Masuk ke akun Anda"
                 >
                   Masuk
                 </Link>
                 <Link
-                  href="/register"
+                  href="https://app.kahade.id/register"
                   className="btn-primary inline-flex items-center"
                   aria-label="Buat akun baru"
                 >
@@ -268,9 +268,9 @@ export default function Navbar() {
           {/* Mobile: CTA + Hamburger */}
           <div className="flex lg:hidden items-center gap-3">
             {!isAuthenticated && (
-              <Link href="/register" className="btn-primary btn-xs inline-flex items-center">
+              <a href="https://app.kahade.id/register" className="btn-primary btn-xs inline-flex items-center">
                 Mulai
-              </Link>
+              </a>
             )}
             {isAuthenticated && (
               <Button
@@ -621,14 +621,14 @@ function MobileMenu({
         ) : (
           <>
             <Link
-              href="/register"
+              href="https://app.kahade.id/register"
               onClick={onClose}
               className="btn-primary w-full flex items-center justify-center"
             >
               Mulai
             </Link>
             <Link
-              href="/login"
+              href="https://app.kahade.id/login"
               onClick={onClose}
               className="w-full flex items-center justify-center px-4 py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors"
             >

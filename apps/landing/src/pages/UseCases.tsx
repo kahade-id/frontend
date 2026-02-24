@@ -102,7 +102,7 @@ export default function UseCases() {
  return (
  <motion.div key={i} variants={staggerItem} initial="initial" whileInView="animate" viewport={viewport}>
  <div
- className={`card overflow-hidden cursor-pointer transition-all duration-300 ${isActive ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/50 hover:-translate-y-1'}`}
+ className={`card overflow-hidden transition-all duration-300 ${isActive ? 'border-primary ring-2 ring-primary/20' : 'hover:border-primary/50 hover:-translate-y-1'}`}
  onClick={() => setActive(isActive ? null : i)}
  >
  <div className={`bg-gradient-to-br ${uc.color} p-8 pb-6`}>
@@ -145,11 +145,11 @@ export default function UseCases() {
  </div>
  ))}
  </div>
- <Link href="/register">
+ <a href="https://app.kahade.id/register">
  <button className="btn-primary mt-6">
  Mulai Sekarang <ArrowRight size={16} />
  </button>
- </Link>
+ </a>
  </div>
  </motion.div>
  )}

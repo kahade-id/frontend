@@ -44,7 +44,7 @@ export default function NotFound() {
  </p>
  
  <div className="flex flex-col sm:flex-row gap-4 md:gap-4 justify-center">
- <Link href="/" className="block block">
+ <Link href="/" className="block">
  <Button className="h-10 md:h-11 px-5 md:px-6 bg-black text-white hover:bg-black/90 font-semibold rounded-xl gap-2">
  <House className="w-5 h-5" aria-hidden="true" weight="bold" />
  Kembali ke Beranda
