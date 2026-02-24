@@ -78,7 +78,7 @@ export default function FinalCTA() {
             {/* Issue #24: Hanya 2 CTA — satu primer, satu sekunder. Tidak ada duplikasi. */}
             <motion.div variants={staggerItem} className="flex flex-col sm:flex-row gap-4">
               <Link
-                href="/register"
+                href="https://app.kahade.id/register"
                 className="inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-lg bg-white text-black text-base font-semibold hover:bg-neutral-100 transition-colors"
               >
                 Mulai Gratis

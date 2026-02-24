@@ -181,7 +181,7 @@ export default function Docs() {
  Integrasikan Kahade langsung ke aplikasi atau platform Anda menggunakan
  REST API kami yang terdokumentasi lengkap.
  </p>
- <Link href="/docs/api" className="block block">
+ <Link href="/docs/api" className="block">
  <Button className="btn-primary">
  Lihat Dokumentasi API
  <ArrowRight className="ml-2 w-4 h-4" weight="bold" aria-hidden="true" />
@@ -197,7 +197,7 @@ export default function Docs() {
  Panduan langkah demi langkah untuk mengintegrasikan sistem escrow
  Kahade ke platform Anda dengan cepat dan aman.
  </p>
- <Link href="/docs/integration" className="block block">
+ <Link href="/docs/integration" className="block">
  <Button variant="outline" className="btn-lg">
  Panduan Integrasi
  <ArrowRight className="ml-2 w-4 h-4" weight="bold" aria-hidden="true" />
@@ -218,12 +218,12 @@ export default function Docs() {
  email, atau telepon.
  </p>
  <div className="flex flex-col sm:flex-row gap-4 justify-center">
- <Link href="/help" className="block block">
+ <Link href="/help" className="block">
  <Button className="btn-primary">
  Buka Pusat Bantuan
  </Button>
  </Link>
- <Link href="/contact" className="block block">
+ <Link href="/contact" className="block">
  <Button variant="outline">
  Hubungi Tim Kami
  </Button>

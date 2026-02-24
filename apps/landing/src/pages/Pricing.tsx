@@ -219,11 +219,11 @@ export default function Pricing() {
  <span>Total diterima penjual</span>
  <span className="text-green-600">{formatRupiah(net)}</span>
  </div>
- <Link href="/register">
+ <a href="https://app.kahade.id/register">
  <button className="btn-primary w-full mt-2">
  Mulai Transaksi <ArrowRight size={16} />
  </button>
- </Link>
+ </a>
  </div>
  </div>
  </div>

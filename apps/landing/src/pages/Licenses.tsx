@@ -271,8 +271,8 @@ export default function Licenses() {
  <p className="text-xs md:text-sm text-white/50">
  Jika Anda merasa kami melewatkan atribusi atau memiliki pertanyaan tentang penggunaan
  perangkat lunak open source, silakan hubungi kami di{' '}
- <a href="mailto:legal@kahade.com" className="text-white hover:underline">
- legal@kahade.com
+ <a href="mailto:legal@kahade.id" className="text-white hover:underline">
+ legal@kahade.id
  </a>
  </p>
  </motion.div>

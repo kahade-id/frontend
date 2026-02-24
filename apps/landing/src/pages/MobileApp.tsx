@@ -48,12 +48,12 @@ export default function MobileApp() {
  Kelola semua transaksi escrow Anda dari smartphone. Kapan saja, di mana saja, dengan keamanan penuh.
  </motion.p>
  <motion.div variants={staggerItem} className="flex flex-wrap gap-4">
- <button className="flex items-center gap-3 bg-white text-primary px-5 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
+ <a href="https://apps.apple.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-5 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
  <AppStoreLogo size={24} /> App Store
- </button>
- <button className="flex items-center gap-3 bg-white text-primary px-5 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
+ </a>
+ <a href="https://play.google.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-5 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
  <GooglePlayLogo size={24} /> Play Store
- </button>
+ </a>
  </motion.div>
  <motion.p variants={staggerItem} className="text-primary-foreground/50 text-sm mt-4">
  iOS 14+ · Android 8.0+
@@ -127,7 +127,7 @@ export default function MobileApp() {
  {[...Array(5)].map((_, i) => <Star key={i} size={24} className="text-yellow-500" weight="fill" />)}
  </div>
  <div className="text-4xl font-bold mb-1">4.8<span className="text-2xl text-muted-foreground">/5</span></div>
- <p className="text-muted-foreground text-sm">Dari 500+ ulasan di App Store & Play Store</p>
+ <p className="text-muted-foreground text-sm">Dari 500+ ulasan terverifikasi (tautan store tersedia di tombol download)</p>
  </motion.div>
  <div className="grid md:grid-cols-3 gap-5">
  {reviews.map((r) => (
@@ -147,15 +147,15 @@ export default function MobileApp() {
  {/* DOWNLOAD CTA */}
  <section className="section-padding-md bg-primary text-primary-foreground">
  <div className="container text-center max-w-2xl mx-auto">
- <h2 className="text-3xl font-bold mb-4">Download sekarang, gratis!</h2>
- <p className="text-primary-foreground/70 mb-8">Tersedia di iOS dan Android. Tidak perlu kartu kredit untuk mulai.</p>
+ <h2 className="text-3xl font-bold mb-4">Download sekarang (Beta)</h2>
+ <p className="text-primary-foreground/70 mb-8">Tersedia versi beta iOS & Android. Beberapa fitur masih dalam tahap penyempurnaan.</p>
  <div className="flex gap-4 justify-center flex-wrap">
- <button className="flex items-center gap-3 bg-white text-primary px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
+ <a href="https://apps.apple.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
  <AppStoreLogo size={24} /> App Store
- </button>
- <button className="flex items-center gap-3 bg-white text-primary px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
+ </a>
+ <a href="https://play.google.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
  <GooglePlayLogo size={24} /> Play Store
- </button>
+ </a>
  </div>
  </div>
  </section>

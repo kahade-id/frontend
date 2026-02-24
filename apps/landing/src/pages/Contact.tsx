@@ -23,6 +23,9 @@ export default function Contact() {
 
  const handleSubmit = (e: React.FormEvent) => {
  e.preventDefault();
+ const subject = encodeURIComponent(`Kontak Kahade - ${form.topic || "Pertanyaan Umum"}`);
+ const body = encodeURIComponent(`Nama: ${form.name}\nEmail: ${form.email}\nTopik: ${form.topic}\n\nPesan:\n${form.message}`);
+ window.location.href = `mailto:halo@kahade.id?subject=${subject}&body=${body}`;
  setSubmitted(true);
  };
 
@@ -54,10 +57,10 @@ export default function Contact() {
  ))}
  </div>
  <div className="border-t border-white/10 pt-6 flex items-center gap-4">
- {[LinkedinLogo, TwitterLogo, InstagramLogo].map((Icon, i) => (
- <button key={i} className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
+ {[{ icon: LinkedinLogo, href: "https://www.linkedin.com" }, { icon: TwitterLogo, href: "https://x.com" }, { icon: InstagramLogo, href: "https://instagram.com" }].map(({ icon: Icon, href }) => (
+ <a key={href} href={href} target="_blank" rel="noreferrer" className="w-9 h-9 rounded-full border border-white/20 flex items-center justify-center hover:bg-white/10 transition-colors">
  <Icon size={16} />
- </button>
+ </a>
  ))}
  </div>
  </motion.div>
@@ -70,8 +73,8 @@ export default function Contact() {
  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
  <CheckCircle size={32} className="text-green-600" weight="fill" />
  </div>
- <h2 className="text-2xl font-bold mb-3">Pesan Terkirim!</h2>
- <p className="text-muted-foreground mb-6">Kami akan menghubungi Anda dalam 24 jam. Cek inbox email Anda.</p>
+ <h2 className="text-2xl font-bold mb-3">Draft Email Siap Dikirim</h2>
+ <p className="text-muted-foreground mb-6">Kami membuka aplikasi email Anda dengan draft pesan. Silakan kirim untuk menghubungi tim kami.</p>
  <button onClick={() => setSubmitted(false)} className="btn-secondary">Kirim Pesan Lain</button>
  </motion.div>
  ) : (
@@ -98,6 +101,7 @@ export default function Contact() {
  <div>
  <label className="text-sm font-medium mb-1.5 block">Topik</label>
  <select
+ required
  className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all text-sm appearance-none"
  value={form.topic} onChange={e => setForm({...form, topic: e.target.value})}
  >

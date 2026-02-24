@@ -83,11 +83,11 @@ export default function HowItWorks() {
  Sistem escrow yang sederhana, transparan, dan melindungi semua pihak.
  </motion.p>
  <motion.div variants={staggerItem}>
- <Link href="/register">
+ <a href="https://app.kahade.id/register">
  <button className="bg-white text-primary font-semibold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
  Mulai Sekarang <ArrowRight size={18} />
  </button>
- </Link>
+ </a>
  </motion.div>
  </motion.div>
  </div>
@@ -205,11 +205,11 @@ export default function HowItWorks() {
  <div className="container text-center max-w-2xl mx-auto">
  <h2 className="text-3xl font-bold mb-4">Siap bertransaksi dengan aman?</h2>
  <p className="text-primary-foreground/70 mb-8">Daftar gratis dan buat transaksi pertama Anda dalam 5 menit.</p>
- <Link href="/register">
+ <a href="https://app.kahade.id/register">
  <button className="bg-white text-primary font-semibold px-8 py-3.5 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
  Mulai Gratis <ArrowRight size={18} />
  </button>
- </Link>
+ </a>
  </div>
  </section>
 

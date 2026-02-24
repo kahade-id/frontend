@@ -143,7 +143,7 @@ export default function Careers() {
  className="space-y-3"
  >
  {filtered.map((job) => (
- <div key={job.title} className="card p-5 flex items-center justify-between group hover:border-primary transition-colors cursor-pointer">
+ <div key={job.title} className="card p-5 flex items-center justify-between group hover:border-primary transition-colors">
  <div className="flex items-center gap-4">
  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center shrink-0">
  <Briefcase size={20} className="text-primary" weight="duotone" />

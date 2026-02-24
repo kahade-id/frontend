@@ -80,14 +80,14 @@ export default function Whitepaper() {
  </div>
  
  <div className="flex flex-col sm:flex-row gap-4 md:gap-4">
- <Button className="h-11 md:h-12 px-5 md:px-6 bg-black text-white hover:bg-black/90 font-semibold rounded-xl gap-2">
+ <a href="/files/kahade-whitepaper.pdf" className="h-11 md:h-12 px-5 md:px-6 bg-black text-white hover:bg-black/90 font-semibold rounded-xl gap-2 inline-flex items-center justify-center">
  <Download className="w-5 h-5" aria-hidden="true" weight="bold" />
  Download PDF
- </Button>
- <Button variant="outline" className="h-11 md:h-12 px-5 md:px-6 border-border font-semibold rounded-xl gap-2">
+ </a>
+ <a href="#whitepaper-preview" className="h-11 md:h-12 px-5 md:px-6 border border-border font-semibold rounded-xl gap-2 inline-flex items-center justify-center">
  <BookOpen className="w-5 h-5" aria-hidden="true" weight="regular" />
  Read Online
- </Button>
+ </a>
  </div>
  </motion.div>
  
@@ -98,7 +98,7 @@ export default function Whitepaper() {
  transition={{ delay: 0.2 }}
  className="relative hidden md:block"
  >
- <div className="relative bg-card rounded-xl md:rounded-2xl border border-border p-6 md:p-8 transform rotate-2 hover:rotate-0 transition-transform">
+ <div id="whitepaper-preview" className="relative bg-card rounded-xl md:rounded-2xl border border-border p-6 md:p-8 transform rotate-2 hover:rotate-0 transition-transform">
  <div className="absolute top-4 right-4 w-10 h-10 md:w-12 md:h-12 rounded-xl bg-black flex items-center justify-center" aria-hidden="true">
  <FileText className="w-5 h-5 md:w-6 md:h-6 text-white" aria-hidden="true" weight="bold" />
  </div>
@@ -189,7 +189,7 @@ export default function Whitepaper() {
  whileInView={{ opacity: 1, x: 0 }}
  viewport={{ once: true }}
  transition={{ delay: index * 0.03 }}
- className="flex items-center justify-between p-2 md:p-4 rounded-xl bg-muted hover:bg-muted transition-colors cursor-pointer group border border-transparent hover:border-border"
+ className="flex items-center justify-between p-2 md:p-4 rounded-xl bg-muted hover:bg-muted transition-colors group border border-transparent hover:border-border"
  >
  <div className="flex items-center gap-4 md:gap-4">
  <span className="text-foreground font-mono font-bold text-sm md:text-base">{item.number}</span>
@@ -218,10 +218,10 @@ export default function Whitepaper() {
  ))}
  </ul>
  
- <Button className="w-full h-11 md:h-12 bg-black text-white hover:bg-black/90 font-semibold rounded-xl gap-2">
+ <a href="/files/kahade-whitepaper.pdf" className="w-full h-11 md:h-12 bg-black text-white hover:bg-black/90 font-semibold rounded-xl gap-2 inline-flex items-center justify-center">
  <Download className="w-5 h-5" aria-hidden="true" weight="bold" />
  Download Whitepaper
- </Button>
+ </a>
  </div>
  </motion.div>
  </div>
@@ -245,13 +245,13 @@ export default function Whitepaper() {
  Have questions about our whitepaper or want to discuss partnership opportunities?
  </p>
  <div className="flex flex-col sm:flex-row gap-4 md:gap-4 justify-center">
- <Link href="/contact" className="block block">
+ <Link href="/contact" className="block">
  <Button className="h-11 md:h-12 px-6 md:px-8 bg-card text-foreground hover:bg-gray-100 font-semibold rounded-xl gap-2">
  Contact Us
  <ArrowRight className="w-5 h-5" aria-hidden="true" weight="bold" />
  </Button>
  </Link>
- <Link href="/about" className="block block">
+ <Link href="/about" className="block">
  <Button variant="outline" className="h-11 md:h-12 px-6 md:px-8 bg-transparent text-white border-white/30 hover:bg-white/10 font-semibold rounded-xl">
  About Kahade
  </Button>
