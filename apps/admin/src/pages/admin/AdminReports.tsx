@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Download, TrendUp, CurrencyDollar, Users, ArrowsLeftRight } from '@phosphor-icons/react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { Button } from '@kahade/ui';
 
 const monthlyData = [
  { month: 'Okt', volume: 38.2, tx: 1240, users: 320, revenue: 954 },
@@ -55,10 +56,10 @@ export default function AdminReports() {
  <div className="flex items-center justify-between flex-wrap gap-3">
  <div className="flex gap-1 bg-muted/50 p-1 rounded-xl">
  {['7 hari','30 hari','3 bulan','6 bulan','1 tahun'].map(p => (
- <button key={p} onClick={() => setPeriod(p)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${period === p ? 'bg-background ' : 'text-muted-foreground hover:text-foreground'}`}>{p}</button>
+ <Button key={p} onClick={() => setPeriod(p)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${period === p ? 'bg-background ' : 'text-muted-foreground hover:text-foreground'}`}>{p}</Button>
  ))}
  </div>
- <button onClick={handleDownload} className="btn-secondary gap-2 text-sm"><Download size={16} /> Unduh Laporan</button>
+ <Button onClick={handleDownload}  variant="secondary" className="gap-2 text-sm"><Download size={16} /> Unduh Laporan</Button>
  </div>
 
  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

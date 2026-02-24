@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const benefits = [
  { icon: CurrencyDollar, title: 'Gaji Kompetitif', description: 'Kompensasi di atas rata-rata industri, disesuaikan dengan pengalaman.' },
@@ -119,7 +120,7 @@ export default function Careers() {
  </div>
  <div className="flex flex-wrap gap-2">
  {filters.map((f) => (
- <button
+ <Button
  key={f}
  onClick={() => setActiveFilter(f)}
  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
@@ -129,7 +130,7 @@ export default function Careers() {
  }`}
  >
  {f}
- </button>
+ </Button>
  ))}
  </div>
  </motion.div>

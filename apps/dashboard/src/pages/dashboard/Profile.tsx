@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'wouter';
 import { ShieldCheck, Warning, PencilSimple, CalendarBlank, Star } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { Button } from '@kahade/ui';
 
 const tabs = ['Info Pribadi', 'Keamanan', 'Notifikasi', 'Privasi'];
 
@@ -27,7 +28,7 @@ export default function Profile() {
  </div>
  </div>
  </div>
- <button className="btn-secondary gap-2 text-sm"><PencilSimple size={16} /> Edit Profil</button>
+ <Button  variant="secondary" className="gap-2 text-sm"><PencilSimple size={16} /> Edit Profil</Button>
  </div>
 
  {/* KYC Status */}
@@ -48,7 +49,7 @@ export default function Profile() {
  {/* Tabs */}
  <div className="flex gap-1 bg-muted/50 p-1 rounded-xl mb-5 overflow-x-auto no-scrollbar">
  {tabs.map(tab => (
- <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-1 ${activeTab === tab ? 'bg-background text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab}</button>
+ <Button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-1 ${activeTab === tab ? 'bg-background text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab}</Button>
  ))}
  </div>
 
@@ -76,14 +77,14 @@ export default function Profile() {
  <p className="font-medium">Password</p>
  <p className="text-xs text-muted-foreground">Terakhir diubah: 3 bulan lalu</p>
  </div>
- <button className="btn-secondary text-sm">Ubah</button>
+ <Button  variant="secondary" className="text-sm">Ubah</Button>
  </div>
  <div className="flex items-center justify-between py-3 border-b border-border">
  <div>
  <p className="font-medium">Autentikasi 2 Faktor</p>
  <p className="text-xs text-muted-foreground">Aktif via Google Authenticator</p>
  </div>
- <button className="btn-secondary text-sm">Kelola</button>
+ <Button  variant="secondary" className="text-sm">Kelola</Button>
  </div>
  <Link href="/security" className="btn-ghost text-sm text-primary inline-flex">Kelola keamanan lanjutan →</Link>
  </div>

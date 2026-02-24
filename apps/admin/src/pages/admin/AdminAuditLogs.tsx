@@ -3,6 +3,7 @@ import { MagnifyingGlass, Info, CheckCircle, Warning, FunnelSimple } from '@phos
 import AdminLayout from '../../components/layout/AdminLayout';
 import { adminApi } from '@kahade/utils';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 interface AuditLog {
   id: string;
@@ -63,10 +64,10 @@ export default function AdminAuditLogs() {
       <div className="space-y-4">
         <div className="flex gap-1 bg-muted/50 p-1 rounded-xl w-fit">
           {severities.map(s => (
-            <button key={s} onClick={() => setSeverity(s)}
+            <Button key={s} onClick={() => setSeverity(s)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${severity === s ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               {s}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -77,9 +78,9 @@ export default function AdminAuditLogs() {
               <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Cari log..."
                 className="pl-9 pr-4 py-2 rounded-xl border border-border text-sm bg-background focus:outline-none w-64" />
             </div>
-            <button onClick={fetchLogs} className="btn-secondary gap-2 text-sm px-3 py-2">
+            <Button onClick={fetchLogs}  variant="secondary" className="gap-2 text-sm px-3 py-2">
               <FunnelSimple size={15} /> Refresh
-            </button>
+            </Button>
           </div>
 
           {loading ? (

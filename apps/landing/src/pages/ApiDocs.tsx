@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { CopySimple, Check, Code, LinkSimple, Key, CaretRight } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { Button } from '@kahade/ui';
 
 const nav = [
  { section: 'Pengenalan', items: ['Ikhtisar', 'Autentikasi', 'Rate Limits'] },
@@ -67,10 +68,10 @@ function CodeBlock({ code, lang = 'javascript' }: { code: string; lang?: string 
  <div className="relative bg-neutral-950 rounded-xl overflow-hidden border border-neutral-800">
  <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-800">
  <span className="text-xs text-neutral-400 font-medium">{lang}</span>
- <button onClick={copy} className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors">
+ <Button onClick={copy} className="flex items-center gap-1.5 text-xs text-neutral-400 hover:text-white transition-colors">
  {copied ? <Check size={14} className="text-green-400" /> : <CopySimple size={14} />}
  {copied ? 'Disalin!' : 'Salin'}
- </button>
+ </Button>
  </div>
  <pre className="p-4 overflow-x-auto text-sm leading-relaxed">
  <code className="text-neutral-100">{code}</code>
@@ -93,7 +94,7 @@ export default function ApiDocs() {
  <div key={section} className="mb-6">
  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-2 px-3">{section}</p>
  {items.map(item => (
- <button
+ <Button
  key={item}
  onClick={() => setActiveSection(item)}
  className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all mb-0.5 flex items-center gap-2 ${
@@ -102,7 +103,7 @@ export default function ApiDocs() {
  >
  {activeSection === item && <CaretRight size={12} />}
  {item}
- </button>
+ </Button>
  ))}
  </div>
  ))}

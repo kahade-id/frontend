@@ -197,9 +197,9 @@ export default function About() {
  <div className="border-t border-border pt-3">
  <p className="text-sm text-muted-foreground italic">"{member.quote}"</p>
  </div>
- <button className="mt-4 flex items-center gap-1 text-sm text-primary mx-auto opacity-0 group-hover:opacity-100 transition-opacity">
+ <Button className="mt-4 flex items-center gap-1 text-sm text-primary mx-auto opacity-0 group-hover:opacity-100 transition-opacity">
  <LinkedinLogo size={16} /> LinkedIn
- </button>
+ </Button>
  </motion.div>
  ))}
  </div>

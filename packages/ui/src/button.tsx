@@ -4,44 +4,84 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@kahade/utils";
 
 const buttonVariants = cva(
- [
- "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold",
- "transition-all duration-200 select-none cursor-pointer",
- "disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none",
- "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
- "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-[1.125rem] [&_svg]:shrink-0",
- "active:scale-[0.98]",
- ].join(" "),
- {
- variants: {
- variant: {
- default: "bg-primary text-primary-foreground rounded-md hover:bg-primary/90 focus-visible:ring-primary",
- destructive: "bg-destructive text-white rounded-md hover:bg-destructive/90 focus-visible:ring-destructive",
- outline: "border-2 border-border bg-transparent text-foreground rounded-md hover:border-foreground hover:bg-foreground hover:text-background focus-visible:ring-foreground",
- secondary: "border border-border bg-background text-foreground rounded-md hover:border-foreground/50 hover:bg-muted focus-visible:ring-foreground",
- ghost: "bg-transparent text-muted-foreground rounded-md hover:text-foreground hover:bg-muted focus-visible:ring-foreground",
- link: "text-primary underline-offset-4 hover:underline focus-visible:ring-primary",
- },
- size: {
- xs: "h-6 px-2.5 py-0.5 text-xs rounded-md gap-1",
- sm: "h-8 px-3 py-1.5 text-sm rounded-md",
- default: "h-10 px-5 py-2.5 text-[0.9375rem]",
- lg: "h-11 px-6 py-2.5 text-base rounded-md",
- xl: "h-12 px-8 py-3 text-lg rounded-lg",
- icon: "size-9 rounded-md p-0",
- "icon-sm": "size-7 rounded-md p-0",
- "icon-lg": "size-10 rounded-md p-0",
- },
- },
- defaultVariants: { variant: "default", size: "default" },
- }
+  [
+    "inline-flex items-center justify-center gap-2 whitespace-nowrap font-semibold",
+    "text-[var(--button-font-size,0.875rem)] leading-none",
+    "rounded-[var(--button-radius,var(--radius,0.625rem))]",
+    "h-[var(--button-height-md,2.5rem)] px-[var(--button-padding-x-md,1rem)]",
+    "transition-colors duration-200 select-none cursor-pointer",
+    "disabled:opacity-50 disabled:cursor-not-allowed",
+    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
+    "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
+  ].join(" "),
+  {
+    variants: {
+      variant: {
+        primary: "bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-primary",
+        secondary: "border border-border bg-background text-foreground hover:bg-muted focus-visible:ring-foreground",
+        outline: "border border-border bg-transparent text-foreground hover:bg-muted focus-visible:ring-foreground",
+        ghost: "bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-foreground",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive",
+        link: "h-auto px-0 py-0 rounded-none text-primary underline-offset-4 hover:underline focus-visible:ring-primary",
+      },
+      size: {
+        sm: "h-[var(--button-height-sm,2.25rem)] px-[var(--button-padding-x-sm,0.875rem)] text-[0.8125rem]",
+        md: "h-[var(--button-height-md,2.5rem)] px-[var(--button-padding-x-md,1rem)]",
+        lg: "h-[var(--button-height-lg,2.75rem)] px-[var(--button-padding-x-lg,1.25rem)] text-[0.9375rem]",
+        icon: "size-[var(--button-height-md,2.5rem)] p-0",
+      },
+      fullWidth: {
+        true: "w-full",
+      },
+    },
+    defaultVariants: {
+      variant: "primary",
+      size: "md",
+    },
+  }
 );
 
+export interface ButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+    VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+  loading?: boolean;
+  leftIcon?: React.ReactNode;
+  rightIcon?: React.ReactNode;
+}
+
 function Button({
- className, variant, size, asChild = false, ...props
-}: React.ComponentProps<"button"> & VariantProps<typeof buttonVariants> & { asChild?: boolean }) {
- const Comp = asChild ? Slot : "button";
- return <Comp data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />;
+  className,
+  variant,
+  size,
+  asChild = false,
+  loading = false,
+  disabled,
+  leftIcon,
+  rightIcon,
+  children,
+  fullWidth,
+  ...props
+}: ButtonProps) {
+  const Comp = asChild ? Slot : "button";
+
+  return (
+    <Comp
+      data-slot="button"
+      className={cn(buttonVariants({ variant, size, fullWidth, className }))}
+      aria-busy={loading || undefined}
+      disabled={disabled || loading}
+      {...props}
+    >
+      {loading ? (
+        <span className="size-4 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden="true" />
+      ) : (
+        leftIcon
+      )}
+      {children}
+      {rightIcon}
+    </Comp>
+  );
 }
 
 export { Button, buttonVariants };

@@ -3,6 +3,7 @@ import { MagnifyingGlass, FunnelSimple, Download, Eye, DotsThree } from '@phosph
 import AdminLayout from '../../components/layout/AdminLayout';
 import { adminApi } from '@kahade/utils';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 interface AdminUser {
   id: string;
@@ -64,7 +65,7 @@ export default function AdminUsers() {
     <AdminLayout title="Manajemen Pengguna" subtitle="Kelola semua pengguna platform">
       <div className="space-y-4">
         <div className="flex gap-1 bg-muted/50 p-1 rounded-xl w-fit">
-          {tabs.map(t => <button key={t} onClick={() => { setTab(t); setPage(1); }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-background' : 'text-muted-foreground hover:text-foreground'}`}>{t}</button>)}
+          {tabs.map(t => <Button key={t} onClick={() => { setTab(t); setPage(1); }} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-background' : 'text-muted-foreground hover:text-foreground'}`}>{t}</Button>)}
         </div>
         <div className="card overflow-hidden">
           <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-muted/30">
@@ -73,8 +74,8 @@ export default function AdminUsers() {
               <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Cari pengguna..." className="pl-9 pr-4 py-2 rounded-xl border border-border text-sm bg-background focus:outline-none w-64" />
             </div>
             <div className="flex gap-2">
-              <button className="btn-secondary gap-2 text-sm px-3 py-2"><FunnelSimple size={15} /> Filter</button>
-              <button className="btn-secondary gap-2 text-sm px-3 py-2"><Download size={15} /> Export</button>
+              <Button  variant="secondary" className="gap-2 text-sm px-3 py-2"><FunnelSimple size={15} /> Filter</Button>
+              <Button  variant="secondary" className="gap-2 text-sm px-3 py-2"><Download size={15} /> Export</Button>
             </div>
           </div>
           {loading ? (
@@ -119,9 +120,9 @@ export default function AdminUsers() {
                     </td>
                     <td className="px-4 py-3">{u.totalTransactions ?? '—'}</td>
                     <td className="px-4 py-3">
-                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded-lg">
+                      <Button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded-lg">
                         <DotsThree size={16} />
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}

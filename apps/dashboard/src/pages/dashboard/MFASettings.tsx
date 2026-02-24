@@ -6,6 +6,7 @@ import {
  Lock
 } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { Button } from '@kahade/ui';
 
 interface MFAStatus {
  enabled: boolean;
@@ -116,19 +117,19 @@ export default function MFASettings() {
  </div>
  </div>
  {mfaStatus?.enabled ? (
- <button
+ <Button
  onClick={() => setShowDisableModal(true)}
  className="btn-ghost text-destructive border border-destructive/30 hover:bg-destructive/10 text-sm"
  >
  Nonaktifkan
- </button>
+ </Button>
  ) : (
- <button
+ <Button
  onClick={() => setShowSetupModal(true)}
  className="btn-primary text-sm"
  >
  Aktifkan 2FA
- </button>
+ </Button>
  )}
  </div>
 
@@ -171,13 +172,13 @@ export default function MFASettings() {
  <h2 className="font-semibold text-lg">Perangkat Terpercaya</h2>
  <p className="text-sm text-muted-foreground mt-0.5">{trustedDevices.length} perangkat terdaftar</p>
  </div>
- <button
+ <Button
  onClick={loadTrustedDevices}
- className="btn-ghost p-2"
+  variant="ghost" className="p-2"
  aria-label="Refresh daftar perangkat"
  >
  <ArrowsClockwise size={18} />
- </button>
+ </Button>
  </div>
 
  {trustedDevices.length === 0 ? (
@@ -204,13 +205,13 @@ export default function MFASettings() {
  Terakhir digunakan: {new Date(device.lastUsedAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
  </p>
  </div>
- <button
+ <Button
  onClick={() => revokeDevice(device.id)}
  className="p-2 rounded-lg text-destructive hover:bg-destructive/10 transition-colors shrink-0"
  aria-label="Cabut kepercayaan perangkat"
  >
  <Trash size={16} />
- </button>
+ </Button>
  </div>
  ))}
  </div>
@@ -296,7 +297,7 @@ function TOTPSetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
  <h3 className="font-semibold text-lg">
  {step === 'qr' ? 'Scan QR Code' : step === 'verify' ? 'Verifikasi Kode' : 'Kode Cadangan'}
  </h3>
- <button onClick={onClose} className="btn-ghost p-2"><X size={18} /></button>
+ <Button onClick={onClose}  variant="ghost" className="p-2"><X size={18} /></Button>
  </div>
 
  {step === 'qr' && (
@@ -315,7 +316,7 @@ function TOTPSetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
  <p className="font-mono text-sm font-semibold tracking-wider">{secret}</p>
  </div>
  )}
- <button onClick={() => setStep('verify')} className="btn-primary w-full">Lanjutkan Verifikasi</button>
+ <Button onClick={() => setStep('verify')} className="btn-primary w-full">Lanjutkan Verifikasi</Button>
  </div>
  )}
 
@@ -332,10 +333,10 @@ function TOTPSetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
  />
  {error && <p className="text-destructive text-sm text-center">{error}</p>}
  <div className="flex gap-3">
- <button onClick={() => setStep('qr')} className="btn-ghost flex-1">Kembali</button>
- <button onClick={confirmSetup} disabled={loading || verifyCode.length !== 6} className="btn-primary flex-1">
+ <Button onClick={() => setStep('qr')} className="btn-ghost flex-1">Kembali</Button>
+ <Button onClick={confirmSetup} disabled={loading || verifyCode.length !== 6}  variant="primary" className="flex-1">
  {loading ? 'Memverifikasi...' : 'Verifikasi'}
- </button>
+ </Button>
  </div>
  </div>
  )}
@@ -354,15 +355,15 @@ function TOTPSetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
  </div>
  </div>
  {!showCodes && (
- <button onClick={() => setShowCodes(true)} className="btn-ghost w-full flex items-center justify-center gap-2">
+ <Button onClick={() => setShowCodes(true)} className="btn-ghost w-full flex items-center justify-center gap-2">
  <Eye size={16} /> Tampilkan Kode Cadangan
- </button>
+ </Button>
  )}
  <div className="flex gap-3">
- <button onClick={copyBackupCodes} className="btn-ghost flex-1 flex items-center justify-center gap-2">
+ <Button onClick={copyBackupCodes}  variant="ghost" className="flex-1 flex items-center justify-center gap-2">
  <Copy size={16} /> Salin
- </button>
- <button onClick={onSuccess} className="btn-primary flex-1">Selesai</button>
+ </Button>
+ <Button onClick={onSuccess}  variant="primary" className="flex-1">Selesai</Button>
  </div>
  </div>
  )}
@@ -391,7 +392,7 @@ function DisableMFAModal({ onClose, onSuccess }: { onClose: () => void; onSucces
  <div className="bg-background rounded-2xl w-full max-w-sm p-6">
  <div className="flex items-center justify-between mb-5">
  <h3 className="font-semibold text-lg text-destructive">Nonaktifkan 2FA</h3>
- <button onClick={onClose} className="btn-ghost p-2"><X size={18} /></button>
+ <Button onClick={onClose}  variant="ghost" className="p-2"><X size={18} /></Button>
  </div>
  <div className="flex items-start gap-3 p-3 bg-red-50 dark:bg-red-900/20 rounded-xl border border-red-200 dark:border-red-800 mb-4">
  <Warning size={18} className="text-red-600 shrink-0 mt-0.5" />
@@ -408,10 +409,10 @@ function DisableMFAModal({ onClose, onSuccess }: { onClose: () => void; onSucces
  />
  {error && <p className="text-destructive text-sm text-center mb-3">{error}</p>}
  <div className="flex gap-3 mt-4">
- <button onClick={onClose} className="btn-ghost flex-1">Batal</button>
- <button onClick={handleDisable} disabled={loading || code.length !== 6} className="flex-1 px-4 py-2 bg-destructive text-white rounded-xl font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
+ <Button onClick={onClose}  variant="ghost" className="flex-1">Batal</Button>
+ <Button onClick={handleDisable} disabled={loading || code.length !== 6} className="flex-1 px-4 py-2 bg-destructive text-white rounded-xl font-medium hover:bg-destructive/90 disabled:opacity-50 transition-colors">
  {loading ? 'Menonaktifkan...' : 'Nonaktifkan 2FA'}
- </button>
+ </Button>
  </div>
  </div>
  </div>

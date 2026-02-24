@@ -425,9 +425,6 @@
   }
 
   /* Interactive Elements */
-  button:not(:disabled),
-  [role="button"]:not([aria-disabled="true"]),
-  [type="button"]:not(:disabled),
   [type="submit"]:not(:disabled),
   [type="reset"]:not(:disabled),
   a[href],
@@ -438,9 +435,6 @@
     @apply cursor-pointer;
   }
   
-  button:disabled,
-  [role="button"][aria-disabled="true"],
-  [type="button"]:disabled,
   [type="submit"]:disabled,
   [type="reset"]:disabled {
     cursor: not-allowed;
@@ -467,19 +461,11 @@
   }
   
   /* Form Elements */
-  input, button, textarea, select {
+  input, textarea, select {
     font: inherit;
     color: inherit;
   }
   
-  /* Remove default button styles */
-  button {
-    background: none;
-    border: none;
-    padding: 0;
-    font: inherit;
-    cursor: pointer;
-  }
   
   /* Table */
   table {
@@ -616,139 +602,23 @@
   }
   
     /* ===== EXCLUSIVE BUTTON SYSTEM ===== */
-  .btn-primary {
-    position: relative;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1rem 2rem;
-    border-radius: var(--radius);
-    font-weight: 600;
-    font-size: 0.9375rem;
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border: none;
-    overflow: hidden;
-    transition: all var(--duration-normal) var(--ease-out);
-    box-shadow: none;
-  }
 
-  .btn-primary--nav {
-    padding-block: 0.6rem;
-  }
   
-  .btn-primary::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 50%);
-    opacity: 0;
-    transition: opacity var(--duration-normal) var(--ease-out);
-  }
   
-  .btn-primary:hover {
-    transform: translateY(-2px);
-    box-shadow: none;
-  }
   
-  .btn-primary:hover::before {
-    opacity: 1;
-  }
   
-  .btn-primary:active {
-    transform: translateY(0);
-    box-shadow: none;
-  }
   
-  .btn-secondary {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1rem 2rem;
-    border-radius: var(--radius);
-    font-weight: 600;
-    font-size: 0.9375rem;
-    border: 2px solid var(--border);
-    background: transparent;
-    color: var(--foreground);
-    transition: all var(--duration-normal) var(--ease-out);
-  }
   
-  .btn-secondary:hover {
-    border-color: var(--foreground);
-    background: var(--foreground);
-    color: var(--background);
-    transform: translateY(-2px);
-    box-shadow: none;
-  }
   
-  .btn-secondary:active {
-    transform: translateY(0);
-  }
   
-  .btn-outline {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 1rem 2rem;
-    border-radius: var(--radius);
-    font-weight: 600;
-    font-size: 0.9375rem;
-    border: 2px solid var(--primary);
-    background: transparent;
-    color: var(--primary);
-    transition: all var(--duration-normal) var(--ease-out);
-  }
   
-  .btn-outline:hover {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    transform: translateY(-2px);
-    box-shadow: none;
-  }
   
-  .btn-outline:active {
-    transform: translateY(0);
-  }
   
-  .btn-ghost {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.5rem;
-    padding: 0.75rem 1.5rem;
-    border-radius: var(--radius);
-    font-weight: 500;
-    font-size: 0.9375rem;
-    background: transparent;
-    color: var(--muted-foreground);
-    border: none;
-    transition: all var(--duration-fast) var(--ease-out);
-  }
   
-  .btn-ghost:hover {
-    background: var(--muted);
-    color: var(--foreground);
-  }
   
   /* Button Sizes */
-  .btn-lg {
-    padding: 1.25rem 2.5rem;
-    font-size: 1rem;
-  }
   
-  .btn-sm {
-    padding: 0.625rem 1.25rem;
-    font-size: 0.875rem;
-  }
   
-  .btn-xs {
-    padding: 0.5rem 1rem;
-    font-size: 0.8125rem;
-  }
   
   /* ===== CARD PATTERNS ===== */
   .card {
@@ -1383,9 +1253,6 @@
   
   /* Ensure buttons in button groups don't overflow */
   .flex-col.sm\:flex-row > a,
-  .flex-col.sm\:flex-row > button {
-    width: 100%;
-  }
   
   /* Pricing / comparison tables: ensure scroll hint gradient */
   [class*="min-w-["] {
@@ -1560,45 +1427,6 @@ a.block {
    btn-* classes — standardized button system
    ──────────────────────────────────────────────────────────────────────── */
 @layer components {
-  .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5
-           bg-primary text-primary-foreground text-sm font-semibold rounded-xl
-           transition-all duration-200
-           hover:opacity-90 hover:-translate-y-0.5
-           active:translate-y-0
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary
-           focus-visible:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
-  }
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5
-           bg-transparent text-foreground text-sm font-semibold rounded-xl
-           border border-border
-           transition-all duration-200
-           hover:bg-muted hover:-translate-y-0.5
-           active:translate-y-0
-           focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-foreground
-           focus-visible:ring-offset-2
-           disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2
-           bg-transparent text-foreground text-sm font-medium rounded-xl
-           transition-all duration-200
-           hover:bg-muted
-           disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-  /* FIX (v3.3): .btn-destructive — direferensikan di DisputeDetail, ConfirmDialog */
-  .btn-destructive {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5
-           bg-destructive text-white text-sm font-semibold rounded-xl
-           transition-all duration-200
-           hover:bg-destructive/90 hover:-translate-y-0.5
-           active:translate-y-0
-           disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0;
-  }
-  .btn-sm { @apply px-3 py-1.5 text-xs rounded-lg; }
-  .btn-lg { @apply px-7 py-3.5 text-base rounded-2xl; }
 }
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -2019,10 +1847,6 @@ html {
    pastikan button fill full width — inline-flex tidak selalu stretch.
    ──────────────────────────────────────────────────────────────────────── */
 @media (max-width: 639px) {
-  .flex-col > .btn-primary,
-  .flex-col > a > .btn-primary {
-    width: 100%;
-  }
 }
 
 /* ── Heading color safety net ───────────────────────────────────────────────

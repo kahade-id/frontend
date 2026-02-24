@@ -4,6 +4,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { fadeInUp, staggerContainer, staggerItem, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const rows = [
  { feature: 'Perlindungan Escrow', kahade: true, kompetitor: true, transfer: false },
@@ -121,9 +122,9 @@ export default function Compare() {
  <h2 className="text-3xl font-bold mb-4">Siap beralih ke Kahade?</h2>
  <p className="text-muted-foreground mb-8">Bergabung gratis, tanpa kartu kredit. Coba sendiri perbedaannya.</p>
  <a href="https://app.kahade.id/register">
- <button className="btn-primary px-8 py-3.5 text-base">
+ <Button  variant="primary" className="px-8 py-3.5 text-base">
  Daftar Gratis <ArrowRight size={18} />
- </button>
+ </Button>
  </a>
  </div>
  </section>

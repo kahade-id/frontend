@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Globe, Clock, ShieldCheck, Bell, Lock, CreditCard, Code, Trash, Sun } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { Button } from '@kahade/ui';
 
 const sidebarTabs = ['Umum', 'Keamanan', 'Notifikasi', 'Privasi', 'Billing', 'API Keys'];
 
@@ -16,7 +17,7 @@ export default function Settings() {
  <div className="grid md:grid-cols-[200px_1fr] gap-6">
  <div className="space-y-1">
  {sidebarTabs.map(tab => (
- <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === tab ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{tab}</button>
+ <Button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === tab ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{tab}</Button>
  ))}
  </div>
 
@@ -56,7 +57,7 @@ export default function Settings() {
  <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">Light only</span>
  </div>
  </div>
- <button type="button" className="btn-primary">Simpan Perubahan</button>
+ <Button type="button"  variant="primary" >Simpan Perubahan</Button>
  </div>
  )}
 
@@ -74,7 +75,7 @@ export default function Settings() {
  <Icon size={20} className={color || 'text-muted-foreground'} />
  <div><p className="font-medium text-sm">{title}</p><p className="text-xs text-muted-foreground">{desc}</p></div>
  </div>
- <button type="button" className="btn-secondary text-sm">{btn}</button>
+ <Button type="button"  variant="secondary" className="text-sm">{btn}</Button>
  </div>
  ))}
  </div>
@@ -112,7 +113,7 @@ export default function Settings() {
  <span className="badge badge-success">Aktif</span>
  </div>
  </div>
- <button type="button" className="btn-primary">Upgrade ke Profesional</button>
+ <Button type="button"  variant="primary" >Upgrade ke Profesional</Button>
  </div>
  )}
 
@@ -120,7 +121,7 @@ export default function Settings() {
  <div className="space-y-5">
  <div className="flex items-center justify-between">
  <h2 className="font-bold text-lg">API Keys</h2>
- <button type="button" className="btn-primary text-sm">+ Buat Key Baru</button>
+ <Button type="button"  variant="primary" className="text-sm">+ Buat Key Baru</Button>
  </div>
  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300">
  ⚠ Jangan bagikan API key Anda. Gunakan hanya di server-side.
@@ -129,8 +130,8 @@ export default function Settings() {
  <div className="flex items-center justify-between">
  <div><p className="font-medium text-sm">Production Key</p><p className="text-xs font-mono text-muted-foreground mt-1">kh_live_••••••••••••••••</p></div>
  <div className="flex gap-2">
- <button type="button" className="btn-secondary text-xs p-1.5"><Code size={14} /></button>
- <button type="button" className="btn-secondary text-xs p-1.5 hover:border-destructive hover:text-destructive"><Trash size={14} /></button>
+ <Button type="button"  variant="secondary" className="text-xs p-1.5"><Code size={14} /></Button>
+ <Button type="button"  variant="secondary" className="text-xs p-1.5 hover:border-destructive hover:text-destructive"><Trash size={14} /></Button>
  </div>
  </div>
  </div>

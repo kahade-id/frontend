@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const categories = [
  { icon: Rocket, title: 'Memulai', count: 8, description: 'Panduan dasar untuk pengguna baru.' },
@@ -55,9 +56,9 @@ export default function Help() {
  </motion.div>
  <motion.div variants={staggerItem} className="flex flex-wrap gap-2 justify-center">
  {quickLinks.map(ql => (
- <button key={ql} className="px-4 py-1.5 rounded-full border border-white/20 text-sm hover:bg-white/10 transition-colors">
+ <Button key={ql} className="px-4 py-1.5 rounded-full border border-white/20 text-sm hover:bg-white/10 transition-colors">
  {ql}
- </button>
+ </Button>
  ))}
  </motion.div>
  </motion.div>

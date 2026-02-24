@@ -160,13 +160,13 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  )}
  </Link>
  {!isSidebarCollapsed && (
- <button
+ <Button
  onClick={() => setIsSidebarCollapsed(true)}
  className="p-2 hover:bg-neutral-100 rounded-lg transition-colors"
  aria-label="Sembunyikan sidebar"
  >
  <CaretRight className="w-4 h-4 rotate-180 text-neutral-500" aria-hidden="true" weight="bold" />
- </button>
+ </Button>
  )}
  </div>
  
@@ -216,13 +216,13 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  {/* Expand Button (when collapsed) */}
  {isSidebarCollapsed && (
  <div className="p-3 border-t border-border">
- <button
+ <Button
  onClick={() => setIsSidebarCollapsed(false)}
  className="w-full p-2 hover:bg-neutral-100 rounded-xl transition-colors flex items-center justify-center"
  aria-label="Tampilkan sidebar"
  >
  <CaretRight className="w-5 h-5 text-neutral-500" aria-hidden="true" weight="bold" />
- </button>
+ </Button>
  </div>
  )}
  
@@ -247,13 +247,13 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  </div>
  
  {/* Logout Button */}
- <button
+ <Button
  onClick={handleLogout}
  className="w-full flex items-center gap-4 px-4 py-3 rounded-xl text-neutral-600 hover:text-red-600 hover:bg-red-50 transition-colors"
  >
  <SignOut className="w-5 h-5" aria-hidden="true" weight="bold" />
  <span className="font-medium">Keluar</span>
- </button>
+ </Button>
  </div>
  )}
  </aside>
@@ -327,14 +327,14 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  })}
  
  {/* User Avatar */}
- <button
+ <Button
  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
  className="w-full flex items-center justify-center p-2 rounded-xl hover:bg-neutral-100 transition-colors"
  >
  <div className="w-8 h-8 rounded-lg bg-black flex items-center justify-center text-white font-bold text-sm">
  {user?.username?.charAt(0).toUpperCase() || 'U'}
  </div>
- </button>
+ </Button>
  </div>
  </aside>
  
@@ -345,13 +345,13 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  <header className="sticky top-0 z-30 h-14 border-b border-border bg-background/95 backdrop-blur-xl md:hidden">
  <div className="flex items-center h-full px-4">
  {/* Back Button */}
- <button
+ <Button
  onClick={handleGoBack}
  className="flex items-center justify-center w-10 h-10 -ml-2 rounded-xl hover:bg-neutral-100 transition-colors"
  aria-label="Kembali"
  >
  <ArrowLeft className="w-6 h-6 text-black" aria-hidden="true" weight="bold" />
- </button>
+ </Button>
  
  {/* Page Title */}
  <div className="flex-1 ml-2">
@@ -390,15 +390,15 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  
  {/* Notifications */}
  <Link href="/notifications" className="block">
- <button className="relative p-2.5 hover:bg-neutral-100 rounded-xl transition-colors">
+ <Button className="relative p-2.5 hover:bg-neutral-100 rounded-xl transition-colors">
  <Bell className="w-5 h-5 text-neutral-600" aria-hidden="true" weight="bold" />
  <span className="absolute top-2 right-2 w-2 h-2 bg-black rounded-full ring-2 ring-white" />
- </button>
+ </Button>
  </Link>
  
  {/* Profile Dropdown - Desktop */}
  <div className="relative hidden md:block">
- <button
+ <Button
  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
  className="flex items-center gap-2 p-1.5 hover:bg-neutral-100 rounded-xl transition-colors"
  >
@@ -409,7 +409,7 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  "w-4 h-4 text-neutral-600 transition-transform hidden lg:block",
  isProfileDropdownOpen && "rotate-180"
  )} weight="bold" />
- </button>
+ </Button>
  
  <AnimatePresence>
  {isProfileDropdownOpen && (
@@ -456,7 +456,7 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  
  {/* Logout */}
  <div className="p-2 border-t border-border">
- <button
+ <Button
  onClick={() => {
  setIsProfileDropdownOpen(false);
  handleLogout();
@@ -465,7 +465,7 @@ export default function DashboardLayout({ children, title, subtitle }: Dashboard
  >
  <SignOut className="w-5 h-5" aria-hidden="true" weight="bold" />
  <span className="font-medium">Keluar</span>
- </button>
+ </Button>
  </div>
  </motion.div>
  </>

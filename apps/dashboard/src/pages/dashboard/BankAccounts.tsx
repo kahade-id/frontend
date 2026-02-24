@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, DotsThree, Bank, X } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { Button } from '@kahade/ui';
 
 const accounts = [
  { bank: 'BCA', number: '**** 1234', name: 'Ahmad Rizki', isDefault: true },
@@ -19,7 +20,7 @@ export default function BankAccounts() {
  <h1 className="text-2xl font-bold">Rekening Bank</h1>
  <p className="text-sm text-muted-foreground mt-1">Kelola rekening bank untuk penarikan dana</p>
  </div>
- <button onClick={() => setShowAdd(true)} className="btn-primary"><Plus size={18} /> Tambah Rekening</button>
+ <Button onClick={() => setShowAdd(true)} className="btn-primary"><Plus size={18} /> Tambah Rekening</Button>
  </div>
 
  {accounts.length > 0 ? (
@@ -37,7 +38,7 @@ export default function BankAccounts() {
  </div>
  <div className="flex items-center gap-3">
  {acc.isDefault && <span className="badge badge-success text-xs">Default</span>}
- <button className="p-2 rounded-xl hover:bg-muted transition-colors"><DotsThree size={20} /></button>
+ <Button className="p-2 rounded-xl hover:bg-muted transition-colors"><DotsThree size={20} /></Button>
  </div>
  </div>
  ))}
@@ -47,7 +48,7 @@ export default function BankAccounts() {
  <Bank size={48} className="text-muted-foreground/30 mx-auto mb-4" weight="thin" />
  <p className="font-semibold text-muted-foreground">Belum ada rekening tersimpan</p>
  <p className="text-sm text-muted-foreground mt-1 mb-6">Tambahkan rekening untuk menarik dana</p>
- <button onClick={() => setShowAdd(true)} className="btn-primary"><Plus size={18} /> Tambah Rekening Bank</button>
+ <Button onClick={() => setShowAdd(true)} className="btn-primary"><Plus size={18} /> Tambah Rekening Bank</Button>
  </div>
  )}
 
@@ -57,7 +58,7 @@ export default function BankAccounts() {
  <div className="bg-background rounded-3xl p-8 w-full max-w-md">
  <div className="flex items-center justify-between mb-6">
  <h2 className="font-bold text-lg">Tambah Rekening Bank</h2>
- <button onClick={() => setShowAdd(false)} className="p-2 rounded-xl hover:bg-muted transition-colors"><X size={20} /></button>
+ <Button onClick={() => setShowAdd(false)} className="p-2 rounded-xl hover:bg-muted transition-colors"><X size={20} /></Button>
  </div>
  <div className="space-y-4">
  <div>
@@ -76,8 +77,8 @@ export default function BankAccounts() {
  <input id="account-owner" type="text" placeholder="Sesuai buku tabungan" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground text-sm" />
  </div>
  <div className="flex gap-3 pt-2">
- <button onClick={() => setShowAdd(false)} className="btn-secondary flex-1">Batal</button>
- <button className="btn-primary flex-1">Simpan Rekening</button>
+ <Button onClick={() => setShowAdd(false)} className="btn-secondary flex-1">Batal</Button>
+ <Button  variant="primary" className="flex-1">Simpan Rekening</Button>
  </div>
  </div>
  </div>

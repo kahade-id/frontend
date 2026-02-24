@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus, Tag, Pencil, Trash } from '@phosphor-icons/react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { Button } from '@kahade/ui';
 
 const promos = [
  { id: 'PROMO-001', code: 'KAHADE10', type: 'Persentase', value: '10%', minTx: 'Rp 500.000', used: 84, limit: 100, expires: '28 Feb 2026', status: 'active' },
@@ -33,7 +34,7 @@ export default function AdminPromos() {
  </div>
  ))}
  </div>
- <button className="btn-primary shrink-0"><Plus size={18} /> Buat Promo</button>
+ <Button  variant="primary" className="shrink-0"><Plus size={18} /> Buat Promo</Button>
  </div>
  <div className="card overflow-hidden">
  <table className="w-full text-sm">
@@ -58,8 +59,8 @@ export default function AdminPromos() {
  <td className="px-4 py-3"><span className={`text-[0.65rem] font-bold px-2 py-0.5 rounded-full ${statusCls[p.status]}`}>{statusLabel[p.status]}</span></td>
  <td className="px-4 py-3">
  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
- <button className="p-1.5 rounded-lg hover:bg-muted"><Pencil size={14} /></button>
- <button className="p-1.5 rounded-lg hover:bg-red-100 text-red-600"><Trash size={14} /></button>
+ <Button className="p-1.5 rounded-lg hover:bg-muted"><Pencil size={14} /></Button>
+ <Button className="p-1.5 rounded-lg hover:bg-red-100 text-red-600"><Trash size={14} /></Button>
  </div>
  </td>
  </tr>

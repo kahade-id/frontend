@@ -48,14 +48,14 @@ export default function Unauthorized() {
  
  <div className="flex flex-col sm:flex-row gap-4 justify-center">
  <Button 
- className="btn-primary gap-2"
+  variant="primary" className="gap-2"
  onClick={handleGoToApp}
  >
  <ArrowLeft className="w-5 h-5" aria-hidden="true" weight="bold" />
  Go to User Dashboard
  </Button>
  <Button 
- className="btn-secondary gap-2"
+  variant="secondary" className="gap-2"
  onClick={handleLogout}
  >
  <SignOut className="w-5 h-5" aria-hidden="true" weight="bold" />
