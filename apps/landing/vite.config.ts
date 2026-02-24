@@ -15,6 +15,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': resolve(__dirname, './src'),
+      '@kahade/config': resolve(__dirname, '../../packages/config/src/index.ts'),
+      '@kahade/utils': resolve(__dirname, '../../packages/utils/src/index.ts'),
+      '@kahade/ui': resolve(__dirname, '../../packages/ui/src/index.ts'),
+      '@kahade/types': resolve(__dirname, '../../packages/types/src/index.ts'),
     },
   },
 
