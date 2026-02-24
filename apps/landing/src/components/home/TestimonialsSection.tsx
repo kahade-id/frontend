@@ -45,7 +45,7 @@ function TestimonialMarquee({
       aria-label="Scroll otomatis ulasan pengguna — hover atau fokus untuk menjeda"
     >
       <motion.div
-        animate={paused ? false : { x: [animateFrom, animateTo] }}
+        animate={paused ? { x: animateFrom } : { x: [animateFrom, animateTo] }}
         transition={
           paused
             ? { duration: 0 }
