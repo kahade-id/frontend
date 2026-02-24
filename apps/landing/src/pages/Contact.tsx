@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const topics = [
  'Pertanyaan Umum',
@@ -79,7 +80,7 @@ export default function Contact() {
  </div>
  <h2 className="text-2xl font-bold mb-3">Pesan berhasil direkam</h2>
  <p className="text-muted-foreground mb-6">Pesan Anda telah disimpan dan masuk ke antrean tim kami. Kami akan menghubungi Anda melalui email.</p>
- <button onClick={() => setSubmitted(false)} className="btn-secondary">Kirim Pesan Lain</button>
+ <Button onClick={() => setSubmitted(false)} className="btn-secondary">Kirim Pesan Lain</Button>
  </motion.div>
  ) : (
  <motion.div variants={fadeInUp} initial="initial" animate="animate" className="max-w-md">
@@ -121,10 +122,10 @@ export default function Contact() {
  value={form.message} onChange={e => setForm({...form, message: e.target.value})}
  />
  </div>
- <button type="submit" disabled={isSubmitting} className="btn-primary w-full disabled:opacity-60">
+ <Button type="submit" disabled={isSubmitting}  variant="primary" className="w-full disabled:opacity-60">
  <PaperPlaneTilt size={18} />
  {isSubmitting ? 'Mengirim...' : 'Kirim Pesan'}
- </button>
+ </Button>
  <div className="text-center">
  <Link href="/faq" className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1">
  Atau cari jawaban di FAQ <ArrowRight size={14} />

@@ -6,6 +6,7 @@ import {
 } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Link } from 'wouter';
+import { Button } from '@kahade/ui';
 
 const timeline = [
  { title: 'Transaksi dibuat', timestamp: '18 Feb 2026, 10:30', completed: true, active: false },
@@ -48,9 +49,9 @@ export default function TransactionDetail() {
  <p className="text-lg font-semibold mb-1">Laptop ASUS ROG Strix G15</p>
  <p className="text-sm text-muted-foreground">Dibuat: 18 Feb 2026 · Berakhir: 25 Feb 2026</p>
  </div>
- <button className="btn-ghost gap-2 text-sm text-muted-foreground border border-border hover:border-destructive hover:text-destructive">
+ <Button  variant="ghost" className="gap-2 text-sm text-muted-foreground border border-border hover:border-destructive hover:text-destructive">
  <Warning size={16} /> Laporkan Masalah
- </button>
+ </Button>
  </div>
  </div>
 
@@ -94,10 +95,10 @@ export default function TransactionDetail() {
  ))}
  </div>
  <div className="flex gap-2 border-t border-border pt-4">
- <button className="p-2 rounded-xl hover:bg-muted transition-colors"><PaperclipHorizontal size={18} className="text-muted-foreground" /></button>
+ <Button className="p-2 rounded-xl hover:bg-muted transition-colors"><PaperclipHorizontal size={18} className="text-muted-foreground" /></Button>
  <label htmlFor="transaction-message" className="sr-only">Pesan transaksi</label>
  <input id="transaction-message" type="text" value={message} onChange={e => setMessage(e.target.value)} placeholder="Tulis pesan..." className="flex-1 px-4 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
- <button className="p-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"><PaperPlaneTilt size={18} /></button>
+ <Button className="p-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"><PaperPlaneTilt size={18} /></Button>
  </div>
  </div>
  </div>
@@ -137,15 +138,15 @@ export default function TransactionDetail() {
  {/* Actions */}
  <div className="card p-6 space-y-3">
  <h2 className="font-bold mb-2">Aksi</h2>
- <button className="w-full btn-primary gap-2 justify-center">
+ <Button  variant="primary" className="w-full gap-2 justify-center">
  <CheckCircle size={18} /> Konfirmasi Terima
- </button>
- <button className="w-full btn-secondary gap-2 justify-center">
+ </Button>
+ <Button  variant="secondary" className="w-full gap-2 justify-center">
  <Lightning size={18} /> Perpanjang Waktu
- </button>
- <button className="w-full py-2.5 rounded-xl border border-destructive/30 text-destructive text-sm font-semibold hover:bg-destructive/5 transition-colors flex items-center justify-center gap-2">
+ </Button>
+ <Button className="w-full py-2.5 rounded-xl border border-destructive/30 text-destructive text-sm font-semibold hover:bg-destructive/5 transition-colors flex items-center justify-center gap-2">
  <Warning size={18} /> Buka Sengketa
- </button>
+ </Button>
  </div>
  </div>
  </div>

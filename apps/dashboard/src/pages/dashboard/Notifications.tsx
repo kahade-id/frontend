@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Bell, ShieldCheck, CreditCard, ArrowsClockwise, Warning, Info } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { Button } from '@kahade/ui';
 
 const tabs = ['Semua', 'Belum Dibaca', 'Transaksi', 'Keamanan', 'Sistem'];
 
@@ -27,12 +28,12 @@ export default function Notifications() {
  <div className="p-6 max-w-3xl mx-auto">
  <div className="flex items-center justify-between mb-6">
  <h1 className="text-2xl font-bold">Notifikasi</h1>
- <button onClick={() => setReadAll(true)} className="text-sm text-primary hover:underline">Tandai semua dibaca</button>
+ <Button onClick={() => setReadAll(true)} className="text-sm text-primary hover:underline">Tandai semua dibaca</Button>
  </div>
 
  <div className="flex gap-1 bg-muted/50 p-1 rounded-xl mb-5 overflow-x-auto no-scrollbar">
  {tabs.map(tab => (
- <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab ? 'bg-background text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab}</button>
+ <Button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab ? 'bg-background text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab}</Button>
  ))}
  </div>
 

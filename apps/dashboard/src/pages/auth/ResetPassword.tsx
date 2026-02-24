@@ -5,6 +5,7 @@ import { Link, useLocation } from 'wouter';
 import { fadeInUp } from '@kahade/utils';
 import { authApi } from '@kahade/utils';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 export default function ResetPassword() {
   const [location] = useLocation();
@@ -94,9 +95,9 @@ export default function ResetPassword() {
                 <div className="relative">
                   <input id="new-password" type={showPwd ? 'text' : 'password'} required minLength={8} placeholder="Min. 8 karakter" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
                     className="w-full h-12 px-4 pr-12 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm" />
-                  <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <Button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showPwd ? <EyeSlash size={18} /> : <Eye size={18} />}
-                  </button>
+                  </Button>
                 </div>
               </div>
               <div>
@@ -104,22 +105,22 @@ export default function ResetPassword() {
                 <div className="relative">
                   <input id="confirm-password" type={showConfirm ? 'text' : 'password'} required placeholder="Ulangi password" value={form.confirm} onChange={e => setForm({...form, confirm: e.target.value})}
                     className={`w-full h-12 px-4 pr-12 rounded-xl border-2 bg-background focus:outline-none focus:border-foreground transition-colors text-sm ${form.confirm && form.password !== form.confirm ? 'border-destructive' : 'border-border'}`} />
-                  <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <Button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showConfirm ? <EyeSlash size={18} /> : <Eye size={18} />}
-                  </button>
+                  </Button>
                 </div>
                 {form.confirm && form.password !== form.confirm && (
                   <p className="text-xs text-destructive mt-1">Password tidak cocok</p>
                 )}
               </div>
-              <button type="submit" className="btn-primary w-full h-12" disabled={loading || !form.password || form.password !== form.confirm}>
+              <Button type="submit"  variant="primary" className="w-full h-12" disabled={loading || !form.password || form.password !== form.confirm}>
                 {loading ? (
                   <span className="flex items-center gap-2 justify-center">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Menyimpan...
                   </span>
                 ) : 'Reset Password'}
-              </button>
+              </Button>
             </form>
           </motion.div>
         ) : (

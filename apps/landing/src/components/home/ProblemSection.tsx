@@ -2,7 +2,7 @@
  * PROBLEM SECTION
  *
  * Fixes applied:
- * - Issue #3: Link tidak lagi membungkus <button>. CTA menggunakan Link as anchor
+ * - Issue #3: Link tidak lagi membungkus <Button>. CTA menggunakan Link as anchor
  *   dengan class styling, atau button dengan scrollIntoView.
  * - Issue #16: "menghilangkan semua risiko" → "mengurangi risiko secara signifikan"
  *   untuk wording yang lebih aman secara legal dan brand.
@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { Warning, XCircle, ArrowRight } from '@phosphor-icons/react';
 import { fadeInUp, staggerContainer, staggerItem, viewport } from '@kahade/utils';
 import { buyerRisks, sellerRisks } from './HomeData';
+import { Button } from '@kahade/ui';
 
 export default function ProblemSection() {
   return (
@@ -38,14 +39,14 @@ export default function ProblemSection() {
             </p>
 
             {/* Issue #3: Gunakan button murni dengan scrollIntoView — VALID */}
-            <button
+            <Button
               type="button"
-              className="btn-secondary inline-flex items-center gap-2"
+               variant="secondary" className="inline-flex items-center gap-2"
               onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
             >
               Lihat Solusi
               <ArrowRight className="w-4 h-4" weight="bold" />
-            </button>
+            </Button>
           </motion.div>
 
           {/* ── KANAN — Risk cards ── */}

@@ -8,6 +8,7 @@ import { Link, useLocation } from 'wouter';
 import { staggerContainer, staggerItem } from '@kahade/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 const features = [
   { icon: ShieldCheck, text: 'Enkripsi SSL 256-bit' },
@@ -43,9 +44,9 @@ export default function Login() {
       <div className="bg-background px-5 md:px-14 py-12 flex flex-col justify-center overflow-x-hidden">
         <div className="max-w-sm mx-auto w-full">
           <Link href="/">
-            <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-10 transition-colors">
+            <Button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-10 transition-colors">
               <ArrowLeft size={16} /> kahade.id
-            </button>
+            </Button>
           </Link>
 
           <motion.div variants={staggerContainer} initial="initial" animate="animate">
@@ -69,9 +70,9 @@ export default function Login() {
                     value={form.password} onChange={e => setForm({...form, password: e.target.value})}
                     className="w-full h-12 px-4 pr-12 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm"
                   />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                  <Button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                     {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -85,7 +86,7 @@ export default function Login() {
                 </Link>
               </div>
 
-              <button type="submit" disabled={loading} className="btn-primary w-full h-12 text-base">
+              <Button type="submit" disabled={loading}  variant="primary" className="w-full h-12 text-base">
                 {loading ? (
                   <span className="flex items-center gap-2 justify-center">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -94,7 +95,7 @@ export default function Login() {
                 ) : (
                   <span className="flex items-center gap-2 justify-center">Masuk <ArrowRight size={18} /></span>
                 )}
-              </button>
+              </Button>
             </form>
 
             <div className="flex items-center gap-3 my-6">
@@ -104,12 +105,12 @@ export default function Login() {
             </div>
 
             <div className="space-y-3">
-              <button className="w-full flex items-center justify-center gap-3 py-3 px-4 border-2 border-border rounded-xl text-sm font-semibold hover:bg-muted hover:border-neutral-300 transition-all duration-200 active:scale-[0.99]">
+              <Button className="w-full flex items-center justify-center gap-3 py-3 px-4 border-2 border-border rounded-xl text-sm font-semibold hover:bg-muted hover:border-neutral-300 transition-all duration-200 active:scale-[0.99]">
                 <GoogleLogo size={20} /> Lanjutkan dengan Google
-              </button>
-              <button className="w-full flex items-center justify-center gap-3 py-3 px-4 border-2 border-border rounded-xl text-sm font-semibold hover:bg-muted hover:border-neutral-300 transition-all duration-200 active:scale-[0.99]">
+              </Button>
+              <Button className="w-full flex items-center justify-center gap-3 py-3 px-4 border-2 border-border rounded-xl text-sm font-semibold hover:bg-muted hover:border-neutral-300 transition-all duration-200 active:scale-[0.99]">
                 <AppleLogo size={20} /> Lanjutkan dengan Apple
-              </button>
+              </Button>
             </div>
 
             <p className="text-center text-sm text-muted-foreground mt-6">

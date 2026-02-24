@@ -1,5 +1,6 @@
 import { Download, Eye, ArrowDown } from '@phosphor-icons/react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { Button } from '@kahade/ui';
 
 const deposits = [
  { id: 'DEP-501', user: 'Ahmad Rizki', method: 'BCA Virtual Account', amount: 'Rp 1.000.000', status: 'completed', date: '20 Feb 2026 14:23' },
@@ -34,7 +35,7 @@ export default function AdminDeposits() {
  </div>
  <div className="card overflow-hidden">
  <div className="flex justify-end px-5 py-4 border-b border-border bg-muted/30">
- <button className="btn-secondary gap-2 text-sm px-3 py-2"><Download size={15} /> Export</button>
+ <Button  variant="secondary" className="gap-2 text-sm px-3 py-2"><Download size={15} /> Export</Button>
  </div>
  <table className="w-full text-sm">
  <thead className="border-b border-border bg-muted/20">
@@ -49,7 +50,7 @@ export default function AdminDeposits() {
  <td className="px-4 py-3 font-bold text-green-600">{d.amount}</td>
  <td className="px-4 py-3"><span className={`text-[0.65rem] font-bold px-2 py-0.5 rounded-full ${statusCls[d.status]}`}>{statusLabel[d.status]}</span></td>
  <td className="px-4 py-3 text-xs text-muted-foreground">{d.date}</td>
- <td className="px-4 py-3"><button className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-muted transition-all"><Eye size={14} /></button></td>
+ <td className="px-4 py-3"><Button className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-muted transition-all"><Eye size={14} /></Button></td>
  </tr>
  ))}
  </tbody>

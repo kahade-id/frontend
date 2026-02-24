@@ -8,6 +8,7 @@ import {
 } from '@phosphor-icons/react';
 import AdminLayout from '../../components/layout/AdminLayout';
 import { staggerContainer, staggerItem } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const metrics = [
  { icon: Users, label: 'Total Pengguna', value: '10.284', delta: '+284', positive: true },
@@ -100,7 +101,7 @@ export default function AdminDashboard() {
  <div className="flex items-center justify-between px-5 py-4 border-b border-border">
  <h2 className="font-bold">Transaksi Terbaru</h2>
  <Link href="/admin/transactions">
- <button className="text-sm text-primary hover:underline flex items-center gap-1">Lihat semua <ArrowRight size={14} /></button>
+ <Button className="text-sm text-primary hover:underline flex items-center gap-1">Lihat semua <ArrowRight size={14} /></Button>
  </Link>
  </div>
  <table className="w-full text-sm">
@@ -116,7 +117,7 @@ export default function AdminDashboard() {
  <td className="px-4 py-3 text-xs text-muted-foreground">{tx.seller}</td>
  <td className="px-4 py-3 font-semibold">{tx.amount}</td>
  <td className="px-4 py-3"><span className={`text-[0.65rem] font-bold px-2 py-0.5 rounded-full ${statusCls[tx.status]}`}>{tx.label}</span></td>
- <td className="px-4 py-3"><button className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-muted transition-all"><Eye size={14} /></button></td>
+ <td className="px-4 py-3"><Button className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-muted transition-all"><Eye size={14} /></Button></td>
  </tr>
  ))}
  </tbody>

@@ -4,6 +4,7 @@ import { CheckCircle, ArrowRight, PaperPlaneTilt } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const partnerBenefits = [
  'Co-marketing dan promosi bersama',
@@ -114,9 +115,9 @@ export default function Partners() {
  <label className="text-sm font-medium mb-1.5 block">Ceritakan Kebutuhan Anda</label>
  <textarea rows={4} placeholder="Kami adalah platform e-commerce dengan 10.000 transaksi/bulan dan ingin mengintegrasikan escrow..." className="w-full px-4 py-3 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none" value={form.message} onChange={e => setForm({...form, message: e.target.value})} />
  </div>
- <button type="submit" disabled={isSubmitting} className="btn-primary w-full disabled:opacity-60">
+ <Button type="submit" disabled={isSubmitting}  variant="primary" className="w-full disabled:opacity-60">
  <PaperPlaneTilt size={18} /> {isSubmitting ? 'Mengirim...' : 'Kirim Formulir'}
- </button>
+ </Button>
  </form>
  )}
  </motion.div>

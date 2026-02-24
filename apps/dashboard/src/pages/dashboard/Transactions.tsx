@@ -5,6 +5,7 @@ import {
  CaretLeft, CaretRight, ArrowDown
 } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { Button } from '@kahade/ui';
 
 const tabs = ['Semua', 'Aktif', 'Selesai', 'Dibatalkan', 'Sengketa'];
 const mockTx = [
@@ -42,7 +43,7 @@ export default function Transactions() {
  </div>
  <div className="flex gap-1 bg-muted/50 p-1 rounded-xl mb-5 overflow-x-auto no-scrollbar">
  {tabs.map(tab => (
- <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab ? 'bg-background text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab}</button>
+ <Button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${activeTab === tab ? 'bg-background text-foreground' : 'text-muted-foreground hover:text-foreground'}`}>{tab}</Button>
  ))}
  </div>
  <div className="flex gap-3 mb-5">
@@ -50,8 +51,8 @@ export default function Transactions() {
  <MagnifyingGlass size={18} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
  <input type="text" placeholder="Cari transaksi..." value={search} onChange={e => setSearch(e.target.value)} className="w-full h-10 pl-10 pr-4 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all" />
  </div>
- <button className="btn-secondary gap-2 px-3"><FunnelSimple size={16} /> Filter</button>
- <button className="btn-secondary gap-2 px-3"><ArrowDown size={16} /> Export</button>
+ <Button  variant="secondary" className="gap-2 px-3"><FunnelSimple size={16} /> Filter</Button>
+ <Button  variant="secondary" className="gap-2 px-3"><ArrowDown size={16} /> Export</Button>
  </div>
  <div className="hidden md:block card overflow-hidden">
  <table className="w-full text-sm">
@@ -94,9 +95,9 @@ export default function Transactions() {
  <div className="flex items-center justify-between mt-5 text-sm text-muted-foreground">
  <span>Menampilkan 1–{filtered.length} dari {mockTx.length} transaksi</span>
  <div className="flex items-center gap-1">
- <button className="p-2 rounded-lg hover:bg-muted transition-colors"><CaretLeft size={16} /></button>
- <button className="w-8 h-8 rounded-lg bg-primary text-primary-foreground text-sm font-semibold">1</button>
- <button className="p-2 rounded-lg hover:bg-muted transition-colors"><CaretRight size={16} /></button>
+ <Button className="p-2 rounded-lg hover:bg-muted transition-colors"><CaretLeft size={16} /></Button>
+ <Button className="w-8 h-8 rounded-lg bg-primary text-primary-foreground text-sm font-semibold">1</Button>
+ <Button className="p-2 rounded-lg hover:bg-muted transition-colors"><CaretRight size={16} /></Button>
  </div>
  </div>
  )}

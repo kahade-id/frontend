@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@kahade/utils';
 import { steps } from './HomeData';
-import { SectionLabel } from '@kahade/ui';
+import { SectionLabel, Button } from '@kahade/ui';
 
 interface StepPreviewProps {
  step: number;
@@ -55,7 +55,7 @@ function StepPreview({ step }: StepPreviewProps) {
  <span className="text-3xl">📦</span>
  </div>
  <p className="text-sm text-muted-foreground">Barang sudah diterima?</p>
- <button className="btn-primary w-full">✓ Konfirmasi Terima Barang</button>
+ <Button  variant="primary" className="w-full">✓ Konfirmasi Terima Barang</Button>
  </div>
  ),
  4: (
@@ -114,7 +114,7 @@ export default function HowItWorksSection() {
  className="flex gap-2 overflow-x-auto pb-2 mb-3 no-scrollbar"
  >
  {steps.map((step, i) => (
- <button
+ <Button
  key={step.step}
  role="tab"
  aria-selected={activeStep === i}
@@ -136,7 +136,7 @@ export default function HowItWorksSection() {
  {i + 1}
  </span>
  {step.title}
- </button>
+ </Button>
  ))}
  </div>
 
@@ -174,20 +174,20 @@ export default function HowItWorksSection() {
  {steps[activeStep].description}
  </p>
  <div className="flex gap-3">
- <button
+ <Button
  onClick={() => setActiveStep(Math.max(0, activeStep - 1))}
  disabled={activeStep === 0}
  className="btn-secondary btn-sm disabled:opacity-40"
  >
  ← Sebelumnya
- </button>
- <button
+ </Button>
+ <Button
  onClick={() => setActiveStep(Math.min(steps.length - 1, activeStep + 1))}
  disabled={activeStep === steps.length - 1}
  className="btn-primary btn-sm disabled:opacity-40"
  >
  Selanjutnya →
- </button>
+ </Button>
  </div>
  </div>
 

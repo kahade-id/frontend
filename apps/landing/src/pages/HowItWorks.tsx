@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const steps = [
  {
@@ -84,9 +85,9 @@ export default function HowItWorks() {
  </motion.p>
  <motion.div variants={staggerItem}>
  <a href="https://app.kahade.id/register">
- <button className="bg-white text-primary font-semibold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
+ <Button className="bg-white text-primary font-semibold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
  Mulai Sekarang <ArrowRight size={18} />
- </button>
+ </Button>
  </a>
  </motion.div>
  </motion.div>
@@ -175,13 +176,13 @@ export default function HowItWorks() {
  <div className="space-y-2">
  {miniFaqs.map((faq, i) => (
  <motion.div key={i} variants={staggerItem} className="border border-border rounded-xl overflow-hidden">
- <button
+ <Button
  onClick={() => setOpenFaq(openFaq === i ? null : i)}
  className="w-full text-left p-5 flex items-center justify-between gap-4 hover:text-primary transition-colors"
  >
  <span className="font-semibold text-sm">{faq.q}</span>
  <Question size={20} className={`shrink-0 transition-transform ${openFaq === i ? 'rotate-45' : ''}`} />
- </button>
+ </Button>
  <AnimatePresence>
  {openFaq === i && (
  <motion.div
@@ -206,9 +207,9 @@ export default function HowItWorks() {
  <h2 className="text-3xl font-bold mb-4">Siap bertransaksi dengan aman?</h2>
  <p className="text-primary-foreground/70 mb-8">Daftar gratis dan buat transaksi pertama Anda dalam 5 menit.</p>
  <a href="https://app.kahade.id/register">
- <button className="bg-white text-primary font-semibold px-8 py-3.5 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
+ <Button className="bg-white text-primary font-semibold px-8 py-3.5 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
  Mulai Gratis <ArrowRight size={18} />
- </button>
+ </Button>
  </a>
  </div>
  </section>

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { ArrowDown, ArrowUp, ArrowsLeftRight, CopySimple, Check, Clock } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { staggerContainer, staggerItem } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const txHistory = [
  { type: 'deposit', label: 'Deposit dari BCA', amount: '+Rp 1.000.000', date: '20 Feb 2026 · 14:23', color: 'text-green-600 bg-green-100 dark:bg-green-900/30' },
@@ -57,15 +58,15 @@ export default function Wallet() {
  <p className="text-primary-foreground/60 text-sm mb-2">Saldo Dompet Anda</p>
  <p className="text-4xl font-black mb-6">Rp 2.500.000</p>
  <div className="flex gap-3 flex-wrap relative z-10">
- <button onClick={() => { setShowDeposit(true); setCountdownSeconds(2 * 60 * 60); }} className="flex items-center gap-2 bg-white text-primary px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-white/90 transition-colors">
+ <Button onClick={() => { setShowDeposit(true); setCountdownSeconds(2 * 60 * 60); }} className="flex items-center gap-2 bg-white text-primary px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-white/90 transition-colors">
  <ArrowDown size={18} /> Deposit
- </button>
- <button type="button" className="flex items-center gap-2 bg-white/10 border border-white/20 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-white/20 transition-colors">
+ </Button>
+ <Button type="button" className="flex items-center gap-2 bg-white/10 border border-white/20 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-white/20 transition-colors">
  <ArrowUp size={18} /> Tarik
- </button>
- <button type="button" className="flex items-center gap-2 bg-white/10 border border-white/20 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-white/20 transition-colors">
+ </Button>
+ <Button type="button" className="flex items-center gap-2 bg-white/10 border border-white/20 text-white px-4 py-2.5 rounded-xl font-semibold text-sm hover:bg-white/20 transition-colors">
  <ArrowsLeftRight size={18} /> Transfer
- </button>
+ </Button>
  </div>
  </motion.div>
 
@@ -74,9 +75,9 @@ export default function Wallet() {
  <p className="font-bold mb-4">Transfer ke Virtual Account BCA:</p>
  <div className="flex items-center justify-between bg-background border-2 border-border rounded-xl px-4 py-3 mb-3">
  <span className="text-xl font-black tracking-widest">{vaNumber}</span>
- <button onClick={copyVA} className="ml-4 flex items-center gap-1.5 text-sm text-primary font-semibold">
+ <Button onClick={copyVA} className="ml-4 flex items-center gap-1.5 text-sm text-primary font-semibold">
  {copied ? <Check size={16} /> : <CopySimple size={16} />} {copied ? 'Disalin!' : 'Salin'}
- </button>
+ </Button>
  </div>
  <p className="text-sm font-semibold mb-1">Nominal TEPAT: <span className="text-primary">Rp 1.000.000</span></p>
  <p className="text-xs text-muted-foreground mb-3">(Jangan lebih atau kurang)</p>
@@ -89,7 +90,7 @@ export default function Wallet() {
  <motion.div variants={staggerItem}>
  <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2 mb-4">
  {filters.map(f => (
- <button key={f} onClick={() => setActiveFilter(f)} className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${activeFilter === f ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}>{f}</button>
+ <Button key={f} onClick={() => setActiveFilter(f)} className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all ${activeFilter === f ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}>{f}</Button>
  ))}
  </div>
  <div className="card overflow-hidden">

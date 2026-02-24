@@ -2,7 +2,7 @@
  * FINAL CTA SECTION
  *
  * Fixes applied:
- * - Issue #3: Link tidak lagi membungkus <button>. Menggunakan Link as anchor.
+ * - Issue #3: Link tidak lagi membungkus <Button>. Menggunakan Link as anchor.
  * - Issue #6: Trust items menggunakan SITE_STATS (single source of truth).
  *   Sebelumnya "10K+" — sekarang konsisten "10.000+" seperti section lain.
  * - Issue #24: Menyederhanakan CTA hierarchy — tidak ada duplikasi CTA yang
@@ -14,6 +14,7 @@ import { Link } from 'wouter';
 import { ArrowRight, CheckCircle } from '@phosphor-icons/react';
 import { staggerContainer, staggerItem, viewport } from '@kahade/utils';
 import { SITE_STATS } from './HomeData';
+import { Button } from '@kahade/ui';
 
 // Issue #6: Data dari SITE_STATS — konsisten format di semua section
 const trustItems = [

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { MagnifyingGlass, PaperclipHorizontal, PaperPlaneTilt } from '@phosphor-icons/react';
+import { Button } from '@kahade/ui';
 
 const conversations = [
  { id: 1, name: '@seller_081', preview: 'Sudah saya kirim via JNE', time: '2 jam lalu', unread: 1, tx: '#KHD-2451', active: true },
@@ -46,7 +47,7 @@ export default function Messages() {
  </div>
  <div className="flex-1 overflow-y-auto">
  {filteredConversations.map(c => (
- <button key={c.id} onClick={() => setActiveConv(c.id)} className={`w-full text-left p-4 border-b border-border hover:bg-muted/50 transition-colors ${activeConv === c.id ? 'bg-muted/50' : ''}`}>
+ <Button key={c.id} onClick={() => setActiveConv(c.id)} className={`w-full text-left p-4 border-b border-border hover:bg-muted/50 transition-colors ${activeConv === c.id ? 'bg-muted/50' : ''}`}>
  <div className="flex items-start justify-between gap-2">
  <div className="flex items-center gap-3">
  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${c.active ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}>
@@ -66,7 +67,7 @@ export default function Messages() {
  </div>
  </div>
  <p className="text-xs text-muted-foreground mt-1.5 truncate pl-12">{c.preview}</p>
- </button>
+ </Button>
  ))}
  </div>
  </div>
@@ -94,12 +95,12 @@ export default function Messages() {
  </div>
 
  <div className="p-4 border-t border-border flex items-center gap-3">
- <button type="button" className="p-2 rounded-xl hover:bg-muted transition-colors shrink-0" aria-label="Lampirkan file (segera hadir)"><PaperclipHorizontal size={20} className="text-muted-foreground" /></button>
+ <Button type="button" className="p-2 rounded-xl hover:bg-muted transition-colors shrink-0" aria-label="Lampirkan file (segera hadir)"><PaperclipHorizontal size={20} className="text-muted-foreground" /></Button>
  <label htmlFor="compose-message" className="sr-only">Tulis pesan</label>
  <input id="compose-message" type="text" value={msg} onChange={e => setMsg(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSend()} placeholder="Tulis pesan..." className="flex-1 h-10 px-4 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
- <button type="button" onClick={handleSend} className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 hover:bg-primary/90 transition-colors" aria-label="Kirim pesan">
+ <Button type="button" onClick={handleSend} className="w-10 h-10 rounded-xl bg-primary text-primary-foreground flex items-center justify-center shrink-0 hover:bg-primary/90 transition-colors" aria-label="Kirim pesan">
  <PaperPlaneTilt size={18} />
- </button>
+ </Button>
  </div>
  </div>
  </div>

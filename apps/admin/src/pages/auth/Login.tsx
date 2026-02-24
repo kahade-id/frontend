@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import { staggerContainer, staggerItem } from '@kahade/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 const features = [
   { icon: ShieldCheck, text: 'Akses Terenkripsi' },
@@ -66,9 +67,9 @@ export default function Login() {
                     value={form.password} onChange={e => setForm({...form, password: e.target.value})}
                     className="w-full h-12 px-4 pr-12 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm"
                   />
-                  <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+                  <Button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
                     {showPassword ? <EyeSlash size={18} /> : <Eye size={18} />}
-                  </button>
+                  </Button>
                 </div>
               </div>
 
@@ -78,7 +79,7 @@ export default function Login() {
                 </Link>
               </div>
 
-              <button type="submit" disabled={loading} className="btn-primary w-full h-12 text-base">
+              <Button type="submit" disabled={loading}  variant="primary" className="w-full h-12 text-base">
                 {loading ? (
                   <span className="flex items-center gap-2 justify-center">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -87,7 +88,7 @@ export default function Login() {
                 ) : (
                   <span className="flex items-center gap-2 justify-center">Masuk <ArrowRight size={18} /></span>
                 )}
-              </button>
+              </Button>
             </form>
           </motion.div>
         </div>

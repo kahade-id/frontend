@@ -14,7 +14,8 @@
     "build": "pnpm run build:landing && pnpm run build:app && pnpm run build:admin",
     "preview:landing": "pnpm --filter @kahade/landing preview",
     "preview:app": "pnpm --filter @kahade/dashboard preview",
-    "preview:admin": "pnpm --filter @kahade/admin preview"
+    "preview:admin": "pnpm --filter @kahade/admin preview",
+    "lint:buttons": "node scripts/enforce-button-system.mjs"
   },
   "devDependencies": {
     "turbo": "^2.0.0",

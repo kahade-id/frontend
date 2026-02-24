@@ -3,6 +3,7 @@ import { MagnifyingGlass, CheckCircle, X, Eye, Clock, IdentificationCard } from 
 import AdminLayout from '../../components/layout/AdminLayout';
 import { adminApi } from '@kahade/utils';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 interface KYCRequest {
   id: string;
@@ -82,10 +83,10 @@ export default function AdminKYC() {
 
         <div className="flex gap-1 bg-muted/50 p-1 rounded-xl w-fit">
           {tabs.map(t => (
-            <button key={t} onClick={() => setTab(t)}
+            <Button key={t} onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               {t}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -140,19 +141,19 @@ export default function AdminKYC() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1.5">
-                          <button className="p-1.5 hover:bg-muted rounded-lg" title="Lihat detail">
+                          <Button className="p-1.5 hover:bg-muted rounded-lg" title="Lihat detail">
                             <Eye size={14} />
-                          </button>
+                          </Button>
                           {r.status === 'PENDING' && (
                             <>
-                              <button onClick={() => handleApprove(r.id, r.userId!)}
+                              <Button onClick={() => handleApprove(r.id, r.userId!)}
                                 className="p-1.5 hover:bg-green-50 dark:hover:bg-green-900/20 rounded-lg text-green-600" title="Setujui">
                                 <CheckCircle size={14} />
-                              </button>
-                              <button onClick={() => handleReject(r.id, r.userId!)}
+                              </Button>
+                              <Button onClick={() => handleReject(r.id, r.userId!)}
                                 className="p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg text-red-500" title="Tolak">
                                 <X size={14} />
-                              </button>
+                              </Button>
                             </>
                           )}
                         </div>
