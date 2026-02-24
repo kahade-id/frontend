@@ -13,7 +13,6 @@
  * - Issue #28: Import cn yang tidak dipakai dihapus.
  */
 
-import { useNavigate } from 'wouter';
 import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import {
