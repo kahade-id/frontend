@@ -12,8 +12,8 @@ import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import {
   ShieldCheck, Lock, Fingerprint, Eye,
-  Scales, Detective, Certificate, ArrowRight,
-  CheckCircle, Database, Key
+  Scales, UserCircle, Certificate, ArrowRight,
+  CheckCircle, Wallet, Key
 } from '@phosphor-icons/react';
 import { staggerContainer, staggerItem, viewport } from '@kahade/utils';
 import { SectionLabel } from '@kahade/ui';
@@ -40,7 +40,7 @@ const securityPillars = [
     description: 'Tim mediator profesional menangani sengketa secara netral dan adil dengan SLA respons yang terukur.',
   },
   {
-    icon: Database,
+    icon: Wallet,
     title: 'Keamanan Dana',
     description: 'Dana escrow disimpan di rekening terpisah (pooling account) yang diawasi dan tidak dapat diakses sembarangan.',
   },
@@ -166,4 +166,4 @@ export default function SecuritySection() {
       </div>
     </section>
   );
-}
+            }
