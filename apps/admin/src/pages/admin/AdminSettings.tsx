@@ -7,6 +7,15 @@ const sections = ['Umum','Keuangan','Notifikasi','Keamanan','Sistem'];
 export default function AdminSettings() {
  const [active, setActive] = useState('Umum');
  const [fee, setFee] = useState('2.5');
+ const [security, setSecurity] = useState({
+  require2fa: true,
+  ipWhitelist: false,
+  rateLimit: true,
+ });
+
+ const toggleSecurity = (key: keyof typeof security) => {
+  setSecurity((prev) => ({ ...prev, [key]: !prev[key] }));
+ };
 
  return (
  <AdminLayout title="Pengaturan Platform" subtitle="Konfigurasi sistem dan parameter platform">
@@ -23,7 +32,7 @@ export default function AdminSettings() {
  {[['Nama Platform','Kahade'],['Domain','kahade.id'],['Email Support','halo@kahade.id'],['Nomor Support','+62 811-127-812']].map(([label, val]) => (
  <div key={label} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
  <div><p className="font-medium text-sm">{label}</p><p className="text-xs text-muted-foreground">{val}</p></div>
- <button className="btn-secondary text-xs py-1.5 px-3">Edit</button>
+ <button type="button" className="btn-secondary text-xs py-1.5 px-3">Edit</button>
  </div>
  ))}
  </>
@@ -44,23 +53,31 @@ export default function AdminSettings() {
  {[['Minimum Deposit','Rp 10.000'],['Minimum Penarikan','Rp 50.000'],['Max Penarikan/Hari','Rp 50.000.000']].map(([label, val]) => (
  <div key={label} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
  <div><p className="font-medium text-sm">{label}</p><p className="text-xs text-muted-foreground">{val}</p></div>
- <button className="btn-secondary text-xs py-1.5 px-3">Edit</button>
+ <button type="button" className="btn-secondary text-xs py-1.5 px-3">Edit</button>
  </div>
  ))}
- <button className="btn-primary">Simpan Konfigurasi</button>
+ <button type="button" className="btn-primary">Simpan Konfigurasi</button>
  </>
  )}
  {active === 'Keamanan' && (
  <>
  <h2 className="font-bold text-lg">Pengaturan Keamanan</h2>
- {[['Wajib 2FA untuk Admin', true],['IP Whitelist Aktif', false],['Rate Limit API', true]].map(([label, enabled]) => (
- <div key={String(label)} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
+ {[
+ ['Wajib 2FA untuk Admin', 'require2fa'],
+ ['IP Whitelist Aktif', 'ipWhitelist'],
+ ['Rate Limit API', 'rateLimit'],
+ ].map(([label, key]) => {
+  const enabled = security[key as keyof typeof security];
+  return (
+  <div key={String(label)} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
  <p className="font-medium text-sm">{label}</p>
- <div className={`w-11 h-6 rounded-full cursor-pointer transition-colors ${enabled ? 'bg-primary' : 'bg-muted'}`}>
+ <button type="button" onClick={() => toggleSecurity(key as keyof typeof security)} className={`w-11 h-6 rounded-full transition-colors ${enabled ? 'bg-primary' : 'bg-muted'}`} aria-label={`Toggle ${label}`}>
  <div className={`w-5 h-5 rounded-full bg-white m-0.5 transition-transform ${enabled ? 'translate-x-5' : ''}`} />
+ </button>
  </div>
- </div>
- ))}
+  );
+ })}
+ <button type="button" className="btn-primary">Simpan Konfigurasi Keamanan</button>
  </>
  )}
  {(active === 'Notifikasi' || active === 'Sistem') && (

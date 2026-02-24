@@ -61,19 +61,19 @@ export default function BankAccounts() {
  </div>
  <div className="space-y-4">
  <div>
- <label className="text-sm font-medium mb-1.5 block">Pilih Bank</label>
- <select value={form.bank} onChange={e => setForm({...form, bank: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground text-sm appearance-none">
+ <label htmlFor="bank-name" className="text-sm font-medium mb-1.5 block">Pilih Bank</label>
+ <select id="bank-name" value={form.bank} onChange={e => setForm({...form, bank: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground text-sm appearance-none">
  <option value="">Pilih bank...</option>
  {['BCA', 'BRI', 'BNI', 'Mandiri', 'BSI', 'CIMB Niaga', 'Permata'].map(b => <option key={b}>{b}</option>)}
  </select>
  </div>
  <div>
- <label className="text-sm font-medium mb-1.5 block">Nomor Rekening</label>
- <input type="text" placeholder="1234567890" value={form.number} onChange={e => setForm({...form, number: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground text-sm" />
+ <label htmlFor="account-number" className="text-sm font-medium mb-1.5 block">Nomor Rekening</label>
+ <input id="account-number" type="text" placeholder="1234567890" value={form.number} onChange={e => setForm({...form, number: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground text-sm" />
  </div>
  <div>
- <label className="text-sm font-medium mb-1.5 block">Nama Pemilik Rekening</label>
- <input type="text" placeholder="Sesuai buku tabungan" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground text-sm" />
+ <label htmlFor="account-owner" className="text-sm font-medium mb-1.5 block">Nama Pemilik Rekening</label>
+ <input id="account-owner" type="text" placeholder="Sesuai buku tabungan" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground text-sm" />
  </div>
  <div className="flex gap-3 pt-2">
  <button onClick={() => setShowAdd(false)} className="btn-secondary flex-1">Batal</button>

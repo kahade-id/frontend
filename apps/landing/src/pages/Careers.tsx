@@ -45,7 +45,7 @@ export default function Careers() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-24 overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-24 overflow-hidden">
  <div className="container">
  <div className="grid lg:grid-cols-[1fr_auto] gap-16 items-center">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">
@@ -57,12 +57,12 @@ export default function Careers() {
  <span className="text-white/60">digital Indonesia.</span>
  </motion.h1>
  <motion.div variants={staggerItem} className="flex flex-wrap gap-3 mt-8">
- <button className="btn-secondary bg-white text-primary hover:bg-white/90">
+ <a href="#jobs" className="btn-secondary bg-white text-primary hover:bg-white/90 inline-flex">
  Lihat Lowongan <ArrowRight size={16} />
- </button>
- <button className="border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors">
+ </a>
+ <Link href="/about" className="border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors inline-flex">
  Tentang Budaya
- </button>
+ </Link>
  </motion.div>
  </motion.div>
  <motion.div variants={fadeInUp} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 min-w-[240px]">
@@ -109,7 +109,7 @@ export default function Careers() {
  </section>
 
  {/* JOB LISTINGS */}
- <section className="section-padding-lg bg-muted/40">
+ <section id="jobs" className="section-padding-lg bg-muted/40">
  <div className="container">
  <motion.div variants={staggerContainer} initial="initial" whileInView="animate" viewport={viewport}>
  <motion.div variants={staggerItem} className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-10">

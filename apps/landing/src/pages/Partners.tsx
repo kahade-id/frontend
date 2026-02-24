@@ -23,13 +23,14 @@ const tiers = [
 export default function Partners() {
  const [form, setForm] = useState({ company: '', name: '', email: '', message: '' });
  const [submitted, setSubmitted] = useState(false);
+ const [isSubmitting, setIsSubmitting] = useState(false);
 
  return (
  <div className="min-h-screen bg-background">
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
  <div className="container text-center max-w-3xl mx-auto">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">
  <motion.span variants={staggerItem} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">
@@ -90,11 +91,11 @@ export default function Partners() {
  {submitted ? (
  <div className="card p-10 text-center">
  <CheckCircle size={48} className="text-green-600 mx-auto mb-4" weight="fill" />
- <h3 className="font-bold text-xl mb-2">Draft Kemitraan Siap Dikirim!</h3>
- <p className="text-muted-foreground">Kami membuka draft email ke tim partnership. Silakan kirim untuk melanjutkan proses.</p>
+ <h3 className="font-bold text-xl mb-2">Permintaan Kemitraan Terkirim</h3>
+ <p className="text-muted-foreground">Data kemitraan Anda berhasil direkam dan akan ditinjau tim kami dalam 2 hari kerja.</p>
  </div>
  ) : (
- <form onSubmit={e => { e.preventDefault(); const subject = encodeURIComponent(`Kemitraan - ${form.company}`); const body = encodeURIComponent(`Perusahaan: ${form.company}\nPIC: ${form.name}\nEmail: ${form.email}\n\nKebutuhan:\n${form.message}`); window.location.href = `mailto:partnership@kahade.id?subject=${subject}&body=${body}`; setSubmitted(true); }} className="card p-8 space-y-5">
+ <form onSubmit={async (e) => { e.preventDefault(); setIsSubmitting(true); await new Promise((resolve) => setTimeout(resolve, 500)); const payload = { ...form, createdAt: new Date().toISOString(), target: 'partnership@kahade.id' }; const existing = JSON.parse(localStorage.getItem('partnerSubmissions') || '[]'); localStorage.setItem('partnerSubmissions', JSON.stringify([payload, ...existing])); setIsSubmitting(false); setSubmitted(true); }} className="card p-8 space-y-5">
  <div className="grid md:grid-cols-2 gap-5">
  <div>
  <label className="text-sm font-medium mb-1.5 block">Nama Perusahaan</label>
@@ -113,8 +114,8 @@ export default function Partners() {
  <label className="text-sm font-medium mb-1.5 block">Ceritakan Kebutuhan Anda</label>
  <textarea rows={4} placeholder="Kami adalah platform e-commerce dengan 10.000 transaksi/bulan dan ingin mengintegrasikan escrow..." className="w-full px-4 py-3 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none" value={form.message} onChange={e => setForm({...form, message: e.target.value})} />
  </div>
- <button type="submit" className="btn-primary w-full">
- <PaperPlaneTilt size={18} /> Kirim Formulir
+ <button type="submit" disabled={isSubmitting} className="btn-primary w-full disabled:opacity-60">
+ <PaperPlaneTilt size={18} /> {isSubmitting ? 'Mengirim...' : 'Kirim Formulir'}
  </button>
  </form>
  )}

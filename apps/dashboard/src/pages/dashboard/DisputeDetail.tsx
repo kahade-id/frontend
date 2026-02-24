@@ -313,7 +313,7 @@ export default function DisputeDetail() {
  <Input
  value={message}
  onChange={(e) => setMessage(e.target.value)}
- placeholder="Type your message..."
+ placeholder="Tulis pesan Anda..."
  className="flex-1 h-10 rounded-xl border-neutral-200"
  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
  />

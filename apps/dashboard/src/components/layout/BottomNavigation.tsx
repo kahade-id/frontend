@@ -27,7 +27,7 @@ interface NavItem {
 const navItems: NavItem[] = [
  { href: '/', icon: House, label: 'Beranda' },
  { href: '/transactions', icon: Receipt, label: 'Pesanan' },
- { href: '/transactions/new', icon: Plus, label: '', isAction: true },
+ { href: '/transactions/create', icon: Plus, label: '', isAction: true },
  { href: '/wallet', icon: Wallet, label: 'Dompet' },
  { href: '/profile', icon: User, label: 'Profil' },
 ];
@@ -44,7 +44,7 @@ export default function BottomNavigation() {
  if (page === '/') {
  return location === '/';
  }
- // For other pages, check exact match only (not subpages like /transactions/new or /transactions/:id)
+ // For other pages, check exact match only (not subpages like /transactions/create or /transactions/:id)
  return location === page;
  });
 

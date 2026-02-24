@@ -45,7 +45,7 @@ const megaMenuData = {
         title: 'Solusi',
         links: [
           { href: '/use-cases',            label: 'Marketplace', icon: Users,     description: 'Untuk marketplace online' },
-          { href: '/use-cases#freelance',  label: 'Freelancer',  icon: Briefcase, description: 'Pembayaran freelance yang aman' },
+          { href: '/use-cases',  label: 'Freelancer',  icon: Briefcase, description: 'Pembayaran freelance yang aman' },
           { href: '/contact',              label: 'Enterprise',  icon: Buildings, description: 'Solusi enterprise kustom' },
         ]
       }
@@ -158,8 +158,8 @@ export default function Navbar() {
 
   const navClasses = useMemo(() => cn(
     'fixed top-0 left-0 right-0 z-50 py-3 md:py-4 transition-all duration-300',
-    'bg-[#FFFFFF] border-b border-[#E8E8E8]'
-  ), []);
+    scrolled ? 'bg-background/95 backdrop-blur border-b border-border shadow-sm' : 'bg-background border-b border-transparent'
+  ), [scrolled]);
 
   return (
     <>
@@ -171,7 +171,7 @@ export default function Navbar() {
       >
         <div className="container flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="block flex items-center shrink-0 relative z-10">
+          <Link href="/" className="flex items-center shrink-0 relative z-10">
             <img
               src="/images/logo.svg"
               alt="Kahade - Platform Escrow Terpercaya"
@@ -531,7 +531,7 @@ function MobileMenu({
     >
       {/* Header */}
       <div className="sticky top-0 bg-background border-b border-border px-6 py-4 flex items-center justify-between">
-        <img src="/images/logo.svg" alt="Kahade" className="h-7 w-auto" />
+        <img src="/images/logo.svg" alt="Kahade - Platform Escrow Terpercaya" className="h-7 w-auto" />
         <button
           type="button"
           onClick={onClose}

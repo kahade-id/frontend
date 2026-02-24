@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Download, TrendUp, CurrencyDollar, Users, ArrowsLeftRight } from '@phosphor-icons/react';
 import AdminLayout from '../../components/layout/AdminLayout';
 
@@ -9,10 +9,45 @@ const monthlyData = [
  { month: 'Jan', volume: 48.5, tx: 1620, users: 490, revenue: 1212 },
  { month: 'Feb', volume: 58.3, tx: 1950, users: 620, revenue: 1457 },
 ];
-const maxVol = Math.max(...monthlyData.map(d => d.volume));
+
+const periodMap: Record<string, number> = {
+ '7 hari': 1,
+ '30 hari': 2,
+ '3 bulan': 3,
+ '6 bulan': monthlyData.length,
+ '1 tahun': monthlyData.length,
+};
 
 export default function AdminReports() {
  const [period, setPeriod] = useState('6 bulan');
+ const rows = useMemo(() => {
+  const take = periodMap[period] ?? monthlyData.length;
+  return monthlyData.slice(-take);
+ }, [period]);
+ const maxVol = Math.max(...rows.map((d) => d.volume));
+
+ const totals = useMemo(() => rows.reduce((acc, item) => ({
+  volume: acc.volume + item.volume,
+  tx: acc.tx + item.tx,
+  users: acc.users + item.users,
+  revenue: acc.revenue + item.revenue,
+ }), { volume: 0, tx: 0, users: 0, revenue: 0 }), [rows]);
+
+ const handleDownload = () => {
+  const content = [
+   ['Bulan', 'Volume (Rp Juta)', 'Transaksi', 'User Baru', 'Revenue (Rp Ribu)'].join(','),
+   ...rows.map((d) => [d.month, d.volume, d.tx, d.users, d.revenue].join(',')),
+  ].join('\n');
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `laporan-${period.replace(/\s+/g, '-')}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+ };
 
  return (
  <AdminLayout title="Laporan & Analitik" subtitle="Data performa platform Kahade">
@@ -23,15 +58,15 @@ export default function AdminReports() {
  <button key={p} onClick={() => setPeriod(p)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${period === p ? 'bg-background ' : 'text-muted-foreground hover:text-foreground'}`}>{p}</button>
  ))}
  </div>
- <button className="btn-secondary gap-2 text-sm"><Download size={16} /> Unduh Laporan</button>
+ <button onClick={handleDownload} className="btn-secondary gap-2 text-sm"><Download size={16} /> Unduh Laporan</button>
  </div>
 
  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
  {[
- { icon: CurrencyDollar, label: 'Total Volume', value: 'Rp 241.9M', delta: '+21%' },
- { icon: ArrowsLeftRight, label: 'Total Transaksi', value: '8.110', delta: '+18%' },
- { icon: Users, label: 'User Baru', value: '2.405', delta: '+32%' },
- { icon: TrendUp, label: 'Total Revenue', value: 'Rp 6.04M', delta: '+21%' },
+ { icon: CurrencyDollar, label: 'Total Volume', value: `Rp ${totals.volume.toFixed(1)}M`, delta: '+21%' },
+ { icon: ArrowsLeftRight, label: 'Total Transaksi', value: totals.tx.toLocaleString('id-ID'), delta: '+18%' },
+ { icon: Users, label: 'User Baru', value: totals.users.toLocaleString('id-ID'), delta: '+32%' },
+ { icon: TrendUp, label: 'Total Revenue', value: `Rp ${totals.revenue.toLocaleString('id-ID')}K`, delta: '+21%' },
  ].map(({ icon: Icon, label, value, delta }) => (
  <div key={label} className="card p-5">
  <div className="flex items-start justify-between mb-3">
@@ -45,9 +80,9 @@ export default function AdminReports() {
  </div>
 
  <div className="card p-6">
- <h2 className="font-bold mb-6">Volume Transaksi per Bulan (Rp Juta)</h2>
- <div className="flex items-end gap-6 h-48">
- {monthlyData.map(d => (
+ <h2 className="font-bold mb-6">Volume Transaksi (Rp Juta) — {period}</h2>
+ <div className="flex items-end gap-6 h-48" role="img" aria-label={`Grafik volume transaksi untuk periode ${period}`}>
+ {rows.map(d => (
  <div key={d.month} className="flex-1 flex flex-col items-center gap-2">
  <span className="text-xs font-bold text-primary">{d.volume}M</span>
  <div className="w-full rounded-t-xl bg-primary/70 hover:bg-primary transition-colors cursor-pointer" style={{ height: `${(d.volume / maxVol) * 160}px` }} />
@@ -64,7 +99,7 @@ export default function AdminReports() {
  <tr>{['Bulan','Volume (Rp)','Transaksi','User Baru','Revenue (Rp)'].map(h => <th key={h} className="px-5 py-3 text-left text-[0.65rem] font-bold uppercase tracking-wider text-muted-foreground">{h}</th>)}</tr>
  </thead>
  <tbody className="divide-y divide-border">
- {monthlyData.map(d => (
+ {rows.map(d => (
  <tr key={d.month} className="hover:bg-muted/30">
  <td className="px-5 py-3 font-semibold">{d.month} '25</td>
  <td className="px-5 py-3">Rp {d.volume}M</td>

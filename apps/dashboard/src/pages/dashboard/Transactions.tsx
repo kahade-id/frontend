@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'wouter';
 import {
  Plus, MagnifyingGlass, FunnelSimple, ArrowRight,
@@ -25,13 +25,20 @@ const statusStyles: Record<string, string> = {
 export default function Transactions() {
  const [activeTab, setActiveTab] = useState('Semua');
  const [search, setSearch] = useState('');
+
+ useEffect(() => {
+  const query = new URLSearchParams(window.location.search).get('q');
+  if (query) {
+   setSearch(query);
+  }
+ }, []);
  const filtered = mockTx.filter(tx => activeTab === 'Semua' || tx.label === activeTab).filter(tx => !search || tx.title.toLowerCase().includes(search.toLowerCase()) || tx.id.toLowerCase().includes(search.toLowerCase()));
  return (
  <DashboardLayout>
  <div className="p-6 max-w-6xl mx-auto">
  <div className="flex items-center justify-between mb-6">
  <h1 className="text-2xl font-bold">Transaksi</h1>
- <Link href="/transactions/new"><button className="btn-primary"><Plus size={18} /> Transaksi Baru</button></Link>
+ <Link href="/transactions/create" className="btn-primary inline-flex"><Plus size={18} /> Transaksi Baru</Link>
  </div>
  <div className="flex gap-1 bg-muted/50 p-1 rounded-xl mb-5 overflow-x-auto no-scrollbar">
  {tabs.map(tab => (
@@ -65,7 +72,7 @@ export default function Transactions() {
  <td className="p-4 text-right font-semibold">{tx.amount}</td>
  <td className="p-4 text-center"><span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusStyles[tx.status]}`}>{tx.label}</span></td>
  <td className="p-4">
- <Link href={`/transactions/${tx.id}`}><button className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg hover:bg-muted"><ArrowRight size={16} className="text-muted-foreground" /></button></Link>
+ <Link href={`/transactions/${tx.id}`} className="opacity-0 group-hover:opacity-100 transition-opacity p-2 rounded-lg hover:bg-muted inline-flex"><ArrowRight size={16} className="text-muted-foreground" /></Link>
  </td>
  </tr>
  ))}

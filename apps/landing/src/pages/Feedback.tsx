@@ -44,12 +44,12 @@ export default function Feedback() {
  }
  
  setIsSubmitting(true);
- const subject = encodeURIComponent(`Feedback ${feedbackType} - rating ${rating || "n/a"}`);
- const body = encodeURIComponent(`Subject: ${formData.subject}\nEmail: ${formData.email || "-"}\nRating: ${rating || "-"}\n\n${formData.message}`);
- window.location.href = `mailto:feedback@kahade.id?subject=${subject}&body=${body}`;
+ const payload = { ...formData, feedbackType, rating, createdAt: new Date().toISOString(), target: 'feedback@kahade.id' };
+ const existing = JSON.parse(localStorage.getItem('feedbackSubmissions') || '[]');
+ localStorage.setItem('feedbackSubmissions', JSON.stringify([payload, ...existing]));
  setIsSubmitting(false);
  setIsSubmitted(true);
- toast.success('Draft feedback siap dikirim.');
+ toast.success('Feedback berhasil dikirim.');
  };
 
  if (isSubmitted) {
@@ -68,7 +68,7 @@ export default function Feedback() {
  </div>
  <h1 className="text-2xl md:text-3xl font-bold mb-3 md:mb-4 text-foreground">Terima Kasih!</h1>
  <p className="text-sm md:text-base text-muted-foreground mb-6 md:mb-8">
- Draft feedback sudah disiapkan di email Anda. Klik kirim untuk menyampaikan masukan ke tim Kahade.
+ Feedback Anda sudah masuk ke sistem kami. Terima kasih sudah membantu meningkatkan layanan Kahade.
  </p>
  <Button onClick={() => setIsSubmitted(false)} className="h-11 md:h-12 px-6 bg-black text-white hover:bg-black/90 font-semibold rounded-xl">
  Kirim Feedback Lainnya

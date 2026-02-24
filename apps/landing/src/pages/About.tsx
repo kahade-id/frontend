@@ -44,7 +44,7 @@ export default function About() {
  <Navbar />
 
  {/* SECTION 1: HERO — EDITORIAL */}
- <section className="bg-primary text-primary-foreground pt-24 pb-16 md:pb-24 overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-16 md:pb-24 overflow-hidden">
  <div className="container">
  <div className="grid lg:grid-cols-[0.6fr_0.4fr] gap-8 lg:gap-12 items-center">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">

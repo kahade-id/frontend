@@ -95,7 +95,8 @@ export default function TransactionDetail() {
  </div>
  <div className="flex gap-2 border-t border-border pt-4">
  <button className="p-2 rounded-xl hover:bg-muted transition-colors"><PaperclipHorizontal size={18} className="text-muted-foreground" /></button>
- <input type="text" value={message} onChange={e => setMessage(e.target.value)} placeholder="Tulis pesan..." className="flex-1 px-4 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
+ <label htmlFor="transaction-message" className="sr-only">Pesan transaksi</label>
+ <input id="transaction-message" type="text" value={message} onChange={e => setMessage(e.target.value)} placeholder="Tulis pesan..." className="flex-1 px-4 py-2 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
  <button className="p-2 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"><PaperPlaneTilt size={18} /></button>
  </div>
  </div>

@@ -28,7 +28,7 @@ export default function FinalCTA() {
     <section
       className="section-padding-lg relative overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.04) 0%, transparent 60%), #0A0A0A',
+        background: 'radial-gradient(ellipse at 30% 50%, rgba(255,255,255,0.04) 0%, transparent 60%), hsl(var(--primary))',
       }}
     >
       {/* Subtle grid */}
@@ -57,11 +57,8 @@ export default function FinalCTA() {
               Siap mengamankan transaksi Anda?
             </motion.h2>
 
-            <motion.p variants={staggerItem} className="text-white/60 text-lg leading-relaxed mb-2">
-              Tidak butuh kartu kredit.
-            </motion.p>
             <motion.p variants={staggerItem} className="text-white/60 text-lg leading-relaxed mb-8">
-              Setup dalam 5 menit.
+              Setup dalam 5 menit • tanpa kartu kredit.
             </motion.p>
 
             {/* Issue #6: Trust items dari SITE_STATS */}

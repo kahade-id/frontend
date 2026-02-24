@@ -34,19 +34,19 @@ function StepContent({ step, data, onChange }: StepContentProps) {
   if (step === 0) return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Nama Lengkap</label>
+        <label htmlFor="full-name" className="text-sm font-medium mb-1.5 block">Nama Lengkap</label>
         <input type="text" required placeholder="Ahmad Rizki" value={data.name} onChange={e => onChange('name', e.target.value)}
           className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm" />
       </div>
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Email</label>
-        <input type="email" required placeholder="email@contoh.com" value={data.email} onChange={e => onChange('email', e.target.value)}
+        <label htmlFor="email" className="text-sm font-medium mb-1.5 block">Email</label>
+        <input id="email" type="email" required placeholder="email@contoh.com" value={data.email} onChange={e => onChange('email', e.target.value)}
           className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm" />
       </div>
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Password</label>
+        <label htmlFor="password" className="text-sm font-medium mb-1.5 block">Password</label>
         <div className="relative">
-          <input type={showPwd ? 'text' : 'password'} required minLength={8} placeholder="Min. 8 karakter" value={data.password} onChange={e => onChange('password', e.target.value)}
+          <input id="new-password" type={showPwd ? 'text' : 'password'} required minLength={8} placeholder="Min. 8 karakter" value={data.password} onChange={e => onChange('password', e.target.value)}
             className="w-full h-12 px-4 pr-12 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm" />
           <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
             {showPwd ? <EyeSlash size={18} /> : <Eye size={18} />}
@@ -60,12 +60,12 @@ function StepContent({ step, data, onChange }: StepContentProps) {
   if (step === 1) return (
     <div className="space-y-4">
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Nomor HP <span className="text-muted-foreground font-normal">(opsional)</span></label>
-        <input type="tel" placeholder="+62 812-XXXX-XXXX" value={data.phone} onChange={e => onChange('phone', e.target.value)}
+        <label htmlFor="phone" className="text-sm font-medium mb-1.5 block">Nomor HP <span className="text-muted-foreground font-normal">(opsional)</span></label>
+        <input id="phone" type="tel" placeholder="+62 812-XXXX-XXXX" value={data.phone} onChange={e => onChange('phone', e.target.value)}
           className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm" />
       </div>
       <div>
-        <label className="text-sm font-medium mb-1.5 block">Kode Referral <span className="text-muted-foreground font-normal">(opsional)</span></label>
+        <label htmlFor="referral-code" className="text-sm font-medium mb-1.5 block">Kode Referral <span className="text-muted-foreground font-normal">(opsional)</span></label>
         <input type="text" placeholder="Kode referral" value={data.referralCode} onChange={e => onChange('referralCode', e.target.value)}
           className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm" />
       </div>
@@ -212,9 +212,7 @@ export default function Register() {
 
           {registered && (
             <div className="mt-6">
-              <Link href="/login">
-                <button className="btn-primary w-full">Pergi ke Login</button>
-              </Link>
+              <Link href="/login" className="btn-primary w-full inline-flex justify-center">Pergi ke Login</Link>
             </div>
           )}
 

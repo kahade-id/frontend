@@ -145,12 +145,12 @@ export default function ProblemSection() {
                 {/* Flow animation */}
                 <div className="hidden md:flex items-center justify-center w-48 h-full bg-white/5 p-6">
                   <div className="flex flex-col items-center gap-2 text-xs text-center">
-                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-lg">💰</div>
+                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-lg"><span aria-hidden="true">💰</span></div>
                     <div className="w-px h-6 bg-white/20" />
-                    <div className="w-12 h-12 rounded-full bg-success/20 border border-success/40 flex items-center justify-center text-lg">🔒</div>
+                    <div className="w-12 h-12 rounded-full bg-success/20 border border-success/40 flex items-center justify-center text-lg"><span aria-hidden="true">🔒</span></div>
                     <p className="text-white/60 font-medium">Kahade</p>
                     <div className="w-px h-6 bg-white/20" />
-                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-lg">📦</div>
+                    <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center text-lg"><span aria-hidden="true">📦</span></div>
                   </div>
                 </div>
               </div>
