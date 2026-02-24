@@ -18,7 +18,7 @@ export default function Press() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
  <div className="container text-center max-w-3xl mx-auto">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">
  <motion.span variants={staggerItem} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">
@@ -26,23 +26,21 @@ export default function Press() {
  </motion.span>
  <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-6">Kahade di Media</motion.h1>
  <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg">
- Liputan terbaru tentang platform escrow terpercaya Indonesia.
+ Liputan, rilis, dan materi pers resmi tentang Kahade.
  </motion.p>
  </motion.div>
  </div>
  </section>
 
- {/* MEDIA LOGOS MARQUEE */}
- <section className="border-y bg-muted/30 py-8 overflow-hidden">
- <motion.div
- className="flex gap-12 whitespace-nowrap"
- animate={{ x: ['0%', '-50%'] }}
- transition={{ duration: 20, repeat: Infinity, ease: 'linear' }}
- >
- {[...mediaLogos, ...mediaLogos].map((logo, i) => (
- <div key={i} className="text-lg font-bold text-muted-foreground/40 shrink-0">{logo}</div>
+ {/* MEDIA LOGOS */}
+ <section className="border-y bg-muted/30 py-8">
+ <div className="container">
+ <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4">
+ {mediaLogos.map((logo) => (
+ <div key={logo} className="text-sm md:text-base font-semibold text-muted-foreground/60 text-center px-3 py-2 rounded-lg border border-border bg-background">{logo}</div>
  ))}
- </motion.div>
+ </div>
+ </div>
  </section>
 
  {/* PRESS RELEASES */}

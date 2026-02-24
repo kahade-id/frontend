@@ -94,7 +94,7 @@ export default function Pricing() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
  <div className="container text-center">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">
  <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-4">
@@ -102,7 +102,7 @@ export default function Pricing() {
  <span className="text-white/60">Tidak Ada Kejutan.</span>
  </motion.h1>
  <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg mb-10">
- Mulai gratis, upgrade sesuai kebutuhan.
+ Mulai gratis, lalu upgrade saat volume transaksi bertumbuh.
  </motion.p>
  <motion.div variants={staggerItem} className="inline-flex items-center gap-1 bg-white/10 rounded-full p-1">
  <button
@@ -130,7 +130,7 @@ export default function Pricing() {
  {plans.map((plan) => {
  const price = isYearly ? plan.yearlyPrice : plan.monthlyPrice;
  return (
- <div key={plan.name} className={`card p-8 relative flex flex-col ${plan.popular ? 'border-primary ring-2 ring-primary/20 ' : ''}`}>
+ <div key={plan.name} className={`card p-8 relative flex flex-col ${plan.popular ? 'border-primary ring-1 ring-primary/15' : ''}`}>
  {plan.popular && (
  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
  <span className="badge badge-primary text-xs px-3">Paling Populer</span>
@@ -168,10 +168,8 @@ export default function Pricing() {
  </div>
  ))}
  </div>
- <Link href={plan.name === 'Enterprise' ? '/contact' : '/register'}>
- <button className={`w-full py-3 rounded-xl font-semibold text-sm transition-all ${plan.popular ? 'btn-primary' : 'btn-secondary'}`}>
+ <Link href={plan.name === 'Enterprise' ? '/contact' : '/register'} className={`w-full py-3 rounded-xl font-semibold text-sm transition-all inline-flex items-center justify-center ${plan.popular ? 'btn-primary' : 'btn-secondary'}`}>
  {plan.cta}
- </button>
  </Link>
  </div>
  );
@@ -219,10 +217,8 @@ export default function Pricing() {
  <span>Total diterima penjual</span>
  <span className="text-green-600">{formatRupiah(net)}</span>
  </div>
- <a href="https://app.kahade.id/register">
- <button className="btn-primary w-full mt-2">
+ <a href="https://app.kahade.id/register" className="btn-primary w-full mt-2 inline-flex items-center justify-center">
  Mulai Transaksi <ArrowRight size={16} />
- </button>
  </a>
  </div>
  </div>

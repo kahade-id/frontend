@@ -34,7 +34,7 @@ export default function MobileApp() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
  <div className="container">
  <div className="grid lg:grid-cols-2 gap-12 items-center">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">
@@ -45,7 +45,7 @@ export default function MobileApp() {
  Kahade di<br />genggaman Anda
  </motion.h1>
  <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg mb-10">
- Kelola semua transaksi escrow Anda dari smartphone. Kapan saja, di mana saja, dengan keamanan penuh.
+ Kelola transaksi escrow dari smartphone dengan alur yang ringan, jelas, dan aman.
  </motion.p>
  <motion.div variants={staggerItem} className="flex flex-wrap gap-4">
  <a href="https://apps.apple.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-5 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
@@ -55,8 +55,8 @@ export default function MobileApp() {
  <GooglePlayLogo size={24} /> Play Store
  </a>
  </motion.div>
- <motion.p variants={staggerItem} className="text-primary-foreground/50 text-sm mt-4">
- iOS 14+ · Android 8.0+
+ <motion.p variants={staggerItem} className="text-primary-foreground/60 text-sm mt-4">
+ Beta terbatas · iOS 14+ · Android 8.0+
  </motion.p>
  </motion.div>
 
@@ -147,13 +147,13 @@ export default function MobileApp() {
  {/* DOWNLOAD CTA */}
  <section className="section-padding-md bg-primary text-primary-foreground">
  <div className="container text-center max-w-2xl mx-auto">
- <h2 className="text-3xl font-bold mb-4">Download sekarang (Beta)</h2>
- <p className="text-primary-foreground/70 mb-8">Tersedia versi beta iOS & Android. Beberapa fitur masih dalam tahap penyempurnaan.</p>
+ <h2 className="text-3xl font-bold mb-4">Ikuti akses beta</h2>
+ <p className="text-primary-foreground/70 mb-8">Store listing masih bertahap. Daftar sekarang untuk mendapat info rilis dan early access.</p>
  <div className="flex gap-4 justify-center flex-wrap">
- <a href="https://apps.apple.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
- <AppStoreLogo size={24} /> App Store
+ <a href="/contact" className="btn-primary inline-flex items-center gap-2 px-6 py-3">
+ Dapatkan Early Access <ArrowRight size={18} />
  </a>
- <a href="https://play.google.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-6 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
+ <a href="https://play.google.com" target="_blank" rel="noreferrer" className="btn-secondary inline-flex items-center gap-3 px-6 py-3 border-white/30 text-white hover:text-primary hover:bg-white">
  <GooglePlayLogo size={24} /> Play Store
  </a>
  </div>

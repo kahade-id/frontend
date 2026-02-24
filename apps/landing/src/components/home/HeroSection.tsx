@@ -17,9 +17,9 @@ import { motion } from 'framer-motion';
 import { Link } from 'wouter';
 import {
   ArrowRight, Play, ShieldCheck, IdentificationBadge,
-  Clock, Scales, Wallet, ChartLineUp, Lock, CheckCircle
+  Clock, Scales, Wallet, Lock, CheckCircle
 } from '@phosphor-icons/react';
-import { fadeInUp, staggerContainer, staggerItem, viewport } from '@kahade/utils';
+import { staggerContainer, staggerItem } from '@kahade/utils';
 import { SITE_STATS } from './HomeData';
 
 const heroStats = [
@@ -39,6 +39,8 @@ const trustBadges = [
 ];
 
 export default function HeroSection() {
+  const primaryTrustBadges = trustBadges.slice(0, 2);
+
   return (
     <section className="section-padding-hero relative overflow-hidden">
       {/* Background grid */}
@@ -65,7 +67,7 @@ export default function HeroSection() {
           {/* ── KIRI ── */}
           <div className="text-center lg:text-left">
             {/* Badge — angka dari SITE_STATS (Issue #6) */}
-            <motion.div variants={staggerItem} className="mb-8 flex justify-center lg:justify-start">
+            <motion.div variants={staggerItem} className="mb-6 flex justify-center lg:justify-start">
               <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full
                 border border-neutral-200 bg-background
                 text-xs font-semibold tracking-wide text-neutral-600
@@ -79,7 +81,7 @@ export default function HeroSection() {
             {/* Headline */}
             <motion.h1
               variants={staggerItem}
-              className="font-display font-black leading-[1.0] tracking-[-0.05em] mb-8"
+              className="font-display font-black leading-[1.0] tracking-[-0.05em] mb-6"
               style={{ fontSize: 'clamp(2.75rem, 5.5vw + 1rem, 6.5rem)' }}
             >
               <span className="block text-foreground">-</span>
@@ -88,20 +90,14 @@ export default function HeroSection() {
                 <span className="relative z-10 text-foreground">+</span>
                 {' '}
                 <span className="relative z-10 text-foreground">Kepercayaan.</span>
-                <motion.div
-                  initial={{ scaleX: 0, originX: 0 }}
-                  animate={{ scaleX: 1 }}
-                  transition={{ delay: 0.7, duration: 0.8, ease: [0.4, 0, 0.2, 1] }}
-                  className="absolute -bottom-1 left-0 right-0 h-[10px] bg-primary/10 rounded-full"
-                  style={{ transformOrigin: 'left center' }}
-                />
+                <span className="absolute -bottom-1 left-0 right-0 h-[8px] bg-primary/10 rounded-full" aria-hidden="true" />
               </span>
             </motion.h1>
 
             {/* Lead text */}
             <motion.p
               variants={staggerItem}
-              className="text-muted-foreground mb-8 leading-relaxed"
+              className="text-muted-foreground mb-7 leading-relaxed"
               style={{ fontSize: 'clamp(1.0625rem, 1.5vw, 1.25rem)' }}
             >
               Kahade menahan dana Anda hingga transaksi selesai dengan sempurna.
@@ -112,12 +108,12 @@ export default function HeroSection() {
                 Gunakan Link href langsung atau tombol styled tanpa nesting element interaktif. */}
             <motion.div
               variants={staggerItem}
-              className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-10"
+              className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8"
             >
               {/* Opsi 1: Link as anchor styled as button — VALID secara semantik */}
               <Link
                 href="https://app.kahade.id/register"
-                className="btn-primary btn-lg flex items-center justify-center gap-2 w-full sm:w-auto"
+                className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
               >
                 Mulai Transaksi
                 <ArrowRight className="w-5 h-5" weight="bold" />
@@ -126,7 +122,7 @@ export default function HeroSection() {
               {/* Opsi 2: Button murni dengan onClick handler — VALID */}
               <button
                 type="button"
-                className="btn-secondary btn-lg w-full sm:w-auto flex items-center justify-center gap-2"
+                className="btn-secondary w-full sm:w-auto flex items-center justify-center gap-2"
                 onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
               >
                 <Play className="w-4 h-4" weight="fill" />
@@ -139,14 +135,14 @@ export default function HeroSection() {
               variants={staggerItem}
               className="flex flex-wrap gap-2 justify-center lg:justify-start"
             >
-              {trustBadges.map(({ label, sublabel, icon: BadgeIcon }) => (
+              {primaryTrustBadges.map(({ label, sublabel, icon: BadgeIcon }) => (
                 <div
                   key={label}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg
-                    border border-border bg-background text-xs font-medium"
+                    border border-border bg-background text-xs font-medium text-muted-foreground"
                   title={sublabel}
                 >
-                  <BadgeIcon className="w-4 h-4 text-muted-foreground" weight="duotone" />
+                  <BadgeIcon className="w-4 h-4 text-muted-foreground/80" weight="duotone" />
                   <span>{label}</span>
                 </div>
               ))}
@@ -155,9 +151,9 @@ export default function HeroSection() {
             {/* Issue #5: Disclaimer kecil di bawah badges */}
             <motion.p
               variants={staggerItem}
-              className="text-[0.6875rem] text-muted-foreground/60 mt-3 text-center lg:text-left"
+              className="text-[0.6875rem] text-muted-foreground/60 mt-2 text-center lg:text-left"
             >
-              * Beberapa sertifikasi sedang dalam proses perolehan resmi.
+              +2 indikator trust lain tersedia di section keamanan.
             </motion.p>
           </div>
 
@@ -168,7 +164,7 @@ export default function HeroSection() {
             variants={staggerItem}
             className="relative"
           >
-            <div className="card border-2 border-border rounded-[20px] p-6 md:p-8 bg-background">
+            <div className="card border border-border rounded-[20px] p-5 md:p-6 bg-background">
               {/* Transaction header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -180,11 +176,11 @@ export default function HeroSection() {
               </div>
 
               {/* Amount */}
-              <p className="text-3xl font-black tracking-tight mb-6">Rp 12.500.000</p>
+              <p className="text-3xl font-black tracking-tight mb-5">Rp 12.500.000</p>
 
               {/* Stats grid 2x2 — dari SITE_STATS */}
-              <div className="grid grid-cols-2 gap-3 mb-6">
-                {heroStats.map(({ value, label, icon: StatIcon }) => (
+              <div className="grid grid-cols-2 gap-3 mb-5">
+                {heroStats.slice(0, 2).map(({ value, label, icon: StatIcon }) => (
                   <div key={label} className="bg-muted rounded-xl p-3">
                     <div className="flex items-center gap-1.5 mb-1">
                       <StatIcon className="w-3.5 h-3.5 text-muted-foreground" weight="duotone" />
