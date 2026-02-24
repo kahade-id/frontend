@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Envelope, CheckCircle, Key } from '@phosphor-icons/react';
 import { Link } from 'wouter';
@@ -11,6 +11,15 @@ export default function ForgotPassword() {
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [countdown, setCountdown] = useState(0);
+  const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,7 +30,17 @@ export default function ForgotPassword() {
       setSubmitted(true);
       let c = 45;
       setCountdown(c);
-      const t = setInterval(() => { c--; setCountdown(c); if (c <= 0) clearInterval(t); }, 1000);
+      if (countdownIntervalRef.current) {
+        clearInterval(countdownIntervalRef.current);
+      }
+      countdownIntervalRef.current = setInterval(() => {
+        c--;
+        setCountdown(c);
+        if (c <= 0 && countdownIntervalRef.current) {
+          clearInterval(countdownIntervalRef.current);
+          countdownIntervalRef.current = null;
+        }
+      }, 1000);
     } catch (err: any) {
       const msg = err?.response?.data?.message || 'Gagal mengirim email. Coba lagi nanti.';
       toast.error('Gagal', { description: msg });
@@ -84,7 +103,7 @@ export default function ForgotPassword() {
                 Kirim ulang dalam: <span className="font-semibold text-foreground">0:{countdown.toString().padStart(2, '0')}</span>
               </p>
             ) : (
-              <button onClick={() => { setSubmitted(false); setCountdown(0); }} className="btn-secondary">
+              <button onClick={() => { if (countdownIntervalRef.current) { clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; } setSubmitted(false); setCountdown(0); }} className="btn-secondary">
                 Kirim Ulang
               </button>
             )}

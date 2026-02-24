@@ -64,6 +64,19 @@
   --spacing-3xl: 4rem;
   --spacing-4xl: 6rem;
   --spacing-5xl: 8rem;
+
+  /* Restore Tailwind container max-width scale (prevents max-w-* collapsing to spacing scale) */
+  --container-xs: 20rem;
+  --container-sm: 24rem;
+  --container-md: 28rem;
+  --container-lg: 32rem;
+  --container-xl: 36rem;
+  --container-2xl: 42rem;
+  --container-3xl: 48rem;
+  --container-4xl: 56rem;
+  --container-5xl: 64rem;
+  --container-6xl: 72rem;
+  --container-7xl: 80rem;
   
   /* Elevation System */
   --elevation-1: 0 1px 2px 0 rgb(0 0 0 / 0.05);
@@ -1508,32 +1521,25 @@
    5. Tidak ada class utilitas Tailwind yang di-override secara global
    ======================================================================== */
 
-/* ─── Fix: Tailwind v4 text-wrap — SCOPED, bukan sledgehammer (Issue #18) ─── */
-/* Sebelumnya: * { text-wrap: wrap !important } — ini merusak badge/chip/nav */
-/* Sekarang: hanya heading & paragraph, bukan span/div/semua elemen */
-h1, h2, h3, h4, h5, h6 {
-  text-wrap: wrap;
+/* Utility for the few places that need aggressive breaking (URL/token/code). */
+.break-anywhere {
+  overflow-wrap: anywhere;
+  word-break: normal;
 }
-p, li, blockquote, figcaption, caption, dt, dd {
-  text-wrap: pretty;
-}
-pre {
+
+pre,
+code {
   max-width: 100%;
   white-space: pre-wrap;
-  word-break: break-word;
-  overflow-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: normal;
   overflow-x: auto;
 }
-/* Mobile: hanya untuk elemen yang genuinely perlu wrap di layar sempit */
+
 @media (max-width: 639px) {
-  h1, h2, h3, h4, h5, h6, p, li {
-    overflow-wrap: break-word;
-    word-break: break-word;
-  }
-  pre, code {
+  pre,
+  code {
     font-size: 0.7rem;
-    max-width: 100%;
-    white-space: pre-wrap;
   }
 }
 
@@ -1587,3 +1593,15 @@ section {
     line-height: 1.15;
   }
 }
+
+
+/* ─── Tailwind v3 max-width compatibility (Issue: max-w-* collapsed on mobile) ─── */
+.max-w-sm { max-width: 24rem; }
+.max-w-md { max-width: 28rem; }
+.max-w-lg { max-width: 32rem; }
+.max-w-xl { max-width: 36rem; }
+.max-w-2xl { max-width: 42rem; }
+.max-w-3xl { max-width: 48rem; }
+.max-w-4xl { max-width: 56rem; }
+.max-w-5xl { max-width: 64rem; }
+.max-w-6xl { max-width: 72rem; }

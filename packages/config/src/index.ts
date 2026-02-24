@@ -1,2 +1,3 @@
 export * from './app.config'
-export * from './env.validation'
+
+// NOTE: env validation is intentionally not auto-exported to avoid side effects in apps that only need app config.
