@@ -21,8 +21,8 @@ import { SectionLabel } from '@kahade/ui';
 const securityPillars = [
   {
     icon: Lock,
-    title: 'Enkripsi End-to-End',
-    description: 'Semua data transaksi dienkripsi dengan AES-256. Tidak ada pihak ketiga yang dapat mengakses data Anda.',
+    title: 'Enkripsi Data AES-256',
+    description: 'Data transaksi dienkripsi saat transit dan penyimpanan dengan standar AES-256 untuk perlindungan tingkat enterprise.',
   },
   {
     icon: Fingerprint,
@@ -125,7 +125,7 @@ export default function SecuritySection() {
                 </div>
                 <div>
                   <p className="font-bold text-base">Status Kepatuhan & Regulasi</p>
-                  <p className="text-xs text-muted-foreground">Diperbarui: 2025</p>
+                  <p className="text-xs text-muted-foreground">Diperbarui: 15 Januari 2026</p>
                 </div>
               </div>
               <ul className="space-y-2">

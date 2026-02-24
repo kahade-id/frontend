@@ -72,9 +72,7 @@ export default function ResetPassword() {
           <p className="text-muted-foreground text-sm mb-8">
             Tautan reset password sudah kedaluwarsa atau tidak valid. Silakan minta tautan baru.
           </p>
-          <Link href="/forgot-password">
-            <button className="btn-primary w-full">Minta Tautan Baru</button>
-          </Link>
+          <Link href="/forgot-password" className="btn-primary w-full inline-flex justify-center">Minta Tautan Baru</Link>
         </div>
       </div>
     );
@@ -92,9 +90,9 @@ export default function ResetPassword() {
             <p className="text-muted-foreground text-sm mb-8">Buat password baru yang kuat untuk akun Anda.</p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Password Baru</label>
+                <label htmlFor="new-password" className="text-sm font-medium mb-1.5 block">Password Baru</label>
                 <div className="relative">
-                  <input type={showPwd ? 'text' : 'password'} required minLength={8} placeholder="Min. 8 karakter" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
+                  <input id="new-password" type={showPwd ? 'text' : 'password'} required minLength={8} placeholder="Min. 8 karakter" value={form.password} onChange={e => setForm({...form, password: e.target.value})}
                     className="w-full h-12 px-4 pr-12 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm" />
                   <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showPwd ? <EyeSlash size={18} /> : <Eye size={18} />}
@@ -102,9 +100,9 @@ export default function ResetPassword() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Konfirmasi Password</label>
+                <label htmlFor="confirm-password" className="text-sm font-medium mb-1.5 block">Konfirmasi Password</label>
                 <div className="relative">
-                  <input type={showConfirm ? 'text' : 'password'} required placeholder="Ulangi password" value={form.confirm} onChange={e => setForm({...form, confirm: e.target.value})}
+                  <input id="confirm-password" type={showConfirm ? 'text' : 'password'} required placeholder="Ulangi password" value={form.confirm} onChange={e => setForm({...form, confirm: e.target.value})}
                     className={`w-full h-12 px-4 pr-12 rounded-xl border-2 bg-background focus:outline-none focus:border-foreground transition-colors text-sm ${form.confirm && form.password !== form.confirm ? 'border-destructive' : 'border-border'}`} />
                   <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                     {showConfirm ? <EyeSlash size={18} /> : <Eye size={18} />}
@@ -131,9 +129,7 @@ export default function ResetPassword() {
             </div>
             <h1 className="text-2xl font-bold mb-2">Password Berhasil Diubah!</h1>
             <p className="text-muted-foreground text-sm mb-8">Gunakan password baru Anda untuk masuk.</p>
-            <Link href="/login">
-              <button className="btn-primary w-full">Masuk Sekarang</button>
-            </Link>
+            <Link href="/login" className="btn-primary w-full inline-flex justify-center">Masuk Sekarang</Link>
           </motion.div>
         )}
       </div>

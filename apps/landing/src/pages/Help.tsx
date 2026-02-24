@@ -36,7 +36,7 @@ export default function Help() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
  <div className="container max-w-3xl mx-auto text-center">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">
  <motion.h1 variants={staggerItem} className="text-4xl md:text-5xl font-bold mb-6">

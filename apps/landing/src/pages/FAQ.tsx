@@ -10,7 +10,7 @@ const faqData: Record<string, { q: string; a: string }[]> = {
  Umum: [
  { q: 'Apa itu Kahade?', a: 'Kahade adalah platform escrow digital yang mengamankan transaksi online antara pembeli dan penjual. Dana pembeli ditahan oleh Kahade hingga kedua pihak puas dengan transaksi, baru kemudian dana dicairkan ke penjual.' },
  { q: 'Siapa yang bisa menggunakan Kahade?', a: 'Siapapun yang ingin bertransaksi online dengan aman. Baik individual, UMKM, maupun perusahaan besar. Daftar gratis hanya butuh beberapa menit.' },
- { q: 'Apakah Kahade terdaftar secara resmi?', a: 'Ya. Kahade beroperasi di bawah PT Kawal Hak Dengan Aman yang terdaftar resmi di Indonesia. Kami mematuhi regulasi OJK dan Bank Indonesia.' },
+ { q: 'Apakah Kahade terdaftar secara resmi?', a: 'Ya. Kahade beroperasi di bawah PT Kawal Hak Dengan Aman yang terdaftar resmi di Indonesia. Kami mengikuti ketentuan Bank Indonesia dan sedang dalam proses perizinan OJK.' },
  ],
  Transaksi: [
  { q: 'Bagaimana cara membuat transaksi?', a: 'Masuk ke dashboard, klik "Transaksi Baru", masukkan detail transaksi dan undang pihak lain melalui email atau link. Pihak lain akan menerima undangan dan bisa bergabung.' },

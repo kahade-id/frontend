@@ -76,21 +76,21 @@ const formatRelativeTime = (dateString: string): string => {
  const diffMs = now.getTime() - date.getTime();
  const diffDays = Math.floor(diffMs / 86400000);
 
- if (diffDays < 1) return 'Today';
- if (diffDays === 1) return 'Yesterday';
- if (diffDays < 7) return `${diffDays}d ago`;
- return new Date(dateString).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+ if (diffDays < 1) return 'Hari ini';
+ if (diffDays === 1) return 'Kemarin';
+ if (diffDays < 7) return `${diffDays} hari lalu`;
+ return new Date(dateString).toLocaleDateString('id-ID', { month: 'short', day: 'numeric' });
 };
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: typeof CheckCircle }> = {
- PENDING: { label: 'Pending', color: 'text-amber-600', bgColor: 'bg-amber-50', icon: Clock },
- COMPLETED: { label: 'Completed', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: CheckCircle },
- ACTIVE: { label: 'Active', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: CheckCircle },
- EXPIRED: { label: 'Expired', color: 'text-gray-600', bgColor: 'bg-gray-100', icon: Warning },
- CLAIMED: { label: 'Claimed', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: CheckCircle },
+ PENDING: { label: 'Menunggu', color: 'text-amber-600', bgColor: 'bg-amber-50', icon: Clock },
+ COMPLETED: { label: 'Selesai', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: CheckCircle },
+ ACTIVE: { label: 'Aktif', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: CheckCircle },
+ EXPIRED: { label: 'Kedaluwarsa', color: 'text-gray-600', bgColor: 'bg-gray-100', icon: Warning },
+ CLAIMED: { label: 'Diklaim', color: 'text-emerald-600', bgColor: 'bg-emerald-50', icon: CheckCircle },
 };
 
-const fallbackStatus = { label: 'Unknown', color: 'text-gray-600', bgColor: 'bg-gray-100', icon: Warning };
+const fallbackStatus = { label: 'Tidak diketahui', color: 'text-gray-600', bgColor: 'bg-gray-100', icon: Warning };
 
 const getStatusConfig = (status?: string) => statusConfig[status ?? ''] ?? fallbackStatus;
 
@@ -147,7 +147,7 @@ export default function Referrals() {
  if (error.response?.status === 404) {
  await generateReferralCode();
  } else if (error?.response?.status !== 401) {
- toast.error('Failed to load referral data');
+ toast.error('Gagal memuat data referral');
  }
  setReferrals([]);
  setRewards([]);
@@ -161,9 +161,9 @@ export default function Referrals() {
  try {
  const codeRes = await referralApi.getCode();
  setReferralCode(codeRes.data);
- toast.success('Referral code generated!');
+ toast.success('Kode referral berhasil dibuat!');
  } catch (error) {
- toast.error('Failed to generate referral code');
+ toast.error('Gagal membuat kode referral');
  } finally {
  setIsGenerating(false);
  }
@@ -173,7 +173,7 @@ export default function Referrals() {
  if (referralCode?.code) {
  navigator.clipboard.writeText(referralCode.code);
  setCopied(true);
- toast.success('Referral code copied!');
+ toast.success('Kode referral berhasil disalin!');
  setTimeout(() => setCopied(false), 2000);
  }
  };
@@ -182,7 +182,7 @@ export default function Referrals() {
  const link = referralCode?.shareLink || `${window.location.origin}/register?ref=${referralCode?.code}`;
  navigator.clipboard.writeText(link);
  setCopiedLink(true);
- toast.success('Referral link copied!');
+ toast.success('Tautan referral berhasil disalin!');
  setTimeout(() => setCopiedLink(false), 2000);
  };
 
@@ -191,8 +191,8 @@ export default function Referrals() {
  if (navigator.share) {
  try {
  await navigator.share({
- title: 'Join Kahade',
- text: `Use my referral code ${referralCode?.code} to get Rp 25,000 bonus when you sign up!`,
+ title: 'Gabung Kahade',
+ text: `Gunakan kode referral ${referralCode?.code} untuk bonus Rp 25.000 saat mendaftar!`,
  url: link,
  });
  } catch (error) {
@@ -207,27 +207,27 @@ export default function Referrals() {
  setClaimingRewardId(rewardId);
  try {
  await referralApi.claimReward(rewardId);
- toast.success('Reward claimed successfully!');
+ toast.success('Reward berhasil diklaim!');
  fetchReferralData();
  } catch (error: unknown) {
- toast.error(error.response?.data?.message || 'Failed to claim reward');
+ toast.error(error.response?.data?.message || 'Gagal mengklaim reward');
  } finally {
  setClaimingRewardId(null);
  }
  };
 
  const tabs = [
- { id: 'referrals', label: 'Referrals', count: (Array.isArray(referrals) ? referrals : []).length },
- { id: 'rewards', label: 'Rewards', count: (Array.isArray(rewards) ? rewards : []).length },
+ { id: 'referrals', label: 'Rujukan', count: (Array.isArray(referrals) ? referrals : []).length },
+ { id: 'rewards', label: 'Hadiah', count: (Array.isArray(rewards) ? rewards : []).length },
  ];
 
  if (isLoading) {
  return (
- <DashboardLayout title="Referrals" subtitle="Loading...">
+ <DashboardLayout title="Rujukan" subtitle="Memuat...">
  <div className="flex items-center justify-center h-64">
  <div className="text-center">
  <Spinner className="w-10 h-10 animate-spin text-black mx-auto mb-4" aria-hidden="true" weight="bold" />
- <p className="text-neutral-600">Loading referral data...</p>
+ <p className="text-neutral-600">Memuat data referral...</p>
  </div>
  </div>
  </DashboardLayout>
@@ -235,7 +235,7 @@ export default function Referrals() {
  }
 
  return (
- <DashboardLayout title="Referrals" subtitle="Invite friends and earn rewards">
+ <DashboardLayout title="Rujukan" subtitle="Undang teman dan raih reward">
  <div className="space-y-6">
  {/* ========== REFERRAL CODE CARD ========== */}
  <motion.div
@@ -256,7 +256,7 @@ export default function Referrals() {
  <div className="flex-1">
  <div className="flex items-center gap-2 mb-2">
  <Gift className="w-5 h-5 text-white/60" aria-hidden="true" weight="duotone" />
- <span className="text-white/60 text-sm font-medium">Your Referral Code</span>
+ <span className="text-white/60 text-sm font-medium">Kode Referral Anda</span>
  </div>
  
  {referralCode?.code ? (
@@ -285,7 +285,7 @@ export default function Referrals() {
  )}
 
  <p className="text-white/60 text-sm max-w-md">
- Share your code with friends. When they sign up and complete their first transaction, you both earn Rp 25,000!
+ Bagikan kode Anda. Saat teman mendaftar dan menyelesaikan transaksi pertama, kalian berdua mendapat Rp 25.000!
  </p>
  </div>
 
@@ -324,7 +324,7 @@ export default function Referrals() {
  </div>
  </div>
  <div className="text-2xl font-bold text-black">{stats?.totalReferrals || 0}</div>
- <div className="text-sm text-neutral-600">Total Referrals</div>
+ <div className="text-sm text-neutral-600">Total Rujukan</div>
  </motion.div>
 
  <motion.div
@@ -354,7 +354,7 @@ export default function Referrals() {
  </div>
  </div>
  <div className="text-2xl font-bold text-black">{stats?.pendingReferrals || 0}</div>
- <div className="text-sm text-neutral-600">Pending</div>
+ <div className="text-sm text-neutral-600">Menunggu</div>
  </motion.div>
 
  <motion.div
@@ -398,9 +398,9 @@ export default function Referrals() {
  <div className="w-16 h-16 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-4">
  <UserPlus className="w-8 h-8 text-neutral-500" aria-hidden="true" weight="regular" />
  </div>
- <h4 className="text-lg font-semibold text-black mb-1">No Referrals Yet</h4>
+ <h4 className="text-lg font-semibold text-black mb-1">Belum Ada Rujukan</h4>
  <p className="text-sm text-neutral-600 max-w-sm mx-auto">
- Share your referral code with friends to start earning rewards!
+ Bagikan kode referral Anda ke teman untuk mulai mendapatkan reward!
  </p>
  </div>
  ) : (
@@ -420,13 +420,13 @@ export default function Referrals() {
  </div>
  <div className="flex-1 min-w-0">
  <div className="flex items-center gap-2 mb-0.5">
- <span className="font-medium text-black text-sm">{referral.referredUser?.username || 'Unknown'}</span>
+ <span className="font-medium text-black text-sm">{referral.referredUser?.username || 'Tidak diketahui'}</span>
  <Badge className={`${status.bgColor} ${status.color} border-0 text-[10px]`}>
  {status.label}
  </Badge>
  </div>
  <div className="text-xs text-neutral-600">
- Joined {formatRelativeTime(referral.createdAt)}
+ Bergabung {formatRelativeTime(referral.createdAt)}
  </div>
  </div>
  <div className="text-right shrink-0">
@@ -449,9 +449,9 @@ export default function Referrals() {
  <div className="w-16 h-16 rounded-2xl bg-neutral-100 flex items-center justify-center mx-auto mb-4">
  <Gift className="w-8 h-8 text-neutral-500" aria-hidden="true" weight="regular" />
  </div>
- <h4 className="text-lg font-semibold text-black mb-1">No Rewards Yet</h4>
+ <h4 className="text-lg font-semibold text-black mb-1">Belum Ada Hadiah</h4>
  <p className="text-sm text-neutral-600 max-w-sm mx-auto">
- Your rewards will appear here when your referrals complete their first transaction.
+ Reward Anda akan muncul di sini setelah referral menyelesaikan transaksi pertamanya.
  </p>
  </div>
  ) : (
@@ -472,14 +472,14 @@ export default function Referrals() {
  <div className="flex-1 min-w-0">
  <div className="flex items-center gap-2 mb-0.5">
  <span className="font-medium text-black text-sm">
- {reward.rewardType === 'COMMISSION' ? 'Commission' : 'Cashback'}
+ {reward.rewardType === 'COMMISSION' ? 'Komisi' : 'Cashback'}
  </span>
  <Badge className={`${status.bgColor} ${status.color} border-0 text-[10px]`}>
  {status.label}
  </Badge>
  </div>
  <div className="text-xs text-neutral-600">
- From {reward.referredUser} • {formatRelativeTime(reward.createdAt)}
+ Dari {reward.referredUser} • {formatRelativeTime(reward.createdAt)}
  </div>
  </div>
  <div className="flex items-center gap-4 shrink-0">
@@ -496,7 +496,7 @@ export default function Referrals() {
  {claimingRewardId === reward.id ? (
  <Spinner className="w-3 h-3 animate-spin" aria-hidden="true" />
  ) : (
- 'Claim'
+ 'Klaim'
  )}
  </Button>
  )}
@@ -518,27 +518,27 @@ export default function Referrals() {
  transition={{ delay: 0.3 }}
  className="bg-neutral-50 rounded-2xl p-4 md:p-6 border border-neutral-200"
  >
- <h3 className="font-semibold text-black mb-4">How It Works</h3>
+ <h3 className="font-semibold text-black mb-4">Cara Kerja</h3>
  <div className="grid md:grid-cols-3 gap-4">
  <div className="flex items-start gap-3">
  <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center shrink-0 text-sm font-bold">1</div>
  <div>
- <div className="font-medium text-black text-sm">Share Your Code</div>
- <div className="text-xs text-neutral-600">Send your unique referral code to friends</div>
+ <div className="font-medium text-black text-sm">Bagikan Kode Anda</div>
+ <div className="text-xs text-neutral-600">Kirim kode referral unik Anda ke teman</div>
  </div>
  </div>
  <div className="flex items-start gap-3">
  <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center shrink-0 text-sm font-bold">2</div>
  <div>
- <div className="font-medium text-black text-sm">They Sign Up</div>
- <div className="text-xs text-neutral-600">Friends register using your referral code</div>
+ <div className="font-medium text-black text-sm">Mereka Mendaftar</div>
+ <div className="text-xs text-neutral-600">Teman mendaftar menggunakan kode referral Anda</div>
  </div>
  </div>
  <div className="flex items-start gap-3">
  <div className="w-8 h-8 rounded-lg bg-black text-white flex items-center justify-center shrink-0 text-sm font-bold">3</div>
  <div>
- <div className="font-medium text-black text-sm">Both Earn Rewards</div>
- <div className="text-xs text-neutral-600">You both get Rp 25,000 after first transaction</div>
+ <div className="font-medium text-black text-sm">Keduanya Dapat Reward</div>
+ <div className="text-xs text-neutral-600">Kalian berdua mendapat Rp 25.000 setelah transaksi pertama</div>
  </div>
  </div>
  </div>

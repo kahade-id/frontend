@@ -76,7 +76,7 @@ export default function UseCases() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 text-center overflow-hidden overflow-hidden">
+ <section className="bg-primary text-primary-foreground pt-24 pb-20 text-center overflow-hidden">
  <div className="container max-w-3xl mx-auto">
  <motion.div variants={staggerContainer} initial="initial" animate="animate">
  <motion.span variants={staggerItem} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">

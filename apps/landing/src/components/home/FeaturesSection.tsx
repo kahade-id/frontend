@@ -21,6 +21,7 @@ export default function FeaturesSection() {
   const feature1 = features[0];
   const smallFeatures = features.slice(1, 5);
   const feature6 = features[5];
+  const additionalFeatures = features.slice(6);
 
   return (
     <section className="section-padding-lg bg-background" id="features">
@@ -128,6 +129,29 @@ export default function FeaturesSection() {
             );
           })()}
         </motion.div>
+
+        {additionalFeatures.length > 0 && (
+          <motion.div
+            variants={staggerContainer}
+            initial="initial"
+            whileInView="animate"
+            viewport={viewport}
+            className="grid md:grid-cols-3 gap-4 mt-6"
+          >
+            {additionalFeatures.map((feature) => {
+              const ExtraIcon = feature.icon;
+              return (
+                <motion.div key={feature.title} variants={staggerItem} className="card p-5">
+                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center mb-3">
+                    <ExtraIcon className="w-5 h-5 text-foreground" weight="duotone" />
+                  </div>
+                  <h3 className="font-semibold mb-1">{feature.title}</h3>
+                  <p className="text-sm text-muted-foreground">{feature.description}</p>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        )}
       </div>
     </section>
   );

@@ -51,7 +51,7 @@ export default function Login() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Email</label>
+                <label htmlFor="email" className="text-sm font-medium mb-1.5 block">Email</label>
                 <input
                   type="email" required placeholder="admin@kahade.id"
                   value={form.email} onChange={e => setForm({...form, email: e.target.value})}
@@ -59,7 +59,7 @@ export default function Login() {
                 />
               </div>
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Password</label>
+                <label htmlFor="password" className="text-sm font-medium mb-1.5 block">Password</label>
                 <div className="relative">
                   <input
                     type={showPassword ? 'text' : 'password'} required placeholder="Password Admin"

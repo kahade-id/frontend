@@ -37,7 +37,7 @@ const signals = [
     label: 'Uptime Sistem',
     numericValue: SITE_STATS.uptimeNumeric,
     prefix: '',
-    suffix: ',9%',
+    suffix: '%',
   },
   {
     icon: Clock,
@@ -73,6 +73,7 @@ function StatCard({
   }, []);
 
   const count = useCountUp(numericValue, 2.5, visible);
+  const displayValue = label === 'Uptime Sistem' ? (count / 10).toFixed(1).replace('.', ',') : count;
 
   return (
     <motion.div
@@ -94,7 +95,7 @@ function StatCard({
         </span>
       </div>
       <p className="text-4xl md:text-5xl font-black tracking-tight stat-number">
-        {prefix}{count}{suffix}
+        {prefix}{displayValue}{suffix}
       </p>
     </motion.div>
   );
@@ -114,6 +115,7 @@ function ActivityStrip() {
             </span>
           ))}
         </div>
+        <p className="text-center text-[0.625rem] text-muted-foreground/60 mt-1">Geser horizontal untuk melihat semua aktivitas →</p>
       </div>
 
       <p className="text-center text-[0.625rem] text-muted-foreground/50 mt-2">

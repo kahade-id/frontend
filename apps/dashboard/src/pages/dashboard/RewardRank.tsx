@@ -3,7 +3,7 @@ import DashboardLayout from '../../components/layout/DashboardLayout';
 
 const ranks = [
  { name: 'Bronze', min: 0, perks: ['Biaya normal', 'Akses fitur dasar'] },
- { name: 'Silver', min: 500, perks: ['Diskon biaya 5%', 'Priority chat support'] },
+ { name: 'Silver', min: 500, perks: ['Diskon biaya 5%', 'Dukungan chat prioritas'] },
  { name: 'Gold', min: 2000, perks: ['Diskon biaya 10%', 'Pencairan prioritas'] },
  { name: 'Platinum', min: 5000, perks: ['Diskon biaya 15%', 'Badge eksklusif'] },
 ];
@@ -23,12 +23,12 @@ export default function RewardRank() {
  </div>
  </section>
 
- <section className="bg-white border border-neutral-200 rounded-2xl p-4 space-y-4">
+ <section className="bg-card border border-border rounded-2xl p-4 space-y-4">
  {ranks.map((rank, idx) => (
- <div key={rank.name} className="rounded-xl border border-neutral-200 p-4">
+ <div key={rank.name} className="rounded-xl border border-border p-4">
  <div className="flex items-center justify-between mb-2">
  <p className="font-semibold">{rank.name}</p>
- <div className="text-xs px-2 py-1 rounded-full bg-neutral-100">Min. {rank.min} poin</div>
+ <div className="text-xs px-2 py-1 rounded-full bg-muted">Min. {rank.min} poin</div>
  </div>
  <ul className="space-y-1.5">
  {rank.perks.map((perk) => (

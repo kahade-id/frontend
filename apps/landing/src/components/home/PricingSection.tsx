@@ -163,9 +163,7 @@ export default function PricingSection() {
                     plan.name === 'Enterprise' ? 'Hubungi Kami' : 'Coba 14 Hari Gratis'}
                   <ArrowRight className="w-4 h-4" weight="bold" />
                 </Link>
-                {isPopular && (
-                  <p className="text-xs text-muted-foreground text-center mt-3">Tidak butuh kartu kredit</p>
-                )}
+                <p className="text-xs text-muted-foreground text-center mt-3">Tidak butuh kartu kredit</p>
               </motion.div>
             );
           })}
@@ -189,13 +187,13 @@ export default function PricingSection() {
           className="flex items-center gap-3 justify-center mt-6 text-sm text-muted-foreground"
         >
           <div className="flex -space-x-2">
-            {['AR', 'SW', 'MB', 'DK', 'RT'].map((initials, i) => (
+            {Array.from({ length: 5 }).map((_, i) => (
               <div
                 key={i}
                 className="w-8 h-8 rounded-full bg-neutral-300 border-2 border-background flex items-center justify-center text-xs font-bold text-neutral-600"
                 aria-hidden="true"
               >
-                {initials}
+                •
               </div>
             ))}
           </div>

@@ -50,7 +50,7 @@ export default function ForgotPassword() {
             </p>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="text-sm font-medium mb-1.5 block">Email Admin</label>
+                <label htmlFor="email" className="text-sm font-medium mb-1.5 block">Email Admin</label>
                 <div className="relative">
                   <Envelope size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
                   <input

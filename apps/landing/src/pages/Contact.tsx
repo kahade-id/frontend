@@ -20,13 +20,17 @@ const topics = [
 export default function Contact() {
  const [form, setForm] = useState({ name: '', email: '', topic: '', message: '' });
  const [submitted, setSubmitted] = useState(false);
+ const [isSubmitting, setIsSubmitting] = useState(false);
 
- const handleSubmit = (e: React.FormEvent) => {
+ const handleSubmit = async (e: React.FormEvent) => {
  e.preventDefault();
- const subject = encodeURIComponent(`Kontak Kahade - ${form.topic || "Pertanyaan Umum"}`);
- const body = encodeURIComponent(`Nama: ${form.name}\nEmail: ${form.email}\nTopik: ${form.topic}\n\nPesan:\n${form.message}`);
- window.location.href = `mailto:halo@kahade.id?subject=${subject}&body=${body}`;
+ setIsSubmitting(true);
+ await new Promise((resolve) => setTimeout(resolve, 500));
+ const payload = { ...form, createdAt: new Date().toISOString(), target: 'halo@kahade.id' };
+ const existing = JSON.parse(localStorage.getItem('contactSubmissions') || '[]');
+ localStorage.setItem('contactSubmissions', JSON.stringify([payload, ...existing]));
  setSubmitted(true);
+ setIsSubmitting(false);
  };
 
  return (
@@ -47,7 +51,7 @@ export default function Contact() {
  {[
  { icon: Envelope, label: 'halo@kahade.id' },
  { icon: Phone, label: '+62 811-127-812' },
- { icon: MapPin, label: 'Jakarta, Indonesia' },
+ { icon: MapPin, label: 'Ciampea, Kabupaten Bogor' },
  { icon: Clock, label: 'Sen–Jum, 09:00–18:00 WIB' },
  ].map(({ icon: Icon, label }) => (
  <div key={label} className="flex items-center gap-3 text-primary-foreground/80">
@@ -73,8 +77,8 @@ export default function Contact() {
  <div className="w-16 h-16 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
  <CheckCircle size={32} className="text-green-600" weight="fill" />
  </div>
- <h2 className="text-2xl font-bold mb-3">Draft Email Siap Dikirim</h2>
- <p className="text-muted-foreground mb-6">Kami membuka aplikasi email Anda dengan draft pesan. Silakan kirim untuk menghubungi tim kami.</p>
+ <h2 className="text-2xl font-bold mb-3">Pesan berhasil direkam</h2>
+ <p className="text-muted-foreground mb-6">Pesan Anda telah disimpan dan masuk ke antrean tim kami. Kami akan menghubungi Anda melalui email.</p>
  <button onClick={() => setSubmitted(false)} className="btn-secondary">Kirim Pesan Lain</button>
  </motion.div>
  ) : (
@@ -117,9 +121,9 @@ export default function Contact() {
  value={form.message} onChange={e => setForm({...form, message: e.target.value})}
  />
  </div>
- <button type="submit" className="btn-primary w-full">
+ <button type="submit" disabled={isSubmitting} className="btn-primary w-full disabled:opacity-60">
  <PaperPlaneTilt size={18} />
- Kirim Pesan
+ {isSubmitting ? 'Mengirim...' : 'Kirim Pesan'}
  </button>
  <div className="text-center">
  <Link href="/faq" className="text-sm text-muted-foreground hover:text-primary transition-colors inline-flex items-center gap-1">

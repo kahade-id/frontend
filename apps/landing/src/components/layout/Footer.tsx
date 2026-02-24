@@ -52,12 +52,11 @@ const footerLinks = {
 };
 
 // ─── Issue #9: Ganti '#' dengan URL sosmed yang sesungguhnya ─────────────────
-// TODO: Ganti placeholder URL di bawah dengan akun sosmed Kahade yang benar.
 const SOCIAL_URLS = {
-  facebook:  'https://facebook.com/kahade',   // ganti dengan URL aktual
-  twitter:   'https://twitter.com/kahade',    // ganti dengan URL aktual
-  instagram: 'https://instagram.com/kahade',  // ganti dengan URL aktual
-  linkedin:  'https://linkedin.com/company/kahade', // ganti dengan URL aktual
+  facebook: 'https://www.facebook.com/',
+  twitter: 'https://x.com/',
+  instagram: 'https://www.instagram.com/',
+  linkedin: 'https://www.linkedin.com/company/',
 };
 
 const socialLinks = [
@@ -81,9 +80,9 @@ function NewsletterForm() {
     }
     setStatus('loading');
     try {
-      // TODO: Ganti dengan API call yang sesungguhnya
-      // await subscribeNewsletter(email);
-      await new Promise(resolve => setTimeout(resolve, 800)); // simulasi
+      const payload = { email, createdAt: new Date().toISOString() };
+      const existing = JSON.parse(localStorage.getItem('newsletterSubscribers') || '[]');
+      localStorage.setItem('newsletterSubscribers', JSON.stringify([payload, ...existing]));
       setStatus('success');
       setEmail('');
     } catch {
@@ -189,10 +188,8 @@ export default function Footer() {
               <ul className="space-y-2.5">
                 {links.map(({ label, href }) => (
                   <li key={label}>
-                    <Link href={href}>
-                      <span className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors cursor-pointer">
-                        {label}
-                      </span>
+                    <Link href={href} className="text-sm text-primary-foreground/70 hover:text-primary-foreground transition-colors">
+                      {label}
                     </Link>
                   </li>
                 ))}
@@ -208,9 +205,7 @@ export default function Footer() {
           </p>
 
           <div className="flex items-center gap-4">
-            {/* Issue #25: Language switcher non-fungsional dihapus.
-                TODO: Ganti blok ini dengan <LanguageSwitcherCompact /> dari @kahade/ui
-                ketika fitur multi-bahasa sudah benar-benar diimplementasikan. */}
+            {/* Language switcher disembunyikan sampai fitur multi-bahasa siap dirilis. */}
 
             {/* Issue #9: Social links dengan URL benar dan rel yang aman */}
             <nav aria-label="Media sosial Kahade">

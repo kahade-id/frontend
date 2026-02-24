@@ -27,7 +27,7 @@ function StepPreview({ step }: StepPreviewProps) {
  <p className="font-mono text-lg font-bold tracking-widest">8277-XXXX-XXXX-0001</p>
  <p className="text-xs text-muted-foreground">Nominal: <strong>Rp 5.200.000</strong></p>
  <div className="flex items-center gap-2 text-xs text-warning">
- <span>⏰</span><span>Berlaku 2 jam</span>
+ <span aria-hidden="true">⏰</span><span>Berlaku 2 jam</span>
  </div>
  </div>
  ),
@@ -36,14 +36,14 @@ function StepPreview({ step }: StepPreviewProps) {
  {['Transaksi dibuat', 'Dana disimpan', 'Penjual dikonfirmasi'].map((label, i) => (
  <div key={i} className="flex items-center gap-3">
  <div className="w-6 h-6 rounded-full bg-success flex items-center justify-center">
- <span className="text-white text-xs">✓</span>
+ <span aria-hidden="true" className="text-white text-xs">✓</span>
  </div>
  <span className="text-sm">{label}</span>
  </div>
  ))}
  <div className="flex items-center gap-3">
  <div className="w-6 h-6 rounded-full bg-primary animate-pulse flex items-center justify-center">
- <span className="text-white text-xs">●</span>
+ <span aria-hidden="true" className="text-white text-xs">●</span>
  </div>
  <span className="text-sm font-semibold text-primary">Menunggu konfirmasi</span>
  </div>

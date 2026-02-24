@@ -1,60 +1,62 @@
 import { useState } from 'react';
-import { Sun, Moon, Globe, Clock, ShieldCheck, Bell, Lock, CreditCard, Code, Trash } from '@phosphor-icons/react';
+import { Globe, Clock, ShieldCheck, Bell, Lock, CreditCard, Code, Trash, Sun } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 
 const sidebarTabs = ['Umum', 'Keamanan', 'Notifikasi', 'Privasi', 'Billing', 'API Keys'];
 
 export default function Settings() {
  const [activeTab, setActiveTab] = useState('Umum');
- const [darkMode, setDarkMode] = useState(false);
+ const [language, setLanguage] = useState('Bahasa Indonesia');
+ const [timezone, setTimezone] = useState('WIB (UTC+7)');
 
  return (
  <DashboardLayout>
  <div className="p-6 max-w-5xl mx-auto">
  <h1 className="text-2xl font-bold mb-6">Pengaturan</h1>
  <div className="grid md:grid-cols-[200px_1fr] gap-6">
- {/* Sidebar */}
  <div className="space-y-1">
  {sidebarTabs.map(tab => (
  <button key={tab} onClick={() => setActiveTab(tab)} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${activeTab === tab ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{tab}</button>
  ))}
  </div>
 
- {/* Content */}
  <div className="card p-6">
  {activeTab === 'Umum' && (
  <div className="space-y-6">
  <h2 className="font-bold text-lg">Pengaturan Umum</h2>
  <div className="space-y-4">
- {[
- { label: 'Bahasa', value: 'Bahasa Indonesia', icon: Globe },
- { label: 'Zona Waktu', value: 'WIB (UTC+7)', icon: Clock },
- ].map(({ label, value, icon: Icon }) => (
- <div key={label} className="flex items-center justify-between py-3 border-b border-border">
- <div className="flex items-center gap-3">
- <Icon size={18} className="text-muted-foreground" />
- <div><p className="font-medium text-sm">{label}</p><p className="text-xs text-muted-foreground">{value}</p></div>
- </div>
- <select className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30">
- <option>{value}</option>
- </select>
- </div>
- ))}
  <div className="flex items-center justify-between py-3 border-b border-border">
  <div className="flex items-center gap-3">
- {darkMode ? <Moon size={18} className="text-muted-foreground" /> : <Sun size={18} className="text-muted-foreground" />}
- <div><p className="font-medium text-sm">Tema</p><p className="text-xs text-muted-foreground">{darkMode ? 'Gelap' : 'Terang'}</p></div>
+ <Globe size={18} className="text-muted-foreground" />
+ <div><p className="font-medium text-sm">Bahasa</p><p className="text-xs text-muted-foreground">Pilih bahasa antarmuka</p></div>
  </div>
- <div className="flex items-center gap-1 bg-muted p-1 rounded-full">
- {[false, true].map(mode => (
- <button key={String(mode)} onClick={() => setDarkMode(mode)} className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex items-center gap-1.5 ${darkMode === mode ? 'bg-background text-foreground' : 'text-muted-foreground'}`}>
- {mode ? <Moon size={12} /> : <Sun size={12} />} {mode ? 'Gelap' : 'Terang'}
- </button>
- ))}
+ <select value={language} onChange={(e) => setLanguage(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30">
+ <option>Bahasa Indonesia</option>
+ <option>English</option>
+ </select>
+ </div>
+
+ <div className="flex items-center justify-between py-3 border-b border-border">
+ <div className="flex items-center gap-3">
+ <Clock size={18} className="text-muted-foreground" />
+ <div><p className="font-medium text-sm">Zona Waktu</p><p className="text-xs text-muted-foreground">Digunakan pada histori aktivitas</p></div>
+ </div>
+ <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className="text-sm border border-border rounded-lg px-3 py-1.5 bg-background focus:outline-none focus:ring-2 focus:ring-primary/30">
+ <option>WIB (UTC+7)</option>
+ <option>WITA (UTC+8)</option>
+ <option>WIT (UTC+9)</option>
+ </select>
+ </div>
+
+ <div className="flex items-center justify-between py-3 border-b border-border">
+ <div className="flex items-center gap-3">
+ <Sun size={18} className="text-muted-foreground" />
+ <div><p className="font-medium text-sm">Tema</p><p className="text-xs text-muted-foreground">Saat ini dashboard menggunakan mode terang.</p></div>
+ </div>
+ <span className="text-xs px-2 py-1 rounded-full bg-muted text-muted-foreground">Light only</span>
  </div>
  </div>
- </div>
- <button className="btn-primary">Simpan Perubahan</button>
+ <button type="button" className="btn-primary">Simpan Perubahan</button>
  </div>
  )}
 
@@ -72,16 +74,7 @@ export default function Settings() {
  <Icon size={20} className={color || 'text-muted-foreground'} />
  <div><p className="font-medium text-sm">{title}</p><p className="text-xs text-muted-foreground">{desc}</p></div>
  </div>
- <button className="btn-secondary text-sm">{btn}</button>
- </div>
- ))}
- </div>
- <div className="border-t border-border pt-5">
- <h3 className="font-semibold text-sm mb-3">Riwayat Login Terakhir</h3>
- {[['Chrome · Windows', 'Jakarta, ID', '5 menit lalu', true], ['Safari · iPhone', 'Jakarta, ID', '2 hari lalu', false]].map(([device, loc, time, current]) => (
- <div key={String(device)} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
- <div><p className="text-sm font-medium">{device} {current && <span className="text-xs text-green-600 ml-1">● Aktif sekarang</span>}</p><p className="text-xs text-muted-foreground">{loc} · {time}</p></div>
- {!current && <button className="text-xs text-destructive hover:underline">Cabut akses</button>}
+ <button type="button" className="btn-secondary text-sm">{btn}</button>
  </div>
  ))}
  </div>
@@ -100,7 +93,7 @@ export default function Settings() {
  <span className="text-sm">{label}</span>
  {vals.map((v, i) => (
  <div key={i} className="flex justify-center">
- <div className={`w-9 h-5 rounded-full transition-colors cursor-pointer ${v ? 'bg-primary' : 'bg-muted'}`}>
+ <div className={`w-9 h-5 rounded-full transition-colors ${v ? 'bg-primary' : 'bg-muted'}`}>
  <div className={`w-4 h-4 rounded-full bg-white transition-transform m-0.5 ${v ? 'translate-x-4' : ''}`} />
  </div>
  </div>
@@ -119,7 +112,7 @@ export default function Settings() {
  <span className="badge badge-success">Aktif</span>
  </div>
  </div>
- <button className="btn-primary">Upgrade ke Profesional</button>
+ <button type="button" className="btn-primary">Upgrade ke Profesional</button>
  </div>
  )}
 
@@ -127,7 +120,7 @@ export default function Settings() {
  <div className="space-y-5">
  <div className="flex items-center justify-between">
  <h2 className="font-bold text-lg">API Keys</h2>
- <button className="btn-primary text-sm">+ Buat Key Baru</button>
+ <button type="button" className="btn-primary text-sm">+ Buat Key Baru</button>
  </div>
  <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300">
  ⚠ Jangan bagikan API key Anda. Gunakan hanya di server-side.
@@ -136,8 +129,8 @@ export default function Settings() {
  <div className="flex items-center justify-between">
  <div><p className="font-medium text-sm">Production Key</p><p className="text-xs font-mono text-muted-foreground mt-1">kh_live_••••••••••••••••</p></div>
  <div className="flex gap-2">
- <button className="btn-secondary text-xs p-1.5"><Code size={14} /></button>
- <button className="btn-secondary text-xs p-1.5 hover:border-destructive hover:text-destructive"><Trash size={14} /></button>
+ <button type="button" className="btn-secondary text-xs p-1.5"><Code size={14} /></button>
+ <button type="button" className="btn-secondary text-xs p-1.5 hover:border-destructive hover:text-destructive"><Trash size={14} /></button>
  </div>
  </div>
  </div>
@@ -150,7 +143,7 @@ export default function Settings() {
  {[['Tampilkan profil publik', true], ['Izinkan pencarian berdasarkan email', false], ['Bagikan data anonim untuk peningkatan layanan', true]].map(([label, val]) => (
  <div key={String(label)} className="flex items-center justify-between py-3 border-b border-border last:border-0">
  <span className="text-sm">{label}</span>
- <div className={`w-11 h-6 rounded-full transition-colors cursor-pointer ${val ? 'bg-primary' : 'bg-muted'}`}>
+ <div className={`w-11 h-6 rounded-full transition-colors ${val ? 'bg-primary' : 'bg-muted'}`}>
  <div className={`w-5 h-5 rounded-full bg-white transition-transform m-0.5 ${val ? 'translate-x-5' : ''}`} />
  </div>
  </div>

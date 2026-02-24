@@ -15,7 +15,7 @@ export const SITE_STATS = {
   activeUsers: '10.000+',                 // Pengguna aktif (format display)
   activeUsersNumeric: 10000,              // Nilai numerik untuk count-up
   uptime: '99,9%',                        // Uptime sistem
-  uptimeNumeric: 99,                      // Nilai numerik untuk count-up
+  uptimeNumeric: 999,                      // Nilai numerik untuk count-up
   avgSettlement: '< 12 Jam',             // Rata-rata pencairan (format display)
   avgSettlementNumeric: 12,               // Nilai numerik untuk count-up
   disputeRate: '0,8%',                    // Tingkat sengketa
@@ -134,9 +134,9 @@ export const pricingPlans = [
   {
     name: 'Profesional',
     description: 'Untuk freelancer dan bisnis yang berkembang',
-    monthlyPrice: 299000,
-    yearlyPrice: 239000, // harga per bulan jika bayar tahunan (−20%)
-    yearlyTotal: 2868000, // total dibayar tahunan
+    monthlyPrice: 99000,
+    yearlyPrice: 79000, // harga per bulan jika bayar tahunan (−20%)
+    yearlyTotal: 948000, // total dibayar tahunan
     features: [
       'Transaksi tanpa batas',
       'Perlindungan escrow lanjutan',

@@ -33,10 +33,10 @@ function TestimonialMarquee({ items }: { items: typeof testimonials }) {
       aria-label="Scroll otomatis ulasan pengguna — hover atau fokus untuk menjeda"
     >
       <motion.div
-        animate={paused ? { x: '0%' } : { x: ['0%', '-50%'] }}
-        transition={paused ? { duration: 0 } : { duration: 48, repeat: Infinity, ease: 'linear' }}
+        animate={{ x: ['0%', '-50%'] }}
+        transition={{ duration: 48, repeat: Infinity, ease: 'linear' }}
+        style={{ willChange: 'transform', animationPlayState: paused ? 'paused' : 'running' }}
         className="flex gap-6 w-max"
-        style={{ willChange: 'transform' }}
       >
         {[...items, ...items].map((t, i) => (
           <div
@@ -101,9 +101,10 @@ export default function TestimonialsSection() {
             className="flex flex-col items-start md:items-end"
           >
             <div className="flex gap-1 mb-2" aria-label="Rating rata-rata: 4.9 dari 5">
-              {[...Array(5)].map((_, i) => (
+              {[0, 1, 2, 3].map((i) => (
                 <Star key={i} weight="fill" className="w-5 h-5 text-warning" aria-hidden="true" />
               ))}
+              <Star weight="duotone" className="w-5 h-5 text-warning" aria-hidden="true" />
             </div>
             <p className="text-3xl font-black">4,9<span className="text-lg font-medium text-muted-foreground">/5</span></p>
             <p className="text-sm text-muted-foreground">2.100+ ulasan</p>

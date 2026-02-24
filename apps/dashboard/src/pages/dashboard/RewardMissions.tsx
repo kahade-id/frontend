@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { CalendarCheck, CheckCircle, RocketLaunch, Target } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Button } from '@kahade/ui';
@@ -9,10 +10,11 @@ const missions = [
 ];
 
 export default function RewardMissions() {
+ const [selectedMission, setSelectedMission] = useState<string | null>(null);
  return (
  <DashboardLayout title="Misi Reward" subtitle="Selesaikan tantangan untuk bonus poin">
  <div className="max-w-2xl mx-auto space-y-5">
- <section className="bg-white border border-neutral-200 rounded-2xl p-5">
+ <section className="bg-card border border-border rounded-2xl p-5">
  <div className="flex items-center justify-between">
  <div>
  <p className="text-sm text-neutral-600">Misi aktif bulan ini</p>
@@ -25,7 +27,7 @@ export default function RewardMissions() {
 
  <section className="space-y-3">
  {missions.map((mission) => (
- <div key={mission.title} className="bg-white border border-neutral-200 rounded-2xl p-4 flex items-center justify-between gap-4">
+ <div key={mission.title} className="bg-card border border-border rounded-2xl p-4 flex items-center justify-between gap-4">
  <div>
  <p className="font-medium">{mission.title}</p>
  <p className="text-sm text-neutral-600 mt-1">Progress: {mission.progress}</p>
@@ -34,24 +36,25 @@ export default function RewardMissions() {
  {mission.done ? (
  <div className="text-sm text-emerald-600 flex items-center gap-1.5"><CheckCircle className="w-4 h-4" aria-hidden="true" weight="fill" /> Selesai</div>
  ) : (
- <Button variant="outline" className="rounded-xl">Lanjutkan</Button>
+ <Button type="button" variant="outline" className="rounded-xl" onClick={() => setSelectedMission(mission.title)}>Lanjutkan</Button>
  )}
  </div>
  ))}
  </section>
 
  <section className="grid md:grid-cols-2 gap-4">
- <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4">
+ <div className="bg-muted/40 border border-border rounded-2xl p-4">
  <RocketLaunch className="w-5 h-5 mb-2" aria-hidden="true" weight="regular" />
  <h4 className="font-semibold text-sm">Boost mingguan</h4>
  <p className="text-sm text-neutral-600 mt-1">Aktivitas transaksi stabil 7 hari berturut-turut = bonus 75 poin.</p>
  </div>
- <div className="bg-neutral-50 border border-neutral-200 rounded-2xl p-4">
+ <div className="bg-muted/40 border border-border rounded-2xl p-4">
  <CalendarCheck className="w-5 h-5 mb-2" aria-hidden="true" weight="regular" />
  <h4 className="font-semibold text-sm">Deadline misi</h4>
  <p className="text-sm text-neutral-600 mt-1">Semua misi diperbarui setiap hari Senin pukul 00:00 WIB.</p>
  </div>
  </section>
+ {selectedMission && <p className="text-sm text-muted-foreground">Misi terpilih: <strong>{selectedMission}</strong></p>}
  </div>
  </DashboardLayout>
  );

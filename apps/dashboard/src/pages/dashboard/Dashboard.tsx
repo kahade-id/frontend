@@ -13,7 +13,7 @@ const metrics = [
  { icon: Wallet, label: 'Saldo Dompet', value: 'Rp 2.500.000', delta: '+Rp 500K', positive: true },
  { icon: ArrowsClockwise, label: 'Transaksi Aktif', value: '3', delta: 'Dalam proses', positive: null },
  { icon: CheckCircle, label: 'Selesai', value: '47', delta: '+5 bulan ini', positive: true },
- { icon: Star, label: 'Reward Poin', value: '1.250', delta: 'Level: Gold', positive: null },
+ { icon: Star, label: 'Reward Poin', value: '1.240', delta: 'Level: Silver', positive: null },
 ];
 
 const recentTransactions = [
@@ -30,8 +30,8 @@ const activities = [
 ];
 
 const quickActions = [
- { label: 'Transaksi Baru', icon: Plus, href: '/transactions/new', primary: true },
- { label: 'Deposit', icon: ArrowDown, href: '/deposit', primary: false },
+ { label: 'Transaksi Baru', icon: Plus, href: '/transactions/create', primary: true },
+ { label: 'Deposit', icon: ArrowDown, href: '/wallet/deposit', primary: false },
  { label: 'Tarik Dana', icon: ArrowUp, href: '/wallet', primary: false },
  { label: 'Laporan', icon: FileText, href: '/activity', primary: false },
 ];
@@ -62,10 +62,8 @@ export default function Dashboard() {
  {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
  </p>
  </div>
- <Link href="/transactions/new">
- <button className="btn-primary">
+ <Link href="/transactions/create" className="btn-primary inline-flex">
  <Plus size={18} /> Transaksi Baru
- </button>
  </Link>
  </motion.div>
 

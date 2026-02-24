@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import {
@@ -76,7 +76,7 @@ export default function AdminDashboard() {
  </select>
  </div>
  <div className="flex items-end gap-1 h-40 px-2">
- {[40,55,35,70,60,80,65,90,75,85,95,70,88,92,78,84,96,88,94,80,92,85,98,88,95,90,97,88,94,100].map((h, i) => (
+ {chartData.map((h, i) => (
  <div key={i} className="bg-primary/30 hover:bg-primary/60 rounded-t-sm flex-1 transition-colors cursor-pointer" style={{ height: `${h}%` }} title={`Hari ${i+1}`} />
  ))}
  </div>
@@ -86,12 +86,10 @@ export default function AdminDashboard() {
  <h2 className="font-bold mb-4">Aksi Diperlukan</h2>
  <div className="space-y-3">
  {pendingActions.map((a) => (
- <Link key={a.label} href={a.href}>
- <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors cursor-pointer group">
+ <Link key={a.label} href={a.href} className="flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors group">
  <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-bold ${a.color}`}>{a.emoji}</div>
  <p className="text-sm flex-1">{a.label}</p>
  <ArrowRight size={14} className="text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition-all" />
- </div>
  </Link>
  ))}
  </div>
