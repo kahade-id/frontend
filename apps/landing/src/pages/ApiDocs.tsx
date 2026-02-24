@@ -31,7 +31,7 @@ const response = await fetch('https://api.kahade.id/v1/transactions', {
 });
 
 const transaction = await response.json();
-console.log(transaction.id); // "KHD-2025-001234"`;
+// Gunakan response ini untuk update UI aplikasi`;
 
 const responseExample = `{
  "id": "KHD-2025-001234",
