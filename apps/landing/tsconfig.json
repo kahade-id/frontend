@@ -2,7 +2,11 @@
   "compilerOptions": {
     "target": "ES2020",
     "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "lib": [
+      "ES2020",
+      "DOM",
+      "DOM.Iterable"
+    ],
     "module": "ESNext",
     "skipLibCheck": true,
     "moduleResolution": "bundler",
@@ -14,8 +18,24 @@
     "strict": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": [
+        "./src/*"
+      ],
+      "@kahade/config": [
+        "../../packages/config/src/index.ts"
+      ],
+      "@kahade/utils": [
+        "../../packages/utils/src/index.ts"
+      ],
+      "@kahade/ui": [
+        "../../packages/ui/src/index.ts"
+      ],
+      "@kahade/types": [
+        "../../packages/types/src/index.ts"
+      ]
     }
   },
-  "include": ["src"]
+  "include": [
+    "src"
+  ]
 }
