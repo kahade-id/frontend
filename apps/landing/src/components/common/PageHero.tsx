@@ -3,6 +3,8 @@ import type { ReactNode } from 'react';
 
 export type HeroChipTone = 'neutral' | 'success' | 'info' | 'warning';
 
+type HeroAlign = 'left' | 'center';
+
 export interface HeroChip {
   label: string;
   tone?: HeroChipTone;
@@ -14,6 +16,7 @@ interface BaseHeroProps {
   description: string;
   chips?: HeroChip[];
   icon?: ReactNode;
+  align?: HeroAlign;
 }
 
 interface PageHeroProps extends BaseHeroProps {
@@ -28,17 +31,19 @@ const toneStyles: Record<HeroChipTone, string> = {
   warning: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
 };
 
-function HeroBody({ eyebrow, title, description, chips = [], icon }: BaseHeroProps) {
+function HeroBody({ eyebrow, title, description, chips = [], icon, align = 'left' }: BaseHeroProps) {
+  const isCentered = align === 'center';
+
   return (
     <>
-      <div className="flex items-center gap-2 mb-4">
+      <div className={`flex items-center gap-2 mb-4 ${isCentered ? 'justify-center' : ''}`}>
         {icon ?? <span className="h-1.5 w-1.5 rounded-full bg-primary" aria-hidden="true" />}
         <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{eyebrow}</span>
       </div>
-      <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-tight mb-4">{title}</h1>
-      <p className="text-muted-foreground text-base md:text-lg max-w-3xl mb-6">{description}</p>
+      <h1 className={`text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight leading-tight mb-4 ${isCentered ? 'text-center' : ''}`}>{title}</h1>
+      <p className={`text-muted-foreground text-base md:text-lg max-w-3xl mb-6 ${isCentered ? 'text-center mx-auto' : ''}`}>{description}</p>
       {!!chips.length && (
-        <div className="flex flex-wrap gap-3">
+        <div className={`flex flex-wrap gap-3 ${isCentered ? 'justify-center' : ''}`}>
           {chips.map(chip => (
             <span key={chip.label} className={`px-3 py-1.5 rounded-full text-sm font-medium ${toneStyles[chip.tone ?? 'neutral']}`}>
               {chip.label}
@@ -50,12 +55,12 @@ function HeroBody({ eyebrow, title, description, chips = [], icon }: BaseHeroPro
   );
 }
 
-export function PageHero({ actions, className = '', ...props }: PageHeroProps) {
+export function PageHero({ actions, className = '', align = 'left', ...props }: PageHeroProps) {
   return (
-    <section className={`max-w-[1100px] mx-auto px-6 pt-24 md:pt-28 pb-12 ${className}`}>
+    <section className={`max-w-[1100px] mx-auto px-6 landing-hero-offset pb-12 ${className}`}>
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mb-12 pb-12 border-b">
-        <HeroBody {...props} />
-        {actions ? <div className="mt-8 flex flex-wrap gap-3">{actions}</div> : null}
+        <HeroBody {...props} align={align} />
+        {actions ? <div className={`mt-8 flex flex-wrap gap-3 ${align === 'center' ? 'justify-center' : ''}`}>{actions}</div> : null}
       </motion.div>
     </section>
   );
@@ -68,7 +73,7 @@ interface PageHeroArticleProps extends BaseHeroProps {
 
 export function PageHeroArticle({ backLink, meta, ...props }: PageHeroArticleProps) {
   return (
-    <section className="max-w-[900px] mx-auto px-6 pt-24 md:pt-28 pb-10">
+    <section className="max-w-[900px] mx-auto px-6 landing-hero-offset pb-10">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="mb-10 pb-10 border-b">
         {backLink ? <div className="mb-6">{backLink}</div> : null}
         <HeroBody {...props} />

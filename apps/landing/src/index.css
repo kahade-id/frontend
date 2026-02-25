@@ -144,6 +144,7 @@
   /* Nav height system — single source of truth */
   --landing-nav-height: 4.25rem;
   --landing-sticky-offset: calc(var(--landing-nav-height) + 0.5rem);
+  --landing-hero-offset: calc(var(--landing-nav-height) + clamp(2rem, 5vw, 3.5rem));
 
   /* Neutral color palette */
   --color-white: #FFFFFF;
@@ -713,6 +714,17 @@
   .scrollbar-thin::-webkit-scrollbar-thumb  {
     background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
     border-radius: 9999px;
+  }
+
+  /* ── Landing Layout Offsets ──────────────────────────────────────────── */
+  .landing-nav-offset {
+    padding-top: var(--landing-nav-height);
+  }
+  .landing-sticky-top {
+    top: var(--landing-sticky-offset);
+  }
+  .landing-hero-offset {
+    padding-top: var(--landing-hero-offset);
   }
 
   /* ── Container Safe ───────────────────────────────────────────────────── */
