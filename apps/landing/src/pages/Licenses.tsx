@@ -91,7 +91,7 @@ export default function Licenses() {
  <div className="text-xl md:text-3xl font-bold mb-0.5 md:mb-1 text-foreground">
  {licenses.reduce((acc, cat) => acc + cat.items.length, 0)}
  </div>
- <div className="text-[10px] md:text-sm text-muted-foreground">Paket</div>
+ <div className="text-xs md:text-sm text-muted-foreground">Paket</div>
  </motion.div>
  <motion.div
  initial={{ opacity: 0, y: 20 }}
@@ -102,7 +102,7 @@ export default function Licenses() {
  >
  <Code className="w-7 h-7 md:w-10 md:h-10 mx-auto text-foreground mb-2 md:mb-4" aria-hidden="true" weight="bold" />
  <div className="text-xl md:text-3xl font-bold mb-0.5 md:mb-1 text-foreground">{licenses.length}</div>
- <div className="text-[10px] md:text-sm text-muted-foreground">Kategori</div>
+ <div className="text-xs md:text-sm text-muted-foreground">Kategori</div>
  </motion.div>
  <motion.div
  initial={{ opacity: 0, y: 20 }}
@@ -113,7 +113,7 @@ export default function Licenses() {
  >
  <FileText className="w-7 h-7 md:w-10 md:h-10 mx-auto text-foreground mb-2 md:mb-4" aria-hidden="true" weight="bold" />
  <div className="text-xl md:text-3xl font-bold mb-0.5 md:mb-1 text-foreground">3</div>
- <div className="text-[10px] md:text-sm text-muted-foreground">Jenis Lisensi</div>
+ <div className="text-xs md:text-sm text-muted-foreground">Jenis Lisensi</div>
  </motion.div>
  </div>
  
@@ -135,7 +135,7 @@ export default function Licenses() {
  <div key={item.name} className="p-4">
  <div className="flex items-center justify-between mb-2">
  <span className="font-bold text-sm text-foreground">{item.name}</span>
- <span className="px-2 py-0.5 rounded-lg bg-muted text-foreground text-[10px] font-semibold">
+ <span className="px-2 py-0.5 rounded-lg bg-muted text-foreground text-xs font-semibold">
  {item.license}
  </span>
  </div>

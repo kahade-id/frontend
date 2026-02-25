@@ -183,7 +183,7 @@ export default function Footer() {
             'LEGAL':       footerLinks.legal,
           })).map(([heading, links]) => (
             <motion.div key={heading} variants={staggerItem}>
-              <p className="text-[0.6875rem] font-bold tracking-widest uppercase text-primary-foreground/50 mb-4">
+              <p className="text-xs font-bold tracking-widest uppercase text-primary-foreground/50 mb-4">
                 {heading}
               </p>
               <ul className="space-y-2.5">

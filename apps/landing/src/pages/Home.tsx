@@ -65,7 +65,7 @@ export default function Home() {
   }, [location]);
 
   return (
-    <div className="min-h-screen bg-background overflow-x-hidden">
+    <div className="min-h-screen bg-background">
       <Navbar />
 
       {/* Issue #22: Satu Suspense boundary untuk semua sections.

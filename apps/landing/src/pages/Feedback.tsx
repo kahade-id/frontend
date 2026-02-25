@@ -191,7 +191,7 @@ export default function Feedback() {
  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
  className="bg-card border-border focus:border-black focus:ring-black h-10 md:h-11 rounded-xl text-sm md:text-base"
  />
- <p className="text-[10px] md:text-xs text-muted-foreground">
+ <p className="text-xs md:text-sm text-muted-foreground">
  Cantumkan email jika Anda ingin kami menindaklanjuti masukan Anda.
  </p>
  </div>

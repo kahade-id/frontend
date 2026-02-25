@@ -77,7 +77,7 @@ export default function HowItWorks() {
  {/* FLOW VISUAL */}
  <section className="py-12 border-b overflow-hidden bg-muted/30">
  <div className="container">
- <div className="flex items-center justify-center gap-0 overflow-x-auto no-scrollbar">
+ <div className="flex items-center justify-center gap-0 overflow-x-auto scrollbar-thin">
  {['Pembeli', 'Buat Transaksi', 'Deposit', 'Kahade Escrow', 'Konfirmasi', 'Pencairan', 'Penjual'].map((step, i, arr) => (
  <div key={step} className="flex items-center shrink-0">
  <div className={`px-4 py-2 rounded-xl text-sm font-semibold whitespace-nowrap ${
@@ -186,11 +186,11 @@ export default function HowItWorks() {
  <div className="container text-center max-w-2xl mx-auto">
  <h2 className="text-3xl font-bold mb-4">Siap bertransaksi dengan aman?</h2>
  <p className="text-primary-foreground/70 mb-8">Daftar gratis dan buat transaksi pertama Anda dalam 5 menit.</p>
- <a href="https://app.kahade.id/register">
- <Button className="bg-white text-primary font-semibold px-8 py-3.5 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
+ <Button asChild variant="secondary" size="lg" className="bg-white text-primary hover:bg-white/90 border-transparent px-8">
+ <Link href="https://app.kahade.id/register">
  Mulai Gratis <ArrowRight size={18} />
+ </Link>
  </Button>
- </a>
  </div>
  </section>
 

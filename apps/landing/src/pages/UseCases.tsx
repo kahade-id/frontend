@@ -133,11 +133,11 @@ export default function UseCases() {
  </div>
  ))}
  </div>
- <a href="https://app.kahade.id/register">
- <Button  variant="primary" className="mt-6">
+ <Button asChild variant="primary" className="mt-6">
+ <Link href="https://app.kahade.id/register">
  Mulai Sekarang <ArrowRight size={16} />
+ </Link>
  </Button>
- </a>
  </div>
  </motion.div>
  )}

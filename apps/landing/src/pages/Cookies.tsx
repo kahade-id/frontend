@@ -119,7 +119,7 @@ export default function Cookies() {
  >
  <div className="flex items-center justify-between mb-3 md:mb-4">
  <h3 className="font-bold text-sm md:text-base text-foreground">{cookie.name}</h3>
- <span className={`text-[10px] md:text-xs px-2 py-1 rounded-lg ${
+ <span className={`text-xs md:text-sm px-2 py-1 rounded-lg ${
  cookie.canDisable 
  ? 'bg-muted text-muted-foreground' 
  : 'bg-black text-white'
@@ -130,7 +130,7 @@ export default function Cookies() {
  <p className="text-xs md:text-sm text-muted-foreground mb-3 md:mb-4">{cookie.description}</p>
  <div className="flex flex-wrap gap-1.5 md:gap-2">
  {cookie.examples.map((example) => (
- <span key={example} className="text-[10px] md:text-xs px-2 py-1 rounded-lg bg-muted text-muted-foreground">
+ <span key={example} className="text-xs md:text-sm px-2 py-1 rounded-lg bg-muted text-muted-foreground">
  {example}
  </span>
  ))}
@@ -142,7 +142,7 @@ export default function Cookies() {
  </section>
  
  {/* Mobile TOC Toggle */}
- <div className="lg:hidden sticky top-[65px] z-20 bg-card border-b border-border">
+ <div className="lg:hidden sticky top-[var(--landing-sticky-offset)] z-20 bg-card border-b border-border">
  <div className="container py-3">
  <Button 
  variant="outline" 
@@ -182,7 +182,7 @@ export default function Cookies() {
  animate={{ opacity: 1, x: 0 }}
  className="hidden lg:block lg:col-span-1"
  >
- <div className="sticky top-24 bg-muted rounded-xl md:rounded-2xl border border-border p-4 md:p-6">
+ <div className="sticky top-[calc(var(--landing-nav-height)+1.5rem)] bg-muted rounded-xl md:rounded-2xl border border-border p-4 md:p-6">
  <h3 className="font-bold mb-4 text-foreground">Daftar Isi</h3>
  <nav className="space-y-2">
  {sections.map((section) => (

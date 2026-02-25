@@ -191,7 +191,7 @@ export default function Terms() {
  <PageHero eyebrow="Legal" title="Syarat & Ketentuan" description="Ketentuan penggunaan platform Kahade sebagai dasar transaksi yang adil bagi seluruh pihak." chips={[{ label: 'Ketentuan Layanan' }, { label: 'Hak & Kewajiban' }, { label: 'Kepatuhan' } ]} />
  
  {/* Mobile TOC Toggle */}
- <div className="lg:hidden sticky top-[65px] z-20 bg-background/95 backdrop-blur border-b border-border">
+ <div className="lg:hidden sticky top-[var(--landing-sticky-offset)] z-20 bg-background/95 backdrop-blur border-b border-border">
  <div className="container py-3">
  <motion.div whileTap={{ scale: 0.98 }}>
  <Button 
@@ -249,7 +249,7 @@ export default function Terms() {
  transition={{ duration: 0.6 }}
  className="hidden lg:block lg:col-span-1"
  >
- <div className="sticky top-24 bg-card rounded-xl md:rounded-2xl border border-border p-4 md:p-6">
+ <div className="sticky top-[calc(var(--landing-nav-height)+1.5rem)] bg-card rounded-xl md:rounded-2xl border border-border p-4 md:p-6">
  <h3 className="font-bold mb-4 text-foreground flex items-center gap-2">
  <FileText className="w-5 h-5" aria-hidden="true" weight="bold" />
  Daftar Isi

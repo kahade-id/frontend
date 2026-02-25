@@ -112,11 +112,11 @@ export default function Compare() {
  <div className="container text-center max-w-2xl mx-auto">
  <h2 className="text-3xl font-bold mb-4">Siap beralih ke Kahade?</h2>
  <p className="text-muted-foreground mb-8">Bergabung gratis, tanpa kartu kredit. Coba sendiri perbedaannya.</p>
- <a href="https://app.kahade.id/register">
- <Button  variant="primary" className="px-8 py-3.5 text-base">
+ <Button asChild variant="primary" size="lg" className="px-8 text-base">
+ <Link href="https://app.kahade.id/register">
  Daftar Gratis <ArrowRight size={18} />
+ </Link>
  </Button>
- </a>
  </div>
  </section>
 
