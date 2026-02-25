@@ -1,0 +1,1913 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,200;1,300;1,400;1,500;1,600;1,700;1,800&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+
+/* 
+ * ========================================================================
+ * KAHADE DESIGN SYSTEM - PROFESSIONAL EDITION V2.0
+ * ========================================================================
+ * 
+ * DESIGN PHILOSOPHY:
+ * - Powerful, bold, and exclusive aesthetic
+ * - High contrast black & white with strategic accents
+ * - Generous spacing for premium feel
+ * - Strong visual hierarchy with fluid typography
+ * - Sophisticated micro-interactions
+ * - Plus Jakarta Sans typography system
+ * - Accessibility-first approach
+ * - Performance-optimized animations
+ * 
+ * STRUCTURE:
+ * 1. Font Definitions
+ * 2. CSS Variables & Design Tokens
+ * 3. Root Theme Configuration
+ * 4. Base Styles
+ * 5. Component Patterns
+ * 6. Utility Classes
+ * 7. Animation Library
+ * 8. Responsive Patterns
+ * ========================================================================
+ */
+
+/* ========================================================================
+   1. FONT DEFINITIONS
+   ======================================================================== */
+
+/* ========================================================================
+   2. CSS VARIABLES & DESIGN TOKENS
+   ======================================================================== */
+
+@theme inline {
+  /* AUDIT FIX #7: Typography - Plus Jakarta Sans */
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  
+  /* Radius Scale */
+  --radius-xs: calc(var(--radius) - 6px);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius: 0.75rem;
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 16px);
+  --radius-full: 9999px;
+  
+  /* Spacing Scale (Enhanced) */
+  --spacing-xs: 0.25rem;
+  --spacing-sm: 0.5rem;
+  --spacing-md: 1rem;
+  --spacing-lg: 1.5rem;
+  --spacing-xl: 2rem;
+  --spacing-2xl: 3rem;
+  --spacing-3xl: 4rem;
+  --spacing-4xl: 6rem;
+  --spacing-5xl: 8rem;
+
+  /* Restore Tailwind container max-width scale (prevents max-w-* collapsing to spacing scale) */
+  --container-xs: 20rem;
+  --container-sm: 24rem;
+  --container-md: 28rem;
+  --container-lg: 32rem;
+  --container-xl: 36rem;
+  --container-2xl: 42rem;
+  --container-3xl: 48rem;
+  --container-4xl: 56rem;
+  --container-5xl: 64rem;
+  --container-6xl: 72rem;
+  --container-7xl: 80rem;
+  
+  /* Elevation System */
+  --elevation-1: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --elevation-2: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+  --elevation-3: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --elevation-4: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --elevation-5: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  --elevation-6: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  
+  /* Animation Timing */
+  --duration-instant: 100ms;
+  --duration-fast: 200ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+  --duration-slower: 700ms;
+  --duration-slowest: 1000ms;
+  
+  /* Easing Functions */
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-out: cubic-bezier(0, 0, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+  
+  /* Color Tokens */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  
+  /* Z-Index Scale */
+  --z-base: 0;
+  --z-dropdown: 1000;
+  --z-sticky: 1020;
+  --z-fixed: 1030;
+  --z-modal-backdrop: 1040;
+  --z-modal: 1050;
+  --z-popover: 1060;
+  --z-tooltip: 1070;
+}
+
+/* ========================================================================
+   3. ROOT THEME CONFIGURATION
+   ======================================================================== */
+
+:root {
+  /* Base Radius */
+  --radius: 0.75rem;
+
+  /* Button height overrides — dashboard keeps touch-friendly mobile sizes */
+  --button-height-sm: 2.25rem;  /* 36px */
+  --button-height-md: 2.5rem;   /* 40px */
+  --button-height-lg: 2.75rem;  /* 44px */
+  
+  /* Exclusive Light Theme - High Contrast */
+  --background: #FFFFFF;
+  --foreground: #0A0A0A;
+  
+  --card: #FFFFFF;
+  --card-foreground: #0A0A0A;
+  
+  --popover: #FFFFFF;
+  --popover-foreground: #0A0A0A;
+  
+  --primary: #0A0A0A;
+  --primary-foreground: #FFFFFF;
+  
+  --secondary: #F8F8F8;
+  --secondary-foreground: #0A0A0A;
+  
+  --muted: #F5F5F5;
+  --muted-foreground: #737373;
+  
+  --accent: #0A0A0A;
+  --accent-foreground: #FFFFFF;
+  
+  --destructive: #DC2626;
+  --destructive-foreground: #FFFFFF;
+  
+  --success: #10B981;
+  --success-foreground: #FFFFFF;
+  
+  --warning: #F59E0B;
+  --warning-foreground: #FFFFFF;
+  
+  --info: #3B82F6;
+  --info-foreground: #FFFFFF;
+  
+  --border: #E8E8E8;
+  --input: #E8E8E8;
+  --ring: #0A0A0A;
+  
+  /* Chart Colors - Sophisticated Palette */
+  --chart-1: #0A0A0A;
+  --chart-2: #10B981;
+  --chart-3: #F59E0B;
+  --chart-4: #6366F1;
+  --chart-5: #EC4899;
+  
+  /* Sidebar */
+  --sidebar: #FAFAFA;
+  --sidebar-foreground: #0A0A0A;
+  --sidebar-primary: #0A0A0A;
+  --sidebar-primary-foreground: #FFFFFF;
+  --sidebar-accent: #F0F0F0;
+  --sidebar-accent-foreground: #0A0A0A;
+  --sidebar-border: #E8E8E8;
+  --sidebar-ring: #0A0A0A;
+  
+  /* Semantic Colors */
+  --color-success-subtle: #ECFDF5;
+  --color-warning-subtle: #FEF3C7;
+  --color-error-subtle: #FEF2F2;
+  --color-info-subtle: #EFF6FF;
+}
+
+/* Dark Mode - Applied when .dark class is on <html> */
+.dark {
+  --background: #0A0A0A;
+  --foreground: #FAFAFA;
+  
+  --card: #141414;
+  --card-foreground: #FAFAFA;
+  
+  --popover: #141414;
+  --popover-foreground: #FAFAFA;
+  
+  --primary: #FAFAFA;
+  --primary-foreground: #0A0A0A;
+  
+  --secondary: #1A1A1A;
+  --secondary-foreground: #FAFAFA;
+  
+  --muted: #1A1A1A;
+  --muted-foreground: #A3A3A3;
+  
+  --accent: #FAFAFA;
+  --accent-foreground: #0A0A0A;
+  
+  --border: #2A2A2A;
+  --input: #2A2A2A;
+  --ring: #FAFAFA;
+  
+  --sidebar: #141414;
+  --sidebar-foreground: #FAFAFA;
+  --sidebar-border: #2A2A2A;
+}
+
+/* ========================================================================
+   4. BASE STYLES
+   ======================================================================== */
+
+@layer base {
+  /* Universal Reset */
+  *,
+  *::before,
+  *::after {
+  @apply border-border;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+  
+  /* Scrollbar Styling */
+  * {
+  scrollbar-width: thin;
+  scrollbar-color: #E8E8E8 transparent;
+}
+  
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background: #E8E8E8;
+    border-radius: 4px;
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    background: #CCCCCC;
+  }
+  
+  /* Hide scrollbar for clean UI when needed */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* AUDIT FIX #8: HTML & Body - overflow-x only on body, not html (prevents sticky breaking) */
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    overflow-x: clip;
+  }
+  
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-sans);
+    min-height: 100vh;
+    min-height: 100dvh;
+    background: var(--background);
+    line-height: 1.6;
+    font-feature-settings: "kern" 1, "liga" 1;
+    overflow-x: hidden;
+  }
+  
+  /* AUDIT FIX #1 & #2: Typography Scale - Removed text-wrap: pretty global, adjusted clamp() for mobile */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: inherit;
+    line-height: 1.1;
+    margin-bottom: 0.5em;
+    /* REMOVED: text-wrap: pretty; - causes 1-word-per-line on narrow containers */
+  }
+  
+  /* AUDIT FIX #2: Reduced minimum values in clamp() to prevent oversized text on mobile */
+  h1 {
+    font-size: clamp(1.5rem, 4vw + 0.5rem, 4.5rem);
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+  }
+  
+  h2 {
+    font-size: clamp(1.375rem, 3.5vw + 0.25rem, 3.5rem);
+    letter-spacing: -0.035em;
+    line-height: 1.1;
+  }
+  
+  h3 {
+    font-size: clamp(1.125rem, 2.5vw + 0.25rem, 2.5rem);
+    line-height: 1.15;
+  }
+  
+  h4 {
+    font-size: clamp(1.125rem, 2vw, 2rem);
+    line-height: 1.2;
+  }
+  
+  h5 {
+    font-size: clamp(1rem, 1.5vw, 1.5rem);
+    line-height: 1.3;
+  }
+  
+  h6 {
+    font-size: clamp(0.9375rem, 1vw, 1.25rem);
+    line-height: 1.4;
+  }
+  
+  /* Paragraph & Text */
+  p {
+    line-height: 1.7;
+    margin-bottom: 1em;
+    /* REMOVED: text-wrap: pretty; - let browser handle naturally */
+  }
+  
+  p:last-child {
+    margin-bottom: 0;
+  }
+  
+  /* Links */
+  a {
+    color: inherit;
+    text-decoration: none;
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+  
+  a:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+  
+  /* Lists */
+  ul, ol {
+    padding-left: 1.5em;
+    margin-bottom: 1em;
+  }
+  
+  li {
+    margin-bottom: 0.5em;
+  }
+  
+  /* Code & Pre */
+  code, pre, .font-mono {
+    font-family: var(--font-mono);
+    font-variant-ligatures: normal;
+  }
+  
+  code {
+    padding: 0.125rem 0.375rem;
+    background: var(--muted);
+    border-radius: var(--radius-sm);
+    font-size: 0.875em;
+  }
+  
+  pre {
+    padding: 1rem;
+    background: var(--muted);
+    border-radius: var(--radius);
+    overflow-x: auto;
+    margin-bottom: 1em;
+  }
+  
+  pre code {
+    padding: 0;
+    background: none;
+    border-radius: 0;
+  }
+
+  /* Interactive Elements */
+  [type="submit"]:not(:disabled),
+  [type="reset"]:not(:disabled),
+  a[href],
+  select:not(:disabled),
+  input[type="checkbox"]:not(:disabled),
+  input[type="radio"]:not(:disabled),
+  summary {
+    @apply cursor-pointer;
+  }
+  
+  [type="submit"]:disabled,
+  [type="reset"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+  
+  /* Selection */
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  
+  /* Focus Visible */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+  
+  /* Images */
+  img, picture, video, canvas, svg {
+    display: block;
+    max-width: 100%;
+    height: auto;
+  }
+  
+  /* Form Elements */
+  input, textarea, select {
+    font: inherit;
+    color: inherit;
+  }
+  
+  
+  /* Table */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  
+  /* HR */
+  hr {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 2rem 0;
+  }
+}
+
+/* ========================================================================
+   5. COMPONENT PATTERNS
+   ======================================================================== */
+
+@layer components {
+  /* ===== CONTAINER SYSTEM ===== */
+  .container {
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+    max-width: 100%;
+  }
+
+  @media (min-width: 640px) {
+    .container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      max-width: 640px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    .container {
+      max-width: 768px;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .container {
+      padding-left: 3rem;
+      padding-right: 3rem;
+      max-width: 1024px;
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .container {
+      max-width: 1280px;
+    }
+  }
+  
+  @media (min-width: 1536px) {
+    .container {
+      max-width: 1536px;
+    }
+  }
+  
+  .container-narrow {
+    max-width: 1200px;
+  }
+  
+  .container-tight {
+    max-width: 960px;
+  }
+
+  .flex-fix {
+    min-height: 0;
+    min-width: 0;
+  }
+  
+  /* ===== SECTION SPACING SYSTEM ===== */
+  .section-padding {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+  
+  @media (min-width: 768px) {
+    .section-padding {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .section-padding {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+  }
+  
+  @media (min-width: 1280px) {
+    .section-padding {
+      padding-top: 7rem;
+      padding-bottom: 7rem;
+    }
+  }
+  
+  .section-padding-lg {
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+  
+  @media (min-width: 768px) {
+    .section-padding-lg {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+  }
+  
+  @media (min-width: 1024px) {
+    .section-padding-lg {
+      padding-top: 6rem;
+      padding-bottom: 6rem;
+    }
+  }
+  
+  .section-padding-sm {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+  
+  @media (min-width: 768px) {
+    .section-padding-sm {
+      padding-top: 4rem;
+      padding-bottom: 4rem;
+    }
+  }
+  
+    /* ===== EXCLUSIVE BUTTON SYSTEM ===== */
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  /* Button Sizes */
+  
+  
+  
+  /* ===== CARD PATTERNS ===== */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+    transition: all var(--duration-normal) var(--ease-out);
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: none;
+    border-color: var(--foreground);
+  }
+  
+  .card-premium {
+    background: var(--card);
+    border: 2px solid var(--border);
+    border-radius: var(--radius-xl);
+    padding: 2rem;
+    box-shadow: none;
+  }
+  
+  .card-subtle {
+    background: var(--muted);
+    border: none;
+    border-radius: var(--radius-lg);
+    padding: 1.5rem;
+  }
+  
+  /* ===== INPUT PATTERNS ===== */
+  .input-base {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--input);
+    border-radius: var(--radius);
+    background: var(--background);
+    color: var(--foreground);
+    font-size: 0.9375rem;
+    transition: all var(--duration-fast) var(--ease-out);
+  }
+  
+  .input-base:focus {
+    outline: none;
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.1);
+  }
+  
+  .input-base::placeholder {
+    color: var(--muted-foreground);
+  }
+  
+  /* ===== BADGE PATTERNS ===== */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.75rem;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  
+  .badge-primary {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  
+  .badge-secondary {
+    background: var(--secondary);
+    color: var(--secondary-foreground);
+  }
+  
+  .badge-success {
+    background: var(--color-success-subtle);
+    color: var(--success);
+  }
+  
+  .badge-warning {
+    background: var(--color-warning-subtle);
+    color: var(--warning);
+  }
+  
+  .badge-error {
+    background: var(--color-error-subtle);
+    color: var(--destructive);
+  }
+  
+  /* ===== DIVIDER PATTERNS ===== */
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 2rem 0;
+  }
+  
+  .divider-vertical {
+    width: 1px;
+    height: 100%;
+    background: var(--border);
+    margin: 0 1rem;
+  }
+  
+  /* ===== BACKDROP PATTERNS ===== */
+  .backdrop {
+    backdrop-filter: blur(8px);
+    background: rgba(255, 255, 255, 0.8);
+  }
+  
+  .backdrop-dark {
+    backdrop-filter: blur(8px);
+    background: rgba(10, 10, 10, 0.8);
+  }
+  
+  /* ===== GLASSMORPHISM ===== */
+  .glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+  }
+  
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px) saturate(160%);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: none;
+    border-radius: var(--radius-lg);
+  }
+
+  .glass-dark {
+    background: rgba(10, 10, 10, 0.7);
+    backdrop-filter: blur(20px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+}
+
+/* ========================================================================
+   6. UTILITY CLASSES
+   ======================================================================== */
+
+@layer utilities {
+  /* AUDIT FIX #1: Removed problematic text-wrap classes that cause layout issues */
+  
+  /* Truncate */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .truncate-4 {
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  /* Gradient Text */
+  .gradient-text {
+    background: linear-gradient(135deg, var(--foreground) 0%, var(--muted-foreground) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  /* Smooth Scroll */
+  .smooth-scroll {
+    scroll-behavior: smooth;
+  }
+  
+  /* Safe Area */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+  
+  /* Aspect Ratios */
+  .aspect-square {
+    aspect-ratio: 1 / 1;
+  }
+  
+  .aspect-video {
+    aspect-ratio: 16 / 9;
+  }
+  
+  .aspect-portrait {
+    aspect-ratio: 3 / 4;
+  }
+  
+  /* Centering */
+  .center-absolute {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+  }
+  
+  .center-x {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  
+  .center-y {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .bg-grid {
+    background-image: linear-gradient(to right, rgb(0 0 0 / 0.05) 1px, transparent 1px),
+                      linear-gradient(to bottom, rgb(0 0 0 / 0.05) 1px, transparent 1px);
+    background-size: 4rem 4rem;
+  }
+}
+
+/* ========================================================================
+   7. ANIMATION LIBRARY
+   ======================================================================== */
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes bounce-subtle {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Animation Classes */
+.animate-fade-in {
+  animation: fadeIn var(--duration-normal) var(--ease-out);
+}
+
+.animate-slide-in-up {
+  animation: slideInUp var(--duration-normal) var(--ease-out);
+}
+
+.animate-slide-in-down {
+  animation: slideInDown var(--duration-normal) var(--ease-out);
+}
+
+.animate-slide-in-left {
+  animation: slideInLeft var(--duration-normal) var(--ease-out);
+}
+
+.animate-slide-in-right {
+  animation: slideInRight var(--duration-normal) var(--ease-out);
+}
+
+.animate-scale-in {
+  animation: scaleIn var(--duration-normal) var(--ease-spring);
+}
+
+.animate-pulse {
+  animation: pulse var(--duration-slower) ease-in-out infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0.5) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+.animate-bounce-subtle {
+  animation: bounce-subtle var(--duration-slow) ease-in-out infinite;
+}
+
+.animate-rotate {
+  animation: rotate var(--duration-slowest) linear infinite;
+}
+
+/* Delay Classes */
+.delay-100 {
+  animation-delay: 100ms;
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-300 {
+  animation-delay: 300ms;
+}
+
+.delay-500 {
+  animation-delay: 500ms;
+}
+
+/* ========================================================================
+   8. RESPONSIVE PATTERNS
+   ======================================================================== */
+
+/* Mobile-First Responsive Typography */
+@media (max-width: 640px) {
+  .section-padding {
+    padding-top: 3rem;
+    padding-bottom: 3rem;
+  }
+  
+  .section-header {
+    margin-bottom: 2rem;
+  }
+}
+
+/* Tablet Optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .hide-tablet {
+    display: none;
+  }
+}
+
+/* Desktop Optimizations */
+@media (min-width: 1025px) {
+  .hide-desktop {
+    display: none;
+  }
+}
+
+/* Mobile-Only */
+
+@media (max-width: 640px) {
+  .show-desktop {
+    display: none;
+  }
+}
+
+/* Print Styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    background: white;
+    color: black;
+  }
+}
+
+/* Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ========================================================================
+   END OF KAHADE DESIGN SYSTEM V2.0
+   ======================================================================== */
+
+/* ========================================================================
+   KAHADE UI FIX - ADDITIONAL DESIGN TOKENS
+   Added: 2026-02-14
+   ======================================================================== */
+
+@layer base {
+  :root {
+    /* WCAG AAA Compliant Colors */
+    --color-white: #FFFFFF;
+    --color-neutral-50: #FAFAFA;
+    --color-neutral-100: #F5F5F5;
+    --color-neutral-200: #E8E8E8;
+    --color-neutral-300: #D4D4D4;
+    --color-neutral-400: #A3A3A3;
+    --color-neutral-500: #737373;
+    --color-neutral-600: #525252;
+    --color-neutral-700: #404040;
+    --color-neutral-800: #262626;
+    --color-neutral-900: #171717;
+    
+    /* Semantic Colors */
+    --color-success: #22C55E;
+    --color-error: #EF4444;
+    --color-warning: #F59E0B;
+    --color-info: #3B82F6;
+  }
+}
+
+/* Focus Visible Utilities */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2;
+}
+
+.focus-ring-inset {
+  @apply focus:outline-none focus:ring-2 focus:ring-inset focus:ring-black;
+}
+
+/* Screen Reader Only */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.sr-only-focusable:focus {
+  position: static;
+  width: auto;
+  height: auto;
+  padding: inherit;
+  margin: inherit;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+}
+/* High Contrast Mode Support */
+@media (prefers-contrast: high) {
+  :root {
+    --color-neutral-600: #000000;
+  }
+}
+
+
+/* Enhanced Focus Indicators for Accessibility */
+.focus-visible-ring {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2;
+}
+
+.focus-visible-ring-white {
+  @apply focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black;
+}
+
+/* ========================================================================
+   MOBILE RESPONSIVE FIXES — Added 2026 (MOBILE-FIX-2026)
+   Fixes issues found in mobile audit:
+   - Overflow prevention
+   - Table horizontal scroll styling
+   - Narrow screen padding improvements
+   - Category filter scrollability
+   ======================================================================== */
+
+@layer base {
+  /* Prevent horizontal overflow — clip stronger than hidden on mobile browsers */
+  html {
+    overflow-x: clip;
+  }
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Ensure images never break layout */
+  img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+@layer utilities {
+  /* Horizontal scroll with snap for filter rows */
+  .overflow-x-scroll-snap {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Table scroll area — give breathing room for scrollbar */
+  .table-scroll-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.5rem;
+  }
+  
+  /* Mobile-safe container with guaranteed minimum padding */
+  .container-safe {
+    padding-left: max(1rem, env(safe-area-inset-left));
+    padding-right: max(1rem, env(safe-area-inset-right));
+  }
+}
+
+/* Mobile-specific overrides */
+@media (max-width: 639px) {
+  /* Container: ensure enough but not excessive padding on tiny screens */
+  .container {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+  
+  /* Section titles: cap size more aggressively on very small screens */
+  .section-title {
+    font-size: clamp(1.5rem, 5vw + 0.5rem, 3rem);
+  }
+  
+  /* Grid gaps: reduce on mobile to prevent cards being too cramped */
+  .gap-8 {
+    gap: 1.25rem;
+  }
+  
+  /* Card padding: slightly reduce for small screens */
+  .card {
+    padding: 1rem;
+  }
+  
+  /* Comparison table scroll hint via gradient */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Hero grid: stack properly on very small screens */
+  .grid.lg\:grid-cols-\[1\.05fr_0\.95fr\] {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Ensure buttons in button groups don't overflow */
+  .flex-col.sm\:flex-row > a,
+  
+  /* Pricing / comparison tables: ensure scroll hint gradient */
+  [class*="min-w-["] {
+    /* handled by parent overflow-x-auto */
+  }
+}
+
+/* sm breakpoint container: don't constrain too much */
+@media (min-width: 640px) and (max-width: 767px) {
+  .container {
+    max-width: 100%;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+/* Utility for the few places that need aggressive breaking (URL/token/code). */
+.break-anywhere {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+pre,
+code {
+  max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  overflow-x: auto;
+}
+
+a.block {
+  display: block !important;
+}
+
+@media (max-width: 639px) {
+  pre,
+  code {
+    font-size: 0.7rem;
+  }
+}
+
+/* ========================================================================
+   REDESIGN ADDITIONS v3.3 — Kahade UI/UX Redesign (Februari 2026)
+   ======================================================================== */
+
+/* ────────────────────────────────────────────────────────────────────────
+   FIX (v3.3): .badge, .badge-* utility classes
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.125rem 0.625rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border-width: 1px;
+    border-style: solid;
+  }
+  .badge-primary   { background-color: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+  .badge-secondary { background-color: var(--neutral-100, #f5f5f5); color: var(--neutral-700, #404040); border-color: var(--neutral-200, #e8e8e8); }
+  .badge-success   { background-color: color-mix(in srgb, var(--success) 10%, transparent); color: var(--success); border-color: color-mix(in srgb, var(--success) 20%, transparent); }
+  .badge-warning   { background-color: color-mix(in srgb, var(--warning) 10%, transparent); color: var(--warning); border-color: color-mix(in srgb, var(--warning) 20%, transparent); }
+  .badge-error     { background-color: color-mix(in srgb, var(--destructive) 10%, transparent); color: var(--destructive); border-color: color-mix(in srgb, var(--destructive) 20%, transparent); }
+  .badge-info      { background-color: rgba(14,165,233,0.1); color: #0ea5e9; border-color: rgba(14,165,233,0.2); }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Section Padding Utilities
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .section-padding-hero {
+    padding-top: 7rem;
+    padding-bottom: 7rem;
+  }
+  .section-padding-lg {
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+  }
+  .section-padding-md {
+    padding-top: 6rem;
+    padding-bottom: 6rem;
+  }
+  .section-padding-sm {
+    padding-top: 4rem;
+    padding-bottom: 4rem;
+  }
+
+  @media (max-width: 1023px) {
+    .section-padding-hero { padding-top: 5rem; padding-bottom: 5rem; }
+    .section-padding-lg   { padding-top: 4rem; padding-bottom: 4rem; }
+    .section-padding-md   { padding-top: 4rem; padding-bottom: 4rem; }
+    .section-padding-sm   { padding-top: 3rem; padding-bottom: 3rem; }
+  }
+
+  @media (max-width: 639px) {
+    .section-padding-hero { padding-top: 4rem; padding-bottom: 4rem; }
+    .section-padding-lg   { padding-top: 4rem; padding-bottom: 4rem; }
+    .section-padding-md   { padding-top: 3rem; padding-bottom: 3rem; }
+    .section-padding-sm   { padding-top: 2rem; padding-bottom: 2rem; }
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Section Header, Title, Label CSS classes
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .section-header {
+    text-align: center;
+    max-width: 720px;
+    margin-left: auto;
+    margin-right: auto;
+    margin-bottom: 2.5rem;
+    width: 100%;
+  }
+  .section-header.align-left {
+    text-align: left;
+    margin-left: 0;
+  }
+  .section-title {
+    font-size: clamp(1.625rem, 4vw + 0.5rem, 4.5rem);
+    font-weight: 900;
+    letter-spacing: -0.04em;
+    line-height: 1.05;
+    color: var(--foreground);
+  }
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 1rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+    margin-bottom: 1rem;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   .card dan .card-hover base classes
+   ──────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .card {
+    background-color: var(--card);
+    color: var(--card-foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-l, 1rem);
+    box-shadow: none;
+  }
+  .card-hover {
+    transition: transform 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+    cursor: pointer;
+  }
+  .card-hover:hover {
+    transform: translateY(-6px);
+    box-shadow: none;
+    border-color: var(--neutral-300, #d4d4d4);
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   btn-* classes — standardized button system
+   ──────────────────────────────────────────────────────────────────────── */
+@layer components {
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   no-scrollbar utility
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Safe area insets untuk bottom sheet mobile
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Toast progress animation — scaleX (GPU-composited)
+   ──────────────────────────────────────────────────────────────────────── */
+@keyframes toastProgress {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Bento Grid System
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .bento-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    grid-auto-rows: minmax(200px, auto);
+    gap: 1.5rem;
+  }
+
+  /* FIX: prevent grid children from overflowing their cell */
+  .bento-grid > * {
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  @media (max-width: 1023px) {
+    .bento-grid {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 639px) {
+    .bento-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .bento-large { grid-column: span 1; grid-row: span 2; }
+  .bento-wide { grid-column: span 3; }
+  .bento-wide-2 { grid-column: span 2; }
+
+  @media (max-width: 1023px) {
+    .bento-wide   { grid-column: span 2; }
+    /* FIX (v3.2): bento-wide-2 override agar tidak keluar dari 2-col grid */
+    .bento-wide-2 { grid-column: span 2; }
+    .bento-large  { grid-row: span 1; }
+  }
+
+  @media (max-width: 639px) {
+    .bento-wide, .bento-wide-2, .bento-large {
+      grid-column: span 1 !important;
+      grid-row: span 1 !important;
+    }
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Split Screen Layouts
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .split-screen {
+    display: grid;
+    min-height: 100vh;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  @media (max-width: 1023px) {
+    .split-screen {
+      grid-template-columns: 1fr;
+      min-height: auto;
+    }
+  }
+
+  /* FIX (v3.2): Tambahkan mobile override untuk asymm classes */
+  .split-screen-asymm-left {
+    grid-template-columns: 0.45fr 0.55fr;
+  }
+
+  .split-screen-asymm-right {
+    grid-template-columns: 0.55fr 0.45fr;
+  }
+
+  @media (max-width: 1023px) {
+    .split-screen-asymm-left,
+    .split-screen-asymm-right {
+      grid-template-columns: 1fr;
+    }
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Text Gradient
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .text-gradient-primary {
+    background: linear-gradient(135deg, #0A0A0A 0%, #525252 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Marquee animations
+   ──────────────────────────────────────────────────────────────────────── */
+@keyframes marquee-left {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+@keyframes marquee-right {
+  from { transform: translateX(-50%); }
+  to { transform: translateX(0); }
+}
+
+.animate-marquee-left {
+  animation: marquee-left 30s linear infinite;
+}
+
+.animate-marquee-right {
+  animation: marquee-right 30s linear infinite;
+}
+
+.animate-marquee-left:hover,
+.animate-marquee-right:hover {
+  animation-play-state: paused;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Shine effect — GPU-composited (FIX v3.2: translateX bukan left)
+   ──────────────────────────────────────────────────────────────────────── */
+@keyframes shine {
+  0%   { transform: translateX(-200%); }
+  100% { transform: translateX(300%); }
+}
+
+.shine-effect {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine-effect::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.08) 50%,
+    transparent 100%
+  );
+  animation: shine 3s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Shimmer skeleton — GPU-composited (FIX v3.3: will-change pada ::after)
+   ──────────────────────────────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+  background-color: #f0f0f0;
+}
+
+.skeleton-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255,255,255,0.6) 50%,
+    transparent 100%
+  );
+  animation: shimmer 1.5s ease-in-out infinite;
+  will-change: transform; /* FIX (v3.3): GPU-composited */
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Gradient border — FIX: hex langsung (bukan var())
+   ──────────────────────────────────────────────────────────────────────── */
+.gradient-border {
+  position: relative;
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  background-origin: border-box;
+  background-image: linear-gradient(#FFFFFF, #FFFFFF),
+                    linear-gradient(135deg, #0A0A0A 0%, #525252 100%);
+}
+
+.dark .gradient-border {
+  background-image: linear-gradient(#0A0A0A, #0A0A0A),
+                    linear-gradient(135deg, #FFFFFF 0%, #A3A3A3 100%);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Floating label input
+   ──────────────────────────────────────────────────────────────────────── */
+.input-floating {
+  position: relative;
+}
+
+.input-floating input {
+  padding-top: 1.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.input-floating label {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.9375rem;
+  color: var(--muted-foreground);
+  transition: all 0.2s ease;
+  pointer-events: none;
+}
+
+.input-floating input:focus + label,
+.input-floating input:not(:placeholder-shown) + label {
+  top: 0.625rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Number counter
+   ──────────────────────────────────────────────────────────────────────── */
+.stat-number {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+
+/* ────────────────────────────────────────────────────────────────────────
+   Shadow scale — @layer utilities agar bisa dipakai sebagai Tailwind className
+   ──────────────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .shadow-E1 { box-shadow: none; }
+  .shadow-E2 { box-shadow: none; }
+  .shadow-E3 { box-shadow: none; }
+  .shadow-E4 { box-shadow: none; }
+  .shadow-E5 { box-shadow: none; }
+  .shadow-E6 { box-shadow: none; }
+}
+
+/* Tailwind @theme additions */
+@theme inline {
+  --spacing-hero: 10rem;
+  --spacing-section: 8rem;
+  --spacing-section-sm: 6rem;
+
+  /* FIX: Nilai absolut, bukan calc() */
+  --radius-4xl: 2rem;
+  --radius-5xl: 2.5rem;
+
+  --leading-tighter: 1.05;
+  --leading-tight: 1.15;
+  --leading-relaxed: 1.7;
+  --leading-loose: 1.85;
+
+  --tracking-tightest: -0.05em;
+  --tracking-tighter: -0.04em;
+  --tracking-tight: -0.03em;
+  --tracking-display: -0.02em;
+
+  /* FIX: --info color token */
+  --info: #0ea5e9;
+  --info-foreground: #ffffff;
+
+  /* FIX (v3.2): radius tokens yang hilang */
+  --radius-xs: 0.375rem;
+  --radius-s:  0.5rem;
+  --radius-m:  0.75rem;
+  --radius-l:  1rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  /* FIX (v3.2): --neutral-300 */
+  --neutral-300: #d4d4d4;
+}
+
+/* =============================================================================
+   KAHADE DESIGN FIX — v4.0
+   ============================================================================= */
+section { max-width: 100%; }
+.section-header { width: 100%; box-sizing: border-box; }
+.section-header > div, .section-header > p,
+.section-header > h1, .section-header > h2,
+.section-header > h3 { max-width: 100%; }
+.grid > * { min-width: 0; }
+
+@media (max-width: 380px) {
+  .container { padding-left: 0.875rem; padding-right: 0.875rem; }
+}
+@media (max-width: 639px) {
+  .section-header { margin-bottom: 1.75rem; }
+  .section-title { font-size: clamp(1.5rem, 6vw, 2.25rem); line-height: 1.15; }
+}
+
+
+/* =============================================================================
+   KAHADE ROOT CAUSE FIX v3
+   Fixes: html overflow, grid min-width, mobile layout, FAQ/Register/HowItWorks
+   ============================================================================= */
+
+/* FIX A: Prevent html-level horizontal scroll — clip is stronger than hidden */
+html {
+  overflow-x: clip;
+}
+
+/* FIX B: grid cells MUST NOT exceed 1fr — prevents 'Tidak terbatas' overflow */
+.grid > * {
+  min-width: 0;
+  min-height: 0;
+}
+
+/* FIX: section-level overflow containment — REMOVED (breaks inner scroll containers) */
+
+/* FIX: auth page wrapper containment */
+.overflow-x-hidden {
+  overflow-x: hidden;
+}
+
+/* FIX D: Register/Login form — on mobile ensure max content area */
+@media (max-width: 767px) {
+  /* Auth pages: form col takes full screen on mobile */
+  .min-h-screen.grid {
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* FIX E: section title smaller on narrow mobile */
+@media (max-width: 480px) {
+  .section-title,
+  h1.text-4xl, h1.text-5xl {
+    font-size: clamp(1.5rem, 6vw, 2.25rem);
+    line-height: 1.2;
+  }
+
+  /* Form elements: ensure full width */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="number"] {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+/* FIX: Pricing/Compare table scrollable wrapper on mobile */
+@media (max-width: 767px) {
+  .table-scroll-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+
+/* =============================================================================
+   KAHADE MOBILE FIX v2.0 — Applied by fix_kahade_mobile_v2.sh
+   Root causes fixed: heading color, section overflow, html overflow clip
+   ============================================================================= */
+
+/* ── Scroll container fix ──────────────────────────────────────────────────
+   overflow-x-auto INSIDE sections must be able to scroll.
+   With section overflow removed, this is now handled naturally.
+   But keep explicit scroll restoration for table wrappers.
+   ──────────────────────────────────────────────────────────────────────── */
+.overflow-x-auto {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+@media (max-width: 639px) {
+}
+
+/* ── Heading color safety net ───────────────────────────────────────────────
+   Pastikan heading di dalam section bg-primary SELALU putih.
+   Ini sebagai safety net jika ada h1/h2 yang set color eksplisit.
+   ──────────────────────────────────────────────────────────────────────── */
+.bg-primary h1,
+.bg-primary h2,
+.bg-primary h3,
+.bg-primary h4,
+.bg-primary h5,
+.bg-primary h6,
+[class*="bg-primary"] h1,
+[class*="bg-primary"] h2,
+[class*="bg-primary"] h3 {
+  color: var(--primary-foreground);
+}
+
+/* ── Pricing/FAQ accordion fix ─────────────────────────────────────────────
+   Pastikan space-y accordion tidak overflow section
+   ──────────────────────────────────────────────────────────────────────── */
+.space-y-2 > div,
+.space-y-3 > div {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* ── Legal / content card fix mobile ───────────────────────────────────────
+   p-8 terlalu besar di layar kecil, reduce ke p-5 di mobile
+   ──────────────────────────────────────────────────────────────────────── */
+@media (max-width: 639px) {
+  .rounded-2xl.p-8 {
+    padding: 1.25rem;
+  }
+  .rounded-3xl.p-8,
+  .rounded-3xl.p-12 {
+    padding: 1.25rem;
+  }
+}
+
+@media (max-width: 767px) {
+  .container {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    box-sizing: border-box !important;
+  }
+  .grid > * { min-width: 0; max-width: 100%; box-sizing: border-box; }
+  [class*="max-w-"] { max-width: min(100%, calc(100vw - 2rem)) !important; }
+}
+
+
+/* ─── Tailwind v3 max-width compatibility (Issue: max-w-* collapsed on mobile) ─── */
+.max-w-sm { max-width: 24rem; }
+.max-w-md { max-width: 28rem; }
+.max-w-lg { max-width: 32rem; }
+.max-w-xl { max-width: 36rem; }
+.max-w-2xl { max-width: 42rem; }
+.max-w-3xl { max-width: 48rem; }
+.max-w-4xl { max-width: 56rem; }
+.max-w-5xl { max-width: 64rem; }
+.max-w-6xl { max-width: 72rem; }
