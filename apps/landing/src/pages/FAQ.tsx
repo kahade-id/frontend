@@ -70,7 +70,7 @@ export default function FAQ() {
  <section className="section-padding-lg">
  <div className="container max-w-6xl mx-auto">
  {/* Mobile: Horizontal scroll pills */}
- <div className="flex gap-2 overflow-x-auto pb-4 mb-8 md:hidden no-scrollbar">
+ <div className="flex gap-2 overflow-x-auto pb-4 mb-8 md:hidden scrollbar-thin">
  {categories.map(cat => (
  <Button
  key={cat} onClick={() => { setActiveCategory(cat); setSearch(''); setDebouncedSearch(''); }}
@@ -84,7 +84,7 @@ export default function FAQ() {
  <div className="grid md:grid-cols-[220px_1fr] gap-12">
  {/* Desktop Sticky Sidebar */}
  <div className="hidden md:block">
- <div className="sticky top-24 space-y-1">
+ <div className="sticky top-[calc(var(--landing-nav-height)+1.5rem)] space-y-1">
  {categories.map(cat => (
  <Button
  key={cat} onClick={() => { setActiveCategory(cat); setSearch(''); setDebouncedSearch(''); }}
@@ -144,9 +144,7 @@ export default function FAQ() {
  {!debouncedSearch && (
  <div className="mt-12 bg-muted/40 rounded-2xl p-8 text-center">
  <p className="text-muted-foreground mb-3">Tidak menemukan jawaban yang dicari?</p>
- <Link href="/contact">
- <Button  variant="primary" >Hubungi Support <ArrowRight size={16} /></Button>
- </Link>
+ <Button asChild  variant="primary" ><Link href="/contact">Hubungi Support <ArrowRight size={16} /></Link></Button>
  </div>
  )}
  </div>

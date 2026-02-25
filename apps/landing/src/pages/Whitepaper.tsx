@@ -85,7 +85,7 @@ export default function Whitepaper() {
  </div>
  <div className="text-xl md:text-3xl font-bold text-foreground mb-0.5 md:mb-1">{item.stat}</div>
  <div className="font-semibold text-xs md:text-sm mb-1 md:mb-2 text-foreground">{item.label}</div>
- <p className="text-[10px] md:text-sm text-muted-foreground hidden sm:block">{item.description}</p>
+ <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">{item.description}</p>
  </motion.div>
  ))}
  </div>
@@ -135,7 +135,7 @@ export default function Whitepaper() {
  viewport={{ once: true }}
  transition={{ delay: 0.2 }}
  >
- <div className="bg-card rounded-xl md:rounded-2xl p-4 md:p-6 border border-border sticky top-24">
+ <div className="bg-card rounded-xl md:rounded-2xl p-4 md:p-6 border border-border sticky top-[calc(var(--landing-nav-height)+1.5rem)]">
  <h3 className="text-lg md:text-xl font-bold mb-4 text-foreground">What You'll Learn</h3>
  <ul className="space-y-2 md:space-y-3 mb-6 md:mb-8">
  {keyPoints.map((point, index) => (
@@ -146,10 +146,12 @@ export default function Whitepaper() {
  ))}
  </ul>
  
- <a href="/files/kahade-whitepaper.pdf" className="w-full h-11 md:h-12 bg-black text-white hover:bg-black/90 font-semibold rounded-xl gap-2 inline-flex items-center justify-center">
+ <Button asChild variant="primary" size="lg" className="w-full gap-2">
+ <a href="/files/kahade-whitepaper.pdf">
  <Download className="w-5 h-5" aria-hidden="true" weight="bold" />
  Download Whitepaper
  </a>
+ </Button>
  </div>
  </motion.div>
  </div>
@@ -173,17 +175,13 @@ export default function Whitepaper() {
  Have questions about our whitepaper or want to discuss partnership opportunities?
  </p>
  <div className="flex flex-col sm:flex-row gap-4 md:gap-4 justify-center">
- <Link href="/contact" className="block">
- <Button className="h-11 md:h-12 px-6 md:px-8 bg-card text-foreground hover:bg-gray-100 font-semibold rounded-xl gap-2">
+ <Button asChild className="h-11 md:h-12 px-6 md:px-8 bg-card text-foreground hover:bg-gray-100 font-semibold rounded-xl gap-2"><Link href="/contact" className="block">
  Contact Us
  <ArrowRight className="w-5 h-5" aria-hidden="true" weight="bold" />
- </Button>
- </Link>
- <Link href="/about" className="block">
- <Button variant="outline" className="h-11 md:h-12 px-6 md:px-8 bg-transparent text-white border-white/30 hover:bg-white/10 font-semibold rounded-xl">
+ </Link></Button>
+ <Button asChild variant="outline" className="h-11 md:h-12 px-6 md:px-8 bg-transparent text-white border-white/30 hover:bg-white/10 font-semibold rounded-xl"><Link href="/about" className="block">
  About Kahade
- </Button>
- </Link>
+ </Link></Button>
  </div>
  </motion.div>
  </div>

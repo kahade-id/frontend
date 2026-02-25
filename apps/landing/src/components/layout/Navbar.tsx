@@ -166,6 +166,7 @@ export default function Navbar() {
       <nav
         ref={navRef}
         className={navClasses}
+        style={{ minHeight: 'var(--landing-nav-height)' }}
         role="navigation"
         aria-label="Navigasi utama"
       >
@@ -247,13 +248,14 @@ export default function Navbar() {
             ) : (
               <>
                 {/* Link as styled anchor — VALID */}
-                <Link
-                  href="https://app.kahade.id/login"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted"
-                  aria-label="Masuk ke akun Anda"
-                >
-                  Masuk
-                </Link>
+                <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <Link
+                    href="https://app.kahade.id/login"
+                    aria-label="Masuk ke akun Anda"
+                  >
+                    Masuk
+                  </Link>
+                </Button>
                 <Button asChild variant="primary" size="sm">
                   <Link
                     href="https://app.kahade.id/register"
@@ -270,7 +272,7 @@ export default function Navbar() {
           <div className="flex lg:hidden items-center gap-3">
             {!isAuthenticated && (
               <Button asChild variant="primary" size="sm">
-                <a href="https://app.kahade.id/register">Mulai</a>
+                <Link href="https://app.kahade.id/register">Mulai</Link>
               </Button>
             )}
             {isAuthenticated && (
@@ -633,13 +635,14 @@ function MobileMenu({
                 Mulai
               </Link>
             </Button>
-            <Link
-              href="https://app.kahade.id/login"
-              onClick={onClose}
-              className="w-full flex items-center justify-center px-4 py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors"
-            >
-              Masuk
-            </Link>
+            <Button asChild variant="secondary" fullWidth>
+              <Link
+                href="https://app.kahade.id/login"
+                onClick={onClose}
+              >
+                Masuk
+              </Link>
+            </Button>
           </>
         )}
       </div>

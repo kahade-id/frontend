@@ -111,7 +111,7 @@ export default function HowItWorksSection() {
  <div
  role="tablist"
  aria-label="Langkah-langkah proses"
- className="flex gap-2 overflow-x-auto pb-2 mb-3 no-scrollbar"
+ className="flex gap-2 overflow-x-auto pb-2 mb-3 scrollbar-thin"
  >
  {steps.map((step, i) => (
  <Button
