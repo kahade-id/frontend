@@ -85,7 +85,7 @@ export default function Feedback() {
               <p className="text-sm md:text-base text-muted-foreground mb-6 md:mb-8">
                 Feedback Anda sudah masuk ke sistem kami. Terima kasih sudah membantu meningkatkan layanan Kahade.
               </p>
-              <Button onClick={() => setIsSubmitted(false)} className="h-11 md:h-12 px-6 bg-black text-white hover:bg-black/90 font-semibold rounded-xl">
+              <Button onClick={() => setIsSubmitted(false)} variant="primary" size="lg" className="px-6">
                 Kirim Feedback Lainnya
               </Button>
             </motion.div>
@@ -133,7 +133,7 @@ export default function Feedback() {
                       type="button"
                       onClick={() => setFeedbackType(type.id)}
                       aria-pressed={feedbackType === type.id}
-                      className={`p-3 md:p-4 rounded-xl border-2 transition-all text-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
+                      className={`p-3 md:p-4 rounded-xl border-2 transition-all text-center focus-visible-ring ${
                         feedbackType === type.id
                           ? 'border-black bg-muted'
                           : 'border-border hover:border-neutral-900'
@@ -164,10 +164,10 @@ export default function Feedback() {
                       onClick={() => setRating(star)}
                       onMouseEnter={() => setHoverRating(star)}
                       onMouseLeave={() => setHoverRating(0)}
-                      className="h-10 w-10 md:h-12 md:w-12 transition-transform hover:scale-110"
+                      className="h-11 w-11 md:h-12 md:w-12 transition-transform hover:scale-105"
                     >
                       <Star
-                        className={`w-8 h-8 md:w-10 md:h-10 ${
+                        className={`w-5 h-5 md:w-6 md:h-6 ${
                           star <= (hoverRating || rating)
                             ? 'text-foreground'
                             : 'text-neutral-200'
@@ -228,7 +228,9 @@ export default function Feedback() {
 
               <Button
                 type="submit"
-                className="w-full h-11 md:h-12 bg-black text-white hover:bg-black/90 font-semibold rounded-xl gap-2"
+                variant="primary"
+                size="lg"
+                className="w-full gap-2"
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (

@@ -320,14 +320,22 @@
   }
 
   a {
+    transition: color var(--duration-fast) var(--ease-out), text-decoration-color var(--duration-fast) var(--ease-out);
+  }
+  a:not([class]) {
+    color: var(--primary);
+    text-decoration-line: underline;
+    text-underline-offset: 0.18em;
+    text-decoration-thickness: 0.08em;
+    text-decoration-color: color-mix(in srgb, var(--primary) 55%, transparent);
+  }
+  a:not([class]):hover {
+    text-decoration-color: var(--primary);
+  }
+  a.link-unstyled,
+  .link-unstyled {
     color: inherit;
     text-decoration: none;
-    transition: all var(--duration-fast) var(--ease-out);
-  }
-  a:focus-visible {
-    outline: 2px solid var(--ring);
-    outline-offset: 2px;
-    border-radius: 2px;
   }
 
   ul, ol {
@@ -348,7 +356,7 @@
     border-radius: var(--radius-sm);
     font-size: 0.875em;
     max-width: 100%;
-    white-space: pre-wrap;
+    white-space: break-spaces;
     overflow-wrap: anywhere;
     word-break: normal;
   }
@@ -359,19 +367,26 @@
     overflow-x: auto;
     margin-bottom: 1em;
     max-width: 100%;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
-    word-break: normal;
+    white-space: pre;
   }
   pre code {
+    display: block;
+    min-width: max-content;
     padding: 0;
     background: none;
     border-radius: 0;
+    white-space: inherit;
   }
 
   @media (max-width: 639px) {
-    pre, code {
-      font-size: 0.7rem;
+    code {
+      font-size: 0.8125rem;
+    }
+    pre {
+      padding: 0.875rem;
+    }
+    pre code {
+      font-size: 0.8125rem;
     }
   }
 
@@ -395,7 +410,7 @@
     color: var(--primary-foreground);
   }
 
-  :focus-visible {
+  :where(a[href], input, textarea, select, summary, [tabindex]):focus-visible:not([data-slot="button"]) {
     outline: 2px solid var(--ring);
     outline-offset: 2px;
   }

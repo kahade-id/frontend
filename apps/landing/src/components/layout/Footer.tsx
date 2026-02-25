@@ -120,8 +120,10 @@ function NewsletterForm() {
           />
           <Button
             type="submit"
+            variant="inverted"
+            size="sm"
             disabled={status === 'loading' || status === 'success'}
-            className="px-4 py-2.5 bg-white text-black text-sm font-semibold rounded-xl hover:bg-neutral-100 transition-colors whitespace-nowrap disabled:opacity-70 disabled:cursor-not-allowed"
+            className="whitespace-nowrap"
           >
             {status === 'loading' ? 'Mengirim...' : 'Berlangganan →'}
           </Button>
