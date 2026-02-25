@@ -286,7 +286,8 @@ export default function Navbar() {
             <Button
               type="button"
               variant="ghost"
-              className="p-2 hover:bg-muted rounded-lg transition-colors relative z-10"
+              size="icon"
+              className="hover:bg-muted rounded-lg transition-colors relative z-10"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               {...ariaProps(
                 isMobileMenuOpen ? 'Tutup menu' : 'Buka menu',
@@ -540,8 +541,9 @@ function MobileMenu({
         <Button
           type="button"
           variant="ghost"
+          size="icon"
           onClick={onClose}
-          className="p-2 hover:bg-muted rounded-lg transition-colors"
+          className="hover:bg-muted rounded-lg transition-colors"
           {...ariaProps('Tutup menu')}
         >
           <X className="w-6 h-6" weight="bold" aria-hidden="true" />
