@@ -105,7 +105,7 @@ export default function IntegrationDocs() {
  Dari sandbox hingga produksi dalam waktu singkat.
  </p>
  <Link href="/docs/api" className="block">
- <Button className="btn-primary btn-lg">
+ <Button  variant="primary"  size="lg" >
  Lihat Referensi API
  <ArrowRight className="ml-2 w-5 h-5" weight="bold" aria-hidden="true" />
  </Button>
@@ -261,7 +261,7 @@ export default function IntegrationDocs() {
  <div className="container">
  <div className="max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 justify-center">
  <Link href="/docs/api" className="block">
- <Button className="btn-primary w-full sm:w-auto">
+ <Button  variant="primary" className="w-full sm:w-auto">
  <Code className="mr-2 w-4 h-4" weight="duotone" aria-hidden="true" />
  Referensi API Lengkap
  </Button>

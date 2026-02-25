@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Check, ArrowLeft, ArrowRight, UploadSimple, X } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { Button } from '@kahade/ui';
 
 const steps = ['Detail', 'Pihak Lawan', 'Lampiran', 'Konfirmasi'];
 
@@ -69,7 +70,7 @@ export default function CreateTransaction() {
  <label className="text-sm font-medium mb-3 block">Siapa yang menanggung biaya?</label>
  <div className="grid grid-cols-3 gap-3">
  {[['seller', 'Penjual'], ['buyer', 'Pembeli'], ['split', 'Dibagi']].map(([val, label]) => (
- <button key={val} type="button" onClick={() => update('feeSplit', val)} className={`py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${data.feeSplit === val ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/50'}`}>{label}</button>
+ <Button key={val} type="button" onClick={() => update('feeSplit', val)} className={`py-2.5 rounded-xl text-sm font-medium border-2 transition-all ${data.feeSplit === val ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:border-primary/50'}`}>{label}</Button>
  ))}
  </div>
  </div>
@@ -103,14 +104,14 @@ export default function CreateTransaction() {
  <UploadSimple size={40} className="mx-auto mb-4 text-muted-foreground" weight="thin" />
  <p className="font-semibold mb-1">Drag & drop file di sini</p>
  <p className="text-sm text-muted-foreground mb-4">PNG, JPG, PDF hingga 10MB</p>
- <button type="button" className="btn-secondary text-sm px-4 py-2">Pilih dari perangkat</button>
+ <Button type="button"  variant="secondary" className="text-sm px-4 py-2">Pilih dari perangkat</Button>
  </div>
  {files.length > 0 && (
  <div className="space-y-2">
  {files.map((f, i) => (
  <div key={i} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl text-sm">
  <span>{f}</span>
- <button onClick={() => setFiles(p => p.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive transition-colors"><X size={16} /></button>
+ <Button onClick={() => setFiles(p => p.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive transition-colors"><X size={16} /></Button>
  </div>
  ))}
  </div>
@@ -140,10 +141,10 @@ export default function CreateTransaction() {
  </AnimatePresence>
 
  <div className={`flex gap-3 mt-8 ${step > 0 ? '' : 'justify-end'}`}>
- {step > 0 && <button onClick={() => setStep(s => s - 1)} className="btn-secondary flex-1"><ArrowLeft size={16} /> Kembali</button>}
- <button onClick={() => step < steps.length - 1 ? setStep(s => s + 1) : null} className="btn-primary flex-1">
+ {step > 0 && <Button onClick={() => setStep(s => s - 1)} variant="secondary" className="flex-1"><ArrowLeft size={16} /> Kembali</Button>}
+ <Button onClick={() => step < steps.length - 1 ? setStep(s => s + 1) : null} variant="primary" className="flex-1">
  {step === steps.length - 1 ? 'Buat Transaksi' : 'Lanjut'} {step < steps.length - 1 && <ArrowRight size={16} />}
- </button>
+ </Button>
  </div>
  </div>
  </div>

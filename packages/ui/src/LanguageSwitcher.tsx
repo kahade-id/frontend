@@ -60,7 +60,7 @@ export function LanguageSwitcherCompact() {
      {languages.map((lang) => (
        <Button
          key={lang.code}
-         variant={currentLang === lang.code ? 'default' : 'ghost'}
+         variant={currentLang === lang.code ? 'primary' : 'ghost'}
          size="sm"
          onClick={() => handleLanguageChange(lang.code)}
          className="px-2"

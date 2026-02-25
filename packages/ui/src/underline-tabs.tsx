@@ -9,6 +9,7 @@
 
 import { motion } from 'framer-motion';
 import { cn } from '@kahade/utils';
+import { Button } from './button';
 
 interface Tab {
  id: string;
@@ -31,11 +32,12 @@ export function UnderlineTabs({ tabs, activeTab, onTabChange, className }: Under
  const isActive = activeTab === tab.id;
  
  return (
- <button
+ <Button
  key={tab.id}
  onClick={() => onTabChange(tab.id)}
+ variant="ghost"
  className={cn(
- "relative pb-3 text-sm font-medium whitespace-nowrap transition-colors duration-200",
+ "relative pb-3 px-0 h-auto text-sm font-medium whitespace-nowrap transition-colors duration-200",
  isActive 
  ? "text-foreground font-semibold" 
  : "text-neutral-500 hover:text-neutral-600"
@@ -64,7 +66,7 @@ export function UnderlineTabs({ tabs, activeTab, onTabChange, className }: Under
  transition={{ type: "spring", stiffness: 500, damping: 30 }}
  />
  )}
- </button>
+ </Button>
  );
  })}
  </div>
@@ -81,11 +83,12 @@ export function UnderlineTabsSimple({ tabs, activeTab, onTabChange, className }:
  const isActive = activeTab === tab.id;
  
  return (
- <button
+ <Button
  key={tab.id}
  onClick={() => onTabChange(tab.id)}
+ variant="ghost"
  className={cn(
- "relative pb-3 text-sm font-medium whitespace-nowrap transition-colors duration-200",
+ "relative pb-3 px-0 h-auto text-sm font-medium whitespace-nowrap transition-colors duration-200",
  isActive 
  ? "text-foreground font-semibold border-b-2 border-black" 
  : "text-neutral-500 hover:text-neutral-600"
@@ -104,7 +107,7 @@ export function UnderlineTabsSimple({ tabs, activeTab, onTabChange, className }:
  </span>
  )}
  </span>
- </button>
+ </Button>
  );
  })}
  </div>

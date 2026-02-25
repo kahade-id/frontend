@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Eye, Warning, Clock, CheckCircle } from '@phosphor-icons/react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { Button } from '@kahade/ui';
 
 const disputes = [
  { id: 'D-089', tx: 'KHD-2448', title: 'Kamera Sony A7', buyer: 'rizki@email.com', seller: 'camera_store', amount: 'Rp 18.000.000', reason: 'Barang tidak sesuai deskripsi', status: 'open', priority: 'high', opened: '18 Feb 2026' },
@@ -44,7 +45,7 @@ export default function AdminDisputes() {
  ))}
  </div>
  <div className="flex gap-1 bg-muted/50 p-1 rounded-xl w-fit">
- {tabs.map(t => <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-background ' : 'text-muted-foreground hover:text-foreground'}`}>{t}</button>)}
+ {tabs.map(t => <Button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-background ' : 'text-muted-foreground hover:text-foreground'}`}>{t}</Button>)}
  </div>
  <div className="card overflow-hidden">
  <table className="w-full text-sm">
@@ -63,7 +64,7 @@ export default function AdminDisputes() {
  <td className="px-4 py-3"><span className={`text-[0.65rem] font-bold px-2 py-0.5 rounded-full capitalize ${priorityCls[d.priority]}`}>{d.priority}</span></td>
  <td className="px-4 py-3"><span className={`text-[0.65rem] font-bold px-2 py-0.5 rounded-full ${statusCls[d.status]}`}>{statusLabel[d.status]}</span></td>
  <td className="px-4 py-3 text-xs text-muted-foreground">{d.opened}</td>
- <td className="px-4 py-3"><button className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-muted transition-all"><Eye size={14} /></button></td>
+ <td className="px-4 py-3"><Button className="opacity-0 group-hover:opacity-100 p-1.5 rounded-lg hover:bg-muted transition-all"><Eye size={14} /></Button></td>
  </tr>
  ))}
  </tbody>

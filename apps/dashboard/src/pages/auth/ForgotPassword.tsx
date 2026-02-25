@@ -5,6 +5,7 @@ import { Link } from 'wouter';
 import { fadeInUp } from '@kahade/utils';
 import { authApi } from '@kahade/utils';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -62,9 +63,9 @@ export default function ForgotPassword() {
     <div className="min-h-screen bg-background flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         <Link href="/login">
-          <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-10 transition-colors">
+          <Button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-10 transition-colors">
             <ArrowLeft size={16} /> Kembali ke Login
-          </button>
+          </Button>
         </Link>
 
         {!submitted ? (
@@ -87,14 +88,14 @@ export default function ForgotPassword() {
                   />
                 </div>
               </div>
-              <button type="submit" disabled={loading} className="btn-primary w-full h-12">
+              <Button type="submit" disabled={loading}  variant="primary" className="w-full h-12">
                 {loading ? (
                   <span className="flex items-center gap-2 justify-center">
                     <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                     Mengirim...
                   </span>
                 ) : 'Kirim Tautan Reset'}
-              </button>
+              </Button>
             </form>
             <p className="text-center text-sm text-muted-foreground mt-6">
               Kembali ke{' '}<Link href="/login" className="font-semibold text-foreground hover:text-primary transition-colors">Login</Link>
@@ -115,9 +116,9 @@ export default function ForgotPassword() {
                 Kirim ulang dalam: <span className="font-semibold text-foreground">0:{countdown.toString().padStart(2, '0')}</span>
               </p>
             ) : (
-              <button onClick={handleResend} className="btn-secondary">
+              <Button onClick={handleResend}  variant="secondary" >
                 Kirim Ulang
-              </button>
+              </Button>
             )}
           </motion.div>
         )}

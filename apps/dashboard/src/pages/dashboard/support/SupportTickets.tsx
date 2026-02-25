@@ -16,6 +16,7 @@ const formatDistanceToNow = (date: Date): string => {
  return date.toLocaleDateString();
 };
 import {
+import { Button } from '@kahade/ui';
  Ticket,
  Plus,
  Search,
@@ -113,13 +114,13 @@ export default function SupportTickets() {
  <h1 className="text-2xl font-bold text-gray-900">Tiket Dukungan</h1>
  <p className="text-gray-500 mt-1">Kelola permintaan bantuan Anda</p>
  </div>
- <button
+ <Button
  onClick={() => setShowCreateModal(true)}
  className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
  >
  <Plus className="h-5 w-5" aria-hidden="true" />
  <span>Buat Tiket Baru</span>
- </button>
+ </Button>
  </div>
 
  {/* Filters */}
@@ -165,13 +166,13 @@ export default function SupportTickets() {
  <p className="text-gray-500 mb-6">
  Buat tiket baru jika Anda memerlukan bantuan
  </p>
- <button
+ <Button
  onClick={() => setShowCreateModal(true)}
  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
  >
  <Plus className="h-5 w-5" aria-hidden="true" />
  <span>Buat Tiket Baru</span>
- </button>
+ </Button>
  </div>
  ) : (
  <div className="space-y-4">
@@ -337,20 +338,20 @@ function CreateTicketModal({
  />
  </div>
  <div className="flex gap-4 pt-4">
- <button
+ <Button
  type="button"
  onClick={onClose}
  className="flex-1 px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
  >
  Batal
- </button>
- <button
+ </Button>
+ <Button
  type="submit"
  disabled={submitting}
  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors"
  >
  {submitting ? "Mengirim..." : "Kirim Tiket"}
- </button>
+ </Button>
  </div>
  </form>
  </div>

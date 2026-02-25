@@ -2,7 +2,7 @@
  * PRICING SECTION
  *
  * Fixes applied:
- * - Issue #3: Link tidak lagi membungkus <button>. CTA menggunakan Link as anchor.
+ * - Issue #3: Link tidak lagi membungkus <Button>. CTA menggunakan Link as anchor.
  * - Issue #6: Angka pengguna dari SITE_STATS (single source of truth).
  * - Issue #14 & #15: Label harga tahunan sekarang menampilkan konteks yang benar:
  *   - Angka berubah sesuai toggle (monthly vs yearly)
@@ -18,7 +18,7 @@ import { Check, ArrowRight } from '@phosphor-icons/react';
 import { cn } from '@kahade/utils';
 import { staggerContainer, staggerItem, viewport } from '@kahade/utils';
 import { pricingPlans, SITE_STATS } from './HomeData';
-import { SectionLabel } from '@kahade/ui';
+import { SectionLabel, Button } from '@kahade/ui';
 
 export default function PricingSection() {
   const [isYearly, setIsYearly] = useState(false);
@@ -41,7 +41,7 @@ export default function PricingSection() {
         {/* Toggle */}
         <div className="flex justify-center mb-12">
           <div className="flex items-center gap-1 p-1.5 bg-muted rounded-full border border-border">
-            <button
+            <Button
               type="button"
               onClick={() => setIsYearly(false)}
               className={cn(
@@ -50,8 +50,8 @@ export default function PricingSection() {
               )}
             >
               Bulanan
-            </button>
-            <button
+            </Button>
+            <Button
               type="button"
               onClick={() => setIsYearly(true)}
               className={cn(
@@ -63,7 +63,7 @@ export default function PricingSection() {
               <span className="text-[0.625rem] font-bold bg-success text-white px-1.5 py-0.5 rounded-full">
                 Hemat 20%
               </span>
-            </button>
+            </Button>
           </div>
         </div>
 

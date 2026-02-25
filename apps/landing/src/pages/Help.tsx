@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const categories = [
  { icon: Rocket, title: 'Memulai', count: 8, description: 'Panduan dasar untuk pengguna baru.' },
@@ -55,9 +56,9 @@ export default function Help() {
  </motion.div>
  <motion.div variants={staggerItem} className="flex flex-wrap gap-2 justify-center">
  {quickLinks.map(ql => (
- <button key={ql} className="px-4 py-1.5 rounded-full border border-white/20 text-sm hover:bg-white/10 transition-colors">
+ <Button key={ql} className="px-4 py-1.5 rounded-full border border-white/20 text-sm hover:bg-white/10 transition-colors">
  {ql}
- </button>
+ </Button>
  ))}
  </motion.div>
  </motion.div>
@@ -127,15 +128,15 @@ export default function Help() {
  <h2 className="text-2xl font-bold mb-3">Tidak menemukan jawaban?</h2>
  <p className="text-muted-foreground mb-8">Tim dukungan kami siap membantu Anda.</p>
  <div className="flex flex-col sm:flex-row gap-4 justify-center">
- <a href="mailto:halo@kahade.id?subject=Live%20Chat%20Request" className="btn-primary inline-flex items-center justify-center">
+ <Button asChild variant="primary" className="inline-flex items-center justify-center"><a href="mailto:halo@kahade.id?subject=Live%20Chat%20Request" >
  <ChatCircle size={18} /> Chat Live
- </a>
- <Link href="/contact" className="btn-secondary inline-flex items-center justify-center">
+ </a></Button>
+ <Button asChild variant="secondary" className="inline-flex items-center justify-center"><Link href="/contact" >
  <Ticket size={18} /> Kirim Tiket
- </Link>
- <a href="mailto:halo@kahade.id" className="btn-secondary inline-flex items-center justify-center">
+ </Link></Button>
+ <Button asChild variant="secondary" className="inline-flex items-center justify-center"><a href="mailto:halo@kahade.id" >
  <Envelope size={18} /> Email
- </a>
+ </a></Button>
  </div>
  </motion.div>
  </div>

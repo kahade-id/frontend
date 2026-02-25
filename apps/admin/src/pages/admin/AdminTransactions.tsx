@@ -3,6 +3,7 @@ import { MagnifyingGlass, FunnelSimple, Download, Eye } from '@phosphor-icons/re
 import AdminLayout from '../../components/layout/AdminLayout';
 import { adminApi } from '@kahade/utils';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 interface Transaction {
   id: string;
@@ -65,10 +66,10 @@ export default function AdminTransactions() {
       <div className="space-y-4">
         <div className="flex gap-1 bg-muted/50 p-1 rounded-xl w-fit flex-wrap">
           {tabs.map(t => (
-            <button key={t} onClick={() => setTab(t)}
+            <Button key={t} onClick={() => setTab(t)}
               className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-background shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
               {t}
-            </button>
+            </Button>
           ))}
         </div>
 
@@ -80,8 +81,8 @@ export default function AdminTransactions() {
                 className="pl-9 pr-4 py-2 rounded-xl border border-border text-sm bg-background focus:outline-none w-64" />
             </div>
             <div className="flex gap-2">
-              <button className="btn-secondary gap-2 text-sm px-3 py-2"><FunnelSimple size={15} /> Filter</button>
-              <button className="btn-secondary gap-2 text-sm px-3 py-2"><Download size={15} /> Export</button>
+              <Button  variant="secondary" className="gap-2 text-sm px-3 py-2"><FunnelSimple size={15} /> Filter</Button>
+              <Button  variant="secondary" className="gap-2 text-sm px-3 py-2"><Download size={15} /> Export</Button>
             </div>
           </div>
 
@@ -116,9 +117,9 @@ export default function AdminTransactions() {
                       {new Date(t.createdAt).toLocaleDateString('id-ID')}
                     </td>
                     <td className="px-4 py-3">
-                      <button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded-lg">
+                      <Button className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 hover:bg-muted rounded-lg">
                         <Eye size={14} />
-                      </button>
+                      </Button>
                     </td>
                   </tr>
                 ))}

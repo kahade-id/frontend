@@ -2,7 +2,7 @@
  * FEATURES SECTION
  *
  * Fixes applied:
- * - Issue #3: Link tidak lagi membungkus <button>. CTA menggunakan Link as anchor.
+ * - Issue #3: Link tidak lagi membungkus <Button>. CTA menggunakan Link as anchor.
  * - Issue #4: Route "/features" tidak ada di App.tsx. Link diubah ke "/#features"
  *   (scroll ke section di homepage) atau ke halaman yang memang ada.
  *   Karena ini section "Pelajari lebih lanjut" pada feature besar, diarahkan ke /use-cases
@@ -15,7 +15,7 @@ import { Link } from 'wouter';
 import { ArrowRight } from '@phosphor-icons/react';
 import { staggerContainer, staggerItem, viewport } from '@kahade/utils';
 import { features } from './HomeData';
-import { SectionLabel } from '@kahade/ui';
+import { SectionLabel, Button } from '@kahade/ui';
 
 export default function FeaturesSection() {
   const feature1 = features[0];

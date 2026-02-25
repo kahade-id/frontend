@@ -112,7 +112,7 @@ export default function AdminLayout({ children, title, subtitle }: AdminLayoutPr
  
  return (
  <div key={item.label}>
- <button
+ <Button
  onClick={() => toggleMenu(item.label)}
  className={cn(
  'flex items-center gap-4 w-full px-4 py-3 rounded-lg transition-all',
@@ -127,7 +127,7 @@ export default function AdminLayout({ children, title, subtitle }: AdminLayoutPr
  "w-4 h-4 transition-transform",
  isExpanded && "rotate-180"
  )} />
- </button>
+ </Button>
  
  <AnimatePresence>
  {isExpanded && (
@@ -263,12 +263,12 @@ export default function AdminLayout({ children, title, subtitle }: AdminLayoutPr
  ADMIN
  </span>
  </Link>
- <button 
+ <Button 
  onClick={() => setIsSidebarOpen(false)}
  className="p-2 hover:bg-secondary rounded-lg"
  >
  <X className="w-5 h-5" weight="bold" aria-hidden="true" />
- </button>
+ </Button>
  </div>
  
  <nav className="p-4 space-y-6">
@@ -294,12 +294,12 @@ export default function AdminLayout({ children, title, subtitle }: AdminLayoutPr
  <header className="sticky top-0 z-30 border-b border-border bg-card">
  <div className="flex items-center justify-between px-4 lg:px-8 py-4">
  <div className="flex items-center gap-4">
- <button 
+ <Button 
  className="lg:hidden p-2 hover:bg-secondary rounded-lg"
  onClick={() => setIsSidebarOpen(true)}
  >
  <List className="w-6 h-6" aria-hidden="true" weight="bold" />
- </button>
+ </Button>
  <div>
  {title && <h1 className="text-xl font-bold">{title}</h1>}
  {subtitle && <p className="text-sm text-muted-foreground">{subtitle}</p>}
@@ -327,7 +327,7 @@ export default function AdminLayout({ children, title, subtitle }: AdminLayoutPr
  
  {/* Admin Profile Menu */}
  <div className="relative">
- <button
+ <Button
  onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
  className="flex items-center gap-2 p-2 hover:bg-secondary rounded-lg transition-colors"
  >
@@ -339,7 +339,7 @@ export default function AdminLayout({ children, title, subtitle }: AdminLayoutPr
  "w-4 h-4 transition-transform hidden sm:block",
  isProfileDropdownOpen && "rotate-180"
  )} />
- </button>
+ </Button>
  
  <AnimatePresence>
  {isProfileDropdownOpen && (
@@ -378,13 +378,13 @@ export default function AdminLayout({ children, title, subtitle }: AdminLayoutPr
  <Globe className="w-4 h-4" aria-hidden="true" />
  Switch to User View
  </Link>
- <button
+ <Button
  onClick={handleLogout}
  className="flex items-center gap-4 px-4 py-2.5 text-sm text-destructive hover:bg-secondary transition-colors w-full"
  >
  <SignOut className="w-4 h-4" aria-hidden="true" />
  Sign Out
- </button>
+ </Button>
  </div>
  </motion.div>
  )}

@@ -182,7 +182,7 @@ export default function Docs() {
  REST API kami yang terdokumentasi lengkap.
  </p>
  <Link href="/docs/api" className="block">
- <Button className="btn-primary">
+ <Button  variant="primary" >
  Lihat Dokumentasi API
  <ArrowRight className="ml-2 w-4 h-4" weight="bold" aria-hidden="true" />
  </Button>
@@ -198,7 +198,7 @@ export default function Docs() {
  Kahade ke platform Anda dengan cepat dan aman.
  </p>
  <Link href="/docs/integration" className="block">
- <Button variant="outline" className="btn-lg">
+ <Button variant="outline"  size="lg" >
  Panduan Integrasi
  <ArrowRight className="ml-2 w-4 h-4" weight="bold" aria-hidden="true" />
  </Button>
@@ -219,7 +219,7 @@ export default function Docs() {
  </p>
  <div className="flex flex-col sm:flex-row gap-4 justify-center">
  <Link href="/help" className="block">
- <Button className="btn-primary">
+ <Button  variant="primary" >
  Buka Pusat Bantuan
  </Button>
  </Link>

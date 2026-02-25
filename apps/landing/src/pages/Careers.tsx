@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const benefits = [
  { icon: CurrencyDollar, title: 'Gaji Kompetitif', description: 'Kompensasi di atas rata-rata industri, disesuaikan dengan pengalaman.' },
@@ -57,9 +58,9 @@ export default function Careers() {
  <span className="text-white/60">digital Indonesia.</span>
  </motion.h1>
  <motion.div variants={staggerItem} className="flex flex-wrap gap-3 mt-8">
- <a href="#jobs" className="btn-secondary bg-white text-primary hover:bg-white/90 inline-flex">
+ <Button asChild variant="secondary" className="bg-white text-primary hover:bg-white/90 inline-flex"><a href="#jobs" >
  Lihat Lowongan <ArrowRight size={16} />
- </a>
+ </a></Button>
  <Link href="/about" className="border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors inline-flex">
  Tentang Budaya
  </Link>
@@ -119,7 +120,7 @@ export default function Careers() {
  </div>
  <div className="flex flex-wrap gap-2">
  {filters.map((f) => (
- <button
+ <Button
  key={f}
  onClick={() => setActiveFilter(f)}
  className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
@@ -129,7 +130,7 @@ export default function Careers() {
  }`}
  >
  {f}
- </button>
+ </Button>
  ))}
  </div>
  </motion.div>

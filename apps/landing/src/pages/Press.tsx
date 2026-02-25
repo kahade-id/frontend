@@ -3,6 +3,7 @@ import { ArrowRight, DownloadSimple, Envelope } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const pressReleases = [
  { date: '15 Januari 2025', title: 'Kahade Mencapai 10.000 Pengguna Aktif', summary: 'Platform escrow Kahade mengumumkan pencapaian 10.000 pengguna aktif dengan total dana yang diamankan melebihi Rp 50 Miliar.', link: '/blog/tips-transaksi-online-aman' },
@@ -76,9 +77,9 @@ export default function Press() {
  <div className="card p-8">
  <h3 className="font-bold text-xl mb-3">Media Kit</h3>
  <p className="text-muted-foreground text-sm mb-6">Unduh logo, panduan merek, dan aset visual resmi Kahade.</p>
- <a href="/files/kahade-media-kit.pdf" className="btn-primary inline-flex items-center">
+ <Button asChild variant="primary" className="inline-flex items-center"><a href="/files/kahade-media-kit.pdf" >
  <DownloadSimple size={18} /> Unduh Media Kit
- </a>
+ </a></Button>
  </div>
  <div className="card p-8">
  <h3 className="font-bold text-xl mb-3">Kontak Pers</h3>

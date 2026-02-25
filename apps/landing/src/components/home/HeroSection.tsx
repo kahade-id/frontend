@@ -2,7 +2,7 @@
  * HERO SECTION
  *
  * Fixes applied:
- * - Issue #3: Link tidak lagi membungkus <button>. CTA menggunakan Link as element
+ * - Issue #3: Link tidak lagi membungkus <Button>. CTA menggunakan Link as element
  *   atau navigasi programmatic agar semantik HTML valid.
  * - Issue #5: Trust badge wording diubah dari klaim absolut ("OJK Compliant",
  *   "KYC Verified") menjadi wording lebih aman dan akurat.
@@ -21,6 +21,7 @@ import {
 } from '@phosphor-icons/react';
 import { staggerContainer, staggerItem } from '@kahade/utils';
 import { SITE_STATS } from './HomeData';
+import { Button } from '@kahade/ui';
 
 const heroStats = [
   { value: SITE_STATS.satisfactionRate, label: 'Kepuasan', icon: CheckCircle },
@@ -101,30 +102,28 @@ export default function HeroSection() {
               Aman, transparan, dan terpercaya.
             </motion.p>
 
-            {/* Issue #3: CTA Buttons — Link membungkus <a> bukan <button>.
+            {/* Issue #3: CTA Buttons — Link membungkus <a> bukan <Button>.
                 Gunakan Link href langsung atau tombol styled tanpa nesting element interaktif. */}
             <motion.div
               variants={staggerItem}
               className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8"
             >
               {/* Opsi 1: Link as anchor styled as button — VALID secara semantik */}
-              <Link
-                href="https://app.kahade.id/register"
-                className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                Mulai Transaksi
-                <ArrowRight className="w-5 h-5" weight="bold" />
-              </Link>
+              <Button asChild variant="primary" className="w-full sm:w-auto" rightIcon={<ArrowRight className="w-5 h-5" weight="bold" />}>
+                <Link href="https://app.kahade.id/register">
+                  Mulai Transaksi
+                </Link>
+              </Button>
 
               {/* Opsi 2: Button murni dengan onClick handler — VALID */}
-              <button
+              <Button
                 type="button"
-                className="btn-secondary w-full sm:w-auto flex items-center justify-center gap-2"
+                 variant="secondary" className="w-full sm:w-auto flex items-center justify-center gap-2"
                 onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
               >
                 <Play className="w-4 h-4" weight="fill" />
                 Lihat Cara Kerja
-              </button>
+              </Button>
             </motion.div>
 
             {/* Issue #5: Trust badges — wording aman, bukan klaim absolut */}

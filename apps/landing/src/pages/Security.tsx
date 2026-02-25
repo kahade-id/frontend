@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const badges = ['SSL 256-bit', 'KYC + 2FA Aktif'];
 
@@ -115,9 +116,9 @@ export default function Security() {
  <motion.div variants={fadeInUp} initial="initial" whileInView="animate" viewport={viewport}>
  <h2 className="text-2xl font-bold mb-3">Transparansi Total</h2>
  <p className="text-muted-foreground mb-6">Unduh laporan keamanan dan audit kami yang tersedia untuk publik.</p>
- <a href="/contact" className="btn-secondary inline-flex items-center">
+ <Button asChild variant="secondary" className="inline-flex items-center"><a href="/contact" >
  <DownloadSimple size={18} /> Minta Ringkasan Keamanan
- </a>
+ </a></Button>
  </motion.div>
  </div>
  </section>

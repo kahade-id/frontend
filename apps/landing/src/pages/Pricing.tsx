@@ -5,6 +5,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const plans = [
  {
@@ -105,19 +106,19 @@ export default function Pricing() {
  Mulai gratis, lalu upgrade saat volume transaksi bertumbuh.
  </motion.p>
  <motion.div variants={staggerItem} className="inline-flex items-center gap-1 bg-white/10 rounded-full p-1">
- <button
+ <Button
  onClick={() => setIsYearly(false)}
  className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${!isYearly ? 'bg-white text-primary' : 'text-white/70'}`}
  >
  Bulanan
- </button>
- <button
+ </Button>
+ <Button
  onClick={() => setIsYearly(true)}
  className={`px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${isYearly ? 'bg-white text-primary' : 'text-white/70'}`}
  >
  Tahunan
  <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">-20%</span>
- </button>
+ </Button>
  </motion.div>
  </motion.div>
  </div>
@@ -168,9 +169,11 @@ export default function Pricing() {
  </div>
  ))}
  </div>
- <Link href={plan.name === 'Enterprise' ? '/contact' : '/register'} className={`w-full py-3 rounded-xl font-semibold text-sm transition-all inline-flex items-center justify-center ${plan.popular ? 'btn-primary' : 'btn-secondary'}`}>
+ <Button asChild variant={plan.popular ? 'primary' : 'secondary'} className="w-full">
+ <Link href={plan.name === 'Enterprise' ? '/contact' : '/register'}>
  {plan.cta}
  </Link>
+ </Button>
  </div>
  );
  })}
@@ -217,9 +220,9 @@ export default function Pricing() {
  <span>Total diterima penjual</span>
  <span className="text-green-600">{formatRupiah(net)}</span>
  </div>
- <a href="https://app.kahade.id/register" className="btn-primary w-full mt-2 inline-flex items-center justify-center">
+ <Button asChild variant="primary" className="w-full mt-2 inline-flex items-center justify-center"><a href="https://app.kahade.id/register" >
  Mulai Transaksi <ArrowRight size={16} />
- </a>
+ </a></Button>
  </div>
  </div>
  </div>
@@ -266,10 +269,10 @@ export default function Pricing() {
  <div className="space-y-2">
  {pricingFaqs.map((faq, i) => (
  <div key={i} className="border border-border rounded-xl overflow-hidden bg-background">
- <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full text-left p-5 flex items-center justify-between gap-4 hover:text-primary transition-colors">
+ <Button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full text-left p-5 flex items-center justify-between gap-4 hover:text-primary transition-colors">
  <span className="font-semibold text-sm">{faq.q}</span>
  <Question size={18} className={`shrink-0 transition-transform ${openFaq === i ? 'rotate-45' : ''}`} />
- </button>
+ </Button>
  <AnimatePresence>
  {openFaq === i && (
  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}>
@@ -289,9 +292,9 @@ export default function Pricing() {
  <h2 className="text-3xl font-bold mb-4">Butuh solusi enterprise?</h2>
  <p className="text-primary-foreground/70 mb-8">Volume besar, kebutuhan kustom, SLA ketat? Kami punya solusinya. Hubungi tim sales kami sekarang.</p>
  <Link href="/contact">
- <button className="bg-white text-primary font-semibold px-8 py-3.5 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
+ <Button className="bg-white text-primary font-semibold px-8 py-3.5 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
  Hubungi Sales <ArrowRight size={18} />
- </button>
+ </Button>
  </Link>
  </div>
  </section>

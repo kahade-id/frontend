@@ -123,7 +123,7 @@ export default function Feedback() {
  <Label className="text-sm md:text-base font-bold text-foreground">Jenis masukan apa yang Anda miliki?</Label>
  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-4">
  {feedbackTypes.map((type) => (
- <button
+ <Button
  key={type.id}
  type="button"
  onClick={() => setFeedbackType(type.id)}
@@ -140,7 +140,7 @@ export default function Feedback() {
  weight={feedbackType === type.id ? 'fill' : 'regular'} 
  />
  <div className="font-semibold text-xs md:text-sm text-foreground">{type.label}</div>
- </button>
+ </Button>
  ))}
  </div>
  </div>
@@ -150,7 +150,7 @@ export default function Feedback() {
  <Label className="text-sm md:text-base font-bold text-foreground">Bagaimana penilaian pengalaman Anda?</Label>
  <div className="flex flex-wrap items-center gap-1 md:gap-2">
  {[1, 2, 3, 4, 5].map((star) => (
- <button
+ <Button
  key={star}
  type="button"
  onClick={() => setRating(star)}
@@ -166,7 +166,7 @@ export default function Feedback() {
  }`}
  weight={star <= (hoverRating || rating) ? 'fill' : 'regular'}
  />
- </button>
+ </Button>
  ))}
  {rating > 0 && (
  <span className="ml-2 md:ml-4 text-xs md:text-sm text-muted-foreground">

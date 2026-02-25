@@ -7,6 +7,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const appFeatures = [
  { icon: BellRinging, title: 'Notifikasi Real-time', desc: 'Dapat notifikasi instan setiap ada update transaksi.' },
@@ -150,12 +151,12 @@ export default function MobileApp() {
  <h2 className="text-3xl font-bold mb-4">Ikuti akses beta</h2>
  <p className="text-primary-foreground/70 mb-8">Store listing masih bertahap. Daftar sekarang untuk mendapat info rilis dan early access.</p>
  <div className="flex gap-4 justify-center flex-wrap">
- <a href="/contact" className="btn-primary inline-flex items-center gap-2 px-6 py-3">
+ <Button asChild variant="primary" className="inline-flex items-center gap-2 px-6 py-3"><a href="/contact" >
  Dapatkan Early Access <ArrowRight size={18} />
- </a>
- <a href="https://play.google.com" target="_blank" rel="noreferrer" className="btn-secondary inline-flex items-center gap-3 px-6 py-3 border-white/30 text-white hover:text-primary hover:bg-white">
+ </a></Button>
+ <Button asChild variant="secondary" className="inline-flex items-center gap-3 px-6 py-3 border-white/30 text-white hover:text-primary hover:bg-white"><a href="https://play.google.com" target="_blank" rel="noreferrer" >
  <GooglePlayLogo size={24} /> Play Store
- </a>
+ </a></Button>
  </div>
  </div>
  </section>

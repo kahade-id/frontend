@@ -287,7 +287,7 @@ export default function Deposit() {
  <Label className="text-sm text-neutral-600">Pilih nominal cepat</Label>
  <div className="grid grid-cols-3 gap-2">
  {quickAmounts.map((value) => (
- <button
+ <Button
  key={value}
  onClick={() => handleQuickAmount(value)}
  className={cn(
@@ -298,7 +298,7 @@ export default function Deposit() {
  )}
  >
  {formatCurrency(value).replace('Rp', 'Rp ')}
- </button>
+ </Button>
  ))}
  </div>
  </div>
@@ -359,7 +359,7 @@ export default function Deposit() {
  
  <div className="space-y-2">
  {paymentMethods.map((method) => (
- <button
+ <Button
  key={method.id}
  onClick={() => handleSelectMethod(method)}
  className={cn(
@@ -401,7 +401,7 @@ export default function Deposit() {
  <div className="w-3 h-3 rounded-full bg-black" />
  )}
  </div>
- </button>
+ </Button>
  ))}
  </div>
  </div>

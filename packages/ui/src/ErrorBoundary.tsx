@@ -1,5 +1,6 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from './button';
 
 /**
  * Error Boundary Props
@@ -233,22 +234,26 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
  {/* Action Buttons */}
  <div className="space-y-3">
  {/* Try Again */}
- <button
+ <Button
  onClick={this.resetError}
- className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-4 py-3 font-medium text-white transition-colors hover:bg-primary-dark focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+ variant="primary"
+ fullWidth
+ className="gap-2 h-11"
  >
  <RefreshCw className="h-5 w-5" aria-hidden="true" />
  Coba Lagi
- </button>
+ </Button>
 
  {/* Reload Page (if error persists) */}
  {errorCount > 1 && (
- <button
+ <Button
  onClick={this.reloadPage}
- className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+ variant="secondary"
+ fullWidth
+ className="h-11"
  >
  Muat Ulang Halaman
- </button>
+ </Button>
  )}
 
  {/* Go Home */}

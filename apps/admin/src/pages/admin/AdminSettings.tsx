@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Gear } from '@phosphor-icons/react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { Button } from '@kahade/ui';
 
 const sections = ['Umum','Keuangan','Notifikasi','Keamanan','Sistem'];
 
@@ -22,7 +23,7 @@ export default function AdminSettings() {
  <div className="grid md:grid-cols-[180px_1fr] gap-6">
  <div className="space-y-1">
  {sections.map(s => (
- <button key={s} onClick={() => setActive(s)} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{s}</button>
+ <Button key={s} onClick={() => setActive(s)} className={`w-full text-left px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${active === s ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`}>{s}</Button>
  ))}
  </div>
  <div className="card p-6 space-y-5">
@@ -32,7 +33,7 @@ export default function AdminSettings() {
  {[['Nama Platform','Kahade'],['Domain','kahade.id'],['Email Support','halo@kahade.id'],['Nomor Support','+62 811-127-812']].map(([label, val]) => (
  <div key={label} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
  <div><p className="font-medium text-sm">{label}</p><p className="text-xs text-muted-foreground">{val}</p></div>
- <button type="button" className="btn-secondary text-xs py-1.5 px-3">Edit</button>
+ <Button type="button"  variant="secondary" className="text-xs py-1.5 px-3">Edit</Button>
  </div>
  ))}
  </>
@@ -53,10 +54,10 @@ export default function AdminSettings() {
  {[['Minimum Deposit','Rp 10.000'],['Minimum Penarikan','Rp 50.000'],['Max Penarikan/Hari','Rp 50.000.000']].map(([label, val]) => (
  <div key={label} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
  <div><p className="font-medium text-sm">{label}</p><p className="text-xs text-muted-foreground">{val}</p></div>
- <button type="button" className="btn-secondary text-xs py-1.5 px-3">Edit</button>
+ <Button type="button"  variant="secondary" className="text-xs py-1.5 px-3">Edit</Button>
  </div>
  ))}
- <button type="button" className="btn-primary">Simpan Konfigurasi</button>
+ <Button type="button"  variant="primary" >Simpan Konfigurasi</Button>
  </>
  )}
  {active === 'Keamanan' && (
@@ -71,13 +72,13 @@ export default function AdminSettings() {
   return (
   <div key={String(label)} className="flex items-center justify-between border-b border-border pb-4 last:border-0 last:pb-0">
  <p className="font-medium text-sm">{label}</p>
- <button type="button" onClick={() => toggleSecurity(key as keyof typeof security)} className={`w-11 h-6 rounded-full transition-colors ${enabled ? 'bg-primary' : 'bg-muted'}`} aria-label={`Toggle ${label}`}>
+ <Button type="button" onClick={() => toggleSecurity(key as keyof typeof security)} className={`w-11 h-6 rounded-full transition-colors ${enabled ? 'bg-primary' : 'bg-muted'}`} aria-label={`Toggle ${label}`}>
  <div className={`w-5 h-5 rounded-full bg-white m-0.5 transition-transform ${enabled ? 'translate-x-5' : ''}`} />
- </button>
+ </Button>
  </div>
   );
  })}
- <button type="button" className="btn-primary">Simpan Konfigurasi Keamanan</button>
+ <Button type="button"  variant="primary" >Simpan Konfigurasi Keamanan</Button>
  </>
  )}
  {(active === 'Notifikasi' || active === 'Sistem') && (

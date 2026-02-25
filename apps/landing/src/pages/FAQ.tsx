@@ -5,6 +5,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const faqData: Record<string, { q: string; a: string }[]> = {
  Umum: [
@@ -85,12 +86,12 @@ export default function FAQ() {
  {/* Mobile: Horizontal scroll pills */}
  <div className="flex gap-2 overflow-x-auto pb-4 mb-8 md:hidden no-scrollbar">
  {categories.map(cat => (
- <button
+ <Button
  key={cat} onClick={() => { setActiveCategory(cat); setSearch(''); setDebouncedSearch(''); }}
  className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all ${activeCategory === cat ? 'bg-primary text-primary-foreground' : 'bg-muted hover:bg-muted/80'}`}
  >
  {cat}
- </button>
+ </Button>
  ))}
  </div>
 
@@ -99,12 +100,12 @@ export default function FAQ() {
  <div className="hidden md:block">
  <div className="sticky top-24 space-y-1">
  {categories.map(cat => (
- <button
+ <Button
  key={cat} onClick={() => { setActiveCategory(cat); setSearch(''); setDebouncedSearch(''); }}
  className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeCategory === cat ? 'bg-primary text-primary-foreground' : 'hover:bg-muted text-muted-foreground'}`}
  >
  {cat}
- </button>
+ </Button>
  ))}
  </div>
  </div>
@@ -122,7 +123,7 @@ export default function FAQ() {
  <div className="space-y-2">
  {filteredItems.map((item, i) => (
  <div key={i} className="border border-border rounded-xl overflow-hidden group">
- <button
+ <Button
  onClick={() => setOpenItem(openItem === `${activeCategory}-${i}` ? null : `${activeCategory}-${i}`)}
  className="w-full text-left flex items-center justify-between gap-4 p-5 hover:text-primary transition-colors"
  >
@@ -135,7 +136,7 @@ export default function FAQ() {
  </div>
  <span className="font-semibold text-sm md:text-base">{item.q}</span>
  </div>
- </button>
+ </Button>
  {openItem === `${activeCategory}-${i}` && (
  <div className="px-5 pb-5 pl-14 text-muted-foreground text-sm leading-relaxed">
  {item.a}
@@ -158,7 +159,7 @@ export default function FAQ() {
  <div className="mt-12 bg-muted/40 rounded-2xl p-8 text-center">
  <p className="text-muted-foreground mb-3">Tidak menemukan jawaban yang dicari?</p>
  <Link href="/contact">
- <button className="btn-primary">Hubungi Support <ArrowRight size={16} /></button>
+ <Button  variant="primary" >Hubungi Support <ArrowRight size={16} /></Button>
  </Link>
  </div>
  )}

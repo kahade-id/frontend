@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadSimple, Check, ArrowRight, ArrowLeft, CheckCircle, X } from '@phosphor-icons/react';
 import DashboardLayout from '../../components/layout/DashboardLayout';
+import { Button } from '@kahade/ui';
 
 const steps = ['Tipe ID', 'Upload Dokumen', 'Selfie', 'Info Tambahan', 'Review'];
 const idTypes = [{ value: 'ktp', label: 'KTP', desc: 'Kartu Tanda Penduduk' }, { value: 'passport', label: 'Paspor', desc: 'Paspor Indonesia / Internasional' }, { value: 'sim', label: 'SIM', desc: 'Surat Izin Mengemudi' }];
@@ -16,7 +17,7 @@ function UploadZone({ label, tips }: { label: string; tips: string[] }) {
  <div className="border-2 border-green-500 bg-green-50 dark:bg-green-900/20 rounded-2xl p-6 flex items-center gap-4">
  <CheckCircle size={32} className="text-green-600" weight="fill" />
  <div><p className="font-semibold text-green-700 dark:text-green-400">{file}</p><p className="text-xs text-muted-foreground">File diterima</p></div>
- <button onClick={() => setFile(null)} className="ml-auto text-muted-foreground hover:text-destructive"><X size={18} /></button>
+ <Button onClick={() => setFile(null)} className="ml-auto text-muted-foreground hover:text-destructive"><X size={18} /></Button>
  </div>
  ) : (
  <div
@@ -73,7 +74,7 @@ export default function KYCVerification() {
  <div className="space-y-4">
  <h2 className="text-lg font-bold mb-4">Pilih Tipe Identitas</h2>
  {idTypes.map(t => (
- <button key={t.value} type="button" onClick={() => setIdType(t.value)} className={`w-full text-left p-4 rounded-xl border-2 transition-all ${idType === t.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
+ <Button key={t.value} type="button" onClick={() => setIdType(t.value)} className={`w-full text-left p-4 rounded-xl border-2 transition-all ${idType === t.value ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
  <div className="flex items-center gap-3">
  <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${idType === t.value ? 'border-primary' : 'border-border'}`}>
  {idType === t.value && <div className="w-2.5 h-2.5 rounded-full bg-primary" />}
@@ -83,7 +84,7 @@ export default function KYCVerification() {
  <p className="text-xs text-muted-foreground">{t.desc}</p>
  </div>
  </div>
- </button>
+ </Button>
  ))}
  </div>
  )}
@@ -142,10 +143,10 @@ export default function KYCVerification() {
  </AnimatePresence>
 
  <div className={`flex gap-3 mt-8 ${step > 0 ? '' : 'justify-end'}`}>
- {step > 0 && <button onClick={() => setStep(s => s - 1)} className="btn-secondary flex-1"><ArrowLeft size={16} /> Kembali</button>}
- <button onClick={() => step < steps.length - 1 ? setStep(s => s + 1) : null} className="btn-primary flex-1">
+ {step > 0 && <Button onClick={() => setStep(s => s - 1)} variant="secondary" className="flex-1"><ArrowLeft size={16} /> Kembali</Button>}
+ <Button onClick={() => step < steps.length - 1 ? setStep(s => s + 1) : null} variant="primary" className="flex-1">
  {step === steps.length - 1 ? 'Kirim Verifikasi' : 'Lanjut'} {step < steps.length - 1 && <ArrowRight size={16} />}
- </button>
+ </Button>
  </div>
  </div>
  </div>

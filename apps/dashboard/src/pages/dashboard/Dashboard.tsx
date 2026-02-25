@@ -8,6 +8,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import DashboardLayout from '../../components/layout/DashboardLayout';
 import { Link } from 'wouter';
 import { staggerContainer, staggerItem, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const metrics = [
  { icon: Wallet, label: 'Saldo Dompet', value: 'Rp 2.500.000', delta: '+Rp 500K', positive: true },
@@ -62,9 +63,9 @@ export default function Dashboard() {
  {now.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
  </p>
  </div>
- <Link href="/transactions/create" className="btn-primary inline-flex">
+ <Button asChild variant="primary" className="inline-flex"><Link href="/transactions/create" >
  <Plus size={18} /> Transaksi Baru
- </Link>
+ </Link></Button>
  </motion.div>
 
  {/* Metric Cards */}

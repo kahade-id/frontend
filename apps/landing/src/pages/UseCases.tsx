@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 const useCases = [
  {
@@ -146,9 +147,9 @@ export default function UseCases() {
  ))}
  </div>
  <a href="https://app.kahade.id/register">
- <button className="btn-primary mt-6">
+ <Button  variant="primary" className="mt-6">
  Mulai Sekarang <ArrowRight size={16} />
- </button>
+ </Button>
  </a>
  </div>
  </motion.div>

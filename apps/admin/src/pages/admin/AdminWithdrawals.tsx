@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Download, Eye, CheckCircle, X, ArrowDown } from '@phosphor-icons/react';
 import AdminLayout from '../../components/layout/AdminLayout';
+import { Button } from '@kahade/ui';
 
 const withdrawals = [
  { id: 'WD-201', user: 'Ahmad Rizki', email: 'ahmad@email.com', bank: 'BCA *1234', amount: 'Rp 2.000.000', status: 'pending', requested: '20 Feb 2026 14:00' },
@@ -40,11 +41,11 @@ export default function AdminWithdrawals() {
  ))}
  </div>
  <div className="flex gap-1 bg-muted/50 p-1 rounded-xl w-fit">
- {tabs.map(t => <button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-background ' : 'text-muted-foreground hover:text-foreground'}`}>{t}</button>)}
+ {tabs.map(t => <Button key={t} onClick={() => setTab(t)} className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${tab === t ? 'bg-background ' : 'text-muted-foreground hover:text-foreground'}`}>{t}</Button>)}
  </div>
  <div className="card overflow-hidden">
  <div className="flex justify-end px-5 py-4 border-b border-border bg-muted/30">
- <button className="btn-secondary gap-2 text-sm px-3 py-2"><Download size={15} /> Export</button>
+ <Button  variant="secondary" className="gap-2 text-sm px-3 py-2"><Download size={15} /> Export</Button>
  </div>
  <table className="w-full text-sm">
  <thead className="border-b border-border bg-muted/20">
@@ -61,10 +62,10 @@ export default function AdminWithdrawals() {
  <td className="px-4 py-3 text-xs text-muted-foreground">{w.requested}</td>
  <td className="px-4 py-3">
  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
- <button className="p-1.5 rounded-lg hover:bg-muted"><Eye size={14} /></button>
+ <Button className="p-1.5 rounded-lg hover:bg-muted"><Eye size={14} /></Button>
  {w.status === 'pending' && <>
- <button className="p-1.5 rounded-lg hover:bg-green-100 text-green-600"><CheckCircle size={14} weight="fill" /></button>
- <button className="p-1.5 rounded-lg hover:bg-red-100 text-red-600"><X size={14} weight="bold" /></button>
+ <Button className="p-1.5 rounded-lg hover:bg-green-100 text-green-600"><CheckCircle size={14} weight="fill" /></Button>
+ <Button className="p-1.5 rounded-lg hover:bg-red-100 text-red-600"><X size={14} weight="bold" /></Button>
  </>}
  </div>
  </td>

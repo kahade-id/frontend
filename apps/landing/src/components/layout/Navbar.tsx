@@ -4,7 +4,7 @@
  * Fixes applied:
  * - Issue #1: `/#security` diubah ke `/security` (route yang ada di App.tsx).
  *   Sebelumnya klik "Keamanan" di menu tidak mengarah ke section yang ada.
- * - Issue #3: Semua pola Link membungkus <button> sudah diperbaiki.
+ * - Issue #3: Semua pola Link membungkus <Button> sudah diperbaiki.
  *   CTA autentikasi menggunakan Link as anchor dengan class styling,
  *   atau button dengan onClick handler — tidak ada nesting elemen interaktif.
  *
@@ -238,7 +238,7 @@ export default function Navbar() {
             {isAuthenticated ? (
               <Button
                 onClick={handleDashboardClick}
-                className="btn-primary"
+                 variant="primary" 
                 {...ariaProps('Pergi ke dashboard')}
               >
                 Dashboard
@@ -254,13 +254,14 @@ export default function Navbar() {
                 >
                   Masuk
                 </Link>
-                <Link
-                  href="https://app.kahade.id/register"
-                  className="btn-primary inline-flex items-center"
-                  aria-label="Buat akun baru"
-                >
-                  Mulai
-                </Link>
+                <Button asChild variant="primary" size="sm">
+                  <Link
+                    href="https://app.kahade.id/register"
+                    aria-label="Buat akun baru"
+                  >
+                    Mulai
+                  </Link>
+                </Button>
               </>
             )}
           </div>
@@ -268,19 +269,19 @@ export default function Navbar() {
           {/* Mobile: CTA + Hamburger */}
           <div className="flex lg:hidden items-center gap-3">
             {!isAuthenticated && (
-              <a href="https://app.kahade.id/register" className="btn-primary btn-xs inline-flex items-center">
-                Mulai
-              </a>
+              <Button asChild variant="primary" size="sm">
+                <a href="https://app.kahade.id/register">Mulai</a>
+              </Button>
             )}
             {isAuthenticated && (
               <Button
                 onClick={handleDashboardClick}
-                className="btn-primary btn-xs"
+                 variant="primary"  size="sm" 
               >
                 Dashboard
               </Button>
             )}
-            <button
+            <Button
               type="button"
               className="p-2 hover:bg-muted rounded-lg transition-colors relative z-10"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -295,7 +296,7 @@ export default function Navbar() {
               ) : (
                 <List className="w-6 h-6" weight="bold" aria-hidden="true" />
               )}
-            </button>
+            </Button>
           </div>
         </div>
       </nav>
@@ -337,7 +338,7 @@ function NavMenuItem({ menuKey, label, activeMenu, onMenuEnter, onMouseLeave, ch
       onMouseEnter={() => onMenuEnter(menuKey)}
       onMouseLeave={onMouseLeave}
     >
-      <button
+      <Button
         type="button"
         className={cn(
           'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
@@ -358,7 +359,7 @@ function NavMenuItem({ menuKey, label, activeMenu, onMenuEnter, onMouseLeave, ch
           weight="bold"
           aria-hidden="true"
         />
-      </button>
+      </Button>
 
       <AnimatePresence>
         {isActive && children}
@@ -532,14 +533,14 @@ function MobileMenu({
       {/* Header */}
       <div className="sticky top-0 bg-background border-b border-border px-6 py-4 flex items-center justify-between">
         <img src="/images/logo.svg" alt="Kahade - Platform Escrow Terpercaya" className="h-7 w-auto" />
-        <button
+        <Button
           type="button"
           onClick={onClose}
           className="p-2 hover:bg-muted rounded-lg transition-colors"
           {...ariaProps('Tutup menu')}
         >
           <X className="w-6 h-6" weight="bold" aria-hidden="true" />
-        </button>
+        </Button>
       </div>
 
       <div className="border-b border-border px-6 py-4">
@@ -614,19 +615,21 @@ function MobileMenu({
         {isAuthenticated ? (
           <Button
             onClick={() => { onDashboardClick(); onClose(); }}
-            className="btn-primary w-full"
+            variant="primary"
+            fullWidth
           >
             Dashboard
           </Button>
         ) : (
           <>
-            <Link
-              href="https://app.kahade.id/register"
-              onClick={onClose}
-              className="btn-primary w-full flex items-center justify-center"
-            >
-              Mulai
-            </Link>
+            <Button asChild variant="primary" fullWidth>
+              <Link
+                href="https://app.kahade.id/register"
+                onClick={onClose}
+              >
+                Mulai
+              </Link>
+            </Button>
             <Link
               href="https://app.kahade.id/login"
               onClick={onClose}
@@ -652,7 +655,7 @@ interface MobileMenuItemProps {
 function MobileMenuItem({ title, menuKey, isExpanded, onToggle, children }: MobileMenuItemProps) {
   return (
     <div>
-      <button
+      <Button
         type="button"
         onClick={() => onToggle(menuKey)}
         className="w-full flex items-center justify-between px-4 py-3 text-left font-semibold hover:bg-muted rounded-lg transition-colors"
@@ -668,7 +671,7 @@ function MobileMenuItem({ title, menuKey, isExpanded, onToggle, children }: Mobi
           weight="bold"
           aria-hidden="true"
         />
-      </button>
+      </Button>
       <AnimatePresence>
         {isExpanded && (
           <motion.div

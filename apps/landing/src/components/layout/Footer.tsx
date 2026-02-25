@@ -22,6 +22,7 @@ import {
   FacebookLogo, TwitterLogo, InstagramLogo, LinkedinLogo
 } from '@phosphor-icons/react';
 import { staggerContainer, staggerItem, viewport } from '@kahade/utils';
+import { Button } from '@kahade/ui';
 
 // ─── Issue #4: Links sudah disesuaikan dengan routes di App.tsx ───────────────
 const footerLinks = {
@@ -117,13 +118,13 @@ function NewsletterForm() {
             className="flex-1 bg-white/10 border border-white/20 text-white placeholder:text-white/40 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-white/50 transition-colors"
             disabled={status === 'loading' || status === 'success'}
           />
-          <button
+          <Button
             type="submit"
             disabled={status === 'loading' || status === 'success'}
             className="px-4 py-2.5 bg-white text-black text-sm font-semibold rounded-xl hover:bg-neutral-100 transition-colors whitespace-nowrap disabled:opacity-70 disabled:cursor-not-allowed"
           >
             {status === 'loading' ? 'Mengirim...' : 'Berlangganan →'}
-          </button>
+          </Button>
         </div>
 
         {/* Feedback state */}

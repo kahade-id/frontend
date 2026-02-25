@@ -8,6 +8,7 @@ import { Link } from 'wouter';
 import { staggerContainer, staggerItem } from '@kahade/utils';
 import { useAuth } from '../../contexts/AuthContext';
 import { toast } from 'sonner';
+import { Button } from '@kahade/ui';
 
 const steps = ['Info Dasar', 'Kontak', 'Verifikasi'];
 
@@ -48,9 +49,9 @@ function StepContent({ step, data, onChange }: StepContentProps) {
         <div className="relative">
           <input id="new-password" type={showPwd ? 'text' : 'password'} required minLength={8} placeholder="Min. 8 karakter" value={data.password} onChange={e => onChange('password', e.target.value)}
             className="w-full h-12 px-4 pr-12 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground transition-colors text-sm" />
-          <button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
+          <Button type="button" onClick={() => setShowPwd(!showPwd)} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors">
             {showPwd ? <EyeSlash size={18} /> : <Eye size={18} />}
-          </button>
+          </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-1">Minimal 8 karakter, harus ada huruf besar, kecil, dan angka.</p>
       </div>
@@ -148,9 +149,9 @@ export default function Register() {
       <div className="bg-background px-5 md:px-14 py-12 flex flex-col justify-center overflow-x-hidden">
         <div className="max-w-sm mx-auto w-full">
           <Link href="/">
-            <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-10 transition-colors">
+            <Button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground mb-10 transition-colors">
               <ArrowLeft size={16} /> kahade.id
-            </button>
+            </Button>
           </Link>
 
           <h1 className="text-3xl font-bold mb-1">Buat Akun</h1>
@@ -187,14 +188,14 @@ export default function Register() {
           {!registered && (
             <div className={`flex gap-3 mt-6 ${currentStep > 0 ? 'flex-row' : 'flex-col'}`}>
               {currentStep > 0 && (
-                <button onClick={() => setCurrentStep(s => s - 1)} className="btn-secondary flex-1">
+                <Button onClick={() => setCurrentStep(s => s - 1)} variant="secondary" className="flex-1">
                   <ArrowLeft size={16} /> Kembali
-                </button>
+                </Button>
               )}
-              <button
+              <Button
                 onClick={handleNext}
                 disabled={loading}
-                className="btn-primary flex-1 w-full"
+                 variant="primary" className="flex-1 w-full"
               >
                 {loading ? (
                   <span className="flex items-center gap-2 justify-center">
@@ -206,13 +207,13 @@ export default function Register() {
                 ) : (
                   <span className="flex items-center gap-2 justify-center">Lanjut <ArrowRight size={16} /></span>
                 )}
-              </button>
+              </Button>
             </div>
           )}
 
           {registered && (
             <div className="mt-6">
-              <Link href="/login" className="btn-primary w-full inline-flex justify-center">Pergi ke Login</Link>
+              <Button asChild variant="primary" className="w-full inline-flex justify-center"><Link href="/login" >Pergi ke Login</Link></Button>
             </div>
           )}
 
@@ -222,9 +223,9 @@ export default function Register() {
                 <div className="flex-1 h-px bg-border" /><span className="text-xs text-muted-foreground">Atau</span><div className="flex-1 h-px bg-border" />
               </div>
               <div className="space-y-3">
-                <button className="w-full flex items-center justify-center gap-3 py-3 px-4 border-2 border-border rounded-xl text-sm font-semibold hover:bg-muted transition-all">
+                <Button className="w-full flex items-center justify-center gap-3 py-3 px-4 border-2 border-border rounded-xl text-sm font-semibold hover:bg-muted transition-all">
                   <GoogleLogo size={20} /> Lanjutkan dengan Google
-                </button>
+                </Button>
               </div>
             </>
           )}
