@@ -33,6 +33,8 @@ const buttonVariants = cva(
         sm: "h-[var(--button-height-sm,2.5rem)] px-[var(--button-padding-x-sm,0.875rem)] text-[0.8125rem]",
         md: "h-[var(--button-height-md,2.75rem)] px-[var(--button-padding-x-md,1.125rem)]",
         lg: "h-[var(--button-height-lg,3rem)] px-[var(--button-padding-x-lg,1.5rem)] text-[0.9375rem]",
+        toolbar: "h-8 px-2 text-xs",
+        navItem: "h-8 px-2 justify-start text-left",
         icon: "size-[var(--button-height-md,2.75rem)] p-0",
       },
       fullWidth: {
@@ -47,12 +49,13 @@ const buttonVariants = cva(
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "onClick">,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
   loading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
+  onClick?: React.MouseEventHandler<HTMLButtonElement | HTMLElement>;
 }
 
 function Button({
@@ -110,7 +113,7 @@ function Button({
             return;
           }
 
-          onClick?.(event as React.MouseEvent<HTMLButtonElement>);
+          onClick?.(event);
         }}
       >
         {mergedChild}
