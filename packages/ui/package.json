@@ -58,7 +58,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm --dts --out-dir dist --clean",
+    "build": "pnpm --filter @kahade/types build && pnpm --filter @kahade/config build && pnpm --filter @kahade/utils build && tsup src/index.ts --format esm --dts --out-dir dist --clean",
     "clean": "rm -rf dist"
   },
   "devDependencies": {

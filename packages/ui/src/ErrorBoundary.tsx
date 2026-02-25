@@ -22,6 +22,26 @@ interface State {
  errorCount: number;
 }
 
+type ErrorType = 'chunk-load' | 'generic';
+
+function getErrorType(error: Error | null): ErrorType {
+ if (!error) {
+ return 'generic';
+ }
+
+ const normalizedMessage = `${error.name} ${error.message}`.toLowerCase();
+
+ if (
+ normalizedMessage.includes('failed to fetch dynamically imported module') ||
+ normalizedMessage.includes('chunkloaderror') ||
+ normalizedMessage.includes('loading chunk')
+ ) {
+ return 'chunk-load';
+ }
+
+ return 'generic';
+}
+
 /**
  * Comprehensive Error Boundary Component
  * 
@@ -89,6 +109,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
 
  // Log to console in development
  if (import.meta.env.DEV) {
+ console.error('ErrorBoundary caught an error:', error);
+ console.error('Component stack:', errorInfo.componentStack);
  }
 
  // Call custom error handler
@@ -184,6 +206,8 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
  render(): ReactNode {
  const { hasError, error, errorInfo, errorCount } = this.state;
  const { children, fallback } = this.props;
+ const errorType = getErrorType(error);
+ const shouldShowReload = errorCount > 1 || errorType === 'chunk-load';
 
  if (hasError) {
  // Use custom fallback if provided
@@ -206,10 +230,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
  <h1 className="mb-2 text-center text-2xl font-bold text-gray-900">
  Oops! Terjadi Kesalahan
  </h1>
+ {errorType === 'chunk-load' ? (
+ <p className="mb-6 text-center text-gray-600">
+ Aplikasi gagal memuat versi terbaru. Silakan tekan{' '}
+ <span className="font-medium">Muat Ulang Halaman</span> untuk
+ memuat ulang data terbaru.
+ </p>
+ ) : (
  <p className="mb-6 text-center text-gray-600">
  Maaf, terjadi kesalahan yang tidak terduga. Tim kami telah
  diberitahu dan sedang menangani masalah ini.
  </p>
+ )}
 
  {/* Error Details (Development Only) */}
  {import.meta.env.DEV && error && (
@@ -245,7 +277,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, State> {
  </Button>
 
  {/* Reload Page (if error persists) */}
- {errorCount > 1 && (
+ {shouldShowReload && (
  <Button
  onClick={this.reloadPage}
  variant="secondary"

@@ -64,6 +64,41 @@ function Button({
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
+  const adornment = loading ? (
+    <span className="size-4 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden="true" />
+  ) : (
+    leftIcon
+  );
+
+  if (asChild) {
+    const childElement = React.Children.only(children);
+
+    if (!React.isValidElement(childElement)) {
+      throw new Error("Button with asChild expects a single valid React element child.");
+    }
+
+    const mergedChild = React.cloneElement(
+      childElement,
+      undefined,
+      <>
+        {adornment}
+        {(childElement.props as { children?: React.ReactNode }).children}
+        {rightIcon}
+      </>
+    );
+
+    return (
+      <Comp
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size, fullWidth, className }))}
+        aria-busy={loading || undefined}
+        disabled={disabled || loading}
+        {...props}
+      >
+        {mergedChild}
+      </Comp>
+    );
+  }
 
   return (
     <Comp
@@ -73,11 +108,7 @@ function Button({
       disabled={disabled || loading}
       {...props}
     >
-      {loading ? (
-        <span className="size-4 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden="true" />
-      ) : (
-        leftIcon
-      )}
+      {adornment}
       {children}
       {rightIcon}
     </Comp>
