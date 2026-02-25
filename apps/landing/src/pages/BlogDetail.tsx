@@ -4,6 +4,7 @@ import { Clock, User, ArrowRight, ArrowLeft } from '@phosphor-icons/react';
 import { Link, useRoute } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHeroArticle } from '../components/common/PageHero';
 import { Button } from '@kahade/ui';
 
 const articleBySlug: Record<string, { title: string; category: string; author: string; date: string; readTime: number }> = {
@@ -27,7 +28,14 @@ export default function BlogDetail() {
  }, []);
 
  return (<div className="min-h-screen bg-background"><div className="fixed top-0 left-0 right-0 h-1 bg-muted z-50"><div className="h-full bg-primary" style={{ width: `${progress}%` }} /></div><Navbar />
- <section className="pt-24 pb-12 border-b"><div className="container max-w-4xl mx-auto"><motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}><Link href="/blog" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-8"><ArrowLeft size={16} /> Kembali ke Blog</Link><span className="badge badge-error mb-4">{article.category}</span><h1 className="text-3xl md:text-5xl font-bold mb-6">{article.title}</h1><div className="flex items-center gap-4 text-sm text-muted-foreground"><div className="flex items-center gap-1.5"><User size={14} /><span>{article.author}</span></div><span>·</span><span>{article.date}</span><span>·</span><div className="flex items-center gap-1"><Clock size={14} /><span>{article.readTime} menit baca</span></div></div></motion.div></div></section>
+ <PageHeroArticle
+ eyebrow="Blog"
+ title={article.title}
+ description={article.excerpt}
+ chips={[{ label: article.category, tone: 'info' }, { label: article.readTime + ' mnt' }, { label: article.date }]}
+ backLink={<Link href="/blog" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary"><ArrowLeft size={16} /> Kembali ke Blog</Link>}
+ meta={<div className="flex items-center gap-4 text-sm text-muted-foreground"><div className="flex items-center gap-1.5"><User size={14} /><span>{article.author}</span></div><span>·</span><span>{article.date}</span><span>·</span><div className="flex items-center gap-1"><Clock size={14} />{article.readTime} mnt baca</div></div>}
+ />
  <div className="w-full aspect-[21/9] bg-gradient-to-r from-primary/20 to-primary/5 max-h-96" />
  <div ref={articleRef} className="container max-w-[1200px] mx-auto py-12">...konten artikel...</div>
  <section className="section-padding-md bg-muted/30"><div className="container max-w-5xl mx-auto"><h2 className="text-2xl font-bold mb-8">Artikel Terkait</h2><div className="grid md:grid-cols-3 gap-6">{Object.entries(articleBySlug).map(([slug, post]) => (<Link key={slug} href={`/blog/${slug}`} className="card p-5 group hover:border-primary transition-colors"><div className="aspect-video rounded-xl bg-gradient-to-br from-primary/10 to-muted mb-4" /><span className="badge badge-secondary mb-2">{post.category}</span><h3 className="font-semibold text-sm group-hover:text-primary line-clamp-2 mb-2">{post.title}</h3><p className="text-xs text-muted-foreground">{post.date} · {post.readTime} mnt</p></Link>))}</div></div></section>

@@ -12,6 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, Calendar, Printer, List, CaretDown } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { Button } from '@kahade/ui';
 import { useState } from 'react';
 
@@ -198,49 +199,7 @@ export default function Privacy() {
  <Navbar />
  
  {/* Hero Section */}
- <section className="pt-28 md:pt-32 lg:pt-40 pb-8 md:pb-12 relative overflow-hidden">
- <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-neutral-100)_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-50" aria-hidden="true" />
- <motion.div 
- animate={{ 
- scale: [1, 1.1, 1],
- opacity: [0.3, 0.5, 0.3]
- }}
- transition={{ duration: 8, repeat: Infinity }}
- className="absolute top-0 right-0 w-[300px] md:w-[500px] h-[300px] md:h-[500px] bg-gray-100 rounded-full blur-3xl" 
- />
- <div className="container relative z-10">
- <motion.div
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- transition={{ duration: 0.6 }}
- className="max-w-3xl"
- >
- <motion.span 
- initial={{ opacity: 0, scale: 0.9 }}
- animate={{ opacity: 1, scale: 1 }}
- transition={{ delay: 0.2, duration: 0.4 }}
- className="inline-block px-4 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-semibold mb-4"
- >
- Legal
- </motion.span>
- <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 md:mb-6 text-foreground">
- Kebijakan Privasi
- </h1>
- <div className="flex flex-wrap items-center gap-4 md:gap-4 text-sm text-muted-foreground">
- <span className="flex items-center gap-2">
- <Calendar className="w-4 h-4" aria-hidden="true" weight="regular" />
- Terakhir diperbarui: 1 Januari 2026
- </span>
- <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.98 }}>
- <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-neutral-900" onClick={() => window.print()}>
- <Printer className="w-4 h-4" aria-hidden="true" weight="regular" />
- Cetak
- </Button>
- </motion.div>
- </div>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Legal" title="Kebijakan Privasi" description="Bagaimana kami mengumpulkan, memproses, dan melindungi data pribadi Anda secara bertanggung jawab." chips={[{ label: 'Privasi Data' }, { label: 'Keamanan' }, { label: 'Hak Pengguna' } ]} />
  
  {/* Mobile TOC Toggle */}
  <div className="lg:hidden sticky top-[65px] z-20 bg-background/95 backdrop-blur border-b border-border">

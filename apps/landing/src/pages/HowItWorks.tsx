@@ -7,6 +7,7 @@ import {
 import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -71,28 +72,7 @@ export default function HowItWorks() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
- <div className="container text-center max-w-3xl mx-auto">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.span variants={staggerItem} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">
- Cara Kerja
- </motion.span>
- <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-6">
- Cara Kerja Kahade<br />dalam 5 Langkah
- </motion.h1>
- <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg mb-8">
- Sistem escrow yang sederhana, transparan, dan melindungi semua pihak.
- </motion.p>
- <motion.div variants={staggerItem}>
- <a href="https://app.kahade.id/register">
- <Button className="bg-white text-primary font-semibold px-6 py-3 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
- Mulai Sekarang <ArrowRight size={18} />
- </Button>
- </a>
- </motion.div>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Cara Kerja" title="Bagaimana Kahade Melindungi Transaksi Anda" description="Alur escrow sederhana dari pembayaran hingga pencairan dana dengan perlindungan kedua pihak." chips={[{ label: 'Escrow Flow' }, { label: 'Verifikasi' }, { label: 'Penyelesaian Aman' } ]} />
 
  {/* FLOW VISUAL */}
  <section className="py-12 border-b overflow-hidden bg-muted/30">

@@ -7,6 +7,7 @@ import {
 import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -37,33 +38,7 @@ export default function Help() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
- <div className="container max-w-3xl mx-auto text-center">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.h1 variants={staggerItem} className="text-4xl md:text-5xl font-bold mb-6">
- Pusat Bantuan Kahade
- </motion.h1>
- <motion.p variants={staggerItem} className="text-primary-foreground/70 mb-8">
- Temukan jawaban, panduan, dan dukungan yang Anda butuhkan.
- </motion.p>
- <motion.div variants={staggerItem} className="relative mb-8">
- <MagnifyingGlass size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
- <input
- type="text" value={search} onChange={e => setSearch(e.target.value)}
- placeholder="Cari artikel, panduan, atau FAQ..."
- className="w-full pl-12 pr-4 py-4 rounded-2xl bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-white/30 "
- />
- </motion.div>
- <motion.div variants={staggerItem} className="flex flex-wrap gap-2 justify-center">
- {quickLinks.map(ql => (
- <Button key={ql} className="px-4 py-1.5 rounded-full border border-white/20 text-sm hover:bg-white/10 transition-colors">
- {ql}
- </Button>
- ))}
- </motion.div>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Pusat Bantuan" title="Butuh Bantuan? Kami Siap Membantu" description="Temukan bantuan mandiri dan kanal dukungan resmi untuk setiap tahap penggunaan Kahade." chips={[{ label: 'Help Center' }, { label: 'Support' }, { label: 'SLA Respons' } ]} />
 
  {/* CATEGORY GRID */}
  <section className="section-padding-lg">

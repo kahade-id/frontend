@@ -2,6 +2,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, DownloadSimple, Envelope } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -19,19 +20,7 @@ export default function Press() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
- <div className="container text-center max-w-3xl mx-auto">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.span variants={staggerItem} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">
- Media & Pers
- </motion.span>
- <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-6">Kahade di Media</motion.h1>
- <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg">
- Liputan, rilis, dan materi pers resmi tentang Kahade.
- </motion.p>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Media & Pers" title="Kahade di Media" description="Rilis resmi, liputan media, dan materi pers terkait perkembangan Kahade." chips={[{ label: 'Press Release' }, { label: 'Media Kit' }, { label: 'Corporate News' } ]} />
 
  {/* MEDIA LOGOS */}
  <section className="border-y bg-muted/30 py-8">

@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 import { Cookie, Calendar, Printer, Gear, List } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { Button } from '@kahade/ui';
 
 const cookieTypes = [
@@ -86,33 +87,7 @@ export default function Cookies() {
  <Navbar />
  
  {/* Hero Section */}
- <section className="pt-28 md:pt-32 lg:pt-40 pb-8 md:pb-12 relative overflow-hidden">
- <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--color-neutral-100)_1px,transparent_1px),linear-gradient(to_bottom,#f0f0f0_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-50" aria-hidden="true" />
- <div className="container relative z-10">
- <motion.div
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- className="max-w-3xl"
- >
- <span className="inline-block px-4 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-semibold mb-4">
- Legal
- </span>
- <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 md:mb-6 text-foreground">
- Kebijakan Cookie
- </h1>
- <div className="flex flex-wrap items-center gap-4 md:gap-4 text-sm text-muted-foreground">
- <span className="flex items-center gap-2">
- <Calendar className="w-4 h-4" aria-hidden="true" weight="regular" />
- Terakhir diperbarui: 1 Januari 2026
- </span>
- <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-neutral-900" onClick={() => window.print()}>
- <Printer className="w-4 h-4" aria-hidden="true" weight="regular" />
- Cetak
- </Button>
- </div>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Legal" title="Kebijakan Cookie" description="Penjelasan penggunaan cookie untuk pengalaman produk, keamanan, dan analitik di ekosistem Kahade." chips={[{ label: 'Terakhir diperbarui' }, { label: 'Privasi' }, { label: 'Kepatuhan' } ]} />
  
  {/* Cookie Types */}
  <section className="py-10 md:py-12 bg-muted">

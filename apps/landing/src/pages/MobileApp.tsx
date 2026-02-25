@@ -6,6 +6,7 @@ import {
 import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -35,45 +36,7 @@ export default function MobileApp() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
- <div className="container">
- <div className="grid lg:grid-cols-2 gap-12 items-center">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.span variants={staggerItem} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">
- Kahade Mobile
- </motion.span>
- <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-6 leading-tight">
- Kahade di<br />genggaman Anda
- </motion.h1>
- <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg mb-10">
- Kelola transaksi escrow dari smartphone dengan alur yang ringan, jelas, dan aman.
- </motion.p>
- <motion.div variants={staggerItem} className="flex flex-wrap gap-4">
- <a href="https://apps.apple.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-5 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
- <AppStoreLogo size={24} /> App Store
- </a>
- <a href="https://play.google.com" target="_blank" rel="noreferrer" className="flex items-center gap-3 bg-white text-primary px-5 py-3 rounded-xl font-semibold hover:bg-white/90 transition-colors">
- <GooglePlayLogo size={24} /> Play Store
- </a>
- </motion.div>
- <motion.p variants={staggerItem} className="text-primary-foreground/60 text-sm mt-4">
- Beta terbatas · iOS 14+ · Android 8.0+
- </motion.p>
- </motion.div>
-
- {/* Phone Mockup */}
- <motion.div variants={fadeInUp} initial="initial" animate="animate" className="flex justify-center">
- <div className="w-64 h-[500px] bg-white/10 rounded-[3rem] border-4 border-white/20 flex items-center justify-center relative">
- <div className="absolute top-6 left-1/2 -translate-x-1/2 w-16 h-1.5 bg-white/20 rounded-full" />
- <div className="text-center">
- <DeviceMobile size={64} className="text-white/30 mx-auto mb-4" />
- <p className="text-white/40 text-sm">Mockup App</p>
- </div>
- </div>
- </motion.div>
- </div>
- </div>
- </section>
+ <PageHero eyebrow="Mobile App" title="Kahade di Genggaman Anda" description="Pantau, kelola, dan selesaikan transaksi escrow kapan pun melalui aplikasi mobile Kahade." chips={[{ label: 'iOS & Android' }, { label: 'Notifikasi Real-time' }, { label: 'Secure Access' } ]} />
 
  {/* FEATURES */}
  <section className="section-padding-lg">
