@@ -283,6 +283,7 @@ export default function Navbar() {
             )}
             <Button
               type="button"
+              variant="ghost"
               className="p-2 hover:bg-muted rounded-lg transition-colors relative z-10"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
               {...ariaProps(
@@ -340,6 +341,7 @@ function NavMenuItem({ menuKey, label, activeMenu, onMenuEnter, onMouseLeave, ch
     >
       <Button
         type="button"
+        variant="ghost"
         className={cn(
           'flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium rounded-lg transition-all duration-200',
           isActive
@@ -535,6 +537,7 @@ function MobileMenu({
         <img src="/images/logo.svg" alt="Kahade - Platform Escrow Terpercaya" className="h-7 w-auto" />
         <Button
           type="button"
+          variant="ghost"
           onClick={onClose}
           className="p-2 hover:bg-muted rounded-lg transition-colors"
           {...ariaProps('Tutup menu')}
@@ -657,6 +660,7 @@ function MobileMenuItem({ title, menuKey, isExpanded, onToggle, children }: Mobi
     <div>
       <Button
         type="button"
+        variant="ghost"
         onClick={() => onToggle(menuKey)}
         className="w-full flex items-center justify-between px-4 py-3 text-left font-semibold hover:bg-muted rounded-lg transition-colors"
         aria-expanded={isExpanded}
