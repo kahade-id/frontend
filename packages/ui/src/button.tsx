@@ -24,6 +24,9 @@ const buttonVariants = cva(
         outline: "border border-border bg-transparent text-foreground hover:bg-muted focus-visible:ring-foreground",
         ghost: "bg-transparent text-muted-foreground hover:text-foreground hover:bg-muted focus-visible:ring-foreground",
         destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90 focus-visible:ring-destructive",
+        inverted:
+          "bg-white text-black hover:bg-neutral-100 active:bg-neutral-200 disabled:bg-white/70 disabled:text-black/60 focus-visible:ring-white focus-visible:ring-offset-primary",
+        chip: "h-auto rounded-full border border-border bg-muted px-4 py-1.5 text-sm font-medium text-foreground hover:bg-muted/80 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground data-[state=active]:border-primary focus-visible:ring-foreground",
         link: "h-auto px-0 py-0 rounded-none text-primary underline-offset-4 hover:underline focus-visible:ring-primary",
       },
       size: {
