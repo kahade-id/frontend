@@ -20,7 +20,7 @@ export default function BankAccounts() {
  <h1 className="text-2xl font-bold">Rekening Bank</h1>
  <p className="text-sm text-muted-foreground mt-1">Kelola rekening bank untuk penarikan dana</p>
  </div>
- <Button onClick={() => setShowAdd(true)} className="btn-primary"><Plus size={18} /> Tambah Rekening</Button>
+ <Button onClick={() => setShowAdd(true)} variant="primary"><Plus size={18} /> Tambah Rekening</Button>
  </div>
 
  {accounts.length > 0 ? (
@@ -48,7 +48,7 @@ export default function BankAccounts() {
  <Bank size={48} className="text-muted-foreground/30 mx-auto mb-4" weight="thin" />
  <p className="font-semibold text-muted-foreground">Belum ada rekening tersimpan</p>
  <p className="text-sm text-muted-foreground mt-1 mb-6">Tambahkan rekening untuk menarik dana</p>
- <Button onClick={() => setShowAdd(true)} className="btn-primary"><Plus size={18} /> Tambah Rekening Bank</Button>
+ <Button onClick={() => setShowAdd(true)} variant="primary"><Plus size={18} /> Tambah Rekening Bank</Button>
  </div>
  )}
 
@@ -77,7 +77,7 @@ export default function BankAccounts() {
  <input id="account-owner" type="text" placeholder="Sesuai buku tabungan" value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full h-12 px-4 rounded-xl border-2 border-border bg-background focus:outline-none focus:border-foreground text-sm" />
  </div>
  <div className="flex gap-3 pt-2">
- <Button onClick={() => setShowAdd(false)} className="btn-secondary flex-1">Batal</Button>
+ <Button onClick={() => setShowAdd(false)} variant="secondary" className="flex-1">Batal</Button>
  <Button  variant="primary" className="flex-1">Simpan Rekening</Button>
  </div>
  </div>

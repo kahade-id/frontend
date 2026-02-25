@@ -254,13 +254,14 @@ export default function Navbar() {
                 >
                   Masuk
                 </Link>
-                <Link
-                  href="https://app.kahade.id/register"
-                  className="btn-primary inline-flex items-center"
-                  aria-label="Buat akun baru"
-                >
-                  Mulai
-                </Link>
+                <Button asChild variant="primary" size="sm">
+                  <Link
+                    href="https://app.kahade.id/register"
+                    aria-label="Buat akun baru"
+                  >
+                    Mulai
+                  </Link>
+                </Button>
               </>
             )}
           </div>
@@ -268,9 +269,9 @@ export default function Navbar() {
           {/* Mobile: CTA + Hamburger */}
           <div className="flex lg:hidden items-center gap-3">
             {!isAuthenticated && (
-              <a href="https://app.kahade.id/register" className="btn-primary btn-xs inline-flex items-center">
-                Mulai
-              </a>
+              <Button asChild variant="primary" size="sm">
+                <a href="https://app.kahade.id/register">Mulai</a>
+              </Button>
             )}
             {isAuthenticated && (
               <Button
@@ -614,19 +615,21 @@ function MobileMenu({
         {isAuthenticated ? (
           <Button
             onClick={() => { onDashboardClick(); onClose(); }}
-            className="btn-primary w-full"
+            variant="primary"
+            fullWidth
           >
             Dashboard
           </Button>
         ) : (
           <>
-            <Link
-              href="https://app.kahade.id/register"
-              onClick={onClose}
-              className="btn-primary w-full flex items-center justify-center"
-            >
-              Mulai
-            </Link>
+            <Button asChild variant="primary" fullWidth>
+              <Link
+                href="https://app.kahade.id/register"
+                onClick={onClose}
+              >
+                Mulai
+              </Link>
+            </Button>
             <Link
               href="https://app.kahade.id/login"
               onClick={onClose}

@@ -39,7 +39,7 @@ export default function Transactions() {
  <div className="p-6 max-w-6xl mx-auto">
  <div className="flex items-center justify-between mb-6">
  <h1 className="text-2xl font-bold">Transaksi</h1>
- <Link href="/transactions/create" className="btn-primary inline-flex"><Plus size={18} /> Transaksi Baru</Link>
+ <Button asChild variant="primary" className="inline-flex"><Link href="/transactions/create" ><Plus size={18} /> Transaksi Baru</Link></Button>
  </div>
  <div className="flex gap-1 bg-muted/50 p-1 rounded-xl mb-5 overflow-x-auto no-scrollbar">
  {tabs.map(tab => (

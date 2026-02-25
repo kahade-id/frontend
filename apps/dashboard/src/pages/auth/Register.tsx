@@ -188,7 +188,7 @@ export default function Register() {
           {!registered && (
             <div className={`flex gap-3 mt-6 ${currentStep > 0 ? 'flex-row' : 'flex-col'}`}>
               {currentStep > 0 && (
-                <Button onClick={() => setCurrentStep(s => s - 1)} className="btn-secondary flex-1">
+                <Button onClick={() => setCurrentStep(s => s - 1)} variant="secondary" className="flex-1">
                   <ArrowLeft size={16} /> Kembali
                 </Button>
               )}
@@ -213,7 +213,7 @@ export default function Register() {
 
           {registered && (
             <div className="mt-6">
-              <Link href="/login" className="btn-primary w-full inline-flex justify-center">Pergi ke Login</Link>
+              <Button asChild variant="primary" className="w-full inline-flex justify-center"><Link href="/login" >Pergi ke Login</Link></Button>
             </div>
           )}
 

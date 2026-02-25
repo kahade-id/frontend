@@ -17,8 +17,8 @@ export function Toaster({ ...props }: ToasterProps) {
  ].join(" "),
  title: "font-semibold text-sm text-foreground",
  description: "text-xs text-muted-foreground mt-0.5",
- actionButton: "btn-primary text-xs px-3 py-1.5 h-auto",
- cancelButton: "btn-secondary text-xs px-3 py-1.5 h-auto",
+ actionButton: "inline-flex items-center justify-center h-8 px-3 rounded-[var(--button-radius,var(--radius,0.625rem))] bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90",
+ cancelButton: "inline-flex items-center justify-center h-8 px-3 rounded-[var(--button-radius,var(--radius,0.625rem))] border border-border bg-background text-foreground text-xs font-semibold hover:bg-muted",
  closeButton: "text-muted-foreground hover:text-foreground",
  },
  }}

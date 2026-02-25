@@ -109,13 +109,11 @@ export default function HeroSection() {
               className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8"
             >
               {/* Opsi 1: Link as anchor styled as button — VALID secara semantik */}
-              <Link
-                href="https://app.kahade.id/register"
-                className="btn-primary flex items-center justify-center gap-2 w-full sm:w-auto"
-              >
-                Mulai Transaksi
-                <ArrowRight className="w-5 h-5" weight="bold" />
-              </Link>
+              <Button asChild variant="primary" className="w-full sm:w-auto" rightIcon={<ArrowRight className="w-5 h-5" weight="bold" />}>
+                <Link href="https://app.kahade.id/register">
+                  Mulai Transaksi
+                </Link>
+              </Button>
 
               {/* Opsi 2: Button murni dengan onClick handler — VALID */}
               <Button

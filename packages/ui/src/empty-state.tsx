@@ -1,4 +1,5 @@
 import { cn } from "@kahade/utils";
+import { Button } from "./button";
 
 interface EmptyStateProps {
  icon?: React.ElementType;
@@ -19,12 +20,9 @@ export function EmptyState({ icon: Icon, title, description, action, className }
  <h3 className="text-lg font-bold mb-2">{title}</h3>
  {description && <p className="text-sm text-muted-foreground max-w-xs leading-relaxed mb-6">{description}</p>}
  {action && (
- <button
- onClick={action.onClick}
- className={action.variant === "secondary" ? "btn-secondary" : "btn-primary"}
- >
+ <Button onClick={action.onClick} variant={action.variant === "secondary" ? "secondary" : "primary"}>
  {action.label}
- </button>
+ </Button>
  )}
  </div>
  );

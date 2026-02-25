@@ -2,6 +2,7 @@ import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@kahade/utils";
 import { Info, CheckCircle, Warning, XCircle, X } from "@phosphor-icons/react";
+import { Button } from "./button";
 
 const alertVariants = cva("flex gap-3 p-4 rounded-xl border", {
  variants: {
@@ -43,9 +44,9 @@ function Alert({ className, variant = "info", title, description, dismissible, o
  {children && <div className={cn("text-sm", text)}>{children}</div>}
  </div>
  {dismissible && (
- <button onClick={onDismiss} className={cn("w-5 h-5 shrink-0 hover:opacity-80 transition-opacity", text)}>
+ <Button type="button" onClick={onDismiss} variant="ghost" size="icon" className={cn("w-5 h-5 shrink-0 hover:opacity-80 transition-opacity", text)}>
  <X size={16} weight="bold" />
- </button>
+ </Button>
  )}
  </div>
  );

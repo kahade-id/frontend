@@ -80,7 +80,7 @@ export default function Contact() {
  </div>
  <h2 className="text-2xl font-bold mb-3">Pesan berhasil direkam</h2>
  <p className="text-muted-foreground mb-6">Pesan Anda telah disimpan dan masuk ke antrean tim kami. Kami akan menghubungi Anda melalui email.</p>
- <Button onClick={() => setSubmitted(false)} className="btn-secondary">Kirim Pesan Lain</Button>
+ <Button onClick={() => setSubmitted(false)} variant="secondary">Kirim Pesan Lain</Button>
  </motion.div>
  ) : (
  <motion.div variants={fadeInUp} initial="initial" animate="animate" className="max-w-md">

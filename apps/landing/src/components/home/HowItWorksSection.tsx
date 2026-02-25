@@ -177,14 +177,14 @@ export default function HowItWorksSection() {
  <Button
  onClick={() => setActiveStep(Math.max(0, activeStep - 1))}
  disabled={activeStep === 0}
- className="btn-secondary btn-sm disabled:opacity-40"
+ variant="secondary" size="sm" className="disabled:opacity-40"
  >
  ← Sebelumnya
  </Button>
  <Button
  onClick={() => setActiveStep(Math.min(steps.length - 1, activeStep + 1))}
  disabled={activeStep === steps.length - 1}
- className="btn-primary btn-sm disabled:opacity-40"
+ variant="primary" size="sm" className="disabled:opacity-40"
  >
  Selanjutnya →
  </Button>

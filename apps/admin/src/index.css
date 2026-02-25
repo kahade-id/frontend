@@ -1842,10 +1842,6 @@ html {
   scrollbar-width: thin;
 }
 
-/* ── Mobile btn-primary full-width ─────────────────────────────────────────
-   Saat btn-primary dipakai dalam flex-col container (Register step 0),
-   pastikan button fill full width — inline-flex tidak selalu stretch.
-   ──────────────────────────────────────────────────────────────────────── */
 @media (max-width: 639px) {
 }
 

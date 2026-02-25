@@ -104,7 +104,7 @@ export default function ForgotPassword() {
                 Kirim ulang dalam: <span className="font-semibold text-foreground">0:{countdown.toString().padStart(2, '0')}</span>
               </p>
             ) : (
-              <Button onClick={() => { if (countdownIntervalRef.current) { clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; } setSubmitted(false); setCountdown(0); }} className="btn-secondary">
+              <Button onClick={() => { if (countdownIntervalRef.current) { clearInterval(countdownIntervalRef.current); countdownIntervalRef.current = null; } setSubmitted(false); setCountdown(0); }} variant="secondary">
                 Kirim Ulang
               </Button>
             )}

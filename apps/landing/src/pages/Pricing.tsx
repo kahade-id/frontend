@@ -169,9 +169,11 @@ export default function Pricing() {
  </div>
  ))}
  </div>
- <Link href={plan.name === 'Enterprise' ? '/contact' : '/register'} className={`w-full py-3 rounded-xl font-semibold text-sm transition-all inline-flex items-center justify-center ${plan.popular ? 'btn-primary' : 'btn-secondary'}`}>
+ <Button asChild variant={plan.popular ? 'primary' : 'secondary'} className="w-full">
+ <Link href={plan.name === 'Enterprise' ? '/contact' : '/register'}>
  {plan.cta}
  </Link>
+ </Button>
  </div>
  );
  })}
@@ -218,9 +220,9 @@ export default function Pricing() {
  <span>Total diterima penjual</span>
  <span className="text-green-600">{formatRupiah(net)}</span>
  </div>
- <a href="https://app.kahade.id/register" className="btn-primary w-full mt-2 inline-flex items-center justify-center">
+ <Button asChild variant="primary" className="w-full mt-2 inline-flex items-center justify-center"><a href="https://app.kahade.id/register" >
  Mulai Transaksi <ArrowRight size={16} />
- </a>
+ </a></Button>
  </div>
  </div>
  </div>

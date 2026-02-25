@@ -143,8 +143,8 @@ export default function KYCVerification() {
  </AnimatePresence>
 
  <div className={`flex gap-3 mt-8 ${step > 0 ? '' : 'justify-end'}`}>
- {step > 0 && <Button onClick={() => setStep(s => s - 1)} className="btn-secondary flex-1"><ArrowLeft size={16} /> Kembali</Button>}
- <Button onClick={() => step < steps.length - 1 ? setStep(s => s + 1) : null} className="btn-primary flex-1">
+ {step > 0 && <Button onClick={() => setStep(s => s - 1)} variant="secondary" className="flex-1"><ArrowLeft size={16} /> Kembali</Button>}
+ <Button onClick={() => step < steps.length - 1 ? setStep(s => s + 1) : null} variant="primary" className="flex-1">
  {step === steps.length - 1 ? 'Kirim Verifikasi' : 'Lanjut'} {step < steps.length - 1 && <ArrowRight size={16} />}
  </Button>
  </div>

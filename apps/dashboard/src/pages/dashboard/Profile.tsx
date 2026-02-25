@@ -41,7 +41,7 @@ export default function Profile() {
  <p className="text-sm text-muted-foreground">{kycStatus === 'verified' ? 'Akun Anda telah terverifikasi penuh.' : 'Verifikasi KYC untuk transaksi tanpa batas.'}</p>
  </div>
  {kycStatus !== 'verified' && (
- <Link href="/kyc" className="btn-primary btn-sm text-sm inline-flex">Verifikasi →</Link>
+ <Button asChild variant="primary" size="sm" className="text-sm inline-flex"><Link href="/kyc" >Verifikasi →</Link></Button>
  )}
  </div>
  </div>
@@ -86,7 +86,7 @@ export default function Profile() {
  </div>
  <Button  variant="secondary" className="text-sm">Kelola</Button>
  </div>
- <Link href="/security" className="btn-ghost text-sm text-primary inline-flex">Kelola keamanan lanjutan →</Link>
+ <Button asChild variant="ghost" className="text-sm text-primary inline-flex"><Link href="/security" >Kelola keamanan lanjutan →</Link></Button>
  </div>
  )}
  {activeTab === 'Notifikasi' && (

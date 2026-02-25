@@ -66,7 +66,7 @@ export default function ResetPassword() {
           <p className="text-muted-foreground text-sm mb-8">
             Tautan reset password sudah kedaluwarsa atau tidak valid.
           </p>
-          <Link href="/forgot-password" className="btn-primary w-full inline-flex justify-center">Minta Tautan Baru</Link>
+          <Button asChild variant="primary" className="w-full inline-flex justify-center"><Link href="/forgot-password" >Minta Tautan Baru</Link></Button>
         </div>
       </div>
     );
@@ -123,7 +123,7 @@ export default function ResetPassword() {
             </div>
             <h1 className="text-2xl font-bold mb-2">Password Berhasil Diubah!</h1>
             <p className="text-muted-foreground text-sm mb-8">Gunakan password baru untuk masuk ke admin panel.</p>
-            <Link href="/login" className="btn-primary w-full inline-flex justify-center">Masuk Sekarang</Link>
+            <Button asChild variant="primary" className="w-full inline-flex justify-center"><Link href="/login" >Masuk Sekarang</Link></Button>
           </motion.div>
         )}
       </div>

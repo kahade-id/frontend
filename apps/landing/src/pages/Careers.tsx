@@ -58,9 +58,9 @@ export default function Careers() {
  <span className="text-white/60">digital Indonesia.</span>
  </motion.h1>
  <motion.div variants={staggerItem} className="flex flex-wrap gap-3 mt-8">
- <a href="#jobs" className="btn-secondary bg-white text-primary hover:bg-white/90 inline-flex">
+ <Button asChild variant="secondary" className="bg-white text-primary hover:bg-white/90 inline-flex"><a href="#jobs" >
  Lihat Lowongan <ArrowRight size={16} />
- </a>
+ </a></Button>
  <Link href="/about" className="border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors inline-flex">
  Tentang Budaya
  </Link>

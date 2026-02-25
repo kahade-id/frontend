@@ -119,14 +119,14 @@ export default function MFASettings() {
  {mfaStatus?.enabled ? (
  <Button
  onClick={() => setShowDisableModal(true)}
- className="btn-ghost text-destructive border border-destructive/30 hover:bg-destructive/10 text-sm"
+ variant="ghost" className="text-destructive border border-destructive/30 hover:bg-destructive/10 text-sm"
  >
  Nonaktifkan
  </Button>
  ) : (
  <Button
  onClick={() => setShowSetupModal(true)}
- className="btn-primary text-sm"
+ variant="primary" className="text-sm"
  >
  Aktifkan 2FA
  </Button>
@@ -316,7 +316,7 @@ function TOTPSetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
  <p className="font-mono text-sm font-semibold tracking-wider">{secret}</p>
  </div>
  )}
- <Button onClick={() => setStep('verify')} className="btn-primary w-full">Lanjutkan Verifikasi</Button>
+ <Button onClick={() => setStep('verify')} variant="primary" fullWidth>Lanjutkan Verifikasi</Button>
  </div>
  )}
 
@@ -333,7 +333,7 @@ function TOTPSetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
  />
  {error && <p className="text-destructive text-sm text-center">{error}</p>}
  <div className="flex gap-3">
- <Button onClick={() => setStep('qr')} className="btn-ghost flex-1">Kembali</Button>
+ <Button onClick={() => setStep('qr')} variant="ghost" className="flex-1">Kembali</Button>
  <Button onClick={confirmSetup} disabled={loading || verifyCode.length !== 6}  variant="primary" className="flex-1">
  {loading ? 'Memverifikasi...' : 'Verifikasi'}
  </Button>
@@ -355,7 +355,7 @@ function TOTPSetupModal({ onClose, onSuccess }: { onClose: () => void; onSuccess
  </div>
  </div>
  {!showCodes && (
- <Button onClick={() => setShowCodes(true)} className="btn-ghost w-full flex items-center justify-center gap-2">
+ <Button onClick={() => setShowCodes(true)} variant="ghost" fullWidth className="flex items-center justify-center gap-2">
  <Eye size={16} /> Tampilkan Kode Cadangan
  </Button>
  )}
