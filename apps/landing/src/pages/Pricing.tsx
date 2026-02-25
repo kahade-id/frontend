@@ -4,6 +4,7 @@ import { CheckCircle, X, ArrowRight, Question } from '@phosphor-icons/react';
 import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -95,34 +96,7 @@ export default function Pricing() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
- <div className="container text-center">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-4">
- Harga yang Jelas.<br />
- <span className="text-white/60">Tidak Ada Kejutan.</span>
- </motion.h1>
- <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg mb-10">
- Mulai gratis, lalu upgrade saat volume transaksi bertumbuh.
- </motion.p>
- <motion.div variants={staggerItem} className="inline-flex items-center gap-1 bg-white/10 rounded-full p-1">
- <Button
- onClick={() => setIsYearly(false)}
- className={`px-5 py-2 rounded-full text-sm font-medium transition-all ${!isYearly ? 'bg-white text-primary' : 'text-white/70'}`}
- >
- Bulanan
- </Button>
- <Button
- onClick={() => setIsYearly(true)}
- className={`px-5 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${isYearly ? 'bg-white text-primary' : 'text-white/70'}`}
- >
- Tahunan
- <span className="bg-green-500 text-white text-xs px-1.5 py-0.5 rounded-full">-20%</span>
- </Button>
- </motion.div>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Harga" title="Harga yang Jelas dan Transparan" description="Mulai tanpa biaya awal, lalu pilih paket sesuai volume transaksi dan kebutuhan bisnis Anda." chips={[{ label: 'Tanpa Setup Fee' }, { label: 'Skalabel' }, { label: 'Transparan' } ]} />
 
  {/* PRICING CARDS */}
  <section className="section-padding-lg">

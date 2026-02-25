@@ -7,6 +7,7 @@ import {
 import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -40,24 +41,7 @@ export default function Security() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 overflow-hidden">
- <div className="container text-center max-w-3xl mx-auto">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-6">
- Keamanan setara bank.<br />
- <span className="text-white/60">Untuk semua orang.</span>
- </motion.h1>
- <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg mb-10">
- Kami menerapkan standar keamanan tertinggi agar setiap transaksi Anda terlindungi.
- </motion.p>
- <motion.div variants={staggerItem} className="flex flex-wrap gap-3 justify-center">
- {badges.map(b => (
- <span key={b} className="px-4 py-2 bg-white/10 rounded-full text-sm font-medium border border-white/20">{b}</span>
- ))}
- </motion.div>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Keamanan" title="Keamanan Setara Bank untuk Semua Pengguna" description="Standar keamanan menyeluruh untuk menjaga dana, data, dan integritas transaksi Anda." chips={[{ label: 'SSL 256-bit' }, { label: 'KYC + 2FA' }, { label: 'Monitoring 24/7' } ]} />
 
  {/* SECURITY FEATURES BENTO */}
  <section className="section-padding-lg">

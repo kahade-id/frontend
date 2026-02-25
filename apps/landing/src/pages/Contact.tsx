@@ -7,6 +7,7 @@ import {
 import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { fadeInUp, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -37,6 +38,8 @@ export default function Contact() {
  return (
  <div className="min-h-screen bg-background">
  <Navbar />
+ <PageHero eyebrow="Hubungi Kami" title="Kami Siap Membantu Anda" description="Ada pertanyaan, masukan, atau ingin bermitra? Tim Kahade siap merespons dalam 24 jam kerja." chips={[{ label: 'Support' }, { label: 'Partnership' }, { label: '24 Jam Kerja' }]} />
+
  <div className="min-h-[calc(100vh-64px)] grid md:grid-cols-[0.45fr_0.55fr]">
  {/* LEFT — Dark Info Panel */}
  <div className="bg-primary text-primary-foreground px-8 md:px-14 py-16 md:py-24 flex flex-col justify-center">

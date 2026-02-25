@@ -9,6 +9,7 @@ import { Link } from 'wouter';
 import { Button } from '@kahade/ui';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { fadeInUp, staggerContainer, staggerItem, viewport } from '@kahade/utils';
 
 const stats = [
@@ -44,44 +45,7 @@ export default function About() {
  <Navbar />
 
  {/* SECTION 1: HERO — EDITORIAL */}
- <section className="bg-primary text-primary-foreground pt-24 pb-16 md:pb-24 overflow-hidden">
- <div className="container">
- <div className="grid lg:grid-cols-[0.6fr_0.4fr] gap-8 lg:gap-12 items-center">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.div variants={staggerItem}>
- <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">
- Tentang Kami
- </span>
- </motion.div>
- <motion.h1 variants={staggerItem} className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight leading-[1.1] mb-6">
- Membangun<br />Kepercayaan<br />di Setiap<br />
- <span className="text-white/70">Transaksi.</span>
- </motion.h1>
- <motion.p variants={staggerItem} className="text-primary-foreground/60 text-sm uppercase tracking-widest">
- PT Kawal Hak Dengan Aman
- </motion.p>
- </motion.div>
-
- <motion.div variants={staggerContainer} initial="initial" animate="animate" className="space-y-6">
- <motion.div variants={staggerItem} className="grid grid-cols-1 gap-3">
- {[
- { label: 'Tahun Berdiri', value: '2023' },
- { label: 'Lokasi', value: 'Jawa Barat, Indonesia' },
- { label: 'Status', value: 'Aktif & Berkembang' },
- ].map((item) => (
- <div key={item.label} className="flex justify-between py-3 border-b border-white/10">
- <span className="text-primary-foreground/60 text-sm">{item.label}</span>
- <span className="font-semibold text-sm">{item.value}</span>
- </div>
- ))}
- </motion.div>
- <motion.p variants={staggerItem} className="text-primary-foreground/80 leading-relaxed">
- Kami adalah tim dengan visi membangun ekosistem transaksi online yang jujur dan aman untuk semua orang Indonesia.
- </motion.p>
- </motion.div>
- </div>
- </div>
- </section>
+ <PageHero eyebrow="Tentang Kahade" title="Membangun Kepercayaan di Setiap Transaksi" description="Kami membangun infrastruktur escrow modern agar transaksi digital di Indonesia lebih aman, transparan, dan dapat diandalkan." chips={[{ label: 'PT Kawal Hak Dengan Aman' }, { label: 'Sejak 2023' }, { label: 'Indonesia' } ]} />
 
  {/* SECTION 2: STATS BAR */}
  <section className="border-y bg-background">

@@ -69,7 +69,7 @@ export default function HeroSection() {
           <div className="text-center lg:text-left">
             {/* Badge — angka dari SITE_STATS (Issue #6) */}
             <motion.div variants={staggerItem} className="mb-6 flex justify-center lg:justify-start">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full
+              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full
                 border border-neutral-200 bg-background
                 text-xs font-semibold tracking-wide text-neutral-600
                 hover:border-neutral-400 transition-colors cursor-default"
@@ -109,7 +109,7 @@ export default function HeroSection() {
               className="flex flex-col sm:flex-row gap-3 justify-center lg:justify-start mb-8"
             >
               {/* Opsi 1: Link as anchor styled as button — VALID secara semantik */}
-              <Button asChild variant="primary" className="w-full sm:w-auto" rightIcon={<ArrowRight className="w-5 h-5" weight="bold" />}>
+              <Button asChild variant="primary" className="w-full sm:w-auto h-11 rounded-xl" rightIcon={<ArrowRight className="w-5 h-5" weight="bold" />}>
                 <Link href="https://app.kahade.id/register">
                   Mulai Transaksi
                 </Link>
@@ -118,7 +118,7 @@ export default function HeroSection() {
               {/* Opsi 2: Button murni dengan onClick handler — VALID */}
               <Button
                 type="button"
-                 variant="secondary" className="w-full sm:w-auto flex items-center justify-center gap-2"
+                 variant="secondary" className="w-full sm:w-auto h-11 rounded-xl flex items-center justify-center gap-2"
                 onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
               >
                 <Play className="w-4 h-4" weight="fill" />
@@ -134,8 +134,8 @@ export default function HeroSection() {
               {primaryTrustBadges.map(({ label, sublabel, icon: BadgeIcon }) => (
                 <div
                   key={label}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg
-                    border border-border bg-background text-xs font-medium text-muted-foreground"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-full
+                    border border-border bg-muted text-xs font-medium text-muted-foreground"
                   title={sublabel}
                 >
                   <BadgeIcon className="w-4 h-4 text-muted-foreground/80" weight="duotone" />

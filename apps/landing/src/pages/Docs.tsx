@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { Button } from '@kahade/ui';
 import { fadeInUp, staggerContainer, staggerItem } from '@kahade/utils';
 
@@ -105,31 +106,7 @@ export default function Docs() {
  <Navbar />
 
  {/* Hero */}
- <section className="section-padding-lg relative overflow-hidden">
- <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--muted)_1px,transparent_1px),linear-gradient(to_bottom,var(--muted)_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-60" aria-hidden="true" />
- <div className="container relative z-10">
- <motion.div {...fadeInUp} className="text-center max-w-3xl mx-auto">
- <span className="badge badge-secondary mb-4 inline-block">Dokumentasi</span>
- <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
- Pusat Dokumentasi Kahade
- </h1>
- <p className="text-lg text-muted-foreground mb-8 leading-relaxed">
- Temukan panduan, referensi API, dan artikel bantuan untuk menggunakan
- platform escrow P2P Kahade secara optimal.
- </p>
- <div className="flex flex-wrap gap-3 justify-center">
- {quickLinks.map((link) => (
- <Link key={link.label} href={link.href}>
- <span className="badge badge-secondary inline-flex items-center gap-2 cursor-pointer hover:bg-foreground hover:text-background transition-colors px-4 py-2">
- <link.icon className="w-4 h-4" weight="duotone" aria-hidden="true" />
- {link.label}
- </span>
- </Link>
- ))}
- </div>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Dokumentasi" title="Pusat Dokumentasi Kahade" description="Pelajari panduan produk, referensi teknis, dan materi implementasi untuk tim Anda." chips={[{ label: 'Panduan' }, { label: 'Referensi' }, { label: 'Implementasi' } ]} />
 
  {/* Doc Categories */}
  <section className="section-padding">

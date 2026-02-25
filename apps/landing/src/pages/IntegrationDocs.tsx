@@ -14,6 +14,7 @@ import {
 } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { Button } from '@kahade/ui';
 import { fadeInUp, staggerContainer, staggerItem } from '@kahade/utils';
 
@@ -92,27 +93,7 @@ export default function IntegrationDocs() {
  <Navbar />
 
  {/* Hero */}
- <section className="section-padding-lg relative overflow-hidden">
- <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--muted)_1px,transparent_1px),linear-gradient(to_bottom,var(--muted)_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-60" aria-hidden="true" />
- <div className="container relative z-10">
- <motion.div {...fadeInUp} className="text-center max-w-3xl mx-auto">
- <span className="badge badge-secondary mb-4 inline-block">Panduan Integrasi</span>
- <h1 className="text-4xl md:text-5xl font-bold mb-6 leading-tight">
- Integrasikan Kahade ke Platform Anda
- </h1>
- <p className="text-lg text-muted-foreground mb-8">
- Panduan langkah demi langkah untuk mengintegrasikan escrow P2P Kahade.
- Dari sandbox hingga produksi dalam waktu singkat.
- </p>
- <Link href="/docs/api" className="block">
- <Button  variant="primary"  size="lg" >
- Lihat Referensi API
- <ArrowRight className="ml-2 w-5 h-5" weight="bold" aria-hidden="true" />
- </Button>
- </Link>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Panduan Integrasi" title="Integrasikan Kahade ke Produk Anda" description="Dokumentasi langkah demi langkah untuk menghubungkan sistem Anda dengan layanan Kahade." chips={[{ label: 'API Ready' }, { label: 'Webhook' }, { label: 'Sandbox' } ]} />
 
  {/* Quick Stats */}
  <section className="py-8 border-b border-border">

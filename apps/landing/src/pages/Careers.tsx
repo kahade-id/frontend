@@ -7,6 +7,7 @@ import {
 import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { staggerContainer, staggerItem, fadeInUp, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -46,42 +47,7 @@ export default function Careers() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-24 overflow-hidden">
- <div className="container">
- <div className="grid lg:grid-cols-[1fr_auto] gap-16 items-center">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.span variants={staggerItem} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">
- Bergabung dengan Tim
- </motion.span>
- <motion.h1 variants={staggerItem} className="text-3xl sm:text-4xl md:text-6xl font-bold leading-tight mb-6">
- Bergabung dengan tim<br />yang membangun<br />masa depan transaksi<br />
- <span className="text-white/60">digital Indonesia.</span>
- </motion.h1>
- <motion.div variants={staggerItem} className="flex flex-wrap gap-3 mt-8">
- <Button asChild variant="secondary" className="bg-white text-primary hover:bg-white/90 inline-flex"><a href="#jobs" >
- Lihat Lowongan <ArrowRight size={16} />
- </a></Button>
- <Link href="/about" className="border border-white/20 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-white/10 transition-colors inline-flex">
- Tentang Budaya
- </Link>
- </motion.div>
- </motion.div>
- <motion.div variants={fadeInUp} initial="initial" animate="animate" className="grid grid-cols-2 gap-4 min-w-[240px]">
- {[
- { label: 'Ukuran Tim', value: '25+' },
- { label: 'Remote Friendly', value: 'Ya' },
- { label: 'Tahun Berdiri', value: '2023' },
- { label: 'Stage', value: 'Seed' },
- ].map(item => (
- <div key={item.label} className="bg-white/10 rounded-xl p-4">
- <div className="text-xl font-bold">{item.value}</div>
- <div className="text-xs text-white/60 mt-0.5">{item.label}</div>
- </div>
- ))}
- </motion.div>
- </div>
- </div>
- </section>
+ <PageHero eyebrow="Karier" title="Bangun Masa Depan Transaksi Digital Bersama Kami" description="Kami mencari talenta terbaik untuk membangun platform escrow yang dipercaya jutaan pengguna." chips={[{ label: 'Full Time' }, { label: 'Remote Friendly' }, { label: 'Growth Team' } ]} />
 
  {/* BENEFITS BENTO */}
  <section className="section-padding-lg">

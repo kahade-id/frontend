@@ -3,6 +3,7 @@ import { CheckCircle, X, ArrowRight, Star } from '@phosphor-icons/react';
 import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { fadeInUp, staggerContainer, staggerItem, viewport } from '@kahade/utils';
 import { Button } from '@kahade/ui';
 
@@ -40,17 +41,7 @@ export default function Compare() {
  <Navbar />
 
  {/* HERO */}
- <section className="bg-primary text-primary-foreground pt-24 pb-20 text-center overflow-hidden">
- <div className="container max-w-3xl mx-auto">
- <motion.div variants={staggerContainer} initial="initial" animate="animate">
- <motion.span variants={staggerItem} className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/20 text-sm font-medium mb-8">
- Perbandingan
- </motion.span>
- <motion.h1 variants={staggerItem} className="text-4xl md:text-6xl font-bold mb-6">Mengapa Kahade Lebih Unggul</motion.h1>
- <motion.p variants={staggerItem} className="text-primary-foreground/70 text-lg">Perbandingan jujur dengan alternatif yang ada di pasaran.</motion.p>
- </motion.div>
- </div>
- </section>
+ <PageHero eyebrow="Perbandingan" title="Mengapa Kahade Lebih Unggul" description="Perbandingan yang jujur terhadap metode pembayaran dan transaksi online lainnya." chips={[{ label: 'Escrow Protection' }, { label: 'Biaya Transparan' }, { label: 'Penyelesaian Sengketa' } ]} />
 
  {/* COMPARISON TABLE */}
  <section className="section-padding-lg">

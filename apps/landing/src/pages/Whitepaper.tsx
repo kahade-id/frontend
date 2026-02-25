@@ -12,6 +12,7 @@ import { Link } from 'wouter';
 import { FileText, Download, BookOpen, ChartLine, Shield, Users, Globe, ArrowRight, CheckCircle, Clock } from '@phosphor-icons/react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
+import { PageHero } from '../components/common/PageHero';
 import { Button } from '@kahade/ui';
 
 const tableOfContents = [
@@ -49,80 +50,7 @@ export default function Whitepaper() {
  <Navbar />
  
  {/* Hero Section */}
- <section className="pt-28 md:pt-32 lg:pt-40 pb-12 md:pb-16 lg:pb-20 relative overflow-hidden">
- <div className="absolute inset-0 bg-[linear-gradient(to_right,var(--muted)_1px,transparent_1px),linear-gradient(to_bottom,var(--muted)_1px,transparent_1px)] bg-[size:4rem_4rem] opacity-50" aria-hidden="true" />
- <div className="container relative z-10">
- <div className="grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
- <motion.div
- initial={{ opacity: 0, y: 20 }}
- animate={{ opacity: 1, y: 0 }}
- >
- <span className="inline-block px-4 py-1.5 bg-primary text-primary-foreground rounded-full text-sm font-semibold mb-4">
- Official Document
- </span>
- <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 md:mb-6 text-foreground">
- Kahade Whitepaper
- </h1>
- <p className="text-base md:text-lg text-muted-foreground mb-4 md:mb-6">
- A comprehensive overview of our vision, technology, and strategy for building 
- the most trusted P2P escrow platform in the world.
- </p>
- 
- <div className="flex items-center gap-4 text-xs md:text-sm text-muted-foreground mb-6 md:mb-8">
- <span className="flex items-center gap-1">
- <BookOpen className="w-4 h-4" aria-hidden="true" weight="regular" />
- 42 Pages
- </span>
- <span className="flex items-center gap-1">
- <Clock className="w-4 h-4" aria-hidden="true" weight="regular" />
- Updated Jan 2026
- </span>
- </div>
- 
- <div className="flex flex-col sm:flex-row gap-4 md:gap-4">
- <a href="/files/kahade-whitepaper.pdf" className="h-11 md:h-12 px-5 md:px-6 bg-black text-white hover:bg-black/90 font-semibold rounded-xl gap-2 inline-flex items-center justify-center">
- <Download className="w-5 h-5" aria-hidden="true" weight="bold" />
- Download PDF
- </a>
- <a href="#whitepaper-preview" className="h-11 md:h-12 px-5 md:px-6 border border-border font-semibold rounded-xl gap-2 inline-flex items-center justify-center">
- <BookOpen className="w-5 h-5" aria-hidden="true" weight="regular" />
- Read Online
- </a>
- </div>
- </motion.div>
- 
- {/* Document Preview */}
- <motion.div
- initial={{ opacity: 0, scale: 0.95 }}
- animate={{ opacity: 1, scale: 1 }}
- transition={{ delay: 0.2 }}
- className="relative hidden md:block"
- >
- <div id="whitepaper-preview" className="relative bg-card rounded-xl md:rounded-2xl border border-border p-6 md:p-8 transform rotate-2 hover:rotate-0 transition-transform">
- <div className="absolute top-4 right-4 w-10 h-10 md:w-12 md:h-12 rounded-xl bg-black flex items-center justify-center" aria-hidden="true">
- <FileText className="w-5 h-5 md:w-6 md:h-6 text-white" aria-hidden="true" weight="bold" />
- </div>
- <div className="space-y-3 md:space-y-4">
- <div className="h-3 md:h-4 bg-muted rounded w-3/4" />
- <div className="h-2.5 md:h-3 bg-muted rounded w-full" />
- <div className="h-2.5 md:h-3 bg-muted rounded w-5/6" />
- <div className="h-2.5 md:h-3 bg-muted rounded w-4/5" />
- <div className="h-6 md:h-8" />
- <div className="h-2.5 md:h-3 bg-muted rounded w-full" />
- <div className="h-2.5 md:h-3 bg-muted rounded w-3/4" />
- <div className="h-2.5 md:h-3 bg-muted rounded w-5/6" />
- <div className="h-6 md:h-8" />
- <div className="h-16 md:h-20 bg-muted rounded-xl" />
- </div>
- </div>
- <div className="absolute -bottom-3 md:-bottom-4 -left-3 md:-left-4 bg-black rounded-xl p-4 md:p-6 " aria-hidden="true">
- <div className="text-2xl md:text-3xl font-bold text-white">v2.0</div>
- <div className="text-xs md:text-sm text-white/70">Latest Version</div>
- </div>
- </motion.div>
- </div>
- </div>
- </section>
+ <PageHero eyebrow="Whitepaper" title="Kahade Whitepaper" description="Gambaran strategi, arsitektur teknologi, dan visi jangka panjang Kahade membangun trust infrastructure." chips={[{ label: 'v2.0' }, { label: '42 Pages' }, { label: 'Updated Jan 2026' } ]} />
  
  {/* Key Highlights */}
  <section className="py-12 md:py-16 lg:py-20 bg-muted">
