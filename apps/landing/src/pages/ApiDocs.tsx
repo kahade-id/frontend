@@ -70,7 +70,7 @@ function CodeBlock({ code, lang = 'javascript' }: { code: string; lang?: string 
     <div className="relative bg-neutral-950 rounded-xl overflow-hidden border border-neutral-800">
       <div className="flex items-center justify-between px-4 py-2.5 border-b border-neutral-800">
         <span className="text-xs text-neutral-400 font-medium">{lang}</span>
-        <Button variant="ghost" size="sm" onClick={copy} className="h-8 px-2 text-xs text-neutral-300 hover:text-white hover:bg-neutral-800">
+        <Button variant="ghost" size="toolbar" onClick={copy} className="text-neutral-300 hover:text-white hover:bg-neutral-800">
           {copied ? <Check size={14} className="text-green-400" /> : <CopySimple size={14} />}
           {copied ? 'Disalin!' : 'Salin'}
         </Button>
@@ -100,9 +100,9 @@ export default function ApiDocs() {
                       key={item}
                       type="button"
                       variant={activeSection === item ? 'secondary' : 'ghost'}
-                      size="sm"
+                      size="navItem"
                       onClick={() => setActiveSection(item)}
-                      className={`w-full justify-start text-left h-8 ${activeSection === item ? 'font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+                      className={`w-full ${activeSection === item ? 'font-semibold text-foreground' : 'text-muted-foreground hover:text-foreground'}`}
                     >
                       {activeSection === item ? <CaretRight size={12} /> : null}
                       {item}
