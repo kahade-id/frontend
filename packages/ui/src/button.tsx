@@ -11,6 +11,8 @@ const buttonVariants = cva(
     "h-[var(--button-height-md,2.75rem)] px-[var(--button-padding-x-md,1.125rem)]",
     "transition-colors duration-200 select-none cursor-pointer",
     "disabled:opacity-50 disabled:cursor-not-allowed",
+    "[&[aria-disabled='true']]:opacity-50 [&[aria-disabled='true']]:cursor-not-allowed [&[aria-disabled='true']]:pointer-events-none",
+    "[&[data-disabled]]:opacity-50 [&[data-disabled]]:cursor-not-allowed [&[data-disabled]]:pointer-events-none",
     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
     "[&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 [&_svg]:shrink-0",
   ].join(" "),
@@ -61,9 +63,11 @@ function Button({
   rightIcon,
   children,
   fullWidth,
+  onClick,
   ...props
 }: ButtonProps) {
   const Comp = asChild ? Slot : "button";
+  const isDisabled = Boolean(disabled || loading);
   const adornment = loading ? (
     <span className="size-4 animate-spin rounded-full border-2 border-current/30 border-t-current" aria-hidden="true" />
   ) : (
@@ -92,8 +96,19 @@ function Button({
         data-slot="button"
         className={cn(buttonVariants({ variant, size, fullWidth, className }))}
         aria-busy={loading || undefined}
-        disabled={disabled || loading}
         {...props}
+        aria-disabled={isDisabled || undefined}
+        data-disabled={isDisabled ? "" : undefined}
+        tabIndex={isDisabled ? -1 : props.tabIndex}
+        onClick={(event) => {
+          if (isDisabled) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+
+          onClick?.(event as React.MouseEvent<HTMLButtonElement>);
+        }}
       >
         {mergedChild}
       </Comp>
@@ -105,8 +120,9 @@ function Button({
       data-slot="button"
       className={cn(buttonVariants({ variant, size, fullWidth, className }))}
       aria-busy={loading || undefined}
-      disabled={disabled || loading}
       {...props}
+      disabled={isDisabled}
+      onClick={onClick}
     >
       {adornment}
       {children}
