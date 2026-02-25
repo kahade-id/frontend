@@ -265,11 +265,11 @@ export default function Pricing() {
  <div className="container text-center max-w-2xl mx-auto">
  <h2 className="text-3xl font-bold mb-4">Butuh solusi enterprise?</h2>
  <p className="text-primary-foreground/70 mb-8">Volume besar, kebutuhan kustom, SLA ketat? Kami punya solusinya. Hubungi tim sales kami sekarang.</p>
+ <Button asChild className="bg-white text-primary font-semibold px-8 py-3.5 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
  <Link href="/contact">
- <Button className="bg-white text-primary font-semibold px-8 py-3.5 rounded-xl hover:bg-white/90 transition-colors inline-flex items-center gap-2">
  Hubungi Sales <ArrowRight size={18} />
- </Button>
  </Link>
+ </Button>
  </div>
  </section>
 

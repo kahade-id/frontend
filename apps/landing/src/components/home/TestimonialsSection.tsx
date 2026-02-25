@@ -69,7 +69,7 @@ function TestimonialMarquee({ items }: { items: typeof testimonials }) {
         ))}
       </motion.div>
 
-      <p className="text-center text-[0.6875rem] text-muted-foreground/50 mt-3">
+      <p className="text-center text-xs text-muted-foreground/50 mt-3">
         Scroll diperlambat agar lebih mudah dibaca
       </p>
     </div>

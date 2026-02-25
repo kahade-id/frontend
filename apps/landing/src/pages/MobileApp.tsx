@@ -70,7 +70,7 @@ export default function MobileApp() {
  <motion.div variants={fadeInUp} initial="initial" whileInView="animate" viewport={viewport} className="text-center mb-10">
  <h2 className="text-3xl font-bold">Tampilan Aplikasi</h2>
  </motion.div>
- <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 justify-center">
+ <div className="flex gap-4 overflow-x-auto scrollbar-thin pb-4 justify-center">
  {screens.map((s) => (
  <div key={s.label} className="shrink-0 w-44">
  <div className={`bg-gradient-to-b ${s.bg} rounded-3xl border border-border h-80 flex items-end p-4`}>

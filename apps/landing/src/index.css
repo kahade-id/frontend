@@ -155,6 +155,8 @@
 :root {
   /* Base Radius */
   --radius: 0.75rem;
+  --landing-nav-height: 4.25rem;
+  --landing-sticky-offset: calc(var(--landing-nav-height) + 0.5rem);
   
   /* Exclusive Light Theme - High Contrast */
   --background: #FFFFFF;
@@ -265,16 +267,7 @@
   padding: 0;
 }
   
-  /* Scrollbar — hidden globally for clean UI */
-  * {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  *::-webkit-scrollbar {
-    display: none;
-  }
-  
-  /* Hide scrollbar for clean UI when needed */
+  /* Hide scrollbar only when explicitly requested */
   .no-scrollbar {
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -302,7 +295,7 @@
     background: var(--background);
     line-height: 1.6;
     font-feature-settings: "kern" 1, "liga" 1;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   
   /* AUDIT FIX #1 & #2: Typography Scale - Removed text-wrap: pretty global, adjusted clamp() for mobile */
@@ -960,6 +953,25 @@
     background-image: linear-gradient(to right, rgb(0 0 0 / 0.05) 1px, transparent 1px),
                       linear-gradient(to bottom, rgb(0 0 0 / 0.05) 1px, transparent 1px);
     background-size: 4rem 4rem;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+    border-radius: 9999px;
   }
 }
 

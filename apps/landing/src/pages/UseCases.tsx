@@ -4,7 +4,6 @@ import {
  ShoppingCart, Laptop, House, Car,
  CheckCircle, ArrowRight, TrendUp, Clock, ShieldCheck
 } from '@phosphor-icons/react';
-import { Link } from 'wouter';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { PageHero } from '../components/common/PageHero';
@@ -133,11 +132,11 @@ export default function UseCases() {
  </div>
  ))}
  </div>
+ <Button asChild variant="primary" className="mt-6">
  <a href="https://app.kahade.id/register">
- <Button  variant="primary" className="mt-6">
  Mulai Sekarang <ArrowRight size={16} />
- </Button>
  </a>
+ </Button>
  </div>
  </motion.div>
  )}

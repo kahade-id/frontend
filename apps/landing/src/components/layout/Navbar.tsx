@@ -166,6 +166,7 @@ export default function Navbar() {
       <nav
         ref={navRef}
         className={navClasses}
+        style={{ minHeight: 'var(--landing-nav-height)' }}
         role="navigation"
         aria-label="Navigasi utama"
       >
@@ -247,20 +248,15 @@ export default function Navbar() {
             ) : (
               <>
                 {/* Link as styled anchor — VALID */}
-                <Link
-                  href="https://app.kahade.id/login"
-                  className="inline-flex items-center px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors rounded-lg hover:bg-muted"
-                  aria-label="Masuk ke akun Anda"
-                >
-                  Masuk
-                </Link>
+                <Button asChild variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                  <a href="https://app.kahade.id/login" aria-label="Masuk ke akun Anda">
+                    Masuk
+                  </a>
+                </Button>
                 <Button asChild variant="primary" size="sm">
-                  <Link
-                    href="https://app.kahade.id/register"
-                    aria-label="Buat akun baru"
-                  >
+                  <a href="https://app.kahade.id/register" aria-label="Buat akun baru">
                     Mulai
-                  </Link>
+                  </a>
                 </Button>
               </>
             )}
@@ -626,20 +622,15 @@ function MobileMenu({
         ) : (
           <>
             <Button asChild variant="primary" fullWidth>
-              <Link
-                href="https://app.kahade.id/register"
-                onClick={onClose}
-              >
+              <a href="https://app.kahade.id/register" onClick={onClose}>
                 Mulai
-              </Link>
+              </a>
             </Button>
-            <Link
-              href="https://app.kahade.id/login"
-              onClick={onClose}
-              className="w-full flex items-center justify-center px-4 py-2.5 rounded-lg border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors"
-            >
-              Masuk
-            </Link>
+            <Button asChild variant="secondary" fullWidth>
+              <a href="https://app.kahade.id/login" onClick={onClose}>
+                Masuk
+              </a>
+            </Button>
           </>
         )}
       </div>

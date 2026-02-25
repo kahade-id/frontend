@@ -158,12 +158,12 @@ export default function Docs() {
  Integrasikan Kahade langsung ke aplikasi atau platform Anda menggunakan
  REST API kami yang terdokumentasi lengkap.
  </p>
- <Link href="/docs/api" className="block">
- <Button  variant="primary" >
+ <Button asChild variant="primary">
+ <Link href="/docs/api">
  Lihat Dokumentasi API
  <ArrowRight className="ml-2 w-4 h-4" weight="bold" aria-hidden="true" />
- </Button>
  </Link>
+ </Button>
  </motion.div>
  <motion.div {...fadeInUp} className="card card-premium p-6">
  <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center mb-4">
@@ -174,12 +174,12 @@ export default function Docs() {
  Panduan langkah demi langkah untuk mengintegrasikan sistem escrow
  Kahade ke platform Anda dengan cepat dan aman.
  </p>
- <Link href="/docs/integration" className="block">
- <Button variant="outline"  size="lg" >
+ <Button asChild variant="outline" size="lg">
+ <Link href="/docs/integration">
  Panduan Integrasi
  <ArrowRight className="ml-2 w-4 h-4" weight="bold" aria-hidden="true" />
- </Button>
  </Link>
+ </Button>
  </motion.div>
  </div>
  </div>
@@ -195,16 +195,12 @@ export default function Docs() {
  email, atau telepon.
  </p>
  <div className="flex flex-col sm:flex-row gap-4 justify-center">
- <Link href="/help" className="block">
- <Button  variant="primary" >
- Buka Pusat Bantuan
+ <Button asChild variant="primary">
+ <Link href="/help">Buka Pusat Bantuan</Link>
  </Button>
- </Link>
- <Link href="/contact" className="block">
- <Button variant="outline">
- Hubungi Tim Kami
+ <Button asChild variant="outline">
+ <Link href="/contact">Hubungi Tim Kami</Link>
  </Button>
- </Link>
  </div>
  </motion.div>
  </div>

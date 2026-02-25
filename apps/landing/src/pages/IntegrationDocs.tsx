@@ -241,17 +241,15 @@ export default function IntegrationDocs() {
  <section className="section-padding bg-muted/30">
  <div className="container">
  <div className="max-w-3xl mx-auto flex flex-col sm:flex-row gap-4 justify-center">
- <Link href="/docs/api" className="block">
- <Button  variant="primary" className="w-full sm:w-auto">
+ <Button asChild variant="primary" className="w-full sm:w-auto">
+ <Link href="/docs/api">
  <Code className="mr-2 w-4 h-4" weight="duotone" aria-hidden="true" />
  Referensi API Lengkap
- </Button>
  </Link>
- <Link href="/docs" className="block">
- <Button variant="outline" className="w-full sm:w-auto">
- Kembali ke Dokumentasi
  </Button>
- </Link>
+ <Button asChild variant="outline" className="w-full sm:w-auto">
+ <Link href="/docs">Kembali ke Dokumentasi</Link>
+ </Button>
  </div>
  </div>
  </section>

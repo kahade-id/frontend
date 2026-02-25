@@ -90,7 +90,7 @@ function StatCard({
           const SignalIcon = Icon;
           return <SignalIcon className="w-5 h-5 text-success" weight="fill" />;
         })()}
-        <span className="text-[0.6875rem] font-semibold tracking-widest uppercase text-muted-foreground">
+        <span className="text-xs font-semibold tracking-widest uppercase text-muted-foreground">
           {label}
         </span>
       </div>
