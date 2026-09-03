@@ -7,11 +7,70 @@
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSFaceIDUsageDescription": "Kahade memakai Face ID untuk membuka aplikasi dan mengonfirmasi transaksi tanpa mengetik PIN.",
+        "NSCameraUsageDescription": "Kahade memakai kamera untuk memotret dokumen verifikasi identitas (KTP, selfie), bukti pengiriman, memindai kode QR, dan panggilan video saat sengketa.",
+        "NSMicrophoneUsageDescription": "Kahade memakai mikrofon untuk panggilan video saat penyelesaian sengketa.",
+        "NSPhotoLibraryUsageDescription": "Kahade mengakses galeri untuk memilih foto dokumen verifikasi dan bukti pengiriman.",
+        "UIBackgroundModes": ["remote-notification"]
+      }
+    },
+    "android": {
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.VIBRATE",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.ACCESS_NETWORK_STATE",
+        "android.permission.WAKE_LOCK"
+      ]
+    },
     "web": {
       "bundler": "metro",
       "output": "static"
     },
-    "plugins": ["expo-router", "expo-font", "expo-splash-screen"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-splash-screen",
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Kahade memakai Face ID untuk membuka aplikasi dan mengonfirmasi transaksi tanpa mengetik PIN."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kahade memakai kamera untuk memotret dokumen verifikasi identitas (KTP, selfie), bukti pengiriman, dan memindai kode QR.",
+          "microphonePermission": "Kahade memakai mikrofon untuk panggilan video saat penyelesaian sengketa.",
+          "recordAudioAndroid": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#000000",
+          "defaultChannel": "default",
+          "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      [
+        "@config-plugins/react-native-webrtc",
+        {
+          "cameraPermission": "Kahade memakai kamera untuk panggilan video saat penyelesaian sengketa.",
+          "microphonePermission": "Kahade memakai mikrofon untuk panggilan video saat penyelesaian sengketa."
+        }
+      ]
+    ],
     "experiments": {
       "typedRoutes": true
     }

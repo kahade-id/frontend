@@ -18,6 +18,13 @@
  *   - RN `Animated` (bukan reanimated) mengikuti keputusan animated-splash.tsx
  *     agar tidak menambah dependensi untuk animasi sesederhana ini. Bottom
  *     sheet/pull-to-refresh yang butuh spring gesture tetap pakai reanimated.
+ *
+ * Haptic (`haptic` prop, default OFF — §8 "tidak dipakai di interaksi ringan"):
+ *   - `haptic={true}` = "light" saat pressIn; atau kirim `HapticKind` spesifik.
+ *   - Dipicu di pressIn (bukan onPress) supaya getaran sinkron dengan scale
+ *     down — feedback fisik dan visual satu momen, seperti tombol asli.
+ *   - Opsional & opt-in agar Button/IconButton/ListItem biasa tetap sunyi;
+ *     hanya aksi penting (konfirmasi PIN, kirim dana) yang menyalakannya.
  */
 import { forwardRef, useCallback, useRef } from "react"
 import {
@@ -31,6 +38,7 @@ import {
 } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { haptic as fireHaptic, type HapticKind } from "@/lib/haptics"
 import { tokens } from "@/lib/tokens"
 
 export type PressableScaleProps = Omit<PressableProps, "style" | "children"> & {
@@ -40,6 +48,8 @@ export type PressableScaleProps = Omit<PressableProps, "style" | "children"> & {
   containerClassName?: string
   /** Matikan animasi scale (mis. untuk list item panjang) */
   scaleOnPress?: boolean
+  /** Getaran saat ditekan. `true` = "light". Default OFF (§8). */
+  haptic?: boolean | HapticKind
   children?: React.ReactNode
 }
 
@@ -48,6 +58,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     className,
     containerClassName,
     scaleOnPress = true,
+    haptic = false,
     disabled,
     onPressIn,
     onPressOut,
@@ -74,9 +85,10 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   const handlePressIn = useCallback(
     (e: GestureResponderEvent) => {
       if (scaleOnPress) animateTo(tokens.motion.scale.press)
+      if (haptic) fireHaptic(haptic === true ? "light" : haptic)
       onPressIn?.(e)
     },
-    [animateTo, onPressIn, scaleOnPress],
+    [animateTo, haptic, onPressIn, scaleOnPress],
   )
 
   const handlePressOut = useCallback(
