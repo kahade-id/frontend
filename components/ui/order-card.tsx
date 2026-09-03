@@ -68,7 +68,10 @@ const DEFAULT_LABELS: OrderCardLabels = {
   deadline: "Batas waktu",
 }
 
-export type OrderCardProps = Omit<CardProps, "children" | "variant" | "padded"> & {
+// `role` di-Omit dari CardProps: ViewProps RN 0.81 punya `role?: Role`
+// (aksesibilitas) yang literal-nya disjoint dengan OrderRole — kalau tidak
+// di-Omit, TS mereduksi seluruh intersection menjadi `never`.
+export type OrderCardProps = Omit<CardProps, "children" | "variant" | "padded" | "role"> & {
   /** Nomor order yang ditampilkan, mis. "KHD-2026-0903-0142" */
   orderId: string
   title: string
