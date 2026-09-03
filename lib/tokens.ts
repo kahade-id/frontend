@@ -89,6 +89,13 @@ export const light = {
   textDisabled: "#ADB5BD",
   primary: "#000000",
   primaryForeground: "#FFFFFF",
+  /**
+   * Scrim di belakang overlay (BottomSheet, Modal, ActionSheet). Selalu hitam
+   * (bukan invert seperti `primary`) karena tugasnya meredupkan konten, dan
+   * di dark mode alpha dinaikkan supaya sheet tetap terpisah dari background
+   * yang sudah gelap. Pakai lewat class `bg-overlay`.
+   */
+  overlay: "rgba(0, 0, 0, 0.4)",
 } as const
 
 export const dark = {
@@ -104,6 +111,7 @@ export const dark = {
   textDisabled: "#5C5C5C",
   primary: "#FFFFFF", // invert di dark mode
   primaryForeground: "#000000",
+  overlay: "rgba(0, 0, 0, 0.6)",
 } as const
 
 export type ModeTokens = { readonly [K in keyof typeof light]: string }
@@ -407,6 +415,22 @@ export const motion = {
   opacity: {
     disabled: 0.4, // Button disabled — opacity, bukan token solid
   },
+  /**
+   * Overlay non-sheet (Modal/Dialog, Tooltip, Popover). §8 hanya mendefinisikan
+   * spring untuk Bottom Sheet; overlay yang muncul "di tempat" (bukan dari tepi
+   * layar) memakai fade + geser kecil + scale, meminjam bahasa Button press
+   * (scale 0.97) supaya satu kosakata gerak. Durasi masuk `fast` (250ms) dan
+   * keluar lebih singkat: keluar harus terasa segera setelah user memutuskan.
+   */
+  overlay: {
+    enterDuration: 250,
+    exitDuration: 200,
+    translateY: 8, // = space[2]
+    scaleFrom: 0.97, // = scale.press
+    /** Tooltip: geser lebih kecil karena elemennya kecil dan dekat trigger */
+    tooltipTranslateY: 4,
+    tooltipMaxWidth: 260,
+  },
   /** Spinner inline/pagination: monokrom text-tertiary, 16–20px */
   inlineSpinnerSize: { min: icon.size.xs, max: icon.size.sm },
 } as const
@@ -480,6 +504,7 @@ export function toTailwindTheme() {
         DEFAULT: "var(--color-primary)",
         foreground: "var(--color-primary-foreground)",
       },
+      overlay: "var(--color-overlay)",
       success: {
         DEFAULT: "var(--color-success-fill)",
         text: "var(--color-success-text)",
@@ -595,6 +620,7 @@ export function toCssVariables(mode: ColorMode): Record<string, string> {
     "--color-text-disabled": m.textDisabled,
     "--color-primary": m.primary,
     "--color-primary-foreground": m.primaryForeground,
+    "--color-overlay": m.overlay,
     "--color-success-fill": semantic.success[mode].fill,
     "--color-success-text": semantic.success[mode].text,
     "--color-success-soft": semantic.success[mode].bgSoft,
