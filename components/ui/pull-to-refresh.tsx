@@ -12,15 +12,16 @@
  * + logo Kahade, jadi gesture ditangani sendiri.
  *
  * Mekanika (reanimated + gesture-handler):
- *   - `Gesture.Pan()` dipasang di pembungkus dan dideklarasikan
- *     `simultaneousWithExternalGesture(scrollRef)` terhadap <ScrollView>
- *     dari react-native-gesture-handler. Artinya pan TIDAK merebut sentuhan:
- *     scroll native selalu menerima gesture yang sama. Pan hanya
+ *   - `Gesture.Pan()` dikomposisikan `Gesture.Simultaneous(pan, Gesture.Native())`
+ *     dan dipasang lewat satu <GestureDetector> yang membungkus <ScrollView>
+ *     dari react-native-gesture-handler. `Gesture.Native()` mewakili scroll
+ *     native di dalam sistem RNGH, dan `Simultaneous` berarti pan TIDAK
+ *     merebut sentuhan: scroll selalu menerima gesture yang sama. Pan hanya
  *     "melakukan sesuatu" bila offset scroll <= 0 (dibaca dari shared value
  *     yang diisi `useAnimatedScrollHandler`, jadi keputusan ini murni UI
  *     thread). Di luar kondisi itu pan diam dan scroll berjalan normal —
  *     ini yang membedakan dari PanResponder capture lama, yang harus
- *     menebak lebih dulu siapa pemilik gesture.
+ *     menebak lebih dulu siapa pemilik gesture sebelum scroll mulai.
  *   - Anchor: saat offset pertama kali menyentuh 0 di tengah gesture (user
  *     scroll ke atas lalu terus menarik), `translationY` saat itu disimpan
  *     sebagai `anchor`; jarak tarik = translationY - anchor. Tanpa ini,
@@ -240,28 +241,30 @@ export function PullToRefresh({
     ],
   }))
 
-  return (
-      <View className={cn("flex-1 overflow-hidden", className)} {...rest}>
-        {/* Area logo di belakang konten — tinggi = ambang */}
-        <View
-          pointerEvents="none"
-          accessibilityLiveRegion="polite"
-          accessibilityLabel={refreshing ? "Memuat ulang" : undefined}
-          className="absolute inset-x-0 top-0 items-center justify-center"
-          style={{ height: threshold }}
-        >
-          {refreshing ? (
-            <PulsingLogo size="md" />
-          ) : (
-            <Animated.View style={logoStyle}>
-              <Logo variant="mark" size="md" />
-            </Animated.View>
-          )}
-        </View>
+  const composed = useMemo(() => Gesture.Simultaneous(pan, nativeScroll), [pan, nativeScroll])
 
-        <Animated.View style={[{ flex: 1 }, contentStyle]}>
-          {/* Pan (luar) + Native (scroll) berjalan bersamaan: scroll tidak pernah diblokir */}
-          <GestureDetector gesture={Gesture.Simultaneous(pan, nativeScroll)}>
+  return (
+    <View className={cn("flex-1 overflow-hidden", className)} {...rest}>
+      {/* Area logo di belakang konten — tinggi = ambang */}
+      <View
+        pointerEvents="none"
+        accessibilityLiveRegion="polite"
+        accessibilityLabel={refreshing ? "Memuat ulang" : undefined}
+        className="absolute inset-x-0 top-0 items-center justify-center"
+        style={{ height: threshold }}
+      >
+        {refreshing ? (
+          <PulsingLogo size="md" />
+        ) : (
+          <Animated.View style={logoStyle}>
+            <Logo variant="mark" size="md" />
+          </Animated.View>
+        )}
+      </View>
+
+      <Animated.View style={[{ flex: 1 }, contentStyle]}>
+        {/* Pan (luar) + Native (scroll) berjalan bersamaan: scroll tidak pernah diblokir */}
+        <GestureDetector gesture={composed}>
           <AnimatedScrollView
             className="flex-1 bg-background"
             contentContainerClassName={cn("grow", contentContainerClassName)}
@@ -279,8 +282,8 @@ export function PullToRefresh({
           >
             {children}
           </AnimatedScrollView>
-          </GestureDetector>
-        </Animated.View>
-      </View>
+        </GestureDetector>
+      </Animated.View>
+    </View>
   )
 }
