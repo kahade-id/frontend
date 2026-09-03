@@ -39,17 +39,25 @@ export type CheckboxProps = Omit<PressableScaleProps, "children" | "onPress"> & 
   className?: string
 }
 
-export function Checkbox({
+export type CheckboxIndicatorProps = {
+  checked: boolean
+  indeterminate?: boolean
+  error?: boolean
+  className?: string
+}
+
+/**
+ * <CheckboxIndicator> — HANYA kotak visual (border + fill animasi + ikon),
+ * tanpa Pressable. Dipakai <Checkbox> dan <CheckboxGroupItem variant="card">
+ * yang punya hit area sendiri (Pressable di dalam Pressable = bug sentuh di
+ * Android/web), jadi kotaknya harus bisa dirender polos.
+ */
+export function CheckboxIndicator({
   checked,
-  onChange,
   indeterminate = false,
-  label,
-  description,
   error = false,
-  disabled = false,
   className,
-  ...rest
-}: CheckboxProps) {
+}: CheckboxIndicatorProps) {
   const on = checked || indeterminate
   const fill = useRef(new Animated.Value(on ? 1 : 0)).current
 
@@ -63,6 +71,39 @@ export function Checkbox({
   }, [fill, on])
 
   return (
+    <View
+      className={cn(
+        "relative h-5 w-5 items-center justify-center overflow-hidden rounded-xs bg-background",
+        error
+          ? "border-error border-border-error"
+          : on
+            ? "border-focus border-border-focus"
+            : "border border-border",
+        className,
+      )}
+    >
+      <Animated.View style={{ opacity: fill, position: "absolute", inset: 0 }}>
+        <View className="h-full w-full bg-primary" />
+      </Animated.View>
+      {on ? (
+        <Icon icon={indeterminate ? Minus : Check} size="xs" weight="bold" tone="inverse" />
+      ) : null}
+    </View>
+  )
+}
+
+export function Checkbox({
+  checked,
+  onChange,
+  indeterminate = false,
+  label,
+  description,
+  error = false,
+  disabled = false,
+  className,
+  ...rest
+}: CheckboxProps) {
+  return (
     <PressableScale
       accessibilityRole="checkbox"
       accessibilityState={{ checked: indeterminate ? "mixed" : checked, disabled }}
@@ -73,26 +114,13 @@ export function Checkbox({
       className={cn("min-h-[44px] flex-row items-start gap-3 py-3", className)}
       {...rest}
     >
-      {/* Kotak: border + layer fill animasi + ikon */}
-      <View
-        className={cn(
-          "relative h-5 w-5 items-center justify-center overflow-hidden rounded-xs bg-background",
-          error
-            ? "border-error border-border-error"
-            : on
-              ? "border-focus border-border-focus"
-              : "border border-border",
-          // Naikkan sedikit agar sejajar dengan baseline label body (22px line)
-          label != null && "mt-[1px]",
-        )}
-      >
-        <Animated.View style={{ opacity: fill, position: "absolute", inset: 0 }}>
-          <View className="h-full w-full bg-primary" />
-        </Animated.View>
-        {on ? (
-          <Icon icon={indeterminate ? Minus : Check} size="xs" weight="bold" tone="inverse" />
-        ) : null}
-      </View>
+      {/* Naikkan sedikit agar sejajar dengan baseline label body (22px line) */}
+      <CheckboxIndicator
+        checked={checked}
+        indeterminate={indeterminate}
+        error={error}
+        className={cn(label != null && "mt-[1px]")}
+      />
 
       {label != null || description != null ? (
         <View className="flex-1 gap-1">
