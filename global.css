@@ -1,0 +1,10 @@
+/*
+ * Kahade — entry CSS untuk NativeWind.
+ * Nilai CSS variable (--color-*) TIDAK dideklarasikan di sini; semuanya
+ * di-inject saat runtime oleh ThemeProvider lewat vars(toCssVariables(mode))
+ * agar switch light/dark tidak membutuhkan rebuild dan konsisten di
+ * native maupun web.
+ */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
