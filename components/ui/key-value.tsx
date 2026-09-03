@@ -1,20 +1,27 @@
 /**
- * KeyValue — baris "label : nilai" untuk ringkasan transaksi, detail escrow,
- * dan struk. Dipakai berkelompok lewat <KeyValueList> yang menyisipkan
- * Divider di antara baris (§9 Display, "Detail row").
+ * Kahade — <KeyValue> + <KeyValueList> baris "label : nilai" (§9.17 turunan,
+ * §3.1 angka Mono, §6 pemisah border).
+ *
+ * Untuk ringkasan transaksi, detail escrow, struk. Dipakai berkelompok lewat
+ * <KeyValueList> yang menyisipkan <Divider> di antara baris.
  *
  * Keputusan non-obvious:
- *   - Label memakai text-secondary + body-sm; nilai text-primary + body-md
- *     medium. Kontras label/nilai adalah satu-satunya hierarki (§3: tanpa
- *     shadow, tanpa warna aksen).
- *   - `emphasis` untuk baris total: nilai naik ke heading-sm + Divider tebal
- *     di atas (pola struk: total dipisah garis dari rincian).
- *   - `mono` mengaktifkan font-mono untuk nomor referensi / rekening agar
- *     digit sejajar dan mudah disalin (§5 typography mono untuk kode).
- *   - Nilai boleh ReactNode (mis. <Amount/> atau <Badge/>) — bukan hanya
- *     string — supaya komponen domain bisa menyusun tanpa duplikasi layout.
- *   - Layout `align="stack"` (label di atas nilai) untuk nilai panjang
- *     seperti alamat; default "row" untuk nilai pendek.
+ *   - Label `body` tone secondary; nilai `body` weight 500 tone primary.
+ *     Kontras label/nilai adalah satu-satunya hierarki — tanpa shadow, tanpa
+ *     warna aksen (§6).
+ *   - `emphasis` untuk baris total: nilai naik ke `h3` (18/600) dan label ke
+ *     weight 500. Tidak ada garis "tebal" khusus di atas total: §6.1 hanya
+ *     punya border-default 1px untuk divider, jadi pemisah total = <Divider>
+ *     biasa dari <KeyValueList>; penekanan datang dari tipografi saja.
+ *   - `mono` merender variant `monoBody`/`monoLarge` (bukan class `font-mono`
+ *     polos — RN butuh nama asset per weight, lihat lib/fonts.ts). Untuk
+ *     nominal uang gunakan <Amount> sebagai `value` (ReactNode) supaya format
+ *     §13 datang dari satu tempat.
+ *   - `align="stack"` (label di atas nilai) untuk nilai panjang seperti
+ *     alamat; default "row".
+ *   - Label dibatasi `max-w-[45%]` di mode row: proporsi (bukan px), supaya
+ *     nilai panjang tetap punya ruang; nilai yang lebih panjang lagi harus
+ *     pindah ke "stack".
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -33,9 +40,13 @@ export type KeyValueProps = Omit<ViewProps, "children"> & {
   align?: KeyValueAlign
   /** Baris total — nilai lebih besar, label medium */
   emphasis?: boolean
-  /** Nilai ditampilkan font-mono (nomor referensi, rekening) */
+  /** Nilai ditampilkan JetBrains Mono (nomor referensi, rekening, kode) */
   mono?: boolean
   className?: string
+}
+
+function isPrimitive(v: unknown): v is string | number {
+  return typeof v === "string" || typeof v === "number"
 }
 
 export function KeyValue({
@@ -49,24 +60,25 @@ export function KeyValue({
   ...rest
 }: KeyValueProps) {
   const isRow = align === "row"
-  const valueNode =
-    typeof value === "string" || typeof value === "number" ? (
-      <Text
-        variant={emphasis ? "heading-sm" : "body-md"}
-        weight={emphasis ? "semibold" : "medium"}
-        className={cn("text-text-primary", isRow && "text-right", mono && "font-mono")}
-        selectable
-      >
-        {value}
-      </Text>
-    ) : (
-      value
-    )
+
+  const valueNode = isPrimitive(value) ? (
+    <Text
+      variant={mono ? (emphasis ? "monoLarge" : "monoBody") : emphasis ? "h3" : "body"}
+      weight={mono || emphasis ? undefined : 500}
+      tone="primary"
+      className={cn(isRow && "text-right")}
+      selectable
+    >
+      {value}
+    </Text>
+  ) : (
+    value
+  )
 
   return (
     <View
       accessible
-      accessibilityLabel={`${label}: ${typeof value === "string" || typeof value === "number" ? value : ""}`}
+      accessibilityLabel={`${label}: ${isPrimitive(value) ? value : ""}`}
       className={cn(
         "w-full py-3",
         isRow ? "flex-row items-start justify-between gap-4" : "flex-col gap-1",
@@ -75,16 +87,17 @@ export function KeyValue({
       {...rest}
     >
       <Text
-        variant="body-sm"
-        weight={emphasis ? "medium" : "regular"}
-        className={cn("text-text-secondary", isRow && "shrink-0 max-w-[45%]")}
+        variant="body"
+        weight={emphasis ? 500 : 400}
+        tone="secondary"
+        className={cn(isRow && "shrink-0 max-w-[45%]")}
       >
         {label}
       </Text>
-      <View className={cn(isRow ? "flex-1 items-end" : "items-start", "gap-[2px]")}>
+      <View className={cn(isRow ? "flex-1 items-end" : "items-start", "gap-1")}>
         {valueNode}
         {hint ? (
-          <Text variant="caption" className={cn("text-text-tertiary", isRow && "text-right")}>
+          <Text variant="caption" tone="tertiary" className={cn(isRow && "text-right")}>
             {hint}
           </Text>
         ) : null}
@@ -100,12 +113,9 @@ export type KeyValueListProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-/**
- * Pembungkus yang menyisipkan Divider di antara <KeyValue>. Divider
- * disisipkan via React.Children agar pemanggil tidak perlu menulis manual.
- */
+/** Pembungkus yang menyisipkan <Divider> di antara <KeyValue>. */
 export function KeyValueList({ children, divided = true, className, ...rest }: KeyValueListProps) {
-  const items = Array.isArray(children) ? children.filter(Boolean) : [children]
+  const items = (Array.isArray(children) ? children : [children]).filter(Boolean)
   return (
     <View className={cn("w-full", className)} {...rest}>
       {items.map((child, i) => (

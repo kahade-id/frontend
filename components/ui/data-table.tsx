@@ -1,18 +1,26 @@
 /**
- * DataTable — tabel sederhana berbasis flex (bukan <table>) untuk rincian
- * biaya, riwayat pencairan, dan perbandingan paket (§9 Display, "Table").
+ * Kahade — <DataTable> tabel sederhana berbasis flex (§9.18 pendukung
+ * statistik, §3.1 angka Mono, §13 format).
+ *
+ * Untuk rincian biaya, riwayat pencairan, dan perbandingan paket. BUKAN
+ * <table> HTML — flexbox agar satu implementasi jalan di iOS/Android/web.
  *
  * Keputusan non-obvious:
- *   - Flexbox dengan lebar kolom `flex` per kolom (default 1) alih-alih
- *     ScrollView horizontal: di layar 360px tabel finansial harus terbaca
- *     tanpa geser. Kolom dibatasi maksimal 4 lewat tipe — lebih dari itu
- *     gunakan <KeyValueList> per baris (pola mobile-first §11).
- *   - Header memakai bg-surface + caption uppercase text-secondary; baris
- *     dipisah border-b 1px. Tidak ada zebra striping (menambah warna abu
- *     ke-3 yang tidak ada di token §4).
- *   - `align="right"` untuk kolom angka + font-mono agar digit sejajar.
- *   - Tabel dibungkus border rounded-md agar konsisten dengan Card, namun
- *     `overflow-hidden` diperlukan supaya bg header tidak menutup sudut.
+ *   - Lebar kolom lewat `flex` per kolom (default 1), tanpa ScrollView
+ *     horizontal: di layar 360px tabel finansial harus terbaca tanpa geser.
+ *     Lebih dari 4 kolom -> pecah ke <KeyValueList> per baris (mobile-first
+ *     §11).
+ *   - Header: `bg-surface` + variant `label` (13/600) tone secondary. TIDAK
+ *     uppercase — §3.2 melarang ALL CAPS untuk label; hierarki cukup dari
+ *     weight 600 + ukuran kecil.
+ *   - Kolom `mono` merender variant `monoBody` (JetBrains Mono 14/500 +0.5px)
+ *     — bukan class `font-mono` polos, karena di RN family tanpa weight
+ *     terdaftar jatuh ke system font (lihat lib/fonts.ts).
+ *   - Baris dipisah `border-b` 1px. Tidak ada zebra striping: itu menambah
+ *     abu ketiga yang tidak punya peran di §2.4.
+ *   - Footer (total) = `bg-surface` + weight 600 (mono 600 tersedia di tokens).
+ *   - Dibungkus `rounded-md border` seperti Card; `overflow-hidden` supaya
+ *     bg header tidak menutup sudut.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -27,7 +35,7 @@ export type DataTableColumn<Row> = {
   title: string
   flex?: number
   align?: DataTableAlign
-  /** Kolom angka — pakai font-mono */
+  /** Kolom angka/kode — JetBrains Mono (variant monoBody) */
   mono?: boolean
   /** Render kustom sel; default String(row[key]) */
   render?: (row: Row) => ReactNode
@@ -38,7 +46,7 @@ export type DataTableProps<Row extends Record<string, unknown>> = Omit<ViewProps
   rows: Row[]
   /** Kunci unik baris; default index */
   rowKey?: (row: Row, index: number) => string
-  /** Baris ringkasan di paling bawah (mis. total) — dibedakan bg-surface + semibold */
+  /** Baris ringkasan paling bawah (mis. total) — bg-surface + weight 600 */
   footer?: Partial<Record<keyof Row & string, ReactNode>>
   emptyLabel?: string
   compact?: boolean
@@ -56,6 +64,10 @@ const textAlignClass: Record<DataTableAlign, string> = {
   center: "text-center",
 }
 
+function isPrimitive(v: unknown): v is string | number {
+  return typeof v === "string" || typeof v === "number"
+}
+
 export function DataTable<Row extends Record<string, unknown>>({
   columns,
   rows,
@@ -68,9 +80,28 @@ export function DataTable<Row extends Record<string, unknown>>({
 }: DataTableProps<Row>) {
   const cellPad = compact ? "px-3 py-2" : "px-4 py-3"
 
+  const renderCell = (col: DataTableColumn<Row>, content: ReactNode, emphasis: boolean) => {
+    const align = col.align ?? "left"
+    return (
+      <View key={col.key} style={{ flex: col.flex ?? 1 }} className={cn(cellPad, alignClass[align])}>
+        {isPrimitive(content) ? (
+          <Text
+            variant={col.mono ? "monoBody" : "body"}
+            weight={emphasis ? 600 : undefined}
+            tone="primary"
+            className={textAlignClass[align]}
+          >
+            {content}
+          </Text>
+        ) : (
+          content ?? null
+        )}
+      </View>
+    )
+  }
+
   return (
     <View
-      accessibilityRole="none"
       className={cn("w-full overflow-hidden rounded-md border border-border bg-background", className)}
       {...rest}
     >
@@ -80,7 +111,7 @@ export function DataTable<Row extends Record<string, unknown>>({
           const align = col.align ?? "left"
           return (
             <View key={col.key} style={{ flex: col.flex ?? 1 }} className={cn(cellPad, alignClass[align])}>
-              <Text variant="caption" weight="medium" className={cn("uppercase text-text-secondary", textAlignClass[align])}>
+              <Text variant="label" tone="secondary" className={textAlignClass[align]}>
                 {col.title}
               </Text>
             </View>
@@ -91,7 +122,7 @@ export function DataTable<Row extends Record<string, unknown>>({
       {/* Body */}
       {rows.length === 0 ? (
         <View className={cn("items-center", compact ? "py-6" : "py-8")}>
-          <Text variant="body-sm" className="text-text-tertiary">
+          <Text variant="body" tone="tertiary">
             {emptyLabel}
           </Text>
         </View>
@@ -101,24 +132,9 @@ export function DataTable<Row extends Record<string, unknown>>({
             key={rowKey ? rowKey(row, i) : String(i)}
             className={cn("flex-row", i < rows.length - 1 && "border-b border-border")}
           >
-            {columns.map((col) => {
-              const align = col.align ?? "left"
-              const content = col.render ? col.render(row) : String(row[col.key] ?? "")
-              return (
-                <View key={col.key} style={{ flex: col.flex ?? 1 }} className={cn(cellPad, alignClass[align])}>
-                  {typeof content === "string" || typeof content === "number" ? (
-                    <Text
-                      variant="body-sm"
-                      className={cn("text-text-primary", textAlignClass[align], col.mono && "font-mono")}
-                    >
-                      {content}
-                    </Text>
-                  ) : (
-                    content
-                  )}
-                </View>
-              )
-            })}
+            {columns.map((col) =>
+              renderCell(col, col.render ? col.render(row) : String(row[col.key] ?? ""), false),
+            )}
           </View>
         ))
       )}
@@ -126,25 +142,7 @@ export function DataTable<Row extends Record<string, unknown>>({
       {/* Footer */}
       {footer ? (
         <View className="flex-row border-t border-border bg-surface">
-          {columns.map((col) => {
-            const align = col.align ?? "left"
-            const content = footer[col.key]
-            return (
-              <View key={col.key} style={{ flex: col.flex ?? 1 }} className={cn(cellPad, alignClass[align])}>
-                {typeof content === "string" || typeof content === "number" ? (
-                  <Text
-                    variant="body-sm"
-                    weight="semibold"
-                    className={cn("text-text-primary", textAlignClass[align], col.mono && "font-mono")}
-                  >
-                    {content}
-                  </Text>
-                ) : (
-                  content ?? null
-                )}
-              </View>
-            )
-          })}
+          {columns.map((col) => renderCell(col, footer[col.key], true))}
         </View>
       ) : null}
     </View>

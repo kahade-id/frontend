@@ -118,9 +118,18 @@ export type RouterTabBarState = {
   index: number
   routes: readonly { key: string; name: string }[]
 }
+/**
+ * `emit` @react-navigation bersifat generik per tipe event; di sini cukup
+ * satu signature union (tabPress | tabLongPress) — cukup longgar agar
+ * struktural-kompatibel dengan objek `navigation` asli tanpa mengimpor
+ * tipenya, dan `defaultPrevented` hanya dibaca untuk tabPress.
+ */
 export type RouterTabBarNavigation = {
-  emit: (e: { type: "tabPress"; target: string; canPreventDefault: true }) => { defaultPrevented: boolean }
-  emit(e: { type: "tabLongPress"; target: string }): unknown
+  emit: (e: {
+    type: "tabPress" | "tabLongPress"
+    target: string
+    canPreventDefault?: boolean
+  }) => { defaultPrevented: boolean }
   navigate: (name: string) => void
 }
 

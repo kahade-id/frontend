@@ -1,27 +1,36 @@
 /**
- * StatusIndicator — titik status + label teks ("Online", "Menunggu
- * pembayaran", "Sengketa"). Lebih ringan dari Badge: tanpa border/fill,
- * cocok di dalam ListItem meta atau header kartu (§9 Display, "Status").
+ * Kahade — <StatusIndicator> titik status + label (§2.3 semantic, §9.7
+ * pelengkap Badge).
+ *
+ * "Online", "Menunggu pembayaran", "Sengketa". Lebih ringan dari Badge:
+ * tanpa border/fill, cocok di meta ListItem atau header kartu.
  *
  * Keputusan non-obvious:
- *   - Memakai <Dot> yang sudah ada untuk titik agar ukuran dan tone konsisten;
- *     komponen ini hanya menambah label + opsi `pulse`.
- *   - `pulse` (untuk "live"/"sedang diproses") diimplementasikan dengan
- *     Animated.loop opacity (native driver), bukan scale, karena scale pada
- *     elemen 8px terlihat pecah di Android. Durasi motion.duration.slow ×2
- *     supaya tidak mengganggu — animasi ini informatif, bukan dekoratif.
+ *   - Memakai <Dot> untuk titik agar ukuran & tone konsisten; komponen ini
+ *     hanya menambah label + opsi `pulse`.
+ *   - Warna teks memakai tone `*-text` (success-text, danger-text, …) lewat
+ *     prop `tone` Text, BUKAN `text-success` (= warna fill). Fill dirancang
+ *     untuk bidang/ikon; kontras fill sebagai teks 12–14px tidak dijamin AA
+ *     (§2.3 memisahkan kolom Fill vs Text/Icon).
+ *   - `pulse` (status live/sedang diproses) = Animated.loop opacity native
+ *     driver, bukan scale — scale pada elemen 8px terlihat pecah di Android.
+ *     Durasi slow x2 dengan easing standar sistem (§8) supaya tidak
+ *     mengganggu; ini informatif, bukan dekoratif.
  *   - Tone "neutral" default: warna semantik hanya bila status memang
- *     bermakna (success/danger/warning), sesuai §4.
+ *     bermakna (§2.3 semantic eksklusif untuk status transaksi).
  */
 import { useEffect, useRef } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { Dot, type DotTone } from "@/components/ui/dot"
-import { Text } from "@/components/ui/text"
+import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { motion } from "@/lib/tokens"
+import { tokens } from "@/lib/tokens"
 
-export type StatusIndicatorTone = Extract<DotTone, "neutral" | "primary" | "success" | "danger" | "warning" | "info">
+export type StatusIndicatorTone = Extract<
+  DotTone,
+  "neutral" | "primary" | "success" | "danger" | "warning" | "info"
+>
 
 export type StatusIndicatorProps = Omit<ViewProps, "children"> & {
   label: string
@@ -32,13 +41,15 @@ export type StatusIndicatorProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const toneText: Record<StatusIndicatorTone, string> = {
-  neutral: "text-text-secondary",
-  primary: "text-text-primary",
-  success: "text-success",
-  danger: "text-danger",
-  warning: "text-warning",
-  info: "text-info",
+const PULSE_MIN_OPACITY = 0.3
+
+const textTone: Record<StatusIndicatorTone, TextTone> = {
+  neutral: "secondary",
+  primary: "primary",
+  success: "success",
+  danger: "danger",
+  warning: "warning",
+  info: "info",
 }
 
 export function StatusIndicator({
@@ -56,20 +67,17 @@ export function StatusIndicator({
       opacity.setValue(1)
       return
     }
+    const easing = Easing.bezier(...tokens.motion.easing.standard)
+    const half = tokens.motion.duration.slow * 2
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
-          toValue: 0.3,
-          duration: motion.duration.slow * 2,
-          easing: Easing.inOut(Easing.ease),
+          toValue: PULSE_MIN_OPACITY,
+          duration: half,
+          easing,
           useNativeDriver: true,
         }),
-        Animated.timing(opacity, {
-          toValue: 1,
-          duration: motion.duration.slow * 2,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
+        Animated.timing(opacity, { toValue: 1, duration: half, easing, useNativeDriver: true }),
       ]),
     )
     loop.start()
@@ -87,7 +95,7 @@ export function StatusIndicator({
       <Animated.View style={{ opacity }}>
         <Dot tone={tone} size={size === "sm" ? "sm" : "md"} />
       </Animated.View>
-      <Text variant={size === "sm" ? "caption" : "body-sm"} weight="medium" className={toneText[tone]}>
+      <Text variant={size === "sm" ? "caption" : "body"} weight={500} tone={textTone[tone]}>
         {label}
       </Text>
     </View>
