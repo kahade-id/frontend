@@ -1,5 +1,5 @@
 /**
- * Kahade — Animated splash overlay.
+ * Kahade — <AnimatedSplash> overlay boot (§8 motion, §6 no-shadow, §6.2 z-index).
  *
  * Native splash (expo-splash-screen) hanya bisa menampilkan gambar statis.
  * Untuk animasi loop, pola yang direkomendasikan Expo (contoh
@@ -11,22 +11,34 @@
  *   - loop pulse halus (opacity 1 -> 0.55 -> 1) selama `ready === false`
  *   - saat `ready` berubah true: fade-out lalu unmount (onFinish)
  *
- * Keputusan:
- *   - Pakai RN `Animated`, bukan reanimated, agar tidak menambah dependensi
- *     hanya untuk splash. Ganti ke reanimated kalau nanti sudah ada di project.
- *   - Warna diambil dari tokens (light.background / primary), bukan CSS var,
- *     karena overlay ini render SEBELUM ThemeProvider & font siap.
+ * Keputusan non-obvious:
+ *   - Tetap RN `Animated` (native driver), BUKAN reanimated — walaupun
+ *     reanimated kini sudah dipakai Slider/BottomSheet/PullToRefresh.
+ *     Pembagian kerja di codebase: reanimated untuk animasi yang DIKENDALIKAN
+ *     GESTURE (butuh shared value di UI thread yang dibaca worklet), RN
+ *     Animated untuk opacity/transform sederhana tanpa input (FadeIn,
+ *     PressableScale, splash ini). Native driver sudah menjalankan loop ini
+ *     di UI thread; memakai reanimated tidak menambah kehalusan, hanya
+ *     menambah satu bahasa animasi lagi di file yang harus tetap kecil.
+ *   - Warna diambil dari tokens (light.background / primary), bukan CSS var
+ *     / className, karena overlay ini render SEBELUM ThemeProvider & font
+ *     siap — belum ada `vars()` di tree. Konsekuensinya splash selalu light;
+ *     ini disengaja: harus identik dengan `backgroundColor` splash di
+ *     app.json, yang juga statis.
  *   - Tidak ada shadow (§6). Logo placeholder = kotak radius.md dengan
  *     border; ganti <View> tersebut dengan <Image source={logo}> nanti.
  *   - Tidak pakai <Text> sama sekali di sini — font belum ada, menampilkan
  *     teks berarti FOUT yang justru ingin kita hindari.
+ *   - Berada di components/ui/ (bukan components/) karena ia komponen
+ *     visual biasa yang mengikuti tokens; hanya ThemeProvider yang tetap
+ *     di luar ui/ karena ia infrastruktur, bukan UI.
  */
 import { useEffect, useRef } from "react"
 import { Animated, Easing, StyleSheet, View } from "react-native"
 
 import { tokens } from "@/lib/tokens"
 
-type Props = {
+export type AnimatedSplashProps = {
   /** true = resource siap, mulai fade-out */
   ready: boolean
   /** dipanggil setelah fade-out selesai; parent harus unmount komponen ini */
@@ -35,7 +47,7 @@ type Props = {
 
 const LOGO_SIZE = 72
 
-export function AnimatedSplash({ ready, onFinish }: Props) {
+export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
   const pulse = useRef(new Animated.Value(1)).current
   const overlay = useRef(new Animated.Value(1)).current
   const loopRef = useRef<Animated.CompositeAnimation | null>(null)
@@ -85,7 +97,7 @@ export function AnimatedSplash({ ready, onFinish }: Props) {
     >
       <Animated.View style={{ opacity: pulse }}>
         {/* PLACEHOLDER LOGO — ganti dengan:
-            <Image source={require("../assets/images/logo-kahade.png")}
+            <Image source={require("../../assets/images/logo-kahade.png")}
                    style={{ width: LOGO_SIZE, height: LOGO_SIZE }} /> */}
         <View style={styles.logoPlaceholder} />
       </Animated.View>

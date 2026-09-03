@@ -32,8 +32,8 @@ import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
 import { useFonts } from "expo-font"
 
-import { AnimatedSplash } from "@/components/animated-splash"
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
+import { AnimatedSplash } from "@/components/ui/animated-splash"
 import { fontAssets } from "@/lib/fonts"
 import { tokens } from "@/lib/tokens"
 
