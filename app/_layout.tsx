@@ -26,6 +26,7 @@ import "../global.css"
 
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
+import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { Stack } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
@@ -76,7 +77,11 @@ export default function RootLayout() {
   const handleSplashFinish = useCallback(() => setSplashDone(true), [])
 
   return (
-    <View style={{ flex: 1 }}>
+    // GestureHandlerRootView WAJIB membungkus seluruh tree yang memakai
+    // <GestureDetector> (Slider, RangeSlider, BottomSheet, PullToRefresh).
+    // Ditaruh di root, bukan per-screen, supaya Portal (BottomSheet) yang
+    // dirender di luar layar asalnya tetap berada di dalam root gesture.
+    <GestureHandlerRootView style={{ flex: 1 }}>
       {/*
         App tree HANYA di-mount setelah font siap (atau gagal). Ini yang
         mencegah FOUT — bukan sekadar menutupinya dengan overlay.
@@ -93,7 +98,7 @@ export default function RootLayout() {
       {!splashDone ? (
         <AnimatedSplash ready={ready} onFinish={handleSplashFinish} />
       ) : null}
-    </View>
+    </GestureHandlerRootView>
   )
 }
 
