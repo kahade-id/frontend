@@ -18,12 +18,17 @@
  * interpolasi warna yang tidak jalan di native driver.
  *
  * Varian `row`: label + deskripsi di kiri, switch di kanan (pola Settings).
+ *
+ * Focus ring keyboard (web saja) via `focusRing` langsung di <Pressable> ini
+ * (bukan PressableScale, jadi tidak ada container terpisah). Tanpa teks,
+ * Pressable membungkus track pas -> `rounded-full` agar ring ikut bentuk pill.
  */
 import { useEffect, useRef, type ReactNode } from "react"
 import { Animated, Easing, Pressable, View, type PressableProps } from "react-native"
 
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 
 export type SwitchProps = Omit<PressableProps, "children" | "onPress" | "style"> & {
@@ -91,7 +96,8 @@ export function Switch({
       onPress={() => onChange(!value)}
       hitSlop={hasText ? undefined : tokens.space[2]}
       className={cn(
-        hasText ? "min-h-[44px] w-full flex-row items-center gap-4 py-3" : "self-start",
+        hasText ? "min-h-[44px] w-full flex-row items-center gap-4 py-3 rounded-xs" : "self-start rounded-full",
+        focusRing,
         disabled && "opacity-disabled",
         className,
       )}

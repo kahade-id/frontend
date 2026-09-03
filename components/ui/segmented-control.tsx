@@ -19,6 +19,12 @@
  *     dipakai hanya untuk disabled-opacity & a11y yang seragam.
  *   - Role a11y "radiogroup"/"radio": semantik "satu dari N" lebih tepat
  *     untuk screen reader daripada "tab" (tidak mengganti panel konten).
+ *   - Focus ring keyboard (web saja) `focusRingInset` + `rounded-xs` di
+ *     container segmen: segmen berhimpitan di dalam border container 2px,
+ *     ring luar akan menutupi border itu — inset tetap di dalam segmen.
+ *   - Tinggi 40px (= Button sm) SENGAJA di bawah 48dp: hitSlop pada segmen
+ *     tidak membantu karena RN memotong area sentuh di batas induk (container
+ *     h-10). Tercatat sebagai trade-off ukuran yang sama dengan Button sm.
  */
 import { View, type ViewProps } from "react-native"
 
@@ -26,6 +32,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type SegmentItem<V extends string = string> = {
   value: V
@@ -72,7 +79,7 @@ export function SegmentedControl<V extends string = string>({
             scaleOnPress={false}
             disabled={isDisabled}
             onPress={() => onChange(item.value)}
-            containerClassName="flex-1"
+            containerClassName={cn("flex-1 rounded-xs", focusRingInset)}
             className={cn(
               "h-full flex-row items-center justify-center gap-2 rounded-xs px-3",
               active ? "bg-primary" : "bg-transparent",

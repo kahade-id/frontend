@@ -21,6 +21,8 @@
  *   - Tombol "Batal" sebagai footer secondary (outline), bukan baris ke-N:
  *     memisahkan "keluar" dari daftar aksi secara visual dan menempel di atas
  *     safe-area.
+ *   - Focus ring keyboard (web saja) `focusRingInset`: baris lebar penuh di
+ *     dalam sheet yang `overflow-hidden` (radius atas) — ring luar terpotong.
  */
 import { View } from "react-native"
 
@@ -31,6 +33,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type ActionSheetItem = {
   key: string
@@ -88,7 +91,7 @@ export function ActionSheet({
                 if (item.closeOnSelect ?? true) onRequestClose?.()
                 item.onPress?.()
               }}
-              containerClassName="w-full"
+              containerClassName={cn("w-full", focusRingInset)}
               className={cn(
                 "min-h-[52px] flex-row items-center gap-2 px-6 py-3 active:bg-surface",
               )}

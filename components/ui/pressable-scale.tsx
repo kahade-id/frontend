@@ -9,6 +9,8 @@
  *   3. Web      : tidak ada hover state (§11) — cursor pointer saja (default
  *                 RN Web untuk Pressable dengan onPress).
  *
+ * KEPUTUSAN PRODUK DISENGAJA & DIKONFIRMASI TIM (bukan default yang belum dipikirkan): scale seragam 0.97, tanpa ripple Android, tanpa hover web — JANGAN "diperbaiki" tanpa keputusan tim baru.
+ *
  * Kenapa transform lewat RN `Animated` + inner View (non-obvious):
  *   - Transform yang dianimasikan adalah "hal yang tidak bisa di-className",
  *     jadi StyleSheet/Animated diizinkan di sini saja. Komponen di atasnya

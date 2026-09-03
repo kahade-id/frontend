@@ -20,6 +20,9 @@
  *   - Tinggi 56 (h-14) menyamai Input berlabel agar sejajar dalam form.
  *   - Opsi memakai role "radio" + state checked: secara semantik Select
  *     adalah pilihan tunggal.
+ *   - Focus ring keyboard (web saja): trigger memakai `focusRing` luar
+ *     (rounded-sm mengikuti field); baris opsi memakai `focusRingInset`
+ *     karena lebar penuh di dalam sheet — ring luar akan terpotong.
  */
 import { CaretDown, Check } from "phosphor-react-native"
 import type { ReactNode } from "react"
@@ -31,6 +34,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing, focusRingInset } from "@/lib/focus-ring"
 
 export type SelectOption<V extends string = string> = {
   value: V
@@ -94,7 +98,7 @@ export function Select<V extends string = string>({
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled}
         scaleOnPress={false}
-        containerClassName="w-full"
+        containerClassName={cn("w-full rounded-sm", focusRing)}
         className={cn(
           "h-14 w-full flex-row items-center rounded-sm bg-background",
           hasError
@@ -192,7 +196,7 @@ export function SelectOptionList<V extends string = string>({
               disabled={opt.disabled}
               scaleOnPress={false}
               onPress={() => onSelect(opt.value)}
-              containerClassName="w-full"
+              containerClassName={cn("w-full", focusRingInset)}
               className="min-h-[56px] flex-row items-center gap-3 py-4"
             >
               {opt.icon ? <Icon icon={opt.icon} size="sm" active={selected} /> : null}
