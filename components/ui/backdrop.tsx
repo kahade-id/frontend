@@ -15,16 +15,14 @@
  *      menangkap tap untuk menutup overlay (`onPress`).
  *
  * Keputusan non-obvious:
- *   - Warna scrim `bg-black/40 dark:bg-black/60`: tokens.ts BELUM punya token
- *     "overlay/scrim" (§2.4 tidak mendefinisikannya). `black` adalah token
- *     brand, jadi ini bukan hex hardcode — tetapi opacity 40/60 adalah
- *     keputusan lokal yang perlu dikonfirmasi & idealnya dipromosikan jadi
- *     token (`colors.light.overlay` dst.). Dark mode lebih pekat (60%) karena
- *     surface di belakangnya sudah gelap; 40% saja tidak cukup memisahkan
- *     layer.
- *   - RN `Animated` (bukan reanimated): reanimated 4 di project ini belum
- *     bisa dipakai — peer `react-native-worklets` belum terpasang dan plugin
- *     babel belum aktif. Mengikuti keputusan pressable-scale/fade-in/toast.
+ *   - Warna scrim = token mode `overlay` (§2.4, class `bg-overlay`) yang sudah
+ *     berbeda alpha per mode; jadi TIDAK perlu `dark:` di sini.
+ *   - Durasi masuk/keluar dari `motion.overlay` (§8): keluar lebih singkat
+ *     dari masuk supaya dismiss terasa segera.
+ *   - RN `Animated`, bukan reanimated: keputusan project-wide (lihat
+ *     pressable-scale/fade-in/toast) — animasi opacity/transform dengan native
+ *     driver sudah cukup; reanimated + gesture-handler disisakan untuk gesture
+ *     kompleks (pull-to-refresh, shared element).
  *   - `Animated.View` tidak di-interop NativeWind, jadi className diletakkan
  *     pada <Pressable> di dalamnya; Animated.View hanya membawa opacity.
  *   - Tidak ada hover/tint saat pointer di web (§11).
@@ -43,9 +41,9 @@ export type OverlayPresence = {
 }
 
 export type OverlayPresenceOptions = {
-  /** Durasi masuk (default motion.duration.fast = 250ms) */
+  /** Durasi masuk (default motion.overlay.enterDuration) */
   durationIn?: number
-  /** Durasi keluar (default motion.duration.press = 150ms — keluar lebih cepat dari masuk) */
+  /** Durasi keluar (default motion.overlay.exitDuration — lebih singkat dari masuk) */
   durationOut?: number
   /** Dipanggil setelah animasi keluar selesai & overlay unmount */
   onHidden?: () => void
@@ -65,7 +63,7 @@ export function useOverlayPresence(
       setMounted(true)
       const anim = Animated.timing(progress, {
         toValue: 1,
-        duration: durationIn ?? tokens.motion.duration.fast,
+        duration: durationIn ?? tokens.motion.overlay.enterDuration,
         easing: Easing.bezier(...tokens.motion.easing.standard),
         useNativeDriver: true,
       })
@@ -75,7 +73,7 @@ export function useOverlayPresence(
 
     const anim = Animated.timing(progress, {
       toValue: 0,
-      duration: durationOut ?? tokens.motion.duration.press,
+      duration: durationOut ?? tokens.motion.overlay.exitDuration,
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     })
@@ -144,7 +142,7 @@ export function Backdrop({
         disabled={!onPress}
         className={cn(
           "flex-1 z-backdrop",
-          transparent ? "bg-transparent" : "bg-black/40 dark:bg-black/60",
+          transparent ? "bg-transparent" : "bg-overlay",
           className,
         )}
       />

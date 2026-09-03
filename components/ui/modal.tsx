@@ -13,9 +13,7 @@
  *   - Dirender lewat <Portal> supaya keluar dari ScrollView/overflow parent;
  *     `z-modal` (60) menempatkannya di atas BottomSheet (50) & di bawah
  *     Banner (70) sesuai §6.2.
- *   - Animasi: fade + translateY 8px (space.2) + scale dari 0.97 (token
- *     motion.scale.press) ke 1. §8 tidak mendefinisikan motion modal;
- *     ini mengikuti bahasa Toast (slide 8px + fade) agar konsisten.
+ *   - Animasi memakai token `motion.overlay` (§8): fade + translateY + scale.
  *   - Lebar: `w-full` di dalam padding layar px-6, di-cap `md:max-w-content`
  *     dikurangi padding lewat wrapper (§11) — dialog di web lebar tetap
  *     terasa mobile, bukan dialog desktop 600px.
@@ -23,11 +21,15 @@
  *   - Tombol Dialog di-stack vertikal (konfirmasi di atas, batal ghost di
  *     bawah): di lebar mobile dua tombol sejajar sering membuat label
  *     terpotong; stack juga menegaskan hierarki primary > ghost.
- *   - `destructive` mengganti varian tombol konfirmasi jadi "destructive"
- *     DAN default `dismissOnBackdrop=false`: aksi berbahaya tidak boleh
- *     tertutup tanpa sengaja oleh tap di luar — user harus memilih eksplisit.
- *   - Escape/Back menutup modal (useOverlayDismissKeys) kecuali
- *     `dismissOnBackdrop=false` — dianggap satu kebijakan "dismissable".
+ *     Bisa diubah lewat `actionsLayout="row"` untuk dua label pendek
+ *     ("Ya"/"Tidak") — batal di kiri, konfirmasi di kanan.
+ *   - Kebijakan dismiss Dialog (`dismissOnBackdrop`) eksplisit tiga nilai:
+ *       true  -> selalu bisa ditutup dari backdrop/back/escape
+ *       false -> tidak pernah
+ *       "auto" (default) -> bisa, KECUALI `destructive` atau `loading`:
+ *       aksi berbahaya tidak boleh tertutup tanpa sengaja, dan saat request
+ *       berjalan menutup dialog akan meninggalkan state menggantung.
+ *   - Escape/Back mengikuti kebijakan yang sama — satu konsep "dismissable".
  */
 import type { ReactNode } from "react"
 import { Animated, View } from "react-native"
@@ -77,11 +79,11 @@ export function Modal({
 
   const translateY = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [tokens.space[2], 0],
+    outputRange: [tokens.motion.overlay.translateY, 0],
   })
   const scale = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [tokens.motion.scale.press, 1],
+    outputRange: [tokens.motion.overlay.scaleFrom, 1],
   })
 
   return (
@@ -119,8 +121,20 @@ export function Modal({
 
 export type DialogTone = "neutral" | "danger" | "warning" | "success"
 
-export type DialogProps = Omit<ModalProps, "children" | "accessibilityLabel"> & {
+export type DialogActionsLayout = "stack" | "row"
+
+export type DialogProps = Omit<
+  ModalProps,
+  "children" | "accessibilityLabel" | "dismissOnBackdrop"
+> & {
   title: string
+  /**
+   * Kebijakan tutup dari backdrop/back/escape.
+   * "auto" (default) = true kecuali `destructive` atau `loading`.
+   */
+  dismissOnBackdrop?: boolean | "auto"
+  /** "stack" (default) tombol vertikal; "row" sejajar untuk label pendek */
+  actionsLayout?: DialogActionsLayout
   description?: string
   /** Konten tambahan di bawah deskripsi (mis. ringkasan nominal Mono) */
   children?: ReactNode
@@ -163,17 +177,41 @@ export function Dialog({
   loading = false,
   hideCancel = false,
   confirmButtonProps,
-  dismissOnBackdrop,
+  dismissOnBackdrop = "auto",
+  actionsLayout = "stack",
   ...modalProps
 }: DialogProps) {
   const handleCancel = onCancel ?? onRequestClose
+  const dismissable =
+    dismissOnBackdrop === "auto" ? !destructive && !loading : dismissOnBackdrop
+
+  const confirmButton = (
+    <Button
+      variant={destructive ? "destructive" : "primary"}
+      loading={loading}
+      onPress={onConfirm}
+      className={actionsLayout === "row" ? "flex-1" : undefined}
+      {...confirmButtonProps}
+    >
+      {confirmLabel}
+    </Button>
+  )
+  const cancelButton = !hideCancel ? (
+    <Button
+      variant="ghost"
+      disabled={loading}
+      onPress={handleCancel}
+      className={actionsLayout === "row" ? "flex-1" : undefined}
+    >
+      {cancelLabel}
+    </Button>
+  ) : null
 
   return (
     <Modal
       accessibilityLabel={title}
       onRequestClose={onRequestClose}
-      // Aksi destruktif atau sedang loading: jangan bisa tertutup tak sengaja
-      dismissOnBackdrop={dismissOnBackdrop ?? (!destructive && !loading)}
+      dismissOnBackdrop={dismissable}
       {...modalProps}
     >
       <View className="gap-4">
@@ -194,21 +232,19 @@ export function Dialog({
 
         {children}
 
-        <View className="gap-2 pt-2">
-          <Button
-            variant={destructive ? "destructive" : "primary"}
-            loading={loading}
-            onPress={onConfirm}
-            {...confirmButtonProps}
-          >
-            {confirmLabel}
-          </Button>
-          {!hideCancel ? (
-            <Button variant="ghost" disabled={loading} onPress={handleCancel}>
-              {cancelLabel}
-            </Button>
-          ) : null}
-        </View>
+        {actionsLayout === "row" ? (
+          // Row: batal kiri, konfirmasi kanan (aksi utama di posisi jempol)
+          <View className="flex-row gap-2 pt-2">
+            {cancelButton}
+            {confirmButton}
+          </View>
+        ) : (
+          // Stack: konfirmasi di atas, batal di bawah (hierarki primary > ghost)
+          <View className="gap-2 pt-2">
+            {confirmButton}
+            {cancelButton}
+          </View>
+        )}
       </View>
     </Modal>
   )
