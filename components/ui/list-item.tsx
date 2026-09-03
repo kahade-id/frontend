@@ -41,7 +41,8 @@ function isIconComponent(x: unknown): x is IconComponent {
 
 export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> & {
   title: string
-  subtitle?: string
+  /** Caption text-secondary ATAU node (mis. nomor rekening Mono) — simetris dengan `trailing` */
+  subtitle?: string | ReactNode
   /** Ikon Phosphor (tone default) ATAU node kustom (Avatar, IconBox) */
   leading?: IconComponent | ReactNode
   /** Teks kanan (text-secondary) ATAU node (Amount, Badge, Switch) */
@@ -96,10 +97,14 @@ export function ListItem({
         >
           {title}
         </Text>
-        {subtitle ? (
-          <Text variant="caption" tone={destructive ? "danger" : "secondary"} numberOfLines={2}>
-            {subtitle}
-          </Text>
+        {subtitle != null && subtitle !== "" ? (
+          typeof subtitle === "string" ? (
+            <Text variant="caption" tone={destructive ? "danger" : "secondary"} numberOfLines={2}>
+              {subtitle}
+            </Text>
+          ) : (
+            subtitle
+          )
         ) : null}
       </View>
 
@@ -120,11 +125,15 @@ export function ListItem({
     </View>
   )
 
+  // Subtitle node tidak bisa dibaca SR dari sini — pemanggil wajib mengirim accessibilityLabel
+  const a11yLabel =
+    accessibilityLabel ?? [title, typeof subtitle === "string" ? subtitle : undefined].filter(Boolean).join(", ")
+
   if (!onPress) {
     return (
       <View
         accessible
-        accessibilityLabel={accessibilityLabel ?? [title, subtitle].filter(Boolean).join(", ")}
+        accessibilityLabel={a11yLabel}
         className={cn("w-full", containerClassName, disabled && "opacity-disabled")}
       >
         {content}
@@ -135,7 +144,7 @@ export function ListItem({
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={accessibilityLabel ?? [title, subtitle].filter(Boolean).join(", ")}
+      accessibilityLabel={a11yLabel}
       accessibilityState={{ selected, disabled: !!disabled }}
       scaleOnPress={false}
       disabled={disabled}

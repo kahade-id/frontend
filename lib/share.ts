@@ -73,11 +73,18 @@ async function shareText({ message, url, title }: ShareTextPayload): Promise<Sha
   const androidMessage =
     url && !(message ?? "").includes(url) ? [message, url].filter(Boolean).join("\n") : message ?? url ?? ""
 
+  // RN `ShareContent` adalah union `{ message: string } | { url: string }` —
+  // objek dengan `message: undefined` tidak lolos type-check. Bangun konten
+  // secara eksplisit: iOS boleh url-only, message-only, atau keduanya.
+  const content: Parameters<typeof Share.share>[0] =
+    Platform.OS === "ios"
+      ? message
+        ? { message, url, title }
+        : { url: url as string, title }
+      : { message: androidMessage, title }
+
   try {
-    const result = await Share.share(
-      Platform.OS === "ios" ? { message, url, title } : { message: androidMessage, title },
-      { dialogTitle: title, subject: title },
-    )
+    const result = await Share.share(content, { dialogTitle: title, subject: title })
     return result.action === Share.dismissedAction ? "dismissed" : "shared"
   } catch {
     return "unavailable"
