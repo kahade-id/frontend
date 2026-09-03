@@ -25,6 +25,10 @@
  *     (mis. <Avatar>/<IconBox>) kalau butuh lebih menonjol.
  *   - Trailing string dirender text-secondary body; untuk nominal kirim
  *     <Amount> agar Mono (§3.1).
+ *   - Focus ring keyboard (web saja) `focusRingInset` hanya pada varian
+ *     interaktif (ada `onPress`): baris lebar penuh, sering di dalam
+ *     <ListGroup overflow-hidden> — ring luar akan terpotong. Varian statis
+ *     bukan tab stop, jadi tidak diberi ring.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -34,6 +38,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 function isIconComponent(x: unknown): x is IconComponent {
   return typeof x === "function" || (typeof x === "object" && x !== null && "render" in (x as object))
@@ -149,7 +154,7 @@ export function ListItem({
       scaleOnPress={false}
       disabled={disabled}
       onPress={onPress}
-      containerClassName={cn("w-full", containerClassName)}
+      containerClassName={cn("w-full", focusRingInset, containerClassName)}
       {...rest}
     >
       {content}

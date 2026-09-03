@@ -13,6 +13,15 @@
  * memilih satu dari 2–3 opsi kaya (judul + deskripsi + ikon). Varian `card`
  * membungkus tiap opsi dalam border rounded-md yang menebal ke border-focus
  * saat dipilih — hierarki dari border, bukan shadow/fill (§6).
+ *
+ * Target sentuh & fokus:
+ *   - Varian plain: baris lebar penuh tapi hanya 44px tinggi (py-3 + 22 line)
+ *     — cukup iOS, kurang untuk Android 48dp. `hitSlop` vertikal space[1]
+ *     (tak terlihat) menaikkannya ke 52px; overlap 4px antar baris tetangga
+ *     tidak masalah (RN memilih view pertama yang cocok). Varian card sudah
+ *     >= 62px (p-5 + 22) sehingga tidak perlu slop.
+ *   - Focus ring keyboard (web saja) via `focusRing` di containerClassName;
+ *     card memakai radius md agar ring mengikuti sudut kartu.
  */
 import { createContext, useContext, useEffect, useRef, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
@@ -20,6 +29,7 @@ import { Animated, Easing, View, type ViewProps } from "react-native"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 
 type RadioContextValue = {
@@ -80,6 +90,7 @@ export function Radio({
   leading,
   disabled: ownDisabled = false,
   className,
+  containerClassName,
   ...rest
 }: RadioProps) {
   const ctx = useContext(RadioContext)
@@ -141,7 +152,9 @@ export function Radio({
       disabled={disabled}
       scaleOnPress={isCard}
       onPress={() => ctx.onChange(value)}
-      containerClassName="w-full"
+      // Plain: 44 -> 52px tinggi (Android 48dp). Card sudah cukup tinggi.
+      hitSlop={isCard ? undefined : { top: tokens.space[1], bottom: tokens.space[1] }}
+      containerClassName={cn("w-full", isCard ? "rounded-md" : "rounded-xs", focusRing, containerClassName)}
       className={cn(
         "flex-row items-start gap-3",
         isCard

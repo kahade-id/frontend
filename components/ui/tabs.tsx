@@ -21,6 +21,9 @@
  *     default flex-1 rata lebar.
  *   - Tidak ada scale press: area tab lebar & bersentuhan; scale membuat
  *     tetangganya tampak bergeser.
+ *   - Focus ring keyboard (web saja) `focusRingInset`: tab saling
+ *     bersentuhan dan duduk di atas garis dasar, ring luar akan menabrak
+ *     tetangga/garis; inset menjaga ring di dalam kotak tab.
  */
 import { ScrollView, View, type ViewProps } from "react-native"
 
@@ -28,6 +31,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
 
 export type TabItem<V extends string = string> = {
@@ -72,7 +76,7 @@ export function Tabs<V extends string = string>({
             scaleOnPress={false}
             disabled={item.disabled}
             onPress={() => onChange(item.value)}
-            containerClassName={scrollable ? undefined : "flex-1"}
+            containerClassName={cn(scrollable ? "rounded-xs" : "flex-1 rounded-xs", focusRingInset)}
             className={cn(
               "h-12 flex-row items-center justify-center gap-2 px-4",
               active && "-mb-[1px] border-b-focus border-primary",

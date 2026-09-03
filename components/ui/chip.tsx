@@ -5,7 +5,9 @@
  * Radius `full` (pill), outline style konsisten dengan Badge outline.
  * Selected: fill `primary` + teks `primary-foreground` (invert otomatis di
  * dark mode). Tinggi 32px (h-8) — cukup rapat untuk baris horizontal scroll,
- * hit area diperluas ke 44 lewat `hitSlop` vertikal.
+ * hit area diperluas ke 48 lewat `hitSlop` vertikal space[2] (8+32+8; memenuhi
+ * 44pt iOS dan 48dp Android). Hanya vertikal: slop horizontal akan tumpang
+ * tindih dengan chip tetangga yang berjarak gap-2.
  *
  * Keputusan non-obvious:
  *   - Border chip selected memakai `border-primary` (bukan border-focus) agar
@@ -16,6 +18,10 @@
  *   - ChipGroup: multi-select by default (§9.25); `single` untuk pola
  *     segmented ringan. Layout `flex-wrap` dengan gap-2; untuk scroll
  *     horizontal, bungkus sendiri dengan ScrollView horizontal.
+ *   - Focus ring keyboard (web saja): `focusRing` di container chip DAN di
+ *     Pressable ikon X (dua tab stop terpisah). Container `rounded-full`
+ *     supaya ring mengikuti bentuk pill; ring offset memastikan ring hitam
+ *     tetap terlihat di atas chip selected yang fill-nya juga hitam.
  */
 import { X } from "phosphor-react-native"
 import type { ReactNode } from "react"
@@ -25,6 +31,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 
 export type ChipProps = Omit<PressableScaleProps, "children" | "className"> & {
@@ -52,8 +59,8 @@ export function Chip({
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
-      hitSlop={{ top: 6, bottom: 6 }}
-      containerClassName={cn("self-start", containerClassName)}
+      hitSlop={{ top: tokens.space[2], bottom: tokens.space[2] }}
+      containerClassName={cn("self-start rounded-full", focusRing, containerClassName)}
       className={cn(
         "h-8 flex-row items-center gap-1 rounded-full px-3",
         selected ? "border border-primary bg-primary" : "border border-border bg-transparent",
@@ -77,7 +84,7 @@ export function Chip({
           hitSlop={tokens.space[2]}
           accessibilityRole="button"
           accessibilityLabel="Hapus filter"
-          className="ml-1"
+          className={cn("ml-1 rounded-full", focusRing)}
         >
           <Icon icon={X} size="xs" weight="bold" tone={selected ? "inverse" : "default"} />
         </Pressable>

@@ -8,8 +8,11 @@
  * Keputusan non-obvious:
  *   - `accessibilityLabel` WAJIB (bukan optional): tanpa label, tombol ikon
  *     tidak terbaca screen reader. Ini enforcement di level tipe.
- *   - Ukuran hit area sm=40 / md=48 mengikuti Button agar sejajar rapi di
- *     baris yang sama; ikon di dalamnya sm=20 / md=24 (§7).
+ *   - Ukuran visual sm=40 / md=48 mengikuti Button agar sejajar rapi di
+ *     baris yang sama; ikon di dalamnya sm=20 / md=24 (§7). Karena 40 < 44pt
+ *     (iOS) / 48dp (Android), `sm` mendapat `hitSlop` space[1] (4px) tak
+ *     terlihat -> area sentuh efektif 48x48 tanpa mengubah tampilan. Pola
+ *     sama dengan <Switch>. Pemanggil tetap bisa override lewat prop hitSlop.
  *   - Ghost/secondary memakai ikon tone "default" (text-tertiary) sesuai
  *     aturan warna ikon §7; `active` menaikkan ke text-primary + weight fill
  *     untuk state selected (mis. tab/filter aktif).
@@ -19,6 +22,8 @@
 import { View } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
+import { tokens } from "@/lib/tokens"
 import { Icon, type IconComponent, type IconTone, type IconWeightProp } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Spinner } from "@/components/ui/spinner"
@@ -79,7 +84,14 @@ export function IconButton({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading, selected: active }}
       disabled={isDisabled}
-      containerClassName={cn("self-start", containerClassName)}
+      // sm 40px -> 48px efektif (44pt iOS / 48dp Android); md sudah 48.
+      hitSlop={size === "sm" ? tokens.space[1] : undefined}
+      containerClassName={cn(
+        "self-start",
+        shape === "pill" ? "rounded-full" : "rounded-sm",
+        focusRing,
+        containerClassName,
+      )}
       className={cn(
         "items-center justify-center",
         shape === "pill" ? "rounded-full" : "rounded-sm",

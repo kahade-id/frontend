@@ -17,15 +17,23 @@
  *     tersedia di native.
  *   - Error hanya mengubah border kotak ke `border-error`; teks label tidak
  *     berubah — helper error ditangani <Field> di level grup.
+ *   - Target sentuh: baris berlabel sudah 44px tinggi (py-3 + 20), tapi
+ *     Android menuntut 48dp dan kotak TANPA label hanya 20px lebar. `hitSlop`
+ *     (tak terlihat) melengkapinya: +space[1] atas/bawah -> 52px tinggi;
+ *     tanpa label +space[4] kiri/kanan -> 52px lebar. Pola sama dengan
+ *     <Switch>; nilai dari tokens.space, bukan angka lepas.
+ *   - Focus ring keyboard (web saja) lewat `focusRing` di containerClassName —
+ *     lihat lib/focus-ring.ts untuk alasan penempatan di container.
  */
 import { Check, Minus } from "phosphor-react-native"
 import { useEffect, useRef, type ReactNode } from "react"
-import { Animated, Easing, View } from "react-native"
+import { Animated, Easing, View, type PressableProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 
 export type CheckboxProps = Omit<PressableScaleProps, "children" | "onPress"> & {
@@ -101,8 +109,21 @@ export function Checkbox({
   error = false,
   disabled = false,
   className,
+  containerClassName,
   ...rest
 }: CheckboxProps) {
+  const hasText = label != null || description != null
+
+  // 20x44 (tanpa label) / Wx44 (berlabel) -> minimal 52x52 di kedua platform.
+  const hitSlop: PressableProps["hitSlop"] = hasText
+    ? { top: tokens.space[1], bottom: tokens.space[1] }
+    : {
+        top: tokens.space[1],
+        bottom: tokens.space[1],
+        left: tokens.space[4],
+        right: tokens.space[4],
+      }
+
   return (
     <PressableScale
       accessibilityRole="checkbox"
@@ -110,7 +131,9 @@ export function Checkbox({
       disabled={disabled}
       scaleOnPress={false}
       onPress={() => onChange(!checked)}
-      containerClassName="self-start"
+      hitSlop={hitSlop}
+      // rounded-xs di container hanya untuk bentuk ring (container tak punya bg/border)
+      containerClassName={cn("self-start rounded-xs", focusRing, containerClassName)}
       className={cn("min-h-[44px] flex-row items-start gap-3 py-3", className)}
       {...rest}
     >
