@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "check:tokens": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-tokens.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

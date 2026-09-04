@@ -12,9 +12,9 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | # | Area | Item | Status |
 |---|------|------|--------|
 | 0 | a11y + token | Kontras `tone="tertiary"` pada teks kecil; error form iOS; label `rightIcon` Input | **Selesai** (PR #27) |
-| 1 | a11y | Hit target ≥ 44pt | Belum |
-| 2 | a11y | Reduce Motion | Belum |
-| 3 | a11y | Fokus & modalitas overlay | Belum |
+| 1 | a11y | Hit target ≥ 44pt | **Selesai** (PR #32, #33 — `lib/hit-slop.ts`, `tokens.a11y.minHitTarget`) |
+| 2 | a11y | Reduce Motion | **Selesai** (PR #29, #30 — `lib/use-reduced-motion.ts`, 24 primitif) |
+| 3 | a11y | Fokus & modalitas overlay | **Selesai** (PR #31 — `lib/use-overlay-focus.ts`, `portal.tsx`) |
 | 4 | a11y | Grouping & urutan baca kartu | Belum |
 | 5 | a11y | Kebenaran `accessibilityValue` | Belum |
 | 6 | a11y | Kontras non-teks & warna semantik | Belum |
@@ -23,10 +23,16 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 9 | token | Komponen di luar `components/ui` | Belum |
 | 10 | token | Inline `style={}` numerik | Belum |
 | 11 | token | Konsistensi nama prop/varian antar komponen | Belum |
-| 12 | token | Sinkronisasi `tokens.ts` ↔ `tailwind.config.js` ↔ `global.css` | Belum |
+| 12 | token | Sinkronisasi `tokens.ts` ↔ `tailwind.config.js` ↔ `global.css` | **Selesai** (`pnpm check:tokens`, lihat `findings/12-token-sync.md`) |
 | 13 | token | Kelengkapan dark mode | Belum |
 
 Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9**, lalu sisanya.
+Berikutnya: **8/9** (layar `app/` & komponen non-`ui`), lalu 13 (dark mode —
+pasangan var light/dark sudah dijamin `check:tokens`; sisanya audit `dark:`/`text-white` + uji visual).
+
+Catatan: PR #29–#33 tidak memperbarui tabel ini maupun menulis `findings/`;
+status di atas direkonstruksi dari riwayat commit. Pengerjaan berikutnya wajib
+mengikuti bagian "Cara melaporkan".
 
 ## Aturan umum perbaikan
 
@@ -290,6 +296,13 @@ Tambahkan ke `package.json` sebagai `"check:tokens"` dan ke CI.
 **Kriteria lolos.** Skrip keluar 0. Idealnya `tailwind.config.js` dan
 `global.css` **digenerate** dari `tokens.ts` (satu sumber kebenaran) —
 jika dilakukan, tambahkan `"gen:tokens"` dan commit hasilnya.
+
+**Realisasi.** Ternyata `tailwind.config.js` dan `global.css` sudah
+*runtime-derived* dari `tokens.ts` (`toTailwindTheme()` + `vars(toCssVariables())`
+di ThemeProvider), sehingga `gen:tokens` tidak diperlukan. Yang bisa drift
+adalah kontrak `var(--x)` dirujuk ↔ di-emit; itulah yang diperiksa
+`scripts/check-tokens.mjs`. Jalankan `pnpm check:tokens` setiap menambah
+token warna; tambahkan ke CI bersama `pnpm typecheck`.
 
 ## 13. Kelengkapan dark mode
 
