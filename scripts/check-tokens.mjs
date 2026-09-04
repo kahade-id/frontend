@@ -23,6 +23,9 @@
  *     merujuk var yang benar-benar di-emit (contoh: scope override di
  *     subscription-plan-card).
  *  7. tailwind.config.js tidak menyelipkan warna literal di luar tokens.ts.
+ *  8. (audit #9) app.json: splash backgroundColor == light.background dan
+ *     expo-notifications color == light.primary — konfigurasi native tidak
+ *     bisa import tokens.ts, jadi literalnya diverifikasi di sini.
  *
  * Jalankan: pnpm check:tokens   (butuh Node >= 22.6 untuk memuat .ts)
  */
@@ -179,6 +182,32 @@ for (const m of twSrc.matchAll(/#[0-9a-f]{3,8}\b|rgba?\(/gi)) {
   fail(`tailwind.config.js memuat warna literal "${m[0]}" — pindahkan ke lib/tokens.ts`)
 }
 if (!/toTailwindTheme\(\)/.test(twSrc)) fail("tailwind.config.js tidak memanggil toTailwindTheme() — theme tidak lagi digenerate dari tokens.ts")
+
+// 8. app.json (audit #9): warna native di konfigurasi Expo tidak bisa
+//    mengimpor tokens.ts, jadi literalnya WAJIB sama dengan token acuan.
+//    - splash backgroundColor == light.background: <AnimatedSplash> memakai
+//      tokens.colors.light.background; kalau beda, handoff native→JS kedip.
+//    - expo-notifications color == light.primary (aksen ikon notif Android).
+const appJson = JSON.parse(readFileSync(join(root, "app.json"), "utf8"))
+const plugins = appJson.expo?.plugins ?? []
+const pluginOpts = (name) => plugins.find((p) => Array.isArray(p) && p[0] === name)?.[1]
+const eqColor = (a, b) => typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase()
+
+const splash = pluginOpts("expo-splash-screen")
+if (!splash) {
+  fail("app.json: plugin expo-splash-screen tanpa opsi — backgroundColor harus eksplisit agar sama dengan tokens.colors.light.background")
+} else {
+  if (!eqColor(splash.backgroundColor, light.background)) {
+    fail(`app.json: splash backgroundColor ${splash.backgroundColor} != tokens.colors.light.background ${light.background} (dipakai components/ui/animated-splash.tsx)`)
+  }
+  if (splash.dark?.backgroundColor && !eqColor(splash.dark.backgroundColor, dark.background)) {
+    fail(`app.json: splash dark.backgroundColor ${splash.dark.backgroundColor} != tokens.colors.dark.background ${dark.background}`)
+  }
+}
+const notif = pluginOpts("expo-notifications")
+if (notif?.color && !eqColor(notif.color, light.primary)) {
+  fail(`app.json: expo-notifications color ${notif.color} != tokens.colors.light.primary ${light.primary}`)
+}
 
 // ------------------------------------------------------------------
 // Laporan

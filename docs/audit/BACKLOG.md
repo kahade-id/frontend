@@ -19,16 +19,17 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 5 | a11y | Kebenaran `accessibilityValue` | Belum |
 | 6 | a11y | Kontras non-teks & warna semantik | Belum |
 | 7 | a11y | Font scaling / Dynamic Type | Belum |
-| 8 | a11y + token | Layar di `app/` | Belum |
-| 9 | token | Komponen di luar `components/ui` | Belum |
+| 8 | a11y + token | Layar di `app/` | **Selesai\*** (`findings/08-09-app-and-non-ui.md`) — \*belum ada route screen; jalankan ulang §8 saat screen pertama ditambahkan |
+| 9 | token | Komponen di luar `components/ui` | **Selesai** (splash `app.json` eksplisit + `check:tokens` #8, lihat `findings/08-09-app-and-non-ui.md`) |
 | 10 | token | Inline `style={}` numerik | Belum |
 | 11 | token | Konsistensi nama prop/varian antar komponen | Belum |
 | 12 | token | Sinkronisasi `tokens.ts` ↔ `tailwind.config.js` ↔ `global.css` | **Selesai** (`pnpm check:tokens`, lihat `findings/12-token-sync.md`) |
 | 13 | token | Kelengkapan dark mode | Belum |
 
 Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9**, lalu sisanya.
-Berikutnya: **8/9** (layar `app/` & komponen non-`ui`), lalu 13 (dark mode —
-pasangan var light/dark sudah dijamin `check:tokens`; sisanya audit `dark:`/`text-white` + uji visual).
+Berikutnya: **13** (dark mode — pasangan var light/dark sudah dijamin
+`check:tokens`; sisanya audit `dark:`/`text-white` + uji visual + keputusan
+splash dark di findings 08-09), lalu **10** (inline `style={}` numerik), **6**, **4**, **5**, **7**, **11**.
 
 Catatan: PR #29–#33 tidak memperbarui tabel ini maupun menulis `findings/`;
 status di atas direkonstruksi dari riwayat commit. Pengerjaan berikutnya wajib
