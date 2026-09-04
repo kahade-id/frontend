@@ -14,8 +14,10 @@
  *     Dots dikosongkan otomatis setelah `errorText` berubah supaya user
  *     langsung bisa mengetik ulang tanpa menghapus manual.
  *   - Haptic hanya di momen kritikal (§8): sukses & gagal, bukan per digit.
- *   - Dot terisi = `bg-primary`, kosong = `border-border`. Ukuran 12px (space.3)
- *     dengan gap 16px: cukup lega untuk 6 digit di lebar 320.
+ *   - Dot terisi = `bg-primary`, kosong = `border-border-control`. Dot kosong
+ *     adalah indikator state non-teks (berapa digit tersisa), jadi outline-nya
+ *     wajib >= 3:1 (WCAG 1.4.11, audit #6). Ukuran 12px (space.3) dengan
+ *     gap 16px: cukup lega untuk 6 digit di lebar 320.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View, type ViewProps } from "react-native"
@@ -53,7 +55,7 @@ export function PinDots({ length, filled, error = false, className, ...rest }: P
             key={i}
             className={cn(
               "h-3 w-3 rounded-full",
-              error ? (on ? "bg-danger" : "border border-border-error") : on ? "bg-primary" : "border border-border",
+              error ? (on ? "bg-danger" : "border border-border-error") : on ? "bg-primary" : "border border-border-control",
             )}
           />
         )

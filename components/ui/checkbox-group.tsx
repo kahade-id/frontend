@@ -10,7 +10,9 @@
  * Varian:
  *   - "plain" (default): baris kotak + label, tanpa border, gap 0 (tiap baris
  *                        sudah min-h 44 + py-3 dari <Checkbox>).
- *   - "card"           : tiap opsi dibungkus border rounded-md bg-surface;
+ *   - "card"           : tiap opsi dibungkus border-control rounded-md bg-surface
+ *                        (kartu ini adalah kontrol yang bisa dipilih, jadi
+ *                        outline-nya wajib >= 3:1 — WCAG 1.4.11, audit #6);
  *                        terpilih -> border-focus. Hierarki dari border (§6),
  *                        kotak dipindah ke KANAN seperti Radio card agar
  *                        leading icon/konten di kiri sejajar.
@@ -152,7 +154,7 @@ export function CheckboxGroupItem({
           ? "border-error border-border-error"
           : checked
             ? "border-focus border-border-focus"
-            : "border border-border",
+            : "border border-border-control",
         className,
       )}
       {...rest}

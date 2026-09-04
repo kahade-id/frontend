@@ -85,7 +85,8 @@ export function ScheduleField({
                 containerClassName="flex-1"
                 className={cn(
                   "h-10 items-center justify-center rounded-sm border",
-                  selected ? "border-primary bg-primary" : "border-border bg-surface",
+                  // Radio hari belum terpilih -> outline border-control >= 3:1 (WCAG 1.4.11, audit #6)
+                  selected ? "border-primary bg-primary" : "border-border-control bg-surface",
                 )}
               >
                 <Text variant="label" tone={selected ? "inverse" : "primary"}>

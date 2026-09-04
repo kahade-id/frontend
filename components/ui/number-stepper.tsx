@@ -2,7 +2,8 @@
  * Kahade — <NumberStepper> (§9.2 turunan; kontrol angka −/+).
  *
  * Kontrol kuantitas: tombol Minus | nilai | tombol Plus dalam satu kotak
- * outlined (radius sm, border default) setinggi Input tanpa label (h-12).
+ * outlined (radius sm, border-control — outline form control wajib >= 3:1,
+ * WCAG 1.4.11 / audit #6) setinggi Input tanpa label (h-12).
  * Dipakai untuk jumlah barang di rincian escrow, jumlah termin, dsb.
  *
  * Bukan "Stepper" §9.22 — itu progress indicator multi-step (kelompok
@@ -185,7 +186,7 @@ export function NumberStepper({
             ? "border-error border-border-error"
             : focused
               ? "border-focus border-border-focus"
-              : "border border-border",
+              : "border border-border-control",
           fullWidth ? "w-full" : "self-start",
           disabled && "opacity-disabled",
           className,

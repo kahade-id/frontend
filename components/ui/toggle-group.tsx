@@ -10,7 +10,9 @@
  * Keputusan non-obvious:
  *   - Selected = border-focus + bg-surface (bukan fill primary seperti Chip):
  *     tombol ini mewakili opsi form, harus tetap "tenang" saat berdampingan
- *     dengan CTA primary di footer.
+ *     dengan CTA primary di footer. Belum terpilih = `border-border-control`
+ *     (bukan `border-border`): tombol tanpa fill hanya dikenali dari
+ *     outline-nya, jadi wajib >= 3:1 (WCAG 1.4.11, audit #6).
  *   - `columns` mengatur grid via flex-basis persen — bukan CSS grid, karena
  *     RN tidak punya grid; nilai basis dihitung dari kolom + gap.
  */
@@ -87,7 +89,7 @@ export function ToggleGroup<V extends string = string>(props: ToggleGroupProps<V
               className={cn(
                 "min-h-12 justify-center gap-1 rounded-sm px-3 py-3",
                 centered ? "items-center" : "items-start",
-                selected ? "border-focus border-border-focus bg-surface" : "border border-border bg-background",
+                selected ? "border-focus border-border-focus bg-surface" : "border border-border-control bg-background",
               )}
             >
               {o.icon ? <Icon icon={o.icon} size="sm" active={selected} /> : null}

@@ -17,7 +17,7 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 3 | a11y | Fokus & modalitas overlay | **Selesai** (PR #31 — `lib/use-overlay-focus.ts`, `portal.tsx`) |
 | 4 | a11y | Grouping & urutan baca kartu | Belum |
 | 5 | a11y | Kebenaran `accessibilityValue` | Belum |
-| 6 | a11y | Kontras non-teks & warna semantik | Belum |
+| 6 | a11y | Kontras non-teks & warna semantik | **Selesai** (PR #36 + lanjutan — token `border-control`, `check:tokens` #10, lihat `findings/06-non-text-contrast.md`) |
 | 7 | a11y | Font scaling / Dynamic Type | Belum |
 | 8 | a11y + token | Layar di `app/` | **Selesai\*** (`findings/08-09-app-and-non-ui.md`) — \*belum ada route screen; jalankan ulang §8 saat screen pertama ditambahkan |
 | 9 | token | Komponen di luar `components/ui` | **Selesai** (splash `app.json` eksplisit + `check:tokens` #8, lihat `findings/08-09-app-and-non-ui.md`) |
@@ -26,10 +26,8 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 12 | token | Sinkronisasi `tokens.ts` ↔ `tailwind.config.js` ↔ `global.css` | **Selesai** (`pnpm check:tokens`, lihat `findings/12-token-sync.md`) |
 | 13 | token | Kelengkapan dark mode | **Selesai\*** (`findings/13-dark-mode.md` — splash dark, `check:tokens` #9 allowlist `dark:`/literal) — \*uji visual 5 layar menunggu screen pertama (lihat #8) |
 
-Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9 → 13**, lalu sisanya.
-Berikutnya: **10** (inline `style={}` numerik), lalu **6** (kontras non-teks —
-findings #13 sudah menyiapkan 3 pasangan token dark yang < 3:1 untuk
-diputuskan), **4**, **5**, **7**, **11**.
+Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9 → 13 → 6**, lalu sisanya.
+Berikutnya: **10** (inline `style={}` numerik), lalu **4**, **5**, **7**, **11**.
 
 Catatan: PR #29–#33 tidak memperbarui tabel ini maupun menulis `findings/`;
 status di atas direkonstruksi dari riwayat commit. Pengerjaan berikutnya wajib

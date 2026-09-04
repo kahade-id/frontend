@@ -130,7 +130,8 @@ export function OrderSummaryStrip({
             containerClassName={cn("rounded-md", focusRing)}
             className={cn(
               "h-[84px] w-[132px] justify-between gap-2 rounded-md border p-4",
-              selected ? "border-primary bg-primary" : "border-border bg-surface",
+              // Tab belum terpilih adalah kontrol -> outline border-control >= 3:1 (WCAG 1.4.11, audit #6)
+              selected ? "border-primary bg-primary" : "border-border-control bg-surface",
             )}
           >
             <Text

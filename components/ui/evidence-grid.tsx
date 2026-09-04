@@ -175,7 +175,8 @@ export function EvidenceGrid({
           accessibilityLabel={t.add}
           containerClassName={basis}
           className={cn(
-            "aspect-square w-full items-center justify-center gap-1 rounded-sm border border-dashed border-border bg-transparent",
+            // Tile tambah = tombol tanpa fill; outline dashed-nya yang mengenali kontrol -> border-control (WCAG 1.4.11, audit #6)
+            "aspect-square w-full items-center justify-center gap-1 rounded-sm border border-dashed border-border-control bg-transparent",
             addDisabled && "opacity-40",
           )}
         >

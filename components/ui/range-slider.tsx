@@ -2,7 +2,8 @@
  * Kahade — <RangeSlider> (§9.5 kontrol; filter rentang nominal §9.25/§10).
  *
  * Dua thumb (min & max) di satu track. Visual identik dengan <Slider>: track
- * 4px `bg-border`, fill `bg-primary` HANYA di antara kedua thumb, thumb 24px
+ * 4px `bg-border-control` (>= 3:1, WCAG 1.4.11 — lihat slider.tsx), fill
+ * `bg-primary` HANYA di antara kedua thumb, thumb 24px
  * `bg-background` + border-focus 1.5px. Dipakai di sheet filter riwayat
  * transaksi ("Rp500.000 – Rp5.000.000").
  *
@@ -211,7 +212,7 @@ export function RangeSlider({
     >
       {/* Area setinggi thumb; track diberi margin agar thumb tidak keluar tepi */}
       <View onLayout={onLayout} style={{ height: THUMB }} className="justify-center">
-        <View className="w-full rounded-full bg-border" style={{ height: TRACK_H }}>
+        <View className="w-full rounded-full bg-border-control" style={{ height: TRACK_H }}>
           <Animated.View style={[{ position: "absolute", height: "100%" }, fillStyle]}>
             <View className="h-full w-full rounded-full bg-primary" />
           </Animated.View>

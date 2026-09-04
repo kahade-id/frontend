@@ -1,9 +1,12 @@
 /**
  * Kahade — <Slider> (§9.5 kontrol, pelengkap filter rentang nominal).
  *
- * Slider nilai tunggal: track 4px `bg-border` rounded-full, fill `bg-primary`,
- * thumb 24px `bg-background` + border-focus 1.5px (bukan solid hitam, supaya
- * thumb terlihat "di atas" fill tanpa shadow — hierarki dari border §6).
+ * Slider nilai tunggal: track 4px `bg-border-control` rounded-full, fill
+ * `bg-primary`, thumb 24px `bg-background` + border-focus 1.5px (bukan solid
+ * hitam, supaya thumb terlihat "di atas" fill tanpa shadow — hierarki dari
+ * border §6). Track memakai `border-control` (bukan `border`): bagian track
+ * yang belum terisi menunjukkan sisa rentang — informasi non-teks yang wajib
+ * >= 3:1 vs background (WCAG 1.4.11, audit #6).
  *
  * Kenapa Reanimated + Gesture Handler, bukan PanResponder (non-obvious):
  *   Dengan PanResponder, setiap gerakan jari = setState -> re-render React ->
@@ -189,7 +192,7 @@ export function Slider({
       <GestureDetector gesture={pan}>
         {/* Visual setinggi thumb; target sentuh 44 lewat gesture hitSlop di atas */}
         <View onLayout={onLayout} style={{ height: THUMB }} className="justify-center">
-          <View className="w-full rounded-full bg-border" style={{ height: TRACK_H }}>
+          <View className="w-full rounded-full bg-border-control" style={{ height: TRACK_H }}>
             <Animated.View style={[{ height: "100%" }, fillStyle]}>
               <View className="h-full w-full rounded-full bg-primary" />
             </Animated.View>

@@ -7,7 +7,8 @@
  * disimpan (pakai <RadioGroup>/<ChipGroup>).
  *
  * Keputusan non-obvious:
- *   - Container `rounded-sm border border-border bg-surface p-[2px]`; segmen
+ *   - Container `rounded-sm border border-border-control bg-surface p-[2px]`
+ *     (outline kontrol, >= 3:1 — WCAG 1.4.11, audit #6); segmen
  *     aktif `bg-primary` + teks `primary-foreground` mengikuti bahasa Chip
  *     selected (§9.25) — di dark mode otomatis invert. Segmen inaktif
  *     transparan dengan text-secondary.
@@ -74,7 +75,7 @@ export function SegmentedControl<V extends string = string>({
       accessibilityRole="radiogroup"
       hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
-        "h-10 w-full flex-row rounded-sm border border-border bg-surface p-[2px]",
+        "h-10 w-full flex-row rounded-sm border border-border-control bg-surface p-[2px]",
         disabled && "opacity-disabled",
         className,
       )}
