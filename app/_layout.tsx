@@ -34,7 +34,7 @@ import { useFonts } from "expo-font"
 
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
-import { PortalHost, PortalProvider } from "@/components/ui/portal"
+import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
 import { fontAssets } from "@/lib/fonts"
 import { tokens } from "@/lib/tokens"
@@ -124,19 +124,24 @@ function AppShell() {
           Border kiri-kanan tipis di web lebar memberi batas visual tanpa shadow.
           PortalHost berada di dalam kolom konten yang sama supaya overlay
           (sheet/modal) ikut ter-cap 520px di web lebar (§11), bukan full-bleed.
+          PortalScene (audit #3) menyembunyikan <Stack> dari screen reader saat
+          Modal/BottomSheet/SearchOverlay/LoadingOverlay terbuka; Toast berada
+          di luar Scene (ToastProvider) agar tetap terbaca sebagai alert.
         */}
         <View className="flex-1 items-center">
           <View className="w-full flex-1 md:max-w-content md:border-x md:border-border">
-            <Stack
-              screenOptions={{
-                headerShown: false,
-                // Stack native tidak bisa di-style via className; ambil dari tokens
-                // agar transisi header/scene tetap flat & konsisten.
-                contentStyle: { backgroundColor: palette.background },
-                animation: "slide_from_right",
-                animationDuration: tokens.motion.duration.base,
-              }}
-            />
+            <PortalScene>
+              <Stack
+                screenOptions={{
+                  headerShown: false,
+                  // Stack native tidak bisa di-style via className; ambil dari tokens
+                  // agar transisi header/scene tetap flat & konsisten.
+                  contentStyle: { backgroundColor: palette.background },
+                  animation: "slide_from_right",
+                  animationDuration: tokens.motion.duration.base,
+                }}
+              />
+            </PortalScene>
             <PortalHost />
           </View>
         </View>

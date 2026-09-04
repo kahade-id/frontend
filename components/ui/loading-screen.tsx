@@ -19,16 +19,24 @@
  * easing standar. Tidak ada rotasi/bounce — §1 "tenang". Transform & opacity
  * adalah hal yang tidak bisa di-className, jadi memakai RN Animated (native
  * driver) dengan className di View pembungkus, mengikuti pola PressableScale.
+ *
+ * Modalitas SR LoadingOverlay (audit #3): `useBlockingOverlay` menyembunyikan
+ * layar di belakang selama proses berjalan, dan fokus SR dipindahkan ke kotak
+ * progressbar (`accessible` + live region polite) agar pesannya dibacakan —
+ * kotak ini satu elemen a11y karena tidak ada kontrol di dalamnya. Tanpa
+ * `returnFocusRef`: pemicu biasanya tombol submit yang setelah selesai
+ * berganti layar; parent yang tahu tujuan fokus berikutnya.
  */
 import { useEffect, useRef, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { Backdrop, useOverlayPresence } from "@/components/ui/backdrop"
 import { Logo, type LogoSize } from "@/components/ui/logo"
-import { Portal } from "@/components/ui/portal"
+import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useOverlayFocus } from "@/lib/use-overlay-focus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 const PULSE_SCALE = 1.04
@@ -120,6 +128,9 @@ export type LoadingOverlayProps = {
 
 export function LoadingOverlay({ visible, message, children, onHidden }: LoadingOverlayProps) {
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
+  const boxRef = useRef<View>(null)
+  useBlockingOverlay(visible)
+  useOverlayFocus(visible, boxRef)
   if (!mounted) return null
 
   return (
@@ -130,8 +141,11 @@ export function LoadingOverlay({ visible, message, children, onHidden }: Loading
         <View pointerEvents="none" className="flex-1 items-center justify-center px-6">
           <Animated.View style={{ opacity: progress }}>
             <View
+              ref={boxRef}
+              accessible
               accessibilityViewIsModal
               accessibilityRole="progressbar"
+              accessibilityLiveRegion="polite"
               accessibilityLabel={message ?? "Memproses"}
               className="items-center gap-5 rounded-md border border-border bg-surface-elevated px-8 py-6"
             >

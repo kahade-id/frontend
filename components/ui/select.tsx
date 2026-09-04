@@ -23,9 +23,13 @@
  *   - Focus ring keyboard (web saja): trigger memakai `focusRing` luar
  *     (rounded-sm mengikuti field); baris opsi memakai `focusRingInset`
  *     karena lebar penuh di dalam sheet — ring luar akan terpotong.
+ *   - `ref` diteruskan ke PressableScale (React 19: ref adalah prop biasa,
+ *     tidak perlu forwardRef yang merusak generic <V>) supaya pemanggil bisa
+ *     memberinya ke `BottomSheet.returnFocusRef` — fokus SR kembali ke field
+ *     ini saat sheet opsi tutup (audit #3).
  */
 import { CaretDown, Check } from "phosphor-react-native"
-import type { ReactNode } from "react"
+import type { ReactNode, Ref } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Divider } from "@/components/ui/divider"
@@ -60,9 +64,12 @@ export type SelectProps<V extends string = string> = Omit<
     leftIcon?: IconComponent
     className?: string
     containerClassName?: string
+    /** Ref ke trigger — berikan ke `BottomSheet.returnFocusRef` (audit #3) */
+    ref?: Ref<View>
   }
 
 export function Select<V extends string = string>({
+  ref,
   label,
   value,
   options,
@@ -92,6 +99,7 @@ export function Select<V extends string = string>({
       className={containerClassName}
     >
       <PressableScale
+        ref={ref}
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityValue={{ text: selected?.label }}

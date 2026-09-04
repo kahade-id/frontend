@@ -20,11 +20,23 @@
  * masing lewat class `z-backdrop`, `z-bottomSheet`, `z-modal`, `z-banner`
  * (tokens.zIndex) — bukan oleh Portal.
  *
+ * Modalitas screen reader (audit #3, WCAG 2.4.3):
+ *   `accessibilityViewIsModal` di iOS HANYA menyembunyikan SIBLING dari view
+ *   penerimanya. Overlay kita dirender di dalam <PortalHost> (beberapa level
+ *   di bawah), jadi <Stack> app BUKAN sibling-nya dan atribut itu sendiri
+ *   tidak menyembunyikan apa pun. Solusi: overlay pemblokir mendaftar lewat
+ *   `useBlockingOverlay(visible)`, dan <PortalScene> (pembungkus konten app)
+ *   membaca jumlahnya lalu memasang `accessibilityElementsHidden` (iOS) +
+ *   `importantForAccessibility="no-hide-descendants"` (Android; RN-Web
+ *   memetakan keduanya ke `aria-hidden`). Toast TIDAK boleh ikut tersembunyi
+ *   (alert live region) — karena itu <PortalScene> hanya membungkus <Stack>,
+ *   bukan seluruh ToastProvider.
+ *
  * Pemasangan (sekali, di _layout.tsx):
  *   <ThemeProvider>
  *     <PortalProvider>
- *       <Stack />          // app
- *       <PortalHost />     // overlay dirender di sini, masih di dalam vars()
+ *       <PortalScene><Stack /></PortalScene>   // app; disembunyikan dari SR saat overlay pemblokir buka
+ *       <PortalHost />                         // overlay dirender di sini, masih di dalam vars()
  *     </PortalProvider>
  *   </ThemeProvider>
  */
@@ -48,12 +60,17 @@ type PortalContextValue = {
   mount: (key: string, node: ReactNode) => void
   unmount: (key: string) => void
   nodes: PortalNodes
+  /** Jumlah overlay pemblokir yang sedang terbuka (audit #3) */
+  blockingCount: number
+  /** Daftarkan satu overlay pemblokir; kembalikan fungsi untuk mencabut. */
+  registerBlocking: () => () => void
 }
 
 const PortalContext = createContext<PortalContextValue | null>(null)
 
 export function PortalProvider({ children }: { children: ReactNode }) {
   const [nodes, setNodes] = useState<PortalNodes>({})
+  const [blockingCount, setBlockingCount] = useState(0)
 
   const mount = useCallback((key: string, node: ReactNode) => {
     setNodes((prev) => (prev[key] === node ? prev : { ...prev, [key]: node }))
@@ -68,9 +85,14 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const registerBlocking = useCallback(() => {
+    setBlockingCount((n) => n + 1)
+    return () => setBlockingCount((n) => Math.max(0, n - 1))
+  }, [])
+
   const value = useMemo<PortalContextValue>(
-    () => ({ mount, unmount, nodes }),
-    [mount, unmount, nodes],
+    () => ({ mount, unmount, nodes, blockingCount, registerBlocking }),
+    [mount, unmount, nodes, blockingCount, registerBlocking],
   )
 
   return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>
@@ -80,6 +102,49 @@ function usePortalContext(): PortalContextValue {
   const ctx = useContext(PortalContext)
   if (!ctx) throw new Error("Portal harus dipakai di dalam <PortalProvider>")
   return ctx
+}
+
+/**
+ * Daftarkan overlay sebagai PEMBLOKIR selama `active` (Modal, BottomSheet,
+ * SearchOverlay, LoadingOverlay). Popover/tooltip/banner/toast non-blocking
+ * TIDAK memanggil ini — konten latar tetap bisa dijangkau.
+ *
+ * Dipanggil dengan `visible` (bukan `mounted`) supaya latar kembali terbaca
+ * begitu overlay diminta tutup, tidak menunggu animasi keluar selesai.
+ */
+export function useBlockingOverlay(active: boolean): void {
+  const { registerBlocking } = usePortalContext()
+  useEffect(() => {
+    if (!active) return
+    return registerBlocking()
+  }, [active, registerBlocking])
+}
+
+/** true bila ada overlay pemblokir yang terbuka. */
+export function useHasBlockingOverlay(): boolean {
+  return usePortalContext().blockingCount > 0
+}
+
+export type PortalSceneProps = ViewProps & { className?: string }
+
+/**
+ * Pembungkus konten app (di luar overlay). Saat ada overlay pemblokir,
+ * seluruh subtree disembunyikan dari screen reader — padanan lintas platform
+ * untuk `aria-modal`. Tidak mengubah layout/pointer: sentuhan ke latar sudah
+ * ditangkap Backdrop.
+ */
+export function PortalScene({ className, children, ...rest }: PortalSceneProps) {
+  const blocked = useHasBlockingOverlay()
+  return (
+    <View
+      accessibilityElementsHidden={blocked}
+      importantForAccessibility={blocked ? "no-hide-descendants" : "auto"}
+      className={cn("flex-1", className)}
+      {...rest}
+    >
+      {children}
+    </View>
+  )
 }
 
 export type PortalHostProps = Omit<ViewProps, "children"> & { className?: string }

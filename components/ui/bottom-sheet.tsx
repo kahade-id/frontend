@@ -47,10 +47,20 @@
  *   - Web (§11): sheet di-cap `md:max-w-content` dan di-center.
  *   - `Animated.View` reanimated tidak di-interop NativeWind -> className di
  *     <View> anak; Animated.View hanya membawa transform.
+ *   - Fokus & modalitas SR (audit #3): `useBlockingOverlay` menyembunyikan
+ *     konten app di belakang (portal.tsx); `useOverlayFocus` memindahkan
+ *     fokus ke judul (bila ada) atau kontainer sheet, dan mengembalikannya ke
+ *     `returnFocusRef` saat tutup. Turunan (ActionSheet, BankSelect, dst)
+ *     otomatis ikut.
  */
 import { X } from "phosphor-react-native"
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react"
-import { View, useWindowDimensions, type LayoutChangeEvent } from "react-native"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import {
+  View,
+  useWindowDimensions,
+  type LayoutChangeEvent,
+  type Text as RNText,
+} from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   runOnJS,
@@ -63,10 +73,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { IconButton } from "@/components/ui/icon-button"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
-import { Portal } from "@/components/ui/portal"
+import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 // --- Guard stacking (§9.9) -------------------------------------------------
@@ -118,6 +129,8 @@ export type BottomSheetProps = {
   /** className area konten (padding default px-6 pb-4) */
   contentClassName?: string
   accessibilityLabel?: string
+  /** Pemicu yang menerima fokus kembali saat sheet tutup (wajib untuk native). */
+  returnFocusRef?: A11yNodeRef
 }
 
 export function BottomSheet({
@@ -135,14 +148,21 @@ export function BottomSheet({
   onHidden,
   contentClassName,
   accessibilityLabel,
+  returnFocusRef,
 }: BottomSheetProps) {
   const { height: windowHeight } = useWindowDimensions()
   const insets = useSafeAreaInsets()
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
   const dismiss = dismissOnBackdrop ? onRequestClose : undefined
+  const sheetRef = useRef<View>(null)
+  const titleRef = useRef<RNText>(null)
 
   useStackingGuard(visible)
   useOverlayDismissKeys(visible, dismiss)
+  useBlockingOverlay(visible)
+  // Judul lebih dulu (TalkBack butuh node yang accessible); tanpa judul
+  // fallback ke kontainer sheet (VoiceOver memilih elemen pertama di dalamnya).
+  useOverlayFocus(visible, title ? titleRef : sheetRef, { returnFocusRef })
 
   // Reduce Motion (audit #2): slide/spring dari tepi layar adalah gerakan
   // besar -> sheet langsung di posisi akhir; backdrop (useOverlayPresence)
@@ -244,7 +264,11 @@ export function BottomSheet({
       {hasHeader || closeVisible ? (
         <View className="flex-row items-start gap-2 px-6 pt-3 pb-2">
           <View className="flex-1 gap-1">
-            {title ? <Text variant="h3">{title}</Text> : null}
+            {title ? (
+              <Text ref={titleRef} accessibilityRole="header" variant="h3">
+                {title}
+              </Text>
+            ) : null}
             {description ? (
               <Text variant="body" tone="secondary">
                 {description}
@@ -268,6 +292,7 @@ export function BottomSheet({
 
   const sheet = (
     <View
+      ref={sheetRef}
       onLayout={handleLayout}
       accessibilityViewIsModal
       accessibilityLabel={accessibilityLabel ?? title}
