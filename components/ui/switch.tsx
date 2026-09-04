@@ -29,6 +29,7 @@ import { Animated, Easing, Pressable, View, type PressableProps } from "react-na
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -47,6 +48,9 @@ const THUMB = 18
 // Border 1px di kedua sisi + 2px inset = jarak thumb ke tepi track
 const INSET = (TRACK_H - THUMB) / 2 - tokens.borderWidth.default
 const TRAVEL = TRACK_W - THUMB - tokens.borderWidth.default * 2 - INSET * 2
+// Audit #1: track 44x24 berdiri sendiri (tanpa label) -> slop vertikal 10
+// membawa target ke 44x44. Sebelumnya space[2]=8 hanya sampai 40.
+const STANDALONE_HIT_SLOP = hitSlopToReach(TRACK_W, TRACK_H)
 
 export function Switch({
   value,
@@ -97,9 +101,9 @@ export function Switch({
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}
       onPress={() => onChange(!value)}
-      hitSlop={hasText ? undefined : tokens.space[2]}
+      hitSlop={hasText ? undefined : STANDALONE_HIT_SLOP}
       className={cn(
-        hasText ? "min-h-[44px] w-full flex-row items-center gap-4 py-3 rounded-xs" : "self-start rounded-full",
+        hasText ? "min-h-11 w-full flex-row items-center gap-4 py-3 rounded-xs" : "self-start rounded-full",
         focusRing,
         disabled && "opacity-disabled",
         className,
