@@ -169,12 +169,22 @@ export type OnboardingSlideViewProps = {
   slide: OnboardingSlide
   /** Lebar kolom pager — diukur runtime oleh carousel (bukan token) */
   width: number
+  /** Slide yang sedang tampil. Slide lain tetap dirender (pager) tapi disembunyikan dari SR */
+  active: boolean
 }
 
-export function OnboardingSlideView({ slide, width }: OnboardingSlideViewProps) {
+export function OnboardingSlideView({ slide, width, active }: OnboardingSlideViewProps) {
   return (
     // Lebar = lebar viewport pager, nilai runtime -> style, bukan className.
-    <View style={{ width }} className="flex-1 px-6">
+    // Semua slide ter-mount sekaligus di FlatList; tanpa penyembunyian ini
+    // screen reader membaca tiga heading Display berturut-turut (audit #8:
+    // satu heading utama per layar). Hanya slide aktif yang masuk pohon a11y.
+    <View
+      style={{ width }}
+      className="flex-1 px-6"
+      accessibilityElementsHidden={!active}
+      importantForAccessibility={active ? "auto" : "no-hide-descendants"}
+    >
       {/* Artefak: ambil sisa ruang, konten di tengah secara vertikal */}
       <View className="flex-1 justify-center py-6">{slide.artifact}</View>
 

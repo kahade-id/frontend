@@ -84,7 +84,10 @@ export const OnboardingCarousel = forwardRef<OnboardingCarouselHandle, Onboardin
             ref={listRef}
             data={slides}
             keyExtractor={(s) => s.key}
-            renderItem={({ item }) => <OnboardingSlideView slide={item} width={width} />}
+            renderItem={({ item, index: i }) => <OnboardingSlideView slide={item} width={width} active={i === index} />}
+            // `index` ikut dalam extraData supaya slide non-aktif dirender ulang
+            // saat halaman berganti (renderItem menutup nilai `index` lama).
+            extraData={index}
             horizontal
             pagingEnabled
             showsHorizontalScrollIndicator={false}

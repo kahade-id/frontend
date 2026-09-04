@@ -20,9 +20,18 @@
  * <Stagger> memberi `delay` bertingkat ke tiap anak FadeIn — untuk list
  * pendek (<= 6 item, mis. kartu ringkasan). Jangan untuk FlatList panjang:
  * item yang masuk saat scroll tidak butuh reveal (§8 loading inline = tenang).
+ *
+ * Struktur dua lapis (non-obvious): `Animated.View` TIDAK di-interop
+ * NativeWind (konvensi repo — lihat backdrop, modal, stepper, bottom-sheet),
+ * jadi `className`/props View diletakkan di <View> pembungkus dan
+ * Animated.View di dalamnya hanya memegang opacity/transform. Animated.View
+ * diberi `flex: 1` agar ikut mengisi pembungkus bila pemanggil memberi
+ * `flex-1` (mis. carousel onboarding); saat pembungkus auto-height, flex 1
+ * dengan basis 0 di parent tak-terdefinisi jatuh ke ukuran konten (Yoga &
+ * CSS sama), sehingga pemakaian lama tidak berubah.
  */
 import { Children, useEffect, useRef, type ReactNode } from "react"
-import { Animated, Easing, type ViewProps } from "react-native"
+import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
@@ -82,13 +91,9 @@ export function FadeIn({
   })
 
   return (
-    <Animated.View
-      pointerEvents={visible ? "auto" : "none"}
-      style={{ opacity: progress, transform: [{ translateY }] }}
-      {...rest}
-    >
-      {children}
-    </Animated.View>
+    <View pointerEvents={visible ? "auto" : "none"} {...rest}>
+      <Animated.View style={{ flex: 1, opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>
+    </View>
   )
 }
 
