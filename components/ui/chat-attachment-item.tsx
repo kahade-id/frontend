@@ -41,7 +41,6 @@ import { ProgressBar } from "@/components/ui/progress-bar"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
-import { tokens } from "@/lib/tokens"
 
 export type ChatAttachment = {
   fileName: string
