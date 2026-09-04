@@ -436,6 +436,25 @@ export const motion = {
 } as const
 
 // ==================================================================
+// 9. AKSESIBILITAS
+// ==================================================================
+
+/**
+ * Konstanta a11y non-visual. BUKAN token CSS: tidak ikut ke tailwind.config /
+ * global.css (audit #12 tidak perlu menyinkronkannya). Dipakai lewat
+ * `lib/hit-slop.ts` untuk menghitung `hitSlop`, dan sebagai rujukan angka di
+ * komentar/komponen (mis. range-slider, text-link).
+ */
+export const a11y = {
+  /**
+   * Target sentuh minimum (audit #1): 44pt mengikuti iOS HIG; Android 48dp
+   * dicapai komponen yang perlu lewat slop tambahan (Checkbox, Radio,
+   * IconButton sm). Kelas Tailwind padanannya: `min-h-11 min-w-11` (44px).
+   */
+  minHitTarget: 44,
+} as const
+
+// ==================================================================
 // AGGREGATE
 // ==================================================================
 
@@ -455,6 +474,7 @@ export const tokens = {
   zIndex,
   icon,
   motion,
+  a11y,
 } as const
 
 export type Tokens = typeof tokens

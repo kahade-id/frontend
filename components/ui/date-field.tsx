@@ -27,7 +27,7 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatDate } from "@/lib/format"
-import { tokens } from "@/lib/tokens"
+import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
 
 export type DateFieldProps = Omit<PressableScaleProps, "children" | "className"> &
   Pick<FieldProps, "helperText" | "errorText" | "reserveHelperSpace" | "required"> & {
@@ -144,7 +144,7 @@ export function DateField({
         {showClear ? (
           <Pressable
             onPress={onClear}
-            hitSlop={tokens.space[2]}
+            hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel="Hapus tanggal"
             className="ml-2"

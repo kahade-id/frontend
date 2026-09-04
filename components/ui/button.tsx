@@ -9,6 +9,9 @@
  *   - Radius `rounded-sm` (6px) — §5: button = sm. Bukan md.
  *   - Tinggi: sm=40 (h-10), md=48 (h-12) — keduanya kelipatan 4 dan >= 44
  *     target sentuh untuk md. Padding horizontal px-4 / px-5 dari tokens.
+ *     `sm` mendapat `hitSlop` vertikal space[1] (4+40+4 = 48) agar memenuhi
+ *     44pt/48dp tanpa mengubah tampilan (audit #1; sama dengan IconButton
+ *     sm). Pemanggil bisa override lewat prop hitSlop.
  *   - Secondary memakai `border-border` (gray.400 / #3A3A3A), BUKAN
  *     border-focus: role focus disediakan untuk state fokus/aktif (§6.1),
  *     bukan resting outline. Hierarki: primary (solid) > secondary (outline)
@@ -27,6 +30,7 @@ import type { ReactNode } from "react"
 import { View } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Spinner } from "@/components/ui/spinner"
@@ -99,6 +103,7 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
+      hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1] } : undefined}
       containerClassName={cn(fullWidth ? "w-full" : "self-start", containerClassName)}
       className={cn(
         "flex-row items-center justify-center rounded-sm",
