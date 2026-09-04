@@ -126,19 +126,19 @@ export function Timeline({ items, className, ...rest }: TimelineProps) {
                 <Text
                   variant="body"
                   weight={status === "current" ? 600 : 500}
-                  tone={isUpcoming ? "tertiary" : titleTone[tone]}
+                  tone={isUpcoming ? "secondary" : titleTone[tone]}
                   className="flex-1"
                 >
                   {item.title}
                 </Text>
                 {item.timestamp ? (
-                  <Text variant="monoBody" tone="tertiary">
+                  <Text variant="monoBody" tone="secondary">
                     {item.timestamp}
                   </Text>
                 ) : null}
               </View>
               {item.description ? (
-                <Text variant="body" tone={isUpcoming ? "tertiary" : "secondary"}>
+                <Text variant="body" tone="secondary">
                   {item.description}
                 </Text>
               ) : null}

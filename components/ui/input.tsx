@@ -61,6 +61,11 @@ export type InputProps = Omit<TextInputProps, "style" | "editable"> &
     /** Ikon kanan — override toggle password / tombol clear */
     rightIcon?: IconComponent
     onRightIconPress?: () => void
+    /**
+     * Label a11y tombol `rightIcon` — WAJIB bila `onRightIconPress` diisi:
+     * tombol ikon tanpa label hanya terbaca "button" oleh screen reader.
+     */
+    rightIconAccessibilityLabel?: string
     /** Tombol X untuk mengosongkan nilai (default true untuk search) */
     clearable?: boolean
     onClear?: () => void
@@ -85,6 +90,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     leftIcon,
     rightIcon,
     onRightIconPress,
+    rightIconAccessibilityLabel,
+    accessibilityHint,
     clearable,
     onClear,
     rows = 4,
@@ -260,6 +267,11 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             onBlur={handleBlur}
             onChangeText={handleChange}
             accessibilityLabel={label ?? placeholder}
+            // Error dibaca bersama field saat fokus (bukan hanya saat muncul):
+            // RN tidak punya aria-invalid/errormessage lintas platform, jadi
+            // pesan error dipromosikan ke hint. Hint pemanggil tetap dipakai
+            // saat tidak ada error.
+            accessibilityHint={errorText ?? accessibilityHint}
             accessibilityState={{ disabled }}
             className={cn(
               "w-full font-sans-400 text-bodyLarge text-text-primary",
@@ -302,6 +314,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
               disabled={disabled}
               hitSlop={tokens.space[2]}
               accessibilityRole="button"
+              accessibilityLabel={rightIconAccessibilityLabel}
+              accessibilityState={{ disabled }}
               className="ml-2"
             >
               <Icon icon={rightIcon} size="sm" />

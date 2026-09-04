@@ -118,7 +118,7 @@ export function OrderLinkShareCard({
             {title}
           </Text>
           {orderCode ? (
-            <Text variant="monoBody" tone="tertiary">
+            <Text variant="monoBody" tone="secondary">
               {orderCode}
             </Text>
           ) : null}
@@ -148,7 +148,7 @@ export function OrderLinkShareCard({
       ) : null}
 
       {expiresLabel ? (
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           {expiresLabel}
         </Text>
       ) : null}

@@ -109,7 +109,7 @@ export function AchievementBadge({
       </View>
 
       {earned && earnedAt ? (
-        <Text variant="caption" tone="tertiary" className="font-mono-500 tracking-mono tabular-nums">
+        <Text variant="caption" tone="secondary" className="font-mono-500 tracking-mono tabular-nums">
           {earnedAt}
         </Text>
       ) : null}

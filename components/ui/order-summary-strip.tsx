@@ -15,7 +15,7 @@
  *   - Angka memakai Sofia Sans tabular (bukan Mono): ini HITUNGAN, bukan
  *     nominal/ID (§3.1 "angka di dalam Sofia Sans -> tabular figures").
  *     Nominal escrow tertahan (bila ada) yang memakai <Amount> Mono.
- *   - Kotak dengan hitungan 0 tetap dirender tapi tone tertiary + tidak
+ *   - Kotak dengan hitungan 0 tetap dirender tapi tone secondary + tidak
  *     interaktif: menghilangkannya membuat strip bergeser-geser tiap refresh
  *     dan user kehilangan orientasi posisi.
  *   - Kotak "Sengketa" > 0 mendapat angka tone danger — satu-satunya warna
@@ -107,7 +107,7 @@ export function OrderSummaryStrip({
             {t.heldTitle}
           </Text>
           <Amount value={heldAmount} size="body" tone="primary" compact />
-          <Text variant="caption" tone="tertiary" numberOfLines={1}>
+          <Text variant="caption" tone="secondary" numberOfLines={1}>
             {t.heldHint}
           </Text>
         </View>
@@ -135,12 +135,12 @@ export function OrderSummaryStrip({
           >
             <Text
               variant="h2"
-              tone={selected ? "inverse" : empty ? "tertiary" : item.critical ? "danger" : "primary"}
+              tone={selected ? "inverse" : empty ? "secondary" : item.critical ? "danger" : "primary"}
               className="tabular-nums"
             >
               {formatNumber(item.count)}
             </Text>
-            <Text variant="caption" tone={selected ? "inverse" : empty ? "tertiary" : "secondary"} numberOfLines={1}>
+            <Text variant="caption" tone={selected ? "inverse" : "secondary"} numberOfLines={1}>
               {item.label}
             </Text>
           </PressableScale>

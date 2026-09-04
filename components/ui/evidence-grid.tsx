@@ -105,7 +105,7 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
         ) : (
           <View className="h-full w-full items-center justify-center gap-1">
             <Icon icon={FilePdf} size="xl" tone="default" />
-            <Text variant="caption" tone="tertiary">
+            <Text variant="caption" tone="secondary">
               PDF
             </Text>
           </View>

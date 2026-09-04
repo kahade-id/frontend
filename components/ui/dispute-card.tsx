@@ -106,7 +106,7 @@ export function DisputeCard({
       {...rest}
     >
       <View className="flex-row items-center justify-between gap-3">
-        <Text variant="caption" tone="tertiary" numberOfLines={1} className="flex-1 font-mono-500 tracking-mono">
+        <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1 font-mono-500 tracking-mono">
           {disputeId}
         </Text>
         <DisputeStatusBadge status={status} party={openedByMe ? "claimant" : "respondent"} size="sm" />
@@ -123,7 +123,7 @@ export function DisputeCard({
             t.openedByYou
           ) : (
             <>
-              <Text variant="inherit" tone="tertiary">
+              <Text variant="inherit" tone="secondary">
                 {t.openedBy}{" "}
               </Text>
               {counterpart.name}
@@ -134,13 +134,13 @@ export function DisputeCard({
 
       <View className="flex-row items-end justify-between gap-3">
         <View className="gap-0.5">
-          <Text variant="caption" tone="tertiary">
+          <Text variant="caption" tone="secondary">
             {t.heldAmount}
           </Text>
           <Amount value={heldAmount} size="body" tone="primary" />
         </View>
         {updatedAt ? (
-          <Text variant="caption" tone="tertiary" className="tabular-nums">
+          <Text variant="caption" tone="secondary" className="tabular-nums">
             {updatedAt}
           </Text>
         ) : null}

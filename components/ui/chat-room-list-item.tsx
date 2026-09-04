@@ -4,7 +4,7 @@
  * Baris ruang obrolan di tab Chat: Avatar md (+ Dot online) -> nama +
  * waktu pesan terakhir di baris pertama; preview pesan + indikator
  * (unread / muted / pinned) di baris kedua. Konteks order opsional
- * (mis. "Order #KHD-2391") sebagai caption Mono text-tertiary di bawah nama
+ * (mis. "Order #KHD-2391") sebagai caption Mono text-secondary di bawah nama
  * — bukan Badge: tiga baris teks + Badge berbingkai membuat baris terlalu
  * ramai, dan ID order adalah data teknis (Mono, §3.1) yang tidak butuh
  * penekanan warna.
@@ -150,7 +150,7 @@ export function ChatRoomListItem({
             {time ? (
               <Text
                 variant="caption"
-                tone={hasUnread ? "primary" : "tertiary"}
+                tone={hasUnread ? "primary" : "secondary"}
                 weight={hasUnread ? 500 : 400}
                 className="tabular-nums"
               >
@@ -161,7 +161,7 @@ export function ChatRoomListItem({
         </View>
 
         {context ? (
-          <Text variant="caption" tone="tertiary" numberOfLines={1} className="font-mono-500">
+          <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500">
             {context}
           </Text>
         ) : null}

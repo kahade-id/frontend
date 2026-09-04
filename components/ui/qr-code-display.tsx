@@ -151,7 +151,7 @@ export function QRCodeDisplay({
         ) : (
           <View className="items-center gap-2 px-4">
             <Icon icon={QrCode} size="xl" />
-            <Text variant="caption" tone="tertiary" className="text-center">
+            <Text variant="caption" tone="secondary" className="text-center">
               Data terlalu panjang untuk QR
             </Text>
           </View>

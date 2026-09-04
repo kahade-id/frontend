@@ -120,7 +120,7 @@ export function SearchOverlay({
               {loading ? (
                 <View className="flex-row items-center gap-2 px-6 py-3">
                   <Spinner size="sm" />
-                  <Text variant="caption" tone="tertiary">
+                  <Text variant="caption" tone="secondary">
                     Mencari
                   </Text>
                 </View>

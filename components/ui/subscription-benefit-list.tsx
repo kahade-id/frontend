@@ -17,7 +17,7 @@
  *   IconBox -> "Kahade Plus · Bulanan" + periode Mono -> nominal <Amount>
  *   + Badge status di kanan.
  *   - Periode ("1 Agu – 31 Agu 2026") sudah diformat pemanggil (§13).
- *   - Status REFUNDED nominal dicoret; FAILED nominal tertiary.
+ *   - Status REFUNDED nominal dicoret; FAILED nominal secondary.
  */
 import { Check, Crown } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
@@ -105,7 +105,7 @@ export function SubscriptionBenefitList({
                 ) : null}
                 {hasQuota ? <ProgressBar value={pct} size="sm" tone={quotaTone(used, b.limit!)} /> : null}
                 {b.resetHint ? (
-                  <Text variant="caption" tone="tertiary">
+                  <Text variant="caption" tone="secondary">
                     {b.resetHint}
                   </Text>
                 ) : null}
@@ -178,16 +178,16 @@ export function SubscriptionHistoryListItem({
       title={periodLabel ? `${planName} \u00B7 ${periodLabel}` : planName}
       subtitle={
         <View className="flex-row flex-wrap items-center gap-x-2">
-          <Text variant="monoBody" tone="tertiary">
+          <Text variant="monoBody" tone="secondary">
             {periodRange}
           </Text>
           {paymentMethod ? (
-            <Text variant="caption" tone="tertiary" numberOfLines={1}>
+            <Text variant="caption" tone="secondary" numberOfLines={1}>
               {paymentMethod}
             </Text>
           ) : null}
           {invoiceId ? (
-            <Text variant="monoBody" tone="tertiary" numberOfLines={1}>
+            <Text variant="monoBody" tone="secondary" numberOfLines={1}>
               {invoiceId}
             </Text>
           ) : null}

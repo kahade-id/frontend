@@ -153,7 +153,7 @@ export function TwoFactorMethodSelector({
               {isUnavailable ? m.unavailable : m.description}
             </Text>
             {!isUnavailable && m.hint ? (
-              <Text variant="monoBody" tone="tertiary">
+              <Text variant="monoBody" tone="secondary">
                 {m.hint}
               </Text>
             ) : null}

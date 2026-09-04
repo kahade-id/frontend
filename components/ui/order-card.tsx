@@ -4,7 +4,7 @@
  * nominal, §13 format, §2.3 status semantik).
  *
  * Satu baris data `GET /v1/orders` untuk tab Transaksi & beranda. Anatomi:
- *   baris 1 : ID order (Mono caption, text-tertiary) ..... OrderStatusBadge
+ *   baris 1 : ID order (Mono caption, text-secondary) ..... OrderStatusBadge
  *   baris 2 : judul barang/jasa (body 600, 2 baris maks)
  *   baris 3 : Avatar xs + nama lawan transaksi + peran ("Pembeli"/"Penjual")
  *   baris 4 : nominal <Amount> ..... waktu (caption tabular)
@@ -17,7 +17,7 @@
  *     .cardGap) — tanggung jawab FlatList `ItemSeparatorComponent`/`gap-3`
  *     di parent, bukan margin di kartu (kartu tidak tahu ia terakhir).
  *   - ID order di ATAS judul, bukan di bawah: saat user membandingkan dengan
- *     chat/CS, ID adalah anchor pertama yang dicari. Mono caption text-tertiary
+ *     chat/CS, ID adalah anchor pertama yang dicari. Mono caption text-secondary
  *     supaya tidak bersaing dengan judul (§1 "presisi di detail numerik").
  *   - Nominal selalu <Amount size="body"> (Mono 14), BUKAN large: di daftar,
  *     nominal Mono 24 membuat tiap kartu setinggi hero dan mematahkan irama
@@ -135,7 +135,7 @@ export function OrderCard({
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           {unread ? <Dot size="md" tone="primary" /> : null}
-          <Text variant="caption" tone="tertiary" numberOfLines={1} className="font-mono-500 tracking-mono">
+          <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500 tracking-mono">
             {orderId}
           </Text>
         </View>
@@ -151,7 +151,7 @@ export function OrderCard({
       <View className="flex-row items-center gap-2">
         <Avatar source={counterpart.avatar} name={counterpart.name} size="xs" verified={counterpart.verified} />
         <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
-          <Text variant="inherit" tone="tertiary">
+          <Text variant="inherit" tone="secondary">
             {counterpartRole}
             {" · "}
           </Text>
@@ -163,7 +163,7 @@ export function OrderCard({
       <View className="flex-row items-end justify-between gap-3">
         <Amount value={amount} size="body" tone="primary" />
         {timestamp ? (
-          <Text variant="caption" tone="tertiary" className="tabular-nums">
+          <Text variant="caption" tone="secondary" className="tabular-nums">
             {timestamp}
           </Text>
         ) : null}

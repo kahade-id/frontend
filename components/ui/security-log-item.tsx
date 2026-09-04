@@ -31,7 +31,7 @@
  *     dengan "·", IP di Text `monoBody` terpisah (§3.1: IP/ID = data teknis)
  *     — sama dengan <DeviceSessionListItem> supaya dua layar keamanan
  *     terbaca serupa.
- *   - Timestamp `monoBody` text-tertiary rata kanan, string sudah diformat
+ *   - Timestamp `monoBody` text-secondary rata kanan, string sudah diformat
  *     pemanggil ("3 Sep 2026, 14:30" — §13, tanpa relative time). Ditaruh di
  *     baris judul, bukan di bawah, agar pemindaian vertikal "kapan?" cepat.
  *   - `onReport` ("Bukan Anda?") = <TextLink variant="caption"> di bawah
@@ -196,7 +196,7 @@ export function SecurityLogItem({
               </Badge>
             ) : null}
           </View>
-          <Text variant="monoBody" tone="tertiary" numberOfLines={1}>
+          <Text variant="monoBody" tone="secondary" numberOfLines={1}>
             {timestamp}
           </Text>
         </View>
@@ -209,7 +209,7 @@ export function SecurityLogItem({
               </Text>
             ) : null}
             {ip ? (
-              <Text variant="monoBody" tone="tertiary" numberOfLines={1}>
+              <Text variant="monoBody" tone="secondary" numberOfLines={1}>
                 {ip}
               </Text>
             ) : null}

@@ -159,7 +159,7 @@ export function FeeBreakdown({
       <KeyValue label={t.sellerGets} emphasis={role === "SELLER"} value={<Amount value={gets} size={role === "SELLER" ? "large" : "body"} />} />
 
       {feeResponsibility === "SPLIT" ? (
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           <Text variant="inherit" weight={500}>
             {t.responsibility.SPLIT}
           </Text>

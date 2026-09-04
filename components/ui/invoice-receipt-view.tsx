@@ -138,7 +138,7 @@ function Party({ label, party }: { label: string; party: InvoiceParty }) {
         {party.name}
       </Text>
       {party.detail ? (
-        <Text variant="caption" tone="tertiary" numberOfLines={1}>
+        <Text variant="caption" tone="secondary" numberOfLines={1}>
           {party.detail}
         </Text>
       ) : null}
@@ -224,7 +224,7 @@ export function InvoiceReceiptView({
                 {it.title}
               </Text>
               {it.detail ? (
-                <Text variant="caption" tone="tertiary">
+                <Text variant="caption" tone="secondary">
                   {it.detail}
                 </Text>
               ) : null}
@@ -264,7 +264,7 @@ export function InvoiceReceiptView({
       ) : null}
 
       {footnote ? (
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           {footnote}
         </Text>
       ) : null}

@@ -136,7 +136,7 @@ export function NotificationPreferencesMatrix({
                           {channelLabels[ch]}
                         </Text>
                         {locked ? (
-                          <Text variant="caption" tone="tertiary">
+                          <Text variant="caption" tone="secondary">
                             {lockedLabel}
                           </Text>
                         ) : null}

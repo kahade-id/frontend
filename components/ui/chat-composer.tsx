@@ -252,7 +252,7 @@ export function ChatComposer({
           />
           {showCount ? (
             <Pressable accessible={false} className="pb-3 pl-2">
-              <Text variant="caption" tone={value.length >= maxLength ? "danger" : "tertiary"} className="tabular-nums">
+              <Text variant="caption" tone={value.length >= maxLength ? "danger" : "secondary"} className="tabular-nums">
                 {value.length}/{maxLength}
               </Text>
             </Pressable>

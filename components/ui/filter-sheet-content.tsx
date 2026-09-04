@@ -91,7 +91,7 @@ export function FilterSheetContent({
               {s.title}
             </Text>
             {s.description ? (
-              <Text variant="caption" tone="tertiary">
+              <Text variant="caption" tone="secondary">
                 {s.description}
               </Text>
             ) : null}

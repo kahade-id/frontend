@@ -7,7 +7,7 @@
  * atau berdiri sendiri di layar Push untuk pemilihan deadline escrow.
  *
  * Anatomi: header (bulan+tahun, panah prev/next) -> baris nama hari
- * (caption tertiary) -> 6 baris tanggal (selalu 6 supaya tinggi sheet tidak
+ * (caption secondary) -> 6 baris tanggal (selalu 6 supaya tinggi sheet tidak
  * melompat saat ganti bulan — sel kosong tetap dirender tak terlihat).
  *
  * State sel:
@@ -140,7 +140,7 @@ export function Calendar({
       <View className="flex-row">
         {WEEKDAYS_ID.map((w) => (
           <View key={w} className="flex-1 items-center py-1">
-            <Text variant="caption" tone="tertiary" weight={500}>
+            <Text variant="caption" tone="secondary" weight={500}>
               {w}
             </Text>
           </View>

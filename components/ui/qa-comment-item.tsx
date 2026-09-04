@@ -108,13 +108,13 @@ export function QaCommentItem({
               {t.owner}
             </Badge>
           ) : null}
-          <Text variant="monoBody" tone="tertiary">
+          <Text variant="monoBody" tone="secondary">
             {timestamp}
           </Text>
         </View>
 
         {deleted ? (
-          <Text variant="body" tone="tertiary" className="italic">
+          <Text variant="body" tone="secondary" className="italic">
             {t.deleted}
           </Text>
         ) : (

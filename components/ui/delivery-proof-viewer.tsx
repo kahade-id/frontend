@@ -259,7 +259,7 @@ export function DeliveryProofViewer({
                   {f.name}
                 </Text>
                 {f.size != null ? (
-                  <Text variant="monoBody" tone="tertiary">
+                  <Text variant="monoBody" tone="secondary">
                     {formatFileSize(f.size)}
                   </Text>
                 ) : null}
@@ -321,10 +321,10 @@ export function DeliveryProofViewer({
 
       {uploadedAtLabel ? (
         <View className="flex-row items-center gap-2">
-          <Text variant="caption" tone="tertiary">
+          <Text variant="caption" tone="secondary">
             {t.uploadedAt}
           </Text>
-          <Text variant="monoBody" tone="tertiary">
+          <Text variant="monoBody" tone="secondary">
             {uploadedAtLabel}
           </Text>
         </View>

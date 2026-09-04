@@ -12,7 +12,7 @@
  *   ikon jenis order (IconBox) · nama templat (H3) · Badge peran ("Saya penjual")
  *   judul order default (body) + deskripsi 2 baris (caption)
  *   nominal <Amount body> · "n hari" · fee responsibility · lawan tetap (@user)
- *   footer: "Dipakai 12x · terakhir 3 Sep" (caption tertiary)
+ *   footer: "Dipakai 12x · terakhir 3 Sep" (caption secondary)
  *   aksi: Gunakan (primary sm, flex-1) · Ubah · Hapus (icon buttons ghost)
  *
  * Keputusan non-obvious:
@@ -153,13 +153,13 @@ export function TransactionTemplateCard({
       {/* Meta angka */}
       <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
         <Amount value={template.orderValue} size="body" tone="primary" />
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           ·
         </Text>
         <Text variant="caption" tone="secondary" className="tabular-nums">
           {t.days(template.deliveryDeadlineDays)}
         </Text>
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           ·
         </Text>
         <Text variant="caption" tone="secondary">
@@ -167,7 +167,7 @@ export function TransactionTemplateCard({
         </Text>
         {template.counterpartUsername ? (
           <>
-            <Text variant="caption" tone="tertiary">
+            <Text variant="caption" tone="secondary">
               ·
             </Text>
             <Text variant="caption" tone="secondary" numberOfLines={1}>
@@ -177,7 +177,7 @@ export function TransactionTemplateCard({
         ) : null}
       </View>
 
-      <Text variant="caption" tone="tertiary" numberOfLines={1}>
+      <Text variant="caption" tone="secondary" numberOfLines={1}>
         {usage}
       </Text>
 

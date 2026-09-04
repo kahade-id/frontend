@@ -104,7 +104,7 @@ export function AnalyticsSummary({
             level="h3"
             action={
               periodLabel ? (
-                <Text variant="caption" tone="tertiary">
+                <Text variant="caption" tone="secondary">
                   {periodLabel}
                 </Text>
               ) : undefined

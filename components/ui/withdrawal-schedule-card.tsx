@@ -134,7 +134,7 @@ export function WithdrawalScheduleCard({
           <Text variant="h3" tone="primary" numberOfLines={1}>
             {title}
           </Text>
-          <Text variant="caption" tone={isActive ? "success" : "tertiary"}>
+          <Text variant="caption" tone={isActive ? "success" : "secondary"}>
             {isActive ? t.active : t.inactive}
           </Text>
         </View>
@@ -167,7 +167,7 @@ export function WithdrawalScheduleCard({
             <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500 tracking-mono">
               {maskAccountNumber(bankAccount.accountNumber)}
               {bankAccount.accountHolder ? (
-                <Text variant="inherit" tone="tertiary" className="font-sans-400">
+                <Text variant="inherit" tone="secondary" className="font-sans-400">
                   {" · "}
                   {bankAccount.accountHolder}
                 </Text>

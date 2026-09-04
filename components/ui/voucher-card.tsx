@@ -160,19 +160,19 @@ export function VoucherCard({
             </Text>
           ) : null}
           {expiresAt ? (
-            <Text variant="caption" tone={expiresSoon ? "warning" : "tertiary"} className="tabular-nums">
+            <Text variant="caption" tone={expiresSoon ? "warning" : "secondary"} className="tabular-nums">
               {t.validUntil} {expiresAt}
             </Text>
           ) : null}
           {disabled && disabledReason ? (
-            <Text variant="caption" tone="tertiary">
+            <Text variant="caption" tone="secondary">
               {disabledReason}
             </Text>
           ) : null}
         </View>
 
         <View className="items-end gap-2">
-          <Text variant="caption" tone="tertiary" className="font-mono-500 tracking-mono">
+          <Text variant="caption" tone="secondary" className="font-mono-500 tracking-mono">
             {code.toUpperCase()}
           </Text>
           {onUse && !selected ? (

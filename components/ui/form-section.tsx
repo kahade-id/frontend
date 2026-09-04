@@ -22,7 +22,7 @@
  * Keputusan non-obvious:
  *   - Judul memakai H3 (18/600), bukan Label 13/600: section adalah bagian
  *     halaman, bukan label satu kontrol. Label tetap milik <Field>.
- *   - `optional` menambah caption "(opsional)" tone tertiary di judul —
+ *   - `optional` menambah caption "(opsional)" tone secondary di judul —
  *     kebalikan dari tanda " *" required di FieldLabel. Sistem menandai
  *     yang WAJIB di level field dan yang OPSIONAL di level section, jadi
  *     tidak ada informasi yang ditulis dua kali.
@@ -69,7 +69,7 @@ export function FormSection({
             <Text variant="h3" tone="primary">
               {title}
               {optional ? (
-                <Text variant="caption" tone="tertiary">
+                <Text variant="caption" tone="secondary">
                   {"  (opsional)"}
                 </Text>
               ) : null}

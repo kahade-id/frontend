@@ -14,7 +14,7 @@
  * Keputusan non-obvious:
  *   - Aksi berada di LUAR Pressable baris (sibling dalam flex-row) agar tap
  *     tombol tidak memicu onPress baris — pola FollowButton di Discover.
- *   - `stat` (mis. "128 transaksi · 4,9") caption tertiary di bawah handle,
+ *   - `stat` (mis. "128 transaksi · 4,9") caption secondary di bawah handle,
  *     bukan Badge: informasi pendukung, bukan status.
  *   - `blocked` meredupkan avatar & nama (opacity) tanpa warna semantik:
  *     pemblokiran adalah preferensi pengguna, bukan error.
@@ -83,7 +83,7 @@ export function UserListItem({
               </Text>
             ) : null}
             {stat ? (
-              <Text variant="caption" tone="tertiary" numberOfLines={1}>
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
                 {stat}
               </Text>
             ) : null}

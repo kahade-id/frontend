@@ -75,7 +75,7 @@ export const TextArea = forwardRef<TextInput, TextAreaProps>(function TextArea(
         <Text
           variant="caption"
           weight={atLimit ? 500 : 400}
-          tone={atLimit ? "danger" : "tertiary"}
+          tone={atLimit ? "danger" : "secondary"}
           accessibilityLabel={
             maxLength != null ? `${length} dari ${maxLength} karakter` : `${length} karakter`
           }

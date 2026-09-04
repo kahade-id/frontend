@@ -32,7 +32,7 @@
  *     tetap text-primary agar tidak terkesan seluruh baris error.
  *   - Waktu terakhir aktif adalah string yang SUDAH diformat pemanggil
  *     ("3 Sep 2026, 14:30" — §13, bukan relative time), dirender `monoBody`
- *     text-tertiary seperti timestamp <Timeline>. Untuk sesi saat ini
+ *     text-secondary seperti timestamp <Timeline>. Untuk sesi saat ini
  *     pemanggil biasanya mengirim `lastActiveLabel` "Aktif sekarang" yang
  *     dirender caption biasa (bukan Mono) karena bukan data teknis.
  *   - Tombol "Keluar" = <Button variant="ghost" size="sm" fullWidth=false>
@@ -169,7 +169,7 @@ export function DeviceSessionListItem({
               </Text>
             ) : null}
             {ip ? (
-              <Text variant="monoBody" tone="tertiary" numberOfLines={1}>
+              <Text variant="monoBody" tone="secondary" numberOfLines={1}>
                 {ip}
               </Text>
             ) : null}
@@ -182,7 +182,7 @@ export function DeviceSessionListItem({
               {lastActiveLabel}
             </Text>
           ) : lastActiveAt ? (
-            <Text variant="monoBody" tone="tertiary" numberOfLines={1}>
+            <Text variant="monoBody" tone="secondary" numberOfLines={1}>
               {lastActiveAt}
             </Text>
           ) : null}

@@ -133,7 +133,7 @@ export function SupportTicketCard({
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           {unread ? <Dot size="md" tone="primary" /> : null}
-          <Text variant="caption" tone="tertiary" numberOfLines={1} className="font-mono-500 tracking-mono">
+          <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500 tracking-mono">
             {ticketNumber}
           </Text>
         </View>
@@ -154,12 +154,12 @@ export function SupportTicketCard({
           {attachmentCount ? (
             <View className="flex-row items-center gap-1">
               {category ? (
-                <Text variant="caption" tone="tertiary">
+                <Text variant="caption" tone="secondary">
                   ·
                 </Text>
               ) : null}
               <Icon icon={Paperclip} size="xs" tone="default" />
-              <Text variant="caption" tone="tertiary" className="tabular-nums">
+              <Text variant="caption" tone="secondary" className="tabular-nums">
                 {t.attachments(attachmentCount)}
               </Text>
             </View>
@@ -171,7 +171,7 @@ export function SupportTicketCard({
         <View className="flex-row items-end justify-between gap-3">
           {lastMessage ? (
             <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
-              <Text variant="inherit" tone="tertiary">
+              <Text variant="inherit" tone="secondary">
                 {lastMessage.fromUser ? t.you : t.support}
                 {": "}
               </Text>
@@ -181,7 +181,7 @@ export function SupportTicketCard({
             <View className="flex-1" />
           )}
           {updatedAt ? (
-            <Text variant="caption" tone="tertiary" className="tabular-nums">
+            <Text variant="caption" tone="secondary" className="tabular-nums">
               {updatedAt}
             </Text>
           ) : null}

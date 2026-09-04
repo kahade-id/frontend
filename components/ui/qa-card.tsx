@@ -21,7 +21,7 @@
  *   - Tanggal selalu eksplisit "3 Sep 2026" lewat formatDate (§13: tidak
  *     ada "2 jam lalu"). Pemanggil kirim Date/ISO/epoch; format di sini agar
  *     seluruh kartu Q&A seragam.
- *   - Belum dijawab: teks caption text-tertiary + slot `answerAction`
+ *   - Belum dijawab: teks caption text-secondary + slot `answerAction`
  *     (mis. <Button size="sm" variant="secondary">Jawab</Button>) yang hanya
  *     relevan untuk pemilik etalase — komponen tidak tahu peran user,
  *     pemanggil yang memutuskan mengirim slot atau tidak.
@@ -112,7 +112,7 @@ export function QACard({
         </View>
       ) : (
         <View className="flex-row items-center justify-between gap-3 border-t border-border px-5 py-3">
-          <Text variant="caption" tone="tertiary">
+          <Text variant="caption" tone="secondary">
             {t.unanswered}
           </Text>
           {answerAction}
@@ -142,7 +142,7 @@ function PersonRow({
         {person.name}
       </Text>
       {badge ? <Badge tone="neutral">{badge}</Badge> : null}
-      <Text variant="caption" tone="tertiary" numberOfLines={1} className="ml-auto">
+      <Text variant="caption" tone="secondary" numberOfLines={1} className="ml-auto">
         {formatDate(date)}
       </Text>
     </View>

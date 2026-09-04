@@ -107,7 +107,7 @@ export function DisputeEvidenceItem({
             {who}
           </Badge>
           {uploadedAt ? (
-            <Text variant="caption" tone="tertiary" numberOfLines={1} className="tabular-nums">
+            <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
               {uploadedAt}
             </Text>
           ) : null}
@@ -181,7 +181,7 @@ export function DisputeEvidenceItem({
                   {f.error}
                 </Text>
               ) : f.size != null ? (
-                <Text variant="caption" tone="tertiary" className="font-mono-500 tracking-mono">
+                <Text variant="caption" tone="secondary" className="font-mono-500 tracking-mono">
                   {formatFileSize(f.size)}
                 </Text>
               ) : null}

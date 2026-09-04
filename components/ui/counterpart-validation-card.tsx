@@ -173,7 +173,7 @@ export function CounterpartValidationCard({
               </Text>
             ) : null}
             {stats.length > 0 ? (
-              <Text variant="caption" tone="tertiary" numberOfLines={1}>
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
                 {stats.join(" \u00B7 ")}
               </Text>
             ) : null}
