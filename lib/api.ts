@@ -20,6 +20,7 @@
 import * as auth from "@/lib/api/auth"
 import * as orders from "@/lib/api/orders"
 import * as publicApi from "@/lib/api/public"
+import * as users from "@/lib/api/users"
 
 export { API_BASE_URL, API_ENV, type ApiEnv } from "@/lib/api/config"
 export { OTP_METHODS, type OtpMethod, type OtpMethodsResult } from "@/lib/api/auth"
@@ -55,6 +56,7 @@ export const api = {
   auth,
   orders,
   public: publicApi,
+  users,
 } as const
 
 export type Api = typeof api
