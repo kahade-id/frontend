@@ -22,6 +22,7 @@ import * as orders from "@/lib/api/orders"
 import * as publicApi from "@/lib/api/public"
 
 export { API_BASE_URL, API_ENV, type ApiEnv } from "@/lib/api/config"
+export { OTP_METHODS, type OtpMethod, type OtpMethodsResult } from "@/lib/api/auth"
 export {
   buildUrl,
   http,
