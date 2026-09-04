@@ -117,7 +117,7 @@ export function Radio({
     <View
       className={cn(
         "h-5 w-5 items-center justify-center rounded-full bg-background",
-        selected ? "border-focus border-border-focus" : "border border-border",
+        selected ? "border-focus border-border-focus" : "border border-border-control",
         !isCard && "mt-[1px]",
       )}
     >
@@ -163,7 +163,7 @@ export function Radio({
         isCard
           ? cn(
               "rounded-md bg-surface p-5",
-              selected ? "border-focus border-border-focus" : "border border-border",
+              selected ? "border-focus border-border-focus" : "border border-border-control",
             )
           : "min-h-[44px] py-3",
         className,

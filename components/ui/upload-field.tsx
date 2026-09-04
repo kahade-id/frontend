@@ -140,8 +140,8 @@ export function UploadField({
     hasError
       ? "border-error border-border-error"
       : status === "idle"
-        ? "border border-dashed border-border"
-        : "border border-border",
+        ? "border border-dashed border-border-control"
+        : "border border-border-control",
     className,
   )
 

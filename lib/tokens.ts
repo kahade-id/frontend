@@ -80,7 +80,20 @@ export const light = {
   background: "#FFFFFF",
   surface: "#F8F9FA", // card, input fill
   surfaceElevated: "#FFFFFF", // dengan border, karena tanpa shadow
-  borderDefault: "#CED4DA", // gray.400 — card, input resting, divider
+  /**
+   * border-default: card, divider, separator — border STRUKTURAL/dekoratif.
+   * Kontras vs background 1.49:1 — SENGAJA di bawah 3:1. WCAG 1.4.11 hanya
+   * berlaku untuk komponen UI interaktif dan bagian yang dibutuhkan untuk
+   * mengenali komponen; pembatas dekoratif dikecualikan (§6 Flat, tanpa shadow).
+   * JANGAN pakai untuk outline form control — pakai `borderControl`.
+   */
+  borderDefault: "#CED4DA", // gray.400
+  /**
+   * border-control: outline resting form control (Input, Checkbox, Radio,
+   * Switch off, Select, Textarea, Stepper). WCAG 1.4.11 non-text contrast
+   * >= 3:1: gray.600 vs #FFFFFF = 3.32:1, vs surface #F8F9FA = 3.15:1.
+   */
+  borderControl: "#868E96", // gray.600
   borderFocus: "#000000", // fokus/aktif pada elemen interaktif
   borderError: "#DC2626",
   textPrimary: "#16181B",
@@ -101,8 +114,15 @@ export const light = {
 export const dark = {
   background: "#121212",
   surface: "#1A1A1A",
-  surfaceElevated: "#212121",
-  borderDefault: "#3A3A3A", // dinaikkan dari #2E2E2E
+  /**
+   * Dinaikkan dari #212121 (1.08:1 vs background — skeleton & sheet tidak
+   * terbedakan). #2A2A2A vs #121212 = 1.34:1, setara dengan jarak
+   * surface→background di light mode. Elevated tetap butuh border-default.
+   */
+  surfaceElevated: "#2A2A2A",
+  borderDefault: "#3A3A3A", // struktural/dekoratif — lihat catatan di `light`
+  /** WCAG 1.4.11: #6B6B6B vs #121212 = 3.52:1, vs surface #1A1A1A = 3.18:1 */
+  borderControl: "#6B6B6B",
   borderFocus: "#FFFFFF",
   borderError: "#F87171",
   textPrimary: "#F5F5F5",
@@ -314,12 +334,21 @@ export const radius = {
 // 6. ELEVATION & BORDER — tidak ada shadow di seluruh sistem
 // ==================================================================
 
-/** 6.1 Border Roles — 3 role terpisah (fix collision "border-strong" di v1.0) */
+/**
+ * 6.1 Border Roles — 4 role terpisah (fix collision "border-strong" di v1.0;
+ * `control` ditambahkan di audit #6 untuk WCAG 1.4.11).
+ *
+ * - default : card, divider, separator (struktural, dikecualikan dari 1.4.11)
+ * - control : outline resting form control — wajib >= 3:1 vs background
+ * - focus   : fokus/aktif elemen interaktif
+ * - error   : validasi error
+ */
 export const borderWidth = {
   none: 0,
-  default: 1, // border-default: card, input resting, divider
-  focus: 1.5, // border-focus: fokus/aktif input & elemen interaktif
-  error: 1.5, // border-error: validasi error
+  default: 1,
+  control: 1,
+  focus: 1.5,
+  error: 1.5,
 } as const
 
 export const border = {
@@ -327,6 +356,11 @@ export const border = {
     width: borderWidth.default,
     light: light.borderDefault,
     dark: dark.borderDefault,
+  },
+  control: {
+    width: borderWidth.control,
+    light: light.borderControl,
+    dark: dark.borderControl,
   },
   focus: {
     width: borderWidth.focus,
@@ -511,6 +545,7 @@ export function toTailwindTheme() {
       },
       border: {
         DEFAULT: "var(--color-border-default)",
+        control: "var(--color-border-control)",
         focus: "var(--color-border-focus)",
         error: "var(--color-border-error)",
       },
@@ -632,6 +667,7 @@ export function toCssVariables(mode: ColorMode): Record<string, string> {
     "--color-surface": m.surface,
     "--color-surface-elevated": m.surfaceElevated,
     "--color-border-default": m.borderDefault,
+    "--color-border-control": m.borderControl,
     "--color-border-focus": m.borderFocus,
     "--color-border-error": m.borderError,
     "--color-text-primary": m.textPrimary,

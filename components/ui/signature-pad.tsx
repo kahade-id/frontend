@@ -202,7 +202,7 @@ export function SignaturePad({
         onLayout={handleLayout}
         className={cn(
           "relative w-full overflow-hidden rounded-md bg-surface",
-          error ? "border-error border-border-error" : "border border-border",
+          error ? "border-error border-border-error" : "border border-border-control",
           disabled && "opacity-disabled",
         )}
         style={{ height }}

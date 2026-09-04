@@ -23,6 +23,12 @@
  *     bukan style — di-resolve dari tokens lewat useTheme() (pengecualian yang
  *     sama seperti Icon). Placeholder hanya muncul saat label sudah float
  *     (atau tanpa label), agar tidak bertabrakan dengan label resting.
+ *     Warna placeholder = text-secondary (bukan text-disabled): placeholder
+ *     adalah teks yang harus terbaca (WCAG 1.4.3, 4.5:1) — text-disabled
+ *     hanya 2.07:1 dan dikhususkan untuk state disabled.
+ *   - Border resting = `border-border-control` (bukan `border-border`):
+ *     outline form control wajib >= 3:1 vs background (WCAG 1.4.11).
+ *     `border-border` tetap untuk card/divider (struktural, dikecualikan).
  *   - Tidak ada shake pada error (§8) — cukup border + helper text.
  *   - `secureTextEntry` otomatis menyediakan toggle Eye/EyeSlash di kanan
  *     kecuali `rightIcon` dikirim eksplisit.
@@ -208,7 +214,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             ? "border-error border-border-error px-[15px]"
             : focused
               ? "border-focus border-border-focus px-[15px]"
-              : "border border-border px-4",
+              : "border border-border-control px-4",
           boxHeight,
           disabled && "opacity-disabled",
           className,
@@ -263,7 +269,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             secureTextEntry={secure}
             // Placeholder hanya tampil saat label sudah float / tanpa label
             placeholder={!showLabel || floated ? placeholder : undefined}
-            placeholderTextColor={palette.textDisabled}
+            placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}
             allowFontScaling={false}

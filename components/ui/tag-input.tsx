@@ -123,7 +123,7 @@ export function TagInput({
             ? "border-error border-border-error px-[15px]"
             : focused
               ? "border-focus border-border-focus px-[15px]"
-              : "border border-border px-4",
+              : "border border-border-control px-4",
           disabled && "opacity-disabled",
           className,
         )}
@@ -143,7 +143,7 @@ export function TagInput({
             value={draft}
             editable={!disabled}
             placeholder={value.length === 0 ? placeholder : undefined}
-            placeholderTextColor={palette.textDisabled}
+            placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}
             allowFontScaling={false}

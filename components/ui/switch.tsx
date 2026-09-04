@@ -80,7 +80,7 @@ export function Switch({
     <View
       className={cn(
         "justify-center rounded-full",
-        value ? "border border-primary bg-primary" : "border border-border bg-surface",
+        value ? "border border-primary bg-primary" : "border border-border-control bg-surface",
       )}
       style={{ width: TRACK_W, height: TRACK_H, paddingHorizontal: INSET }}
     >

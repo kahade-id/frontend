@@ -108,7 +108,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
             ? "border-error border-border-error px-[15px]"
             : focused
               ? "border-focus border-border-focus px-[15px]"
-              : "border border-border px-4",
+              : "border border-border-control px-4",
           disabled && "opacity-disabled",
           className,
         )}
@@ -132,7 +132,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
           keyboardType="number-pad"
           inputMode="numeric"
           placeholder="0"
-          placeholderTextColor={palette.textDisabled}
+          placeholderTextColor={palette.textSecondary}
           selectionColor={palette.primary}
           cursorColor={palette.primary}
           allowFontScaling={false}

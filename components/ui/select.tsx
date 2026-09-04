@@ -113,7 +113,7 @@ export function Select<V extends string = string>({
             ? "border-error border-border-error px-[15px]"
             : open
               ? "border-focus border-border-focus px-[15px]"
-              : "border border-border px-4",
+              : "border border-border-control px-4",
           className,
         )}
         {...rest}

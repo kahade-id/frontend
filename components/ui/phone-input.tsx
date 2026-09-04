@@ -136,7 +136,7 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
             ? "border-error border-border-error px-[15px]"
             : focused
               ? "border-focus border-border-focus px-[15px]"
-              : "border border-border px-4",
+              : "border border-border-control px-4",
           disabled && "opacity-disabled",
           className,
         )}
@@ -167,7 +167,7 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
           // 12 digit + 2 tanda hubung
           maxLength={MAX_NATIONAL_DIGITS + 2}
           placeholder={placeholder}
-          placeholderTextColor={palette.textDisabled}
+          placeholderTextColor={palette.textSecondary}
           selectionColor={palette.primary}
           cursorColor={palette.primary}
           allowFontScaling={false}
