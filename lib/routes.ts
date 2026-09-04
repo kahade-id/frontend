@@ -33,10 +33,21 @@ export const ROUTES = {
   onboarding: "/onboarding" as Href,
   /** Screen #2 — Register: nomor HP + metode OTP */
   register: "/register" as Href,
-  /** Screen #3 — OTP Verification (belum dibuat); butuh param, jadi builder */
-  // Objek href untuk route yang belum ada perlu lewat `unknown` (typedRoutes
-  // menolak literal pathname yang tidak dikenal). Hapus saat verify-otp.tsx ada.
+  /** Screen #3 — OTP Verification */
   verifyOtp: (params: VerifyOtpParams) => ({ pathname: "/verify-otp", params }) as unknown as Href,
-  /** Screen #7 — Login email + password (belum dibuat) */
+  /** Screen #4 — Buat Keamanan: password + PIN */
+  createSecurity: "/create-security" as Href,
+  /** Screen #5 — Data Diri: nama, username, email, dll */
+  profileData: "/profile-data" as Href,
+  /** Screen #6 — Setup Profil: foto + bio (opsional, setelah akun jadi) */
+  setupProfile: "/setup-profile" as Href,
+  /** Welcome Screen — landing page setelah auth (cek permissions) */
+  welcome: "/welcome" as Href,
+  /** Screen #7 — Login: email + password */
   login: "/login" as Href,
+  /** Screen #8a — Forgot Password: kirim OTP reset */
+  forgotPassword: "/forgot-password" as Href,
+  /** Screen #8b — Reset Password: verifikasi OTP + password baru */
+  resetPassword: (email: string) =>
+    ({ pathname: "/reset-password", params: { email } }) as unknown as Href,
 } as const
