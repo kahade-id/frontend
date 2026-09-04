@@ -32,7 +32,10 @@
  *     (re-render React); sekarang murni UI thread. Ini satu-satunya pemakaian
  *     z-index di komponen form, dan memakai skala §6.2.
  *   - `hitSlop` 10px di tiap thumb memperlebar target sentuh ke 44px tanpa
- *     memperbesar visual thumb.
+ *     memperbesar visual thumb (audit #1). Dipasang DUA kali dengan nilai
+ *     sama: di `Gesture.Pan().hitSlop` (RNGH melakukan hit-test sendiri dan
+ *     tidak membaca prop RN) dan di prop `hitSlop` Animated.View (web +
+ *     fokus aksesibilitas).
  *   - `activeOffsetX` kecil: gerakan vertikal dominan gagal -> ScrollView
  *     parent (sheet filter) tetap bisa di-scroll dari atas thumb.
  *   - Dua elemen "adjustable" terpisah (min & max) untuk screen reader —
@@ -52,6 +55,7 @@ import Animated, {
 
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 
 export type RangeValue = readonly [number, number]
@@ -77,8 +81,8 @@ export type RangeSliderProps = Omit<ViewProps, "children"> & {
 const THUMB = 24
 const TRACK_H = 4
 const LABEL_MIN_W = THUMB + 48
-// Perluas hit area thumb 24 -> 44 (target sentuh minimum)
-const THUMB_HIT_SLOP = (44 - THUMB) / 2
+// Perluas hit area thumb 24 -> 44 (tokens.a11y.minHitTarget)
+const THUMB_HIT_SLOP = hitSlopToReach(THUMB)
 const ACTIVE_OFFSET_X = 4
 
 type ThumbIndex = 0 | 1
@@ -147,6 +151,7 @@ export function RangeSlider({
       Gesture.Pan()
         .enabled(!disabled)
         .activeOffsetX([-ACTIVE_OFFSET_X, ACTIVE_OFFSET_X])
+        .hitSlop(THUMB_HIT_SLOP)
         .shouldCancelWhenOutside(false)
         .onBegin(() => {
           activeSV.value = which

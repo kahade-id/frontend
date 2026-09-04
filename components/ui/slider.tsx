@@ -42,6 +42,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-nativ
 
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { hitSlopToReach } from "@/lib/hit-slop"
 
 export type SliderProps = Omit<ViewProps, "children"> & {
   value: number
@@ -65,6 +66,13 @@ const LABEL_MIN_W = THUMB + 48
  * instan, cukup besar agar scroll vertikal di parent tidak ikut tertahan.
  */
 const ACTIVE_OFFSET_X = 4
+/**
+ * Audit #1: area gesture setinggi thumb (24) < 44. Slop vertikal 10 diberikan
+ * ke GESTURE (`Gesture.Pan().hitSlop`), bukan prop `hitSlop` View — RNGH
+ * melakukan hit-test sendiri dan tidak membaca hitSlop RN. Horizontal tidak
+ * diperluas: track sudah selebar container.
+ */
+const TRACK_HIT_SLOP = hitSlopToReach(THUMB)
 
 /** Bulatkan ke step lalu clamp ke [min, max]. Worklet: dipanggil dari UI thread. */
 function snap(v: number, min: number, max: number, step: number) {
@@ -115,6 +123,7 @@ export function Slider({
       Gesture.Pan()
         .enabled(!disabled)
         .activeOffsetX([-ACTIVE_OFFSET_X, ACTIVE_OFFSET_X])
+        .hitSlop({ top: TRACK_HIT_SLOP.top, bottom: TRACK_HIT_SLOP.bottom })
         .shouldCancelWhenOutside(false)
         .onBegin((e) => {
           // Tap = lompat ke posisi; tidak menunggu aktivasi pan.
@@ -178,7 +187,7 @@ export function Slider({
       {...rest}
     >
       <GestureDetector gesture={pan}>
-        {/* Hit area penuh setinggi thumb */}
+        {/* Visual setinggi thumb; target sentuh 44 lewat gesture hitSlop di atas */}
         <View onLayout={onLayout} style={{ height: THUMB }} className="justify-center">
           <View className="w-full rounded-full bg-border" style={{ height: TRACK_H }}>
             <Animated.View style={[{ height: "100%" }, fillStyle]}>

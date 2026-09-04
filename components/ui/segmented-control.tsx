@@ -22,9 +22,12 @@
  *   - Focus ring keyboard (web saja) `focusRingInset` + `rounded-xs` di
  *     container segmen: segmen berhimpitan di dalam border container 2px,
  *     ring luar akan menutupi border itu — inset tetap di dalam segmen.
- *   - Tinggi 40px (= Button sm) SENGAJA di bawah 48dp: hitSlop pada segmen
- *     tidak membantu karena RN memotong area sentuh di batas induk (container
- *     h-10). Tercatat sebagai trade-off ukuran yang sama dengan Button sm.
+ *   - Target sentuh 44 (audit #1) tanpa mengubah visual 40px: RN memotong
+ *     area sentuh anak di batas frame induk, TETAPI frame induk itu sendiri
+ *     boleh diperluas dengan `hitSlop` (RCTView `pointInside` / Android
+ *     TouchTargetHelper menghitung slop tiap view saat traversal). Jadi slop
+ *     dipasang berlapis: container 40 -> 44 (2px), segmen 36 -> 44 (4px).
+ *     Sentuhan 2px di luar border masuk ke container, lalu ke segmen.
  */
 import { View, type ViewProps } from "react-native"
 
@@ -33,6 +36,15 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+
+/** Tinggi container = Button sm (h-10). Segmen = container - 2×p-[2px]. */
+const CONTAINER_H = tokens.space[10]
+const SEGMENT_PAD = tokens.radius.sm - tokens.radius.xs
+const SEGMENT_H = CONTAINER_H - SEGMENT_PAD * 2
+const CONTAINER_HIT_SLOP = hitSlopToReach(0, CONTAINER_H)
+const SEGMENT_HIT_SLOP = hitSlopToReach(0, SEGMENT_H)
 
 export type SegmentItem<V extends string = string> = {
   value: V
@@ -60,6 +72,7 @@ export function SegmentedControl<V extends string = string>({
   return (
     <View
       accessibilityRole="radiogroup"
+      hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
         "h-10 w-full flex-row rounded-sm border border-border bg-surface p-[2px]",
         disabled && "opacity-disabled",
@@ -79,6 +92,7 @@ export function SegmentedControl<V extends string = string>({
             scaleOnPress={false}
             disabled={isDisabled}
             onPress={() => onChange(item.value)}
+            hitSlop={{ top: SEGMENT_HIT_SLOP.top, bottom: SEGMENT_HIT_SLOP.bottom }}
             containerClassName={cn("flex-1 rounded-xs", focusRingInset)}
             className={cn(
               "h-full flex-row items-center justify-center gap-2 rounded-xs px-3",
