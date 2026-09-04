@@ -35,6 +35,14 @@ import { StepProgress } from "@/components/ui/stepper"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 
+/**
+ * Tinggi bar Header (px) — harus sama dengan class `h-14` di bawah (skala
+ * Tailwind 14 = 56px; tidak ada di `tokens.space`, jadi literal di sini adalah
+ * satu-satunya sumber). Dipakai layar form untuk `keyboardVerticalOffset`
+ * (KeyboardAvoiding) agar tidak ada angka 56 yang disalin di tiap screen.
+ */
+export const HEADER_BAR_HEIGHT = 56
+
 export type HeaderProps = Omit<ViewProps, "children"> & {
   title?: string
   /** H1 di baris kedua (layar utama tab) */

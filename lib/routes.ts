@@ -41,8 +41,14 @@ export const ROUTES = {
   profileData: "/profile-data" as Href,
   /** Screen #6 — Setup Profil: foto + bio (opsional, setelah akun jadi) */
   setupProfile: "/setup-profile" as Href,
-  /** Welcome Screen — landing page setelah auth (cek permissions) */
-  welcome: "/welcome" as Href,
+  /**
+   * Welcome Screen — landing page setelah auth (cek permissions).
+   * `newUser` menentukan sapaan ("Selamat datang di Kahade" vs "kembali").
+   * Dibawa lewat param, BUKAN dibaca dari registration state: state itu
+   * sudah dibersihkan oleh Setup Profil sebelum pindah ke sini.
+   */
+  welcome: (opts: { newUser?: boolean } = {}) =>
+    ({ pathname: "/welcome", params: opts.newUser ? { newUser: "1" } : {} }) as unknown as Href,
   /** Screen #7 — Login: email + password */
   login: "/login" as Href,
   /** Screen #8a — Forgot Password: kirim OTP reset */

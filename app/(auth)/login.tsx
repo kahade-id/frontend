@@ -27,7 +27,12 @@
  *     jadi tidak akan muncul lagi). Satu-satunya jalan keluar adalah close app atau
  *     navigate ke register via link "Belum punya akun? Daftar".
  *   - PasswordField TIDAK pakai showStrength — ini login, bukan registrasi. User
- *     tidak perlu melihat kekuatan password saat masuk.
+ *     tidak perlu melihat kekuatan password saat masuk. Label memakai default
+ *     komponen ("Kata sandi") — istilah yang sama dengan alur registrasi dan
+ *     reset; jangan campur "Password"/"Kata sandi" antar layar (§12).
+ *   - `offset` KeyboardAvoiding = inset atas + tinggi Header, sama seperti
+ *     layar registrasi; tanpa tinggi header, padding keyboard iOS kurang 56px
+ *     dan field bawah tertutup keyboard.
  *   - 2FA: kalau backend return requiresTwoFactor: true, tampilkan error informatif.
  *     Screen 2FA verification belum dibuat — ini akan ditambahkan di iteration berikutnya.
  *   - Tombol "Masuk" disabled selama submit untuk mencegah double-submit.
@@ -45,7 +50,7 @@ import { useRouter } from "expo-router"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { EmailField, isValidEmail } from "@/components/ui/email-field"
-import { Header } from "@/components/ui/header"
+import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PasswordField } from "@/components/ui/password-field"
@@ -54,6 +59,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
+import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -81,18 +87,20 @@ export default function LoginScreen() {
 
       if (result.requiresTwoFactor) {
         // 2FA belum didukung — tampilkan error informatif
-        setFormError("Verifikasi dua faktor belum didukung. Gunakan metode login lain atau hubungi support.")
+        setFormError(
+          "Akun ini memakai verifikasi dua langkah yang belum didukung di aplikasi. Hubungi dukungan Kahade.",
+        )
         return
       }
 
-      // Login berhasil → redirect ke welcome screen (cek permissions)
+      // Login berhasil → welcome screen (cek permissions). Bukan user baru.
       // TODO: nanti bisa langsung ke Home kalau user sudah pernah ke welcome
-      router.replace(ROUTES.welcome)
+      router.replace(ROUTES.welcome())
     } catch (err) {
       if (isApiError(err)) {
         // Invalid credentials
         if (err.code === "UNAUTHORIZED") {
-          setFormError("Email atau password salah. Periksa kembali dan coba lagi.")
+          setFormError("Email atau kata sandi salah. Periksa kembali dan coba lagi.")
           return
         }
         // Rate limited
@@ -102,7 +110,7 @@ export default function LoginScreen() {
         }
         // Validation error
         if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
-          setFormError(err.message || "Data tidak valid. Periksa email dan password Anda.")
+          setFormError(err.message || "Data tidak valid. Periksa email dan kata sandi Anda.")
           return
         }
       }
@@ -124,7 +132,7 @@ export default function LoginScreen() {
     <Screen padded={false} edges={["top"]}>
       <Header title="Masuk" safeArea={false} showBack={false} />
 
-      <KeyboardAvoiding offset={insets.top}>
+      <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
           className="flex-1"
           contentContainerClassName="grow px-6 pb-8 pt-8"
@@ -134,8 +142,10 @@ export default function LoginScreen() {
           <VStack gap={8}>
             {/* Welcome text */}
             <VStack gap={2}>
-              <Heading level={1}>Selamat datang kembali</Heading>
-              <Text variant="body" tone="secondary">
+              <Heading level={1} className="text-balance">
+                Selamat datang kembali
+              </Heading>
+              <Text variant="body" tone="secondary" className="text-pretty">
                 Masuk ke akun Kahade Anda untuk melanjutkan.
               </Text>
             </VStack>
@@ -152,12 +162,11 @@ export default function LoginScreen() {
                 autoFocus
                 required
                 returnKeyType="next"
-                autoComplete="email"
-                textContentType="emailAddress"
+                disabled={submitting}
               />
 
+              {/* Label default PasswordField = "Kata sandi" — konsisten dengan alur registrasi */}
               <PasswordField
-                label="Password"
                 value={password}
                 onChangeText={(t) => {
                   setPassword(t)
@@ -166,8 +175,8 @@ export default function LoginScreen() {
                 required
                 returnKeyType="done"
                 onSubmitEditing={() => void handleLogin()}
-                autoComplete="current-password"
-                textContentType="password"
+                maxLength={PASSWORD_MAX}
+                disabled={submitting}
               />
             </VStack>
 

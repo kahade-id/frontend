@@ -51,7 +51,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { PasswordField } from "@/components/ui/password-field"
 import { PinInput } from "@/components/ui/pin-input"
 import { Button } from "@/components/ui/button"
-import { Header } from "@/components/ui/header"
+import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Screen } from "@/components/ui/screen"
@@ -65,18 +65,14 @@ import { tokens } from "@/lib/tokens"
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-3 */
 const STEP_PROGRESS = 3 / 4
 
-/** Tinggi bar Header (h-14) */
-const HEADER_HEIGHT = 56
-
 export default function CreateSecurityScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
-  // Guard: butuh registration state dari screen OTP
+  // Dibaca di render (module memory, sinkron). Guard-nya ada SETELAH semua
+  // hook di bawah — early-return di sini akan mengubah jumlah hook antar
+  // render (Rules of Hooks) begitu state hilang, mis. setelah clear.
   const regState = getRegistrationState()
-  if (!regState) {
-    return <Redirect href={ROUTES.register} />
-  }
 
   const [step, setStep] = useState<1 | 2>(1)
   const [password, setPassword] = useState("")
@@ -94,6 +90,7 @@ export default function CreateSecurityScreen() {
 
   const handlePinComplete = useCallback(
     (pinCode: string) => {
+      if (!regState) return
       // Simpan password + PIN ke registration state untuk screen #5
       setRegistrationState({
         ...regState,
@@ -110,11 +107,17 @@ export default function CreateSecurityScreen() {
     if (step === 2) {
       // Kembali ke step password (data password tetap ada di state)
       setStep(1)
-    } else {
-      // Kembali ke OTP screen
-      router.back()
+      return
     }
+    // Kembali ke OTP screen; bila tidak ada riwayat (deep link), ke Register.
+    if (router.canGoBack()) router.back()
+    else router.replace(ROUTES.register)
   }, [step, router])
+
+  // Guard: butuh registration state (tempToken) dari screen OTP
+  if (!regState) {
+    return <Redirect href={ROUTES.register} />
+  }
 
   return (
     <Screen padded={false} edges={["top"]}>
