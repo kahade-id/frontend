@@ -110,7 +110,7 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
         <View className="flex-1 flex-row items-center gap-3">
           <IconBox icon={Truck} size="md" variant="surface" />
           <View className="flex-1 gap-0.5">
-            <Text variant="caption" tone="tertiary">
+            <Text variant="caption" tone="secondary">
               {t.courier}
             </Text>
             <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
@@ -127,7 +127,7 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
 
       {shipping?.trackingNotes ? (
         <View className="gap-1">
-          <Text variant="caption" tone="tertiary">
+          <Text variant="caption" tone="secondary">
             {t.notes}
           </Text>
           <Text variant="body" tone="secondary">
@@ -138,7 +138,7 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
 
       <View className="flex-row items-center justify-between gap-3">
         {shipping?.updatedAt ? (
-          <Text variant="caption" tone="tertiary" className="flex-1 tabular-nums">
+          <Text variant="caption" tone="secondary" className="flex-1 tabular-nums">
             {shipping.updatedAt}
           </Text>
         ) : (

@@ -94,7 +94,7 @@ export function ActivityLogItem({
           <Text variant="body" weight={500} tone="primary" numberOfLines={2} className="flex-1">
             {title}
           </Text>
-          <Text variant="monoBody" tone="tertiary" numberOfLines={1}>
+          <Text variant="monoBody" tone="secondary" numberOfLines={1}>
             {timestamp}
           </Text>
         </View>
@@ -106,7 +106,7 @@ export function ActivityLogItem({
               </Text>
             ) : null}
             {meta ? (
-              <Text variant="monoBody" tone="tertiary" numberOfLines={1}>
+              <Text variant="monoBody" tone="secondary" numberOfLines={1}>
                 {meta}
               </Text>
             ) : null}

@@ -147,7 +147,7 @@ export function SubscriptionPlanCard({
 
   const textTone: TextTone = inverted ? "inverse" : "primary"
   const mutedTone: TextTone = inverted ? "inverse" : "secondary"
-  const hintTone: TextTone = inverted ? "inverse" : "tertiary"
+  const hintTone: TextTone = inverted ? "inverse" : "secondary"
   const iconTone = inverted ? "inverse" : "default"
 
   const ctaLabel = current ? t.current : highlighted ? t.subscribe : t.choose

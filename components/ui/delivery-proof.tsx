@@ -81,7 +81,7 @@ export function DeliveryProofForm({
           canDelete
           columns={3}
         />
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           Foto paket, tangkapan layar pengiriman, atau PDF. Maks {maxItems} berkas.
         </Text>
       </View>

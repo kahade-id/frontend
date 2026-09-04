@@ -147,7 +147,7 @@ export function CopyableField({
       </View>
 
       {hint ? (
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           {hint}
         </Text>
       ) : null}

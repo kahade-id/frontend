@@ -136,7 +136,7 @@ export function RatingReviewCard({
             <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
               {reviewer.name}
             </Text>
-            <DateText value={date} format="date" variant="caption" tone="tertiary" />
+            <DateText value={date} format="date" variant="caption" tone="secondary" />
           </View>
         </View>
         <Rating value={stars} readOnly size="sm" showScore />
@@ -146,13 +146,13 @@ export function RatingReviewCard({
       {hasComment ? (
         <ReadMore text={comment!.trim()} lines={commentLines} variant="body" tone="primary" />
       ) : (
-        <Text variant="body" tone="tertiary">
+        <Text variant="body" tone="secondary">
           {t.noComment}
         </Text>
       )}
 
       {orderId ? (
-        <Text variant="caption" tone="tertiary" numberOfLines={1} className="font-mono-500 tracking-mono">
+        <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500 tracking-mono">
           {t.orderPrefix} {orderId}
         </Text>
       ) : null}
@@ -169,7 +169,7 @@ export function RatingReviewCard({
                 {reply.role === "seller" ? t.seller : t.buyer}
               </Badge>
             ) : null}
-            <DateText value={reply.date} format="date" variant="caption" tone="tertiary" className="ml-auto" />
+            <DateText value={reply.date} format="date" variant="caption" tone="secondary" className="ml-auto" />
           </View>
           <ReadMore text={reply.content} lines={3} variant="body" tone="secondary" />
           {reply.mine && (onEditReply || onDeleteReply) ? (

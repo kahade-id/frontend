@@ -165,7 +165,7 @@ export function OrderExtensionCard({
               {title}
             </Text>
             {requestedAt ? (
-              <Text variant="caption" tone="tertiary" className="tabular-nums">
+              <Text variant="caption" tone="secondary" className="tabular-nums">
                 {requestedAt}
               </Text>
             ) : null}
@@ -182,7 +182,7 @@ export function OrderExtensionCard({
         </Text>
         <View className="flex-1 flex-row items-center gap-2">
           <View className="flex-1 gap-[2px]">
-            <Text variant="caption" tone="tertiary">
+            <Text variant="caption" tone="secondary">
               {t.currentDeadline}
             </Text>
             <Text variant="caption" weight={500} tone="secondary" className="tabular-nums">
@@ -191,7 +191,7 @@ export function OrderExtensionCard({
           </View>
           <Icon icon={ArrowRight} size="xs" tone="default" />
           <View className="flex-1 gap-[2px]">
-            <Text variant="caption" tone="tertiary">
+            <Text variant="caption" tone="secondary">
               {t.newDeadline}
             </Text>
             <Text variant="caption" weight={600} tone="primary" className="tabular-nums">

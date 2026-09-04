@@ -156,7 +156,7 @@ function StatColumn({ label, value, last = false }: { label: string; value: Reac
       ) : (
         value
       )}
-      <Text variant="caption" tone="tertiary" numberOfLines={1}>
+      <Text variant="caption" tone="secondary" numberOfLines={1}>
         {label}
       </Text>
     </View>

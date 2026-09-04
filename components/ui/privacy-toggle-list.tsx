@@ -88,7 +88,7 @@ export function PrivacyToggleList<K extends string = string>({
       </ListGroup>
 
       {footer ? (
-        <Text variant="caption" tone="tertiary" className="px-1">
+        <Text variant="caption" tone="secondary" className="px-1">
           {footer}
         </Text>
       ) : null}

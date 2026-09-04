@@ -76,7 +76,7 @@ export function Divider({
         {...rest}
       >
         <View className={cn("h-px flex-1", toneClass[tone])} />
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           {label}
         </Text>
         <View className={cn("h-px flex-1", toneClass[tone])} />

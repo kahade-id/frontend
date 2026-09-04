@@ -169,7 +169,7 @@ export function ChatAttachmentItem({
             <Icon icon={errored ? Warning : icon} size="lg" tone={errored ? "danger" : "default"} />
           )}
           {!thumb ? (
-            <Text variant="caption" tone="tertiary" numberOfLines={1} className="absolute bottom-1 left-1 right-1 text-center">
+            <Text variant="caption" tone="secondary" numberOfLines={1} className="absolute bottom-1 left-1 right-1 text-center">
               {attachment.fileName.split(".").pop()?.toUpperCase()}
             </Text>
           ) : null}

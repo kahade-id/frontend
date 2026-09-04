@@ -136,7 +136,7 @@ export function TwoFactorStatusCard({
               {enabled ? t.enabled : t.disabled}
             </Badge>
             {enabledAt && enabled ? (
-              <Text variant="caption" tone="tertiary">
+              <Text variant="caption" tone="secondary">
                 sejak {enabledAt}
               </Text>
             ) : null}

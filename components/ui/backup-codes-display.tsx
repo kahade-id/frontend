@@ -17,7 +17,7 @@
  *     terpotong. 2 kolom x 5 baris juga meniru layout kertas cetak yang
  *     familiar (GitHub, Google).
  *   - Kode yang sudah dipakai (`usedCodes`) TIDAK dihilangkan: tetap tampil
- *     `line-through` text-tertiary supaya pengguna tahu berapa yang tersisa
+ *     `line-through` text-secondary supaya pengguna tahu berapa yang tersisa
  *     dan urutan tidak bergeser dari salinan kertas mereka.
  *   - Peringatan memakai <Alert tone="warning" variant="soft"> di dalam kartu,
  *     bukan teks merah: kehilangan kode bukan error, tapi risiko (§2.3 —
@@ -155,7 +155,7 @@ export function BackupCodesDisplay({
             >
               <Text
                 variant="monoBody"
-                tone={isUsed ? "tertiary" : "primary"}
+                tone={isUsed ? "secondary" : "primary"}
                 className={cn(isUsed && "line-through")}
               >
                 {masked ? code.replace(/[^-]/g, "\u2022") : code}

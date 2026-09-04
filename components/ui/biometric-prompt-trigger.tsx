@@ -346,11 +346,11 @@ export const BiometricPromptTrigger = forwardRef<BiometricPromptTriggerHandle, B
         >
           <View className="items-center gap-6 pb-2">
             {promptSubtitle ? (
-              <Text variant="caption" tone="tertiary" className="text-center">
+              <Text variant="caption" tone="secondary" className="text-center">
                 {promptSubtitle}
               </Text>
             ) : (
-              <Text variant="caption" tone="tertiary" className="text-center">
+              <Text variant="caption" tone="secondary" className="text-center">
                 {t.pinDescription}
               </Text>
             )}
@@ -390,9 +390,9 @@ export const BiometricPromptTrigger = forwardRef<BiometricPromptTriggerHandle, B
             ) : null}
 
             {!locked && remaining < maxAttempts && !pinError ? (
-              <Text variant="caption" tone="tertiary">
+              <Text variant="caption" tone="secondary">
                 Sisa percobaan:{" "}
-                <Text variant="monoBody" tone="tertiary">
+                <Text variant="monoBody" tone="secondary">
                   {remaining}
                 </Text>
               </Text>

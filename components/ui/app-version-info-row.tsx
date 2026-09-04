@@ -113,13 +113,13 @@ export function AppVersionInfoRow({
       </View>
 
       {updateId ? (
-        <Text variant="caption" tone="tertiary" numberOfLines={1}>
+        <Text variant="caption" tone="secondary" numberOfLines={1}>
           {updateId.length > 12 ? `${updateId.slice(0, 8)}…${updateId.slice(-4)}` : updateId}
         </Text>
       ) : null}
 
       {footnote ? (
-        <Text variant="caption" tone="tertiary" className="text-center">
+        <Text variant="caption" tone="secondary" className="text-center">
           {footnote}
         </Text>
       ) : null}

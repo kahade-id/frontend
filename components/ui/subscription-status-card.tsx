@@ -167,7 +167,7 @@ export function SubscriptionStatusCard({
             {planName}
           </Text>
           {daysLeft != null && (s === "ACTIVE" || s === "EXPIRING" || s === "CANCELLED") ? (
-            <Text variant="caption" tone={s === "EXPIRING" ? "warning" : "tertiary"} className="tabular-nums">
+            <Text variant="caption" tone={s === "EXPIRING" ? "warning" : "secondary"} className="tabular-nums">
               {t.daysLeft(daysLeft)}
             </Text>
           ) : null}

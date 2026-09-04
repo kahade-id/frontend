@@ -75,7 +75,7 @@ export function StatCard({
 
   const labelTone: TextTone = inverted ? "inverse" : "secondary"
   const valueTone: TextTone = inverted ? "inverse" : "primary"
-  const hintTone: TextTone = inverted ? "inverse" : "tertiary"
+  const hintTone: TextTone = inverted ? "inverse" : "secondary"
 
   const deltaTone: TextTone = inverted
     ? "inverse"

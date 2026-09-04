@@ -12,7 +12,7 @@
  *      karena hampir semua error state punya aksi ini; `action` slot tetap
  *      ada untuk aksi lain (mis. "Hubungi bantuan").
  *   3. `detail` (kode error / request id) tampil sebagai MonoText caption
- *      text-tertiary di bawah deskripsi — data teknis presisi (§3.1),
+ *      text-secondary di bawah deskripsi — data teknis presisi (§3.1),
  *      berguna saat user melapor ke support, tapi tidak menonjol.
  *
  * Default copy formal "Anda" (§12), i18n-ready lewat props.
@@ -87,7 +87,7 @@ export function ErrorState({
           </Text>
         ) : null}
         {detail ? (
-          <MonoText tone="tertiary" className="text-center text-caption" numberOfLines={1}>
+          <MonoText tone="secondary" className="text-center text-caption" numberOfLines={1}>
             {detail}
           </MonoText>
         ) : null}

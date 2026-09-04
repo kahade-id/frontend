@@ -186,7 +186,7 @@ export function ChatMessageBubble({
             ) : (
               <>
                 {time ? (
-                  <Text variant="caption" tone="tertiary" className="tabular-nums">
+                  <Text variant="caption" tone="secondary" className="tabular-nums">
                     {time}
                   </Text>
                 ) : null}

@@ -84,7 +84,7 @@ export function CurrencyRangeField({
           />
         </View>
         <View className="h-14 justify-center">
-          <Text variant="body" tone="tertiary">
+          <Text variant="body" tone="secondary">
             –
           </Text>
         </View>

@@ -8,7 +8,7 @@
  *   kanan. Berbeda dari ReferralHistoryListItem (status per orang yang
  *   diundang), ini ledger uang — maka nominal Mono adalah elemen utama,
  *   sejajar dengan WalletTransactionListItem.
- *   - status PENDING (hadiah dijanjikan, belum cair) -> nominal tertiary +
+ *   - status PENDING (hadiah dijanjikan, belum cair) -> nominal secondary +
  *     Badge "Menunggu"; hanya CREDITED yang hijau. Uang yang belum ada
  *     tidak boleh terlihat sudah ada.
  *
@@ -75,7 +75,7 @@ export function ReferralRewardListItem({
       title={`Hadiah undangan \u00B7 ${referredName}`}
       subtitle={
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text variant="caption" tone="tertiary">
+          <Text variant="caption" tone="secondary">
             {date}
           </Text>
           {!credited ? (

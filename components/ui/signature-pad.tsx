@@ -266,7 +266,7 @@ export function SignaturePad({
       </View>
 
       <View className="flex-row items-center justify-between gap-4">
-        <Text variant="caption" tone={error ? "danger" : "tertiary"} className="flex-1">
+        <Text variant="caption" tone={error ? "danger" : "secondary"} className="flex-1">
           {error ?? labels.hint}
         </Text>
         {onRequestAlternative ? (

@@ -199,7 +199,7 @@ export function MutualResolutionCard({
               {title}
             </Text>
             {createdAt ? (
-              <Text variant="caption" tone="tertiary" className="tabular-nums">
+              <Text variant="caption" tone="secondary" className="tabular-nums">
                 {createdAt}
               </Text>
             ) : null}
@@ -225,13 +225,13 @@ export function MutualResolutionCard({
 
         <View className="flex-row justify-between gap-4">
           <View className="flex-1 gap-[2px]">
-            <Text variant="caption" tone={isBuyer ? "primary" : "tertiary"} weight={isBuyer ? 500 : 400} className="tabular-nums">
+            <Text variant="caption" tone={isBuyer ? "primary" : "secondary"} weight={isBuyer ? 500 : 400} className="tabular-nums">
               {`${t.buyerShare} · ${buyerPct}%`}
             </Text>
             <Amount value={buyer} size="body" tone={isBuyer ? "primary" : "secondary"} />
           </View>
           <View className="flex-1 items-end gap-[2px]">
-            <Text variant="caption" tone={isBuyer ? "tertiary" : "primary"} weight={isBuyer ? 400 : 500} className="tabular-nums">
+            <Text variant="caption" tone={isBuyer ? "secondary" : "primary"} weight={isBuyer ? 400 : 500} className="tabular-nums">
               {`${t.sellerShare} · ${sellerPct}%`}
             </Text>
             <Amount value={seller} size="body" tone={isBuyer ? "secondary" : "primary"} />
@@ -264,7 +264,7 @@ export function MutualResolutionCard({
       ) : null}
 
       {!pending && respondedAt ? (
-        <Text variant="caption" tone="tertiary" className="tabular-nums">
+        <Text variant="caption" tone="secondary" className="tabular-nums">
           {`${t.respondedAt} ${respondedAt}`}
         </Text>
       ) : null}

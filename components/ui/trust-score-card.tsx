@@ -159,7 +159,7 @@ export function TrustScoreCard({
       ) : null}
 
       {updatedAt ? (
-        <Text variant="caption" tone="tertiary" className="tabular-nums">
+        <Text variant="caption" tone="secondary" className="tabular-nums">
           {updatedAt}
         </Text>
       ) : null}

@@ -116,7 +116,7 @@ export function DisputeClaimForm({
           {t.title}
         </Text>
         {existingClaim && updatedAt ? (
-          <Text variant="caption" tone="tertiary">
+          <Text variant="caption" tone="secondary">
             {t.lastUpdated(updatedAt)}
           </Text>
         ) : null}
@@ -140,7 +140,7 @@ export function DisputeClaimForm({
           <View className="gap-1">
             {t.guide.map((g, i) => (
               <View key={g} className="flex-row gap-2">
-                <Text variant="monoBody" tone="tertiary">
+                <Text variant="monoBody" tone="secondary">
                   {i + 1}.
                 </Text>
                 <Text variant="body" tone="secondary" className="flex-1 leading-6">

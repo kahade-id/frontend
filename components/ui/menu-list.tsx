@@ -52,7 +52,7 @@ export function MenuList({ title, footer, children, className, ...rest }: MenuLi
         ))}
       </ListGroup>
       {footer ? (
-        <Text variant="caption" tone="tertiary" className="px-1">
+        <Text variant="caption" tone="secondary" className="px-1">
           {footer}
         </Text>
       ) : null}

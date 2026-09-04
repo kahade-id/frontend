@@ -97,7 +97,7 @@ export function KeyValue({
       <View className={cn(isRow ? "flex-1 items-end" : "items-start", "gap-1")}>
         {valueNode}
         {hint ? (
-          <Text variant="caption" tone="tertiary" className={cn(isRow && "text-right")}>
+          <Text variant="caption" tone="secondary" className={cn(isRow && "text-right")}>
             {hint}
           </Text>
         ) : null}

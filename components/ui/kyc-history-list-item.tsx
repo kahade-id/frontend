@@ -66,16 +66,16 @@ export function KycHistoryListItem({
       subtitle={
         <View className="gap-[2px]">
           <View className="flex-row flex-wrap items-center gap-x-2">
-            <Text variant="monoBody" tone="tertiary">
+            <Text variant="monoBody" tone="secondary">
               {submittedAt}
             </Text>
             {reviewedAt ? (
-              <Text variant="caption" tone="tertiary">
+              <Text variant="caption" tone="secondary">
                 {"\u2192"} {reviewedAt}
               </Text>
             ) : null}
             {requestId ? (
-              <Text variant="monoBody" tone="tertiary" numberOfLines={1}>
+              <Text variant="monoBody" tone="secondary" numberOfLines={1}>
                 {requestId}
               </Text>
             ) : null}

@@ -17,6 +17,16 @@
  *
  * Tone `inherit` dipakai saat warna diatur parent (mis. label di dalam
  * Button yang sudah punya text-primary-foreground).
+ *
+ * Tone `tertiary` HANYA sah untuk teks besar (>= 18px: display/h1/h2/h3/
+ * monoLarge) — §2.2: `text-tertiary` (#868E96) kontras 3.32:1 di atas putih,
+ * di bawah WCAG AA teks normal (4.5:1) tapi lolos AA teks besar (3:1). Pada
+ * varian kecil (body/caption/label/monoBody) tone ini di-resolve ke
+ * `secondary` (gray.700, 7.0:1). Ditegakkan di sini (bukan diserahkan ke
+ * pemanggil) dengan pola yang sama seperti <Label> yang tidak punya opsi
+ * uppercase: aturan aksesibilitas ditulis sekali, tidak bisa dilanggar
+ * tanpa sengaja. Di dark mode tertiary == secondary, jadi tidak ada
+ * perubahan visual di sana.
  */
 import { forwardRef } from "react"
 import { Text as RNText, type TextProps as RNTextProps } from "react-native"
@@ -100,6 +110,22 @@ const toneClass: Record<TextTone, string> = {
   inherit: "",
 }
 
+/** Varian >= 18px (§3.2) — satu-satunya tempat tone `tertiary` boleh dipakai (§2.2) */
+const largeVariants: ReadonlySet<TextVariantProp> = new Set<TextVariantProp>([
+  "display",
+  "h1",
+  "h2",
+  "h3",
+  "monoLarge",
+])
+
+function resolveTone(tone: TextTone, variant: TextVariantProp): TextTone {
+  // "inherit" mewarisi ukuran parent yang tidak diketahui di sini — anggap
+  // kecil (kasus nyatanya <Emphasis> di dalam body) agar tetap aman.
+  if (tone === "tertiary" && !largeVariants.has(variant)) return "secondary"
+  return tone
+}
+
 function roleOf(variant: TextVariantProp): keyof typeof weightClass {
   if (variant === "display") return "serif"
   if (variant === "monoLarge" || variant === "monoBody") return "mono"
@@ -131,7 +157,7 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
         forced
           ? cn(forced, role === "sans" && "tabular-nums")
           : !inherit && faceClass[variant],
-        toneClass[tone],
+        toneClass[resolveTone(tone, variant)],
         className,
       )}
       {...rest}

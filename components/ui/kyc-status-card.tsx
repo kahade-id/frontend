@@ -179,7 +179,7 @@ export function KycStatusCard({
       ) : null}
 
       {meta.length > 0 ? (
-        <Text variant="caption" tone="tertiary" className="font-mono-500 tracking-mono tabular-nums">
+        <Text variant="caption" tone="secondary" className="font-mono-500 tracking-mono tabular-nums">
           {meta.join(" · ")}
         </Text>
       ) : null}

@@ -122,7 +122,7 @@ export function DataTable<Row extends Record<string, unknown>>({
       {/* Body */}
       {rows.length === 0 ? (
         <View className={cn("items-center", compact ? "py-6" : "py-8")}>
-          <Text variant="body" tone="tertiary">
+          <Text variant="body" tone="secondary">
             {emptyLabel}
           </Text>
         </View>

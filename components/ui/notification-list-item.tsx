@@ -130,7 +130,7 @@ export function NotificationListItem({
           </Text>
         ) : null}
         {timestamp ? (
-          <Text variant="caption" tone="tertiary" className="tabular-nums">
+          <Text variant="caption" tone="secondary" className="tabular-nums">
             {timestamp}
           </Text>
         ) : null}

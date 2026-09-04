@@ -172,7 +172,7 @@ export function Rating({
         {showScore ? (
           <Text
             variant={resolvedSize === "lg" ? "monoLarge" : "monoBody"}
-            tone={shown > 0 ? "primary" : "tertiary"}
+            tone={shown > 0 ? "primary" : "secondary"}
             className="ml-2"
           >
             {interactive ? `${shown}/${max}` : formatScore(shown)}

@@ -6,7 +6,7 @@
  *   - "loading" : Spinner kecil monokrom (BUKAN logo brand — §8) + caption.
  *   - "idle"    : tombol ghost "Muat lebih banyak" untuk list yang memakai
  *                 tap-to-load (bukan infinite scroll otomatis).
- *   - "end"     : caption text-tertiary "Semua data ditampilkan" — memberi
+ *   - "end"     : caption text-secondary "Semua data ditampilkan" — memberi
  *                 kepastian bahwa tidak ada yang tertinggal (§1 presisi).
  *   - "error"   : pesan + tombol coba lagi, tanpa mengganti seluruh list
  *                 dengan ErrorState karena data yang sudah tampil tetap valid.
@@ -57,7 +57,7 @@ export function LoadMore({
       {status === "loading" ? (
         <View className="flex-row items-center gap-2">
           <Spinner size="sm" />
-          <Text variant="caption" tone="tertiary">
+          <Text variant="caption" tone="secondary">
             {loadingLabel}
           </Text>
         </View>
@@ -70,7 +70,7 @@ export function LoadMore({
       ) : null}
 
       {status === "end" ? (
-        <Text variant="caption" tone="tertiary">
+        <Text variant="caption" tone="secondary">
           {endLabel}
         </Text>
       ) : null}

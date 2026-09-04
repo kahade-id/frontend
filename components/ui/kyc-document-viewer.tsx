@@ -168,7 +168,7 @@ function DocumentImage({
           {doc.file.name}
         </Text>
         {doc.file.size != null ? (
-          <Text variant="monoBody" tone="tertiary">
+          <Text variant="monoBody" tone="secondary">
             {formatFileSize(doc.file.size)}
           </Text>
         ) : null}
@@ -293,10 +293,10 @@ export function KycDocumentViewer({
 
             {doc.uploadedAtLabel ? (
               <View className="flex-row items-center gap-2">
-                <Text variant="caption" tone="tertiary">
+                <Text variant="caption" tone="secondary">
                   {t.uploadedAt}
                 </Text>
-                <Text variant="monoBody" tone="tertiary">
+                <Text variant="monoBody" tone="secondary">
                   {doc.uploadedAtLabel}
                 </Text>
               </View>

@@ -16,8 +16,8 @@
  * terasa "loncat". Slot kosong setinggi satu baris caption (18px) menjaga
  * layout stabil. Default false karena tidak semua field butuh helper.
  */
-import type { ReactNode } from "react"
-import { View, type ViewProps } from "react-native"
+import { useEffect, useRef, type ReactNode } from "react"
+import { AccessibilityInfo, Platform, View, type ViewProps } from "react-native"
 
 import { cn } from "@/lib/cn"
 import { Text } from "@/components/ui/text"
@@ -69,6 +69,21 @@ export function FieldHelper({
   className?: string
 }) {
   const message = errorText || helperText
+
+  // iOS VoiceOver TIDAK mendukung live region (lihat live-region.tsx) —
+  // tanpa ini error validasi di iOS tidak pernah diumumkan. Android/web
+  // sudah tercakup oleh `accessibilityLiveRegion` di bawah. Pesan yang sama
+  // berturut-turut hanya diumumkan sekali agar tidak spam saat re-render.
+  const lastAnnounced = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    if (!errorText || errorText === lastAnnounced.current) {
+      if (!errorText) lastAnnounced.current = undefined
+      return
+    }
+    lastAnnounced.current = errorText
+    if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(errorText)
+  }, [errorText])
+
   if (!message && !reserveSpace) return null
   return (
     <Text

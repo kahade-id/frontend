@@ -165,7 +165,7 @@ export function TagInput({
         ) : null}
 
         {maxTags != null ? (
-          <Text variant="caption" tone="tertiary" className="ml-auto">
+          <Text variant="caption" tone="secondary" className="ml-auto">
             {value.length}/{maxTags}
           </Text>
         ) : null}

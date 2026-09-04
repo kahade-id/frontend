@@ -67,7 +67,7 @@ export function HelpCategoryCard({
           </Text>
         ) : null}
         {countText ? (
-          <Text variant="caption" tone={articleCount === 0 ? "disabled" : "tertiary"} className="tabular-nums">
+          <Text variant="caption" tone={articleCount === 0 ? "disabled" : "secondary"} className="tabular-nums">
             {countText}
           </Text>
         ) : null}
