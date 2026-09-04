@@ -368,7 +368,8 @@ export const BiometricPromptTrigger = forwardRef<BiometricPromptTriggerHandle, B
                   key={i}
                   className={cn(
                     "h-4 w-4 rounded-full border",
-                    i < pin.length ? "border-primary bg-primary" : "border-border bg-transparent",
+                    // Dot kosong = indikator state non-teks -> border-control >= 3:1 (WCAG 1.4.11, audit #6)
+                    i < pin.length ? "border-primary bg-primary" : "border-border-control bg-transparent",
                     pinError && "border-danger",
                   )}
                 />

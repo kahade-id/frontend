@@ -89,9 +89,13 @@ export const light = {
    */
   borderDefault: "#CED4DA", // gray.400
   /**
-   * border-control: outline resting form control (Input, Checkbox, Radio,
-   * Switch off, Select, Textarea, Stepper). WCAG 1.4.11 non-text contrast
-   * >= 3:1: gray.600 vs #FFFFFF = 3.32:1, vs surface #F8F9FA = 3.15:1.
+   * border-control: outline resting form control (Input, Select, DateField,
+   * Checkbox, Radio, Switch off, NumberStepper, SegmentedControl, ToggleGroup
+   * belum terpilih) DAN indikator state non-teks (dot PIN kosong, track
+   * Slider, bintang Rating kosong). WCAG 1.4.11 non-text contrast >= 3:1:
+   * gray.600 vs #FFFFFF = 3.32:1, vs surface #F8F9FA = 3.15:1.
+   * Daftar lengkap + pengecualian: docs/audit/findings/06-non-text-contrast.md
+   * Bukan untuk Button secondary (dikenali dari label) atau border kartu.
    */
   borderControl: "#868E96", // gray.600
   borderFocus: "#000000", // fokus/aktif pada elemen interaktif

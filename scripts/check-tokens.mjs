@@ -30,6 +30,10 @@
  *  9. (audit #13) className `dark:*` dan class warna literal non-mode-aware
  *     (text-white, bg-white, bg-black, *-gray-N) hanya di file allowlist yang
  *     pengecualiannya terdokumentasi dengan §spek.
+ * 10. (audit #6) Kontras WCAG per pasangan token (teks 4.5:1, UI 3:1).
+ * 11. (audit #10) Tidak ada angka literal layout di `style={}` /
+ *     StyleSheet.create, dan tidak ada fontSize/lineHeight inline di luar
+ *     allowlist.
  *
  * Jalankan: pnpm check:tokens   (butuh Node >= 22.6 untuk memuat .ts)
  */
@@ -328,6 +332,74 @@ for (const mode of ["light", "dark"]) {
     const rFill = contrast(s.fill, t.surface)
     if (rFill < 3) fail(`kontras ${mode} semantic.${name}.fill / surface = ${rFill.toFixed(2)}:1 < 3:1 (ikon/dot status, 1.4.11)`)
   }
+}
+
+// 11. (audit #10) Inline `style={}` numerik. Audit #0 hanya memeriksa WARNA
+//     di inline style; spacing/radius/ukuran literal (`width: 36`,
+//     `borderRadius: 8`, `top: -32`) lolos. Aturan:
+//     - Angka literal di dalam `style={...}` / `StyleSheet.create({...})`
+//       untuk key layout (width, padding*, margin*, borderRadius, gap, top/
+//       left/..., borderWidth) → FAIL. Pakai className Tailwind, atau
+//       konstanta bernama dari `tokens.space[N]` / `tokens.radius.*` (nilai
+//       runtime seperti `insets.top`, `trackWidth.value` otomatis lolos
+//       karena bukan literal). `0` dan `"100%"` diizinkan (bukan magic number).
+//     - `fontSize` / `lineHeight` di inline style DILARANG apa pun nilainya —
+//       tipografi hanya lewat varian <Text> (§3 fixed scale). Pengecualian
+//       harus di INLINE_TYPO_ALLOWLIST dengan alasan §spek di kode.
+//     Deteksi multi-baris (grep satu baris di BACKLOG.md melewatkan objek
+//     style yang dipecah per baris).
+const INLINE_TYPO_ALLOWLIST = {
+  // §3.1: huruf placeholder & wordmark diskalakan proporsional ke tinggi mark
+  // (size prop), bukan nilai type scale — tidak ada varian Text yang cocok.
+  "components/ui/logo.tsx": "fontSize/lineHeight proporsional ke ukuran mark (§3.1, §16.5)",
+}
+const LAYOUT_KEYS =
+  "width|height|minWidth|minHeight|maxWidth|maxHeight|padding[A-Za-z]*|margin[A-Za-z]*|border[A-Za-z]*Radius|gap|rowGap|columnGap|top|left|right|bottom|start|end|inset[A-Za-z]*|border[A-Za-z]*Width|translateX|translateY"
+const LAYOUT_LITERAL_RE = new RegExp(`\\b(${LAYOUT_KEYS})\\s*:\\s*(-?\\d+(?:\\.\\d+)?)(?![\\d.%\\w])`, "g")
+const TYPO_RE = /\b(fontSize|lineHeight|letterSpacing)\s*:/g
+/** Ambil blok `style={...}` dan `StyleSheet.create(...)` lengkap (seimbang kurung). */
+function* styleBlocks(src) {
+  for (const m of src.matchAll(/style=\{|StyleSheet\.create\(/g)) {
+    let depth = 0
+    let j = m.index + m[0].length - 1
+    for (; j < src.length; j++) {
+      const c = src[j]
+      if (c === "{" || c === "(" || c === "[") depth++
+      else if (c === "}" || c === ")" || c === "]") {
+        depth--
+        if (depth === 0) break
+      }
+    }
+    yield { start: m.index, text: src.slice(m.index, j + 1) }
+  }
+}
+const lineOf = (src, idx) => src.slice(0, idx).split("\n").length
+const typoSeen = new Set()
+for (const dir of ["components", "app"]) {
+  for (const f of files(join(root, dir))) {
+    const rel = relative(root, f)
+    const src = stripComments(readFileSync(f, "utf8"))
+    for (const { start, text } of styleBlocks(src)) {
+      for (const m of text.matchAll(LAYOUT_LITERAL_RE)) {
+        if (Number(m[2]) === 0) continue
+        fail(
+          `${rel}:${lineOf(src, start + m.index)} inline style \`${m[0]}\` — angka literal untuk layout. Pakai className Tailwind atau konstanta dari tokens.space/radius (audit #10).`,
+        )
+      }
+      if (TYPO_RE.test(text)) {
+        TYPO_RE.lastIndex = 0
+        typoSeen.add(rel)
+        if (!(rel in INLINE_TYPO_ALLOWLIST)) {
+          fail(
+            `${rel}:${lineOf(src, start)} inline style fontSize/lineHeight — tipografi hanya lewat varian <Text> (§3). Kalau memang pengecualian, tambahkan ke INLINE_TYPO_ALLOWLIST + alasan §spek di kode (audit #10).`,
+          )
+        }
+      }
+    }
+  }
+}
+for (const rel of Object.keys(INLINE_TYPO_ALLOWLIST)) {
+  if (!typoSeen.has(rel)) warn(`INLINE_TYPO_ALLOWLIST: ${rel} tidak lagi memakai fontSize/lineHeight inline — hapus entrinya`)
 }
 
 // ------------------------------------------------------------------
