@@ -90,7 +90,7 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
       accessibilityLabel={placeholder}
       scaleOnPress={false}
       containerClassName={cn("w-full", containerClassName)}
-      className={cn("h-12 w-full flex-row items-center gap-2 rounded-sm border border-border bg-background px-4", className)}
+      className={cn("h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4", className)}
       {...rest}
     >
       <Icon icon={MagnifyingGlass} size="sm" />

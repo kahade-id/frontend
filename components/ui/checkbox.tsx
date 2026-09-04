@@ -89,7 +89,7 @@ export function CheckboxIndicator({
           ? "border-error border-border-error"
           : on
             ? "border-focus border-border-focus"
-            : "border border-border",
+            : "border border-border-control",
         className,
       )}
     >

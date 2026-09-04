@@ -272,6 +272,64 @@ for (const rel of Object.keys(DARK_ALLOWLIST)) {
   if (!darkSeen.has(rel)) warn(`DARK_ALLOWLIST: ${rel} tidak lagi memakai dark:/warna literal — hapus entrinya`)
 }
 
+// 10. (audit #6) Kontras WCAG per pasangan token yang dipakai komponen.
+//     Dihitung dari nilai token (bukan dari class), jadi mengubah satu hex di
+//     tokens.ts yang membuat pasangan jatuh di bawah ambang → FAIL.
+//     Ambang: teks normal 4.5:1 (1.4.3), teks besar/ikon/UI component 3:1
+//     (1.4.11). `borderDefault` dan `textDisabled` SENGAJA tidak diuji ke
+//     ambang tinggi — keduanya pengecualian yang terdokumentasi di tokens.ts
+//     (dekoratif / state disabled), tapi tetap dijaga agar tidak turun lagi.
+function luminance(hex) {
+  const c = hex
+    .slice(1)
+    .match(/../g)
+    .map((x) => parseInt(x, 16) / 255)
+    .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4))
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]
+}
+function contrast(a, b) {
+  const x = luminance(a)
+  const y = luminance(b)
+  return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05)
+}
+const CONTRAST_PAIRS = [
+  // [fg, bg, min, alasan]
+  ["textPrimary", "background", 4.5, "teks utama (1.4.3)"],
+  ["textPrimary", "surface", 4.5, "teks utama di card (1.4.3)"],
+  ["textSecondary", "background", 4.5, "body/caption/label (1.4.3)"],
+  ["textSecondary", "surface", 4.5, "body/caption di card + placeholder Input (1.4.3)"],
+  ["textTertiary", "background", 3, "ikon & teks besar (1.4.11 / 1.4.3 large)"],
+  ["textTertiary", "surface", 3, "ikon di card (1.4.11)"],
+  ["borderControl", "background", 3, "outline form control resting (1.4.11)"],
+  ["borderControl", "surface", 3, "outline form control di atas card (1.4.11)"],
+  ["borderFocus", "background", 3, "indikator fokus (1.4.11)"],
+  ["borderError", "background", 3, "indikator error (1.4.11)"],
+  ["primary", "background", 3, "Switch on / Radio selected / Checkbox checked (1.4.11)"],
+  ["primaryForeground", "primary", 4.5, "label Button primary (1.4.3)"],
+  // Pengecualian yang dijaga supaya tidak memburuk (bukan syarat WCAG):
+  ["borderDefault", "background", 1.3, "card/divider dekoratif — harus tetap terlihat"],
+  // Light: elevated == background (putih) SENGAJA, dipisah border (§6). Di dark
+  // tidak ada border pada skeleton, jadi warnanya sendiri yang harus membedakan.
+  ["surfaceElevated", "background", 1.3, "skeleton/sheet harus terbedakan dari background", "dark"],
+]
+for (const mode of ["light", "dark"]) {
+  const t = mode === "light" ? light : dark
+  for (const [fg, bg, min, why, onlyMode] of CONTRAST_PAIRS) {
+    if (onlyMode && onlyMode !== mode) continue
+    const r = contrast(t[fg], t[bg])
+    if (r < min) {
+      fail(`kontras ${mode} ${fg} (${t[fg]}) / ${bg} (${t[bg]}) = ${r.toFixed(2)}:1 < ${min}:1 — ${why}`)
+    }
+  }
+  for (const [name, byMode] of Object.entries(semantic)) {
+    const s = byMode[mode]
+    const rText = contrast(s.text, s.bgSoft)
+    if (rText < 4.5) fail(`kontras ${mode} semantic.${name}.text / bgSoft = ${rText.toFixed(2)}:1 < 4.5:1 (label Badge/Alert)`)
+    const rFill = contrast(s.fill, t.surface)
+    if (rFill < 3) fail(`kontras ${mode} semantic.${name}.fill / surface = ${rFill.toFixed(2)}:1 < 3:1 (ikon/dot status, 1.4.11)`)
+  }
+}
+
 // ------------------------------------------------------------------
 // Laporan
 // ------------------------------------------------------------------

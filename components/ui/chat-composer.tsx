@@ -224,7 +224,7 @@ export function ChatComposer({
         <View
           className={cn(
             "min-h-12 flex-1 flex-row items-end rounded-sm bg-background",
-            focused ? "border-focus border-border-focus px-[15px]" : "border border-border px-4",
+            focused ? "border-focus border-border-focus px-[15px]" : "border border-border-control px-4",
             disabled && "opacity-disabled",
           )}
         >
@@ -234,7 +234,7 @@ export function ChatComposer({
             multiline
             editable={!disabled && !sending}
             placeholder={t.placeholder}
-            placeholderTextColor={palette.textDisabled}
+            placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}
             allowFontScaling={false}

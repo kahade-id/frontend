@@ -69,7 +69,7 @@ export function Chip({
       containerClassName={cn("self-start rounded-full", focusRing, containerClassName)}
       className={cn(
         "h-8 flex-row items-center gap-1 rounded-full px-3",
-        selected ? "border border-primary bg-primary" : "border border-border bg-transparent",
+        selected ? "border border-primary bg-primary" : "border border-border-control bg-transparent",
         className,
       )}
       {...rest}

@@ -112,7 +112,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
                   ? "border-error border-border-error"
                   : isActive
                     ? "border-focus border-border-focus"
-                    : "border border-border",
+                    : "border border-border-control",
               )}
             >
               {char ? (

@@ -115,7 +115,7 @@ export function Rating({
     const glyph = (
       <View style={{ width: px, height: px }}>
         {/* Lapisan bawah: bintang kosong (outline, warna border) */}
-        <Star size={px} color={palette.borderDefault} weight="regular" />
+        <Star size={px} color={palette.borderControl} weight="regular" />
         {/* Lapisan atas: bintang terisi, dipotong 50% untuk setengah */}
         {filled || half ? (
           <View
