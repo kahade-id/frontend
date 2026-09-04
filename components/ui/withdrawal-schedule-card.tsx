@@ -35,13 +35,14 @@ import { View, type ViewProps } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
 import { Button } from "@/components/ui/button"
-import { Card, type CardProps } from "@/components/ui/card"
+import { Card, CardSummary, type CardProps } from "@/components/ui/card"
 import { IconBox } from "@/components/ui/icon-box"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { Picture, type PictureProps } from "@/components/ui/picture"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { initials, maskAccountNumber } from "@/lib/format"
 
@@ -116,28 +117,33 @@ export function WithdrawalScheduleCard({
   const dayName = t.dayNames[Math.min(6, Math.max(0, dayOfWeek))]
   const title = t.every(dayName)
 
-  const a11y =
-    accessibilityLabel ??
-    [
-      title,
-      isActive ? t.active : t.inactive,
-      `${bankAccount.bankName} ${maskAccountNumber(bankAccount.accountNumber)}`,
-      minAmount ? `${t.minAmount} ${minAmount} rupiah` : t.anyBalance,
-    ].join(", ")
+  // Ringkasan header saja: Switch, Edit, dan Hapus harus tetap fokusable
+  // sendiri, jadi tidak boleh ada `accessible` di root kartu (audit #4).
+  const a11y = accessibilityLabel ?? summarize([title, isActive ? t.active : t.inactive])
+
+  const detailA11y = summarize([
+    `${bankAccount.bankName} ${maskAccountNumber(bankAccount.accountNumber)}`,
+    bankAccount.accountHolder,
+    minAmount ? `${t.minAmount} ${minAmount} rupiah` : t.anyBalance,
+    `${t.nextRun} ${isActive && nextRunLabel ? nextRunLabel : "—"}`,
+    `${t.lastRun} ${lastRunLabel ?? t.never}`,
+  ])
 
   return (
-    <Card className={cn("gap-4", className)} accessibilityLabel={a11y} {...rest}>
+    <Card className={cn("gap-4", className)} {...rest}>
       {/* Header */}
       <View className="flex-row items-center gap-3">
-        <IconBox icon={CalendarCheck} size="md" variant={isActive ? "inverted" : "surface"} />
-        <View className="flex-1">
-          <Text variant="h3" tone="primary" numberOfLines={1}>
-            {title}
-          </Text>
-          <Text variant="caption" tone={isActive ? "success" : "secondary"}>
-            {isActive ? t.active : t.inactive}
-          </Text>
-        </View>
+        <CardSummary className="flex-1 flex-row items-center gap-3" label={a11y}>
+          <IconBox icon={CalendarCheck} size="md" variant={isActive ? "inverted" : "surface"} />
+          <View className="flex-1">
+            <Text variant="h3" tone="primary" numberOfLines={1}>
+              {title}
+            </Text>
+            <Text variant="caption" tone={isActive ? "success" : "secondary"}>
+              {isActive ? t.active : t.inactive}
+            </Text>
+          </View>
+        </CardSummary>
         {onToggleActive ? (
           <Switch
             value={isActive}
@@ -148,7 +154,7 @@ export function WithdrawalScheduleCard({
         ) : null}
       </View>
 
-      <View className={cn("gap-4", !isActive && "opacity-disabled")}>
+      <View accessible accessibilityLabel={detailA11y} className={cn("gap-4", !isActive && "opacity-disabled")}>
         {/* Rekening tujuan */}
         <View className="flex-row items-center gap-3 rounded-sm border border-border bg-surface-elevated p-3">
           {bankAccount.logo ? (
@@ -206,7 +212,7 @@ export function WithdrawalScheduleCard({
 
 export function WithdrawalScheduleCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View
+    <View accessible accessibilityRole="progressbar"
       className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)}
       accessibilityLabel="Memuat jadwal penarikan"
       {...rest}

@@ -32,10 +32,11 @@ import { View } from "react-native"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, type CardProps } from "@/components/ui/card"
+import { Card, CardSummary, type CardProps } from "@/components/ui/card"
 import { IconBox } from "@/components/ui/icon-box"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type CounterpartState = "loading" | "notFound" | "blocked" | "self" | "found"
@@ -102,7 +103,7 @@ export function CounterpartValidationCard({
 
   if (state === "loading") {
     return (
-      <Card variant="outline" className={cn("flex-row items-center gap-3", className)} {...rest}>
+      <Card variant="outline" className={cn("flex-row items-center gap-3", className)} accessibilityLabel="Memeriksa lawan transaksi" {...rest}>
         <Skeleton width={40} height={40} shape="circle" />
         <View className="flex-1 gap-2">
           <Skeleton height={14} className="w-1/2" />
@@ -145,51 +146,58 @@ export function CounterpartValidationCard({
   if (rating) stats.push(`\u2605 ${rating}`)
 
   return (
-    <Card
-      variant="outline"
-      className={cn("gap-3", className)}
-      accessibilityLabel={[name, username ? `@${username}` : undefined, verified ? t.verified : undefined, ...stats]
-        .filter(Boolean)
-        .join(", ")}
-      {...rest}
-    >
-      <View className="flex-row items-center gap-3">
-        <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
-        <View className="flex-1 gap-[2px]">
-          <View className="flex-row flex-wrap items-center gap-2">
-            <Text variant="body" weight={600} tone="primary" numberOfLines={1} className="shrink">
-              {name}
-            </Text>
-            {verified ? (
-              <Badge tone="success" variant="soft">
-                {t.verified}
-              </Badge>
-            ) : null}
-          </View>
-          <View className="flex-row flex-wrap items-center gap-x-2">
-            {username ? (
-              <Text variant="caption" tone="secondary">
-                @{username}
+    // Root tanpa `accessible`: tombol "Konfirmasi" harus tetap fokusable.
+    // Identitas + peringatan dikelompokkan lewat <CardSummary> (audit #4).
+    <Card variant="outline" className={cn("gap-3", className)} {...rest}>
+      <CardSummary
+        className="gap-3"
+        label={summarize([
+          name,
+          username ? `@${username}` : undefined,
+          verified ? t.verified : undefined,
+          ...stats,
+          ...warnings,
+        ])}
+      >
+        <View className="flex-row items-center gap-3">
+          <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
+          <View className="flex-1 gap-[2px]">
+            <View className="flex-row flex-wrap items-center gap-2">
+              <Text variant="body" weight={600} tone="primary" numberOfLines={1} className="shrink">
+                {name}
               </Text>
-            ) : null}
-            {stats.length > 0 ? (
-              <Text variant="caption" tone="secondary" numberOfLines={1}>
-                {stats.join(" \u00B7 ")}
-              </Text>
-            ) : null}
+              {verified ? (
+                <Badge tone="success" variant="soft">
+                  {t.verified}
+                </Badge>
+              ) : null}
+            </View>
+            <View className="flex-row flex-wrap items-center gap-x-2">
+              {username ? (
+                <Text variant="caption" tone="secondary">
+                  @{username}
+                </Text>
+              ) : null}
+              {stats.length > 0 ? (
+                <Text variant="caption" tone="secondary" numberOfLines={1}>
+                  {stats.join(" \u00B7 ")}
+                </Text>
+              ) : null}
+            </View>
           </View>
         </View>
-      </View>
 
-      {warnings.length > 0 ? (
-        <View className="flex-row flex-wrap gap-2">
-          {warnings.map((w) => (
-            <Badge key={w} tone="warning" variant="soft">
-              {w}
-            </Badge>
-          ))}
-        </View>
-      ) : null}
+        {warnings.length > 0 ? (
+          <View className="flex-row flex-wrap gap-2">
+            {warnings.map((w) => (
+              <Badge key={w} tone="warning" variant="soft">
+                {w}
+              </Badge>
+            ))}
+          </View>
+        ) : null}
+
+      </CardSummary>
 
       {onConfirm ? (
         <Button size="sm" variant="secondary" onPress={onConfirm} loading={confirming} fullWidth>

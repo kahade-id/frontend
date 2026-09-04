@@ -23,6 +23,12 @@
  *   - `selected` menaikkan border ke border-focus 1.5px (pola sama dengan
  *     Radio card) — padding dikompensasi `p-[19.5px]` supaya konten tidak
  *     bergeser; nilai arbitrary ini turunan langsung dari token (20 − 0.5).
+ *   - Grouping screen reader (audit #4): Card interaktif otomatis satu elemen
+ *     karena PressableScale. Card STATIS dengan `accessibilityLabel` kini juga
+ *     di-`accessible` — sebelumnya label diam-diam dibuang (tidak diteruskan
+ *     ke <View>), sehingga kartu terbaca 5–8 fragmen lepas. Kartu statis yang
+ *     PUNYA tombol di dalamnya tidak boleh memakai `accessibilityLabel` di
+ *     root (`accessible` akan menelan tombolnya) — pakai <CardSummary>.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -99,8 +105,49 @@ export function Card({
     )
   }
 
+  // Card statis. `accessibilityLabel` HARUS dibarengi `accessible` agar RN
+  // benar-benar mengelompokkan subtree jadi satu elemen SR; tanpa itu label
+  // diabaikan dan setiap Text di dalamnya dibaca terpisah (audit #4).
   return (
-    <View className={cn(box, disabled && "opacity-disabled")} {...rest}>
+    <View
+      accessible={accessibilityLabel ? true : undefined}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      className={cn(box, disabled && "opacity-disabled")}
+      {...rest}
+    >
+      {children}
+    </View>
+  )
+}
+
+/**
+ * Grup baca untuk BAGIAN informasi di dalam kartu yang punya aksi (audit #4).
+ *
+ * Kenapa ada: `accessible` pada root kartu menelan seluruh subtree — tombol
+ * "Bayar", "Perpanjang", IconButton favorit berhenti bisa difokus screen
+ * reader. Jadi kartu beraksi tidak boleh diberi label di root; sebagai
+ * gantinya bungkus blok teksnya dengan <CardSummary> supaya bagian informasi
+ * tetap terbaca sebagai SATU elemen, sementara tombol tetap fokusable
+ * terpisah sesudahnya.
+ *
+ * ```tsx
+ * <Card>
+ *   <CardSummary label={summarize([title, statusLabel, amount])}>
+ *     ...teks & badge...
+ *   </CardSummary>
+ *   <Button onPress={onPay}>Bayar</Button>
+ * </Card>
+ * ```
+ */
+export function CardSummary({
+  label,
+  children,
+  className,
+  ...rest
+}: CardSectionProps & { label: string }) {
+  return (
+    <View accessible accessibilityLabel={label} className={className} {...rest}>
       {children}
     </View>
   )

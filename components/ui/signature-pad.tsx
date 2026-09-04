@@ -63,12 +63,15 @@ export type SignaturePadLabels = {
   clear: string
   hint: string
   alternative: string
+  /** Dibaca screen reader saat kanvas sudah berisi goresan */
+  signed: string
 }
 
 const defaultLabels: SignaturePadLabels = {
   clear: "Hapus",
   hint: "Tanda tangan di dalam kotak",
   alternative: "Tidak bisa menandatangani?",
+  signed: "Tanda tangan sudah diisi",
 }
 
 export type SignaturePadProps = Omit<ViewProps, "children"> & {
@@ -194,11 +197,10 @@ export function SignaturePad({
 
   return (
     <View className={cn("w-full gap-2", className)} {...rest}>
+      {/* `accessible` ada di kanvas gambar (anak GestureDetector), BUKAN di
+          wrapper ini: wrapper juga memuat tombol "Bersihkan" yang akan
+          tertelan oleh grup (audit #4). */}
       <View
-        accessible
-        accessibilityRole="image"
-        accessibilityLabel={labels.hint}
-        accessibilityState={{ disabled }}
         onLayout={handleLayout}
         className={cn(
           "relative w-full overflow-hidden rounded-md bg-surface",
@@ -208,7 +210,13 @@ export function SignaturePad({
         style={{ height }}
       >
         <GestureDetector gesture={pan}>
-          <View className="flex-1">
+          <View
+            accessible
+            accessibilityRole="image"
+            accessibilityLabel={isEmpty ? labels.hint : labels.signed}
+            accessibilityState={{ disabled }}
+            className="flex-1"
+          >
             <Svg width="100%" height="100%">
               {/* Baseline kertas formulir — hilang saat sudah ada goresan */}
               {isEmpty && size.w > 0 ? (

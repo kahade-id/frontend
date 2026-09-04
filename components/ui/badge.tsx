@@ -112,6 +112,7 @@ export function NotificationDot({ visible = true, className }: { visible?: boole
   if (!visible) return null
   return (
     <View
+      accessible
       accessibilityLabel="Ada pembaruan"
       className={cn(
         "absolute -right-[2px] -top-[2px] h-2 w-2 rounded-full border border-background bg-danger",

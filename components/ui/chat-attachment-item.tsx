@@ -183,9 +183,9 @@ export function ChatAttachmentItem({
 
   // chip
   return (
+    // Root TANPA `accessible`: chip punya aksi "Coba lagi"/"Hapus" yang wajib
+    // fokusable. Ringkasan dipasang pada blok teks saja (audit #4).
     <View
-      accessible
-      accessibilityLabel={a11y}
       className={cn(
         "relative min-h-11 max-w-[220px] flex-row items-center gap-2 overflow-hidden rounded-sm border border-border bg-surface pl-2",
         errored && "border-border-error",
@@ -198,7 +198,7 @@ export function ChatAttachmentItem({
       ) : (
         <Icon icon={errored ? Warning : icon} size="sm" tone={errored ? "danger" : "default"} />
       )}
-      <View className="flex-1">
+      <View accessible accessibilityLabel={a11y} className="flex-1">
         <Text variant="caption" weight={500} tone="primary" numberOfLines={1}>
           {attachment.fileName}
         </Text>

@@ -177,12 +177,16 @@ export function InvoiceReceiptView({
         <Logo variant="mark" size="sm" />
         <View className="flex-1 gap-1">
           <Text variant="h3">{title}</Text>
-          <View
-            accessible
-            accessibilityLabel={`${title} nomor ${number.split("").join(" ")}`}
-            className="flex-row items-center gap-1"
-          >
-            <Text variant="monoBody" tone="secondary" numberOfLines={1} className="shrink">
+          {/* Label di <Text>: `accessible` pada wrapper menelan IconButton
+              "Salin nomor" (audit #4). */}
+          <View className="flex-row items-center gap-1">
+            <Text
+              accessibilityLabel={`${title} nomor ${number.split("").join(" ")}`}
+              variant="monoBody"
+              tone="secondary"
+              numberOfLines={1}
+              className="shrink"
+            >
               {number}
             </Text>
             {onCopyNumber ? (

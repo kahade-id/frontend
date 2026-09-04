@@ -114,14 +114,18 @@ export function VoucherRedeemBox({
 
   if (applied) {
     return (
+      // Root TANPA `accessible`: IconButton "Hapus" harus tetap fokusable.
+      // Ringkasan dipasang pada blok teks kode voucher (audit #4).
       <View
-        accessible
-        accessibilityLabel={`${t.heading} ${applied.code.split("").join(" ")}, ${t.applied}`}
         className={cn("flex-row items-center gap-3 rounded-md border border-border bg-surface px-4 py-3", className)}
         {...rest}
       >
         <Icon icon={Tag} size="sm" tone="active" weight="fill" />
-        <View className="flex-1 gap-0">
+        <View
+          accessible
+          accessibilityLabel={`${t.heading} ${applied.code.split("").join(" ")}, ${t.applied}${applied.title ? `, ${applied.title}` : ""}`}
+          className="flex-1 gap-0"
+        >
           <View className="flex-row items-center gap-2">
             <Text variant="monoBody" numberOfLines={1} className="shrink">
               {applied.code}

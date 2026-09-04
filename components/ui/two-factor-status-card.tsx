@@ -22,11 +22,12 @@ import { View } from "react-native"
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, type CardProps } from "@/components/ui/card"
+import { Card, CardSummary, type CardProps } from "@/components/ui/card"
 import { IconBox } from "@/components/ui/icon-box"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type TwoFactorMethod = "TOTP" | "SMS" | "EMAIL"
@@ -116,61 +117,73 @@ export function TwoFactorStatusCard({
     enabled && typeof backupCodesRemaining === "number" && backupCodesRemaining <= LOW_BACKUP_THRESHOLD
 
   return (
-    <Card
-      className={cn("gap-4", className)}
-      accessibilityLabel={`${t.title}, ${enabled ? t.enabled : t.disabled}${methodLabel ? `, ${methodLabel}` : ""}`}
-      {...rest}
-    >
-      <View className="flex-row items-center gap-3">
-        <IconBox
-          icon={enabled ? ShieldCheck : ShieldWarning}
-          size="lg"
-          variant={enabled ? "success" : "warning"}
-        />
-        <View className="flex-1 gap-1">
-          <Text variant="h3" tone="primary">
-            {t.title}
-          </Text>
-          <View className="flex-row items-center gap-2">
-            <Badge tone={enabled ? "success" : "warning"} variant="soft" dot>
-              {enabled ? t.enabled : t.disabled}
-            </Badge>
-            {enabledAt && enabled ? (
-              <Text variant="caption" tone="secondary">
-                sejak {enabledAt}
-              </Text>
-            ) : null}
+    // Label di <CardSummary>: kartu punya Button Kelola/Aktifkan/Regenerasi
+    // yang akan tertelan bila root diberi `accessible` (audit #4).
+    <Card className={cn("gap-4", className)} {...rest}>
+      <CardSummary
+        className="gap-4"
+        label={summarize([
+          t.title,
+          enabled ? t.enabled : t.disabled,
+          enabledAt && enabled ? `sejak ${enabledAt}` : undefined,
+          enabled && methodLabel ? `${t.method} ${methodLabel}` : undefined,
+          enabled && typeof backupCodesRemaining === "number"
+            ? `${t.backupCodes} ${backupCodesRemaining}${typeof backupCodesTotal === "number" ? ` dari ${backupCodesTotal}` : ""}${lowBackup ? `, ${t.lowBackup}` : ""}`
+            : undefined,
+          !enabled ? t.disabledHint : undefined,
+        ])}
+      >
+        <View className="flex-row items-center gap-3">
+          <IconBox
+            icon={enabled ? ShieldCheck : ShieldWarning}
+            size="lg"
+            variant={enabled ? "success" : "warning"}
+          />
+          <View className="flex-1 gap-1">
+            <Text variant="h3" tone="primary">
+              {t.title}
+            </Text>
+            <View className="flex-row items-center gap-2">
+              <Badge tone={enabled ? "success" : "warning"} variant="soft" dot>
+                {enabled ? t.enabled : t.disabled}
+              </Badge>
+              {enabledAt && enabled ? (
+                <Text variant="caption" tone="secondary">
+                  sejak {enabledAt}
+                </Text>
+              ) : null}
+            </View>
           </View>
         </View>
-      </View>
 
-      {enabled ? (
-        <KeyValueList>
-          {methodLabel ? <KeyValue label={t.method} value={methodLabel} /> : null}
-          {typeof backupCodesRemaining === "number" ? (
-            <KeyValue
-              label={t.backupCodes}
-              value={
-                <View className="flex-row items-center gap-2">
-                  {lowBackup ? (
-                    <Badge tone="warning" variant="soft">
-                      {t.lowBackup}
-                    </Badge>
-                  ) : null}
-                  <Text variant="monoBody" tone="primary">
-                    {backupCodesRemaining}
-                    {typeof backupCodesTotal === "number" ? ` / ${backupCodesTotal}` : ""}
-                  </Text>
-                </View>
-              }
-            />
-          ) : null}
-        </KeyValueList>
-      ) : (
-        <Text variant="body" tone="secondary" className="leading-6">
-          {t.disabledHint}
-        </Text>
-      )}
+        {enabled ? (
+          <KeyValueList>
+            {methodLabel ? <KeyValue label={t.method} value={methodLabel} /> : null}
+            {typeof backupCodesRemaining === "number" ? (
+              <KeyValue
+                label={t.backupCodes}
+                value={
+                  <View className="flex-row items-center gap-2">
+                    {lowBackup ? (
+                      <Badge tone="warning" variant="soft">
+                        {t.lowBackup}
+                      </Badge>
+                    ) : null}
+                    <Text variant="monoBody" tone="primary">
+                      {backupCodesRemaining}
+                      {typeof backupCodesTotal === "number" ? ` / ${backupCodesTotal}` : ""}
+                    </Text>
+                  </View>
+                }
+              />
+            ) : null}
+          </KeyValueList>
+        ) : (
+          <Text variant="body" tone="secondary" className="leading-6">
+            {t.disabledHint}
+          </Text>
+        )}
+      </CardSummary>
 
       <View className="flex-row gap-3">
         {enabled ? (

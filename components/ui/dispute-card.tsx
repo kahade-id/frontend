@@ -33,6 +33,7 @@ import { DisputeStatusBadge, isDisputeActive, type DisputeStatus } from "@/compo
 import { Dot } from "@/components/ui/dot"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type DisputeCardLabels = {
@@ -87,15 +88,13 @@ export function DisputeCard({
 
   const a11y =
     accessibilityLabel ??
-    [
+    summarize([
       showAwaiting ? t.awaitingYou : undefined,
       `Sengketa ${disputeId}`,
       orderTitle,
       openedByMe ? t.openedByYou : `${t.openedBy} ${counterpart.name}`,
       updatedAt,
-    ]
-      .filter(Boolean)
-      .join(", ")
+    ])
 
   return (
     <Card
@@ -161,7 +160,7 @@ export function DisputeCard({
 /** Placeholder dengan tinggi menyamai DisputeCard tanpa strip tanggapan */
 export function DisputeCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat sengketa" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat sengketa" {...rest}>
       <View className="flex-row items-center justify-between">
         <Skeleton height={12} className="w-32" />
         <Skeleton height={22} className="w-28" />

@@ -22,6 +22,7 @@ import { IconBox } from "@/components/ui/icon-box"
 import { KycStatusBadge, type KycStatus } from "@/components/ui/kyc-status-card"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 
 export type KycDocumentType = "KTP" | "PASSPORT" | "SIM"
 
@@ -89,9 +90,7 @@ export function KycHistoryListItem({
       }
       trailing={<KycStatusBadge status={status} />}
       titleLines={1}
-      accessibilityLabel={[`Pengajuan KYC ${attempt}`, docLabel, submittedAt, rejectionReason]
-        .filter(Boolean)
-        .join(", ")}
+      accessibilityLabel={summarize([`Pengajuan KYC ${attempt}`, docLabel, submittedAt, rejectionReason])}
       {...rest}
     />
   )

@@ -28,12 +28,13 @@ import { Info } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Badge } from "@/components/ui/badge"
-import { Card, type CardProps } from "@/components/ui/card"
+import { Card, CardSummary, type CardProps } from "@/components/ui/card"
 import { IconButton } from "@/components/ui/icon-button"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { ProgressRing } from "@/components/ui/progress-ring"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type TrustScoreFactor = {
@@ -101,37 +102,44 @@ export function TrustScoreCard({
   const tierLabel = tier ? tiers[tier] ?? tier : undefined
   const showFactors = !compact && factors && factors.length > 0
 
-  const a11y = accessibilityLabel ?? [`${t.title} ${value} dari 100`, tierLabel, updatedAt].filter(Boolean).join(", ")
+  // Ringkasan HANYA blok header (skor + tier + deskripsi). Rincian faktor dan
+  // `updatedAt` dirender di luar grup dan punya labelnya sendiri, supaya tidak
+  // terbaca dua kali.
+  const a11y =
+    accessibilityLabel ?? summarize([`${t.title} ${value} dari 100`, tierLabel, !compact ? t.description : undefined])
 
   return (
-    <Card className={cn("gap-5", className)} accessibilityLabel={a11y} {...rest}>
+    // Root TIDAK `accessible`: IconButton "Pelajari" di dalam kartu harus tetap
+    // jadi elemen fokus tersendiri. Ringkasan skor + faktor dikelompokkan lewat
+    // <CardSummary>, IconButton berada di luar grup itu (audit #4).
+    <Card className={cn("gap-5", className)} {...rest}>
       <View className="flex-row items-center gap-4">
-        <ProgressRing value={value} size={compact ? 64 : 80} strokeWidth={compact ? 5 : 6} tone="primary" accessibilityLabel={`${value} dari 100`}>
-          <Text variant={compact ? "monoBody" : "monoLarge"} tone="primary" className="tabular-nums">
-            {value}
-          </Text>
-        </ProgressRing>
+        <CardSummary className="flex-1 flex-row items-center gap-4" label={a11y}>
+          <ProgressRing value={value} size={compact ? 64 : 80} strokeWidth={compact ? 5 : 6} tone="primary">
+            <Text variant={compact ? "monoBody" : "monoLarge"} tone="primary" className="tabular-nums">
+              {value}
+            </Text>
+          </ProgressRing>
 
-        <View className="flex-1 gap-1.5">
-          <View className="flex-row items-center justify-between gap-2">
-            <Text variant="h3" tone="primary" numberOfLines={1} className="flex-1">
+          <View className="flex-1 gap-1.5">
+            <Text variant="h3" tone="primary" numberOfLines={1}>
               {t.title}
             </Text>
-            {onLearnMore ? <IconButton icon={Info} variant="ghost" size="sm" accessibilityLabel={t.learnMore} onPress={onLearnMore} /> : null}
+            {tierLabel ? (
+              <View className="flex-row">
+                <Badge tone="neutral" variant="outline">
+                  {tierLabel}
+                </Badge>
+              </View>
+            ) : null}
+            {!compact ? (
+              <Text variant="caption" tone="secondary">
+                {t.description}
+              </Text>
+            ) : null}
           </View>
-          {tierLabel ? (
-            <View className="flex-row">
-              <Badge tone="neutral" variant="outline">
-                {tierLabel}
-              </Badge>
-            </View>
-          ) : null}
-          {!compact ? (
-            <Text variant="caption" tone="secondary">
-              {t.description}
-            </Text>
-          ) : null}
-        </View>
+        </CardSummary>
+        {onLearnMore ? <IconButton icon={Info} variant="ghost" size="sm" accessibilityLabel={t.learnMore} onPress={onLearnMore} /> : null}
       </View>
 
       {showFactors ? (
@@ -142,7 +150,7 @@ export function TrustScoreCard({
           {factors.map((f) => {
             const pct = f.max > 0 ? clamp((f.value / f.max) * 100, 0, 100) : 0
             return (
-              <View key={f.key} className="gap-1.5" accessibilityLabel={`${f.label} ${f.value} dari ${f.max}`}>
+              <View key={f.key} accessible className="gap-1.5" accessibilityLabel={`${f.label} ${f.value} dari ${f.max}`}>
                 <View className="flex-row items-center justify-between gap-3">
                   <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
                     {f.label}
@@ -169,7 +177,7 @@ export function TrustScoreCard({
 
 export function TrustScoreCardSkeleton({ compact = false, className, ...rest }: Omit<ViewProps, "children"> & { compact?: boolean; className?: string }) {
   return (
-    <View className={cn("w-full gap-5 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat skor kepercayaan" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-5 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat skor kepercayaan" {...rest}>
       <View className="flex-row items-center gap-4">
         <Skeleton shape="circle" width={compact ? 64 : 80} height={compact ? 64 : 80} />
         <View className="flex-1 gap-2">

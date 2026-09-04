@@ -50,10 +50,11 @@ import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardSummary } from "@/components/ui/card"
 import { Countdown } from "@/components/ui/countdown"
 import type { OrderRole } from "@/components/ui/order-status-badge"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type MutualResolutionStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | "EXPIRED"
@@ -185,30 +186,35 @@ export function MutualResolutionCard({
   const avatarName = proposedByMe ? undefined : proposerName
 
   return (
-    <Card
-      variant="elevated"
-      className={cn("gap-4", className)}
-      accessibilityLabel={`${title}, ${statusLabel}, ${t.buyerShare} ${buyer} rupiah, ${t.sellerShare} ${seller} rupiah`}
-      {...rest}
-    >
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-1 flex-row items-center gap-2">
-          {proposerAvatar || avatarName ? <Avatar source={proposerAvatar} name={avatarName} size="xs" /> : null}
-          <View className="flex-1 gap-[2px]">
-            <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
-              {title}
-            </Text>
-            {createdAt ? (
-              <Text variant="caption" tone="secondary" className="tabular-nums">
-                {createdAt}
+    // Root tanpa `accessible`: kartu berisi Button Terima/Tolak/Tarik, bar split
+    // ber-`accessibilityRole="progressbar"`, dan <Countdown> live — semuanya
+    // harus tetap jadi elemen SR sendiri. Yang dikelompokkan hanya blok teks
+    // statis (audit #4).
+    <Card variant="elevated" className={cn("gap-4", className)} {...rest}>
+      <CardSummary
+        className="flex-row items-center justify-between gap-3"
+        label={summarize([title, statusLabel, createdAt])}
+      >
+        <View className="flex-1 flex-row items-center justify-between gap-3">
+          <View className="flex-1 flex-row items-center gap-2">
+            {proposerAvatar || avatarName ? <Avatar source={proposerAvatar} name={avatarName} size="xs" /> : null}
+            <View className="flex-1 gap-[2px]">
+              <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+                {title}
               </Text>
-            ) : null}
+              {createdAt ? (
+                <Text variant="caption" tone="secondary" className="tabular-nums">
+                  {createdAt}
+                </Text>
+              ) : null}
+            </View>
           </View>
+          <Badge tone={STATUS_TONE[st]} variant="soft" dot={pending}>
+            {statusLabel}
+          </Badge>
         </View>
-        <Badge tone={STATUS_TONE[st]} variant="soft" dot={pending}>
-          {statusLabel}
-        </Badge>
-      </View>
+
+      </CardSummary>
 
       {/* Bar split monokrom — bagian USER lebih gelap */}
       <View className="gap-2">
@@ -223,7 +229,14 @@ export function MutualResolutionCard({
           <View className={cn("h-full", isBuyer ? "bg-text-tertiary" : "bg-primary")} style={{ width: `${sellerPct}%` }} />
         </View>
 
-        <View className="flex-row justify-between gap-4">
+        <View
+          accessible
+          accessibilityLabel={summarize([
+            `${t.buyerShare} ${buyerPct}%, ${buyer} rupiah`,
+            `${t.sellerShare} ${sellerPct}%, ${seller} rupiah`,
+          ])}
+          className="flex-row justify-between gap-4"
+        >
           <View className="flex-1 gap-[2px]">
             <Text variant="caption" tone={isBuyer ? "primary" : "secondary"} weight={isBuyer ? 500 : 400} className="tabular-nums">
               {`${t.buyerShare} · ${buyerPct}%`}
@@ -239,7 +252,11 @@ export function MutualResolutionCard({
         </View>
       </View>
 
-      <View className="flex-row items-center justify-between rounded-sm border border-border bg-surface px-4 py-3">
+      <View
+        accessible
+        accessibilityLabel={`${t.yourShare} ${myShare} rupiah`}
+        className="flex-row items-center justify-between rounded-sm border border-border bg-surface px-4 py-3"
+      >
         <Text variant="label" tone="secondary">
           {t.yourShare}
         </Text>
@@ -247,7 +264,7 @@ export function MutualResolutionCard({
       </View>
 
       {note ? (
-        <View className="gap-1">
+        <View accessible accessibilityLabel={`${t.note}: ${note}`} className="gap-1">
           <Text variant="label" tone="secondary">
             {t.note}
           </Text>

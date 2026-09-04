@@ -165,7 +165,7 @@ function StatColumn({ label, value, last = false }: { label: string; value: Reac
 
 export function ReferralCodeCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View
+    <View accessible accessibilityRole="progressbar"
       className={cn("w-full gap-5 rounded-md border border-border bg-surface p-5", className)}
       accessibilityLabel="Memuat kode referral"
       {...rest}

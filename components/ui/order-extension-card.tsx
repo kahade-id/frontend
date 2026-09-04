@@ -43,9 +43,10 @@ import { View, type ViewProps } from "react-native"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardSummary } from "@/components/ui/card"
 import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatDate } from "@/lib/format"
 
@@ -151,77 +152,89 @@ export function OrderExtensionCard({
   const avatarName = requestedByMe ? undefined : requesterName
 
   return (
-    <Card
-      variant="elevated"
-      className={cn("gap-4", className)}
-      accessibilityLabel={`${title} ${t.extraDays(extensionDays)}, ${statusLabel}`}
-      {...rest}
-    >
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="flex-1 flex-row items-center gap-2">
-          {requesterAvatar || avatarName ? <Avatar source={requesterAvatar} name={avatarName} size="xs" /> : null}
-          <View className="flex-1 gap-[2px]">
-            <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
-              {title}
-            </Text>
-            {requestedAt ? (
-              <Text variant="caption" tone="secondary" className="tabular-nums">
-                {requestedAt}
+    // Root tanpa `accessible`: Button Setujui/Tolak harus tetap fokusable.
+    // Blok teks dikelompokkan lewat <CardSummary> (audit #4).
+    <Card variant="elevated" className={cn("gap-4", className)} {...rest}>
+      <CardSummary
+        className="gap-4"
+        label={summarize([
+          title,
+          statusLabel,
+          requestedAt,
+          t.extraDays(extensionDays),
+          `${t.currentDeadline} ${formatDate(currentDeadline)}`,
+          `${t.newDeadline} ${formatDate(resolvedNewDeadline)}`,
+          reason ? `${t.reason}: ${reason}` : undefined,
+          !pending && responseNote ? `${t.responseNote}: ${responseNote}` : undefined,
+        ])}
+      >
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="flex-1 flex-row items-center gap-2">
+            {requesterAvatar || avatarName ? <Avatar source={requesterAvatar} name={avatarName} size="xs" /> : null}
+            <View className="flex-1 gap-[2px]">
+              <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
+                {title}
               </Text>
-            ) : null}
+              {requestedAt ? (
+                <Text variant="caption" tone="secondary" className="tabular-nums">
+                  {requestedAt}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+          <Badge tone={STATUS_TONE[st]} variant="soft" dot={pending}>
+            {statusLabel}
+          </Badge>
+        </View>
+
+        <View className="flex-row items-center gap-4 rounded-sm border border-border bg-surface px-4 py-3">
+          <Text variant="h3" tone="primary" className="tabular-nums">
+            {t.extraDays(extensionDays)}
+          </Text>
+          <View className="flex-1 flex-row items-center gap-2">
+            <View className="flex-1 gap-[2px]">
+              <Text variant="caption" tone="secondary">
+                {t.currentDeadline}
+              </Text>
+              <Text variant="caption" weight={500} tone="secondary" className="tabular-nums">
+                {formatDate(currentDeadline)}
+              </Text>
+            </View>
+            <Icon icon={ArrowRight} size="xs" tone="default" />
+            <View className="flex-1 gap-[2px]">
+              <Text variant="caption" tone="secondary">
+                {t.newDeadline}
+              </Text>
+              <Text variant="caption" weight={600} tone="primary" className="tabular-nums">
+                {formatDate(resolvedNewDeadline)}
+              </Text>
+            </View>
           </View>
         </View>
-        <Badge tone={STATUS_TONE[st]} variant="soft" dot={pending}>
-          {statusLabel}
-        </Badge>
-      </View>
 
-      <View className="flex-row items-center gap-4 rounded-sm border border-border bg-surface px-4 py-3">
-        <Text variant="h3" tone="primary" className="tabular-nums">
-          {t.extraDays(extensionDays)}
-        </Text>
-        <View className="flex-1 flex-row items-center gap-2">
-          <View className="flex-1 gap-[2px]">
-            <Text variant="caption" tone="secondary">
-              {t.currentDeadline}
+        {reason ? (
+          <View className="gap-1">
+            <Text variant="label" tone="secondary">
+              {t.reason}
             </Text>
-            <Text variant="caption" weight={500} tone="secondary" className="tabular-nums">
-              {formatDate(currentDeadline)}
+            <Text variant="body" tone="primary">
+              {reason}
             </Text>
           </View>
-          <Icon icon={ArrowRight} size="xs" tone="default" />
-          <View className="flex-1 gap-[2px]">
-            <Text variant="caption" tone="secondary">
-              {t.newDeadline}
+        ) : null}
+
+        {!pending && responseNote ? (
+          <View className="gap-1 border-l-2 border-border pl-3">
+            <Text variant="label" tone="secondary">
+              {t.responseNote}
             </Text>
-            <Text variant="caption" weight={600} tone="primary" className="tabular-nums">
-              {formatDate(resolvedNewDeadline)}
+            <Text variant="body" tone="secondary">
+              {responseNote}
             </Text>
           </View>
-        </View>
-      </View>
+        ) : null}
 
-      {reason ? (
-        <View className="gap-1">
-          <Text variant="label" tone="secondary">
-            {t.reason}
-          </Text>
-          <Text variant="body" tone="primary">
-            {reason}
-          </Text>
-        </View>
-      ) : null}
-
-      {!pending && responseNote ? (
-        <View className="gap-1 border-l-2 border-border pl-3">
-          <Text variant="label" tone="secondary">
-            {t.responseNote}
-          </Text>
-          <Text variant="body" tone="secondary">
-            {responseNote}
-          </Text>
-        </View>
-      ) : null}
+      </CardSummary>
 
       {canRespond ? (
         <View className="flex-row gap-3">

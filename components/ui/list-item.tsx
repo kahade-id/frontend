@@ -37,6 +37,7 @@ import { CaretRight } from "phosphor-react-native"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 
@@ -132,7 +133,7 @@ export function ListItem({
 
   // Subtitle node tidak bisa dibaca SR dari sini — pemanggil wajib mengirim accessibilityLabel
   const a11yLabel =
-    accessibilityLabel ?? [title, typeof subtitle === "string" ? subtitle : undefined].filter(Boolean).join(", ")
+    accessibilityLabel ?? summarize([title, typeof subtitle === "string" ? subtitle : undefined])
 
   if (!onPress) {
     return (

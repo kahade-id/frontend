@@ -128,12 +128,16 @@ export function OrderLinkShareCard({
 
       <Amount value={amount} size="large" />
 
-      <View
-        accessible
-        accessibilityLabel={`${t.heading}: ${url}`}
-        className="flex-row items-center gap-2 rounded-sm border border-border bg-surface pl-3 pr-1 py-1"
-      >
-        <Text variant="monoBody" tone="primary" className="flex-1" numberOfLines={1}>
+      {/* Label di <Text>: `accessible` pada wrapper menelan IconButton "Salin".
+          Teks tampil dipersingkat, tapi SR tetap membaca URL penuh (audit #4). */}
+      <View className="flex-row items-center gap-2 rounded-sm border border-border bg-surface pl-3 pr-1 py-1">
+        <Text
+          accessibilityLabel={`${t.heading}: ${url}`}
+          variant="monoBody"
+          tone="primary"
+          className="flex-1"
+          numberOfLines={1}
+        >
           {displayOrderUrl(url)}
         </Text>
         {onCopy ? (

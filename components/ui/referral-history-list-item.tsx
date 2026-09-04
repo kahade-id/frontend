@@ -24,6 +24,7 @@ import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator, type StatusIndicatorTone } from "@/components/ui/status-indicator"
+import { summarize } from "@/lib/a11y"
 
 export type ReferralStatus = "PENDING" | "QUALIFIED" | "REWARDED" | "EXPIRED"
 
@@ -86,7 +87,7 @@ export function ReferralHistoryListItem({
       chevron={!!onPress}
       onPress={onPress}
       inset={inset}
-      accessibilityLabel={[name, label, showReward ? `hadiah ${rewardAmount} rupiah` : undefined, joinedAt].filter(Boolean).join(", ")}
+      accessibilityLabel={summarize([name, label, showReward ? `hadiah ${rewardAmount} rupiah` : undefined, joinedAt])}
       {...rest}
     />
   )

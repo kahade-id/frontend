@@ -33,6 +33,7 @@ import { IconBox } from "@/components/ui/icon-box"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export const FALLBACK_BADGE_ICON: IconComponent = Medal
@@ -82,9 +83,12 @@ export function AchievementBadge({
 
   const a11y =
     accessibilityLabel ??
-    [name, earned ? `${t.earnedPrefix}${earnedAt ? ` ${earnedAt}` : ""}` : t.locked, description, showProgress ? `${Math.round(progress)} persen` : undefined]
-      .filter(Boolean)
-      .join(", ")
+    summarize([
+      name,
+      earned ? `${t.earnedPrefix}${earnedAt ? ` ${earnedAt}` : ""}` : t.locked,
+      description,
+      showProgress ? `${Math.round(progress)} persen` : undefined,
+    ])
 
   return (
     <Card onPress={onPress} accessibilityLabel={a11y} className={cn("items-center gap-3", className)} {...rest}>
@@ -143,7 +147,7 @@ export function AchievementBadgeGrid({ items, onPressItem, labels, className, ..
 
 export function AchievementBadgeSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View className={cn("w-full items-center gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat lencana" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full items-center gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat lencana" {...rest}>
       <Skeleton shape="circle" width={56} height={56} />
       <Skeleton height={14} className="w-24" />
       <Skeleton height={10} className="w-32" />
