@@ -31,6 +31,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 type RadioContextValue = {
   value: string | undefined
@@ -101,14 +102,16 @@ export function Radio({
   const isCard = ctx.variant === "card"
 
   const dot = useRef(new Animated.Value(selected ? 1 : 0)).current
+  // Reduce Motion (audit #2): dot kontrol kecil -> instan.
+  const reducedMotion = useReducedMotion()
   useEffect(() => {
     Animated.timing(dot, {
       toValue: selected ? 1 : 0,
-      duration: tokens.motion.duration.fast,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.fast),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     }).start()
-  }, [dot, selected])
+  }, [dot, selected, reducedMotion])
 
   const circle = (
     <View

@@ -25,6 +25,7 @@ import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type StepProgressProps = Omit<ViewProps, "children"> & {
   /** 0–1. Alternatif: step + total. */
@@ -42,15 +43,18 @@ const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
 export function StepProgress({ value, step, total, segmented = false, className, ...rest }: StepProgressProps) {
   const ratio = clamp01(value ?? (step != null && total ? step / total : 0))
   const anim = useRef(new Animated.Value(ratio)).current
+  // Reduce Motion (audit #2): progres esensial tetap tampil, tanpa gerakan
+  // -> lompat ke nilai akhir.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     Animated.timing(anim, {
       toValue: ratio,
-      duration: tokens.motion.duration.base,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: false,
     }).start()
-  }, [ratio, anim])
+  }, [ratio, anim, reducedMotion])
 
   const a11y = {
     accessibilityRole: "progressbar" as const,

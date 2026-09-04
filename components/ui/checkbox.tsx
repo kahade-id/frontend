@@ -35,6 +35,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type CheckboxProps = Omit<PressableScaleProps, "children" | "onPress"> & {
   checked: boolean
@@ -68,15 +69,17 @@ export function CheckboxIndicator({
 }: CheckboxIndicatorProps) {
   const on = checked || indeterminate
   const fill = useRef(new Animated.Value(on ? 1 : 0)).current
+  // Reduce Motion (audit #2): fill kontrol kecil -> instan.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     Animated.timing(fill, {
       toValue: on ? 1 : 0,
-      duration: tokens.motion.duration.fast,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.fast),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     }).start()
-  }, [fill, on])
+  }, [fill, on, reducedMotion])
 
   return (
     <View

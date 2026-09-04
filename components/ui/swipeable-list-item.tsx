@@ -19,6 +19,11 @@
  *     terbuka (lebar aksi); geser > 60% lebar baris ATAU fling velocity >
  *     800 px/s -> `onSwipeFull` (aksi "penuh" ala Mail). Semua snap memakai
  *     `withSpring(tokens.motion.spring)`.
+ *   - Reduce Motion (audit #2): SENGAJA tidak dimatikan. Translate mengikuti
+ *     jari dan spring snap hanya menyelesaikan gerakan dari titik jari
+ *     dilepas ke posisi snap terdekat — esensial untuk fungsi (pengecualian
+ *     WCAG 2.3.3). Pengguna Reduce Motion tetap punya jalur tanpa gesture
+ *     lewat `accessibilityActions`.
  *   - Aksi destruktif (hapus) TIDAK dieksekusi langsung dari swipe penuh
  *     kalau `confirmFull` true: baris menutup lalu `onSwipeFull("right")`
  *     dipanggil — pemanggil menampilkan Dialog (§10). Default `confirmFull`

@@ -17,6 +17,7 @@ import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 const DOT = tokens.space[2] // 8px
 const ACTIVE_DOT = tokens.space[4] // 16px
@@ -32,15 +33,17 @@ export type PageIndicatorProps = Omit<ViewProps, "children"> & {
 
 function Dot({ active, inverse }: { active: boolean; inverse: boolean }) {
   const width = useRef(new Animated.Value(active ? ACTIVE_DOT : DOT)).current
+  // Reduce Motion (audit #2): dot melebar instan.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     Animated.timing(width, {
       toValue: active ? ACTIVE_DOT : DOT,
-      duration: tokens.motion.duration.base,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: false,
     }).start()
-  }, [active, width])
+  }, [active, width, reducedMotion])
 
   return (
     <Animated.View style={{ width, height: DOT }}>

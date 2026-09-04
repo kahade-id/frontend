@@ -37,6 +37,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatNumber } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type FavoriteIconButtonSize = "sm" | "md"
 
