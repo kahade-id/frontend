@@ -50,12 +50,9 @@ Perbaikan:
 
 ## Keputusan yang perlu konfirmasi tim
 
-- **Splash dark mode.** `userInterfaceStyle: "automatic"` tetapi splash
-  (native maupun `<AnimatedSplash>`) selalu light — didokumentasikan sebagai
-  sengaja. Jika tim ingin splash mengikuti OS, tambahkan
-  `dark.backgroundColor: "#121212"` di `app.json` (checker sudah siap
-  memvalidasinya) **dan** ubah `<AnimatedSplash>` membaca `Appearance`
-  langsung (belum ada ThemeProvider saat itu). Ini item #13.
+- ~~**Splash dark mode.**~~ **Ditutup di #13** (`findings/13-dark-mode.md`):
+  `dark.backgroundColor` ditambahkan ke `app.json` (kini wajib di checker)
+  dan `<AnimatedSplash>` membaca `useColorScheme()` react-native.
 - **Gambar splash.** Belum ada aset logo; `resizeMode: contain` tidak
   berefek sampai `image` ditambahkan. Placeholder di `<AnimatedSplash>`
   juga masih kotak — sinkronkan keduanya saat logo tersedia.

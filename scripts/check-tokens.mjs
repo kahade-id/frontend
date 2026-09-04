@@ -23,9 +23,13 @@
  *     merujuk var yang benar-benar di-emit (contoh: scope override di
  *     subscription-plan-card).
  *  7. tailwind.config.js tidak menyelipkan warna literal di luar tokens.ts.
- *  8. (audit #9) app.json: splash backgroundColor == light.background dan
+ *  8. (audit #9, #13) app.json: splash backgroundColor == light.background,
+ *     splash dark.backgroundColor == dark.background (wajib), dan
  *     expo-notifications color == light.primary — konfigurasi native tidak
  *     bisa import tokens.ts, jadi literalnya diverifikasi di sini.
+ *  9. (audit #13) className `dark:*` dan class warna literal non-mode-aware
+ *     (text-white, bg-white, bg-black, *-gray-N) hanya di file allowlist yang
+ *     pengecualiannya terdokumentasi dengan §spek.
  *
  * Jalankan: pnpm check:tokens   (butuh Node >= 22.6 untuk memuat .ts)
  */
@@ -200,13 +204,72 @@ if (!splash) {
   if (!eqColor(splash.backgroundColor, light.background)) {
     fail(`app.json: splash backgroundColor ${splash.backgroundColor} != tokens.colors.light.background ${light.background} (dipakai components/ui/animated-splash.tsx)`)
   }
-  if (splash.dark?.backgroundColor && !eqColor(splash.dark.backgroundColor, dark.background)) {
+  // (audit #13) <AnimatedSplash> membaca useColorScheme() dan memakai
+  // tokens.colors.dark.background di OS dark; native splash WAJIB punya
+  // pasangan dark agar handoff tidak kedip putih→hitam.
+  if (!splash.dark?.backgroundColor) {
+    fail(`app.json: splash tanpa dark.backgroundColor — wajib ${dark.background} (tokens.colors.dark.background) karena <AnimatedSplash> mengikuti OS dark`)
+  } else if (!eqColor(splash.dark.backgroundColor, dark.background)) {
     fail(`app.json: splash dark.backgroundColor ${splash.dark.backgroundColor} != tokens.colors.dark.background ${dark.background}`)
   }
 }
 const notif = pluginOpts("expo-notifications")
 if (notif?.color && !eqColor(notif.color, light.primary)) {
   fail(`app.json: expo-notifications color ${notif.color} != tokens.colors.light.primary ${light.primary}`)
+}
+
+// 9. (audit #13) Dark mode ditangani token (CSS var), BUKAN class. Dua hal
+//    yang bisa menembus model itu dan diam-diam rusak di dark:
+//    - varian `dark:` di className (mode di-resolve per class, bukan per token)
+//    - class warna literal yang tidak mode-aware: text-white/bg-white/bg-black/
+//      text-black dan skala gray-N mentah (bg-gray-300, text-gray-950, ...)
+//    Keduanya hanya boleh di file yang ada di allowlist di bawah, masing-masing
+//    dengan alasan §spek di komentar dekat kode. File baru yang memakainya
+//    → FAIL (tambahkan ke allowlist + tulis alasannya, atau ganti ke token).
+//    Entri allowlist yang tidak lagi terpakai → warn (bersihkan).
+const DARK_ALLOWLIST = {
+  // Teks di atas fill danger: putih di light, gray-950 di dark karena fill
+  // dark (#F87171) terlalu terang untuk teks putih (< AA). Pola bersama.
+  "components/ui/button.tsx": "destructive text-white dark:text-gray-950 (AA di atas danger fill)",
+  "components/ui/count-badge.tsx": "danger text-white dark:text-gray-950 — ikut Button destructive",
+  "components/ui/swipeable-list-item.tsx": "aksi destruktif text-white dark:text-gray-950 — ikut Button destructive",
+  // Skala monokrom chart harus dibalik di dark supaya urutan kontras tetap.
+  "components/ui/bar-chart.tsx": "chartMono gray-400/600/800 → dark:gray-700/500/300 (§2.3 chart monokrom)",
+  // Divider subtle: gray-300 dekoratif di light, di dark jatuh ke border token.
+  "components/ui/divider.tsx": "subtle bg-gray-300 dark:bg-border (§6.1)",
+  // Skeleton: surface di light terlalu dekat background di dark → naik satu level.
+  "components/ui/skeleton.tsx": "bg-surface dark:bg-surface-elevated (§8 loading)",
+  // §3.2: H1/H2 turun satu tingkat weight di dark (700 → 600).
+  "components/ui/text.tsx": "h1/h2 dark:font-sans-600 (§3.2 fontWeightDark)",
+  // §7: logo bank berwarna di tile putih; border-border memisahkannya di dark.
+  "components/ui/bank-select.tsx": "tile logo bg-white + border-border (§7 pengecualian monokrom)",
+  // Teks di atas scrim bg-overlay (selalu hitam di dua mode) — putih adalah satu-satunya yang terbaca.
+  "components/ui/showcase-gallery-grid.tsx": "+N text-white di atas bg-overlay (scrim hitam kedua mode)",
+}
+const DARK_VARIANT_RE = /\bdark:[a-z][a-z0-9-]*/g
+const LITERAL_CLASS_RE = /\b(?:bg|text|border|fill|stroke)-(?:white|black|gray-\d{2,3})\b/g
+const stripComments = (s) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:'"`])\/\/[^\n]*/g, "$1")
+const darkSeen = new Set()
+for (const dir of ["components", "app"]) {
+  for (const f of files(join(root, dir))) {
+    const rel = relative(root, f)
+    const src = stripComments(readFileSync(f, "utf8"))
+    const hits = [
+      ...[...src.matchAll(DARK_VARIANT_RE)].map((m) => m[0]),
+      ...[...src.matchAll(LITERAL_CLASS_RE)].map((m) => m[0]),
+    ]
+    if (!hits.length) continue
+    darkSeen.add(rel)
+    if (!(rel in DARK_ALLOWLIST)) {
+      fail(
+        `${rel} memakai ${[...new Set(hits)].join(", ")} — dark mode harus lewat token (bg-surface, text-text-primary, ...), bukan class dark:/warna literal. Kalau memang pengecualian, tambahkan ke DARK_ALLOWLIST (scripts/check-tokens.mjs) + komentar §spek di kode.`,
+      )
+    }
+  }
+}
+for (const rel of Object.keys(DARK_ALLOWLIST)) {
+  if (!darkSeen.has(rel)) warn(`DARK_ALLOWLIST: ${rel} tidak lagi memakai dark:/warna literal — hapus entrinya`)
 }
 
 // ------------------------------------------------------------------
