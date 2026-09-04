@@ -29,15 +29,23 @@ import { Portal } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 const PULSE_SCALE = 1.04
 const PULSE_OPACITY = 0.7
 
 function usePulse(active = true) {
   const progress = useRef(new Animated.Value(0)).current
+  // Reduce Motion (audit #2): logo diam (progress 0 = scale 1, opacity 1).
+  // Status "memuat" tetap disampaikan lewat role/label a11y + teks.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     if (!active) return
+    if (reducedMotion) {
+      progress.setValue(0)
+      return
+    }
     const half = tokens.motion.duration.slow * 2
     const loop = Animated.loop(
       Animated.sequence([
@@ -57,7 +65,7 @@ function usePulse(active = true) {
     )
     loop.start()
     return () => loop.stop()
-  }, [active, progress])
+  }, [active, progress, reducedMotion])
 
   return {
     scale: progress.interpolate({ inputRange: [0, 1], outputRange: [1, PULSE_SCALE] }),

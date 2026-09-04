@@ -34,6 +34,7 @@ import { CheckCircle, Info, Warning, WarningCircle, X } from "phosphor-react-nat
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 import { Icon, type IconComponent, type IconTone } from "./icon"
 import { IconButton } from "./icon-button"
 import { Text } from "./text"
@@ -171,42 +172,49 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
     toast.duration ?? (tone === "danger" ? DANGER_DURATION : DEFAULT_DURATION)
   const dismissible = toast.dismissible ?? duration === 0
 
+  // Reduce Motion (audit #2): slide dihilangkan (translateY tetap 0), fade
+  // dipertahankan tapi instan (0ms) supaya `start` callback dismiss tetap jalan.
+  const reducedMotion = useReducedMotion()
+  const reducedRef = useRef(reducedMotion)
+  reducedRef.current = reducedMotion
+  const slideOffset = position === "top" ? -tokens.space[2] : tokens.space[2]
+
   const opacity = useRef(new Animated.Value(0)).current
-  const translateY = useRef(
-    new Animated.Value(position === "top" ? -tokens.space[2] : tokens.space[2]),
-  ).current
+  const translateY = useRef(new Animated.Value(reducedMotion ? 0 : slideOffset)).current
 
   const animateOut = useCallback(
     (cb: () => void) => {
+      const reduced = reducedRef.current
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 0,
-          duration: tokens.motion.duration.press,
+          duration: motionDuration(reduced, tokens.motion.duration.press),
           easing: Easing.bezier(...tokens.motion.easing.standard),
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
-          toValue: position === "top" ? -tokens.space[2] : tokens.space[2],
-          duration: tokens.motion.duration.press,
+          toValue: reduced ? 0 : slideOffset,
+          duration: motionDuration(reduced, tokens.motion.duration.press),
           easing: Easing.bezier(...tokens.motion.easing.standard),
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => finished && cb())
     },
-    [opacity, translateY, position],
+    [opacity, translateY, slideOffset],
   )
 
   useEffect(() => {
+    const reduced = reducedRef.current
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: tokens.motion.duration.fast,
+        duration: motionDuration(reduced, tokens.motion.duration.fast),
         easing: Easing.bezier(...tokens.motion.easing.standard),
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
         toValue: 0,
-        duration: tokens.motion.duration.fast,
+        duration: motionDuration(reduced, tokens.motion.duration.fast),
         easing: Easing.bezier(...tokens.motion.easing.standard),
         useNativeDriver: true,
       }),

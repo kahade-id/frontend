@@ -24,16 +24,26 @@ import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 const PulseContext = createContext<Animated.Value | null>(null)
 
-function usePulse(): Animated.Value {
-  const shared = useContext(PulseContext)
-  const own = useRef(new Animated.Value(1)).current
-  const value = shared ?? own
+/** Opacity statis saat Reduce Motion: tetap terbaca "placeholder" tanpa berdenyut. */
+const STATIC_OPACITY = 0.7
 
+/**
+ * Jalankan loop pulse pada `value`, atau — saat Reduce Motion aktif (audit
+ * #2) — set nilai statis tanpa loop. Dipakai oleh Skeleton tunggal dan
+ * SkeletonGroup agar dua tempat itu tidak menyalin logika yang sama.
+ */
+function usePulseLoop(value: Animated.Value, enabled: boolean) {
+  const reducedMotion = useReducedMotion()
   useEffect(() => {
-    if (shared) return // group yang mengelola loop
+    if (!enabled) return
+    if (reducedMotion) {
+      value.setValue(STATIC_OPACITY)
+      return
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(value, {
@@ -52,9 +62,15 @@ function usePulse(): Animated.Value {
     )
     loop.start()
     return () => loop.stop()
-  }, [shared, value])
+  }, [enabled, reducedMotion, value])
+}
 
-  return value
+function usePulse(): Animated.Value {
+  const shared = useContext(PulseContext)
+  const own = useRef(new Animated.Value(1)).current
+  // Ada group -> group yang mengelola loop; hook tetap dipanggil (aturan hooks).
+  usePulseLoop(own, !shared)
+  return shared ?? own
 }
 
 export type SkeletonShape = "rect" | "card" | "circle"
@@ -112,26 +128,7 @@ export function SkeletonText({
 /** Bagikan satu pulse ke semua Skeleton di dalamnya */
 export function SkeletonGroup({ children, className }: { children: ReactNode; className?: string }) {
   const value = useRef(new Animated.Value(1)).current
-  useEffect(() => {
-    const loop = Animated.loop(
-      Animated.sequence([
-        Animated.timing(value, {
-          toValue: 0.5,
-          duration: tokens.motion.duration.slow * 2,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-        Animated.timing(value, {
-          toValue: 1,
-          duration: tokens.motion.duration.slow * 2,
-          easing: Easing.inOut(Easing.ease),
-          useNativeDriver: true,
-        }),
-      ]),
-    )
-    loop.start()
-    return () => loop.stop()
-  }, [value])
+  usePulseLoop(value, true)
 
   return (
     <PulseContext.Provider value={value}>

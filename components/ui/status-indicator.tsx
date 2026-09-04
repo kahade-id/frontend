@@ -26,6 +26,7 @@ import { Dot, type DotTone } from "@/components/ui/dot"
 import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type StatusIndicatorTone = Extract<
   DotTone,
@@ -61,9 +62,12 @@ export function StatusIndicator({
   ...rest
 }: StatusIndicatorProps) {
   const opacity = useRef(new Animated.Value(1)).current
+  // Reduce Motion (audit #2): kedip berulang dimatikan; dot statis. Makna
+  // "sedang berjalan" tetap ada di `label` yang dibaca screen reader.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
-    if (!pulse) {
+    if (!pulse || reducedMotion) {
       opacity.setValue(1)
       return
     }
@@ -82,7 +86,7 @@ export function StatusIndicator({
     )
     loop.start()
     return () => loop.stop()
-  }, [pulse, opacity])
+  }, [pulse, opacity, reducedMotion])
 
   return (
     <View

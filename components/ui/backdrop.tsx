@@ -32,6 +32,7 @@ import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet } from "
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type OverlayPresence = {
   /** Overlay harus ada di tree (termasuk selama animasi keluar) */
@@ -57,13 +58,17 @@ export function useOverlayPresence(
   const [mounted, setMounted] = useState(visible)
   const onHiddenRef = useRef(onHidden)
   onHiddenRef.current = onHidden
+  // Reduce Motion (audit #2): overlay tampil/hilang instan. `progress` tetap
+  // 0->1 (timing 0ms) sehingga interpolasi translate/scale di Modal & fade
+  // Backdrop langsung di posisi akhir, dan `onHidden` tetap terpanggil.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     if (visible) {
       setMounted(true)
       const anim = Animated.timing(progress, {
         toValue: 1,
-        duration: durationIn ?? tokens.motion.overlay.enterDuration,
+        duration: motionDuration(reducedMotion, durationIn ?? tokens.motion.overlay.enterDuration),
         easing: Easing.bezier(...tokens.motion.easing.standard),
         useNativeDriver: true,
       })
@@ -79,7 +84,7 @@ export function useOverlayPresence(
 
     const anim = Animated.timing(progress, {
       toValue: 0,
-      duration: durationOut ?? tokens.motion.overlay.exitDuration,
+      duration: motionDuration(reducedMotion, durationOut ?? tokens.motion.overlay.exitDuration),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     })
@@ -91,6 +96,8 @@ export function useOverlayPresence(
     return () => anim.stop()
     // `mounted` sengaja TIDAK di deps: saat exit selesai mounted -> false,
     // efek tidak boleh berjalan ulang (akan memulai timing 0->0 kedua).
+    // `reducedMotion` juga tidak di deps: nilainya hanya dibaca saat animasi
+    // dimulai; perubahan setelan di tengah animasi tidak perlu restart.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, progress, durationIn, durationOut])
 

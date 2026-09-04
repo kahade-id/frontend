@@ -25,6 +25,7 @@ import { Children, useEffect, useRef, type ReactNode } from "react"
 import { Animated, Easing, type ViewProps } from "react-native"
 
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type FadeDuration = "fast" | "base" | "slow"
 
@@ -54,12 +55,15 @@ export function FadeIn({
 }: FadeInProps) {
   const progress = useRef(new Animated.Value(visible ? 0 : 0)).current
   const first = useRef(true)
+  // Reduce Motion (audit #2): tampil instan (durasi & delay 0) dan tanpa
+  // geser. Stagger otomatis ikut karena hanya meneruskan `delay`.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     const anim = Animated.timing(progress, {
       toValue: visible ? 1 : 0,
-      duration: tokens.motion.duration[duration],
-      delay: first.current ? delay : 0,
+      duration: motionDuration(reducedMotion, tokens.motion.duration[duration]),
+      delay: first.current ? motionDuration(reducedMotion, delay) : 0,
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     })
@@ -70,11 +74,11 @@ export function FadeIn({
       else onHidden?.()
     })
     return () => anim.stop()
-  }, [visible, duration, delay, progress, onShown, onHidden])
+  }, [visible, duration, delay, progress, onShown, onHidden, reducedMotion])
 
   const translateY = progress.interpolate({
     inputRange: [0, 1],
-    outputRange: [translate ? tokens.space[2] : 0, 0],
+    outputRange: [translate && !reducedMotion ? tokens.space[2] : 0, 0],
   })
 
   return (

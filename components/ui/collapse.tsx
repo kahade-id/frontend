@@ -26,6 +26,7 @@ import { Animated, Easing, View, type LayoutChangeEvent, type ViewProps } from "
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type CollapseProps = Omit<ViewProps, "children" | "style"> & {
   open: boolean
@@ -50,12 +51,14 @@ export function Collapse({
   const progress = useRef(new Animated.Value(open ? 1 : 0)).current
   const [contentHeight, setContentHeight] = useState<number | null>(null)
   const [mounted, setMounted] = useState(open || !unmountOnClose)
+  // Reduce Motion (audit #2): buka/tutup instan (tinggi lompat ke nilai akhir).
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     if (open) setMounted(true)
     const anim = Animated.timing(progress, {
       toValue: open ? 1 : 0,
-      duration: tokens.motion.duration[duration],
+      duration: motionDuration(reducedMotion, tokens.motion.duration[duration]),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: false,
     })
@@ -68,7 +71,7 @@ export function Collapse({
       }
     })
     return () => anim.stop()
-  }, [open, duration, progress, unmountOnClose, onOpened, onClosed])
+  }, [open, duration, progress, unmountOnClose, onOpened, onClosed, reducedMotion])
 
   const handleLayout = useCallback((e: LayoutChangeEvent) => {
     const h = e.nativeEvent.layout.height

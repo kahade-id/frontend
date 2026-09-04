@@ -37,6 +37,7 @@ import { useEffect, useRef } from "react"
 import { Animated, Easing, StyleSheet, View } from "react-native"
 
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type AnimatedSplashProps = {
   /** true = resource siap, mulai fade-out */
@@ -51,9 +52,16 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
   const pulse = useRef(new Animated.Value(1)).current
   const overlay = useRef(new Animated.Value(1)).current
   const loopRef = useRef<Animated.CompositeAnimation | null>(null)
+  // Reduce Motion (audit #2): tanpa pulse berulang; fade-out tetap ada
+  // (perlu untuk handoff native->JS tanpa kedip) tetapi instan.
+  const reducedMotion = useReducedMotion()
 
   // Loop pulse — durasi "slow" dari tokens agar konsisten dengan motion system.
   useEffect(() => {
+    if (reducedMotion) {
+      pulse.setValue(1)
+      return
+    }
     loopRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(pulse, {
@@ -72,7 +80,7 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
     )
     loopRef.current.start()
     return () => loopRef.current?.stop()
-  }, [pulse])
+  }, [pulse, reducedMotion])
 
   // Fade-out saat ready
   useEffect(() => {
@@ -80,12 +88,14 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
     loopRef.current?.stop()
     Animated.timing(overlay, {
       toValue: 0,
-      duration: tokens.motion.duration.base,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.out(Easing.ease),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) onFinish()
     })
+    // `reducedMotion` sengaja tidak di deps: dibaca sekali saat ready.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ready, overlay, onFinish])
 
   return (

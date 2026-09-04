@@ -20,6 +20,7 @@ import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 import { Text } from "./text"
 
 export type ProgressTone = "primary" | "success" | "danger" | "warning" | "info"
@@ -66,21 +67,31 @@ export function ProgressBar({
   const width = useRef(new Animated.Value(pct)).current
   const shift = useRef(new Animated.Value(0)).current
   const [trackW, setTrackW] = useState(0)
+  // Reduce Motion (audit #2): progress adalah informasi ESENSIAL, jadi tetap
+  // tampil — determinate langsung lompat ke nilai baru (tanpa tween);
+  // indeterminate menjadi segmen statis selebar track dengan opacity
+  // `disabled` (tanpa bolak-balik), masih terbaca "sedang berjalan" lewat
+  // role progressbar tanpa nilai.
+  const reducedMotion = useReducedMotion()
 
   // Determinate: animasikan perubahan value
   useEffect(() => {
     if (indeterminate) return
     Animated.timing(width, {
       toValue: pct,
-      duration: tokens.motion.duration.base,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: false,
     }).start()
-  }, [pct, indeterminate, width])
+  }, [pct, indeterminate, width, reducedMotion])
 
   // Indeterminate: loop bolak-balik
   useEffect(() => {
     if (!indeterminate || trackW === 0) return
+    if (reducedMotion) {
+      shift.setValue(0)
+      return
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(shift, {
@@ -99,9 +110,9 @@ export function ProgressBar({
     )
     loop.start()
     return () => loop.stop()
-  }, [indeterminate, trackW, shift])
+  }, [indeterminate, trackW, shift, reducedMotion])
 
-  const segment = trackW * 0.4
+  const segment = reducedMotion ? trackW : trackW * 0.4
   const translateX = shift.interpolate({
     inputRange: [0, 1],
     outputRange: [0, Math.max(0, trackW - segment)],
@@ -138,7 +149,7 @@ export function ProgressBar({
       >
         {indeterminate ? (
           <Animated.View
-            className={cn("h-full rounded-full", fillClass[tone])}
+            className={cn("h-full rounded-full", fillClass[tone], reducedMotion && "opacity-disabled")}
             style={{ width: segment, transform: [{ translateX }] }}
           />
         ) : (
