@@ -28,6 +28,7 @@ import { Button } from "@/components/ui/button"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { TextLink } from "@/components/ui/text-link"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type QaCommentLabels = {
@@ -85,12 +86,10 @@ export function QaCommentItem({
   const t = { ...DEFAULT_LABELS, ...labels }
 
   return (
-    <View
-      className={cn("flex-row gap-3 py-3", reply && "pl-11", className)}
-      accessible
-      accessibilityLabel={`${authorName}${isOwner ? `, ${t.owner}` : ""}, ${timestamp}. ${deleted ? t.deleted : content}`}
-      {...rest}
-    >
+    // Root TANPA `accessible`: nama penulis bisa berupa <TextLink> dan `extra`
+    // memuat aksi (suka/laporkan) yang wajib fokusable. Ringkasan dipasang di
+    // blok isi komentar (audit #4).
+    <View className={cn("flex-row gap-3 py-3", reply && "pl-11", className)} {...rest}>
       <Avatar source={authorAvatar?.source} name={authorName} size="sm" verified={authorVerified} />
       <View className="flex-1 gap-1">
         <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
@@ -114,11 +113,21 @@ export function QaCommentItem({
         </View>
 
         {deleted ? (
-          <Text variant="body" tone="secondary" className="italic">
+          <Text
+            accessibilityLabel={summarize([authorName, isOwner ? t.owner : undefined, timestamp, t.deleted])}
+            variant="body"
+            tone="secondary"
+            className="italic"
+          >
             {t.deleted}
           </Text>
         ) : (
-          <Text variant="body" tone="primary" className="leading-6">
+          <Text
+            accessibilityLabel={summarize([authorName, isOwner ? t.owner : undefined, timestamp, content])}
+            variant="body"
+            tone="primary"
+            className="leading-6"
+          >
             {content}
           </Text>
         )}

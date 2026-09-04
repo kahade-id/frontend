@@ -37,6 +37,7 @@ import { Icon } from "@/components/ui/icon"
 import { IconBox } from "@/components/ui/icon-box"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 
@@ -115,9 +116,14 @@ export function VoucherCard({
 
   const a11y =
     accessibilityLabel ??
-    [`Voucher ${code}`, `potongan ${discountText}`, title, ...conditions, expiresAt ? `${t.validUntil} ${expiresAt}` : undefined, disabled ? disabledReason : undefined]
-      .filter(Boolean)
-      .join(", ")
+    summarize([
+      `Voucher ${code}`,
+      `potongan ${discountText}`,
+      title,
+      ...conditions,
+      expiresAt ? `${t.validUntil} ${expiresAt}` : undefined,
+      disabled ? disabledReason : undefined,
+    ])
 
   return (
     <Card onPress={onPress} selected={selected} accessibilityLabel={a11y} className={cn("gap-4", className)} {...rest}>
@@ -188,7 +194,7 @@ export function VoucherCard({
 
 export function VoucherCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat voucher" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat voucher" {...rest}>
       <View className="flex-row items-start gap-3">
         <Skeleton width={40} height={40} />
         <View className="flex-1 gap-2">

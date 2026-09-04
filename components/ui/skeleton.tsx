@@ -133,6 +133,7 @@ export function SkeletonGroup({ children, className }: { children: ReactNode; cl
   return (
     <PulseContext.Provider value={value}>
       <View
+        accessible
         accessibilityRole="progressbar"
         accessibilityLabel="Memuat"
         accessibilityElementsHidden={false}

@@ -35,6 +35,7 @@ import { IconBox } from "@/components/ui/icon-box"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { formatCountdown } from "@/lib/format"
 
 export type DisputeCallOutcome = "COMPLETED" | "REJECTED" | "MISSED" | "CANCELLED" | "ONGOING"
@@ -136,7 +137,7 @@ export function DisputeCallLogItem({
       chevron={ongoing && !!onJoin}
       onPress={handlePress}
       inset={inset}
-      accessibilityLabel={[title, subtitleText, completed ? `durasi ${duration}` : undefined].filter(Boolean).join(", ")}
+      accessibilityLabel={summarize([title, subtitleText, completed ? `durasi ${duration}` : undefined])}
       {...rest}
     />
   )

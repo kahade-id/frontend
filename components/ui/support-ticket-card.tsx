@@ -31,6 +31,7 @@ import { Dot } from "@/components/ui/dot"
 import { Icon } from "@/components/ui/icon"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "WAITING_USER" | "RESOLVED" | "CLOSED"
@@ -126,7 +127,14 @@ export function SupportTicketCard({
 
   const a11y =
     accessibilityLabel ??
-    [unread ? "Ada balasan baru" : undefined, `Tiket ${ticketNumber}`, subject, statusLabel, category, updatedAt].filter(Boolean).join(", ")
+    summarize([
+      unread ? "Ada balasan baru" : undefined,
+      `Tiket ${ticketNumber}`,
+      subject,
+      statusLabel,
+      category,
+      updatedAt,
+    ])
 
   return (
     <Card onPress={onPress} accessibilityLabel={a11y} accessibilityHint={onPress ? "Buka detail tiket" : undefined} className={cn("gap-3", className)} {...rest}>
@@ -202,7 +210,7 @@ export function SupportTicketCard({
 
 export function SupportTicketCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat tiket" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat tiket" {...rest}>
       <View className="flex-row items-center justify-between">
         <Skeleton height={12} className="w-32" />
         <Skeleton height={22} className="w-20" />

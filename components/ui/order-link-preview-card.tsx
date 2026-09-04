@@ -245,7 +245,7 @@ export function OrderLinkPreviewCard({
 
 export function OrderLinkPreviewCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View
+    <View accessible accessibilityRole="progressbar"
       className={cn("w-full gap-5 rounded-md border border-border bg-surface p-5", className)}
       accessibilityLabel="Memuat tautan order"
       {...rest}

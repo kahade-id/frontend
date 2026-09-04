@@ -23,6 +23,7 @@ import type { IconComponent } from "@/components/ui/icon"
 import { IconBox } from "@/components/ui/icon-box"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type HelpCategoryCardProps = Omit<CardProps, "children" | "variant" | "padded"> & {
@@ -51,7 +52,7 @@ export function HelpCategoryCard({
   return (
     <Card
       onPress={onPress}
-      accessibilityLabel={accessibilityLabel ?? [name, countText].filter(Boolean).join(", ")}
+      accessibilityLabel={accessibilityLabel ?? summarize([name, countText])}
       accessibilityHint={onPress ? "Buka daftar artikel" : undefined}
       className={cn("gap-3", className)}
       {...rest}
@@ -78,7 +79,7 @@ export function HelpCategoryCard({
 
 export function HelpCategoryCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat kategori" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat kategori" {...rest}>
       <Skeleton width={40} height={40} />
       <Skeleton height={16} className="w-3/4" />
       <Skeleton height={12} className="w-1/2" />

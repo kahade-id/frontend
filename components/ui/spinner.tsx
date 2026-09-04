@@ -39,6 +39,7 @@ export function Spinner({ size = "md", tone = "default", className, ...rest }: S
 
   return (
     <View
+      accessible
       accessibilityRole="progressbar"
       accessibilityLabel="Memuat"
       className={cn("items-center justify-center", className)}

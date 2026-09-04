@@ -202,7 +202,7 @@ export function TransactionTemplateCard({
 
 export function TransactionTemplateCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View
+    <View accessible accessibilityRole="progressbar"
       className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)}
       accessibilityLabel="Memuat templat"
       {...rest}

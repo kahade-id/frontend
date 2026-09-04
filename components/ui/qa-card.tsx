@@ -38,6 +38,7 @@ import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, type CardProps } from "@/components/ui/card"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatDate } from "@/lib/format"
 
@@ -66,15 +67,14 @@ export type QACardProps = Omit<CardProps, "children" | "padded"> & {
   questionLines?: number
   answerLines?: number
   /** Teks i18n */
-  labels?: {
-    seller?: string
-    unanswered?: string
-  }
+  labels?: Partial<typeof DEFAULT_LABELS>
 }
 
 const DEFAULT_LABELS = {
   seller: "Penjual",
   unanswered: "Belum dijawab",
+  askedBy: (name: string) => `Ditanya ${name}`,
+  answeredBy: (name: string) => `Dijawab ${name}`,
 }
 
 export function QACard({
@@ -93,9 +93,17 @@ export function QACard({
   const t = { ...DEFAULT_LABELS, ...labels }
 
   return (
+    // Grouping SR (audit #4): pertanyaan dan jawaban masing-masing SATU elemen
+    // ("Ditanya Budi, 3 Sep: Apakah ..."), bukan 3 fragmen (nama, tanggal,
+    // teks). Tidak digrup di root karena `answerAction` ("Jawab") dan `footer`
+    // berisi kontrol yang harus tetap fokusable terpisah.
     <Card padded={false} className={cn("gap-0", className)} {...cardProps}>
       {/* Pertanyaan */}
-      <View className="gap-3 p-5">
+      <View
+        accessible
+        accessibilityLabel={summarize([t.askedBy(asker.name), formatDate(date), question])}
+        className="gap-3 p-5"
+      >
         <PersonRow person={asker} date={date} />
         <Text variant="body" weight={500} numberOfLines={questionLines}>
           {question}
@@ -104,7 +112,16 @@ export function QACard({
 
       {/* Jawaban / belum dijawab */}
       {answer ? (
-        <View className="gap-3 border-t border-border bg-surface-elevated p-5">
+        <View
+          accessible
+          accessibilityLabel={summarize([
+            t.answeredBy(answer.by.name),
+            t.seller,
+            formatDate(answer.date),
+            answer.text,
+          ])}
+          className="gap-3 border-t border-border bg-surface-elevated p-5"
+        >
           <PersonRow person={answer.by} date={answer.date} badge={t.seller} />
           <Text variant="body" numberOfLines={answerLines}>
             {answer.text}

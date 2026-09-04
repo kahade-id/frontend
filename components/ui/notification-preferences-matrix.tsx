@@ -114,7 +114,10 @@ export function NotificationPreferencesMatrix({
         return (
           <Fragment key={cat}>
             {i > 0 ? <Divider /> : null}
-            <View className="gap-3" accessibilityRole="none" accessibilityLabel={title}>
+            {/* Tanpa accessibilityLabel/`accessible`: grup ini berisi Switch yang harus
+                tetap fokusable. Konteks kategori sudah ada di label tiap Switch
+                ("<kategori>, <kanal>") — audit #4. */}
+            <View className="gap-3">
               <View className="gap-0.5">
                 <Text variant="label" tone="primary">
                   {title}

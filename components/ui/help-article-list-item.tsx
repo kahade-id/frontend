@@ -19,6 +19,7 @@ import { FileText } from "phosphor-react-native"
 
 import { Highlight } from "@/components/ui/highlight"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
+import { summarize } from "@/lib/a11y"
 
 export type HelpArticleListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
   title: string
@@ -40,7 +41,7 @@ export function HelpArticleListItem({ title, snippet, highlight, onPress, inset 
       onPress={onPress}
       inset={inset}
       titleLines={titleLines}
-      accessibilityLabel={[title, snippet].filter(Boolean).join(", ")}
+      accessibilityLabel={summarize([title, snippet])}
       accessibilityHint={onPress ? "Buka artikel" : undefined}
       {...rest}
     />

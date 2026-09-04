@@ -33,10 +33,11 @@ import { View, type ViewProps } from "react-native"
 import { Amount } from "@/components/ui/amount"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, type CardProps } from "@/components/ui/card"
+import { Card, CardSummary, type CardProps } from "@/components/ui/card"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type SubscriptionPeriod = "MONTHLY" | "ANNUAL"
@@ -160,29 +161,43 @@ export function SubscriptionStatusCard({
   const canCancel = onCancel && (s === "ACTIVE" || s === "EXPIRING")
 
   return (
-    <Card className={cn("gap-4", className)} accessibilityLabel={[planName, t[s], endsAt ? `${t.endsAt} ${endsAt}` : undefined].filter(Boolean).join(", ")} {...rest}>
-      <View className="flex-row items-start justify-between gap-3">
-        <View className="flex-1 gap-1">
-          <Text variant="h3" tone="primary" numberOfLines={1}>
-            {planName}
-          </Text>
-          {daysLeft != null && (s === "ACTIVE" || s === "EXPIRING" || s === "CANCELLED") ? (
-            <Text variant="caption" tone={s === "EXPIRING" ? "warning" : "secondary"} className="tabular-nums">
-              {t.daysLeft(daysLeft)}
+    // Label di <CardSummary>, bukan root: kartu punya Button Perpanjang/Batalkan
+    // yang akan tertelan `accessible` root (audit #4).
+    <Card className={cn("gap-4", className)} {...rest}>
+      <CardSummary
+        className="gap-4"
+        label={summarize([
+          planName,
+          t[s],
+          daysLeft != null && (s === "ACTIVE" || s === "EXPIRING" || s === "CANCELLED") ? t.daysLeft(daysLeft) : undefined,
+          period ? `${t.period} ${period === "MONTHLY" ? t.monthly : t.annual}` : undefined,
+          endsAt ? `${t.endsAt} ${endsAt}` : undefined,
+          autoRenew != null ? `${t.autoRenew} ${autoRenew ? t.on : t.off}` : undefined,
+        ])}
+      >
+        <View className="flex-row items-start justify-between gap-3">
+          <View className="flex-1 gap-1">
+            <Text variant="h3" tone="primary" numberOfLines={1}>
+              {planName}
             </Text>
-          ) : null}
+            {daysLeft != null && (s === "ACTIVE" || s === "EXPIRING" || s === "CANCELLED") ? (
+              <Text variant="caption" tone={s === "EXPIRING" ? "warning" : "secondary"} className="tabular-nums">
+                {t.daysLeft(daysLeft)}
+              </Text>
+            ) : null}
+          </View>
+          <Badge tone={STATUS_TONE[s]} variant="soft" dot>
+            {t[s]}
+          </Badge>
         </View>
-        <Badge tone={STATUS_TONE[s]} variant="soft" dot>
-          {t[s]}
-        </Badge>
-      </View>
 
-      <KeyValueList>
-        {period ? <KeyValue label={t.period} value={period === "MONTHLY" ? t.monthly : t.annual} /> : null}
-        {endsAt ? <KeyValue label={t.endsAt} value={endsAt} mono /> : null}
-        {renewalPrice != null ? <KeyValue label={t.renewalPrice} value={<Amount value={renewalPrice} size="body" tone="primary" />} /> : null}
-        {autoRenew != null ? <KeyValue label={t.autoRenew} value={autoRenew ? t.on : t.off} /> : null}
-      </KeyValueList>
+        <KeyValueList>
+          {period ? <KeyValue label={t.period} value={period === "MONTHLY" ? t.monthly : t.annual} /> : null}
+          {endsAt ? <KeyValue label={t.endsAt} value={endsAt} mono /> : null}
+          {renewalPrice != null ? <KeyValue label={t.renewalPrice} value={<Amount value={renewalPrice} size="body" tone="primary" />} /> : null}
+          {autoRenew != null ? <KeyValue label={t.autoRenew} value={autoRenew ? t.on : t.off} /> : null}
+        </KeyValueList>
+      </CardSummary>
 
       {canRenew || canCancel ? (
         <View className="gap-2">
@@ -204,7 +219,7 @@ export function SubscriptionStatusCard({
 
 export function SubscriptionStatusCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat status langganan" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat status langganan" {...rest}>
       <View className="flex-row items-start justify-between">
         <View className="gap-2">
           <Skeleton height={20} className="w-32" />

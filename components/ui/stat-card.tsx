@@ -34,6 +34,7 @@ import { Card, type CardProps } from "@/components/ui/card"
 import { Icon, type IconTone } from "@/components/ui/icon"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text, type TextTone } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type StatDelta = {
@@ -55,6 +56,13 @@ export type StatCardProps = Omit<CardProps, "children"> & {
   mono?: boolean
 }
 
+/** Prefiks arah delta untuk label SR — panah visual tidak punya teks. */
+const DELTA_PREFIX: Record<StatDelta["direction"], string> = {
+  up: "naik ",
+  down: "turun ",
+  flat: "",
+}
+
 function isPrimitive(v: unknown): v is string | number {
   return typeof v === "string" || typeof v === "number"
 }
@@ -69,6 +77,7 @@ export function StatCard({
   mono = false,
   className,
   variant = "default",
+  accessibilityLabel,
   ...cardProps
 }: StatCardProps) {
   const inverted = variant === "inverted"
@@ -92,8 +101,26 @@ export function StatCard({
       ? "success"
       : "danger"
 
+  // Ringkasan SR: StatCard membaca label, nilai, delta, dan hint sebagai satu
+  // elemen ("Total transaksi, Rp 1.500.000, naik 12%, bulan ini") alih-alih
+  // 4 fragmen lepas. Hanya dipakai bila `value` primitif — node kustom
+  // (mis. <Amount>) tidak bisa dibaca dari sini, dan `accessible` justru akan
+  // menyembunyikannya, jadi grouping dilewati (audit #4).
+  const a11y = loading
+    ? `Memuat ${label}`
+    : isPrimitive(value)
+      ? summarize([label, String(value), delta?.label && `${DELTA_PREFIX[delta.direction]}${delta.label}`, hint])
+      : undefined
+
   return (
-    <Card variant={variant} className={cn("gap-2", className)} {...cardProps}>
+    // <Card> yang menerima accessibilityLabel otomatis `accessible` (varian
+    // statis) atau sudah satu elemen lewat PressableScale (varian onPress).
+    <Card
+      variant={variant}
+      accessibilityLabel={accessibilityLabel ?? a11y}
+      className={cn("gap-2", className)}
+      {...cardProps}
+    >
       <View className="flex-row items-center justify-between gap-2">
         <Text variant="caption" weight={500} tone={labelTone} numberOfLines={1} className="flex-1">
           {label}

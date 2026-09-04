@@ -36,13 +36,14 @@ import { View, type ViewProps } from "react-native"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, type CardProps } from "@/components/ui/card"
+import { Card, CardSummary, type CardProps } from "@/components/ui/card"
 import { DateText } from "@/components/ui/date-text"
 import { Rating } from "@/components/ui/rating"
 import { ReadMore } from "@/components/ui/read-more"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type RatingPerson = {
@@ -120,27 +121,29 @@ export function RatingReviewCard({
   const t = { ...DEFAULT_LABELS, ...labels }
   const hasComment = !!comment?.trim()
 
-  const a11y =
-    accessibilityLabel ??
-    [`${reviewer.name} memberi ${stars} dari 5 bintang`, hasComment ? comment : t.noComment, reply ? `Dibalas ${reply.by.name}` : undefined]
-      .filter(Boolean)
-      .join(", ")
+  // Ringkasan header saja. Komentar & balasan memakai <ReadMore> yang punya
+  // toggle "Selengkapnya", dan balasan punya TextLink Ubah/Hapus — semuanya
+  // interaktif, jadi tidak boleh masuk grup `accessible` (audit #4).
+  const a11y = accessibilityLabel ?? summarize([`${reviewer.name} memberi ${stars} dari 5 bintang`])
 
   return (
-    <Card className={cn("gap-3", className)} accessibilityLabel={a11y} {...rest}>
+    <Card className={cn("gap-3", className)} {...rest}>
       {/* Header: pemberi ulasan + skor */}
-      <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-1 flex-row items-center gap-2">
-          <Avatar source={reviewer.avatar} name={reviewer.name} size="sm" verified={reviewer.verified} />
-          <View className="flex-1">
-            <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
-              {reviewer.name}
-            </Text>
-            <DateText value={date} format="date" variant="caption" tone="secondary" />
+      <CardSummary className="flex-row items-center justify-between gap-3" label={a11y}>
+        <View className="flex-1 flex-row items-center justify-between gap-3">
+          <View className="flex-1 flex-row items-center gap-2">
+            <Avatar source={reviewer.avatar} name={reviewer.name} size="sm" verified={reviewer.verified} />
+            <View className="flex-1">
+              <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+                {reviewer.name}
+              </Text>
+              <DateText value={date} format="date" variant="caption" tone="secondary" />
+            </View>
           </View>
+          <Rating value={stars} readOnly size="sm" showScore />
         </View>
-        <Rating value={stars} readOnly size="sm" showScore />
-      </View>
+
+      </CardSummary>
 
       {/* Komentar */}
       {hasComment ? (
@@ -152,7 +155,13 @@ export function RatingReviewCard({
       )}
 
       {orderId ? (
-        <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500 tracking-mono">
+        <Text
+          accessibilityLabel={`${t.orderPrefix} ${orderId}`}
+          variant="caption"
+          tone="secondary"
+          numberOfLines={1}
+          className="font-mono-500 tracking-mono"
+        >
           {t.orderPrefix} {orderId}
         </Text>
       ) : null}
@@ -201,7 +210,7 @@ export function RatingReviewCard({
 /** Placeholder dengan tinggi menyamai kartu tanpa balasan */
 export function RatingReviewCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View
+    <View accessible accessibilityRole="progressbar"
       className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)}
       accessibilityLabel="Memuat ulasan"
       {...rest}

@@ -29,11 +29,12 @@ import { View, type ViewProps } from "react-native"
 
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, type CardProps } from "@/components/ui/card"
+import { Card, CardSummary, type CardProps } from "@/components/ui/card"
 import type { IconComponent } from "@/components/ui/icon"
 import { IconBox, type IconBoxVariant } from "@/components/ui/icon-box"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | "REVOKED"
@@ -150,39 +151,52 @@ export function KycStatusCard({
   const meta = [submittedAt ? `${t.submittedAt} ${submittedAt}` : undefined, approvedAt ? `${t.approvedAt} ${approvedAt}` : undefined].filter(Boolean)
 
   return (
-    <Card className={cn("gap-4", className)} accessibilityLabel={`Verifikasi identitas: ${t[s]}. ${t.descriptions[s]}`} {...rest}>
-      <View className="flex-row items-center gap-3">
-        <IconBox icon={STATUS_ICON[s]} size="lg" variant={STATUS_BOX[s]} weight={s === "APPROVED" ? "fill" : "regular"} />
-        <View className="flex-1 gap-1">
-          <Text variant="h3" tone="primary">
-            {t[s]}
-          </Text>
-          <View className="flex-row">
-            <KycStatusBadge status={s} labels={t} />
+    // Label TIDAK di root: kartu ini punya Button (Ajukan/Kirim ulang/Riwayat)
+    // yang akan tertelan oleh `accessible` root. Blok info dibungkus
+    // <CardSummary>; tombol tetap fokusable terpisah (audit #4).
+    <Card className={cn("gap-4", className)} {...rest}>
+      <CardSummary
+        className="gap-4"
+        label={summarize([
+          `Verifikasi identitas: ${t[s]}`,
+          t.descriptions[s],
+          needsResubmit && rejectionReason ? `${t.reasonTitle}: ${rejectionReason}` : undefined,
+          ...meta,
+        ])}
+      >
+        <View className="flex-row items-center gap-3">
+          <IconBox icon={STATUS_ICON[s]} size="lg" variant={STATUS_BOX[s]} weight={s === "APPROVED" ? "fill" : "regular"} />
+          <View className="flex-1 gap-1">
+            <Text variant="h3" tone="primary">
+              {t[s]}
+            </Text>
+            <View className="flex-row">
+              <KycStatusBadge status={s} labels={t} />
+            </View>
           </View>
         </View>
-      </View>
 
-      <Text variant="body" tone="secondary">
-        {t.descriptions[s]}
-      </Text>
-
-      {needsResubmit && rejectionReason ? (
-        <View className="gap-1 rounded-sm border border-border bg-background p-3">
-          <Text variant="label" tone="primary">
-            {t.reasonTitle}
-          </Text>
-          <Text variant="caption" tone="secondary">
-            {rejectionReason}
-          </Text>
-        </View>
-      ) : null}
-
-      {meta.length > 0 ? (
-        <Text variant="caption" tone="secondary" className="font-mono-500 tracking-mono tabular-nums">
-          {meta.join(" · ")}
+        <Text variant="body" tone="secondary">
+          {t.descriptions[s]}
         </Text>
-      ) : null}
+
+        {needsResubmit && rejectionReason ? (
+          <View className="gap-1 rounded-sm border border-border bg-background p-3">
+            <Text variant="label" tone="primary">
+              {t.reasonTitle}
+            </Text>
+            <Text variant="caption" tone="secondary">
+              {rejectionReason}
+            </Text>
+          </View>
+        ) : null}
+
+        {meta.length > 0 ? (
+          <Text variant="caption" tone="secondary" className="font-mono-500 tracking-mono tabular-nums">
+            {meta.join(" · ")}
+          </Text>
+        ) : null}
+      </CardSummary>
 
       {s === "NOT_SUBMITTED" && onSubmit ? (
         <Button variant="primary" onPress={onSubmit}>
@@ -205,7 +219,7 @@ export function KycStatusCard({
 
 export function KycStatusCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat status verifikasi" {...rest}>
+    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat status verifikasi" {...rest}>
       <View className="flex-row items-center gap-3">
         <Skeleton width={48} height={48} />
         <View className="flex-1 gap-2">

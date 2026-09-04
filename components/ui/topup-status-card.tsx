@@ -37,7 +37,7 @@ import { View, type ViewProps } from "react-native"
 import { Amount } from "@/components/ui/amount"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
+import { Card, CardSummary } from "@/components/ui/card"
 import { CopyableField } from "@/components/ui/copyable-field"
 import { Countdown } from "@/components/ui/countdown"
 import { Divider } from "@/components/ui/divider"
@@ -45,6 +45,7 @@ import { KeyValue } from "@/components/ui/key-value"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { groupAccountNumber } from "@/lib/format"
 
@@ -185,24 +186,33 @@ export function TopupStatusCard({
   const failed = status === "FAILED" || status === "EXPIRED"
 
   return (
-    <Card variant="elevated" padded className={cn("gap-5", className)} accessibilityLabel={`${t.status[status]}, ${amount} rupiah, ${methodLabel}`} {...rest}>
-      <View className="flex-row items-center justify-between gap-3">
-        <StatusIndicator
-          label={t.status[status]}
-          tone={pending ? "warning" : success ? "success" : failed ? "danger" : "neutral"}
-          pulse={pending}
-        />
-        <Badge tone={STATUS_TONE[status]} variant="outline">
-          {methodLabel}
-        </Badge>
-      </View>
+    // Root tanpa `accessible`: kartu berisi CopyableField, QR, <Countdown> live,
+    // dan Button aksi — semuanya harus tetap terjangkau SR. Hanya blok
+    // status + nominal yang dikelompokkan (audit #4).
+    <Card variant="elevated" padded className={cn("gap-5", className)} {...rest}>
+      <CardSummary
+        className="gap-5"
+        label={summarize([t.status[status], `${t.amount} ${amount} rupiah`, methodLabel])}
+      >
+        <View className="flex-row items-center justify-between gap-3">
+          <StatusIndicator
+            label={t.status[status]}
+            tone={pending ? "warning" : success ? "success" : failed ? "danger" : "neutral"}
+            pulse={pending}
+          />
+          <Badge tone={STATUS_TONE[status]} variant="outline">
+            {methodLabel}
+          </Badge>
+        </View>
 
-      <View className="gap-1">
-        <Text variant="caption" tone="secondary">
-          {t.amount}
-        </Text>
-        <Amount value={amount} size="large" tone="primary" />
-      </View>
+        <View className="gap-1">
+          <Text variant="caption" tone="secondary">
+            {t.amount}
+          </Text>
+          <Amount value={amount} size="large" tone="primary" />
+        </View>
+
+      </CardSummary>
 
       {pending ? (
         <>

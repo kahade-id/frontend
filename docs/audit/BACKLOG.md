@@ -15,7 +15,7 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 1 | a11y | Hit target ≥ 44pt | **Selesai** (PR #32, #33 — `lib/hit-slop.ts`, `tokens.a11y.minHitTarget`) |
 | 2 | a11y | Reduce Motion | **Selesai** (PR #29, #30 — `lib/use-reduced-motion.ts`, 24 primitif) |
 | 3 | a11y | Fokus & modalitas overlay | **Selesai** (PR #31 — `lib/use-overlay-focus.ts`, `portal.tsx`) |
-| 4 | a11y | Grouping & urutan baca kartu | Belum |
+| 4 | a11y | Grouping & urutan baca kartu | **Selesai** (`lib/a11y.ts` → `summarize()`, `<CardSummary>`, guard `pnpm check:a11y`, lihat `findings/04-card-grouping.md`) |
 | 5 | a11y | Kebenaran `accessibilityValue` | Belum |
 | 6 | a11y | Kontras non-teks & warna semantik | **Selesai** (PR #36 + lanjutan — token `border-control`, `check:tokens` #10, lihat `findings/06-non-text-contrast.md`) |
 | 7 | a11y | Font scaling / Dynamic Type | Belum |
@@ -27,7 +27,7 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 13 | token | Kelengkapan dark mode | **Selesai\*** (`findings/13-dark-mode.md` — splash dark, `check:tokens` #9 allowlist `dark:`/literal) — \*uji visual 5 layar menunggu screen pertama (lihat #8) |
 
 Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9 → 13 → 6 → 10**, lalu sisanya.
-Berikutnya: **4** (grouping & urutan baca kartu), lalu **5**, **7**, **11**.
+Berikutnya: **5** (kebenaran `accessibilityValue`), lalu **7**, **11**.
 
 Catatan: PR #29–#33 tidak memperbarui tabel ini maupun menulis `findings/`;
 status di atas direkonstruksi dari riwayat commit. Pengerjaan berikutnya wajib
@@ -151,6 +151,19 @@ terpisah (jangan tertelan oleh group).
 untuk merangkai label dengan koma dan membuang bagian kosong. Ikon murni
 dekoratif di dalam kartu: `accessibilityElementsHidden` /
 `importantForAccessibility="no"` (cek `icon.tsx` sudah default demikian).
+
+**Realisasi.** Deteksi di atas terlalu longgar: ia memeriksa apakah kata
+`accessibilityLabel` *muncul*, bukan apakah labelnya berefek. Masalah
+sebenarnya adalah label yang ditulis tapi **no-op** — `<Card>` statis tidak
+meneruskan propnya, dan `<View accessibilityLabel>` tanpa `accessible`
+diabaikan RN. Sebaliknya, 8 tempat sudah memakai `accessible` di wrapper yang
+juga memuat tombolnya, sehingga tombol itu **hilang** dari screen reader.
+
+Karena itu kriteria "root kartu punya `accessible`" TIDAK berlaku untuk kartu
+yang berisi aksi (dua syarat di kriteria lolos saling bertentangan): root
+dibiarkan polos, blok informasinya dibungkus `<CardSummary>`. Dijaga oleh
+`pnpm check:a11y` (`scripts/check-a11y.mjs`) — tambahkan ke CI bersama
+`pnpm typecheck` dan `pnpm check:tokens`. Detail: `findings/04-card-grouping.md`.
 
 ## 5. Kebenaran `accessibilityValue`
 

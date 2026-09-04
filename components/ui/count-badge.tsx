@@ -74,6 +74,7 @@ export function CountBadge({
 
   return (
     <View
+      accessible
       accessibilityLabel={accessibilityLabel ?? shown}
       className={cn(
         "h-[18px] min-w-[18px] items-center justify-center rounded-full px-1",

@@ -45,6 +45,7 @@ import { Dot } from "@/components/ui/dot"
 import { isOrderActive, OrderStatusBadge, type OrderRole, type OrderStatus } from "@/components/ui/order-status-badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 
 export type OrderCounterpart = {
@@ -113,15 +114,13 @@ export function OrderCard({
 
   const a11y =
     accessibilityLabel ??
-    [
+    summarize([
       unread ? "Ada pembaruan" : undefined,
       `Order ${orderId}`,
       title,
       `${counterpartRole} ${counterpart.name}`,
       timestamp,
-    ]
-      .filter(Boolean)
-      .join(", ")
+    ])
 
   return (
     <Card
@@ -187,7 +186,7 @@ export function OrderCard({
 /** Placeholder dengan tinggi menyamai OrderCard tanpa tenggat */
 export function OrderCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View
+    <View accessible accessibilityRole="progressbar"
       className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)}
       accessibilityLabel="Memuat transaksi"
       {...rest}

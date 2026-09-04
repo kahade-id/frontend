@@ -287,12 +287,15 @@ export function DeliveryProofViewer({
           <Text variant="label" tone="secondary">
             {courier ? `${t.tracking} · ${courier}` : t.tracking}
           </Text>
-          <View
-            accessible
-            accessibilityLabel={`${t.tracking} ${trackingNumber.split("").join(" ")}`}
-            className="flex-row items-center gap-2 rounded-sm border border-border bg-surface pl-3 pr-1 py-1"
-          >
-            <Text variant="monoBody" className="flex-1" numberOfLines={1}>
+          {/* Label di <Text>, BUKAN di wrapper: `accessible` pada wrapper akan
+              menelan IconButton "Salin" di sebelahnya (audit #4). */}
+          <View className="flex-row items-center gap-2 rounded-sm border border-border bg-surface pl-3 pr-1 py-1">
+            <Text
+              accessibilityLabel={`${t.tracking} ${trackingNumber.split("").join(" ")}`}
+              variant="monoBody"
+              className="flex-1"
+              numberOfLines={1}
+            >
               {trackingNumber}
             </Text>
             {onCopyTracking ? (
