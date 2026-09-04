@@ -1,6 +1,6 @@
 /**
- * Kahade — <DisputeCard> + <DisputeStatusBadge> (§9.6 Card, §9.7 Badge,
- * §3.1 Mono untuk ID, §2.3 semantic eksklusif status, §13 format).
+ * Kahade — <DisputeCard> (§9.6 Card, §9.7 Badge, §3.1 Mono untuk ID,
+ * §2.3 semantic eksklusif status, §13 format).
  *
  * Satu baris `GET /v1/disputes/my`. Sengketa selalu menempel pada satu order,
  * jadi anatominya mirip <OrderCard> tetapi yang ditonjolkan adalah PROSES
@@ -12,12 +12,10 @@
  *   opsional: strip "Tanggapan dibutuhkan" (border-t) bila giliran user
  *
  * Keputusan non-obvious:
- *   - Status sengketa adalah union terpisah dari OrderStatus (order hanya tahu
- *     "DISPUTED"). Tone: OPEN/UNDER_REVIEW = warning (proses berjalan, uang
- *     tertahan), RESOLVED_* = success bila menang / neutral bila kalah, dari
- *     sudut pandang `role` user, CLOSED/WITHDRAWN = neutral. Merah TIDAK
- *     dipakai untuk "kalah" — hasil keputusan admin bukan error sistem (§12
- *     tenang, tidak menghakimi).
+ *   - Status, label, tone, dan `isDisputeActive` TIDAK didefinisikan di sini
+ *     — semuanya diimpor dari `dispute-status-badge.tsx`, satu-satunya
+ *     sumber kebenaran peta status sengketa. Kartu hanya menurunkan
+ *     `party` untuk Badge dari `openedByMe` (pembuka sengketa = claimant).
  *   - `awaitingYou` (giliran user membalas/menyerahkan bukti) memakai strip
  *     bawah dengan Dot primary + teks, bukan Badge kedua: dua badge di baris
  *     pertama saling bersaing. Ini satu-satunya "perhatian" di kartu (§1).
@@ -30,78 +28,12 @@ import { View, type ViewProps } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
-import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { Card, type CardProps } from "@/components/ui/card"
+import { DisputeStatusBadge, isDisputeActive, type DisputeStatus } from "@/components/ui/dispute-status-badge"
 import { Dot } from "@/components/ui/dot"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-
-export type DisputeStatus =
-  | "OPEN"
-  | "UNDER_REVIEW"
-  | "AWAITING_RESPONSE"
-  | "RESOLVED_BUYER"
-  | "RESOLVED_SELLER"
-  | "RESOLVED_MUTUAL"
-  | "WITHDRAWN"
-  | "CLOSED"
-
-export type DisputeRole = "buyer" | "seller"
-
-export const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
-  OPEN: "Dibuka",
-  UNDER_REVIEW: "Ditinjau",
-  AWAITING_RESPONSE: "Menunggu tanggapan",
-  RESOLVED_BUYER: "Diputus untuk pembeli",
-  RESOLVED_SELLER: "Diputus untuk penjual",
-  RESOLVED_MUTUAL: "Selesai damai",
-  WITHDRAWN: "Ditarik",
-  CLOSED: "Ditutup",
-}
-
-export function isDisputeStatus(s: string): s is DisputeStatus {
-  return s in DISPUTE_STATUS_LABELS
-}
-
-export function disputeStatusTone(status: string, role?: DisputeRole): BadgeTone {
-  switch (status) {
-    case "OPEN":
-    case "UNDER_REVIEW":
-    case "AWAITING_RESPONSE":
-      return "warning"
-    case "RESOLVED_MUTUAL":
-      return "success"
-    case "RESOLVED_BUYER":
-      return role === "buyer" ? "success" : "neutral"
-    case "RESOLVED_SELLER":
-      return role === "seller" ? "success" : "neutral"
-    default:
-      return "neutral"
-  }
-}
-
-export function isDisputeActive(status: string): boolean {
-  return status === "OPEN" || status === "UNDER_REVIEW" || status === "AWAITING_RESPONSE"
-}
-
-// `role` di-Omit: ViewProps RN punya `role?: Role` (a11y) yang disjoint
-// dengan DisputeRole — tanpa Omit, intersection tereduksi ke `never`.
-export type DisputeStatusBadgeProps = Omit<BadgeProps, "children" | "tone" | "dot" | "role"> & {
-  status: DisputeStatus | string
-  role?: DisputeRole
-  size?: "sm" | "md"
-  labels?: Partial<Record<DisputeStatus, string>>
-}
-
-export function DisputeStatusBadge({ status, role, size = "sm", labels, variant = "soft", ...rest }: DisputeStatusBadgeProps) {
-  const label = isDisputeStatus(status) ? labels?.[status] ?? DISPUTE_STATUS_LABELS[status] : status
-  return (
-    <Badge tone={disputeStatusTone(status, role)} variant={variant} dot={size === "sm"} accessibilityLabel={`Status sengketa: ${label}`} {...rest}>
-      {label}
-    </Badge>
-  )
-}
 
 export type DisputeCardLabels = {
   openedByYou: string
@@ -123,8 +55,6 @@ export type DisputeCardProps = Omit<CardProps, "children" | "variant" | "padded"
   /** Judul order yang disengketakan */
   orderTitle: string
   status: DisputeStatus | string
-  /** Peran USER di order — menentukan tone hasil keputusan */
-  role: DisputeRole
   counterpart: { name: string; avatar?: AvatarProps["source"]; verified?: boolean }
   /** Apakah user yang membuka sengketa */
   openedByMe: boolean
@@ -141,7 +71,6 @@ export function DisputeCard({
   disputeId,
   orderTitle,
   status,
-  role,
   counterpart,
   openedByMe,
   heldAmount,
@@ -180,7 +109,7 @@ export function DisputeCard({
         <Text variant="caption" tone="tertiary" numberOfLines={1} className="flex-1 font-mono-500 tracking-mono">
           {disputeId}
         </Text>
-        <DisputeStatusBadge status={status} role={role} size="sm" />
+        <DisputeStatusBadge status={status} party={openedByMe ? "claimant" : "respondent"} size="sm" />
       </View>
 
       <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
