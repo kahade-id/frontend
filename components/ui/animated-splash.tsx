@@ -118,8 +118,9 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    // Harus SAMA dengan `backgroundColor` splash di app.json supaya
-    // handoff native -> JS mulus.
+    // Harus SAMA dengan `backgroundColor` plugin expo-splash-screen di
+    // app.json supaya handoff native -> JS mulus. Kesamaan ini dijaga
+    // mesin oleh `pnpm check:tokens` (audit #9), bukan hanya komentar.
     backgroundColor: tokens.colors.light.background,
     alignItems: "center",
     justifyContent: "center",
