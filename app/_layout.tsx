@@ -27,7 +27,7 @@ import "../global.css"
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
-import { Stack } from "expo-router"
+import { Stack, useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
 import { useFonts } from "expo-font"
@@ -36,7 +36,9 @@ import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
 import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
+import { onSessionExpired } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 // Module scope: dieksekusi sekali saat bundle dievaluasi, sebelum render apa pun.
@@ -107,6 +109,13 @@ export default function RootLayout() {
 function AppShell() {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
+  const router = useRouter()
+
+  // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
+  // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
+  // Client tidak boleh import expo-router (arah dependency UI → lib), jadi
+  // redirect ke login dipasang di sini, di dalam navigator.
+  useEffect(() => onSessionExpired(() => router.replace(ROUTES.login)), [router])
 
   return (
     // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah

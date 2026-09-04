@@ -13,8 +13,8 @@
  *   <TextArea "Tentang Anda"> (max 500 char)
  *   ── footer: [Lewati]  •  [Simpan]
  *
- *   Setelah simpan berhasil → ResultState "Akun Anda siap!" → "Mulai"
- *   Setelah lewati → langsung ke login (placeholder untuk Home)
+ *   Setelah simpan/lewati → Welcome screen (`ROUTES.welcome({ newUser: true })`)
+ *   yang menyapa user baru dan meminta izin kamera/notifikasi/biometrik.
  *
  * Kontrak API (docs/api/kahade-api-mobile.json):
  *   PUT /v1/users/me  body UpdateProfileDto { bio: string (max 500) }
@@ -49,8 +49,10 @@
  *     ActionSheet konsisten dengan design system (§10 action menu). Opsi
  *     "Ambil foto" dan "Pilih dari galeri" disiapkan tapi menampilkan pesan
  *     informatif — struktur siap untuk expo-image-picker.
- *   - Setelah "Simpan" berhasil → ResultState "Akun Anda siap!" memberi
- *     closure untuk seluruh alur registrasi. User merasa selesai dan welcome.
+ *   - Setelah "Simpan"/"Lewati" → Welcome screen memberi closure untuk seluruh
+ *     alur registrasi. Registration state dibersihkan DI SINI (password & PIN
+ *     tidak boleh hidup lebih lama dari yang diperlukan), dan fakta "user
+ *     baru" diteruskan lewat route param, bukan lewat state itu.
  *   - Bio field auto-trim whitespace di ujung (sama seperti EmailField) —
  *     sumber umum bio yang terlihat aneh di profil.
  *   - Tombol "Simpan" disabled saat bio kosong DAN tidak ada perubahan dari
@@ -111,10 +113,6 @@ export default function SetupProfileScreen() {
   // Avatar sheet
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false)
 
-  // Redirect kalau belum login
-  if (hasToken === null) return null
-  if (!hasToken) return <Redirect href={ROUTES.login} />
-
   const hasChanges = bio.trim().length > 0
 
   const handleBioChange = useCallback((text: string) => {
@@ -132,10 +130,11 @@ export default function SetupProfileScreen() {
         bio: bio.trim() || undefined,
       })
 
-      // Sukses: bersihkan state registrasi dan tampilkan welcome
+      // Sukses: bersihkan state registrasi dan tampilkan welcome.
+      // `newUser` dibawa lewat param — welcome tidak bisa membaca state yang
+      // baru saja dibersihkan.
       clearRegistrationState()
-      // Redirect ke welcome screen (cek permissions)
-      router.replace(ROUTES.welcome)
+      router.replace(ROUTES.welcome({ newUser: true }))
     } catch (err) {
       if (isApiError(err)) {
         // Error validasi bio → tampilkan di form
@@ -148,13 +147,18 @@ export default function SetupProfileScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, bio])
+  }, [submitting, bio, router])
 
   const handleSkip = useCallback(() => {
     clearRegistrationState()
-    // Redirect ke welcome screen (cek permissions)
-    router.replace(ROUTES.welcome)
+    router.replace(ROUTES.welcome({ newUser: true }))
   }, [router])
+
+  // ── Guard dijalankan SETELAH semua hook (Rules of Hooks) ───────────
+  // Versi sebelumnya `return null` di antara useState dan useCallback →
+  // "Rendered more hooks than during the previous render" saat token terbaca.
+  if (hasToken === null) return null
+  if (!hasToken) return <Redirect href={ROUTES.login} />
 
   // ActionSheet items untuk avatar
   const avatarActions: readonly ActionSheetItem[] = [
