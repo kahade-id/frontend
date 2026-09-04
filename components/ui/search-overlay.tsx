@@ -21,21 +21,27 @@
  *     konsisten dengan list lain (§9.17).
  *   - Web `md:max-w-content` (§11) diterapkan di kolom konten agar tetap
  *     terasa mobile di viewport lebar.
+ *   - Fokus & modalitas SR (audit #3): overlay memblokir seluruh layar ->
+ *     `useBlockingOverlay` menyembunyikan <Stack> dari screen reader.
+ *     SearchField sudah `autoFocus` (keyboard); `useOverlayFocus` menyusul
+ *     memindahkan fokus SR ke field yang sama dan mengembalikannya ke
+ *     `returnFocusRef` (biasanya <SearchTrigger>) saat tutup.
  */
 import { Clock, MagnifyingGlass, X } from "phosphor-react-native"
-import type { ReactNode } from "react"
-import { Animated, ScrollView, View } from "react-native"
+import { useRef, type ReactNode } from "react"
+import { Animated, ScrollView, View, type TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { ListItem } from "@/components/ui/list-item"
-import { Portal } from "@/components/ui/portal"
+import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { SearchField, type SearchFieldProps } from "@/components/ui/search-field"
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
 
 export type SearchOverlayProps = Pick<SearchFieldProps, "placeholder" | "onSearch" | "debounceMs"> & {
   visible: boolean
@@ -55,6 +61,8 @@ export type SearchOverlayProps = Pick<SearchFieldProps, "placeholder" | "onSearc
   loading?: boolean
   cancelLabel?: string
   recentTitle?: string
+  /** Pemicu (SearchTrigger) yang menerima fokus kembali saat overlay tutup. */
+  returnFocusRef?: A11yNodeRef
 }
 
 export function SearchOverlay({
@@ -75,10 +83,14 @@ export function SearchOverlay({
   loading = false,
   cancelLabel = "Batal",
   recentTitle = "Pencarian terakhir",
+  returnFocusRef,
 }: SearchOverlayProps) {
   const insets = useSafeAreaInsets()
   const { mounted, progress } = useOverlayPresence(visible)
+  const fieldRef = useRef<TextInput>(null)
   useOverlayDismissKeys(visible, onRequestClose)
+  useBlockingOverlay(visible)
+  useOverlayFocus(visible, fieldRef, { returnFocusRef })
 
   if (!mounted) return null
 
@@ -98,6 +110,7 @@ export function SearchOverlay({
             <View className="flex-row items-center gap-2 px-6 py-3">
               <View className="flex-1">
                 <SearchField
+                  ref={fieldRef}
                   value={value}
                   onChangeText={onChangeText}
                   onSearch={onSearch}

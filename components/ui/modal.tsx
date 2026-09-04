@@ -30,17 +30,25 @@
  *       aksi berbahaya tidak boleh tertutup tanpa sengaja, dan saat request
  *       berjalan menutup dialog akan meninggalkan state menggantung.
  *   - Escape/Back mengikuti kebijakan yang sama — satu konsep "dismissable".
+ *   - Fokus & modalitas SR (audit #3): `useBlockingOverlay` menyembunyikan
+ *     konten app di belakang (lihat portal.tsx — `accessibilityViewIsModal`
+ *     sendiri tidak cukup karena Portal bukan sibling <Stack>);
+ *     `useOverlayFocus` memindahkan fokus ke `initialFocusRef` (Dialog:
+ *     judul) atau kontainer, dan mengembalikannya ke `returnFocusRef` saat
+ *     tutup. Kontainer TIDAK diberi `accessible` — itu akan menggabungkan
+ *     seluruh isi jadi satu elemen dan tombol Dialog tak bisa dijangkau.
  */
-import type { ReactNode } from "react"
-import { Animated, View } from "react-native"
+import { useRef, type ReactNode } from "react"
+import { Animated, View, type Text as RNText } from "react-native"
 
 import { Button, type ButtonProps } from "@/components/ui/button"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
-import { Portal } from "@/components/ui/portal"
+import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
 
 // ------------------------------------------------------------------
 // Modal (primitif)
@@ -56,6 +64,13 @@ export type ModalProps = {
   onHidden?: () => void
   /** Label a11y untuk dialog (biasanya = judul) */
   accessibilityLabel?: string
+  /**
+   * Elemen yang menerima fokus SR saat modal terbuka (default: kontainer
+   * konten). Dialog mengisinya dengan judul.
+   */
+  initialFocusRef?: A11yNodeRef
+  /** Pemicu yang menerima fokus kembali saat modal tutup (wajib untuk native). */
+  returnFocusRef?: A11yNodeRef
   children: ReactNode
   /** className kotak konten (border/bg/padding sudah ada default) */
   className?: string
@@ -67,13 +82,18 @@ export function Modal({
   dismissOnBackdrop = true,
   onHidden,
   accessibilityLabel,
+  initialFocusRef,
+  returnFocusRef,
   children,
   className,
 }: ModalProps) {
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
   const dismiss = dismissOnBackdrop ? onRequestClose : undefined
+  const contentRef = useRef<View>(null)
 
   useOverlayDismissKeys(visible, dismiss)
+  useBlockingOverlay(visible)
+  useOverlayFocus(visible, initialFocusRef ?? contentRef, { returnFocusRef })
 
   if (!mounted) return null
 
@@ -97,6 +117,7 @@ export function Modal({
           <View pointerEvents="box-none" className="w-full md:max-w-content">
             <Animated.View style={{ opacity: progress, transform: [{ translateY }, { scale }] }}>
               <View
+                ref={contentRef}
                 accessibilityViewIsModal
                 accessibilityRole="alert"
                 accessibilityLabel={accessibilityLabel}
@@ -125,7 +146,7 @@ export type DialogActionsLayout = "stack" | "row"
 
 export type DialogProps = Omit<
   ModalProps,
-  "children" | "accessibilityLabel" | "dismissOnBackdrop"
+  "children" | "accessibilityLabel" | "dismissOnBackdrop" | "initialFocusRef"
 > & {
   title: string
   /**
@@ -184,6 +205,10 @@ export function Dialog({
   const handleCancel = onCancel ?? onRequestClose
   const dismissable =
     dismissOnBackdrop === "auto" ? !destructive && !loading : dismissOnBackdrop
+  // Fokus SR mendarat di judul (audit #3): RN Text selalu accessible sehingga
+  // TalkBack menerimanya; header role membuat VoiceOver membacakannya sebagai
+  // judul, bukan teks biasa.
+  const titleRef = useRef<RNText>(null)
 
   const confirmButton = (
     <Button
@@ -212,6 +237,7 @@ export function Dialog({
       accessibilityLabel={title}
       onRequestClose={onRequestClose}
       dismissOnBackdrop={dismissable}
+      initialFocusRef={titleRef}
       {...modalProps}
     >
       <View className="gap-4">
@@ -222,7 +248,9 @@ export function Dialog({
         ) : null}
 
         <View className="gap-2">
-          <Text variant="h3">{title}</Text>
+          <Text ref={titleRef} accessibilityRole="header" variant="h3">
+            {title}
+          </Text>
           {description ? (
             <Text variant="body" tone="secondary">
               {description}

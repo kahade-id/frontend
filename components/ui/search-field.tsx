@@ -19,7 +19,7 @@
  */
 import { MagnifyingGlass } from "phosphor-react-native"
 import { forwardRef, useEffect, useRef } from "react"
-import { TextInput } from "react-native"
+import { TextInput, type View } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
 import { Input, type InputProps } from "@/components/ui/input"
@@ -75,15 +75,17 @@ export type SearchTriggerProps = Omit<PressableScaleProps, "children" | "classNa
   className?: string
 }
 
-/** Field palsu di halaman — tap untuk membuka overlay Search */
-export function SearchTrigger({
-  placeholder = "Cari transaksi, pihak, atau ID",
-  className,
-  containerClassName,
-  ...rest
-}: SearchTriggerProps) {
+/**
+ * Field palsu di halaman — tap untuk membuka overlay Search.
+ * Ref diteruskan agar bisa jadi `SearchOverlay.returnFocusRef` (audit #3).
+ */
+export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function SearchTrigger(
+  { placeholder = "Cari transaksi, pihak, atau ID", className, containerClassName, ...rest },
+  ref,
+) {
   return (
     <PressableScale
+      ref={ref}
       accessibilityRole="search"
       accessibilityLabel={placeholder}
       scaleOnPress={false}
@@ -97,4 +99,4 @@ export function SearchTrigger({
       </Text>
     </PressableScale>
   )
-}
+})
