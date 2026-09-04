@@ -34,6 +34,8 @@ import { useFonts } from "expo-font"
 
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
+import { PortalHost, PortalProvider } from "@/components/ui/portal"
+import { ToastProvider } from "@/components/ui/toast"
 import { fontAssets } from "@/lib/fonts"
 import { tokens } from "@/lib/tokens"
 
@@ -107,28 +109,38 @@ function AppShell() {
   const palette = tokens.colors[mode]
 
   return (
-    <>
-      <StatusBar style={mode === "dark" ? "light" : "dark"} />
+    // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah
+    // di dalamnya — AppShell dirender oleh ThemeProvider) agar overlay yang
+    // diteleport (BottomSheet, Modal, Banner, Tooltip, SearchOverlay,
+    // LoadingScreen) dan Toast tetap menerima CSS variable dari vars().
+    // Tanpa provider ini, setiap komponen overlay melempar error saat mount.
+    <PortalProvider>
+      <ToastProvider>
+        <StatusBar style={mode === "dark" ? "light" : "dark"} />
 
-      {/*
-        Outer: full-bleed background (bg-background sudah di ThemeProvider).
-        Inner: w-full di mobile; di >= md di-cap max-w-content (520px) & center.
-        Border kiri-kanan tipis di web lebar memberi batas visual tanpa shadow.
-      */}
-      <View className="flex-1 items-center">
-        <View className="w-full flex-1 md:max-w-content md:border-x md:border-border">
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              // Stack native tidak bisa di-style via className; ambil dari tokens
-              // agar transisi header/scene tetap flat & konsisten.
-              contentStyle: { backgroundColor: palette.background },
-              animation: "slide_from_right",
-              animationDuration: tokens.motion.duration.base,
-            }}
-          />
+        {/*
+          Outer: full-bleed background (bg-background sudah di ThemeProvider).
+          Inner: w-full di mobile; di >= md di-cap max-w-content (520px) & center.
+          Border kiri-kanan tipis di web lebar memberi batas visual tanpa shadow.
+          PortalHost berada di dalam kolom konten yang sama supaya overlay
+          (sheet/modal) ikut ter-cap 520px di web lebar (§11), bukan full-bleed.
+        */}
+        <View className="flex-1 items-center">
+          <View className="w-full flex-1 md:max-w-content md:border-x md:border-border">
+            <Stack
+              screenOptions={{
+                headerShown: false,
+                // Stack native tidak bisa di-style via className; ambil dari tokens
+                // agar transisi header/scene tetap flat & konsisten.
+                contentStyle: { backgroundColor: palette.background },
+                animation: "slide_from_right",
+                animationDuration: tokens.motion.duration.base,
+              }}
+            />
+            <PortalHost />
+          </View>
         </View>
-      </View>
-    </>
+      </ToastProvider>
+    </PortalProvider>
   )
 }

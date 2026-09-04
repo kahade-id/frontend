@@ -28,9 +28,12 @@ import { cn } from "@/lib/cn"
 import { formatRupiah, groupThousands, parseRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
+// `onChange` di-Omit dari TextInputProps: RN mendefinisikan
+// `onChange?: (e: TextInputChangeEvent) => void`; tanpa Omit, intersection
+// membuat parameter callback menjadi `number | TextInputChangeEvent`.
 export type AmountInputProps = Omit<
   TextInputProps,
-  "value" | "defaultValue" | "onChangeText" | "style" | "editable" | "keyboardType"
+  "value" | "defaultValue" | "onChange" | "onChangeText" | "style" | "editable" | "keyboardType"
 > &
   Pick<FieldProps, "label" | "helperText" | "errorText" | "reserveHelperSpace" | "required"> & {
     value: number

@@ -115,6 +115,15 @@ export function PinInput({
   const [localError, setLocalError] = useState<string | undefined>()
   const completeRef = useRef(onComplete)
   completeRef.current = onComplete
+  // Timer "satu frame" sebelum finish — dibersihkan saat unmount agar
+  // onComplete tidak dipanggil setelah layar berpindah.
+  const finishTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(
+    () => () => {
+      if (finishTimer.current) clearTimeout(finishTimer.current)
+    },
+    [],
+  )
 
   const error = errorText ?? localError
 
@@ -160,7 +169,11 @@ export function PinInput({
       setValue(next)
       if (next.length === length) {
         // Beri satu frame agar dot terakhir terlihat terisi sebelum lanjut
-        setTimeout(() => finish(next), 60)
+        if (finishTimer.current) clearTimeout(finishTimer.current)
+        finishTimer.current = setTimeout(() => {
+          finishTimer.current = null
+          finish(next)
+        }, 60)
       }
     },
     [disabled, value, length, finish],

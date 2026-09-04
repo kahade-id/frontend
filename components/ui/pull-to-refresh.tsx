@@ -139,13 +139,19 @@ export function PullToRefresh({
 
   const startRefresh = useCallback(async () => {
     pull.value = withSpring(threshold, tokens.motion.spring)
+    // Error dari onRefresh adalah urusan parent (tampilkan Banner/Toast di
+    // sana). Di sini cukup ditelan supaya tidak menjadi unhandled rejection
+    // (dipanggil dari runOnJS, tidak ada pemanggil yang bisa menangkapnya)
+    // dan indikator selalu kembali ke posisi 0.
     if (controlled) {
-      void onRefresh()
+      void Promise.resolve(onRefresh()).catch(() => undefined)
       return
     }
     setInternalRefreshing(true)
     try {
       await onRefresh()
+    } catch {
+      // ditelan — lihat komentar di atas
     } finally {
       // useEffect di atas melakukan spring ke 0 saat state berubah
       setInternalRefreshing(false)

@@ -71,6 +71,12 @@ export function useOverlayPresence(
       return () => anim.stop()
     }
 
+    // Belum pernah tampil (mount dengan visible=false): tidak ada yang perlu
+    // di-exit. Tanpa guard ini, timing 0->0 selesai instan dan `onHidden`
+    // terpanggil palsu saat mount — parent yang reset form / navigasi di
+    // onHidden akan salah bertindak.
+    if (!mounted) return
+
     const anim = Animated.timing(progress, {
       toValue: 0,
       duration: durationOut ?? tokens.motion.overlay.exitDuration,
@@ -83,6 +89,9 @@ export function useOverlayPresence(
       onHiddenRef.current?.()
     })
     return () => anim.stop()
+    // `mounted` sengaja TIDAK di deps: saat exit selesai mounted -> false,
+    // efek tidak boleh berjalan ulang (akan memulai timing 0->0 kedua).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, progress, durationIn, durationOut])
 
   return { mounted, progress }

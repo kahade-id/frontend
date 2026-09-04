@@ -42,7 +42,7 @@ import { CopyableField } from "@/components/ui/copyable-field"
 import { Countdown } from "@/components/ui/countdown"
 import { Divider } from "@/components/ui/divider"
 import { KeyValue } from "@/components/ui/key-value"
-import { QrCodeDisplay } from "@/components/ui/qr-code-display"
+import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -74,7 +74,7 @@ export type PaymentMethodCode =
 export function paymentMethodKind(method: PaymentMethodCode | string): "va" | "qris" | "retail" | "redirect" | "wallet" {
   if (method.startsWith("VIRTUAL_ACCOUNT")) return "va"
   if (method === "QRIS") return "qris"
-  if (method === "ALFAMART" || method === "INDOMERET" || method === "INDOMARET") return "retail"
+  if (method === "ALFAMART" || method === "INDOMARET") return "retail"
   if (method === "KAHADE_WALLET") return "wallet"
   return "redirect"
 }
@@ -220,7 +220,7 @@ export function TopupStatusCard({
 
           {kind === "qris" && qrString ? (
             <View className="items-center gap-3">
-              <QrCodeDisplay value={qrString} />
+              <QRCodeDisplay value={qrString} />
               <Text variant="caption" tone="secondary" className="text-center">
                 {t.qrHint}
               </Text>

@@ -62,6 +62,16 @@ const DEFAULT_LABELS: FeeBreakdownLabels = {
   feeHint: undefined,
 }
 
+/** Label penanggung biaya — dipakai FeeResponsibilitySelector & detail order */
+export const FEE_RESPONSIBILITY_LABELS: Record<FeeResponsibility, string> = DEFAULT_LABELS.responsibility
+
+/** Porsi biaya (0–1) per pihak untuk satu skema penanggung */
+export function feeShare(responsibility: FeeResponsibility): { buyer: number; seller: number } {
+  if (responsibility === "BUYER") return { buyer: 1, seller: 0 }
+  if (responsibility === "SELLER") return { buyer: 0, seller: 1 }
+  return { buyer: 0.5, seller: 0.5 }
+}
+
 export function splitFee(feeAmount: number, responsibility: FeeResponsibility): { buyer: number; seller: number } {
   const fee = Math.max(feeAmount, 0)
   if (responsibility === "BUYER") return { buyer: fee, seller: 0 }
@@ -70,7 +80,9 @@ export function splitFee(feeAmount: number, responsibility: FeeResponsibility): 
   return { buyer: fee - half, seller: half }
 }
 
-export type FeeBreakdownProps = Omit<ViewProps, "children"> & {
+// `role` di-Omit dari ViewProps: RN 0.81 punya `role?: Role` (aksesibilitas)
+// yang literal-nya disjoint dengan FeeRole — tanpa Omit seluruh props = never.
+export type FeeBreakdownProps = Omit<ViewProps, "children" | "role"> & {
   orderValue: number
   feeAmount: number
   feeResponsibility: FeeResponsibility
