@@ -117,7 +117,9 @@ export function isOrderActive(status: string): boolean {
   return isOrderStatus(status) && !["COMPLETED", "CANCELLED", "REFUNDED", "EXPIRED"].includes(status)
 }
 
-export type OrderStatusBadgeProps = Omit<BadgeProps, "children" | "tone" | "dot"> & {
+// `role` di-Omit: ViewProps RN punya `role?: Role` (a11y) yang disjoint dengan
+// OrderRole — tanpa Omit, `role` tereduksi menjadi `undefined` saja.
+export type OrderStatusBadgeProps = Omit<BadgeProps, "children" | "tone" | "dot" | "role"> & {
   status: OrderStatus | string
   /** Menggeser tone untuk status yang butuh tindakan pihak ini */
   role?: OrderRole

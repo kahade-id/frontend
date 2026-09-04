@@ -20,14 +20,14 @@
  *     ("Anda membayar" / "Anda menerima dana") — ini keputusan yang menentukan
  *     arah dana, hint mengurangi salah pilih.
  *   - FeeResponsibility 3 kolom; `feeAmount` opsional menampilkan hint nominal
- *     per opsi (Rp10.000 / Rp0 / Rp5.000) yang dihitung dari feeShare() di
+ *     per opsi (Rp10.000 / Rp0 / Rp5.000) yang dihitung dari splitFee() di
  *     fee-breakdown.tsx — satu sumber logika pembagian.
  *   - Export `ORDER_TYPE_LABELS` dan `ORDER_ROLE_LABELS` agar Badge/detail
  *     memakai kosakata yang sama.
  */
 import { DotsThree, FileArrowDown, Package, Wrench } from "phosphor-react-native"
 
-import { FEE_RESPONSIBILITY_LABELS, feeShare, type FeeResponsibility } from "@/components/ui/fee-breakdown"
+import { FEE_RESPONSIBILITY_LABELS, splitFee, type FeeResponsibility } from "@/components/ui/fee-breakdown"
 import type { IconComponent } from "@/components/ui/icon"
 import { ToggleGroup, type ToggleGroupProps, type ToggleOption } from "@/components/ui/toggle-group"
 import { formatRupiah } from "@/lib/format"
@@ -130,9 +130,9 @@ export function FeeResponsibilitySelector({
   const options: ToggleOption<FeeResponsibility>[] = (["BUYER", "SELLER", "SPLIT"] as const).map((v) => {
     let hint: string | undefined
     if (feeAmount != null) {
-      const share = feeShare(v)
-      const mine = viewer === "BUYER" ? share.buyer : share.seller
-      hint = formatRupiah(Math.round(feeAmount * mine))
+      // splitFee = sumber tunggal pembagian (SPLIT: pembulatan ke atas di pembeli)
+      const share = splitFee(feeAmount, v)
+      hint = formatRupiah(viewer === "BUYER" ? share.buyer : share.seller)
     }
     return { value: v, label: labels?.[v] ?? FEE_RESPONSIBILITY_LABELS[v], hint }
   })
