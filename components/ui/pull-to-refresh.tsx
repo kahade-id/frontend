@@ -44,6 +44,11 @@
  *     Haptics.impactAsync(...)}` setelah paket ditambahkan.
  *   - Settle memakai `withSpring(tokens.motion.spring)` — config yang sama
  *     dengan BottomSheet (§8) agar satu kosakata gerak.
+ *   - Reduce Motion (audit #2): SENGAJA tidak dimatikan. Translate mengikuti
+ *     jari pengguna 1:1 dan spring settle hanya mengembalikan konten dari
+ *     titik jari dilepas ke 0 — gerakan "esensial untuk fungsi" (pengecualian
+ *     WCAG 2.3.3), bukan dekorasi. PulsingLogo di dalamnya sudah membaca
+ *     useReducedMotion() sendiri.
  *   - Web (§11): Gesture Handler mendukung pointer/mouse; drag mouse ikut
  *     bekerja. Tidak ada state hover.
  *   - `Animated.View` reanimated tidak di-interop NativeWind -> className di

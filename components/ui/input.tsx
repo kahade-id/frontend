@@ -47,6 +47,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type InputVariant = "text" | "search" | "multiline"
 
@@ -127,14 +128,16 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
 
   // --- Floating label animation (transform-only, tidak bisa di-className) ---
   const progress = useRef(new Animated.Value(floated ? 1 : 0)).current
+  // Reduce Motion (audit #2): label melayang pindah posisi instan.
+  const reducedMotion = useReducedMotion()
   useEffect(() => {
     Animated.timing(progress, {
       toValue: floated ? 1 : 0,
-      duration: tokens.motion.duration.fast,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.fast),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     }).start()
-  }, [floated, progress])
+  }, [floated, progress, reducedMotion])
 
   const labelStyle = {
     transform: [

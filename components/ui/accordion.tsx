@@ -31,6 +31,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 type AccordionContextValue = {
   open: readonly string[]
@@ -129,14 +130,16 @@ export function AccordionItem({
   const open = ctx.open.includes(value)
 
   const rotation = useRef(new Animated.Value(open ? 1 : 0)).current
+  // Reduce Motion (audit #2): rotasi chevron non-esensial -> instan.
+  const reducedMotion = useReducedMotion()
   useEffect(() => {
     Animated.timing(rotation, {
       toValue: open ? 1 : 0,
-      duration: tokens.motion.duration.base,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     }).start()
-  }, [open, rotation])
+  }, [open, rotation, reducedMotion])
   const rotate = rotation.interpolate({ inputRange: [0, 1], outputRange: ["0deg", "180deg"] })
 
   return (

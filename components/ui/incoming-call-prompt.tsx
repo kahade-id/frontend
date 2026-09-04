@@ -54,6 +54,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type IncomingCallType = "voice" | "video"
 
@@ -149,10 +150,15 @@ export function IncomingCallPrompt({
  */
 function PulseRing({ active, delay }: { active: boolean; delay: number }) {
   const progress = useSharedValue(0)
+  // Reduce Motion (audit #2): pulsa berulang tanpa batas adalah pemicu
+  // vestibular klasik -> ring tampil statis (progress 0: scale 1, opacity
+  // 0.6) selama `active`, tanpa loop.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     if (active) {
       progress.value = 0
+      if (reducedMotion) return
       progress.value = withDelay(
         delay,
         withRepeat(
@@ -162,9 +168,9 @@ function PulseRing({ active, delay }: { active: boolean; delay: number }) {
         ),
       )
     } else {
-      progress.value = withTiming(0, { duration: 250 })
+      progress.value = withTiming(0, { duration: reducedMotion ? 0 : 250 })
     }
-  }, [active, delay, progress])
+  }, [active, delay, progress, reducedMotion])
 
   const style = useAnimatedStyle(() => ({
     transform: [{ scale: 1 + progress.value * 0.35 }],

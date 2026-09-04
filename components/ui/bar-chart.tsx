@@ -48,6 +48,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type ChartStatusTone = "success" | "danger" | "warning" | "info"
 export type ChartSeries = "primary" | "mono" | "status"
@@ -128,9 +129,11 @@ function GrowingBar({
   animated: boolean
 }) {
   const grow = useRef(new Animated.Value(animated ? 0 : 1)).current
+  // Reduce Motion (audit #2): grow-in batang adalah dekorasi -> tampil langsung.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
-    if (!animated) {
+    if (!animated || reducedMotion) {
       grow.setValue(1)
       return
     }
@@ -141,7 +144,7 @@ function GrowingBar({
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     }).start()
-  }, [animated, grow, ratio])
+  }, [animated, grow, ratio, reducedMotion])
 
   const pct = `${Math.round(ratio * 100)}%` as const
   const vertical = orientation === "vertical"

@@ -49,6 +49,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type FloatingActionButtonProps = Omit<
   PressableScaleProps,
@@ -97,10 +98,17 @@ export function FloatingActionButton({
   const translateY = useSharedValue(visible ? 0 : hiddenOffset)
   const opacity = useSharedValue(visible ? 1 : 0)
 
+  // Reduce Motion (audit #2): tanpa slide; translateY langsung di posisi
+  // akhir dan FAB hanya muncul/hilang instan.
+  const reducedMotion = useReducedMotion()
+
   useEffect(() => {
-    translateY.value = withSpring(visible ? 0 : hiddenOffset, tokens.motion.spring)
-    opacity.value = withTiming(visible ? 1 : 0, { duration: tokens.motion.duration.fast })
-  }, [visible, hiddenOffset, translateY, opacity])
+    const targetY = visible ? 0 : hiddenOffset
+    translateY.value = reducedMotion ? targetY : withSpring(targetY, tokens.motion.spring)
+    opacity.value = withTiming(visible ? 1 : 0, {
+      duration: motionDuration(reducedMotion, tokens.motion.duration.fast),
+    })
+  }, [visible, hiddenOffset, translateY, opacity, reducedMotion])
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],

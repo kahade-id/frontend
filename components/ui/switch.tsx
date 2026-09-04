@@ -30,6 +30,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type SwitchProps = Omit<PressableProps, "children" | "onPress" | "style"> & {
   value: boolean
@@ -57,15 +58,17 @@ export function Switch({
   ...rest
 }: SwitchProps) {
   const x = useRef(new Animated.Value(value ? 1 : 0)).current
+  // Reduce Motion (audit #2): thumb pindah instan.
+  const reducedMotion = useReducedMotion()
 
   useEffect(() => {
     Animated.timing(x, {
       toValue: value ? 1 : 0,
-      duration: tokens.motion.duration.base,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.base),
       easing: Easing.bezier(...tokens.motion.easing.standard),
       useNativeDriver: true,
     }).start()
-  }, [value, x])
+  }, [value, x, reducedMotion])
 
   const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [0, TRAVEL] })
 
