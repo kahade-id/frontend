@@ -29,7 +29,7 @@
  */
 import { Clock, MagnifyingGlass, X } from "phosphor-react-native"
 import { useRef, type ReactNode } from "react"
-import { Animated, ScrollView, View, type TextInput } from "react-native"
+import { Animated, ScrollView, StyleSheet, View, type TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
@@ -98,7 +98,8 @@ export function SearchOverlay({
 
   return (
     <Portal>
-      <Animated.View style={{ opacity: progress, position: "absolute", top: 0, right: 0, bottom: 0, left: 0 }}>
+      {/* absoluteFill (idiom RN, sama dengan <Backdrop>) — bukan literal top/right/bottom/left (audit #10) */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
         <View
           accessibilityViewIsModal
           accessibilityRole="search"

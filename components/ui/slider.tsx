@@ -46,6 +46,7 @@ import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-nativ
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
 
 export type SliderProps = Omit<ViewProps, "children"> & {
   value: number
@@ -61,9 +62,14 @@ export type SliderProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const THUMB = 24
-const TRACK_H = 4
-const LABEL_MIN_W = THUMB + 48
+// Geometri statis dari skala token (audit #10): thumb 24 = space[6],
+// track 4 = space[1]. Dipasang lewat `style` karena ukurannya juga dipakai
+// oleh perhitungan gesture/posisi di UI thread, bukan hanya visual.
+const THUMB = tokens.space[6]
+const TRACK_H = tokens.space[1]
+const LABEL_MIN_W = THUMB + tokens.space[12]
+/** Label nilai melayang di atas thumb: 32px = space[8] di atas garis track. */
+const LABEL_OFFSET_Y = -tokens.space[8]
 /**
  * Gerakan horizontal (px) sebelum pan diklaim. Cukup kecil untuk terasa
  * instan, cukup besar agar scroll vertikal di parent tidak ikut tertahan.
@@ -208,7 +214,7 @@ export function Slider({
           {dragging && formatValue ? (
             <Animated.View
               pointerEvents="none"
-              style={[{ position: "absolute", top: -32, minWidth: LABEL_MIN_W }, labelStyle]}
+              style={[{ position: "absolute", top: LABEL_OFFSET_Y, minWidth: LABEL_MIN_W }, labelStyle]}
             >
               <View className="items-center rounded-xs border border-border bg-surface-elevated px-2 py-1">
                 <Text variant="monoBody" tone="primary" numberOfLines={1}>

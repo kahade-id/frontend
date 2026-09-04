@@ -79,9 +79,10 @@ export type RangeSliderProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const THUMB = 24
-const TRACK_H = 4
-const LABEL_MIN_W = THUMB + 48
+// Geometri statis dari skala token (audit #10) — identik dengan slider.tsx.
+const THUMB = tokens.space[6]
+const TRACK_H = tokens.space[1]
+const LABEL_MIN_W = THUMB + tokens.space[12]
 // Perluas hit area thumb 24 -> 44 (tokens.a11y.minHitTarget)
 const THUMB_HIT_SLOP = hitSlopToReach(THUMB)
 const ACTIVE_OFFSET_X = 4
