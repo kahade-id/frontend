@@ -4,28 +4,35 @@
  * Satu komponen untuk semua kemunculan logo: header beranda, layar loading
  * full-screen (§8), pull-to-refresh signature, onboarding, splash JS.
  *
- * Status aset (jujur): logo final "sudah ada tapi belum dilampirkan" (§16.5).
- * Sampai file itu masuk, `Logo` merender MARK PLACEHOLDER: kotak radius.md
- * ber-border dengan huruf "K" EB Garamond — konsisten dengan placeholder di
- * animated-splash.tsx. Begitu aset tersedia, kirim `source` (PNG/SVG via
- * require) dan mark otomatis diganti <Image>; wordmark tetap teks serif
- * karena "Kahade" dalam EB Garamond adalah keputusan tipografi §3.1
- * (editorial trust), bukan aset gambar.
+ * Mark default = logo FINAL dari `assets/brand/logo-paths.ts` (path SVG yang
+ * di-generate dari assets/brand/logo.svg, §16.5), dirender lewat
+ * react-native-svg dan diwarnai dari token — bukan <Image> bitmap — supaya
+ * ikut light/dark otomatis dan tajam di semua densitas. `source` tetap
+ * tersedia untuk override bitmap (mis. varian berwarna khusus kampanye).
+ * Wordmark tetap teks serif karena "Kahade" dalam EB Garamond adalah
+ * keputusan tipografi §3.1 (editorial trust), bukan aset gambar.
  *
  * Keputusan non-obvious:
  *   - Ukuran mark: sm=24 (sejajar ikon md), md=40, lg=72 (= LOGO_SIZE splash).
- *     Nilai ini bukan token spacing, maka dipasang lewat `style` (bukan
- *     className) sebagai "ukuran gambar", sama seperti Icon.
- *   - fontSize huruf placeholder = 55% ukuran mark — proporsi, bukan konstanta
- *     baru; ikut `style` karena tidak ada di type scale.
- *   - Tone "inverse" untuk logo di atas bg-primary (hero saldo, card
- *     inverted §9.6): mark jadi outline primary-foreground, tanpa fill.
+ *     Nilai ini bukan token spacing, maka dipasang lewat `style`/prop ukuran
+ *     (bukan className) sebagai "ukuran gambar", sama seperti Icon.
+ *   - Warna path lewat `useTheme()` + tokens (pola yang sama dengan Icon):
+ *     SVG `fill` bukan style yang bisa di-className. Tone default = `primary`
+ *     (hitam di light, putih di dark — logo sebagai "otoritas" §1.1); tone
+ *     "inverse" = `primaryForeground` untuk logo di atas bg-primary (hero
+ *     saldo, card inverted §9.6).
+ *   - `assets/brand/logo-paths.ts` sengaja tidak menyimpan warna; JANGAN
+ *     menambahkan fill di sana.
  *   - Tidak pakai <Text> RN langsung — tetap lewat wrapper (§3 fixed scale).
  */
 import { Image, View, type ImageSourcePropType, type ViewProps } from "react-native"
+import Svg, { G, Path } from "react-native-svg"
 
+import { LOGO_PATHS, LOGO_VIEWBOX } from "@/assets/brand/logo-paths"
+import { useTheme } from "@/components/theme-provider"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 
 export type LogoSize = "sm" | "md" | "lg"
 export type LogoVariant = "mark" | "wordmark" | "lockup"
@@ -44,11 +51,6 @@ const markPx: Record<LogoSize, number> = { sm: 24, md: 40, lg: 72 }
 /** Ukuran huruf wordmark mengikuti tinggi mark agar lockup sejajar */
 const wordPx: Record<LogoSize, number> = { sm: 18, md: 28, lg: 44 }
 
-const markBox: Record<LogoTone, string> = {
-  default: "bg-primary border border-primary",
-  inverse: "bg-transparent border border-primary-foreground",
-}
-
 export function Logo({
   variant = "mark",
   size = "md",
@@ -58,10 +60,9 @@ export function Logo({
   ...rest
 }: LogoProps) {
   const px = markPx[size]
-  // Huruf placeholder: di tone default duduk di atas fill primary -> inverse;
-  // di tone inverse mark hanya outline primary-foreground -> huruf ikut inverse.
-  // Keduanya "inverse" secara kebetulan, tetapi alasannya berbeda (lihat atas).
-  const letterTone = "inverse" as const
+  const { mode } = useTheme()
+  const palette = tokens.colors[mode]
+  const fill = tone === "inverse" ? palette.primaryForeground : palette.primary
   const wordTone = tone === "inverse" ? "inverse" : "primary"
 
   const mark = source ? (
@@ -72,20 +73,13 @@ export function Logo({
       style={{ width: px, height: px }}
     />
   ) : (
-    <View
-      className={cn("items-center justify-center rounded-md", markBox[tone])}
-      style={{ width: px, height: px }}
-    >
-      <Text
-        variant="inherit"
-        tone={letterTone}
-        className="font-serif-500"
-        // Proporsi terhadap mark, bukan konstanta type scale
-        style={{ fontSize: px * 0.55, lineHeight: px * 0.7 }}
-      >
-        K
-      </Text>
-    </View>
+    <Svg width={px} height={px} viewBox={LOGO_VIEWBOX}>
+      <G fill={fill}>
+        {LOGO_PATHS.map((p, i) => (
+          <Path key={i} d={p.d} transform={p.transform} />
+        ))}
+      </G>
+    </Svg>
   )
 
   const word = (

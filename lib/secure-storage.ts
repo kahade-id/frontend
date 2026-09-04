@@ -42,6 +42,15 @@ export const SecureKeys = {
   deviceId: "kahade.device.id",
   /** Push token terakhir yang berhasil didaftarkan ke backend */
   pushToken: "kahade.push.token",
+  /**
+   * "1" bila user sudah melewati onboarding (slide intro). BUKAN rahasia —
+   * pengecualian yang disengaja, sama seperti `deviceId`: repo ini tidak
+   * memasang AsyncStorage dan SecureStore adalah satu-satunya storage
+   * persisten yang tersedia (lihat package.json). Nilai 1 byte, tidak ikut
+   * backup, dan TIDAK dihapus `clearSession()` — logout bukan alasan untuk
+   * menampilkan intro lagi.
+   */
+  onboardingSeen: "kahade.onboarding.seen",
 } as const
 
 export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
