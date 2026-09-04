@@ -124,12 +124,15 @@ export function WalletBalanceCard({
           {t.available}
         </Text>
         {onToggleHidden ? (
+          // Audit #1: baris label hanya ~20px sehingga hitSlop akan terpotong
+          // batas baris. Kotak nyata 44x44 + margin negatif (-my-3/-mr-3)
+          // agar tinggi baris dan posisi visual ikon tidak berubah.
           <Pressable
             onPress={onToggleHidden}
-            hitSlop={tokens.space[2]}
             accessibilityRole="button"
             accessibilityLabel={hidden ? t.show : t.hide}
             accessibilityState={{ checked: !hidden }}
+            className="-my-3 -mr-3 min-h-11 min-w-11 items-center justify-center"
           >
             <Icon icon={hidden ? EyeSlash : Eye} size="sm" tone={iconTone} />
           </Pressable>

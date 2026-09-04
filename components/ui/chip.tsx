@@ -14,7 +14,12 @@
  *     tidak ada garis abu terlihat di tepi fill hitam; secara warna identik
  *     di kedua mode karena primary == border-focus.
  *   - `onRemove` (ikon X) untuk chip "filter aktif" yang bisa dilepas —
- *     hanya ikon yang tappable terpisah, sisanya toggle.
+ *     hanya ikon yang tappable terpisah, sisanya toggle. Ikon X 16px
+ *     diberi `ICON_XS_HIT_SLOP` (14 tiap sisi -> 44x44, audit #1); slop kiri
+ *     menjorok ~6px ke label — disengaja: chip berlabel + X adalah "filter
+ *     aktif" yang lebih sering dilepas daripada di-toggle, jadi sisi X
+ *     diprioritaskan. Slop vertikal 14 melampaui slop chip (8) dan tetap
+ *     berlaku karena container chip tidak `overflow-hidden`.
  *   - ChipGroup: multi-select by default (§9.25); `single` untuk pola
  *     segmented ringan. Layout `flex-wrap` dengan gap-2; untuk scroll
  *     horizontal, bungkus sendiri dengan ScrollView horizontal.
@@ -32,6 +37,7 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { ICON_XS_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 
 export type ChipProps = Omit<PressableScaleProps, "children" | "className"> & {
@@ -81,7 +87,7 @@ export function Chip({
         <Pressable
           onPress={onRemove}
           disabled={disabled}
-          hitSlop={tokens.space[2]}
+          hitSlop={ICON_XS_HIT_SLOP}
           accessibilityRole="button"
           accessibilityLabel="Hapus filter"
           className={cn("ml-1 rounded-full", focusRing)}

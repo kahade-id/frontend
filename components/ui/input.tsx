@@ -46,6 +46,7 @@ import { Field, type FieldProps } from "@/components/ui/field"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -290,10 +291,11 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           />
         </View>
 
+        {/* Ikon aksi 20px + slop 12 = 44x44 (audit #1); muat di container h-14 tanpa clip. */}
         {showClear ? (
           <Pressable
             onPress={handleClear}
-            hitSlop={tokens.space[2]}
+            hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel="Hapus teks"
             className="ml-2"
@@ -303,7 +305,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
         ) : showSecureToggle ? (
           <Pressable
             onPress={() => setSecure((s) => !s)}
-            hitSlop={tokens.space[2]}
+            hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={secure ? "Tampilkan kata sandi" : "Sembunyikan kata sandi"}
             className="ml-2"
@@ -315,7 +317,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             <Pressable
               onPress={onRightIconPress}
               disabled={disabled}
-              hitSlop={tokens.space[2]}
+              hitSlop={ICON_SM_HIT_SLOP}
               accessibilityRole="button"
               accessibilityLabel={rightIconAccessibilityLabel}
               accessibilityState={{ disabled }}

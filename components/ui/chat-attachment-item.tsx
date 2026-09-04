@@ -8,7 +8,10 @@
  * mimeType, fileSize (≤10MB), thumbnailUrl opsional.
  *
  * Tiga `layout`:
- *   "chip"  — 40px tinggi, untuk antrean lampiran di atas composer; punya X
+ *   "chip"  — 44px tinggi (min-h-11), untuk antrean lampiran di atas composer;
+ *             punya X. Dulu 40px; dinaikkan agar tombol X/Ulangi setinggi
+ *             chip = target sentuh 44 tanpa hitSlop (container
+ *             `overflow-hidden` memotong slop vertikal) — audit #1.
  *   "tile"  — kotak 72px (thumbnail atau ikon) untuk grid di dalam bubble
  *   "row"   — baris ListItem 56px untuk halaman lampiran ruang chat
  *
@@ -38,7 +41,6 @@ import { ProgressBar } from "@/components/ui/progress-bar"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
-import { tokens } from "@/lib/tokens"
 
 export type ChatAttachment = {
   fileName: string
@@ -185,7 +187,7 @@ export function ChatAttachmentItem({
       accessible
       accessibilityLabel={a11y}
       className={cn(
-        "relative h-10 max-w-[220px] flex-row items-center gap-2 overflow-hidden rounded-sm border border-border bg-surface pl-2 pr-1",
+        "relative min-h-11 max-w-[220px] flex-row items-center gap-2 overflow-hidden rounded-sm border border-border bg-surface pl-2",
         errored && "border-border-error",
         className,
       )}
@@ -207,7 +209,12 @@ export function ChatAttachmentItem({
         ) : null}
       </View>
       {errored && onRetry ? (
-        <Pressable onPress={onRetry} hitSlop={tokens.space[2]} accessibilityRole="button" accessibilityLabel={t.retry}>
+        <Pressable
+          onPress={onRetry}
+          accessibilityRole="button"
+          accessibilityLabel={t.retry}
+          className="min-h-11 justify-center px-1"
+        >
           <Text variant="caption" weight={600} tone="primary" className="px-1 underline">
             {t.retry}
           </Text>
@@ -216,10 +223,9 @@ export function ChatAttachmentItem({
       {onRemove ? (
         <Pressable
           onPress={onRemove}
-          hitSlop={tokens.space[2]}
           accessibilityRole="button"
           accessibilityLabel={t.remove}
-          className="h-8 w-8 items-center justify-center"
+          className="min-h-11 min-w-11 items-center justify-center"
         >
           <Icon icon={X} size="xs" />
         </Pressable>
