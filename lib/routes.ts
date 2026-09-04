@@ -1,0 +1,26 @@
+/**
+ * Kahade — konstanta rute Expo Router untuk alur auth.
+ *
+ * Satu tempat untuk path yang dirujuk lintas screen (onboarding → register/
+ * login, gate index → onboarding/login) supaya rename folder di `app/`
+ * cukup diubah di sini.
+ *
+ * Kenapa bertipe `Href` dengan cast (non-obvious): `typedRoutes` aktif di
+ * app.json, tetapi alur auth dibangun satu screen per giliran — target
+ * seperti `/register` dan `/login` belum punya file route saat konstanta ini
+ * ditulis. Tanpa cast, typecheck gagal di screen yang sudah jadi hanya karena
+ * screen berikutnya belum ada. Saat semua route tersedia, cast bisa dihapus
+ * dan TypeScript akan memvalidasi path ini lagi.
+ *
+ * Grup `(auth)` tidak muncul di URL — Expo Router mengabaikan segmen dalam
+ * tanda kurung.
+ */
+import type { Href } from "expo-router"
+
+export const ROUTES = {
+  onboarding: "/onboarding" as Href,
+  /** Screen #2 — Register: nomor HP + metode OTP (belum dibuat) */
+  register: "/register" as Href,
+  /** Screen #7 — Login email + password (belum dibuat) */
+  login: "/login" as Href,
+} as const
