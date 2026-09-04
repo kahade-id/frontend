@@ -69,12 +69,6 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
   const code = (value ?? internal).slice(0, length)
   const hasError = !!errorText
 
-  useImperativeHandle(ref, () => ({
-    focus: () => inputRef.current?.focus(),
-    blur: () => inputRef.current?.blur(),
-    clear: () => handleChange(""),
-  }))
-
   const handleChange = useCallback(
     (raw: string) => {
       const next = raw.replace(/\D/g, "").slice(0, length)
@@ -83,6 +77,16 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
       if (next.length === length) onComplete?.(next)
     },
     [length, onChange, onComplete, value],
+  )
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: () => inputRef.current?.focus(),
+      blur: () => inputRef.current?.blur(),
+      clear: () => handleChange(""),
+    }),
+    [handleChange],
   )
 
   // Kotak aktif = posisi karakter berikutnya (atau kotak terakhir saat penuh)
