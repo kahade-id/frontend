@@ -42,6 +42,7 @@ import {
 import { cn } from "@/lib/cn"
 import { haptic as fireHaptic, type HapticKind } from "@/lib/haptics"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type PressableScaleProps = Omit<PressableProps, "style" | "children"> & {
   /** className untuk kotak visual (border, bg, padding, radius) */
@@ -71,6 +72,11 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   ref,
 ) {
   const scale = useRef(new Animated.Value(1)).current
+  // Reduce Motion (audit #2): scale press adalah gerakan non-esensial ->
+  // dimatikan total. Feedback pressed tetap ada lewat haptic (bila opt-in)
+  // dan state a11y; komponen turunan (Button, Chip, Card) otomatis ikut.
+  const reducedMotion = useReducedMotion()
+  const shouldScale = scaleOnPress && !reducedMotion
 
   const animateTo = useCallback(
     (to: number) => {
@@ -86,19 +92,19 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
 
   const handlePressIn = useCallback(
     (e: GestureResponderEvent) => {
-      if (scaleOnPress) animateTo(tokens.motion.scale.press)
+      if (shouldScale) animateTo(tokens.motion.scale.press)
       if (haptic) fireHaptic(haptic === true ? "light" : haptic)
       onPressIn?.(e)
     },
-    [animateTo, haptic, onPressIn, scaleOnPress],
+    [animateTo, haptic, onPressIn, shouldScale],
   )
 
   const handlePressOut = useCallback(
     (e: GestureResponderEvent) => {
-      if (scaleOnPress) animateTo(1)
+      if (shouldScale) animateTo(1)
       onPressOut?.(e)
     },
-    [animateTo, onPressOut, scaleOnPress],
+    [animateTo, onPressOut, shouldScale],
   )
 
   return (

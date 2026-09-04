@@ -67,6 +67,7 @@ import { Portal } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 // --- Guard stacking (§9.9) -------------------------------------------------
 let openSheetCount = 0
@@ -143,6 +144,16 @@ export function BottomSheet({
   useStackingGuard(visible)
   useOverlayDismissKeys(visible, dismiss)
 
+  // Reduce Motion (audit #2): slide/spring dari tepi layar adalah gerakan
+  // besar -> sheet langsung di posisi akhir; backdrop (useOverlayPresence)
+  // ikut instan. Drag mengikuti jari tetap diizinkan (dikendalikan user,
+  // bukan animasi), hanya settle-nya yang instan.
+  const reducedMotion = useReducedMotion()
+  const reducedSV = useSharedValue(reducedMotion)
+  useEffect(() => {
+    reducedSV.value = reducedMotion
+  }, [reducedMotion, reducedSV])
+
   // translateY absolut (px) di UI thread. Mulai di luar layar sampai tinggi terukur.
   const translateY = useSharedValue(windowHeight)
   const sheetHeight = useSharedValue(0)
@@ -151,8 +162,9 @@ export function BottomSheet({
   // Buka: spring ke 0 setelah tinggi diketahui. Tutup: spring ke bawah.
   useEffect(() => {
     if (!measured) return
-    translateY.value = withSpring(visible ? 0 : sheetHeight.value, tokens.motion.spring)
-  }, [visible, measured, translateY, sheetHeight])
+    const target = visible ? 0 : sheetHeight.value
+    translateY.value = reducedMotion ? target : withSpring(target, tokens.motion.spring)
+  }, [visible, measured, translateY, sheetHeight, reducedMotion])
 
   const handleLayout = useCallback(
     (e: LayoutChangeEvent) => {
@@ -186,6 +198,11 @@ export function BottomSheet({
           const h = sheetHeight.value
           const shouldClose = e.translationY > h * CLOSE_RATIO || e.velocityY > CLOSE_VELOCITY
           if (shouldClose && canClose) {
+            if (reducedSV.value) {
+              translateY.value = h
+              runOnJS(requestClose)()
+              return
+            }
             translateY.value = withSpring(
               h,
               { ...tokens.motion.spring, velocity: e.velocityY },
@@ -194,14 +211,16 @@ export function BottomSheet({
               },
             )
           } else {
-            translateY.value = withSpring(0, { ...tokens.motion.spring, velocity: e.velocityY })
+            translateY.value = reducedSV.value
+              ? 0
+              : withSpring(0, { ...tokens.motion.spring, velocity: e.velocityY })
           }
         })
         .onFinalize((_e, success) => {
           // Gesture dibatalkan sistem (mis. panggilan masuk): kembali ke posisi buka.
-          if (!success) translateY.value = withSpring(0, tokens.motion.spring)
+          if (!success) translateY.value = reducedSV.value ? 0 : withSpring(0, tokens.motion.spring)
         }),
-    [canClose, dragArea, requestClose, sheetHeight, translateY],
+    [canClose, dragArea, requestClose, sheetHeight, translateY, reducedSV],
   )
 
   const sheetStyle = useAnimatedStyle(() => ({

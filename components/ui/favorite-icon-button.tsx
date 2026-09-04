@@ -76,10 +76,13 @@ export function FavoriteIconButton({
 }: FavoriteIconButtonProps) {
   const scale = useSharedValue(1)
   const prevActive = useRef(active)
+  // Reduce Motion (audit #2): pop dekoratif dilewati; perubahan fill ikon
+  // sudah cukup menyampaikan state aktif.
+  const reducedMotion = useReducedMotion()
 
   // Denyut hanya pada transisi false -> true (lihat header file).
   useEffect(() => {
-    if (active && !prevActive.current) {
+    if (active && !prevActive.current && !reducedMotion) {
       scale.value = withSequence(
         withSpring(POP_SCALE, { ...tokens.motion.spring, stiffness: 400 }),
         withSpring(1, tokens.motion.spring),
