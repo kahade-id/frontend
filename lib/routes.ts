@@ -17,10 +17,26 @@
  */
 import type { Href } from "expo-router"
 
+import type { OtpMethod } from "@/lib/api/auth"
+
+/**
+ * Param yang dibawa Register -> OTP Verification. `phoneNumber` sudah E.164
+ * ("+62812…") — bentuk yang sama dengan yang dikirim ke `request-otp`, agar
+ * `verify-otp` memakai string identik (backend mencocokkan OTP per nomor).
+ */
+export type VerifyOtpParams = {
+  phoneNumber: string
+  method: OtpMethod
+}
+
 export const ROUTES = {
   onboarding: "/onboarding" as Href,
-  /** Screen #2 — Register: nomor HP + metode OTP (belum dibuat) */
+  /** Screen #2 — Register: nomor HP + metode OTP */
   register: "/register" as Href,
+  /** Screen #3 — OTP Verification (belum dibuat); butuh param, jadi builder */
+  // Objek href untuk route yang belum ada perlu lewat `unknown` (typedRoutes
+  // menolak literal pathname yang tidak dikenal). Hapus saat verify-otp.tsx ada.
+  verifyOtp: (params: VerifyOtpParams) => ({ pathname: "/verify-otp", params }) as unknown as Href,
   /** Screen #7 — Login email + password (belum dibuat) */
   login: "/login" as Href,
 } as const
