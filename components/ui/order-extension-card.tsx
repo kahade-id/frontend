@@ -1,32 +1,46 @@
 /**
  * Kahade — <OrderExtensionCard> permintaan perpanjangan tenggat (§9.6 Card,
- * §13 tanggal eksplisit, §10 konfirmasi = Dialog).
+ * §9.7 Badge, §9.1 Button, §13 tanggal eksplisit, §10 konfirmasi = Dialog).
  *
  * Untuk `GET/POST /v1/orders/{id}/extensions` (RequestExtensionDto:
  * extensionDays, reason) dan `PUT .../extensions/{extId}` (RespondExtensionDto:
  * action APPROVE|REJECT, note). Penjual yang terlambat meminta tambahan
- * hari; pembeli menyetujui/menolak.
+ * hari; pembeli menyetujui/menolak. Ditampilkan di detail order sebagai
+ * daftar kronologis; hanya permintaan PENDING dari LAWAN yang punya tombol.
  *
  * Anatomi:
- *   header  : "Permintaan dari Anda/{nama}" + Badge status
- *   tenggat : "Tenggat saat ini -> tenggat baru" dengan tanda panah, dan
- *             angka hari tambahan yang menonjol (Sofia Sans 600, bukan Mono:
- *             "+3 hari" menyatu dengan kalimat §3.1)
+ *   header  : Avatar xs + "Permintaan perpanjangan dari Anda/{nama}" + Badge
+ *   tenggat : "+3 hari" (Sofia Sans H3 tabular) di kiri, lalu "Tenggat saat
+ *             ini -> Tenggat baru" berdampingan dengan ArrowRight
  *   alasan  : teks pemohon
- *   catatan : balasan penanggap (bila sudah direspons)
+ *   catatan : balasan penanggap (kutipan, hanya setelah direspons)
  *   aksi    : penanggap + PENDING -> [Tolak ghost] [Setujui primary]
  *
  * Keputusan non-obvious:
- *   - Tanggal lama dan baru ditampilkan berdampingan lengkap ("3 Sep 2026" ->
- *     "6 Sep 2026"), BUKAN hanya "+3 hari": §13 menuntut tanggal eksplisit,
- *     dan pembeli memutuskan berdasar TANGGAL baru, bukan selisih.
+ *   - Angka hari ditonjolkan sebagai "+3 hari" H3 Sans, BUKAN Mono: ia bagian
+ *     dari kalimat "meminta tambahan 3 hari", bukan data presisi yang berdiri
+ *     sendiri (§3.1 emphasis inline tetap Sans).
+ *   - Tanggal lama dan baru ditampilkan lengkap berdampingan ("3 Sep 2026" ->
+ *     "6 Sep 2026"), BUKAN hanya selisih: §13 menuntut tanggal eksplisit,
+ *     dan pembeli memutuskan berdasar TANGGAL baru. Tenggat baru dihitung
+ *     lokal via `addDays` + `formatDate` (§13) agar pemanggil tidak perlu
+ *     mengulang aritmetika tanggal; `newDeadline` boleh dikirim eksplisit
+ *     bila server sudah menghitungnya.
  *   - Menyetujui memperpanjang masa dana tertahan di escrow -> pemanggil
  *     WAJIB Dialog konfirmasi (§10); komponen hanya memanggil `onApprove`.
+ *     "Setujui" primary karena itu jalur yang diharapkan sistem (menghindari
+ *     sengketa); "Tolak" ghost (preseden OrderLinkPreviewCard).
+ *   - REJECTED tone neutral, bukan danger: menolak perpanjangan adalah hak
+ *     pembeli, bukan kegagalan sistem (§2.3 merah = error). Dot Badge hanya
+ *     saat PENDING.
  *   - `requestedByMe` menyembunyikan aksi (server menolak respons sendiri).
+ *   - `status` menerima string asing dari server (fallback PENDING untuk
+ *     tone, label mentah ditampilkan) supaya enum baru tidak meledakkan UI.
  */
 import { ArrowRight } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
+import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -47,7 +61,7 @@ export const ORDER_EXTENSION_LABELS: Record<OrderExtensionStatus, string> = {
 const STATUS_TONE: Record<OrderExtensionStatus, BadgeTone> = {
   PENDING: "warning",
   APPROVED: "success",
-  REJECTED: "danger",
+  REJECTED: "neutral",
   EXPIRED: "neutral",
 }
 
@@ -80,10 +94,13 @@ const DEFAULT_LABELS: OrderExtensionCardLabels = {
 export type OrderExtensionCardProps = Omit<ViewProps, "children"> & {
   extensionDays: number
   currentDeadline: Date | number | string
+  /** Opsional — bila server sudah menghitung; default `currentDeadline + extensionDays` */
+  newDeadline?: Date | number | string
   reason?: string
   status: OrderExtensionStatus | string
   requestedByMe: boolean
   requesterName?: string
+  requesterAvatar?: AvatarProps["source"]
   /** Catatan dari penanggap (bila sudah direspons) */
   responseNote?: string
   /** Sudah diformat (§13) */
@@ -92,7 +109,7 @@ export type OrderExtensionCardProps = Omit<ViewProps, "children"> & {
   onReject?: () => void
   approving?: boolean
   rejecting?: boolean
-  labels?: Partial<OrderExtensionCardLabels>
+  labels?: Partial<Omit<OrderExtensionCardLabels, "status">> & { status?: Partial<OrderExtensionCardLabels["status"]> }
   className?: string
 }
 
@@ -105,10 +122,12 @@ export function addDays(d: Date | number | string, days: number): Date {
 export function OrderExtensionCard({
   extensionDays,
   currentDeadline,
+  newDeadline,
   reason,
   status,
   requestedByMe,
   requesterName,
+  requesterAvatar,
   responseNote,
   requestedAt,
   onApprove,
@@ -119,54 +138,66 @@ export function OrderExtensionCard({
   className,
   ...rest
 }: OrderExtensionCardProps) {
-  const t = { ...DEFAULT_LABELS, ...labels, status: { ...DEFAULT_LABELS.status, ...labels?.status } }
+  const t: OrderExtensionCardLabels = { ...DEFAULT_LABELS, ...labels, status: { ...DEFAULT_LABELS.status, ...labels?.status } }
   const known = status in STATUS_TONE
   const st = (known ? status : "PENDING") as OrderExtensionStatus
   const pending = st === "PENDING"
   const busy = approving || rejecting
-  const newDeadline = addDays(currentDeadline, extensionDays)
+  const canRespond = pending && !requestedByMe && (onApprove || onReject)
+
+  const resolvedNewDeadline = newDeadline ?? addDays(currentDeadline, extensionDays)
   const title = requestedByMe ? t.fromYou : t.from(requesterName ?? "")
+  const statusLabel = known ? t.status[st] : status
+  const avatarName = requestedByMe ? undefined : requesterName
 
   return (
-    <Card variant="elevated" className={cn("gap-4", className)} accessibilityLabel={title} {...rest}>
+    <Card
+      variant="elevated"
+      className={cn("gap-4", className)}
+      accessibilityLabel={`${title} ${t.extraDays(extensionDays)}, ${statusLabel}`}
+      {...rest}
+    >
       <View className="flex-row items-start justify-between gap-3">
-        <View className="flex-1 gap-[2px]">
-          <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
-            {title}
-          </Text>
-          {requestedAt ? (
-            <Text variant="caption" tone="tertiary" className="tabular-nums">
-              {requestedAt}
+        <View className="flex-1 flex-row items-center gap-2">
+          {requesterAvatar || avatarName ? <Avatar source={requesterAvatar} name={avatarName} size="xs" /> : null}
+          <View className="flex-1 gap-[2px]">
+            <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
+              {title}
             </Text>
-          ) : null}
+            {requestedAt ? (
+              <Text variant="caption" tone="tertiary" className="tabular-nums">
+                {requestedAt}
+              </Text>
+            ) : null}
+          </View>
         </View>
-        <Badge tone={STATUS_TONE[st]} dot>
-          {known ? t.status[st] : status}
+        <Badge tone={STATUS_TONE[st]} variant="soft" dot={pending}>
+          {statusLabel}
         </Badge>
       </View>
 
-      <View className="flex-row items-center gap-3 rounded-sm border border-border bg-surface px-4 py-3">
-        <View className="flex-1 gap-[2px]">
-          <Text variant="caption" tone="tertiary">
-            {t.currentDeadline}
-          </Text>
-          <Text variant="body" weight={500} tone="secondary">
-            {formatDate(currentDeadline)}
-          </Text>
-        </View>
-        <View className="items-center gap-[2px]">
-          <Icon icon={ArrowRight} size="sm" />
-          <Text variant="caption" weight={600} tone="primary">
-            {t.extraDays(extensionDays)}
-          </Text>
-        </View>
-        <View className="flex-1 items-end gap-[2px]">
-          <Text variant="caption" tone="tertiary">
-            {t.newDeadline}
-          </Text>
-          <Text variant="body" weight={600} tone="primary">
-            {formatDate(newDeadline)}
-          </Text>
+      <View className="flex-row items-center gap-4 rounded-sm border border-border bg-surface px-4 py-3">
+        <Text variant="h3" tone="primary" className="tabular-nums">
+          {t.extraDays(extensionDays)}
+        </Text>
+        <View className="flex-1 flex-row items-center gap-2">
+          <View className="flex-1 gap-[2px]">
+            <Text variant="caption" tone="tertiary">
+              {t.currentDeadline}
+            </Text>
+            <Text variant="caption" weight={500} tone="secondary" className="tabular-nums">
+              {formatDate(currentDeadline)}
+            </Text>
+          </View>
+          <Icon icon={ArrowRight} size="xs" tone="default" />
+          <View className="flex-1 gap-[2px]">
+            <Text variant="caption" tone="tertiary">
+              {t.newDeadline}
+            </Text>
+            <Text variant="caption" weight={600} tone="primary" className="tabular-nums">
+              {formatDate(resolvedNewDeadline)}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -182,17 +213,17 @@ export function OrderExtensionCard({
       ) : null}
 
       {!pending && responseNote ? (
-        <View className="gap-1">
+        <View className="gap-1 border-l-2 border-border pl-3">
           <Text variant="label" tone="secondary">
             {t.responseNote}
           </Text>
-          <Text variant="body" tone="primary">
+          <Text variant="body" tone="secondary">
             {responseNote}
           </Text>
         </View>
       ) : null}
 
-      {pending && !requestedByMe && (onApprove || onReject) ? (
+      {canRespond ? (
         <View className="flex-row gap-3">
           {onReject ? (
             <View className="flex-1">

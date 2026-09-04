@@ -1,38 +1,53 @@
 /**
  * Kahade — <MutualResolutionCard> proposal penyelesaian bersama (§9.6 Card,
- * §3.1 Mono nominal, §9.18 chart monokrom, §10 konfirmasi = Dialog).
+ * §3.1 Mono nominal, §9.18 chart monokrom, §10 konfirmasi = Dialog/PIN).
  *
  * Untuk `GET/POST /v1/disputes/{id}/mutual-resolution` dan respon
- * `.../{proposalId}/respond` (accept/reject) serta `DELETE` (withdraw own).
- * Satu proposal = pembagian dana yang ditahan escrow: X ke pembeli, Y ke
- * penjual (X + Y = total), plus catatan pengusul.
+ * `.../{proposalId}/respond` (accept/reject) serta `DELETE .../{proposalId}`
+ * (withdraw own). Satu proposal = pembagian dana yang ditahan escrow: X ke
+ * pembeli, Y ke penjual (X + Y = total), plus catatan pengusul.
  *
  * Anatomi:
- *   header  : "Proposal dari Anda / {nama}" + Badge status proposal
- *   split   : bar horizontal dua segmen (pembeli | penjual) + dua KeyValue
- *             nominal Mono di bawahnya
+ *   header  : Avatar xs + "Proposal dari Anda / {nama}" + Badge status
+ *   split   : bar horizontal dua segmen (pembeli | penjual) + dua kolom
+ *             nominal Mono di bawahnya + strip "Bagian Anda"
  *   catatan : teks pengusul (opsional)
- *   aksi    : penerima -> [Tolak ghost] [Terima primary]
+ *   footer  : createdAt kiri, Countdown kedaluwarsa kanan (PENDING) atau
+ *             "Ditanggapi {waktu}" (final)
+ *   aksi    : penerima -> [Tolak ghost] [Setuju primary]
  *             pengusul  -> [Tarik proposal ghost]
  *
  * Keputusan non-obvious:
- *   - Bar split memakai dua abu monokrom (gray.800 untuk bagian yang
- *     kembali ke USER, gray.400 untuk lawan) — BUKAN hijau/merah. Split
- *     adalah pembagian, bukan menang/kalah; warna semantik disimpan untuk
- *     status proposal (§2.3). "Bagian Anda" selalu yang lebih gelap supaya
- *     mata langsung menemukan angka yang relevan.
- *   - Persentase ditampilkan Sofia Sans tabular (bukan Mono) karena menyatu
- *     dengan label; nominal Rupiah tetap <Amount> Mono (§3.1).
- *   - Aksi Terima adalah pergerakan dana escrow final -> pemanggil WAJIB
- *     Dialog konfirmasi (§10). Komponen hanya memanggil `onAccept`.
- *   - `expiresAt` -> Countdown kecil di header; proposal kedaluwarsa
- *     ditandai server (status EXPIRED), komponen hanya memicu `onExpire`.
- *   - Proposal non-PENDING menyembunyikan semua tombol; `respondedAt`
- *     tampil sebagai caption di footer agar riwayat tetap terbaca.
+ *   - Bar split monokrom: bagian USER = `bg-primary`, lawan = `bg-text-
+ *     tertiary` — BUKAN hijau/merah. Split adalah pembagian, bukan
+ *     menang/kalah; warna semantik disimpan untuk status (§2.3). "Bagian
+ *     Anda" selalu yang lebih gelap supaya mata langsung menemukan angka
+ *     yang relevan. Bar hanya bantu visual; angka rupiah tetap terbaca
+ *     langsung tanpa hitung (§1 presisi), a11y via accessibilityValue.
+ *   - Nominal di-clamp ke [0, total] dan porsi penjual dihitung dari sisa
+ *     bila `sellerAmount` tidak dikirim, sehingga invarian X + Y = total
+ *     selalu terjaga meski payload server aneh.
+ *   - Persentase Sofia Sans tabular (bukan Mono) karena menyatu dengan
+ *     label; nominal Rupiah tetap <Amount> Mono (§3.1).
+ *   - Tombol setuju berlabel "Setuju", BUKAN "Terima", agar tidak rancu
+ *     dengan "penjual menerima dana". Aksi ini memindahkan dana escrow
+ *     final -> pemanggil WAJIB konfirmasi (Dialog §10 / PIN §9.21);
+ *     komponen hanya memanggil `onAccept`.
+ *   - REJECTED / WITHDRAWN / EXPIRED bertone neutral: menolak usulan
+ *     adalah hak pihak lain, bukan kegagalan sistem (§2.3 merah = error).
+ *     Dot Badge hanya berdenyut saat PENDING.
+ *   - Proposal final tetap dirender penuh tanpa penurunan opacity —
+ *     riwayat negosiasi harus tetap terbaca (AA); pembeda cukup Badge,
+ *     hilangnya tombol, dan caption `respondedAt`.
+ *   - `expiresAt` -> Countdown tone secondary (informasi, bukan alarm);
+ *     status EXPIRED ditetapkan server, komponen hanya memicu `onExpire`.
+ *   - `status` menerima string asing dari server (fallback PENDING untuk
+ *     tone, label mentah ditampilkan) supaya enum baru tidak meledakkan UI.
  */
 import { View, type ViewProps } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
+import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -45,7 +60,7 @@ export type MutualResolutionStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "WITH
 
 export const MUTUAL_RESOLUTION_LABELS: Record<MutualResolutionStatus, string> = {
   PENDING: "Menunggu tanggapan",
-  ACCEPTED: "Diterima",
+  ACCEPTED: "Disepakati",
   REJECTED: "Ditolak",
   WITHDRAWN: "Ditarik",
   EXPIRED: "Kedaluwarsa",
@@ -54,7 +69,7 @@ export const MUTUAL_RESOLUTION_LABELS: Record<MutualResolutionStatus, string> = 
 const STATUS_TONE: Record<MutualResolutionStatus, BadgeTone> = {
   PENDING: "warning",
   ACCEPTED: "success",
-  REJECTED: "danger",
+  REJECTED: "neutral",
   WITHDRAWN: "neutral",
   EXPIRED: "neutral",
 }
@@ -77,14 +92,14 @@ export type MutualResolutionCardLabels = {
 const DEFAULT_LABELS: MutualResolutionCardLabels = {
   fromYou: "Proposal dari Anda",
   from: (name) => `Proposal dari ${name}`,
-  buyerShare: "Ke pembeli",
-  sellerShare: "Ke penjual",
+  buyerShare: "Kembali ke pembeli",
+  sellerShare: "Diterima penjual",
   yourShare: "Bagian Anda",
   note: "Catatan",
-  accept: "Terima proposal",
+  accept: "Setuju",
   reject: "Tolak",
   withdraw: "Tarik proposal",
-  expiresIn: "Berlaku",
+  expiresIn: "Berakhir dalam",
   respondedAt: "Ditanggapi",
   status: MUTUAL_RESOLUTION_LABELS,
 }
@@ -93,12 +108,15 @@ const DEFAULT_LABELS: MutualResolutionCardLabels = {
 export type MutualResolutionCardProps = Omit<ViewProps, "children" | "role"> & {
   /** Total dana yang ditahan escrow */
   totalAmount: number
+  /** Porsi yang dikembalikan ke pembeli */
   buyerAmount: number
-  sellerAmount: number
+  /** Porsi yang dirilis ke penjual — default `totalAmount - buyerAmount` */
+  sellerAmount?: number
   status: MutualResolutionStatus | string
   /** Apakah USER yang mengusulkan */
   proposedByMe: boolean
   proposerName?: string
+  proposerAvatar?: AvatarProps["source"]
   /** Peran USER di order — menentukan "bagian Anda" */
   role: OrderRole
   note?: string
@@ -113,13 +131,10 @@ export type MutualResolutionCardProps = Omit<ViewProps, "children" | "role"> & {
   accepting?: boolean
   rejecting?: boolean
   withdrawing?: boolean
-  labels?: Partial<MutualResolutionCardLabels>
+  labels?: Partial<Omit<MutualResolutionCardLabels, "status">> & {
+    status?: Partial<MutualResolutionCardLabels["status"]>
+  }
   className?: string
-}
-
-function pct(part: number, total: number) {
-  if (total <= 0) return 0
-  return Math.round((part / total) * 100)
 }
 
 export function MutualResolutionCard({
@@ -129,6 +144,7 @@ export function MutualResolutionCard({
   status,
   proposedByMe,
   proposerName,
+  proposerAvatar,
   role,
   note,
   createdAt,
@@ -145,33 +161,52 @@ export function MutualResolutionCard({
   className,
   ...rest
 }: MutualResolutionCardProps) {
-  const t = { ...DEFAULT_LABELS, ...labels, status: { ...DEFAULT_LABELS.status, ...labels?.status } }
-  const known = (Object.keys(STATUS_TONE) as MutualResolutionStatus[]).includes(status as MutualResolutionStatus)
+  const t: MutualResolutionCardLabels = {
+    ...DEFAULT_LABELS,
+    ...labels,
+    status: { ...DEFAULT_LABELS.status, ...labels?.status },
+  }
+  const known = status in STATUS_TONE
   const st = (known ? status : "PENDING") as MutualResolutionStatus
   const pending = st === "PENDING"
   const busy = accepting || rejecting || withdrawing
 
-  const buyerPct = pct(buyerAmount, totalAmount)
+  // Invarian: 0 <= buyer <= total, seller = sisa (atau nilai server yang di-clamp)
+  const safeTotal = Math.max(totalAmount, 0)
+  const buyer = Math.min(Math.max(buyerAmount, 0), safeTotal)
+  const seller = sellerAmount == null ? safeTotal - buyer : Math.min(Math.max(sellerAmount, 0), safeTotal - buyer)
+  const buyerPct = safeTotal > 0 ? Math.round((buyer / safeTotal) * 100) : 0
   const sellerPct = 100 - buyerPct
-  const myShare = role === "buyer" ? buyerAmount : sellerAmount
+  const isBuyer = role === "buyer"
+  const myShare = isBuyer ? buyer : seller
 
   const title = proposedByMe ? t.fromYou : t.from(proposerName ?? "")
+  const statusLabel = known ? t.status[st] : status
+  const avatarName = proposedByMe ? undefined : proposerName
 
   return (
-    <Card variant="elevated" className={cn("gap-4", className)} accessibilityLabel={title} {...rest}>
+    <Card
+      variant="elevated"
+      className={cn("gap-4", className)}
+      accessibilityLabel={`${title}, ${statusLabel}, ${t.buyerShare} ${buyer} rupiah, ${t.sellerShare} ${seller} rupiah`}
+      {...rest}
+    >
       <View className="flex-row items-center justify-between gap-3">
-        <View className="flex-1 gap-[2px]">
-          <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
-            {title}
-          </Text>
-          {createdAt ? (
-            <Text variant="caption" tone="tertiary" className="tabular-nums">
-              {createdAt}
+        <View className="flex-1 flex-row items-center gap-2">
+          {proposerAvatar || avatarName ? <Avatar source={proposerAvatar} name={avatarName} size="xs" /> : null}
+          <View className="flex-1 gap-[2px]">
+            <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+              {title}
             </Text>
-          ) : null}
+            {createdAt ? (
+              <Text variant="caption" tone="tertiary" className="tabular-nums">
+                {createdAt}
+              </Text>
+            ) : null}
+          </View>
         </View>
-        <Badge tone={STATUS_TONE[st]} dot>
-          {known ? t.status[st] : status}
+        <Badge tone={STATUS_TONE[st]} variant="soft" dot={pending}>
+          {statusLabel}
         </Badge>
       </View>
 
@@ -179,32 +214,27 @@ export function MutualResolutionCard({
       <View className="gap-2">
         <View
           className="h-2 w-full flex-row overflow-hidden rounded-full bg-border"
+          accessible
           accessibilityRole="progressbar"
           accessibilityLabel={`${t.buyerShare} ${buyerPct}%, ${t.sellerShare} ${sellerPct}%`}
+          accessibilityValue={{ min: 0, max: 100, now: buyerPct, text: `${buyerPct}% ke pembeli` }}
         >
-          {/* bagian USER = primary (invert otomatis di dark), lawan = text-tertiary */}
-          <View
-            className={cn("h-full", role === "buyer" ? "bg-primary" : "bg-text-tertiary")}
-            style={{ width: `${buyerPct}%` }}
-          />
-          <View
-            className={cn("h-full", role === "seller" ? "bg-primary" : "bg-text-tertiary")}
-            style={{ width: `${sellerPct}%` }}
-          />
+          <View className={cn("h-full", isBuyer ? "bg-primary" : "bg-text-tertiary")} style={{ width: `${buyerPct}%` }} />
+          <View className={cn("h-full", isBuyer ? "bg-text-tertiary" : "bg-primary")} style={{ width: `${sellerPct}%` }} />
         </View>
 
         <View className="flex-row justify-between gap-4">
           <View className="flex-1 gap-[2px]">
-            <Text variant="caption" tone={role === "buyer" ? "primary" : "tertiary"} weight={role === "buyer" ? 500 : 400}>
+            <Text variant="caption" tone={isBuyer ? "primary" : "tertiary"} weight={isBuyer ? 500 : 400} className="tabular-nums">
               {`${t.buyerShare} · ${buyerPct}%`}
             </Text>
-            <Amount value={buyerAmount} size="body" tone={role === "buyer" ? "primary" : "secondary"} />
+            <Amount value={buyer} size="body" tone={isBuyer ? "primary" : "secondary"} />
           </View>
           <View className="flex-1 items-end gap-[2px]">
-            <Text variant="caption" tone={role === "seller" ? "primary" : "tertiary"} weight={role === "seller" ? 500 : 400}>
+            <Text variant="caption" tone={isBuyer ? "tertiary" : "primary"} weight={isBuyer ? 400 : 500} className="tabular-nums">
               {`${t.sellerShare} · ${sellerPct}%`}
             </Text>
-            <Amount value={sellerAmount} size="body" tone={role === "seller" ? "primary" : "secondary"} />
+            <Amount value={seller} size="body" tone={isBuyer ? "secondary" : "primary"} />
           </View>
         </View>
       </View>
@@ -228,11 +258,8 @@ export function MutualResolutionCard({
       ) : null}
 
       {pending && expiresAt != null ? (
-        <View className="flex-row items-center justify-between">
-          <Text variant="caption" tone="secondary">
-            {t.expiresIn}
-          </Text>
-          <Countdown until={expiresAt} tone="primary" onComplete={onExpire} />
+        <View className="flex-row items-center justify-end">
+          <Countdown until={expiresAt} prefix={t.expiresIn} tone="secondary" onComplete={onExpire} />
         </View>
       ) : null}
 
