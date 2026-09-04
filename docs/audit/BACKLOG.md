@@ -24,12 +24,12 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 10 | token | Inline `style={}` numerik | Belum |
 | 11 | token | Konsistensi nama prop/varian antar komponen | Belum |
 | 12 | token | Sinkronisasi `tokens.ts` ↔ `tailwind.config.js` ↔ `global.css` | **Selesai** (`pnpm check:tokens`, lihat `findings/12-token-sync.md`) |
-| 13 | token | Kelengkapan dark mode | Belum |
+| 13 | token | Kelengkapan dark mode | **Selesai\*** (`findings/13-dark-mode.md` — splash dark, `check:tokens` #9 allowlist `dark:`/literal) — \*uji visual 5 layar menunggu screen pertama (lihat #8) |
 
-Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9**, lalu sisanya.
-Berikutnya: **13** (dark mode — pasangan var light/dark sudah dijamin
-`check:tokens`; sisanya audit `dark:`/`text-white` + uji visual + keputusan
-splash dark di findings 08-09), lalu **10** (inline `style={}` numerik), **6**, **4**, **5**, **7**, **11**.
+Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9 → 13**, lalu sisanya.
+Berikutnya: **10** (inline `style={}` numerik), lalu **6** (kontras non-teks —
+findings #13 sudah menyiapkan 3 pasangan token dark yang < 3:1 untuk
+diputuskan), **4**, **5**, **7**, **11**.
 
 Catatan: PR #29–#33 tidak memperbarui tabel ini maupun menulis `findings/`;
 status di atas direkonstruksi dari riwayat commit. Pengerjaan berikutnya wajib

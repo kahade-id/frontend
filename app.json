@@ -42,7 +42,10 @@
         "expo-splash-screen",
         {
           "backgroundColor": "#FFFFFF",
-          "resizeMode": "contain"
+          "resizeMode": "contain",
+          "dark": {
+            "backgroundColor": "#121212"
+          }
         }
       ],
       "expo-secure-store",

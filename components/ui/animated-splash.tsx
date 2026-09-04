@@ -20,11 +20,16 @@
  *     PressableScale, splash ini). Native driver sudah menjalankan loop ini
  *     di UI thread; memakai reanimated tidak menambah kehalusan, hanya
  *     menambah satu bahasa animasi lagi di file yang harus tetap kecil.
- *   - Warna diambil dari tokens (light.background / primary), bukan CSS var
- *     / className, karena overlay ini render SEBELUM ThemeProvider & font
- *     siap — belum ada `vars()` di tree. Konsekuensinya splash selalu light;
- *     ini disengaja: harus identik dengan `backgroundColor` splash di
- *     app.json, yang juga statis.
+ *   - Warna diambil dari `tokens.colors[mode]`, bukan CSS var / className,
+ *     karena overlay ini render SEBELUM ThemeProvider & font siap — belum
+ *     ada `vars()` di tree. `mode` dibaca dari `useColorScheme()` react-native
+ *     (audit #13): saat boot belum ada preferensi manual yang "mencemari"
+ *     Appearance (lihat catatan di theme-provider.tsx), jadi nilainya = OS,
+ *     sama dengan yang dipakai native splash (`userInterfaceStyle: automatic`
+ *     + `dark.backgroundColor` di app.json). Kedua literal app.json itu
+ *     dijaga sama dengan `light.background`/`dark.background` oleh
+ *     `pnpm check:tokens` #8 — kalau salah satu berubah, handoff native→JS
+ *     kedip dan skrip gagal.
  *   - Tidak ada shadow (§6). Logo placeholder = kotak radius.md dengan
  *     border; ganti <View> tersebut dengan <Image source={logo}> nanti.
  *   - Tidak pakai <Text> sama sekali di sini — font belum ada, menampilkan
@@ -34,9 +39,9 @@
  *     di luar ui/ karena ia infrastruktur, bukan UI.
  */
 import { useEffect, useRef } from "react"
-import { Animated, Easing, StyleSheet, View } from "react-native"
+import { Animated, Easing, StyleSheet, View, useColorScheme } from "react-native"
 
-import { tokens } from "@/lib/tokens"
+import { tokens, type ColorMode } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type AnimatedSplashProps = {
@@ -55,6 +60,9 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
   // Reduce Motion (audit #2): tanpa pulse berulang; fade-out tetap ada
   // (perlu untuk handoff native->JS tanpa kedip) tetapi instan.
   const reducedMotion = useReducedMotion()
+  // Mode OS langsung dari react-native (bukan useTheme — belum ada provider).
+  const mode: ColorMode = useColorScheme() === "dark" ? "dark" : "light"
+  const palette = tokens.colors[mode]
 
   // Loop pulse — durasi "slow" dari tokens agar konsisten dengan motion system.
   useEffect(() => {
@@ -101,7 +109,13 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
   return (
     <Animated.View
       pointerEvents="none"
-      style={[styles.overlay, { opacity: overlay }]}
+      style={[
+        styles.overlay,
+        // Harus SAMA dengan `backgroundColor` / `dark.backgroundColor` plugin
+        // expo-splash-screen di app.json supaya handoff native -> JS mulus.
+        // Dijaga mesin oleh `pnpm check:tokens` #8, bukan hanya komentar.
+        { backgroundColor: palette.background, opacity: overlay },
+      ]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
@@ -109,7 +123,12 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
         {/* PLACEHOLDER LOGO — ganti dengan:
             <Image source={require("../../assets/images/logo-kahade.png")}
                    style={{ width: LOGO_SIZE, height: LOGO_SIZE }} /> */}
-        <View style={styles.logoPlaceholder} />
+        <View
+          style={[
+            styles.logoPlaceholder,
+            { borderColor: palette.primary, backgroundColor: palette.surface },
+          ]}
+        />
       </Animated.View>
     </Animated.View>
   )
@@ -118,10 +137,7 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    // Harus SAMA dengan `backgroundColor` plugin expo-splash-screen di
-    // app.json supaya handoff native -> JS mulus. Kesamaan ini dijaga
-    // mesin oleh `pnpm check:tokens` (audit #9), bukan hanya komentar.
-    backgroundColor: tokens.colors.light.background,
+    // backgroundColor per-mode di-set inline dari `tokens.colors[mode]`.
     alignItems: "center",
     justifyContent: "center",
     // Tidak ada `zIndex.toast` (§9.11: Toast ditiadakan, semua lewat Banner=70).
@@ -133,7 +149,6 @@ const styles = StyleSheet.create({
     height: LOGO_SIZE,
     borderRadius: tokens.radius.md, // 8px — maksimum non-pill (§5)
     borderWidth: tokens.borderWidth.default,
-    borderColor: tokens.colors.light.primary,
-    backgroundColor: tokens.colors.light.surface,
+    // borderColor / backgroundColor per-mode di-set inline (primary / surface).
   },
 })
