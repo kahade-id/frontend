@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Ulasan Publik.
  *   GET /v1/users/{username}/ratings?page&limit&filter (semua REQUIRED).
@@ -117,7 +117,7 @@ export default function PublicRatingsScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat ulasan…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 ? (

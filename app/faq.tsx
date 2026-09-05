@@ -8,7 +8,7 @@ import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { useDebouncedValue } from "@/lib/use-debounced-value"
+import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -16,21 +16,19 @@ import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
-import { SearchField } from "@/components/ui/search-field"
 
 export default function FaqScreen() {
   const insets = useSafeAreaInsets()
-  const [input, setInput] = useState("")
-  const keyword = useDebouncedValue(input.trim())
+  const [keyword, setKeyword] = useState("")
   const categories = useApiQuery("help-categories", (signal) =>
     api.helpCenter.listHelpCategories(signal),
   )
   const search = useApiQuery(
     `help-search:${keyword}`,
     (signal) => api.helpCenter.searchHelpArticles(keyword, signal),
-    Boolean(keyword) && input.trim() === keyword,
+    Boolean(keyword),
   )
-  const searching = Boolean(input.trim())
+  const searching = Boolean(keyword)
   const state = searching ? search : categories
   const rows: Array<{ id: string } & ({ article: HelpArticle } | { category: HelpCategory })> =
     searching
@@ -40,10 +38,9 @@ export default function FaqScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Pusat Bantuan" />
       <View className="px-6 pb-4">
-        <SearchField
+        <DebouncedSearchField
           autoFocus={false}
-          value={input}
-          onChangeText={setInput}
+          onQueryChange={setKeyword}
           placeholder="Cari bantuan"
         />
       </View>
@@ -82,7 +79,7 @@ export default function FaqScreen() {
           )
         }
         ListEmptyComponent={
-          state.loading || (searching && keyword !== input.trim()) ? (
+          state.loading ? (
             <ListLoading />
           ) : state.error ? (
             <ErrorState description={state.error} onRetry={() => void state.reload()} />

@@ -18,7 +18,6 @@ import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { DataScreen } from "@/components/ui/data-screen"
-import { SectionHeader } from "@/components/ui/section"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
 import { useToast } from "@/components/ui/toast"
 
@@ -60,7 +59,7 @@ export default function DiscoverScreen() {
 
   return (
     <DataScreen
-      title="Discover"
+      title="Jelajahi"
       state={query}
       loadingMessage="Memuat pengguna…"
       empty={
@@ -72,7 +71,6 @@ export default function DiscoverScreen() {
       }
       contentClassName="gap-1"
     >
-      <SectionHeader title="Pengguna untuk Anda" />
       {items.map((u, i) => (
         <UserDiscoverResultItem
           key={u.id}

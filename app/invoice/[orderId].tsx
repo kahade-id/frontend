@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Invoice (GET /v1/orders/{orderId}/invoice + receipt HTML).
  */
@@ -85,7 +85,7 @@ export default function InvoiceScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat invoice…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState
             title="Gagal memuat"

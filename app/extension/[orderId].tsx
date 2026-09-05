@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Perpanjangan tenggat pengiriman.
  *
@@ -262,7 +262,7 @@ export default function ExtensionScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat permintaan…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (

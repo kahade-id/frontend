@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Jadwal Penarikan Otomatis (GET/POST/PUT/DELETE /v1/withdrawals/schedules).
  * Memakai WithdrawalScheduleCard + ScheduleField (hari + nominal minimum).
@@ -167,7 +167,7 @@ export default function WithdrawalSchedulesScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat jadwal…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 && !creating ? (

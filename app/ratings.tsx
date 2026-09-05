@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Ulasan Saya.
  *
@@ -267,7 +267,7 @@ export default function RatingsScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat ulasan…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState
             title="Gagal memuat"

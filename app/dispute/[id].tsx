@@ -1,4 +1,3 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Detail Sengketa.
  *
@@ -34,8 +33,7 @@ import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Handshake, ShieldWarning, VideoCamera } from "phosphor-react-native"
+import { Handshake, VideoCamera } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import type { Order } from "@/lib/api/orders"
@@ -61,13 +59,13 @@ import { Dialog } from "@/components/ui/modal"
 import { DisputeCallLogItem, type DisputeCallOutcome } from "@/components/ui/dispute-call-log-item"
 import { DisputeClaimForm } from "@/components/ui/dispute-claim-form"
 import { DisputeStatusBadge } from "@/components/ui/dispute-status-badge"
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { EvidenceGrid, type EvidenceItem } from "@/components/ui/evidence-grid"
 import { Header } from "@/components/ui/header"
 import { ListGroup } from "@/components/ui/list-item"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { MutualResolutionCard } from "@/components/ui/mutual-resolution-card"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -246,7 +244,7 @@ export default function DisputeDetailScreen() {
         blob,
       )
       await api.disputes.submitDisputeEvidence(id, {
-        description: "Bukti tambahan",
+        description: asset.name,
         fileUrls: [fileKey],
         fileTypes: [toEvidenceFileType(asset.mimeType)],
       })
@@ -451,19 +449,14 @@ export default function DisputeDetailScreen() {
       padded={false}
       footer={
         dispute ? (
-          <View
-            className="px-6"
-            style={{ paddingBottom: insets.bottom + tokens.space[3], paddingTop: tokens.space[2] }}
-          >
-            <ChatComposer
-              value={draft}
-              onChangeText={setDraft}
-              onSend={(p) => void handleSend(p.content)}
-              sending={sending}
-              disabled={loading}
-              labels={{ placeholder: "Tulis pesan untuk mediator & lawan transaksi…" }}
-            />
-          </View>
+          <ChatComposer
+            value={draft}
+            onChangeText={setDraft}
+            onSend={(p) => void handleSend(p.content)}
+            sending={sending}
+            disabled={loading}
+            labels={{ placeholder: "Tulis pesan untuk mediator & lawan transaksi…" }}
+          />
         ) : undefined
       }
     >
@@ -473,11 +466,11 @@ export default function DisputeDetailScreen() {
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+          contentContainerStyle: { paddingBottom: tokens.space[4] },
         }}
       >
         {loading && !dispute ? (
-          <LoadingScreen message="Memuat sengketa…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : dispute ? (
@@ -516,6 +509,23 @@ export default function DisputeDetailScreen() {
               updatedAt={dispute.updatedAt ? formatDateTime(dispute.updatedAt) : undefined}
             />
 
+            <SectionHeader title="Pesan" />
+            {messages.length === 0 ? (
+              <Text variant="body" tone="secondary">
+                Belum ada pesan. Tulis di kolom bawah untuk mediator dan lawan transaksi.
+              </Text>
+            ) : (
+              messages.map((m, i) => (
+                <ChatMessageBubble
+                  key={m.id}
+                  direction={m.fromUser ? "outgoing" : "incoming"}
+                  text={m.text}
+                  time={formatDateTime(m.createdAt)}
+                  grouped={messages[i - 1]?.fromUser === m.fromUser}
+                />
+              ))
+            )}
+
             <SectionHeader
               title="Bukti"
               subtitle="Ketuk untuk melihat; bukti Anda bisa dihapus dari pratinjau."
@@ -544,7 +554,9 @@ export default function DisputeDetailScreen() {
               }
             />
             {proposals.length === 0 ? (
-              <EmptyState compact icon={Handshake} title="Belum ada usulan" />
+              <Text variant="body" tone="secondary">
+                Belum ada usulan penyelesaian.
+              </Text>
             ) : (
               proposals.map((p) => {
                 const proposedByMe = Boolean(me?.id && p.proposerId === me.id)
@@ -618,7 +630,9 @@ export default function DisputeDetailScreen() {
               }
             />
             {calls.length === 0 ? (
-              <EmptyState compact icon={VideoCamera} title="Belum ada panggilan" />
+              <Text variant="body" tone="secondary">
+                Belum ada panggilan video.
+              </Text>
             ) : (
               <ListGroup>
                 {calls.map((c, i) => {
@@ -679,21 +693,6 @@ export default function DisputeDetailScreen() {
                   )
                 })}
               </ListGroup>
-            )}
-
-            <SectionHeader title="Pesan" />
-            {messages.length === 0 ? (
-              <EmptyState compact icon={ShieldWarning} title="Belum ada pesan" />
-            ) : (
-              messages.map((m, i) => (
-                <ChatMessageBubble
-                  key={m.id}
-                  direction={m.fromUser ? "outgoing" : "incoming"}
-                  text={m.text}
-                  time={formatDateTime(m.createdAt)}
-                  grouped={messages[i - 1]?.fromUser === m.fromUser}
-                />
-              ))
             )}
           </View>
         ) : null}

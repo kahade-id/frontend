@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Rekening Bank (CRUD + set utama).
  *
@@ -155,7 +155,7 @@ export default function BankAccountsScreen() {
       >
         <SectionHeader title="Rekening terdaftar" />
         {loading ? (
-          <LoadingScreen message="Memuat rekening…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchData()} />
         ) : accounts.length === 0 ? (

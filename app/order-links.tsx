@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Order Link Saya (GET /v1/orders/links/my, paginated).
  *
@@ -150,7 +150,7 @@ export default function OrderLinksScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat tautan…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchLinks(1)} />
         ) : items.length === 0 ? (

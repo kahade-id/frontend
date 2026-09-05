@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Mutasi Wallet (GET /v1/wallet/transactions/{txId}).
  * KeyValue rows sistem + Amount; PullToRefresh.
@@ -79,7 +79,7 @@ export default function WalletTransactionScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat mutasi…" />
+          <ListLoading />
         ) : error || !txn ? (
           <ErrorState
             title="Gagal memuat"

@@ -9,9 +9,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
-import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 
 export default function HelpScreen() {
@@ -39,20 +38,21 @@ export default function HelpScreen() {
   }, [selected?.id])
   return (
     <Screen edges={["top"]} padded={false} scroll>
-      <Header title={article ? "Artikel" : "Kategori Bantuan"} />
+      <Header
+        title={
+          article ? (selected?.title ?? "Artikel") : (query.data?.name ?? "Kategori Bantuan")
+        }
+      />
       <View className="gap-4 px-6 py-4">
         {query.loading ? (
-          <LoadingScreen message="Memuat bantuan…" />
+          <ListLoading />
         ) : query.error ? (
           <ErrorState description={query.error} onRetry={() => void query.reload()} />
         ) : article ? (
           selected ? (
-            <>
-              <SectionHeader title={selected.title} />
-              <Text variant="body">
-                {selected.content || "Isi artikel belum tersedia dari server."}
-              </Text>
-            </>
+            <Text variant="body">
+              {selected.content || "Isi artikel belum tersedia dari server."}
+            </Text>
           ) : (
             <EmptyState
               icon={Article}
@@ -62,7 +62,6 @@ export default function HelpScreen() {
           )
         ) : (
           <>
-            <SectionHeader title={query.data?.name ?? "Bantuan"} />
             {!query.data?.articles?.length ? (
               <EmptyState icon={Article} title="Belum ada artikel" />
             ) : (

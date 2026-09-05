@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Bukti pengiriman satu pesanan.
  *
@@ -298,7 +298,7 @@ export default function DeliveryProofScreen() {
         }}
       >
         {loading && !order ? (
-          <LoadingScreen message="Memuat bukti…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (

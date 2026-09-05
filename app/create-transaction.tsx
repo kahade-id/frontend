@@ -24,7 +24,6 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { CheckCircle } from "phosphor-react-native"
 
 import {
   api,
@@ -478,13 +477,6 @@ export default function CreateTransactionScreen() {
           </FormSection>
         ) : null}
 
-        <View style={{ marginTop: tokens.space[2] }} className="items-center">
-          <Button variant="ghost" fullWidth={false} leftIcon={CheckCircle} disabled>
-            {orderValue > 0
-              ? `Total: ${formatRupiah(fee?.buyerPays ?? orderValue)}`
-              : "Ringkasan muncul setelah nilai diisi"}
-          </Button>
-        </View>
       </PullToRefresh>
       <BottomSheet
         visible={scheduleOpen}

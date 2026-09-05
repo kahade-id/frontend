@@ -1,5 +1,5 @@
 import { useApiQuery } from "@/lib/use-api-query"
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Analitik (GET /v1/users/me/stats + /v1/users/me/analytics?period=).
  * AnalyticsSummary (StatCard grid + BarChart volume) — PullToRefresh.
@@ -62,17 +62,17 @@ export default function AnalyticsScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
-          <LoadingScreen message="Memuat analitik…" />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
-        ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SegmentedControl
-              items={ANALYTICS_PERIODS}
-              value={period}
-              onChange={(v) => setPeriod(v as AnalyticsPeriod)}
-            />
+        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <SegmentedControl
+            items={ANALYTICS_PERIODS}
+            value={period}
+            onChange={(v) => setPeriod(v as AnalyticsPeriod)}
+          />
+          {loading ? (
+            <ListLoading />
+          ) : error ? (
+            <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          ) : (
             <AnalyticsSummary
               loading={false}
               periodLabel={`${periodLabel} terakhir`}
@@ -100,7 +100,7 @@ export default function AnalyticsScreen() {
                 },
                 {
                   id: "followers",
-                  label: "Followers",
+                  label: "Pengikut",
                   value: stats?.followers ?? "—",
                   hint: stats?.following != null ? `${stats.following} mengikuti` : undefined,
                 },
@@ -121,8 +121,8 @@ export default function AnalyticsScreen() {
               }
               ratiosTitle="Kualitas"
             />
-          </View>
-        )}
+          )}
+        </View>
       </PullToRefresh>
     </Screen>
   )

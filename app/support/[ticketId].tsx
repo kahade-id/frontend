@@ -1,5 +1,5 @@
 import { Text } from "@/components/ui/text"
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Tiket Dukungan (GET /v1/support/tickets/{id} + reply).
  */
@@ -89,7 +89,7 @@ export default function SupportTicketDetailScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat tiket…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchTicket()} />
         ) : ticket ? (

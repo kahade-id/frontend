@@ -29,8 +29,10 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { AmountInput } from "@/components/ui/amount-input"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { CopyableField } from "@/components/ui/copyable-field"
+import { Field } from "@/components/ui/field"
 import { Header } from "@/components/ui/header"
 import { PinInput } from "@/components/ui/pin-input"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -140,7 +142,7 @@ export default function TransferScreen() {
               disabled={!selected || !isValidAmount(amount, AMOUNT_LIMITS.transfer)}
               onPress={() => setStep("pin")}
             >
-              Lanjut
+              Lanjut ke PIN
             </Button>
           </View>
         ) : undefined
@@ -230,7 +232,12 @@ export default function TransferScreen() {
             />
 
             {lookup.error ? (
-              <ErrorState compact description={lookup.error} onRetry={() => void lookup.reload()} />
+              <ErrorState
+                compact
+                title="Gagal mencari penerima"
+                description={lookup.error}
+                onRetry={() => void lookup.reload()}
+              />
             ) : null}
             <SectionHeader title="Nominal & catatan" />
             <AmountInput
@@ -241,17 +248,35 @@ export default function TransferScreen() {
               presets={PRESETS}
               label="Nominal transfer"
             />
-            <TextArea
-              value={note}
-              onChangeText={setNote}
-              placeholder="Catatan (opsional)"
-              maxLength={NOTE_MAX}
-              multiline
-              numberOfLines={3}
-            />
+            <Field label="Catatan" helperText="Opsional">
+              <TextArea
+                value={note}
+                onChangeText={setNote}
+                placeholder="Catatan untuk penerima"
+                maxLength={NOTE_MAX}
+                multiline
+                numberOfLines={3}
+              />
+            </Field>
           </View>
         )}
       </PullToRefresh>
+      <BottomSheet
+        visible={step === "pin"}
+        onRequestClose={() => {
+          if (!submitting) setStep("form")
+        }}
+        title="Verifikasi PIN"
+        description={`Transfer ${formatRupiah(amount)} ke @${selected?.username ?? ""} memerlukan PIN dompet Anda.`}
+        avoidKeyboard
+      >
+        <PinInput
+          mode="enter"
+          onComplete={(p) => void handlePin(p)}
+          errorText={pinError}
+          disabled={submitting}
+        />
+      </BottomSheet>
     </Screen>
   )
 }

@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Ruang Chat (GET /v1/chat/rooms). List ChatRoomListItem.
  */
@@ -10,7 +10,7 @@ import { router } from "expo-router"
 
 import { api } from "@/lib/api"
 import type { ChatRoom } from "@/lib/api/chat"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, truncateMiddle } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -20,7 +20,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
-import { SectionHeader } from "@/components/ui/section"
+
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets()
@@ -65,7 +65,7 @@ export default function ChatScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat ruang chat…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchRooms()} />
         ) : items.length === 0 ? (
@@ -76,7 +76,6 @@ export default function ChatScreen() {
           />
         ) : (
           <View className="gap-1" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Percakapan" />
             {items.map((room, i) => (
               <ChatRoomListItem
                 key={room.id}
@@ -94,7 +93,7 @@ export default function ChatScreen() {
                 }
                 time={room.lastMessage ? formatDateTime(room.lastMessage.createdAt) : undefined}
                 unreadCount={room.unreadCount}
-                context={room.orderId ? `Order ${room.orderId}` : undefined}
+                context={room.orderId ? `Order ${truncateMiddle(room.orderId)}` : undefined}
                 onPress={() => router.push(ROUTES.chatRoom(room.id))}
                 divider={i < items.length - 1}
               />

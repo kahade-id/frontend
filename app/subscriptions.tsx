@@ -1,6 +1,6 @@
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { canUsePaymentMethod } from "@/components/ui/payment-method-selector"
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Langganan Premium.
  *
@@ -42,6 +42,7 @@ import { toPaymentMethods } from "@/lib/payment-methods"
 import { tokens } from "@/lib/tokens"
 
 import { Badge, type BadgeTone } from "@/components/ui/badge"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -80,6 +81,16 @@ const HISTORY_TONE: Partial<Record<string, BadgeTone>> = {
   EXPIRED: "neutral",
   CANCELLED: "neutral",
   FAILED: "danger",
+}
+
+const HISTORY_LABELS: Record<string, string> = {
+  ACTIVE: "Aktif",
+  SUCCESS: "Berhasil",
+  PAID: "Dibayar",
+  PENDING: "Menunggu",
+  EXPIRED: "Kedaluwarsa",
+  CANCELLED: "Dibatalkan",
+  FAILED: "Gagal",
 }
 
 function planPeriod(plan: SubscriptionPlan): SubscriptionPeriod {
@@ -194,11 +205,11 @@ export default function SubscriptionsScreen() {
 
   const startSubscribe = useCallback(
     (plan: SubscriptionPlan) => {
-      if (loading || error || !hasMethods) return
+      if (loading || error) return
       setSelectedPlan(plan)
       setPinPurpose("subscribe")
       setPinError(undefined)
-      setStep("method")
+      setStep(hasMethods ? "method" : "pin")
     },
     [hasMethods, loading, error],
   )
@@ -213,6 +224,12 @@ export default function SubscriptionsScreen() {
     setStep("plans")
     setPinError(undefined)
   }, [])
+
+  const closePin = useCallback(() => {
+    if (submitting) return
+    setStep(pinPurpose === "subscribe" && hasMethods ? "method" : "plans")
+    setPinError(undefined)
+  }, [submitting, pinPurpose, hasMethods])
 
   const handlePin = useCallback(
     async (pin: string) => {
@@ -314,7 +331,12 @@ export default function SubscriptionsScreen() {
 
   return (
     <Screen edges={["top"]} padded={false} footer={footer}>
-      <Header title="Langganan" onBack={step !== "plans" ? backToPlans : undefined} />
+      <Header
+        title="Langganan"
+        onBack={
+          step === "pin" ? closePin : step === "method" ? backToPlans : undefined
+        }
+      />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
@@ -324,27 +346,9 @@ export default function SubscriptionsScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat paket…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
-        ) : step === "pin" ? (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Verifikasi PIN" />
-            <Text variant="body" tone="secondary">
-              {pinPurpose === "renew"
-                ? "Perpanjangan langganan memerlukan PIN dompet Anda."
-                : `Berlangganan ${selectedPlan?.name ?? ""} seharga ${formatRupiah(selectedPlan?.price ?? 0)} memerlukan PIN dompet Anda.`}
-            </Text>
-            <PinInput
-              mode="enter"
-              onComplete={(p) => void handlePin(p)}
-              errorText={pinError}
-              disabled={submitting}
-            />
-            <Button variant="ghost" fullWidth={false} onPress={backToPlans} disabled={submitting}>
-              Batal
-            </Button>
-          </View>
         ) : step === "method" && selectedPlan ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
@@ -432,7 +436,7 @@ export default function SubscriptionsScreen() {
                       <View className="items-end gap-1">
                         <Text variant="monoBody">{formatRupiah(h.amount)}</Text>
                         <Badge tone={HISTORY_TONE[h.status] ?? "neutral"} variant="soft">
-                          {h.status}
+                          {HISTORY_LABELS[h.status] ?? h.status}
                         </Badge>
                       </View>
                     }

@@ -163,7 +163,7 @@ export default function WalletScreen() {
           <EmptyState
             icon={WalletIcon}
             title="Belum ada riwayat"
-            description="Transaksi dompet kamu akan muncul di sini."
+            description="Transaksi dompet Anda akan muncul di sini."
           />
         }
         header={

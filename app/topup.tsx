@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 import {
   PaymentMethodSelector,
   canUsePaymentMethod,
@@ -27,6 +27,8 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { TopupStatusCard, type PaymentStatus } from "@/components/ui/topup-status-card"
 import { useToast } from "@/components/ui/toast"
+
+const POLL_MS = 5000
 
 const STATUS: Partial<Record<string, PaymentStatus>> = {
   SUCCESS: "SUCCESS",
@@ -106,7 +108,7 @@ export default function TopupScreen() {
     async () => {
       if (result?.paymentTxId) await pollStatus(result.paymentTxId)
     },
-    5000,
+    POLL_MS,
     Boolean(result?.paymentTxId && !STATUS[result.status]),
   )
 
@@ -152,7 +154,20 @@ export default function TopupScreen() {
   }, [canPay, amount, methodId, toast.show])
 
   return (
-    <Screen keyboardAvoiding edges={["top"]} padded={false}>
+    <Screen
+      keyboardAvoiding
+      edges={["top"]}
+      padded={false}
+      footer={
+        result ? undefined : (
+          <View>
+            <Button loading={submitting} disabled={!canPay} onPress={() => void handlePay()}>
+              Lanjutkan Pembayaran
+            </Button>
+          </View>
+        )
+      }
+    >
       <Header title="Isi Saldo" />
       <PullToRefresh
         onRefresh={refresh}
@@ -207,7 +222,7 @@ export default function TopupScreen() {
             />
             <SectionHeader title="Metode pembayaran" />
             {loading ? (
-              <LoadingScreen message="Memuat metode pembayaran…" />
+              <ListLoading />
             ) : error ? (
               <ErrorState
                 compact
@@ -223,11 +238,12 @@ export default function TopupScreen() {
                 onChange={setMethodId}
               />
             ) : (
-              <EmptyState icon={WalletIcon} title="Metode pembayaran belum tersedia" />
+              <EmptyState
+                icon={WalletIcon}
+                title="Metode pembayaran belum tersedia"
+                description="Metode top-up sedang tidak tersedia. Coba lagi nanti."
+              />
             )}
-            <Button loading={submitting} disabled={!canPay} onPress={() => void handlePay()}>
-              Lanjutkan Pembayaran
-            </Button>
           </View>
         )}
       </PullToRefresh>

@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Showcase / portofolio saya.
  *
@@ -68,7 +68,7 @@ const EMPTY_FORM: FormState = { title: "", description: "", priceMin: 0, priceMa
 type Editor = { mode: "create"; imageUrl?: string } | { mode: "edit"; item: ShowcaseItem } | null
 
 function labelOf(it: ShowcaseItem): string {
-  return it.title ?? it.caption ?? "Showcase"
+  return it.title ?? it.caption ?? "Portofolio"
 }
 
 function priceLabel(it: ShowcaseItem): string | undefined {
@@ -285,7 +285,7 @@ export default function ShowcaseScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Showcase" />
+      <Header title="Portofolio" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
@@ -294,9 +294,7 @@ export default function ShowcaseScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
-          <LoadingScreen message="Memuat showcase…" />
-        ) : error ? (
+        {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -308,22 +306,26 @@ export default function ShowcaseScreen() {
                   : undefined
               }
             />
-            <ShowcaseGalleryGrid
-              items={items.map((it) => ({
-                id: it.id,
-                source: it.imageUrl ?? it.fileKey ?? "",
-                alt: `${labelOf(it)}${it.isActive === false ? " (disembunyikan)" : ""}`,
-              }))}
-              onPressItem={(_, index) => setMenuItem(items[index] ?? null)}
-              loading={false}
-              empty={
-                <EmptyState
-                  icon={Images}
-                  title="Belum ada foto"
-                  description="Tambahkan foto produk atau hasil kerja Anda."
-                />
-              }
-            />
+            {loading ? (
+              <ListLoading />
+            ) : (
+              <ShowcaseGalleryGrid
+                items={items.map((it) => ({
+                  id: it.id,
+                  source: it.imageUrl ?? it.fileKey ?? "",
+                  alt: `${labelOf(it)}${it.isActive === false ? " (disembunyikan)" : ""}`,
+                }))}
+                onPressItem={(_, index) => setMenuItem(items[index] ?? null)}
+                loading={false}
+                empty={
+                  <EmptyState
+                    icon={Images}
+                    title="Belum ada foto"
+                    description="Tambahkan foto produk atau hasil kerja Anda."
+                  />
+                }
+              />
+            )}
             <Text variant="caption" tone="secondary">
               Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>

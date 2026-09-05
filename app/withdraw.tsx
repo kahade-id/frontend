@@ -1,6 +1,6 @@
 import { walletTransactionStatus } from "@/lib/wallet-labels"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Tarik Dana (withdraw).
  *
@@ -31,6 +31,7 @@ import { tokens } from "@/lib/tokens"
 import { AmountInput } from "@/components/ui/amount-input"
 import type { BankAccount } from "@/lib/api/bank-accounts"
 import { BankAccountListItem } from "@/components/ui/bank-account-list-item"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -219,7 +220,7 @@ export default function WithdrawScreen() {
               }
               onPress={handleSubmitForm}
             >
-              Lanjut
+              Lanjut ke PIN
             </Button>
           </View>
         ) : undefined
@@ -234,32 +235,7 @@ export default function WithdrawScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {step === "pin" ? (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Verifikasi PIN" />
-            <Text variant="body" tone="secondary">
-              Masukkan PIN dompet Anda untuk menarik{" "}
-              <Text variant="monoBody" tone="primary">
-                {formatRupiah(amount)}
-              </Text>{" "}
-              ke {selected?.bankName ?? "rekening Anda"}.
-            </Text>
-            <PinInput
-              mode="enter"
-              onComplete={(p) => void handlePin(p)}
-              errorText={pinError}
-              disabled={submitting}
-            />
-            <Button
-              variant="ghost"
-              fullWidth={false}
-              onPress={() => setStep("form")}
-              disabled={submitting}
-            >
-              Batal
-            </Button>
-          </View>
-        ) : step === "otp" ? (
+        {step === "otp" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Konfirmasi OTP" />
             <Text variant="body" tone="secondary">
@@ -281,7 +257,7 @@ export default function WithdrawScreen() {
                 Kirim ulang OTP
               </Button>
               <Button
-                variant="ghost"
+                variant="destructive"
                 fullWidth={false}
                 loading={cancelling}
                 disabled={submitting}
@@ -333,7 +309,7 @@ export default function WithdrawScreen() {
 
             <SectionHeader title="Rekening tujuan" />
             {loading ? (
-              <LoadingScreen message="Memuat rekening…" />
+              <ListLoading />
             ) : error ? (
               <ErrorState
                 compact
@@ -378,6 +354,22 @@ export default function WithdrawScreen() {
           </View>
         )}
       </PullToRefresh>
+      <BottomSheet
+        visible={step === "pin"}
+        onRequestClose={() => {
+          if (!submitting) setStep("form")
+        }}
+        title="Verifikasi PIN"
+        description={`Masukkan PIN dompet Anda untuk menarik ${formatRupiah(amount)} ke ${selected?.bankName ?? "rekening Anda"}.`}
+        avoidKeyboard
+      >
+        <PinInput
+          mode="enter"
+          onComplete={(p) => void handlePin(p)}
+          errorText={pinError}
+          disabled={submitting}
+        />
+      </BottomSheet>
     </Screen>
   )
 }

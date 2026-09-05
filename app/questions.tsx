@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Tanya Jawab saya.
  *
@@ -174,7 +174,7 @@ export default function QuestionsScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat pertanyaan…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 ? (

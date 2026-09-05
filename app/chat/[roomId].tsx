@@ -1,4 +1,3 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Ruang Chat Detail.
  *
@@ -26,9 +25,9 @@ import { LoadingScreen } from "@/components/ui/loading-screen"
  *     endpoint detail) — bila tidak ditemukan judul tetap "Percakapan".
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { View } from "react-native"
+import { ScrollView, View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+
 import { Chats, Copy, Trash } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -55,7 +54,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, isImageMedia, type MediaViewerItem } from "@/components/ui/media-viewer"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { useToast } from "@/components/ui/toast"
 
@@ -77,7 +76,6 @@ function sortByTime(items: ChatMessage[]): ChatMessage[] {
 
 export default function ChatRoomScreen() {
   const { roomId } = useLocalSearchParams<{ roomId: string }>()
-  const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copy } = useCopy()
 
@@ -89,7 +87,6 @@ export default function ChatRoomScreen() {
   const [attachments, setAttachments] = useState<LocalAttachment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const [sending, setSending] = useState(false)
 
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
@@ -123,12 +120,6 @@ export default function ChatRoomScreen() {
 
   useEffect(() => {
     void fetchMessages()
-  }, [fetchMessages])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchMessages()
-    setRefreshing(false)
   }, [fetchMessages])
 
   const loadOlder = useCallback(async () => {
@@ -278,6 +269,7 @@ export default function ChatRoomScreen() {
       edges={["top"]}
       padded={false}
       footer={
+        error || !roomId ? undefined : (
         <View>
           <ChatComposer
             value={draft}
@@ -296,6 +288,7 @@ export default function ChatRoomScreen() {
             disabled={loading}
           />
         </View>
+        )
       }
     >
       <Header
@@ -313,16 +306,14 @@ export default function ChatRoomScreen() {
           ) : undefined
         }
       />
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+      <ScrollView
+        className="flex-1"
         contentContainerClassName="px-6"
-        scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
-        }}
+        contentContainerStyle={{ paddingBottom: tokens.space[4] }}
+        keyboardShouldPersistTaps="handled"
       >
         {loading && messages.length === 0 ? (
-          <LoadingScreen message="Memuat percakapan…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState
             title="Gagal memuat"
@@ -366,7 +357,7 @@ export default function ChatRoomScreen() {
             ))}
           </View>
         )}
-      </PullToRefresh>
+      </ScrollView>
 
       <MediaViewer
         item={viewerItem}

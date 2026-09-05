@@ -1,4 +1,3 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Verifikasi Identitas (KYC).
  *
@@ -47,6 +46,7 @@ import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
+import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { KycHistoryListItem } from "@/components/ui/kyc-history-list-item"
 import { KycStatusCard } from "@/components/ui/kyc-status-card"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -220,7 +220,7 @@ export default function KycScreen() {
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loading ? (
-            <LoadingScreen message="Memuat status verifikasi…" />
+            <ListLoading />
           ) : error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
           ) : (
@@ -239,18 +239,10 @@ export default function KycScreen() {
               />
 
               {uiStatus === "APPROVED" && (state?.fullName || state?.nikMasked) ? (
-                <View className="gap-1">
-                  {state.fullName ? (
-                    <Text variant="body" tone="primary">
-                      {state.fullName}
-                    </Text>
-                  ) : null}
-                  {state.nikMasked ? (
-                    <Text variant="monoBody" tone="secondary">
-                      NIK {state.nikMasked}
-                    </Text>
-                  ) : null}
-                </View>
+                <KeyValueList>
+                  {state.fullName ? <KeyValue label="Nama" value={state.fullName} /> : null}
+                  {state.nikMasked ? <KeyValue label="NIK" value={state.nikMasked} mono /> : null}
+                </KeyValueList>
               ) : null}
 
               {canSubmit && formOpen ? (

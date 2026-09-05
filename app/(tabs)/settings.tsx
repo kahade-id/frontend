@@ -14,7 +14,7 @@
  *
  * Data: GET /v1/users/me.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
@@ -185,7 +185,7 @@ const MENU_GROUPS: MenuGroup[] = [
     title: "Bantuan",
     items: [
       { id: "support", icon: Lifebuoy, label: "Tiket Bantuan", route: ROUTES.support },
-      { id: "faq", icon: Question, label: "FAQ", route: ROUTES.faq },
+      { id: "faq", icon: Question, label: "Pusat Bantuan", route: ROUTES.faq },
       { id: "contact", icon: ChatCircleText, label: "Hubungi Kami", route: ROUTES.contact },
     ],
   },
@@ -225,6 +225,15 @@ export default function SettingsScreen() {
 
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
+  const [menuQuery, setMenuQuery] = useState("")
+  const visibleGroups = useMemo(() => {
+    const q = menuQuery.trim().toLowerCase()
+    if (!q) return MENU_GROUPS
+    return MENU_GROUPS.map((group) => ({
+      ...group,
+      items: group.items.filter((item) => item.label.toLowerCase().includes(q)),
+    })).filter((group) => group.items.length > 0)
+  }, [menuQuery])
 
   const fetchProfile = useCallback(() => {
     setLoading(true)
@@ -304,8 +313,16 @@ export default function SettingsScreen() {
 
         <Divider />
 
+        <View style={styles.search}>
+          <DebouncedSearchField
+            autoFocus={false}
+            placeholder="Cari pengaturan"
+            onQueryChange={setMenuQuery}
+          />
+        </View>
+
         {/* ── Grup menu ────────────────────────────────────── */}
-        {MENU_GROUPS.map((group, gi) => (
+        {visibleGroups.map((group, gi) => (
           <View key={group.title} style={styles.group}>
             <SectionHeader level="h3" title={group.title} style={styles.groupTitle} />
             <ListGroup>
@@ -321,7 +338,7 @@ export default function SettingsScreen() {
                 />
               ))}
             </ListGroup>
-            {gi < MENU_GROUPS.length - 1 ? <Divider /> : null}
+            {gi < visibleGroups.length - 1 ? <Divider /> : null}
           </View>
         ))}
 
@@ -341,7 +358,7 @@ export default function SettingsScreen() {
         destructive
         icon={SignOut}
         title="Keluar dari Kahade?"
-        description="Perangkat ini akan berhenti menerima notifikasi akun. Kamu bisa masuk kembali kapan saja."
+        description="Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja."
         confirmLabel="Keluar"
         cancelLabel="Batal"
         loading={loggingOut}

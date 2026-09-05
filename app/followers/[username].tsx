@@ -47,7 +47,12 @@ export default function FollowersScreen() {
         onLoadMore={query.loadMore}
         gap={0}
         bottomPadding={insets.bottom + tokens.space[8]}
-        empty={<EmptyState icon={Users} title="Belum ada pengguna" />}
+        empty={
+          <EmptyState
+            icon={Users}
+            title={tab === "followers" ? "Belum ada pengikut" : "Belum mengikuti siapa pun"}
+          />
+        }
         renderItem={({ item }) => (
           <UserListItem
             padded={false}

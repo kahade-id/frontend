@@ -54,7 +54,7 @@ export default function PublicShowcaseScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Showcase" />
+      <Header title="Portofolio" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
@@ -73,7 +73,7 @@ export default function PublicShowcaseScreen() {
               items={items.map((it) => ({
                 id: it.id,
                 source: it.imageUrl ?? it.fileKey ?? "",
-                alt: it.caption ?? "Showcase",
+                alt: it.caption ?? "Portofolio",
               }))}
               empty={
                 <EmptyState

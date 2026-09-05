@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Referral (my-code, stats, history, rewards, regenerate, apply).
  *
@@ -166,7 +166,7 @@ export default function ReferralScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat referral…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (

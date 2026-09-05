@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Keamanan: perangkat aktif (sessions), log keamanan, log aktivitas.
  *
@@ -228,7 +228,7 @@ export default function SecurityScreen() {
           {error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
           ) : loading ? (
-            <LoadingScreen message="Memuat data keamanan…" />
+            <ListLoading />
           ) : tab === "devices" ? (
             <>
               <SectionHeader title="Perangkat aktif" />

@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Beri Ulasan (POST /v1/ratings, orderId wajib).
  * Memakai <RatingForm> sistem: bintang + komentar, dipicu dari Detail Order
@@ -89,7 +89,7 @@ export default function RateOrderScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat order…" />
+          <ListLoading />
         ) : error || !order ? (
           <ErrorState
             title="Gagal memuat"
