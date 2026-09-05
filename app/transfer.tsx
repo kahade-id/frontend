@@ -3,16 +3,29 @@
  *
  * GET /v1/wallet/transfer/lookup?q= (debounce 300ms) → pilih penerima →
  * nominal (1.000 – 25.000.000) + catatan → PIN → POST /v1/wallet/transfer.
+ *
+ * Keputusan non-obvious:
+ *   - Nominal diformat `formatRupiah` (lib/format), bukan `toLocaleString`
+ *     (§13: manual, tanpa Intl).
+ *   - Nomor transaksi TIDAK disalin otomatis ke clipboard: menimpa clipboard
+ *     tanpa diminta mengejutkan pengguna. Ada <CopyableField> eksplisit di
+ *     langkah selesai + tautan ke detail mutasi.
+ *   - PIN salah ditampilkan sebagai `errorText` di PinInput (pengguna tetap
+ *     di langkah PIN), bukan dilempar kembali ke form.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, type TransferDto } from "@/lib/api"
+import { formatRupiah } from "@/lib/format"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { AmountInput } from "@/components/ui/amount-input"
 import { Button } from "@/components/ui/button"
+import { CopyableField } from "@/components/ui/copyable-field"
 import { Header } from "@/components/ui/header"
 import { PinInput } from "@/components/ui/pin-input"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -43,6 +56,8 @@ export default function TransferScreen() {
   const [amount, setAmount] = useState(0)
   const [note, setNote] = useState("")
   const [step, setStep] = useState<"form" | "pin" | "done">("form")
+  const [pinError, setPinError] = useState<string | undefined>()
+  const [txId, setTxId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -103,6 +118,7 @@ export default function TransferScreen() {
     async (pinValue: string) => {
       if (!selected || !amount) return
       setSubmitting(true)
+      setPinError(undefined)
       try {
         const dto: TransferDto = {
           recipientId: selected.id,
@@ -111,17 +127,16 @@ export default function TransferScreen() {
           note: note.trim() || undefined,
         }
         const res = await api.wallet.transferFunds(dto)
-        if (res.txId) void copy(res.txId)
+        setTxId(res.txId ?? null)
         setStep("done")
-        toast.show({ title: "Transfer berhasil", tone: "success", duration: 3000 })
+        toast.show({ title: "Transfer berhasil", tone: "success" })
       } catch {
-        toast.show({ title: "Transfer gagal", description: "Periksa kembali data Anda.", tone: "danger" })
-        setStep("form")
+        setPinError("PIN salah atau saldo tidak mencukupi. Coba lagi.")
       } finally {
         setSubmitting(false)
       }
     },
-    [selected, amount, note, toast.show, copy],
+    [selected, amount, note, toast.show],
   )
 
   return (
@@ -153,13 +168,13 @@ export default function TransferScreen() {
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Verifikasi PIN" />
             <Text variant="body" tone="secondary">
-              Transfer Rp{amount.toLocaleString("id-ID")} ke{" "}
+              Transfer {formatRupiah(amount)} ke{" "}
               <Text variant="monoBody" tone="primary">
                 @{selected?.username}
               </Text>{" "}
               memerlukan PIN dompet Anda.
             </Text>
-            <PinInput mode="enter" onComplete={(p) => void handlePin(p)} />
+            <PinInput mode="enter" onComplete={(p) => void handlePin(p)} errorText={pinError} disabled={submitting} />
             <Button variant="ghost" fullWidth={false} onPress={() => setStep("form")} disabled={submitting}>
               Batal
             </Button>
@@ -168,9 +183,19 @@ export default function TransferScreen() {
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Transfer berhasil" />
             <Text variant="body">
-              Rp{amount.toLocaleString("id-ID")} telah dikirim ke @{selected?.username}.
-              {copied ? " Nomor transaksi disalin." : ""}
+              {formatRupiah(amount)} telah dikirim ke @{selected?.username}.
             </Text>
+            {txId ? (
+              <CopyableField label="Nomor transaksi" value={txId} mono copied={copied} onCopy={(v) => void copy(v)} />
+            ) : null}
+            {txId ? (
+              <Button variant="secondary" onPress={() => router.replace(ROUTES.walletTransaction(txId))}>
+                Lihat Detail Transaksi
+              </Button>
+            ) : null}
+            <Button variant="ghost" fullWidth={false} onPress={() => router.back()}>
+              Kembali ke Dompet
+            </Button>
           </View>
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>

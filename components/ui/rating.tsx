@@ -36,6 +36,7 @@ import { useTheme } from "@/components/theme-provider"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { formatDecimal } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
 export type RatingSize = "sm" | "md" | "lg"
@@ -74,7 +75,7 @@ const gapClass: Record<RatingSize, string> = {
 
 function formatScore(value: number): string {
   // §13 lokal ID: koma desimal. Bulat -> tanpa desimal ("5"), pecahan -> 1 digit.
-  return Number.isInteger(value) ? String(value) : value.toFixed(1).replace(".", ",")
+  return formatDecimal(value, 1)
 }
 
 export function Rating({

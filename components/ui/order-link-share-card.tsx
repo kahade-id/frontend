@@ -59,6 +59,8 @@ export type OrderLinkShareCardLabels = {
   heading: string
   copy: string
   share: string
+  cancel: string
+  open: string
   messageTemplate: (title: string, amount: string, url: string) => string
 }
 
@@ -74,6 +76,11 @@ export type OrderLinkShareCardProps = Omit<ViewProps, "children"> & {
   expiresLabel?: string
   onCopy?: (url: string) => void
   onShare?: (payload: OrderLinkSharePayload) => void
+  /** Batalkan tautan (POST /links/{token}/cancel) — hanya untuk status ACTIVE */
+  onCancel?: () => void
+  cancelling?: boolean
+  /** Buka pratinjau/detail tautan (mis. pesanan yang sudah dibuat darinya) */
+  onOpen?: () => void
   labels?: Partial<OrderLinkShareCardLabels>
   className?: string
 }
@@ -83,6 +90,8 @@ const DEFAULT_LABELS: OrderLinkShareCardLabels = {
   copy: "Salin tautan",
   share: "Bagikan",
   messageTemplate: (title, amount, url) => `${title} — ${amount}\nBayar aman lewat Kahade: ${url}`,
+  cancel: "Batalkan tautan",
+  open: "Lihat detail",
 }
 
 /** Potong URL: buang skema agar host+path unik tetap terbaca dalam 1 baris */
@@ -100,6 +109,9 @@ export function OrderLinkShareCard({
   expiresLabel,
   onCopy,
   onShare,
+  onCancel,
+  cancelling = false,
+  onOpen,
   labels,
   className,
   ...rest
@@ -149,6 +161,21 @@ export function OrderLinkShareCard({
         <Button variant="primary" leftIcon={ShareNetwork} onPress={() => onShare({ url, message })}>
           {t.share}
         </Button>
+      ) : null}
+
+      {onOpen || onCancel ? (
+        <View className="flex-row flex-wrap gap-2">
+          {onOpen ? (
+            <Button variant="secondary" size="sm" fullWidth={false} onPress={onOpen}>
+              {t.open}
+            </Button>
+          ) : null}
+          {onCancel ? (
+            <Button variant="ghost" size="sm" fullWidth={false} loading={cancelling} onPress={onCancel}>
+              {t.cancel}
+            </Button>
+          ) : null}
+        </View>
       ) : null}
 
       {expiresLabel ? (

@@ -65,6 +65,21 @@ export function formatNumber(n: number): string {
   return (n < 0 ? "-" : "") + groupThousands(n)
 }
 
+/**
+ * Desimal lokal ID: koma sebagai pemisah desimal, tanpa Intl.
+ * `formatDecimal(4.5)` → "4,5"; `formatDecimal(4)` → "4"; `formatDecimal(4.25, 1)` → "4,3".
+ * Dipakai rating, persentase, dan nilai pecahan lain (§13).
+ */
+export function formatDecimal(n: number, maxFractionDigits = 1): string {
+  if (!Number.isFinite(n)) return "—"
+  const fixed = n.toFixed(maxFractionDigits)
+  const [int, frac = ""] = fixed.split(".")
+  const trimmed = frac.replace(/0+$/, "")
+  const sign = n < 0 ? "-" : ""
+  const absInt = groupThousands(Math.abs(Number(int)))
+  return trimmed ? `${sign}${absInt},${trimmed}` : `${sign}${absInt}`
+}
+
 function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n)
 }

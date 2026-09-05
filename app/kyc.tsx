@@ -2,19 +2,38 @@
  * Screen — Verifikasi Identitas (KYC).
  *
  * GET /v1/kyc/status + /v1/kyc/history → kartu status + riwayat.
- * Submit/resubmit POST /v1/kyc/submit|resubmit dengan NIK + fileKey
- * KTP & selfie (upload presigned: purpose KYC_KTP / KYC_SELFIE).
+ * POST /v1/kyc/submit (pertama kali) atau /v1/kyc/resubmit (setelah
+ * REJECTED/REVOKED) dengan NIK + fileKey KTP & selfie — upload presigned
+ * (purpose KYC_KTP / KYC_SELFIE) lewat `api.upload.uploadPresigned`.
+ *
+ * Keputusan non-obvious:
+ *   - Status dari server dinormalkan `toKycUiStatus()` (lib/api/kyc.ts):
+ *     spec tidak mendefinisikan enum, komponen memakai kosakata
+ *     NOT_SUBMITTED/APPROVED/REVOKED sementara tipe API memakai
+ *     UNSUBMITTED/VERIFIED/EXPIRED.
+ *   - Endpoint dipilih dari status: `resubmit` untuk REJECTED/REVOKED,
+ *     `submit` untuk NOT_SUBMITTED — memanggil `submit` setelah penolakan
+ *     ditolak backend.
+ *   - Form tidak selalu terbuka: tombol "Ajukan"/"Kirim ulang" di kartu yang
+ *     membukanya (`onSubmit`/`onResubmit`). Sebelumnya kedua callback no-op.
+ *   - Metadata berkas (`size`, `mimeType`) diambil dari asset picker (lib/
+ *     image-picker) — bukan `size: 0` / "image/jpeg" tebakan — supaya
+ *     <UploadField> bisa menampilkan ukuran & menolak berkas > maxSizeMB
+ *     SEBELUM upload.
+ *   - Selfie dibuka lewat kamera depan (bukan galeri): tujuan selfie-dengan-
+ *     KTP adalah bukti kepemilikan langsung; galeri tetap tersedia sebagai
+ *     fallback bila izin kamera ditolak.
  */
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Fingerprint } from "phosphor-react-native"
-import * as ImagePicker from "expo-image-picker"
 
 import { api } from "@/lib/api"
-import type { KycState, KycHistoryEntry } from "@/lib/api/kyc"
+import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
 import type { PresignedUrlDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
+import { pickImage, pickedImageToBlob, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
@@ -31,19 +50,17 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
-import { UploadField, type UploadFile } from "@/components/ui/upload-field"
+import { UploadField, type UploadStatus } from "@/components/ui/upload-field"
 
-async function pickImage(): Promise<ImagePicker.ImagePickerAsset | null> {
-  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
-  if (!perm.granted) return null
-  const res = await ImagePicker.launchImageLibraryAsync({
-    mediaTypes: ["images"],
-    allowsEditing: true,
-    aspect: [3, 2],
-    quality: 0.7,
-  })
-  return res.canceled ? null : res.assets[0]
-}
+/** Panjang NIK KTP Indonesia (SubmitKycDto.nik). */
+const NIK_LENGTH = 16
+/** KTP: lanskap 3:2 seperti kartu fisik; selfie tanpa crop paksa. */
+const KTP_PICKER: PickImageOptions = { allowsEditing: true }
+const SELFIE_PICKER: PickImageOptions = { source: "camera" }
+/** Batas riwayat yang ditampilkan (limit maks spec 100). */
+const HISTORY_LIMIT = 20
+
+type DocKey = "ktp" | "selfie"
 
 export default function KycScreen() {
   const insets = useSafeAreaInsets()
@@ -55,16 +72,21 @@ export default function KycScreen() {
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
+  const [formOpen, setFormOpen] = useState(false)
   const [nik, setNik] = useState("")
-  const [ktp, setKtp] = useState<string | null>(null)
-  const [selfie, setSelfie] = useState<string | null>(null)
+  const [ktp, setKtp] = useState<PickedImage | null>(null)
+  const [selfie, setSelfie] = useState<PickedImage | null>(null)
+  const [uploadStatus, setUploadStatus] = useState<Record<DocKey, UploadStatus>>({ ktp: "idle", selfie: "idle" })
   const [submitting, setSubmitting] = useState(false)
 
   const fetchAll = useCallback(async () => {
     setLoading(true)
     setError(null)
     try {
-      const [s, h] = await Promise.all([api.kyc.getKycStatus(), api.kyc.getKycHistory()])
+      const [s, h] = await Promise.all([
+        api.kyc.getKycStatus(),
+        api.kyc.getKycHistory({ page: 1, limit: HISTORY_LIMIT }).catch(() => []),
+      ])
       setState(s)
       setHistory(h ?? [])
     } catch {
@@ -84,51 +106,98 @@ export default function KycScreen() {
     setRefreshing(false)
   }, [fetchAll])
 
-  const handlePickKtp = useCallback(async () => {
-    const asset = await pickImage()
-    if (asset) setKtp(asset.uri)
+  const uiStatus = toKycUiStatus(state?.status)
+  const isResubmit = uiStatus === "REJECTED" || uiStatus === "REVOKED"
+  const canSubmit = uiStatus === "NOT_SUBMITTED" || isResubmit
+
+  const resetForm = useCallback(() => {
+    setNik("")
+    setKtp(null)
+    setSelfie(null)
+    setUploadStatus({ ktp: "idle", selfie: "idle" })
   }, [])
 
-  const handlePickSelfie = useCallback(async () => {
-    const asset = await pickImage()
-    if (asset) setSelfie(asset.uri)
-  }, [])
+  const openForm = useCallback(() => {
+    resetForm()
+    setFormOpen(true)
+  }, [resetForm])
 
-  const handleUpload = useCallback(
-    async (purpose: PresignedUrlDto["purpose"], uri: string): Promise<string> => {
-      const name = uri.split("/").pop() ?? "upload.jpg"
-      const res = await fetch(uri)
-      const blob = await res.blob()
-      const contentType = blob.type || "image/jpeg"
-      const { fileKey } = await api.upload.uploadPresigned(purpose, name, contentType, blob)
-      return fileKey
+  const pickDoc = useCallback(
+    async (key: DocKey, opts: PickImageOptions) => {
+      const res = await pickImage(opts)
+      if (res.status === "denied") {
+        // Selfie: izin kamera ditolak → tawarkan galeri sebagai fallback
+        if (opts.source === "camera") {
+          const fallback = await pickImage({ ...opts, source: "library" })
+          if (fallback.status === "picked") {
+            setSelfie(fallback.asset)
+            setUploadStatus((u) => ({ ...u, selfie: "done" }))
+            return
+          }
+          if (fallback.status === "cancelled") return
+        }
+        toast.show({
+          title: opts.source === "camera" ? "Izin kamera ditolak" : "Izin galeri ditolak",
+          description: "Aktifkan di pengaturan perangkat untuk melanjutkan verifikasi.",
+          tone: "danger",
+        })
+        return
+      }
+      if (res.status !== "picked") return
+      if (key === "ktp") setKtp(res.asset)
+      else setSelfie(res.asset)
+      setUploadStatus((u) => ({ ...u, [key]: "done" }))
+    },
+    [toast.show],
+  )
+
+  const uploadDoc = useCallback(
+    async (key: DocKey, purpose: PresignedUrlDto["purpose"], img: PickedImage): Promise<string> => {
+      setUploadStatus((u) => ({ ...u, [key]: "uploading" }))
+      try {
+        const blob = await pickedImageToBlob(img)
+        const { fileKey } = await api.upload.uploadPresigned(purpose, img.name, img.mimeType, blob)
+        setUploadStatus((u) => ({ ...u, [key]: "done" }))
+        return fileKey
+      } catch (err) {
+        setUploadStatus((u) => ({ ...u, [key]: "error" }))
+        throw err
+      }
     },
     [],
   )
 
+  const formValid = !!ktp && !!selfie && nik.length === NIK_LENGTH
+
   const handleSubmit = useCallback(async () => {
-    if (!ktp || !selfie || nik.length !== 16) return
+    if (!ktp || !selfie || !formValid) return
     setSubmitting(true)
     try {
-      const [ktpKey, selfieKey] = await Promise.all([
-        handleUpload("KYC_KTP", ktp),
-        handleUpload("KYC_SELFIE", selfie),
+      const [ktpFileKey, selfieFileKey] = await Promise.all([
+        uploadDoc("ktp", "KYC_KTP", ktp),
+        uploadDoc("selfie", "KYC_SELFIE", selfie),
       ])
-      const dto = { ktpFileKey: ktpKey, selfieFileKey: selfieKey, nik }
-      await api.kyc.submitKyc(dto)
-      toast.show({ title: "Verifikasi dikirim", description: "Dokumen Anda sedang ditinjau.", tone: "success", duration: 4000 })
-      setKtp(null)
-      setSelfie(null)
-      setNik("")
+      const dto = { ktpFileKey, selfieFileKey, nik }
+      if (isResubmit) await api.kyc.resubmitKyc(dto)
+      else await api.kyc.submitKyc(dto)
+      toast.show({
+        title: "Verifikasi dikirim",
+        description: "Dokumen Anda sedang ditinjau. Kami beri tahu hasilnya lewat notifikasi.",
+        tone: "success",
+      })
+      setFormOpen(false)
+      resetForm()
       await fetchAll()
     } catch {
-      toast.show({ title: "Gagal mengirim verifikasi", tone: "danger" })
+      toast.show({
+        title: "Gagal mengirim verifikasi",
+        description: "Periksa koneksi dan pastikan foto jelas, lalu coba lagi.",
+        tone: "danger",
+      })
     } finally {
       setSubmitting(false)
     }
-  }, [ktp, selfie, nik, handleUpload, toast.show, fetchAll])
-
-  const canSubmit = state?.status === "UNSUBMITTED" || state?.status === "REJECTED"
+  }, [ktp, selfie, nik, formValid, isResubmit, uploadDoc, resetForm, fetchAll, toast.show])
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -137,7 +206,10 @@ export default function KycScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          style: { paddingBottom: insets.bottom + tokens.space[8] },
+          keyboardShouldPersistTaps: "handled",
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loading ? (
@@ -147,65 +219,81 @@ export default function KycScreen() {
           ) : (
             <>
               <KycStatusCard
-                status={state?.status ?? "UNSUBMITTED"}
+                status={uiStatus}
                 rejectionReason={state?.rejectionReason ?? undefined}
                 submittedAt={state?.submittedAt ? formatDateTime(state.submittedAt) : undefined}
-                approvedAt={state?.reviewedAt ? formatDateTime(state.reviewedAt) : undefined}
-                onSubmit={canSubmit ? () => setKtp(null) : undefined}
-                onResubmit={canSubmit ? () => setKtp(null) : undefined}
+                approvedAt={
+                  uiStatus === "APPROVED" && state?.reviewedAt ? formatDateTime(state.reviewedAt) : undefined
+                }
+                onSubmit={canSubmit && !formOpen ? openForm : undefined}
+                onResubmit={canSubmit && !formOpen ? openForm : undefined}
               />
 
-              {canSubmit ? (
-                <FormSection title="Kirim dokumen" description="NIK harus 16 digit sesuai KTP.">
+              {uiStatus === "APPROVED" && (state?.fullName || state?.nikMasked) ? (
+                <View className="gap-1">
+                  {state.fullName ? (
+                    <Text variant="body" tone="primary">
+                      {state.fullName}
+                    </Text>
+                  ) : null}
+                  {state.nikMasked ? (
+                    <Text variant="monoBody" tone="secondary">
+                      NIK {state.nikMasked}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+
+              {canSubmit && formOpen ? (
+                <FormSection
+                  title={isResubmit ? "Kirim ulang dokumen" : "Kirim dokumen"}
+                  description={`NIK harus ${NIK_LENGTH} digit sesuai KTP. Pastikan foto terang dan seluruh kartu terlihat.`}
+                >
                   <Field label="NIK" required>
                     <Input
                       value={nik}
-                      onChangeText={(t) => setNik(t.replace(/\D/g, ""))}
+                      onChangeText={(t) => setNik(t.replace(/\D/g, "").slice(0, NIK_LENGTH))}
                       keyboardType="number-pad"
-                      maxLength={16}
-                      placeholder="16 digit"
+                      maxLength={NIK_LENGTH}
+                      placeholder={`${NIK_LENGTH} digit`}
                     />
                   </Field>
                   <View className="gap-2">
                     <UploadField
                       label="Foto KTP"
-                      file={
-                        ktp
-                          ? {
-                              name: ktp.split("/").pop() ?? "ktp.jpg",
-                              size: 0,
-                              mimeType: "image/jpeg",
-                              uri: ktp,
-                            }
-                          : null
-                      }
-                      status={ktp ? "done" : "idle"}
-                      onPick={() => void handlePickKtp()}
-                      onRemove={() => setKtp(null)}
+                      required
+                      file={ktp}
+                      status={uploadStatus.ktp}
+                      onPick={() => void pickDoc("ktp", KTP_PICKER)}
+                      onRemove={() => {
+                        setKtp(null)
+                        setUploadStatus((u) => ({ ...u, ktp: "idle" }))
+                      }}
+                      onRetry={() => void pickDoc("ktp", KTP_PICKER)}
+                      accept={["jpg", "png"]}
+                      disabled={submitting}
                     />
                     <UploadField
                       label="Selfie dengan KTP"
-                      file={
-                        selfie
-                          ? {
-                              name: "selfie.jpg",
-                              size: 0,
-                              mimeType: "image/jpeg",
-                              uri: selfie,
-                            }
-                          : null
-                      }
-                      status={selfie ? "done" : "idle"}
-                      onPick={() => void handlePickSelfie()}
-                      onRemove={() => setSelfie(null)}
+                      required
+                      helperText="Pegang KTP di samping wajah; jangan tertutup jari."
+                      file={selfie}
+                      status={uploadStatus.selfie}
+                      onPick={() => void pickDoc("selfie", SELFIE_PICKER)}
+                      onRemove={() => {
+                        setSelfie(null)
+                        setUploadStatus((u) => ({ ...u, selfie: "idle" }))
+                      }}
+                      onRetry={() => void pickDoc("selfie", SELFIE_PICKER)}
+                      accept={["jpg", "png"]}
+                      disabled={submitting}
                     />
                   </View>
-                  <Button
-                    loading={submitting}
-                    disabled={!ktp || !selfie || nik.length !== 16}
-                    onPress={() => void handleSubmit()}
-                  >
-                    Kirim Verifikasi
+                  <Button loading={submitting} disabled={!formValid} onPress={() => void handleSubmit()}>
+                    {isResubmit ? "Kirim Ulang Verifikasi" : "Kirim Verifikasi"}
+                  </Button>
+                  <Button variant="ghost" fullWidth={false} disabled={submitting} onPress={() => setFormOpen(false)}>
+                    Batal
                   </Button>
                 </FormSection>
               ) : null}
@@ -217,7 +305,7 @@ export default function KycScreen() {
                     <KycHistoryListItem
                       key={h.id}
                       attempt={history.length - i}
-                      status={h.status}
+                      status={toKycUiStatus(h.status)}
                       submittedAt={formatDateTime(h.submittedAt)}
                       reviewedAt={h.reviewedAt ? formatDateTime(h.reviewedAt) : undefined}
                       rejectionReason={h.rejectionReason ?? undefined}
@@ -227,7 +315,7 @@ export default function KycScreen() {
                 </>
               ) : null}
 
-              {state?.status === "VERIFIED" ? (
+              {uiStatus === "APPROVED" ? (
                 <Text variant="body" tone="secondary">
                   Akun Anda sudah terverifikasi. Anda bisa bertransaksi tanpa batasan tambahan.
                 </Text>

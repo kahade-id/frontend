@@ -9,7 +9,7 @@
  *   H1 "Selamat datang, [firstName]!"
  *   body penjelasan
  *   <Avatar xl> (inisial dari fullName) + overlay ikon kamera
- *   [Button "Unggah foto" secondary sm] → ActionSheet → info "segera hadir"
+ *   [Button "Unggah foto" secondary sm] → ActionSheet (kamera / galeri)
  *   <TextArea "Tentang Anda"> (max 500 char)
  *   ── footer: [Lewati]  •  [Simpan]
  *
@@ -24,8 +24,8 @@
  *   Avatar upload:
  *   - POST /v1/users/me/avatar/direct (multipart, field `file`)
  *     → POST /v1/users/me/avatar/confirm { avatarKey }
- *   - expo-image-picker (kamera / galeri) + ActionSheet — antrean & error
- *     ditangani di screen; upload tidak memblokir tombol Simpan/Lewati.
+ *   - lib/image-picker (kamera / galeri, izin, FormData) + ActionSheet —
+ *     error ditangani di screen; upload tidak memblokir tombol Simpan/Lewati.
  *
  * Keputusan non-obvious:
  *   - Header TANPA progress bar (§9.22): setup profil BUKAN bagian dari alur
@@ -61,10 +61,9 @@
  *     keluar, bukan aksi. Konsisten dengan pola TextLink di Onboarding.
  */
 import { useCallback, useEffect, useState } from "react"
-import { Platform, ScrollView, View } from "react-native"
+import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Redirect, useRouter } from "expo-router"
-import * as ImagePicker from "expo-image-picker"
 import { Camera as CameraIcon, PencilSimple } from "phosphor-react-native"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -81,35 +80,12 @@ import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, getAccessToken, isApiError, userMessage } from "@/lib/api"
 import { clearRegistrationState, getRegistrationState } from "@/lib/registration"
+import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
-/** Kualitas & crop avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
-const AVATAR_PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
-  mediaTypes: ["images"],
-  allowsEditing: true,
-  aspect: [1, 1],
-  quality: 0.7,
-}
-
-/**
- * Bangun multipart FormData untuk POST /v1/users/me/avatar/direct.
- * Di native RN memakai { uri, name, type }; di web file di-fetch dulu ke
- * Blob (RN FormData tidak menerima objek uri di web). Field `file` sesuai
- * kontrak endpoint direct-upload.
- */
-async function buildAvatarFormData(asset: ImagePicker.ImagePickerAsset): Promise<FormData> {
-  const name = asset.fileName ?? `avatar-${Date.now()}.jpg`
-  const type = asset.mimeType ?? "image/jpeg"
-  const form = new FormData()
-  if (Platform.OS === "web") {
-    const blob = await (await fetch(asset.uri)).blob()
-    form.append("file", blob, name)
-  } else {
-    form.append("file", { uri: asset.uri, name, type } as unknown as Blob)
-  }
-  return form
-}
+/** Crop persegi + kompresi avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
+const AVATAR_PICKER: PickImageOptions = { square: true }
 
 export default function SetupProfileScreen() {
   const router = useRouter()
@@ -185,12 +161,12 @@ export default function SetupProfileScreen() {
   }, [router])
 
   // ── Upload avatar ──────────────────────────────────────────────────
-  const uploadAvatar = useCallback(async (asset: ImagePicker.ImagePickerAsset) => {
+  const uploadAvatar = useCallback(async (asset: PickedImage) => {
     setAvatarUploading(true)
     setAvatarError(null)
     try {
       // Langkah 1: POST /v1/users/me/avatar/direct (multipart)
-      const uploaded = await api.users.uploadAvatarDirect(await buildAvatarFormData(asset))
+      const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(asset))
       // Langkah 2: POST /v1/users/me/avatar/confirm — hanya bila server
       // mengembalikan avatarKey (kontrak ConfirmAvatarDto).
       if (uploaded.avatarKey) {
@@ -205,31 +181,21 @@ export default function SetupProfileScreen() {
   }, [])
 
   const pickFromCamera = useCallback(async () => {
-    // Izin kamera diminta hanya di native; di web expo-image-picker
-    // memakai input file, tidak ada permission API.
-    if (Platform.OS !== "web") {
-      const perm = await ImagePicker.requestCameraPermissionsAsync()
-      if (!perm.granted) {
-        setAvatarError("Izin kamera ditolak. Aktifkan di pengaturan perangkat.")
-        return
-      }
+    const picked = await pickImage({ ...AVATAR_PICKER, source: "camera" })
+    if (picked.status === "denied") {
+      setAvatarError("Izin kamera ditolak. Aktifkan di pengaturan perangkat.")
+      return
     }
-    const result = await ImagePicker.launchCameraAsync(AVATAR_PICKER_OPTIONS)
-    const asset = result.canceled ? null : result.assets[0] ?? null
-    if (asset) await uploadAvatar(asset)
+    if (picked.status === "picked") await uploadAvatar(picked.asset)
   }, [uploadAvatar])
 
   const pickFromGallery = useCallback(async () => {
-    if (Platform.OS !== "web") {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
-      if (!perm.granted) {
-        setAvatarError("Izin galeri ditolak. Aktifkan di pengaturan perangkat.")
-        return
-      }
+    const picked = await pickImage({ ...AVATAR_PICKER, source: "library" })
+    if (picked.status === "denied") {
+      setAvatarError("Izin galeri ditolak. Aktifkan di pengaturan perangkat.")
+      return
     }
-    const result = await ImagePicker.launchImageLibraryAsync(AVATAR_PICKER_OPTIONS)
-    const asset = result.canceled ? null : result.assets[0] ?? null
-    if (asset) await uploadAvatar(asset)
+    if (picked.status === "picked") await uploadAvatar(picked.asset)
   }, [uploadAvatar])
 
   // ── Guard dijalankan SETELAH semua hook (Rules of Hooks) ───────────

@@ -74,6 +74,16 @@ export function updateLanguage(dto: UpdateLanguageDto) {
   })
 }
 
+/**
+ * POST /v1/settings/privacy/export — minta ekspor data pribadi.
+ * Spec hanya `201: ""` (UNVERIFIED): backend bisa mengembalikan `{ url }`
+ * (tautan unduh siap) atau pesan bahwa ekspor diproses & dikirim via email.
+ * Keduanya opsional di tipe supaya UI bisa memilih perilaku.
+ */
 export function exportPrivacy() {
-  return http.post<{ url: string }>("/v1/settings/privacy/export", undefined, { auth: "required" })
+  return http.post<{ url?: string; message?: string } | undefined, undefined>(
+    "/v1/settings/privacy/export",
+    undefined,
+    { auth: "required" },
+  )
 }

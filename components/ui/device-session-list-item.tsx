@@ -49,7 +49,7 @@
  *     "Keluar dari {nama perangkat}" agar jelas saat difokuskan terpisah.
  */
 import type { ReactNode } from "react"
-import { Desktop, DeviceMobile, DeviceTablet, GlobeSimple, Laptop, SignOut } from "phosphor-react-native"
+import { Desktop, DeviceMobile, DeviceTablet, GlobeSimple, Laptop, ShieldCheck, ShieldSlash, SignOut } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Badge } from "@/components/ui/badge"
@@ -69,6 +69,10 @@ export type DeviceSessionLabels = {
   suspicious: string
   /** Awalan label a11y untuk tombol: "Keluar dari" */
   revokeFrom: string
+  /** Badge perangkat tepercaya (lewati 2FA) */
+  trusted: string
+  trust: string
+  untrust: string
 }
 
 export type DeviceSessionListItemProps = Omit<ViewProps, "children"> & {
@@ -91,6 +95,15 @@ export type DeviceSessionListItemProps = Omit<ViewProps, "children"> & {
   current?: boolean
   /** Login dari lokasi/perangkat baru yang belum dikonfirmasi */
   suspicious?: boolean
+  /**
+   * Perangkat tepercaya (PATCH /v1/users/me/devices/{id}/trust): login dari
+   * perangkat ini melewati 2FA. `undefined` = backend tidak mengirim info →
+   * badge & aksi disembunyikan.
+   */
+  trusted?: boolean
+  /** Aksi "Percayai"/"Cabut kepercayaan"; menerima nilai baru */
+  onToggleTrust?: (next: boolean) => void
+  togglingTrust?: boolean
   /** Buka detail sesi (Push §10) */
   onPress?: () => void
   /** Cabut sesi ini; undefined = tombol tidak dirender */
@@ -115,6 +128,9 @@ const DEFAULT_LABELS: DeviceSessionLabels = {
   revoke: "Keluar",
   suspicious: "Perlu ditinjau",
   revokeFrom: "Keluar dari",
+  trusted: "Tepercaya",
+  trust: "Percayai",
+  untrust: "Cabut kepercayaan",
 }
 
 export function DeviceSessionListItem({
@@ -128,6 +144,9 @@ export function DeviceSessionListItem({
   lastActiveLabel,
   current = false,
   suspicious = false,
+  trusted,
+  onToggleTrust,
+  togglingTrust = false,
   onPress,
   onRevoke,
   revoking = false,
@@ -159,6 +178,11 @@ export function DeviceSessionListItem({
               {t.current}
             </Badge>
           ) : null}
+          {trusted ? (
+            <Badge tone="success" variant="soft">
+              {t.trusted}
+            </Badge>
+          ) : null}
         </View>
 
         {meta.length > 0 || ip ? (
@@ -188,6 +212,23 @@ export function DeviceSessionListItem({
           ) : null}
           {suspicious ? <StatusIndicator label={t.suspicious} tone="warning" size="sm" /> : null}
         </View>
+
+        {onToggleTrust && trusted !== undefined ? (
+          <View className="flex-row pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              leftIcon={trusted ? ShieldSlash : ShieldCheck}
+              loading={togglingTrust}
+              disabled={disabled}
+              onPress={() => onToggleTrust(!trusted)}
+              accessibilityLabel={`${trusted ? t.untrust : t.trust}: ${deviceName}`}
+            >
+              {trusted ? t.untrust : t.trust}
+            </Button>
+          </View>
+        ) : null}
       </View>
     </View>
   )
@@ -195,6 +236,7 @@ export function DeviceSessionListItem({
   const a11yLabel = [
     deviceName,
     current ? t.current : null,
+    trusted ? t.trusted : null,
     ...meta,
     ip,
     lastActiveLabel ?? lastActiveAt,

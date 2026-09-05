@@ -80,7 +80,7 @@ import {
   userMessage,
   type PhoneRegisterDto,
 } from "@/lib/api"
-import { getRegistrationState, setRegistrationState } from "@/lib/registration"
+import { getPendingReferralCode, getRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -140,7 +140,8 @@ export default function ProfileDataScreen() {
   const [gender, setGender] = useState<Gender | undefined>()
   const [email, setEmail] = useState("")
   const [address, setAddress] = useState("")
-  const [referralCode, setReferralCode] = useState("")
+  // Prefill dari deep link `register?ref=` (tetap bisa diubah/dihapus user)
+  const [referralCode, setReferralCode] = useState(() => getPendingReferralCode() ?? "")
 
   // UI state
   const [calendarOpen, setCalendarOpen] = useState(false)

@@ -15,7 +15,7 @@
  *   - Response (UNVERIFIED — spec hanya `200: ""`): discriminated union
  *     `VerifyOtpResult`:
  *       • isNewUser: true  → { tempToken } → simpan di registration state → screen #4
- *       • isNewUser: false → { accessToken } → token disimpan otomatis → home
+ *       • isNewUser: false → { accessToken } → token disimpan otomatis → welcome
  *
  * Resend:
  *   POST /v1/auth/request-otp  body { phoneNumber, method }
@@ -143,9 +143,8 @@ export default function VerifyOtpScreen() {
           router.replace(ROUTES.createSecurity)
         } else {
           // User sudah punya akun → token sudah disimpan otomatis oleh auth.ts
-          // TODO: redirect ke home/dashboard saat screen tersedia.
-          // Untuk sekarang, ke login sebagai fallback.
-          router.replace(ROUTES.login)
+          // → Welcome (cek izin) sebagai user lama, lalu Home.
+          router.replace(ROUTES.welcome())
         }
       } catch (err) {
         haptic("error")

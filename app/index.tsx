@@ -2,8 +2,11 @@
  * Kahade — gate rute awal (`/`).
  *
  * Memutuskan ke mana user diarahkan saat app dibuka:
- *   - belum pernah melihat intro  → /onboarding
- *   - sudah                       → /login (screen #7, dibuat di giliran berikut)
+ *   - masih punya access token     → /home (sesi lanjut; bila token sudah
+ *     kedaluwarsa, client akan refresh atau memancarkan `sessionExpired`
+ *     yang di root layout mengarahkan ke /login)
+ *   - belum pernah melihat intro   → /onboarding
+ *   - sudah                        → /login (screen #7)
  *
  * Keputusan non-obvious:
  *   - Pembacaan flag async (SecureStore). Selama menunggu, TIDAK dirender
@@ -12,29 +15,39 @@
  *     sini justru memunculkan kedipan.
  *   - <Redirect>, bukan `router.replace` di effect: deklaratif dan aman dari
  *     race dengan mount navigator (rekomendasi Expo Router).
- *   - Cek sesi (access token → langsung ke Home) SENGAJA belum di sini;
- *     ditambahkan saat Home/Dashboard (screen #9) tersedia, agar gate ini
- *     tidak mengarahkan ke rute yang belum ada.
+ *   - Cek sesi dan flag onboarding dibaca PARALEL (keduanya SecureStore)
+ *     supaya boot tidak menunggu dua round-trip Keychain berurutan.
  */
 import { useEffect, useState } from "react"
 import { Redirect } from "expo-router"
 
+import { getAccessToken } from "@/lib/api"
 import { hasSeenOnboarding } from "@/lib/onboarding"
 import { ROUTES } from "@/lib/routes"
 
+type Gate = "home" | "login" | "onboarding"
+
 export default function Index() {
-  const [seen, setSeen] = useState<boolean | null>(null)
+  const [gate, setGate] = useState<Gate | null>(null)
 
   useEffect(() => {
     let alive = true
-    hasSeenOnboarding().then((v) => {
-      if (alive) setSeen(v)
+    Promise.all([
+      getAccessToken().catch(() => null),
+      hasSeenOnboarding().catch(() => false),
+    ]).then(([token, seen]) => {
+      if (!alive) return
+      setGate(token ? "home" : seen ? "login" : "onboarding")
     })
     return () => {
       alive = false
     }
   }, [])
 
-  if (seen === null) return null
-  return <Redirect href={seen ? ROUTES.login : ROUTES.onboarding} />
+  if (gate === null) return null
+  return (
+    <Redirect
+      href={gate === "home" ? ROUTES.home : gate === "login" ? ROUTES.login : ROUTES.onboarding}
+    />
+  )
 }

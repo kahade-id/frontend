@@ -17,7 +17,16 @@
  *     (tidak perlu round-trip presigned URL).
  */
 import { http, seg } from "@/lib/api/client"
-import type { ConfirmAvatarDto, RequestAccountDeletionDto, UpdateLinksDto, UpdateProfileDto, UserLinkItemDto } from "@/lib/api/types"
+import type {
+  AddCommentDto,
+  ConfirmAvatarDto,
+  CreateShowcaseDto,
+  RequestAccountDeletionDto,
+  UpdateLinksDto,
+  UpdateProfileDto,
+  UpdateShowcaseDto,
+  UserLinkItemDto,
+} from "@/lib/api/types"
 
 // ------------------------------------------------------------------
 // Tipe response — UNVERIFIED (spec auth tidak menyertakan response schema)
@@ -34,6 +43,11 @@ export type UserProfile = {
   avatarUrl?: string | null
   bio?: string | null
   accountType?: "PERSONAL" | "BUSINESS"
+  /** Kontak publik (UpdateProfileDto.contactEmail/contactPhone) — UNVERIFIED di spec GET */
+  contactEmail?: string | null
+  contactPhone?: string | null
+  showContactEmail?: boolean
+  showContactPhone?: boolean
 }
 
 export type AvatarResult = {
@@ -152,8 +166,22 @@ export function getMyStats() {
   return http.get<UserStats>("/v1/users/me/stats", { auth: "required", retry: 1 })
 }
 
-export function getMyAnalytics() {
-  return http.get<UserAnalytics>("/v1/users/me/analytics", { auth: "required", retry: 1 })
+/**
+ * Periode analitik — spec menandai `period` REQUIRED (string) tanpa enum.
+ * Nilai di bawah adalah asumsi terdokumentasi (pola umum "7d/30d/90d/1y");
+ * satu tempat untuk dikoreksi bila backend memakai kosakata lain.
+ */
+export type AnalyticsPeriod = "7d" | "30d" | "90d" | "1y"
+export const ANALYTICS_PERIODS: ReadonlyArray<{ value: AnalyticsPeriod; label: string }> = [
+  { value: "7d", label: "7 hari" },
+  { value: "30d", label: "30 hari" },
+  { value: "90d", label: "90 hari" },
+  { value: "1y", label: "1 tahun" },
+]
+
+/** GET /v1/users/me/analytics?period= — dashboard analitik per periode. */
+export function getMyAnalytics(period: AnalyticsPeriod = "30d") {
+  return http.get<UserAnalytics>("/v1/users/me/analytics", { query: { period }, auth: "required", retry: 1 })
 }
 
 export function getMyTrustScore() {
@@ -238,29 +266,50 @@ export function removeFavorite(username: string) {
 // Showcase
 // ------------------------------------------------------------------
 
+/**
+ * Item showcase — field mengikuti CreateShowcaseDto/UpdateShowcaseDto
+ * (title, description, imageUrl, priceMin/Max, isActive, sortOrder);
+ * `caption`/`fileKey` dipertahankan untuk kompatibilitas respons lama
+ * (UNVERIFIED — GET tanpa schema).
+ */
 export type ShowcaseItem = {
   id: string
+  title?: string
+  description?: string | null
   caption?: string
   imageUrl?: string
   fileKey?: string
+  priceMin?: number | null
+  priceMax?: number | null
+  isActive?: boolean
   createdAt: string
   sortOrder?: number
 }
+
+/** Respons upload gambar showcase — spec 201 tanpa schema (UNVERIFIED). */
+export type ShowcaseUploadResult = Partial<ShowcaseItem> & { url?: string; key?: string }
 
 export function getMyShowcase() {
   return http.get<ShowcaseItem[]>("/v1/users/me/showcase", { auth: "required", retry: 1 })
 }
 
+/**
+ * POST /v1/users/me/showcase/upload — unggah gambar. Backend bisa langsung
+ * membuat item (mengembalikan ShowcaseItem) ATAU hanya mengembalikan
+ * `imageUrl`/`url` untuk dipakai di createShowcase (UNVERIFIED).
+ */
 export function uploadShowcase(formData: FormData) {
-  return http.post<ShowcaseItem, FormData>("/v1/users/me/showcase/upload", formData, { auth: "required" })
+  return http.post<ShowcaseUploadResult, FormData>("/v1/users/me/showcase/upload", formData, {
+    auth: "required",
+  })
 }
 
-export function createShowcase(item: Partial<ShowcaseItem>) {
-  return http.post<ShowcaseItem, Partial<ShowcaseItem>>("/v1/users/me/showcase", item, { auth: "required" })
+export function createShowcase(dto: CreateShowcaseDto) {
+  return http.post<ShowcaseItem, CreateShowcaseDto>("/v1/users/me/showcase", dto, { auth: "required" })
 }
 
-export function updateShowcase(id: string, item: Partial<ShowcaseItem>) {
-  return http.put<ShowcaseItem, Partial<ShowcaseItem>>(`/v1/users/me/showcase/${seg(id)}`, item, {
+export function updateShowcase(id: string, dto: UpdateShowcaseDto) {
+  return http.put<ShowcaseItem, UpdateShowcaseDto>(`/v1/users/me/showcase/${seg(id)}`, dto, {
     auth: "required",
   })
 }
@@ -284,10 +333,31 @@ export type QuestionItem = {
   answeredAt?: string | null
   createdAt: string
   asker?: { id: string; username: string; fullName?: string; avatarUrl?: string | null }
+  /** Pemilik profil yang ditanya (ada pada daftar "asked") — UNVERIFIED */
+  target?: { id: string; username: string; fullName?: string; avatarUrl?: string | null }
+  commentCount?: number
 }
 
-export function getMyQuestions() {
-  return http.get<QuestionItem[]>("/v1/users/me/questions", { auth: "required", retry: 1 })
+/** Query `GET /v1/users/me/questions` — spec: `type`, `page`, `limit` REQUIRED. */
+export type MyQuestionsType = "received" | "asked"
+
+/** Daftar bisa array polos ATAU {data, meta} (spec tanpa schema; UNVERIFIED). */
+export type QuestionListResponse =
+  | QuestionItem[]
+  | { data: QuestionItem[]; meta?: { page: number; limit: number; total: number; totalPages: number } }
+
+export function readQuestionList(body: QuestionListResponse | null | undefined): {
+  items: QuestionItem[]
+  totalPages?: number
+} {
+  if (!body) return { items: [] }
+  if (Array.isArray(body)) return { items: body }
+  return { items: body.data ?? [], totalPages: body.meta?.totalPages }
+}
+
+/** Nilai enum `type` tidak didokumentasikan — asumsi "received" | "asked" (dari summary endpoint). */
+export function getMyQuestions(query: { type: MyQuestionsType; page: number; limit: number }) {
+  return http.get<QuestionListResponse>("/v1/users/me/questions", { query, auth: "required", retry: 1 })
 }
 
 export function addQuestion(username: string, question: string) {
@@ -296,8 +366,13 @@ export function addQuestion(username: string, question: string) {
   })
 }
 
-export function getPublicQuestions(username: string) {
-  return http.get<QuestionItem[]>(`/v1/users/${seg(username)}/questions`, { auth: "required", retry: 1 })
+/** Spec: `page` & `limit` REQUIRED. */
+export function getPublicQuestions(username: string, query: { page: number; limit: number }) {
+  return http.get<QuestionListResponse>(`/v1/users/${seg(username)}/questions`, {
+    query,
+    auth: "required",
+    retry: 1,
+  })
 }
 
 export function answerQuestion(questionId: string, answer: string) {
@@ -310,19 +385,48 @@ export function deleteQuestion(questionId: string) {
   return http.delete<void>(`/v1/users/questions/${seg(questionId)}`, { auth: "required", responseType: "void" })
 }
 
-export function getQuestionComments(questionId: string) {
-  return http.get<Array<{ id: string; content: string; authorName?: string; createdAt: string; reply?: boolean }>>(
-    `/v1/users/questions/${seg(questionId)}/comments`,
-    { auth: "required", retry: 1 },
-  )
+export type QuestionComment = {
+  id: string
+  content: string
+  authorId?: string
+  authorName?: string
+  authorUsername?: string
+  authorAvatarUrl?: string | null
+  /** Komentar dari pemilik profil */
+  isOwner?: boolean
+  parentId?: string | null
+  createdAt: string
+  reply?: boolean
+  deleted?: boolean
 }
 
-export function addQuestionComment(questionId: string, content: string) {
-  return http.post<{ id: string; content: string; createdAt: string }, { content: string }>(
-    `/v1/users/questions/${seg(questionId)}/comments`,
-    { content },
-    { auth: "required" },
-  )
+export type QuestionCommentListResponse =
+  | QuestionComment[]
+  | { data: QuestionComment[]; meta?: { page: number; limit: number; total: number; totalPages: number } }
+
+export function readQuestionComments(body: QuestionCommentListResponse | null | undefined): {
+  items: QuestionComment[]
+  totalPages?: number
+} {
+  if (!body) return { items: [] }
+  if (Array.isArray(body)) return { items: body }
+  return { items: body.data ?? [], totalPages: body.meta?.totalPages }
+}
+
+/** Spec: `page` & `limit` REQUIRED. */
+export function getQuestionComments(questionId: string, query: { page: number; limit: number }) {
+  return http.get<QuestionCommentListResponse>(`/v1/users/questions/${seg(questionId)}/comments`, {
+    query,
+    auth: "required",
+    retry: 1,
+  })
+}
+
+/** AddCommentDto { content 1–1000, parentId? } */
+export function addQuestionComment(questionId: string, dto: AddCommentDto) {
+  return http.post<QuestionComment, AddCommentDto>(`/v1/users/questions/${seg(questionId)}/comments`, dto, {
+    auth: "required",
+  })
 }
 
 export function deleteQuestionComment(commentId: string) {

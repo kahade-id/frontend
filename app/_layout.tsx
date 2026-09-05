@@ -40,8 +40,10 @@ import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
 import { api, onSessionExpired } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
-import { setupNotifications } from "@/lib/push-notifications"
+import { routeForPushData } from "@/lib/notification-routing"
+import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
+import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 
 // Module scope: dieksekusi sekali saat bundle dievaluasi, sebelum render apa pun.
@@ -128,6 +130,21 @@ function AppShell() {
       if (__DEV__) console.warn("[kahade/push] setupNotification gagal:", err)
     })
   }, [])
+
+  // Tap notifikasi push → buka entitas terkait (order, sengketa, chat, …)
+  // lewat pemetaan tunggal lib/notification-routing; tak dikenali → tab
+  // Notifikasi. Badge unread disegarkan karena server biasanya menandai
+  // notifikasi yang ditap sebagai terbaca. Gate sesi: bila belum login,
+  // app/index.tsx & onSessionExpired tetap mengarahkan ke login.
+  useEffect(
+    () =>
+      subscribeNotificationOpened((data) => {
+        const target = routeForPushData(data) ?? ROUTES.notifications
+        router.push(target)
+        void refreshUnreadCount()
+      }),
+    [router],
+  )
 
   // OTA gate: cek versi minimum dari GET /v1/public/app-version (hanya
   // force-update bila versi lokal < minVersion). Tidak boleh melempar error:

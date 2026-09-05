@@ -57,6 +57,29 @@ export const DEFAULT_CHANNEL_ID = "default"
 let handlerInstalled = false
 
 /**
+ * Dengarkan TAP notifikasi (foreground/background + cold start via
+ * `getLastNotificationResponseAsync`) dan serahkan `data` payload ke
+ * `onOpen`. Cold start diproses sekali per proses supaya notifikasi yang sama
+ * tidak membuka layar dua kali setelah remount root layout.
+ * Kembalikan fungsi unsubscribe.
+ */
+let coldStartHandled = false
+export function subscribeNotificationOpened(onOpen: (data: unknown) => void): () => void {
+  const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+    onOpen(response.notification.request.content.data)
+  })
+  if (!coldStartHandled) {
+    coldStartHandled = true
+    void Notifications.getLastNotificationResponseAsync()
+      .then((response) => {
+        if (response) onOpen(response.notification.request.content.data)
+      })
+      .catch(() => {})
+  }
+  return () => sub.remove()
+}
+
+/**
  * Pasang handler foreground + channel Android. Idempoten; panggil sekali di
  * root layout setelah app siap.
  */

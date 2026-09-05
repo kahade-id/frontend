@@ -3,14 +3,26 @@
  *
  * GET /v1/bank-accounts → pilih rekening → PIN (PinInput) →
  * POST /v1/wallet/withdraw (50.000 – 50.000.000) → OTP bila required →
- * POST /v1/wallet/withdraw/confirm-otp (resend via /resend-otp).
+ * POST /v1/wallet/withdraw/confirm-otp (resend via /resend-otp; batal via
+ * /withdraw/cancel — hanya PENDING_OTP).
+ *
+ * Keputusan non-obvious:
+ *   - Nominal & nomor rekening diformat lib/format (`formatRupiah`,
+ *     `maskAccountNumber`) — bukan `toLocaleString` (§13: format manual,
+ *     tanpa Intl, konsisten di semua platform).
+ *   - Membatalkan di langkah OTP memanggil `cancelWithdraw` supaya dana yang
+ *     sudah ditahan (hold) dilepas — cukup "kembali" akan meninggalkan
+ *     penarikan menggantung sampai OTP kedaluwarsa.
  */
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
 import { api, type WithdrawDto } from "@/lib/api"
+import { formatRupiah, maskAccountNumber } from "@/lib/format"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { AmountInput } from "@/components/ui/amount-input"
@@ -34,11 +46,6 @@ const PRESETS = [100_000, 250_000, 500_000, 1_000_000, 5_000_000]
 
 type Step = "form" | "pin" | "otp" | "done"
 
-function maskAccount(accountNumber: string): string {
-  const digits = accountNumber.replace(/\s/g, "")
-  return digits.length > 6 ? `${digits.slice(0, 4)}••••${digits.slice(-4)}` : digits
-}
-
 export default function WithdrawScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -51,9 +58,11 @@ export default function WithdrawScreen() {
   const [amount, setAmount] = useState(0)
   const [accountId, setAccountId] = useState<string | null>(null)
   const [step, setStep] = useState<Step>("form")
-  const [pin, setPin] = useState("")
+  const [pinError, setPinError] = useState<string | undefined>()
+  const [otpError, setOtpError] = useState<string | undefined>()
   const [txId, setTxId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
+  const [cancelling, setCancelling] = useState(false)
   const [result, setResult] = useState<Awaited<ReturnType<typeof api.wallet.createWithdraw>> | null>(null)
 
   const fetchAccounts = useCallback(async () => {
@@ -82,14 +91,15 @@ export default function WithdrawScreen() {
 
   const handleSubmitForm = useCallback(() => {
     if (!amount || !accountId) return
+    setPinError(undefined)
     setStep("pin")
   }, [amount, accountId])
 
   const handlePin = useCallback(
     async (value: string) => {
       if (!amount || !accountId) return
-      setPin(value)
       setSubmitting(true)
+      setPinError(undefined)
       try {
         const dto: WithdrawDto = { amount, bankAccountId: accountId, pin: value }
         const res = await api.wallet.createWithdraw(dto)
@@ -101,25 +111,25 @@ export default function WithdrawScreen() {
           setStep("done")
         }
       } catch {
-        toast.show({ title: "Penarikan gagal", description: "Periksa kembali PIN atau saldo Anda.", tone: "danger" })
-        setStep("form")
+        setPinError("PIN salah atau saldo tidak mencukupi. Coba lagi.")
       } finally {
         setSubmitting(false)
       }
     },
-    [amount, accountId, toast.show],
+    [amount, accountId],
   )
 
   const handleConfirmOtp = useCallback(async (otp: string) => {
     if (!txId) return
     setSubmitting(true)
+    setOtpError(undefined)
     try {
       const res = await api.wallet.confirmWithdrawOtp({ txId, otp })
       setResult(res)
       setStep("done")
-      toast.show({ title: "Penarikan berhasil diproses", tone: "success", duration: 3000 })
+      toast.show({ title: "Penarikan berhasil diproses", tone: "success" })
     } catch {
-      toast.show({ title: "OTP salah", description: "Periksa kode lalu coba lagi.", tone: "danger" })
+      setOtpError("Kode OTP salah atau kedaluwarsa. Periksa lalu coba lagi.")
     } finally {
       setSubmitting(false)
     }
@@ -129,9 +139,27 @@ export default function WithdrawScreen() {
     if (!txId) return
     try {
       await api.wallet.resendWithdrawOtp({ txId })
-      toast.show({ title: "OTP dikirim ulang", tone: "success", duration: 3000 })
+      setOtpError(undefined)
+      toast.show({ title: "OTP dikirim ulang", tone: "success" })
     } catch {
       toast.show({ title: "Gagal mengirim OTP", tone: "danger" })
+    }
+  }, [txId, toast.show])
+
+  const handleCancelOtp = useCallback(async () => {
+    if (!txId) return
+    setCancelling(true)
+    try {
+      await api.wallet.cancelWithdraw({ txId })
+      toast.show({ title: "Penarikan dibatalkan", tone: "success" })
+    } catch {
+      // Sudah kedaluwarsa/diproses di server — tetap kembalikan pengguna ke form.
+      toast.show({ title: "Penarikan tidak bisa dibatalkan lagi", tone: "danger" })
+    } finally {
+      setCancelling(false)
+      setTxId(null)
+      setResult(null)
+      setStep("form")
     }
   }, [txId, toast.show])
 
@@ -164,11 +192,11 @@ export default function WithdrawScreen() {
             <Text variant="body" tone="secondary">
               Masukkan PIN dompet Anda untuk menarik{" "}
               <Text variant="monoBody" tone="primary">
-                Rp{amount.toLocaleString("id-ID")}
+                {formatRupiah(amount)}
               </Text>{" "}
               ke {selected?.bankName ?? "rekening Anda"}.
             </Text>
-            <PinInput mode="enter" onComplete={(p) => void handlePin(p)} errorText="" />
+            <PinInput mode="enter" onComplete={(p) => void handlePin(p)} errorText={pinError} disabled={submitting} />
             <Button
               variant="ghost"
               fullWidth={false}
@@ -184,23 +212,45 @@ export default function WithdrawScreen() {
             <Text variant="body" tone="secondary">
               Bank Anda meminta konfirmasi tambahan. Masukkan kode 6 digit yang dikirim.
             </Text>
-            <OtpInput length={6} onComplete={(code) => void handleConfirmOtp(code)} />
-            <Button variant="ghost" fullWidth={false} onPress={() => void handleResend()}>
-              Kirim ulang OTP
-            </Button>
+            <OtpInput
+              length={6}
+              onComplete={(code) => void handleConfirmOtp(code)}
+              errorText={otpError}
+              disabled={submitting || cancelling}
+            />
+            <View className="flex-row flex-wrap gap-2">
+              <Button variant="ghost" fullWidth={false} onPress={() => void handleResend()} disabled={submitting}>
+                Kirim ulang OTP
+              </Button>
+              <Button
+                variant="ghost"
+                fullWidth={false}
+                loading={cancelling}
+                disabled={submitting}
+                onPress={() => void handleCancelOtp()}
+              >
+                Batalkan penarikan
+              </Button>
+            </View>
           </View>
         ) : step === "done" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Berhasil diproses" />
             <Text variant="body">
-              Penarikan Rp{amount.toLocaleString("id-ID")} sedang diproses ke{" "}
-              {selected?.bankName} •• {selected ? maskAccount(selected.accountNumber) : ""}.
+              Penarikan {formatRupiah(amount)} sedang diproses ke {selected?.bankName}
+              {selected ? ` ${maskAccountNumber(selected.accountNumber)}` : ""}.
             </Text>
             {result?.txId ? (
               <Text variant="monoBody" tone="secondary">
                 Ref: {result.txId}
               </Text>
             ) : null}
+            <Button variant="secondary" onPress={() => router.replace(ROUTES.withdrawHistory)}>
+              Lihat Riwayat Penarikan
+            </Button>
+            <Button variant="ghost" fullWidth={false} onPress={() => router.back()}>
+              Kembali ke Dompet
+            </Button>
           </View>
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -228,7 +278,12 @@ export default function WithdrawScreen() {
               <EmptyState
                 icon={BankIcon}
                 title="Belum ada rekening"
-                description="Tambahkan rekening bank terlebih dahulu di menu Rekening Bank."
+                description="Tambahkan rekening bank terlebih dahulu untuk menarik dana."
+                action={
+                  <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.bankAccounts)}>
+                    Tambah Rekening
+                  </Button>
+                }
               />
             ) : (
               <View className="gap-2">

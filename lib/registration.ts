@@ -37,6 +37,23 @@ export type RegistrationState = {
   fullName?: string
 }
 
+/**
+ * Kode referral dari deep link `kahade://register?ref=<code>` (lib/deeplinks
+ * `referralUrl`). Disimpan terpisah dari RegistrationState karena tiba di
+ * screen #2 (sebelum ada tempToken) dan baru dipakai di screen #5 sebagai
+ * prefill field "Kode referral" (PhoneRegisterDto.referralCode).
+ */
+let pendingReferralCode: string | null = null
+
+export function setPendingReferralCode(code: string | null): void {
+  const clean = code?.trim() ?? ""
+  pendingReferralCode = clean.length > 0 ? clean : null
+}
+
+export function getPendingReferralCode(): string | null {
+  return pendingReferralCode
+}
+
 let state: RegistrationState | null = null
 
 /** Simpan state registrasi. Menimpa state sebelumnya bila ada. */
@@ -52,4 +69,5 @@ export function getRegistrationState(): RegistrationState | null {
 /** Hapus state — dipanggil setelah `phone-register` berhasil, atau user membatalkan. */
 export function clearRegistrationState(): void {
   state = null
+  pendingReferralCode = null
 }

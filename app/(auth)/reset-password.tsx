@@ -54,6 +54,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
+import { Countdown } from "@/components/ui/countdown"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
@@ -62,16 +63,21 @@ import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+import { useToast } from "@/components/ui/toast"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX, SECURITY_CRITERIA, isPasswordValid } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
+/** Cooldown kirim ulang (detik) — bila backend tidak mengirim `cooldownSeconds` */
+const DEFAULT_COOLDOWN = 60
+
 export default function ResetPasswordScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const otpRef = useRef<OtpInputHandle>(null)
+  const toast = useToast()
 
   // Email dari route params (dari forgot-password screen)
   const { email } = useLocalSearchParams<{ email: string }>()
@@ -88,6 +94,10 @@ export default function ResetPasswordScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [otpError, setOtpError] = useState<string | undefined>()
+  // Resend: cooldown berjalan sejak layar dibuka (kode pertama baru saja dikirim)
+  const [canResend, setCanResend] = useState(false)
+  const [resending, setResending] = useState(false)
+  const [countdownKey, setCountdownKey] = useState(0)
 
   const passwordValid = isPasswordValid(newPassword)
   const passwordsMatch =
@@ -108,8 +118,12 @@ export default function ResetPasswordScreen() {
         confirmPassword,
       })
 
-      // Success → redirect ke login
-      // TODO: tampilkan pesan sukses di login screen (via state atau toast)
+      // Success → toast (provider di root layout, tetap tampil setelah replace) → login
+      toast.show({
+        title: "Kata sandi diperbarui",
+        description: "Silakan masuk dengan kata sandi baru Anda.",
+        tone: "success",
+      })
       router.replace(ROUTES.login)
     } catch (err) {
       if (isApiError(err)) {
@@ -141,18 +155,32 @@ export default function ResetPasswordScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, isFormValid, email, otp, newPassword, confirmPassword, router])
+  }, [submitting, isFormValid, email, otp, newPassword, confirmPassword, router, toast])
 
   const handleResendCode = useCallback(async () => {
+    if (resending || !canResend) return
+    setResending(true)
+    setFormError(null)
+    setOtpError(undefined)
     // Panggil forgot-password lagi dengan email yang sama
     try {
       await api.auth.forgotPassword({ email })
-      // Success → tampilkan pesan (tidak navigate, tetap di screen ini)
-      // TODO: tampilkan toast atau banner "Kode baru telah dikirim"
+      // Sukses → tetap di layar ini; kosongkan OTP lama & mulai ulang cooldown
+      setOtp("")
+      otpRef.current?.focus()
+      setCountdownKey((k) => k + 1)
+      setCanResend(false)
+      toast.show({
+        title: "Kode baru telah dikirim",
+        description: `Periksa kotak masuk ${email}.`,
+        tone: "success",
+      })
     } catch (err) {
       setFormError(userMessage(err))
+    } finally {
+      setResending(false)
     }
-  }, [email])
+  }, [email, resending, canResend, toast])
 
   const handleChangeEmail = useCallback(() => {
     router.replace(ROUTES.forgotPassword)
@@ -257,10 +285,20 @@ export default function ResetPasswordScreen() {
           className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
           style={{ paddingBottom: tokens.space[4] + insets.bottom }}
         >
-          <View className="flex-row justify-center gap-6">
-            <TextLink onPress={() => void handleResendCode()} disabled={submitting}>
-              Kirim ulang kode
-            </TextLink>
+          <View className="flex-row items-center justify-center gap-6">
+            {canResend ? (
+              <TextLink onPress={() => void handleResendCode()} disabled={submitting || resending}>
+                {resending ? "Mengirim kode baru…" : "Kirim ulang kode"}
+              </TextLink>
+            ) : (
+              <Countdown
+                key={countdownKey}
+                seconds={DEFAULT_COOLDOWN}
+                prefix="Kirim ulang dalam"
+                tone="secondary"
+                onComplete={() => setCanResend(true)}
+              />
+            )}
             <TextLink onPress={handleChangeEmail} disabled={submitting}>
               Ganti email
             </TextLink>

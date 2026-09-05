@@ -26,6 +26,7 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 12 | token | Sinkronisasi `tokens.ts` ↔ `tailwind.config.js` ↔ `global.css` | **Selesai** (`pnpm check:tokens`, lihat `findings/12-token-sync.md`) |
 | 13 | token | Kelengkapan dark mode | **Selesai\*** (`findings/13-dark-mode.md` — splash dark, `check:tokens` #9 allowlist `dark:`/literal) — \*uji visual 5 layar menunggu screen pertama (lihat #8) |
 | 14 | layar+API | Audit semua screen: kontrak API, hardcode, reuse komponen | **Selesai** (lihat `findings/14-screen-api-hardcode.md` — 56 error TS → 0, filter `ACTIVE`, param wajib wallet, satu `OrderStatus`, nol route literal, avatar upload aktif, push device register/unregister) |
+| 15 | layar+API | Kelengkapan fitur per layar vs kontrak API, navigasi orphan, hardcode lanjutan | **Selesai\*** (lihat `findings/15-feature-completeness.md` — 36 route orphan → 0, 73 API tak dipakai → 27 (wajar/internal), 2FA login + verifikasi email, order detail QRIS/sengketa/resi/bukti kirim, notifikasi batch + routing tap, satu store unread, `lib/deeplinks`/`image-picker`/`payment-methods`) — \*13 asumsi bentuk respons UNVERIFIED menunggu konfirmasi backend (§8 finding) |
 
 Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9 → 13 → 6 → 10**, lalu sisanya.
 Berikutnya: **5** (kebenaran `accessibilityValue`), lalu **7**, **11**.

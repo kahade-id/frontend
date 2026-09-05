@@ -9,11 +9,14 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api, type TopupDto } from "@/lib/api"
-import type { WalletPaymentMethod } from "@/lib/api/wallet"
+import { useCopy } from "@/lib/clipboard"
+import { toPaymentMethods } from "@/lib/payment-methods"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { AmountInput } from "@/components/ui/amount-input"
@@ -21,15 +24,11 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import {
-  PaymentMethodSelector,
-  type PaymentMethod,
-  type PaymentMethodKind,
-} from "@/components/ui/payment-method-selector"
+import { PaymentMethodSelector, type PaymentMethod } from "@/components/ui/payment-method-selector"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import { TopupStatusCard } from "@/components/ui/topup-status-card"
+import { TopupStatusCard, type PaymentStatus } from "@/components/ui/topup-status-card"
 import { useToast } from "@/components/ui/toast"
 
 const MIN_AMOUNT = 10_000
@@ -37,48 +36,21 @@ const MAX_AMOUNT = 50_000_000
 const PRESETS = [50_000, 100_000, 250_000, 500_000, 1_000_000]
 const POLL_MS = 3000
 
-/** Peta kode API → kinds komponen. Nilai asing → QRIS-glyph default "online". */
-const METHOD_KIND: Record<string, PaymentMethodKind> = {
-  VIRTUAL_ACCOUNT_BCA: "bank",
-  VIRTUAL_ACCOUNT_BNI: "bank",
-  VIRTUAL_ACCOUNT_BRI: "bank",
-  VIRTUAL_ACCOUNT_MANDIRI: "bank",
-  VIRTUAL_ACCOUNT_CIMB: "bank",
-  VIRTUAL_ACCOUNT_PERMATA: "bank",
-  VIRTUAL_ACCOUNT_OTHER: "bank",
-  QRIS: "qris",
-  GOPAY: "ewallet",
-  SHOPEEPAY: "ewallet",
-  OVO: "ewallet",
-  DANA: "ewallet",
-  LINKAJA: "ewallet",
-  CREDIT_CARD: "bank",
-  ALFAMART: "bank",
-  INDOMARET: "bank",
-  AKULAKU: "bank",
-  KREDIVO: "bank",
+/** Status API → PaymentStatus komponen (status di luar peta = masih menunggu). */
+const STATUS_MAP: Partial<Record<string, PaymentStatus>> = {
+  SUCCESS: "SUCCESS",
+  COMPLETED: "SUCCESS",
+  PAID: "SUCCESS",
+  FAILED: "FAILED",
+  EXPIRED: "EXPIRED",
+  CANCELLED: "CANCELLED",
 }
-
-function toPaymentMethod(raw: WalletPaymentMethod): PaymentMethod {
-  return {
-    id: raw.code,
-    kind: METHOD_KIND[raw.code] ?? "qris",
-    name: raw.name,
-    description: raw.fee ? "Biaya layanan berlaku" : undefined,
-    fee: raw.fee
-      ? raw.fee.percent
-        ? { type: "percent", value: raw.fee.percent }
-        : { type: "flat", amount: raw.fee.fixed ?? 0 }
-      : undefined,
-    recommended: raw.code === "QRIS" || raw.code === "VIRTUAL_ACCOUNT_BCA",
-    unavailable: raw.enabled === false,
-    unavailableReason: raw.enabled === false ? "Metode sedang tidak tersedia" : undefined,
-  }
-}
+const PENDING_STATUSES = ["PENDING", "WAITING", "UNPAID"]
 
 export default function TopupScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  const { copied, copy } = useCopy()
 
   const [methods, setMethods] = useState<PaymentMethod[]>([])
   const [loading, setLoading] = useState(true)
@@ -97,7 +69,7 @@ export default function TopupScreen() {
       setLoading(true)
       setError(null)
       const raw = await api.wallet.getPaymentMethods()
-      setMethods((raw ?? []).map(toPaymentMethod))
+      setMethods(toPaymentMethods(raw))
       setMethodId((prev) => prev ?? (raw?.[0]?.code ?? null))
     } catch {
       setError("Gagal memuat metode pembayaran.")
@@ -140,7 +112,7 @@ export default function TopupScreen() {
   )
 
   useEffect(() => {
-    if (!result?.paymentTxId || !["PENDING", "WAITING", "UNPAID"].includes(result.status)) return
+    if (!result?.paymentTxId || !PENDING_STATUSES.includes(result.status)) return
     pollRef.current = setInterval(() => void pollStatus(result.paymentTxId!), POLL_MS)
     return stopPolling
   }, [result?.paymentTxId, result?.status, pollStatus, stopPolling])
@@ -177,7 +149,7 @@ export default function TopupScreen() {
         {result ? (
           <View style={{ marginTop: tokens.space[3] }}>
             <TopupStatusCard
-              status={(result.status === "SUCCESS" ? "SUCCESS" : result.status === "FAILED" ? "FAILED" : result.status === "EXPIRED" ? "EXPIRED" : result.status === "CANCELLED" ? "CANCELLED" : "PENDING")}
+              status={STATUS_MAP[result.status] ?? "PENDING"}
               amount={result.amount}
               method={result.method}
               methodLabel={
@@ -189,8 +161,10 @@ export default function TopupScreen() {
               expiresAt={result.expiresAt ? new Date(result.expiresAt) : undefined}
               refreshing={statusLoading}
               onRefresh={() => result.paymentTxId && void pollStatus(result.paymentTxId)}
-              onDone={handleReset}
-              onRetry={() => void fetchMethods()}
+              onDone={() => router.replace(ROUTES.topupHistory)}
+              onRetry={handleReset}
+              onCopy={(v) => void copy(v)}
+              copied={copied}
               labels={{ status: { PENDING: "Menunggu pembayaran" } }}
             />
           </View>

@@ -11,7 +11,7 @@
  *   notifications → Notifikasi (badge unread dari GET /v1/notifications/unread-count)
  *   settings      → Pengaturan
  *
- * Badge unread di tab Notifikasi:
+ * Badge unread di tab Notifikasi (store bersama `lib/unread-count.ts`):
  *   - Di-poll setiap kali layout mount (AppState focus) + interval 60 detik
  *     saat app aktif di foreground. Interval bukan WebSocket — badge tidak
  *     perlu real-time; 60 detik cukup dan hemat baterai.
@@ -38,71 +38,22 @@
  *   - AppState listener + interval keduanya diperlukan: AppState supaya badge
  *     langsung update saat user kembali dari background; interval supaya
  *     badge fresh selama user aktif.
- *   - P5: mounted flag mencegah setState setelah komponen unmount (race
- *     condition bila fetchCount selesai setelah layout di-unmount).
+ *   - Store eksternal (useSyncExternalStore) bukan state lokal: layar
+ *     Notifikasi & push handler bisa menurunkan angka tanpa poll ulang.
  */
-import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react"
-import { AppState, type AppStateStatus } from "react-native"
+import { useCallback, type ComponentProps } from "react"
 import { Tabs } from "expo-router"
 import { ArrowsLeftRight, Bell, GearSix, House, Wallet } from "phosphor-react-native"
 
 import { RouterBottomTabBar, type RouterBottomTabBarProps } from "@/components/ui/bottom-tab-bar"
-import { getUnreadCount, readUnreadCount } from "@/lib/api/notifications"
 import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
+import { useUnreadCount } from "@/lib/unread-count"
 
-/** Interval poll badge (ms) — 60 detik cukup, hemat baterai. */
-const BADGE_POLL_INTERVAL_MS = 60_000
 
 /** Props tabBar @react-navigation yang diteruskan ke <Tabs> Expo Router. */
 type TabsTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0]
 
 type TabVisualItem = Omit<RouterBottomTabBarProps["items"][string], "badge">
-
-// ------------------------------------------------------------------
-// Hook: unread count
-// ------------------------------------------------------------------
-
-/**
- * Poll `GET /v1/notifications/unread-count` dan kembalikan boolean badge.
- * false = tidak ada unread / belum diketahui; true = tampilkan badge.
- *
- * P5: mounted flag mencegah setState pada komponen yang sudah unmount
- * (race condition saat fetchCount async selesai setelah cleanup).
- */
-function useUnreadBadge(): boolean {
-  const [hasUnread, setHasUnread] = useState(false)
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const mountedRef = useRef(true)
-
-  const fetchCount = useCallback(async () => {
-    try {
-      const body = await getUnreadCount()
-      const count = readUnreadCount(body)
-      if (mountedRef.current && count !== null) setHasUnread(count > 0)
-    } catch {
-      // Error jaringan/auth diabaikan — badge cukup basi
-    }
-  }, [])
-
-  useEffect(() => {
-    mountedRef.current = true
-    void fetchCount()
-
-    intervalRef.current = setInterval(() => void fetchCount(), BADGE_POLL_INTERVAL_MS)
-
-    const sub = AppState.addEventListener("change", (state: AppStateStatus) => {
-      if (state === "active") void fetchCount()
-    })
-
-    return () => {
-      mountedRef.current = false
-      if (intervalRef.current) clearInterval(intervalRef.current)
-      sub.remove()
-    }
-  }, [fetchCount])
-
-  return hasUnread
-}
 
 // ------------------------------------------------------------------
 // Tab item definitions
@@ -145,7 +96,11 @@ const TAB_ITEMS: Record<TabRouteName, TabVisualItem> = {
 // ------------------------------------------------------------------
 
 export default function TabsLayout() {
-  const hasUnread = useUnreadBadge()
+  // Store bersama lib/unread-count (poll 60 d + AppState); layar Notifikasi
+  // memanggil setUnreadCount/refreshUnreadCount setelah tandai dibaca → badge
+  // hilang seketika tanpa menunggu poll berikutnya.
+  const { count } = useUnreadCount()
+  const hasUnread = (count ?? 0) > 0
 
   const renderTabBar = useCallback(
     (props: TabsTabBarProps) => {

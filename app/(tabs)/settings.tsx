@@ -8,8 +8,9 @@
  *  - Logout: unregister push device dulu (`POST /v1/notifications/
  *    unregister-device`), baru clearSession() + redirect ke login.
  *
- * Menu yang screen-nya belum dibuat menampilkan toast info (bukan push ke
- * route yang tidak ada) — ketika file route dibuat, cukup ganti handler.
+ * Semua menu menunjuk ke screen yang ada (audit #15: 30+ layar yang
+ * sebelumnya tidak punya pintu masuk kini dikelompokkan di sini). Item
+ * "Hapus Akun" dirender `destructive`.
  *
  * Data: GET /v1/users/me.
  */
@@ -21,16 +22,38 @@ import {
   Bank,
   Bell,
   Briefcase,
+  ChartLineUp,
+  ChatCircleDots,
   ChatCircleText,
+  Compass,
+  CrownSimple,
+  DeviceMobile,
+  EyeSlash,
   FileText,
   Fingerprint,
+  Gift,
   GridFour,
+  Heart,
+  IdentificationCard,
+  Images,
   Info,
+  Lifebuoy,
+  LinkSimple,
   Lock,
+  Medal,
+  Prohibit,
   Question,
+  Scales,
   Shield,
+  ShieldCheck,
+  ShieldStar,
   SignOut,
+  Star,
+  Ticket,
+  Translate,
+  Trash,
   User,
+  Copy as CopyIcon,
 } from "phosphor-react-native"
 
 import { api, type UserProfile } from "@/lib/api"
@@ -60,6 +83,8 @@ type MenuItem = {
   label: string
   /** Route target — semua menu sudah punya screen. */
   route: Href
+  /** Aksi merusak (hapus akun) — teks & ikon danger */
+  destructive?: boolean
 }
 
 type MenuGroup = {
@@ -72,8 +97,34 @@ const MENU_GROUPS: MenuGroup[] = [
     title: "Akun",
     items: [
       { id: "edit-profile", icon: User, label: "Edit Profil", route: ROUTES.editProfile },
+      { id: "kyc", icon: IdentificationCard, label: "Verifikasi Identitas (KYC)", route: ROUTES.kyc },
       { id: "bank-account", icon: Bank, label: "Rekening Bank", route: ROUTES.bankAccounts },
       { id: "account-type", icon: Briefcase, label: "Tipe Akun", route: ROUTES.accountType },
+      { id: "subscriptions", icon: CrownSimple, label: "Langganan Premium", route: ROUTES.subscriptions },
+      { id: "referral", icon: Gift, label: "Referral", route: ROUTES.referral },
+      { id: "language", icon: Translate, label: "Bahasa", route: ROUTES.language },
+    ],
+  },
+  {
+    title: "Profil publik",
+    items: [
+      { id: "showcase", icon: Images, label: "Showcase", route: ROUTES.showcase },
+      { id: "questions", icon: ChatCircleDots, label: "Tanya Jawab", route: ROUTES.questions },
+      { id: "ratings", icon: Star, label: "Ulasan Saya", route: ROUTES.ratings },
+      { id: "badges", icon: Medal, label: "Lencana", route: ROUTES.badges },
+      { id: "trust-score", icon: ShieldStar, label: "Skor Kepercayaan", route: ROUTES.trustScore },
+      { id: "analytics", icon: ChartLineUp, label: "Analitik", route: ROUTES.analytics },
+    ],
+  },
+  {
+    title: "Transaksi",
+    items: [
+      { id: "order-links", icon: LinkSimple, label: "Order Link Saya", route: ROUTES.orderLinks },
+      { id: "templates", icon: CopyIcon, label: "Template Transaksi", route: ROUTES.transactionTemplates },
+      { id: "vouchers", icon: Ticket, label: "Voucher", route: ROUTES.vouchers },
+      { id: "disputes", icon: Scales, label: "Sengketa Saya", route: ROUTES.disputes },
+      { id: "favorites", icon: Heart, label: "Favorit", route: ROUTES.favorites },
+      { id: "discover", icon: Compass, label: "Jelajahi Pengguna", route: ROUTES.discover },
     ],
   },
   {
@@ -82,6 +133,10 @@ const MENU_GROUPS: MenuGroup[] = [
       { id: "change-password", icon: Lock, label: "Ubah Password", route: ROUTES.changePassword },
       { id: "change-pin", icon: GridFour, label: "Ubah PIN", route: ROUTES.changePin },
       { id: "biometric", icon: Fingerprint, label: "Biometrik", route: ROUTES.biometricSettings },
+      { id: "two-factor", icon: ShieldCheck, label: "Autentikasi Dua Faktor", route: ROUTES.twoFactor },
+      { id: "security", icon: DeviceMobile, label: "Perangkat & Aktivitas", route: ROUTES.security },
+      { id: "privacy-settings", icon: EyeSlash, label: "Privasi", route: ROUTES.privacySettings },
+      { id: "blocked", icon: Prohibit, label: "Pengguna Diblokir", route: ROUTES.blockedUsers },
     ],
   },
   {
@@ -98,6 +153,7 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: "Bantuan",
     items: [
+      { id: "support", icon: Lifebuoy, label: "Tiket Bantuan", route: ROUTES.support },
       { id: "faq", icon: Question, label: "FAQ", route: ROUTES.faq },
       { id: "contact", icon: ChatCircleText, label: "Hubungi Kami", route: ROUTES.contact },
     ],
@@ -109,6 +165,10 @@ const MENU_GROUPS: MenuGroup[] = [
       { id: "privacy", icon: Shield, label: "Kebijakan Privasi", route: ROUTES.privacyPolicy },
       { id: "tos", icon: FileText, label: "Syarat & Ketentuan", route: ROUTES.terms },
     ],
+  },
+  {
+    title: "Zona berbahaya",
+    items: [{ id: "delete-account", icon: Trash, label: "Hapus Akun", route: ROUTES.deleteAccount, destructive: true }],
   },
 ]
 
@@ -210,6 +270,7 @@ export default function SettingsScreen() {
                   title={item.label}
                   leading={item.icon}
                   chevron
+                  destructive={item.destructive}
                   divider={ii < group.items.length - 1}
                   onPress={() => handleItemPress(item)}
                 />
