@@ -56,4 +56,26 @@ export const ROUTES = {
   /** Screen #8b — Reset Password: verifikasi OTP + password baru */
   resetPassword: (email: string) =>
     ({ pathname: "/reset-password", params: { email } }) as unknown as Href,
+
+  // ── Kerangka navigasi: 5 tab root di app/(tabs)/ ─────────────────────
+  // Tab Beranda memakai file `home.tsx` (URL `/home`), BUKAN `index.tsx`:
+  // `app/index.tsx` sudah menjadi gate awal `/` dan dua route dengan path
+  // sama akan bertabrakan di Expo Router.
+  /** Tab #1 — Beranda (sapaan, saldo, order aktif, quick action) */
+  home: "/home" as Href,
+  /** Tab #2 — Transaksi (list order + filter status) */
+  transactions: "/transactions" as Href,
+  /** Tab #3 — Dompet (saldo, Topup/Withdraw/Transfer, riwayat ringkas) */
+  wallet: "/wallet" as Href,
+  /** Tab #4 — Notifikasi (list read/unread) */
+  notifications: "/notifications" as Href,
+  /** Tab #5 — Pengaturan/Profil milik sendiri */
+  settings: "/settings" as Href,
 } as const
+
+/**
+ * Nama route (= nama file) di `app/(tabs)/`. Dipakai `Tabs.Screen name=…`
+ * dan peta item tab bar; disatukan di sini agar rename file cukup satu tempat.
+ */
+export const TAB_ROUTE_NAMES = ["home", "transactions", "wallet", "notifications", "settings"] as const
+export type TabRouteName = (typeof TAB_ROUTE_NAMES)[number]
