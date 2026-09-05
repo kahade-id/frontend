@@ -38,18 +38,11 @@
  *     lewat `labels` untuk i18n — komponen tidak mengunci string.
  */
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
+import type { OrderStatus } from "@/lib/api/orders"
 
-export type OrderStatus =
-  | "PENDING_PAYMENT"
-  | "PAID"
-  | "PROCESSING"
-  | "SHIPPED"
-  | "DELIVERED"
-  | "COMPLETED"
-  | "DISPUTED"
-  | "CANCELLED"
-  | "REFUNDED"
-  | "EXPIRED"
+// Re-export: SATU sumber kebenaran status order = lib/api/orders.ts.
+// Komponen lain (OrderCard, Timeline, layar) tetap bisa `import type { OrderStatus } from "@/components/ui/order-status-badge"`.
+export type { OrderStatus } from "@/lib/api/orders"
 
 export type OrderRole = "buyer" | "seller"
 

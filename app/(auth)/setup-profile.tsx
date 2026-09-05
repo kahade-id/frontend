@@ -22,11 +22,10 @@
  *   - Hanya field `bio` yang dikirim; field lain tidak diubah di screen ini.
  *
  *   Avatar upload:
- *   - POST /v1/users/me/avatar/direct (multipart) → POST /v1/users/me/avatar/confirm
- *   - API sudah tersedia di lib/api/users.ts
- *   - Image picker BELUM terpasang (expo-image-picker) — tombol "Unggah foto"
- *     menampilkan ActionSheet informatif. Struktur siap untuk ditambahkan
- *     picker tanpa mengubah API atau layout.
+ *   - POST /v1/users/me/avatar/direct (multipart, field `file`)
+ *     → POST /v1/users/me/avatar/confirm { avatarKey }
+ *   - expo-image-picker (kamera / galeri) + ActionSheet — antrean & error
+ *     ditangani di screen; upload tidak memblokir tombol Simpan/Lewati.
  *
  * Keputusan non-obvious:
  *   - Header TANPA progress bar (§9.22): setup profil BUKAN bagian dari alur
@@ -47,8 +46,9 @@
  *     lengkapi" — bukan "profil kosong".
  *   - Tombol "Unggah foto" memakai ActionSheet (bukan Alert RN) karena
  *     ActionSheet konsisten dengan design system (§10 action menu). Opsi
- *     "Ambil foto" dan "Pilih dari galeri" disiapkan tapi menampilkan pesan
- *     informatif — struktur siap untuk expo-image-picker.
+ *     "Ambil foto" (kamera) & "Pilih dari galeri" memakai expo-image-picker;
+ *     izin diminta hanya di native. Upload gagal tidak menggagalkan alur —
+ *     user tetap bisa Lewati/Simpan bio.
  *   - Setelah "Simpan"/"Lewati" → Welcome screen memberi closure untuk seluruh
  *     alur registrasi. Registration state dibersihkan DI SINI (password & PIN
  *     tidak boleh hidup lebih lama dari yang diperlukan), dan fakta "user
@@ -61,18 +61,19 @@
  *     keluar, bukan aksi. Konsisten dengan pola TextLink di Onboarding.
  */
 import { useCallback, useEffect, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { Platform, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Redirect, useRouter } from "expo-router"
+import * as ImagePicker from "expo-image-picker"
 import { Camera as CameraIcon, PencilSimple } from "phosphor-react-native"
 
-import { useTheme } from "@/components/theme-provider"
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Alert } from "@/components/ui/alert"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
+import { IconButton } from "@/components/ui/icon-button"
 import { Screen } from "@/components/ui/screen"
 import { TextArea } from "@/components/ui/text-area"
 import { Text } from "@/components/ui/text"
@@ -83,10 +84,36 @@ import { clearRegistrationState, getRegistrationState } from "@/lib/registration
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
+/** Kualitas & crop avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
+const AVATAR_PICKER_OPTIONS: ImagePicker.ImagePickerOptions = {
+  mediaTypes: ["images"],
+  allowsEditing: true,
+  aspect: [1, 1],
+  quality: 0.7,
+}
+
+/**
+ * Bangun multipart FormData untuk POST /v1/users/me/avatar/direct.
+ * Di native RN memakai { uri, name, type }; di web file di-fetch dulu ke
+ * Blob (RN FormData tidak menerima objek uri di web). Field `file` sesuai
+ * kontrak endpoint direct-upload.
+ */
+async function buildAvatarFormData(asset: ImagePicker.ImagePickerAsset): Promise<FormData> {
+  const name = asset.fileName ?? `avatar-${Date.now()}.jpg`
+  const type = asset.mimeType ?? "image/jpeg"
+  const form = new FormData()
+  if (Platform.OS === "web") {
+    const blob = await (await fetch(asset.uri)).blob()
+    form.append("file", blob, name)
+  } else {
+    form.append("file", { uri: asset.uri, name, type } as unknown as Blob)
+  }
+  return form
+}
+
 export default function SetupProfileScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const { mode } = useTheme()
   const regState = getRegistrationState()
 
   // Guard: butuh access token (user sudah login dari phone-register)
@@ -110,8 +137,11 @@ export default function SetupProfileScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  // Avatar sheet
+  // Avatar sheet + upload state
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false)
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
+  const [avatarUploading, setAvatarUploading] = useState(false)
+  const [avatarError, setAvatarError] = useState<string | null>(null)
 
   const hasChanges = bio.trim().length > 0
 
@@ -154,6 +184,54 @@ export default function SetupProfileScreen() {
     router.replace(ROUTES.welcome({ newUser: true }))
   }, [router])
 
+  // ── Upload avatar ──────────────────────────────────────────────────
+  const uploadAvatar = useCallback(async (asset: ImagePicker.ImagePickerAsset) => {
+    setAvatarUploading(true)
+    setAvatarError(null)
+    try {
+      // Langkah 1: POST /v1/users/me/avatar/direct (multipart)
+      const uploaded = await api.users.uploadAvatarDirect(await buildAvatarFormData(asset))
+      // Langkah 2: POST /v1/users/me/avatar/confirm — hanya bila server
+      // mengembalikan avatarKey (kontrak ConfirmAvatarDto).
+      if (uploaded.avatarKey) {
+        await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
+      }
+      if (uploaded.avatarUrl) setAvatarUrl(uploaded.avatarUrl)
+    } catch (err) {
+      setAvatarError(isApiError(err) ? userMessage(err) : "Gagal mengunggah foto. Coba lagi.")
+    } finally {
+      setAvatarUploading(false)
+    }
+  }, [])
+
+  const pickFromCamera = useCallback(async () => {
+    // Izin kamera diminta hanya di native; di web expo-image-picker
+    // memakai input file, tidak ada permission API.
+    if (Platform.OS !== "web") {
+      const perm = await ImagePicker.requestCameraPermissionsAsync()
+      if (!perm.granted) {
+        setAvatarError("Izin kamera ditolak. Aktifkan di pengaturan perangkat.")
+        return
+      }
+    }
+    const result = await ImagePicker.launchCameraAsync(AVATAR_PICKER_OPTIONS)
+    const asset = result.canceled ? null : result.assets[0] ?? null
+    if (asset) await uploadAvatar(asset)
+  }, [uploadAvatar])
+
+  const pickFromGallery = useCallback(async () => {
+    if (Platform.OS !== "web") {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+      if (!perm.granted) {
+        setAvatarError("Izin galeri ditolak. Aktifkan di pengaturan perangkat.")
+        return
+      }
+    }
+    const result = await ImagePicker.launchImageLibraryAsync(AVATAR_PICKER_OPTIONS)
+    const asset = result.canceled ? null : result.assets[0] ?? null
+    if (asset) await uploadAvatar(asset)
+  }, [uploadAvatar])
+
   // ── Guard dijalankan SETELAH semua hook (Rules of Hooks) ───────────
   // Versi sebelumnya `return null` di antara useState dan useCallback →
   // "Rendered more hooks than during the previous render" saat token terbaca.
@@ -167,28 +245,20 @@ export default function SetupProfileScreen() {
       label: "Ambil foto",
       icon: CameraIcon,
       onPress: () => {
-        // TODO: buka expo-camera untuk mengambil foto dari kamera
-        // Implementasi:
-        //   1. Camera.requestCameraPermissionsAsync()
-        //   2. Tampilkan Camera component
-        //   3. takePictureAsync() → simpan URI
-        //   4. Upload ke api.users.uploadAvatarDirect(formData)
-        //   5. Confirm: api.users.confirmAvatar({ avatarKey })
+        setAvatarSheetOpen(false)
+        void pickFromCamera().catch(() => setAvatarError("Gagal membuka kamera. Coba lagi."))
       },
-      disabled: true, // Image picker belum terpasang
+      disabled: avatarUploading,
     },
     {
       key: "gallery",
       label: "Pilih dari galeri",
       icon: PencilSimple,
       onPress: () => {
-        // TODO: buka expo-image-picker untuk memilih foto dari galeri
-        // Implementasi:
-        //   1. ImagePicker.launchImageLibraryAsync()
-        //   2. Upload ke api.users.uploadAvatarDirect(formData)
-        //   3. Confirm: api.users.confirmAvatar({ avatarKey })
+        setAvatarSheetOpen(false)
+        void pickFromGallery().catch(() => setAvatarError("Gagal membuka galeri. Coba lagi."))
       },
-      disabled: true, // Image picker belum terpasang
+      disabled: avatarUploading,
     },
   ]
 
@@ -220,31 +290,48 @@ export default function SetupProfileScreen() {
             <View className="relative">
               <Avatar
                 name={fullName || "User"}
+                source={avatarUrl ?? undefined}
                 size="xl"
               />
-              {/* Camera overlay button */}
+              {/* Camera overlay — pakai IconButton sistem (hit target 40+slop,
+                  a11y label, loading state) */}
               <View className="absolute -bottom-1 -right-1">
-                <View className="h-8 w-8 items-center justify-center rounded-full bg-primary">
-                  <CameraIcon
-                    size={16}
-                    color={tokens.colors[mode].primaryForeground}
-                    weight="fill"
-                  />
-                </View>
+                <IconButton
+                  icon={CameraIcon}
+                  variant="primary"
+                  size="sm"
+                  shape="pill"
+                  accessibilityLabel="Unggah foto profil"
+                  loading={avatarUploading}
+                  disabled={avatarUploading}
+                  onPress={() => setAvatarSheetOpen(true)}
+                />
               </View>
             </View>
 
             <Button
               variant="secondary"
               size="sm"
+              loading={avatarUploading}
+              disabled={avatarUploading}
               onPress={() => setAvatarSheetOpen(true)}
             >
               Unggah foto
             </Button>
 
-            <Text variant="caption" tone="tertiary" className="text-center">
-              Fitur unggah foto akan segera hadir
-            </Text>
+            {avatarError ? (
+              <Text variant="caption" tone="danger" className="text-center">
+                {avatarError}
+              </Text>
+            ) : avatarUploading ? (
+              <Text variant="caption" tone="secondary" className="text-center">
+                Mengunggah foto…
+              </Text>
+            ) : avatarUrl ? (
+              <Text variant="caption" tone="success" className="text-center">
+                Foto profil berhasil diperbarui
+              </Text>
+            ) : null}
           </VStack>
 
           {/* Bio section */}

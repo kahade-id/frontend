@@ -63,7 +63,7 @@ import { Calendar } from "@/components/ui/calendar"
 import { DateField } from "@/components/ui/date-field"
 import { EmailField, isValidEmail } from "@/components/ui/email-field"
 import { FieldLabel } from "@/components/ui/field"
-import { Header } from "@/components/ui/header"
+import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { Input } from "@/components/ui/input"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
@@ -84,8 +84,6 @@ import { getRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
-/** Tinggi bar Header (h-14) */
-const HEADER_HEIGHT = 56
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-4 (terakhir) */
 const STEP_PROGRESS = 4 / 4
 
@@ -249,7 +247,7 @@ export default function ProfileDataScreen() {
     <Screen padded={false} edges={["top"]}>
       <Header title="Data Diri" progress={STEP_PROGRESS} safeArea={false} />
 
-      <KeyboardAvoiding offset={insets.top + HEADER_HEIGHT}>
+      <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
           className="flex-1"
           contentContainerClassName="grow px-6 pb-8 pt-8"

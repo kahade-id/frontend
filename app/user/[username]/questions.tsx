@@ -1,0 +1,249 @@
+/**
+ * Screen — Tanya Jawab Publik (GET /v1/users/{username}/questions,
+ * POST …/questions untuk bertanya, GET/POST …/comments untuk utas).
+ */
+import { useCallback, useEffect, useState } from "react"
+import { View } from "react-native"
+import { useLocalSearchParams } from "expo-router"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { ChatCircleDots } from "phosphor-react-native"
+
+import { api } from "@/lib/api"
+import type { QuestionItem } from "@/lib/api/users"
+import { formatDateTime } from "@/lib/format"
+import { tokens } from "@/lib/tokens"
+
+import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
+import { Dialog } from "@/components/ui/modal"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
+import { Header } from "@/components/ui/header"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { QACard } from "@/components/ui/qa-card"
+import { QaCommentComposer, QaCommentItem } from "@/components/ui/qa-comment-item"
+import { Screen } from "@/components/ui/screen"
+import { SectionHeader } from "@/components/ui/section"
+import { TextArea } from "@/components/ui/text-area"
+import { useToast } from "@/components/ui/toast"
+
+type CommentItem = {
+  id: string
+  content: string
+  authorName?: string
+  createdAt: string
+  reply?: boolean
+}
+
+export default function PublicQuestionsScreen() {
+  const { username } = useLocalSearchParams<{ username: string }>()
+  const insets = useSafeAreaInsets()
+  const toast = useToast()
+
+  const [items, setItems] = useState<QuestionItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const [askOpen, setAskOpen] = useState(false)
+  const [askText, setAskText] = useState("")
+  const [asking, setAsking] = useState(false)
+
+  const [openId, setOpenId] = useState<string | null>(null)
+  const [comments, setComments] = useState<CommentItem[]>([])
+  const [commentText, setCommentText] = useState("")
+  const [commentsLoading, setCommentsLoading] = useState(false)
+  const [commentSending, setCommentSending] = useState(false)
+
+  const fetchAll = useCallback(async () => {
+    if (!username) return
+    setLoading(true)
+    setError(null)
+    try {
+      const res = await api.users.getPublicQuestions(username)
+      setItems(res ?? [])
+    } catch {
+      setError("Gagal memuat pertanyaan.")
+    } finally {
+      setLoading(false)
+    }
+  }, [username])
+
+  useEffect(() => {
+    void fetchAll()
+  }, [fetchAll])
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await fetchAll()
+    setRefreshing(false)
+  }, [fetchAll])
+
+  const toggleComments = useCallback(
+    async (q: QuestionItem) => {
+      if (openId === q.id) {
+        setOpenId(null)
+        return
+      }
+      setOpenId(q.id)
+      setComments([])
+      setCommentsLoading(true)
+      try {
+        const res = await api.users.getQuestionComments(q.id)
+        setComments(res ?? [])
+      } catch {
+        toast.show({ title: "Gagal memuat komentar", tone: "danger" })
+      } finally {
+        setCommentsLoading(false)
+      }
+    },
+    [openId, toast.show],
+  )
+
+  const submitComment = useCallback(async () => {
+    if (!openId || !commentText.trim()) return
+    setCommentSending(true)
+    try {
+      await api.users.addQuestionComment(openId, commentText.trim())
+      setCommentText("")
+      const res = await api.users.getQuestionComments(openId)
+      setComments(res ?? [])
+      toast.show({ title: "Komentar terkirim", tone: "success", duration: 3000 })
+    } catch {
+      toast.show({ title: "Gagal mengirim komentar", tone: "danger" })
+    } finally {
+      setCommentSending(false)
+    }
+  }, [openId, commentText, toast.show])
+
+  const submitAsk = useCallback(async () => {
+    if (!username) return
+    const value = askText.trim()
+    if (value.length < 10) {
+      toast.show({ title: "Pertanyaan minimal 10 karakter", tone: "danger" })
+      return
+    }
+    setAsking(true)
+    try {
+      await api.users.addQuestion(username, value)
+      toast.show({ title: "Pertanyaan terkirim", tone: "success", duration: 3000 })
+      setAskOpen(false)
+      setAskText("")
+      await fetchAll()
+    } catch {
+      toast.show({ title: "Gagal mengirim pertanyaan", tone: "danger" })
+    } finally {
+      setAsking(false)
+    }
+  }, [username, askText, toast.show, fetchAll])
+
+  return (
+    <Screen edges={["top"]} padded={false}>
+      <Header
+        title="Tanya Jawab"
+        right={
+          <Button size="sm" variant="secondary" onPress={() => setAskOpen(true)}>
+            Bertanya
+          </Button>
+        }
+      />
+      <PullToRefresh
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        contentContainerClassName="px-6"
+        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+      >
+        {loading ? (
+          <EmptyState icon={ChatCircleDots} title="Memuat pertanyaan…" />
+        ) : error ? (
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+        ) : items.length === 0 ? (
+          <EmptyState
+            icon={ChatCircleDots}
+            title="Belum ada pertanyaan"
+            description="Jadilah yang pertama bertanya pada profil ini."
+          />
+        ) : (
+          <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
+            <SectionHeader title={`@${username}`} />
+            {items.map((q) => (
+              <View key={q.id} className="gap-3">
+                <QACard
+                  question={q.question}
+                  asker={{
+                    name: q.asker?.fullName ?? q.asker?.username ?? "Seseorang",
+                    avatar: q.asker?.avatarUrl ?? undefined,
+                  }}
+                  date={q.createdAt}
+                  answer={
+                    q.answer
+                      ? {
+                          text: q.answer,
+                          by: { name: `@${username}` },
+                          date: q.answeredAt ?? q.createdAt,
+                        }
+                      : undefined
+                  }
+                  questionLines={undefined}
+                  footer={
+                    <Button size="sm" variant="ghost" onPress={() => void toggleComments(q)}>
+                      {openId === q.id ? "Tutup komentar" : "Komentar"}
+                    </Button>
+                  }
+                />
+                {openId === q.id ? (
+                  <Card padded className="gap-3">
+                    {commentsLoading ? (
+                      <EmptyState icon={ChatCircleDots} title="Memuat komentar…" />
+                    ) : comments.length === 0 ? (
+                      <EmptyState icon={ChatCircleDots} title="Belum ada komentar" />
+                    ) : (
+                      <View className="gap-3">
+                        {comments.map((c) => (
+                          <QaCommentItem
+                            key={c.id}
+                            authorName={c.authorName ?? "Pengguna"}
+                            content={c.content}
+                            timestamp={formatDateTime(c.createdAt)}
+                            reply={c.reply}
+                          />
+                        ))}
+                      </View>
+                    )}
+                    <QaCommentComposer
+                      value={commentText}
+                      onChangeText={setCommentText}
+                      onSubmit={() => void submitComment()}
+                      submitting={commentSending}
+                      placeholder={`Tulis komentar untuk @${username}…`}
+                    />
+                  </Card>
+                ) : null}
+              </View>
+            ))}
+          </View>
+        )}
+      </PullToRefresh>
+
+      <Dialog
+        title={`Bertanya kepada @${username}`}
+        description="Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya."
+        visible={askOpen}
+        loading={asking}
+        confirmLabel="Kirim Pertanyaan"
+        confirmButtonProps={{ disabled: askText.trim().length < 10 }}
+        cancelLabel="Batal"
+        onConfirm={() => void submitAsk()}
+        onCancel={() => setAskOpen(false)}
+        onRequestClose={() => setAskOpen(false)}
+      >
+        <TextArea
+          value={askText}
+          onChangeText={setAskText}
+          placeholder="Tulis pertanyaan Anda…"
+          maxLength={500}
+        />
+      </Dialog>
+    </Screen>
+  )
+}

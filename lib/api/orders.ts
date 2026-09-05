@@ -62,24 +62,44 @@ export type PageQuery = { page: number; limit: number }
 // Tipe response — UNVERIFIED
 // ------------------------------------------------------------------
 
-/** Lifecycle escrow — cocokkan dengan backend sebelum dipakai untuk logika. */
+/**
+ * Lifecycle escrow — SATU sumber kebenaran untuk status order.
+ * Nilai & label/tone diturunkan dari `components/ui/order-status-badge.tsx`
+ * (kontrak display design system; endpoint orders: create → pay → process →
+ * shipping → delivery-proof → confirm → complete, cabang cancel/dispute).
+ * `(string & {})` menjaga toleransi nilai baru dari backend tanpa crash.
+ *
+ * Jangan definisikan ulang union ini di file lain: layar memakai tipe dari
+ * sini, komponen badge mengimpor ulang (re-export) tipe ini.
+ */
 export type OrderStatus =
-  | "PENDING_CONFIRMATION"
-  | "AWAITING_PAYMENT"
+  | "PENDING_PAYMENT"
   | "PAID"
-  | "IN_PROGRESS"
+  | "PROCESSING"
   | "SHIPPED"
   | "DELIVERED"
   | "COMPLETED"
-  | "CANCELLED"
   | "DISPUTED"
+  | "CANCELLED"
   | "REFUNDED"
+  | "EXPIRED"
   | (string & {}) // toleransi nilai baru dari backend tanpa runtime error
 
 export type Paginated<T> = {
   data: T[]
   meta: { page: number; limit: number; total: number; totalPages: number }
 }
+
+/**
+ * OrderLifecycle — filter status API.
+ *
+ * `GET /v1/orders` mendokumentasikan query `status` sebagai:
+ *   "Order status filter (use ACTIVE for all active statuses)"
+ * Artinya nilai `ACTIVE` adalah kunci magis backend untuk SEMUA status
+ * yang sedang berjalan — layar filter "Aktif" WAJIB mengirim `ACTIVE`,
+ * bukan salah satu status spesifik.
+ */
+export type OrderStatusFilter = "ACTIVE" | "COMPLETED" | "CANCELLED" | "DISPUTED" | "REFUNDED" | "EXPIRED" | (string & {})
 
 export type OrderParty = {
   id: string

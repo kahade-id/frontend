@@ -1,35 +1,26 @@
 /**
  * Tab #4 — Notifikasi
  *
- * Menampilkan list notifikasi user (read + unread) dengan:
- *  - Filter kategori via Chip scrollable: Semua | Transaksi | Promosi | Informasi
- *  - Tap otomatis mark-as-read (optimistic update)
- *  - Tombol "Tandai semua dibaca" di header (muncul bila ada yang unread)
- *  - Infinite scroll (load-more)
- *  - Pull-to-refresh
- *  - Skeleton loading rows saat fetch pertama (K2)
- *  - EmptyState saat tidak ada notifikasi
- *  - Error state bila fetch gagal (N5 — sebelumnya silent)
+ * List notifikasi dari `GET /v1/notifications` (read + unread) dengan:
+ *  - Filter kategori Chip (ScrollView horizontal) — nilai PERSIS enum API
+ *    `TRANSAKSI | PROMOSI | INFORMASI` (query `category`).
+ *  - Tap otomatis mark-as-read (`POST /v1/notifications/:id/read`, optimistic)
+ *  - "Tandai semua dibaca" (`POST /v1/notifications/read-all`)
+ *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh
+ *  - Skeleton loading pertama, EmptyState, ErrorState eksplisit
  *
- * Audit fix (round 2):
- *  N1/N4: FilterValue pakai NotificationCategory langsung — sebelumnya pakai
- *         "order"/"promo"/"system" (lowercase informal) yang tidak cocok dengan
- *         tipe API "TRANSAKSI"|"PROMOSI"|"INFORMASI". Ini bug runtime: category
- *         yang dikirim ke API tidak pernah cocok enum yang diharapkan.
- *  N2:    Skeleton key pakai string "skeleton-{i}", bukan bare index.
- *  N3:    ON_END_THRESHOLD konstanta bernama, bukan magic number 0.3.
- *  N5:    fetchNotifs set errorMsg bila catch; screen tampilkan ErrorState.
+ * Komponen sistem yang dipakai: Chip, NotificationListItem, LoadMore,
+ * ErrorState, EmptyState, Skeleton — tidak ada baris custom.
+ * Kategori UI komponen (ikon) dipetakan dari kategori API di `UI_CATEGORY`.
  */
 import { useCallback, useEffect, useState } from "react"
-import { FlatList, ScrollView, StyleSheet, View } from "react-native"
+import { ScrollView, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Bell, Megaphone, Receipt } from "phosphor-react-native"
 
-import {
-  getNotifications,
-  markAllNotificationsRead,
-  markNotificationRead,
-} from "@/lib/api/notifications"
-import type { AppNotification, NotificationCategory } from "@/lib/api/notifications"
+import { api, type AppNotification, type NotificationCategory } from "@/lib/api"
+import { formatDateTime } from "@/lib/format"
+import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
@@ -37,15 +28,20 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
-import { NotificationListItem } from "@/components/ui/notification-list-item"
+import {
+  NotificationListItem,
+  type NotificationCategory as UiCategory,
+} from "@/components/ui/notification-list-item"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
-import { tokens } from "@/lib/tokens"
 
-// N1/N4: FilterValue sekarang "ALL" | NotificationCategory — persis yang dikirim ke API
+// ------------------------------------------------------------------
+// Konstanta layar
+// ------------------------------------------------------------------
+
 type FilterValue = "ALL" | NotificationCategory
 
-// N1: label tetap bahasa Indonesia, value = enum API yang benar
 const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "Semua", value: "ALL" },
   { label: "Transaksi", value: "TRANSAKSI" },
@@ -53,12 +49,27 @@ const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "Informasi", value: "INFORMASI" },
 ]
 
+/**
+ * Peta kategori API (query enum) → kategori UI komponen (ikon).
+ * TRANSAKSI → Receipt, PROMOSI → Megaphone, INFORMASI → Bell.
+ * Nilai asing dari backend jatuh ke "system" (tidak crash).
+ */
+const UI_CATEGORY: Record<string, UiCategory> = {
+  TRANSAKSI: "order",
+  PROMOSI: "promo",
+  INFORMASI: "system",
+}
+
+/** Ikon EmptyState per kategori filter (nilai enum API, bukan label). */
+const EMPTY_ICON: Record<FilterValue, typeof Bell> = {
+  ALL: Bell,
+  TRANSAKSI: Receipt,
+  PROMOSI: Megaphone,
+  INFORMASI: Bell,
+}
+
 const PAGE_SIZE = 20
-
-/** Jumlah skeleton rows yang ditampilkan saat loading pertama kali */
 const SKELETON_COUNT = 5
-
-/** Threshold scroll untuk memicu load-more (0–1, persentase dari akhir list) */
 const ON_END_THRESHOLD = 0.3
 
 // ------------------------------------------------------------------
@@ -76,7 +87,6 @@ function NotifSkeletonRow() {
         paddingVertical: tokens.space[3],
       }}
     >
-      {/* dot unread placeholder */}
       <Skeleton shape="circle" width={8} height={8} style={{ marginTop: tokens.space[1] }} />
       <View style={{ flex: 1, gap: tokens.space[1] }}>
         <Skeleton height={14} style={{ width: "60%" }} />
@@ -86,6 +96,10 @@ function NotifSkeletonRow() {
     </View>
   )
 }
+
+// ------------------------------------------------------------------
+// Screen
+// ------------------------------------------------------------------
 
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets()
@@ -98,12 +112,10 @@ export default function NotificationsScreen() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [markingAll, setMarkingAll] = useState(false)
-  // N5: error state — sebelumnya fetch error diabaikan diam-diam
   const [fetchError, setFetchError] = useState<string | null>(null)
 
   const hasUnread = notifs.some((n) => !n.isRead)
 
-  // ── Fetch ──────────────────────────────────────────────────
   const fetchNotifs = useCallback(
     async (nextPage: number, isRefresh = false) => {
       try {
@@ -111,8 +123,7 @@ export default function NotificationsScreen() {
         else if (nextPage > 1) setLoadingMore(true)
         setFetchError(null)
 
-        const res = await getNotifications({
-          // N1/N4: filter === "ALL" → undefined; selain itu langsung NotificationCategory
+        const res = await api.notifications.getNotifications({
           category: filter === "ALL" ? undefined : filter,
           page: nextPage,
           limit: PAGE_SIZE,
@@ -122,9 +133,7 @@ export default function NotificationsScreen() {
         setPage(nextPage)
         setHasMore(nextPage < res.meta.totalPages)
       } catch {
-        // N5: tampilkan error state, bukan biarkan layar kosong tak bergerak
         if (nextPage === 1) setFetchError("Gagal memuat notifikasi. Coba lagi.")
-        // load-more gagal: biarkan list yang ada, tidak perlu error state besar
       } finally {
         setLoading(false)
         setLoadingMore(false)
@@ -143,46 +152,38 @@ export default function NotificationsScreen() {
     setRefreshing(false)
   }, [fetchNotifs])
 
-  // ── Mark single as read ────────────────────────────────────────
   const handleRead = useCallback((id: string) => {
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
-    markNotificationRead(id).catch(() => {
-      setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)))
-    })
+    api.notifications
+      .markNotificationRead(id)
+      .catch(() => setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n))))
   }, [])
 
-  // ── Mark all as read ─────────────────────────────────────────
   const handleMarkAll = useCallback(async () => {
     setMarkingAll(true)
     try {
-      await markAllNotificationsRead()
+      await api.notifications.markAllNotificationsRead()
       setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
     } catch {
-      // gagal: biarkan state tidak berubah
+      // gagal: state tidak berubah
     } finally {
       setMarkingAll(false)
     }
   }, [])
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top"]} padded={false}>
       <Header
         title="Notifikasi"
         right={
           hasUnread ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onPress={handleMarkAll}
-              loading={markingAll}
-            >
+            <Button variant="ghost" size="sm" onPress={handleMarkAll} loading={markingAll}>
               Tandai dibaca
             </Button>
           ) : undefined
         }
       />
 
-      {/* Filter kategori */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -190,62 +191,61 @@ export default function NotificationsScreen() {
         style={styles.filterScroll}
       >
         {FILTERS.map((f) => (
-          <Chip
-            key={f.value}
-            label={f.label}
-            selected={filter === f.value}
-            onPress={() => setFilter(f.value)}
-          />
+          <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
+            {f.label}
+          </Chip>
         ))}
       </ScrollView>
 
       {loading ? (
         <SkeletonGroup>
           {Array.from({ length: SKELETON_COUNT }, (_, i) => (
-            // N2: key string bernama, bukan bare index
-            <NotifSkeletonRow key={`skeleton-${i}`} />
+            <NotifSkeletonRow key={`notif-skeleton-${i}`} />
           ))}
         </SkeletonGroup>
       ) : fetchError ? (
-        // N5: error state eksplisit dengan tombol retry
-        <ErrorState message={fetchError} onRetry={() => fetchNotifs(1)} />
+        <ErrorState
+          title="Gagal memuat notifikasi"
+          description="Periksa koneksi internet Anda, lalu coba lagi."
+          onRetry={() => void fetchNotifs(1)}
+        />
       ) : (
-        <FlatList
-          data={notifs}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <NotificationListItem
-              title={item.title}
-              body={item.body}
-              category={item.category}
-              timestamp={item.createdAt}
-              unread={!item.isRead}
-              onPress={() => {
-                if (!item.isRead) handleRead(item.id)
-              }}
-              divider={index < notifs.length - 1}
-            />
-          )}
-          contentContainerStyle={[
-            notifs.length === 0 && styles.listEmpty,
-            { paddingBottom: insets.bottom + tokens.space[4] },
-          ]}
-          refreshing={refreshing}
+        <PullToRefresh
           onRefresh={handleRefresh}
-          onEndReached={() => {
-            if (hasMore && !loadingMore) fetchNotifs(page + 1)
-          }}
-          // N3: konstanta bernama, bukan magic number
-          onEndReachedThreshold={ON_END_THRESHOLD}
-          ListFooterComponent={hasMore ? <LoadMore loading={loadingMore} /> : null}
-          ListEmptyComponent={
+          refreshing={refreshing}
+          scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[4] } }}
+        >
+          {notifs.length === 0 ? (
             <EmptyState
+              icon={EMPTY_ICON[filter]}
               title="Tidak ada notifikasi"
               description="Notifikasi untukmu akan muncul di sini."
             />
-          }
-          showsVerticalScrollIndicator={false}
-        />
+          ) : (
+            <View className="gap-1">
+              {notifs.map((item, index) => (
+                <NotificationListItem
+                  key={item.id}
+                  title={item.title}
+                  body={item.body || undefined}
+                  category={UI_CATEGORY[item.category] ?? "system"}
+                  timestamp={formatDateTime(item.createdAt)}
+                  unread={!item.isRead}
+                  onPress={() => {
+                    if (!item.isRead) handleRead(item.id)
+                  }}
+                  divider={index < notifs.length - 1}
+                />
+              ))}
+              {hasMore ? (
+                <LoadMore
+                  status={loadingMore ? "loading" : "idle"}
+                  onLoadMore={() => void fetchNotifs(page + 1)}
+                />
+              ) : null}
+            </View>
+          )}
+        </PullToRefresh>
       )}
     </Screen>
   )
@@ -260,9 +260,5 @@ const styles = StyleSheet.create({
     gap: tokens.space[2],
     paddingHorizontal: tokens.layout.screenPaddingX,
     paddingVertical: tokens.space[2],
-  },
-  listEmpty: {
-    flexGrow: 1,
-    justifyContent: "center",
   },
 })

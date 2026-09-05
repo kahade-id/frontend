@@ -25,19 +25,22 @@
 import "../global.css"
 
 import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
+import { Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { Stack, useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
 import { useFonts } from "expo-font"
+import Constants from "expo-constants"
 
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
+import { Dialog } from "@/components/ui/modal"
 import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
-import { onSessionExpired } from "@/lib/api"
+import { api, onSessionExpired } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
+import { setupNotifications } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -117,6 +120,48 @@ function AppShell() {
   // redirect ke login dipasang di sini, di dalam navigator.
   useEffect(() => onSessionExpired(() => router.replace(ROUTES.login)), [router])
 
+  // Handler foreground + Android channel notification dipasang sekali di
+  // boot (idempoten) — channel wajib ada sebelum notifikasi tampil di
+  // Android 26+. Pendaftaran token ke backend tetap di Welcome/logout flow.
+  useEffect(() => {
+    void setupNotifications().catch((err) => {
+      if (__DEV__) console.warn("[kahade/push] setupNotification gagal:", err)
+    })
+  }, [])
+
+  // OTA gate: cek versi minimum dari GET /v1/public/app-version (hanya
+  // force-update bila versi lokal < minVersion). Tidak boleh melempar error:
+  // jaringan gagal → lanjut pakai versi lokal (update tidak wajib synchronous).
+  const [forceUpdate, setForceUpdate] = useState<{
+    minVersion: string
+    latestVersion: string
+    message?: string | null
+    storeUrl?: { ios?: string; android?: string } | null
+  } | null>(null)
+
+  useEffect(() => {
+    const appVersion = Constants.expoConfig?.version ?? "0.1.0"
+    const parse = (v: string) =>
+      v
+        .split(".")
+        .map((x) => Number.parseInt(x, 10) || 0)
+        .reduce((acc, n) => acc * 1000 + n, 0)
+    api.public
+      .getAppVersion()
+      .then((v) => {
+        if (v && parse(appVersion) < parse(v.minVersion)) setForceUpdate(v)
+      })
+      .catch(() => {
+        // OTA check gagal = jangan blokir aplikasi; versi minimum tidak diketahui.
+      })
+  }, [])
+
+  const storeUrl = forceUpdate?.storeUrl
+    ? forceUpdate.storeUrl[Platform.OS === "ios" ? "ios" : "android"] ??
+      forceUpdate.storeUrl.ios ??
+      forceUpdate.storeUrl.android
+    : undefined
+
   return (
     // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah
     // di dalamnya — AppShell dirender oleh ThemeProvider) agar overlay yang
@@ -155,6 +200,27 @@ function AppShell() {
           </View>
         </View>
       </ToastProvider>
+
+      {/*
+        Modal force-update (OTA): tampil di atas seluruh tree, tidak bisa
+        ditutup — versi lokal di bawah minimum server tidak boleh dipakai.
+        Buka storeUrl bila tersedia; fallback: tidak ada aksi (pengguna harus
+        update dari toko aplikasi).
+      */}
+      <Dialog
+        title="Perbarui aplikasi"
+        description={
+          `Versi aplikasi Anda tidak lagi didukung. Silakan perbarui ke versi ${forceUpdate?.latestVersion ?? "terbaru"} untuk terus menggunakan Kahade.${forceUpdate?.message ? `\n\n${forceUpdate.message}` : ""}`
+        }
+        visible={!!forceUpdate}
+        hideCancel
+        confirmLabel="Buka Toko Aplikasi"
+        onConfirm={() => {
+          if (storeUrl) void Linking.openURL(storeUrl).catch(() => undefined)
+        }}
+        onRequestClose={() => undefined}
+        destructive={false}
+      />
     </PortalProvider>
   )
 }

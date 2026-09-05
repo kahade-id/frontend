@@ -2,10 +2,12 @@
  * Kahade — domain `notifications` (tag "notifications" di kahade-api-mobile.json).
  *
  * Endpoint yang tersedia:
- *   GET  /v1/notifications/unread-count  — badge jumlah unread
- *   GET  /v1/notifications              — list notifikasi (filter kategori + paginasi)
- *   POST /v1/notifications/:id/read     — tandai satu notif dibaca
- *   POST /v1/notifications/read-all     — tandai semua dibaca
+ *   GET  /v1/notifications/unread-count      — badge jumlah unread
+ *   GET  /v1/notifications                  — list notifikasi (filter kategori + paginasi)
+ *   POST /v1/notifications/:id/read         — tandai satu notif dibaca
+ *   POST /v1/notifications/read-all         — tandai semua dibaca
+ *   POST /v1/notifications/register-device  — daftarkan perangkat push
+ *   POST /v1/notifications/unregister-device — cabut perangkat push
  *
  * Semua endpoint `security: access-token` → `auth: "required"`.
  *
@@ -14,7 +16,8 @@
  *   - Tipe `Notification` menggunakan nama `AppNotification` untuk menghindari
  *     konflik dengan Web API bawaan `Notification`.
  */
-import { http } from "@/lib/api/client"
+import { http, seg } from "@/lib/api/client"
+import type { BatchNotificationIdsDto, RegisterDeviceDto, UpdatePreferencesDto } from "@/lib/api/types"
 
 // ------------------------------------------------------------------
 // Tipe
@@ -105,14 +108,93 @@ export function getNotifications(query: {
 
 /** POST /v1/notifications/:id/read — tandai satu notifikasi dibaca. */
 export function markNotificationRead(id: string) {
-  return http.post<void>(`/v1/notifications/${id}/read`, {
-    auth: "required",
-  })
+  return http.post<void>(`/v1/notifications/${seg(id)}/read`, undefined, { auth: "required" })
 }
 
 /** POST /v1/notifications/read-all — tandai semua notifikasi dibaca. */
 export function markAllNotificationsRead() {
-  return http.post<void>("/v1/notifications/read-all", {
+  return http.post<void>("/v1/notifications/read-all", undefined, { auth: "required" })
+}
+
+/** POST /v1/notifications/register-device — daftarkan perangkat push. */
+export function registerDevice(dto: RegisterDeviceDto) {
+  return http.post<void, RegisterDeviceDto>("/v1/notifications/register-device", dto, {
     auth: "required",
+  })
+}
+
+/** POST /v1/notifications/unregister-device — cabut pendaftaran perangkat push. */
+export function unregisterDevice() {
+  return http.post<void>("/v1/notifications/unregister-device", undefined, {
+    auth: "required",
+  })
+}
+
+// ------------------------------------------------------------------
+// Preferensi & batch (untuk layar Pengaturan, audit #15)
+// ------------------------------------------------------------------
+
+/** Response GET /v1/notifications/preferences. */
+export type NotificationPreferences = {
+  orderInApp?: boolean
+  orderPush?: boolean
+  orderEmail?: boolean
+  walletInApp?: boolean
+  walletPush?: boolean
+  walletEmail?: boolean
+  securityInApp?: boolean
+  securityPush?: boolean
+  securityEmail?: boolean
+  chatInApp?: boolean
+  chatPush?: boolean
+  disputeInApp?: boolean
+  disputePush?: boolean
+  disputeEmail?: boolean
+  rankingInApp?: boolean
+  rankingPush?: boolean
+  marketingEmail?: boolean
+}
+
+export type NotificationPreferenceKey = keyof NotificationPreferences
+
+export function getNotificationPreferences() {
+  return http.get<NotificationPreferences>("/v1/notifications/preferences", {
+    auth: "required",
+    retry: 1,
+  })
+}
+
+export function updateNotificationPreferences(dto: UpdatePreferencesDto) {
+  return http.put<NotificationPreferences, UpdatePreferencesDto>(
+    "/v1/notifications/preferences",
+    dto,
+    { auth: "required" },
+  )
+}
+
+export function markNotificationsReadBatch(notifIds: string[]) {
+  return http.post<void, BatchNotificationIdsDto>("/v1/notifications/read-batch", { notifIds }, {
+    auth: "required",
+  })
+}
+
+export function deleteNotificationsBatch(notifIds: string[]) {
+  return http.post<void, BatchNotificationIdsDto>("/v1/notifications/delete-batch", { notifIds }, {
+    auth: "required",
+  })
+}
+
+export function deleteReadNotifications() {
+  return http.post<void>("/v1/notifications/delete-read", undefined, { auth: "required" })
+}
+
+export function getNotification(id: string) {
+  return http.get<AppNotification>(`/v1/notifications/${seg(id)}`, { auth: "required", retry: 1 })
+}
+
+export function deleteNotification(id: string) {
+  return http.delete<void>(`/v1/notifications/${seg(id)}`, {
+    auth: "required",
+    responseType: "void",
   })
 }

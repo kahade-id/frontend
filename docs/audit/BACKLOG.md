@@ -25,6 +25,7 @@ Sumber token: `lib/tokens.ts` → `tailwind.config.js` → `global.css`.
 | 11 | token | Konsistensi nama prop/varian antar komponen | Belum |
 | 12 | token | Sinkronisasi `tokens.ts` ↔ `tailwind.config.js` ↔ `global.css` | **Selesai** (`pnpm check:tokens`, lihat `findings/12-token-sync.md`) |
 | 13 | token | Kelengkapan dark mode | **Selesai\*** (`findings/13-dark-mode.md` — splash dark, `check:tokens` #9 allowlist `dark:`/literal) — \*uji visual 5 layar menunggu screen pertama (lihat #8) |
+| 14 | layar+API | Audit semua screen: kontrak API, hardcode, reuse komponen | **Selesai** (lihat `findings/14-screen-api-hardcode.md` — 56 error TS → 0, filter `ACTIVE`, param wajib wallet, satu `OrderStatus`, nol route literal, avatar upload aktif, push device register/unregister) |
 
 Prioritas yang disarankan: **2 → 3 → 1 → 12 → 8/9 → 13 → 6 → 10**, lalu sisanya.
 Berikutnya: **5** (kebenaran `accessibilityValue`), lalu **7**, **11**.

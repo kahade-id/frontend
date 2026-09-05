@@ -130,7 +130,7 @@ export default function CreateSecurityScreen() {
 
       {step === 1 ? (
         /* ── Step 1: Kata sandi ────────────────────────────────────── */
-        <KeyboardAvoiding offset={insets.top + HEADER_HEIGHT}>
+        <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
           <ScrollView
             className="flex-1"
             contentContainerClassName="grow px-6 pb-8 pt-8"
