@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "gen:api": "node scripts/gen-api-types.mjs && node scripts/gen-api-constraints.mjs",
-    "check:tokens": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-tokens.mjs",
+    "check:tokens": "node --experimental-strip-types --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-tokens.mjs",
     "check:a11y": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-a11y.mjs",
     "check:screens": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-screens.mjs",
     "test": "vitest run",

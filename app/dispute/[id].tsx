@@ -103,7 +103,6 @@ const CALL_OUTCOME: Partial<Record<string, DisputeCallOutcome>> = {
 
 export default function DisputeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const insets = useSafeAreaInsets()
   const toast = useToast()
 
   const [dispute, setDispute] = useState<DisputeDetail | null>(null)

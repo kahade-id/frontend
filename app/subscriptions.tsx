@@ -26,12 +26,12 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Label periode paket diambil dari `plan.key` (MONTHLY/ANNUAL); bila key
  *     tidak ada, fallback dari `durationDays` (≥ 300 hari dianggap tahunan).
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ClockCounterClockwise, CrownSimple } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type SubscribeDto } from "@/lib/api"
+import { api } from "@/lib/api"
 import type {
   SubscriptionHistoryEntry,
   SubscriptionPlan,
@@ -42,7 +42,6 @@ import { toPaymentMethods } from "@/lib/payment-methods"
 import { tokens } from "@/lib/tokens"
 
 import { Badge, type BadgeTone } from "@/components/ui/badge"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -51,7 +50,6 @@ import { Header } from "@/components/ui/header"
 import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { PaymentMethodSelector, type PaymentMethod } from "@/components/ui/payment-method-selector"
-import { PinInput } from "@/components/ui/pin-input"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -127,9 +125,7 @@ export default function SubscriptionsScreen() {
   const [pinPurpose, setPinPurpose] = useState<PinPurpose>("subscribe")
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null)
   const [methodId, setMethodId] = useState<string>("")
-  const submitLock = useRef(false)
-  const [submitting, setSubmitting] = useState(false)
-  const [pinError, setPinError] = useState<string | undefined>()
+  const [submitting] = useState(false)
 
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -208,7 +204,6 @@ export default function SubscriptionsScreen() {
       if (loading || error) return
       setSelectedPlan(plan)
       setPinPurpose("subscribe")
-      setPinError(undefined)
       setStep(hasMethods ? "method" : "pin")
     },
     [hasMethods, loading, error],
@@ -216,78 +211,17 @@ export default function SubscriptionsScreen() {
 
   const startRenew = useCallback(() => {
     setPinPurpose("renew")
-    setPinError(undefined)
     setStep("pin")
   }, [])
 
   const backToPlans = useCallback(() => {
     setStep("plans")
-    setPinError(undefined)
   }, [])
 
   const closePin = useCallback(() => {
     if (submitting) return
     setStep(pinPurpose === "subscribe" && hasMethods ? "method" : "plans")
-    setPinError(undefined)
   }, [submitting, pinPurpose, hasMethods])
-
-  const handlePin = useCallback(
-    async (pin: string) => {
-      if (
-        submitLock.current ||
-        loading ||
-        error ||
-        (pinPurpose === "subscribe" &&
-          (!selectedPlan ||
-            !canUsePaymentMethod(
-              methods.find((m) => m.id === methodId),
-              selectedPlan.price,
-            )))
-      )
-        return
-      submitLock.current = true
-      setSubmitting(true)
-      setPinError(undefined)
-      try {
-        if (pinPurpose === "renew") {
-          const next = await api.subscriptions.renewSubscription({ pin })
-          setStatus(next)
-          toast.show({
-            title:
-              next.active === true ? "Langganan diperpanjang" : "Permintaan perpanjangan diterima",
-            tone: next.active === true ? "success" : "info",
-            duration: 3000,
-          })
-        } else {
-          if (!selectedPlan) return
-          const next = await api.subscriptions.subscribe({
-            plan: planPeriod(selectedPlan),
-            pin,
-            // Kode metode berasal dari GET /wallet/payment-methods (string
-            // bebas); enum SubscribeDto lebih sempit → cast terkontrol.
-            paymentMethod: hasMethods ? (methodId as SubscribeDto["paymentMethod"]) : undefined,
-          })
-          setStatus(next)
-          toast.show({
-            title: next.active === true ? "Langganan aktif" : "Permintaan langganan diterima",
-            tone: next.active === true ? "success" : "info",
-            duration: 3000,
-          })
-        }
-        setSelectedPlan(null)
-        setStep("plans")
-        await fetchAll()
-      } catch (err) {
-        setPinError(
-          isApiError(err) ? userMessage(err) : "PIN salah atau pembayaran gagal. Coba lagi.",
-        )
-      } finally {
-        submitLock.current = false
-        setSubmitting(false)
-      }
-    },
-    [pinPurpose, selectedPlan, hasMethods, methodId, toast.show, fetchAll, loading, error, methods],
-  )
 
   const handleCancel = useCallback(async () => {
     setCancelling(true)
@@ -320,7 +254,6 @@ export default function SubscriptionsScreen() {
             )
           }
           onPress={() => {
-            setPinError(undefined)
             setStep("pin")
           }}
         >
