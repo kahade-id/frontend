@@ -71,6 +71,13 @@ export const ROUTES = {
   notifications: "/notifications" as Href,
   /** Tab #5 — Pengaturan/Profil milik sendiri */
   settings: "/settings" as Href,
+
+  // ── Stack screen di luar tab ──────────────────────────────────────────
+  /** Detail satu order (di-push dari Tab Transaksi & Beranda) */
+  orderDetail: (orderId: string) =>
+    ({ pathname: "/order/[id]", params: { id: orderId } }) as unknown as Href,
+  /** Buat transaksi baru (di-push dari FAB Tab Transaksi & quick action Beranda) */
+  createTransaction: "/create-transaction" as Href,
 } as const
 
 /**
