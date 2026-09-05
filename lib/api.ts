@@ -18,6 +18,7 @@
  * dengan `npm run gen:api` bila spec berubah.
  */
 import * as auth from "@/lib/api/auth"
+import * as notifications from "@/lib/api/notifications"
 import * as orders from "@/lib/api/orders"
 import * as publicApi from "@/lib/api/public"
 import * as users from "@/lib/api/users"
@@ -51,9 +52,11 @@ export {
   onSessionExpired,
 } from "@/lib/api/session"
 export type * from "@/lib/api/types"
+export { readUnreadCount, type NotificationCategory, type UnreadCountResult } from "@/lib/api/notifications"
 
 export const api = {
   auth,
+  notifications,
   orders,
   public: publicApi,
   users,
