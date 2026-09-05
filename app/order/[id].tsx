@@ -7,7 +7,7 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
-import { useLocalSearchParams } from "expo-router"
+import { useLocalSearchParams, router, type Href } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, type Order, type OrderStatus } from "@/lib/api"
@@ -30,6 +30,7 @@ import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { Text } from "@/components/ui/text"
 import { PinInput } from "@/components/ui/pin-input"
 import { useCopy } from "@/lib/clipboard"
+import { ROUTES } from "@/lib/routes"
 import { useToast } from "@/components/ui/toast"
 
 const ACTIVE_STATUSES: readonly OrderStatus[] = [
@@ -215,6 +216,7 @@ export default function OrderDetailScreen() {
   const canConfirm = order.status === "PENDING_PAYMENT" && myRole === "SELLER"
   const canProcess = order.status === "PAID" && myRole === "SELLER"
   const canComplete = (order.status === "SHIPPED" || order.status === "DELIVERED") && myRole === "BUYER"
+  const canRate = order.status === "COMPLETED"
   const canCancel = ACTIVE_STATUSES.includes(order.status)
 
   return (
@@ -311,6 +313,11 @@ export default function OrderDetailScreen() {
             ) : null}
             {canComplete ? (
               <Button onPress={() => void handleComplete()}>Tandai Selesai</Button>
+            ) : null}
+            {canRate ? (
+              <Button variant="secondary" onPress={() => router.push(ROUTES.rateOrder(order.id) as Href)}>
+                Beri Ulasan
+              </Button>
             ) : null}
             {canCancel ? (
               <Button variant="secondary" onPress={() => setConfirmOpen(true)} disabled={submitting}>

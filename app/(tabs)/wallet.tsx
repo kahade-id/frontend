@@ -19,20 +19,29 @@
  * Pull-to-refresh memakai <PullToRefresh> logo Kahade (§9.13), bukan
  * RefreshControl: riwayat + saldo di-refresh bersamaan (Promise.all).
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
-import { StyleSheet, View } from "react-native"
+import { useCallback, useEffect, useState } from "react"
+import { Platform, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
-import { Wallet as WalletIcon } from "phosphor-react-native"
+import { FileCsv, FilePdf, Wallet as WalletIcon } from "phosphor-react-native"
+import { File, Paths } from "expo-file-system"
 
 import { api, type Wallet, type WalletTransaction } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
+import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
+import {
+  WALLET_TXN_KIND,
+  WALLET_TXN_LABELS,
+  WALLET_TXN_STATUS,
+  isWalletCredit,
+} from "@/lib/wallet-labels"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
+import { IconButton } from "@/components/ui/icon-button"
 import { LoadMore } from "@/components/ui/load-more"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
@@ -41,11 +50,8 @@ import {
   WalletBalanceCard,
   type WalletQuickAction,
 } from "@/components/ui/wallet-balance-card"
-import {
-  WalletTransactionListItem,
-  type WalletTxKind,
-  type WalletTxStatus,
-} from "@/components/ui/wallet-transaction-list-item"
+import { WalletTransactionListItem } from "@/components/ui/wallet-transaction-list-item"
+import { useToast } from "@/components/ui/toast"
 
 // ------------------------------------------------------------------
 // Konstanta layar
@@ -53,46 +59,6 @@ import {
 
 /** Spec GET /v1/wallet/transactions: page & limit required. */
 const PAGE_SIZE = 20
-
-/** Label mutasi — satu tempat; nilai asing dari backend ditampilkan apa adanya. */
-const TXN_LABELS: Record<string, string> = {
-  TOPUP: "Topup",
-  WITHDRAWAL: "Penarikan",
-  TRANSFER_IN: "Transfer Masuk",
-  TRANSFER_OUT: "Transfer Keluar",
-  ORDER_ESCROW: "Escrow Order",
-  ORDER_RELEASE: "Pencairan Order",
-  REFUND: "Refund",
-  FEE: "Biaya Platform",
-  CASHBACK: "Cashback",
-}
-
-/** Peta type API → ikon komponen (kind). Nilai asing → "other". */
-const TXN_KIND: Record<string, WalletTxKind> = {
-  TOPUP: "topup",
-  WITHDRAWAL: "withdraw",
-  TRANSFER_IN: "transfer_in",
-  TRANSFER_OUT: "transfer_out",
-  ORDER_ESCROW: "escrow_hold",
-  ORDER_RELEASE: "escrow_release",
-  REFUND: "refund",
-  FEE: "fee",
-  CASHBACK: "cashback",
-}
-
-/** Peta status API → status komponen (SUCCESS = default, tidak dirender). */
-const TXN_STATUS: Record<string, WalletTxStatus> = {
-  COMPLETED: "SUCCESS",
-  SUCCESS: "SUCCESS",
-  PENDING: "PENDING",
-  FAILED: "FAILED",
-}
-
-/** Arah dana: field `direction` bila ada, fallback kategori. */
-function isCredit(txn: WalletTransaction): boolean {
-  if (txn.direction) return txn.direction === "CREDIT"
-  return ["TOPUP", "TRANSFER_IN", "ORDER_RELEASE", "REFUND", "CASHBACK"].includes(txn.type)
-}
 
 /** Peta aksi cepat → route (semua screen sudah ada di lib/routes.ts). */
 const ACTION_ROUTE: Record<WalletQuickAction["key"], Href> = {
@@ -107,6 +73,7 @@ const ACTION_ROUTE: Record<WalletQuickAction["key"], Href> = {
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets()
+  const toast = useToast()
 
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [walletLoading, setWalletLoading] = useState(true)
@@ -165,9 +132,63 @@ export default function WalletScreen() {
     router.push(ACTION_ROUTE[key])
   }, [])
 
+  const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null)
+
+  /** Unduh file hasil export (web via anchor; native ditulis + share sheet). */
+  const handleExport = useCallback(
+    async (kind: "csv" | "pdf") => {
+      setExporting(kind)
+      try {
+        const blob = kind === "csv" ? await api.wallet.exportWalletCsv() : await api.wallet.exportWalletPdf()
+        const filename = `kahade-wallet.${kind}`
+        const mimeType = kind === "csv" ? "text/csv" : "application/pdf"
+        if (Platform.OS === "web") {
+          const url = URL.createObjectURL(blob)
+          const a = document.createElement("a")
+          a.href = url
+          a.download = filename
+          a.click()
+          URL.revokeObjectURL(url)
+        } else {
+          const file = new File(Paths.cache, filename)
+          file.write(new Uint8Array(await blob.arrayBuffer()))
+          await shareContent({ fileUri: file.uri, mimeType, dialogTitle: filename })
+        }
+        toast.show({ title: "Export dompet berhasil", tone: "success", duration: 3000 })
+      } catch {
+        toast.show({ title: "Gagal mengekspor riwayat", tone: "danger" })
+      } finally {
+        setExporting(null)
+      }
+    },
+    [toast.show],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Dompet" />
+      <Header
+        title="Dompet"
+        right={
+          <>
+            <IconButton
+              icon={FileCsv}
+              size="md"
+              variant="ghost"
+              accessibilityLabel="Export riwayat CSV"
+              disabled={exporting !== null}
+              onPress={() => void handleExport("csv")}
+            />
+            <IconButton
+              icon={FilePdf}
+              size="md"
+              variant="ghost"
+              accessibilityLabel="Export riwayat PDF"
+              disabled={exporting !== null}
+              onPress={() => void handleExport("pdf")}
+            />
+          </>
+        }
+      />
 
       <PullToRefresh
         onRefresh={handleRefresh}
@@ -215,13 +236,14 @@ export default function WalletScreen() {
             {txns.map((item, index) => (
               <WalletTransactionListItem
                 key={item.id}
-                title={TXN_LABELS[item.type] ?? item.type}
-                type={isCredit(item) ? "CREDIT" : "DEBIT"}
+                title={WALLET_TXN_LABELS[item.type] ?? item.type}
+                type={isWalletCredit(item) ? "CREDIT" : "DEBIT"}
                 amount={item.amount}
-                kind={TXN_KIND[item.type] ?? "other"}
-                status={TXN_STATUS[item.status ?? "COMPLETED"] ?? "SUCCESS"}
+                kind={WALLET_TXN_KIND[item.type] ?? "other"}
+                status={WALLET_TXN_STATUS[item.status ?? "COMPLETED"] ?? "SUCCESS"}
                 timestamp={formatDateTime(item.createdAt)}
                 reference={item.referenceId ?? undefined}
+                onPress={() => router.push(ROUTES.walletTransaction(item.id))}
                 divider={index < txns.length - 1}
               />
             ))}

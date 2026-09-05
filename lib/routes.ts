@@ -190,6 +190,24 @@ export const ROUTES = {
   showcase: "/showcase" as Href,
   /** Questions milik sendiri (GET /v1/users/me/questions) */
   questions: "/questions" as Href,
+  /** Showcase publik user (GET /v1/users/{username}/showcase) */
+  userShowcase: (username: string) =>
+    ({ pathname: "/user/[username]/showcase", params: { username } }) as unknown as Href,
+  /** Tanya-jawab publik user (GET /v1/users/{username}/questions) */
+  userQuestions: (username: string) =>
+    ({ pathname: "/user/[username]/questions", params: { username } }) as unknown as Href,
+  /** Ulasan publik user (GET /v1/users/{username}/ratings) */
+  userRatings: (username: string) =>
+    ({ pathname: "/user/[username]/ratings", params: { username } }) as unknown as Href,
+  /** Laporan saya (GET /v1/settings/reports) + form lapor bila target diberikan */
+  reports: (opts: { targetId?: string; targetName?: string } = {}) =>
+    ({ pathname: "/reports", params: opts.targetId ? opts : {} }) as unknown as Href,
+  /** Detail satu mutasi wallet (GET /v1/wallet/transactions/{txId}) */
+  walletTransaction: (txId: string) =>
+    ({ pathname: "/wallet-transaction/[txId]", params: { txId } }) as unknown as Href,
+  /** Beri ulasan pesanan selesai (POST /v1/ratings) */
+  rateOrder: (orderId: string) =>
+    ({ pathname: "/rate/[orderId]", params: { orderId } }) as unknown as Href,
 } as const
 
 /**

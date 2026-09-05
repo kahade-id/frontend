@@ -22,6 +22,11 @@ export function getMyRatings(query?: { page?: number; limit?: number }) {
   return http.get<Array<Rating>>("/v1/ratings/my", { query, auth: "required", retry: 1 })
 }
 
+/** GET /v1/users/{username}/ratings — ulasan publik milik profil user. */
+export function getPublicRatings(username: string) {
+  return http.get<Array<Rating>>(`/v1/users/${seg(username)}/ratings`, { auth: "none", retry: 1 })
+}
+
 export function createRating(dto: CreateRatingDto) {
   return http.post<Rating, CreateRatingDto>("/v1/ratings", dto, { auth: "required" })
 }
