@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `kyc` (verifikasi identitas KTP + selfie).
  */
@@ -64,7 +65,9 @@ export function getKycStatus() {
 
 /** GET /v1/kyc/history — paginated (page ≥1, limit ≤100; default 1/20). */
 export function getKycHistory(query: { page?: number; limit?: number } = {}) {
-  return http.get<KycHistoryEntry[]>("/v1/kyc/history", { query, auth: "required", retry: 1 })
+  return http
+    .get<KycHistoryEntry[]>("/v1/kyc/history", { query, auth: "required", retry: 1 })
+    .then((raw) => readList<KycHistoryEntry>(raw, ["history"]))
 }
 
 export function submitKyc(dto: SubmitKycDto) {
@@ -74,4 +77,3 @@ export function submitKyc(dto: SubmitKycDto) {
 export function resubmitKyc(dto: SubmitKycDto) {
   return http.post<KycState, SubmitKycDto>("/v1/kyc/resubmit", dto, { auth: "required" })
 }
-

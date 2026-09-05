@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `sessions` (perangkat login aktif + security/activity log).
  * Perangkat juga tersedia via users.me.devices; sessions adalah sumber utama
@@ -24,7 +25,9 @@ export type SessionsPageQuery = { page: number; limit: number }
 
 /** GET /v1/sessions — daftar sesi login aktif (paginated; page/limit wajib). */
 export function listSessions(query: SessionsPageQuery) {
-  return http.get<DeviceSession[]>("/v1/sessions", { query, auth: "required", retry: 1 })
+  return http
+    .get<DeviceSession[]>("/v1/sessions", { query, auth: "required", retry: 1 })
+    .then((raw) => readList<DeviceSession>(raw, ["sessions"]))
 }
 
 export function deleteSession(sessionId: string) {
@@ -44,9 +47,13 @@ export function deleteOtherSessions() {
  * (objek kosong — dikirim `{}` agar `Content-Type: application/json` valid).
  */
 export function trustDevice(deviceId: string, dto: TrustDeviceDto = {}) {
-  return http.patch<DeviceSession, TrustDeviceDto>(`/v1/users/me/devices/${seg(deviceId)}/trust`, dto, {
-    auth: "required",
-  })
+  return http.patch<DeviceSession, TrustDeviceDto>(
+    `/v1/users/me/devices/${seg(deviceId)}/trust`,
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 /** PATCH /v1/users/me/devices/{deviceId}/untrust. */
@@ -57,7 +64,12 @@ export function untrustDevice(deviceId: string) {
 }
 
 export type SecurityLogEntry = { id: string; action: string; ip?: string; createdAt: string }
-export type ActivityLogEntry = { id: string; action: string; description?: string; createdAt: string }
+export type ActivityLogEntry = {
+  id: string
+  action: string
+  description?: string
+  createdAt: string
+}
 
 /**
  * Filter `action` — spec menandainya REQUIRED tanpa enum/deskripsi. Nilai
@@ -77,5 +89,9 @@ export function getSecurityLog(query: SessionsPageQuery & { action?: string }) {
 
 /** GET /v1/users/me/activity-log — aktivitas umum (page/limit wajib). */
 export function getActivityLog(query: SessionsPageQuery) {
-  return http.get<ActivityLogEntry[]>("/v1/users/me/activity-log", { query, auth: "required", retry: 1 })
+  return http.get<ActivityLogEntry[]>("/v1/users/me/activity-log", {
+    query,
+    auth: "required",
+    retry: 1,
+  })
 }

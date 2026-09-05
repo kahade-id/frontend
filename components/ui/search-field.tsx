@@ -35,22 +35,36 @@ export type SearchFieldProps = Omit<InputProps, "variant" | "label"> & {
 }
 
 export const SearchField = forwardRef<TextInput, SearchFieldProps>(function SearchField(
-  { onSearch, debounceMs = tokens.motion.duration.base, onChangeText, value, placeholder = "Cari transaksi, pihak, atau ID", ...rest },
+  {
+    onSearch,
+    debounceMs = tokens.motion.duration.base,
+    onChangeText,
+    onSubmitEditing,
+    value,
+    placeholder = "Cari transaksi, pihak, atau ID",
+    ...rest
+  },
   ref,
 ) {
+  const latestSearch = useRef(onSearch)
+  latestSearch.current = onSearch
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current)
-  }, [])
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current)
+    },
+    [],
+  )
 
   return (
     <Input
+      {...rest}
       ref={ref}
       variant="search"
       value={value}
       placeholder={placeholder}
-      autoFocus
+      autoFocus={rest.autoFocus ?? true}
       returnKeyType="search"
       autoCorrect={false}
       autoCapitalize="none"
@@ -58,14 +72,13 @@ export const SearchField = forwardRef<TextInput, SearchFieldProps>(function Sear
         onChangeText?.(t)
         if (!onSearch) return
         if (timer.current) clearTimeout(timer.current)
-        timer.current = setTimeout(() => onSearch(t), debounceMs)
+        timer.current = setTimeout(() => latestSearch.current?.(t), debounceMs)
       }}
       onSubmitEditing={(e) => {
         if (timer.current) clearTimeout(timer.current)
         onSearch?.(e.nativeEvent.text)
-        rest.onSubmitEditing?.(e)
+        onSubmitEditing?.(e)
       }}
-      {...rest}
     />
   )
 })
@@ -90,7 +103,10 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
       accessibilityLabel={placeholder}
       scaleOnPress={false}
       containerClassName={cn("w-full", containerClassName)}
-      className={cn("h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4", className)}
+      className={cn(
+        "h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4",
+        className,
+      )}
       {...rest}
     >
       <Icon icon={MagnifyingGlass} size="sm" />

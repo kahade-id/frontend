@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Hubungi Kami: form tiket (POST /v1/support/tickets) + daftar
  * tiket (GET /v1/support/tickets) langsung di layar.
@@ -71,7 +72,12 @@ export default function ContactScreen() {
         message: message.trim(),
         attachments: [],
       })
-      toast.show({ title: "Tiket terkirim", description: "Tim kami akan segera merespons.", tone: "success", duration: 4000 })
+      toast.show({
+        title: "Tiket terkirim",
+        description: "Tim kami akan segera merespons.",
+        tone: "success",
+        duration: 4000,
+      })
       setSubject("")
       setMessage("")
       if (res?.id) {
@@ -86,18 +92,25 @@ export default function ContactScreen() {
   }, [subject, message, toast.show, fetchTickets, router])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Hubungi Kami" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           <FormSection title="Buat tiket baru">
             <Field label="Subjek" required>
-              <Input value={subject} onChangeText={setSubject} placeholder="Ringkasan masalah" maxLength={120} />
+              <Input
+                value={subject}
+                onChangeText={setSubject}
+                placeholder="Ringkasan masalah"
+                maxLength={120}
+              />
             </Field>
             <Field label="Pesan" required>
               <TextArea
@@ -108,16 +121,24 @@ export default function ContactScreen() {
                 numberOfLines={5}
               />
             </Field>
-            <Button loading={submitting} disabled={!subject.trim() || !message.trim()} onPress={() => void handleSubmit()}>
+            <Button
+              loading={submitting}
+              disabled={!subject.trim() || !message.trim()}
+              onPress={() => void handleSubmit()}
+            >
               Kirim Tiket
             </Button>
           </FormSection>
 
-          <SectionHeader title="Tiket saya" inset />
+          <SectionHeader title="Tiket saya" />
           {loading ? (
-            <EmptyState icon={ChatCircleText} title="Memuat tiket…" />
+            <LoadingScreen message="Memuat tiket…" />
           ) : error ? (
-            <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchTickets()} />
+            <ErrorState
+              title="Gagal memuat"
+              description={error}
+              onRetry={() => void fetchTickets()}
+            />
           ) : tickets.length === 0 ? (
             <EmptyState
               icon={ChatCircleText}

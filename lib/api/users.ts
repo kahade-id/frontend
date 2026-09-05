@@ -1,3 +1,4 @@
+import { readPage, readList } from "@/lib/api/response"
 /**
  * Kahade — domain `users` (tag "users" di kahade-api-mobile.json).
  *
@@ -104,14 +105,20 @@ export function deleteAvatar() {
 
 /** POST /v1/users/me/delete-request — minta penghapusan akun. */
 export function requestAccountDeletion(dto: RequestAccountDeletionDto) {
-  return http.post<{ message: string }, RequestAccountDeletionDto>("/v1/users/me/delete-request", dto, {
-    auth: "required",
-  })
+  return http.post<{ message: string }, RequestAccountDeletionDto>(
+    "/v1/users/me/delete-request",
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 /** GET /v1/users/me/links — tautan sosial profil. */
 export function getLinks() {
-  return http.get<UserLinkItemDto[]>("/v1/users/me/links", { auth: "required", retry: 1 })
+  return http
+    .get<UserLinkItemDto[]>("/v1/users/me/links", { auth: "required", retry: 1 })
+    .then((raw) => readList<UserLinkItemDto>(raw, ["links"]))
 }
 
 /** PUT /v1/users/me/links — ganti semua tautan sosial. */
@@ -181,14 +188,20 @@ export const ANALYTICS_PERIODS: ReadonlyArray<{ value: AnalyticsPeriod; label: s
 
 /** GET /v1/users/me/analytics?period= — dashboard analitik per periode. */
 export function getMyAnalytics(period: AnalyticsPeriod = "30d") {
-  return http.get<UserAnalytics>("/v1/users/me/analytics", { query: { period }, auth: "required", retry: 1 })
+  return http.get<UserAnalytics>("/v1/users/me/analytics", {
+    query: { period },
+    auth: "required",
+    retry: 1,
+  })
 }
 
 export function getMyTrustScore() {
-  return http.get<{ score: number; tier?: string; factors?: Array<{ key: string; label: string; value: number; max: number }>; updatedAt?: string }>(
-    "/v1/users/me/trust-score",
-    { auth: "required", retry: 1 },
-  )
+  return http.get<{
+    score: number
+    tier?: string
+    factors?: Array<{ key: string; label: string; value: number; max: number }>
+    updatedAt?: string
+  }>("/v1/users/me/trust-score", { auth: "required", retry: 1 })
 }
 
 export function getMyDashboard() {
@@ -211,28 +224,59 @@ export type DiscoveredUser = {
 }
 
 export function discoverUsers(query?: { page?: number; limit?: number; sort?: string }) {
-  return http.get<DiscoveredUser[]>("/v1/users/discover", { query, auth: "required", retry: 1 })
+  return http
+    .get<DiscoveredUser[]>("/v1/users/discover", { query, auth: "required", retry: 1 })
+    .then((raw) => readList<DiscoveredUser>(raw, ["users"]))
 }
 
 export function getFavorites() {
-  return http.get<Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>>(
-    "/v1/users/favorites",
-    { auth: "required", retry: 1 },
-  )
+  return http
+    .get<
+      Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>
+    >("/v1/users/favorites", { auth: "required", retry: 1 })
+    .then((raw) =>
+      readList<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>(
+        raw,
+        ["users", "favorites"],
+      ),
+    )
 }
 
-export function getFollowers(username: string) {
-  return http.get<Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>>(
-    `/v1/users/${seg(username)}/followers`,
-    { auth: "required", retry: 1 },
-  )
+export type UserConnection = {
+  id: string
+  username: string
+  fullName?: string
+  avatarUrl?: string | null
 }
-
-export function getFollowing(username: string) {
-  return http.get<Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>>(
-    `/v1/users/${seg(username)}/following`,
-    { auth: "required", retry: 1 },
-  )
+export function getFollowers(
+  username: string,
+  options: { page?: number; limit?: number; search?: string } = {},
+  signal?: AbortSignal,
+) {
+  const query = { page: 1, limit: 20, search: "", ...options }
+  return http
+    .get<unknown>(`/v1/users/${seg(username)}/followers`, {
+      query,
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => readPage<UserConnection>(raw, query, ["followers", "users"]))
+}
+export function getFollowing(
+  username: string,
+  options: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  const query = { page: 1, limit: 20, ...options }
+  return http
+    .get<unknown>(`/v1/users/${seg(username)}/following`, {
+      query,
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => readPage<UserConnection>(raw, query, ["following", "users"]))
 }
 
 export function followUser(username: string) {
@@ -240,7 +284,10 @@ export function followUser(username: string) {
 }
 
 export function unfollowUser(username: string) {
-  return http.delete<void>(`/v1/users/${seg(username)}/follow`, { auth: "required", responseType: "void" })
+  return http.delete<void>(`/v1/users/${seg(username)}/follow`, {
+    auth: "required",
+    responseType: "void",
+  })
 }
 
 export function isFavorite(username: string) {
@@ -251,15 +298,22 @@ export function isFavorite(username: string) {
 }
 
 export function addFavorite(username: string) {
-  return http.post<{ favorited: boolean; count?: number }>(`/v1/users/${seg(username)}/favorite`, undefined, {
-    auth: "required",
-  })
+  return http.post<{ favorited: boolean; count?: number }>(
+    `/v1/users/${seg(username)}/favorite`,
+    undefined,
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function removeFavorite(username: string) {
-  return http.delete<{ favorited: boolean; count?: number }>(`/v1/users/${seg(username)}/favorite`, {
-    auth: "required",
-  })
+  return http.delete<{ favorited: boolean; count?: number }>(
+    `/v1/users/${seg(username)}/favorite`,
+    {
+      auth: "required",
+    },
+  )
 }
 
 // ------------------------------------------------------------------
@@ -290,7 +344,9 @@ export type ShowcaseItem = {
 export type ShowcaseUploadResult = Partial<ShowcaseItem> & { url?: string; key?: string }
 
 export function getMyShowcase() {
-  return http.get<ShowcaseItem[]>("/v1/users/me/showcase", { auth: "required", retry: 1 })
+  return http
+    .get<ShowcaseItem[]>("/v1/users/me/showcase", { auth: "required", retry: 1 })
+    .then((raw) => readList<ShowcaseItem>(raw, ["showcase", "items"]))
 }
 
 /**
@@ -299,13 +355,16 @@ export function getMyShowcase() {
  * `imageUrl`/`url` untuk dipakai di createShowcase (UNVERIFIED).
  */
 export function uploadShowcase(formData: FormData) {
-  return http.post<ShowcaseUploadResult, FormData>("/v1/users/me/showcase/upload", formData, {
+  return http.post<ShowcaseUploadResult>("/v1/users/me/showcase/upload", undefined, {
+    formData,
     auth: "required",
   })
 }
 
 export function createShowcase(dto: CreateShowcaseDto) {
-  return http.post<ShowcaseItem, CreateShowcaseDto>("/v1/users/me/showcase", dto, { auth: "required" })
+  return http.post<ShowcaseItem, CreateShowcaseDto>("/v1/users/me/showcase", dto, {
+    auth: "required",
+  })
 }
 
 export function updateShowcase(id: string, dto: UpdateShowcaseDto) {
@@ -315,11 +374,17 @@ export function updateShowcase(id: string, dto: UpdateShowcaseDto) {
 }
 
 export function deleteShowcase(id: string) {
-  return http.delete<void>(`/v1/users/me/showcase/${seg(id)}`, { auth: "required", responseType: "void" })
+  return http.delete<void>(`/v1/users/me/showcase/${seg(id)}`, {
+    auth: "required",
+    responseType: "void",
+  })
 }
 
 export function getPublicShowcase(username: string) {
-  return http.get<ShowcaseItem[]>(`/v1/users/${seg(username)}/showcase`, { auth: "required", retry: 1 })
+  return http.get<ShowcaseItem[]>(`/v1/users/${seg(username)}/showcase`, {
+    auth: "required",
+    retry: 1,
+  })
 }
 
 // ------------------------------------------------------------------
@@ -344,7 +409,10 @@ export type MyQuestionsType = "received" | "asked"
 /** Daftar bisa array polos ATAU {data, meta} (spec tanpa schema; UNVERIFIED). */
 export type QuestionListResponse =
   | QuestionItem[]
-  | { data: QuestionItem[]; meta?: { page: number; limit: number; total: number; totalPages: number } }
+  | {
+      data: QuestionItem[]
+      meta?: { page: number; limit: number; total: number; totalPages: number }
+    }
 
 export function readQuestionList(body: QuestionListResponse | null | undefined): {
   items: QuestionItem[]
@@ -357,13 +425,21 @@ export function readQuestionList(body: QuestionListResponse | null | undefined):
 
 /** Nilai enum `type` tidak didokumentasikan — asumsi "received" | "asked" (dari summary endpoint). */
 export function getMyQuestions(query: { type: MyQuestionsType; page: number; limit: number }) {
-  return http.get<QuestionListResponse>("/v1/users/me/questions", { query, auth: "required", retry: 1 })
+  return http.get<QuestionListResponse>("/v1/users/me/questions", {
+    query,
+    auth: "required",
+    retry: 1,
+  })
 }
 
 export function addQuestion(username: string, question: string) {
-  return http.post<QuestionItem, { question: string }>(`/v1/users/${seg(username)}/questions`, { question }, {
-    auth: "required",
-  })
+  return http.post<QuestionItem, { question: string }>(
+    `/v1/users/${seg(username)}/questions`,
+    { question },
+    {
+      auth: "required",
+    },
+  )
 }
 
 /** Spec: `page` & `limit` REQUIRED. */
@@ -376,13 +452,20 @@ export function getPublicQuestions(username: string, query: { page: number; limi
 }
 
 export function answerQuestion(questionId: string, answer: string) {
-  return http.put<QuestionItem, { answer: string }>(`/v1/users/questions/${seg(questionId)}/answer`, { answer }, {
-    auth: "required",
-  })
+  return http.put<QuestionItem, { answer: string }>(
+    `/v1/users/questions/${seg(questionId)}/answer`,
+    { answer },
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function deleteQuestion(questionId: string) {
-  return http.delete<void>(`/v1/users/questions/${seg(questionId)}`, { auth: "required", responseType: "void" })
+  return http.delete<void>(`/v1/users/questions/${seg(questionId)}`, {
+    auth: "required",
+    responseType: "void",
+  })
 }
 
 export type QuestionComment = {
@@ -402,7 +485,10 @@ export type QuestionComment = {
 
 export type QuestionCommentListResponse =
   | QuestionComment[]
-  | { data: QuestionComment[]; meta?: { page: number; limit: number; total: number; totalPages: number } }
+  | {
+      data: QuestionComment[]
+      meta?: { page: number; limit: number; total: number; totalPages: number }
+    }
 
 export function readQuestionComments(body: QuestionCommentListResponse | null | undefined): {
   items: QuestionComment[]
@@ -424,11 +510,18 @@ export function getQuestionComments(questionId: string, query: { page: number; l
 
 /** AddCommentDto { content 1–1000, parentId? } */
 export function addQuestionComment(questionId: string, dto: AddCommentDto) {
-  return http.post<QuestionComment, AddCommentDto>(`/v1/users/questions/${seg(questionId)}/comments`, dto, {
-    auth: "required",
-  })
+  return http.post<QuestionComment, AddCommentDto>(
+    `/v1/users/questions/${seg(questionId)}/comments`,
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function deleteQuestionComment(commentId: string) {
-  return http.delete<void>(`/v1/users/comments/${seg(commentId)}`, { auth: "required", responseType: "void" })
+  return http.delete<void>(`/v1/users/comments/${seg(commentId)}`, {
+    auth: "required",
+    responseType: "void",
+  })
 }

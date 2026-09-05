@@ -40,7 +40,12 @@
 import { Plus } from "phosphor-react-native"
 import { useEffect } from "react"
 import { View } from "react-native"
-import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated"
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -67,6 +72,8 @@ export type FloatingActionButtonProps = Omit<
   loading?: boolean
   /** Jarak dari tepi bawah (di atas safe-area). Default 24 (space.6). */
   bottomOffset?: number
+  /** Disable inside a navigator that already consumes its bottom inset. */
+  safeArea?: boolean
   /** Jarak dari tepi kanan. Default 24 (space.6). */
   rightOffset?: number
   /** Render tanpa posisi absolute (untuk ditaruh pemanggil sendiri) */
@@ -86,6 +93,7 @@ export function FloatingActionButton({
   bottomOffset = tokens.space[6],
   rightOffset = tokens.space[6],
   inline = false,
+  safeArea = true,
   disabled,
   className,
   containerClassName,
@@ -93,7 +101,8 @@ export function FloatingActionButton({
 }: FloatingActionButtonProps) {
   const insets = useSafeAreaInsets()
   const isDisabled = disabled || loading
-  const hiddenOffset = SIZE + bottomOffset + insets.bottom
+  const bottomInset = safeArea ? insets.bottom : 0
+  const hiddenOffset = SIZE + bottomOffset + bottomInset
 
   const translateY = useSharedValue(visible ? 0 : hiddenOffset)
   const opacity = useSharedValue(visible ? 1 : 0)
@@ -150,7 +159,7 @@ export function FloatingActionButton({
     <View
       pointerEvents="box-none"
       className="absolute z-sticky"
-      style={{ right: rightOffset, bottom: insets.bottom + bottomOffset }}
+      style={{ right: rightOffset, bottom: bottomInset + bottomOffset }}
     >
       <Animated.View pointerEvents={visible ? "auto" : "none"} style={animatedStyle}>
         {button}

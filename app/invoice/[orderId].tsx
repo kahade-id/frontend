@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Invoice (GET /v1/orders/{orderId}/invoice + receipt HTML).
  */
@@ -61,7 +62,12 @@ export default function InvoiceScreen() {
     async (orderId: string) => {
       try {
         await api.orders.getReceiptHtml(orderId)
-        toast.show({ title: "Struk siap diunduh", description: "File HTML diterima dari server.", tone: "success", duration: 3000 })
+        toast.show({
+          title: "Struk siap diunduh",
+          description: "File HTML diterima dari server.",
+          tone: "success",
+          duration: 3000,
+        })
       } catch {
         toast.show({ title: "Gagal mengunduh struk", tone: "danger" })
       }
@@ -76,12 +82,18 @@ export default function InvoiceScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={FileText} title="Memuat invoice…" />
+          <LoadingScreen message="Memuat invoice…" />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchInvoice()} />
+          <ErrorState
+            title="Gagal memuat"
+            description={error}
+            onRetry={() => void fetchInvoice()}
+          />
         ) : invoice ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <InvoiceReceiptView
@@ -90,7 +102,11 @@ export default function InvoiceScreen() {
               status={{ label: "Terverifikasi", tone: "success" }}
               from={{ name: invoice.order.seller.fullName ?? `@${invoice.order.seller.username}` }}
               to={{ name: invoice.order.buyer.fullName ?? `@${invoice.order.buyer.username}` }}
-              items={invoice.items.map((i, idx) => ({ id: `${invoice.invoiceNumber}-${idx}`, title: i.label, amount: i.amount }))}
+              items={invoice.items.map((i, idx) => ({
+                id: `${invoice.invoiceNumber}-${idx}`,
+                title: i.label,
+                amount: i.amount,
+              }))}
               total={invoice.total}
               meta={[
                 { label: "Terbit", value: formatDateTime(invoice.issuedAt) },
@@ -99,11 +115,17 @@ export default function InvoiceScreen() {
               onCopyNumber={(n) => void copy(n)}
               onDownload={() => void handleDownload(invoice.order.id)}
             />
-            <Button variant="ghost" fullWidth={false} onPress={() => void handleDownload(invoice.order.id)}>
+            <Button
+              variant="ghost"
+              fullWidth={false}
+              onPress={() => void handleDownload(invoice.order.id)}
+            >
               Unduh Struk (HTML)
             </Button>
             {copied ? (
-              <Button variant="ghost" fullWidth={false} disabled>Nomor invoice disalin</Button>
+              <Button variant="ghost" fullWidth={false} disabled>
+                Nomor invoice disalin
+              </Button>
             ) : null}
           </View>
         ) : null}

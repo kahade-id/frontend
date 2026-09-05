@@ -56,7 +56,7 @@ export type TransferRecipient = {
   name: string
   username: string
   avatarUrl?: string
-  kycVerified: boolean
+  kycVerified?: boolean
 }
 
 export type TransferRecipientPickerLabels = {
@@ -107,7 +107,9 @@ function RecipientRow({
   onSelect: (r: TransferRecipient) => void
   t: TransferRecipientPickerLabels
 }) {
-  const disabled = !recipient.kycVerified
+  const disabled = recipient.kycVerified !== true
+  const verificationLabel =
+    recipient.kycVerified === false ? t.notVerified : "Verifikasi belum diketahui"
   return (
     <View>
       <PressableScale
@@ -117,13 +119,23 @@ function RecipientRow({
         accessibilityRole="button"
         accessibilityState={{ selected, disabled }}
         accessibilityLabel={`${recipient.name}, @${recipient.username}${
-          disabled ? `, ${t.notVerified}` : ""
+          disabled ? `, ${verificationLabel}` : ""
         }${selected ? `, ${t.selected}` : ""}`}
         className="flex-row items-center gap-3 px-6 py-3"
       >
-        <Avatar source={recipient.avatarUrl} name={recipient.name} size="md" verified={recipient.kycVerified} />
+        <Avatar
+          source={recipient.avatarUrl}
+          name={recipient.name}
+          size="md"
+          verified={recipient.kycVerified}
+        />
         <View className="flex-1 gap-0">
-          <Text variant="body" weight={500} tone={disabled ? "disabled" : "primary"} numberOfLines={1}>
+          <Text
+            variant="body"
+            weight={500}
+            tone={disabled ? "disabled" : "primary"}
+            numberOfLines={1}
+          >
             {recipient.name}
           </Text>
           <Text variant="monoBody" tone={disabled ? "disabled" : "secondary"} numberOfLines={1}>
@@ -132,7 +144,7 @@ function RecipientRow({
         </View>
         {disabled ? (
           <Badge tone="neutral" variant="outline">
-            {t.notVerified}
+            {verificationLabel}
           </Badge>
         ) : selected ? (
           <Icon icon={CheckCircle} size="sm" tone="active" weight="fill" />

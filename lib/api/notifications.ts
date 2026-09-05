@@ -1,3 +1,4 @@
+import { readPage } from "@/lib/api/response"
 /**
  * Kahade — domain `notifications` (tag "notifications" di kahade-api-mobile.json).
  *
@@ -17,7 +18,11 @@
  *     konflik dengan Web API bawaan `Notification`.
  */
 import { http, seg } from "@/lib/api/client"
-import type { BatchNotificationIdsDto, RegisterDeviceDto, UpdatePreferencesDto } from "@/lib/api/types"
+import type {
+  BatchNotificationIdsDto,
+  RegisterDeviceDto,
+  UpdatePreferencesDto,
+} from "@/lib/api/types"
 
 // ------------------------------------------------------------------
 // Tipe
@@ -72,7 +77,7 @@ export function getUnreadCount(category?: NotificationCategory) {
 
 /** Normalisasi body unread-count → angka ≥ 0, atau `null` bila bentuknya tak dikenal. */
 export function readUnreadCount(body: UnreadCountResult | undefined | null): number | null {
-  if (typeof body === "number") return clamp(body)
+  if (typeof body === "number") return Number.isFinite(body) ? clamp(body) : null
   if (typeof body !== "object" || body === null) return null
   const candidates = [
     body.count,
@@ -94,18 +99,24 @@ function clamp(n: number): number {
  * GET /v1/notifications — list notifikasi user.
  * `category` opsional — tanpa filter = semua kategori.
  */
-export function getNotifications(query: {
-  category?: NotificationCategory
-  /** Filter status baca (spec: query `isRead` opsional) */
-  isRead?: boolean
-  page?: number
-  limit?: number
-} = {}) {
-  return http.get<NotificationListResponse>("/v1/notifications", {
-    query,
-    auth: "required",
-    retry: 1,
-  })
+export function getNotifications(
+  query: {
+    category?: NotificationCategory
+    /** Filter status baca (spec: query `isRead` opsional) */
+    isRead?: boolean
+    page?: number
+    limit?: number
+  } = {},
+  signal?: AbortSignal,
+) {
+  return http
+    .get<NotificationListResponse>("/v1/notifications", {
+      query,
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => readPage<AppNotification>(raw, query, ["notifications"]))
 }
 
 /** POST /v1/notifications/:id/read — tandai satu notifikasi dibaca. */
@@ -175,15 +186,23 @@ export function updateNotificationPreferences(dto: UpdatePreferencesDto) {
 }
 
 export function markNotificationsReadBatch(notifIds: string[]) {
-  return http.post<void, BatchNotificationIdsDto>("/v1/notifications/read-batch", { notifIds }, {
-    auth: "required",
-  })
+  return http.post<void, BatchNotificationIdsDto>(
+    "/v1/notifications/read-batch",
+    { notifIds },
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function deleteNotificationsBatch(notifIds: string[]) {
-  return http.post<void, BatchNotificationIdsDto>("/v1/notifications/delete-batch", { notifIds }, {
-    auth: "required",
-  })
+  return http.post<void, BatchNotificationIdsDto>(
+    "/v1/notifications/delete-batch",
+    { notifIds },
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function deleteReadNotifications() {

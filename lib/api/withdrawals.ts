@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `withdrawals` (jadwal penarikan otomatis).
  */
@@ -26,7 +27,9 @@ export type WithdrawalSchedule = {
 }
 
 export function listWithdrawalSchedules() {
-  return http.get<WithdrawalSchedule[]>("/v1/withdrawals/schedules", { auth: "required", retry: 1 })
+  return http
+    .get<WithdrawalSchedule[]>("/v1/withdrawals/schedules", { auth: "required", retry: 1 })
+    .then((raw) => readList<WithdrawalSchedule>(raw, ["schedules"]))
 }
 
 export function createWithdrawalSchedule(dto: CreateScheduleDto) {
@@ -36,9 +39,13 @@ export function createWithdrawalSchedule(dto: CreateScheduleDto) {
 }
 
 export function updateWithdrawalSchedule(id: string, dto: UpdateScheduleDto) {
-  return http.put<WithdrawalSchedule, UpdateScheduleDto>(`/v1/withdrawals/schedules/${seg(id)}`, dto, {
-    auth: "required",
-  })
+  return http.put<WithdrawalSchedule, UpdateScheduleDto>(
+    `/v1/withdrawals/schedules/${seg(id)}`,
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function deleteWithdrawalSchedule(id: string) {

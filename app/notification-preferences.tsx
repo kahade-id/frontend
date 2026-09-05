@@ -8,7 +8,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api } from "@/lib/api"
 import type { NotificationPreferences as ApiNotificationPreferences } from "@/lib/api/notifications"
-import type { NotificationPreferenceKey, NotificationPreferences } from "@/components/ui/notification-preferences-matrix"
+import type {
+  NotificationPreferenceKey,
+  NotificationPreferences,
+} from "@/components/ui/notification-preferences-matrix"
 import { tokens } from "@/lib/tokens"
 
 import { Header } from "@/components/ui/header"
@@ -23,7 +26,7 @@ export default function NotificationPreferencesScreen() {
   const toast = useToast()
 
   const [value, setValue] = useState<NotificationPreferences>({})
-    const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -71,13 +74,19 @@ export default function NotificationPreferencesScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {error ? (
-            <Text variant="body" tone="danger">{error}</Text>
+            <Text variant="body" tone="danger">
+              {error}
+            </Text>
           ) : loading ? (
-            <Text variant="body" tone="secondary">Memuat preferensi…</Text>
+            <Text variant="body" tone="secondary">
+              Memuat preferensi…
+            </Text>
           ) : (
             <>
               <Text variant="body" tone="secondary">

@@ -47,12 +47,13 @@
  */
 import { Image, type ImageProps as ExpoImageProps, type ImageSource } from "expo-image"
 import { ImageBroken } from "phosphor-react-native"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { View, type ImageResizeMode, type ViewProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/cn"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { tokens } from "@/lib/tokens"
 
 export type PictureRadius = "none" | "xs" | "sm" | "md"
@@ -114,6 +115,9 @@ export function Picture({
 }: PictureProps) {
   const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
   const src: ImageSource | number = typeof source === "string" ? { uri: source } : source
+  const sourceKey = `${recyclingKey ?? ""}:${typeof src === "number" ? String(src) : JSON.stringify(src)}`
+  useEffect(() => setStatus("loading"), [sourceKey])
+  const reducedMotion = useReducedMotion()
   const decorative = alt === ""
 
   const dimension =
@@ -140,12 +144,13 @@ export function Picture({
     >
       {status !== "error" ? (
         <Image
+          key={sourceKey}
           source={src}
           contentFit={resizeModeToContentFit[resizeMode]}
           contentPosition="center"
           cachePolicy={cachePolicy}
           recyclingKey={recyclingKey}
-          transition={tokens.motion.duration.fast}
+          transition={reducedMotion ? 0 : tokens.motion.duration.fast}
           style={{ width: "100%", height: "100%" }}
           onLoad={(e) => {
             setStatus("loaded")

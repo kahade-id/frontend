@@ -1,77 +1,83 @@
-/**
- * Screen — Artikel Bantuan (GET /v1/help-center/categories/{slug} atau
- * /search; konten artikel dirender apa adanya dari server).
- */
-import { useCallback, useEffect, useState } from "react"
+import { useEffect } from "react"
 import { View } from "react-native"
-import { useLocalSearchParams } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Article as ArticleIcon } from "phosphor-react-native"
-
+import { router, useLocalSearchParams } from "expo-router"
+import { Article } from "phosphor-react-native"
 import { api } from "@/lib/api"
-import { tokens } from "@/lib/tokens"
-
+import { ROUTES } from "@/lib/routes"
+import { useApiQuery } from "@/lib/use-api-query"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 
-export default function HelpArticleScreen() {
-  const { slug } = useLocalSearchParams<{ slug: string }>()
-  const insets = useSafeAreaInsets()
-
-  const [article, setArticle] = useState<{ title: string; content?: string; category?: string } | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchArticle = useCallback(async () => {
-    if (!slug) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.helpCenter.getHelpCategory(slug)
-      setArticle({ title: res.name, content: res.articles?.[0]?.content, category: slug })
-    } catch {
-      setError("Artikel tidak ditemukan.")
-    } finally {
-      setLoading(false)
-    }
-  }, [slug])
-
+export default function HelpScreen() {
+  const { slug, article, q } = useLocalSearchParams<{
+    slug: string
+    article?: string
+    q?: string
+  }>()
+  const query = useApiQuery(
+    `help:${slug}:${article ?? ""}:${q ?? ""}`,
+    async (signal) => {
+      if (article && q) {
+        const articles = await api.helpCenter.searchHelpArticles(q, signal)
+        return { name: "Artikel bantuan", articles }
+      }
+      return api.helpCenter.getHelpCategory(slug, signal)
+    },
+    Boolean(slug),
+  )
+  const selected = article
+    ? query.data?.articles?.find((item) => item.id === article || item.slug === article)
+    : undefined
   useEffect(() => {
-    void fetchArticle()
-  }, [fetchArticle])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchArticle()
-    setRefreshing(false)
-  }, [fetchArticle])
-
+    if (selected?.id) void api.helpCenter.trackHelpArticleView(selected.id).catch(() => undefined)
+  }, [selected?.id])
   return (
-    <Screen edges={["top"]} padded={false}>
-      <Header title="Artikel" />
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
-      >
-        {loading ? (
-          <EmptyState icon={ArticleIcon} title="Memuat artikel…" />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchArticle()} />
+    <Screen edges={["top"]} padded={false} scroll>
+      <Header title={article ? "Artikel" : "Kategori Bantuan"} />
+      <View className="gap-4 px-6 py-4">
+        {query.loading ? (
+          <LoadingScreen message="Memuat bantuan…" />
+        ) : query.error ? (
+          <ErrorState description={query.error} onRetry={() => void query.reload()} />
         ) : article ? (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={article.title} />
-            <Text variant="body">{article.content ?? "Artikel ini sedang disiapkan."}</Text>
-          </View>
-        ) : null}
-      </PullToRefresh>
+          selected ? (
+            <>
+              <SectionHeader title={selected.title} />
+              <Text variant="body">
+                {selected.content || "Isi artikel belum tersedia dari server."}
+              </Text>
+            </>
+          ) : (
+            <EmptyState
+              icon={Article}
+              title="Artikel tidak ditemukan"
+              description="Artikel mungkin belum dipublikasikan atau telah dipindahkan."
+            />
+          )
+        ) : (
+          <>
+            <SectionHeader title={query.data?.name ?? "Bantuan"} />
+            {!query.data?.articles?.length ? (
+              <EmptyState icon={Article} title="Belum ada artikel" />
+            ) : (
+              query.data.articles.map((item) => (
+                <HelpArticleListItem
+                  padded={false}
+                  key={item.id}
+                  title={item.title}
+                  onPress={() => router.push(ROUTES.helpArticle(item.slug ?? item.id, slug))}
+                />
+              ))
+            )}
+          </>
+        )}
+      </View>
     </Screen>
   )
 }

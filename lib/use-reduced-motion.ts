@@ -1,64 +1,54 @@
-/**
- * Kahade — useReducedMotion() (§8 motion, WCAG 2.3.3 "Animation from
- * Interactions", audit #2).
- *
- * Satu sumber kebenaran untuk preferensi "Kurangi Gerakan" (iOS Reduce
- * Motion, Android "Hapus animasi", web `prefers-reduced-motion`). Semua
- * primitif animasi di `components/ui` WAJIB membaca hook ini — komponen
- * turunan (Button, Chip, Card, dst) otomatis ikut tanpa perlu tahu.
- *
- * Kebijakan (§8 + kriteria audit #2):
- *   - Gerakan NON-esensial (scale press, translate/spring masuk-keluar,
- *     pulse skeleton/splash/status, grow chart, pop favorit) -> dimatikan
- *     atau diganti fade instan (`duration: 0`).
- *   - Gerakan ESENSIAL yang menyampaikan status (progress bar, loading
- *     indeterminate) -> tetap terlihat tetapi tanpa gerakan besar/berulang:
- *     nilai statis atau fade saja.
- *   - Perubahan state kontrol kecil (checkbox fill, switch thumb, radio dot)
- *     -> instan. Transformnya kecil, tetapi berulang ratusan kali per sesi.
- *
- * Kenapa dua sumber (non-obvious):
- *   - Reanimated `useReducedMotion()` membaca nilai secara SINKRON saat
- *     modul dimuat — frame pertama sudah benar, tidak ada "kedip" animasi
- *     lalu berhenti. Tapi nilainya statis: tidak ikut berubah bila user
- *     mengubah setelan sambil app terbuka.
- *   - `AccessibilityInfo` async (frame pertama belum tahu) tetapi punya
- *     event `reduceMotionChanged`. Kita pakai reanimated sebagai nilai awal
- *     dan AccessibilityInfo untuk pembaruan langsung. Di web RN-Web tidak
- *     mengirim event; reanimated sudah membaca `matchMedia` di sana.
- *
- * Helper `motionDuration(reduced, ms)` mengembalikan 0 saat reduced supaya
- * pola `Animated.timing({ duration })` cukup satu baris berubah dan callback
- * `start(({finished}) => ...)` tetap terpanggil (timing 0ms selesai instan).
- */
-import { useEffect, useState } from "react"
-import { AccessibilityInfo } from "react-native"
-import { useReducedMotion as useReanimatedReducedMotion } from "react-native-reanimated"
+import { useSyncExternalStore } from "react"
+import { AccessibilityInfo, Platform } from "react-native"
 
-export function useReducedMotion(): boolean {
-  const initial = useReanimatedReducedMotion()
-  const [reduced, setReduced] = useState(initial)
-
-  useEffect(() => {
-    let alive = true
-    AccessibilityInfo.isReduceMotionEnabled()
-      .then((v) => {
-        if (alive) setReduced(v)
-      })
-      .catch(() => {
-        // Platform tanpa API (web lama): pertahankan nilai reanimated.
-      })
-    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduced)
-    return () => {
-      alive = false
-      sub.remove()
-    }
-  }, [])
-
-  return reduced
+// One platform subscription, shared by all controls, cards, charts and skeletons.
+// Conservative native/SSR default avoids motion before the user's preference is known.
+let reduced = true
+const listeners = new Set<() => void>()
+let dispose: (() => void) | undefined
+function update(value: boolean) {
+  if (value === reduced) return
+  reduced = value
+  for (const listener of listeners) listener()
 }
-
-/** Durasi animasi non-esensial: 0 saat Reduce Motion aktif. */
+function subscribe(listener: () => void) {
+  listeners.add(listener)
+  if (listeners.size === 1) {
+    let active = true
+    if (Platform.OS === "web" && typeof window !== "undefined" && window.matchMedia) {
+      const media = window.matchMedia("(prefers-reduced-motion: reduce)")
+      update(media.matches)
+      const change = () => update(media.matches)
+      media.addEventListener?.("change", change)
+      dispose = () => media.removeEventListener?.("change", change)
+    } else {
+      void AccessibilityInfo.isReduceMotionEnabled()
+        .then((value) => {
+          if (active) update(value)
+        })
+        .catch(() => undefined)
+      const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", update)
+      dispose = () => {
+        active = false
+        sub.remove()
+      }
+    }
+  }
+  return () => {
+    listeners.delete(listener)
+    if (!listeners.size) {
+      dispose?.()
+      dispose = undefined
+    }
+  }
+}
+export function useReducedMotion(): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => reduced,
+    () => true,
+  )
+}
 export function motionDuration(reduced: boolean, ms: number): number {
   return reduced ? 0 : ms
 }

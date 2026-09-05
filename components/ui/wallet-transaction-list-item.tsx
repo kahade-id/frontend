@@ -7,7 +7,7 @@
  * (waktu · referensi Mono) -> nominal bertanda + status kecil.
  *
  * Keputusan non-obvious:
- *   - Arah dana = `type: "CREDIT" | "DEBIT"` (enum backend). CREDIT dirender
+ *   - Arah dana = `type: "CREDIT" | "DEBIT" | "UNKNOWN"` (enum backend). CREDIT dirender
  *     <Amount sign="always" tone="success"> ("+Rp50.000"), DEBIT tone
  *     "primary" ("-Rp50.000") — BUKAN danger. Uang keluar yang disengaja
  *     (bayar order, tarik saldo) bukan kabar buruk; merah disimpan untuk
@@ -44,8 +44,8 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { truncateMiddle } from "@/lib/format"
 
-export type WalletTxType = "CREDIT" | "DEBIT"
-export type WalletTxStatus = "SUCCESS" | "PENDING" | "FAILED"
+export type WalletTxType = "CREDIT" | "DEBIT" | "UNKNOWN"
+export type WalletTxStatus = "SUCCESS" | "PENDING" | "FAILED" | "UNKNOWN"
 export type WalletTxKind =
   | "topup"
   | "withdraw"
@@ -90,6 +90,7 @@ export type WalletTransactionListItemProps = Omit<
   amount: number
   kind?: WalletTxKind
   status?: WalletTxStatus
+  statusLabel?: string
   /** Sudah diformat pemanggil (§13): "3 Sep 2026, 14:30" */
   timestamp?: string
   /** Nomor referensi / ID transaksi — dirender Mono, dipotong di tengah */
@@ -102,7 +103,8 @@ export function WalletTransactionListItem({
   type,
   amount,
   kind = "other",
-  status = "SUCCESS",
+  status = "UNKNOWN",
+  statusLabel = "Status belum tersedia",
   timestamp,
   reference,
   labels,
@@ -113,14 +115,26 @@ export function WalletTransactionListItem({
   const t = { ...DEFAULT_LABELS, ...labels }
   const isCredit = type === "CREDIT"
   const failed = status === "FAILED"
-  const signed = isCredit ? Math.abs(amount) : -Math.abs(amount)
+  const signed = isCredit
+    ? Math.abs(amount)
+    : type === "DEBIT"
+      ? -Math.abs(amount)
+      : Math.abs(amount)
 
-  const subtitle = [timestamp, reference ? truncateMiddle(reference, 6, 4) : undefined].filter(Boolean).join(" · ")
+  const subtitle = [timestamp, reference ? truncateMiddle(reference, 6, 4) : undefined]
+    .filter(Boolean)
+    .join(" · ")
 
   const a11y = [
     title,
-    `${isCredit ? "masuk" : "keluar"} ${Math.abs(amount)} rupiah`,
-    status === "PENDING" ? t.pending : failed ? t.failed : undefined,
+    `${isCredit ? "masuk" : type === "DEBIT" ? "keluar" : ""} ${Math.abs(amount)} rupiah`,
+    status === "PENDING"
+      ? t.pending
+      : failed
+        ? t.failed
+        : status === "UNKNOWN"
+          ? statusLabel
+          : undefined,
     timestamp,
   ]
     .filter(Boolean)
@@ -136,11 +150,16 @@ export function WalletTransactionListItem({
           <Amount
             value={signed}
             size="body"
-            sign={isCredit ? "always" : "auto"}
-            tone={failed ? "secondary" : isCredit ? "success" : "primary"}
+            sign={type === "UNKNOWN" ? "never" : isCredit ? "always" : "auto"}
+            tone={status !== "SUCCESS" ? "secondary" : isCredit ? "success" : "primary"}
             className={failed ? "line-through" : undefined}
           />
-          {status === "PENDING" ? <StatusIndicator label={t.pending} tone="warning" size="sm" /> : null}
+          {status === "PENDING" ? (
+            <StatusIndicator label={t.pending} tone="warning" size="sm" />
+          ) : null}
+          {status === "UNKNOWN" ? (
+            <StatusIndicator label={statusLabel} tone="neutral" size="sm" />
+          ) : null}
           {failed ? <StatusIndicator label={t.failed} tone="danger" size="sm" /> : null}
         </View>
       }

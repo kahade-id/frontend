@@ -25,15 +25,26 @@ import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
 const ITEMS = [
-  { key: "profileVisible", title: "Profile terlihat publik", description: "Pengguna lain bisa melihat profil Anda." },
-  { key: "showOnlineStatus", title: "Tampilkan status online", description: "Menampilkan indikator online pada profil Anda." },
+  {
+    key: "profileVisible",
+    title: "Profile terlihat publik",
+    description: "Pengguna lain bisa melihat profil Anda.",
+  },
+  {
+    key: "showOnlineStatus",
+    title: "Tampilkan status online",
+    description: "Menampilkan indikator online pada profil Anda.",
+  },
 ] as const
 
 export default function PrivacySettingsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [value, setValue] = useState<PrivacySettings>({ profileVisible: true, showOnlineStatus: true })
+  const [value, setValue] = useState<PrivacySettings>({
+    profileVisible: true,
+    showOnlineStatus: true,
+  })
   const [pending, setPending] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -87,7 +98,11 @@ export default function PrivacySettingsScreen() {
       if (res?.url) {
         const ok = await Linking.canOpenURL(res.url)
         if (ok) await Linking.openURL(res.url)
-        toast.show({ title: "Ekspor data siap", description: "Berkas dibuka di browser.", tone: "success" })
+        toast.show({
+          title: "Ekspor data siap",
+          description: "Berkas dibuka di browser.",
+          tone: "success",
+        })
       } else {
         toast.show({
           title: "Permintaan diterima",
@@ -110,10 +125,12 @@ export default function PrivacySettingsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <SectionHeader title="Visibilitas profil" inset />
+          <SectionHeader title="Visibilitas profil" />
           <Text variant="body" tone="secondary">
             Atur siapa yang dapat melihat informasi profil Anda.
           </Text>
@@ -125,7 +142,7 @@ export default function PrivacySettingsScreen() {
             disabled={loading}
           />
 
-          <SectionHeader title="Data pribadi" inset />
+          <SectionHeader title="Data pribadi" />
           <Text variant="body" tone="secondary">
             Anda berhak meminta salinan seluruh data pribadi yang kami simpan.
           </Text>

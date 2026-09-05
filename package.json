@@ -9,15 +9,26 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
-    "gen:api": "node scripts/gen-api-types.mjs",
+    "gen:api": "node scripts/gen-api-types.mjs && node scripts/gen-api-constraints.mjs",
     "check:tokens": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-tokens.mjs",
-    "check:a11y": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-a11y.mjs"
+    "check:a11y": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/check-a11y.mjs",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "check:api": "node scripts/gen-api-constraints.mjs --check && node scripts/audit-inventory.mjs --check",
+    "check": "npm run typecheck && npm run check:tokens && npm run check:a11y && npm run check:api && npm test",
+    "ota:preflight": "node scripts/check-ota.mjs",
+    "audit:inventory": "node scripts/audit-inventory.mjs",
+    "build:web": "EXPO_OFFLINE=1 expo export --platform web",
+    "preview:web": "node scripts/serve-web.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
+    "@react-navigation/native": "^7.1.8",
     "@shopify/flash-list": "2.0.2",
     "@shopify/react-native-skia": "2.2.12",
     "expo": "~54.0.0",
+    "expo-application": "~7.0.8",
     "expo-camera": "~17.0.10",
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.14",
@@ -40,7 +51,7 @@
     "qrcode": "^1.5.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-native": "0.81.0",
+    "react-native": "0.81.5",
     "react-native-css-interop": "0.2.6",
     "react-native-gesture-handler": "~2.28.0",
     "react-native-reanimated": "~4.1.0",
@@ -54,9 +65,17 @@
   },
   "devDependencies": {
     "@config-plugins/react-native-webrtc": "13.0.0",
+    "@playwright/test": "^1.63.0",
+    "@testing-library/react": "^16.3.3",
     "@types/qrcode": "^1.5.6",
     "@types/react": "~19.1.0",
     "babel-preset-expo": "^54.0.12",
-    "typescript": "~5.9.2"
-  }
+    "jsdom": "^26.1.0",
+    "typescript": "~5.9.2",
+    "vitest": "^3.2.7"
+  },
+  "overrides": {
+    "postcss": "^8.5.28"
+  },
+  "packageManager": "npm@10.9.8"
 }

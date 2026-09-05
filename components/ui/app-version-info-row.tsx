@@ -64,7 +64,7 @@ export function AppVersionInfoRow({
   version,
   build,
   updateId,
-  channel = "production",
+  channel,
   footnote,
   onLongPress,
   onDeveloperUnlock,
@@ -105,7 +105,7 @@ export function AppVersionInfoRow({
         <Text variant="monoBody" tone="secondary" selectable={!interactive}>
           {versionLine}
         </Text>
-        {channel !== "production" ? (
+        {channel && channel !== "production" ? (
           <Badge tone="warning" variant="outline">
             {channel}
           </Badge>

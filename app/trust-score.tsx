@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Skor Kepercayaan (GET /v1/users/me/trust-score).
  */
@@ -61,10 +62,12 @@ export default function TrustScoreScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={ShieldCheck} title="Memuat skor…" />
+          <LoadingScreen message="Memuat skor…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchScore()} />
         ) : data ? (
@@ -76,8 +79,8 @@ export default function TrustScoreScreen() {
               updatedAt={data.updatedAt ? formatDateTime(data.updatedAt) : undefined}
             />
             <Text variant="body" tone="secondary">
-              Skor kepercayaan dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan Anda.
-              Semakin tinggi skor, semakin dipercaya lawan transaksi.
+              Skor kepercayaan dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan
+              Anda. Semakin tinggi skor, semakin dipercaya lawan transaksi.
             </Text>
           </View>
         ) : null}

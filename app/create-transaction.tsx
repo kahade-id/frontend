@@ -1,3 +1,5 @@
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { AMOUNT_LIMITS, isValidAmount } from "@/lib/financial"
 /**
  * Screen — Buat Transaksi (order baru) / Buat Order Link.
  *
@@ -24,7 +26,13 @@ import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CheckCircle } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type CreateOrderDto, type CreateOrderLinkDto } from "@/lib/api"
+import {
+  api,
+  isApiError,
+  userMessage,
+  type CreateOrderDto,
+  type CreateOrderLinkDto,
+} from "@/lib/api"
 import type { FeeSchedule } from "@/lib/api/public"
 import { formatDecimal, formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
@@ -33,7 +41,10 @@ import { tokens } from "@/lib/tokens"
 import { AmountInput } from "@/components/ui/amount-input"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
-import { CounterpartValidationCard, type CounterpartState } from "@/components/ui/counterpart-validation-card"
+import {
+  CounterpartValidationCard,
+  type CounterpartState,
+} from "@/components/ui/counterpart-validation-card"
 import { FeeBreakdown } from "@/components/ui/fee-breakdown"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
@@ -58,11 +69,11 @@ import { useToast } from "@/components/ui/toast"
 import { VoucherRedeemBox, type AppliedVoucher } from "@/components/ui/voucher-redeem-box"
 
 const DEBOUNCE_MS = 400
-const MIN_ORDER_VALUE = 10_000
-const MAX_ORDER_VALUE = 1_000_000_000
-const MIN_DESCRIPTION = 10
-const MIN_USERNAME = 3
-const MAX_DEADLINE_DAYS = 14
+const MIN_ORDER_VALUE = AMOUNT_LIMITS.order.minimum
+const MAX_ORDER_VALUE = AMOUNT_LIMITS.order.maximum
+const MIN_DESCRIPTION = API_CONSTRAINTS.CreateOrderDto.description.minLength
+const MIN_USERNAME = API_CONSTRAINTS.CreateOrderDto.counterpartUsername.minLength
+const MAX_DEADLINE_DAYS = API_CONSTRAINTS.CreateOrderDto.deliveryDeadlineDays.maximum
 
 type Mode = "direct" | "link"
 const MODE_ITEMS: { value: Mode; label: string }[] = [
@@ -77,7 +88,7 @@ export default function CreateTransactionScreen() {
   const [role, setRole] = useState<OrderRoleValue>("BUYER")
   // `counterpart` dari query (ROUTES.createTransactionWith) — profil publik
   // mengisi lawan transaksi lebih dulu; validasi tetap jalan via debounce.
-  const params = useLocalSearchParams<{ counterpart?: string }>()
+  const params = useLocalSearchParams<{ counterpart?: string; voucherCode?: string }>()
   const [mode, setMode] = useState<Mode>("direct")
   const [counterpart, setCounterpart] = useState(params.counterpart?.trim() ?? "")
   const [counterpartState, setCounterpartState] = useState<CounterpartState>("loading")
@@ -114,14 +125,33 @@ export default function CreateTransactionScreen() {
   const [voucherError, setVoucherError] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
-  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const submitLock = useRef(false)
+  const feeKey = JSON.stringify([orderValue, feeResponsibility, role, voucher?.code])
+  const draft = useRef({ feeKey, counterpart: counterpart.trim() })
+  draft.current = { feeKey, counterpart: counterpart.trim() }
+  const [confirmedFeeKey, setConfirmedFeeKey] = useState<string | null>(null)
+  const [confirmedCounterpart, setConfirmedCounterpart] = useState<string | null>(null)
+  const [feeError, setFeeError] = useState<string | null>(null)
+  const canSubmit =
+    title.trim().length >= API_CONSTRAINTS.CreateOrderDto.title.minLength &&
+    description.trim().length >= MIN_DESCRIPTION &&
+    isValidAmount(orderValue, AMOUNT_LIMITS.order) &&
+    deadlineDays >= 1 &&
+    deadlineDays <= MAX_DEADLINE_DAYS &&
+    confirmedFeeKey === feeKey &&
+    !feeLoading &&
+    !!fee &&
+    ((mode === "link" && !counterpart.trim()) ||
+      (confirmedCounterpart === counterpart.trim() && counterpartState === "found"))
 
   const refreshFee = useCallback(async () => {
-    if (orderValue < MIN_ORDER_VALUE) {
+    if (!isValidAmount(orderValue, AMOUNT_LIMITS.order)) {
       setFee(null)
       return
     }
+    const started = feeKey
     setFeeLoading(true)
+    setFeeError(null)
     try {
       const res = await api.orders.calculateFee({
         orderValue,
@@ -129,12 +159,19 @@ export default function CreateTransactionScreen() {
         voucherCode: voucher?.code,
         role,
       })
+      if (draft.current.feeKey !== started) return
       setFee(res)
-      setFeeLoading(false)
-    } catch {
-      setFeeLoading(false)
+      setConfirmedFeeKey(started)
+    } catch (error) {
+      if (draft.current.feeKey === started) {
+        setFee(null)
+        setConfirmedFeeKey(null)
+        setFeeError(userMessage(error))
+      }
+    } finally {
+      if (draft.current.feeKey === started) setFeeLoading(false)
     }
-  }, [orderValue, feeResponsibility, voucher?.code, role])
+  }, [orderValue, feeResponsibility, voucher?.code, role, feeKey])
 
   const validateCounterpart = useCallback(async () => {
     const q = counterpart.trim()
@@ -145,6 +182,8 @@ export default function CreateTransactionScreen() {
     setCounterpartState("loading")
     try {
       const res = await api.orders.validateCounterpart({ username: q })
+      if (draft.current.counterpart !== q) return
+      setConfirmedCounterpart(res.valid ? q : null)
       setCounterpartState(res.valid ? "found" : "blocked")
       setCounterpartName(res.user?.fullName ?? q)
       setCounterpartUsername(res.user?.username ?? q)
@@ -154,23 +193,24 @@ export default function CreateTransactionScreen() {
           ? res.user?.kycVerified
             ? []
             : ["Lawan transaksi belum menyelesaikan verifikasi identitas"]
-          : [res.reason ?? "Lawan transaksi tidak valid"]
+          : [res.reason ?? "Lawan transaksi tidak valid"],
       )
-    } catch {
-      setCounterpartState("notFound")
+    } catch (error) {
+      if (draft.current.counterpart !== q) return
+      setConfirmedCounterpart(null)
+      setCounterpartState("blocked")
+      setCounterpartWarnings([userMessage(error)])
     }
   }, [counterpart])
 
   useEffect(() => {
-    if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      void validateCounterpart()
-      void refreshFee()
-    }, DEBOUNCE_MS)
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current)
-    }
-  }, [counterpart, orderValue, feeResponsibility, voucher?.code, role, validateCounterpart, refreshFee])
+    const timer = setTimeout(() => void validateCounterpart(), DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [validateCounterpart])
+  useEffect(() => {
+    const timer = setTimeout(() => void refreshFee(), DEBOUNCE_MS)
+    return () => clearTimeout(timer)
+  }, [refreshFee])
 
   const handleApplyVoucher = useCallback(
     async (code: string) => {
@@ -189,7 +229,7 @@ export default function CreateTransactionScreen() {
         const v = res.voucher
         setVoucher({
           code: v?.code ?? code,
-          discount: v?.discountValue ?? 0,
+          discount: v?.discountValue ?? Number.NaN,
           title: v?.title,
         })
       } catch {
@@ -202,6 +242,8 @@ export default function CreateTransactionScreen() {
   )
 
   const handleSubmit = useCallback(async () => {
+    if (!canSubmit || submitLock.current) return
+    submitLock.current = true
     setSubmitting(true)
     try {
       const base = {
@@ -214,15 +256,32 @@ export default function CreateTransactionScreen() {
         feeResponsibility,
       }
       if (mode === "link") {
-        const dto: CreateOrderLinkDto = { ...base, counterpartUsername: counterpart.trim() || undefined }
+        const dto: CreateOrderLinkDto = {
+          ...base,
+          counterpartUsername: counterpart.trim() || undefined,
+        }
         const link = await api.orders.createOrderLink(dto)
-        toast.show({ title: "Order Link dibuat", description: "Bagikan tautan ke lawan transaksi.", tone: "success", duration: 4000 })
+        toast.show({
+          title: "Order Link dibuat",
+          description: "Bagikan tautan ke lawan transaksi.",
+          tone: "success",
+          duration: 4000,
+        })
         router.replace(link.token ? ROUTES.orderLink(link.token) : ROUTES.orderLinks)
         return
       }
-      const dto: CreateOrderDto = { ...base, counterpartUsername: counterpart.trim(), voucherCode: voucher?.code }
+      const dto: CreateOrderDto = {
+        ...base,
+        counterpartUsername: counterpart.trim(),
+        voucherCode: voucher?.code,
+      }
       const order = await api.orders.createOrder(dto)
-      toast.show({ title: "Transaksi dibuat", description: "Menunggu konfirmasi lawan transaksi.", tone: "success", duration: 4000 })
+      toast.show({
+        title: "Transaksi dibuat",
+        description: "Menunggu konfirmasi lawan transaksi.",
+        tone: "success",
+        duration: 4000,
+      })
       router.replace(order.id ? ROUTES.orderDetail(order.id) : ROUTES.transactions)
     } catch (err) {
       toast.show({
@@ -231,15 +290,31 @@ export default function CreateTransactionScreen() {
         tone: "danger",
       })
     } finally {
+      submitLock.current = false
       setSubmitting(false)
     }
-  }, [mode, role, counterpart, title, description, orderType, orderValue, deadlineDays, feeResponsibility, voucher?.code, toast.show])
+  }, [
+    canSubmit,
+    mode,
+    role,
+    counterpart,
+    title,
+    description,
+    orderType,
+    orderValue,
+    deadlineDays,
+    feeResponsibility,
+    voucher?.code,
+    toast.show,
+  ])
 
   const counterpartRequired = mode === "direct"
   const counterpartMissing = counterpartRequired && counterpart.trim().length < MIN_USERNAME
   const counterpartInvalid =
     counterpart.trim().length >= MIN_USERNAME &&
-    (counterpartState === "notFound" || counterpartState === "blocked" || counterpartState === "self")
+    (counterpartState === "notFound" ||
+      counterpartState === "blocked" ||
+      counterpartState === "self")
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -249,20 +324,20 @@ export default function CreateTransactionScreen() {
 
   return (
     <Screen
+      keyboardAvoiding
       edges={["top"]}
       padded={false}
       footer={
-        <View className="px-6 pb-4">
+        <View>
+          {feeError ? (
+            <Text variant="caption" tone="danger">
+              Biaya belum terkonfirmasi: {feeError}. Tarik untuk memuat ulang.
+            </Text>
+          ) : null}
           <Button
             fullWidth
             loading={submitting}
-            disabled={
-              !title.trim() ||
-              description.trim().length < MIN_DESCRIPTION ||
-              orderValue < MIN_ORDER_VALUE ||
-              counterpartMissing ||
-              counterpartInvalid
-            }
+            disabled={!canSubmit}
             onPress={() => void handleSubmit()}
           >
             {mode === "link" ? "Buat Order Link" : "Buat Transaksi"}
@@ -275,7 +350,9 @@ export default function CreateTransactionScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <FormSection title="Cara membuat">
           <SegmentedControl<Mode> items={MODE_ITEMS} value={mode} onChange={setMode} />
@@ -321,7 +398,12 @@ export default function CreateTransactionScreen() {
 
         <FormSection title="Detail pesanan" divider>
           <Field label="Judul" required>
-            <Input value={title} onChangeText={setTitle} placeholder="Jasa desain logo" maxLength={100} />
+            <Input
+              value={title}
+              onChangeText={setTitle}
+              placeholder="Jasa desain logo"
+              maxLength={100}
+            />
           </Field>
           <Field label="Deskripsi" required>
             <TextArea
@@ -333,7 +415,11 @@ export default function CreateTransactionScreen() {
             />
           </Field>
           <Field label="Jenis transaksi" required>
-            <OrderTypeSelector value={orderType} onChange={setOrderType} labels={ORDER_TYPE_LABELS} />
+            <OrderTypeSelector
+              value={orderType}
+              onChange={setOrderType}
+              labels={ORDER_TYPE_LABELS}
+            />
           </Field>
           <AmountInput
             value={orderValue}
@@ -345,19 +431,30 @@ export default function CreateTransactionScreen() {
         </FormSection>
 
         <FormSection title="Biaya & tenggat" divider>
-          <Field label="Tenggat pengiriman (hari)" required helperText={`1–${MAX_DEADLINE_DAYS} hari`}>
+          <Field
+            label="Tenggat pengiriman (hari)"
+            required
+            helperText={`1–${MAX_DEADLINE_DAYS} hari`}
+          >
             <Input
               value={String(deadlineDays)}
               onChangeText={(t) => {
                 const n = Number.parseInt(t.replace(/\D/g, ""), 10)
-                setDeadlineDays(Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(1, n)) : 1)
+                setDeadlineDays(
+                  Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(1, n)) : 1,
+                )
               }}
               keyboardType="number-pad"
               maxLength={2}
             />
           </Field>
           <Field label="Pembayar biaya" required>
-            <FeeResponsibilitySelector value={feeResponsibility} onChange={setFeeResponsibility} feeAmount={fee?.platformFee ?? 0} viewer={role} />
+            <FeeResponsibilitySelector
+              value={feeResponsibility}
+              onChange={setFeeResponsibility}
+              feeAmount={confirmedFeeKey === feeKey ? fee?.platformFee : undefined}
+              viewer={role}
+            />
           </Field>
           <Button variant="ghost" size="sm" onPress={() => void openSchedule()}>
             Lihat skema biaya platform
@@ -377,6 +474,7 @@ export default function CreateTransactionScreen() {
         {mode === "direct" ? (
           <FormSection title="Voucher" divider>
             <VoucherRedeemBox
+              initialCode={params.voucherCode}
               applied={voucher ?? undefined}
               onApply={(code) => void handleApplyVoucher(code)}
               onRemove={() => setVoucher(null)}
@@ -388,7 +486,9 @@ export default function CreateTransactionScreen() {
 
         <View style={{ marginTop: tokens.space[2] }} className="items-center">
           <Button variant="ghost" fullWidth={false} leftIcon={CheckCircle} disabled>
-            {orderValue > 0 ? `Total: ${formatRupiah(fee?.buyerPays ?? orderValue)}` : "Ringkasan muncul setelah nilai diisi"}
+            {orderValue > 0
+              ? `Total: ${formatRupiah(fee?.buyerPays ?? orderValue)}`
+              : "Ringkasan muncul setelah nilai diisi"}
           </Button>
         </View>
       </PullToRefresh>
@@ -404,7 +504,8 @@ export default function CreateTransactionScreen() {
           </Text>
         ) : !schedule || schedule.tiers.length === 0 ? (
           <Text variant="body" tone="secondary">
-            Skema biaya belum tersedia. Rincian biaya tetap dihitung otomatis saat nilai transaksi diisi.
+            Skema biaya belum tersedia. Rincian biaya tetap dihitung otomatis saat nilai transaksi
+            diisi.
           </Text>
         ) : (
           <KeyValueList>
@@ -416,16 +517,22 @@ export default function CreateTransactionScreen() {
                     ? `≥ ${formatRupiah(t.minValue)}`
                     : `${formatRupiah(t.minValue)} – ${formatRupiah(t.maxValue)}`
                 }
-                value={[
-                  t.feePercent != null ? `${formatDecimal(t.feePercent, 2)}%` : null,
-                  t.feeFlat != null ? formatRupiah(t.feeFlat) : null,
-                ]
-                  .filter(Boolean)
-                  .join(" + ") || "—"}
+                value={
+                  [
+                    t.feePercent != null ? `${formatDecimal(t.feePercent, 2)}%` : null,
+                    t.feeFlat != null ? formatRupiah(t.feeFlat) : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" + ") || "—"
+                }
               />
             ))}
-            {schedule.minFee != null ? <KeyValue label="Biaya minimum" value={formatRupiah(schedule.minFee)} /> : null}
-            {schedule.maxFee != null ? <KeyValue label="Biaya maksimum" value={formatRupiah(schedule.maxFee)} /> : null}
+            {schedule.minFee != null ? (
+              <KeyValue label="Biaya minimum" value={formatRupiah(schedule.minFee)} />
+            ) : null}
+            {schedule.maxFee != null ? (
+              <KeyValue label="Biaya maksimum" value={formatRupiah(schedule.maxFee)} />
+            ) : null}
           </KeyValueList>
         )}
       </BottomSheet>

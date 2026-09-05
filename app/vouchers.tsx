@@ -1,3 +1,6 @@
+import { router } from "expo-router"
+import { ROUTES } from "@/lib/routes"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Voucher (GET /v1/vouchers/available + /my-usage).
  */
@@ -35,7 +38,10 @@ export default function VouchersScreen() {
     setLoading(true)
     setError(null)
     try {
-      const [a, u] = await Promise.all([api.vouchers.listAvailableVouchers(), api.vouchers.listMyVoucherUsage()])
+      const [a, u] = await Promise.all([
+        api.vouchers.listAvailableVouchers(),
+        api.vouchers.listMyVoucherUsage(),
+      ])
       setAvailable(a ?? [])
       setUsage(u ?? [])
     } catch {
@@ -68,17 +74,23 @@ export default function VouchersScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Ticket} title="Memuat voucher…" />
+          <LoadingScreen message="Memuat voucher…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Tersedia untuk Anda" />
             {available.length === 0 ? (
-              <EmptyState icon={Ticket} title="Belum ada voucher" description="Voucher promo akan muncul di sini." />
+              <EmptyState
+                icon={Ticket}
+                title="Belum ada voucher"
+                description="Voucher promo akan muncul di sini."
+              />
             ) : (
               available.map((v) => (
                 <VoucherCard
@@ -87,14 +99,21 @@ export default function VouchersScreen() {
                   title={v.title ?? v.code}
                   description={v.description}
                   discountType={discountTypeOf(v)}
-                  discountValue={v.discountValue ?? 0}
+                  discountValue={v.discountValue ?? Number.NaN}
                   maxDiscount={v.maxDiscount}
                   minOrderValue={v.minOrderValue}
                   expiresAt={v.expiresAt ? formatDateTime(v.expiresAt) : undefined}
                   expiresSoon={
-                    v.expiresAt ? new Date(v.expiresAt).getTime() - Date.now() < 3 * 86400_000 : false
+                    v.expiresAt
+                      ? new Date(v.expiresAt).getTime() - Date.now() < 3 * 86400_000
+                      : false
                   }
-                  onUse={() => toast.show({ title: `Voucher ${v.code} dipakai` , tone: "info", duration: 2500 })}
+                  onUse={() =>
+                    router.push({
+                      pathname: "/create-transaction",
+                      params: { voucherCode: v.code },
+                    })
+                  }
                 />
               ))
             )}
@@ -103,13 +122,13 @@ export default function VouchersScreen() {
             {usage.length === 0 ? (
               <EmptyState icon={Ticket} title="Belum ada pemakaian" />
             ) : (
-              usage.map((u) => (
+              usage.map((u, index) => (
                 <VoucherUsageListItem
-                  key={u.code}
+                  key={u.usageId ?? `${u.code}:${index}`}
                   title={u.title ?? u.code}
                   code={u.code}
-                  savedAmount={u.discountValue ?? 0}
-                  usedAt={u.expiresAt ? formatDateTime(u.expiresAt) : undefined}
+                  savedAmount={u.discountValue ?? Number.NaN}
+                  usedAt={u.usedAt ? formatDateTime(u.usedAt) : undefined}
                 />
               ))
             )}

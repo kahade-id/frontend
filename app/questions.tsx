@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Tanya Jawab saya.
  *
@@ -146,7 +147,11 @@ export default function QuestionsScreen() {
       setDeleteTarget(null)
       await fetchPage(1)
     } catch (err) {
-      toast.show({ title: "Gagal menghapus pertanyaan", description: userMessage(err), tone: "danger" })
+      toast.show({
+        title: "Gagal menghapus pertanyaan",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setDeleting(false)
     }
@@ -164,16 +169,20 @@ export default function QuestionsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={ChatCircleDots} title="Memuat pertanyaan…" />
+          <LoadingScreen message="Memuat pertanyaan…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 ? (
           <EmptyState
             icon={ChatCircleDots}
-            title={received ? "Belum ada pertanyaan masuk" : "Belum ada pertanyaan yang Anda ajukan"}
+            title={
+              received ? "Belum ada pertanyaan masuk" : "Belum ada pertanyaan yang Anda ajukan"
+            }
             description={
               received
                 ? "Pertanyaan dari calon pembeli akan muncul di sini."
@@ -185,7 +194,8 @@ export default function QuestionsScreen() {
             <SectionHeader title={`${items.length} pertanyaan`} />
             {items.map((q) => {
               const other = received ? q.asker : q.target
-              const otherName = other?.fullName ?? other?.username ?? (received ? "Seseorang" : "Pengguna")
+              const otherName =
+                other?.fullName ?? other?.username ?? (received ? "Seseorang" : "Pengguna")
               return (
                 <QACard
                   key={q.id}
@@ -200,7 +210,10 @@ export default function QuestionsScreen() {
                     q.answer
                       ? {
                           text: q.answer,
-                          by: { name: received ? "Anda" : otherName, avatar: received ? undefined : (other?.avatarUrl ?? undefined) },
+                          by: {
+                            name: received ? "Anda" : otherName,
+                            avatar: received ? undefined : (other?.avatarUrl ?? undefined),
+                          },
                           date: q.answeredAt ?? q.createdAt,
                         }
                       : undefined

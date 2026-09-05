@@ -65,6 +65,7 @@ export type VoucherRedeemBoxLabels = {
 }
 
 export type VoucherRedeemBoxProps = Omit<ViewProps, "children"> & {
+  initialCode?: string
   applied?: AppliedVoucher
   onApply: (code: string) => void
   onRemove?: () => void
@@ -92,6 +93,7 @@ export function normalizeVoucherCode(raw: string): string {
 }
 
 export function VoucherRedeemBox({
+  initialCode = "",
   applied,
   onApply,
   onRemove,
@@ -104,7 +106,7 @@ export function VoucherRedeemBox({
   ...rest
 }: VoucherRedeemBoxProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
-  const [code, setCode] = useState("")
+  const [code, setCode] = useState(() => normalizeVoucherCode(initialCode))
   const normalized = normalizeVoucherCode(code)
   const canApply = normalized.length > 0 && !applying && !disabled
 
@@ -117,7 +119,10 @@ export function VoucherRedeemBox({
       // Root TANPA `accessible`: IconButton "Hapus" harus tetap fokusable.
       // Ringkasan dipasang pada blok teks kode voucher (audit #4).
       <View
-        className={cn("flex-row items-center gap-3 rounded-md border border-border bg-surface px-4 py-3", className)}
+        className={cn(
+          "flex-row items-center gap-3 rounded-md border border-border bg-surface px-4 py-3",
+          className,
+        )}
         {...rest}
       >
         <Icon icon={Tag} size="sm" tone="active" weight="fill" />
@@ -140,7 +145,14 @@ export function VoucherRedeemBox({
         </View>
         <Amount value={-Math.abs(applied.discount)} tone="success" />
         {onRemove ? (
-          <IconButton icon={X} size="sm" variant="ghost" accessibilityLabel={t.remove} onPress={onRemove} className="-mr-2" />
+          <IconButton
+            icon={X}
+            size="sm"
+            variant="ghost"
+            accessibilityLabel={t.remove}
+            onPress={onRemove}
+            className="-mr-2"
+          />
         ) : null}
       </View>
     )

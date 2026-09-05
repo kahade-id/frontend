@@ -31,7 +31,13 @@
  *   - Loading = Skeleton pada nominal saja; label & aksi tetap tampil supaya
  *     layout stabil dan aksi tetap bisa dijangkau saat refetch.
  */
-import { ArrowCircleDown, ArrowCircleUp, Eye, EyeSlash, PaperPlaneTilt } from "phosphor-react-native"
+import {
+  ArrowCircleDown,
+  ArrowCircleUp,
+  Eye,
+  EyeSlash,
+  PaperPlaneTilt,
+} from "phosphor-react-native"
 import { Pressable, View } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
@@ -67,7 +73,7 @@ const DEFAULT_LABELS: WalletBalanceCardLabels = {
 
 export type WalletBalanceCardProps = Omit<CardProps, "children" | "onPress" | "padded"> & {
   /** Saldo yang bisa dipakai */
-  available: number
+  available?: number
   /** Dana yang sedang ditahan escrow (order berjalan) */
   held?: number
   hidden?: boolean
@@ -84,7 +90,7 @@ export type WalletBalanceCardProps = Omit<CardProps, "children" | "onPress" | "p
 
 export function WalletBalanceCard({
   available,
-  held = 0,
+  held,
   hidden = false,
   onToggleHidden,
   actions,
@@ -112,7 +118,12 @@ export function WalletBalanceCard({
       [
         onTopUp && { key: "topup", label: "Isi saldo", icon: ArrowCircleDown, onPress: onTopUp },
         onWithdraw && { key: "withdraw", label: "Tarik", icon: ArrowCircleUp, onPress: onWithdraw },
-        onTransfer && { key: "transfer", label: "Transfer", icon: PaperPlaneTilt, onPress: onTransfer },
+        onTransfer && {
+          key: "transfer",
+          label: "Transfer",
+          icon: PaperPlaneTilt,
+          onPress: onTransfer,
+        },
       ] as Array<WalletQuickAction | undefined>
     ).filter((a): a is WalletQuickAction => !!a)
 
@@ -144,7 +155,7 @@ export function WalletBalanceCard({
         {loading ? (
           <Skeleton height={tokens.typography.monoLarge.lineHeight} className="w-48" />
         ) : (
-          <Amount value={available} size="large" tone={valueTone} hidden={hidden} />
+          <Amount value={available ?? Number.NaN} size="large" tone={valueTone} hidden={hidden} />
         )}
         <View className="flex-row items-center gap-2">
           <Text variant="caption" tone={textTone}>
@@ -153,7 +164,7 @@ export function WalletBalanceCard({
           {loading ? (
             <Skeleton height={tokens.typography.caption.lineHeight} className="w-20" />
           ) : (
-            <Amount value={held} size="body" tone={valueTone} hidden={hidden} />
+            <Amount value={held ?? Number.NaN} size="body" tone={valueTone} hidden={hidden} />
           )}
         </View>
       </View>
@@ -174,12 +185,19 @@ export function WalletBalanceCard({
               <View
                 className={cn(
                   "h-12 w-12 items-center justify-center rounded-md border",
-                  inverted ? "border-primary-foreground bg-primary" : "border-border bg-surface-elevated",
+                  inverted
+                    ? "border-primary-foreground bg-primary"
+                    : "border-border bg-surface-elevated",
                 )}
               >
                 <Icon icon={a.icon} size="md" tone={iconTone} />
               </View>
-              <Text variant="caption" weight={500} tone={inverted ? "inverse" : "primary"} numberOfLines={1}>
+              <Text
+                variant="caption"
+                weight={500}
+                tone={inverted ? "inverse" : "primary"}
+                numberOfLines={1}
+              >
                 {a.label}
               </Text>
             </PressableScale>

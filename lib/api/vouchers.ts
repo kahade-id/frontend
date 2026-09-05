@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `vouchers` (3 endpoint publik-otentikasi).
  * Dipakai VoucherRedeemBox saat membuat order & halaman voucher.
@@ -16,6 +17,8 @@ export type Voucher = {
   maxDiscount?: number
   expiresAt?: string | null
   active: boolean
+  usedAt?: string
+  usageId?: string
 }
 
 export type VoucherValidation = {
@@ -25,11 +28,15 @@ export type VoucherValidation = {
 }
 
 export function listAvailableVouchers() {
-  return http.get<Voucher[]>("/v1/vouchers/available", { auth: "required", retry: 1 })
+  return http
+    .get<Voucher[]>("/v1/vouchers/available", { auth: "required", retry: 1 })
+    .then((raw) => readList<Voucher>(raw, ["vouchers"]))
 }
 
 export function listMyVoucherUsage() {
-  return http.get<Voucher[]>("/v1/vouchers/my-usage", { auth: "required", retry: 1 })
+  return http
+    .get<Voucher[]>("/v1/vouchers/my-usage", { auth: "required", retry: 1 })
+    .then((raw) => readList<Voucher>(raw, ["usages", "usage"]))
 }
 
 export function validateVoucher(dto: ValidateVoucherDto) {

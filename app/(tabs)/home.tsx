@@ -158,7 +158,12 @@ export default function HomeScreen() {
 
   const quickActions: QuickAction[] = [
     { key: "topup", icon: Wallet, label: "Isi Saldo", onPress: () => router.push(ROUTES.topup) },
-    { key: "order-links", icon: LinkSimple, label: "Order Link", onPress: () => router.push(ROUTES.orderLinks) },
+    {
+      key: "order-links",
+      icon: LinkSimple,
+      label: "Order Link",
+      onPress: () => router.push(ROUTES.orderLinks),
+    },
     { key: "chat", icon: ChatCircleDots, label: "Chat", onPress: () => router.push(ROUTES.chat) },
     {
       key: "disputes",
@@ -167,10 +172,25 @@ export default function HomeScreen() {
       badge: summary?.DISPUTED || undefined,
       onPress: () => router.push(ROUTES.disputes),
     },
-    { key: "discover", icon: Compass, label: "Jelajahi", onPress: () => router.push(ROUTES.discover) },
-    { key: "vouchers", icon: Ticket, label: "Voucher", onPress: () => router.push(ROUTES.vouchers) },
+    {
+      key: "discover",
+      icon: Compass,
+      label: "Jelajahi",
+      onPress: () => router.push(ROUTES.discover),
+    },
+    {
+      key: "vouchers",
+      icon: Ticket,
+      label: "Voucher",
+      onPress: () => router.push(ROUTES.vouchers),
+    },
     { key: "referral", icon: Gift, label: "Referral", onPress: () => router.push(ROUTES.referral) },
-    { key: "analytics", icon: ChartLineUp, label: "Analitik", onPress: () => router.push(ROUTES.analytics) },
+    {
+      key: "analytics",
+      icon: ChartLineUp,
+      label: "Analitik",
+      onPress: () => router.push(ROUTES.analytics),
+    },
   ]
 
   return (
@@ -207,7 +227,7 @@ export default function HomeScreen() {
               label="Saldo tersedia"
               icon={<Icon icon={Wallet} size="xs" tone="default" />}
               loading={walletLoading}
-              value={<Amount value={wallet?.availableBalance ?? wallet?.balance ?? 0} size="large" />}
+              value={<Amount value={wallet?.availableBalance ?? Number.NaN} size="large" />}
               hint={
                 (wallet?.holdBalance ?? 0) > 0
                   ? `${formatRupiah(wallet?.holdBalance ?? 0)} ditahan escrow`

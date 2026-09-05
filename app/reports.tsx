@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Laporan Saya (GET /v1/settings/reports).
  * Bila dibuka dengan `targetId`/`targetName` (dari Profil Publik), tampilkan
@@ -128,7 +129,9 @@ export default function ReportsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {targetId ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -146,11 +149,15 @@ export default function ReportsScreen() {
         <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
           <SectionHeader title="Laporan saya" />
           {loading ? (
-            <EmptyState icon={Flag} title="Memuat laporan…" />
+            <LoadingScreen message="Memuat laporan…" />
           ) : error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
           ) : items.length === 0 ? (
-            <EmptyState icon={Flag} title="Belum ada laporan" description="Laporan yang Anda kirim akan muncul di sini." />
+            <EmptyState
+              icon={Flag}
+              title="Belum ada laporan"
+              description="Laporan yang Anda kirim akan muncul di sini."
+            />
           ) : (
             <ListGroup>
               {items.map((r, i) => {

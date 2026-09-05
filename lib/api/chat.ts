@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `chat` (ruang & pesan, lampiran, read receipt).
  *
@@ -41,11 +42,13 @@ export type ChatMessage = {
 }
 
 export function listChatRooms(query: { page?: number; limit?: number } = {}) {
-  return http.get<ChatRoom[]>("/v1/chat/rooms", {
-    query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<ChatRoom[]>("/v1/chat/rooms", {
+      query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<ChatRoom>(raw, ["rooms"]))
 }
 
 export type ChatMessagesQuery = {
@@ -63,15 +66,24 @@ export type ChatMessagesPage = {
 
 type RawMessagesResponse =
   | ChatMessage[]
-  | { items?: ChatMessage[]; data?: ChatMessage[]; messages?: ChatMessage[]; nextCursor?: string | null; cursor?: string | null }
+  | {
+      items?: ChatMessage[]
+      data?: ChatMessage[]
+      messages?: ChatMessage[]
+      nextCursor?: string | null
+      cursor?: string | null
+    }
 
 function normalizeMessagesPage(raw: RawMessagesResponse): ChatMessagesPage {
   if (Array.isArray(raw)) return { items: raw, nextCursor: null }
-  const items = raw.items ?? raw.data ?? raw.messages ?? []
+  const items = readList<ChatMessage>(raw, ["messages"])
   return { items, nextCursor: raw.nextCursor ?? raw.cursor ?? null }
 }
 
-export async function getChatMessages(roomId: string, query: ChatMessagesQuery = {}): Promise<ChatMessagesPage> {
+export async function getChatMessages(
+  roomId: string,
+  query: ChatMessagesQuery = {},
+): Promise<ChatMessagesPage> {
   const raw = await http.get<RawMessagesResponse>(`/v1/chat/rooms/${seg(roomId)}/messages`, {
     query: {
       cursor: query.cursor,
@@ -102,15 +114,18 @@ export function deleteChatMessage(roomId: string, messageId: string) {
 }
 
 export function uploadChatAttachment(roomId: string, formData: FormData) {
-  return http.post<ChatAttachmentDto, FormData>(`/v1/chat/rooms/${seg(roomId)}/upload`, formData, {
+  return http.post<ChatAttachmentDto>(`/v1/chat/rooms/${seg(roomId)}/upload`, undefined, {
+    formData,
     auth: "required",
   })
 }
 
 export function getChatAttachments(roomId: string, query: { page?: number; limit?: number } = {}) {
-  return http.get<ChatAttachmentDto[]>(`/v1/chat/rooms/${seg(roomId)}/attachments`, {
-    query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<ChatAttachmentDto[]>(`/v1/chat/rooms/${seg(roomId)}/attachments`, {
+      query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<ChatAttachmentDto>(raw, ["attachments"]))
 }

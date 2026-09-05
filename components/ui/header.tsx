@@ -24,7 +24,7 @@
  *     H1 di baris kedua untuk layar utama tab (Beranda, Riwayat).
  *   - Di web dibatasi `md:max-w-content` (§11), sejajar kolom konten.
  */
-import type { ReactNode } from "react"
+import { useContext, useState, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowLeft, X } from "phosphor-react-native"
@@ -33,6 +33,9 @@ import { useRouter } from "expo-router"
 import { IconButton } from "@/components/ui/icon-button"
 import { StepProgress } from "@/components/ui/stepper"
 import { Text } from "@/components/ui/text"
+import { ScreenInsetsContext } from "@/components/ui/screen"
+import { tokens } from "@/lib/tokens"
+import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
 
 /**
@@ -75,15 +78,20 @@ export function Header({
   right,
   progress,
   transparent = false,
-  safeArea = true,
+  safeArea,
   className,
   ...rest
 }: HeaderProps) {
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const providedInsets = useContext(ScreenInsetsContext)
+  const [leftWidth, setLeftWidth] = useState(0)
+  const [rightWidth, setRightWidth] = useState(0)
+  const sideWidth = Math.max(tokens.space[12], leftWidth, rightWidth)
 
-  const canBack = showBack ?? (onBack != null || router.canGoBack())
-  const handleBack = onBack ?? (() => router.back())
+  const canBack = showBack ?? true
+  const handleBack =
+    onBack ?? (() => (router.canGoBack() ? router.back() : router.replace(ROUTES.home)))
 
   const leftNode =
     left ??
@@ -98,30 +106,43 @@ export function Header({
 
   return (
     <View
-      accessibilityRole="header"
       className={cn(
         "z-sticky w-full items-center",
         transparent ? "bg-transparent" : "bg-background border-b border-border",
         className,
       )}
-      style={safeArea ? { paddingTop: insets.top } : undefined}
+      style={(safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined}
       {...rest}
     >
       <View className="w-full md:max-w-content">
-        <View className="h-14 w-full flex-row items-center px-3">
+        <View className="min-h-14 w-full flex-row items-center px-3 py-1">
           {/* Kolom kiri: lebar tetap 1 slot */}
-          <View className="w-12 items-start justify-center">{leftNode}</View>
+          <View style={{ width: sideWidth }} className="items-start justify-center">
+            <View onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}>{leftNode}</View>
+          </View>
 
           <View className="flex-1 items-center justify-center px-2">
             {title ? (
-              <Text variant="h3" numberOfLines={1} className="text-center">
+              <Text
+                accessibilityRole="header"
+                variant="h3"
+                numberOfLines={1}
+                className="text-center"
+              >
                 {title}
               </Text>
             ) : null}
           </View>
 
           {/* Kolom kanan: minimal 1 slot agar judul tetap center saat kosong */}
-          <View className="min-w-12 flex-row items-center justify-end gap-1">{right}</View>
+          <View style={{ width: sideWidth }} className="items-end justify-center">
+            <View
+              onLayout={(e) => setRightWidth(e.nativeEvent.layout.width)}
+              className="flex-row items-center gap-1"
+            >
+              {right}
+            </View>
+          </View>
         </View>
 
         {largeTitle ? (

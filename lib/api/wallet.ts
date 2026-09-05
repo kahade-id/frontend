@@ -1,3 +1,5 @@
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { assertDtoConstraints } from "@/lib/financial"
 /**
  * Kahade — domain `wallet` (tag "wallet" di kahade-api-mobile.json).
  *
@@ -21,6 +23,13 @@
  *   - `retry: 1` pada GET: jaringan seluler flaky; GET wallet/transaksi
  *     idempoten sehingga aman di-retry sekali.
  */
+import { readList } from "@/lib/api/response"
+import {
+  normalizeWallet,
+  normalizeWalletPage,
+  normalizeWalletTransaction,
+} from "@/lib/api/wallet-contract"
+import { AMOUNT_LIMITS, assertValidAmount } from "@/lib/financial"
 import { http, seg } from "@/lib/api/client"
 import type {
   ConfirmWithdrawOtpDto,
@@ -83,7 +92,7 @@ export type WalletPaginated = {
 
 /** GET /v1/wallet — saldo + status wallet user yang sedang login. */
 export function getWallet() {
-  return http.get<Wallet>("/v1/wallet", { auth: "required", retry: 1 })
+  return http.get<unknown>("/v1/wallet", { auth: "required", retry: 1 }).then(normalizeWallet)
 }
 
 /**
@@ -112,18 +121,21 @@ const HISTORY_FROM = "2000-01-01T00:00:00.000Z"
  * GET /v1/wallet/transactions — riwayat transaksi wallet (paginasi).
  * Dipakai Dompet overview & tab riwayat; disediakan di satu domain.
  */
-export function getWalletTransactions(query: WalletTransactionsQuery) {
-  return http.get<WalletPaginated>("/v1/wallet/transactions", {
-    query: {
-      page: query.page,
-      limit: query.limit,
-      type: query.type ?? "ALL",
-      from: query.from ?? HISTORY_FROM,
-      to: query.to ?? new Date().toISOString(),
-    },
-    auth: "required",
-    retry: 1,
-  })
+export function getWalletTransactions(query: WalletTransactionsQuery, signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/wallet/transactions", {
+      query: {
+        page: query.page,
+        limit: query.limit,
+        type: query.type ?? "ALL",
+        from: query.from ?? HISTORY_FROM,
+        to: query.to ?? new Date().toISOString(),
+      },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => normalizeWalletPage(raw, query))
 }
 
 // ------------------------------------------------------------------
@@ -144,6 +156,7 @@ export type WalletPaymentMethod = {
   minAmount?: number
   maxAmount?: number
   enabled: boolean
+  recommended?: boolean
 }
 
 export type PaymentMethodFee = {
@@ -196,20 +209,27 @@ export type TransferResult = {
 
 /** Response GET /v1/wallet/payment-methods. */
 export function getPaymentMethods() {
-  return http.get<WalletPaymentMethod[]>("/v1/wallet/payment-methods", { auth: "required", retry: 1 })
+  return http
+    .get<unknown>("/v1/wallet/payment-methods", { auth: "required", retry: 1 })
+    .then((raw) => readList<WalletPaymentMethod>(raw, ["methods", "paymentMethods"]))
 }
 
 /** GET /v1/wallet/transfer/lookup?q= — cari penerima transfer. */
-export function lookupTransferRecipient(q: string) {
-  return http.get<TransferRecipient[]>("/v1/wallet/transfer/lookup", {
-    query: { q },
-    auth: "required",
-    retry: 1,
-  })
+export function lookupTransferRecipient(q: string, signal?: AbortSignal) {
+  return http
+    .get<TransferRecipient[]>("/v1/wallet/transfer/lookup", {
+      query: { q },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => readList<TransferRecipient>(raw, ["users", "recipients"]))
 }
 
 /** POST /v1/wallet/topup — mulai top-up (dapat paymentTxId untuk poll). */
 export function createTopup(dto: TopupDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.TopupDto)
+  assertValidAmount(dto.amount, AMOUNT_LIMITS.topup)
   return http.post<TopupResult, TopupDto>("/v1/wallet/topup", dto, { auth: "required" })
 }
 
@@ -223,6 +243,8 @@ export function getTopupStatus(paymentTxId: string) {
 
 /** POST /v1/wallet/withdraw — tarik dana (bisa memerlukan OTP). */
 export function createWithdraw(dto: WithdrawDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.WithdrawDto)
+  assertValidAmount(dto.amount, AMOUNT_LIMITS.withdraw)
   return http.post<WithdrawResult, WithdrawDto>("/v1/wallet/withdraw", dto, { auth: "required" })
 }
 
@@ -251,20 +273,26 @@ export function cancelWithdraw(dto: { txId: string }) {
 
 /** POST /v1/wallet/transfer — kirim dana ke user lain. */
 export function transferFunds(dto: TransferDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.TransferDto)
+  assertValidAmount(dto.amount, AMOUNT_LIMITS.transfer)
   return http.post<TransferResult, TransferDto>("/v1/wallet/transfer", dto, { auth: "required" })
 }
 
 /** GET /v1/wallet/transactions/{txId} — detail satu mutasi. */
 export function getWalletTransaction(txId: string) {
-  return http.get<WalletTransaction>(`/v1/wallet/transactions/${seg(txId)}`, {
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<unknown>(`/v1/wallet/transactions/${seg(txId)}`, {
+      auth: "required",
+      retry: 1,
+    })
+    .then(normalizeWalletTransaction)
 }
 
 /** POST /v1/wallet/verify-pin — verifikasi PIN wallet. */
 export function verifyWalletPin(dto: VerifyPinDto) {
-  return http.post<{ valid: boolean }, VerifyPinDto>("/v1/wallet/verify-pin", dto, { auth: "required" })
+  return http.post<{ valid: boolean }, VerifyPinDto>("/v1/wallet/verify-pin", dto, {
+    auth: "required",
+  })
 }
 
 /** POST /v1/wallet/set-pin — set/ubah PIN wallet. */
@@ -273,29 +301,49 @@ export function setWalletPin(dto: SetPinDto) {
 }
 
 /** GET /v1/wallet/topup-history — riwayat topup (bentuk paginated sama). */
-export function getTopupHistory(query: { page?: number; limit?: number } = {}) {
-  return http.get<WalletPaginated>("/v1/wallet/topup-history", {
-    query,
-    auth: "required",
-    retry: 1,
-  })
+export function getTopupHistory(
+  query: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  return http
+    .get<unknown>("/v1/wallet/topup-history", {
+      query,
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => normalizeWalletPage(raw, query))
 }
 
 /** GET /v1/wallet/withdraw-history — riwayat penarikan. */
-export function getWithdrawHistory(query: { page?: number; limit?: number } = {}) {
-  return http.get<WalletPaginated>("/v1/wallet/withdraw-history", {
-    query,
-    auth: "required",
-    retry: 1,
-  })
+export function getWithdrawHistory(
+  query: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  return http
+    .get<unknown>("/v1/wallet/withdraw-history", {
+      query,
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => normalizeWalletPage(raw, query))
 }
 
 /** GET /v1/wallet/export/csv — unduh mutasi CSV. */
 export function exportWalletCsv() {
-  return http.get<Blob>("/v1/wallet/export/csv", { auth: "required", responseType: "blob", retry: 1 })
+  return http.get<Blob>("/v1/wallet/export/csv", {
+    auth: "required",
+    responseType: "blob",
+    retry: 1,
+  })
 }
 
 /** GET /v1/wallet/export/pdf — unduh mutasi PDF. */
 export function exportWalletPdf() {
-  return http.get<Blob>("/v1/wallet/export/pdf", { auth: "required", responseType: "blob", retry: 1 })
+  return http.get<Blob>("/v1/wallet/export/pdf", {
+    auth: "required",
+    responseType: "blob",
+    retry: 1,
+  })
 }

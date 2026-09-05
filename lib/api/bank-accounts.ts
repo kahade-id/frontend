@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `bank-accounts` (tag "bank-accounts").
  *
@@ -20,7 +21,9 @@ export type BankAccount = {
 }
 
 export function listBankAccounts() {
-  return http.get<BankAccount[]>("/v1/bank-accounts", { auth: "required", retry: 1 })
+  return http
+    .get<BankAccount[]>("/v1/bank-accounts", { auth: "required", retry: 1 })
+    .then((raw) => readList<BankAccount>(raw, ["bankAccounts", "accounts"]))
 }
 
 export function addBankAccount(dto: AddBankAccountDto) {
@@ -28,7 +31,10 @@ export function addBankAccount(dto: AddBankAccountDto) {
 }
 
 export function deleteBankAccount(id: string) {
-  return http.delete<void>(`/v1/bank-accounts/${seg(id)}`, { auth: "required", responseType: "void" })
+  return http.delete<void>(`/v1/bank-accounts/${seg(id)}`, {
+    auth: "required",
+    responseType: "void",
+  })
 }
 
 export function setPrimaryBankAccount(id: string) {

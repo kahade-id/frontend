@@ -1,3 +1,6 @@
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { canUsePaymentMethod } from "@/components/ui/payment-method-selector"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Langganan Premium.
  *
@@ -23,13 +26,17 @@
  *   - Label periode paket diambil dari `plan.key` (MONTHLY/ANNUAL); bila key
  *     tidak ada, fallback dari `durationDays` (≥ 300 hari dianggap tahunan).
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ClockCounterClockwise, CrownSimple } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type SubscribeDto } from "@/lib/api"
-import type { SubscriptionHistoryEntry, SubscriptionPlan, SubscriptionStatus } from "@/lib/api/subscriptions"
+import type {
+  SubscriptionHistoryEntry,
+  SubscriptionPlan,
+  SubscriptionStatus,
+} from "@/lib/api/subscriptions"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { toPaymentMethods } from "@/lib/payment-methods"
 import { tokens } from "@/lib/tokens"
@@ -59,7 +66,6 @@ import { useToast } from "@/components/ui/toast"
 
 const PAGE_SIZE = 10
 const DEFAULT_PAYMENT_METHOD = "KAHADE_WALLET"
-const ANNUAL_MIN_DAYS = 300
 const MS_PER_DAY = 86_400_000
 
 type Step = "plans" | "method" | "pin"
@@ -78,15 +84,20 @@ const HISTORY_TONE: Partial<Record<string, BadgeTone>> = {
 }
 
 function planPeriod(plan: SubscriptionPlan): SubscriptionPeriod {
-  if (plan.key) return plan.key
-  return plan.durationDays >= ANNUAL_MIN_DAYS ? "ANNUAL" : "MONTHLY"
+  return plan.key
 }
 
-function toCardStatus(status: SubscriptionStatus | null): { status: CardStatus; daysLeft?: number } {
+function toCardStatus(status: SubscriptionStatus | null): {
+  status: CardStatus
+  daysLeft?: number
+} {
   if (!status) return { status: "NONE" }
   if (!status.active) return { status: status.expiresAt ? "EXPIRED" : "NONE" }
   if (!status.expiresAt) return { status: "ACTIVE" }
-  const daysLeft = Math.max(0, Math.ceil((new Date(status.expiresAt).getTime() - Date.now()) / MS_PER_DAY))
+  const expiry = new Date(status.expiresAt).getTime()
+  const daysLeft = Number.isFinite(expiry)
+    ? Math.max(0, Math.ceil((expiry - Date.now()) / MS_PER_DAY))
+    : undefined
   return { status: "ACTIVE", daysLeft }
 }
 
@@ -105,7 +116,8 @@ export default function SubscriptionsScreen() {
   const [step, setStep] = useState<Step>("plans")
   const [pinPurpose, setPinPurpose] = useState<PinPurpose>("subscribe")
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null)
-  const [methodId, setMethodId] = useState<string>(DEFAULT_PAYMENT_METHOD)
+  const [methodId, setMethodId] = useState<string>("")
+  const submitLock = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [pinError, setPinError] = useState<string | undefined>()
 
@@ -119,7 +131,8 @@ export default function SubscriptionsScreen() {
   const fetchHistory = useCallback(async (page: number, replace: boolean) => {
     setHistoryStatus("loading")
     try {
-      const rows = (await api.subscriptions.getSubscriptionHistory({ page, limit: PAGE_SIZE })) ?? []
+      const rows =
+        (await api.subscriptions.getSubscriptionHistory({ page, limit: PAGE_SIZE })) ?? []
       setHistory((prev) => (replace ? rows : [...prev, ...rows]))
       setHistoryPage(page)
       setHistoryStatus(rows.length < PAGE_SIZE ? "end" : "idle")
@@ -133,16 +146,27 @@ export default function SubscriptionsScreen() {
     setError(null)
     try {
       const [s, p, b, wallet, pm] = await Promise.all([
-        api.subscriptions.getSubscriptionStatus().catch(() => null),
+        api.subscriptions.getSubscriptionStatus(),
         api.subscriptions.getSubscriptionPlans(),
         api.subscriptions.getSubscriptionBenefits().catch(() => [] as Benefit[]),
-        api.wallet.getWallet().catch(() => null),
-        api.wallet.getPaymentMethods().catch(() => null),
+        api.wallet.getWallet(),
+        api.wallet.getPaymentMethods(),
       ])
       setStatus(s)
       setPlans(p ?? [])
       setBenefits(b ?? [])
-      setMethods(toPaymentMethods(pm, { walletBalance: wallet?.availableBalance ?? wallet?.balance }))
+      const choices = toPaymentMethods(pm, { walletBalance: wallet.availableBalance }).filter(
+        (method) =>
+          (API_CONSTRAINTS.SubscribeDto.paymentMethod.enum as readonly string[]).includes(
+            method.id,
+          ),
+      )
+      setMethods(choices)
+      setMethodId((previous) =>
+        choices.some((m) => m.id === previous && !m.unavailable)
+          ? previous
+          : (choices.find((m) => !m.unavailable)?.id ?? ""),
+      )
       void fetchHistory(1, true)
     } catch {
       setError("Gagal memuat paket langganan.")
@@ -163,19 +187,21 @@ export default function SubscriptionsScreen() {
 
   const card = useMemo(() => toCardStatus(status), [status])
   const currentPlan = useMemo(
-    () => plans.find((p) => p.name === status?.plan || p.key === status?.plan || p.id === status?.plan),
+    () =>
+      plans.find((p) => p.name === status?.plan || p.key === status?.plan || p.id === status?.plan),
     [plans, status?.plan],
   )
   const hasMethods = methods.length > 0
 
   const startSubscribe = useCallback(
     (plan: SubscriptionPlan) => {
+      if (loading || error || !hasMethods) return
       setSelectedPlan(plan)
       setPinPurpose("subscribe")
       setPinError(undefined)
-      setStep(hasMethods ? "method" : "pin")
+      setStep("method")
     },
-    [hasMethods],
+    [hasMethods, loading, error],
   )
 
   const startRenew = useCallback(() => {
@@ -191,13 +217,31 @@ export default function SubscriptionsScreen() {
 
   const handlePin = useCallback(
     async (pin: string) => {
+      if (
+        submitLock.current ||
+        loading ||
+        error ||
+        (pinPurpose === "subscribe" &&
+          (!selectedPlan ||
+            !canUsePaymentMethod(
+              methods.find((m) => m.id === methodId),
+              selectedPlan.price,
+            )))
+      )
+        return
+      submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
       try {
         if (pinPurpose === "renew") {
           const next = await api.subscriptions.renewSubscription({ pin })
           setStatus(next)
-          toast.show({ title: "Langganan diperpanjang", tone: "success", duration: 3000 })
+          toast.show({
+            title:
+              next.active === true ? "Langganan diperpanjang" : "Permintaan perpanjangan diterima",
+            tone: next.active === true ? "success" : "info",
+            duration: 3000,
+          })
         } else {
           if (!selectedPlan) return
           const next = await api.subscriptions.subscribe({
@@ -208,18 +252,25 @@ export default function SubscriptionsScreen() {
             paymentMethod: hasMethods ? (methodId as SubscribeDto["paymentMethod"]) : undefined,
           })
           setStatus(next)
-          toast.show({ title: "Langganan aktif", tone: "success", duration: 3000 })
+          toast.show({
+            title: next.active === true ? "Langganan aktif" : "Permintaan langganan diterima",
+            tone: next.active === true ? "success" : "info",
+            duration: 3000,
+          })
         }
         setSelectedPlan(null)
         setStep("plans")
         await fetchAll()
       } catch (err) {
-        setPinError(isApiError(err) ? userMessage(err) : "PIN salah atau pembayaran gagal. Coba lagi.")
+        setPinError(
+          isApiError(err) ? userMessage(err) : "PIN salah atau pembayaran gagal. Coba lagi.",
+        )
       } finally {
+        submitLock.current = false
         setSubmitting(false)
       }
     },
-    [pinPurpose, selectedPlan, hasMethods, methodId, toast.show, fetchAll],
+    [pinPurpose, selectedPlan, hasMethods, methodId, toast.show, fetchAll, loading, error, methods],
   )
 
   const handleCancel = useCallback(async () => {
@@ -239,10 +290,19 @@ export default function SubscriptionsScreen() {
 
   const footer =
     step === "method" && selectedPlan ? (
-      <View className="px-6" style={{ paddingBottom: insets.bottom + tokens.space[4], paddingTop: tokens.space[3] }}>
+      <View
+        className="px-6"
+        style={{ paddingBottom: insets.bottom + tokens.space[4], paddingTop: tokens.space[3] }}
+      >
         <Button
           fullWidth
-          disabled={!methodId || methods.find((m) => m.id === methodId)?.unavailable}
+          disabled={
+            !selectedPlan ||
+            !canUsePaymentMethod(
+              methods.find((m) => m.id === methodId),
+              selectedPlan.price,
+            )
+          }
           onPress={() => {
             setPinError(undefined)
             setStep("pin")
@@ -260,10 +320,12 @@ export default function SubscriptionsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={CrownSimple} title="Memuat paket…" />
+          <LoadingScreen message="Memuat paket…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : step === "pin" ? (
@@ -274,14 +336,22 @@ export default function SubscriptionsScreen() {
                 ? "Perpanjangan langganan memerlukan PIN dompet Anda."
                 : `Berlangganan ${selectedPlan?.name ?? ""} seharga ${formatRupiah(selectedPlan?.price ?? 0)} memerlukan PIN dompet Anda.`}
             </Text>
-            <PinInput mode="enter" onComplete={(p) => void handlePin(p)} errorText={pinError} disabled={submitting} />
+            <PinInput
+              mode="enter"
+              onComplete={(p) => void handlePin(p)}
+              errorText={pinError}
+              disabled={submitting}
+            />
             <Button variant="ghost" fullWidth={false} onPress={backToPlans} disabled={submitting}>
               Batal
             </Button>
           </View>
         ) : step === "method" && selectedPlan ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Metode pembayaran" subtitle={`${selectedPlan.name} · ${formatRupiah(selectedPlan.price)}`} />
+            <SectionHeader
+              title="Metode pembayaran"
+              subtitle={`${selectedPlan.name} · ${formatRupiah(selectedPlan.price)}`}
+            />
             <PaymentMethodSelector
               methods={methods}
               amount={selectedPlan.price}
@@ -324,7 +394,7 @@ export default function SubscriptionsScreen() {
                         label: b,
                         included: true,
                       }))}
-                      highlighted={i === plans.length - 1}
+                      highlighted={false}
                       current={isCurrent}
                       selected={selectedPlan?.id === plan.id}
                       onPress={() => setSelectedPlan(plan)}
@@ -372,7 +442,11 @@ export default function SubscriptionsScreen() {
                 ))}
               </ListGroup>
             )}
-            <LoadMore status={historyStatus} onLoadMore={() => void fetchHistory(historyPage + 1, false)} hideEnd />
+            <LoadMore
+              status={historyStatus}
+              onLoadMore={() => void fetchHistory(historyPage + 1, false)}
+              hideEnd
+            />
           </View>
         )}
       </PullToRefresh>

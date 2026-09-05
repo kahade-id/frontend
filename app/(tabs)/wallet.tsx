@@ -1,3 +1,7 @@
+import { useApiQuery } from "@/lib/use-api-query"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { PaginatedList } from "@/components/ui/paginated-list"
+import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 /**
  * Tab #3 — Dompet
  *
@@ -23,7 +27,14 @@ import { useCallback, useEffect, useState } from "react"
 import { Platform, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
-import { ArrowCircleDown, ArrowCircleUp, CalendarCheck, FileCsv, FilePdf, Wallet as WalletIcon } from "phosphor-react-native"
+import {
+  ArrowCircleDown,
+  ArrowCircleUp,
+  CalendarCheck,
+  FileCsv,
+  FilePdf,
+  Wallet as WalletIcon,
+} from "phosphor-react-native"
 import { File, Paths } from "expo-file-system"
 
 import { api, type Wallet, type WalletTransaction } from "@/lib/api"
@@ -47,10 +58,7 @@ import { LoadMore } from "@/components/ui/load-more"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import {
-  WalletBalanceCard,
-  type WalletQuickAction,
-} from "@/components/ui/wallet-balance-card"
+import { WalletBalanceCard, type WalletQuickAction } from "@/components/ui/wallet-balance-card"
 import { WalletTransactionListItem } from "@/components/ui/wallet-transaction-list-item"
 import { useToast } from "@/components/ui/toast"
 
@@ -76,59 +84,17 @@ export default function WalletScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [wallet, setWallet] = useState<Wallet | null>(null)
-  const [walletLoading, setWalletLoading] = useState(true)
-  const [walletError, setWalletError] = useState<string | null>(null)
-
-  const [txns, setTxns] = useState<WalletTransaction[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const [txnLoading, setTxnLoading] = useState(false)
-  const [txnError, setTxnError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchWallet = useCallback(async () => {
-    try {
-      setWalletLoading(true)
-      setWalletError(null)
-      const data = await api.wallet.getWallet()
-      setWallet(data)
-    } catch {
-      setWalletError("Gagal memuat saldo. Coba lagi.")
-    } finally {
-      setWalletLoading(false)
-    }
-  }, [])
-
-  const fetchTxns = useCallback(async (nextPage: number, isRefresh = false) => {
-    try {
-      setTxnLoading(true)
-      setTxnError(null)
-      // type/from/to diisi default oleh helper (spec menandai required).
-      const res = await api.wallet.getWalletTransactions({ page: nextPage, limit: PAGE_SIZE })
-      const incoming = res.data ?? []
-      setTxns((prev) => (isRefresh || nextPage === 1 ? incoming : [...prev, ...incoming]))
-      setPage(nextPage)
-      setHasMore(nextPage < (res.meta?.totalPages ?? 1))
-    } catch {
-      // Halaman pertama gagal → tampilkan error; load-more gagal → list tetap.
-      if (nextPage === 1) setTxnError("Gagal memuat riwayat. Coba lagi.")
-    } finally {
-      setTxnLoading(false)
-    }
-  }, [])
-
+  const balance = useApiQuery("wallet-balance", () => api.wallet.getWallet())
+  const history = usePaginatedQuery<WalletTransaction>("wallet-history", (page, signal) =>
+    api.wallet.getWalletTransactions({ page, limit: PAGE_SIZE }, signal),
+  )
+  const wallet = balance.data
+  const walletLoading = balance.loading
+  const walletError = balance.error
+  const fetchWallet = balance.reload
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await Promise.all([fetchWallet(), fetchTxns(1, true)])
-    setRefreshing(false)
-  }, [fetchWallet, fetchTxns])
-
-  useEffect(() => {
-    void fetchWallet()
-    void fetchTxns(1)
-  }, [fetchWallet, fetchTxns])
-
+    await Promise.all([balance.refresh(), history.refresh()])
+  }, [balance.refresh, history.refresh])
   const handleAction = useCallback((key: WalletQuickAction["key"]) => {
     router.push(ACTION_ROUTE[key])
   }, [])
@@ -140,7 +106,8 @@ export default function WalletScreen() {
     async (kind: "csv" | "pdf") => {
       setExporting(kind)
       try {
-        const blob = kind === "csv" ? await api.wallet.exportWalletCsv() : await api.wallet.exportWalletPdf()
+        const blob =
+          kind === "csv" ? await api.wallet.exportWalletCsv() : await api.wallet.exportWalletPdf()
         const filename = `kahade-wallet.${kind}`
         const mimeType = kind === "csv" ? "text/csv" : "application/pdf"
         if (Platform.OS === "web") {
@@ -168,6 +135,7 @@ export default function WalletScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
+        showBack={false}
         title="Dompet"
         right={
           <>
@@ -191,82 +159,63 @@ export default function WalletScreen() {
         }
       />
 
-      <PullToRefresh
+      <PaginatedList
+        {...history}
         onRefresh={handleRefresh}
-        refreshing={refreshing}
-        contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[4] } }}
-      >
-        {walletError ? (
-          <ErrorState
-            compact
-            title="Gagal memuat saldo"
-            description={walletError}
-            onRetry={() => void fetchWallet()}
-          />
-        ) : (
-          <WalletBalanceCard
-            available={wallet?.availableBalance ?? wallet?.balance ?? 0}
-            held={wallet?.holdBalance ?? 0}
-            loading={walletLoading}
-            onTopUp={() => handleAction("topup")}
-            onWithdraw={() => handleAction("withdraw")}
-            onTransfer={() => handleAction("transfer")}
-            style={styles.balanceCard}
+        refreshing={balance.refreshing || history.refreshing}
+        onRetry={history.reload}
+        onLoadMore={history.loadMore}
+        renderItem={({ item }) => (
+          <WalletTransactionRow
+            transaction={item}
+            onPress={() => router.push(ROUTES.walletTransaction(item.id))}
           />
         )}
-
-        {/* Riwayat per jenis + jadwal penarikan — chip navigasi, bukan filter lokal */}
-        <View className="flex-row flex-wrap gap-2 px-6" style={styles.links}>
-          <Chip icon={ArrowCircleDown} onPress={() => router.push(ROUTES.topupHistory)}>
-            Riwayat Top-up
-          </Chip>
-          <Chip icon={ArrowCircleUp} onPress={() => router.push(ROUTES.withdrawHistory)}>
-            Riwayat Penarikan
-          </Chip>
-          <Chip icon={CalendarCheck} onPress={() => router.push(ROUTES.withdrawalSchedules)}>
-            Jadwal Penarikan
-          </Chip>
-        </View>
-
-        <SectionHeader title="Riwayat" inset />
-
-        {txnError ? (
-          <ErrorState
-            title="Gagal memuat riwayat"
-            description={txnError}
-            onRetry={() => void fetchTxns(1)}
+        empty={
+          <EmptyState
+            icon={WalletIcon}
+            title="Belum ada riwayat"
+            description="Transaksi dompet kamu akan muncul di sini."
           />
-        ) : txns.length === 0 ? (
-          txnLoading ? null : (
-            <EmptyState
-              icon={WalletIcon}
-              title="Belum ada riwayat"
-              description="Transaksi dompet kamu akan muncul di sini."
-            />
-          )
-        ) : (
-          <View className="gap-1">
-            {txns.map((item, index) => (
-              <WalletTransactionListItem
-                key={item.id}
-                title={WALLET_TXN_LABELS[item.type] ?? item.type}
-                type={isWalletCredit(item) ? "CREDIT" : "DEBIT"}
-                amount={item.amount}
-                kind={WALLET_TXN_KIND[item.type] ?? "other"}
-                status={WALLET_TXN_STATUS[item.status ?? "COMPLETED"] ?? "SUCCESS"}
-                timestamp={formatDateTime(item.createdAt)}
-                reference={item.referenceId ?? undefined}
-                onPress={() => router.push(ROUTES.walletTransaction(item.id))}
-                divider={index < txns.length - 1}
+        }
+        header={
+          <View>
+            {walletError ? (
+              <ErrorState
+                compact
+                title="Gagal memuat saldo"
+                description={walletError}
+                onRetry={() => void fetchWallet()}
               />
-            ))}
-            {hasMore ? (
-              <LoadMore status={txnLoading ? "loading" : "idle"} onLoadMore={() => void fetchTxns(page + 1)} />
-            ) : null}
+            ) : (
+              <WalletBalanceCard
+                available={wallet?.availableBalance}
+                held={wallet?.holdBalance}
+                loading={walletLoading}
+                onTopUp={() => handleAction("topup")}
+                onWithdraw={() => handleAction("withdraw")}
+                onTransfer={() => handleAction("transfer")}
+                style={styles.balanceCard}
+              />
+            )}
+
+            {/* Riwayat per jenis + jadwal penarikan — chip navigasi, bukan filter lokal */}
+            <View className="flex-row flex-wrap gap-2" style={styles.links}>
+              <Chip icon={ArrowCircleDown} onPress={() => router.push(ROUTES.topupHistory)}>
+                Riwayat Top-up
+              </Chip>
+              <Chip icon={ArrowCircleUp} onPress={() => router.push(ROUTES.withdrawHistory)}>
+                Riwayat Penarikan
+              </Chip>
+              <Chip icon={CalendarCheck} onPress={() => router.push(ROUTES.withdrawalSchedules)}>
+                Jadwal Penarikan
+              </Chip>
+            </View>
+
+            <SectionHeader title="Riwayat" />
           </View>
-        )}
-      </PullToRefresh>
+        }
+      />
     </Screen>
   )
 }

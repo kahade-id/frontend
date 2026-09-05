@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Ulasan Publik.
  *   GET /v1/users/{username}/ratings?page&limit&filter (semua REQUIRED).
@@ -49,7 +50,11 @@ export default function PublicRatingsScreen() {
   const fetchPage = useCallback(
     async (p: number) => {
       if (!username) return
-      const body = await api.ratings.getPublicRatings(username, { page: p, limit: PAGE_SIZE, filter })
+      const body = await api.ratings.getPublicRatings(username, {
+        page: p,
+        limit: PAGE_SIZE,
+        filter,
+      })
       const { items: data, totalPages } = readMyRatings(body)
       setItems((prev) => (p === 1 ? data : [...prev, ...data]))
       setPage(p)
@@ -107,14 +112,20 @@ export default function PublicRatingsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Star} title="Memuat ulasan…" />
+          <LoadingScreen message="Memuat ulasan…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 ? (
-          <EmptyState icon={Star} title="Belum ada ulasan" description="Ulasan pesanan akan muncul di sini." />
+          <EmptyState
+            icon={Star}
+            title="Belum ada ulasan"
+            description="Ulasan pesanan akan muncul di sini."
+          />
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title={`@${username}`} />

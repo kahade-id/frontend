@@ -1,13 +1,10 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `settings` (blocked users, report, privacy, language).
  * Profil/2FA/PIN tetap di users.ts & auth.ts & wallet.ts.
  */
 import { http, seg } from "@/lib/api/client"
-import type {
-  ReportUserSettingsDto,
-  UpdateLanguageDto,
-  UpdatePrivacyDto,
-} from "@/lib/api/types"
+import type { ReportUserSettingsDto, UpdateLanguageDto, UpdatePrivacyDto } from "@/lib/api/types"
 
 export type BlockedUser = {
   id: string
@@ -32,11 +29,15 @@ export type PrivacySettings = {
 
 /** GET /v1/settings/blocked-users (juga GET /v1/users/me/blocked). */
 export function getBlockedUsers() {
-  return http.get<BlockedUser[]>("/v1/settings/blocked-users", { auth: "required", retry: 1 })
+  return http
+    .get<BlockedUser[]>("/v1/settings/blocked-users", { auth: "required", retry: 1 })
+    .then((raw) => readList<BlockedUser>(raw, ["blockedUsers", "users"]))
 }
 
 export function blockUser(userId: string) {
-  return http.post<BlockedUser>(`/v1/settings/block/${seg(userId)}`, undefined, { auth: "required" })
+  return http.post<BlockedUser>(`/v1/settings/block/${seg(userId)}`, undefined, {
+    auth: "required",
+  })
 }
 
 export function unblockUser(userId: string) {
@@ -53,7 +54,9 @@ export function reportUser(dto: ReportUserSettingsDto) {
 }
 
 export function getReports() {
-  return http.get<ReportsSettings[]>("/v1/settings/reports", { auth: "required", retry: 1 })
+  return http
+    .get<ReportsSettings[]>("/v1/settings/reports", { auth: "required", retry: 1 })
+    .then((raw) => readList<ReportsSettings>(raw, ["reports"]))
 }
 
 export function getPrivacySettings() {
@@ -61,11 +64,16 @@ export function getPrivacySettings() {
 }
 
 export function updatePrivacySettings(dto: UpdatePrivacyDto) {
-  return http.put<PrivacySettings, UpdatePrivacyDto>("/v1/settings/privacy", dto, { auth: "required" })
+  return http.put<PrivacySettings, UpdatePrivacyDto>("/v1/settings/privacy", dto, {
+    auth: "required",
+  })
 }
 
 export function getLanguage() {
-  return http.get<{ language: "id" | "en" }>("/v1/settings/language", { auth: "required", retry: 1 })
+  return http.get<{ language: "id" | "en" }>("/v1/settings/language", {
+    auth: "required",
+    retry: 1,
+  })
 }
 
 export function updateLanguage(dto: UpdateLanguageDto) {

@@ -1,3 +1,6 @@
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { PaginatedList } from "@/components/ui/paginated-list"
+import { useToast } from "@/components/ui/toast"
 /**
  * Tab #4 — Notifikasi
  *
@@ -25,7 +28,17 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ScrollView, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
-import { Bell, Broom, CheckSquare, Checks, DotsThreeVertical, Megaphone, Receipt, Trash, X } from "phosphor-react-native"
+import {
+  Bell,
+  Broom,
+  CheckSquare,
+  Checks,
+  DotsThreeVertical,
+  Megaphone,
+  Receipt,
+  Trash,
+  X,
+} from "phosphor-react-native"
 
 import { api, type AppNotification, type NotificationCategory } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
@@ -122,17 +135,25 @@ function NotifSkeletonRow() {
 
 export default function NotificationsScreen() {
   const insets = useSafeAreaInsets()
+  const toast = useToast()
 
   const [filter, setFilter] = useState<FilterValue>("ALL")
   const [readFilter, setReadFilter] = useState<ReadFilter>("ALL")
-  const [notifs, setNotifs] = useState<AppNotification[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(true)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [refreshing, setRefreshing] = useState(false)
+  const query = usePaginatedQuery<AppNotification>(
+    `notifications:${filter}:${readFilter}`,
+    (page, signal) =>
+      api.notifications.getNotifications(
+        {
+          category: filter === "ALL" ? undefined : filter,
+          isRead: readFilter === "UNREAD" ? false : undefined,
+          page,
+          limit: PAGE_SIZE,
+        },
+        signal,
+      ),
+  )
+  const { data: notifs, setData: setNotifs } = query
   const [markingAll, setMarkingAll] = useState(false)
-  const [fetchError, setFetchError] = useState<string | null>(null)
 
   // Menu "⋮" + mode pilih (batch read/delete) + konfirmasi hapus
   const [menuOpen, setMenuOpen] = useState(false)
@@ -146,49 +167,19 @@ export default function NotificationsScreen() {
   const hasRead = notifs.some((n) => n.isRead)
   const selectedCount = selected.size
 
-  const fetchNotifs = useCallback(
-    async (nextPage: number, isRefresh = false) => {
-      try {
-        if (nextPage === 1 && !isRefresh) setLoading(true)
-        else if (nextPage > 1) setLoadingMore(true)
-        setFetchError(null)
-
-        const res = await api.notifications.getNotifications({
-          category: filter === "ALL" ? undefined : filter,
-          isRead: readFilter === "UNREAD" ? false : undefined,
-          page: nextPage,
-          limit: PAGE_SIZE,
-        })
-
-        setNotifs((prev) => (isRefresh || nextPage === 1 ? res.data : [...prev, ...res.data]))
-        setPage(nextPage)
-        setHasMore(nextPage < res.meta.totalPages)
-      } catch {
-        if (nextPage === 1) setFetchError("Gagal memuat notifikasi. Coba lagi.")
-      } finally {
-        setLoading(false)
-        setLoadingMore(false)
-      }
-    },
-    [filter, readFilter],
-  )
-
   useEffect(() => {
-    void fetchNotifs(1)
-  }, [fetchNotifs])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchNotifs(1, true)
-    setRefreshing(false)
-  }, [fetchNotifs])
+    setSelected(new Set())
+    setSelecting(false)
+  }, [filter, readFilter])
 
   const handleRead = useCallback((id: string) => {
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
     api.notifications
       .markNotificationRead(id)
       .then(() => refreshUnreadCount())
-      .catch(() => setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n))))
+      .catch(() =>
+        setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n))),
+      )
   }, [])
 
   const handleMarkAll = useCallback(async () => {
@@ -232,7 +223,7 @@ export default function NotificationsScreen() {
       void refreshUnreadCount()
       exitSelect()
     } catch {
-      // gagal: biarkan pilihan, user bisa coba lagi
+      toast.show({ title: "Notifikasi belum dapat ditandai", tone: "danger" })
     } finally {
       setBatchBusy(false)
     }
@@ -248,7 +239,7 @@ export default function NotificationsScreen() {
       void refreshUnreadCount()
       exitSelect()
     } catch {
-      // gagal: list tidak berubah
+      toast.show({ title: "Notifikasi belum dapat dihapus", tone: "danger" })
     } finally {
       setBatchBusy(false)
       setConfirm(null)
@@ -262,7 +253,7 @@ export default function NotificationsScreen() {
       await api.notifications.deleteReadNotifications()
       setNotifs((prev) => prev.filter((n) => !n.isRead))
     } catch {
-      // gagal: list tidak berubah
+      toast.show({ title: "Notifikasi belum dapat dihapus", tone: "danger" })
     } finally {
       setBatchBusy(false)
       setConfirm(null)
@@ -354,7 +345,14 @@ export default function NotificationsScreen() {
         <Header
           title={selectedCount > 0 ? `${selectedCount} dipilih` : "Pilih notifikasi"}
           showBack={false}
-          left={<IconButton icon={X} variant="ghost" accessibilityLabel="Batal memilih" onPress={exitSelect} />}
+          left={
+            <IconButton
+              icon={X}
+              variant="ghost"
+              accessibilityLabel="Batal memilih"
+              onPress={exitSelect}
+            />
+          }
           right={
             <>
               <IconButton
@@ -376,13 +374,18 @@ export default function NotificationsScreen() {
         />
       ) : (
         <Header
+          showBack={false}
           title="Notifikasi"
           right={
             <>
               {hasUnread ? (
-                <Button variant="ghost" size="sm" onPress={handleMarkAll} loading={markingAll}>
-                  Tandai dibaca
-                </Button>
+                <IconButton
+                  icon={Checks}
+                  variant="ghost"
+                  accessibilityLabel="Tandai semua notifikasi dibaca"
+                  onPress={() => void handleMarkAll()}
+                  disabled={markingAll}
+                />
               ) : null}
               {notifs.length > 0 ? (
                 <IconButton
@@ -403,7 +406,10 @@ export default function NotificationsScreen() {
         contentContainerStyle={styles.filterRow}
         style={styles.filterScroll}
       >
-        <Chip selected={readFilter === "UNREAD"} onPress={() => setReadFilter((v) => (v === "UNREAD" ? "ALL" : "UNREAD"))}>
+        <Chip
+          selected={readFilter === "UNREAD"}
+          onPress={() => setReadFilter((v) => (v === "UNREAD" ? "ALL" : "UNREAD"))}
+        >
           Belum dibaca
         </Chip>
         {FILTERS.map((f) => (
@@ -413,68 +419,47 @@ export default function NotificationsScreen() {
         ))}
       </ScrollView>
 
-      {loading ? (
-        <SkeletonGroup>
-          {Array.from({ length: SKELETON_COUNT }, (_, i) => (
-            <NotifSkeletonRow key={`notif-skeleton-${i}`} />
-          ))}
-        </SkeletonGroup>
-      ) : fetchError ? (
-        <ErrorState
-          title="Gagal memuat notifikasi"
-          description="Periksa koneksi internet Anda, lalu coba lagi."
-          onRetry={() => void fetchNotifs(1)}
-        />
-      ) : (
-        <PullToRefresh
-          onRefresh={handleRefresh}
-          refreshing={refreshing}
-          scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[4] } }}
-        >
-          {notifs.length === 0 ? (
-            <EmptyState
-              icon={EMPTY_ICON[filter]}
-              title="Tidak ada notifikasi"
-              description="Notifikasi untukmu akan muncul di sini."
-            />
-          ) : (
-            <View className="gap-1">
-              {notifs.map((item, index) => (
-                <NotificationListItem
-                  key={item.id}
-                  title={item.title}
-                  body={item.body || undefined}
-                  category={UI_CATEGORY[item.category] ?? "system"}
-                  timestamp={formatDateTime(item.createdAt)}
-                  unread={!item.isRead}
-                  selected={selecting && selected.has(item.id)}
-                  onPress={() => {
-                    if (selecting) {
-                      toggleSelect(item.id)
-                      return
-                    }
-                    if (!item.isRead) handleRead(item.id)
-                    // Buka entitas terkait bila referensinya dikenali
-                    const target = routeForNotificationReference(item)
-                    if (target) router.push(target)
-                  }}
-                  onLongPress={() => {
-                    if (selecting) toggleSelect(item.id)
-                    else setItemMenu(item)
-                  }}
-                  divider={index < notifs.length - 1}
-                />
-              ))}
-              {hasMore ? (
-                <LoadMore
-                  status={loadingMore ? "loading" : "idle"}
-                  onLoadMore={() => void fetchNotifs(page + 1)}
-                />
-              ) : null}
-            </View>
-          )}
-        </PullToRefresh>
-      )}
+      <PaginatedList
+        {...query}
+        padded={false}
+        gap={tokens.space[1]}
+        bottomPadding={tokens.space[4]}
+        onRefresh={query.refresh}
+        onRetry={query.reload}
+        onLoadMore={query.loadMore}
+        empty={
+          <EmptyState
+            icon={EMPTY_ICON[filter]}
+            title="Tidak ada notifikasi"
+            description="Notifikasi untukmu akan muncul di sini."
+          />
+        }
+        renderItem={({ item, index }) => (
+          <NotificationListItem
+            title={item.title}
+            body={item.body || undefined}
+            category={UI_CATEGORY[item.category] ?? "system"}
+            timestamp={formatDateTime(item.createdAt)}
+            unread={!item.isRead}
+            selected={selecting && selected.has(item.id)}
+            onPress={() => {
+              if (selecting) {
+                toggleSelect(item.id)
+                return
+              }
+              if (!item.isRead) handleRead(item.id)
+              // Buka entitas terkait bila referensinya dikenali
+              const target = routeForNotificationReference(item)
+              if (target) router.push(target)
+            }}
+            onLongPress={() => {
+              if (selecting) toggleSelect(item.id)
+              else setItemMenu(item)
+            }}
+            divider={index < notifs.length - 1}
+          />
+        )}
+      />
 
       <ActionSheet
         visible={menuOpen}
@@ -490,7 +475,11 @@ export default function NotificationsScreen() {
       />
 
       <Dialog
-        title={confirm === "delete-read" ? "Hapus notifikasi yang sudah dibaca?" : `Hapus ${selectedCount} notifikasi?`}
+        title={
+          confirm === "delete-read"
+            ? "Hapus notifikasi yang sudah dibaca?"
+            : `Hapus ${selectedCount} notifikasi?`
+        }
         description={
           confirm === "delete-read"
             ? "Semua notifikasi yang sudah dibaca akan dihapus dari daftar."
@@ -501,7 +490,9 @@ export default function NotificationsScreen() {
         loading={batchBusy}
         confirmLabel="Hapus"
         cancelLabel="Batal"
-        onConfirm={() => void (confirm === "delete-read" ? handleDeleteRead() : handleDeleteSelected())}
+        onConfirm={() =>
+          void (confirm === "delete-read" ? handleDeleteRead() : handleDeleteSelected())
+        }
         onCancel={() => setConfirm(null)}
         onRequestClose={() => setConfirm(null)}
       />

@@ -32,6 +32,7 @@ import { cn } from "@/lib/cn"
 
 export type UserListItemProps = Omit<ViewProps, "children"> & {
   name: string
+  padded?: boolean
   /** Tanpa "@" — prefix ditambahkan komponen */
   username?: string
   avatar?: Pick<AvatarProps, "source">
@@ -51,6 +52,7 @@ export type UserListItemProps = Omit<ViewProps, "children"> & {
 
 export function UserListItem({
   name,
+  padded = true,
   username,
   avatar,
   verified = false,
@@ -64,12 +66,20 @@ export function UserListItem({
   ...rest
 }: UserListItemProps) {
   const handle = username ? `@${username}` : undefined
-  const a11yLabel = [name, handle, verified ? "terverifikasi" : undefined, stat, blocked ? "diblokir" : undefined]
+  const a11yLabel = [
+    name,
+    handle,
+    verified ? "terverifikasi" : undefined,
+    stat,
+    blocked ? "diblokir" : undefined,
+  ]
     .filter(Boolean)
     .join(", ")
 
   const body = (
-    <View className={cn("min-h-14 flex-1 flex-row items-center gap-3 py-3", blocked && "opacity-60")}>
+    <View
+      className={cn("min-h-14 flex-1 flex-row items-center gap-3 py-3", blocked && "opacity-60")}
+    >
       <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
       <View className="flex-1 gap-[2px]">
         <Text variant="body" weight={500} tone="primary" numberOfLines={1}>
@@ -96,7 +106,7 @@ export function UserListItem({
 
   return (
     <View className={cn("w-full", className)} {...rest}>
-      <View className="flex-row items-center gap-3 px-6">
+      <View className={cn("flex-row items-center gap-3", padded && "px-6")}>
         {onPress ? (
           <PressableScale
             accessibilityRole="button"

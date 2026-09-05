@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Template Transaksi (CRUD /v1/transaction-templates).
  * Template = data order default (role, judul, jenis, nilai, tenggat, fee).
@@ -32,7 +33,10 @@ import {
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import { TransactionTemplateCard, type TransactionTemplate as UiTemplate } from "@/components/ui/transaction-template-card"
+import {
+  TransactionTemplateCard,
+  type TransactionTemplate as UiTemplate,
+} from "@/components/ui/transaction-template-card"
 import { useToast } from "@/components/ui/toast"
 
 const NO_TEMPLATE: ApiTemplate = {
@@ -143,16 +147,18 @@ export default function TransactionTemplatesScreen() {
   }, [deleteTarget, toast.show, fetchAll])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Template Transaksi" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={NotePencil} title="Memuat template…" />
+          <LoadingScreen message="Memuat template…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
@@ -188,11 +194,18 @@ export default function TransactionTemplatesScreen() {
             )}
 
             {!creating ? (
-              <Button variant="secondary" onPress={openCreate}>Buat Template</Button>
+              <Button variant="secondary" onPress={openCreate}>
+                Buat Template
+              </Button>
             ) : (
               <FormSection title={editing ? "Ubah template" : "Template baru"}>
                 <Field label="Nama template" required>
-                  <Input value={form.name} onChangeText={(v) => setForm({ ...form, name: v })} maxLength={50} placeholder="Mis. Jasa desain logo" />
+                  <Input
+                    value={form.name}
+                    onChangeText={(v) => setForm({ ...form, name: v })}
+                    maxLength={50}
+                    placeholder="Mis. Jasa desain logo"
+                  />
                 </Field>
                 <Field label="Peran" required>
                   <OrderRoleSelector
@@ -202,7 +215,12 @@ export default function TransactionTemplatesScreen() {
                   />
                 </Field>
                 <Field label="Judul order default" required>
-                  <Input value={form.title} onChangeText={(v) => setForm({ ...form, title: v })} maxLength={100} placeholder="Jasa desain logo" />
+                  <Input
+                    value={form.title}
+                    onChangeText={(v) => setForm({ ...form, title: v })}
+                    maxLength={100}
+                    placeholder="Jasa desain logo"
+                  />
                 </Field>
                 <Field label="Jenis" required>
                   <OrderTypeSelector
@@ -222,7 +240,10 @@ export default function TransactionTemplatesScreen() {
                     value={String(form.deliveryDeadlineDays)}
                     onChangeText={(v) => {
                       const n = Number.parseInt(v.replace(/\D/g, ""), 10)
-                      setForm({ ...form, deliveryDeadlineDays: Number.isFinite(n) ? Math.min(14, Math.max(1, n)) : 1 })
+                      setForm({
+                        ...form,
+                        deliveryDeadlineDays: Number.isFinite(n) ? Math.min(14, Math.max(1, n)) : 1,
+                      })
                     }}
                     keyboardType="number-pad"
                     maxLength={2}
@@ -235,13 +256,34 @@ export default function TransactionTemplatesScreen() {
                     viewer={form.role}
                   />
                 </Field>
-                <Field label="Username lawan (opsional)" helperText="Bila diisi, template hanya berlaku untuk lawan ini">
-                  <Input value={form.counterpartUsername ?? ""} onChangeText={(v) => setForm({ ...form, counterpartUsername: v })} autoCapitalize="none" maxLength={50} placeholder="@username" />
+                <Field
+                  label="Username lawan (opsional)"
+                  helperText="Bila diisi, template hanya berlaku untuk lawan ini"
+                >
+                  <Input
+                    value={form.counterpartUsername ?? ""}
+                    onChangeText={(v) => setForm({ ...form, counterpartUsername: v })}
+                    autoCapitalize="none"
+                    maxLength={50}
+                    placeholder="@username"
+                  />
                 </Field>
-                <Button loading={submitting} disabled={!form.name.trim() || !form.title.trim() || form.orderValue <= 0} onPress={() => void handleSave()}>
+                <Button
+                  loading={submitting}
+                  disabled={!form.name.trim() || !form.title.trim() || form.orderValue <= 0}
+                  onPress={() => void handleSave()}
+                >
                   Simpan Template
                 </Button>
-                <Button variant="ghost" fullWidth={false} onPress={() => { setCreating(false); setEditing(null) }} disabled={submitting}>
+                <Button
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={() => {
+                    setCreating(false)
+                    setEditing(null)
+                  }}
+                  disabled={submitting}
+                >
                   Batal
                 </Button>
               </FormSection>

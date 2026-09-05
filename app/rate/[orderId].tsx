@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Beri Ulasan (POST /v1/ratings, orderId wajib).
  * Memakai <RatingForm> sistem: bintang + komentar, dipicu dari Detail Order
@@ -76,8 +77,7 @@ export default function RateOrderScreen() {
     [orderId, toast.show],
   )
 
-  const counterpart =
-    order?.myRole === "SELLER" ? order?.buyer : order?.seller
+  const counterpart = order?.myRole === "SELLER" ? order?.buyer : order?.seller
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -86,12 +86,18 @@ export default function RateOrderScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Star} title="Memuat order…" />
+          <LoadingScreen message="Memuat order…" />
         ) : error || !order ? (
-          <ErrorState title="Gagal memuat" description={error ?? "Order tidak ditemukan."} onRetry={() => void fetchOrder()} />
+          <ErrorState
+            title="Gagal memuat"
+            description={error ?? "Order tidak ditemukan."}
+            onRetry={() => void fetchOrder()}
+          />
         ) : (
           <View style={{ paddingTop: tokens.space[3] }}>
             <RatingForm

@@ -49,7 +49,7 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { groupAccountNumber } from "@/lib/format"
 
-export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | "CANCELLED"
+export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | "CANCELLED" | "UNKNOWN"
 
 export type PaymentMethodCode =
   | "VIRTUAL_ACCOUNT_BCA"
@@ -72,7 +72,9 @@ export type PaymentMethodCode =
   | "KREDIVO"
   | "KAHADE_WALLET"
 
-export function paymentMethodKind(method: PaymentMethodCode | string): "va" | "qris" | "retail" | "redirect" | "wallet" {
+export function paymentMethodKind(
+  method: PaymentMethodCode | string,
+): "va" | "qris" | "retail" | "redirect" | "wallet" {
   if (method.startsWith("VIRTUAL_ACCOUNT")) return "va"
   if (method === "QRIS") return "qris"
   if (method === "ALFAMART" || method === "INDOMARET") return "retail"
@@ -81,6 +83,7 @@ export function paymentMethodKind(method: PaymentMethodCode | string): "va" | "q
 }
 
 const STATUS_TONE: Record<PaymentStatus, BadgeTone> = {
+  UNKNOWN: "neutral",
   PENDING: "warning",
   SUCCESS: "success",
   FAILED: "danger",
@@ -107,6 +110,7 @@ export type TopupStatusCardLabels = {
 
 const DEFAULT_LABELS: TopupStatusCardLabels = {
   status: {
+    UNKNOWN: "Status pembayaran belum terkonfirmasi",
     PENDING: "Menunggu pembayaran",
     SUCCESS: "Pembayaran diterima",
     FAILED: "Pembayaran gagal",
@@ -152,7 +156,9 @@ export type TopupStatusCardProps = Omit<ViewProps, "children"> & {
   onDone?: () => void
   onCopy?: (value: string) => void
   copied?: boolean
-  labels?: Partial<Omit<TopupStatusCardLabels, "status">> & { status?: Partial<TopupStatusCardLabels["status"]> }
+  labels?: Partial<Omit<TopupStatusCardLabels, "status">> & {
+    status?: Partial<TopupStatusCardLabels["status"]>
+  }
   className?: string
 }
 
@@ -179,7 +185,11 @@ export function TopupStatusCard({
   className,
   ...rest
 }: TopupStatusCardProps) {
-  const t: TopupStatusCardLabels = { ...DEFAULT_LABELS, ...labels, status: { ...DEFAULT_LABELS.status, ...labels?.status } }
+  const t: TopupStatusCardLabels = {
+    ...DEFAULT_LABELS,
+    ...labels,
+    status: { ...DEFAULT_LABELS.status, ...labels?.status },
+  }
   const kind = paymentMethodKind(method)
   const pending = status === "PENDING"
   const success = status === "SUCCESS"
@@ -211,7 +221,6 @@ export function TopupStatusCard({
           </Text>
           <Amount value={amount} size="large" tone="primary" />
         </View>
-
       </CardSummary>
 
       {pending ? (
@@ -219,13 +228,28 @@ export function TopupStatusCard({
           <Divider />
           {kind === "va" && paymentCode ? (
             <View className="gap-3">
-              {methodLogo ? <View className="flex-row items-center gap-2">{methodLogo}</View> : null}
-              <CopyableField label={t.vaNumber} value={groupAccountNumber(paymentCode)} copyValue={paymentCode} mono onCopy={onCopy} copied={copied} />
+              {methodLogo ? (
+                <View className="flex-row items-center gap-2">{methodLogo}</View>
+              ) : null}
+              <CopyableField
+                label={t.vaNumber}
+                value={groupAccountNumber(paymentCode)}
+                copyValue={paymentCode}
+                mono
+                onCopy={onCopy}
+                copied={copied}
+              />
             </View>
           ) : null}
 
           {kind === "retail" && paymentCode ? (
-            <CopyableField label={t.paymentCode} value={paymentCode} mono onCopy={onCopy} copied={copied} />
+            <CopyableField
+              label={t.paymentCode}
+              value={paymentCode}
+              mono
+              onCopy={onCopy}
+              copied={copied}
+            />
           ) : null}
 
           {kind === "qris" && qrString ? (
@@ -262,7 +286,7 @@ export function TopupStatusCard({
 
       {reference ? <KeyValue label={t.reference} value={reference} mono /> : null}
 
-      {pending && (onRefresh || onCancel) ? (
+      {(pending || status === "UNKNOWN") && (onRefresh || onCancel) ? (
         <View className="flex-row gap-3">
           {onCancel ? (
             <View className="flex-1">

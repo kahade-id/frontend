@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Showcase / portofolio saya.
  *
@@ -64,17 +65,15 @@ type FormState = {
 }
 const EMPTY_FORM: FormState = { title: "", description: "", priceMin: 0, priceMax: 0 }
 
-type Editor =
-  | { mode: "create"; imageUrl?: string }
-  | { mode: "edit"; item: ShowcaseItem }
-  | null
+type Editor = { mode: "create"; imageUrl?: string } | { mode: "edit"; item: ShowcaseItem } | null
 
 function labelOf(it: ShowcaseItem): string {
   return it.title ?? it.caption ?? "Showcase"
 }
 
 function priceLabel(it: ShowcaseItem): string | undefined {
-  if (it.priceMin && it.priceMax) return `${formatRupiah(it.priceMin)} – ${formatRupiah(it.priceMax)}`
+  if (it.priceMin && it.priceMax)
+    return `${formatRupiah(it.priceMin)} – ${formatRupiah(it.priceMax)}`
   if (it.priceMin) return `Mulai ${formatRupiah(it.priceMin)}`
   if (it.priceMax) return `Hingga ${formatRupiah(it.priceMax)}`
   return undefined
@@ -213,11 +212,19 @@ export default function ShowcaseScreen() {
       const next = !(item.isActive ?? true)
       try {
         await api.users.updateShowcase(item.id, { isActive: next })
-        toast.show({ title: next ? "Item ditampilkan" : "Item disembunyikan", tone: "success", duration: 2500 })
+        toast.show({
+          title: next ? "Item ditampilkan" : "Item disembunyikan",
+          tone: "success",
+          duration: 2500,
+        })
         setMenuItem(null)
         await fetchAll()
       } catch (err) {
-        toast.show({ title: "Gagal mengubah visibilitas", description: userMessage(err), tone: "danger" })
+        toast.show({
+          title: "Gagal mengubah visibilitas",
+          description: userMessage(err),
+          tone: "danger",
+        })
       } finally {
         setToggling(false)
       }
@@ -283,10 +290,12 @@ export default function ShowcaseScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Images} title="Memuat showcase…" />
+          <LoadingScreen message="Memuat showcase…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (

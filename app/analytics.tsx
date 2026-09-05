@@ -1,3 +1,5 @@
+import { useApiQuery } from "@/lib/use-api-query"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Analitik (GET /v1/users/me/stats + /v1/users/me/analytics?period=).
  * AnalyticsSummary (StatCard grid + BarChart volume) — PullToRefresh.
@@ -17,7 +19,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ChartLineUp } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
-import { ANALYTICS_PERIODS, type AnalyticsPeriod, type UserAnalytics, type UserStats } from "@/lib/api/users"
+import {
+  ANALYTICS_PERIODS,
+  type AnalyticsPeriod,
+  type UserAnalytics,
+  type UserStats,
+} from "@/lib/api/users"
 import { formatDecimal, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
@@ -35,43 +42,21 @@ export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets()
 
   const [period, setPeriod] = useState<AnalyticsPeriod>(DEFAULT_PERIOD)
-  const [stats, setStats] = useState<UserStats | null>(null)
-  const [analytics, setAnalytics] = useState<UserAnalytics | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [s, a] = await Promise.all([api.users.getMyStats(), api.users.getMyAnalytics(period)])
-      setStats(s)
-      setAnalytics(a)
-    } catch {
-      setError("Gagal memuat analitik.")
-    } finally {
-      setLoading(false)
-    }
-  }, [period])
+  const query = useApiQuery(`analytics:${period}`, () =>
+    Promise.all([api.users.getMyStats(), api.users.getMyAnalytics(period)]),
+  )
+  const stats = query.data?.[0]
+  const analytics = query.data?.[1]
+  const { loading, error, refreshing, reload: fetchAll, refresh: handleRefresh } = query
 
   const revenue = useMemo(() => {
     if (analytics?.summary?.revenue != null) return analytics.summary.revenue
-    if (analytics?.revenueByPeriod?.length) return analytics.revenueByPeriod.reduce((sum, p) => sum + p.value, 0)
+    if (analytics?.revenueByPeriod?.length)
+      return analytics.revenueByPeriod.reduce((sum, p) => sum + p.value, 0)
     return null
   }, [analytics])
 
   const periodLabel = ANALYTICS_PERIODS.find((p) => p.value === period)?.label ?? ""
-
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -80,10 +65,12 @@ export default function AnalyticsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={ChartLineUp} title="Memuat analitik…" />
+          <LoadingScreen message="Memuat analitik…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
@@ -100,14 +87,17 @@ export default function AnalyticsScreen() {
                 {
                   id: "orders",
                   label: "Transaksi",
-                  value: stats?.transactions ?? 0,
+                  value: stats?.transactions ?? "—",
                   hint: "Total transaksi selesai",
                 },
                 {
                   id: "revenue",
                   label: "Pendapatan",
                   value: revenue != null ? formatRupiah(revenue) : "—",
-                  hint: analytics?.avgOrderValue != null ? `Rata-rata ${formatRupiah(analytics.avgOrderValue)}` : "Nilai order masuk",
+                  hint:
+                    analytics?.avgOrderValue != null
+                      ? `Rata-rata ${formatRupiah(analytics.avgOrderValue)}`
+                      : "Nilai order masuk",
                 },
                 {
                   id: "rating",
@@ -118,7 +108,7 @@ export default function AnalyticsScreen() {
                 {
                   id: "followers",
                   label: "Followers",
-                  value: stats?.followers ?? 0,
+                  value: stats?.followers ?? "—",
                   hint: stats?.following != null ? `${stats.following} mengikuti` : undefined,
                 },
               ]}

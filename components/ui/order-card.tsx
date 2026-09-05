@@ -42,7 +42,12 @@ import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Card, type CardProps } from "@/components/ui/card"
 import { Countdown } from "@/components/ui/countdown"
 import { Dot } from "@/components/ui/dot"
-import { isOrderActive, OrderStatusBadge, type OrderRole, type OrderStatus } from "@/components/ui/order-status-badge"
+import {
+  isOrderActive,
+  OrderStatusBadge,
+  type OrderRole,
+  type OrderStatus,
+} from "@/components/ui/order-status-badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
@@ -79,7 +84,7 @@ export type OrderCardProps = Omit<CardProps, "children" | "variant" | "padded" |
   amount: number
   status: OrderStatus | string
   /** Peran USER di order ini — menentukan label lawan & tone status */
-  role: OrderRole
+  role?: OrderRole
   counterpart: OrderCounterpart
   /** Sudah diformat pemanggil (§13), mis. "3 Sep 2026, 14:30" */
   timestamp?: string
@@ -109,7 +114,8 @@ export function OrderCard({
   ...rest
 }: OrderCardProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
-  const counterpartRole = role === "buyer" ? t.seller : t.buyer
+  const counterpartRole =
+    role === "buyer" ? t.seller : role === "seller" ? t.buyer : "Lawan transaksi"
   const showDeadline = deadlineAt != null && isOrderActive(status)
 
   const a11y =
@@ -134,7 +140,12 @@ export function OrderCard({
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           {unread ? <Dot size="md" tone="primary" /> : null}
-          <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500 tracking-mono">
+          <Text
+            variant="caption"
+            tone="secondary"
+            numberOfLines={1}
+            className="font-mono-500 tracking-mono"
+          >
             {orderId}
           </Text>
         </View>
@@ -148,7 +159,12 @@ export function OrderCard({
 
       {/* Baris 3: lawan transaksi */}
       <View className="flex-row items-center gap-2">
-        <Avatar source={counterpart.avatar} name={counterpart.name} size="xs" verified={counterpart.verified} />
+        <Avatar
+          source={counterpart.avatar}
+          name={counterpart.name}
+          size="xs"
+          verified={counterpart.verified}
+        />
         <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
           <Text variant="inherit" tone="secondary">
             {counterpartRole}
@@ -184,9 +200,14 @@ export function OrderCard({
 }
 
 /** Placeholder dengan tinggi menyamai OrderCard tanpa tenggat */
-export function OrderCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
+export function OrderCardSkeleton({
+  className,
+  ...rest
+}: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View accessible accessibilityRole="progressbar"
+    <View
+      accessible
+      accessibilityRole="progressbar"
       className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)}
       accessibilityLabel="Memuat transaksi"
       {...rest}

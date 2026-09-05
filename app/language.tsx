@@ -9,7 +9,11 @@ import { api } from "@/lib/api"
 import { tokens } from "@/lib/tokens"
 
 import { Header } from "@/components/ui/header"
-import { LanguagePicker, DEFAULT_LANGUAGES, type LanguageCode } from "@/components/ui/language-picker"
+import {
+  LanguagePicker,
+  DEFAULT_LANGUAGES,
+  type LanguageCode,
+} from "@/components/ui/language-picker"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -52,7 +56,7 @@ export default function LanguageScreen() {
       setValue(next)
       try {
         await api.settings.updateLanguage({ language: next })
-        toast.show({ title: "Bahasa diperbarui", tone: "success", duration: 3000 })
+        toast.show({ title: "Preferensi bahasa disimpan", tone: "success", duration: 3000 })
       } catch {
         setValue(prev)
         toast.show({ title: "Gagal menyimpan bahasa", tone: "danger" })
@@ -68,12 +72,15 @@ export default function LanguageScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <SectionHeader title="Bahasa aplikasi" inset />
+          <SectionHeader title="Preferensi bahasa akun" />
           <Text variant="body" tone="secondary">
-            Pilih bahasa antarmuka aplikasi.
+            Preferensi ini disimpan pada akun untuk layanan yang mendukungnya. Antarmuka aplikasi
+            saat ini tetap menggunakan Bahasa Indonesia.
           </Text>
           <LanguagePicker
             value={value}

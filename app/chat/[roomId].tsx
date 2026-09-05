@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Ruang Chat Detail.
  *
@@ -42,7 +43,11 @@ import { tokens } from "@/lib/tokens"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { Button } from "@/components/ui/button"
 import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
-import { ChatComposer, type ChatComposerPayload, type ComposerAttachment } from "@/components/ui/chat-composer"
+import {
+  ChatComposer,
+  type ChatComposerPayload,
+  type ComposerAttachment,
+} from "@/components/ui/chat-composer"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -57,13 +62,17 @@ import { useToast } from "@/components/ui/toast"
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
 type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
 
-function messageTypeFor(attachments: ChatAttachmentDto[]): NonNullable<SendMessageDto["messageType"]> {
+function messageTypeFor(
+  attachments: ChatAttachmentDto[],
+): NonNullable<SendMessageDto["messageType"]> {
   if (attachments.length === 0) return "TEXT"
   return attachments.every((a) => a.mimeType.startsWith("image/")) ? "IMAGE" : "FILE"
 }
 
 function sortByTime(items: ChatMessage[]): ChatMessage[] {
-  return [...items].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  return [...items].sort(
+    (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  )
 }
 
 export default function ChatRoomScreen() {
@@ -99,7 +108,9 @@ export default function ChatRoomScreen() {
       ])
       const items = sortByTime(page.items)
       setMessages(items)
-      setNextCursor(page.nextCursor ?? (page.items.length >= CHAT_PAGE_SIZE ? (items[0]?.id ?? null) : null))
+      setNextCursor(
+        page.nextCursor ?? (page.items.length >= CHAT_PAGE_SIZE ? (items[0]?.id ?? null) : null),
+      )
       setOlderStatus(page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
       setRoom(rooms.find((r) => r.id === roomId) ?? null)
       await api.chat.markChatRoomRead(roomId).catch(() => undefined)
@@ -143,7 +154,11 @@ export default function ChatRoomScreen() {
   const uploadAttachment = useCallback(
     async (localId: string, picked: PickedImage) => {
       if (!roomId) return
-      setAttachments((prev) => prev.map((a) => (a.localId === localId ? { ...a, status: "uploading", progress: undefined } : a)))
+      setAttachments((prev) =>
+        prev.map((a) =>
+          a.localId === localId ? { ...a, status: "uploading", progress: undefined } : a,
+        ),
+      )
       try {
         const form = await pickedImageToFormData(picked)
         const dto = await api.chat.uploadChatAttachment(roomId, form)
@@ -155,7 +170,9 @@ export default function ChatRoomScreen() {
           ),
         )
       } catch {
-        setAttachments((prev) => prev.map((a) => (a.localId === localId ? { ...a, status: "error" } : a)))
+        setAttachments((prev) =>
+          prev.map((a) => (a.localId === localId ? { ...a, status: "error" } : a)),
+        )
       }
     },
     [roomId],
@@ -196,13 +213,15 @@ export default function ChatRoomScreen() {
       }
       setSending(true)
       try {
-        const dtoAttachments: ChatAttachmentDto[] = ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
-          fileName,
-          fileUrl,
-          mimeType,
-          fileSize,
-          thumbnailUrl,
-        }))
+        const dtoAttachments: ChatAttachmentDto[] = ready.map(
+          ({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
+            fileName,
+            fileUrl,
+            mimeType,
+            fileSize,
+            thumbnailUrl,
+          }),
+        )
         const msg = await api.chat.sendChatMessage(roomId, {
           messageType: messageTypeFor(dtoAttachments),
           content: content || undefined,
@@ -213,7 +232,11 @@ export default function ChatRoomScreen() {
         setDraft("")
         setAttachments([])
       } catch (err) {
-        toast.show({ title: "Gagal mengirim pesan", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+        toast.show({
+          title: "Gagal mengirim pesan",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
       } finally {
         setSending(false)
       }
@@ -230,7 +253,11 @@ export default function ChatRoomScreen() {
       setDeleteTarget(null)
       toast.show({ title: "Pesan dihapus", tone: "success", duration: 2500 })
     } catch (err) {
-      toast.show({ title: "Gagal menghapus pesan", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+      toast.show({
+        title: "Gagal menghapus pesan",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
     } finally {
       setDeleting(false)
     }
@@ -240,22 +267,27 @@ export default function ChatRoomScreen() {
     setViewerItem({ url: a.fileUrl, mimeType: a.mimeType, title: a.fileName, fileName: a.fileName })
   }, [])
 
-  const counterpartName = room?.counterpart?.fullName ?? (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined)
+  const counterpartName =
+    room?.counterpart?.fullName ??
+    (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined)
   const composerAttachments = useMemo(() => attachments, [attachments])
 
   return (
     <Screen
+      keyboardAvoiding
       edges={["top"]}
       padded={false}
       footer={
-        <View className="px-6" style={{ paddingBottom: insets.bottom + tokens.space[3], paddingTop: tokens.space[2] }}>
+        <View>
           <ChatComposer
             value={draft}
             onChangeText={setDraft}
             onSend={(p) => void handleSend(p)}
             attachments={composerAttachments}
             onAttach={() => void handleAttach()}
-            onRemoveAttachment={(localId) => setAttachments((prev) => prev.filter((a) => a.localId !== localId))}
+            onRemoveAttachment={(localId) =>
+              setAttachments((prev) => prev.filter((a) => a.localId !== localId))
+            }
             onRetryAttachment={(localId) => {
               const a = attachments.find((x) => x.localId === localId)
               if (a?.picked) void uploadAttachment(localId, a.picked)
@@ -270,7 +302,12 @@ export default function ChatRoomScreen() {
         title={counterpartName ?? "Percakapan"}
         right={
           room?.orderId ? (
-            <Button variant="ghost" size="sm" fullWidth={false} onPress={() => router.push(ROUTES.orderDetail(room.orderId!))}>
+            <Button
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              onPress={() => router.push(ROUTES.orderDetail(room.orderId!))}
+            >
               Pesanan
             </Button>
           ) : undefined
@@ -280,17 +317,28 @@ export default function ChatRoomScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading && messages.length === 0 ? (
-          <EmptyState icon={Chats} title="Memuat percakapan…" />
+          <LoadingScreen message="Memuat percakapan…" />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchMessages()} />
+          <ErrorState
+            title="Gagal memuat"
+            description={error}
+            onRetry={() => void fetchMessages()}
+          />
         ) : messages.length === 0 ? (
           <EmptyState icon={Chats} title="Belum ada pesan" description="Mulai percakapan Anda." />
         ) : (
           <View className="gap-1" style={{ paddingTop: tokens.space[3] }}>
-            <LoadMore status={olderStatus} onLoadMore={() => void loadOlder()} hideEnd idleLabel="Muat pesan sebelumnya" />
+            <LoadMore
+              status={olderStatus}
+              onLoadMore={() => void loadOlder()}
+              hideEnd
+              idleLabel="Muat pesan sebelumnya"
+            />
             {messages.map((m, i) => (
               <ChatMessageBubble
                 key={m.id}
@@ -306,7 +354,9 @@ export default function ChatRoomScreen() {
                       <ChatAttachmentItem
                         key={`${m.id}-${j}`}
                         attachment={a}
-                        layout={isImageMedia({ url: a.fileUrl, mimeType: a.mimeType }) ? "tile" : "row"}
+                        layout={
+                          isImageMedia({ url: a.fileUrl, mimeType: a.mimeType }) ? "tile" : "row"
+                        }
                         onPress={() => openAttachment(a)}
                       />
                     ))}
@@ -318,7 +368,11 @@ export default function ChatRoomScreen() {
         )}
       </PullToRefresh>
 
-      <MediaViewer item={viewerItem} onClose={() => setViewerItem(null)} onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })} />
+      <MediaViewer
+        item={viewerItem}
+        onClose={() => setViewerItem(null)}
+        onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
+      />
 
       <ActionSheet
         visible={actionMessage != null}

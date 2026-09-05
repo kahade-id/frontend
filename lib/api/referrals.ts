@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `referral` (kode undangan, riwayat, reward).
  */
@@ -48,14 +49,17 @@ export function getReferralStats() {
 }
 
 export function getReferralRewards() {
-  return http.get<ReferralReward[]>("/v1/referral/rewards", { auth: "required", retry: 1 })
+  return http
+    .get<ReferralReward[]>("/v1/referral/rewards", { auth: "required", retry: 1 })
+    .then((raw) => readList<ReferralReward>(raw, ["rewards"]))
 }
 
 export function getReferralHistory() {
-  return http.get<ReferralHistoryEntry[]>("/v1/referral/history", { auth: "required", retry: 1 })
+  return http
+    .get<ReferralHistoryEntry[]>("/v1/referral/history", { auth: "required", retry: 1 })
+    .then((raw) => readList<ReferralHistoryEntry>(raw, ["history", "referrals"]))
 }
 
 export function applyReferralCode(dto: ApplyReferralDto) {
   return http.post<ReferralCode, ApplyReferralDto>("/v1/referral/apply", dto, { auth: "required" })
 }
-

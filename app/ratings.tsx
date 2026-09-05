@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Ulasan Saya.
  *
@@ -179,7 +180,11 @@ export default function RatingsScreen() {
       setReplyText("")
       await fetchPage(1)
     } catch (err) {
-      toast.show({ title: "Gagal menyimpan balasan", description: userMessage(err), tone: "danger" })
+      toast.show({
+        title: "Gagal menyimpan balasan",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setSending(false)
     }
@@ -194,7 +199,11 @@ export default function RatingsScreen() {
       setDeleteReply(null)
       await fetchPage(1)
     } catch (err) {
-      toast.show({ title: "Gagal menghapus balasan", description: userMessage(err), tone: "danger" })
+      toast.show({
+        title: "Gagal menghapus balasan",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setDeleting(false)
     }
@@ -219,7 +228,11 @@ export default function RatingsScreen() {
         setEditRating(null)
         await fetchPage(1)
       } catch (err) {
-        toast.show({ title: "Gagal memperbarui ulasan", description: userMessage(err), tone: "danger" })
+        toast.show({
+          title: "Gagal memperbarui ulasan",
+          description: userMessage(err),
+          tone: "danger",
+        })
       } finally {
         setSavingEdit(false)
       }
@@ -249,16 +262,24 @@ export default function RatingsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Star} title="Memuat ulasan…" />
+          <LoadingScreen message="Memuat ulasan…" />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchRatings()} />
+          <ErrorState
+            title="Gagal memuat"
+            description={error}
+            onRetry={() => void fetchRatings()}
+          />
         ) : visible.length === 0 ? (
           <EmptyState
             icon={Star}
-            title={segment === "RECEIVED" ? "Belum ada ulasan masuk" : "Belum ada ulasan yang Anda beri"}
+            title={
+              segment === "RECEIVED" ? "Belum ada ulasan masuk" : "Belum ada ulasan yang Anda beri"
+            }
             description={
               segment === "RECEIVED"
                 ? "Ulasan dari lawan transaksi akan muncul di sini."
@@ -267,7 +288,9 @@ export default function RatingsScreen() {
           />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={segment === "RECEIVED" ? "Ulasan masuk" : "Ulasan yang Anda beri"} />
+            <SectionHeader
+              title={segment === "RECEIVED" ? "Ulasan masuk" : "Ulasan yang Anda beri"}
+            />
             {visible.map((r) => {
               const reply = replyOf(r)
               const received = segment === "RECEIVED"
@@ -278,7 +301,10 @@ export default function RatingsScreen() {
                   comment={r.comment ?? undefined}
                   reviewer={
                     received
-                      ? { name: r.authorUsername ?? "Pengguna", avatar: r.authorAvatarUrl ?? undefined }
+                      ? {
+                          name: r.authorUsername ?? "Pengguna",
+                          avatar: r.authorAvatarUrl ?? undefined,
+                        }
                       : { name: "Anda" }
                   }
                   date={r.createdAt}
@@ -293,7 +319,12 @@ export default function RatingsScreen() {
                   }
                   footer={
                     !received ? (
-                      <Button variant="ghost" size="sm" leftIcon={PencilSimple} onPress={() => openEditRating(r)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        leftIcon={PencilSimple}
+                        onPress={() => openEditRating(r)}
+                      >
                         Ubah ulasan
                       </Button>
                     ) : undefined

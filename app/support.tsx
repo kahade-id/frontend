@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Tiket Dukungan (GET /v1/support/tickets).
  * List + navigasi detail (support/[ticketId]).
@@ -61,12 +62,18 @@ export default function SupportScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={ChatCircleText} title="Memuat tiket…" />
+          <LoadingScreen message="Memuat tiket…" />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchTickets()} />
+          <ErrorState
+            title="Gagal memuat"
+            description={error}
+            onRetry={() => void fetchTickets()}
+          />
         ) : tickets.length === 0 ? (
           <EmptyState
             icon={ChatCircleText}

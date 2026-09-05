@@ -29,7 +29,10 @@ import { formatRupiah } from "@/lib/format"
 export type AmountProps = Omit<RNTextProps, "children"> & {
   value: number
   size?: "large" | "body"
-  tone?: Extract<TextTone, "primary" | "secondary" | "inverse" | "success" | "danger" | "warning" | "inherit">
+  tone?: Extract<
+    TextTone,
+    "primary" | "secondary" | "inverse" | "success" | "danger" | "warning" | "inherit"
+  >
   /** "auto": hanya minus; "always": +/-; "never": tanpa tanda */
   sign?: "auto" | "always" | "never"
   /** Sembunyikan nominal (••••••••) */
@@ -57,6 +60,8 @@ export function Amount({
       variant={size === "large" ? "monoLarge" : "monoBody"}
       tone={tone}
       numberOfLines={1}
+      adjustsFontSizeToFit
+      minimumFontScale={0.7}
       accessibilityLabel={hidden ? "Nominal disembunyikan" : text}
       className={className}
       {...rest}

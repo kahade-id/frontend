@@ -52,6 +52,14 @@ export type PaymentMethodFee =
   | { type: "free" }
   | { type: "flat"; amount: number }
   | { type: "percent"; value: number }
+  | {
+      type: "combined"
+      fixed?: number
+      percent?: number
+      minFee?: number
+      maxFee?: number
+      freeLimit?: number
+    }
 
 export type PaymentMethod = {
   id: string
@@ -63,6 +71,8 @@ export type PaymentMethod = {
   fee?: PaymentMethodFee
   /** Hanya untuk kind "balance" */
   balance?: number
+  minAmount?: number
+  maxAmount?: number
   recommended?: boolean
   /** Sedang gangguan; alasan ditampilkan sebagai deskripsi */
   unavailable?: boolean
@@ -79,7 +89,10 @@ export type PaymentMethodSelectorLabels = {
   unavailable: string
 }
 
-export type PaymentMethodSelectorProps = Omit<RadioGroupProps, "children" | "variant" | "onChange"> & {
+export type PaymentMethodSelectorProps = Omit<
+  RadioGroupProps,
+  "children" | "variant" | "onChange"
+> & {
   methods: PaymentMethod[]
   /** Nominal yang akan dibayar; dipakai untuk cek saldo cukup */
   amount?: number
@@ -104,8 +117,22 @@ const kindIcon: Record<PaymentMethodKind, IconComponent> = {
 
 /** Biaya -> label Mono. Persentase memakai koma desimal (§13). */
 export function formatPaymentFee(fee: PaymentMethodFee | undefined, freeLabel: string): string {
-  if (!fee || fee.type === "free") return freeLabel
-  if (fee.type === "flat") return fee.amount === 0 ? freeLabel : formatRupiah(fee.amount, { sign: "always" })
+  if (!fee) return "Belum dikonfirmasi"
+  if (fee.type === "free") return freeLabel
+  if (fee.type === "combined") {
+    const parts = [
+      fee.fixed != null ? formatRupiah(fee.fixed, { sign: "always" }) : null,
+      fee.percent != null ? `${String(fee.percent).replace(".", ",")}%` : null,
+    ].filter(Boolean)
+    const bounds = [
+      fee.minFee != null ? `min ${formatRupiah(fee.minFee)}` : null,
+      fee.maxFee != null ? `maks ${formatRupiah(fee.maxFee)}` : null,
+      fee.freeLimit != null ? `gratis hingga ${formatRupiah(fee.freeLimit)}` : null,
+    ].filter(Boolean)
+    return [...parts, ...bounds].join(" · ") || freeLabel
+  }
+  if (fee.type === "flat")
+    return fee.amount === 0 ? freeLabel : formatRupiah(fee.amount, { sign: "always" })
   return `+${String(fee.value).replace(".", ",")}%`
 }
 
@@ -125,11 +152,25 @@ export function PaymentMethodSelector({
       {methods.map((m) => {
         const insufficient =
           m.kind === "balance" && amount != null && m.balance != null && m.balance < amount
-        const isDisabled = !!m.unavailable || insufficient
+        const outOfRange =
+          amount != null &&
+          ((m.minAmount != null && amount < m.minAmount) ||
+            (m.maxAmount != null && amount > m.maxAmount))
+        const isDisabled = !canUsePaymentMethod(
+          m,
+          amount != null && amount > 0 ? amount : undefined,
+        )
         const feeLabel = formatPaymentFee(m.fee, t.free)
 
         let description: ReactNode = m.description
         if (m.unavailable) description = m.unavailableReason ?? t.unavailable
+        else if (outOfRange)
+          description = [
+            m.minAmount != null ? `Minimal ${formatRupiah(m.minAmount)}` : null,
+            m.maxAmount != null ? `maksimal ${formatRupiah(m.maxAmount)}` : null,
+          ]
+            .filter(Boolean)
+            .join(" · ")
         else if (insufficient) description = t.insufficientBalance
         else if (m.kind === "balance" && m.balance != null)
           description = t.balanceAvailable(formatRupiah(m.balance))
@@ -141,8 +182,13 @@ export function PaymentMethodSelector({
             disabled={isDisabled}
             leading={<Icon icon={m.icon ?? kindIcon[m.kind]} size="sm" />}
             label={
-              <View className="flex-row items-center gap-2">
-                <Text variant="body" weight={500} tone={isDisabled ? "disabled" : "primary"} className="shrink">
+              <View className="flex-row flex-wrap items-center gap-2">
+                <Text
+                  variant="body"
+                  weight={500}
+                  tone={isDisabled ? "disabled" : "primary"}
+                  className="shrink"
+                >
                   {m.name}
                 </Text>
                 {m.recommended && !isDisabled ? (
@@ -165,4 +211,14 @@ export function PaymentMethodSelector({
       })}
     </RadioGroup>
   )
+}
+
+export function canUsePaymentMethod(method: PaymentMethod | undefined, amount?: number): boolean {
+  if (!method || method.unavailable) return false
+  if (amount == null) return true
+  if (!Number.isFinite(amount)) return false
+  if (method.minAmount != null && amount < method.minAmount) return false
+  if (method.maxAmount != null && amount > method.maxAmount) return false
+  if (method.kind === "balance" && (method.balance == null || method.balance < amount)) return false
+  return true
 }

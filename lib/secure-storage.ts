@@ -32,6 +32,8 @@ import * as SecureStore from "expo-secure-store"
 import { Platform } from "react-native"
 
 export const SecureKeys = {
+  themePreference: "kahade.theme.preference",
+  sessionSignedOut: "kahade.session.signedOut",
   accessToken: "kahade.auth.accessToken",
   refreshToken: "kahade.auth.refreshToken",
   /** Hash PIN (argon2/bcrypt dari backend, atau salted SHA lokal) — BUKAN PIN mentah */
@@ -57,19 +59,49 @@ export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
 
 const isWeb = Platform.OS === "web"
 const memory = new Map<string, string>()
+// Only non-secret preferences may persist in browser storage. Never JWT/PIN/push tokens.
+const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
+  SecureKeys.deviceId,
+  SecureKeys.onboardingSeen,
+  SecureKeys.themePreference,
+  SecureKeys.sessionSignedOut,
+])
+function webStorage(): Storage | null {
+  try {
+    return typeof window !== "undefined" ? window.localStorage : null
+  } catch {
+    return null
+  }
+}
 
 const OPTIONS: SecureStore.SecureStoreOptions = {
   keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY,
 }
 
 export async function getSecureItem(key: SecureKey): Promise<string | null> {
-  if (isWeb) return memory.get(key) ?? null
+  if (isWeb) {
+    if (WEB_PERSISTENT_KEYS.has(key)) {
+      try {
+        return webStorage()?.getItem(key) ?? memory.get(key) ?? null
+      } catch {
+        /* private browsing */
+      }
+    }
+    return memory.get(key) ?? null
+  }
   return SecureStore.getItemAsync(key, OPTIONS)
 }
 
 export async function setSecureItem(key: SecureKey, value: string): Promise<void> {
   if (isWeb) {
     memory.set(key, value)
+    if (WEB_PERSISTENT_KEYS.has(key)) {
+      try {
+        webStorage()?.setItem(key, value)
+      } catch {
+        /* memory fallback */
+      }
+    }
     return
   }
   await SecureStore.setItemAsync(key, value, OPTIONS)
@@ -78,6 +110,13 @@ export async function setSecureItem(key: SecureKey, value: string): Promise<void
 export async function deleteSecureItem(key: SecureKey): Promise<void> {
   if (isWeb) {
     memory.delete(key)
+    if (WEB_PERSISTENT_KEYS.has(key)) {
+      try {
+        webStorage()?.removeItem(key)
+      } catch {
+        /* storage disabled */
+      }
+    }
     return
   }
   await SecureStore.deleteItemAsync(key, OPTIONS)

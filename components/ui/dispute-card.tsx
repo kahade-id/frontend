@@ -29,7 +29,11 @@ import { View, type ViewProps } from "react-native"
 import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Card, type CardProps } from "@/components/ui/card"
-import { DisputeStatusBadge, isDisputeActive, type DisputeStatus } from "@/components/ui/dispute-status-badge"
+import {
+  DisputeStatusBadge,
+  isDisputeActive,
+  type DisputeStatus,
+} from "@/components/ui/dispute-status-badge"
 import { Dot } from "@/components/ui/dot"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
@@ -56,11 +60,11 @@ export type DisputeCardProps = Omit<CardProps, "children" | "variant" | "padded"
   /** Judul order yang disengketakan */
   orderTitle: string
   status: DisputeStatus | string
-  counterpart: { name: string; avatar?: AvatarProps["source"]; verified?: boolean }
+  counterpart?: { name: string; avatar?: AvatarProps["source"]; verified?: boolean }
   /** Apakah user yang membuka sengketa */
-  openedByMe: boolean
+  openedByMe?: boolean
   /** Dana yang tertahan di escrow */
-  heldAmount: number
+  heldAmount?: number
   /** Sudah diformat pemanggil (§13) */
   updatedAt?: string
   /** Giliran user untuk membalas / menyerahkan bukti */
@@ -92,7 +96,11 @@ export function DisputeCard({
       showAwaiting ? t.awaitingYou : undefined,
       `Sengketa ${disputeId}`,
       orderTitle,
-      openedByMe ? t.openedByYou : `${t.openedBy} ${counterpart.name}`,
+      openedByMe === true
+        ? t.openedByYou
+        : openedByMe === false && counterpart
+          ? `${t.openedBy} ${counterpart?.name ?? "Identitas belum tersedia"}`
+          : "Pihak pengaju belum diketahui",
       updatedAt,
     ])
 
@@ -105,10 +113,19 @@ export function DisputeCard({
       {...rest}
     >
       <View className="flex-row items-center justify-between gap-3">
-        <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1 font-mono-500 tracking-mono">
+        <Text
+          variant="caption"
+          tone="secondary"
+          numberOfLines={1}
+          className="flex-1 font-mono-500 tracking-mono"
+        >
           {disputeId}
         </Text>
-        <DisputeStatusBadge status={status} party={openedByMe ? "claimant" : "respondent"} size="sm" />
+        <DisputeStatusBadge
+          status={status}
+          party={openedByMe === true ? "claimant" : openedByMe === false ? "respondent" : undefined}
+          size="sm"
+        />
       </View>
 
       <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
@@ -116,16 +133,23 @@ export function DisputeCard({
       </Text>
 
       <View className="flex-row items-center gap-2">
-        <Avatar source={counterpart.avatar} name={counterpart.name} size="xs" verified={counterpart.verified} />
+        <Avatar
+          source={counterpart?.avatar}
+          name={counterpart?.name}
+          size="xs"
+          verified={counterpart?.verified}
+        />
         <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
-          {openedByMe ? (
+          {openedByMe === true ? (
             t.openedByYou
+          ) : openedByMe == null ? (
+            "Pihak pengaju belum diketahui"
           ) : (
             <>
               <Text variant="inherit" tone="secondary">
                 {t.openedBy}{" "}
               </Text>
-              {counterpart.name}
+              {counterpart?.name ?? "Identitas belum tersedia"}
             </>
           )}
         </Text>
@@ -136,7 +160,13 @@ export function DisputeCard({
           <Text variant="caption" tone="secondary">
             {t.heldAmount}
           </Text>
-          <Amount value={heldAmount} size="body" tone="primary" />
+          {heldAmount == null ? (
+            <Text variant="monoBody" tone="secondary">
+              Belum tersedia
+            </Text>
+          ) : (
+            <Amount value={heldAmount} size="body" tone="primary" />
+          )}
         </View>
         {updatedAt ? (
           <Text variant="caption" tone="secondary" className="tabular-nums">
@@ -158,9 +188,18 @@ export function DisputeCard({
 }
 
 /** Placeholder dengan tinggi menyamai DisputeCard tanpa strip tanggapan */
-export function DisputeCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
+export function DisputeCardSkeleton({
+  className,
+  ...rest
+}: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat sengketa" {...rest}>
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)}
+      accessibilityLabel="Memuat sengketa"
+      {...rest}
+    >
       <View className="flex-row items-center justify-between">
         <Skeleton height={12} className="w-32" />
         <Skeleton height={22} className="w-28" />

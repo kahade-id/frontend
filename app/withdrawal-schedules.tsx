@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Jadwal Penarikan Otomatis (GET/POST/PUT/DELETE /v1/withdrawals/schedules).
  * Memakai WithdrawalScheduleCard + ScheduleField (hari + nominal minimum).
@@ -142,10 +143,12 @@ export default function WithdrawalSchedulesScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Plus} title="Memuat jadwal…" />
+          <LoadingScreen message="Memuat jadwal…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 && !creating ? (
@@ -153,11 +156,15 @@ export default function WithdrawalSchedulesScreen() {
             icon={Plus}
             title="Belum ada jadwal"
             description="Atur penarikan otomatis ke rekening Anda."
-            action={<Button leftIcon={Plus} onPress={openCreate}>Buat Jadwal</Button>}
+            action={
+              <Button leftIcon={Plus} onPress={openCreate}>
+                Buat Jadwal
+              </Button>
+            }
           />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Jadwal aktif" inset />
+            <SectionHeader title="Jadwal aktif" />
             {items.map((item) => (
               <WithdrawalScheduleCard
                 key={item.id}
@@ -175,7 +182,7 @@ export default function WithdrawalSchedulesScreen() {
               {items.length ? "Tambah Jadwal" : "Buat Jadwal"}
             </Button>
 
-            {(creating || editing) ? (
+            {creating || editing ? (
               <View className="gap-4">
                 <SectionHeader title={editing ? "Ubah jadwal" : "Jadwal baru"} />
                 <ScheduleField

@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `badges` (lencana profil publik & milik saya).
  */
@@ -11,6 +12,7 @@ export type Badge = {
   iconUrl?: string | null
   category?: string
   earnedAt?: string | null
+  earned?: boolean
   progress?: { current: number; target: number }
 }
 
@@ -20,8 +22,7 @@ export type BadgeListResponse =
   | { data: Badge[]; meta?: { page: number; limit: number; total: number; totalPages: number } }
 
 export function readBadgeList(body: BadgeListResponse | null | undefined): Badge[] {
-  if (!body) return []
-  return Array.isArray(body) ? body : (body.data ?? [])
+  return readList<Badge>(body, ["badges"])
 }
 
 /** GET /v1/badges?page&limit — semua lencana yang tersedia (katalog). */

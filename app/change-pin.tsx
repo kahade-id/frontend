@@ -16,7 +16,7 @@
  *     tetap boleh lanjut: backend memvalidasi ulang `currentPin` di set-pin.
  */
 import { useCallback, useState } from "react"
-import { View } from "react-native"
+import { ScrollView, View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -103,11 +103,12 @@ export default function ChangePinScreen() {
 
   return (
     <Screen
+      keyboardAvoiding
       edges={["top"]}
       padded={false}
       footer={
         step === "password" ? (
-          <View className="px-6 pb-4">
+          <View>
             <Button fullWidth disabled={!passwordOk} onPress={() => setStep("current")}>
               Lanjut
             </Button>
@@ -116,8 +117,9 @@ export default function ChangePinScreen() {
       }
     >
       <Header title="Ubah PIN" />
-      <View
-        className="gap-4 px-6"
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        contentContainerClassName="gap-4 px-6"
         style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
       >
         {step === "password" ? (
@@ -148,7 +150,12 @@ export default function ChangePinScreen() {
               disabled={verifying}
               errorText={currentError}
             />
-            <Button variant="ghost" fullWidth={false} onPress={() => setStep("password")} disabled={verifying}>
+            <Button
+              variant="ghost"
+              fullWidth={false}
+              onPress={() => setStep("password")}
+              disabled={verifying}
+            >
               Kembali
             </Button>
           </>
@@ -164,12 +171,17 @@ export default function ChangePinScreen() {
               disabled={submitting}
               errorText={newError}
             />
-            <Button variant="ghost" fullWidth={false} onPress={() => setStep("current")} disabled={submitting}>
+            <Button
+              variant="ghost"
+              fullWidth={false}
+              onPress={() => setStep("current")}
+              disabled={submitting}
+            >
               Kembali
             </Button>
           </>
         )}
-      </View>
+      </ScrollView>
     </Screen>
   )
 }
