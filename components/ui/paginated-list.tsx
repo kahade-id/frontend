@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react"
+import { useCallback, useMemo, type ReactElement, type ReactNode } from "react"
 import { FlatList, View, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore } from "@/components/ui/load-more"
@@ -33,6 +33,9 @@ export type PaginatedListProps<T extends { id: string }> = {
   contentContainerStyle?: StyleProp<ViewStyle>
 }
 
+/** Style konstan: literal `{ flex: 1 }` inline membuat prop baru tiap render. */
+const FILL = { flex: 1 } as const
+
 export function ListLoading() {
   return (
     <SkeletonGroup className="gap-4 py-4">
@@ -65,56 +68,103 @@ export function PaginatedList<T extends { id: string }>({
   bottomPadding = tokens.space[8],
   contentContainerStyle,
 }: PaginatedListProps<T>) {
+  /*
+   * Audit performa — semua prop di bawah ini DULU ditulis inline di JSX.
+   *
+   * FlatList adalah PureComponent: ia membandingkan prop-nya secara dangkal
+   * untuk memutuskan apakah perlu menggambar ulang. Elemen JSX, array literal,
+   * dan arrow function adalah objek BARU setiap render, sehingga perbandingan
+   * itu selalu gagal dan list menggambar ulang seluruh sel yang terlihat
+   * meskipun `data` tidak berubah sama sekali.
+   *
+   * `ItemSeparatorComponent` paling merugikan: nilainya adalah tipe komponen.
+   * Arrow baru = tipe komponen baru = React meng-unmount lalu me-mount ulang
+   * SETIAP pemisah, bukan sekadar merender ulang.
+   */
+  const separator = useMemo(
+    () =>
+      function Separator() {
+        return <View style={{ height: gap }} />
+      },
+    [gap],
+  )
+
+  const containerStyle = useMemo(
+    () => [
+      {
+        flexGrow: 1,
+        paddingHorizontal: padded ? tokens.layout.screenPaddingX : 0,
+        paddingBottom: bottomPadding,
+      },
+      contentContainerStyle,
+    ],
+    [padded, bottomPadding, contentContainerStyle],
+  )
+
+  const keyExtractor = useCallback((item: T) => item.id, [])
+  const handleRefresh = useCallback(() => void onRefresh(), [onRefresh])
+  const handleRetry = useCallback(() => void onRetry(), [onRetry])
+  const handleLoadMore = useCallback(() => void onLoadMore(), [onLoadMore])
+
+  const handleEndReached = useCallback(() => {
+    if (hasMore && !loading && !loadingMore && !loadMoreError) void onLoadMore()
+  }, [hasMore, loading, loadingMore, loadMoreError, onLoadMore])
+
+  const headerElement = useMemo(
+    () => (
+      <>
+        {header}
+        {error && data.length ? (
+          <ErrorState compact description={error} onRetry={handleRetry} />
+        ) : null}
+      </>
+    ),
+    [header, error, data.length, handleRetry],
+  )
+
+  const emptyElement = useMemo(
+    () =>
+      loading ? (
+        (loadingPlaceholder ?? <ListLoading />)
+      ) : error ? (
+        <ErrorState description={error} onRetry={handleRetry} />
+      ) : (
+        empty
+      ),
+    [loading, loadingPlaceholder, error, empty, handleRetry],
+  )
+
+  const footerElement = useMemo(
+    () => (
+      <>
+        {data.length > 0 && (hasMore || loadingMore) ? (
+          <LoadMore
+            status={loadingMore ? "loading" : loadMoreError ? "error" : "idle"}
+            errorLabel={loadMoreError ?? undefined}
+            onLoadMore={handleLoadMore}
+          />
+        ) : null}
+        {footer}
+      </>
+    ),
+    [data.length, hasMore, loadingMore, loadMoreError, footer, handleLoadMore],
+  )
+
   return (
     <FlatList
       data={data}
-      keyExtractor={(item) => item.id}
+      keyExtractor={keyExtractor}
       renderItem={renderItem}
-      style={{ flex: 1 }}
-      contentContainerStyle={[
-        {
-          flexGrow: 1,
-          paddingHorizontal: padded ? tokens.layout.screenPaddingX : 0,
-          paddingBottom: bottomPadding,
-        },
-        contentContainerStyle,
-      ]}
-      ListHeaderComponent={
-        <>
-          {header}
-          {error && data.length ? (
-            <ErrorState compact description={error} onRetry={() => void onRetry()} />
-          ) : null}
-        </>
-      }
-      ListEmptyComponent={
-        loading ? (
-          (loadingPlaceholder ?? <ListLoading />)
-        ) : error ? (
-          <ErrorState description={error} onRetry={() => void onRetry()} />
-        ) : (
-          empty
-        )
-      }
-      ItemSeparatorComponent={() => <View style={{ height: gap }} />}
-      ListFooterComponent={
-        <>
-          {data.length > 0 && (hasMore || loadingMore) ? (
-            <LoadMore
-              status={loadingMore ? "loading" : loadMoreError ? "error" : "idle"}
-              errorLabel={loadMoreError ?? undefined}
-              onLoadMore={() => void onLoadMore()}
-            />
-          ) : null}
-          {footer}
-        </>
-      }
+      style={FILL}
+      contentContainerStyle={containerStyle}
+      ListHeaderComponent={headerElement}
+      ListEmptyComponent={emptyElement}
+      ItemSeparatorComponent={separator}
+      ListFooterComponent={footerElement}
       refreshing={refreshing}
-      onRefresh={() => void onRefresh()}
+      onRefresh={handleRefresh}
       progressViewOffset={tokens.space[2]}
-      onEndReached={() => {
-        if (hasMore && !loading && !loadingMore && !loadMoreError) void onLoadMore()
-      }}
+      onEndReached={handleEndReached}
       onEndReachedThreshold={0.3}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode="on-drag"

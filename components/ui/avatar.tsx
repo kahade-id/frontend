@@ -15,12 +15,24 @@
  *     dengan ring `border-background` supaya terpisah dari foto — indikator
  *     KYC selesai, penting untuk trust antar pihak escrow.
  *   - Gagal load gambar (`onError`) jatuh ke inisial, bukan kotak kosong.
+ *   - Memakai expo-image, bukan RN <Image> (audit performa). Avatar adalah
+ *     gambar remote yang PALING sering berulang di app ini: daftar pengikut,
+ *     hasil pencarian, kartu pesanan, daftar chat, ulasan — orang yang sama
+ *     muncul lagi dan lagi di layar berbeda. RN Image tidak punya disk cache
+ *     yang bisa diatur dan men-decode di main thread, jadi setiap kemunculan
+ *     ulang berarti unduh + decode ulang tepat saat pengguna sedang men-scroll.
+ *     `cachePolicy="memory-disk"` membuat wajah yang sudah pernah dilihat
+ *     muncul instan. `recyclingKey` wajib di daftar: tanpa itu sel FlatList
+ *     yang dipakai ulang sempat menampilkan foto orang sebelumnya.
+ *     `transition={0}` menjaga tampilannya tetap sama seperti sebelumnya —
+ *     perubahan ini soal biaya, bukan soal animasi baru.
  *   - AvatarGroup menumpuk dengan overlap −8px (space.2) dan ring
  *     border-background 2px agar tiap lingkaran terpisah tanpa shadow.
  */
+import { Image, type ImageSource } from "expo-image"
 import { SealCheck, User } from "phosphor-react-native"
-import { useEffect, useState } from "react"
-import { Image, View, type ImageSourcePropType, type ViewProps } from "react-native"
+import { useEffect, useMemo, useState } from "react"
+import { View, type ImageSourcePropType, type ViewProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
 import { Text, type TextVariant } from "@/components/ui/text"
@@ -59,6 +71,9 @@ const sizeText: Record<AvatarSize, TextVariant> = {
 const sizeIcon: Record<AvatarSize, number> = { xs: 12, sm: 16, md: 20, lg: 28, xl: 40 }
 const sealSize: Record<AvatarSize, number> = { xs: 10, sm: 12, md: 16, lg: 20, xl: 24 }
 
+/** expo-image tidak di-interop NativeWind; ukuran lewat style konstan. */
+const FILL = { width: "100%", height: "100%" } as const
+
 export function Avatar({
   source,
   name,
@@ -68,8 +83,28 @@ export function Avatar({
   ...rest
 }: AvatarProps) {
   const [failed, setFailed] = useState(false)
-  const src = typeof source === "string" ? { uri: source } : source
-  const sourceKey = typeof src === "number" ? src : JSON.stringify(src)
+
+  /*
+   * `sourceKey` dulu dihitung dengan JSON.stringify(src) di badan render —
+   * artinya serialisasi objek untuk SETIAP avatar pada SETIAP render, di
+   * daftar yang justru sedang di-scroll. Sumber avatar praktis selalu berupa
+   * URL string atau hasil require(), jadi kuncinya bisa diambil langsung.
+   */
+  const src = useMemo<ImageSource | number | undefined>(() => {
+    if (source == null) return undefined
+    if (typeof source === "string") return { uri: source }
+    if (typeof source === "number") return source
+    if (Array.isArray(source)) return source[0] as ImageSource
+    return source as ImageSource
+  }, [source])
+
+  const sourceKey =
+    typeof source === "string"
+      ? source
+      : typeof source === "number"
+        ? String(source)
+        : ((src as ImageSource | undefined)?.uri ?? "")
+
   useEffect(() => setFailed(false), [sourceKey])
   const showImage = !!src && !failed
   const label = name ? toInitials(name) : ""
@@ -90,8 +125,11 @@ export function Avatar({
           <Image
             source={src}
             onError={() => setFailed(true)}
-            className="h-full w-full"
-            resizeMode="cover"
+            style={FILL}
+            contentFit="cover"
+            cachePolicy="memory-disk"
+            recyclingKey={sourceKey || undefined}
+            transition={0}
             accessibilityIgnoresInvertColors
           />
         ) : label ? (

@@ -7,7 +7,6 @@ import { api, type Order, type WalletTransaction, type UserProfile } from "@/lib
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { ChipGroup } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -16,7 +15,7 @@ import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OrderCard } from "@/components/ui/order-card"
 import { Screen } from "@/components/ui/screen"
-import { SearchField } from "@/components/ui/search-field"
+import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 
@@ -28,9 +27,19 @@ type ResultRow = { id: string } & (
 )
 export default function SearchScreen() {
   const insets = useSafeAreaInsets()
-  const [input, setInput] = useState("")
-  const keyword = useDebouncedValue(input.trim())
-  const enabled = keyword.length >= 2 && keyword === input.trim()
+  /*
+   * Hanya kata kunci yang sudah tenang yang tinggal di layar ini; teks mentah
+   * dikurung di dalam <DebouncedSearchField>. Sebelumnya setiap ketukan huruf
+   * merender ulang layar dan seluruh baris hasil yang terlihat (kartu pesanan,
+   * avatar pengguna, baris mutasi) — padahal request-nya sendiri baru jalan
+   * setelah pengguna berhenti mengetik.
+   *
+   * `seed` dipakai untuk mengisi ulang kolom saat pengguna menekan chip saran;
+   * mengubahnya me-mount ulang field dengan nilai awal yang baru.
+   */
+  const [keyword, setKeyword] = useState("")
+  const [seed, setSeed] = useState("")
+  const enabled = keyword.length >= 2
   const result = useApiQuery(
     `search:${keyword}`,
     (signal) => api.search.globalSearch({ q: keyword, limit: 20 }, signal),
@@ -70,9 +79,10 @@ export default function SearchScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Pencarian" />
       <View className="px-6 pb-4">
-        <SearchField
-          value={input}
-          onChangeText={setInput}
+        <DebouncedSearchField
+          key={seed}
+          initialQuery={seed}
+          onQueryChange={setKeyword}
           placeholder="Cari pengguna, pesanan, atau mutasi"
         />
       </View>
@@ -92,7 +102,10 @@ export default function SearchScreen() {
                 value={[]}
                 single
                 onChange={(next) => {
-                  if (next[0]) setInput(next[0])
+                  if (next[0]) {
+                    setSeed(next[0])
+                    setKeyword(next[0].trim())
+                  }
                 }}
               />
             </View>
@@ -157,7 +170,7 @@ export default function SearchScreen() {
           )
         }}
         ListEmptyComponent={
-          result.loading || (input.trim().length >= 2 && keyword !== input.trim()) ? (
+          result.loading ? (
             <ListLoading />
           ) : result.error ? (
             <ErrorState

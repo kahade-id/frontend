@@ -6,7 +6,6 @@ import { api, type OrderStatusFilter } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FloatingActionButton } from "@/components/ui/floating-action-button"
@@ -15,7 +14,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { OrderCard } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
-import { SearchField } from "@/components/ui/search-field"
+import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 
 type Filter = "all" | "active" | "completed" | "cancelled"
@@ -35,8 +34,12 @@ const STATUS: Record<Filter, OrderStatusFilter | undefined> = {
 export default function TransactionsScreen() {
   const router = useRouter()
   const [filter, setFilter] = useState<Filter>("all")
-  const [search, setSearch] = useState("")
-  const debounced = useDebouncedValue(search.trim())
+  /*
+   * Hanya kata kunci yang SUDAH tenang yang disimpan di sini. Teks mentah
+   * tinggal di dalam <DebouncedSearchField>, supaya mengetik tidak merender
+   * ulang layar ini beserta seluruh kartu pesanan yang terlihat.
+   */
+  const [debounced, setDebounced] = useState("")
   const query = usePaginatedQuery(`orders:${filter}:${debounced}`, (page, signal) =>
     api.orders.listOrders(
       { page, limit: 20, status: STATUS[filter], search: debounced || undefined },
@@ -67,9 +70,8 @@ export default function TransactionsScreen() {
       />
       <View className="gap-3 px-6 pb-3 pt-3">
         <SegmentedControl items={FILTERS} value={filter} onChange={setFilter} />
-        <SearchField
-          value={search}
-          onChangeText={setSearch}
+        <DebouncedSearchField
+          onQueryChange={setDebounced}
           autoFocus={false}
           placeholder="Cari transaksi, pihak, atau ID"
         />

@@ -3,6 +3,9 @@
 **Tanggal:** 5 September 2026 · **Lingkup:** seluruh `app/`, `components/`, `lib/`
 **Baseline:** commit `9c48b61`, dengan `npm run check` sudah hijau sebelum audit ini dimulai.
 
+> **Lanjutan:** audit performa (render loop Portal, biaya list, boot & bundle)
+> ada di [PERF-AUDIT-2026-09-05.md](PERF-AUDIT-2026-09-05.md).
+
 Audit sebelumnya ([REPORT.md](REPORT.md), [BACKLOG.md](BACKLOG.md)) menutup token
 desain, aksesibilitas statis, dan kontrak API. Ketiganya sudah dijaga skrip.
 Yang **tidak dijaga siapa pun** adalah pertanyaan yang diminta di sini: apakah
