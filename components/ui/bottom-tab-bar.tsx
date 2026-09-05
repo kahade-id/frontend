@@ -1,8 +1,8 @@
 /**
  * Kahade — <BottomTabBar> (§9.14 Bottom Tab Bar, §6.2 layer 10, §11 web).
  *
- * Navigasi utama antar layar (Beranda, Transaksi, Riwayat, Akun). Dua cara
- * pakai:
+ * Navigasi utama antar layar (Beranda, Transaksi, Dompet, Notifikasi,
+ * Pengaturan). Dua cara pakai:
  *   - <BottomTabBar>       : controlled (items + value + onChange) untuk
  *                            preview/storybook atau navigasi kustom.
  *   - <RouterBottomTabBar> : adapter untuk prop `tabBar` di <Tabs> expo-
@@ -28,6 +28,12 @@
  *     menyebut scale untuk Button.
  *   - Label selalu tampil (bukan icon-only): 4–5 tab dengan label 12px muat
  *     di 360px, dan label menghilangkan tebak-tebakan ikon (§1 presisi).
+ *   - Focus ring web wajib ada pada ELEMEN FOKUS (container Pressable),
+ *     sehingga kelas `focusRingInset` dipasang di `containerClassName`,
+ *     bukan `className` di inner View.
+ *   - Hit target wajib ≥ 44pt (audit #1). Visual tab sudah setinggi 56px,
+ *     tetapi ikon tetap diberi `hitSlop` agar label/ikon kecil tetap nyaman
+ *     disentuh di web/mobile pada area tengah tab.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -38,6 +44,9 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
 
 export type BottomTabItem<K extends string = string> = {
   key: K
@@ -56,6 +65,8 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
   onLongPress?: (key: K) => void
   className?: string
 }
+
+const TAB_ITEM_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 56)
 
 export function BottomTabBar<K extends string = string>({
   items,
@@ -84,9 +95,10 @@ export function BottomTabBar<K extends string = string>({
               accessibilityState={{ selected: active }}
               accessibilityLabel={item.accessibilityLabel ?? item.label}
               scaleOnPress={false}
+              hitSlop={TAB_ITEM_HIT_SLOP}
               onPress={() => onChange(item.key)}
               onLongPress={onLongPress ? () => onLongPress(item.key) : undefined}
-              containerClassName="flex-1"
+              containerClassName={cn("flex-1 web:rounded-none", focusRingInset)}
               className="h-full items-center justify-center gap-1"
             >
               <View className="relative">

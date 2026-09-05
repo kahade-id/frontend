@@ -16,8 +16,8 @@
  *     saat app aktif di foreground. Interval bukan WebSocket — badge tidak
  *     perlu real-time; 60 detik cukup dan hemat baterai.
  *   - Hanya tampil bila count > 0. Bila response null (bentuk tak dikenal,
- *     lihat readUnreadCount di notifications.ts) → badge disembunyikan,
- *     BUKAN dianggap 0, agar badge tidak salah hilang.
+ *     lihat readUnreadCount di notifications.ts) → pertahankan state
+ *     sebelumnya, agar badge tidak salah hilang.
  *   - Error (network/auth) diabaikan secara diam-diam — badge cukup basi,
  *     tidak perlu error toast hanya karena poll gagal.
  *
@@ -41,21 +41,17 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AppState, type AppStateStatus } from "react-native"
-import { Tabs } from "expo-router"
-import {
-  House,
-  ArrowsLeftRight,
-  Wallet,
-  Bell,
-  GearSix,
-} from "phosphor-react-native"
+import { Tabs, type TabsProps } from "expo-router"
+import { ArrowsLeftRight, Bell, GearSix, House, Wallet } from "phosphor-react-native"
 
 import { RouterBottomTabBar, type RouterBottomTabBarProps } from "@/components/ui/bottom-tab-bar"
 import { getUnreadCount, readUnreadCount } from "@/lib/api/notifications"
-import { TAB_ROUTE_NAMES } from "@/lib/routes"
+import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
 
 /** Interval poll badge (ms) — 60 detik cukup, hemat baterai. */
 const BADGE_POLL_INTERVAL_MS = 60_000
+
+type TabVisualItem = Omit<RouterBottomTabBarProps["items"][string], "badge">
 
 // ------------------------------------------------------------------
 // Hook: unread count
@@ -63,7 +59,7 @@ const BADGE_POLL_INTERVAL_MS = 60_000
 
 /**
  * Poll `GET /v1/notifications/unread-count` dan kembalikan boolean badge.
- * null = belum diketahui (jangan tampilkan badge); 0 = tidak ada; >0 = tampilkan.
+ * false = tidak ada unread / belum diketahui; true = tampilkan badge.
  */
 function useUnreadBadge(): boolean {
   const [hasUnread, setHasUnread] = useState(false)
@@ -73,7 +69,6 @@ function useUnreadBadge(): boolean {
     try {
       const body = await getUnreadCount()
       const count = readUnreadCount(body)
-      // null = bentuk tak dikenal → biarkan state sebelumnya
       if (count !== null) setHasUnread(count > 0)
     } catch {
       // Error jaringan/auth diabaikan — badge cukup basi
@@ -106,7 +101,7 @@ function useUnreadBadge(): boolean {
  * Peta name→item tab bar. Kunci HARUS cocok dengan TAB_ROUTE_NAMES dan
  * nama file di app/(tabs)/ (Expo Router route name = nama file tanpa ekstensi).
  */
-const TAB_ITEMS = {
+const TAB_ITEMS: Record<TabRouteName, TabVisualItem> = {
   home: {
     label: "Beranda",
     icon: House,
@@ -125,7 +120,6 @@ const TAB_ITEMS = {
   notifications: {
     label: "Notifikasi",
     icon: Bell,
-    // badge diisi dinamis di TabBar
     accessibilityLabel: "Tab Notifikasi",
   },
   settings: {
@@ -133,10 +127,7 @@ const TAB_ITEMS = {
     icon: GearSix,
     accessibilityLabel: "Tab Pengaturan",
   },
-} as const satisfies Record<
-  (typeof TAB_ROUTE_NAMES)[number],
-  Omit<RouterBottomTabBarProps["items"][string], "badge">
->
+}
 
 // ------------------------------------------------------------------
 // Layout
@@ -146,7 +137,7 @@ export default function TabsLayout() {
   const hasUnread = useUnreadBadge()
 
   const renderTabBar = useCallback(
-    (props: Parameters<NonNullable<React.ComponentProps<typeof Tabs>["tabBar"]>>[0]) => {
+    (props: Parameters<NonNullable<TabsProps["tabBar"]>>[0]) => {
       const itemsWithBadge: RouterBottomTabBarProps["items"] = {
         ...TAB_ITEMS,
         notifications: {
@@ -172,16 +163,9 @@ export default function TabsLayout() {
       }}
       tabBar={renderTabBar}
     >
-      {/*
-        Urutan Tabs.Screen menentukan urutan di state.routes — HARUS sesuai
-        urutan TAB_ROUTE_NAMES agar RouterBottomTabBar menampilkan tab dalam
-        urutan yang benar.
-      */}
-      <Tabs.Screen name="home" />
-      <Tabs.Screen name="transactions" />
-      <Tabs.Screen name="wallet" />
-      <Tabs.Screen name="notifications" />
-      <Tabs.Screen name="settings" />
+      {TAB_ROUTE_NAMES.map((name) => (
+        <Tabs.Screen key={name} name={name} />
+      ))}
     </Tabs>
   )
 }
