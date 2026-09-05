@@ -27,6 +27,10 @@
       "entitlements": {
         "aps-environment": "development"
       },
+      "associatedDomains": [
+        "applinks:kahade.id",
+        "applinks:www.kahade.id"
+      ],
       "supportsTablet": false,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -40,6 +44,26 @@
     "android": {
       "package": "id.kahade",
       "googleServicesFile": "./google-services.json",
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            {
+              "scheme": "https",
+              "host": "kahade.id"
+            },
+            {
+              "scheme": "https",
+              "host": "www.kahade.id"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
+        }
+      ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"

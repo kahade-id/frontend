@@ -17,7 +17,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "check:api": "node scripts/gen-api-constraints.mjs --check && node scripts/audit-inventory.mjs --check",
-    "check": "npm run typecheck && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:api && npm test",
+    "check": "npm run typecheck && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:api && npm run check:weblinks && npm test",
     "ota:preflight": "node scripts/check-ota.mjs",
     "audit:inventory": "node scripts/audit-inventory.mjs",
     "build:web": "EXPO_OFFLINE=1 expo export --platform web",
@@ -25,7 +25,8 @@
     "gen:brand": "node scripts/gen-brand-assets.mjs",
     "qa:icon": "node scripts/qa-icon.mjs",
     "check:push": "node scripts/check-push.mjs",
-    "eas-build-pre-install": "node scripts/check-push.mjs"
+    "eas-build-pre-install": "node scripts/check-push.mjs",
+    "check:weblinks": "node scripts/check-weblinks.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

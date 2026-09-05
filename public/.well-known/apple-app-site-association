@@ -1,0 +1,46 @@
+{
+  "__TODO__": "ISI Team ID SETELAH ADA AKUN APPLE DEVELOPER. Ganti TEAMID pada appID menjadi <TeamID>.id.kahade, mis. A1B2C3D4E5.id.kahade. Team ID ada di developer.apple.com > Membership. Selama masih TEAMID, iOS tidak akan memverifikasi Universal Links dan link kahade.id tetap terbuka di Safari (fallback aman). Berkas ini WAJIB disajikan sebagai application/json tanpa ekstensi dan tanpa redirect.",
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.id.kahade",
+        "paths": [
+          "NOT /api/*",
+          "NOT /_expo/*",
+          "NOT /.well-known/*",
+          "/order/*",
+          "/order-link/*",
+          "/dispute/*",
+          "/user/*",
+          "/profile/*",
+          "/notification/*",
+          "/notifications",
+          "/wallet",
+          "/wallet-transaction/*",
+          "/transactions",
+          "/chat",
+          "/chat/*",
+          "/support",
+          "/support/*",
+          "/invoice/*",
+          "/rate/*",
+          "/extension/*",
+          "/delivery-proof/*",
+          "/followers/*",
+          "/help/*",
+          "/referral",
+          "/kyc",
+          "/discover",
+          "/search",
+          "/home"
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": [
+      "TEAMID.id.kahade"
+    ]
+  }
+}
