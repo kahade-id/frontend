@@ -11,13 +11,12 @@
  *  - Logout: panggil clearSession() lalu redirect ke ROUTES.login
  *
  * Keputusan non-obvious:
- *  - Skeleton hanya untuk header profil (nama + avatar), bukan seluruh
- *    halaman — daftar menu bersifat statis sehingga bisa langsung tampil.
- *  - Spacing memakai tokens.space[n] bukan angka literal, supaya konsisten
- *    dengan screenPaddingX / cardPadding yang sudah terdefinisi di tokens.
- *  - router.push(route as Href) menggantikan `as any` — masih ada cast
- *    karena typedRoutes hanya validate path yang sudah ada file route-nya;
- *    komentar ini bisa dihapus saat semua route detail tersedia.
+ *  - M6: skeleton profil pakai <Skeleton> + <SkeletonGroup> sistem —
+ *    bukan animate-pulse manual — supaya animasi & aksesibilitas konsisten.
+ *  - P6: error state getMe() ditampilkan eksplisit (teks + tombol retry),
+ *    bukan silent fallback "—" yang membingungkan user.
+ *  - Spacing memakai tokens.space[n] bukan angka literal.
+ *  - router.push(route as Href) menggantikan `as any`.
  */
 import { useCallback, useEffect, useState } from "react"
 import { Alert, ScrollView, View } from "react-native"
@@ -53,6 +52,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
+import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 
 // ------------------------------------------------------------------
@@ -118,21 +118,28 @@ const MENU_GROUPS: MenuGroup[] = [
 ]
 
 // ------------------------------------------------------------------
-// Skeleton header profil
+// Skeleton placeholder profil (M6: pakai Skeleton sistem)
 // ------------------------------------------------------------------
 
 function ProfileSkeleton() {
   return (
-    <View className="flex-row items-center py-3 gap-3" accessibilityLabel="Memuat profil">
-      {/* Avatar placeholder */}
-      <View className="h-14 w-14 rounded-full bg-surface-offset animate-pulse" />
-      <View className="flex-1 gap-2">
-        {/* Nama */}
-        <View className="h-4 w-36 rounded bg-surface-offset animate-pulse" />
-        {/* Username */}
-        <View className="h-3 w-24 rounded bg-surface-offset animate-pulse" />
+    <SkeletonGroup>
+      <View
+        style={{
+          flexDirection: "row",
+          alignItems: "center",
+          gap: tokens.space[3],
+          paddingVertical: tokens.space[4],
+          paddingHorizontal: tokens.layout.screenPaddingX,
+        }}
+      >
+        <Skeleton shape="circle" width={56} height={56} />
+        <View style={{ gap: tokens.space[1] }}>
+          <Skeleton height={16} width={144} />
+          <Skeleton height={13} width={96} />
+        </View>
       </View>
-    </View>
+    </SkeletonGroup>
   )
 }
 
@@ -145,18 +152,21 @@ export default function SettingsScreen() {
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
-  const [loggingOut, setLoggingOut] = useState(false)
+  const [profileError, setProfileError] = useState<string | null>(null)
 
-  useEffect(() => {
+  // P6: error state getMe() — tampil eksplisit, bukan silent fallback
+  const fetchProfile = useCallback(() => {
+    setLoading(true)
+    setProfileError(null)
     getMe()
       .then(setProfile)
-      .catch(() => {})
+      .catch(() => setProfileError("Gagal memuat profil."))
       .finally(() => setLoading(false))
   }, [])
 
-  const handleMenuPress = useCallback((item: MenuItem) => {
-    if (item.route) router.push(item.route as Href)
-  }, [])
+  useEffect(() => {
+    fetchProfile()
+  }, [fetchProfile])
 
   const handleLogout = useCallback(() => {
     Alert.alert("Keluar", "Apakah kamu yakin ingin keluar?", [
@@ -165,15 +175,8 @@ export default function SettingsScreen() {
         text: "Keluar",
         style: "destructive",
         onPress: async () => {
-          setLoggingOut(true)
-          try {
-            await clearSession()
-          } catch {
-            // Tetap logout meski API gagal
-          } finally {
-            setLoggingOut(false)
-            router.replace(ROUTES.login)
-          }
+          await clearSession()
+          router.replace(ROUTES.login as Href)
         },
       },
     ])
@@ -184,91 +187,100 @@ export default function SettingsScreen() {
       <Header title="Pengaturan" />
 
       <ScrollView
-        contentContainerStyle={{
-          paddingHorizontal: tokens.space[4],  // 16px
-          paddingTop: tokens.space[2],          // 8px
-          paddingBottom: insets.bottom + tokens.space[6], // home indicator + 24px
-        }}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + tokens.space[8],
+        }}
       >
-        {/* Header profil — skeleton saat loading */}
+        {/* ── Header profil ────────────────────────────────── */}
         {loading ? (
           <ProfileSkeleton />
+        ) : profileError ? (
+          // P6: error eksplisit + tombol retry
+          <View
+            style={{
+              paddingHorizontal: tokens.layout.screenPaddingX,
+              paddingVertical: tokens.space[4],
+              gap: tokens.space[2],
+            }}
+          >
+            <Text variant="caption" tone="danger">{profileError}</Text>
+            <Button variant="ghost" size="sm" onPress={fetchProfile}>
+              Coba lagi
+            </Button>
+          </View>
         ) : (
           <PressableScale
-            containerClassName="w-full"
-            className="flex-row items-center py-3 gap-3"
             onPress={() => router.push("/edit-profile" as Href)}
-            scaleOnPress={false}
-            accessibilityRole="button"
             accessibilityLabel="Edit profil"
           >
-            <Avatar
-              source={profile?.avatarUrl ?? undefined}
-              name={profile?.fullName ?? "—"}
-              size="lg"
-            />
-            <View className="flex-1">
-              <Text variant="label" numberOfLines={1}>
-                {profile?.fullName ?? "—"}
-              </Text>
-              <Text variant="caption" tone="secondary" numberOfLines={1}>
-                @{profile?.username ?? "—"}
-              </Text>
+            <View
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                gap: tokens.space[3],
+                paddingVertical: tokens.space[4],
+                paddingHorizontal: tokens.layout.screenPaddingX,
+              }}
+            >
+              <Avatar
+                name={profile?.name ?? ""}
+                uri={profile?.avatarUrl}
+                size="lg"
+              />
+              <View style={{ flex: 1 }}>
+                <Text variant="h3">{profile?.name ?? "—"}</Text>
+                {profile?.username ? (
+                  <Text variant="body" tone="secondary">@{profile.username}</Text>
+                ) : null}
+              </View>
+              <Icon icon={CaretRight} size="sm" tone="secondary" />
             </View>
-            <Icon icon={CaretRight} size="sm" />
           </PressableScale>
         )}
 
-        <Divider className="my-2" />
+        <Divider />
 
-        {/* Menu groups — ListItem + ListGroup dari sistem */}
+        {/* ── Grup menu ────────────────────────────────────── */}
         {MENU_GROUPS.map((group, gi) => (
-          <View key={group.title} className={gi > 0 ? "mt-5" : undefined}>
-            <Text
-              variant="caption"
-              tone="secondary"
-              className="mb-1.5 ml-1"
-              style={{ textTransform: "uppercase", letterSpacing: 0.8 }}
-            >
-              {group.title}
-            </Text>
-
-            <ListGroup>
+          <View key={group.title}>
+            <ListGroup title={group.title}>
               {group.items.map((item, ii) => (
                 <ListItem
                   key={item.id}
-                  title={item.label}
-                  leading={item.icon}
-                  trailing={
-                    item.badge ? (
-                      <View className="rounded-full bg-danger px-2 py-[2px]">
-                        <Text variant="caption" tone="inverse">
-                          {item.badge}
-                        </Text>
-                      </View>
-                    ) : undefined
-                  }
-                  chevron
+                  leftIcon={item.icon}
+                  label={item.label}
+                  badge={item.badge}
+                  rightIcon={CaretRight}
                   divider={ii < group.items.length - 1}
-                  inset
-                  onPress={() => handleMenuPress(item)}
+                  onPress={
+                    item.route
+                      ? () => router.push(item.route! as Href)
+                      : undefined
+                  }
                 />
               ))}
             </ListGroup>
+            {gi < MENU_GROUPS.length - 1 && <Divider />}
           </View>
         ))}
 
-        {/* Logout — variant destructive */}
-        <Button
-          variant="destructive"
-          onPress={handleLogout}
-          loading={loggingOut}
-          className="mt-8"
-          fullWidth
+        {/* ── Logout ───────────────────────────────────────── */}
+        <View
+          style={{
+            paddingHorizontal: tokens.layout.screenPaddingX,
+            paddingTop: tokens.space[8],
+          }}
         >
-          Keluar
-        </Button>
+          <Button
+            variant="ghost"
+            tone="danger"
+            size="lg"
+            onPress={handleLogout}
+          >
+            Keluar
+          </Button>
+        </View>
       </ScrollView>
     </Screen>
   )

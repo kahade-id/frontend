@@ -9,11 +9,20 @@
  * Data:
  *  - getWallet()             → saldo
  *  - getWalletTransactions() → riwayat
+ *
+ * Fix audit:
+ *  - K1: `as any` → `as Href` di 3 router.push ActionButton
+ *  - K4: hardcode 16/4 spacing → tokens.space[4/1]
+ *  - P3: ListHeaderComponent terima ReactElement langsung, bukan arrow function
+ *        yang membungkus ReactNode (FlatList hanya perlu re-check referensi, bukan
+ *        re-invoke function component palsu setiap render)
+ *  - M4: isCredit pakai direction sebagai sumber utama; fallback array type
+ *        hanya dipakai bila direction undefined (bukan dua kondisi OR berjalan)
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { FlatList, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { router } from "expo-router"
+import { router, type Href } from "expo-router"
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -22,6 +31,7 @@ import {
 
 import { getWallet, getWalletTransactions } from "@/lib/api/wallet"
 import type { Wallet, WalletTransaction } from "@/lib/api/wallet"
+import { tokens } from "@/lib/tokens"
 
 import { Amount } from "@/components/ui/amount"
 import { Button } from "@/components/ui/button"
@@ -95,7 +105,8 @@ export default function WalletScreen() {
     fetchTxns(1)
   }, [fetchWallet, fetchTxns])
 
-  // ── Render header — useMemo agar FlatList tidak re-render tiap render ──
+  // P3: ListHeader adalah ReactElement (bukan function) — diteruskan langsung
+  // ke ListHeaderComponent tanpa pembungkus arrow function.
   const ListHeader = useMemo(
     () => (
       <View>
@@ -125,22 +136,22 @@ export default function WalletScreen() {
           )}
         </Card>
 
-        {/* Quick action */}
+        {/* Quick action — K1: as Href menggantikan as any */}
         <View className="flex-row justify-around py-2">
           <ActionButton
             icon={ArrowDownToLine}
             label="Topup"
-            onPress={() => router.push("/topup" as any)}
+            onPress={() => router.push("/topup" as Href)}
           />
           <ActionButton
             icon={ArrowUpFromLine}
             label="Tarik"
-            onPress={() => router.push("/withdraw" as any)}
+            onPress={() => router.push("/withdraw" as Href)}
           />
           <ActionButton
             icon={ArrowsLeftRight}
             label="Transfer"
-            onPress={() => router.push("/transfer" as any)}
+            onPress={() => router.push("/transfer" as Href)}
           />
         </View>
 
@@ -159,15 +170,20 @@ export default function WalletScreen() {
     <Screen edges={["top"]}>
       <Header title="Dompet" />
 
+      {/* P3: ListHeaderComponent={ListHeader} langsung ReactElement */}
       <FlatList
         data={txns}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <TxnRow txn={item} />}
-        ListHeaderComponent={() => ListHeader}
+        ListHeaderComponent={ListHeader}
+        // K4: hardcode 16/4 → tokens.space[4/1]
         contentContainerStyle={[
-          { paddingHorizontal: 16, gap: 4 },
+          {
+            paddingHorizontal: tokens.space[4],
+            gap: tokens.space[1],
+          },
           txns.length === 0 && { flexGrow: 1 },
-          { paddingBottom: insets.bottom + 16 },
+          { paddingBottom: insets.bottom + tokens.space[4] },
         ]}
         refreshing={refreshing}
         onRefresh={handleRefresh}
@@ -196,11 +212,6 @@ export default function WalletScreen() {
 
 // ── Sub-komponen ─────────────────────────────────────────────────
 
-/**
- * fix W5, W6: ActionButton tidak lagi meneruskan string name ke <Icon>
- * dan tidak menggunakan `contentStyle` (bukan prop Button).
- * Layout ikon+label vertikal dibangun manual dalam children Button ghost.
- */
 function ActionButton({
   icon,
   label,
@@ -238,26 +249,30 @@ const TXN_LABELS: Record<string, string> = {
   REFUND: "Refund",
 }
 
+// M4: isCredit pakai direction sebagai sumber utama kebenaran.
+// Fallback ke type array HANYA bila direction undefined (misal: data lama).
+// Ini menghindari divergensi antara direction dan type bila salah satunya
+// tidak sinkron dengan backend.
+const CREDIT_TYPES = new Set(["TOPUP", "TRANSFER_IN", "ORDER_RELEASE", "REFUND"])
+
 function TxnRow({ txn }: { txn: WalletTransaction }) {
   const isCredit =
-    txn.direction === "CREDIT" ||
-    ["TOPUP", "TRANSFER_IN", "ORDER_RELEASE", "REFUND"].includes(txn.type)
+    txn.direction !== undefined
+      ? txn.direction === "CREDIT"
+      : CREDIT_TYPES.has(txn.type)
   const sign = isCredit ? "+" : "-"
-  // fix W3: gunakan tone (bukan color) pada <Text>
   const tone = isCredit ? "success" : "danger"
 
   return (
     <View className="flex-row items-center justify-between py-2.5">
       <View className="flex-1 mr-3">
         <Text variant="body">{TXN_LABELS[txn.type] ?? txn.type}</Text>
-        {/* fix W4: tone="secondary" (bukan color="muted") */}
         {txn.description ? (
           <Text variant="caption" tone="secondary" numberOfLines={1}>
             {txn.description}
           </Text>
         ) : null}
       </View>
-      {/* fix W3: tone prop menggantikan color */}
       <Text variant="body" tone={tone}>
         {sign} Rp {txn.amount.toLocaleString("id-ID")}
       </Text>

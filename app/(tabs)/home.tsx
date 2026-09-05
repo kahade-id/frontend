@@ -35,6 +35,10 @@
  *     agar card putih terlihat naik di atas latar abu muda (hierarki §6).
  *   - `edges={["top"]}` di Screen: tab bar sudah menangani bottom safe area
  *     di level layout (RouterBottomTabBar). Screen tidak boleh double-inset.
+ *   - M3: ikon ArrowRight pakai <Icon tone="secondary"> agar mengikuti token
+ *     warna sistem (icon.color.light.default = gray.600), bukan hardcode hex.
+ *   - P4: countActiveOrders menggunakan typeof === "number" untuk type-safe
+ *     sum — menghindari NaN bila ada key OrderSummary bukan angka.
  */
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
@@ -44,6 +48,7 @@ import { ArrowRight, Lightning } from "phosphor-react-native"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { Icon } from "@/components/ui/icon"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
@@ -69,6 +74,7 @@ function greetingByHour(): string {
 /**
  * Jumlahkan status order yang dianggap "aktif" (sedang berjalan).
  * Status terminal (COMPLETED, CANCELLED, REFUNDED, DISPUTED) tidak dihitung.
+ * P4: typeof === "number" memastikan hanya nilai numerik yang dijumlahkan.
  */
 function countActiveOrders(summary: OrderSummary | null): number {
   if (!summary) return 0
@@ -80,7 +86,10 @@ function countActiveOrders(summary: OrderSummary | null): number {
     "SHIPPED",
     "DELIVERED",
   ]
-  return ACTIVE.reduce((acc, key) => acc + ((summary[key] as number | undefined) ?? 0), 0)
+  return ACTIVE.reduce((acc, key) => {
+    const val = summary[key]
+    return acc + (typeof val === "number" ? val : 0)
+  }, 0)
 }
 
 // ------------------------------------------------------------------
@@ -103,23 +112,9 @@ function HeaderSkeleton() {
 
 function BalanceSkeleton() {
   return (
-    <SkeletonGroup className="w-full rounded-md border border-border bg-surface-elevated p-5">
-      <VStack gap={2}>
-        <Skeleton height={12} className="w-1/4" />
-        <Skeleton height={28} className="w-2/3" />
-      </VStack>
-    </SkeletonGroup>
-  )
-}
-
-function SummarySkeleton() {
-  return (
-    <SkeletonGroup className="w-full rounded-md border border-border bg-surface-elevated p-5">
-      <VStack gap={2}>
-        <Skeleton height={12} className="w-1/3" />
-        <Skeleton height={22} className="w-1/4" />
-        <Skeleton height={12} className="w-2/5" />
-      </VStack>
+    <SkeletonGroup className="w-full rounded-md border border-border bg-surface-elevated p-5 gap-2">
+      <Skeleton height={14} className="w-1/3" />
+      <Skeleton height={32} className="w-2/3" />
     </SkeletonGroup>
   )
 }
@@ -128,162 +123,149 @@ function SummarySkeleton() {
 // Screen
 // ------------------------------------------------------------------
 
-type FetchState = "loading" | "success" | "error"
-
 export default function HomeScreen() {
   const router = useRouter()
-
-  const [profileState, setProfileState] = useState<FetchState>("loading")
-  const [walletState, setWalletState] = useState<FetchState>("loading")
-  const [summaryState, setSummaryState] = useState<FetchState>("loading")
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [summary, setSummary] = useState<OrderSummary | null>(null)
 
-  const fetchAll = useCallback(() => {
-    setProfileState("loading")
-    setWalletState("loading")
-    setSummaryState("loading")
+  const [profileLoading, setProfileLoading] = useState(true)
+  const [walletLoading, setWalletLoading] = useState(true)
+  const [summaryLoading, setSummaryLoading] = useState(true)
 
-    getMe()
-      .then((data) => { setProfile(data); setProfileState("success") })
-      .catch(() => setProfileState("error"))
+  const [walletError, setWalletError] = useState<string | null>(null)
+  const [summaryError, setSummaryError] = useState<string | null>(null)
 
-    getWallet()
-      .then((data) => { setWallet(data); setWalletState("success") })
-      .catch(() => setWalletState("error"))
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- setter dari useState adalah stable
+  const fetchAll = useCallback(async () => {
+    setProfileLoading(true)
+    setWalletLoading(true)
+    setSummaryLoading(true)
+    setWalletError(null)
+    setSummaryError(null)
 
-    getOrdersSummary()
-      .then((data) => { setSummary(data); setSummaryState("success") })
-      .catch(() => setSummaryState("error"))
+    await Promise.allSettled([
+      getMe()
+        .then(setProfile)
+        .catch(() => {})
+        .finally(() => setProfileLoading(false)),
+
+      getWallet()
+        .then(setWallet)
+        .catch(() => setWalletError("Gagal memuat saldo."))
+        .finally(() => setWalletLoading(false)),
+
+      getOrdersSummary()
+        .then(setSummary)
+        .catch(() => setSummaryError("Gagal memuat ringkasan order."))
+        .finally(() => setSummaryLoading(false)),
+    ])
   }, [])
 
-  useEffect(() => { void fetchAll() }, [fetchAll])
+  useEffect(() => {
+    void fetchAll()
+  }, [fetchAll])
 
   const activeOrders = countActiveOrders(summary)
 
   return (
-    <Screen scroll background="surface" padded={false} edges={["top"]}>
-      <VStack gap={4} className="px-6 pt-4 pb-8">
-
-        {/* ── Header: sapaan + avatar ── */}
-        {profileState === "loading" ? (
+    <Screen edges={["top"]} background="surface">
+      {/* ── Header profil ────────────────────────────────── */}
+      <View className="px-6 pt-4 pb-2">
+        {profileLoading ? (
           <HeaderSkeleton />
-        ) : profileState === "error" ? (
-          // fix M3: handle error state profil — sebelumnya layar kosong
-          <HStack gap={3} className="py-2">
-            <View className="w-10 h-10 rounded-full bg-surface-offset" />
-            <VStack gap={0} flex>
-              <Text variant="caption" tone="secondary">{greetingByHour()},</Text>
-              <Text variant="h2" tone="secondary" numberOfLines={1}>Pengguna</Text>
-            </VStack>
-          </HStack>
         ) : (
-          <HStack gap={3} className="py-2">
+          <HStack gap={3} className="py-2" align="center">
             <Avatar
-              source={profile?.avatarUrl ?? undefined}
-              name={profile?.fullName ?? profile?.username ?? ""}
+              name={profile?.name ?? ""}
+              uri={profile?.avatarUrl}
               size="md"
             />
-            <VStack gap={0} flex>
+            <VStack gap={0}>
               <Text variant="caption" tone="secondary">
                 {greetingByHour()},
               </Text>
-              <Text variant="h2" numberOfLines={1}>
-                {profile?.fullName ?? profile?.username ?? "Pengguna"}
-              </Text>
+              <Text variant="h3">{profile?.name ?? "—"}</Text>
             </VStack>
           </HStack>
         )}
+      </View>
 
-        {/* ── Saldo Wallet ── */}
-        {walletState === "loading" ? (
+      {/* ── Ringkasan saldo ──────────────────────────────── */}
+      <View className="px-6 pb-3">
+        {walletLoading ? (
           <BalanceSkeleton />
-        ) : walletState === "error" ? (
-          <Card variant="elevated">
-            <VStack gap={2}>
-              <Text variant="body" tone="secondary">Gagal memuat saldo</Text>
-              <Button variant="secondary" size="sm" fullWidth={false} onPress={fetchAll}>
-                Coba lagi
-              </Button>
-            </VStack>
-          </Card>
-        ) : (
-          <Card variant="elevated">
-            <VStack gap={1}>
-              <Text variant="caption" tone="secondary">Saldo Dompet</Text>
-              <Text
-                variant="h1"
-                accessibilityLabel={`Saldo dompet ${formatRupiah(wallet?.balance ?? 0)}`}
-                accessibilityLiveRegion="polite"
-              >
-                {formatRupiah(wallet?.balance ?? 0)}
-              </Text>
-              {(wallet?.holdBalance ?? 0) > 0 ? (
-                <Text variant="caption" tone="secondary">
-                  {formatRupiah(wallet!.holdBalance!)} ditahan escrow
-                </Text>
-              ) : null}
-            </VStack>
-          </Card>
-        )}
-
-        {/* ── Ringkasan Order Aktif ── */}
-        {summaryState === "loading" ? (
-          <SummarySkeleton />
-        ) : summaryState === "error" ? (
-          <Card variant="elevated">
-            <VStack gap={2}>
-              <Text variant="body" tone="secondary">Gagal memuat ringkasan order</Text>
-              <Button variant="secondary" size="sm" fullWidth={false} onPress={fetchAll}>
-                Coba lagi
-              </Button>
-            </VStack>
+        ) : walletError ? (
+          <Card variant="elevated" className="p-5">
+            <Text variant="caption" tone="danger">{walletError}</Text>
+            <Button variant="ghost" size="sm" onPress={fetchAll} className="mt-2">
+              Coba lagi
+            </Button>
           </Card>
         ) : (
           <Card
             variant="elevated"
-            onPress={() => router.push(ROUTES.transactions)}
-            accessibilityLabel={`${activeOrders} order aktif, ketuk untuk lihat semua`}
+            className="p-5"
+            accessibilityLiveRegion="polite"
           >
-            <HStack justify="between" align="center">
-              <VStack gap={1} flex>
-                <Text variant="caption" tone="secondary">Order Aktif</Text>
-                <Text variant="h2">{String(activeOrders)}</Text>
-                <Text variant="caption" tone="secondary">
-                  {activeOrders === 0
-                    ? "Belum ada transaksi berjalan"
-                    : `${activeOrders} transaksi sedang berjalan`}
-                </Text>
-              </VStack>
-              <ArrowRight
-                size={20}
-                color="#868E96"
-                weight="regular"
-                accessibilityElementsHidden
-                importantForAccessibility="no"
-              />
-            </HStack>
+            <Text variant="caption" tone="secondary">Saldo tersedia</Text>
+            <Text variant="h1" className="mt-1">
+              {formatRupiah(wallet?.availableBalance ?? wallet?.balance ?? 0)}
+            </Text>
           </Card>
         )}
+      </View>
 
-        {/* ── Quick Action: Buat Transaksi ── */}
-        {/*
-          Mengarah ke tab Transaksi sementara screen "Buat Transaksi" belum
-          ada (akan dibuat di item #3). Setelah ROUTES.createTransaction
-          ditambahkan ke routes.ts, ganti ROUTES.transactions di sini.
-        */}
+      {/* ── Order aktif ─────────────────────────────────── */}
+      <View className="px-6 pb-4">
+        <Card variant="elevated" className="p-4">
+          {summaryLoading ? (
+            <SkeletonGroup>
+              <Skeleton height={16} className="w-1/2" />
+            </SkeletonGroup>
+          ) : summaryError ? (
+            <>
+              <Text variant="caption" tone="danger">{summaryError}</Text>
+              <Button variant="ghost" size="sm" onPress={fetchAll} className="mt-2">
+                Coba lagi
+              </Button>
+            </>
+          ) : (
+            <HStack align="center" justify="between">
+              <VStack gap={0}>
+                <Text variant="caption" tone="secondary">Order aktif</Text>
+                <Text variant="h2">{activeOrders}</Text>
+              </VStack>
+              {/* M3: <Icon> + tone="secondary" → token icon.color.light.default (gray.600) */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => router.push(ROUTES.transactions)}
+                accessibilityLabel="Lihat semua transaksi"
+              >
+                <HStack gap={1} align="center">
+                  <Text variant="caption" tone="secondary">Lihat semua</Text>
+                  <Icon icon={ArrowRight} size="xs" tone="secondary" />
+                </HStack>
+              </Button>
+            </HStack>
+          )}
+        </Card>
+      </View>
+
+      {/* ── Quick action ─────────────────────────────────── */}
+      <View className="px-6">
         <Button
           variant="primary"
-          leftIcon={Lightning}
+          size="lg"
           onPress={() => router.push(ROUTES.transactions)}
+          leftIcon={Lightning}
           accessibilityLabel="Buat transaksi baru"
         >
           Buat Transaksi
         </Button>
-
-      </VStack>
+      </View>
     </Screen>
   )
 }

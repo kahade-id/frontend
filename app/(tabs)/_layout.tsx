@@ -38,6 +38,8 @@
  *   - AppState listener + interval keduanya diperlukan: AppState supaya badge
  *     langsung update saat user kembali dari background; interval supaya
  *     badge fresh selama user aktif.
+ *   - P5: mounted flag mencegah setState setelah komponen unmount (race
+ *     condition bila fetchCount selesai setelah layout di-unmount).
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AppState, type AppStateStatus } from "react-native"
@@ -60,22 +62,27 @@ type TabVisualItem = Omit<RouterBottomTabBarProps["items"][string], "badge">
 /**
  * Poll `GET /v1/notifications/unread-count` dan kembalikan boolean badge.
  * false = tidak ada unread / belum diketahui; true = tampilkan badge.
+ *
+ * P5: mounted flag mencegah setState pada komponen yang sudah unmount
+ * (race condition saat fetchCount async selesai setelah cleanup).
  */
 function useUnreadBadge(): boolean {
   const [hasUnread, setHasUnread] = useState(false)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const mountedRef = useRef(true)
 
   const fetchCount = useCallback(async () => {
     try {
       const body = await getUnreadCount()
       const count = readUnreadCount(body)
-      if (count !== null) setHasUnread(count > 0)
+      if (mountedRef.current && count !== null) setHasUnread(count > 0)
     } catch {
       // Error jaringan/auth diabaikan — badge cukup basi
     }
   }, [])
 
   useEffect(() => {
+    mountedRef.current = true
     void fetchCount()
 
     intervalRef.current = setInterval(() => void fetchCount(), BADGE_POLL_INTERVAL_MS)
@@ -85,6 +92,7 @@ function useUnreadBadge(): boolean {
     })
 
     return () => {
+      mountedRef.current = false
       if (intervalRef.current) clearInterval(intervalRef.current)
       sub.remove()
     }

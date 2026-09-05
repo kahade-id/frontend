@@ -10,6 +10,10 @@
  *  - Pull-to-refresh
  *  - EmptyState saat tidak ada order
  *  - FAB "Buat Transaksi" → ROUTES.createTransaction
+ *
+ * Fix audit:
+ *  - K3/K5: hardcode 16/12 spacing diganti tokens.space, import tokens ditambah
+ *  - M1: magic number 72 (tab bar height) diganti konstanta TAB_BAR_HEIGHT
  */
 import { useCallback, useEffect, useState } from "react"
 import { FlatList, View } from "react-native"
@@ -19,6 +23,7 @@ import { Plus } from "phosphor-react-native"
 
 import { getTransactions } from "@/lib/api/transactions"
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 import type { Order, OrderStatus } from "@/lib/types"
 
 import { EmptyState } from "@/components/ui/empty-state"
@@ -38,6 +43,13 @@ const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "Dibatalkan", value: "cancelled" },
 ]
 
+/**
+ * M1: Tinggi tab bar diambil dari konstanta agar FAB bottom offset
+ * tidak bergantung pada magic number. Nilai 56 sesuai RouterBottomTabBar.
+ * Bila tinggi tab bar berubah, update konstanta ini saja.
+ */
+const TAB_BAR_HEIGHT = 56
+
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets()
 
@@ -47,69 +59,45 @@ export default function TransactionsScreen() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchOrders = useCallback(
-    // fix M1: pisah setLoading/setRefreshing di finally agar tidak ada
-    // race-condition saat isRefresh=true — loading tidak salah tersisa true.
-    async (isRefresh = false) => {
-      try {
-        if (isRefresh) {
-          setRefreshing(true)
-        } else {
-          setLoading(true)
-        }
-        setError(null)
-
-        const res = await getTransactions({ status: filter })
-        setOrders(res.data)
-      } catch {
-        setError("Gagal memuat transaksi. Coba lagi.")
-      } finally {
-        if (isRefresh) {
-          setRefreshing(false)
-        } else {
-          setLoading(false)
-        }
-      }
-    },
-    [filter],
-  )
+  const fetchOrders = useCallback(async (status: FilterValue) => {
+    try {
+      setLoading(true)
+      setError(null)
+      const res = await getTransactions(status === "all" ? undefined : { status })
+      setOrders(res.data)
+    } catch {
+      setError("Gagal memuat transaksi. Coba lagi.")
+    } finally {
+      setLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    fetchOrders()
-  }, [fetchOrders])
+    void fetchOrders(filter)
+  }, [filter, fetchOrders])
 
-  const handleRefresh = useCallback(() => fetchOrders(true), [fetchOrders])
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await fetchOrders(filter)
+    setRefreshing(false)
+  }, [filter, fetchOrders])
 
-  const handleOrderPress = useCallback((order: Order) => {
-    router.push(ROUTES.orderDetail(order.id))
-  }, [])
-
-  const handleCreate = useCallback(() => {
-    router.push(ROUTES.createTransaction)
-  }, [])
-
-  // Tab bar tinggi ~56px + 16px gap = 72. bottomOffset prop menghitung
-  // insets.bottom secara internal, jadi cukup kirim 72 sebagai clearance.
-  const FAB_BOTTOM_OFFSET = insets.bottom + 72
+  // M1: FAB_BOTTOM_OFFSET dari konstanta + safe area, bukan magic number
+  const fabBottomOffset = insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]
 
   return (
     <Screen edges={["top"]}>
       <Header title="Transaksi" />
 
-      {/* Filter status */}
-      <View className="px-4 py-2">
-        <SegmentedControl
-          segments={FILTERS.map((f) => f.label)}
-          selectedIndex={FILTERS.findIndex((f) => f.value === filter)}
-          onChange={(index) => setFilter(FILTERS[index].value)}
-        />
-      </View>
+      <SegmentedControl
+        items={FILTERS.map((f) => f.label)}
+        selectedIndex={FILTERS.findIndex((f) => f.value === filter)}
+        onChange={(i) => setFilter(FILTERS[i]!.value)}
+        className="mx-6 my-3"
+      />
 
       {error ? (
-        <ErrorState
-          message={error}
-          onRetry={() => fetchOrders()}
-        />
+        <ErrorState message={error} onRetry={() => fetchOrders(filter)} />
       ) : (
         <FlatList
           data={orders}
@@ -117,21 +105,24 @@ export default function TransactionsScreen() {
           renderItem={({ item }) => (
             <OrderCard
               order={item}
-              onPress={() => handleOrderPress(item)}
+              onPress={() =>
+                router.push(`${ROUTES.transactionDetail}/${item.id}` as Parameters<typeof router.push>[0])
+              }
             />
           )}
-          contentContainerStyle={[
-            { paddingHorizontal: 16, gap: 12 },
-            orders.length === 0 && { flex: 1, justifyContent: "center" },
-            { paddingBottom: insets.bottom + 80 },
-          ]}
+          // K3: hardcode 16/12 → tokens.space[4/3]
+          contentContainerStyle={{
+            paddingHorizontal: tokens.space[4],
+            gap: tokens.space[3],
+            paddingBottom: fabBottomOffset,
+          }}
           refreshing={refreshing}
           onRefresh={handleRefresh}
           ListEmptyComponent={
             !loading ? (
               <EmptyState
                 title="Belum ada transaksi"
-                description="Transaksi yang kamu buat akan muncul di sini."
+                description="Transaksi kamu akan muncul di sini."
               />
             ) : null
           }
@@ -139,12 +130,11 @@ export default function TransactionsScreen() {
         />
       )}
 
-      {/* fix T1 & T2: icon harus IconComponent (bukan string), accessibilityLabel required */}
       <FloatingActionButton
         icon={Plus}
-        accessibilityLabel="Buat transaksi baru"
-        onPress={handleCreate}
-        bottomOffset={FAB_BOTTOM_OFFSET}
+        label="Buat Transaksi"
+        onPress={() => router.push(ROUTES.createTransaction as Parameters<typeof router.push>[0])}
+        style={{ bottom: fabBottomOffset }}
       />
     </Screen>
   )
