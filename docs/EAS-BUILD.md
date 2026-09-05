@@ -46,7 +46,8 @@ penguji: EAS memberi tautan, penguji membukanya di HP Android, unduh, pasang.
 Profil ini yang tepat untuk memverifikasi hal-hal yang **tidak bisa** diuji di
 Expo Go maupun dev client:
 
-- push notification sungguhan (setelah `google-services.json` asli terpasang)
+- push notification sungguhan (`google-services.json` asli sudah terpasang;
+  FCM V1 key tetap harus diunggah ke EAS)
 - App Links / Universal Links
 - splash screen dan perilaku cold start
 - OTA update lewat channel `preview`
@@ -116,14 +117,15 @@ Tidak perlu entri di `app.json`: `expo-dev-client`, `expo-dev-menu`, dan
 
 ## Sebelum build production
 
-Empat hal, semuanya masih terbuka. Rinciannya ada sebagai komentar di
-`eas.json`; ringkasnya:
+Empat area perlu diselesaikan. Konfigurasi client Firebase Android pada poin 3
+sudah terpasang; kredensial server/store lainnya masih terbuka. Rinciannya ada
+sebagai komentar di `eas.json`; ringkasnya:
 
-| # | Butuh | Perintah |
+| # | Butuh | Perintah/status |
 |---|---|---|
 | 1 | Upload key Android (akun Play Developer, USD 25 sekali) | `eas credentials --platform android` |
 | 2 | Distribution Certificate + Provisioning Profile (Apple Developer Program, USD 99/tahun) | `eas credentials --platform ios` |
-| 3 | `google-services.json` asli, FCM V1 key, APNs `.p8` | [PUSH-NOTIFICATIONS.md](./PUSH-NOTIFICATIONS.md) |
+| 3 | FCM V1 key dan APNs `.p8` | `google-services.json` selesai; lihat [PUSH-NOTIFICATIONS.md](./PUSH-NOTIFICATIONS.md) |
 | 4 | SHA-256 fingerprint + Team ID untuk deep link | [DEEP-LINKING.md](./DEEP-LINKING.md) |
 
 Satu jebakan yang mudah terlewat: setelah Play App Signing aktif, Google

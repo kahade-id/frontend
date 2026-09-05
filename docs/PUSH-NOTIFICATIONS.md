@@ -1,8 +1,9 @@
 # Push notification Kahade — kesiapan native
 
-Status: **konfigurasi native selesai.** Logika pengiriman dari backend belum
-termasuk. Dua berkas kredensial masih harus Anda sediakan sebelum build
-production — lihat "Yang masih Anda perlukan" di bawah.
+Status: **konfigurasi native selesai.** `google-services.json` Android asli
+sudah terpasang dan tervalidasi. Logika pengiriman dari backend belum termasuk;
+kredensial server FCM V1 dan APNs masih harus disiapkan sebelum push production
+— lihat "Yang masih Anda perlukan" di bawah.
 
 Preflight: `npm run check:push` (otomatis juga jalan di EAS Build).
 
@@ -13,7 +14,7 @@ Preflight: `npm run check:push` (otomatis juga jalan di EAS Build).
 | Bagian | Di mana | Status |
 |---|---|---|
 | Plugin `expo-notifications` (icon, color, defaultChannel, sounds, background) | `app.json` | selesai |
-| Berkas FCM Android | `google-services.json` + `android.googleServicesFile` | **placeholder** |
+| Berkas FCM Android | `google-services.json` + `android.googleServicesFile` | **asli, terverifikasi untuk `id.kahade`** |
 | Entitlement push iOS | `ios.entitlements["aps-environment"]` | selesai |
 | Channel `default` & `transaksi` | `lib/push-notifications.ts` | selesai |
 | Registrasi token + simpan | `lib/push-notifications.ts` | sudah ada sebelumnya |
@@ -138,18 +139,15 @@ KAHADE_ALLOW_PLACEHOLDER_FCM=1 npx eas build --profile preview --platform androi
 
 ## Yang masih Anda perlukan sebelum build production
 
-### 1. `google-services.json` asli — WAJIB, Android tidak akan menerima push tanpa ini
+### 1. `google-services.json` asli — SELESAI
 
-Firebase Console → pilih/buat project → Project settings → Your apps →
-Add app → **Android**, package name **`id.kahade`** → unduh
-`google-services.json` → timpa berkas di root repo.
+Berkas konfigurasi aplikasi Firebase sudah ada di root repo. Preflight telah
+memastikan JSON valid, bukan placeholder, dan memiliki Android client dengan
+package name **`id.kahade`** yang sama dengan `app.json`.
 
-Berkas ini tidak berisi rahasia (ia ikut terkirim di dalam APK dan dibatasi
-oleh package name), jadi aman di-commit — dan memang **harus** di-commit,
-karena `app.json` statis tidak bisa membaca variabel lingkungan sejak
-`app.config.ts` dihapus demi satu sumber kebenaran.
-
-Verifikasi: `npm run check:push` harus berubah menjadi OK.
+Berkas ini adalah konfigurasi client yang ikut dikemas dalam APK, bukan service
+account dengan private key. Jika Firebase menerbitkan konfigurasi baru, timpa
+berkas yang sama lalu jalankan kembali `npm run check:push`.
 
 ### 2. FCM V1 service account key — WAJIB, diunggah ke EAS bukan ke repo
 
@@ -182,8 +180,10 @@ produksi sekaligus.
 
 ### 4. Yang TIDAK Anda perlukan
 
-- `GoogleService-Info.plist` — hanya untuk Firebase di iOS. Kahade memakai
-  APNs langsung lewat Expo, jadi tidak perlu.
+- `GoogleService-Info.plist.xml` yang tersimpan di root valid untuk bundle
+  `id.kahade`, tetapi sengaja tidak direferensikan oleh `app.json`. Kahade
+  memakai APNs langsung lewat Expo dan tidak memasang Firebase SDK di iOS;
+  berkas tersebut tidak menggantikan APNs key `.p8`.
 - Sertifikat APNs `.p12` gaya lama — `.p8` menggantikannya.
 
 ---
