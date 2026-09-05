@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Kahade",
-    "slug": "kahade",
+    "slug": "frontend",
     "scheme": "kahade",
     "version": "1.0.0",
     "icon": "./assets/images/icon.png",
@@ -26,13 +26,13 @@
       "bundleIdentifier": "id.kahade",
       "supportsTablet": false,
       "infoPlist": {
-        "NSFaceIDUsageDescription": "Kahade memakai Face ID untuk membuka aplikasi dan mengonfirmasi transaksi tanpa mengetik PIN.",
-        "NSCameraUsageDescription": "Kahade memakai kamera untuk memotret dokumen verifikasi identitas (KTP, selfie), bukti pengiriman, memindai kode QR, dan panggilan video saat sengketa.",
-        "NSMicrophoneUsageDescription": "Kahade memakai mikrofon untuk panggilan video saat penyelesaian sengketa.",
-        "NSPhotoLibraryUsageDescription": "Kahade mengakses galeri untuk memilih foto dokumen verifikasi dan bukti pengiriman.",
         "UIBackgroundModes": [
           "remote-notification"
-        ]
+        ],
+        "NSUserTrackingUsageDescription": "Kahade menggunakan data ini untuk meningkatkan pengalaman aplikasi.",
+        "NFCReaderUsageDescription": "Kahade butuh akses NFC untuk membaca chip identitas elektronik saat verifikasi.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Kahade butuh lokasi untuk verifikasi transaksi COD dan keamanan tambahan.",
+        "NSLocationAlwaysUsageDescription": "Kahade butuh lokasi untuk verifikasi transaksi COD dan keamanan tambahan."
       }
     },
     "android": {
@@ -42,16 +42,30 @@
         "backgroundColor": "#000000"
       },
       "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.CAMERA",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.POST_NOTIFICATIONS",
         "android.permission.USE_BIOMETRIC",
         "android.permission.USE_FINGERPRINT",
+        "android.permission.READ_CONTACTS",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.VIBRATE",
-        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.WAKE_LOCK",
+        "android.permission.FOREGROUND_SERVICE",
         "android.permission.RECEIVE_BOOT_COMPLETED",
-        "android.permission.ACCESS_NETWORK_STATE",
-        "android.permission.WAKE_LOCK"
+        "android.permission.READ_PHONE_STATE",
+        "android.permission.NFC"
+      ],
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
       ]
     },
     "web": {
@@ -77,17 +91,59 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Kahade memakai Face ID untuk membuka aplikasi dan mengonfirmasi transaksi tanpa mengetik PIN."
+          "faceIDPermission": "Kahade menggunakan Face ID untuk login yang lebih aman dan cepat."
         }
       ],
       [
         "expo-camera",
         {
-          "cameraPermission": "Kahade memakai kamera untuk memotret dokumen verifikasi identitas (KTP, selfie), bukti pengiriman, dan memindai kode QR.",
-          "microphonePermission": "Kahade memakai mikrofon untuk panggilan video saat penyelesaian sengketa.",
+          "cameraPermission": "Kahade butuh akses kamera untuk verifikasi identitas dan upload bukti transaksi.",
+          "microphonePermission": "Kahade butuh akses mikrofon untuk kirim pesan suara saat proses pengaduan.",
           "recordAudioAndroid": true
         }
       ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kahade butuh akses galeri untuk memilih foto KTP, selfie, atau bukti transfer.",
+          "cameraPermission": "Kahade butuh akses kamera untuk verifikasi identitas dan upload bukti transaksi.",
+          "microphonePermission": "Kahade butuh akses mikrofon untuk kirim pesan suara saat proses pengaduan."
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Kahade butuh akses galeri untuk memilih foto KTP, selfie, atau bukti transfer.",
+          "savePhotosPermission": "Kahade butuh izin untuk menyimpan invoice/bukti transaksi ke galeri kamu.",
+          "granularPermissions": [
+            "photo",
+            "video"
+          ],
+          "isAccessMediaLocationEnabled": false
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Kahade butuh akses kontak untuk fitur undang teman."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Kahade butuh lokasi untuk verifikasi transaksi COD dan keamanan tambahan.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Kahade butuh akses mikrofon untuk kirim pesan suara saat proses pengaduan.",
+          "recordAudioAndroid": true
+        }
+      ],
+      "expo-file-system",
       [
         "expo-notifications",
         {

@@ -10,7 +10,7 @@ pertama ke Play Store / App Store, beserta alasan keputusan strukturalnya.
 | Field | Nilai | Bisa diubah nanti? |
 |---|---|---|
 | `name` | `Kahade` | Ya (nama tampilan) |
-| `slug` | `kahade` | Tidak — terikat proyek EAS |
+| `slug` | `frontend` | Tidak — terikat proyek EAS |
 | `scheme` | `kahade` | Sebaiknya tidak — deep link tertanam di tautan yang beredar |
 | `android.package` | `id.kahade` | **TIDAK PERNAH** setelah publish |
 | `ios.bundleIdentifier` | `id.kahade` | **TIDAK PERNAH** setelah publish |
@@ -110,12 +110,14 @@ ke `api.kahade.id`, yang tidak bisa dijangkau dari sandbox audit.
    Peringatan `ios: icon: No icon is defined in the Expo config` sudah hilang
    dari output `expo prebuild`.
 
-2. **Slug belum diverifikasi terhadap proyek EAS.** Nilai di repo adalah
-   `kahade`, sedangkan proyek EAS `c3931e6f-…` mungkin dibuat dengan slug
-   lain. EAS CLI akan menolak build bila keduanya berbeda, dengan pesan
-   semacam *"Project config: slug does not match the value currently
-   configured on EAS"*. Verifikasi dengan `eas project:info` (butuh login;
-   tidak tersedia di sandbox audit).
+2. ~~Slug belum diverifikasi terhadap proyek EAS.~~ **SELESAI** — dikoreksi
+   dari `kahade` menjadi `frontend` atas konfirmasi pemilik proyek. Nilai lama
+   akan ditolak EAS dengan *"Project config: slug does not match the value
+   currently configured on EAS"*. Belum bisa diverifikasi otomatis dari sini:
+   sandbox memblokir `api.expo.dev` dan `expo.dev` (http=000 seketika,
+   sedangkan registry npm normal), jadi `eas project:info` maupun panggilan
+   GraphQL langsung tidak bisa dijalankan. Konfirmasi sekali di mesin lokal
+   dengan `npx eas-cli project:info`.
 
 3. **`owner` tidak diset.** Tidak wajib bila build dijalankan oleh pemilik
    proyek, tetapi diperlukan untuk build CI pada akun organisasi.
