@@ -57,7 +57,7 @@ export function readPage<T>(
   // If the server supplies no pagination metadata, don't claim there are no
   // further records on a full page. The next empty page establishes the end.
   const totalPages = numberOr(
-    meta?.totalPages,
+    meta?.totalPages ?? meta?.total_pages,
     Number.isFinite(total) ? Math.ceil(total / limit) : page + Number(data.length >= limit),
   )
   return {

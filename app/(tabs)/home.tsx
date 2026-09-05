@@ -108,6 +108,7 @@ export default function HomeScreen() {
   const [summaryLoading, setSummaryLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
+  const [profileError, setProfileError] = useState<string | null>(null)
   const [walletError, setWalletError] = useState<string | null>(null)
   const [summaryError, setSummaryError] = useState<string | null>(null)
 

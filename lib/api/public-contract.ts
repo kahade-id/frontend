@@ -44,17 +44,17 @@ export function normalizeAppVersion(raw: unknown, platform: string): AppVersionI
   const target = asRecord(data[platform])
   const ios = asRecord(data.ios)
   const android = asRecord(data.android)
-  const stores = asRecord(data.storeUrl)
+  const stores = asRecord(data.storeUrl ?? data.store_url)
   return {
-    minVersion: string(target?.minimumVersion ?? target?.minVersion ?? data.minVersion),
-    latestVersion: string(target?.latestVersion ?? data.latestVersion),
+    minVersion: string(target?.minimumVersion ?? target?.minimum_version ?? target?.minVersion ?? target?.min_version ?? data.minVersion ?? data.min_version),
+    latestVersion: string(target?.latestVersion ?? target?.latest_version ?? data.latestVersion ?? data.latest_version),
     message: string(target?.message ?? data.message),
     storeUrl: {
-      ios: string(ios?.storeUrl ?? stores?.ios),
-      android: string(android?.storeUrl ?? stores?.android),
-      web: string(asRecord(data.web)?.storeUrl ?? stores?.web),
+      ios: string(ios?.storeUrl ?? ios?.store_url ?? stores?.ios),
+      android: string(android?.storeUrl ?? android?.store_url ?? stores?.android),
+      web: string(asRecord(data.web)?.storeUrl ?? asRecord(data.web)?.store_url ?? stores?.web),
     },
-    checkIntervalMs: isNumber(data.checkIntervalMs) ? data.checkIntervalMs : undefined,
+    checkIntervalMs: isNumber(data.checkIntervalMs ?? data.check_interval_ms) ? (data.checkIntervalMs ?? data.check_interval_ms) as number : undefined,
   }
 }
 
@@ -66,28 +66,38 @@ export function normalizeBanks(raw: unknown): Bank[] {
 
 export function normalizeFeeSchedule(raw: unknown): FeeSchedule {
   const data = asRecord(raw)
-  const schedule = asRecord(data?.feeSchedule) ?? data
+  const schedule = asRecord(data?.feeSchedule ?? data?.fee_schedule) ?? data
   if (!schedule) throw invalidResponse("fee-schedule")
   if (Array.isArray(schedule.tiers)) return schedule as FeeSchedule
+  
+  const standardFeeRate = schedule.standardFeeRate ?? schedule.standard_fee_rate
+  const orderMinValue = schedule.orderMinValue ?? schedule.order_min_value
+  const orderMaxValue = schedule.orderMaxValue ?? schedule.order_max_value
+  const standardFeeMin = schedule.standardFeeMin ?? schedule.standard_fee_min
+  const standardFeeMax = schedule.standardFeeMax ?? schedule.standard_fee_max
+  const kahadePlusFeeRate = schedule.kahadePlusFeeRate ?? schedule.kahade_plus_fee_rate
+  const standardFeeDescription = schedule.standardFeeDescription ?? schedule.standard_fee_description
+  const kahadePlusFeeDescription = schedule.kahadePlusFeeDescription ?? schedule.kahade_plus_fee_description
+
   if (
-    !isNumber(schedule.standardFeeRate) ||
-    !isNumber(schedule.orderMinValue) ||
-    !isNumber(schedule.orderMaxValue)
+    !isNumber(standardFeeRate) ||
+    !isNumber(orderMinValue) ||
+    !isNumber(orderMaxValue)
   )
     throw invalidResponse("fee-schedule")
   return {
     tiers: [
       {
-        minValue: schedule.orderMinValue,
-        maxValue: schedule.orderMaxValue,
-        feePercent: schedule.standardFeeRate,
+        minValue: orderMinValue,
+        maxValue: orderMaxValue,
+        feePercent: standardFeeRate,
       },
     ],
-    minFee: isNumber(schedule.standardFeeMin) ? schedule.standardFeeMin : undefined,
-    maxFee: isNumber(schedule.standardFeeMax) ? schedule.standardFeeMax : undefined,
-    plusFeePercent: isNumber(schedule.kahadePlusFeeRate) ? schedule.kahadePlusFeeRate : undefined,
-    description: string(schedule.standardFeeDescription),
-    plusDescription: string(schedule.kahadePlusFeeDescription),
+    minFee: isNumber(standardFeeMin) ? standardFeeMin : undefined,
+    maxFee: isNumber(standardFeeMax) ? standardFeeMax : undefined,
+    plusFeePercent: isNumber(kahadePlusFeeRate) ? kahadePlusFeeRate : undefined,
+    description: string(standardFeeDescription),
+    plusDescription: string(kahadePlusFeeDescription),
   }
 }
 
@@ -100,17 +110,18 @@ export function normalizeSubscriptionPlans(raw: unknown): SubscriptionPlan[] {
       (key !== "MONTHLY" && key !== "ANNUAL") ||
       !string(plan.name) ||
       !isNumber(plan.price) ||
-      plan.price < 0
+      (plan.price as number) < 0
     )
       throw invalidResponse("subscription-plans")
     const benefits = plan.features ?? plan.benefits
+    const duration = plan.durationDays ?? plan.duration_days
     return {
-      id: string(plan.id) ?? key,
-      key,
+      id: string(plan.id) ?? (key as string),
+      key: key as "MONTHLY" | "ANNUAL",
       name: plan.name as string,
-      price: plan.price,
-      durationDays: isNumber(plan.durationDays) ? plan.durationDays : undefined,
-      periodLabel: string(plan.period),
+      price: plan.price as number,
+      durationDays: isNumber(duration) ? duration : undefined,
+      periodLabel: string(plan.period ?? plan.period_label ?? plan.periodLabel),
       benefits: Array.isArray(benefits)
         ? benefits.filter((v): v is string => typeof v === "string")
         : undefined,
@@ -131,15 +142,15 @@ export function normalizeExchangeRates(raw: unknown): ExchangeRates {
   if (
     !data ||
     !asRecord(data.rates) ||
-    !string(data.baseCurrency ?? data.base) ||
-    !string(data.updatedAt)
+    !string(data.baseCurrency ?? data.base_currency ?? data.base) ||
+    !string(data.updatedAt ?? data.updated_at)
   )
     throw invalidResponse("exchange-rates")
   return {
-    base: (data.baseCurrency ?? data.base) as string,
+    base: (data.baseCurrency ?? data.base_currency ?? data.base) as string,
     rates: data.rates as Record<string, number>,
-    updatedAt: data.updatedAt as string,
-    isFallback: data.isFallback === true,
+    updatedAt: (data.updatedAt ?? data.updated_at) as string,
+    isFallback: data.isFallback === true || data.is_fallback === true,
     source: string(data.source),
   }
 }

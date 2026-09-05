@@ -91,7 +91,8 @@ export default function VerifyOtpScreen() {
   // Validasi param — fallback ke register kalau param hilang
   useEffect(() => {
     if (!phoneNumber || !method) {
-      router.replace(ROUTES.register)
+      if (router.canGoBack()) router.back()
+      else router.replace(ROUTES.register)
     }
   }, [phoneNumber, method, router])
 

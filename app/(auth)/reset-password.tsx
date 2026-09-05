@@ -124,7 +124,11 @@ export default function ResetPasswordScreen() {
         description: "Silakan masuk dengan kata sandi baru Anda.",
         tone: "success",
       })
-      router.replace(ROUTES.login)
+      if (router.canDismiss()) {
+        router.dismissAll()
+      } else {
+        router.replace(ROUTES.login)
+      }
     } catch (err) {
       if (isApiError(err)) {
         // OTP invalid/expired

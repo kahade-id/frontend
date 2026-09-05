@@ -73,7 +73,10 @@ export default function VerifyTwoFactorScreen() {
   const [pending] = useState(() => getPendingTwoFactorLogin())
 
   useEffect(() => {
-    if (!pending) router.replace(ROUTES.login)
+    if (!pending) {
+      if (router.canGoBack()) router.back()
+      else router.replace(ROUTES.login)
+    }
   }, [pending, router])
 
   const [mode, setMode] = useState<Mode>("totp")
@@ -140,7 +143,8 @@ export default function VerifyTwoFactorScreen() {
 
   const handleBackToLogin = useCallback(() => {
     clearPendingTwoFactorLogin()
-    router.replace(ROUTES.login)
+    if (router.canGoBack()) router.back()
+    else router.replace(ROUTES.login)
   }, [router])
 
   if (!pending) return null

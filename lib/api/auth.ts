@@ -121,32 +121,45 @@ async function withDevice<T extends { deviceId?: string; deviceInfo?: string }>(
   return { ...dto, deviceId: await getDeviceId(), deviceInfo: getDeviceInfo() } as T
 }
 
-async function persistTokens(result: Partial<AuthTokens>): Promise<void> {
-  if (typeof result?.accessToken !== "string" || !result.accessToken.trim())
+async function persistTokens(result: Record<string, unknown>): Promise<void> {
+  const token = (result?.accessToken ?? result?.access_token ?? result?.token) as string | undefined
+  const refresh = (result?.refreshToken ?? result?.refresh_token) as string | undefined
+  if (typeof token !== "string" || !token.trim())
     throw invalidResponse("auth/tokens")
-  await startSession({ accessToken: result.accessToken, refreshToken: result.refreshToken })
+  await startSession({ accessToken: token, refreshToken: refresh })
 }
 
 // ------------------------------------------------------------------
 // Captcha & CSRF
 // ------------------------------------------------------------------
 
-export function generateCaptcha() {
-  return http.post<CaptchaChallenge>("/v1/auth/captcha/generate", undefined, { auth: "none" })
+export async function generateCaptcha() {
+  const result = await http.post<CaptchaChallenge>("/v1/auth/captcha/generate", undefined, { auth: "none" })
+  return {
+    ...result,
+    captchaId: result.captchaId ?? (result as any).captcha_id,
+    expiresAt: result.expiresAt ?? (result as any).expires_at,
+  }
 }
 
-export function getCsrfToken() {
-  return http.get<CsrfToken>("/v1/auth/csrf-token", { auth: "none" })
+export async function getCsrfToken() {
+  const result = await http.get<CsrfToken>("/v1/auth/csrf-token", { auth: "none" })
+  return {
+    ...result,
+    csrfToken: result.csrfToken ?? (result as any).csrf_token,
+  }
 }
 
 // ------------------------------------------------------------------
 // Registrasi email
 // ------------------------------------------------------------------
 
-export function register(dto: RegisterDto) {
-  return http.post<MessageResult & { user?: AuthUser }, RegisterDto>("/v1/auth/register", dto, {
+export async function register(dto: RegisterDto) {
+  const body = await withDevice<RegisterDto & { deviceId?: string; deviceInfo?: string }>(dto)
+  const result = await http.post<MessageResult & { user?: AuthUser }, any>("/v1/auth/register", body, {
     auth: "none",
   })
+  return result
 }
 
 export function verifyEmail(dto: VerifyEmailDto) {
@@ -195,7 +208,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
  */
 export function normalizeOtpMethods(raw: unknown): OtpMethod[] {
   const rec = asRecord(raw)
-  const list = Array.isArray(raw) ? raw : (rec?.methods ?? rec?.data ?? rec?.availableMethods)
+  const list = Array.isArray(raw) ? raw : (rec?.methods ?? rec?.data ?? rec?.availableMethods ?? rec?.available_methods)
   if (!Array.isArray(list)) return []
 
   const out: OtpMethod[] = []
@@ -203,7 +216,7 @@ export function normalizeOtpMethods(raw: unknown): OtpMethod[] {
     let candidate: unknown = item
     const obj = asRecord(item)
     if (obj) {
-      if (obj.enabled === false || obj.available === false) continue
+      if (obj.enabled === false || obj.is_enabled === false || obj.available === false || obj.is_available === false) continue
       candidate = obj.method ?? obj.id ?? obj.name ?? obj.value
     }
     const upper = typeof candidate === "string" ? candidate.toUpperCase() : candidate
@@ -217,12 +230,18 @@ export async function getOtpMethods(): Promise<OtpMethodsResult> {
   return { methods: normalizeOtpMethods(raw) }
 }
 
-export function requestOtp(dto: RequestOtpDto) {
-  return http.post<MessageResult & { expiresIn?: number; cooldownSeconds?: number }, RequestOtpDto>(
+export async function requestOtp(dto: RequestOtpDto) {
+  const body = await withDevice<RequestOtpDto & { deviceId?: string; deviceInfo?: string }>(dto)
+  const result = await http.post<MessageResult & { expiresIn?: number; cooldownSeconds?: number }, any>(
     "/v1/auth/request-otp",
-    dto,
+    body,
     { auth: "none" },
   )
+  return {
+    ...result,
+    expiresIn: result.expiresIn ?? (result as any).expires_in,
+    cooldownSeconds: result.cooldownSeconds ?? (result as any).cooldown_seconds,
+  }
 }
 
 export async function verifyOtp(dto: WithoutDevice<VerifyPhoneOtpDto>) {
@@ -231,10 +250,17 @@ export async function verifyOtp(dto: WithoutDevice<VerifyPhoneOtpDto>) {
     auth: "none",
   })
   if (!responseRecord(result)) throw invalidResponse("verify-otp")
-  if ("isNewUser" in result && result.isNewUser) {
-    if (typeof result.tempToken !== "string" || !result.tempToken)
+  
+  const isNew = result.isNewUser ?? (result as any).is_new_user
+  const tempToken = (result as any).tempToken ?? (result as any).temp_token
+
+  if (isNew) {
+    if (typeof tempToken !== "string" || !tempToken)
       throw invalidResponse("verify-otp/tempToken")
-  } else await persistTokens(result)
+    return { ...result, isNewUser: true, tempToken }
+  } else {
+    await persistTokens(result)
+  }
   return result
 }
 
@@ -264,10 +290,18 @@ export async function login(dto: WithoutDevice<LoginDto>) {
   const body = await withDevice<LoginDto>(dto)
   const result = await http.post<LoginResult, LoginDto>("/v1/auth/login", body, { auth: "none" })
   if (!responseRecord(result)) throw invalidResponse("login")
-  if (result.requiresTwoFactor) {
-    if (typeof result.tempToken !== "string" || !result.tempToken)
+  
+  // Normalize response keys that might be snake_case
+  const requires2fa = result.requiresTwoFactor ?? (result as any).requires_two_factor
+  const tempToken = (result as any).tempToken ?? (result as any).temp_token
+
+  if (requires2fa) {
+    if (typeof tempToken !== "string" || !tempToken)
       throw invalidResponse("login/tempToken")
-  } else await persistTokens(result)
+    return { ...result, requiresTwoFactor: true, tempToken }
+  } else {
+    await persistTokens(result)
+  }
   return result
 }
 
@@ -304,14 +338,16 @@ export async function logout(dto: LogoutDto = {}): Promise<void> {
 // Password
 // ------------------------------------------------------------------
 
-export function forgotPassword(dto: ForgotPasswordDto) {
-  return http.post<MessageResult, ForgotPasswordDto>("/v1/auth/forgot-password", dto, {
+export async function forgotPassword(dto: ForgotPasswordDto) {
+  const body = await withDevice<ForgotPasswordDto & { deviceId?: string; deviceInfo?: string }>(dto)
+  return http.post<MessageResult, any>("/v1/auth/forgot-password", body, {
     auth: "none",
   })
 }
 
-export function resetPassword(dto: ResetPasswordDto) {
-  return http.post<MessageResult, ResetPasswordDto>("/v1/auth/reset-password", dto, {
+export async function resetPassword(dto: ResetPasswordDto) {
+  const body = await withDevice<ResetPasswordDto & { deviceId?: string; deviceInfo?: string }>(dto)
+  return http.post<MessageResult, any>("/v1/auth/reset-password", body, {
     auth: "none",
   })
 }
@@ -337,18 +373,31 @@ export function changePassword(dto: ChangePasswordDto) {
 // 2FA (TOTP)
 // ------------------------------------------------------------------
 
-export function get2faStatus() {
-  return http.get<TwoFactorStatus>("/v1/auth/2fa/status", { auth: "required" })
+export async function get2faStatus() {
+  const result = await http.get<TwoFactorStatus>("/v1/auth/2fa/status", { auth: "required" })
+  return {
+    ...result,
+    backupCodesRemaining: result.backupCodesRemaining ?? (result as any).backup_codes_remaining,
+  }
 }
 
-export function setup2fa(dto: Setup2faDto) {
-  return http.post<TwoFactorSetup, Setup2faDto>("/v1/auth/2fa/setup", dto, { auth: "required" })
+export async function setup2fa(dto: Setup2faDto) {
+  const result = await http.post<TwoFactorSetup, Setup2faDto>("/v1/auth/2fa/setup", dto, { auth: "required" })
+  return {
+    ...result,
+    otpauthUrl: result.otpauthUrl ?? (result as any).otpauth_url,
+    qrCode: result.qrCode ?? (result as any).qr_code,
+  }
 }
 
-export function enable2fa(dto: Enable2faDto) {
-  return http.post<BackupCodes & Partial<MessageResult>, Enable2faDto>("/v1/auth/2fa/enable", dto, {
+export async function enable2fa(dto: Enable2faDto) {
+  const result = await http.post<BackupCodes & Partial<MessageResult>, Enable2faDto>("/v1/auth/2fa/enable", dto, {
     auth: "required",
   })
+  return {
+    ...result,
+    backupCodes: result.backupCodes ?? (result as any).backup_codes,
+  }
 }
 
 /** Kirim OTP email yang dibutuhkan `Disable2faDto.emailOtpCode`. */
@@ -363,8 +412,12 @@ export function disable2fa(dto: Disable2faDto) {
 }
 
 /** Spec memakai `Setup2faDto` (password) sebagai body regenerate. */
-export function regenerateBackupCodes(dto: Setup2faDto) {
-  return http.post<BackupCodes, Setup2faDto>("/v1/auth/2fa/backup-codes/regenerate", dto, {
+export async function regenerateBackupCodes(dto: Setup2faDto) {
+  const result = await http.post<BackupCodes, Setup2faDto>("/v1/auth/2fa/backup-codes/regenerate", dto, {
     auth: "required",
   })
+  return {
+    ...result,
+    backupCodes: result.backupCodes ?? (result as any).backup_codes,
+  }
 }

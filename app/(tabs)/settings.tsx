@@ -75,6 +75,7 @@ import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { SearchField } from "@/components/ui/search-field"
 
 // ------------------------------------------------------------------
 // Definisi menu
@@ -314,10 +315,10 @@ export default function SettingsScreen() {
         <Divider />
 
         <View style={styles.search}>
-          <DebouncedSearchField
+          <SearchField
             autoFocus={false}
             placeholder="Cari pengaturan"
-            onQueryChange={setMenuQuery}
+            onChangeText={setMenuQuery}
           />
         </View>
 
@@ -371,6 +372,10 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  search: {
+    paddingHorizontal: tokens.layout.screenPaddingX,
+    paddingTop: tokens.space[4],
+  },
   group: {
     gap: tokens.space[3],
     paddingHorizontal: tokens.layout.screenPaddingX,
