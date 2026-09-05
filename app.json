@@ -24,6 +24,9 @@
     },
     "ios": {
       "bundleIdentifier": "id.kahade",
+      "entitlements": {
+        "aps-environment": "development"
+      },
       "supportsTablet": false,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -37,6 +40,7 @@
     },
     "android": {
       "package": "id.kahade",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#000000"
@@ -150,6 +154,7 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#000000",
           "defaultChannel": "default",
+          "sounds": [],
           "enableBackgroundRemoteNotifications": true
         }
       ],

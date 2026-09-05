@@ -23,7 +23,9 @@
     "build:web": "EXPO_OFFLINE=1 expo export --platform web",
     "preview:web": "node scripts/serve-web.mjs",
     "gen:brand": "node scripts/gen-brand-assets.mjs",
-    "qa:icon": "node scripts/qa-icon.mjs"
+    "qa:icon": "node scripts/qa-icon.mjs",
+    "check:push": "node scripts/check-push.mjs",
+    "eas-build-pre-install": "node scripts/check-push.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",
