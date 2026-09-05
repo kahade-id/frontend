@@ -10,10 +10,15 @@
  *  - getWallet()             → saldo
  *  - getWalletTransactions() → riwayat
  */
-import { useCallback, useEffect, useState } from "react"
-import { FlatList, StyleSheet, View } from "react-native"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { FlatList, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  ArrowsLeftRight,
+} from "phosphor-react-native"
 
 import { getWallet, getWalletTransactions } from "@/lib/api/wallet"
 import type { Wallet, WalletTransaction } from "@/lib/api/wallet"
@@ -25,10 +30,11 @@ import { Divider } from "@/components/ui/divider"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { Icon } from "@/components/ui/icon"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { LoadMore } from "@/components/ui/load-more"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { VStack } from "@/components/ui/stack"
 
 const PAGE_SIZE = 20
 
@@ -89,60 +95,64 @@ export default function WalletScreen() {
     fetchTxns(1)
   }, [fetchWallet, fetchTxns])
 
-  // ── Render header (sticky di atas FlatList) ─────────────────────
-  const ListHeader = (
-    <View>
-      {/* Kartu saldo */}
-      <Card style={styles.balanceCard}>
-        <Text variant="caption" color="muted">
-          Saldo tersedia
+  // ── Render header — useMemo agar FlatList tidak re-render tiap render ──
+  const ListHeader = useMemo(
+    () => (
+      <View>
+        {/* Kartu saldo */}
+        <Card className="mt-3 mb-2 p-5 gap-1">
+          <Text variant="caption" tone="secondary">
+            Saldo tersedia
+          </Text>
+
+          {walletError ? (
+            <ErrorState message={walletError} onRetry={fetchWallet} compact />
+          ) : (
+            <>
+              <Amount
+                value={wallet?.availableBalance ?? wallet?.balance ?? 0}
+                currency={wallet?.currency ?? "IDR"}
+                size="xl"
+                loading={walletLoading}
+              />
+
+              {(wallet?.holdBalance ?? 0) > 0 && (
+                <Text variant="caption" tone="warning" className="mt-1">
+                  Rp {wallet!.holdBalance!.toLocaleString("id-ID")} sedang ditahan
+                </Text>
+              )}
+            </>
+          )}
+        </Card>
+
+        {/* Quick action */}
+        <View className="flex-row justify-around py-2">
+          <ActionButton
+            icon={ArrowDownToLine}
+            label="Topup"
+            onPress={() => router.push("/topup" as any)}
+          />
+          <ActionButton
+            icon={ArrowUpFromLine}
+            label="Tarik"
+            onPress={() => router.push("/withdraw" as any)}
+          />
+          <ActionButton
+            icon={ArrowsLeftRight}
+            label="Transfer"
+            onPress={() => router.push("/transfer" as any)}
+          />
+        </View>
+
+        <Divider className="my-3" />
+
+        <Text variant="label" className="mb-2">
+          Riwayat
         </Text>
-
-        {walletError ? (
-          <ErrorState message={walletError} onRetry={fetchWallet} compact />
-        ) : (
-          <>
-            <Amount
-              value={wallet?.availableBalance ?? wallet?.balance ?? 0}
-              currency={wallet?.currency ?? "IDR"}
-              size="xl"
-              loading={walletLoading}
-            />
-
-            {(wallet?.holdBalance ?? 0) > 0 && (
-              <Text variant="caption" color="warning" style={styles.holdText}>
-                Rp {wallet!.holdBalance!.toLocaleString("id-ID")} sedang ditahan
-              </Text>
-            )}
-          </>
-        )}
-      </Card>
-
-      {/* Quick action */}
-      <View style={styles.actions}>
-        <ActionButton
-          icon="arrow-down-to-line"
-          label="Topup"
-          onPress={() => router.push("/topup" as any)}
-        />
-        <ActionButton
-          icon="arrow-up-from-line"
-          label="Tarik"
-          onPress={() => router.push("/withdraw" as any)}
-        />
-        <ActionButton
-          icon="arrow-right-arrow-left"
-          label="Transfer"
-          onPress={() => router.push("/transfer" as any)}
-        />
       </View>
-
-      <Divider style={styles.divider} />
-
-      <Text variant="label" style={styles.historyTitle}>
-        Riwayat
-      </Text>
-    </View>
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [wallet, walletLoading, walletError, fetchWallet],
   )
 
   return (
@@ -153,10 +163,10 @@ export default function WalletScreen() {
         data={txns}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => <TxnRow txn={item} />}
-        ListHeaderComponent={ListHeader}
+        ListHeaderComponent={() => ListHeader}
         contentContainerStyle={[
-          styles.list,
-          txns.length === 0 && styles.listEmpty,
+          { paddingHorizontal: 16, gap: 4 },
+          txns.length === 0 && { flexGrow: 1 },
           { paddingBottom: insets.bottom + 16 },
         ]}
         refreshing={refreshing}
@@ -186,12 +196,17 @@ export default function WalletScreen() {
 
 // ── Sub-komponen ─────────────────────────────────────────────────
 
+/**
+ * fix W5, W6: ActionButton tidak lagi meneruskan string name ke <Icon>
+ * dan tidak menggunakan `contentStyle` (bukan prop Button).
+ * Layout ikon+label vertikal dibangun manual dalam children Button ghost.
+ */
 function ActionButton({
   icon,
   label,
   onPress,
 }: {
-  icon: string
+  icon: IconComponent
   label: string
   onPress: () => void
 }) {
@@ -199,15 +214,16 @@ function ActionButton({
     <Button
       variant="ghost"
       onPress={onPress}
-      style={styles.actionBtn}
-      contentStyle={styles.actionBtnContent}
+      className="flex-1 items-center"
     >
-      <View style={styles.actionIconWrapper}>
-        <Icon name={icon} size={20} />
-      </View>
-      <Text variant="caption" style={styles.actionLabel}>
-        {label}
-      </Text>
+      <VStack gap={1} align="center">
+        <View className="w-12 h-12 rounded-full items-center justify-center bg-black/[0.06] dark:bg-white/[0.08]">
+          <Icon icon={icon} size="md" />
+        </View>
+        <Text variant="caption" className="text-center">
+          {label}
+        </Text>
+      </VStack>
     </Button>
   )
 }
@@ -223,85 +239,28 @@ const TXN_LABELS: Record<string, string> = {
 }
 
 function TxnRow({ txn }: { txn: WalletTransaction }) {
-  const isCredit = txn.direction === "CREDIT" || ["TOPUP", "TRANSFER_IN", "ORDER_RELEASE", "REFUND"].includes(txn.type)
+  const isCredit =
+    txn.direction === "CREDIT" ||
+    ["TOPUP", "TRANSFER_IN", "ORDER_RELEASE", "REFUND"].includes(txn.type)
   const sign = isCredit ? "+" : "-"
-  const color = isCredit ? "success" : "danger"
+  // fix W3: gunakan tone (bukan color) pada <Text>
+  const tone = isCredit ? "success" : "danger"
 
   return (
-    <View style={styles.txnRow}>
-      <View style={styles.txnLeft}>
+    <View className="flex-row items-center justify-between py-2.5">
+      <View className="flex-1 mr-3">
         <Text variant="body">{TXN_LABELS[txn.type] ?? txn.type}</Text>
+        {/* fix W4: tone="secondary" (bukan color="muted") */}
         {txn.description ? (
-          <Text variant="caption" color="muted" numberOfLines={1}>
+          <Text variant="caption" tone="secondary" numberOfLines={1}>
             {txn.description}
           </Text>
         ) : null}
       </View>
-      <Text variant="body" color={color}>
+      {/* fix W3: tone prop menggantikan color */}
+      <Text variant="body" tone={tone}>
         {sign} Rp {txn.amount.toLocaleString("id-ID")}
       </Text>
     </View>
   )
 }
-
-// ── Styles ─────────────────────────────────────────────────────
-
-const styles = StyleSheet.create({
-  list: {
-    paddingHorizontal: 16,
-    gap: 4,
-  },
-  listEmpty: {
-    flexGrow: 1,
-  },
-  balanceCard: {
-    marginTop: 12,
-    marginBottom: 8,
-    padding: 20,
-    gap: 4,
-  },
-  holdText: {
-    marginTop: 4,
-  },
-  actions: {
-    flexDirection: "row",
-    justifyContent: "space-around",
-    paddingVertical: 8,
-  },
-  actionBtn: {
-    flex: 1,
-    alignItems: "center",
-  },
-  actionBtnContent: {
-    flexDirection: "column",
-    alignItems: "center",
-    gap: 6,
-  },
-  actionIconWrapper: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(0,0,0,0.06)",
-  },
-  actionLabel: {
-    textAlign: "center",
-  },
-  divider: {
-    marginVertical: 12,
-  },
-  historyTitle: {
-    marginBottom: 8,
-  },
-  txnRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 10,
-  },
-  txnLeft: {
-    flex: 1,
-    marginRight: 12,
-  },
-})

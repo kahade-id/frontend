@@ -12,9 +12,10 @@
  *  - FAB "Buat Transaksi" → ROUTES.createTransaction
  */
 import { useCallback, useEffect, useState } from "react"
-import { FlatList, StyleSheet, View } from "react-native"
+import { FlatList, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
+import { Plus } from "phosphor-react-native"
 
 import { getTransactions } from "@/lib/api/transactions"
 import { ROUTES } from "@/lib/routes"
@@ -47,19 +48,27 @@ export default function TransactionsScreen() {
   const [error, setError] = useState<string | null>(null)
 
   const fetchOrders = useCallback(
+    // fix M1: pisah setLoading/setRefreshing di finally agar tidak ada
+    // race-condition saat isRefresh=true — loading tidak salah tersisa true.
     async (isRefresh = false) => {
       try {
-        if (isRefresh) setRefreshing(true)
-        else setLoading(true)
+        if (isRefresh) {
+          setRefreshing(true)
+        } else {
+          setLoading(true)
+        }
         setError(null)
 
         const res = await getTransactions({ status: filter })
         setOrders(res.data)
-      } catch (err) {
+      } catch {
         setError("Gagal memuat transaksi. Coba lagi.")
       } finally {
-        setLoading(false)
-        setRefreshing(false)
+        if (isRefresh) {
+          setRefreshing(false)
+        } else {
+          setLoading(false)
+        }
       }
     },
     [filter],
@@ -79,12 +88,16 @@ export default function TransactionsScreen() {
     router.push(ROUTES.createTransaction)
   }, [])
 
+  // Tab bar tinggi ~56px + 16px gap = 72. bottomOffset prop menghitung
+  // insets.bottom secara internal, jadi cukup kirim 72 sebagai clearance.
+  const FAB_BOTTOM_OFFSET = insets.bottom + 72
+
   return (
     <Screen edges={["top"]}>
       <Header title="Transaksi" />
 
       {/* Filter status */}
-      <View style={styles.filterWrapper}>
+      <View className="px-4 py-2">
         <SegmentedControl
           segments={FILTERS.map((f) => f.label)}
           selectedIndex={FILTERS.findIndex((f) => f.value === filter)}
@@ -108,8 +121,8 @@ export default function TransactionsScreen() {
             />
           )}
           contentContainerStyle={[
-            styles.list,
-            orders.length === 0 && styles.listEmpty,
+            { paddingHorizontal: 16, gap: 12 },
+            orders.length === 0 && { flex: 1, justifyContent: "center" },
             { paddingBottom: insets.bottom + 80 },
           ]}
           refreshing={refreshing}
@@ -126,27 +139,13 @@ export default function TransactionsScreen() {
         />
       )}
 
-      {/* FAB — buat transaksi baru */}
+      {/* fix T1 & T2: icon harus IconComponent (bukan string), accessibilityLabel required */}
       <FloatingActionButton
-        icon="plus"
+        icon={Plus}
+        accessibilityLabel="Buat transaksi baru"
         onPress={handleCreate}
-        style={{ bottom: insets.bottom + 16 }}
+        bottomOffset={FAB_BOTTOM_OFFSET}
       />
     </Screen>
   )
 }
-
-const styles = StyleSheet.create({
-  filterWrapper: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  list: {
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  listEmpty: {
-    flex: 1,
-    justifyContent: "center",
-  },
-})

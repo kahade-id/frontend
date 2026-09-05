@@ -11,14 +11,13 @@
  *  - Logout: panggil clearSession() lalu redirect ke ROUTES.login
  */
 import { useCallback, useEffect, useState } from "react"
-import { Alert, ScrollView, StyleSheet, View } from "react-native"
+import { Alert, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
 import {
   Bell,
   Briefcase,
   CaretRight,
-  CircleHalf,
   FileText,
   Fingerprint,
   GridFour,
@@ -26,6 +25,7 @@ import {
   Landmark,
   Lock,
   MessageCircle,
+  Question,
   Shield,
   User,
 } from "phosphor-react-native"
@@ -93,7 +93,8 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: "Bantuan",
     items: [
-      { id: "faq", icon: CircleHalf, label: "FAQ", route: "/faq" },
+      // fix M5: CircleHalf diganti Question — lebih sesuai semantik FAQ
+      { id: "faq", icon: Question, label: "FAQ", route: "/faq" },
       { id: "contact", icon: MessageCircle, label: "Hubungi Kami", route: "/contact" },
     ],
   },
@@ -155,24 +156,30 @@ export default function SettingsScreen() {
       <Header title="Pengaturan" />
 
       <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profil card — PressableScale konsisten dengan sistem */}
+        {/*
+          fix S3: PressableScale tidak menerima prop `style` (di-Omit dari
+          PressableProps). Gunakan containerClassName + className untuk layout,
+          style dipakai hanya untuk nilai runtime (safe-area, dll) — tidak
+          perlu di sini karena semua padding sudah bisa dari className.
+        */}
         <PressableScale
-          style={styles.profileCard}
+          containerClassName="w-full"
+          className="flex-row items-center py-3 gap-3"
           onPress={() => router.push("/edit-profile" as any)}
           scaleOnPress={false}
           accessibilityRole="button"
           accessibilityLabel="Edit profil"
         >
-          {/* source menerima string URL atau ImageSourcePropType; size enum xs|sm|md|lg|xl */}
           <Avatar
             source={profile?.avatarUrl ?? undefined}
             name={profile?.fullName ?? "—"}
             size="lg"
           />
-          <View style={styles.profileInfo}>
+          <View className="flex-1">
+            {/* fix S2: variant="label" sudah valid di TextVariant */}
             <Text variant="label" numberOfLines={1}>
               {profile?.fullName ?? "—"}
             </Text>
@@ -183,12 +190,22 @@ export default function SettingsScreen() {
           <Icon icon={CaretRight} size="sm" />
         </PressableScale>
 
-        <Divider style={styles.divider} />
+        <Divider className="my-2" />
 
         {/* Menu groups — ListItem + ListGroup dari sistem */}
         {MENU_GROUPS.map((group, gi) => (
-          <View key={group.title} style={gi > 0 ? styles.groupGap : undefined}>
-            <Text variant="overline" tone="secondary" style={styles.groupTitle}>
+          <View key={group.title} className={gi > 0 ? "mt-5" : undefined}>
+            {/*
+              fix S1: "overline" bukan TextVariant yang valid di tabel sizeClass
+              (valid: display|h1|h2|h3|bodyLarge|body|caption|label|monoLarge|monoBody).
+              Ganti ke variant="caption" + letterSpacing manual via style.
+            */}
+            <Text
+              variant="caption"
+              tone="secondary"
+              className="mb-1.5 ml-1"
+              style={{ textTransform: "uppercase", letterSpacing: 0.8 }}
+            >
               {group.title}
             </Text>
 
@@ -217,12 +234,12 @@ export default function SettingsScreen() {
           </View>
         ))}
 
-        {/* Logout — variant destructive (bukan danger-outline yang tidak ada) */}
+        {/* Logout — variant destructive */}
         <Button
           variant="destructive"
           onPress={handleLogout}
           loading={loggingOut}
-          style={styles.logoutBtn}
+          className="mt-8"
           fullWidth
         >
           Keluar
@@ -231,38 +248,3 @@ export default function SettingsScreen() {
     </Screen>
   )
 }
-
-// ------------------------------------------------------------------
-// Styles
-// ------------------------------------------------------------------
-
-const styles = StyleSheet.create({
-  scroll: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-  },
-  profileCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 12,
-    gap: 12,
-  },
-  profileInfo: {
-    flex: 1,
-  },
-  divider: {
-    marginVertical: 8,
-  },
-  groupGap: {
-    marginTop: 20,
-  },
-  groupTitle: {
-    marginBottom: 6,
-    marginLeft: 4,
-    textTransform: "uppercase",
-    letterSpacing: 0.8,
-  },
-  logoutBtn: {
-    marginTop: 32,
-  },
-})

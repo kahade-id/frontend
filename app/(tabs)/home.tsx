@@ -29,7 +29,7 @@
  *   - ROUTES.createTransaction belum ada → quick action mengarah ke
  *     ROUTES.transactions sampai item #3 selesai dan route itu dibuat.
  *   - countActiveOrders menjumlahkan hanya status "dalam proses"; status
- *     terminal (COMPLETED, CANCELLED, REFUNDED) tidak dihitung aktif.
+ *     terminal (COMPLETED, CANCELLED, REFUNDED, DISPUTED) tidak dihitung aktif.
  *     Cocokkan dengan backend bila OrderStatus berubah.
  *   - Screen pakai `background="surface"` dan card `variant="elevated"`
  *     agar card putih terlihat naik di atas latar abu muda (hierarki §6).
@@ -170,6 +170,15 @@ export default function HomeScreen() {
         {/* ── Header: sapaan + avatar ── */}
         {profileState === "loading" ? (
           <HeaderSkeleton />
+        ) : profileState === "error" ? (
+          // fix M3: handle error state profil — sebelumnya layar kosong
+          <HStack gap={3} className="py-2">
+            <View className="w-10 h-10 rounded-full bg-surface-offset" />
+            <VStack gap={0} flex>
+              <Text variant="caption" tone="secondary">{greetingByHour()},</Text>
+              <Text variant="h2" tone="secondary" numberOfLines={1}>Pengguna</Text>
+            </VStack>
+          </HStack>
         ) : (
           <HStack gap={3} className="py-2">
             <Avatar
@@ -250,9 +259,6 @@ export default function HomeScreen() {
               </VStack>
               <ArrowRight
                 size={20}
-                // weight dan color dari tokens; dipakai langsung karena ini
-                // bukan <Icon> wrapper — hanya dekorasi visual, bukan aksi
-                // terpisah (a11y sudah di Card onPress).
                 color="#868E96"
                 weight="regular"
                 accessibilityElementsHidden
