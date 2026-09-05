@@ -142,10 +142,10 @@
     //      diunggah ke App Store.
     //
     //  [3] NOTIFIKASI (lihat docs/PUSH-NOTIFICATIONS.md)
-    //      Android: google-services.json asli + FCM V1 service account key
-    //      iOS:     APNs key .p8
-    //      `npm run check:push` akan menahan build selama google-services.json
-    //      masih placeholder.
+    //      Android: google-services.json asli SUDAH terpasang; FCM V1 service
+    //               account key masih harus diunggah ke EAS.
+    //      iOS:     APNs key .p8 masih harus disiapkan.
+    //      `npm run check:push` saat ini sudah OK.
     //
     //  [4] DEEP LINK (lihat docs/DEEP-LINKING.md)
     //      assetlinks.json: sha256_cert_fingerprints
