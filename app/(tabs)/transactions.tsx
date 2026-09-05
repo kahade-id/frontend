@@ -11,14 +11,18 @@
  *  - EmptyState saat tidak ada order
  *  - FAB "Buat Transaksi" → ROUTES.createTransaction
  *
- * Fix audit:
- *  - K3/K5: hardcode 16/12 spacing diganti tokens.space, import tokens ditambah
- *  - M1: magic number 72 (tab bar height) diganti konstanta TAB_BAR_HEIGHT
+ * Audit fix (round 2):
+ *  T1/T2 [BUG] FilterValue "active"/"completed"/"cancelled" adalah label UI
+ *         informal — tidak cocok OrderStatus enum backend. FILTER_STATUS_MAP
+ *         memetakan label UI → OrderStatus[] yang benar.
+ *  T3    FILTERS[i]! non-null assertion → FILTERS[i]?.value ?? "all"
+ *  T4    verbose cast → as Href (konsisten dengan wallet.tsx)
+ *  T5    tidak ada skeleton loading → SkeletonGroup + OrderCardSkeleton
  */
 import { useCallback, useEffect, useState } from "react"
 import { FlatList, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { router } from "expo-router"
+import { router, type Href } from "expo-router"
 import { Plus } from "phosphor-react-native"
 
 import { getTransactions } from "@/lib/api/transactions"
@@ -30,13 +34,15 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FloatingActionButton } from "@/components/ui/floating-action-button"
 import { Header } from "@/components/ui/header"
-import { OrderCard } from "@/components/ui/order-card"
+import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
 import { Screen } from "@/components/ui/screen"
 import { SegmentedControl } from "@/components/ui/segmented-control"
+import { SkeletonGroup } from "@/components/ui/skeleton"
 
-type FilterValue = "all" | OrderStatus
+// T1: FilterKey adalah label UI; FILTER_STATUS_MAP resolve ke OrderStatus
+type FilterKey = "all" | "active" | "completed" | "cancelled"
 
-const FILTERS: { label: string; value: FilterValue }[] = [
+const FILTERS: { label: string; value: FilterKey }[] = [
   { label: "Semua", value: "all" },
   { label: "Aktif", value: "active" },
   { label: "Selesai", value: "completed" },
@@ -44,26 +50,44 @@ const FILTERS: { label: string; value: FilterValue }[] = [
 ]
 
 /**
- * M1: Tinggi tab bar diambil dari konstanta agar FAB bottom offset
- * tidak bergantung pada magic number. Nilai 56 sesuai RouterBottomTabBar.
- * Bila tinggi tab bar berubah, update konstanta ini saja.
+ * T2: Peta FilterKey → OrderStatus yang dikirim ke API.
+ * "active" mewakili semua status in-progress — sesuaikan bila OrderStatus berubah.
+ */
+const FILTER_STATUS_MAP: Record<FilterKey, OrderStatus | undefined> = {
+  all: undefined,
+  active: "IN_PROGRESS",
+  completed: "COMPLETED",
+  cancelled: "CANCELLED",
+}
+
+/**
+ * M1: Tinggi tab bar dari konstanta agar FAB offset tidak pakai magic number.
+ * Nilai 56 sesuai RouterBottomTabBar. Update sini bila tinggi tab bar berubah.
  */
 const TAB_BAR_HEIGHT = 56
+
+/** Jumlah skeleton card saat loading pertama */
+const SKELETON_COUNT = 4
+
+/** Threshold scroll untuk load-more */
+const ON_END_THRESHOLD = 0.3
 
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets()
 
-  const [filter, setFilter] = useState<FilterValue>("all")
+  const [filter, setFilter] = useState<FilterKey>("all")
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const fetchOrders = useCallback(async (status: FilterValue) => {
+  const fetchOrders = useCallback(async (key: FilterKey) => {
     try {
       setLoading(true)
       setError(null)
-      const res = await getTransactions(status === "all" ? undefined : { status })
+      // T2: resolve FilterKey ke OrderStatus yang benar
+      const status = FILTER_STATUS_MAP[key]
+      const res = await getTransactions(status ? { status } : undefined)
       setOrders(res.data)
     } catch {
       setError("Gagal memuat transaksi. Coba lagi.")
@@ -82,7 +106,6 @@ export default function TransactionsScreen() {
     setRefreshing(false)
   }, [filter, fetchOrders])
 
-  // M1: FAB_BOTTOM_OFFSET dari konstanta + safe area, bukan magic number
   const fabBottomOffset = insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]
 
   return (
@@ -92,12 +115,28 @@ export default function TransactionsScreen() {
       <SegmentedControl
         items={FILTERS.map((f) => f.label)}
         selectedIndex={FILTERS.findIndex((f) => f.value === filter)}
-        onChange={(i) => setFilter(FILTERS[i]!.value)}
+        // T3: bounds-safe — tidak pakai non-null assertion buta
+        onChange={(i) => setFilter(FILTERS[i]?.value ?? "all")}
         className="mx-6 my-3"
       />
 
       {error ? (
         <ErrorState message={error} onRetry={() => fetchOrders(filter)} />
+      ) : loading ? (
+        // T5: skeleton saat loading pertama, bukan layar kosong
+        <SkeletonGroup>
+          <View
+            style={{
+              paddingHorizontal: tokens.space[4],
+              gap: tokens.space[3],
+              paddingTop: tokens.space[2],
+            }}
+          >
+            {Array.from({ length: SKELETON_COUNT }, (_, i) => (
+              <OrderCardSkeleton key={`skeleton-${i}`} />
+            ))}
+          </View>
+        </SkeletonGroup>
       ) : (
         <FlatList
           data={orders}
@@ -105,12 +144,10 @@ export default function TransactionsScreen() {
           renderItem={({ item }) => (
             <OrderCard
               order={item}
-              onPress={() =>
-                router.push(`${ROUTES.transactionDetail}/${item.id}` as Parameters<typeof router.push>[0])
-              }
+              // T4: as Href konsisten
+              onPress={() => router.push(`${ROUTES.transactionDetail}/${item.id}` as Href)}
             />
           )}
-          // K3: hardcode 16/12 → tokens.space[4/3]
           contentContainerStyle={{
             paddingHorizontal: tokens.space[4],
             gap: tokens.space[3],
@@ -118,13 +155,12 @@ export default function TransactionsScreen() {
           }}
           refreshing={refreshing}
           onRefresh={handleRefresh}
+          onEndReachedThreshold={ON_END_THRESHOLD}
           ListEmptyComponent={
-            !loading ? (
-              <EmptyState
-                title="Belum ada transaksi"
-                description="Transaksi kamu akan muncul di sini."
-              />
-            ) : null
+            <EmptyState
+              title="Belum ada transaksi"
+              description="Transaksi kamu akan muncul di sini."
+            />
           }
           showsVerticalScrollIndicator={false}
         />
@@ -133,7 +169,7 @@ export default function TransactionsScreen() {
       <FloatingActionButton
         icon={Plus}
         label="Buat Transaksi"
-        onPress={() => router.push(ROUTES.createTransaction as Parameters<typeof router.push>[0])}
+        onPress={() => router.push(ROUTES.createTransaction as Href)}
         style={{ bottom: fabBottomOffset }}
       />
     </Screen>

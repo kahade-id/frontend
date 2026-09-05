@@ -9,12 +9,16 @@
  *  - Pull-to-refresh
  *  - Skeleton loading rows saat fetch pertama (K2)
  *  - EmptyState saat tidak ada notifikasi
+ *  - Error state bila fetch gagal (N5 — sebelumnya silent)
  *
- * Fix audit:
- *  - K2: skeleton rows selama loading=true, bukan layar kosong
- *  - P2: hapus setPage(1) duplikat dari useEffect — fetchNotifs(1) sudah
- *        memanggil setPage(nextPage) di dalam fungsinya
- *  - M2: StyleSheet hardcode gap/padding diganti tokens.space
+ * Audit fix (round 2):
+ *  N1/N4: FilterValue pakai NotificationCategory langsung — sebelumnya pakai
+ *         "order"/"promo"/"system" (lowercase informal) yang tidak cocok dengan
+ *         tipe API "TRANSAKSI"|"PROMOSI"|"INFORMASI". Ini bug runtime: category
+ *         yang dikirim ke API tidak pernah cocok enum yang diharapkan.
+ *  N2:    Skeleton key pakai string "skeleton-{i}", bukan bare index.
+ *  N3:    ON_END_THRESHOLD konstanta bernama, bukan magic number 0.3.
+ *  N5:    fetchNotifs set errorMsg bila catch; screen tampilkan ErrorState.
  */
 import { useCallback, useEffect, useState } from "react"
 import { FlatList, ScrollView, StyleSheet, View } from "react-native"
@@ -25,12 +29,12 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/api/notifications"
-import type { AppNotification } from "@/lib/api/notifications"
-import type { NotificationCategory } from "@/components/ui/notification-list-item"
+import type { AppNotification, NotificationCategory } from "@/lib/api/notifications"
 
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
 import { NotificationListItem } from "@/components/ui/notification-list-item"
@@ -38,19 +42,24 @@ import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { tokens } from "@/lib/tokens"
 
+// N1/N4: FilterValue sekarang "ALL" | NotificationCategory — persis yang dikirim ke API
 type FilterValue = "ALL" | NotificationCategory
 
+// N1: label tetap bahasa Indonesia, value = enum API yang benar
 const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "Semua", value: "ALL" },
-  { label: "Transaksi", value: "order" },
-  { label: "Promosi", value: "promo" },
-  { label: "Informasi", value: "system" },
+  { label: "Transaksi", value: "TRANSAKSI" },
+  { label: "Promosi", value: "PROMOSI" },
+  { label: "Informasi", value: "INFORMASI" },
 ]
 
 const PAGE_SIZE = 20
 
 /** Jumlah skeleton rows yang ditampilkan saat loading pertama kali */
 const SKELETON_COUNT = 5
+
+/** Threshold scroll untuk memicu load-more (0–1, persentase dari akhir list) */
+const ON_END_THRESHOLD = 0.3
 
 // ------------------------------------------------------------------
 // Skeleton placeholder: satu baris notifikasi
@@ -89,6 +98,8 @@ export default function NotificationsScreen() {
   const [loadingMore, setLoadingMore] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [markingAll, setMarkingAll] = useState(false)
+  // N5: error state — sebelumnya fetch error diabaikan diam-diam
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const hasUnread = notifs.some((n) => !n.isRead)
 
@@ -98,8 +109,10 @@ export default function NotificationsScreen() {
       try {
         if (nextPage === 1 && !isRefresh) setLoading(true)
         else if (nextPage > 1) setLoadingMore(true)
+        setFetchError(null)
 
         const res = await getNotifications({
+          // N1/N4: filter === "ALL" → undefined; selain itu langsung NotificationCategory
           category: filter === "ALL" ? undefined : filter,
           page: nextPage,
           limit: PAGE_SIZE,
@@ -109,7 +122,9 @@ export default function NotificationsScreen() {
         setPage(nextPage)
         setHasMore(nextPage < res.meta.totalPages)
       } catch {
-        // fetch gagal: biarkan list yang ada
+        // N5: tampilkan error state, bukan biarkan layar kosong tak bergerak
+        if (nextPage === 1) setFetchError("Gagal memuat notifikasi. Coba lagi.")
+        // load-more gagal: biarkan list yang ada, tidak perlu error state besar
       } finally {
         setLoading(false)
         setLoadingMore(false)
@@ -118,7 +133,6 @@ export default function NotificationsScreen() {
     [filter],
   )
 
-  // P2: hapus setPage(1) duplikat — fetchNotifs(1) sudah handle setPage di dalam
   useEffect(() => {
     void fetchNotifs(1)
   }, [fetchNotifs])
@@ -131,10 +145,8 @@ export default function NotificationsScreen() {
 
   // ── Mark single as read ────────────────────────────────────────
   const handleRead = useCallback((id: string) => {
-    // Optimistic update
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
     markNotificationRead(id).catch(() => {
-      // rollback bila gagal
       setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)))
     })
   }, [])
@@ -146,7 +158,7 @@ export default function NotificationsScreen() {
       await markAllNotificationsRead()
       setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
     } catch {
-      // gagal: biarkan state tidak berubah, user bisa retry
+      // gagal: biarkan state tidak berubah
     } finally {
       setMarkingAll(false)
     }
@@ -170,7 +182,7 @@ export default function NotificationsScreen() {
         }
       />
 
-      {/* Filter kategori — horizontal scroll Chip */}
+      {/* Filter kategori */}
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -187,13 +199,16 @@ export default function NotificationsScreen() {
         ))}
       </ScrollView>
 
-      {/* K2: skeleton rows selama loading=true pertama kali */}
       {loading ? (
         <SkeletonGroup>
           {Array.from({ length: SKELETON_COUNT }, (_, i) => (
-            <NotifSkeletonRow key={i} />
+            // N2: key string bernama, bukan bare index
+            <NotifSkeletonRow key={`skeleton-${i}`} />
           ))}
         </SkeletonGroup>
+      ) : fetchError ? (
+        // N5: error state eksplisit dengan tombol retry
+        <ErrorState message={fetchError} onRetry={() => fetchNotifs(1)} />
       ) : (
         <FlatList
           data={notifs}
@@ -202,7 +217,7 @@ export default function NotificationsScreen() {
             <NotificationListItem
               title={item.title}
               body={item.body}
-              category={item.category as NotificationCategory}
+              category={item.category}
               timestamp={item.createdAt}
               unread={!item.isRead}
               onPress={() => {
@@ -220,7 +235,8 @@ export default function NotificationsScreen() {
           onEndReached={() => {
             if (hasMore && !loadingMore) fetchNotifs(page + 1)
           }}
-          onEndReachedThreshold={0.3}
+          // N3: konstanta bernama, bukan magic number
+          onEndReachedThreshold={ON_END_THRESHOLD}
           ListFooterComponent={hasMore ? <LoadMore loading={loadingMore} /> : null}
           ListEmptyComponent={
             <EmptyState
@@ -235,7 +251,6 @@ export default function NotificationsScreen() {
   )
 }
 
-// M2: semua magic number diganti tokens.space
 const styles = StyleSheet.create({
   filterScroll: {
     flexGrow: 0,
