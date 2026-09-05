@@ -4,7 +4,7 @@
 import { useCallback, useState } from "react"
 import { ScrollView, View } from "react-native"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
@@ -34,10 +34,13 @@ export default function ChangePasswordScreen() {
       setCurrent("")
       setNext("")
       setConfirm("")
-    } catch {
+    } catch (err: unknown) {
+      // Alasan asli backend (password salah / rate limit / password pernah
+      // dipakai) harus sampai ke pengguna — menebak "Periksa password saat ini"
+      // menyesatkan saat yang terjadi sebenarnya adalah pembatasan percobaan.
       toast.show({
         title: "Gagal mengubah password",
-        description: "Periksa password saat ini.",
+        description: userMessage(err),
         tone: "danger",
       })
     } finally {

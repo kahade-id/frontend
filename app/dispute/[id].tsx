@@ -65,7 +65,7 @@ import { Header } from "@/components/ui/header"
 import { ListGroup } from "@/components/ui/list-item"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { MutualResolutionCard } from "@/components/ui/mutual-resolution-card"
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -469,7 +469,7 @@ export default function DisputeDetailScreen() {
         }}
       >
         {loading && !dispute ? (
-          <ListLoading />
+          <DetailLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : dispute ? (

@@ -1,4 +1,4 @@
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Perpanjangan tenggat pengiriman.
  *
@@ -37,7 +37,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Clock, Plus } from "phosphor-react-native"
 
 import { api, userMessage, type Order } from "@/lib/api"
-import type { OrderExtension, PageQuery } from "@/lib/api/orders"
+import { isExtendable, type OrderExtension, type PageQuery } from "@/lib/api/orders"
 import { addDays, OrderExtensionCard } from "@/components/ui/order-extension-card"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -68,8 +68,6 @@ const REASON_MAX = 500
 const NOTE_MAX = 500
 const PAGE_SIZE: NonNullable<PageQuery["limit"]> = 20
 
-/** Status order yang masih memungkinkan penjual meminta tambahan waktu */
-const EXTENDABLE_STATUSES: ReadonlySet<string> = new Set(["PAID", "PROCESSING", "SHIPPED"])
 
 type Action = { kind: "APPROVE" | "REJECT"; extension: OrderExtension } | null
 type Role = "BUYER" | "SELLER" | null
@@ -134,8 +132,8 @@ export default function ExtensionScreen() {
       const [o] = await Promise.all([api.orders.getOrder(orderId), fetchPage(1)])
       setOrder(o ?? null)
       if (o) setRole(await resolveRole(o))
-    } catch {
-      setError("Gagal memuat permintaan perpanjangan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -156,8 +154,12 @@ export default function ExtensionScreen() {
     setLoadingMore(true)
     try {
       await fetchPage(page + 1)
-    } catch {
-      toast.show({ title: "Gagal memuat halaman berikutnya", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal memuat halaman berikutnya",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setLoadingMore(false)
     }
@@ -184,8 +186,12 @@ export default function ExtensionScreen() {
       })
       setAction(null)
       await fetchAll()
-    } catch {
-      toast.show({ title: "Gagal memproses permintaan", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal memproses permintaan",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setBusy(false)
     }
@@ -238,7 +244,7 @@ export default function ExtensionScreen() {
   const isBuyer = role === "BUYER"
   const requesterName = order ? (order.seller.fullName ?? order.seller.username) : undefined
   const hasPending = items.some((e) => e.status === "PENDING")
-  const canRequest = isSeller && !!order && EXTENDABLE_STATUSES.has(order.status) && !hasPending
+  const canRequest = isSeller && !!order && isExtendable(order.status) && !hasPending
 
   return (
     <Screen
@@ -262,7 +268,7 @@ export default function ExtensionScreen() {
         }}
       >
         {loading ? (
-          <ListLoading />
+          <DetailLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (

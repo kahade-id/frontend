@@ -34,9 +34,16 @@ import {
   Wallet,
 } from "phosphor-react-native"
 
-import { api, type OrderSummary, type UserProfile, type Wallet as WalletData } from "@/lib/api"
+import {
+  api,
+  userMessage,
+  type OrderSummary,
+  type UserProfile,
+  type Wallet as WalletData,
+} from "@/lib/api"
 import { formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 
 import { Amount } from "@/components/ui/amount"
 import { Button } from "@/components/ui/button"
@@ -121,22 +128,25 @@ export default function HomeScreen() {
     setProfileError(null)
 
     await Promise.allSettled([
+      // Pesan galat datang dari `userMessage(err)` (KYC belum selesai, rate
+      // limit, sesi berubah) — bukan satu kalimat generik yang menyamarkan
+      // semua penyebab, sama seperti layar lain setelah audit S2.
       api.users
         .getMe()
         .then(setProfile)
-        .catch(() => setProfileError("Gagal memuat profil."))
+        .catch((err: unknown) => setProfileError(userMessage(err)))
         .finally(() => setProfileLoading(false)),
 
       api.wallet
         .getWallet()
         .then(setWallet)
-        .catch(() => setWalletError("Gagal memuat saldo."))
+        .catch((err: unknown) => setWalletError(userMessage(err)))
         .finally(() => setWalletLoading(false)),
 
       api.orders
         .getOrdersSummary()
         .then(setSummary)
-        .catch(() => setSummaryError("Gagal memuat ringkasan order."))
+        .catch((err: unknown) => setSummaryError(userMessage(err)))
         .finally(() => setSummaryLoading(false)),
     ])
   }, [])
@@ -200,7 +210,9 @@ export default function HomeScreen() {
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        contentContainerClassName="pb-6"
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: tokens.space[8] },
+        }}
       >
         {/* ── Identitas: salam + profil ───────────────────────── */}
         <View className="px-6 pt-4">
@@ -276,13 +288,15 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {/* ── Pintasan ────────────────────────────────────────── */}
-        <View className="px-6 pt-6">
-          <SectionHeader title="Pintasan" />
-          <QuickActionGrid actions={quickActions} className="pt-2" />
-        </View>
-
-        {/* ── Aksi ────────────────────────────────────────────── */}
+        {/*
+         * ── Aksi utama ──────────────────────────────────────────
+         * Urutan komposisi (audit): CTA primer NAIK ke atas pintasan.
+         * Sebelumnya "Buat Transaksi" — alasan utama layar ini ada —
+         * berada di paling bawah, setelah 8 ubin pintasan sekunder,
+         * sehingga aksi terpenting justru paling jauh dari jempol dan
+         * sering di luar layar pertama. Sekarang ia menempel langsung di
+         * bawah ringkasan saldo/order yang menjadi konteksnya.
+         */}
         <VStack gap={3} className="px-6 pt-6">
           <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
             Buat Transaksi
@@ -296,6 +310,12 @@ export default function HomeScreen() {
             Lihat semua transaksi
           </Button>
         </VStack>
+
+        {/* ── Pintasan ────────────────────────────────────────── */}
+        <View className="px-6 pt-8">
+          <SectionHeader title="Pintasan" />
+          <QuickActionGrid actions={quickActions} className="pt-2" />
+        </View>
       </PullToRefresh>
     </Screen>
   )

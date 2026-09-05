@@ -53,6 +53,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { Countdown } from "@/components/ui/countdown"
 import { Header } from "@/components/ui/header"
@@ -68,7 +69,6 @@ import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX, SECURITY_CRITERIA, isPasswordValid } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
 
 /** Cooldown kirim ulang (detik) — bila backend tidak mengirim `cooldownSeconds` */
 const DEFAULT_COOLDOWN = 60
@@ -285,10 +285,7 @@ export default function ResetPasswordScreen() {
         </ScrollView>
 
         {/* Footer links */}
-        <View
-          className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-          style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-        >
+        <FooterBar>
           <View className="flex-row items-center justify-center gap-6">
             {canResend ? (
               <TextLink onPress={() => void handleResendCode()} disabled={submitting || resending}>
@@ -307,7 +304,7 @@ export default function ResetPasswordScreen() {
               Ganti email
             </TextLink>
           </View>
-        </View>
+        </FooterBar>
       </KeyboardAvoiding>
     </Screen>
   )

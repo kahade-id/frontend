@@ -8,8 +8,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Plus } from "phosphor-react-native"
 
-import { api, type CreateScheduleDto, type UpdateScheduleDto } from "@/lib/api"
-import { userMessage } from "@/lib/api/errors"
+import { api, type CreateScheduleDto, type UpdateScheduleDto, userMessage } from "@/lib/api"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS } from "@/lib/financial"
 import type { WithdrawalSchedule } from "@/lib/api/withdrawals"
 import { formatRupiah } from "@/lib/format"
@@ -50,8 +49,8 @@ export default function WithdrawalSchedulesScreen() {
     try {
       const list = await api.withdrawals.listWithdrawalSchedules()
       setItems(list ?? [])
-    } catch {
-      setError("Gagal memuat jadwal penarikan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -131,8 +130,12 @@ export default function WithdrawalSchedulesScreen() {
       try {
         await api.withdrawals.updateWithdrawalSchedule(item.id, { isActive: next })
         setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, isActive: next } : x)))
-      } catch {
-        toast.show({ title: "Gagal memperbarui jadwal", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal memperbarui jadwal",
+          description: userMessage(err),
+          tone: "danger",
+        })
       } finally {
         setTogglingId(null)
       }
@@ -148,8 +151,8 @@ export default function WithdrawalSchedulesScreen() {
       toast.show({ title: "Jadwal dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
       await fetchAll()
-    } catch {
-      toast.show({ title: "Gagal menghapus jadwal", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal menghapus jadwal", description: userMessage(err), tone: "danger" })
     } finally {
       setDeleting(false)
     }

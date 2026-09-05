@@ -8,7 +8,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 import { EmptyState } from "@/components/ui/empty-state"
-import { FloatingActionButton } from "@/components/ui/floating-action-button"
+import { FAB_SIZE, FloatingActionButton } from "@/components/ui/floating-action-button"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
 import { OrderCard } from "@/components/ui/order-card"
@@ -81,7 +81,9 @@ export default function TransactionsScreen() {
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
-        bottomPadding={tokens.space[16] + tokens.space[8]}
+        // FAB melayang DI ATAS list: sisakan tinggi FAB + offset bawahnya
+        // + satu gap, supaya baris terakhir tidak tertutup tombol.
+        bottomPadding={FAB_SIZE + tokens.space[4] + tokens.space[8]}
         empty={
           <EmptyState
             icon={Receipt}

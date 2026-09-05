@@ -1,4 +1,4 @@
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Mutasi Wallet (GET /v1/wallet/transactions/{txId}).
  * KeyValue rows sistem + Amount; PullToRefresh.
@@ -9,7 +9,7 @@ import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { WalletTransaction } from "@/lib/api/wallet"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -47,8 +47,8 @@ export default function WalletTransactionScreen() {
     try {
       const res = await api.wallet.getWalletTransaction(txId)
       setTxn(res)
-    } catch {
-      setError("Mutasi tidak ditemukan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -79,7 +79,7 @@ export default function WalletTransactionScreen() {
         }}
       >
         {loading ? (
-          <ListLoading />
+          <DetailLoading />
         ) : error || !txn ? (
           <ErrorState
             title="Gagal memuat"

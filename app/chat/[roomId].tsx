@@ -28,7 +28,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
-import { Chats, Copy, Trash } from "phosphor-react-native"
+import { Chats, Copy, Package, Trash } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { CHAT_PAGE_SIZE, type ChatMessage, type ChatRoom } from "@/lib/api/chat"
@@ -40,7 +40,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
-import { Button } from "@/components/ui/button"
+import { IconButton } from "@/components/ui/icon-button"
 import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
 import {
   ChatComposer,
@@ -298,14 +298,12 @@ export default function ChatRoomScreen() {
         title={counterpartName ?? "Percakapan"}
         right={
           room?.orderId ? (
-            <Button
+            <IconButton
+              icon={Package}
               variant="ghost"
-              size="sm"
-              fullWidth={false}
+              accessibilityLabel="Lihat pesanan terkait"
               onPress={() => router.push(ROUTES.orderDetail(room.orderId!))}
-            >
-              Pesanan
-            </Button>
+            />
           ) : undefined
         }
       />

@@ -1,5 +1,5 @@
 import { Text } from "@/components/ui/text"
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Tiket Dukungan (GET /v1/support/tickets/{id} + reply).
  */
@@ -8,7 +8,7 @@ import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { SupportMessage, SupportTicket } from "@/lib/api/support"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -45,8 +45,8 @@ export default function SupportTicketDetailScreen() {
       const res = await api.support.getSupportTicket(ticketId)
       setTicket(res)
       setMessages(res?.messages ?? [])
-    } catch {
-      setError("Tiket tidak ditemukan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -70,8 +70,8 @@ export default function SupportTicketDetailScreen() {
       setReply("")
       await fetchTicket()
       toast.show({ title: "Balasan terkirim", tone: "success", duration: 2500 })
-    } catch {
-      toast.show({ title: "Gagal mengirim balasan", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal mengirim balasan", description: userMessage(err), tone: "danger" })
     } finally {
       setSending(false)
     }
@@ -89,7 +89,7 @@ export default function SupportTicketDetailScreen() {
         }}
       >
         {loading ? (
-          <ListLoading />
+          <DetailLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchTicket()} />
         ) : ticket ? (

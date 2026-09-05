@@ -1,4 +1,4 @@
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Beri Ulasan (POST /v1/ratings, orderId wajib).
  * Memakai <RatingForm> sistem: bintang + komentar, dipicu dari Detail Order
@@ -9,7 +9,7 @@ import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import { tokens } from "@/lib/tokens"
 
 import { ErrorState } from "@/components/ui/error-state"
@@ -38,8 +38,8 @@ export default function RateOrderScreen() {
     try {
       const res = await api.orders.getOrder(orderId)
       setOrder(res)
-    } catch {
-      setError("Order tidak ditemukan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -67,8 +67,12 @@ export default function RateOrderScreen() {
         })
         toast.show({ title: "Ulasan terkirim", tone: "success", duration: 3000 })
         router.back()
-      } catch {
-        toast.show({ title: "Gagal mengirim ulasan", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal mengirim ulasan",
+          description: userMessage(err),
+          tone: "danger",
+        })
         setSubmitting(false)
       }
     },
@@ -89,7 +93,7 @@ export default function RateOrderScreen() {
         }}
       >
         {loading ? (
-          <ListLoading />
+          <DetailLoading />
         ) : error || !order ? (
           <ErrorState
             title="Gagal memuat"

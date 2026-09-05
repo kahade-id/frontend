@@ -31,7 +31,7 @@ import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Camera as CameraIcon, Images, Trash } from "phosphor-react-native"
 
-import { api, type UpdateProfileDto } from "@/lib/api"
+import { api, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -140,8 +140,8 @@ export default function EditProfileScreen() {
       )
       setLinks(sorted)
       setInitialLinks(sorted)
-    } catch {
-      setError("Gagal memuat profil.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -273,8 +273,12 @@ export default function EditProfileScreen() {
         if (uploaded.avatarKey) await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
         if (uploaded.avatarUrl) setAvatarUrl(uploaded.avatarUrl)
         toast.show({ title: "Foto profil diperbarui", tone: "success" })
-      } catch {
-        toast.show({ title: "Gagal mengunggah foto", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal mengunggah foto",
+          description: userMessage(err),
+          tone: "danger",
+        })
       } finally {
         setAvatarBusy(false)
       }
@@ -288,8 +292,8 @@ export default function EditProfileScreen() {
       await api.users.deleteAvatar()
       setAvatarUrl(null)
       toast.show({ title: "Foto profil dihapus", tone: "success" })
-    } catch {
-      toast.show({ title: "Gagal menghapus foto", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal menghapus foto", description: userMessage(err), tone: "danger" })
     } finally {
       setAvatarBusy(false)
     }

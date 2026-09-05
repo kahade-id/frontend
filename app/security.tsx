@@ -25,7 +25,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/api/sessions"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -139,8 +139,8 @@ export default function SecurityScreen() {
         loadSecurity(1).catch(() => undefined),
         loadActivity(1).catch(() => undefined),
       ])
-    } catch {
-      setError("Gagal memuat data keamanan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -164,8 +164,8 @@ export default function SecurityScreen() {
       setSessions((p) => ({ ...p, items: p.items.filter((s) => s.id !== confirmRevoke.id) }))
       toast.show({ title: "Sesi dicabut", tone: "success" })
       setConfirmRevoke(null)
-    } catch {
-      toast.show({ title: "Gagal mencabut sesi", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal mencabut sesi", description: userMessage(err), tone: "danger" })
     } finally {
       setRevokingId(null)
     }
@@ -178,8 +178,12 @@ export default function SecurityScreen() {
       setConfirmOthers(false)
       await loadSessions(1).catch(() => undefined)
       toast.show({ title: "Semua perangkat lain dicabut", tone: "success" })
-    } catch {
-      toast.show({ title: "Gagal mencabut sesi lain", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal mencabut sesi lain",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setRevokingOthers(false)
     }
@@ -200,8 +204,12 @@ export default function SecurityScreen() {
           description: next ? "Login dari perangkat ini tidak lagi meminta kode 2FA." : undefined,
           tone: "success",
         })
-      } catch {
-        toast.show({ title: "Gagal memperbarui perangkat", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal memperbarui perangkat",
+          description: userMessage(err),
+          tone: "danger",
+        })
       } finally {
         setTrustingId(null)
       }

@@ -1,5 +1,5 @@
 import { useApiQuery } from "@/lib/use-api-query"
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Analitik (GET /v1/users/me/stats + /v1/users/me/analytics?period=).
  * AnalyticsSummary (StatCard grid + BarChart volume) — PullToRefresh.
@@ -69,7 +69,7 @@ export default function AnalyticsScreen() {
             onChange={(v) => setPeriod(v as AnalyticsPeriod)}
           />
           {loading ? (
-            <ListLoading />
+            <DetailLoading />
           ) : error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
           ) : (

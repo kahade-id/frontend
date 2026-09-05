@@ -1,5 +1,5 @@
 import { useEffect } from "react"
-import { View } from "react-native"
+import { ScrollView } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { Article } from "phosphor-react-native"
 import { api } from "@/lib/api"
@@ -9,7 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 
@@ -37,15 +37,21 @@ export default function HelpScreen() {
     if (selected?.id) void api.helpCenter.trackHelpArticleView(selected.id).catch(() => undefined)
   }, [selected?.id])
   return (
-    <Screen edges={["top"]} padded={false} scroll>
+    <Screen edges={["top"]} padded={false}>
+      {/* Header di LUAR area scroll: artikel bantuan bisa sangat panjang —
+          pengguna harus bisa kembali tanpa menggulir ke atas dulu. */}
       <Header
         title={
           article ? (selected?.title ?? "Artikel") : (query.data?.name ?? "Kategori Bantuan")
         }
       />
-      <View className="gap-4 px-6 py-4">
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="gap-4 px-6 py-4"
+      >
         {query.loading ? (
-          <ListLoading />
+          <DetailLoading />
         ) : query.error ? (
           <ErrorState description={query.error} onRetry={() => void query.reload()} />
         ) : article ? (
@@ -76,7 +82,7 @@ export default function HelpScreen() {
             )}
           </>
         )}
-      </View>
+      </ScrollView>
     </Screen>
   )
 }

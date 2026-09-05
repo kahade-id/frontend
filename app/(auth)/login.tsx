@@ -49,6 +49,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { EmailField, isValidEmail } from "@/components/ui/email-field"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
@@ -62,7 +63,6 @@ import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 
 export default function LoginScreen() {
@@ -204,10 +204,7 @@ export default function LoginScreen() {
         </ScrollView>
 
         {/* Footer links */}
-        <View
-          className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-          style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-        >
+        <FooterBar>
           <View className="items-center">
             <TextLink onPress={handleForgotPassword} disabled={submitting}>
               Lupa password?
@@ -220,7 +217,7 @@ export default function LoginScreen() {
               Daftar
             </TextLink>
           </Text>
-        </View>
+        </FooterBar>
       </KeyboardAvoiding>
     </Screen>
   )

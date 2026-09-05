@@ -49,6 +49,7 @@ import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { PasswordField } from "@/components/ui/password-field"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { PinInput } from "@/components/ui/pin-input"
 import { Button } from "@/components/ui/button"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
@@ -175,14 +176,11 @@ export default function CreateSecurityScreen() {
           </ScrollView>
 
           {/* Footer: tombol Lanjut */}
-          <View
-            className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-            style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-          >
+          <FooterBar>
             <Button onPress={handleProceedToPin} disabled={!canProceed}>
               Lanjut
             </Button>
-          </View>
+          </FooterBar>
         </KeyboardAvoiding>
       ) : (
         /* ── Step 2: PIN wallet ────────────────────────────────────── */

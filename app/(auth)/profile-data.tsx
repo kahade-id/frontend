@@ -54,10 +54,11 @@
  */
 import { Redirect, useRouter } from "expo-router"
 import { useCallback, useMemo, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { ScrollView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
 import { DateField } from "@/components/ui/date-field"
@@ -82,7 +83,6 @@ import {
 } from "@/lib/api"
 import { getPendingReferralCode, getRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
 
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-4 (terakhir) */
 const STEP_PROGRESS = 4 / 4
@@ -375,10 +375,7 @@ export default function ProfileDataScreen() {
         </ScrollView>
 
         {/* Footer: CTA */}
-        <View
-          className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-          style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-        >
+        <FooterBar>
           <Button
             onPress={() => void handleSubmit()}
             loading={submitting}
@@ -391,7 +388,7 @@ export default function ProfileDataScreen() {
             Dengan mendaftar, Anda setuju dengan Syarat & Ketentuan serta
             Kebijakan Privasi Kahade.
           </Text>
-        </View>
+        </FooterBar>
       </KeyboardAvoiding>
 
       {/* Bottom Sheet: Calendar untuk tanggal lahir */}

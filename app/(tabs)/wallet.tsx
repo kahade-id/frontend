@@ -36,7 +36,7 @@ import {
 } from "phosphor-react-native"
 import { File, Paths } from "expo-file-system"
 
-import { api, type WalletTransaction } from "@/lib/api"
+import { api, type WalletTransaction, userMessage } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
@@ -111,8 +111,12 @@ export default function WalletScreen() {
           await shareContent({ fileUri: file.uri, mimeType, dialogTitle: filename })
         }
         toast.show({ title: "Export dompet berhasil", tone: "success", duration: 3000 })
-      } catch {
-        toast.show({ title: "Gagal mengekspor riwayat", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal mengekspor riwayat",
+          description: userMessage(err),
+          tone: "danger",
+        })
       } finally {
         setExporting(null)
       }

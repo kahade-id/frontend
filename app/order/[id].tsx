@@ -38,16 +38,24 @@ import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
   ChatCircleDots,
+  ClockCounterClockwise,
   Package,
   Receipt,
   ShieldWarning,
   Timer,
   Truck,
-  UserCircle,
 } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type Order, type OrderStatus } from "@/lib/api"
-import type { AverageDurations, CancelReason, QrisPayment } from "@/lib/api/orders"
+import { api, isApiError, userMessage, type Order } from "@/lib/api"
+import {
+  isCancellable,
+  isDisputable,
+  isExtendable,
+  nextOrderStatus,
+  type AverageDurations,
+  type CancelReason,
+  type QrisPayment,
+} from "@/lib/api/orders"
 import { useCopy } from "@/lib/clipboard"
 import { formatDateTime, formatDecimal, formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
@@ -56,6 +64,7 @@ import { tokens } from "@/lib/tokens"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FeeBreakdown } from "@/components/ui/fee-breakdown"
 import { Field } from "@/components/ui/field"
@@ -63,7 +72,7 @@ import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { OrderHistoryTimeline } from "@/components/ui/order-history-timeline"
-import { OrderStatusBadge } from "@/components/ui/order-status-badge"
+import { ORDER_STATUS_LABELS, OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { PinInput } from "@/components/ui/pin-input"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
@@ -74,6 +83,7 @@ import { SegmentedControl } from "@/components/ui/segmented-control"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 
 const HISTORY_LIMIT = 50
@@ -82,41 +92,6 @@ const HOURS_PER_DAY = 24
 const NOTE_MAX = 500
 const DISPUTE_CLAIM_MIN = 20
 const DISPUTE_CLAIM_MAX = 2000
-
-/** Status yang masih bisa dibatalkan / disengketakan oleh salah satu pihak. */
-const ACTIVE_STATUSES: readonly OrderStatus[] = [
-  "PENDING_PAYMENT",
-  "PAID",
-  "PROCESSING",
-  "SHIPPED",
-  "DELIVERED",
-]
-/** Sengketa hanya masuk akal setelah dana masuk escrow. */
-const DISPUTABLE_STATUSES: readonly OrderStatus[] = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"]
-/** Perpanjangan tenggat hanya saat pekerjaan berjalan. */
-const EXTENDABLE_STATUSES: readonly OrderStatus[] = ["PAID", "PROCESSING", "SHIPPED"]
-
-const STATUS_LABELS: Record<string, string> = {
-  PENDING_PAYMENT: "Menunggu Pembayaran",
-  PAID: "Dibayar",
-  PROCESSING: "Diproses",
-  SHIPPED: "Dikirim",
-  DELIVERED: "Terkirim",
-  COMPLETED: "Selesai",
-  DISPUTED: "Sengketa",
-  CANCELLED: "Dibatalkan",
-  REFUNDED: "Dikembalikan",
-  EXPIRED: "Kedaluwarsa",
-}
-
-/** Status berikutnya yang lazim, untuk estimasi durasi di timeline. */
-const NEXT_STATUS: Partial<Record<string, OrderStatus>> = {
-  PENDING_PAYMENT: "PAID",
-  PAID: "PROCESSING",
-  PROCESSING: "SHIPPED",
-  SHIPPED: "DELIVERED",
-  DELIVERED: "COMPLETED",
-}
 
 const CANCEL_REASONS: readonly (ReasonOption & { code: CancelReason })[] = [
   { code: "CHANGED_MIND", label: "Berubah pikiran" },
@@ -346,11 +321,11 @@ export default function OrderDetailScreen() {
 
   const expectedNext = useMemo(() => {
     if (!order) return undefined
-    const next = NEXT_STATUS[order.status]
+    const next = nextOrderStatus(order.status)
     if (!next) return undefined
     const hours = durations?.[next]
     return {
-      title: STATUS_LABELS[next] ?? next,
+      title: ORDER_STATUS_LABELS[next] ?? next,
       description: hours != null && hours > 0 ? durationLabel(hours) : undefined,
     }
   }, [order, durations])
@@ -386,9 +361,9 @@ export default function OrderDetailScreen() {
   const canShip = order.status === "PROCESSING" && isSeller
   const canReviewDelivery = (order.status === "SHIPPED" || order.status === "DELIVERED") && isBuyer
   const canRate = knownRole && order.status === "COMPLETED"
-  const canCancel = knownRole && ACTIVE_STATUSES.includes(order.status)
-  const canDispute = knownRole && DISPUTABLE_STATUSES.includes(order.status)
-  const canExtend = knownRole && EXTENDABLE_STATUSES.includes(order.status)
+  const canCancel = knownRole && isCancellable(order.status)
+  const canDispute = knownRole && isDisputable(order.status)
+  const canExtend = knownRole && isExtendable(order.status)
   const isDisputed = order.status === "DISPUTED"
   const cancelValid =
     Boolean(cancelReason.code) &&
@@ -407,27 +382,43 @@ export default function OrderDetailScreen() {
         }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <View className="flex-row items-center justify-between">
-            <Text variant="monoBody" tone="secondary" numberOfLines={1} className="flex-1 pr-3">
-              {order.id}
-            </Text>
+          {/*
+           * Urutan baca (audit komposisi): STATUS -> JUDUL -> deskripsi -> ID.
+           * Sebelumnya baris pertama layar adalah ID order (monoBody 14px,
+           * tone secondary) sementara judul order baru muncul dua blok di
+           * bawah — elemen paling tidak penting mendapat posisi paling
+           * menonjol. ID dipindah ke bawah deskripsi sebagai caption; badge
+           * status naik ke baris judul karena itulah yang dicari user saat
+           * membuka layar ini.
+           */}
+          <View className="flex-row items-start justify-between gap-3">
+            <View className="flex-1">
+              <Text variant="h2" numberOfLines={3}>
+                {order.title}
+              </Text>
+            </View>
             <OrderStatusBadge
               status={order.status}
               role={isBuyer ? "buyer" : isSeller ? "seller" : undefined}
               size="md"
-              labels={STATUS_LABELS}
             />
           </View>
 
           {!knownRole ? (
-            <Text variant="body" tone="secondary">
-              Peran Anda belum terkonfirmasi. Aksi transaksi dinonaktifkan; muat ulang untuk
-              memeriksa kembali.
-            </Text>
+            <ErrorState
+              compact
+              title="Peran Anda belum terkonfirmasi"
+              description="Aksi transaksi dinonaktifkan sampai peran Anda pada order ini diketahui."
+              onRetry={() => void fetchOrder()}
+            />
           ) : null}
-          <SectionHeader title={order.title} />
+
           <Text variant="body" tone="secondary">
             {order.description}
+          </Text>
+
+          <Text variant="monoBody" tone="tertiary" numberOfLines={1} selectable>
+            {order.id}
           </Text>
 
           <KeyValueList>
@@ -436,21 +427,29 @@ export default function OrderDetailScreen() {
               value={<Text variant="monoBody">{formatRupiah(order.orderValue)}</Text>}
               emphasis
             />
+            {/*
+             * Sebelumnya <Button variant="ghost"> dipakai sebagai NILAI baris:
+             * tinggi 40px + padding tombol membuat baris ini melompat keluar
+             * irama KeyValueList, dan secara hierarki tombol (aksi) menyaingi
+             * "Nilai transaksi" di atasnya. Navigasi ke profil = navigasi
+             * dalam konteks teks -> <TextLink> (§2.3 link = primary +
+             * underline). Tanpa counterpart, nilainya jadi teks biasa.
+             */}
             <KeyValue
               label={isBuyer ? "Penjual" : isSeller ? "Pembeli" : "Lawan transaksi"}
               value={
-                <Button
-                  disabled={!counterpart}
-                  variant="ghost"
-                  size="sm"
-                  fullWidth={false}
-                  leftIcon={UserCircle}
-                  onPress={() =>
-                    counterpart && router.push(ROUTES.userProfile(counterpart.username))
-                  }
-                >
-                  {counterpart ? `@${counterpart.username}` : "Identitas belum tersedia"}
-                </Button>
+                counterpart ? (
+                  <TextLink
+                    onPress={() => router.push(ROUTES.userProfile(counterpart.username))}
+                    accessibilityLabel={`Lihat profil @${counterpart.username}`}
+                  >
+                    {`@${counterpart.username}`}
+                  </TextLink>
+                ) : (
+                  <Text variant="body" tone="tertiary">
+                    Identitas belum tersedia
+                  </Text>
+                )
               }
             />
             <KeyValue
@@ -656,9 +655,14 @@ export default function OrderDetailScreen() {
               expectedNext={expectedNext}
             />
           ) : (
-            <Text variant="body" tone="secondary">
-              Riwayat belum tersedia.
-            </Text>
+            // Sebelumnya <Text> polos — satu-satunya "kosong" di layar ini
+            // yang tidak memakai bentuk EmptyState seperti layar lain.
+            <EmptyState
+              compact
+              icon={ClockCounterClockwise}
+              title="Riwayat belum tersedia"
+              description="Perubahan status order akan tercatat di sini."
+            />
           )}
         </View>
       </PullToRefresh>
