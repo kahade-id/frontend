@@ -99,7 +99,11 @@ export default function ForgotPasswordScreen() {
   }, [submitting, isFormValid, email, router])
 
   const handleBackToLogin = useCallback(() => {
-    router.replace(ROUTES.login)
+    if (router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace(ROUTES.login)
+    }
   }, [router])
 
   return (

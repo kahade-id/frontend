@@ -40,6 +40,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
+import { Button } from "@/components/ui/button"
 import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
 import { IconButton } from "@/components/ui/icon-button"
 import {

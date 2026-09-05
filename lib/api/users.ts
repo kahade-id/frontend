@@ -84,18 +84,28 @@ export function updateProfile(dto: UpdateProfileDto) {
  * File harus sudah divalidasi klien (JPG/PNG, maks 10MB, idealnya < 2MB
  * setelah kompresi — §9.19). Server yang menangani kompresi jika perlu.
  */
-export function uploadAvatarDirect(formData: FormData) {
-  return http.post<AvatarResult>("/v1/users/me/avatar/direct", undefined, {
+export async function uploadAvatarDirect(formData: FormData) {
+  const result = await http.post<AvatarResult>("/v1/users/me/avatar/direct", undefined, {
     auth: "required",
     formData,
   })
+  return {
+    ...result,
+    avatarUrl: result.avatarUrl ?? (result as any).avatar_url,
+    avatarKey: result.avatarKey ?? (result as any).avatar_key,
+  }
 }
 
 /** POST /v1/users/me/avatar/confirm — konfirmasi avatar yang sudah di-upload. */
-export function confirmAvatar(dto: ConfirmAvatarDto) {
-  return http.post<AvatarResult, ConfirmAvatarDto>("/v1/users/me/avatar/confirm", dto, {
+export async function confirmAvatar(dto: ConfirmAvatarDto) {
+  const result = await http.post<AvatarResult, ConfirmAvatarDto>("/v1/users/me/avatar/confirm", dto, {
     auth: "required",
   })
+  return {
+    ...result,
+    avatarUrl: result.avatarUrl ?? (result as any).avatar_url,
+    avatarKey: result.avatarKey ?? (result as any).avatar_key,
+  }
 }
 
 /** DELETE /v1/users/me/avatar — hapus avatar (kembali ke inisial default). */
@@ -358,23 +368,52 @@ export function getMyShowcase() {
  * membuat item (mengembalikan ShowcaseItem) ATAU hanya mengembalikan
  * `imageUrl`/`url` untuk dipakai di createShowcase (UNVERIFIED).
  */
-export function uploadShowcase(formData: FormData) {
-  return http.post<ShowcaseUploadResult>("/v1/users/me/showcase/upload", undefined, {
+export async function uploadShowcase(formData: FormData) {
+  const result = await http.post<ShowcaseUploadResult>("/v1/users/me/showcase/upload", undefined, {
     formData,
     auth: "required",
   })
+  return {
+    ...result,
+    imageUrl: result.imageUrl ?? (result as any).image_url,
+    fileKey: result.fileKey ?? (result as any).file_key,
+    priceMin: result.priceMin ?? (result as any).price_min,
+    priceMax: result.priceMax ?? (result as any).price_max,
+    isActive: result.isActive ?? (result as any).is_active,
+    sortOrder: result.sortOrder ?? (result as any).sort_order,
+  }
 }
 
-export function createShowcase(dto: CreateShowcaseDto) {
-  return http.post<ShowcaseItem, CreateShowcaseDto>("/v1/users/me/showcase", dto, {
+export async function createShowcase(dto: CreateShowcaseDto) {
+  const result = await http.post<ShowcaseItem, CreateShowcaseDto>("/v1/users/me/showcase", dto, {
     auth: "required",
   })
+  return {
+    ...result,
+    imageUrl: result.imageUrl ?? (result as any).image_url,
+    fileKey: result.fileKey ?? (result as any).file_key,
+    priceMin: result.priceMin ?? (result as any).price_min,
+    priceMax: result.priceMax ?? (result as any).price_max,
+    isActive: result.isActive ?? (result as any).is_active,
+    sortOrder: result.sortOrder ?? (result as any).sort_order,
+    createdAt: result.createdAt ?? (result as any).created_at,
+  }
 }
 
-export function updateShowcase(id: string, dto: UpdateShowcaseDto) {
-  return http.put<ShowcaseItem, UpdateShowcaseDto>(`/v1/users/me/showcase/${seg(id)}`, dto, {
+export async function updateShowcase(id: string, dto: UpdateShowcaseDto) {
+  const result = await http.put<ShowcaseItem, UpdateShowcaseDto>(`/v1/users/me/showcase/${seg(id)}`, dto, {
     auth: "required",
   })
+  return {
+    ...result,
+    imageUrl: result.imageUrl ?? (result as any).image_url,
+    fileKey: result.fileKey ?? (result as any).file_key,
+    priceMin: result.priceMin ?? (result as any).price_min,
+    priceMax: result.priceMax ?? (result as any).price_max,
+    isActive: result.isActive ?? (result as any).is_active,
+    sortOrder: result.sortOrder ?? (result as any).sort_order,
+    createdAt: result.createdAt ?? (result as any).created_at,
+  }
 }
 
 export function deleteShowcase(id: string) {
@@ -424,7 +463,7 @@ export function readQuestionList(body: QuestionListResponse | null | undefined):
 } {
   if (!body) return { items: [] }
   if (Array.isArray(body)) return { items: body }
-  return { items: body.data ?? [], totalPages: body.meta?.totalPages }
+  return { items: body.data ?? [], totalPages: body.meta?.totalPages ?? (body.meta as any)?.total_pages }
 }
 
 /** Nilai enum `type` tidak didokumentasikan — asumsi "received" | "asked" (dari summary endpoint). */
@@ -500,7 +539,7 @@ export function readQuestionComments(body: QuestionCommentListResponse | null | 
 } {
   if (!body) return { items: [] }
   if (Array.isArray(body)) return { items: body }
-  return { items: body.data ?? [], totalPages: body.meta?.totalPages }
+  return { items: body.data ?? [], totalPages: body.meta?.totalPages ?? (body.meta as any)?.total_pages }
 }
 
 /** Spec: `page` & `limit` REQUIRED. */

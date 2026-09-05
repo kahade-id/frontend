@@ -106,7 +106,13 @@ export default function RegisterScreen() {
     setFormError(null)
   }, [])
 
-  const goLogin = useCallback(() => router.replace(ROUTES.login), [router])
+  const goLogin = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back()
+    } else {
+      router.replace(ROUTES.login)
+    }
+  }, [router])
 
   const handleSubmit = useCallback(async () => {
     if (submitting) return

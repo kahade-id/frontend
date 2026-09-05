@@ -227,32 +227,60 @@ export function lookupTransferRecipient(q: string, signal?: AbortSignal) {
 }
 
 /** POST /v1/wallet/topup — mulai top-up (dapat paymentTxId untuk poll). */
-export function createTopup(dto: TopupDto) {
+export async function createTopup(dto: TopupDto) {
   assertDtoConstraints(dto, API_CONSTRAINTS.TopupDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.topup)
-  return http.post<TopupResult, TopupDto>("/v1/wallet/topup", dto, { auth: "required" })
+  const result = await http.post<TopupResult, TopupDto>("/v1/wallet/topup", dto, { auth: "required" })
+  return {
+    ...result,
+    paymentTxId: result.paymentTxId ?? (result as any).payment_tx_id,
+    paymentCode: result.paymentCode ?? (result as any).payment_code,
+    qrString: result.qrString ?? (result as any).qr_string,
+    expiresAt: result.expiresAt ?? (result as any).expires_at,
+  }
 }
 
 /** GET /v1/wallet/topup-status/{paymentTxId} — poll status pembayaran. */
-export function getTopupStatus(paymentTxId: string) {
-  return http.get<TopupResult>(`/v1/wallet/topup-status/${seg(paymentTxId)}`, {
+export async function getTopupStatus(paymentTxId: string) {
+  const result = await http.get<TopupResult>(`/v1/wallet/topup-status/${seg(paymentTxId)}`, {
     auth: "required",
     retry: 1,
   })
+  return {
+    ...result,
+    paymentTxId: result.paymentTxId ?? (result as any).payment_tx_id,
+    paymentCode: result.paymentCode ?? (result as any).payment_code,
+    qrString: result.qrString ?? (result as any).qr_string,
+    expiresAt: result.expiresAt ?? (result as any).expires_at,
+  }
 }
 
 /** POST /v1/wallet/withdraw — tarik dana (bisa memerlukan OTP). */
-export function createWithdraw(dto: WithdrawDto) {
+export async function createWithdraw(dto: WithdrawDto) {
   assertDtoConstraints(dto, API_CONSTRAINTS.WithdrawDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.withdraw)
-  return http.post<WithdrawResult, WithdrawDto>("/v1/wallet/withdraw", dto, { auth: "required" })
+  const result = await http.post<WithdrawResult, WithdrawDto>("/v1/wallet/withdraw", dto, { auth: "required" })
+  return {
+    ...result,
+    txId: result.txId ?? (result as any).tx_id,
+    bankAccountId: result.bankAccountId ?? (result as any).bank_account_id,
+    requiresOtp: result.requiresOtp ?? (result as any).requires_otp,
+    expiresAt: result.expiresAt ?? (result as any).expires_at,
+  }
 }
 
 /** POST /v1/wallet/withdraw/confirm-otp — konfirmasi penarikan besar. */
-export function confirmWithdrawOtp(dto: ConfirmWithdrawOtpDto) {
-  return http.post<WithdrawResult, ConfirmWithdrawOtpDto>("/v1/wallet/withdraw/confirm-otp", dto, {
+export async function confirmWithdrawOtp(dto: ConfirmWithdrawOtpDto) {
+  const result = await http.post<WithdrawResult, ConfirmWithdrawOtpDto>("/v1/wallet/withdraw/confirm-otp", dto, {
     auth: "required",
   })
+  return {
+    ...result,
+    txId: result.txId ?? (result as any).tx_id,
+    bankAccountId: result.bankAccountId ?? (result as any).bank_account_id,
+    requiresOtp: result.requiresOtp ?? (result as any).requires_otp,
+    expiresAt: result.expiresAt ?? (result as any).expires_at,
+  }
 }
 
 /** POST /v1/wallet/withdraw/resend-otp — kirim ulang OTP penarikan. */
@@ -272,10 +300,16 @@ export function cancelWithdraw(dto: { txId: string }) {
 }
 
 /** POST /v1/wallet/transfer — kirim dana ke user lain. */
-export function transferFunds(dto: TransferDto) {
+export async function transferFunds(dto: TransferDto) {
   assertDtoConstraints(dto, API_CONSTRAINTS.TransferDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.transfer)
-  return http.post<TransferResult, TransferDto>("/v1/wallet/transfer", dto, { auth: "required" })
+  const result = await http.post<TransferResult, TransferDto>("/v1/wallet/transfer", dto, { auth: "required" })
+  return {
+    ...result,
+    txId: result.txId ?? (result as any).tx_id,
+    recipientId: result.recipientId ?? (result as any).recipient_id,
+    balanceAfter: result.balanceAfter ?? (result as any).balance_after,
+  }
 }
 
 /** GET /v1/wallet/transactions/{txId} — detail satu mutasi. */

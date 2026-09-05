@@ -9,11 +9,16 @@ export function normalizeWallet(raw: unknown): Wallet {
   const wallet = readEntity<Record<string, unknown>>(raw, "wallet")
   const balance = moneyNumber(wallet.balance)
   if (balance === undefined) throw invalidResponse("wallet.balance")
-  const held = moneyNumber(wallet.holdBalance)
-  const available = moneyNumber(wallet.availableBalance)
+  
+  const holdRaw = wallet.holdBalance ?? wallet.hold_balance
+  const availableRaw = wallet.availableBalance ?? wallet.available_balance
+  
+  const held = moneyNumber(holdRaw)
+  const available = moneyNumber(availableRaw)
+  
   if (
-    (wallet.holdBalance != null && held === undefined) ||
-    (wallet.availableBalance != null && available === undefined)
+    (holdRaw != null && held === undefined) ||
+    (availableRaw != null && available === undefined)
   )
     throw invalidResponse("wallet.balances")
   return {
@@ -28,7 +33,12 @@ export function normalizeWalletTransaction(raw: unknown): WalletTransaction {
   const amount = moneyNumber(tx.amount)
   if (amount === undefined || typeof tx.id !== "string" || typeof tx.type !== "string")
     throw invalidResponse("wallet.transaction")
-  return { ...tx, amount } as WalletTransaction
+  return { 
+    ...tx, 
+    amount,
+    referenceId: (tx.referenceId ?? tx.reference_id) as string | null | undefined,
+    createdAt: (tx.createdAt ?? tx.created_at) as string
+  } as WalletTransaction
 }
 export function normalizeWalletPage(raw: unknown, query: Partial<WalletTransactionsQuery>) {
   const page = readPage<unknown>(raw, query, ["transactions"])

@@ -248,8 +248,9 @@ export function refreshAccessToken(): Promise<string | null> {
     }
     const body = asRecord(reply.value)
     const token = body?.accessToken ?? body?.access_token
+    const refresh = body?.refreshToken ?? body?.refresh_token
     if (typeof token !== "string" || !token.trim()) throw invalidResponse(REFRESH_PATH)
-    if (typeof body?.refreshToken === "string") await setRefreshToken(body.refreshToken)
+    if (typeof refresh === "string") await setRefreshToken(refresh)
     if (revision !== getSessionRevision()) throw aborted(REFRESH_PATH)
     await setAccessToken(token)
     if (revision !== getSessionRevision()) throw aborted(REFRESH_PATH)
