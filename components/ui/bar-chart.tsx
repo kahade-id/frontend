@@ -48,7 +48,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
-import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type ChartStatusTone = "success" | "danger" | "warning" | "info"
 export type ChartSeries = "primary" | "mono" | "status"

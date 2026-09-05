@@ -28,7 +28,6 @@ import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Fingerprint } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
@@ -43,7 +42,6 @@ import {
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"

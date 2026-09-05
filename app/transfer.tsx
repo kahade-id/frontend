@@ -18,7 +18,7 @@ import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
  *   - PIN salah ditampilkan sebagai `errorText` di PinInput (pengguna tetap
  *     di langkah PIN), bukan dilempar kembali ke form.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -48,7 +48,6 @@ import { useCopy } from "@/lib/clipboard"
 const MIN_AMOUNT = AMOUNT_LIMITS.transfer.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.transfer.maximum
 const PRESETS = AMOUNT_PRESETS.transfer
-const LOOKUP_DEBOUNCE = 300
 const NOTE_MAX = 200
 
 export default function TransferScreen() {

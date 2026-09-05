@@ -26,7 +26,6 @@ import { useToast } from "@/components/ui/toast"
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ScrollView, StyleSheet, View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
 import {
   Bell,
@@ -47,19 +46,15 @@ import { routeForNotificationReference } from "@/lib/notification-routing"
 import { refreshUnreadCount, setUnreadCount } from "@/lib/unread-count"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
-import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { Dialog } from "@/components/ui/modal"
 import { IconButton } from "@/components/ui/icon-button"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { LoadMore } from "@/components/ui/load-more"
 import {
   NotificationListItem,
   type NotificationCategory as UiCategory,
 } from "@/components/ui/notification-list-item"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 
@@ -101,8 +96,8 @@ type ReadFilter = "ALL" | "UNREAD"
 const PAGE_SIZE = 20
 /** BatchNotificationIdsDto: "max 50 per request" */
 const BATCH_MAX = 50
+/** Baris skeleton saat muat pertama — sebentuk <NotificationListItem>. */
 const SKELETON_COUNT = 5
-const ON_END_THRESHOLD = 0.3
 
 // ------------------------------------------------------------------
 // Skeleton placeholder: satu baris notifikasi
@@ -134,7 +129,6 @@ function NotifSkeletonRow() {
 // ------------------------------------------------------------------
 
 export default function NotificationsScreen() {
-  const insets = useSafeAreaInsets()
   const toast = useToast()
 
   const [filter, setFilter] = useState<FilterValue>("ALL")
@@ -422,6 +416,17 @@ export default function NotificationsScreen() {
       <PaginatedList
         {...query}
         padded={false}
+        // Audit: default <ListLoading/> merender 4 kartu h-24; baris
+        // notifikasi jauh lebih rapat, sehingga daftar "melompat" saat data
+        // tiba. Skeleton sebentuk barisnya sudah ada di file ini tapi tidak
+        // pernah dipasang.
+        loadingPlaceholder={
+          <SkeletonGroup>
+            {Array.from({ length: SKELETON_COUNT }, (_, index) => (
+              <NotifSkeletonRow key={index} />
+            ))}
+          </SkeletonGroup>
+        }
         gap={tokens.space[1]}
         bottomPadding={tokens.space[4]}
         onRefresh={query.refresh}

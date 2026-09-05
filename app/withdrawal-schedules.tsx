@@ -9,7 +9,10 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Plus } from "phosphor-react-native"
 
 import { api, type CreateScheduleDto, type UpdateScheduleDto } from "@/lib/api"
+import { userMessage } from "@/lib/api/errors"
+import { AMOUNT_LIMITS, AMOUNT_PRESETS } from "@/lib/financial"
 import type { WithdrawalSchedule } from "@/lib/api/withdrawals"
+import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
@@ -76,6 +79,18 @@ export default function WithdrawalSchedulesScreen() {
     setSchedule({ dayOfWeek: s.dayOfWeek, minAmount: s.minAmount ?? 0 })
   }, [])
 
+  /**
+   * Audit: form menerima nominal apa pun > 0 padahal WithdrawDto.amount punya
+   * minimum kontrak. Jadwal di bawah minimum akan selalu ditolak server pada
+   * eksekusi penarikan — gagalnya jauh dari tempat pengguna mengisinya.
+   */
+  const minAmountError =
+    schedule.minAmount != null &&
+    schedule.minAmount > 0 &&
+    schedule.minAmount < AMOUNT_LIMITS.withdraw.minimum
+      ? `Minimum ${formatRupiah(AMOUNT_LIMITS.withdraw.minimum)}.`
+      : undefined
+
   const handleSubmit = useCallback(async () => {
     setSubmitting(true)
     try {
@@ -99,8 +114,12 @@ export default function WithdrawalSchedulesScreen() {
       setCreating(false)
       setEditing(null)
       await fetchAll()
-    } catch {
-      toast.show({ title: "Gagal menyimpan jadwal", tone: "danger" })
+    } catch (err) {
+      toast.show({
+        title: "Gagal menyimpan jadwal",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setSubmitting(false)
     }
@@ -185,12 +204,25 @@ export default function WithdrawalSchedulesScreen() {
             {creating || editing ? (
               <View className="gap-4">
                 <SectionHeader title={editing ? "Ubah jadwal" : "Jadwal baru"} />
+                {/*
+                  Audit: preset sebelumnya array literal [100rb, 500rb, 1jt] di
+                  JSX. Nominal uang tidak boleh diketik ulang per layar —
+                  AMOUNT_PRESETS.withdraw duduk bersebelahan dengan
+                  AMOUNT_LIMITS yang digenerate dari OpenAPI, jadi preset dan
+                  batas kontrak tidak bisa lagi saling menyimpang.
+                */}
                 <ScheduleField
                   value={schedule}
                   onChange={setSchedule}
-                  presets={[100_000, 500_000, 1_000_000]}
+                  presets={AMOUNT_PRESETS.withdraw}
+                  errorText={minAmountError}
+                  helperText={`Minimum penarikan ${formatRupiah(AMOUNT_LIMITS.withdraw.minimum)}.`}
                 />
-                <Button loading={submitting} onPress={() => void handleSubmit()}>
+                <Button
+                  loading={submitting}
+                  disabled={Boolean(minAmountError)}
+                  onPress={() => void handleSubmit()}
+                >
                   Simpan Jadwal
                 </Button>
                 <Button

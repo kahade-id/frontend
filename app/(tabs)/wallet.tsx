@@ -23,9 +23,8 @@ import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
  * Pull-to-refresh memakai <PullToRefresh> logo Kahade (§9.13), bukan
  * RefreshControl: riwayat + saldo di-refresh bersamaan (Promise.all).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { Platform, StyleSheet, View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import {
   ArrowCircleDown,
@@ -37,29 +36,19 @@ import {
 } from "phosphor-react-native"
 import { File, Paths } from "expo-file-system"
 
-import { api, type Wallet, type WalletTransaction } from "@/lib/api"
-import { formatDateTime } from "@/lib/format"
+import { api, type WalletTransaction } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
-import {
-  WALLET_TXN_KIND,
-  WALLET_TXN_LABELS,
-  WALLET_TXN_STATUS,
-  isWalletCredit,
-} from "@/lib/wallet-labels"
 
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
-import { LoadMore } from "@/components/ui/load-more"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { WalletBalanceCard, type WalletQuickAction } from "@/components/ui/wallet-balance-card"
-import { WalletTransactionListItem } from "@/components/ui/wallet-transaction-list-item"
 import { useToast } from "@/components/ui/toast"
 
 // ------------------------------------------------------------------
@@ -81,7 +70,6 @@ const ACTION_ROUTE: Record<WalletQuickAction["key"], Href> = {
 // ------------------------------------------------------------------
 
 export default function WalletScreen() {
-  const insets = useSafeAreaInsets()
   const toast = useToast()
 
   const balance = useApiQuery("wallet-balance", () => api.wallet.getWallet())

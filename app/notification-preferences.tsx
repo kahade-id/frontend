@@ -1,106 +1,72 @@
 /**
  * Screen — Preferensi Notifikasi (GET/PUT /v1/notifications/preferences).
  * Matriks kategori × kanal dari NotificationPreferencesMatrix.
+ *
+ * Audit:
+ *   - Loading dan error sebelumnya dirender sebagai <Text> polos: tidak ada
+ *     tombol "Coba lagi", tidak ada role alert, dan gagal-muat terlihat sama
+ *     seperti "preferensi memang kosong". Sekarang memakai kerangka
+ *     <DataScreen> (LoadingScreen / ErrorState + retry) seperti layar lain.
+ *   - Toggle memakai `query.setData` sebagai sumber tunggal (tidak ada salinan
+ *     state kedua yang bisa desinkron dengan hasil refresh), dan rollback
+ *     mengembalikan NILAI SEBELUMNYA, bukan negasi nilai baru.
+ *   - Pesan gagal simpan menyertakan `userMessage(err)` dari backend.
  */
-import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { useCallback } from "react"
 
 import { api } from "@/lib/api"
-import type { NotificationPreferences as ApiNotificationPreferences } from "@/lib/api/notifications"
-import type {
-  NotificationPreferenceKey,
-  NotificationPreferences,
-} from "@/components/ui/notification-preferences-matrix"
-import { tokens } from "@/lib/tokens"
+import { userMessage } from "@/lib/api/errors"
+import { useApiQuery } from "@/lib/use-api-query"
 
-import { Header } from "@/components/ui/header"
-import { NotificationPreferencesMatrix } from "@/components/ui/notification-preferences-matrix"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { Screen } from "@/components/ui/screen"
+import { DataScreen } from "@/components/ui/data-screen"
+import {
+  NotificationPreferencesMatrix,
+  type NotificationPreferenceKey,
+  type NotificationPreferences,
+} from "@/components/ui/notification-preferences-matrix"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
 export default function NotificationPreferencesScreen() {
-  const insets = useSafeAreaInsets()
   const toast = useToast()
-
-  const [value, setValue] = useState<NotificationPreferences>({})
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchPrefs = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.notifications.getNotificationPreferences()
-      setValue(res ?? {})
-    } catch {
-      setError("Gagal memuat preferensi.")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void fetchPrefs()
-  }, [fetchPrefs])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchPrefs()
-    setRefreshing(false)
-  }, [fetchPrefs])
+  const query = useApiQuery<NotificationPreferences>("notification-preferences", () =>
+    api.notifications.getNotificationPreferences().then((res) => res ?? {}),
+  )
+  const value = query.data ?? {}
+  const { setData } = query
 
   const handleChange = useCallback(
     async (next: NotificationPreferences, key: NotificationPreferenceKey) => {
-      setValue(next)
+      const previous = value[key]
+      setData(next)
       try {
         await api.notifications.updateNotificationPreferences({ [key]: next[key] })
         toast.show({ title: "Preferensi tersimpan", tone: "success", duration: 2500 })
-      } catch {
-        toast.show({ title: "Gagal menyimpan preferensi", tone: "danger" })
-        setValue((prev) => ({ ...prev, [key]: !next[key] }))
+      } catch (err) {
+        setData((prev) => ({ ...(prev ?? {}), [key]: previous }))
+        toast.show({
+          title: "Gagal menyimpan preferensi",
+          description: userMessage(err),
+          tone: "danger",
+        })
       }
     },
-    [toast.show],
+    [value, setData, toast.show],
   )
 
   return (
-    <Screen edges={["top"]} padded={false}>
-      <Header title="Preferensi Notifikasi" />
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        contentContainerClassName="px-6"
-        scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
-        }}
-      >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          {error ? (
-            <Text variant="body" tone="danger">
-              {error}
-            </Text>
-          ) : loading ? (
-            <Text variant="body" tone="secondary">
-              Memuat preferensi…
-            </Text>
-          ) : (
-            <>
-              <Text variant="body" tone="secondary">
-                Pilih kanal notifikasi untuk setiap kategori. Perubahan disimpan otomatis.
-              </Text>
-              <NotificationPreferencesMatrix
-                value={value}
-                onChange={(n, k) => void handleChange(n, k)}
-                disabled={loading}
-              />
-            </>
-          )}
-        </View>
-      </PullToRefresh>
-    </Screen>
+    <DataScreen
+      title="Preferensi Notifikasi"
+      state={query}
+      loadingMessage="Memuat preferensi…"
+    >
+      <Text variant="body" tone="secondary">
+        Pilih kanal notifikasi untuk setiap kategori. Perubahan disimpan otomatis.
+      </Text>
+      <NotificationPreferencesMatrix
+        value={value}
+        onChange={(n, k) => void handleChange(n, k)}
+      />
+    </DataScreen>
   )
 }

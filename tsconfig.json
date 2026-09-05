@@ -2,6 +2,13 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // Audit: 62 simbol mati (impor komponen yang tidak pernah dirender,
+    // konstanta sisa refactor, hook state yang tidak dibaca) lolos typecheck
+    // karena dua flag ini mati. Beberapa di antaranya menandai fitur yang
+    // memang tidak jadi terpasang — mis. <ErrorState> metode OTP di Register.
+    // Dinyalakan agar sisa refactor berikutnya gagal di CI, bukan di review.
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "jsx": "react-jsx",
     "jsxImportSource": "nativewind",
     "paths": {

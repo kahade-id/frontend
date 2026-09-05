@@ -7,7 +7,6 @@ import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { LinkSimple } from "phosphor-react-native"
 
 import { api, type OrderLink } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
@@ -16,7 +15,6 @@ import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { OrderLinkPreviewCard } from "@/components/ui/order-link-preview-card"
@@ -98,7 +96,6 @@ export default function OrderLinkScreen() {
   }, [link, toast.show])
 
   const active = link?.status === "ACTIVE"
-  const creatorRole = link?.role === "BUYER" ? "buyer" : "seller"
 
   return (
     <Screen edges={["top"]} padded={false}>

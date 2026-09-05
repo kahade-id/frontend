@@ -38,7 +38,6 @@ import { useSafeAreaInsets, type Edge } from "react-native-safe-area-context"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { cn } from "@/lib/cn"
-import { tokens } from "@/lib/tokens"
 
 export const ScreenInsetsContext = createContext({ top: false })
 

@@ -17,7 +17,7 @@ import { LoadingScreen } from "@/components/ui/loading-screen"
  * Blocker bersifat best-effort: kegagalan memuat saldo/pesanan TIDAK
  * memblokir form (array kosong) — backend tetap menjadi penjaga terakhir.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"

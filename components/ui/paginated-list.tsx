@@ -18,6 +18,13 @@ export type PaginatedListProps<T extends { id: string }> = {
   onRetry: () => void | Promise<void>
   onLoadMore: () => void | Promise<void>
   empty: ReactElement
+  /**
+   * Placeholder muat-pertama. Default <ListLoading/> (4 kartu h-24) hanya
+   * cocok untuk daftar berbentuk kartu; daftar baris rapat (notifikasi,
+   * mutasi) harus mengirim skeleton sebentuk barisnya sendiri, kalau tidak
+   * layout melompat saat data tiba.
+   */
+  loadingPlaceholder?: ReactElement
   header?: ReactElement
   footer?: ReactNode
   padded?: boolean
@@ -50,6 +57,7 @@ export function PaginatedList<T extends { id: string }>({
   onRetry,
   onLoadMore,
   empty,
+  loadingPlaceholder,
   header,
   footer,
   padded = true,
@@ -81,7 +89,7 @@ export function PaginatedList<T extends { id: string }>({
       }
       ListEmptyComponent={
         loading ? (
-          <ListLoading />
+          (loadingPlaceholder ?? <ListLoading />)
         ) : error ? (
           <ErrorState description={error} onRetry={() => void onRetry()} />
         ) : (

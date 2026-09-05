@@ -13,23 +13,16 @@ import { LoadingScreen } from "@/components/ui/loading-screen"
  *   - Rating/persentase diformat lib/format (`formatDecimal`) — koma desimal
  *     §13, bukan `toFixed`.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ChartLineUp } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
-import {
-  ANALYTICS_PERIODS,
-  type AnalyticsPeriod,
-  type UserAnalytics,
-  type UserStats,
-} from "@/lib/api/users"
+import { ANALYTICS_PERIODS, type AnalyticsPeriod } from "@/lib/api/users"
 import { formatDecimal, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
 import { AnalyticsSummary } from "@/components/ui/analytics-summary"
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"

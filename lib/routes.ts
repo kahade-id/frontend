@@ -92,6 +92,13 @@ export const ROUTES = {
   /** Buat transaksi dengan lawan transaksi terisi (dari profil publik) */
   createTransactionWith: (username: string) =>
     ({ pathname: "/create-transaction", params: { counterpart: username } }) as unknown as Href,
+  /**
+   * Buat transaksi dengan voucher terpasang (dari halaman Voucher).
+   * Audit: layar Voucher sebelumnya menulis `pathname: "/create-transaction"`
+   * langsung — satu-satunya route literal yang tersisa di `app/`.
+   */
+  createTransactionWithVoucher: (voucherCode: string) =>
+    ({ pathname: "/create-transaction", params: { voucherCode } }) as unknown as Href,
 
   // ── Dompet — aksi cepat kartu saldo ─────────────────────────────────────
   /** POST /v1/wallet/topup */
@@ -131,6 +138,15 @@ export const ROUTES = {
   changePin: "/change-pin" as Href,
   biometricSettings: "/biometric-settings" as Href,
   notificationPreferences: "/notification-preferences" as Href,
+  /**
+   * Tampilan: mode terang/gelap/sistem.
+   *
+   * Audit: design system punya set token dark lengkap, <ThemeProvider>
+   * mempersistenkan preferensi, dan <ThemeModeSelector> sudah ditulis —
+   * tetapi tidak ada satu pun pintu masuk di app/, sehingga mode gelap tidak
+   * pernah bisa dipilih pengguna. Route ini adalah pintu itu.
+   */
+  appearance: "/appearance" as Href,
   faq: "/faq" as Href,
   contact: "/contact" as Href,
   appVersion: "/app-version" as Href,

@@ -14,7 +14,6 @@ import type { WalletTransaction } from "@/lib/api/wallet"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import {
-  WALLET_TXN_KIND,
   WALLET_TXN_LABELS,
   walletTransactionStatus,
   walletTransactionType,
@@ -23,7 +22,6 @@ import {
 
 import { Amount } from "@/components/ui/amount"
 import { Card } from "@/components/ui/card"
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { IconBox } from "@/components/ui/icon-box"

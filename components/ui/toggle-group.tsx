@@ -110,7 +110,7 @@ export function ToggleGroup<V extends string = string>(props: ToggleGroupProps<V
 }
 
 /** Baris label + ToggleGroup — untuk dipakai langsung di form */
-export function ToggleGroupField<V extends string = string>({
+export function ToggleGroupField({
   label,
   helper,
   children,
