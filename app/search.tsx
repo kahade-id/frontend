@@ -4,10 +4,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
 import { api, type Order, type WalletTransaction, type UserProfile } from "@/lib/api"
+import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { ChipGroup } from "@/components/ui/chip"
+import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -96,25 +97,35 @@ export default function SearchScreen() {
         }}
         ListHeaderComponent={
           suggestions.data?.length ? (
-            <View className="pb-4">
-              <ChipGroup
-                options={[...new Set(suggestions.data)].map((s) => ({ value: s, label: s }))}
-                value={[]}
-                single
-                onChange={(next) => {
-                  if (next[0]) {
-                    setSeed(next[0])
-                    setKeyword(next[0].trim())
-                  }
-                }}
-              />
+            <View className="flex-row flex-wrap gap-2 pb-4">
+              {[...new Set(suggestions.data)].map((s) => (
+                <Chip
+                  key={s}
+                  onPress={() => {
+                    setSeed(s)
+                    setKeyword(s.trim())
+                  }}
+                >
+                  {s}
+                </Chip>
+              ))}
             </View>
           ) : null
         }
         ItemSeparatorComponent={() => <View className="h-3" />}
-        renderItem={({ item }) => {
-          if (item.kind === "user")
-            return (
+        renderItem={({ item, index }) => {
+          const prev = rows[index - 1]
+          const showSection = !prev || prev.kind !== item.kind
+          const sectionTitle =
+            item.kind === "user"
+              ? "Pengguna"
+              : item.kind === "order"
+                ? "Pesanan"
+                : item.kind === "transaction"
+                  ? "Mutasi"
+                  : "Bantuan"
+          const body =
+            item.kind === "user" ? (
               <UserListItem
                 padded={false}
                 name={item.user.fullName ?? item.user.username ?? "Identitas belum tersedia"}
@@ -127,16 +138,12 @@ export default function SearchScreen() {
                     : undefined
                 }
               />
-            )
-          if (item.kind === "transaction")
-            return (
+            ) : item.kind === "transaction" ? (
               <WalletTransactionRow
                 transaction={item.transaction}
                 onPress={() => router.push(ROUTES.walletTransaction(item.transaction.id))}
               />
-            )
-          if (item.kind === "article")
-            return (
+            ) : item.kind === "article" ? (
               <HelpArticleListItem
                 padded={false}
                 title={item.article.title}
@@ -146,27 +153,44 @@ export default function SearchScreen() {
                   router.push(ROUTES.helpArticle(item.article.slug, undefined, item.article.title))
                 }
               />
+            ) : (
+              (() => {
+                const role =
+                  item.order.myRole === "BUYER"
+                    ? "buyer"
+                    : item.order.myRole === "SELLER"
+                      ? "seller"
+                      : undefined
+                const counterpart =
+                  role === "buyer"
+                    ? item.order.seller
+                    : role === "seller"
+                      ? item.order.buyer
+                      : undefined
+                return (
+                  <OrderCard
+                    orderId={item.order.id}
+                    title={item.order.title}
+                    amount={item.order.orderValue}
+                    status={item.order.status}
+                    role={role}
+                    counterpart={{
+                      name:
+                        counterpart?.fullName ??
+                        counterpart?.username ??
+                        "Identitas belum tersedia",
+                    }}
+                    timestamp={formatDateTime(item.order.createdAt)}
+                    onPress={() => router.push(ROUTES.orderDetail(item.order.id))}
+                  />
+                )
+              })()
             )
-          const role =
-            item.order.myRole === "BUYER"
-              ? "buyer"
-              : item.order.myRole === "SELLER"
-                ? "seller"
-                : undefined
-          const counterpart =
-            role === "buyer" ? item.order.seller : role === "seller" ? item.order.buyer : undefined
           return (
-            <OrderCard
-              orderId={item.order.id}
-              title={item.order.title}
-              amount={item.order.orderValue}
-              status={item.order.status}
-              role={role}
-              counterpart={{
-                name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
-              }}
-              onPress={() => router.push(ROUTES.orderDetail(item.order.id))}
-            />
+            <View className="gap-2">
+              {showSection ? <SectionHeader title={sectionTitle} /> : null}
+              {body}
+            </View>
           )
         }}
         ListEmptyComponent={

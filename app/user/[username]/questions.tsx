@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Tanya Jawab Publik sebuah profil.
  *
@@ -275,7 +275,7 @@ export default function PublicQuestionsScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat pertanyaan…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 ? (
@@ -322,7 +322,7 @@ export default function PublicQuestionsScreen() {
                 {openId === q.id ? (
                   <Card padded className="gap-3">
                     {comments.loading && comments.items.length === 0 ? (
-                      <LoadingScreen message="Memuat komentar…" />
+                      <ListLoading />
                     ) : comments.items.length === 0 ? (
                       <EmptyState icon={ChatCircleDots} title="Belum ada komentar" />
                     ) : (

@@ -41,7 +41,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import type { PublicUserProfile } from "@/lib/api/users"
 import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
-import { formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
+import { formatDate, formatDecimal, formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
@@ -320,9 +320,8 @@ export default function UserProfileScreen() {
                 ) : (
                   <>
                     <FollowButton
-                      disabled={following == null}
                       following={following === true}
-                      loading={followLoading}
+                      loading={followLoading || following == null}
                       onToggle={(next) => void handleFollow(next)}
                     />
                     <Button
@@ -347,7 +346,7 @@ export default function UserProfileScreen() {
 
             <View className="gap-4 px-6">
               <Text variant="caption" tone="secondary">
-                Bergabung {profile.createdAt ? formatDateTime(profile.createdAt) : "—"}
+                Bergabung {profile.createdAt ? formatDate(profile.createdAt) : "—"}
               </Text>
 
               <SectionHeader title="Lihat juga" />
@@ -358,7 +357,7 @@ export default function UserProfileScreen() {
                   leftIcon={Images}
                   onPress={() => router.push(ROUTES.userShowcase(handle))}
                 >
-                  Showcase
+                  Portofolio
                 </Button>
                 <Button
                   variant="secondary"

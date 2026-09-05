@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Laporan Saya (GET /v1/settings/reports).
  * Bila dibuka dengan `targetId`/`targetName` (dari Profil Publik), tampilkan
@@ -149,7 +149,7 @@ export default function ReportsScreen() {
         <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
           <SectionHeader title="Laporan saya" />
           {loading ? (
-            <LoadingScreen message="Memuat laporan…" />
+            <ListLoading />
           ) : error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
           ) : items.length === 0 ? (

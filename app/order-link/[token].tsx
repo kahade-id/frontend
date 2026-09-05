@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Terima Order Link (GET /v1/orders/links/{token}).
  * Preview kartu + Terima (POST accept) / Tolak (POST cancel).
@@ -109,7 +109,7 @@ export default function OrderLinkScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat tautan…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchLink()} />
         ) : link ? (

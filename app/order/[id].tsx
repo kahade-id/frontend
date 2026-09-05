@@ -337,7 +337,7 @@ export default function OrderDetailScreen() {
     if (!order) return
     try {
       const rooms = await api.chat.listChatRooms()
-      const room = rooms.find((r) => r.orderId === order.id)
+      const room = rooms.data.find((r) => r.orderId === order.id)
       router.push(room ? ROUTES.chatRoom(room.id) : ROUTES.chat)
     } catch {
       router.push(ROUTES.chat)
@@ -380,7 +380,7 @@ export default function OrderDetailScreen() {
   const isSeller = myRole === "SELLER"
   const isBuyer = myRole === "BUYER"
   const counterpart = isBuyer ? order.seller : isSeller ? order.buyer : undefined
-  const canPay = order.status === "PENDING_PAYMENT" && isBuyer && !!fee
+  const canPay = order.status === "PENDING_PAYMENT" && isBuyer
   const canConfirm = order.status === "PENDING_PAYMENT" && isSeller
   const canProcess = order.status === "PAID" && isSeller
   const canShip = order.status === "PROCESSING" && isSeller
@@ -492,9 +492,19 @@ export default function OrderDetailScreen() {
           {/* ── Aksi utama sesuai status ─────────────────────────── */}
           <View className="gap-2">
             {canPay ? (
-              <Button onPress={() => setSheet("pay")}>
-                Bayar {formatRupiah(fee?.buyerPays ?? order.orderValue)}
-              </Button>
+              <>
+                {!fee ? (
+                  <ErrorState
+                    compact
+                    title="Rincian biaya belum tersedia"
+                    description="Muat ulang untuk menampilkan jumlah yang harus dibayar."
+                    onRetry={() => void fetchOrder()}
+                  />
+                ) : null}
+                <Button disabled={!fee} onPress={() => setSheet("pay")}>
+                  Bayar {formatRupiah(fee?.buyerPays ?? order.orderValue)}
+                </Button>
+              </>
             ) : null}
             {canConfirm ? (
               <>
@@ -631,23 +641,25 @@ export default function OrderDetailScreen() {
             ) : null}
           </View>
 
+          <SectionHeader title="Riwayat" />
           {history.length > 0 ? (
-            <>
-              <SectionHeader title="Riwayat" />
-              <OrderHistoryTimeline
-                entries={history.map((h) => ({
-                  id: h.id,
-                  toStatus: h.toStatus,
-                  fromStatus: h.fromStatus ?? undefined,
-                  actor: h.actorId ?? undefined,
-                  note: h.note ?? undefined,
-                  timestamp: formatDateTime(h.createdAt),
-                }))}
-                currentStatus={order.status}
-                expectedNext={expectedNext}
-              />
-            </>
-          ) : null}
+            <OrderHistoryTimeline
+              entries={history.map((h) => ({
+                id: h.id,
+                toStatus: h.toStatus,
+                fromStatus: h.fromStatus ?? undefined,
+                actor: h.actorId ?? undefined,
+                note: h.note ?? undefined,
+                timestamp: formatDateTime(h.createdAt),
+              }))}
+              currentStatus={order.status}
+              expectedNext={expectedNext}
+            />
+          ) : (
+            <Text variant="body" tone="secondary">
+              Riwayat belum tersedia.
+            </Text>
+          )}
         </View>
       </PullToRefresh>
 

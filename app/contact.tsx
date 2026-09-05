@@ -1,67 +1,33 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
- * Screen — Hubungi Kami: form tiket (POST /v1/support/tickets) + daftar
- * tiket (GET /v1/support/tickets) langsung di layar.
+ * Screen — Hubungi Kami: form tiket baru (POST /v1/support/tickets).
+ * Daftar tiket ada di layar Tiket Bantuan (Support) — bukan diulang di sini.
  */
-import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ChatCircleText } from "phosphor-react-native"
+import { useCallback, useState } from "react"
+import { ScrollView, View } from "react-native"
 import { router } from "expo-router"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api } from "@/lib/api"
-import type { SupportTicket } from "@/lib/api/support"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
-import { SectionHeader } from "@/components/ui/section"
-import { SupportTicketCard } from "@/components/ui/support-ticket-card"
+import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 
 export default function ContactScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
-
-  const [tickets, setTickets] = useState<SupportTicket[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
   const [submitting, setSubmitting] = useState(false)
-
-  const fetchTickets = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.support.listSupportTickets()
-      setTickets(res ?? [])
-    } catch {
-      setError("Gagal memuat daftar tiket.")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void fetchTickets()
-  }, [fetchTickets])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchTickets()
-    setRefreshing(false)
-  }, [fetchTickets])
 
   const handleSubmit = useCallback(async () => {
     if (!subject.trim() || !message.trim()) return
@@ -74,97 +40,78 @@ export default function ContactScreen() {
       })
       toast.show({
         title: "Tiket terkirim",
-        description: "Tim kami akan segera merespons.",
+        description: "Tim Kahade akan membalas lewat tiket ini.",
         tone: "success",
         duration: 4000,
       })
       setSubject("")
       setMessage("")
-      if (res?.id) {
-        router.push(ROUTES.supportTicket(res.id))
-      }
-      await fetchTickets()
+      if (res?.id) router.replace(ROUTES.supportTicket(res.id))
+      else router.replace(ROUTES.support)
     } catch {
       toast.show({ title: "Gagal mengirim tiket", tone: "danger" })
     } finally {
       setSubmitting(false)
     }
-  }, [subject, message, toast.show, fetchTickets, router])
+  }, [subject, message, toast.show])
 
   return (
-    <Screen keyboardAvoiding edges={["top"]} padded={false}>
+    <Screen
+      keyboardAvoiding
+      edges={["top"]}
+      padded={false}
+      footer={
+        <View>
+          <Button
+            fullWidth
+            loading={submitting}
+            disabled={!subject.trim() || !message.trim()}
+            onPress={() => void handleSubmit()}
+          >
+            Kirim Tiket
+          </Button>
+        </View>
+      }
+    >
       <Header title="Hubungi Kami" />
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        contentContainerClassName="px-6"
-        scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+      <ScrollView
+        className="flex-1"
+        keyboardShouldPersistTaps="handled"
+        contentContainerClassName="gap-4 px-6"
+        contentContainerStyle={{
+          paddingTop: tokens.space[3],
+          paddingBottom: insets.bottom + tokens.space[8],
         }}
       >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <FormSection title="Buat tiket baru">
-            <Field label="Subjek" required>
-              <Input
-                value={subject}
-                onChangeText={setSubject}
-                placeholder="Ringkasan masalah"
-                maxLength={120}
-              />
-            </Field>
-            <Field label="Pesan" required>
-              <TextArea
-                value={message}
-                onChangeText={setMessage}
-                placeholder="Jelaskan kendala Anda"
-                maxLength={2000}
-                numberOfLines={5}
-              />
-            </Field>
-            <Button
-              loading={submitting}
-              disabled={!subject.trim() || !message.trim()}
-              onPress={() => void handleSubmit()}
-            >
-              Kirim Tiket
-            </Button>
-          </FormSection>
-
-          <SectionHeader title="Tiket saya" />
-          {loading ? (
-            <LoadingScreen message="Memuat tiket…" />
-          ) : error ? (
-            <ErrorState
-              title="Gagal memuat"
-              description={error}
-              onRetry={() => void fetchTickets()}
+        <FormSection
+          title="Buat tiket baru"
+          description="Jelaskan kendala Anda. Balasan tim Kahade muncul di Tiket Bantuan."
+        >
+          <Field label="Subjek" required>
+            <Input
+              value={subject}
+              onChangeText={setSubject}
+              placeholder="Ringkasan masalah"
+              maxLength={120}
             />
-          ) : tickets.length === 0 ? (
-            <EmptyState
-              icon={ChatCircleText}
-              title="Belum ada tiket"
-              description="Tiket yang Anda kirim akan muncul di sini."
+          </Field>
+          <Field label="Pesan" required>
+            <TextArea
+              value={message}
+              onChangeText={setMessage}
+              placeholder="Jelaskan kendala Anda"
+              maxLength={2000}
+              numberOfLines={5}
             />
-          ) : (
-            tickets.map((t) => (
-              <SupportTicketCard
-                key={t.id}
-                ticketNumber={t.ticketNumber}
-                subject={t.subject}
-                status={t.status}
-                category={t.category}
-                attachmentCount={t.attachmentKeys?.length}
-                lastMessage={
-                  t.lastMessage
-                    ? { text: t.lastMessage.text, fromUser: t.lastMessage.fromUser }
-                    : undefined
-                }
-                onPress={() => router.push(ROUTES.supportTicket(t.id))}
-              />
-            ))
-          )}
-        </View>
-      </PullToRefresh>
+          </Field>
+        </FormSection>
+        <Text variant="body" tone="secondary">
+          Sudah punya tiket?{" "}
+          <TextLink inline onPress={() => router.push(ROUTES.support)}>
+            Lihat tiket saya
+          </TextLink>
+        </Text>
+      </ScrollView>
     </Screen>
   )
 }

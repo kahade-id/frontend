@@ -385,16 +385,6 @@ export default function EditProfileScreen() {
                   />
                 </View>
               </View>
-              <Button
-                variant="secondary"
-                size="sm"
-                fullWidth={false}
-                loading={avatarBusy}
-                disabled={avatarBusy}
-                onPress={() => setAvatarSheetOpen(true)}
-              >
-                Ubah foto
-              </Button>
             </View>
 
             <FormSection title="Informasi dasar">

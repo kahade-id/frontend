@@ -436,7 +436,7 @@ export default function NotificationsScreen() {
           <EmptyState
             icon={EMPTY_ICON[filter]}
             title="Tidak ada notifikasi"
-            description="Notifikasi untukmu akan muncul di sini."
+            description="Notifikasi untuk Anda akan muncul di sini."
           />
         }
         renderItem={({ item, index }) => (

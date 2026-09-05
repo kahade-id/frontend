@@ -44,17 +44,15 @@ export default function AppearanceScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Tampilan" />
-      <Screen scroll padded background="background">
-        <View className="gap-4 pt-3">
-          <SectionHeader title="Mode warna" subtitle="Berlaku untuk seluruh aplikasi." />
-          <ThemeModeSelector />
-          <Text variant="body" tone="secondary">
-            {PREFERENCE_HINT[preference] ?? PREFERENCE_HINT.system}
-          </Text>
+      <View className="gap-4 px-6 pt-3">
+        <SectionHeader title="Mode warna" subtitle="Berlaku untuk seluruh aplikasi." />
+        <ThemeModeSelector />
+        <Text variant="body" tone="secondary">
+          {PREFERENCE_HINT[preference] ?? PREFERENCE_HINT.system}
+        </Text>
 
-          <KeyValue label="Sedang aktif" value={MODE_LABEL[mode] ?? mode} />
-        </View>
-      </Screen>
+        <KeyValue label="Sedang aktif" value={MODE_LABEL[mode] ?? mode} />
+      </View>
     </Screen>
   )
 }

@@ -1,107 +1,66 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Ruang Chat (GET /v1/chat/rooms). List ChatRoomListItem.
  */
-import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Chats } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api } from "@/lib/api"
-import type { ChatRoom } from "@/lib/api/chat"
-import { formatDateTime } from "@/lib/format"
+import { CHAT_PAGE_SIZE, type ChatRoom } from "@/lib/api/chat"
+import { formatDateTime, truncateMiddle } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
-import { SectionHeader } from "@/components/ui/section"
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets()
-
-  const [items, setItems] = useState<ChatRoom[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchRooms = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.chat.listChatRooms()
-      setItems(res ?? [])
-    } catch {
-      setError("Gagal memuat ruang chat.")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void fetchRooms()
-  }, [fetchRooms])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchRooms()
-    setRefreshing(false)
-  }, [fetchRooms])
+  const query = usePaginatedQuery<ChatRoom>("chat-rooms", (page, signal) =>
+    api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
+  )
 
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Chat" />
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        contentContainerClassName="px-6"
-        scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
-        }}
-      >
-        {loading ? (
-          <LoadingScreen message="Memuat ruang chat…" />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchRooms()} />
-        ) : items.length === 0 ? (
+      <PaginatedList
+        {...query}
+        onRefresh={query.refresh}
+        onRetry={query.reload}
+        onLoadMore={query.loadMore}
+        gap={0}
+        bottomPadding={insets.bottom + tokens.space[8]}
+        empty={
           <EmptyState
             icon={Chats}
             title="Belum ada percakapan"
             description="Mulai chat dengan lawan transaksi Anda."
           />
-        ) : (
-          <View className="gap-1" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Percakapan" />
-            {items.map((room, i) => (
-              <ChatRoomListItem
-                key={room.id}
-                name={room.counterpart?.fullName ?? `@${room.counterpart?.username ?? "—"}`}
-                avatar={
-                  room.counterpart?.avatarUrl ? { uri: room.counterpart.avatarUrl } : undefined
-                }
-                lastMessage={
-                  room.lastMessage
-                    ? {
-                        text: room.lastMessage.text ?? "",
-                        fromSelf: room.lastMessage.fromUser,
-                      }
-                    : undefined
-                }
-                time={room.lastMessage ? formatDateTime(room.lastMessage.createdAt) : undefined}
-                unreadCount={room.unreadCount}
-                context={room.orderId ? `Order ${room.orderId}` : undefined}
-                onPress={() => router.push(ROUTES.chatRoom(room.id))}
-                divider={i < items.length - 1}
-              />
-            ))}
-          </View>
+        }
+        renderItem={({ item, index }) => (
+          <ChatRoomListItem
+            name={item.counterpart?.fullName ?? `@${item.counterpart?.username ?? "—"}`}
+            avatar={item.counterpart?.avatarUrl ? { uri: item.counterpart.avatarUrl } : undefined}
+            lastMessage={
+              item.lastMessage
+                ? {
+                    text: item.lastMessage.text ?? "",
+                    fromSelf: item.lastMessage.fromUser,
+                  }
+                : undefined
+            }
+            time={item.lastMessage ? formatDateTime(item.lastMessage.createdAt) : undefined}
+            unreadCount={item.unreadCount}
+            context={item.orderId ? `Pesanan ${truncateMiddle(item.orderId)}` : undefined}
+            onPress={() => router.push(ROUTES.chatRoom(item.id))}
+            divider={index < query.data.length - 1}
+          />
         )}
-      </PullToRefresh>
+      />
     </Screen>
   )
 }

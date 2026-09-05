@@ -1,4 +1,4 @@
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Template Transaksi (CRUD /v1/transaction-templates).
  * Template = data order default (role, judul, jenis, nilai, tenggat, fee).
@@ -158,7 +158,7 @@ export default function TransactionTemplatesScreen() {
         }}
       >
         {loading ? (
-          <LoadingScreen message="Memuat template…" />
+          <ListLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (

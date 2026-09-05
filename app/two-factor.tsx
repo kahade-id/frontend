@@ -38,6 +38,7 @@ import { useCopy } from "@/lib/clipboard"
 import { tokens } from "@/lib/tokens"
 
 import { Alert } from "@/components/ui/alert"
+import { ErrorState } from "@/components/ui/error-state"
 import { BackupCodesDisplay } from "@/components/ui/backup-codes-display"
 import { Button } from "@/components/ui/button"
 import { CopyableField } from "@/components/ui/copyable-field"
@@ -267,26 +268,17 @@ export default function TwoFactorScreen() {
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loadError ? (
-            <Alert
-              tone="danger"
-              title={loadError}
-              action={
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  fullWidth={false}
-                  onPress={() => void fetchStatus()}
-                >
-                  Coba lagi
-                </Button>
-              }
+            <ErrorState
+              title="Gagal memuat"
+              description={loadError}
+              onRetry={() => void fetchStatus()}
             />
           ) : null}
 
           <TwoFactorStatusCard
             enabled={enabled}
             backupCodesRemaining={status?.backupCodesRemaining}
-            backupCodesTotal={BACKUP_CODES_TOTAL}
+            backupCodesTotal={codes.length > 0 ? codes.length : BACKUP_CODES_TOTAL}
             loading={loading}
             onEnable={!enabled && step === "idle" ? handleStartEnable : undefined}
             onManage={enabled ? openDisable : undefined}
@@ -475,14 +467,9 @@ export default function TwoFactorScreen() {
               <SectionHeader title="Kode cadangan" />
               <Text variant="body" tone="secondary">
                 Kode cadangan hanya ditampilkan sekali saat dibuat. Jika hilang, buat set baru —
-                kode lama otomatis tidak berlaku.
+                kode lama otomatis tidak berlaku. Gunakan aksi pada kartu di atas untuk membuat kode
+                baru atau mematikan verifikasi dua langkah.
               </Text>
-              <Button variant="secondary" onPress={openRegenerate}>
-                Buat Kode Cadangan Baru
-              </Button>
-              <Button variant="destructive" onPress={openDisable}>
-                Matikan Verifikasi Dua Langkah
-              </Button>
             </>
           ) : null}
         </View>

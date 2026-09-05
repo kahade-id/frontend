@@ -1,6 +1,6 @@
 import { useApiQuery } from "@/lib/use-api-query"
 import { ErrorState } from "@/components/ui/error-state"
-import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Hapus Akun (POST /v1/users/me/delete-request).
  *
@@ -107,7 +107,7 @@ export default function DeleteAccountScreen() {
         style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
       >
         {prerequisites.loading ? (
-          <LoadingScreen message="Memeriksa persyaratan…" />
+          <ListLoading />
         ) : prerequisites.error ? (
           <ErrorState
             description={prerequisites.error}

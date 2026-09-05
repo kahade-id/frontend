@@ -117,12 +117,13 @@ export default function HomeScreen() {
     setSummaryLoading(true)
     setWalletError(null)
     setSummaryError(null)
+    setProfileError(null)
 
     await Promise.allSettled([
       api.users
         .getMe()
         .then(setProfile)
-        .catch(() => {})
+        .catch(() => setProfileError("Gagal memuat profil."))
         .finally(() => setProfileLoading(false)),
 
       api.wallet
@@ -194,7 +195,7 @@ export default function HomeScreen() {
   ]
 
   return (
-    <Screen edges={["top"]} background="surface" padded={false}>
+    <Screen edges={["top"]} padded={false}>
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
@@ -206,12 +207,21 @@ export default function HomeScreen() {
             {greetingByHour()},
           </Text>
         </View>
-        <ProfileHeader
-          name={profile?.fullName ?? "—"}
-          handle={profile?.username ? `@${profile.username}` : undefined}
-          avatar={{ source: profile?.avatarUrl ?? undefined }}
-          loading={profileLoading}
-        />
+        {profileError ? (
+          <ErrorState
+            compact
+            title="Gagal memuat profil"
+            description={profileError}
+            onRetry={() => void fetchAll()}
+          />
+        ) : (
+          <ProfileHeader
+            name={profile?.fullName ?? "—"}
+            handle={profile?.username ? `@${profile.username}` : undefined}
+            avatar={{ source: profile?.avatarUrl ?? undefined }}
+            loading={profileLoading}
+          />
+        )}
 
         {/* ── Ringkasan ───────────────────────────────────────── */}
         <View className="gap-4 px-6 pt-2">
@@ -255,7 +265,7 @@ export default function HomeScreen() {
               />
               <StatCard
                 label="Total transaksi"
-                icon={<Icon icon={ArrowRight} size="xs" tone="default" />}
+                icon={<Icon icon={ChartLineUp} size="xs" tone="default" />}
                 loading={summaryLoading}
                 value={totalOrdersCount}
                 mono
@@ -268,7 +278,7 @@ export default function HomeScreen() {
         {/* ── Pintasan ────────────────────────────────────────── */}
         <View className="px-6 pt-6">
           <SectionHeader title="Pintasan" />
-          <QuickActionGrid actions={quickActions} className="-mx-1 pt-2" />
+          <QuickActionGrid actions={quickActions} className="pt-2" />
         </View>
 
         {/* ── Aksi ────────────────────────────────────────────── */}

@@ -9,7 +9,7 @@ import { ROUTES } from "@/lib/routes"
 export default function NotFoundScreen() {
   const router = useRouter()
   return (
-    <Screen padded={false}>
+    <Screen edges={["top", "bottom"]} padded={false}>
       <Header title="Halaman tidak ditemukan" />
       <EmptyState
         icon={MagnifyingGlass}
