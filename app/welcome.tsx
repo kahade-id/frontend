@@ -19,20 +19,24 @@
  *     "agar kamu dapat notifikasi transaksi" relevan konteksnya.
  *   - `router.replace` (bukan push) ke ROUTES.home agar Welcome tidak masuk
  *     back stack — user tidak bisa back ke sini setelah masuk Beranda.
- *   - `requestAndRegisterPushToken` membungkus Expo Notifications + POST
- *     /v1/notifications/devices. Error diabaikan secara diam-diam: izin
- *     ditolak bukan alasan menolak user masuk app.
+ *   - `registerPushDevice` (lib/push-notifications.ts) membungkus Expo
+ *     Notifications + POST /v1/notifications/register-device dengan DTO
+ *     RegisterDeviceDto (token, platform, deviceId) persis spec.
+ *     Error diabaikan secara diam-diam: izin ditolak bukan alasan menolak
+ *     user masuk app.
  */
 import { useLocalSearchParams } from "expo-router"
 import { useRouter } from "expo-router"
 import { View } from "react-native"
 
+import { api } from "@/lib/api"
+import { registerPushDevice } from "@/lib/push-notifications"
+import { ROUTES } from "@/lib/routes"
+
 import { Button } from "@/components/ui/button"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { VStack } from "@/components/ui/stack"
-import { requestAndRegisterPushToken } from "@/lib/push-notifications"
-import { ROUTES } from "@/lib/routes"
 
 export default function WelcomeScreen() {
   const router = useRouter()
@@ -40,9 +44,13 @@ export default function WelcomeScreen() {
   const isNewUser = newUser === "1"
 
   async function handleStart() {
-    // Minta izin push notification — error diabaikan (izin opsional)
+    // Minta izin push notification + daftarkan perangkat ke backend —
+    // error diabaikan (izin opsional, bukan alasan menolak user masuk app).
     try {
-      await requestAndRegisterPushToken()
+      await registerPushDevice({
+        registerDevice: (body) => api.notifications.registerDevice(body),
+        unregisterDevice: () => api.notifications.unregisterDevice(),
+      })
     } catch {
       // tidak ada notif bukan akhir dunia
     }

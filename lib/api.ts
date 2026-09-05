@@ -22,6 +22,7 @@ import * as notifications from "@/lib/api/notifications"
 import * as orders from "@/lib/api/orders"
 import * as publicApi from "@/lib/api/public"
 import * as users from "@/lib/api/users"
+import * as wallet from "@/lib/api/wallet"
 
 export { API_BASE_URL, API_ENV, type ApiEnv } from "@/lib/api/config"
 export { OTP_METHODS, type OtpMethod, type OtpMethodsResult } from "@/lib/api/auth"
@@ -52,7 +53,22 @@ export {
   onSessionExpired,
 } from "@/lib/api/session"
 export type * from "@/lib/api/types"
-export { readUnreadCount, type NotificationCategory, type UnreadCountResult } from "@/lib/api/notifications"
+export { readUnreadCount, type AppNotification, type NotificationCategory, type UnreadCountResult } from "@/lib/api/notifications"
+export type {
+  AverageDurations,
+  FeeBreakdown,
+  ListOrdersQuery,
+  Order,
+  OrderHistoryEntry,
+  OrderLink,
+  OrderRole,
+  OrderStatus,
+  OrderStatusFilter,
+  OrderSummary,
+  Paginated,
+} from "@/lib/api/orders"
+export type { UserProfile } from "@/lib/api/users"
+export type { Wallet, WalletTransaction } from "@/lib/api/wallet"
 
 export const api = {
   auth,
@@ -60,6 +76,7 @@ export const api = {
   orders,
   public: publicApi,
   users,
+  wallet,
 } as const
 
 export type Api = typeof api

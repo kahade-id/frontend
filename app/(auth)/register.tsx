@@ -49,7 +49,7 @@ import { useOtpMethods } from "@/components/register/use-otp-methods"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { FieldLabel } from "@/components/ui/field"
-import { Header } from "@/components/ui/header"
+import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { isValidPhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
@@ -60,8 +60,6 @@ import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
-/** Tinggi bar Header (h-14) — untuk keyboardVerticalOffset */
-const HEADER_HEIGHT = 56
 /** Registrasi via HP: 4 langkah sebelum akun jadi; ini langkah ke-1 */
 const STEP_PROGRESS = 1 / 4
 
@@ -143,7 +141,7 @@ export default function RegisterScreen() {
     <Screen padded={false} edges={["top"]}>
       <Header title="Buat Akun" progress={STEP_PROGRESS} safeArea={false} />
 
-      <KeyboardAvoiding offset={insets.top + HEADER_HEIGHT}>
+      <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
           className="flex-1"
           contentContainerClassName="grow px-6 pb-8 pt-8"

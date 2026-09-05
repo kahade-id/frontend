@@ -41,9 +41,9 @@
  *   - P5: mounted flag mencegah setState setelah komponen unmount (race
  *     condition bila fetchCount selesai setelah layout di-unmount).
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type ComponentProps } from "react"
 import { AppState, type AppStateStatus } from "react-native"
-import { Tabs, type TabsProps } from "expo-router"
+import { Tabs } from "expo-router"
 import { ArrowsLeftRight, Bell, GearSix, House, Wallet } from "phosphor-react-native"
 
 import { RouterBottomTabBar, type RouterBottomTabBarProps } from "@/components/ui/bottom-tab-bar"
@@ -52,6 +52,9 @@ import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
 
 /** Interval poll badge (ms) — 60 detik cukup, hemat baterai. */
 const BADGE_POLL_INTERVAL_MS = 60_000
+
+/** Props tabBar @react-navigation yang diteruskan ke <Tabs> Expo Router. */
+type TabsTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0]
 
 type TabVisualItem = Omit<RouterBottomTabBarProps["items"][string], "badge">
 
@@ -145,7 +148,7 @@ export default function TabsLayout() {
   const hasUnread = useUnreadBadge()
 
   const renderTabBar = useCallback(
-    (props: Parameters<NonNullable<TabsProps["tabBar"]>>[0]) => {
+    (props: TabsTabBarProps) => {
       const itemsWithBadge: RouterBottomTabBarProps["items"] = {
         ...TAB_ITEMS,
         notifications: {

@@ -75,13 +75,40 @@ export function getWallet() {
 }
 
 /**
- * GET /v1/wallet/transactions — riwayat transaksi wallet (paginasi).
- * Dipakai Dompet overview (item #4); disediakan sekarang agar tidak
- * ada file wallet baru saat item #4 dibangun.
+ * Query `GET /v1/wallet/transactions`.
+ * Spec menandai `page`, `limit`, `type`, `from`, `to` sebagai REQUIRED
+ * (tanpa enum/deskripsi tambahan). Karena tidak ada dokumentasi nilai yang
+ * diterima, helper ini mengisi default yang masuk akal untuk layar riwayat
+ * (semua tipe + rentang waktu lebar) — SATU tempat, mudah dikoreksi bila
+ * kontrak backend terbukti berbeda.
  */
-export function getWalletTransactions(query: { page?: number; limit?: number } = {}) {
+export type WalletTransactionsQuery = {
+  page: number
+  limit: number
+  /** Filter tipe mutasi. Default "ALL" (asumsi; backend menerima string bebas). */
+  type?: string
+  /** Batas awal rentang tanggal (ISO). Default 2000-01-01 (asumsi). */
+  from?: string
+  /** Batas akhir rentang tanggal (ISO). Default sekarang (asumsi). */
+  to?: string
+}
+
+/** Rentang default history — dihitung sekali per proses (deterministik). */
+const HISTORY_FROM = "2000-01-01T00:00:00.000Z"
+
+/**
+ * GET /v1/wallet/transactions — riwayat transaksi wallet (paginasi).
+ * Dipakai Dompet overview & tab riwayat; disediakan di satu domain.
+ */
+export function getWalletTransactions(query: WalletTransactionsQuery) {
   return http.get<WalletPaginated>("/v1/wallet/transactions", {
-    query,
+    query: {
+      page: query.page,
+      limit: query.limit,
+      type: query.type ?? "ALL",
+      from: query.from ?? HISTORY_FROM,
+      to: query.to ?? new Date().toISOString(),
+    },
     auth: "required",
     retry: 1,
   })

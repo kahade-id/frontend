@@ -38,6 +38,7 @@ import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
 import { onSessionExpired } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
+import { setupNotifications } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -116,6 +117,15 @@ function AppShell() {
   // Client tidak boleh import expo-router (arah dependency UI → lib), jadi
   // redirect ke login dipasang di sini, di dalam navigator.
   useEffect(() => onSessionExpired(() => router.replace(ROUTES.login)), [router])
+
+  // Handler foreground + Android channel notification dipasang sekali di
+  // boot (idempoten) — channel wajib ada sebelum notifikasi tampil di
+  // Android 26+. Pendaftaran token ke backend tetap di Welcome/logout flow.
+  useEffect(() => {
+    void setupNotifications().catch((err) => {
+      if (__DEV__) console.warn("[kahade/push] setupNotification gagal:", err)
+    })
+  }, [])
 
   return (
     // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah

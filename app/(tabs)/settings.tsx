@@ -2,57 +2,52 @@
  * Tab #5 — Pengaturan
  *
  * Menampilkan:
- *  - Header profil (avatar, nama, username)
- *  - Grup menu: Akun, Keamanan, Notifikasi, Bantuan, Tentang
- *  - Tombol Logout di bagian bawah
+ *  - <ProfileHeader> sistem (avatar, nama, @username, skeleton, error state)
+ *  - Grup menu <ListGroup>/<ListItem> — semua path dari lib/routes.ts,
+ *    TIDAK ada string route literal.
+ *  - Logout: unregister push device dulu (`POST /v1/notifications/
+ *    unregister-device`), baru clearSession() + redirect ke login.
  *
- * Data:
- *  - getMe() → profil user
- *  - Logout: panggil clearSession() lalu redirect ke ROUTES.login
+ * Menu yang screen-nya belum dibuat menampilkan toast info (bukan push ke
+ * route yang tidak ada) — ketika file route dibuat, cukup ganti handler.
  *
- * Keputusan non-obvious:
- *  - M6: skeleton profil pakai <Skeleton> + <SkeletonGroup> sistem —
- *    bukan animate-pulse manual — supaya animasi & aksesibilitas konsisten.
- *  - P6: error state getMe() ditampilkan eksplisit (teks + tombol retry),
- *    bukan silent fallback "—" yang membingungkan user.
- *  - Spacing memakai tokens.space[n] bukan angka literal.
- *  - router.push(route as Href) menggantikan `as any`.
+ * Data: GET /v1/users/me.
  */
 import { useCallback, useEffect, useState } from "react"
-import { Alert, ScrollView, View } from "react-native"
+import { ScrollView, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import {
+  Bank,
   Bell,
   Briefcase,
-  CaretRight,
+  ChatCircleText,
   FileText,
   Fingerprint,
   GridFour,
   Info,
-  Landmark,
   Lock,
-  MessageCircle,
   Question,
   Shield,
+  SignOut,
   User,
 } from "phosphor-react-native"
 
-import { getMe } from "@/lib/api/users"
-import type { UserProfile } from "@/lib/api/users"
+import { api, type UserProfile } from "@/lib/api"
 import { clearSession } from "@/lib/api/session"
+import { useComingSoon } from "@/lib/navigation"
+import { unregisterPushDevice } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
-import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Divider } from "@/components/ui/divider"
 import { Header } from "@/components/ui/header"
-import { Icon, type IconComponent } from "@/components/ui/icon"
+import type { IconComponent } from "@/components/ui/icon"
 import { ListGroup, ListItem } from "@/components/ui/list-item"
-import { PressableScale } from "@/components/ui/pressable-scale"
+import { Dialog } from "@/components/ui/modal"
+import { ProfileHeader } from "@/components/ui/profile-header"
 import { Screen } from "@/components/ui/screen"
-import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 
 // ------------------------------------------------------------------
@@ -63,8 +58,8 @@ type MenuItem = {
   id: string
   icon: IconComponent
   label: string
-  route?: string
-  badge?: string
+  /** Route target; undefined = fitur belum ada (toast info). */
+  route?: Href
 }
 
 type MenuGroup = {
@@ -76,17 +71,17 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: "Akun",
     items: [
-      { id: "edit-profile", icon: User, label: "Edit Profil", route: "/edit-profile" },
-      { id: "bank-account", icon: Landmark, label: "Rekening Bank", route: "/bank-accounts" },
-      { id: "account-type", icon: Briefcase, label: "Tipe Akun", route: "/account-type" },
+      { id: "edit-profile", icon: User, label: "Edit Profil", route: ROUTES.editProfile },
+      { id: "bank-account", icon: Bank, label: "Rekening Bank", route: ROUTES.bankAccounts },
+      { id: "account-type", icon: Briefcase, label: "Tipe Akun", route: ROUTES.accountType },
     ],
   },
   {
     title: "Keamanan",
     items: [
-      { id: "change-password", icon: Lock, label: "Ubah Password", route: "/change-password" },
-      { id: "change-pin", icon: GridFour, label: "Ubah PIN", route: "/change-pin" },
-      { id: "biometric", icon: Fingerprint, label: "Biometrik", route: "/biometric-settings" },
+      { id: "change-password", icon: Lock, label: "Ubah Password", route: ROUTES.changePassword },
+      { id: "change-pin", icon: GridFour, label: "Ubah PIN", route: ROUTES.changePin },
+      { id: "biometric", icon: Fingerprint, label: "Biometrik", route: ROUTES.biometricSettings },
     ],
   },
   {
@@ -96,52 +91,26 @@ const MENU_GROUPS: MenuGroup[] = [
         id: "notif-prefs",
         icon: Bell,
         label: "Preferensi Notifikasi",
-        route: "/notification-preferences",
+        route: ROUTES.notificationPreferences,
       },
     ],
   },
   {
     title: "Bantuan",
     items: [
-      { id: "faq", icon: Question, label: "FAQ", route: "/faq" },
-      { id: "contact", icon: MessageCircle, label: "Hubungi Kami", route: "/contact" },
+      { id: "faq", icon: Question, label: "FAQ", route: ROUTES.faq },
+      { id: "contact", icon: ChatCircleText, label: "Hubungi Kami", route: ROUTES.contact },
     ],
   },
   {
     title: "Tentang",
     items: [
-      { id: "app-version", icon: Info, label: "Versi Aplikasi", route: "/app-version" },
-      { id: "privacy", icon: Shield, label: "Kebijakan Privasi", route: "/privacy-policy" },
-      { id: "tos", icon: FileText, label: "Syarat & Ketentuan", route: "/terms" },
+      { id: "app-version", icon: Info, label: "Versi Aplikasi", route: ROUTES.appVersion },
+      { id: "privacy", icon: Shield, label: "Kebijakan Privasi", route: ROUTES.privacyPolicy },
+      { id: "tos", icon: FileText, label: "Syarat & Ketentuan", route: ROUTES.terms },
     ],
   },
 ]
-
-// ------------------------------------------------------------------
-// Skeleton placeholder profil (M6: pakai Skeleton sistem)
-// ------------------------------------------------------------------
-
-function ProfileSkeleton() {
-  return (
-    <SkeletonGroup>
-      <View
-        style={{
-          flexDirection: "row",
-          alignItems: "center",
-          gap: tokens.space[3],
-          paddingVertical: tokens.space[4],
-          paddingHorizontal: tokens.layout.screenPaddingX,
-        }}
-      >
-        <Skeleton shape="circle" width={56} height={56} />
-        <View style={{ gap: tokens.space[1] }}>
-          <Skeleton height={16} width={144} />
-          <Skeleton height={13} width={96} />
-        </View>
-      </View>
-    </SkeletonGroup>
-  )
-}
 
 // ------------------------------------------------------------------
 // Screen
@@ -149,16 +118,20 @@ function ProfileSkeleton() {
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets()
+  const comingSoon = useComingSoon()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [profileError, setProfileError] = useState<string | null>(null)
 
-  // P6: error state getMe() — tampil eksplisit, bukan silent fallback
+  const [logoutOpen, setLogoutOpen] = useState(false)
+  const [loggingOut, setLoggingOut] = useState(false)
+
   const fetchProfile = useCallback(() => {
     setLoading(true)
     setProfileError(null)
-    getMe()
+    api.users
+      .getMe()
       .then(setProfile)
       .catch(() => setProfileError("Gagal memuat profil."))
       .finally(() => setLoading(false))
@@ -168,120 +141,128 @@ export default function SettingsScreen() {
     fetchProfile()
   }, [fetchProfile])
 
-  const handleLogout = useCallback(() => {
-    Alert.alert("Keluar", "Apakah kamu yakin ingin keluar?", [
-      { text: "Batal", style: "cancel" },
-      {
-        text: "Keluar",
-        style: "destructive",
-        onPress: async () => {
-          await clearSession()
-          router.replace(ROUTES.login as Href)
-        },
-      },
-    ])
-  }, [])
+  const handleItemPress = useCallback(
+    (item: MenuItem) => {
+      if (item.route) {
+        router.push(item.route)
+        return
+      }
+      comingSoon(item.label)
+    },
+    [comingSoon],
+  )
+
+  const performLogout = useCallback(async () => {
+    setLoggingOut(true)
+    try {
+      // Unregister push device SEBELUM token auth dihapus (endpoint butuh
+      // access-token) — perangkat lama tidak menerima notifikasi akun ini.
+      await unregisterPushDevice({
+        registerDevice: (dto) => api.notifications.registerDevice(dto),
+        unregisterDevice: () => api.notifications.unregisterDevice(),
+      })
+      await clearSession()
+      router.replace(ROUTES.login as Href)
+    } finally {
+      setLoggingOut(false)
+    }
+  }, [router])
 
   return (
-    <Screen edges={["top"]}>
+    <Screen edges={["top"]} padded={false}>
       <Header title="Pengaturan" />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: insets.bottom + tokens.space[8],
-        }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
       >
         {/* ── Header profil ────────────────────────────────── */}
-        {loading ? (
-          <ProfileSkeleton />
-        ) : profileError ? (
-          // P6: error eksplisit + tombol retry
-          <View
-            style={{
-              paddingHorizontal: tokens.layout.screenPaddingX,
-              paddingVertical: tokens.space[4],
-              gap: tokens.space[2],
-            }}
-          >
-            <Text variant="caption" tone="danger">{profileError}</Text>
-            <Button variant="ghost" size="sm" onPress={fetchProfile}>
+        {profileError ? (
+          <View style={styles.profileError}>
+            <Text variant="body" tone="danger">
+              {profileError}
+            </Text>
+            <Button variant="ghost" size="sm" fullWidth={false} onPress={fetchProfile}>
               Coba lagi
             </Button>
           </View>
         ) : (
-          <PressableScale
-            onPress={() => router.push("/edit-profile" as Href)}
-            accessibilityLabel="Edit profil"
-          >
-            <View
-              style={{
-                flexDirection: "row",
-                alignItems: "center",
-                gap: tokens.space[3],
-                paddingVertical: tokens.space[4],
-                paddingHorizontal: tokens.layout.screenPaddingX,
-              }}
-            >
-              <Avatar
-                name={profile?.name ?? ""}
-                uri={profile?.avatarUrl}
-                size="lg"
-              />
-              <View style={{ flex: 1 }}>
-                <Text variant="h3">{profile?.name ?? "—"}</Text>
-                {profile?.username ? (
-                  <Text variant="body" tone="secondary">@{profile.username}</Text>
-                ) : null}
-              </View>
-              <Icon icon={CaretRight} size="sm" tone="secondary" />
-            </View>
-          </PressableScale>
+          <ProfileHeader
+            name={profile?.fullName ?? "—"}
+            handle={profile?.username ? `@${profile.username}` : undefined}
+            avatar={{ source: profile?.avatarUrl ?? undefined }}
+            loading={loading}
+          />
         )}
 
         <Divider />
 
         {/* ── Grup menu ────────────────────────────────────── */}
         {MENU_GROUPS.map((group, gi) => (
-          <View key={group.title}>
-            <ListGroup title={group.title}>
+          <View key={group.title} style={styles.group}>
+            <Text variant="label" tone="secondary" style={styles.groupTitle}>
+              {group.title}
+            </Text>
+            <ListGroup>
               {group.items.map((item, ii) => (
                 <ListItem
                   key={item.id}
-                  leftIcon={item.icon}
-                  label={item.label}
-                  badge={item.badge}
-                  rightIcon={CaretRight}
+                  title={item.label}
+                  leading={item.icon}
+                  chevron
                   divider={ii < group.items.length - 1}
-                  onPress={
-                    item.route
-                      ? () => router.push(item.route! as Href)
-                      : undefined
-                  }
+                  onPress={() => handleItemPress(item)}
                 />
               ))}
             </ListGroup>
-            {gi < MENU_GROUPS.length - 1 && <Divider />}
+            {gi < MENU_GROUPS.length - 1 ? <Divider /> : null}
           </View>
         ))}
 
         {/* ── Logout ───────────────────────────────────────── */}
-        <View
-          style={{
-            paddingHorizontal: tokens.layout.screenPaddingX,
-            paddingTop: tokens.space[8],
-          }}
-        >
-          <Button
-            variant="ghost"
-            tone="danger"
-            size="lg"
-            onPress={handleLogout}
-          >
+        <View style={styles.logout}>
+          <Button variant="destructive" size="md" onPress={() => setLogoutOpen(true)}>
             Keluar
           </Button>
         </View>
       </ScrollView>
+
+      {/* Konfirmasi destructive — <Dialog> sistem (berfungsi di web & native,
+          tidak seperti Alert.alert yang no-op di react-native-web). */}
+      <Dialog
+        visible={logoutOpen}
+        tone="danger"
+        destructive
+        icon={SignOut}
+        title="Keluar dari Kahade?"
+        description="Perangkat ini akan berhenti menerima notifikasi akun. Kamu bisa masuk kembali kapan saja."
+        confirmLabel="Keluar"
+        cancelLabel="Batal"
+        loading={loggingOut}
+        onConfirm={() => void performLogout()}
+        onCancel={() => setLogoutOpen(false)}
+        onRequestClose={() => setLogoutOpen(false)}
+      />
     </Screen>
   )
 }
+
+const styles = StyleSheet.create({
+  profileError: {
+    gap: tokens.space[2],
+    paddingHorizontal: tokens.layout.screenPaddingX,
+    paddingVertical: tokens.space[4],
+  },
+  group: {
+    gap: tokens.space[3],
+    paddingHorizontal: tokens.layout.screenPaddingX,
+    paddingTop: tokens.space[4],
+  },
+  groupTitle: {
+    paddingHorizontal: tokens.space[1],
+  },
+  logout: {
+    paddingHorizontal: tokens.layout.screenPaddingX,
+    paddingTop: tokens.space[8],
+  },
+})

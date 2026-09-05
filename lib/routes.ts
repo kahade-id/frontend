@@ -78,6 +78,28 @@ export const ROUTES = {
     ({ pathname: "/order/[id]", params: { id: orderId } }) as unknown as Href,
   /** Buat transaksi baru (di-push dari FAB Tab Transaksi & quick action Beranda) */
   createTransaction: "/create-transaction" as Href,
+
+  // ── Dompet — aksi cepat kartu saldo ─────────────────────────────────────
+  /** POST /v1/wallet/topup */
+  topup: "/topup" as Href,
+  /** POST /v1/wallet/withdraw */
+  withdraw: "/withdraw" as Href,
+  /** POST /v1/wallet/transfer */
+  transfer: "/transfer" as Href,
+
+  // ── Pengaturan — semua sub-screen menu ──────────────────────────────────
+  editProfile: "/edit-profile" as Href,
+  bankAccounts: "/bank-accounts" as Href,
+  accountType: "/account-type" as Href,
+  changePassword: "/change-password" as Href,
+  changePin: "/change-pin" as Href,
+  biometricSettings: "/biometric-settings" as Href,
+  notificationPreferences: "/notification-preferences" as Href,
+  faq: "/faq" as Href,
+  contact: "/contact" as Href,
+  appVersion: "/app-version" as Href,
+  privacyPolicy: "/privacy-policy" as Href,
+  terms: "/terms" as Href,
 } as const
 
 /**

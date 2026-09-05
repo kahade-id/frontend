@@ -2,10 +2,12 @@
  * Kahade — domain `notifications` (tag "notifications" di kahade-api-mobile.json).
  *
  * Endpoint yang tersedia:
- *   GET  /v1/notifications/unread-count  — badge jumlah unread
- *   GET  /v1/notifications              — list notifikasi (filter kategori + paginasi)
- *   POST /v1/notifications/:id/read     — tandai satu notif dibaca
- *   POST /v1/notifications/read-all     — tandai semua dibaca
+ *   GET  /v1/notifications/unread-count      — badge jumlah unread
+ *   GET  /v1/notifications                  — list notifikasi (filter kategori + paginasi)
+ *   POST /v1/notifications/:id/read         — tandai satu notif dibaca
+ *   POST /v1/notifications/read-all         — tandai semua dibaca
+ *   POST /v1/notifications/register-device  — daftarkan perangkat push
+ *   POST /v1/notifications/unregister-device — cabut perangkat push
  *
  * Semua endpoint `security: access-token` → `auth: "required"`.
  *
@@ -14,7 +16,8 @@
  *   - Tipe `Notification` menggunakan nama `AppNotification` untuk menghindari
  *     konflik dengan Web API bawaan `Notification`.
  */
-import { http } from "@/lib/api/client"
+import { http, seg } from "@/lib/api/client"
+import type { RegisterDeviceDto } from "@/lib/api/types"
 
 // ------------------------------------------------------------------
 // Tipe
@@ -105,14 +108,24 @@ export function getNotifications(query: {
 
 /** POST /v1/notifications/:id/read — tandai satu notifikasi dibaca. */
 export function markNotificationRead(id: string) {
-  return http.post<void>(`/v1/notifications/${id}/read`, {
-    auth: "required",
-  })
+  return http.post<void>(`/v1/notifications/${seg(id)}/read`, undefined, { auth: "required" })
 }
 
 /** POST /v1/notifications/read-all — tandai semua notifikasi dibaca. */
 export function markAllNotificationsRead() {
-  return http.post<void>("/v1/notifications/read-all", {
+  return http.post<void>("/v1/notifications/read-all", undefined, { auth: "required" })
+}
+
+/** POST /v1/notifications/register-device — daftarkan perangkat push. */
+export function registerDevice(dto: RegisterDeviceDto) {
+  return http.post<void, RegisterDeviceDto>("/v1/notifications/register-device", dto, {
+    auth: "required",
+  })
+}
+
+/** POST /v1/notifications/unregister-device — cabut pendaftaran perangkat push. */
+export function unregisterDevice() {
+  return http.post<void>("/v1/notifications/unregister-device", undefined, {
     auth: "required",
   })
 }

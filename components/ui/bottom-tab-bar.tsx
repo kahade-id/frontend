@@ -41,6 +41,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { NotificationDot } from "@/components/ui/badge"
 import { Icon, type IconComponent } from "@/components/ui/icon"
+import type { BottomTabBarProps as RNNBottomTabBarProps } from "@react-navigation/bottom-tabs"
+
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -66,7 +68,15 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
   className?: string
 }
 
-const TAB_ITEM_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, 56)
+/**
+ * Tinggi visual tab bar (px) — harus sama dengan class `h-14` di bawah
+ * (Tailwind 14 = 56px). Satu sumber: layar yang perlu offset di atas tab bar
+ * (FAB, sticky footer) mengimpor ini, bukan menyalin angka.
+ * (Pola sama dengan HEADER_BAR_HEIGHT di header.tsx.)
+ */
+export const TAB_BAR_HEIGHT = 56
+
+const TAB_ITEM_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, TAB_BAR_HEIGHT)
 
 export function BottomTabBar<K extends string = string>({
   items,
@@ -125,25 +135,14 @@ export function BottomTabBar<K extends string = string>({
 // Adapter expo-router <Tabs tabBar={(p) => <RouterBottomTabBar {...p} items={…} />} />
 // ------------------------------------------------------------------
 
-/** Subset struktur BottomTabBarProps @react-navigation yang dibutuhkan */
-export type RouterTabBarState = {
-  index: number
-  routes: readonly { key: string; name: string }[]
-}
 /**
- * `emit` @react-navigation bersifat generik per tipe event; di sini cukup
- * satu signature union (tabPress | tabLongPress) — cukup longgar agar
- * struktural-kompatibel dengan objek `navigation` asli tanpa mengimpor
- * tipenya, dan `defaultPrevented` hanya dibaca untuk tabPress.
+ * Subset tipe BottomTabBarProps @react-navigation — diambil dari tipe asli
+ * (bukan ditulis ulang) supaya `navigation.emit` yang generik per event tetap
+ * struktural-kompatibel saat diteruskan oleh expo-router <Tabs tabBar>.
+ * (@react-navigation/bottom-tabs adalah dependency expo-router.)
  */
-export type RouterTabBarNavigation = {
-  emit: (e: {
-    type: "tabPress" | "tabLongPress"
-    target: string
-    canPreventDefault?: boolean
-  }) => { defaultPrevented: boolean }
-  navigate: (name: string) => void
-}
+export type RouterTabBarState = Pick<RNNBottomTabBarProps["state"], "index" | "routes">
+export type RouterTabBarNavigation = Pick<RNNBottomTabBarProps["navigation"], "emit" | "navigate">
 
 export type RouterBottomTabBarProps = {
   state: RouterTabBarState

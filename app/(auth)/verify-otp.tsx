@@ -57,7 +57,7 @@ import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Countdown } from "@/components/ui/countdown"
-import { Header } from "@/components/ui/header"
+import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Screen } from "@/components/ui/screen"
@@ -70,8 +70,6 @@ import { setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
-/** Tinggi bar Header (h-14) — untuk keyboardVerticalOffset */
-const HEADER_HEIGHT = 56
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-2 */
 const STEP_PROGRESS = 2 / 4
 /** Cooldown default resend OTP (detik) — bila backend tidak mengirim `cooldownSeconds` */
@@ -238,7 +236,7 @@ export default function VerifyOtpScreen() {
     <Screen padded={false} edges={["top"]}>
       <Header title="Verifikasi OTP" progress={STEP_PROGRESS} safeArea={false} />
 
-      <KeyboardAvoiding offset={insets.top + HEADER_HEIGHT}>
+      <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
           className="flex-1"
           contentContainerClassName="grow px-6 pb-8 pt-8"
