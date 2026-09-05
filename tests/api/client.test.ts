@@ -80,6 +80,12 @@ describe("shared HTTP client", () => {
       headers: { Authorization: "Bearer original", "X-Device-Id": "test-device" },
     })
   })
+  it("adds a UUID v4 idempotency key to mutations", async () => {
+    fetchMock.mockResolvedValueOnce(ok({ id: "message-1" }))
+    await client.http.post("/v1/chat/rooms/room-1/messages", { text: "hello" }, { auth: "required" })
+    const key = fetchMock.mock.calls[0][1].headers["Idempotency-Key"] as string
+    expect(key).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/)
+  })
   it("deduplicates simultaneous identical GET requests", async () => {
     fetchMock.mockResolvedValueOnce(ok({ id: "1" }))
     const result = await Promise.all([
