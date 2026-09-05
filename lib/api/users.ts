@@ -16,8 +16,8 @@
  *     untuk presigned URL, tapi direct upload lebih simple untuk mobile
  *     (tidak perlu round-trip presigned URL).
  */
-import { http } from "@/lib/api/client"
-import type { ConfirmAvatarDto, UpdateProfileDto } from "@/lib/api/types"
+import { http, seg } from "@/lib/api/client"
+import type { ConfirmAvatarDto, RequestAccountDeletionDto, UpdateLinksDto, UpdateProfileDto, UserLinkItemDto } from "@/lib/api/types"
 
 // ------------------------------------------------------------------
 // Tipe response — UNVERIFIED (spec auth tidak menyertakan response schema)
@@ -86,4 +86,42 @@ export function confirmAvatar(dto: ConfirmAvatarDto) {
 /** DELETE /v1/users/me/avatar — hapus avatar (kembali ke inisial default). */
 export function deleteAvatar() {
   return http.delete<void>("/v1/users/me/avatar", { auth: "required", responseType: "void" })
+}
+
+/** POST /v1/users/me/delete-request — minta penghapusan akun. */
+export function requestAccountDeletion(dto: RequestAccountDeletionDto) {
+  return http.post<{ message: string }, RequestAccountDeletionDto>("/v1/users/me/delete-request", dto, {
+    auth: "required",
+  })
+}
+
+/** GET /v1/users/me/links — tautan sosial profil. */
+export function getLinks() {
+  return http.get<UserLinkItemDto[]>("/v1/users/me/links", { auth: "required", retry: 1 })
+}
+
+/** PUT /v1/users/me/links — ganti semua tautan sosial. */
+export function updateLinks(dto: UpdateLinksDto) {
+  return http.put<UserLinkItemDto[], UpdateLinksDto>("/v1/users/me/links", dto, {
+    auth: "required",
+  })
+}
+
+/** GET /v1/users/{username} — profil publik user. */
+export function getUserByUsername(username: string) {
+  return http.get<PublicUserProfile>(`/v1/users/${seg(username)}`, { auth: "required", retry: 1 })
+}
+
+export type PublicUserProfile = {
+  id: string
+  username?: string | null
+  fullName?: string
+  bio?: string | null
+  avatarUrl?: string | null
+  verified?: boolean
+  trustScore?: number
+  rating?: number
+  createdAt?: string
+  showcase?: unknown
+  ratings?: unknown
 }

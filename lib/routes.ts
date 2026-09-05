@@ -86,6 +86,22 @@ export const ROUTES = {
   withdraw: "/withdraw" as Href,
   /** POST /v1/wallet/transfer */
   transfer: "/transfer" as Href,
+  /** Riwayat topup (GET /v1/wallet/topup-history) */
+  topupHistory: "/topup-history" as Href,
+  /** Riwayat penarikan (GET /v1/wallet/withdraw-history) */
+  withdrawHistory: "/withdraw-history" as Href,
+  /** Rekening bank + jadwal penarikan otomatis */
+  withdrawalSchedules: "/withdrawal-schedules" as Href,
+
+  // ── Orders & transaksi ────────────────────────────────────────────────
+  /** Daftar order-link saya (GET /v1/orders/links/my) */
+  orderLinks: "/order-links" as Href,
+  /** Invoice pesanan (GET /v1/orders/{id}/invoice) */
+  invoice: (orderId: string) =>
+    ({ pathname: "/invoice/[orderId]", params: { orderId } }) as unknown as Href,
+  /** Resolusi deeplink order-link (GET /v1/deeplinks/order-link/{token}) */
+  orderLink: (token: string) =>
+    ({ pathname: "/order-link/[token]", params: { token } }) as unknown as Href,
 
   // ── Pengaturan — semua sub-screen menu ──────────────────────────────────
   editProfile: "/edit-profile" as Href,
@@ -100,6 +116,57 @@ export const ROUTES = {
   appVersion: "/app-version" as Href,
   privacyPolicy: "/privacy-policy" as Href,
   terms: "/terms" as Href,
+  /** Dua faktor (2FA) + kode cadangan */
+  twoFactor: "/two-factor" as Href,
+  /** Perangkat aktif, log keamanan, log aktivitas */
+  security: "/security" as Href,
+  /** Pengguna diblokir (GET /v1/settings/blocked-users) */
+  blockedUsers: "/blocked-users" as Href,
+  /** Privasi profil (profileVisible/showOnlineStatus) */
+  privacySettings: "/privacy-settings" as Href,
+  /** Bahasa aplikasi (GET/PUT /v1/settings/language) */
+  language: "/language" as Href,
+  /** Hapus akun (POST /v1/users/me/delete-request) */
+  deleteAccount: "/delete-account" as Href,
+
+  // ── Fitur utama (quick action & menu) ───────────────────────────────────
+  /** KYC: status + riwayat + submit */
+  kyc: "/kyc" as Href,
+  /** Daftar sengketa saya (GET /v1/disputes/my) */
+  disputes: "/disputes" as Href,
+  /** Detail satu sengketa */
+  disputeDetail: (disputeId: string) =>
+    ({ pathname: "/dispute/[id]", params: { id: disputeId } }) as unknown as Href,
+  /** Daftar ruang chat (GET /v1/chat/rooms) */
+  chat: "/chat" as Href,
+  /** Satu ruang chat */
+  chatRoom: (roomId: string) =>
+    ({ pathname: "/chat/[roomId]", params: { roomId } }) as unknown as Href,
+  /** Langganan premium */
+  subscriptions: "/subscriptions" as Href,
+  /** Referral */
+  referral: "/referral" as Href,
+  /** Ulasan saya (GET /v1/ratings/my) */
+  ratings: "/ratings" as Href,
+  /** Voucher (available + my-usage + redeem) */
+  vouchers: "/vouchers" as Href,
+  /** Badge (GET /v1/badges + /my) */
+  badges: "/badges" as Href,
+  /** Pencarian global (GET /v1/search) */
+  search: "/search" as Href,
+  /** Template transaksi (CRUD) */
+  transactionTemplates: "/transaction-templates" as Href,
+  /** Tiket dukungan (support) */
+  support: "/support" as Href,
+  /** Detail tiket dukungan */
+  supportTicket: (ticketId: string) =>
+    ({ pathname: "/support/[ticketId]", params: { ticketId } }) as unknown as Href,
+  /** Artikel bantuan per slug */
+  helpArticle: (slug: string) =>
+    ({ pathname: "/help/[slug]", params: { slug } }) as unknown as Href,
+  /** Profil publik user (GET /v1/users/{username}) */
+  userProfile: (username: string) =>
+    ({ pathname: "/user/[username]", params: { username } }) as unknown as Href,
 } as const
 
 /**

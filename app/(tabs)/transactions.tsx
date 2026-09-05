@@ -17,14 +17,13 @@
  * (lib/api/orders.ts + components/ui/order-status-badge.tsx).
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { FlatList, StyleSheet, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import { Plus, Receipt } from "phosphor-react-native"
 
 import { api, type Order, type OrderStatusFilter } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
-import { useComingSoon } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -35,6 +34,7 @@ import { FloatingActionButton } from "@/components/ui/floating-action-button"
 import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
 import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SearchField } from "@/components/ui/search-field"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
@@ -76,7 +76,6 @@ const SKELETON_COUNT = 4
 
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets()
-  const comingSoon = useComingSoon()
 
   const [filter, setFilter] = useState<FilterKey>("all")
   const [search, setSearch] = useState("")
@@ -135,10 +134,8 @@ export default function TransactionsScreen() {
   }, [fetchOrders])
 
   const handleCreate = useCallback(() => {
-    // ROUTES.createTransaction belum punya file route — jangan push ke
-    // "Unmatched Route"; tampilkan info sampai screen dibuat.
-    comingSoon("Buat Transaksi")
-  }, [comingSoon])
+    router.push(ROUTES.createTransaction as Href)
+  }, [])
 
   const fabBottomOffset = TAB_BAR_HEIGHT + tokens.space[4]
 
@@ -176,41 +173,13 @@ export default function TransactionsScreen() {
           </View>
         </SkeletonGroup>
       ) : (
-        <FlatList
-          data={orders}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item }) => (
-            <OrderCard
-              orderId={item.id}
-              title={item.title}
-              amount={item.orderValue}
-              status={item.status}
-              role={item.myRole === "SELLER" ? "seller" : "buyer"}
-              counterpart={{
-                name: counterpartName(item),
-                avatar: counterpartAvatar(item),
-                verified: undefined,
-              }}
-              timestamp={formatDateTime(item.createdAt)}
-              deadlineAt={item.deliveryDeadlineAt ? new Date(item.deliveryDeadlineAt) : undefined}
-              onPress={() => router.push(ROUTES.orderDetail(item.id) as Href)}
-            />
-          )}
-          contentContainerStyle={[
-            styles.listContent,
-            orders.length === 0 && styles.listEmpty,
-            { paddingBottom: fabBottomOffset + insets.bottom },
-          ]}
-          refreshing={refreshing}
+        <PullToRefresh
           onRefresh={handleRefresh}
-          onEndReached={() => {
-            if (hasMore && !loadingMore && !busyRef.current) fetchOrders(page + 1)
-          }}
-          onEndReachedThreshold={ON_END_THRESHOLD}
-          ListFooterComponent={
-            hasMore ? <LoadMore status={loadingMore ? "loading" : "idle"} onLoadMore={() => fetchOrders(page + 1)} /> : null
-          }
-          ListEmptyComponent={
+          refreshing={refreshing}
+          contentContainerClassName="px-6"
+          scrollViewProps={{ style: { paddingBottom: fabBottomOffset + insets.bottom } }}
+        >
+          {orders.length === 0 ? (
             <EmptyState
               icon={Receipt}
               title={search ? "Tidak ada hasil" : "Belum ada transaksi"}
@@ -220,9 +189,32 @@ export default function TransactionsScreen() {
                   : "Transaksi kamu akan muncul di sini."
               }
             />
-          }
-          showsVerticalScrollIndicator={false}
-        />
+          ) : (
+            <View className="gap-4">
+              {orders.map((item) => (
+                <OrderCard
+                  key={item.id}
+                  orderId={item.id}
+                  title={item.title}
+                  amount={item.orderValue}
+                  status={item.status}
+                  role={item.myRole === "SELLER" ? "seller" : "buyer"}
+                  counterpart={{
+                    name: counterpartName(item),
+                    avatar: counterpartAvatar(item),
+                    verified: undefined,
+                  }}
+                  timestamp={formatDateTime(item.createdAt)}
+                  deadlineAt={item.deliveryDeadlineAt ? new Date(item.deliveryDeadlineAt) : undefined}
+                  onPress={() => router.push(ROUTES.orderDetail(item.id) as Href)}
+                />
+              ))}
+              {hasMore ? (
+                <LoadMore status={loadingMore ? "loading" : "idle"} onLoadMore={() => fetchOrders(page + 1)} />
+              ) : null}
+            </View>
+          )}
+        </PullToRefresh>
       )}
 
       <FloatingActionButton

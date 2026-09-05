@@ -17,7 +17,7 @@
  *     konflik dengan Web API bawaan `Notification`.
  */
 import { http, seg } from "@/lib/api/client"
-import type { RegisterDeviceDto } from "@/lib/api/types"
+import type { BatchNotificationIdsDto, RegisterDeviceDto, UpdatePreferencesDto } from "@/lib/api/types"
 
 // ------------------------------------------------------------------
 // Tipe
@@ -127,5 +127,74 @@ export function registerDevice(dto: RegisterDeviceDto) {
 export function unregisterDevice() {
   return http.post<void>("/v1/notifications/unregister-device", undefined, {
     auth: "required",
+  })
+}
+
+// ------------------------------------------------------------------
+// Preferensi & batch (untuk layar Pengaturan, audit #15)
+// ------------------------------------------------------------------
+
+/** Response GET /v1/notifications/preferences. */
+export type NotificationPreferences = {
+  orderInApp?: boolean
+  orderPush?: boolean
+  orderEmail?: boolean
+  walletInApp?: boolean
+  walletPush?: boolean
+  walletEmail?: boolean
+  securityInApp?: boolean
+  securityPush?: boolean
+  securityEmail?: boolean
+  chatInApp?: boolean
+  chatPush?: boolean
+  disputeInApp?: boolean
+  disputePush?: boolean
+  disputeEmail?: boolean
+  rankingInApp?: boolean
+  rankingPush?: boolean
+  marketingEmail?: boolean
+}
+
+export type NotificationPreferenceKey = keyof NotificationPreferences
+
+export function getNotificationPreferences() {
+  return http.get<NotificationPreferences>("/v1/notifications/preferences", {
+    auth: "required",
+    retry: 1,
+  })
+}
+
+export function updateNotificationPreferences(dto: UpdatePreferencesDto) {
+  return http.put<NotificationPreferences, UpdatePreferencesDto>(
+    "/v1/notifications/preferences",
+    dto,
+    { auth: "required" },
+  )
+}
+
+export function markNotificationsReadBatch(notifIds: string[]) {
+  return http.post<void, BatchNotificationIdsDto>("/v1/notifications/read-batch", { notifIds }, {
+    auth: "required",
+  })
+}
+
+export function deleteNotificationsBatch(notifIds: string[]) {
+  return http.post<void, BatchNotificationIdsDto>("/v1/notifications/delete-batch", { notifIds }, {
+    auth: "required",
+  })
+}
+
+export function deleteReadNotifications() {
+  return http.post<void>("/v1/notifications/delete-read", undefined, { auth: "required" })
+}
+
+export function getNotification(id: string) {
+  return http.get<AppNotification>(`/v1/notifications/${seg(id)}`, { auth: "required", retry: 1 })
+}
+
+export function deleteNotification(id: string) {
+  return http.delete<void>(`/v1/notifications/${seg(id)}`, {
+    auth: "required",
+    responseType: "void",
   })
 }
