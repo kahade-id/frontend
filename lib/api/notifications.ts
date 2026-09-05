@@ -1,36 +1,24 @@
 /**
  * Kahade — domain `notifications` (tag "notifications" di kahade-api-mobile.json).
  *
- * Saat ini HANYA endpoint yang dipakai kerangka navigasi (badge unread di
- * Bottom Tab Bar). List, read, read-all, preferences, dst ditambahkan saat
- * screen Notifikasi (antrian #5) dibangun — mengikuti aturan "jangan
- * implementasi yang belum dipakai" (lihat users.ts).
+ * Endpoint yang tersedia:
+ *   GET  /v1/notifications/unread-count  — badge jumlah unread
+ *   GET  /v1/notifications              — list notifikasi (filter kategori + paginasi)
+ *   POST /v1/notifications/:id/read     — tandai satu notif dibaca
+ *   POST /v1/notifications/read-all     — tandai semua dibaca
  *
  * Semua endpoint `security: access-token` → `auth: "required"`.
  *
- * Kontrak dari spec:
- *   GET /v1/notifications/unread-count
- *     query `category` — di spec ditandai `required: true`, `type: string`,
- *     TANPA enum dan TANPA nilai "semua". Enum kategori yang ada di spec
- *     hanya muncul di `GET /v1/notifications` (`TRANSAKSI|PROMOSI|INFORMASI`).
- *     Response 200 tanpa schema.
- *
- * Keputusan non-obvious (ASUMSI — cocokkan dengan backend):
- *   1. `category` dibuat OPSIONAL di sini. Bentuk spec ini adalah pola khas
- *      NestJS `@Query('category') category?: string` tanpa `@ApiQuery({
- *      required: false })` — Swagger menandainya required padahal controller
- *      menerima undefined. Badge tab butuh TOTAL semua kategori, dan tidak
- *      ada nilai enum untuk "semua"; mengirim 3 request per kategori lalu
- *      menjumlahkan = 3× beban per poll. Bila backend ternyata menolak (400),
- *      tambahkan nilai "ALL" atau fallback penjumlahan di SATU tempat:
- *      `readUnreadCount()` + `getUnreadCount()`.
- *   2. Bentuk response tidak ada di spec → `readUnreadCount()` toleran
- *      terhadap beberapa penamaan umum (`{count}`, `{unreadCount}`,
- *      `{unread}`, `{data:{…}}`, atau angka polos). Mengembalikan `null`
- *      bila tidak ada yang cocok — pemanggil memperlakukannya sebagai
- *      "tidak diketahui", BUKAN 0, supaya badge tidak salah hilang.
+ * Keputusan non-obvious:
+ *   - `category` pada `getUnreadCount` dibuat OPSIONAL (lihat komentar asal).
+ *   - Tipe `Notification` menggunakan nama `AppNotification` untuk menghindari
+ *     konflik dengan Web API bawaan `Notification`.
  */
 import { http } from "@/lib/api/client"
+
+// ------------------------------------------------------------------
+// Tipe
+// ------------------------------------------------------------------
 
 /** Enum kategori — persis `GET /v1/notifications` query `category`. */
 export type NotificationCategory = "TRANSAKSI" | "PROMOSI" | "INFORMASI"
@@ -45,10 +33,31 @@ export type UnreadCountResult =
       data?: { count?: number; unreadCount?: number; unread?: number }
     }
 
+/** Satu entri notifikasi — UNVERIFIED. */
+export type AppNotification = {
+  id: string
+  title: string
+  body: string
+  category: NotificationCategory
+  isRead: boolean
+  createdAt: string
+  /** Deep-link atau referensi entitas terkait (opsional). */
+  referenceId?: string | null
+  referenceType?: string | null
+}
+
+export type NotificationListResponse = {
+  data: AppNotification[]
+  meta: { page: number; limit: number; total: number; totalPages: number }
+}
+
+// ------------------------------------------------------------------
+// Endpoint
+// ------------------------------------------------------------------
+
 /**
- * GET /v1/notifications/unread-count — jumlah notifikasi belum dibaca.
- * Tanpa `category` = total (asumsi #1 di header file). `retry: 1` karena GET
- * idempoten dan dipanggil berulang di latar (poll) — toleran jaringan seluler.
+ * GET /v1/notifications/unread-count
+ * Tanpa `category` = total semua kategori (asumsi — lihat komentar asal).
  */
 export function getUnreadCount(category?: NotificationCategory) {
   return http.get<UnreadCountResult>("/v1/notifications/unread-count", {
@@ -62,11 +71,48 @@ export function getUnreadCount(category?: NotificationCategory) {
 export function readUnreadCount(body: UnreadCountResult | undefined | null): number | null {
   if (typeof body === "number") return clamp(body)
   if (typeof body !== "object" || body === null) return null
-  const candidates = [body.count, body.unreadCount, body.unread, body.data?.count, body.data?.unreadCount, body.data?.unread]
+  const candidates = [
+    body.count,
+    body.unreadCount,
+    body.unread,
+    body.data?.count,
+    body.data?.unreadCount,
+    body.data?.unread,
+  ]
   const found = candidates.find((v): v is number => typeof v === "number" && Number.isFinite(v))
   return found === undefined ? null : clamp(found)
 }
 
 function clamp(n: number): number {
   return Math.max(0, Math.trunc(n))
+}
+
+/**
+ * GET /v1/notifications — list notifikasi user.
+ * `category` opsional — tanpa filter = semua kategori.
+ */
+export function getNotifications(query: {
+  category?: NotificationCategory
+  page?: number
+  limit?: number
+} = {}) {
+  return http.get<NotificationListResponse>("/v1/notifications", {
+    query,
+    auth: "required",
+    retry: 1,
+  })
+}
+
+/** POST /v1/notifications/:id/read — tandai satu notifikasi dibaca. */
+export function markNotificationRead(id: string) {
+  return http.post<void>(`/v1/notifications/${id}/read`, {
+    auth: "required",
+  })
+}
+
+/** POST /v1/notifications/read-all — tandai semua notifikasi dibaca. */
+export function markAllNotificationsRead() {
+  return http.post<void>("/v1/notifications/read-all", {
+    auth: "required",
+  })
 }
