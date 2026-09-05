@@ -28,7 +28,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
-import { Chats, Copy, Trash } from "phosphor-react-native"
+import { Chats, Copy, Package, Trash } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { CHAT_PAGE_SIZE, type ChatMessage, type ChatRoom } from "@/lib/api/chat"
@@ -40,8 +40,8 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
-import { Button } from "@/components/ui/button"
 import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
+import { IconButton } from "@/components/ui/icon-button"
 import {
   ChatComposer,
   type ChatComposerPayload,
@@ -101,7 +101,10 @@ export default function ChatRoomScreen() {
     try {
       const [page, rooms] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }),
-        api.chat.listChatRooms().catch(() => [] as ChatRoom[]),
+        api.chat.listChatRooms({ page: 1, limit: CHAT_PAGE_SIZE }).catch(() => ({
+          data: [] as ChatRoom[],
+          meta: { page: 1, limit: CHAT_PAGE_SIZE, totalPages: 1 },
+        })),
       ])
       const items = sortByTime(page.items)
       setMessages(items)
@@ -109,7 +112,7 @@ export default function ChatRoomScreen() {
         page.nextCursor ?? (page.items.length >= CHAT_PAGE_SIZE ? (items[0]?.id ?? null) : null),
       )
       setOlderStatus(page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
-      setRoom(rooms.find((r) => r.id === roomId) ?? null)
+      setRoom(rooms.data.find((r) => r.id === roomId) ?? null)
       await api.chat.markChatRoomRead(roomId).catch(() => undefined)
     } catch (err) {
       setError(isApiError(err) ? userMessage(err) : "Gagal memuat pesan.")

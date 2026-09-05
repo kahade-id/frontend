@@ -337,7 +337,7 @@ export default function OrderDetailScreen() {
     if (!order) return
     try {
       const rooms = await api.chat.listChatRooms()
-      const room = rooms.find((r) => r.orderId === order.id)
+      const room = rooms.data.find((r) => r.orderId === order.id)
       router.push(room ? ROUTES.chatRoom(room.id) : ROUTES.chat)
     } catch {
       router.push(ROUTES.chat)

@@ -223,10 +223,14 @@ export type DiscoveredUser = {
   following?: boolean
 }
 
-export function discoverUsers(query?: { page?: number; limit?: number; sort?: string }) {
+export function discoverUsers(
+  options: { page?: number; limit?: number; sort?: string } = {},
+  signal?: AbortSignal,
+) {
+  const query = { page: 1, limit: 20, ...options }
   return http
-    .get<DiscoveredUser[]>("/v1/users/discover", { query, auth: "required", retry: 1 })
-    .then((raw) => readList<DiscoveredUser>(raw, ["users"]))
+    .get<unknown>("/v1/users/discover", { query, auth: "required", retry: 1, signal })
+    .then((raw) => readPage<DiscoveredUser>(raw, query, ["users"]))
 }
 
 export function getFavorites() {

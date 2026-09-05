@@ -1,4 +1,4 @@
-import { readList } from "@/lib/api/response"
+import { readList, readPage } from "@/lib/api/response"
 /**
  * Kahade — domain `chat` (ruang & pesan, lampiran, read receipt).
  *
@@ -41,14 +41,19 @@ export type ChatMessage = {
   createdAt: string
 }
 
-export function listChatRooms(query: { page?: number; limit?: number } = {}) {
+export function listChatRooms(
+  options: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  const query = { page: options.page ?? 1, limit: options.limit ?? CHAT_PAGE_SIZE }
   return http
-    .get<ChatRoom[]>("/v1/chat/rooms", {
-      query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
+    .get<unknown>("/v1/chat/rooms", {
+      query,
       auth: "required",
       retry: 1,
+      signal,
     })
-    .then((raw) => readList<ChatRoom>(raw, ["rooms"]))
+    .then((raw) => readPage<ChatRoom>(raw, query, ["rooms"]))
 }
 
 export type ChatMessagesQuery = {
