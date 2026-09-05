@@ -3,11 +3,26 @@
     "name": "Kahade",
     "slug": "kahade",
     "scheme": "kahade",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
+    "runtimeVersion": {
+      "policy": "fingerprint"
+    },
+    "updates": {
+      "enabled": true,
+      "url": "https://u.expo.dev/c3931e6f-c945-44d3-8ae8-1665c54fdf94",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "extra": {
+      "eas": {
+        "projectId": "c3931e6f-c945-44d3-8ae8-1665c54fdf94"
+      }
+    },
     "ios": {
+      "bundleIdentifier": "id.kahade",
       "supportsTablet": false,
       "infoPlist": {
         "NSFaceIDUsageDescription": "Kahade memakai Face ID untuk membuka aplikasi dan mengonfirmasi transaksi tanpa mengetik PIN.",
@@ -20,6 +35,7 @@
       }
     },
     "android": {
+      "package": "id.kahade",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",

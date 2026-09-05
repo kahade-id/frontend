@@ -28,3 +28,12 @@ dist/
 coverage/
 playwright-report/
 test-results/
+
+# Proyek native hasil generate (Continuous Native Generation).
+# JANGAN di-commit: begitu android/ atau ios/ ada di repo, Expo memperlakukan
+# proyek ini sebagai bare workflow dan BERHENTI menerapkan app.json ke native.
+# Identitas (package/bundleIdentifier/versi) akan diam-diam diambil dari
+# build.gradle & project.pbxproj, bukan dari app.json. Regenerate dengan
+# `npx expo prebuild --clean`.
+/android/
+/ios/
