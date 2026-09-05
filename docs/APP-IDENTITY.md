@@ -106,12 +106,9 @@ ke `api.kahade.id`, yang tidak bisa dijangkau dari sandbox audit.
 
 ## BELUM SELESAI — wajib sebelum submit ke store
 
-1. **Tidak ada ikon aplikasi.** `expo.icon` dan `android.adaptiveIcon` tidak
-   ada; `assets/images/` hanya berisi `notification-icon.png`. `expo prebuild`
-   memperingatkan `ios: icon: No icon is defined in the Expo config`. Tanpa
-   ikon, build tetap jalan tetapi memakai placeholder Expo, dan submission
-   akan ditolak. Butuh 1024×1024 tanpa alpha untuk iOS, plus foreground
-   adaptive icon untuk Android.
+1. ~~Tidak ada ikon aplikasi.~~ **SELESAI** — lihat `docs/APP-ICON.md`.
+   Peringatan `ios: icon: No icon is defined in the Expo config` sudah hilang
+   dari output `expo prebuild`.
 
 2. **Slug belum diverifikasi terhadap proyek EAS.** Nilai di repo adalah
    `kahade`, sedangkan proyek EAS `c3931e6f-…` mungkin dibuat dengan slug

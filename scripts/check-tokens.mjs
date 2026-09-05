@@ -23,10 +23,20 @@
  *     merujuk var yang benar-benar di-emit (contoh: scope override di
  *     subscription-plan-card).
  *  7. tailwind.config.js tidak menyelipkan warna literal di luar tokens.ts.
- *  8. (audit #9, #13) app.json: splash backgroundColor == light.background,
- *     splash dark.backgroundColor == dark.background (wajib), dan
- *     expo-notifications color == light.primary — konfigurasi native tidak
- *     bisa import tokens.ts, jadi literalnya diverifikasi di sini.
+ *  8. (audit #9, #13) app.json vs tokens — konfigurasi native tidak bisa
+ *     import tokens.ts, jadi literalnya diverifikasi di sini:
+ *       - splash backgroundColor DAN dark.backgroundColor == brand.black.
+ *         Splash & app icon adalah permukaan brand yang konstan di light
+ *         maupun dark, jadi acuannya brand.black — BUKAN light/dark.background
+ *         seperti sebelum ikon final ada.
+ *       - splash imageWidth == LOGO_SIZE * SPLASH_CANVAS_SCALE (animated-
+ *         splash.tsx). Android 12+ memaksa ikon splash ke kanvas 288dp dan
+ *         memasking di luar lingkaran 192dp, jadi asetnya sengaja berkanvas
+ *         4x kotak logo; imageWidth harus ikut supaya ukuran tinta di splash
+ *         native sama dengan di overlay JS.
+ *       - android.adaptiveIcon.backgroundColor == brand.black.
+ *       - icon / adaptiveIcon.foregroundImage / splash image benar-benar ada.
+ *       - expo-notifications color == light.primary.
  *  9. (audit #13) className `dark:*` dan class warna literal non-mode-aware
  *     (text-white, bg-white, bg-black, *-gray-N) hanya di file allowlist yang
  *     pengecualiannya terdokumentasi dengan §spek.
@@ -38,7 +48,7 @@
  * Jalankan: pnpm check:tokens   (butuh Node >= 22.6 untuk memuat .ts)
  */
 
-import { readFileSync, readdirSync, statSync } from "node:fs"
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { dirname, join, relative } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -53,7 +63,7 @@ if (major < 22 || (major === 22 && minor < 6)) {
 }
 
 const tokens = await import(join(root, "lib/tokens.ts"))
-const { toTailwindTheme, toCssVariables, light, dark, semantic } = tokens
+const { toTailwindTheme, toCssVariables, light, dark, semantic, brand } = tokens
 
 const errors = []
 const warnings = []
@@ -203,20 +213,58 @@ const eqColor = (a, b) => typeof a === "string" && typeof b === "string" && a.to
 
 const splash = pluginOpts("expo-splash-screen")
 if (!splash) {
-  fail("app.json: plugin expo-splash-screen tanpa opsi — backgroundColor harus eksplisit agar sama dengan tokens.colors.light.background")
+  fail("app.json: plugin expo-splash-screen tanpa opsi — backgroundColor harus eksplisit agar sama dengan tokens.colors.brand.black")
 } else {
-  if (!eqColor(splash.backgroundColor, light.background)) {
-    fail(`app.json: splash backgroundColor ${splash.backgroundColor} != tokens.colors.light.background ${light.background} (dipakai components/ui/animated-splash.tsx)`)
+  // Splash BUKAN permukaan aplikasi, melainkan permukaan brand yang sama
+  // dengan app icon: brand.black konstan di light maupun dark. Karena itu
+  // acuannya brand.black, bukan light.background/dark.background seperti dulu.
+  // <AnimatedSplash> memakai tokens.colors.brand.black; kalau beda, layar
+  // berkedip saat splash native menyerahkan ke overlay JS.
+  if (!eqColor(splash.backgroundColor, brand.black)) {
+    fail(`app.json: splash backgroundColor ${splash.backgroundColor} != tokens.colors.brand.black ${brand.black} (dipakai components/ui/animated-splash.tsx)`)
   }
-  // (audit #13) <AnimatedSplash> membaca useColorScheme() dan memakai
-  // tokens.colors.dark.background di OS dark; native splash WAJIB punya
-  // pasangan dark agar handoff tidak kedip putih→hitam.
+  // Pasangan dark WAJIB ada dan WAJIB hitam juga. Tanpa ini, OS dark memakai
+  // default putih dan splash berkedip putih->hitam.
   if (!splash.dark?.backgroundColor) {
-    fail(`app.json: splash tanpa dark.backgroundColor — wajib ${dark.background} (tokens.colors.dark.background) karena <AnimatedSplash> mengikuti OS dark`)
-  } else if (!eqColor(splash.dark.backgroundColor, dark.background)) {
-    fail(`app.json: splash dark.backgroundColor ${splash.dark.backgroundColor} != tokens.colors.dark.background ${dark.background}`)
+    fail(`app.json: splash tanpa dark.backgroundColor — wajib ${brand.black} (splash konstan di kedua mode)`)
+  } else if (!eqColor(splash.dark.backgroundColor, brand.black)) {
+    fail(`app.json: splash dark.backgroundColor ${splash.dark.backgroundColor} != tokens.colors.brand.black ${brand.black}`)
+  }
+  // imageWidth native harus sama dengan LOGO_SIZE overlay JS, kalau tidak
+  // logo "melompat" ukurannya tepat saat serah terima.
+  const splashTsx = readFileSync(join(root, "components/ui/animated-splash.tsx"), "utf8")
+  const logoSize = Number(splashTsx.match(/const LOGO_SIZE = (\d+)/)?.[1])
+  const canvasScale = Number(splashTsx.match(/SPLASH_CANVAS_SCALE = (\d+)/)?.[1])
+  if (!Number.isFinite(logoSize) || !Number.isFinite(canvasScale)) {
+    fail("animated-splash.tsx: LOGO_SIZE / SPLASH_CANVAS_SCALE tidak terbaca — tidak bisa diverifikasi dengan splash.imageWidth")
+  } else if (splash.imageWidth !== logoSize * canvasScale) {
+    fail(
+      `app.json: splash imageWidth ${splash.imageWidth} != LOGO_SIZE * SPLASH_CANVAS_SCALE ` +
+        `(${logoSize} * ${canvasScale} = ${logoSize * canvasScale}) — logo melompat ukurannya saat handoff native->JS`,
+    )
   }
 }
+
+// Ikon: latar adaptive icon Android harus hitam brand yang sama dengan ikon
+// iOS, dan berkas ikonnya harus benar-benar ada (Expo diam saja kalau hilang,
+// build baru gagal / ikon jadi default).
+const adaptive = appJson.expo?.android?.adaptiveIcon
+if (!adaptive) {
+  fail("app.json: android.adaptiveIcon belum diisi — Android akan memakai ikon legacy tanpa mask")
+} else {
+  if (!eqColor(adaptive.backgroundColor, brand.black)) {
+    fail(`app.json: adaptiveIcon backgroundColor ${adaptive.backgroundColor} != tokens.colors.brand.black ${brand.black}`)
+  }
+}
+for (const [label, rel] of [
+  ["icon", appJson.expo?.icon],
+  ["android.adaptiveIcon.foregroundImage", adaptive?.foregroundImage],
+  ["splash image", splash?.image],
+]) {
+  if (!rel) fail(`app.json: ${label} belum diisi`)
+  else if (!existsSync(join(root, rel))) fail(`app.json: ${label} menunjuk ${rel} yang tidak ada`)
+}
+
 const notif = pluginOpts("expo-notifications")
 if (notif?.color && !eqColor(notif.color, light.primary)) {
   fail(`app.json: expo-notifications color ${notif.color} != tokens.colors.light.primary ${light.primary}`)

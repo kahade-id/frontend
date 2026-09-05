@@ -20,18 +20,16 @@
  *     PressableScale, splash ini). Native driver sudah menjalankan loop ini
  *     di UI thread; memakai reanimated tidak menambah kehalusan, hanya
  *     menambah satu bahasa animasi lagi di file yang harus tetap kecil.
- *   - Warna diambil dari `tokens.colors[mode]`, bukan CSS var / className,
- *     karena overlay ini render SEBELUM ThemeProvider & font siap — belum
- *     ada `vars()` di tree. `mode` dibaca dari `useColorScheme()` react-native
- *     (audit #13): saat boot belum ada preferensi manual yang "mencemari"
- *     Appearance (lihat catatan di theme-provider.tsx), jadi nilainya = OS,
- *     sama dengan yang dipakai native splash (`userInterfaceStyle: automatic`
- *     + `dark.backgroundColor` di app.json). Kedua literal app.json itu
- *     dijaga sama dengan `light.background`/`dark.background` oleh
- *     `pnpm check:tokens` #8 — kalau salah satu berubah, handoff native→JS
- *     kedip dan skrip gagal.
- *   - Tidak ada shadow (§6). Logo placeholder = kotak radius.md dengan
- *     border; ganti <View> tersebut dengan <Image source={logo}> nanti.
+ *   - Warna diambil langsung dari `tokens.colors.brand`, bukan CSS var /
+ *     className: overlay ini render SEBELUM ThemeProvider & font siap, jadi
+ *     belum ada `vars()` di tree.
+ *   - Splash TIDAK mengikuti light/dark. Ia permukaan brand yang sama dengan
+ *     app icon: `brand.black` dengan mark `brand.white`, konstan di kedua
+ *     mode. Karena itu `useColorScheme()` tidak lagi dibaca di sini. Literal
+ *     `backgroundColor` + `dark.backgroundColor` di app.json dijaga sama
+ *     dengan `brand.black` oleh `pnpm check:tokens` #8 — kalau salah satu
+ *     berubah, handoff native→JS berkedip dan skrip gagal.
+ *   - Tidak ada shadow (§6); mark flat monokrom sesuai design system v1.1.
  *   - Tidak pakai <Text> sama sekali di sini — font belum ada, menampilkan
  *     teks berarti FOUT yang justru ingin kita hindari.
  *   - Berada di components/ui/ (bukan components/) karena ia komponen
@@ -39,10 +37,26 @@
  *     di luar ui/ karena ia infrastruktur, bukan UI.
  */
 import { useEffect, useRef } from "react"
-import { Animated, Easing, StyleSheet, View, useColorScheme } from "react-native"
+import { Animated, Easing, StyleSheet } from "react-native"
 
-import { tokens, type ColorMode } from "@/lib/tokens"
+import { LogoMark } from "@/components/ui/logo"
+import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+
+/** Lebar kotak mark, dp. */
+const LOGO_SIZE = 72
+
+/**
+ * Kanvas splash native = LOGO_SIZE * SPLASH_CANVAS_SCALE.
+ *
+ * Android 12+ selalu menggambar ikon splash pada 288dp dan memasking apa pun
+ * di luar lingkaran 192dp di tengah — `imageWidth` tidak mengubahnya (sudah
+ * diuji lewat prebuild). Maka aset splash dibuat dengan logo hanya mengisi
+ * 1/4 kanvas, dan `imageWidth` di app.json = LOGO_SIZE * 4 = 288. Hasilnya
+ * tinta tampil pada dp yang sama di splash native maupun di overlay ini,
+ * sehingga logo tidak melompat saat serah terima. Dijaga `check:tokens` #8.
+ */
+export const SPLASH_CANVAS_SCALE = 4
 
 export type AnimatedSplashProps = {
   /** true = resource siap, mulai fade-out */
@@ -51,7 +65,6 @@ export type AnimatedSplashProps = {
   onFinish: () => void
 }
 
-const LOGO_SIZE = 72
 
 export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
   const pulse = useRef(new Animated.Value(1)).current
@@ -61,8 +74,6 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
   // (perlu untuk handoff native->JS tanpa kedip) tetapi instan.
   const reducedMotion = useReducedMotion()
   // Mode OS langsung dari react-native (bukan useTheme — belum ada provider).
-  const mode: ColorMode = useColorScheme() === "dark" ? "dark" : "light"
-  const palette = tokens.colors[mode]
 
   // Loop pulse — durasi "slow" dari tokens agar konsisten dengan motion system.
   useEffect(() => {
@@ -114,21 +125,23 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
         // Harus SAMA dengan `backgroundColor` / `dark.backgroundColor` plugin
         // expo-splash-screen di app.json supaya handoff native -> JS mulus.
         // Dijaga mesin oleh `pnpm check:tokens` #8, bukan hanya komentar.
-        { backgroundColor: palette.background, opacity: overlay },
+        //
+        // brand.black KONSTAN di light & dark: splash adalah permukaan brand
+        // yang sama dengan app icon, bukan permukaan aplikasi. Kalau di sini
+        // dipakai palette.background (putih di light), layar akan berkedip
+        // hitam -> putih tepat setelah splash native hitam menghilang.
+        { backgroundColor: tokens.colors.brand.black, opacity: overlay },
       ]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >
       <Animated.View style={{ opacity: pulse }}>
-        {/* PLACEHOLDER LOGO — ganti dengan:
-            <Image source={require("../../assets/images/logo-kahade.png")}
-                   style={{ width: LOGO_SIZE, height: LOGO_SIZE }} /> */}
-        <View
-          style={[
-            styles.logoPlaceholder,
-            { borderColor: palette.primary, backgroundColor: palette.surface },
-          ]}
-        />
+        {/* <LogoMark>, bukan <Logo>: komponen ini hidup di LUAR ThemeProvider
+            (lihat catatan di logo.tsx) sehingga useTheme() akan melempar.
+            Vektor, bukan <Image> bitmap — tajam di densitas mana pun dan
+            ukurannya sama persis dengan splash native, jadi logo tidak
+            melompat saat serah terima. Warna dari token, bukan literal. */}
+        <LogoMark size={LOGO_SIZE} fill={tokens.colors.brand.white} />
       </Animated.View>
     </Animated.View>
   )
@@ -137,18 +150,11 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
 const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    // backgroundColor per-mode di-set inline dari `tokens.colors[mode]`.
+    // backgroundColor di-set inline dari `tokens.colors.brand.black`.
     alignItems: "center",
     justifyContent: "center",
     // Tidak ada `zIndex.toast` (§9.11: Toast ditiadakan, semua lewat Banner=70).
     // Splash harus di atas Banner sekalipun, hanya saat boot.
     zIndex: tokens.zIndex.banner + 1,
-  },
-  logoPlaceholder: {
-    width: LOGO_SIZE,
-    height: LOGO_SIZE,
-    borderRadius: tokens.radius.md, // 8px — maksimum non-pill (§5)
-    borderWidth: tokens.borderWidth.default,
-    // borderColor / backgroundColor per-mode di-set inline (primary / surface).
   },
 })

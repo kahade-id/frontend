@@ -21,7 +21,9 @@
     "ota:preflight": "node scripts/check-ota.mjs",
     "audit:inventory": "node scripts/audit-inventory.mjs",
     "build:web": "EXPO_OFFLINE=1 expo export --platform web",
-    "preview:web": "node scripts/serve-web.mjs"
+    "preview:web": "node scripts/serve-web.mjs",
+    "gen:brand": "node scripts/gen-brand-assets.mjs",
+    "qa:icon": "node scripts/qa-icon.mjs"
   },
   "dependencies": {
     "@expo/metro-runtime": "~6.1.2",

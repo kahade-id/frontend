@@ -37,3 +37,6 @@ test-results/
 # `npx expo prebuild --clean`.
 /android/
 /ios/
+
+# Pratinjau QA ikon — hasil `npm run qa:icon`, bisa di-generate ulang kapan saja.
+assets/images/__qa__/

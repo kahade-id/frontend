@@ -4,6 +4,7 @@
     "slug": "kahade",
     "scheme": "kahade",
     "version": "1.0.0",
+    "icon": "./assets/images/icon.png",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -36,6 +37,10 @@
     },
     "android": {
       "package": "id.kahade",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#000000"
+      },
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
@@ -59,10 +64,12 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FFFFFF",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 288,
           "resizeMode": "contain",
+          "backgroundColor": "#000000",
           "dark": {
-            "backgroundColor": "#121212"
+            "backgroundColor": "#000000"
           }
         }
       ],
