@@ -106,7 +106,7 @@ export function getWallet() {
 export type WalletTransactionsQuery = {
   page: number
   limit: number
-  /** Filter tipe mutasi. Default "ALL" (asumsi; backend menerima string bebas). */
+  /** Filter tipe mutasi. Kosong berarti semua tipe; backend tidak menerima nilai ALL. */
   type?: string
   /** Batas awal rentang tanggal (ISO). Default 2000-01-01 (asumsi). */
   from?: string
@@ -114,8 +114,12 @@ export type WalletTransactionsQuery = {
   to?: string
 }
 
-/** Rentang default history — dihitung sekali per proses (deterministik). */
-const HISTORY_FROM = "2000-01-01T00:00:00.000Z"
+/** Backend membatasi rentang transaksi maksimal 90 hari. Sisakan margin satu hari. */
+function defaultHistoryFrom() {
+  const from = new Date()
+  from.setDate(from.getDate() - 89)
+  return from.toISOString()
+}
 
 /**
  * GET /v1/wallet/transactions — riwayat transaksi wallet (paginasi).
@@ -127,8 +131,8 @@ export function getWalletTransactions(query: WalletTransactionsQuery, signal?: A
       query: {
         page: query.page,
         limit: query.limit,
-        type: query.type ?? "ALL",
-        from: query.from ?? HISTORY_FROM,
+        ...(query.type && query.type !== "ALL" ? { type: query.type } : {}),
+        from: query.from ?? defaultHistoryFrom(),
         to: query.to ?? new Date().toISOString(),
       },
       auth: "required",
@@ -366,18 +370,20 @@ export function getWithdrawHistory(
 
 /** GET /v1/wallet/export/csv — unduh mutasi CSV. */
 export function exportWalletCsv() {
-  return http.get<Blob>("/v1/wallet/export/csv", {
-    auth: "required",
-    responseType: "blob",
-    retry: 1,
-  })
+  return http
+    .get<{ csv: string; filename: string }>("/v1/wallet/export/csv", {
+      auth: "required",
+      retry: 1,
+    })
+    .then(({ csv }) => new Blob([csv], { type: "text/csv;charset=utf-8" }))
 }
 
-/** GET /v1/wallet/export/pdf — unduh mutasi PDF. */
+/** GET /v1/wallet/export/pdf — backend returns printable HTML, not a PDF binary. */
 export function exportWalletPdf() {
-  return http.get<Blob>("/v1/wallet/export/pdf", {
-    auth: "required",
-    responseType: "blob",
-    retry: 1,
-  })
+  return http
+    .get<{ html: string; filename: string }>("/v1/wallet/export/pdf", {
+      auth: "required",
+      retry: 1,
+    })
+    .then(({ html }) => new Blob([html], { type: "text/html;charset=utf-8" }))
 }

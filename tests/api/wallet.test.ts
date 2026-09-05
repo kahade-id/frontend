@@ -22,6 +22,11 @@ describe("wallet boundary", () => {
     expect(normalizeWallet({ balance: 100000 }).availableBalance).toBeUndefined()
     expect(normalizeWallet({ balance: 100000 }).holdBalance).toBeUndefined()
   })
+  it("accepts the live wallet contract with total and escrow balances", () => {
+    expect(
+      normalizeWallet({ availableBalance: 35375000, escrowBalance: 0, totalBalance: 35375000 }),
+    ).toMatchObject({ balance: 35375000, availableBalance: 35375000, holdBalance: undefined })
+  })
   it("rejects missing or malformed balances instead of showing zero", () => {
     expect(() => normalizeWallet({ message: "ok" })).toThrow()
     expect(() => normalizeWallet({ balance: 100000, holdBalance: "unknown" })).toThrow()

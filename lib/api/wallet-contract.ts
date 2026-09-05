@@ -7,14 +7,19 @@ export function moneyNumber(value: unknown): number | undefined {
 }
 export function normalizeWallet(raw: unknown): Wallet {
   const wallet = readEntity<Record<string, unknown>>(raw, "wallet")
-  const balance = moneyNumber(wallet.balance)
-  if (balance === undefined) throw invalidResponse("wallet.balance")
+  const totalRaw = wallet.balance ?? wallet.totalBalance ?? wallet.total_balance
+  const availableRaw = wallet.availableBalance ?? wallet.available_balance
+  const escrowRaw = wallet.escrowBalance ?? wallet.escrow_balance
+  const balance = moneyNumber(totalRaw)
+  const available = moneyNumber(availableRaw)
+  const escrow = moneyNumber(escrowRaw)
+  const derivedBalance =
+    balance ?? (available !== undefined && escrow !== undefined ? available + escrow : undefined)
+  if (derivedBalance === undefined) throw invalidResponse("wallet.balance")
   
   const holdRaw = wallet.holdBalance ?? wallet.hold_balance
-  const availableRaw = wallet.availableBalance ?? wallet.available_balance
   
   const held = moneyNumber(holdRaw)
-  const available = moneyNumber(availableRaw)
   
   if (
     (holdRaw != null && held === undefined) ||
@@ -23,8 +28,8 @@ export function normalizeWallet(raw: unknown): Wallet {
     throw invalidResponse("wallet.balances")
   return {
     ...wallet,
-    balance,
-    availableBalance: available ?? (held === undefined ? undefined : balance - held),
+    balance: derivedBalance,
+    availableBalance: available ?? (held === undefined ? undefined : derivedBalance - held),
     holdBalance: held,
   } as Wallet
 }

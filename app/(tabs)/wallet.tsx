@@ -96,8 +96,8 @@ export default function WalletScreen() {
       try {
         const blob =
           kind === "csv" ? await api.wallet.exportWalletCsv() : await api.wallet.exportWalletPdf()
-        const filename = `kahade-wallet.${kind}`
-        const mimeType = kind === "csv" ? "text/csv" : "application/pdf"
+        const filename = kind === "csv" ? "kahade-wallet.csv" : "kahade-wallet.html"
+        const mimeType = kind === "csv" ? "text/csv" : "text/html"
         if (Platform.OS === "web") {
           const url = URL.createObjectURL(blob)
           const a = document.createElement("a")
