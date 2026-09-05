@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Sengketa Saya (GET /v1/disputes/my).
  * List DisputeCard; tap → detail sengketa (route /dispute/[id]).
@@ -60,12 +61,18 @@ export default function DisputesScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={ShieldWarning} title="Memuat sengketa…" />
+          <LoadingScreen message="Memuat sengketa…" />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchDisputes()} />
+          <ErrorState
+            title="Gagal memuat"
+            description={error}
+            onRetry={() => void fetchDisputes()}
+          />
         ) : items.length === 0 ? (
           <EmptyState
             icon={ShieldWarning}
@@ -81,9 +88,6 @@ export default function DisputesScreen() {
                 disputeId={d.id}
                 orderTitle={`Order ${d.orderId}`}
                 status={d.status}
-                counterpart={{ name: "Lawan transaksi" }}
-                openedByMe
-                heldAmount={0}
                 updatedAt={formatDateTime(d.updatedAt ?? d.createdAt)}
                 onPress={() => router.push(ROUTES.disputeDetail(d.id))}
               />

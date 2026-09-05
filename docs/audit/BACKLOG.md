@@ -1,3 +1,5 @@
+> **Pembaruan 5 September 2026:** audit implementasi terbaru, bukti pengujian, serta blocker API/native/OTA ada di [REPORT.md](REPORT.md). Dokumen di bawah dipertahankan sebagai backlog audit design system sebelumnya.
+
 # Audit Backlog — Aksesibilitas & Konsistensi Token
 
 Dokumen ini adalah **brief kerja untuk agent/engineer** yang melanjutkan audit

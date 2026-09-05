@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Tanya Jawab Publik sebuah profil.
  *
@@ -27,7 +28,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ChatCircleDots } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
-import { readQuestionComments, readQuestionList, type QuestionComment, type QuestionItem } from "@/lib/api/users"
+import {
+  readQuestionComments,
+  readQuestionList,
+  type QuestionComment,
+  type QuestionItem,
+} from "@/lib/api/users"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
@@ -80,7 +86,12 @@ export default function PublicQuestionsScreen() {
   const [asking, setAsking] = useState(false)
 
   const [openId, setOpenId] = useState<string | null>(null)
-  const [comments, setComments] = useState<CommentsState>({ items: [], page: 1, hasMore: false, loading: false })
+  const [comments, setComments] = useState<CommentsState>({
+    items: [],
+    page: 1,
+    hasMore: false,
+    loading: false,
+  })
   const [commentText, setCommentText] = useState("")
   const [commentSending, setCommentSending] = useState(false)
 
@@ -141,7 +152,10 @@ export default function PublicQuestionsScreen() {
     async (questionId: string, p: number) => {
       setComments((c) => ({ ...c, loading: true }))
       try {
-        const body = await api.users.getQuestionComments(questionId, { page: p, limit: COMMENT_PAGE })
+        const body = await api.users.getQuestionComments(questionId, {
+          page: p,
+          limit: COMMENT_PAGE,
+        })
         const { items: data, totalPages } = readQuestionComments(body)
         setComments((c) => ({
           items: p === 1 ? data : [...c.items, ...data],
@@ -179,7 +193,11 @@ export default function PublicQuestionsScreen() {
       await loadComments(openId, 1)
       toast.show({ title: "Komentar terkirim", tone: "success", duration: 3000 })
     } catch (err) {
-      toast.show({ title: "Gagal mengirim komentar", description: userMessage(err), tone: "danger" })
+      toast.show({
+        title: "Gagal mengirim komentar",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setCommentSending(false)
     }
@@ -201,7 +219,11 @@ export default function PublicQuestionsScreen() {
       setAskText("")
       await fetchPage(1)
     } catch (err) {
-      toast.show({ title: "Gagal mengirim pertanyaan", description: userMessage(err), tone: "danger" })
+      toast.show({
+        title: "Gagal mengirim pertanyaan",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setAsking(false)
     }
@@ -248,10 +270,12 @@ export default function PublicQuestionsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={ChatCircleDots} title="Memuat pertanyaan…" />
+          <LoadingScreen message="Memuat pertanyaan…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 ? (
@@ -298,7 +322,7 @@ export default function PublicQuestionsScreen() {
                 {openId === q.id ? (
                   <Card padded className="gap-3">
                     {comments.loading && comments.items.length === 0 ? (
-                      <EmptyState icon={ChatCircleDots} title="Memuat komentar…" />
+                      <LoadingScreen message="Memuat komentar…" />
                     ) : comments.items.length === 0 ? (
                       <EmptyState icon={ChatCircleDots} title="Belum ada komentar" />
                     ) : (
@@ -307,13 +331,17 @@ export default function PublicQuestionsScreen() {
                           <QaCommentItem
                             key={c.id}
                             authorName={c.authorName ?? c.authorUsername ?? "Pengguna"}
-                            authorAvatar={c.authorAvatarUrl ? { source: c.authorAvatarUrl } : undefined}
+                            authorAvatar={
+                              c.authorAvatarUrl ? { source: c.authorAvatarUrl } : undefined
+                            }
                             isOwner={c.isOwner}
                             content={c.content}
                             timestamp={formatDateTime(c.createdAt)}
                             reply={c.reply || !!c.parentId}
                             deleted={c.deleted}
-                            onDelete={isMyComment(c) && !c.deleted ? () => setDeleteC(c) : undefined}
+                            onDelete={
+                              isMyComment(c) && !c.deleted ? () => setDeleteC(c) : undefined
+                            }
                           />
                         ))}
                         {comments.hasMore ? (

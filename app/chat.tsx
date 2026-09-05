@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Ruang Chat (GET /v1/chat/rooms). List ChatRoomListItem.
  */
@@ -59,10 +60,12 @@ export default function ChatScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Chats} title="Memuat ruang chat…" />
+          <LoadingScreen message="Memuat ruang chat…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchRooms()} />
         ) : items.length === 0 ? (
@@ -78,7 +81,9 @@ export default function ChatScreen() {
               <ChatRoomListItem
                 key={room.id}
                 name={room.counterpart?.fullName ?? `@${room.counterpart?.username ?? "—"}`}
-                avatar={room.counterpart?.avatarUrl ? { uri: room.counterpart.avatarUrl } : undefined}
+                avatar={
+                  room.counterpart?.avatarUrl ? { uri: room.counterpart.avatarUrl } : undefined
+                }
                 lastMessage={
                   room.lastMessage
                     ? {

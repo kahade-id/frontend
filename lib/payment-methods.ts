@@ -54,37 +54,43 @@ export const METHOD_ICON: Partial<Record<string, IconComponent>> = {
   KREDIVO: Receipt,
 }
 
-/** Kode yang ditandai "direkomendasikan" di selector. */
-const RECOMMENDED_CODES = new Set(["QRIS", "VIRTUAL_ACCOUNT_BCA"])
-
 export type ToPaymentMethodOptions = {
   /** Saldo dompet saat ini — hanya dipakai untuk kind "balance". */
   walletBalance?: number
 }
 
 /** Konversi satu metode dari `GET /v1/wallet/payment-methods`. */
-export function toPaymentMethod(raw: WalletPaymentMethod, opts: ToPaymentMethodOptions = {}): PaymentMethod {
-  const kind = METHOD_KIND[raw.code] ?? "qris"
+export function toPaymentMethod(
+  raw: WalletPaymentMethod,
+  opts: ToPaymentMethodOptions = {},
+): PaymentMethod {
+  const kind = METHOD_KIND[raw.code] ?? "bank"
   return {
     id: raw.code,
     kind,
     icon: METHOD_ICON[raw.code],
     name: raw.name,
-    description: raw.fee ? "Biaya layanan berlaku" : undefined,
-    fee: raw.fee
-      ? raw.fee.percent
-        ? { type: "percent", value: raw.fee.percent }
-        : { type: "flat", amount: raw.fee.fixed ?? 0 }
-      : undefined,
+    description: undefined,
+    fee: raw.fee ? { type: "combined", ...raw.fee } : undefined,
+    minAmount: raw.minAmount,
+    maxAmount: raw.maxAmount,
     balance: kind === "balance" ? opts.walletBalance : undefined,
-    recommended: RECOMMENDED_CODES.has(raw.code),
-    unavailable: raw.enabled === false,
-    unavailableReason: raw.enabled === false ? "Metode sedang tidak tersedia" : undefined,
+    recommended: raw.recommended === true,
+    unavailable: raw.enabled !== true,
+    unavailableReason:
+      raw.enabled === false
+        ? "Metode sedang tidak tersedia"
+        : raw.enabled !== true
+          ? "Status metode belum terkonfirmasi"
+          : undefined,
   }
 }
 
 /** Konversi daftar; metode nonaktif diletakkan di akhir. */
-export function toPaymentMethods(raw: WalletPaymentMethod[] | null | undefined, opts?: ToPaymentMethodOptions) {
+export function toPaymentMethods(
+  raw: WalletPaymentMethod[] | null | undefined,
+  opts?: ToPaymentMethodOptions,
+) {
   return (raw ?? [])
     .map((m) => toPaymentMethod(m, opts))
     .sort((a, b) => Number(Boolean(a.unavailable)) - Number(Boolean(b.unavailable)))

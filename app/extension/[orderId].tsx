@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Perpanjangan tenggat pengiriman.
  *
@@ -216,7 +217,11 @@ export default function ExtensionScreen() {
       setRequestOpen(false)
       await fetchAll()
     } catch (err) {
-      toast.show({ title: "Gagal mengajukan perpanjangan", description: userMessage(err), tone: "danger" })
+      toast.show({
+        title: "Gagal mengajukan perpanjangan",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setRequesting(false)
     }
@@ -252,10 +257,12 @@ export default function ExtensionScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Clock} title="Memuat permintaan…" />
+          <LoadingScreen message="Memuat permintaan…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
@@ -351,10 +358,20 @@ export default function ExtensionScreen() {
         description="Pembeli harus menyetujui sebelum tenggat berubah."
         footer={
           <View className="gap-2">
-            <Button variant="primary" loading={requesting} onPress={() => void submitRequest()} fullWidth>
+            <Button
+              variant="primary"
+              loading={requesting}
+              onPress={() => void submitRequest()}
+              fullWidth
+            >
               Kirim permintaan
             </Button>
-            <Button variant="ghost" disabled={requesting} onPress={() => setRequestOpen(false)} fullWidth>
+            <Button
+              variant="ghost"
+              disabled={requesting}
+              onPress={() => setRequestOpen(false)}
+              fullWidth
+            >
               Batal
             </Button>
           </View>

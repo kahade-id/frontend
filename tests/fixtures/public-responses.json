@@ -1,0 +1,187 @@
+{
+  "appVersion": {
+    "success": true,
+    "message": "Success",
+    "data": {
+      "ios": {
+        "latestVersion": "1.0.0",
+        "minimumVersion": "1.0.0",
+        "storeUrl": "https://apps.apple.com/app/kahade"
+      },
+      "android": {
+        "latestVersion": "1.0.0",
+        "minimumVersion": "1.0.0",
+        "storeUrl": "https://play.google.com/store/apps/details?id=id.kahade.frontend"
+      },
+      "checkIntervalMs": 21600000
+    },
+    "errors": null
+  },
+  "banks": {
+    "success": true,
+    "message": "Success",
+    "data": {
+      "banks": [
+        {
+          "code": "BCA",
+          "name": "Bank Central Asia"
+        },
+        {
+          "code": "BNI",
+          "name": "Bank Negara Indonesia"
+        },
+        {
+          "code": "BRI",
+          "name": "Bank Rakyat Indonesia"
+        },
+        {
+          "code": "MANDIRI",
+          "name": "Bank Mandiri"
+        },
+        {
+          "code": "CIMB",
+          "name": "CIMB Niaga"
+        },
+        {
+          "code": "PERMATA",
+          "name": "Bank Permata"
+        },
+        {
+          "code": "DANAMON",
+          "name": "Bank Danamon"
+        },
+        {
+          "code": "OCBC",
+          "name": "OCBC NISP"
+        },
+        {
+          "code": "PANIN",
+          "name": "Bank Panin"
+        },
+        {
+          "code": "MEGA",
+          "name": "Bank Mega"
+        },
+        {
+          "code": "BTN",
+          "name": "Bank Tabungan Negara"
+        },
+        {
+          "code": "BSI",
+          "name": "Bank Syariah Indonesia"
+        },
+        {
+          "code": "MAYBANK",
+          "name": "Maybank Indonesia"
+        },
+        {
+          "code": "OTHER",
+          "name": "Bank Lainnya"
+        }
+      ]
+    },
+    "errors": null
+  },
+  "feeSchedule": {
+    "success": true,
+    "message": "Success",
+    "data": {
+      "feeSchedule": {
+        "standardFeeRate": 2.5,
+        "kahadePlusFeeRate": 0.5,
+        "standardFeeMin": 5000,
+        "standardFeeMax": 250000,
+        "standardFeeDescription": "2.5% of order value (min Rp 5.000, max Rp 250.000)",
+        "kahadePlusFeeDescription": "0.5% of order value (Kahade Plus members)",
+        "orderMinValue": 10000,
+        "orderMaxValue": 1000000000,
+        "currency": "IDR",
+        "feeResponsibilityOptions": [
+          "BUYER",
+          "SELLER",
+          "SPLIT"
+        ]
+      }
+    },
+    "errors": null
+  },
+  "plans": {
+    "success": true,
+    "message": "Success",
+    "data": {
+      "plans": [
+        {
+          "plan": "MONTHLY",
+          "name": "Kahade Plus Monthly",
+          "price": 29000,
+          "currency": "IDR",
+          "period": "1 month",
+          "feeRate": 0.5,
+          "feeSavingsLimit": 5000000,
+          "features": [
+            "Reduced fee rate: 0.5%",
+            "Fee savings up to Rp 5.000.000 per period",
+            "Priority support",
+            "Kahade Plus badge"
+          ]
+        },
+        {
+          "plan": "ANNUAL",
+          "name": "Kahade Plus Annual",
+          "price": 299000,
+          "currency": "IDR",
+          "period": "12 months",
+          "feeRate": 0.5,
+          "feeSavingsLimit": 5000000,
+          "features": [
+            "Reduced fee rate: 0.5%",
+            "Fee savings up to Rp 5.000.000 per period",
+            "Priority support",
+            "Kahade Plus badge",
+            "Save 14% vs monthly"
+          ]
+        }
+      ]
+    },
+    "errors": null
+  },
+  "otpMethods": {
+    "success": true,
+    "message": "Success",
+    "data": {
+      "methods": [
+        "WHATSAPP"
+      ]
+    },
+    "errors": null
+  },
+  "config": {
+    "success": true,
+    "message": "Success",
+    "data": {
+      "configs": []
+    },
+    "errors": null
+  },
+  "unauthorized": {
+    "success": false,
+    "message": "Access token required",
+    "data": null,
+    "errors": {
+      "code": "UNAUTHORIZED",
+      "message": "Access token required"
+    }
+  },
+  "helpCategories": {
+    "success": true,
+    "message": "Success",
+    "data": [],
+    "errors": null
+  },
+  "helpSearch": {
+    "success": true,
+    "message": "Success",
+    "data": [],
+    "errors": null
+  }
+}

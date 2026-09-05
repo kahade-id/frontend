@@ -42,11 +42,13 @@ import {
   useEffect,
   useMemo,
   useState,
+  useRef,
   type ReactNode,
 } from "react"
 import { View } from "react-native"
 import { useColorScheme, vars } from "nativewind"
 
+import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { toCssVariables, type ColorMode } from "@/lib/tokens"
 
 export type ThemePreference = ColorMode | "system"
@@ -75,8 +77,25 @@ export function ThemeProvider({
   onPreferenceChange,
 }: Props) {
   const { colorScheme, setColorScheme } = useColorScheme()
-  const [preference, setPreferenceState] =
-    useState<ThemePreference>(initialPreference)
+  const [preference, setPreferenceState] = useState<ThemePreference>(initialPreference)
+
+  const changed = useRef(false)
+  useEffect(() => {
+    let alive = true
+    void getSecureItem(SecureKeys.themePreference)
+      .then((stored) => {
+        if (
+          alive &&
+          !changed.current &&
+          (stored === "light" || stored === "dark" || stored === "system")
+        )
+          setPreferenceState(stored)
+      })
+      .catch(() => undefined)
+    return () => {
+      alive = false
+    }
+  }, [])
 
   // Serahkan preferensi (termasuk "system") ke NativeWind — ia yang resolve.
   useEffect(() => {
@@ -87,7 +106,9 @@ export function ThemeProvider({
 
   const setPreference = useCallback(
     (p: ThemePreference) => {
+      changed.current = true
       setPreferenceState(p)
+      void setSecureItem(SecureKeys.themePreference, p).catch(() => undefined)
       onPreferenceChange?.(p)
     },
     [onPreferenceChange],

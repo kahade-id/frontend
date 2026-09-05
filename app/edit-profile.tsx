@@ -116,7 +116,10 @@ export default function EditProfileScreen() {
     setLoading(true)
     setError(null)
     try {
-      const [me, myLinks] = await Promise.all([api.users.getMe(), api.users.getLinks().catch(() => [])])
+      const [me, myLinks] = await Promise.all([
+        api.users.getMe(),
+        api.users.getLinks().catch(() => []),
+      ])
       const next: ProfileForm = {
         fullName: me.fullName ?? "",
         username: me.username ?? "",
@@ -132,7 +135,9 @@ export default function EditProfileScreen() {
       setAccountEmail(me.email ?? "")
       setEmailVerified(me.emailVerified)
       setAvatarUrl(me.avatarUrl ?? null)
-      const sorted = [...(myLinks ?? [])].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+      const sorted = [...(myLinks ?? [])].sort(
+        (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0),
+      )
       setLinks(sorted)
       setInitialLinks(sorted)
     } catch {
@@ -167,8 +172,10 @@ export default function EditProfileScreen() {
     if (form.phone !== initial.phone) d.phoneNumber = toE164Id(form.phone)
     if (trimmed.contactEmail !== initial.contactEmail) d.contactEmail = trimmed.contactEmail
     if (form.contactPhone !== initial.contactPhone) d.contactPhone = toE164Id(form.contactPhone)
-    if (form.showContactEmail !== initial.showContactEmail) d.showContactEmail = form.showContactEmail
-    if (form.showContactPhone !== initial.showContactPhone) d.showContactPhone = form.showContactPhone
+    if (form.showContactEmail !== initial.showContactEmail)
+      d.showContactEmail = form.showContactEmail
+    if (form.showContactPhone !== initial.showContactPhone)
+      d.showContactPhone = form.showContactPhone
     return d
   }, [form, initial])
 
@@ -196,7 +203,12 @@ export default function EditProfileScreen() {
         if (linksChanged) {
           try {
             await api.users.updateLinks({
-              links: links.map((l, i) => ({ platform: l.platform, url: l.url, label: l.label, displayOrder: i })),
+              links: links.map((l, i) => ({
+                platform: l.platform,
+                url: l.url,
+                label: l.label,
+                displayOrder: i,
+              })),
             })
           } catch {
             toast.show({
@@ -255,7 +267,9 @@ export default function EditProfileScreen() {
       if (picked.status !== "picked") return
       setAvatarBusy(true)
       try {
-        const uploaded = await api.users.uploadAvatarDirect(await pickedImageToFormData(picked.asset))
+        const uploaded = await api.users.uploadAvatarDirect(
+          await pickedImageToFormData(picked.asset),
+        )
         if (uploaded.avatarKey) await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
         if (uploaded.avatarUrl) setAvatarUrl(uploaded.avatarUrl)
         toast.show({ title: "Foto profil diperbarui", tone: "success" })
@@ -312,8 +326,13 @@ export default function EditProfileScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        <View className="px-6 pb-4">
-          <Button fullWidth loading={submitting} disabled={loading || !!error || !dirty} onPress={handleSubmit}>
+        <View>
+          <Button
+            fullWidth
+            loading={submitting}
+            disabled={loading || !!error || !dirty}
+            onPress={handleSubmit}
+          >
             Simpan Perubahan
           </Button>
         </View>
@@ -325,12 +344,16 @@ export default function EditProfileScreen() {
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
-          style: { paddingBottom: insets.bottom + tokens.space[8] },
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
           keyboardShouldPersistTaps: "handled",
         }}
       >
         {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchProfile()} />
+          <ErrorState
+            title="Gagal memuat"
+            description={error}
+            onRetry={() => void fetchProfile()}
+          />
         ) : loading ? (
           <View className="gap-4 py-4">
             <View className="items-center">
@@ -344,7 +367,11 @@ export default function EditProfileScreen() {
           <>
             <View className="items-center gap-3 py-4">
               <View className="relative">
-                <Avatar source={avatarUrl ?? undefined} name={form.fullName || undefined} size="xl" />
+                <Avatar
+                  source={avatarUrl ?? undefined}
+                  name={form.fullName || undefined}
+                  size="xl"
+                />
                 <View className="absolute -bottom-1 -right-1">
                   <IconButton
                     icon={CameraIcon}
@@ -395,14 +422,28 @@ export default function EditProfileScreen() {
               </Field>
             </FormSection>
 
-            <FormSection title="Akun" divider description="Email akun dipakai untuk masuk dan tidak diubah di sini.">
-              <EmailField label="Email akun" value={accountEmail} onChangeText={() => undefined} validate={false} disabled />
+            <FormSection
+              title="Akun"
+              divider
+              description="Email akun dipakai untuk masuk dan tidak diubah di sini."
+            >
+              <EmailField
+                label="Email akun"
+                value={accountEmail}
+                onChangeText={() => undefined}
+                validate={false}
+                disabled
+              />
               {emailVerified === false && accountEmail ? (
                 <Alert
                   tone="warning"
                   title="Email belum diverifikasi"
                   action={
-                    <Button size="sm" variant="secondary" onPress={() => router.push(ROUTES.verifyEmail(accountEmail))}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onPress={() => router.push(ROUTES.verifyEmail(accountEmail))}
+                    >
                       Verifikasi sekarang
                     </Button>
                   }
@@ -418,7 +459,11 @@ export default function EditProfileScreen() {
               />
             </FormSection>
 
-            <FormSection title="Kontak publik" divider description="Ditampilkan di profil publik bila diaktifkan.">
+            <FormSection
+              title="Kontak publik"
+              divider
+              description="Ditampilkan di profil publik bila diaktifkan."
+            >
               <EmailField
                 label="Email kontak"
                 value={form.contactEmail}
@@ -444,7 +489,11 @@ export default function EditProfileScreen() {
               />
             </FormSection>
 
-            <FormSection title="Tautan sosial" divider description="Ditampilkan di profil publik Anda.">
+            <FormSection
+              title="Tautan sosial"
+              divider
+              description="Ditampilkan di profil publik Anda."
+            >
               <SocialLinksEditor value={links} onChange={setLinks} max={MAX_LINKS} />
             </FormSection>
           </>

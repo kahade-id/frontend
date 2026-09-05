@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `disputes` (sengketa pesanan; evidence, claim, pesan, call).
  *
@@ -87,7 +88,9 @@ export type DisputeDetail = {
 }
 
 export function listMyDisputes(query?: { page?: number; limit?: number }) {
-  return http.get<Array<DisputeDetail>>("/v1/disputes/my", { query, auth: "required", retry: 1 })
+  return http
+    .get<Array<DisputeDetail>>("/v1/disputes/my", { query, auth: "required", retry: 1 })
+    .then((raw) => readList<DisputeDetail>(raw, ["disputes"]))
 }
 
 export function getDispute(disputeId: string) {
@@ -95,16 +98,22 @@ export function getDispute(disputeId: string) {
 }
 
 export function getDisputeEvidence(disputeId: string) {
-  return http.get<DisputeEvidence[]>(`/v1/disputes/${seg(disputeId)}/evidence`, {
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<DisputeEvidence[]>(`/v1/disputes/${seg(disputeId)}/evidence`, {
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<DisputeEvidence>(raw, ["evidence", "evidences"]))
 }
 
 export function submitDisputeEvidence(disputeId: string, dto: SubmitEvidenceDto) {
-  return http.post<DisputeEvidence, SubmitEvidenceDto>(`/v1/disputes/${seg(disputeId)}/evidence`, dto, {
-    auth: "required",
-  })
+  return http.post<DisputeEvidence, SubmitEvidenceDto>(
+    `/v1/disputes/${seg(disputeId)}/evidence`,
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function deleteDisputeEvidence(disputeId: string, evidenceId: string) {
@@ -121,16 +130,22 @@ export function submitDisputeClaim(disputeId: string, dto: SubmitClaimDto) {
 }
 
 export function getDisputeMessages(disputeId: string) {
-  return http.get<DisputeMessage[]>(`/v1/disputes/${seg(disputeId)}/messages`, {
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<DisputeMessage[]>(`/v1/disputes/${seg(disputeId)}/messages`, {
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<DisputeMessage>(raw, ["messages"]))
 }
 
 export function sendDisputeMessage(disputeId: string, text: string) {
-  return http.post<DisputeMessage, { text: string }>(`/v1/disputes/${seg(disputeId)}/messages`, {
-    text,
-  }, { auth: "required" })
+  return http.post<DisputeMessage, { text: string }>(
+    `/v1/disputes/${seg(disputeId)}/messages`,
+    {
+      text,
+    },
+    { auth: "required" },
+  )
 }
 
 export function requestDisputeCall(disputeId: string) {
@@ -158,17 +173,21 @@ export function endDisputeCall(disputeId: string) {
 }
 
 export function getDisputeCalls(disputeId: string) {
-  return http.get<DisputeCall[]>(`/v1/disputes/${seg(disputeId)}/calls`, {
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<DisputeCall[]>(`/v1/disputes/${seg(disputeId)}/calls`, {
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<DisputeCall>(raw, ["calls"]))
 }
 
 export function getMutualResolution(disputeId: string) {
-  return http.get<MutualResolutionProposal[]>(`/v1/disputes/${seg(disputeId)}/mutual-resolution`, {
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<MutualResolutionProposal[]>(`/v1/disputes/${seg(disputeId)}/mutual-resolution`, {
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<MutualResolutionProposal>(raw, ["proposals"]))
 }
 
 export function proposeMutualResolution(disputeId: string, dto: MutualResolutionProposeBody) {
@@ -179,7 +198,11 @@ export function proposeMutualResolution(disputeId: string, dto: MutualResolution
   )
 }
 
-export function respondMutualResolution(disputeId: string, proposalId: string, dto: MutualResolutionRespondBody) {
+export function respondMutualResolution(
+  disputeId: string,
+  proposalId: string,
+  dto: MutualResolutionRespondBody,
+) {
   return http.post<MutualResolutionProposal, MutualResolutionRespondBody>(
     `/v1/disputes/${seg(disputeId)}/mutual-resolution/${seg(proposalId)}/respond`,
     dto,
@@ -188,8 +211,8 @@ export function respondMutualResolution(disputeId: string, proposalId: string, d
 }
 
 export function withdrawMutualResolution(disputeId: string, proposalId: string) {
-  return http.delete<void>(
-    `/v1/disputes/${seg(disputeId)}/mutual-resolution/${seg(proposalId)}`,
-    { auth: "required", responseType: "void" },
-  )
+  return http.delete<void>(`/v1/disputes/${seg(disputeId)}/mutual-resolution/${seg(proposalId)}`, {
+    auth: "required",
+    responseType: "void",
+  })
 }

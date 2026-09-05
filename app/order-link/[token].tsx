@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Terima Order Link (GET /v1/orders/links/{token}).
  * Preview kartu + Terima (POST accept) / Tolak (POST cancel).
@@ -65,7 +66,12 @@ export default function OrderLinkScreen() {
     setAccepting(true)
     try {
       await api.orders.acceptOrderLink(link.token)
-      toast.show({ title: "Order link diterima", description: "Pesanan berhasil dibuat.", tone: "success", duration: 4000 })
+      toast.show({
+        title: "Order link diterima",
+        description: "Pesanan berhasil dibuat.",
+        tone: "success",
+        duration: 4000,
+      })
       setLink({ ...link, status: "ACCEPTED" })
       if (link.orderId) router.replace(ROUTES.orderDetail(link.orderId))
     } catch {
@@ -101,10 +107,12 @@ export default function OrderLinkScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={LinkSimple} title="Memuat tautan…" />
+          <LoadingScreen message="Memuat tautan…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchLink()} />
         ) : link ? (
@@ -122,8 +130,18 @@ export default function OrderLinkScreen() {
               orderValue={link.orderValue}
               deliveryDeadlineDays={link.deliveryDeadlineDays}
               feeResponsibility={link.feeResponsibility}
-              status={link.status === "ACTIVE" ? "ACTIVE" : link.status === "ACCEPTED" ? "ACCEPTED" : link.status === "CANCELLED" ? "CANCELLED" : "EXPIRED"}
-              expiresLabel={link.expiresAt ? `Berlaku hingga ${formatDateTime(link.expiresAt)}` : undefined}
+              status={
+                link.status === "ACTIVE"
+                  ? "ACTIVE"
+                  : link.status === "ACCEPTED"
+                    ? "ACCEPTED"
+                    : link.status === "CANCELLED"
+                      ? "CANCELLED"
+                      : "EXPIRED"
+              }
+              expiresLabel={
+                link.expiresAt ? `Berlaku hingga ${formatDateTime(link.expiresAt)}` : undefined
+              }
               lockedToUsername={link.counterpartUsername ?? undefined}
               onAccept={active ? () => void handleAccept() : undefined}
               onDecline={active ? () => setDeclineOpen(true) : undefined}

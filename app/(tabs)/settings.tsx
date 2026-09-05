@@ -97,10 +97,20 @@ const MENU_GROUPS: MenuGroup[] = [
     title: "Akun",
     items: [
       { id: "edit-profile", icon: User, label: "Edit Profil", route: ROUTES.editProfile },
-      { id: "kyc", icon: IdentificationCard, label: "Verifikasi Identitas (KYC)", route: ROUTES.kyc },
+      {
+        id: "kyc",
+        icon: IdentificationCard,
+        label: "Verifikasi Identitas (KYC)",
+        route: ROUTES.kyc,
+      },
       { id: "bank-account", icon: Bank, label: "Rekening Bank", route: ROUTES.bankAccounts },
       { id: "account-type", icon: Briefcase, label: "Tipe Akun", route: ROUTES.accountType },
-      { id: "subscriptions", icon: CrownSimple, label: "Langganan Premium", route: ROUTES.subscriptions },
+      {
+        id: "subscriptions",
+        icon: CrownSimple,
+        label: "Langganan Premium",
+        route: ROUTES.subscriptions,
+      },
       { id: "referral", icon: Gift, label: "Referral", route: ROUTES.referral },
       { id: "language", icon: Translate, label: "Bahasa", route: ROUTES.language },
     ],
@@ -120,7 +130,12 @@ const MENU_GROUPS: MenuGroup[] = [
     title: "Transaksi",
     items: [
       { id: "order-links", icon: LinkSimple, label: "Order Link Saya", route: ROUTES.orderLinks },
-      { id: "templates", icon: CopyIcon, label: "Template Transaksi", route: ROUTES.transactionTemplates },
+      {
+        id: "templates",
+        icon: CopyIcon,
+        label: "Template Transaksi",
+        route: ROUTES.transactionTemplates,
+      },
       { id: "vouchers", icon: Ticket, label: "Voucher", route: ROUTES.vouchers },
       { id: "disputes", icon: Scales, label: "Sengketa Saya", route: ROUTES.disputes },
       { id: "favorites", icon: Heart, label: "Favorit", route: ROUTES.favorites },
@@ -133,8 +148,18 @@ const MENU_GROUPS: MenuGroup[] = [
       { id: "change-password", icon: Lock, label: "Ubah Password", route: ROUTES.changePassword },
       { id: "change-pin", icon: GridFour, label: "Ubah PIN", route: ROUTES.changePin },
       { id: "biometric", icon: Fingerprint, label: "Biometrik", route: ROUTES.biometricSettings },
-      { id: "two-factor", icon: ShieldCheck, label: "Autentikasi Dua Faktor", route: ROUTES.twoFactor },
-      { id: "security", icon: DeviceMobile, label: "Perangkat & Aktivitas", route: ROUTES.security },
+      {
+        id: "two-factor",
+        icon: ShieldCheck,
+        label: "Autentikasi Dua Faktor",
+        route: ROUTES.twoFactor,
+      },
+      {
+        id: "security",
+        icon: DeviceMobile,
+        label: "Perangkat & Aktivitas",
+        route: ROUTES.security,
+      },
       { id: "privacy-settings", icon: EyeSlash, label: "Privasi", route: ROUTES.privacySettings },
       { id: "blocked", icon: Prohibit, label: "Pengguna Diblokir", route: ROUTES.blockedUsers },
     ],
@@ -168,7 +193,15 @@ const MENU_GROUPS: MenuGroup[] = [
   },
   {
     title: "Zona berbahaya",
-    items: [{ id: "delete-account", icon: Trash, label: "Hapus Akun", route: ROUTES.deleteAccount, destructive: true }],
+    items: [
+      {
+        id: "delete-account",
+        icon: Trash,
+        label: "Hapus Akun",
+        route: ROUTES.deleteAccount,
+        destructive: true,
+      },
+    ],
   },
 ]
 
@@ -190,7 +223,7 @@ export default function SettingsScreen() {
   const fetchProfile = useCallback(() => {
     setLoading(true)
     setProfileError(null)
-    api.users
+    return api.users
       .getMe()
       .then(setProfile)
       .catch(() => setProfileError("Gagal memuat profil."))
@@ -219,8 +252,12 @@ export default function SettingsScreen() {
       await unregisterPushDevice({
         registerDevice: (dto) => api.notifications.registerDevice(dto),
         unregisterDevice: () => api.notifications.unregisterDevice(),
-      })
-      await clearSession()
+      }).catch(() => undefined)
+      try {
+        await api.auth.logout().catch(() => undefined)
+      } finally {
+        await clearSession()
+      }
       router.replace(ROUTES.login as Href)
     } finally {
       setLoggingOut(false)
@@ -229,12 +266,14 @@ export default function SettingsScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Pengaturan" />
+      <Header showBack={false} title="Pengaturan" />
 
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {/* ── Header profil ────────────────────────────────── */}
         {profileError ? (

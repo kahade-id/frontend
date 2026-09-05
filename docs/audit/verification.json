@@ -1,0 +1,96 @@
+{
+  "date": "2026-09-05",
+  "branch": "arena/01a07001-frontend",
+  "baseCommit": "bae6e0f80c69303ff1b9c8e968c6fcac7535bc3e",
+  "scope": {
+    "expoFiles": 82,
+    "screens": 79,
+    "staticApiCallsMatched": 231,
+    "openApiPaths": 220,
+    "openApiOperations": 253,
+    "browserProtectedScreenSmoke": 62,
+    "browserPublicScreenSmoke": 17
+  },
+  "checks": {
+    "typecheck": "PASS",
+    "designTokens": "PASS",
+    "staticAccessibility": "PASS (295 TSX files)",
+    "apiConstraintsAndPaths": "PASS",
+    "unitAndHookTests": {
+      "files": 14,
+      "passed": 122,
+      "failed": 0
+    },
+    "browserTests": {
+      "passed": 13,
+      "failed": 0,
+      "server": "production static export",
+      "api": "intercepted/synthetic protected fixtures; no production mutations",
+      "viewports": [
+        "320x568",
+        "390x844",
+        "1280x900"
+      ]
+    },
+    "expoInstallCheck": "PASS (offline bundled-version check)",
+    "webExport": "PASS",
+    "androidHermesExport": "PASS",
+    "iosHermesExport": "PASS",
+    "easWhoami": "Not logged in",
+    "otaPreflight": "BLOCKED (project ID, identifiers, update URL missing)",
+    "otaPublished": false
+  },
+  "bundles": {
+    "web": [
+      {
+        "file": "entry-da665f5e4b37db8791aaeb68a137cbbc.js",
+        "bytes": 3714885,
+        "sha256": "3af7c5060f477a7e60a44aa808c28bda1c4bbafcc8e52a6f4b7e6bc8734228b7"
+      }
+    ],
+    "android": [
+      {
+        "file": "entry-3b9a0656bb26573f2ba6d53440fb6b3b.hbc",
+        "bytes": 6499847,
+        "sha256": "790917659a3a899376943b12c6c837dddb8eadd4e409baf3bab2e02fb4d99769"
+      }
+    ],
+    "ios": [
+      {
+        "file": "entry-766e96281d28888e5bdbeea99be5cbc7.hbc",
+        "bytes": 6500118,
+        "sha256": "6f14ae2249519e35d2ae6edf0922f40e10edc18e740dfdfbe855fde3eaf1a3d2"
+      }
+    ]
+  },
+  "performance": {
+    "baselineWebJsBytes": 8693271,
+    "currentWebJsBytes": 3714885,
+    "webJsReductionPercent": 57.27,
+    "measurement": "minified uncompressed web JS, same Expo SDK major; not an on-device latency/FPS benchmark"
+  },
+  "dependencyAudit": {
+    "baseline": {
+      "total": 31,
+      "high": 10,
+      "moderate": 21
+    },
+    "current": {
+      "total": 29,
+      "high": 9,
+      "moderate": 20
+    },
+    "remainingRoots": [
+      "decode-uri-component",
+      "image-size",
+      "uuid"
+    ]
+  },
+  "notVerified": [
+    "Authenticated production response schemas and business flows",
+    "CORS/HttpOnly cookie persistence on actual web deployment",
+    "APK/IPA build, installation and hardware behavior",
+    "EAS project/channel/runtime mapping and OTA apply/rollback",
+    "Every happy/error/empty/native state of every screen"
+  ]
+}

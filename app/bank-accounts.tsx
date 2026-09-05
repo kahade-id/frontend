@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Rekening Bank (CRUD + set utama).
  *
@@ -88,7 +89,7 @@ export default function BankAccountsScreen() {
     try {
       const dto: AddBankAccountDto = {
         bankCode: bankCode as AddBankAccountDto["bankCode"],
-        bankName: bankName.trim() || ((banks.find((b) => b.code === bankCode)?.name ?? bankCode)),
+        bankName: bankName.trim() || (banks.find((b) => b.code === bankCode)?.name ?? bankCode),
         accountNumber: accountNumber.replace(/\D/g, ""),
         accountName: accountName.trim(),
       }
@@ -101,7 +102,11 @@ export default function BankAccountsScreen() {
       setBankCode(undefined)
       await fetchData()
     } catch {
-      toast.show({ title: "Gagal menambahkan rekening", description: "Periksa kembali data Anda.", tone: "danger" })
+      toast.show({
+        title: "Gagal menambahkan rekening",
+        description: "Periksa kembali data Anda.",
+        tone: "danger",
+      })
     } finally {
       setSubmitting(false)
     }
@@ -135,23 +140,22 @@ export default function BankAccountsScreen() {
     [toast.show, fetchData],
   )
 
-  const selectedBank = useMemo(
-    () => banks.find((b) => b.code === bankCode),
-    [banks, bankCode],
-  )
+  const selectedBank = useMemo(() => banks.find((b) => b.code === bankCode), [banks, bankCode])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Rekening Bank" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
-        <SectionHeader title="Rekening terdaftar" inset />
+        <SectionHeader title="Rekening terdaftar" />
         {loading ? (
-          <EmptyState icon={Trash} title="Memuat rekening…" />
+          <LoadingScreen message="Memuat rekening…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchData()} />
         ) : accounts.length === 0 ? (
@@ -180,7 +184,12 @@ export default function BankAccountsScreen() {
                 .filter((acc) => !acc.isPrimary)
                 .map((acc) => (
                   <View key={`actions-${acc.id}`} className="flex-row gap-2">
-                    <Button variant="ghost" size="sm" fullWidth={false} onPress={() => void handleSetPrimary(acc)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      fullWidth={false}
+                      onPress={() => void handleSetPrimary(acc)}
+                    >
                       Jadikan utama
                     </Button>
                     <Button
@@ -198,7 +207,7 @@ export default function BankAccountsScreen() {
           </View>
         )}
 
-        <SectionHeader title="Tambah rekening" inset />
+        <SectionHeader title="Tambah rekening" />
         {!adding ? (
           <Button variant="secondary" leftIcon={Plus} onPress={() => setAdding(true)}>
             Tambah Rekening
@@ -224,12 +233,26 @@ export default function BankAccountsScreen() {
               />
             </Field>
             <Field label="Nama pemilik rekening" required>
-              <Input value={accountName} onChangeText={setAccountName} placeholder="Sesuai rekening" maxLength={100} />
+              <Input
+                value={accountName}
+                onChangeText={setAccountName}
+                placeholder="Sesuai rekening"
+                maxLength={100}
+              />
             </Field>
-            <Button loading={submitting} onPress={() => void handleAdd()} disabled={!bankCode || !accountName.trim()}>
+            <Button
+              loading={submitting}
+              onPress={() => void handleAdd()}
+              disabled={!bankCode || !accountName.trim()}
+            >
               Simpan Rekening
             </Button>
-            <Button variant="ghost" fullWidth={false} onPress={() => setAdding(false)} disabled={submitting}>
+            <Button
+              variant="ghost"
+              fullWidth={false}
+              onPress={() => setAdding(false)}
+              disabled={submitting}
+            >
               Batal
             </Button>
           </FormSection>

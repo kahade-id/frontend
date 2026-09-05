@@ -1,3 +1,5 @@
+import { usePolling } from "@/lib/use-polling"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Detail Order (GET /v1/orders/{id}).
  *
@@ -34,7 +36,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ChatCircleDots, Package, Receipt, ShieldWarning, Timer, Truck, UserCircle } from "phosphor-react-native"
+import {
+  ChatCircleDots,
+  Package,
+  Receipt,
+  ShieldWarning,
+  Timer,
+  Truck,
+  UserCircle,
+} from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order, type OrderStatus } from "@/lib/api"
 import type { AverageDurations, CancelReason, QrisPayment } from "@/lib/api/orders"
@@ -75,7 +85,13 @@ const DISPUTE_CLAIM_MIN = 20
 const DISPUTE_CLAIM_MAX = 2000
 
 /** Status yang masih bisa dibatalkan / disengketakan oleh salah satu pihak. */
-const ACTIVE_STATUSES: readonly OrderStatus[] = ["PENDING_PAYMENT", "PAID", "PROCESSING", "SHIPPED", "DELIVERED"]
+const ACTIVE_STATUSES: readonly OrderStatus[] = [
+  "PENDING_PAYMENT",
+  "PAID",
+  "PROCESSING",
+  "SHIPPED",
+  "DELIVERED",
+]
 /** Sengketa hanya masuk akal setelah dana masuk escrow. */
 const DISPUTABLE_STATUSES: readonly OrderStatus[] = ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"]
 /** Perpanjangan tenggat hanya saat pekerjaan berjalan. */
@@ -135,7 +151,9 @@ export default function OrderDetailScreen() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-  const [history, setHistory] = useState<Awaited<ReturnType<typeof api.orders.getOrderHistory>>["data"]>([])
+  const [history, setHistory] = useState<
+    Awaited<ReturnType<typeof api.orders.getOrderHistory>>["data"]
+  >([])
   const [fee, setFee] = useState<Awaited<ReturnType<typeof api.orders.calculateFee>> | null>(null)
   const [durations, setDurations] = useState<AverageDurations | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -148,7 +166,11 @@ export default function OrderDetailScreen() {
   const [pinError, setPinError] = useState<string | undefined>()
   const [qris, setQris] = useState<QrisPayment | null>(null)
   const [qrisStatus, setQrisStatus] = useState<string | null>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const submitLock = useRef(false)
+  const pollLock = useRef(false)
+  const [pollError, setPollError] = useState<string | null>(null)
+  const activePayment = useRef<string | null>(null)
+  activePayment.current = sheet === "pay" && qris ? id : null
 
   // Alasan / form
   const [cancelReason, setCancelReason] = useState<ReasonValue>({ code: undefined, note: "" })
@@ -156,13 +178,6 @@ export default function OrderDetailScreen() {
   const [disputeClaim, setDisputeClaim] = useState("")
   const [tracking, setTracking] = useState("")
   const [courier, setCourier] = useState("")
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) clearInterval(pollRef.current)
-    pollRef.current = null
-  }, [])
-
-  useEffect(() => stopPolling, [stopPolling])
 
   const fetchOrder = useCallback(async () => {
     if (!id) return
@@ -180,13 +195,17 @@ export default function OrderDetailScreen() {
       setFee(o.fee ?? null)
       setTracking(o.trackingNumber ?? "")
       setCourier(o.courierName ?? "")
-      if (!o.fee && ["PENDING_PAYMENT", "PAID"].includes(o.status)) {
+      if (
+        !o.fee &&
+        (o.myRole === "BUYER" || o.myRole === "SELLER") &&
+        ["PENDING_PAYMENT", "PAID"].includes(o.status)
+      ) {
         try {
           setFee(
             await api.orders.calculateFee({
               orderValue: o.orderValue,
               feeResponsibility: o.feeResponsibility,
-              role: o.myRole ?? "BUYER",
+              role: o.myRole,
             }),
           )
         } catch {
@@ -213,14 +232,15 @@ export default function OrderDetailScreen() {
   const closeSheet = useCallback(() => {
     setSheet(null)
     setPinError(undefined)
-    stopPolling()
     setQris(null)
     setQrisStatus(null)
-  }, [stopPolling])
+  }, [])
 
   /** Pembungkus aksi sederhana: loading, toast sukses/gagal, refetch. */
   const runAction = useCallback(
     async (fn: () => Promise<unknown>, success: string, failure: string) => {
+      if (submitLock.current) return false
+      submitLock.current = true
       setSubmitting(true)
       try {
         await fn()
@@ -230,9 +250,14 @@ export default function OrderDetailScreen() {
         await fetchOrder()
         return true
       } catch (err) {
-        toast.show({ title: failure, description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+        toast.show({
+          title: failure,
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
         return false
       } finally {
+        submitLock.current = false
         setSubmitting(false)
       }
     },
@@ -241,7 +266,8 @@ export default function OrderDetailScreen() {
 
   const handlePayPin = useCallback(
     async (pin: string) => {
-      if (!order) return
+      if (!order || order.myRole !== "BUYER" || submitLock.current) return
+      submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
       try {
@@ -252,6 +278,7 @@ export default function OrderDetailScreen() {
       } catch (err) {
         setPinError(isApiError(err) ? userMessage(err) : "PIN salah atau saldo tidak cukup.")
       } finally {
+        submitLock.current = false
         setSubmitting(false)
       }
     },
@@ -259,38 +286,53 @@ export default function OrderDetailScreen() {
   )
 
   const pollPayment = useCallback(async () => {
-    if (!order) return
+    if (!order || pollLock.current || activePayment.current !== order.id) return
+    pollLock.current = true
     try {
       const res = await api.orders.getPaymentStatus(order.id)
+      if (activePayment.current !== order.id) return
+      setPollError(null)
       setQrisStatus(res.status)
       if (res.status === "PAID") {
-        stopPolling()
         toast.show({ title: "Pembayaran QRIS diterima", tone: "success", duration: 3000 })
         closeSheet()
         await fetchOrder()
-      } else if (res.status === "EXPIRED" || res.status === "FAILED") {
-        stopPolling()
       }
-    } catch {
-      // polling toleran terhadap error sesaat
+    } catch (error) {
+      if (activePayment.current === order.id) setPollError(userMessage(error))
+    } finally {
+      pollLock.current = false
     }
-  }, [order, stopPolling, toast.show, closeSheet, fetchOrder])
+  }, [order, toast.show, closeSheet, fetchOrder])
+  usePolling(
+    pollPayment,
+    POLL_MS,
+    Boolean(
+      qris &&
+        sheet === "pay" &&
+        !["PAID", "EXPIRED", "FAILED", "CANCELLED"].includes(qrisStatus ?? ""),
+    ),
+  )
 
   const handlePayQris = useCallback(async () => {
-    if (!order) return
+    if (!order || order.myRole !== "BUYER" || submitLock.current) return
+    submitLock.current = true
     setSubmitting(true)
     try {
       const res = await api.orders.payOrderQris(order.id)
       setQris(res)
       setQrisStatus("PENDING")
-      stopPolling()
-      pollRef.current = setInterval(() => void pollPayment(), POLL_MS)
     } catch (err) {
-      toast.show({ title: "Gagal membuat QRIS", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+      toast.show({
+        title: "Gagal membuat QRIS",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
     } finally {
+      submitLock.current = false
       setSubmitting(false)
     }
-  }, [order, stopPolling, pollPayment, toast.show])
+  }, [order, toast.show])
 
   const openChat = useCallback(async () => {
     if (!order) return
@@ -308,14 +350,17 @@ export default function OrderDetailScreen() {
     const next = NEXT_STATUS[order.status]
     if (!next) return undefined
     const hours = durations?.[next]
-    return { title: STATUS_LABELS[next] ?? next, description: hours != null && hours > 0 ? durationLabel(hours) : undefined }
+    return {
+      title: STATUS_LABELS[next] ?? next,
+      description: hours != null && hours > 0 ? durationLabel(hours) : undefined,
+    }
   }, [order, durations])
 
   if (loading && !order) {
     return (
       <Screen edges={["top"]}>
         <Header title="Detail Order" />
-        <EmptyState icon={Package} title="Memuat order…" />
+        <LoadingScreen message="Memuat order…" />
       </Screen>
     )
   }
@@ -331,20 +376,24 @@ export default function OrderDetailScreen() {
 
   if (!order) return null
 
-  const myRole = order.myRole ?? "BUYER"
+  const myRole = order.myRole
+  const knownRole = myRole === "BUYER" || myRole === "SELLER"
+  const isSeller = myRole === "SELLER"
   const isBuyer = myRole === "BUYER"
-  const counterpart = isBuyer ? order.seller : order.buyer
-  const canPay = order.status === "PENDING_PAYMENT" && isBuyer
-  const canConfirm = order.status === "PENDING_PAYMENT" && !isBuyer
-  const canProcess = order.status === "PAID" && !isBuyer
-  const canShip = order.status === "PROCESSING" && !isBuyer
+  const counterpart = isBuyer ? order.seller : isSeller ? order.buyer : undefined
+  const canPay = order.status === "PENDING_PAYMENT" && isBuyer && !!fee
+  const canConfirm = order.status === "PENDING_PAYMENT" && isSeller
+  const canProcess = order.status === "PAID" && isSeller
+  const canShip = order.status === "PROCESSING" && isSeller
   const canReviewDelivery = (order.status === "SHIPPED" || order.status === "DELIVERED") && isBuyer
-  const canRate = order.status === "COMPLETED"
-  const canCancel = ACTIVE_STATUSES.includes(order.status)
-  const canDispute = DISPUTABLE_STATUSES.includes(order.status)
-  const canExtend = EXTENDABLE_STATUSES.includes(order.status)
+  const canRate = knownRole && order.status === "COMPLETED"
+  const canCancel = knownRole && ACTIVE_STATUSES.includes(order.status)
+  const canDispute = knownRole && DISPUTABLE_STATUSES.includes(order.status)
+  const canExtend = knownRole && EXTENDABLE_STATUSES.includes(order.status)
   const isDisputed = order.status === "DISPUTED"
-  const cancelValid = Boolean(cancelReason.code) && (cancelReason.code !== "OTHER" || cancelReason.note.trim().length > 0)
+  const cancelValid =
+    Boolean(cancelReason.code) &&
+    (cancelReason.code !== "OTHER" || cancelReason.note.trim().length > 0)
   const shippingRequired = order.orderType === "PHYSICAL_GOODS"
 
   return (
@@ -354,39 +403,69 @@ export default function OrderDetailScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           <View className="flex-row items-center justify-between">
             <Text variant="monoBody" tone="secondary" numberOfLines={1} className="flex-1 pr-3">
               {order.id}
             </Text>
-            <OrderStatusBadge status={order.status} role={isBuyer ? "buyer" : "seller"} size="md" labels={STATUS_LABELS} />
+            <OrderStatusBadge
+              status={order.status}
+              role={isBuyer ? "buyer" : isSeller ? "seller" : undefined}
+              size="md"
+              labels={STATUS_LABELS}
+            />
           </View>
 
+          {!knownRole ? (
+            <Text variant="body" tone="secondary">
+              Peran Anda belum terkonfirmasi. Aksi transaksi dinonaktifkan; muat ulang untuk
+              memeriksa kembali.
+            </Text>
+          ) : null}
           <SectionHeader title={order.title} />
           <Text variant="body" tone="secondary">
             {order.description}
           </Text>
 
           <KeyValueList>
-            <KeyValue label="Nilai transaksi" value={<Text variant="monoBody">{formatRupiah(order.orderValue)}</Text>} emphasis />
             <KeyValue
-              label={isBuyer ? "Penjual" : "Pembeli"}
+              label="Nilai transaksi"
+              value={<Text variant="monoBody">{formatRupiah(order.orderValue)}</Text>}
+              emphasis
+            />
+            <KeyValue
+              label={isBuyer ? "Penjual" : isSeller ? "Pembeli" : "Lawan transaksi"}
               value={
-                <Button variant="ghost" size="sm" fullWidth={false} leftIcon={UserCircle} onPress={() => router.push(ROUTES.userProfile(counterpart.username))}>
-                  {`@${counterpart.username}`}
+                <Button
+                  disabled={!counterpart}
+                  variant="ghost"
+                  size="sm"
+                  fullWidth={false}
+                  leftIcon={UserCircle}
+                  onPress={() =>
+                    counterpart && router.push(ROUTES.userProfile(counterpart.username))
+                  }
+                >
+                  {counterpart ? `@${counterpart.username}` : "Identitas belum tersedia"}
                 </Button>
               }
             />
             <KeyValue
               label="Tenggat"
-              value={order.deliveryDeadlineAt ? formatDateTime(order.deliveryDeadlineAt) : `${order.deliveryDeadlineDays} hari`}
+              value={
+                order.deliveryDeadlineAt
+                  ? formatDateTime(order.deliveryDeadlineAt)
+                  : `${order.deliveryDeadlineDays} hari`
+              }
             />
             <KeyValue label="Dibuat" value={formatDateTime(order.createdAt)} />
           </KeyValueList>
 
-          {fee ? (
+          {fee && knownRole ? (
             <FeeBreakdown
               orderValue={order.orderValue}
               feeAmount={fee.platformFee}
@@ -399,7 +478,10 @@ export default function OrderDetailScreen() {
           <ShippingInfoCard
             shipping={
               order.trackingNumber || order.courierName
-                ? { courierName: order.courierName ?? undefined, trackingNumber: order.trackingNumber ?? undefined }
+                ? {
+                    courierName: order.courierName ?? undefined,
+                    trackingNumber: order.trackingNumber ?? undefined,
+                  }
                 : null
             }
             canEdit={canShip}
@@ -410,7 +492,11 @@ export default function OrderDetailScreen() {
 
           {/* ── Aksi utama sesuai status ─────────────────────────── */}
           <View className="gap-2">
-            {canPay ? <Button onPress={() => setSheet("pay")}>Bayar {formatRupiah(fee?.buyerPays ?? order.orderValue)}</Button> : null}
+            {canPay ? (
+              <Button onPress={() => setSheet("pay")}>
+                Bayar {formatRupiah(fee?.buyerPays ?? order.orderValue)}
+              </Button>
+            ) : null}
             {canConfirm ? (
               <>
                 <Button onPress={() => setConfirmAccept(true)}>Terima Order</Button>
@@ -420,7 +506,16 @@ export default function OrderDetailScreen() {
               </>
             ) : null}
             {canProcess ? (
-              <Button loading={submitting} onPress={() => void runAction(() => api.orders.processOrder(order.id), "Order mulai diproses", "Gagal memproses order")}>
+              <Button
+                loading={submitting}
+                onPress={() =>
+                  void runAction(
+                    () => api.orders.processOrder(order.id),
+                    "Order mulai diproses",
+                    "Gagal memproses order",
+                  )
+                }
+              >
                 Mulai Proses
               </Button>
             ) : null}
@@ -429,27 +524,44 @@ export default function OrderDetailScreen() {
                 <Button leftIcon={Truck} onPress={() => setSheet("shipping")}>
                   {shippingRequired ? "Isi Resi Pengiriman" : "Tandai Dikirim"}
                 </Button>
-                <Button variant="secondary" leftIcon={Package} onPress={() => router.push(ROUTES.deliveryProof(order.id))}>
+                <Button
+                  variant="secondary"
+                  leftIcon={Package}
+                  onPress={() => router.push(ROUTES.deliveryProof(order.id))}
+                >
                   Unggah Bukti Pengiriman
                 </Button>
               </>
             ) : null}
             {canReviewDelivery ? (
               <>
-                <Button leftIcon={Package} onPress={() => router.push(ROUTES.deliveryProof(order.id))}>
+                <Button
+                  leftIcon={Package}
+                  onPress={() => router.push(ROUTES.deliveryProof(order.id))}
+                >
                   Periksa Bukti Pengiriman
                 </Button>
                 <Button
                   variant="secondary"
                   loading={submitting}
-                  onPress={() => void runAction(() => api.orders.completeOrder(order.id), "Order selesai", "Gagal menyelesaikan order")}
+                  onPress={() =>
+                    void runAction(
+                      () => api.orders.completeOrder(order.id),
+                      "Order selesai",
+                      "Gagal menyelesaikan order",
+                    )
+                  }
                 >
                   Tandai Selesai
                 </Button>
               </>
             ) : null}
             {!isBuyer && (order.status === "SHIPPED" || order.status === "DELIVERED") ? (
-              <Button variant="secondary" leftIcon={Package} onPress={() => router.push(ROUTES.deliveryProof(order.id))}>
+              <Button
+                variant="secondary"
+                leftIcon={Package}
+                onPress={() => router.push(ROUTES.deliveryProof(order.id))}
+              >
                 Bukti Pengiriman
               </Button>
             ) : null}
@@ -463,28 +575,58 @@ export default function OrderDetailScreen() {
           {/* ── Aksi sekunder ────────────────────────────────────── */}
           <SectionHeader title="Lainnya" />
           <View className="flex-row flex-wrap gap-2">
-            <Button variant="secondary" size="sm" leftIcon={Receipt} onPress={() => router.push(ROUTES.invoice(order.id))}>
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={Receipt}
+              onPress={() => router.push(ROUTES.invoice(order.id))}
+            >
               Invoice
             </Button>
-            <Button variant="secondary" size="sm" leftIcon={ChatCircleDots} onPress={() => void openChat()}>
+            <Button
+              variant="secondary"
+              size="sm"
+              leftIcon={ChatCircleDots}
+              onPress={() => void openChat()}
+            >
               Chat
             </Button>
             {canExtend ? (
-              <Button variant="secondary" size="sm" leftIcon={Timer} onPress={() => router.push(ROUTES.extension(order.id))}>
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={Timer}
+                onPress={() => router.push(ROUTES.extension(order.id))}
+              >
                 Perpanjang Tenggat
               </Button>
             ) : null}
             {isDisputed ? (
-              <Button variant="secondary" size="sm" leftIcon={ShieldWarning} onPress={() => router.push(ROUTES.disputes)}>
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={ShieldWarning}
+                onPress={() => router.push(ROUTES.disputes)}
+              >
                 Lihat Sengketa
               </Button>
             ) : canDispute ? (
-              <Button variant="ghost" size="sm" leftIcon={ShieldWarning} onPress={() => setSheet("dispute")}>
+              <Button
+                variant="ghost"
+                size="sm"
+                leftIcon={ShieldWarning}
+                onPress={() => setSheet("dispute")}
+              >
                 Ajukan Sengketa
               </Button>
             ) : null}
             {canCancel ? (
-              <Button variant="ghost" size="sm" onPress={() => setSheet("cancel")} disabled={submitting}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onPress={() => setSheet("cancel")}
+                disabled={submitting}
+              >
                 Batalkan Order
               </Button>
             ) : null}
@@ -511,18 +653,45 @@ export default function OrderDetailScreen() {
       </PullToRefresh>
 
       {/* ── Bayar ─────────────────────────────────────────────── */}
-      <BottomSheet visible={sheet === "pay"} onRequestClose={closeSheet} title="Pembayaran" description={`Total ${formatRupiah(fee?.buyerPays ?? order.orderValue)} masuk ke escrow Kahade.`}>
+      <BottomSheet
+        visible={sheet === "pay"}
+        onRequestClose={closeSheet}
+        title="Pembayaran"
+        description={
+          fee?.buyerPays != null
+            ? `Total ${formatRupiah(fee.buyerPays)} masuk ke escrow Kahade.`
+            : "Total pembayaran belum terkonfirmasi. Muat ulang rincian biaya sebelum membayar."
+        }
+      >
         <View className="gap-4">
-          <SegmentedControl<PayMethod> items={PAY_METHODS} value={payMethod} onChange={(v) => { setPayMethod(v); setPinError(undefined) }} disabled={submitting || qris != null} />
+          <SegmentedControl<PayMethod>
+            items={PAY_METHODS}
+            value={payMethod}
+            onChange={(v) => {
+              setPayMethod(v)
+              setPinError(undefined)
+            }}
+            disabled={submitting || qris != null}
+          />
           {payMethod === "balance" ? (
             <>
               <Text variant="body" tone="secondary">
                 Masukkan PIN dompet untuk membayar dari saldo Kahade.
               </Text>
-              <PinInput mode="enter" onComplete={(p) => void handlePayPin(p)} errorText={pinError} disabled={submitting} />
+              <PinInput
+                mode="enter"
+                onComplete={(p) => void handlePayPin(p)}
+                errorText={pinError}
+                disabled={submitting}
+              />
             </>
           ) : qris ? (
             <>
+              {pollError ? (
+                <Text variant="caption" tone="danger">
+                  Status belum diperbarui: {pollError}
+                </Text>
+              ) : null}
               <QRCodeDisplay
                 value={qris.qrString}
                 title="Pindai dengan aplikasi pembayaran"
@@ -530,7 +699,10 @@ export default function OrderDetailScreen() {
                 onCopy={(v) => void copy(v)}
                 copied={copied}
               />
-              <Text variant="caption" tone={qrisStatus === "EXPIRED" || qrisStatus === "FAILED" ? "danger" : "secondary"}>
+              <Text
+                variant="caption"
+                tone={qrisStatus === "EXPIRED" || qrisStatus === "FAILED" ? "danger" : "secondary"}
+              >
                 {qrisStatus === "EXPIRED"
                   ? "QRIS kedaluwarsa — buat ulang untuk mencoba lagi."
                   : qrisStatus === "FAILED"
@@ -538,7 +710,11 @@ export default function OrderDetailScreen() {
                     : "Menunggu pembayaran… status diperbarui otomatis."}
               </Text>
               {qrisStatus === "EXPIRED" || qrisStatus === "FAILED" ? (
-                <Button variant="secondary" loading={submitting} onPress={() => void handlePayQris()}>
+                <Button
+                  variant="secondary"
+                  loading={submitting}
+                  onPress={() => void handlePayQris()}
+                >
                   Buat Ulang QRIS
                 </Button>
               ) : (
@@ -583,7 +759,13 @@ export default function OrderDetailScreen() {
           </Button>
         }
       >
-        <ReasonPicker options={CANCEL_REASONS} value={cancelReason} onChange={setCancelReason} noteMaxLength={NOTE_MAX} disabled={submitting} />
+        <ReasonPicker
+          options={CANCEL_REASONS}
+          value={cancelReason}
+          onChange={setCancelReason}
+          noteMaxLength={NOTE_MAX}
+          disabled={submitting}
+        />
       </BottomSheet>
 
       {/* ── Tolak (penjual) ───────────────────────────────────── */}
@@ -599,7 +781,11 @@ export default function OrderDetailScreen() {
             loading={submitting}
             onPress={() =>
               void runAction(
-                () => api.orders.confirmOrder(order.id, { action: "REJECT", reason: rejectReason.trim() || undefined }),
+                () =>
+                  api.orders.confirmOrder(order.id, {
+                    action: "REJECT",
+                    reason: rejectReason.trim() || undefined,
+                  }),
                 "Order ditolak",
                 "Gagal menolak order",
               )
@@ -609,7 +795,14 @@ export default function OrderDetailScreen() {
           </Button>
         }
       >
-        <TextArea value={rejectReason} onChangeText={setRejectReason} placeholder="Alasan penolakan (opsional)" maxLength={NOTE_MAX} multiline numberOfLines={3} />
+        <TextArea
+          value={rejectReason}
+          onChangeText={setRejectReason}
+          placeholder="Alasan penolakan (opsional)"
+          maxLength={NOTE_MAX}
+          multiline
+          numberOfLines={3}
+        />
       </BottomSheet>
 
       {/* ── Sengketa ──────────────────────────────────────────── */}
@@ -636,8 +829,19 @@ export default function OrderDetailScreen() {
           </Button>
         }
       >
-        <Field label="Klaim Anda" required helperText={`Minimal ${DISPUTE_CLAIM_MIN} karakter — jelaskan apa yang tidak sesuai.`}>
-          <TextArea value={disputeClaim} onChangeText={setDisputeClaim} placeholder="Barang tidak sesuai deskripsi karena…" maxLength={DISPUTE_CLAIM_MAX} multiline numberOfLines={5} />
+        <Field
+          label="Klaim Anda"
+          required
+          helperText={`Minimal ${DISPUTE_CLAIM_MIN} karakter — jelaskan apa yang tidak sesuai.`}
+        >
+          <TextArea
+            value={disputeClaim}
+            onChangeText={setDisputeClaim}
+            placeholder="Barang tidak sesuai deskripsi karena…"
+            maxLength={DISPUTE_CLAIM_MAX}
+            multiline
+            numberOfLines={5}
+          />
         </Field>
       </BottomSheet>
 
@@ -646,7 +850,11 @@ export default function OrderDetailScreen() {
         visible={sheet === "shipping"}
         onRequestClose={closeSheet}
         title={shippingRequired ? "Info pengiriman" : "Tandai dikirim"}
-        description={shippingRequired ? "Nomor resi & kurir wajib untuk barang fisik." : "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil."}
+        description={
+          shippingRequired
+            ? "Nomor resi & kurir wajib untuk barang fisik."
+            : "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil."
+        }
         footer={
           <Button
             fullWidth
@@ -670,10 +878,22 @@ export default function OrderDetailScreen() {
       >
         <View className="gap-4">
           <Field label="Kurir" required={shippingRequired}>
-            <Input value={courier} onChangeText={setCourier} placeholder="JNE, SiCepat, …" maxLength={100} />
+            <Input
+              value={courier}
+              onChangeText={setCourier}
+              placeholder="JNE, SiCepat, …"
+              maxLength={100}
+            />
           </Field>
           <Field label="Nomor resi" required={shippingRequired}>
-            <Input value={tracking} onChangeText={setTracking} placeholder="Nomor resi" autoCapitalize="characters" autoCorrect={false} maxLength={100} />
+            <Input
+              value={tracking}
+              onChangeText={setTracking}
+              placeholder="Nomor resi"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              maxLength={100}
+            />
           </Field>
         </View>
       </BottomSheet>
@@ -685,7 +905,13 @@ export default function OrderDetailScreen() {
         loading={submitting}
         confirmLabel="Terima"
         cancelLabel="Tutup"
-        onConfirm={() => void runAction(() => api.orders.confirmOrder(order.id, { action: "ACCEPT" }), "Order dikonfirmasi", "Gagal mengonfirmasi order")}
+        onConfirm={() =>
+          void runAction(
+            () => api.orders.confirmOrder(order.id, { action: "ACCEPT" }),
+            "Order dikonfirmasi",
+            "Gagal mengonfirmasi order",
+          )
+        }
         onCancel={() => setConfirmAccept(false)}
         onRequestClose={() => setConfirmAccept(false)}
       />

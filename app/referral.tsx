@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Referral (my-code, stats, history, rewards, regenerate, apply).
  *
@@ -42,9 +43,23 @@ export default function ReferralScreen() {
   const { copied, copy } = useCopy()
 
   const [code, setCode] = useState("")
-  const [stats, setStats] = useState<{ totalReferred: number; qualified: number; totalReward: number } | null>(null)
-  const [history, setHistory] = useState<Array<{ id: string; invitedUsername: string; status: string; reward?: number; createdAt: string }>>([])
-  const [rewards, setRewards] = useState<Array<{ id: string; code: string; amount: number; status: string; createdAt: string }>>([])
+  const [stats, setStats] = useState<{
+    totalReferred: number
+    qualified: number
+    totalReward: number
+  } | null>(null)
+  const [history, setHistory] = useState<
+    Array<{
+      id: string
+      invitedUsername: string
+      status: string
+      reward?: number
+      createdAt: string
+    }>
+  >([])
+  const [rewards, setRewards] = useState<
+    Array<{ id: string; code: string; amount: number; status: string; createdAt: string }>
+  >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -133,7 +148,9 @@ export default function ReferralScreen() {
       toast.show({ title: "Kode referral diterapkan", tone: "success" })
       await fetchAll()
     } catch (err) {
-      setApplyError(isApiError(err) ? userMessage(err) : "Kode tidak valid atau sudah pernah dipakai.")
+      setApplyError(
+        isApiError(err) ? userMessage(err) : "Kode tidak valid atau sudah pernah dipakai.",
+      )
     } finally {
       setApplying(false)
     }
@@ -146,10 +163,12 @@ export default function ReferralScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Gift} title="Memuat referral…" />
+          <LoadingScreen message="Memuat referral…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
@@ -165,7 +184,10 @@ export default function ReferralScreen() {
               regenerating={regenerating}
             />
 
-            <FormSection title="Punya kode dari teman?" description="Masukkan kode referral yang Anda terima.">
+            <FormSection
+              title="Punya kode dari teman?"
+              description="Masukkan kode referral yang Anda terima."
+            >
               <Input
                 label="Kode referral"
                 value={applyCode}
@@ -176,7 +198,12 @@ export default function ReferralScreen() {
                 returnKeyType="done"
                 onSubmitEditing={() => void handleApply()}
               />
-              <Button variant="secondary" loading={applying} disabled={!applyCode.trim()} onPress={() => void handleApply()}>
+              <Button
+                variant="secondary"
+                loading={applying}
+                disabled={!applyCode.trim()}
+                onPress={() => void handleApply()}
+              >
                 Terapkan Kode
               </Button>
             </FormSection>

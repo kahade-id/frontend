@@ -1,3 +1,5 @@
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { assertDtoConstraints } from "@/lib/financial"
 /**
  * Kahade — domain `orders` (31 endpoint, tag "orders" di kahade-api-mobile.json).
  *
@@ -19,6 +21,8 @@
  *   - Tidak ada `retry` di POST/PUT: pay/complete/cancel tidak idempoten.
  *     GET list/detail memakai `retry: 1` untuk toleransi jaringan seluler.
  */
+import { readPage, readEntity } from "@/lib/api/response"
+import { AMOUNT_LIMITS, assertValidAmount } from "@/lib/financial"
 import { http, seg } from "@/lib/api/client"
 import type {
   CalculateFeeDto,
@@ -99,7 +103,14 @@ export type Paginated<T> = {
  * yang sedang berjalan — layar filter "Aktif" WAJIB mengirim `ACTIVE`,
  * bukan salah satu status spesifik.
  */
-export type OrderStatusFilter = "ACTIVE" | "COMPLETED" | "CANCELLED" | "DISPUTED" | "REFUNDED" | "EXPIRED" | (string & {})
+export type OrderStatusFilter =
+  | "ACTIVE"
+  | "COMPLETED"
+  | "CANCELLED"
+  | "DISPUTED"
+  | "REFUNDED"
+  | "EXPIRED"
+  | (string & {})
 
 export type OrderParty = {
   id: string
@@ -231,13 +242,19 @@ export type MessageResult = { message: string }
 // ------------------------------------------------------------------
 
 export function calculateFee(dto: CalculateFeeDto) {
-  return http.post<FeeBreakdown, CalculateFeeDto>("/v1/orders/calculate-fee", dto, { auth: "required" })
+  return http.post<FeeBreakdown, CalculateFeeDto>("/v1/orders/calculate-fee", dto, {
+    auth: "required",
+  })
 }
 
 export function validateCounterpart(dto: ValidateCounterpartDto) {
-  return http.post<CounterpartValidation, ValidateCounterpartDto>("/v1/orders/validate-counterpart", dto, {
-    auth: "required",
-  })
+  return http.post<CounterpartValidation, ValidateCounterpartDto>(
+    "/v1/orders/validate-counterpart",
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 // ------------------------------------------------------------------
@@ -245,15 +262,21 @@ export function validateCounterpart(dto: ValidateCounterpartDto) {
 // ------------------------------------------------------------------
 
 export function createOrder(dto: CreateOrderDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.CreateOrderDto)
+  assertValidAmount(dto.orderValue, AMOUNT_LIMITS.order)
   return http.post<Order, CreateOrderDto>("/v1/orders", dto, { auth: "required" })
 }
 
-export function listOrders(query: ListOrdersQuery = {}) {
-  return http.get<Paginated<Order>>("/v1/orders", { query, auth: "required", retry: 1 })
+export function listOrders(query: ListOrdersQuery = {}, signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/orders", { query, auth: "required", retry: 1, signal })
+    .then((raw) => readPage<Order>(raw, query, ["orders"]))
 }
 
 export function getOrder(orderId: string) {
-  return http.get<Order>(`/v1/orders/${seg(orderId)}`, { auth: "required", retry: 1 })
+  return http
+    .get<unknown>(`/v1/orders/${seg(orderId)}`, { auth: "required", retry: 1 })
+    .then((raw) => readEntity<Order>(raw, "order"))
 }
 
 export function getOrdersSummary() {
@@ -265,7 +288,9 @@ export function getAverageDurations() {
 }
 
 export function confirmOrder(orderId: string, dto: ConfirmOrderDto) {
-  return http.post<Order, ConfirmOrderDto>(`/v1/orders/${seg(orderId)}/confirm`, dto, { auth: "required" })
+  return http.post<Order, ConfirmOrderDto>(`/v1/orders/${seg(orderId)}/confirm`, dto, {
+    auth: "required",
+  })
 }
 
 export function payOrder(orderId: string, dto: PayOrderDto) {
@@ -273,11 +298,16 @@ export function payOrder(orderId: string, dto: PayOrderDto) {
 }
 
 export function payOrderQris(orderId: string) {
-  return http.post<QrisPayment>(`/v1/orders/${seg(orderId)}/pay-qris`, undefined, { auth: "required" })
+  return http.post<QrisPayment>(`/v1/orders/${seg(orderId)}/pay-qris`, undefined, {
+    auth: "required",
+  })
 }
 
 export function getPaymentStatus(orderId: string) {
-  return http.get<PaymentStatus>(`/v1/orders/${seg(orderId)}/payment-status`, { auth: "required", retry: 1 })
+  return http.get<PaymentStatus>(`/v1/orders/${seg(orderId)}/payment-status`, {
+    auth: "required",
+    retry: 1,
+  })
 }
 
 /** Penjual mulai mengerjakan/menyiapkan pesanan. */
@@ -286,7 +316,9 @@ export function processOrder(orderId: string) {
 }
 
 export function updateShipping(orderId: string, dto: UpdateShippingDto) {
-  return http.put<Order, UpdateShippingDto>(`/v1/orders/${seg(orderId)}/shipping`, dto, { auth: "required" })
+  return http.put<Order, UpdateShippingDto>(`/v1/orders/${seg(orderId)}/shipping`, dto, {
+    auth: "required",
+  })
 }
 
 export function completeOrder(orderId: string) {
@@ -294,11 +326,15 @@ export function completeOrder(orderId: string) {
 }
 
 export function cancelOrder(orderId: string, dto: CancelOrderDto) {
-  return http.post<Order, CancelOrderDto>(`/v1/orders/${seg(orderId)}/cancel`, dto, { auth: "required" })
+  return http.post<Order, CancelOrderDto>(`/v1/orders/${seg(orderId)}/cancel`, dto, {
+    auth: "required",
+  })
 }
 
 export function submitDispute(orderId: string, dto: SubmitDisputeDto) {
-  return http.post<Dispute, SubmitDisputeDto>(`/v1/orders/${seg(orderId)}/dispute`, dto, { auth: "required" })
+  return http.post<Dispute, SubmitDisputeDto>(`/v1/orders/${seg(orderId)}/dispute`, dto, {
+    auth: "required",
+  })
 }
 
 export function getOrderHistory(orderId: string, query: PageQuery) {
@@ -314,9 +350,13 @@ export function getOrderHistory(orderId: string, query: PageQuery) {
 // ------------------------------------------------------------------
 
 export function requestExtension(orderId: string, dto: RequestExtensionDto) {
-  return http.post<OrderExtension, RequestExtensionDto>(`/v1/orders/${seg(orderId)}/extensions`, dto, {
-    auth: "required",
-  })
+  return http.post<OrderExtension, RequestExtensionDto>(
+    `/v1/orders/${seg(orderId)}/extensions`,
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function listExtensions(orderId: string, query: PageQuery) {
@@ -340,25 +380,40 @@ export function respondExtension(orderId: string, extensionId: string, dto: Resp
 // ------------------------------------------------------------------
 
 export function submitDeliveryProof(orderId: string, dto: SubmitDeliveryProofDto) {
-  return http.post<DeliveryProof, SubmitDeliveryProofDto>(`/v1/orders/${seg(orderId)}/delivery-proof`, dto, {
-    auth: "required",
-  })
+  return http.post<DeliveryProof, SubmitDeliveryProofDto>(
+    `/v1/orders/${seg(orderId)}/delivery-proof`,
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function listDeliveryProofs(orderId: string) {
-  return http.get<DeliveryProof[]>(`/v1/orders/${seg(orderId)}/delivery-proof`, { auth: "required", retry: 1 })
+  return http.get<DeliveryProof[]>(`/v1/orders/${seg(orderId)}/delivery-proof`, {
+    auth: "required",
+    retry: 1,
+  })
 }
 
 export function confirmDelivery(orderId: string, dto: ConfirmDeliveryDto = {}) {
-  return http.post<Order, ConfirmDeliveryDto>(`/v1/orders/${seg(orderId)}/delivery-proof/confirm`, dto, {
-    auth: "required",
-  })
+  return http.post<Order, ConfirmDeliveryDto>(
+    `/v1/orders/${seg(orderId)}/delivery-proof/confirm`,
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function rejectDelivery(orderId: string, dto: RejectDeliveryDto) {
-  return http.post<DeliveryProof, RejectDeliveryDto>(`/v1/orders/${seg(orderId)}/delivery-proof/reject`, dto, {
-    auth: "required",
-  })
+  return http.post<DeliveryProof, RejectDeliveryDto>(
+    `/v1/orders/${seg(orderId)}/delivery-proof/reject`,
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 // ------------------------------------------------------------------
@@ -366,11 +421,17 @@ export function rejectDelivery(orderId: string, dto: RejectDeliveryDto) {
 // ------------------------------------------------------------------
 
 export function createOrderLink(dto: CreateOrderLinkDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.CreateOrderLinkDto)
+  assertValidAmount(dto.orderValue, AMOUNT_LIMITS.order)
   return http.post<OrderLink, CreateOrderLinkDto>("/v1/orders/links", dto, { auth: "required" })
 }
 
 export function listMyOrderLinks(query: PageQuery) {
-  return http.get<Paginated<OrderLink>>("/v1/orders/links/my", { query, auth: "required", retry: 1 })
+  return http.get<Paginated<OrderLink>>("/v1/orders/links/my", {
+    query,
+    auth: "required",
+    retry: 1,
+  })
 }
 
 export function getOrderLink(token: string) {

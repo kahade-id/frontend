@@ -76,12 +76,15 @@ export default function AccountTypeScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <SectionHeader title="Pilih tipe akun" inset />
+          <SectionHeader title="Pilih tipe akun" />
           <Text variant="body" tone="secondary">
-            Akun bisnis menampilkan profil usaha Anda di marketplace, termasuk produk dan riwayat penjualan.
+            Akun bisnis menampilkan profil usaha Anda di marketplace, termasuk produk dan riwayat
+            penjualan.
           </Text>
           <ToggleGroup
             options={OPTIONS.map((o) => ({

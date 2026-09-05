@@ -92,7 +92,7 @@ const DEFAULT_LABELS: DeleteAccountLabels = {
 }
 
 export function DeleteAccountForm({
-  gracePeriodDays = 30,
+  gracePeriodDays,
   blockers = [],
   confirmPhrase = "HAPUS",
   requireMfa = false,
@@ -113,12 +113,15 @@ export function DeleteAccountForm({
   const hasBlockers = blockers.length > 0
   const phraseOk = phrase.trim() === confirmPhrase
   const mfaOk = !requireMfa || mfaCode.length === MFA_CODE_LENGTH
-  const canSubmit = !hasBlockers && password.length > 0 && mfaOk && agreed && phraseOk && !submitting
+  const canSubmit =
+    !hasBlockers && password.length > 0 && mfaOk && agreed && phraseOk && !submitting
 
   return (
     <View className={cn("gap-5", className)} {...rest}>
       <Alert tone="danger" variant="soft" title={t.warningTitle}>
-        {t.warning(gracePeriodDays)}
+        {gracePeriodDays == null
+          ? "Penghapusan akun mengikuti ketentuan resmi Kahade. Jadwal penghapusan dan ketentuan pembatalan belum tersedia pada halaman ini; hubungi dukungan bila Anda membutuhkan kepastian sebelum melanjutkan."
+          : t.warning(gracePeriodDays)}
       </Alert>
 
       {hasBlockers ? (
@@ -171,7 +174,11 @@ export function DeleteAccountForm({
         checked={agreed}
         onChange={setAgreed}
         disabled={hasBlockers}
-        label={<Text variant="body" tone="primary" className="leading-6">{t.confirmCheckbox}</Text>}
+        label={
+          <Text variant="body" tone="primary" className="leading-6">
+            {t.confirmCheckbox}
+          </Text>
+        }
       />
 
       <Input

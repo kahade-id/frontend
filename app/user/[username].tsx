@@ -20,7 +20,7 @@
  *   - Blokir sukses → kembali (router.back) karena profil pengguna yang
  *     diblokir tidak lagi relevan untuk dilihat.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -76,7 +76,7 @@ export default function UserProfileScreen() {
 
   const [favorite, setFavorite] = useState(false)
   const [favLoading, setFavLoading] = useState(false)
-  const [following, setFollowing] = useState(false)
+  const [following, setFollowing] = useState<boolean | null>(null)
   const [followLoading, setFollowLoading] = useState(false)
   const [followerCount, setFollowerCount] = useState<number | null>(null)
   const [followingCount, setFollowingCount] = useState<number | null>(null)
@@ -87,7 +87,13 @@ export default function UserProfileScreen() {
   const handle = profile?.username ?? username
   const isSelf = Boolean(meId && profile?.id && meId === profile.id)
 
+  const profileRequest = useRef(0)
   const fetchProfile = useCallback(async () => {
+    const started = ++profileRequest.current
+    const current = () => profileRequest.current === started
+    setFollowing(null)
+    setFollowerCount(null)
+    setFollowingCount(null)
     if (!username) return
     setLoading(true)
     setError(null)
@@ -96,6 +102,7 @@ export default function UserProfileScreen() {
         api.users.getUserByUsername(username),
         api.users.getMe().catch(() => null),
       ])
+      if (!current()) return
       setProfile(res)
       setMeId(me?.id ?? null)
       const name = res.username ?? username
@@ -103,28 +110,53 @@ export default function UserProfileScreen() {
       // Data pendamping — kegagalan tidak menggagalkan layar.
       void api.users
         .isFavorite(name)
-        .then((r) => setFavorite(Boolean(r?.favorited)))
-        .catch(() => setFavorite(false))
-      void api.users
-        .getFollowers(name)
-        .then((rows) => {
-          setFollowerCount(rows.length)
-          setFollowing(Boolean(me?.id && rows.some((u) => u.id === me.id)))
+        .then((r) => {
+          if (current()) setFavorite(Boolean(r?.favorited))
         })
-        .catch(() => setFollowerCount(null))
+        .catch(() => {
+          if (current()) setFavorite(false)
+        })
       void api.users
-        .getFollowing(name)
-        .then((rows) => setFollowingCount(rows.length))
-        .catch(() => setFollowingCount(null))
+        .getFollowers(name, { page: 1, limit: 1 })
+        .then((rows) => {
+          if (current()) setFollowerCount(rows.meta.total ?? null)
+        })
+        .catch(() => {
+          if (current()) setFollowerCount(null)
+        })
+      void api.users
+        .getFollowing(name, { page: 1, limit: 1 })
+        .then((rows) => {
+          if (current()) setFollowingCount(rows.meta.total ?? null)
+        })
+        .catch(() => {
+          if (current()) setFollowingCount(null)
+        })
+      if (me?.username)
+        void api.users
+          .getFollowers(name, { page: 1, limit: 20, search: me.username })
+          .then((result) => {
+            const found = result.data.some((user) => user.id === me.id)
+            if (current()) setFollowing(found ? true : result.meta.totalPages <= 1 ? false : null)
+          })
+          .catch(() => {
+            if (current()) setFollowing(null)
+          })
     } catch (err) {
-      setError(isApiError(err) && err.status !== 404 ? userMessage(err) : "Profil tidak ditemukan.")
+      if (current())
+        setError(
+          isApiError(err) && err.status !== 404 ? userMessage(err) : "Profil tidak ditemukan.",
+        )
     } finally {
-      setLoading(false)
+      if (current()) setLoading(false)
     }
   }, [username])
 
   useEffect(() => {
     void fetchProfile()
+    return () => {
+      profileRequest.current += 1
+    }
   }, [fetchProfile])
 
   const handleRefresh = useCallback(async () => {
@@ -185,7 +217,10 @@ export default function UserProfileScreen() {
     })
     if (outcome === "unavailable") {
       const ok = await copy(url)
-      toast.show({ title: ok ? "Tautan profil disalin" : "Tidak bisa membagikan", tone: ok ? "success" : "danger" })
+      toast.show({
+        title: ok ? "Tautan profil disalin" : "Tidak bisa membagikan",
+        tone: ok ? "success" : "danger",
+      })
     }
   }, [handle, profile?.fullName, copy, toast.show])
 
@@ -208,12 +243,25 @@ export default function UserProfileScreen() {
     if (!profile) return []
     const items: ProfileStat[] = []
     if (followerCount != null)
-      items.push({ value: formatNumber(followerCount), label: "Pengikut", onPress: () => router.push(ROUTES.followers(handle)) })
+      items.push({
+        value: formatNumber(followerCount),
+        label: "Pengikut",
+        onPress: () => router.push(ROUTES.followers(handle)),
+      })
     if (followingCount != null)
-      items.push({ value: formatNumber(followingCount), label: "Mengikuti", onPress: () => router.push(ROUTES.followers(handle)) })
+      items.push({
+        value: formatNumber(followingCount),
+        label: "Mengikuti",
+        onPress: () => router.push(ROUTES.followers(handle, "following")),
+      })
     if (profile.rating != null)
-      items.push({ value: formatDecimal(profile.rating), label: "Rating", onPress: () => router.push(ROUTES.userRatings(handle)) })
-    if (profile.trustScore != null) items.push({ value: formatNumber(profile.trustScore), label: "Skor" })
+      items.push({
+        value: formatDecimal(profile.rating),
+        label: "Rating",
+        onPress: () => router.push(ROUTES.userRatings(handle)),
+      })
+    if (profile.trustScore != null)
+      items.push({ value: formatNumber(profile.trustScore), label: "Skor" })
     return items
   }, [profile, followerCount, followingCount, handle])
 
@@ -223,7 +271,12 @@ export default function UserProfileScreen() {
         title="Profil"
         right={
           profile ? (
-            <IconButton icon={ShareNetwork} variant="ghost" accessibilityLabel="Bagikan profil" onPress={() => void handleShare()} />
+            <IconButton
+              icon={ShareNetwork}
+              variant="ghost"
+              accessibilityLabel="Bagikan profil"
+              onPress={() => void handleShare()}
+            />
           ) : undefined
         }
       />
@@ -231,13 +284,19 @@ export default function UserProfileScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-0"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading && !profile ? (
           <ProfileHeader name="" loading />
         ) : error ? (
           <View className="px-6">
-            <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchProfile()} />
+            <ErrorState
+              title="Gagal memuat"
+              description={error}
+              onRetry={() => void fetchProfile()}
+            />
           </View>
         ) : profile ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -250,13 +309,28 @@ export default function UserProfileScreen() {
               stats={stats}
               action={
                 isSelf ? (
-                  <Button variant="secondary" size="sm" leftIcon={PencilSimple} onPress={() => router.push(ROUTES.editProfile)}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={PencilSimple}
+                    onPress={() => router.push(ROUTES.editProfile)}
+                  >
                     Edit profil
                   </Button>
                 ) : (
                   <>
-                    <FollowButton following={following} loading={followLoading} onToggle={(next) => void handleFollow(next)} />
-                    <Button variant="secondary" size="sm" leftIcon={Handshake} onPress={() => router.push(ROUTES.createTransactionWith(handle))}>
+                    <FollowButton
+                      disabled={following == null}
+                      following={following === true}
+                      loading={followLoading}
+                      onToggle={(next) => void handleFollow(next)}
+                    />
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={Handshake}
+                      onPress={() => router.push(ROUTES.createTransactionWith(handle))}
+                    >
                       Buat Transaksi
                     </Button>
                     <FavoriteIconButton
@@ -278,16 +352,36 @@ export default function UserProfileScreen() {
 
               <SectionHeader title="Lihat juga" />
               <View className="flex-row flex-wrap gap-2">
-                <Button variant="secondary" size="sm" leftIcon={Images} onPress={() => router.push(ROUTES.userShowcase(handle))}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={Images}
+                  onPress={() => router.push(ROUTES.userShowcase(handle))}
+                >
                   Showcase
                 </Button>
-                <Button variant="secondary" size="sm" leftIcon={ChatCircleDots} onPress={() => router.push(ROUTES.userQuestions(handle))}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={ChatCircleDots}
+                  onPress={() => router.push(ROUTES.userQuestions(handle))}
+                >
                   Tanya Jawab
                 </Button>
-                <Button variant="secondary" size="sm" leftIcon={Star} onPress={() => router.push(ROUTES.userRatings(handle))}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={Star}
+                  onPress={() => router.push(ROUTES.userRatings(handle))}
+                >
                   Ulasan
                 </Button>
-                <Button variant="secondary" size="sm" leftIcon={Users} onPress={() => router.push(ROUTES.followers(handle))}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={Users}
+                  onPress={() => router.push(ROUTES.followers(handle))}
+                >
                   Pengikut
                 </Button>
               </View>
@@ -300,11 +394,18 @@ export default function UserProfileScreen() {
                       variant="ghost"
                       size="sm"
                       leftIcon={Flag}
-                      onPress={() => router.push(ROUTES.reports({ targetId: profile.id, targetName: handle }))}
+                      onPress={() =>
+                        router.push(ROUTES.reports({ targetId: profile.id, targetName: handle }))
+                      }
                     >
                       Laporkan
                     </Button>
-                    <Button variant="ghost" size="sm" leftIcon={Prohibit} onPress={() => setBlockOpen(true)}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      leftIcon={Prohibit}
+                      onPress={() => setBlockOpen(true)}
+                    >
                       Blokir
                     </Button>
                   </View>

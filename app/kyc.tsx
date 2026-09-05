@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Verifikasi Identitas (KYC).
  *
@@ -33,7 +34,12 @@ import { api } from "@/lib/api"
 import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
 import type { PresignedUrlDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
-import { pickImage, pickedImageToBlob, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
+import {
+  pickImage,
+  pickedImageToBlob,
+  type PickedImage,
+  type PickImageOptions,
+} from "@/lib/image-picker"
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
@@ -76,7 +82,10 @@ export default function KycScreen() {
   const [nik, setNik] = useState("")
   const [ktp, setKtp] = useState<PickedImage | null>(null)
   const [selfie, setSelfie] = useState<PickedImage | null>(null)
-  const [uploadStatus, setUploadStatus] = useState<Record<DocKey, UploadStatus>>({ ktp: "idle", selfie: "idle" })
+  const [uploadStatus, setUploadStatus] = useState<Record<DocKey, UploadStatus>>({
+    ktp: "idle",
+    selfie: "idle",
+  })
   const [submitting, setSubmitting] = useState(false)
 
   const fetchAll = useCallback(async () => {
@@ -200,20 +209,20 @@ export default function KycScreen() {
   }, [ktp, selfie, nik, formValid, isResubmit, uploadDoc, resetForm, fetchAll, toast.show])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Verifikasi Identitas" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
-          style: { paddingBottom: insets.bottom + tokens.space[8] },
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
           keyboardShouldPersistTaps: "handled",
         }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loading ? (
-            <EmptyState icon={Fingerprint} title="Memuat status verifikasi…" />
+            <LoadingScreen message="Memuat status verifikasi…" />
           ) : error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
           ) : (
@@ -223,7 +232,9 @@ export default function KycScreen() {
                 rejectionReason={state?.rejectionReason ?? undefined}
                 submittedAt={state?.submittedAt ? formatDateTime(state.submittedAt) : undefined}
                 approvedAt={
-                  uiStatus === "APPROVED" && state?.reviewedAt ? formatDateTime(state.reviewedAt) : undefined
+                  uiStatus === "APPROVED" && state?.reviewedAt
+                    ? formatDateTime(state.reviewedAt)
+                    : undefined
                 }
                 onSubmit={canSubmit && !formOpen ? openForm : undefined}
                 onResubmit={canSubmit && !formOpen ? openForm : undefined}
@@ -289,10 +300,19 @@ export default function KycScreen() {
                       disabled={submitting}
                     />
                   </View>
-                  <Button loading={submitting} disabled={!formValid} onPress={() => void handleSubmit()}>
+                  <Button
+                    loading={submitting}
+                    disabled={!formValid}
+                    onPress={() => void handleSubmit()}
+                  >
                     {isResubmit ? "Kirim Ulang Verifikasi" : "Kirim Verifikasi"}
                   </Button>
-                  <Button variant="ghost" fullWidth={false} disabled={submitting} onPress={() => setFormOpen(false)}>
+                  <Button
+                    variant="ghost"
+                    fullWidth={false}
+                    disabled={submitting}
+                    onPress={() => setFormOpen(false)}
+                  >
                     Batal
                   </Button>
                 </FormSection>

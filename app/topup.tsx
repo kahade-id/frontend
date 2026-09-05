@@ -1,43 +1,34 @@
-/**
- * Screen — Isi Saldo (top-up).
- *
- * POST /v1/wallet/topup -> GET /v1/wallet/topup-status/{paymentTxId} (poll).
- * DP: 10.000 – 50.000.000 IDR (TopupDto).
- *
- * Alur: pilih nominal → pilih metode (GET /v1/wallet/payment-methods) →
- * bayar → <TopupStatusCard> menampilkan VA/QRIS/retail sampai SUCCESS/EXPIRED.
- */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
-import { router } from "expo-router"
+import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
-
-import { api, type TopupDto } from "@/lib/api"
+import { api, userMessage, type TopupDto } from "@/lib/api"
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { useCopy } from "@/lib/clipboard"
 import { toPaymentMethods } from "@/lib/payment-methods"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-
+import { usePolling } from "@/lib/use-polling"
 import { AmountInput } from "@/components/ui/amount-input"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { PaymentMethodSelector, type PaymentMethod } from "@/components/ui/payment-method-selector"
+import { LoadingScreen } from "@/components/ui/loading-screen"
+import {
+  PaymentMethodSelector,
+  canUsePaymentMethod,
+  type PaymentMethod,
+} from "@/components/ui/payment-method-selector"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { TopupStatusCard, type PaymentStatus } from "@/components/ui/topup-status-card"
 import { useToast } from "@/components/ui/toast"
 
-const MIN_AMOUNT = 10_000
-const MAX_AMOUNT = 50_000_000
-const PRESETS = [50_000, 100_000, 250_000, 500_000, 1_000_000]
-const POLL_MS = 3000
-
-/** Status API → PaymentStatus komponen (status di luar peta = masih menunggu). */
-const STATUS_MAP: Partial<Record<string, PaymentStatus>> = {
+const STATUS: Partial<Record<string, PaymentStatus>> = {
   SUCCESS: "SUCCESS",
   COMPLETED: "SUCCESS",
   PAID: "SUCCESS",
@@ -45,144 +36,178 @@ const STATUS_MAP: Partial<Record<string, PaymentStatus>> = {
   EXPIRED: "EXPIRED",
   CANCELLED: "CANCELLED",
 }
-const PENDING_STATUSES = ["PENDING", "WAITING", "UNPAID"]
+function isTopupMethod(value: string | null): value is TopupDto["method"] {
+  return (
+    value != null && (API_CONSTRAINTS.TopupDto.method.enum as readonly string[]).includes(value)
+  )
+}
 
 export default function TopupScreen() {
+  const router = useRouter()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
-
   const [methods, setMethods] = useState<PaymentMethod[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
-
   const [amount, setAmount] = useState(0)
   const [methodId, setMethodId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
-  const [result, setResult] = useState<Awaited<ReturnType<typeof api.wallet.createTopup>> | null>(null)
+  const [result, setResult] = useState<Awaited<ReturnType<typeof api.wallet.createTopup>> | null>(
+    null,
+  )
   const [statusLoading, setStatusLoading] = useState(false)
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [statusError, setStatusError] = useState<string | null>(null)
+  const submitLock = useRef(false)
+  const pollLock = useRef(false)
 
   const fetchMethods = useCallback(async () => {
+    setLoading(true)
+    setError(null)
     try {
-      setLoading(true)
-      setError(null)
       const raw = await api.wallet.getPaymentMethods()
-      setMethods(toPaymentMethods(raw))
-      setMethodId((prev) => prev ?? (raw?.[0]?.code ?? null))
-    } catch {
-      setError("Gagal memuat metode pembayaran.")
+      const choices = toPaymentMethods(raw).filter((method) => isTopupMethod(method.id))
+      setMethods(choices)
+      setMethodId((previous) =>
+        choices.some((m) => m.id === previous && !m.unavailable)
+          ? previous
+          : (choices.find((m) => !m.unavailable)?.id ?? null),
+      )
+    } catch (error) {
+      setError(userMessage(error))
     } finally {
       setLoading(false)
     }
   }, [])
-
   useEffect(() => {
     void fetchMethods()
   }, [fetchMethods])
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchMethods()
-    setRefreshing(false)
-  }, [fetchMethods])
-
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current)
-      pollRef.current = null
+  const pollStatus = useCallback(async (id: string) => {
+    if (pollLock.current) return
+    pollLock.current = true
+    setStatusLoading(true)
+    try {
+      const status = await api.wallet.getTopupStatus(id)
+      // Status-only responses must not erase the original amount/VA/QR instructions.
+      setResult((previous) =>
+        previous?.paymentTxId === id ? { ...previous, ...status, paymentTxId: id } : previous,
+      )
+      setStatusError(null)
+    } catch (error) {
+      setStatusError(userMessage(error))
+    } finally {
+      pollLock.current = false
+      setStatusLoading(false)
     }
   }, [])
-
-  const pollStatus = useCallback(
-    async (paymentTxId: string) => {
-      try {
-        setStatusLoading(true)
-        const status = await api.wallet.getTopupStatus(paymentTxId)
-        setResult(status)
-        if (!["PENDING", "WAITING", "UNPAID"].includes(status.status)) stopPolling()
-      } catch {
-        // Poll gagal: biarkan kartu terakhir tampil; user bisa tarik-refresh.
-      } finally {
-        setStatusLoading(false)
-      }
+  usePolling(
+    async () => {
+      if (result?.paymentTxId) await pollStatus(result.paymentTxId)
     },
-    [stopPolling],
+    5000,
+    Boolean(result?.paymentTxId && !STATUS[result.status]),
   )
 
-  useEffect(() => {
-    if (!result?.paymentTxId || !PENDING_STATUSES.includes(result.status)) return
-    pollRef.current = setInterval(() => void pollStatus(result.paymentTxId!), POLL_MS)
-    return stopPolling
-  }, [result?.paymentTxId, result?.status, pollStatus, stopPolling])
+  const refresh = useCallback(async () => {
+    setRefreshing(true)
+    try {
+      if (result?.paymentTxId) await pollStatus(result.paymentTxId)
+      else await fetchMethods()
+    } finally {
+      setRefreshing(false)
+    }
+  }, [result?.paymentTxId, pollStatus, fetchMethods])
 
+  const canPay =
+    !loading &&
+    !error &&
+    isValidAmount(amount, AMOUNT_LIMITS.topup) &&
+    isTopupMethod(methodId) &&
+    canUsePaymentMethod(
+      methods.find((m) => m.id === methodId),
+      amount,
+    )
   const handlePay = useCallback(async () => {
-    if (!amount || !methodId) return
+    if (!canPay || !isTopupMethod(methodId) || submitLock.current) return
+    submitLock.current = true
     setSubmitting(true)
     try {
-      const dto: TopupDto = { amount, method: methodId as TopupDto["method"] }
-      const res = await api.wallet.createTopup(dto)
+      const res = await api.wallet.createTopup({ amount, method: methodId })
+      if (!res?.paymentTxId) throw new Error("Missing payment transaction ID")
       setResult(res)
-      toast.show({ title: "Instruksi pembayaran dibuat", tone: "success", duration: 3000 })
-    } catch {
-      toast.show({ title: "Top-up gagal", description: "Silakan coba lagi.", tone: "danger" })
+      setStatusError(null)
+      toast.show({ title: "Instruksi pembayaran dibuat", tone: "success" })
+    } catch (error) {
+      toast.show({
+        title: "Top-up belum dapat dibuat",
+        description: userMessage(error),
+        tone: "danger",
+      })
     } finally {
+      submitLock.current = false
       setSubmitting(false)
     }
-  }, [amount, methodId, toast.show])
-
-  const handleReset = useCallback(() => {
-    stopPolling()
-    setResult(null)
-  }, [stopPolling])
+  }, [canPay, amount, methodId, toast.show])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Isi Saldo" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={refresh}
         refreshing={refreshing}
-        contentContainerClassName="px-0"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        contentContainerClassName="px-6 pt-3"
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {result ? (
-          <View style={{ marginTop: tokens.space[3] }}>
+          <View className="gap-4">
             <TopupStatusCard
-              status={STATUS_MAP[result.status] ?? "PENDING"}
+              status={
+                STATUS[result.status] ?? (result.status === "PENDING" ? "PENDING" : "UNKNOWN")
+              }
               amount={result.amount}
               method={result.method}
-              methodLabel={
-                methods.find((m) => m.id === result.method)?.name ?? result.method
-              }
+              methodLabel={methods.find((m) => m.id === result.method)?.name ?? result.method}
               paymentCode={result.paymentCode ?? undefined}
               qrString={result.qrString ?? undefined}
               reference={result.reference ?? undefined}
               expiresAt={result.expiresAt ? new Date(result.expiresAt) : undefined}
               refreshing={statusLoading}
-              onRefresh={() => result.paymentTxId && void pollStatus(result.paymentTxId)}
+              onRefresh={() => void pollStatus(result.paymentTxId)}
               onDone={() => router.replace(ROUTES.topupHistory)}
-              onRetry={handleReset}
-              onCopy={(v) => void copy(v)}
+              onRetry={() => {
+                setResult(null)
+                setStatusError(null)
+              }}
+              onCopy={(value) => void copy(value)}
               copied={copied}
-              labels={{ status: { PENDING: "Menunggu pembayaran" } }}
             />
+            {statusError ? (
+              <ErrorState
+                compact
+                title="Status belum dapat diperbarui"
+                description={statusError}
+                onRetry={() => void pollStatus(result.paymentTxId)}
+              />
+            ) : null}
           </View>
         ) : (
-          <View className="gap-4 px-6" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Pilih nominal" inset />
+          <View className="gap-4">
+            <SectionHeader title="Pilih nominal" />
             <AmountInput
               value={amount}
               onChange={setAmount}
-              min={MIN_AMOUNT}
-              max={MAX_AMOUNT}
-              presets={PRESETS}
+              min={AMOUNT_LIMITS.topup.minimum}
+              max={AMOUNT_LIMITS.topup.maximum}
+              presets={AMOUNT_PRESETS.topup}
               label="Nominal top-up"
             />
-
-            <SectionHeader title="Metode pembayaran" inset />
+            <SectionHeader title="Metode pembayaran" />
             {loading ? (
-              <EmptyState icon={WalletIcon} title="Memuat metode…" />
+              <LoadingScreen message="Memuat metode pembayaran…" />
             ) : error ? (
               <ErrorState
                 compact
@@ -190,22 +215,17 @@ export default function TopupScreen() {
                 description={error}
                 onRetry={() => void fetchMethods()}
               />
-            ) : methods.length === 0 ? (
-              <EmptyState icon={WalletIcon} title="Belum ada metode" />
-            ) : (
+            ) : methods.length ? (
               <PaymentMethodSelector
                 methods={methods}
                 amount={amount}
                 value={methodId ?? undefined}
                 onChange={setMethodId}
               />
+            ) : (
+              <EmptyState icon={WalletIcon} title="Metode pembayaran belum tersedia" />
             )}
-
-            <Button
-              loading={submitting}
-              disabled={!amount || !methodId || amount < MIN_AMOUNT}
-              onPress={() => void handlePay()}
-            >
+            <Button loading={submitting} disabled={!canPay} onPress={() => void handlePay()}>
               Lanjutkan Pembayaran
             </Button>
           </View>

@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `ratings` (ulasan pesanan masuk/keluar).
  */
@@ -48,9 +49,8 @@ export function readMyRatings(body: MyRatingsResponse | null | undefined): {
   items: Rating[]
   totalPages?: number
 } {
-  if (!body) return { items: [] }
   if (Array.isArray(body)) return { items: body }
-  return { items: body.data ?? [], totalPages: body.meta?.totalPages }
+  return { items: readList<Rating>(body, ["ratings"]), totalPages: body?.meta?.totalPages }
 }
 
 /**
@@ -78,7 +78,9 @@ export function createRating(dto: CreateRatingDto) {
 }
 
 export function updateRating(ratingId: string, dto: UpdateRatingDto) {
-  return http.put<Rating, UpdateRatingDto>(`/v1/ratings/${seg(ratingId)}`, dto, { auth: "required" })
+  return http.put<Rating, UpdateRatingDto>(`/v1/ratings/${seg(ratingId)}`, dto, {
+    auth: "required",
+  })
 }
 
 export function replyRating(ratingId: string, dto: RatingReplyDto) {

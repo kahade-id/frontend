@@ -187,11 +187,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   const resolvedLeft = leftIcon ?? (isSearch ? MagnifyingGlass : undefined)
 
   // Tinggi: text 56 (ruang label), search 48, multiline dari rows
-  const boxHeight = isMultiline
-    ? undefined
-    : showLabel
-      ? "h-14"
-      : "h-12"
+  const boxHeight = isMultiline ? undefined : showLabel ? "min-h-14" : "min-h-12"
   const multilineMinHeight = isMultiline
     ? { minHeight: rows * tokens.typography.bodyLarge.lineHeight + tokens.space[4] * 2 }
     : undefined
@@ -272,7 +268,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}
-            allowFontScaling={false}
+            allowFontScaling
+            maxFontSizeMultiplier={2}
             onFocus={handleFocus}
             onBlur={handleBlur}
             onChangeText={handleChange}

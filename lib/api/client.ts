@@ -1,38 +1,5 @@
-/**
- * Kahade — `request()` generik: satu jalur untuk SEMUA panggilan HTTP ke backend.
- *
- * Otomatis di setiap request:
- *   1. Base URL per environment (lib/api/config.ts) + query string ter-encode.
- *   2. `Authorization: Bearer <accessToken>` dari SecureStore (via session.ts).
- *   3. Header identitas perangkat: X-Device-Id (dibuat sekali, disimpan
- *      selamanya), X-Device-Info, X-App-Version, X-Platform.
- *   4. Timeout (AbortController) → ApiError `TIMEOUT`; offline → `NETWORK`.
- *   5. Response non-2xx → ApiError dengan kode stabil + pesan backend (NestJS).
- *   6. 401 → refresh token SEKALI (single-flight; request paralel yang ikut
- *      401 menunggu refresh yang sama, bukan memicu N refresh), lalu retry
- *      request asal SEKALI. Kalau refresh gagal → sesi dibersihkan,
- *      `onSessionExpired` dipanggil, ApiError `UNAUTHORIZED` dilempar.
- *
- * Mekanisme refresh (dari spec): `POST /v1/auth/refresh` dengan
- * `RefreshTokenDto = {}` dan securityScheme cookie `kahade_refresh_token`.
- * Artinya refresh token hidup di cookie HttpOnly; kita cukup mengirim
- * `credentials: "include"`. Native RN menyimpan cookie di cookie jar OS
- * (set oleh response login), jadi ini berjalan tanpa kode tambahan. Bila
- * `session.getRefreshToken()` terisi (backend kelak mengirim token di body),
- * kita juga mengirimnya sebagai header `X-Refresh-Token` sebagai fallback.
- *
- * Yang SENGAJA tidak dilakukan di sini (non-obvious):
- *   - Tidak ada retry otomatis untuk NETWORK/TIMEOUT pada POST — order/pay/
- *     transfer tidak idempoten; retry buta bisa membayar dua kali. Screen
- *     memutuskan (tombol "Coba lagi"). Untuk GET, pemanggil boleh set
- *     `retry: 1`.
- *   - Tidak membongkar envelope `{ data: ... }`. Spec tidak mendefinisikan
- *     bentuk response, jadi body dikembalikan apa adanya dan tiap modul domain
- *     menyatakan tipe response-nya sendiri. Kalau nanti backend terbukti
- *     memakai envelope seragam, tambahkan di SATU tempat: `parseBody()`.
- */
+/** One HTTP boundary for the app: envelope decoding, auth, cancellation and safe retries. */
 import { Platform } from "react-native"
-
 import {
   API_BASE_URL,
   API_TIMEOUT_MS,
@@ -42,6 +9,7 @@ import {
   HEADER_PLATFORM,
 } from "@/lib/api/config"
 import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES, parseErrorBody } from "@/lib/api/errors"
+import { asRecord, invalidResponse, unwrapResponse } from "@/lib/api/response"
 import {
   clearSession,
   emitSessionExpired,
@@ -50,106 +18,153 @@ import {
   getDeviceId,
   getDeviceInfo,
   getRefreshToken,
+  getSessionRevision,
   setAccessToken,
+  setRefreshToken,
 } from "@/lib/api/session"
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE"
-
 export type QueryPrimitive = string | number | boolean
 export type QueryValue = QueryPrimitive | QueryPrimitive[] | null | undefined
 export type QueryParams = Record<string, QueryValue>
-
-/**
- * - "optional" (default): kirim Bearer bila ada token; 401 → coba refresh.
- * - "required": tanpa token langsung ApiError UNAUTHORIZED (hemat roundtrip).
- * - "none": jangan kirim Bearer dan JANGAN refresh saat 401 (login, register,
- *   refresh itu sendiri) — mencegah loop refresh → 401 → refresh.
- */
 export type AuthMode = "optional" | "required" | "none"
-
 export type ResponseType = "json" | "text" | "blob" | "void"
-
 export type RequestOptions<TBody = undefined> = {
   method?: HttpMethod
-  /** Body JSON — di-serialize otomatis. Eksklusif dengan `formData`. */
   body?: TBody
-  /** Body multipart (upload berkas). Content-Type dibiarkan fetch yang mengisi boundary. */
   formData?: FormData
   query?: QueryParams
   auth?: AuthMode
   headers?: Record<string, string>
   timeoutMs?: number
   signal?: AbortSignal
-  /** Default "json". "text" untuk receipt HTML / export CSV; "void" untuk 204. */
   responseType?: ResponseType
-  /** Retry otomatis untuk error transien (NETWORK/TIMEOUT/5xx). Hanya pakai di GET. */
+  /** GET only. Mutations are NEVER automatically retried on network/server errors. */
   retry?: number
 }
 
-// ------------------------------------------------------------------
-// URL & header
-// ------------------------------------------------------------------
-
 export function buildUrl(path: string, query?: QueryParams): string {
-  const base = path.startsWith("http") ? path : `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`
-  if (!query) return base
-
-  const parts: string[] = []
-  for (const [key, value] of Object.entries(query)) {
-    if (value === null || value === undefined) continue
-    const values = Array.isArray(value) ? value : [value]
-    for (const v of values) parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(v))}`)
+  // Prevent accidental credential leakage to a presigned/external URL. Uploads
+  // deliberately use a separate unauthenticated transport.
+  if (/^[a-z][a-z\d+.-]*:/i.test(path) || path.startsWith("//")) {
+    throw new Error("API request paths must be relative to the configured backend.")
   }
-  if (!parts.length) return base
-  return `${base}${base.includes("?") ? "&" : "?"}${parts.join("&")}`
+  const base = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`
+  const parts: string[] = []
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value === null || value === undefined) continue
+    for (const item of Array.isArray(value) ? value : [value]) {
+      if (typeof item === "number" && !Number.isFinite(item))
+        throw new Error(`Invalid query: ${key}`)
+      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`)
+    }
+  }
+  return parts.length ? `${base}${base.includes("?") ? "&" : "?"}${parts.join("&")}` : base
 }
 
-/** Encode segmen path (orderId, username, token) — JANGAN interpolasi mentah. */
 export function seg(value: string | number): string {
-  return encodeURIComponent(String(value))
+  const segment = String(value)
+  if (
+    !segment ||
+    segment === "undefined" ||
+    segment === "null" ||
+    segment === "." ||
+    segment === ".."
+  ) {
+    throw new ApiError({ code: "BAD_REQUEST", message: "Identitas data tidak valid." })
+  }
+  return encodeURIComponent(segment)
 }
 
 async function deviceHeaders(): Promise<Record<string, string>> {
-  const headers: Record<string, string> = {
+  return {
+    [HEADER_DEVICE_ID]: await getDeviceId(),
     [HEADER_DEVICE_INFO]: getDeviceInfo(),
     [HEADER_APP_VERSION]: getAppVersion(),
     [HEADER_PLATFORM]: Platform.OS,
   }
-  try {
-    headers[HEADER_DEVICE_ID] = await getDeviceId()
-  } catch (err) {
-    // SecureStore bisa gagal sesaat setelah restore/reinstall — request tetap jalan tanpa deviceId.
-    if (__DEV__) console.warn("[kahade/api] deviceId tidak tersedia:", err)
-  }
-  return headers
 }
 
-// ------------------------------------------------------------------
-// Parsing response
-// ------------------------------------------------------------------
+function aborted(path?: string) {
+  return new ApiError({ code: "ABORTED", message: DEFAULT_ERROR_MESSAGES.ABORTED, path })
+}
+function checkAborted(signal?: AbortSignal) {
+  if (signal?.aborted) throw aborted()
+}
 
-async function parseBody(res: Response, responseType: ResponseType): Promise<unknown> {
-  if (responseType === "void" || res.status === 204 || res.status === 205) return undefined
-  if (responseType === "blob") return res.blob()
-
-  const text = await res.text()
-  if (responseType === "text") return text
-  if (!text) return undefined
-
-  const contentType = res.headers.get("content-type") ?? ""
+/** Timeout includes reading/decoding the body, not just receipt of HTTP headers. */
+async function bounded<T>(
+  task: (signal: AbortSignal) => Promise<T>,
+  method: HttpMethod,
+  path: string,
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<T> {
+  checkAborted(signal)
+  const controller = new AbortController()
+  let timedOut = false
+  let rejectAbort: (error: ApiError) => void = () => undefined
+  const interruption = new Promise<never>((_, reject) => {
+    rejectAbort = reject
+  })
+  const interrupt = () => {
+    controller.abort()
+    rejectAbort(
+      new ApiError({
+        code: timedOut ? "TIMEOUT" : "ABORTED",
+        message: DEFAULT_ERROR_MESSAGES[timedOut ? "TIMEOUT" : "ABORTED"],
+        method,
+        path,
+      }),
+    )
+  }
+  const timer = setTimeout(() => {
+    timedOut = true
+    interrupt()
+  }, timeoutMs)
+  signal?.addEventListener("abort", interrupt, { once: true })
   try {
-    return JSON.parse(text) as unknown
+    return await Promise.race([task(controller.signal), interruption])
   } catch (cause) {
-    if (contentType.includes("json") || res.ok) {
+    if (cause instanceof ApiError) throw cause
+    if (controller.signal.aborted) {
       throw new ApiError({
-        code: "PARSE",
-        message: DEFAULT_ERROR_MESSAGES.PARSE,
-        status: res.status,
-        raw: text,
+        code: timedOut ? "TIMEOUT" : "ABORTED",
+        message: DEFAULT_ERROR_MESSAGES[timedOut ? "TIMEOUT" : "ABORTED"],
+        method,
+        path,
         cause,
       })
     }
-    return text // body error berupa teks polos (mis. dari proxy/nginx)
+    throw new ApiError({
+      code: "NETWORK",
+      message: DEFAULT_ERROR_MESSAGES.NETWORK,
+      method,
+      path,
+      cause,
+    })
+  } finally {
+    clearTimeout(timer)
+    signal?.removeEventListener("abort", interrupt)
+  }
+}
+
+async function parseBody(res: Response, type: ResponseType): Promise<unknown> {
+  if (type === "void" || res.status === 204 || res.status === 205) return undefined
+  if (type === "blob") return res.blob()
+  const text = await res.text()
+  if (type === "text") return text
+  if (!text.trim()) return undefined
+  try {
+    return JSON.parse(text) as unknown
+  } catch (cause) {
+    throw new ApiError({
+      code: "PARSE",
+      message: DEFAULT_ERROR_MESSAGES.PARSE,
+      status: res.status,
+      raw: text,
+      cause,
+    })
   }
 }
 
@@ -157,120 +172,140 @@ async function toApiError(res: Response, method: HttpMethod, path: string): Prom
   let raw: unknown
   try {
     raw = await parseBody(res, "json")
-  } catch (err) {
-    raw = err instanceof ApiError ? err.raw : undefined
+  } catch (error) {
+    raw = error instanceof ApiError ? error.raw : undefined
   }
-  const { message, backendCode, validationMessages } = parseErrorBody(raw)
-  const code = codeFromStatus(res.status, Boolean(validationMessages?.length))
+  const parsed = parseErrorBody(raw)
+  const code = codeFromStatus(res.status, Boolean(parsed.validationMessages?.length))
   return new ApiError({
     code,
     status: res.status,
-    message: message ?? DEFAULT_ERROR_MESSAGES[code],
-    backendCode,
-    validationMessages,
+    message: parsed.message ?? DEFAULT_ERROR_MESSAGES[code],
+    backendCode: parsed.backendCode,
+    validationMessages: parsed.validationMessages,
     raw,
     method,
     path,
   })
 }
 
-// ------------------------------------------------------------------
-// Refresh token — single-flight
-// ------------------------------------------------------------------
+type Reply = { status: number; value?: unknown; error?: ApiError }
+async function exchange(
+  path: string,
+  url: string,
+  init: RequestInit,
+  type: ResponseType,
+  timeout: number,
+  signal?: AbortSignal,
+): Promise<Reply> {
+  const method = init.method as HttpMethod
+  return bounded(
+    async (innerSignal) => {
+      const response = await fetch(url, { ...init, signal: innerSignal })
+      if (!response.ok)
+        return { status: response.status, error: await toApiError(response, method, path) }
+      const body = await parseBody(response, type)
+      return { status: response.status, value: type === "json" ? unwrapResponse(body) : body }
+    },
+    method,
+    path,
+    timeout,
+    signal,
+  )
+}
 
 const REFRESH_PATH = "/v1/auth/refresh"
-let refreshInFlight: Promise<string | null> | null = null
+let refreshInFlight: { revision: number; promise: Promise<string | null> } | null = null
 
-/** Ambil access token dari body refresh — toleran terhadap beberapa penamaan umum. */
-function extractAccessToken(body: unknown): string | null {
-  if (typeof body !== "object" || body === null) return null
-  const rec = body as Record<string, unknown>
-  const candidates = [rec.accessToken, rec.access_token, (rec.data as Record<string, unknown> | undefined)?.accessToken]
-  return candidates.find((v): v is string => typeof v === "string" && v.length > 0) ?? null
-}
-
-/**
- * Coba perbarui access token. Resolve `string` bila berhasil, `null` bila
- * refresh ditolak (sesi memang habis). Melempar hanya untuk kegagalan jaringan
- * — supaya offline sesaat TIDAK dianggap "sesi berakhir" dan tidak me-logout user.
- */
+/** Cookie refresh remains single-flight; 429/offline/5xx MUST NOT log the user out. */
 export function refreshAccessToken(): Promise<string | null> {
-  if (refreshInFlight) return refreshInFlight
-
-  refreshInFlight = (async () => {
+  const revision = getSessionRevision()
+  if (refreshInFlight?.revision === revision) return refreshInFlight.promise
+  const promise = (async () => {
     const headers: Record<string, string> = {
-      "Content-Type": "application/json",
       Accept: "application/json",
+      "Content-Type": "application/json",
       ...(await deviceHeaders()),
     }
-    const storedRefresh = await getRefreshToken()
-    if (storedRefresh) headers["X-Refresh-Token"] = storedRefresh
-
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), API_TIMEOUT_MS)
-    let res: Response
-    try {
-      res = await fetch(buildUrl(REFRESH_PATH), {
+    const stored = await getRefreshToken()
+    if (stored) headers["X-Refresh-Token"] = stored
+    const reply = await exchange(
+      REFRESH_PATH,
+      buildUrl(REFRESH_PATH),
+      {
         method: "POST",
         headers,
-        body: "{}", // RefreshTokenDto kosong
-        credentials: "include", // cookie kahade_refresh_token
-        signal: controller.signal,
-      })
-    } catch (cause) {
-      throw networkError(cause, controller.signal.aborted, "POST", REFRESH_PATH)
-    } finally {
-      clearTimeout(timer)
+        credentials: "include",
+        body: "{}",
+      },
+      "json",
+      API_TIMEOUT_MS,
+    )
+    if (revision !== getSessionRevision()) throw aborted(REFRESH_PATH)
+    if (reply.error) {
+      if (reply.status === 401 || reply.status === 403) return null
+      throw reply.error
     }
-
-    if (!res.ok) {
-      // 401/403 = refresh token tidak valid → sesi habis. 5xx → biarkan pemanggil menilai.
-      if (res.status >= 500) throw await toApiError(res, "POST", REFRESH_PATH)
-      return null
-    }
-
-    const body = await parseBody(res, "json")
-    const token = extractAccessToken(body)
-    if (!token) return null
+    const body = asRecord(reply.value)
+    const token = body?.accessToken ?? body?.access_token
+    if (typeof token !== "string" || !token.trim()) throw invalidResponse(REFRESH_PATH)
+    if (typeof body?.refreshToken === "string") await setRefreshToken(body.refreshToken)
+    if (revision !== getSessionRevision()) throw aborted(REFRESH_PATH)
     await setAccessToken(token)
+    if (revision !== getSessionRevision()) throw aborted(REFRESH_PATH)
     return token
   })().finally(() => {
-    refreshInFlight = null
+    if (refreshInFlight?.promise === promise) refreshInFlight = null
   })
-
-  return refreshInFlight
+  refreshInFlight = { revision, promise }
+  return promise
 }
 
-async function handleSessionExpired(): Promise<void> {
-  await clearSession()
-  emitSessionExpired()
+let expiration: { revision: number; promise: Promise<void> } | null = null
+function expireSession(revision: number): Promise<void> {
+  if (revision !== getSessionRevision()) return Promise.resolve()
+  if (expiration?.revision === revision) return expiration.promise
+  const clearing = clearSession()
+  const clearedRevision = getSessionRevision()
+  const promise = clearing.finally(() => {
+    // Delayed storage cleanup must not emit an expiry event for a NEW login.
+    if (getSessionRevision() === clearedRevision) emitSessionExpired()
+    if (expiration?.promise === promise) expiration = null
+  })
+  expiration = { revision, promise }
+  return promise
 }
 
-// ------------------------------------------------------------------
-// Error jaringan
-// ------------------------------------------------------------------
+const getRequests = new Map<string, Promise<unknown>>()
 
-function networkError(cause: unknown, timedOut: boolean, method: HttpMethod, path: string): ApiError {
-  const isAbort = typeof cause === "object" && cause !== null && (cause as { name?: string }).name === "AbortError"
-  if (timedOut || isAbort) {
-    return new ApiError({
-      code: timedOut ? "TIMEOUT" : "UNKNOWN",
-      message: timedOut ? DEFAULT_ERROR_MESSAGES.TIMEOUT : "Permintaan dibatalkan.",
-      method,
-      path,
-      cause,
-    })
-  }
-  return new ApiError({ code: "NETWORK", message: DEFAULT_ERROR_MESSAGES.NETWORK, method, path, cause })
-}
-
-// ------------------------------------------------------------------
-// request()
-// ------------------------------------------------------------------
-
-export async function request<TResponse = unknown, TBody = undefined>(
+/** Dedupe identical in-flight GETs. No persisted response cache; no cross-account data. */
+export function request<TResponse = unknown, TBody = undefined>(
   path: string,
   options: RequestOptions<TBody> = {},
+): Promise<TResponse> {
+  if ((options.method ?? "GET") !== "GET" || options.signal)
+    return performRequest<TResponse, TBody>(path, options)
+  const key = JSON.stringify([
+    getSessionRevision(),
+    buildUrl(path, options.query),
+    options.auth ?? "optional",
+    options.responseType ?? "json",
+    options.headers,
+    options.timeoutMs,
+    options.retry,
+  ])
+  const existing = getRequests.get(key)
+  if (existing) return existing as Promise<TResponse>
+  const pending = performRequest<TResponse, TBody>(path, options).finally(() => {
+    if (getRequests.get(key) === pending) getRequests.delete(key)
+  })
+  getRequests.set(key, pending)
+  return pending
+}
+
+async function performRequest<TResponse, TBody>(
+  path: string,
+  options: RequestOptions<TBody>,
 ): Promise<TResponse> {
   const {
     method = "GET",
@@ -282,104 +317,115 @@ export async function request<TResponse = unknown, TBody = undefined>(
     timeoutMs = API_TIMEOUT_MS,
     signal,
     responseType = "json",
-    retry = 0,
   } = options
-
-  if (body !== undefined && formData) {
-    throw new Error("[kahade/api] `body` dan `formData` tidak boleh dipakai bersamaan")
-  }
-
+  if (body !== undefined && formData)
+    throw new Error("body dan formData tidak boleh dipakai bersamaan")
+  if (typeof FormData !== "undefined" && body instanceof FormData)
+    throw new Error("Multipart harus memakai opsi formData, bukan body JSON.")
+  checkAborted(signal)
   const url = buildUrl(path, query)
-
-  const send = async (token: string | null): Promise<Response> => {
+  const revision = getSessionRevision()
+  const send = async (token: string | null) => {
+    checkAborted(signal)
     const headers: Record<string, string> = {
       Accept: "application/json",
       ...(await deviceHeaders()),
       ...extraHeaders,
     }
     if (body !== undefined) headers["Content-Type"] = "application/json"
+    if (formData)
+      for (const name of Object.keys(headers))
+        if (name.toLowerCase() === "content-type") delete headers[name]
     if (token && auth !== "none") headers.Authorization = `Bearer ${token}`
-
-    const controller = new AbortController()
-    let timedOut = false
-    const timer = setTimeout(() => {
-      timedOut = true
-      controller.abort()
-    }, timeoutMs)
-    const onOuterAbort = () => controller.abort()
-    signal?.addEventListener("abort", onOuterAbort, { once: true })
-
-    try {
-      return await fetch(url, {
+    checkAborted(signal)
+    return exchange(
+      path,
+      url,
+      {
         method,
         headers,
         body: formData ?? (body !== undefined ? JSON.stringify(body) : undefined),
         credentials: "include",
-        signal: controller.signal,
-      })
-    } catch (cause) {
-      throw networkError(cause, timedOut, method, path)
-    } finally {
-      clearTimeout(timer)
-      signal?.removeEventListener("abort", onOuterAbort)
-    }
+      },
+      responseType,
+      timeoutMs,
+      signal,
+    )
   }
-
+  const assertSession = () => {
+    if (auth !== "none" && revision !== getSessionRevision()) throw aborted(path)
+  }
   const attempt = async (): Promise<TResponse> => {
+    checkAborted(signal)
     let token = auth === "none" ? null : await getAccessToken()
-
     if (auth === "required" && !token) {
       token = await refreshAccessToken()
+      checkAborted(signal)
+      assertSession()
       if (!token) {
-        await handleSessionExpired()
-        throw new ApiError({ code: "UNAUTHORIZED", message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED, method, path })
+        await expireSession(revision)
+        throw new ApiError({
+          code: "UNAUTHORIZED",
+          message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+          method,
+          path,
+        })
       }
     }
-
-    let res = await send(token)
-
-    if (res.status === 401 && auth !== "none") {
-      const fresh = await refreshAccessToken()
-      if (!fresh) {
-        await handleSessionExpired()
-        throw await toApiError(res, method, path)
+    assertSession()
+    let reply = await send(token)
+    assertSession()
+    if (reply.status === 401 && auth !== "none") {
+      // A concurrent request may already have rotated this exact access token.
+      const current = await getAccessToken()
+      const fresh = current && current !== token ? current : await refreshAccessToken()
+      checkAborted(signal)
+      assertSession()
+      if (fresh) reply = await send(fresh)
+      assertSession()
+      if (!fresh || reply.status === 401) {
+        await expireSession(revision)
+        throw (
+          reply.error ??
+          new ApiError({
+            code: "UNAUTHORIZED",
+            message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+            method,
+            path,
+          })
+        )
       }
-      res = await send(fresh)
     }
-
-    if (!res.ok) throw await toApiError(res, method, path)
-    return (await parseBody(res, responseType)) as TResponse
+    if (reply.error) throw reply.error
+    return reply.value as TResponse
   }
-
-  let remaining = retry
-  for (;;) {
+  const retry = method === "GET" ? Math.min(2, Math.max(0, options.retry ?? 0)) : 0
+  for (let count = 0; ; count += 1) {
     try {
       return await attempt()
-    } catch (err) {
-      if (remaining > 0 && err instanceof ApiError && err.isTransient && !signal?.aborted) {
-        remaining -= 1
-        await new Promise((r) => setTimeout(r, 400 * (retry - remaining)))
-        continue
-      }
-      throw err
+    } catch (error) {
+      if (count >= retry || !(error instanceof ApiError) || !error.isTransient || signal?.aborted)
+        throw error
+      await bounded(
+        () => new Promise<void>((resolve) => setTimeout(resolve, 400 * (count + 1))),
+        method,
+        path,
+        timeoutMs,
+        signal,
+      )
     }
   }
 }
 
-// ------------------------------------------------------------------
-// Shortcut per method — tipe response WAJIB dinyatakan pemanggil
-// ------------------------------------------------------------------
-
 type NoBody = Omit<RequestOptions<undefined>, "method" | "body">
 type WithBody<TBody> = Omit<RequestOptions<TBody>, "method" | "body">
-
 export const http = {
-  get: <TResponse>(path: string, options?: NoBody) => request<TResponse>(path, { ...options, method: "GET" }),
-  delete: <TResponse>(path: string, options?: NoBody) => request<TResponse>(path, { ...options, method: "DELETE" }),
-  post: <TResponse, TBody = undefined>(path: string, body?: TBody, options?: WithBody<TBody>) =>
-    request<TResponse, TBody>(path, { ...options, method: "POST", body }),
-  put: <TResponse, TBody = undefined>(path: string, body?: TBody, options?: WithBody<TBody>) =>
-    request<TResponse, TBody>(path, { ...options, method: "PUT", body }),
-  patch: <TResponse, TBody = undefined>(path: string, body?: TBody, options?: WithBody<TBody>) =>
-    request<TResponse, TBody>(path, { ...options, method: "PATCH", body }),
+  get: <T>(path: string, options?: NoBody) => request<T>(path, { ...options, method: "GET" }),
+  delete: <T>(path: string, options?: NoBody) => request<T>(path, { ...options, method: "DELETE" }),
+  post: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+    request<T, B>(path, { ...options, method: "POST", body }),
+  put: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+    request<T, B>(path, { ...options, method: "PUT", body }),
+  patch: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+    request<T, B>(path, { ...options, method: "PATCH", body }),
 }

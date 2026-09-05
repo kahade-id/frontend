@@ -182,8 +182,13 @@ export const ROUTES = {
   supportTicket: (ticketId: string) =>
     ({ pathname: "/support/[ticketId]", params: { ticketId } }) as unknown as Href,
   /** Artikel bantuan per slug */
-  helpArticle: (slug: string) =>
+  helpCategory: (slug: string) =>
     ({ pathname: "/help/[slug]", params: { slug } }) as unknown as Href,
+  helpArticle: (article: string, category?: string, title?: string) =>
+    ({
+      pathname: "/help/[slug]",
+      params: { slug: category ?? article, article, ...(category ? {} : { q: title ?? article }) },
+    }) as unknown as Href,
   /** Profil publik user (GET /v1/users/{username}) */
   userProfile: (username: string) =>
     ({ pathname: "/user/[username]", params: { username } }) as unknown as Href,
@@ -198,8 +203,8 @@ export const ROUTES = {
   /** Favorite user (GET /v1/users/favorites) */
   favorites: "/favorites" as Href,
   /** Followers/following user */
-  followers: (username: string) =>
-    ({ pathname: "/followers/[username]", params: { username } }) as unknown as Href,
+  followers: (username: string, tab: "followers" | "following" = "followers") =>
+    ({ pathname: "/followers/[username]", params: { username, tab } }) as unknown as Href,
   /** Showcase milik sendiri (CRUD) */
   showcase: "/showcase" as Href,
   /** Questions milik sendiri (GET /v1/users/me/questions) */
@@ -228,5 +233,11 @@ export const ROUTES = {
  * Nama route (= nama file) di `app/(tabs)/`. Dipakai `Tabs.Screen name=…`
  * dan peta item tab bar; disatukan di sini agar rename file cukup satu tempat.
  */
-export const TAB_ROUTE_NAMES = ["home", "transactions", "wallet", "notifications", "settings"] as const
+export const TAB_ROUTE_NAMES = [
+  "home",
+  "transactions",
+  "wallet",
+  "notifications",
+  "settings",
+] as const
 export type TabRouteName = (typeof TAB_ROUTE_NAMES)[number]

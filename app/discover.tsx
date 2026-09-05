@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Discover (GET /v1/users/discover).
  * List UserDiscoverResultItem + FollowButton toggle (follow/unfollow).
@@ -78,10 +79,12 @@ export default function DiscoverScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Compass} title="Memuat pengguna…" />
+          <LoadingScreen message="Memuat pengguna…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 ? (

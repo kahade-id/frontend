@@ -1,3 +1,4 @@
+import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `support` (4 endpoint). Tiket bantuan + balasan.
  */
@@ -25,7 +26,9 @@ export type SupportTicket = {
 }
 
 export function listSupportTickets() {
-  return http.get<SupportTicket[]>("/v1/support/tickets", { auth: "required", retry: 1 })
+  return http
+    .get<SupportTicket[]>("/v1/support/tickets", { auth: "required", retry: 1 })
+    .then((raw) => readList<SupportTicket>(raw, ["tickets"]))
 }
 
 export function getSupportTicket(ticketId: string) {

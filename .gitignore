@@ -19,3 +19,12 @@ node_modules
 expo-env.d.ts
 .expo/devices.json
 # @end expo-cli
+# Local config, generated builds and test artifacts
+.env
+.env.*
+!.env.example
+.expo/
+dist/
+coverage/
+playwright-report/
+test-results/

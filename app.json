@@ -14,7 +14,9 @@
         "NSCameraUsageDescription": "Kahade memakai kamera untuk memotret dokumen verifikasi identitas (KTP, selfie), bukti pengiriman, memindai kode QR, dan panggilan video saat sengketa.",
         "NSMicrophoneUsageDescription": "Kahade memakai mikrofon untuk panggilan video saat penyelesaian sengketa.",
         "NSPhotoLibraryUsageDescription": "Kahade mengakses galeri untuk memilih foto dokumen verifikasi dan bukti pengiriman.",
-        "UIBackgroundModes": ["remote-notification"]
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       }
     },
     "android": {
@@ -34,11 +36,6 @@
     "web": {
       "bundler": "metro",
       "output": "static"
-    },
-    "updates": {
-      "runtimeVersion": {
-        "policy": "appVersion"
-      }
     },
     "plugins": [
       "expo-router",

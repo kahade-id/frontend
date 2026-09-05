@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Keamanan: perangkat aktif (sessions), log keamanan, log aktivitas.
  *
@@ -62,7 +63,11 @@ function emptyList<T>(): PagedList<T> {
 }
 
 /** Halaman < PAGE_SIZE berarti sudah habis (API list tanpa meta). */
-function appendPage<T extends { id: string }>(prev: PagedList<T>, page: number, data: T[]): PagedList<T> {
+function appendPage<T extends { id: string }>(
+  prev: PagedList<T>,
+  page: number,
+  data: T[],
+): PagedList<T> {
   const seen = new Set(page === 1 ? [] : prev.items.map((i) => i.id))
   const fresh = data.filter((i) => !seen.has(i.id))
   return {
@@ -213,7 +218,9 @@ export default function SecurityScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           <SegmentedControl items={TABS} value={tab} onChange={(v) => setTab(v as TabKey)} />
@@ -221,7 +228,7 @@ export default function SecurityScreen() {
           {error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
           ) : loading ? (
-            <EmptyState icon={ShieldWarning} title="Memuat data keamanan…" />
+            <LoadingScreen message="Memuat data keamanan…" />
           ) : tab === "devices" ? (
             <>
               <SectionHeader title="Perangkat aktif" />
@@ -232,7 +239,9 @@ export default function SecurityScreen() {
                   <DeviceSessionListItem
                     key={s.id}
                     deviceName={s.deviceName}
-                    client={s.platform ? `${s.platform}${s.browser ? ` · ${s.browser}` : ""}` : undefined}
+                    client={
+                      s.platform ? `${s.platform}${s.browser ? ` · ${s.browser}` : ""}` : undefined
+                    }
                     location={s.location}
                     ip={s.ip}
                     lastActiveAt={s.lastActiveAt ? formatDateTime(s.lastActiveAt) : undefined}
@@ -252,7 +261,11 @@ export default function SecurityScreen() {
                 onLoadMore={() => void loadSessions(sessions.page + 1).catch(() => undefined)}
                 hideEnd
               />
-              <Button variant="ghost" onPress={() => setConfirmOthers(true)} disabled={otherSessions === 0}>
+              <Button
+                variant="ghost"
+                onPress={() => setConfirmOthers(true)}
+                disabled={otherSessions === 0}
+              >
                 Keluar dari perangkat lain
               </Button>
             </>

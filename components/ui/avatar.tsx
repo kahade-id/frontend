@@ -19,7 +19,7 @@
  *     border-background 2px agar tiap lingkaran terpisah tanpa shadow.
  */
 import { SealCheck, User } from "phosphor-react-native"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Image, View, type ImageSourcePropType, type ViewProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
@@ -69,6 +69,8 @@ export function Avatar({
 }: AvatarProps) {
   const [failed, setFailed] = useState(false)
   const src = typeof source === "string" ? { uri: source } : source
+  const sourceKey = typeof src === "number" ? src : JSON.stringify(src)
+  useEffect(() => setFailed(false), [sourceKey])
   const showImage = !!src && !failed
   const label = name ? toInitials(name) : ""
 
@@ -127,7 +129,10 @@ export function AvatarGroup({ items, size = "sm", max = 3, className, ...rest }:
   return (
     <View className={cn("flex-row items-center", className)} {...rest}>
       {shown.map((it, i) => (
-        <View key={i} className={cn("rounded-full border-[2px] border-background", i > 0 && "-ml-2")}>
+        <View
+          key={i}
+          className={cn("rounded-full border-[2px] border-background", i > 0 && "-ml-2")}
+        >
           <Avatar source={it.source} name={it.name} size={size} />
         </View>
       ))}

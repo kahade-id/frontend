@@ -20,6 +20,7 @@
 export type ApiErrorCode =
   | "NETWORK" // offline / DNS / TLS — request tidak pernah sampai
   | "TIMEOUT" // melewati API_TIMEOUT_MS
+  | "ABORTED" // dibatalkan pemanggil / sesi berubah; bukan error jaringan
   | "BAD_REQUEST" // 400 non-validasi
   | "VALIDATION" // 400 dengan message[] dari class-validator
   | "UNAUTHORIZED" // 401 — sesi habis dan refresh gagal
@@ -91,14 +92,17 @@ export function isApiError(err: unknown): err is ApiError {
 type NestErrorBody = {
   statusCode?: number
   message?: string | string[]
-  error?: string
+  error?: unknown
+  errors?: unknown
   code?: string
   errorCode?: string
   error_code?: string
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
 }
 
 export function parseErrorBody(body: unknown): {
@@ -109,14 +113,17 @@ export function parseErrorBody(body: unknown): {
   const rec = asRecord(body) as NestErrorBody | null
   if (!rec) {
     return {
-      message: typeof body === "string" && body.trim() ? body.trim() : undefined,
+      message:
+        typeof body === "string" && body.trim() && !/<[a-z!/]/i.test(body)
+          ? body.trim().slice(0, 500)
+          : undefined,
       backendCode: undefined,
       validationMessages: undefined,
     }
   }
 
   // Beberapa backend membungkus error di `{ error: { code, message } }`
-  const nested = asRecord(rec.error) as NestErrorBody | null
+  const nested = (asRecord(rec.errors) ?? asRecord(rec.error)) as NestErrorBody | null
   const src: NestErrorBody = nested ?? rec
 
   const rawMessage = src.message ?? rec.message
@@ -131,9 +138,14 @@ export function parseErrorBody(body: unknown): {
         ? rec.error
         : undefined
 
-  const backendCode = [src.code, src.errorCode, src.error_code, rec.code, rec.errorCode, rec.error_code].find(
-    (c): c is string => typeof c === "string" && c.length > 0,
-  )
+  const backendCode = [
+    src.code,
+    src.errorCode,
+    src.error_code,
+    rec.code,
+    rec.errorCode,
+    rec.error_code,
+  ].find((c): c is string => typeof c === "string" && c.length > 0)
 
   return { message, backendCode, validationMessages }
 }
@@ -158,6 +170,7 @@ export function codeFromStatus(status: number, hasValidationMessages: boolean): 
 export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   NETWORK: "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
   TIMEOUT: "Server terlalu lama merespons. Coba lagi sebentar.",
+  ABORTED: "Permintaan dibatalkan.",
   BAD_REQUEST: "Permintaan tidak valid.",
   VALIDATION: "Ada data yang belum benar. Periksa kembali isian Anda.",
   UNAUTHORIZED: "Sesi Anda telah berakhir. Silakan masuk kembali.",
@@ -176,7 +189,12 @@ export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
 export function userMessage(err: unknown): string {
   if (isApiError(err)) {
     // Untuk error jaringan/server, wording backend (bila ada) biasanya teknis — pakai default.
-    if (err.code === "NETWORK" || err.code === "TIMEOUT" || err.code === "SERVER" || err.code === "PARSE") {
+    if (
+      err.code === "NETWORK" ||
+      err.code === "TIMEOUT" ||
+      err.code === "SERVER" ||
+      err.code === "PARSE"
+    ) {
       return DEFAULT_ERROR_MESSAGES[err.code]
     }
     return err.message || DEFAULT_ERROR_MESSAGES[err.code]

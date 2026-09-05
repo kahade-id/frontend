@@ -31,20 +31,30 @@ import { Stack, useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
 import { useFonts } from "expo-font"
-import Constants from "expo-constants"
+import { installedAppVersion } from "@/lib/runtime-info"
 
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
+import { ContentContainer } from "@/components/ui/content-container"
+import { ListLoading } from "@/components/ui/paginated-list"
+import { Button } from "@/components/ui/button"
+import { ErrorState } from "@/components/ui/error-state"
+import { useAuthSession } from "@/lib/use-auth-session"
+import { AUTHENTICATED_SCREENS } from "@/lib/protected-routes"
+import { compareVersions, safeHttpsUrl } from "@/lib/version"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { Dialog } from "@/components/ui/modal"
 import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
-import { api, onSessionExpired } from "@/lib/api"
+import { api } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
+
+export { AppErrorBoundary as ErrorBoundary } from "@/components/app-error-boundary"
 
 // Module scope: dieksekusi sekali saat bundle dievaluasi, sebelum render apa pun.
 // `.catch` karena di web / fast-refresh promise ini bisa reject jika splash
@@ -104,9 +114,7 @@ export default function RootLayout() {
       ) : null}
 
       {/* Overlay JS: pulse loop selama loading, fade-out saat ready, lalu unmount. */}
-      {!splashDone ? (
-        <AnimatedSplash ready={ready} onFinish={handleSplashFinish} />
-      ) : null}
+      {!splashDone ? <AnimatedSplash ready={ready} onFinish={handleSplashFinish} /> : null}
     </GestureHandlerRootView>
   )
 }
@@ -115,12 +123,15 @@ function AppShell() {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
   const router = useRouter()
+  const session = useAuthSession()
+  const reducedMotion = useReducedMotion()
+  const [skipRestoreError, setSkipRestoreError] = useState(false)
 
   // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
   // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
   // Client tidak boleh import expo-router (arah dependency UI → lib), jadi
   // redirect ke login dipasang di sini, di dalam navigator.
-  useEffect(() => onSessionExpired(() => router.replace(ROUTES.login)), [router])
+  // Stack.Protected reacts to token invalidation; never navigate before the root Stack mounts.
 
   // Handler foreground + Android channel notification dipasang sekali di
   // boot (idempoten) — channel wajib ada sebelum notifikasi tampil di
@@ -136,48 +147,55 @@ function AppShell() {
   // Notifikasi. Badge unread disegarkan karena server biasanya menandai
   // notifikasi yang ditap sebagai terbaca. Gate sesi: bila belum login,
   // app/index.tsx & onSessionExpired tetap mengarahkan ke login.
-  useEffect(
-    () =>
-      subscribeNotificationOpened((data) => {
-        const target = routeForPushData(data) ?? ROUTES.notifications
-        router.push(target)
-        void refreshUnreadCount()
-      }),
-    [router],
-  )
+  useEffect(() => {
+    if (session.restoring || session.error) return
+    return subscribeNotificationOpened((data) => {
+      const target = routeForPushData(data) ?? ROUTES.notifications
+      router.push(session.token ? target : ROUTES.login)
+      if (session.token) void refreshUnreadCount()
+    })
+  }, [router, session.restoring, session.error, session.token])
 
   // OTA gate: cek versi minimum dari GET /v1/public/app-version (hanya
   // force-update bila versi lokal < minVersion). Tidak boleh melempar error:
   // jaringan gagal → lanjut pakai versi lokal (update tidak wajib synchronous).
+  const [versionCheck, setVersionCheck] = useState(0)
   const [forceUpdate, setForceUpdate] = useState<{
     minVersion: string
-    latestVersion: string
+    latestVersion?: string
     message?: string | null
     storeUrl?: { ios?: string; android?: string } | null
   } | null>(null)
 
   useEffect(() => {
-    const appVersion = Constants.expoConfig?.version ?? "0.1.0"
-    const parse = (v: string) =>
-      v
-        .split(".")
-        .map((x) => Number.parseInt(x, 10) || 0)
-        .reduce((acc, n) => acc * 1000 + n, 0)
+    if (Platform.OS === "web") return
+    const appVersion = installedAppVersion()
+    let alive = true
     api.public
       .getAppVersion()
       .then((v) => {
-        if (v && parse(appVersion) < parse(v.minVersion)) setForceUpdate(v)
+        if (alive && v.minVersion && compareVersions(appVersion, v.minVersion) === -1) {
+          setForceUpdate({ ...v, minVersion: v.minVersion, latestVersion: v.latestVersion })
+        } else if (
+          alive &&
+          compareVersions(appVersion, v.minVersion) != null &&
+          compareVersions(appVersion, v.minVersion)! >= 0
+        )
+          setForceUpdate(null)
       })
       .catch(() => {
-        // OTA check gagal = jangan blokir aplikasi; versi minimum tidak diketahui.
+        // A failed minimum-version check never blocks offline access.
       })
-  }, [])
+    return () => {
+      alive = false
+    }
+  }, [versionCheck])
 
-  const storeUrl = forceUpdate?.storeUrl
-    ? forceUpdate.storeUrl[Platform.OS === "ios" ? "ios" : "android"] ??
-      forceUpdate.storeUrl.ios ??
-      forceUpdate.storeUrl.android
-    : undefined
+  const storeUrl = safeHttpsUrl(
+    forceUpdate?.storeUrl
+      ? forceUpdate.storeUrl[Platform.OS === "ios" ? "ios" : "android"]
+      : undefined,
+  )
 
   return (
     // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah
@@ -200,21 +218,44 @@ function AppShell() {
           di luar Scene (ToastProvider) agar tetap terbaca sebagai alert.
         */}
         <View className="flex-1 items-center">
-          <View className="w-full flex-1 md:max-w-content md:border-x md:border-border">
+          <ContentContainer bordered>
             <PortalScene>
-              <Stack
-                screenOptions={{
-                  headerShown: false,
-                  // Stack native tidak bisa di-style via className; ambil dari tokens
-                  // agar transisi header/scene tetap flat & konsisten.
-                  contentStyle: { backgroundColor: palette.background },
-                  animation: "slide_from_right",
-                  animationDuration: tokens.motion.duration.base,
-                }}
-              />
+              {session.restoring ? (
+                <View className="px-6">
+                  <ListLoading />
+                </View>
+              ) : session.error && !skipRestoreError ? (
+                <View className="flex-1 px-6">
+                  <ErrorState
+                    title="Sesi belum dapat dipulihkan"
+                    description={session.error}
+                    onRetry={session.retry}
+                  />
+                  <Button variant="ghost" onPress={() => setSkipRestoreError(true)}>
+                    Buka halaman masuk
+                  </Button>
+                </View>
+              ) : (
+                <Stack
+                  screenOptions={{
+                    headerShown: false,
+                    // Stack native tidak bisa di-style via className; ambil dari tokens
+                    // agar transisi header/scene tetap flat & konsisten.
+                    contentStyle: { backgroundColor: palette.background },
+                    animation: reducedMotion ? "none" : "slide_from_right",
+                    animationDuration: tokens.motion.duration.base,
+                  }}
+                >
+                  <Stack.Protected guard={Boolean(session.token)}>
+                    {AUTHENTICATED_SCREENS.map((name) => (
+                      <Stack.Screen key={name} name={name} />
+                    ))}
+                  </Stack.Protected>
+                </Stack>
+              )}
             </PortalScene>
             <PortalHost />
-          </View>
+          </ContentContainer>
         </View>
       </ToastProvider>
 
@@ -226,14 +267,35 @@ function AppShell() {
       */}
       <Dialog
         title="Perbarui aplikasi"
-        description={
-          `Versi aplikasi Anda tidak lagi didukung. Silakan perbarui ke versi ${forceUpdate?.latestVersion ?? "terbaru"} untuk terus menggunakan Kahade.${forceUpdate?.message ? `\n\n${forceUpdate.message}` : ""}`
-        }
+        description={`Versi aplikasi Anda tidak lagi didukung. Silakan perbarui ke versi minimum ${forceUpdate?.minVersion ?? "yang didukung"} untuk terus menggunakan Kahade.${forceUpdate?.message ? `\n\n${forceUpdate.message}` : ""}`}
         visible={!!forceUpdate}
         hideCancel
-        confirmLabel="Buka Toko Aplikasi"
+        confirmLabel={storeUrl ? "Buka Toko Aplikasi" : "Periksa kembali"}
         onConfirm={() => {
-          if (storeUrl) void Linking.openURL(storeUrl).catch(() => undefined)
+          if (storeUrl)
+            void Linking.openURL(storeUrl).catch(() =>
+              setForceUpdate((current) =>
+                current
+                  ? {
+                      ...current,
+                      message:
+                        "Toko aplikasi tidak dapat dibuka. Periksa koneksi, lalu coba kembali.",
+                    }
+                  : null,
+              ),
+            )
+          else {
+            setVersionCheck((value) => value + 1)
+            setForceUpdate((current) =>
+              current
+                ? {
+                    ...current,
+                    message:
+                      "Memeriksa kembali tautan pembaruan resmi. Pembaruan aplikasi tetap diperlukan.",
+                  }
+                : null,
+            )
+          }
         }}
         onRequestClose={() => undefined}
         destructive={false}

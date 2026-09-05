@@ -65,7 +65,9 @@ export default function TwoFactorScreen() {
   const toast = useToast()
   const { copiedKey, copy } = useCopy()
 
-  const [status, setStatus] = useState<{ enabled: boolean; backupCodesRemaining?: number } | null>(null)
+  const [status, setStatus] = useState<{ enabled: boolean; backupCodesRemaining?: number } | null>(
+    null,
+  )
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -190,14 +192,20 @@ export default function TwoFactorScreen() {
   }, [toast.show])
 
   const canDisable =
-    disablePassword.length > 0 && disableCode.length === TOTP_LENGTH && disableEmailCode.length === TOTP_LENGTH
+    disablePassword.length > 0 &&
+    disableCode.length === TOTP_LENGTH &&
+    disableEmailCode.length === TOTP_LENGTH
 
   const handleDisable = useCallback(async () => {
     if (!canDisable) return
     setDisabling(true)
     setDisableError(undefined)
     try {
-      await api.auth.disable2fa({ password: disablePassword, code: disableCode, emailOtpCode: disableEmailCode })
+      await api.auth.disable2fa({
+        password: disablePassword,
+        code: disableCode,
+        emailOtpCode: disableEmailCode,
+      })
       setCodes([])
       resetEnableFlow()
       toast.show({ title: "Verifikasi dua langkah dimatikan", tone: "success" })
@@ -207,7 +215,15 @@ export default function TwoFactorScreen() {
     } finally {
       setDisabling(false)
     }
-  }, [canDisable, disablePassword, disableCode, disableEmailCode, fetchStatus, resetEnableFlow, toast.show])
+  }, [
+    canDisable,
+    disablePassword,
+    disableCode,
+    disableEmailCode,
+    fetchStatus,
+    resetEnableFlow,
+    toast.show,
+  ])
 
   const openRegenerate = useCallback(() => {
     setRegenPassword("")
@@ -245,7 +261,9 @@ export default function TwoFactorScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loadError ? (
@@ -253,7 +271,12 @@ export default function TwoFactorScreen() {
               tone="danger"
               title={loadError}
               action={
-                <Button variant="ghost" size="sm" fullWidth={false} onPress={() => void fetchStatus()}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  fullWidth={false}
+                  onPress={() => void fetchStatus()}
+                >
                   Coba lagi
                 </Button>
               }
@@ -288,7 +311,12 @@ export default function TwoFactorScreen() {
                 onSubmitEditing={() => void handleSetup()}
               />
               <View className="flex-row gap-3">
-                <Button variant="ghost" fullWidth={false} onPress={resetEnableFlow} disabled={settingUp}>
+                <Button
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={resetEnableFlow}
+                  disabled={settingUp}
+                >
                   Batal
                 </Button>
                 <Button
@@ -308,10 +336,13 @@ export default function TwoFactorScreen() {
             <>
               <SectionHeader title="Langkah 2 dari 3 — Pindai kode QR" />
               <Text variant="body" tone="secondary">
-                Buka Google Authenticator, Authy, atau aplikasi sejenis, lalu pindai kode di bawah. Jika tidak
-                bisa memindai, masukkan kunci secara manual.
+                Buka Google Authenticator, Authy, atau aplikasi sejenis, lalu pindai kode di bawah.
+                Jika tidak bisa memindai, masukkan kunci secara manual.
               </Text>
-              <QRCodeDisplay value={setup.otpauthUrl} accessibilityLabel="Kode QR untuk aplikasi autentikator" />
+              <QRCodeDisplay
+                value={setup.otpauthUrl}
+                accessibilityLabel="Kode QR untuk aplikasi autentikator"
+              />
               <CopyableField
                 label="Kunci manual"
                 value={setup.secret}
@@ -321,7 +352,8 @@ export default function TwoFactorScreen() {
                 onCopy={(v) => void copy(v, "secret")}
               />
               <Text variant="body" tone="secondary">
-                Setelah itu, masukkan kode {TOTP_LENGTH} digit yang ditampilkan aplikasi autentikator.
+                Setelah itu, masukkan kode {TOTP_LENGTH} digit yang ditampilkan aplikasi
+                autentikator.
               </Text>
               <OtpInput
                 length={TOTP_LENGTH}
@@ -329,7 +361,12 @@ export default function TwoFactorScreen() {
                 errorText={enableError}
                 disabled={enabling}
               />
-              <Button variant="ghost" fullWidth={false} onPress={resetEnableFlow} disabled={enabling}>
+              <Button
+                variant="ghost"
+                fullWidth={false}
+                onPress={resetEnableFlow}
+                disabled={enabling}
+              >
                 Batal
               </Button>
             </>
@@ -339,7 +376,11 @@ export default function TwoFactorScreen() {
           {codes.length > 0 ? (
             <>
               <SectionHeader
-                title={step === "codes" ? "Langkah 3 dari 3 — Simpan kode cadangan" : "Kode cadangan baru"}
+                title={
+                  step === "codes"
+                    ? "Langkah 3 dari 3 — Simpan kode cadangan"
+                    : "Kode cadangan baru"
+                }
               />
               <BackupCodesDisplay
                 codes={codes}
@@ -358,8 +399,8 @@ export default function TwoFactorScreen() {
             <>
               <SectionHeader title="Matikan verifikasi dua langkah" />
               <Alert tone="warning" title="Akun Anda akan kurang aman">
-                Untuk keamanan, konfirmasi dengan password, kode autentikator, dan OTP yang dikirim ke email
-                Anda.
+                Untuk keamanan, konfirmasi dengan password, kode autentikator, dan OTP yang dikirim
+                ke email Anda.
               </Alert>
               <PasswordField
                 label="Password akun"
@@ -372,7 +413,12 @@ export default function TwoFactorScreen() {
                 <Text variant="label" tone="secondary">
                   Kode aplikasi autentikator
                 </Text>
-                <OtpInput length={TOTP_LENGTH} value={disableCode} onChange={setDisableCode} disabled={disabling} />
+                <OtpInput
+                  length={TOTP_LENGTH}
+                  value={disableCode}
+                  onChange={setDisableCode}
+                  disabled={disabling}
+                />
               </View>
               <View className="gap-2">
                 <View className="flex-row items-center justify-between">
@@ -395,13 +441,20 @@ export default function TwoFactorScreen() {
                   onChange={setDisableEmailCode}
                   disabled={disabling}
                   helperText={
-                    emailOtpSent ? "Periksa kotak masuk email Anda." : "Tekan Kirim OTP untuk menerima kode."
+                    emailOtpSent
+                      ? "Periksa kotak masuk email Anda."
+                      : "Tekan Kirim OTP untuk menerima kode."
                   }
                   errorText={disableError}
                 />
               </View>
               <View className="flex-row gap-3">
-                <Button variant="ghost" fullWidth={false} onPress={resetEnableFlow} disabled={disabling}>
+                <Button
+                  variant="ghost"
+                  fullWidth={false}
+                  onPress={resetEnableFlow}
+                  disabled={disabling}
+                >
                   Batal
                 </Button>
                 <Button
@@ -421,8 +474,8 @@ export default function TwoFactorScreen() {
             <>
               <SectionHeader title="Kode cadangan" />
               <Text variant="body" tone="secondary">
-                Kode cadangan hanya ditampilkan sekali saat dibuat. Jika hilang, buat set baru — kode lama
-                otomatis tidak berlaku.
+                Kode cadangan hanya ditampilkan sekali saat dibuat. Jika hilang, buat set baru —
+                kode lama otomatis tidak berlaku.
               </Text>
               <Button variant="secondary" onPress={openRegenerate}>
                 Buat Kode Cadangan Baru

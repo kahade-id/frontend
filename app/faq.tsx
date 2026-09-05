@@ -1,163 +1,109 @@
-/**
- * Screen — FAQ / Pusat Bantuan (GET /v1/help-center/categories, /search,
- * /items/{id}/view). SearchField debounce ke endpoint search.
- */
-import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
+import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
+import { useState } from "react"
+import { FlatList, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Question, MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
-
 import { api } from "@/lib/api"
-import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-
+import { useApiQuery } from "@/lib/use-api-query"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { SearchField } from "@/components/ui/search-field"
-import { SectionHeader } from "@/components/ui/section"
-import { Text } from "@/components/ui/text"
-import { useToast } from "@/components/ui/toast"
 
 export default function FaqScreen() {
   const insets = useSafeAreaInsets()
-  const toast = useToast()
-
-  const [categories, setCategories] = useState<HelpCategory[]>([])
-  const [query, setQuery] = useState("")
-  const [results, setResults] = useState<HelpArticle[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-  const [searching, setSearching] = useState(false)
-
-  const fetchCategories = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.helpCenter.listHelpCategories()
-      setCategories(res ?? [])
-    } catch {
-      setError("Gagal memuat daftar bantuan.")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void fetchCategories()
-  }, [fetchCategories])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchCategories()
-    if (query.trim()) {
-      try {
-        const res = await api.helpCenter.searchHelpArticles(query.trim())
-        setResults(Array.isArray(res) ? res : res.data ?? [])
-      } catch {
-        setResults([])
-      }
-    }
-    setRefreshing(false)
-  }, [fetchCategories, query])
-
-  const handleSearch = useCallback(
-    async (q: string) => {
-      setQuery(q)
-      if (!q.trim()) {
-        setResults([])
-        return
-      }
-      setSearching(true)
-      try {
-        const res = await api.helpCenter.searchHelpArticles(q.trim())
-        setResults(Array.isArray(res) ? res : res.data ?? [])
-      } catch {
-        setResults([])
-        toast.show({ title: "Pencarian gagal", tone: "danger" })
-      } finally {
-        setSearching(false)
-      }
-    },
-    [toast.show],
+  const [input, setInput] = useState("")
+  const keyword = useDebouncedValue(input.trim())
+  const categories = useApiQuery("help-categories", (signal) =>
+    api.helpCenter.listHelpCategories(signal),
   )
-
-  const openArticle = useCallback((article: HelpArticle) => {
-    router.push(ROUTES.helpArticle(article.slug ?? article.id))
-    void api.helpCenter.trackHelpArticleView(article.id).catch(() => undefined)
-  }, [])
-
+  const search = useApiQuery(
+    `help-search:${keyword}`,
+    (signal) => api.helpCenter.searchHelpArticles(keyword, signal),
+    Boolean(keyword) && input.trim() === keyword,
+  )
+  const searching = Boolean(input.trim())
+  const state = searching ? search : categories
+  const rows: Array<{ id: string } & ({ article: HelpArticle } | { category: HelpCategory })> =
+    searching
+      ? (search.data ?? []).map((article) => ({ id: article.id, article }))
+      : (categories.data ?? []).map((category) => ({ id: category.slug, category }))
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pusat Bantuan" />
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
-      >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <SearchField
-            value={query}
-            onChangeText={(q) => setQuery(q)}
-            onSearch={(q) => void handleSearch(q)}
-            placeholder="Cari artikel bantuan"
-            debounceMs={300}
-          />
-
-          {query.trim() ? (
-            <>
-              <SectionHeader title="Hasil pencarian" inset />
-              {searching ? (
-                <Text variant="body" tone="secondary">Mencari…</Text>
-              ) : results.length === 0 ? (
-                <EmptyState icon={MagnifyingGlass} title="Tidak ada hasil" description="Coba kata kunci lain." />
-              ) : (
-                results.map((a, i) => (
-                  <HelpArticleListItem
-                    key={a.id}
-                    title={a.title}
-                    snippet={a.content}
-                    highlight={query.trim()}
-                    divider={i < results.length - 1}
-                    onPress={() => openArticle(a)}
-                  />
-                ))
-              )}
-            </>
+      <View className="px-6 pb-4">
+        <SearchField
+          autoFocus={false}
+          value={input}
+          onChangeText={setInput}
+          placeholder="Cari bantuan"
+        />
+      </View>
+      <FlatList
+        data={rows}
+        keyExtractor={(row) => row.id}
+        contentContainerStyle={{
+          paddingHorizontal: tokens.layout.screenPaddingX,
+          paddingBottom: insets.bottom + tokens.space[8],
+          flexGrow: 1,
+        }}
+        ItemSeparatorComponent={() => <View className="h-3" />}
+        renderItem={({ item }) =>
+          "article" in item ? (
+            <HelpArticleListItem
+              padded={false}
+              title={item.article.title}
+              highlight={keyword}
+              onPress={() =>
+                router.push(
+                  ROUTES.helpArticle(
+                    item.article.slug ?? item.article.id,
+                    item.article.category,
+                    item.article.title,
+                  ),
+                )
+              }
+            />
           ) : (
-            <>
-              <SectionHeader title="Kategori" inset />
-              {loading ? (
-                <Text variant="body" tone="secondary">Memuat kategori…</Text>
-              ) : error ? (
-                <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchCategories()} />
-              ) : categories.length === 0 ? (
-                <EmptyState icon={Question} title="Belum ada artikel" />
-              ) : (
-                <View className="gap-2">
-                  {categories.map((c) => (
-                    <HelpCategoryCard
-                      key={c.slug}
-                      name={c.name}
-                      description={c.description}
-                      articleCount={c.articleCount}
-                      onPress={() => openArticle({ id: c.slug, slug: c.slug, title: c.name })}
-                    />
-                  ))}
-                </View>
-              )}
-            </>
-          )}
-        </View>
-      </PullToRefresh>
+            <HelpCategoryCard
+              name={item.category.name}
+              description={item.category.description}
+              articleCount={item.category.articleCount}
+              onPress={() => router.push(ROUTES.helpCategory(item.category.slug))}
+            />
+          )
+        }
+        ListEmptyComponent={
+          state.loading || (searching && keyword !== input.trim()) ? (
+            <ListLoading />
+          ) : state.error ? (
+            <ErrorState description={state.error} onRetry={() => void state.reload()} />
+          ) : (
+            <EmptyState
+              icon={searching ? MagnifyingGlass : Question}
+              title={searching ? "Tidak ada hasil" : "Kategori bantuan belum tersedia"}
+              description={
+                searching
+                  ? "Coba kata kunci lain."
+                  : "Artikel akan ditampilkan setelah dipublikasikan oleh Kahade."
+              }
+            />
+          )
+        }
+        refreshing={state.refreshing}
+        onRefresh={() => void state.refresh()}
+        keyboardShouldPersistTaps="handled"
+        initialNumToRender={8}
+        windowSize={7}
+      />
     </Screen>
   )
 }

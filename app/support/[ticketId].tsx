@@ -1,3 +1,5 @@
+import { Text } from "@/components/ui/text"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Detail Tiket Dukungan (GET /v1/support/tickets/{id} + reply).
  */
@@ -78,16 +80,18 @@ export default function SupportTicketDetailScreen() {
   }, [ticketId, reply, toast.show, fetchTicket])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Tiket" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={ChatCircleText} title="Memuat tiket…" />
+          <LoadingScreen message="Memuat tiket…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchTicket()} />
         ) : ticket ? (
@@ -101,17 +105,20 @@ export default function SupportTicketDetailScreen() {
             />
 
             <SectionHeader title="Percakapan" />
-            {(messages.length ? messages : [{ id: "empty", text: "Belum ada pesan.", fromUser: false, createdAt: new Date().toISOString() }]).map(
-              (m, i) => (
-                <ChatMessageBubble
-                  key={m.id}
-                  direction={m.fromUser ? "outgoing" : "incoming"}
-                  text={m.text}
-                  time={formatDateTime(m.createdAt)}
-                  grouped={messages[i - 1]?.fromUser === m.fromUser}
-                />
-              ),
-            )}
+            {!messages.length ? (
+              <Text variant="body" tone="secondary">
+                Belum ada pesan.
+              </Text>
+            ) : null}
+            {messages.map((m, i) => (
+              <ChatMessageBubble
+                key={m.id}
+                direction={m.fromUser ? "outgoing" : "incoming"}
+                text={m.text}
+                time={formatDateTime(m.createdAt)}
+                grouped={messages[i - 1]?.fromUser === m.fromUser}
+              />
+            ))}
 
             <SectionHeader title="Balas" />
             <TextArea

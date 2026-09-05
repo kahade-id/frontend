@@ -38,9 +38,18 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { formatCountdown } from "@/lib/format"
 
-export type DisputeCallOutcome = "COMPLETED" | "REJECTED" | "MISSED" | "CANCELLED" | "ONGOING"
+export type DisputeCallOutcome =
+  | "REQUESTED"
+  | "ACCEPTED"
+  | "COMPLETED"
+  | "REJECTED"
+  | "MISSED"
+  | "CANCELLED"
+  | "ONGOING"
 
 export const DISPUTE_CALL_LABELS: Record<DisputeCallOutcome, string> = {
+  REQUESTED: "Menunggu tanggapan panggilan",
+  ACCEPTED: "Panggilan diterima, menunggu koneksi",
   COMPLETED: "Panggilan selesai",
   REJECTED: "Ditolak",
   MISSED: "Tidak dijawab",
@@ -49,6 +58,8 @@ export const DISPUTE_CALL_LABELS: Record<DisputeCallOutcome, string> = {
 }
 
 const OUTCOME_ICON: Record<DisputeCallOutcome, IconComponent> = {
+  REQUESTED: VideoCamera,
+  ACCEPTED: VideoCamera,
   COMPLETED: VideoCamera,
   REJECTED: PhoneX,
   MISSED: PhoneX,
@@ -72,7 +83,10 @@ const DEFAULT_LABELS: DisputeCallLogItemLabels = {
   join: "Gabung",
 }
 
-export type DisputeCallLogItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
+export type DisputeCallLogItemProps = Omit<
+  ListItemProps,
+  "title" | "subtitle" | "leading" | "trailing" | "chevron"
+> & {
   outcome: DisputeCallOutcome | string
   /** Apakah user yang meminta panggilan */
   requestedByMe: boolean
@@ -86,7 +100,9 @@ export type DisputeCallLogItemProps = Omit<ListItemProps, "title" | "subtitle" |
   withMediator?: boolean
   /** Hanya berlaku bila ONGOING — membuka layar panggilan */
   onJoin?: () => void
-  labels?: Partial<Omit<DisputeCallLogItemLabels, "outcome">> & { outcome?: Partial<DisputeCallLogItemLabels["outcome"]> }
+  labels?: Partial<Omit<DisputeCallLogItemLabels, "outcome">> & {
+    outcome?: Partial<DisputeCallLogItemLabels["outcome"]>
+  }
 }
 
 export function DisputeCallLogItem({
@@ -102,17 +118,23 @@ export function DisputeCallLogItem({
   inset = true,
   ...rest
 }: DisputeCallLogItemProps) {
-  const t: DisputeCallLogItemLabels = { ...DEFAULT_LABELS, ...labels, outcome: { ...DEFAULT_LABELS.outcome, ...labels?.outcome } }
+  const t: DisputeCallLogItemLabels = {
+    ...DEFAULT_LABELS,
+    ...labels,
+    outcome: { ...DEFAULT_LABELS.outcome, ...labels?.outcome },
+  }
   const known = outcome in DISPUTE_CALL_LABELS
   const oc = (known ? outcome : "COMPLETED") as DisputeCallOutcome
   const ongoing = oc === "ONGOING"
-  const completed = oc === "COMPLETED"
+  const completed = known && oc === "COMPLETED"
 
   const title = known ? t.outcome[oc] : outcome
   const requester = requestedByMe ? t.requestedByYou : t.requestedBy(counterpartName)
-  const subtitleText = [requester, timestamp, withMediator ? t.withMediator : undefined].filter(Boolean).join(" · ")
+  const subtitleText = [requester, timestamp, withMediator ? t.withMediator : undefined]
+    .filter(Boolean)
+    .join(" · ")
   const duration = completed && durationSeconds != null ? formatCountdown(durationSeconds) : "—"
-  const handlePress = ongoing ? onJoin ?? onPress : onPress
+  const handlePress = ongoing ? (onJoin ?? onPress) : onPress
 
   return (
     <ListItem
@@ -125,7 +147,12 @@ export function DisputeCallLogItem({
       leading={<IconBox icon={OUTCOME_ICON[oc]} size="md" variant="surface" active={ongoing} />}
       trailing={
         ongoing ? (
-          <StatusIndicator label={onJoin ? t.join : t.outcome.ONGOING} tone="success" pulse size="sm" />
+          <StatusIndicator
+            label={onJoin ? t.join : t.outcome.ONGOING}
+            tone="success"
+            pulse
+            size="sm"
+          />
         ) : (
           <View className="items-end">
             <Text variant="monoBody" tone={completed ? "primary" : "disabled"}>
@@ -137,7 +164,11 @@ export function DisputeCallLogItem({
       chevron={ongoing && !!onJoin}
       onPress={handlePress}
       inset={inset}
-      accessibilityLabel={summarize([title, subtitleText, completed ? `durasi ${duration}` : undefined])}
+      accessibilityLabel={summarize([
+        title,
+        subtitleText,
+        completed ? `durasi ${duration}` : undefined,
+      ])}
       {...rest}
     />
   )

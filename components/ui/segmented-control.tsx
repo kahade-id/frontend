@@ -75,7 +75,7 @@ export function SegmentedControl<V extends string = string>({
       accessibilityRole="radiogroup"
       hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
-        "h-10 w-full flex-row rounded-sm border border-border-control bg-surface p-[2px]",
+        "min-h-11 w-full flex-row rounded-sm border border-border-control bg-surface p-[2px]",
         disabled && "opacity-disabled",
         className,
       )}
@@ -96,17 +96,22 @@ export function SegmentedControl<V extends string = string>({
             hitSlop={{ top: SEGMENT_HIT_SLOP.top, bottom: SEGMENT_HIT_SLOP.bottom }}
             containerClassName={cn("flex-1 rounded-xs", focusRingInset)}
             className={cn(
-              "h-full flex-row items-center justify-center gap-2 rounded-xs px-3",
+              "min-h-10 flex-1 flex-row items-center justify-center gap-1 rounded-xs px-2 py-2",
               active ? "bg-primary" : "bg-transparent",
             )}
           >
             {item.icon ? (
-              <Icon icon={item.icon} size="xs" tone={active ? "inverse" : "default"} weight={active ? "fill" : "regular"} />
+              <Icon
+                icon={item.icon}
+                size="xs"
+                tone={active ? "inverse" : "default"}
+                weight={active ? "fill" : "regular"}
+              />
             ) : null}
             <Text
               variant="label"
               tone={active ? "inverse" : "secondary"}
-              numberOfLines={1}
+              className="flex-shrink text-center"
             >
               {item.label}
             </Text>

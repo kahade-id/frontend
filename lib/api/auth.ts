@@ -23,7 +23,8 @@
  *     user yang menekan "Keluar" harus benar-benar keluar.
  */
 import { http } from "@/lib/api/client"
-import { clearSession, getDeviceId, getDeviceInfo, setAccessToken, setRefreshToken } from "@/lib/api/session"
+import { asRecord as responseRecord, invalidResponse } from "@/lib/api/response"
+import { clearSession, getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
 import type {
   ChangePasswordDto,
   CorrectEmailDto,
@@ -114,13 +115,16 @@ export type CsrfToken = { csrfToken: string }
 
 type WithoutDevice<T> = Omit<T, "deviceId" | "deviceInfo">
 
-async function withDevice<T extends { deviceId?: string; deviceInfo?: string }>(dto: WithoutDevice<T>): Promise<T> {
+async function withDevice<T extends { deviceId?: string; deviceInfo?: string }>(
+  dto: WithoutDevice<T>,
+): Promise<T> {
   return { ...dto, deviceId: await getDeviceId(), deviceInfo: getDeviceInfo() } as T
 }
 
 async function persistTokens(result: Partial<AuthTokens>): Promise<void> {
-  if (result.accessToken) await setAccessToken(result.accessToken)
-  if (result.refreshToken) await setRefreshToken(result.refreshToken)
+  if (typeof result?.accessToken !== "string" || !result.accessToken.trim())
+    throw invalidResponse("auth/tokens")
+  await startSession({ accessToken: result.accessToken, refreshToken: result.refreshToken })
 }
 
 // ------------------------------------------------------------------
@@ -140,7 +144,9 @@ export function getCsrfToken() {
 // ------------------------------------------------------------------
 
 export function register(dto: RegisterDto) {
-  return http.post<MessageResult & { user?: AuthUser }, RegisterDto>("/v1/auth/register", dto, { auth: "none" })
+  return http.post<MessageResult & { user?: AuthUser }, RegisterDto>("/v1/auth/register", dto, {
+    auth: "none",
+  })
 }
 
 export function verifyEmail(dto: VerifyEmailDto) {
@@ -153,7 +159,9 @@ export function verifyEmailByLink(query: { email: string; token: string }) {
 }
 
 export function resendVerification(dto: ResendVerificationDto) {
-  return http.post<MessageResult, ResendVerificationDto>("/v1/auth/resend-verification", dto, { auth: "none" })
+  return http.post<MessageResult, ResendVerificationDto>("/v1/auth/resend-verification", dto, {
+    auth: "none",
+  })
 }
 
 export function correctEmail(dto: CorrectEmailDto) {
@@ -172,7 +180,9 @@ function isOtpMethod(value: unknown): value is OtpMethod {
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
 }
 
 /**
@@ -217,16 +227,26 @@ export function requestOtp(dto: RequestOtpDto) {
 
 export async function verifyOtp(dto: WithoutDevice<VerifyPhoneOtpDto>) {
   const body = await withDevice<VerifyPhoneOtpDto>(dto)
-  const result = await http.post<VerifyOtpResult, VerifyPhoneOtpDto>("/v1/auth/verify-otp", body, { auth: "none" })
-  if (!("isNewUser" in result && result.isNewUser)) await persistTokens(result)
+  const result = await http.post<VerifyOtpResult, VerifyPhoneOtpDto>("/v1/auth/verify-otp", body, {
+    auth: "none",
+  })
+  if (!responseRecord(result)) throw invalidResponse("verify-otp")
+  if ("isNewUser" in result && result.isNewUser) {
+    if (typeof result.tempToken !== "string" || !result.tempToken)
+      throw invalidResponse("verify-otp/tempToken")
+  } else await persistTokens(result)
   return result
 }
 
 export async function phoneRegister(dto: Omit<PhoneRegisterDto, "deviceId">) {
   const body: PhoneRegisterDto = { ...dto, deviceId: await getDeviceId() }
-  const result = await http.post<AuthTokens & { user?: AuthUser }, PhoneRegisterDto>("/v1/auth/phone-register", body, {
-    auth: "none",
-  })
+  const result = await http.post<AuthTokens & { user?: AuthUser }, PhoneRegisterDto>(
+    "/v1/auth/phone-register",
+    body,
+    {
+      auth: "none",
+    },
+  )
   await persistTokens(result)
   return result
 }
@@ -243,7 +263,11 @@ export function setUsername(dto: SetUsernameDto) {
 export async function login(dto: WithoutDevice<LoginDto>) {
   const body = await withDevice<LoginDto>(dto)
   const result = await http.post<LoginResult, LoginDto>("/v1/auth/login", body, { auth: "none" })
-  if (!result.requiresTwoFactor) await persistTokens(result)
+  if (!responseRecord(result)) throw invalidResponse("login")
+  if (result.requiresTwoFactor) {
+    if (typeof result.tempToken !== "string" || !result.tempToken)
+      throw invalidResponse("login/tempToken")
+  } else await persistTokens(result)
   return result
 }
 
@@ -281,22 +305,32 @@ export async function logout(dto: LogoutDto = {}): Promise<void> {
 // ------------------------------------------------------------------
 
 export function forgotPassword(dto: ForgotPasswordDto) {
-  return http.post<MessageResult, ForgotPasswordDto>("/v1/auth/forgot-password", dto, { auth: "none" })
+  return http.post<MessageResult, ForgotPasswordDto>("/v1/auth/forgot-password", dto, {
+    auth: "none",
+  })
 }
 
 export function resetPassword(dto: ResetPasswordDto) {
-  return http.post<MessageResult, ResetPasswordDto>("/v1/auth/reset-password", dto, { auth: "none" })
+  return http.post<MessageResult, ResetPasswordDto>("/v1/auth/reset-password", dto, {
+    auth: "none",
+  })
 }
 
 /** Re-auth sebelum aksi sensitif (ubah email, hapus akun). */
 export function verifyPassword(dto: VerifyPasswordDto) {
-  return http.post<{ valid: boolean } | MessageResult, VerifyPasswordDto>("/v1/auth/verify-password", dto, {
-    auth: "required",
-  })
+  return http.post<{ valid: boolean } | MessageResult, VerifyPasswordDto>(
+    "/v1/auth/verify-password",
+    dto,
+    {
+      auth: "required",
+    },
+  )
 }
 
 export function changePassword(dto: ChangePasswordDto) {
-  return http.post<MessageResult, ChangePasswordDto>("/v1/auth/change-password", dto, { auth: "required" })
+  return http.post<MessageResult, ChangePasswordDto>("/v1/auth/change-password", dto, {
+    auth: "required",
+  })
 }
 
 // ------------------------------------------------------------------
@@ -319,7 +353,9 @@ export function enable2fa(dto: Enable2faDto) {
 
 /** Kirim OTP email yang dibutuhkan `Disable2faDto.emailOtpCode`. */
 export function request2faDisableOtp() {
-  return http.post<MessageResult>("/v1/auth/2fa/request-disable-otp", undefined, { auth: "required" })
+  return http.post<MessageResult>("/v1/auth/2fa/request-disable-otp", undefined, {
+    auth: "required",
+  })
 }
 
 export function disable2fa(dto: Disable2faDto) {
@@ -328,5 +364,7 @@ export function disable2fa(dto: Disable2faDto) {
 
 /** Spec memakai `Setup2faDto` (password) sebagai body regenerate. */
 export function regenerateBackupCodes(dto: Setup2faDto) {
-  return http.post<BackupCodes, Setup2faDto>("/v1/auth/2fa/backup-codes/regenerate", dto, { auth: "required" })
+  return http.post<BackupCodes, Setup2faDto>("/v1/auth/2fa/backup-codes/regenerate", dto, {
+    auth: "required",
+  })
 }

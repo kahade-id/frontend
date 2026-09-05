@@ -3,7 +3,8 @@
  *
  * SATU-SATUNYA jalan untuk merender teks di app. Jangan pakai <Text> RN
  * langsung. Alasan:
- *   1. `allowFontScaling={false}` — type scale FIXED (§3.2), tidak mengikuti
+ *   1. `allowFontScaling
+      maxFontSizeMultiplier={2}` — type scale FIXED (§3.2), tidak mengikuti
  *      Dynamic Type OS. Di-set sekali di sini, bukan disebar ke tiap pemakaian.
  *   2. Pemetaan variant -> class harus LITERAL (bukan template string) supaya
  *      Tailwind content scanner menemukannya. Karena itu ada tabel statis di
@@ -141,9 +142,7 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
   // Weight override hanya dipakai kalau file font-nya tersedia; kalau tidak,
   // pakai default variant (mis. serif hanya punya 500).
   const forced =
-    weight != null
-      ? (weightClass[role] as Partial<Record<number, string>>)[weight]
-      : undefined
+    weight != null ? (weightClass[role] as Partial<Record<number, string>>)[weight] : undefined
 
   // "inherit": jangan pasang size/face — hanya weight (jika ada) + tone.
   const inherit = variant === "inherit"
@@ -151,12 +150,11 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
   return (
     <RNText
       ref={ref}
-      allowFontScaling={false}
+      allowFontScaling
+      maxFontSizeMultiplier={2}
       className={cn(
         !inherit && sizeClass[variant],
-        forced
-          ? cn(forced, role === "sans" && "tabular-nums")
-          : !inherit && faceClass[variant],
+        forced ? cn(forced, role === "sans" && "tabular-nums") : !inherit && faceClass[variant],
         toneClass[resolveTone(tone, variant)],
         className,
       )}

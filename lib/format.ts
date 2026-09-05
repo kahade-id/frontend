@@ -15,15 +15,39 @@
  * platform dan cukup untuk Rupiah bulat (§13: tidak ada desimal).
  */
 
-const MONTHS_ID = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"]
+const MONTHS_ID = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "Mei",
+  "Jun",
+  "Jul",
+  "Agu",
+  "Sep",
+  "Okt",
+  "Nov",
+  "Des",
+]
 const MONTHS_ID_LONG = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+  "Januari",
+  "Februari",
+  "Maret",
+  "April",
+  "Mei",
+  "Juni",
+  "Juli",
+  "Agustus",
+  "September",
+  "Oktober",
+  "November",
+  "Desember",
 ]
 const DAYS_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
 
 /** 1000000 -> "1.000.000" (tanpa prefix) */
 export function groupThousands(n: number): string {
+  if (!Number.isFinite(n)) return "—"
   const abs = Math.abs(Math.trunc(n))
   return abs.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
 }
@@ -36,6 +60,7 @@ export function formatRupiah(
   amount: number,
   opts: { sign?: "auto" | "always" | "never"; compact?: boolean } = {},
 ): string {
+  if (!Number.isFinite(amount) || !Number.isSafeInteger(Math.round(amount))) return "—"
   const { sign = "auto", compact = false } = opts
   const negative = amount < 0
   const abs = Math.abs(Math.round(amount))
@@ -56,8 +81,15 @@ export function formatRupiah(
 
 /** "Rp1.500.000" / "1.500.000" / "1500000" -> 1500000 */
 export function parseRupiah(input: string): number {
-  const digits = input.replace(/[^\d]/g, "")
-  return digits ? Number.parseInt(digits, 10) : 0
+  const text = input
+    .trim()
+    .replace(/^(?:rp\.?|idr)\s*/i, "")
+    .replace(/\s/g, "")
+  // IDR is integer-only here. Never turn a pasted decimal 10.000,50 into 1.000.050.
+  if (!text) return 0
+  if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,0+)?$/.test(text)) return Number.NaN
+  const value = Number(text.replace(/,0+$/, "").replace(/\./g, ""))
+  return Number.isSafeInteger(value) ? value : Number.NaN
 }
 
 /** Format angka biasa dengan pemisah ribuan (bukan uang) */
@@ -72,12 +104,28 @@ export function formatNumber(n: number): string {
  */
 export function formatDecimal(n: number, maxFractionDigits = 1): string {
   if (!Number.isFinite(n)) return "—"
-  const fixed = n.toFixed(maxFractionDigits)
+  const precision = Number.isFinite(maxFractionDigits)
+    ? Math.max(0, Math.min(20, Math.trunc(maxFractionDigits)))
+    : 1
+  const fixed = n.toFixed(precision)
   const [int, frac = ""] = fixed.split(".")
   const trimmed = frac.replace(/0+$/, "")
   const sign = n < 0 ? "-" : ""
   const absInt = groupThousands(Math.abs(Number(int)))
   return trimmed ? `${sign}${absInt},${trimmed}` : `${sign}${absInt}`
+}
+
+function displayDate(value: Date | number | string): Date | null {
+  if (value == null || value === "") return null
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    const [year, month, day] = value.split("-").map(Number)
+    const date = new Date(year, month - 1, day)
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
+      ? date
+      : null
+  }
+  const date = value instanceof Date ? value : new Date(value)
+  return Number.isFinite(date.getTime()) ? date : null
 }
 
 function pad2(n: number) {
@@ -86,30 +134,34 @@ function pad2(n: number) {
 
 /** "3 Sep 2026" */
 export function formatDate(d: Date | number | string, opts: { long?: boolean } = {}): string {
-  const date = d instanceof Date ? d : new Date(d)
+  const date = displayDate(d)
+  if (!date) return "—"
   const month = opts.long ? MONTHS_ID_LONG[date.getMonth()] : MONTHS_ID[date.getMonth()]
   return `${date.getDate()} ${month} ${date.getFullYear()}`
 }
 
 /** "14:30" */
 export function formatTime(d: Date | number | string): string {
-  const date = d instanceof Date ? d : new Date(d)
+  const date = displayDate(d)
+  if (!date) return "—"
   return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`
 }
 
 /** "3 Sep 2026, 14:30" — format default timestamp di seluruh app (§13) */
 export function formatDateTime(d: Date | number | string): string {
-  return `${formatDate(d)}, ${formatTime(d)}`
+  return displayDate(d) ? `${formatDate(d)}, ${formatTime(d)}` : "—"
 }
 
 /** "Rabu, 3 September 2026" — untuk layar konfirmasi/struk */
 export function formatDateLong(d: Date | number | string): string {
-  const date = d instanceof Date ? d : new Date(d)
+  const date = displayDate(d)
+  if (!date) return "—"
   return `${DAYS_ID[date.getDay()]}, ${formatDate(date, { long: true })}`
 }
 
 /** Sisa waktu detik -> "04:59" atau "1:04:59" (countdown OTP/lockout/deadline) */
 export function formatCountdown(totalSeconds: number): string {
+  if (!Number.isFinite(totalSeconds)) return "—"
   const s = Math.max(0, Math.floor(totalSeconds))
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
@@ -130,7 +182,10 @@ export function maskAccountNumber(account: string, visible = 4): string {
 
 /** Kelompokkan nomor per 4 tanpa mask: "1234 5678 9012" */
 export function groupAccountNumber(account: string): string {
-  return account.replace(/\s/g, "").replace(/(.{4})/g, "$1 ").trim()
+  return account
+    .replace(/\s/g, "")
+    .replace(/(.{4})/g, "$1 ")
+    .trim()
 }
 
 /** Nomor HP Indonesia -> "+62 812-3456-7890" */
@@ -138,7 +193,7 @@ export function formatPhoneId(raw: string): string {
   let digits = raw.replace(/\D/g, "")
   if (digits.startsWith("62")) digits = digits.slice(2)
   if (digits.startsWith("0")) digits = digits.slice(1)
-  const parts = [digits.slice(0, 3), digits.slice(3, 7), digits.slice(7, 11)].filter(Boolean)
+  const parts = [digits.slice(0, 3), digits.slice(3, 7), digits.slice(7)].filter(Boolean)
   return digits ? `+62 ${parts.join("-")}` : ""
 }
 
@@ -160,6 +215,7 @@ export function truncateMiddle(s: string, head = 8, tail = 4): string {
 
 /** Byte -> "2,4 MB" (batasan upload KYC §9.19) */
 export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes < 0) return "—"
   if (bytes < 1024) return `${bytes} B`
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
   return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`

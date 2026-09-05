@@ -42,11 +42,15 @@ import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 
 function isIconComponent(x: unknown): x is IconComponent {
-  return typeof x === "function" || (typeof x === "object" && x !== null && "render" in (x as object))
+  return (
+    typeof x === "function" || (typeof x === "object" && x !== null && "render" in (x as object))
+  )
 }
 
 export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> & {
   title: string
+  /** Disable row padding when the parent already applies the screen inset. */
+  padded?: boolean
   /** Caption text-secondary ATAU node (mis. nomor rekening Mono) — simetris dengan `trailing` */
   subtitle?: string | ReactNode
   /** Ikon Phosphor (tone default) ATAU node kustom (Avatar, IconBox) */
@@ -67,6 +71,7 @@ export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> 
 
 export function ListItem({
   title,
+  padded = true,
   subtitle,
   leading,
   trailing,
@@ -91,43 +96,51 @@ export function ListItem({
 
   const content = (
     <View className={cn("w-full", selected && "bg-surface")}>
-      <View className={cn("min-h-14 w-full flex-row items-center gap-3 px-6 py-3", className)}>
-      {leadingNode ? <View className="items-center justify-center">{leadingNode}</View> : null}
+      <View
+        className={cn(
+          "min-h-14 w-full flex-row items-center gap-3 py-3",
+          padded && "px-6",
+          className,
+        )}
+      >
+        {leadingNode ? <View className="items-center justify-center">{leadingNode}</View> : null}
 
-      <View className="flex-1 gap-[2px]">
-        <Text
-          variant="body"
-          weight={500}
-          tone={destructive ? "danger" : "primary"}
-          numberOfLines={titleLines}
-        >
-          {title}
-        </Text>
-        {subtitle != null && subtitle !== "" ? (
-          typeof subtitle === "string" ? (
-            <Text variant="caption" tone={destructive ? "danger" : "secondary"} numberOfLines={2}>
-              {subtitle}
+        <View className="flex-1 gap-[2px]">
+          <Text
+            variant="body"
+            weight={500}
+            tone={destructive ? "danger" : "primary"}
+            numberOfLines={titleLines}
+          >
+            {title}
+          </Text>
+          {subtitle != null && subtitle !== "" ? (
+            typeof subtitle === "string" ? (
+              <Text variant="caption" tone={destructive ? "danger" : "secondary"} numberOfLines={2}>
+                {subtitle}
+              </Text>
+            ) : (
+              subtitle
+            )
+          ) : null}
+        </View>
+
+        {trailing != null ? (
+          typeof trailing === "string" ? (
+            <Text variant="body" tone="secondary" numberOfLines={1} className="max-w-[40%]">
+              {trailing}
             </Text>
           ) : (
-            subtitle
+            <View className="items-end justify-center">{trailing}</View>
           )
         ) : null}
+
+        {chevron ? <Icon icon={CaretRight} size="sm" /> : null}
       </View>
 
-      {trailing != null ? (
-        typeof trailing === "string" ? (
-          <Text variant="body" tone="secondary" numberOfLines={1} className="max-w-[40%]">
-            {trailing}
-          </Text>
-        ) : (
-          <View className="items-end justify-center">{trailing}</View>
-        )
+      {divider ? (
+        <View className={cn("h-px bg-border", inset && leadingNode ? "ml-[60px]" : "ml-0")} />
       ) : null}
-
-      {chevron ? <Icon icon={CaretRight} size="sm" /> : null}
-      </View>
-
-      {divider ? <View className={cn("h-px bg-border", inset && leadingNode ? "ml-[60px]" : "ml-0")} /> : null}
     </View>
   )
 
@@ -169,7 +182,10 @@ export type ListGroupProps = ViewProps & { children: ReactNode; className?: stri
 export function ListGroup({ children, className, ...rest }: ListGroupProps) {
   return (
     <View
-      className={cn("w-full overflow-hidden rounded-md border border-border bg-surface-elevated", className)}
+      className={cn(
+        "w-full overflow-hidden rounded-md border border-border bg-surface-elevated",
+        className,
+      )}
       {...rest}
     >
       {children}

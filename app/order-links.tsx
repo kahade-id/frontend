@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Order Link Saya (GET /v1/orders/links/my, paginated).
  *
@@ -76,7 +77,15 @@ export default function OrderLinksScreen() {
       setItems((prev) => (nextPage === 1 ? data : [...prev, ...data]))
       setPage(nextPage)
       const totalPages = res.meta?.totalPages
-      setMore(totalPages != null ? (nextPage >= totalPages ? "end" : "idle") : data.length < PAGE_SIZE ? "end" : "idle")
+      setMore(
+        totalPages != null
+          ? nextPage >= totalPages
+            ? "end"
+            : "idle"
+          : data.length < PAGE_SIZE
+            ? "end"
+            : "idle",
+      )
     } catch {
       if (nextPage === 1) setError("Gagal memuat tautan order.")
       else setMore("error")
@@ -102,7 +111,9 @@ export default function OrderLinksScreen() {
         const ok = await copy(payload.url)
         toast.show({
           title: ok ? "Tautan disalin" : "Tidak bisa membagikan",
-          description: ok ? "Berbagi tidak tersedia di perangkat ini; tempel tautan secara manual." : undefined,
+          description: ok
+            ? "Berbagi tidak tersedia di perangkat ini; tempel tautan secara manual."
+            : undefined,
           tone: ok ? "success" : "danger",
         })
       }
@@ -115,7 +126,9 @@ export default function OrderLinksScreen() {
     setCancelling(true)
     try {
       await api.orders.cancelOrderLink(cancelTarget.token)
-      setItems((prev) => prev.map((l) => (l.token === cancelTarget.token ? { ...l, status: "CANCELLED" } : l)))
+      setItems((prev) =>
+        prev.map((l) => (l.token === cancelTarget.token ? { ...l, status: "CANCELLED" } : l)),
+      )
       toast.show({ title: "Tautan dibatalkan", tone: "success" })
       setCancelTarget(null)
     } catch {
@@ -132,10 +145,12 @@ export default function OrderLinksScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={LinkSimple} title="Memuat tautan…" />
+          <LoadingScreen message="Memuat tautan…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchLinks(1)} />
         ) : items.length === 0 ? (
@@ -144,7 +159,11 @@ export default function OrderLinksScreen() {
             title="Belum ada tautan"
             description="Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi."
             action={
-              <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.createTransaction)}>
+              <Button
+                variant="secondary"
+                fullWidth={false}
+                onPress={() => router.push(ROUTES.createTransaction)}
+              >
                 Buat Tautan Baru
               </Button>
             }
@@ -154,7 +173,10 @@ export default function OrderLinksScreen() {
             <SectionHeader title="Tautan saya" />
             {items.map((link) => {
               const url = link.url ?? orderLinkUrl(link.token)
-              const status = STATUS_META[link.status] ?? { label: link.status, tone: "neutral" as BadgeTone }
+              const status = STATUS_META[link.status] ?? {
+                label: link.status,
+                tone: "neutral" as BadgeTone,
+              }
               return (
                 <OrderLinkShareCard
                   key={link.token}
@@ -163,11 +185,19 @@ export default function OrderLinksScreen() {
                   amount={link.orderValue}
                   orderCode={link.token}
                   status={status}
-                  expiresLabel={link.expiresAt ? `Berlaku hingga ${formatDateTime(link.expiresAt)}` : undefined}
+                  expiresLabel={
+                    link.expiresAt ? `Berlaku hingga ${formatDateTime(link.expiresAt)}` : undefined
+                  }
                   onCopy={(u) => {
-                    void copy(u).then((ok) => ok && toast.show({ title: "Tautan disalin", tone: "success" }))
+                    void copy(u).then(
+                      (ok) => ok && toast.show({ title: "Tautan disalin", tone: "success" }),
+                    )
                   }}
-                  onShare={link.status === "ACTIVE" ? (payload) => void handleShare(payload, link.title) : undefined}
+                  onShare={
+                    link.status === "ACTIVE"
+                      ? (payload) => void handleShare(payload, link.title)
+                      : undefined
+                  }
                   onCancel={link.status === "ACTIVE" ? () => setCancelTarget(link) : undefined}
                   cancelling={cancelling && cancelTarget?.token === link.token}
                   onOpen={

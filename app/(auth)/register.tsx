@@ -5,7 +5,8 @@
  *   <Header title="Buat Akun" progress=1/4>          ← §9.22 bar tipis
  *   H1 "Masukkan nomor HP Anda" + body penjelasan
  *   <PhoneInput>                                     ← +62 tetap, digit nasional
- *   Label "Kirim kode melalui" + <OtpMethodSelector> ← dari GET otp-methods
+ *   Label "Kirim kode melalui" + {methodsError ? <ErrorState compact title="Metode verifikasi belum tersedia" description={methodsError} onRetry={refetchMethods} /> : null}
+            <OtpMethodSelector> ← dari GET otp-methods
  *   [Alert error form, bila ada]
  *   ── footer: [Kirim Kode]  •  Sudah punya akun? Masuk
  *
@@ -53,6 +54,7 @@ import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { isValidPhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
+import { ErrorState } from "@/components/ui/error-state"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
@@ -71,7 +73,12 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets()
   const phoneRef = useRef<TextInput>(null)
 
-  const { methods, loading: methodsLoading } = useOtpMethods()
+  const {
+    methods,
+    loading: methodsLoading,
+    error: methodsError,
+    refetch: refetchMethods,
+  } = useOtpMethods()
 
   // Deep link referral `kahade://register?ref=<code>` (lib/deeplinks) —
   // disimpan ke registration state, dipakai screen #5 sebagai prefill.
@@ -115,7 +122,10 @@ export default function RegisterScreen() {
       return
     }
     if (!method) {
-      setFormError({ kind: "generic", message: "Metode pengiriman kode belum tersedia. Coba lagi sebentar." })
+      setFormError({
+        kind: "generic",
+        message: "Metode pengiriman kode belum tersedia. Coba lagi sebentar.",
+      })
       return
     }
 
@@ -127,11 +137,16 @@ export default function RegisterScreen() {
     } catch (err) {
       if (isApiError(err)) {
         if (err.code === "CONFLICT") {
-          setFormError({ kind: "conflict", message: err.message || "Nomor HP ini sudah terdaftar." })
+          setFormError({
+            kind: "conflict",
+            message: err.message || "Nomor HP ini sudah terdaftar.",
+          })
           return
         }
         // Pesan validasi yang menyebut nomor -> tempel ke field, bukan Alert.
-        const mentionsPhone = (err.validationMessages ?? [err.message]).find((m) => /phone|nomor/i.test(m))
+        const mentionsPhone = (err.validationMessages ?? [err.message]).find((m) =>
+          /phone|nomor/i.test(m),
+        )
         if ((err.code === "VALIDATION" || err.code === "BAD_REQUEST") && mentionsPhone) {
           setPhoneError(mentionsPhone)
           phoneRef.current?.focus()
@@ -163,8 +178,8 @@ export default function RegisterScreen() {
                 Masukkan nomor HP Anda
               </Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
-                Kami akan mengirim kode verifikasi 6 digit ke nomor ini. Nomor HP dipakai untuk masuk dan
-                pemberitahuan transaksi.
+                Kami akan mengirim kode verifikasi 6 digit ke nomor ini. Nomor HP dipakai untuk
+                masuk dan pemberitahuan transaksi.
               </Text>
             </View>
 
@@ -195,7 +210,9 @@ export default function RegisterScreen() {
             {formError ? (
               <Alert
                 tone="danger"
-                title={formError.kind === "conflict" ? "Nomor sudah terdaftar" : "Kode belum terkirim"}
+                title={
+                  formError.kind === "conflict" ? "Nomor sudah terdaftar" : "Kode belum terkirim"
+                }
                 action={
                   formError.kind === "conflict" ? (
                     <TextLink onPress={goLogin} variant="caption">
@@ -216,7 +233,11 @@ export default function RegisterScreen() {
           className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
           style={{ paddingBottom: tokens.space[4] + insets.bottom }}
         >
-          <Button onPress={() => void handleSubmit()} loading={submitting} disabled={methodsLoading}>
+          <Button
+            onPress={() => void handleSubmit()}
+            loading={submitting}
+            disabled={methodsLoading}
+          >
             Kirim Kode
           </Button>
           <Text variant="body" tone="secondary" className="text-center">

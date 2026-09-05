@@ -107,7 +107,11 @@ export function VoucherCard({
 }: VoucherCardProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
   const isPercent = discountType === "PERCENTAGE"
-  const discountText = isPercent ? `${discountValue}%` : formatRupiah(discountValue)
+  const discountText = !Number.isFinite(discountValue)
+    ? "Belum tersedia"
+    : isPercent
+      ? `${discountValue}%`
+      : formatRupiah(discountValue)
 
   const conditions = [
     minOrderValue != null ? `${t.minOrder} ${formatRupiah(minOrderValue)}` : undefined,
@@ -126,7 +130,13 @@ export function VoucherCard({
     ])
 
   return (
-    <Card onPress={onPress} selected={selected} accessibilityLabel={a11y} className={cn("gap-4", className)} {...rest}>
+    <Card
+      onPress={onPress}
+      selected={selected}
+      accessibilityLabel={a11y}
+      className={cn("gap-4", className)}
+      {...rest}
+    >
       <View className="flex-row items-start gap-3">
         <IconBox icon={Ticket} size="md" variant="surface" active={selected} />
 
@@ -155,7 +165,9 @@ export function VoucherCard({
           ) : null}
         </View>
 
-        {selected ? <Icon icon={Check} size="sm" tone="active" weight="bold" accessibilityLabel="Terpilih" /> : null}
+        {selected ? (
+          <Icon icon={Check} size="sm" tone="active" weight="bold" accessibilityLabel="Terpilih" />
+        ) : null}
       </View>
 
       <View className="flex-row items-end justify-between gap-3 border-t border-border pt-3">
@@ -166,7 +178,11 @@ export function VoucherCard({
             </Text>
           ) : null}
           {expiresAt ? (
-            <Text variant="caption" tone={expiresSoon ? "warning" : "secondary"} className="tabular-nums">
+            <Text
+              variant="caption"
+              tone={expiresSoon ? "warning" : "secondary"}
+              className="tabular-nums"
+            >
               {t.validUntil} {expiresAt}
             </Text>
           ) : null}
@@ -182,7 +198,13 @@ export function VoucherCard({
             {code.toUpperCase()}
           </Text>
           {onUse && !selected ? (
-            <Button variant="secondary" size="sm" fullWidth={false} onPress={onUse} disabled={disabled}>
+            <Button
+              variant="secondary"
+              size="sm"
+              fullWidth={false}
+              onPress={onUse}
+              disabled={disabled}
+            >
               {t.use}
             </Button>
           ) : null}
@@ -192,9 +214,18 @@ export function VoucherCard({
   )
 }
 
-export function VoucherCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
+export function VoucherCardSkeleton({
+  className,
+  ...rest
+}: Omit<ViewProps, "children"> & { className?: string }) {
   return (
-    <View accessible accessibilityRole="progressbar" className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat voucher" {...rest}>
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)}
+      accessibilityLabel="Memuat voucher"
+      {...rest}
+    >
       <View className="flex-row items-start gap-3">
         <Skeleton width={40} height={40} />
         <View className="flex-1 gap-2">

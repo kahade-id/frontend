@@ -31,12 +31,16 @@
  * Background: `bg-background` default. Layar yang dominan card memakai
  * `surface` agar card putih (surface-elevated) terlihat "naik" (§6).
  */
-import type { ReactNode } from "react"
+import { createContext, type ReactNode } from "react"
 import { ScrollView, View, type ScrollViewProps, type ViewProps } from "react-native"
 import { useSafeAreaInsets, type Edge } from "react-native-safe-area-context"
 
+import { FooterBar } from "@/components/ui/footer-bar"
+import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+
+export const ScreenInsetsContext = createContext({ top: false })
 
 export type ScreenBackground = "background" | "surface"
 
@@ -44,6 +48,8 @@ export type ScreenProps = Omit<ViewProps, "children"> & {
   children?: ReactNode
   /** Body dapat di-scroll (ScrollView). Default false = View flex-1. */
   scroll?: boolean
+  /** Resize form body and sticky actions above the iOS keyboard. */
+  keyboardAvoiding?: boolean
   /** Padding horizontal 24px pada body. Default true. */
   padded?: boolean
   /** Sisi safe area yang di-padding. Default top + bottom. */
@@ -65,6 +71,7 @@ const bgClass: Record<ScreenBackground, string> = {
 export function Screen({
   children,
   scroll = false,
+  keyboardAvoiding = false,
   padded = true,
   edges = ["top", "bottom"],
   background = "background",
@@ -83,43 +90,38 @@ export function Screen({
 
   const bodyPad = padded && "px-6"
 
-  return (
-    <View
-      className={cn("w-full flex-1", bgClass[background], className)}
-      // Inset safe area adalah nilai runtime -> style, bukan className.
-      // Bottom inset dipindah ke footer bila footer ada, supaya CTA yang
-      // menempel di bawah tidak tertutup home indicator.
-      style={[
-        { paddingTop: padTop, paddingLeft: padLeft, paddingRight: padRight },
-        !footer && { paddingBottom: padBottom },
-        style,
-      ]}
-      {...rest}
-    >
-      {scroll ? (
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName={cn("grow", bodyPad, contentContainerClassName)}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-          {...scrollViewProps}
-        >
-          {children}
-        </ScrollView>
-      ) : (
-        <View className={cn("flex-1", bodyPad)}>{children}</View>
-      )}
+  const Body = keyboardAvoiding ? KeyboardAvoiding : View
 
-      {footer ? (
-        <View
-          className={cn("border-t border-border px-6 pt-4", bgClass[background])}
-          // space.4 (16px) minimum + inset home indicator — dijumlahkan di
-          // style karena inset adalah nilai runtime.
-          style={{ paddingBottom: tokens.space[4] + padBottom }}
-        >
-          {footer}
-        </View>
-      ) : null}
-    </View>
+  return (
+    <ScreenInsetsContext.Provider value={{ top: edges.includes("top") }}>
+      <Body
+        className={cn("w-full flex-1", bgClass[background], className)}
+        // Inset safe area adalah nilai runtime -> style, bukan className.
+        // Bottom inset dipindah ke footer bila footer ada, supaya CTA yang
+        // menempel di bawah tidak tertutup home indicator.
+        style={[
+          { paddingTop: padTop, paddingLeft: padLeft, paddingRight: padRight },
+          !footer && { paddingBottom: padBottom },
+          style,
+        ]}
+        {...rest}
+      >
+        {scroll ? (
+          <ScrollView
+            className="flex-1"
+            contentContainerClassName={cn("grow", bodyPad, contentContainerClassName)}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+            {...scrollViewProps}
+          >
+            {children}
+          </ScrollView>
+        ) : (
+          <View className={cn("flex-1", bodyPad)}>{children}</View>
+        )}
+
+        {footer ? <FooterBar>{footer}</FooterBar> : null}
+      </Body>
+    </ScreenInsetsContext.Provider>
   )
 }

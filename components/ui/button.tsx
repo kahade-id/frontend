@@ -74,8 +74,8 @@ const variantIconTone: Record<ButtonVariant, IconTone> = {
 }
 
 const sizeBox: Record<ButtonSize, string> = {
-  sm: "h-10 px-4 gap-2",
-  md: "h-12 px-5 gap-2",
+  sm: "min-h-10 px-4 py-2 gap-2",
+  md: "min-h-12 px-5 py-3 gap-2",
 }
 
 export function Button({
@@ -115,15 +115,18 @@ export function Button({
     >
       {/* Konten label — opacity-0 saat loading agar lebar tetap */}
       <View
-        className={cn("flex-row items-center justify-center gap-2", loading && "opacity-0")}
+        className={cn(
+          "min-w-0 flex-shrink flex-row items-center justify-center gap-2",
+          loading && "opacity-0",
+        )}
       >
         {leftIcon ? <Icon icon={leftIcon} size={iconSize} tone={iconTone} /> : null}
         <Text
           variant={size === "sm" ? "label" : "body"}
           weight={600}
           tone="inherit"
-          numberOfLines={1}
-          className={variantText[variant]}
+          numberOfLines={undefined}
+          className={cn("shrink text-center", variantText[variant])}
         >
           {children}
         </Text>

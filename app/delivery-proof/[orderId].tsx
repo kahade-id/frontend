@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Bukti pengiriman satu pesanan.
  *
@@ -98,7 +99,9 @@ export default function DeliveryProofScreen() {
 
   const latest = useMemo(() => {
     if (proofs.length === 0) return null
-    return [...proofs].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0]
+    return [...proofs].sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )[0]
   }, [proofs])
 
   const isSeller = order?.myRole === "SELLER"
@@ -110,7 +113,10 @@ export default function DeliveryProofScreen() {
     setLoading(true)
     setError(null)
     try {
-      const [o, ps] = await Promise.all([api.orders.getOrder(orderId), api.orders.listDeliveryProofs(orderId)])
+      const [o, ps] = await Promise.all([
+        api.orders.getOrder(orderId),
+        api.orders.listDeliveryProofs(orderId),
+      ])
       setOrder(o ?? null)
       setProofs(ps ?? [])
       setForm((f) => ({ ...f, trackingNumber: f.trackingNumber || (o?.trackingNumber ?? "") }))
@@ -140,7 +146,11 @@ export default function DeliveryProofScreen() {
       setConfirmOpen(false)
       await fetchAll()
     } catch (err) {
-      toast.show({ title: "Gagal mengonfirmasi penerimaan", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+      toast.show({
+        title: "Gagal mengonfirmasi penerimaan",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
     } finally {
       setConfirming(false)
     }
@@ -155,7 +165,11 @@ export default function DeliveryProofScreen() {
         toast.show({ title: "Bukti ditolak, sengketa dibuka", tone: "danger", duration: 3000 })
         await fetchAll()
       } catch (err) {
-        toast.show({ title: "Gagal menolak bukti", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+        toast.show({
+          title: "Gagal menolak bukti",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
       } finally {
         setRejecting(false)
       }
@@ -175,13 +189,29 @@ export default function DeliveryProofScreen() {
     try {
       const asset = picked.asset
       const blob = await pickedImageToBlob(asset)
-      const { fileKey } = await api.upload.uploadPresigned("DELIVERY_PROOF", asset.name, asset.mimeType, blob)
+      const { fileKey } = await api.upload.uploadPresigned(
+        "DELIVERY_PROOF",
+        asset.name,
+        asset.mimeType,
+        blob,
+      )
       setUploads((prev) => [
         ...prev,
-        { id: fileKey, fileKey, url: asset.uri, mimeType: asset.mimeType, mine: true, uploadedAt: formatDateTime(new Date().toISOString()) },
+        {
+          id: fileKey,
+          fileKey,
+          url: asset.uri,
+          mimeType: asset.mimeType,
+          mine: true,
+          uploadedAt: formatDateTime(new Date().toISOString()),
+        },
       ])
     } catch (err) {
-      toast.show({ title: "Gagal mengunggah foto", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+      toast.show({
+        title: "Gagal mengunggah foto",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
     } finally {
       setUploading(false)
     }
@@ -192,26 +222,46 @@ export default function DeliveryProofScreen() {
       if (!orderId || uploads.length === 0) return
       const description = value.note.trim()
       if (description.length < MIN_DESCRIPTION) {
-        toast.show({ title: "Catatan terlalu pendek", description: `Minimal ${MIN_DESCRIPTION} karakter.`, tone: "warning" })
+        toast.show({
+          title: "Catatan terlalu pendek",
+          description: `Minimal ${MIN_DESCRIPTION} karakter.`,
+          tone: "warning",
+        })
         return
       }
       setSubmitting(true)
       try {
-        await api.orders.submitDeliveryProof(orderId, { description, fileUrls: uploads.map((u) => u.fileKey) })
+        await api.orders.submitDeliveryProof(orderId, {
+          description,
+          fileUrls: uploads.map((u) => u.fileKey),
+        })
         const tracking = value.trackingNumber.trim()
         if (tracking && tracking !== (order?.trackingNumber ?? "")) {
           try {
             await api.orders.updateShipping(orderId, { trackingNumber: tracking })
           } catch {
-            toast.show({ title: "Bukti terkirim, resi gagal disimpan", description: "Perbarui resi dari detail pesanan.", tone: "warning" })
+            toast.show({
+              title: "Bukti terkirim, resi gagal disimpan",
+              description: "Perbarui resi dari detail pesanan.",
+              tone: "warning",
+            })
           }
         }
         setUploads([])
         setForm({ trackingNumber: tracking, note: "" })
-        toast.show({ title: "Bukti pengiriman terkirim", description: "Menunggu konfirmasi pembeli.", tone: "success", duration: 4000 })
+        toast.show({
+          title: "Bukti pengiriman terkirim",
+          description: "Menunggu konfirmasi pembeli.",
+          tone: "success",
+          duration: 4000,
+        })
         await fetchAll()
       } catch (err) {
-        toast.show({ title: "Gagal mengirim bukti", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+        toast.show({
+          title: "Gagal mengirim bukti",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
       } finally {
         setSubmitting(false)
       }
@@ -243,10 +293,12 @@ export default function DeliveryProofScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading && !order ? (
-          <EmptyState icon={Package} title="Memuat bukti…" />
+          <LoadingScreen message="Memuat bukti…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
@@ -264,8 +316,12 @@ export default function DeliveryProofScreen() {
                 <DeliveryProofForm
                   items={uploads}
                   onAddEvidence={() => void handleAddEvidence()}
-                  onRemoveEvidence={(item) => setUploads((prev) => prev.filter((u) => u.id !== item.id))}
-                  onOpenEvidence={(item) => setViewerItem({ url: item.url, mimeType: item.mimeType, title: "Foto bukti" })}
+                  onRemoveEvidence={(item) =>
+                    setUploads((prev) => prev.filter((u) => u.id !== item.id))
+                  }
+                  onOpenEvidence={(item) =>
+                    setViewerItem({ url: item.url, mimeType: item.mimeType, title: "Foto bukti" })
+                  }
                   maxItems={MAX_PROOF_FILES}
                   value={form}
                   onChange={setForm}
@@ -298,14 +354,22 @@ export default function DeliveryProofScreen() {
               <EmptyState
                 icon={Package}
                 title="Belum ada bukti pengiriman"
-                description={isSeller ? undefined : "Penjual belum mengunggah bukti. Anda akan diberi tahu saat tersedia."}
+                description={
+                  isSeller
+                    ? undefined
+                    : "Penjual belum mengunggah bukti. Anda akan diberi tahu saat tersedia."
+                }
               />
             ) : null}
           </View>
         )}
       </PullToRefresh>
 
-      <MediaViewer item={viewerItem} onClose={() => setViewerItem(null)} onOpenError={(m) => toast.show({ title: m, tone: "danger" })} />
+      <MediaViewer
+        item={viewerItem}
+        onClose={() => setViewerItem(null)}
+        onOpenError={(m) => toast.show({ title: m, tone: "danger" })}
+      />
 
       <Dialog
         title="Konfirmasi penerimaan"

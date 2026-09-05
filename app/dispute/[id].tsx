@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Detail Sengketa.
  *
@@ -75,18 +76,25 @@ import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 
 type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
-const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+]
 const PROPOSAL_NOTE_MAX = 500
 
 /** Picker bisa melaporkan MIME di luar enum DTO (mis. image/heic) → jatuh ke JPEG (picker sudah mengompres ke JPEG). */
 function toEvidenceFileType(mime: string): EvidenceFileType {
-  return (EVIDENCE_FILE_TYPES as readonly string[]).includes(mime) ? (mime as EvidenceFileType) : "image/jpeg"
+  return (EVIDENCE_FILE_TYPES as readonly string[]).includes(mime)
+    ? (mime as EvidenceFileType)
+    : "image/jpeg"
 }
 
 /** Status panggilan API → outcome komponen (status asing dianggap selesai). */
 const CALL_OUTCOME: Partial<Record<string, DisputeCallOutcome>> = {
-  REQUESTED: "ONGOING",
-  ACCEPTED: "ONGOING",
+  REQUESTED: "REQUESTED",
+  ACCEPTED: "ACCEPTED",
   ONGOING: "ONGOING",
   ENDED: "COMPLETED",
   COMPLETED: "COMPLETED",
@@ -115,7 +123,9 @@ export default function DisputeDetailScreen() {
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
 
-  const [viewerItem, setViewerItem] = useState<(MediaViewerItem & { evidenceId?: string; mine?: boolean }) | null>(null)
+  const [viewerItem, setViewerItem] = useState<
+    (MediaViewerItem & { evidenceId?: string; mine?: boolean }) | null
+  >(null)
   const [deleteEvidenceId, setDeleteEvidenceId] = useState<string | null>(null)
   const [deletingEvidence, setDeletingEvidence] = useState(false)
 
@@ -123,14 +133,19 @@ export default function DisputeDetailScreen() {
   const [proposeAmount, setProposeAmount] = useState(0)
   const [proposeNote, setProposeNote] = useState("")
   const [proposing, setProposing] = useState(false)
-  const [respondingAction, setRespondingAction] = useState<"ACCEPT" | "REJECT" | "WITHDRAW" | null>(null)
+  const [respondingAction, setRespondingAction] = useState<"ACCEPT" | "REJECT" | "WITHDRAW" | null>(
+    null,
+  )
   const [requestingCall, setRequestingCall] = useState(false)
 
-  const myRole = order?.myRole === "SELLER" ? "seller" : "buyer"
-  const me = order ? (order.myRole === "SELLER" ? order.seller : order.buyer) : null
-  const counterpart = order ? (order.myRole === "SELLER" ? order.buyer : order.seller) : null
-  const counterpartName = counterpart?.fullName ?? (counterpart?.username ? `@${counterpart.username}` : "Lawan transaksi")
-  const orderValue = order?.orderValue ?? 0
+  const myRole =
+    order?.myRole === "SELLER" ? "seller" : order?.myRole === "BUYER" ? "buyer" : undefined
+  const me = order && myRole ? (myRole === "seller" ? order.seller : order.buyer) : null
+  const counterpart = order && myRole ? (myRole === "seller" ? order.buyer : order.seller) : null
+  const counterpartName =
+    counterpart?.fullName ??
+    (counterpart?.username ? `@${counterpart.username}` : "Lawan transaksi")
+  const orderValue = order?.orderValue ?? Number.NaN
 
   const fetchAll = useCallback(async () => {
     if (!id) return
@@ -139,10 +154,10 @@ export default function DisputeDetailScreen() {
     try {
       const d = await api.disputes.getDispute(id)
       const [ev, msgs, props, cl, o] = await Promise.all([
-        api.disputes.getDisputeEvidence(id).catch(() => []),
-        api.disputes.getDisputeMessages(id).catch(() => []),
-        api.disputes.getMutualResolution(id).catch(() => []),
-        api.disputes.getDisputeCalls(id).catch(() => []),
+        api.disputes.getDisputeEvidence(id),
+        api.disputes.getDisputeMessages(id),
+        api.disputes.getMutualResolution(id),
+        api.disputes.getDisputeCalls(id),
         d.orderId ? api.orders.getOrder(d.orderId).catch(() => null) : Promise.resolve(null),
       ])
       setDispute(d)
@@ -178,7 +193,11 @@ export default function DisputeDetailScreen() {
         toast.show({ title: "Klaim diperbarui", tone: "success", duration: 3000 })
         await fetchAll()
       } catch (err) {
-        toast.show({ title: "Gagal menyimpan klaim", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+        toast.show({
+          title: "Gagal menyimpan klaim",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
       } finally {
         setSubmitting(false)
       }
@@ -196,7 +215,11 @@ export default function DisputeDetailScreen() {
         setDraft("")
         setMessages(await api.disputes.getDisputeMessages(id))
       } catch (err) {
-        toast.show({ title: "Gagal mengirim pesan", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+        toast.show({
+          title: "Gagal mengirim pesan",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
       } finally {
         setSending(false)
       }
@@ -216,7 +239,12 @@ export default function DisputeDetailScreen() {
     try {
       const asset = picked.asset
       const blob = await pickedImageToBlob(asset)
-      const { fileKey } = await api.upload.uploadPresigned("DISPUTE_EVIDENCE", asset.name, asset.mimeType, blob)
+      const { fileKey } = await api.upload.uploadPresigned(
+        "DISPUTE_EVIDENCE",
+        asset.name,
+        asset.mimeType,
+        blob,
+      )
       await api.disputes.submitDisputeEvidence(id, {
         description: "Bukti tambahan",
         fileUrls: [fileKey],
@@ -225,7 +253,11 @@ export default function DisputeDetailScreen() {
       setEvidence(await api.disputes.getDisputeEvidence(id))
       toast.show({ title: "Bukti terkirim", tone: "success", duration: 3000 })
     } catch (err) {
-      toast.show({ title: "Gagal mengunggah bukti", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+      toast.show({
+        title: "Gagal mengunggah bukti",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
     } finally {
       setSubmitting(false)
     }
@@ -241,14 +273,27 @@ export default function DisputeDetailScreen() {
       setViewerItem(null)
       toast.show({ title: "Bukti dihapus", tone: "success", duration: 3000 })
     } catch (err) {
-      toast.show({ title: "Gagal menghapus bukti", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+      toast.show({
+        title: "Gagal menghapus bukti",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
     } finally {
       setDeletingEvidence(false)
     }
   }, [id, deleteEvidenceId, toast.show])
 
   const handlePropose = useCallback(async () => {
-    if (!id) return
+    if (
+      !id ||
+      !myRole ||
+      proposing ||
+      !Number.isSafeInteger(orderValue) ||
+      !Number.isSafeInteger(proposeAmount) ||
+      proposeAmount < 0 ||
+      proposeAmount > orderValue
+    )
+      return
     setProposing(true)
     try {
       await api.disputes.proposeMutualResolution(id, {
@@ -257,14 +302,23 @@ export default function DisputeDetailScreen() {
       })
       setProposeOpen(false)
       setProposeNote("")
-      toast.show({ title: "Usulan dikirim", description: "Menunggu tanggapan lawan transaksi.", tone: "success", duration: 3000 })
+      toast.show({
+        title: "Usulan dikirim",
+        description: "Menunggu tanggapan lawan transaksi.",
+        tone: "success",
+        duration: 3000,
+      })
       setProposals(await api.disputes.getMutualResolution(id))
     } catch (err) {
-      toast.show({ title: "Gagal mengirim usulan", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+      toast.show({
+        title: "Gagal mengirim usulan",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
     } finally {
       setProposing(false)
     }
-  }, [id, proposeAmount, proposeNote, toast.show])
+  }, [id, proposeAmount, proposeNote, orderValue, myRole, proposing, toast.show])
 
   const handleRespond = useCallback(
     async (proposal: MutualResolutionProposal, action: "ACCEPT" | "REJECT" | "WITHDRAW") => {
@@ -274,13 +328,22 @@ export default function DisputeDetailScreen() {
         if (action === "WITHDRAW") await api.disputes.withdrawMutualResolution(id, proposal.id)
         else await api.disputes.respondMutualResolution(id, proposal.id, { action })
         toast.show({
-          title: action === "ACCEPT" ? "Kesepakatan diterima" : action === "REJECT" ? "Usulan ditolak" : "Usulan ditarik",
+          title:
+            action === "ACCEPT"
+              ? "Kesepakatan diterima"
+              : action === "REJECT"
+                ? "Usulan ditolak"
+                : "Usulan ditarik",
           tone: "success",
           duration: 3000,
         })
         await fetchAll()
       } catch (err) {
-        toast.show({ title: "Gagal menanggapi usulan", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+        toast.show({
+          title: "Gagal menanggapi usulan",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
       } finally {
         setRespondingAction(null)
       }
@@ -293,10 +356,19 @@ export default function DisputeDetailScreen() {
     setRequestingCall(true)
     try {
       await api.disputes.requestDisputeCall(id)
-      toast.show({ title: "Permintaan panggilan dikirim", description: "Anda akan diberi tahu saat lawan menerima.", tone: "success", duration: 4000 })
+      toast.show({
+        title: "Permintaan panggilan dikirim",
+        description: "Anda akan diberi tahu saat lawan menerima.",
+        tone: "success",
+        duration: 4000,
+      })
       setCalls(await api.disputes.getDisputeCalls(id).catch(() => calls))
     } catch (err) {
-      toast.show({ title: "Gagal meminta panggilan", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+      toast.show({
+        title: "Gagal meminta panggilan",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
     } finally {
       setRequestingCall(false)
     }
@@ -320,13 +392,21 @@ export default function DisputeDetailScreen() {
         else await api.disputes.endDisputeCall(id)
         toast.show({
           title:
-            action === "accept" ? "Panggilan diterima" : action === "reject" ? "Panggilan ditolak" : "Panggilan diakhiri",
+            action === "accept"
+              ? "Panggilan diterima"
+              : action === "reject"
+                ? "Panggilan ditolak"
+                : "Panggilan diakhiri",
           tone: action === "reject" ? "neutral" : "success",
           duration: 3000,
         })
         setCalls(await api.disputes.getDisputeCalls(id).catch(() => calls))
       } catch (err) {
-        toast.show({ title: "Gagal memproses panggilan", description: isApiError(err) ? userMessage(err) : undefined, tone: "danger" })
+        toast.show({
+          title: "Gagal memproses panggilan",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
       } finally {
         setCallActionBusy(null)
       }
@@ -361,7 +441,9 @@ export default function DisputeDetailScreen() {
   )
 
   const pendingProposal = proposals.find((p) => p.status === "PENDING")
-  const hasCallInProgress = calls.some((c) => CALL_OUTCOME[c.status] === "ONGOING")
+  const hasCallInProgress = calls.some((c) =>
+    ["REQUESTED", "ACCEPTED", "ONGOING"].includes(c.status),
+  )
 
   return (
     <Screen
@@ -369,7 +451,10 @@ export default function DisputeDetailScreen() {
       padded={false}
       footer={
         dispute ? (
-          <View className="px-6" style={{ paddingBottom: insets.bottom + tokens.space[3], paddingTop: tokens.space[2] }}>
+          <View
+            className="px-6"
+            style={{ paddingBottom: insets.bottom + tokens.space[3], paddingTop: tokens.space[2] }}
+          >
             <ChatComposer
               value={draft}
               onChangeText={setDraft}
@@ -387,10 +472,12 @@ export default function DisputeDetailScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading && !dispute ? (
-          <EmptyState icon={ShieldWarning} title="Memuat sengketa…" />
+          <LoadingScreen message="Memuat sengketa…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : dispute ? (
@@ -402,13 +489,20 @@ export default function DisputeDetailScreen() {
                 </Text>
                 <Text variant="caption" tone="secondary">
                   Dibuka {formatDateTime(dispute.createdAt)}
-                  {order ? ` · ${myRole === "buyer" ? "Anda pembeli" : "Anda penjual"} · ${formatRupiah(order.orderValue)}` : ""}
+                  {order
+                    ? ` · ${myRole === "buyer" ? "Anda pembeli" : myRole === "seller" ? "Anda penjual" : "Peran belum terkonfirmasi"} · ${formatRupiah(order.orderValue)}`
+                    : ""}
                 </Text>
               </View>
               <DisputeStatusBadge status={dispute.status} />
             </View>
             {dispute.orderId ? (
-              <Button variant="ghost" size="sm" fullWidth={false} onPress={() => router.push(ROUTES.orderDetail(dispute.orderId))}>
+              <Button
+                variant="ghost"
+                size="sm"
+                fullWidth={false}
+                onPress={() => router.push(ROUTES.orderDetail(dispute.orderId))}
+              >
                 Lihat pesanan
               </Button>
             ) : null}
@@ -422,15 +516,28 @@ export default function DisputeDetailScreen() {
               updatedAt={dispute.updatedAt ? formatDateTime(dispute.updatedAt) : undefined}
             />
 
-            <SectionHeader title="Bukti" subtitle="Ketuk untuk melihat; bukti Anda bisa dihapus dari pratinjau." />
-            <EvidenceGrid items={evidenceItems} onOpen={openEvidence} onAdd={() => void handleAddEvidence()} addDisabled={submitting} />
+            <SectionHeader
+              title="Bukti"
+              subtitle="Ketuk untuk melihat; bukti Anda bisa dihapus dari pratinjau."
+            />
+            <EvidenceGrid
+              items={evidenceItems}
+              onOpen={openEvidence}
+              onAdd={() => void handleAddEvidence()}
+              addDisabled={submitting}
+            />
 
             <SectionHeader
               title="Penyelesaian bersama"
               subtitle="Sepakati pembagian dana escrow tanpa menunggu keputusan mediator."
               action={
                 !pendingProposal && order ? (
-                  <Button variant="secondary" size="sm" leftIcon={Handshake} onPress={() => setProposeOpen(true)}>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    leftIcon={Handshake}
+                    onPress={() => setProposeOpen(true)}
+                  >
                     Usulkan
                   </Button>
                 ) : undefined
@@ -441,8 +548,24 @@ export default function DisputeDetailScreen() {
             ) : (
               proposals.map((p) => {
                 const proposedByMe = Boolean(me?.id && p.proposerId === me.id)
-                const total = orderValue || (p.buyerAmount ?? 0) + (p.sellerAmount ?? 0)
-                const buyerAmount = p.buyerAmount ?? p.amount ?? 0
+                const total = Number.isFinite(orderValue)
+                  ? orderValue
+                  : p.buyerAmount != null && p.sellerAmount != null
+                    ? p.buyerAmount + p.sellerAmount
+                    : Number.NaN
+                const buyerAmount = p.buyerAmount ?? p.amount
+                if (
+                  !myRole ||
+                  buyerAmount == null ||
+                  !Number.isSafeInteger(total) ||
+                  buyerAmount < 0 ||
+                  buyerAmount > total
+                )
+                  return (
+                    <Text key={p.id} variant="body" tone="secondary">
+                      Rincian usulan belum lengkap. Muat ulang sebelum menanggapi.
+                    </Text>
+                  )
                 const pending = p.status === "PENDING"
                 return (
                   <MutualResolutionCard
@@ -453,15 +576,23 @@ export default function DisputeDetailScreen() {
                     status={p.status}
                     proposedByMe={proposedByMe}
                     proposerName={proposedByMe ? undefined : counterpartName}
-                    proposerAvatar={proposedByMe ? undefined : (counterpart?.avatarUrl ?? undefined)}
+                    proposerAvatar={
+                      proposedByMe ? undefined : (counterpart?.avatarUrl ?? undefined)
+                    }
                     role={myRole}
                     note={p.note}
                     createdAt={formatDateTime(p.createdAt)}
                     respondedAt={p.respondedAt ? formatDateTime(p.respondedAt) : undefined}
                     expiresAt={p.expiresAt ? new Date(p.expiresAt) : undefined}
-                    onAccept={pending && !proposedByMe ? () => void handleRespond(p, "ACCEPT") : undefined}
-                    onReject={pending && !proposedByMe ? () => void handleRespond(p, "REJECT") : undefined}
-                    onWithdraw={pending && proposedByMe ? () => void handleRespond(p, "WITHDRAW") : undefined}
+                    onAccept={
+                      pending && !proposedByMe ? () => void handleRespond(p, "ACCEPT") : undefined
+                    }
+                    onReject={
+                      pending && !proposedByMe ? () => void handleRespond(p, "REJECT") : undefined
+                    }
+                    onWithdraw={
+                      pending && proposedByMe ? () => void handleRespond(p, "WITHDRAW") : undefined
+                    }
                     accepting={respondingAction === "ACCEPT"}
                     rejecting={respondingAction === "REJECT"}
                     withdrawing={respondingAction === "WITHDRAW"}
@@ -479,7 +610,7 @@ export default function DisputeDetailScreen() {
                   size="sm"
                   leftIcon={VideoCamera}
                   loading={requestingCall}
-                  disabled={hasCallInProgress}
+                  disabled={!myRole || hasCallInProgress}
                   onPress={() => void handleRequestCall()}
                 >
                   Minta
@@ -497,10 +628,12 @@ export default function DisputeDetailScreen() {
                   return (
                     <View key={c.id}>
                       <DisputeCallLogItem
-                        outcome={CALL_OUTCOME[c.status] ?? "COMPLETED"}
+                        outcome={CALL_OUTCOME[c.status] ?? c.status}
                         requestedByMe={requestedByMe}
                         counterpartName={counterpartName}
-                        timestamp={formatDateTime(c.startedAt ?? c.requestedAt ?? c.createdAt ?? "")}
+                        timestamp={formatDateTime(
+                          c.startedAt ?? c.requestedAt ?? c.createdAt ?? "",
+                        )}
                         durationSeconds={c.durationSeconds}
                         withMediator={c.withMediator}
                         divider={i < calls.length - 1 && !isRequested && !isActive}
@@ -572,7 +705,12 @@ export default function DisputeDetailScreen() {
         onOpenError={(message) => toast.show({ title: message, tone: "danger" })}
         actions={
           viewerItem?.mine && viewerItem.evidenceId ? (
-            <Button variant="destructive" size="sm" fullWidth={false} onPress={() => setDeleteEvidenceId(viewerItem.evidenceId ?? null)}>
+            <Button
+              variant="destructive"
+              size="sm"
+              fullWidth={false}
+              onPress={() => setDeleteEvidenceId(viewerItem.evidenceId ?? null)}
+            >
               Hapus bukti
             </Button>
           ) : undefined
@@ -604,7 +742,13 @@ export default function DisputeDetailScreen() {
         }
       >
         <View className="gap-4">
-          <AmountInput value={proposeAmount} onChange={setProposeAmount} min={0} max={orderValue || undefined} label="Kembali ke pembeli" />
+          <AmountInput
+            value={proposeAmount}
+            onChange={setProposeAmount}
+            min={0}
+            max={orderValue || undefined}
+            label="Kembali ke pembeli"
+          />
           <Text variant="caption" tone="secondary">
             Ke penjual: {formatRupiah(Math.max(0, orderValue - proposeAmount))}
           </Text>

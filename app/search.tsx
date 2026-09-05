@@ -1,170 +1,189 @@
-/**
- * Screen — Pencarian Global (GET /v1/search + /v1/search/suggestions).
- * SearchField live → suggestion chips → hasil (user, article).
- */
-import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
+import { useMemo, useState } from "react"
+import { FlatList, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
-
-import { api } from "@/lib/api"
+import { api, type Order, type WalletTransaction, type UserProfile } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-
+import { useApiQuery } from "@/lib/use-api-query"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { ChipGroup } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { ListLoading } from "@/components/ui/paginated-list"
+import { OrderCard } from "@/components/ui/order-card"
 import { Screen } from "@/components/ui/screen"
 import { SearchField } from "@/components/ui/search-field"
-import { SectionHeader } from "@/components/ui/section"
-import { Text } from "@/components/ui/text"
 import { UserListItem } from "@/components/ui/user-list-item"
-import { useToast } from "@/components/ui/toast"
+import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 
+type ResultRow = { id: string } & (
+  | { kind: "user"; user: UserProfile }
+  | { kind: "order"; order: Order }
+  | { kind: "transaction"; transaction: WalletTransaction }
+  | { kind: "article"; article: { id: string; slug: string; title: string; snippet?: string } }
+)
 export default function SearchScreen() {
   const insets = useSafeAreaInsets()
-  const toast = useToast()
-
-  const [query, setQuery] = useState("")
-  const [suggestions, setSuggestions] = useState<string[]>([])
-  const [users, setUsers] = useState<Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>>([])
-  const [articles, setArticles] = useState<Array<{ id: string; slug: string; title: string; snippet?: string }>>([])
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-  const [searched, setSearched] = useState(false)
-
-  const doSearch = useCallback(
-    async (q: string) => {
-      if (!q.trim()) {
-        setUsers([])
-        setArticles([])
-        setSearched(false)
-        return
-      }
-      setLoading(true)
-      setError(null)
-      try {
-        const res = await api.search.globalSearch({ q: q.trim() })
-        setUsers((res?.users ?? []).map((u) => ({ id: u.id, username: u.username ?? "", fullName: u.fullName, avatarUrl: u.avatarUrl })))
-        setArticles(res?.articles ?? [])
-        setSearched(true)
-      } catch {
-        setError("Pencarian gagal. Coba lagi.")
-      } finally {
-        setLoading(false)
-      }
-    },
-    [],
+  const [input, setInput] = useState("")
+  const keyword = useDebouncedValue(input.trim())
+  const enabled = keyword.length >= 2 && keyword === input.trim()
+  const result = useApiQuery(
+    `search:${keyword}`,
+    (signal) => api.search.globalSearch({ q: keyword, limit: 20 }, signal),
+    enabled,
   )
-
-  useEffect(() => {
-    if (!query.trim()) {
-      setSuggestions([])
-      return
-    }
-    const t = setTimeout(() => {
-      void api.search
-        .getSearchSuggestions({ q: query.trim() })
-        .then((s) => setSuggestions(s ?? []))
-        .catch(() => setSuggestions([]))
-    }, 300)
-    return () => clearTimeout(t)
-  }, [query])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await doSearch(query)
-    setRefreshing(false)
-  }, [doSearch, query])
-
+  const suggestions = useApiQuery(
+    `suggestions:${keyword}`,
+    (signal) => api.search.getSearchSuggestions({ q: keyword }, signal),
+    enabled,
+  )
+  const rows = useMemo<ResultRow[]>(
+    () => [
+      ...(result.data?.users ?? []).map((user) => ({
+        id: `user:${user.id}`,
+        kind: "user" as const,
+        user,
+      })),
+      ...(result.data?.orders ?? []).map((order) => ({
+        id: `order:${order.id}`,
+        kind: "order" as const,
+        order,
+      })),
+      ...(result.data?.transactions ?? []).map((transaction) => ({
+        id: `transaction:${transaction.id}`,
+        kind: "transaction" as const,
+        transaction,
+      })),
+      ...(result.data?.articles ?? []).map((article) => ({
+        id: `article:${article.id}`,
+        kind: "article" as const,
+        article,
+      })),
+    ],
+    [result.data],
+  )
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pencarian" />
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
-      >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <SearchField
-            value={query}
-            onChangeText={setQuery}
-            onSearch={(q) => void doSearch(q)}
-            placeholder="Cari pengguna atau artikel"
-            debounceMs={300}
-          />
-
-          {!searched && suggestions.length > 0 ? (
-            <>
-              <SectionHeader title="Saran" />
+      <View className="px-6 pb-4">
+        <SearchField
+          value={input}
+          onChangeText={setInput}
+          placeholder="Cari pengguna, pesanan, atau mutasi"
+        />
+      </View>
+      <FlatList
+        data={rows}
+        keyExtractor={(row) => row.id}
+        contentContainerStyle={{
+          flexGrow: 1,
+          paddingHorizontal: tokens.layout.screenPaddingX,
+          paddingBottom: insets.bottom + tokens.space[8],
+        }}
+        ListHeaderComponent={
+          suggestions.data?.length ? (
+            <View className="pb-4">
               <ChipGroup
-                options={suggestions.map((s) => ({ value: s, label: s }))}
+                options={[...new Set(suggestions.data)].map((s) => ({ value: s, label: s }))}
                 value={[]}
-                onChange={(next) => {
-                  const q = next[0]
-                  if (q) {
-                    setQuery(q)
-                    void doSearch(q)
-                  }
-                }}
                 single
+                onChange={(next) => {
+                  if (next[0]) setInput(next[0])
+                }}
               />
-            </>
-          ) : null}
-
-          {searched ? (
-            <>
-              {error ? (
-                <ErrorState title="Gagal mencari" description={error} onRetry={() => void doSearch(query)} />
-              ) : loading ? (
-                <Text variant="body" tone="secondary">Mencari…</Text>
-              ) : users.length === 0 && articles.length === 0 ? (
-                <EmptyState icon={MagnifyingGlass} title="Tidak ada hasil" description="Coba kata kunci lain." />
-              ) : (
-                <>
-                  {users.length > 0 ? (
-                    <>
-                      <SectionHeader title="Pengguna" />
-                      {users.map((u, i) => (
-                        <UserListItem
-                          key={u.id}
-                          name={u.fullName ?? u.username}
-                          username={u.username}
-                          avatar={u.avatarUrl ? { source: u.avatarUrl } : undefined}
-                          chevron
-                          divider={i < users.length - 1}
-                          onPress={() => router.push(ROUTES.userProfile(u.username))}
-                        />
-                      ))}
-                    </>
-                  ) : null}
-                  {articles.length > 0 ? (
-                    <>
-                      <SectionHeader title="Artikel" />
-                      {articles.map((a, i) => (
-                        <HelpArticleListItem
-                          key={a.id}
-                          title={a.title}
-                          snippet={a.snippet}
-                          highlight={query.trim()}
-                          divider={i < articles.length - 1}
-                          onPress={() => router.push(ROUTES.helpArticle(a.slug))}
-                        />
-                      ))}
-                    </>
-                  ) : null}
-                </>
-              )}
-            </>
-          ) : null}
-        </View>
-      </PullToRefresh>
+            </View>
+          ) : null
+        }
+        ItemSeparatorComponent={() => <View className="h-3" />}
+        renderItem={({ item }) => {
+          if (item.kind === "user")
+            return (
+              <UserListItem
+                padded={false}
+                name={item.user.fullName ?? item.user.username ?? "Identitas belum tersedia"}
+                username={item.user.username ?? undefined}
+                avatar={item.user.avatarUrl ? { source: item.user.avatarUrl } : undefined}
+                chevron
+                onPress={
+                  item.user.username
+                    ? () => router.push(ROUTES.userProfile(item.user.username!))
+                    : undefined
+                }
+              />
+            )
+          if (item.kind === "transaction")
+            return (
+              <WalletTransactionRow
+                transaction={item.transaction}
+                onPress={() => router.push(ROUTES.walletTransaction(item.transaction.id))}
+              />
+            )
+          if (item.kind === "article")
+            return (
+              <HelpArticleListItem
+                padded={false}
+                title={item.article.title}
+                snippet={item.article.snippet}
+                highlight={keyword}
+                onPress={() =>
+                  router.push(ROUTES.helpArticle(item.article.slug, undefined, item.article.title))
+                }
+              />
+            )
+          const role =
+            item.order.myRole === "BUYER"
+              ? "buyer"
+              : item.order.myRole === "SELLER"
+                ? "seller"
+                : undefined
+          const counterpart =
+            role === "buyer" ? item.order.seller : role === "seller" ? item.order.buyer : undefined
+          return (
+            <OrderCard
+              orderId={item.order.id}
+              title={item.order.title}
+              amount={item.order.orderValue}
+              status={item.order.status}
+              role={role}
+              counterpart={{
+                name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
+              }}
+              onPress={() => router.push(ROUTES.orderDetail(item.order.id))}
+            />
+          )
+        }}
+        ListEmptyComponent={
+          result.loading || (input.trim().length >= 2 && keyword !== input.trim()) ? (
+            <ListLoading />
+          ) : result.error ? (
+            <ErrorState
+              title="Gagal mencari"
+              description={result.error}
+              onRetry={() => void result.reload()}
+            />
+          ) : (
+            <EmptyState
+              icon={MagnifyingGlass}
+              title={enabled ? "Tidak ada hasil" : "Mulai mencari"}
+              description={
+                enabled
+                  ? "Coba kata kunci yang lebih spesifik."
+                  : "Masukkan setidaknya dua karakter."
+              }
+            />
+          )
+        }
+        refreshing={result.refreshing}
+        onRefresh={() => void result.refresh()}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        initialNumToRender={8}
+        windowSize={7}
+      />
     </Screen>
   )
 }

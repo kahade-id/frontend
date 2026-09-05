@@ -1,3 +1,6 @@
+import { walletTransactionStatus } from "@/lib/wallet-labels"
+import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Tarik Dana (withdraw).
  *
@@ -14,13 +17,13 @@
  *     sudah ditahan (hold) dilepas — cukup "kembali" akan meninggalkan
  *     penarikan menggantung sampai OTP kedaluwarsa.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
-import { api, type WithdrawDto } from "@/lib/api"
+import { api, userMessage, type WithdrawDto } from "@/lib/api"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -40,9 +43,9 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
-const MIN_AMOUNT = 50_000
-const MAX_AMOUNT = 50_000_000
-const PRESETS = [100_000, 250_000, 500_000, 1_000_000, 5_000_000]
+const MIN_AMOUNT = AMOUNT_LIMITS.withdraw.minimum
+const MAX_AMOUNT = AMOUNT_LIMITS.withdraw.maximum
+const PRESETS = AMOUNT_PRESETS.withdraw
 
 type Step = "form" | "pin" | "otp" | "done"
 
@@ -61,9 +64,12 @@ export default function WithdrawScreen() {
   const [pinError, setPinError] = useState<string | undefined>()
   const [otpError, setOtpError] = useState<string | undefined>()
   const [txId, setTxId] = useState<string | null>(null)
+  const submitLock = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
-  const [result, setResult] = useState<Awaited<ReturnType<typeof api.wallet.createWithdraw>> | null>(null)
+  const [result, setResult] = useState<Awaited<
+    ReturnType<typeof api.wallet.createWithdraw>
+  > | null>(null)
 
   const fetchAccounts = useCallback(async () => {
     try {
@@ -71,7 +77,11 @@ export default function WithdrawScreen() {
       setError(null)
       const list = await api.bankAccounts.listBankAccounts()
       setAccounts(list ?? [])
-      setAccountId((prev) => prev ?? (list?.[0]?.id ?? null))
+      setAccountId((prev) =>
+        list.some((a) => a.id === prev)
+          ? prev
+          : (list.find((a) => a.isPrimary)?.id ?? list[0]?.id ?? null),
+      )
     } catch {
       setError("Gagal memuat rekening bank.")
     } finally {
@@ -90,50 +100,79 @@ export default function WithdrawScreen() {
   }, [fetchAccounts])
 
   const handleSubmitForm = useCallback(() => {
-    if (!amount || !accountId) return
+    if (
+      submitLock.current ||
+      !isValidAmount(amount, AMOUNT_LIMITS.withdraw) ||
+      !accountId ||
+      !accounts.some((a) => a.id === accountId) ||
+      loading ||
+      error
+    )
+      return
     setPinError(undefined)
     setStep("pin")
-  }, [amount, accountId])
+  }, [amount, accountId, accounts, submitting, loading, error])
 
   const handlePin = useCallback(
     async (value: string) => {
-      if (!amount || !accountId) return
+      if (
+        submitLock.current ||
+        !isValidAmount(amount, AMOUNT_LIMITS.withdraw) ||
+        !accountId ||
+        !accounts.some((a) => a.id === accountId) ||
+        loading ||
+        error
+      )
+        return
+      submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
       try {
         const dto: WithdrawDto = { amount, bankAccountId: accountId, pin: value }
         const res = await api.wallet.createWithdraw(dto)
         setResult(res)
-        if (res.requiresOtp || res.status === "PENDING_OTP") {
+        if ((res.requiresOtp || res.status === "PENDING_OTP") && res.txId) {
           setTxId(res.txId)
           setStep("otp")
         } else {
           setStep("done")
         }
-      } catch {
-        setPinError("PIN salah atau saldo tidak mencukupi. Coba lagi.")
+      } catch (error) {
+        setPinError(`${userMessage(error)} Periksa riwayat sebelum mengirim ulang.`)
       } finally {
+        submitLock.current = false
         setSubmitting(false)
       }
     },
-    [amount, accountId],
+    [amount, accountId, accounts, loading, error],
   )
 
-  const handleConfirmOtp = useCallback(async (otp: string) => {
-    if (!txId) return
-    setSubmitting(true)
-    setOtpError(undefined)
-    try {
-      const res = await api.wallet.confirmWithdrawOtp({ txId, otp })
-      setResult(res)
-      setStep("done")
-      toast.show({ title: "Penarikan berhasil diproses", tone: "success" })
-    } catch {
-      setOtpError("Kode OTP salah atau kedaluwarsa. Periksa lalu coba lagi.")
-    } finally {
-      setSubmitting(false)
-    }
-  }, [txId, toast.show])
+  const handleConfirmOtp = useCallback(
+    async (otp: string) => {
+      if (!txId || submitLock.current) return
+      submitLock.current = true
+      setSubmitting(true)
+      setOtpError(undefined)
+      try {
+        const res = await api.wallet.confirmWithdrawOtp({ txId, otp })
+        setResult(res)
+        setStep("done")
+        toast.show({
+          title:
+            walletTransactionStatus(res.status) === "SUCCESS"
+              ? "Penarikan selesai"
+              : "Konfirmasi penarikan diterima",
+          tone: walletTransactionStatus(res.status) === "SUCCESS" ? "success" : "info",
+        })
+      } catch (error) {
+        setOtpError(userMessage(error))
+      } finally {
+        submitLock.current = false
+        setSubmitting(false)
+      }
+    },
+    [txId, toast.show],
+  )
 
   const handleResend = useCallback(async () => {
     if (!txId) return
@@ -147,44 +186,53 @@ export default function WithdrawScreen() {
   }, [txId, toast.show])
 
   const handleCancelOtp = useCallback(async () => {
-    if (!txId) return
+    if (!txId || submitLock.current) return
+    submitLock.current = true
     setCancelling(true)
     try {
       await api.wallet.cancelWithdraw({ txId })
-      toast.show({ title: "Penarikan dibatalkan", tone: "success" })
-    } catch {
-      // Sudah kedaluwarsa/diproses di server — tetap kembalikan pengguna ke form.
-      toast.show({ title: "Penarikan tidak bisa dibatalkan lagi", tone: "danger" })
+      toast.show({ title: "Permintaan pembatalan diterima", tone: "info" })
+      router.replace(ROUTES.withdrawHistory)
+    } catch (error) {
+      // Keep the pending transaction and OTP visible. Failure is NOT cancellation.
+      setOtpError(userMessage(error))
     } finally {
+      submitLock.current = false
       setCancelling(false)
-      setTxId(null)
-      setResult(null)
-      setStep("form")
     }
   }, [txId, toast.show])
 
   const selected = accounts.find((a) => a.id === accountId)
 
   return (
-    <Screen edges={["top"]} padded={false} footer={
-      step === "form" ? (
-        <View className="px-6 pb-4">
-          <Button
-            fullWidth
-            disabled={!amount || amount < MIN_AMOUNT || !accountId}
-            onPress={handleSubmitForm}
-          >
-            Lanjut
-          </Button>
-        </View>
-      ) : undefined
-    }>
+    <Screen
+      keyboardAvoiding
+      edges={["top"]}
+      padded={false}
+      footer={
+        step === "form" ? (
+          <View>
+            <Button
+              fullWidth
+              disabled={
+                !isValidAmount(amount, AMOUNT_LIMITS.withdraw) || !accountId || loading || !!error
+              }
+              onPress={handleSubmitForm}
+            >
+              Lanjut
+            </Button>
+          </View>
+        ) : undefined
+      }
+    >
       <Header title="Tarik Dana" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {step === "pin" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -196,7 +244,12 @@ export default function WithdrawScreen() {
               </Text>{" "}
               ke {selected?.bankName ?? "rekening Anda"}.
             </Text>
-            <PinInput mode="enter" onComplete={(p) => void handlePin(p)} errorText={pinError} disabled={submitting} />
+            <PinInput
+              mode="enter"
+              onComplete={(p) => void handlePin(p)}
+              errorText={pinError}
+              disabled={submitting}
+            />
             <Button
               variant="ghost"
               fullWidth={false}
@@ -210,7 +263,7 @@ export default function WithdrawScreen() {
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Konfirmasi OTP" />
             <Text variant="body" tone="secondary">
-              Bank Anda meminta konfirmasi tambahan. Masukkan kode 6 digit yang dikirim.
+              Selesaikan verifikasi tambahan dengan kode yang dikirim oleh layanan.
             </Text>
             <OtpInput
               length={6}
@@ -219,7 +272,12 @@ export default function WithdrawScreen() {
               disabled={submitting || cancelling}
             />
             <View className="flex-row flex-wrap gap-2">
-              <Button variant="ghost" fullWidth={false} onPress={() => void handleResend()} disabled={submitting}>
+              <Button
+                variant="ghost"
+                fullWidth={false}
+                onPress={() => void handleResend()}
+                disabled={submitting}
+              >
                 Kirim ulang OTP
               </Button>
               <Button
@@ -235,10 +293,19 @@ export default function WithdrawScreen() {
           </View>
         ) : step === "done" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Berhasil diproses" />
+            <SectionHeader
+              title={
+                walletTransactionStatus(result?.status) === "SUCCESS"
+                  ? "Penarikan selesai"
+                  : walletTransactionStatus(result?.status) === "FAILED"
+                    ? "Penarikan gagal"
+                    : "Permintaan penarikan diterima"
+              }
+            />
             <Text variant="body">
-              Penarikan {formatRupiah(amount)} sedang diproses ke {selected?.bankName}
-              {selected ? ` ${maskAccountNumber(selected.accountNumber)}` : ""}.
+              Permintaan penarikan {formatRupiah(amount)} ke {selected?.bankName}
+              {selected ? ` ${maskAccountNumber(selected.accountNumber)}` : ""}. Periksa riwayat
+              untuk memastikan status terakhir.
             </Text>
             {result?.txId ? (
               <Text variant="monoBody" tone="secondary">
@@ -248,13 +315,13 @@ export default function WithdrawScreen() {
             <Button variant="secondary" onPress={() => router.replace(ROUTES.withdrawHistory)}>
               Lihat Riwayat Penarikan
             </Button>
-            <Button variant="ghost" fullWidth={false} onPress={() => router.back()}>
+            <Button variant="ghost" fullWidth={false} onPress={() => router.replace(ROUTES.wallet)}>
               Kembali ke Dompet
             </Button>
           </View>
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Nominal" inset />
+            <SectionHeader title="Nominal" />
             <AmountInput
               value={amount}
               onChange={setAmount}
@@ -264,9 +331,9 @@ export default function WithdrawScreen() {
               label="Nominal penarikan"
             />
 
-            <SectionHeader title="Rekening tujuan" inset />
+            <SectionHeader title="Rekening tujuan" />
             {loading ? (
-              <EmptyState icon={BankIcon} title="Memuat rekening…" />
+              <LoadingScreen message="Memuat rekening…" />
             ) : error ? (
               <ErrorState
                 compact
@@ -280,7 +347,11 @@ export default function WithdrawScreen() {
                 title="Belum ada rekening"
                 description="Tambahkan rekening bank terlebih dahulu untuk menarik dana."
                 action={
-                  <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.bankAccounts)}>
+                  <Button
+                    variant="secondary"
+                    fullWidth={false}
+                    onPress={() => router.push(ROUTES.bankAccounts)}
+                  >
                     Tambah Rekening
                   </Button>
                 }

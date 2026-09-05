@@ -36,11 +36,24 @@ export const WALLET_TXN_STATUS: Record<string, WalletTxStatus> = {
   COMPLETED: "SUCCESS",
   SUCCESS: "SUCCESS",
   PENDING: "PENDING",
+  PROCESSING: "PENDING",
+  PENDING_OTP: "PENDING",
+  WAITING: "PENDING",
   FAILED: "FAILED",
 }
 
 /** Arah dana: field `direction` bila ada, fallback kategori. */
 export function isWalletCredit(txn: WalletTransaction): boolean {
-  if (txn.direction) return txn.direction === "CREDIT"
-  return ["TOPUP", "TRANSFER_IN", "ORDER_RELEASE", "REFUND", "CASHBACK"].includes(txn.type)
+  return walletTransactionType(txn) === "CREDIT"
+}
+
+export function walletTransactionStatus(status?: string | null): WalletTxStatus {
+  return status ? (WALLET_TXN_STATUS[status] ?? "UNKNOWN") : "UNKNOWN"
+}
+export function walletTransactionType(txn: WalletTransaction): "CREDIT" | "DEBIT" | "UNKNOWN" {
+  if (txn.direction === "CREDIT" || txn.direction === "DEBIT") return txn.direction
+  if (["TOPUP", "TRANSFER_IN", "ORDER_RELEASE", "REFUND", "CASHBACK"].includes(txn.type))
+    return "CREDIT"
+  if (["WITHDRAWAL", "TRANSFER_OUT", "ORDER_ESCROW", "FEE"].includes(txn.type)) return "DEBIT"
+  return "UNKNOWN"
 }

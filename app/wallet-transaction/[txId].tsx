@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Detail Mutasi Wallet (GET /v1/wallet/transactions/{txId}).
  * KeyValue rows sistem + Amount; PullToRefresh.
@@ -15,7 +16,8 @@ import { tokens } from "@/lib/tokens"
 import {
   WALLET_TXN_KIND,
   WALLET_TXN_LABELS,
-  WALLET_TXN_STATUS,
+  walletTransactionStatus,
+  walletTransactionType,
   isWalletCredit,
 } from "@/lib/wallet-labels"
 
@@ -64,7 +66,8 @@ export default function WalletTransactionScreen() {
     setRefreshing(false)
   }, [fetchTxn])
 
-  const status = WALLET_TXN_STATUS[txn?.status ?? "COMPLETED"] ?? "SUCCESS"
+  const status = walletTransactionStatus(txn?.status)
+  const direction = txn ? walletTransactionType(txn) : "UNKNOWN"
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -73,12 +76,18 @@ export default function WalletTransactionScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={WalletIcon} title="Memuat mutasi…" />
+          <LoadingScreen message="Memuat mutasi…" />
         ) : error || !txn ? (
-          <ErrorState title="Gagal memuat" description={error ?? "Mutasi tidak ditemukan."} onRetry={() => void fetchTxn()} />
+          <ErrorState
+            title="Gagal memuat"
+            description={error ?? "Mutasi tidak ditemukan."}
+            onRetry={() => void fetchTxn()}
+          />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <Card padded className="items-center gap-3">
@@ -88,10 +97,14 @@ export default function WalletTransactionScreen() {
                 variant={status === "FAILED" ? "danger" : "surface"}
               />
               <Amount
-                value={isWalletCredit(txn) ? Math.abs(txn.amount) : -Math.abs(txn.amount)}
+                value={direction === "DEBIT" ? -Math.abs(txn.amount) : Math.abs(txn.amount)}
                 size="large"
-                sign={isWalletCredit(txn) ? "always" : "auto"}
-                tone={status === "FAILED" ? "secondary" : isWalletCredit(txn) ? "success" : "primary"}
+                sign={
+                  direction === "UNKNOWN" ? "never" : direction === "CREDIT" ? "always" : "auto"
+                }
+                tone={
+                  status !== "SUCCESS" ? "secondary" : isWalletCredit(txn) ? "success" : "primary"
+                }
               />
               {status === "PENDING" ? (
                 <StatusIndicator label="Menunggu" tone="warning" size="sm" />
@@ -102,14 +115,10 @@ export default function WalletTransactionScreen() {
 
             <Card padded className="gap-3">
               <KeyValue label="Jenis" value={WALLET_TXN_LABELS[txn.type] ?? txn.type} />
-              <KeyValue label="Status" value={status} />
+              <KeyValue label="Status" value={txn.status ?? "Status belum tersedia"} />
               <KeyValue label="Waktu" value={formatDateTime(txn.createdAt)} />
-              {txn.referenceId ? (
-                <KeyValue label="Referensi" value={txn.referenceId} mono />
-              ) : null}
-              {txn.description ? (
-                <KeyValue label="Deskripsi" value={txn.description} />
-              ) : null}
+              {txn.referenceId ? <KeyValue label="Referensi" value={txn.referenceId} mono /> : null}
+              {txn.description ? <KeyValue label="Deskripsi" value={txn.description} /> : null}
             </Card>
 
             <Text variant="caption" tone="tertiary" className="text-center">

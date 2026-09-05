@@ -31,7 +31,8 @@
  *     yang sama tanpa Context provider tambahan di root.
  */
 import { useEffect, useSyncExternalStore } from "react"
-import { AppState } from "react-native"
+import { usePolling } from "@/lib/use-polling"
+import { getSessionRevision, subscribeSession } from "@/lib/api/session"
 
 import { api, isApiError, readUnreadCount } from "@/lib/api"
 
@@ -49,6 +50,14 @@ export const UNREAD_POLL_INTERVAL_MS = 60_000
 let state: UnreadCountState = { status: "idle", count: null }
 const listeners = new Set<() => void>()
 let inFlight: Promise<void> | null = null
+let generation = 0
+let accountRevision = getSessionRevision()
+subscribeSession(() => {
+  if (accountRevision !== getSessionRevision()) {
+    accountRevision = getSessionRevision()
+    resetUnreadCount()
+  }
+})
 
 function emit(next: UnreadCountState) {
   state = next
@@ -68,25 +77,33 @@ function getSnapshot() {
 
 /** Set langsung (mis. setelah read-all → 0, atau push masuk → count + 1). */
 export function setUnreadCount(count: number | null) {
-  emit({ status: "success", count: count === null ? null : Math.max(0, Math.trunc(count)) })
+  // A poll started before a confirmed read-all must not restore the old count.
+  generation += 1
+  inFlight = null
+  emit({
+    status: "success",
+    count: count === null || !Number.isFinite(count) ? null : Math.max(0, Math.trunc(count)),
+  })
 }
 
 /** Ambil ulang dari server. Single-flight: panggilan paralel menunggu request yang sama. */
 export function refreshUnreadCount(): Promise<void> {
   if (inFlight) return inFlight
+  const started = generation
   inFlight = (async () => {
     if (state.status === "idle") emit({ status: "loading", count: null })
     try {
       const body = await api.notifications.getUnreadCount()
-      emit({ status: "success", count: readUnreadCount(body) })
+      if (started === generation) emit({ status: "success", count: readUnreadCount(body) })
     } catch (err) {
+      if (started !== generation) return
       // Sesi habis sudah ditangani client.ts (redirect). Sisanya: pertahankan angka terakhir.
       if (__DEV__ && !(isApiError(err) && err.code === "UNAUTHORIZED")) {
         console.warn("[kahade/unread] gagal memuat unread-count:", err)
       }
       emit({ status: "error", count: state.count })
     } finally {
-      inFlight = null
+      if (started === generation) inFlight = null
     }
   })()
   return inFlight
@@ -94,6 +111,8 @@ export function refreshUnreadCount(): Promise<void> {
 
 /** Reset ke idle — panggil saat logout agar akun berikutnya tidak mewarisi angka. */
 export function resetUnreadCount() {
+  generation += 1
+  inFlight = null
   emit({ status: "idle", count: null })
 }
 
@@ -115,16 +134,8 @@ export function useUnreadCount(opts: { enabled?: boolean } = {}): UnreadCountSta
     if (!enabled) return
 
     void refreshUnreadCount()
-    const timer = setInterval(() => void refreshUnreadCount(), UNREAD_POLL_INTERVAL_MS)
-    const sub = AppState.addEventListener("change", (next) => {
-      if (next === "active") void refreshUnreadCount()
-    })
-
-    return () => {
-      clearInterval(timer)
-      sub.remove()
-    }
   }, [enabled])
 
+  usePolling(refreshUnreadCount, UNREAD_POLL_INTERVAL_MS, enabled)
   return snapshot
 }

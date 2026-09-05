@@ -1,3 +1,4 @@
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Favorit (GET /v1/users/favorites).
  */
@@ -22,7 +23,9 @@ import { UserListItem } from "@/components/ui/user-list-item"
 export default function FavoritesScreen() {
   const insets = useSafeAreaInsets()
 
-  const [items, setItems] = useState<Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>>([])
+  const [items, setItems] = useState<
+    Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>
+  >([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -57,14 +60,20 @@ export default function FavoritesScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Heart} title="Memuat favorit…" />
+          <LoadingScreen message="Memuat favorit…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : items.length === 0 ? (
-          <EmptyState icon={Heart} title="Belum ada favorit" description="Simpan pengguna favorit dari profil mereka." />
+          <EmptyState
+            icon={Heart}
+            title="Belum ada favorit"
+            description="Simpan pengguna favorit dari profil mereka."
+          />
         ) : (
           <View className="gap-1" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Pengguna favorit" />

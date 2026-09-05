@@ -1,3 +1,6 @@
+import { mergeBadges } from "@/lib/badges"
+import { readPage } from "@/lib/api/response"
+import { LoadingScreen } from "@/components/ui/loading-screen"
 /**
  * Screen — Lencana.
  *
@@ -35,40 +38,22 @@ const CATALOG_LIMIT = 100
 /** Pengaman bila backend tidak mengirim meta.totalPages */
 const CATALOG_MAX_PAGES = 5
 
-/** Ambil seluruh katalog (halaman berurutan bila meta.totalPages > 1). */
-async function fetchWholeCatalog(): Promise<Badge[]> {
-  const out: Badge[] = []
-  let page = 1
-  let totalPages = 1
-  do {
-    const body = await api.badges.listAllBadges({ page, limit: CATALOG_LIMIT })
-    out.push(...readBadgeList(body))
-    totalPages = !Array.isArray(body) && body?.meta?.totalPages ? body.meta.totalPages : 1
-    page += 1
-  } while (page <= totalPages && page <= CATALOG_MAX_PAGES)
-  return out
-}
-
-/** Katalog sebagai dasar; entri "my" menimpa (earnedAt/progress). Yang hanya ada di "my" ditambahkan. */
-function mergeBadges(all: Badge[], mine: Badge[]): Badge[] {
-  const keyOf = (b: Badge) => b.id || b.code
-  const map = new Map<string, Badge>()
-  for (const b of all) map.set(keyOf(b), b)
-  for (const m of mine) {
-    const k = keyOf(m)
-    const base = map.get(k)
-    map.set(k, base ? { ...base, ...m, earnedAt: m.earnedAt ?? base.earnedAt ?? new Date().toISOString() } : m)
+/** Bounded pagination with explicit completeness, not a false total/ownership claim. */
+async function fetchBadgePages(kind: "mine" | "catalog") {
+  const items = new Map<string, Badge>()
+  for (let page = 1; page <= CATALOG_MAX_PAGES; page++) {
+    const raw = await (kind === "mine" ? api.badges.listMyBadges : api.badges.listAllBadges)({
+      page,
+      limit: CATALOG_LIMIT,
+    })
+    const result = readPage<Badge>(raw, { page, limit: CATALOG_LIMIT }, ["badges"])
+    const before = items.size
+    for (const badge of result.data) items.set(badge.id || badge.code, badge)
+    if (result.data.length === 0 || page >= result.meta.totalPages)
+      return { items: [...items.values()], complete: true }
+    if (before === items.size) break
   }
-  // Diraih dulu (terbaru di atas), lalu terkunci berdasarkan progres tertinggi
-  return Array.from(map.values()).sort((a, b) => {
-    const ea = a.earnedAt ? 1 : 0
-    const eb = b.earnedAt ? 1 : 0
-    if (ea !== eb) return eb - ea
-    if (a.earnedAt && b.earnedAt) return b.earnedAt.localeCompare(a.earnedAt)
-    const pa = a.progress ? a.progress.current / Math.max(1, a.progress.target) : 0
-    const pb = b.progress ? b.progress.current / Math.max(1, b.progress.target) : 0
-    return pb - pa
-  })
+  return { items: [...items.values()], complete: false }
 }
 
 export default function BadgesScreen() {
@@ -85,15 +70,15 @@ export default function BadgesScreen() {
     setError(null)
     try {
       const [mineRes, allRes] = await Promise.allSettled([
-        api.badges.listMyBadges({ page: 1, limit: CATALOG_LIMIT }),
-        fetchWholeCatalog(),
+        fetchBadgePages("mine"),
+        fetchBadgePages("catalog"),
       ])
-      if (mineRes.status === "rejected" && allRes.status === "rejected") {
+      if (mineRes.status === "rejected") {
         throw mineRes.reason
       }
-      const mine = mineRes.status === "fulfilled" ? readBadgeList(mineRes.value) : []
-      const all = allRes.status === "fulfilled" ? allRes.value : []
-      setItems(mergeBadges(all, mine))
+      const mine = mineRes.value
+      const all = allRes.status === "fulfilled" ? allRes.value.items : []
+      setItems(mergeBadges(all, mine.items, mine.complete))
     } catch {
       setError("Gagal memuat lencana.")
     } finally {
@@ -118,10 +103,12 @@ export default function BadgesScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
-        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+        }}
       >
         {loading ? (
-          <EmptyState icon={Medal} title="Memuat lencana…" />
+          <LoadingScreen message="Memuat lencana…" />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchBadges()} />
         ) : items.length === 0 ? (
@@ -134,20 +121,22 @@ export default function BadgesScreen() {
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
               title="Lencana"
-              subtitle={`${items.filter((b) => !!b.earnedAt).length} dari ${items.length} diraih`}
+              subtitle={`${items.filter((b) => b.earned === true).length} lencana diraih ditampilkan`}
             />
             <AchievementBadgeGrid
               items={items.map((b) => ({
                 id: b.id,
                 name: b.name,
                 description: b.description,
-                earned: !!b.earnedAt,
+                earned: b.earned,
                 earnedAt: b.earnedAt ? formatDateTime(b.earnedAt) : undefined,
                 progress: b.progress
                   ? Math.round((b.progress.current / Math.max(1, b.progress.target)) * 100)
                   : undefined,
               }))}
-              onPressItem={(item) => toast.show({ title: item.name, description: item.description, tone: "info" })}
+              onPressItem={(item) =>
+                toast.show({ title: item.name, description: item.description, tone: "info" })
+              }
             />
           </View>
         )}

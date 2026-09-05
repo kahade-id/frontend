@@ -1,3 +1,4 @@
+import { cssInterop } from "nativewind"
 /**
  * Kahade — <PullToRefresh> (§9.13 Pull-to-Refresh custom, §8 "signature").
  *
@@ -73,6 +74,12 @@ import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 
 const AnimatedScrollView = Animated.createAnimatedComponent(GHScrollView)
+// This third-party animated wrapper is not one of NativeWind's registered RN
+// primitives. Without the mapping, contentContainerClassName is silently ignored.
+cssInterop(AnimatedScrollView, {
+  className: "style",
+  contentContainerClassName: "contentContainerStyle",
+})
 
 const DEFAULT_THRESHOLD = tokens.space[16] // 64px
 const OVERPULL_RESISTANCE = 0.35
@@ -101,7 +108,10 @@ export type PullToRefreshProps = Omit<ViewProps, "children"> & {
   /** Matikan gesture (mis. saat layar dalam state error penuh) */
   enabled?: boolean
   contentContainerClassName?: string
-  scrollViewProps?: Omit<ScrollViewProps, "children" | "onScroll" | "scrollEventThrottle" | "bounces">
+  scrollViewProps?: Omit<
+    ScrollViewProps,
+    "children" | "onScroll" | "scrollEventThrottle" | "bounces"
+  >
   className?: string
 }
 
@@ -219,7 +229,10 @@ export function PullToRefresh({
           // 1:1 sampai ambang, lalu resistensi + cap.
           let d = dy
           if (d > threshold) {
-            d = Math.min(threshold + (d - threshold) * OVERPULL_RESISTANCE, threshold * OVERPULL_MAX_RATIO)
+            d = Math.min(
+              threshold + (d - threshold) * OVERPULL_RESISTANCE,
+              threshold * OVERPULL_MAX_RATIO,
+            )
           }
           pull.value = d
 
@@ -236,7 +249,18 @@ export function PullToRefresh({
           if (reached.value && wasPulling) runOnJS(startRefresh)()
           else if (pull.value !== 0) pull.value = withSpring(0, tokens.motion.spring)
         }),
-    [anchor, enabled, isRefreshing, notifyThreshold, pull, pulling, reached, scrollOffset, startRefresh, threshold],
+    [
+      anchor,
+      enabled,
+      isRefreshing,
+      notifyThreshold,
+      pull,
+      pulling,
+      reached,
+      scrollOffset,
+      startRefresh,
+      threshold,
+    ],
   )
 
   const contentStyle = useAnimatedStyle(() => ({
@@ -280,7 +304,7 @@ export function PullToRefresh({
         {/* Pan (luar) + Native (scroll) berjalan bersamaan: scroll tidak pernah diblokir */}
         <GestureDetector gesture={composed}>
           <AnimatedScrollView
-            className="flex-1 bg-background"
+            className="flex-1"
             contentContainerClassName={cn("grow", contentContainerClassName)}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
