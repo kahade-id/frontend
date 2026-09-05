@@ -7,10 +7,10 @@ SDK ini — bukan `@latest`.
 Tujuan: semua modul native sudah ter-link sekarang, sehingga mengaktifkan
 fitur terkait nanti **tidak perlu rebuild**. Logic JS sengaja belum di-wire.
 
-## Terpasang & ter-autolink (16/16 diminta)
+## Terpasang & ter-autolink (18 modul)
 
 Terverifikasi lewat `expo-modules-autolinking resolve` untuk **android dan
-ios**: 33 modul native di Android, 34 di iOS, dan seluruh 16 modul yang
+ios**: 36 modul native di Android, 37 di iOS, dan seluruh 18 modul yang
 diminta ada di kedua daftar.
 
 | # | Modul | Versi | Config plugin | Permission/fitur |
@@ -31,6 +31,8 @@ diminta ada di kedua daftar.
 | 14 | expo-tracking-transparency | 6.0.8 | **sengaja tidak dipasang** | ATT iOS — lihat catatan |
 | 15 | expo-device | 8.0.10 | tidak perlu | fraud detection, **nol permission** |
 | 16 | expo-network | 8.0.8 | tidak perlu | ACCESS_NETWORK_STATE |
+| 17 | expo-task-manager | 14.0.9 | otomatis | prasyarat background task |
+| 17 | expo-background-task | 1.0.10 | ya | cek status background — lihat poin 17 |
 
 Ditambahkan pada pekerjaan ini: **expo-keep-awake, expo-tracking-transparency,
 expo-network** (+ dua peer dependency di bawah). Sisanya sudah terpasang dari
@@ -92,6 +94,83 @@ tetap ditulis — prebuild menerapkannya otomatis. Terverifikasi di
 AndroidManifest: `expo.modules.updates.ENABLED`, `EXPO_UPDATE_URL`,
 `EXPO_RUNTIME_VERSION`, `EXPO_UPDATES_CHECK_ON_LAUNCH`,
 `EXPO_UPDATES_LAUNCH_WAIT_MS`.
+
+## Poin "perlu perhatian khusus" — hasil keputusan
+
+### 17. Background service → `expo-background-task`, bukan foreground service
+
+Terpasang: **expo-task-manager 14.0.9** + **expo-background-task 1.0.10**
+(WorkManager di Android, `BGProcessingTask` di iOS). Izin
+`FOREGROUND_SERVICE` **dihapus** dari `app.json`.
+
+Dua temuan yang mendasari:
+
+1. Kebutuhan *"reschedule reminder setelah reboot"* **sudah tercakup**:
+   `expo-notifications` mendeklarasikan `RECEIVE_BOOT_COMPLETED` sendiri di
+   manifest modulnya dan menjadwal ulang notifikasi secara native.
+2. `FOREGROUND_SERVICE` ada di `app.json` tetapi **tidak dipakai modul mana
+   pun**. Sejak Android 14 setiap foreground service wajib punya
+   `foregroundServiceType`, dan sebagian tipe butuh justifikasi di Play
+   Console — beban review untuk izin yang mati.
+
+Hanya plugin `expo-background-task` yang didaftarkan di `app.json`. Ia
+menambahkan ke Info.plist:
+
+```
+UIBackgroundModes += 'processing'
+BGTaskSchedulerPermittedIdentifiers = ['com.expo.modules.backgroundtask.processing']
+```
+
+Terverifikasi setelah prebuild: `UIBackgroundModes` akhir berisi
+`['remote-notification', 'fetch', 'processing']` — jadi plugin **menambah**,
+tidak menimpa `remote-notification` yang datang dari `ios.infoPlist`.
+
+**Dari mana `fetch` datang?** Bukan dari saya. `expo prebuild` menerapkan
+sebagian config plugin **secara otomatis** untuk paket yang terpasang, tanpa
+perlu terdaftar di `plugins`. Terlihat dari `_internal.pluginHistory` hasil
+`expo config --type introspect`, yang memuat `expo-task-manager`,
+`expo-updates`, `expo-system-ui`, `expo-navigation-bar`, dan lainnya.
+`expo-task-manager` menambahkan `fetch`. Itu juga penjelasan kenapa
+`expo-updates` ikut terkonfigurasi tanpa entri plugin.
+
+Yang penting: **`expo-tracking-transparency` TIDAK ikut auto-apply** —
+diverifikasi ulang setelah semua pemasangan, `AD_ID` tetap nol di
+AndroidManifest. Keputusan di bagian ATT di atas tetap berlaku.
+
+Batasan iOS yang perlu diketahui sebelum merancang fiturnya: `BGProcessingTask`
+dijadwalkan oleh OS, bukan oleh aplikasi. Tidak ada jaminan interval — iOS
+mempertimbangkan pola pemakaian, baterai, dan status pengisian daya. Jangan
+pakai untuk apa pun yang butuh ketepatan waktu; status escrow yang mendesak
+tetap harus lewat push notification.
+
+### 18. NFC e-KTP — tidak dipasang, izin dihapus
+
+`react-native-nfc-manager` **tidak dipasang** dan izin `NFC` +
+`NFCReaderUsageDescription` dibuang.
+
+Alasannya bukan kompatibilitas Expo (v3.17.2 punya config plugin dan
+`@expo/config-plugins` sebagai peer). Alasannya fiturnya **tidak mungkin**:
+data di chip e-KTP terenkripsi dan hanya bisa dibuka lewat Security Access
+Module (SAM) yang tertanam pada reader resmi bersertifikat Kemendagri. NFC
+ponsel hanya bisa mendeteksi keberadaan chip dan UID-nya, bukan data
+identitas.
+
+Menambah modul native pihak ketiga untuk fitur yang tidak bisa jalan berarti
+menambah risiko build tanpa imbalan apa pun. KYC tetap kamera + OCR + liveness.
+
+### 19. `READ_PHONE_STATE` — dihapus
+
+Sejak Android 10 (API 29) `getImei`, `getDeviceId`, `getSubscriberId`, dan
+`getSimSerialNumber` dibatasi ke `READ_PRIVILEGED_PHONE_STATE`, yang hanya
+diberikan pada aplikasi sistem. Project ini `targetSdk 35`, jadi izin tersebut
+**tidak memberi identifier device sama sekali** — hanya nama operator, info
+SIM, dan status panggilan. Untuk fraud detection nilainya nol, sementara
+Android menampilkannya sebagai grup izin "Telepon" pada aplikasi finansial.
+
+Digantikan `expo-device` (nol izin): `brand`, `modelName`,
+`osBuildFingerprint`, `deviceYearClass`, plus `isRootedExperimentalAsync()` dan
+`isSideLoadingEnabledAsync()` — sinyal yang justru lebih relevan untuk
+penipuan.
 
 ## Hasil expo-doctor
 

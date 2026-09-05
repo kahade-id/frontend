@@ -41,7 +41,12 @@ build baru — memang harus satu kali build ulang setelah perubahan ini.
 
 ---
 
-## Android — 20/20 izin yang diminta terverifikasi di manifest
+> **Diperbarui.** Tiga izin di bawah — `FOREGROUND_SERVICE`, `NFC`, dan
+> `READ_PHONE_STATE` — **sudah dihapus** dari `app.json`, beserta
+> `NFCReaderUsageDescription` di iOS. Alasannya di bagian masing-masing.
+> Daftar modul native ada di [NATIVE-MODULES.md](./NATIVE-MODULES.md).
+
+## Android — izin yang terverifikasi di manifest
 
 | # | Permission | Sumber | Fitur |
 |---|---|---|---|
@@ -59,10 +64,10 @@ build baru — memang harus satu kali build ulang setelah perubahan ini.
 | 12 | `RECORD_AUDIO` | plugin `expo-camera` / `expo-audio` | Voice note sengketa (roadmap) |
 | 13 | `VIBRATE` | `android.permissions` | Haptic saat notifikasi transaksi |
 | 14 | `WAKE_LOCK` | `android.permissions` | Layar tetap on saat verifikasi/pembayaran |
-| 15 | `FOREGROUND_SERVICE` | `android.permissions` | Cek status transaksi background (roadmap) — **lihat catatan** |
+| ~~15~~ | ~~`FOREGROUND_SERVICE`~~ | **DIHAPUS** | Digantikan `expo-background-task` — lihat bawah |
 | 16 | `RECEIVE_BOOT_COMPLETED` | `android.permissions` | Reschedule reminder setelah restart |
-| 17 | `READ_PHONE_STATE` | `android.permissions` | Fraud prevention — **lihat trade-off** |
-| 18 | `NFC` | `android.permissions` | Baca chip e-KTP (roadmap) — **lihat catatan** |
+| ~~17~~ | ~~`READ_PHONE_STATE`~~ | **DIHAPUS** | Nol manfaat di targetSdk 35 — lihat bawah |
+| ~~18~~ | ~~`NFC`~~ | **DIHAPUS** | e-KTP tidak bisa dibaca HP — lihat bawah |
 | 19 | `INTERNET` | `android.permissions` (RN juga menambah otomatis) | Jaringan |
 | 20 | `ACCESS_NETWORK_STATE` | `android.permissions` | Deteksi status jaringan |
 
@@ -95,7 +100,7 @@ Izin yang ikut terbawa dan **diblokir**:
 | `NSLocationWhenInUseUsageDescription` | plugin `expo-location` | Verifikasi COD |
 | `NSMicrophoneUsageDescription` | plugin `expo-camera` / `expo-audio` | Voice note pengaduan |
 | `NSUserTrackingUsageDescription` | `ios.infoPlist` | ATT — **lihat catatan** |
-| `NFCReaderUsageDescription` | `ios.infoPlist` | e-KTP — **lihat catatan** |
+| ~~`NFCReaderUsageDescription`~~ | **DIHAPUS** | mengikuti pembatalan NFC |
 
 ### Dua string berbahasa Inggris yang sempat lolos
 
@@ -110,12 +115,13 @@ Terbukti `ios.infoPlist` menang atas nilai dari plugin.
 
 ---
 
-## Tiga izin yang TIDAK bisa diaktifkan lewat OTA
+## Tiga izin yang akhirnya DIHAPUS
 
-Dideklarasikan sesuai permintaan, tetapi harus jujur: ketiganya tetap butuh
-build ulang saat fiturnya dikerjakan.
+Awalnya dideklarasikan sesuai permintaan. Setelah ditelusuri, ketiganya tidak
+bisa memberi manfaat pada konfigurasi ini, sementara biayanya di review store
+nyata. Semuanya sudah dibuang dari `app.json`.
 
-### `FOREGROUND_SERVICE` — inert di `targetSdk` 35
+### `FOREGROUND_SERVICE` — DIHAPUS, digantikan `expo-background-task`
 
 Build ini memakai `targetSdkVersion 35` (default Expo SDK 54, dibaca dari
 `ExpoRootProjectPlugin.kt`). Sejak Android 14 (API 34), `FOREGROUND_SERVICE`
@@ -125,13 +131,38 @@ pada elemen `<service>` di manifest. Tanpa itu, memanggil
 `startForeground()` melempar `MissingForegroundServiceTypeException` saat
 runtime.
 
-Subtype belum ditambahkan karena elemen `<service>`-nya datang dari modul
-native yang belum ada — menambah izin subtype sekarang tidak membuat fiturnya
-bisa jalan, hanya menambah beban form deklarasi di Play Console.
+Subtype tidak ditambahkan karena elemen `<service>`-nya harus datang dari
+modul native yang tidak ada — menambah izin subtype tidak membuat fiturnya
+jalan, hanya menambah beban form deklarasi di Play Console.
 
-### `NFC` — perlu modul native + entitlement
+**Kebutuhannya ternyata sudah tercakup tanpa foreground service:**
 
-Tidak ada paket Expo untuk membaca e-KTP. Yang dibutuhkan nanti:
+- *Reschedule reminder setelah reboot* — `expo-notifications` mendeklarasikan
+  `RECEIVE_BOOT_COMPLETED` sendiri di manifest modulnya dan menjadwal ulang
+  notifikasi secara native. Tidak perlu service.
+- *Cek status transaksi berkala di background* — sekarang dipenuhi
+  **`expo-background-task`** (WorkManager di Android, `BGProcessingTask` di
+  iOS), jalur resmi Expo SDK 54 pengganti `expo-background-fetch` yang sudah
+  deprecated. Ia tidak butuh `FOREGROUND_SERVICE` sama sekali.
+
+Foreground service sungguhan baru diperlukan kalau nanti ada proses lama yang
+harus terlihat pengguna di notification bar (mis. hitung mundur pembayaran).
+Saat itu barulah izin + subtype + `<service>` ditambahkan sekaligus.
+
+### `NFC` — DIHAPUS, e-KTP tidak bisa dibaca lewat HP
+
+Bukan sekadar soal ketiadaan paket Expo. **Data di chip e-KTP terenkripsi dan
+hanya bisa dibuka lewat Security Access Module (SAM) yang tertanam di reader
+resmi bersertifikat Kemendagri.** NFC pada ponsel hanya mampu mendeteksi
+keberadaan chip dan UID-nya; data identitas tidak bisa dibaca aplikasi publik
+mana pun, termasuk lewat `react-native-nfc-manager`. Hambatannya otorisasi
+kriptografis, bukan kompatibilitas Expo.
+
+Karena itu izin `NFC` dan `NFCReaderUsageDescription` dibuang: menyisakan izin
+yang tidak mungkin dipakai hanya mengundang pertanyaan saat review. Verifikasi
+KYC tetap lewat kamera + OCR + liveness.
+
+Kalau suatu saat ada kerja sama resmi Dukcapil/penyedia SAM, yang dibutuhkan:
 
 - Android: modul seperti `react-native-nfc-manager` (izin `NFC` sudah siap).
 - iOS: entitlement `com.apple.developer.nfc.readersession.formats`, plus
@@ -148,19 +179,20 @@ Catatan baik: Expo tidak menambahkan
 `<uses-feature android:name="android.hardware.nfc" android:required="true">`,
 jadi HP tanpa NFC tetap bisa memasang aplikasi dari Play Store.
 
-### `NSUserTrackingUsageDescription` — perlu paket ATT
+### `NSUserTrackingUsageDescription` — dipertahankan, modul kini terpasang
 
-String saja tidak memunculkan dialog App Tracking Transparency. Perlu
-`expo-tracking-transparency` dan pemanggilan `requestTrackingPermissionsAsync()`
-sebelum tracking apa pun. Selama belum ada SDK analytics/ads yang melacak,
-string ini tidak berbahaya tetapi juga tidak berfungsi.
+`expo-tracking-transparency` **sudah terpasang dan ter-autolink**, jadi
+`requestTrackingPermissionsAsync()` siap dipanggil tanpa rebuild. Config
+plugin-nya sengaja tidak didaftarkan karena ikut menambah izin Android
+`com.google.android.gms.permission.AD_ID`; detailnya di
+[NATIVE-MODULES.md](./NATIVE-MODULES.md).
 
 ---
 
-## Trade-off `READ_PHONE_STATE` (sensitif)
+## `READ_PHONE_STATE` — DIHAPUS
 
-Ditambahkan sesuai permintaan, tetapi **rekomendasinya dihapus**, dengan
-alasan konkret:
+Ditambahkan sesuai permintaan awal, ditandai sebagai trade-off, lalu dihapus
+setelah dikonfirmasi. Alasannya:
 
 **Manfaatnya nyaris nol di Android modern.** Sejak Android 10, IMEI, MEID, dan
 serial number tidak bisa lagi dibaca aplikasi biasa walau `READ_PHONE_STATE`
@@ -180,8 +212,11 @@ menyorotinya saat review.
 model/OS, dikombinasikan dengan sinyal sisi server. Ini adalah pendekatan yang
 direkomendasikan Google untuk identifikasi perangkat.
 
-Cara menghapus: buang `"android.permission.READ_PHONE_STATE"` dari
-`android.permissions` di `app.json`, lalu build ulang.
+**Sudah dihapus** dari `android.permissions`. `expo-device` (terpasang, nol
+izin) menutupi kebutuhan fraud detection: `brand`, `modelName`,
+`osBuildFingerprint`, `deviceYearClass`, plus `isRootedExperimentalAsync()` dan
+`isSideLoadingEnabledAsync()` yang justru sinyal penipuan lebih relevan
+daripada apa pun yang bisa diberikan `READ_PHONE_STATE` hari ini.
 
 ---
 
