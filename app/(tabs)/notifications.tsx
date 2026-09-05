@@ -2,15 +2,15 @@
  * Tab #4 — Notifikasi
  *
  * Menampilkan list notifikasi user (read + unread) dengan:
- *  - SegmentedControl filter kategori: Semua | Transaksi | Promosi | Informasi
- *  - Swipe-to-read / tap otomatis mark-as-read
+ *  - Filter kategori via Chip scrollable: Semua | Transaksi | Promosi | Informasi
+ *  - Tap otomatis mark-as-read (optimistic update)
  *  - Tombol "Tandai semua dibaca" di header (muncul bila ada yang unread)
  *  - Infinite scroll (load-more)
  *  - Pull-to-refresh
  *  - EmptyState saat tidak ada notifikasi
  */
-import { useCallback, useEffect, useRef, useState } from "react"
-import { FlatList, StyleSheet, View } from "react-native"
+import { useCallback, useEffect, useState } from "react"
+import { FlatList, ScrollView, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import {
@@ -18,23 +18,24 @@ import {
   markAllNotificationsRead,
   markNotificationRead,
 } from "@/lib/api/notifications"
-import type { AppNotification, NotificationCategory } from "@/lib/api/notifications"
+import type { AppNotification } from "@/lib/api/notifications"
+import type { NotificationCategory } from "@/components/ui/notification-list-item"
 
 import { Button } from "@/components/ui/button"
+import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
-import { NotificationItem } from "@/components/ui/notification-item"
+import { NotificationListItem } from "@/components/ui/notification-list-item"
 import { Screen } from "@/components/ui/screen"
-import { SegmentedControl } from "@/components/ui/segmented-control"
 
 type FilterValue = "ALL" | NotificationCategory
 
 const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "Semua", value: "ALL" },
-  { label: "Transaksi", value: "TRANSAKSI" },
-  { label: "Promosi", value: "PROMOSI" },
-  { label: "Informasi", value: "INFORMASI" },
+  { label: "Transaksi", value: "order" },
+  { label: "Promosi", value: "promo" },
+  { label: "Informasi", value: "system" },
 ]
 
 const PAGE_SIZE = 20
@@ -93,14 +94,10 @@ export default function NotificationsScreen() {
   // ── Mark single as read ────────────────────────────────────────
   const handleRead = useCallback((id: string) => {
     // Optimistic update
-    setNotifs((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-    )
+    setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
     markNotificationRead(id).catch(() => {
       // rollback bila gagal
-      setNotifs((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)),
-      )
+      setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)))
     })
   }, [])
 
@@ -135,28 +132,40 @@ export default function NotificationsScreen() {
         }
       />
 
-      {/* Filter kategori */}
-      <View style={styles.filterWrapper}>
-        <SegmentedControl
-          segments={FILTERS.map((f) => f.label)}
-          selectedIndex={FILTERS.findIndex((f) => f.value === filter)}
-          onChange={(index) => setFilter(FILTERS[index].value)}
-        />
-      </View>
+      {/* Filter kategori — horizontal scroll Chip */}
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.filterRow}
+        style={styles.filterScroll}
+      >
+        {FILTERS.map((f) => (
+          <Chip
+            key={f.value}
+            label={f.label}
+            selected={filter === f.value}
+            onPress={() => setFilter(f.value)}
+          />
+        ))}
+      </ScrollView>
 
       <FlatList
         data={notifs}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => (
-          <NotificationItem
-            notification={item}
+        renderItem={({ item, index }) => (
+          <NotificationListItem
+            title={item.title}
+            body={item.body}
+            category={item.category as NotificationCategory}
+            timestamp={item.createdAt}
+            unread={!item.isRead}
             onPress={() => {
               if (!item.isRead) handleRead(item.id)
             }}
+            divider={index < notifs.length - 1}
           />
         )}
         contentContainerStyle={[
-          styles.list,
           notifs.length === 0 && styles.listEmpty,
           { paddingBottom: insets.bottom + 16 },
         ]}
@@ -182,12 +191,14 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  filterWrapper: {
+  filterScroll: {
+    flexGrow: 0,
+  },
+  filterRow: {
+    flexDirection: "row",
+    gap: 8,
     paddingHorizontal: 16,
     paddingVertical: 8,
-  },
-  list: {
-    paddingHorizontal: 16,
   },
   listEmpty: {
     flexGrow: 1,

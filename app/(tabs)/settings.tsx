@@ -11,9 +11,24 @@
  *  - Logout: panggil clearSession() lalu redirect ke ROUTES.login
  */
 import { useCallback, useEffect, useState } from "react"
-import { Alert, ScrollView, StyleSheet, TouchableOpacity, View } from "react-native"
+import { Alert, ScrollView, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router } from "expo-router"
+import {
+  Bell,
+  Briefcase,
+  CaretRight,
+  CircleHalf,
+  FileText,
+  Fingerprint,
+  GridFour,
+  Info,
+  Landmark,
+  Lock,
+  MessageCircle,
+  Shield,
+  User,
+} from "phosphor-react-native"
 
 import { getMe } from "@/lib/api/users"
 import type { UserProfile } from "@/lib/api/users"
@@ -24,7 +39,9 @@ import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { Divider } from "@/components/ui/divider"
 import { Header } from "@/components/ui/header"
-import { Icon } from "@/components/ui/icon"
+import { Icon, type IconComponent } from "@/components/ui/icon"
+import { ListGroup, ListItem } from "@/components/ui/list-item"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 
@@ -34,7 +51,7 @@ import { Text } from "@/components/ui/text"
 
 type MenuItem = {
   id: string
-  icon: string
+  icon: IconComponent
   label: string
   route?: string
   badge?: string
@@ -49,17 +66,17 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: "Akun",
     items: [
-      { id: "edit-profile", icon: "user", label: "Edit Profil", route: "/edit-profile" },
-      { id: "bank-account", icon: "landmark", label: "Rekening Bank", route: "/bank-accounts" },
-      { id: "account-type", icon: "briefcase", label: "Tipe Akun", route: "/account-type" },
+      { id: "edit-profile", icon: User, label: "Edit Profil", route: "/edit-profile" },
+      { id: "bank-account", icon: Landmark, label: "Rekening Bank", route: "/bank-accounts" },
+      { id: "account-type", icon: Briefcase, label: "Tipe Akun", route: "/account-type" },
     ],
   },
   {
     title: "Keamanan",
     items: [
-      { id: "change-password", icon: "lock", label: "Ubah Password", route: "/change-password" },
-      { id: "change-pin", icon: "grid-2x2", label: "Ubah PIN", route: "/change-pin" },
-      { id: "biometric", icon: "fingerprint", label: "Biometrik", route: "/biometric-settings" },
+      { id: "change-password", icon: Lock, label: "Ubah Password", route: "/change-password" },
+      { id: "change-pin", icon: GridFour, label: "Ubah PIN", route: "/change-pin" },
+      { id: "biometric", icon: Fingerprint, label: "Biometrik", route: "/biometric-settings" },
     ],
   },
   {
@@ -67,7 +84,7 @@ const MENU_GROUPS: MenuGroup[] = [
     items: [
       {
         id: "notif-prefs",
-        icon: "bell",
+        icon: Bell,
         label: "Preferensi Notifikasi",
         route: "/notification-preferences",
       },
@@ -76,16 +93,16 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: "Bantuan",
     items: [
-      { id: "faq", icon: "circle-help", label: "FAQ", route: "/faq" },
-      { id: "contact", icon: "message-circle", label: "Hubungi Kami", route: "/contact" },
+      { id: "faq", icon: CircleHalf, label: "FAQ", route: "/faq" },
+      { id: "contact", icon: MessageCircle, label: "Hubungi Kami", route: "/contact" },
     ],
   },
   {
     title: "Tentang",
     items: [
-      { id: "app-version", icon: "info", label: "Versi Aplikasi", route: "/app-version" },
-      { id: "privacy", icon: "shield", label: "Kebijakan Privasi", route: "/privacy-policy" },
-      { id: "tos", icon: "file-text", label: "Syarat & Ketentuan", route: "/terms" },
+      { id: "app-version", icon: Info, label: "Versi Aplikasi", route: "/app-version" },
+      { id: "privacy", icon: Shield, label: "Kebijakan Privasi", route: "/privacy-policy" },
+      { id: "tos", icon: FileText, label: "Syarat & Ketentuan", route: "/terms" },
     ],
   },
 ]
@@ -141,69 +158,68 @@ export default function SettingsScreen() {
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Profil card */}
-        <TouchableOpacity
+        {/* Profil card — PressableScale konsisten dengan sistem */}
+        <PressableScale
           style={styles.profileCard}
           onPress={() => router.push("/edit-profile" as any)}
-          activeOpacity={0.75}
+          scaleOnPress={false}
+          accessibilityRole="button"
+          accessibilityLabel="Edit profil"
         >
+          {/* source menerima string URL atau ImageSourcePropType; size enum xs|sm|md|lg|xl */}
           <Avatar
-            uri={profile?.avatarUrl ?? null}
+            source={profile?.avatarUrl ?? undefined}
             name={profile?.fullName ?? "—"}
-            size={56}
-            loading={loading}
+            size="lg"
           />
           <View style={styles.profileInfo}>
             <Text variant="label" numberOfLines={1}>
               {profile?.fullName ?? "—"}
             </Text>
-            <Text variant="caption" color="muted" numberOfLines={1}>
+            <Text variant="caption" tone="secondary" numberOfLines={1}>
               @{profile?.username ?? "—"}
             </Text>
           </View>
-          <Icon name="chevron-right" size={18} color="muted" />
-        </TouchableOpacity>
+          <Icon icon={CaretRight} size="sm" />
+        </PressableScale>
 
         <Divider style={styles.divider} />
 
-        {/* Menu groups */}
+        {/* Menu groups — ListItem + ListGroup dari sistem */}
         {MENU_GROUPS.map((group, gi) => (
           <View key={group.title} style={gi > 0 ? styles.groupGap : undefined}>
-            <Text variant="overline" color="muted" style={styles.groupTitle}>
+            <Text variant="overline" tone="secondary" style={styles.groupTitle}>
               {group.title}
             </Text>
 
-            <View style={styles.group}>
+            <ListGroup>
               {group.items.map((item, ii) => (
-                <View key={item.id}>
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={() => handleMenuPress(item)}
-                    activeOpacity={0.7}
-                  >
-                    <Icon name={item.icon} size={20} style={styles.menuIcon} />
-                    <Text variant="body" style={styles.menuLabel}>
-                      {item.label}
-                    </Text>
-                    {item.badge ? (
-                      <View style={styles.badge}>
-                        <Text variant="caption" color="inverse" style={styles.badgeText}>
+                <ListItem
+                  key={item.id}
+                  title={item.label}
+                  leading={item.icon}
+                  trailing={
+                    item.badge ? (
+                      <View className="rounded-full bg-danger px-2 py-[2px]">
+                        <Text variant="caption" tone="inverse">
                           {item.badge}
                         </Text>
                       </View>
-                    ) : null}
-                    <Icon name="chevron-right" size={16} color="faint" />
-                  </TouchableOpacity>
-                  {ii < group.items.length - 1 && <Divider indent={52} />}
-                </View>
+                    ) : undefined
+                  }
+                  chevron
+                  divider={ii < group.items.length - 1}
+                  inset
+                  onPress={() => handleMenuPress(item)}
+                />
               ))}
-            </View>
+            </ListGroup>
           </View>
         ))}
 
-        {/* Logout */}
+        {/* Logout — variant destructive (bukan danger-outline yang tidak ada) */}
         <Button
-          variant="danger-outline"
+          variant="destructive"
           onPress={handleLogout}
           loading={loggingOut}
           style={styles.logoutBtn}
@@ -224,7 +240,6 @@ const styles = StyleSheet.create({
   scroll: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    gap: 0,
   },
   profileCard: {
     flexDirection: "row",
@@ -246,34 +261,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     textTransform: "uppercase",
     letterSpacing: 0.8,
-  },
-  group: {
-    borderRadius: 12,
-    overflow: "hidden",
-    backgroundColor: "transparent",
-  },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 13,
-    paddingHorizontal: 4,
-    gap: 12,
-  },
-  menuIcon: {
-    width: 24,
-    alignItems: "center",
-  },
-  menuLabel: {
-    flex: 1,
-  },
-  badge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: "#E53E3E",
-  },
-  badgeText: {
-    fontSize: 11,
   },
   logoutBtn: {
     marginTop: 32,
