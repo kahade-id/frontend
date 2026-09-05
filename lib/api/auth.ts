@@ -84,11 +84,8 @@ export type VerifyOtpResult =
 
 export type CaptchaChallenge = {
   captchaId: string
-  /** Gambar puzzle (data URL / URL) */
-  image: string
-  /** Potongan puzzle yang harus digeser ke posisi X (0–100) */
-  piece?: string
-  expiresAt?: string
+  /** Posisi target slider dalam persen (0–100). */
+  targetX: number
 }
 
 export type OtpMethod = RequestOtpDto["method"]
@@ -137,8 +134,8 @@ export async function generateCaptcha() {
   const result = await http.post<CaptchaChallenge>("/v1/auth/captcha/generate", undefined, { auth: "none" })
   return {
     ...result,
-    captchaId: result.captchaId ?? (result as any).captcha_id,
-    expiresAt: result.expiresAt ?? (result as any).expires_at,
+    captchaId: result.captchaId ?? (result as any).challengeId ?? (result as any).captcha_id,
+    targetX: result.targetX ?? (result as any).target_x,
   }
 }
 

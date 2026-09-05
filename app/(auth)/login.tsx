@@ -43,7 +43,7 @@
  *   - Link "Lupa password?" → navigate ke forgot-password screen.
  *   - Link "Belum punya akun? Daftar" → navigate ke register screen.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
@@ -57,6 +57,7 @@ import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
+import { Slider } from "@/components/ui/slider"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
@@ -71,10 +72,36 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [captchaId, setCaptchaId] = useState<string | null>(null)
+  const [captchaTargetX, setCaptchaTargetX] = useState<number | null>(null)
+  const [captchaAnswer, setCaptchaAnswer] = useState(50)
+  const [captchaLoading, setCaptchaLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
-  const isFormValid = isValidEmail(email) && password.length > 0
+  const refreshCaptcha = useCallback(async () => {
+    setCaptchaLoading(true)
+    setCaptchaAnswer(50)
+    try {
+      const challenge = await api.auth.generateCaptcha()
+      setCaptchaId(challenge.captchaId)
+      setCaptchaTargetX(challenge.targetX)
+    } catch (err) {
+      setCaptchaId(null)
+      setCaptchaTargetX(null)
+      setFormError(userMessage(err))
+    } finally {
+      setCaptchaLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshCaptcha()
+  }, [refreshCaptcha])
+
+  const isCaptchaValid =
+    Boolean(captchaId) && captchaTargetX !== null && captchaAnswer >= 0 && captchaAnswer <= 100
+  const isFormValid = isValidEmail(email) && password.length > 0 && isCaptchaValid
 
   const handleLogin = useCallback(async () => {
     if (submitting || !isFormValid) return
@@ -85,6 +112,8 @@ export default function LoginScreen() {
       const result = await api.auth.login({
         email: email.trim(),
         password,
+        captchaId: captchaId!,
+        captchaAnswer,
       })
 
       if (result.requiresTwoFactor) {
@@ -109,6 +138,11 @@ export default function LoginScreen() {
           setFormError("Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.")
           return
         }
+        if (String(err.code) === "CAPTCHA_REQUIRED" || String(err.code) === "CAPTCHA_FAILED") {
+          setFormError("Kode verifikasi salah atau sudah kedaluwarsa. Muat ulang dan coba lagi.")
+          void refreshCaptcha()
+          return
+        }
         // Validation error
         if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
           setFormError(err.message || "Data tidak valid. Periksa email dan kata sandi Anda.")
@@ -119,7 +153,7 @@ export default function LoginScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, isFormValid, email, password, router])
+  }, [submitting, isFormValid, email, password, captchaId, captchaAnswer, router, refreshCaptcha])
 
   const handleForgotPassword = useCallback(() => {
     router.push(ROUTES.forgotPassword)
@@ -179,13 +213,35 @@ export default function LoginScreen() {
                 maxLength={PASSWORD_MAX}
                 disabled={submitting}
               />
+
+              <View className="gap-2">
+                <Text variant="label">Geser ke posisi target: {captchaTargetX ?? "…"}%</Text>
+                <Slider
+                  value={captchaAnswer}
+                  onChange={(value) => {
+                    setCaptchaAnswer(value)
+                    setFormError(null)
+                  }}
+                  min={0}
+                  max={100}
+                  step={1}
+                  disabled={submitting || captchaLoading || captchaTargetX === null}
+                  formatValue={(value) => `${value}%`}
+                />
+                <Text variant="caption" tone="secondary">
+                  Atur slider mendekati target, lalu tekan Masuk.
+                </Text>
+                <TextLink onPress={() => void refreshCaptcha()} disabled={submitting || captchaLoading}>
+                  Muat ulang CAPTCHA
+                </TextLink>
+              </View>
             </VStack>
 
             {/* Submit button */}
             <Button
               onPress={() => void handleLogin()}
               loading={submitting}
-              disabled={!isFormValid}
+              disabled={!isFormValid || captchaLoading}
             >
               Masuk
             </Button>
