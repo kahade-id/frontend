@@ -25,7 +25,7 @@
 import "../global.css"
 
 import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
+import { Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { Stack, useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
@@ -136,6 +136,7 @@ function AppShell() {
     minVersion: string
     latestVersion: string
     message?: string | null
+    storeUrl?: { ios?: string; android?: string } | null
   } | null>(null)
 
   useEffect(() => {
@@ -154,6 +155,12 @@ function AppShell() {
         // OTA check gagal = jangan blokir aplikasi; versi minimum tidak diketahui.
       })
   }, [])
+
+  const storeUrl = forceUpdate?.storeUrl
+    ? forceUpdate.storeUrl[Platform.OS === "ios" ? "ios" : "android"] ??
+      forceUpdate.storeUrl.ios ??
+      forceUpdate.storeUrl.android
+    : undefined
 
   return (
     // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah
@@ -208,6 +215,9 @@ function AppShell() {
         visible={!!forceUpdate}
         hideCancel
         confirmLabel="Buka Toko Aplikasi"
+        onConfirm={() => {
+          if (storeUrl) void Linking.openURL(storeUrl).catch(() => undefined)
+        }}
         onRequestClose={() => undefined}
         destructive={false}
       />

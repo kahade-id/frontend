@@ -289,3 +289,13 @@ export function getWithdrawHistory(query: { page?: number; limit?: number } = {}
     retry: 1,
   })
 }
+
+/** GET /v1/wallet/export/csv — unduh mutasi CSV. */
+export function exportWalletCsv() {
+  return http.get<Blob>("/v1/wallet/export/csv", { auth: "required", responseType: "blob", retry: 1 })
+}
+
+/** GET /v1/wallet/export/pdf — unduh mutasi PDF. */
+export function exportWalletPdf() {
+  return http.get<Blob>("/v1/wallet/export/pdf", { auth: "required", responseType: "blob", retry: 1 })
+}

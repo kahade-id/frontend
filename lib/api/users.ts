@@ -125,3 +125,206 @@ export type PublicUserProfile = {
   showcase?: unknown
   ratings?: unknown
 }
+
+// ------------------------------------------------------------------
+// Analitik & skor kepercayaan
+// ------------------------------------------------------------------
+
+export type UserStats = {
+  transactions: number
+  completedOrders?: number
+  followers?: number
+  following?: number
+  rating?: number
+  reviews?: number
+}
+
+export type AnalyticsPoint = { label: string; value: number }
+export type UserAnalytics = {
+  summary?: Record<string, number>
+  volumeByPeriod?: Array<{ label: string; value: number }>
+  revenueByPeriod?: Array<{ label: string; value: number }>
+  avgOrderValue?: number
+  completionRate?: number
+}
+
+export function getMyStats() {
+  return http.get<UserStats>("/v1/users/me/stats", { auth: "required", retry: 1 })
+}
+
+export function getMyAnalytics() {
+  return http.get<UserAnalytics>("/v1/users/me/analytics", { auth: "required", retry: 1 })
+}
+
+export function getMyTrustScore() {
+  return http.get<{ score: number; tier?: string; factors?: Array<{ key: string; label: string; value: number; max: number }>; updatedAt?: string }>(
+    "/v1/users/me/trust-score",
+    { auth: "required", retry: 1 },
+  )
+}
+
+export function getMyDashboard() {
+  return http.get<Record<string, unknown>>("/v1/users/me/dashboard", { auth: "required", retry: 1 })
+}
+
+// ------------------------------------------------------------------
+// Discover & favorites
+// ------------------------------------------------------------------
+
+export type DiscoveredUser = {
+  id: string
+  username: string
+  fullName?: string
+  avatarUrl?: string | null
+  verified?: boolean
+  transactionCount?: number
+  rating?: number
+  following?: boolean
+}
+
+export function discoverUsers(query?: { page?: number; limit?: number; sort?: string }) {
+  return http.get<DiscoveredUser[]>("/v1/users/discover", { query, auth: "required", retry: 1 })
+}
+
+export function getFavorites() {
+  return http.get<Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>>(
+    "/v1/users/favorites",
+    { auth: "required", retry: 1 },
+  )
+}
+
+export function getFollowers(username: string) {
+  return http.get<Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>>(
+    `/v1/users/${seg(username)}/followers`,
+    { auth: "required", retry: 1 },
+  )
+}
+
+export function getFollowing(username: string) {
+  return http.get<Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>>(
+    `/v1/users/${seg(username)}/following`,
+    { auth: "required", retry: 1 },
+  )
+}
+
+export function followUser(username: string) {
+  return http.post<void>(`/v1/users/${seg(username)}/follow`, undefined, { auth: "required" })
+}
+
+export function unfollowUser(username: string) {
+  return http.delete<void>(`/v1/users/${seg(username)}/follow`, { auth: "required", responseType: "void" })
+}
+
+export function isFavorite(username: string) {
+  return http.get<{ favorited: boolean; count?: number }>(`/v1/users/${seg(username)}/favorite`, {
+    auth: "required",
+    retry: 1,
+  })
+}
+
+export function addFavorite(username: string) {
+  return http.post<{ favorited: boolean; count?: number }>(`/v1/users/${seg(username)}/favorite`, undefined, {
+    auth: "required",
+  })
+}
+
+export function removeFavorite(username: string) {
+  return http.delete<{ favorited: boolean; count?: number }>(`/v1/users/${seg(username)}/favorite`, {
+    auth: "required",
+  })
+}
+
+// ------------------------------------------------------------------
+// Showcase
+// ------------------------------------------------------------------
+
+export type ShowcaseItem = {
+  id: string
+  caption?: string
+  imageUrl?: string
+  fileKey?: string
+  createdAt: string
+  sortOrder?: number
+}
+
+export function getMyShowcase() {
+  return http.get<ShowcaseItem[]>("/v1/users/me/showcase", { auth: "required", retry: 1 })
+}
+
+export function uploadShowcase(formData: FormData) {
+  return http.post<ShowcaseItem, FormData>("/v1/users/me/showcase/upload", formData, { auth: "required" })
+}
+
+export function createShowcase(item: Partial<ShowcaseItem>) {
+  return http.post<ShowcaseItem, Partial<ShowcaseItem>>("/v1/users/me/showcase", item, { auth: "required" })
+}
+
+export function updateShowcase(id: string, item: Partial<ShowcaseItem>) {
+  return http.put<ShowcaseItem, Partial<ShowcaseItem>>(`/v1/users/me/showcase/${seg(id)}`, item, {
+    auth: "required",
+  })
+}
+
+export function deleteShowcase(id: string) {
+  return http.delete<void>(`/v1/users/me/showcase/${seg(id)}`, { auth: "required", responseType: "void" })
+}
+
+export function getPublicShowcase(username: string) {
+  return http.get<ShowcaseItem[]>(`/v1/users/${seg(username)}/showcase`, { auth: "required", retry: 1 })
+}
+
+// ------------------------------------------------------------------
+// Questions & answers
+// ------------------------------------------------------------------
+
+export type QuestionItem = {
+  id: string
+  question: string
+  answer?: string | null
+  answeredAt?: string | null
+  createdAt: string
+  asker?: { id: string; username: string; fullName?: string; avatarUrl?: string | null }
+}
+
+export function getMyQuestions() {
+  return http.get<QuestionItem[]>("/v1/users/me/questions", { auth: "required", retry: 1 })
+}
+
+export function addQuestion(username: string, question: string) {
+  return http.post<QuestionItem, { question: string }>(`/v1/users/${seg(username)}/questions`, { question }, {
+    auth: "required",
+  })
+}
+
+export function getPublicQuestions(username: string) {
+  return http.get<QuestionItem[]>(`/v1/users/${seg(username)}/questions`, { auth: "required", retry: 1 })
+}
+
+export function answerQuestion(questionId: string, answer: string) {
+  return http.put<QuestionItem, { answer: string }>(`/v1/users/questions/${seg(questionId)}/answer`, { answer }, {
+    auth: "required",
+  })
+}
+
+export function deleteQuestion(questionId: string) {
+  return http.delete<void>(`/v1/users/questions/${seg(questionId)}`, { auth: "required", responseType: "void" })
+}
+
+export function getQuestionComments(questionId: string) {
+  return http.get<Array<{ id: string; content: string; authorName?: string; createdAt: string; reply?: boolean }>>(
+    `/v1/users/questions/${seg(questionId)}/comments`,
+    { auth: "required", retry: 1 },
+  )
+}
+
+export function addQuestionComment(questionId: string, content: string) {
+  return http.post<{ id: string; content: string; createdAt: string }, { content: string }>(
+    `/v1/users/questions/${seg(questionId)}/comments`,
+    { content },
+    { auth: "required" },
+  )
+}
+
+export function deleteQuestionComment(commentId: string) {
+  return http.delete<void>(`/v1/users/comments/${seg(commentId)}`, { auth: "required", responseType: "void" })
+}

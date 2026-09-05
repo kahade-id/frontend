@@ -66,6 +66,25 @@ export default function AppVersionScreen() {
     }
   }, [toast.show])
 
+  /** Terapkan update: unduh bundle baru lalu reload — tanpa error mental. */
+  const handleApplyUpdate = useCallback(async () => {
+    setChecking(true)
+    try {
+      const r = await Updates.fetchUpdateAsync()
+      if (r.isNew) {
+        toast.show({ title: "Update berhasil diunduh", tone: "success", duration: 3000 })
+        await Updates.reloadAsync()
+      } else {
+        toast.show({ title: "Aplikasi sudah terbaru", tone: "success", duration: 3000 })
+        setUpdateAvailable(false)
+      }
+    } catch {
+      toast.show({ title: "Gagal menerapkan update", tone: "danger" })
+    } finally {
+      setChecking(false)
+    }
+  }, [toast.show])
+
   const version = Constants.expoConfig?.version ?? "0.1.0"
   const build = (Constants.expoConfig?.ios?.buildNumber as string | undefined) ??
     (Constants.expoConfig?.android?.versionCode as number | undefined)
@@ -98,8 +117,12 @@ export default function AppVersionScreen() {
               {latest.message ? (
                 <Text variant="caption" tone="secondary">{latest.message}</Text>
               ) : null}
-              <Button variant="secondary" loading={checking} onPress={() => void handleCheckUpdate()}>
-                {updateAvailable ? "Update Tersedia — Pulihkan" : "Periksa Pembaruan"}
+              <Button
+                variant="secondary"
+                loading={checking}
+                onPress={() => void (updateAvailable ? handleApplyUpdate() : handleCheckUpdate())}
+              >
+                {updateAvailable ? "Terapkan Pembaruan" : "Periksa Pembaruan"}
               </Button>
             </>
           ) : (

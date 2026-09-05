@@ -102,6 +102,12 @@ export const ROUTES = {
   /** Resolusi deeplink order-link (GET /v1/deeplinks/order-link/{token}) */
   orderLink: (token: string) =>
     ({ pathname: "/order-link/[token]", params: { token } }) as unknown as Href,
+  /** Form bukti pengiriman satu pesanan */
+  deliveryProof: (orderId: string) =>
+    ({ pathname: "/delivery-proof/[orderId]", params: { orderId } }) as unknown as Href,
+  /** Perpanjangan tenggat satu pesanan */
+  extension: (orderId: string) =>
+    ({ pathname: "/extension/[orderId]", params: { orderId } }) as unknown as Href,
 
   // ── Pengaturan — semua sub-screen menu ──────────────────────────────────
   editProfile: "/edit-profile" as Href,
@@ -167,6 +173,23 @@ export const ROUTES = {
   /** Profil publik user (GET /v1/users/{username}) */
   userProfile: (username: string) =>
     ({ pathname: "/user/[username]", params: { username } }) as unknown as Href,
+
+  // ── Analitik & komunitas (users) ───────────────────────────────────────
+  /** Statistik & analitik (GET /v1/users/me/stats + /analytics) */
+  analytics: "/analytics" as Href,
+  /** Skor kepercayaan (GET /v1/users/me/trust-score) */
+  trustScore: "/trust-score" as Href,
+  /** Discover user (GET /v1/users/discover) */
+  discover: "/discover" as Href,
+  /** Favorite user (GET /v1/users/favorites) */
+  favorites: "/favorites" as Href,
+  /** Followers/following user */
+  followers: (username: string) =>
+    ({ pathname: "/followers/[username]", params: { username } }) as unknown as Href,
+  /** Showcase milik sendiri (CRUD) */
+  showcase: "/showcase" as Href,
+  /** Questions milik sendiri (GET /v1/users/me/questions) */
+  questions: "/questions" as Href,
 } as const
 
 /**

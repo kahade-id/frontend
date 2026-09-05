@@ -14,7 +14,7 @@
  * Data: GET /v1/users/me.
  */
 import { useCallback, useEffect, useState } from "react"
-import { ScrollView, StyleSheet, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import {
@@ -35,7 +35,6 @@ import {
 
 import { api, type UserProfile } from "@/lib/api"
 import { clearSession } from "@/lib/api/session"
-import { useComingSoon } from "@/lib/navigation"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -47,6 +46,7 @@ import type { IconComponent } from "@/components/ui/icon"
 import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { Dialog } from "@/components/ui/modal"
 import { ProfileHeader } from "@/components/ui/profile-header"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 
@@ -58,8 +58,8 @@ type MenuItem = {
   id: string
   icon: IconComponent
   label: string
-  /** Route target; undefined = fitur belum ada (toast info). */
-  route?: Href
+  /** Route target — semua menu sudah punya screen. */
+  route: Href
 }
 
 type MenuGroup = {
@@ -118,7 +118,7 @@ const MENU_GROUPS: MenuGroup[] = [
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets()
-  const comingSoon = useComingSoon()
+  const [refreshing, setRefreshing] = useState(false)
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
@@ -141,16 +141,15 @@ export default function SettingsScreen() {
     fetchProfile()
   }, [fetchProfile])
 
-  const handleItemPress = useCallback(
-    (item: MenuItem) => {
-      if (item.route) {
-        router.push(item.route)
-        return
-      }
-      comingSoon(item.label)
-    },
-    [comingSoon],
-  )
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await fetchProfile()
+    setRefreshing(false)
+  }, [fetchProfile])
+
+  const handleItemPress = useCallback((item: MenuItem) => {
+    router.push(item.route)
+  }, [])
 
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
@@ -172,9 +171,10 @@ export default function SettingsScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Pengaturan" />
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
+      <PullToRefresh
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[8] } }}
       >
         {/* ── Header profil ────────────────────────────────── */}
         {profileError ? (
@@ -225,7 +225,7 @@ export default function SettingsScreen() {
             Keluar
           </Button>
         </View>
-      </ScrollView>
+      </PullToRefresh>
 
       {/* Konfirmasi destructive — <Dialog> sistem (berfungsi di web & native,
           tidak seperti Alert.alert yang no-op di react-native-web). */}

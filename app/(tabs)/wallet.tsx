@@ -16,24 +16,25 @@
  *    (spec menandai `type/from/to` required; helper lib/api/wallet.ts
  *    mengisi default yang terdokumentasi di sana)
  *
- * Aksi topup/withdraw/transfer memetakan POST /v1/wallet/topup|withdraw|
- * transfer — screen-nya belum dibuat, jadi handler menampilkan toast info
- * (bukan push ke route yang belum ada).
+ * Pull-to-refresh memakai <PullToRefresh> logo Kahade (§9.13), bukan
+ * RefreshControl: riwayat + saldo di-refresh bersamaan (Promise.all).
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { FlatList, StyleSheet, View } from "react-native"
+import { StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { router, type Href } from "expo-router"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api, type Wallet, type WalletTransaction } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
-import { useComingSoon } from "@/lib/navigation"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import {
@@ -52,7 +53,6 @@ import {
 
 /** Spec GET /v1/wallet/transactions: page & limit required. */
 const PAGE_SIZE = 20
-const ON_END_THRESHOLD = 0.3
 
 /** Label mutasi — satu tempat; nilai asing dari backend ditampilkan apa adanya. */
 const TXN_LABELS: Record<string, string> = {
@@ -94,13 +94,19 @@ function isCredit(txn: WalletTransaction): boolean {
   return ["TOPUP", "TRANSFER_IN", "ORDER_RELEASE", "REFUND", "CASHBACK"].includes(txn.type)
 }
 
+/** Peta aksi cepat → route (semua screen sudah ada di lib/routes.ts). */
+const ACTION_ROUTE: Record<WalletQuickAction["key"], Href> = {
+  topup: ROUTES.topup,
+  withdraw: ROUTES.withdraw,
+  transfer: ROUTES.transfer,
+}
+
 // ------------------------------------------------------------------
 // Screen
 // ------------------------------------------------------------------
 
 export default function WalletScreen() {
   const insets = useSafeAreaInsets()
-  const comingSoon = useComingSoon()
 
   const [wallet, setWallet] = useState<Wallet | null>(null)
   const [walletLoading, setWalletLoading] = useState(true)
@@ -155,18 +161,20 @@ export default function WalletScreen() {
     void fetchTxns(1)
   }, [fetchWallet, fetchTxns])
 
-  const handleAction = useCallback(
-    (key: WalletQuickAction["key"]) => {
-      const label =
-        key === "topup" ? "Isi Saldo" : key === "withdraw" ? "Tarik Dana" : "Transfer Dana"
-      comingSoon(label)
-    },
-    [comingSoon],
-  )
+  const handleAction = useCallback((key: WalletQuickAction["key"]) => {
+    router.push(ACTION_ROUTE[key])
+  }, [])
 
-  const ListHeader = useMemo(
-    () => (
-      <View>
+  return (
+    <Screen edges={["top"]} padded={false}>
+      <Header title="Dompet" />
+
+      <PullToRefresh
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        contentContainerClassName="px-6"
+        scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[4] } }}
+      >
         {walletError ? (
           <ErrorState
             compact
@@ -187,65 +195,42 @@ export default function WalletScreen() {
         )}
 
         <SectionHeader title="Riwayat" inset />
-      </View>
-    ),
-    [wallet, walletLoading, walletError, fetchWallet, handleAction],
-  )
 
-  return (
-    <Screen edges={["top"]} padded={false}>
-      <Header title="Dompet" />
-
-      <FlatList
-        data={txns}
-        keyExtractor={(item) => item.id}
-        renderItem={({ item, index }) => (
-          <WalletTransactionListItem
-            title={TXN_LABELS[item.type] ?? item.type}
-            type={isCredit(item) ? "CREDIT" : "DEBIT"}
-            amount={item.amount}
-            kind={TXN_KIND[item.type] ?? "other"}
-            status={TXN_STATUS[item.status ?? "COMPLETED"] ?? "SUCCESS"}
-            timestamp={formatDateTime(item.createdAt)}
-            reference={item.referenceId ?? undefined}
-            divider={index < txns.length - 1}
+        {txnError ? (
+          <ErrorState
+            title="Gagal memuat riwayat"
+            description={txnError}
+            onRetry={() => void fetchTxns(1)}
           />
+        ) : txns.length === 0 ? (
+          txnLoading ? null : (
+            <EmptyState
+              icon={WalletIcon}
+              title="Belum ada riwayat"
+              description="Transaksi dompet kamu akan muncul di sini."
+            />
+          )
+        ) : (
+          <View className="gap-1">
+            {txns.map((item, index) => (
+              <WalletTransactionListItem
+                key={item.id}
+                title={TXN_LABELS[item.type] ?? item.type}
+                type={isCredit(item) ? "CREDIT" : "DEBIT"}
+                amount={item.amount}
+                kind={TXN_KIND[item.type] ?? "other"}
+                status={TXN_STATUS[item.status ?? "COMPLETED"] ?? "SUCCESS"}
+                timestamp={formatDateTime(item.createdAt)}
+                reference={item.referenceId ?? undefined}
+                divider={index < txns.length - 1}
+              />
+            ))}
+            {hasMore ? (
+              <LoadMore status={txnLoading ? "loading" : "idle"} onLoadMore={() => void fetchTxns(page + 1)} />
+            ) : null}
+          </View>
         )}
-        ListHeaderComponent={ListHeader}
-        contentContainerStyle={[
-          txns.length === 0 && styles.listEmpty,
-          { paddingBottom: insets.bottom + tokens.space[4] },
-        ]}
-        refreshing={refreshing}
-        onRefresh={handleRefresh}
-        onEndReached={() => {
-          if (hasMore && !txnLoading) void fetchTxns(page + 1)
-        }}
-        onEndReachedThreshold={ON_END_THRESHOLD}
-        ListFooterComponent={
-          hasMore && txns.length > 0 ? (
-            <LoadMore status={txnLoading ? "loading" : "idle"} onLoadMore={() => void fetchTxns(page + 1)} />
-          ) : null
-        }
-        ListEmptyComponent={
-          !txnLoading && txns.length === 0 ? (
-            txnError ? (
-              <ErrorState
-                title="Gagal memuat riwayat"
-                description={txnError}
-                onRetry={() => void fetchTxns(1)}
-              />
-            ) : (
-              <EmptyState
-                icon={WalletIcon}
-                title="Belum ada riwayat"
-                description="Transaksi dompet kamu akan muncul di sini."
-              />
-            )
-          ) : null
-        }
-        showsVerticalScrollIndicator={false}
-      />
+      </PullToRefresh>
     </Screen>
   )
 }
@@ -258,8 +243,5 @@ const styles = StyleSheet.create({
   balanceCard: {
     marginTop: tokens.space[3],
     marginBottom: tokens.space[2],
-  },
-  listEmpty: {
-    flexGrow: 1,
   },
 })

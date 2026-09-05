@@ -14,7 +14,7 @@
  * Kategori UI komponen (ikon) dipetakan dari kategori API di `UI_CATEGORY`.
  */
 import { useCallback, useEffect, useState } from "react"
-import { FlatList, ScrollView, StyleSheet, View } from "react-native"
+import { ScrollView, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bell, Megaphone, Receipt } from "phosphor-react-native"
 
@@ -32,6 +32,7 @@ import {
   NotificationListItem,
   type NotificationCategory as UiCategory,
 } from "@/components/ui/notification-list-item"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 
@@ -209,49 +210,42 @@ export default function NotificationsScreen() {
           onRetry={() => void fetchNotifs(1)}
         />
       ) : (
-        <FlatList
-          data={notifs}
-          keyExtractor={(item) => item.id}
-          renderItem={({ item, index }) => (
-            <NotificationListItem
-              title={item.title}
-              body={item.body || undefined}
-              category={UI_CATEGORY[item.category] ?? "system"}
-              timestamp={formatDateTime(item.createdAt)}
-              unread={!item.isRead}
-              onPress={() => {
-                if (!item.isRead) handleRead(item.id)
-              }}
-              divider={index < notifs.length - 1}
-            />
-          )}
-          contentContainerStyle={[
-            notifs.length === 0 && styles.listEmpty,
-            { paddingBottom: insets.bottom + tokens.space[4] },
-          ]}
-          refreshing={refreshing}
+        <PullToRefresh
           onRefresh={handleRefresh}
-          onEndReached={() => {
-            if (hasMore && !loadingMore) void fetchNotifs(page + 1)
-          }}
-          onEndReachedThreshold={ON_END_THRESHOLD}
-          ListFooterComponent={
-            hasMore ? (
-              <LoadMore
-                status={loadingMore ? "loading" : "idle"}
-                onLoadMore={() => void fetchNotifs(page + 1)}
-              />
-            ) : null
-          }
-          ListEmptyComponent={
+          refreshing={refreshing}
+          scrollViewProps={{ style: { paddingBottom: insets.bottom + tokens.space[4] } }}
+        >
+          {notifs.length === 0 ? (
             <EmptyState
               icon={EMPTY_ICON[filter]}
               title="Tidak ada notifikasi"
               description="Notifikasi untukmu akan muncul di sini."
             />
-          }
-          showsVerticalScrollIndicator={false}
-        />
+          ) : (
+            <View className="gap-1">
+              {notifs.map((item, index) => (
+                <NotificationListItem
+                  key={item.id}
+                  title={item.title}
+                  body={item.body || undefined}
+                  category={UI_CATEGORY[item.category] ?? "system"}
+                  timestamp={formatDateTime(item.createdAt)}
+                  unread={!item.isRead}
+                  onPress={() => {
+                    if (!item.isRead) handleRead(item.id)
+                  }}
+                  divider={index < notifs.length - 1}
+                />
+              ))}
+              {hasMore ? (
+                <LoadMore
+                  status={loadingMore ? "loading" : "idle"}
+                  onLoadMore={() => void fetchNotifs(page + 1)}
+                />
+              ) : null}
+            </View>
+          )}
+        </PullToRefresh>
       )}
     </Screen>
   )
@@ -266,9 +260,5 @@ const styles = StyleSheet.create({
     gap: tokens.space[2],
     paddingHorizontal: tokens.layout.screenPaddingX,
     paddingVertical: tokens.space[2],
-  },
-  listEmpty: {
-    flexGrow: 1,
-    justifyContent: "center",
   },
 })

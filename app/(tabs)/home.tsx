@@ -22,7 +22,6 @@ import { ArrowRight, Lightning, Receipt, Wallet } from "phosphor-react-native"
 
 import { api, type OrderSummary, type UserProfile, type Wallet as WalletData } from "@/lib/api"
 import { formatRupiah } from "@/lib/format"
-import { useComingSoon } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 
 import { Amount } from "@/components/ui/amount"
@@ -30,6 +29,7 @@ import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { Icon } from "@/components/ui/icon"
 import { ProfileHeader } from "@/components/ui/profile-header"
+import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { StatCard } from "@/components/ui/stat-card"
 import { Text } from "@/components/ui/text"
@@ -82,7 +82,6 @@ function totalOrders(summary: OrderSummary | null): number {
 
 export default function HomeScreen() {
   const router = useRouter()
-  const comingSoon = useComingSoon()
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [wallet, setWallet] = useState<WalletData | null>(null)
@@ -91,6 +90,7 @@ export default function HomeScreen() {
   const [profileLoading, setProfileLoading] = useState(true)
   const [walletLoading, setWalletLoading] = useState(true)
   const [summaryLoading, setSummaryLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
   const [walletError, setWalletError] = useState<string | null>(null)
   const [summaryError, setSummaryError] = useState<string | null>(null)
@@ -127,94 +127,106 @@ export default function HomeScreen() {
     void fetchAll()
   }, [fetchAll])
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true)
+    await fetchAll()
+    setRefreshing(false)
+  }, [fetchAll])
+
   const activeOrders = countActiveOrders(summary)
   const totalOrdersCount = totalOrders(summary)
 
   const handleCreate = useCallback(() => {
-    comingSoon("Buat Transaksi")
-  }, [comingSoon])
+    router.push(ROUTES.createTransaction)
+  }, [router])
 
   return (
-    <Screen edges={["top"]} background="surface" padded={false} scroll>
-      {/* ── Identitas: salam + profil ───────────────────────── */}
-      <View className="px-6 pt-4">
-        <Text variant="caption" tone="secondary">
-          {greetingByHour()},
-        </Text>
-      </View>
-      <ProfileHeader
-        name={profile?.fullName ?? "—"}
-        handle={profile?.username ? `@${profile.username}` : undefined}
-        avatar={{ source: profile?.avatarUrl ?? undefined }}
-        loading={profileLoading}
-      />
+    <Screen edges={["top"]} background="surface" padded={false}>
+      <PullToRefresh
+        onRefresh={handleRefresh}
+        refreshing={refreshing}
+        contentContainerClassName="pb-6"
+      >
+        {/* ── Identitas: salam + profil ───────────────────────── */}
+        <View className="px-6 pt-4">
+          <Text variant="caption" tone="secondary">
+            {greetingByHour()},
+          </Text>
+        </View>
+        <ProfileHeader
+          name={profile?.fullName ?? "—"}
+          handle={profile?.username ? `@${profile.username}` : undefined}
+          avatar={{ source: profile?.avatarUrl ?? undefined }}
+          loading={profileLoading}
+        />
 
-      {/* ── Ringkasan ───────────────────────────────────────── */}
-      <View className="gap-4 px-6 pt-2">
-        {walletError ? (
-          <ErrorState
-            compact
-            title="Gagal memuat saldo"
-            description={walletError}
-            onRetry={() => void fetchAll()}
-          />
-        ) : (
-          <StatCard
-            label="Saldo tersedia"
-            icon={<Icon icon={Wallet} size="xs" tone="default" />}
-            loading={walletLoading}
-            value={<Amount value={wallet?.availableBalance ?? wallet?.balance ?? 0} size="large" />}
-            hint={
-              (wallet?.holdBalance ?? 0) > 0
-                ? `${formatRupiah(wallet?.holdBalance ?? 0)} ditahan escrow`
-                : undefined
-            }
-          />
-        )}
-
-        {summaryError ? (
-          <ErrorState
-            compact
-            title="Gagal memuat ringkasan order"
-            description={summaryError}
-            onRetry={() => void fetchAll()}
-          />
-        ) : (
-          <View className="flex-row gap-3">
-            <StatCard
-              label="Order aktif"
-              icon={<Icon icon={Receipt} size="xs" tone="default" />}
-              loading={summaryLoading}
-              value={activeOrders}
-              mono
-              className="flex-1"
+        {/* ── Ringkasan ───────────────────────────────────────── */}
+        <View className="gap-4 px-6 pt-2">
+          {walletError ? (
+            <ErrorState
+              compact
+              title="Gagal memuat saldo"
+              description={walletError}
+              onRetry={() => void fetchAll()}
             />
+          ) : (
             <StatCard
-              label="Total transaksi"
-              icon={<Icon icon={ArrowRight} size="xs" tone="default" />}
-              loading={summaryLoading}
-              value={totalOrdersCount}
-              mono
-              className="flex-1"
+              label="Saldo tersedia"
+              icon={<Icon icon={Wallet} size="xs" tone="default" />}
+              loading={walletLoading}
+              value={<Amount value={wallet?.availableBalance ?? wallet?.balance ?? 0} size="large" />}
+              hint={
+                (wallet?.holdBalance ?? 0) > 0
+                  ? `${formatRupiah(wallet?.holdBalance ?? 0)} ditahan escrow`
+                  : undefined
+              }
             />
-          </View>
-        )}
-      </View>
+          )}
 
-      {/* ── Aksi ────────────────────────────────────────────── */}
-      <VStack gap={3} className="px-6 pt-8">
-        <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
-          Buat Transaksi
-        </Button>
-        <Button
-          variant="ghost"
-          size="md"
-          onPress={() => router.push(ROUTES.transactions)}
-          rightIcon={ArrowRight}
-        >
-          Lihat semua transaksi
-        </Button>
-      </VStack>
+          {summaryError ? (
+            <ErrorState
+              compact
+              title="Gagal memuat ringkasan order"
+              description={summaryError}
+              onRetry={() => void fetchAll()}
+            />
+          ) : (
+            <View className="flex-row gap-3">
+              <StatCard
+                label="Order aktif"
+                icon={<Icon icon={Receipt} size="xs" tone="default" />}
+                loading={summaryLoading}
+                value={activeOrders}
+                mono
+                className="flex-1"
+              />
+              <StatCard
+                label="Total transaksi"
+                icon={<Icon icon={ArrowRight} size="xs" tone="default" />}
+                loading={summaryLoading}
+                value={totalOrdersCount}
+                mono
+                className="flex-1"
+              />
+            </View>
+          )}
+        </View>
+
+        {/* ── Aksi ────────────────────────────────────────────── */}
+        <VStack gap={3} className="px-6 pt-8">
+          <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
+            Buat Transaksi
+          </Button>
+          <Button
+            variant="ghost"
+            size="md"
+            onPress={() => router.push(ROUTES.transactions)}
+            rightIcon={ArrowRight}
+          >
+            Lihat semua transaksi
+          </Button>
+        </VStack>
+      </PullToRefresh>
     </Screen>
   )
 }

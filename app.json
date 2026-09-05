@@ -35,6 +35,11 @@
       "bundler": "metro",
       "output": "static"
     },
+    "updates": {
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
+    },
     "plugins": [
       "expo-router",
       "expo-font",
