@@ -34,11 +34,35 @@ export type ChatRoom = {
 export type ChatMessage = {
   id: string
   text?: string
+  senderId?: string | null
   messageType: "TEXT" | "IMAGE" | "FILE" | "SYSTEM" | string
   fromUser: boolean
   attachments?: ChatAttachmentDto[]
   replyToId?: string | null
   createdAt: string
+}
+
+function normalizeChatMessage(raw: ChatMessage & Record<string, unknown>): ChatMessage {
+  return {
+    ...raw,
+    text: raw.text ?? (typeof raw.content === "string" ? raw.content : undefined),
+    senderId: raw.senderId ?? null,
+    fromUser:
+      typeof raw.fromUser === "boolean"
+        ? raw.fromUser
+        : raw.isMine === true || raw.isFromCurrentUser === true,
+  }
+}
+
+function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): ChatRoom {
+  const other = raw.otherUser as ChatRoom["counterpart"] | undefined
+  const last = raw.lastMessage as (ChatMessage & Record<string, unknown>) | null | undefined
+  return {
+    ...raw,
+    counterpart: raw.counterpart ?? other,
+    lastMessage: last ? normalizeChatMessage(last) : null,
+    unreadCount: typeof raw.unreadCount === "number" ? raw.unreadCount : 0,
+  }
 }
 
 export function listChatRooms(
@@ -53,7 +77,10 @@ export function listChatRooms(
       retry: 1,
       signal,
     })
-    .then((raw) => readPage<ChatRoom>(raw, query, ["rooms"]))
+    .then((raw) => {
+      const page = readPage<ChatRoom & Record<string, unknown>>(raw, query, ["rooms"])
+      return { ...page, data: page.data.map(normalizeChatRoom) }
+    })
 }
 
 export type ChatMessagesQuery = {
@@ -80,9 +107,9 @@ type RawMessagesResponse =
     }
 
 function normalizeMessagesPage(raw: RawMessagesResponse): ChatMessagesPage {
-  if (Array.isArray(raw)) return { items: raw, nextCursor: null }
-  const items = readList<ChatMessage>(raw, ["messages"])
-  return { items, nextCursor: raw.nextCursor ?? raw.cursor ?? null }
+  if (Array.isArray(raw)) return { items: raw.map(normalizeChatMessage), nextCursor: null }
+  const items = readList<ChatMessage & Record<string, unknown>>(raw, ["messages"])
+  return { items: items.map(normalizeChatMessage), nextCursor: raw.nextCursor ?? raw.cursor ?? null }
 }
 
 export async function getChatMessages(
