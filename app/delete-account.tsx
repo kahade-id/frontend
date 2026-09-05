@@ -1,6 +1,6 @@
 import { useApiQuery } from "@/lib/use-api-query"
 import { ErrorState } from "@/components/ui/error-state"
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Hapus Akun (POST /v1/users/me/delete-request).
  *
@@ -18,7 +18,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * memblokir form (array kosong) — backend tetap menjadi penjaga terakhir.
  */
 import { useCallback, useRef, useState } from "react"
-import { View } from "react-native"
+import { ScrollView } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -100,14 +100,21 @@ export default function DeleteAccountScreen() {
   )
 
   return (
-    <Screen keyboardAvoiding scroll edges={["top"]} padded={false}>
+    <Screen keyboardAvoiding edges={["top"]} padded={false}>
+      {/* Header di LUAR area scroll: form ini panjang (blocker + frasa
+          konfirmasi + MFA), tombol kembali harus tetap terlihat. */}
       <Header title="Hapus Akun" />
-      <View
-        className="gap-4 px-6"
-        style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="gap-4 px-6"
+        contentContainerStyle={{
+          paddingTop: tokens.space[3],
+          paddingBottom: insets.bottom + tokens.space[8],
+        }}
       >
         {prerequisites.loading ? (
-          <ListLoading />
+          <DetailLoading />
         ) : prerequisites.error ? (
           <ErrorState
             description={prerequisites.error}
@@ -123,7 +130,7 @@ export default function DeleteAccountScreen() {
             submitting={submitting}
           />
         )}
-      </View>
+      </ScrollView>
     </Screen>
   )
 }

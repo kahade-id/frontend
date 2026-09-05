@@ -62,11 +62,11 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Redirect, useRouter } from "expo-router"
 import { Camera as CameraIcon, PencilSimple } from "phosphor-react-native"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { Alert } from "@/components/ui/alert"
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -82,14 +82,12 @@ import { api, getAccessToken, isApiError, userMessage } from "@/lib/api"
 import { clearRegistrationState, getRegistrationState } from "@/lib/registration"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
 
 /** Crop persegi + kompresi avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
 const AVATAR_PICKER: PickImageOptions = { square: true }
 
 export default function SetupProfileScreen() {
   const router = useRouter()
-  const insets = useSafeAreaInsets()
   const regState = getRegistrationState()
 
   // Guard: butuh access token (user sudah login dari phone-register)
@@ -327,10 +325,7 @@ export default function SetupProfileScreen() {
       </ScrollView>
 
       {/* Footer */}
-      <View
-        className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-        style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-      >
+      <FooterBar>
         <Button
           onPress={() => void handleSave()}
           loading={submitting}
@@ -344,7 +339,7 @@ export default function SetupProfileScreen() {
             Lewati untuk sekarang
           </TextLink>
         </View>
-      </View>
+      </FooterBar>
 
       {/* ActionSheet untuk avatar */}
       <ActionSheet

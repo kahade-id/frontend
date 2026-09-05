@@ -20,8 +20,7 @@ import { ScrollView, View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api } from "@/lib/api"
-import { isApiError } from "@/lib/api/errors"
+import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MIN } from "@/lib/auth-constants"
 import { tokens } from "@/lib/tokens"
 
@@ -87,10 +86,13 @@ export default function ChangePinScreen() {
         await api.wallet.setWalletPin({ pin, currentPin, password })
         toast.show({ title: "PIN berhasil diubah", tone: "success" })
         router.back()
-      } catch {
+      } catch (err: unknown) {
+        // §14: percobaan PIN dibatasi. Bila backend mengunci akun, pesan itulah
+        // yang harus dibaca pengguna — bukan saran "periksa password" yang
+        // membuatnya mencoba lagi dan memperpanjang penguncian.
         toast.show({
           title: "Gagal mengubah PIN",
-          description: "Periksa password akun dan PIN lama Anda.",
+          description: userMessage(err),
           tone: "danger",
         })
         setStep("password")

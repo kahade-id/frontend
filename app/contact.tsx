@@ -7,7 +7,7 @@ import { ScrollView, View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -48,8 +48,14 @@ export default function ContactScreen() {
       setMessage("")
       if (res?.id) router.replace(ROUTES.supportTicket(res.id))
       else router.replace(ROUTES.support)
-    } catch {
-      toast.show({ title: "Gagal mengirim tiket", tone: "danger" })
+    } catch (err: unknown) {
+      // Tanpa deskripsi, pengguna tidak tahu apakah harus mengulang (jaringan)
+      // atau memperbaiki isian (validasi/lampiran ditolak).
+      toast.show({
+        title: "Gagal mengirim tiket",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setSubmitting(false)
     }

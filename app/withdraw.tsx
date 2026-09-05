@@ -83,8 +83,8 @@ export default function WithdrawScreen() {
           ? prev
           : (list.find((a) => a.isPrimary)?.id ?? list[0]?.id ?? null),
       )
-    } catch {
-      setError("Gagal memuat rekening bank.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -181,8 +181,8 @@ export default function WithdrawScreen() {
       await api.wallet.resendWithdrawOtp({ txId })
       setOtpError(undefined)
       toast.show({ title: "OTP dikirim ulang", tone: "success" })
-    } catch {
-      toast.show({ title: "Gagal mengirim OTP", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal mengirim OTP", description: userMessage(err), tone: "danger" })
     }
   }, [txId, toast.show])
 

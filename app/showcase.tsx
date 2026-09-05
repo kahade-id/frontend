@@ -105,8 +105,8 @@ export default function ShowcaseScreen() {
     try {
       const res = await api.users.getMyShowcase()
       setItems(res ?? [])
-    } catch {
-      setError("Gagal memuat showcase.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }

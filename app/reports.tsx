@@ -10,7 +10,7 @@ import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Flag } from "phosphor-react-native"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { ReportsSettings } from "@/lib/api/settings"
 import type { ReportUserSettingsDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
@@ -83,8 +83,8 @@ export default function ReportsScreen() {
     try {
       const res = await api.settings.getReports()
       setItems(res ?? [])
-    } catch {
-      setError("Gagal memuat laporan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -113,8 +113,12 @@ export default function ReportsScreen() {
         toast.show({ title: "Laporan terkirim", tone: "success", duration: 3000 })
         setValue({ reason: "", detail: "" })
         await fetchAll()
-      } catch {
-        toast.show({ title: "Gagal mengirim laporan", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal mengirim laporan",
+          description: userMessage(err),
+          tone: "danger",
+        })
       } finally {
         setSubmitting(false)
       }

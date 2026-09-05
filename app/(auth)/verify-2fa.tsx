@@ -41,6 +41,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
@@ -53,7 +54,6 @@ import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { haptic } from "@/lib/haptics"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
 import { clearPendingTwoFactorLogin, getPendingTwoFactorLogin } from "@/lib/two-factor-login"
 
 /** Panjang TOTP (RFC 6238) — sama dengan `minLength` Verify2faLoginDto.code */
@@ -224,10 +224,7 @@ export default function VerifyTwoFactorScreen() {
           </View>
         </ScrollView>
 
-        <View
-          className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-          style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-        >
+        <FooterBar>
           <View className="items-center">
             {mode === "totp" ? (
               <TextLink onPress={() => switchMode("backup")} disabled={verifying}>
@@ -246,7 +243,7 @@ export default function VerifyTwoFactorScreen() {
               Masuk dengan akun lain
             </TextLink>
           </Text>
-        </View>
+        </FooterBar>
       </KeyboardAvoiding>
     </Screen>
   )

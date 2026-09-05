@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react"
-import { Platform, View } from "react-native"
+import { Platform, ScrollView } from "react-native"
 import Constants from "expo-constants"
 import * as Updates from "expo-updates"
 import { api } from "@/lib/api"
@@ -59,9 +59,15 @@ export default function AppVersionScreen() {
     }
   }, [canUpdate, available, toast.show])
   return (
-    <Screen edges={["top"]} padded={false} scroll>
+    <Screen edges={["top"]} padded={false}>
+      {/* Header di LUAR area scroll: tombol kembali harus tetap terjangkau
+          saat konten panjang digulir (pola sama dengan <DataScreen>). */}
       <Header title="Versi Aplikasi" />
-      <View className="gap-4 px-6 py-4">
+      <ScrollView
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerClassName="gap-4 px-6 py-4"
+      >
         <AppVersionInfoRow
           appName={Constants.expoConfig?.name ?? "Kahade"}
           version={installedAppVersion() ?? "Tidak tersedia"}
@@ -102,7 +108,7 @@ export default function AppVersionScreen() {
           OTA memperbarui JavaScript dan aset untuk runtime yang kompatibel. Perubahan native atau
           versi minimum membutuhkan pembaruan dari toko aplikasi.
         </Text>
-      </View>
+      </ScrollView>
     </Screen>
   )
 }

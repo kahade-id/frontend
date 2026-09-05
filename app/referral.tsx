@@ -88,8 +88,8 @@ export default function ReferralScreen() {
       )
       setHistory(h ?? [])
       setRewards(r ?? [])
-    } catch {
-      setError("Gagal memuat data referral.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -111,8 +111,12 @@ export default function ReferralScreen() {
       const res = await api.referrals.regenerateReferralCode()
       setCode(res?.code ?? code)
       toast.show({ title: "Kode referral baru dibuat", tone: "success", duration: 3000 })
-    } catch {
-      toast.show({ title: "Gagal membuat kode baru", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal membuat kode baru",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setRegenerating(false)
     }

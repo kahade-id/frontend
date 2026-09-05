@@ -81,7 +81,16 @@ export type FloatingActionButtonProps = Omit<
   className?: string
 }
 
-const SIZE = 56
+/**
+ * Diameter FAB (px) — sama dengan class `h-14` di bawah. Diekspor supaya
+ * layar yang menaruh FAB DI ATAS list bisa menghitung ruang bawah list
+ * (`bottomPadding`) dari angka yang sebenarnya, bukan menebak dengan
+ * kombinasi token (`space[16] + space[8]`) yang kebetulan mirip.
+ * Pola sama dengan TAB_BAR_HEIGHT / HEADER_BAR_HEIGHT.
+ */
+export const FAB_SIZE = 56
+
+const SIZE = FAB_SIZE
 
 export function FloatingActionButton({
   accessibilityLabel,

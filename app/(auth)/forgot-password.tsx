@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { EmailField, isValidEmail } from "@/components/ui/email-field"
 import { Header } from "@/components/ui/header"
@@ -50,7 +51,6 @@ import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
 
 export default function ForgotPasswordScreen() {
   const router = useRouter()
@@ -168,16 +168,13 @@ export default function ForgotPasswordScreen() {
         </ScrollView>
 
         {/* Footer */}
-        <View
-          className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-          style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-        >
+        <FooterBar>
           <View className="items-center">
             <TextLink onPress={handleBackToLogin} disabled={submitting}>
               Kembali ke login
             </TextLink>
           </View>
-        </View>
+        </FooterBar>
       </KeyboardAvoiding>
     </Screen>
   )

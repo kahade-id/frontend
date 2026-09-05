@@ -54,6 +54,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Countdown } from "@/components/ui/countdown"
@@ -68,7 +69,6 @@ import { formatPhoneId } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
 
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-2 */
 const STEP_PROGRESS = 2 / 4
@@ -295,10 +295,7 @@ export default function VerifyOtpScreen() {
         </ScrollView>
 
         {/* Footer: countdown/resend + ubah nomor */}
-        <View
-          className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-          style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-        >
+        <FooterBar>
           <View className="items-center">
             {canResend ? (
               <TextLink onPress={handleResend} disabled={resending}>
@@ -321,7 +318,7 @@ export default function VerifyOtpScreen() {
               Ubah nomor HP
             </TextLink>
           </Text>
-        </View>
+        </FooterBar>
       </KeyboardAvoiding>
     </Screen>
   )

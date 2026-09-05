@@ -118,8 +118,8 @@ export default function PublicQuestionsScreen() {
     try {
       const [, me] = await Promise.all([fetchPage(1), api.users.getMe().catch(() => null)])
       if (me?.id) setMeId(me.id)
-    } catch {
-      setError("Gagal memuat pertanyaan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -140,8 +140,12 @@ export default function PublicQuestionsScreen() {
     setLoadingMore(true)
     try {
       await fetchPage(page + 1)
-    } catch {
-      toast.show({ title: "Gagal memuat halaman berikutnya", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal memuat halaman berikutnya",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setLoadingMore(false)
     }

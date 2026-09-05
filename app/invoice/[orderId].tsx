@@ -1,4 +1,4 @@
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Invoice (GET /v1/orders/{orderId}/invoice + receipt HTML).
  */
@@ -7,7 +7,7 @@ import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { Invoice } from "@/lib/api/orders"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -39,8 +39,8 @@ export default function InvoiceScreen() {
     try {
       const res = await api.orders.getInvoice(orderId)
       setInvoice(res)
-    } catch {
-      setError("Invoice tidak ditemukan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -66,8 +66,12 @@ export default function InvoiceScreen() {
           tone: "success",
           duration: 3000,
         })
-      } catch {
-        toast.show({ title: "Gagal mengunduh struk", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal mengunduh struk",
+          description: userMessage(err),
+          tone: "danger",
+        })
       }
     },
     [toast.show],
@@ -85,7 +89,7 @@ export default function InvoiceScreen() {
         }}
       >
         {loading ? (
-          <ListLoading />
+          <DetailLoading />
         ) : error ? (
           <ErrorState
             title="Gagal memuat"

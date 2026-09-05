@@ -97,6 +97,8 @@ export default function BiometricSettingsScreen() {
         setBiometric(next)
         toast.show({ title: next ? "Biometrik diaktifkan" : "Biometrik dimatikan", tone: "success" })
       } catch {
+        // Kegagalan di sini berasal dari perangkat (sensor/SecureStore), bukan
+        // backend — tidak ada pesan server yang bisa diteruskan.
         toast.show({ title: "Gagal menyimpan pengaturan biometrik", tone: "danger" })
       } finally {
         setToggling(false)

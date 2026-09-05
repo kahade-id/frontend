@@ -28,7 +28,7 @@ import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
 import type { PresignedUrlDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
@@ -49,7 +49,7 @@ import { Input } from "@/components/ui/input"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { KycHistoryListItem } from "@/components/ui/kyc-history-list-item"
 import { KycStatusCard } from "@/components/ui/kyc-status-card"
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -97,8 +97,8 @@ export default function KycScreen() {
       ])
       setState(s)
       setHistory(h ?? [])
-    } catch {
-      setError("Gagal memuat status verifikasi.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -221,7 +221,10 @@ export default function KycScreen() {
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loading ? (
-            <ListLoading />
+            // Isi layar ini = satu KycStatusCard + (opsional) form, bukan
+            // daftar kartu: <ListLoading> (4 kartu) membuat tinggi menyusut
+            // drastis saat data tiba.
+            <DetailLoading />
           ) : error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
           ) : (

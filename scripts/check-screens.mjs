@@ -128,31 +128,7 @@ rules.push({
   id: "S2",
   title: 'setError("…") literal menggantikan pesan backend (pakai userMessage(err))',
   test: (f) => /setError\(\s*"/.test(f.src),
-  baseline: [
-    "app/bank-accounts.tsx",
-    "app/edit-profile.tsx",
-    "app/extension/[orderId].tsx",
-    "app/invoice/[orderId].tsx",
-    "app/kyc.tsx",
-    "app/order-link/[token].tsx",
-    "app/order-links.tsx",
-    "app/questions.tsx",
-    "app/rate/[orderId].tsx",
-    "app/ratings.tsx",
-    "app/referral.tsx",
-    "app/reports.tsx",
-    "app/security.tsx",
-    "app/showcase.tsx",
-    "app/subscriptions.tsx",
-    "app/support/[ticketId].tsx",
-    "app/transaction-templates.tsx",
-    "app/user/[username]/questions.tsx",
-    "app/user/[username]/ratings.tsx",
-    "app/user/[username]/showcase.tsx",
-    "app/wallet-transaction/[txId].tsx",
-    "app/withdraw.tsx",
-    "app/withdrawal-schedules.tsx",
-  ],
+  baseline: [],
 })
 
 /**
@@ -170,7 +146,6 @@ rules.push({
     /<PullToRefresh/.test(f.src) &&
     /insets\.bottom\s*\+\s*tokens\.space/.test(f.src),
   baseline: [
-    "app/(tabs)/settings.tsx",
     "app/analytics.tsx",
     "app/bank-accounts.tsx",
     "app/create-transaction.tsx",

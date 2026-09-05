@@ -30,9 +30,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { haptic } from "@/lib/haptics"
-import { tokens } from "@/lib/tokens"
 
 import { Alert } from "@/components/ui/alert"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Countdown } from "@/components/ui/countdown"
@@ -200,10 +200,7 @@ export default function VerifyEmailScreen() {
           </View>
         </ScrollView>
 
-        <View
-          className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-          style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-        >
+        <FooterBar>
           <View className="items-center">
             {canResend ? (
               <TextLink onPress={() => void handleSend()} disabled={sending || !email}>
@@ -225,7 +222,7 @@ export default function VerifyEmailScreen() {
               Perbaiki alamat email
             </TextLink>
           </Text>
-        </View>
+        </FooterBar>
       </KeyboardAvoiding>
 
       <BottomSheet

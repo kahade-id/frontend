@@ -1,4 +1,4 @@
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Bukti pengiriman satu pesanan.
  *
@@ -298,7 +298,7 @@ export default function DeliveryProofScreen() {
         }}
       >
         {loading && !order ? (
-          <ListLoading />
+          <DetailLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (

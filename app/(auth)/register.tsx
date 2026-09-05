@@ -48,6 +48,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { OtpMethodSelector } from "@/components/register/otp-method-selector"
 import { useOtpMethods } from "@/components/register/use-otp-methods"
 import { Alert } from "@/components/ui/alert"
+import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { FieldLabel } from "@/components/ui/field"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
@@ -61,7 +62,6 @@ import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
 import { setPendingReferralCode } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
 
 /** Registrasi via HP: 4 langkah sebelum akun jadi; ini langkah ke-1 */
 const STEP_PROGRESS = 1 / 4
@@ -253,10 +253,7 @@ export default function RegisterScreen() {
         </ScrollView>
 
         {/* Footer: CTA + jalan ke login. Pola border-t mengikuti slot footer Screen. */}
-        <View
-          className="w-full gap-4 border-t border-border bg-background px-6 pt-4"
-          style={{ paddingBottom: tokens.space[4] + insets.bottom }}
-        >
+        <FooterBar>
           <Button
             onPress={() => void handleSubmit()}
             loading={submitting}
@@ -270,7 +267,7 @@ export default function RegisterScreen() {
               Masuk
             </TextLink>
           </Text>
-        </View>
+        </FooterBar>
       </KeyboardAvoiding>
     </Screen>
   )

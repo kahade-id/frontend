@@ -8,7 +8,7 @@ import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Images } from "phosphor-react-native"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { tokens } from "@/lib/tokens"
 
@@ -35,8 +35,8 @@ export default function PublicShowcaseScreen() {
     try {
       const res = await api.users.getPublicShowcase(username)
       setItems(res ?? [])
-    } catch {
-      setError("Gagal memuat showcase.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }

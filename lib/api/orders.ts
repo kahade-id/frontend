@@ -89,6 +89,46 @@ export type OrderStatus =
   | "EXPIRED"
   | (string & {}) // toleransi nilai baru dari backend tanpa runtime error
 
+/**
+ * Gerbang aksi escrow — turunan langsung dari state machine di atas, bukan
+ * daftar yang boleh ditulis ulang per layar.
+ *
+ * Sebelumnya `app/order/[id].tsx` (array) dan `app/extension/[orderId].tsx`
+ * (Set) masing-masing punya salinan `EXTENDABLE_STATUSES`. Dua salinan berarti
+ * tombol "Perpanjang" di detail order bisa muncul untuk status yang layar
+ * perpanjangan sendiri tolak — pengguna menekan tombol lalu menemui layar
+ * tanpa aksi. Satu status baru dari backend hanya boleh diputuskan di sini.
+ */
+
+/** Sengketa hanya masuk akal setelah dana benar-benar masuk escrow. */
+export function isDisputable(status: OrderStatus): boolean {
+  return ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(status)
+}
+
+/** Perpanjangan tenggat hanya selama pekerjaan berjalan (belum diterima pembeli). */
+export function isExtendable(status: OrderStatus): boolean {
+  return ["PAID", "PROCESSING", "SHIPPED"].includes(status)
+}
+
+/**
+ * Pembatalan masih terbuka selama order belum selesai DAN belum disengketakan
+ * (order DISPUTED diselesaikan lewat alur sengketa, bukan tombol batal).
+ */
+export function isCancellable(status: OrderStatus): boolean {
+  return ["PENDING_PAYMENT", "PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(status)
+}
+
+/** Transisi "jalur bahagia" berikutnya — dipakai untuk estimasi durasi timeline. */
+export function nextOrderStatus(status: OrderStatus): OrderStatus | undefined {
+  return {
+    PENDING_PAYMENT: "PAID",
+    PAID: "PROCESSING",
+    PROCESSING: "SHIPPED",
+    SHIPPED: "DELIVERED",
+    DELIVERED: "COMPLETED",
+  }[status as string] as OrderStatus | undefined
+}
+
 export type Paginated<T> = {
   data: T[]
   meta: { page: number; limit: number; total: number; totalPages: number }

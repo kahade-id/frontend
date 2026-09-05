@@ -12,7 +12,7 @@ import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Star } from "phosphor-react-native"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { tokens } from "@/lib/tokens"
 
@@ -69,8 +69,8 @@ export default function PublicRatingsScreen() {
     setError(null)
     try {
       await fetchPage(1)
-    } catch {
-      setError("Gagal memuat ulasan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }

@@ -39,7 +39,7 @@ import {
   X,
 } from "phosphor-react-native"
 
-import { api, type AppNotification, type NotificationCategory } from "@/lib/api"
+import { api, type AppNotification, type NotificationCategory, userMessage } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { routeForNotificationReference } from "@/lib/notification-routing"
@@ -216,8 +216,12 @@ export default function NotificationsScreen() {
       setNotifs((prev) => prev.map((n) => (ids.has(n.id) ? { ...n, isRead: true } : n)))
       void refreshUnreadCount()
       exitSelect()
-    } catch {
-      toast.show({ title: "Notifikasi belum dapat ditandai", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Notifikasi belum dapat ditandai",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setBatchBusy(false)
     }
@@ -232,8 +236,12 @@ export default function NotificationsScreen() {
       setNotifs((prev) => prev.filter((n) => !ids.has(n.id)))
       void refreshUnreadCount()
       exitSelect()
-    } catch {
-      toast.show({ title: "Notifikasi belum dapat dihapus", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Notifikasi belum dapat dihapus",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setBatchBusy(false)
       setConfirm(null)
@@ -246,8 +254,12 @@ export default function NotificationsScreen() {
     try {
       await api.notifications.deleteReadNotifications()
       setNotifs((prev) => prev.filter((n) => !n.isRead))
-    } catch {
-      toast.show({ title: "Notifikasi belum dapat dihapus", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Notifikasi belum dapat dihapus",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setBatchBusy(false)
       setConfirm(null)
@@ -428,7 +440,7 @@ export default function NotificationsScreen() {
           </SkeletonGroup>
         }
         gap={tokens.space[1]}
-        bottomPadding={tokens.space[4]}
+        bottomPadding={tokens.space[8]}
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}

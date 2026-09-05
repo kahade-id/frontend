@@ -104,8 +104,8 @@ export default function RatingsScreen() {
         me ? Promise.resolve(me) : api.users.getMe().catch(() => null),
       ])
       if (profile) setMe({ id: profile.id ?? undefined, username: profile.username ?? undefined })
-    } catch {
-      setError("Gagal memuat ulasan.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -127,8 +127,12 @@ export default function RatingsScreen() {
     setLoadingMore(true)
     try {
       await fetchPage(page + 1)
-    } catch {
-      toast.show({ title: "Gagal memuat halaman berikutnya", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal memuat halaman berikutnya",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setLoadingMore(false)
     }

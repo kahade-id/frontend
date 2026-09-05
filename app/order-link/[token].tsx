@@ -1,4 +1,4 @@
-import { ListLoading } from "@/components/ui/paginated-list"
+import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Terima Order Link (GET /v1/orders/links/{token}).
  * Preview kartu + Terima (POST accept) / Tolak (POST cancel).
@@ -8,8 +8,9 @@ import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, type OrderLink } from "@/lib/api"
+import { api, type OrderLink, userMessage } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
+import { orderLinkStatus } from "@/lib/order-link-labels"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -42,8 +43,8 @@ export default function OrderLinkScreen() {
     try {
       const res = await api.orders.getOrderLink(token)
       setLink(res)
-    } catch {
-      setError("Tautan tidak ditemukan atau sudah tidak berlaku.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -72,8 +73,8 @@ export default function OrderLinkScreen() {
       })
       setLink({ ...link, status: "ACCEPTED" })
       if (link.orderId) router.replace(ROUTES.orderDetail(link.orderId))
-    } catch {
-      toast.show({ title: "Gagal menerima tautan", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal menerima tautan", description: userMessage(err), tone: "danger" })
     } finally {
       setAccepting(false)
     }
@@ -87,8 +88,8 @@ export default function OrderLinkScreen() {
       toast.show({ title: "Tautan ditolak", tone: "success", duration: 3000 })
       setDeclineOpen(false)
       setLink({ ...link, status: "CANCELLED" })
-    } catch {
-      toast.show({ title: "Gagal menolak tautan", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal menolak tautan", description: userMessage(err), tone: "danger" })
       setDeclineOpen(false)
     } finally {
       setDeclining(false)
@@ -109,7 +110,7 @@ export default function OrderLinkScreen() {
         }}
       >
         {loading ? (
-          <ListLoading />
+          <DetailLoading />
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchLink()} />
         ) : link ? (
@@ -127,15 +128,7 @@ export default function OrderLinkScreen() {
               orderValue={link.orderValue}
               deliveryDeadlineDays={link.deliveryDeadlineDays}
               feeResponsibility={link.feeResponsibility}
-              status={
-                link.status === "ACTIVE"
-                  ? "ACTIVE"
-                  : link.status === "ACCEPTED"
-                    ? "ACCEPTED"
-                    : link.status === "CANCELLED"
-                      ? "CANCELLED"
-                      : "EXPIRED"
-              }
+              status={orderLinkStatus(link.status)}
               expiresLabel={
                 link.expiresAt ? `Berlaku hingga ${formatDateTime(link.expiresAt)}` : undefined
               }

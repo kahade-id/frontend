@@ -11,7 +11,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Plus, Trash } from "phosphor-react-native"
 
-import { api, type AddBankAccountDto } from "@/lib/api"
+import { api, type AddBankAccountDto, userMessage } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
 import { tokens } from "@/lib/tokens"
 
@@ -66,8 +66,8 @@ export default function BankAccountsScreen() {
           kind: "bank" as const,
         })),
       )
-    } catch {
-      setError("Gagal memuat rekening bank.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -120,8 +120,12 @@ export default function BankAccountsScreen() {
       toast.show({ title: "Rekening dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
       await fetchData()
-    } catch {
-      toast.show({ title: "Gagal menghapus rekening", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal menghapus rekening",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setDeleting(false)
     }
@@ -133,8 +137,12 @@ export default function BankAccountsScreen() {
         await api.bankAccounts.setPrimaryBankAccount(acc.id)
         toast.show({ title: "Rekening utama diperbarui", tone: "success", duration: 3000 })
         await fetchData()
-      } catch {
-        toast.show({ title: "Gagal memperbarui rekening utama", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal memperbarui rekening utama",
+          description: userMessage(err),
+          tone: "danger",
+        })
       }
     },
     [toast.show, fetchData],

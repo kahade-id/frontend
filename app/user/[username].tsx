@@ -173,8 +173,12 @@ export default function UserProfileScreen() {
         if (next) await api.users.addFavorite(handle)
         else await api.users.removeFavorite(handle)
         setFavorite(next)
-      } catch {
-        toast.show({ title: "Gagal memperbarui favorit", tone: "danger" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal memperbarui favorit",
+          description: userMessage(err),
+          tone: "danger",
+        })
       } finally {
         setFavLoading(false)
       }
@@ -232,8 +236,12 @@ export default function UserProfileScreen() {
       toast.show({ title: "Pengguna diblokir", tone: "success", duration: 3000 })
       setBlockOpen(false)
       router.back()
-    } catch {
-      toast.show({ title: "Gagal memblokir pengguna", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal memblokir pengguna",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setBlocking(false)
     }

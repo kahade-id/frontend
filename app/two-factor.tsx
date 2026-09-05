@@ -32,7 +32,7 @@ import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { TwoFactorSetup } from "@/lib/api/auth"
 import { useCopy } from "@/lib/clipboard"
 import { tokens } from "@/lib/tokens"
@@ -185,8 +185,12 @@ export default function TwoFactorScreen() {
       await api.auth.request2faDisableOtp()
       setEmailOtpSent(true)
       toast.show({ title: "Kode OTP dikirim ke email Anda", tone: "success" })
-    } catch {
-      toast.show({ title: "Gagal mengirim OTP email", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal mengirim OTP email",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setSendingEmailOtp(false)
     }

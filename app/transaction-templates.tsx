@@ -8,7 +8,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { NotePencil } from "phosphor-react-native"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { TransactionTemplate as ApiTemplate } from "@/lib/api/transaction-templates"
 import { tokens } from "@/lib/tokens"
 
@@ -71,8 +71,8 @@ export default function TransactionTemplatesScreen() {
     try {
       const res = await api.transactionTemplates.listTransactionTemplates()
       setItems(res ?? [])
-    } catch {
-      setError("Gagal memuat template.")
+    } catch (err) {
+      setError(userMessage(err))
     } finally {
       setLoading(false)
     }
@@ -124,8 +124,12 @@ export default function TransactionTemplatesScreen() {
       setCreating(false)
       setEditing(null)
       await fetchAll()
-    } catch {
-      toast.show({ title: "Gagal menyimpan template", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal menyimpan template",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setSubmitting(false)
     }
@@ -139,8 +143,12 @@ export default function TransactionTemplatesScreen() {
       toast.show({ title: "Template dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
       await fetchAll()
-    } catch {
-      toast.show({ title: "Gagal menghapus template", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal menghapus template",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setDeleting(false)
     }

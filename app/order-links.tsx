@@ -20,7 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinkSimple } from "phosphor-react-native"
 import { router } from "expo-router"
 
-import { api, type OrderLink } from "@/lib/api"
+import { api, type OrderLink, userMessage } from "@/lib/api"
 import { useCopy } from "@/lib/clipboard"
 import { orderLinkUrl } from "@/lib/deeplinks"
 import { formatDateTime } from "@/lib/format"
@@ -28,7 +28,6 @@ import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 
-import type { BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -39,16 +38,10 @@ import { OrderLinkShareCard } from "@/components/ui/order-link-share-card"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { orderLinkStatusMeta } from "@/lib/order-link-labels"
 import { useToast } from "@/components/ui/toast"
 
 const PAGE_SIZE = 20
-
-const STATUS_META: Record<string, { label: string; tone: BadgeTone }> = {
-  ACTIVE: { label: "Aktif", tone: "success" },
-  ACCEPTED: { label: "Diterima", tone: "info" },
-  CANCELLED: { label: "Dibatalkan", tone: "neutral" },
-  EXPIRED: { label: "Kedaluwarsa", tone: "warning" },
-}
 
 export default function OrderLinksScreen() {
   const insets = useSafeAreaInsets()
@@ -86,8 +79,8 @@ export default function OrderLinksScreen() {
             ? "end"
             : "idle",
       )
-    } catch {
-      if (nextPage === 1) setError("Gagal memuat tautan order.")
+    } catch (err) {
+      if (nextPage === 1) setError(userMessage(err))
       else setMore("error")
     } finally {
       if (nextPage === 1) setLoading(false)
@@ -131,8 +124,12 @@ export default function OrderLinksScreen() {
       )
       toast.show({ title: "Tautan dibatalkan", tone: "success" })
       setCancelTarget(null)
-    } catch {
-      toast.show({ title: "Gagal membatalkan tautan", tone: "danger" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal membatalkan tautan",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       setCancelling(false)
     }
@@ -173,10 +170,7 @@ export default function OrderLinksScreen() {
             <SectionHeader title="Tautan saya" />
             {items.map((link) => {
               const url = link.url ?? orderLinkUrl(link.token)
-              const status = STATUS_META[link.status] ?? {
-                label: link.status,
-                tone: "neutral" as BadgeTone,
-              }
+              const status = orderLinkStatusMeta(link.status)
               return (
                 <OrderLinkShareCard
                   key={link.token}

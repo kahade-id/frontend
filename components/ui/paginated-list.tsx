@@ -2,7 +2,7 @@ import { useCallback, useMemo, type ReactElement, type ReactNode } from "react"
 import { FlatList, View, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore } from "@/components/ui/load-more"
-import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
+import { Skeleton, SkeletonGroup, SkeletonText } from "@/components/ui/skeleton"
 import { tokens } from "@/lib/tokens"
 
 export type PaginatedListProps<T extends { id: string }> = {
@@ -42,6 +42,26 @@ export function ListLoading() {
       {Array.from({ length: 4 }, (_, index) => (
         <Skeleton key={index} shape="card" className="h-24 w-full" />
       ))}
+    </SkeletonGroup>
+  )
+}
+
+/**
+ * Placeholder untuk layar DETAIL satu record (invoice, mutasi, preview
+ * tautan, form ulasan) — bukan daftar.
+ *
+ * Audit komposisi: layar-layar itu memakai <ListLoading> (4 kartu h-24)
+ * padahal isinya satu kartu + beberapa baris. Akibatnya tinggi konten
+ * menyusut drastis saat data tiba dan layar "melompat". Bentuk di sini
+ * mengikuti anatomi yang sebenarnya: satu blok judul, satu kartu, lalu
+ * beberapa baris key-value.
+ */
+export function DetailLoading() {
+  return (
+    <SkeletonGroup className="gap-4 py-4">
+      <Skeleton className="h-6 w-2/5" />
+      <Skeleton shape="card" className="h-32 w-full" />
+      <SkeletonText lines={3} />
     </SkeletonGroup>
   )
 }

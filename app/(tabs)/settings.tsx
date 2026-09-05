@@ -16,7 +16,6 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { StyleSheet, View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import {
   Bank,
@@ -40,6 +39,7 @@ import {
   Lifebuoy,
   LinkSimple,
   Lock,
+  MagnifyingGlass,
   Medal,
   Moon,
   Prohibit,
@@ -66,6 +66,7 @@ import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
 import { Divider } from "@/components/ui/divider"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import type { IconComponent } from "@/components/ui/icon"
@@ -217,7 +218,6 @@ const MENU_GROUPS: MenuGroup[] = [
 // ------------------------------------------------------------------
 
 export default function SettingsScreen() {
-  const insets = useSafeAreaInsets()
   const [refreshing, setRefreshing] = useState(false)
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -288,7 +288,7 @@ export default function SettingsScreen() {
         onRefresh={handleRefresh}
         refreshing={refreshing}
         scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
+          contentContainerStyle: { paddingBottom: tokens.space[8] },
         }}
       >
         {/* ── Header profil ────────────────────────────────── */}
@@ -323,6 +323,24 @@ export default function SettingsScreen() {
         </View>
 
         {/* ── Grup menu ────────────────────────────────────── */}
+        {/*
+         * Pencarian yang tidak cocok sebelumnya merender NOL grup — layar
+         * berubah jadi ruang kosong tanpa penjelasan, satu-satunya layar di
+         * app yang punya daftar tanpa empty state. <EmptyState compact>
+         * dipakai supaya bentuknya sama dengan hasil pencarian nihil di
+         * layar Pencarian & Transaksi.
+         */}
+        {menuQuery.trim() && visibleGroups.length === 0 ? (
+          <View style={styles.group}>
+            <EmptyState
+              compact
+              icon={MagnifyingGlass}
+              title="Pengaturan tidak ditemukan"
+              description={`Tidak ada menu yang cocok dengan "${menuQuery.trim()}".`}
+            />
+          </View>
+        ) : null}
+
         {visibleGroups.map((group, gi) => (
           <View key={group.title} style={styles.group}>
             <SectionHeader level="h3" title={group.title} style={styles.groupTitle} />
