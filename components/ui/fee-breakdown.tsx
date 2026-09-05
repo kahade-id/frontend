@@ -25,7 +25,7 @@
  *   - `loading` = Skeleton dengan tinggi baris sama supaya kartu tidak
  *     melompat saat user mengubah nominal dan fee dihitung ulang.
  */
-import { View, type ViewProps } from "react-native"
+import { type ViewProps } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
 import { Card } from "@/components/ui/card"

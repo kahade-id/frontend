@@ -8,12 +8,10 @@ import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Star } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import { tokens } from "@/lib/tokens"
 
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"

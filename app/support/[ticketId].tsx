@@ -15,8 +15,6 @@ import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
-import { ChatCircleText } from "phosphor-react-native"
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"

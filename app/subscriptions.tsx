@@ -65,7 +65,6 @@ import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
 const PAGE_SIZE = 10
-const DEFAULT_PAYMENT_METHOD = "KAHADE_WALLET"
 const MS_PER_DAY = 86_400_000
 
 type Step = "plans" | "method" | "pin"
@@ -379,7 +378,7 @@ export default function SubscriptionsScreen() {
               <EmptyState compact icon={CrownSimple} title="Belum ada paket tersedia" />
             ) : (
               <View className="gap-3">
-                {plans.map((plan, i) => {
+                {plans.map((plan) => {
                   const period = planPeriod(plan)
                   const isCurrent = Boolean(status?.active && currentPlan?.id === plan.id)
                   return (

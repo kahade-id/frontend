@@ -1,0 +1,13 @@
+[
+  {
+    "__TODO__": "ISI sha256_cert_fingerprints SETELAH ADA SIGNING KEY PRODUCTION. Selama array itu kosong, Android TIDAK akan memverifikasi App Links dan link kahade.id akan tetap terbuka di browser (fallback aman, bukan error). Ambil fingerprint dengan: eas credentials -p android  (atau: keytool -list -v -keystore <file>.jks | grep SHA256). Masukkan JUGA fingerprint Play App Signing dari Play Console > Setup > App integrity, karena Google menandatangani ulang APK yang diunggah.",
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "id.kahade",
+      "sha256_cert_fingerprints": []
+    }
+  }
+]

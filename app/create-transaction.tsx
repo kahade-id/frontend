@@ -309,12 +309,6 @@ export default function CreateTransactionScreen() {
   ])
 
   const counterpartRequired = mode === "direct"
-  const counterpartMissing = counterpartRequired && counterpart.trim().length < MIN_USERNAME
-  const counterpartInvalid =
-    counterpart.trim().length >= MIN_USERNAME &&
-    (counterpartState === "notFound" ||
-      counterpartState === "blocked" ||
-      counterpartState === "self")
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)

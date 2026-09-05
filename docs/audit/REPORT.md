@@ -4,6 +4,10 @@
 
 Basis: `bae6e0f80c69303ff1b9c8e968c6fcac7535bc3e`.
 
+> **Lanjutan:** audit berikutnya — reuse komponen, hardcode sisa, dan kualitas
+> layar — ada di [DEEP-AUDIT-2026-09-05.md](DEEP-AUDIT-2026-09-05.md). Blocker
+> R01–R09 di bawah **tidak** diubah olehnya dan tetap berlaku.
+
 ## Kesimpulan
 
 Audit ini menghasilkan **perubahan kode**, bukan hanya daftar saran: perbaikan transport API, sesi/autentikasi, alur finansial, normalisasi data, komponen bersama, layout, pagination, aksesibilitas, pengujian, dan persiapan rilis Expo.

@@ -198,13 +198,31 @@ export default function RegisterScreen() {
 
             <View className="gap-3">
               <FieldLabel>Kirim kode melalui</FieldLabel>
-              <OtpMethodSelector
-                value={method}
-                onChange={setPickedMethod}
-                methods={methods}
-                loading={methodsLoading}
-                disabled={submitting}
-              />
+              {/*
+                Audit: `methodsError`/`refetchMethods` sebelumnya dihitung tapi
+                tidak pernah dirender — bila GET /v1/auth/otp-methods gagal atau
+                mengembalikan daftar kosong, pengguna hanya melihat area kosong
+                tanpa penjelasan maupun jalan keluar, dan tombol "Kirim Kode"
+                menolak diam-diam. Kegagalan kanal harus terlihat dan bisa
+                dicoba ulang di tempat.
+              */}
+              {methodsError && !methodsLoading ? (
+                <ErrorState
+                  compact
+                  title="Metode verifikasi belum tersedia"
+                  description={methodsError}
+                  onRetry={refetchMethods}
+                  retrying={methodsLoading}
+                />
+              ) : (
+                <OtpMethodSelector
+                  value={method}
+                  onChange={setPickedMethod}
+                  methods={methods}
+                  loading={methodsLoading}
+                  disabled={submitting}
+                />
+              )}
             </View>
 
             {formError ? (

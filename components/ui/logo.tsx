@@ -51,6 +51,32 @@ const markPx: Record<LogoSize, number> = { sm: 24, md: 40, lg: 72 }
 /** Ukuran huruf wordmark mengikuti tinggi mark agar lockup sejajar */
 const wordPx: Record<LogoSize, number> = { sm: 18, md: 28, lg: 44 }
 
+/**
+ * Mark saja, tanpa tema — `fill` wajib diberikan pemanggil.
+ *
+ * Ada karena <AnimatedSplash> dirender SEBAGAI SAUDARA <ThemeProvider>
+ * (app/_layout.tsx: provider ditutup di baris 113, splash di 117), sedangkan
+ * `useTheme()` sengaja melempar error di luar provider. Memakai <Logo> di sana
+ * = crash saat boot. Memberi useTheme() nilai default hanya untuk kasus ini
+ * akan melemahkan penjaga yang justru berguna di tempat lain.
+ *
+ * Jadi geometri tinggal di SATU tempat (LOGO_PATHS) dan dipakai dua lapis:
+ *   <LogoMark>  primitif, butuh `fill` eksplisit dari token
+ *   <Logo>      pembungkus ber-tema, memilih `fill` dari useTheme()
+ * Pemakaian normal di dalam app SELALU lewat <Logo>.
+ */
+export function LogoMark({ size, fill }: { size: number; fill: string }) {
+  return (
+    <Svg width={size} height={size} viewBox={LOGO_VIEWBOX}>
+      <G fill={fill}>
+        {LOGO_PATHS.map((p, i) => (
+          <Path key={i} d={p.d} transform={p.transform} />
+        ))}
+      </G>
+    </Svg>
+  )
+}
+
 export function Logo({
   variant = "mark",
   size = "md",
@@ -73,13 +99,7 @@ export function Logo({
       style={{ width: px, height: px }}
     />
   ) : (
-    <Svg width={px} height={px} viewBox={LOGO_VIEWBOX}>
-      <G fill={fill}>
-        {LOGO_PATHS.map((p, i) => (
-          <Path key={i} d={p.d} transform={p.transform} />
-        ))}
-      </G>
-    </Svg>
+    <LogoMark size={px} fill={fill} />
   )
 
   const word = (

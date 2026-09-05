@@ -56,17 +56,45 @@ import { cn } from "@/lib/cn"
 
 type PortalNodes = Record<string, ReactNode>
 
-type PortalContextValue = {
+/**
+ * Context SENGAJA dipecah dua (audit performa — jangan digabung lagi).
+ *
+ * Sebelumnya `nodes`, `blockingCount`, dan fungsi mount/unmount berada dalam
+ * SATU context value. Akibatnya setiap overlay yang memakai `useBlockingOverlay`
+ * ikut berlangganan `nodes` — dan itu menutup sebuah siklus:
+ *
+ *   overlay render → <Portal> menerima elemen `children` BARU (identitas beda
+ *   tiap render) → effect Portal jalan → mount() → setNodes → context value
+ *   berubah → overlay (konsumen context) render lagi → elemen baru lagi → …
+ *
+ * Yang terukur: satu <Modal>/<BottomSheet> terbuka = 500+ render dalam 50 ms
+ * dan React melempar "Maximum update depth exceeded". Reproduksi ada di
+ * tests/portal.test.tsx ("overlay TERBUKA").
+ *
+ * Pemisahannya:
+ * - PortalApiContext   → mount/unmount/registerBlocking. Semua `useCallback`
+ *   dengan deps kosong, jadi value-nya STABIL SELAMANYA. Ini yang dipakai
+ *   <Portal> dan `useBlockingOverlay`, sehingga overlay tidak pernah render
+ *   ulang karena isi portal berubah. Siklus di atas putus di sini.
+ * - PortalStateContext → nodes + blockingCount. Hanya <PortalHost> (yang
+ *   memang harus menggambar ulang) dan <PortalScene> (yang butuh tahu ada
+ *   overlay pemblokir) yang berlangganan.
+ */
+type PortalApi = {
   mount: (key: string, node: ReactNode) => void
   unmount: (key: string) => void
-  nodes: PortalNodes
-  /** Jumlah overlay pemblokir yang sedang terbuka (audit #3) */
-  blockingCount: number
   /** Daftarkan satu overlay pemblokir; kembalikan fungsi untuk mencabut. */
   registerBlocking: () => () => void
 }
 
-const PortalContext = createContext<PortalContextValue | null>(null)
+type PortalState = {
+  nodes: PortalNodes
+  /** Jumlah overlay pemblokir yang sedang terbuka (audit #3) */
+  blockingCount: number
+}
+
+const PortalApiContext = createContext<PortalApi | null>(null)
+const PortalStateContext = createContext<PortalState | null>(null)
 
 export function PortalProvider({ children }: { children: ReactNode }) {
   const [nodes, setNodes] = useState<PortalNodes>({})
@@ -90,16 +118,30 @@ export function PortalProvider({ children }: { children: ReactNode }) {
     return () => setBlockingCount((n) => Math.max(0, n - 1))
   }, [])
 
-  const value = useMemo<PortalContextValue>(
-    () => ({ mount, unmount, nodes, blockingCount, registerBlocking }),
-    [mount, unmount, nodes, blockingCount, registerBlocking],
+  // Identitas stabil seumur provider: mount/unmount/registerBlocking semuanya
+  // useCallback([]) sehingga konsumen API tidak pernah render ulang.
+  const api = useMemo<PortalApi>(
+    () => ({ mount, unmount, registerBlocking }),
+    [mount, unmount, registerBlocking],
   )
 
-  return <PortalContext.Provider value={value}>{children}</PortalContext.Provider>
+  const state = useMemo<PortalState>(() => ({ nodes, blockingCount }), [nodes, blockingCount])
+
+  return (
+    <PortalApiContext.Provider value={api}>
+      <PortalStateContext.Provider value={state}>{children}</PortalStateContext.Provider>
+    </PortalApiContext.Provider>
+  )
 }
 
-function usePortalContext(): PortalContextValue {
-  const ctx = useContext(PortalContext)
+function usePortalApi(): PortalApi {
+  const ctx = useContext(PortalApiContext)
+  if (!ctx) throw new Error("Portal harus dipakai di dalam <PortalProvider>")
+  return ctx
+}
+
+function usePortalState(): PortalState {
+  const ctx = useContext(PortalStateContext)
   if (!ctx) throw new Error("Portal harus dipakai di dalam <PortalProvider>")
   return ctx
 }
@@ -113,7 +155,9 @@ function usePortalContext(): PortalContextValue {
  * begitu overlay diminta tutup, tidak menunggu animasi keluar selesai.
  */
 export function useBlockingOverlay(active: boolean): void {
-  const { registerBlocking } = usePortalContext()
+  // API context (stabil), BUKAN state context: overlay tidak boleh ikut
+  // render ulang saat isi portal berubah — itu yang dulu memicu render loop.
+  const { registerBlocking } = usePortalApi()
   useEffect(() => {
     if (!active) return
     return registerBlocking()
@@ -122,7 +166,7 @@ export function useBlockingOverlay(active: boolean): void {
 
 /** true bila ada overlay pemblokir yang terbuka. */
 export function useHasBlockingOverlay(): boolean {
-  return usePortalContext().blockingCount > 0
+  return usePortalState().blockingCount > 0
 }
 
 export type PortalSceneProps = ViewProps & { className?: string }
@@ -155,7 +199,7 @@ export type PortalHostProps = Omit<ViewProps, "children"> & { className?: string
  * yang punya area sentuh (backdrop, sheet) yang menangkap event.
  */
 export function PortalHost({ className, ...rest }: PortalHostProps) {
-  const { nodes } = usePortalContext()
+  const { nodes } = usePortalState()
   const keys = Object.keys(nodes)
   if (keys.length === 0) return null
 
@@ -182,13 +226,21 @@ export type PortalProps = {
 
 export function Portal({ children, enabled = true }: PortalProps) {
   const key = useId()
-  const { mount, unmount } = usePortalContext()
+  const { mount, unmount } = usePortalApi()
 
+  // Dua effect terpisah, bukan satu dengan cleanup: kalau pembersihan ikut
+  // menempel pada perubahan `children`, setiap update konten jadi dua kali
+  // setNodes (hapus lalu pasang) dan <PortalHost> sempat melihat state tanpa
+  // node itu. Pelepasan cukup terjadi saat Portal benar-benar unmount.
   useEffect(() => {
-    if (!enabled) return
+    if (!enabled) {
+      unmount(key)
+      return
+    }
     mount(key, children)
-    return () => unmount(key)
   }, [children, enabled, key, mount, unmount])
+
+  useEffect(() => () => unmount(key), [key, unmount])
 
   if (!enabled) return <>{children}</>
   return null

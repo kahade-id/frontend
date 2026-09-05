@@ -1,4 +1,4 @@
-import { asRecord, invalidResponse, readEntity, readPage } from "@/lib/api/response"
+import { invalidResponse, readEntity, readPage } from "@/lib/api/response"
 import type { Wallet, WalletTransaction, WalletTransactionsQuery } from "@/lib/api/wallet"
 
 export function moneyNumber(value: unknown): number | undefined {

@@ -3,10 +3,8 @@
  */
 import { useCallback, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api } from "@/lib/api"
-import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
@@ -16,7 +14,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
 
 export default function ChangePasswordScreen() {
-  const insets = useSafeAreaInsets()
   const toast = useToast()
 
   const [current, setCurrent] = useState("")

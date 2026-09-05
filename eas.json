@@ -1,15 +1,180 @@
 {
-  "cli": { "version": ">= 16.0.0", "appVersionSource": "remote" },
+  // ══════════════════════════════════════════════════════════════════════
+  //  Kahade — konfigurasi EAS Build
+  //
+  //  STATUS SEKARANG: belum ada akun Google Play Developer maupun Apple
+  //  Developer Program, dan belum ada perangkat iOS untuk pengujian.
+  //  Karena itu TIDAK ADA satu pun kredensial production yang dibuat atau
+  //  disimpan di sini. Profil "production" sengaja dibiarkan kosong dengan
+  //  catatan TODO; mengisinya sebelum waktunya justru membuat EAS mencoba
+  //  mengambil kredensial yang belum ada dan build gagal.
+  //
+  //  Yang bisa dipakai SEKARANG untuk pengujian:
+  //    development            Android APK + iOS Simulator, dev client (butuh Metro)
+  //    preview                Android APK + iOS Simulator, berdiri sendiri
+  //    production             BELUM SIAP — lihat blok TODO di bawah
+  //
+  //  Catatan: berkas ini boleh berkomentar. EAS mem-parse-nya dengan
+  //  `golden-fleece`, bukan JSON.parse, jadi `//` aman dan tidak akan
+  //  terhapus saat `eas build` menulis ulang berkas.
+  // ══════════════════════════════════════════════════════════════════════
+
+  "cli": {
+    "version": ">= 16.0.0",
+    // Nomor versi build (versionCode/buildNumber) disimpan di server EAS,
+    // bukan di app.json. Nilai apa pun di app config akan diabaikan.
+    "appVersionSource": "remote"
+  },
+
   "build": {
+    // ────────────────────────────────────────────────────────────────────
+    //  development — iterasi harian
+    //
+    //  Menghasilkan development build (expo-dev-client). Aplikasi hanya
+    //  berisi cangkang native; kode JS diambil dari Metro yang berjalan di
+    //  komputer Anda (`npx expo start --dev-client`). Artinya perubahan JS
+    //  TIDAK perlu build ulang — hanya perubahan native yang perlu.
+    //
+    //  Kredensial: dibuat OTOMATIS oleh EAS pada build pertama.
+    //  `credentialsSource: remote` (default, ditulis eksplisit agar jelas)
+    //  membuat EAS men-generate dan menyimpan keystore debug Android sendiri.
+    //  Tidak ada yang perlu Anda siapkan.
+    // ────────────────────────────────────────────────────────────────────
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "channel": "development",
+      "credentialsSource": "remote",
+      "android": {
+        // APK, bukan app-bundle: bisa langsung `adb install` atau dibuka
+        // dari tautan di HP. AAB hanya berguna untuk Play Store.
+        "buildType": "apk"
+      },
+      "ios": {
+        // SATU-SATUNYA build iOS native yang bisa dilakukan EAS TANPA akun
+        // Apple Developer. EAS tidak akan meminta login Apple sama sekali
+        // untuk build simulator, karena artefaknya tidak ditandatangani.
+        //
+        // Prasyarat di sisi Anda: macOS + Xcode (simulator iOS hanya ada di
+        // macOS). Tanpa Mac, profil iOS ini tidak bisa dipakai — dan itu
+        // bukan sesuatu yang bisa diakali dari sini.
+        "simulator": true
+      }
+    },
+
+    // ────────────────────────────────────────────────────────────────────
+    //  preview — build uji yang berdiri sendiri
+    //
+    //  Sama seperti production dalam hal cara berjalan (JS sudah dibundel
+    //  ke dalam aplikasi, tidak butuh Metro), tetapi tetap memakai
+    //  kredensial yang dikelola EAS dan didistribusikan secara internal.
+    //  Inilah yang dikirim ke penguji: cukup buka tautan dari EAS di HP
+    //  Android, unduh, pasang.
+    //
+    //  Ini profil yang tepat untuk memverifikasi hal-hal yang tidak bisa
+    //  diuji di Expo Go atau dev client — push notification, deep link,
+    //  splash screen, dan perilaku cold start.
+    // ────────────────────────────────────────────────────────────────────
     "preview": {
       "distribution": "internal",
       "channel": "preview",
       "autoIncrement": true,
-      "android": { "buildType": "apk" }
+      "credentialsSource": "remote",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        // Tetap simulator selama belum ada akun Apple Developer.
+        //
+        // TODO (butuh Apple Developer Program): untuk membagikan build ke
+        // iPhone sungguhan lewat distribusi internal, ganti menjadi
+        // `"simulator": false`, lalu daftarkan UDID tiap perangkat penguji
+        // dengan `eas device:create`. Tanpa akun berbayar, langkah ini
+        // tidak tersedia.
+        "simulator": true
+      }
     },
+
+    // ────────────────────────────────────────────────────────────────────
+    //  production — BELUM SIAP DIPAKAI
+    //
+    //  Sengaja dibiarkan minimal. Jangan jalankan `eas build --profile
+    //  production` sebelum empat hal di bawah selesai — build akan gagal
+    //  saat EAS mencari kredensial yang belum ada.
+    //
+    //  Nilai default yang berlaku di sini (tidak perlu ditulis):
+    //    distribution      "store"
+    //    credentialsSource "remote"
+    //    android.buildType "app-bundle"  (AAB, format wajib Play Store)
+    //
+    //  ┌── WAJIB DIISI SEBELUM BUILD PRODUCTION ─────────────────────────┐
+    //
+    //  [1] ANDROID — upload key / keystore
+    //      Buat akun Google Play Developer (sekali bayar USD 25), lalu:
+    //
+    //        eas credentials --platform android
+    //          → production → Keystore → Set up a new keystore
+    //
+    //      Biarkan EAS yang men-generate dan menyimpan keystore-nya; itu
+    //      lebih aman daripada menyimpan berkas .jks di repo. Kalau Play
+    //      Console sudah memberi upload key sendiri, unggah lewat menu yang
+    //      sama.
+    //
+    //      PENTING: aktifkan Play App Signing di Play Console. Google akan
+    //      menandatangani ulang AAB Anda, sehingga fingerprint SHA-256 yang
+    //      dipakai App Links BUKAN milik keystore lokal. Salin fingerprint
+    //      dari Play Console → Setup → App integrity ke
+    //      public/.well-known/assetlinks.json (lihat docs/DEEP-LINKING.md).
+    //
+    //      Kehilangan upload key = tidak bisa lagi memperbarui aplikasi
+    //      yang sudah terbit. Simpan baik-baik.
+    //
+    //  [2] IOS — Distribution Certificate + Provisioning Profile
+    //      Daftar Apple Developer Program (USD 99/tahun), lalu:
+    //
+    //        eas credentials --platform ios
+    //          → production → Distribution Certificate  → set up
+    //          → production → Provisioning Profile      → set up
+    //
+    //      EAS bisa membuat keduanya otomatis bila akun Apple sudah
+    //      tertaut. Setelah itu HAPUS `"simulator": true` dari profil iOS
+    //      mana pun yang dipakai untuk rilis — artefak simulator tidak bisa
+    //      diunggah ke App Store.
+    //
+    //  [3] NOTIFIKASI (lihat docs/PUSH-NOTIFICATIONS.md)
+    //      Android: google-services.json asli + FCM V1 service account key
+    //      iOS:     APNs key .p8
+    //      `npm run check:push` akan menahan build selama google-services.json
+    //      masih placeholder.
+    //
+    //  [4] DEEP LINK (lihat docs/DEEP-LINKING.md)
+    //      assetlinks.json: sha256_cert_fingerprints
+    //      apple-app-site-association: Team ID
+    //
+    //  └──────────────────────────────────────────────────────────────────┘
+    // ────────────────────────────────────────────────────────────────────
     "production": {
       "channel": "production",
       "autoIncrement": true
     }
+  },
+
+  // ══════════════════════════════════════════════════════════════════════
+  //  submit — pengunggahan ke store. BELUM RELEVAN.
+  //
+  //  Dibiarkan kosong dengan sengaja: mengisi `appleId`, `ascAppId`, atau
+  //  `serviceAccountKeyPath` sekarang hanya akan menunjuk ke akun dan
+  //  berkas yang belum ada.
+  //
+  //  TODO Android: buat service account JSON di Google Cloud Console,
+  //    beri akses di Play Console → Users and permissions, lalu isi
+  //    "android": { "serviceAccountKeyPath": "./play-service-account.json" }
+  //    Berkas itu RAHASIA — jangan pernah masuk repo.
+  //
+  //  TODO iOS: isi "ios": { "appleId": "...", "ascAppId": "...",
+  //    "appleTeamId": "..." } setelah app record dibuat di App Store Connect.
+  // ══════════════════════════════════════════════════════════════════════
+  "submit": {
+    "production": {}
   }
 }

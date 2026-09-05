@@ -45,6 +45,7 @@ import { compareVersions, safeHttpsUrl } from "@/lib/version"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { Dialog } from "@/components/ui/modal"
 import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
+import { SmartAppBanner } from "@/components/ui/smart-app-banner"
 import { ToastProvider } from "@/components/ui/toast"
 import { api } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
@@ -206,6 +207,15 @@ function AppShell() {
     <PortalProvider>
       <ToastProvider>
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
+
+        {/*
+          Ajakan pasang aplikasi untuk pengunjung web seluler. Komponennya
+          mengembalikan null di native dan di desktop, jadi aman dirender
+          tanpa syarat di sini. Ditaruh sebelum kolom konten supaya
+          `position: fixed`-nya menempel di tepi atas viewport, di atas
+          Header milik tiap screen.
+        */}
+        <SmartAppBanner />
 
         {/*
           Outer: full-bleed background (bg-background sudah di ThemeProvider).

@@ -1,0 +1,27 @@
+# Kahade — Cloudflare Pages response headers.
+
+# ── Berkas verifikasi deep link ──────────────────────────────────────────────
+#
+# apple-app-site-association SENGAJA tanpa ekstensi berkas — itu yang diminta
+# Apple. Akibatnya Cloudflare tidak bisa menebak tipenya dan mengirimkannya
+# sebagai application/octet-stream. iOS menolak AASA yang bukan application/json,
+# dan gagalnya SENYAP: tidak ada error, Universal Link hanya "tidak bekerja".
+# Karena itu tipe konten dipaksa di sini.
+#
+# Keduanya juga tidak boleh di-cache lama: setelah Team ID dan fingerprint
+# diisi, perubahan harus segera terlihat oleh Apple CDN dan Google.
+/.well-known/apple-app-site-association
+  Content-Type: application/json
+  Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
+
+/.well-known/assetlinks.json
+  Content-Type: application/json
+  Cache-Control: public, max-age=300
+  Access-Control-Allow-Origin: *
+
+# ── Keamanan dasar ───────────────────────────────────────────────────────────
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Frame-Options: DENY

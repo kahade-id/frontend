@@ -1,6 +1,6 @@
 {
-  "sourceFiles": 82,
-  "screens": 79,
+  "sourceFiles": 83,
+  "screens": 80,
   "documentedPaths": 220,
   "documentedOperations": 253,
   "adapterCalls": 231,
@@ -236,16 +236,12 @@
         "ui/paginated-list",
         "ui/toast",
         "ui/action-sheet",
-        "ui/button",
         "ui/chip",
         "ui/modal",
         "ui/icon-button",
         "ui/empty-state",
-        "ui/error-state",
         "ui/header",
-        "ui/load-more",
         "ui/notification-list-item",
-        "ui/pull-to-refresh",
         "ui/screen",
         "ui/skeleton"
       ],
@@ -265,6 +261,7 @@
       "components": [
         "ui/button",
         "ui/divider",
+        "ui/error-state",
         "ui/header",
         "ui/icon",
         "ui/list-item",
@@ -272,7 +269,7 @@
         "ui/profile-header",
         "ui/pull-to-refresh",
         "ui/screen",
-        "ui/text"
+        "ui/section"
       ],
       "endpoints": [
         "POST /v1/auth/logout",
@@ -309,12 +306,9 @@
         "ui/error-state",
         "ui/header",
         "ui/icon-button",
-        "ui/load-more",
-        "ui/pull-to-refresh",
         "ui/screen",
         "ui/section",
         "ui/wallet-balance-card",
-        "ui/wallet-transaction-list-item",
         "ui/toast"
       ],
       "endpoints": [
@@ -340,9 +334,7 @@
       "route": "/account-type",
       "components": [
         "ui/button",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
+        "ui/data-screen",
         "ui/section",
         "ui/text",
         "ui/toggle-group",
@@ -359,7 +351,6 @@
       "components": [
         "ui/loading-screen",
         "ui/analytics-summary",
-        "ui/empty-state",
         "ui/error-state",
         "ui/header",
         "ui/pull-to-refresh",
@@ -389,16 +380,25 @@
       ]
     },
     {
+      "file": "app/appearance.tsx",
+      "route": "/appearance",
+      "components": [
+        "theme-provider",
+        "ui/header",
+        "ui/key-value",
+        "ui/screen",
+        "ui/section",
+        "ui/text",
+        "ui/theme-toggle-button"
+      ],
+      "endpoints": []
+    },
+    {
       "file": "app/badges.tsx",
       "route": "/badges",
       "components": [
-        "ui/loading-screen",
         "ui/achievement-badge",
-        "ui/empty-state",
-        "ui/error-state",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
+        "ui/data-screen",
         "ui/section",
         "ui/toast"
       ],
@@ -454,13 +454,8 @@
       "file": "app/blocked-users.tsx",
       "route": "/blocked-users",
       "components": [
-        "ui/loading-screen",
         "ui/button",
-        "ui/empty-state",
-        "ui/error-state",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
+        "ui/data-screen",
         "ui/user-list-item",
         "ui/toast"
       ],
@@ -655,12 +650,7 @@
       "file": "app/discover.tsx",
       "route": "/discover",
       "components": [
-        "ui/loading-screen",
-        "ui/empty-state",
-        "ui/error-state",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
+        "ui/data-screen",
         "ui/section",
         "ui/user-discover-result-item",
         "ui/toast"
@@ -723,13 +713,8 @@
       "file": "app/disputes.tsx",
       "route": "/disputes",
       "components": [
-        "ui/loading-screen",
+        "ui/data-screen",
         "ui/dispute-card",
-        "ui/empty-state",
-        "ui/error-state",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
         "ui/section"
       ],
       "endpoints": [
@@ -825,12 +810,7 @@
       "file": "app/favorites.tsx",
       "route": "/favorites",
       "components": [
-        "ui/loading-screen",
-        "ui/empty-state",
-        "ui/error-state",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
+        "ui/data-screen",
         "ui/section",
         "ui/user-list-item"
       ],
@@ -885,7 +865,6 @@
       "components": [
         "ui/loading-screen",
         "ui/button",
-        "ui/empty-state",
         "ui/error-state",
         "ui/header",
         "ui/invoice-receipt-view",
@@ -904,7 +883,6 @@
       "components": [
         "ui/loading-screen",
         "ui/button",
-        "ui/empty-state",
         "ui/error-state",
         "ui/field",
         "ui/form-section",
@@ -930,10 +908,8 @@
       "file": "app/language.tsx",
       "route": "/language",
       "components": [
-        "ui/header",
+        "ui/data-screen",
         "ui/language-picker",
-        "ui/pull-to-refresh",
-        "ui/screen",
         "ui/section",
         "ui/text",
         "ui/toast"
@@ -947,10 +923,8 @@
       "file": "app/notification-preferences.tsx",
       "route": "/notification-preferences",
       "components": [
+        "ui/data-screen",
         "ui/notification-preferences-matrix",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
         "ui/text",
         "ui/toast"
       ],
@@ -966,7 +940,6 @@
         "ui/loading-screen",
         "ui/button",
         "ui/modal",
-        "ui/empty-state",
         "ui/error-state",
         "ui/header",
         "ui/order-link-preview-card",
@@ -1011,7 +984,6 @@
         "ui/bottom-sheet",
         "ui/button",
         "ui/modal",
-        "ui/empty-state",
         "ui/error-state",
         "ui/fee-breakdown",
         "ui/field",
@@ -1064,11 +1036,9 @@
       "route": "/privacy-settings",
       "components": [
         "ui/button",
+        "ui/data-screen",
         "ui/modal",
-        "ui/header",
         "ui/privacy-toggle-list",
-        "ui/pull-to-refresh",
-        "ui/screen",
         "ui/section",
         "ui/text",
         "ui/toast"
@@ -1109,7 +1079,6 @@
       "route": "/rate/[orderId]",
       "components": [
         "ui/loading-screen",
-        "ui/empty-state",
         "ui/error-state",
         "ui/header",
         "ui/pull-to-refresh",
@@ -1158,7 +1127,6 @@
       "components": [
         "ui/loading-screen",
         "ui/button",
-        "ui/empty-state",
         "ui/error-state",
         "ui/form-section",
         "ui/header",
@@ -1322,13 +1290,8 @@
       "file": "app/support.tsx",
       "route": "/support",
       "components": [
-        "ui/loading-screen",
-        "ui/empty-state",
-        "ui/error-state",
         "ui/button",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
+        "ui/data-screen",
         "ui/section",
         "ui/support-ticket-card"
       ],
@@ -1344,7 +1307,6 @@
         "ui/loading-screen",
         "ui/button",
         "ui/chat-message-bubble",
-        "ui/empty-state",
         "ui/error-state",
         "ui/header",
         "ui/pull-to-refresh",
@@ -1458,12 +1420,7 @@
       "file": "app/trust-score.tsx",
       "route": "/trust-score",
       "components": [
-        "ui/loading-screen",
-        "ui/empty-state",
-        "ui/error-state",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
+        "ui/data-screen",
         "ui/text",
         "ui/trust-score-card"
       ],
@@ -1622,16 +1579,11 @@
       "file": "app/vouchers.tsx",
       "route": "/vouchers",
       "components": [
-        "ui/loading-screen",
+        "ui/data-screen",
         "ui/empty-state",
-        "ui/error-state",
-        "ui/header",
-        "ui/pull-to-refresh",
-        "ui/screen",
         "ui/section",
         "ui/voucher-card",
-        "ui/voucher-usage-list-item",
-        "ui/toast"
+        "ui/voucher-usage-list-item"
       ],
       "endpoints": [
         "GET /v1/vouchers/available",
@@ -1645,7 +1597,6 @@
         "ui/loading-screen",
         "ui/amount",
         "ui/card",
-        "ui/empty-state",
         "ui/error-state",
         "ui/header",
         "ui/icon-box",

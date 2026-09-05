@@ -1,0 +1,46 @@
+# Kahade — Cloudflare Pages rewrite.
+#
+# KENAPA FILE INI WAJIB ADA
+#
+# `expo export --platform web` (output: "static") menghasilkan satu berkas HTML
+# per rute, tetapi rute dinamis diekspor dengan nama harfiah berkurung:
+#   dist/order/[id].html
+# Cloudflare Pages menyajikan berkas apa adanya, jadi tanpa aturan di bawah
+# permintaan /order/123 tidak cocok dengan berkas mana pun dan berakhir 404.
+# Itu akan merusak syarat "app belum terinstall -> link terbuka sebagai web app".
+#
+# Dipakai placeholder `:param`, BUKAN splat `*`, karena beberapa rute bersarang
+# (/user/:username/ratings). Dengan splat, /user/* akan menelan varian bersarang
+# lebih dulu dan urutannya jadi rapuh. Aturan lebih spesifik tetap ditaruh di
+# atas yang lebih umum karena Cloudflare memakai kecocokan pertama.
+#
+# TIDAK ADA catch-all SPA (/* /index.html 200) di sini, dan itu disengaja:
+# setiap rute statis sudah punya berkas HTML sendiri, dan catch-all justru akan
+# menelan /.well-known/* sehingga assetlinks.json serta apple-app-site-association
+# terkirim sebagai HTML — penyebab paling umum verifikasi App Links/Universal
+# Links gagal tanpa pesan error.
+#
+# Dijaga mesin oleh `npm run check:weblinks`, yang gagal bila ada rute dinamis
+# baru di app/ tanpa aturan di sini.
+
+# ── Rute bersarang: harus di atas /user/:username ────────────────────────────
+/user/:username/ratings    /user/[username]/ratings.html      200
+/user/:username/questions  /user/[username]/questions.html    200
+/user/:username/showcase   /user/[username]/showcase.html     200
+
+# ── Rute dinamis satu segmen ─────────────────────────────────────────────────
+/order/:id                 /order/[id].html                   200
+/order-link/:token         /order-link/[token].html           200
+/dispute/:id               /dispute/[id].html                 200
+/user/:username            /user/[username].html              200
+/profile/:id               /profile/[id].html                 200
+/notification/:id          /notification/[id].html            200
+/chat/:roomId              /chat/[roomId].html                200
+/support/:ticketId         /support/[ticketId].html           200
+/invoice/:orderId          /invoice/[orderId].html            200
+/rate/:orderId             /rate/[orderId].html               200
+/extension/:orderId        /extension/[orderId].html          200
+/delivery-proof/:orderId   /delivery-proof/[orderId].html     200
+/followers/:username       /followers/[username].html         200
+/help/:slug                /help/[slug].html                  200
+/wallet-transaction/:txId  /wallet-transaction/[txId].html    200

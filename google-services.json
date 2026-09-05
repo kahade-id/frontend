@@ -1,0 +1,30 @@
+{
+  "__KAHADE_PLACEHOLDER__": "GANTI DENGAN FILE ASLI SEBELUM BUILD PRODUCTION. Unduh dari Firebase Console > Project settings > Your apps > Android app (id.kahade) > google-services.json, lalu timpa berkas ini. Push notification Android TIDAK akan bekerja selama berkas ini masih placeholder. Dijaga oleh scripts/check-push.mjs (npm run check:push), yang juga berjalan otomatis di EAS Build lewat hook eas-build-pre-install.",
+  "project_info": {
+    "project_number": "000000000000",
+    "project_id": "kahade-PLACEHOLDER",
+    "storage_bucket": "kahade-PLACEHOLDER.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "android_client_info": {
+          "package_name": "id.kahade"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "PLACEHOLDER_GANTI_DENGAN_API_KEY_ASLI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

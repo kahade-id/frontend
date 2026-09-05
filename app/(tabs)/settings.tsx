@@ -41,6 +41,7 @@ import {
   LinkSimple,
   Lock,
   Medal,
+  Moon,
   Prohibit,
   Question,
   Scales,
@@ -57,6 +58,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, type UserProfile } from "@/lib/api"
+import { userMessage } from "@/lib/api/errors"
 import { clearSession } from "@/lib/api/session"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
@@ -64,6 +66,7 @@ import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
 import { Divider } from "@/components/ui/divider"
+import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import type { IconComponent } from "@/components/ui/icon"
 import { ListGroup, ListItem } from "@/components/ui/list-item"
@@ -71,7 +74,7 @@ import { Dialog } from "@/components/ui/modal"
 import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
-import { Text } from "@/components/ui/text"
+import { SectionHeader } from "@/components/ui/section"
 
 // ------------------------------------------------------------------
 // Definisi menu
@@ -165,8 +168,11 @@ const MENU_GROUPS: MenuGroup[] = [
     ],
   },
   {
-    title: "Notifikasi",
+    title: "Tampilan & notifikasi",
     items: [
+      // Audit: mode gelap sudah lengkap di token/provider/komponen tetapi
+      // tidak punya pintu masuk sama sekali sebelum entri ini ada.
+      { id: "appearance", icon: Moon, label: "Tampilan", route: ROUTES.appearance },
       {
         id: "notif-prefs",
         icon: Bell,
@@ -226,7 +232,7 @@ export default function SettingsScreen() {
     return api.users
       .getMe()
       .then(setProfile)
-      .catch(() => setProfileError("Gagal memuat profil."))
+      .catch((err: unknown) => setProfileError(userMessage(err)))
       .finally(() => setLoading(false))
   }, [])
 
@@ -277,14 +283,16 @@ export default function SettingsScreen() {
       >
         {/* ── Header profil ────────────────────────────────── */}
         {profileError ? (
-          <View style={styles.profileError}>
-            <Text variant="body" tone="danger">
-              {profileError}
-            </Text>
-            <Button variant="ghost" size="sm" fullWidth={false} onPress={fetchProfile}>
-              Coba lagi
-            </Button>
-          </View>
+          // Audit: sebelumnya <View> + <Text tone="danger"> + <Button> yang
+          // dirakit sendiri — tanpa accessibilityRole="alert", tanpa live
+          // region, dan berbeda bentuk dari error state layar lain.
+          <ErrorState
+            compact
+            title="Gagal memuat profil"
+            description={profileError}
+            onRetry={() => void fetchProfile()}
+            retrying={loading}
+          />
         ) : (
           <ProfileHeader
             name={profile?.fullName ?? "—"}
@@ -299,9 +307,7 @@ export default function SettingsScreen() {
         {/* ── Grup menu ────────────────────────────────────── */}
         {MENU_GROUPS.map((group, gi) => (
           <View key={group.title} style={styles.group}>
-            <Text variant="label" tone="secondary" style={styles.groupTitle}>
-              {group.title}
-            </Text>
+            <SectionHeader level="h3" title={group.title} style={styles.groupTitle} />
             <ListGroup>
               {group.items.map((item, ii) => (
                 <ListItem
@@ -348,11 +354,6 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  profileError: {
-    gap: tokens.space[2],
-    paddingHorizontal: tokens.layout.screenPaddingX,
-    paddingVertical: tokens.space[4],
-  },
   group: {
     gap: tokens.space[3],
     paddingHorizontal: tokens.layout.screenPaddingX,

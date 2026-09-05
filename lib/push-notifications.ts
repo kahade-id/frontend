@@ -19,9 +19,12 @@
  *   - Emulator/simulator tidak punya push token (`Device.isDevice` false):
  *     langsung `null` tanpa memanggil API OS agar tidak muncul error merah
  *     di Expo Go.
- *   - Android wajib punya channel sebelum notifikasi tampil (API 26+).
- *     Channel "default" dibuat di sini dengan `importance: MAX` karena
- *     notifikasi Kahade = status dana/escrow — bukan promosi.
+ *   - Android wajib punya channel sebelum notifikasi tampil (API 26+). Ada
+ *     DUA channel supaya pengguna bisa mematikan pengumuman tanpa ikut
+ *     mematikan notifikasi uang: "transaksi" (MAX, escrow/order) dan
+ *     "default" (DEFAULT, sisanya). Kalau hanya satu channel, satu-satunya
+ *     pilihan pengguna yang terganggu promosi adalah mematikan semuanya —
+ *     termasuk notifikasi dana masuk.
  *   - Handler foreground menampilkan banner + list (SDK 53+ memakai
  *     `shouldShowBanner/shouldShowList`, `shouldShowAlert` deprecated).
  *     Suara dimatikan di foreground: pengguna sedang melihat app; Banner
@@ -52,7 +55,34 @@ export type RegisterDeviceApi = {
   unregisterDevice: () => Promise<void>
 }
 
-export const DEFAULT_CHANNEL_ID = "default"
+/**
+ * Channel notifikasi Android (API 26+). Notifikasi TIDAK akan tampil kalau
+ * channel-nya belum pernah dibuat, jadi semuanya dibuat saat boot di
+ * `setupNotifications()`.
+ *
+ * Nilai `default` WAJIB sama dengan `defaultChannel` pada plugin
+ * expo-notifications di app.json — itulah channel yang dipakai FCM saat
+ * payload tidak menyertakan `channelId`. Dijaga mesin oleh `npm run check:push`.
+ *
+ * PENTING — channel bersifat sekali tulis. Setelah dibuat di perangkat,
+ * `importance`, suara, dan getarnya dimiliki PENGGUNA: memanggil
+ * `setNotificationChannelAsync` lagi dengan nilai berbeda TIDAK akan
+ * mengubahnya (hanya `name`/`description` yang ikut). Kalau suatu saat
+ * perlu perilaku berbeda, buat ID channel BARU (mis. "transaksi-v2");
+ * mengubah nilai di sini saja tidak berpengaruh bagi pengguna lama.
+ */
+export const NOTIFICATION_CHANNELS = {
+  /** Fallback: pengumuman, info produk, apa pun yang bukan uang. */
+  default: "default",
+  /** Status order & escrow — uang bergerak. Sengaja paling menonjol. */
+  transaksi: "transaksi",
+} as const
+
+export type NotificationChannelId =
+  (typeof NOTIFICATION_CHANNELS)[keyof typeof NOTIFICATION_CHANNELS]
+
+/** @deprecated pakai `NOTIFICATION_CHANNELS.default` */
+export const DEFAULT_CHANNEL_ID = NOTIFICATION_CHANNELS.default
 
 let handlerInstalled = false
 
@@ -97,11 +127,27 @@ export async function setupNotifications(): Promise<void> {
   }
 
   if (Platform.OS === "android") {
-    await Notifications.setNotificationChannelAsync(DEFAULT_CHANNEL_ID, {
-      name: "Transaksi & keamanan",
+    // Dibuat berurutan, bukan Promise.all: urutan pembuatan menentukan urutan
+    // tampil di Setelan Android, dan "Transaksi & escrow" yang paling penting
+    // sebaiknya di atas.
+    await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.transaksi, {
+      name: "Transaksi & escrow",
+      description:
+        "Status order, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+      sound: "default",
+      enableVibrate: true,
+    })
+
+    await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.default, {
+      name: "Umum",
+      description: "Pengumuman dan informasi lain di luar transaksi.",
+      importance: Notifications.AndroidImportance.DEFAULT,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+      sound: "default",
+      enableVibrate: true,
     })
   }
 }
