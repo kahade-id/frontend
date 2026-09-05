@@ -39,10 +39,10 @@
  *   - Error validasi backend yang menyebut nomor ditempel ke field; sisanya ke
  *     <Alert tone="danger"> (sudah role=alert + live region assertive).
  */
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, TextInput, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { OtpMethodSelector } from "@/components/register/otp-method-selector"
 import { useOtpMethods } from "@/components/register/use-otp-methods"
@@ -57,6 +57,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
+import { setPendingReferralCode } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -71,6 +72,13 @@ export default function RegisterScreen() {
   const phoneRef = useRef<TextInput>(null)
 
   const { methods, loading: methodsLoading } = useOtpMethods()
+
+  // Deep link referral `kahade://register?ref=<code>` (lib/deeplinks) —
+  // disimpan ke registration state, dipakai screen #5 sebagai prefill.
+  const { ref } = useLocalSearchParams<{ ref?: string }>()
+  useEffect(() => {
+    if (ref) setPendingReferralCode(ref)
+  }, [ref])
 
   const [digits, setDigits] = useState("")
   const [phoneError, setPhoneError] = useState<string | undefined>()

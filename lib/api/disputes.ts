@@ -1,13 +1,30 @@
 /**
  * Kahade — domain `disputes` (sengketa pesanan; evidence, claim, pesan, call).
+ *
+ * Catatan spec (docs/api/kahade-api-mobile.json): schema
+ * `MutualResolutionProposeDto`, `MutualResolutionRespondDto`,
+ * `DisputeMessageDto`, dan `CallActionDto` dideklarasikan `type: object`
+ * TANPA properti (generator menghasilkan `Record<string, never>`). Layar
+ * tidak boleh mengirim `{}` untuk aksi yang jelas butuh data (nominal usulan,
+ * accept/reject), maka bentuk body didefinisikan di sini — UNVERIFIED,
+ * mengikuti penamaan field respons (`amount`, `note`) dan pola `action`
+ * yang dipakai endpoint lain di API ini. Sesuaikan bila spec diperbarui.
  */
 import { http, seg } from "@/lib/api/client"
-import type {
-  MutualResolutionProposeDto,
-  MutualResolutionRespondDto,
-  SubmitClaimDto,
-  SubmitEvidenceDto,
-} from "@/lib/api/types"
+import type { SubmitClaimDto, SubmitEvidenceDto } from "@/lib/api/types"
+
+/** Body POST /mutual-resolution — UNVERIFIED (spec kosong). */
+export type MutualResolutionProposeBody = {
+  /** Nominal yang diusulkan kembali ke PEMBELI (sisa ke penjual) */
+  amount: number
+  note?: string
+}
+
+/** Body POST /mutual-resolution/{proposalId}/respond — UNVERIFIED (spec kosong). */
+export type MutualResolutionRespondBody = {
+  action: "ACCEPT" | "REJECT"
+  note?: string
+}
 
 /** Bukti sengketa — UNVERIFIED. */
 export type DisputeEvidence = {
@@ -32,19 +49,28 @@ export type DisputeMessage = {
 /** Panggilan (record) — UNVERIFIED. */
 export type DisputeCall = {
   id: string
-  status: "REQUESTED" | "ACCEPTED" | "REJECTED" | "ENDED" | string
+  status: "REQUESTED" | "ACCEPTED" | "REJECTED" | "ENDED" | "MISSED" | "CANCELLED" | string
   requesterId?: string
+  requestedAt?: string
   startedAt?: string
   endedAt?: string
+  durationSeconds?: number
+  withMediator?: boolean
+  createdAt?: string
 }
 
 export type MutualResolutionProposal = {
   id: string
   proposerId: string
+  /** Nominal ke pembeli — UNVERIFIED */
   amount?: number
+  buyerAmount?: number
+  sellerAmount?: number
   note?: string
-  status: "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | string
+  status: "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | "EXPIRED" | string
   createdAt: string
+  respondedAt?: string | null
+  expiresAt?: string | null
 }
 
 /** Sengketa penuh (GET /v1/disputes/{disputeId}). */
@@ -53,6 +79,8 @@ export type DisputeDetail = {
   orderId: string
   status: string
   claim: string
+  /** Pihak pembuka sengketa — UNVERIFIED */
+  openedById?: string
   createdAt: string
   updatedAt?: string
   messages?: DisputeMessage[]
@@ -143,16 +171,16 @@ export function getMutualResolution(disputeId: string) {
   })
 }
 
-export function proposeMutualResolution(disputeId: string, dto: MutualResolutionProposeDto) {
-  return http.post<MutualResolutionProposal, MutualResolutionProposeDto>(
+export function proposeMutualResolution(disputeId: string, dto: MutualResolutionProposeBody) {
+  return http.post<MutualResolutionProposal, MutualResolutionProposeBody>(
     `/v1/disputes/${seg(disputeId)}/mutual-resolution`,
     dto,
     { auth: "required" },
   )
 }
 
-export function respondMutualResolution(disputeId: string, proposalId: string, dto: MutualResolutionRespondDto) {
-  return http.post<MutualResolutionProposal, MutualResolutionRespondDto>(
+export function respondMutualResolution(disputeId: string, proposalId: string, dto: MutualResolutionRespondBody) {
+  return http.post<MutualResolutionProposal, MutualResolutionRespondBody>(
     `/v1/disputes/${seg(disputeId)}/mutual-resolution/${seg(proposalId)}/respond`,
     dto,
     { auth: "required" },

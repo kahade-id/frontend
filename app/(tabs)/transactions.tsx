@@ -20,7 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
-import { Plus, Receipt } from "phosphor-react-native"
+import { Copy, MagnifyingGlass, Plus, Receipt } from "phosphor-react-native"
 
 import { api, type Order, type OrderStatusFilter } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
@@ -32,6 +32,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FloatingActionButton } from "@/components/ui/floating-action-button"
 import { Header } from "@/components/ui/header"
+import { IconButton } from "@/components/ui/icon-button"
 import { LoadMore } from "@/components/ui/load-more"
 import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -141,7 +142,15 @@ export default function TransactionsScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Transaksi" />
+      <Header
+        title="Transaksi"
+        right={
+          <>
+            <IconButton icon={Copy} variant="ghost" accessibilityLabel="Template transaksi" onPress={() => router.push(ROUTES.transactionTemplates)} />
+            <IconButton icon={MagnifyingGlass} variant="ghost" accessibilityLabel="Pencarian global" onPress={() => router.push(ROUTES.search)} />
+          </>
+        }
+      />
 
       <View style={styles.controls}>
         <SegmentedControl

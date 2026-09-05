@@ -14,10 +14,22 @@ export type Badge = {
   progress?: { current: number; target: number }
 }
 
-export function listAllBadges() {
-  return http.get<Badge[]>("/v1/badges", { auth: "required", retry: 1 })
+/** Respons daftar — array polos ATAU {data, meta} (spec tanpa schema; UNVERIFIED). */
+export type BadgeListResponse =
+  | Badge[]
+  | { data: Badge[]; meta?: { page: number; limit: number; total: number; totalPages: number } }
+
+export function readBadgeList(body: BadgeListResponse | null | undefined): Badge[] {
+  if (!body) return []
+  return Array.isArray(body) ? body : (body.data ?? [])
 }
 
-export function listMyBadges() {
-  return http.get<Badge[]>("/v1/badges/my", { auth: "required", retry: 1 })
+/** GET /v1/badges?page&limit — semua lencana yang tersedia (katalog). */
+export function listAllBadges(query?: { page?: number; limit?: number }) {
+  return http.get<BadgeListResponse>("/v1/badges", { query, auth: "required", retry: 1 })
+}
+
+/** GET /v1/badges/my?page&limit — lencana yang sudah diraih user. */
+export function listMyBadges(query?: { page?: number; limit?: number }) {
+  return http.get<BadgeListResponse>("/v1/badges/my", { query, auth: "required", retry: 1 })
 }

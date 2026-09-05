@@ -1,5 +1,10 @@
 /**
  * Screen — Syarat & Ketentuan (konten statis).
+ *
+ * Catatan audit #15: spec API tidak punya endpoint dokumen legal, jadi teks
+ * di-bundle di app. Ini RINGKASAN; versi final harus datang dari tim legal
+ * (ganti isi atau arahkan ke URL publik bila tersedia). Body dibuat scroll
+ * (`Screen scroll`) — sebelumnya konten terpotong di layar kecil.
  */
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -14,7 +19,7 @@ import { Text } from "@/components/ui/text"
 export default function TermsScreen() {
   const insets = useSafeAreaInsets()
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen edges={["top"]} padded={false} scroll>
       <Header title="Syarat & Ketentuan" />
       <View className="gap-4 px-6" style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}>
         <SectionHeader title="1. Ketentuan umum" />

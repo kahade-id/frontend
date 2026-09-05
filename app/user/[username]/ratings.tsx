@@ -1,5 +1,9 @@
 /**
- * Screen — Ulasan Publik (GET /v1/users/{username}/ratings).
+ * Screen — Ulasan Publik.
+ *   GET /v1/users/{username}/ratings?page&limit&filter (semua REQUIRED).
+ *   `filter` tanpa enum di spec → chip Semua/Positif/Negatif/Berkomentar
+ *   (nilai asumsi, lihat lib/api/ratings.ts). Paginasi PAGE_SIZE 20 + LoadMore;
+ *   respons array|{data,meta} via readMyRatings.
  */
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
@@ -8,39 +12,76 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Star } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
-import type { Rating } from "@/lib/api/ratings"
+import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { tokens } from "@/lib/tokens"
 
+import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
+import { LoadMore } from "@/components/ui/load-more"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 
+const PAGE_SIZE = 20
+const FILTERS: { value: PublicRatingFilter; label: string }[] = [
+  { value: "all", label: "Semua" },
+  { value: "positive", label: "Positif" },
+  { value: "negative", label: "Negatif" },
+  { value: "with_comment", label: "Berkomentar" },
+]
+
 export default function PublicRatingsScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
   const insets = useSafeAreaInsets()
 
+  const [filter, setFilter] = useState<PublicRatingFilter>("all")
   const [items, setItems] = useState<Rating[]>([])
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+
+  const fetchPage = useCallback(
+    async (p: number) => {
+      if (!username) return
+      const body = await api.ratings.getPublicRatings(username, { page: p, limit: PAGE_SIZE, filter })
+      const { items: data, totalPages } = readMyRatings(body)
+      setItems((prev) => (p === 1 ? data : [...prev, ...data]))
+      setPage(p)
+      setHasMore(typeof totalPages === "number" ? p < totalPages : data.length >= PAGE_SIZE)
+    },
+    [username, filter],
+  )
 
   const fetchAll = useCallback(async () => {
     if (!username) return
     setLoading(true)
     setError(null)
     try {
-      const res = await api.ratings.getPublicRatings(username)
-      setItems(res ?? [])
+      await fetchPage(1)
     } catch {
       setError("Gagal memuat ulasan.")
     } finally {
       setLoading(false)
     }
-  }, [username])
+  }, [username, fetchPage])
+
+  const handleLoadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return
+    setLoadingMore(true)
+    try {
+      await fetchPage(page + 1)
+    } catch {
+      // gagal memuat halaman berikutnya: biarkan tombol untuk coba lagi
+    } finally {
+      setLoadingMore(false)
+    }
+  }, [loadingMore, hasMore, fetchPage, page])
 
   useEffect(() => {
     void fetchAll()
@@ -55,6 +96,13 @@ export default function PublicRatingsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Ulasan" />
+      <View className="flex-row flex-wrap gap-2 px-6" style={{ paddingTop: tokens.space[3] }}>
+        {FILTERS.map((f) => (
+          <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
+            {f.label}
+          </Chip>
+        ))}
+      </View>
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
@@ -98,6 +146,11 @@ export default function PublicRatingsScreen() {
                 />
               )
             })}
+            <LoadMore
+              status={loadingMore ? "loading" : hasMore ? "idle" : "end"}
+              onLoadMore={() => void handleLoadMore()}
+              hideEnd
+            />
           </View>
         )}
       </PullToRefresh>

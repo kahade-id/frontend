@@ -23,7 +23,7 @@ import { useCallback, useEffect, useState } from "react"
 import { Platform, StyleSheet, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
-import { FileCsv, FilePdf, Wallet as WalletIcon } from "phosphor-react-native"
+import { ArrowCircleDown, ArrowCircleUp, CalendarCheck, FileCsv, FilePdf, Wallet as WalletIcon } from "phosphor-react-native"
 import { File, Paths } from "expo-file-system"
 
 import { api, type Wallet, type WalletTransaction } from "@/lib/api"
@@ -38,6 +38,7 @@ import {
   isWalletCredit,
 } from "@/lib/wallet-labels"
 
+import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -215,6 +216,19 @@ export default function WalletScreen() {
           />
         )}
 
+        {/* Riwayat per jenis + jadwal penarikan — chip navigasi, bukan filter lokal */}
+        <View className="flex-row flex-wrap gap-2 px-6" style={styles.links}>
+          <Chip icon={ArrowCircleDown} onPress={() => router.push(ROUTES.topupHistory)}>
+            Riwayat Top-up
+          </Chip>
+          <Chip icon={ArrowCircleUp} onPress={() => router.push(ROUTES.withdrawHistory)}>
+            Riwayat Penarikan
+          </Chip>
+          <Chip icon={CalendarCheck} onPress={() => router.push(ROUTES.withdrawalSchedules)}>
+            Jadwal Penarikan
+          </Chip>
+        </View>
+
         <SectionHeader title="Riwayat" inset />
 
         {txnError ? (
@@ -264,6 +278,9 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   balanceCard: {
     marginTop: tokens.space[3],
+    marginBottom: tokens.space[2],
+  },
+  links: {
     marginBottom: tokens.space[2],
   },
 })

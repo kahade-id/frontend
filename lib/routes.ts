@@ -51,6 +51,17 @@ export const ROUTES = {
     ({ pathname: "/welcome", params: opts.newUser ? { newUser: "1" } : {} }) as unknown as Href,
   /** Screen #7 — Login: email + password */
   login: "/login" as Href,
+  /**
+   * Screen #7b — Verifikasi 2FA saat login (POST /v1/auth/2fa/verify-login).
+   * tempToken TIDAK dibawa lewat param (kredensial) — lihat lib/two-factor-login.ts.
+   */
+  verify2fa: "/verify-2fa" as Href,
+  /**
+   * Verifikasi email akun (POST /v1/auth/verify-email OTP, resend, correct-email).
+   * `email` hanya untuk ditampilkan/prefill — bukan kredensial.
+   */
+  verifyEmail: (email: string) =>
+    ({ pathname: "/verify-email", params: { email } }) as unknown as Href,
   /** Screen #8a — Forgot Password: kirim OTP reset */
   forgotPassword: "/forgot-password" as Href,
   /** Screen #8b — Reset Password: verifikasi OTP + password baru */
@@ -78,6 +89,9 @@ export const ROUTES = {
     ({ pathname: "/order/[id]", params: { id: orderId } }) as unknown as Href,
   /** Buat transaksi baru (di-push dari FAB Tab Transaksi & quick action Beranda) */
   createTransaction: "/create-transaction" as Href,
+  /** Buat transaksi dengan lawan transaksi terisi (dari profil publik) */
+  createTransactionWith: (username: string) =>
+    ({ pathname: "/create-transaction", params: { counterpart: username } }) as unknown as Href,
 
   // ── Dompet — aksi cepat kartu saldo ─────────────────────────────────────
   /** POST /v1/wallet/topup */

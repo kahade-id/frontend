@@ -7,7 +7,9 @@
  *   3. Ringkasan order → `GET /v1/orders/summary`
  *      · "Order aktif" = jumlah status yang masih berjalan
  *      · "Total transaksi" = total seluruh order
- *   4. Quick action → Buat Transaksi (screen belum ada → toast info)
+ *   4. Quick action → Buat Transaksi + grid pintasan (Isi Saldo, Order
+ *      Link, Chat, Sengketa, Jelajahi, Voucher, Referral, Analitik) — semua
+ *      route dari lib/routes.ts.
  *
  * Data diambil dari 3 endpoint PARALEL (`Promise.allSettled`) — satu gagal
  * tidak membunuh halaman; tiap bagian punya error + retry sendiri.
@@ -18,7 +20,19 @@
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useRouter } from "expo-router"
-import { ArrowRight, Lightning, Receipt, Wallet } from "phosphor-react-native"
+import {
+  ArrowRight,
+  ChartLineUp,
+  ChatCircleDots,
+  Compass,
+  Gift,
+  Lightning,
+  LinkSimple,
+  Receipt,
+  Scales,
+  Ticket,
+  Wallet,
+} from "phosphor-react-native"
 
 import { api, type OrderSummary, type UserProfile, type Wallet as WalletData } from "@/lib/api"
 import { formatRupiah } from "@/lib/format"
@@ -30,7 +44,9 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Icon } from "@/components/ui/icon"
 import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { QuickActionGrid, type QuickAction } from "@/components/ui/quick-action-grid"
 import { Screen } from "@/components/ui/screen"
+import { SectionHeader } from "@/components/ui/section"
 import { StatCard } from "@/components/ui/stat-card"
 import { Text } from "@/components/ui/text"
 import { VStack } from "@/components/ui/stack"
@@ -140,6 +156,23 @@ export default function HomeScreen() {
     router.push(ROUTES.createTransaction)
   }, [router])
 
+  const quickActions: QuickAction[] = [
+    { key: "topup", icon: Wallet, label: "Isi Saldo", onPress: () => router.push(ROUTES.topup) },
+    { key: "order-links", icon: LinkSimple, label: "Order Link", onPress: () => router.push(ROUTES.orderLinks) },
+    { key: "chat", icon: ChatCircleDots, label: "Chat", onPress: () => router.push(ROUTES.chat) },
+    {
+      key: "disputes",
+      icon: Scales,
+      label: "Sengketa",
+      badge: summary?.DISPUTED || undefined,
+      onPress: () => router.push(ROUTES.disputes),
+    },
+    { key: "discover", icon: Compass, label: "Jelajahi", onPress: () => router.push(ROUTES.discover) },
+    { key: "vouchers", icon: Ticket, label: "Voucher", onPress: () => router.push(ROUTES.vouchers) },
+    { key: "referral", icon: Gift, label: "Referral", onPress: () => router.push(ROUTES.referral) },
+    { key: "analytics", icon: ChartLineUp, label: "Analitik", onPress: () => router.push(ROUTES.analytics) },
+  ]
+
   return (
     <Screen edges={["top"]} background="surface" padded={false}>
       <PullToRefresh
@@ -212,8 +245,14 @@ export default function HomeScreen() {
           )}
         </View>
 
+        {/* ── Pintasan ────────────────────────────────────────── */}
+        <View className="px-6 pt-6">
+          <SectionHeader title="Pintasan" />
+          <QuickActionGrid actions={quickActions} className="-mx-1 pt-2" />
+        </View>
+
         {/* ── Aksi ────────────────────────────────────────────── */}
-        <VStack gap={3} className="px-6 pt-8">
+        <VStack gap={3} className="px-6 pt-6">
           <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
             Buat Transaksi
           </Button>

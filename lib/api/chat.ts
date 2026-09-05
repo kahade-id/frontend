@@ -1,8 +1,20 @@
 /**
  * Kahade — domain `chat` (ruang & pesan, lampiran, read receipt).
+ *
+ * Catatan spec:
+ *   - `GET /rooms/{roomId}/messages` memakai paginasi KURSOR: query `cursor`
+ *     (id/waktu pesan tertua yang sudah dimuat), `limit`, `excludeIds`
+ *     (id yang sudah ada, dipisah koma). Spec menandai ketiganya REQUIRED,
+ *     tetapi halaman pertama tidak punya kursor — dikirim kosong bila tidak
+ *     ada (client membuang nilai undefined). Bentuk respons tidak
+ *     didokumentasikan; kami menerima array langsung ATAU `{ items, nextCursor }`
+ *     dan menormalkannya lewat `normalizeMessagesPage`.
+ *   - `GET /rooms` & `GET /rooms/{roomId}/attachments` memakai page/limit.
  */
 import { http, seg } from "@/lib/api/client"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
+
+export const CHAT_PAGE_SIZE = 30
 
 export type ChatRoom = {
   id: string
@@ -28,19 +40,48 @@ export type ChatMessage = {
   createdAt: string
 }
 
-export function listChatRooms() {
-  return http.get<ChatRoom[]>("/v1/chat/rooms", { auth: "required", retry: 1 })
-}
-
-export function getChatMessages(
-  roomId: string,
-  query?: { page?: number; limit?: number; before?: string },
-) {
-  return http.get<ChatMessage[]>(`/v1/chat/rooms/${seg(roomId)}/messages`, {
-    query,
+export function listChatRooms(query: { page?: number; limit?: number } = {}) {
+  return http.get<ChatRoom[]>("/v1/chat/rooms", {
+    query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
     auth: "required",
     retry: 1,
   })
+}
+
+export type ChatMessagesQuery = {
+  /** Kursor halaman berikutnya (dari `nextCursor` atau id pesan tertua) */
+  cursor?: string
+  limit?: number
+  /** Id pesan yang sudah dimiliki klien (dikirim dipisah koma) */
+  excludeIds?: string[]
+}
+
+export type ChatMessagesPage = {
+  items: ChatMessage[]
+  nextCursor?: string | null
+}
+
+type RawMessagesResponse =
+  | ChatMessage[]
+  | { items?: ChatMessage[]; data?: ChatMessage[]; messages?: ChatMessage[]; nextCursor?: string | null; cursor?: string | null }
+
+function normalizeMessagesPage(raw: RawMessagesResponse): ChatMessagesPage {
+  if (Array.isArray(raw)) return { items: raw, nextCursor: null }
+  const items = raw.items ?? raw.data ?? raw.messages ?? []
+  return { items, nextCursor: raw.nextCursor ?? raw.cursor ?? null }
+}
+
+export async function getChatMessages(roomId: string, query: ChatMessagesQuery = {}): Promise<ChatMessagesPage> {
+  const raw = await http.get<RawMessagesResponse>(`/v1/chat/rooms/${seg(roomId)}/messages`, {
+    query: {
+      cursor: query.cursor,
+      limit: query.limit ?? CHAT_PAGE_SIZE,
+      excludeIds: query.excludeIds?.length ? query.excludeIds.join(",") : undefined,
+    },
+    auth: "required",
+    retry: 1,
+  })
+  return normalizeMessagesPage(raw)
 }
 
 export function sendChatMessage(roomId: string, dto: SendMessageDto) {
@@ -66,8 +107,9 @@ export function uploadChatAttachment(roomId: string, formData: FormData) {
   })
 }
 
-export function getChatAttachments(roomId: string) {
+export function getChatAttachments(roomId: string, query: { page?: number; limit?: number } = {}) {
   return http.get<ChatAttachmentDto[]>(`/v1/chat/rooms/${seg(roomId)}/attachments`, {
+    query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
     auth: "required",
     retry: 1,
   })

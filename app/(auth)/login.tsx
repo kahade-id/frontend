@@ -19,7 +19,8 @@
  *   - deviceId auto-inject oleh withDevice() di auth.ts
  *   - Response: LoginResult = discriminated union
  *     - requiresTwoFactor: false → { accessToken, user? } → token disimpan otomatis
- *     - requiresTwoFactor: true → { tempToken, user? } → butuh 2FA (belum didukung)
+ *     - requiresTwoFactor: true → { tempToken, user? } → /verify-2fa (kode TOTP
+ *       atau backup code → POST /v1/auth/2fa/verify-login)
  *
  * Keputusan non-obvious:
  *   - Header TANPA back button — ini entry point untuk user yang sudah punya akun.
@@ -62,6 +63,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -86,15 +88,14 @@ export default function LoginScreen() {
       })
 
       if (result.requiresTwoFactor) {
-        // 2FA belum didukung — tampilkan error informatif
-        setFormError(
-          "Akun ini memakai verifikasi dua langkah yang belum didukung di aplikasi. Hubungi dukungan Kahade.",
-        )
+        // Akun memakai TOTP → simpan tempToken di memori, lanjut ke layar kode.
+        // `push` (bukan replace) supaya tombol kembali membawa ke form login.
+        setPendingTwoFactorLogin({ tempToken: result.tempToken, email: email.trim() })
+        router.push(ROUTES.verify2fa)
         return
       }
 
       // Login berhasil → welcome screen (cek permissions). Bukan user baru.
-      // TODO: nanti bisa langsung ke Home kalau user sudah pernah ke welcome
       router.replace(ROUTES.welcome())
     } catch (err) {
       if (isApiError(err)) {

@@ -1,14 +1,21 @@
 /**
  * Screen — Privasi Profil (GET/PUT /v1/settings/privacy).
+ *
+ * Juga: "Minta salinan data saya" → POST /v1/settings/privacy/export
+ * (spec 201 tanpa schema; bila respons memuat `url` → buka di browser,
+ * selain itu tampilkan pesan bahwa ekspor diproses).
  */
 import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
+import { Linking, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { DownloadSimple } from "phosphor-react-native"
 
-import { api } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import type { PrivacySettings } from "@/lib/api/settings"
 import { tokens } from "@/lib/tokens"
 
+import { Button } from "@/components/ui/button"
+import { Dialog } from "@/components/ui/modal"
 import { Header } from "@/components/ui/header"
 import { PrivacyToggleList } from "@/components/ui/privacy-toggle-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -30,6 +37,8 @@ export default function PrivacySettingsScreen() {
   const [pending, setPending] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [exporting, setExporting] = useState(false)
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -69,6 +78,31 @@ export default function PrivacySettingsScreen() {
     [toast.show],
   )
 
+  const handleExport = useCallback(async () => {
+    if (exporting) return
+    setExporting(true)
+    try {
+      const res = await api.settings.exportPrivacy()
+      setExportOpen(false)
+      if (res?.url) {
+        const ok = await Linking.canOpenURL(res.url)
+        if (ok) await Linking.openURL(res.url)
+        toast.show({ title: "Ekspor data siap", description: "Berkas dibuka di browser.", tone: "success" })
+      } else {
+        toast.show({
+          title: "Permintaan diterima",
+          description: res?.message ?? "Salinan data akan dikirim ke email terdaftar saat siap.",
+          tone: "success",
+          duration: 4000,
+        })
+      }
+    } catch (err) {
+      toast.show({ title: "Gagal meminta ekspor", description: userMessage(err), tone: "danger" })
+    } finally {
+      setExporting(false)
+    }
+  }, [exporting, toast])
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Privasi" />
@@ -90,8 +124,28 @@ export default function PrivacySettingsScreen() {
             pendingKeys={pending}
             disabled={loading}
           />
+
+          <SectionHeader title="Data pribadi" inset />
+          <Text variant="body" tone="secondary">
+            Anda berhak meminta salinan seluruh data pribadi yang kami simpan.
+          </Text>
+          <Button variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
+            Minta salinan data saya
+          </Button>
         </View>
       </PullToRefresh>
+
+      <Dialog
+        title="Minta salinan data?"
+        description="Kami akan menyiapkan arsip data akun Anda. Prosesnya bisa memakan waktu; Anda akan diberi tahu saat siap."
+        visible={exportOpen}
+        loading={exporting}
+        confirmLabel="Minta ekspor"
+        cancelLabel="Batal"
+        onConfirm={() => void handleExport()}
+        onCancel={() => setExportOpen(false)}
+        onRequestClose={() => setExportOpen(false)}
+      />
     </Screen>
   )
 }

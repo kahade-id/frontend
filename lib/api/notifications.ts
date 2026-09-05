@@ -96,6 +96,8 @@ function clamp(n: number): number {
  */
 export function getNotifications(query: {
   category?: NotificationCategory
+  /** Filter status baca (spec: query `isRead` opsional) */
+  isRead?: boolean
   page?: number
   limit?: number
 } = {}) {
