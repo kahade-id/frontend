@@ -9,11 +9,20 @@
  * Data:
  *  - getMe() → profil user
  *  - Logout: panggil clearSession() lalu redirect ke ROUTES.login
+ *
+ * Keputusan non-obvious:
+ *  - Skeleton hanya untuk header profil (nama + avatar), bukan seluruh
+ *    halaman — daftar menu bersifat statis sehingga bisa langsung tampil.
+ *  - Spacing memakai tokens.space[n] bukan angka literal, supaya konsisten
+ *    dengan screenPaddingX / cardPadding yang sudah terdefinisi di tokens.
+ *  - router.push(route as Href) menggantikan `as any` — masih ada cast
+ *    karena typedRoutes hanya validate path yang sudah ada file route-nya;
+ *    komentar ini bisa dihapus saat semua route detail tersedia.
  */
 import { useCallback, useEffect, useState } from "react"
 import { Alert, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { router } from "expo-router"
+import { router, type Href } from "expo-router"
 import {
   Bell,
   Briefcase,
@@ -34,6 +43,7 @@ import { getMe } from "@/lib/api/users"
 import type { UserProfile } from "@/lib/api/users"
 import { clearSession } from "@/lib/api/session"
 import { ROUTES } from "@/lib/routes"
+import { tokens } from "@/lib/tokens"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
@@ -93,7 +103,6 @@ const MENU_GROUPS: MenuGroup[] = [
   {
     title: "Bantuan",
     items: [
-      // fix M5: CircleHalf diganti Question — lebih sesuai semantik FAQ
       { id: "faq", icon: Question, label: "FAQ", route: "/faq" },
       { id: "contact", icon: MessageCircle, label: "Hubungi Kami", route: "/contact" },
     ],
@@ -107,6 +116,25 @@ const MENU_GROUPS: MenuGroup[] = [
     ],
   },
 ]
+
+// ------------------------------------------------------------------
+// Skeleton header profil
+// ------------------------------------------------------------------
+
+function ProfileSkeleton() {
+  return (
+    <View className="flex-row items-center py-3 gap-3" accessibilityLabel="Memuat profil">
+      {/* Avatar placeholder */}
+      <View className="h-14 w-14 rounded-full bg-surface-offset animate-pulse" />
+      <View className="flex-1 gap-2">
+        {/* Nama */}
+        <View className="h-4 w-36 rounded bg-surface-offset animate-pulse" />
+        {/* Username */}
+        <View className="h-3 w-24 rounded bg-surface-offset animate-pulse" />
+      </View>
+    </View>
+  )
+}
 
 // ------------------------------------------------------------------
 // Screen
@@ -127,7 +155,7 @@ export default function SettingsScreen() {
   }, [])
 
   const handleMenuPress = useCallback((item: MenuItem) => {
-    if (item.route) router.push(item.route as any)
+    if (item.route) router.push(item.route as Href)
   }, [])
 
   const handleLogout = useCallback(() => {
@@ -156,50 +184,47 @@ export default function SettingsScreen() {
       <Header title="Pengaturan" />
 
       <ScrollView
-        contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: insets.bottom + 24 }}
+        contentContainerStyle={{
+          paddingHorizontal: tokens.space[4],  // 16px
+          paddingTop: tokens.space[2],          // 8px
+          paddingBottom: insets.bottom + tokens.space[6], // home indicator + 24px
+        }}
         showsVerticalScrollIndicator={false}
       >
-        {/*
-          fix S3: PressableScale tidak menerima prop `style` (di-Omit dari
-          PressableProps). Gunakan containerClassName + className untuk layout,
-          style dipakai hanya untuk nilai runtime (safe-area, dll) — tidak
-          perlu di sini karena semua padding sudah bisa dari className.
-        */}
-        <PressableScale
-          containerClassName="w-full"
-          className="flex-row items-center py-3 gap-3"
-          onPress={() => router.push("/edit-profile" as any)}
-          scaleOnPress={false}
-          accessibilityRole="button"
-          accessibilityLabel="Edit profil"
-        >
-          <Avatar
-            source={profile?.avatarUrl ?? undefined}
-            name={profile?.fullName ?? "—"}
-            size="lg"
-          />
-          <View className="flex-1">
-            {/* fix S2: variant="label" sudah valid di TextVariant */}
-            <Text variant="label" numberOfLines={1}>
-              {profile?.fullName ?? "—"}
-            </Text>
-            <Text variant="caption" tone="secondary" numberOfLines={1}>
-              @{profile?.username ?? "—"}
-            </Text>
-          </View>
-          <Icon icon={CaretRight} size="sm" />
-        </PressableScale>
+        {/* Header profil — skeleton saat loading */}
+        {loading ? (
+          <ProfileSkeleton />
+        ) : (
+          <PressableScale
+            containerClassName="w-full"
+            className="flex-row items-center py-3 gap-3"
+            onPress={() => router.push("/edit-profile" as Href)}
+            scaleOnPress={false}
+            accessibilityRole="button"
+            accessibilityLabel="Edit profil"
+          >
+            <Avatar
+              source={profile?.avatarUrl ?? undefined}
+              name={profile?.fullName ?? "—"}
+              size="lg"
+            />
+            <View className="flex-1">
+              <Text variant="label" numberOfLines={1}>
+                {profile?.fullName ?? "—"}
+              </Text>
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
+                @{profile?.username ?? "—"}
+              </Text>
+            </View>
+            <Icon icon={CaretRight} size="sm" />
+          </PressableScale>
+        )}
 
         <Divider className="my-2" />
 
         {/* Menu groups — ListItem + ListGroup dari sistem */}
         {MENU_GROUPS.map((group, gi) => (
           <View key={group.title} className={gi > 0 ? "mt-5" : undefined}>
-            {/*
-              fix S1: "overline" bukan TextVariant yang valid di tabel sizeClass
-              (valid: display|h1|h2|h3|bodyLarge|body|caption|label|monoLarge|monoBody).
-              Ganti ke variant="caption" + letterSpacing manual via style.
-            */}
             <Text
               variant="caption"
               tone="secondary"
