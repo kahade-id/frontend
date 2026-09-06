@@ -171,6 +171,50 @@ tidak pernah jalan, dan higienitas repo**. Semua perubahan lolos
     `public/` — tautannya saja yang belum pernah dideklarasikan. Ditambahkan
     (theme-color mengikuti prefers-color-scheme).
 
+## 5b. Pull-to-refresh: layar "ikut tangan" & ujung list tak terjangkau
+
+Dilaporkan pengguna setelah ronde pertama: *di hampir semua halaman ber-
+pull-to-refresh, layar bergerak ke bawah mengikuti tangan, dan saat halaman
+penuh konten list tidak bisa discroll sampai ujung*. Diagnosa pada
+`components/ui/pull-to-refresh.tsx` menemukan 4 defect yang bersama-sama
+menghasilkan persis gejala itu (39 layar terdampak):
+
+43. **Pan meng-aktif di SETIAP tarik-turun ≥10px di mana pun** —
+    `activeOffsetY([10, 1000])` tanpa syarat posisi scroll. Pan yang aktif
+    di tengah list lalu bersaing dengan scroll native sepanjang sentuhan
+    (event forwarding RNGH di native, pointer capture di web) → scroll
+    tersendat/beku, paling terasa dekat ujung tempat arah tarik paling
+    sering ke bawah. **Perbaikan: MANUAL ACTIVATION** — keputusan
+    activate/fail kini diambil di `onTouchesMove` pada UI thread: pan hanya
+    boleh aktif bila `scrollOffset <= 0` DAN tarik turun > 10px; di luar
+    itu pan langsung FAIL dan scroll 100% native.
+44. **Konten melompat & "nendang" balik**: jarak tarik dihitung dari awal
+    sentuh (bukan dari titik keputusan) dan dua cabang lepas menulis
+    `pull.value = 0` mentah tanpa spring. Kini anchor di-set saat aktivasi
+    (tarikan mulai 0, mulus) dan semua pelepasan lewat `withSpring`.
+45. **Dokumentasi menjanjikan yang tidak ada kodenya**: komentar menyebut
+    `scrollEnabled` dimatikan selama tarikan lewat runOnJS — tidak pernah
+    diimplementasikan, sehingga scroll native dan tarikan saling berebut
+    gerakan di puncak. Sekarang benar-benar ada (`scrollLocked` state,
+    `scrollEnabled={!refreshing && !scrollLocked}`), dengan buka-kunci
+    di cabang lepas dan `onFinalize`.
+46. **Indikator tersangkut di ambang (mode controlled)**: refresh yang
+    sangat cepat menuntaskan transisi prop `refreshing` true→false dalam
+    satu batch render sehingga effect settle tidak melihatnya — konten
+    tergeser permanen ~64px+ dan **ujung bawah list tidak bisa dinaikkan
+    ke layar** (gejala "tak bisa discroll sampai ujung saat konten penuh").
+    `startRefresh` kini men-settle sendiri bila prop tidak pernah
+    terkonfirmasi true.
+47. **Catatan komentar basi dikoreksi**: docblock menyebut expo-haptics
+    "belum ada di package.json" — sudah ada sejak ronde pertama; prop
+    `onThresholdReached` tetap opsional untuk pemanggil.
+
+Verifikasi ronde ini: typecheck, ESLint, 230/230 test, `build:web` sukses
+(plugin reanimated mengkompilasi worklet baru), halaman `/wallet`, `/home`,
+`/notifications` tersaji 200 dari preview statis. Pengujian rasa gesture
+(di mana pan mulai aktif, apakah list masih ulus sampai ujung) wajib
+diverifikasi manual di perangkat native & browser sebelum rilis.
+
 ## 6. Kode mati — dihapus saat audit, DIPULIHKAN atas keputusan produk
 
 32. **38 komponen UI tanpa pemakaian dihapus saat audit** (`accordion,
