@@ -1,4 +1,4 @@
-import { readPage, readList } from "@/lib/api/response"
+import { asRecord, readEntity, readPage, readList } from "@/lib/api/response"
 /**
  * Kahade — domain `users` (tag "users" di kahade-api-mobile.json).
  *
@@ -140,7 +140,20 @@ export function updateLinks(dto: UpdateLinksDto) {
 
 /** GET /v1/users/{username} — profil publik user. */
 export function getUserByUsername(username: string) {
-  return http.get<PublicUserProfile>(`/v1/users/${seg(username)}`, { auth: "required", retry: 1 })
+  return http
+    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "required", retry: 1 })
+    .then((raw) => {
+      const profile = readEntity<Record<string, unknown>>(raw, "user")
+      const stats = asRecord(profile.stats)
+      return {
+        ...profile,
+        id: profile.id ?? profile.userId ?? "",
+        verified: profile.verified ?? profile.isKycVerified,
+        trustScore: profile.trustScore ?? stats?.trustScore,
+        rating: profile.rating ?? stats?.rating,
+        createdAt: profile.createdAt ?? profile.created_at,
+      } as PublicUserProfile
+    })
 }
 
 export type PublicUserProfile = {

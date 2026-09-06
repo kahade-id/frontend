@@ -80,18 +80,22 @@ export const SECURITY_LOG_ALL_ACTIONS = "ALL"
 
 /** GET /v1/users/me/security-log — aktivitas keamanan (page/limit/action wajib). */
 export function getSecurityLog(query: SessionsPageQuery & { action?: string }) {
-  return http.get<SecurityLogEntry[]>("/v1/users/me/security-log", {
-    query: { action: SECURITY_LOG_ALL_ACTIONS, ...query },
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<unknown>("/v1/users/me/security-log", {
+      query: { action: SECURITY_LOG_ALL_ACTIONS, ...query },
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<SecurityLogEntry>(raw, ["securityLog", "logs"]))
 }
 
 /** GET /v1/users/me/activity-log — aktivitas umum (page/limit wajib). */
 export function getActivityLog(query: SessionsPageQuery) {
-  return http.get<ActivityLogEntry[]>("/v1/users/me/activity-log", {
-    query,
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<unknown>("/v1/users/me/activity-log", {
+      query,
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<ActivityLogEntry>(raw, ["activityLog", "logs"]))
 }
