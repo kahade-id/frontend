@@ -22,3 +22,35 @@
 export function hasOwn<T extends object>(source: T, key: PropertyKey): boolean {
   return Object.prototype.hasOwnProperty.call(source, key)
 }
+
+/**
+ * Ambil nilai dari peta berindeks string — pengganti `MAP[key] ?? fallback`.
+ *
+ * Kenapa `??` saja tidak cukup (non-obvious, dan ini yang membuat bug ini
+ * mudah lolos review): `??` hanya aktif untuk `null`/`undefined`. Bila `key`
+ * berasal dari data eksternal dan berisi nama milik `Object.prototype` —
+ * `"toString"`, `"valueOf"`, `"constructor"`, `"hasOwnProperty"` — maka
+ * `MAP[key]` mengembalikan sebuah FUNGSI. Fungsi bukan nilai nullish, jadi
+ * `??` diam saja, dan fungsi itu berakhir sebagai anak <Badge>/<Text>:
+ *
+ *     <Badge>{HISTORY_LABELS["toString"]}</Badge>
+ *     → Functions are not valid as a React child → error boundary
+ *
+ * `hasOwn` menutup jalur itu: kunci warisan tidak pernah dianggap ada, jadi
+ * fallback-lah yang dipakai. Bandingkan dengan pola `isXStatus()` di
+ * komponen status, yang memakai `.includes()` pada daftar eksplisit — itu
+ * sudah aman, dan helper ini untuk peta yang TIDAK punya daftar kunci.
+ *
+ * `null`/`undefined` pada `value` juga jatuh ke fallback: beberapa peta
+ * sengaja bertipe `Partial<Record<...>>` dan bisa berisi `undefined`.
+ */
+export function mapValue<T>(
+  source: Record<string, T> | Partial<Record<string, T>>,
+  key: string | undefined | null,
+  fallback: T,
+): T {
+  if (key == null) return fallback
+  if (!hasOwn(source, key)) return fallback
+  const value = source[key]
+  return value === undefined || value === null ? fallback : (value as T)
+}

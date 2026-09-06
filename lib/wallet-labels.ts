@@ -4,6 +4,7 @@
  */
 import type { WalletTransaction } from "@/lib/api/wallet"
 import type { WalletTxKind, WalletTxStatus } from "@/components/ui/wallet-transaction-list-item"
+import { mapValue } from "@/lib/has-own"
 
 /** Label mutasi — satu tempat; nilai asing dari backend ditampilkan apa adanya. */
 export const WALLET_TXN_LABELS: Record<string, string> = {
@@ -48,7 +49,7 @@ export function isWalletCredit(txn: WalletTransaction): boolean {
 }
 
 export function walletTransactionStatus(status?: string | null): WalletTxStatus {
-  return status ? (WALLET_TXN_STATUS[status] ?? "UNKNOWN") : "UNKNOWN"
+  return status ? mapValue(WALLET_TXN_STATUS, status, "UNKNOWN") : "UNKNOWN"
 }
 export function walletTransactionType(txn: WalletTransaction): "CREDIT" | "DEBIT" | "UNKNOWN" {
   if (txn.direction === "CREDIT" || txn.direction === "DEBIT") return txn.direction

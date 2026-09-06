@@ -57,6 +57,7 @@ import {
 } from "@/components/ui/notification-list-item"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
+import { mapValue } from "@/lib/has-own"
 
 // ------------------------------------------------------------------
 // Konstanta layar
@@ -455,7 +456,7 @@ export default function NotificationsScreen() {
           <NotificationListItem
             title={item.title}
             body={item.body || undefined}
-            category={UI_CATEGORY[item.category] ?? "system"}
+            category={mapValue(UI_CATEGORY, item.category, "system")}
             timestamp={formatDateTime(item.createdAt)}
             unread={!item.isRead}
             selected={selecting && selected.has(item.id)}

@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { mapValue } from "@/lib/has-own"
 
 export type TrustScoreFactor = {
   key: string
@@ -106,7 +107,7 @@ export function TrustScoreCard({
   const t = { ...DEFAULT_LABELS, ...labels }
   const tiers = { ...DEFAULT_TIER_LABELS, ...tierLabels }
   const value = clamp(Math.round(score), 0, 100)
-  const tierLabel = tier ? tiers[tier] ?? tier : undefined
+  const tierLabel = tier ? mapValue(tiers, tier, tier) : undefined
   const showFactors = !compact && factors && factors.length > 0
 
   // Ringkasan HANYA blok header (skor + tier + deskripsi). Rincian faktor dan

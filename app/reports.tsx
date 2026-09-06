@@ -26,7 +26,7 @@ import { ReportForm, type ReportFormValue } from "@/components/ui/report-form"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
-import { hasOwn } from "@/lib/has-own"
+import { hasOwn, mapValue } from "@/lib/has-own"
 
 /** Peta alasan UI → enum API POST /v1/settings/report. */
 const REASON_TO_CATEGORY: Record<string, string> = {
@@ -108,7 +108,7 @@ export default function ReportsScreen() {
       try {
         await api.settings.reportUser({
           targetId,
-          category: (REASON_TO_CATEGORY[v.reason] ?? "OTHER") as ReportUserSettingsDto["category"],
+          category: mapValue(REASON_TO_CATEGORY, v.reason, "OTHER") as ReportUserSettingsDto["category"],
           description: v.detail.trim(),
         })
         toast.show({ title: "Laporan terkirim", tone: "success", duration: 3000 })
@@ -174,7 +174,7 @@ export default function ReportsScreen() {
                 return (
                   <ListItem
                     key={r.id}
-                    title={CATEGORY_LABELS[r.category] ?? r.category}
+                    title={mapValue(CATEGORY_LABELS, r.category, r.category)}
                     subtitle={formatDateTime(r.createdAt)}
                     leading={Flag}
                     trailing={

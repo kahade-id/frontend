@@ -17,7 +17,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { hasOwn } from "@/lib/has-own"
+import { hasOwn, mapValue } from "@/lib/has-own"
 import { isOrderLinkStatus, orderLinkStatusMeta } from "@/lib/order-link-labels"
 import {
   amountInputValue,
@@ -47,6 +47,50 @@ describe("status maps reject inherited keys", () => {
   it("still recognises the documented statuses", () => {
     expect(isOrderLinkStatus("ACTIVE")).toBe(true)
     expect(orderLinkStatusMeta("EXPIRED")).toEqual({ label: "Kedaluwarsa", tone: "danger" })
+  })
+})
+
+/**
+ * `MAP[key] ?? fallback` TIDAK aman untuk `key` dari data eksternal: `??`
+ * hanya aktif pada nullish, sedangkan `MAP["toString"]` mengembalikan sebuah
+ * FUNGSI. Fungsi itu bukan nullish, lolos dari `??`, lalu dirender sebagai
+ * anak <Badge>/<Text> -> "Functions are not valid as a React child".
+ */
+describe("mapValue closes the `?? fallback` hole", () => {
+  const LABELS: Record<string, string> = { PAID: "Dibayar", FAILED: "Gagal" }
+
+  it.each(INHERITED_KEYS)("%s falls back instead of returning a function", (key) => {
+    // Bukti bahayanya dulu: nilai warisan ini BUKAN nullish, jadi `??` —
+    // yang dipakai kode sebelumnya — tidak aktif dan nilainya lolos ke JSX.
+    const leaked = (LABELS as unknown as Record<string, unknown>)[key]
+    expect(leaked).not.toBeUndefined()
+    expect(leaked).not.toBeNull()
+    expect(["function", "object"]).toContain(typeof leaked)
+
+    // `mapValue` justru mengembalikan fallback, dan tipenya SELALU string
+    // (bukan fungsi/objek yang ditolak React sebagai anak).
+    expect(mapValue(LABELS, key, "Status tidak diketahui")).toBe("Status tidak diketahui")
+  })
+
+  it("never returns a function for any string a backend could send", () => {
+    for (const key of ["toString", "valueOf", "constructor", "__proto__", "PAID", "nonsense"]) {
+      expect(typeof mapValue(LABELS, key, "-")).toBe("string")
+    }
+  })
+
+  it("resolves the keys the map actually owns", () => {
+    expect(mapValue(LABELS, "PAID", "-")).toBe("Dibayar")
+    expect(mapValue(LABELS, "FAILED", "-")).toBe("Gagal")
+  })
+
+  it("handles a missing key and a Partial map", () => {
+    expect(mapValue(LABELS, undefined, "-")).toBe("-")
+    expect(mapValue(LABELS, null, "-")).toBe("-")
+    const partial: Partial<Record<string, string>> = { A: "a", B: undefined }
+    // Nilai `undefined` yang memang tersimpan juga jatuh ke fallback,
+    // karena peta Partial bisa berisi kunci tanpa nilai.
+    expect(mapValue(partial, "B", "-")).toBe("-")
+    expect(mapValue(partial, "A", "-")).toBe("a")
   })
 })
 

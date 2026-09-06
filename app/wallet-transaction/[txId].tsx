@@ -30,6 +30,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
+import { mapValue } from "@/lib/has-own"
 
 export default function WalletTransactionScreen() {
   const { txId } = useLocalSearchParams<{ txId: string }>()
@@ -112,7 +113,7 @@ export default function WalletTransactionScreen() {
             </Card>
 
             <Card padded className="gap-3">
-              <KeyValue label="Jenis" value={WALLET_TXN_LABELS[txn.type] ?? txn.type} />
+              <KeyValue label="Jenis" value={mapValue(WALLET_TXN_LABELS, txn.type, txn.type)} />
               <KeyValue label="Status" value={txn.status ?? "Status belum tersedia"} />
               <KeyValue label="Waktu" value={formatDateTime(txn.createdAt)} />
               {txn.referenceId ? <KeyValue label="Referensi" value={txn.referenceId} mono /> : null}
