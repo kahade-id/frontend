@@ -18,6 +18,7 @@
 import { describe, expect, it } from "vitest"
 
 import { hasOwn, mapValue } from "@/lib/has-own"
+import { fileExtension, isImageMime, isPdfMime } from "@/lib/mime"
 import { isOrderLinkStatus, orderLinkStatusMeta } from "@/lib/order-link-labels"
 import {
   amountInputValue,
@@ -197,5 +198,56 @@ describe("amount input keeps digits while the grouping is half-finished", () => 
     // Ketikan yang bukan nominal diabaikan, bukan mengubah angka yang sudah ada.
     edit(shown() + ",")
     expect(shown()).toBe("100")
+  })
+})
+
+describe("klasifikasi MIME tidak boleh melempar pada field mentah", () => {
+  /**
+   * Lampiran chat, bukti sengketa, dan data topup TIDAK dinormalisasi:
+   * `http.get<Dto>()` hanya meng-cast tipe. `mimeType` karena itu bisa
+   * `undefined`, `null`, atau angka walau tipenya `string`.
+   * `undefined.startsWith("image/")` melempar TypeError saat render —
+   * bukan sekadar ikon yang salah, melainkan seluruh layar yang jatuh ke
+   * error boundary.
+   */
+  const HOSTILE: unknown[] = [undefined, null, 0, 42, {}, [], true, Number.NaN]
+
+  it.each(HOSTILE.map((v) => [v]))("isImageMime(%p) -> false, tanpa melempar", (value) => {
+    expect(() => isImageMime(value as never)).not.toThrow()
+    expect(isImageMime(value as never)).toBe(false)
+  })
+
+  it.each(HOSTILE.map((v) => [v]))("isPdfMime(%p) -> false, tanpa melempar", (value) => {
+    expect(() => isPdfMime(value as never)).not.toThrow()
+    expect(isPdfMime(value as never)).toBe(false)
+  })
+
+  it.each(HOSTILE.map((v) => [v]))("fileExtension(%p) -> undefined, tanpa melempar", (value) => {
+    expect(() => fileExtension(value as never)).not.toThrow()
+    expect(fileExtension(value as never)).toBeUndefined()
+  })
+
+  it("mengenali MIME gambar & PDF yang sesungguhnya", () => {
+    expect(isImageMime("image/png")).toBe(true)
+    expect(isImageMime("image/jpeg")).toBe(true)
+    expect(isImageMime("image/svg+xml")).toBe(true)
+    expect(isPdfMime("application/pdf")).toBe(true)
+    // Bukan gambar — jangan terkecoh awalan yang mirip.
+    expect(isImageMime("application/pdf")).toBe(false)
+    expect(isImageMime("text/plain")).toBe(false)
+    expect(isImageMime("images/png")).toBe(false)
+    expect(isImageMime("")).toBe(false)
+    expect(isPdfMime("image/png")).toBe(false)
+  })
+
+  it("ekstensi diambil dari nama berkas, kapital, dan aman tanpa ekstensi", () => {
+    expect(fileExtension("bukti.pdf")).toBe("PDF")
+    expect(fileExtension("foto.selfie.JPG")).toBe("JPG")
+    expect(fileExtension("arsip.tar.gz")).toBe("GZ")
+    // Tanpa titik → tidak ada ekstensi, BUKAN seluruh nama berkas.
+    expect(fileExtension("README")).toBeUndefined()
+    expect(fileExtension("")).toBeUndefined()
+    // Titik di akhir tidak boleh menghasilkan string kosong yang dirender.
+    expect(fileExtension("bukti.")).toBeUndefined()
   })
 })

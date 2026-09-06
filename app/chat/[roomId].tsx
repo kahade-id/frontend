@@ -57,6 +57,7 @@ import { MediaViewer, isImageMedia, type MediaViewerItem } from "@/components/ui
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { useToast } from "@/components/ui/toast"
+import { isImageMime } from "@/lib/mime"
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
 type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
@@ -69,7 +70,7 @@ function messageTypeFor(
   // tidak mengembalikannya, `undefined.startsWith("image/")` melempar
   // TypeError tepat saat tombol kirim ditekan — pesan tak pernah terkirim dan
   // layar jatuh ke error boundary. Lampiran tanpa MIME dianggap bukan gambar.
-  const isImage = (a: ChatAttachmentDto) => typeof a.mimeType === "string" && a.mimeType.startsWith("image/")
+  const isImage = (a: ChatAttachmentDto) => isImageMime(a.mimeType)
   return attachments.every(isImage) ? "IMAGE" : "FILE"
 }
 
