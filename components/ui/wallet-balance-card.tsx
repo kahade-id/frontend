@@ -1,45 +1,7 @@
-/**
- * Kahade — <WalletBalanceCard> kartu saldo dompet (§9.6 Stat/Highlight
- * inverted, §3.1 Mono Large untuk nominal utama, §13 format, §14 keamanan).
- *
- * Header tab Dompet & beranda: saldo tersedia (Mono Large) + saldo tertahan
- * di escrow (Mono Body) + tiga aksi cepat (Isi saldo, Tarik, Transfer) yang
- * memetakan ke `POST /v1/wallet/topup|withdraw|transfer`.
- *
- * Keputusan non-obvious:
- *   - Default `variant="inverted"` (bg-primary, teks primary-foreground):
- *     ini satu-satunya "Stat/Highlight" di layar Dompet — hitam sebagai
- *     otoritas (§1) pada angka yang paling dipercaya user. Ikut invert di
- *     dark mode otomatis (§9.6). `variant="default"` tersedia bila kartu ini
- *     dipasang di beranda yang sudah punya highlight lain (§1 "satu titik
- *     kejutan per layar").
- *   - `hidden` controlled + `onToggleHidden`: preferensi "sembunyikan saldo"
- *     harus persisten lintas sesi (SecureStore/AsyncStorage) — itu urusan
- *     pemanggil, komponen tidak menyimpan state sendiri. Ikon Eye/EyeSlash
- *     memakai tone "inverse" di kartu inverted agar kontras di atas hitam.
- *   - Saldo tertahan (escrow) ditampilkan SELALU, walau 0: user escrow perlu
- *     yakin "tidak ada dana yang menggantung" — absennya baris justru
- *     menimbulkan pertanyaan. Ikut disembunyikan saat `hidden`.
- *   - Aksi cepat = tombol ikon bertumpuk label (IconBox + caption), bukan
- *     <Button> berjajar: tiga Button 48px selebar kartu memakan 1/3 tinggi
- *     kartu dan bersaing dengan nominal. Di kartu inverted kotak ikon memakai
- *     border primary-foreground (garis putih di atas hitam) — hierarki dari
- *     border, bukan fill (§6).
- *   - Tidak ada `adjustsFontSizeToFit` (§3.2 type scale FIXED). Saldo di atas
- *     Rp999.999.999.999 (12 digit) tidak realistis untuk dompet ritel; kalau
- *     terjadi, `Amount` tetap memotong dengan numberOfLines=1 + ellipsis.
- *   - Loading = Skeleton pada nominal saja; label & aksi tetap tampil supaya
- *     layout stabil dan aksi tetap bisa dijangkau saat refetch.
- */
-import {
-  ArrowCircleDown,
-  ArrowCircleUp,
-  Eye,
-  EyeSlash,
-  PaperPlaneTilt,
-} from "phosphor-react-native"
-import { Pressable, View } from "react-native"
-
+/** A clear money hierarchy with explicit held funds and reachable wallet actions. */
+import { useState } from "react"
+import { ArrowCircleDown, ArrowCircleUp, Eye, EyeSlash, PaperPlaneTilt } from "phosphor-react-native"
+import { View } from "react-native"
 import { Amount } from "@/components/ui/amount"
 import { Card, type CardProps, type CardVariant } from "@/components/ui/card"
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
@@ -56,29 +18,15 @@ export type WalletQuickAction = {
   onPress: () => void
   disabled?: boolean
 }
-
-export type WalletBalanceCardLabels = {
-  available: string
-  held: string
-  hide: string
-  show: string
-}
-
+export type WalletBalanceCardLabels = { available: string; held: string; hide: string; show: string }
 const DEFAULT_LABELS: WalletBalanceCardLabels = {
-  available: "Saldo tersedia",
-  held: "Tertahan di escrow",
-  hide: "Sembunyikan saldo",
-  show: "Tampilkan saldo",
+  available: "Saldo tersedia", held: "Tertahan di escrow", hide: "Sembunyikan saldo", show: "Tampilkan saldo",
 }
-
 export type WalletBalanceCardProps = Omit<CardProps, "children" | "onPress" | "padded"> & {
-  /** Saldo yang bisa dipakai */
   available?: number
-  /** Dana yang sedang ditahan escrow (order berjalan) */
   held?: number
   hidden?: boolean
   onToggleHidden?: () => void
-  /** Aksi cepat; default: Isi saldo / Tarik / Transfer bila callback diberikan */
   actions?: WalletQuickAction[]
   onTopUp?: () => void
   onWithdraw?: () => void
@@ -87,125 +35,56 @@ export type WalletBalanceCardProps = Omit<CardProps, "children" | "onPress" | "p
   variant?: Extract<CardVariant, "inverted" | "default" | "elevated">
   labels?: Partial<WalletBalanceCardLabels>
 }
-
-export function WalletBalanceCard({
-  available,
-  held,
-  hidden = false,
-  onToggleHidden,
-  actions,
-  onTopUp,
-  onWithdraw,
-  onTransfer,
-  loading = false,
-  variant = "inverted",
-  labels,
-  className,
-  ...rest
-}: WalletBalanceCardProps) {
+export function WalletBalanceCard({ available, held, hidden, onToggleHidden, actions,
+  onTopUp, onWithdraw, onTransfer, loading = false, variant = "inverted", labels, className, ...rest }: WalletBalanceCardProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
+  // Uncontrolled privacy is intentionally memory-only; callers may persist a controlled preference.
+  const [localHidden, setLocalHidden] = useState(false)
+  const concealed = hidden ?? localHidden
+  const canToggle = onToggleHidden != null || hidden === undefined
+  const toggle = () => {
+    if (hidden === undefined) setLocalHidden((current) => !current)
+    onToggleHidden?.()
+  }
   const inverted = variant === "inverted"
-
-  // Di kartu inverted SEMUA teks "inverse" — token tidak punya inverse-secondary,
-  // dan opacity pada teks akan menurunkan kontras di bawah AA (lihat StatCard).
   const textTone: TextTone = inverted ? "inverse" : "secondary"
   const valueTone = inverted ? "inverse" : "primary"
   const iconTone: IconTone = inverted ? "inverse" : "active"
-
-  const resolvedActions: WalletQuickAction[] =
-    actions ??
-    (
-      [
-        onTopUp && { key: "topup", label: "Isi saldo", icon: ArrowCircleDown, onPress: onTopUp },
-        onWithdraw && { key: "withdraw", label: "Tarik", icon: ArrowCircleUp, onPress: onWithdraw },
-        onTransfer && {
-          key: "transfer",
-          label: "Transfer",
-          icon: PaperPlaneTilt,
-          onPress: onTransfer,
-        },
-      ] as Array<WalletQuickAction | undefined>
-    ).filter((a): a is WalletQuickAction => !!a)
-
+  const resolvedActions: WalletQuickAction[] = actions ?? ([
+    onTopUp && { key: "topup", label: "Isi saldo", icon: ArrowCircleDown, onPress: onTopUp },
+    onWithdraw && { key: "withdraw", label: "Tarik", icon: ArrowCircleUp, onPress: onWithdraw },
+    onTransfer && { key: "transfer", label: "Transfer", icon: PaperPlaneTilt, onPress: onTransfer },
+  ] as Array<WalletQuickAction | undefined>).filter((action): action is WalletQuickAction => !!action)
   return (
-    <Card variant={variant} className={cn("gap-5", className)} {...rest}>
-      {/* Label + toggle */}
-      <View accessible={false} className="flex-row items-center justify-between gap-3 tabular-nums">
-        <Text variant="label" tone={textTone}>
-          {t.available}
-        </Text>
-        {onToggleHidden ? (
-          // Audit #1: baris label hanya ~20px sehingga hitSlop akan terpotong
-          // batas baris. Kotak nyata 44x44 + margin negatif (-my-3/-mr-3)
-          // agar tinggi baris dan posisi visual ikon tidak berubah.
-          <Pressable
-            onPress={onToggleHidden}
-            accessibilityRole="button"
-            accessibilityLabel={hidden ? t.show : t.hide}
-            accessibilityState={{ checked: !hidden }}
-            className="-my-3 -mr-3 min-h-11 min-w-11 items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-          >
-            <Icon icon={hidden ? EyeSlash : Eye} size="sm" tone={iconTone} />
-          </Pressable>
-        ) : null}
+    <Card variant={variant} className={cn("gap-4", className)} {...rest}>
+      <View accessible={false} className="flex-row items-center justify-between gap-4">
+        <Text variant="label" tone={textTone} className="min-w-0 flex-1">{t.available}</Text>
+        {canToggle ? <PressableScale onPress={toggle} scaleOnPress={false} accessibilityRole="button"
+          accessibilityLabel={concealed ? t.show : t.hide} accessibilityHint="Mengatur privasi nominal saldo"
+          accessibilityState={{ checked: !concealed }} className="min-h-11 min-w-11 items-center justify-center rounded-sm">
+          <Icon icon={concealed ? EyeSlash : Eye} size="sm" tone={iconTone} />
+        </PressableScale> : null}
       </View>
-
-      {/* Nominal utama */}
-      <View className="gap-1">
-        {loading ? (
-          <Skeleton height={tokens.typography.monoLarge.lineHeight} className="w-48" />
-        ) : (
-          <Amount value={available ?? Number.NaN} size="large" tone={valueTone} hidden={hidden} />
-        )}
-        <View className="flex-row items-center gap-2">
-          <Text variant="caption" tone={textTone}>
-            {t.held}
-          </Text>
-          {loading ? (
-            <Skeleton height={tokens.typography.caption.lineHeight} className="w-20" />
-          ) : (
-            <Amount value={held ?? Number.NaN} size="body" tone={valueTone} hidden={hidden} />
-          )}
+      <View className="gap-4">
+        {loading ? <Skeleton height={tokens.typography.monoLarge.lineHeight} className="w-3/5" />
+          : <Amount value={available ?? Number.NaN} size="large" tone={valueTone} hidden={concealed} />}
+        <View className="flex-row flex-wrap items-center justify-between gap-2">
+          <Text variant="caption" tone={textTone}>{t.held}</Text>
+          {loading ? <Skeleton height={tokens.typography.caption.lineHeight} className="w-20" />
+            : <Amount value={held ?? Number.NaN} size="body" tone={valueTone} hidden={concealed} />}
         </View>
       </View>
-
-      {/* Aksi cepat */}
-      {resolvedActions.length > 0 ? (
-        <View className="flex-row gap-3" accessibilityRole="toolbar">
-          {resolvedActions.map((a) => (
-            <PressableScale
-              key={a.key}
-              accessibilityRole="button"
-              accessibilityLabel={a.label}
-              accessibilityHint={`Buka ${a.label}`}
-              haptic
-              onPress={a.onPress}
-              disabled={a.disabled}
-              containerClassName="flex-1"
-              className="items-center gap-2 py-1"
-            >
-              <View
-                className={cn(
-                  "h-12 w-12 items-center justify-center rounded-md border",
-                  inverted
-                    ? "border-primary-foreground bg-primary"
-                    : "border-border bg-surface-elevated",
-                )}
-              >
-                <Icon icon={a.icon} size="md" tone={iconTone} />
-              </View>
-              <Text ellipsizeMode="tail"
-                variant="caption"
-                weight={500}
-                tone={inverted ? "inverse" : "primary"}
-                numberOfLines={1}
-              >
-                {a.label}
-              </Text>
-            </PressableScale>
-          ))}
-        </View>
-      ) : null}
+      {resolvedActions.length > 0 ? <View className="flex-row gap-2 pt-4" accessibilityRole="toolbar">
+        {resolvedActions.map((action) => <PressableScale key={action.key} accessibilityRole="button"
+          accessibilityLabel={action.label} accessibilityHint={`Buka ${action.label}`}
+          onPress={action.onPress} disabled={action.disabled} containerClassName="min-w-0 flex-1"
+          className="min-h-16 items-center gap-2 py-2">
+          <View className={cn("h-12 w-12 items-center justify-center rounded-sm border", inverted ? "border-primary-foreground bg-primary" : "border-border bg-surface-elevated")}>
+            <Icon icon={action.icon} size="md" tone={iconTone} />
+          </View>
+          <Text variant="caption" weight={500} tone={inverted ? "inverse" : "primary"} className="w-full text-center">{action.label}</Text>
+        </PressableScale>)}
+      </View> : null}
     </Card>
   )
 }
