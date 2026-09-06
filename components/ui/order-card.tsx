@@ -212,7 +212,7 @@ export function OrderCardSkeleton({
       accessibilityLabel="Memuat transaksi"
       {...rest}
     >
-      <View className="flex-row items-center justify-between">
+      <View className="flex-row items-center justify-between gap-2">
         <Skeleton height={12} className="w-32" />
         <Skeleton height={22} className="w-24" />
       </View>

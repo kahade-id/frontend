@@ -468,6 +468,7 @@ export const motion = {
     /** Tooltip: geser lebih kecil karena elemennya kecil dan dekat trigger */
     tooltipTranslateY: 4,
     tooltipMaxWidth: 260,
+    tooltipMaxWidthMd: 320,
   },
   /** Spinner inline/pagination: monokrom text-tertiary, 16–20px */
   inlineSpinnerSize: { min: icon.size.xs, max: icon.size.sm },

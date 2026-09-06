@@ -65,9 +65,9 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null)
 
-const MAX_VISIBLE = 3
+const MAX_VISIBLE = 2
 const DEFAULT_DURATION = 4000
-const DANGER_DURATION = 6000
+const DANGER_DURATION = 8000
 
 let counter = 0
 
@@ -126,7 +126,7 @@ function ToastViewport({
     <View
       pointerEvents="box-none"
       className={cn(
-        "absolute left-0 right-0 z-50 items-center px-4",
+        "absolute left-0 right-0 z-banner items-center px-4",
         position === "top" ? "top-0" : "bottom-0",
       )}
       style={position === "top" ? { paddingTop: insets.top + tokens.space[2] } : { paddingBottom: insets.bottom + tokens.space[2] }}

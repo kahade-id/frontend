@@ -139,6 +139,7 @@ export default function TransferScreen() {
           <View>
             <Button
               fullWidth
+              haptic
               disabled={!selected || !isValidAmount(amount, AMOUNT_LIMITS.transfer)}
               onPress={() => setStep("pin")}
             >
@@ -250,7 +251,7 @@ export default function TransferScreen() {
           if (!submitting) setStep("form")
         }}
         title="Verifikasi PIN"
-        description={`Transfer ${formatRupiah(amount)} ke @${selected?.username ?? ""} memerlukan PIN dompet Anda.`}
+        description={`Transfer ${formatRupiah(amount)} ke @${selected?.username ?? ""} memerlukan PIN dompet Anda. PIN tidak akan terlihat.`}
         avoidKeyboard
       >
         <PinInput

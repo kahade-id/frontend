@@ -117,7 +117,7 @@ export function CopyableField({
           numberOfLines={wrap ? undefined : 1}
           selectable={!masked}
           accessibilityRole="text"
-          accessibilityLabel={masked ? undefined : `${label ? `${label}: ` : ""}${value}`}
+          accessibilityLabel={masked ? undefined : `${label ? `${label}: ` : ""}${value.length > 24 ? `${value.slice(0, 8)}… ${value.length} karakter, ketuk salin` : value}`}
           className="flex-1 py-3"
         >
           {shown}

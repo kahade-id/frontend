@@ -99,7 +99,9 @@ export function Header({
       <IconButton
         icon={backKind === "close" ? X : ArrowLeft}
         variant="ghost"
+        weight={backKind === "close" ? "bold" : undefined}
         accessibilityLabel={backKind === "close" ? "Tutup" : "Kembali"}
+        accessibilityHint={backKind === "close" ? "Menutup layar ini" : "Kembali ke layar sebelumnya"}
         onPress={handleBack}
       />
     ) : null)
@@ -146,13 +148,17 @@ export function Header({
         </View>
 
         {largeTitle ? (
-          <View className="px-6 pb-4 pt-1">
-            <Text variant="h1">{largeTitle}</Text>
+          <View accessibilityRole="header" className="px-6 pb-4 pt-1">
+            <Text variant="h1" accessibilityRole="header">{largeTitle}</Text>
           </View>
         ) : null}
       </View>
 
-      {progress != null ? <StepProgress value={progress} className="w-full" /> : null}
+      {progress != null ? (
+        <View accessibilityRole="progressbar" accessibilityValue={{ now: Math.round(progress*100), min: 0, max: 100 }} accessibilityLabel={`Progres ${Math.round(progress*100)} persen`}>
+          <StepProgress value={progress} className="w-full" />
+        </View>
+      ) : null}
     </View>
   )
 }

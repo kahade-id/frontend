@@ -77,7 +77,7 @@ export function BulletList({
         return (
           <View key={key} className="flex-row items-start gap-2">
             {/* Kolom marker: lebar tetap, tinggi satu baris teks */}
-            <View className="w-5 items-center justify-center" style={{ height: lineHeight }}>
+            <View className="w-5 items-center justify-center" style={{ height: lineHeight, paddingTop: variant === "caption" ? 0 : 1 }}>
               {marker === "bullet" ? (
                 <View className="h-[6px] w-[6px] rounded-full bg-text-tertiary" />
               ) : marker === "number" ? (

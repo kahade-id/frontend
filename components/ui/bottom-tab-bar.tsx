@@ -76,7 +76,12 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
  */
 export const TAB_BAR_HEIGHT = 60
 
-const TAB_ITEM_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, TAB_BAR_HEIGHT)
+/**
+ * Hit target: lebar tab ~72px di 360px/5 = 72 >44, tinggi 60 >44, tapi ikon 24 di tengah
+ * tetap butuh slop 10 horizontal agar tap di antara ikon-label tidak miss.
+ * Hitung eksplisit per sumbu, bukan asumsi tinggi saja.
+ */
+const TAB_ITEM_HIT_SLOP = hitSlopToReach(72, TAB_BAR_HEIGHT, 80)
 
 export function BottomTabBar<K extends string = string>({
   items,

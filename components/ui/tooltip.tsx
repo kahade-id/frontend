@@ -65,6 +65,7 @@ type Rect = { x: number; y: number; width: number; height: number }
 type Size = { width: number; height: number }
 
 const MAX_WIDTH = 260
+const MAX_WIDTH_MD = 320 // audit #113: di layar lebar 520, 260 terasa sempit (50% width)
 const GAP = tokens.space[1]
 const EDGE = tokens.space[4]
 

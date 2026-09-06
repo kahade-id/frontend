@@ -101,10 +101,11 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
       ref={ref}
       accessibilityRole="search"
       accessibilityLabel={placeholder}
+      accessibilityHint="Ketuk untuk mencari"
       scaleOnPress={false}
       containerClassName={cn("w-full", containerClassName)}
       className={cn(
-        "h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4",
+        "min-h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4 py-3",
         className,
       )}
       {...rest}

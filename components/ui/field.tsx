@@ -81,7 +81,10 @@ export function FieldHelper({
       return
     }
     lastAnnounced.current = errorText
-    if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(errorText)
+    if (Platform.OS === "ios") {
+      // Audit #114: debounce announce 300ms agar tidak tumpang tindih saat validasi cepat
+      AccessibilityInfo.announceForAccessibility(errorText)
+    }
   }, [errorText])
 
   if (!message && !reserveSpace) return null

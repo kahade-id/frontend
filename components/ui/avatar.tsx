@@ -112,7 +112,8 @@ export function Avatar({
   return (
     <View
       accessibilityRole="image"
-      accessibilityLabel={name ? `Foto ${name}` : "Foto profil"}
+      accessibilityLabel={name ? `Foto profil ${name}` : "Foto profil"}
+      accessibilityHint={verified ? "Akun terverifikasi" : undefined}
       className={cn("relative", sizeBox[size], className)}
       {...rest}
     >

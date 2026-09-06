@@ -157,6 +157,7 @@ export default function LoginScreen() {
               <EmailField
                 label="Email"
                 value={email}
+                helperText="Contoh: nama@email.com"
                 onChangeText={(t) => {
                   setEmail(t)
                   setFormError(null)
@@ -164,6 +165,8 @@ export default function LoginScreen() {
                 autoFocus
                 required
                 returnKeyType="next"
+                keyboardType="email-address"
+                autoCapitalize="none"
                 disabled={submitting}
               />
 

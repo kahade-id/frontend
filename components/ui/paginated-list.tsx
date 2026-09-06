@@ -39,7 +39,7 @@ const FILL = { flex: 1 } as const
 export function ListLoading() {
   return (
     <SkeletonGroup className="gap-4 py-4">
-      {Array.from({ length: 4 }, (_, index) => (
+      {Array.from({ length: 3 }, (_, index) => (
         <Skeleton key={index} shape="card" className="h-24 w-full" />
       ))}
     </SkeletonGroup>
@@ -60,7 +60,7 @@ export function DetailLoading() {
   return (
     <SkeletonGroup className="gap-4 py-4">
       <Skeleton className="h-6 w-2/5" />
-      <Skeleton shape="card" className="h-32 w-full" />
+      <Skeleton shape="card" className="h-[120px] w-full" />
       <SkeletonText lines={3} />
     </SkeletonGroup>
   )

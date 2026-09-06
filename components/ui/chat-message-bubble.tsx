@@ -127,11 +127,12 @@ export function ChatMessageBubble({
     </View>
   )
 
+  const statusText = !outgoing ? undefined : status === "sending" ? "Mengirim" : status === "sent" ? "Terkirim" : status === "delivered" ? "Sampai" : status === "read" ? "Dibaca" : undefined
   const a11yLabel = [
     outgoing ? "Anda" : senderName ?? "Pesan masuk",
     text,
     time,
-    failed ? t.failed : undefined,
+    failed ? t.failed : statusText,
   ]
     .filter(Boolean)
     .join(", ")
@@ -210,14 +211,14 @@ export function ChatMessageBubble({
 function StatusGlyph({ status }: { status: Exclude<ChatMessageStatus, "failed"> }) {
   switch (status) {
     case "sending":
-      return <Icon icon={Clock} size="xs" tone="default" accessibilityLabel="Mengirim" />
+      return <Icon icon={Clock} size="xs" tone="default" />
     case "sent":
-      return <Icon icon={Check} size="xs" tone="default" accessibilityLabel="Terkirim" />
+      return <Icon icon={Check} size="xs" tone="default" />
     case "delivered":
-      return <Icon icon={Checks} size="xs" tone="default" accessibilityLabel="Sampai" />
+      return <Icon icon={Checks} size="xs" tone="default" />
     case "read":
       return (
-        <Icon icon={Checks} size="xs" tone="active" weight="bold" accessibilityLabel="Dibaca" />
+        <Icon icon={Checks} size="xs" tone="active" weight="bold" />
       )
   }
 }

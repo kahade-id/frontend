@@ -79,7 +79,7 @@ export type DataScreenProps = {
   /** Prop <Header> lain (right, showBack, largeTitle, …). */
   header?: Omit<HeaderProps, "title">
   state: DataScreenState
-  /** Teks di bawah logo saat muat pertama. */
+  /** Teks di bawah logo saat muat pertama — isi dengan konteks (audit #045: "Memuat" tanpa konteks = SR bingung). */
   loadingMessage?: string
   /** Judul <ErrorState>; deskripsinya selalu `state.error`. */
   errorTitle?: string

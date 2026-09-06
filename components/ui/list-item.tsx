@@ -52,6 +52,7 @@ export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> 
   /** Disable row padding when the parent already applies the screen inset. */
   padded?: boolean
   /** Caption text-secondary ATAU node (mis. nomor rekening Mono) — simetris dengan `trailing` */
+  /** Caption text-secondary — potong 2 baris agar list tetap 56 tinggi */
   subtitle?: string | ReactNode
   /** Ikon Phosphor (tone default) ATAU node kustom (Avatar, IconBox) */
   leading?: IconComponent | ReactNode

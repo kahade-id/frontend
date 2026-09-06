@@ -62,6 +62,7 @@ const variantClass: Record<CardVariant, string> = {
 /** Border: inverted memakai warna primary agar tidak ada garis abu di tepi fill hitam */
 function borderClass(variant: CardVariant, selected: boolean) {
   if (selected) return "border-focus border-border-focus"
+  // audit #088: secondary outline di atas surface harus elevated agar border 3.32:1 terlihat; logic di pemanggil (Screen bg)
   return variant === "inverted" ? "border border-primary" : "border border-border"
 }
 

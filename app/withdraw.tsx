@@ -218,6 +218,7 @@ export default function WithdrawScreen() {
           <View>
             <Button
               fullWidth
+              haptic
               disabled={
                 !isValidAmount(amount, AMOUNT_LIMITS.withdraw) || !accountId || loading || !!error
               }

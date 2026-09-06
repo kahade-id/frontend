@@ -65,7 +65,7 @@ export function Chip({
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
-      hitSlop={{ top: tokens.space[2], bottom: tokens.space[2] }}
+      hitSlop={{ top: tokens.space[2], bottom: tokens.space[2], left: tokens.space[1], right: tokens.space[1] }}
       containerClassName={cn("self-start rounded-full", focusRing, containerClassName)}
       className={cn(
         "h-8 flex-row items-center gap-1 rounded-full px-3",

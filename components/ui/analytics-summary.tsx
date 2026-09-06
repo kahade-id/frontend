@@ -115,7 +115,7 @@ export function AnalyticsSummary({
             series="primary"
             showValues
             formatValue={formatChartValue}
-            accessibilityLabel={`${chartTitle}${periodLabel ? `, ${periodLabel}` : ""}`}
+            accessibilityLabel={`${chartTitle}${periodLabel ? `, ${periodLabel}` : ""} — ${chart?.length ?? 0} periode`}
           />
         </Card>
       ) : null}

@@ -176,8 +176,8 @@ export default function HomeScreen() {
         }}
       >
         {/* ── Identitas: salam + profil ───────────────────────── */}
-        <View className="px-6 pt-4">
-          <Text variant="caption" tone="secondary">
+        <View accessibilityRole="text" className="px-6 pt-4">
+          <Text variant="caption" tone="secondary" accessibilityLabel={`${greetingByHour()}, pengguna`}>
             {greetingByHour()},
           </Text>
         </View>

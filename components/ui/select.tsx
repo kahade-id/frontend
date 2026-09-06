@@ -130,7 +130,7 @@ export function Select<V extends string = string>({
             pointerEvents="none"
             className={cn(
               "absolute left-0 items-start",
-              floated ? "-top-[9px]" : "inset-y-0 justify-center",
+              floated ? "-top-2" : "inset-y-0 justify-center",
             )}
           >
             <View className={cn("-mx-1 px-1", floated && "bg-background")}>
@@ -161,7 +161,7 @@ export function Select<V extends string = string>({
           ) : null}
         </View>
 
-        <View className="ml-2">
+        <View className="ml-2" style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}>
           <Icon icon={CaretDown} size="sm" tone={open ? "active" : "default"} />
         </View>
       </PressableScale>

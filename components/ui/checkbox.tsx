@@ -133,7 +133,7 @@ export function Checkbox({
       accessibilityState={{ checked: indeterminate ? "mixed" : checked, disabled }}
       disabled={disabled}
       scaleOnPress={false}
-      onPress={() => onChange(!checked)}
+      onPress={() => { onChange(!checked); import("@/lib/haptics").then(m=>m.haptic("light")); }}
       hitSlop={hitSlop}
       // rounded-xs di container hanya untuk bentuk ring (container tak punya bg/border)
       containerClassName={cn("self-start rounded-xs", focusRing, containerClassName)}

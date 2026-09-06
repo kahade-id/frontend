@@ -311,6 +311,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={secure ? "Tampilkan kata sandi" : "Sembunyikan kata sandi"}
+            accessibilityHint={secure ? "Menampilkan kata sandi sebagai teks" : "Menyembunyikan kata sandi"}
+            accessibilityState={{ checked: !secure }}
             className="ml-2"
           >
             <Icon icon={secure ? Eye : EyeSlash} size="sm" />

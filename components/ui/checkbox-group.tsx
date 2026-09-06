@@ -149,7 +149,7 @@ export function CheckboxGroupItem({
       onPress={() => ctx.toggle(value)}
       containerClassName="w-full"
       className={cn(
-        "flex-row items-start gap-3 rounded-md bg-surface p-5",
+        "flex-row items-start gap-3 rounded-md bg-surface p-5 border border-transparent",
         ctx.error
           ? "border-error border-border-error"
           : checked

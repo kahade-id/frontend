@@ -46,6 +46,7 @@ export type UserListItemProps = Omit<ViewProps, "children"> & {
   /** Baris pengguna yang diblokir — diredupkan */
   blocked?: boolean
   onPress?: () => void
+  /** Divider inset 60px = 24+24+12 (token derived) — audit #... */
   divider?: boolean
   className?: string
 }

@@ -46,6 +46,7 @@ export type DividerProps = Omit<ViewProps, "children"> & {
 
 const toneClass: Record<DividerTone, string> = {
   default: "bg-border",
+  // subtle: dekoratif murni (§2.2), hanya di dalam card, bukan antar section (audit #063: functional divider must be default)
   subtle: "bg-gray-300 dark:bg-border",
 }
 

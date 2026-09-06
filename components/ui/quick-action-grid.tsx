@@ -51,10 +51,11 @@ export function QuickActionGrid({ actions, className, ...rest }: QuickActionGrid
         <PressableScale
           key={a.key}
           accessibilityRole="button"
-          accessibilityLabel={a.badge ? `${a.label}, ${a.badge}` : a.label}
-          accessibilityHint={a.accessibilityHint}
+          accessibilityLabel={a.badge ? `${a.label}, ${a.badge} notifikasi baru` : a.label}
+          accessibilityHint={a.accessibilityHint ?? `Buka ${a.label}`}
           accessibilityState={{ disabled: a.disabled }}
           disabled={a.disabled}
+          haptic
           onPress={a.onPress}
           containerClassName={cn("w-1/4", focusRingInset)}
           className={cn("items-center gap-2 px-1 py-2", a.disabled && "opacity-disabled")}

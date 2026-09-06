@@ -257,7 +257,7 @@ export function BottomSheet({
     <View>
       {showHandle ? (
         <View className="items-center pt-2 pb-1">
-          <View className="h-1 w-10 rounded-full bg-border" />
+          <View accessible accessibilityLabel="Tarik untuk menutup" accessibilityRole="adjustable" className="h-1 w-10 rounded-full bg-border" />
         </View>
       ) : null}
 

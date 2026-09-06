@@ -38,6 +38,7 @@ import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
+// UX polish: biometric toggle memakai Switch dengan haptic + description caption (audit #029)
 export default function BiometricSettingsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()

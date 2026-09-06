@@ -97,6 +97,7 @@ export function ErrorState({
         <View className={cn("items-center gap-2", compact ? "pt-1" : "pt-2")}>
           {onRetry ? (
             <Button
+              haptic
               variant="secondary"
               size={compact ? "sm" : "md"}
               fullWidth={false}

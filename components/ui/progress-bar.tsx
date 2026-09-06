@@ -46,7 +46,7 @@ const fillClass: Record<ProgressTone, string> = {
 }
 
 const trackHeight: Record<ProgressSize, string> = {
-  sm: "h-1",
+  sm: "h-1.5",
   md: "h-2",
 }
 

@@ -98,7 +98,10 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         onPress={() => inputRef.current?.focus()}
         disabled={disabled}
         accessibilityRole="none"
-        className={cn("flex-row justify-between gap-2", disabled && "opacity-disabled")}
+        accessibilityLabel={`Kode ${length} digit, ${code.length} dari ${length} terisi`}
+        accessibilityValue={{ text: `${code.length} dari ${length}` }}
+        className={cn("flex-row justify-between gap-2", disabled && "opacity-disabled", focused && "web:focus-visible:outline-none web:focus-visible:ring-2 web:focus-visible:ring-border-focus")}
+
       >
         {Array.from({ length }, (_, i) => {
           const char = code[i]
@@ -145,7 +148,8 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         caretHidden
         allowFontScaling={false}
         selectionColor={tokens.colors[mode].primary}
-        accessibilityLabel={`Kode ${length} digit`}
+        accessibilityLabel={`Kode ${length} digit, ${code.length} dari ${length} terisi`}
+        accessibilityValue={{ text: `${code.length} dari ${length}` }}
         accessibilityState={{ disabled }}
         className="absolute h-1 w-1 opacity-0"
       />

@@ -177,6 +177,8 @@ export function WalletBalanceCard({
               key={a.key}
               accessibilityRole="button"
               accessibilityLabel={a.label}
+              accessibilityHint={`Buka ${a.label}`}
+              haptic
               onPress={a.onPress}
               disabled={a.disabled}
               containerClassName="flex-1"

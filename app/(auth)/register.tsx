@@ -190,6 +190,7 @@ export default function RegisterScreen() {
             </View>
 
             <PhoneInput
+              accessibilityLabel="Nomor HP Indonesia"
               ref={phoneRef}
               value={digits}
               onChangeText={handleDigits}

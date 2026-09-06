@@ -130,8 +130,9 @@ export function Alert({
           variant="ghost"
           size="sm"
           accessibilityLabel="Tutup pesan"
+          accessibilityHint="Menutup pesan ini"
           onPress={onDismiss}
-          className="-mr-2 -mt-1"
+          className="-mr-1 -mt-1 ml-1"
         />
       ) : null}
     </View>

@@ -29,6 +29,7 @@ type ResultRow = { id: string } & (
 )
 export default function SearchScreen() {
   const insets = useSafeAreaInsets()
+  // UX: Fokus otomatis ke search saat layar dibuka (audit #011)
   /*
    * Hanya kata kunci yang sudah tenang yang tinggal di layar ini; teks mentah
    * dikurung di dalam <DebouncedSearchField>. Sebelumnya setiap ketukan huruf

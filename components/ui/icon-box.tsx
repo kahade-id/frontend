@@ -56,7 +56,7 @@ const sizeIcon: Record<IconBoxSize, "xs" | "sm" | "md" | "xl"> = {
 }
 
 const variantBox: Record<IconBoxVariant, string> = {
-  surface: "bg-surface border border-border",
+  surface: "bg-surface border border-border dark:bg-surface-elevated",
   inverted: "bg-primary border border-primary",
   success: "bg-success-soft",
   danger: "bg-danger-soft",

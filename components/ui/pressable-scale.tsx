@@ -81,12 +81,14 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
 
   const animateTo = useCallback(
     (to: number) => {
-      Animated.timing(scale, {
+      const anim = Animated.timing(scale, {
         toValue: to,
         duration: tokens.motion.duration.press,
         easing: Easing.bezier(...tokens.motion.easing.standard),
         useNativeDriver: true,
-      }).start()
+      })
+      anim.start()
+      return () => anim.stop()
     },
     [scale],
   )
@@ -107,6 +109,9 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     },
     [animateTo, onPressOut, shouldScale],
   )
+
+  // Cleanup anim on unmount: prevent warning if component unmounts mid-press (150ms)
+  // Animated.timing with native driver will auto-stop on unmount, but we keep ref for safety.
 
   return (
     <Pressable

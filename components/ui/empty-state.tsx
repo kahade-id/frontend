@@ -63,7 +63,7 @@ export function EmptyState({
     >
       <IconBox icon={icon} size={compact ? "lg" : "xl"} variant="surface" weight="regular" />
 
-      <View className={cn("items-center", compact ? "gap-1" : "gap-2", "max-w-[320px]")}>
+      <View className={cn("items-center", compact ? "gap-1" : "gap-2", "max-w-[320px] mx-auto")}>
         {compact ? (
           <Text variant="body" weight={600} className="text-center">
             {title}

@@ -103,7 +103,7 @@ export function Button({
       accessibilityRole="button"
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
-      hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1] } : undefined}
+      hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1], left: tokens.space[1], right: tokens.space[1] } : undefined}
       containerClassName={cn(fullWidth ? "w-full" : "self-start", containerClassName)}
       className={cn(
         "flex-row items-center justify-center rounded-sm",
