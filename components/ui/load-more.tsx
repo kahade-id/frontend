@@ -65,7 +65,7 @@ export function LoadMore({
       ) : null}
 
       {status === "idle" ? (
-        <Button variant="ghost" size="sm" fullWidth={false} onPress={onLoadMore}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" size="sm" fullWidth={false} onPress={onLoadMore}>
           {idleLabel}
         </Button>
       ) : null}

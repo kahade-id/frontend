@@ -187,7 +187,7 @@ export default function TransactionTemplatesScreen() {
               <EmptyState
                 icon={NotePencil}
                 title="Belum ada template"
-                action={<Button onPress={openCreate}>Buat Template</Button>}
+                action={<Button accessibilityHint="Ketuk untuk berinteraksi" onPress={openCreate}>Buat Template</Button>}
               />
             ) : (
               items.map((t) => (

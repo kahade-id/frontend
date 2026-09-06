@@ -140,7 +140,7 @@ export default function OrderLinkScreen() {
               accepting={accepting}
             />
             {!active ? (
-              <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
+              <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
                 Kembali
               </Button>
             ) : null}

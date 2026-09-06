@@ -152,7 +152,7 @@ export function SubscriptionStatusCard({
           </Text>
         </View>
         {onBrowsePlans ? (
-          <Button variant="secondary" onPress={onBrowsePlans}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" onPress={onBrowsePlans}>
             {t.browsePlans}
           </Button>
         ) : null}
@@ -168,7 +168,7 @@ export function SubscriptionStatusCard({
     // yang akan tertelan `accessible` root (audit #4).
     <Card className={cn("gap-4", className)} {...rest}>
       <CardSummary
-        className="gap-4"
+        className="gap-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         label={summarize([
           planName,
           t[s],
@@ -180,7 +180,7 @@ export function SubscriptionStatusCard({
       >
         <View className="flex-row items-start justify-between gap-3">
           <View className="flex-1 gap-1">
-            <Text variant="h3" tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="h3" tone="primary" numberOfLines={1}>
               {planName}
             </Text>
             {daysLeft != null && (s === "ACTIVE" || s === "EXPIRING" || s === "CANCELLED") ? (

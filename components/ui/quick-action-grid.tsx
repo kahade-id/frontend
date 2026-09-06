@@ -70,7 +70,7 @@ export function QuickActionGrid({ actions, className, ...rest }: QuickActionGrid
               </View>
             ) : null}
           </View>
-          <Text variant="caption" tone="primary" numberOfLines={2} className="text-center">
+          <Text ellipsizeMode="tail" variant="caption" tone="primary" numberOfLines={2} className="text-center">
             {a.label}
           </Text>
         </PressableScale>

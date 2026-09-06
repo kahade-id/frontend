@@ -81,7 +81,7 @@ export function DateField({
       disabled={disabled}
       className={containerClassName}
     >
-      <PressableScale
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityValue={{ text: hasValue ? formatValue(value) : undefined }}
@@ -115,7 +115,7 @@ export function DateField({
             )}
           >
             <View className={cn("-mx-1 px-1", floated && "bg-background")}>
-              <Text
+              <Text ellipsizeMode="tail"
                 variant={floated ? "caption" : "bodyLarge"}
                 tone={hasError ? "danger" : open ? "primary" : "secondary"}
                 numberOfLines={1}

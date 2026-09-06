@@ -41,7 +41,7 @@ export function Truncate({
   const shown = truncateMiddle(value, head, tail)
 
   return (
-    <Text
+    <Text accessibilityHint="Ketuk untuk detail"
       variant={variant}
       tone={tone}
       numberOfLines={1}

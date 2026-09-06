@@ -86,7 +86,7 @@ export function SegmentedControl<V extends string = string>({
         const active = item.value === value
         const isDisabled = disabled || item.disabled
         return (
-          <PressableScale
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
             key={item.value}
             accessibilityRole="radio"
             accessibilityState={{ checked: active, disabled: !!isDisabled }}

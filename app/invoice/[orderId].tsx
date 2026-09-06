@@ -118,7 +118,7 @@ export default function InvoiceScreen() {
               onCopyNumber={(n) => void copy(n)}
               onDownload={() => void handleDownload(invoice.order.id)}
             />
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               variant="ghost"
               fullWidth={false}
               onPress={() => void handleDownload(invoice.order.id)}

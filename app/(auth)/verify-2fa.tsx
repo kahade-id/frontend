@@ -212,7 +212,7 @@ export default function VerifyTwoFactorScreen() {
               />
             )}
 
-            <Button onPress={() => void handleVerify()} loading={verifying} disabled={!canSubmit || tokenExpired}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => void handleVerify()} loading={verifying} disabled={!canSubmit || tokenExpired}>
               Verifikasi
             </Button>
 

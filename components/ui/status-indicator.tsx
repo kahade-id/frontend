@@ -99,7 +99,7 @@ export function StatusIndicator({
       <Animated.View style={{ opacity }}>
         <Dot tone={tone} size={size === "sm" ? "sm" : "md"} />
       </Animated.View>
-      <Text variant={size === "sm" ? "caption" : "body"} weight={500} tone={textTone[tone]}>
+      <Text accessibilityHint="Ketuk untuk detail" variant={size === "sm" ? "caption" : "body"} weight={500} tone={textTone[tone]}>
         {label}
       </Text>
     </View>

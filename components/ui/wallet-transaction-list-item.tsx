@@ -147,7 +147,7 @@ export function WalletTransactionListItem({
       subtitle={subtitle || undefined}
       leading={<IconBox icon={KIND_ICON[kind]} size="md" variant={failed ? "danger" : "surface"} />}
       trailing={
-        <View accessible={false} className="items-end gap-1">
+        <View accessible={false} className="items-end gap-1 tabular-nums">
           <Amount
             value={signed}
             size="body"

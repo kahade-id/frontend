@@ -270,7 +270,7 @@ export default function SecurityScreen() {
                 onLoadMore={() => void loadSessions(sessions.page + 1).catch(() => undefined)}
                 hideEnd
               />
-              <Button
+              <Button accessibilityHint="Ketuk untuk berinteraksi"
                 variant="ghost"
                 onPress={() => setConfirmOthers(true)}
                 disabled={otherSessions === 0}

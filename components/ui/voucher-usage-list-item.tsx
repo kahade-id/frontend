@@ -40,7 +40,7 @@ export function VoucherUsageListItem({ title, code, savedAmount, orderId, usedAt
     <ListItem
       title={title}
       subtitle={
-        <Text variant="caption" tone="secondary" numberOfLines={1}>
+        <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
           <Text variant="inherit" tone="secondary" className="font-mono-500 tracking-mono tabular-nums">
             {meta}
           </Text>

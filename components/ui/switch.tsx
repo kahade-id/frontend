@@ -96,7 +96,7 @@ export function Switch({
   const hasText = label != null || description != null
 
   return (
-    <Pressable
+    <Pressable accessibilityHint="Ketuk untuk berinteraksi"
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}

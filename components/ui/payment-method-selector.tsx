@@ -182,8 +182,8 @@ export function PaymentMethodSelector({
             disabled={isDisabled}
             leading={<Icon icon={m.icon ?? kindIcon[m.kind]} size="sm" />}
             label={
-              <View accessible={false} className="flex-row flex-wrap items-center gap-2">
-                <Text
+              <View accessible={false} className="flex-row flex-wrap items-center gap-2 tabular-nums">
+                <Text accessibilityHint="Ketuk untuk detail"
                   variant="body"
                   weight={500}
                   tone={isDisabled ? "disabled" : "primary"}

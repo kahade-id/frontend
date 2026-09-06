@@ -354,7 +354,7 @@ export default function NotificationsScreen() {
           title={selectedCount > 0 ? `${selectedCount} dipilih` : "Pilih notifikasi"}
           showBack={false}
           left={
-            <IconButton
+            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
               icon={X}
               variant="ghost"
               accessibilityLabel="Batal memilih"

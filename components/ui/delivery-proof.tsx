@@ -107,7 +107,7 @@ export function DeliveryProofForm({
         showCount
       />
 
-      <Button onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
+      <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
         Kirim bukti
       </Button>
     </View>

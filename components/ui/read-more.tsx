@@ -90,7 +90,7 @@ export function ReadMore({
     <View accessible={false} className={cn("w-full gap-1", className)} {...rest}>
       {/* Pengukur: render penuh tak terlihat, hanya sekali saat belum terukur */}
       {measuredLines == null ? (
-        <Text
+        <Text accessibilityHint="Ketuk untuk detail"
           variant={variant}
           tone={tone}
           onTextLayout={onLayout}
@@ -102,7 +102,7 @@ export function ReadMore({
         </Text>
       ) : null}
 
-      <Text variant={variant} tone={tone} numberOfLines={expanded ? undefined : lines}>
+      <Text ellipsizeMode="tail" variant={variant} tone={tone} numberOfLines={expanded ? undefined : lines}>
         {text}
       </Text>
 

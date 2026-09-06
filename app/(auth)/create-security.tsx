@@ -178,7 +178,7 @@ export default function CreateSecurityScreen() {
 
           {/* Footer: tombol Lanjut */}
           <FooterBar>
-            <Button onPress={handleProceedToPin} disabled={!canProceed}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={handleProceedToPin} disabled={!canProceed}>
               Lanjut
             </Button>
           </FooterBar>

@@ -134,10 +134,10 @@ export function VoucherRedeemBox({
         <View
           accessible
           accessibilityLabel={`${t.heading} ${applied.code.split("").join(" ")}, ${t.applied}${applied.title ? `, ${applied.title}` : ""}`}
-          className="flex-1 gap-0"
+          className="flex-1 gap-0 tabular-nums"
         >
           <View className="flex-row items-center gap-2">
-            <Text variant="monoBody" numberOfLines={1} className="shrink">
+            <Text ellipsizeMode="tail" variant="monoBody" numberOfLines={1} className="shrink">
               {applied.code}
             </Text>
             <Badge tone="success">{t.applied}</Badge>
@@ -152,7 +152,7 @@ export function VoucherRedeemBox({
           <Amount value={-Math.abs(applied.discount as number)} tone="success" />
         ) : null}
         {onRemove ? (
-          <IconButton
+          <IconButton accessibilityHint="Ketuk untuk berinteraksi"
             icon={X}
             size="sm"
             variant="ghost"

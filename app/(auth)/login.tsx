@@ -187,7 +187,7 @@ export default function LoginScreen() {
             </VStack>
 
             {/* Submit button */}
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               onPress={() => void handleLogin()}
               loading={submitting}
               disabled={!isFormValid}

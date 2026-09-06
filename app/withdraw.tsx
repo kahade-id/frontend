@@ -216,7 +216,7 @@ export default function WithdrawScreen() {
       footer={
         step === "form" ? (
           <View accessible={false}>
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               fullWidth
               haptic
               disabled={

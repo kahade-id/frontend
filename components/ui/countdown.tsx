@@ -149,7 +149,7 @@ export function Countdown({
       {...rest}
     >
       {prefix ? (
-        <Text variant={large ? "body" : "caption"} tone={tone}>
+        <Text accessibilityHint="Ketuk untuk detail" variant={large ? "body" : "caption"} tone={tone}>
           {prefix}
         </Text>
       ) : null}

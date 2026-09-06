@@ -104,7 +104,7 @@ export function OrderSummaryStrip({
           accessibilityLabel={`${t.heldTitle} ${formatNumber(heldAmount)} rupiah`}
           className="h-[84px] w-[156px] justify-between gap-2 rounded-md border border-border bg-surface-elevated p-4"
         >
-          <Text variant="caption" tone="secondary" numberOfLines={1}>
+          <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
             {t.heldTitle}
           </Text>
           <Amount value={heldAmount} size="body" tone="primary" compact />
@@ -120,7 +120,7 @@ export function OrderSummaryStrip({
         const interactive = !!onSelect && !empty
 
         return (
-          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             key={item.key}
             scaleOnPress={false}
             disabled={!interactive}

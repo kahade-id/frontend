@@ -256,7 +256,7 @@ export default function RegisterScreen() {
 
         {/* Footer: CTA + jalan ke login. Pola border-t mengikuti slot footer Screen. */}
         <FooterBar>
-          <Button
+          <Button accessibilityHint="Ketuk untuk berinteraksi"
             onPress={() => void handleSubmit()}
             loading={submitting}
             disabled={methodsLoading}

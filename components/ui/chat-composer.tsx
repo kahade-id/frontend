@@ -181,7 +181,7 @@ export function ChatComposer({
       {replyTo ? (
         <View className="flex-row items-center gap-3 rounded-sm border-l-2 border-border-focus bg-surface py-2 pl-3 pr-1">
           <View className="flex-1">
-            <Text variant="caption" weight={600} tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="caption" weight={600} tone="primary" numberOfLines={1}>
               {t.replyingTo} {replyTo.senderName}
             </Text>
             <Text variant="caption" tone="secondary" numberOfLines={1}>
@@ -252,7 +252,7 @@ export function ChatComposer({
             {...inputProps}
           />
           {showCount ? (
-            <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessible={false} className="pb-3 pl-2">
+            <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessible={false} className="pb-3 pl-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               <Text variant="caption" tone={value.length >= maxLength ? "danger" : "secondary"} className="tabular-nums">
                 {value.length}/{maxLength}
               </Text>

@@ -33,7 +33,7 @@ export default function SupportScreen() {
           title: "Belum ada tiket",
           description: "Buat tiket melalui menu Hubungi Kami.",
           action: (
-            <Button variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.contact)}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.contact)}>
               Hubungi Kami
             </Button>
           ),

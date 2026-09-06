@@ -135,7 +135,7 @@ export function RatingReviewCard({
           <View className="flex-1 flex-row items-center gap-2">
             <Avatar source={reviewer.avatar} name={reviewer.name} size="sm" verified={reviewer.verified} />
             <View className="flex-1">
-              <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+              <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
                 {reviewer.name}
               </Text>
               <DateText value={date} format="date" variant="caption" tone="secondary" />
@@ -198,7 +198,7 @@ export function RatingReviewCard({
           ) : null}
         </View>
       ) : onReply ? (
-        <Button variant="secondary" size="sm" onPress={onReply}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" size="sm" onPress={onReply}>
           {t.reply}
         </Button>
       ) : null}
@@ -216,7 +216,7 @@ export function RatingReviewCardSkeleton({ className, ...rest }: Omit<ViewProps,
       accessibilityLabel="Memuat ulasan"
       {...rest}
     >
-      <View className="flex-row items-center justify-between gap-3">
+      <View className="flex-row items-center justify-between gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <View className="flex-1 flex-row items-center gap-2">
           <Skeleton shape="circle" width={32} height={32} />
           <View className="gap-1">

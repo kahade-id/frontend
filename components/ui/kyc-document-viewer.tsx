@@ -165,7 +165,7 @@ function DocumentImage({
     const row = (
       <View accessible={false} className="flex-row items-center gap-3 rounded-sm border border-border bg-surface px-3 py-3">
         <Icon icon={FilePdf} size="sm" />
-        <Text variant="body" className="flex-1" numberOfLines={1}>
+        <Text ellipsizeMode="tail" variant="body" className="flex-1" numberOfLines={1}>
           {doc.file.name}
         </Text>
         {doc.file.size != null ? (
@@ -197,7 +197,7 @@ function DocumentImage({
       alt={t.alt(label)}
       aspectRatio={aspectByType[doc.type]}
       resizeMode="contain"
-      className="w-full"
+      className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     />
   )
 

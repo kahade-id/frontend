@@ -193,7 +193,7 @@ export default function BankAccountsScreen() {
                 .filter((acc) => !acc.isPrimary)
                 .map((acc) => (
                   <View key={`actions-${acc.id}`} className="flex-row gap-2">
-                    <Button
+                    <Button accessibilityHint="Ketuk untuk berinteraksi"
                       variant="ghost"
                       size="sm"
                       fullWidth={false}

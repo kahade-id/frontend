@@ -49,6 +49,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 // UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
@@ -88,6 +89,7 @@ export function Modal({
   children,
   className,
 }: ModalProps) {
+  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
   const dismiss = dismissOnBackdrop ? onRequestClose : undefined
   const contentRef = useRef<View>(null)
@@ -212,7 +214,7 @@ export function Dialog({
   const titleRef = useRef<RNText>(null)
 
   const confirmButton = (
-    <Button
+    <Button accessibilityHint="Ketuk untuk berinteraksi"
       variant={destructive ? "destructive" : "primary"}
       loading={loading}
       onPress={onConfirm}
@@ -241,7 +243,7 @@ export function Dialog({
       initialFocusRef={titleRef}
       {...modalProps}
     >
-      <View className="gap-4">
+      <View className="gap-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         {icon ? (
           <View className="self-start rounded-sm border border-border p-2">
             <Icon icon={icon} size="md" tone={iconToneOf[tone]} />

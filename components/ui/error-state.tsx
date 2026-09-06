@@ -38,7 +38,7 @@ export type ErrorStateProps = Omit<ViewProps, "children"> & {
   retryLabel?: string
   /** Spinner di tombol retry saat request ulang berjalan */
   retrying?: boolean
-  /** Aksi tambahan (mis. <Button variant="ghost" fullWidth={false}>) */
+  /** Aksi tambahan (mis. <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" fullWidth={false}>) */
   action?: ReactNode
   /** Versi rapat untuk di dalam Card/Section */
   compact?: boolean
@@ -73,7 +73,7 @@ export function ErrorState({
 
       <View className={cn("items-center max-w-[320px]", compact ? "gap-1" : "gap-2")}>
         {compact ? (
-          <Text variant="body" weight={600} className="text-center">
+          <Text variant="body" weight={600} className="text-center tabular-nums focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             {title}
           </Text>
         ) : (
@@ -87,7 +87,7 @@ export function ErrorState({
           </Text>
         ) : null}
         {detail ? (
-          <MonoText tone="secondary" className="text-center text-caption" numberOfLines={1}>
+          <MonoText tone="secondary" className="text-center text-caption" ellipsizeMode="tail" numberOfLines={1}>
             {detail}
           </MonoText>
         ) : null}

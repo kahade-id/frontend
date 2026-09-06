@@ -144,7 +144,7 @@ export function SupportTicketCard({
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           {unread ? <Dot size="md" tone="primary" /> : null}
-          <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500 tracking-mono">
+          <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500 tracking-mono">
             {ticketNumber}
           </Text>
         </View>

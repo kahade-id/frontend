@@ -57,7 +57,7 @@ export function Amount({
 }: AmountProps) {
   const text = hidden ? HIDDEN : formatRupiah(value, { sign, compact })
   return (
-    <Text
+    <Text ellipsizeMode="tail"
       variant={size === "large" ? "monoLarge" : "monoBody"}
       tone={tone}
       numberOfLines={1}

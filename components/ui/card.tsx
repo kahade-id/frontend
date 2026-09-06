@@ -182,7 +182,7 @@ export function CardHeader({
       <View className={cn("flex-row items-center gap-3 px-5 py-4", className)} {...rest}>
         <View className="flex-1 gap-1">
           {title ? (
-            <Text variant="h3" tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="h3" tone="primary" numberOfLines={1}>
               {title}
             </Text>
           ) : null}

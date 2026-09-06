@@ -105,7 +105,7 @@ export function BottomTabBar<K extends string = string>({
         {items.map((item) => {
           const active = item.key === value
           return (
-            <PressableScale
+            <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
               key={item.key}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
@@ -121,7 +121,7 @@ export function BottomTabBar<K extends string = string>({
                 <Icon icon={item.icon} size="md" active={active} />
                 <NotificationDot visible={!!item.badge} />
               </View>
-              <Text
+              <Text ellipsizeMode="tail"
                 variant="caption"
                 weight={active ? 600 : 500}
                 tone={active ? "primary" : "secondary"}

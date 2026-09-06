@@ -122,12 +122,12 @@ export function OrderLinkShareCard({
 
   return (
     <Card padded className={cn("gap-5", className)} {...rest}>
-      <View className="flex-row items-start gap-2">
+      <View className="flex-row items-start gap-2 tabular-nums">
         <View className="flex-1 gap-1">
           <Text variant="label" tone="secondary">
             {t.heading}
           </Text>
-          <Text variant="h3" numberOfLines={2}>
+          <Text ellipsizeMode="tail" variant="h3" numberOfLines={2}>
             {title}
           </Text>
           {orderCode ? (
@@ -154,7 +154,7 @@ export function OrderLinkShareCard({
           {displayOrderUrl(url)}
         </Text>
         {onCopy ? (
-          <IconButton icon={Copy} size="sm" variant="ghost" accessibilityLabel={t.copy} onPress={() => onCopy(url)} />
+          <IconButton accessibilityHint="Ketuk untuk berinteraksi" icon={Copy} size="sm" variant="ghost" accessibilityLabel={t.copy} onPress={() => onCopy(url)} />
         ) : null}
       </View>
 
@@ -165,7 +165,7 @@ export function OrderLinkShareCard({
       ) : null}
 
       {onOpen || onCancel ? (
-        <View className="flex-row flex-wrap gap-2">
+        <View className="flex-row flex-wrap gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           {onOpen ? (
             <Button variant="secondary" size="sm" fullWidth={false} onPress={onOpen}>
               {t.open}

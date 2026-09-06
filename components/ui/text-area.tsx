@@ -14,7 +14,7 @@
  *     tinggi 18px hanya untuk angka kecil. `reserveHelperSpace` dipaksa true
  *     saat penghitung tampil agar baris itu selalu ada untuk ditumpangi.
  *   - Angka penghitung memakai Sofia Sans caption + tabular-nums (bawaan
- *     <Text>), BUKAN Mono — §3.1: Mono untuk data yang berdiri sendiri
+ *     <Text accessibilityHint="Ketuk untuk detail">), BUKAN Mono — §3.1: Mono untuk data yang berdiri sendiri
  *     (nominal, ID); penghitung adalah meta UI kecil.
  *   - Saat mencapai batas (`length >= maxLength`), penghitung memakai tone
  *     danger dan weight 500 — sinyal validasi, bukan status (sejalan dengan

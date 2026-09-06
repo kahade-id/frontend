@@ -23,7 +23,7 @@
  *     saldo, card inverted §9.6).
  *   - `assets/brand/logo-paths.ts` sengaja tidak menyimpan warna; JANGAN
  *     menambahkan fill di sana.
- *   - Tidak pakai <Text> RN langsung — tetap lewat wrapper (§3 fixed scale).
+ *   - Tidak pakai <Text accessibilityHint="Ketuk untuk detail"> RN langsung — tetap lewat wrapper (§3 fixed scale).
  */
 import { Image, View, type ImageSourcePropType, type ViewProps } from "react-native"
 import Svg, { G, Path } from "react-native-svg"
@@ -33,6 +33,7 @@ import { useTheme } from "@/components/theme-provider"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type LogoSize = "sm" | "md" | "lg"
 export type LogoVariant = "mark" | "wordmark" | "lockup"
@@ -66,6 +67,7 @@ const wordPx: Record<LogoSize, number> = { sm: 18, md: 28, lg: 44 }
  * Pemakaian normal di dalam app SELALU lewat <Logo>.
  */
 export function LogoMark({ size, fill }: { size: number; fill: string }) {
+  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   return (
     <Svg width={size} height={size} viewBox={LOGO_VIEWBOX}>
       <G fill={fill}>

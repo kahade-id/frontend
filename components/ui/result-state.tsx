@@ -79,7 +79,7 @@ export function ResultState({
     >
       <IconBox icon={icon ?? defaultIcon[status]} size="xl" variant={boxVariant[status]} weight="fill" />
 
-      <View className="items-center gap-3 max-w-[360px]">
+      <View className="items-center gap-3 max-w-[360px] tabular-nums">
         <Text variant={editorial ? "display" : "h1"} className="text-center">
           {title}
         </Text>

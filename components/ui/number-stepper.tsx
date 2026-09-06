@@ -14,7 +14,7 @@
  *     sebagai angka, bukan bagian kalimat (§3.1). Lebar minimum kolom nilai
  *     dikunci (`min-w-12`) agar kotak tidak melebar/menyempit saat digit
  *     bertambah — konsisten dengan "presisi" §1.
- *   - Tombol −/+ adalah <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> masing-masing (bukan IconButton)
+ *   - Tombol −/+ adalah <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> masing-masing (bukan IconButton)
  *     supaya tidak membawa border/bg sendiri: pemisah visual cukup dari
  *     <Divider vertical> di dalam kotak. Disabled di batas min/max memakai
  *     `opacity-disabled` (bukan warna solid) sesuai §9.1.
@@ -228,7 +228,7 @@ export function NumberStepper({
               style={Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : undefined}
             />
           ) : (
-            <Text variant="monoBody" tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="monoBody" tone="primary" numberOfLines={1}>
               {shown}
             </Text>
           )}

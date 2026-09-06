@@ -157,7 +157,7 @@ export default function OrderLinksScreen() {
             title="Belum ada tautan"
             description="Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi."
             action={
-              <Button
+              <Button accessibilityHint="Ketuk untuk berinteraksi"
                 variant="secondary"
                 fullWidth={false}
                 onPress={() => router.push(ROUTES.createTransaction)}

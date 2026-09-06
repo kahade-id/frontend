@@ -33,6 +33,7 @@ import { useOverlayPresence } from "@/components/ui/backdrop"
 import { Portal } from "@/components/ui/portal"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type BannerProps = Omit<AlertProps, "banner"> & {
   visible: boolean
@@ -51,6 +52,7 @@ export function Banner({
   className,
   ...alert
 }: BannerProps) {
+  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const insets = useSafeAreaInsets()
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
 

@@ -132,7 +132,7 @@ export function TwoFactorMethodSelector({
 
         const label: ReactNode = (
           <View accessible={false} className="flex-row flex-wrap items-center gap-2">
-            <Text variant="body" weight={600} tone={isUnavailable ? "disabled" : "primary"}>
+            <Text accessibilityHint="Ketuk untuk detail" variant="body" weight={600} tone={isUnavailable ? "disabled" : "primary"}>
               {m.label}
             </Text>
             {m.recommended && !isUnavailable ? (

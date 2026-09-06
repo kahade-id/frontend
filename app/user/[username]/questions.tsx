@@ -266,7 +266,7 @@ export default function PublicQuestionsScreen() {
       <Header
         title="Tanya Jawab"
         right={
-          <Button size="sm" variant="secondary" onPress={() => setAskOpen(true)}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={() => setAskOpen(true)}>
             Bertanya
           </Button>
         }

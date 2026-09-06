@@ -183,7 +183,7 @@ export function SocialLinksEditor({
                 {t.platform}
               </Text>
               <View className="flex-row gap-1">
-                <IconButton
+                <IconButton accessibilityHint="Ketuk untuk berinteraksi"
                   icon={ArrowUp}
                   size="sm"
                   variant="ghost"
@@ -245,7 +245,7 @@ export function SocialLinksEditor({
         {t.add}
       </Button>
       {value.length >= max ? (
-        <Text variant="caption" tone="secondary" className="text-center">
+        <Text variant="caption" tone="secondary" className="text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           {t.maxReached(max)}
         </Text>
       ) : null}

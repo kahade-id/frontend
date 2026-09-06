@@ -108,7 +108,7 @@ export function ProfileHeader({
             </>
           ) : (
             <>
-              <Text variant="h2" numberOfLines={2}>
+              <Text ellipsizeMode="tail" variant="h2" numberOfLines={2}>
                 {name}
               </Text>
               {handle || verified ? (
@@ -176,13 +176,13 @@ function StatCell({ stat, loading }: { stat: ProfileStat; loading: boolean }) {
   }
 
   return (
-    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={`${stat.label} ${stat.value}`}
       scaleOnPress={false}
       onPress={stat.onPress}
       containerClassName="flex-1"
-      className="flex-1"
+      className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       {body}
     </PressableScale>

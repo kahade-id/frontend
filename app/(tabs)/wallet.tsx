@@ -147,7 +147,7 @@ export default function WalletScreen() {
         title="Dompet"
         right={
           <>
-            <IconButton
+            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
               icon={FileCsv}
               size="md"
               variant="ghost"

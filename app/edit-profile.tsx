@@ -333,7 +333,7 @@ export default function EditProfileScreen() {
       padded={false}
       footer={
         <View accessible={false}>
-          <Button
+          <Button accessibilityHint="Ketuk untuk berinteraksi"
             fullWidth
             loading={submitting}
             disabled={loading || !!error || !dirty}

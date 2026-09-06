@@ -167,7 +167,7 @@ export function DisputeClaimForm({
       />
 
       {!locked ? (
-        <Button onPress={() => onSubmit(trimmed)} disabled={!canSubmit} loading={submitting}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => onSubmit(trimmed)} disabled={!canSubmit} loading={submitting}>
           {existingClaim ? t.update : t.submit}
         </Button>
       ) : null}

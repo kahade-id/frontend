@@ -7,7 +7,7 @@
  * dalam konteks teks.
  *
  * Dua mode render, dipilih lewat prop `inline`:
- *   - inline=false (default): dibungkus <PressableScale self-start> supaya
+ *   - inline=false (default): dibungkus <PressableScale accessibilityHint="Ketuk untuk berinteraksi" self-start> supaya
  *     dapat pressed scale 0.97 (§8) + hit area minimal 44px lewat `hitSlop`
  *     (teks 14px sendiri terlalu tipis untuk target sentuh).
  *   - inline=true: dirender sebagai <Text onPress> agar bisa disisipkan di
@@ -72,7 +72,7 @@ export function TextLink({
 
   if (inline) {
     return (
-      <Text
+      <Text ellipsizeMode="tail"
         variant={variant}
         weight={weight}
         tone="inherit"

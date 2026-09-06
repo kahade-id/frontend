@@ -24,7 +24,7 @@
  *     driver sudah cukup; reanimated + gesture-handler disisakan untuk gesture
  *     kompleks (pull-to-refresh, shared element).
  *   - `Animated.View` tidak di-interop NativeWind, jadi className diletakkan
- *     pada <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> di dalamnya; Animated.View hanya membawa opacity.
+ *     pada <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> di dalamnya; Animated.View hanya membawa opacity.
  *   - Tidak ada hover/tint saat pointer di web (§11).
  */
 import { useEffect, useRef, useState } from "react"

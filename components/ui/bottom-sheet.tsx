@@ -277,13 +277,13 @@ export function BottomSheet({
             ) : null}
           </View>
           {closeVisible ? (
-            <IconButton
+            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
               icon={X}
               variant="ghost"
               size="sm"
               accessibilityLabel="Tutup"
               onPress={onRequestClose}
-              className="-mr-2 -mt-1"
+              className="-mr-2 -mt-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             />
           ) : null}
         </View>

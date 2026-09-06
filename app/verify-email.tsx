@@ -171,7 +171,7 @@ export default function VerifyEmailScreen() {
             </View>
 
             {!sent ? (
-              <Button onPress={() => void handleSend()} loading={sending} disabled={!email}>
+              <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => void handleSend()} loading={sending} disabled={!email}>
                 Kirim kode verifikasi
               </Button>
             ) : null}

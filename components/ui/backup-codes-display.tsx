@@ -177,7 +177,7 @@ export function BackupCodesDisplay({
           {t.reveal}
         </Button>
       ) : (
-        <View className="flex-row gap-3">
+        <View className="flex-row gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           {onCopyAll ? (
             <Button
               variant="secondary"

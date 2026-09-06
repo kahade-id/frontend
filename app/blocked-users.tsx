@@ -66,7 +66,7 @@ export default function BlockedUsersScreen() {
           avatar={{ source: u.avatarUrl ?? undefined }}
           blocked
           action={
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               variant="ghost"
               size="sm"
               fullWidth={false}

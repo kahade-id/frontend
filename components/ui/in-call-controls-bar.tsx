@@ -9,7 +9,7 @@
  *
  * Keputusan non-obvious:
  *   - Toggle "aktif" (mis. mikrofon dibisukan, speaker menyala) = `bg-primary`
- *     + ikon inverse — memakai <IconButton variant="primary" shape="pill">;
+ *     + ikon inverse — memakai <IconButton accessibilityHint="Ketuk untuk berinteraksi" variant="primary" shape="pill">;
  *     non-aktif = `variant="secondary"` (border-default, ikon text-tertiary).
  *     Pola invert ini (bukan hanya ganti weight) dipilih karena saat
  *     menelepon user melirik cepat tanpa fokus — perbedaan fill hitam vs
@@ -190,7 +190,7 @@ export function InCallControlsBar({
             accessibilityLabel="Tutup panggilan"
             onPress={onEnd}
           />
-          <Text variant="caption" tone="secondary" weight={500} numberOfLines={1}>
+          <Text ellipsizeMode="tail" variant="caption" tone="secondary" weight={500} numberOfLines={1}>
             {t.end}
           </Text>
         </View>

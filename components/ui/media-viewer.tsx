@@ -127,10 +127,10 @@ export function MediaViewer({ item, onClose, onOpenError, labels, actions }: Med
     >
       <View accessible={false} className="gap-3">
         <View className="flex-row items-center justify-between">
-          <Text variant="label" numberOfLines={1} className="flex-1 pr-3">
+          <Text ellipsizeMode="tail" variant="label" numberOfLines={1} className="flex-1 pr-3">
             {title ?? ""}
           </Text>
-          <IconButton icon={X} variant="ghost" accessibilityLabel={t.close} onPress={onClose} />
+          <IconButton accessibilityHint="Ketuk untuk berinteraksi" icon={X} variant="ghost" accessibilityLabel={t.close} onPress={onClose} />
         </View>
 
         {item && image ? (
@@ -165,7 +165,7 @@ export function MediaViewer({ item, onClose, onOpenError, labels, actions }: Med
           </Text>
         ) : null}
 
-        {actions ? <View className="flex-row justify-end gap-2">{actions}</View> : null}
+        {actions ? <View className="flex-row justify-end gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{actions}</View> : null}
       </View>
     </Modal>
   )

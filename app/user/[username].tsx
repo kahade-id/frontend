@@ -586,7 +586,7 @@ export default function UserProfileScreen() {
 
               {/* ── Stats / Counter Strip ────────────────────────── */}
               <View className="flex-row flex-wrap items-center gap-4 pt-2">
-                <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" onPress={() => router.push(ROUTES.followers(handle, "following"))}>
+                <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" onPress={() => router.push(ROUTES.followers(handle, "following"))}>
                   <Text variant="body" tone="secondary">
                     <Text variant="body" weight={700} tone="primary">
                       {formatNumber(followingCount ?? 0)}{" "}

@@ -70,13 +70,13 @@ export function ScheduleField({
 
   return (
     <View accessible={false} className={cn("w-full gap-6", className)} {...rest}>
-      <View className="gap-2">
+      <View className="gap-2 tabular-nums">
         <FieldLabel disabled={disabled}>{t.dayLabel}</FieldLabel>
         <View className="flex-row gap-2" accessibilityRole="radiogroup">
           {t.days.map((d, i) => {
             const selected = value.dayOfWeek === i
             return (
-              <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+              <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
                 key={d}
                 accessibilityRole="radio"
                 accessibilityLabel={t.dayNames[i]}

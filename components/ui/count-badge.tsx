@@ -83,7 +83,7 @@ export function CountBadge({
       )}
       {...rest}
     >
-      <Text variant="caption" weight={600} tone="inherit" numberOfLines={1} className={toneText[tone]}>
+      <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="caption" weight={600} tone="inherit" numberOfLines={1} className={toneText[tone]}>
         {shown}
       </Text>
     </View>

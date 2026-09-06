@@ -193,7 +193,7 @@ export function PinInput({
     <View className={cn("w-full items-center gap-8", className)} {...rest}>
       <View className="items-center gap-4">
         {heading ? (
-          <Text variant="h3" className="text-center">
+          <Text accessibilityHint="Ketuk untuk detail" variant="h3" className="text-center">
             {heading}
           </Text>
         ) : null}

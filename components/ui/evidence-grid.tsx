@@ -102,7 +102,7 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
         accessibilityLabel={a11y}
         accessibilityHint={onOpen ? "Buka bukti" : undefined}
         containerClassName="w-full h-full"
-        className="h-full w-full overflow-hidden rounded-sm border border-border bg-surface"
+        className="h-full w-full overflow-hidden rounded-sm border border-border bg-surface focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         {isImage || item.thumbnailUrl ? (
           <Picture source={item.thumbnailUrl ?? item.url} alt="" aspectRatio={1} radius="none" resizeMode="cover" recyclingKey={item.id} className="h-full w-full" />
@@ -122,7 +122,7 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
               item.mine ? "bg-primary" : "border border-border bg-surface-elevated",
             )}
           >
-            <Text variant="caption" weight={500} tone={item.mine ? "inverse" : "secondary"} numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="caption" weight={500} tone={item.mine ? "inverse" : "secondary"} numberOfLines={1}>
               {owner}
             </Text>
           </View>

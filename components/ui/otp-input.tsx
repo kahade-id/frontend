@@ -95,7 +95,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
 
   return (
     <View accessible={false} className={cn("w-full gap-2", className)} {...rest}>
-      <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+      <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         onPress={() => inputRef.current?.focus()}
         disabled={disabled}
         accessibilityRole="none"

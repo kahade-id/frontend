@@ -62,7 +62,7 @@ export function Chip({
   ...rest
 }: ChipProps) {
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
@@ -76,7 +76,7 @@ export function Chip({
       {...rest}
     >
       {icon ? <Icon icon={icon} size="xs" tone={selected ? "inverse" : "default"} /> : null}
-      <Text
+      <Text ellipsizeMode="tail"
         variant="label"
         tone={selected ? "inverse" : "primary"}
         numberOfLines={1}

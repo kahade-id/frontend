@@ -84,7 +84,7 @@ export function UserListItem({
     >
       <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
       <View className="flex-1 gap-[2px]">
-        <Text variant="body" weight={500} tone="primary" numberOfLines={1}>
+        <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1}>
           {name}
         </Text>
         {handle || stat ? (
@@ -117,7 +117,7 @@ export function UserListItem({
             scaleOnPress={false}
             onPress={onPress}
             containerClassName="flex-1"
-            className="flex-1"
+            className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {body}
           </PressableScale>

@@ -114,7 +114,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
           className,
         )}
       >
-        <Text variant="monoLarge" tone={value > 0 ? "primary" : "disabled"} className="mr-1">
+        <Text accessibilityHint="Ketuk untuk detail" variant="monoLarge" tone={value > 0 ? "primary" : "disabled"} className="mr-1 tabular-nums">
           Rp
         </Text>
         <TextInput

@@ -68,7 +68,7 @@ export function KycHistoryListItem({
       subtitle={
         <View accessible={false} className="gap-[2px]">
           <View className="flex-row flex-wrap items-center gap-x-2">
-            <Text variant="monoBody" tone="secondary">
+            <Text accessibilityHint="Ketuk untuk detail" variant="monoBody" tone="secondary">
               {submittedAt}
             </Text>
             {reviewedAt ? (
@@ -77,7 +77,7 @@ export function KycHistoryListItem({
               </Text>
             ) : null}
             {requestId ? (
-              <Text variant="monoBody" tone="secondary" numberOfLines={1}>
+              <Text ellipsizeMode="tail" variant="monoBody" tone="secondary" numberOfLines={1}>
                 {requestId}
               </Text>
             ) : null}

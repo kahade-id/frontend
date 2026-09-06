@@ -261,7 +261,7 @@ function AppShell() {
                     description={session.error}
                     onRetry={session.retry}
                   />
-                  <Button variant="ghost" onPress={() => setSkipRestoreError(true)}>
+                  <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" onPress={() => setSkipRestoreError(true)}>
                     Buka halaman masuk
                   </Button>
                 </View>

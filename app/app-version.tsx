@@ -96,7 +96,7 @@ export default function AppVersionScreen() {
           </>
         ) : null}
         {canUpdate ? (
-          <Button variant="secondary" loading={checking} onPress={() => void update()}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" loading={checking} onPress={() => void update()}>
             {available ? "Unduh & Terapkan OTA" : "Periksa Pembaruan OTA"}
           </Button>
         ) : (

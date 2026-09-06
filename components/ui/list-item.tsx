@@ -105,10 +105,10 @@ export function ListItem({
           className,
         )}
       >
-        {leadingNode ? <View className="items-center justify-center">{leadingNode}</View> : null}
+        {leadingNode ? <View className="items-center justify-center tabular-nums">{leadingNode}</View> : null}
 
         <View className="flex-1 gap-[2px]">
-          <Text
+          <Text ellipsizeMode="tail"
             variant="body"
             weight={500}
             tone={destructive ? "danger" : "primary"}
@@ -163,7 +163,7 @@ export function ListItem({
   }
 
   return (
-    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityState={{ selected, disabled: !!disabled }}

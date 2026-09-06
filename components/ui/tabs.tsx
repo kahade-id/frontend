@@ -69,7 +69,7 @@ export function Tabs<V extends string = string>({
       {items.map((item) => {
         const active = item.value === value
         return (
-          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             key={item.value}
             accessibilityRole="tab"
             accessibilityState={{ selected: active, disabled: !!item.disabled }}
@@ -84,7 +84,7 @@ export function Tabs<V extends string = string>({
             )}
           >
             {item.icon ? <Icon icon={item.icon} size="sm" active={active} /> : null}
-            <Text
+            <Text ellipsizeMode="tail"
               variant="body"
               weight={active ? 600 : 400}
               tone={active ? "primary" : "secondary"}

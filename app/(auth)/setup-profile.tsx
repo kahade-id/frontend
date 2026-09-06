@@ -274,7 +274,7 @@ export default function SetupProfileScreen() {
               </View>
             </View>
 
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               variant="secondary"
               size="sm"
               loading={avatarUploading}

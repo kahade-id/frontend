@@ -210,7 +210,7 @@ export function BarChart({
             accessibilityLabel={`${d.label}: ${formatValue(d.value)}`}
             className="flex-row items-center gap-3"
           >
-            <Text variant="caption" tone="secondary" numberOfLines={1} className="w-1/4">
+            <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary" numberOfLines={1} className="w-1/4">
               {d.label}
             </Text>
             <View className="h-3 flex-1 flex-row border-l border-border">

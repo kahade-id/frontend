@@ -109,7 +109,7 @@ export function UserDiscoverResultItem({
         {meta.length > 0 || rating != null ? (
           <View className="flex-row items-center gap-2">
             {meta.length > 0 ? (
-              <Text variant="caption" tone="secondary" numberOfLines={1} className="shrink">
+              <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1} className="shrink">
                 {meta.join(" \u00B7 ")}
               </Text>
             ) : null}
@@ -133,7 +133,7 @@ export function UserDiscoverResultItem({
             scaleOnPress={false}
             onPress={onPress}
             containerClassName="flex-1"
-            className="flex-1"
+            className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {row}
           </PressableScale>

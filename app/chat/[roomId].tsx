@@ -364,7 +364,7 @@ export default function ChatRoomScreen() {
         title={counterpartName ?? "Percakapan"}
         right={
           room?.orderId ? (
-            <IconButton
+            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
               icon={Package}
               variant="ghost"
               accessibilityLabel="Lihat pesanan terkait"

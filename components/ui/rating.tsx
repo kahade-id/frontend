@@ -134,14 +134,14 @@ export function Rating({
     if (!interactive) return <View key={n}>{glyph}</View>
 
     return (
-      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         key={n}
         disabled={disabled}
         onPress={() => select(n)}
         accessibilityRole="button"
         accessibilityLabel={`${n} dari ${max} bintang${labels?.[i] ? `, ${labels[i]}` : ""}`}
         accessibilityState={{ selected: n <= shown, disabled }}
-        className="min-h-[44px] min-w-[44px] items-center justify-center"
+        className="min-h-[44px] min-w-[44px] items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         {glyph}
       </PressableScale>

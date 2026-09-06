@@ -99,7 +99,7 @@ export function Select<V extends string = string>({
       disabled={disabled}
       className={containerClassName}
     >
-      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         ref={ref}
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -135,7 +135,7 @@ export function Select<V extends string = string>({
             )}
           >
             <View className={cn("-mx-1 px-1", floated && "bg-background")}>
-              <Text
+              <Text ellipsizeMode="tail"
                 variant={floated ? "caption" : "bodyLarge"}
                 tone={hasError ? "danger" : open ? "primary" : "secondary"}
                 numberOfLines={1}

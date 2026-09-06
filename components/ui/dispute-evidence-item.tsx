@@ -111,7 +111,7 @@ export function DisputeEvidenceItem({
             {who}
           </Badge>
           {uploadedAt ? (
-            <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
+            <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
               {uploadedAt}
             </Text>
           ) : null}
@@ -140,7 +140,7 @@ export function DisputeEvidenceItem({
             const index = files.indexOf(f)
             return (
               <View key={f.id} className="w-[31%] gap-1">
-                <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+                <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
                   accessibilityRole="imagebutton"
                   accessibilityLabel={t.openFile(index, files.length)}
                   onPress={onOpenFile ? () => onOpenFile(index) : undefined}
@@ -176,7 +176,7 @@ export function DisputeEvidenceItem({
             )}
           >
             <Icon icon={FilePdf} size="sm" />
-            <View className="flex-1 gap-[2px]">
+            <View className="flex-1 gap-[2px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               <Text variant="caption" weight={500} tone="primary" numberOfLines={1}>
                 {f.name ?? "Dokumen"}
               </Text>

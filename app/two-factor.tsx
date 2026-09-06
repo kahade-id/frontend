@@ -308,7 +308,7 @@ export default function TwoFactorScreen() {
                 onSubmitEditing={() => void handleSetup()}
               />
               <View className="flex-row gap-3">
-                <Button
+                <Button accessibilityHint="Ketuk untuk berinteraksi"
                   variant="ghost"
                   fullWidth={false}
                   onPress={resetEnableFlow}

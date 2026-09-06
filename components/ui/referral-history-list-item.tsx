@@ -82,7 +82,7 @@ export function ReferralHistoryListItem({
       subtitle={joinedAt}
       leading={<Avatar source={avatar} name={name} size="sm" />}
       trailing={
-        <View accessible={false} className="items-end gap-1">
+        <View accessible={false} className="items-end gap-1 tabular-nums">
           {showReward ? <Amount value={Math.abs(rewardAmount)} size="body" sign="always" tone="success" /> : null}
           <StatusIndicator label={label} tone={tone} size="sm" />
         </View>

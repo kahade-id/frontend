@@ -42,6 +42,8 @@ import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+import { tokens } from "@/lib/tokens"
 // UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SearchOverlayProps = Pick<SearchFieldProps, "placeholder" | "onSearch" | "debounceMs"> & {
@@ -86,6 +88,7 @@ export function SearchOverlay({
   recentTitle = "Pencarian terakhir",
   returnFocusRef,
 }: SearchOverlayProps) {
+  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const insets = useSafeAreaInsets()
   const { mounted, progress } = useOverlayPresence(visible)
   const fieldRef = useRef<TextInput>(null)
@@ -133,7 +136,7 @@ export function SearchOverlay({
               contentContainerClassName="pb-8"
             >
               {loading ? (
-                <View className="flex-row items-center gap-2 px-6 py-3">
+                <View className="flex-row items-center gap-2 px-6 py-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
                   <Spinner size="sm" />
                   <Text variant="caption" tone="secondary">
                     Mencari
@@ -162,7 +165,7 @@ export function SearchOverlay({
                         onPress={() => onSelectRecent?.(q)}
                         trailing={
                           onRemoveRecent ? (
-                            <IconButton
+                            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
                               icon={X}
                               size="sm"
                               variant="ghost"

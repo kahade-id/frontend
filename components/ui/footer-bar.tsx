@@ -28,7 +28,7 @@ import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 
 export type FooterBarProps = Omit<ViewProps, "children"> & {
-  /** Tombol aksi — satu <Button> atau beberapa */
+  /** Tombol aksi — satu <Button accessibilityHint="Ketuk untuk berinteraksi"> atau beberapa */
   children: ReactNode
   /** Ringkasan di atas tombol */
   summary?: { label: string; value: ReactNode; hint?: string }
@@ -58,7 +58,7 @@ export function FooterBar({
       style={{ paddingBottom }}
       {...rest}
     >
-      <View className="w-full gap-3 px-6 pt-4 md:max-w-content">
+      <View className="w-full gap-3 px-6 pt-4 md:max-w-content tabular-nums focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         {summary ? (
           <View className="flex-row items-end justify-between gap-4">
             <View className="gap-[2px]">
@@ -66,7 +66,7 @@ export function FooterBar({
                 {summary.label}
               </Text>
               {summary.hint ? (
-                <Text variant="caption" tone="secondary" numberOfLines={1}>
+                <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
                   {summary.hint}
                 </Text>
               ) : null}

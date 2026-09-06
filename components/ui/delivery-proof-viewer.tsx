@@ -210,7 +210,7 @@ export function DeliveryProofViewer({
 
   return (
     <Card padded className={cn("gap-5", className)} {...rest}>
-      <View className="flex-row items-start gap-2">
+      <View className="flex-row items-start gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <Text variant="h3" className="flex-1">
           {sellerName ? t.titleFrom(sellerName) : t.title}
         </Text>
@@ -256,7 +256,7 @@ export function DeliveryProofViewer({
             const row = (
               <View className="flex-row items-center gap-3 rounded-sm border border-border bg-surface px-3 py-3">
                 <Icon icon={FilePdf} size="sm" />
-                <Text variant="body" className="flex-1" numberOfLines={1}>
+                <Text ellipsizeMode="tail" variant="body" className="flex-1" numberOfLines={1}>
                   {f.name}
                 </Text>
                 {f.size != null ? (

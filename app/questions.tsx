@@ -225,7 +225,7 @@ export default function QuestionsScreen() {
                   }
                   answerAction={
                     received && !q.answer ? (
-                      <Button size="sm" variant="secondary" onPress={() => openAnswer(q)}>
+                      <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={() => openAnswer(q)}>
                         Jawab
                       </Button>
                     ) : undefined

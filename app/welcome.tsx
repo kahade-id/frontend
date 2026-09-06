@@ -75,7 +75,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
 
-        <Button onPress={handleStart}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={handleStart}>
           {isNewUser ? "Mulai" : "Masuk ke Beranda"}
         </Button>
       </VStack>

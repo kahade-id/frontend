@@ -171,7 +171,7 @@ export function DeviceSessionListItem({
 
       <View className="flex-1 gap-[2px]">
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text variant="body" weight={500} tone={disabled ? "disabled" : "primary"} numberOfLines={1} className="shrink">
+          <Text ellipsizeMode="tail" variant="body" weight={500} tone={disabled ? "disabled" : "primary"} numberOfLines={1} className="shrink">
             {deviceName}
           </Text>
           {current ? (
@@ -259,7 +259,7 @@ export function DeviceSessionListItem({
             disabled={disabled}
             onPress={onPress}
             containerClassName="flex-1"
-            className="flex-1"
+            className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {row}
           </PressableScale>

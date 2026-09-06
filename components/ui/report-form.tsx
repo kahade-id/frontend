@@ -144,7 +144,7 @@ export function ReportForm({
       />
 
       {onSubmit ? (
-        <Button variant="destructive" onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="destructive" onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
           {submitLabel}
         </Button>
       ) : null}

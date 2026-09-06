@@ -188,7 +188,7 @@ export function SecurityLogItem({
       <View className="flex-1 gap-[2px]">
         <View className="flex-row items-start justify-between gap-3">
           <View className="flex-1 flex-row flex-wrap items-center gap-2">
-            <Text variant="body" weight={unread ? 600 : 500} tone="primary" numberOfLines={2} className="shrink">
+            <Text ellipsizeMode="tail" variant="body" weight={unread ? 600 : 500} tone="primary" numberOfLines={2} className="shrink">
               {title}
             </Text>
             {badgeTone && outcomeLabel ? (
@@ -235,7 +235,7 @@ export function SecurityLogItem({
             scaleOnPress={false}
             onPress={onPress}
             containerClassName="w-full"
-            className="w-full"
+            className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {row}
           </PressableScale>

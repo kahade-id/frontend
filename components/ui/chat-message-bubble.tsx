@@ -172,7 +172,7 @@ export function ChatMessageBubble({
         )}
 
         {time || failed ? (
-          <View className="flex-row items-center gap-1 px-1">
+          <View className="flex-row items-center gap-1 px-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             {failed ? (
               <>
                 <Icon icon={WarningCircle} size="xs" tone="danger" />

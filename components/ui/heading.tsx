@@ -69,7 +69,7 @@ export function SectionTitle({
           {title}
         </Heading>
         {subtitle ? (
-          <Text variant="caption" tone="secondary" numberOfLines={2}>
+          <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={2}>
             {subtitle}
           </Text>
         ) : null}

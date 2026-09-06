@@ -60,7 +60,7 @@ export function HelpCategoryCard({
     >
       <IconBox icon={icon ?? Question} size="md" variant="surface" />
       <View className="gap-0.5">
-        <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
+        <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={2}>
           {name}
         </Text>
         {description ? (

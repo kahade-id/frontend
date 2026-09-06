@@ -335,7 +335,7 @@ export default function CreateTransactionScreen() {
               Biaya belum terkonfirmasi: {feeError}. Tarik untuk memuat ulang.
             </Text>
           ) : null}
-          <Button
+          <Button accessibilityHint="Ketuk untuk berinteraksi"
             fullWidth
             loading={submitting}
             disabled={!canSubmit}

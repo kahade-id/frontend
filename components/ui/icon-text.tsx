@@ -79,7 +79,7 @@ export function IconText({
       <View className="shrink-0" style={alignTop ? { paddingTop: topOffset } : undefined}>
         <Icon icon={icon} size={size} tone={iconTone} active={active} />
       </View>
-      <Text
+      <Text ellipsizeMode="tail"
         variant={variant}
         tone={tone}
         weight={weight}

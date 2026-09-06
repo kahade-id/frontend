@@ -295,7 +295,7 @@ export default function KycScreen() {
                       disabled={submitting}
                     />
                   </View>
-                  <Button
+                  <Button accessibilityHint="Ketuk untuk berinteraksi"
                     loading={submitting}
                     disabled={!formValid}
                     onPress={() => void handleSubmit()}

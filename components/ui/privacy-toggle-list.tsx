@@ -51,7 +51,7 @@ export function PrivacyToggleList<K extends string = string>({
   return (
     <View accessible={false} className={cn("w-full gap-2", className)} {...rest}>
       {title ? (
-        <Text variant="label" tone="secondary" className="px-1">
+        <Text accessibilityHint="Ketuk untuk detail" variant="label" tone="secondary" className="px-1">
           {title}
         </Text>
       ) : null}

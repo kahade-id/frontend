@@ -96,7 +96,7 @@ export function FavoriteIconButton({
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
 
   return (
-    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active, disabled: !!disabled, ...accessibilityState }}
@@ -116,7 +116,7 @@ export function FavoriteIconButton({
       </Animated.View>
       {count != null ? (
         <View accessible={false}>
-          <Text variant="monoBody" tone={active ? "primary" : "secondary"} numberOfLines={1}>
+          <Text ellipsizeMode="tail" variant="monoBody" tone={active ? "primary" : "secondary"} numberOfLines={1}>
             {formatNumber(count)}
           </Text>
         </View>

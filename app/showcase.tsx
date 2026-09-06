@@ -330,7 +330,7 @@ export default function ShowcaseScreen() {
             <Text numberOfLines={1} variant="caption" tone="secondary">
               Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               leftIcon={Plus}
               loading={uploading}
               variant="secondary"

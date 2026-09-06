@@ -324,7 +324,7 @@ export default function RatingsScreen() {
                   }
                   footer={
                     !received ? (
-                      <Button
+                      <Button accessibilityHint="Ketuk untuk berinteraksi"
                         variant="ghost"
                         size="sm"
                         leftIcon={PencilSimple}

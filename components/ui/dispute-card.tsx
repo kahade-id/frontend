@@ -114,7 +114,7 @@ export function DisputeCard({
       {...rest}
     >
       <View className="flex-row items-center justify-between gap-3">
-        <Text
+        <Text ellipsizeMode="tail"
           variant="caption"
           tone="secondary"
           numberOfLines={1}

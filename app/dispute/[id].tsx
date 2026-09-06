@@ -491,7 +491,7 @@ export default function DisputeDetailScreen() {
               <DisputeStatusBadge status={dispute.status} />
             </View>
             {dispute.orderId ? (
-              <Button
+              <Button accessibilityHint="Ketuk untuk berinteraksi"
                 variant="ghost"
                 size="sm"
                 fullWidth={false}

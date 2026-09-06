@@ -1,5 +1,5 @@
 /**
- * Kahade — <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> primitif interaksi (§8 "Button press").
+ * Kahade — <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> primitif interaksi (§8 "Button press").
  *
  * Dasar untuk Button, IconButton, Chip, ListItem, Card interaktif, dst.
  * Menangani TIGA hal yang harus seragam di seluruh app:

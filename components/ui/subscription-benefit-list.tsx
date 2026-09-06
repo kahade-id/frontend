@@ -78,11 +78,11 @@ export function SubscriptionBenefitList({
 
         return (
           <View key={b.id} accessible accessibilityLabel={a11y}>
-            <View className="flex-row items-start gap-3 px-6 py-3">
+            <View className="flex-row items-start gap-3 px-6 py-3 tabular-nums">
               <IconBox icon={b.icon ?? Crown} size="md" variant="surface" />
               <View className="flex-1 gap-1">
                 <View className="flex-row items-start justify-between gap-3">
-                  <Text variant="body" weight={500} tone="primary" numberOfLines={2} className="flex-1">
+                  <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="body" weight={500} tone="primary" numberOfLines={2} className="flex-1">
                     {b.label}
                   </Text>
                   {hasQuota ? (

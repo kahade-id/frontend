@@ -111,7 +111,7 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
       {...rest}
     >
       <Icon icon={MagnifyingGlass} size="sm" />
-      <Text variant="bodyLarge" tone="disabled" numberOfLines={1} className="flex-1">
+      <Text ellipsizeMode="tail" variant="bodyLarge" tone="disabled" numberOfLines={1} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         {placeholder}
       </Text>
     </PressableScale>

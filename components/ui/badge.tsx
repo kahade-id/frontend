@@ -91,7 +91,7 @@ export function Badge({
     >
       {dot ? <View className={cn("h-[6px] w-[6px] rounded-full", dotClass[tone])} /> : null}
       {icon ? <Icon icon={icon} size={12} tone={iconTone[tone]} weight="bold" /> : null}
-      <Text
+      <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail"
         variant="caption"
         weight={500}
         tone={variant === "outline" ? "secondary" : textTone[tone]}

@@ -2,7 +2,7 @@
  * Kahade — <FollowButton> (§9.1 Button, §12 Voice & Tone).
  *
  * Tombol ikuti/berhenti mengikuti untuk profil publik penjual/pembeli dan
- * hasil pencarian pengguna. Dibangun DI ATAS <Button> — bukan Pressable
+ * hasil pencarian pengguna. Dibangun DI ATAS <Button accessibilityHint="Ketuk untuk berinteraksi"> — bukan Pressable
  * sendiri — supaya tinggi, radius `sm`, pressed-scale, dan loading spinner
  * identik dengan tombol lain di layar yang sama.
  *

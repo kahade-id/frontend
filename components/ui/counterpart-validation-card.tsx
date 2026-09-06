@@ -164,7 +164,7 @@ export function CounterpartValidationCard({
           <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
           <View className="flex-1 gap-[2px]">
             <View className="flex-row flex-wrap items-center gap-2">
-              <Text variant="body" weight={600} tone="primary" numberOfLines={1} className="shrink">
+              <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1} className="shrink">
                 {name}
               </Text>
               {verified ? (
@@ -201,7 +201,7 @@ export function CounterpartValidationCard({
       </CardSummary>
 
       {onConfirm ? (
-        <Button size="sm" variant="secondary" onPress={onConfirm} loading={confirming} fullWidth>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={onConfirm} loading={confirming} fullWidth>
           {t.confirm}
         </Button>
       ) : null}

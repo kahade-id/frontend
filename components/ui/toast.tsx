@@ -244,7 +244,7 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
       ) : null}
 
       <View className="flex-1 gap-[2px]">
-        <Text variant="body" weight={600} numberOfLines={2}>
+        <Text ellipsizeMode="tail" variant="body" weight={600} numberOfLines={2}>
           {toast.title}
         </Text>
         {toast.description ? (
@@ -255,13 +255,13 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
       </View>
 
       {toast.action ? (
-        <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+        <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
           accessibilityRole="button"
           onPress={() => {
             toast.action?.onPress()
             animateOut(onDismiss)
           }}
-          className="min-h-[44px] justify-center px-2 active:opacity-disabled"
+          className="min-h-[44px] justify-center px-2 active:opacity-disabled focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <Text variant="label" weight={600}>
             {toast.action.label}

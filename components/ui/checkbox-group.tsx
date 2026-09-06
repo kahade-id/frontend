@@ -143,7 +143,7 @@ export function CheckboxGroupItem({
   }
 
   return (
-    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="checkbox"
       accessibilityState={{ checked, disabled }}
       disabled={disabled}
@@ -160,7 +160,7 @@ export function CheckboxGroupItem({
       )}
       {...rest}
     >
-      {leading ? <View className="mt-[1px]">{leading}</View> : null}
+      {leading ? <View className="mt-[1px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{leading}</View> : null}
 
       <View className="flex-1 gap-1">
         {typeof label === "string" ? (

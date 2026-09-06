@@ -85,7 +85,7 @@ export default function OnboardingScreen() {
         <PageIndicator count={ONBOARDING_SLIDES.length} index={index} />
 
         <View className="gap-4">
-          <Button onPress={handlePrimary}>{isLast ? "Buat Akun" : "Lanjut"}</Button>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={handlePrimary}>{isLast ? "Buat Akun" : "Lanjut"}</Button>
 
           <Text numberOfLines={1} variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}

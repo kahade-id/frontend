@@ -273,7 +273,7 @@ export default function VerifyOtpScreen() {
             />
 
             {/* Tombol Verifikasi — manual submit, bukan auto */}
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               onPress={handleVerify}
               loading={verifying}
               disabled={code.length < 6}

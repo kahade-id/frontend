@@ -134,7 +134,7 @@ export function FloatingActionButton({
   }))
 
   const button = (
-    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
@@ -153,7 +153,7 @@ export function FloatingActionButton({
         <>
           <Icon icon={icon} size="md" tone="inverse" weight="bold" />
           {extended ? (
-            <Text variant="body" weight={600} tone="inverse" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="body" weight={600} tone="inverse" numberOfLines={1}>
               {label ?? accessibilityLabel}
             </Text>
           ) : null}
@@ -167,7 +167,7 @@ export function FloatingActionButton({
   return (
     <View accessible={false}
       pointerEvents="box-none"
-      className="absolute z-sticky"
+      className="absolute z-sticky focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       style={{ right: rightOffset, bottom: bottomInset + bottomOffset }}
     >
       <Animated.View pointerEvents={visible ? "auto" : "none"} style={animatedStyle}>

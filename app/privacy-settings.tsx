@@ -123,7 +123,7 @@ export default function PrivacySettingsScreen() {
         <Text variant="body" tone="secondary">
           Anda berhak meminta salinan seluruh data pribadi yang kami simpan.
         </Text>
-        <Button variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
           Minta salinan data saya
         </Button>
       </DataScreen>

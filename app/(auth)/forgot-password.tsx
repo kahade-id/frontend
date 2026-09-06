@@ -147,7 +147,7 @@ export default function ForgotPasswordScreen() {
             </VStack>
 
             {/* Submit button */}
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               onPress={() => void handleSendCode()}
               loading={submitting}
               disabled={!isFormValid}

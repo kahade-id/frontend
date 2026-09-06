@@ -113,7 +113,7 @@ function RecipientRow({
     recipient.kycVerified === false ? t.notVerified : "Verifikasi belum diketahui"
   return (
     <View accessible={false}>
-      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         scaleOnPress={false}
         disabled={disabled}
         onPress={() => onSelect(recipient)}
@@ -131,7 +131,7 @@ function RecipientRow({
           verified={recipient.kycVerified}
         />
         <View className="flex-1 gap-0">
-          <Text
+          <Text ellipsizeMode="tail"
             variant="body"
             weight={500}
             tone={disabled ? "disabled" : "primary"}

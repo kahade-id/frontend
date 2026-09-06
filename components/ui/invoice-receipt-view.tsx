@@ -131,11 +131,11 @@ const DEFAULT_LABELS: InvoiceReceiptLabels = {
 
 function Party({ label, party }: { label: string; party: InvoiceParty }) {
   return (
-    <View className="flex-1 gap-1">
+    <View className="flex-1 gap-1 tabular-nums">
       <Text variant="label" tone="secondary">
         {label}
       </Text>
-      <Text variant="body" weight={500} numberOfLines={1}>
+      <Text ellipsizeMode="tail" variant="body" weight={500} numberOfLines={1}>
         {party.name}
       </Text>
       {party.detail ? (
@@ -191,7 +191,7 @@ export function InvoiceReceiptView({
               {number}
             </Text>
             {onCopyNumber ? (
-              <IconButton
+              <IconButton accessibilityHint="Ketuk untuk berinteraksi"
                 icon={Copy}
                 size="sm"
                 variant="ghost"

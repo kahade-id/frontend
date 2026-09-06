@@ -61,7 +61,7 @@ export const CaptchaField = forwardRef<TextInput, CaptchaFieldProps>(function Ca
             <Picture source={imageUri} alt={t.imageAlt} height={56} resizeMode="contain" radius="none" />
           )}
         </View>
-        <IconButton
+        <IconButton accessibilityHint="Ketuk untuk berinteraksi"
           icon={ArrowsClockwise}
           variant="secondary"
           accessibilityLabel={t.refresh}

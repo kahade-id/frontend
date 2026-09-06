@@ -130,7 +130,7 @@ export function WalletBalanceCard({
   return (
     <Card variant={variant} className={cn("gap-5", className)} {...rest}>
       {/* Label + toggle */}
-      <View accessible={false} className="flex-row items-center justify-between gap-3">
+      <View accessible={false} className="flex-row items-center justify-between gap-3 tabular-nums">
         <Text variant="label" tone={textTone}>
           {t.available}
         </Text>
@@ -143,7 +143,7 @@ export function WalletBalanceCard({
             accessibilityRole="button"
             accessibilityLabel={hidden ? t.show : t.hide}
             accessibilityState={{ checked: !hidden }}
-            className="-my-3 -mr-3 min-h-11 min-w-11 items-center justify-center"
+            className="-my-3 -mr-3 min-h-11 min-w-11 items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             <Icon icon={hidden ? EyeSlash : Eye} size="sm" tone={iconTone} />
           </Pressable>
@@ -194,7 +194,7 @@ export function WalletBalanceCard({
               >
                 <Icon icon={a.icon} size="md" tone={iconTone} />
               </View>
-              <Text
+              <Text ellipsizeMode="tail"
                 variant="caption"
                 weight={500}
                 tone={inverted ? "inverse" : "primary"}

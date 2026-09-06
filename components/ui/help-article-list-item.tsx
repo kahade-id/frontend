@@ -31,7 +31,7 @@ export type HelpArticleListItemProps = Omit<ListItemProps, "title" | "subtitle" 
 }
 
 export function HelpArticleListItem({ title, snippet, highlight, onPress, inset = true, titleLines = 2, ...rest }: HelpArticleListItemProps) {
-  const subtitle = snippet ? <Highlight text={snippet} query={highlight} variant="caption" tone="secondary" numberOfLines={2} /> : undefined
+  const subtitle = snippet ? <Highlight text={snippet} query={highlight} variant="caption" tone="secondary" ellipsizeMode="tail" numberOfLines={2} /> : undefined
 
   return (
     <ListItem

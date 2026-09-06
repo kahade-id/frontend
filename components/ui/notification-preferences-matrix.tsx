@@ -119,7 +119,7 @@ export function NotificationPreferencesMatrix({
                 ("<kategori>, <kanal>") — audit #4. */}
             <View className="gap-3">
               <View className="gap-0.5">
-                <Text numberOfLines={2} variant="label" tone="primary">
+                <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" numberOfLines={2} variant="label" tone="primary">
                   {title}
                 </Text>
                 <Text variant="caption" tone="secondary">

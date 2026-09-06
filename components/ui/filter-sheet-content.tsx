@@ -142,7 +142,7 @@ export function FilterSheetContent({
         </View>
       ))}
 
-      <Button variant="ghost" size="sm" disabled={disabled || active === 0} onPress={() => onChange({ ...defaultValue })}>
+      <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" size="sm" disabled={disabled || active === 0} onPress={() => onChange({ ...defaultValue })}>
         {t.reset}
       </Button>
     </View>

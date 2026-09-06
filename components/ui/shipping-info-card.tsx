@@ -107,19 +107,19 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
 
   return (
     <Card padded className={cn("gap-4", className)} {...rest}>
-      <View accessible={false} className="flex-row items-center justify-between gap-3">
+      <View accessible={false} className="flex-row items-center justify-between gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <View className="flex-1 flex-row items-center gap-3">
           <IconBox icon={Truck} size="md" variant="surface" />
           <View className="flex-1 gap-0.5">
             <Text variant="caption" tone="secondary">
               {t.courier}
             </Text>
-            <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
               {shipping?.courierName ?? "—"}
             </Text>
           </View>
         </View>
-        {canEdit && onEdit ? <IconButton icon={PencilSimple} size="sm" variant="ghost" accessibilityLabel={t.edit} onPress={onEdit} /> : null}
+        {canEdit && onEdit ? <IconButton accessibilityHint="Ketuk untuk berinteraksi" icon={PencilSimple} size="sm" variant="ghost" accessibilityLabel={t.edit} onPress={onEdit} /> : null}
       </View>
 
       {shipping?.trackingNumber ? (

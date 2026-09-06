@@ -136,7 +136,7 @@ export function ChatRoomListItem({
 
       <View className="flex-1 gap-[2px]">
         <View className="flex-row items-center gap-2">
-          <Text
+          <Text ellipsizeMode="tail"
             variant="body"
             weight={hasUnread ? 600 : 500}
             tone="primary"
@@ -208,7 +208,7 @@ export function ChatRoomListItem({
         </View>
       )}
 
-      {divider ? <View className="ml-[64px] h-px bg-border" /> : null}
+      {divider ? <View className="ml-[64px] h-px bg-border focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" /> : null}
     </View>
   )
 }

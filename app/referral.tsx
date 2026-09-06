@@ -201,7 +201,7 @@ export default function ReferralScreen() {
                 returnKeyType="done"
                 onSubmitEditing={() => void handleApply()}
               />
-              <Button
+              <Button accessibilityHint="Ketuk untuk berinteraksi"
                 variant="secondary"
                 loading={applying}
                 disabled={!applyCode.trim()}

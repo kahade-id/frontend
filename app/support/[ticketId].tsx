@@ -127,7 +127,7 @@ export default function SupportTicketDetailScreen() {
               maxLength={2000}
               numberOfLines={4}
             />
-            <Button loading={sending} disabled={!reply.trim()} onPress={() => void handleSend()}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi" loading={sending} disabled={!reply.trim()} onPress={() => void handleSend()}>
               Kirim Balasan
             </Button>
           </View>

@@ -26,7 +26,7 @@
  *     dipisah " · " — bukan KeyValueList: templat dipindai cepat di daftar,
  *     tabel label-nilai memperlambat.
  *   - "Gunakan" adalah primary karena itu alasan templat ada; Ubah/Hapus jadi
- *     <IconButton ghost> di kanan agar tidak bersaing.
+ *     <IconButton accessibilityHint="Ketuk untuk berinteraksi" ghost> di kanan agar tidak bersaing.
  *   - `onPress` kartu (bila diberi) membuka detail/pratinjau, BUKAN langsung
  *     memakai templat — mencegah pembuatan order tidak sengaja.
  */
@@ -137,7 +137,7 @@ export function TransactionTemplateCard({
       <View className="flex-row items-start gap-3">
         <IconBox icon={typeIcon} size="md" variant="surface" accessibilityLabel={typeLabel} />
         <View className="flex-1 gap-1">
-          <Text variant="h3" tone="primary" numberOfLines={1}>
+          <Text ellipsizeMode="tail" variant="h3" tone="primary" numberOfLines={1}>
             {template.name}
           </Text>
           <Badge tone="neutral" variant="outline" className="self-start">
@@ -192,7 +192,7 @@ export function TransactionTemplateCard({
       {onUse || onEdit || onDelete ? (
         <View className="flex-row items-center gap-2 border-t border-border pt-4">
           {onUse ? (
-            <Button variant="primary" size="sm" onPress={() => onUse(template)} className="flex-1">
+            <Button variant="primary" size="sm" onPress={() => onUse(template)} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               {t.use}
             </Button>
           ) : null}

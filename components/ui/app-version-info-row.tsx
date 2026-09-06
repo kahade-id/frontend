@@ -114,7 +114,7 @@ export function AppVersionInfoRow({
       </View>
 
       {updateId ? (
-        <Text variant="caption" tone="secondary" numberOfLines={1}>
+        <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
           {updateId.length > 12 ? `${updateId.slice(0, 8)}…${updateId.slice(-4)}` : updateId}
         </Text>
       ) : null}

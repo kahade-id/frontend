@@ -51,13 +51,13 @@ function Key({
   label: string
 }) {
   return (
-    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={disabled || !onPress}
       onPress={onPress}
       containerClassName="items-center"
-      className="h-16 w-16 items-center justify-center rounded-full"
+      className="h-16 w-16 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       {children}
     </PressableScale>

@@ -180,7 +180,7 @@ export default function WithdrawalSchedulesScreen() {
             title="Belum ada jadwal"
             description="Atur penarikan otomatis ke rekening Anda."
             action={
-              <Button leftIcon={Plus} onPress={openCreate}>
+              <Button accessibilityHint="Ketuk untuk berinteraksi" leftIcon={Plus} onPress={openCreate}>
                 Buat Jadwal
               </Button>
             }

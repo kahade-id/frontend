@@ -55,7 +55,7 @@ export function SectionHeader({
       {...rest}
     >
       <View className="flex-1 gap-1">
-        <Text variant={level} tone="primary" numberOfLines={2}>
+        <Text ellipsizeMode="tail" variant={level} tone="primary" numberOfLines={2}>
           {title}
         </Text>
         {subtitle ? (

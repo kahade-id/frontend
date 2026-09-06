@@ -194,7 +194,7 @@ export function DeleteAccountForm({
         errorText={phrase.length > 0 && !phraseOk ? "Frasa tidak sesuai" : undefined}
       />
 
-      <Button
+      <Button accessibilityHint="Ketuk untuk berinteraksi"
         variant="destructive"
         onPress={() => onSubmit({ reason, password, mfaCode: requireMfa ? mfaCode : undefined })}
         disabled={!canSubmit}

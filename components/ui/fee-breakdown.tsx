@@ -129,7 +129,7 @@ export function FeeBreakdown({
   if (loading) {
     return (
       <Card accessible={false} padded className={cn("gap-3", className)} accessibilityLabel="Menghitung biaya" {...rest}>
-        <Skeleton height={14} className="w-full" />
+        <Skeleton height={14} className="w-full tabular-nums" />
         <Skeleton height={14} className="w-full" />
         <Skeleton height={1} className="w-full" />
         <Skeleton height={20} className="w-full" />
@@ -159,7 +159,7 @@ export function FeeBreakdown({
       <KeyValue label={t.sellerGets} emphasis={role === "SELLER"} value={<Amount value={gets} size={role === "SELLER" ? "large" : "body"} />} />
 
       {feeResponsibility === "SPLIT" ? (
-        <Text variant="caption" tone="secondary">
+        <Text accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary">
           <Text variant="inherit" weight={500}>
             {t.responsibility.SPLIT}
           </Text>

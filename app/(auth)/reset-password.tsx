@@ -272,7 +272,7 @@ export default function ResetPasswordScreen() {
             </VStack>
 
             {/* Submit button */}
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               onPress={() => void handleReset()}
               loading={submitting}
               disabled={!isFormValid}

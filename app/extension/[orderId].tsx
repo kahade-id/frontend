@@ -258,7 +258,7 @@ export default function ExtensionScreen() {
       padded={false}
       footer={
         canRequest ? (
-          <Button variant="primary" leftIcon={Plus} onPress={openRequest} fullWidth>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" leftIcon={Plus} onPress={openRequest} fullWidth>
             Ajukan perpanjangan
           </Button>
         ) : undefined

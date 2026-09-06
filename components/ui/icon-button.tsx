@@ -79,7 +79,7 @@ export function IconButton({
   const tone: IconTone = solid ? "inverse" : active ? "active" : "default"
 
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading, selected: active }}

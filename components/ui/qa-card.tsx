@@ -22,7 +22,7 @@
  *     ada "2 jam lalu"). Pemanggil kirim Date/ISO/epoch; format di sini agar
  *     seluruh kartu Q&A seragam.
  *   - Belum dijawab: teks caption text-secondary + slot `answerAction`
- *     (mis. <Button size="sm" variant="secondary">Jawab</Button>) yang hanya
+ *     (mis. <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary">Jawab</Button>) yang hanya
  *     relevan untuk pemilik etalase — komponen tidak tahu peran user,
  *     pemanggil yang memutuskan mengirim slot atau tidak.
  *   - "Membantu" (helpful) dibuat sebagai slot `footer`, bukan prop count
@@ -106,7 +106,7 @@ export function QACard({
         className="gap-3 p-5"
       >
         <PersonRow person={asker} date={date} />
-        <Text variant="body" weight={500} numberOfLines={questionLines}>
+        <Text ellipsizeMode="tail" variant="body" weight={500} numberOfLines={questionLines}>
           {question}
         </Text>
       </View>

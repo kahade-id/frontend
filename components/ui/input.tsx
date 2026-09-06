@@ -239,7 +239,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
               <Animated.View style={[labelStyle, { transformOrigin: "left center" }]}>
                 {/* bg-background + px-1 "memotong" garis border saat float */}
                 <View className={cn("-mx-1 px-1", floated && "bg-background")}>
-                  <Text
+                  <Text ellipsizeMode="tail"
                     variant="bodyLarge"
                     tone={hasError ? "danger" : focused ? "primary" : "secondary"}
                     numberOfLines={1}
@@ -302,7 +302,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel="Hapus teks"
-            className="ml-2"
+            className="ml-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             <Icon icon={X} size="sm" />
           </Pressable>

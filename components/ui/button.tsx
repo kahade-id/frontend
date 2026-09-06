@@ -99,7 +99,7 @@ export function Button({
   const iconTone = variantIconTone[variant]
 
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
       accessibilityRole="button"
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
@@ -121,7 +121,7 @@ export function Button({
         )}
       >
         {leftIcon ? <Icon icon={leftIcon} size={iconSize} tone={iconTone} /> : null}
-        <Text
+        <Text ellipsizeMode="tail"
           variant={size === "sm" ? "label" : "body"}
           weight={600}
           tone="inherit"

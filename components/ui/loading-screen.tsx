@@ -111,7 +111,7 @@ export function LoadingScreen({ message, className, ...rest }: LoadingScreenProp
     >
       <PulsingLogo size="lg" />
       {message ? (
-        <Text variant="body" tone="secondary" className="text-center">
+        <Text accessibilityHint="Ketuk untuk detail" variant="body" tone="secondary" className="text-center">
           {message}
         </Text>
       ) : null}

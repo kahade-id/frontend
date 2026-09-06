@@ -316,7 +316,7 @@ export default function SubscriptionsScreen() {
         className="px-6"
         style={{ paddingBottom: insets.bottom + tokens.space[4], paddingTop: tokens.space[3] }}
       >
-        <Button
+        <Button accessibilityHint="Ketuk untuk berinteraksi"
           fullWidth
           disabled={
             !selectedPlan ||

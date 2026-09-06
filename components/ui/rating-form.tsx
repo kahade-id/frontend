@@ -11,7 +11,7 @@
  *   ringkasan lawan (Avatar + nama + peran) — konteks "Anda menilai siapa"
  *   <Rating lg> di tengah + label deskriptif per skor ("Buruk" … "Sangat baik")
  *   <TextArea maxLength=500 showCount>
- *   <Button primary fullWidth> Kirim (disabled bila stars 0)
+ *   <Button accessibilityHint="Ketuk untuk berinteraksi" primary fullWidth> Kirim (disabled bila stars 0)
  *
  * Keputusan non-obvious:
  *   - Bintang dipusatkan & berukuran lg (32px): ini SATU-SATUNYA tempat
@@ -132,7 +132,7 @@ export function RatingForm({
         <View className="flex-row items-center gap-3 rounded-md border border-border bg-surface p-4">
           <Avatar source={counterpart.avatar} name={counterpart.name} size="md" verified={counterpart.verified} />
           <View className="flex-1">
-            <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
               {counterpart.name}
             </Text>
             <Text variant="caption" tone="secondary" numberOfLines={1}>

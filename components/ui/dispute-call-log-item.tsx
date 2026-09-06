@@ -143,7 +143,7 @@ export function DisputeCallLogItem({
     <ListItem
       title={title}
       subtitle={
-        <Text variant="caption" tone="secondary" numberOfLines={1}>
+        <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary" numberOfLines={1}>
           {subtitleText}
         </Text>
       }

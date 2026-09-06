@@ -260,7 +260,7 @@ export default function HomeScreen() {
          * bawah ringkasan saldo/order yang menjadi konteksnya.
          */}
         <VStack gap={3} className="px-6 pt-6">
-          <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
             Buat Transaksi
           </Button>
           <Button

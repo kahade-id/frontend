@@ -112,7 +112,7 @@ export function CopyableField({
           disabled && "opacity-disabled",
         )}
       >
-        <Text
+        <Text ellipsizeMode="tail"
           variant={mono ? "monoBody" : "body"}
           tone="primary"
           numberOfLines={wrap ? undefined : 1}
@@ -125,7 +125,7 @@ export function CopyableField({
         </Text>
 
         {onToggleMask ? (
-          <IconButton
+          <IconButton accessibilityHint="Ketuk untuk berinteraksi"
             icon={masked ? Eye : EyeSlash}
             size="sm"
             accessibilityLabel={masked ? labels.show : labels.hide}

@@ -54,7 +54,7 @@ export default function TransactionsScreen() {
         showBack={false}
         right={
           <>
-            <IconButton
+            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
               icon={Copy}
               variant="ghost"
               accessibilityLabel="Template transaksi"

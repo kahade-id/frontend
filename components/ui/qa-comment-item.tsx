@@ -99,7 +99,7 @@ export function QaCommentItem({
               {authorName}
             </TextLink>
           ) : (
-            <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
               {authorName}
             </Text>
           )}
@@ -209,7 +209,7 @@ export function QaCommentComposer({
         accessibilityLabel="Tulis komentar"
       />
       <View className="flex-row justify-end">
-        <Button size="sm" onPress={onSubmit} disabled={!canSubmit} loading={submitting} fullWidth={false}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" onPress={onSubmit} disabled={!canSubmit} loading={submitting} fullWidth={false}>
           {submitLabel}
         </Button>
       </View>

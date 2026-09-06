@@ -81,7 +81,7 @@ export default function AccountTypeScreen() {
         onChange={(v) => setPicked(v as AccountType)}
         columns={2}
       />
-      <Button
+      <Button accessibilityHint="Ketuk untuk berinteraksi"
         loading={submitting}
         disabled={!value || value === serverValue}
         onPress={() => void handleSave()}

@@ -56,7 +56,7 @@ export default function ChangePasswordScreen() {
       padded={false}
       footer={
         <View accessible={false}>
-          <Button
+          <Button accessibilityHint="Ketuk untuk berinteraksi"
             fullWidth
             loading={submitting}
             disabled={!current || next.length < 12 || next !== confirm}

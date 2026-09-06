@@ -84,7 +84,7 @@ export function ActionSheet({
         {actions.map((item, i) => (
           <View key={item.key}>
             {i > 0 ? <Divider /> : null}
-            <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+            <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
               accessibilityRole="menuitem"
               scaleOnPress={false}
               disabled={item.disabled}
@@ -101,7 +101,7 @@ export function ActionSheet({
                 <Icon icon={item.icon} size="sm" tone={item.destructive ? "danger" : "active"} />
               ) : null}
               <View className="flex-1 gap-[2px]">
-                <Text
+                <Text ellipsizeMode="tail"
                   variant="body"
                   weight={500}
                   tone={item.destructive ? "danger" : "primary"}

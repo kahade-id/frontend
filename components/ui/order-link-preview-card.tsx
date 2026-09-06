@@ -175,11 +175,11 @@ export function OrderLinkPreviewCard({
   return (
     <Card className={cn("gap-5", className)} {...rest}>
       {/* Pembuat + status */}
-      <View className="flex-row items-start justify-between gap-3">
+      <View className="flex-row items-start justify-between gap-3 tabular-nums">
         <View className="flex-1 flex-row items-center gap-3">
           <Avatar source={creator.avatar} name={creator.name} size="md" verified={creator.verified} />
           <View className="flex-1">
-            <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
               {creator.name}
             </Text>
             <Text variant="caption" tone="secondary" numberOfLines={2}>
@@ -230,7 +230,7 @@ export function OrderLinkPreviewCard({
 
       <View className="gap-2">
         {canAccept ? (
-          <Button variant="primary" fullWidth loading={accepting} onPress={onAccept}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" fullWidth loading={accepting} onPress={onAccept}>
             {t.accept}
           </Button>
         ) : null}
@@ -251,7 +251,7 @@ export function OrderLinkPreviewCardSkeleton({ className, ...rest }: Omit<ViewPr
       accessibilityLabel="Memuat tautan order"
       {...rest}
     >
-      <View className="flex-row items-center gap-3">
+      <View className="flex-row items-center gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <Skeleton shape="circle" width={40} height={40} />
         <View className="flex-1 gap-1">
           <Skeleton height={16} className="w-32" />

@@ -112,7 +112,7 @@ export function PasswordStrength({
         </View>
 
         {label || reserveSpace ? (
-          <Text
+          <Text accessibilityHint="Ketuk untuk detail"
             variant="caption"
             weight={500}
             tone={level === 1 ? "danger" : "secondary"}
