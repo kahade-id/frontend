@@ -33,7 +33,6 @@ import { PasswordField } from "@/components/ui/password-field"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Panjang kode TOTP (RFC 6238) — sama dengan <OtpInput> default. */
 const MFA_CODE_LENGTH = 6

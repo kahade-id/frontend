@@ -58,7 +58,6 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
-import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type RangeValue = readonly [number, number]
 
@@ -114,7 +113,6 @@ export function RangeSlider({
   className,
   ...rest
 }: RangeSliderProps) {
-  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   // `active` React state hanya untuk merender label nilai; posisi tidak.
   const [active, setActive] = useState<ThumbIndex | null>(null)
   const gap = minDistance ?? step

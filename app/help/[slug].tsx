@@ -12,7 +12,6 @@ import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function HelpScreen() {
   const { slug, article, q } = useLocalSearchParams<{

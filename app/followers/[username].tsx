@@ -14,7 +14,6 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { UserListItem } from "@/components/ui/user-list-item"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type Tab = "followers" | "following"
 export default function FollowersScreen() {

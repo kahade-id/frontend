@@ -34,7 +34,6 @@ import { Pressable, View, type ViewProps } from "react-native"
 import { Badge } from "@/components/ui/badge"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type AppUpdateChannel = "production" | "preview" | "development" | (string & {})
 
@@ -138,7 +137,7 @@ export function AppVersionInfoRow({
   // Pressable polos (bukan PressableScale): tidak ada scale/feedback visual —
   // baris ini sengaja tidak terlihat interaktif.
   return (
-    <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       accessibilityRole="text"
       accessibilityLabel={summary}
       accessibilityHint={onLongPress ? "Tekan lama untuk menyalin" : undefined}

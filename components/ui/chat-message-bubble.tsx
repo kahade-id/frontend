@@ -51,7 +51,6 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ChatMessageDirection = "incoming" | "outgoing" | "system"
 export type ChatMessageStatus = "sending" | "sent" | "delivered" | "read" | "failed"
@@ -156,7 +155,7 @@ export function ChatMessageBubble({
         ) : null}
 
         {onLongPress ? (
-          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="text"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Tekan lama untuk opsi pesan"

@@ -57,7 +57,6 @@ import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SubscriptionBenefit = {
   id: string

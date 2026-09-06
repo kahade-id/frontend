@@ -44,7 +44,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { SecurityLogItem } from "@/components/ui/security-log-item"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type TabKey = "devices" | "security" | "activity"
 

@@ -34,7 +34,6 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useCopy } from "@/lib/clipboard"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function ReferralScreen() {
   const insets = useSafeAreaInsets()

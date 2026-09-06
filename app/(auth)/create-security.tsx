@@ -62,7 +62,6 @@ import { PASSWORD_MIN, PASSWORD_MAX, SECURITY_CRITERIA, isPasswordValid } from "
 import { getRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-3 */
 const STEP_PROGRESS = 3 / 4

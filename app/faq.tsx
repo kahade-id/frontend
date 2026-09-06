@@ -16,7 +16,6 @@ import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function FaqScreen() {
   const insets = useSafeAreaInsets()

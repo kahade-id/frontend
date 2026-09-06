@@ -39,7 +39,6 @@ import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Tinggi container = Button sm (h-10). Segmen = container - 2×p-[2px]. */
 const CONTAINER_H = tokens.space[10]

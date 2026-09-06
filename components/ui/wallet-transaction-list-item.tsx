@@ -43,7 +43,6 @@ import { IconBox } from "@/components/ui/icon-box"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { truncateMiddle } from "@/lib/format"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type WalletTxType = "CREDIT" | "DEBIT" | "UNKNOWN"
 export type WalletTxStatus = "SUCCESS" | "PENDING" | "FAILED" | "UNKNOWN"

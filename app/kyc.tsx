@@ -56,7 +56,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { UploadField, type UploadStatus } from "@/components/ui/upload-field"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Panjang NIK KTP Indonesia (SubmitKycDto.nik). */
 const NIK_LENGTH = 16

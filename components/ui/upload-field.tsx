@@ -39,7 +39,6 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type UploadFileKind = "jpg" | "png" | "pdf"
 export type UploadStatus = "idle" | "uploading" | "done" | "error"
@@ -158,7 +157,7 @@ export function UploadField({
       {...rest}
     >
       {status === "idle" || !file ? (
-        <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+        <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityRole="button"
           accessibilityLabel={`${title}. ${constraint}`}
           accessibilityState={{ disabled }}

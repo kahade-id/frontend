@@ -30,7 +30,6 @@ import { SearchField } from "@/components/ui/search-field"
 import { Select, type SelectProps } from "@/components/ui/select"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type BankOption = {
   /** Kode unik (mis. "bca", "bri", "gopay") */
@@ -169,7 +168,7 @@ export type BankRowProps = Omit<ViewProps, "children"> & {
 
 export function BankRow({ bank, selected = false, onPress, className, ...rest }: BankRowProps) {
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       accessibilityRole="button"
       accessibilityLabel={bank.name}
       accessibilityState={{ selected, disabled: !!bank.disabled }}

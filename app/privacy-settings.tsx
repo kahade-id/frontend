@@ -28,7 +28,6 @@ import { PrivacyToggleList } from "@/components/ui/privacy-toggle-list"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const ITEMS = [
   {

@@ -40,7 +40,6 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type VoucherDiscountType = "PERCENTAGE" | "FIXED"
 export type VoucherApplicableTo = "BUYER" | "SELLER" | "ALL"

@@ -43,7 +43,6 @@ import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { groupAccountNumber, maskAccountNumber } from "@/lib/format"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type BankAccountListItemLabels = {
   primary: string

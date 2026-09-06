@@ -44,8 +44,6 @@ import { Portal } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
-import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TooltipPlacement = "auto" | "top" | "bottom"
 
@@ -80,7 +78,6 @@ export function Tooltip({
   onOpenChange,
   className,
 }: TooltipProps) {
-  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const [openState, setOpenState] = useState(false)
   const open = openProp ?? openState
   const setOpen = useCallback(
@@ -151,7 +148,7 @@ export function Tooltip({
     <>
       <View accessible={false} ref={triggerRef} collapsable={false} className="self-start">
         {children ? (
-          <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+          <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
             accessibilityState={{ expanded: open }}
@@ -192,7 +189,7 @@ export function Tooltip({
                   onLayout={handleLayout}
                   accessibilityRole="text"
                   accessibilityLiveRegion="polite"
-                  style={{ maxWidth: MAX_WIDTH }}
+                  style={{ maxWidth: winW >= tokens.layout.breakpoint ? MAX_WIDTH_MD : MAX_WIDTH }}
                   className={cn(
                     "rounded-xs border border-border bg-surface-elevated px-3 py-2",
                     className,

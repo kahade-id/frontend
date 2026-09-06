@@ -39,7 +39,6 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing, focusRingInset } from "@/lib/focus-ring"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SelectOption<V extends string = string> = {
   value: V
@@ -66,7 +65,7 @@ export type SelectProps<V extends string = string> = Omit<
     className?: string
     containerClassName?: string
     /** Ref ke trigger — berikan ke `BottomSheet.returnFocusRef` (audit #3) */
-    ref?: Ref<View accessible={false}>
+    ref?: Ref<View>
   }
 
 export function Select<V extends string = string>({
@@ -99,8 +98,9 @@ export function Select<V extends string = string>({
       disabled={disabled}
       className={containerClassName}
     >
-      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+      <PressableScale
         ref={ref}
+        accessibilityHint="Ketuk untuk berinteraksi"
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityValue={{ text: selected?.label }}

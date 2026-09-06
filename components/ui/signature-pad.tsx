@@ -58,8 +58,6 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
-import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SignaturePadLabels = {
   clear: string
@@ -131,7 +129,6 @@ export function SignaturePad({
   className,
   ...rest
 }: SignaturePadProps) {
-  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const labels = { ...defaultLabels, ...labelsProp }
   const { mode } = useTheme()
   const palette = tokens.colors[mode]

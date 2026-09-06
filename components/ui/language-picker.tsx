@@ -18,7 +18,6 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Select, SelectOptionList } from "@/components/ui/select"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type LanguageCode = "id" | "en"
 

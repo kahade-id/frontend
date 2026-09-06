@@ -51,7 +51,6 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { mapValue } from "@/lib/has-own"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TransactionTemplate = {
   id: string

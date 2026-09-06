@@ -23,7 +23,6 @@ import { KycStatusBadge, type KycStatus } from "@/components/ui/kyc-status-card"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type KycDocumentType = "KTP" | "PASSPORT" | "SIM"
 

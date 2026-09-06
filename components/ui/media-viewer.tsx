@@ -38,7 +38,6 @@ import { Modal } from "@/components/ui/modal"
 import { Picture } from "@/components/ui/picture"
 import { Text } from "@/components/ui/text"
 import { tokens } from "@/lib/tokens"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type MediaViewerItem = {
   url: string

@@ -56,7 +56,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { StatCard } from "@/components/ui/stat-card"
 import { Text } from "@/components/ui/text"
 import { VStack } from "@/components/ui/stack"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
 // Helpers

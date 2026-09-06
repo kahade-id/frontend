@@ -33,7 +33,6 @@ import { Input } from "@/components/ui/input"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
 // Reward list item

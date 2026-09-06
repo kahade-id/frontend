@@ -36,7 +36,6 @@ import { Rating } from "@/components/ui/rating"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export const RATING_COMMENT_MAX = 500
 

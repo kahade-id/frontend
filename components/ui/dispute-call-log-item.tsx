@@ -38,7 +38,6 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { formatCountdown } from "@/lib/format"
 import { hasOwn } from "@/lib/has-own"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DisputeCallOutcome =
   | "REQUESTED"

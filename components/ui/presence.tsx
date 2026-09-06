@@ -29,7 +29,6 @@ import { Animated, type ViewProps } from "react-native"
 
 import { useOverlayPresence } from "@/components/ui/backdrop"
 import { tokens } from "@/lib/tokens"
-import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type PresenceProps = Omit<ViewProps, "children" | "style"> & {
   visible: boolean
@@ -55,7 +54,6 @@ export function Presence({
   onHidden,
   ...rest
 }: PresenceProps) {
-  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const { mounted, progress } = useOverlayPresence(visible, { durationIn, durationOut, onHidden })
 
   if (!mounted) return null

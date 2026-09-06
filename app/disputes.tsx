@@ -15,7 +15,6 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { DataScreen } from "@/components/ui/data-screen"
 import { DisputeCard } from "@/components/ui/dispute-card"
 import { SectionHeader } from "@/components/ui/section"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_LIMIT = 50
 

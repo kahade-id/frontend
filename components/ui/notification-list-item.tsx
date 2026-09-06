@@ -45,7 +45,6 @@ import { IconBox } from "@/components/ui/icon-box"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type NotificationCategory =
   | "order"
@@ -151,7 +150,7 @@ export function NotificationListItem({
   return (
     <View className={cn("w-full", className)} {...rest}>
       {onPress || onLongPress ? (
-        <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+        <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           accessibilityRole="button"
           accessibilityLabel={a11y}
           accessibilityState={{ selected }}

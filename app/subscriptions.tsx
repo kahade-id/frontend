@@ -65,7 +65,6 @@ import {
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { mapValue } from "@/lib/has-own"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_SIZE = 10
 const MS_PER_DAY = 86_400_000

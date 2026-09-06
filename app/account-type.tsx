@@ -24,7 +24,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { ToggleGroup } from "@/components/ui/toggle-group"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type AccountType = "PERSONAL" | "BUSINESS"
 

@@ -55,7 +55,6 @@ import type { IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatCountdown } from "@/lib/format"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type InCallControlsBarProps = Omit<ViewProps, "children"> & {
   /** Durasi berjalan dalam detik; diformat mm:ss di sini */
