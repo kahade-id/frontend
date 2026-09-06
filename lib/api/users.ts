@@ -437,10 +437,12 @@ export function deleteShowcase(id: string) {
 }
 
 export function getPublicShowcase(username: string) {
-  return http.get<ShowcaseItem[]>(`/v1/users/${seg(username)}/showcase`, {
-    auth: "required",
-    retry: 1,
-  })
+  return http
+    .get<unknown>(`/v1/users/${seg(username)}/showcase`, {
+      auth: "required",
+      retry: 1,
+    })
+    .then((raw) => readList<ShowcaseItem>(raw, ["items", "showcase"]))
 }
 
 // ------------------------------------------------------------------
@@ -476,7 +478,21 @@ export function readQuestionList(body: QuestionListResponse | null | undefined):
 } {
   if (!body) return { items: [] }
   if (Array.isArray(body)) return { items: body }
-  return { items: body.data ?? [], totalPages: body.meta?.totalPages ?? (body.meta as any)?.total_pages }
+  const record = body as unknown as {
+    data?: QuestionItem[]
+    meta?: { totalPages?: number; total_pages?: number }
+    questions?: QuestionItem[]
+    totalPages?: number
+    total_pages?: number
+  }
+  return {
+    items: record.data ?? record.questions ?? [],
+    totalPages:
+      record.meta?.totalPages ??
+      (record.meta as any)?.total_pages ??
+      record.totalPages ??
+      record.total_pages,
+  }
 }
 
 /** Nilai enum `type` tidak didokumentasikan — asumsi "received" | "asked" (dari summary endpoint). */
