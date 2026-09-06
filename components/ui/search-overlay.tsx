@@ -42,6 +42,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SearchOverlayProps = Pick<SearchFieldProps, "placeholder" | "onSearch" | "debounceMs"> & {
   visible: boolean
@@ -100,7 +101,7 @@ export function SearchOverlay({
     <Portal>
       {/* absoluteFill (idiom RN, sama dengan <Backdrop>) — bukan literal top/right/bottom/left (audit #10) */}
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
-        <View
+        <View accessible={false}
           accessibilityViewIsModal
           accessibilityRole="search"
           className="flex-1 z-modal items-center bg-background"

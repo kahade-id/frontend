@@ -110,7 +110,7 @@ export function Avatar({
   const label = name ? toInitials(name) : ""
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="image"
       accessibilityLabel={name ? `Foto profil ${name}` : "Foto profil"}
       accessibilityHint={verified ? "Akun terverifikasi" : undefined}

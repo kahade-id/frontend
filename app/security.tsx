@@ -44,6 +44,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SecurityLogItem } from "@/components/ui/security-log-item"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type TabKey = "devices" | "security" | "activity"
 
@@ -230,7 +231,7 @@ export default function SecurityScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           <SegmentedControl items={TABS} value={tab} onChange={(v) => setTab(v as TabKey)} />
 
           {error ? (

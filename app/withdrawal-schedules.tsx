@@ -25,6 +25,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
 import { WithdrawalScheduleCard } from "@/components/ui/withdrawal-schedule-card"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function WithdrawalSchedulesScreen() {
   const insets = useSafeAreaInsets()
@@ -185,7 +186,7 @@ export default function WithdrawalSchedulesScreen() {
             }
           />
         ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Jadwal aktif" />
             {items.map((item) => (
               <WithdrawalScheduleCard

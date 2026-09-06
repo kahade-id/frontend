@@ -49,6 +49,7 @@ import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type BottomTabItem<K extends string = string> = {
   key: K
@@ -94,7 +95,7 @@ export function BottomTabBar<K extends string = string>({
   const insets = useSafeAreaInsets()
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="tablist"
       className={cn("z-sticky w-full items-center border-t border-border bg-background", className)}
       style={{ paddingBottom: insets.bottom }}

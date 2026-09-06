@@ -69,7 +69,7 @@ export function Banner({
 
   return (
     <Portal>
-      <View
+      <View accessible={false}
         pointerEvents="box-none"
         className="absolute inset-x-0 top-0 z-banner items-center"
         style={{ paddingTop: insets.top }}

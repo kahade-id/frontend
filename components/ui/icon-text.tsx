@@ -67,7 +67,7 @@ export function IconText({
   const topOffset = alignTop ? Math.max(0, (lineHeight - iconPx) / 2) : 0
 
   return (
-    <View
+    <View accessible={false}
       className={cn(
         "flex-row gap-2",
         reverse && "flex-row-reverse",

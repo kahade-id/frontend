@@ -70,7 +70,7 @@ export function CurrencyRangeField({
     : null
 
   return (
-    <View className={cn("w-full gap-3", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-3", className)} {...rest}>
       {label !== null ? <FieldLabel disabled={disabled}>{label ?? t.label}</FieldLabel> : null}
 
       <View className="flex-row items-start gap-3">

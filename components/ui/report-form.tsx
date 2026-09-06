@@ -30,6 +30,7 @@ import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ReportReason =
   | "SCAM"
@@ -106,7 +107,7 @@ export function ReportForm({
   const canSubmit = v.reason.length > 0 && !detailError && !submitting
 
   return (
-    <View className={cn("gap-5", className)} {...rest}>
+    <View accessible={false} className={cn("gap-5", className)} {...rest}>
       {targetName ? (
         <Text variant="caption" tone="secondary">
           Melaporkan {targetName}

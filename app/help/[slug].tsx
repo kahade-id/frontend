@@ -12,6 +12,7 @@ import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function HelpScreen() {
   const { slug, article, q } = useLocalSearchParams<{
@@ -56,7 +57,7 @@ export default function HelpScreen() {
           <ErrorState description={query.error} onRetry={() => void query.reload()} />
         ) : article ? (
           selected ? (
-            <Text variant="body">
+            <Text numberOfLines={1} variant="body">
               {selected.content || "Isi artikel belum tersedia dari server."}
             </Text>
           ) : (

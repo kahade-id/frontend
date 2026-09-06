@@ -116,7 +116,7 @@ export function TagInput({
       reserveHelperSpace={reserveHelperSpace}
       disabled={disabled}
     >
-      <View
+      <View accessible={false}
         className={cn(
           "min-h-12 w-full flex-row flex-wrap items-center gap-2 rounded-sm bg-background py-2",
           hasError

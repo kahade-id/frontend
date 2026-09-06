@@ -60,6 +60,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DevicePlatform = "mobile" | "tablet" | "laptop" | "desktop" | "web"
 
@@ -249,7 +250,7 @@ export function DeviceSessionListItem({
     <View className={cn("w-full", disabled && "opacity-disabled", className)} {...rest}>
       <View className="flex-row items-center gap-3 px-6">
         {onPress ? (
-          <PressableScale
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Buka detail sesi"

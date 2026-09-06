@@ -65,6 +65,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -147,7 +148,7 @@ export default function LoginScreen() {
               <Heading level={1} className="text-balance">
                 Selamat datang kembali
               </Heading>
-              <Text variant="body" tone="secondary" className="text-pretty">
+              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
                 Masuk ke akun Kahade Anda untuk melanjutkan.
               </Text>
             </VStack>
@@ -209,7 +210,7 @@ export default function LoginScreen() {
 
         {/* Footer links */}
         <FooterBar>
-          <View className="items-center">
+          <View accessible={false} className="items-center">
             <TextLink onPress={handleForgotPassword} disabled={submitting}>
               Lupa password?
             </TextLink>

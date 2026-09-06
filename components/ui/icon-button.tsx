@@ -104,7 +104,7 @@ export function IconButton({
       {loading ? (
         <Spinner size={size === "sm" ? "sm" : "md"} tone={solid ? "inverse" : "active"} />
       ) : (
-        <View>
+        <View accessible={false}>
           <Icon
             icon={icon}
             size={size === "sm" ? "sm" : "md"}

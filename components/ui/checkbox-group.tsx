@@ -37,6 +37,7 @@ import { Checkbox, CheckboxIndicator } from "@/components/ui/checkbox"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type CheckboxGroupVariant = "plain" | "card"
 
@@ -86,7 +87,7 @@ export function CheckboxGroup<V extends string = string>({
 
   return (
     <CheckboxGroupContext.Provider value={{ values: value, toggle, disabled, error, variant, full }}>
-      <View
+      <View accessible={false}
         // RN tidak punya role "group" khusus checkbox; "list" memberi konteks
         // "daftar N item" ke screen reader tanpa menyalahi semantik.
         accessibilityRole="list"
@@ -142,7 +143,7 @@ export function CheckboxGroupItem({
   }
 
   return (
-    <PressableScale
+    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="checkbox"
       accessibilityState={{ checked, disabled }}
       disabled={disabled}

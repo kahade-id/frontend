@@ -1,5 +1,5 @@
 /**
- * Kahade — <PressableScale> primitif interaksi (§8 "Button press").
+ * Kahade — <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> primitif interaksi (§8 "Button press").
  *
  * Dasar untuk Button, IconButton, Chip, ListItem, Card interaktif, dst.
  * Menangani TIGA hal yang harus seragam di seluruh app:
@@ -16,7 +16,7 @@
  *     jadi StyleSheet/Animated diizinkan di sini saja. Komponen di atasnya
  *     cukup memberi className.
  *   - `Animated.View` bukan komponen yang di-interop NativeWind, maka
- *     className diletakkan pada <View> di dalamnya, bukan pada Animated.View.
+ *     className diletakkan pada <View accessible={false}> di dalamnya, bukan pada Animated.View.
  *   - RN `Animated` (bukan reanimated) mengikuti keputusan animated-splash.tsx
  *     agar tidak menambah dependensi untuk animasi sesederhana ini. Bottom
  *     sheet/pull-to-refresh yang butuh spring gesture tetap pakai reanimated.

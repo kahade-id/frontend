@@ -88,7 +88,7 @@ export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function 
       : undefined
 
   return (
-    <View className="w-full">
+    <View accessible={false} className="w-full">
       <Input
         ref={ref}
         label={label ?? t.label}

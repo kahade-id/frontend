@@ -73,7 +73,7 @@ export function ReasonPicker({
   const showNote = alwaysShowNote || !!selected?.other
 
   return (
-    <View className={cn("w-full gap-4", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-4", className)} {...rest}>
       <RadioGroup
         value={value.code}
         onChange={(code) => onChange({ code, note: value.note })}

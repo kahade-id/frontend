@@ -114,7 +114,7 @@ export default function BiometricSettingsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Biometrik" />
-      <View
+      <View accessible={false}
         className="gap-4 px-6"
         style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
       >
@@ -132,7 +132,7 @@ export default function BiometricSettingsScreen() {
             mengaktifkannya.
           </Alert>
         ) : (
-          <Text variant="caption" tone="secondary">
+          <Text numberOfLines={1} variant="caption" tone="secondary">
             PIN dompet tetap diminta bila {label} gagal dikenali atau saat perangkat baru dipakai masuk.
           </Text>
         )}

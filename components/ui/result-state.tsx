@@ -71,7 +71,7 @@ export function ResultState({
   ...rest
 }: ResultStateProps) {
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="summary"
       accessibilityLiveRegion="polite"
       className={cn("flex-1 w-full items-center justify-center gap-8 py-16", className)}

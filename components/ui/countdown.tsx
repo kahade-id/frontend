@@ -141,7 +141,7 @@ export function Countdown({
   const label = [prefix, formatted, suffix].filter(Boolean).join(" ")
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="timer"
       accessibilityLabel={label}
       accessibilityLiveRegion="polite"

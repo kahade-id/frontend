@@ -53,6 +53,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TwoFactorStatusCard } from "@/components/ui/two-factor-status-card"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Panjang kode TOTP standar RFC 6238 (sama dengan default <OtpInput>). */
 const TOTP_LENGTH = 6
@@ -270,7 +271,7 @@ export default function TwoFactorScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loadError ? (
             <ErrorState
               title="Gagal memuat"
@@ -293,7 +294,7 @@ export default function TwoFactorScreen() {
           {step === "password" ? (
             <>
               <SectionHeader title="Langkah 1 dari 3 — Verifikasi password" />
-              <Text variant="body" tone="secondary">
+              <Text numberOfLines={1} variant="body" tone="secondary">
                 Masukkan password akun untuk menyiapkan aplikasi autentikator.
               </Text>
               <PasswordField

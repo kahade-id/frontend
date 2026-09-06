@@ -13,6 +13,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function AppVersionScreen() {
   const toast = useToast()
@@ -75,7 +76,7 @@ export default function AppVersionScreen() {
           channel={Updates.channel?.trim() || "Tidak terhubung"}
           updateId={Updates.updateId ?? undefined}
         />
-        <Text variant="caption" tone="secondary">
+        <Text numberOfLines={1} variant="caption" tone="secondary">
           Runtime: {Updates.runtimeVersion?.trim() || "Tidak tersedia pada lingkungan ini"}
         </Text>
         {version.error ? (

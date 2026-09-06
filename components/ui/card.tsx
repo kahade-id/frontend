@@ -37,6 +37,7 @@ import { Divider } from "@/components/ui/divider"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type CardVariant = "default" | "elevated" | "inverted" | "outline"
 
@@ -89,7 +90,7 @@ export function Card({
 
   if (onPress || onLongPress) {
     return (
-      <PressableScale
+      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}

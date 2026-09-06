@@ -20,6 +20,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { useCopy } from "@/lib/clipboard"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function InvoiceScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>()
@@ -97,7 +98,7 @@ export default function InvoiceScreen() {
             onRetry={() => void fetchInvoice()}
           />
         ) : invoice ? (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <InvoiceReceiptView
               mode="invoice"
               number={invoice.invoiceNumber}

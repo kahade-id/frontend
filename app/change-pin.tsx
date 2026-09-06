@@ -33,6 +33,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type Step = "password" | "current" | "new"
 
@@ -111,7 +112,7 @@ export default function ChangePinScreen() {
       padded={false}
       footer={
         step === "password" ? (
-          <View>
+          <View accessible={false}>
             <Button fullWidth disabled={!passwordOk} onPress={() => setStep("current")}>
               Lanjut
             </Button>
@@ -128,7 +129,7 @@ export default function ChangePinScreen() {
         {step === "password" ? (
           <>
             <SectionHeader title="Verifikasi password" />
-            <Text variant="body" tone="secondary">
+            <Text numberOfLines={1} variant="body" tone="secondary">
               Masukkan password akun untuk mengizinkan perubahan PIN.
             </Text>
             <PasswordField

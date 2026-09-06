@@ -60,7 +60,7 @@ export function FormSection({
   const hasHeader = !!title || !!description
 
   return (
-    <View className={cn("w-full gap-4", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-4", className)} {...rest}>
       {divider ? <Divider /> : null}
 
       {hasHeader ? (

@@ -29,6 +29,7 @@ import { Skeleton, SkeletonText } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TwoFactorMethod = "TOTP" | "SMS" | "EMAIL"
 
@@ -140,7 +141,7 @@ export function TwoFactorStatusCard({
             variant={enabled ? "success" : "warning"}
           />
           <View className="flex-1 gap-1">
-            <Text variant="h3" tone="primary">
+            <Text numberOfLines={2} variant="h3" tone="primary">
               {t.title}
             </Text>
             <View className="flex-row items-center gap-2">

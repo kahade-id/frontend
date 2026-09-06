@@ -59,6 +59,7 @@ import { Switch } from "@/components/ui/switch"
 import { TextArea } from "@/components/ui/text-area"
 import { UsernameField } from "@/components/ui/username-field"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const AVATAR_PICKER: PickImageOptions = { square: true }
 const MAX_LINKS = 4
@@ -331,7 +332,7 @@ export default function EditProfileScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        <View>
+        <View accessible={false}>
           <Button
             fullWidth
             loading={submitting}

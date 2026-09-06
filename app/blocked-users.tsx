@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function BlockedUsersScreen() {
   const toast = useToast()

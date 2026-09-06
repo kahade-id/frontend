@@ -88,7 +88,7 @@ export default function WalletTransactionScreen() {
             onRetry={() => void fetchTxn()}
           />
         ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <Card padded className="items-center gap-3">
               <IconBox
                 icon={WalletIcon}
@@ -120,7 +120,7 @@ export default function WalletTransactionScreen() {
               {txn.description ? <KeyValue label="Deskripsi" value={txn.description} /> : null}
             </Card>
 
-            <Text variant="caption" tone="tertiary" className="text-center">
+            <Text numberOfLines={1} variant="caption" tone="tertiary" className="text-center">
               ID mutasi: <Text variant="monoBody">{txn.id}</Text>
             </Text>
           </View>

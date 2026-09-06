@@ -63,7 +63,7 @@ export function SectionTitle({
   ...rest
 }: SectionTitleProps) {
   return (
-    <View className={cn("w-full flex-row items-end justify-between gap-3", className)} {...rest}>
+    <View accessible={false} className={cn("w-full flex-row items-end justify-between gap-3", className)} {...rest}>
       <View className="flex-1 gap-1">
         <Heading level={level} numberOfLines={1}>
           {title}

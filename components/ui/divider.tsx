@@ -60,7 +60,7 @@ export function Divider({
 }: DividerProps) {
   if (orientation === "vertical") {
     return (
-      <View
+      <View accessible={false}
         accessibilityRole="none"
         importantForAccessibility="no"
         className={cn("w-px self-stretch", toneClass[tone], className)}

@@ -77,10 +77,10 @@ export function Switch({
   const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [0, TRAVEL] })
 
   const track = (
-    <View
+    <View accessible={false}
       className={cn(
         "justify-center rounded-full",
-        value ? "border border-primary bg-primary" : "border border-border-control bg-surface dark:bg-surface",
+        value ? "border border-primary bg-primary" : "border border-border-control bg-surface",
       )}
       style={{ width: TRACK_W, height: TRACK_H, paddingHorizontal: INSET }}
     >

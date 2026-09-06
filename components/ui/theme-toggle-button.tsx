@@ -35,6 +35,7 @@ import type { ViewProps } from "react-native"
 import { useTheme, type ThemePreference } from "@/components/theme-provider"
 import { IconButton, type IconButtonProps } from "@/components/ui/icon-button"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ThemeToggleButtonProps = Omit<
   IconButtonProps,

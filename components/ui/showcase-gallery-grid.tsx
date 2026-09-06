@@ -45,6 +45,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatNumber } from "@/lib/format"
 import { space } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ShowcaseItem = {
   id: string
@@ -90,7 +91,7 @@ export function ShowcaseGalleryGrid({
 
   if (!loading && items.length === 0) {
     return (
-      <View className={cn("w-full", className)} {...rest}>
+      <View accessible={false} className={cn("w-full", className)} {...rest}>
         {empty}
       </View>
     )
@@ -140,7 +141,7 @@ export function ShowcaseGalleryGrid({
               if (!onPressItem) return <View key={item.id}>{picture}</View>
 
               return (
-                <PressableScale
+                <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
                   key={item.id}
                   accessibilityRole="button"
                   accessibilityLabel={item.alt}

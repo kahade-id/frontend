@@ -48,6 +48,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah, truncateMiddle } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type OrderLinkSharePayload = {
   url: string

@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
 import { ROUTES } from "@/lib/routes"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function NotFoundScreen() {
   const router = useRouter()

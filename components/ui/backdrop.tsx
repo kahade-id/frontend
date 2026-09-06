@@ -24,7 +24,7 @@
  *     driver sudah cukup; reanimated + gesture-handler disisakan untuk gesture
  *     kompleks (pull-to-refresh, shared element).
  *   - `Animated.View` tidak di-interop NativeWind, jadi className diletakkan
- *     pada <Pressable> di dalamnya; Animated.View hanya membawa opacity.
+ *     pada <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> di dalamnya; Animated.View hanya membawa opacity.
  *   - Tidak ada hover/tint saat pointer di web (§11).
  */
 import { useEffect, useRef, useState } from "react"
@@ -33,6 +33,7 @@ import { Animated, BackHandler, Easing, Platform, Pressable, StyleSheet } from "
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type OverlayPresence = {
   /** Overlay harus ada di tree (termasuk selama animasi keluar) */

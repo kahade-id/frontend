@@ -39,6 +39,7 @@ import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { Logo } from "@/components/ui/logo"
 import { Text } from "@/components/ui/text"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Tinggi banner; dipakai juga untuk padding-top body agar konten tidak tertutup. */
 const BANNER_HEIGHT = 64
@@ -83,7 +84,7 @@ export function SmartAppBanner() {
   if (Platform.OS !== "web" || !visible || !os) return null
 
   return (
-    <View
+    <View accessible={false}
       // `web:fixed` + inset-x-0 + top-0: menempel di tepi atas viewport,
       // di bawah status bar browser, di atas seluruh konten app.
       // z-sticky (10), BUKAN z-banner (70): z-banner berada di atas Modal

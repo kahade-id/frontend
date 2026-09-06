@@ -43,6 +43,7 @@ import { Rating } from "@/components/ui/rating"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatNumber } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type UserDiscoverResultItemProps = Omit<ViewProps, "children"> & {
   name: string
@@ -125,7 +126,7 @@ export function UserDiscoverResultItem({
     <View className={cn("w-full", className)} {...rest}>
       <View className="flex-row items-center gap-3 px-6">
         {onPress ? (
-          <PressableScale
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Buka profil"

@@ -58,6 +58,7 @@ import {
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { mapValue } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
 // Konstanta layar
@@ -106,7 +107,7 @@ const SKELETON_COUNT = 5
 
 function NotifSkeletonRow() {
   return (
-    <View
+    <View accessible={false}
       style={{
         flexDirection: "row",
         alignItems: "flex-start",

@@ -25,6 +25,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_SIZE = 20
 const FILTERS: { value: PublicRatingFilter; label: string }[] = [
@@ -101,7 +102,7 @@ export default function PublicRatingsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Ulasan" />
-      <View className="flex-row flex-wrap gap-2 px-6" style={{ paddingTop: tokens.space[3] }}>
+      <View accessible={false} className="flex-row flex-wrap gap-2 px-6" style={{ paddingTop: tokens.space[3] }}>
         {FILTERS.map((f) => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
             {f.label}

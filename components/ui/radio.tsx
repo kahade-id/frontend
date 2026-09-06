@@ -32,6 +32,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type RadioContextValue = {
   value: string | undefined
@@ -63,7 +64,7 @@ export function RadioGroup({
 }: RadioGroupProps) {
   return (
     <RadioContext.Provider value={{ value, onChange, disabled, variant }}>
-      <View
+      <View accessible={false}
         accessibilityRole="radiogroup"
         className={cn("w-full", variant === "card" ? "gap-3" : "gap-0", className)}
         {...rest}

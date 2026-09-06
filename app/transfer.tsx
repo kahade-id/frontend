@@ -136,7 +136,7 @@ export default function TransferScreen() {
       padded={false}
       footer={
         step === "form" ? (
-          <View>
+          <View accessible={false}>
             <Button
               fullWidth
               haptic

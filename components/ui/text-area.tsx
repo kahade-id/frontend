@@ -56,7 +56,7 @@ export const TextArea = forwardRef<TextInput, TextAreaProps>(function TextArea(
   const atLimit = maxLength != null && length >= maxLength
 
   return (
-    <View className={cn("relative w-full", containerClassName)}>
+    <View accessible={false} className={cn("relative w-full", containerClassName)}>
       <Input
         ref={ref}
         variant="multiline"

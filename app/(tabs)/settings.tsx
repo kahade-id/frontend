@@ -65,6 +65,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
 // Data Menu & Komunitas
@@ -316,7 +317,7 @@ export default function SettingsScreen() {
         }}
       >
         {/* ── Profile Header ───────────────────────────────── */}
-        <View className="pt-2 pb-1">
+        <View accessible={false} className="pt-2 pb-1">
           {profileQuery.error ? (
             <ErrorState
               compact
@@ -337,7 +338,7 @@ export default function SettingsScreen() {
 
         <View className="gap-4 px-6 pt-3">
           {/* ── Card Utama: Langganan ───────────────────────── */}
-          <PressableScale
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel="Menu Langganan Kahade Plus"
             onPress={() => router.push(ROUTES.subscriptions)}

@@ -34,6 +34,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ActionSheetItem = {
   key: string
@@ -79,11 +80,11 @@ export function ActionSheet({
       }
       {...sheetProps}
     >
-      <View accessibilityRole="menu">
+      <View accessible={false} accessibilityRole="menu">
         {actions.map((item, i) => (
           <View key={item.key}>
             {i > 0 ? <Divider /> : null}
-            <PressableScale
+            <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
               accessibilityRole="menuitem"
               scaleOnPress={false}
               disabled={item.disabled}

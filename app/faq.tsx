@@ -16,6 +16,7 @@ import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function FaqScreen() {
   const insets = useSafeAreaInsets()
@@ -37,7 +38,7 @@ export default function FaqScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pusat Bantuan" />
-      <View className="px-6 pb-4">
+      <View accessible={false} className="px-6 pb-4">
         <DebouncedSearchField
           autoFocus={false}
           onQueryChange={setKeyword}

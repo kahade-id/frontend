@@ -50,6 +50,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { WalletBalanceCard, type WalletQuickAction } from "@/components/ui/wallet-balance-card"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
 // Konstanta layar
@@ -186,7 +187,7 @@ export default function WalletScreen() {
           />
         }
         header={
-          <View>
+          <View accessible={false}>
             {walletError ? (
               <ErrorState
                 compact

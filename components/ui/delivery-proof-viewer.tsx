@@ -65,6 +65,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DeliveryProofStatus = "pending" | "confirmed" | "rejected"
 
@@ -167,7 +168,7 @@ function ImageTile({
   const picture = <Picture source={att.uri} alt={att.alt ?? label} aspectRatio={aspectRatio} className="w-full" />
   if (!onOpen) return picture
   return (
-    <PressableScale onPress={() => onOpen(index)} accessibilityRole="imagebutton" accessibilityLabel={label}>
+    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" onPress={() => onOpen(index)} accessibilityRole="imagebutton" accessibilityLabel={label}>
       {picture}
     </PressableScale>
   )

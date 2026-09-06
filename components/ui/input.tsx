@@ -55,6 +55,7 @@ import { cn } from "@/lib/cn"
 import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type InputVariant = "text" | "search" | "multiline"
 
@@ -201,7 +202,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       disabled={disabled}
       className={containerClassName}
     >
-      <View
+      <View accessible={false}
         className={cn(
           "w-full flex-row rounded-sm bg-background",
           isMultiline ? "items-start py-4" : "items-center",

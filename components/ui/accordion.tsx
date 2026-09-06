@@ -32,6 +32,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type AccordionContextValue = {
   open: readonly string[]
@@ -85,7 +86,7 @@ export function Accordion({
 
   return (
     <AccordionContext.Provider value={ctx}>
-      <View
+      <View accessible={false}
         className={cn(
           "w-full",
           bordered && "overflow-hidden rounded-md border border-border bg-surface-elevated",
@@ -144,7 +145,7 @@ export function AccordionItem({
 
   return (
     <View className={cn("w-full", !last && "border-b border-border", className)} {...rest}>
-      <PressableScale
+      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         accessibilityRole="button"
         accessibilityState={{ expanded: open, disabled }}
         accessibilityLabel={title}

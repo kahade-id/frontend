@@ -70,7 +70,7 @@ export function ProgressRing({
   const dashOffset = c * (1 - pct / 100)
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: pct }}
       accessibilityLabel={accessibilityLabel}

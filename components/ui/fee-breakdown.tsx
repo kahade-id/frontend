@@ -128,7 +128,7 @@ export function FeeBreakdown({
 
   if (loading) {
     return (
-      <Card padded className={cn("gap-3", className)} accessibilityLabel="Menghitung biaya" {...rest}>
+      <Card accessible={false} padded className={cn("gap-3", className)} accessibilityLabel="Menghitung biaya" {...rest}>
         <Skeleton height={14} className="w-full" />
         <Skeleton height={14} className="w-full" />
         <Skeleton height={1} className="w-full" />

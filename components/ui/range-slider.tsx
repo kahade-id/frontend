@@ -216,7 +216,7 @@ export function RangeSlider({
   })
 
   return (
-    <View
+    <View accessible={false}
       className={cn("w-full justify-center py-3", disabled && "opacity-disabled", className)}
       {...rest}
     >

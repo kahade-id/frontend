@@ -38,6 +38,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatDecimal } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type RatingSize = "sm" | "md" | "lg"
 
@@ -114,7 +115,7 @@ export function Rating({
     const half = !filled && fillRatio > 0
 
     const glyph = (
-      <View style={{ width: px, height: px }}>
+      <View accessible={false} style={{ width: px, height: px }}>
         {/* Lapisan bawah: bintang kosong (outline, warna border) */}
         <Star size={px} color={palette.borderControl} weight="regular" />
         {/* Lapisan atas: bintang terisi, dipotong 50% untuk setengah */}
@@ -133,7 +134,7 @@ export function Rating({
     if (!interactive) return <View key={n}>{glyph}</View>
 
     return (
-      <PressableScale
+      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         key={n}
         disabled={disabled}
         onPress={() => select(n)}

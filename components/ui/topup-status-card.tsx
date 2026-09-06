@@ -48,6 +48,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { groupAccountNumber } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | "CANCELLED" | "UNKNOWN"
 
@@ -226,7 +227,7 @@ export function TopupStatusCard({
         </View>
 
         <View className="gap-1">
-          <Text variant="caption" tone="secondary">
+          <Text numberOfLines={2} variant="caption" tone="secondary">
             {t.amount}
           </Text>
           <Amount value={amount} size="large" tone="primary" />

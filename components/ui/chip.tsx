@@ -39,6 +39,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ICON_XS_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ChipProps = Omit<PressableScaleProps, "children" | "className"> & {
   children: ReactNode
@@ -134,7 +135,7 @@ export function ChipGroup<V extends string = string>({
   }
 
   return (
-    <View className={cn("flex-row flex-wrap gap-2", className)} {...rest}>
+    <View accessible={false} className={cn("flex-row flex-wrap gap-2", className)} {...rest}>
       {options.map((o) => (
         <Chip
           key={o.value}

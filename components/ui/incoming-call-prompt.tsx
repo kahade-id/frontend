@@ -55,6 +55,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type IncomingCallType = "voice" | "video"
 
@@ -100,7 +101,7 @@ export function IncomingCallPrompt({
   const sub = subtitle ?? (callType === "video" ? t.video : t.voice)
 
   return (
-    <View
+    <View accessible={false}
       accessibilityViewIsModal
       accessibilityLabel={`${sub} dari ${callerName}`}
       className={cn("flex-1 items-center justify-between bg-background px-6 py-16", className)}
@@ -201,7 +202,7 @@ function CallAction({
 }) {
   return (
     <View className="items-center gap-2">
-      <PressableScale
+      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityHint={accessibilityHint}

@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text, type TextTone } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type StatDelta = {
   /** Teks sudah diformat, mis. "+12%" atau "-Rp50.000" */

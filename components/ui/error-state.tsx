@@ -59,7 +59,7 @@ export function ErrorState({
   ...rest
 }: ErrorStateProps) {
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
       className={cn(

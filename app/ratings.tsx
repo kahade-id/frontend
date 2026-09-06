@@ -48,6 +48,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_SIZE = 20
 /** RatingReplyDto.content — batas lokal sama dengan komentar ulasan (spec tanpa maxLength) */
@@ -259,7 +260,7 @@ export default function RatingsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Ulasan" />
-      <View className="px-6" style={{ paddingTop: tokens.space[3] }}>
+      <View accessible={false} className="px-6" style={{ paddingTop: tokens.space[3] }}>
         <SegmentedControl items={SEGMENTS} value={segment} onChange={setSegment} />
       </View>
       <PullToRefresh

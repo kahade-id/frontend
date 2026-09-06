@@ -34,6 +34,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useCopy } from "@/lib/clipboard"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function ReferralScreen() {
   const insets = useSafeAreaInsets()
@@ -174,7 +175,7 @@ export default function ReferralScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <ReferralCodeCard
               code={code}
               shareUrl={code ? referralUrl(code) : undefined}

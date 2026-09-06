@@ -114,7 +114,7 @@ export function Logo({
   )
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="image"
       accessibilityLabel="Kahade"
       className={cn("flex-row items-center", variant === "lockup" && "gap-3", className)}

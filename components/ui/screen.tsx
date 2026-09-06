@@ -116,7 +116,7 @@ export function Screen({
             {children}
           </ScrollView>
         ) : (
-          <View className={cn("flex-1", bodyPad)}>{children}</View>
+          <View accessible={false} className={cn("flex-1", bodyPad)}>{children}</View>
         )}
 
         {footer ? <FooterBar>{footer}</FooterBar> : null}

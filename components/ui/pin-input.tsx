@@ -41,7 +41,7 @@ export type PinDotsProps = Omit<ViewProps, "children"> & {
 
 export function PinDots({ length, filled, error = false, className, ...rest }: PinDotsProps) {
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="progressbar"
       accessibilityLabel={`${filled} dari ${length} digit terisi`}
       accessibilityValue={{ min: 0, max: length, now: filled }}

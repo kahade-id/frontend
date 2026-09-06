@@ -91,7 +91,7 @@ export function FadeIn({
   })
 
   return (
-    <View pointerEvents={visible ? "auto" : "none"} {...rest}>
+    <View accessible={false} pointerEvents={visible ? "auto" : "none"} {...rest}>
       <Animated.View style={{ flex: 1, opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>
     </View>
   )

@@ -97,7 +97,7 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
   ref,
 ) {
   return (
-    <PressableScale
+    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       ref={ref}
       accessibilityRole="search"
       accessibilityLabel={placeholder}

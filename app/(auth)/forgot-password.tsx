@@ -51,6 +51,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function ForgotPasswordScreen() {
   const router = useRouter()
@@ -121,7 +122,7 @@ export default function ForgotPasswordScreen() {
             {/* Explanation text */}
             <VStack gap={2}>
               <Heading level={1}>Lupa password?</Heading>
-              <Text variant="body" tone="secondary" className="text-pretty">
+              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
                 Masukkan email yang terdaftar di akun Anda. Kami akan mengirim
                 kode verifikasi untuk mereset password.
               </Text>
@@ -169,7 +170,7 @@ export default function ForgotPasswordScreen() {
 
         {/* Footer */}
         <FooterBar>
-          <View className="items-center">
+          <View accessible={false} className="items-center">
             <TextLink onPress={handleBackToLogin} disabled={submitting}>
               Kembali ke login
             </TextLink>

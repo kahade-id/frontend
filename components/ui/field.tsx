@@ -113,7 +113,7 @@ export function Field({
   ...rest
 }: FieldProps) {
   return (
-    <View className={cn("w-full gap-2", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-2", className)} {...rest}>
       {label ? (
         <FieldLabel required={required} disabled={disabled}>
           {label}

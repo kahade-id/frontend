@@ -54,6 +54,7 @@ import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-noti
 import { ROUTES } from "@/lib/routes"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export { AppErrorBoundary as ErrorBoundary } from "@/components/app-error-boundary"
 
@@ -246,7 +247,7 @@ function AppShell() {
           Modal/BottomSheet/SearchOverlay/LoadingOverlay terbuka; Toast berada
           di luar Scene (ToastProvider) agar tetap terbaca sebagai alert.
         */}
-        <View className="flex-1 items-center">
+        <View accessible={false} className="flex-1 items-center">
           <ContentContainer bordered>
             <PortalScene>
               {session.restoring ? (

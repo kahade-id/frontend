@@ -25,6 +25,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ToggleOption<V extends string = string> = {
   value: V
@@ -68,7 +69,7 @@ export function ToggleGroup<V extends string = string>(props: ToggleGroupProps<V
   const basis = `${100 / columns}%` as const
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole={props.multiple ? undefined : "radiogroup"}
       className={cn("w-full flex-row flex-wrap", className)}
       style={{ marginHorizontal: -gap / 2, marginVertical: -gap / 2 }}
@@ -79,7 +80,7 @@ export function ToggleGroup<V extends string = string>(props: ToggleGroupProps<V
         const off = disabled || o.disabled
         return (
           <View key={o.value} style={{ flexBasis: basis, padding: gap / 2 }}>
-            <PressableScale
+            <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
               accessibilityRole={props.multiple ? "checkbox" : "radio"}
               accessibilityState={{ selected, checked: selected, disabled: !!off }}
               accessibilityLabel={o.hint ? `${o.label}, ${o.hint}` : o.label}

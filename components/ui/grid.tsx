@@ -45,7 +45,7 @@ export function Grid({ children, gap = 3, columns = tokens.layout.gridColumns, c
 
   return (
     <GridContext.Provider value={{ width, gapPx: space[gap], columns }}>
-      <View onLayout={onLayout} className={cn("w-full flex-row flex-wrap", gapClass[gap], className)} {...rest}>
+      <View accessible={false} onLayout={onLayout} className={cn("w-full flex-row flex-wrap", gapClass[gap], className)} {...rest}>
         {width > 0 ? children : null}
       </View>
     </GridContext.Provider>

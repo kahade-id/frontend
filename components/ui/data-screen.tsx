@@ -13,7 +13,7 @@
  *       scrollViewProps={{ contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] } }}
  *     >
  *       {loading ? <LoadingScreen/> : error ? <ErrorState/> : items.length === 0 ? <EmptyState/> : (
- *         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>…</View>
+ *         <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>…</View>
  *       )}
  *     </PullToRefresh>
  *   </Screen>

@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type LoadMoreStatus = "idle" | "loading" | "end" | "error"
 
@@ -49,7 +50,7 @@ export function LoadMore({
   if (status === "end" && hideEnd) return null
 
   return (
-    <View
+    <View accessible={false}
       accessibilityLiveRegion="polite"
       className={cn("min-h-14 w-full items-center justify-center gap-2 py-4", className)}
       {...rest}

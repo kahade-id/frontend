@@ -129,7 +129,7 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
       disabled={disabled}
       className={containerClassName}
     >
-      <View
+      <View accessible={false}
         className={cn(
           "h-12 w-full flex-row items-center rounded-sm bg-background",
           hasError

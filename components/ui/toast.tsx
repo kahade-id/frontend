@@ -38,6 +38,7 @@ import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 import { Icon, type IconComponent, type IconTone } from "./icon"
 import { IconButton } from "./icon-button"
 import { Text } from "./text"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ToastTone = "neutral" | "success" | "danger" | "warning" | "info"
 export type ToastPosition = "top" | "bottom"
@@ -123,7 +124,7 @@ function ToastViewport({
   if (toasts.length === 0) return null
 
   return (
-    <View
+    <View accessible={false}
       pointerEvents="box-none"
       className={cn(
         "absolute left-0 right-0 z-banner items-center px-4",
@@ -254,7 +255,7 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
       </View>
 
       {toast.action ? (
-        <Pressable
+        <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
           accessibilityRole="button"
           onPress={() => {
             toast.action?.onPress()

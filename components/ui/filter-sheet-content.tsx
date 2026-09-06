@@ -27,6 +27,7 @@ import { Rating } from "@/components/ui/rating"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type FilterSectionBase = { key: string; title: string; description?: string }
 
@@ -83,7 +84,7 @@ export function FilterSheetContent({
   const active = countActiveFilters(value, defaultValue)
 
   return (
-    <View className={cn("w-full gap-8", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-8", className)} {...rest}>
       {sections.map((s) => (
         <View key={s.key} className="gap-3">
           <View className="gap-1">

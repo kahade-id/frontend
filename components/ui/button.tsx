@@ -114,7 +114,7 @@ export function Button({
       {...rest}
     >
       {/* Konten label — opacity-0 saat loading agar lebar tetap */}
-      <View
+      <View accessible={false}
         className={cn(
           "min-w-0 flex-shrink flex-row items-center justify-center gap-2",
           loading && "opacity-0",

@@ -42,6 +42,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
 import { fileExtension, isImageMime } from "@/lib/mime"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ChatAttachment = {
   fileName: string

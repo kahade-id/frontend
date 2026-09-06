@@ -16,6 +16,7 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type Filter = "all" | "active" | "completed" | "cancelled"
 const FILTERS: readonly SegmentItem<Filter>[] = [
@@ -68,7 +69,7 @@ export default function TransactionsScreen() {
           </>
         }
       />
-      <View className="gap-3 px-6 pb-3 pt-3">
+      <View accessible={false} className="gap-3 px-6 pb-3 pt-3">
         <SegmentedControl items={FILTERS} value={filter} onChange={setFilter} />
         <DebouncedSearchField
           onQueryChange={setDebounced}

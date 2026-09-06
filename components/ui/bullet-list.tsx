@@ -70,7 +70,7 @@ export function BulletList({
   const lineHeight = tokens.typography[variant].lineHeight
 
   return (
-    <View accessibilityRole="list" className={cn("w-full gap-2", className)} {...rest}>
+    <View accessible={false} accessibilityRole="list" className={cn("w-full gap-2", className)} {...rest}>
       {items.map((raw, i) => {
         const item = typeof raw === "string" ? { content: raw } : raw
         const key = item.key ?? String(i)

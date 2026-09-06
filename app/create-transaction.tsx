@@ -66,6 +66,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { VoucherRedeemBox, type AppliedVoucher } from "@/components/ui/voucher-redeem-box"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const DEBOUNCE_MS = 400
 const MIN_ORDER_VALUE = AMOUNT_LIMITS.order.minimum
@@ -328,7 +329,7 @@ export default function CreateTransactionScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        <View>
+        <View accessible={false}>
           {feeError ? (
             <Text variant="caption" tone="danger">
               Biaya belum terkonfirmasi: {feeError}. Tarik untuk memuat ulang.

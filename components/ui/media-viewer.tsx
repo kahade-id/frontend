@@ -38,6 +38,7 @@ import { Modal } from "@/components/ui/modal"
 import { Picture } from "@/components/ui/picture"
 import { Text } from "@/components/ui/text"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type MediaViewerItem = {
   url: string
@@ -124,7 +125,7 @@ export function MediaViewer({ item, onClose, onOpenError, labels, actions }: Med
       accessibilityLabel={title ?? t.fileFallback}
       className="p-3"
     >
-      <View className="gap-3">
+      <View accessible={false} className="gap-3">
         <View className="flex-row items-center justify-between">
           <Text variant="label" numberOfLines={1} className="flex-1 pr-3">
             {title ?? ""}

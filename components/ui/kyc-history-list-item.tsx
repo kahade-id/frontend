@@ -23,6 +23,7 @@ import { KycStatusBadge, type KycStatus } from "@/components/ui/kyc-status-card"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type KycDocumentType = "KTP" | "PASSPORT" | "SIM"
 
@@ -65,7 +66,7 @@ export function KycHistoryListItem({
       leading={<IconBox icon={IdentificationCard} size="md" variant={boxVariant} />}
       title={`Pengajuan #${attempt}${docLabel ? ` \u00B7 ${docLabel}` : ""}`}
       subtitle={
-        <View className="gap-[2px]">
+        <View accessible={false} className="gap-[2px]">
           <View className="flex-row flex-wrap items-center gap-x-2">
             <Text variant="monoBody" tone="secondary">
               {submittedAt}

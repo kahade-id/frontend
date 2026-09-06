@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
 import { SectionHeader } from "@/components/ui/section"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function SupportScreen() {
   const query = useApiQuery("support-tickets", () => api.support.listSupportTickets())

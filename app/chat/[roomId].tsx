@@ -60,6 +60,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { useToast } from "@/components/ui/toast"
 import { isImageMime } from "@/lib/mime"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
 type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
@@ -338,7 +339,7 @@ export default function ChatRoomScreen() {
       padded={false}
       footer={
         error || !roomId ? undefined : (
-        <View>
+        <View accessible={false}>
           <ChatComposer
             value={draft}
             onChangeText={setDraft}

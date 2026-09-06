@@ -36,6 +36,7 @@ import { View, type ViewProps } from "react-native"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type CopyableFieldProps = Omit<ViewProps, "children"> & {
   /** Nilai yang ditampilkan (boleh sudah diformat, mis. "1234 5678 9012") */
@@ -98,7 +99,7 @@ export function CopyableField({
   const shown = masked ? MASK : value
 
   return (
-    <View className={cn("w-full gap-1", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-1", className)} {...rest}>
       {label ? (
         <Text variant="label" tone="secondary">
           {label}

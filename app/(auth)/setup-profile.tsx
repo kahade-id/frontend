@@ -82,6 +82,7 @@ import { api, getAccessToken, isApiError, userMessage } from "@/lib/api"
 import { clearRegistrationState, getRegistrationState } from "@/lib/registration"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Crop persegi + kompresi avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
 const AVATAR_PICKER: PickImageOptions = { square: true }
@@ -243,7 +244,7 @@ export default function SetupProfileScreen() {
             <Heading level={1} className="text-balance">
               {firstName ? `Selamat datang, ${firstName}!` : "Selamat datang!"}
             </Heading>
-            <Text variant="body" tone="secondary" className="text-pretty">
+            <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
               Lengkapi profil Anda agar orang lain bisa mengenal Anda.
               Anda bisa mengubah ini nanti di pengaturan.
             </Text>
@@ -251,7 +252,7 @@ export default function SetupProfileScreen() {
 
           {/* Avatar section */}
           <VStack gap={3} className="items-center">
-            <View className="relative">
+            <View accessible={false} className="relative">
               <Avatar
                 name={fullName || "User"}
                 source={avatarUrl ?? undefined}

@@ -28,7 +28,7 @@ export type ZStackProps = Omit<ViewProps, "children"> & {
 
 export function ZStack({ children, className, ...rest }: ZStackProps) {
   return (
-    <View className={cn("relative", className)} {...rest}>
+    <View accessible={false} className={cn("relative", className)} {...rest}>
       {children}
     </View>
   )

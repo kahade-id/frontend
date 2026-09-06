@@ -81,7 +81,7 @@ export function AnalyticsSummary({
   ...rest
 }: AnalyticsSummaryProps) {
   return (
-    <View className={cn("gap-6", className)} {...rest}>
+    <View accessible={false} className={cn("gap-6", className)} {...rest}>
       <Grid columns={columns} gap={3}>
         {stats.map((s) => (
           <StatCard

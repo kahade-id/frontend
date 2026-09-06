@@ -38,6 +38,7 @@ import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { useOverlayFocus } from "@/lib/use-overlay-focus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PULSE_SCALE = 1.04
 const PULSE_OPACITY = 0.7

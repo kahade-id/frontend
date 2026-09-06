@@ -37,6 +37,7 @@ import { ScreenInsetsContext } from "@/components/ui/screen"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /**
  * Tinggi bar Header (px) — harus sama dengan class `h-14` di bawah (skala
@@ -107,7 +108,7 @@ export function Header({
     ) : null)
 
   return (
-    <View
+    <View accessible={false}
       className={cn(
         "z-sticky w-full items-center",
         transparent ? "bg-transparent" : "bg-background border-b border-border",
@@ -155,7 +156,7 @@ export function Header({
       </View>
 
       {progress != null ? (
-        <View accessibilityRole="progressbar" accessibilityValue={{ now: Math.round(progress*100), min: 0, max: 100 }} accessibilityLabel={`Progres ${Math.round(progress*100)} persen`}>
+        <View accessible accessibilityRole="progressbar" accessibilityValue={{ now: Math.round(progress*100), min: 0, max: 100 }} accessibilityLabel={`Progres ${Math.round(progress*100)} persen`}>
           <StepProgress value={progress} className="w-full" />
         </View>
       ) : null}

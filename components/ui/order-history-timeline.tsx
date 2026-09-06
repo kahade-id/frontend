@@ -141,7 +141,7 @@ export function OrderHistoryTimeline({
   const items = mapOrderHistoryToTimeline(entries, currentStatus, t, expectedNext)
 
   return (
-    <View className={cn("w-full", className)} {...rest}>
+    <View accessible={false} className={cn("w-full", className)} {...rest}>
       <Timeline items={items} accessibilityLabel="Riwayat status pesanan" />
     </View>
   )

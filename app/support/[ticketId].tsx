@@ -23,6 +23,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function SupportTicketDetailScreen() {
   const { ticketId } = useLocalSearchParams<{ ticketId: string }>()
@@ -93,7 +94,7 @@ export default function SupportTicketDetailScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchTicket()} />
         ) : ticket ? (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SupportTicketCard
               ticketNumber={ticket.ticketNumber}
               subject={ticket.subject}

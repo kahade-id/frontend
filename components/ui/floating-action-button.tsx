@@ -134,7 +134,7 @@ export function FloatingActionButton({
   }))
 
   const button = (
-    <PressableScale
+    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
@@ -165,7 +165,7 @@ export function FloatingActionButton({
   if (inline) return button
 
   return (
-    <View
+    <View accessible={false}
       pointerEvents="box-none"
       className="absolute z-sticky"
       style={{ right: rightOffset, bottom: bottomInset + bottomOffset }}

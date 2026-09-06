@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets()

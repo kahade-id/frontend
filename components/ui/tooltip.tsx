@@ -44,6 +44,7 @@ import { Portal } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TooltipPlacement = "auto" | "top" | "bottom"
 
@@ -146,9 +147,9 @@ export function Tooltip({
 
   return (
     <>
-      <View ref={triggerRef} collapsable={false} className="self-start">
+      <View accessible={false} ref={triggerRef} collapsable={false} className="self-start">
         {children ? (
-          <Pressable
+          <Pressable hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
             accessibilityState={{ expanded: open }}

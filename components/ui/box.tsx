@@ -119,7 +119,7 @@ export const Box = forwardRef<RNView, BoxProps>(function Box(
   ref,
 ) {
   return (
-    <View
+    <View accessible={false}
       ref={ref}
       className={cn(
         row && "flex-row",

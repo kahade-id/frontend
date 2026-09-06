@@ -53,7 +53,7 @@ export function FooterBar({
   const paddingBottom = safeArea ? Math.max(tokens.space[4], insets.bottom) : tokens.space[4]
 
   return (
-    <View
+    <View accessible={false}
       className={cn("w-full items-center bg-background", !borderless && "border-t border-border", className)}
       style={{ paddingBottom }}
       {...rest}

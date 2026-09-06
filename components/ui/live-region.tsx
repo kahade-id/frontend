@@ -57,7 +57,7 @@ export function LiveRegion({
   }, [message])
 
   const content = (
-    <View accessibilityLiveRegion={politeness} className={className} {...rest}>
+    <View accessible={false} accessibilityLiveRegion={politeness} className={className} {...rest}>
       <Text variant="caption" tone="secondary" {...textProps}>
         {message}
       </Text>

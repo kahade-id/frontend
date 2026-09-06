@@ -130,7 +130,7 @@ export function WalletBalanceCard({
   return (
     <Card variant={variant} className={cn("gap-5", className)} {...rest}>
       {/* Label + toggle */}
-      <View className="flex-row items-center justify-between gap-3">
+      <View accessible={false} className="flex-row items-center justify-between gap-3">
         <Text variant="label" tone={textTone}>
           {t.available}
         </Text>

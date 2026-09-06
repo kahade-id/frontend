@@ -38,7 +38,7 @@ export function MenuList({ title, footer, children, className, ...rest }: MenuLi
   const rows = Children.toArray(children).filter(isValidElement)
 
   return (
-    <View className={cn("w-full gap-2", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-2", className)} {...rest}>
       {title ? (
         <Text variant="label" tone="secondary" className="px-1">
           {title}

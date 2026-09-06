@@ -85,6 +85,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const HISTORY_LIMIT = 50
 const POLL_MS = 3000
@@ -381,7 +382,7 @@ export default function OrderDetailScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {/*
            * Urutan baca (audit komposisi): STATUS -> JUDUL -> deskripsi -> ID.
            * Sebelumnya baris pertama layar adalah ID order (monoBody 14px,

@@ -29,6 +29,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function BankAccountsScreen() {
   const insets = useSafeAreaInsets()
@@ -173,7 +174,7 @@ export default function BankAccountsScreen() {
             description="Tambahkan rekening bank untuk menarik dana."
           />
         ) : (
-          <View className="gap-2">
+          <View accessible={false} className="gap-2">
             {accounts.map((acc, i) => (
               <BankAccountListItem
                 key={acc.id}

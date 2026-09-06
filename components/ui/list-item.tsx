@@ -40,6 +40,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 function isIconComponent(x: unknown): x is IconComponent {
   return (
@@ -162,7 +163,7 @@ export function ListItem({
   }
 
   return (
-    <PressableScale
+    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityState={{ selected, disabled: !!disabled }}

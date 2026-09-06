@@ -215,7 +215,7 @@ export default function WithdrawScreen() {
       padded={false}
       footer={
         step === "form" ? (
-          <View>
+          <View accessible={false}>
             <Button
               fullWidth
               haptic
@@ -242,7 +242,7 @@ export default function WithdrawScreen() {
         {step === "otp" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Konfirmasi OTP" />
-            <Text variant="body" tone="secondary">
+            <Text numberOfLines={1} variant="body" tone="secondary">
               Selesaikan verifikasi tambahan dengan kode yang dikirim oleh layanan.
             </Text>
             <OtpInput

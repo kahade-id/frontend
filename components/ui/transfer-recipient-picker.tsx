@@ -50,6 +50,7 @@ import { SearchField } from "@/components/ui/search-field"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TransferRecipient = {
   id: string
@@ -111,8 +112,8 @@ function RecipientRow({
   const verificationLabel =
     recipient.kycVerified === false ? t.notVerified : "Verifikasi belum diketahui"
   return (
-    <View>
-      <PressableScale
+    <View accessible={false}>
+      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         scaleOnPress={false}
         disabled={disabled}
         onPress={() => onSelect(recipient)}

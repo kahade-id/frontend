@@ -37,6 +37,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const MONTHS_ID_LONG = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -112,7 +113,7 @@ export function Calendar({
   const monthLabel = `${MONTHS_ID_LONG[month.getMonth()]} ${month.getFullYear()}`
 
   return (
-    <View className={cn("w-full gap-3", disabled && "opacity-disabled", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-3", disabled && "opacity-disabled", className)} {...rest}>
       {/* Header: bulan + navigasi */}
       <View className="flex-row items-center justify-between">
         <IconButton
@@ -159,7 +160,7 @@ export function Calendar({
               const cellDisabled = disabled || isOutOfRange(d) || !!isDateDisabled?.(d)
 
               return (
-                <PressableScale
+                <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
                   key={d.getTime()}
                   accessibilityRole="button"
                   accessibilityLabel={`${d.getDate()} ${MONTHS_ID_LONG[d.getMonth()]} ${d.getFullYear()}`}

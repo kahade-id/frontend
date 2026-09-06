@@ -182,7 +182,7 @@ export function PaymentMethodSelector({
             disabled={isDisabled}
             leading={<Icon icon={m.icon ?? kindIcon[m.kind]} size="sm" />}
             label={
-              <View className="flex-row flex-wrap items-center gap-2">
+              <View accessible={false} className="flex-row flex-wrap items-center gap-2">
                 <Text
                   variant="body"
                   weight={500}

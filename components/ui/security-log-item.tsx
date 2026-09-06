@@ -71,6 +71,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SecurityLogKind =
   | "login"
@@ -227,7 +228,7 @@ export function SecurityLogItem({
     <View className={cn("w-full", unread && "bg-surface", className)} {...rest}>
       <View className="px-6">
         {onPress ? (
-          <PressableScale
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Buka detail kejadian"

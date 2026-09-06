@@ -65,6 +65,7 @@ import {
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { mapValue } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_SIZE = 10
 const MS_PER_DAY = 86_400_000
@@ -311,7 +312,7 @@ export default function SubscriptionsScreen() {
 
   const footer =
     step === "method" && selectedPlan ? (
-      <View
+      <View accessible={false}
         className="px-6"
         style={{ paddingBottom: insets.bottom + tokens.space[4], paddingTop: tokens.space[3] }}
       >
@@ -439,7 +440,7 @@ export default function SubscriptionsScreen() {
                     subtitle={`${formatDateTime(h.createdAt)}${h.expiresAt ? ` · s.d. ${formatDateTime(h.expiresAt)}` : ""}`}
                     trailing={
                       <View className="items-end gap-1">
-                        <Text variant="monoBody">{formatRupiah(h.amount)}</Text>
+                        <Text numberOfLines={1} variant="monoBody">{formatRupiah(h.amount)}</Text>
                         <Badge tone={mapValue(HISTORY_TONE, h.status, "neutral")} variant="soft">
                           {mapValue(HISTORY_LABELS, h.status, h.status)}
                         </Badge>

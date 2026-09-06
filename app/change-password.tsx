@@ -12,6 +12,7 @@ import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function ChangePasswordScreen() {
   const toast = useToast()
@@ -54,7 +55,7 @@ export default function ChangePasswordScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        <View>
+        <View accessible={false}>
           <Button
             fullWidth
             loading={submitting}

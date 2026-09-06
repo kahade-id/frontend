@@ -157,12 +157,12 @@ export default function VerifyEmailScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="gap-8">
+          <View accessible={false} className="gap-8">
             <View className="gap-3">
               <Heading level={1} className="text-balance">
                 Verifikasi alamat email Anda
               </Heading>
-              <Text variant="body" tone="secondary" className="text-pretty">
+              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
                 Kami mengirim kode 6 digit ke alamat berikut. Masukkan kode untuk mengonfirmasi bahwa email ini milik Anda.
               </Text>
               <Text variant="monoBody" weight={600}>

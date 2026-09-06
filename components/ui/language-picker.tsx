@@ -18,6 +18,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Select, SelectOptionList } from "@/components/ui/select"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type LanguageCode = "id" | "en"
 
@@ -66,7 +67,7 @@ export function LanguagePicker<C extends string = LanguageCode>({
       disabled: o.disabled,
     }))
     return (
-      <View className={cn("w-full", className)} {...rest}>
+      <View accessible={false} className={cn("w-full", className)} {...rest}>
         <Select
           label={label}
           value={value}

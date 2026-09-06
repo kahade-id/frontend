@@ -58,6 +58,7 @@ import { StatusIndicator, type StatusIndicatorTone } from "@/components/ui/statu
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type KycDocumentStatus = "pending" | "approved" | "rejected"
 
@@ -162,7 +163,7 @@ function DocumentImage({
 }) {
   if (doc.file && !doc.imageUri) {
     const row = (
-      <View className="flex-row items-center gap-3 rounded-sm border border-border bg-surface px-3 py-3">
+      <View accessible={false} className="flex-row items-center gap-3 rounded-sm border border-border bg-surface px-3 py-3">
         <Icon icon={FilePdf} size="sm" />
         <Text variant="body" className="flex-1" numberOfLines={1}>
           {doc.file.name}
@@ -175,7 +176,7 @@ function DocumentImage({
       </View>
     )
     return onOpen ? (
-      <PressableScale
+      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         scaleOnPress={false}
         onPress={() => onOpen(doc)}
         accessibilityRole="button"

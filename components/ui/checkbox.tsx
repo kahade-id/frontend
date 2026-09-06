@@ -82,7 +82,7 @@ export function CheckboxIndicator({
   }, [fill, on, reducedMotion])
 
   return (
-    <View
+    <View accessible={false}
       className={cn(
         "relative h-5 w-5 items-center justify-center overflow-hidden rounded-xs bg-background",
         error

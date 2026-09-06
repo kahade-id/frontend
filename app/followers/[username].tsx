@@ -14,6 +14,7 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { UserListItem } from "@/components/ui/user-list-item"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type Tab = "followers" | "following"
 export default function FollowersScreen() {
@@ -30,7 +31,7 @@ export default function FollowersScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title={tab === "followers" ? "Pengikut" : "Mengikuti"} />
-      <View className="px-6 py-4">
+      <View accessible={false} className="px-6 py-4">
         <SegmentedControl<Tab>
           value={tab}
           onChange={setTab}

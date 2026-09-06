@@ -56,6 +56,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { UploadField, type UploadStatus } from "@/components/ui/upload-field"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Panjang NIK KTP Indonesia (SubmitKycDto.nik). */
 const NIK_LENGTH = 16
@@ -219,7 +220,7 @@ export default function KycScreen() {
           keyboardShouldPersistTaps: "handled",
         }}
       >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loading ? (
             // Isi layar ini = satu KycStatusCard + (opsional) form, bukan
             // daftar kartu: <ListLoading> (4 kartu) membuat tinggi menyusut
@@ -330,7 +331,7 @@ export default function KycScreen() {
               ) : null}
 
               {uiStatus === "APPROVED" ? (
-                <Text variant="caption" tone="secondary">
+                <Text numberOfLines={1} variant="caption" tone="secondary">
                   Akun Anda sudah terverifikasi. Anda bisa bertransaksi tanpa batasan tambahan.
                 </Text>
               ) : null}

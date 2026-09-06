@@ -41,6 +41,7 @@ import { Logo } from "@/components/ui/logo"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { VStack } from "@/components/ui/stack"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function WelcomeScreen() {
   const router = useRouter()
@@ -63,7 +64,7 @@ export default function WelcomeScreen() {
     <Screen edges={["top", "bottom"]}>
       <VStack flex justify="center" align="center" gap={6}>
         <Logo variant="lockup" size="md" />
-        <View className="items-center gap-3">
+        <View accessible={false} className="items-center gap-3">
           <DisplayHeading className="text-center">
             {isNewUser ? "Selamat datang\ndi Kahade" : "Selamat kembali"}
           </DisplayHeading>

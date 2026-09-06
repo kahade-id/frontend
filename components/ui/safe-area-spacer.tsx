@@ -39,7 +39,7 @@ export function SafeAreaSpacer({
   const height = Math.max(inset, space[min])
 
   return (
-    <View
+    <View accessible={false}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
       className={className}

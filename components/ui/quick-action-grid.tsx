@@ -8,7 +8,7 @@
  * layar.
  *
  * Keputusan non-obvious:
- *   - Dibangun di atas <PressableScale> (bukan Button) supaya ubin bisa
+ *   - Dibangun di atas <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> (bukan Button) supaya ubin bisa
  *     ikon-di-atas-label; radius `rounded-sm` dan pressed-scale tetap sama
  *     dengan tombol lain. Tinggi target sentuh ≥ 44 (kotak ikon 48).
  *   - Kolom = 4 tetap (`w-1/4`) bukan flex-wrap bebas, supaya label 2 baris
@@ -46,7 +46,7 @@ export type QuickActionGridProps = Omit<ViewProps, "children"> & {
 
 export function QuickActionGrid({ actions, className, ...rest }: QuickActionGridProps) {
   return (
-    <View className={cn("flex-row flex-wrap", className)} {...rest}>
+    <View accessible={false} className={cn("flex-row flex-wrap", className)} {...rest}>
       {actions.map((a) => (
         <PressableScale
           key={a.key}

@@ -139,7 +139,7 @@ export default function ReportsScreen() {
         }}
       >
         {targetId ? (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title={`Laporkan ${targetName ? `@${targetName}` : "pengguna"}`} />
             <ReportForm
               targetName={targetName ? `@${targetName}` : undefined}

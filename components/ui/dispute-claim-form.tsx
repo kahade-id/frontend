@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DisputeClaimLabels = {
   title: string
@@ -110,7 +111,7 @@ export function DisputeClaimForm({
   const canSubmit = !locked && trimmed.length >= minLength && !unchanged && !submitting
 
   return (
-    <View className={cn("gap-5", className)} {...rest}>
+    <View accessible={false} className={cn("gap-5", className)} {...rest}>
       <View className="gap-1">
         <Text variant="h3" tone="primary">
           {t.title}

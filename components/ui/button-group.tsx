@@ -7,7 +7,7 @@
  * aksi di layar konfirmasi/empty state.
  *
  * Keputusan non-obvious:
- *   - direction="row": tiap anak dibungkus <View className="flex-1"> agar
+ *   - direction="row": tiap anak dibungkus <View accessible={false} className="flex-1"> agar
  *     lebar SAMA rata. Button sendiri default `fullWidth` (w-full) sehingga
  *     mengisi pembungkusnya. Tanpa pembungkus, dua Button w-full dalam
  *     flex-row akan overflow. `equal={false}` mematikan pembungkus untuk

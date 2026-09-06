@@ -38,7 +38,7 @@ export function ContentContainer({
   ...rest
 }: ContentContainerProps) {
   return (
-    <View
+    <View accessible={false}
       className={cn(
         "w-full self-center md:max-w-content",
         flex && "flex-1",

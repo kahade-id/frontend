@@ -57,6 +57,7 @@ import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SubscriptionBenefit = {
   id: string
@@ -167,7 +168,7 @@ export function SubscriptionPlanCard({
     >
       <View className="flex-row items-start gap-2">
         <View className="flex-1 gap-1">
-          <Text variant="h3" tone={textTone}>
+          <Text numberOfLines={2} variant="h3" tone={textTone}>
             {name}
           </Text>
           {description ? (

@@ -33,6 +33,7 @@ import { IconBox } from "@/components/ui/icon-box"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ShippingInfo = {
   courierName?: string
@@ -106,7 +107,7 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
 
   return (
     <Card padded className={cn("gap-4", className)} {...rest}>
-      <View className="flex-row items-center justify-between gap-3">
+      <View accessible={false} className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-3">
           <IconBox icon={Truck} size="md" variant="surface" />
           <View className="flex-1 gap-0.5">

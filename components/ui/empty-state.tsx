@@ -52,7 +52,7 @@ export function EmptyState({
   ...rest
 }: EmptyStateProps) {
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="summary"
       className={cn(
         "w-full items-center justify-center",

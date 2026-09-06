@@ -102,7 +102,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
       disabled={disabled}
       className={containerClassName}
     >
-      <View
+      <View accessible={false}
         className={cn(
           "h-16 w-full flex-row items-center rounded-sm bg-background",
           hasError

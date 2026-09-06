@@ -36,7 +36,7 @@
  * Aksesibilitas: role adjustable + accessibilityActions increment/decrement.
  *
  * `Animated.View` (reanimated) tidak di-interop NativeWind -> className ada
- * di <View> anak; Animated.View hanya membawa style runtime (left/width).
+ * di <View accessible={false}> anak; Animated.View hanya membawa style runtime (left/width).
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View, type LayoutChangeEvent, type ViewProps } from "react-native"

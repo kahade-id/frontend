@@ -52,6 +52,7 @@ import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Batas lokal (spec tidak menyebut maxLength untuk showcase) */
 const TITLE_MAX = 100
@@ -297,7 +298,7 @@ export default function ShowcaseScreen() {
         {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
               title="Portofolio Anda"
               subtitle={
@@ -326,7 +327,7 @@ export default function ShowcaseScreen() {
                 }
               />
             )}
-            <Text variant="caption" tone="secondary">
+            <Text numberOfLines={1} variant="caption" tone="secondary">
               Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
             <Button

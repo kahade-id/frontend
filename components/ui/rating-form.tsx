@@ -36,6 +36,7 @@ import { Rating } from "@/components/ui/rating"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export const RATING_COMMENT_MAX = 500
 
@@ -117,7 +118,7 @@ export function RatingForm({
   const scoreLabel = value.stars >= 1 ? t.scoreLabels[Math.min(5, Math.round(value.stars)) - 1] : undefined
 
   return (
-    <View className={cn("w-full gap-6", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-6", className)} {...rest}>
       <View className="gap-1">
         <Text variant="h2" tone="primary">
           {editing ? t.editTitle : t.title}

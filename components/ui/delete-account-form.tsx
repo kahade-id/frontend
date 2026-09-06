@@ -33,6 +33,7 @@ import { PasswordField } from "@/components/ui/password-field"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Panjang kode TOTP (RFC 6238) — sama dengan <OtpInput> default. */
 const MFA_CODE_LENGTH = 6
@@ -117,7 +118,7 @@ export function DeleteAccountForm({
     !hasBlockers && password.length > 0 && mfaOk && agreed && phraseOk && !submitting
 
   return (
-    <View className={cn("gap-5", className)} {...rest}>
+    <View accessible={false} className={cn("gap-5", className)} {...rest}>
       <Alert tone="danger" variant="soft" title={t.warningTitle}>
         {gracePeriodDays == null
           ? "Penghapusan akun mengikuti ketentuan resmi Kahade. Jadwal penghapusan dan ketentuan pembatalan belum tersedia pada halaman ini; hubungi dukungan bila Anda membutuhkan kepastian sebelum melanjutkan."

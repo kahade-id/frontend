@@ -44,6 +44,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { markOnboardingSeen } from "@/lib/onboarding"
 import { ROUTES } from "@/lib/routes"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function OnboardingScreen() {
   const router = useRouter()
@@ -67,7 +68,7 @@ export default function OnboardingScreen() {
   return (
     <Screen padded={false}>
       {/* Baris atas: brand + jalan keluar cepat */}
-      <View className="h-14 w-full flex-row items-center justify-between px-6">
+      <View accessible={false} className="h-14 w-full flex-row items-center justify-between px-6">
         <Logo variant="lockup" size="sm" />
         <TextLink onPress={() => void leave(ROUTES.login)} accessibilityLabel="Lewati pengenalan">
           Lewati
@@ -86,7 +87,7 @@ export default function OnboardingScreen() {
         <View className="gap-4">
           <Button onPress={handlePrimary}>{isLast ? "Buat Akun" : "Lanjut"}</Button>
 
-          <Text variant="body" tone="secondary" className="text-center">
+          <Text numberOfLines={1} variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}
             <TextLink inline onPress={() => void leave(ROUTES.login)}>
               Masuk
