@@ -54,6 +54,19 @@ export type AppNotification = {
   referenceType?: string | null
 }
 
+type NotificationPayload = Omit<AppNotification, "id"> & {
+  id?: string
+  notifId?: string
+}
+
+/** Production API calls this field `notifId`; list keys and actions use `id`. */
+export function normalizeNotification(raw: NotificationPayload): AppNotification {
+  return {
+    ...raw,
+    id: raw.id ?? raw.notifId ?? "",
+  }
+}
+
 export type NotificationListResponse = {
   data: AppNotification[]
   meta: { page: number; limit: number; total: number; totalPages: number }
@@ -116,7 +129,10 @@ export function getNotifications(
       retry: 1,
       signal,
     })
-    .then((raw) => readPage<AppNotification>(raw, query, ["notifications"]))
+    .then((raw) => {
+      const page = readPage<NotificationPayload>(raw, query, ["notifications"])
+      return { ...page, data: page.data.map(normalizeNotification) }
+    })
 }
 
 /** POST /v1/notifications/:id/read — tandai satu notifikasi dibaca. */
@@ -210,7 +226,9 @@ export function deleteReadNotifications() {
 }
 
 export function getNotification(id: string) {
-  return http.get<AppNotification>(`/v1/notifications/${seg(id)}`, { auth: "required", retry: 1 })
+  return http
+    .get<NotificationPayload>(`/v1/notifications/${seg(id)}`, { auth: "required", retry: 1 })
+    .then(normalizeNotification)
 }
 
 export function deleteNotification(id: string) {

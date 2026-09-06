@@ -1,9 +1,9 @@
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Ulasan Publik.
- *   GET /v1/users/{username}/ratings?page&limit&filter (semua REQUIRED).
- *   `filter` tanpa enum di spec → chip Semua/Positif/Negatif/Berkomentar
- *   (nilai asumsi, lihat lib/api/ratings.ts). Paginasi PAGE_SIZE 20 + LoadMore;
+ *   GET /v1/users/{username}/ratings?page&limit&filter.
+ *   Production menerima Semua (filter dihilangkan), Positif, Netral, atau
+ *   Negatif. Paginasi PAGE_SIZE 20 + LoadMore;
  *   respons array|{data,meta} via readMyRatings.
  */
 import { useCallback, useEffect, useState } from "react"
@@ -30,8 +30,8 @@ const PAGE_SIZE = 20
 const FILTERS: { value: PublicRatingFilter; label: string }[] = [
   { value: "all", label: "Semua" },
   { value: "positive", label: "Positif" },
+  { value: "neutral", label: "Netral" },
   { value: "negative", label: "Negatif" },
-  { value: "with_comment", label: "Berkomentar" },
 ]
 
 export default function PublicRatingsScreen() {
@@ -53,7 +53,7 @@ export default function PublicRatingsScreen() {
       const body = await api.ratings.getPublicRatings(username, {
         page: p,
         limit: PAGE_SIZE,
-        filter,
+        ...(filter === "all" ? {} : { filter }),
       })
       const { items: data, totalPages } = readMyRatings(body)
       setItems((prev) => (p === 1 ? data : [...prev, ...data]))

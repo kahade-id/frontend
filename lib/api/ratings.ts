@@ -68,17 +68,15 @@ export function readMyRatings(body: MyRatingsResponse | null | undefined): {
 }
 
 /**
- * Filter ulasan publik — spec: query `filter` REQUIRED tanpa enum. Asumsi
- * nilai: "all" | "positive" (4–5★) | "negative" (1–2★) | "with_comment"
- * (UNVERIFIED; backend mengabaikan nilai tak dikenal atau 400 → UI
- * menampilkan pesan server).
+ * Filter ulasan publik yang diterima backend production. Untuk semua ulasan,
+ * parameter `filter` harus dihilangkan; `all` dan `with_comment` ditolak.
  */
-export type PublicRatingFilter = "all" | "positive" | "negative" | "with_comment"
+export type PublicRatingFilter = "all" | "positive" | "neutral" | "negative"
 
 /** GET /v1/users/{username}/ratings?page&limit&filter — ulasan publik milik profil user (semua query REQUIRED). */
 export function getPublicRatings(
   username: string,
-  query: { page: number; limit: number; filter: PublicRatingFilter },
+  query: { page: number; limit: number; filter?: Exclude<PublicRatingFilter, "all"> },
 ) {
   return http.get<MyRatingsResponse>(`/v1/users/${seg(username)}/ratings`, {
     query,

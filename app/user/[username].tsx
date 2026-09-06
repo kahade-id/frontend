@@ -83,8 +83,8 @@ type ProfileTab = "content" | "questions" | "ratings" | "about"
 const RATING_FILTERS: { value: PublicRatingFilter; label: string }[] = [
   { value: "all", label: "Semua" },
   { value: "positive", label: "Positif" },
+  { value: "neutral", label: "Netral" },
   { value: "negative", label: "Negatif" },
-  { value: "with_comment", label: "Berkomentar" },
 ]
 
 export default function UserProfileScreen() {
@@ -171,7 +171,11 @@ export default function UserProfileScreen() {
         .finally(() => setQuestionsLoading(false))
 
       void api.ratings
-        .getPublicRatings(targetName, { page: 1, limit: 20, filter: ratingFilter })
+        .getPublicRatings(targetName, {
+          page: 1,
+          limit: 20,
+          ...(ratingFilter === "all" ? {} : { filter: ratingFilter }),
+        })
         .then((res) => {
           const { items } = readMyRatings(res)
           setRatings(items)
