@@ -31,7 +31,7 @@ export function StatCard({ label, value, hint, delta, icon, loading = false, mon
     ? summarize([label, String(value), delta?.label && `${DELTA_PREFIX[delta.direction]}${delta.label}`, hint]) : undefined
   return (
     <Card variant={variant} accessibilityLabel={accessibilityLabel ?? labelForReader} className={cn("gap-4", className)} {...cardProps}>
-      <View className="flex-row items-start justify-between gap-2">
+      <View className="min-h-10 flex-row items-start justify-between gap-2">
         <Text variant="caption" weight={500} tone={labelTone} className="min-w-0 flex-1">{label}</Text>
         {icon ? <View>{icon}</View> : null}
       </View>
