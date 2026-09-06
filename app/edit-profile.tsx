@@ -33,6 +33,7 @@ import { Camera as CameraIcon, Images, Trash } from "phosphor-react-native"
 
 import { api, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, type PickImageOptions } from "@/lib/image-picker"
+import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -223,7 +224,7 @@ export default function EditProfileScreen() {
         setPasswordOpen(false)
         setCurrentPassword("")
         toast.show({ title: "Profil diperbarui", tone: "success" })
-        router.back()
+        goBackOrNavigate(ROUTES.settings)
       } catch {
         if (password) {
           setPasswordError("Password salah atau perubahan ditolak.")

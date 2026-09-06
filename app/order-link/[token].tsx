@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, type OrderLink, userMessage } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { orderLinkStatus } from "@/lib/order-link-labels"
+import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -138,7 +139,7 @@ export default function OrderLinkScreen() {
               accepting={accepting}
             />
             {!active ? (
-              <Button variant="secondary" onPress={() => router.back()}>
+              <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
                 Kembali
               </Button>
             ) : null}

@@ -42,6 +42,7 @@ import type { PublicUserProfile } from "@/lib/api/users"
 import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
 import { formatDate, formatDecimal, formatNumber } from "@/lib/format"
+import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
@@ -235,7 +236,7 @@ export default function UserProfileScreen() {
       await api.settings.blockUser(profile.id)
       toast.show({ title: "Pengguna diblokir", tone: "success", duration: 3000 })
       setBlockOpen(false)
-      router.back()
+      goBackOrNavigate(ROUTES.home)
     } catch (err: unknown) {
       toast.show({
         title: "Gagal memblokir pengguna",
