@@ -125,7 +125,7 @@ async function composeCentered({ work, ink, canvas, inkWidth, background }) {
     .png()
     .toBuffer()
 
-  let base = sharp({
+  const base = sharp({
     create: {
       width: canvas,
       height: canvas,

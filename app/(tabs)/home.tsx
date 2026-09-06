@@ -11,15 +11,20 @@
  *      Link, Chat, Sengketa, Jelajahi, Voucher, Referral, Analitik) — semua
  *      route dari lib/routes.ts.
  *
- * Data diambil dari 3 endpoint PARALEL (`Promise.allSettled`) — satu gagal
- * tidak membunuh halaman; tiap bagian punya error + retry sendiri.
+ * Data diambil dari 3 endpoint melalui `useApiQuery` (profil, saldo,
+ * ringkasan order) — satu gagal tidak membunuh halaman; tiap bagian punya
+ * error + retry sendiri, request lama DIABORT sehingga respons lambat tidak
+ * bisa menimpa hasil baru, dan saldo dimuat ulang diam-diam saat tab kembali
+ * fokus (`refreshOnFocus`) agar tidak menampilkan angka basi setelah
+ * top-up/withdraw/transfer di layar lain.
  *
  * Komponen sistem: ProfileHeader, StatCard, Amount, Button, Skeleton.
  * Tidak ada markup card custom dan tidak ada angka/format hardcoded.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback } from "react"
 import { View } from "react-native"
 import { useRouter } from "expo-router"
+import { useApiQuery } from "@/lib/use-api-query"
 import {
   ArrowRight,
   ChartLineUp,
@@ -34,13 +39,7 @@ import {
   Wallet,
 } from "phosphor-react-native"
 
-import {
-  api,
-  userMessage,
-  type OrderSummary,
-  type UserProfile,
-  type Wallet as WalletData,
-} from "@/lib/api"
+import { api, type OrderSummary, type UserProfile, type Wallet as WalletData } from "@/lib/api"
 import { formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -106,63 +105,25 @@ function totalOrders(summary: OrderSummary | null): number {
 export default function HomeScreen() {
   const router = useRouter()
 
-  const [profile, setProfile] = useState<UserProfile | null>(null)
-  const [wallet, setWallet] = useState<WalletData | null>(null)
-  const [summary, setSummary] = useState<OrderSummary | null>(null)
-
-  const [profileLoading, setProfileLoading] = useState(true)
-  const [walletLoading, setWalletLoading] = useState(true)
-  const [summaryLoading, setSummaryLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const [profileError, setProfileError] = useState<string | null>(null)
-  const [walletError, setWalletError] = useState<string | null>(null)
-  const [summaryError, setSummaryError] = useState<string | null>(null)
-
-  const fetchAll = useCallback(async () => {
-    setProfileLoading(true)
-    setWalletLoading(true)
-    setSummaryLoading(true)
-    setWalletError(null)
-    setSummaryError(null)
-    setProfileError(null)
-
-    await Promise.allSettled([
-      // Pesan galat datang dari `userMessage(err)` (KYC belum selesai, rate
-      // limit, sesi berubah) — bukan satu kalimat generik yang menyamarkan
-      // semua penyebab, sama seperti layar lain setelah audit S2.
-      api.users
-        .getMe()
-        .then(setProfile)
-        .catch((err: unknown) => setProfileError(userMessage(err)))
-        .finally(() => setProfileLoading(false)),
-
-      api.wallet
-        .getWallet()
-        .then(setWallet)
-        .catch((err: unknown) => setWalletError(userMessage(err)))
-        .finally(() => setWalletLoading(false)),
-
-      api.orders
-        .getOrdersSummary()
-        .then(setSummary)
-        .catch((err: unknown) => setSummaryError(userMessage(err)))
-        .finally(() => setSummaryLoading(false)),
-    ])
-  }, [])
-
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
+  // Tiga query terpisah (bukan satu Promise.allSettled manual): request lama
+  // di-abort saat refresh, pesan galat tetap `userMessage(err)`, dan retry
+  // tiap kartu TIDAK me-reset bagian lain ke skeleton.
+  const profile = useApiQuery<UserProfile>("home-profile", (signal) =>
+    api.users.getMe(signal),
+  )
+  const wallet = useApiQuery<WalletData>("home-wallet", (signal) => api.wallet.getWallet(signal), true, {
+    refreshOnFocus: true,
+  })
+  const summary = useApiQuery<OrderSummary>("home-order-summary", (signal) =>
+    api.orders.getOrdersSummary(signal),
+  )
 
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+    await Promise.all([profile.refresh(), wallet.refresh(), summary.refresh()])
+  }, [profile.refresh, wallet.refresh, summary.refresh])
 
-  const activeOrders = countActiveOrders(summary)
-  const totalOrdersCount = totalOrders(summary)
+  const activeOrders = countActiveOrders(summary.data)
+  const totalOrdersCount = totalOrders(summary.data)
 
   const handleCreate = useCallback(() => {
     router.push(ROUTES.createTransaction)
@@ -181,7 +142,7 @@ export default function HomeScreen() {
       key: "disputes",
       icon: Scales,
       label: "Sengketa",
-      badge: summary?.DISPUTED || undefined,
+      badge: summary.data?.DISPUTED || undefined,
       onPress: () => router.push(ROUTES.disputes),
     },
     {
@@ -209,7 +170,7 @@ export default function HomeScreen() {
     <Screen edges={["top"]} padded={false}>
       <PullToRefresh
         onRefresh={handleRefresh}
-        refreshing={refreshing}
+        refreshing={profile.refreshing || wallet.refreshing || summary.refreshing}
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: tokens.space[8] },
         }}
@@ -220,58 +181,58 @@ export default function HomeScreen() {
             {greetingByHour()},
           </Text>
         </View>
-        {profileError ? (
+        {profile.error ? (
           <ErrorState
             compact
             title="Gagal memuat profil"
-            description={profileError}
-            onRetry={() => void fetchAll()}
+            description={profile.error}
+            onRetry={() => void profile.reload()}
           />
         ) : (
           <ProfileHeader
-            name={profile?.fullName ?? "—"}
-            handle={profile?.username ? `@${profile.username}` : undefined}
-            avatar={{ source: profile?.avatarUrl ?? undefined }}
-            loading={profileLoading}
+            name={profile.data?.fullName ?? "—"}
+            handle={profile.data?.username ? `@${profile.data.username}` : undefined}
+            avatar={{ source: profile.data?.avatarUrl ?? undefined }}
+            loading={profile.loading}
           />
         )}
 
         {/* ── Ringkasan ───────────────────────────────────────── */}
         <View className="gap-4 px-6 pt-2">
-          {walletError ? (
+          {wallet.error ? (
             <ErrorState
               compact
               title="Gagal memuat saldo"
-              description={walletError}
-              onRetry={() => void fetchAll()}
+              description={wallet.error}
+              onRetry={() => void wallet.reload()}
             />
           ) : (
             <StatCard
               label="Saldo tersedia"
               icon={<Icon icon={Wallet} size="xs" tone="default" />}
-              loading={walletLoading}
-              value={<Amount value={wallet?.availableBalance ?? Number.NaN} size="large" />}
+              loading={wallet.loading}
+              value={<Amount value={wallet.data?.availableBalance ?? Number.NaN} size="large" />}
               hint={
-                (wallet?.holdBalance ?? 0) > 0
-                  ? `${formatRupiah(wallet?.holdBalance ?? 0)} ditahan escrow`
+                (wallet.data?.holdBalance ?? 0) > 0
+                  ? `${formatRupiah(wallet.data?.holdBalance ?? 0)} ditahan escrow`
                   : undefined
               }
             />
           )}
 
-          {summaryError ? (
+          {summary.error ? (
             <ErrorState
               compact
               title="Gagal memuat ringkasan order"
-              description={summaryError}
-              onRetry={() => void fetchAll()}
+              description={summary.error}
+              onRetry={() => void summary.reload()}
             />
           ) : (
             <View className="flex-row gap-3">
               <StatCard
                 label="Order aktif"
                 icon={<Icon icon={Receipt} size="xs" tone="default" />}
-                loading={summaryLoading}
+                loading={summary.loading}
                 value={activeOrders}
                 mono
                 className="flex-1"
@@ -279,7 +240,7 @@ export default function HomeScreen() {
               <StatCard
                 label="Total transaksi"
                 icon={<Icon icon={ChartLineUp} size="xs" tone="default" />}
-                loading={summaryLoading}
+                loading={summary.loading}
                 value={totalOrdersCount}
                 mono
                 className="flex-1"

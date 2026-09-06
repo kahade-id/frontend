@@ -91,8 +91,8 @@ export type WalletPaginated = {
 // ------------------------------------------------------------------
 
 /** GET /v1/wallet — saldo + status wallet user yang sedang login. */
-export function getWallet() {
-  return http.get<unknown>("/v1/wallet", { auth: "required", retry: 1 }).then(normalizeWallet)
+export function getWallet(signal?: AbortSignal) {
+  return http.get<unknown>("/v1/wallet", { auth: "required", retry: 1, signal }).then(normalizeWallet)
 }
 
 /**

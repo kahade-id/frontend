@@ -39,7 +39,8 @@
         "NSUserTrackingUsageDescription": "Kahade menggunakan data ini untuk meningkatkan pengalaman aplikasi.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "Kahade butuh lokasi untuk verifikasi transaksi COD dan keamanan tambahan.",
         "NSLocationAlwaysUsageDescription": "Kahade butuh lokasi untuk verifikasi transaksi COD dan keamanan tambahan."
-      }
+      },
+      "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
       "package": "id.kahade",

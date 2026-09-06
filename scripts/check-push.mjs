@@ -76,7 +76,39 @@ if (!gsPath) {
   }
 }
 
-/* ── 2. iOS: entitlement push ───────────────────────────────────────────── */
+/* ── 2. iOS: GoogleService-Info.plist ───────────────────────────────────── */
+const iosPlistPath = app.ios?.googleServicesFile
+if (!iosPlistPath) {
+  fail(
+    "app.json: ios.googleServicesFile belum diisi — registrasi token APNs/FCM iOS tidak akan bekerja",
+  )
+} else if (!existsSync(join(root, iosPlistPath))) {
+  fail(`app.json: ios.googleServicesFile menunjuk ${iosPlistPath} yang tidak ada`)
+} else {
+  const raw = readFileSync(join(root, iosPlistPath), "utf8")
+  const readKey = (key) => {
+    const m = raw.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`))
+    return m?.[1]
+  }
+  if (/PLACEHOLDER/i.test(raw)) {
+    fail(
+      `${iosPlistPath} MASIH PLACEHOLDER — ganti dengan berkas asli dari Firebase Console.\n` +
+        "         Firebase Console > Project settings > Your apps > iOS app (bundle id.kahade) > GoogleService-Info.plist",
+    )
+  }
+  const bundleId = readKey("BUNDLE_ID")
+  if (bundleId && app.ios?.bundleIdentifier && bundleId !== app.ios.bundleIdentifier) {
+    fail(
+      `${iosPlistPath}: BUNDLE_ID "${bundleId}" berbeda dengan app.json ios.bundleIdentifier ` +
+        `"${app.ios.bundleIdentifier}" — Firebase akan menolak registrasi token iOS.`,
+    )
+  }
+  if (!readKey("GOOGLE_APP_ID") || !readKey("API_KEY")) {
+    fail(`${iosPlistPath}: GOOGLE_APP_ID / API_KEY tidak ditemukan — berkas kemungkinan rusak`)
+  }
+}
+
+/* ── 3. iOS: entitlement push ───────────────────────────────────────────── */
 const aps = app.ios?.entitlements?.["aps-environment"]
 if (!aps) {
   fail("app.json: ios.entitlements['aps-environment'] belum diisi — iOS akan kena ITMS-90078 saat submit")
@@ -91,7 +123,7 @@ if (!aps) {
   )
 }
 
-/* ── 3. Plugin & izin ───────────────────────────────────────────────────── */
+/* ── 4. Plugin & izin ───────────────────────────────────────────────────── */
 const plugins = app.plugins ?? []
 const notif = plugins.find((p) => Array.isArray(p) && p[0] === "expo-notifications")?.[1]
 if (!notif) {
@@ -109,10 +141,8 @@ if (!perms.includes("android.permission.POST_NOTIFICATIONS")) {
   fail("app.json: POST_NOTIFICATIONS tidak ada — Android 13+ tidak akan menampilkan notifikasi apa pun")
 }
 
-/* ── 4. Channel di kode harus cocok dengan defaultChannel di app.json ───── */
+/* ── 5. Channel di kode harus cocok dengan defaultChannel di app.json ───── */
 const pushSrc = readFileSync(join(root, "lib/push-notifications.ts"), "utf8")
-const declared = [...pushSrc.matchAll(/^\s*(\w+):\s*"([\w-]+)",?\s*$/gm)]
-  .filter(([, , v]) => /"/.test(`"${v}"`))
 const channelBlock = pushSrc.match(/export const NOTIFICATION_CHANNELS = \{([\s\S]*?)\} as const/)
 if (!channelBlock) {
   fail("lib/push-notifications.ts: NOTIFICATION_CHANNELS tidak ditemukan")

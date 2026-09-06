@@ -72,7 +72,12 @@ const ACTION_ROUTE: Record<WalletQuickAction["key"], Href> = {
 export default function WalletScreen() {
   const toast = useToast()
 
-  const balance = useApiQuery("wallet-balance", () => api.wallet.getWallet())
+  // refreshOnFocus: tab Dompet tetap ter-mount, jadi tanpa ini saldo tidak
+  // pernah diperbarui setelah top-up/withdraw/transfer di layar lain —
+  // pengguna harus menebak kalau angkanya basi.
+  const balance = useApiQuery("wallet-balance", (signal) => api.wallet.getWallet(signal), true, {
+    refreshOnFocus: true,
+  })
   const history = usePaginatedQuery<WalletTransaction>("wallet-history", (page, signal) =>
     api.wallet.getWalletTransactions({ page, limit: PAGE_SIZE }, signal),
   )

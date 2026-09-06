@@ -237,7 +237,7 @@ export const BiometricPromptTrigger = forwardRef<BiometricPromptTriggerHandle, B
           break
       }
       if (!pinOpen) openPin()
-    }, [prompting, promptMessage, promptSubtitle, onBiometricOutcome, succeed, onCancel, pinOpen, openPin, t]) // eslint-disable-line react-hooks/exhaustive-deps
+    }, [prompting, promptMessage, promptSubtitle, onBiometricOutcome, succeed, onCancel, pinOpen, openPin, t])  
 
     const open = useCallback(() => {
       if (disabled) return

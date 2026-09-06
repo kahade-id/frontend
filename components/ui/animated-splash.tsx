@@ -114,7 +114,7 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
       if (finished) onFinish()
     })
     // `reducedMotion` sengaja tidak di deps: dibaca sekali saat ready.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [ready, overlay, onFinish])
 
   return (

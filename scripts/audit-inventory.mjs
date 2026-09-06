@@ -2,8 +2,16 @@ import fs from "node:fs"
 import path from "node:path"
 import ts from "typescript"
 
-const root = process.cwd()
-const spec = JSON.parse(fs.readFileSync("docs/api/kahade-api-mobile.json", "utf8"))
+const specPath = "docs/api/kahade-api-mobile.json"
+if (!fs.existsSync(specPath)) {
+  console.error(
+    `audit-inventory: ${specPath} tidak ada. Audit kontrak path OpenAPI butuh spec dari repo backend — ` +
+      `salin berkas itu ke ${specPath}, lalu jalankan ulang. ` +
+      `Inventaris route TIDAK butuh spec: gunakan \`npm run gen:inventory\`.`,
+  )
+  process.exit(1)
+}
+const spec = JSON.parse(fs.readFileSync(specPath, "utf8"))
 const normalize = (value) => value.replace(/\{[^}]+\}/g, "{}")
 const documented = new Map()
 for (const [url, verbs] of Object.entries(spec.paths))

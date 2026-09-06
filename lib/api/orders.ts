@@ -364,8 +364,8 @@ export function getOrder(orderId: string) {
     .then((raw) => normalizeOrder(readEntity<Order & Record<string, unknown>>(raw, "order")))
 }
 
-export function getOrdersSummary() {
-  return http.get<OrderSummary>("/v1/orders/summary", { auth: "required", retry: 1 })
+export function getOrdersSummary(signal?: AbortSignal) {
+  return http.get<OrderSummary>("/v1/orders/summary", { auth: "required", retry: 1, signal })
 }
 
 export function getAverageDurations() {

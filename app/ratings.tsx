@@ -113,7 +113,7 @@ export default function RatingsScreen() {
 
   useEffect(() => {
     void fetchRatings()
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- hanya saat mount; refresh manual lewat pull
+
   }, [])
 
   const handleRefresh = useCallback(async () => {

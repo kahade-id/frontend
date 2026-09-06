@@ -80,10 +80,22 @@ const rules = []
 rules.push({
   id: "S1",
   title: "Layar merakit sendiri state async (bukan useApiQuery/usePaginatedQuery)",
+  // `set[A-Z]\w*Loading` — sebelumnya hanya `setLoading\(`, sehingga layar
+  // yang menamai ulang statenya (setProfileLoading, setWalletLoading, …)
+  // lolos aturan padahal polanya sama persis. Nama variabel bukan alasan
+  // untuk mengecualikan layar dari perlindungan abort/stale-response.
   test: (f) =>
-    /setRefreshing\s*\(/.test(f.src) && /setLoading\s*\(/.test(f.src) && !SHARED_QUERY.test(f.src),
+    /set(?:[A-Z]\w*)?Refreshing\s*\(/.test(f.src) &&
+    /set(?:[A-Z]\w*)?Loading\s*\(/.test(f.src) &&
+    !SHARED_QUERY.test(f.src),
   baseline: [
     "app/bank-accounts.tsx",
+    // Form multi-bagian, bukan layar data: fee & validasi lawan transaksi
+    // di-debounce per ketikan dan sudah memakai guard `draft.current` +
+    // `confirmedFeeKey`/`confirmedCounterpart` — padanan useApiQuery untuk
+    // form (respons lama tidak bisa menimpa input baru). Memaksakan
+    // useApiQuery di sini justru menghilangkan guard konfirmasi form.
+    "app/create-transaction.tsx",
     "app/delivery-proof/[orderId].tsx",
     "app/dispute/[id].tsx",
     "app/edit-profile.tsx",
@@ -223,6 +235,29 @@ for (const rule of rules) {
  * memang cadangan yang disengaja — daftar di bawah adalah kondisi saat audit,
  * dan harus mengecil, bukan bertambah.
  */
+/*
+ * Baseline S5 — KEPUTUSAN PRODUK (amandemen audit 2026-09-06).
+ *
+ * Audit sempat menghapus 38 komponen di bawah, lalu DIPULIHKAN atas
+ * keputusan pemilik proyek: klaster ini memetakan
+ * fitur roadmap yang adapter backend-nya sudah ada (captcha di lib/api/auth,
+ * pemilihan metode 2FA, tanda tangan bukti terima, UI panggilan sengketa,
+ * dsb.) dan ingin dipertahankan sebagai cadangan yang terjaga. Empat
+ * komponen kaskade (collapse, currency-range-field, layout, range-slider)
+ * tidak masuk daftar: setelah klaster dipulihkan mereka TERPAKAI kembali
+ * (accordion, filter-sheet-content, live-region) — jadi resmi keluar dari
+ * status cadangan.
+ *
+ * Konsekuensi yang harus dipahami pemelihara berikutnya:
+ *   - Komponen di baseline ini TIDAK diuji oleh layar mana pun. Saat token,
+ *     prop, atau aturan design system berubah, TIDAK ADA yang memaksa
+ *     berkas-berkas ini ikut berubah — mereka pasti menyimpang perlahan.
+ *     Sebelum memakai salah satunya, baca ulang dan adaptasi ke design
+ *     system terkini, lalu HAPUS dari baseline di saat yang sama.
+ *   - Baseline hanya boleh menyusut. Komponen baru yang tidak pernah
+ *     diimpor TETAP langsung gagal (tidak masuk daftar ini diam-diam).
+ *   - Baseline basi (komponen akhirnya dipakai) juga gagal — hapus namanya.
+ */
 const UNUSED_UI_BASELINE = new Set([
   "components/ui/accordion.tsx",
   "components/ui/banner.tsx",
@@ -263,7 +298,6 @@ const UNUSED_UI_BASELINE = new Set([
   "components/ui/typography.tsx",
   "components/ui/z-stack.tsx",
 ])
-
 const unusedUi = []
 for (const component of uiComponents) {
   const name = component.replace(/^components\/ui\//, "").replace(/\.tsx$/, "")

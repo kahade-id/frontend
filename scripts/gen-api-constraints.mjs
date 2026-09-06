@@ -1,7 +1,15 @@
-import { readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 const source = new URL("../docs/api/kahade-api-mobile.json", import.meta.url)
 const out = new URL("../lib/api/constraints.ts", import.meta.url)
+if (!existsSync(source)) {
+  console.error(
+    "gen-api-constraints: docs/api/kahade-api-mobile.json tidak ada. " +
+      "Salin spec OpenAPI terbaru dari repo backend ke path itu, lalu jalankan `npm run gen:api`. " +
+      "lib/api/constraints.ts yang sudah di-commit tetap dipakai sampai spec tersedia.",
+  )
+  process.exit(1)
+}
 const spec = JSON.parse(readFileSync(source, "utf8"))
 const names = [
   "SubscribeDto",

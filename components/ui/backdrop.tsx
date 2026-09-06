@@ -98,7 +98,7 @@ export function useOverlayPresence(
     // efek tidak boleh berjalan ulang (akan memulai timing 0->0 kedua).
     // `reducedMotion` juga tidak di deps: nilainya hanya dibaca saat animasi
     // dimulai; perubahan setelan di tengah animasi tidak perlu restart.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [visible, progress, durationIn, durationOut])
 
   return { mounted, progress }
