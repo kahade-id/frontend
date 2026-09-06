@@ -55,6 +55,14 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
     const parsed = Date.now() + seconds * 1000
     return Number.isFinite(parsed) ? parsed : null
   }, [until, seconds])
+  /**
+   * `autoStart={false}` juga menghasilkan `endAt === null`, jadi "tanggal
+   * tidak valid" dilacak terpisah — tanpa ini hitungan yang belum dimulai
+   * akan tampil sebagai "—".
+   */
+  const endInvalid =
+    until != null &&
+    !Number.isFinite(until instanceof Date ? until.getTime() : new Date(until).getTime())
   const [endAt, setEndAt] = useState<number | null>(autoStart ? computeEnd : null)
   const [remaining, setRemaining] = useState(() =>
     endAt != null ? Math.max(0, Math.ceil((endAt - Date.now()) / 1000)) : seconds,
@@ -102,8 +110,7 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
     restart,
     // `—` (bukan "00:00") bila sumber waktu tidak valid: nol detik akan
     // terbaca sebagai "tenggat sudah lewat" padahal nilainya tidak diketahui.
-    formatted:
-      endAt == null && until != null ? "—" : formatCountdown(remaining),
+    formatted: endInvalid ? "—" : formatCountdown(remaining),
   }
 }
 
