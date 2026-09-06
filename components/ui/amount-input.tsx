@@ -102,7 +102,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
       disabled={disabled}
       className={containerClassName}
     >
-      <View
+      <View accessible={false}
         className={cn(
           "h-16 w-full flex-row items-center rounded-sm bg-background",
           hasError
@@ -114,7 +114,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
           className,
         )}
       >
-        <Text variant="monoLarge" tone={value > 0 ? "primary" : "disabled"} className="mr-1">
+        <Text accessibilityHint="Ketuk untuk detail" variant="monoLarge" tone={value > 0 ? "primary" : "disabled"} className="mr-1 tabular-nums">
           Rp
         </Text>
         <TextInput
@@ -133,7 +133,8 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
           keyboardType="number-pad"
           inputMode="numeric"
           placeholder="0"
-          placeholderTextColor={palette.textSecondary}
+          placeholderTextColor={palette.textTertiary}
+          // Audit #018: placeholder Rp0 harus tertiary (dekoratif) vs text-secondary untuk label; AmountInput prefix Rp sudah primary, placeholder 0 boleh lebih halus
           selectionColor={palette.primary}
           cursorColor={palette.primary}
           allowFontScaling={false}
@@ -151,7 +152,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
       {presets && presets.length > 0 ? (
         <View className="flex-row flex-wrap gap-2 pt-1">
           {presets.map((p) => (
-            <Chip key={p} selected={value === p} disabled={disabled} onPress={() => onChange(p)}>
+            <Chip key={p} selected={value === p} disabled={disabled} haptic onPress={() => onChange(p)}>
               {formatRupiah(p, { compact: true })}
             </Chip>
           ))}

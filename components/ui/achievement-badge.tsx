@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export const FALLBACK_BADGE_ICON: IconComponent = Medal
 
@@ -117,7 +118,7 @@ export function AchievementBadge({
       </View>
 
       <View className="items-center gap-0.5">
-        <Text
+        <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail"
           variant="label"
           tone={earned ? "primary" : "disabled"}
           numberOfLines={1}

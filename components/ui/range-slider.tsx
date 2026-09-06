@@ -58,6 +58,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type RangeValue = readonly [number, number]
 
@@ -113,6 +114,7 @@ export function RangeSlider({
   className,
   ...rest
 }: RangeSliderProps) {
+  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   // `active` React state hanya untuk merender label nilai; posisi tidak.
   const [active, setActive] = useState<ThumbIndex | null>(null)
   const gap = minDistance ?? step
@@ -216,7 +218,7 @@ export function RangeSlider({
   })
 
   return (
-    <View
+    <View accessible={false}
       className={cn("w-full justify-center py-3", disabled && "opacity-disabled", className)}
       {...rest}
     >
@@ -331,7 +333,7 @@ function Thumb({
             className="absolute -top-8 items-center rounded-xs border border-border bg-surface-elevated px-2 py-1"
             style={{ left: THUMB / 2 - LABEL_MIN_W / 2, minWidth: LABEL_MIN_W }}
           >
-            <Text variant="monoBody" tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="monoBody" tone="primary" numberOfLines={1}>
               {formatValue(value)}
             </Text>
           </View>

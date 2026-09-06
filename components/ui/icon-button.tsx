@@ -79,13 +79,13 @@ export function IconButton({
   const tone: IconTone = solid ? "inverse" : active ? "active" : "default"
 
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading, selected: active }}
       disabled={isDisabled}
       // sm 40px -> 48px efektif (44pt iOS / 48dp Android); md sudah 48.
-      hitSlop={size === "sm" ? tokens.space[1] : undefined}
+      hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1], left: tokens.space[1], right: tokens.space[1] } : undefined}
       containerClassName={cn(
         "self-start",
         shape === "pill" ? "rounded-full" : "rounded-sm",
@@ -104,7 +104,7 @@ export function IconButton({
       {loading ? (
         <Spinner size={size === "sm" ? "sm" : "md"} tone={solid ? "inverse" : "active"} />
       ) : (
-        <View>
+        <View accessible={false}>
           <Icon
             icon={icon}
             size={size === "sm" ? "sm" : "md"}

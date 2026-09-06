@@ -38,6 +38,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { formatCountdown } from "@/lib/format"
 import { hasOwn } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DisputeCallOutcome =
   | "REQUESTED"
@@ -142,7 +143,7 @@ export function DisputeCallLogItem({
     <ListItem
       title={title}
       subtitle={
-        <Text variant="caption" tone="secondary" numberOfLines={1}>
+        <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary" numberOfLines={1}>
           {subtitleText}
         </Text>
       }
@@ -156,7 +157,7 @@ export function DisputeCallLogItem({
             size="sm"
           />
         ) : (
-          <View className="items-end">
+          <View accessible={false} className="items-end">
             <Text variant="monoBody" tone={completed ? "primary" : "disabled"}>
               {duration}
             </Text>

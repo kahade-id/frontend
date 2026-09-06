@@ -44,6 +44,8 @@ import { Portal } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TooltipPlacement = "auto" | "top" | "bottom"
 
@@ -65,6 +67,7 @@ type Rect = { x: number; y: number; width: number; height: number }
 type Size = { width: number; height: number }
 
 const MAX_WIDTH = 260
+const MAX_WIDTH_MD = 320 // audit #113: di layar lebar 520, 260 terasa sempit (50% width)
 const GAP = tokens.space[1]
 const EDGE = tokens.space[4]
 
@@ -77,6 +80,7 @@ export function Tooltip({
   onOpenChange,
   className,
 }: TooltipProps) {
+  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const [openState, setOpenState] = useState(false)
   const open = openProp ?? openState
   const setOpen = useCallback(
@@ -145,9 +149,9 @@ export function Tooltip({
 
   return (
     <>
-      <View ref={triggerRef} collapsable={false} className="self-start">
+      <View accessible={false} ref={triggerRef} collapsable={false} className="self-start">
         {children ? (
-          <Pressable
+          <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
             accessibilityState={{ expanded: open }}
@@ -169,7 +173,7 @@ export function Tooltip({
 
       {showLayer && anchor ? (
         <Portal>
-          <View pointerEvents="box-none" className="absolute inset-0 z-modal">
+          <View pointerEvents="box-none" className="absolute inset-0 z-modal focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             <Backdrop progress={progress} onPress={close} transparent accessibilityLabel="Tutup info" />
 
             {/* Fase ukur: posisi sementara di tepi kiri-atas, opacity 0 */}

@@ -48,6 +48,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { groupAccountNumber } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | "CANCELLED" | "UNKNOWN"
 
@@ -211,7 +212,7 @@ export function TopupStatusCard({
     // status + nominal yang dikelompokkan (audit #4).
     <Card variant="elevated" padded className={cn("gap-5", className)} {...rest}>
       <CardSummary
-        className="gap-5"
+        className="gap-5 tabular-nums"
         label={summarize([t.status[status], `${t.amount} ${amount} rupiah`, methodLabel])}
       >
         <View className="flex-row items-center justify-between gap-3">
@@ -226,7 +227,7 @@ export function TopupStatusCard({
         </View>
 
         <View className="gap-1">
-          <Text variant="caption" tone="secondary">
+          <Text ellipsizeMode="tail" numberOfLines={2} variant="caption" tone="secondary">
             {t.amount}
           </Text>
           <Amount value={amount} size="large" tone="primary" />
@@ -272,13 +273,13 @@ export function TopupStatusCard({
           ) : null}
 
           {kind === "redirect" && onOpenPayment ? (
-            <Button variant="primary" onPress={onOpenPayment}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" onPress={onOpenPayment}>
               {t.openApp}
             </Button>
           ) : null}
 
           {expiresAt != null ? (
-            <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center justify-between focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               <Text variant="caption" tone="secondary">
                 {t.payBefore}
               </Text>

@@ -123,7 +123,7 @@ export function Timeline({ items, className, ...rest }: TimelineProps) {
             {/* Konten */}
             <View className={cn("flex-1 gap-1", !isLast && "pb-5")}>
               <View className="flex-row items-start justify-between gap-3">
-                <Text
+                <Text accessibilityHint="Ketuk untuk detail"
                   variant="body"
                   weight={status === "current" ? 600 : 500}
                   tone={isUpcoming ? "secondary" : titleTone[tone]}

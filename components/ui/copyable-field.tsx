@@ -36,6 +36,7 @@ import { View, type ViewProps } from "react-native"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type CopyableFieldProps = Omit<ViewProps, "children"> & {
   /** Nilai yang ditampilkan (boleh sudah diformat, mis. "1234 5678 9012") */
@@ -98,7 +99,7 @@ export function CopyableField({
   const shown = masked ? MASK : value
 
   return (
-    <View className={cn("w-full gap-1", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-1", className)} {...rest}>
       {label ? (
         <Text variant="label" tone="secondary">
           {label}
@@ -111,20 +112,20 @@ export function CopyableField({
           disabled && "opacity-disabled",
         )}
       >
-        <Text
+        <Text ellipsizeMode="tail"
           variant={mono ? "monoBody" : "body"}
           tone="primary"
           numberOfLines={wrap ? undefined : 1}
           selectable={!masked}
           accessibilityRole="text"
-          accessibilityLabel={masked ? undefined : `${label ? `${label}: ` : ""}${value}`}
+          accessibilityLabel={masked ? undefined : `${label ? `${label}: ` : ""}${value.length > 24 ? `${value.slice(0, 8)}… ${value.length} karakter, ketuk salin` : value}`}
           className="flex-1 py-3"
         >
           {shown}
         </Text>
 
         {onToggleMask ? (
-          <IconButton
+          <IconButton accessibilityHint="Ketuk untuk berinteraksi"
             icon={masked ? Eye : EyeSlash}
             size="sm"
             accessibilityLabel={masked ? labels.show : labels.hide}

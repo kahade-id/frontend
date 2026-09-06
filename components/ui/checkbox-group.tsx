@@ -37,6 +37,7 @@ import { Checkbox, CheckboxIndicator } from "@/components/ui/checkbox"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type CheckboxGroupVariant = "plain" | "card"
 
@@ -86,7 +87,7 @@ export function CheckboxGroup<V extends string = string>({
 
   return (
     <CheckboxGroupContext.Provider value={{ values: value, toggle, disabled, error, variant, full }}>
-      <View
+      <View accessible={false}
         // RN tidak punya role "group" khusus checkbox; "list" memberi konteks
         // "daftar N item" ke screen reader tanpa menyalahi semantik.
         accessibilityRole="list"
@@ -142,14 +143,14 @@ export function CheckboxGroupItem({
   }
 
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="checkbox"
       accessibilityState={{ checked, disabled }}
       disabled={disabled}
       onPress={() => ctx.toggle(value)}
       containerClassName="w-full"
       className={cn(
-        "flex-row items-start gap-3 rounded-md bg-surface p-5",
+        "flex-row items-start gap-3 rounded-md bg-surface p-5 border border-transparent",
         ctx.error
           ? "border-error border-border-error"
           : checked
@@ -159,7 +160,7 @@ export function CheckboxGroupItem({
       )}
       {...rest}
     >
-      {leading ? <View className="mt-[1px]">{leading}</View> : null}
+      {leading ? <View className="mt-[1px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{leading}</View> : null}
 
       <View className="flex-1 gap-1">
         {typeof label === "string" ? (

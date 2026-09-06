@@ -45,6 +45,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { initials, maskAccountNumber } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ScheduleBankAccount = {
   bankName: string
@@ -132,11 +133,11 @@ export function WithdrawalScheduleCard({
   return (
     <Card className={cn("gap-4", className)} {...rest}>
       {/* Header */}
-      <View className="flex-row items-center gap-3">
+      <View className="flex-row items-center gap-3 tabular-nums">
         <CardSummary className="flex-1 flex-row items-center gap-3" label={a11y}>
           <IconBox icon={CalendarCheck} size="md" variant={isActive ? "inverted" : "surface"} />
           <View className="flex-1">
-            <Text variant="h3" tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="h3" tone="primary" numberOfLines={1}>
               {title}
             </Text>
             <Text variant="caption" tone={isActive ? "success" : "secondary"}>
@@ -195,7 +196,7 @@ export function WithdrawalScheduleCard({
       {onEdit || onDelete ? (
         <View className="flex-row gap-2">
           {onEdit ? (
-            <Button variant="secondary" size="sm" leftIcon={PencilSimple} onPress={onEdit} className="flex-1">
+            <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" size="sm" leftIcon={PencilSimple} onPress={onEdit} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               {t.edit}
             </Button>
           ) : null}

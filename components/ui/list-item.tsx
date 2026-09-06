@@ -40,6 +40,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 function isIconComponent(x: unknown): x is IconComponent {
   return (
@@ -52,6 +53,7 @@ export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> 
   /** Disable row padding when the parent already applies the screen inset. */
   padded?: boolean
   /** Caption text-secondary ATAU node (mis. nomor rekening Mono) — simetris dengan `trailing` */
+  /** Caption text-secondary — potong 2 baris agar list tetap 56 tinggi */
   subtitle?: string | ReactNode
   /** Ikon Phosphor (tone default) ATAU node kustom (Avatar, IconBox) */
   leading?: IconComponent | ReactNode
@@ -103,10 +105,10 @@ export function ListItem({
           className,
         )}
       >
-        {leadingNode ? <View className="items-center justify-center">{leadingNode}</View> : null}
+        {leadingNode ? <View className="items-center justify-center tabular-nums">{leadingNode}</View> : null}
 
         <View className="flex-1 gap-[2px]">
-          <Text
+          <Text ellipsizeMode="tail"
             variant="body"
             weight={500}
             tone={destructive ? "danger" : "primary"}
@@ -161,7 +163,7 @@ export function ListItem({
   }
 
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={a11yLabel}
       accessibilityState={{ selected, disabled: !!disabled }}

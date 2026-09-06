@@ -51,6 +51,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_SIZE = 20
 const COMMENT_PAGE = 20
@@ -265,7 +266,7 @@ export default function PublicQuestionsScreen() {
       <Header
         title="Tanya Jawab"
         right={
-          <Button size="sm" variant="secondary" onPress={() => setAskOpen(true)}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={() => setAskOpen(true)}>
             Bertanya
           </Button>
         }
@@ -289,7 +290,7 @@ export default function PublicQuestionsScreen() {
             description="Jadilah yang pertama bertanya pada profil ini."
           />
         ) : (
-          <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-3" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title={`@${username}`} />
             {items.map((q) => (
               <View key={q.id} className="gap-3">

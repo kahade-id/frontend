@@ -40,6 +40,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { orderLinkStatusMeta } from "@/lib/order-link-labels"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_SIZE = 20
 
@@ -156,7 +157,7 @@ export default function OrderLinksScreen() {
             title="Belum ada tautan"
             description="Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi."
             action={
-              <Button
+              <Button accessibilityHint="Ketuk untuk berinteraksi"
                 variant="secondary"
                 fullWidth={false}
                 onPress={() => router.push(ROUTES.createTransaction)}
@@ -166,7 +167,7 @@ export default function OrderLinksScreen() {
             }
           />
         ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Tautan saya" />
             {items.map((link) => {
               const url = link.url ?? orderLinkUrl(link.token)

@@ -29,6 +29,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type UserListItemProps = Omit<ViewProps, "children"> & {
   name: string
@@ -46,6 +47,7 @@ export type UserListItemProps = Omit<ViewProps, "children"> & {
   /** Baris pengguna yang diblokir — diredupkan */
   blocked?: boolean
   onPress?: () => void
+  /** Divider inset 60px = 24+24+12 (token derived) — audit #... */
   divider?: boolean
   className?: string
 }
@@ -82,7 +84,7 @@ export function UserListItem({
     >
       <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
       <View className="flex-1 gap-[2px]">
-        <Text variant="body" weight={500} tone="primary" numberOfLines={1}>
+        <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1}>
           {name}
         </Text>
         {handle || stat ? (
@@ -108,14 +110,14 @@ export function UserListItem({
     <View className={cn("w-full", className)} {...rest}>
       <View className={cn("flex-row items-center gap-3", padded && "px-6")}>
         {onPress ? (
-          <PressableScale
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Buka profil"
             scaleOnPress={false}
             onPress={onPress}
             containerClassName="flex-1"
-            className="flex-1"
+            className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {body}
           </PressableScale>

@@ -3,7 +3,7 @@
  * Matriks kategori × kanal dari NotificationPreferencesMatrix.
  *
  * Audit:
- *   - Loading dan error sebelumnya dirender sebagai <Text> polos: tidak ada
+ *   - Loading dan error sebelumnya dirender sebagai <Text numberOfLines={1}> polos: tidak ada
  *     tombol "Coba lagi", tidak ada role alert, dan gagal-muat terlihat sama
  *     seperti "preferensi memang kosong". Sekarang memakai kerangka
  *     <DataScreen> (LoadingScreen / ErrorState + retry) seperti layar lain.

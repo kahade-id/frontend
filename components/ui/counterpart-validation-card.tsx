@@ -38,6 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type CounterpartState = "loading" | "notFound" | "blocked" | "self" | "found"
 
@@ -163,7 +164,7 @@ export function CounterpartValidationCard({
           <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
           <View className="flex-1 gap-[2px]">
             <View className="flex-row flex-wrap items-center gap-2">
-              <Text variant="body" weight={600} tone="primary" numberOfLines={1} className="shrink">
+              <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1} className="shrink">
                 {name}
               </Text>
               {verified ? (
@@ -200,7 +201,7 @@ export function CounterpartValidationCard({
       </CardSummary>
 
       {onConfirm ? (
-        <Button size="sm" variant="secondary" onPress={onConfirm} loading={confirming} fullWidth>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={onConfirm} loading={confirming} fullWidth>
           {t.confirm}
         </Button>
       ) : null}

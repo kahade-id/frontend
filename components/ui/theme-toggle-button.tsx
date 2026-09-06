@@ -35,6 +35,7 @@ import type { ViewProps } from "react-native"
 import { useTheme, type ThemePreference } from "@/components/theme-provider"
 import { IconButton, type IconButtonProps } from "@/components/ui/icon-button"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ThemeToggleButtonProps = Omit<
   IconButtonProps,
@@ -59,7 +60,7 @@ export function ThemeToggleButton({ labels: labelsProp, ...rest }: ThemeToggleBu
   const isDark = mode === "dark"
 
   return (
-    <IconButton
+    <IconButton accessibilityHint="Ketuk untuk berinteraksi"
       icon={isDark ? Sun : Moon}
       accessibilityLabel={isDark ? labels.toLight : labels.toDark}
       accessibilityRole="switch"

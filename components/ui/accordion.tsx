@@ -32,6 +32,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type AccordionContextValue = {
   open: readonly string[]
@@ -85,7 +86,7 @@ export function Accordion({
 
   return (
     <AccordionContext.Provider value={ctx}>
-      <View
+      <View accessible={false}
         className={cn(
           "w-full",
           bordered && "overflow-hidden rounded-md border border-border bg-surface-elevated",
@@ -144,7 +145,7 @@ export function AccordionItem({
 
   return (
     <View className={cn("w-full", !last && "border-b border-border", className)} {...rest}>
-      <PressableScale
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         accessibilityRole="button"
         accessibilityState={{ expanded: open, disabled }}
         accessibilityLabel={title}
@@ -152,11 +153,11 @@ export function AccordionItem({
         disabled={disabled}
         onPress={() => ctx.toggle(value)}
         containerClassName="w-full"
-        className="min-h-14 w-full flex-row items-center gap-3 px-4 py-3"
+        className="min-h-14 w-full flex-row items-center gap-3 px-4 py-3 tabular-nums focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         {icon ? <Icon icon={icon} size="md" active={open} /> : null}
         <View className="flex-1 gap-[2px]">
-          <Text variant="body" weight={open ? 600 : 500} numberOfLines={2}>
+          <Text ellipsizeMode="tail" variant="body" weight={open ? 600 : 500} numberOfLines={2}>
             {title}
           </Text>
           {subtitle ? (

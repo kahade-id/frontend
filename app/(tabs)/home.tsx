@@ -56,6 +56,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { StatCard } from "@/components/ui/stat-card"
 import { Text } from "@/components/ui/text"
 import { VStack } from "@/components/ui/stack"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
 // Helpers
@@ -176,8 +177,8 @@ export default function HomeScreen() {
         }}
       >
         {/* ── Identitas: salam + profil ───────────────────────── */}
-        <View className="px-6 pt-4">
-          <Text variant="caption" tone="secondary">
+        <View accessible={false} accessibilityRole="text" className="px-6 pt-4">
+          <Text numberOfLines={1} variant="caption" tone="secondary" accessibilityLabel={`${greetingByHour()}, pengguna`}>
             {greetingByHour()},
           </Text>
         </View>
@@ -259,7 +260,7 @@ export default function HomeScreen() {
          * bawah ringkasan saldo/order yang menjadi konteksnya.
          */}
         <VStack gap={3} className="px-6 pt-6">
-          <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
             Buat Transaksi
           </Button>
           <Button

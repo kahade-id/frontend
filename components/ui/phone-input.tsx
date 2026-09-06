@@ -129,7 +129,7 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
       disabled={disabled}
       className={containerClassName}
     >
-      <View
+      <View accessible={false}
         className={cn(
           "h-12 w-full flex-row items-center rounded-sm bg-background",
           hasError
@@ -150,7 +150,7 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
 
         {/* Prefix negara — statis, bukan bagian dari nilai */}
         <View className="h-full flex-row items-center gap-3 pr-3">
-          <Text variant="monoBody" tone="secondary">
+          <Text accessibilityHint="Ketuk untuk detail" variant="monoBody" tone="secondary">
             {PHONE_ID_PREFIX}
           </Text>
           <Divider orientation="vertical" className="h-6" />

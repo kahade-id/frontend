@@ -95,7 +95,7 @@ export function PasswordStrength({
   const label = labels[level] ?? ""
 
   return (
-    <View className={cn("w-full gap-2", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-2", className)} {...rest}>
       <View className="flex-row items-center gap-3">
         {/* Bar: dekoratif, status dibaca lewat label */}
         <View
@@ -112,7 +112,7 @@ export function PasswordStrength({
         </View>
 
         {label || reserveSpace ? (
-          <Text
+          <Text accessibilityHint="Ketuk untuk detail"
             variant="caption"
             weight={500}
             tone={level === 1 ? "danger" : "secondary"}

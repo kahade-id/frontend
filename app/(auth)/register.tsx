@@ -62,6 +62,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
 import { setPendingReferralCode } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Registrasi via HP: 4 langkah sebelum akun jadi; ini langkah ke-1 */
 const STEP_PROGRESS = 1 / 4
@@ -177,19 +178,20 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="gap-8">
+          <View accessible={false} className="gap-8">
             {/* Judul konten (H1) — Header memakai H3, jadi hanya satu H1 di layar */}
             <View className="gap-2">
               <Heading level={1} className="text-balance">
                 Masukkan nomor HP Anda
               </Heading>
-              <Text variant="body" tone="secondary" className="text-pretty">
+              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
                 Kami akan mengirim kode verifikasi 6 digit ke nomor ini. Nomor HP dipakai untuk
                 masuk dan pemberitahuan transaksi.
               </Text>
             </View>
 
             <PhoneInput
+              accessibilityLabel="Nomor HP Indonesia"
               ref={phoneRef}
               value={digits}
               onChangeText={handleDigits}
@@ -254,7 +256,7 @@ export default function RegisterScreen() {
 
         {/* Footer: CTA + jalan ke login. Pola border-t mengikuti slot footer Screen. */}
         <FooterBar>
-          <Button
+          <Button accessibilityHint="Ketuk untuk berinteraksi"
             onPress={() => void handleSubmit()}
             loading={submitting}
             disabled={methodsLoading}

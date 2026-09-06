@@ -73,7 +73,7 @@ export const PasswordField = forwardRef<TextInput, PasswordFieldProps>(function 
   const mismatch = isConfirm && touched && value.length > 0 && value !== confirmOf ? t.mismatch : undefined
 
   return (
-    <View className={containerClassName}>
+    <View accessible={false} className={containerClassName}>
       <Input
         ref={ref}
         label={label ?? (isConfirm ? t.confirmLabel : t.label)}

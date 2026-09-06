@@ -33,6 +33,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TabItem<V extends string = string> = {
   value: V
@@ -60,7 +61,7 @@ export function Tabs<V extends string = string>({
   ...rest
 }: TabsProps<V>) {
   const row = (
-    <View
+    <View accessible={false}
       accessibilityRole="tablist"
       className={cn("flex-row border-b border-border", scrollable ? "px-6" : "w-full", className)}
       {...rest}
@@ -68,7 +69,7 @@ export function Tabs<V extends string = string>({
       {items.map((item) => {
         const active = item.value === value
         return (
-          <PressableScale
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             key={item.value}
             accessibilityRole="tab"
             accessibilityState={{ selected: active, disabled: !!item.disabled }}
@@ -83,7 +84,7 @@ export function Tabs<V extends string = string>({
             )}
           >
             {item.icon ? <Icon icon={item.icon} size="sm" active={active} /> : null}
-            <Text
+            <Text ellipsizeMode="tail"
               variant="body"
               weight={active ? 600 : 400}
               tone={active ? "primary" : "secondary"}

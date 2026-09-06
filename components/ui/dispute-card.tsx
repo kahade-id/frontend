@@ -39,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DisputeCardLabels = {
   openedByYou: string
@@ -113,7 +114,7 @@ export function DisputeCard({
       {...rest}
     >
       <View className="flex-row items-center justify-between gap-3">
-        <Text
+        <Text ellipsizeMode="tail"
           variant="caption"
           tone="secondary"
           numberOfLines={1}

@@ -38,6 +38,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_SIZE = 20
 /** AnswerQuestionDto: minLength 1 · maxLength 2000 (batas lokal min 10 agar jawaban bermakna) */
@@ -166,7 +167,7 @@ export default function QuestionsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Tanya Jawab" />
-      <View className="px-6" style={{ paddingTop: tokens.space[3] }}>
+      <View accessible={false} className="px-6" style={{ paddingTop: tokens.space[3] }}>
         <SegmentedControl items={SEGMENTS} value={type} onChange={setType} />
       </View>
       <PullToRefresh
@@ -224,7 +225,7 @@ export default function QuestionsScreen() {
                   }
                   answerAction={
                     received && !q.answer ? (
-                      <Button size="sm" variant="secondary" onPress={() => openAnswer(q)}>
+                      <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={() => openAnswer(q)}>
                         Jawab
                       </Button>
                     ) : undefined

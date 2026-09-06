@@ -99,11 +99,11 @@ export function Button({
   const iconTone = variantIconTone[variant]
 
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
       accessibilityRole="button"
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
-      hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1] } : undefined}
+      hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1], left: tokens.space[1], right: tokens.space[1] } : undefined}
       containerClassName={cn(fullWidth ? "w-full" : "self-start", containerClassName)}
       className={cn(
         "flex-row items-center justify-center rounded-sm",
@@ -114,14 +114,14 @@ export function Button({
       {...rest}
     >
       {/* Konten label — opacity-0 saat loading agar lebar tetap */}
-      <View
+      <View accessible={false}
         className={cn(
           "min-w-0 flex-shrink flex-row items-center justify-center gap-2",
           loading && "opacity-0",
         )}
       >
         {leftIcon ? <Icon icon={leftIcon} size={iconSize} tone={iconTone} /> : null}
-        <Text
+        <Text ellipsizeMode="tail"
           variant={size === "sm" ? "label" : "body"}
           weight={600}
           tone="inherit"

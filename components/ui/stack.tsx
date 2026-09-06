@@ -2,7 +2,7 @@
  * Kahade — <VStack> / <HStack> / <Spacer> (§4 Spacing & Layout).
  *
  * Helper layout flex dengan `gap` dari skala spacing (§4). Tujuannya bukan
- * menggantikan <View className>, tapi memaksa dua kebiasaan sistem:
+ * menggantikan <View accessible={false} className>, tapi memaksa dua kebiasaan sistem:
  *   1. Jarak antar elemen SELALU lewat `gap` (bukan margin di anak) — sesuai
  *      aturan "jangan campur margin/padding dengan gap" dan memudahkan
  *      reorder/conditional render tanpa margin yatim.

@@ -32,7 +32,7 @@ export type EmptyStateProps = Omit<ViewProps, "children"> & {
   icon: IconComponent
   title: string
   description?: string
-  /** Tombol utama — kirim <Button fullWidth={false}> */
+  /** Tombol utama — kirim <Button accessibilityHint="Ketuk untuk berinteraksi" fullWidth={false}> */
   action?: ReactNode
   /** Tombol kedua (ghost) di bawah aksi utama */
   secondaryAction?: ReactNode
@@ -52,7 +52,7 @@ export function EmptyState({
   ...rest
 }: EmptyStateProps) {
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="summary"
       className={cn(
         "w-full items-center justify-center",
@@ -63,9 +63,9 @@ export function EmptyState({
     >
       <IconBox icon={icon} size={compact ? "lg" : "xl"} variant="surface" weight="regular" />
 
-      <View className={cn("items-center", compact ? "gap-1" : "gap-2", "max-w-[320px]")}>
+      <View className={cn("items-center", compact ? "gap-1" : "gap-2", "max-w-[320px] mx-auto")}>
         {compact ? (
-          <Text variant="body" weight={600} className="text-center">
+          <Text variant="body" weight={600} className="text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             {title}
           </Text>
         ) : (

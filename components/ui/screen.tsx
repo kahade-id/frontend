@@ -47,7 +47,7 @@ export type ScreenProps = Omit<ViewProps, "children"> & {
   children?: ReactNode
   /** Body dapat di-scroll (ScrollView). Default false = View flex-1. */
   scroll?: boolean
-  /** Resize form body and sticky actions above the iOS keyboard. */
+  /** Resize form body and sticky actions above the iOS keyboard (offset = Header 56 + inset.top). */
   keyboardAvoiding?: boolean
   /** Padding horizontal 24px pada body. Default true. */
   padded?: boolean
@@ -116,7 +116,7 @@ export function Screen({
             {children}
           </ScrollView>
         ) : (
-          <View className={cn("flex-1", bodyPad)}>{children}</View>
+          <View accessible={false} className={cn("flex-1", bodyPad)}>{children}</View>
         )}
 
         {footer ? <FooterBar>{footer}</FooterBar> : null}

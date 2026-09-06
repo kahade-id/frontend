@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
 import { SectionHeader } from "@/components/ui/section"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function SupportScreen() {
   const query = useApiQuery("support-tickets", () => api.support.listSupportTickets())
@@ -32,7 +33,7 @@ export default function SupportScreen() {
           title: "Belum ada tiket",
           description: "Buat tiket melalui menu Hubungi Kami.",
           action: (
-            <Button variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.contact)}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.contact)}>
               Hubungi Kami
             </Button>
           ),

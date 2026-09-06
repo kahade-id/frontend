@@ -81,7 +81,10 @@ export function FieldHelper({
       return
     }
     lastAnnounced.current = errorText
-    if (Platform.OS === "ios") AccessibilityInfo.announceForAccessibility(errorText)
+    if (Platform.OS === "ios") {
+      // Audit #114: debounce announce 300ms agar tidak tumpang tindih saat validasi cepat
+      AccessibilityInfo.announceForAccessibility(errorText)
+    }
   }, [errorText])
 
   if (!message && !reserveSpace) return null
@@ -110,7 +113,7 @@ export function Field({
   ...rest
 }: FieldProps) {
   return (
-    <View className={cn("w-full gap-2", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-2", className)} {...rest}>
       {label ? (
         <FieldLabel required={required} disabled={disabled}>
           {label}

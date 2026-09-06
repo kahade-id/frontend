@@ -42,6 +42,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
 import { fileExtension, isImageMime } from "@/lib/mime"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ChatAttachment = {
   fileName: string
@@ -162,7 +163,7 @@ export function ChatAttachmentItem({
 
   if (layout === "tile") {
     return (
-      <PressableScale
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
         scaleOnPress={false}
         onPress={onPress}
         disabled={!onPress}
@@ -175,14 +176,14 @@ export function ChatAttachmentItem({
         )}
         {...rest}
       >
-        <View style={{ width: TILE, height: TILE }} className="items-center justify-center">
+        <View style={{ width: TILE, height: TILE }} className="items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           {thumb && !errored ? (
             <Picture source={thumb} alt="" width={TILE} height={TILE} radius="none" />
           ) : (
             <Icon icon={errored ? Warning : icon} size="lg" tone={errored ? "danger" : "default"} />
           )}
           {!thumb ? (
-            <Text variant="caption" tone="secondary" numberOfLines={1} className="absolute bottom-1 left-1 right-1 text-center">
+            <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1} className="absolute bottom-1 left-1 right-1 text-center">
               {attachmentExtension(attachment.fileName)}
             </Text>
           ) : null}

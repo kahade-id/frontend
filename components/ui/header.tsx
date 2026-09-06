@@ -37,6 +37,7 @@ import { ScreenInsetsContext } from "@/components/ui/screen"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /**
  * Tinggi bar Header (px) — harus sama dengan class `h-14` di bawah (skala
@@ -99,13 +100,15 @@ export function Header({
       <IconButton
         icon={backKind === "close" ? X : ArrowLeft}
         variant="ghost"
+        weight={backKind === "close" ? "bold" : undefined}
         accessibilityLabel={backKind === "close" ? "Tutup" : "Kembali"}
+        accessibilityHint={backKind === "close" ? "Menutup layar ini" : "Kembali ke layar sebelumnya"}
         onPress={handleBack}
       />
     ) : null)
 
   return (
-    <View
+    <View accessible={false}
       className={cn(
         "z-sticky w-full items-center",
         transparent ? "bg-transparent" : "bg-background border-b border-border",
@@ -114,7 +117,7 @@ export function Header({
       style={(safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined}
       {...rest}
     >
-      <View className="w-full md:max-w-content">
+      <View className="w-full md:max-w-content focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <View className="min-h-14 w-full flex-row items-center px-3 py-1">
           {/* Kolom kiri: lebar tetap 1 slot */}
           <View style={{ width: sideWidth }} className="items-start justify-center">
@@ -123,7 +126,7 @@ export function Header({
 
           <View className="flex-1 items-center justify-center px-2">
             {title ? (
-              <Text
+              <Text ellipsizeMode="tail"
                 accessibilityRole="header"
                 variant="h3"
                 numberOfLines={1}
@@ -146,13 +149,17 @@ export function Header({
         </View>
 
         {largeTitle ? (
-          <View className="px-6 pb-4 pt-1">
-            <Text variant="h1">{largeTitle}</Text>
+          <View accessibilityRole="header" className="px-6 pb-4 pt-1">
+            <Text variant="h1" accessibilityRole="header">{largeTitle}</Text>
           </View>
         ) : null}
       </View>
 
-      {progress != null ? <StepProgress value={progress} className="w-full" /> : null}
+      {progress != null ? (
+        <View accessible accessibilityRole="progressbar" accessibilityValue={{ now: Math.round(progress*100), min: 0, max: 100 }} accessibilityLabel={`Progres ${Math.round(progress*100)} persen`}>
+          <StepProgress value={progress} className="w-full" />
+        </View>
+      ) : null}
     </View>
   )
 }

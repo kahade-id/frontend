@@ -39,6 +39,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ICON_XS_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ChipProps = Omit<PressableScaleProps, "children" | "className"> & {
   children: ReactNode
@@ -61,11 +62,11 @@ export function Chip({
   ...rest
 }: ChipProps) {
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
-      hitSlop={{ top: tokens.space[2], bottom: tokens.space[2] }}
+      hitSlop={{ top: tokens.space[2], bottom: tokens.space[2], left: tokens.space[1], right: tokens.space[1] }}
       containerClassName={cn("self-start rounded-full", focusRing, containerClassName)}
       className={cn(
         "h-8 flex-row items-center gap-1 rounded-full px-3",
@@ -75,7 +76,7 @@ export function Chip({
       {...rest}
     >
       {icon ? <Icon icon={icon} size="xs" tone={selected ? "inverse" : "default"} /> : null}
-      <Text
+      <Text ellipsizeMode="tail"
         variant="label"
         tone={selected ? "inverse" : "primary"}
         numberOfLines={1}
@@ -134,7 +135,7 @@ export function ChipGroup<V extends string = string>({
   }
 
   return (
-    <View className={cn("flex-row flex-wrap gap-2", className)} {...rest}>
+    <View accessible={false} className={cn("flex-row flex-wrap gap-2", className)} {...rest}>
       {options.map((o) => (
         <Chip
           key={o.value}

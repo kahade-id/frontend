@@ -1,13 +1,13 @@
 /**
  * Kahade — <ButtonGroup> (§9.1 pendukung, §4 spacing).
  *
- * Menyusun 2–3 <Button>/<IconButton> dalam satu baris (atau kolom) dengan
+ * Menyusun 2–3 <Button>/<IconButton accessibilityHint="Ketuk untuk berinteraksi"> dalam satu baris (atau kolom) dengan
  * gap seragam. Kasus utama: pasangan CTA di footer Screen —
  * "Batal" (secondary) di kiri + "Lanjutkan" (primary) di kanan — dan kolom
  * aksi di layar konfirmasi/empty state.
  *
  * Keputusan non-obvious:
- *   - direction="row": tiap anak dibungkus <View className="flex-1"> agar
+ *   - direction="row": tiap anak dibungkus <View accessible={false} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"> agar
  *     lebar SAMA rata. Button sendiri default `fullWidth` (w-full) sehingga
  *     mengisi pembungkusnya. Tanpa pembungkus, dua Button w-full dalam
  *     flex-row akan overflow. `equal={false}` mematikan pembungkus untuk

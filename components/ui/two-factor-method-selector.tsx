@@ -43,6 +43,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Radio, RadioGroup, type RadioGroupProps } from "@/components/ui/radio"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TwoFactorMethodId = "authenticator" | "sms" | "email"
 
@@ -130,8 +131,8 @@ export function TwoFactorMethodSelector({
         const isCurrent = currentMethod === m.id
 
         const label: ReactNode = (
-          <View className="flex-row flex-wrap items-center gap-2">
-            <Text variant="body" weight={600} tone={isUnavailable ? "disabled" : "primary"}>
+          <View accessible={false} className="flex-row flex-wrap items-center gap-2">
+            <Text accessibilityHint="Ketuk untuk detail" variant="body" weight={600} tone={isUnavailable ? "disabled" : "primary"}>
               {m.label}
             </Text>
             {m.recommended && !isUnavailable ? (

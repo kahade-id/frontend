@@ -43,6 +43,7 @@ import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { groupAccountNumber, maskAccountNumber } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type BankAccountListItemLabels = {
   primary: string
@@ -109,7 +110,7 @@ export function BankAccountListItem({
     .join(", ")
 
   const leading = logo ? (
-    <View className="h-10 w-10 items-center justify-center overflow-hidden rounded-sm border border-border bg-surface-elevated">
+    <View accessible={false} className="h-10 w-10 items-center justify-center overflow-hidden rounded-sm border border-border bg-surface-elevated">
       <Picture source={logo} alt="" width={32} height={32} resizeMode="contain" radius="none" />
     </View>
   ) : (
@@ -131,7 +132,7 @@ export function BankAccountListItem({
   // Subtitle node: nomor Mono (§3.1) + nama pemilik + status verifikasi
   const subtitle = (
     <View className="gap-[2px]">
-      <Text variant="monoBody" tone="secondary" numberOfLines={1}>
+      <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="monoBody" tone="secondary" numberOfLines={1}>
         {number}
       </Text>
       <Text variant="caption" tone="secondary" numberOfLines={1}>

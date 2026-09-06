@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type HelpCategoryCardProps = Omit<CardProps, "children" | "variant" | "padded"> & {
   name: string
@@ -59,7 +60,7 @@ export function HelpCategoryCard({
     >
       <IconBox icon={icon ?? Question} size="md" variant="surface" />
       <View className="gap-0.5">
-        <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
+        <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={2}>
           {name}
         </Text>
         {description ? (

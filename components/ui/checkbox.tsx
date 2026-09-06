@@ -82,7 +82,7 @@ export function CheckboxIndicator({
   }, [fill, on, reducedMotion])
 
   return (
-    <View
+    <View accessible={false}
       className={cn(
         "relative h-5 w-5 items-center justify-center overflow-hidden rounded-xs bg-background",
         error
@@ -128,12 +128,12 @@ export function Checkbox({
       }
 
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
       accessibilityRole="checkbox"
       accessibilityState={{ checked: indeterminate ? "mixed" : checked, disabled }}
       disabled={disabled}
       scaleOnPress={false}
-      onPress={() => onChange(!checked)}
+      onPress={() => { onChange(!checked); import("@/lib/haptics").then(m=>m.haptic("light")); }}
       hitSlop={hitSlop}
       // rounded-xs di container hanya untuk bentuk ring (container tak punya bg/border)
       containerClassName={cn("self-start rounded-xs", focusRing, containerClassName)}

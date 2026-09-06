@@ -45,6 +45,7 @@ import { IconBox } from "@/components/ui/icon-box"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type NotificationCategory =
   | "order"
@@ -121,7 +122,7 @@ export function NotificationListItem({
       <IconBox icon={icon ?? CATEGORY_ICON[category]} size="md" variant={tone === "danger" ? "danger" : "surface"} />
 
       <View className="flex-1 gap-[2px]">
-        <Text variant="body" weight={unread ? 600 : 500} tone="primary" numberOfLines={2}>
+        <Text ellipsizeMode="tail" variant="body" weight={unread ? 600 : 500} tone="primary" numberOfLines={2}>
           {title}
         </Text>
         {body ? (
@@ -150,7 +151,7 @@ export function NotificationListItem({
   return (
     <View className={cn("w-full", className)} {...rest}>
       {onPress || onLongPress ? (
-        <PressableScale
+        <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
           accessibilityRole="button"
           accessibilityLabel={a11y}
           accessibilityState={{ selected }}
@@ -167,7 +168,7 @@ export function NotificationListItem({
         </View>
       )}
       {/* Inset = px-6 (24) + IconBox md (40) + gap-3 (12) */}
-      {divider ? <View className="ml-[76px] h-px bg-border" /> : null}
+      {divider ? <View className="ml-[76px] h-px bg-border focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" /> : null}
     </View>
   )
 }

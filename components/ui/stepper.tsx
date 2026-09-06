@@ -67,7 +67,7 @@ export function StepProgress({ value, step, total, segmented = false, className,
   if (segmented && total) {
     const current = step ?? Math.round(ratio * total)
     return (
-      <View className={cn("w-full flex-row gap-1", className)} {...a11y} {...rest}>
+      <View accessible={false} className={cn("w-full flex-row gap-1", className)} {...a11y} {...rest}>
         {Array.from({ length: total }, (_, i) => (
           <View key={i} className={cn("h-[2px] flex-1", i < current ? "bg-primary" : "bg-border")} />
         ))}

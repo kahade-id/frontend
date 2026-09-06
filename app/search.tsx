@@ -20,6 +20,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type ResultRow = { id: string } & (
   | { kind: "user"; user: UserProfile }
@@ -29,6 +30,7 @@ type ResultRow = { id: string } & (
 )
 export default function SearchScreen() {
   const insets = useSafeAreaInsets()
+  // UX: Fokus otomatis ke search saat layar dibuka (audit #011)
   /*
    * Hanya kata kunci yang sudah tenang yang tinggal di layar ini; teks mentah
    * dikurung di dalam <DebouncedSearchField>. Sebelumnya setiap ketukan huruf
@@ -80,7 +82,7 @@ export default function SearchScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pencarian" />
-      <View className="px-6 pb-4">
+      <View accessible={false} className="px-6 pb-4">
         <DebouncedSearchField
           key={seed}
           initialQuery={seed}

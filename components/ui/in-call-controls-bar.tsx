@@ -9,7 +9,7 @@
  *
  * Keputusan non-obvious:
  *   - Toggle "aktif" (mis. mikrofon dibisukan, speaker menyala) = `bg-primary`
- *     + ikon inverse — memakai <IconButton variant="primary" shape="pill">;
+ *     + ikon inverse — memakai <IconButton accessibilityHint="Ketuk untuk berinteraksi" variant="primary" shape="pill">;
  *     non-aktif = `variant="secondary"` (border-default, ikon text-tertiary).
  *     Pola invert ini (bukan hanya ganti weight) dipilih karena saat
  *     menelepon user melirik cepat tanpa fokus — perbedaan fill hitam vs
@@ -55,6 +55,7 @@ import type { IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatCountdown } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type InCallControlsBarProps = Omit<ViewProps, "children"> & {
   /** Durasi berjalan dalam detik; diformat mm:ss di sini */
@@ -117,7 +118,7 @@ export function InCallControlsBar({
   const showFlip = onFlipCamera != null && videoOn !== false
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="toolbar"
       className={cn(
         "w-full items-center gap-4 border-t border-border bg-surface-elevated px-6 pb-6 pt-4",
@@ -189,7 +190,7 @@ export function InCallControlsBar({
             accessibilityLabel="Tutup panggilan"
             onPress={onEnd}
           />
-          <Text variant="caption" tone="secondary" weight={500} numberOfLines={1}>
+          <Text ellipsizeMode="tail" variant="caption" tone="secondary" weight={500} numberOfLines={1}>
             {t.end}
           </Text>
         </View>

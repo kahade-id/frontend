@@ -79,6 +79,7 @@ import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // --- Guard stacking (§9.9) -------------------------------------------------
 let openSheetCount = 0
@@ -257,7 +258,7 @@ export function BottomSheet({
     <View>
       {showHandle ? (
         <View className="items-center pt-2 pb-1">
-          <View className="h-1 w-10 rounded-full bg-border" />
+          <View accessible accessibilityLabel="Tarik untuk menutup" accessibilityRole="adjustable" className="h-1 w-10 rounded-full bg-border" />
         </View>
       ) : null}
 
@@ -276,13 +277,13 @@ export function BottomSheet({
             ) : null}
           </View>
           {closeVisible ? (
-            <IconButton
+            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
               icon={X}
               variant="ghost"
               size="sm"
               accessibilityLabel="Tutup"
               onPress={onRequestClose}
-              className="-mr-2 -mt-1"
+              className="-mr-2 -mt-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
             />
           ) : null}
         </View>

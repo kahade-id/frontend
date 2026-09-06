@@ -302,7 +302,7 @@ export default function DeliveryProofScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             {showSellerForm ? (
               <>
                 <SectionHeader

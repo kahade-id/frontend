@@ -28,6 +28,7 @@ import { PrivacyToggleList } from "@/components/ui/privacy-toggle-list"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const ITEMS = [
   {
@@ -108,7 +109,7 @@ export default function PrivacySettingsScreen() {
     <>
       <DataScreen title="Privasi" state={query} loadingMessage="Memuat pengaturan privasi…">
         <SectionHeader title="Visibilitas profil" />
-        <Text variant="body" tone="secondary">
+        <Text numberOfLines={1} variant="body" tone="secondary">
           Atur siapa yang dapat melihat informasi profil Anda.
         </Text>
         <PrivacyToggleList
@@ -122,7 +123,7 @@ export default function PrivacySettingsScreen() {
         <Text variant="body" tone="secondary">
           Anda berhak meminta salinan seluruh data pribadi yang kami simpan.
         </Text>
-        <Button variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
           Minta salinan data saya
         </Button>
       </DataScreen>

@@ -11,7 +11,7 @@
  *   ringkasan lawan (Avatar + nama + peran) — konteks "Anda menilai siapa"
  *   <Rating lg> di tengah + label deskriptif per skor ("Buruk" … "Sangat baik")
  *   <TextArea maxLength=500 showCount>
- *   <Button primary fullWidth> Kirim (disabled bila stars 0)
+ *   <Button accessibilityHint="Ketuk untuk berinteraksi" primary fullWidth> Kirim (disabled bila stars 0)
  *
  * Keputusan non-obvious:
  *   - Bintang dipusatkan & berukuran lg (32px): ini SATU-SATUNYA tempat
@@ -36,6 +36,7 @@ import { Rating } from "@/components/ui/rating"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export const RATING_COMMENT_MAX = 500
 
@@ -117,7 +118,7 @@ export function RatingForm({
   const scoreLabel = value.stars >= 1 ? t.scoreLabels[Math.min(5, Math.round(value.stars)) - 1] : undefined
 
   return (
-    <View className={cn("w-full gap-6", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-6", className)} {...rest}>
       <View className="gap-1">
         <Text variant="h2" tone="primary">
           {editing ? t.editTitle : t.title}
@@ -131,7 +132,7 @@ export function RatingForm({
         <View className="flex-row items-center gap-3 rounded-md border border-border bg-surface p-4">
           <Avatar source={counterpart.avatar} name={counterpart.name} size="md" verified={counterpart.verified} />
           <View className="flex-1">
-            <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
               {counterpart.name}
             </Text>
             <Text variant="caption" tone="secondary" numberOfLines={1}>

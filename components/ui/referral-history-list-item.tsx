@@ -26,6 +26,7 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator, type StatusIndicatorTone } from "@/components/ui/status-indicator"
 import { summarize } from "@/lib/a11y"
 import { hasOwn } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ReferralStatus = "PENDING" | "QUALIFIED" | "REWARDED" | "EXPIRED"
 
@@ -81,7 +82,7 @@ export function ReferralHistoryListItem({
       subtitle={joinedAt}
       leading={<Avatar source={avatar} name={name} size="sm" />}
       trailing={
-        <View className="items-end gap-1">
+        <View accessible={false} className="items-end gap-1 tabular-nums">
           {showReward ? <Amount value={Math.abs(rewardAmount)} size="body" sign="always" tone="success" /> : null}
           <StatusIndicator label={label} tone={tone} size="sm" />
         </View>

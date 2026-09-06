@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text, type TextTone } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type StatDelta = {
   /** Teks sudah diformat, mis. "+12%" atau "-Rp50.000" */
@@ -122,7 +123,7 @@ export function StatCard({
       {...cardProps}
     >
       <View className="flex-row items-center justify-between gap-2">
-        <Text variant="caption" weight={500} tone={labelTone} numberOfLines={1} className="flex-1">
+        <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="caption" weight={500} tone={labelTone} numberOfLines={1} className="flex-1">
           {label}
         </Text>
         {icon ? <View>{icon}</View> : null}

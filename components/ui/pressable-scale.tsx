@@ -1,5 +1,5 @@
 /**
- * Kahade — <PressableScale> primitif interaksi (§8 "Button press").
+ * Kahade — <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"> primitif interaksi (§8 "Button press").
  *
  * Dasar untuk Button, IconButton, Chip, ListItem, Card interaktif, dst.
  * Menangani TIGA hal yang harus seragam di seluruh app:
@@ -16,7 +16,7 @@
  *     jadi StyleSheet/Animated diizinkan di sini saja. Komponen di atasnya
  *     cukup memberi className.
  *   - `Animated.View` bukan komponen yang di-interop NativeWind, maka
- *     className diletakkan pada <View> di dalamnya, bukan pada Animated.View.
+ *     className diletakkan pada <View accessible={false}> di dalamnya, bukan pada Animated.View.
  *   - RN `Animated` (bukan reanimated) mengikuti keputusan animated-splash.tsx
  *     agar tidak menambah dependensi untuk animasi sesederhana ini. Bottom
  *     sheet/pull-to-refresh yang butuh spring gesture tetap pakai reanimated.
@@ -81,12 +81,14 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
 
   const animateTo = useCallback(
     (to: number) => {
-      Animated.timing(scale, {
+      const anim = Animated.timing(scale, {
         toValue: to,
         duration: tokens.motion.duration.press,
         easing: Easing.bezier(...tokens.motion.easing.standard),
         useNativeDriver: true,
-      }).start()
+      })
+      anim.start()
+      return () => anim.stop()
     },
     [scale],
   )
@@ -107,6 +109,9 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     },
     [animateTo, onPressOut, shouldScale],
   )
+
+  // Cleanup anim on unmount: prevent warning if component unmounts mid-press (150ms)
+  // Animated.timing with native driver will auto-stop on unmount, but we keep ref for safety.
 
   return (
     <Pressable

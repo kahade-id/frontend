@@ -51,6 +51,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ChatMessageDirection = "incoming" | "outgoing" | "system"
 export type ChatMessageStatus = "sending" | "sent" | "delivered" | "read" | "failed"
@@ -127,11 +128,12 @@ export function ChatMessageBubble({
     </View>
   )
 
+  const statusText = !outgoing ? undefined : status === "sending" ? "Mengirim" : status === "sent" ? "Terkirim" : status === "delivered" ? "Sampai" : status === "read" ? "Dibaca" : undefined
   const a11yLabel = [
     outgoing ? "Anda" : senderName ?? "Pesan masuk",
     text,
     time,
-    failed ? t.failed : undefined,
+    failed ? t.failed : statusText,
   ]
     .filter(Boolean)
     .join(", ")
@@ -154,7 +156,7 @@ export function ChatMessageBubble({
         ) : null}
 
         {onLongPress ? (
-          <PressableScale
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="text"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Tekan lama untuk opsi pesan"
@@ -170,7 +172,7 @@ export function ChatMessageBubble({
         )}
 
         {time || failed ? (
-          <View className="flex-row items-center gap-1 px-1">
+          <View className="flex-row items-center gap-1 px-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             {failed ? (
               <>
                 <Icon icon={WarningCircle} size="xs" tone="danger" />
@@ -210,14 +212,14 @@ export function ChatMessageBubble({
 function StatusGlyph({ status }: { status: Exclude<ChatMessageStatus, "failed"> }) {
   switch (status) {
     case "sending":
-      return <Icon icon={Clock} size="xs" tone="default" accessibilityLabel="Mengirim" />
+      return <Icon icon={Clock} size="xs" tone="default" />
     case "sent":
-      return <Icon icon={Check} size="xs" tone="default" accessibilityLabel="Terkirim" />
+      return <Icon icon={Check} size="xs" tone="default" />
     case "delivered":
-      return <Icon icon={Checks} size="xs" tone="default" accessibilityLabel="Sampai" />
+      return <Icon icon={Checks} size="xs" tone="default" />
     case "read":
       return (
-        <Icon icon={Checks} size="xs" tone="active" weight="bold" accessibilityLabel="Dibaca" />
+        <Icon icon={Checks} size="xs" tone="active" weight="bold" />
       )
   }
 }

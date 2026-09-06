@@ -38,6 +38,7 @@ import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 import { Icon, type IconComponent, type IconTone } from "./icon"
 import { IconButton } from "./icon-button"
 import { Text } from "./text"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ToastTone = "neutral" | "success" | "danger" | "warning" | "info"
 export type ToastPosition = "top" | "bottom"
@@ -65,9 +66,9 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null)
 
-const MAX_VISIBLE = 3
+const MAX_VISIBLE = 2
 const DEFAULT_DURATION = 4000
-const DANGER_DURATION = 6000
+const DANGER_DURATION = 8000
 
 let counter = 0
 
@@ -123,10 +124,10 @@ function ToastViewport({
   if (toasts.length === 0) return null
 
   return (
-    <View
+    <View accessible={false}
       pointerEvents="box-none"
       className={cn(
-        "absolute left-0 right-0 z-50 items-center px-4",
+        "absolute left-0 right-0 z-banner items-center px-4",
         position === "top" ? "top-0" : "bottom-0",
       )}
       style={position === "top" ? { paddingTop: insets.top + tokens.space[2] } : { paddingBottom: insets.bottom + tokens.space[2] }}
@@ -243,7 +244,7 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
       ) : null}
 
       <View className="flex-1 gap-[2px]">
-        <Text variant="body" weight={600} numberOfLines={2}>
+        <Text ellipsizeMode="tail" variant="body" weight={600} numberOfLines={2}>
           {toast.title}
         </Text>
         {toast.description ? (
@@ -254,13 +255,13 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
       </View>
 
       {toast.action ? (
-        <Pressable
+        <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
           accessibilityRole="button"
           onPress={() => {
             toast.action?.onPress()
             animateOut(onDismiss)
           }}
-          className="min-h-[44px] justify-center px-2 active:opacity-disabled"
+          className="min-h-[44px] justify-center px-2 active:opacity-disabled focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
         >
           <Text variant="label" weight={600}>
             {toast.action.label}

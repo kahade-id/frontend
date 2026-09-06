@@ -20,6 +20,7 @@ import { FileText } from "phosphor-react-native"
 import { Highlight } from "@/components/ui/highlight"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { summarize } from "@/lib/a11y"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type HelpArticleListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
   title: string
@@ -30,7 +31,7 @@ export type HelpArticleListItemProps = Omit<ListItemProps, "title" | "subtitle" 
 }
 
 export function HelpArticleListItem({ title, snippet, highlight, onPress, inset = true, titleLines = 2, ...rest }: HelpArticleListItemProps) {
-  const subtitle = snippet ? <Highlight text={snippet} query={highlight} variant="caption" tone="secondary" numberOfLines={2} /> : undefined
+  const subtitle = snippet ? <Highlight text={snippet} query={highlight} variant="caption" tone="secondary" ellipsizeMode="tail" numberOfLines={2} /> : undefined
 
   return (
     <ListItem

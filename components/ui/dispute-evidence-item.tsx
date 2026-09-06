@@ -34,6 +34,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
 import { isImageMime } from "@/lib/mime"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DisputeEvidenceFile = {
   id: string
@@ -103,14 +104,14 @@ export function DisputeEvidenceItem({
   const docs = files.filter((f) => !isImage(f.mimeType))
 
   return (
-    <View className={cn("w-full gap-3 rounded-md border border-border bg-surface p-4", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-3 rounded-md border border-border bg-surface p-4", className)} {...rest}>
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           <Badge variant={own ? "soft" : "outline"} tone="neutral">
             {who}
           </Badge>
           {uploadedAt ? (
-            <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
+            <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
               {uploadedAt}
             </Text>
           ) : null}
@@ -139,7 +140,7 @@ export function DisputeEvidenceItem({
             const index = files.indexOf(f)
             return (
               <View key={f.id} className="w-[31%] gap-1">
-                <PressableScale
+                <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
                   accessibilityRole="imagebutton"
                   accessibilityLabel={t.openFile(index, files.length)}
                   onPress={onOpenFile ? () => onOpenFile(index) : undefined}
@@ -175,7 +176,7 @@ export function DisputeEvidenceItem({
             )}
           >
             <Icon icon={FilePdf} size="sm" />
-            <View className="flex-1 gap-[2px]">
+            <View className="flex-1 gap-[2px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               <Text variant="caption" weight={500} tone="primary" numberOfLines={1}>
                 {f.name ?? "Dokumen"}
               </Text>

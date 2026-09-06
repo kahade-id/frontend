@@ -67,7 +67,7 @@ export function IconText({
   const topOffset = alignTop ? Math.max(0, (lineHeight - iconPx) / 2) : 0
 
   return (
-    <View
+    <View accessible={false}
       className={cn(
         "flex-row gap-2",
         reverse && "flex-row-reverse",
@@ -79,7 +79,7 @@ export function IconText({
       <View className="shrink-0" style={alignTop ? { paddingTop: topOffset } : undefined}>
         <Icon icon={icon} size={size} tone={iconTone} active={active} />
       </View>
-      <Text
+      <Text ellipsizeMode="tail"
         variant={variant}
         tone={tone}
         weight={weight}

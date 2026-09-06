@@ -20,7 +20,7 @@
  *   - `mono` mengalihkan ke JetBrains Mono (monoBody) untuk "timestamp
  *     teknis" (§3.1) — mis. di detail transaksi/security log berdampingan
  *     dengan ID. Timestamp di kalimat/list biasa TETAP Sofia Sans dengan
- *     tabular figures (sudah di-handle <Text>).
+ *     tabular figures (sudah di-handle <Text accessibilityHint="Ketuk untuk detail">).
  *   - `accessibilityLabel` = format "long" + jam, agar screen reader membaca
  *     "Rabu, 3 September 2026, 14:30" walau tampilannya singkat.
  */
@@ -65,7 +65,7 @@ export function DateText({
     format === "time" ? shown : `${formatDateLong(value)}, ${formatTime(value)}`
 
   return (
-    <Text
+    <Text ellipsizeMode="tail"
       variant={mono ? "monoBody" : variant}
       tone={tone}
       numberOfLines={1}

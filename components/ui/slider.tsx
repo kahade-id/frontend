@@ -36,7 +36,7 @@
  * Aksesibilitas: role adjustable + accessibilityActions increment/decrement.
  *
  * `Animated.View` (reanimated) tidak di-interop NativeWind -> className ada
- * di <View> anak; Animated.View hanya membawa style runtime (left/width).
+ * di <View accessible={false}> anak; Animated.View hanya membawa style runtime (left/width).
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View, type LayoutChangeEvent, type ViewProps } from "react-native"
@@ -47,6 +47,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type SliderProps = Omit<ViewProps, "children"> & {
   value: number
@@ -107,6 +108,7 @@ export function Slider({
   className,
   ...rest
 }: SliderProps) {
+  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const [dragging, setDragging] = useState(false)
 
   const range = max > min ? max - min : 1
@@ -228,7 +230,7 @@ export function Slider({
               style={[{ position: "absolute", top: LABEL_OFFSET_Y, minWidth: LABEL_MIN_W }, labelStyle]}
             >
               <View className="items-center rounded-xs border border-border bg-surface-elevated px-2 py-1">
-                <Text variant="monoBody" tone="primary" numberOfLines={1}>
+                <Text ellipsizeMode="tail" variant="monoBody" tone="primary" numberOfLines={1}>
                   {formatValue(value)}
                 </Text>
               </View>

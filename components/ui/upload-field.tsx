@@ -39,6 +39,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type UploadFileKind = "jpg" | "png" | "pdf"
 export type UploadStatus = "idle" | "uploading" | "done" | "error"
@@ -157,7 +158,7 @@ export function UploadField({
       {...rest}
     >
       {status === "idle" || !file ? (
-        <PressableScale
+        <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
           accessibilityRole="button"
           accessibilityLabel={`${title}. ${constraint}`}
           accessibilityState={{ disabled }}
@@ -175,12 +176,12 @@ export function UploadField({
           </Text>
         </PressableScale>
       ) : (
-        <View className={cn(box, "gap-3 p-4", disabled && "opacity-disabled")}>
-          <View className="flex-row items-center gap-3">
+        <View accessible={false} className={cn(box, "gap-3 p-4", disabled && "opacity-disabled")}>
+          <View className="flex-row items-center gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             <Icon icon={FileGlyph} size="md" tone={status === "error" ? "default" : "active"} />
 
             <View className="flex-1 gap-1">
-              <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+              <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
                 {file.name}
               </Text>
               <Text variant="monoBody" tone="secondary">

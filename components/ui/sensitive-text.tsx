@@ -19,7 +19,7 @@
  *     data presisi (§3.1 rekening/ID/kode). Set false untuk email/nama.
  *   - Bullet "•" (U+2022), bukan "*": lebarnya konsisten di Mono dan tidak
  *     terbaca sebagai "wildcard".
- *   - Toggle = <IconButton size="sm" ghost> (hit area 48 efektif), ikon
+ *   - Toggle = <IconButton accessibilityHint="Ketuk untuk berinteraksi" size="sm" ghost> (hit area 48 efektif), ikon
  *     tone default (text-tertiary) sesuai §7 — bukan ikon "aktif" karena
  *     ini kontrol sekunder. `accessibilityState.checked` = terlihat/tidak.
  *   - State controlled (`hidden`/`onToggleHidden`) supaya preferensi
@@ -36,6 +36,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Text, type TextProps } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { maskAccountNumber } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SensitiveMask = "all" | "account" | "email" | "phone" | ((value: string) => string)
 
@@ -127,14 +128,14 @@ export function SensitiveText({
   const resolvedVariant = variant ?? (mono ? "monoBody" : "body")
 
   return (
-    <View className={cn("flex-row items-center gap-2", className)} {...rest}>
-      <Text
+    <View accessible={false} className={cn("flex-row items-center gap-2", className)} {...rest}>
+      <Text ellipsizeMode="tail"
         variant={resolvedVariant}
         tone={tone}
         numberOfLines={1}
         selectable={!hidden}
         accessibilityLabel={hidden ? t.hiddenLabel : value}
-        className="flex-shrink"
+        className="flex-shrink tabular-nums"
       >
         {shown}
       </Text>

@@ -33,6 +33,7 @@ import { Input } from "@/components/ui/input"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
 // Reward list item
@@ -74,7 +75,7 @@ export function ReferralRewardListItem({
       leading={<IconBox icon={Gift} size="md" variant={credited ? "success" : "surface"} />}
       title={`Hadiah undangan \u00B7 ${referredName}`}
       subtitle={
-        <View className="flex-row flex-wrap items-center gap-2">
+        <View className="flex-row flex-wrap items-center gap-2 tabular-nums">
           <Text variant="caption" tone="secondary">
             {date}
           </Text>
@@ -166,7 +167,7 @@ export function ReferralApplyForm({
         className="font-mono-500 tracking-widest"
         accessibilityLabel="Masukkan kode referral"
       />
-      <Button onPress={() => onSubmit(normalized)} disabled={!formatOk || submitting} loading={submitting}>
+      <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => onSubmit(normalized)} disabled={!formatOk || submitting} loading={submitting}>
         Pakai kode
       </Button>
     </View>

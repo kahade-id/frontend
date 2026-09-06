@@ -47,7 +47,7 @@ function Dot({ active, inverse }: { active: boolean; inverse: boolean }) {
 
   return (
     <Animated.View style={{ width, height: DOT }}>
-      <View
+      <View accessible={false}
         className={cn(
           "h-full w-full rounded-full",
           active

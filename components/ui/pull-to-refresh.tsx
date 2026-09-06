@@ -178,6 +178,8 @@ export function PullToRefresh({
   }, [refreshing, pull])
 
   const startRefresh = useCallback(async () => {
+    // Debounce spam pull: ignore if already refreshing (audit #051)
+    if (isRefreshing.value || refreshing) return
     pull.value = withSpring(threshold, tokens.motion.spring)
     // Error dari onRefresh adalah urusan parent (tampilkan Banner/Toast di
     // sana). Di sini cukup ditelan supaya tidak menjadi unhandled rejection

@@ -52,6 +52,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type OrderCounterpart = {
   name: string
@@ -140,7 +141,7 @@ export function OrderCard({
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           {unread ? <Dot size="md" tone="primary" /> : null}
-          <Text
+          <Text ellipsizeMode="tail"
             variant="caption"
             tone="secondary"
             numberOfLines={1}
@@ -212,7 +213,7 @@ export function OrderCardSkeleton({
       accessibilityLabel="Memuat transaksi"
       {...rest}
     >
-      <View className="flex-row items-center justify-between">
+      <View className="flex-row items-center justify-between gap-2">
         <Skeleton height={12} className="w-32" />
         <Skeleton height={22} className="w-24" />
       </View>

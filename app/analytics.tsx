@@ -62,8 +62,9 @@ export default function AnalyticsScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           <SegmentedControl
+            accessibilityLabel="Pilih periode analitik"
             items={ANALYTICS_PERIODS}
             value={period}
             onChange={(v) => setPeriod(v as AnalyticsPeriod)}

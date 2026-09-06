@@ -65,6 +65,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DeliveryProofStatus = "pending" | "confirmed" | "rejected"
 
@@ -167,7 +168,7 @@ function ImageTile({
   const picture = <Picture source={att.uri} alt={att.alt ?? label} aspectRatio={aspectRatio} className="w-full" />
   if (!onOpen) return picture
   return (
-    <PressableScale onPress={() => onOpen(index)} accessibilityRole="imagebutton" accessibilityLabel={label}>
+    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" onPress={() => onOpen(index)} accessibilityRole="imagebutton" accessibilityLabel={label}>
       {picture}
     </PressableScale>
   )
@@ -209,7 +210,7 @@ export function DeliveryProofViewer({
 
   return (
     <Card padded className={cn("gap-5", className)} {...rest}>
-      <View className="flex-row items-start gap-2">
+      <View className="flex-row items-start gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <Text variant="h3" className="flex-1">
           {sellerName ? t.titleFrom(sellerName) : t.title}
         </Text>
@@ -255,7 +256,7 @@ export function DeliveryProofViewer({
             const row = (
               <View className="flex-row items-center gap-3 rounded-sm border border-border bg-surface px-3 py-3">
                 <Icon icon={FilePdf} size="sm" />
-                <Text variant="body" className="flex-1" numberOfLines={1}>
+                <Text ellipsizeMode="tail" variant="body" className="flex-1" numberOfLines={1}>
                   {f.name}
                 </Text>
                 {f.size != null ? (

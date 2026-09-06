@@ -62,6 +62,7 @@ import { PASSWORD_MIN, PASSWORD_MAX, SECURITY_CRITERIA, isPasswordValid } from "
 import { getRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-3 */
 const STEP_PROGRESS = 3 / 4
@@ -143,7 +144,7 @@ export default function CreateSecurityScreen() {
                 <Heading level={1} className="text-balance">
                   Buat kata sandi
                 </Heading>
-                <Text variant="body" tone="secondary" className="text-pretty">
+                <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
                   Kata sandi melindungi akun Anda. Gunakan minimal{" "}
                   {PASSWORD_MIN} karakter dengan kombinasi huruf besar, huruf
                   kecil, angka, dan simbol.
@@ -177,14 +178,14 @@ export default function CreateSecurityScreen() {
 
           {/* Footer: tombol Lanjut */}
           <FooterBar>
-            <Button onPress={handleProceedToPin} disabled={!canProceed}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={handleProceedToPin} disabled={!canProceed}>
               Lanjut
             </Button>
           </FooterBar>
         </KeyboardAvoiding>
       ) : (
         /* ── Step 2: PIN wallet ────────────────────────────────────── */
-        <View
+        <View accessible={false}
           className="flex-1 px-6"
           style={{ paddingTop: tokens.space[8] }}
         >

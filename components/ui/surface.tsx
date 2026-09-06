@@ -51,7 +51,7 @@ export function Surface({
   ...rest
 }: SurfaceProps) {
   return (
-    <View
+    <View accessible={false}
       className={cn(
         levelClass[level],
         bordered && (level === "inverted" ? "border border-primary" : "border border-border"),

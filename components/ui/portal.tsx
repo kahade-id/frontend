@@ -180,7 +180,7 @@ export type PortalSceneProps = ViewProps & { className?: string }
 export function PortalScene({ className, children, ...rest }: PortalSceneProps) {
   const blocked = useHasBlockingOverlay()
   return (
-    <View
+    <View accessible={false}
       accessibilityElementsHidden={blocked}
       importantForAccessibility={blocked ? "no-hide-descendants" : "auto"}
       className={cn("flex-1", className)}

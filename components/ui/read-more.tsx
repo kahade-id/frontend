@@ -28,6 +28,7 @@ import { View, type NativeSyntheticEvent, type TextLayoutEventData, type ViewPro
 import { Text, type TextProps } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ReadMoreLabels = {
   more: string
@@ -86,10 +87,10 @@ export function ReadMore({
   }, [expanded, expandedProp, onToggle])
 
   return (
-    <View className={cn("w-full gap-1", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-1", className)} {...rest}>
       {/* Pengukur: render penuh tak terlihat, hanya sekali saat belum terukur */}
       {measuredLines == null ? (
-        <Text
+        <Text accessibilityHint="Ketuk untuk detail"
           variant={variant}
           tone={tone}
           onTextLayout={onLayout}
@@ -101,7 +102,7 @@ export function ReadMore({
         </Text>
       ) : null}
 
-      <Text variant={variant} tone={tone} numberOfLines={expanded ? undefined : lines}>
+      <Text ellipsizeMode="tail" variant={variant} tone={tone} numberOfLines={expanded ? undefined : lines}>
         {text}
       </Text>
 

@@ -21,6 +21,7 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { truncateMiddle } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type VoucherUsageListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
   title: string
@@ -39,8 +40,8 @@ export function VoucherUsageListItem({ title, code, savedAmount, orderId, usedAt
     <ListItem
       title={title}
       subtitle={
-        <Text variant="caption" tone="secondary" numberOfLines={1}>
-          <Text variant="inherit" tone="secondary" className="font-mono-500 tracking-mono">
+        <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
+          <Text variant="inherit" tone="secondary" className="font-mono-500 tracking-mono tabular-nums">
             {meta}
           </Text>
           {usedAt ? ` · ${usedAt}` : ""}

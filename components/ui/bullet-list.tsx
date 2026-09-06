@@ -70,14 +70,14 @@ export function BulletList({
   const lineHeight = tokens.typography[variant].lineHeight
 
   return (
-    <View accessibilityRole="list" className={cn("w-full gap-2", className)} {...rest}>
+    <View accessible={false} accessibilityRole="list" className={cn("w-full gap-2", className)} {...rest}>
       {items.map((raw, i) => {
         const item = typeof raw === "string" ? { content: raw } : raw
         const key = item.key ?? String(i)
         return (
           <View key={key} className="flex-row items-start gap-2">
             {/* Kolom marker: lebar tetap, tinggi satu baris teks */}
-            <View className="w-5 items-center justify-center" style={{ height: lineHeight }}>
+            <View className="w-5 items-center justify-center" style={{ height: lineHeight, paddingTop: variant === "caption" ? 0 : 1 }}>
               {marker === "bullet" ? (
                 <View className="h-[6px] w-[6px] rounded-full bg-text-tertiary" />
               ) : marker === "number" ? (

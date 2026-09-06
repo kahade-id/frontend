@@ -37,6 +37,7 @@ import { Divider } from "@/components/ui/divider"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type CardVariant = "default" | "elevated" | "inverted" | "outline"
 
@@ -62,6 +63,7 @@ const variantClass: Record<CardVariant, string> = {
 /** Border: inverted memakai warna primary agar tidak ada garis abu di tepi fill hitam */
 function borderClass(variant: CardVariant, selected: boolean) {
   if (selected) return "border-focus border-border-focus"
+  // audit #088: secondary outline di atas surface harus elevated agar border 3.32:1 terlihat; logic di pemanggil (Screen bg)
   return variant === "inverted" ? "border border-primary" : "border border-border"
 }
 
@@ -88,7 +90,7 @@ export function Card({
 
   if (onPress || onLongPress) {
     return (
-      <PressableScale
+      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
@@ -180,7 +182,7 @@ export function CardHeader({
       <View className={cn("flex-row items-center gap-3 px-5 py-4", className)} {...rest}>
         <View className="flex-1 gap-1">
           {title ? (
-            <Text variant="h3" tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="h3" tone="primary" numberOfLines={1}>
               {title}
             </Text>
           ) : null}

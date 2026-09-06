@@ -11,7 +11,7 @@
  *      fill semantik. Tidak ada gradient/shadow (§6).
  *   3. Stroke linecap "butt" (bukan round) agar konsisten dengan estetika
  *      sharp/minim rounded §5.
- *   4. Children (biasanya <Text variant="monoBody">) di-center di tengah ring.
+ *   4. Children (biasanya <Text accessibilityHint="Ketuk untuk detail" variant="monoBody">) di-center di tengah ring.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -70,7 +70,7 @@ export function ProgressRing({
   const dashOffset = c * (1 - pct / 100)
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="progressbar"
       accessibilityValue={{ min: 0, max: 100, now: pct }}
       accessibilityLabel={accessibilityLabel}

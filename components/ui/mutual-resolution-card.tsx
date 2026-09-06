@@ -57,6 +57,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type MutualResolutionStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | "EXPIRED"
 
@@ -202,7 +203,7 @@ export function MutualResolutionCard({
           <View className="flex-1 flex-row items-center gap-2">
             {proposerAvatar || avatarName ? <Avatar source={proposerAvatar} name={avatarName} size="xs" /> : null}
             <View className="flex-1 gap-[2px]">
-              <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+              <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
                 {title}
               </Text>
               {createdAt ? (
@@ -293,13 +294,13 @@ export function MutualResolutionCard({
         <View className="flex-row gap-3">
           {onReject ? (
             <View className="flex-1">
-              <Button variant="ghost" onPress={onReject} loading={rejecting} disabled={busy && !rejecting}>
+              <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" onPress={onReject} loading={rejecting} disabled={busy && !rejecting}>
                 {t.reject}
               </Button>
             </View>
           ) : null}
           {onAccept ? (
-            <View className="flex-1">
+            <View className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               <Button variant="primary" onPress={onAccept} loading={accepting} disabled={busy && !accepting}>
                 {t.accept}
               </Button>

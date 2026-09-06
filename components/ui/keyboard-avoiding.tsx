@@ -9,7 +9,7 @@
  *               (default Expo) sudah me-resize root, dan menambah "height"
  *               di atasnya justru membuat konten melompat dua kali.
  *   - Web     : tidak ada keyboard virtual yang menutupi viewport dengan cara
- *               yang sama; render <View> polos.
+ *               yang sama; render <View accessible={false}> polos.
  *
  * `offset` = jarak header di atas (tinggi Header + safe area) yang harus
  * dihitung KeyboardAvoidingView agar padding-nya tepat. Nilai ini runtime

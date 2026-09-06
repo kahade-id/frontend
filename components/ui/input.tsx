@@ -55,6 +55,7 @@ import { cn } from "@/lib/cn"
 import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type InputVariant = "text" | "search" | "multiline"
 
@@ -201,7 +202,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       disabled={disabled}
       className={containerClassName}
     >
-      <View
+      <View accessible={false}
         className={cn(
           "w-full flex-row rounded-sm bg-background",
           isMultiline ? "items-start py-4" : "items-center",
@@ -238,7 +239,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
               <Animated.View style={[labelStyle, { transformOrigin: "left center" }]}>
                 {/* bg-background + px-1 "memotong" garis border saat float */}
                 <View className={cn("-mx-1 px-1", floated && "bg-background")}>
-                  <Text
+                  <Text ellipsizeMode="tail"
                     variant="bodyLarge"
                     tone={hasError ? "danger" : focused ? "primary" : "secondary"}
                     numberOfLines={1}
@@ -301,7 +302,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel="Hapus teks"
-            className="ml-2"
+            className="ml-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             <Icon icon={X} size="sm" />
           </Pressable>
@@ -311,6 +312,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel={secure ? "Tampilkan kata sandi" : "Sembunyikan kata sandi"}
+            accessibilityHint={secure ? "Menampilkan kata sandi sebagai teks" : "Menyembunyikan kata sandi"}
+            accessibilityState={{ checked: !secure }}
             className="ml-2"
           >
             <Icon icon={secure ? Eye : EyeSlash} size="sm" />

@@ -215,9 +215,10 @@ export default function WithdrawScreen() {
       padded={false}
       footer={
         step === "form" ? (
-          <View>
-            <Button
+          <View accessible={false}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               fullWidth
+              haptic
               disabled={
                 !isValidAmount(amount, AMOUNT_LIMITS.withdraw) || !accountId || loading || !!error
               }
@@ -241,7 +242,7 @@ export default function WithdrawScreen() {
         {step === "otp" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Konfirmasi OTP" />
-            <Text variant="body" tone="secondary">
+            <Text numberOfLines={1} variant="body" tone="secondary">
               Selesaikan verifikasi tambahan dengan kode yang dikirim oleh layanan.
             </Text>
             <OtpInput

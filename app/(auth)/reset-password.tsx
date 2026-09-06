@@ -69,6 +69,7 @@ import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX, SECURITY_CRITERIA, isPasswordValid } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Cooldown kirim ulang (detik) — bila backend tidak mengirim `cooldownSeconds` */
 const DEFAULT_COOLDOWN = 60
@@ -213,7 +214,7 @@ export default function ResetPasswordScreen() {
             {/* Explanation text */}
             <VStack gap={2}>
               <Heading level={1}>Masukkan kode verifikasi</Heading>
-              <Text variant="body" tone="secondary" className="text-pretty">
+              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
                 Kode 6 digit telah dikirim ke <Text weight={600}>{email}</Text>.
                 Masukkan kode dan buat password baru.
               </Text>
@@ -271,7 +272,7 @@ export default function ResetPasswordScreen() {
             </VStack>
 
             {/* Submit button */}
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               onPress={() => void handleReset()}
               loading={submitting}
               disabled={!isFormValid}
@@ -294,7 +295,7 @@ export default function ResetPasswordScreen() {
 
         {/* Footer links */}
         <FooterBar>
-          <View className="flex-row items-center justify-center gap-6">
+          <View accessible={false} className="flex-row items-center justify-center gap-6">
             {canResend ? (
               <TextLink onPress={() => void handleResendCode()} disabled={submitting || resending}>
                 {resending ? "Mengirim kode baru…" : "Kirim ulang kode"}

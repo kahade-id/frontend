@@ -13,7 +13,7 @@
  *       scrollViewProps={{ contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] } }}
  *     >
  *       {loading ? <LoadingScreen/> : error ? <ErrorState/> : items.length === 0 ? <EmptyState/> : (
- *         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>…</View>
+ *         <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>…</View>
  *       )}
  *     </PullToRefresh>
  *   </Screen>
@@ -79,7 +79,7 @@ export type DataScreenProps = {
   /** Prop <Header> lain (right, showBack, largeTitle, …). */
   header?: Omit<HeaderProps, "title">
   state: DataScreenState
-  /** Teks di bawah logo saat muat pertama. */
+  /** Teks di bawah logo saat muat pertama — isi dengan konteks (audit #045: "Memuat" tanpa konteks = SR bingung). */
   loadingMessage?: string
   /** Judul <ErrorState>; deskripsinya selalu `state.error`. */
   errorTitle?: string

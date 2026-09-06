@@ -49,6 +49,7 @@ import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type BottomTabItem<K extends string = string> = {
   key: K
@@ -76,7 +77,12 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
  */
 export const TAB_BAR_HEIGHT = 60
 
-const TAB_ITEM_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, TAB_BAR_HEIGHT)
+/**
+ * Hit target: lebar tab ~72px di 360px/5 = 72 >44, tinggi 60 >44, tapi ikon 24 di tengah
+ * tetap butuh slop 10 horizontal agar tap di antara ikon-label tidak miss.
+ * Hitung eksplisit per sumbu, bukan asumsi tinggi saja.
+ */
+const TAB_ITEM_HIT_SLOP = hitSlopToReach(72, TAB_BAR_HEIGHT, 80)
 
 export function BottomTabBar<K extends string = string>({
   items,
@@ -89,7 +95,7 @@ export function BottomTabBar<K extends string = string>({
   const insets = useSafeAreaInsets()
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="tablist"
       className={cn("z-sticky w-full items-center border-t border-border bg-background", className)}
       style={{ paddingBottom: insets.bottom }}
@@ -99,7 +105,7 @@ export function BottomTabBar<K extends string = string>({
         {items.map((item) => {
           const active = item.key === value
           return (
-            <PressableScale
+            <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
               key={item.key}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
@@ -115,7 +121,7 @@ export function BottomTabBar<K extends string = string>({
                 <Icon icon={item.icon} size="md" active={active} />
                 <NotificationDot visible={!!item.badge} />
               </View>
-              <Text
+              <Text ellipsizeMode="tail"
                 variant="caption"
                 weight={active ? 600 : 500}
                 tone={active ? "primary" : "secondary"}

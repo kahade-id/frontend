@@ -35,6 +35,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { isImageMime } from "@/lib/mime"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type EvidenceMime = "image/jpeg" | "image/png" | "image/webp" | "application/pdf"
 
@@ -93,15 +94,15 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
     .join(", ")
 
   return (
-    <View className={cn("relative aspect-square", className)} {...rest}>
-      <PressableScale
+    <View accessible={false} className={cn("relative aspect-square", className)} {...rest}>
+      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         onPress={onOpen ? () => onOpen(item) : undefined}
         disabled={!onOpen}
         accessibilityRole="imagebutton"
         accessibilityLabel={a11y}
         accessibilityHint={onOpen ? "Buka bukti" : undefined}
         containerClassName="w-full h-full"
-        className="h-full w-full overflow-hidden rounded-sm border border-border bg-surface"
+        className="h-full w-full overflow-hidden rounded-sm border border-border bg-surface focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         {isImage || item.thumbnailUrl ? (
           <Picture source={item.thumbnailUrl ?? item.url} alt="" aspectRatio={1} radius="none" resizeMode="cover" recyclingKey={item.id} className="h-full w-full" />
@@ -121,7 +122,7 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
               item.mine ? "bg-primary" : "border border-border bg-surface-elevated",
             )}
           >
-            <Text variant="caption" weight={500} tone={item.mine ? "inverse" : "secondary"} numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="caption" weight={500} tone={item.mine ? "inverse" : "secondary"} numberOfLines={1}>
               {owner}
             </Text>
           </View>

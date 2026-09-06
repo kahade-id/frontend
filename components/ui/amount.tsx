@@ -43,6 +43,7 @@ export type AmountProps = Omit<RNTextProps, "children"> & {
 }
 
 const HIDDEN = "Rp\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022"
+const HIDDEN_ACCESSIBILITY = "Nominal disembunyikan, ketuk ikon mata untuk menampilkan"
 
 export function Amount({
   value,
@@ -56,13 +57,14 @@ export function Amount({
 }: AmountProps) {
   const text = hidden ? HIDDEN : formatRupiah(value, { sign, compact })
   return (
-    <Text
+    <Text ellipsizeMode="tail"
       variant={size === "large" ? "monoLarge" : "monoBody"}
       tone={tone}
       numberOfLines={1}
       adjustsFontSizeToFit
       minimumFontScale={0.7}
-      accessibilityLabel={hidden ? "Nominal disembunyikan" : text}
+      accessibilityLabel={hidden ? HIDDEN_ACCESSIBILITY : text}
+      accessibilityHint={hidden ? "Nominal disembunyikan untuk privasi" : undefined}
       className={className}
       {...rest}
     >

@@ -116,7 +116,7 @@ export function TagInput({
       reserveHelperSpace={reserveHelperSpace}
       disabled={disabled}
     >
-      <View
+      <View accessible={false}
         className={cn(
           "min-h-12 w-full flex-row flex-wrap items-center gap-2 rounded-sm bg-background py-2",
           hasError
@@ -165,7 +165,7 @@ export function TagInput({
         ) : null}
 
         {maxTags != null ? (
-          <Text variant="caption" tone="secondary" className="ml-auto">
+          <Text accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary" className="ml-auto">
             {value.length}/{maxTags}
           </Text>
         ) : null}

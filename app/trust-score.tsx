@@ -27,7 +27,7 @@ export default function TrustScoreScreen() {
             factors={data.factors}
             updatedAt={data.updatedAt ? formatDateTime(data.updatedAt) : undefined}
           />
-          <Text variant="body" tone="secondary">
+          <Text numberOfLines={1} variant="body" tone="secondary">
             Skor kepercayaan dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan
             Anda. Semakin tinggi skor, semakin dipercaya lawan transaksi.
           </Text>

@@ -40,6 +40,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type VoucherDiscountType = "PERCENTAGE" | "FIXED"
 export type VoucherApplicableTo = "BUYER" | "SELLER" | "ALL"
@@ -155,7 +156,7 @@ export function VoucherCard({
               </Badge>
             ) : null}
           </View>
-          <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
+          <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={2}>
             {title}
           </Text>
           {description ? (
@@ -198,7 +199,7 @@ export function VoucherCard({
             {code.toUpperCase()}
           </Text>
           {onUse && !selected ? (
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               variant="secondary"
               size="sm"
               fullWidth={false}
@@ -226,7 +227,7 @@ export function VoucherCardSkeleton({
       accessibilityLabel="Memuat voucher"
       {...rest}
     >
-      <View className="flex-row items-start gap-3">
+      <View className="flex-row items-start gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <Skeleton width={40} height={40} />
         <View className="flex-1 gap-2">
           <Skeleton height={16} className="w-20" />

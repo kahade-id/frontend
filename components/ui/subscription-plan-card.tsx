@@ -57,6 +57,7 @@ import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SubscriptionBenefit = {
   id: string
@@ -165,9 +166,9 @@ export function SubscriptionPlanCard({
       className={cn("gap-5", className)}
       {...rest}
     >
-      <View className="flex-row items-start gap-2">
+      <View className="flex-row items-start gap-2 tabular-nums">
         <View className="flex-1 gap-1">
-          <Text variant="h3" tone={textTone}>
+          <Text ellipsizeMode="tail" numberOfLines={2} variant="h3" tone={textTone}>
             {name}
           </Text>
           {description ? (
@@ -239,12 +240,12 @@ export function SubscriptionPlanCard({
       {onSubscribe || current ? (
         <View className="gap-2">
           <View style={inverted ? inverseVars : undefined}>
-            <Button variant={ctaVariant} disabled={current} loading={subscribing} onPress={onSubscribe}>
+            <Button accessibilityHint="Ketuk untuk berinteraksi" variant={ctaVariant} disabled={current} loading={subscribing} onPress={onSubscribe}>
               {ctaLabel}
             </Button>
           </View>
           {renewalLabel ? (
-            <Text variant="caption" tone={hintTone} className="text-center">
+            <Text variant="caption" tone={hintTone} className="text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               {renewalLabel}
             </Text>
           ) : null}

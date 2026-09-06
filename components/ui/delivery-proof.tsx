@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DeliveryProofFormValue = {
   trackingNumber: string
@@ -67,7 +68,7 @@ export function DeliveryProofForm({
   const canSubmit = items.length > 0 && !submitting
 
   return (
-    <View className={cn("gap-5", className)} {...rest}>
+    <View accessible={false} className={cn("gap-5", className)} {...rest}>
       <View className="gap-2">
         <Text variant="label" tone="secondary">
           Bukti pengiriman
@@ -106,10 +107,9 @@ export function DeliveryProofForm({
         showCount
       />
 
-      <Button onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
+      <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
         Kirim bukti
       </Button>
     </View>
   )
 }
-

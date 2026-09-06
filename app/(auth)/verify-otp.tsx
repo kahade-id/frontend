@@ -243,13 +243,13 @@ export default function VerifyOtpScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="gap-8">
+          <View accessible={false} className="gap-8">
             {/* Intro — H1 di body (Header memakai H3), jadi satu H1 per layar */}
             <View className="gap-3">
               <Heading level={1} className="text-balance">
                 Masukkan kode verifikasi
               </Heading>
-              <Text variant="body" tone="secondary" className="text-pretty">
+              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
                 Kode 6 digit telah dikirim via {methodLabel}. Pastikan Anda
                 memiliki akses ke nomor:
               </Text>
@@ -273,7 +273,7 @@ export default function VerifyOtpScreen() {
             />
 
             {/* Tombol Verifikasi — manual submit, bukan auto */}
-            <Button
+            <Button accessibilityHint="Ketuk untuk berinteraksi"
               onPress={handleVerify}
               loading={verifying}
               disabled={code.length < 6}

@@ -60,20 +60,22 @@ export function FormSection({
   const hasHeader = !!title || !!description
 
   return (
-    <View className={cn("w-full gap-4", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-4", className)} {...rest}>
       {divider ? <Divider /> : null}
 
       {hasHeader ? (
         <View className="gap-1" accessibilityRole="header">
           {title ? (
-            <Text variant="h3" tone="primary">
-              {title}
+            <View className="flex-row items-baseline gap-2">
+              <Text variant="h3" tone="primary">
+                {title}
+              </Text>
               {optional ? (
                 <Text variant="caption" tone="secondary">
-                  {"  (opsional)"}
+                  (opsional)
                 </Text>
               ) : null}
-            </Text>
+            </View>
           ) : null}
           {description ? (
             <Text variant="body" tone="secondary">

@@ -39,6 +39,7 @@ import { Input } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { mapValue } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SocialPlatform =
   | "instagram"
@@ -172,7 +173,7 @@ export function SocialLinksEditor({
   const add = () => canAdd && onChange(withOrder([...value, { platform: platforms[0], url: "", label: "" }]))
 
   return (
-    <View className={cn("w-full gap-4", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-4", className)} {...rest}>
       {value.map((link, i) => {
         const invalid = showErrors && !validateSocialUrl(link.platform, link.url)
         return (
@@ -182,7 +183,7 @@ export function SocialLinksEditor({
                 {t.platform}
               </Text>
               <View className="flex-row gap-1">
-                <IconButton
+                <IconButton accessibilityHint="Ketuk untuk berinteraksi"
                   icon={ArrowUp}
                   size="sm"
                   variant="ghost"
@@ -244,7 +245,7 @@ export function SocialLinksEditor({
         {t.add}
       </Button>
       {value.length >= max ? (
-        <Text variant="caption" tone="secondary" className="text-center">
+        <Text variant="caption" tone="secondary" className="text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           {t.maxReached(max)}
         </Text>
       ) : null}

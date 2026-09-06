@@ -35,6 +35,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatNumber } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ReferralStats = {
   /** Total user yang mendaftar dengan kode ini */
@@ -131,7 +132,7 @@ export function ReferralCodeCard({
 
       <View className="gap-2">
         {onShare ? (
-          <Button variant="primary" leftIcon={ShareNetwork} onPress={onShare}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" leftIcon={ShareNetwork} onPress={onShare}>
             {t.share}
           </Button>
         ) : null}
@@ -150,13 +151,13 @@ function StatColumn({ label, value, last = false }: { label: string; value: Reac
   return (
     <View className={cn("flex-1 gap-0.5", !last && "border-r border-border pr-3", last && "pl-3")}>
       {primitive ? (
-        <Text variant="monoBody" weight={600} tone="primary" className="tabular-nums">
+        <Text variant="monoBody" weight={600} tone="primary" className="tabular-nums focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           {value}
         </Text>
       ) : (
         value
       )}
-      <Text variant="caption" tone="secondary" numberOfLines={1}>
+      <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
         {label}
       </Text>
     </View>

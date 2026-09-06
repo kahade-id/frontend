@@ -81,7 +81,7 @@ export function AnalyticsSummary({
   ...rest
 }: AnalyticsSummaryProps) {
   return (
-    <View className={cn("gap-6", className)} {...rest}>
+    <View accessible={false} className={cn("gap-6", className)} {...rest}>
       <Grid columns={columns} gap={3}>
         {stats.map((s) => (
           <StatCard
@@ -104,7 +104,7 @@ export function AnalyticsSummary({
             level="h3"
             action={
               periodLabel ? (
-                <Text variant="caption" tone="secondary">
+                <Text accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary">
                   {periodLabel}
                 </Text>
               ) : undefined
@@ -115,7 +115,7 @@ export function AnalyticsSummary({
             series="primary"
             showValues
             formatValue={formatChartValue}
-            accessibilityLabel={`${chartTitle}${periodLabel ? `, ${periodLabel}` : ""}`}
+            accessibilityLabel={`${chartTitle}${periodLabel ? `, ${periodLabel}` : ""} — ${chart?.length ?? 0} periode`}
           />
         </Card>
       ) : null}

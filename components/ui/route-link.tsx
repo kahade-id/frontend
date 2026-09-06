@@ -43,7 +43,7 @@ export const RouteLink = forwardRef<RNView, RouteLinkProps>(function RouteLink(
 ) {
   return (
     <Link href={href} replace={replace} asChild>
-      <PressableScale
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         ref={ref}
         accessibilityRole="link"
         disabled={disabled}

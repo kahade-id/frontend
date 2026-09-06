@@ -83,7 +83,7 @@ export function DataTable<Row extends Record<string, unknown>>({
   const renderCell = (col: DataTableColumn<Row>, content: ReactNode, emphasis: boolean) => {
     const align = col.align ?? "left"
     return (
-      <View key={col.key} style={{ flex: col.flex ?? 1 }} className={cn(cellPad, alignClass[align])}>
+      <View accessible={false} key={col.key} style={{ flex: col.flex ?? 1 }} className={cn(cellPad, alignClass[align])}>
         {isPrimitive(content) ? (
           <Text
             variant={col.mono ? "monoBody" : "body"}

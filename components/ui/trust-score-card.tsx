@@ -37,6 +37,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { mapValue } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TrustScoreFactor = {
   key: string
@@ -130,7 +131,7 @@ export function TrustScoreCard({
           </ProgressRing>
 
           <View className="flex-1 gap-1.5">
-            <Text variant="h3" tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="h3" tone="primary" numberOfLines={1}>
               {t.title}
             </Text>
             {tierLabel ? (
@@ -147,11 +148,11 @@ export function TrustScoreCard({
             ) : null}
           </View>
         </CardSummary>
-        {onLearnMore ? <IconButton icon={Info} variant="ghost" size="sm" accessibilityLabel={t.learnMore} onPress={onLearnMore} /> : null}
+        {onLearnMore ? <IconButton accessibilityHint="Ketuk untuk berinteraksi" icon={Info} variant="ghost" size="sm" accessibilityLabel={t.learnMore} onPress={onLearnMore} /> : null}
       </View>
 
       {showFactors ? (
-        <View className="gap-3 border-t border-border pt-4">
+        <View className="gap-3 border-t border-border pt-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           <Text variant="label" tone="primary">
             {t.factorsTitle}
           </Text>

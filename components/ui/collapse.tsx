@@ -98,7 +98,7 @@ export function Collapse({
       {mounted ? (
         // Konten diletakkan absolute di dalam container yang tingginya
         // dianimasikan: onLayout mengukur tinggi asli tanpa dipotong.
-        <View
+        <View accessible={false}
           onLayout={handleLayout}
           className={cn("absolute left-0 right-0 top-0", className)}
         >

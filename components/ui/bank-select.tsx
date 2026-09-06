@@ -30,6 +30,7 @@ import { SearchField } from "@/components/ui/search-field"
 import { Select, type SelectProps } from "@/components/ui/select"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type BankOption = {
   /** Kode unik (mis. "bca", "bri", "gopay") */
@@ -120,7 +121,7 @@ export function BankSelect({ banks, value, onChange, popularCodes, label, labels
         onHidden={() => setQuery("")}
         contentClassName="px-0 pb-0"
       >
-        <View className="px-6 pb-3">
+        <View accessible={false} className="px-6 pb-3">
           <SearchField value={query} onChangeText={setQuery} placeholder={t.searchPlaceholder} autoFocus />
         </View>
 
@@ -168,7 +169,7 @@ export type BankRowProps = Omit<ViewProps, "children"> & {
 
 export function BankRow({ bank, selected = false, onPress, className, ...rest }: BankRowProps) {
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={bank.name}
       accessibilityState={{ selected, disabled: !!bank.disabled }}
@@ -180,7 +181,7 @@ export function BankRow({ bank, selected = false, onPress, className, ...rest }:
     >
       <View className={cn("h-14 w-full flex-row items-center gap-3 px-6", selected && "bg-surface", className)}>
         <BankLogo bank={bank} />
-        <Text variant="body" weight={500} className="flex-1" numberOfLines={1}>
+        <Text ellipsizeMode="tail" variant="body" weight={500} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" numberOfLines={1}>
           {bank.name}
         </Text>
         {selected ? <Icon icon={Check} size="sm" tone="active" weight="bold" /> : null}

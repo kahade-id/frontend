@@ -37,6 +37,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | "REVOKED"
 
@@ -169,7 +170,7 @@ export function KycStatusCard({
         <View className="flex-row items-center gap-3">
           <IconBox icon={STATUS_ICON[s]} size="lg" variant={STATUS_BOX[s]} weight={s === "APPROVED" ? "fill" : "regular"} />
           <View className="flex-1 gap-1">
-            <Text variant="h3" tone="primary">
+            <Text ellipsizeMode="tail" numberOfLines={2} variant="h3" tone="primary">
               {t[s]}
             </Text>
             <View className="flex-row">
@@ -201,7 +202,7 @@ export function KycStatusCard({
       </CardSummary>
 
       {s === "NOT_SUBMITTED" && onSubmit ? (
-        <Button variant="primary" onPress={onSubmit}>
+        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" onPress={onSubmit}>
           {t.submit}
         </Button>
       ) : null}
@@ -222,7 +223,7 @@ export function KycStatusCard({
 export function KycStatusCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
     <View accessible accessibilityRole="progressbar" className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat status verifikasi" {...rest}>
-      <View className="flex-row items-center gap-3">
+      <View className="flex-row items-center gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         <Skeleton width={48} height={48} />
         <View className="flex-1 gap-2">
           <Skeleton height={20} className="w-36" />

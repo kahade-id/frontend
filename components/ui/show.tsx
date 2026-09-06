@@ -63,7 +63,7 @@ export function Show({
   if (!above && !below) return <>{children}</>
 
   return (
-    <View
+    <View accessible={false}
       className={cn(above === "md" && "hidden md:flex", below === "md" && "flex md:hidden", className)}
       {...rest}
     >

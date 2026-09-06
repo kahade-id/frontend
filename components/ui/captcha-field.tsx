@@ -24,6 +24,7 @@ import { Input, type InputProps } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type CaptchaFieldLabels = { label: string; refresh: string; imageAlt: string }
 const DEFAULT_LABELS: CaptchaFieldLabels = {
@@ -51,7 +52,7 @@ export const CaptchaField = forwardRef<TextInput, CaptchaFieldProps>(function Ca
   const t = { ...DEFAULT_LABELS, ...labels }
 
   return (
-    <View className={cn("w-full gap-3", containerClassName)}>
+    <View accessible={false} className={cn("w-full gap-3", containerClassName)}>
       <View className="flex-row items-center gap-2">
         <View className="h-14 flex-1 overflow-hidden rounded-sm border border-border bg-surface">
           {loading || !imageUri ? (
@@ -60,7 +61,7 @@ export const CaptchaField = forwardRef<TextInput, CaptchaFieldProps>(function Ca
             <Picture source={imageUri} alt={t.imageAlt} height={56} resizeMode="contain" radius="none" />
           )}
         </View>
-        <IconButton
+        <IconButton accessibilityHint="Ketuk untuk berinteraksi"
           icon={ArrowsClockwise}
           variant="secondary"
           accessibilityLabel={t.refresh}

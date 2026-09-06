@@ -130,7 +130,7 @@ export function QRCodeDisplay({
   return (
     <View className={cn("items-center gap-4", className)} {...rest}>
       {title ? (
-        <Text variant="h3" className="text-center">
+        <Text accessibilityHint="Ketuk untuk detail" variant="h3" className="text-center tabular-nums">
           {title}
         </Text>
       ) : null}

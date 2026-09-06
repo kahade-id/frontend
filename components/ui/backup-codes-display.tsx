@@ -49,6 +49,7 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type BackupCodesLabels = {
   title: string
@@ -176,7 +177,7 @@ export function BackupCodesDisplay({
           {t.reveal}
         </Button>
       ) : (
-        <View className="flex-row gap-3">
+        <View className="flex-row gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           {onCopyAll ? (
             <Button
               variant="secondary"

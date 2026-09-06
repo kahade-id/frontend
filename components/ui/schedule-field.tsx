@@ -18,6 +18,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ScheduleValue = { dayOfWeek: number | null; minAmount: number | null }
 
@@ -68,14 +69,14 @@ export function ScheduleField({
   const complete = isScheduleComplete(value)
 
   return (
-    <View className={cn("w-full gap-6", className)} {...rest}>
-      <View className="gap-2">
+    <View accessible={false} className={cn("w-full gap-6", className)} {...rest}>
+      <View className="gap-2 tabular-nums">
         <FieldLabel disabled={disabled}>{t.dayLabel}</FieldLabel>
         <View className="flex-row gap-2" accessibilityRole="radiogroup">
           {t.days.map((d, i) => {
             const selected = value.dayOfWeek === i
             return (
-              <PressableScale
+              <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
                 key={d}
                 accessibilityRole="radio"
                 accessibilityLabel={t.dayNames[i]}

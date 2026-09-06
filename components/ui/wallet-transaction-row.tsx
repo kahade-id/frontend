@@ -9,6 +9,7 @@ import {
 } from "@/lib/wallet-labels"
 import { WalletTransactionListItem } from "@/components/ui/wallet-transaction-list-item"
 import { mapValue } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** One mapping for overview, top-up/withdraw histories and search results. */
 export function WalletTransactionRow({

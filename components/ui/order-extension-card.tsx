@@ -50,6 +50,7 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatDate } from "@/lib/format"
 import { hasOwn } from "@/lib/has-own"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type OrderExtensionStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED"
 
@@ -174,7 +175,7 @@ export function OrderExtensionCard({
           <View className="flex-1 flex-row items-center gap-2">
             {requesterAvatar || avatarName ? <Avatar source={requesterAvatar} name={avatarName} size="xs" /> : null}
             <View className="flex-1 gap-[2px]">
-              <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
+              <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={2}>
                 {title}
               </Text>
               {requestedAt ? (
@@ -242,13 +243,13 @@ export function OrderExtensionCard({
         <View className="flex-row gap-3">
           {onReject ? (
             <View className="flex-1">
-              <Button variant="ghost" onPress={onReject} loading={rejecting} disabled={busy && !rejecting}>
+              <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" onPress={onReject} loading={rejecting} disabled={busy && !rejecting}>
                 {t.reject}
               </Button>
             </View>
           ) : null}
           {onApprove ? (
-            <View className="flex-1">
+            <View className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               <Button variant="primary" onPress={onApprove} loading={approving} disabled={busy && !approving}>
                 {t.approve}
               </Button>

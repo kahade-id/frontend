@@ -60,6 +60,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DevicePlatform = "mobile" | "tablet" | "laptop" | "desktop" | "web"
 
@@ -170,7 +171,7 @@ export function DeviceSessionListItem({
 
       <View className="flex-1 gap-[2px]">
         <View className="flex-row flex-wrap items-center gap-2">
-          <Text variant="body" weight={500} tone={disabled ? "disabled" : "primary"} numberOfLines={1} className="shrink">
+          <Text ellipsizeMode="tail" variant="body" weight={500} tone={disabled ? "disabled" : "primary"} numberOfLines={1} className="shrink">
             {deviceName}
           </Text>
           {current ? (
@@ -249,7 +250,7 @@ export function DeviceSessionListItem({
     <View className={cn("w-full", disabled && "opacity-disabled", className)} {...rest}>
       <View className="flex-row items-center gap-3 px-6">
         {onPress ? (
-          <PressableScale
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Buka detail sesi"
@@ -258,7 +259,7 @@ export function DeviceSessionListItem({
             disabled={disabled}
             onPress={onPress}
             containerClassName="flex-1"
-            className="flex-1"
+            className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {row}
           </PressableScale>

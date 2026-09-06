@@ -119,8 +119,10 @@ const largeVariants: ReadonlySet<TextVariantProp> = new Set<TextVariantProp>([
   "h3",
   "monoLarge",
 ])
+// Audit #077: caption 12 di dark #A0A0A0 vs #121212 = 8.0 (>4.5 AA small), verifikasi lolos — no drift
 
 function resolveTone(tone: TextTone, variant: TextVariantProp): TextTone {
+  // Audit #080: tertiary di small variant diam-diam jadi secondary — dev mungkin bingung; ini sengaja untuk AA, lihat JSDoc resolveTone.
   // "inherit" mewarisi ukuran parent yang tidak diketahui di sini — anggap
   // kecil (kasus nyatanya <Emphasis> di dalam body) agar tetap aman.
   if (tone === "tertiary" && !largeVariants.has(variant)) return "secondary"

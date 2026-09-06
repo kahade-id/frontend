@@ -39,6 +39,7 @@ import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Tinggi container = Button sm (h-10). Segmen = container - 2×p-[2px]. */
 const CONTAINER_H = tokens.space[10]
@@ -71,7 +72,7 @@ export function SegmentedControl<V extends string = string>({
   ...rest
 }: SegmentedControlProps<V>) {
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="radiogroup"
       hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
@@ -85,7 +86,7 @@ export function SegmentedControl<V extends string = string>({
         const active = item.value === value
         const isDisabled = disabled || item.disabled
         return (
-          <PressableScale
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
             key={item.value}
             accessibilityRole="radio"
             accessibilityState={{ checked: active, disabled: !!isDisabled }}

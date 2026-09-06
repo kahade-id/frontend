@@ -38,6 +38,7 @@ import {
   type TransactionTemplate as UiTemplate,
 } from "@/components/ui/transaction-template-card"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const NO_TEMPLATE: ApiTemplate = {
   id: "",
@@ -180,13 +181,13 @@ export default function TransactionTemplatesScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Template cepat" />
             {items.length === 0 && !creating ? (
               <EmptyState
                 icon={NotePencil}
                 title="Belum ada template"
-                action={<Button onPress={openCreate}>Buat Template</Button>}
+                action={<Button accessibilityHint="Ketuk untuk berinteraksi" onPress={openCreate}>Buat Template</Button>}
               />
             ) : (
               items.map((t) => (

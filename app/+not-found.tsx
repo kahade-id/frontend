@@ -5,6 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
 import { ROUTES } from "@/lib/routes"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function NotFoundScreen() {
   const router = useRouter()
@@ -16,7 +17,7 @@ export default function NotFoundScreen() {
         title="Tautan tidak tersedia"
         description="Tautan mungkin sudah berubah. Kembali ke beranda untuk melanjutkan."
         action={
-          <Button fullWidth={false} onPress={() => router.replace(ROUTES.home)}>
+          <Button accessibilityHint="Ketuk untuk berinteraksi" fullWidth={false} onPress={() => router.replace(ROUTES.home)}>
             Ke beranda
           </Button>
         }

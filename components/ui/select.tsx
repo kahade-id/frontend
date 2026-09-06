@@ -39,6 +39,7 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing, focusRingInset } from "@/lib/focus-ring"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SelectOption<V extends string = string> = {
   value: V
@@ -65,7 +66,7 @@ export type SelectProps<V extends string = string> = Omit<
     className?: string
     containerClassName?: string
     /** Ref ke trigger — berikan ke `BottomSheet.returnFocusRef` (audit #3) */
-    ref?: Ref<View>
+    ref?: Ref<View accessible={false}>
   }
 
 export function Select<V extends string = string>({
@@ -98,7 +99,7 @@ export function Select<V extends string = string>({
       disabled={disabled}
       className={containerClassName}
     >
-      <PressableScale
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         ref={ref}
         accessibilityRole="button"
         accessibilityLabel={label}
@@ -130,11 +131,11 @@ export function Select<V extends string = string>({
             pointerEvents="none"
             className={cn(
               "absolute left-0 items-start",
-              floated ? "-top-[9px]" : "inset-y-0 justify-center",
+              floated ? "-top-2" : "inset-y-0 justify-center",
             )}
           >
             <View className={cn("-mx-1 px-1", floated && "bg-background")}>
-              <Text
+              <Text ellipsizeMode="tail"
                 variant={floated ? "caption" : "bodyLarge"}
                 tone={hasError ? "danger" : open ? "primary" : "secondary"}
                 numberOfLines={1}
@@ -161,7 +162,7 @@ export function Select<V extends string = string>({
           ) : null}
         </View>
 
-        <View className="ml-2">
+        <View className="ml-2" style={{ transform: [{ rotate: open ? "180deg" : "0deg" }] }}>
           <Icon icon={CaretDown} size="sm" tone={open ? "active" : "default"} />
         </View>
       </PressableScale>

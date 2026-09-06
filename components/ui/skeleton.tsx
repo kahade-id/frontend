@@ -48,13 +48,13 @@ function usePulseLoop(value: Animated.Value, enabled: boolean) {
       Animated.sequence([
         Animated.timing(value, {
           toValue: 0.5,
-          duration: tokens.motion.duration.slow * 2,
+          duration: tokens.motion.duration.base * 2,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),
         Animated.timing(value, {
           toValue: 1,
-          duration: tokens.motion.duration.slow * 2,
+          duration: tokens.motion.duration.base * 2,
           easing: Easing.inOut(Easing.ease),
           useNativeDriver: true,
         }),

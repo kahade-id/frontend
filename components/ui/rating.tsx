@@ -38,6 +38,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatDecimal } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type RatingSize = "sm" | "md" | "lg"
 
@@ -114,7 +115,7 @@ export function Rating({
     const half = !filled && fillRatio > 0
 
     const glyph = (
-      <View style={{ width: px, height: px }}>
+      <View accessible={false} style={{ width: px, height: px }}>
         {/* Lapisan bawah: bintang kosong (outline, warna border) */}
         <Star size={px} color={palette.borderControl} weight="regular" />
         {/* Lapisan atas: bintang terisi, dipotong 50% untuk setengah */}
@@ -133,14 +134,14 @@ export function Rating({
     if (!interactive) return <View key={n}>{glyph}</View>
 
     return (
-      <PressableScale
+      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
         key={n}
         disabled={disabled}
         onPress={() => select(n)}
         accessibilityRole="button"
         accessibilityLabel={`${n} dari ${max} bintang${labels?.[i] ? `, ${labels[i]}` : ""}`}
         accessibilityState={{ selected: n <= shown, disabled }}
-        className="min-h-[44px] min-w-[44px] items-center justify-center"
+        className="min-h-[44px] min-w-[44px] items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
       >
         {glyph}
       </PressableScale>

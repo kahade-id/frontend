@@ -46,7 +46,7 @@ const fillClass: Record<ProgressTone, string> = {
 }
 
 const trackHeight: Record<ProgressSize, string> = {
-  sm: "h-1",
+  sm: "h-1.5",
   md: "h-2",
 }
 
@@ -120,11 +120,11 @@ export function ProgressBar({
   })
 
   return (
-    <View className={cn("w-full gap-2", className)} {...rest}>
+    <View accessible={false} className={cn("w-full gap-2", className)} {...rest}>
       {label || (showValue && !indeterminate) ? (
         <View className="flex-row items-center justify-between gap-2">
           {label ? (
-            <Text variant="caption" tone="secondary" className="flex-1">
+            <Text accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary" className="flex-1">
               {label}
             </Text>
           ) : (

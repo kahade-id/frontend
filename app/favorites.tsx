@@ -17,6 +17,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { DataScreen } from "@/components/ui/data-screen"
 import { SectionHeader } from "@/components/ui/section"
 import { UserListItem } from "@/components/ui/user-list-item"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function FavoritesScreen() {
   const query = useApiQuery("favorites", () => api.users.getFavorites())

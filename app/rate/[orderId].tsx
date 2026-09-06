@@ -103,7 +103,7 @@ export default function RateOrderScreen() {
             onRetry={() => void fetchOrder()}
           />
         ) : (
-          <View style={{ paddingTop: tokens.space[3] }}>
+          <View accessible={false} style={{ paddingTop: tokens.space[3] }}>
             <RatingForm
               value={value}
               onChange={setValue}

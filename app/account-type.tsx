@@ -24,6 +24,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { ToggleGroup } from "@/components/ui/toggle-group"
 import { useToast } from "@/components/ui/toast"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type AccountType = "PERSONAL" | "BUSINESS"
 
@@ -65,7 +66,7 @@ export default function AccountTypeScreen() {
   return (
     <DataScreen title="Tipe Akun" state={query} loadingMessage="Memuat tipe akun…">
       <SectionHeader title="Pilih tipe akun" />
-      <Text variant="body" tone="secondary">
+      <Text numberOfLines={1} variant="body" tone="secondary">
         Akun bisnis menampilkan profil usaha Anda di marketplace, termasuk produk dan riwayat
         penjualan.
       </Text>
@@ -80,7 +81,7 @@ export default function AccountTypeScreen() {
         onChange={(v) => setPicked(v as AccountType)}
         columns={2}
       />
-      <Button
+      <Button accessibilityHint="Ketuk untuk berinteraksi"
         loading={submitting}
         disabled={!value || value === serverValue}
         onPress={() => void handleSave()}

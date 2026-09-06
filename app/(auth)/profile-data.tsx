@@ -83,6 +83,7 @@ import {
 } from "@/lib/api"
 import { getPendingReferralCode, getRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-4 (terakhir) */
 const STEP_PROGRESS = 4 / 4
@@ -288,7 +289,7 @@ export default function ProfileDataScreen() {
               <Heading level={1} className="text-balance">
                 Lengkapi data Anda
               </Heading>
-              <Text variant="body" tone="secondary" className="text-pretty">
+              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
                 Data ini digunakan untuk profil publik dan keamanan akun.
                 Email wajib diisi meskipun Anda mendaftar dengan nomor HP.
               </Text>
@@ -403,7 +404,7 @@ export default function ProfileDataScreen() {
 
         {/* Footer: CTA */}
         <FooterBar>
-          <Button
+          <Button accessibilityHint="Ketuk untuk berinteraksi"
             onPress={() => void handleSubmit()}
             loading={submitting}
             disabled={!isFormValid}

@@ -97,20 +97,21 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
   ref,
 ) {
   return (
-    <PressableScale
+    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       ref={ref}
       accessibilityRole="search"
       accessibilityLabel={placeholder}
+      accessibilityHint="Ketuk untuk mencari"
       scaleOnPress={false}
       containerClassName={cn("w-full", containerClassName)}
       className={cn(
-        "h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4",
+        "min-h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4 py-3",
         className,
       )}
       {...rest}
     >
       <Icon icon={MagnifyingGlass} size="sm" />
-      <Text variant="bodyLarge" tone="disabled" numberOfLines={1} className="flex-1">
+      <Text ellipsizeMode="tail" variant="bodyLarge" tone="disabled" numberOfLines={1} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
         {placeholder}
       </Text>
     </PressableScale>

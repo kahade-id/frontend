@@ -62,7 +62,7 @@ export function KeyValue({
   const isRow = align === "row"
 
   const valueNode = isPrimitive(value) ? (
-    <Text
+    <Text accessibilityHint="Ketuk untuk detail"
       variant={mono ? (emphasis ? "monoLarge" : "monoBody") : emphasis ? "h3" : "body"}
       weight={mono || emphasis ? undefined : 500}
       tone="primary"

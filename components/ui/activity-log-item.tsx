@@ -33,6 +33,7 @@ import type { IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ActivityLogCategory =
   | "order"
@@ -91,7 +92,7 @@ export function ActivityLogItem({
       <IconBox icon={icon ?? CATEGORY_ICON[category]} size="md" variant="surface" />
       <View className="flex-1 gap-[2px]">
         <View className="flex-row items-start justify-between gap-3">
-          <Text variant="body" weight={500} tone="primary" numberOfLines={2} className="flex-1">
+          <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={2} className="flex-1">
             {title}
           </Text>
           <Text variant="monoBody" tone="secondary" numberOfLines={1}>
@@ -123,13 +124,13 @@ export function ActivityLogItem({
     <View className={cn("w-full", className)} {...rest}>
       <View className="px-6">
         {onPress ? (
-          <PressableScale
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             scaleOnPress={false}
             onPress={onPress}
             containerClassName="w-full"
-            className="w-full"
+            className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
           >
             {row}
           </PressableScale>

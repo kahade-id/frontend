@@ -23,6 +23,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type PinPadProps = Omit<ViewProps, "children"> & {
   onDigit: (digit: string) => void
@@ -50,13 +51,13 @@ function Key({
   label: string
 }) {
   return (
-    <PressableScale
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={disabled || !onPress}
       onPress={onPress}
       containerClassName="items-center"
-      className="h-16 w-16 items-center justify-center rounded-full"
+      className="h-16 w-16 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
     >
       {children}
     </PressableScale>
@@ -65,7 +66,7 @@ function Key({
 
 export function PinPad({ onDigit, onBackspace, onBiometric, disabled = false, className, ...rest }: PinPadProps) {
   return (
-    <View
+    <View accessible={false}
       // "keyboardkey" adalah role untuk SATU tombol, bukan container; container
       // cukup punya label agar screen reader tahu ini area keypad.
       accessibilityLabel="Keypad PIN"

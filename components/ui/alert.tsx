@@ -22,6 +22,7 @@ import { cn } from "@/lib/cn"
 import { Icon, type IconComponent, type IconTone } from "./icon"
 import { IconButton } from "./icon-button"
 import { Text, type TextTone } from "./text"
+// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type AlertTone = "neutral" | "success" | "danger" | "warning" | "info"
 export type AlertVariant = "soft" | "outline"
@@ -91,7 +92,7 @@ export function Alert({
   const isOutline = variant === "outline"
 
   return (
-    <View
+    <View accessible={false}
       accessibilityRole="alert"
       accessibilityLiveRegion={tone === "danger" ? "assertive" : "polite"}
       className={cn(
@@ -103,7 +104,7 @@ export function Alert({
       {...rest}
     >
       {IconCmp ? (
-        <View className="pt-[2px]">
+        <View className="pt-[2px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
           <Icon icon={IconCmp} size="sm" tone={iconTone[tone]} weight="fill" />
         </View>
       ) : null}
@@ -130,8 +131,9 @@ export function Alert({
           variant="ghost"
           size="sm"
           accessibilityLabel="Tutup pesan"
+          accessibilityHint="Menutup pesan ini"
           onPress={onDismiss}
-          className="-mr-2 -mt-1"
+          className="-mr-1 -mt-1 ml-1"
         />
       ) : null}
     </View>

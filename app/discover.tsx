@@ -86,6 +86,7 @@ export default function DiscoverScreen() {
             onPress={() => router.push(ROUTES.userProfile(item.username))}
             follow={{
               following: !!item.following,
+              // following toggle haptic sudah di handle via follow-button internal haptic
               loading: pendingId === item.id,
               onToggle: (next) => void handleFollowToggle(item, next),
             }}
