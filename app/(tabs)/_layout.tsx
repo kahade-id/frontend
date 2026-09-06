@@ -9,7 +9,7 @@
  *   transactions  → Transaksi
  *   wallet        → Dompet
  *   notifications → Notifikasi (badge unread dari GET /v1/notifications/unread-count)
- *   settings      → Pengaturan
+ *   settings      → Setelan (label ringkas; nama aksesibilitas tetap Pengaturan)
  *
  * Badge unread di tab Notifikasi (store bersama `lib/unread-count.ts`):
  *   - Di-poll setiap kali layout mount (AppState focus) + interval 60 detik
@@ -85,7 +85,7 @@ const TAB_ITEMS: Record<TabRouteName, TabVisualItem> = {
     accessibilityLabel: "Tab Notifikasi",
   },
   settings: {
-    label: "Pengaturan",
+    label: "Setelan",
     icon: CardsThree,
     accessibilityLabel: "Tab Pengaturan",
   },
