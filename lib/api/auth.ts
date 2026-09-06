@@ -144,7 +144,9 @@ export async function generateCaptcha() {
 }
 
 export async function getCsrfToken() {
-  const result = await http.get<CsrfToken>("/v1/auth/csrf-token", { auth: "none" })
+  // The live backend derives the CSRF token from the authenticated user's
+  // `sub` and `jti`; this route is protected even though it is under /auth.
+  const result = await http.get<CsrfToken>("/v1/auth/csrf-token", { auth: "required" })
   return {
     ...result,
     csrfToken: result.csrfToken ?? (result as any).csrf_token,
