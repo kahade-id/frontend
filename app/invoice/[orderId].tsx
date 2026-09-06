@@ -8,7 +8,7 @@ import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage } from "@/lib/api"
-import type { Invoice } from "@/lib/api/orders"
+import { orderPartyName, type Invoice } from "@/lib/api/orders"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
@@ -102,8 +102,8 @@ export default function InvoiceScreen() {
               mode="invoice"
               number={invoice.invoiceNumber}
               status={{ label: "Terverifikasi", tone: "success" }}
-              from={{ name: invoice.order.seller.fullName ?? `@${invoice.order.seller.username}` }}
-              to={{ name: invoice.order.buyer.fullName ?? `@${invoice.order.buyer.username}` }}
+              from={{ name: orderPartyName(invoice.order.seller) ?? "—" }}
+              to={{ name: orderPartyName(invoice.order.buyer) ?? "—" }}
               items={invoice.items.map((i, idx) => ({
                 id: `${invoice.invoiceNumber}-${idx}`,
                 title: i.label,

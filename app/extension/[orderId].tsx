@@ -37,7 +37,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Clock, Plus } from "phosphor-react-native"
 
 import { api, userMessage, type Order } from "@/lib/api"
-import { isExtendable, type OrderExtension, type PageQuery } from "@/lib/api/orders"
+import {
+  isExtendable,
+  orderPartyName,
+  type OrderExtension,
+  type PageQuery,
+} from "@/lib/api/orders"
 import { addDays, OrderExtensionCard } from "@/components/ui/order-extension-card"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -242,7 +247,7 @@ export default function ExtensionScreen() {
 
   const isSeller = role === "SELLER"
   const isBuyer = role === "BUYER"
-  const requesterName = order ? (order.seller.fullName ?? order.seller.username) : undefined
+  const requesterName = order ? orderPartyName(order.seller) : undefined
   const hasPending = items.some((e) => e.status === "PENDING")
   const canRequest = isSeller && !!order && isExtendable(order.status) && !hasPending
 
@@ -311,7 +316,7 @@ export default function ExtensionScreen() {
                       status={ext.status}
                       requestedByMe={isSeller}
                       requesterName={requesterName}
-                      requesterAvatar={order?.seller.avatarUrl ?? undefined}
+                      requesterAvatar={order?.seller?.avatarUrl ?? undefined}
                       responseNote={ext.note ?? undefined}
                       requestedAt={formatDateTime(ext.createdAt)}
                       onApprove={canRespond ? () => openAction("APPROVE", ext) : undefined}
