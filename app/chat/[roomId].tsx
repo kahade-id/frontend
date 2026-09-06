@@ -65,7 +65,12 @@ function messageTypeFor(
   attachments: ChatAttachmentDto[],
 ): NonNullable<SendMessageDto["messageType"]> {
   if (attachments.length === 0) return "TEXT"
-  return attachments.every((a) => a.mimeType.startsWith("image/")) ? "IMAGE" : "FILE"
+  // `mimeType` datang dari respons unggah dan TIDAK divalidasi: bila backend
+  // tidak mengembalikannya, `undefined.startsWith("image/")` melempar
+  // TypeError tepat saat tombol kirim ditekan — pesan tak pernah terkirim dan
+  // layar jatuh ke error boundary. Lampiran tanpa MIME dianggap bukan gambar.
+  const isImage = (a: ChatAttachmentDto) => typeof a.mimeType === "string" && a.mimeType.startsWith("image/")
+  return attachments.every(isImage) ? "IMAGE" : "FILE"
 }
 
 function sortByTime(items: ChatMessage[]): ChatMessage[] {

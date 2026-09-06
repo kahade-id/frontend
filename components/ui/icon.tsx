@@ -92,6 +92,29 @@ export function Icon({
   const w: IconWeight =
     weight ?? (active ? tokens.icon.weight.active : tokens.icon.weight.default)
 
+  /*
+   * Ikon hampir selalu dipilih dari peta berindeks nilai backend:
+   * `CATEGORY_ICON[category]`, `KIND_ICON[kind]`, `defaultIcon[status]`.
+   * Nama yang tidak dikenal menghasilkan `undefined`, dan merender
+   * `undefined` sebagai tipe elemen membuat React melempar "Element type is
+   * invalid" — satu baris log (kategori baru di server) menjatuhkan seluruh
+   * layar. Dekorasi yang tidak bisa digambar lebih baik dihilangkan.
+   *
+   * Pemeriksaan ada di primitif ini, bukan di tiap peta: menambal ratusan
+   * call site jauh lebih mudah bocor daripada satu penjaga di sini.
+   * Semua hook tetap dipanggil sebelum return — aturan hooks tidak boleh
+   * dilanggar oleh jalur keluar ini.
+   */
+  if (Glyph == null || (typeof Glyph !== "function" && typeof Glyph !== "object")) {
+    if (__DEV__) {
+      console.warn(
+        "[kahade/Icon] Glif ikon tidak tersedia; ikon dihilangkan.",
+        Glyph,
+      )
+    }
+    return null
+  }
+
   const glyph = <Glyph size={px} color={color ?? themed} weight={w} style={style} />
 
   // Phosphor IconProps TIDAK menerima prop accessibility RN (hanya color/size/

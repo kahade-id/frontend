@@ -116,6 +116,17 @@ function fillClassFor(series: ChartSeries, d: BarDatum, index: number): string {
 const DEFAULT_HEIGHT = 160
 const defaultFormat = (v: number) => formatRupiah(v, { compact: true, sign: "never" })
 
+/**
+ * Langkah warna mono hanya ada 3. `step` dikirim pemanggil (bisa dari data),
+ * jadi indeks di luar rentang dilipat alih-alih menghasilkan `undefined` yang
+ * membuat swatch kehilangan warnanya.
+ */
+function stepIndex(step: number | undefined): 0 | 1 | 2 {
+  if (!Number.isFinite(step)) return 0
+  const index = Math.trunc(step as number) % monoStepClass.length
+  return (index < 0 ? index + monoStepClass.length : index) as 0 | 1 | 2
+}
+
 /** Batang yang tumbuh dari baseline (scaleY) — transform tidak bisa di-className */
 function GrowingBar({
   ratio,
@@ -146,7 +157,8 @@ function GrowingBar({
     }).start()
   }, [animated, grow, ratio, reducedMotion])
 
-  const pct = `${Math.round(ratio * 100)}%` as const
+  const safeRatio = Number.isFinite(ratio) ? Math.min(1, Math.max(0, ratio)) : 0
+  const pct = `${Math.round(safeRatio * 100)}%` as const
   const vertical = orientation === "vertical"
 
   return (
@@ -174,8 +186,11 @@ export function BarChart({
   className,
   ...rest
 }: BarChartProps) {
-  const max = Math.max(0, ...data.map((d) => d.value))
-  const ratioOf = (v: number) => (max <= 0 ? 0 : Math.max(0, v) / max)
+  // Nilai dari backend tidak divalidasi: NaN/Infinity di sini akan mengalir
+  // menjadi `height: "NaN%"` — style yang ditolak RN dan mengosongkan chart.
+  const max = data.reduce((acc, d) => (Number.isFinite(d.value) ? Math.max(acc, d.value) : acc), 0)
+  const ratioOf = (v: number) =>
+    max <= 0 || !Number.isFinite(v) ? 0 : Math.min(1, Math.max(0, v / max))
   // Bila ada batang highlight, batang lain otomatis mundur (lihat fillClassFor)
   const anyHighlight = series === "primary" && data.some((d) => d.highlighted)
   const normalized = anyHighlight ? data.map((d) => ({ ...d, highlighted: !!d.highlighted })) : data
@@ -318,7 +333,9 @@ export function ChartLegend({ items, className, ...rest }: ChartLegendProps) {
           {it.tone ? (
             <Dot size="md" tone={statusDotTone[it.tone]} />
           ) : (
-            <View className={cn("h-2 w-2 rounded-xs", monoStepClass[it.step ?? 0])} />
+            <View
+              className={cn("h-2 w-2 rounded-xs", monoStepClass[stepIndex(it.step)])}
+            />
           )}
           <Text variant="caption" tone="secondary">
             {it.label}

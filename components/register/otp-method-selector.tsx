@@ -75,6 +75,11 @@ export function OtpMethodSelector({ value, onChange, methods, loading = false, d
     <RadioGroup variant="card" value={value} onChange={(v) => onChange(v as OtpMethod)} disabled={disabled} {...rest}>
       {methods.map((m) => {
         const meta = OTP_METHOD_META[m]
+        // Kanal di luar enum spec tidak punya copy/ikon di sini. `getOtpMethods`
+        // sudah menyaringnya, tetapi `methods` bisa datang dari pemanggil lain
+        // (preview/story) — lewati saja daripada merender `meta.label` dari
+        // `undefined`, yang akan menjatuhkan seluruh layar registrasi.
+        if (!meta) return null
         return (
           <Radio
             key={m}

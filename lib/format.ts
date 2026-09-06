@@ -79,9 +79,14 @@ export function formatRupiah(
   return sign === "never" ? `Rp${body}` : `${prefix}Rp${body}`
 }
 
+/** Backend fields are cast, not validated: never let a non-string reach `.replace`. */
+function asText(value: unknown): string {
+  return typeof value === "string" ? value : value == null ? "" : String(value)
+}
+
 /** "Rp1.500.000" / "1.500.000" / "1500000" -> 1500000 */
 export function parseRupiah(input: string): number {
-  const text = input
+  const text = asText(input)
     .trim()
     .replace(/^(?:rp\.?|idr)\s*/i, "")
     .replace(/\s/g, "")
@@ -90,6 +95,65 @@ export function parseRupiah(input: string): number {
   if (!/^(?:\d+|\d{1,3}(?:\.\d{3})+)(?:,0+)?$/.test(text)) return Number.NaN
   const value = Number(text.replace(/,0+$/, "").replace(/\./g, ""))
   return Number.isSafeInteger(value) ? value : Number.NaN
+}
+
+/**
+ * Lenient sibling of `parseRupiah` for a field being TYPED INTO, not pasted.
+ *
+ * `<AmountInput>` is controlled: it re-renders every keystroke as a grouped
+ * string, so the next `onChangeText` receives a half-finished grouping —
+ * "1.00" after a backspace on "1.000", "1.0000" after typing another digit.
+ * The strict parser rejects both as NaN, and the field wiped itself empty:
+ * one backspace on "Rp1.000" deleted the whole amount.
+ *
+ * Digits are therefore the source of truth here. Input carrying a decimal
+ * separator is still rejected outright — silently turning "10.000,50" into
+ * 1.000.050 in a money field would be worse than ignoring the keystroke.
+ */
+export function parseRupiahPartial(input: string): number {
+  const text = asText(input)
+    .trim()
+    .replace(/^(?:rp\.?|idr)\s*/i, "")
+    .replace(/\s/g, "")
+  // Angka desimal tidak bisa direpresentasikan di field integer-only. Lebih
+  // baik mengabaikan ketikan daripada mengubah "10.000,50" jadi 1.000.050.
+  if (/[,]/.test(text)) return Number.NaN
+  // Hanya digit dan titik: "-5" tidak boleh diam-diam menjadi 5.
+  if (!/^[\d.]*$/.test(text)) return Number.NaN
+  /*
+   * Pengelompokan separuh jadi punya bentuk yang khas: grup SETELAH titik
+   * boleh 0–4 karakter (sedang diketik, belum dirender ulang), tetapi grup
+   * PERTAMA tidak pernah lebih dari 3 digit. Kombinasi itu membedakan
+   * "1.0000" (pengguna baru saja menambah digit pada "1.000") dari
+   * "10000.50" (nominal desimal yang ditempel).
+   */
+  const groups = text.split(".")
+  if (groups.length > 1) {
+    const [head = "", ...rest] = groups
+    if (!/^\d{1,3}$/.test(head)) return Number.NaN
+    if (!rest.every((g) => /^\d{0,4}$/.test(g))) return Number.NaN
+  }
+  const digits = text.replace(/\D/g, "")
+  if (!digits || digits.length > 15) return Number.NaN
+  const value = Number(digits)
+  return Number.isSafeInteger(value) ? value : Number.NaN
+}
+
+/**
+ * Nilai berikutnya untuk <AmountInput>, atau `null` bila ketikan harus
+ * DIABAIKAN (nilai lama dipertahankan).
+ *
+ * Dipisah ke sini supaya kontraknya bisa diuji tanpa merender komponen:
+ * field nominal adalah satu-satunya tempat di mana pengguna mengetik angka
+ * yang langsung memengaruhi uang yang dikirim ke server.
+ */
+export function amountInputValue(raw: string): number | null {
+  const parsed = parseRupiah(raw)
+  const n = Number.isNaN(parsed) ? parseRupiahPartial(raw) : parsed
+  // Cegah overflow angka absurd: > 15 digit tidak masuk akal untuk Rupiah.
+  // Non-finite (input bercampur huruf/simbol) tidak pernah masuk ke state form.
+  if (!Number.isFinite(n) || String(n).length > 15) return null
+  return n
 }
 
 /** Format angka biasa dengan pemisah ribuan (bukan uang) */
@@ -174,7 +238,7 @@ export function formatCountdown(totalSeconds: number): string {
  * per 4 agar terbaca dalam Mono: "•••• •••• 1234".
  */
 export function maskAccountNumber(account: string, visible = 4): string {
-  const digits = account.replace(/\s/g, "")
+  const digits = asText(account).replace(/\s/g, "")
   const hidden = Math.max(0, digits.length - visible)
   const masked = "\u2022".repeat(hidden) + digits.slice(-visible)
   return masked.replace(/(.{4})/g, "$1 ").trim()
@@ -182,7 +246,7 @@ export function maskAccountNumber(account: string, visible = 4): string {
 
 /** Kelompokkan nomor per 4 tanpa mask: "1234 5678 9012" */
 export function groupAccountNumber(account: string): string {
-  return account
+  return asText(account)
     .replace(/\s/g, "")
     .replace(/(.{4})/g, "$1 ")
     .trim()
@@ -190,7 +254,7 @@ export function groupAccountNumber(account: string): string {
 
 /** Nomor HP Indonesia -> "+62 812-3456-7890" */
 export function formatPhoneId(raw: string): string {
-  let digits = raw.replace(/\D/g, "")
+  let digits = asText(raw).replace(/\D/g, "")
   if (digits.startsWith("62")) digits = digits.slice(2)
   if (digits.startsWith("0")) digits = digits.slice(1)
   const parts = [digits.slice(0, 3), digits.slice(3, 7), digits.slice(7)].filter(Boolean)
@@ -199,7 +263,7 @@ export function formatPhoneId(raw: string): string {
 
 /** "Budi Santoso" -> "BS" (Avatar fallback) */
 export function initials(name: string, max = 2): string {
-  return name
+  return asText(name)
     .trim()
     .split(/\s+/)
     .slice(0, max)
@@ -209,8 +273,9 @@ export function initials(name: string, max = 2): string {
 
 /** Potong string panjang di tengah: "KHD-2026-0903-ABCDEF" -> "KHD-2026…CDEF" */
 export function truncateMiddle(s: string, head = 8, tail = 4): string {
-  if (s.length <= head + tail + 1) return s
-  return `${s.slice(0, head)}\u2026${s.slice(-tail)}`
+  const text = asText(s)
+  if (text.length <= head + tail + 1) return text
+  return `${text.slice(0, head)}\u2026${text.slice(-tail)}`
 }
 
 /** Byte -> "2,4 MB" (batasan upload KYC §9.19) */

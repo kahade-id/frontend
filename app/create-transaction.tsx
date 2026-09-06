@@ -100,6 +100,10 @@ export default function CreateTransactionScreen() {
   const [orderType, setOrderType] = useState<OrderType>("SERVICE")
   const [orderValue, setOrderValue] = useState(0)
   const [deadlineDays, setDeadlineDays] = useState(3)
+  // Draf terpisah untuk field tenggat: tanpa ini, mengosongkan field langsung
+  // melompat ke "1" (NaN-parsing) sehingga pengguna tidak pernah melihat
+  // keadaan kosong dan tidak yakin ketikannya terekam.
+  const [deadlineDraft, setDeadlineDraft] = useState("3")
   const [feeResponsibility, setFeeResponsibility] = useState<"BUYER" | "SELLER" | "SPLIT">("SPLIT")
   const [fee, setFee] = useState<Awaited<ReturnType<typeof api.orders.calculateFee>> | null>(null)
   const [feeLoading, setFeeLoading] = useState(false)
@@ -228,7 +232,10 @@ export default function CreateTransactionScreen() {
         const v = res.voucher
         setVoucher({
           code: v?.code ?? code,
-          discount: v?.discountValue ?? Number.NaN,
+          // Voucher valid tanpa nominal dari server: simpan `undefined`, bukan
+          // NaN — NaN merambat ke <Amount> sebagai "Rp—" dan ke perhitungan
+          // biaya sebagai angka yang terlihat sah.
+          discount: Number.isFinite(v?.discountValue) ? v?.discountValue : undefined,
           title: v?.title,
         })
       } catch {
@@ -430,12 +437,19 @@ export default function CreateTransactionScreen() {
             helperText={`1–${MAX_DEADLINE_DAYS} hari`}
           >
             <Input
-              value={String(deadlineDays)}
-              onChangeText={(t) => {
-                const n = Number.parseInt(t.replace(/\D/g, ""), 10)
-                setDeadlineDays(
-                  Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(1, n)) : 1,
-                )
+              value={deadlineDraft}
+              onChangeText={(raw) => {
+                const digits = raw.replace(/\D/g, "").slice(0, 2)
+                setDeadlineDraft(digits)
+                const n = digits ? Number.parseInt(digits, 10) : Number.NaN
+                // Kosong = 0 (belum valid) supaya `canSubmit` menahan kirim;
+                // angka di luar rentang dijepit ke batas terdekat.
+                setDeadlineDays(Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(0, n)) : 0)
+              }}
+              onBlur={() => {
+                if (deadlineDraft) return
+                setDeadlineDraft("1")
+                setDeadlineDays(1)
               }}
               keyboardType="number-pad"
               maxLength={2}

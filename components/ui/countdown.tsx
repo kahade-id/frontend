@@ -40,13 +40,24 @@ export type UseCountdownOptions = {
 }
 
 export function useCountdown({ seconds = 0, until, onComplete, autoStart = true }: UseCountdownOptions) {
-  const computeEnd = useCallback(
-    () => (until != null ? new Date(until).getTime() : Date.now() + seconds * 1000),
-    [until, seconds],
-  )
+  /**
+   * `until` berasal dari data server dan tidak divalidasi. Tanggal yang tidak
+   * bisa di-parse menghasilkan `NaN`, dan `endAt = NaN` membuat tick
+   * TERJADWAL TERUS (`NaN % 1000 || 1000` jatuh ke 1000) tanpa pernah
+   * memanggil `onComplete` — timer yang hidup selamanya di balik layar.
+   * Karena itu waktu yang tidak valid dikembalikan sebagai `null`.
+   */
+  const computeEnd = useCallback(() => {
+    if (until != null) {
+      const parsed = new Date(until).getTime()
+      return Number.isFinite(parsed) ? parsed : null
+    }
+    const parsed = Date.now() + seconds * 1000
+    return Number.isFinite(parsed) ? parsed : null
+  }, [until, seconds])
   const [endAt, setEndAt] = useState<number | null>(autoStart ? computeEnd : null)
   const [remaining, setRemaining] = useState(() =>
-    endAt ? Math.max(0, Math.ceil((endAt - Date.now()) / 1000)) : seconds,
+    endAt != null ? Math.max(0, Math.ceil((endAt - Date.now()) / 1000)) : seconds,
   )
   const completedRef = useRef(false)
   const onCompleteRef = useRef(onComplete)
@@ -85,7 +96,15 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
     setEndAt(computeEnd())
   }, [computeEnd])
 
-  return { remaining, done: remaining <= 0, restart, formatted: formatCountdown(remaining) }
+  return {
+    remaining,
+    done: remaining <= 0,
+    restart,
+    // `—` (bukan "00:00") bila sumber waktu tidak valid: nol detik akan
+    // terbaca sebagai "tenggat sudah lewat" padahal nilainya tidak diketahui.
+    formatted:
+      endAt == null && until != null ? "—" : formatCountdown(remaining),
+  }
 }
 
 export type CountdownProps = Omit<ViewProps, "children"> &

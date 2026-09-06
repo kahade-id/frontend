@@ -26,6 +26,7 @@ import { ReportForm, type ReportFormValue } from "@/components/ui/report-form"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
+import { hasOwn } from "@/lib/has-own"
 
 /** Peta alasan UI → enum API POST /v1/settings/report. */
 const REASON_TO_CATEGORY: Record<string, string> = {
@@ -166,7 +167,10 @@ export default function ReportsScreen() {
             <ListGroup>
               {items.map((r, i) => {
                 const status = r.status as ReportStatus
-                const known = status in STATUS_TONE
+                // Own keys only: `in` would also match Object.prototype
+                // keys ("toString"), whose value is a function and would be
+                // rendered as the badge label.
+                const known = hasOwn(STATUS_TONE, status)
                 return (
                   <ListItem
                     key={r.id}

@@ -79,7 +79,14 @@ export type TrustScoreCardProps = Omit<CardProps, "children" | "variant" | "padd
   labels?: Partial<TrustScoreCardLabels>
 }
 
+/**
+ * `Math.max(0, NaN)` is NaN, so an unvalidated API number would flow straight
+ * into <ProgressRing>'s `strokeDashoffset` and <ProgressBar>'s width as NaN —
+ * invalid SVG geometry that React Native rejects at render time. Unknown
+ * values fall back to `min` instead of propagating.
+ */
 function clamp(n: number, min: number, max: number) {
+  if (!Number.isFinite(n)) return min
   return Math.min(max, Math.max(min, n))
 }
 

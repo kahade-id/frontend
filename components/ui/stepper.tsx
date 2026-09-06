@@ -38,7 +38,8 @@ export type StepProgressProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const clamp01 = (n: number) => Math.min(1, Math.max(0, n))
+/** NaN-safe: a NaN `toValue` makes `Animated.timing` throw instead of animating. */
+const clamp01 = (n: number) => (Number.isFinite(n) ? Math.min(1, Math.max(0, n)) : 0)
 
 export function StepProgress({ value, step, total, segmented = false, className, ...rest }: StepProgressProps) {
   const ratio = clamp01(value ?? (step != null && total ? step / total : 0))

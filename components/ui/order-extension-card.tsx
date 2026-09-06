@@ -49,6 +49,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatDate } from "@/lib/format"
+import { hasOwn } from "@/lib/has-own"
 
 export type OrderExtensionStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED"
 
@@ -140,7 +141,8 @@ export function OrderExtensionCard({
   ...rest
 }: OrderExtensionCardProps) {
   const t: OrderExtensionCardLabels = { ...DEFAULT_LABELS, ...labels, status: { ...DEFAULT_LABELS.status, ...labels?.status } }
-  const known = status in STATUS_TONE
+  // Own keys only — see the note in mutual-resolution-card.tsx.
+  const known = hasOwn(STATUS_TONE, status)
   const st = (known ? status : "PENDING") as OrderExtensionStatus
   const pending = st === "PENDING"
   const busy = approving || rejecting

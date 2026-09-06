@@ -68,15 +68,20 @@ const DEFAULT_ASPECT = 4 / 3
 /** Batas tinggi gambar relatif tinggi layar — sisakan ruang judul & tombol. */
 const MAX_HEIGHT_RATIO = 0.7
 
+/** Lampiran dari backend tidak divalidasi: `url` yang hilang tidak boleh
+ *  membuat `item.url.split("?")` melempar saat gelembung chat dirender. */
+function pathOf(url: unknown): string {
+  return typeof url === "string" ? url.split("?")[0]?.toLowerCase() ?? "" : ""
+}
+
 export function isImageMedia(item: Pick<MediaViewerItem, "url" | "mimeType">): boolean {
   if (item.mimeType) return item.mimeType.startsWith("image/")
-  const path = item.url.split("?")[0]?.toLowerCase() ?? ""
-  return !path.endsWith(".pdf")
+  return !pathOf(item.url).endsWith(".pdf")
 }
 
 export function fileNameFromUrl(url: string, fallback: string): string {
   try {
-    const last = decodeURIComponent(url.split("?")[0]?.split("/").pop() ?? "")
+    const last = decodeURIComponent(pathOf(url).split("/").pop() ?? "")
     return last || fallback
   } catch {
     return fallback

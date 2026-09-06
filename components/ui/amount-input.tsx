@@ -25,7 +25,7 @@ import { Chip } from "@/components/ui/chip"
 import { Field, type FieldProps } from "@/components/ui/field"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { formatRupiah, groupThousands, parseRupiah } from "@/lib/format"
+import { amountInputValue, formatRupiah, groupThousands } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
 // `onChange` di-Omit dari TextInputProps: RN mendefinisikan
@@ -83,10 +83,11 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
 
   const handleChange = useCallback(
     (raw: string) => {
-      const n = parseRupiah(raw)
-      // Cegah overflow angka absurd: > 15 digit tidak masuk akal untuk Rupiah
-      if (String(n).length > 15) return
-      onChange(n)
+      // `amountInputValue` (lib/format) mengembalikan `null` untuk ketikan
+      // yang tidak bisa menjadi nominal — nilai lama dipertahankan, sehingga
+      // field tidak pernah berisi NaN dan tidak pernah tiba-tiba kosong.
+      const next = amountInputValue(raw)
+      if (next !== null) onChange(next)
     },
     [onChange],
   )
