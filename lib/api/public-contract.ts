@@ -108,7 +108,6 @@ export function normalizeSubscriptionPlans(raw: unknown): SubscriptionPlan[] {
     if (
       !plan ||
       (key !== "MONTHLY" && key !== "ANNUAL") ||
-      !string(plan.name) ||
       !isNumber(plan.price) ||
       (plan.price as number) < 0
     )
@@ -118,7 +117,9 @@ export function normalizeSubscriptionPlans(raw: unknown): SubscriptionPlan[] {
     return {
       id: string(plan.id) ?? (key as string),
       key: key as "MONTHLY" | "ANNUAL",
-      name: plan.name as string,
+      // Production `/subscriptions/plans` returns plan/price/durationDays
+      // without a display name; keep the screen usable with a stable label.
+      name: string(plan.name) ?? (key === "MONTHLY" ? "Bulanan" : "Tahunan"),
       price: plan.price as number,
       durationDays: isNumber(duration) ? duration : undefined,
       periodLabel: string(plan.period ?? plan.period_label ?? plan.periodLabel),
