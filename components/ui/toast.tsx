@@ -224,7 +224,7 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
     const timer = setTimeout(() => animateOut(onDismiss), duration)
     return () => clearTimeout(timer)
     // onDismiss stabil per id; sengaja tidak masuk deps agar timer tidak reset
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [duration])
 
   const IconCmp = toast.icon === null ? null : (toast.icon ?? defaultIcon[tone])

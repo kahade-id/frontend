@@ -61,8 +61,8 @@ export type AvatarResult = {
 // ------------------------------------------------------------------
 
 /** GET /v1/users/me — profil lengkap user yang sedang login. */
-export function getMe() {
-  return http.get<UserProfile>("/v1/users/me", { auth: "required" })
+export function getMe(signal?: AbortSignal) {
+  return http.get<UserProfile>("/v1/users/me", { auth: "required", signal })
 }
 
 /**

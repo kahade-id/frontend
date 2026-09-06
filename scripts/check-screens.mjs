@@ -80,10 +80,22 @@ const rules = []
 rules.push({
   id: "S1",
   title: "Layar merakit sendiri state async (bukan useApiQuery/usePaginatedQuery)",
+  // `set[A-Z]\w*Loading` — sebelumnya hanya `setLoading\(`, sehingga layar
+  // yang menamai ulang statenya (setProfileLoading, setWalletLoading, …)
+  // lolos aturan padahal polanya sama persis. Nama variabel bukan alasan
+  // untuk mengecualikan layar dari perlindungan abort/stale-response.
   test: (f) =>
-    /setRefreshing\s*\(/.test(f.src) && /setLoading\s*\(/.test(f.src) && !SHARED_QUERY.test(f.src),
+    /set(?:[A-Z]\w*)?Refreshing\s*\(/.test(f.src) &&
+    /set(?:[A-Z]\w*)?Loading\s*\(/.test(f.src) &&
+    !SHARED_QUERY.test(f.src),
   baseline: [
     "app/bank-accounts.tsx",
+    // Form multi-bagian, bukan layar data: fee & validasi lawan transaksi
+    // di-debounce per ketikan dan sudah memakai guard `draft.current` +
+    // `confirmedFeeKey`/`confirmedCounterpart` — padanan useApiQuery untuk
+    // form (respons lama tidak bisa menimpa input baru). Memaksakan
+    // useApiQuery di sini justru menghilangkan guard konfirmasi form.
+    "app/create-transaction.tsx",
     "app/delivery-proof/[orderId].tsx",
     "app/dispute/[id].tsx",
     "app/edit-profile.tsx",
@@ -223,46 +235,13 @@ for (const rule of rules) {
  * memang cadangan yang disengaja — daftar di bawah adalah kondisi saat audit,
  * dan harus mengecil, bukan bertambah.
  */
-const UNUSED_UI_BASELINE = new Set([
-  "components/ui/accordion.tsx",
-  "components/ui/banner.tsx",
-  "components/ui/biometric-prompt-trigger.tsx",
-  "components/ui/box.tsx",
-  "components/ui/bullet-list.tsx",
-  "components/ui/button-group.tsx",
-  "components/ui/captcha-field.tsx",
-  "components/ui/checkbox-group.tsx",
-  "components/ui/count-badge.tsx",
-  "components/ui/data-table.tsx",
-  "components/ui/dispute-evidence-item.tsx",
-  "components/ui/filter-sheet-content.tsx",
-  "components/ui/in-call-controls-bar.tsx",
-  "components/ui/incoming-call-prompt.tsx",
-  "components/ui/kyc-document-viewer.tsx",
-  "components/ui/live-region.tsx",
-  "components/ui/menu-list.tsx",
-  "components/ui/order-summary-strip.tsx",
-  "components/ui/presence.tsx",
-  "components/ui/result-state.tsx",
-  "components/ui/route-link.tsx",
-  "components/ui/safe-area-spacer.tsx",
-  "components/ui/scroll-row.tsx",
-  "components/ui/search-overlay.tsx",
-  "components/ui/sensitive-text.tsx",
-  "components/ui/share-sheet-trigger.tsx",
-  "components/ui/show.tsx",
-  "components/ui/signature-pad.tsx",
-  "components/ui/slider.tsx",
-  "components/ui/surface.tsx",
-  "components/ui/swipeable-list-item.tsx",
-  "components/ui/tabs.tsx",
-  "components/ui/tag-input.tsx",
-  "components/ui/tooltip.tsx",
-  "components/ui/truncate.tsx",
-  "components/ui/two-factor-method-selector.tsx",
-  "components/ui/typography.tsx",
-  "components/ui/z-stack.tsx",
-])
+/*
+ * Baseline S5 KOSONG (audit berikutnya): 42 komponen UI mati dihapus — 38
+ * dari baseline awal ditambah 4 yang hanya dipakai oleh klaster mati itu
+ * (collapse, currency-range-field, layout, range-slider). Dari sini setiap
+ * komponen baru yang tidak pernah diimpor langsung JADI pelanggaran.
+ */
+const UNUSED_UI_BASELINE = new Set([])
 
 const unusedUi = []
 for (const component of uiComponents) {

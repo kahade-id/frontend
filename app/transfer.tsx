@@ -157,32 +157,7 @@ export default function TransferScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {step === "pin" ? (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title="Verifikasi PIN" />
-            <Text variant="body" tone="secondary">
-              Transfer {formatRupiah(amount)} ke{" "}
-              <Text variant="monoBody" tone="primary">
-                @{selected?.username}
-              </Text>{" "}
-              memerlukan PIN dompet Anda.
-            </Text>
-            <PinInput
-              mode="enter"
-              onComplete={(p) => void handlePin(p)}
-              errorText={pinError}
-              disabled={submitting}
-            />
-            <Button
-              variant="ghost"
-              fullWidth={false}
-              onPress={() => setStep("form")}
-              disabled={submitting}
-            >
-              Batal
-            </Button>
-          </View>
-        ) : step === "done" ? (
+        {step === "done" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
               title={
@@ -261,6 +236,14 @@ export default function TransferScreen() {
           </View>
         )}
       </PullToRefresh>
+      {/*
+        SATU permukaan PIN saja (audit): sebelumnya ada DUA PinInput aktif untuk
+        state `step === "pin"` — satu inline di konten, satu di BottomSheet —
+        sehingga dua pad PIN terlihat bertumpuk dan keduanya bisa terpicu
+        autofill sekaligus. BottomSheet dipertahankan karena membawa judul,
+        deskripsi konteks nominal/penerima, dan avoidKeyboard; di belakangnya
+        form tetap terlihat sehingga pengguna tidak kehilangan konteks.
+      */}
       <BottomSheet
         visible={step === "pin"}
         onRequestClose={() => {

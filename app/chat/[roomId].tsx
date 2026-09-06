@@ -24,13 +24,15 @@
  *   - Nama lawan bicara diambil dari daftar ruang (GET /rooms tidak punya
  *     endpoint detail) — bila tidak ditemukan judul tetap "Percakapan".
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
 import { Chats, Copy, Package, Trash } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { refreshUnreadCount } from "@/lib/unread-count"
+import { usePolling } from "@/lib/use-polling"
 import { CHAT_PAGE_SIZE, type ChatMessage, type ChatRoom } from "@/lib/api/chat"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
@@ -61,6 +63,9 @@ import { isImageMime } from "@/lib/mime"
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
 type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
+
+/** Jarak poll pesan baru saat ruang terbuka. Push tetap pemicu utama. */
+const CHAT_POLL_MS = 8000
 
 function messageTypeFor(
   attachments: ChatAttachmentDto[],
@@ -120,6 +125,9 @@ export default function ChatRoomScreen() {
       setOlderStatus(page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
       setRoom(rooms.data.find((r) => r.id === roomId) ?? null)
       await api.chat.markChatRoomRead(roomId).catch(() => undefined)
+      // Ruang sudah dibuka dan ditandai terbaca → segarkan badge tab agar
+      // angka unread turun segera, bukan menunggu poll 60 detik.
+      void refreshUnreadCount()
     } catch (err) {
       setError(isApiError(err) ? userMessage(err) : "Gagal memuat pesan.")
     } finally {
@@ -130,6 +138,57 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     void fetchMessages()
   }, [fetchMessages])
+
+  // ── Poll pesan baru ────────────────────────────────────────────────────
+  // Tanpa ini, balasan lawan bicara TIDAK PERNAH muncul selama ruang
+  // dibuka: layar hanya menambah pesan hasil kiriman sendiri, dan push
+  // notification hanya membantu bila ditap. Poll 8 detik mengambil halaman
+  // TERBARU (tanpa cursor) lalu menggabungkan id yang belum dikenal ke
+  // thread — pesan lama yang sedang dibaca tidak pernah digeser.
+  const mergeIncoming = useCallback(
+    (incoming: ChatMessage[]) => {
+      let added = 0
+      setMessages((prev) => {
+        const known = new Set(prev.map((m) => m.id))
+        const fresh = incoming.filter((m) => !known.has(m.id))
+        added = fresh.length
+        if (!added) return prev
+        // Pesan masuk dari lawan bicara → badge tab Notifikasi harus turun
+        // segera (ruang terbuka = terbaca), bukan menunggu poll 60 detik.
+        if (fresh.some((m) => !m.fromUser) && roomId) {
+          void api.chat.markChatRoomRead(roomId).catch(() => undefined)
+          void refreshUnreadCount()
+        }
+        return sortByTime([...prev, ...fresh])
+      })
+      return added
+    },
+    [roomId],
+  )
+
+  const pollNewMessages = useCallback(async () => {
+    if (!roomId) return
+    const page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE })
+    mergeIncoming(sortByTime(page.items))
+  }, [roomId, mergeIncoming])
+
+  usePolling(pollNewMessages, CHAT_POLL_MS, Boolean(roomId) && !error && !loading)
+
+  // ── Auto-scroll ke pesan terbaru ───────────────────────────────────────
+  // Thread tumbuh ke bawah, tetapi ScrollView mulai di ATAS: membuka ruang
+  // menampilkan pesan TERLAMA dari halaman terakhir dan pengguna harus
+  // menggulir manual. Gulir ke ujung bawah hanya ketika id pesan TERAKHIR
+  // berubah (muat awal, kirim, pesan masuk) — memuat pesan lama di atas
+  // (LoadMore) tidak mengubah id terakhir sehingga posisi baca tidak lompat.
+  const scrollRef = useRef<ScrollView>(null)
+  const lastSeenEndId = useRef<string | undefined>(undefined)
+  const lastMessageId = messages[messages.length - 1]?.id
+  const handleContentSizeChange = useCallback(() => {
+    if (lastMessageId && lastSeenEndId.current !== lastMessageId) {
+      lastSeenEndId.current = lastMessageId
+      scrollRef.current?.scrollToEnd({ animated: false })
+    }
+  }, [lastMessageId])
 
   const loadOlder = useCallback(async () => {
     if (!roomId || olderStatus === "loading" || olderStatus === "end") return
@@ -270,7 +329,7 @@ export default function ChatRoomScreen() {
   const counterpartName =
     room?.counterpart?.fullName ??
     (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined)
-  const composerAttachments = useMemo(() => attachments, [attachments])
+  const composerAttachments = attachments
 
   return (
     <Screen
@@ -314,10 +373,12 @@ export default function ChatRoomScreen() {
         }
       />
       <ScrollView
+        ref={scrollRef}
         className="flex-1"
         contentContainerClassName="px-6"
         contentContainerStyle={{ paddingBottom: tokens.space[4] }}
         keyboardShouldPersistTaps="handled"
+        onContentSizeChange={handleContentSizeChange}
       >
         {loading && messages.length === 0 ? (
           <ListLoading />

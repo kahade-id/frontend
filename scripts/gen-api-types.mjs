@@ -14,7 +14,7 @@
  * tipe response ditulis manual di modul domain (lib/api/*.ts) dan ditandai
  * sebagai "belum diverifikasi terhadap backend".
  */
-import { readFileSync, writeFileSync } from "node:fs"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
 import { dirname, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -22,6 +22,14 @@ const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const specPath = resolve(root, "docs/api/kahade-api-mobile.json")
 const outPath = resolve(root, "lib/api/types.ts")
 
+if (!existsSync(specPath)) {
+  console.error(
+    "gen-api-types: docs/api/kahade-api-mobile.json tidak ada. " +
+      "Salin spec OpenAPI terbaru dari repo backend ke path itu, lalu jalankan `npm run gen:api`. " +
+      "lib/api/types.ts yang sudah di-commit tetap dipakai sampai spec tersedia.",
+  )
+  process.exit(1)
+}
 const spec = JSON.parse(readFileSync(specPath, "utf8"))
 const schemas = spec.components?.schemas ?? {}
 

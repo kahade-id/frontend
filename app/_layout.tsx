@@ -96,12 +96,25 @@ export default function RootLayout() {
 
   const handleSplashFinish = useCallback(() => setSplashDone(true), [])
 
+  // Judul dokumen web (audit): expo-router menulis <title> KOSONG sebagai
+  // <title> PERTAMA di <head> hasil export statis — browser & mesin pencari
+  // memakai <title> pertama, jadi semua tab/hasil pencarian tampil tanpa
+  // judul. <Head><title> expo-router tidak membantu di root layout karena
+  // Head-nya bergantung useIsFocused() yang selalu false di luar navigator.
+  // Set document.title mengisi elemen <title> pertama itu saat app hidup;
+  // judul per-halaman (mis. nama order) bisa menimpanya dari layarnya.
+  useEffect(() => {
+    if (Platform.OS === "web") document.title = "Kahade"
+  }, [])
+
   return (
-    // GestureHandlerRootView WAJIB membungkus seluruh tree yang memakai
-    // <GestureDetector> (Slider, RangeSlider, BottomSheet, PullToRefresh).
-    // Ditaruh di root, bukan per-screen, supaya Portal (BottomSheet) yang
-    // dirender di luar layar asalnya tetap berada di dalam root gesture.
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView
+      // WAJIB membungkus seluruh tree yang memakai <GestureDetector> (Slider,
+      // RangeSlider, BottomSheet, PullToRefresh). Ditaruh di root, bukan
+      // per-screen, supaya Portal (BottomSheet) yang dirender di luar layar
+      // asalnya tetap berada di dalam root gesture.
+      style={{ flex: 1 }}
+    >
       {/*
         App tree HANYA di-mount setelah font siap (atau gagal). Ini yang
         mencegah FOUT — bukan sekadar menutupinya dengan overlay.
@@ -175,14 +188,20 @@ function AppShell() {
     api.public
       .getAppVersion()
       .then((v) => {
-        if (alive && v.minVersion && compareVersions(appVersion, v.minVersion) === -1) {
-          setForceUpdate({ ...v, minVersion: v.minVersion, latestVersion: v.latestVersion })
-        } else if (
-          alive &&
-          compareVersions(appVersion, v.minVersion) != null &&
-          compareVersions(appVersion, v.minVersion)! >= 0
-        )
-          setForceUpdate(null)
+        // Bandingkan SEKALI dan simpan hasilnya: sebelumnya compareVersions
+        // dipanggil dua-tiga kali per respons (termasuk non-null assertion)
+        // untuk keputusan yang sama — boros dan rawan salah ketik saat
+        // diubah. `null` (data versi tidak valid) tidak pernah memaksa
+        // update maupun membersihkan dialog yang sudah tampil.
+        const minVersion = v.minVersion
+        // minVersion hilang/tidak valid → jangan paksa update DAN jangan
+        // menutup dialog yang sudah tampil (perilaku sebelumnya).
+        if (!alive || typeof minVersion !== "string") return
+        const comparison = compareVersions(appVersion, minVersion)
+        if (comparison === null) return
+        if (comparison === -1)
+          setForceUpdate({ ...v, minVersion, latestVersion: v.latestVersion })
+        else setForceUpdate(null)
       })
       .catch(() => {
         // A failed minimum-version check never blocks offline access.

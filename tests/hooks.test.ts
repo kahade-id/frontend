@@ -1,6 +1,13 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
+// useApiQuery memakai useIsFocused (@react-navigation/native) untuk opsi
+// refreshOnFocus. Mock konsisten dengan tests/polling.test.ts: tanpa ini,
+// impor asli menarik react-native-safe-area-context → berkas Flow
+// `react-native/Libraries/...` yang tidak bisa di-parse Node. `focused`
+// dikontrol test untuk mensimulasikan pindah tab.
+const navigation = vi.hoisted(() => ({ focused: true }))
+vi.mock("@react-navigation/native", () => ({ useIsFocused: () => navigation.focused }))
 import { useApiQuery } from "@/lib/use-api-query"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
@@ -80,6 +87,59 @@ describe("latest-query wins", () => {
     )
     pending.unmount()
     expect(signal.aborted).toBe(true)
+  })
+})
+
+describe("refreshOnFocus", () => {
+  afterEach(() => {
+    cleanup()
+    navigation.focused = true
+  })
+
+  const refocus = async (hook: { rerender: () => void }) => {
+    navigation.focused = false
+    await act(async () => {
+      hook.rerender()
+    })
+    navigation.focused = true
+    await act(async () => {
+      hook.rerender()
+    })
+    await act(async () => {})
+  }
+
+  it("silently refetches when the screen regains focus after the first mount", async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce("stale")
+      .mockResolvedValueOnce("fresh")
+    const hook = renderHook(() =>
+      useApiQuery("wallet-balance", fetcher, true, { refreshOnFocus: true }),
+    )
+    await act(async () => {})
+    expect(hook.result.current.data).toBe("stale")
+    await refocus(hook)
+    // Muat ulang fokus tidak menampilkan skeleton ulang — data berganti diam.
+    expect(hook.result.current.loading).toBe(false)
+    expect(hook.result.current.data).toBe("fresh")
+    expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
+  it("does not refetch on focus unless the option is set", async () => {
+    const fetcher = vi.fn().mockResolvedValue("same")
+    const hook = renderHook(() => useApiQuery("static", fetcher))
+    await act(async () => {})
+    await refocus(hook)
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(hook.result.current.data).toBe("same")
+  })
+
+  it("does not refetch before any data exists (initial load owns the request)", async () => {
+    const fetcher = vi.fn(() => new Promise(() => {}))
+    const hook = renderHook(() => useApiQuery("slow", fetcher, true, { refreshOnFocus: true }))
+    await act(async () => {})
+    await refocus(hook)
+    expect(fetcher).toHaveBeenCalledTimes(1)
   })
 })
 describe("pagination", () => {

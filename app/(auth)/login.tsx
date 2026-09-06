@@ -34,12 +34,13 @@
  *   - `offset` KeyboardAvoiding = inset atas + tinggi Header, sama seperti
  *     layar registrasi; tanpa tinggi header, padding keyboard iOS kurang 56px
  *     dan field bawah tertutup keyboard.
- *   - 2FA: kalau backend return requiresTwoFactor: true, tampilkan error informatif.
- *     Screen 2FA verification belum dibuat — ini akan ditambahkan di iteration berikutnya.
+ *   - 2FA: kalau backend return requiresTwoFactor: true, tempToken disimpan
+ *     di memori (lib/two-factor-login) dan navigasi ke /verify-2fa — BUKAN
+ *     lewat param URL (kredensial tidak boleh lewat route params).
  *   - Tombol "Masuk" disabled selama submit untuk mencegah double-submit.
  *   - Email auto-trim whitespace di blur (sama seperti EmailField default).
  *   - Error handling: invalid credentials, network error, rate limited, dll.
- *   - Setelah login berhasil → redirect ke Home (untuk sekarang: setup-profile sebagai placeholder).
+ *   - Setelah login berhasil → /welcome (cek permissions; bukan user baru).
  *   - Link "Lupa password?" → navigate ke forgot-password screen.
  *   - Link "Belum punya akun? Daftar" → navigate ke register screen.
  */
