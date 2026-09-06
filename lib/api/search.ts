@@ -21,7 +21,9 @@ export function globalSearch(
 ) {
   return http
     .get<unknown>("/v1/search", {
-      query: { types: "", limit: 20, ...query },
+      // Production accepts only users, orders, and transactions. An empty
+      // `types` query is rejected with SEARCH_INVALID_TYPES.
+      query: { types: "users,orders,transactions", limit: 20, ...query },
       auth: "required",
       retry: 1,
       signal,
