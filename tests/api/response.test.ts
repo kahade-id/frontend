@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import fixtures from "../fixtures/public-responses.json"
-import { unwrapResponse, readList, readPage } from "@/lib/api/response"
+import { stringList, unwrapResponse, readList, readPage } from "@/lib/api/response"
 import { parseErrorBody } from "@/lib/api/errors"
 import {
   normalizeAppVersion,
@@ -80,4 +80,50 @@ it("normalizes safe count strings but does not divide by zero", () => {
     { page: 1, limit: 20 },
   )
   expect(page.meta).toEqual({ page: 1, limit: 20, total: 40, totalPages: 2 })
+})
+
+describe("stringList — field response yang tidak boleh memecah layar", () => {
+  /**
+   * `BackupCodes.backupCodes` hanya DI-CAST dari JSON. Bila backend
+   * mengembalikan objek/string/null, <BackupCodesDisplay> memanggil
+   * `codes.filter(...)` dan `codes.map(...)` → TypeError tepat setelah 2FA
+   * aktif, saat kode cadangan belum sempat disalin — momen yang tidak bisa
+   * diulang. Helper ini menjamin pemanggil SELALU menerima array string.
+   */
+  const HOSTILE: unknown[] = [
+    undefined,
+    null,
+    "ABC123",
+    42,
+    true,
+    {},
+    { backupCodes: ["a"] },
+    Number.NaN,
+  ]
+
+  it.each(HOSTILE.map((v) => [v]))("bukan array → [] untuk %p", (value) => {
+    expect(stringList(value)).toEqual([])
+  })
+
+  it("mempertahankan array string yang valid", () => {
+    expect(stringList(["a", "b", "c"])).toEqual(["a", "b", "c"])
+  })
+
+  it("array kosong tetap array kosong", () => {
+    expect(stringList([])).toEqual([])
+  })
+
+  it("membuang anggota bukan string alih-alih merendernya", () => {
+    // Angka/objek di sini akan dirender sebagai anak React → layar pecah.
+    expect(stringList(["a", 1, null, { code: "x" }, "b"])).toEqual(["a", "b"])
+  })
+
+  it("hasilnya selalu array yang bisa di-filter & di-map", () => {
+    for (const value of HOSTILE) {
+      const list = stringList(value)
+      expect(Array.isArray(list)).toBe(true)
+      expect(() => list.map((c) => c.toUpperCase())).not.toThrow()
+      expect(() => list.filter(Boolean)).not.toThrow()
+    }
+  })
 })

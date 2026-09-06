@@ -33,6 +33,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { hasOwn } from "@/lib/has-own"
 
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "WAITING_USER" | "RESOLVED" | "CLOSED"
 
@@ -53,7 +54,8 @@ const STATUS_TONE: Record<TicketStatus, BadgeTone> = {
 }
 
 export function isTicketStatus(s: string): s is TicketStatus {
-  return s in TICKET_STATUS_LABELS
+  // Own keys only — `in` would also accept inherited keys like "toString".
+  return hasOwn(TICKET_STATUS_LABELS, s)
 }
 
 export function isTicketActive(status: string): boolean {

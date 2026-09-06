@@ -86,7 +86,12 @@ const TRACK_HIT_SLOP = hitSlopToReach(THUMB)
 /** Bulatkan ke step lalu clamp ke [min, max]. Worklet: dipanggil dari UI thread. */
 function snap(v: number, min: number, max: number, step: number) {
   "worklet"
+  // `step` 0 atau nilai non-finite menghasilkan NaN (pembagian nol), dan NaN
+  // TIDAK dijepit oleh Math.min/max — ia lolos ke `onChange` lalu ke state
+  // filter. Kembalikan nilai apa adanya; `clamp` pemanggil yang membatasi.
+  if (!Number.isFinite(v) || !Number.isFinite(step) || step === 0) return v
   const stepped = Math.round((v - min) / step) * step + min
+  if (!Number.isFinite(stepped)) return v
   return Math.min(max, Math.max(min, stepped))
 }
 
@@ -105,7 +110,13 @@ export function Slider({
   const [dragging, setDragging] = useState(false)
 
   const range = max > min ? max - min : 1
-  const toRatio = useCallback((v: number) => (v - min) / range, [min, range])
+  const toRatio = useCallback(
+    // Nilai non-finite dari parent menghasilkan ratio NaN, dan `width: NaN`
+    // pada fill/thumb ditolak RN. Kembalikan 0 (ujung kiri) sebagai posisi
+    // yang jelas-jelas "tidak diketahui" daripada geometry yang rusak.
+    (v: number) => (Number.isFinite(v) ? (v - min) / range : 0),
+    [min, range],
+  )
 
   // Shared values = state UI thread. `ratio` 0..1 (bukan px) supaya tidak
   // perlu dihitung ulang saat lebar track berubah (rotasi / resize web).

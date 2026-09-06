@@ -72,6 +72,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { mapValue } from "@/lib/has-own"
 
 type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
 const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
@@ -641,7 +642,7 @@ export default function DisputeDetailScreen() {
                   return (
                     <View key={c.id}>
                       <DisputeCallLogItem
-                        outcome={CALL_OUTCOME[c.status] ?? c.status}
+                        outcome={mapValue(CALL_OUTCOME, c.status, c.status)}
                         requestedByMe={requestedByMe}
                         counterpartName={counterpartName}
                         timestamp={formatDateTime(

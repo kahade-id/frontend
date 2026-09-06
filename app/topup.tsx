@@ -27,6 +27,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { TopupStatusCard, type PaymentStatus } from "@/components/ui/topup-status-card"
 import { useToast } from "@/components/ui/toast"
+import { mapValue } from "@/lib/has-own"
 
 const POLL_MS = 5000
 
@@ -109,7 +110,7 @@ export default function TopupScreen() {
       if (result?.paymentTxId) await pollStatus(result.paymentTxId)
     },
     POLL_MS,
-    Boolean(result?.paymentTxId && !STATUS[result.status]),
+    Boolean(result?.paymentTxId && !mapValue(STATUS, result.status, undefined)),
   )
 
   const refresh = useCallback(async () => {
@@ -181,7 +182,11 @@ export default function TopupScreen() {
           <View className="gap-4">
             <TopupStatusCard
               status={
-                STATUS[result.status] ?? (result.status === "PENDING" ? "PENDING" : "UNKNOWN")
+                mapValue(
+                  STATUS,
+                  result.status,
+                  result.status === "PENDING" ? "PENDING" : "UNKNOWN",
+                )
               }
               amount={result.amount}
               method={result.method}

@@ -4,6 +4,7 @@ import { readList } from "@/lib/api/response"
  */
 import { http } from "@/lib/api/client"
 import type { SubmitKycDto } from "@/lib/api/types"
+import { mapValue } from "@/lib/has-own"
 
 export type KycStatus =
   | "UNSUBMITTED"
@@ -38,7 +39,7 @@ const KYC_STATUS_ALIASES: Record<string, KycUiStatus> = {
 
 export function toKycUiStatus(status: KycStatus | null | undefined): KycUiStatus {
   if (!status) return "NOT_SUBMITTED"
-  return KYC_STATUS_ALIASES[status.toUpperCase()] ?? "NOT_SUBMITTED"
+  return mapValue(KYC_STATUS_ALIASES, status.toUpperCase(), "NOT_SUBMITTED")
 }
 
 /** Status KYC — UNVERIFIED. */

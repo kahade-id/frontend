@@ -39,6 +39,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { hasOwn } from "@/lib/has-own"
 
 export type SubscriptionPeriod = "MONTHLY" | "ANNUAL"
 export type SubscriptionStatus = "NONE" | "ACTIVE" | "EXPIRING" | "EXPIRED" | "CANCELLED"
@@ -112,7 +113,8 @@ export type SubscriptionStatusCardProps = Omit<CardProps, "children" | "variant"
 }
 
 function resolveStatus(status: string, daysLeft?: number): SubscriptionStatus {
-  if (!(status in SUBSCRIPTION_STATUS_LABELS)) return "NONE"
+  // Own keys only: `in` would accept inherited keys such as "toString".
+  if (!hasOwn(SUBSCRIPTION_STATUS_LABELS, status)) return "NONE"
   const s = status as SubscriptionStatus
   if (s === "ACTIVE" && daysLeft != null && daysLeft <= EXPIRING_THRESHOLD_DAYS) return "EXPIRING"
   return s

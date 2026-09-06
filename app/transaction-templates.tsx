@@ -61,6 +61,9 @@ export default function TransactionTemplatesScreen() {
   const [editing, setEditing] = useState<ApiTemplate | null>(null)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<ApiTemplate>(NO_TEMPLATE)
+  // Draf terpisah untuk field tenggat (lihat catatan di create-transaction):
+  // mengosongkan field tidak boleh langsung melompat ke "1".
+  const [deadlineDraft, setDeadlineDraft] = useState(String(NO_TEMPLATE.deliveryDeadlineDays))
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ApiTemplate | null>(null)
   const [deleting, setDeleting] = useState(false)
@@ -92,12 +95,19 @@ export default function TransactionTemplatesScreen() {
     setEditing(null)
     setCreating(true)
     setForm(NO_TEMPLATE)
+    setDeadlineDraft(String(NO_TEMPLATE.deliveryDeadlineDays))
   }, [])
 
   const openEdit = useCallback((t: UiTemplate) => {
     setEditing(t)
     setCreating(true)
-    setForm({ ...NO_TEMPLATE, ...t, counterpartUsername: t.counterpartUsername ?? "" })
+    const next = { ...NO_TEMPLATE, ...t, counterpartUsername: t.counterpartUsername ?? "" }
+    setForm(next)
+    // Draf harus mengikuti template yang dibuka — kalau tidak, field tenggat
+    // menampilkan sisa ketikan dari template sebelumnya.
+    setDeadlineDraft(
+      Number.isFinite(next.deliveryDeadlineDays) ? String(next.deliveryDeadlineDays) : "",
+    )
   }, [])
 
   const handleSave = useCallback(async () => {
@@ -245,13 +255,21 @@ export default function TransactionTemplatesScreen() {
                 />
                 <Field label="Tenggat (hari)" required>
                   <Input
-                    value={String(form.deliveryDeadlineDays)}
+                    value={deadlineDraft}
                     onChangeText={(v) => {
-                      const n = Number.parseInt(v.replace(/\D/g, ""), 10)
+                      const digits = v.replace(/\D/g, "").slice(0, 2)
+                      setDeadlineDraft(digits)
+                      const n = digits ? Number.parseInt(digits, 10) : Number.NaN
+                      // Kosong = 0 (belum valid) supaya submit tertahan.
                       setForm({
                         ...form,
-                        deliveryDeadlineDays: Number.isFinite(n) ? Math.min(14, Math.max(1, n)) : 1,
+                        deliveryDeadlineDays: Number.isFinite(n) ? Math.min(14, Math.max(0, n)) : 0,
                       })
+                    }}
+                    onBlur={() => {
+                      if (deadlineDraft) return
+                      setDeadlineDraft("1")
+                      setForm({ ...form, deliveryDeadlineDays: 1 })
                     }}
                     keyboardType="number-pad"
                     maxLength={2}

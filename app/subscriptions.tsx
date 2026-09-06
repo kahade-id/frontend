@@ -64,6 +64,7 @@ import {
 } from "@/components/ui/subscription-status-card"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+import { mapValue } from "@/lib/has-own"
 
 const PAGE_SIZE = 10
 const MS_PER_DAY = 86_400_000
@@ -439,8 +440,8 @@ export default function SubscriptionsScreen() {
                     trailing={
                       <View className="items-end gap-1">
                         <Text variant="monoBody">{formatRupiah(h.amount)}</Text>
-                        <Badge tone={HISTORY_TONE[h.status] ?? "neutral"} variant="soft">
-                          {HISTORY_LABELS[h.status] ?? h.status}
+                        <Badge tone={mapValue(HISTORY_TONE, h.status, "neutral")} variant="soft">
+                          {mapValue(HISTORY_LABELS, h.status, h.status)}
                         </Badge>
                       </View>
                     }

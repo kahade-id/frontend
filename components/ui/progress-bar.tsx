@@ -50,7 +50,8 @@ const trackHeight: Record<ProgressSize, string> = {
   md: "h-2",
 }
 
-const clamp = (n: number) => Math.min(100, Math.max(0, n))
+/** NaN-safe: `Math.max(0, NaN)` stays NaN and becomes an invalid animated width. */
+const clamp = (n: number) => (Number.isFinite(n) ? Math.min(100, Math.max(0, n)) : 0)
 
 export function ProgressBar({
   value,

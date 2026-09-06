@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { hasOwn } from "@/lib/has-own"
 
 export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | "REVOKED"
 
@@ -72,7 +73,8 @@ const STATUS_BOX: Record<KycStatus, IconBoxVariant> = {
 }
 
 export function isKycStatus(s: string): s is KycStatus {
-  return s in KYC_STATUS_LABELS
+  // Own keys only — `in` would also accept inherited keys like "toString".
+  return hasOwn(KYC_STATUS_LABELS, s)
 }
 
 export type KycStatusBadgeProps = Omit<BadgeProps, "children" | "tone"> & {

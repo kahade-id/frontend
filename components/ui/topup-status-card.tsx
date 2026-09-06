@@ -73,8 +73,18 @@ export type PaymentMethodCode =
   | "KAHADE_WALLET"
 
 export function paymentMethodKind(
-  method: PaymentMethodCode | string,
+  method: PaymentMethodCode | string | null | undefined,
 ): "va" | "qris" | "retail" | "redirect" | "wallet" {
+  // `GET /v1/wallet/topup-status/{id}` dan `POST /v1/wallet/topup` dikembalikan
+  // apa adanya sebagai `TopupResult` (`http.get<TopupResult>` tanpa
+  // normalizer), padahal tipenya mendeklarasikan `method: string`. Bila
+  // backend mengirim `method: null`, menghilangkannya, atau mengirim angka,
+  // `method.startsWith(...)` melempar TypeError — bukan sekadar label
+  // kosong, melainkan seluruh layar topup yang jatuh ke error boundary
+  // tepat di langkah paling sensitif (pengguna sedang menunggu pembayaran).
+  // Jalur "redirect" adalah cabang default yang sudah ada, jadi aman
+  // sebagai fallback: ia juga mensyaratkan `onOpenPayment` untuk render.
+  if (typeof method !== "string") return "redirect"
   if (method.startsWith("VIRTUAL_ACCOUNT")) return "va"
   if (method === "QRIS") return "qris"
   if (method === "ALFAMART" || method === "INDOMARET") return "retail"

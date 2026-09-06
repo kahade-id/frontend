@@ -1,5 +1,20 @@
 import { ApiError, DEFAULT_ERROR_MESSAGES, parseErrorBody } from "@/lib/api/errors"
 
+/**
+ * Paksa field response menjadi array string, apa pun bentuk yang dikirim
+ * backend.
+ *
+ * Kode cadangan 2FA adalah contoh yang paling merugikan: `BackupCodes` hanya
+ * DI-CAST dari JSON, dan bila nilainya bukan array, `codes.filter(...)` /
+ * `codes.map(...)` di <BackupCodesDisplay> melempar TypeError tepat setelah
+ * pengguna mengaktifkan 2FA — saat kode itu BELUM sempat disalin. Layar
+ * pecah di momen yang tidak bisa diulang (kode hanya ditampilkan sekali).
+ * Dikosongkan supaya layar tetap merender langkah berikutnya.
+ */
+export function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
+}
+
 export function asRecord(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)

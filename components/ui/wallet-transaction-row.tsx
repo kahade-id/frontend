@@ -8,6 +8,7 @@ import {
   walletTransactionType,
 } from "@/lib/wallet-labels"
 import { WalletTransactionListItem } from "@/components/ui/wallet-transaction-list-item"
+import { mapValue } from "@/lib/has-own"
 
 /** One mapping for overview, top-up/withdraw histories and search results. */
 export function WalletTransactionRow({
@@ -23,7 +24,7 @@ export function WalletTransactionRow({
     <WalletTransactionListItem
       padded={false}
       accessibilityLabel={summarize([
-        WALLET_TXN_LABELS[tx.type] ?? tx.type,
+        mapValue(WALLET_TXN_LABELS, tx.type, tx.type),
         walletTransactionType(tx) === "CREDIT"
           ? "Dana masuk"
           : walletTransactionType(tx) === "DEBIT"
@@ -34,10 +35,10 @@ export function WalletTransactionRow({
         formatDateTime(tx.createdAt),
         tx.referenceId ?? undefined,
       ])}
-      title={WALLET_TXN_LABELS[tx.type] ?? tx.type}
+      title={mapValue(WALLET_TXN_LABELS, tx.type, tx.type)}
       type={walletTransactionType(tx)}
       amount={tx.amount}
-      kind={WALLET_TXN_KIND[tx.type] ?? "other"}
+      kind={mapValue(WALLET_TXN_KIND, tx.type, "other")}
       status={walletTransactionStatus(tx.status)}
       statusLabel={tx.status ?? "Status belum tersedia"}
       timestamp={formatDateTime(tx.createdAt)}

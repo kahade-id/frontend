@@ -56,6 +56,7 @@ import type { OrderRole } from "@/components/ui/order-status-badge"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { hasOwn } from "@/lib/has-own"
 
 export type MutualResolutionStatus = "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | "EXPIRED"
 
@@ -167,7 +168,9 @@ export function MutualResolutionCard({
     ...labels,
     status: { ...DEFAULT_LABELS.status, ...labels?.status },
   }
-  const known = status in STATUS_TONE
+  // Own keys only: `in` matches inherited keys too, and rendering an
+  // inherited non-string (e.g. "toString") as the status label crashes React.
+  const known = hasOwn(STATUS_TONE, status)
   const st = (known ? status : "PENDING") as MutualResolutionStatus
   const pending = st === "PENDING"
   const busy = accepting || rejecting || withdrawing

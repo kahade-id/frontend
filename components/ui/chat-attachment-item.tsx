@@ -41,6 +41,7 @@ import { ProgressBar } from "@/components/ui/progress-bar"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
+import { fileExtension, isImageMime } from "@/lib/mime"
 
 export type ChatAttachment = {
   fileName: string
@@ -53,12 +54,22 @@ export type ChatAttachment = {
 export type ChatAttachmentStatus = "idle" | "uploading" | "error"
 export type ChatAttachmentLayout = "chip" | "tile" | "row"
 
+// Lampiran chat datang mentah dari response (`normalizeChatMessage` hanya
+// merapikan `text`/`senderId`/`fromUser`), jadi `mimeType`/`fileName` belum
+// tentu string. Penjaganya ada di `lib/mime` supaya tidak ditulis ulang di
+// tiap pemanggil — detailnya dibahas di sana.
 export function isImageAttachment(a: Pick<ChatAttachment, "mimeType">): boolean {
-  return a.mimeType.startsWith("image/")
+  return isImageMime(a.mimeType)
+}
+
+/** Ekstensi untuk badge di ubin lampiran; `undefined` bila tidak ada. */
+export function attachmentExtension(fileName: string): string | undefined {
+  return fileExtension(fileName)
 }
 
 export function attachmentIcon(mimeType: string): IconComponent {
-  if (mimeType.startsWith("image/")) return ImageIcon
+  if (typeof mimeType !== "string") return File
+  if (isImageMime(mimeType)) return ImageIcon
   if (mimeType === "application/pdf") return FilePdf
   if (/zip|rar|7z|tar|gzip/.test(mimeType)) return FileArchive
   if (/text|word|document|sheet|excel|presentation/.test(mimeType)) return FileText
@@ -172,7 +183,7 @@ export function ChatAttachmentItem({
           )}
           {!thumb ? (
             <Text variant="caption" tone="secondary" numberOfLines={1} className="absolute bottom-1 left-1 right-1 text-center">
-              {attachment.fileName.split(".").pop()?.toUpperCase()}
+              {attachmentExtension(attachment.fileName)}
             </Text>
           ) : null}
         </View>

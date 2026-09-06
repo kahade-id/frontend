@@ -159,6 +159,19 @@ export type OrderParty = {
   avatarUrl?: string | null
 }
 
+/**
+ * Nama tampil pihak order, atau `undefined` bila pihaknya tidak ada.
+ *
+ * `Order.buyer`/`Order.seller` bertipe OPSIONAL karena respons hanya
+ * di-cast, bukan divalidasi: backend bisa menghilangkan pihak yang akunnya
+ * sudah dihapus. Tanpa helper ini tiap layar menulis
+ * `order.seller.fullName ?? order.seller.username`, dan satu deref tanpa
+ * penjaga cukup untuk melempar TypeError di tengah render.
+ */
+export function orderPartyName(party: OrderParty | undefined | null): string | undefined {
+  return party?.fullName ?? party?.username
+}
+
 export type Order = {
   id: string
   title: string
@@ -169,8 +182,14 @@ export type Order = {
   feeResponsibility: FeeResponsibility
   deliveryDeadlineDays: number
   deliveryDeadlineAt?: string | null
-  buyer: OrderParty
-  seller: OrderParty
+  /**
+   * Pihak order TIDAK dijamin ada: `getOrder` hanya `readEntity`, dan backend
+   * bisa mengembalikan `null`/menghilangkan pihak yang akunnya sudah dihapus.
+   * Jadi keduanya opsional — deref tanpa penjaga akan melempar TypeError di
+   * tengah render dan menjatuhkan seluruh layar ke error boundary.
+   */
+  buyer?: OrderParty
+  seller?: OrderParty
   /** Peran user yang sedang login pada order ini */
   myRole?: OrderRole
   fee?: FeeBreakdown

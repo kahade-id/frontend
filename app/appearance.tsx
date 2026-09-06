@@ -26,6 +26,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { ThemeModeSelector } from "@/components/ui/theme-toggle-button"
+import { mapValue } from "@/lib/has-own"
 
 const PREFERENCE_HINT: Record<string, string> = {
   system: "Mengikuti pengaturan terang/gelap perangkat Anda.",
@@ -48,10 +49,10 @@ export default function AppearanceScreen() {
         <SectionHeader title="Mode warna" subtitle="Berlaku untuk seluruh aplikasi." />
         <ThemeModeSelector />
         <Text variant="body" tone="secondary">
-          {PREFERENCE_HINT[preference] ?? PREFERENCE_HINT.system}
+          {mapValue(PREFERENCE_HINT, preference, PREFERENCE_HINT.system)}
         </Text>
 
-        <KeyValue label="Sedang aktif" value={MODE_LABEL[mode] ?? mode} />
+        <KeyValue label="Sedang aktif" value={mapValue(MODE_LABEL, mode, mode)} />
       </View>
     </Screen>
   )

@@ -50,7 +50,7 @@
 import { useCallback, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { Redirect, useLocalSearchParams, useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -82,11 +82,17 @@ export default function ResetPasswordScreen() {
   // Email dari route params (dari forgot-password screen)
   const { email } = useLocalSearchParams<{ email: string }>()
 
-  // Guard: kalau email tidak ada, kembali ke forgot-password
-  if (!email) {
-    router.replace(ROUTES.forgotPassword)
-    return null
-  }
+  /*
+   * Guard: kalau email tidak ada, kembali ke forgot-password.
+   *
+   * Dulu penjaga ini `return null` di sini — SEBELUM 8 `useState` di bawah.
+   * `email` dibaca dari parameter rute, yang bisa berubah selama layar hidup
+   * (deep link kedua, navigasi balik), sehingga jumlah hook bisa berubah di
+   * tengah hidup komponen -> React melempar "Rendered fewer hooks than
+   * expected". `router.replace` di dalam render juga efek samping yang
+   * memicu peringatan "cannot update a component while rendering".
+   * Kini penjaga dirender di bawah, setelah semua hook, sebagai <Redirect>.
+   */
 
   const [otp, setOtp] = useState("")
   const [newPassword, setNewPassword] = useState("")
@@ -189,6 +195,8 @@ export default function ResetPasswordScreen() {
   const handleChangeEmail = useCallback(() => {
     router.replace(ROUTES.forgotPassword)
   }, [router])
+
+  if (!email) return <Redirect href={ROUTES.forgotPassword} />
 
   return (
     <Screen padded={false} edges={["top"]}>

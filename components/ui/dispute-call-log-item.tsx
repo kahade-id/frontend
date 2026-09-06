@@ -37,6 +37,7 @@ import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { formatCountdown } from "@/lib/format"
+import { hasOwn } from "@/lib/has-own"
 
 export type DisputeCallOutcome =
   | "REQUESTED"
@@ -123,7 +124,8 @@ export function DisputeCallLogItem({
     ...labels,
     outcome: { ...DEFAULT_LABELS.outcome, ...labels?.outcome },
   }
-  const known = outcome in DISPUTE_CALL_LABELS
+  // Own keys only — `in` would also accept inherited keys like "toString".
+  const known = hasOwn(DISPUTE_CALL_LABELS, outcome)
   const oc = (known ? outcome : "COMPLETED") as DisputeCallOutcome
   const ongoing = oc === "ONGOING"
   const completed = known && oc === "COMPLETED"

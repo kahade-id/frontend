@@ -34,6 +34,7 @@ import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { isImageMime } from "@/lib/mime"
 
 export type EvidenceMime = "image/jpeg" | "image/png" | "image/webp" | "application/pdf"
 
@@ -51,8 +52,10 @@ export type EvidenceItem = {
   uploadedAt?: string
 }
 
+// `item.mimeType` datang mentah dari response (tanpa normalizer); penjaga
+// `typeof` ada di `lib/mime`.
 export function isImageEvidence(mime: string): boolean {
-  return mime.startsWith("image/")
+  return isImageMime(mime)
 }
 
 export type EvidenceGridLabels = {

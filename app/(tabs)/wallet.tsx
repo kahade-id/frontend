@@ -99,12 +99,22 @@ export default function WalletScreen() {
         const filename = kind === "csv" ? "kahade-wallet.csv" : "kahade-wallet.html"
         const mimeType = kind === "csv" ? "text/csv" : "text/html"
         if (Platform.OS === "web") {
+          // The anchor must be in the document for Firefox to honour the
+          // click, and the blob URL must outlive it: revoking synchronously
+          // right after `click()` cancels the download in Firefox and for
+          // larger blobs in Chromium too. Revoke on the next macrotask.
           const url = URL.createObjectURL(blob)
           const a = document.createElement("a")
           a.href = url
           a.download = filename
+          a.rel = "noopener"
+          a.style.display = "none"
+          document.body.appendChild(a)
           a.click()
-          URL.revokeObjectURL(url)
+          setTimeout(() => {
+            a.remove()
+            URL.revokeObjectURL(url)
+          }, 0)
         } else {
           const file = new File(Paths.cache, filename)
           file.write(new Uint8Array(await blob.arrayBuffer()))

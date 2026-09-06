@@ -21,6 +21,7 @@ import { CreditCard, Receipt, Storefront } from "phosphor-react-native"
 import type { WalletPaymentMethod } from "@/lib/api/wallet"
 import type { IconComponent } from "@/components/ui/icon"
 import type { PaymentMethod, PaymentMethodKind } from "@/components/ui/payment-method-selector"
+import { mapValue } from "@/lib/has-own"
 
 /** Peta kode API → kind komponen. */
 export const METHOD_KIND: Record<string, PaymentMethodKind> = {
@@ -64,11 +65,11 @@ export function toPaymentMethod(
   raw: WalletPaymentMethod,
   opts: ToPaymentMethodOptions = {},
 ): PaymentMethod {
-  const kind = METHOD_KIND[raw.code] ?? "bank"
+  const kind = mapValue(METHOD_KIND, raw.code, "bank")
   return {
     id: raw.code,
     kind,
-    icon: METHOD_ICON[raw.code],
+    icon: mapValue(METHOD_ICON, raw.code, undefined),
     name: raw.name,
     description: undefined,
     fee: raw.fee ? { type: "combined", ...raw.fee } : undefined,

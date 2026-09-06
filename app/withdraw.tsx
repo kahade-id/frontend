@@ -76,8 +76,11 @@ export default function WithdrawScreen() {
     try {
       setLoading(true)
       setError(null)
-      const list = await api.bankAccounts.listBankAccounts()
-      setAccounts(list ?? [])
+      const list = (await api.bankAccounts.listBankAccounts()) ?? []
+      setAccounts(list)
+      // `list` dinormalisasi sekali di atas: memakai `list ?? []` di render
+      // sementara updater di bawah membaca `list` mentah akan crash pada
+      // respons kosong yang bukan array.
       setAccountId((prev) =>
         list.some((a) => a.id === prev)
           ? prev

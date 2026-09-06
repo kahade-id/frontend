@@ -31,7 +31,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Package } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order } from "@/lib/api"
-import type { DeliveryProof } from "@/lib/api/orders"
+import { orderPartyName, type DeliveryProof } from "@/lib/api/orders"
 import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
@@ -105,7 +105,7 @@ export default function DeliveryProofScreen() {
   }, [proofs])
 
   const isSeller = order?.myRole === "SELLER"
-  const sellerName = order ? (order.seller.fullName ?? order.seller.username) : undefined
+  const sellerName = order ? orderPartyName(order.seller) : undefined
   const attachments = useMemo(() => (latest ? toAttachments(latest) : []), [latest])
 
   const fetchAll = useCallback(async () => {

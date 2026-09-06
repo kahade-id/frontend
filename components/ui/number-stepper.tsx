@@ -64,10 +64,19 @@ export type NumberStepperProps = Omit<ViewProps, "children"> &
 const REPEAT_INTERVAL_MS = 100
 
 function clamp(n: number, min: number, max: number) {
+  // Non-finite TIDAK dijepit oleh Math.min/max: `Math.max(min, NaN)` = NaN,
+  // sehingga NaN dari `snap` akan lolos ke `onChange` dan masuk state form
+  // (uang/jumlah hari). Kembalikan `min` — nilai terendah yang sah.
+  if (!Number.isFinite(n)) return min
   return Math.min(max, Math.max(min, n))
 }
 
 function snap(n: number, step: number, min: number) {
+  // `step` 0 (atau nilai non-finite) akan menghasilkan NaN lewat pembagian
+  // nol — tanpa penjaga, satu prop yang salah mengubah seluruh field jadi NaN.
+  if (!Number.isFinite(n) || !Number.isFinite(step) || step === 0 || !Number.isFinite(min)) {
+    return n
+  }
   // Bulatkan ke kelipatan step relatif terhadap min supaya min selalu sah
   const k = Math.round((n - min) / step)
   return min + k * step

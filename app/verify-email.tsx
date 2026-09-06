@@ -30,6 +30,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { haptic } from "@/lib/haptics"
+import { goBackOrNavigate } from "@/lib/navigation"
+import { ROUTES } from "@/lib/routes"
 
 import { Alert } from "@/components/ui/alert"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -106,7 +108,7 @@ export default function VerifyEmailScreen() {
       await api.auth.verifyEmail({ email, otp })
       haptic("success")
       toast.show({ title: "Email terverifikasi", tone: "success" })
-      router.back()
+      goBackOrNavigate(ROUTES.settings, router)
     } catch (err) {
       haptic("error")
       if (isApiError(err) && (err.code === "BAD_REQUEST" || err.code === "UNAUTHORIZED" || err.code === "VALIDATION")) {

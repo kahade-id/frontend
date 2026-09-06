@@ -49,8 +49,12 @@ import { cn } from "@/lib/cn"
 
 export type AppliedVoucher = {
   code: string
-  /** Nilai potongan (positif); dirender sebagai "-Rp…" */
-  discount: number
+  /**
+   * Nilai potongan (positif); dirender sebagai "-Rp…".
+   * `undefined` bila server mengonfirmasi voucher VALID tanpa mengembalikan
+   * nominalnya — lebih jujur daripada menyimpan NaN yang tampil sebagai "Rp—".
+   */
+  discount?: number
   /** Nama promo, mis. "Cashback pengguna baru" */
   title?: string
 }
@@ -143,7 +147,9 @@ export function VoucherRedeemBox({
             </Text>
           ) : null}
         </View>
-        <Amount value={-Math.abs(applied.discount)} tone="success" />
+        {Number.isFinite(applied.discount) ? (
+          <Amount value={-Math.abs(applied.discount as number)} tone="success" />
+        ) : null}
         {onRemove ? (
           <IconButton
             icon={X}

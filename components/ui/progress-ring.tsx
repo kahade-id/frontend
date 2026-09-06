@@ -63,7 +63,8 @@ export function ProgressRing({
   const trackColor = tokens.colors[mode].borderDefault
   const fillColor = useIconColor(toneToIconTone[tone])
 
-  const pct = Math.min(100, Math.max(0, value))
+  // NaN-safe: a NaN here becomes NaN in `strokeDashoffset`, which react-native-svg rejects.
+  const pct = Number.isFinite(value) ? Math.min(100, Math.max(0, value)) : 0
   const r = (size - strokeWidth) / 2
   const c = 2 * Math.PI * r
   const dashOffset = c * (1 - pct / 100)

@@ -13,6 +13,7 @@
  */
 import type { BadgeTone } from "@/components/ui/badge"
 import type { OrderLinkStatus } from "@/components/ui/order-link-preview-card"
+import { hasOwn } from "@/lib/has-own"
 
 export const ORDER_LINK_STATUS_LABELS: Record<OrderLinkStatus, string> = {
   ACTIVE: "Aktif",
@@ -28,8 +29,13 @@ const ORDER_LINK_STATUS_TONE: Record<OrderLinkStatus, BadgeTone> = {
   EXPIRED: "danger",
 }
 
+/**
+ * `status in LABELS` also matches inherited keys — "toString" would be treated
+ * as a known status and render the function itself as the badge label, which
+ * React rejects ("Functions are not valid as a React child"). Own keys only.
+ */
 export function isOrderLinkStatus(status: string): status is OrderLinkStatus {
-  return status in ORDER_LINK_STATUS_LABELS
+  return hasOwn(ORDER_LINK_STATUS_LABELS, status)
 }
 
 /** Status tautan yang dikenal komponen; nilai asing dipetakan ke EXPIRED. */

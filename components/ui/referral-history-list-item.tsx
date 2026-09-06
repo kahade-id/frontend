@@ -25,6 +25,7 @@ import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator, type StatusIndicatorTone } from "@/components/ui/status-indicator"
 import { summarize } from "@/lib/a11y"
+import { hasOwn } from "@/lib/has-own"
 
 export type ReferralStatus = "PENDING" | "QUALIFIED" | "REWARDED" | "EXPIRED"
 
@@ -54,7 +55,8 @@ export type ReferralHistoryListItemProps = Omit<ListItemProps, "title" | "subtit
 }
 
 function isReferralStatus(s: string): s is ReferralStatus {
-  return s in REFERRAL_STATUS_LABELS
+  // Own keys only — `in` would also accept inherited keys like "toString".
+  return hasOwn(REFERRAL_STATUS_LABELS, s)
 }
 
 export function ReferralHistoryListItem({

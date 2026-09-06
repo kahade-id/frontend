@@ -6,10 +6,12 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  */
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
-import { useLocalSearchParams, router } from "expo-router"
+import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage } from "@/lib/api"
+import { goBackOrNavigate } from "@/lib/navigation"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { ErrorState } from "@/components/ui/error-state"
@@ -66,7 +68,7 @@ export default function RateOrderScreen() {
           comment: v.comment.trim() || undefined,
         })
         toast.show({ title: "Ulasan terkirim", tone: "success", duration: 3000 })
-        router.back()
+        goBackOrNavigate(ROUTES.orderDetail(orderId))
       } catch (err: unknown) {
         toast.show({
           title: "Gagal mengirim ulasan",

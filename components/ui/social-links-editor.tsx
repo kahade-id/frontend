@@ -38,6 +38,7 @@ import type { IconComponent } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { mapValue } from "@/lib/has-own"
 
 export type SocialPlatform =
   | "instagram"
@@ -79,8 +80,15 @@ export const SOCIAL_PLATFORM_LABELS: Record<SocialPlatform, string> = {
   website: "Situs web",
 }
 
+/**
+ * `platform` dibaca dari tautan tersimpan (PUT/GET /v1/users/me/links) dan
+ * tidak divalidasi. `MAP[key] ?? Globe` tidak melindungi dari kunci warisan
+ * Object.prototype: `MAP["toString"]` adalah sebuah fungsi, bukan undefined,
+ * sehingga `??` diam saja dan <Icon> akan merender fungsi itu sebagai
+ * komponen. `mapValue` menutupnya (lihat lib/has-own).
+ */
 export function socialPlatformIcon(platform: string): IconComponent {
-  return SOCIAL_PLATFORM_ICONS[platform as SocialPlatform] ?? Globe
+  return mapValue(SOCIAL_PLATFORM_ICONS, platform, Globe)
 }
 
 export function validateSocialUrl(platform: string, url: string): boolean {
@@ -144,7 +152,11 @@ export function SocialLinksEditor({
   ...rest
 }: SocialLinksEditorProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
-  const chipOptions = platforms.map((p) => ({ value: p, label: SOCIAL_PLATFORM_LABELS[p], icon: SOCIAL_PLATFORM_ICONS[p] }))
+  const chipOptions = platforms.map((p) => ({
+    value: p,
+    label: mapValue(SOCIAL_PLATFORM_LABELS, p, p),
+    icon: mapValue(SOCIAL_PLATFORM_ICONS, p, Globe),
+  }))
   const canAdd = value.length < max && !disabled
 
   const update = (i: number, patch: Partial<SocialLink>) =>

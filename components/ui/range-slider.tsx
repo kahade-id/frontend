@@ -91,7 +91,11 @@ type ThumbIndex = 0 | 1
 
 function snap(v: number, min: number, max: number, step: number) {
   "worklet"
+  // Lihat catatan di slider.tsx: `step` 0 menghasilkan NaN lewat pembagian
+  // nol, dan NaN tidak bisa dijepit — ia akan merusak kedua thumb sekaligus.
+  if (!Number.isFinite(v) || !Number.isFinite(step) || step === 0) return v
   const stepped = Math.round((v - min) / step) * step + min
+  if (!Number.isFinite(stepped)) return v
   return Math.min(max, Math.max(min, stepped))
 }
 
@@ -203,7 +207,12 @@ export function RangeSlider({
     const w = trackWidth.value
     const x0 = ((lo.value - min) / range) * w
     const x1 = ((hi.value - min) / range) * w
-    return { left: x0, width: Math.max(0, x1 - x0) }
+    // NaN TIDAK diselamatkan oleh Math.max: `Math.max(0, NaN)` = NaN, dan
+    // `left`/`width` NaN membuat RN menolak style-nya. Posisi yang tidak bisa
+    // dihitung jatuh ke ujung kiri/kanan supaya track tetap tergambar.
+    const left = Number.isFinite(x0) ? x0 : 0
+    const right = Number.isFinite(x1) ? x1 : w
+    return { left, width: Math.max(0, right - left) }
   })
 
   return (
@@ -291,10 +300,15 @@ function Thumb({
   step,
   onCommit,
 }: ThumbProps) {
-  const style = useAnimatedStyle(() => ({
-    left: ((sv.value - min) / range) * trackWidth.value - THUMB / 2,
-    zIndex: activeSV.value === which ? tokens.zIndex.sticky : tokens.zIndex.base,
-  }))
+  const style = useAnimatedStyle(() => {
+    const x = ((sv.value - min) / range) * trackWidth.value
+    return {
+      // Nilai thumb yang tidak bisa dihitung (non-finite) menghasilkan
+      // `left: NaN`, yang ditolak RN dan membuat thumb hilang dari track.
+      left: (Number.isFinite(x) ? x : 0) - THUMB / 2,
+      zIndex: activeSV.value === which ? tokens.zIndex.sticky : tokens.zIndex.base,
+    }
+  })
 
   return (
     <GestureDetector gesture={gesture}>

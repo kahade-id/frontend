@@ -120,11 +120,18 @@ export default function ProfileDataScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
 
-  // Guard: butuh registration state lengkap dari screen sebelumnya
+  /*
+   * Guard: butuh registration state lengkap dari screen sebelumnya.
+   *
+   * Nilanya dibaca DI ATAS semua hook, tetapi `<Redirect>`-nya dirender di
+   * BAWAH (sebelum return utama), bukan di sini. `getRegistrationState()`
+   * adalah state modul yang bisa berubah selama layar ini hidup; kalau
+   * penjaga ini memendekkan jalur render, jumlah hook berubah di tengah
+   * hidup komponen dan React melempar "Rendered fewer hooks than expected"
+   * — layar pendaftaran hancur tepat pada langkah terakhir.
+   */
   const regState = getRegistrationState()
-  if (!regState?.tempToken || !regState?.password || !regState?.pin) {
-    return <Redirect href={ROUTES.register} />
-  }
+  const regStateReady = !!regState?.tempToken && !!regState?.password && !!regState?.pin
 
   // Date limits for DOB - calculated once per component mount
   const dateLimits = useMemo(() => {
@@ -169,7 +176,10 @@ export default function ProfileDataScreen() {
   }, [])
 
   const handleSubmit = useCallback(async () => {
-    if (submitting || !isFormValid) return
+    // `regStateReady` (bukan sekadar `regState`) karena penjaga render kini
+    // berada di bawah semua hook — TS tidak lagi bisa menyempitkan tipe dari
+    // early return, dan submit tidak boleh bergantung pada itu.
+    if (submitting || !isFormValid || !regStateReady || !regState) return
     setSubmitting(true)
     setFormError(null)
     setUsernameError(undefined)
@@ -177,14 +187,14 @@ export default function ProfileDataScreen() {
 
     try {
       await api.auth.phoneRegister({
-        tempToken: regState.tempToken,
+        tempToken: regState.tempToken ?? "",
         fullName: fullName.trim(),
         username: username.trim(),
         dateOfBirth: toISODate(dob!),
         gender: gender!,
         email: email.trim(),
-        password: regState.password!,
-        pin: regState.pin!,
+        password: regState.password ?? "",
+        pin: regState.pin ?? "",
         address: address.trim() || undefined,
         referralCode: referralCode.trim() || undefined,
       })
@@ -193,6 +203,7 @@ export default function ProfileDataScreen() {
       // di Setup Profil, lalu lanjut ke screen #6.
       setRegistrationState({
         ...regState,
+        tempToken: regState.tempToken ?? "",
         fullName: fullName.trim(),
       })
       router.replace(ROUTES.setupProfile)
@@ -242,7 +253,23 @@ export default function ProfileDataScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, isFormValid, regState, fullName, username, dob, gender, email, address, referralCode, router])
+  }, [
+    submitting,
+    isFormValid,
+    regStateReady,
+    regState,
+    fullName,
+    username,
+    dob,
+    gender,
+    email,
+    address,
+    referralCode,
+    router,
+  ])
+
+
+  if (!regStateReady) return <Redirect href={ROUTES.register} />
 
   return (
     <Screen padded={false} edges={["top"]}>

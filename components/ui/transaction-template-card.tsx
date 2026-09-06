@@ -50,6 +50,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { mapValue } from "@/lib/has-own"
 
 export type TransactionTemplate = {
   id: string
@@ -109,8 +110,14 @@ export function TransactionTemplateCard({
   ...rest
 }: TransactionTemplateCardProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
-  const typeIcon = ORDER_TYPE_ICONS[template.orderType] ?? ORDER_TYPE_ICONS.OTHER
-  const typeLabel = ORDER_TYPE_LABELS[template.orderType] ?? template.orderType
+  // `role`/`orderType` datang dari respons template dan tidak divalidasi.
+  // `MAP[key] ?? fallback` tidak cukup: kunci warisan Object.prototype
+  // ("toString") mengembalikan sebuah FUNGSI, bukan undefined, sehingga `??`
+  // diam saja dan fungsinya berakhir sebagai anak <Badge>/<Text> — React
+  // menolaknya dan seluruh kartu jatuh ke error boundary. Lihat lib/has-own.
+  const typeIcon = mapValue(ORDER_TYPE_ICONS, template.orderType, ORDER_TYPE_ICONS.OTHER)
+  const typeLabel = mapValue(ORDER_TYPE_LABELS, template.orderType, template.orderType)
+  const roleLabel = mapValue(ORDER_ROLE_LABELS, template.role, template.role)
 
   const usage =
     template.usageCount && template.usageCount > 0
@@ -121,7 +128,7 @@ export function TransactionTemplateCard({
 
   const a11y =
     accessibilityLabel ??
-    [template.name, ORDER_ROLE_LABELS[template.role], typeLabel, `${template.orderValue} rupiah`, usage].join(", ")
+    [template.name, roleLabel, typeLabel, `${template.orderValue} rupiah`, usage].join(", ")
 
   return (
     <Card onPress={onPress} className={cn("gap-4", className)} accessibilityLabel={a11y} {...rest}>
@@ -133,7 +140,7 @@ export function TransactionTemplateCard({
             {template.name}
           </Text>
           <Badge tone="neutral" variant="outline" className="self-start">
-            {ORDER_ROLE_LABELS[template.role]}
+            {roleLabel}
           </Badge>
         </View>
       </View>
