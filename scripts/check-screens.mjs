@@ -83,7 +83,6 @@ rules.push({
   test: (f) =>
     /setRefreshing\s*\(/.test(f.src) && /setLoading\s*\(/.test(f.src) && !SHARED_QUERY.test(f.src),
   baseline: [
-    "app/(tabs)/settings.tsx",
     "app/bank-accounts.tsx",
     "app/delivery-proof/[orderId].tsx",
     "app/dispute/[id].tsx",

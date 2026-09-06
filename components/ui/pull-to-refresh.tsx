@@ -137,7 +137,6 @@ export function PullToRefresh({
 
   // JS state (hanya untuk render indikator & scrollEnabled)
   const [internalRefreshing, setInternalRefreshing] = useState(false)
-  const [dragging, setDragging] = useState(false)
 
   const controlled = refreshingProp !== undefined
   const refreshing = controlled ? refreshingProp : internalRefreshing
@@ -189,6 +188,9 @@ export function PullToRefresh({
     () =>
       Gesture.Pan()
         .enabled(enabled)
+        .activeOffsetY([10, 1000])
+        .failOffsetY([-1000, -5])
+        .failOffsetX([-20, 20])
         .onBegin((e) => {
           reached.value = false
           pulling.value = false
@@ -202,7 +204,6 @@ export function PullToRefresh({
             if (pulling.value) {
               pulling.value = false
               pull.value = 0
-              runOnJS(setDragging)(false)
             }
             anchor.value = e.translationY
             return
@@ -213,7 +214,6 @@ export function PullToRefresh({
             if (pulling.value) {
               pulling.value = false
               pull.value = 0
-              runOnJS(setDragging)(false)
             }
             // Jari bergerak ke atas dari puncak: anchor ikut agar tarikan
             // berikutnya dimulai dari titik balik, bukan dari awal gesture.
@@ -223,7 +223,6 @@ export function PullToRefresh({
 
           if (!pulling.value) {
             pulling.value = true
-            runOnJS(setDragging)(true)
           }
 
           // 1:1 sampai ambang, lalu resistensi + cap.
@@ -244,7 +243,6 @@ export function PullToRefresh({
         .onFinalize(() => {
           const wasPulling = pulling.value
           pulling.value = false
-          if (wasPulling) runOnJS(setDragging)(false)
           if (isRefreshing.value) return
           if (reached.value && wasPulling) runOnJS(startRefresh)()
           else if (pull.value !== 0) pull.value = withSpring(0, tokens.motion.spring)
@@ -307,13 +305,11 @@ export function PullToRefresh({
             className="flex-1"
             contentContainerClassName={cn("grow", contentContainerClassName)}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled={true}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={onScroll}
-            // Saat tarikan aktif, scroll dimatikan agar gerakan balik ke atas
-            // mengecilkan tarikan, bukan menggulir; overscroll OS dimatikan
-            // karena akan menggandakan efek tarik (iOS) / glow (Android).
-            scrollEnabled={!dragging && !refreshing}
+            scrollEnabled={!refreshing}
             bounces={Platform.OS === "ios" ? false : undefined}
             overScrollMode={Platform.OS === "android" ? "never" : undefined}
             {...scrollViewProps}

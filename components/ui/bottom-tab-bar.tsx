@@ -69,12 +69,12 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
 }
 
 /**
- * Tinggi visual tab bar (px) — harus sama dengan class `h-14` di bawah
- * (Tailwind 14 = 56px). Satu sumber: layar yang perlu offset di atas tab bar
+ * Tinggi visual tab bar (px) — harus sama dengan tinggi container di bawah
+ * (60px). Satu sumber: layar yang perlu offset di atas tab bar
  * (FAB, sticky footer) mengimpor ini, bukan menyalin angka.
  * (Pola sama dengan HEADER_BAR_HEIGHT di header.tsx.)
  */
-export const TAB_BAR_HEIGHT = 56
+export const TAB_BAR_HEIGHT = 60
 
 const TAB_ITEM_HIT_SLOP = hitSlopToReach(tokens.a11y.minHitTarget, TAB_BAR_HEIGHT)
 
@@ -95,7 +95,7 @@ export function BottomTabBar<K extends string = string>({
       style={{ paddingBottom: insets.bottom }}
       {...rest}
     >
-      <View className="h-14 w-full flex-row md:max-w-content">
+      <View className="h-[60px] w-full flex-row md:max-w-content">
         {items.map((item) => {
           const active = item.key === value
           return (
@@ -109,9 +109,9 @@ export function BottomTabBar<K extends string = string>({
               onPress={() => onChange(item.key)}
               onLongPress={onLongPress ? () => onLongPress(item.key) : undefined}
               containerClassName={cn("flex-1 web:rounded-none", focusRingInset)}
-              className="h-full items-center justify-center gap-1"
+              className="h-full items-center justify-center pt-2 pb-1 gap-1"
             >
-              <View className="relative">
+              <View className="relative items-center justify-center">
                 <Icon icon={item.icon} size="md" active={active} />
                 <NotificationDot visible={!!item.badge} />
               </View>
