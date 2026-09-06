@@ -39,7 +39,6 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ICON_XS_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ChipProps = Omit<PressableScaleProps, "children" | "className"> & {
   children: ReactNode

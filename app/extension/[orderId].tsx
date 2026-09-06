@@ -62,7 +62,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Batas RequestExtensionDto (spec): extensionDays 1–14, reason 10–500 */
 const DAYS_MIN = 1

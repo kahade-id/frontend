@@ -83,7 +83,6 @@ import {
 } from "@/lib/api"
 import { getPendingReferralCode, getRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-4 (terakhir) */
 const STEP_PROGRESS = 4 / 4

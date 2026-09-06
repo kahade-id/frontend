@@ -34,7 +34,6 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatFileSize } from "@/lib/format"
 import { isImageMime } from "@/lib/mime"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DisputeEvidenceFile = {
   id: string
@@ -140,7 +139,7 @@ export function DisputeEvidenceItem({
             const index = files.indexOf(f)
             return (
               <View key={f.id} className="w-[31%] gap-1">
-                <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+                <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   accessibilityRole="imagebutton"
                   accessibilityLabel={t.openFile(index, files.length)}
                   onPress={onOpenFile ? () => onOpenFile(index) : undefined}

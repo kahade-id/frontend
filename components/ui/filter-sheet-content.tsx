@@ -27,7 +27,6 @@ import { Rating } from "@/components/ui/rating"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type FilterSectionBase = { key: string; title: string; description?: string }
 

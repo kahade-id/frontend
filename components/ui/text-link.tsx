@@ -29,7 +29,6 @@ import type { GestureResponderEvent, PressableProps } from "react-native"
 import { cn } from "@/lib/cn"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text, type TextProps } from "@/components/ui/text"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TextLinkProps = {
   children: ReactNode

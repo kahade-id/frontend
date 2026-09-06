@@ -53,7 +53,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TwoFactorStatusCard } from "@/components/ui/two-factor-status-card"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Panjang kode TOTP standar RFC 6238 (sama dengan default <OtpInput>). */
 const TOTP_LENGTH = 6

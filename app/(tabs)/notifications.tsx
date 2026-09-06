@@ -58,7 +58,6 @@ import {
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { mapValue } from "@/lib/has-own"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // ------------------------------------------------------------------
 // Konstanta layar

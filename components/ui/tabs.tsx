@@ -33,7 +33,6 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TabItem<V extends string = string> = {
   value: V
@@ -69,7 +68,7 @@ export function Tabs<V extends string = string>({
       {items.map((item) => {
         const active = item.value === value
         return (
-          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             key={item.value}
             accessibilityRole="tab"
             accessibilityState={{ selected: active, disabled: !!item.disabled }}

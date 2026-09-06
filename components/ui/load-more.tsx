@@ -20,7 +20,6 @@ import { Button } from "@/components/ui/button"
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type LoadMoreStatus = "idle" | "loading" | "end" | "error"
 

@@ -26,7 +26,6 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator, type StatusIndicatorTone } from "@/components/ui/status-indicator"
 import { summarize } from "@/lib/a11y"
 import { hasOwn } from "@/lib/has-own"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ReferralStatus = "PENDING" | "QUALIFIED" | "REWARDED" | "EXPIRED"
 

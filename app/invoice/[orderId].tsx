@@ -20,7 +20,6 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { useCopy } from "@/lib/clipboard"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function InvoiceScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>()

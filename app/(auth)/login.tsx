@@ -65,7 +65,6 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -166,8 +165,6 @@ export default function LoginScreen() {
                 autoFocus
                 required
                 returnKeyType="next"
-                keyboardType="email-address"
-                autoCapitalize="none"
                 disabled={submitting}
               />
 

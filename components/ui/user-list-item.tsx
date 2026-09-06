@@ -29,7 +29,6 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type UserListItemProps = Omit<ViewProps, "children"> & {
   name: string
@@ -110,7 +109,7 @@ export function UserListItem({
     <View className={cn("w-full", className)} {...rest}>
       <View className={cn("flex-row items-center gap-3", padded && "px-6")}>
         {onPress ? (
-          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Buka profil"

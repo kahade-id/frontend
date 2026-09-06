@@ -29,7 +29,6 @@ import { Skeleton, SkeletonText } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TwoFactorMethod = "TOTP" | "SMS" | "EMAIL"
 

@@ -51,7 +51,6 @@ import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function ForgotPasswordScreen() {
   const router = useRouter()

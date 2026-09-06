@@ -31,7 +31,6 @@
 import { Check, Plus } from "phosphor-react-native"
 
 import { Button, type ButtonProps } from "@/components/ui/button"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type FollowButtonLabels = {
   follow: string

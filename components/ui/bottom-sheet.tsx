@@ -79,7 +79,6 @@ import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 // --- Guard stacking (§9.9) -------------------------------------------------
 let openSheetCount = 0

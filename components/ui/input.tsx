@@ -55,7 +55,6 @@ import { cn } from "@/lib/cn"
 import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type InputVariant = "text" | "search" | "multiline"
 

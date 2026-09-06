@@ -21,7 +21,6 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function ContactScreen() {
   const insets = useSafeAreaInsets()

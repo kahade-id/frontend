@@ -41,7 +41,6 @@ import { Logo } from "@/components/ui/logo"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { VStack } from "@/components/ui/stack"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function WelcomeScreen() {
   const router = useRouter()

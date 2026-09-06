@@ -43,7 +43,6 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Radio, RadioGroup, type RadioGroupProps } from "@/components/ui/radio"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type TwoFactorMethodId = "authenticator" | "sms" | "email"
 

@@ -38,7 +38,6 @@ import { cn } from "@/lib/cn"
 import { formatNumber } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type FavoriteIconButtonSize = "sm" | "md"
 
@@ -96,7 +95,7 @@ export function FavoriteIconButton({
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
 
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active, disabled: !!disabled, ...accessibilityState }}

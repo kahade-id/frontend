@@ -33,7 +33,6 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type OrderSummaryItem = {
   /** Kunci filter yang dikirim balik lewat onSelect (mis. "PENDING_PAYMENT") */
@@ -120,7 +119,7 @@ export function OrderSummaryStrip({
         const interactive = !!onSelect && !empty
 
         return (
-          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             key={item.key}
             scaleOnPress={false}
             disabled={!interactive}

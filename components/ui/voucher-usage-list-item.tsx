@@ -21,7 +21,6 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { truncateMiddle } from "@/lib/format"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type VoucherUsageListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
   title: string

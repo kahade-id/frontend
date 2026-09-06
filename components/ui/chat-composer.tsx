@@ -52,7 +52,6 @@ import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export const CHAT_MESSAGE_MAX = 2000
 const MAX_LINES = 5

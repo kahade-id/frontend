@@ -38,7 +38,6 @@ import {
   type TransactionTemplate as UiTemplate,
 } from "@/components/ui/transaction-template-card"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const NO_TEMPLATE: ApiTemplate = {
   id: "",

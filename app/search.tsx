@@ -20,7 +20,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type ResultRow = { id: string } & (
   | { kind: "user"; user: UserProfile }

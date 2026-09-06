@@ -33,7 +33,6 @@ import type { IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ActivityLogCategory =
   | "order"
@@ -124,7 +123,7 @@ export function ActivityLogItem({
     <View className={cn("w-full", className)} {...rest}>
       <View className="px-6">
         {onPress ? (
-          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             scaleOnPress={false}

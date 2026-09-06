@@ -47,7 +47,6 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
-import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type SliderProps = Omit<ViewProps, "children"> & {
   value: number
@@ -108,7 +107,6 @@ export function Slider({
   className,
   ...rest
 }: SliderProps) {
-  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const [dragging, setDragging] = useState(false)
 
   const range = max > min ? max - min : 1

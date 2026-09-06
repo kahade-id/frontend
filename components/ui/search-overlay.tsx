@@ -42,9 +42,6 @@ import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
-import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
-import { tokens } from "@/lib/tokens"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type SearchOverlayProps = Pick<SearchFieldProps, "placeholder" | "onSearch" | "debounceMs"> & {
   visible: boolean
@@ -88,7 +85,6 @@ export function SearchOverlay({
   recentTitle = "Pencarian terakhir",
   returnFocusRef,
 }: SearchOverlayProps) {
-  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   const insets = useSafeAreaInsets()
   const { mounted, progress } = useOverlayPresence(visible)
   const fieldRef = useRef<TextInput>(null)

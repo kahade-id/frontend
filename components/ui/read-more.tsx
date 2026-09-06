@@ -28,7 +28,6 @@ import { View, type NativeSyntheticEvent, type TextLayoutEventData, type ViewPro
 import { Text, type TextProps } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ReadMoreLabels = {
   more: string

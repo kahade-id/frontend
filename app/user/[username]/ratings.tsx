@@ -25,7 +25,6 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 const PAGE_SIZE = 20
 const FILTERS: { value: PublicRatingFilter; label: string }[] = [

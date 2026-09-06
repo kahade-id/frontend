@@ -37,7 +37,6 @@ import { ScreenInsetsContext } from "@/components/ui/screen"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /**
  * Tinggi bar Header (px) — harus sama dengan class `h-14` di bawah (skala

@@ -16,7 +16,6 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type Filter = "all" | "active" | "completed" | "cancelled"
 const FILTERS: readonly SegmentItem<Filter>[] = [

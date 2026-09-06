@@ -62,7 +62,6 @@ import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
 import { setPendingReferralCode } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Registrasi via HP: 4 langkah sebelum akun jadi; ini langkah ke-1 */
 const STEP_PROGRESS = 1 / 4

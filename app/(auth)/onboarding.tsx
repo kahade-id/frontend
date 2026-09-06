@@ -44,7 +44,6 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { markOnboardingSeen } from "@/lib/onboarding"
 import { ROUTES } from "@/lib/routes"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function OnboardingScreen() {
   const router = useRouter()

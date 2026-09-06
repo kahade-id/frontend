@@ -27,7 +27,6 @@ import { AchievementBadgeGrid } from "@/components/ui/achievement-badge"
 import { DataScreen } from "@/components/ui/data-screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Spec: `limit` maximum 100 */
 const CATALOG_LIMIT = 100

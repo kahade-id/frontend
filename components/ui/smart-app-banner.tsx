@@ -39,7 +39,6 @@ import { Button } from "@/components/ui/button"
 import { IconButton } from "@/components/ui/icon-button"
 import { Logo } from "@/components/ui/logo"
 import { Text } from "@/components/ui/text"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Tinggi banner; dipakai juga untuk padding-top body agar konten tidak tertutup. */
 const BANNER_HEIGHT = 64

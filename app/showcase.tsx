@@ -52,7 +52,6 @@ import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Batas lokal (spec tidak menyebut maxLength untuk showcase) */
 const TITLE_MAX = 100

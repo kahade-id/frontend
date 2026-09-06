@@ -73,7 +73,6 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { mapValue } from "@/lib/has-own"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
 const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [

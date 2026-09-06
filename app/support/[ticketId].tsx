@@ -23,7 +23,6 @@ import { SectionHeader } from "@/components/ui/section"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function SupportTicketDetailScreen() {
   const { ticketId } = useLocalSearchParams<{ ticketId: string }>()

@@ -82,7 +82,6 @@ import { api, getAccessToken, isApiError, userMessage } from "@/lib/api"
 import { clearRegistrationState, getRegistrationState } from "@/lib/registration"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Crop persegi + kompresi avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
 const AVATAR_PICKER: PickImageOptions = { square: true }

@@ -33,7 +33,6 @@ import { useTheme } from "@/components/theme-provider"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
-import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type LogoSize = "sm" | "md" | "lg"
 export type LogoVariant = "mark" | "wordmark" | "lockup"
@@ -67,7 +66,6 @@ const wordPx: Record<LogoSize, number> = { sm: 18, md: 28, lg: 44 }
  * Pemakaian normal di dalam app SELALU lewat <Logo>.
  */
 export function LogoMark({ size, fill }: { size: number; fill: string }) {
-  const reducedMotion = useReducedMotion() // respect OS reduced motion (WCAG 2.3.3)
   return (
     <Svg width={size} height={size} viewBox={LOGO_VIEWBOX}>
       <G fill={fill}>

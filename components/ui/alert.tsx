@@ -22,7 +22,6 @@ import { cn } from "@/lib/cn"
 import { Icon, type IconComponent, type IconTone } from "./icon"
 import { IconButton } from "./icon-button"
 import { Text, type TextTone } from "./text"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type AlertTone = "neutral" | "success" | "danger" | "warning" | "info"
 export type AlertVariant = "soft" | "outline"

@@ -23,7 +23,6 @@ import { OrderLinkPreviewCard } from "@/components/ui/order-link-preview-card"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { useToast } from "@/components/ui/toast"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export default function OrderLinkScreen() {
   const { token } = useLocalSearchParams<{ token: string }>()

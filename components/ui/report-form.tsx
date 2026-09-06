@@ -30,7 +30,6 @@ import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ReportReason =
   | "SCAM"

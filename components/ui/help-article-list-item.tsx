@@ -20,7 +20,6 @@ import { FileText } from "phosphor-react-native"
 import { Highlight } from "@/components/ui/highlight"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { summarize } from "@/lib/a11y"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type HelpArticleListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
   title: string

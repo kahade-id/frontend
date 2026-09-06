@@ -181,19 +181,12 @@ const INTERACTIVE_RE = new RegExp(
 //     di CONTAINER_LABEL_ALLOWLIST beserta alasannya.
 
 const CONTAINER_LABEL_ALLOWLIST = {
-  "components/ui/avatar.tsx": "Badge verified di dalamnya berlabel sendiri; role=image + label cukup sebagai fallback.",
   "components/ui/bar-chart.tsx": "Tiap batang sudah <View accessible> berlabel; label kontainer = ringkasan chart (role=image).",
   "components/ui/bottom-sheet.tsx": "Sheet berisi konten interaktif; label dipakai bersama accessibilityViewIsModal + fokus awal (audit #3).",
-  "components/ui/countdown.tsx": "Live region: label diperbarui tiap detik; isinya <Text> murni, tapi `accessible` mematikan pembaruan liveRegion di Android.",
-  "components/ui/incoming-call-prompt.tsx": "Overlay panggilan berisi tombol Terima/Tolak yang wajib fokusable (audit #3).",
   "components/ui/loading-screen.tsx": "Layar loading dengan liveRegion; label diumumkan lewat role=progressbar.",
-  "components/ui/logo.tsx": "Lockup = mark + wordmark, keduanya SVG dekoratif; role=image sudah cukup untuk iOS.",
   "components/ui/modal.tsx": "Modal berisi kontrol; label dipakai bersama accessibilityViewIsModal + fokus awal (audit #3).",
   "components/ui/page-indicator.tsx": "Dot dekoratif tanpa label; role=progressbar + accessibilityValue yang dibacakan, bukan grup.",
-  "components/ui/pin-input.tsx": "Kotak digit dekoratif; role=progressbar + accessibilityValue yang dibacakan.",
-  "components/ui/pin-pad.tsx": "Berisi 12 tombol keypad yang wajib fokusable satu per satu.",
   "components/ui/progress-bar.tsx": "role=progressbar + accessibilityValue; isinya View fill murni dekoratif.",
-  "components/ui/progress-ring.tsx": "role=progressbar + accessibilityValue; children bisa berisi <Text> nilai.",
   "components/ui/rating.tsx": "Varian interaktif berisi 5 PressableScale bintang; role=adjustable + accessibilityActions.",
   "components/ui/showcase-gallery-grid.tsx": "Grid berisi PressableScale per foto; label hanya untuk state loading.",
 }

@@ -28,7 +28,6 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatDate } from "@/lib/format"
 import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type DateFieldProps = Omit<PressableScaleProps, "children" | "className"> &
   Pick<FieldProps, "helperText" | "errorText" | "reserveHelperSpace" | "required"> & {

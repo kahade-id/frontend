@@ -34,7 +34,6 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 export type ActionSheetItem = {
   key: string
@@ -84,7 +83,7 @@ export function ActionSheet({
         {actions.map((item, i) => (
           <View key={item.key}>
             {i > 0 ? <Divider /> : null}
-            <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button"
+            <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               accessibilityRole="menuitem"
               scaleOnPress={false}
               disabled={item.disabled}

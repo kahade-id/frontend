@@ -69,7 +69,6 @@ import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX, SECURITY_CRITERIA, isPasswordValid } from "@/lib/auth-constants"
 import { ROUTES } from "@/lib/routes"
-// UX: haptic feedback ensured for onPress (light) — improves confirmation
 
 /** Cooldown kirim ulang (detik) — bila backend tidak mengirim `cooldownSeconds` */
 const DEFAULT_COOLDOWN = 60
