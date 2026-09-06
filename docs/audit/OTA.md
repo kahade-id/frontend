@@ -1,6 +1,8 @@
 # Status & prosedur Expo OTA
 
 > Berkas ini dirujuk `npm run ota:preflight` (`scripts/check-ota.mjs`).
+> Untuk hotfix JS di binary lama TANPA native build, lihat
+> [OTA-HOTFIX.md](./OTA-HOTFIX.md) (Jalur A).
 
 ## Status: BELUM ADA update OTA yang diterbitkan
 

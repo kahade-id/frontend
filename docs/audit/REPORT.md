@@ -81,7 +81,7 @@ tidak pernah jalan, dan higienitas repo**. Semua perubahan lolos
 15. **Glob Tailwind menuju folder hantu**: `./features/**` dan `./hooks/**`
     tidak ada di repo — konten config dibersihkan ke tiga folder nyata.
 
-## 2. Dependency & izin native — 16 paket mati, izin yang tidak pernah dipakai
+## 2. Dependency & izin native — dipangkas saat audit, DIPULIHKAN sebagian atas keputusan produk
 
 16. **16 dependency tidak pernah diimpor satu baris pun** (diverifikasi
     grep seluruh `app/ components/ lib/ scripts/ tests/`):
@@ -108,6 +108,21 @@ tidak pernah jalan, dan higienitas repo**. Semua perubahan lolos
 19. **`NSUserTrackingUsageDescription` + dua usage description lokasi iOS**
     dihapus dari `infoPlist` — deskripsi privasi untuk fitur yang tidak ada
     justru mengakui pengumpulan data yang tidak terjadi.
+    **Amandemen (keputusan pemilik proyek): pemilik berencana memakai SEMUA
+    fitur berizin (kontak, lokasi COD, kamera/mikrofon, galeri, panggilan
+    sengketa), maka 11 modul native pemilik izin dipulihkan** dengan versi
+    baseline (`expo-audio, expo-camera, expo-contacts, expo-location,
+    expo-media-library, expo-tracking-transparency, expo-keep-awake,
+    expo-background-task, expo-task-manager, react-native-webrtc`,
+    `@config-plugins/react-native-webrtc`) beserta seluruh plugins,
+    permissions Android, dan usage description iOS di `app.json`. Lima
+    paket tanpa izin yang tidak diimpor (`@shopify/flash-list`,
+    `@shopify/react-native-skia`, `expo-asset`, `expo-linking`,
+    `expo-network`) tetap dihapus — kembalikan dengan `npx expo install`
+    saat fiturnya benar-benar dibangun. Konsekuensi: fingerprint runtime
+    berubah lagi — **wajib native build baru sebelum OTA apa pun** dari
+    kondisi ini (lihat `OTA.md`, dan `OTA-HOTFIX.md` untuk hotfix binary
+    lama).
 
 ## 3. Kesegaran data uang (correctness, bukan sekadar UX)
 
