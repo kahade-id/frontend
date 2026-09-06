@@ -23,7 +23,7 @@
  *     user yang menekan "Keluar" harus benar-benar keluar.
  */
 import { http } from "@/lib/api/client"
-import { asRecord as responseRecord, invalidResponse } from "@/lib/api/response"
+import { asRecord as responseRecord, invalidResponse, stringList } from "@/lib/api/response"
 import { clearSession, getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
 import type {
   ChangePasswordDto,
@@ -104,6 +104,7 @@ export type TwoFactorSetup = {
 }
 
 export type BackupCodes = { backupCodes: string[] }
+
 
 export type MessageResult = { message: string }
 
@@ -396,7 +397,7 @@ export async function enable2fa(dto: Enable2faDto) {
   })
   return {
     ...result,
-    backupCodes: result.backupCodes ?? (result as any).backup_codes,
+    backupCodes: stringList(result.backupCodes ?? (result as any).backup_codes),
   }
 }
 
@@ -418,6 +419,6 @@ export async function regenerateBackupCodes(dto: Setup2faDto) {
   })
   return {
     ...result,
-    backupCodes: result.backupCodes ?? (result as any).backup_codes,
+    backupCodes: stringList(result.backupCodes ?? (result as any).backup_codes),
   }
 }
