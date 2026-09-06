@@ -171,23 +171,32 @@ tidak pernah jalan, dan higienitas repo**. Semua perubahan lolos
     `public/` — tautannya saja yang belum pernah dideklarasikan. Ditambahkan
     (theme-color mengikuti prefers-color-scheme).
 
-## 6. Kode mati — 42 komponen UI dihapus
+## 6. Kode mati — dihapus saat audit, DIPULIHKAN atas keputusan produk
 
-32. **38 komponen UI di baseline S5 + 4 korban kaskade dihapus**
-    (`accordion, banner, box, bullet-list, button-group, captcha-field,
-    checkbox-group, count-badge, data-table, dispute-evidence-item,
-    filter-sheet-content, in-call-controls-bar, incoming-call-prompt,
-    kyc-document-viewer, live-region, menu-list, order-summary-strip,
-    presence, result-state, route-link, safe-area-spacer, scroll-row,
-    search-overlay, sensitive-text, share-sheet-trigger, show,
-    signature-pad, slider, surface, swipeable-list-item, tabs, tag-input,
-    tooltip, truncate, two-factor-method-selector, typography, z-stack,
-    biometric-prompt-trigger` + kaskade `collapse, currency-range-field,
-    layout, range-slider` — 4 terakhir hanya dipakai oleh klaster mati).
-    Alasan: komponen mati membusuk (prop/token berubah tanpa call site yang
-    memaksa), dan check-screens menegaskan baseline HANYA boleh menyusut.
-    Baseline S5 kini KOSONG — setiap komponen tak-terpakai baru langsung
-    jadi pelanggaran CI. 209 → 167 komponen UI.
+32. **38 komponen UI tanpa pemakaian dihapus saat audit** (`accordion,
+    banner, biometric-prompt-trigger, box, bullet-list, button-group,
+    captcha-field, checkbox-group, count-badge, data-table,
+    dispute-evidence-item, filter-sheet-content, in-call-controls-bar,
+    incoming-call-prompt, kyc-document-viewer, live-region, menu-list,
+    order-summary-strip, presence, result-state, route-link,
+    safe-area-spacer, scroll-row, search-overlay, sensitive-text,
+    share-sheet-trigger, show, signature-pad, slider, surface,
+    swipeable-list-item, tabs, tag-input, tooltip, truncate,
+    two-factor-method-selector, typography, z-stack`) beserta 4 korban
+    kaskade (`collapse, currency-range-field, layout, range-slider` —
+    hanya dipakai oleh klaster mati).
+    **Amandemen (keputusan pemilik proyek, commit berikutnya): seluruh 38
+    dipulihkan** sebagai cadangan terjaga untuk fitur roadmap yang adapter
+    backend-nya sudah ada (captcha, metode 2FA, tanda tangan bukti terima,
+    UI panggilan sengketa, dsb.). Mereka kini terdaftar eksplisit di
+    baseline S5 `check-screens` dengan dokumentasi konsekuensinya:
+    komponen cadangan tidak diuji layar mana pun dan pasti menyimpang dari
+    design system seiring waktu — WAJIB dibaca ulang dan diadaptasi sebelum
+    dipakai, dan namanya dihapus dari baseline di saat yang sama. Empat
+    komponen kaskade resmi keluar dari status cadangan karena kembali
+    TERPAKAI oleh klaster yang dipulihkan (accordion, filter-sheet-content,
+    live-region). Aturan tetap: baseline hanya boleh menyusut; komponen
+    tak-terpakai BARU tetap langsung gagal CI.
 33. **`create-transaction.tsx` masuk baseline S1 dengan justifikasi tertulis**
     — form-nya sudah punya guard stale-response versi form
     (`draft.current` + `confirmedFeeKey`); memaksakan useApiQuery justru

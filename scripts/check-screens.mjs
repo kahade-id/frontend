@@ -236,13 +236,68 @@ for (const rule of rules) {
  * dan harus mengecil, bukan bertambah.
  */
 /*
- * Baseline S5 KOSONG (audit berikutnya): 42 komponen UI mati dihapus — 38
- * dari baseline awal ditambah 4 yang hanya dipakai oleh klaster mati itu
- * (collapse, currency-range-field, layout, range-slider). Dari sini setiap
- * komponen baru yang tidak pernah diimpor langsung JADI pelanggaran.
+ * Baseline S5 — KEPUTUSAN PRODUK (amandemen audit 2026-09-06).
+ *
+ * Audit sempat menghapus 38 komponen di bawah, lalu DIPULIHKAN atas
+ * keputusan pemilik proyek: klaster ini memetakan
+ * fitur roadmap yang adapter backend-nya sudah ada (captcha di lib/api/auth,
+ * pemilihan metode 2FA, tanda tangan bukti terima, UI panggilan sengketa,
+ * dsb.) dan ingin dipertahankan sebagai cadangan yang terjaga. Empat
+ * komponen kaskade (collapse, currency-range-field, layout, range-slider)
+ * tidak masuk daftar: setelah klaster dipulihkan mereka TERPAKAI kembali
+ * (accordion, filter-sheet-content, live-region) — jadi resmi keluar dari
+ * status cadangan.
+ *
+ * Konsekuensi yang harus dipahami pemelihara berikutnya:
+ *   - Komponen di baseline ini TIDAK diuji oleh layar mana pun. Saat token,
+ *     prop, atau aturan design system berubah, TIDAK ADA yang memaksa
+ *     berkas-berkas ini ikut berubah — mereka pasti menyimpang perlahan.
+ *     Sebelum memakai salah satunya, baca ulang dan adaptasi ke design
+ *     system terkini, lalu HAPUS dari baseline di saat yang sama.
+ *   - Baseline hanya boleh menyusut. Komponen baru yang tidak pernah
+ *     diimpor TETAP langsung gagal (tidak masuk daftar ini diam-diam).
+ *   - Baseline basi (komponen akhirnya dipakai) juga gagal — hapus namanya.
  */
-const UNUSED_UI_BASELINE = new Set([])
-
+const UNUSED_UI_BASELINE = new Set([
+  "components/ui/accordion.tsx",
+  "components/ui/banner.tsx",
+  "components/ui/biometric-prompt-trigger.tsx",
+  "components/ui/box.tsx",
+  "components/ui/bullet-list.tsx",
+  "components/ui/button-group.tsx",
+  "components/ui/captcha-field.tsx",
+  "components/ui/checkbox-group.tsx",
+  "components/ui/count-badge.tsx",
+  "components/ui/data-table.tsx",
+  "components/ui/dispute-evidence-item.tsx",
+  "components/ui/filter-sheet-content.tsx",
+  "components/ui/in-call-controls-bar.tsx",
+  "components/ui/incoming-call-prompt.tsx",
+  "components/ui/kyc-document-viewer.tsx",
+  "components/ui/live-region.tsx",
+  "components/ui/menu-list.tsx",
+  "components/ui/order-summary-strip.tsx",
+  "components/ui/presence.tsx",
+  "components/ui/result-state.tsx",
+  "components/ui/route-link.tsx",
+  "components/ui/safe-area-spacer.tsx",
+  "components/ui/scroll-row.tsx",
+  "components/ui/search-overlay.tsx",
+  "components/ui/sensitive-text.tsx",
+  "components/ui/share-sheet-trigger.tsx",
+  "components/ui/show.tsx",
+  "components/ui/signature-pad.tsx",
+  "components/ui/slider.tsx",
+  "components/ui/surface.tsx",
+  "components/ui/swipeable-list-item.tsx",
+  "components/ui/tabs.tsx",
+  "components/ui/tag-input.tsx",
+  "components/ui/tooltip.tsx",
+  "components/ui/truncate.tsx",
+  "components/ui/two-factor-method-selector.tsx",
+  "components/ui/typography.tsx",
+  "components/ui/z-stack.tsx",
+])
 const unusedUi = []
 for (const component of uiComponents) {
   const name = component.replace(/^components\/ui\//, "").replace(/\.tsx$/, "")
