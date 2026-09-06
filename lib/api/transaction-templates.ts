@@ -4,6 +4,7 @@
  * TransactionTemplateCard di components/ui (satu sumber bentuk template order).
  */
 import { http, seg } from "@/lib/api/client"
+import { readList } from "@/lib/api/response"
 
 export type TransactionTemplate = {
   id: string
@@ -21,7 +22,9 @@ export type TransactionTemplate = {
 }
 
 export function listTransactionTemplates() {
-  return http.get<TransactionTemplate[]>("/v1/transaction-templates", { auth: "required", retry: 1 })
+  return http
+    .get<unknown>("/v1/transaction-templates", { auth: "required", retry: 1 })
+    .then((raw) => readList<TransactionTemplate>(raw, ["templates"]))
 }
 
 export function getTransactionTemplate(id: string) {

@@ -214,8 +214,16 @@ export type TransferResult = {
 /** Response GET /v1/wallet/payment-methods. */
 export function getPaymentMethods() {
   return http
-    .get<unknown>("/v1/wallet/payment-methods", { auth: "required", retry: 1 })
-    .then((raw) => readList<WalletPaymentMethod>(raw, ["methods", "paymentMethods"]))
+    .get<unknown>("/v1/wallet/payment-methods", { auth: "none", retry: 1 })
+    .then((raw) => readList<Record<string, unknown>>(raw, ["methods", "paymentMethods"]))
+    .then((methods) => methods.map((method) => ({
+      ...method,
+      id: String(method.id ?? method.code ?? ""),
+      code: String(method.code ?? method.id ?? ""),
+      name: String(method.name ?? method.nameKey ?? method.code ?? method.id ?? ""),
+      enabled: method.enabled !== false,
+      fee: typeof method.fee === "number" ? { fixed: method.fee } : method.fee,
+    }) as WalletPaymentMethod))
 }
 
 /** GET /v1/wallet/transfer/lookup?q= — cari penerima transfer. */

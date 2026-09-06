@@ -38,7 +38,12 @@ export type Rating = {
 /** Bentuk respons `GET /v1/ratings/my` — array polos ATAU {data, meta} (UNVERIFIED). */
 export type MyRatingsResponse =
   | Rating[]
-  | { data: Rating[]; meta?: { page: number; limit: number; total: number; totalPages: number } }
+  | {
+      data?: Rating[]
+      meta?: { page: number; limit: number; total: number; totalPages: number }
+      given?: { data?: Rating[]; totalPages?: number }
+      received?: { data?: Rating[]; totalPages?: number }
+    }
 
 export function getMyRatings(query?: { page?: number; limit?: number }) {
   return http.get<MyRatingsResponse>("/v1/ratings/my", { query, auth: "required", retry: 1 })
@@ -50,7 +55,16 @@ export function readMyRatings(body: MyRatingsResponse | null | undefined): {
   totalPages?: number
 } {
   if (Array.isArray(body)) return { items: body }
-  return { items: readList<Rating>(body, ["ratings"]), totalPages: body?.meta?.totalPages }
+  if (!body) return { items: [] }
+  if (body.given || body.received) {
+    const given = (body.given?.data ?? []).map((rating) => ({ ...rating, direction: "GIVEN" as const }))
+    const received = (body.received?.data ?? []).map((rating) => ({ ...rating, direction: "RECEIVED" as const }))
+    return {
+      items: [...given, ...received],
+      totalPages: Math.max(body.given?.totalPages ?? 0, body.received?.totalPages ?? 0) || undefined,
+    }
+  }
+  return { items: readList<Rating>(body, ["ratings"]), totalPages: body.meta?.totalPages }
 }
 
 /**

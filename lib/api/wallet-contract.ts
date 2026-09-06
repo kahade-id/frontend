@@ -36,10 +36,12 @@ export function normalizeWallet(raw: unknown): Wallet {
 export function normalizeWalletTransaction(raw: unknown): WalletTransaction {
   const tx = readEntity<Record<string, unknown>>(raw, "transaction")
   const amount = moneyNumber(tx.amount)
-  if (amount === undefined || typeof tx.id !== "string" || typeof tx.type !== "string")
+  const transactionId = tx.txId ?? tx.id
+  if (amount === undefined || typeof transactionId !== "string" || typeof tx.type !== "string")
     throw invalidResponse("wallet.transaction")
   return { 
     ...tx, 
+    id: transactionId,
     amount,
     referenceId: (tx.referenceId ?? tx.reference_id) as string | null | undefined,
     createdAt: (tx.createdAt ?? tx.created_at) as string

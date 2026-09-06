@@ -199,6 +199,29 @@ export type Order = {
   updatedAt?: string
 }
 
+function normalizeOrder(raw: Order & Record<string, unknown>): Order {
+  const normalizeParty = (value: unknown): OrderParty | undefined => {
+    if (!value || typeof value !== "object") return undefined
+    const item = value as Record<string, unknown>
+    const id = item.id ?? item.userId
+    if (typeof id !== "string") return undefined
+    return {
+      id,
+      username: typeof item.username === "string" ? item.username : "",
+      fullName: typeof item.fullName === "string" ? item.fullName : undefined,
+      avatarUrl: typeof item.avatarUrl === "string" ? item.avatarUrl : null,
+    }
+  }
+  const id = raw.id ?? raw.orderId
+  return {
+    ...raw,
+    id: typeof id === "string" ? id : "",
+    buyer: normalizeParty(raw.buyer),
+    seller: normalizeParty(raw.seller),
+    myRole: (raw.myRole ?? raw.role) as OrderRole | undefined,
+  }
+}
+
 export type FeeBreakdown = {
   orderValue: number
   platformFee: number
@@ -329,13 +352,16 @@ export function createOrder(dto: CreateOrderDto) {
 export function listOrders(query: ListOrdersQuery = {}, signal?: AbortSignal) {
   return http
     .get<unknown>("/v1/orders", { query, auth: "required", retry: 1, signal })
-    .then((raw) => readPage<Order>(raw, query, ["orders"]))
+    .then((raw) => {
+      const page = readPage<Order & Record<string, unknown>>(raw, query, ["orders"])
+      return { ...page, data: page.data.map(normalizeOrder) }
+    })
 }
 
 export function getOrder(orderId: string) {
   return http
     .get<unknown>(`/v1/orders/${seg(orderId)}`, { auth: "required", retry: 1 })
-    .then((raw) => readEntity<Order>(raw, "order"))
+    .then((raw) => normalizeOrder(readEntity<Order & Record<string, unknown>>(raw, "order")))
 }
 
 export function getOrdersSummary() {

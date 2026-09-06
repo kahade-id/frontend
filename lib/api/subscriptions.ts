@@ -28,7 +28,12 @@ export type SubscriptionHistoryEntry = {
 }
 
 export function getSubscriptionStatus() {
-  return http.get<SubscriptionStatus>("/v1/subscriptions/status", { auth: "required", retry: 1 })
+  return http.get<Record<string, unknown>>("/v1/subscriptions/status", { auth: "required", retry: 1 }).then((raw) => ({
+    ...raw,
+    active: raw.active ?? raw.isActive ?? false,
+    expiresAt: raw.expiresAt ?? raw.currentPeriodEnd ?? null,
+    autoRenew: raw.autoRenew ?? raw.isAutoRenew ?? false,
+  }) as SubscriptionStatus)
 }
 
 export function getSubscriptionHistory(query?: { page?: number; limit?: number }) {
@@ -46,9 +51,11 @@ export function getSubscriptionBenefits() {
     .get<
       Array<{ key: string; title: string; description?: string }>
     >("/v1/subscriptions/benefits", { auth: "required", retry: 1 })
-    .then((raw) =>
-      readList<{ key: string; title: string; description?: string }>(raw, ["benefits"]),
-    )
+    .then((raw) => readList<{ key: string; title: string; description?: string }>(raw, ["benefits"]))
+    .catch((error: unknown) => {
+      if (error && typeof error === "object" && "backendCode" in error && error.backendCode === "NO_ACTIVE_SUBSCRIPTION") return []
+      throw error
+    })
 }
 
 export function getSubscriptionPlans() {
