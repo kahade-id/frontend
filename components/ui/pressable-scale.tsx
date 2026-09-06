@@ -32,6 +32,7 @@ import { forwardRef, useCallback, useRef } from "react"
 import {
   Animated,
   Easing,
+  Platform,
   Pressable,
   View,
   type GestureResponderEvent,
@@ -111,6 +112,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     <Pressable
       ref={ref}
       disabled={disabled}
+      unstable_pressDelay={Platform.OS === "android" ? 50 : undefined}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityState={{ disabled: !!disabled, ...accessibilityState }}

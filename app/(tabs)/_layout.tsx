@@ -43,7 +43,7 @@
  */
 import { useCallback, type ComponentProps } from "react"
 import { Tabs } from "expo-router"
-import { ArrowsLeftRight, Bell, GearSix, House, Wallet } from "phosphor-react-native"
+import { Bell, CardsThree, House, ShoppingBag, Wallet } from "phosphor-react-native"
 
 import { RouterBottomTabBar, type RouterBottomTabBarProps } from "@/components/ui/bottom-tab-bar"
 import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
@@ -71,7 +71,7 @@ const TAB_ITEMS: Record<TabRouteName, TabVisualItem> = {
   },
   transactions: {
     label: "Transaksi",
-    icon: ArrowsLeftRight,
+    icon: ShoppingBag,
     accessibilityLabel: "Tab Transaksi",
   },
   wallet: {
@@ -86,7 +86,7 @@ const TAB_ITEMS: Record<TabRouteName, TabVisualItem> = {
   },
   settings: {
     label: "Pengaturan",
-    icon: GearSix,
+    icon: CardsThree,
     accessibilityLabel: "Tab Pengaturan",
   },
 }
