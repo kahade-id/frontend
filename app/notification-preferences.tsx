@@ -29,8 +29,8 @@ import { useToast } from "@/components/ui/toast"
 
 export default function NotificationPreferencesScreen() {
   const toast = useToast()
-  const query = useApiQuery<NotificationPreferences>("notification-preferences", () =>
-    api.notifications.getNotificationPreferences().then((res) => res ?? {}),
+  const query = useApiQuery<NotificationPreferences>("notification-preferences", (signal) =>
+    api.notifications.getNotificationPreferences(signal).then((res) => res ?? {}),
   )
   const value = query.data ?? {}
   const { setData } = query

@@ -14,7 +14,7 @@ import { Text } from "@/components/ui/text"
 import { TrustScoreCard } from "@/components/ui/trust-score-card"
 
 export default function TrustScoreScreen() {
-  const query = useApiQuery("trust-score", () => api.users.getMyTrustScore())
+  const query = useApiQuery("trust-score", (signal) => api.users.getMyTrustScore(signal))
   const data = query.data
 
   return (

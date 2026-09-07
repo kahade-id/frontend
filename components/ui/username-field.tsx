@@ -88,7 +88,7 @@ export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function 
       : undefined
 
   return (
-    <View accessible={false} className="w-full">
+    <View className="w-full">
       <Input
         ref={ref}
         label={label ?? t.label}
@@ -111,7 +111,7 @@ export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function 
         berlabel, jadi ikon sejajar vertikal dengan teks.
       */}
       {!resolvedError && value && availability !== "idle" ? (
-        <View pointerEvents="none" className="absolute right-4 top-0 h-14 justify-center">
+        <View style={{ pointerEvents: "none" }} className="absolute right-4 top-0 h-14 justify-center">
           {availability === "checking" ? (
             <Spinner size="sm" />
           ) : (

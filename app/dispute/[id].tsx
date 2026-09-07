@@ -474,7 +474,7 @@ export default function DisputeDetailScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : dispute ? (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <View className="flex-row items-center justify-between gap-3">
               <View className="flex-1">
                 <Text variant="h3" numberOfLines={2}>
@@ -490,7 +490,7 @@ export default function DisputeDetailScreen() {
               <DisputeStatusBadge status={dispute.status} />
             </View>
             {dispute.orderId ? (
-              <Button accessibilityHint="Ketuk untuk berinteraksi"
+              <Button
                 variant="ghost"
                 size="sm"
                 fullWidth={false}

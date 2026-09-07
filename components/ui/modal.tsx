@@ -108,13 +108,13 @@ export function Modal({
 
   return (
     <Portal>
-      <View pointerEvents="box-none" className="absolute inset-0 z-modal">
+      <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 z-modal">
         <Backdrop progress={progress} onPress={dismiss} />
 
         {/* Center stage — box-none agar tap di area kosong jatuh ke Backdrop */}
-        <View pointerEvents="box-none" className="flex-1 items-center justify-center px-6">
+        <View style={{ pointerEvents: "box-none" }} className="flex-1 items-center justify-center px-6">
           {/* Animated.View tidak di-interop NativeWind -> className di View pembungkus */}
-          <View pointerEvents="box-none" className="w-full md:max-w-content">
+          <View style={{ pointerEvents: "box-none" }} className="w-full md:max-w-content">
             <Animated.View style={{ opacity: progress, transform: [{ translateY }, { scale }] }}>
               <View
                 ref={contentRef}
@@ -211,7 +211,7 @@ export function Dialog({
   const titleRef = useRef<RNText>(null)
 
   const confirmButton = (
-    <Button accessibilityHint="Ketuk untuk berinteraksi"
+    <Button
       variant={destructive ? "destructive" : "primary"}
       loading={loading}
       onPress={onConfirm}

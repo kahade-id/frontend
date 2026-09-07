@@ -28,7 +28,7 @@ export type ZStackProps = Omit<ViewProps, "children"> & {
 
 export function ZStack({ children, className, ...rest }: ZStackProps) {
   return (
-    <View accessible={false} className={cn("relative", className)} {...rest}>
+    <View className={cn("relative", className)} {...rest}>
       {children}
     </View>
   )
@@ -80,8 +80,7 @@ export function Layer({
   ...rest
 }: LayerProps) {
   return (
-    <View
-      pointerEvents={pointerEvents}
+    <View style={{ pointerEvents: pointerEvents }}
       className={cn(positionClass[position], className)}
       {...rest}
     >

@@ -120,11 +120,11 @@ export function ProgressBar({
   })
 
   return (
-    <View accessible={false} className={cn("w-full gap-2", className)} {...rest}>
+    <View className={cn("w-full gap-2", className)} {...rest}>
       {label || (showValue && !indeterminate) ? (
         <View className="flex-row items-center justify-between gap-2">
           {label ? (
-            <Text accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary" className="flex-1">
+            <Text variant="caption" tone="secondary" className="flex-1">
               {label}
             </Text>
           ) : (

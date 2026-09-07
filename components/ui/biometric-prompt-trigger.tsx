@@ -319,7 +319,7 @@ export const BiometricPromptTrigger = forwardRef<BiometricPromptTriggerHandle, B
         {children ? (
           children(open, state)
         ) : (
-          <Button accessibilityHint="Ketuk untuk berinteraksi"
+          <Button
             variant={variant}
             size={size}
             fullWidth={fullWidth}

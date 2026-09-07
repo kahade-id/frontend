@@ -100,7 +100,7 @@ export function SearchOverlay({
     <Portal>
       {/* absoluteFill (idiom RN, sama dengan <Backdrop>) — bukan literal top/right/bottom/left (audit #10) */}
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: progress }]}>
-        <View accessible={false}
+        <View
           accessibilityViewIsModal
           accessibilityRole="search"
           className="flex-1 z-modal items-center bg-background"
@@ -161,7 +161,7 @@ export function SearchOverlay({
                         onPress={() => onSelectRecent?.(q)}
                         trailing={
                           onRemoveRecent ? (
-                            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+                            <IconButton
                               icon={X}
                               size="sm"
                               variant="ghost"

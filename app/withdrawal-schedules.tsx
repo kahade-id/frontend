@@ -179,13 +179,13 @@ export default function WithdrawalSchedulesScreen() {
             title="Belum ada jadwal"
             description="Atur penarikan otomatis ke rekening Anda."
             action={
-              <Button accessibilityHint="Ketuk untuk berinteraksi" leftIcon={Plus} onPress={openCreate}>
+              <Button leftIcon={Plus} onPress={openCreate}>
                 Buat Jadwal
               </Button>
             }
           />
         ) : (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Jadwal aktif" />
             {items.map((item) => (
               <WithdrawalScheduleCard

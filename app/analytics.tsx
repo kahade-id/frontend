@@ -35,8 +35,8 @@ export default function AnalyticsScreen() {
   const insets = useSafeAreaInsets()
 
   const [period, setPeriod] = useState<AnalyticsPeriod>(DEFAULT_PERIOD)
-  const query = useApiQuery(`analytics:${period}`, () =>
-    Promise.all([api.users.getMyStats(), api.users.getMyAnalytics(period)]),
+  const query = useApiQuery(`analytics:${period}`, (signal) =>
+    Promise.all([api.users.getMyStats(signal), api.users.getMyAnalytics(period, signal)]),
   )
   const stats = query.data?.[0]
   const analytics = query.data?.[1]
@@ -62,7 +62,7 @@ export default function AnalyticsScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           <SegmentedControl
             accessibilityLabel="Pilih periode analitik"
             items={ANALYTICS_PERIODS}

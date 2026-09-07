@@ -37,7 +37,7 @@ export default function FaqScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pusat Bantuan" />
-      <View accessible={false} className="px-6 pb-4">
+      <View className="px-6 pb-4">
         <DebouncedSearchField
           autoFocus={false}
           onQueryChange={setKeyword}

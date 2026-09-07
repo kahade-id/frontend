@@ -272,7 +272,7 @@ export function TopupStatusCard({
           ) : null}
 
           {kind === "redirect" && onOpenPayment ? (
-            <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" onPress={onOpenPayment}>
+            <Button variant="primary" onPress={onOpenPayment}>
               {t.openApp}
             </Button>
           ) : null}

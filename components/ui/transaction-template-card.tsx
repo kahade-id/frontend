@@ -26,7 +26,7 @@
  *     dipisah " · " — bukan KeyValueList: templat dipindai cepat di daftar,
  *     tabel label-nilai memperlambat.
  *   - "Gunakan" adalah primary karena itu alasan templat ada; Ubah/Hapus jadi
- *     <IconButton accessibilityHint="Ketuk untuk berinteraksi" ghost> di kanan agar tidak bersaing.
+ *     <IconButton ghost> di kanan agar tidak bersaing.
  *   - `onPress` kartu (bila diberi) membuka detail/pratinjau, BUKAN langsung
  *     memakai templat — mencegah pembuatan order tidak sengaja.
  */

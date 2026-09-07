@@ -403,7 +403,7 @@ export default function ProfileDataScreen() {
 
         {/* Footer: CTA */}
         <FooterBar>
-          <Button accessibilityHint="Ketuk untuk berinteraksi"
+          <Button
             onPress={() => void handleSubmit()}
             loading={submitting}
             disabled={!isFormValid}

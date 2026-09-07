@@ -36,7 +36,7 @@
  * Aksesibilitas: role adjustable + accessibilityActions increment/decrement.
  *
  * `Animated.View` (reanimated) tidak di-interop NativeWind -> className ada
- * di <View accessible={false}> anak; Animated.View hanya membawa style runtime (left/width).
+ * di <View> anak; Animated.View hanya membawa style runtime (left/width).
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View, type LayoutChangeEvent, type ViewProps } from "react-native"
@@ -216,16 +216,14 @@ export function Slider({
           </View>
 
           <Animated.View
-            pointerEvents="none"
-            style={[{ position: "absolute", width: THUMB, height: THUMB }, thumbStyle]}
+            style={[{ pointerEvents: "none" }, [{ position: "absolute", width: THUMB, height: THUMB }, thumbStyle]]}
           >
             <View className="h-full w-full rounded-full border-focus border-border-focus bg-background" />
           </Animated.View>
 
           {dragging && formatValue ? (
             <Animated.View
-              pointerEvents="none"
-              style={[{ position: "absolute", top: LABEL_OFFSET_Y, minWidth: LABEL_MIN_W }, labelStyle]}
+              style={[{ pointerEvents: "none" }, [{ position: "absolute", top: LABEL_OFFSET_Y, minWidth: LABEL_MIN_W }, labelStyle]]}
             >
               <View className="items-center rounded-xs border border-border bg-surface-elevated px-2 py-1">
                 <Text ellipsizeMode="tail" variant="monoBody" tone="primary" numberOfLines={1}>

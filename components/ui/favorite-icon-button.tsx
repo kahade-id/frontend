@@ -95,13 +95,29 @@ export function FavoriteIconButton({
   const iconStyle = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }))
 
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active, disabled: !!disabled, ...accessibilityState }}
       scaleOnPress={false}
       disabled={disabled}
       onPress={() => onToggle(!active)}
+      /*
+       * Kotak `sm` = h-10 (40px), di bawah target sentuh 44pt/48dp; `md` =
+       * h-12 (48px) sudah patuh. Mengikuti pola <Button size="sm"> (audit #1):
+       * slop dari tokens.space[1] sehingga 4 + 40 + 4 = 48 tanpa mengubah
+       * tampilan. Pemanggil tetap bisa override lewat prop hitSlop ({...rest}).
+       */
+      hitSlop={
+        size === "sm"
+          ? {
+              top: tokens.space[1],
+              bottom: tokens.space[1],
+              left: tokens.space[1],
+              right: tokens.space[1],
+            }
+          : undefined
+      }
       containerClassName={cn("self-start", containerClassName)}
       className={cn(
         "flex-row items-center justify-center gap-1 rounded-sm px-2",
@@ -114,7 +130,7 @@ export function FavoriteIconButton({
         <Icon icon={Heart} size={size === "sm" ? "sm" : "md"} active={active} />
       </Animated.View>
       {count != null ? (
-        <View accessible={false}>
+        <View>
           <Text ellipsizeMode="tail" variant="monoBody" tone={active ? "primary" : "secondary"} numberOfLines={1}>
             {formatNumber(count)}
           </Text>

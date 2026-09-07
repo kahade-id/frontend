@@ -198,7 +198,7 @@ export function VoucherCard({
             {code.toUpperCase()}
           </Text>
           {onUse && !selected ? (
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               variant="secondary"
               size="sm"
               fullWidth={false}

@@ -120,7 +120,7 @@ export function BankSelect({ banks, value, onChange, popularCodes, label, labels
         onHidden={() => setQuery("")}
         contentClassName="px-0 pb-0"
       >
-        <View accessible={false} className="px-6 pb-3">
+        <View className="px-6 pb-3">
           <SearchField value={query} onChangeText={setQuery} placeholder={t.searchPlaceholder} autoFocus />
         </View>
 
@@ -168,7 +168,7 @@ export type BankRowProps = Omit<ViewProps, "children"> & {
 
 export function BankRow({ bank, selected = false, onPress, className, ...rest }: BankRowProps) {
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={bank.name}
       accessibilityState={{ selected, disabled: !!bank.disabled }}

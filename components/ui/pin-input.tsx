@@ -41,7 +41,14 @@ export type PinDotsProps = Omit<ViewProps, "children"> & {
 
 export function PinDots({ length, filled, error = false, className, ...rest }: PinDotsProps) {
   return (
-    <View accessible={false}
+    <View
+      /*
+       * PinDots = progressbar murni dekoratif (titik terisi/kosong).
+       * `accessible` menjadikan View ini satu elemen SR sehingga
+       * role=progressbar + accessibilityValue ("n dari m digit terisi")
+       * dibacakan; tanpa itu tiap titik dibaca terpisah dan nilainya hilang.
+       */
+      accessible
       accessibilityRole="progressbar"
       accessibilityLabel={`${filled} dari ${length} digit terisi`}
       accessibilityValue={{ min: 0, max: length, now: filled }}
@@ -193,7 +200,7 @@ export function PinInput({
     <View className={cn("w-full items-center gap-8", className)} {...rest}>
       <View className="items-center gap-4">
         {heading ? (
-          <Text accessibilityHint="Ketuk untuk detail" variant="h3" className="text-center">
+          <Text variant="h3" className="text-center">
             {heading}
           </Text>
         ) : null}

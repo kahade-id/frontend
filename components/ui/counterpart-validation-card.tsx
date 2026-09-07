@@ -200,7 +200,7 @@ export function CounterpartValidationCard({
       </CardSummary>
 
       {onConfirm ? (
-        <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={onConfirm} loading={confirming} fullWidth>
+        <Button size="sm" variant="secondary" onPress={onConfirm} loading={confirming} fullWidth>
           {t.confirm}
         </Button>
       ) : null}

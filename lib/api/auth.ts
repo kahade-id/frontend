@@ -376,8 +376,8 @@ export function changePassword(dto: ChangePasswordDto) {
 // 2FA (TOTP)
 // ------------------------------------------------------------------
 
-export async function get2faStatus() {
-  const result = await http.get<TwoFactorStatus>("/v1/auth/2fa/status", { auth: "required" })
+export async function get2faStatus(signal?: AbortSignal) {
+  const result = await http.get<TwoFactorStatus>("/v1/auth/2fa/status", { auth: "required", signal })
   return {
     ...result,
     backupCodesRemaining: result.backupCodesRemaining ?? (result as any).backup_codes_remaining,

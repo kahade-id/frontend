@@ -246,7 +246,7 @@ function AppShell() {
           Modal/BottomSheet/SearchOverlay/LoadingOverlay terbuka; Toast berada
           di luar Scene (ToastProvider) agar tetap terbaca sebagai alert.
         */}
-        <View accessible={false} className="flex-1 items-center">
+        <View className="flex-1 items-center">
           <ContentContainer bordered>
             <PortalScene>
               {session.restoring ? (
@@ -260,7 +260,7 @@ function AppShell() {
                     description={session.error}
                     onRetry={session.retry}
                   />
-                  <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" onPress={() => setSkipRestoreError(true)}>
+                  <Button variant="ghost" onPress={() => setSkipRestoreError(true)}>
                     Buka halaman masuk
                   </Button>
                 </View>

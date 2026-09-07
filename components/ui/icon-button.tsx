@@ -79,7 +79,7 @@ export function IconButton({
   const tone: IconTone = solid ? "inverse" : active ? "active" : "default"
 
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading, selected: active }}
@@ -104,7 +104,7 @@ export function IconButton({
       {loading ? (
         <Spinner size={size === "sm" ? "sm" : "md"} tone={solid ? "inverse" : "active"} />
       ) : (
-        <View accessible={false}>
+        <View>
           <Icon
             icon={icon}
             size={size === "sm" ? "sm" : "md"}

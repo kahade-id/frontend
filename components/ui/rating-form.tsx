@@ -11,7 +11,7 @@
  *   ringkasan lawan (Avatar + nama + peran) — konteks "Anda menilai siapa"
  *   <Rating lg> di tengah + label deskriptif per skor ("Buruk" … "Sangat baik")
  *   <TextArea maxLength=500 showCount>
- *   <Button accessibilityHint="Ketuk untuk berinteraksi" primary fullWidth> Kirim (disabled bila stars 0)
+ *   <Button primary fullWidth> Kirim (disabled bila stars 0)
  *
  * Keputusan non-obvious:
  *   - Bintang dipusatkan & berukuran lg (32px): ini SATU-SATUNYA tempat
@@ -117,7 +117,7 @@ export function RatingForm({
   const scoreLabel = value.stars >= 1 ? t.scoreLabels[Math.min(5, Math.round(value.stars)) - 1] : undefined
 
   return (
-    <View accessible={false} className={cn("w-full gap-6", className)} {...rest}>
+    <View className={cn("w-full gap-6", className)} {...rest}>
       <View className="gap-1">
         <Text variant="h2" tone="primary">
           {editing ? t.editTitle : t.title}

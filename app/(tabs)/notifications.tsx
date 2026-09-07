@@ -106,7 +106,7 @@ const SKELETON_COUNT = 5
 
 function NotifSkeletonRow() {
   return (
-    <View accessible={false}
+    <View
       style={{
         flexDirection: "row",
         alignItems: "flex-start",
@@ -353,7 +353,7 @@ export default function NotificationsScreen() {
           title={selectedCount > 0 ? `${selectedCount} dipilih` : "Pilih notifikasi"}
           showBack={false}
           left={
-            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+            <IconButton
               icon={X}
               variant="ghost"
               accessibilityLabel="Batal memilih"

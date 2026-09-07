@@ -239,7 +239,7 @@ export function SubscriptionPlanCard({
       {onSubscribe || current ? (
         <View className="gap-2">
           <View style={inverted ? inverseVars : undefined}>
-            <Button accessibilityHint="Ketuk untuk berinteraksi" variant={ctaVariant} disabled={current} loading={subscribing} onPress={onSubscribe}>
+            <Button variant={ctaVariant} disabled={current} loading={subscribing} onPress={onSubscribe}>
               {ctaLabel}
             </Button>
           </View>

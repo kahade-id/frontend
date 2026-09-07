@@ -97,7 +97,7 @@ export default function InvoiceScreen() {
             onRetry={() => void fetchInvoice()}
           />
         ) : invoice ? (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <InvoiceReceiptView
               mode="invoice"
               number={invoice.invoiceNumber}
@@ -117,7 +117,7 @@ export default function InvoiceScreen() {
               onCopyNumber={(n) => void copy(n)}
               onDownload={() => void handleDownload(invoice.order.id)}
             />
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               variant="ghost"
               fullWidth={false}
               onPress={() => void handleDownload(invoice.order.id)}

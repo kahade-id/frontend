@@ -27,8 +27,8 @@ export type SubscriptionHistoryEntry = {
   expiresAt?: string | null
 }
 
-export function getSubscriptionStatus() {
-  return http.get<Record<string, unknown>>("/v1/subscriptions/status", { auth: "required", retry: 1 }).then((raw) => ({
+export function getSubscriptionStatus(signal?: AbortSignal) {
+  return http.get<Record<string, unknown>>("/v1/subscriptions/status", { auth: "required", retry: 1, signal }).then((raw) => ({
     ...raw,
     active: raw.active ?? raw.isActive ?? false,
     expiresAt: raw.expiresAt ?? raw.currentPeriodEnd ?? null,

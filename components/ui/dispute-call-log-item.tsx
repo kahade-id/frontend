@@ -142,7 +142,7 @@ export function DisputeCallLogItem({
     <ListItem
       title={title}
       subtitle={
-        <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary" numberOfLines={1}>
+        <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
           {subtitleText}
         </Text>
       }
@@ -156,7 +156,7 @@ export function DisputeCallLogItem({
             size="sm"
           />
         ) : (
-          <View accessible={false} className="items-end">
+          <View className="items-end">
             <Text variant="monoBody" tone={completed ? "primary" : "disabled"}>
               {duration}
             </Text>

@@ -229,7 +229,7 @@ export function OrderLinkPreviewCard({
 
       <View className="gap-2">
         {canAccept ? (
-          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" fullWidth loading={accepting} onPress={onAccept}>
+          <Button variant="primary" fullWidth loading={accepting} onPress={onAccept}>
             {t.accept}
           </Button>
         ) : null}

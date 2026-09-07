@@ -66,7 +66,7 @@ export function LanguagePicker<C extends string = LanguageCode>({
       disabled: o.disabled,
     }))
     return (
-      <View accessible={false} className={cn("w-full", className)} {...rest}>
+      <View className={cn("w-full", className)} {...rest}>
         <Select
           label={label}
           value={value}

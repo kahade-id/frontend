@@ -293,7 +293,7 @@ export function MutualResolutionCard({
         <View className="flex-row gap-3">
           {onReject ? (
             <View className="flex-1">
-              <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" onPress={onReject} loading={rejecting} disabled={busy && !rejecting}>
+              <Button variant="ghost" onPress={onReject} loading={rejecting} disabled={busy && !rejecting}>
                 {t.reject}
               </Button>
             </View>

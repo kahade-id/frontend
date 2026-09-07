@@ -79,11 +79,11 @@ export function ActionSheet({
       }
       {...sheetProps}
     >
-      <View accessible={false} accessibilityRole="menu">
+      <View accessibilityRole="menu">
         {actions.map((item, i) => (
           <View key={item.key}>
             {i > 0 ? <Divider /> : null}
-            <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            <PressableScale
               accessibilityRole="menuitem"
               scaleOnPress={false}
               disabled={item.disabled}

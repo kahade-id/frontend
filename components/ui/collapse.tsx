@@ -91,14 +91,13 @@ export function Collapse({
     <Animated.View
       accessibilityElementsHidden={!open}
       importantForAccessibility={open ? "auto" : "no-hide-descendants"}
-      pointerEvents={open ? "auto" : "none"}
-      style={{ height: animatedHeight, opacity: progress, overflow: "hidden" }}
+      style={[{ pointerEvents: open ? "auto" : "none" }, { height: animatedHeight, opacity: progress, overflow: "hidden" }]}
       {...rest}
     >
       {mounted ? (
         // Konten diletakkan absolute di dalam container yang tingginya
         // dianimasikan: onLayout mengukur tinggi asli tanpa dipotong.
-        <View accessible={false}
+        <View
           onLayout={handleLayout}
           className={cn("absolute left-0 right-0 top-0", className)}
         >

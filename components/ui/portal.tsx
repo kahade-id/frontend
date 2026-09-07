@@ -180,7 +180,7 @@ export type PortalSceneProps = ViewProps & { className?: string }
 export function PortalScene({ className, children, ...rest }: PortalSceneProps) {
   const blocked = useHasBlockingOverlay()
   return (
-    <View accessible={false}
+    <View
       accessibilityElementsHidden={blocked}
       importantForAccessibility={blocked ? "no-hide-descendants" : "auto"}
       className={cn("flex-1", className)}
@@ -194,8 +194,9 @@ export function PortalScene({ className, children, ...rest }: PortalSceneProps) 
 export type PortalHostProps = Omit<ViewProps, "children"> & { className?: string }
 
 /**
- * Tempat node Portal dirender. `absolute inset-0` + `pointerEvents="box-none"`
- * agar host sendiri tidak memblokir sentuhan ke app di bawahnya; hanya anak
+ * Tempat node Portal dirender. `absolute inset-0` + `style.pointerEvents:
+ * "box-none"` agar host sendiri tidak memblokir sentuhan ke app di bawahnya;
+ * hanya anak
  * yang punya area sentuh (backdrop, sheet) yang menangkap event.
  */
 export function PortalHost({ className, ...rest }: PortalHostProps) {
@@ -204,13 +205,12 @@ export function PortalHost({ className, ...rest }: PortalHostProps) {
   if (keys.length === 0) return null
 
   return (
-    <View
-      pointerEvents="box-none"
+    <View style={{ pointerEvents: "box-none" }}
       className={cn("absolute inset-0 z-backdrop", className)}
       {...rest}
     >
       {keys.map((k) => (
-        <View key={k} pointerEvents="box-none" className="absolute inset-0">
+        <View key={k} style={{ pointerEvents: "box-none" }} className="absolute inset-0">
           {nodes[k]}
         </View>
       ))}

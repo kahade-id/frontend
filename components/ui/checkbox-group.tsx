@@ -86,7 +86,7 @@ export function CheckboxGroup<V extends string = string>({
 
   return (
     <CheckboxGroupContext.Provider value={{ values: value, toggle, disabled, error, variant, full }}>
-      <View accessible={false}
+      <View
         // RN tidak punya role "group" khusus checkbox; "list" memberi konteks
         // "daftar N item" ke screen reader tanpa menyalahi semantik.
         accessibilityRole="list"
@@ -142,7 +142,7 @@ export function CheckboxGroupItem({
   }
 
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+    <PressableScale
       accessibilityRole="checkbox"
       accessibilityState={{ checked, disabled }}
       disabled={disabled}

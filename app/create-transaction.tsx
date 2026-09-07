@@ -328,13 +328,13 @@ export default function CreateTransactionScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        <View accessible={false}>
+        <View>
           {feeError ? (
             <Text variant="caption" tone="danger">
               Biaya belum terkonfirmasi: {feeError}. Tarik untuk memuat ulang.
             </Text>
           ) : null}
-          <Button accessibilityHint="Ketuk untuk berinteraksi"
+          <Button
             fullWidth
             loading={submitting}
             disabled={!canSubmit}

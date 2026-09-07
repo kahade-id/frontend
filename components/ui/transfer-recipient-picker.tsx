@@ -111,8 +111,8 @@ function RecipientRow({
   const verificationLabel =
     recipient.kycVerified === false ? t.notVerified : "Verifikasi belum diketahui"
   return (
-    <View accessible={false}>
-      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+    <View>
+      <PressableScale
         scaleOnPress={false}
         disabled={disabled}
         onPress={() => onSelect(recipient)}

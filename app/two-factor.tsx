@@ -270,7 +270,7 @@ export default function TwoFactorScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loadError ? (
             <ErrorState
               title="Gagal memuat"
@@ -307,7 +307,7 @@ export default function TwoFactorScreen() {
                 onSubmitEditing={() => void handleSetup()}
               />
               <View className="flex-row gap-3">
-                <Button accessibilityHint="Ketuk untuk berinteraksi"
+                <Button
                   variant="ghost"
                   fullWidth={false}
                   onPress={resetEnableFlow}

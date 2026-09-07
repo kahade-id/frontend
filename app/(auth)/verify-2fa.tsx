@@ -160,7 +160,7 @@ export default function VerifyTwoFactorScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View accessible={false} className="gap-8">
+          <View className="gap-8">
             <View className="gap-3">
               <Heading level={1} className="text-balance">
                 {mode === "totp" ? "Masukkan kode autentikator" : "Masukkan kode cadangan"}
@@ -212,7 +212,7 @@ export default function VerifyTwoFactorScreen() {
               />
             )}
 
-            <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => void handleVerify()} loading={verifying} disabled={!canSubmit || tokenExpired}>
+            <Button onPress={() => void handleVerify()} loading={verifying} disabled={!canSubmit || tokenExpired}>
               Verifikasi
             </Button>
 

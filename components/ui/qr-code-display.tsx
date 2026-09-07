@@ -130,7 +130,7 @@ export function QRCodeDisplay({
   return (
     <View className={cn("items-center gap-4", className)} {...rest}>
       {title ? (
-        <Text accessibilityHint="Ketuk untuk detail" variant="h3" className="text-center tabular-nums">
+        <Text variant="h3" className="text-center tabular-nums">
           {title}
         </Text>
       ) : null}
@@ -159,13 +159,12 @@ export function QRCodeDisplay({
 
         {logo && encoded.ok ? (
           <View
-            pointerEvents="none"
             className="absolute items-center justify-center rounded-xs"
-            style={{
+            style={[{ pointerEvents: "none" }, {
               width: logoSize + tokens.space[2],
               height: logoSize + tokens.space[2],
               backgroundColor: tokens.colors.brand.white,
-            }}
+            }]}
           >
             <Picture source={logo} alt="" width={logoSize} height={logoSize} radius="xs" bordered={false} />
           </View>

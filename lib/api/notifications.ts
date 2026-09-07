@@ -186,10 +186,11 @@ export type NotificationPreferences = {
 
 export type NotificationPreferenceKey = keyof NotificationPreferences
 
-export function getNotificationPreferences() {
+export function getNotificationPreferences(signal?: AbortSignal) {
   return http.get<NotificationPreferences>("/v1/notifications/preferences", {
     auth: "required",
     retry: 1,
+    signal,
   })
 }
 

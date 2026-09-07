@@ -103,7 +103,7 @@ export function DisputeEvidenceItem({
   const docs = files.filter((f) => !isImage(f.mimeType))
 
   return (
-    <View accessible={false} className={cn("w-full gap-3 rounded-md border border-border bg-surface p-4", className)} {...rest}>
+    <View className={cn("w-full gap-3 rounded-md border border-border bg-surface p-4", className)} {...rest}>
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           <Badge variant={own ? "soft" : "outline"} tone="neutral">
@@ -139,7 +139,7 @@ export function DisputeEvidenceItem({
             const index = files.indexOf(f)
             return (
               <View key={f.id} className="w-[31%] gap-1">
-                <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                <PressableScale
                   accessibilityRole="imagebutton"
                   accessibilityLabel={t.openFile(index, files.length)}
                   onPress={onOpenFile ? () => onOpenFile(index) : undefined}

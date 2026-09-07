@@ -122,7 +122,7 @@ export function StatCard({
       {...cardProps}
     >
       <View className="flex-row items-center justify-between gap-2">
-        <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="caption" weight={500} tone={labelTone} numberOfLines={1} className="flex-1">
+        <Text ellipsizeMode="tail" variant="caption" weight={500} tone={labelTone} numberOfLines={1} className="flex-1">
           {label}
         </Text>
         {icon ? <View>{icon}</View> : null}

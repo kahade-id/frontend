@@ -257,7 +257,7 @@ export default function ExtensionScreen() {
       padded={false}
       footer={
         canRequest ? (
-          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" leftIcon={Plus} onPress={openRequest} fullWidth>
+          <Button variant="primary" leftIcon={Plus} onPress={openRequest} fullWidth>
             Ajukan perpanjangan
           </Button>
         ) : undefined
@@ -277,7 +277,7 @@ export default function ExtensionScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View accessible={false} className="gap-3" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
             {order ? (
               <KeyValueList>
                 <KeyValue label="Order" value={order.title} />

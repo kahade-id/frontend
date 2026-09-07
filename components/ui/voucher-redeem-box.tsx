@@ -151,7 +151,7 @@ export function VoucherRedeemBox({
           <Amount value={-Math.abs(applied.discount as number)} tone="success" />
         ) : null}
         {onRemove ? (
-          <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+          <IconButton
             icon={X}
             size="sm"
             variant="ghost"

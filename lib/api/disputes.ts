@@ -87,9 +87,9 @@ export type DisputeDetail = {
   messages?: DisputeMessage[]
 }
 
-export function listMyDisputes(query?: { page?: number; limit?: number }) {
+export function listMyDisputes(query?: { page?: number; limit?: number }, signal?: AbortSignal) {
   return http
-    .get<Array<DisputeDetail>>("/v1/disputes/my", { query, auth: "required", retry: 1 })
+    .get<Array<DisputeDetail>>("/v1/disputes/my", { query, auth: "required", retry: 1, signal })
     .then((raw) => readList<DisputeDetail>(raw, ["disputes"]))
 }
 

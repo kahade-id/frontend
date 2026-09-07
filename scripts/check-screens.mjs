@@ -206,11 +206,97 @@ rules.push({
   baseline: [],
 })
 
+/**
+ * S6 — fetcher `useApiQuery`/`usePaginatedQuery` yang membuang `signal`.
+ *
+ * Kenapa penting: kedua hook membuat `AbortController` per pemuatan dan
+ * membatalkannya saat key berubah, saat `reload()` dipanggil lagi, dan saat
+ * layar di-unmount. `client.ts` sudah menghormati signal sepenuhnya
+ * (`checkAborted`, listener abort, dan `signal?.aborted` mematikan retry),
+ * jadi satu-satunya yang hilang adalah penerusan dari call site.
+ *
+ * Tanpa signal, guard `if (!controller.signal.aborted)` memang mencegah state
+ * basi, TAPI request HTTP-nya tetap berjalan sampai selesai: pada layar seperti
+ * `analytics.tsx` (2 request paralel) dan `delete-account.tsx` (3 request
+ * paralel) tiap perpindahan periode/re-mount meninggalkan 2–3 request yatim di
+ * jaringan seluler. `retry: 1` di sebagian besar GET membuat satu pembatalan
+ * yang tidak diteruskan bisa jadi dua request penuh.
+ *
+ * Aturan ini memindai app/ DAN components/ (mis. `legal-document-screen.tsx`)
+ * karena hook data dipakai di kedua tempat.
+ */
+const HOOK_FETCHER = /\buse(Api|Paginated)Query\s*(?:<[\s\S]*?>)?\s*\(/g
+
+/**
+ * Pecah argumen tingkat-1 dari panggilan yang kurung pembukanya di indeks
+ * `open`. Sadar string/kurung bersarang agar koma di dalam `{ page: 1 }`,
+ * template literal, atau body arrow tidak memecah argumen.
+ */
+function splitArgs(src, open) {
+  const args = []
+  let depth = 0
+  let quote = null
+  let start = open + 1
+  for (let i = open; i < src.length; i++) {
+    const c = src[i]
+    if (quote) {
+      if (c === quote && src[i - 1] !== "\\") quote = null
+      continue
+    }
+    if (c === '"' || c === "'" || c === "`") quote = c
+    else if (c === "(" || c === "[" || c === "{") depth++
+    else if (c === ")" || c === "]" || c === "}") {
+      depth--
+      if (depth === 0) {
+        args.push(src.slice(start, i))
+        return args
+      }
+    } else if (c === "," && depth === 1) {
+      args.push(src.slice(start, i))
+      start = i + 1
+    }
+  }
+  return args
+}
+
+/**
+ * true bila ada fetcher arrow yang daftar parameternya tidak menyebut `signal`.
+ * Fetcher non-arrow (identifier, mis. `useApiQuery("k", loadThing)`) dilewati:
+ * signature-nya diperiksa TypeScript, bukan regex.
+ */
+function dropsSignal(src) {
+  HOOK_FETCHER.lastIndex = 0
+  let m
+  while ((m = HOOK_FETCHER.exec(src))) {
+    const args = splitArgs(src, m.index + m[0].length - 1)
+    const fetcher = (args[1] ?? "").trim()
+    const params = fetcher.match(/^(?:async\s*)?\(([^)]*)\)\s*(?::[^=]*)?=>/)
+    if (!params) continue
+    if (!/\bsignal\b/.test(params[1])) return true
+  }
+  return false
+}
+
+const queryCallers = [
+  ...screens,
+  ...[...walk(join(root, "components"))]
+    .filter((p) => p.endsWith(".tsx"))
+    .map((p) => ({ path: rel(p), src: stripComments(readFileSync(p, "utf8")) })),
+].filter((f) => SHARED_QUERY.test(f.src))
+
+rules.push({
+  id: "S6",
+  title: "fetcher useApiQuery/usePaginatedQuery tidak meneruskan `signal` ke adapter",
+  files: queryCallers,
+  test: (f) => dropsSignal(f.src),
+  baseline: [],
+})
+
 const failures = []
 const staleBaselines = []
 
 for (const rule of rules) {
-  const offenders = screens.filter(rule.test).map((f) => f.path).sort()
+  const offenders = (rule.files ?? screens).filter(rule.test).map((f) => f.path).sort()
   const baseline = new Set(rule.baseline)
   for (const file of offenders) {
     if (!baseline.has(file)) failures.push(`${rule.id} ${file} — ${rule.title}`)

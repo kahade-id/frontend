@@ -88,7 +88,7 @@ export default function WalletTransactionScreen() {
             onRetry={() => void fetchTxn()}
           />
         ) : (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <Card padded className="items-center gap-3">
               <IconBox
                 icon={WalletIcon}

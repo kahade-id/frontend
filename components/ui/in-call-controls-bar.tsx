@@ -9,7 +9,7 @@
  *
  * Keputusan non-obvious:
  *   - Toggle "aktif" (mis. mikrofon dibisukan, speaker menyala) = `bg-primary`
- *     + ikon inverse — memakai <IconButton accessibilityHint="Ketuk untuk berinteraksi" variant="primary" shape="pill">;
+ *     + ikon inverse — memakai <IconButton variant="primary" shape="pill">;
  *     non-aktif = `variant="secondary"` (border-default, ikon text-tertiary).
  *     Pola invert ini (bukan hanya ganti weight) dipilih karena saat
  *     menelepon user melirik cepat tanpa fokus — perbedaan fill hitam vs
@@ -117,7 +117,7 @@ export function InCallControlsBar({
   const showFlip = onFlipCamera != null && videoOn !== false
 
   return (
-    <View accessible={false}
+    <View
       accessibilityRole="toolbar"
       className={cn(
         "w-full items-center gap-4 border-t border-border bg-surface-elevated px-6 pb-6 pt-4",

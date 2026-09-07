@@ -19,13 +19,13 @@ export type {
 } from "@/lib/api/public-contract"
 const opts = { auth: "none" as const, retry: 1 }
 
-export function getAppVersion() {
+export function getAppVersion(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/public/app-version", opts)
+    .get<unknown>("/v1/public/app-version", { ...opts, signal })
     .then((body) => normalizeAppVersion(body, Platform.OS))
 }
-export function getPublicConfig() {
-  return http.get<unknown>("/v1/public/config", opts).then(normalizePublicConfig)
+export function getPublicConfig(signal?: AbortSignal) {
+  return http.get<unknown>("/v1/public/config", { ...opts, signal }).then(normalizePublicConfig)
 }
 export function getFeeSchedule() {
   return http.get<unknown>("/v1/public/fee-schedule", opts).then(normalizeFeeSchedule)

@@ -67,7 +67,7 @@ export default function OnboardingScreen() {
   return (
     <Screen padded={false}>
       {/* Baris atas: brand + jalan keluar cepat */}
-      <View accessible={false} className="h-14 w-full flex-row items-center justify-between px-6">
+      <View className="h-14 w-full flex-row items-center justify-between px-6">
         <Logo variant="lockup" size="sm" />
         <TextLink onPress={() => void leave(ROUTES.login)} accessibilityLabel="Lewati pengenalan">
           Lewati
@@ -84,7 +84,7 @@ export default function OnboardingScreen() {
         <PageIndicator count={ONBOARDING_SLIDES.length} index={index} />
 
         <View className="gap-4">
-          <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={handlePrimary}>{isLast ? "Buat Akun" : "Lanjut"}</Button>
+          <Button onPress={handlePrimary}>{isLast ? "Buat Akun" : "Lanjut"}</Button>
 
           <Text numberOfLines={1} variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}

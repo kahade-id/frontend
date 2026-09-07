@@ -134,13 +134,13 @@ export default function SettingsScreen() {
   const [loggingOut, setLoggingOut] = useState(false)
 
   // Profile data query
-  const profileQuery = useApiQuery<UserProfile>("user-me", () => api.users.getMe())
+  const profileQuery = useApiQuery<UserProfile>("user-me", (signal) => api.users.getMe(signal))
   const profile = profileQuery.data
 
   // Subscription status query
   const subscriptionQuery = useApiQuery<SubscriptionStatus | null>(
     "subscription-status",
-    () => api.subscriptions.getSubscriptionStatus().catch(() => null),
+    (signal) => api.subscriptions.getSubscriptionStatus(signal).catch(() => null),
   )
   const subStatus = subscriptionQuery.data
   const isSubscribed = Boolean(subStatus?.active)
@@ -316,7 +316,7 @@ export default function SettingsScreen() {
         }}
       >
         {/* ── Profile Header ───────────────────────────────── */}
-        <View accessible={false} className="pt-2 pb-1">
+        <View className="pt-2 pb-1">
           {profileQuery.error ? (
             <ErrorState
               compact
@@ -337,7 +337,7 @@ export default function SettingsScreen() {
 
         <View className="gap-4 px-6 pt-3">
           {/* ── Card Utama: Langganan ───────────────────────── */}
-          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Menu Langganan Kahade Plus"
             onPress={() => router.push(ROUTES.subscriptions)}

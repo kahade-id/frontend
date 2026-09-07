@@ -63,7 +63,7 @@ export default function WelcomeScreen() {
     <Screen edges={["top", "bottom"]}>
       <VStack flex justify="center" align="center" gap={6}>
         <Logo variant="lockup" size="md" />
-        <View accessible={false} className="items-center gap-3">
+        <View className="items-center gap-3">
           <DisplayHeading className="text-center">
             {isNewUser ? "Selamat datang\ndi Kahade" : "Selamat kembali"}
           </DisplayHeading>
@@ -74,7 +74,7 @@ export default function WelcomeScreen() {
           </Text>
         </View>
 
-        <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={handleStart}>
+        <Button onPress={handleStart}>
           {isNewUser ? "Mulai" : "Masuk ke Beranda"}
         </Button>
       </VStack>

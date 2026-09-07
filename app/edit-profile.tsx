@@ -331,8 +331,8 @@ export default function EditProfileScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        <View accessible={false}>
-          <Button accessibilityHint="Ketuk untuk berinteraksi"
+        <View>
+          <Button
             fullWidth
             loading={submitting}
             disabled={loading || !!error || !dirty}

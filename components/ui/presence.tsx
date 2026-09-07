@@ -18,8 +18,8 @@
  *   - Default `translate=true`, `scale=false`: konten inline biasanya
  *     bergeser naik, sedangkan scale disisakan untuk elemen yang "muncul di
  *     tempat" (popover/kartu konfirmasi). Keduanya opt-in per pemakaian.
- *   - `pointerEvents="none"` saat keluar: user tidak boleh menekan elemen
- *     yang sedang menghilang (mis. tombol yang sudah tidak valid).
+ *   - `style.pointerEvents: "none"` saat keluar: user tidak boleh menekan
+ *     elemen yang sedang menghilang (mis. tombol yang sudah tidak valid).
  *   - Tidak menganimasikan `height` (layout). Collapse height ada di
  *     <Collapse>; Presence sengaja hanya opacity/transform (native driver,
  *     60fps) — kalau perlu ruang ikut menutup, bungkus dengan Collapse.
@@ -69,8 +69,7 @@ export function Presence({
 
   return (
     <Animated.View
-      pointerEvents={visible ? "auto" : "none"}
-      style={{ opacity: progress, transform: [{ translateY }, { scale: scaleValue }] }}
+      style={[{ pointerEvents: visible ? "auto" : "none" }, { opacity: progress, transform: [{ translateY }, { scale: scaleValue }] }]}
       {...rest}
     >
       {children}

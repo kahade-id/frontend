@@ -271,7 +271,7 @@ export default function ResetPasswordScreen() {
             </VStack>
 
             {/* Submit button */}
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               onPress={() => void handleReset()}
               loading={submitting}
               disabled={!isFormValid}
@@ -294,7 +294,7 @@ export default function ResetPasswordScreen() {
 
         {/* Footer links */}
         <FooterBar>
-          <View accessible={false} className="flex-row items-center justify-center gap-6">
+          <View className="flex-row items-center justify-center gap-6">
             {canResend ? (
               <TextLink onPress={() => void handleResendCode()} disabled={submitting || resending}>
                 {resending ? "Mengirim kode baru…" : "Kirim ulang kode"}

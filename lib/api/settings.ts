@@ -28,9 +28,9 @@ export type PrivacySettings = {
 }
 
 /** GET /v1/settings/blocked-users (juga GET /v1/users/me/blocked). */
-export function getBlockedUsers() {
+export function getBlockedUsers(signal?: AbortSignal) {
   return http
-    .get<BlockedUser[]>("/v1/settings/blocked-users", { auth: "required", retry: 1 })
+    .get<BlockedUser[]>("/v1/settings/blocked-users", { auth: "required", retry: 1, signal })
     .then((raw) => readList<BlockedUser>(raw, ["blockedUsers", "users"]))
 }
 
@@ -59,8 +59,8 @@ export function getReports() {
     .then((raw) => readList<ReportsSettings>(raw, ["reports"]))
 }
 
-export function getPrivacySettings() {
-  return http.get<PrivacySettings>("/v1/settings/privacy", { auth: "required", retry: 1 })
+export function getPrivacySettings(signal?: AbortSignal) {
+  return http.get<PrivacySettings>("/v1/settings/privacy", { auth: "required", retry: 1, signal })
 }
 
 export function updatePrivacySettings(dto: UpdatePrivacyDto) {
@@ -69,10 +69,11 @@ export function updatePrivacySettings(dto: UpdatePrivacyDto) {
   })
 }
 
-export function getLanguage() {
+export function getLanguage(signal?: AbortSignal) {
   return http.get<{ language: "id" | "en" }>("/v1/settings/language", {
     auth: "required",
     retry: 1,
+    signal,
   })
 }
 

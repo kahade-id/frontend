@@ -20,7 +20,7 @@
  *   - Semua warna memakai token yang ada (bg-surface, border-border,
  *     text-text-*). Tidak ada shadow: §desain v1.1 flat/monokrom.
  *   - Tombol CTA memakai <Button size="sm">, tombol tutup memakai
- *     <IconButton accessibilityHint="Ketuk untuk berinteraksi"> — dua komponen yang sudah ada, bukan Pressable telanjang.
+ *     <IconButton> — dua komponen yang sudah ada, bukan Pressable telanjang.
  */
 import { useCallback, useEffect, useState } from "react"
 import { Platform, View } from "react-native"
@@ -83,7 +83,7 @@ export function SmartAppBanner() {
   if (Platform.OS !== "web" || !visible || !os) return null
 
   return (
-    <View accessible={false}
+    <View
       // `web:fixed` + inset-x-0 + top-0: menempel di tepi atas viewport,
       // di bawah status bar browser, di atas seluruh konten app.
       // z-sticky (10), BUKAN z-banner (70): z-banner berada di atas Modal

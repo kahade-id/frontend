@@ -265,8 +265,8 @@ export function SignaturePad({
         </GestureDetector>
 
         {!isEmpty && !disabled ? (
-          <View pointerEvents="box-none" className="absolute right-2 top-2">
-            <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" size="sm" fullWidth={false} leftIcon={Eraser} onPress={handleClear}>
+          <View style={{ pointerEvents: "box-none" }} className="absolute right-2 top-2">
+            <Button variant="ghost" size="sm" fullWidth={false} leftIcon={Eraser} onPress={handleClear}>
               {labels.clear}
             </Button>
           </View>

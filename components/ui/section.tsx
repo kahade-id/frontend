@@ -49,7 +49,7 @@ export function SectionHeader({
   ...rest
 }: SectionHeaderProps) {
   return (
-    <View accessible={false}
+    <View
       accessibilityRole="header"
       className={cn("flex-row items-end justify-between gap-4", inset && "px-6", className)}
       {...rest}

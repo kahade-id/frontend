@@ -146,7 +146,7 @@ export default function WalletScreen() {
         title="Dompet"
         right={
           <>
-            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+            <IconButton
               icon={FileCsv}
               size="md"
               variant="ghost"
@@ -186,7 +186,7 @@ export default function WalletScreen() {
           />
         }
         header={
-          <View accessible={false}>
+          <View>
             {walletError ? (
               <ErrorState
                 compact

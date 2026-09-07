@@ -157,7 +157,7 @@ export function UploadField({
       {...rest}
     >
       {status === "idle" || !file ? (
-        <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={`${title}. ${constraint}`}
           accessibilityState={{ disabled }}
@@ -175,7 +175,7 @@ export function UploadField({
           </Text>
         </PressableScale>
       ) : (
-        <View accessible={false} className={cn(box, "gap-3 p-4", disabled && "opacity-disabled")}>
+        <View className={cn(box, "gap-3 p-4", disabled && "opacity-disabled")}>
           <View className="flex-row items-center gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             <Icon icon={FileGlyph} size="md" tone={status === "error" ? "default" : "active"} />
 

@@ -49,7 +49,7 @@ export function LoadMore({
   if (status === "end" && hideEnd) return null
 
   return (
-    <View accessible={false}
+    <View
       accessibilityLiveRegion="polite"
       className={cn("min-h-14 w-full items-center justify-center gap-2 py-4", className)}
       {...rest}
@@ -64,7 +64,7 @@ export function LoadMore({
       ) : null}
 
       {status === "idle" ? (
-        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" size="sm" fullWidth={false} onPress={onLoadMore}>
+        <Button variant="ghost" size="sm" fullWidth={false} onPress={onLoadMore}>
           {idleLabel}
         </Button>
       ) : null}

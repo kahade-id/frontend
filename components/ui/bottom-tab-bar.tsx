@@ -93,7 +93,7 @@ export function BottomTabBar<K extends string = string>({
   const insets = useSafeAreaInsets()
 
   return (
-    <View accessible={false}
+    <View
       accessibilityRole="tablist"
       className={cn("z-sticky w-full items-center border-t border-border bg-background", className)}
       style={{ paddingBottom: insets.bottom }}
@@ -103,7 +103,7 @@ export function BottomTabBar<K extends string = string>({
         {items.map((item) => {
           const active = item.key === value
           return (
-            <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+            <PressableScale
               key={item.key}
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}

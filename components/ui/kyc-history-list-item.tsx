@@ -65,9 +65,9 @@ export function KycHistoryListItem({
       leading={<IconBox icon={IdentificationCard} size="md" variant={boxVariant} />}
       title={`Pengajuan #${attempt}${docLabel ? ` \u00B7 ${docLabel}` : ""}`}
       subtitle={
-        <View accessible={false} className="gap-[2px]">
+        <View className="gap-[2px]">
           <View className="flex-row flex-wrap items-center gap-x-2">
-            <Text accessibilityHint="Ketuk untuk detail" variant="monoBody" tone="secondary">
+            <Text variant="monoBody" tone="secondary">
               {submittedAt}
             </Text>
             {reviewedAt ? (

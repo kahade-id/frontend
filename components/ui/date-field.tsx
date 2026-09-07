@@ -80,7 +80,7 @@ export function DateField({
       disabled={disabled}
       className={containerClassName}
     >
-      <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityValue={{ text: hasValue ? formatValue(value) : undefined }}
@@ -100,14 +100,13 @@ export function DateField({
         {...rest}
       >
         {leftIcon ? (
-          <View accessible={false} className="mr-2">
+          <View className="mr-2">
             <Icon icon={leftIcon} size="sm" tone={open ? "active" : "default"} />
           </View>
         ) : null}
 
         <View className="relative flex-1 justify-center self-stretch">
-          <View
-            pointerEvents="none"
+          <View style={{ pointerEvents: "none" }}
             className={cn(
               "absolute left-0 items-start",
               floated ? "-top-[9px]" : "inset-y-0 justify-center",

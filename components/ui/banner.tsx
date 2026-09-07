@@ -21,8 +21,9 @@
  *     bukan token → style), banner itu sendiri tetap full-bleed.
  *   - Di web dibatasi `md:max-w-content` (§11) supaya sejajar dengan kolom
  *     konten 520px, bukan membentang selebar viewport desktop.
- *   - `pointerEvents="box-none"` pada wrapper: area kosong di sekitar banner
- *     tidak menelan tap ke konten di bawahnya.
+ *   - `style={{ pointerEvents: "box-none" }}` pada wrapper: area kosong di
+ *     sekitar banner tidak menelan tap ke konten di bawahnya. Lewat `style`,
+ *     bukan prop `pointerEvents` yang sudah deprecated (audit #5).
  */
 import { useEffect } from "react"
 import { Animated, View } from "react-native"
@@ -69,12 +70,11 @@ export function Banner({
 
   return (
     <Portal>
-      <View accessible={false}
-        pointerEvents="box-none"
+      <View
         className="absolute inset-x-0 top-0 z-banner items-center"
-        style={{ paddingTop: insets.top }}
+        style={[{ pointerEvents: "box-none" }, { paddingTop: insets.top }]}
       >
-        <View pointerEvents="box-none" className="w-full md:max-w-content">
+        <View style={{ pointerEvents: "box-none" }} className="w-full md:max-w-content">
           <Animated.View style={{ opacity: progress, transform: [{ translateY }] }}>
             <Alert
               banner

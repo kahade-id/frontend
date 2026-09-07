@@ -71,7 +71,7 @@ export function SegmentedControl<V extends string = string>({
   ...rest
 }: SegmentedControlProps<V>) {
   return (
-    <View accessible={false}
+    <View
       accessibilityRole="radiogroup"
       hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
@@ -85,7 +85,7 @@ export function SegmentedControl<V extends string = string>({
         const active = item.value === value
         const isDisabled = disabled || item.disabled
         return (
-          <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+          <PressableScale
             key={item.value}
             accessibilityRole="radio"
             accessibilityState={{ checked: active, disabled: !!isDisabled }}

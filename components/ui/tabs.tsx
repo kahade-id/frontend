@@ -60,7 +60,7 @@ export function Tabs<V extends string = string>({
   ...rest
 }: TabsProps<V>) {
   const row = (
-    <View accessible={false}
+    <View
       accessibilityRole="tablist"
       className={cn("flex-row border-b border-border", scrollable ? "px-6" : "w-full", className)}
       {...rest}
@@ -68,7 +68,7 @@ export function Tabs<V extends string = string>({
       {items.map((item) => {
         const active = item.value === value
         return (
-          <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          <PressableScale
             key={item.value}
             accessibilityRole="tab"
             accessibilityState={{ selected: active, disabled: !!item.disabled }}

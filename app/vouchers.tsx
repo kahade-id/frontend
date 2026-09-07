@@ -35,10 +35,10 @@ function discountTypeOf(v: Voucher) {
 }
 
 export default function VouchersScreen() {
-  const query = useApiQuery("vouchers", async () => {
+  const query = useApiQuery("vouchers", async (signal) => {
     const [available, usage] = await Promise.all([
-      api.vouchers.listAvailableVouchers(),
-      api.vouchers.listMyVoucherUsage(),
+      api.vouchers.listAvailableVouchers(signal),
+      api.vouchers.listMyVoucherUsage(signal),
     ])
     return { available: available ?? [], usage: usage ?? [] }
   })

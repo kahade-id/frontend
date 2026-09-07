@@ -219,7 +219,7 @@ export default function KycScreen() {
           keyboardShouldPersistTaps: "handled",
         }}
       >
-        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {loading ? (
             // Isi layar ini = satu KycStatusCard + (opsional) form, bukan
             // daftar kartu: <ListLoading> (4 kartu) membuat tinggi menyusut
@@ -294,7 +294,7 @@ export default function KycScreen() {
                       disabled={submitting}
                     />
                   </View>
-                  <Button accessibilityHint="Ketuk untuk berinteraksi"
+                  <Button
                     loading={submitting}
                     disabled={!formValid}
                     onPress={() => void handleSubmit()}

@@ -147,7 +147,7 @@ export function TrustScoreCard({
             ) : null}
           </View>
         </CardSummary>
-        {onLearnMore ? <IconButton accessibilityHint="Ketuk untuk berinteraksi" icon={Info} variant="ghost" size="sm" accessibilityLabel={t.learnMore} onPress={onLearnMore} /> : null}
+        {onLearnMore ? <IconButton icon={Info} variant="ghost" size="sm" accessibilityLabel={t.learnMore} onPress={onLearnMore} /> : null}
       </View>
 
       {showFactors ? (

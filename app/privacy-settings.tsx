@@ -45,8 +45,8 @@ const ITEMS = [
 export default function PrivacySettingsScreen() {
   const toast = useToast()
   // Partial: server boleh mengirim subset; UI tidak boleh mengarang default.
-  const query = useApiQuery<Partial<PrivacySettings>>("privacy-settings", () =>
-    api.settings.getPrivacySettings().then((res) => res ?? {}),
+  const query = useApiQuery<Partial<PrivacySettings>>("privacy-settings", (signal) =>
+    api.settings.getPrivacySettings(signal).then((res) => res ?? {}),
   )
   const value: Partial<PrivacySettings> = query.data ?? {}
   const { setData } = query
@@ -122,7 +122,7 @@ export default function PrivacySettingsScreen() {
         <Text variant="body" tone="secondary">
           Anda berhak meminta salinan seluruh data pribadi yang kami simpan.
         </Text>
-        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
+        <Button variant="secondary" leftIcon={DownloadSimple} onPress={() => setExportOpen(true)}>
           Minta salinan data saya
         </Button>
       </DataScreen>

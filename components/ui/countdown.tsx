@@ -141,7 +141,14 @@ export function Countdown({
   const label = [prefix, formatted, suffix].filter(Boolean).join(" ")
 
   return (
-    <View accessible={false}
+    <View
+      /*
+       * `accessible` wajib di sini: role=timer + label + liveRegion hanya
+       * berlaku pada elemen SR. Tanpa itu subtree dibaca per <Text> dan
+       * pengumuman hitung mundur tidak pernah terjadi (Android: `accessible`
+       * -> isFocusable; iOS: -> isAccessibilityElement). Isinya murni Text.
+       */
+      accessible
       accessibilityRole="timer"
       accessibilityLabel={label}
       accessibilityLiveRegion="polite"
@@ -149,7 +156,7 @@ export function Countdown({
       {...rest}
     >
       {prefix ? (
-        <Text accessibilityHint="Ketuk untuk detail" variant={large ? "body" : "caption"} tone={tone}>
+        <Text variant={large ? "body" : "caption"} tone={tone}>
           {prefix}
         </Text>
       ) : null}

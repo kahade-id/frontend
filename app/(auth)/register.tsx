@@ -177,7 +177,7 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View accessible={false} className="gap-8">
+          <View className="gap-8">
             {/* Judul konten (H1) — Header memakai H3, jadi hanya satu H1 di layar */}
             <View className="gap-2">
               <Heading level={1} className="text-balance">
@@ -255,7 +255,7 @@ export default function RegisterScreen() {
 
         {/* Footer: CTA + jalan ke login. Pola border-t mengikuti slot footer Screen. */}
         <FooterBar>
-          <Button accessibilityHint="Ketuk untuk berinteraksi"
+          <Button
             onPress={() => void handleSubmit()}
             loading={submitting}
             disabled={methodsLoading}

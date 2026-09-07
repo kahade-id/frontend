@@ -93,8 +93,8 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
     .join(", ")
 
   return (
-    <View accessible={false} className={cn("relative aspect-square", className)} {...rest}>
-      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+    <View className={cn("relative aspect-square", className)} {...rest}>
+      <PressableScale
         onPress={onOpen ? () => onOpen(item) : undefined}
         disabled={!onOpen}
         accessibilityRole="imagebutton"

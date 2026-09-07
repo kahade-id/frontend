@@ -111,8 +111,8 @@ export default function ChangePinScreen() {
       padded={false}
       footer={
         step === "password" ? (
-          <View accessible={false}>
-            <Button accessibilityHint="Ketuk untuk berinteraksi" fullWidth disabled={!passwordOk} onPress={() => setStep("current")}>
+          <View>
+            <Button fullWidth disabled={!passwordOk} onPress={() => setStep("current")}>
               Lanjut
             </Button>
           </View>

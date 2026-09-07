@@ -19,8 +19,8 @@ import { SectionHeader } from "@/components/ui/section"
 const PAGE_LIMIT = 50
 
 export default function DisputesScreen() {
-  const query = useApiQuery("disputes", () =>
-    api.disputes.listMyDisputes({ page: 1, limit: PAGE_LIMIT }),
+  const query = useApiQuery("disputes", (signal) =>
+    api.disputes.listMyDisputes({ page: 1, limit: PAGE_LIMIT }, signal),
   )
   const items = query.data ?? []
 

@@ -368,14 +368,13 @@ export function PullToRefresh({
     <View className={cn("flex-1 overflow-hidden", className)} {...rest}>
       {/* Area logo di belakang konten — tinggi = ambang */}
       <View
-        pointerEvents="none"
         // `accessible` agar label live-region benar-benar diumumkan; logo di
         // dalamnya murni dekoratif (audit #4).
         accessible={refreshing}
         accessibilityLiveRegion="polite"
         accessibilityLabel={refreshing ? "Memuat ulang" : undefined}
         className="absolute inset-x-0 top-0 items-center justify-center"
-        style={{ height: threshold }}
+        style={[{ pointerEvents: "none" }, { height: threshold }]}
       >
         {refreshing ? (
           <PulsingLogo size="md" />

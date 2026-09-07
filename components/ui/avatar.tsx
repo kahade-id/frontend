@@ -110,7 +110,16 @@ export function Avatar({
   const label = name ? toInitials(name) : ""
 
   return (
-    <View accessible={false}
+    <View
+      /*
+       * Avatar adalah satu kesatuan informasi (foto/inisial + lencana
+       * verifikasi). Tanpa `accessible`, RN tidak menjadikan View ini elemen
+       * SR: `accessibilityRole="image"` + label + hint diabaikan dan Image /
+       * Text / Icon di dalamnya dibaca per fragmen (Android: `accessible`
+       * -> isFocusable, ReactViewManager.kt:92; iOS: -> isAccessibilityElement,
+       * RCTViewComponentView.mm:347). Aman karena seluruh subtree dekoratif.
+       */
+      accessible
       accessibilityRole="image"
       accessibilityLabel={name ? `Foto profil ${name}` : "Foto profil"}
       accessibilityHint={verified ? "Akun terverifikasi" : undefined}
