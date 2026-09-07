@@ -124,12 +124,12 @@ export function MediaViewer({ item, onClose, onOpenError, labels, actions }: Med
       accessibilityLabel={title ?? t.fileFallback}
       className="p-3"
     >
-      <View accessible={false} className="gap-3">
+      <View className="gap-3">
         <View className="flex-row items-center justify-between">
           <Text ellipsizeMode="tail" variant="label" numberOfLines={1} className="flex-1 pr-3">
             {title ?? ""}
           </Text>
-          <IconButton accessibilityHint="Ketuk untuk berinteraksi" icon={X} variant="ghost" accessibilityLabel={t.close} onPress={onClose} />
+          <IconButton icon={X} variant="ghost" accessibilityLabel={t.close} onPress={onClose} />
         </View>
 
         {item && image ? (

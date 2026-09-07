@@ -276,7 +276,7 @@ export function BottomSheet({
             ) : null}
           </View>
           {closeVisible ? (
-            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+            <IconButton
               icon={X}
               variant="ghost"
               size="sm"
@@ -319,14 +319,13 @@ export function BottomSheet({
 
   return (
     <Portal>
-      <View pointerEvents="box-none" className="absolute inset-0 z-bottomSheet">
+      <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 z-bottomSheet">
         <Backdrop progress={progress} onPress={dismiss} />
 
-        <Wrapper pointerEvents="box-none" className="flex-1 justify-end items-center">
+        <Wrapper style={{ pointerEvents: "box-none" }} className="flex-1 justify-end items-center">
           <View
-            pointerEvents="box-none"
             className="w-full md:max-w-content"
-            style={{ maxHeight: windowHeight * MAX_HEIGHT_RATIO }}
+            style={[{ pointerEvents: "box-none" }, { maxHeight: windowHeight * MAX_HEIGHT_RATIO }]}
           >
             <Animated.View style={sheetStyle}>
               {dragArea === "full" ? <GestureDetector gesture={pan}>{sheet}</GestureDetector> : sheet}

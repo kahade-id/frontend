@@ -27,15 +27,15 @@ export type VoucherValidation = {
   message?: string
 }
 
-export function listAvailableVouchers() {
+export function listAvailableVouchers(signal?: AbortSignal) {
   return http
-    .get<Voucher[]>("/v1/vouchers/available", { auth: "required", retry: 1 })
+    .get<Voucher[]>("/v1/vouchers/available", { auth: "required", retry: 1, signal })
     .then((raw) => readList<Voucher>(raw, ["vouchers"]))
 }
 
-export function listMyVoucherUsage() {
+export function listMyVoucherUsage(signal?: AbortSignal) {
   return http
-    .get<Voucher[]>("/v1/vouchers/my-usage", { auth: "required", retry: 1 })
+    .get<Voucher[]>("/v1/vouchers/my-usage", { auth: "required", retry: 1, signal })
     .then((raw) => readList<Voucher>(raw, ["usages", "usage"]))
 }
 

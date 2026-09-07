@@ -192,8 +192,8 @@ export type UserAnalytics = {
   completionRate?: number
 }
 
-export function getMyStats() {
-  return http.get<UserStats>("/v1/users/me/stats", { auth: "required", retry: 1 })
+export function getMyStats(signal?: AbortSignal) {
+  return http.get<UserStats>("/v1/users/me/stats", { auth: "required", retry: 1, signal })
 }
 
 /**
@@ -210,21 +210,22 @@ export const ANALYTICS_PERIODS: ReadonlyArray<{ value: AnalyticsPeriod; label: s
 ]
 
 /** GET /v1/users/me/analytics?period= — dashboard analitik per periode. */
-export function getMyAnalytics(period: AnalyticsPeriod = "30d") {
+export function getMyAnalytics(period: AnalyticsPeriod = "30d", signal?: AbortSignal) {
   return http.get<UserAnalytics>("/v1/users/me/analytics", {
     query: { period },
     auth: "required",
+    signal,
     retry: 1,
   })
 }
 
-export function getMyTrustScore() {
+export function getMyTrustScore(signal?: AbortSignal) {
   return http.get<{
     score: number
     tier?: string
     factors?: Array<{ key: string; label: string; value: number; max: number }>
     updatedAt?: string
-  }>("/v1/users/me/trust-score", { auth: "required", retry: 1 })
+  }>("/v1/users/me/trust-score", { auth: "required", retry: 1, signal })
 }
 
 export function getMyDashboard() {
@@ -256,11 +257,11 @@ export function discoverUsers(
     .then((raw) => readPage<DiscoveredUser>(raw, query, ["users"]))
 }
 
-export function getFavorites() {
+export function getFavorites(signal?: AbortSignal) {
   return http
     .get<
       Array<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>
-    >("/v1/users/favorites", { auth: "required", retry: 1 })
+    >("/v1/users/favorites", { auth: "required", retry: 1, signal })
     .then((raw) =>
       readList<{ id: string; username: string; fullName?: string; avatarUrl?: string | null }>(
         raw,

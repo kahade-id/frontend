@@ -115,7 +115,7 @@ export default function OrderLinkScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchLink()} />
         ) : link ? (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <OrderLinkPreviewCard
               creator={{
                 name: link.creator?.fullName ?? `@${link.creator?.username ?? "—"}`,
@@ -139,7 +139,7 @@ export default function OrderLinkScreen() {
               accepting={accepting}
             />
             {!active ? (
-              <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
+              <Button variant="secondary" onPress={() => goBackOrNavigate(ROUTES.home)}>
                 Kembali
               </Button>
             ) : null}

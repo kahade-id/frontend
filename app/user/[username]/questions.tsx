@@ -265,7 +265,7 @@ export default function PublicQuestionsScreen() {
       <Header
         title="Tanya Jawab"
         right={
-          <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={() => setAskOpen(true)}>
+          <Button size="sm" variant="secondary" onPress={() => setAskOpen(true)}>
             Bertanya
           </Button>
         }
@@ -289,7 +289,7 @@ export default function PublicQuestionsScreen() {
             description="Jadilah yang pertama bertanya pada profil ini."
           />
         ) : (
-          <View accessible={false} className="gap-3" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title={`@${username}`} />
             {items.map((q) => (
               <View key={q.id} className="gap-3">

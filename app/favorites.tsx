@@ -19,7 +19,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { UserListItem } from "@/components/ui/user-list-item"
 
 export default function FavoritesScreen() {
-  const query = useApiQuery("favorites", () => api.users.getFavorites())
+  const query = useApiQuery("favorites", (signal) => api.users.getFavorites(signal))
   const items = query.data ?? []
 
   return (

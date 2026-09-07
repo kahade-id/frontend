@@ -166,7 +166,7 @@ export function ReferralApplyForm({
         className="font-mono-500 tracking-widest"
         accessibilityLabel="Masukkan kode referral"
       />
-      <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => onSubmit(normalized)} disabled={!formatOk || submitting} loading={submitting}>
+      <Button onPress={() => onSubmit(normalized)} disabled={!formatOk || submitting} loading={submitting}>
         Pakai kode
       </Button>
     </View>

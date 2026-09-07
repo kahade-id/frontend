@@ -381,7 +381,7 @@ export default function OrderDetailScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {/*
            * Urutan baca (audit komposisi): STATUS -> JUDUL -> deskripsi -> ID.
            * Sebelumnya baris pertama layar adalah ID order (monoBody 14px,
@@ -428,7 +428,7 @@ export default function OrderDetailScreen() {
               emphasis
             />
             {/*
-             * Sebelumnya <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost"> dipakai sebagai NILAI baris:
+             * Sebelumnya <Button variant="ghost"> dipakai sebagai NILAI baris:
              * tinggi 40px + padding tombol membuat baris ini melompat keluar
              * irama KeyValueList, dan secara hierarki tombol (aksi) menyaingi
              * "Nilai transaksi" di atasnya. Navigasi ke profil = navigasi

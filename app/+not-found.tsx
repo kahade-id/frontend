@@ -16,7 +16,7 @@ export default function NotFoundScreen() {
         title="Tautan tidak tersedia"
         description="Tautan mungkin sudah berubah. Kembali ke beranda untuk melanjutkan."
         action={
-          <Button accessibilityHint="Ketuk untuk berinteraksi" fullWidth={false} onPress={() => router.replace(ROUTES.home)}>
+          <Button fullWidth={false} onPress={() => router.replace(ROUTES.home)}>
             Ke beranda
           </Button>
         }

@@ -70,7 +70,7 @@ export function CurrencyRangeField({
     : null
 
   return (
-    <View accessible={false} className={cn("w-full gap-3", className)} {...rest}>
+    <View className={cn("w-full gap-3", className)} {...rest}>
       {label !== null ? <FieldLabel disabled={disabled}>{label ?? t.label}</FieldLabel> : null}
 
       <View className="flex-row items-start gap-3 tabular-nums">
@@ -84,7 +84,7 @@ export function CurrencyRangeField({
           />
         </View>
         <View className="h-14 justify-center">
-          <Text accessibilityHint="Ketuk untuk detail" variant="body" tone="secondary">
+          <Text variant="body" tone="secondary">
             –
           </Text>
         </View>

@@ -22,7 +22,7 @@ import { useToast } from "@/components/ui/toast"
 
 export default function BlockedUsersScreen() {
   const toast = useToast()
-  const query = useApiQuery("blocked-users", () => api.settings.getBlockedUsers())
+  const query = useApiQuery("blocked-users", (signal) => api.settings.getBlockedUsers(signal))
   const items = query.data ?? []
   const [unblockingId, setUnblockingId] = useState<string | null>(null)
   const { setData } = query
@@ -65,7 +65,7 @@ export default function BlockedUsersScreen() {
           avatar={{ source: u.avatarUrl ?? undefined }}
           blocked
           action={
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               variant="ghost"
               size="sm"
               fullWidth={false}

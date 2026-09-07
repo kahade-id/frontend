@@ -104,7 +104,7 @@ export function PaginatedList<T extends { id: string }>({
   const separator = useMemo(
     () =>
       function Separator() {
-        return <View accessible={false} style={{ height: gap }} />
+        return <View style={{ height: gap }} />
       },
     [gap],
   )

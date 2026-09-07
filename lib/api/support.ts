@@ -25,9 +25,9 @@ export type SupportTicket = {
   attachmentKeys?: string[]
 }
 
-export function listSupportTickets() {
+export function listSupportTickets(signal?: AbortSignal) {
   return http
-    .get<SupportTicket[]>("/v1/support/tickets", { auth: "required", retry: 1 })
+    .get<SupportTicket[]>("/v1/support/tickets", { auth: "required", retry: 1, signal })
     .then((raw) => readList<SupportTicket>(raw, ["tickets"]))
 }
 

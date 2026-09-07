@@ -53,7 +53,7 @@ export default function TransactionsScreen() {
         showBack={false}
         right={
           <>
-            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+            <IconButton
               icon={Copy}
               variant="ghost"
               accessibilityLabel="Template transaksi"
@@ -68,7 +68,7 @@ export default function TransactionsScreen() {
           </>
         }
       />
-      <View accessible={false} className="gap-3 px-6 pb-3 pt-3">
+      <View className="gap-3 px-6 pb-3 pt-3">
         <SegmentedControl items={FILTERS} value={filter} onChange={setFilter} />
         <DebouncedSearchField
           onQueryChange={setDebounced}

@@ -51,7 +51,7 @@ export const CaptchaField = forwardRef<TextInput, CaptchaFieldProps>(function Ca
   const t = { ...DEFAULT_LABELS, ...labels }
 
   return (
-    <View accessible={false} className={cn("w-full gap-3", containerClassName)}>
+    <View className={cn("w-full gap-3", containerClassName)}>
       <View className="flex-row items-center gap-2">
         <View className="h-14 flex-1 overflow-hidden rounded-sm border border-border bg-surface">
           {loading || !imageUri ? (
@@ -60,7 +60,7 @@ export const CaptchaField = forwardRef<TextInput, CaptchaFieldProps>(function Ca
             <Picture source={imageUri} alt={t.imageAlt} height={56} resizeMode="contain" radius="none" />
           )}
         </View>
-        <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+        <IconButton
           icon={ArrowsClockwise}
           variant="secondary"
           accessibilityLabel={t.refresh}

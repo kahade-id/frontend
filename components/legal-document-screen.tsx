@@ -15,7 +15,7 @@ import { Text } from "@/components/ui/text"
 /** Legal claims may only come from the authoritative configuration, never a bundled draft. */
 export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
   const title = kind === "terms" ? "Syarat & Ketentuan" : "Kebijakan Privasi"
-  const query = useApiQuery("public-legal-config", () => api.public.getPublicConfig())
+  const query = useApiQuery("public-legal-config", (signal) => api.public.getPublicConfig(signal))
   const [openError, setOpenError] = useState(false)
   const url = safeHttpsUrl(kind === "terms" ? query.data?.termsUrl : query.data?.privacyUrl)
   return (

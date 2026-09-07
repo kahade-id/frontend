@@ -156,7 +156,7 @@ export default function OrderLinksScreen() {
             title="Belum ada tautan"
             description="Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi."
             action={
-              <Button accessibilityHint="Ketuk untuk berinteraksi"
+              <Button
                 variant="secondary"
                 fullWidth={false}
                 onPress={() => router.push(ROUTES.createTransaction)}
@@ -166,7 +166,7 @@ export default function OrderLinksScreen() {
             }
           />
         ) : (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Tautan saya" />
             {items.map((link) => {
               const url = link.url ?? orderLinkUrl(link.token)

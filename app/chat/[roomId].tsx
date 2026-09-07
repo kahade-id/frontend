@@ -338,7 +338,7 @@ export default function ChatRoomScreen() {
       padded={false}
       footer={
         error || !roomId ? undefined : (
-        <View accessible={false}>
+        <View>
           <ChatComposer
             value={draft}
             onChangeText={setDraft}
@@ -363,7 +363,7 @@ export default function ChatRoomScreen() {
         title={counterpartName ?? "Percakapan"}
         right={
           room?.orderId ? (
-            <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+            <IconButton
               icon={Package}
               variant="ghost"
               accessibilityLabel="Lihat pesanan terkait"

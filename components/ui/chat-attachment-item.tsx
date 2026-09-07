@@ -162,7 +162,7 @@ export function ChatAttachmentItem({
 
   if (layout === "tile") {
     return (
-      <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+      <PressableScale
         scaleOnPress={false}
         onPress={onPress}
         disabled={!onPress}

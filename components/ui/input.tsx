@@ -201,7 +201,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
       disabled={disabled}
       className={containerClassName}
     >
-      <View accessible={false}
+      <View
         className={cn(
           "w-full flex-row rounded-sm bg-background",
           isMultiline ? "items-start py-4" : "items-center",
@@ -228,8 +228,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           {showLabel ? (
             // Wrapper className (posisi) dipisah dari Animated.View (transform
             // saja) karena Animated.* tidak di-interop NativeWind.
-            <View
-              pointerEvents="none"
+            <View style={{ pointerEvents: "none" }}
               className={cn(
                 "absolute inset-0 items-start",
                 isMultiline ? "justify-start" : "justify-center",

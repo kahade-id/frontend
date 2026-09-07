@@ -83,7 +83,7 @@ export function FilterSheetContent({
   const active = countActiveFilters(value, defaultValue)
 
   return (
-    <View accessible={false} className={cn("w-full gap-8", className)} {...rest}>
+    <View className={cn("w-full gap-8", className)} {...rest}>
       {sections.map((s) => (
         <View key={s.key} className="gap-3">
           <View className="gap-1">
@@ -141,7 +141,7 @@ export function FilterSheetContent({
         </View>
       ))}
 
-      <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" size="sm" disabled={disabled || active === 0} onPress={() => onChange({ ...defaultValue })}>
+      <Button variant="ghost" size="sm" disabled={disabled || active === 0} onPress={() => onChange({ ...defaultValue })}>
         {t.reset}
       </Button>
     </View>

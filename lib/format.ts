@@ -53,8 +53,49 @@ export function groupThousands(n: number): string {
 }
 
 /**
+ * Tingkat compact, menurun. `min` = batas bawah pemakaian tingkat itu.
+ * "rb"/"jt" sudah dipakai di app; "M"(miliar)/"T"(triliun) ditambahkan karena
+ * tanpa keduanya nilai besar jatuh ke tingkat di bawahnya dan menghasilkan
+ * label tidak masuk akal seperti "Rp1000,0 jt" (audit #5).
+ */
+const COMPACT_UNITS = [
+  { min: 1_000_000_000_000, div: 1_000_000_000_000, suffix: " T" },
+  { min: 1_000_000_000, div: 1_000_000_000, suffix: " M" },
+  { min: 1_000_000, div: 1_000_000, suffix: " jt" },
+  { min: 1_000, div: 1_000, suffix: " rb" },
+] as const
+
+/**
+ * "Rp1,5 jt" hanya untuk chart/label sempit — bukan nominal transaksi.
+ *
+ * Nilai dibulatkan ke 1 desimal lebih dulu, lalu tingkatnya dinaikkan bila
+ * hasil pembulatan mencapai 1000: 999.999 harus jadi "1 jt", bukan "1000,0 rb"
+ * (audit #5). `findIndex` pada array menurun memilih tingkat terbesar yang muat.
+ */
+function compactBody(abs: number): string {
+  let i = COMPACT_UNITS.findIndex((u) => abs >= u.min)
+  if (i === -1) return groupThousands(abs)
+  let r = Math.round((abs / COMPACT_UNITS[i].div) * 10) / 10
+  while (r >= 1000 && i > 0) {
+    i -= 1
+    r = Math.round((abs / COMPACT_UNITS[i].div) * 10) / 10
+  }
+  const text = r % 1 === 0 ? r.toFixed(0) : r.toFixed(1)
+  return `${text.replace(".", ",")}${COMPACT_UNITS[i].suffix}`
+}
+
+/**
  * Format Rupiah bulat: 1500000 -> "Rp1.500.000". Negatif -> "-Rp1.500.000".
- * `sign` = "+"/"-" eksplisit untuk mutasi saldo (mis. "+Rp50.000").
+ *
+ * `sign` mengatur tanda POSITIF saja (audit #5):
+ *   - "auto"   : tanpa "+" (default)
+ *   - "always" : "+Rp50.000" untuk mutasi saldo; 0 tetap "Rp0" karena nol
+ *                tidak bertanda
+ *   - "never"  : menyembunyikan "+", TIDAK menyembunyikan "-". Implementasi
+ *                lama mengembalikan `Rp${body}` tanpa prefix sama sekali, jadi
+ *                -Rp50.000 tampil identik dengan +Rp50.000 — di tooltip
+ *                bar-chart (satu-satunya pemakai `never`) debet terbaca sebagai
+ *                kredit. Tanda negatif adalah informasi, bukan hiasan.
  */
 export function formatRupiah(
   amount: number,
@@ -64,19 +105,9 @@ export function formatRupiah(
   const { sign = "auto", compact = false } = opts
   const negative = amount < 0
   const abs = Math.abs(Math.round(amount))
-  let body: string
-  if (compact && abs >= 1_000_000) {
-    // "Rp1,5 jt" hanya untuk chart/label sempit — bukan nominal transaksi
-    const v = abs / 1_000_000
-    body = `${v.toFixed(v % 1 === 0 ? 0 : 1).replace(".", ",")} jt`
-  } else if (compact && abs >= 1_000) {
-    const v = abs / 1_000
-    body = `${v.toFixed(v % 1 === 0 ? 0 : 1).replace(".", ",")} rb`
-  } else {
-    body = groupThousands(abs)
-  }
+  const body = compact ? compactBody(abs) : groupThousands(abs)
   const prefix = negative ? "-" : sign === "always" && amount > 0 ? "+" : ""
-  return sign === "never" ? `Rp${body}` : `${prefix}Rp${body}`
+  return `${prefix}Rp${body}`
 }
 
 /** Backend fields are cast, not validated: never let a non-string reach `.replace`. */
@@ -156,15 +187,28 @@ export function amountInputValue(raw: string): number | null {
   return n
 }
 
-/** Format angka biasa dengan pemisah ribuan (bukan uang) */
+/**
+ * Format angka biasa dengan pemisah ribuan (bukan uang).
+ *
+ * Tanda diambil dari hasil `Math.trunc`, bukan dari `n`: `Math.trunc(-0.4)`
+ * adalah `-0`, dan `-0 < 0` bernilai false, jadi `formatNumber(-0.4)`
+ * menghasilkan "0" — bukan "-0" yang merupakan nilai yang tidak ada (audit #5).
+ */
 export function formatNumber(n: number): string {
-  return (n < 0 ? "-" : "") + groupThousands(n)
+  if (!Number.isFinite(n)) return "—"
+  const truncated = Math.trunc(n)
+  return `${truncated < 0 ? "-" : ""}${groupThousands(truncated)}`
 }
 
 /**
  * Desimal lokal ID: koma sebagai pemisah desimal, tanpa Intl.
  * `formatDecimal(4.5)` → "4,5"; `formatDecimal(4)` → "4"; `formatDecimal(4.25, 1)` → "4,3".
  * Dipakai rating, persentase, dan nilai pecahan lain (§13).
+ *
+ * Tanda dibaca dari string hasil `toFixed`, lalu dibatalkan bila nilainya nol:
+ * `formatDecimal(-0.4, 0)` membulat ke 0 dan harus tampil "0", bukan "-0"
+ * (audit #5). `toFixed` sudah menyertakan tanda, jadi int tidak perlu
+ * di-`Math.abs` dua kali.
  */
 export function formatDecimal(n: number, maxFractionDigits = 1): string {
   if (!Number.isFinite(n)) return "—"
@@ -172,10 +216,11 @@ export function formatDecimal(n: number, maxFractionDigits = 1): string {
     ? Math.max(0, Math.min(20, Math.trunc(maxFractionDigits)))
     : 1
   const fixed = n.toFixed(precision)
-  const [int, frac = ""] = fixed.split(".")
+  const negative = fixed.startsWith("-") && Number(fixed) !== 0
+  const [int, frac = ""] = (negative ? fixed.slice(1) : fixed).split(".")
   const trimmed = frac.replace(/0+$/, "")
-  const sign = n < 0 ? "-" : ""
-  const absInt = groupThousands(Math.abs(Number(int)))
+  const absInt = groupThousands(Number(int))
+  const sign = negative ? "-" : ""
   return trimmed ? `${sign}${absInt},${trimmed}` : `${sign}${absInt}`
 }
 
@@ -252,11 +297,26 @@ export function groupAccountNumber(account: string): string {
     .trim()
 }
 
-/** Nomor HP Indonesia -> "+62 812-3456-7890" */
+/**
+ * Nomor HP Indonesia -> "+62 812-3456-7890".
+ *
+ * Prefix trunk "0" dan kode negara "62" bisa datang dalam urutan apa pun
+ * karena pengguna menyalin dari berbagai sumber: "0812…", "62812…",
+ * "+62 812…", "0062812…" (prefix internasional), bahkan "062812…" bila nomor
+ * sudah salah format di hulu. Implementasi lama mengecek `62` lebih dulu lalu
+ * `0`, sehingga "0628123456789" kehilangan nol-nya dan menyisakan "62" sebagai
+ * bagian nomor pelanggan -> "+62 628-1234-56789" (audit #5). Pembuangan
+ * dilakukan berulang sampai keduanya habis, dalam urutan apa pun.
+ */
 export function formatPhoneId(raw: string): string {
   let digits = asText(raw).replace(/\D/g, "")
-  if (digits.startsWith("62")) digits = digits.slice(2)
-  if (digits.startsWith("0")) digits = digits.slice(1)
+  // Maksimum 4 iterasi: "00" + "62" sudah mencakup prefix terpanjang yang
+  // realistis, dan loop ini harus selalu berhenti (digits memendek tiap langkah).
+  for (let i = 0; i < 4; i++) {
+    if (digits.startsWith("0")) digits = digits.slice(1)
+    else if (digits.startsWith("62")) digits = digits.slice(2)
+    else break
+  }
   const parts = [digits.slice(0, 3), digits.slice(3, 7), digits.slice(7)].filter(Boolean)
   return digits ? `+62 ${parts.join("-")}` : ""
 }
@@ -271,17 +331,45 @@ export function initials(name: string, max = 2): string {
     .join("")
 }
 
-/** Potong string panjang di tengah: "KHD-2026-0903-ABCDEF" -> "KHD-2026…CDEF" */
+/**
+ * Potong string panjang di tengah: "KHD-2026-0903-ABCDEF" -> "KHD-2026…CDEF"
+ *
+ * `tail=0` dicabang eksplisit: `String.prototype.slice(-0)` identik dengan
+ * `slice(0)` dan mengembalikan SELURUH string, sehingga `truncateMiddle(x, 8, 0)`
+ * dulu menghasilkan "abcdefgh…abcdefghij" — lebih PANJANG dari inputnya
+ * (audit #5). `tail` adalah prop publik <Truncate>, jadi 0 bisa dicapai pemanggil.
+ */
 export function truncateMiddle(s: string, head = 8, tail = 4): string {
   const text = asText(s)
-  if (text.length <= head + tail + 1) return text
-  return `${text.slice(0, head)}\u2026${text.slice(-tail)}`
+  const h = Math.max(0, Math.trunc(head))
+  const t = Math.max(0, Math.trunc(tail))
+  if (text.length <= h + t + 1) return text
+  return `${text.slice(0, h)}\u2026${t > 0 ? text.slice(-t) : ""}`
 }
 
-/** Byte -> "2,4 MB" (batasan upload KYC §9.19) */
+/**
+ * Byte -> "2,4 MB" (batasan upload KYC §9.19).
+ *
+ * Tangga satuan lengkap sampai PB dan nilai dinaikkan tingkatnya SETELAH
+ * pembulatan. Versi lama berhenti di MB, jadi 1 GB tampil "1024,0 MB" dan
+ * 1 TB tampil "1048576,0 MB" (audit #5). Byte juga dibulatkan: "1023.5 B"
+ * memakai titik desimal Inggris dan byte pecahan tidak bermakna bagi pengguna.
+ */
 export function formatFileSize(bytes: number): string {
   if (!Number.isFinite(bytes) || bytes < 0) return "—"
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1).replace(".", ",")} MB`
+  const units = ["B", "KB", "MB", "GB", "TB", "PB"] as const
+  let value = Math.round(bytes)
+  let i = 0
+  while (value >= 1024 && i < units.length - 1) {
+    value /= 1024
+    i += 1
+  }
+  // 1048575 B -> 1023,999 KB -> toFixed(0) "1024 KB"; naikkan sekali lagi.
+  let text = value.toFixed(i <= 1 ? 0 : 1)
+  if (Number(text) >= 1024 && i < units.length - 1) {
+    value /= 1024
+    i += 1
+    text = value.toFixed(i <= 1 ? 0 : 1)
+  }
+  return `${text.replace(".", ",")} ${units[i]}`
 }

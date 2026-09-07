@@ -86,10 +86,10 @@ export function ReadMore({
   }, [expanded, expandedProp, onToggle])
 
   return (
-    <View accessible={false} className={cn("w-full gap-1", className)} {...rest}>
+    <View className={cn("w-full gap-1", className)} {...rest}>
       {/* Pengukur: render penuh tak terlihat, hanya sekali saat belum terukur */}
       {measuredLines == null ? (
-        <Text accessibilityHint="Ketuk untuk detail"
+        <Text
           variant={variant}
           tone={tone}
           onTextLayout={onLayout}

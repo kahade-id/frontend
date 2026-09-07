@@ -67,8 +67,8 @@ export default function ContactScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        <View accessible={false}>
-          <Button accessibilityHint="Ketuk untuk berinteraksi"
+        <View>
+          <Button
             fullWidth
             loading={submitting}
             disabled={!subject.trim() || !message.trim()}

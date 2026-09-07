@@ -100,7 +100,6 @@ export function Select<V extends string = string>({
     >
       <PressableScale
         ref={ref}
-        accessibilityHint="Ketuk untuk berinteraksi"
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityValue={{ text: selected?.label }}
@@ -127,8 +126,7 @@ export function Select<V extends string = string>({
 
         <View className="relative flex-1 justify-center self-stretch">
           {/* Label: resting di tengah, float ke garis border saat ada nilai */}
-          <View
-            pointerEvents="none"
+          <View style={{ pointerEvents: "none" }}
             className={cn(
               "absolute left-0 items-start",
               floated ? "-top-2" : "inset-y-0 justify-center",

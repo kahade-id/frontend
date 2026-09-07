@@ -184,7 +184,7 @@ export default function LoginScreen() {
             </VStack>
 
             {/* Submit button */}
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               onPress={() => void handleLogin()}
               loading={submitting}
               disabled={!isFormValid}
@@ -207,7 +207,7 @@ export default function LoginScreen() {
 
         {/* Footer links */}
         <FooterBar>
-          <View accessible={false} className="items-center">
+          <View className="items-center">
             <TextLink onPress={handleForgotPassword} disabled={submitting}>
               Lupa password?
             </TextLink>

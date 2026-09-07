@@ -102,7 +102,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
       disabled={disabled}
       className={containerClassName}
     >
-      <View accessible={false}
+      <View
         className={cn(
           "h-16 w-full flex-row items-center rounded-sm bg-background",
           hasError
@@ -114,7 +114,7 @@ export const AmountInput = forwardRef<TextInput, AmountInputProps>(function Amou
           className,
         )}
       >
-        <Text accessibilityHint="Ketuk untuk detail" variant="monoLarge" tone={value > 0 ? "primary" : "disabled"} className="mr-1 tabular-nums">
+        <Text variant="monoLarge" tone={value > 0 ? "primary" : "disabled"} className="mr-1 tabular-nums">
           Rp
         </Text>
         <TextInput

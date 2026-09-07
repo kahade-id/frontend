@@ -110,7 +110,7 @@ export function LoadingScreen({ message, className, ...rest }: LoadingScreenProp
     >
       <PulsingLogo size="lg" />
       {message ? (
-        <Text accessibilityHint="Ketuk untuk detail" variant="body" tone="secondary" className="text-center">
+        <Text variant="body" tone="secondary" className="text-center">
           {message}
         </Text>
       ) : null}
@@ -138,7 +138,7 @@ export function LoadingOverlay({ visible, message, children, onHidden }: Loading
       <View className="absolute inset-0 z-modal">
         {/* Tanpa onPress: scrim tidak bisa di-tap — proses tidak boleh diinterupsi */}
         <Backdrop progress={progress} />
-        <View pointerEvents="none" className="flex-1 items-center justify-center px-6">
+        <View style={{ pointerEvents: "none" }} className="flex-1 items-center justify-center px-6">
           <Animated.View style={{ opacity: progress }}>
             <View
               ref={boxRef}

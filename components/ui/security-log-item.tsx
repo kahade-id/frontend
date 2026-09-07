@@ -227,7 +227,7 @@ export function SecurityLogItem({
     <View className={cn("w-full", unread && "bg-surface", className)} {...rest}>
       <View className="px-6">
         {onPress ? (
-          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Buka detail kejadian"

@@ -81,7 +81,7 @@ export default function SearchScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pencarian" />
-      <View accessible={false} className="px-6 pb-4">
+      <View className="px-6 pb-4">
         <DebouncedSearchField
           key={seed}
           initialQuery={seed}

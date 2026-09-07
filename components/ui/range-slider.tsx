@@ -216,7 +216,7 @@ export function RangeSlider({
   })
 
   return (
-    <View accessible={false}
+    <View
       className={cn("w-full justify-center py-3", disabled && "opacity-disabled", className)}
       {...rest}
     >
@@ -327,11 +327,10 @@ function Thumb({
         <View className="h-full w-full rounded-full border-focus border-border-focus bg-background" />
         {showLabel && formatValue ? (
           <View
-            pointerEvents="none"
             className="absolute -top-8 items-center rounded-xs border border-border bg-surface-elevated px-2 py-1"
-            style={{ left: THUMB / 2 - LABEL_MIN_W / 2, minWidth: LABEL_MIN_W }}
+            style={[{ pointerEvents: "none" }, { left: THUMB / 2 - LABEL_MIN_W / 2, minWidth: LABEL_MIN_W }]}
           >
-            <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="monoBody" tone="primary" numberOfLines={1}>
+            <Text ellipsizeMode="tail" variant="monoBody" tone="primary" numberOfLines={1}>
               {formatValue(value)}
             </Text>
           </View>

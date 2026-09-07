@@ -208,7 +208,7 @@ export function QaCommentComposer({
         accessibilityLabel="Tulis komentar"
       />
       <View className="flex-row justify-end">
-        <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" onPress={onSubmit} disabled={!canSubmit} loading={submitting} fullWidth={false}>
+        <Button size="sm" onPress={onSubmit} disabled={!canSubmit} loading={submitting} fullWidth={false}>
           {submitLabel}
         </Button>
       </View>

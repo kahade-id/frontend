@@ -230,7 +230,7 @@ export default function SecurityScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           <SegmentedControl items={TABS} value={tab} onChange={(v) => setTab(v as TabKey)} />
 
           {error ? (
@@ -269,7 +269,7 @@ export default function SecurityScreen() {
                 onLoadMore={() => void loadSessions(sessions.page + 1).catch(() => undefined)}
                 hideEnd
               />
-              <Button accessibilityHint="Ketuk untuk berinteraksi"
+              <Button
                 variant="ghost"
                 onPress={() => setConfirmOthers(true)}
                 disabled={otherSessions === 0}

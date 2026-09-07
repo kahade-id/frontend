@@ -153,7 +153,7 @@ export function OrderLinkShareCard({
           {displayOrderUrl(url)}
         </Text>
         {onCopy ? (
-          <IconButton accessibilityHint="Ketuk untuk berinteraksi" icon={Copy} size="sm" variant="ghost" accessibilityLabel={t.copy} onPress={() => onCopy(url)} />
+          <IconButton icon={Copy} size="sm" variant="ghost" accessibilityLabel={t.copy} onPress={() => onCopy(url)} />
         ) : null}
       </View>
 

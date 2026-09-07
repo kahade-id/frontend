@@ -44,11 +44,11 @@ export default function DeleteAccountScreen() {
   const submitLock = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [errorText, setErrorText] = useState<string | undefined>()
-  const prerequisites = useApiQuery("account-deletion-checks", async () => {
+  const prerequisites = useApiQuery("account-deletion-checks", async (signal) => {
     const [twoFa, wallet, orders] = await Promise.all([
-      api.auth.get2faStatus(),
-      api.wallet.getWallet(),
-      api.orders.listOrders({ page: 1, limit: 1, status: "ACTIVE" }),
+      api.auth.get2faStatus(signal),
+      api.wallet.getWallet(signal),
+      api.orders.listOrders({ page: 1, limit: 1, status: "ACTIVE" }, signal),
     ])
     if (typeof twoFa?.enabled !== "boolean") throw new Error("2FA status is unknown")
     const blockers: string[] = []

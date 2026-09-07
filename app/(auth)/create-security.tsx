@@ -177,14 +177,14 @@ export default function CreateSecurityScreen() {
 
           {/* Footer: tombol Lanjut */}
           <FooterBar>
-            <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={handleProceedToPin} disabled={!canProceed}>
+            <Button onPress={handleProceedToPin} disabled={!canProceed}>
               Lanjut
             </Button>
           </FooterBar>
         </KeyboardAvoiding>
       ) : (
         /* ── Step 2: PIN wallet ────────────────────────────────────── */
-        <View accessible={false}
+        <View
           className="flex-1 px-6"
           style={{ paddingTop: tokens.space[8] }}
         >

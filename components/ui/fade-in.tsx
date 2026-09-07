@@ -14,7 +14,7 @@
  * tidak bisa di-className", maka `style` diizinkan di sini.
  *
  * `visible` bisa di-toggle: false -> fade-out ke opacity 0 (tetap di-mount,
- * `pointerEvents="none"` agar tidak menangkap tap). Kalau perlu unmount
+ * `style.pointerEvents: "none"` agar tidak menangkap tap). Kalau perlu unmount
  * setelah keluar, dengarkan `onHidden`.
  *
  * <Stagger> memberi `delay` bertingkat ke tiap anak FadeIn — untuk list
@@ -91,7 +91,7 @@ export function FadeIn({
   })
 
   return (
-    <View accessible={false} pointerEvents={visible ? "auto" : "none"} {...rest}>
+    <View style={{ pointerEvents: visible ? "auto" : "none" }} {...rest}>
       <Animated.View style={{ flex: 1, opacity: progress, transform: [{ translateY }] }}>{children}</Animated.View>
     </View>
   )

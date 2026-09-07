@@ -67,7 +67,7 @@ export function DeliveryProofForm({
   const canSubmit = items.length > 0 && !submitting
 
   return (
-    <View accessible={false} className={cn("gap-5", className)} {...rest}>
+    <View className={cn("gap-5", className)} {...rest}>
       <View className="gap-2">
         <Text variant="label" tone="secondary">
           Bukti pengiriman
@@ -106,7 +106,7 @@ export function DeliveryProofForm({
         showCount
       />
 
-      <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
+      <Button onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
         Kirim bukti
       </Button>
     </View>

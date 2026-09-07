@@ -311,11 +311,11 @@ export default function SubscriptionsScreen() {
 
   const footer =
     step === "method" && selectedPlan ? (
-      <View accessible={false}
+      <View
         className="px-6"
         style={{ paddingBottom: insets.bottom + tokens.space[4], paddingTop: tokens.space[3] }}
       >
-        <Button accessibilityHint="Ketuk untuk berinteraksi"
+        <Button
           fullWidth
           disabled={
             !selectedPlan ||

@@ -23,7 +23,7 @@
  *     saldo, card inverted §9.6).
  *   - `assets/brand/logo-paths.ts` sengaja tidak menyimpan warna; JANGAN
  *     menambahkan fill di sana.
- *   - Tidak pakai <Text accessibilityHint="Ketuk untuk detail"> RN langsung — tetap lewat wrapper (§3 fixed scale).
+ *   - Tidak pakai <Text> RN langsung — tetap lewat wrapper (§3 fixed scale).
  */
 import { Image, View, type ImageSourcePropType, type ViewProps } from "react-native"
 import Svg, { G, Path } from "react-native-svg"
@@ -114,7 +114,13 @@ export function Logo({
   )
 
   return (
-    <View accessible={false}
+    <View
+      /*
+       * Logo = satu gambar bermakna. `accessible` membuat role=image + label
+       * benar-benar menjadi elemen SR (tanpa itu RN mengabaikannya dan isi
+       * SVG/Image dibaca per fragmen). Subtree logo sepenuhnya dekoratif.
+       */
+      accessible
       accessibilityRole="image"
       accessibilityLabel="Kahade"
       className={cn("flex-row items-center", variant === "lockup" && "gap-3", className)}

@@ -176,7 +176,7 @@ export default function HomeScreen() {
         }}
       >
         {/* ── Identitas: salam + profil ───────────────────────── */}
-        <View accessible={false} accessibilityRole="text" className="px-6 pt-4">
+        <View accessibilityRole="text" className="px-6 pt-4">
           <Text numberOfLines={1} variant="caption" tone="secondary" accessibilityLabel={`${greetingByHour()}, pengguna`}>
             {greetingByHour()},
           </Text>
@@ -259,7 +259,7 @@ export default function HomeScreen() {
          * bawah ringkasan saldo/order yang menjadi konteksnya.
          */}
         <VStack gap={3} className="px-6 pt-6">
-          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
+          <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
             Buat Transaksi
           </Button>
           <Button

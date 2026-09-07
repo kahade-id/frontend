@@ -117,7 +117,7 @@ export function AchievementBadge({
       </View>
 
       <View className="items-center gap-0.5">
-        <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail"
+        <Text ellipsizeMode="tail"
           variant="label"
           tone={earned ? "primary" : "disabled"}
           numberOfLines={1}

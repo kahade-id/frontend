@@ -82,7 +82,7 @@ export function CheckboxIndicator({
   }, [fill, on, reducedMotion])
 
   return (
-    <View accessible={false}
+    <View
       className={cn(
         "relative h-5 w-5 items-center justify-center overflow-hidden rounded-xs bg-background",
         error
@@ -128,7 +128,7 @@ export function Checkbox({
       }
 
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+    <PressableScale
       accessibilityRole="checkbox"
       accessibilityState={{ checked: indeterminate ? "mixed" : checked, disabled }}
       disabled={disabled}

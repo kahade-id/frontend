@@ -251,7 +251,7 @@ export default function SetupProfileScreen() {
 
           {/* Avatar section */}
           <VStack gap={3} className="items-center">
-            <View accessible={false} className="relative">
+            <View className="relative">
               <Avatar
                 name={fullName || "User"}
                 source={avatarUrl ?? undefined}
@@ -273,7 +273,7 @@ export default function SetupProfileScreen() {
               </View>
             </View>
 
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               variant="secondary"
               size="sm"
               loading={avatarUploading}

@@ -101,7 +101,7 @@ export default function PublicRatingsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Ulasan" />
-      <View accessible={false} className="flex-row flex-wrap gap-2 px-6" style={{ paddingTop: tokens.space[3] }}>
+      <View className="flex-row flex-wrap gap-2 px-6" style={{ paddingTop: tokens.space[3] }}>
         {FILTERS.map((f) => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
             {f.label}

@@ -119,8 +119,7 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
 
   return (
     <Animated.View
-      pointerEvents="none"
-      style={[
+      style={[{ pointerEvents: "none" }, [
         styles.overlay,
         // Harus SAMA dengan `backgroundColor` / `dark.backgroundColor` plugin
         // expo-splash-screen di app.json supaya handoff native -> JS mulus.
@@ -131,7 +130,7 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
         // dipakai palette.background (putih di light), layar akan berkedip
         // hitam -> putih tepat setelah splash native hitam menghilang.
         { backgroundColor: tokens.colors.brand.black, opacity: overlay },
-      ]}
+      ]]}
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
     >

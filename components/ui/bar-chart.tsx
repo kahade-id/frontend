@@ -210,7 +210,7 @@ export function BarChart({
             accessibilityLabel={`${d.label}: ${formatValue(d.value)}`}
             className="flex-row items-center gap-3"
           >
-            <Text ellipsizeMode="tail" accessibilityHint="Ketuk untuk detail" variant="caption" tone="secondary" numberOfLines={1} className="w-1/4">
+            <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1} className="w-1/4">
               {d.label}
             </Text>
             <View className="h-3 flex-1 flex-row border-l border-border">
@@ -243,8 +243,8 @@ export function BarChart({
       <View className="relative w-full" style={{ height }}>
         {gridLines ? (
           <>
-            <View pointerEvents="none" className="absolute inset-x-0 top-0 h-px bg-border" />
-            <View pointerEvents="none" className="absolute inset-x-0 top-1/2 h-px bg-border" />
+            <View style={{ pointerEvents: "none" }} className="absolute inset-x-0 top-0 h-px bg-border" />
+            <View style={{ pointerEvents: "none" }} className="absolute inset-x-0 top-1/2 h-px bg-border" />
           </>
         ) : null}
 

@@ -134,7 +134,7 @@ export function FloatingActionButton({
   }))
 
   const button = (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
@@ -165,12 +165,11 @@ export function FloatingActionButton({
   if (inline) return button
 
   return (
-    <View accessible={false}
-      pointerEvents="box-none"
+    <View
       className="absolute z-sticky focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
-      style={{ right: rightOffset, bottom: bottomInset + bottomOffset }}
+      style={[{ pointerEvents: "box-none" }, { right: rightOffset, bottom: bottomInset + bottomOffset }]}
     >
-      <Animated.View pointerEvents={visible ? "auto" : "none"} style={animatedStyle}>
+      <Animated.View style={[{ pointerEvents: visible ? "auto" : "none" }, animatedStyle]}>
         {button}
       </Animated.View>
     </View>

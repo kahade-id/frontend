@@ -59,7 +59,7 @@ export function ThemeToggleButton({ labels: labelsProp, ...rest }: ThemeToggleBu
   const isDark = mode === "dark"
 
   return (
-    <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+    <IconButton
       icon={isDark ? Sun : Moon}
       accessibilityLabel={isDark ? labels.toLight : labels.toDark}
       accessibilityRole="switch"

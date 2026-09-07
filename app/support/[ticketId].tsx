@@ -93,7 +93,7 @@ export default function SupportTicketDetailScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchTicket()} />
         ) : ticket ? (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SupportTicketCard
               ticketNumber={ticket.ticketNumber}
               subject={ticket.subject}
@@ -126,7 +126,7 @@ export default function SupportTicketDetailScreen() {
               maxLength={2000}
               numberOfLines={4}
             />
-            <Button accessibilityHint="Ketuk untuk berinteraksi" loading={sending} disabled={!reply.trim()} onPress={() => void handleSend()}>
+            <Button loading={sending} disabled={!reply.trim()} onPress={() => void handleSend()}>
               Kirim Balasan
             </Button>
           </View>

@@ -18,7 +18,7 @@ export default function AppVersionScreen() {
   const toast = useToast()
   const version = useApiQuery(
     "server-app-version",
-    () => api.public.getAppVersion(),
+    (signal) => api.public.getAppVersion(signal),
     Platform.OS !== "web",
   )
   const [checking, setChecking] = useState(false)
@@ -95,7 +95,7 @@ export default function AppVersionScreen() {
           </>
         ) : null}
         {canUpdate ? (
-          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" loading={checking} onPress={() => void update()}>
+          <Button variant="secondary" loading={checking} onPress={() => void update()}>
             {available ? "Unduh & Terapkan OTA" : "Periksa Pembaruan OTA"}
           </Button>
         ) : (

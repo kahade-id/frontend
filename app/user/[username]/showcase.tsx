@@ -68,7 +68,7 @@ export default function PublicShowcaseScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View accessible={false} style={{ paddingTop: tokens.space[3] }}>
+          <View style={{ paddingTop: tokens.space[3] }}>
             <ShowcaseGalleryGrid
               items={items.map((it) => ({
                 id: it.id,

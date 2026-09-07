@@ -173,7 +173,7 @@ export default function BankAccountsScreen() {
             description="Tambahkan rekening bank untuk menarik dana."
           />
         ) : (
-          <View accessible={false} className="gap-2">
+          <View className="gap-2">
             {accounts.map((acc, i) => (
               <BankAccountListItem
                 key={acc.id}
@@ -192,7 +192,7 @@ export default function BankAccountsScreen() {
                 .filter((acc) => !acc.isPrimary)
                 .map((acc) => (
                   <View key={`actions-${acc.id}`} className="flex-row gap-2">
-                    <Button accessibilityHint="Ketuk untuk berinteraksi"
+                    <Button
                       variant="ghost"
                       size="sm"
                       fullWidth={false}

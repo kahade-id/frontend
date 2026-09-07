@@ -25,8 +25,10 @@ const FALLBACK_LANGUAGE: LanguageCode = "id"
 
 export default function LanguageScreen() {
   const toast = useToast()
-  const query = useApiQuery<LanguageCode>("settings-language", () =>
-    api.settings.getLanguage().then((res) => (res?.language as LanguageCode) ?? FALLBACK_LANGUAGE),
+  const query = useApiQuery<LanguageCode>("settings-language", (signal) =>
+    api.settings
+      .getLanguage(signal)
+      .then((res) => (res?.language as LanguageCode) ?? FALLBACK_LANGUAGE),
   )
   const value = query.data ?? FALLBACK_LANGUAGE
   const { setData } = query

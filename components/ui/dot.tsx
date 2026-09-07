@@ -57,7 +57,7 @@ const toneClass: Record<DotTone, string> = {
 
 export function Dot({ size = "md", tone = "neutral", ring = false, className, ...rest }: DotProps) {
   return (
-    <View accessible={false}
+    <View
       // Dekoratif: makna status harus disampaikan teks di sampingnya
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"

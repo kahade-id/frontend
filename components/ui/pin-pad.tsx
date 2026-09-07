@@ -50,7 +50,7 @@ function Key({
   label: string
 }) {
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={label}
       disabled={disabled || !onPress}
@@ -65,7 +65,7 @@ function Key({
 
 export function PinPad({ onDigit, onBackspace, onBiometric, disabled = false, className, ...rest }: PinPadProps) {
   return (
-    <View accessible={false}
+    <View
       // "keyboardkey" adalah role untuk SATU tombol, bukan container; container
       // cukup punya label agar screen reader tahu ini area keypad.
       accessibilityLabel="Keypad PIN"

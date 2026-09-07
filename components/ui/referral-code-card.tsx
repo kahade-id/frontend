@@ -131,7 +131,7 @@ export function ReferralCodeCard({
 
       <View className="gap-2">
         {onShare ? (
-          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" leftIcon={ShareNetwork} onPress={onShare}>
+          <Button variant="primary" leftIcon={ShareNetwork} onPress={onShare}>
             {t.share}
           </Button>
         ) : null}

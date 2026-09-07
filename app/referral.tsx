@@ -174,7 +174,7 @@ export default function ReferralScreen() {
         ) : error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <ReferralCodeCard
               code={code}
               shareUrl={code ? referralUrl(code) : undefined}
@@ -200,7 +200,7 @@ export default function ReferralScreen() {
                 returnKeyType="done"
                 onSubmitEditing={() => void handleApply()}
               />
-              <Button accessibilityHint="Ketuk untuk berinteraksi"
+              <Button
                 variant="secondary"
                 loading={applying}
                 disabled={!applyCode.trim()}

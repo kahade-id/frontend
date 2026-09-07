@@ -146,9 +146,9 @@ export function Tooltip({
 
   return (
     <>
-      <View accessible={false} ref={triggerRef} collapsable={false} className="self-start">
+      <View ref={triggerRef} collapsable={false} className="self-start">
         {children ? (
-          <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          <Pressable
             accessibilityRole="button"
             accessibilityLabel={accessibilityLabel}
             accessibilityState={{ expanded: open }}
@@ -170,17 +170,14 @@ export function Tooltip({
 
       {showLayer && anchor ? (
         <Portal>
-          <View pointerEvents="box-none" className="absolute inset-0 z-modal focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+          <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 z-modal focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
             <Backdrop progress={progress} onPress={close} transparent accessibilityLabel="Tutup info" />
 
             {/* Fase ukur: posisi sementara di tepi kiri-atas, opacity 0 */}
             <View
-              pointerEvents={measuring ? "none" : "box-none"}
-              style={
-                measuring
+              style={[{ pointerEvents: measuring ? "none" : "box-none" }, measuring
                   ? { position: "absolute", top: EDGE, left: EDGE, opacity: 0 }
-                  : { position: "absolute", top, left }
-              }
+                  : { position: "absolute", top, left }]}
             >
               <Animated.View
                 style={measuring ? undefined : { opacity: progress, transform: [{ translateY }] }}

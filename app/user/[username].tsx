@@ -458,7 +458,7 @@ export default function UserProfileScreen() {
         }}
       >
         {/* ── Top Cover Banner with Floating Navigation ──────── */}
-        <View accessible={false} className="relative h-32 w-full overflow-hidden bg-surface border-b border-border">
+        <View className="relative h-32 w-full overflow-hidden bg-surface border-b border-border">
           {/* Subtle brand pattern overlay */}
           <View className="absolute inset-0 bg-overlay/10" />
 
@@ -585,7 +585,7 @@ export default function UserProfileScreen() {
 
               {/* ── Stats / Counter Strip ────────────────────────── */}
               <View className="flex-row flex-wrap items-center gap-4 pt-2">
-                <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" onPress={() => router.push(ROUTES.followers(handle, "following"))}>
+                <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.followers(handle, "following"))}>
                   <Text variant="body" tone="secondary">
                     <Text variant="body" weight={700} tone="primary">
                       {formatNumber(followingCount ?? 0)}{" "}

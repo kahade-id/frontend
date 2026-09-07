@@ -175,7 +175,7 @@ function StatCell({ stat, loading }: { stat: ProfileStat; loading: boolean }) {
   }
 
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+    <PressableScale
       accessibilityRole="button"
       accessibilityLabel={`${stat.label} ${stat.value}`}
       scaleOnPress={false}

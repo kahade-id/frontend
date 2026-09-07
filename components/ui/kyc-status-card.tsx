@@ -201,7 +201,7 @@ export function KycStatusCard({
       </CardSummary>
 
       {s === "NOT_SUBMITTED" && onSubmit ? (
-        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="primary" onPress={onSubmit}>
+        <Button variant="primary" onPress={onSubmit}>
           {t.submit}
         </Button>
       ) : null}

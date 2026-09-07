@@ -172,7 +172,7 @@ export function SocialLinksEditor({
   const add = () => canAdd && onChange(withOrder([...value, { platform: platforms[0], url: "", label: "" }]))
 
   return (
-    <View accessible={false} className={cn("w-full gap-4", className)} {...rest}>
+    <View className={cn("w-full gap-4", className)} {...rest}>
       {value.map((link, i) => {
         const invalid = showErrors && !validateSocialUrl(link.platform, link.url)
         return (
@@ -182,7 +182,7 @@ export function SocialLinksEditor({
                 {t.platform}
               </Text>
               <View className="flex-row gap-1">
-                <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+                <IconButton
                   icon={ArrowUp}
                   size="sm"
                   variant="ghost"

@@ -89,7 +89,7 @@ export function Card({
 
   if (onPress || onLongPress) {
     return (
-      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}

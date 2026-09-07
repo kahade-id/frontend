@@ -151,7 +151,7 @@ export function SubscriptionStatusCard({
           </Text>
         </View>
         {onBrowsePlans ? (
-          <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" onPress={onBrowsePlans}>
+          <Button variant="secondary" onPress={onBrowsePlans}>
             {t.browsePlans}
           </Button>
         ) : null}

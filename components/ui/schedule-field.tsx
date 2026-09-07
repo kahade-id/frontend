@@ -18,6 +18,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
+import { tokens } from "@/lib/tokens"
 
 export type ScheduleValue = { dayOfWeek: number | null; minAmount: number | null }
 
@@ -68,20 +69,32 @@ export function ScheduleField({
   const complete = isScheduleComplete(value)
 
   return (
-    <View accessible={false} className={cn("w-full gap-6", className)} {...rest}>
+    <View className={cn("w-full gap-6", className)} {...rest}>
       <View className="gap-2 tabular-nums">
         <FieldLabel disabled={disabled}>{t.dayLabel}</FieldLabel>
         <View className="flex-row gap-2" accessibilityRole="radiogroup">
           {t.days.map((d, i) => {
             const selected = value.dayOfWeek === i
             return (
-              <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              <PressableScale
                 key={d}
                 accessibilityRole="radio"
                 accessibilityLabel={t.dayNames[i]}
                 accessibilityState={{ selected, disabled }}
                 disabled={disabled}
                 onPress={() => onChange({ ...value, dayOfWeek: i })}
+                /*
+                 * Kotak hari = h-10 (40px) di dalam `flex-row gap-2` (8px).
+                 * Slop tokens.space[1] (4px) memberi 48px vertikal (audit #1)
+                 * dan 4 + 4 = 8px horizontal — tepat mengisi gap, sehingga area
+                 * sentuh dua hari bertetangga tidak saling menimpa.
+                 */
+                hitSlop={{
+                  top: tokens.space[1],
+                  bottom: tokens.space[1],
+                  left: tokens.space[1],
+                  right: tokens.space[1],
+                }}
                 containerClassName="flex-1"
                 className={cn(
                   "h-10 items-center justify-center rounded-sm border",

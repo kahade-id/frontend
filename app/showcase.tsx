@@ -297,7 +297,7 @@ export default function ShowcaseScreen() {
         {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
         ) : (
-          <View accessible={false} className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
               title="Portofolio Anda"
               subtitle={
@@ -329,7 +329,7 @@ export default function ShowcaseScreen() {
             <Text numberOfLines={1} variant="caption" tone="secondary">
               Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               leftIcon={Plus}
               loading={uploading}
               variant="secondary"

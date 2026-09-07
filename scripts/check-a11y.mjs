@@ -23,6 +23,19 @@
  *   B. Elemen `accessible` tidak boleh membungkus komponen interaktif.
  *   C. Kartu/list-item/row punya jalur label ringkas (root berlabel,
  *      <CardSummary>, atau meneruskan accessibilityLabel ke primitif).
+ *   D. Label gabungan dibangun lewat `summarize()`, bukan `.filter(Boolean).join()`.
+ *
+ * Ditambah empat aturan anti-regresi (audit #5) untuk pola "a11y kosmetik"
+ * yang pernah masuk ke repo secara massal dan lolos review karena terlihat
+ * seperti perbaikan:
+ *   E. `accessible={false}` tidak boleh menemani semantik a11y — kombinasi itu
+ *      mematikan role/label/value/liveRegion pada tag yang sama.
+ *   F. `accessibilityHint` generik ("Ketuk untuk berinteraksi") ditolak: tidak
+ *      menambah informasi, hanya memperpanjang pengumuman.
+ *   G. `hitSlop` literal numerik ditolak — wajib `hitSlopToReach()`/`ICON_*`
+ *      dari lib/hit-slop atau `tokens.space[n]` (audit #1).
+ *   H. Prop `pointerEvents=` ditolak — deprecated di RN dan react-native-web;
+ *      wajib `style.pointerEvents`.
  *
  * Jalankan: pnpm check:a11y
  */
@@ -183,6 +196,8 @@ const INTERACTIVE_RE = new RegExp(
 const CONTAINER_LABEL_ALLOWLIST = {
   "components/ui/bar-chart.tsx": "Tiap batang sudah <View accessible> berlabel; label kontainer = ringkasan chart (role=image).",
   "components/ui/bottom-sheet.tsx": "Sheet berisi konten interaktif; label dipakai bersama accessibilityViewIsModal + fokus awal (audit #3).",
+  "components/ui/incoming-call-prompt.tsx": "Prompt panggilan berisi PressableScale Angkat/Tolak. `accessible` di sini akan menelan kedua kontrol itu (rule B), jadi label kontainer + accessibilityViewIsModal dibiarkan sebagai penanda modal, bukan grup SR.",
+  "components/ui/pin-pad.tsx": "Keypad berisi 12 <Key> (PressableScale role=keyboardkey). Label \"Keypad PIN\" adalah penanda area; `accessible` akan menyembunyikan seluruh tombol dari screen reader.",
   "components/ui/loading-screen.tsx": "Layar loading dengan liveRegion; label diumumkan lewat role=progressbar.",
   "components/ui/modal.tsx": "Modal berisi kontrol; label dipakai bersama accessibilityViewIsModal + fokus awal (audit #3).",
   "components/ui/page-indicator.tsx": "Dot dekoratif tanpa label; role=progressbar + accessibilityValue yang dibacakan, bukan grup.",
@@ -281,6 +296,109 @@ for (const abs of files) {
   while ((m = re.exec(src))) {
     warn(
       `${rel}:${lineOf(src, m.index)} rangkaian label manual \`.filter(Boolean).join(", ")\` — pakai \`summarize()\` dari lib/a11y (audit #4).`,
+    )
+  }
+}
+
+// ------------------------------------------------------------------
+// E. `accessible={false}` tidak boleh menemani semantik a11y (audit #5)
+// ------------------------------------------------------------------
+// `accessible={false}` membuat View BUKAN elemen screen reader. Kalau tag yang
+// sama juga membawa `accessibilityRole/Label/Value/State/LiveRegion`, seluruh
+// semantik itu mati total: di Android `accessible` -> isFocusable
+// (ReactViewManager.kt), di iOS -> isAccessibilityElement
+// (RCTViewComponentView.mm:347) dan `accessibilityLabel` hanya menggabungkan
+// anak KALAU `isAccessibilityElement` true. Lebih berbahaya lagi bila tag itu
+// adalah komponen yang menerima `accessible` dari pemanggil lewat spread
+// (`<Card {...rest}>`): nilai `false` dari call site menimpa keputusan
+// deliberate di dalam komponen.
+const SEMANTIC_A11Y =
+  /accessibility(Role|Label|Value|State|LiveRegion|ViewIsModal|ElementsHidden)=/
+for (const abs of files) {
+  const rel = relative(root, abs)
+  const src = stripComments(readFileSync(abs, "utf8"))
+  const re = /<[A-Za-z][A-Za-z0-9_.]*[\s>/]/g
+  let m
+  while ((m = re.exec(src))) {
+    const tag = readTag(src, m.index)
+    if (!/accessible=\{false\}/.test(tag)) continue
+    if (!SEMANTIC_A11Y.test(tag)) continue
+    fail(
+      `${rel}:${lineOf(src, m.index)} \`accessible={false}\` bersama properti semantik a11y — role/label/value/liveRegion pada tag ini TIDAK berefek sama sekali. Hapus \`accessible={false}\`, atau hapus semantiknya (audit #5).`,
+    )
+  }
+}
+
+// ------------------------------------------------------------------
+// F. `accessibilityHint` harus informatif (audit #5)
+// ------------------------------------------------------------------
+// Hint dibacakan screen reader SETELAH label+role. Hint yang hanya mengulang
+// affordance generik ("Ketuk untuk berinteraksi") menambah durasi tanpa
+// menambah informasi, dan pada elemen non-interaktif (role image/timer/
+// progressbar) justru menyesatkan karena tidak ada aksi yang bisa dilakukan.
+// Hint yang benar menjelaskan KONSEKUENSI aksi, bukan caranya.
+const GENERIC_HINTS = [
+  "Ketuk untuk berinteraksi",
+  "Ketuk untuk detail",
+  "Ketuk untuk melihat detail",
+  "Tekan untuk berinteraksi",
+  "Tap to interact",
+  "Tap for details",
+]
+for (const abs of files) {
+  const rel = relative(root, abs)
+  const src = stripComments(readFileSync(abs, "utf8"))
+  const re = /accessibilityHint="([^"]*)"/g
+  let m
+  while ((m = re.exec(src))) {
+    if (!GENERIC_HINTS.includes(m[1])) continue
+    fail(
+      `${rel}:${lineOf(src, m.index)} accessibilityHint generik "${m[1]}" — tidak menambah informasi bagi pengguna screen reader. Hapus, atau ganti dengan konsekuensi aksi (audit #5).`,
+    )
+  }
+}
+
+// ------------------------------------------------------------------
+// G. `hitSlop` harus berasal dari token/helper, bukan angka literal (audit #1)
+// ------------------------------------------------------------------
+// lib/hit-slop.ts ada justru supaya call site tidak menghitung slop sendiri.
+// Literal seragam (mis. 12 di keempat sisi) menambah 24px per sumbu: pada
+// elemen yang SUDAH ≥ 44px itu tidak memperbaiki apa pun, tapi membuat area
+// sentuh bertetangga saling menimpa (pin-pad gap-3, rating bintang, tabs
+// flex-1, tombol Angkat/Tolak gap-2) sehingga tap bisa jatuh ke kontrol salah.
+for (const abs of files) {
+  const rel = relative(root, abs)
+  const src = stripComments(readFileSync(abs, "utf8"))
+  const re = /<[A-Za-z][A-Za-z0-9_.]*[\s>/]/g
+  let m
+  while ((m = re.exec(src))) {
+    const tag = readTag(src, m.index)
+    const hit = tag.match(/hitSlop=\{\{([^}]*)\}\}/)
+    if (!hit) continue
+    if (!/:\s*-?\d/.test(hit[1])) continue
+    fail(
+      `${rel}:${lineOf(src, m.index)} hitSlop literal \`{${hit[1].trim()}}\` — pakai \`hitSlopToReach()\`/\`ICON_SM_HIT_SLOP\` dari lib/hit-slop atau \`tokens.space[n]\`. Angka bebas membuat area sentuh tetangga bertumpuk (audit #1).`,
+    )
+  }
+}
+
+// ------------------------------------------------------------------
+// H. Prop `pointerEvents` sudah deprecated — pakai `style.pointerEvents`
+// ------------------------------------------------------------------
+// React Native menandai prop `pointerEvents` deprecated ("Use
+// style.pointerEvents") dan react-native-web hanya mengenali nilai itu lewat
+// compiler StyleSheet (dist/exports/StyleSheet/compiler: case 'pointerEvents').
+// Prop-nya juga tidak bisa dianimasikan/di-merge dengan style lain.
+for (const abs of files) {
+  const rel = relative(root, abs)
+  const src = stripComments(readFileSync(abs, "utf8"))
+  const re = /<[A-Za-z][A-Za-z0-9_.]*[\s>/]/g
+  let m
+  while ((m = re.exec(src))) {
+    const tag = readTag(src, m.index)
+    if (!/[\s]pointerEvents=/.test(tag)) continue
+    fail(
+      `${rel}:${lineOf(src, m.index)} prop \`pointerEvents=\` deprecated di React Native & react-native-web — pindahkan ke \`style={{ pointerEvents: ... }}\` (audit #5).`,
     )
   }
 }

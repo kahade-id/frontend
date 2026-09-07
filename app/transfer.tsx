@@ -136,8 +136,8 @@ export default function TransferScreen() {
       padded={false}
       footer={
         step === "form" ? (
-          <View accessible={false}>
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+          <View>
+            <Button
               fullWidth
               haptic
               disabled={!selected || !isValidAmount(amount, AMOUNT_LIMITS.transfer)}

@@ -167,7 +167,7 @@ function ImageTile({
   const picture = <Picture source={att.uri} alt={att.alt ?? label} aspectRatio={aspectRatio} className="w-full" />
   if (!onOpen) return picture
   return (
-    <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}  onPress={() => onOpen(index)} accessibilityRole="imagebutton" accessibilityLabel={label}>
+    <PressableScale  onPress={() => onOpen(index)} accessibilityRole="imagebutton" accessibilityLabel={label}>
       {picture}
     </PressableScale>
   )

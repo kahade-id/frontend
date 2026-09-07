@@ -155,7 +155,7 @@ export function ChatMessageBubble({
         ) : null}
 
         {onLongPress ? (
-          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          <PressableScale
             accessibilityRole="text"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Tekan lama untuk opsi pesan"

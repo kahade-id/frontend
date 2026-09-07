@@ -123,15 +123,14 @@ function ToastViewport({
   if (toasts.length === 0) return null
 
   return (
-    <View accessible={false}
-      pointerEvents="box-none"
+    <View
       className={cn(
         "absolute left-0 right-0 z-banner items-center px-4",
         position === "top" ? "top-0" : "bottom-0",
       )}
-      style={position === "top" ? { paddingTop: insets.top + tokens.space[2] } : { paddingBottom: insets.bottom + tokens.space[2] }}
+      style={[{ pointerEvents: "box-none" }, position === "top" ? { paddingTop: insets.top + tokens.space[2] } : { paddingBottom: insets.bottom + tokens.space[2] }]}
     >
-      <View pointerEvents="box-none" className="w-full gap-2 md:max-w-content">
+      <View style={{ pointerEvents: "box-none" }} className="w-full gap-2 md:max-w-content">
         {toasts.map((t) => (
           <ToastItem key={t.id} toast={t} position={position} onDismiss={() => onDismiss(t.id)} />
         ))}
@@ -254,7 +253,7 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
       </View>
 
       {toast.action ? (
-        <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        <Pressable
           accessibilityRole="button"
           onPress={() => {
             toast.action?.onPress()

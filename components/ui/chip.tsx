@@ -61,7 +61,7 @@ export function Chip({
   ...rest
 }: ChipProps) {
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+    <PressableScale
       accessibilityRole="button"
       accessibilityState={{ selected, disabled }}
       disabled={disabled}
@@ -134,7 +134,7 @@ export function ChipGroup<V extends string = string>({
   }
 
   return (
-    <View accessible={false} className={cn("flex-row flex-wrap gap-2", className)} {...rest}>
+    <View className={cn("flex-row flex-wrap gap-2", className)} {...rest}>
       {options.map((o) => (
         <Chip
           key={o.value}

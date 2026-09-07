@@ -166,7 +166,7 @@ export default function QuestionsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Tanya Jawab" />
-      <View accessible={false} className="px-6" style={{ paddingTop: tokens.space[3] }}>
+      <View className="px-6" style={{ paddingTop: tokens.space[3] }}>
         <SegmentedControl items={SEGMENTS} value={type} onChange={setType} />
       </View>
       <PullToRefresh
@@ -224,7 +224,7 @@ export default function QuestionsScreen() {
                   }
                   answerAction={
                     received && !q.answer ? (
-                      <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary" onPress={() => openAnswer(q)}>
+                      <Button size="sm" variant="secondary" onPress={() => openAnswer(q)}>
                         Jawab
                       </Button>
                     ) : undefined

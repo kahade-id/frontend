@@ -106,7 +106,7 @@ export function ReportForm({
   const canSubmit = v.reason.length > 0 && !detailError && !submitting
 
   return (
-    <View accessible={false} className={cn("gap-5", className)} {...rest}>
+    <View className={cn("gap-5", className)} {...rest}>
       {targetName ? (
         <Text variant="caption" tone="secondary">
           Melaporkan {targetName}
@@ -143,7 +143,7 @@ export function ReportForm({
       />
 
       {onSubmit ? (
-        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="destructive" onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
+        <Button variant="destructive" onPress={() => onSubmit(v)} disabled={!canSubmit} loading={submitting}>
           {submitLabel}
         </Button>
       ) : null}

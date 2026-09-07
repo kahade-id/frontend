@@ -63,7 +63,7 @@ export function RadioGroup({
 }: RadioGroupProps) {
   return (
     <RadioContext.Provider value={{ value, onChange, disabled, variant }}>
-      <View accessible={false}
+      <View
         accessibilityRole="radiogroup"
         className={cn("w-full", variant === "card" ? "gap-3" : "gap-0", className)}
         {...rest}
@@ -149,7 +149,7 @@ export function Radio({
   )
 
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+    <PressableScale
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}

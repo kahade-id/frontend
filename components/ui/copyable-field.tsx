@@ -98,7 +98,7 @@ export function CopyableField({
   const shown = masked ? MASK : value
 
   return (
-    <View accessible={false} className={cn("w-full gap-1", className)} {...rest}>
+    <View className={cn("w-full gap-1", className)} {...rest}>
       {label ? (
         <Text variant="label" tone="secondary">
           {label}
@@ -124,7 +124,7 @@ export function CopyableField({
         </Text>
 
         {onToggleMask ? (
-          <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+          <IconButton
             icon={masked ? Eye : EyeSlash}
             size="sm"
             accessibilityLabel={masked ? labels.show : labels.hide}

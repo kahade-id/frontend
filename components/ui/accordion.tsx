@@ -85,7 +85,7 @@ export function Accordion({
 
   return (
     <AccordionContext.Provider value={ctx}>
-      <View accessible={false}
+      <View
         className={cn(
           "w-full",
           bordered && "overflow-hidden rounded-md border border-border bg-surface-elevated",
@@ -144,7 +144,7 @@ export function AccordionItem({
 
   return (
     <View className={cn("w-full", !last && "border-b border-border", className)} {...rest}>
-      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      <PressableScale
         accessibilityRole="button"
         accessibilityState={{ expanded: open, disabled }}
         accessibilityLabel={title}

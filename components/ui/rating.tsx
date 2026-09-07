@@ -114,15 +114,14 @@ export function Rating({
     const half = !filled && fillRatio > 0
 
     const glyph = (
-      <View accessible={false} style={{ width: px, height: px }}>
+      <View style={{ width: px, height: px }}>
         {/* Lapisan bawah: bintang kosong (outline, warna border) */}
         <Star size={px} color={palette.borderControl} weight="regular" />
         {/* Lapisan atas: bintang terisi, dipotong 50% untuk setengah */}
         {filled || half ? (
           <View
-            pointerEvents="none"
             className="absolute left-0 top-0 overflow-hidden"
-            style={{ width: filled ? px : px / 2, height: px }}
+            style={[{ pointerEvents: "none" }, { width: filled ? px : px / 2, height: px }]}
           >
             <Star size={px} color={palette.primary} weight="fill" />
           </View>
@@ -133,7 +132,7 @@ export function Rating({
     if (!interactive) return <View key={n}>{glyph}</View>
 
     return (
-      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      <PressableScale
         key={n}
         disabled={disabled}
         onPress={() => select(n)}

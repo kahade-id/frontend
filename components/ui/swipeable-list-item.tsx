@@ -244,7 +244,7 @@ export function SwipeableListItem({
       {...rest}
     >
       {/* Lapisan aksi di belakang baris */}
-      <View pointerEvents="box-none" className="absolute inset-0 flex-row justify-between">
+      <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 flex-row justify-between">
         <View className="flex-row">
           {leftActions.map((a) => (
             <ActionButton key={a.key} action={a} width={actionWidth} onDone={close} />
@@ -270,7 +270,7 @@ function ActionButton({ action, width, onDone }: { action: SwipeAction; width: n
   // Lebar lewat style (angka runtime dari prop) — bukan class arbitrer.
   return (
     <View style={{ width }} className="h-full">
-      <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={action.label}
         scaleOnPress={false}

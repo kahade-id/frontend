@@ -100,7 +100,7 @@ export function IncomingCallPrompt({
   const sub = subtitle ?? (callType === "video" ? t.video : t.voice)
 
   return (
-    <View accessible={false}
+    <View
       accessibilityViewIsModal
       accessibilityLabel={`${sub} dari ${callerName}`}
       className={cn("flex-1 items-center justify-between bg-background px-6 py-16", className)}
@@ -179,9 +179,8 @@ function PulseRing({ active, delay }: { active: boolean; delay: number }) {
 
   return (
     <Animated.View
-      pointerEvents="none"
       className="absolute h-20 w-20 rounded-full border border-border"
-      style={style}
+      style={[{ pointerEvents: "none" }, style]}
     />
   )
 }
@@ -201,7 +200,7 @@ function CallAction({
 }) {
   return (
     <View className="items-center gap-2">
-      <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      <PressableScale
         accessibilityRole="button"
         accessibilityLabel={label}
         accessibilityHint={accessibilityHint}

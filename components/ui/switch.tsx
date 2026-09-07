@@ -77,7 +77,7 @@ export function Switch({
   const translateX = x.interpolate({ inputRange: [0, 1], outputRange: [0, TRAVEL] })
 
   const track = (
-    <View accessible={false}
+    <View
       className={cn(
         "justify-center rounded-full",
         value ? "border border-primary bg-primary" : "border border-border-control bg-surface",
@@ -96,7 +96,7 @@ export function Switch({
   const hasText = label != null || description != null
 
   return (
-    <Pressable accessibilityHint="Ketuk untuk berinteraksi"
+    <Pressable
       accessibilityRole="switch"
       accessibilityState={{ checked: value, disabled }}
       disabled={disabled}

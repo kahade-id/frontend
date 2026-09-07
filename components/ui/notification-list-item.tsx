@@ -150,7 +150,7 @@ export function NotificationListItem({
   return (
     <View className={cn("w-full", className)} {...rest}>
       {onPress || onLongPress ? (
-        <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        <PressableScale
           accessibilityRole="button"
           accessibilityLabel={a11y}
           accessibilityState={{ selected }}

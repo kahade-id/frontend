@@ -112,7 +112,7 @@ export function Calendar({
   const monthLabel = `${MONTHS_ID_LONG[month.getMonth()]} ${month.getFullYear()}`
 
   return (
-    <View accessible={false} className={cn("w-full gap-3", disabled && "opacity-disabled", className)} {...rest}>
+    <View className={cn("w-full gap-3", disabled && "opacity-disabled", className)} {...rest}>
       {/* Header: bulan + navigasi */}
       <View className="flex-row items-center justify-between">
         <IconButton
@@ -159,7 +159,7 @@ export function Calendar({
               const cellDisabled = disabled || isOutOfRange(d) || !!isDateDisabled?.(d)
 
               return (
-                <PressableScale accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                <PressableScale
                   key={d.getTime()}
                   accessibilityRole="button"
                   accessibilityLabel={`${d.getDate()} ${MONTHS_ID_LONG[d.getMonth()]} ${d.getFullYear()}`}

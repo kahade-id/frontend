@@ -18,7 +18,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SupportTicketCard } from "@/components/ui/support-ticket-card"
 
 export default function SupportScreen() {
-  const query = useApiQuery("support-tickets", () => api.support.listSupportTickets())
+  const query = useApiQuery("support-tickets", (signal) => api.support.listSupportTickets(signal))
   const tickets = query.data ?? []
 
   return (
@@ -32,7 +32,7 @@ export default function SupportScreen() {
           title: "Belum ada tiket",
           description: "Buat tiket melalui menu Hubungi Kami.",
           action: (
-            <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.contact)}>
+            <Button variant="ghost" fullWidth={false} onPress={() => router.push(ROUTES.contact)}>
               Hubungi Kami
             </Button>
           ),

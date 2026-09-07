@@ -91,7 +91,7 @@ export function Alert({
   const isOutline = variant === "outline"
 
   return (
-    <View accessible={false}
+    <View
       accessibilityRole="alert"
       accessibilityLiveRegion={tone === "danger" ? "assertive" : "polite"}
       className={cn(

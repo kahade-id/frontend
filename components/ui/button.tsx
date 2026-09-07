@@ -99,7 +99,7 @@ export function Button({
   const iconTone = variantIconTone[variant]
 
   return (
-    <PressableScale accessibilityHint="Ketuk untuk berinteraksi"
+    <PressableScale
       accessibilityRole="button"
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
@@ -114,7 +114,7 @@ export function Button({
       {...rest}
     >
       {/* Konten label — opacity-0 saat loading agar lebar tetap */}
-      <View accessible={false}
+      <View
         className={cn(
           "min-w-0 flex-shrink flex-row items-center justify-center gap-2",
           loading && "opacity-0",

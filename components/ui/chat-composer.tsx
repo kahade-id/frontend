@@ -251,7 +251,7 @@ export function ChatComposer({
             {...inputProps}
           />
           {showCount ? (
-            <Pressable accessibilityHint="Ketuk untuk berinteraksi" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }} accessibilityRole="button" accessible={false} className="pb-3 pl-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <Pressable accessibilityRole="button" className="pb-3 pl-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
               <Text variant="caption" tone={value.length >= maxLength ? "danger" : "secondary"} className="tabular-nums">
                 {value.length}/{maxLength}
               </Text>

@@ -243,7 +243,7 @@ export default function VerifyOtpScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View accessible={false} className="gap-8">
+          <View className="gap-8">
             {/* Intro — H1 di body (Header memakai H3), jadi satu H1 per layar */}
             <View className="gap-3">
               <Heading level={1} className="text-balance">
@@ -273,7 +273,7 @@ export default function VerifyOtpScreen() {
             />
 
             {/* Tombol Verifikasi — manual submit, bukan auto */}
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               onPress={handleVerify}
               loading={verifying}
               disabled={code.length < 6}

@@ -146,7 +146,7 @@ export default function ForgotPasswordScreen() {
             </VStack>
 
             {/* Submit button */}
-            <Button accessibilityHint="Ketuk untuk berinteraksi"
+            <Button
               onPress={() => void handleSendCode()}
               loading={submitting}
               disabled={!isFormValid}
@@ -169,7 +169,7 @@ export default function ForgotPasswordScreen() {
 
         {/* Footer */}
         <FooterBar>
-          <View accessible={false} className="items-center">
+          <View className="items-center">
             <TextLink onPress={handleBackToLogin} disabled={submitting}>
               Kembali ke login
             </TextLink>

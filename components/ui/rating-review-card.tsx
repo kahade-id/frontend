@@ -197,7 +197,7 @@ export function RatingReviewCard({
           ) : null}
         </View>
       ) : onReply ? (
-        <Button accessibilityHint="Ketuk untuk berinteraksi" variant="secondary" size="sm" onPress={onReply}>
+        <Button variant="secondary" size="sm" onPress={onReply}>
           {t.reply}
         </Button>
       ) : null}

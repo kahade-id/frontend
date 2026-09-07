@@ -109,7 +109,7 @@ export function UserListItem({
     <View className={cn("w-full", className)} {...rest}>
       <View className={cn("flex-row items-center gap-3", padded && "px-6")}>
         {onPress ? (
-          <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          <PressableScale
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
             accessibilityHint="Buka profil"

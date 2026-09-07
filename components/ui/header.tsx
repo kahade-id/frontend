@@ -107,7 +107,7 @@ export function Header({
     ) : null)
 
   return (
-    <View accessible={false}
+    <View
       className={cn(
         "z-sticky w-full items-center",
         transparent ? "bg-transparent" : "bg-background border-b border-border",

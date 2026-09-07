@@ -110,7 +110,7 @@ export function DisputeClaimForm({
   const canSubmit = !locked && trimmed.length >= minLength && !unchanged && !submitting
 
   return (
-    <View accessible={false} className={cn("gap-5", className)} {...rest}>
+    <View className={cn("gap-5", className)} {...rest}>
       <View className="gap-1">
         <Text variant="h3" tone="primary">
           {t.title}
@@ -166,7 +166,7 @@ export function DisputeClaimForm({
       />
 
       {!locked ? (
-        <Button accessibilityHint="Ketuk untuk berinteraksi" onPress={() => onSubmit(trimmed)} disabled={!canSubmit} loading={submitting}>
+        <Button onPress={() => onSubmit(trimmed)} disabled={!canSubmit} loading={submitting}>
           {existingClaim ? t.update : t.submit}
         </Button>
       ) : null}

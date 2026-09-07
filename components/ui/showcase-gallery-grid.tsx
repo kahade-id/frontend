@@ -90,7 +90,7 @@ export function ShowcaseGalleryGrid({
 
   if (!loading && items.length === 0) {
     return (
-      <View accessible={false} className={cn("w-full", className)} {...rest}>
+      <View className={cn("w-full", className)} {...rest}>
         {empty}
       </View>
     )
@@ -125,8 +125,7 @@ export function ShowcaseGalleryGrid({
                     recyclingKey={item.id}
                   />
                   {showMore ? (
-                    <View
-                      pointerEvents="none"
+                    <View style={{ pointerEvents: "none" }}
                       className="absolute inset-0 items-center justify-center bg-overlay"
                     >
                       <Text variant="h3" tone="inherit" className="text-white">
@@ -140,7 +139,7 @@ export function ShowcaseGalleryGrid({
               if (!onPressItem) return <View key={item.id}>{picture}</View>
 
               return (
-                <PressableScale hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                <PressableScale
                   key={item.id}
                   accessibilityRole="button"
                   accessibilityLabel={item.alt}

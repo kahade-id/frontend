@@ -190,7 +190,7 @@ export function InvoiceReceiptView({
               {number}
             </Text>
             {onCopyNumber ? (
-              <IconButton accessibilityHint="Ketuk untuk berinteraksi"
+              <IconButton
                 icon={Copy}
                 size="sm"
                 variant="ghost"

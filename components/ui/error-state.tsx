@@ -38,7 +38,7 @@ export type ErrorStateProps = Omit<ViewProps, "children"> & {
   retryLabel?: string
   /** Spinner di tombol retry saat request ulang berjalan */
   retrying?: boolean
-  /** Aksi tambahan (mis. <Button accessibilityHint="Ketuk untuk berinteraksi" variant="ghost" fullWidth={false}>) */
+  /** Aksi tambahan (mis. <Button variant="ghost" fullWidth={false}>) */
   action?: ReactNode
   /** Versi rapat untuk di dalam Card/Section */
   compact?: boolean
@@ -59,7 +59,7 @@ export function ErrorState({
   ...rest
 }: ErrorStateProps) {
   return (
-    <View accessible={false}
+    <View
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
       className={cn(

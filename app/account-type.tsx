@@ -34,8 +34,8 @@ const OPTIONS = [
 
 export default function AccountTypeScreen() {
   const toast = useToast()
-  const query = useApiQuery<AccountType>("account-type", () =>
-    api.users.getMe().then((me) => (me.accountType as AccountType) ?? "PERSONAL"),
+  const query = useApiQuery<AccountType>("account-type", (signal) =>
+    api.users.getMe(signal).then((me) => (me.accountType as AccountType) ?? "PERSONAL"),
   )
   const serverValue = query.data ?? undefined
   const [picked, setPicked] = useState<AccountType | undefined>(undefined)
@@ -80,7 +80,7 @@ export default function AccountTypeScreen() {
         onChange={(v) => setPicked(v as AccountType)}
         columns={2}
       />
-      <Button accessibilityHint="Ketuk untuk berinteraksi"
+      <Button
         loading={submitting}
         disabled={!value || value === serverValue}
         onPress={() => void handleSave()}

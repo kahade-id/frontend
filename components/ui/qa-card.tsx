@@ -22,7 +22,7 @@
  *     ada "2 jam lalu"). Pemanggil kirim Date/ISO/epoch; format di sini agar
  *     seluruh kartu Q&A seragam.
  *   - Belum dijawab: teks caption text-secondary + slot `answerAction`
- *     (mis. <Button accessibilityHint="Ketuk untuk berinteraksi" size="sm" variant="secondary">Jawab</Button>) yang hanya
+ *     (mis. <Button size="sm" variant="secondary">Jawab</Button>) yang hanya
  *     relevan untuk pemilik etalase — komponen tidak tahu peran user,
  *     pemanggil yang memutuskan mengirim slot atau tidak.
  *   - "Membantu" (helpful) dibuat sebagai slot `footer`, bukan prop count
