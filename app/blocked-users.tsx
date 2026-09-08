@@ -72,7 +72,7 @@ export default function BlockedUsersScreen() {
               loading={unblockingId === u.id}
               onPress={() => void handleUnblock(u)}
             >
-              Buka Blokir
+              Buka blokir
             </Button>
           }
           divider={i < items.length - 1}

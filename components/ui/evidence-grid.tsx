@@ -118,7 +118,7 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
         {owner ? (
           <View
             className={cn(
-              "absolute bottom-1.5 left-1.5 max-w-[80%] rounded-xs px-1.5 py-0.5",
+              "absolute bottom-1 left-1 max-w-[80%] rounded-xs px-1 py-0.5",
               item.mine ? "bg-primary" : "border border-border bg-surface-elevated",
             )}
           >
@@ -130,7 +130,7 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
       </PressableScale>
 
       {showRemove ? (
-        <View className="absolute right-1.5 top-1.5">
+        <View className="absolute right-1 top-1">
           <IconButton icon={X} size="sm" variant="secondary" accessibilityLabel={t.remove} onPress={() => onRemove?.(item)} />
         </View>
       ) : null}

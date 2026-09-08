@@ -769,7 +769,7 @@ export default function DisputeDetailScreen() {
         description={`Tentukan berapa dari ${formatRupiah(orderValue)} yang dikembalikan ke pembeli; sisanya ke penjual.`}
         footer={
           <Button fullWidth loading={proposing} onPress={() => void handlePropose()}>
-            Kirim Usulan
+            Kirim usulan
           </Button>
         }
       >

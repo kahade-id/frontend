@@ -57,16 +57,31 @@ export type TextLinkProps = {
 }
 
 /**
- * hitSlop membawa target sentuh teks 22px (line-height `body`) ke 44px.
- * Vertikal dihitung `hitSlopToReach()` (audit #1) supaya angka 44 tidak
- * disalin manual; horizontal sengaja hanya `space[1]` — slop lebar di kiri/
- * kanan membuat dua link yang bersebelahan saling menelan tap.
+ * hitSlop membawa target sentuh teks ke 44px. Vertikal dihitung
+ * `hitSlopToReach()` (audit #1) supaya angka 44 tidak disalin manual;
+ * horizontal sengaja hanya `space[1]` — slop lebar di kiri/kanan membuat dua
+ * link yang bersebelahan saling menelan tap.
+ *
+ * Slop HARUS dihitung dari line-height varian yang benar-benar dipakai,
+ * bukan selalu `body`. Nilai lama memakai `typography.body.lineHeight` (22)
+ * untuk semua varian, sehingga `variant="caption"`/`"label"` (line-height 18)
+ * hanya menghasilkan 18 + 11 + 11 = 40px — di bawah `tokens.a11y.minHitTarget`
+ * (44) yang justru dijanjikan helper ini. 12 call site memakai caption.
  */
-const DEFAULT_HIT_SLOP = {
-  ...hitSlopToReach(typography.body.lineHeight),
-  left: tokens.space[1],
-  right: tokens.space[1],
-} as const
+const LINK_LINE_HEIGHT: Record<NonNullable<TextLinkProps["variant"]>, number> = {
+  bodyLarge: typography.bodyLarge.lineHeight,
+  body: typography.body.lineHeight,
+  caption: typography.caption.lineHeight,
+  label: typography.label.lineHeight,
+}
+
+function hitSlopFor(variant: NonNullable<TextLinkProps["variant"]>) {
+  return {
+    ...hitSlopToReach(LINK_LINE_HEIGHT[variant]),
+    left: tokens.space[1],
+    right: tokens.space[1],
+  }
+}
 
 export function TextLink({
   children,
@@ -76,7 +91,7 @@ export function TextLink({
   variant = "body",
   weight = 600,
   accessibilityLabel,
-  hitSlop = DEFAULT_HIT_SLOP,
+  hitSlop,
   numberOfLines,
   className,
   containerClassName,
@@ -116,7 +131,7 @@ export function TextLink({
       accessibilityLabel={accessibilityLabel}
       disabled={disabled}
       onPress={onPress}
-      hitSlop={hitSlop}
+      hitSlop={hitSlop ?? hitSlopFor(variant)}
       containerClassName={cn("self-start", focusRing, containerClassName)}
     >
       <Text

@@ -294,10 +294,10 @@ export default function WithdrawScreen() {
               </Text>
             ) : null}
             <Button variant="secondary" onPress={() => router.replace(ROUTES.withdrawHistory)}>
-              Lihat Riwayat Penarikan
+              Lihat riwayat penarikan
             </Button>
             <Button variant="ghost" fullWidth={false} onPress={() => router.replace(ROUTES.wallet)}>
-              Kembali ke Dompet
+              Kembali ke dompet
             </Button>
           </View>
         ) : (
@@ -333,7 +333,7 @@ export default function WithdrawScreen() {
                     fullWidth={false}
                     onPress={() => router.push(ROUTES.bankAccounts)}
                   >
-                    Tambah Rekening
+                    Tambah rekening
                   </Button>
                 }
               />

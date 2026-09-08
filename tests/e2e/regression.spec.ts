@@ -66,7 +66,7 @@ test("top-up method limits, combined fees and duplicate submit protection", asyn
   await expect(page.getByRole("radio").first()).toBeEnabled()
   const amount = page.getByRole("textbox").first()
   await amount.fill("50001")
-  const pay = page.getByRole("button", { name: "Lanjutkan Pembayaran" })
+  const pay = page.getByRole("button", { name: "Lanjutkan pembayaran" })
   await expect(pay).toBeDisabled()
   await amount.fill("50000")
   await expect(pay).toBeEnabled()
@@ -117,7 +117,7 @@ test("legal and version pages contain no fabricated policy or production channel
   await expect(page.getByText("Kami tidak menjual data Anda.", { exact: false })).toHaveCount(0)
   await page.goto("/app-version")
   await expect(page.getByText("Tidak terhubung", { exact: true })).toBeVisible()
-  await expect(page.getByRole("button", { name: "Periksa Pembaruan OTA" })).toHaveCount(0)
+  await expect(page.getByRole("button", { name: "Periksa pembaruan OTA" })).toHaveCount(0)
 })
 test("mobile, narrow mobile, desktop and dark layouts do not overflow", async ({ page }) => {
   await mockApi(page)

@@ -187,11 +187,11 @@ export default function TransferScreen() {
                 variant="secondary"
                 onPress={() => router.replace(ROUTES.walletTransaction(txId))}
               >
-                Lihat Detail Transaksi
+                Lihat detail transaksi
               </Button>
             ) : null}
             <Button variant="ghost" fullWidth={false} onPress={() => router.replace(ROUTES.wallet)}>
-              Kembali ke Dompet
+              Kembali ke dompet
             </Button>
           </View>
         ) : (

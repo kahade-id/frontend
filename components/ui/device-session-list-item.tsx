@@ -60,6 +60,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
 
 export type DevicePlatform = "mobile" | "tablet" | "laptop" | "desktop" | "web"
@@ -169,7 +170,7 @@ export function DeviceSessionListItem({
     <View className="min-h-14 flex-1 flex-row items-start gap-3 py-3">
       <IconBox icon={icon ?? PLATFORM_ICON[platform]} size="md" variant="surface" active={current} />
 
-      <View className="flex-1 gap-[2px]">
+      <View className="flex-1 gap-0.5">
         <View className="flex-row flex-wrap items-center gap-2">
           <Text ellipsizeMode="tail" variant="body" weight={500} tone={disabled ? "disabled" : "primary"} numberOfLines={1} className="shrink">
             {deviceName}
@@ -285,7 +286,12 @@ export function DeviceSessionListItem({
         ) : null}
       </View>
 
-      {divider ? <View className="ml-[76px] h-px bg-border" /> : null}
+      {divider ? <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          style={{ marginLeft: tokens.layout.rowDividerInset.icon }}
+        /> : null}
     </View>
   )
 }

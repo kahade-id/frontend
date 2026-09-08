@@ -140,7 +140,7 @@ export function ReferralApplyForm({
         {...rest}
       >
         <IconBox icon={CheckCircle} size="md" variant="success" />
-        <View className="flex-1 gap-[2px]">
+        <View className="flex-1 gap-0.5">
           <Text variant="body" weight={500} tone="primary">
             Kode referral sudah dipakai
           </Text>
@@ -160,6 +160,8 @@ export function ReferralApplyForm({
         onChangeText={(v) => setCode(v.toUpperCase())}
         autoCapitalize="characters"
         autoCorrect={false}
+        spellCheck={false}
+        returnKeyType="done"
         maxLength={12}
         errorText={errorText ?? (code.length > 0 && !formatOk ? "6–12 huruf/angka" : undefined)}
         helperText={rewardHint}

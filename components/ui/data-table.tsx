@@ -25,8 +25,17 @@
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
+import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+
+/**
+ * Kolom maksimum yang masih terbaca sebagai tabel flex di layar 360px.
+ * 360 - 2*border - 2*(px-3 12px) per sel = ~48px isi per kolom pada 4 kolom;
+ * kolom ke-5 menyisakan ~38px, cukup untuk 4 karakter body — jadi di atas 4
+ * kolom baris DIPECAH ke <KeyValueList> seperti yang dijanjikan header file.
+ */
+const MAX_TABLE_COLUMNS = 4
 
 export type DataTableAlign = "left" | "right" | "center"
 
@@ -68,6 +77,26 @@ function isPrimitive(v: unknown): v is string | number {
   return typeof v === "string" || typeof v === "number"
 }
 
+/**
+ * Label pembaca layar untuk satu baris: "Judul kolom: nilai, …".
+ * Hanya kolom bernilai primitif yang ikut; kolom dengan `render` kustom
+ * (mis. <Amount>) sudah punya label sendiri di dalam node-nya.
+ */
+function rowLabel<Row extends Record<string, unknown>>(
+  columns: readonly DataTableColumn<Row>[],
+  // `footer` bertipe Partial<Record<…, ReactNode>>, bukan `Row`, jadi parameternya
+  // diperlebar ke record generik — helper ini hanya membaca nilai primitif.
+  row: Record<string, unknown>,
+): string {
+  return columns
+    .map((col) => {
+      const v = row[col.key]
+      return isPrimitive(v) ? `${col.title}: ${v}` : undefined
+    })
+    .filter(Boolean)
+    .join(", ")
+}
+
 export function DataTable<Row extends Record<string, unknown>>({
   columns,
   rows,
@@ -100,6 +129,48 @@ export function DataTable<Row extends Record<string, unknown>>({
     )
   }
 
+  /*
+   * >MAX_TABLE_COLUMNS: header tabel tidak lagi bisa sejajar dengan isi yang
+   * berarti, jadi tiap baris dirender sebagai daftar label→nilai. Sebelumnya
+   * komponen tetap memaksa N kolom `flex: 1`, sehingga tabel 5+ kolom di
+   * layar sempit menampilkan sel selebar ~38px — teks terpotong tanpa
+   * indikator dan header tidak lagi menjelaskan kolom mana pun.
+   */
+  if (columns.length > MAX_TABLE_COLUMNS) {
+    return (
+      <View
+        className={cn("w-full overflow-hidden rounded-md border border-border bg-background", className)}
+        {...rest}
+      >
+        {rows.length === 0 ? (
+          <View className={cn("items-center", compact ? "py-6" : "py-8")}>
+            <Text variant="body" tone="secondary">
+              {emptyLabel}
+            </Text>
+          </View>
+        ) : (
+          rows.map((row, i) => (
+            <View
+              key={rowKey ? rowKey(row, i) : String(i)}
+              className={cn(compact ? "px-3 py-2" : "px-4 py-3", i < rows.length - 1 && "border-b border-border")}
+            >
+              <KeyValueList>
+                {columns.map((col) => (
+                  <KeyValue
+                    key={col.key}
+                    label={col.title}
+                    mono={col.mono}
+                    value={col.render ? col.render(row) : String(row[col.key] ?? "")}
+                  />
+                ))}
+              </KeyValueList>
+            </View>
+          ))
+        )}
+      </View>
+    )
+  }
+
   return (
     <View
       className={cn("w-full overflow-hidden rounded-md border border-border bg-background", className)}
@@ -110,7 +181,12 @@ export function DataTable<Row extends Record<string, unknown>>({
         {columns.map((col) => {
           const align = col.align ?? "left"
           return (
-            <View key={col.key} style={{ flex: col.flex ?? 1 }} className={cn(cellPad, alignClass[align])}>
+            <View
+              key={col.key}
+              accessibilityRole="header"
+              style={{ flex: col.flex ?? 1 }}
+              className={cn(cellPad, alignClass[align])}
+            >
               <Text variant="label" tone="secondary" className={textAlignClass[align]}>
                 {col.title}
               </Text>
@@ -128,8 +204,18 @@ export function DataTable<Row extends Record<string, unknown>>({
         </View>
       ) : (
         rows.map((row, i) => (
+          /*
+           * React Native tidak punya accessibilityRole "table"/"row"/"cell",
+           * jadi baris dikelompokkan sebagai SATU elemen `accessible` dengan
+           * label "Judul: nilai" per kolom. Tanpa ini pembaca layar membaca
+           * N fragmen teks lepas tanpa tahu kolom mana yang dimaksud — dan
+           * karena tabel tidak bisa di-scroll horizontal, urutan baca tidak
+           * bisa dipulihkan oleh pengguna.
+           */
           <View
             key={rowKey ? rowKey(row, i) : String(i)}
+            accessible
+            accessibilityLabel={rowLabel(columns, row)}
             className={cn("flex-row", i < rows.length - 1 && "border-b border-border")}
           >
             {columns.map((col) =>
@@ -141,7 +227,12 @@ export function DataTable<Row extends Record<string, unknown>>({
 
       {/* Footer */}
       {footer ? (
-        <View className="flex-row border-t border-border bg-surface">
+        <View
+          accessible
+          accessibilityRole="summary"
+          accessibilityLabel={rowLabel(columns, footer)}
+          className="flex-row border-t border-border bg-surface"
+        >
           {columns.map((col) => renderCell(col, footer[col.key], true))}
         </View>
       ) : null}

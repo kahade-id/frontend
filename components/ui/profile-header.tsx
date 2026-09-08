@@ -153,7 +153,7 @@ export function ProfileHeader({
 
 function StatCell({ stat, loading }: { stat: ProfileStat; loading: boolean }) {
   const body = (
-    <View className="flex-1 items-center justify-center gap-[2px] px-2 py-3">
+    <View className="flex-1 items-center justify-center gap-0.5 px-2 py-3">
       {loading ? (
         <Skeleton height={16} width={40} />
       ) : (

@@ -320,10 +320,12 @@ export default function SubscriptionsScreen() {
 
   const footer =
     step === "method" && selectedPlan ? (
-      <View
-        className="px-6"
-        style={{ paddingBottom: insets.bottom + tokens.space[4], paddingTop: tokens.space[3] }}
-      >
+      // Tanpa px-6 / paddingBottom sendiri: <Screen footer> membungkus node ini
+      // dengan <FooterBar>, yang sudah memasang `px-6` (baris 62) dan
+      // `paddingBottom = max(space[4], insets.bottom)` (baris 52). Menambahnya
+      // lagi di sini membuat padding samping jadi 48px (tombol 264px, bukan
+      // 312px, di layar 360px) dan inset bawah terhitung dua kali.
+      <View>
         <Button
           fullWidth
           disabled={

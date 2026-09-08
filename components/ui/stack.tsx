@@ -38,6 +38,7 @@ export type StackProps = ViewProps & {
 }
 
 const gapClass: Record<SpaceKey, string> = {
+  "0.5": "gap-0.5",
   0: "gap-0",
   1: "gap-1",
   2: "gap-2",

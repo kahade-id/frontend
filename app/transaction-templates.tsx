@@ -175,7 +175,7 @@ export default function TransactionTemplatesScreen() {
               <EmptyState
                 icon={NotePencil}
                 title="Belum ada template"
-                action={<Button onPress={openCreate}>Buat Template</Button>}
+                action={<Button onPress={openCreate}>Buat template</Button>}
               />
             ) : (
               items.map((t) => (
@@ -202,7 +202,7 @@ export default function TransactionTemplatesScreen() {
 
             {!creating ? (
               <Button variant="secondary" onPress={openCreate}>
-                Buat Template
+                Buat template
               </Button>
             ) : (
               <FormSection title={editing ? "Ubah template" : "Template baru"}>
@@ -279,6 +279,14 @@ export default function TransactionTemplatesScreen() {
                     value={form.counterpartUsername ?? ""}
                     onChangeText={(v) => setForm({ ...form, counterpartUsername: v })}
                     autoCapitalize="none"
+                    // Sama seperti field username di <Input> create-transaction:
+                    // autocorrect merusak username, dan autofill identitas diri
+                    // sendiri salah sasaran di field "lawan transaksi".
+                    autoCorrect={false}
+                    spellCheck={false}
+                    autoComplete="off"
+                    textContentType="none"
+                    returnKeyType="done"
                     maxLength={50}
                     placeholder="@username"
                   />
@@ -288,7 +296,7 @@ export default function TransactionTemplatesScreen() {
                   disabled={!form.name.trim() || !form.title.trim() || form.orderValue <= 0}
                   onPress={() => void handleSave()}
                 >
-                  Simpan Template
+                  Simpan template
                 </Button>
                 <Button
                   variant="ghost"

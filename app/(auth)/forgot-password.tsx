@@ -151,7 +151,7 @@ export default function ForgotPasswordScreen() {
               loading={submitting}
               disabled={!isFormValid}
             >
-              Kirim Kode
+              Kirim kode
             </Button>
 
             {/* Error alert */}

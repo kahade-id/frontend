@@ -152,7 +152,7 @@ export function Avatar({
       </View>
 
       {verified ? (
-        <View className="absolute -bottom-[2px] -right-[2px] rounded-full border-[2px] border-background bg-background">
+        <View className="absolute -bottom-0.5 -right-0.5 rounded-full border-badge border-background bg-background">
           <Icon icon={SealCheck} size={sealSize[size]} weight="fill" tone="active" />
         </View>
       ) : null}

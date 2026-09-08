@@ -130,7 +130,7 @@ export function BankAccountListItem({
 
   // Subtitle node: nomor Mono (§3.1) + nama pemilik + status verifikasi
   const subtitle = (
-    <View className="gap-[2px]">
+    <View className="gap-0.5">
       <Text ellipsizeMode="tail" variant="monoBody" tone="secondary" numberOfLines={1}>
         {number}
       </Text>

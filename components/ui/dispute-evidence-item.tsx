@@ -178,7 +178,7 @@ export function DisputeEvidenceItem({
             )}
           >
             <Icon icon={FilePdf} size="sm" />
-            <View className="flex-1 gap-[2px]">
+            <View className="flex-1 gap-0.5">
               <Text variant="caption" weight={500} tone="primary" numberOfLines={1}>
                 {f.name ?? "Dokumen"}
               </Text>

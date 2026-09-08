@@ -178,7 +178,7 @@ export default function TopupScreen() {
         result ? undefined : (
           <View>
             <Button loading={submitting} disabled={!canPay} haptic onPress={() => void handlePay()}>
-              Lanjutkan Pembayaran
+              Lanjutkan pembayaran
             </Button>
           </View>
         )

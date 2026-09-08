@@ -24,8 +24,8 @@
  *     H1 di baris kedua untuk layar utama tab (Beranda, Riwayat).
  *   - Di web dibatasi `md:max-w-content` (§11), sejajar kolom konten.
  */
-import { useContext, useState, type ReactNode } from "react"
-import { View, type ViewProps } from "react-native"
+import { useContext, useEffect, useState, type ReactNode } from "react"
+import { Platform, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowLeft, X } from "phosphor-react-native"
 import { useRouter } from "expo-router"
@@ -45,6 +45,34 @@ import { cn } from "@/lib/cn"
  * (KeyboardAvoiding) agar tidak ada angka 56 yang disalin di tiap screen.
  */
 export const HEADER_BAR_HEIGHT = 56
+
+/** Nama aplikasi untuk judul dokumen web — satu sumber dengan app.json (`expo.name`). */
+export const APP_TITLE = "Kahade"
+
+/**
+ * Judul dokumen web per layar (audit UI/UX 2026-09-08).
+ *
+ * Sebelumnya satu-satunya `document.title` di seluruh app ada di root layout
+ * (`"Kahade"`), sehingga 98 halaman hasil `expo export` berbagi satu judul
+ * tab: pengguna yang membuka 5 layar Kahade sekaligus melihat lima tab
+ * identik, riwayat browser tidak bisa dibedakan, dan hasil share/bookmark
+ * kehilangan konteks. Komentar di root layout sudah menjanjikan "judul
+ * per-halaman bisa menimpanya dari layarnya" — tidak ada satu layar pun yang
+ * melakukannya.
+ *
+ * Dipasang di <Header> karena di sanalah `title` setiap layar sudah
+ * terkumpul (≈70 layar), bukan di tiap route. Native di-skip: tidak ada
+ * konsep judul dokumen di sana.
+ */
+export function useDocumentTitle(title?: string) {
+  useEffect(() => {
+    if (Platform.OS !== "web") return
+    document.title = title ? `${title} — ${APP_TITLE}` : APP_TITLE
+    return () => {
+      document.title = APP_TITLE
+    }
+  }, [title])
+}
 
 export type HeaderProps = Omit<ViewProps, "children"> & {
   title?: string
@@ -85,6 +113,8 @@ export function Header({
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const providedInsets = useContext(ScreenInsetsContext)
+  // largeTitle (H1 konten) lebih mewakili layar daripada title bar bila ada.
+  useDocumentTitle(largeTitle ?? title)
   const [leftWidth, setLeftWidth] = useState(0)
   const [rightWidth, setRightWidth] = useState(0)
   const sideWidth = Math.max(tokens.space[12], leftWidth, rightWidth)

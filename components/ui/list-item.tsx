@@ -40,6 +40,7 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
 
 function isIconComponent(x: unknown): x is IconComponent {
@@ -121,7 +122,7 @@ export function ListItem({
       >
         {leadingNode ? <View className="items-center justify-center tabular-nums">{leadingNode}</View> : null}
 
-        <View className="flex-1 gap-[2px]">
+        <View className="flex-1 gap-0.5">
           <Text ellipsizeMode="tail"
             variant="body"
             weight={500}
@@ -155,7 +156,14 @@ export function ListItem({
       </View>
 
       {divider ? (
-        <View className={cn("h-px bg-border", inset && leadingNode ? "ml-[60px]" : "ml-0")} />
+        <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          // Inset turunan (px-4 + IconBox sm + gap-3) diambil dari token, bukan
+          // literal 60px: angka itu ikut berubah bila ukuran leading berubah.
+          style={{ marginLeft: inset && leadingNode ? tokens.layout.rowDividerInset.listItem : 0 }}
+        />
       ) : null}
     </View>
   )

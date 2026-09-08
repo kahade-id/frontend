@@ -64,7 +64,7 @@ export function PrivacyToggleList<K extends string = string>({
           return (
             <View key={item.key} className={cn(i > 0 && "border-t border-border")}>
               <View className="min-h-14 flex-row items-center gap-3 px-5 py-3">
-                <View className="flex-1 gap-[2px]">
+                <View className="flex-1 gap-0.5">
                   <Text variant="body" weight={500} tone={rowDisabled ? "disabled" : "primary"}>
                     {item.title}
                   </Text>

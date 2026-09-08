@@ -150,7 +150,7 @@ export default function OrderLinksScreen() {
                 fullWidth={false}
                 onPress={() => router.push(ROUTES.createTransaction)}
               >
-                Buat Tautan Baru
+                Buat tautan baru
               </Button>
             }
           />
@@ -205,7 +205,7 @@ export default function OrderLinksScreen() {
               hideEnd
             />
             <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
-              Buat Tautan Baru
+              Buat tautan baru
             </Button>
           </View>
         )}

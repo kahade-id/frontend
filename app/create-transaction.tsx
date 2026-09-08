@@ -340,12 +340,12 @@ export default function CreateTransactionScreen() {
             disabled={!canSubmit}
             onPress={() => void handleSubmit()}
           >
-            {mode === "link" ? "Buat Order Link" : "Buat Transaksi"}
+            {mode === "link" ? "Buat Order Link" : "Buat transaksi"}
           </Button>
         </View>
       }
     >
-      <Header title="Buat Transaksi" />
+      <Header title="Buat transaksi" />
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
@@ -382,6 +382,16 @@ export default function CreateTransactionScreen() {
               onChangeText={setCounterpart}
               placeholder="johndoe"
               autoCapitalize="none"
+              // Username bukan prosa: autocorrect/predictive text akan menulis
+              // ulang "johndoe" jadi kata kamus dan mengusulkan spasi. Field
+              // serupa di <UsernameField> sudah mematikan keduanya.
+              autoCorrect={false}
+              spellCheck={false}
+              // Jangan tawarkan autofill identitas pengguna sendiri — ini
+              // username LAWAN transaksi.
+              autoComplete="off"
+              textContentType="none"
+              returnKeyType="next"
               maxLength={50}
             />
           </Field>

@@ -72,8 +72,21 @@ export const semantic = {
 /**
  * Chart / data-viz untuk kategori non-status (>2 kategori).
  * 3-step monokrom — semantic color eksklusif untuk status transaksi.
+ *
+ * Langkah terendah wajib >= 3:1 terhadap background (WCAG 1.4.11): batang
+ * chart adalah "graphical object required to understand the content", jadi
+ * pengecualian border dekoratif §6 TIDAK berlaku. gray.400 (#CED4DA) hanya
+ * 1.49:1 di atas #FFFFFF — nyaris tak terlihat sekaligus gagal kriteria.
+ * Karena itu tangga dimulai dari gray.600 (3.32:1).
+ *
+ * `chartMono` mendeskripsikan LIGHT. Dark mode harus dibaca lewat
+ * `chartMonoDark`: di atas #121212 urutannya dibalik (abu lebih terang =
+ * lebih menonjol), dan gray.700 yang dulu dipakai hanya 2.29:1.
  */
-export const chartMono = [gray[400], gray[600], gray[800]] as const
+export const chartMono = [gray[600], gray[700], gray[800]] as const
+
+/** Padanan dark dari `chartMono` — langkah terendah gray.500 = 9.03:1 vs #121212. */
+export const chartMonoDark = [gray[500], gray[400], gray[300]] as const
 
 /** 2.4 Mode Tokens */
 export const light = {
@@ -113,6 +126,13 @@ export const light = {
    * yang sudah gelap. Pakai lewat class `bg-overlay`.
    */
   overlay: "rgba(0, 0, 0, 0.4)",
+  /**
+   * Scrim di atas MEDIA (thumbnail, galeri). `overlay` 0.4 terlalu lemah di
+   * sini: di atas foto terang ia tersusun jadi #999999, sehingga teks putih
+   * hanya 2.85:1 — di bawah 3:1 objek grafis apalagi 4.5:1 teks. 0.7 memberi
+   * 8.45:1 pada kasus terburuk (foto putih polos).
+   */
+  overlayMedia: "rgba(0, 0, 0, 0.7)",
 } as const
 
 export const dark = {
@@ -136,6 +156,8 @@ export const dark = {
   primary: "#FFFFFF", // invert di dark mode
   primaryForeground: "#000000",
   overlay: "rgba(0, 0, 0, 0.6)",
+  /** Lihat `overlayMedia` di light — alasan dan aritmetika kontrasnya sama. */
+  overlayMedia: "rgba(0, 0, 0, 0.7)",
 } as const
 
 export type ModeTokens = { readonly [K in keyof typeof light]: string }
@@ -148,6 +170,7 @@ export const colors = {
   gray,
   semantic,
   chartMono,
+  chartMonoDark,
   light,
   dark,
 } as const
@@ -299,6 +322,13 @@ export type TypographyKey = keyof typeof typography
 /** Base unit 4px. Density: Spacious. */
 export const space = {
   0: 0,
+  /**
+   * 2px — setengah unit dasar. Dipakai HANYA untuk celah vertikal rapat
+   * judul→subjudul di dalam satu baris list (26 komponen menulisnya sebagai
+   * `gap-[2px]` sebelum langkah ini ada). Bukan pengganti `1` (4px) untuk
+   * gap antar elemen.
+   */
+  "0.5": 2,
   1: 4, // Gap ikon-teks rapat
   2: 8, // Gap internal komponen kecil
   3: 12, // Padding input vertikal
@@ -316,6 +346,17 @@ export const layout = {
   cardPadding: space[5], // 20px semua sisi
   cardGap: space[3], // 12px antar card dalam list
   iconTextGap: space[2], // 8px ikon ke teks
+  /**
+   * Inset kiri divider di dalam baris list, supaya garis mulai sejajar TEKS
+   * (bukan ikon/avatar). Nilainya turunan komposisi, bukan angka bebas:
+   *   icon     : px-6 (24) + IconBox md (40) + gap-3 (12) = 76
+   *   avatar   : px-6 (24) + Avatar sm (32) + gap-2 (8)  = 64
+   *   listItem : px-4 (16) + IconBox sm (32) + gap-3 (12) = 60
+   * Sebelum token ini ada, ketiganya ditulis sebagai `ml-[76px]`/`ml-[64px]`/
+   * `ml-[60px]` di 10 komponen — angka turunan yang tidak bisa diverifikasi
+   * dan mudah menyimpang saat ukuran leading berubah.
+   */
+  rowDividerInset: { icon: 76, avatar: 64, listItem: 60 },
   /** §11 Web: satu breakpoint ~768px; di atasnya konten di-cap 520px & center */
   breakpoint: 768,
   maxContentWidth: 520,
@@ -353,6 +394,12 @@ export const borderWidth = {
   control: 1,
   focus: 1.5,
   error: 1.5,
+  /**
+   * Cincin pemisah badge/lencana yang menumpuk di atas elemen lain (seal
+   * verifikasi Avatar). 2px: 1px hilang secara optis di atas foto, 3px
+   * mulai memakan diameter avatar `xs`.
+   */
+  badge: 2,
 } as const
 
 export const border = {
@@ -565,6 +612,7 @@ export function toTailwindTheme() {
         foreground: "var(--color-primary-foreground)",
       },
       overlay: "var(--color-overlay)",
+      "overlay-media": "var(--color-overlay-media)",
       success: {
         DEFAULT: "var(--color-success-fill)",
         text: "var(--color-success-text)",
@@ -626,6 +674,7 @@ export function toTailwindTheme() {
       0: "0px",
       focus: px(borderWidth.focus),
       error: px(borderWidth.error),
+      badge: px(borderWidth.badge),
     },
     boxShadow: { none: "none", DEFAULT: "none" },
     zIndex: Object.fromEntries(
@@ -682,6 +731,7 @@ export function toCssVariables(mode: ColorMode): Record<string, string> {
     "--color-primary": m.primary,
     "--color-primary-foreground": m.primaryForeground,
     "--color-overlay": m.overlay,
+    "--color-overlay-media": m.overlayMedia,
     "--color-success-fill": semantic.success[mode].fill,
     "--color-success-text": semantic.success[mode].text,
     "--color-success-soft": semantic.success[mode].bgSoft,

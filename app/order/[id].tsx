@@ -536,9 +536,9 @@ export default function OrderDetailScreen() {
             ) : null}
             {canConfirm ? (
               <>
-                <Button onPress={() => setConfirmAccept(true)}>Terima Order</Button>
+                <Button onPress={() => setConfirmAccept(true)}>Terima pesanan</Button>
                 <Button variant="secondary" onPress={() => setSheet("reject")}>
-                  Tolak Order
+                  Tolak pesanan
                 </Button>
               </>
             ) : null}
@@ -553,20 +553,20 @@ export default function OrderDetailScreen() {
                   )
                 }
               >
-                Mulai Proses
+                Mulai proses
               </Button>
             ) : null}
             {canShip ? (
               <>
                 <Button leftIcon={Truck} onPress={() => setSheet("shipping")}>
-                  {shippingRequired ? "Isi Resi Pengiriman" : "Tandai Dikirim"}
+                  {shippingRequired ? "Isi resi pengiriman" : "Tandai dikirim"}
                 </Button>
                 <Button
                   variant="secondary"
                   leftIcon={Package}
                   onPress={() => router.push(ROUTES.deliveryProof(order.id))}
                 >
-                  Unggah Bukti Pengiriman
+                  Unggah bukti pengiriman
                 </Button>
               </>
             ) : null}
@@ -576,7 +576,7 @@ export default function OrderDetailScreen() {
                   leftIcon={Package}
                   onPress={() => router.push(ROUTES.deliveryProof(order.id))}
                 >
-                  Periksa Bukti Pengiriman
+                  Periksa bukti pengiriman
                 </Button>
                 <Button
                   variant="secondary"
@@ -589,7 +589,7 @@ export default function OrderDetailScreen() {
                     )
                   }
                 >
-                  Tandai Selesai
+                  Tandai selesai
                 </Button>
               </>
             ) : null}
@@ -599,12 +599,12 @@ export default function OrderDetailScreen() {
                 leftIcon={Package}
                 onPress={() => router.push(ROUTES.deliveryProof(order.id))}
               >
-                Bukti Pengiriman
+                Bukti pengiriman
               </Button>
             ) : null}
             {canRate ? (
               <Button variant="secondary" onPress={() => router.push(ROUTES.rateOrder(order.id))}>
-                Beri Ulasan
+                Beri ulasan
               </Button>
             ) : null}
           </View>
@@ -635,7 +635,7 @@ export default function OrderDetailScreen() {
                 leftIcon={Timer}
                 onPress={() => router.push(ROUTES.extension(order.id))}
               >
-                Perpanjang Tenggat
+                Perpanjang tenggat
               </Button>
             ) : null}
             {isDisputed ? (
@@ -645,7 +645,7 @@ export default function OrderDetailScreen() {
                 leftIcon={ShieldWarning}
                 onPress={() => router.push(ROUTES.disputes)}
               >
-                Lihat Sengketa
+                Lihat sengketa
               </Button>
             ) : canDispute ? (
               <Button
@@ -654,7 +654,7 @@ export default function OrderDetailScreen() {
                 leftIcon={ShieldWarning}
                 onPress={() => setSheet("dispute")}
               >
-                Ajukan Sengketa
+                Ajukan sengketa
               </Button>
             ) : null}
             {canCancel ? (
@@ -664,7 +664,7 @@ export default function OrderDetailScreen() {
                 onPress={() => setSheet("cancel")}
                 disabled={submitting}
               >
-                Batalkan Order
+                Batalkan pesanan
               </Button>
             ) : null}
           </View>
@@ -759,17 +759,17 @@ export default function OrderDetailScreen() {
                   loading={submitting}
                   onPress={() => void handlePayQris()}
                 >
-                  Buat Ulang QRIS
+                  Buat ulang QRIS
                 </Button>
               ) : (
                 <Button variant="ghost" onPress={() => void pollPayment()}>
-                  Cek Status Sekarang
+                  Cek status sekarang
                 </Button>
               )}
             </>
           ) : (
             <Button loading={submitting} onPress={() => void handlePayQris()}>
-              Tampilkan Kode QRIS
+              Tampilkan kode QRIS
             </Button>
           )}
         </View>
@@ -799,7 +799,7 @@ export default function OrderDetailScreen() {
               )
             }
           >
-            Batalkan Order
+            Batalkan pesanan
           </Button>
         }
       >
@@ -835,7 +835,7 @@ export default function OrderDetailScreen() {
               )
             }
           >
-            Tolak Order
+            Tolak pesanan
           </Button>
         }
       >
@@ -869,7 +869,7 @@ export default function OrderDetailScreen() {
               )
             }
           >
-            Buka Sengketa
+            Buka sengketa
           </Button>
         }
       >
@@ -926,6 +926,8 @@ export default function OrderDetailScreen() {
               value={courier}
               onChangeText={setCourier}
               placeholder="JNE, SiCepat, …"
+              autoCapitalize="words"
+              returnKeyType="next"
               maxLength={100}
             />
           </Field>
@@ -936,6 +938,8 @@ export default function OrderDetailScreen() {
               placeholder="Nomor resi"
               autoCapitalize="characters"
               autoCorrect={false}
+              spellCheck={false}
+              returnKeyType="done"
               maxLength={100}
             />
           </Field>

@@ -341,6 +341,9 @@ export default function EditProfileScreen() {
     <Screen
       edges={["top"]}
       padded={false}
+      // 7 field teks + CTA sticky: tanpa ini keyboard iOS menutupi Bio/HP/link
+      // sosial dan tombol "Simpan perubahan" sekaligus.
+      keyboardAvoiding
       footer={
         <View>
           <Button
@@ -349,7 +352,7 @@ export default function EditProfileScreen() {
             disabled={loading || !!error || !dirty}
             onPress={handleSubmit}
           >
-            Simpan Perubahan
+            Simpan perubahan
           </Button>
         </View>
       }
@@ -410,6 +413,13 @@ export default function EditProfileScreen() {
                   onChangeText={(v) => set("fullName", v)}
                   maxLength={60}
                   placeholder="Nama lengkap Anda"
+                  // Field yang sama di (auth)/profile-data sudah membawa
+                  // keempat prop ini; tanpanya iOS/Android tidak menawarkan
+                  // nama dari kontak dan kapitalisasi tiap kata tidak otomatis.
+                  autoComplete="name"
+                  textContentType="name"
+                  autoCapitalize="words"
+                  returnKeyType="next"
                 />
               </Field>
               <UsernameField

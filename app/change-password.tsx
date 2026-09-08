@@ -61,7 +61,7 @@ export default function ChangePasswordScreen() {
             disabled={!current || next.length < 12 || next !== confirm}
             onPress={() => void handleSubmit()}
           >
-            Simpan Password
+            Simpan password
           </Button>
         </View>
       }

@@ -105,7 +105,10 @@ export default function WalletTransactionScreen() {
             </Card>
 
             <Text numberOfLines={1} variant="caption" tone="tertiary" className="text-center">
-              ID mutasi: <Text variant="monoBody">{txn.id}</Text>
+              ID mutasi:{" "}
+              <Text variant="monoBody" selectable>
+                {txn.id}
+              </Text>
             </Text>
           </View>
         )}

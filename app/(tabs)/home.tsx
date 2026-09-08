@@ -230,7 +230,7 @@ export default function HomeScreen() {
           ) : (
             <View className="flex-row gap-3">
               <StatCard
-                label="Order aktif"
+                label="Pesanan aktif"
                 icon={<Icon icon={Receipt} size="xs" tone="default" />}
                 loading={summary.loading}
                 value={activeOrders}
@@ -260,7 +260,7 @@ export default function HomeScreen() {
          */}
         <VStack gap={3} className="px-6 pt-6">
           <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
-            Buat Transaksi
+            Buat transaksi
           </Button>
           <Button
             variant="ghost"

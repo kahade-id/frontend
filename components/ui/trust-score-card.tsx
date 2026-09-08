@@ -129,7 +129,7 @@ export function TrustScoreCard({
             </Text>
           </ProgressRing>
 
-          <View className="flex-1 gap-1.5">
+          <View className="flex-1 gap-1">
             <Text ellipsizeMode="tail" variant="h3" tone="primary" numberOfLines={1}>
               {t.title}
             </Text>
@@ -158,7 +158,7 @@ export function TrustScoreCard({
           {factors.map((f) => {
             const pct = f.max > 0 ? clamp((f.value / f.max) * 100, 0, 100) : 0
             return (
-              <View key={f.key} accessible className="gap-1.5" accessibilityLabel={`${f.label} ${f.value} dari ${f.max}`}>
+              <View key={f.key} accessible className="gap-1" accessibilityLabel={`${f.label} ${f.value} dari ${f.max}`}>
                 <View className="flex-row items-center justify-between gap-3">
                   <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
                     {f.label}

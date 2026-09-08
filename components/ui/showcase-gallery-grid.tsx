@@ -126,8 +126,15 @@ export function ShowcaseGalleryGrid({
                     recyclingKey={item.id}
                   />
                   {showMore ? (
+                    // `bg-overlay-media` (0.7), bukan `bg-overlay` (0.4): di atas
+                    // foto terang scrim 0.4 tersusun jadi #999999 dan label "+N"
+                    // putih hanya 2.85:1. 0.7 -> 8.45:1 pada kasus terburuk.
+                    //
+                    // Warna teks tetap putih eksplisit (BUKAN tone="inverse"):
+                    // scrim ini hitam di kedua mode, sedangkan `inverse` =
+                    // primary-foreground yang di dark mode bernilai #000000.
                     <View style={{ pointerEvents: "none" }}
-                      className="absolute inset-0 items-center justify-center bg-overlay"
+                      className="absolute inset-0 items-center justify-center bg-overlay-media"
                     >
                       <Text variant="h3" tone="inherit" className="text-white">
                         {`+${formatNumber(overflow)}`}

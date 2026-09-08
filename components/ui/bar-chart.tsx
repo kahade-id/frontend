@@ -82,12 +82,20 @@ export type BarChartProps = Omit<ViewProps, "children"> & {
 }
 
 /**
- * 3-step monokrom (tokens.chartMono = gray.400/600/800). Class literal agar
- * terbaca Tailwind scanner; urutan dibalik di dark mode (lihat header).
+ * 3-step monokrom. Class literal agar terbaca Tailwind scanner; pasangan
+ * light/dark diambil dari `tokens.chartMono` / `tokens.chartMonoDark`
+ * (light gray.600/700/800, dark gray.500/400/300 — urutan dibalik karena di
+ * atas #121212 abu yang lebih terang justru lebih menonjol).
+ *
+ * Langkah terendah WAJIB >= 3:1 terhadap background (WCAG 1.4.11): batang
+ * chart adalah objek grafis yang dibutuhkan untuk memahami data, jadi
+ * pengecualian border dekoratif §6 tidak berlaku. Nilai lama gray.400
+ * (#CED4DA) hanya 1.49:1 di atas putih dan gray.700 (#495057) 2.29:1 di atas
+ * #121212 — batang kategori pertama praktis tak terlihat di kedua mode.
  */
 const monoStepClass = [
-  "bg-gray-400 dark:bg-gray-700",
   "bg-gray-600 dark:bg-gray-500",
+  "bg-gray-700 dark:bg-gray-400",
   "bg-gray-800 dark:bg-gray-300",
 ] as const
 
