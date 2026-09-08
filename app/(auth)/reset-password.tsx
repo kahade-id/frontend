@@ -276,7 +276,7 @@ export default function ResetPasswordScreen() {
               loading={submitting}
               disabled={!isFormValid}
             >
-              Reset Password
+              Reset password
             </Button>
 
             {/* Error alert */}

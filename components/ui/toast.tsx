@@ -11,7 +11,8 @@
  *   2. Animasi memakai Animated core (bukan Reanimated) agar konsisten dengan
  *      PressableScale & tetap jalan di web tanpa worklet. Slide 8px + fade,
  *      durasi motion.duration.fast, easing standard.
- *   3. Maks 3 toast tampil sekaligus (antrean FIFO) supaya tidak menutup layar.
+ *   3. Maks 2 toast tampil sekaligus per posisi (MAX_VISIBLE, antrean FIFO)
+ *      supaya tidak menutup layar; sisanya menyusul setelah ada yang habis.
  *   4. Di web viewport dibatasi `md:max-w-content` dan di-center (§11).
  *   5. Toast tone tidak memakai bg semantik pekat — kotak `bg-surface-elevated
  *      border-border` dengan ikon berwarna, mengikuti prinsip monokrom §6.
@@ -47,7 +48,7 @@ export type ToastOptions = {
   title: string
   description?: string
   tone?: ToastTone
-  /** ms; 0 = persist sampai dismiss manual. Default 4000 (danger 6000). */
+  /** ms; 0 = persist sampai dismiss manual. Default 4000 (danger 8000). */
   duration?: number
   position?: ToastPosition
   icon?: IconComponent | null
@@ -242,7 +243,7 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
         </View>
       ) : null}
 
-      <View className="flex-1 gap-[2px]">
+      <View className="flex-1 gap-0.5">
         <Text ellipsizeMode="tail" variant="body" weight={600} numberOfLines={2}>
           {toast.title}
         </Text>

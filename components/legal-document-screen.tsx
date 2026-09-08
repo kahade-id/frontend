@@ -41,7 +41,7 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
                 void Linking.openURL(url).catch(() => setOpenError(true))
               }}
             >
-              Buka Dokumen Resmi
+              Buka dokumen resmi
             </Button>
             {openError ? (
               <Text variant="body" tone="danger">

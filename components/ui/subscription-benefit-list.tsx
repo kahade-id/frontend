@@ -30,6 +30,7 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { ProgressBar, type ProgressTone } from "@/components/ui/progress-bar"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 
 // ------------------------------------------------------------------
 // Benefit list
@@ -111,7 +112,12 @@ export function SubscriptionBenefitList({
                 ) : null}
               </View>
             </View>
-            {i < items.length - 1 ? <View className="ml-[76px] h-px bg-border" /> : null}
+            {i < items.length - 1 ? <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          style={{ marginLeft: tokens.layout.rowDividerInset.icon }}
+        /> : null}
           </View>
         )
       })}

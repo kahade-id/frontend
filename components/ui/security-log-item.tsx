@@ -71,6 +71,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { summarize } from "@/lib/a11y"
 import { focusRingInset } from "@/lib/focus-ring"
 
@@ -186,7 +187,7 @@ export function SecurityLogItem({
     <View className="min-h-14 flex-1 flex-row items-start gap-3 py-3">
       <IconBox icon={icon ?? KIND_ICON[kind]} size="md" variant={OUTCOME_BOX[outcome]} />
 
-      <View className="flex-1 gap-[2px]">
+      <View className="flex-1 gap-0.5">
         <View className="flex-row items-start justify-between gap-3">
           <View className="flex-1 flex-row flex-wrap items-center gap-2">
             <Text ellipsizeMode="tail" variant="body" weight={unread ? 600 : 500} tone="primary" numberOfLines={2} className="shrink">
@@ -255,7 +256,12 @@ export function SecurityLogItem({
         ) : null}
       </View>
 
-      {divider ? <View className="ml-[76px] h-px bg-border" /> : null}
+      {divider ? <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          style={{ marginLeft: tokens.layout.rowDividerInset.icon }}
+        /> : null}
     </View>
   )
 }

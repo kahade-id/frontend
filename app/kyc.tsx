@@ -253,6 +253,7 @@ export default function KycScreen() {
                       value={nik}
                       onChangeText={(t) => setNik(t.replace(/\D/g, "").slice(0, NIK_LENGTH))}
                       keyboardType="number-pad"
+                      returnKeyType="done"
                       maxLength={NIK_LENGTH}
                       placeholder={`${NIK_LENGTH} digit`}
                     />
@@ -293,7 +294,7 @@ export default function KycScreen() {
                     disabled={!formValid}
                     onPress={() => void handleSubmit()}
                   >
-                    {isResubmit ? "Kirim Ulang Verifikasi" : "Kirim Verifikasi"}
+                    {isResubmit ? "Kirim ulang verifikasi" : "Kirim verifikasi"}
                   </Button>
                   <Button
                     variant="ghost"

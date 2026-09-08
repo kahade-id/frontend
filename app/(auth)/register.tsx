@@ -260,7 +260,7 @@ export default function RegisterScreen() {
             loading={submitting}
             disabled={methodsLoading}
           >
-            Kirim Kode
+            Kirim kode
           </Button>
           <Text variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}

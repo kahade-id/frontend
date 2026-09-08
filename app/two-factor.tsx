@@ -266,7 +266,7 @@ export default function TwoFactorScreen() {
   const enabled = status?.enabled ?? false
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen edges={["top"]} padded={false} keyboardAvoiding>
       <Header title="Verifikasi Dua Langkah" />
       <PullToRefresh
         onRefresh={() => void query.refresh()}

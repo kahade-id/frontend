@@ -513,9 +513,14 @@ export default function UserProfileScreen() {
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        contentContainerClassName="px-0 pb-16"
+        // Hanya SATU sumber paddingBottom: `contentContainerStyle` di bawah
+        // (yang memperhitungkan inset). Sebelumnya `pb-16` di className dan
+        // `paddingBottom` di style mendeklarasikan properti yang sama —
+        // className kalah oleh style, jadi `pb-16` itu kode mati yang
+        // menyesatkan pembaca.
+        contentContainerClassName="px-0"
         scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[16] },
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
         {/* ── Top Cover Banner with Floating Navigation ──────── */}
@@ -566,9 +571,16 @@ export default function UserProfileScreen() {
         </View>
 
         {loading && !profile ? (
-          <View className="px-6 pt-4 gap-4">
+          /*
+           * Geometri kerangka HARUS identik dengan blok `profile` di bawah:
+           * sebelumnya kerangka memakai `pt-4` + `-mt-12` dan lingkaran 76px,
+           * sedangkan konten jadi memakai `-mt-12` tanpa `pt-4` dan Avatar
+           * `xl` (80px). Selisihnya 16px vertikal + 4px diameter, jadi avatar
+           * "melompat" tiap kali data profil tiba.
+           */
+          <View className="px-6 gap-4">
             <View className="flex-row items-end justify-between -mt-12">
-              <Skeleton shape="circle" width={76} height={76} className="border-4 border-background" />
+              <Skeleton shape="circle" width={80} height={80} className="border-4 border-background" />
               <Skeleton width={96} height={36} className="rounded-sm" />
             </View>
             <Skeleton height={24} className="w-3/5" />
@@ -582,7 +594,7 @@ export default function UserProfileScreen() {
         ) : profile ? (
           <View className="w-full">
             {/* ── Avatar & Follow Action Row ────────────────────── */}
-            <View className="flex-row items-end justify-between px-6 -mt-11">
+            <View className="flex-row items-end justify-between px-6 -mt-12">
               <View className="rounded-full border-4 border-background bg-background">
                 <Avatar source={profile.avatarUrl ? { uri: profile.avatarUrl } : undefined} name={profile.fullName ?? handle} size="xl" />
               </View>
@@ -595,7 +607,7 @@ export default function UserProfileScreen() {
                     leftIcon={PencilSimple}
                     onPress={() => router.push(ROUTES.editProfile)}
                   >
-                    Edit Profil
+                    Edit profil
                   </Button>
                 ) : (
                   <>
@@ -625,7 +637,7 @@ export default function UserProfileScreen() {
 
             {/* ── User Identity & Bio ──────────────────────────── */}
             <View className="gap-2 px-6 pt-3">
-              <View className="flex-row items-center gap-1.5">
+              <View className="flex-row items-center gap-1">
                 <Text variant="h2" weight={700} tone="primary">
                   {profile.fullName || `@${handle}`}
                 </Text>
@@ -712,7 +724,7 @@ export default function UserProfileScreen() {
                     leftIcon={Handshake}
                     onPress={() => router.push(ROUTES.createTransactionWith(handle))}
                   >
-                    Buat Transaksi Escrow
+                    Buat transaksi escrow
                   </Button>
                 </View>
               ) : null}
@@ -822,7 +834,7 @@ export default function UserProfileScreen() {
                             size="sm"
                             onPress={() => router.push(ROUTES.createTransactionWith(handle))}
                           >
-                            Beli Sekarang
+                            Beli sekarang
                           </Button>
                         ) : null}
                       </View>
@@ -853,7 +865,7 @@ export default function UserProfileScreen() {
                     description={`Jadilah yang pertama bertanya kepada @${handle}.`}
                     action={
                       <Button variant="secondary" onPress={() => setAskOpen(true)}>
-                        Ajukan Pertanyaan
+                        Ajukan pertanyaan
                       </Button>
                     }
                   />
@@ -879,7 +891,7 @@ export default function UserProfileScreen() {
                         footer={
                           <View className="flex-row items-center gap-3">
                             <Button size="sm" variant="ghost" onPress={() => void toggleComments(q)}>
-                              {openQuestionId === q.id ? "Tutup Balasan" : "Lihat Balasan"}
+                              {openQuestionId === q.id ? "Tutup balasan" : "Lihat balasan"}
                             </Button>
                             {isMyQuestion(q) ? (
                               <Button size="sm" variant="ghost" onPress={() => setDeleteQ(q)}>
@@ -1020,7 +1032,7 @@ export default function UserProfileScreen() {
                         leftIcon={Flag}
                         onPress={() => router.push(ROUTES.reports({ targetId: profile.id, targetName: handle }))}
                       >
-                        Laporkan Akun
+                        Laporkan akun
                       </Button>
                       <Button
                         variant="destructive"
@@ -1028,7 +1040,7 @@ export default function UserProfileScreen() {
                         leftIcon={Prohibit}
                         onPress={() => setBlockOpen(true)}
                       >
-                        Blokir Pengguna
+                        Blokir pengguna
                       </Button>
                     </View>
                   </View>
@@ -1133,7 +1145,7 @@ export default function UserProfileScreen() {
                   share()
                 }}
               >
-                Bagikan Profil
+                Bagikan profil
               </Button>
             )}
           </ShareSheetTrigger>
@@ -1145,7 +1157,7 @@ export default function UserProfileScreen() {
               if (profile?.id) router.push(ROUTES.reports({ targetId: profile.id, targetName: handle }))
             }}
           >
-            Laporkan Pengguna
+            Laporkan pengguna
           </Button>
           <Button
             variant="destructive"
@@ -1155,7 +1167,7 @@ export default function UserProfileScreen() {
               setBlockOpen(true)
             }}
           >
-            Blokir Pengguna
+            Blokir pengguna
           </Button>
         </View>
       </Dialog>

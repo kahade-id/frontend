@@ -26,7 +26,7 @@
  *     app ditutup persis setelah pindah, flag sudah tersimpan.
  *   - Target rute `register`/`login` belum ada (dibuat di giliran berikut);
  *     path dipusatkan di `lib/routes.ts` dengan catatan cast `Href`.
- *   - Tombol utama berganti label "Lanjut" → "Buat Akun" di slide terakhir
+ *   - Tombol utama berganti label "Lanjut" → "Buat akun" di slide terakhir
  *     (satu tombol, bukan dua) — mengikuti prinsip "ruang bernapas" §1.5.
  */
 import { useCallback, useRef, useState } from "react"
@@ -84,7 +84,7 @@ export default function OnboardingScreen() {
         <PageIndicator count={ONBOARDING_SLIDES.length} index={index} />
 
         <View className="gap-4">
-          <Button onPress={handlePrimary}>{isLast ? "Buat Akun" : "Lanjut"}</Button>
+          <Button onPress={handlePrimary}>{isLast ? "Buat akun" : "Lanjut"}</Button>
 
           <Text numberOfLines={1} variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}

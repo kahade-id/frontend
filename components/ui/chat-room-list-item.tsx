@@ -52,6 +52,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
 
 export type ChatRoomLastMessage = {
@@ -134,7 +135,7 @@ export function ChatRoomListItem({
         ) : null}
       </View>
 
-      <View className="flex-1 gap-[2px]">
+      <View className="flex-1 gap-0.5">
         <View className="flex-row items-center gap-2">
           <Text ellipsizeMode="tail"
             variant="body"
@@ -209,7 +210,12 @@ export function ChatRoomListItem({
         </View>
       )}
 
-      {divider ? <View className="ml-[64px] h-px bg-border" /> : null}
+      {divider ? <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          style={{ marginLeft: tokens.layout.rowDividerInset.avatar }}
+        /> : null}
     </View>
   )
 }

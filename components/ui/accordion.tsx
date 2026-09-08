@@ -156,7 +156,7 @@ export function AccordionItem({
         className="min-h-14 w-full flex-row items-center gap-3 px-4 py-3 tabular-nums"
       >
         {icon ? <Icon icon={icon} size="md" active={open} /> : null}
-        <View className="flex-1 gap-[2px]">
+        <View className="flex-1 gap-0.5">
           <Text ellipsizeMode="tail" variant="body" weight={open ? 600 : 500} numberOfLines={2}>
             {title}
           </Text>

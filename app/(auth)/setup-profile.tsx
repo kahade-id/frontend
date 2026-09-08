@@ -228,7 +228,7 @@ export default function SetupProfileScreen() {
 
   // ── Tampilan Form ──────────────────────────────────────────────
   return (
-    <Screen padded={false} edges={["top"]}>
+    <Screen padded={false} edges={["top"]} keyboardAvoiding>
       <Header title="Setup Profil" safeArea={false} showBack={false} />
 
       <ScrollView

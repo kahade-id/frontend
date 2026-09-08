@@ -29,6 +29,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
 
 export type UserListItemProps = Omit<ViewProps, "children"> & {
@@ -83,7 +84,7 @@ export function UserListItem({
       className={cn("min-h-14 flex-1 flex-row items-center gap-3 py-3", blocked && "opacity-60")}
     >
       <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
-      <View className="flex-1 gap-[2px]">
+      <View className="flex-1 gap-0.5">
         <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1}>
           {name}
         </Text>
@@ -128,7 +129,12 @@ export function UserListItem({
         )}
         {action ? <View className="shrink-0">{action}</View> : null}
       </View>
-      {divider ? <View className="ml-[76px] h-px bg-border" /> : null}
+      {divider ? <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          style={{ marginLeft: tokens.layout.rowDividerInset.icon }}
+        /> : null}
     </View>
   )
 }

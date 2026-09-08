@@ -152,7 +152,7 @@ export default function ReferralScreen() {
   }, [applyCode, query, toast.show])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen edges={["top"]} padded={false} keyboardAvoiding>
       <Header title="Referral" />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
@@ -199,7 +199,7 @@ export default function ReferralScreen() {
                 disabled={!applyCode.trim()}
                 onPress={() => void handleApply()}
               >
-                Terapkan Kode
+                Terapkan kode
               </Button>
             </FormSection>
 

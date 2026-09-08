@@ -201,7 +201,7 @@ export function MutualResolutionCard({
         <View className="flex-1 flex-row items-center justify-between gap-3">
           <View className="flex-1 flex-row items-center gap-2">
             {proposerAvatar || avatarName ? <Avatar source={proposerAvatar} name={avatarName} size="xs" /> : null}
-            <View className="flex-1 gap-[2px]">
+            <View className="flex-1 gap-0.5">
               <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1}>
                 {title}
               </Text>
@@ -240,13 +240,13 @@ export function MutualResolutionCard({
           ])}
           className="flex-row justify-between gap-4"
         >
-          <View className="flex-1 gap-[2px]">
+          <View className="flex-1 gap-0.5">
             <Text variant="caption" tone={isBuyer ? "primary" : "secondary"} weight={isBuyer ? 500 : 400} className="tabular-nums">
               {`${t.buyerShare} · ${buyerPct}%`}
             </Text>
             <Amount value={buyer} size="body" tone={isBuyer ? "primary" : "secondary"} />
           </View>
-          <View className="flex-1 items-end gap-[2px]">
+          <View className="flex-1 items-end gap-0.5">
             <Text variant="caption" tone={isBuyer ? "secondary" : "primary"} weight={isBuyer ? 400 : 500} className="tabular-nums">
               {`${t.sellerShare} · ${sellerPct}%`}
             </Text>

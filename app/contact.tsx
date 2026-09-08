@@ -74,7 +74,7 @@ export default function ContactScreen() {
             disabled={!subject.trim() || !message.trim()}
             onPress={() => void handleSubmit()}
           >
-            Kirim Tiket
+            Kirim tiket
           </Button>
         </View>
       }
@@ -98,6 +98,8 @@ export default function ContactScreen() {
               value={subject}
               onChangeText={setSubject}
               placeholder="Ringkasan masalah"
+              autoCapitalize="sentences"
+              returnKeyType="next"
               maxLength={120}
             />
           </Field>

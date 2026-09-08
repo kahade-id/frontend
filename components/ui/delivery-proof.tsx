@@ -89,6 +89,7 @@ export function DeliveryProofForm({
       {!hideTracking ? (
         <Input
           label="Nomor resi (opsional)"
+        returnKeyType="done"
           value={v.trackingNumber}
           onChangeText={(trackingNumber) => set({ ...v, trackingNumber })}
           autoCapitalize="characters"

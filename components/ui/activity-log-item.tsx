@@ -33,6 +33,7 @@ import type { IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { summarize } from "@/lib/a11y"
 import { focusRingInset } from "@/lib/focus-ring"
 
@@ -91,7 +92,7 @@ export function ActivityLogItem({
   const row = (
     <View className="min-h-14 flex-1 flex-row items-start gap-3 py-3">
       <IconBox icon={icon ?? CATEGORY_ICON[category]} size="md" variant="surface" />
-      <View className="flex-1 gap-[2px]">
+      <View className="flex-1 gap-0.5">
         <View className="flex-row items-start justify-between gap-3">
           <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={2} className="flex-1">
             {title}
@@ -141,7 +142,12 @@ export function ActivityLogItem({
           </View>
         )}
       </View>
-      {divider ? <View className="ml-[76px] h-px bg-border" /> : null}
+      {divider ? <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          style={{ marginLeft: tokens.layout.rowDividerInset.icon }}
+        /> : null}
     </View>
   )
 }

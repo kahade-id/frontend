@@ -117,7 +117,7 @@ export default function SupportTicketDetailScreen() {
               numberOfLines={4}
             />
             <Button loading={sending} disabled={!reply.trim()} onPress={() => void handleSend()}>
-              Kirim Balasan
+              Kirim balasan
             </Button>
           </View>
         ) : null}

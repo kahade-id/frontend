@@ -96,7 +96,7 @@ export default function AppVersionScreen() {
         ) : null}
         {canUpdate ? (
           <Button variant="secondary" loading={checking} onPress={() => void update()}>
-            {available ? "Unduh & Terapkan OTA" : "Periksa Pembaruan OTA"}
+            {available ? "Unduh & terapkan OTA" : "Periksa pembaruan OTA"}
           </Button>
         ) : (
           <Text variant="body" tone="secondary">

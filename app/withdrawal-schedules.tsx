@@ -174,7 +174,7 @@ export default function WithdrawalSchedulesScreen() {
             description="Atur penarikan otomatis ke rekening Anda."
             action={
               <Button leftIcon={Plus} onPress={openCreate}>
-                Buat Jadwal
+                Buat jadwal
               </Button>
             }
           />
@@ -195,7 +195,7 @@ export default function WithdrawalSchedulesScreen() {
               />
             ))}
             <Button variant="secondary" leftIcon={Plus} onPress={openCreate} disabled={creating}>
-              {items.length ? "Tambah Jadwal" : "Buat Jadwal"}
+              {items.length ? "Tambah jadwal" : "Buat jadwal"}
             </Button>
 
             {creating || editing ? (
@@ -220,7 +220,7 @@ export default function WithdrawalSchedulesScreen() {
                   disabled={Boolean(minAmountError)}
                   onPress={() => void handleSubmit()}
                 >
-                  Simpan Jadwal
+                  Simpan jadwal
                 </Button>
                 <Button
                   variant="ghost"

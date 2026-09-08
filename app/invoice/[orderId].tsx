@@ -144,7 +144,7 @@ export default function InvoiceScreen() {
               fullWidth={false}
               onPress={() => void handleDownload(invoice.order.id)}
             >
-              Unduh Struk (HTML)
+              Unduh struk (HTML)
             </Button>
             {copied ? (
               <Button variant="ghost" fullWidth={false} disabled>

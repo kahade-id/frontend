@@ -173,7 +173,7 @@ export function OrderExtensionCard({
         <View className="flex-row items-start justify-between gap-3">
           <View className="flex-1 flex-row items-center gap-2">
             {requesterAvatar || avatarName ? <Avatar source={requesterAvatar} name={avatarName} size="xs" /> : null}
-            <View className="flex-1 gap-[2px]">
+            <View className="flex-1 gap-0.5">
               <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={2}>
                 {title}
               </Text>
@@ -194,7 +194,7 @@ export function OrderExtensionCard({
             {t.extraDays(extensionDays)}
           </Text>
           <View className="flex-1 flex-row items-center gap-2">
-            <View className="flex-1 gap-[2px]">
+            <View className="flex-1 gap-0.5">
               <Text variant="caption" tone="secondary">
                 {t.currentDeadline}
               </Text>
@@ -203,7 +203,7 @@ export function OrderExtensionCard({
               </Text>
             </View>
             <Icon icon={ArrowRight} size="xs" tone="default" />
-            <View className="flex-1 gap-[2px]">
+            <View className="flex-1 gap-0.5">
               <Text variant="caption" tone="secondary">
                 {t.newDeadline}
               </Text>

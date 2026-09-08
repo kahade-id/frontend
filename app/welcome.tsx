@@ -75,7 +75,7 @@ export default function WelcomeScreen() {
         </View>
 
         <Button onPress={handleStart}>
-          {isNewUser ? "Mulai" : "Masuk ke Beranda"}
+          {isNewUser ? "Mulai" : "Masuk ke beranda"}
         </Button>
       </VStack>
     </Screen>

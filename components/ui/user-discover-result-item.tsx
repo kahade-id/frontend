@@ -42,6 +42,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Rating } from "@/components/ui/rating"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
 
@@ -96,7 +97,7 @@ export function UserDiscoverResultItem({
     <View className="min-h-14 flex-1 flex-row items-center gap-3 py-3">
       <Avatar source={avatar} name={name} size="md" verified={verified} />
 
-      <View className="flex-1 gap-[2px]">
+      <View className="flex-1 gap-0.5">
         <Highlight
           text={name}
           query={query}
@@ -146,7 +147,12 @@ export function UserDiscoverResultItem({
         {follow && !isSelf ? <FollowButton size="sm" {...follow} /> : null}
       </View>
 
-      {divider ? <View className="ml-[64px] h-px bg-border" /> : null}
+      {divider ? <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          style={{ marginLeft: tokens.layout.rowDividerInset.avatar }}
+        /> : null}
     </View>
   )
 }

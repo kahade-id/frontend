@@ -324,7 +324,7 @@ export default function ShowcaseScreen() {
               variant="secondary"
               onPress={() => void handleUpload()}
             >
-              Tambah Foto
+              Tambah foto
             </Button>
           </View>
         )}
@@ -375,6 +375,8 @@ export default function ShowcaseScreen() {
               setForm((f) => ({ ...f, title: t }))
               setFormError(undefined)
             }}
+            autoCapitalize="sentences"
+            returnKeyType="next"
             maxLength={TITLE_MAX}
             errorText={formError && !form.title.trim() ? formError : undefined}
             required

@@ -219,7 +219,7 @@ export default function BankAccountsScreen() {
         <SectionHeader title="Tambah rekening" />
         {!adding ? (
           <Button variant="secondary" leftIcon={Plus} onPress={() => setAdding(true)}>
-            Tambah Rekening
+            Tambah rekening
           </Button>
         ) : (
           <FormSection title="Data rekening baru">
@@ -237,6 +237,7 @@ export default function BankAccountsScreen() {
                 value={accountNumber}
                 onChangeText={(t) => setAccountNumber(t.replace(/[^\d]/g, ""))}
                 keyboardType="number-pad"
+                returnKeyType="next"
                 placeholder="1234567890"
                 maxLength={20}
               />
@@ -246,6 +247,12 @@ export default function BankAccountsScreen() {
                 value={accountName}
                 onChangeText={setAccountName}
                 placeholder="Sesuai rekening"
+                // Nama orang: kapitalisasi otomatis + isi dari kontak, dan tombol
+                // "Selesai" karena ini field terakhir sebelum CTA.
+                autoCapitalize="words"
+                autoComplete="name"
+                textContentType="name"
+                returnKeyType="done"
                 maxLength={100}
               />
             </Field>
@@ -254,7 +261,7 @@ export default function BankAccountsScreen() {
               onPress={() => void handleAdd()}
               disabled={!bankCode || !accountName.trim()}
             >
-              Simpan Rekening
+              Simpan rekening
             </Button>
             <Button
               variant="ghost"

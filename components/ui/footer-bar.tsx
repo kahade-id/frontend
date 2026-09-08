@@ -61,7 +61,7 @@ export function FooterBar({
       <View className="w-full gap-3 px-6 pt-4 md:max-w-content tabular-nums">
         {summary ? (
           <View className="flex-row items-end justify-between gap-4">
-            <View className="gap-[2px]">
+            <View className="gap-0.5">
               <Text variant="caption" tone="secondary">
                 {summary.label}
               </Text>

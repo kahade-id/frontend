@@ -193,6 +193,11 @@ export function BankRow({ bank, selected = false, onPress, className, ...rest }:
 /** Logo 40x40 dengan border tipis; fallback ikon Bank monokrom */
 export function BankLogo({ bank, size = 40 }: { bank: Pick<BankOption, "logo" | "name">; size?: number }) {
   if (!bank.logo) return <IconBox icon={Bank} size="md" />
+  // `bg-white` SENGAJA bukan token: logo bank diterbitkan di atas putih dan
+  // banyak yang transparan, jadi di dark mode pun ubinnya harus tetap putih
+  // agar logonya terbaca. Ini satu-satunya warna hardcode di app/ +
+  // components/ — jangan "dirapikan" jadi bg-background.
+  
   return (
     <View className="overflow-hidden rounded-xs border border-border bg-white" style={{ width: size, height: size }}>
       <Picture source={bank.logo} alt={`Logo ${bank.name}`} width={size} height={size} resizeMode="contain" radius="none" />

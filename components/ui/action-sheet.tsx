@@ -99,7 +99,7 @@ export function ActionSheet({
               {item.icon ? (
                 <Icon icon={item.icon} size="sm" tone={item.destructive ? "danger" : "active"} />
               ) : null}
-              <View className="flex-1 gap-[2px]">
+              <View className="flex-1 gap-0.5">
                 <Text ellipsizeMode="tail"
                   variant="body"
                   weight={500}

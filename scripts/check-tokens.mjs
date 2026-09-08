@@ -286,7 +286,7 @@ const DARK_ALLOWLIST = {
   "components/ui/count-badge.tsx": "danger text-white dark:text-gray-950 — ikut Button destructive",
   "components/ui/swipeable-list-item.tsx": "aksi destruktif text-white dark:text-gray-950 — ikut Button destructive",
   // Skala monokrom chart harus dibalik di dark supaya urutan kontras tetap.
-  "components/ui/bar-chart.tsx": "chartMono gray-400/600/800 → dark:gray-700/500/300 (§2.3 chart monokrom)",
+  "components/ui/bar-chart.tsx": "chartMono gray-600/700/800 → dark gray-500/400/300 (§2.3 chart monokrom, tiap langkah >= 3:1)",
   // Divider subtle: gray-300 dekoratif di light, di dark jatuh ke border token.
   "components/ui/divider.tsx": "subtle bg-gray-300 dark:bg-border (§6.1)",
   // Skeleton: surface di light terlalu dekat background di dark → naik satu level.
@@ -382,6 +382,52 @@ for (const mode of ["light", "dark"]) {
     const rFill = contrast(s.fill, t.surface)
     if (rFill < 3) fail(`kontras ${mode} semantic.${name}.fill / surface = ${rFill.toFixed(2)}:1 < 3:1 (ikon/dot status, 1.4.11)`)
   }
+
+  /*
+   * Palet chart monokrom. Batang/segmen chart adalah "graphical object
+   * required to understand the content" (WCAG 1.4.11) -> tiap langkah wajib
+   * >= 3:1 terhadap background, TANPA pengecualian border dekoratif §6.
+   * Audit menemukan langkah pertama palet lama (gray.400 light / gray.700
+   * dark) hanya 1.49:1 dan 2.29:1 — kategori pertama chart nyaris tak
+   * terlihat. Dijaga di sini supaya palet tidak bisa mundur lagi.
+   */
+  /*
+   * Scrim media (overlayMedia) + label putih. `overlayMedia` bernilai rgba,
+   * jadi tidak bisa masuk CONTRAST_PAIRS (tabel itu membandingkan hex langsung).
+   * Kasus terburuk = foto putih polos: hasil kompositnya yang diuji.
+   * Sebelumnya galeri memakai `overlay` (alpha 0.4) -> tersusun jadi #999999
+   * dan label "+N" putih hanya 2.85:1, di bawah 3:1 objek grafis apalagi
+   * 4.5:1 teks.
+   */
+  {
+    const m = /rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/.exec(t.overlayMedia)
+    if (!m) {
+      fail(`${mode} overlayMedia bukan rgba(): ${t.overlayMedia}`)
+    } else {
+      const [, rr, gg, bb, aa] = m
+      const over = (c, base) => Math.round(Number(c) * Number(aa) + base * (1 - Number(aa)))
+      const comp = [over(rr, 255), over(gg, 255), over(bb, 255)]
+      const hex = "#" + comp.map((v) => v.toString(16).padStart(2, "0")).join("")
+      const r = contrast("#FFFFFF", hex)
+      if (r < 4.5) {
+        fail(
+          `kontras ${mode} label putih / overlayMedia di atas foto putih (${hex}) = ${r.toFixed(2)}:1 < 4.5:1 — label "+N" galeri (1.4.3)`,
+        )
+      }
+    }
+  }
+
+  const chartSteps = mode === "light" ? tokens.chartMono : tokens.chartMonoDark
+  chartSteps.forEach((step, i) => {
+    for (const bgName of ["background", "surface"]) {
+      const r = contrast(step, t[bgName])
+      if (r < 3) {
+        fail(
+          `kontras ${mode} chartMono[${i}] (${step}) / ${bgName} (${t[bgName]}) = ${r.toFixed(2)}:1 < 3:1 — objek grafis chart (1.4.11)`,
+        )
+      }
+    }
+  })
 }
 
 // 11. (audit #10) Inline `style={}` numerik. Audit #0 hanya memeriksa WARNA

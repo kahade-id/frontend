@@ -50,6 +50,7 @@ import { SearchField } from "@/components/ui/search-field"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
 
 export type TransferRecipient = {
@@ -152,7 +153,12 @@ function RecipientRow({
           <Icon icon={CheckCircle} size="sm" tone="active" weight="fill" />
         ) : null}
       </PressableScale>
-      {divider ? <View className="ml-[76px] h-px bg-border" /> : null}
+      {divider ? <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className="h-px bg-border"
+          style={{ marginLeft: tokens.layout.rowDividerInset.icon }}
+        /> : null}
     </View>
   )
 }

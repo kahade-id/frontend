@@ -36,6 +36,7 @@ import { installedAppVersion } from "@/lib/runtime-info"
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
 import { ContentContainer } from "@/components/ui/content-container"
+import { APP_TITLE } from "@/components/ui/header"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
@@ -104,7 +105,10 @@ export default function RootLayout() {
   // Set document.title mengisi elemen <title> pertama itu saat app hidup;
   // judul per-halaman (mis. nama order) bisa menimpanya dari layarnya.
   useEffect(() => {
-    if (Platform.OS === "web") document.title = "Kahade"
+    // Judul DASAR saja. Judul per-layar ditulis oleh <Header> lewat
+    // useDocumentTitle() — sebelumnya ini satu-satunya penulisan document.title
+    // di app, jadi 98 halaman web berbagi judul tab yang sama.
+    if (Platform.OS === "web") document.title = APP_TITLE
   }, [])
 
   return (

@@ -129,7 +129,7 @@ export function CounterpartValidationCard({
         {...rest}
       >
         <IconBox icon={cfg.icon} size="md" variant={cfg.variant} />
-        <View className="flex-1 gap-[2px]">
+        <View className="flex-1 gap-0.5">
           <Text variant="body" weight={600} tone="primary">
             {cfg.title}
           </Text>
@@ -161,7 +161,7 @@ export function CounterpartValidationCard({
       >
         <View className="flex-row items-center gap-3">
           <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
-          <View className="flex-1 gap-[2px]">
+          <View className="flex-1 gap-0.5">
             <View className="flex-row flex-wrap items-center gap-2">
               <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={1} className="shrink">
                 {name}
