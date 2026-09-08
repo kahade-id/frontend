@@ -193,7 +193,19 @@ export type UserAnalytics = {
 }
 
 export function getMyStats(signal?: AbortSignal) {
-  return http.get<UserStats>("/v1/users/me/stats", { auth: "required", retry: 1, signal })
+  return http
+    .get<unknown>("/v1/users/me/stats", { auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const stats = raw as Record<string, unknown>
+      return {
+        transactions: stats.totalOrders ?? stats.transactions ?? 0,
+        completedOrders: stats.completedOrders,
+        followers: stats.followersCount ?? stats.followers,
+        following: stats.followingCount ?? stats.following,
+        rating: stats.avgRating ?? stats.rating,
+        reviews: stats.ratingCount ?? stats.reviews,
+      } as UserStats
+    })
 }
 
 /**
@@ -211,12 +223,33 @@ export const ANALYTICS_PERIODS: ReadonlyArray<{ value: AnalyticsPeriod; label: s
 
 /** GET /v1/users/me/analytics?period= — dashboard analitik per periode. */
 export function getMyAnalytics(period: AnalyticsPeriod = "30d", signal?: AbortSignal) {
-  return http.get<UserAnalytics>("/v1/users/me/analytics", {
-    query: { period },
-    auth: "required",
-    signal,
-    retry: 1,
-  })
+  return http
+    .get<unknown>("/v1/users/me/analytics", {
+      query: { period },
+      auth: "required",
+      signal,
+      retry: 1,
+    })
+    .then((raw) => {
+      const data = raw as Record<string, any>
+      const overview = data.overview ?? {}
+      const current = data.period ?? {}
+      const ordersByDay = data.charts?.ordersByDay ?? {}
+      return {
+        summary: {
+          revenue: current.volume ?? overview.totalVolume,
+          totalOrders: current.ordersTotal ?? overview.totalOrders,
+        },
+        volumeByPeriod: Object.entries(ordersByDay).map(([label, value]) => ({
+          label,
+          value: Number(value) || 0,
+        })),
+        avgOrderValue:
+          current.ordersTotal > 0 ? (current.volume ?? 0) / current.ordersTotal : undefined,
+        completionRate:
+          current.ordersTotal > 0 ? (current.ordersCompleted ?? 0) / current.ordersTotal : undefined,
+      } as UserAnalytics
+    })
 }
 
 export function getMyTrustScore(signal?: AbortSignal) {
@@ -254,7 +287,19 @@ export function discoverUsers(
   const query = { page: 1, limit: 20, ...options }
   return http
     .get<unknown>("/v1/users/discover", { query, auth: "required", retry: 1, signal })
-    .then((raw) => readPage<DiscoveredUser>(raw, query, ["users"]))
+    .then((raw) => {
+      const page = readPage<Record<string, unknown>>(raw, query, ["users"])
+      return {
+        ...page,
+        data: page.data.map((user) => ({
+          ...user,
+          id: String(user.id ?? user.userId ?? ""),
+          verified: user.verified ?? user.isKycVerified,
+          rating: user.rating ?? user.avgRating,
+          transactionCount: user.transactionCount ?? user.totalOrdersCompleted,
+        })) as DiscoveredUser[],
+      }
+    })
 }
 
 export function getFavorites(signal?: AbortSignal) {

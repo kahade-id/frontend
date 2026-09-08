@@ -199,7 +199,7 @@ export type Order = {
   updatedAt?: string
 }
 
-function normalizeOrder(raw: Order & Record<string, unknown>): Order {
+export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
   const normalizeParty = (value: unknown): OrderParty | undefined => {
     if (!value || typeof value !== "object") return undefined
     const item = value as Record<string, unknown>

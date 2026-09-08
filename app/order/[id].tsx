@@ -47,6 +47,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order } from "@/lib/api"
+import { normalizeOrder } from "@/lib/api/orders"
 import {
   isCancellable,
   isDisputable,
@@ -143,25 +144,38 @@ export default function OrderDetailScreen() {
     `order-detail:${id}`,
     async (signal) => {
       const oid = id as string
-      const [o, h, d] = await Promise.all([
+      const [o, h, d, me] = await Promise.all([
         api.orders.getOrder(oid, signal),
         api.orders
           .getOrderHistory(oid, { page: 1, limit: HISTORY_LIMIT }, signal)
           .catch(() => null),
         api.orders.getAverageDurations(signal).catch(() => null),
+        api.users.getMe(signal).catch(() => null),
       ])
-      let fee = o.fee ?? null
+      const role =
+        o.myRole ??
+        (me?.id && o.buyer?.id === me.id
+          ? "BUYER"
+          : me?.id && o.seller?.id === me.id
+            ? "SELLER"
+            : me?.username && o.buyer?.username === me.username
+              ? "BUYER"
+              : me?.username && o.seller?.username === me.username
+                ? "SELLER"
+                : undefined)
+      const resolvedOrder = normalizeOrder({ ...o, myRole: role })
+      let fee = resolvedOrder.fee ?? null
       if (
         !fee &&
-        (o.myRole === "BUYER" || o.myRole === "SELLER") &&
-        ["PENDING_PAYMENT", "PAID"].includes(o.status)
+        (role === "BUYER" || role === "SELLER") &&
+        ["PENDING_PAYMENT", "PAID"].includes(resolvedOrder.status)
       ) {
         try {
           fee = await api.orders.calculateFee(
             {
-              orderValue: o.orderValue,
-              feeResponsibility: o.feeResponsibility,
-              role: o.myRole,
+              orderValue: resolvedOrder.orderValue,
+              feeResponsibility: resolvedOrder.feeResponsibility,
+              role,
             },
             signal,
           )
@@ -169,7 +183,7 @@ export default function OrderDetailScreen() {
           // fee opsional
         }
       }
-      return { order: o, history: h?.data ?? [], durations: d, fee }
+      return { order: resolvedOrder, history: h?.data ?? [], durations: d, fee }
     },
     Boolean(id),
   )

@@ -3,7 +3,7 @@ import { readEntity, invalidResponse, readList } from "@/lib/api/response"
  * Kahade — domain `search` (pencarian global + saran).
  */
 import { http } from "@/lib/api/client"
-import type { Order } from "@/lib/api/orders"
+import { normalizeOrder, type Order } from "@/lib/api/orders"
 import type { UserProfile } from "@/lib/api/users"
 import type { WalletTransaction } from "@/lib/api/wallet"
 
@@ -29,10 +29,31 @@ export function globalSearch(
       signal,
     })
     .then((raw) => {
-      const result = readEntity<GlobalSearchResults>(raw, "results")
+      const result = readEntity<Record<string, unknown>>(raw, "results")
       if (![result.users, result.orders, result.transactions, result.articles].some(Array.isArray))
         throw invalidResponse("search.results")
-      return result
+      return {
+        ...result,
+        users: (Array.isArray(result.users) ? result.users : []).map((item) => {
+          const user = item as Record<string, unknown>
+          return {
+            ...user,
+            id: String(user.id ?? user.userId ?? ""),
+            verified: user.verified ?? user.isKycVerified,
+          }
+        }),
+        orders: (Array.isArray(result.orders) ? result.orders : []).map((item) =>
+          normalizeOrder(item as Order & Record<string, unknown>),
+        ),
+        transactions: (Array.isArray(result.transactions) ? result.transactions : []).map((item) => {
+          const transaction = item as Record<string, unknown>
+          return {
+            ...transaction,
+            id: String(transaction.id ?? transaction.txId ?? ""),
+            referenceId: transaction.referenceId ?? transaction.reference_id,
+          } as WalletTransaction
+        }),
+      } as GlobalSearchResults
     })
 }
 

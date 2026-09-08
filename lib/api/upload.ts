@@ -38,9 +38,16 @@ export type DirectUpload = {
 
 export function requestPresignedUrl(dto: PresignedUrlDto) {
   assertDtoConstraints(dto, API_CONSTRAINTS.PresignedUrlDto)
-  return http.post<PresignedUpload, PresignedUrlDto>("/v1/upload/presigned-url", dto, {
-    auth: "required",
-  })
+  return http
+    .post<unknown, PresignedUrlDto>("/v1/upload/presigned-url", dto, { auth: "required" })
+    .then((raw) => {
+      const value = raw as Record<string, unknown>
+      return {
+        ...value,
+        url: value.url ?? value.uploadUrl,
+        expiresAt: value.expiresAt ?? value.expires_at,
+      } as PresignedUpload
+    })
 }
 
 /** Object storage is a separate HTTPS transport: never send cookies or application headers. */

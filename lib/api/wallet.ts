@@ -243,13 +243,26 @@ export function getPaymentMethods(signal?: AbortSignal) {
 /** GET /v1/wallet/transfer/lookup?q= — cari penerima transfer. */
 export function lookupTransferRecipient(q: string, signal?: AbortSignal) {
   return http
-    .get<TransferRecipient[]>("/v1/wallet/transfer/lookup", {
+    .get<unknown>("/v1/wallet/transfer/lookup", {
       query: { q },
       auth: "required",
       retry: 1,
       signal,
     })
-    .then((raw) => readList<TransferRecipient>(raw, ["users", "recipients"]))
+    .then((raw) => {
+      const value = raw as Record<string, unknown>
+      const user = value.user
+      const normalize = (item: unknown) => {
+        const record = item as Record<string, unknown>
+        return {
+          ...record,
+          id: String(record.id ?? record.userId ?? ""),
+          kycVerified: record.kycVerified ?? record.isKycVerified,
+        } as TransferRecipient
+      }
+      if (user && typeof user === "object" && !Array.isArray(user)) return [normalize(user)]
+      return readList<unknown>(raw, ["users", "recipients"]).map(normalize)
+    })
 }
 
 /** POST /v1/wallet/topup — mulai top-up (dapat paymentTxId untuk poll). */
