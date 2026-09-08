@@ -10,8 +10,8 @@
  * Kenapa RN `Animated`, bukan reanimated (non-obvious): mengikuti keputusan
  * pressable-scale.tsx & animated-splash.tsx — opacity/translate sederhana
  * dengan native driver sudah 60fps, dan reanimated disisakan untuk gesture
- * kompleks seperti bottom sheet. Pull-to-refresh memakai kontrol native.
- * Transform/opacity animasi adalah "hal yang
+ * kompleks seperti bottom sheet. Pull-to-refresh juga memakai RN Animated,
+ * tetapi dengan PanResponder JS yang terisolasi. Transform/opacity adalah "hal yang
  * tidak bisa di-className", maka `style` diizinkan di sini.
  *
  * `visible` bisa di-toggle: false -> fade-out ke opacity 0 (tetap di-mount,

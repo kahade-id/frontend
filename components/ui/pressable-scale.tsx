@@ -19,8 +19,8 @@
  *     className diletakkan pada <View> di dalamnya, bukan pada Animated.View.
  *   - RN `Animated` (bukan reanimated) mengikuti keputusan animated-splash.tsx
  *     agar tidak menambah dependensi untuk animasi sesederhana ini. Bottom
- *     sheet yang benar-benar butuh spring gesture tetap pakai reanimated;
- *     pull-to-refresh memakai RefreshControl native tanpa gesture custom.
+ *     sheet memakai reanimated; pull-to-refresh memakai RN Animated +
+ *     PanResponder supaya jalur scroll tidak bergantung pada UI worklet.
  *
  * Haptic (`haptic` prop, default OFF — §8 "tidak dipakai di interaksi ringan"):
  *   - `haptic={true}` = "light" saat pressIn; atau kirim `HapticKind` spesifik.

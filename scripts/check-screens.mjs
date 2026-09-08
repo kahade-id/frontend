@@ -126,7 +126,7 @@ rules.push({
   title: "Kerangka Screen+Header+PullToRefresh disalin manual (pakai <DataScreen>)",
   test: (f) =>
     /useSafeAreaInsets\(\)/.test(f.src) &&
-    /<PullToRefresh/.test(f.src) &&
+    /<PullToRefresh(?:\s|>)/.test(f.src) &&
     /insets\.bottom\s*\+\s*tokens\.space/.test(f.src),
   baseline: [
     "app/analytics.tsx",
@@ -281,12 +281,11 @@ rules.push({
  *      `touchAction`. Default RNGH untuk web adalah `touch-action: none` dan
  *      dipasang LANGSUNG di elemen yang bisa di-scroll, sehingga halaman tidak
  *      dapat digeser dengan sentuhan sama sekali.
- *   c. `<PullToRefresh>` membuat gesture/worklet sendiri di atas ScrollView.
- *      Insiden kedua (force-close pada buka/scroll layar) menunjukkan bahwa
- *      touch callback UI-thread + synchronous state manager native berada di
- *      luar React ErrorBoundary. Walau aritmetikanya benar dan bundle lolos,
- *      kegagalannya menutup layar. Komponen ini wajib memakai RefreshControl
- *      native; branding indikator tidak boleh mengalahkan keselamatan input.
+ *   c. `<PullToRefresh>` memakai RNGH/Reanimated di jalur scroll.
+ *      Insiden force-close menunjukkan bahwa touch callback UI-thread +
+ *      synchronous state manager native berada di luar React ErrorBoundary.
+ *      Gesture custom produk tetap boleh, tetapi wajib memakai PanResponder +
+ *      Animated RN di JS thread, tanpa GestureDetector/worklet/stateManager.
  *
  * Aturan ini tidak punya baseline: tidak ada layar/komponen yang boleh
  * melakukannya, sekarang maupun nanti.
@@ -298,7 +297,7 @@ const gestureHosts = [...walk(join(root, "components")), ...walk(join(root, "lib
 rules.push({
   id: "S7",
   title:
-    "Gesture component membahayakan scroll (scrollEnabled data / touch-action / custom pull gesture)",
+    "Gesture membahayakan scroll (scrollEnabled data / touch-action / RNGH-Reanimated pull)",
   files: gestureHosts,
   test: (f) =>
     /scrollEnabled=\{[^}]*\b(?:refreshing|loading|isValidating)\b/.test(f.src) ||
@@ -306,7 +305,7 @@ rules.push({
       /<(?:Animated\.)?[A-Za-z]*ScrollView\b/.test(f.src) &&
       !/touchAction=/.test(f.src)) ||
     (f.path.endsWith("/pull-to-refresh.tsx") &&
-      /react-native-(?:gesture-handler|reanimated)|\bPanResponder\b/.test(f.src)),
+      /react-native-(?:gesture-handler|reanimated)|\bRefreshControl\b/.test(f.src)),
   baseline: [],
 })
 

@@ -67,7 +67,7 @@ export type DataScreenState = {
   refreshing?: boolean
   /** Pesan siap tampil dari `userMessage(err)` — bukan copy hardcode per layar. */
   error: string | null
-  /** Dipanggil oleh RefreshControl native saat ambang tarik tercapai. */
+  /** Dipanggil oleh gesture custom saat dilepas melewati ambang tarik. */
   refresh: () => void | Promise<void>
   /** Dipanggil oleh tombol "Coba lagi" di <ErrorState>. */
   reload: () => void | Promise<void>

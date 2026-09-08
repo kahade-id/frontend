@@ -3,8 +3,7 @@
  *
  * Indicator kecil STANDAR untuk loading inline: monokrom `text-tertiary`,
  * 16–20px (tokens.motion.inlineSpinnerSize). Bukan logo brand — logo dipakai
- * untuk momen full-screen (splash/page fetch); pull-to-refresh memakai
- * RefreshControl native agar tidak mengintersepsi scroll dengan gesture custom.
+ * untuk momen full-screen dan pull-to-refresh custom.
  *
  * Memakai ActivityIndicator RN: prop `color`/`size` bukan style, jadi warna
  * di-resolve dari tokens via useTheme() (pengecualian yang sama dengan Icon).

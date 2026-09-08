@@ -441,7 +441,7 @@ export const motion = {
     standard: [0.4, 0, 0.2, 1] as const,
     standardCss: "cubic-bezier(0.4, 0, 0.2, 1)",
   },
-  /** Reanimated withSpring config untuk bottom sheet dan gesture berpegas lain. */
+  /** Konfigurasi spring bersama untuk bottom sheet dan settle pull-to-refresh. */
   spring: {
     damping: 20,
     stiffness: 200,

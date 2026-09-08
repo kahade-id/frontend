@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { FlatList, View } from "react-native"
+import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
@@ -16,6 +16,7 @@ import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { LiveRegion } from "@/components/ui/live-region"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OrderCard } from "@/components/ui/order-card"
+import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
@@ -111,7 +112,7 @@ export default function SearchScreen() {
         />
       </View>
       <LiveRegion message={resultMessage} politeness={result.error ? "assertive" : "polite"} />
-      <FlatList
+      <PullToRefreshFlatList
         data={rows}
         keyExtractor={(row) => row.id}
         contentContainerStyle={{
@@ -238,6 +239,7 @@ export default function SearchScreen() {
         }
         refreshing={result.refreshing}
         onRefresh={() => void result.refresh()}
+        refreshEnabled={enabled && !result.loading}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         initialNumToRender={8}
