@@ -22,7 +22,7 @@
  *   - RN `Animated`, bukan reanimated: keputusan project-wide (lihat
  *     pressable-scale/fade-in/toast) — animasi opacity/transform dengan native
  *     driver sudah cukup; reanimated + gesture-handler disisakan untuk gesture
- *     kompleks (pull-to-refresh, shared element).
+ *     kompleks (bottom sheet, shared element). Pull-to-refresh memakai kontrol native.
  *   - `Animated.View` tidak di-interop NativeWind, jadi className diletakkan
  *     pada <Pressable> di dalamnya; Animated.View hanya membawa opacity.
  *   - Tidak ada hover/tint saat pointer di web (§11).

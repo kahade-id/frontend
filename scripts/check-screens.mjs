@@ -267,7 +267,7 @@ rules.push({
 /**
  * S7 — komponen gesture yang melumpuhkan scroll.
  *
- * Dua bentuk pelanggaran dengan akar yang sama (laporan pengguna 2026-09-08:
+ * Tiga bentuk pelanggaran dengan akar yang sama (laporan pengguna 2026-09-08:
  * "pull to refresh ga bisa di scroll"), keduanya muncul dari niat baik
  * "supaya gesture tidak berebut dengan scroll":
  *
@@ -281,6 +281,12 @@ rules.push({
  *      `touchAction`. Default RNGH untuk web adalah `touch-action: none` dan
  *      dipasang LANGSUNG di elemen yang bisa di-scroll, sehingga halaman tidak
  *      dapat digeser dengan sentuhan sama sekali.
+ *   c. `<PullToRefresh>` membuat gesture/worklet sendiri di atas ScrollView.
+ *      Insiden kedua (force-close pada buka/scroll layar) menunjukkan bahwa
+ *      touch callback UI-thread + synchronous state manager native berada di
+ *      luar React ErrorBoundary. Walau aritmetikanya benar dan bundle lolos,
+ *      kegagalannya menutup layar. Komponen ini wajib memakai RefreshControl
+ *      native; branding indikator tidak boleh mengalahkan keselamatan input.
  *
  * Aturan ini tidak punya baseline: tidak ada layar/komponen yang boleh
  * melakukannya, sekarang maupun nanti.
@@ -292,13 +298,15 @@ const gestureHosts = [...walk(join(root, "components")), ...walk(join(root, "lib
 rules.push({
   id: "S7",
   title:
-    "Gesture component melumpuhkan scroll (scrollEnabled dari state data / touch-action web tidak dipatok)",
+    "Gesture component membahayakan scroll (scrollEnabled data / touch-action / custom pull gesture)",
   files: gestureHosts,
   test: (f) =>
     /scrollEnabled=\{[^}]*\b(?:refreshing|loading|isValidating)\b/.test(f.src) ||
     (/<GestureDetector/.test(f.src) &&
       /<(?:Animated\.)?[A-Za-z]*ScrollView\b/.test(f.src) &&
-      !/touchAction=/.test(f.src)),
+      !/touchAction=/.test(f.src)) ||
+    (f.path.endsWith("/pull-to-refresh.tsx") &&
+      /react-native-(?:gesture-handler|reanimated)|\bPanResponder\b/.test(f.src)),
   baseline: [],
 })
 

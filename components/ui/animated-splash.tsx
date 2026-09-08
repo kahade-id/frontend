@@ -13,7 +13,7 @@
  *
  * Keputusan non-obvious:
  *   - Tetap RN `Animated` (native driver), BUKAN reanimated — walaupun
- *     reanimated kini sudah dipakai Slider/BottomSheet/PullToRefresh.
+ *     reanimated kini sudah dipakai Slider/BottomSheet.
  *     Pembagian kerja di codebase: reanimated untuk animasi yang DIKENDALIKAN
  *     GESTURE (butuh shared value di UI thread yang dibaca worklet), RN
  *     Animated untuk opacity/transform sederhana tanpa input (FadeIn,

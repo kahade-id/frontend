@@ -83,7 +83,7 @@ function usePulse(active = true) {
 
 export type PulsingLogoProps = { size?: LogoSize; tone?: "default" | "inverse" }
 
-/** Logo dengan animasi loop halus — dipakai LoadingScreen, LoadingOverlay, dan pull-to-refresh */
+/** Logo dengan animasi loop halus — dipakai LoadingScreen dan LoadingOverlay. */
 export function PulsingLogo({ size = "lg", tone = "default" }: PulsingLogoProps) {
   const { scale, opacity } = usePulse()
   return (

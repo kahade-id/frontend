@@ -1,8 +1,9 @@
 /**
- * Kahade — <Logo> brand mark & wordmark (§1, §8 splash/pull-to-refresh, §16.5).
+ * Kahade — <Logo> brand mark & wordmark (§1, §8 splash/loading, §16.5).
  *
  * Satu komponen untuk semua kemunculan logo: header beranda, layar loading
- * full-screen (§8), pull-to-refresh signature, onboarding, splash JS.
+ * full-screen (§8), onboarding, dan splash JS. Pull-to-refresh memakai
+ * indikator native demi keselamatan scroll, bukan logo gesture custom.
  *
  * Mark default = logo FINAL dari `assets/brand/logo-paths.ts` (path SVG yang
  * di-generate dari assets/brand/logo.svg, §16.5), dirender lewat
