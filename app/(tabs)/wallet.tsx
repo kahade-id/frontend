@@ -20,13 +20,13 @@ import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
  *    (spec menandai `type/from/to` required; helper lib/api/wallet.ts
  *    mengisi default yang terdokumentasi di sana)
  *
- * Pull-to-refresh di layar ini dilayani <PaginatedList> (RefreshControl
- * bawaan FlatList), BUKAN <PullToRefresh>. Bukan kelalaian: membungkus list
- * virtual dengan ScrollView milik <PullToRefresh> akan menumpuk DUA scroll
- * container, dan itulah pola yang menghasilkan laporan "tidak bisa
- * di-scroll". Yang tetap dijamin di sini: satu tarikan me-refresh saldo DAN
- * riwayat bersamaan (`Promise.all`) agar angka uang tidak terpisah dari
- * daftar yang menjelaskannya.
+ * Pull-to-refresh di layar ini dilayani <PaginatedList> melalui wrapper
+ * <PullToRefreshFlatList> custom yang mengikuti tangan. Wrapper memakai
+ * PullGestureSurface + Animated.View, BUKAN ScrollView kedua, lalu meneruskan
+ * onScroll langsung ke FlatList. Virtualisasi tetap utuh dan hanya ada satu
+ * scroller. Satu tarikan me-refresh saldo DAN riwayat bersamaan
+ * (`Promise.all`) agar angka uang tidak terpisah dari daftar yang
+ * menjelaskannya.
  */
 import { useCallback, useState } from "react"
 import { Platform, StyleSheet, View } from "react-native"

@@ -2,8 +2,8 @@
  * Kahade — <Spinner> (§8 "Loading inline / pagination").
  *
  * Indicator kecil STANDAR untuk loading inline: monokrom `text-tertiary`,
- * 16–20px (tokens.motion.inlineSpinnerSize). Bukan logo brand — logo hanya
- * untuk momen full-screen/signature (splash, pull-to-refresh, page fetch).
+ * 16–20px (tokens.motion.inlineSpinnerSize). Bukan logo brand — logo dipakai
+ * untuk momen full-screen dan pull-to-refresh custom.
  *
  * Memakai ActivityIndicator RN: prop `color`/`size` bukan style, jadi warna
  * di-resolve dari tokens via useTheme() (pengecualian yang sama dengan Icon).

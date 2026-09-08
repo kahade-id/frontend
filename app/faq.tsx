@@ -1,6 +1,6 @@
 import type { HelpArticle, HelpCategory } from "@/lib/api/help-center"
 import { useState } from "react"
-import { FlatList, View } from "react-native"
+import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Question, MagnifyingGlass } from "phosphor-react-native"
 import { api } from "@/lib/api"
@@ -14,6 +14,7 @@ import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { HelpCategoryCard } from "@/components/ui/help-category-card"
 import { ListLoading } from "@/components/ui/paginated-list"
+import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 
 export default function FaqScreen() {
@@ -43,7 +44,7 @@ export default function FaqScreen() {
           placeholder="Cari bantuan"
         />
       </View>
-      <FlatList
+      <PullToRefreshFlatList
         data={rows}
         keyExtractor={(row) => row.id}
         contentContainerStyle={{
@@ -92,6 +93,7 @@ export default function FaqScreen() {
         }
         refreshing={state.refreshing}
         onRefresh={() => void state.refresh()}
+        refreshEnabled={!state.loading}
         keyboardShouldPersistTaps="handled"
         initialNumToRender={8}
         windowSize={7}

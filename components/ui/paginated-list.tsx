@@ -1,7 +1,8 @@
 import { useCallback, useMemo, type ReactElement, type ReactNode } from "react"
-import { FlatList, View, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
+import { View, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore } from "@/components/ui/load-more"
+import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Skeleton, SkeletonGroup, SkeletonText } from "@/components/ui/skeleton"
 import { tokens } from "@/lib/tokens"
 
@@ -122,7 +123,7 @@ export function PaginatedList<T extends { id: string }>({
   )
 
   const keyExtractor = useCallback((item: T) => item.id, [])
-  const handleRefresh = useCallback(() => void onRefresh(), [onRefresh])
+  const handleRefresh = useCallback(() => onRefresh(), [onRefresh])
   const handleRetry = useCallback(() => void onRetry(), [onRetry])
   const handleLoadMore = useCallback(() => void onLoadMore(), [onLoadMore])
 
@@ -171,7 +172,7 @@ export function PaginatedList<T extends { id: string }>({
   )
 
   return (
-    <FlatList
+    <PullToRefreshFlatList
       data={data}
       keyExtractor={keyExtractor}
       renderItem={renderItem}
@@ -183,7 +184,7 @@ export function PaginatedList<T extends { id: string }>({
       ListFooterComponent={footerElement}
       refreshing={refreshing}
       onRefresh={handleRefresh}
-      progressViewOffset={tokens.space[2]}
+      refreshEnabled={!loading}
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.3}
       keyboardShouldPersistTaps="handled"

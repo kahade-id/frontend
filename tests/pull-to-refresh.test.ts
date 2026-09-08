@@ -1,18 +1,10 @@
 /**
- * Kahade — lib/pull-math (keputusan gesture <PullToRefresh>).
+ * Regression guard pull-to-refresh custom setelah insiden force-close.
  *
- * Kenapa berkas ini ada: laporan pengguna "pull to refresh ga bisa di scroll"
- * TIDAK bisa direproduksi di jsdom (perlu sentuhan nyata + RNGH native), dan
- * tidak ada satu pun barisnya yang tertangkap typecheck. Yang bisa dikunci di
- * sini adalah KONTRAK KEPUTUSAN-nya: kapan pan mengambil alih gerakan, dan
- * berapa jauh konten boleh bergeser. Setiap regresi pada kontrak inilah yang
- * berubah menjadi "scroll macet" atau "tarikan tidak pernah memicu refresh"
- * di perangkat — lihat docs/audit/PULL-TO-REFRESH-2026-09-08.md.
- *
- * Aturan yang dijaga:
- *   1. "Di puncak" adalah pertanyaan dengan toleransi, bukan `offset > 0`.
- *   2. Gesture yang bukan tarikan harus FAIL, bukan dibiarkan menggantung.
- *   3. Tarikan tidak pernah bernilai negatif dan tidak pernah tanpa batas.
+ * Kontrak produk: konten mengikuti tangan dan logo Kahade tampil. Kontrak
+ * keselamatan: tidak boleh ada RNGH manual state manager/Reanimated worklet
+ * pada jalur scroll, tidak boleh mematikan scroll, dan FlatList tidak boleh
+ * dibungkus ScrollView kedua.
  */
 import { readFileSync } from "node:fs"
 import { fileURLToPath } from "node:url"
@@ -22,197 +14,159 @@ import { describe, expect, it } from "vitest"
 
 import {
   AT_TOP_EPSILON,
-  decidePull,
-  FAIL_OFFSET_X,
-  FAIL_OFFSET_Y,
+  OVERPULL_MAX_RATIO,
+  PULL_CAPTURE_OFFSET,
   isAtTop,
   pullDistance,
   reachedThreshold,
-  PULL_ACTIVATE_OFFSET,
+  shouldCapturePull,
 } from "@/lib/pull-math"
+
+const here = fileURLToPath(import.meta.url)
+const root = resolve(here, "..", "..")
+const read = (path: string) => readFileSync(resolve(root, path), "utf8")
+const strip = (source: string) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "")
+
+const component = strip(read("components/ui/pull-to-refresh.tsx"))
+const paginated = strip(read("components/ui/paginated-list.tsx"))
+const faq = strip(read("app/faq.tsx"))
+const search = strip(read("app/search.tsx"))
 
 const THRESHOLD = 64
 
-describe("isAtTop — 'di puncak' toleran terhadap sub-piksel", () => {
-  /**
-   * Inti regresi 1: ScrollView melaporkan offset 0.33 / 0.997 di puncak
-   * (setelah fling berhenti, atau setelah contentContainerStyle berubah
-   * tinggi). Perbandingan ketat `offset > 0` membuat tarikan dianggap "belum
-   * di puncak" selamanya -> pull-to-refresh mati tanpa pesan.
-   */
-  it("menerima offset sub-piksel sebagai puncak", () => {
-    expect(isAtTop(0)).toBe(true)
-    expect(isAtTop(0.33)).toBe(true)
+describe("keputusan capture — scroll biasa tidak pernah direbut", () => {
+  it("hanya capture satu jari, di puncak, turun dominan vertikal", () => {
+    expect(
+      shouldCapturePull({
+        offsetY: 0,
+        dy: PULL_CAPTURE_OFFSET + 1,
+        dx: 0,
+        enabled: true,
+        refreshing: false,
+      }),
+    ).toBe(true)
+  })
+
+  it("tidak capture ketika list sudah bergulir", () => {
+    expect(
+      shouldCapturePull({
+        offsetY: 1_000,
+        dy: 200,
+        dx: 0,
+        enabled: true,
+        refreshing: false,
+      }),
+    ).toBe(false)
+  })
+
+  it("tidak capture scroll ke atas, swipe horizontal, multi-touch, disabled, atau refresh aktif", () => {
+    const base = { offsetY: 0, enabled: true, refreshing: false }
+    expect(shouldCapturePull({ ...base, dy: -50, dx: 0 })).toBe(false)
+    expect(shouldCapturePull({ ...base, dy: 20, dx: 30 })).toBe(false)
+    expect(shouldCapturePull({ ...base, dy: 20, dx: 0, touches: 2 })).toBe(
+      false,
+    )
+    expect(shouldCapturePull({ ...base, dy: 20, dx: 0, enabled: false })).toBe(
+      false,
+    )
+    expect(
+      shouldCapturePull({ ...base, dy: 20, dx: 0, refreshing: true }),
+    ).toBe(false)
+  })
+
+  it("menerima offset sub-piksel di puncak dan menolak koordinat non-finite", () => {
     expect(isAtTop(0.997)).toBe(true)
     expect(isAtTop(AT_TOP_EPSILON)).toBe(true)
-  })
-
-  it("menolak offset yang benar-benar sudah bergulir", () => {
     expect(isAtTop(AT_TOP_EPSILON + 0.01)).toBe(false)
-    expect(isAtTop(240)).toBe(false)
-  })
-
-  /** iOS rubber-band: offset negatif itu sah dan tetap "di puncak". */
-  it("menganggap offset negatif (overscroll iOS) sebagai puncak", () => {
-    expect(isAtTop(-18)).toBe(true)
+    const base = { offsetY: 0, enabled: true, refreshing: false }
+    expect(shouldCapturePull({ ...base, dy: Number.NaN, dx: 0 })).toBe(false)
+    expect(shouldCapturePull({ ...base, dy: 20, dx: Number.NaN })).toBe(false)
+    expect(shouldCapturePull({ ...base, dy: Number.POSITIVE_INFINITY, dx: 0 })).toBe(false)
   })
 })
 
-describe("decidePull — satu keputusan per sentuhan", () => {
-  it("mengaktifkan pan hanya bila di puncak DAN menarik turun melewati ambang", () => {
-    expect(decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET, dx: 0 })).toBe("hold")
-    expect(decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 1, dx: 0 })).toBe("activate")
-    expect(decidePull({ offsetY: 0.5, dy: 40, dx: 0 })).toBe("activate")
-  })
-
-  it("belum memutuskan apa pun untuk sentuhan yang masih diragukan", () => {
-    expect(decidePull({ offsetY: 0, dy: 2, dx: 1 })).toBe("hold")
-  })
-
-  /**
-   * Inti regresi 2 (keluhan "list tidak bisa di-scroll sampai ujung"): di
-   * tengah list, pan harus KELUAR dari antrean gesture, bukan diam sebagai
-   * handler UNDETERMINED. Handler yang menggantung ikut menahan sentuhan
-   * sepanjang gesture dan itulah yang membuat scroll terasa tersendat.
-   */
-  it("gagal permanen saat list belum di puncak dan jari sudah bergerak", () => {
-    expect(decidePull({ offsetY: 400, dy: FAIL_OFFSET_Y + 1, dx: 0 })).toBe("fail")
-    expect(decidePull({ offsetY: 400, dy: -300, dx: 0 })).toBe("fail")
-    expect(decidePull({ offsetY: 400, dy: 0, dx: FAIL_OFFSET_X + 1 })).toBe("fail")
-    // Geser <1px (jari baru menempel, belum tentu scroll): jangan gagal dulu,
-    // supaya tap pada baris tidak dianggap gesture yang batal.
-    expect(decidePull({ offsetY: 400, dy: 3, dx: 2 })).toBe("hold")
-  })
-
-  it("gagal saat di puncak tapi jari mendorong ke atas (itu tugas scroll)", () => {
-    expect(decidePull({ offsetY: 0, dy: -(FAIL_OFFSET_Y + 1), dx: 0 })).toBe("fail")
-  })
-
-  it("gagal untuk tarikan menyamping (swipe baris, bukan refresh)", () => {
-    expect(decidePull({ offsetY: 0, dy: 4, dx: 60 })).toBe("fail")
-  })
-
-  it("`blocked` mematahkan sentuhan seketika, bukan menahannya", () => {
-    // Kasus nyata: refresh sedang berjalan dan pengguna mulai menarik di puncak.
-    // Tanpa `blocked` keputusan ini "activate" -> pan ikut memegang sentuhan
-    // selama indikator hidup.
-    expect(decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 5, dx: 0 })).toBe("activate")
-    expect(
-      decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 5, dx: 0, blocked: true }),
-    ).toBe("fail")
-    // Bukan sekadar `hold`: gerakan kecil pun harus melepas antrean gesture.
-    expect(decidePull({ offsetY: 0, dy: 1, dx: 0, blocked: true })).toBe("fail")
-    // Status layar lain (sudah bergulir) tidak mengubah hasilnya.
-    expect(decidePull({ offsetY: 500, dy: 40, dx: 0, blocked: true })).toBe("fail")
-  })
-
-  it("`blocked` default false — pemanggil lama tidak berubah perilakunya", () => {
-    expect(decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 5, dx: 0 })).toBe(
-      decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 5, dx: 0, blocked: false }),
-    )
-  })
-})
-
-describe("pullDistance — 1:1 sampai ambang, lalu melawan, selalu ada batas", () => {
-  it("1:1 sebelum ambang", () => {
-    expect(pullDistance(12, THRESHOLD)).toBe(12)
+describe("jarak tarik — mengikuti tangan lalu melawan", () => {
+  it("bergerak 1:1 sampai ambang", () => {
+    expect(pullDistance(1, THRESHOLD)).toBe(1)
+    expect(pullDistance(40, THRESHOLD)).toBe(40)
     expect(pullDistance(THRESHOLD, THRESHOLD)).toBe(THRESHOLD)
   })
 
-  /**
-   * Tidak boleh ada lompatan di ambang: bila nilai tepat di ambang dan tepat
-   * di atasnya berbeda jauh, logo "tersentak" setiap kali ambang dilewati.
-   */
-  it("kontinu di titik ambang", () => {
-    const atThreshold = pullDistance(THRESHOLD, THRESHOLD)
-    const justAbove = pullDistance(THRESHOLD + 0.0001, THRESHOLD)
-    expect(Math.abs(justAbove - atThreshold)).toBeLessThan(0.0001)
-  })
-
-  it("melawan setelah ambang dan dibatasi 1.6x", () => {
-    const beyond = pullDistance(THRESHOLD * 4, THRESHOLD)
-    expect(beyond).toBeLessThan(THRESHOLD * 4)
-    expect(beyond).toBeCloseTo(THRESHOLD * 1.6, 6)
-    // Seberapa jauh pun jari menarik, konten tidak pernah lewat dari batas.
-    expect(pullDistance(100_000, THRESHOLD)).toBeCloseTo(THRESHOLD * 1.6, 6)
-  })
-
-  /**
-   * Negatif = konten terdorong ke ATAS. Itu bukan tugas pull-to-refresh
-   * (scroll yang mengurusnya), dan membolehkannya membuat konten "menembus"
-   * header lalu tertinggal di sana.
-   */
-  it("tidak pernah negatif", () => {
-    expect(pullDistance(-240, THRESHOLD)).toBe(0)
-    expect(pullDistance(0, THRESHOLD)).toBe(0)
-  })
-
-  /** Pemanggil boleh mengirim `threshold={0}`; tidak boleh jadi tarik-bebas. */
-  it("aman untuk threshold nol", () => {
-    expect(pullDistance(500, 0)).toBe(0)
-    expect(reachedThreshold(500, 0)).toBe(false)
-  })
-})
-
-describe("reachedThreshold — pemicu refresh, sekali per gesture", () => {
-  it("inklusif di ambang", () => {
-    expect(reachedThreshold(THRESHOLD - 0.5, THRESHOLD)).toBe(false)
-    expect(reachedThreshold(THRESHOLD, THRESHOLD)).toBe(true)
-  })
-
-  it("tetap benar di sepanjang overpull (jarak sudah dibatasi, bukan mentok)", () => {
-    expect(reachedThreshold(pullDistance(THRESHOLD * 3, THRESHOLD), THRESHOLD)).toBe(true)
-  })
-})
-
-/**
- * Kontrak yang tidak bisa dibaca dari satu fungsi, jadi dikunci di sini:
- * ambang aktivasi HARUS lebih kecil dari ambang gagal-ke-atas, kalau tidak
- * sentuhan singkat ke atas akan membunuh gesture yang sedang sah ditarik.
- */
-it("ambang aktivasi < ambang gagal vertikal", () => {
-  expect(PULL_ACTIVATE_OFFSET).toBeLessThanOrEqual(FAIL_OFFSET_Y + FAIL_OFFSET_X)
-  expect(PULL_ACTIVATE_OFFSET).toBeGreaterThan(0)
-})
-
-/**
- * Kontrak TOOLCHAIN — bagian ini bukan tes logika, tapi pengunci build.
- *
- * Empat fungsi di lib/pull-math.ts dipanggil dari dalam `Gesture.Pan()`, yaitu
- * worklet yang dikompilasi plugin Reanimated untuk UI thread. Supaya sah,
- * fungsinya sendiri harus berstatus worklet: direktif `"worklet"` di baris
- * pertama badan fungsi. Bentuknya memang string literal yang tidak melakukan
- * apa pun di JS — persis tipe baris yang dihapus orang saat "merapikan kode",
- * dan hilangnya baru kelihatan di perangkat (gesture error di UI thread), bukan
- * di typecheck. Bukti empiris perbedaan keduanya, dijalankan dengan config
- * babel repo:
- *
- *   tanpa direktif  -> lib/pull-math.ts: __workletHash 0   (worklet pemanggil
- *                      menangkapnya sebagai closure: `decidePull:decidePull`)
- *   dengan direktif -> lib/pull-math.ts: __workletHash 4
- *
- * Kalau tes ini gagal: jangan hapus direktifnya — perbaiki pemanggilnya.
- */
-describe("lib/pull-math bertahan sebagai worklet", () => {
-  const here = fileURLToPath(import.meta.url)
-  const src = readFileSync(resolve(here, "..", "..", "lib", "pull-math.ts"), "utf8")
-  const exported = [...src.matchAll(/export function (\w+)/g)].map((m) => m[1])
-
-  it("menemukan keempat fungsi yang dipakai dari worklet", () => {
-    expect(exported.sort()).toEqual(
-      ["decidePull", "isAtTop", "pullDistance", "reachedThreshold"].sort(),
+  it("kontinu, melawan setelah ambang, dan dibatasi", () => {
+    expect(pullDistance(THRESHOLD + 0.001, THRESHOLD)).toBeCloseTo(THRESHOLD, 2)
+    expect(pullDistance(THRESHOLD * 2, THRESHOLD)).toBeLessThan(THRESHOLD * 2)
+    expect(pullDistance(100_000, THRESHOLD)).toBe(
+      THRESHOLD * OVERPULL_MAX_RATIO,
     )
   })
 
-  it.each(exported)("%s dibuka dengan direktif worklet", (name) => {
-    // Batasi ke badan fungsi ini SAJA: tanpa batas, pencarian bisa "lari" ke
-    // fungsi berikutnya yang punya direktif dan lolos walau direktifnya dihapus
-    // (itu justru yang terjadi saat tes ini ditulis ulang, dan tertangkap oleh
-    // uji-mati-tes). Kurung kurawal pembuka dikenali dari `)` sebelumnya, karena
-    // signature decidePull memuat object literal untuk tipenya.
-    const at = src.indexOf(`export function ${name}`)
-    const next = src.indexOf("export function", at + 1)
-    const body = src.slice(at, next === -1 ? undefined : next)
-    expect(/\)\s*(?::[^{}]*?)?\{\s*"worklet"/.test(body)).toBe(true)
+  it("menolak nilai negatif/tidak valid", () => {
+    expect(pullDistance(-20, THRESHOLD)).toBe(0)
+    expect(pullDistance(Number.NaN, THRESHOLD)).toBe(0)
+    expect(pullDistance(20, 0)).toBe(0)
+    expect(reachedThreshold(20, 0)).toBe(false)
+  })
+
+  it("refresh hanya terpicu bila posisi LEPAS masih melewati ambang", () => {
+    expect(reachedThreshold(THRESHOLD - 0.1, THRESHOLD)).toBe(false)
+    expect(reachedThreshold(THRESHOLD, THRESHOLD)).toBe(true)
+  })
+})
+
+describe("arsitektur custom gesture yang aman", () => {
+  it("memakai PanResponder + Animated bawaan React Native", () => {
+    expect(component).toMatch(/\bPanResponder\.create\(/)
+    expect(component).toMatch(/new Animated\.Value\(0\)/)
+    expect(component).toMatch(/onMoveShouldSetPanResponderCapture/)
+    expect(component).toMatch(/pull\.setValue\(distance\)/)
+    expect(component).toMatch(/translateY: pull/)
+  })
+
+  it("tidak memakai jalur UI/native-thread penyebab force-close", () => {
+    expect(component).not.toMatch(/react-native-gesture-handler/)
+    expect(component).not.toMatch(/react-native-reanimated/)
+    expect(component).not.toMatch(
+      /\bGestureDetector\b|manualActivation|stateManager\./,
+    )
+    expect(component).not.toMatch(
+      /useAnimatedScrollHandler|useSharedValue|runOnJS|["']worklet["']/,
+    )
+  })
+
+  it("tidak pernah mematikan scroll", () => {
+    expect(component).not.toMatch(
+      /scrollEnabled\s*=|scrollLocked|setScrollEnabled/,
+    )
+  })
+
+  it("memakai seluruh dy sejak touch-down agar posisi konten benar-benar 1:1", () => {
+    expect(component).toMatch(/updatePull\(gesture\.dy\)/)
+    expect(component).not.toMatch(/gesture\.dy\s*-/)
+  })
+
+  it("selalu settle pada release batal, terminate, dan reject", () => {
+    expect(component).toMatch(/onPanResponderRelease/)
+    expect(component).toMatch(/onPanResponderTerminate/)
+    expect(component).toMatch(/onPanResponderReject/)
+    expect(component.match(/springTo\(0\)/g)?.length).toBeGreaterThanOrEqual(4)
+  })
+
+  it("menangkap rejection dan menjaga request ganda", () => {
+    expect(component).toMatch(/requestActive\.current/)
+    expect(component).toMatch(/Promise\.resolve\(result\)/)
+    expect(component).toMatch(/\.catch\(\(\) => undefined\)/)
+  })
+
+  it("FlatList virtual memakai surface yang sama tanpa nested ScrollView", () => {
+    expect(component).toMatch(/function PullToRefreshFlatList/)
+    expect(component).toMatch(/<PullGestureSurface[\s\S]*<FlatList/)
+    expect(paginated).toMatch(/<PullToRefreshFlatList/)
+    expect(faq).toMatch(/<PullToRefreshFlatList/)
+    expect(search).toMatch(/<PullToRefreshFlatList/)
+    for (const consumer of [paginated, faq, search]) {
+      expect(consumer).not.toMatch(/<ScrollView/)
+      expect(consumer).not.toMatch(/<RefreshControl/)
+    }
   })
 })

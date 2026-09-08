@@ -110,7 +110,8 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView
       // WAJIB membungkus seluruh tree yang memakai <GestureDetector> (Slider,
-      // RangeSlider, BottomSheet, PullToRefresh). Ditaruh di root, bukan
+      // RangeSlider, BottomSheet). PullToRefresh custom memakai PanResponder
+      // RN, bukan GestureDetector. Root ini tetap ditaruh global, bukan
       // per-screen, supaya Portal (BottomSheet) yang dirender di luar layar
       // asalnya tetap berada di dalam root gesture.
       style={{ flex: 1 }}

@@ -1,5 +1,11 @@
 # Audit Mekanis <PullToRefresh> — "ga bisa di scroll"
 
+> **SUPERSEDED untuk implementasi.** Setelah solusi custom gesture di dokumen
+> ini memicu laporan force-close saat buka/scroll layar, mesin RNGH/Reanimated
+> tersebut dihapus total. Keputusan final dan bukti terbaru ada di
+> `PULL-TO-REFRESH-FORCE-CLOSE-2026-09-08.md`. Dokumen ini dipertahankan hanya
+> sebagai histori investigasi, bukan pedoman implementasi.
+
 - Tanggal : 2026-09-08
 - Pemicu : laporan pengguna — layar dengan pull-to-refresh tidak bisa di-scroll.
 - Cakupan : `components/ui/pull-to-refresh.tsx` (satu-satunya implementasi

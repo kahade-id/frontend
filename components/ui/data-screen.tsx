@@ -28,7 +28,7 @@
  *      satu layar yang lupa menambahkannya akan menyembunyikan baris terakhir
  *      di balik home indicator. Sekarang dihitung sekali di sini.
  *   3. Refresh vs load. Kerangka ini sengaja memisahkan `loading` (ganti isi
- *      layar dengan <LoadingScreen>) dari `refreshing` (indikator logo
+ *      layar dengan <LoadingScreen>) dari `refreshing` (indikator native
  *      pull-to-refresh, isi layar TETAP terlihat). Pola lama memanggil
  *      fetcher yang sama untuk keduanya sehingga tarik-untuk-refresh
  *      mengosongkan layar — kedipan yang tidak perlu.
@@ -67,7 +67,7 @@ export type DataScreenState = {
   refreshing?: boolean
   /** Pesan siap tampil dari `userMessage(err)` — bukan copy hardcode per layar. */
   error: string | null
-  /** Dipanggil oleh gesture pull-to-refresh. */
+  /** Dipanggil oleh gesture custom saat dilepas melewati ambang tarik. */
   refresh: () => void | Promise<void>
   /** Dipanggil oleh tombol "Coba lagi" di <ErrorState>. */
   reload: () => void | Promise<void>
