@@ -12,64 +12,100 @@ import { cssInterop } from "nativewind"
  * logo, dan tidak memberi progress gesture real-time. §8 menuntut drag 1:1
  * + logo Kahade, jadi gesture ditangani sendiri.
  *
+ * ============================ ATURAN EMAS ============================
+ * Komponen ini TIDAK BOLEH pernah mematikan scroll. Lihat laporan audit
+ * docs/audit/PULL-TO-REFRESH-2026-09-08.md: sumber keluhan "ga bisa di
+ * scroll" bukan gesture-nya, melainkan upaya menjaga gesture tidak berebut
+ * dengan scroll lewat `scrollEnabled`. Setiap variasi lockdown itu punya
+ * jalur lepas yang bolong:
+ *   - `scrollEnabled={!refreshing}` mengunci layar SELAMA refresh — 20 detik
+ *     per percobaan di lib/api/config.ts (API_TIMEOUT_MS) dan sampai 2 retry
+ *     di lib/api/client.ts, jadi di jaringan lambat layar beku ±1 menit;
+ *   - di web `scrollEnabled={false}` berarti `overflow:hidden`
+ *     (node_modules/react-native-web/.../ScrollViewBase.js, styles.scrollDisabled),
+ *     bukan sekadar "tidak menerima sentuhan";
+ *   - `scrollLocked` via runOnJS setState bisa tidak pernah dilepas bila
+ *     gesture dibatalkan tanpa onFinalize (unmount, `enabled` berbalik,
+ *     reattach RNGH) -> terkunci permanen sampai sentuhan berikutnya.
+ * Kuncinya memang TIDAK diperlukan: tarikan hanya boleh aktif di puncak
+ * (scrollOffset ~ 0), dan di sana scroll native tidak punya tempat untuk
+ * pergi — `bounces={false}` (iOS) dan `overScrollMode="never"` (Android)
+ * sudah dipasang. Jadi tidak ada yang perlu dilindungi dari scroll, dan tidak
+ * ada yang boleh dikunci dari scroll.
+ * ======================================================================
+ *
  * Mekanika (reanimated + gesture-handler):
- *   - `Gesture.Pan()` dengan MANUAL ACTIVATION (audit setelah laporan
- *     pengguna: "layar ikut turun mengikuti tangan & list tak bisa discroll
- *     sampai ujung"). Sebelumnya pan memakai `activeOffsetY([10, 1000])`
- *     sehingga pan AKTIF di setiap tarik-ke-bawah ≥10px DI MANA SAJA dalam
- *     list — bukan hanya di puncak. Pan yang aktif di tengah list bersaing
- *     dengan scroll native sepanjang sentuhan (event forwarding RNGH native,
- *     pointer capture di web) dan itulah penyebab scroll tersendat/beku
- *     dekat ujung. Sekarang: pan hanya boleh AKTIF bila `scrollOffset <= 0`
- *     DAN tarik turun melewati 10px (diputuskan di `onTouchesMove` pada UI
- *     thread). Di luar kondisi itu pan langsung FAIL dan scroll 100% native.
- *   - `Gesture.Native()` tetap dikomposisikan `Simultaneous` mewakili scroll
- *     di dalam sistem RNGH supaya ScrollView (versi gesture-handler) di
- *     bawah detector tetap menerima sentuhan seperti biasa.
- *   - Anchor: saat pan AKTIF, `translationY` saat itu disimpan sebagai
- *     `anchor`; jarak tarik = translationY - anchor. Tanpa ini, gerakan
- *     yang sudah dipakai scroll ikut terhitung sebagai tarikan.
- *   - Selama tarikan aktif `scrollEnabled` MEMBENAR-benar dimatikan lewat
- *     runOnJS (`scrollLocked` — sebelumnya hanya klaim komentar tanpa kode,
- *     sehingga scroll native dan tarikan saling berebut gerakan di puncak).
- *     Dinyalakan lagi saat tarikan lepas/gesture selesai.
+ *   - `Gesture.Pan()` dengan MANUAL ACTIVATION. Keputusan activate/fail diambil
+ *     di `onTouchesMove` pada UI thread lewat `lib/pull-math.ts` (murni +
+ *     teruji): pan hanya boleh AKTIF bila sedang di puncak DAN tarik turun
+ *     melewati 10px; di luar itu pan langsung FAIL sehingga scroll 100%
+ *     native dan tidak pernah "ditahan" oleh handler yang menggantung.
+ *     `activeOffsetY` tidak dipakai lagi: aktif di setiap tarikan ≥10px di mana
+ *     saja dalam list — termasuk di tengah list yang sedang discroll.
+ *   - `Gesture.Native()` tetap dikomposisikan `Simultaneous` mewakili scroll di
+ *     dalam sistem RNGH supaya ScrollView (versi gesture-handler) di bawah
+ *     detector tetap menerima sentuhan seperti biasa.
+ *   - Anchor: saat pan AKTIF, `translationY` saat itu disimpan sebagai `anchor`;
+ *     jarak tarik = translationY - anchor. Tanpa ini, gerakan yang sudah dipakai
+ *     scroll ikut terhitung sebagai tarikan.
  *   - Konten (ScrollView) di-translateY oleh shared value `pull`; area logo
  *     berada DI BELAKANG konten (absolute top), tinggi = ambang. Menarik
  *     konten ke bawah "menyingkap" logo — tidak perlu animasi height.
  *   - 1:1 sampai ambang; setelahnya resistensi 0.35 dan cap 1.6x ambang
  *     supaya tarikan tidak tanpa batas (§8 "1:1" berlaku sampai threshold).
- *   - Lepas tarikan SELALU via `withSpring` (sebelumnya `pull.value = 0`
- *     mentah di dua cabang — konten "nendang" balik seketika).
- *   - Ambang default 64px (space.16 — "top spacing layar penuh"), cukup
- *     untuk logo `md` (40px) + napas.
- *   - `bounces={false}` di iOS & `overScrollMode="never"` di Android:
- *     overscroll bawaan akan menggandakan efek tarik / menampilkan glow OS.
- *   - Haptic saat ambang tercapai lewat prop `onThresholdReached`
- *     (expo-haptics sudah terpasang; pemanggil:
- *     `onThresholdReached={() => Haptics.impactAsync(...)}`). Belum ada
- *     layar yang memasangnya — opsional, tidak wajib.
+ *   - Lepas tarikan SELALU via `withSpring` (bukan `pull.value = 0` mentah,
+ *     yang membuat konten "nendang" balik seketika).
+ *   - `decided`/`reached`/`anchor` di-reset di `onFinalize`, BUKAN hanya di
+ *     `onTouchesDown`. `onTouchesDown` adalah event yang boleh tidak datang
+ *     (handler sempat tidak terpasang, sentuhan dimulai saat `enabled` false);
+ *     kalau reset hanya terjadi di sana, satu gesture yang batal membuat pan
+ *     tidak pernah bisa memutuskan lagi -> pull-to-refresh mati permanen
+ *     untuk sisa hidup layar.
+ *   - GUARD TERSANGKUT mode controlled: `startRefresh` menarik indikator ke
+ *     ambang, lalu settle bergantung transisi prop `refreshing` true→false.
+ *     Refresh yang SANGAT cepat bisa menyelesaikan transisi itu dalam satu
+ *     batch render sehingga effect settle tidak melihatnya — indikator tertinggal
+ *     di ambang. `startRefresh` men-settle sendiri bila prop tidak pernah
+ *     terkonfirmasi true, dan `enabled` yang berbalik false selalu men-settle.
+ *   - Prop callback dibaca lewat ref (`handlers`), bukan lewat deps `useMemo`.
+ *     Alasan: `onRefresh={() => void query.refresh()}` adalah fungsi baru tiap
+ *     render layar; bila ia masuk deps, objek gesture baru dibuat setiap render
+ *     dan RNGH menulis ulang config handler di TENGAH gesture yang sedang
+ *     berjalan (GestureDetector: `useEffect(..., [props])` -> updateHandlers).
+ *     Dengan ref, identitas gesture stabil dan hanya `enabled`/`threshold`
+ *     (primitif) yang boleh mengubahnya.
+ *   - Haptic saat ambang tercapai lewat prop `onThresholdReached` (expo-haptics
+ *     sudah terpasang). Belum ada layar yang memasangnya — opsional, tidak wajib.
  *   - Settle memakai `withSpring(tokens.motion.spring)` — config yang sama
  *     dengan BottomSheet (§8) agar satu kosakata gerak.
- *   - GUARD TERSANGKUT mode controlled (audit): `startRefresh` menarik
- *     indikator ke ambang, lalu settle bergantung transisi prop `refreshing`
- *     true→false. Refresh yang SANGAT cepat bisa menyelesaikan transisi itu
- *     dalam satu batch render sehingga effect settle tidak melihatnya —
- *     indikator tersangkut di ambang, konten tergeser permanen, dan UJUNG
- *     BAWAH list tidak bisa dinaikkan ke layar. `startRefresh` kini juga
- *     men-settle sendiri bila prop tidak pernah terkonfirmasi true.
  *   - Reduce Motion (audit #2): SENGAJA tidak dimatikan. Translate mengikuti
- *     jari pengguna 1:1 dan spring settle hanya mengembalikan konten dari
- *     titik jari dilepas ke 0 — gerakan "esensial untuk fungsi" (pengecualian
+ *     jari pengguna 1:1 dan spring settle hanya mengembalikan konten dari titik
+ *     jari dilepas ke 0 — gerakan "esensial untuk fungsi" (pengecualian
  *     WCAG 2.3.3), bukan dekorasi. PulsingLogo di dalamnya sudah membaca
  *     useReducedMotion() sendiri.
- *   - Web (§11): dengan manual activation, pan TIDAK pernah aktif di tengah
- *     list sehingga scroll roda/drag native browser tidak pernah terganggu;
- *     drag-mouse untuk refresh hanya aktif di puncak.
+ *   - Web (§11) — dua hal yang harus dijaga bersamaan:
+ *       1. `touchAction="pan-y"` di <GestureDetector>. Default RNGH adalah
+ *          `touch-action: none`, dan detector memasang itu LANGSUNG di elemen
+ *          yang bisa di-scroll (lihat GestureHandlerWebDelegate.setTouchAction).
+ *          Tanpa props ini, seluruh layar di web tidak bisa digeser dengan
+ *          sentuhan — bukan hanya saat menarik. `pan-y` mengembalikan scroll
+ *          native browser; tarikan tetap bekerja karena di puncak browser tidak
+ *          punya ruang untuk scroll sehingga tidak mengirim pointercancel.
+ *       2. `overscroll-behavior-y: contain` pada scroller, supaya tarikan di
+ *          puncak tidak diteruskan ke dokumen (kalau tidak, <body> yang
+ *          bergeser dan indikator tidak bergerak).
  *   - `Animated.View` reanimated tidak di-interop NativeWind -> className di
  *     ScrollView / View anak.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { Platform, View, type ScrollViewProps, type ViewProps } from "react-native"
+import {
+  Platform,
+  View,
+  type ScrollViewProps,
+  type StyleProp,
+  type ViewProps,
+  type ViewStyle,
+} from "react-native"
 import { Gesture, GestureDetector, ScrollView as GHScrollView } from "react-native-gesture-handler"
 import Animated, {
   Extrapolation,
@@ -84,6 +120,7 @@ import Animated, {
 import { PulsingLogo } from "@/components/ui/loading-screen"
 import { Logo } from "@/components/ui/logo"
 import { cn } from "@/lib/cn"
+import { decidePull, isAtTop, pullDistance, reachedThreshold } from "@/lib/pull-math"
 import { tokens } from "@/lib/tokens"
 
 const AnimatedScrollView = Animated.createAnimatedComponent(GHScrollView)
@@ -95,8 +132,6 @@ cssInterop(AnimatedScrollView, {
 })
 
 const DEFAULT_THRESHOLD = tokens.space[16] // 64px
-const OVERPULL_RESISTANCE = 0.35
-const OVERPULL_MAX_RATIO = 1.6
 /**
  * Skala logo saat mulai tersingkap -> 1 di ambang. Tidak ada token untuk ini
  * (§8 hanya mendefinisikan scale.press 0.97 untuk button); 0.7 dipilih agar
@@ -104,11 +139,16 @@ const OVERPULL_MAX_RATIO = 1.6
  */
 const LOGO_SCALE_FROM = 0.7
 
-/** Tarik turun minimal (px, sejak sentuh) sebelum pan boleh AKTIF di puncak. */
-const PULL_ACTIVATE_OFFSET = 10
-/** Gesture yang tidak sedang di puncak di-FAIL setelah melewati ambang ini. */
-const FAIL_OFFSET_Y = 8
-const FAIL_OFFSET_X = 20
+/**
+ * Web only. `overscrollBehaviorY` bukan kunci style React Native, jadi tidak
+ * pernah dipasang di native (RN dev memvalidasi kunci style yang tidak
+ * dikenal); di react-native-web kunci ini di-hyphenate ke CSS
+ * `overscroll-behavior-y`.
+ */
+const WEB_OVERSCROLL_CONTAIN: StyleProp<ViewStyle> | undefined =
+  Platform.OS === "web"
+    ? ({ overscrollBehaviorY: "contain" } as unknown as ViewStyle)
+    : undefined
 
 export type PullToRefreshProps = Omit<ViewProps, "children"> & {
   children: ReactNode
@@ -118,6 +158,10 @@ export type PullToRefreshProps = Omit<ViewProps, "children"> & {
    * Kontrol eksternal (mis. SWR `isValidating`). Bila diberikan, komponen
    * tidak mengelola state refresh sendiri — settle terjadi saat nilai ini
    * kembali false.
+   *
+   * Prop ini HANYA mengendalikan indikator. Ia dengan sengaja tidak lagi
+   * menyentuh `scrollEnabled`: selama ini itulah yang membuat layar tidak
+   * bisa di-scroll selama refresh berjalan (lihat "ATURAN EMAS" di kepala).
    */
   refreshing?: boolean
   /** Jarak tarik (px) yang memicu refresh. Default 64 (space.16). */
@@ -127,9 +171,14 @@ export type PullToRefreshProps = Omit<ViewProps, "children"> & {
   /** Matikan gesture (mis. saat layar dalam state error penuh) */
   enabled?: boolean
   contentContainerClassName?: string
+  /**
+   * `scrollEnabled` sengaja TIDAK di-omit: pemilik layar boleh
+   * mematikannya (mis. saat modal terbuka). Yang tidak boleh adalah
+   * komponen ini melakukannya.
+   */
   scrollViewProps?: Omit<
     ScrollViewProps,
-    "children" | "onScroll" | "scrollEventThrottle" | "bounces"
+    "children" | "onScroll" | "scrollEventThrottle" | "bounces" | "refreshControl"
   >
   className?: string
 }
@@ -158,9 +207,8 @@ export function PullToRefresh({
   const touchStartY = useSharedValue(0)
   const touchStartX = useSharedValue(0)
 
-  // JS state (hanya untuk render indikator & scrollEnabled)
+  // JS state (hanya untuk merender indikator)
   const [internalRefreshing, setInternalRefreshing] = useState(false)
-  const [scrollLocked, setScrollLocked] = useState(false)
 
   const controlled = refreshingProp !== undefined
   const refreshing = controlled ? refreshingProp : internalRefreshing
@@ -168,7 +216,12 @@ export function PullToRefresh({
     isRefreshing.value = refreshing
   }, [refreshing, isRefreshing])
 
-  const lockScroll = useCallback((value: boolean) => setScrollLocked(value), [])
+  /**
+   * Callback yang dibaca dari JS thread. Disimpan di ref supaya objek gesture
+   * tidak dibuat ulang setiap render (lihat catatan di kepala file).
+   */
+  const handlers = useRef({ onRefresh, onThresholdReached, controlled, threshold, refreshing })
+  handlers.current = { onRefresh, onThresholdReached, controlled, threshold, refreshing }
 
   // Mode controlled & uncontrolled: saat refresh selesai (true -> false), settle ke 0.
   const prevRefreshing = useRef(refreshing)
@@ -177,22 +230,49 @@ export function PullToRefresh({
     prevRefreshing.current = refreshing
   }, [refreshing, pull])
 
+  /**
+   * Gesture dimatikan di tengah tarikan (mis. layar beralih ke <LoadingScreen>
+   * karena `enabled={refreshable && !loading}`). onFinalize tidak dijamin
+   * datang untuk handler yang baru saja dinonaktifkan, jadi konten bisa
+   * tertinggal tergeser — dan konten yang tergeser membuat baris paling bawah
+   * tidak pernah sampai ke layar. Settle + reset eksplisit di sini.
+   *
+   * BILA refresh masih berjalan, JANGAN settle: indikatornya sengaja
+   * ditahan di ambang selama `refreshing`, dan parent boleh flipping
+   * `enabled` (mis. muat-awal menimpa refresh) di tengah jalan — men-settle
+   * di saat itu akan mematikan logo sebelum datanya tiba.
+   */
+  useEffect(() => {
+    if (enabled) return
+    pulling.value = false
+    reached.value = false
+    decided.value = false
+    anchor.value = 0
+    if (!refreshing && pull.value !== 0) pull.value = withSpring(0, tokens.motion.spring)
+  }, [anchor, decided, enabled, pull, pulling, reached, refreshing])
+
   const startRefresh = useCallback(async () => {
-    // Debounce spam pull: ignore if already refreshing (audit #051)
-    if (isRefreshing.value || refreshing) return
-    pull.value = withSpring(threshold, tokens.motion.spring)
+    // Debounce spam pull (audit #051): dua sumber diperiksa karena dua hal yang
+    // berbeda. `isRefreshing.value` adalah nilai yang sudah dikomit ke UI
+    // thread; `handlers.current.refreshing` adalah prop render terakhir —
+    // di mode controlled, refresh bisa sudah dimulai oleh induk (mis.
+    // refresh-on-focus) sesaat sebelum gesture ini finalize, dan shared value
+    // belum sempat disinkronkan oleh useEffect.
+    const { onRefresh: run, controlled: isControlled, threshold: limit, refreshing: busy } =
+      handlers.current
+    if (isRefreshing.value || busy) return
+    pull.value = withSpring(limit, tokens.motion.spring)
     // Error dari onRefresh adalah urusan parent (tampilkan Banner/Toast di
     // sana). Di sini cukup ditelan supaya tidak menjadi unhandled rejection
     // (dipanggil dari runOnJS, tidak ada pemanggil yang bisa menangkapnya)
     // dan indikator selalu kembali ke posisi 0.
-    if (controlled) {
-      void Promise.resolve(onRefresh())
+    if (isControlled) {
+      void Promise.resolve(run())
         .catch(() => undefined)
         .finally(() => {
           // GUARD TERSANGKUT: bila transisi prop `refreshing` true→false
           // tuntas dalam satu batch (refresh cepat), effect settle di atas
-          // tidak melihat transisinya dan pull tertinggal di ambang —
-          // konten tergeser permanen dan ujung bawah list tak terjangkau.
+          // tidak melihat transisinya dan pull tertinggal di ambang.
           // Settle di sini hanya bila prop TIDAK pernah terkonfirmasi true;
           // bila terkonfirmasi, effect settle yang kembali mengurus.
           if (!isRefreshing.value) pull.value = withSpring(0, tokens.motion.spring)
@@ -201,16 +281,16 @@ export function PullToRefresh({
     }
     setInternalRefreshing(true)
     try {
-      await onRefresh()
+      await run()
     } catch {
       // ditelan — lihat komentar di atas
     } finally {
       // useEffect di atas melakukan spring ke 0 saat state berubah
       setInternalRefreshing(false)
     }
-  }, [controlled, isRefreshing, onRefresh, pull, threshold])
+  }, [isRefreshing, pull])
 
-  const notifyThreshold = useCallback(() => onThresholdReached?.(), [onThresholdReached])
+  const notifyThreshold = useCallback(() => handlers.current.onThresholdReached?.(), [])
 
   const onScroll = useAnimatedScrollHandler({
     onScroll: (e) => {
@@ -226,10 +306,10 @@ export function PullToRefresh({
     () =>
       Gesture.Pan()
         .enabled(enabled)
-        // MANUAL ACTIVATION: tanpa ini, `activeOffsetY` membuat pan aktif di
-        // SETIAP tarik-turun ≥10px di mana pun — termasuk di tengah list yang
-        // sedang discroll — dan pan yang aktif bersaing dengan scroll native
-        // sampai jari lepas (tersendat/beku dekat ujung, layar "ikut tangan").
+        // MANUAL ACTIVATION: keputusan aktif/fail diambil sendiri di
+        // `onTouchesMove`. Dengan `activeOffsetY`, pan aktif di SETIAP
+        // tarik-turun ≥10px di mana pun — termasuk di tengah list yang sedang
+        // discroll — lalu bersaing dengan scroll native sampai jari lepas.
         .manualActivation(true)
         .onTouchesDown((e) => {
           const touch = e.allTouches[0]
@@ -245,38 +325,44 @@ export function PullToRefresh({
           if (!touch) return
           const dy = touch.absoluteY - touchStartY.value
           const dx = touch.absoluteX - touchStartX.value
-          if (scrollOffset.value > 0) {
-            // Belum di puncak: pan TIDAK PERNAH boleh ikut — scroll murni
-            // native sampai jari lepas. Inilah yang menjaga list panjang
-            // tetap bisa discroll sampai ujung atas/bawah.
-            if (Math.abs(dy) > FAIL_OFFSET_Y || Math.abs(dx) > FAIL_OFFSET_X) {
-              decided.value = true
-              stateManager.fail()
-            }
-            return
-          }
-          if (dy > PULL_ACTIVATE_OFFSET) {
+          // `blocked=isRefreshing`: selama refresh berjalan pan tidak boleh ikut
+          // mengambil alih sentuhan. `enabled` TIDAK cukup sebagai pagar — ia milik
+          // pemanggil (banyak layar mengirimnya tetap `true`, dan men-toggle
+          // `enabled` di tengah sentuhan justru meninggalkan tarikan menggantung).
+          // Decision-nya di sini: fail permanen seketika, jadi sentuhan berikutnya
+          // sepenuhnya milik scroll native.
+          const decision = decidePull({
+            offsetY: scrollOffset.value,
+            dy,
+            dx,
+            blocked: isRefreshing.value,
+          })
+          if (decision === "hold") return
+          decided.value = true
+          if (decision === "activate") {
             // Di puncak + tarik turun: pan mengambil alih. Anchor = posisi
-            // jari saat keputusan, supaya tarikan mulai 0 (tidak melompat
-            // sebesar gerakan yang sudah terlanjur terjadi).
-            decided.value = true
+            // jari saat keputusan, supaya tarikan mulai dari 0 dan tidak
+            // melompat sebesar gerakan yang sudah terlanjur terjadi.
             anchor.value = dy
             stateManager.activate()
-          } else if (dy < -FAIL_OFFSET_Y || Math.abs(dx) > FAIL_OFFSET_X) {
-            decided.value = true
-            stateManager.fail()
+            return
           }
+          // Bukan tarikan (list belum di puncak, atau jari bergerak ke atas /
+          // menyamping): FAIL permanen untuk sentuhan ini, bukan sekadar diam.
+          // Handler yang dibiarkan UNDETERMINED ikut menahan antrean gesture
+          // sepanjang sentuhan -> scroll terasa tersendat/beku.
+          stateManager.fail()
         })
         .onUpdate((e) => {
           if (isRefreshing.value) return
 
-          // Pengaman: lock scrollEnabled ada latensi JS-thread; bila scroll
-          // sempat bergeser dari puncak saat pan aktif, lepas tarikan dengan
-          // halus dan biarkan scroll berjalan.
-          if (scrollOffset.value > 0) {
+          // Pengaman: scroll bisa berpindah dari puncak selama gesture aktif
+          // (mis. satu frame sebelum tarikan mulai, atau fling sisa). Lepas
+          // tarikan dengan halus dan biarkan scroll bekerja — TANPA menyentuh
+          // scrollEnabled, karena tidak ada yang boleh melumpuhkan scroll.
+          if (!isAtTop(scrollOffset.value)) {
             if (pulling.value) {
               pulling.value = false
-              runOnJS(lockScroll)(false)
               pull.value = withSpring(0, tokens.motion.spring)
             }
             anchor.value = e.translationY
@@ -287,56 +373,50 @@ export function PullToRefresh({
           if (dy <= 0) {
             if (pulling.value) {
               pulling.value = false
-              runOnJS(lockScroll)(false)
-              // Lepas dengan spring, BUKAN `pull.value = 0` mentah —
-              // konten yang "nendang" balik seketika terasa seperti bug.
+              // Lepas dengan spring, BUKAN `pull.value = 0` mentah — konten
+              // yang "nendang" balik seketika terasa seperti bug.
               pull.value = withSpring(0, tokens.motion.spring)
             }
-            // Jari bergerak ke atas dari puncak: anchor ikut agar tarikan
-            // berikutnya dimulai dari titik balik, bukan dari awal gesture.
+            // Jari berbalik ke atas dari puncak: anchor ikut, agar tarikan
+            // berikutnya dimulai dari titik balik. Scroll native mengambil
+            // alih di arah ini dengan sendirinya (konten tidak bisa didorong
+            // ke atas oleh kita).
             anchor.value = e.translationY
             return
           }
 
-          if (!pulling.value) {
-            pulling.value = true
-            // Kunci scroll SELAMA tarikan (jalan di UI-thread → runOnJS).
-            // Tanpa ini scroll native ikut mengonsumsi gerakan vertikal dan
-            // berebut dengan translate 1:1 di puncak.
-            runOnJS(lockScroll)(true)
-          }
+          pulling.value = true
 
-          // 1:1 sampai ambang, lalu resistensi + cap.
-          let d = dy
-          if (d > threshold) {
-            d = Math.min(
-              threshold + (d - threshold) * OVERPULL_RESISTANCE,
-              threshold * OVERPULL_MAX_RATIO,
-            )
-          }
-          pull.value = d
+          // 1:1 sampai ambang, lalu resistensi + cap (lihat lib/pull-math.ts).
+          const distance = pullDistance(dy, threshold)
+          pull.value = distance
 
-          if (!reached.value && d >= threshold) {
+          if (!reached.value && reachedThreshold(distance, threshold)) {
             reached.value = true
             runOnJS(notifyThreshold)()
           }
         })
         .onFinalize(() => {
           const wasPulling = pulling.value
+          const triggered = reached.value
+          // Reset per-gesture di SINI juga, bukan hanya di onTouchesDown
+          // (lihat catatan "decided" di kepala file).
           pulling.value = false
-          // Selalu buka kunci — setState dengan nilai sama diabaikan React,
-          // jadi panggilan redundan tidak merender ulang.
-          runOnJS(lockScroll)(false)
+          reached.value = false
+          decided.value = false
+          anchor.value = 0
           if (isRefreshing.value) return
-          if (reached.value && wasPulling) runOnJS(startRefresh)()
+          if (triggered && wasPulling) runOnJS(startRefresh)()
           else if (pull.value !== 0) pull.value = withSpring(0, tokens.motion.spring)
         }),
+    // Hanya primitif + shared value. `startRefresh`/`notifyThreshold` stabil
+    // (useCallback tanpa prop di deps) sehingga identitas `pan` tidak berubah
+    // saat layar render di tengah tarikan.
     [
       anchor,
       decided,
       enabled,
       isRefreshing,
-      lockScroll,
       notifyThreshold,
       pull,
       pulling,
@@ -348,6 +428,8 @@ export function PullToRefresh({
       touchStartY,
     ],
   )
+
+  const composed = useMemo(() => Gesture.Simultaneous(pan, nativeScroll), [pan, nativeScroll])
 
   const contentStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: pull.value }],
@@ -362,19 +444,22 @@ export function PullToRefresh({
     ],
   }))
 
-  const composed = useMemo(() => Gesture.Simultaneous(pan, nativeScroll), [pan, nativeScroll])
-
   return (
     <View className={cn("flex-1 overflow-hidden", className)} {...rest}>
       {/* Area logo di belakang konten — tinggi = ambang */}
       <View
+        // `pointerEvents` WAJIB hidup di dalam `style`, bukan sebagai prop:
+        // React Native menandai prop `pointerEvents` deprecated dan
+        // react-native-web hanya mengenalnya lewat StyleSheet compiler
+        // (aturan H scripts/check-a11y.mjs). Tanpanya, lapisan setinggi ambang
+        // ini menelan sentuhan pertama pada baris teratas daftar.
+        style={[{ pointerEvents: "none" }, { height: threshold }]}
         // `accessible` agar label live-region benar-benar diumumkan; logo di
         // dalamnya murni dekoratif (audit #4).
         accessible={refreshing}
         accessibilityLiveRegion="polite"
         accessibilityLabel={refreshing ? "Memuat ulang" : undefined}
         className="absolute inset-x-0 top-0 items-center justify-center"
-        style={[{ pointerEvents: "none" }, { height: threshold }]}
       >
         {refreshing ? (
           <PulsingLogo size="md" />
@@ -387,16 +472,16 @@ export function PullToRefresh({
 
       <Animated.View style={[{ flex: 1 }, contentStyle]}>
         {/* Pan (luar) + Native (scroll) berjalan bersamaan: scroll tidak pernah diblokir */}
-        <GestureDetector gesture={composed}>
+        <GestureDetector gesture={composed} touchAction="pan-y">
           <AnimatedScrollView
             className="flex-1"
             contentContainerClassName={cn("grow", contentContainerClassName)}
+            style={WEB_OVERSCROLL_CONTAIN}
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled={true}
             showsVerticalScrollIndicator={false}
             scrollEventThrottle={16}
             onScroll={onScroll}
-            scrollEnabled={!refreshing && !scrollLocked}
             bounces={Platform.OS === "ios" ? false : undefined}
             overScrollMode={Platform.OS === "android" ? "never" : undefined}
             {...scrollViewProps}

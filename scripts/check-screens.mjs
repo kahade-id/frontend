@@ -264,6 +264,44 @@ rules.push({
   baseline: [],
 })
 
+/**
+ * S7 — komponen gesture yang melumpuhkan scroll.
+ *
+ * Dua bentuk pelanggaran dengan akar yang sama (laporan pengguna 2026-09-08:
+ * "pull to refresh ga bisa di scroll"), keduanya muncul dari niat baik
+ * "supaya gesture tidak berebut dengan scroll":
+ *
+ *   a. `scrollEnabled` diset dari state data (`refreshing`/`loading`).
+ *      Konsekuensinya layar BEKU selama request berjalan — dengan
+ *      API_TIMEOUT_MS 20 detik dan hingga 2 retry (lib/api/client.ts) itu bisa
+ *      ±1 menit — dan di web `scrollEnabled={false}` bukan "abaikan sentuhan"
+ *      melainkan `overflow:hidden` (react-native-web ScrollViewBase
+ *      styles.scrollDisabled), yang juga membuang posisi scroll.
+ *   b. `<GestureDetector>` membungkus scroll container tanpa mematok
+ *      `touchAction`. Default RNGH untuk web adalah `touch-action: none` dan
+ *      dipasang LANGSUNG di elemen yang bisa di-scroll, sehingga halaman tidak
+ *      dapat digeser dengan sentuhan sama sekali.
+ *
+ * Aturan ini tidak punya baseline: tidak ada layar/komponen yang boleh
+ * melakukannya, sekarang maupun nanti.
+ */
+const gestureHosts = [...walk(join(root, "components")), ...walk(join(root, "lib"))]
+  .filter((p) => /\.tsx?$/.test(p))
+  .map((p) => ({ path: rel(p), src: stripComments(readFileSync(p, "utf8")) }))
+
+rules.push({
+  id: "S7",
+  title:
+    "Gesture component melumpuhkan scroll (scrollEnabled dari state data / touch-action web tidak dipatok)",
+  files: gestureHosts,
+  test: (f) =>
+    /scrollEnabled=\{[^}]*\b(?:refreshing|loading|isValidating)\b/.test(f.src) ||
+    (/<GestureDetector/.test(f.src) &&
+      /<(?:Animated\.)?[A-Za-z]*ScrollView\b/.test(f.src) &&
+      !/touchAction=/.test(f.src)),
+  baseline: [],
+})
+
 const failures = []
 const staleBaselines = []
 
