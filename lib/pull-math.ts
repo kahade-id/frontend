@@ -70,9 +70,18 @@ export function decidePull(input: {
   dy: number
   dx: number
   activateOffset?: number
+  /**
+   * Tarikan tidak boleh dimulai sama sekali (mis. refresh sedang berjalan).
+   * Hasilnya `fail`, BUKAN `hold`: pan yang dibiarkan menggantung di status
+   * UNDETERMINED tetap terdaftar di antrean gesture sepanjang sentuhan, dan di
+   * Android itu sudah cukup untuk membuat scroll terasa tersendat. `fail`
+   * melepas sentuhan ke scroll native seketika.
+   */
+  blocked?: boolean
 }): PullDecision {
   "worklet"
-  const { offsetY, dy, dx, activateOffset = PULL_ACTIVATE_OFFSET } = input
+  const { offsetY, dy, dx, activateOffset = PULL_ACTIVATE_OFFSET, blocked = false } = input
+  if (blocked) return "fail"
   if (!isAtTop(offsetY)) {
     return Math.abs(dy) > FAIL_OFFSET_Y || Math.abs(dx) > FAIL_OFFSET_X ? "fail" : "hold"
   }

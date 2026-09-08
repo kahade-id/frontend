@@ -38,10 +38,12 @@ berebut.** Mekanisme pelumpuhan itulah yang bocor, bukan gesture-nya.
 | `npx eslint .` | 0 error |
 | `npm run check` (tokens, a11y, screens, inventory, spec, api, weblinks, push) | exit 0 |
 | `check-screens` | S1 2 · S2 0 · S3 31 · S4 0 · S5 30 · S6 0 · **S7 0** (aturan baru) |
-| `vitest` | 23 berkas / **266** tes lolos (245 → 266: +21 tes `lib/pull-math` termasuk pengunci worklet) |
-| `expo export --platform web` | sukses |
-| `expo export --platform android` (bundle Metro + plugin worklet, tanpa Gradle) | sukses — di dalam `.hbc`: `__workletHash` × 4 (helper terdaftar sebagai worklet), `manualActivation`, `pan-y` |
+| `vitest` | 23 berkas / **268** tes lolos (245 → 266 → 268: tes `lib/pull-math` + pengunci worklet + `blocked` W3) |
+| `expo export --platform web` | sukses (diulang setelah ronde 3) |
+| `expo export --platform android` (bundle Metro + plugin worklet, tanpa Gradle) | sukses — di dalam `.hbc`: `__workletHash` × 4 (helper terdaftar sebagai worklet), `manualActivation`, `pan-y`, dan `blocked` × 3 (W3 benar-benar terkirim ke bundel native) |
 | `node .probe/babel-probe.cjs` (transformasi Babel repo, manual) | `lib/pull-math.ts`: 0 → 4 worklet setelah direktif; bukti W1 |
+| harness jsdom (`.probe/`) merender komponen asli | **DIBUANG — tidak mungkin**: `react-native` terpasang source-only (Flow), hanya Metro yang bisa me-rendernya. Lihat Bagian H |
+| Verifikasi web level sumber (RNGH/Reanimated/RNW terpasang) | selesai — H1–H6, Bagian H |
 | `npm run test:e2e` | TIDAK dijalankan — tidak ada browser di sandbox |
 | Perangkat keras/emulator | TIDAK dijalankan — Bagian F = daftar uji manual untuk QA |
 
@@ -410,3 +412,75 @@ setelah perbaikan:
    konten harus sudah kembali ke 0 dan scroll normal, tanpa perlu tap dulu.
 6. **Semua** — putar layar, dark mode, Reduce Motion aktif: tidak ada regresi
    posisi konten (indikator tertinggal di ambang).
+---
+
+## Bagian H — RONDE 3: perilaku WEB dibuktikan dari sumber paket terpasang
+
+Setelah ronde 2, pertanyaan yang tersisa bukan lagi "di mana scroll diblokir"
+melainkan **"apakah mesin gesture ini benar-benar hidup di web, dan kalau tidak,
+apakah ia merusak scroll?"**. Dua rute verifikasi empiris dicoba dan keduanya
+mentok di lingkungan ini — dicatat supaya tidak diulang:
+
+- **Browser nyata**: `npx playwright install chromium` gagal (unduhan CDN
+  diblokir, `Download failure, code=1`) dan tidak ada chrome/chromium/headless_shell
+  di sistem. Tidak ada jalan menjalankan e2e di sini.
+- **jsdom + komponen asli**: harness `.probe/` (GestureDetector → PullToRefresh
+  di-render) dibuang. Penyebabnya struktural, bukan konfigurasi: paket
+  `react-native` di repo ini **source-only** (`node_modules/react-native/index.js`
+  ber-annotasi `@flow strict-local`, dan `src/` tidak ikut terpasang), jadi satu-
+  satunya bundler yang mampu me-render-nya adalah Metro + `@react-native/babel-preset`.
+  Vite/esbuild selalu berhenti di `SyntaxError: Unexpected token 'typeof'`.
+
+Karena itu ronde 3 diverifikasi dengan **membaca build paket yang terpasang** —
+RNGH/Reanimated/RNW versi yang sama yang dieksekusi Metro. Semua baris di bawah
+adalah fakta file:baris, bukan asumsi.
+
+| # | Pertanyaan | Bukti | Kesimpulan |
+|---|---|---|---|
+| H1 | `GestureDetector` (web) bisa dapat elemen DOM dari ref `Animated.createAnimatedComponent(GHScrollView)`? | RNGH `src/web/tools/GestureHandlerWebDelegate.ts:44` `this.view = findNodeHandle(viewRef)`, lalu `:46-54` menangkap gaya awal elemen dan memanggil `setUserSelect`/`setTouchAction`; `findNodeHandle` resolusi Metro = `src/findNodeHandle.web.ts` (BUKAN `react-native` — RNW 0.21.2 `dist/exports/findNodeHandle/index.js:11` justru **melempar** `findNodeHandle is not supported on web`); `findNodeHandle.web.ts:16-17,20,36-40` menuruni `viewTag`/`ref.current` melewati wrapper `display:contents`; RNW `dist/exports/ScrollView/index.js:269-270` `mergeRefs(this.props.forwardedRef)(node)` dengan `node` = elemen DOM; Reanimated `createAnimatedComponent/createAnimatedComponent.js:42-44` meneruskan ref mentah (`ref: null` + `forwardedRef: props.ref`) dan basis kelasnya, `css/component/AnimatedComponent.js:72-77` (`_setComponentRef`), memanggil `forwardedRef(ref)` SEBELUM unwrap apa pun — dibuktikan `createAnimatedComponent/AnimatedComponent.js:8` yang mengimpor kelas itu sebagai `ReanimatedAnimatedComponent` | **Aman.** `this.view` = elemen scroll: tidak ada crash, dan `touch-action` ditulis di elemen yang benar |
+| H2 | Apakah `useAnimatedScrollHandler` benar-benar dipanggil di web? (khawatir: `createAnimatedComponent/AnimatedComponent.js:56` hanya membuat `NativeEventsManager` saat `!IS_WEB`) | Di web event tidak lewat registrasi native sama sekali: `reanimated/lib/module/WorkletEventHandler.js:59-71,85` (`WorkletEventHandlerWeb` membangun `listeners[eventName] = jsListener(...)` di konstruktor) dan `createAnimatedComponent/PropsFilter.js:51-54` memetakan `props[eventName] = listeners[eventName]`; RNW memanggilnya di `dist/exports/ScrollView/index.js:75` | **Ya.** `scrollOffset` terisi di web → gerbang `isAtTop` nyata, jadi tarikan TIDAK membajak drag di tengah daftar (kelas bug yang paling mungkin dilaporkan sebagai "ga bisa di scroll") |
+| H3 | Bentuk payload event di web | `WorkletEventHandler.js:8-13` (`jsListener`) = `handler({ ...evt.nativeEvent, eventName })`, yaitu `nativeEvent` **dilebur** dan kuncinya hilang. Yang valid di web adalah `e.contentOffset.y`, BUKAN `e.nativeEvent.contentOffset.y`; RNW membangun `contentOffset` di `dist/exports/ScrollView/ScrollViewBase.js:20` | Komponen sudah memakai `e.contentOffset.y` (`components/ui/pull-to-refresh.tsx:296-298`) — valid di **dua** platform (native juga datar). Tidak diubah; ini jebakan paling sering di contoh kode komunitas |
+| H4 | `onTouchesDown`/`onTouchesMove` (jantung `manualActivation`) ada di web? | `src/handlers/gestures/gesture.ts:236,249,262,275` menyetel `config.needsPointerData` saat handler touch dipakai; `src/web/handlers/GestureHandler.ts:272-303,329` mengirim event touch bila flag aktif (dan `tryToSendTouchEvent` no-op tanpa flag); payload `allTouches: PointerData[]` dengan `absoluteX/absoluteY` (`src/web/interfaces.ts:99-105`) | **Ya**, dan field yang kita baca (`allTouches[0].absoluteX/Y`) memang ada |
+| H5 | `translationY` di web? | `src/web/handlers/PanGestureHandler.ts:197-203` (`translationX/Y`, NaN dijaga → 0) | **Ya** |
+| H6 | Bisa RNGH menekan scroll native di web saat pan ACTIVE? | `src/web/handlers/NativeViewGestureHandler.ts:47-52` `restoreViewStyles()` **memaksa** `touch-action: auto` pada handler Native; delegate `setTouchAction` menulis `config.touchAction ?? 'none'` hanya selama enabled (`GestureHandlerWebDelegate.ts:143-153,171-172`) dan mengembalikan gaya awal saat disabled — kita kirim `pan-y`; tidak ada `preventDefault` pada scroll di `web/handlers/GestureHandler.ts` | **Tidak ada jalur "scroll mati" di web.** Kasus terburuk yang tersisa hanyalah estetika: logo bergeser sambil browser juga menggulir, dan H2 membuat itu cepat pulih lewat self-heal di `onUpdate` |
+
+### W3 (native + web, diperbaiki di ronde 3): sentuhan selama refresh tidak pernah dilepas
+
+Sebelum ronde 3, `onTouchesMove` hanya memanggil `decidePull({ offsetY, dy, dx })`.
+Selama `refreshing`, `onUpdate` memang `return` lebih awal (logo diam), **tetapi
+pan sudah `activate()`** dan menahan sentuhan di antrean gesture sampai jari
+angkat. Pagar yang tersisa hanyalah `enabled`, dan itu milik pemanggil — banyak
+layar mengirimnya tetap `true` (hanya `refreshable`, bukan `!loading`). Di
+Android, handler aktif yang tidak melakukan apa-apa sepanjang sentuhan adalah
+resep scroll tersendat; di web, ia tidak mematikan scroll (H6) tapi tetap
+menyita gesture.
+
+Perbaikannya kecil dan di tempat yang benar: `decidePull` menerima `blocked`
+(diisi `isRefreshing.value`) dan mengembalikan **`fail` permanen seketika** —
+bukan `hold`, karena `hold` justru meninggalkan pan di antrean (`lib/pull-math.ts`,
+dok `blocked`). `enabled` sengaja TIDAK diutak-atik: men-toggle-nya di tengah
+sentuhan adalah kelas bug F5/W2. +2 tes (total 268).
+
+### Diperiksa di ronde 3 dan TIDAK diubah (web)
+
+- `user-select: none` pada scroll container selama handler enabled (delegate
+  `setUserSelect`, `GestureHandlerWebDelegate.ts:131-141,171-172`) — berlaku untuk SEMUA `GestureDetector` di app (`bottom-sheet`,
+  `swipeable-list-item`, `slider`, `range-slider`, `signature-pad`), bukan
+  regresi tarikan, dan tidak memengaruhi scroll.
+- `NativeViewGestureHandler` menimpa `pan-y` dengan `auto` setelah init — `auto`
+  lebih longgar daripada `pan-y`, jadi arah vertikal tetap hidup; tidak dilawan.
+
+---
+
+## Bagian H.1 — QA perangkat: kasus W3
+
+7. **W3** — Di layar daftar mana pun: picu refresh (tarik sampai ambang) dan
+   **selama indikator masih hidup** coba (a) tarik turun lagi dari puncak,
+   (b) gulir biasa. (a) tidak boleh menggeser konten dan tidak boleh menahan
+   sentuhan; (b) harus langsung jalan. Ulangi di web (Chrome, mouse-drag dan
+   touch): konten tidak boleh berhenti menggulir selama request berjalan.
+8. **W3 (jaringan lambat)** — throttling "Slow 3G" lalu refresh panjang (sampai
+   `API_TIMEOUT_MS` 20 s): daftar harus tetap bisa digulir berulang kali selama
+   indikator hidup. Sebelum W3, sentuhan pertama setelah refresh dimulai bisa
+   tertahan oleh pan yang sudah aktif tapi tidak melakukan apa-apa — pada layar
+   yang `enabled`-nya dibiarkan `true` (mayoritas `<PullToRefresh>` langsung).

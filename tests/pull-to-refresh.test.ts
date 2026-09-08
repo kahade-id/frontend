@@ -91,6 +91,26 @@ describe("decidePull — satu keputusan per sentuhan", () => {
   it("gagal untuk tarikan menyamping (swipe baris, bukan refresh)", () => {
     expect(decidePull({ offsetY: 0, dy: 4, dx: 60 })).toBe("fail")
   })
+
+  it("`blocked` mematahkan sentuhan seketika, bukan menahannya", () => {
+    // Kasus nyata: refresh sedang berjalan dan pengguna mulai menarik di puncak.
+    // Tanpa `blocked` keputusan ini "activate" -> pan ikut memegang sentuhan
+    // selama indikator hidup.
+    expect(decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 5, dx: 0 })).toBe("activate")
+    expect(
+      decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 5, dx: 0, blocked: true }),
+    ).toBe("fail")
+    // Bukan sekadar `hold`: gerakan kecil pun harus melepas antrean gesture.
+    expect(decidePull({ offsetY: 0, dy: 1, dx: 0, blocked: true })).toBe("fail")
+    // Status layar lain (sudah bergulir) tidak mengubah hasilnya.
+    expect(decidePull({ offsetY: 500, dy: 40, dx: 0, blocked: true })).toBe("fail")
+  })
+
+  it("`blocked` default false — pemanggil lama tidak berubah perilakunya", () => {
+    expect(decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 5, dx: 0 })).toBe(
+      decidePull({ offsetY: 0, dy: PULL_ACTIVATE_OFFSET + 5, dx: 0, blocked: false }),
+    )
+  })
 })
 
 describe("pullDistance — 1:1 sampai ambang, lalu melawan, selalu ada batas", () => {

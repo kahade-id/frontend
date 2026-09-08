@@ -325,7 +325,18 @@ export function PullToRefresh({
           if (!touch) return
           const dy = touch.absoluteY - touchStartY.value
           const dx = touch.absoluteX - touchStartX.value
-          const decision = decidePull({ offsetY: scrollOffset.value, dy, dx })
+          // `blocked=isRefreshing`: selama refresh berjalan pan tidak boleh ikut
+          // mengambil alih sentuhan. `enabled` TIDAK cukup sebagai pagar — ia milik
+          // pemanggil (banyak layar mengirimnya tetap `true`, dan men-toggle
+          // `enabled` di tengah sentuhan justru meninggalkan tarikan menggantung).
+          // Decision-nya di sini: fail permanen seketika, jadi sentuhan berikutnya
+          // sepenuhnya milik scroll native.
+          const decision = decidePull({
+            offsetY: scrollOffset.value,
+            dy,
+            dx,
+            blocked: isRefreshing.value,
+          })
           if (decision === "hold") return
           decided.value = true
           if (decision === "activate") {
