@@ -14,6 +14,10 @@
  *   2. Gesture yang bukan tarikan harus FAIL, bukan dibiarkan menggantung.
  *   3. Tarikan tidak pernah bernilai negatif dan tidak pernah tanpa batas.
  */
+import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
+import { resolve } from "node:path"
+
 import { describe, expect, it } from "vitest"
 
 import {
@@ -149,4 +153,46 @@ describe("reachedThreshold — pemicu refresh, sekali per gesture", () => {
 it("ambang aktivasi < ambang gagal vertikal", () => {
   expect(PULL_ACTIVATE_OFFSET).toBeLessThanOrEqual(FAIL_OFFSET_Y + FAIL_OFFSET_X)
   expect(PULL_ACTIVATE_OFFSET).toBeGreaterThan(0)
+})
+
+/**
+ * Kontrak TOOLCHAIN — bagian ini bukan tes logika, tapi pengunci build.
+ *
+ * Empat fungsi di lib/pull-math.ts dipanggil dari dalam `Gesture.Pan()`, yaitu
+ * worklet yang dikompilasi plugin Reanimated untuk UI thread. Supaya sah,
+ * fungsinya sendiri harus berstatus worklet: direktif `"worklet"` di baris
+ * pertama badan fungsi. Bentuknya memang string literal yang tidak melakukan
+ * apa pun di JS — persis tipe baris yang dihapus orang saat "merapikan kode",
+ * dan hilangnya baru kelihatan di perangkat (gesture error di UI thread), bukan
+ * di typecheck. Bukti empiris perbedaan keduanya, dijalankan dengan config
+ * babel repo:
+ *
+ *   tanpa direktif  -> lib/pull-math.ts: __workletHash 0   (worklet pemanggil
+ *                      menangkapnya sebagai closure: `decidePull:decidePull`)
+ *   dengan direktif -> lib/pull-math.ts: __workletHash 4
+ *
+ * Kalau tes ini gagal: jangan hapus direktifnya — perbaiki pemanggilnya.
+ */
+describe("lib/pull-math bertahan sebagai worklet", () => {
+  const here = fileURLToPath(import.meta.url)
+  const src = readFileSync(resolve(here, "..", "..", "lib", "pull-math.ts"), "utf8")
+  const exported = [...src.matchAll(/export function (\w+)/g)].map((m) => m[1])
+
+  it("menemukan keempat fungsi yang dipakai dari worklet", () => {
+    expect(exported.sort()).toEqual(
+      ["decidePull", "isAtTop", "pullDistance", "reachedThreshold"].sort(),
+    )
+  })
+
+  it.each(exported)("%s dibuka dengan direktif worklet", (name) => {
+    // Batasi ke badan fungsi ini SAJA: tanpa batas, pencarian bisa "lari" ke
+    // fungsi berikutnya yang punya direktif dan lolos walau direktifnya dihapus
+    // (itu justru yang terjadi saat tes ini ditulis ulang, dan tertangkap oleh
+    // uji-mati-tes). Kurung kurawal pembuka dikenali dari `)` sebelumnya, karena
+    // signature decidePull memuat object literal untuk tipenya.
+    const at = src.indexOf(`export function ${name}`)
+    const next = src.indexOf("export function", at + 1)
+    const body = src.slice(at, next === -1 ? undefined : next)
+    expect(/\)\s*(?::[^{}]*?)?\{\s*"worklet"/.test(body)).toBe(true)
+  })
 })

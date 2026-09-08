@@ -8,6 +8,15 @@
  * Membungkusnya sebagai fungsi murni membuat aturan main-nya bisa diuji di Node
  * (tests/pull-to-refresh.test.ts) tanpa perangkat.
  *
+ * Direktif `"worklet"` di tiap fungsi WAJIB (bukan hiasan): pemanggilnya
+ * hidup di `Gesture.Pan()` yang dikompilasi Reanimated ke UI thread. Tanpa
+ * direktif itu, `@babel/core` + plugin Reanimated hanya MENANGKAP fungsinya
+ * sebagai nilai closure (`__closure={… decidePull:decidePull …}`) dan
+ * pemanggilannya tidak terjamin ada di runtime UI thread. Dengan direktif itu
+ * fungsi ikut dikompilasi sebagai worklet, dan tetap berupa fungsi JS biasa
+ * saat diimpor dari Node (tests/pull-to-refresh.test.ts) — direktifnya hanya
+ * string literal di awal badan fungsi.
+ *
  * Konteks audit 2026-09-08 (docs/audit/PULL-TO-REFRESH-2026-09-08.md):
  * laporan "ga bisa di scroll" berakar pada SATU keputusan, yaitu kapan pan boleh
  * mengambil alih gerakan. Salah jawab di keputusan itu menghasilkan dua
@@ -42,6 +51,7 @@ export type PullDecision = "activate" | "fail" | "hold"
 
 /** Benar bila offset masih dianggap "di puncak" (lihat AT_TOP_EPSILON). */
 export function isAtTop(offsetY: number, epsilon = AT_TOP_EPSILON): boolean {
+  "worklet"
   return offsetY <= epsilon
 }
 
@@ -61,6 +71,7 @@ export function decidePull(input: {
   dx: number
   activateOffset?: number
 }): PullDecision {
+  "worklet"
   const { offsetY, dy, dx, activateOffset = PULL_ACTIVATE_OFFSET } = input
   if (!isAtTop(offsetY)) {
     return Math.abs(dy) > FAIL_OFFSET_Y || Math.abs(dx) > FAIL_OFFSET_X ? "fail" : "hold"
@@ -83,6 +94,7 @@ export function pullDistance(
   resistance = OVERPULL_RESISTANCE,
   maxRatio = OVERPULL_MAX_RATIO,
 ): number {
+  "worklet"
   if (!(threshold > 0) || dy <= 0) return 0
   if (dy <= threshold) return dy
   return Math.min(threshold + (dy - threshold) * resistance, threshold * maxRatio)
@@ -90,5 +102,6 @@ export function pullDistance(
 
 /** Ambang tercapai? Dipakai untuk memicu refresh SEKALI per gesture. */
 export function reachedThreshold(distance: number, threshold: number): boolean {
+  "worklet"
   return threshold > 0 && distance >= threshold
 }

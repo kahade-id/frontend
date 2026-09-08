@@ -28,6 +28,7 @@ berebut.** Mekanisme pelumpuhan itulah yang bocor, bukan gesture-nya.
 | F4 | "Di puncak" diuji `scrollOffset > 0` tanpa toleransi | Android, iOS | Tarikan tidak pernah memicu refresh (offset sub-piksel) | **DI PERBAIKI** |
 | F5 | `decided` hanya di-reset di `onTouchesDown`; `scrollLocked` hanya dilepas di `onFinalize`/`onUpdate` | Android, iOS | Sentuhan mati permanen sampai tap berikutnya; konten tertinggal tergeser | **DI PERBAIKI** |
 | F6 | Identitas objek gesture berubah tiap render (20 layar mengirim `onRefresh={() => …}`) | semua | RNGH menulis ulang config handler di tengah tarikan | **DI PERBAIKI** (diperketat) |
+| W1 | Helper `lib/pull-math.ts` dipanggil dari worklet tanpa direktif `"worklet"` | Android, iOS | Error runtime UI thread saat tarikan pertama | **DI PERBAIKI** (ronde 2, Bagian G) |
 
 ## Status verifikasi akhir
 
@@ -37,8 +38,10 @@ berebut.** Mekanisme pelumpuhan itulah yang bocor, bukan gesture-nya.
 | `npx eslint .` | 0 error |
 | `npm run check` (tokens, a11y, screens, inventory, spec, api, weblinks, push) | exit 0 |
 | `check-screens` | S1 2 · S2 0 · S3 31 · S4 0 · S5 30 · S6 0 · **S7 0** (aturan baru) |
-| `vitest` | 23 berkas / **261** tes lolos (245 → 261, +16 tes mekanika pull) |
+| `vitest` | 23 berkas / **266** tes lolos (245 → 266: +21 tes `lib/pull-math` termasuk pengunci worklet) |
 | `expo export --platform web` | sukses |
+| `expo export --platform android` (bundle Metro + plugin worklet, tanpa Gradle) | sukses — di dalam `.hbc`: `__workletHash` × 4 (helper terdaftar sebagai worklet), `manualActivation`, `pan-y` |
+| `node .probe/babel-probe.cjs` (transformasi Babel repo, manual) | `lib/pull-math.ts`: 0 → 4 worklet setelah direktif; bukti W1 |
 | `npm run test:e2e` | TIDAK dijalankan — tidak ada browser di sandbox |
 | Perangkat keras/emulator | TIDAK dijalankan — Bagian F = daftar uji manual untuk QA |
 
@@ -196,9 +199,10 @@ lagi saat layar render.
 | Berkas | Isi |
 |---|---|
 | `components/ui/pull-to-refresh.tsx` | F1–F6. Blok "ATURAN EMAS" di kepala file menjelaskan kenapa komponen ini tidak boleh pernah menyentuh `scrollEnabled`. |
-| `lib/pull-math.ts` | **baru** — `isAtTop`, `decidePull`, `pullDistance`, `reachedThreshold` + konstanta ambang. Murni, tanpa React, bisa diuji di Node. |
+| `lib/pull-math.ts` | **baru** — `isAtTop`, `decidePull`, `pullDistance`, `reachedThreshold` + konstanta ambang. Murni, tanpa React, bisa diuji di Node; tiap fungsi dibuka dengan direktif `"worklet"` (lihat W1). |
 | `tests/pull-to-refresh.test.ts` | **baru** — 16 tes kontrak keputusan gesture. |
 | `scripts/check-screens.mjs` | Aturan **S7** (baseline kosong, tidak boleh ada pengecualian). |
+| `hotfix/pull-to-refresh-ota.patch` | **DIHAPUS** — patch OTA basi; Applied di atas kode baru, ia mengembalikan `scrollEnabled={!refreshing && !scrollLocked}` (F1+F5) persis seperti yang baru diperbaiki. Tidak ada satu pun berkas di repo yang merujuknya (`grep -rn hotfix` → 0), dan `scripts/check-ota.mjs` tidak menyentuh folder itu. |
 | `app/(tabs)/wallet.tsx` | Docblock menyatakan layar ini memakai `<PullToRefresh>` logo Kahade — padahal yang dirender `<PaginatedList>` (RefreshControl FlatList). Komentar dikoreksi + alasan desain ditulis supaya tidak "diperbaiki" jadi dua ScrollView bertingkat. |
 
 `components/ui/data-screen.tsx` sengaja tidak berubah: `enabled=` dan
@@ -300,6 +304,87 @@ negatif, dan `threshold=0` yang tidak boleh jadi tarik-bebas.
 4. **31 layar masih menyalin kerangka `Screen+Header+PullToRefresh`** (S3).
    Tidak terkait gejala ini; migrasi ke `<DataScreen>` justru memperkecil
    permukaan bug gesture karena `enabled`/`refreshing` dirakit di satu tempat.
+
+---
+
+## Bagian G — AUDIT BALIK (ronde 2): cacat yang ditemukan pada perbaikan saya sendiri
+
+Permintaan kedua: "cek ulang pull to refresh-nya". Audit-balik ini dijalankan
+pada hasil Bagian B, dengan asumsi paling buruk: **perbaikan saya yang
+menyisakan bug**. Ditemukan dua hal — salah satunya kritis dan TIDAK akan
+ketahuan oleh typecheck, lint, maupun 261 tes.
+
+### W1 (kritis): helper lintas modul tidak sah dipanggil dari worklet
+
+`lib/pull-math.ts` saya pindahkan keluar supaya teruji — tapi keempat fungsinya
+dipanggil dari dalam `Gesture.Pan().onTouchesMove/onUpdate`, yaitu **worklet**.
+Transformasi Babel repo (`babel-preset-expo` → plugin Reanimated) membuktikan
+masalahnya. Saya jalankan transformasi itu dan membaca keluarannya:
+
+```
+tanpa direktif  -> lib/pull-math.ts: __workletHash 0
+                   komponen:  __closure={decided:…, decidePull:decidePull, scrollOffset:…}
+dengan direktif -> lib/pull-math.ts: __workletHash 4
+```
+
+Artinya: tanpa direktif, `decidePull`/`isAtTop`/`pullDistance`/`reachedThreshold`
+hanya **ditangkap sebagai nilai closure** — fungsi JS biasa yang disodorkan ke
+runtime worklet. Itu bukan jalur yang dijamin Reanimated (jalur yang dijamin:
+fungsi pemanggil ikut dikompilasi sebagai worklet), dan kegagalan jalur ini
+bunyinya bukan galat saat build, melainkan error runtime di UI thread
+**pertama kali pengguna menarik layar** — tepat di kode yang baru saja saya
+klaim "sudah aman".
+
+**Perbaikan:** keempat fungsi diberi direktif `"worklet"` (tetap fungsi JS biasa
+saat diimpor Node, jadi 16 tes unit tidak berubah), plus komentar di kepala
+`lib/pull-math.ts` yang menjelaskan kenapa baris "string tanpa efek" itu tidak
+boleh dianggap sampah.
+
+### W2 (kosmetik, tetap diperbaiki): `enabled` bisa membatalkan indikator
+
+Effect penanda `enabled` saya (F5) men-settle `pull` ke 0. Kalau parent
+menyalakan `loading` *sekaligus* masih `refreshing` — bisa terjadi, mis.
+muat-awal menimpa penyegaran di layar dengan `enabled={refreshable && !loading}`
+(`components/ui/data-screen.tsx:148`) — logo hilang sebelum datanya tiba.
+Sekarang settle dilewati selama `refreshing` masih true.
+
+### Diperiksa di ronde 2 dan TIDAK diubah (dengan alasannya)
+
+1. **Dua basis pengukuran `anchor`.** `onTouchesMove` menghitung `dy` dari
+   `absoluteY` (koordinar layar), `onUpdate` dari `e.translationY` (koordinar
+   handler, titiknya bisa mulai dari touch-down ATAU dari aktivasi, bergantung
+   platform). Kelihatan seperti cacat, tapi cabang `if (dy <= 0) anchor = e.translationY`
+   mengkoreksi dalam satu event, dan arah koreksinya benar di kedua
+   interpretasi. Resiko mengubahnya lebih besar daripada manfaatnya: satu frame
+   hiccup tak terlihat vs mekanika yang sudah dipakai 48 layar.
+2. **Window trigger ganda setelah finalize.** Guard `isRefreshing.value || busy`
+   dibaca dari state render terakhir, jadi satu frame sesudah `onFinalize`
+   masih ada celah untuk pull kedua. Konsekuensinya hanya satu GET tambahan
+   yang lalu di-abort (`useApiQuery` latest-wins) — persis temuan
+   "PullToRefresh tanpa `enabled`" di REPORT-2026-09-08. Tidak layak
+   dibayar dengan state tambahan di UI thread.
+3. **`Animated.createAnimatedComponent(GHScrollView)`** (ScrollView RNGH
+   dibungkus Reanimated) tidak saya sentuh: memang itu syarat `Gesture.Native()`
+   bisa mewakili scroll di antrean RNGH. Ini tidak berubah dari versi yang sudah
+   berjalan di produksi.
+4. **Merge `style` + `className` pada komponen animated.** Kekhawatiran
+   `style={WEB_OVERSCROLL_CONTAIN}` saya ditimpa hasil `className="flex-1"`
+   dibantah `react-native-css-interop`: `resolveValue(…, getTarget(props, config), …)`
+   memakai style inline sebagai BASIS (`native-interop.js:545-558`) dan
+   `assignToTarget` default-nya `arrayMergeStyle:"push"` (`shared.js:41-69`) →
+   keduanya hidup.
+5. **`touch-action: pan-y` vs mouse.** `touch-action` hanya membatasi perangkat
+   sentuh/pen; drag mouse untuk refresh di desktop tetap utuh.
+
+### Uji-mati-tes (meta)
+
+Tes pengunci W1 awalnya LEMAH: regex saya `[\s\S]*?` bisa melompat ke fungsi
+berikutnya yang masih punya direktif, sehingga tes tetap hijau setelah direktif
+dihapus. Saya buktikan dengan menghapus direktif `isAtTop` → seharusnya gagal,
+ternyata lolos → regex dipersempit ke badan fungsi saja → lalu uji mati
+berhasil (1 failed). Kalau sebuah tes tidak bisa gagal, tes itu tidak menjaga
+apa pun.
+
 
 ## Bagian F — Uji manual di perangkat (belum dilakukan di sandbox)
 

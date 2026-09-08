@@ -236,6 +236,11 @@ export function PullToRefresh({
    * datang untuk handler yang baru saja dinonaktifkan, jadi konten bisa
    * tertinggal tergeser — dan konten yang tergeser membuat baris paling bawah
    * tidak pernah sampai ke layar. Settle + reset eksplisit di sini.
+   *
+   * BILA refresh masih berjalan, JANGAN settle: indikatornya sengaja
+   * ditahan di ambang selama `refreshing`, dan parent boleh flipping
+   * `enabled` (mis. muat-awal menimpa refresh) di tengah jalan — men-settle
+   * di saat itu akan mematikan logo sebelum datanya tiba.
    */
   useEffect(() => {
     if (enabled) return
@@ -243,8 +248,8 @@ export function PullToRefresh({
     reached.value = false
     decided.value = false
     anchor.value = 0
-    if (pull.value !== 0) pull.value = withSpring(0, tokens.motion.spring)
-  }, [anchor, decided, enabled, pull, pulling, reached])
+    if (!refreshing && pull.value !== 0) pull.value = withSpring(0, tokens.motion.spring)
+  }, [anchor, decided, enabled, pull, pulling, reached, refreshing])
 
   const startRefresh = useCallback(async () => {
     // Debounce spam pull (audit #051): dua sumber diperiksa karena dua hal yang
