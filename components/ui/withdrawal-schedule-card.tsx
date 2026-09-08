@@ -195,7 +195,7 @@ export function WithdrawalScheduleCard({
       {onEdit || onDelete ? (
         <View className="flex-row gap-2">
           {onEdit ? (
-            <Button variant="secondary" size="sm" leftIcon={PencilSimple} onPress={onEdit} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <Button variant="secondary" size="sm" leftIcon={PencilSimple} onPress={onEdit} className="flex-1">
               {t.edit}
             </Button>
           ) : null}

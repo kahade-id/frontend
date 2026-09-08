@@ -25,6 +25,7 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  *     selesai) — tidak ada alasan mengirim bukti lagi.
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
+import { useApiQuery } from "@/lib/use-api-query"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -81,11 +82,31 @@ export default function DeliveryProofScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [order, setOrder] = useState<Order | null>(null)
-  const [proofs, setProofs] = useState<DeliveryProof[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchAll()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
+   * mengganti pesanan + bukti pengiriman dengan kerangka. Request juga tidak
+   * dibatalkan saat layar ditutup.
+   *
+   * `enabled: Boolean(orderId)` menggantikan guard `if (!orderId) return` yang
+   * dulu membuat `loading` tetap true selamanya bila param kosong.
+   */
+  const query = useApiQuery<{ order: Order | null; proofs: DeliveryProof[] }>(
+    `delivery-proof:${orderId}`,
+    async (signal) => {
+      const id = orderId as string
+      const [o, ps] = await Promise.all([
+        api.orders.getOrder(id, signal),
+        api.orders.listDeliveryProofs(id, signal),
+      ])
+      return { order: o ?? null, proofs: ps ?? [] }
+    },
+    Boolean(orderId),
+  )
+  const order = query.data?.order ?? null
+  const proofs = query.data?.proofs ?? []
+  const { loading, error, refreshing } = query
   const [confirming, setConfirming] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rejecting, setRejecting] = useState(false)
@@ -108,34 +129,17 @@ export default function DeliveryProofScreen() {
   const sellerName = order ? orderPartyName(order.seller) : undefined
   const attachments = useMemo(() => (latest ? toAttachments(latest) : []), [latest])
 
-  const fetchAll = useCallback(async () => {
-    if (!orderId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const [o, ps] = await Promise.all([
-        api.orders.getOrder(orderId),
-        api.orders.listDeliveryProofs(orderId),
-      ])
-      setOrder(o ?? null)
-      setProofs(ps ?? [])
-      setForm((f) => ({ ...f, trackingNumber: f.trackingNumber || (o?.trackingNumber ?? "") }))
-    } catch (err) {
-      setError(isApiError(err) ? userMessage(err) : "Gagal memuat bukti pengiriman.")
-    } finally {
-      setLoading(false)
-    }
-  }, [orderId])
-
+  /**
+   * Pra-isi nomor resi yang dulu dilakukan DI DALAM fetcher. Dipindah ke effect
+   * karena ini efek samping pada state form (UI), bukan bagian data server.
+   * Semantik dipertahankan persis: hanya mengisi bila input masih kosong
+   * (`f.trackingNumber || …`), jadi resi yang sedang diketik user tidak
+   * tertimpa saat penyegaran.
+   */
   useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+    if (!order) return
+    setForm((f) => ({ ...f, trackingNumber: f.trackingNumber || (order.trackingNumber ?? "") }))
+  }, [order])
 
   const handleConfirm = useCallback(async () => {
     if (!latest || !orderId) return
@@ -144,7 +148,7 @@ export default function DeliveryProofScreen() {
       await api.orders.confirmDelivery(orderId, { proofId: latest.id })
       toast.show({ title: "Penerimaan dikonfirmasi", tone: "success", duration: 3000 })
       setConfirmOpen(false)
-      await fetchAll()
+      await query.refresh()
     } catch (err) {
       toast.show({
         title: "Gagal mengonfirmasi penerimaan",
@@ -154,7 +158,7 @@ export default function DeliveryProofScreen() {
     } finally {
       setConfirming(false)
     }
-  }, [latest, orderId, toast.show, fetchAll])
+  }, [latest, orderId, toast.show, query])
 
   const handleReject = useCallback(
     async (note: string) => {
@@ -163,7 +167,7 @@ export default function DeliveryProofScreen() {
       try {
         await api.orders.rejectDelivery(orderId, { note, proofId: latest.id })
         toast.show({ title: "Bukti ditolak, sengketa dibuka", tone: "danger", duration: 3000 })
-        await fetchAll()
+        await query.refresh()
       } catch (err) {
         toast.show({
           title: "Gagal menolak bukti",
@@ -174,7 +178,7 @@ export default function DeliveryProofScreen() {
         setRejecting(false)
       }
     },
-    [latest, orderId, toast.show, fetchAll],
+    [latest, orderId, toast.show, query],
   )
 
   const handleAddEvidence = useCallback(async () => {
@@ -255,7 +259,7 @@ export default function DeliveryProofScreen() {
           tone: "success",
           duration: 4000,
         })
-        await fetchAll()
+        await query.refresh()
       } catch (err) {
         toast.show({
           title: "Gagal mengirim bukti",
@@ -266,7 +270,7 @@ export default function DeliveryProofScreen() {
         setSubmitting(false)
       }
     },
-    [orderId, uploads, order?.trackingNumber, toast.show, fetchAll],
+    [orderId, uploads, order?.trackingNumber, toast.show, query],
   )
 
   const openAttachment = useCallback(
@@ -290,7 +294,7 @@ export default function DeliveryProofScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Bukti Pengiriman" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -300,7 +304,7 @@ export default function DeliveryProofScreen() {
         {loading && !order ? (
           <DetailLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             {showSellerForm ? (

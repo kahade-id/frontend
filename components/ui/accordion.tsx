@@ -30,6 +30,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -151,8 +152,8 @@ export function AccordionItem({
         scaleOnPress={false}
         disabled={disabled}
         onPress={() => ctx.toggle(value)}
-        containerClassName="w-full"
-        className="min-h-14 w-full flex-row items-center gap-3 px-4 py-3 tabular-nums focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        containerClassName={cn("w-full", focusRingInset)}
+        className="min-h-14 w-full flex-row items-center gap-3 px-4 py-3 tabular-nums"
       >
         {icon ? <Icon icon={icon} size="md" active={open} /> : null}
         <View className="flex-1 gap-[2px]">

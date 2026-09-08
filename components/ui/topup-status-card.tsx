@@ -278,7 +278,7 @@ export function TopupStatusCard({
           ) : null}
 
           {expiresAt != null ? (
-            <View className="flex-row items-center justify-between focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <View className="flex-row items-center justify-between">
               <Text variant="caption" tone="secondary">
                 {t.payBefore}
               </Text>

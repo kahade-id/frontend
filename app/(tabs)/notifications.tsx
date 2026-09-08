@@ -25,7 +25,7 @@ import { useToast } from "@/components/ui/toast"
  * Kategori UI komponen (ikon) dipetakan dari kategori API di `UI_CATEGORY`.
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { ScrollView, StyleSheet, View } from "react-native"
+import { View } from "react-native"
 import { router } from "expo-router"
 import {
   Bell,
@@ -47,6 +47,7 @@ import { refreshUnreadCount, setUnreadCount } from "@/lib/unread-count"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Chip } from "@/components/ui/chip"
+import { ScrollRow } from "@/components/ui/scroll-row"
 import { Dialog } from "@/components/ui/modal"
 import { IconButton } from "@/components/ui/icon-button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -407,12 +408,11 @@ export default function NotificationsScreen() {
         />
       )}
 
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
-        style={styles.filterScroll}
-      >
+      {/* ScrollRow (§9.20): baris chip filter yang bisa digeser. Mengganti
+          <ScrollView horizontal> tulisan tangan — sama secara visual
+          (gap 8, px 24, grow-0) plus keyboardShouldPersistTaps="handled"
+          supaya chip tetap bisa ditekan saat keyboard terbuka. */}
+      <ScrollRow contentContainerClassName="py-2">
         <Chip
           selected={readFilter === "UNREAD"}
           onPress={() => setReadFilter((v) => (v === "UNREAD" ? "ALL" : "UNREAD"))}
@@ -424,7 +424,7 @@ export default function NotificationsScreen() {
             {f.label}
           </Chip>
         ))}
-      </ScrollView>
+      </ScrollRow>
 
       <PaginatedList
         {...query}
@@ -517,15 +517,3 @@ export default function NotificationsScreen() {
     </Screen>
   )
 }
-
-const styles = StyleSheet.create({
-  filterScroll: {
-    flexGrow: 0,
-  },
-  filterRow: {
-    flexDirection: "row",
-    gap: tokens.space[2],
-    paddingHorizontal: tokens.layout.screenPaddingX,
-    paddingVertical: tokens.space[2],
-  },
-})

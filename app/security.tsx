@@ -20,7 +20,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Tab "Keluar dari perangkat lain" memakai Dialog konfirmasi: mencabut
  *     semua sesi lain berdampak ke perangkat yang tidak terlihat di layar.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
@@ -29,6 +29,8 @@ import { api, userMessage } from "@/lib/api"
 import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/api/sessions"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import type { Page } from "@/lib/api/response"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { ActivityLogItem } from "@/components/ui/activity-log-item"
 import { Button } from "@/components/ui/button"
@@ -37,7 +39,7 @@ import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
+import { LoadMore } from "@/components/ui/load-more"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -55,25 +57,22 @@ const TABS = [
 
 const PAGE_SIZE = 20
 
-/** State satu daftar terpaginasi (page berikutnya + status footer). */
-type PagedList<T> = { items: T[]; page: number; more: LoadMoreStatus }
-
-function emptyList<T>(): PagedList<T> {
-  return { items: [], page: 1, more: "idle" }
-}
-
-/** Halaman < PAGE_SIZE berarti sudah habis (API list tanpa meta). */
-function appendPage<T extends { id: string }>(
-  prev: PagedList<T>,
-  page: number,
-  data: T[],
-): PagedList<T> {
-  const seen = new Set(page === 1 ? [] : prev.items.map((i) => i.id))
-  const fresh = data.filter((i) => !seen.has(i.id))
+/**
+ * Ketiga endpoint daftar di layar ini mengembalikan ARRAY POLOS tanpa `meta`
+ * — itulah sebabnya kode lama menulis "API list tanpa meta".
+ * `usePaginatedQuery` menghitung `page < meta.totalPages`, dan tanpa
+ * `totalPages` perbandingan itu `page < undefined` = false sehingga tombol
+ * muat-lanjut lenyap tanpa pesan. Aturan lama ("halaman < PAGE_SIZE berarti
+ * sudah habis") direplikasi di sini sebagai `totalPages` sintetis.
+ */
+function listPage<T extends { id: string }>(rows: T[], page: number): Page<T> {
   return {
-    items: page === 1 ? data : [...prev.items, ...fresh],
-    page,
-    more: data.length < PAGE_SIZE ? "end" : "idle",
+    data: rows,
+    meta: {
+      page,
+      limit: PAGE_SIZE,
+      totalPages: rows.length >= PAGE_SIZE ? page + 1 : page,
+    },
   }
 }
 
@@ -82,12 +81,50 @@ export default function SecurityScreen() {
   const toast = useToast()
 
   const [tab, setTab] = useState<TabKey>("devices")
-  const [sessions, setSessions] = useState<PagedList<DeviceSession>>(emptyList)
-  const [securityLog, setSecurityLog] = useState<PagedList<SecurityLogEntry>>(emptyList)
-  const [activityLog, setActivityLog] = useState<PagedList<ActivityLogEntry>>(emptyList)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+
+  /**
+   * Audit — layar ini merakit tiga paginator manual sekaligus (PagedList +
+   * appendPage + loadSessions/loadSecurity/loadActivity). Diganti tiga
+   * `usePaginatedQuery`, satu per daftar. Cacat terbukti dari kode lama:
+   *
+   *   1. BLANKING. `handleRefresh` memanggil `fetchAll()` yang sama dengan
+   *      muat-awal, dan fungsi itu membuka dengan `setLoading(true)` —
+   *      tarik-untuk-menyegarkan mengganti ketiga daftar dengan kerangka.
+   *   2. TIDAK ADA GUARD STALE-RESPONSE. Layar ini tidak punya satu pun
+   *      `useRef`/`AbortController`, dan `<PullToRefresh>` di sini tidak
+   *      memasang `enabled`, jadi menarik saat muat-awal masih berjalan
+   *      mengirim `fetchAll()` kedua. `finally` milik request pertama lalu
+   *      menjalankan `setLoading(false)` sementara request kedua masih
+   *      berjalan — kerangka hilang di tengah muat.
+   *   3. ERROR SESI MEMBLOKIR TAB LAIN. Cabang `error` lama diperiksa
+   *      SEBELUM percabangan tab, padahal hanya `loadSessions` yang mengisi
+   *      `error` (kedua log di-`.catch()` karena "sekunder"). Akibatnya satu
+   *      kegagalan `/v1/sessions` menyembunyikan log keamanan DAN log
+   *      aktivitas yang berhasil dimuat. Kini tiap tab punya error sendiri.
+   *   4. `loadMore` tidak single-flight: dua tap cepat = dua request.
+   *
+   * Ketiga daftar tetap dimuat saat mount, persis seperti `Promise.all` lama.
+   */
+  const sessionsQuery = usePaginatedQuery<DeviceSession>(
+    "security-sessions",
+    async (page, signal) =>
+      listPage((await api.sessions.listSessions({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
+  )
+  const securityQuery = usePaginatedQuery<SecurityLogEntry>(
+    "security-log",
+    async (page, signal) =>
+      listPage((await api.sessions.getSecurityLog({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
+  )
+  const activityQuery = usePaginatedQuery<ActivityLogEntry>(
+    "activity-log",
+    async (page, signal) =>
+      listPage((await api.sessions.getActivityLog({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
+  )
+  const sessions = sessionsQuery.data
+  const securityLog = securityQuery.data
+  const activityLog = activityQuery.data
+  const refreshing =
+    sessionsQuery.refreshing || securityQuery.refreshing || activityQuery.refreshing
 
   const [revokingId, setRevokingId] = useState<string | null>(null)
   const [confirmRevoke, setConfirmRevoke] = useState<DeviceSession | null>(null)
@@ -95,73 +132,21 @@ export default function SecurityScreen() {
   const [revokingOthers, setRevokingOthers] = useState(false)
   const [trustingId, setTrustingId] = useState<string | null>(null)
 
-  const loadSessions = useCallback(async (page: number) => {
-    setSessions((p) => (page > 1 ? { ...p, more: "loading" } : p))
-    try {
-      const data = (await api.sessions.listSessions({ page, limit: PAGE_SIZE })) ?? []
-      setSessions((p) => appendPage(p, page, data))
-    } catch (err) {
-      setSessions((p) => ({ ...p, more: "error" }))
-      throw err
-    }
-  }, [])
-
-  const loadSecurity = useCallback(async (page: number) => {
-    setSecurityLog((p) => (page > 1 ? { ...p, more: "loading" } : p))
-    try {
-      const data = (await api.sessions.getSecurityLog({ page, limit: PAGE_SIZE })) ?? []
-      setSecurityLog((p) => appendPage(p, page, data))
-    } catch (err) {
-      setSecurityLog((p) => ({ ...p, more: "error" }))
-      throw err
-    }
-  }, [])
-
-  const loadActivity = useCallback(async (page: number) => {
-    setActivityLog((p) => (page > 1 ? { ...p, more: "loading" } : p))
-    try {
-      const data = (await api.sessions.getActivityLog({ page, limit: PAGE_SIZE })) ?? []
-      setActivityLog((p) => appendPage(p, page, data))
-    } catch (err) {
-      setActivityLog((p) => ({ ...p, more: "error" }))
-      throw err
-    }
-  }, [])
-
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      // Sesi wajib berhasil; log bersifat sekunder (gagal → daftar kosong,
-      // pengguna masih bisa mengelola perangkat).
-      await Promise.all([
-        loadSessions(1),
-        loadSecurity(1).catch(() => undefined),
-        loadActivity(1).catch(() => undefined),
-      ])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [loadSessions, loadSecurity, loadActivity])
-
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
+  /** Tarik-untuk-menyegarkan memuat ulang KETIGA daftar, seperti Promise.all lama. */
   const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+    await Promise.all([
+      sessionsQuery.refresh(),
+      securityQuery.refresh(),
+      activityQuery.refresh(),
+    ])
+  }, [sessionsQuery, securityQuery, activityQuery])
 
   const handleRevoke = useCallback(async () => {
     if (!confirmRevoke) return
     setRevokingId(confirmRevoke.id)
     try {
       await api.sessions.deleteSession(confirmRevoke.id)
-      setSessions((p) => ({ ...p, items: p.items.filter((s) => s.id !== confirmRevoke.id) }))
+      sessionsQuery.setData((prev) => prev.filter((s) => s.id !== confirmRevoke.id))
       toast.show({ title: "Sesi dicabut", tone: "success" })
       setConfirmRevoke(null)
     } catch (err: unknown) {
@@ -169,14 +154,14 @@ export default function SecurityScreen() {
     } finally {
       setRevokingId(null)
     }
-  }, [confirmRevoke, toast.show])
+  }, [confirmRevoke, sessionsQuery, toast.show])
 
   const handleLogoutOthers = useCallback(async () => {
     setRevokingOthers(true)
     try {
       await api.sessions.deleteOtherSessions()
       setConfirmOthers(false)
-      await loadSessions(1).catch(() => undefined)
+      await sessionsQuery.refresh()
       toast.show({ title: "Semua perangkat lain dicabut", tone: "success" })
     } catch (err: unknown) {
       toast.show({
@@ -187,7 +172,7 @@ export default function SecurityScreen() {
     } finally {
       setRevokingOthers(false)
     }
-  }, [loadSessions, toast.show])
+  }, [sessionsQuery, toast.show])
 
   const handleToggleTrust = useCallback(
     async (session: DeviceSession, next: boolean) => {
@@ -195,10 +180,9 @@ export default function SecurityScreen() {
       try {
         if (next) await api.sessions.trustDevice(session.id)
         else await api.sessions.untrustDevice(session.id)
-        setSessions((p) => ({
-          ...p,
-          items: p.items.map((s) => (s.id === session.id ? { ...s, trusted: next } : s)),
-        }))
+        sessionsQuery.setData((prev) =>
+          prev.map((s) => (s.id === session.id ? { ...s, trusted: next } : s)),
+        )
         toast.show({
           title: next ? "Perangkat ditandai tepercaya" : "Kepercayaan perangkat dicabut",
           description: next ? "Login dari perangkat ini tidak lagi meminta kode 2FA." : undefined,
@@ -217,7 +201,16 @@ export default function SecurityScreen() {
     [toast.show],
   )
 
-  const otherSessions = sessions.items.filter((s) => !s.current).length
+  /**
+   * `error`/`loading` milik TAB AKTIF saja. Sebelumnya keduanya berasal dari
+   * `Promise.all` ketiga daftar, sehingga satu kegagalan `/v1/sessions`
+   * menyembunyikan log keamanan dan log aktivitas yang berhasil dimuat.
+   */
+  const activeQuery =
+    tab === "devices" ? sessionsQuery : tab === "security" ? securityQuery : activityQuery
+  const { loading, error } = activeQuery
+
+  const otherSessions = sessions.filter((s) => !s.current).length
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -234,16 +227,16 @@ export default function SecurityScreen() {
           <SegmentedControl items={TABS} value={tab} onChange={(v) => setTab(v as TabKey)} />
 
           {error ? (
-            <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+            <ErrorState title="Gagal memuat" description={error} onRetry={() => void activeQuery.reload()} />
           ) : loading ? (
             <ListLoading />
           ) : tab === "devices" ? (
             <>
               <SectionHeader title="Perangkat aktif" />
-              {sessions.items.length === 0 ? (
+              {sessions.length === 0 ? (
                 <EmptyState icon={DeviceMobile} title="Tidak ada sesi aktif" />
               ) : (
-                sessions.items.map((s, i) => (
+                sessions.map((s, i) => (
                   <DeviceSessionListItem
                     key={s.id}
                     deviceName={s.deviceName}
@@ -260,13 +253,22 @@ export default function SecurityScreen() {
                     togglingTrust={trustingId === s.id}
                     onRevoke={s.current ? undefined : () => setConfirmRevoke(s)}
                     revoking={revokingId === s.id}
-                    divider={i < sessions.items.length - 1}
+                    divider={i < sessions.length - 1}
                   />
                 ))
               )}
               <LoadMore
-                status={sessions.more}
-                onLoadMore={() => void loadSessions(sessions.page + 1).catch(() => undefined)}
+                status={
+                  sessionsQuery.loadingMore
+                    ? "loading"
+                    : sessionsQuery.loadMoreError
+                      ? "error"
+                      : sessionsQuery.hasMore
+                        ? "idle"
+                        : "end"
+                }
+                errorLabel={sessionsQuery.loadMoreError ?? undefined}
+                onLoadMore={() => void sessionsQuery.loadMore()}
                 hideEnd
               />
               <Button
@@ -280,44 +282,62 @@ export default function SecurityScreen() {
           ) : tab === "security" ? (
             <>
               <SectionHeader title="Log keamanan" />
-              {securityLog.items.length === 0 ? (
+              {securityLog.length === 0 ? (
                 <EmptyState icon={ShieldWarning} title="Belum ada aktivitas keamanan" />
               ) : (
-                securityLog.items.map((l, i) => (
+                securityLog.map((l, i) => (
                   <SecurityLogItem
                     key={l.id}
                     title={l.action}
                     ip={l.ip}
                     timestamp={formatDateTime(l.createdAt)}
-                    divider={i < securityLog.items.length - 1}
+                    divider={i < securityLog.length - 1}
                   />
                 ))
               )}
               <LoadMore
-                status={securityLog.more}
-                onLoadMore={() => void loadSecurity(securityLog.page + 1).catch(() => undefined)}
+                status={
+                  securityQuery.loadingMore
+                    ? "loading"
+                    : securityQuery.loadMoreError
+                      ? "error"
+                      : securityQuery.hasMore
+                        ? "idle"
+                        : "end"
+                }
+                errorLabel={securityQuery.loadMoreError ?? undefined}
+                onLoadMore={() => void securityQuery.loadMore()}
                 hideEnd
               />
             </>
           ) : (
             <>
               <SectionHeader title="Log aktivitas" />
-              {activityLog.items.length === 0 ? (
+              {activityLog.length === 0 ? (
                 <EmptyState icon={ChartLine} title="Belum ada aktivitas" />
               ) : (
-                activityLog.items.map((l, i) => (
+                activityLog.map((l, i) => (
                   <ActivityLogItem
                     key={l.id}
                     title={l.action}
                     description={l.description}
                     timestamp={formatDateTime(l.createdAt)}
-                    divider={i < activityLog.items.length - 1}
+                    divider={i < activityLog.length - 1}
                   />
                 ))
               )}
               <LoadMore
-                status={activityLog.more}
-                onLoadMore={() => void loadActivity(activityLog.page + 1).catch(() => undefined)}
+                status={
+                  activityQuery.loadingMore
+                    ? "loading"
+                    : activityQuery.loadMoreError
+                      ? "error"
+                      : activityQuery.hasMore
+                        ? "idle"
+                        : "end"
+                }
+                errorLabel={activityQuery.loadMoreError ?? undefined}
+                onLoadMore={() => void activityQuery.loadMore()}
                 hideEnd
               />
             </>

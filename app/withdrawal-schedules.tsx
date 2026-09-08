@@ -3,7 +3,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * Screen — Jadwal Penarikan Otomatis (GET/POST/PUT/DELETE /v1/withdrawals/schedules).
  * Memakai WithdrawalScheduleCard + ScheduleField (hari + nominal minimum).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Plus } from "phosphor-react-native"
@@ -12,6 +12,7 @@ import { api, type CreateScheduleDto, type UpdateScheduleDto, userMessage } from
 import { AMOUNT_LIMITS, AMOUNT_PRESETS } from "@/lib/financial"
 import type { WithdrawalSchedule } from "@/lib/api/withdrawals"
 import { formatRupiah } from "@/lib/format"
+import { useApiQuery } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
@@ -30,10 +31,20 @@ export default function WithdrawalSchedulesScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [items, setItems] = useState<WithdrawalSchedule[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchAll()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
+   * mengganti daftar jadwal dengan kerangka. Request juga tidak dibatalkan
+   * saat layar ditutup. `useApiQuery` memisahkan `refreshing` dari `loading`
+   * dan meneruskan AbortSignal ke adapter.
+   */
+  const query = useApiQuery<WithdrawalSchedule[]>(
+    "withdrawal-schedules",
+    async (signal) => (await api.withdrawals.listWithdrawalSchedules(signal)) ?? [],
+  )
+  const items = query.data ?? []
+  const { loading, error, refreshing } = query
 
   const [editing, setEditing] = useState<WithdrawalSchedule | null>(null)
   const [creating, setCreating] = useState(false)
@@ -43,28 +54,7 @@ export default function WithdrawalSchedulesScreen() {
   const [deleting, setDeleting] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const list = await api.withdrawals.listWithdrawalSchedules()
-      setItems(list ?? [])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
 
   const openCreate = useCallback(() => {
     setEditing(null)
@@ -112,7 +102,7 @@ export default function WithdrawalSchedulesScreen() {
       toast.show({ title: "Jadwal disimpan", tone: "success", duration: 3000 })
       setCreating(false)
       setEditing(null)
-      await fetchAll()
+      await query.refresh()
     } catch (err) {
       toast.show({
         title: "Gagal menyimpan jadwal",
@@ -122,14 +112,18 @@ export default function WithdrawalSchedulesScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [editing, schedule, toast.show, fetchAll])
+  }, [editing, schedule, toast.show, query])
 
   const handleToggle = useCallback(
     async (item: WithdrawalSchedule, next: boolean) => {
       setTogglingId(item.id)
       try {
         await api.withdrawals.updateWithdrawalSchedule(item.id, { isActive: next })
-        setItems((prev) => prev.map((x) => (x.id === item.id ? { ...x, isActive: next } : x)))
+        // Optimistic update lewat `setData` milik useApiQuery — sama seperti
+        // `setItems` sebelumnya, hanya sumber datanya kini milik hook.
+        query.setData((prev) =>
+          (prev ?? []).map((x) => (x.id === item.id ? { ...x, isActive: next } : x)),
+        )
       } catch (err: unknown) {
         toast.show({
           title: "Gagal memperbarui jadwal",
@@ -150,19 +144,19 @@ export default function WithdrawalSchedulesScreen() {
       await api.withdrawals.deleteWithdrawalSchedule(deleteTarget.id)
       toast.show({ title: "Jadwal dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
-      await fetchAll()
+      await query.refresh()
     } catch (err: unknown) {
       toast.show({ title: "Gagal menghapus jadwal", description: userMessage(err), tone: "danger" })
     } finally {
       setDeleting(false)
     }
-  }, [deleteTarget, toast.show, fetchAll])
+  }, [deleteTarget, toast.show, query])
 
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Jadwal Penarikan" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -172,7 +166,7 @@ export default function WithdrawalSchedulesScreen() {
         {loading ? (
           <ListLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : items.length === 0 && !creating ? (
           <EmptyState
             icon={Plus}

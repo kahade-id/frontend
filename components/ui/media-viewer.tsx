@@ -164,7 +164,7 @@ export function MediaViewer({ item, onClose, onOpenError, labels, actions }: Med
           </Text>
         ) : null}
 
-        {actions ? <View className="flex-row justify-end gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{actions}</View> : null}
+        {actions ? <View className="flex-row justify-end gap-2">{actions}</View> : null}
       </View>
     </Modal>
   )

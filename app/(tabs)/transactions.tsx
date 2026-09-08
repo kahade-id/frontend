@@ -113,7 +113,7 @@ export default function TransactionsScreen() {
               }}
               timestamp={formatDateTime(item.createdAt)}
               deadlineAt={item.deliveryDeadlineAt ? new Date(item.deliveryDeadlineAt) : undefined}
-              onPress={() => router.push(ROUTES.orderDetail(item.id))}
+              href={ROUTES.orderDetail(item.id)}
             />
           )
         }}

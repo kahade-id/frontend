@@ -10,7 +10,7 @@ import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { ApiError } from "@/lib/api/errors"
 import { safeHttpsUrl } from "@/lib/version"
 import { http, seg } from "@/lib/api/client"
-import type { ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
+import type { CleanupFilesDto, ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
 
 /** Hasil POST /v1/upload/presigned-url. */
 export type PresignedUpload = {
@@ -105,8 +105,21 @@ export function uploadDirect(formData: FormData) {
   return http.post<DirectUpload>("/v1/upload/direct", undefined, { formData, auth: "required" })
 }
 
+/**
+ * Audit kontrak: spec menandai requestBody `POST /v1/upload/cleanup` sebagai
+ * `required: true` dengan skema `CleanupFilesDto`, yang di spec berupa objek
+ * KOSONG (`{ "type": "object", "properties": {} }` → `Record<string, never>`).
+ * Versi lama mengirim `undefined`, sehingga tidak ada body sama sekali —
+ * backend yang memvalidasi `required` akan menolak dengan 400/415. Kirim
+ * objek kosong eksplisit agar sesuai kontrak.
+ *
+ * Catatan jujur: fungsi ini saat ini TIDAK punya pemanggil (dead export), jadi
+ * cacatnya belum pernah tercapai pengguna. Diperbaiki sekarang supaya tidak
+ * menjadi jebakan saat nanti dipasang.
+ */
 export function cleanupUploads() {
-  return http.post<void>("/v1/upload/cleanup", undefined, { auth: "required" })
+  const dto: CleanupFilesDto = {}
+  return http.post<void, CleanupFilesDto>("/v1/upload/cleanup", dto, { auth: "required" })
 }
 
 /**

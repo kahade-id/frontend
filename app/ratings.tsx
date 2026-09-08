@@ -24,7 +24,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Hapus balasan lewat <Dialog destructive>, bukan langsung — balasan
  *     publik, tidak bisa dibatalkan.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { PencilSimple, Star } from "phosphor-react-native"
@@ -32,6 +32,8 @@ import { PencilSimple, Star } from "phosphor-react-native"
 import { api, userMessage } from "@/lib/api"
 import { readMyRatings, type Rating } from "@/lib/api/ratings"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -65,14 +67,53 @@ export default function RatingsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [me, setMe] = useState<{ id?: string; username?: string } | null>(null)
-  const [items, setItems] = useState<Rating[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit — layar ini merakit paginator sendiri (items/page/hasMore/
+   * loadingMore + fetchPage). Diganti `usePaginatedQuery` karena tiga cacat
+   * terbukti dari kode lama:
+   *   1. `handleRefresh` → `fetchRatings()` → `setLoading(true)`: tarik-untuk-
+   *      menyegarkan mengganti daftar ulasan dengan kerangka.
+   *   2. `setItems(prev => [...prev, ...data])` MENAMBAH tanpa dedupe — bila
+   *      backend mengembalikan halaman yang tumpang tindih, kartu muncul dua
+   *      kali. `mergeById` di hook menangani ini.
+   *   3. `loadMore` tidak single-flight: dua tap cepat mengirim dua request.
+   *
+   * `me` dipisah jadi query sendiri karena bukan bagian dari halaman ulasan;
+   * query lama juga hanya mengisinya sekali (`me ? Promise.resolve(me) : …`).
+   */
+  const meQuery = useApiQuery<{ id?: string; username?: string }>(
+    "ratings-me",
+    async (signal) => {
+      const me = await api.users.getMe(signal)
+      return { id: me.id ?? undefined, username: me.username ?? undefined }
+    },
+  )
+  const me = meQuery.data
+
+  /**
+   * PENTING — `readMyRatings` mengembalikan `totalPages?: number` dan bisa
+   * `undefined` di TIGA jalur: body berupa array polos, given/received dengan
+   * totalPages 0, atau `meta` hilang. Kode lama menutupi itu dengan fallback
+   * `data.length >= PAGE_SIZE`; `usePaginatedQuery` TIDAK punya fallback —
+   * `page < undefined` bernilai false sehingga `hasMore` akan permanen false
+   * dan tombol muat-lanjut lenyap tanpa pesan. Jadi fallback-nya direplikasi
+   * di sini sebagai `totalPages` sintetis: bila halaman penuh, klaim masih ada
+   * satu halaman lagi.
+   */
+  const query = usePaginatedQuery<Rating>("my-ratings", async (page, signal) => {
+    const body = await api.ratings.getMyRatings({ page, limit: PAGE_SIZE }, signal)
+    const { items: rows, totalPages } = readMyRatings(body)
+    return {
+      data: rows,
+      meta: {
+        page,
+        limit: PAGE_SIZE,
+        totalPages: totalPages ?? (rows.length >= PAGE_SIZE ? page + 1 : page),
+      },
+    }
+  })
+  const items = query.data
+  const { loading, error, refreshing, loadingMore, loadMoreError, hasMore } = query
   const [segment, setSegment] = useState<Segment>("RECEIVED")
 
   // Balasan (buat/ubah) + hapus
@@ -87,56 +128,11 @@ export default function RatingsScreen() {
   const [editValue, setEditValue] = useState<RatingFormValue>({ stars: 0, comment: "" })
   const [savingEdit, setSavingEdit] = useState(false)
 
-  const fetchPage = useCallback(async (p: number) => {
-    const body = await api.ratings.getMyRatings({ page: p, limit: PAGE_SIZE })
-    const { items: data, totalPages } = readMyRatings(body)
-    setItems((prev) => (p === 1 ? data : [...prev, ...data]))
-    setPage(p)
-    setHasMore(typeof totalPages === "number" ? p < totalPages : data.length >= PAGE_SIZE)
-  }, [])
 
-  const fetchRatings = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [, profile] = await Promise.all([
-        fetchPage(1),
-        me ? Promise.resolve(me) : api.users.getMe().catch(() => null),
-      ])
-      if (profile) setMe({ id: profile.id ?? undefined, username: profile.username ?? undefined })
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [fetchPage, me])
 
-  useEffect(() => {
-    void fetchRatings()
 
-  }, [])
 
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchRatings()
-    setRefreshing(false)
-  }, [fetchRatings])
 
-  const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return
-    setLoadingMore(true)
-    try {
-      await fetchPage(page + 1)
-    } catch (err: unknown) {
-      toast.show({
-        title: "Gagal memuat halaman berikutnya",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [loadingMore, hasMore, fetchPage, page, toast])
 
   /** Apakah ulasan ini SAYA yang menulis (→ segmen "Diberikan"). */
   const isGivenByMe = useCallback(
@@ -182,7 +178,7 @@ export default function RatingsScreen() {
       }
       setReplyEditor(null)
       setReplyText("")
-      await fetchPage(1)
+      await query.refresh()
     } catch (err) {
       toast.show({
         title: "Gagal menyimpan balasan",
@@ -192,7 +188,7 @@ export default function RatingsScreen() {
     } finally {
       setSending(false)
     }
-  }, [replyEditor, replyText, sending, toast, fetchPage])
+  }, [replyEditor, replyText, sending, toast, query])
 
   const handleDeleteReply = useCallback(async () => {
     if (!deleteReply || deleting) return
@@ -201,7 +197,7 @@ export default function RatingsScreen() {
       await api.ratings.deleteRatingReply(deleteReply.replyId)
       toast.show({ title: "Balasan dihapus", tone: "neutral", duration: 3000 })
       setDeleteReply(null)
-      await fetchPage(1)
+      await query.refresh()
     } catch (err) {
       toast.show({
         title: "Gagal menghapus balasan",
@@ -211,7 +207,7 @@ export default function RatingsScreen() {
     } finally {
       setDeleting(false)
     }
-  }, [deleteReply, deleting, toast, fetchPage])
+  }, [deleteReply, deleting, toast, query])
 
   // ── Ubah ulasan saya ───────────────────────────────────────────────
   const openEditRating = useCallback((rating: Rating) => {
@@ -230,7 +226,7 @@ export default function RatingsScreen() {
         })
         toast.show({ title: "Ulasan diperbarui", tone: "success", duration: 3000 })
         setEditRating(null)
-        await fetchPage(1)
+        await query.refresh()
       } catch (err) {
         toast.show({
           title: "Gagal memperbarui ulasan",
@@ -241,7 +237,7 @@ export default function RatingsScreen() {
         setSavingEdit(false)
       }
     },
-    [editRating, savingEdit, toast, fetchPage],
+    [editRating, savingEdit, toast, query],
   )
 
   const replyOf = (r: Rating): RatingReply | undefined =>
@@ -263,7 +259,7 @@ export default function RatingsScreen() {
         <SegmentedControl items={SEGMENTS} value={segment} onChange={setSegment} />
       </View>
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -276,7 +272,7 @@ export default function RatingsScreen() {
           <ErrorState
             title="Gagal memuat"
             description={error}
-            onRetry={() => void fetchRatings()}
+            onRetry={() => void query.reload()}
           />
         ) : visible.length === 0 ? (
           <EmptyState
@@ -336,9 +332,14 @@ export default function RatingsScreen() {
                 />
               )
             })}
+            {/* loadMoreError kini punya permukaan sendiri. Sebelumnya
+                kegagalan muat-lanjut hanya muncul sebagai toast yang
+                menghilang, lalu status kembali "idle" — pengguna tidak tahu
+                baris berikutnya gagal dan tidak ada cara mencoba lagi. */}
             <LoadMore
-              status={loadingMore ? "loading" : hasMore ? "idle" : "end"}
-              onLoadMore={() => void handleLoadMore()}
+              status={loadingMore ? "loading" : loadMoreError ? "error" : hasMore ? "idle" : "end"}
+              errorLabel={loadMoreError ?? undefined}
+              onLoadMore={() => void query.loadMore()}
               hideEnd
             />
           </View>

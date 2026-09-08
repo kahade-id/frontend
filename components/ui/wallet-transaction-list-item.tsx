@@ -109,6 +109,7 @@ export function WalletTransactionListItem({
   reference,
   labels,
   onPress,
+  href,
   inset = true,
   ...rest
 }: WalletTransactionListItemProps) {
@@ -163,8 +164,9 @@ export function WalletTransactionListItem({
           {failed ? <StatusIndicator label={t.failed} tone="danger" size="sm" /> : null}
         </View>
       }
-      chevron={!!onPress}
+      chevron={Boolean(onPress || href)}
       onPress={onPress}
+      href={href}
       inset={inset}
       accessibilityLabel={a11y}
       accessibilityHint={onPress ? "Buka detail mutasi" : undefined}

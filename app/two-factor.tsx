@@ -28,7 +28,7 @@
  *   - Setelah enable/disable, status di-REFETCH (bukan ditebak) supaya
  *     `backupCodesRemaining` selalu dari server.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -36,11 +36,13 @@ import { api, userMessage } from "@/lib/api"
 import type { TwoFactorSetup } from "@/lib/api/auth"
 import { useCopy } from "@/lib/clipboard"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { Alert } from "@/components/ui/alert"
 import { ErrorState } from "@/components/ui/error-state"
 import { BackupCodesDisplay } from "@/components/ui/backup-codes-display"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 import { CopyableField } from "@/components/ui/copyable-field"
 import { Dialog } from "@/components/ui/modal"
 import { Header } from "@/components/ui/header"
@@ -66,12 +68,36 @@ export default function TwoFactorScreen() {
   const toast = useToast()
   const { copiedKey, copy } = useCopy()
 
-  const [status, setStatus] = useState<{ enabled: boolean; backupCodesRemaining?: number } | null>(
-    null,
+  /**
+   * Audit — dua cacat terbukti dari kode lama:
+   *
+   *   1. ERROR BACKEND DITELAN. Blok catch-nya `} catch {` tanpa binding, lalu
+   *      `setLoadError("Gagal memuat status verifikasi dua langkah.")`. Jadi
+   *      apa pun penyebabnya — jaringan putus, 401, 500, timeout — pengguna
+   *      melihat kalimat yang sama dan tidak ada petunjuk. Setiap layar lain
+   *      memakai `userMessage(err)`. Catatan: celah ini lolos dari pemeriksa
+   *      S2 repo karena regex-nya hanya mencocokkan identifier persis
+   *      `setError("`, sedangkan setter di sini bernama `setLoadError`.
+   *
+   *   2. `handleRefresh` memanggil `fetchStatus()` yang sama dengan muat-awal,
+   *      dan fungsi itu membuka dengan `setLoading(true)`. Layar ini TIDAK
+   *      punya cabang skeleton — `loading` diteruskan sebagai prop ke
+   *      <TwoFactorStatusCard> (baris ~287) — jadi efeknya kartu berkedip ke
+   *      state loading dan menyembunyikan status 2FA yang sedang ditampilkan
+   *      setiap kali ditarik. Bukan blanking penuh, tapi tetap regresi.
+   *
+   * `useApiQuery` membereskan keduanya: error lewat `userMessage(err)`,
+   * `refreshing` terpisah dari `loading`, dan request dibatalkan lewat
+   * AbortSignal saat layar ditutup.
+   */
+  const query = useApiQuery<{ enabled: boolean; backupCodesRemaining?: number }>(
+    "two-factor-status",
+    (signal) => api.auth.get2faStatus(signal),
   )
-  const [loading, setLoading] = useState(true)
-  const [loadError, setLoadError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  const status = query.data
+  const loading = query.loading
+  const loadError = query.error
+  const refreshing = query.refreshing
 
   // ── Aktivasi ───────────────────────────────────────────────────────────
   const [step, setStep] = useState<Panel>("idle")
@@ -98,27 +124,7 @@ export default function TwoFactorScreen() {
   const [regenError, setRegenError] = useState<string | undefined>()
   const [regenerating, setRegenerating] = useState(false)
 
-  const fetchStatus = useCallback(async () => {
-    setLoading(true)
-    setLoadError(null)
-    try {
-      setStatus(await api.auth.get2faStatus())
-    } catch {
-      setLoadError("Gagal memuat status verifikasi dua langkah.")
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
-  useEffect(() => {
-    void fetchStatus()
-  }, [fetchStatus])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchStatus()
-    setRefreshing(false)
-  }, [fetchStatus])
 
   const resetEnableFlow = useCallback(() => {
     setStep("idle")
@@ -159,14 +165,14 @@ export default function TwoFactorScreen() {
         setCodes(res?.backupCodes ?? [])
         setStep("codes")
         toast.show({ title: "Verifikasi dua langkah aktif", tone: "success" })
-        await fetchStatus()
+        await query.refresh()
       } catch {
         setEnableError("Kode tidak valid. Pastikan jam perangkat akurat, lalu coba lagi.")
       } finally {
         setEnabling(false)
       }
     },
-    [enabling, fetchStatus, toast.show],
+    [enabling, query, toast.show],
   )
 
   const openDisable = useCallback(() => {
@@ -214,7 +220,7 @@ export default function TwoFactorScreen() {
       setCodes([])
       resetEnableFlow()
       toast.show({ title: "Verifikasi dua langkah dimatikan", tone: "success" })
-      await fetchStatus()
+      await query.refresh()
     } catch {
       setDisableError("Password, kode autentikator, atau OTP email tidak cocok.")
     } finally {
@@ -225,7 +231,7 @@ export default function TwoFactorScreen() {
     disablePassword,
     disableCode,
     disableEmailCode,
-    fetchStatus,
+    query,
     resetEnableFlow,
     toast.show,
   ])
@@ -249,13 +255,13 @@ export default function TwoFactorScreen() {
         description: "Kode lama tidak berlaku lagi. Simpan kode yang baru.",
         tone: "success",
       })
-      await fetchStatus()
+      await query.refresh()
     } catch {
       setRegenError("Password salah. Coba lagi.")
     } finally {
       setRegenerating(false)
     }
-  }, [regenPassword, fetchStatus, toast.show])
+  }, [regenPassword, query, toast.show])
 
   const enabled = status?.enabled ?? false
 
@@ -263,7 +269,7 @@ export default function TwoFactorScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Verifikasi Dua Langkah" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -275,7 +281,7 @@ export default function TwoFactorScreen() {
             <ErrorState
               title="Gagal memuat"
               description={loadError}
-              onRetry={() => void fetchStatus()}
+              onRetry={() => void query.reload()}
             />
           ) : null}
 
@@ -306,7 +312,10 @@ export default function TwoFactorScreen() {
                 returnKeyType="done"
                 onSubmitEditing={() => void handleSetup()}
               />
-              <View className="flex-row gap-3">
+              {/* equal={false}: tata letak dipertahankan apa adanya — "Batal"
+                  memeluk isi, tombol utama mengisi sisa baris. ButtonGroup
+                  default (equal) akan memaksa 50/50. */}
+              <ButtonGroup equal={false}>
                 <Button
                   variant="ghost"
                   fullWidth={false}
@@ -323,7 +332,7 @@ export default function TwoFactorScreen() {
                 >
                   Lanjut
                 </Button>
-              </View>
+              </ButtonGroup>
             </>
           ) : null}
 
@@ -444,7 +453,7 @@ export default function TwoFactorScreen() {
                   errorText={disableError}
                 />
               </View>
-              <View className="flex-row gap-3">
+              <ButtonGroup equal={false}>
                 <Button
                   variant="ghost"
                   fullWidth={false}
@@ -462,7 +471,7 @@ export default function TwoFactorScreen() {
                 >
                   Matikan
                 </Button>
-              </View>
+              </ButtonGroup>
             </>
           ) : null}
 

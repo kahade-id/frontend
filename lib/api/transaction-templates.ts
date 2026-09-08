@@ -21,9 +21,9 @@ export type TransactionTemplate = {
   lastUsedAt?: string | null
 }
 
-export function listTransactionTemplates() {
+export function listTransactionTemplates(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/transaction-templates", { auth: "required", retry: 1 })
+    .get<unknown>("/v1/transaction-templates", { auth: "required", retry: 1, signal })
     .then((raw) => readList<TransactionTemplate>(raw, ["templates"]))
 }
 

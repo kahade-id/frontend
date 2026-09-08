@@ -29,7 +29,14 @@ export type HelpArticleListItemProps = Omit<ListItemProps, "title" | "subtitle" 
   highlight?: string
 }
 
-export function HelpArticleListItem({ title, snippet, highlight, onPress, inset = true, titleLines = 2, ...rest }: HelpArticleListItemProps) {
+export function HelpArticleListItem({ title, snippet, highlight, onPress, href, inset = true, titleLines = 2, ...rest }: HelpArticleListItemProps) {
+  /**
+   * Baris artikel SELALU berpindah layar, jadi "interaktif" berarti punya
+   * `onPress` ATAU `href`. Tanpa ini, mengirim `href` saja (tanpa `onPress`)
+   * akan menghilangkan chevron dan accessibilityHint — baris tetap tautan
+   * tetapi tidak lagi terlihat bisa dibuka.
+   */
+  const interactive = Boolean(onPress || href)
   const subtitle = snippet ? <Highlight text={snippet} query={highlight} variant="caption" tone="secondary" ellipsizeMode="tail" numberOfLines={2} /> : undefined
 
   return (
@@ -37,12 +44,13 @@ export function HelpArticleListItem({ title, snippet, highlight, onPress, inset 
       title={title}
       subtitle={subtitle}
       leading={FileText}
-      chevron={!!onPress}
+      chevron={interactive}
       onPress={onPress}
+      href={href}
       inset={inset}
       titleLines={titleLines}
       accessibilityLabel={summarize([title, snippet])}
-      accessibilityHint={onPress ? "Buka artikel" : undefined}
+      accessibilityHint={interactive ? "Buka artikel" : undefined}
       {...rest}
     />
   )

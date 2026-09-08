@@ -53,6 +53,7 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -139,7 +140,7 @@ export function FloatingActionButton({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
-      containerClassName={cn("self-end", containerClassName)}
+      containerClassName={cn("self-end rounded-full", focusRing, containerClassName)}
       className={cn(
         "h-14 flex-row items-center justify-center gap-2 rounded-full border border-primary bg-primary",
         extended ? "px-5" : "w-14",
@@ -166,7 +167,7 @@ export function FloatingActionButton({
 
   return (
     <View
-      className="absolute z-sticky focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="absolute z-sticky"
       style={[{ pointerEvents: "box-none" }, { right: rightOffset, bottom: bottomInset + bottomOffset }]}
     >
       <Animated.View style={[{ pointerEvents: visible ? "auto" : "none" }, animatedStyle]}>

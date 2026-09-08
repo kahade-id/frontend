@@ -11,7 +11,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Tautan undangan dibentuk `referralUrl()` (lib/deeplinks) — tanpa
  *     literal skema di layar.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -32,6 +32,7 @@ import { ReferralHistoryListItem } from "@/components/ui/referral-history-list-i
 import { ReferralRewardListItem } from "@/components/ui/referral-reward"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
 import { useToast } from "@/components/ui/toast"
 
@@ -40,76 +41,68 @@ export default function ReferralScreen() {
   const toast = useToast()
   const { copied, copy } = useCopy()
 
-  const [code, setCode] = useState("")
-  const [stats, setStats] = useState<{
-    totalReferred: number
-    qualified: number
-    totalReward: number
-  } | null>(null)
-  const [history, setHistory] = useState<
-    Array<{
+  /**
+   * Audit: empat state data + loading/error/refreshing dirakit manual. Cacat
+   * terbukti dari kode lama: `handleRefresh` memanggil `fetchAll()` yang sama
+   * dengan muat-awal, dan fungsi itu membuka dengan `setLoading(true)` —
+   * tarik-untuk-menyegarkan mengganti kode referral, statistik, riwayat, dan
+   * rewards dengan kerangka sekaligus. Request juga tidak dibatalkan saat
+   * layar ditutup.
+   *
+   * Keempat request tetap satu query (Promise.all) karena selalu dibutuhkan
+   * bersamaan. Tiga di antaranya sudah punya `.catch()` fallback di kode lama
+   * dan itu DIPERTAHANKAN: kegagalan stats/history/rewards tidak boleh
+   * mematikan layar selama kode referral berhasil diambil.
+   */
+  const query = useApiQuery<{
+    code: string
+    stats: { totalReferred: number; qualified: number; totalReward: number } | null
+    history: Array<{
       id: string
       invitedUsername: string
       status: string
       reward?: number
       createdAt: string
     }>
-  >([])
-  const [rewards, setRewards] = useState<
-    Array<{ id: string; code: string; amount: number; status: string; createdAt: string }>
-  >([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+    rewards: Array<{ id: string; code: string; amount: number; status: string; createdAt: string }>
+  }>("referral", async (signal) => {
+    const [c, s, h, r] = await Promise.all([
+      api.referrals.getMyReferralCode(signal),
+      api.referrals.getReferralStats(signal).catch(() => null),
+      api.referrals.getReferralHistory(signal).catch(() => []),
+      api.referrals.getReferralRewards(signal).catch(() => []),
+    ])
+    return {
+      code: c?.code ?? "",
+      stats: s
+        ? {
+            totalReferred: s.totalInvited,
+            qualified: s.completed,
+            totalReward: s.totalReward,
+          }
+        : null,
+      history: h ?? [],
+      rewards: r ?? [],
+    }
+  })
+  const code = query.data?.code ?? ""
+  const stats = query.data?.stats ?? null
+  const history = query.data?.history ?? []
+  const rewards = query.data?.rewards ?? []
+  const { loading, error, refreshing } = query
   const [regenerating, setRegenerating] = useState(false)
   const [applyCode, setApplyCode] = useState("")
   const [applying, setApplying] = useState(false)
   const [applyError, setApplyError] = useState<string | undefined>()
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [c, s, h, r] = await Promise.all([
-        api.referrals.getMyReferralCode(),
-        api.referrals.getReferralStats().catch(() => null),
-        api.referrals.getReferralHistory().catch(() => []),
-        api.referrals.getReferralRewards().catch(() => []),
-      ])
-      setCode(c?.code ?? "")
-      setStats(
-        s
-          ? {
-              totalReferred: s.totalInvited,
-              qualified: s.completed,
-              totalReward: s.totalReward,
-            }
-          : null,
-      )
-      setHistory(h ?? [])
-      setRewards(r ?? [])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
 
   const handleRegenerate = useCallback(async () => {
     setRegenerating(true)
     try {
       const res = await api.referrals.regenerateReferralCode()
-      setCode(res?.code ?? code)
+      // Perbarui kode di dalam bundle milik useApiQuery (pengganti setCode).
+      query.setData((prev) => (prev ? { ...prev, code: res?.code ?? prev.code } : prev))
       toast.show({ title: "Kode referral baru dibuat", tone: "success", duration: 3000 })
     } catch (err: unknown) {
       toast.show({
@@ -148,7 +141,7 @@ export default function ReferralScreen() {
       await api.referrals.applyReferralCode({ code: value })
       setApplyCode("")
       toast.show({ title: "Kode referral diterapkan", tone: "success" })
-      await fetchAll()
+      await query.refresh()
     } catch (err) {
       setApplyError(
         isApiError(err) ? userMessage(err) : "Kode tidak valid atau sudah pernah dipakai.",
@@ -156,13 +149,13 @@ export default function ReferralScreen() {
     } finally {
       setApplying(false)
     }
-  }, [applyCode, fetchAll, toast.show])
+  }, [applyCode, query, toast.show])
 
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Referral" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -172,7 +165,7 @@ export default function ReferralScreen() {
         {loading ? (
           <ListLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <ReferralCodeCard

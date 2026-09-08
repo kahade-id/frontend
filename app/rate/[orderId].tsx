@@ -1,10 +1,9 @@
-import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Beri Ulasan (POST /v1/ratings, orderId wajib).
  * Memakai <RatingForm> sistem: bintang + komentar, dipicu dari Detail Order
  * saat status COMPLETED.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -13,7 +12,9 @@ import { api, userMessage } from "@/lib/api"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -26,36 +27,24 @@ export default function RateOrderScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [order, setOrder] = useState<Awaited<ReturnType<typeof api.orders.getOrder>> | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchOrder()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — jadi tarik-untuk-menyegarkan
+   * mengganti form ulasan dengan kerangka. Request juga tidak dibatalkan saat
+   * layar ditutup (AbortSignal sekarang diteruskan ke adapter).
+   */
+  const query = useApiQuery<Awaited<ReturnType<typeof api.orders.getOrder>>>(
+    `rate-order:${orderId}`,
+    (signal) => api.orders.getOrder(orderId as string, signal),
+    Boolean(orderId),
+  )
+  const order = query.data
+  const { loading, error, refreshing } = query
   const [value, setValue] = useState<RatingFormValue>({ stars: 0, comment: "" })
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchOrder = useCallback(async () => {
-    if (!orderId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.orders.getOrder(orderId)
-      setOrder(res)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [orderId])
 
-  useEffect(() => {
-    void fetchOrder()
-  }, [fetchOrder])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchOrder()
-    setRefreshing(false)
-  }, [fetchOrder])
 
   const handleSubmit = useCallback(
     async (v: RatingFormValue) => {
@@ -87,7 +76,7 @@ export default function RateOrderScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Beri Ulasan" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -100,7 +89,7 @@ export default function RateOrderScreen() {
           <ErrorState
             title="Gagal memuat"
             description={error ?? "Order tidak ditemukan."}
-            onRetry={() => void fetchOrder()}
+            onRetry={() => void query.reload()}
           />
         ) : (
           <View style={{ paddingTop: tokens.space[3] }}>

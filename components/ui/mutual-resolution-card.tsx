@@ -299,7 +299,7 @@ export function MutualResolutionCard({
             </View>
           ) : null}
           {onAccept ? (
-            <View className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <View className="flex-1">
               <Button variant="primary" onPress={onAccept} loading={accepting} disabled={busy && !accepting}>
                 {t.accept}
               </Button>

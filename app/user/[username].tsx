@@ -51,7 +51,8 @@ import { profileUrl } from "@/lib/deeplinks"
 import { formatDate, formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
-import { shareContent } from "@/lib/share"
+import { isFilePayload, shareContent, type SharePayload } from "@/lib/share"
+import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -72,13 +73,23 @@ import { QACard } from "@/components/ui/qa-card"
 import { QaCommentComposer, QaCommentItem } from "@/components/ui/qa-comment-item"
 import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
 import { Screen } from "@/components/ui/screen"
+import { ShareSheetTrigger } from "@/components/ui/share-sheet-trigger"
 import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { Tabs } from "@/components/ui/tabs"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 
 type ProfileTab = "content" | "questions" | "ratings" | "about"
+
+/** Item tab profil — konstanta modul agar tidak dibuat ulang tiap render. */
+const PROFILE_TABS = [
+  { value: "content", label: "Konten" },
+  { value: "questions", label: "Tanya Jawab" },
+  { value: "ratings", label: "Ulasan" },
+  { value: "about", label: "Tentang" },
+] as const satisfies readonly { value: ProfileTab; label: string }[]
 
 const RATING_FILTERS: { value: PublicRatingFilter; label: string }[] = [
   { value: "all", label: "Semua" },
@@ -186,14 +197,42 @@ export default function UserProfileScreen() {
     [ratingFilter],
   )
 
-  const fetchProfile = useCallback(async () => {
+  /**
+   * `opts.silent` — perbaikan cacat yang terbukti: tarik-untuk-menyegarkan
+   * dulu memanggil fungsi ini tanpa pembeda, sehingga `setLoading(true)`
+   * mengganti SELURUH profil (header, statistik, tab) dengan kerangka, dan
+   * tiga penghitung sosial di-reset ke null lalu diisi ulang — angka pengikut
+   * berkedip kosong tiap tarik.
+   *
+   * Reset itu sendiri benar dan DIPERTAHANKAN untuk kasus yang memang
+   * membutuhkannya: pindah ke profil lain (username berubah → effect berjalan
+   * → non-silent) harus membuang angka milik profil sebelumnya. Yang salah
+   * hanya menerapkannya pada penyegaran profil yang SAMA.
+   *
+   * `setError(null)` tetap tanpa syarat: penyegaran harus membersihkan error
+   * sebelumnya bila kini berhasil.
+   *
+   * CATATAN — kenapa layar ini TIDAK dimigrasi ke useApiQuery: layar ini
+   * memetakan 404 ke "Profil tidak ditemukan." lewat
+   * `isApiError(err) && err.status !== 404 ? userMessage(err) : "…"`,
+   * sedangkan useApiQuery selalu memanggil `userMessage(err)` dan fungsi itu
+   * mengembalikan DEFAULT_ERROR_MESSAGES.UNKNOWN untuk semua non-ApiError
+   * (lib/api/errors.ts:202). Melempar Error biasa dari fetcher akan MENGUBAH
+   * pesan 404 menjadi generik — regresi nyata. Mempertahankannya butuh
+   * mengubah useApiQuery (infrastruktur bersama 20+ layar) hanya demi satu
+   * layar, dan layar ini sudah punya perlindungan respons basi sendiri lewat
+   * `profileRequest.current`. Jadi manfaat marginalnya kecil, risikonya besar.
+   */
+  const fetchProfile = useCallback(async (opts?: { silent?: boolean }) => {
     const started = ++profileRequest.current
     const current = () => profileRequest.current === started
-    setFollowing(null)
-    setFollowerCount(null)
-    setFollowingCount(null)
+    if (!opts?.silent) {
+      setFollowing(null)
+      setFollowerCount(null)
+      setFollowingCount(null)
+    }
     if (!username) return
-    setLoading(true)
+    if (!opts?.silent) setLoading(true)
     setError(null)
     try {
       const [res, me] = await Promise.all([
@@ -267,7 +306,7 @@ export default function UserProfileScreen() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
-    await fetchProfile()
+    await fetchProfile({ silent: true })
     setRefreshing(false)
   }, [fetchProfile])
 
@@ -317,22 +356,44 @@ export default function UserProfileScreen() {
     [handle, toast],
   )
 
-  const handleShare = useCallback(async () => {
-    if (!handle) return
-    const url = profileUrl(handle)
-    const outcome = await shareContent({
-      title: `@${handle} di Kahade`,
-      message: `Lihat profil ${profile?.fullName ?? `@${handle}`} di Kahade`,
-      url,
-    })
-    if (outcome === "unavailable") {
+  /**
+   * Payload + fallback berbagi dipisah dari tombolnya supaya <ShareSheetTrigger>
+   * dan <IconButton> di header memakai SATU sumber kebenaran. Docblock
+   * share-sheet-trigger menegaskan komponennya sengaja tidak menyalin sendiri
+   * "agar tidak ada dua sumber kebenaran untuk feedback Disalin" — jadi
+   * fallback-nya di sini, dikirim lewat `onUnavailable`.
+   */
+  const profileSharePayload = useCallback(
+    (): SharePayload => {
+      const h = handle ?? ""
+      return {
+        title: `@${h} di Kahade`,
+        message: `Lihat profil ${profile?.fullName ?? `@${h}`} di Kahade`,
+        url: profileUrl(h),
+      }
+    },
+    [handle, profile?.fullName],
+  )
+
+  const shareUnavailable = useCallback(
+    async (payload: SharePayload) => {
+      const url = isFilePayload(payload) ? undefined : payload.url
+      if (!url) return
       const ok = await copy(url)
       toast.show({
         title: ok ? "Tautan profil disalin" : "Tidak bisa membagikan",
         tone: ok ? "success" : "danger",
       })
-    }
-  }, [handle, profile?.fullName, copy, toast])
+    },
+    [copy, toast],
+  )
+
+  const handleShare = useCallback(async () => {
+    if (!handle) return
+    const payload = profileSharePayload()
+    const outcome = await shareContent(payload)
+    if (outcome === "unavailable") await shareUnavailable(payload)
+  }, [handle, profileSharePayload, shareUnavailable])
 
   const handleBlock = useCallback(async () => {
     if (!profile?.id) return
@@ -585,7 +646,12 @@ export default function UserProfileScreen() {
 
               {/* ── Stats / Counter Strip ────────────────────────── */}
               <View className="flex-row flex-wrap items-center gap-4 pt-2">
-                <Pressable accessibilityRole="button" onPress={() => router.push(ROUTES.followers(handle, "following"))}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${formatNumber(followingCount ?? 0)} mengikuti`}
+                  hitSlop={TEXT_ROW_HIT_SLOP}
+                  onPress={() => router.push(ROUTES.followers(handle, "following"))}
+                >
                   <Text variant="body" tone="secondary">
                     <Text variant="body" weight={700} tone="primary">
                       {formatNumber(followingCount ?? 0)}{" "}
@@ -594,7 +660,12 @@ export default function UserProfileScreen() {
                   </Text>
                 </Pressable>
 
-                <Pressable onPress={() => router.push(ROUTES.followers(handle))}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`${formatNumber(followerCount ?? 0)} pengikut`}
+                  hitSlop={TEXT_ROW_HIT_SLOP}
+                  onPress={() => router.push(ROUTES.followers(handle))}
+                >
                   <Text variant="body" tone="secondary">
                     <Text variant="body" weight={700} tone="primary">
                       {formatNumber(followerCount ?? 0)}{" "}
@@ -604,7 +675,12 @@ export default function UserProfileScreen() {
                 </Pressable>
 
                 {profile.rating != null ? (
-                  <Pressable onPress={() => setActiveTab("ratings")}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`${formatDecimal(profile.rating)} dari 5, buka ulasan`}
+                    hitSlop={TEXT_ROW_HIT_SLOP}
+                    onPress={() => setActiveTab("ratings")}
+                  >
                     <Text variant="body" tone="secondary">
                       <Text variant="body" weight={700} tone="primary">
                         {formatDecimal(profile.rating)} ★{" "}
@@ -642,39 +718,21 @@ export default function UserProfileScreen() {
               ) : null}
             </View>
 
-            {/* ── Tabs Bar ─────────────────────────────────────── */}
-            <View className="w-full border-b border-border bg-background pt-4">
-              <View className="flex-row items-center px-6">
-                {[
-                  { key: "content" as ProfileTab, label: "Konten" },
-                  { key: "questions" as ProfileTab, label: "Tanya Jawab" },
-                  { key: "ratings" as ProfileTab, label: "Ulasan" },
-                  { key: "about" as ProfileTab, label: "Tentang" },
-                ].map((tab) => {
-                  const isActive = activeTab === tab.key
-                  return (
-                    <Pressable
-                      key={tab.key}
-                      accessibilityRole="tab"
-                      accessibilityState={{ selected: isActive }}
-                      onPress={() => setActiveTab(tab.key)}
-                      className="mr-6 py-3 relative"
-                    >
-                      <Text
-                        variant="body"
-                        weight={isActive ? 700 : 500}
-                        tone={isActive ? "primary" : "secondary"}
-                      >
-                        {tab.label}
-                      </Text>
-                      {isActive ? (
-                        <View className="absolute bottom-0 inset-x-0 h-0.5 bg-primary rounded-full" />
-                      ) : null}
-                    </Pressable>
-                  )
-                })}
-              </View>
-            </View>
+            {/*
+              ── Tabs Bar ─────────────────────────────────────────
+              <Tabs> dari design system (§9.16), bukan tab bar tulisan tangan.
+              Versi manual sebelumnya menyimpang dari §9.16 di tiga hal yang
+              terlihat: indikator `h-0.5 bg-primary rounded-full` (bukan
+              border-b 1.5px di atas garis dasar), bobot label aktif 700
+              (spesifikasi: 600), dan tidak ada focus ring keyboard sama
+              sekali. `tablist`/`tab` + focusRingInset sudah di dalam komponen.
+            */}
+            <Tabs<ProfileTab>
+              items={PROFILE_TABS}
+              value={activeTab}
+              onChange={setActiveTab}
+              className="pt-4"
+            />
 
             {/* ── Tab Content 1: Konten (Showcase / Feed) ───────── */}
             {activeTab === "content" ? (
@@ -729,11 +787,24 @@ export default function UserProfileScreen() {
                       {/* Post Interaction Footer */}
                       <View className="flex-row items-center justify-between pt-2 border-t border-border">
                         <View className="flex-row items-center gap-4">
+                          {/*
+                            * TEMUAN AUDIT (sengaja dibiarkan, menunggu backend):
+                            * "Suka" tampil identik dengan tombol "Tanya" di
+                            * sebelahnya tetapi TIDAK punya handler — kontrak API
+                            * mobile (docs/audit/inventory.json) belum punya
+                            * endpoint like sama sekali, jadi tidak bisa
+                            * disambungkan. Jangan "diperbaiki" dengan memberinya
+                            * onPress kosong; sambungkan begitu endpoint like ada,
+                            * atau ubah tampilannya jadi non-interaktif.
+                            */}
                           <View className="flex-row items-center gap-1">
                             <Icon icon={Heart} size="sm" tone="default" />
                             <Text variant="caption" tone="secondary">Suka</Text>
                           </View>
                           <Pressable
+                            accessibilityRole="button"
+                            accessibilityLabel="Tanya penjual"
+                            hitSlop={TEXT_ROW_HIT_SLOP}
                             onPress={() => {
                               setActiveTab("questions")
                               setAskOpen(true)
@@ -1040,16 +1111,32 @@ export default function UserProfileScreen() {
         onRequestClose={() => setMoreOptionsOpen(false)}
       >
         <View className="gap-2 pt-2">
-          <Button
-            variant="ghost"
-            leftIcon={ShareNetwork}
-            onPress={() => {
-              setMoreOptionsOpen(false)
-              void handleShare()
-            }}
+          {/* ShareSheetTrigger menggantikan tombol Bagikan tulisan tangan:
+              guard "sedang berbagi" (dua tap tidak lagi bisa membuka dua
+              sheet bertumpuk) dan pemetaan outcome pindah ke komponen.
+              Mode render-prop DIPAKAI, bukan mode Button bawaan, karena
+              dialog "Pilihan Akun" harus ditutup LEBIH DULU sebelum sheet OS
+              muncul (§9.9 satu overlay pada satu waktu). */}
+          <ShareSheetTrigger
+            payload={profileSharePayload}
+            disabled={!handle}
+            onUnavailable={(payload) => void shareUnavailable(payload)}
           >
-            Bagikan Profil
-          </Button>
+            {(share, state) => (
+              <Button
+                variant="ghost"
+                leftIcon={ShareNetwork}
+                loading={state.sharing}
+                disabled={state.sharing}
+                onPress={() => {
+                  setMoreOptionsOpen(false)
+                  share()
+                }}
+              >
+                Bagikan Profil
+              </Button>
+            )}
+          </ShareSheetTrigger>
           <Button
             variant="ghost"
             leftIcon={Flag}

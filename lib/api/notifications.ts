@@ -228,7 +228,7 @@ export function deleteReadNotifications() {
 
 export function getNotification(id: string) {
   return http
-    .get<NotificationPayload>(`/v1/notifications/${seg(id)}`, { auth: "required", retry: 1 })
+    .get<NotificationPayload>(`/v1/notifications/${seg(id)}`, { auth: "required" })
     .then(normalizeNotification)
 }
 

@@ -23,6 +23,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 
 export type PinPadProps = Omit<ViewProps, "children"> & {
   onDigit: (digit: string) => void
@@ -55,8 +56,8 @@ function Key({
       accessibilityLabel={label}
       disabled={disabled || !onPress}
       onPress={onPress}
-      containerClassName="items-center"
-      className="h-16 w-16 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      containerClassName={cn("items-center rounded-full", focusRing)}
+      className="h-16 w-16 items-center justify-center rounded-full"
     >
       {children}
     </PressableScale>

@@ -26,6 +26,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatDate } from "@/lib/format"
 import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
 
@@ -87,7 +88,7 @@ export function DateField({
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled}
         scaleOnPress={false}
-        containerClassName="w-full"
+        containerClassName={cn("w-full rounded-sm", focusRing)}
         className={cn(
           "h-14 w-full flex-row items-center rounded-sm bg-background",
           hasError

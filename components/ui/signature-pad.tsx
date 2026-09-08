@@ -273,7 +273,7 @@ export function SignaturePad({
         ) : null}
       </View>
 
-      <View className="flex-row items-center justify-between gap-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="flex-row items-center justify-between gap-4">
         <Text variant="caption" tone={error ? "danger" : "secondary"} className="flex-1">
           {error ?? labels.hint}
         </Text>

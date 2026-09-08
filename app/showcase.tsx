@@ -25,7 +25,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Tidak ada drag-reorder: `sortOrder` diisi berurutan saat membuat item
  *     baru (di akhir); pengurutan manual dicatat di finding sebagai backlog.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
@@ -34,6 +34,7 @@ import { api, userMessage } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { pickImage, pickedImageToFormData } from "@/lib/image-picker"
 import { formatRupiah } from "@/lib/format"
+import { useApiQuery } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -83,10 +84,19 @@ export default function ShowcaseScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [items, setItems] = useState<ShowcaseItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchAll()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
+   * mengganti daftar etalase dengan kerangka. Request juga tidak dibatalkan
+   * saat layar ditutup.
+   */
+  const query = useApiQuery<ShowcaseItem[]>(
+    "my-showcase",
+    async (signal) => (await api.users.getMyShowcase(signal)) ?? [],
+  )
+  const items = query.data ?? []
+  const { loading, error, refreshing } = query
   const [uploading, setUploading] = useState(false)
 
   const [menuItem, setMenuItem] = useState<ShowcaseItem | null>(null)
@@ -99,28 +109,7 @@ export default function ShowcaseScreen() {
   const [formError, setFormError] = useState<string | undefined>()
   const [saving, setSaving] = useState(false)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.users.getMyShowcase()
-      setItems(res ?? [])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
 
   // ── Tambah: pilih → upload → (form bila perlu) ────────────────────
   const handleUpload = useCallback(async () => {
@@ -136,7 +125,7 @@ export default function ShowcaseScreen() {
       if (res?.id) {
         // Backend langsung membuat item
         toast.show({ title: "Foto showcase ditambahkan", tone: "success", duration: 3000 })
-        await fetchAll()
+        await query.refresh()
         // Tawarkan lengkapi detail (judul/harga) bila belum ada judul
         if (!res.title) {
           setForm({ ...EMPTY_FORM })
@@ -153,7 +142,7 @@ export default function ShowcaseScreen() {
     } finally {
       setUploading(false)
     }
-  }, [toast, fetchAll])
+  }, [toast, query])
 
   const openEdit = useCallback((item: ShowcaseItem) => {
     setForm({
@@ -197,13 +186,13 @@ export default function ShowcaseScreen() {
         toast.show({ title: "Detail diperbarui", tone: "success", duration: 3000 })
       }
       setEditor(null)
-      await fetchAll()
+      await query.refresh()
     } catch (err) {
       toast.show({ title: "Gagal menyimpan", description: userMessage(err), tone: "danger" })
     } finally {
       setSaving(false)
     }
-  }, [editor, saving, form, items.length, toast, fetchAll])
+  }, [editor, saving, form, items.length, toast, query])
 
   const handleToggleActive = useCallback(
     async (item: ShowcaseItem) => {
@@ -218,7 +207,7 @@ export default function ShowcaseScreen() {
           duration: 2500,
         })
         setMenuItem(null)
-        await fetchAll()
+        await query.refresh()
       } catch (err) {
         toast.show({
           title: "Gagal mengubah visibilitas",
@@ -229,7 +218,7 @@ export default function ShowcaseScreen() {
         setToggling(false)
       }
     },
-    [toggling, toast, fetchAll],
+    [toggling, toast, query],
   )
 
   const handleDelete = useCallback(async () => {
@@ -239,13 +228,13 @@ export default function ShowcaseScreen() {
       await api.users.deleteShowcase(deleteTarget.id)
       toast.show({ title: "Item dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
-      await fetchAll()
+      await query.refresh()
     } catch (err) {
       toast.show({ title: "Gagal menghapus", description: userMessage(err), tone: "danger" })
     } finally {
       setDeleting(false)
     }
-  }, [deleteTarget, toast, fetchAll])
+  }, [deleteTarget, toast, query])
 
   const menuActions: ActionSheetItem[] = menuItem
     ? [
@@ -287,7 +276,7 @@ export default function ShowcaseScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Portofolio" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -295,7 +284,7 @@ export default function ShowcaseScreen() {
         }}
       >
         {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader

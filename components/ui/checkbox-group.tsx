@@ -37,6 +37,7 @@ import { Checkbox, CheckboxIndicator } from "@/components/ui/checkbox"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 
 export type CheckboxGroupVariant = "plain" | "card"
 
@@ -147,7 +148,7 @@ export function CheckboxGroupItem({
       accessibilityState={{ checked, disabled }}
       disabled={disabled}
       onPress={() => ctx.toggle(value)}
-      containerClassName="w-full"
+      containerClassName={cn("w-full rounded-md", focusRing)}
       className={cn(
         "flex-row items-start gap-3 rounded-md bg-surface p-5 border border-transparent",
         ctx.error
@@ -159,7 +160,7 @@ export function CheckboxGroupItem({
       )}
       {...rest}
     >
-      {leading ? <View className="mt-[1px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">{leading}</View> : null}
+      {leading ? <View className="mt-[1px]">{leading}</View> : null}
 
       <View className="flex-1 gap-1">
         {typeof label === "string" ? (

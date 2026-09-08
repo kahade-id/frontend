@@ -25,11 +25,18 @@
  *   - Ikon di Button pakai tone "inverse" untuk primary/destructive dan
  *     "active" untuk secondary/ghost — ikon di dalam button mengikuti warna
  *     label, bukan text-tertiary default.
+ *   - Focus ring keyboard (web saja) `focusRing` dipasang di
+ *     `containerClassName`, BUKAN `className`: lihat lib/focus-ring.ts —
+ *     pada <PressableScale> yang bisa menerima fokus adalah <Pressable>
+ *     terluar, sedangkan `className` jatuh ke View di dalam Animated.View
+ *     yang tidak pernah fokus. `rounded-sm` ikut dipasang di container agar
+ *     bentuk ring mengikuti sudut kotak visual.
  */
 import type { ReactNode } from "react"
 import { View } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
@@ -104,7 +111,14 @@ export function Button({
       accessibilityState={{ disabled: !!isDisabled, busy: loading }}
       disabled={isDisabled}
       hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1], left: tokens.space[1], right: tokens.space[1] } : undefined}
-      containerClassName={cn(fullWidth ? "w-full" : "self-start", containerClassName)}
+      containerClassName={cn(
+        fullWidth ? "w-full" : "self-start",
+        // Radius ikut di container: ring digambar mengikuti border-radius
+        // elemen yang fokus, bukan kotak visual di dalamnya.
+        "rounded-sm",
+        focusRing,
+        containerClassName,
+      )}
       className={cn(
         "flex-row items-center justify-center rounded-sm",
         sizeBox[size],

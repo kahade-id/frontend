@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
 import { api, type Order, type WalletTransaction, type UserProfile } from "@/lib/api"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -13,6 +13,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
+import { LiveRegion } from "@/components/ui/live-region"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OrderCard } from "@/components/ui/order-card"
 import { Screen } from "@/components/ui/screen"
@@ -78,6 +79,26 @@ export default function SearchScreen() {
     ],
     [result.data],
   )
+  /**
+   * Pengumuman hasil untuk screen reader (<LiveRegion> §10). Hasil pencarian
+   * berubah tanpa perpindahan fokus — tanpa ini pengguna VoiceOver/TalkBack
+   * tidak pernah diberi tahu bahwa hasil sudah datang, berapa jumlahnya, atau
+   * bahwa pencarian gagal; mereka harus meraba daftar secara manual.
+   *
+   * Sengaja TIDAK mengumumkan state `loading`: kata kunci berubah tiap
+   * ketikan, jadi pengumuman "mencari…" akan menumpuk. Hanya hasil akhirnya
+   * yang diumumkan. Error memakai "assertive" agar tidak kalah antrean.
+   */
+  const resultMessage = !enabled
+    ? ""
+    : result.error
+      ? result.error
+      : result.loading
+        ? ""
+        : rows.length === 0
+          ? "Tidak ada hasil"
+          : `${formatNumber(rows.length)} hasil ditemukan`
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pencarian" />
@@ -89,6 +110,7 @@ export default function SearchScreen() {
           placeholder="Cari pengguna, pesanan, atau mutasi"
         />
       </View>
+      <LiveRegion message={resultMessage} politeness={result.error ? "assertive" : "polite"} />
       <FlatList
         data={rows}
         keyExtractor={(row) => row.id}
@@ -143,7 +165,7 @@ export default function SearchScreen() {
             ) : item.kind === "transaction" ? (
               <WalletTransactionRow
                 transaction={item.transaction}
-                onPress={() => router.push(ROUTES.walletTransaction(item.transaction.id))}
+                href={ROUTES.walletTransaction(item.transaction.id)}
               />
             ) : item.kind === "article" ? (
               <HelpArticleListItem
@@ -151,9 +173,7 @@ export default function SearchScreen() {
                 title={item.article.title}
                 snippet={item.article.snippet}
                 highlight={keyword}
-                onPress={() =>
-                  router.push(ROUTES.helpArticle(item.article.slug, undefined, item.article.title))
-                }
+                href={ROUTES.helpArticle(item.article.slug, undefined, item.article.title)}
               />
             ) : (
               (() => {
@@ -183,7 +203,7 @@ export default function SearchScreen() {
                         "Identitas belum tersedia",
                     }}
                     timestamp={formatDateTime(item.order.createdAt)}
-                    onPress={() => router.push(ROUTES.orderDetail(item.order.id))}
+                    href={ROUTES.orderDetail(item.order.id)}
                   />
                 )
               })()

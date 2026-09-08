@@ -40,6 +40,7 @@ import type {
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { toPaymentMethods } from "@/lib/payment-methods"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -116,13 +117,45 @@ export default function SubscriptionsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [status, setStatus] = useState<SubscriptionStatus | null>(null)
-  const [plans, setPlans] = useState<SubscriptionPlan[]>([])
-  const [benefits, setBenefits] = useState<Benefit[]>([])
-  const [methods, setMethods] = useState<PaymentMethod[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: lima state data + loading/error/refreshing dirakit manual. Cacat
+   * terbukti dari kode lama: `handleRefresh` memanggil `fetchAll()` yang sama
+   * dengan muat-awal, dan fungsi itu membuka dengan `setLoading(true)` —
+   * tarik-untuk-menyegarkan mengganti status langganan, paket, benefit, DAN
+   * metode pembayaran dengan kerangka sekaligus. Request juga tidak dibatalkan
+   * saat layar ditutup.
+   *
+   * `.catch(() => [] as Benefit[])` DIPERTAHANKAN: benefit gagal diambil tidak
+   * boleh mematikan status langganan.
+   */
+  const query = useApiQuery<{
+    status: SubscriptionStatus
+    plans: SubscriptionPlan[]
+    benefits: Benefit[]
+    methods: PaymentMethod[]
+  }>("subscriptions", async (signal) => {
+    const [s, p, b, wallet, pm] = await Promise.all([
+      api.subscriptions.getSubscriptionStatus(signal),
+      api.subscriptions.getSubscriptionPlans(signal),
+      api.subscriptions.getSubscriptionBenefits(signal).catch(() => [] as Benefit[]),
+      api.wallet.getWallet(signal),
+      api.wallet.getPaymentMethods(signal),
+    ])
+    return {
+      status: s,
+      plans: p ?? [],
+      benefits: b ?? [],
+      methods: toPaymentMethods(pm, { walletBalance: wallet.availableBalance }).filter((method) =>
+        (API_CONSTRAINTS.SubscribeDto.paymentMethod.enum as readonly string[]).includes(method.id),
+      ),
+    }
+  })
+  const bundle = query.data
+  const status = bundle?.status ?? null
+  const plans = bundle?.plans ?? []
+  const benefits = bundle?.benefits ?? []
+  const methods = bundle?.methods ?? []
+  const { loading, error, refreshing } = query
 
   const [step, setStep] = useState<Step>("plans")
   const [pinPurpose, setPinPurpose] = useState<PinPurpose>("subscribe")
@@ -152,49 +185,25 @@ export default function SubscriptionsScreen() {
     }
   }, [])
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [s, p, b, wallet, pm] = await Promise.all([
-        api.subscriptions.getSubscriptionStatus(),
-        api.subscriptions.getSubscriptionPlans(),
-        api.subscriptions.getSubscriptionBenefits().catch(() => [] as Benefit[]),
-        api.wallet.getWallet(),
-        api.wallet.getPaymentMethods(),
-      ])
-      setStatus(s)
-      setPlans(p ?? [])
-      setBenefits(b ?? [])
-      const choices = toPaymentMethods(pm, { walletBalance: wallet.availableBalance }).filter(
-        (method) =>
-          (API_CONSTRAINTS.SubscribeDto.paymentMethod.enum as readonly string[]).includes(
-            method.id,
-          ),
-      )
-      setMethods(choices)
-      setMethodId((previous) =>
-        choices.some((m) => m.id === previous && !m.unavailable)
-          ? previous
-          : (choices.find((m) => !m.unavailable)?.id ?? ""),
-      )
-      void fetchHistory(1, true)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [fetchHistory])
-
+  /**
+   * Dua hal yang dulu terjadi DI DALAM fetcher kini jadi effect, karena
+   * keduanya efek samping pada state UI — bukan bagian dari data server:
+   *   1. memilih metode pembayaran default (pilihan user dipertahankan selama
+   *      masih tersedia), dan
+   *   2. memuat ulang riwayat (`fetchHistory(1, true)`), yang paginatornya
+   *      sengaja TIDAK diubah agar semantik "replace vs append" tetap sama.
+   * Bergantung pada `bundle` supaya ikut jalan tiap penyegaran berhasil,
+   * persis seperti perilaku lama.
+   */
   useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+    if (!bundle) return
+    setMethodId((previous) =>
+      methods.some((m) => m.id === previous && !m.unavailable)
+        ? previous
+        : (methods.find((m) => !m.unavailable)?.id ?? ""),
+    )
+    void fetchHistory(1, true)
+  }, [bundle, methods, fetchHistory])
 
   const card = useMemo(() => toCardStatus(status), [status])
   const currentPlan = useMemo(
@@ -252,7 +261,7 @@ export default function SubscriptionsScreen() {
       try {
         if (pinPurpose === "renew") {
           const next = await api.subscriptions.renewSubscription({ pin })
-          setStatus(next)
+          query.setData((prev) => (prev ? { ...prev, status: next } : prev))
           toast.show({
             title:
               next.active === true ? "Langganan diperpanjang" : "Permintaan perpanjangan diterima",
@@ -268,7 +277,7 @@ export default function SubscriptionsScreen() {
             // bebas); enum SubscribeDto lebih sempit → cast terkontrol.
             paymentMethod: hasMethods ? (methodId as SubscribeDto["paymentMethod"]) : undefined,
           })
-          setStatus(next)
+          query.setData((prev) => (prev ? { ...prev, status: next } : prev))
           toast.show({
             title: next.active === true ? "Langganan aktif" : "Permintaan langganan diterima",
             tone: next.active === true ? "success" : "info",
@@ -277,7 +286,7 @@ export default function SubscriptionsScreen() {
         }
         setSelectedPlan(null)
         setStep("plans")
-        await fetchAll()
+        await query.refresh()
       } catch (err) {
         setPinError(
           isApiError(err) ? userMessage(err) : "PIN salah atau pembayaran gagal. Coba lagi.",
@@ -287,17 +296,17 @@ export default function SubscriptionsScreen() {
         setSubmitting(false)
       }
     },
-    [pinPurpose, selectedPlan, hasMethods, methodId, toast.show, fetchAll, loading, error, methods],
+    [pinPurpose, selectedPlan, hasMethods, methodId, toast.show, query, loading, error, methods],
   )
 
   const handleCancel = useCallback(async () => {
     setCancelling(true)
     try {
       const next = await api.subscriptions.cancelSubscription()
-      setStatus(next)
+      query.setData((prev) => (prev ? { ...prev, status: next } : prev))
       toast.show({ title: "Langganan dibatalkan", tone: "success", duration: 3000 })
       setCancelOpen(false)
-      await fetchAll()
+      await query.refresh()
     } catch (err: unknown) {
       toast.show({
         title: "Gagal membatalkan langganan",
@@ -307,7 +316,7 @@ export default function SubscriptionsScreen() {
     } finally {
       setCancelling(false)
     }
-  }, [toast.show, fetchAll])
+  }, [toast.show, query])
 
   const footer =
     step === "method" && selectedPlan ? (
@@ -343,7 +352,7 @@ export default function SubscriptionsScreen() {
         }
       />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -353,7 +362,7 @@ export default function SubscriptionsScreen() {
         {loading ? (
           <ListLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : step === "method" && selectedPlan ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader

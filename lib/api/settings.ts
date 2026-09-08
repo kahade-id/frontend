@@ -53,9 +53,9 @@ export function reportUser(dto: ReportUserSettingsDto) {
   })
 }
 
-export function getReports() {
+export function getReports(signal?: AbortSignal) {
   return http
-    .get<ReportsSettings[]>("/v1/settings/reports", { auth: "required", retry: 1 })
+    .get<ReportsSettings[]>("/v1/settings/reports", { auth: "required", signal })
     .then((raw) => readList<ReportsSettings>(raw, ["reports"]))
 }
 
@@ -72,7 +72,6 @@ export function updatePrivacySettings(dto: UpdatePrivacyDto) {
 export function getLanguage(signal?: AbortSignal) {
   return http.get<{ language: "id" | "en" }>("/v1/settings/language", {
     auth: "required",
-    retry: 1,
     signal,
   })
 }

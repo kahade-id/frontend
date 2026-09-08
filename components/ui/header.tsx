@@ -116,7 +116,7 @@ export function Header({
       style={(safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined}
       {...rest}
     >
-      <View className="w-full md:max-w-content focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="w-full md:max-w-content">
         <View className="min-h-14 w-full flex-row items-center px-3 py-1">
           {/* Kolom kiri: lebar tetap 1 slot */}
           <View style={{ width: sideWidth }} className="items-start justify-center">

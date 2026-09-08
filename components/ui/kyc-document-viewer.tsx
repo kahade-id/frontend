@@ -57,6 +57,8 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { StatusIndicator, type StatusIndicatorTone } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
+import { focusRingInset } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
 
 export type KycDocumentStatus = "pending" | "approved" | "rejected"
@@ -180,6 +182,7 @@ function DocumentImage({
         onPress={() => onOpen(doc)}
         accessibilityRole="button"
         accessibilityLabel={`${doc.file.name}, ${t.open(label)}`}
+        containerClassName={cn("w-full", focusRingInset)}
       >
         {row}
       </PressableScale>
@@ -196,7 +199,7 @@ function DocumentImage({
       alt={t.alt(label)}
       aspectRatio={aspectByType[doc.type]}
       resizeMode="contain"
-      className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      className="w-full"
     />
   )
 
@@ -207,6 +210,7 @@ function DocumentImage({
         onPress={() => onReveal?.(doc)}
         accessibilityRole="button"
         accessibilityLabel={`${t.reveal} ${label}`}
+        containerClassName={cn("rounded-md", focusRing)}
         className="relative overflow-hidden rounded-md"
       >
         {/* Gambar tetap dimuat (cache siap) tetapi ditutup penuh */}
@@ -223,7 +227,12 @@ function DocumentImage({
 
   if (!onOpen) return picture
   return (
-    <PressableScale onPress={() => onOpen(doc)} accessibilityRole="imagebutton" accessibilityLabel={t.open(label)}>
+    <PressableScale
+      onPress={() => onOpen(doc)}
+      accessibilityRole="imagebutton"
+      accessibilityLabel={t.open(label)}
+      containerClassName={cn("rounded-sm", focusRing)}
+    >
       {picture}
     </PressableScale>
   )

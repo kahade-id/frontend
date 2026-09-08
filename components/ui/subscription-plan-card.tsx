@@ -244,7 +244,7 @@ export function SubscriptionPlanCard({
             </Button>
           </View>
           {renewalLabel ? (
-            <Text variant="caption" tone={hintTone} className="text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <Text variant="caption" tone={hintTone} className="text-center">
               {renewalLabel}
             </Text>
           ) : null}

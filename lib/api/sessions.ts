@@ -24,9 +24,9 @@ export type DeviceSession = {
 export type SessionsPageQuery = { page: number; limit: number }
 
 /** GET /v1/sessions — daftar sesi login aktif (paginated; page/limit wajib). */
-export function listSessions(query: SessionsPageQuery) {
+export function listSessions(query: SessionsPageQuery, signal?: AbortSignal) {
   return http
-    .get<DeviceSession[]>("/v1/sessions", { query, auth: "required", retry: 1 })
+    .get<DeviceSession[]>("/v1/sessions", { query, auth: "required", retry: 1, signal })
     .then((raw) => readList<DeviceSession>(raw, ["sessions"]))
 }
 
@@ -79,23 +79,28 @@ export type ActivityLogEntry = {
 export const SECURITY_LOG_ALL_ACTIONS = "ALL"
 
 /** GET /v1/users/me/security-log — aktivitas keamanan (page/limit/action wajib). */
-export function getSecurityLog(query: SessionsPageQuery & { action?: string }) {
+export function getSecurityLog(
+  query: SessionsPageQuery & { action?: string },
+  signal?: AbortSignal,
+) {
   return http
     .get<unknown>("/v1/users/me/security-log", {
       query: { action: SECURITY_LOG_ALL_ACTIONS, ...query },
       auth: "required",
       retry: 1,
+      signal,
     })
     .then((raw) => readList<SecurityLogEntry>(raw, ["securityLog", "logs"]))
 }
 
 /** GET /v1/users/me/activity-log — aktivitas umum (page/limit wajib). */
-export function getActivityLog(query: SessionsPageQuery) {
+export function getActivityLog(query: SessionsPageQuery, signal?: AbortSignal) {
   return http
     .get<unknown>("/v1/users/me/activity-log", {
       query,
       auth: "required",
       retry: 1,
+      signal,
     })
     .then((raw) => readList<ActivityLogEntry>(raw, ["activityLog", "logs"]))
 }

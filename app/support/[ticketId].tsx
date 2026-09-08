@@ -3,7 +3,7 @@ import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Tiket Dukungan (GET /v1/support/tickets/{id} + reply).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -12,6 +12,7 @@ import { api, userMessage } from "@/lib/api"
 import type { SupportMessage, SupportTicket } from "@/lib/api/support"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
@@ -29,38 +30,23 @@ export default function SupportTicketDetailScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [ticket, setTicket] = useState<SupportTicket | null>(null)
-  const [messages, setMessages] = useState<SupportMessage[]>([])
   const [reply, setReply] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const [sending, setSending] = useState(false)
 
-  const fetchTicket = useCallback(async () => {
-    if (!ticketId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.support.getSupportTicket(ticketId)
-      setTicket(res)
-      setMessages(res?.messages ?? [])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [ticketId])
-
-  useEffect(() => {
-    void fetchTicket()
-  }, [fetchTicket])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchTicket()
-    setRefreshing(false)
-  }, [fetchTicket])
+  /**
+   * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
+   * layar di-unmount, `refreshing` terpisah dari `loading` (tarik-untuk-
+   * menyegarkan tidak lagi mengosongkan percakapan), dan error lewat
+   * `userMessage(err)`. `messages` diturunkan dari tiket — sebelumnya ia state
+   * terpisah yang hanya pernah diisi dari respons yang sama.
+   */
+  const query = useApiQuery<SupportTicket>(
+    `support-ticket:${ticketId}`,
+    (signal) => api.support.getSupportTicket(ticketId, signal),
+    Boolean(ticketId),
+  )
+  const ticket = query.data
+  const messages: SupportMessage[] = ticket?.messages ?? []
 
   const handleSend = useCallback(async () => {
     if (!ticketId || !reply.trim()) return
@@ -68,30 +54,34 @@ export default function SupportTicketDetailScreen() {
     try {
       await api.support.replySupportTicket(ticketId, reply.trim())
       setReply("")
-      await fetchTicket()
+      await query.reload()
       toast.show({ title: "Balasan terkirim", tone: "success", duration: 2500 })
     } catch (err: unknown) {
       toast.show({ title: "Gagal mengirim balasan", description: userMessage(err), tone: "danger" })
     } finally {
       setSending(false)
     }
-  }, [ticketId, reply, toast.show, fetchTicket])
+  }, [ticketId, reply, toast.show, query])
 
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Tiket" />
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={query.refresh}
+        refreshing={query.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
+        {query.loading ? (
           <DetailLoading />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchTicket()} />
+        ) : query.error ? (
+          <ErrorState
+            title="Gagal memuat"
+            description={query.error}
+            onRetry={() => void query.reload()}
+          />
         ) : ticket ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SupportTicketCard

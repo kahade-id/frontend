@@ -40,6 +40,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { ProgressBar } from "@/components/ui/progress-bar"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
 import { fileExtension, isImageMime } from "@/lib/mime"
 
@@ -168,6 +169,7 @@ export function ChatAttachmentItem({
         disabled={!onPress}
         accessibilityRole={onPress ? "button" : undefined}
         accessibilityLabel={a11y}
+        containerClassName={cn("rounded-sm", focusRing)}
         className={cn(
           "overflow-hidden rounded-sm border border-border bg-surface",
           errored && "border-border-error",
@@ -175,7 +177,7 @@ export function ChatAttachmentItem({
         )}
         {...rest}
       >
-        <View style={{ width: TILE, height: TILE }} className="items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+        <View style={{ width: TILE, height: TILE }} className="items-center justify-center">
           {thumb && !errored ? (
             <Picture source={thumb} alt="" width={TILE} height={TILE} radius="none" />
           ) : (

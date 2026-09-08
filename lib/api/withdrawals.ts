@@ -26,9 +26,9 @@ export type WithdrawalSchedule = {
   createdAt: string
 }
 
-export function listWithdrawalSchedules() {
+export function listWithdrawalSchedules(signal?: AbortSignal) {
   return http
-    .get<WithdrawalSchedule[]>("/v1/withdrawals/schedules", { auth: "required", retry: 1 })
+    .get<WithdrawalSchedule[]>("/v1/withdrawals/schedules", { auth: "required", retry: 1, signal })
     .then((raw) => readList<WithdrawalSchedule>(raw, ["schedules"]))
 }
 

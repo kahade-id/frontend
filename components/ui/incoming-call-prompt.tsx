@@ -54,6 +54,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type IncomingCallType = "voice" | "video"
@@ -205,6 +206,7 @@ function CallAction({
         accessibilityLabel={label}
         accessibilityHint={accessibilityHint}
         onPress={onPress}
+        containerClassName={cn("rounded-full", focusRing)}
         className={cn(
           "h-16 w-16 items-center justify-center rounded-full",
           tone === "danger" ? "bg-danger" : "bg-primary",

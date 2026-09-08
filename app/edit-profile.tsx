@@ -36,6 +36,8 @@ import { pickImage, pickedImageToFormData, type PickImageOptions } from "@/lib/i
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import type { UserLinkItemDto } from "@/lib/api/types"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Alert } from "@/components/ui/alert"
@@ -97,9 +99,27 @@ export default function EditProfileScreen() {
   const [links, setLinks] = useState<SocialLink[]>([])
   const [initialLinks, setInitialLinks] = useState<SocialLink[]>([])
 
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchProfile()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
+   * mengganti seluruh layar profil dengan kerangka. Request juga tidak
+   * dibatalkan saat layar ditutup.
+   *
+   * `.catch(() => [])` pada tautan DIPERTAHANKAN: tautan yang gagal diambil
+   * tidak boleh mematikan profil.
+   */
+  const query = useApiQuery<{
+    me: Awaited<ReturnType<typeof api.users.getMe>>
+    myLinks: UserLinkItemDto[]
+  }>("edit-profile", async (signal) => {
+    const [me, myLinks] = await Promise.all([
+      api.users.getMe(signal),
+      api.users.getLinks(signal).catch(() => [] as UserLinkItemDto[]),
+    ])
+    return { me, myLinks: myLinks ?? [] }
+  })
+  const { loading, error, refreshing } = query
   const [submitting, setSubmitting] = useState(false)
 
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false)
@@ -113,50 +133,41 @@ export default function EditProfileScreen() {
     setForm((f) => ({ ...f, [key]: value }))
   }, [])
 
-  const fetchProfile = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [me, myLinks] = await Promise.all([
-        api.users.getMe(),
-        api.users.getLinks().catch(() => []),
-      ])
-      const next: ProfileForm = {
-        fullName: me.fullName ?? "",
-        username: me.username ?? "",
-        bio: me.bio ?? "",
-        phone: normalizePhoneId(me.phoneNumber ?? ""),
-        contactEmail: me.contactEmail ?? "",
-        contactPhone: normalizePhoneId(me.contactPhone ?? ""),
-        showContactEmail: me.showContactEmail ?? false,
-        showContactPhone: me.showContactPhone ?? false,
-      }
-      setForm(next)
-      setInitial(next)
-      setAccountEmail(me.email ?? "")
-      setEmailVerified(me.emailVerified)
-      setAvatarUrl(me.avatarUrl ?? null)
-      const sorted = [...(myLinks ?? [])].sort(
-        (a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0),
-      )
-      setLinks(sorted)
-      setInitialLinks(sorted)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
+  /**
+   * Pengisian form yang dulu terjadi DI DALAM fetcher dipindah ke effect:
+   * semuanya efek samping pada state UI (form, baseline perbandingan, avatar),
+   * bukan bagian dari data server.
+   *
+   * Perilaku DIPERTAHANKAN persis, termasuk sisi yang kurang enak: karena
+   * bergantung pada `query.data`, penyegaran mengisi ulang form — sama seperti
+   * dulu, ketika `handleRefresh` memanggil `fetchProfile()` yang menimpa
+   * `setForm(next)` tanpa syarat. Mengubah itu (mis. hanya isi saat form belum
+   * disentuh) adalah perbaikan perilaku tersendiri dan sengaja tidak
+   * dicampurkan ke migrasi ini.
+   */
+  const loaded = query.data
   useEffect(() => {
-    void fetchProfile()
-  }, [fetchProfile])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchProfile()
-    setRefreshing(false)
-  }, [fetchProfile])
+    if (!loaded) return
+    const { me, myLinks } = loaded
+    const next: ProfileForm = {
+      fullName: me.fullName ?? "",
+      username: me.username ?? "",
+      bio: me.bio ?? "",
+      phone: normalizePhoneId(me.phoneNumber ?? ""),
+      contactEmail: me.contactEmail ?? "",
+      contactPhone: normalizePhoneId(me.contactPhone ?? ""),
+      showContactEmail: me.showContactEmail ?? false,
+      showContactPhone: me.showContactPhone ?? false,
+    }
+    setForm(next)
+    setInitial(next)
+    setAccountEmail(me.email ?? "")
+    setEmailVerified(me.emailVerified)
+    setAvatarUrl(me.avatarUrl ?? null)
+    const sorted = [...myLinks].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
+    setLinks(sorted)
+    setInitialLinks(sorted)
+  }, [loaded])
 
   // ── Diff → dto partial ─────────────────────────────────────────────────
   const dto = useMemo<UpdateProfileDto>(() => {
@@ -217,7 +228,7 @@ export default function EditProfileScreen() {
               description: "Periksa format URL lalu coba simpan lagi.",
               tone: "danger",
             })
-            await fetchProfile()
+            await query.refresh()
             return
           }
         }
@@ -239,7 +250,7 @@ export default function EditProfileScreen() {
         setSubmitting(false)
       }
     },
-    [dto, links, linksChanged, profileChanged, fetchProfile, toast.show],
+    [dto, links, linksChanged, profileChanged, query, toast.show],
   )
 
   const handleSubmit = useCallback(() => {
@@ -345,7 +356,7 @@ export default function EditProfileScreen() {
     >
       <Header title="Edit Profil" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -357,7 +368,7 @@ export default function EditProfileScreen() {
           <ErrorState
             title="Gagal memuat"
             description={error}
-            onRetry={() => void fetchProfile()}
+            onRetry={() => void query.reload()}
           />
         ) : loading ? (
           <View className="gap-4 py-4">

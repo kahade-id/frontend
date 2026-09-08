@@ -56,6 +56,7 @@ import {
   type CancelReason,
   type QrisPayment,
 } from "@/lib/api/orders"
+import { useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
 import { formatDateTime, formatDecimal, formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
@@ -121,15 +122,62 @@ export default function OrderDetailScreen() {
   const toast = useToast()
   const { copied, copy } = useCopy()
 
-  const [order, setOrder] = useState<Order | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-  const [history, setHistory] = useState<
-    Awaited<ReturnType<typeof api.orders.getOrderHistory>>["data"]
-  >([])
-  const [fee, setFee] = useState<Awaited<ReturnType<typeof api.orders.calculateFee>> | null>(null)
-  const [durations, setDurations] = useState<AverageDurations | null>(null)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchOrder()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
+   * mengganti SELURUH detail pesanan (status, timeline, escrow, biaya) dengan
+   * kerangka. Request juga tidak dibatalkan saat layar ditutup.
+   *
+   * `.catch(() => null)` pada riwayat dan durasi rata-rata DIPERTAHANKAN:
+   * keduanya pelengkap, kegagalannya tidak boleh mematikan detail order.
+   * Perhitungan biaya susulan juga tetap di dalam fetcher karena hasilnya
+   * data server (diturunkan dari order), bukan state UI.
+   */
+  const query = useApiQuery<{
+    order: Order
+    history: Awaited<ReturnType<typeof api.orders.getOrderHistory>>["data"]
+    durations: AverageDurations | null
+    fee: Awaited<ReturnType<typeof api.orders.calculateFee>> | null
+  }>(
+    `order-detail:${id}`,
+    async (signal) => {
+      const oid = id as string
+      const [o, h, d] = await Promise.all([
+        api.orders.getOrder(oid, signal),
+        api.orders
+          .getOrderHistory(oid, { page: 1, limit: HISTORY_LIMIT }, signal)
+          .catch(() => null),
+        api.orders.getAverageDurations(signal).catch(() => null),
+      ])
+      let fee = o.fee ?? null
+      if (
+        !fee &&
+        (o.myRole === "BUYER" || o.myRole === "SELLER") &&
+        ["PENDING_PAYMENT", "PAID"].includes(o.status)
+      ) {
+        try {
+          fee = await api.orders.calculateFee(
+            {
+              orderValue: o.orderValue,
+              feeResponsibility: o.feeResponsibility,
+              role: o.myRole,
+            },
+            signal,
+          )
+        } catch {
+          // fee opsional
+        }
+      }
+      return { order: o, history: h?.data ?? [], durations: d, fee }
+    },
+    Boolean(id),
+  )
+  const order = query.data?.order ?? null
+  const history = query.data?.history ?? []
+  const durations = query.data?.durations ?? null
+  const fee = query.data?.fee ?? null
+  const { loading, error, refreshing } = query
   const [submitting, setSubmitting] = useState(false)
 
   const [sheet, setSheet] = useState<SheetKind>(null)
@@ -153,55 +201,22 @@ export default function OrderDetailScreen() {
   const [tracking, setTracking] = useState("")
   const [courier, setCourier] = useState("")
 
-  const fetchOrder = useCallback(async () => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
-    try {
-      const [o, h, d] = await Promise.all([
-        api.orders.getOrder(id),
-        api.orders.getOrderHistory(id, { page: 1, limit: HISTORY_LIMIT }).catch(() => null),
-        api.orders.getAverageDurations().catch(() => null),
-      ])
-      setOrder(o)
-      setHistory(h?.data ?? [])
-      setDurations(d)
-      setFee(o.fee ?? null)
-      setTracking(o.trackingNumber ?? "")
-      setCourier(o.courierName ?? "")
-      if (
-        !o.fee &&
-        (o.myRole === "BUYER" || o.myRole === "SELLER") &&
-        ["PENDING_PAYMENT", "PAID"].includes(o.status)
-      ) {
-        try {
-          setFee(
-            await api.orders.calculateFee({
-              orderValue: o.orderValue,
-              feeResponsibility: o.feeResponsibility,
-              role: o.myRole,
-            }),
-          )
-        } catch {
-          // fee opsional
-        }
-      }
-    } catch (err) {
-      setError(isApiError(err) ? userMessage(err) : "Gagal memuat detail order.")
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
-
+  /**
+   * Pra-isi resi & kurir yang dulu terjadi DI DALAM fetcher. Dipindah ke effect
+   * karena keduanya input yang bisa diedit user (`onChangeText={setTracking}`
+   * baris ~906, `setCourier` ~898) — state UI, bukan data server.
+   *
+   * CATATAN PERILAKU YANG DIPERTAHANKAN: seperti kode lama, effect ini mengisi
+   * ulang tanpa syarat setiap data order segar, jadi menarik-untuk-menyegarkan
+   * menimpa resi/kurir yang sedang diketik. Itu bug yang sudah ada; tidak
+   * diperbaiki di sini agar migrasi ini tetap bisa diaudit sebagai perubahan
+   * satu dimensi.
+   */
   useEffect(() => {
-    void fetchOrder()
-  }, [fetchOrder])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchOrder()
-    setRefreshing(false)
-  }, [fetchOrder])
+    if (!order) return
+    setTracking(order.trackingNumber ?? "")
+    setCourier(order.courierName ?? "")
+  }, [order])
 
   const closeSheet = useCallback(() => {
     setSheet(null)
@@ -221,7 +236,7 @@ export default function OrderDetailScreen() {
         toast.show({ title: success, tone: "success", duration: 3000 })
         closeSheet()
         setConfirmAccept(false)
-        await fetchOrder()
+        await query.refresh()
         return true
       } catch (err) {
         toast.show({
@@ -235,7 +250,7 @@ export default function OrderDetailScreen() {
         setSubmitting(false)
       }
     },
-    [toast.show, closeSheet, fetchOrder],
+    [toast.show, closeSheet, query],
   )
 
   const handlePayPin = useCallback(
@@ -248,7 +263,7 @@ export default function OrderDetailScreen() {
         await api.orders.payOrder(order.id, { pin })
         toast.show({ title: "Pembayaran berhasil", tone: "success", duration: 3000 })
         closeSheet()
-        await fetchOrder()
+        await query.refresh()
       } catch (err) {
         setPinError(isApiError(err) ? userMessage(err) : "PIN salah atau saldo tidak cukup.")
       } finally {
@@ -256,7 +271,7 @@ export default function OrderDetailScreen() {
         setSubmitting(false)
       }
     },
-    [order, toast.show, closeSheet, fetchOrder],
+    [order, toast.show, closeSheet, query],
   )
 
   const pollPayment = useCallback(async () => {
@@ -270,14 +285,14 @@ export default function OrderDetailScreen() {
       if (res.status === "PAID") {
         toast.show({ title: "Pembayaran QRIS diterima", tone: "success", duration: 3000 })
         closeSheet()
-        await fetchOrder()
+        await query.refresh()
       }
     } catch (error) {
       if (activePayment.current === order.id) setPollError(userMessage(error))
     } finally {
       pollLock.current = false
     }
-  }, [order, toast.show, closeSheet, fetchOrder])
+  }, [order, toast.show, closeSheet, query])
   usePolling(
     pollPayment,
     POLL_MS,
@@ -343,7 +358,7 @@ export default function OrderDetailScreen() {
     return (
       <Screen edges={["top"]}>
         <Header title="Detail Order" />
-        <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchOrder()} />
+        <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
       </Screen>
     )
   }
@@ -374,7 +389,7 @@ export default function OrderDetailScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Detail Order" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -409,7 +424,7 @@ export default function OrderDetailScreen() {
               compact
               title="Peran Anda belum terkonfirmasi"
               description="Aksi transaksi dinonaktifkan sampai peran Anda pada order ini diketahui."
-              onRetry={() => void fetchOrder()}
+              onRetry={() => void query.reload()}
             />
           ) : null}
 
@@ -497,7 +512,7 @@ export default function OrderDetailScreen() {
                     compact
                     title="Rincian biaya belum tersedia"
                     description="Muat ulang untuk menampilkan jumlah yang harus dibayar."
-                    onRetry={() => void fetchOrder()}
+                    onRetry={() => void query.reload()}
                   />
                 ) : null}
                 <Button disabled={!fee} onPress={() => setSheet("pay")}>

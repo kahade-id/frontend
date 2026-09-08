@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -11,6 +11,7 @@ import { toPaymentMethods } from "@/lib/payment-methods"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { usePolling } from "@/lib/use-polling"
+import { useApiQuery } from "@/lib/use-api-query"
 import { AmountInput } from "@/components/ui/amount-input"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -50,10 +51,26 @@ export default function TopupScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
-  const [methods, setMethods] = useState<PaymentMethod[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: metode pembayaran dirakit manual (useState loading/error/refreshing
+   * + useEffect). Cacat yang terbukti dari kode lama: `refresh` memanggil
+   * `fetchMethods()` yang SAMA dengan muat-awal, dan fungsi itu membuka dengan
+   * `setLoading(true)`. Karena cabang render `loading ? <ListLoading/>` duduk
+   * di atas `<PaymentMethodSelector>`, tarik-untuk-menyegarkan MENGGANTI
+   * daftar metode dengan kerangka — di layar tempat user sedang memilih cara
+   * membayar. Request juga tidak dibatalkan saat layar ditutup.
+   *
+   * `useApiQuery` memisahkan `refreshing` dari `loading` sehingga data lama
+   * tetap tampil selama penyegaran, dan meneruskan AbortSignal ke adapter.
+   */
+  const methodsQuery = useApiQuery<PaymentMethod[]>("topup-methods", async (signal) => {
+    const raw = await api.wallet.getPaymentMethods(signal)
+    return toPaymentMethods(raw).filter((method) => isTopupMethod(method.id))
+  })
+  const methods = useMemo(() => methodsQuery.data ?? [], [methodsQuery.data])
+  const { loading, error } = methodsQuery
+  const [pollRefreshing, setPollRefreshing] = useState(false)
+  const refreshing = methodsQuery.refreshing || pollRefreshing
   const [amount, setAmount] = useState(0)
   const [methodId, setMethodId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -65,27 +82,20 @@ export default function TopupScreen() {
   const submitLock = useRef(false)
   const pollLock = useRef(false)
 
-  const fetchMethods = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const raw = await api.wallet.getPaymentMethods()
-      const choices = toPaymentMethods(raw).filter((method) => isTopupMethod(method.id))
-      setMethods(choices)
-      setMethodId((previous) =>
-        choices.some((m) => m.id === previous && !m.unavailable)
-          ? previous
-          : (choices.find((m) => !m.unavailable)?.id ?? null),
-      )
-    } catch (error) {
-      setError(userMessage(error))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+  /**
+   * Pilih metode default begitu data tiba. Logika identik dengan yang lama:
+   * pilihan user dipertahankan selama masih ada dan masih bisa dipakai;
+   * ambil yang pertama tidak `unavailable`. Berupa effect (bukan di dalam
+   * fetcher) karena `methodId` adalah state UI, bukan bagian dari data server.
+   */
   useEffect(() => {
-    void fetchMethods()
-  }, [fetchMethods])
+    if (methods.length === 0) return
+    setMethodId((previous) =>
+      methods.some((m) => m.id === previous && !m.unavailable)
+        ? previous
+        : (methods.find((m) => !m.unavailable)?.id ?? null),
+    )
+  }, [methods])
 
   const pollStatus = useCallback(async (id: string) => {
     if (pollLock.current) return
@@ -114,14 +124,19 @@ export default function TopupScreen() {
   )
 
   const refresh = useCallback(async () => {
-    setRefreshing(true)
-    try {
-      if (result?.paymentTxId) await pollStatus(result.paymentTxId)
-      else await fetchMethods()
-    } finally {
-      setRefreshing(false)
+    // Cabang polling punya indikator sendiri; cabang metode memakai
+    // `methodsQuery.refreshing` supaya daftar tidak dikosongkan.
+    if (result?.paymentTxId) {
+      setPollRefreshing(true)
+      try {
+        await pollStatus(result.paymentTxId)
+      } finally {
+        setPollRefreshing(false)
+      }
+      return
     }
-  }, [result?.paymentTxId, pollStatus, fetchMethods])
+    await methodsQuery.refresh()
+  }, [result?.paymentTxId, pollStatus, methodsQuery.refresh])
 
   const canPay =
     !loading &&
@@ -233,7 +248,7 @@ export default function TopupScreen() {
                 compact
                 title="Gagal memuat metode"
                 description={error}
-                onRetry={() => void fetchMethods()}
+                onRetry={() => void methodsQuery.reload()}
               />
             ) : methods.length ? (
               <PaymentMethodSelector

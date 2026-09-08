@@ -14,7 +14,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * lihat status jawaban, hapus pertanyaan saya, buka profil yang ditanya.
  * Daftar dipaginasi (PAGE_SIZE 20 + <LoadMore>); respons array|{data,meta}.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ChatCircleDots } from "phosphor-react-native"
@@ -24,6 +24,7 @@ import { api, userMessage } from "@/lib/api"
 import { readQuestionList, type MyQuestionsType, type QuestionItem } from "@/lib/api/users"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
@@ -54,13 +55,6 @@ export default function QuestionsScreen() {
   const toast = useToast()
 
   const [type, setType] = useState<MyQuestionsType>("received")
-  const [items, setItems] = useState<QuestionItem[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
 
   const [answerTarget, setAnswerTarget] = useState<QuestionItem | null>(null)
   const [answerText, setAnswerText] = useState("")
@@ -68,54 +62,36 @@ export default function QuestionsScreen() {
   const [deleteTarget, setDeleteTarget] = useState<QuestionItem | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const fetchPage = useCallback(
-    async (p: number) => {
-      const body = await api.users.getMyQuestions({ type, page: p, limit: PAGE_SIZE })
-      const { items: data, totalPages } = readQuestionList(body)
-      setItems((prev) => (p === 1 ? data : [...prev, ...data]))
-      setPage(p)
-      setHasMore(typeof totalPages === "number" ? p < totalPages : data.length >= PAGE_SIZE)
+  /**
+   * `usePaginatedQuery`, bukan rakitan manual page/hasMore/loadingMore. Yang
+   * sebelumnya hilang dan sekarang ditangani hook: ganti tab (received/sent)
+   * membatalkan request tab lama sehingga respons lambat tidak bisa menimpa
+   * hasil tab baru, "muat lagi" single-flight, dan baris yang sudah ada TETAP
+   * tampil saat halaman berikutnya gagal.
+   *
+   * Perubahan umpan balik yang disengaja: kegagalan "muat lagi" dulu hanya
+   * memunculkan Toast (hilang dalam beberapa detik, tanpa aksi). Sekarang ia
+   * memakai status "error" milik <LoadMore> yang memang sudah ada di komponen
+   * itu tetapi tidak pernah dipakai — persisten dan punya tombol coba lagi.
+   */
+  const query = usePaginatedQuery<QuestionItem>(
+    `my-questions:${type}`,
+    async (page, signal) => {
+      const body = await api.users.getMyQuestions({ type, page, limit: PAGE_SIZE }, signal)
+      const { items, totalPages } = readQuestionList(body)
+      return {
+        data: items,
+        meta: {
+          page,
+          limit: PAGE_SIZE,
+          // Fallback meniru logika lama: tanpa totalPages dari server, halaman
+          // penuh dianggap masih punya lanjutan.
+          totalPages: totalPages ?? (items.length >= PAGE_SIZE ? page + 1 : page),
+        },
+      }
     },
-    [type],
   )
-
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      await fetchPage(1)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [fetchPage])
-
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
-
-  const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return
-    setLoadingMore(true)
-    try {
-      await fetchPage(page + 1)
-    } catch (err: unknown) {
-      toast.show({
-        title: "Gagal memuat halaman berikutnya",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [loadingMore, hasMore, fetchPage, page, toast])
+  const items = query.data
 
   const openAnswer = useCallback((q: QuestionItem) => {
     setAnswerTarget(q)
@@ -134,13 +110,13 @@ export default function QuestionsScreen() {
       await api.users.answerQuestion(answerTarget.id, value)
       toast.show({ title: "Jawaban terkirim", tone: "success", duration: 3000 })
       setAnswerTarget(null)
-      await fetchPage(1)
+      await query.reload()
     } catch (err) {
       toast.show({ title: "Gagal mengirim jawaban", description: userMessage(err), tone: "danger" })
     } finally {
       setAnswering(false)
     }
-  }, [answerTarget, answerText, toast, fetchPage])
+  }, [answerTarget, answerText, toast, query])
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget || deleting) return
@@ -149,7 +125,7 @@ export default function QuestionsScreen() {
       await api.users.deleteQuestion(deleteTarget.id)
       toast.show({ title: "Pertanyaan dihapus", tone: "neutral", duration: 3000 })
       setDeleteTarget(null)
-      await fetchPage(1)
+      await query.reload()
     } catch (err) {
       toast.show({
         title: "Gagal menghapus pertanyaan",
@@ -159,7 +135,7 @@ export default function QuestionsScreen() {
     } finally {
       setDeleting(false)
     }
-  }, [deleteTarget, deleting, toast, fetchPage])
+  }, [deleteTarget, deleting, toast, query])
 
   const received = type === "received"
 
@@ -170,17 +146,21 @@ export default function QuestionsScreen() {
         <SegmentedControl items={SEGMENTS} value={type} onChange={setType} />
       </View>
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={query.refresh}
+        refreshing={query.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
+        {query.loading ? (
           <ListLoading />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+        ) : query.error ? (
+          <ErrorState
+            title="Gagal memuat"
+            description={query.error}
+            onRetry={() => void query.reload()}
+          />
         ) : items.length === 0 ? (
           <EmptyState
             icon={ChatCircleDots}
@@ -249,8 +229,16 @@ export default function QuestionsScreen() {
               )
             })}
             <LoadMore
-              status={loadingMore ? "loading" : hasMore ? "idle" : "end"}
-              onLoadMore={() => void handleLoadMore()}
+              status={
+                query.loadMoreError
+                  ? "error"
+                  : query.loadingMore
+                    ? "loading"
+                    : query.hasMore
+                      ? "idle"
+                      : "end"
+              }
+              onLoadMore={() => void query.loadMore()}
               hideEnd
             />
           </View>

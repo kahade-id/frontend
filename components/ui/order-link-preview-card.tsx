@@ -250,7 +250,7 @@ export function OrderLinkPreviewCardSkeleton({ className, ...rest }: Omit<ViewPr
       accessibilityLabel="Memuat tautan order"
       {...rest}
     >
-      <View className="flex-row items-center gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="flex-row items-center gap-3">
         <Skeleton shape="circle" width={40} height={40} />
         <View className="flex-1 gap-1">
           <Skeleton height={16} className="w-32" />

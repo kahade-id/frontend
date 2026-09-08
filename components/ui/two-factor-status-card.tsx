@@ -189,7 +189,7 @@ export function TwoFactorStatusCard({
         {enabled ? (
           <>
             {onManage ? (
-              <Button variant="secondary" size="sm" onPress={onManage} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+              <Button variant="secondary" size="sm" onPress={onManage} className="flex-1">
                 {t.manage}
               </Button>
             ) : null}

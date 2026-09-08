@@ -35,6 +35,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -118,7 +119,7 @@ export function FavoriteIconButton({
             }
           : undefined
       }
-      containerClassName={cn("self-start", containerClassName)}
+      containerClassName={cn("self-start rounded-sm", focusRing, containerClassName)}
       className={cn(
         "flex-row items-center justify-center gap-1 rounded-sm px-2",
         sizeBox[size],

@@ -150,7 +150,7 @@ function StatColumn({ label, value, last = false }: { label: string; value: Reac
   return (
     <View className={cn("flex-1 gap-0.5", !last && "border-r border-border pr-3", last && "pl-3")}>
       {primitive ? (
-        <Text variant="monoBody" weight={600} tone="primary" className="tabular-nums focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+        <Text variant="monoBody" weight={600} tone="primary" className="tabular-nums">
           {value}
         </Text>
       ) : (

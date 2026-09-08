@@ -52,6 +52,7 @@ import { Field, type FieldProps } from "@/components/ui/field"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
@@ -300,7 +301,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             hitSlop={ICON_SM_HIT_SLOP}
             accessibilityRole="button"
             accessibilityLabel="Hapus teks"
-            className="ml-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className={cn("ml-2 rounded-xs", focusRing)}
           >
             <Icon icon={X} size="sm" />
           </Pressable>
@@ -312,7 +313,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             accessibilityLabel={secure ? "Tampilkan kata sandi" : "Sembunyikan kata sandi"}
             accessibilityHint={secure ? "Menampilkan kata sandi sebagai teks" : "Menyembunyikan kata sandi"}
             accessibilityState={{ checked: !secure }}
-            className="ml-2"
+            className={cn("ml-2 rounded-xs", focusRing)}
           >
             <Icon icon={secure ? Eye : EyeSlash} size="sm" />
           </Pressable>
@@ -325,7 +326,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
               accessibilityRole="button"
               accessibilityLabel={rightIconAccessibilityLabel}
               accessibilityState={{ disabled }}
-              className="ml-2"
+              className={cn("ml-2 rounded-xs", focusRing)}
             >
               <Icon icon={rightIcon} size="sm" />
             </Pressable>

@@ -17,6 +17,7 @@ import { FieldHelper, FieldLabel } from "@/components/ui/field"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
@@ -95,7 +96,7 @@ export function ScheduleField({
                   left: tokens.space[1],
                   right: tokens.space[1],
                 }}
-                containerClassName="flex-1"
+                containerClassName={cn("flex-1 rounded-sm", focusRing)}
                 className={cn(
                   "h-10 items-center justify-center rounded-sm border",
                   // Radio hari belum terpilih -> outline border-control >= 3:1 (WCAG 1.4.11, audit #6)

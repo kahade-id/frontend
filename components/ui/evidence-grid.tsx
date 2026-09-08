@@ -34,6 +34,7 @@ import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { isImageMime } from "@/lib/mime"
 
 export type EvidenceMime = "image/jpeg" | "image/png" | "image/webp" | "application/pdf"
@@ -100,8 +101,8 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
         accessibilityRole="imagebutton"
         accessibilityLabel={a11y}
         accessibilityHint={onOpen ? "Buka bukti" : undefined}
-        containerClassName="w-full h-full"
-        className="h-full w-full overflow-hidden rounded-sm border border-border bg-surface focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        containerClassName={cn("w-full h-full rounded-sm", focusRing)}
+        className="h-full w-full overflow-hidden rounded-sm border border-border bg-surface"
       >
         {isImage || item.thumbnailUrl ? (
           <Picture source={item.thumbnailUrl ?? item.url} alt="" aspectRatio={1} radius="none" resizeMode="cover" recyclingKey={item.id} className="h-full w-full" />
@@ -176,7 +177,7 @@ export function EvidenceGrid({
           disabled={addDisabled}
           accessibilityRole="button"
           accessibilityLabel={t.add}
-          containerClassName={basis}
+          containerClassName={cn(basis, "rounded-sm", focusRing)}
           className={cn(
             // Tile tambah = tombol tanpa fill; outline dashed-nya yang mengenali kontrol -> border-control (WCAG 1.4.11, audit #6)
             "aspect-square w-full items-center justify-center gap-1 rounded-sm border border-dashed border-border-control bg-transparent",

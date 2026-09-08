@@ -37,6 +37,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 
 const MONTHS_ID_LONG = [
   "Januari", "Februari", "Maret", "April", "Mei", "Juni",
@@ -166,7 +167,7 @@ export function Calendar({
                   accessibilityState={{ selected, disabled: cellDisabled }}
                   disabled={cellDisabled}
                   onPress={() => onChange?.(d)}
-                  containerClassName="flex-1"
+                  containerClassName={cn("flex-1 rounded-sm", focusRing)}
                   className={cn(
                     "aspect-square items-center justify-center rounded-sm",
                     selected

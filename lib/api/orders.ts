@@ -323,9 +323,10 @@ export type MessageResult = { message: string }
 // Pra-order
 // ------------------------------------------------------------------
 
-export function calculateFee(dto: CalculateFeeDto) {
+export function calculateFee(dto: CalculateFeeDto, signal?: AbortSignal) {
   return http.post<FeeBreakdown, CalculateFeeDto>("/v1/orders/calculate-fee", dto, {
     auth: "required",
+    signal,
   })
 }
 
@@ -351,16 +352,16 @@ export function createOrder(dto: CreateOrderDto) {
 
 export function listOrders(query: ListOrdersQuery = {}, signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/orders", { query, auth: "required", retry: 1, signal })
+    .get<unknown>("/v1/orders", { query, auth: "required", signal })
     .then((raw) => {
       const page = readPage<Order & Record<string, unknown>>(raw, query, ["orders"])
       return { ...page, data: page.data.map(normalizeOrder) }
     })
 }
 
-export function getOrder(orderId: string) {
+export function getOrder(orderId: string, signal?: AbortSignal) {
   return http
-    .get<unknown>(`/v1/orders/${seg(orderId)}`, { auth: "required", retry: 1 })
+    .get<unknown>(`/v1/orders/${seg(orderId)}`, { auth: "required", retry: 1, signal })
     .then((raw) => normalizeOrder(readEntity<Order & Record<string, unknown>>(raw, "order")))
 }
 
@@ -368,8 +369,8 @@ export function getOrdersSummary(signal?: AbortSignal) {
   return http.get<OrderSummary>("/v1/orders/summary", { auth: "required", retry: 1, signal })
 }
 
-export function getAverageDurations() {
-  return http.get<AverageDurations>("/v1/orders/average-durations", { auth: "required", retry: 1 })
+export function getAverageDurations(signal?: AbortSignal) {
+  return http.get<AverageDurations>("/v1/orders/average-durations", { auth: "required", retry: 1, signal })
 }
 
 export function confirmOrder(orderId: string, dto: ConfirmOrderDto) {
@@ -391,7 +392,6 @@ export function payOrderQris(orderId: string) {
 export function getPaymentStatus(orderId: string) {
   return http.get<PaymentStatus>(`/v1/orders/${seg(orderId)}/payment-status`, {
     auth: "required",
-    retry: 1,
   })
 }
 
@@ -422,11 +422,11 @@ export function submitDispute(orderId: string, dto: SubmitDisputeDto) {
   })
 }
 
-export function getOrderHistory(orderId: string, query: PageQuery) {
+export function getOrderHistory(orderId: string, query: PageQuery, signal?: AbortSignal) {
   return http.get<Paginated<OrderHistoryEntry>>(`/v1/orders/${seg(orderId)}/history`, {
     query,
     auth: "required",
-    retry: 1,
+    signal,
   })
 }
 
@@ -448,7 +448,6 @@ export function listExtensions(orderId: string, query: PageQuery) {
   return http.get<Paginated<OrderExtension>>(`/v1/orders/${seg(orderId)}/extensions`, {
     query,
     auth: "required",
-    retry: 1,
   })
 }
 
@@ -474,10 +473,10 @@ export function submitDeliveryProof(orderId: string, dto: SubmitDeliveryProofDto
   )
 }
 
-export function listDeliveryProofs(orderId: string) {
+export function listDeliveryProofs(orderId: string, signal?: AbortSignal) {
   return http.get<DeliveryProof[]>(`/v1/orders/${seg(orderId)}/delivery-proof`, {
     auth: "required",
-    retry: 1,
+    signal,
   })
 }
 
@@ -511,16 +510,20 @@ export function createOrderLink(dto: CreateOrderLinkDto) {
   return http.post<OrderLink, CreateOrderLinkDto>("/v1/orders/links", dto, { auth: "required" })
 }
 
-export function listMyOrderLinks(query: PageQuery) {
+export function listMyOrderLinks(query: PageQuery, signal?: AbortSignal) {
   return http.get<Paginated<OrderLink>>("/v1/orders/links/my", {
     query,
     auth: "required",
-    retry: 1,
+    signal,
   })
 }
 
-export function getOrderLink(token: string) {
-  return http.get<OrderLink>(`/v1/orders/links/${seg(token)}`, { auth: "required", retry: 1 })
+export function getOrderLink(token: string, signal?: AbortSignal) {
+  return http.get<OrderLink>(`/v1/orders/links/${seg(token)}`, {
+    auth: "required",
+    retry: 1,
+    signal,
+  })
 }
 
 export function acceptOrderLink(token: string) {
@@ -537,8 +540,11 @@ export function cancelOrderLink(token: string) {
 // Dokumen
 // ------------------------------------------------------------------
 
-export function getInvoice(orderId: string) {
-  return http.get<Invoice>(`/v1/orders/${seg(orderId)}/invoice`, { auth: "required", retry: 1 })
+export function getInvoice(orderId: string, signal?: AbortSignal) {
+  return http.get<Invoice>(`/v1/orders/${seg(orderId)}/invoice`, {
+    auth: "required",
+    signal,
+  })
 }
 
 /** HTML siap cetak — render di WebView atau kirim ke expo-print. */

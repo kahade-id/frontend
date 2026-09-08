@@ -46,6 +46,7 @@ import {
 import { addDays, OrderExtensionCard } from "@/components/ui/order-extension-card"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -82,15 +83,37 @@ export default function ExtensionScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [order, setOrder] = useState<Order | null>(null)
-  const [role, setRole] = useState<Role>(null)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchAll()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
+   * mengganti pesanan + daftar pengajuan perpanjangan dengan kerangka.
+   * Request juga tidak dibatalkan saat layar ditutup.
+   *
+   * `resolveRole` tetap DI DALAM fetcher karena hasilnya data server yang
+   * diturunkan dari order, bukan state UI.
+   *
+   * Daftar perpanjangan SENGAJA tetap memakai paginator manual `fetchPage`
+   * di bawah: menggantinya dengan usePaginatedQuery akan mengubah semantik
+   * (dedupe by id, hasMore, loadMore) dan itu perubahan lain, bukan bagian
+   * dari perbaikan blanking ini.
+   */
+  const query = useApiQuery<{ order: Order | null; role: Role }>(
+    `order-extension:${orderId}`,
+    async (signal) => {
+      const o = (await api.orders.getOrder(orderId as string, signal)) ?? null
+      return { order: o, role: o ? await resolveRole(o, signal) : null }
+    },
+    Boolean(orderId),
+  )
+  const bundle = query.data
+  const order = bundle?.order ?? null
+  const role = bundle?.role ?? null
   const [items, setItems] = useState<OrderExtension[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const { loading, error, refreshing } = query
   const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
 
   // Respon (pembeli)
   const [action, setAction] = useState<Action>(null)
@@ -104,10 +127,10 @@ export default function ExtensionScreen() {
   const [reasonError, setReasonError] = useState<string | undefined>()
   const [requesting, setRequesting] = useState(false)
 
-  const resolveRole = useCallback(async (o: Order): Promise<Role> => {
+  const resolveRole = useCallback(async (o: Order, signal?: AbortSignal): Promise<Role> => {
     if (o.myRole === "SELLER" || o.myRole === "BUYER") return o.myRole
     try {
-      const me = await api.users.getMe()
+      const me = await api.users.getMe(signal)
       if (me?.id && me.id === o.seller?.id) return "SELLER"
       if (me?.id && me.id === o.buyer?.id) return "BUYER"
     } catch {
@@ -129,30 +152,17 @@ export default function ExtensionScreen() {
     [orderId],
   )
 
-  const fetchAll = useCallback(async () => {
-    if (!orderId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const [o] = await Promise.all([api.orders.getOrder(orderId), fetchPage(1)])
-      setOrder(o ?? null)
-      if (o) setRole(await resolveRole(o))
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [orderId, fetchPage, resolveRole])
-
+  /**
+   * `fetchPage(1)` dulu dipanggil DI DALAM fetcher (lewat Promise.all).
+   * Dipindah ke effect karena ia efek samping pada state daftar, bukan bagian
+   * dari data yang dikembalikan query. Bergantung pada `bundle` supaya ikut
+   * jalan tiap penyegaran berhasil — persis perilaku lama, ketika
+   * `handleRefresh` memanggil `fetchAll()` yang memuat ulang halaman 1.
+   */
   useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+    if (!bundle) return
+    void fetchPage(1)
+  }, [bundle, fetchPage])
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return
@@ -190,7 +200,7 @@ export default function ExtensionScreen() {
         duration: 3000,
       })
       setAction(null)
-      await fetchAll()
+      await query.refresh()
     } catch (err: unknown) {
       toast.show({
         title: "Gagal memproses permintaan",
@@ -200,7 +210,7 @@ export default function ExtensionScreen() {
     } finally {
       setBusy(false)
     }
-  }, [action, orderId, actionNote, toast, fetchAll])
+  }, [action, orderId, actionNote, toast, query])
 
   // ── Pengajuan penjual ──────────────────────────────────────────────
   const openRequest = useCallback(() => {
@@ -226,7 +236,7 @@ export default function ExtensionScreen() {
         tone: "success",
       })
       setRequestOpen(false)
-      await fetchAll()
+      await query.refresh()
     } catch (err) {
       toast.show({
         title: "Gagal mengajukan perpanjangan",
@@ -236,7 +246,7 @@ export default function ExtensionScreen() {
     } finally {
       setRequesting(false)
     }
-  }, [orderId, requesting, reason, days, toast, fetchAll])
+  }, [orderId, requesting, reason, days, toast, query])
 
   // Tenggat saat ini — dari order (deadline eksplisit atau createdAt + hari)
   const deadline = useMemo(() => {
@@ -265,7 +275,7 @@ export default function ExtensionScreen() {
     >
       <Header title="Perpanjangan Tenggat" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -275,7 +285,7 @@ export default function ExtensionScreen() {
         {loading ? (
           <DetailLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
             {order ? (

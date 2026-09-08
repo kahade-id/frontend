@@ -3,7 +3,6 @@ import { useState } from "react"
 import { FlatList, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Question, MagnifyingGlass } from "phosphor-react-native"
-import { router } from "expo-router"
 import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -59,22 +58,18 @@ export default function FaqScreen() {
               padded={false}
               title={item.article.title}
               highlight={keyword}
-              onPress={() =>
-                router.push(
-                  ROUTES.helpArticle(
-                    item.article.slug ?? item.article.id,
-                    item.article.category,
-                    item.article.title,
-                  ),
-                )
-              }
+              href={ROUTES.helpArticle(
+                item.article.slug ?? item.article.id,
+                item.article.category,
+                item.article.title,
+              )}
             />
           ) : (
             <HelpCategoryCard
               name={item.category.name}
               description={item.category.description}
               articleCount={item.category.articleCount}
-              onPress={() => router.push(ROUTES.helpCategory(item.category.slug))}
+              href={ROUTES.helpCategory(item.category.slug)}
             />
           )
         }

@@ -1,4 +1,3 @@
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Rekening Bank (CRUD + set utama).
  *
@@ -6,14 +5,16 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * POST /{id}/set-primary → utama. Form memakai BankSelect dari
  * GET /v1/public/banks (logo resmi berwarna).
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Plus, Trash } from "phosphor-react-native"
 
 import { api, type AddBankAccountDto, userMessage } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
+import { maskAccountNumber } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { BankAccountListItem } from "@/components/ui/bank-account-list-item"
 import { BankSelect, type BankOption } from "@/components/ui/bank-select"
@@ -25,6 +26,7 @@ import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -34,11 +36,44 @@ export default function BankAccountsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [accounts, setAccounts] = useState<BankAccount[]>([])
-  const [banks, setBanks] = useState<BankOption[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: layar ini merakit sendiri state async (loading/error/refreshing +
+   * useEffect). Tiga akibat yang terbukti dari kode lama:
+   *   1. Tarik-untuk-menyegarkan memakai fungsi yang SAMA dengan muat-awal,
+   *      dan fungsi itu membuka dengan setLoading(true). Karena cabang render
+   *      `loading ? <ListLoading/>` duduk di atas isi, menarik daftar
+   *      MENGGANTI rekening dengan kerangka — konten hilang sekejap.
+   *   2. Request tidak pernah dibatalkan saat layar ditutup; respons telat
+   *      memanggil setState pada komponen yang sudah unmount.
+   *   3. Error hanya diisi di satu tempat; kegagalan pasca-mutasi cuma toast.
+   * useApiQuery membereskan ketiganya: `refreshing` terpisah dari `loading`
+   * (data lama tetap tampil), request dibatalkan lewat AbortSignal yang
+   * diteruskan ke kedua adapter, dan error selalu lewat `userMessage(err)`.
+   *
+   * Kedua request tetap satu query (Promise.all) — seperti layar lain —
+   * karena daftar rekening dan katalog bank selalu dibutuhkan bersamaan.
+   */
+  const query = useApiQuery<{ accounts: BankAccount[]; banks: BankOption[] }>(
+    "bank-accounts",
+    async (signal) => {
+      const [accountList, bankList] = await Promise.all([
+        api.bankAccounts.listBankAccounts(signal),
+        api.public.getBanks(signal),
+      ])
+      return {
+        accounts: accountList ?? [],
+        banks: (bankList ?? []).map((b) => ({
+          code: b.code,
+          name: b.name,
+          logo: b.logoUrl ?? undefined,
+          kind: "bank" as const,
+        })),
+      }
+    },
+  )
+  const accounts = useMemo(() => query.data?.accounts ?? [], [query.data])
+  const banks = useMemo(() => query.data?.banks ?? [], [query.data])
+  const { loading, error, refreshing } = query
 
   const [adding, setAdding] = useState(false)
   const [bankCode, setBankCode] = useState<string | undefined>(undefined)
@@ -48,40 +83,6 @@ export default function BankAccountsScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<BankAccount | null>(null)
   const [deleting, setDeleting] = useState(false)
-
-  const fetchData = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [accountList, bankList] = await Promise.all([
-        api.bankAccounts.listBankAccounts(),
-        api.public.getBanks(),
-      ])
-      setAccounts(accountList ?? [])
-      setBanks(
-        (bankList ?? []).map((b) => ({
-          code: b.code,
-          name: b.name,
-          logo: b.logoUrl ?? undefined,
-          kind: "bank" as const,
-        })),
-      )
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void fetchData()
-  }, [fetchData])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchData()
-    setRefreshing(false)
-  }, [fetchData])
 
   const handleAdd = useCallback(async () => {
     if (!bankCode || !bankName.trim() || !accountName.trim()) return
@@ -100,7 +101,7 @@ export default function BankAccountsScreen() {
       setAccountNumber("")
       setAccountName("")
       setBankCode(undefined)
-      await fetchData()
+      await query.refresh()
     } catch {
       toast.show({
         title: "Gagal menambahkan rekening",
@@ -110,7 +111,7 @@ export default function BankAccountsScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [bankCode, bankName, accountNumber, accountName, banks, toast.show, fetchData])
+  }, [bankCode, bankName, accountNumber, accountName, banks, toast.show, query])
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return
@@ -119,7 +120,7 @@ export default function BankAccountsScreen() {
       await api.bankAccounts.deleteBankAccount(deleteTarget.id)
       toast.show({ title: "Rekening dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
-      await fetchData()
+      await query.refresh()
     } catch (err: unknown) {
       toast.show({
         title: "Gagal menghapus rekening",
@@ -129,14 +130,14 @@ export default function BankAccountsScreen() {
     } finally {
       setDeleting(false)
     }
-  }, [deleteTarget, toast.show, fetchData])
+  }, [deleteTarget, toast.show, query])
 
   const handleSetPrimary = useCallback(
     async (acc: BankAccount) => {
       try {
         await api.bankAccounts.setPrimaryBankAccount(acc.id)
         toast.show({ title: "Rekening utama diperbarui", tone: "success", duration: 3000 })
-        await fetchData()
+        await query.refresh()
       } catch (err: unknown) {
         toast.show({
           title: "Gagal memperbarui rekening utama",
@@ -145,7 +146,7 @@ export default function BankAccountsScreen() {
         })
       }
     },
-    [toast.show, fetchData],
+    [toast.show, query],
   )
 
   const selectedBank = useMemo(() => banks.find((b) => b.code === bankCode), [banks, bankCode])
@@ -154,7 +155,7 @@ export default function BankAccountsScreen() {
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Rekening Bank" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -165,7 +166,7 @@ export default function BankAccountsScreen() {
         {loading ? (
           <ListLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchData()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : accounts.length === 0 ? (
           <EmptyState
             icon={Trash}
@@ -269,7 +270,17 @@ export default function BankAccountsScreen() {
 
       <Dialog
         title="Hapus rekening?"
-        description={`${deleteTarget?.bankName ?? ""} ${deleteTarget?.accountNumber ?? ""} akan dihapus dari daftar.`}
+        /* Audit: nomor rekening ditulis PENUH di sini, padahal
+           <BankAccountListItem> sengaja memaskernya — docblock komponen itu
+           menyebut alasannya: "daftar rekening sering terlihat orang lain saat
+           user memilih tujuan tarik dana (§14)". Dialog modal justru lebih
+           terbuka: `description` dirender sebagai <Text> dan ikut dibacakan
+           screen reader, jadi nomor lengkap bisa terdengar di tempat umum.
+           Dimasker agar konsisten dengan daftar; nama bank + 4 digit terakhir
+           tetap cukup untuk memastikan rekening mana yang dihapus. */
+        description={`${deleteTarget?.bankName ?? ""} ${
+          deleteTarget ? maskAccountNumber(deleteTarget.accountNumber) : ""
+        } akan dihapus dari daftar.`}
         visible={!!deleteTarget}
         destructive
         loading={deleting}

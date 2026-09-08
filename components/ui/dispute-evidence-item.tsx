@@ -32,6 +32,7 @@ import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
 import { isImageMime } from "@/lib/mime"
 
@@ -144,6 +145,7 @@ export function DisputeEvidenceItem({
                   accessibilityLabel={t.openFile(index, files.length)}
                   onPress={onOpenFile ? () => onOpenFile(index) : undefined}
                   disabled={!onOpenFile}
+                  containerClassName={cn("rounded-sm", focusRing)}
                   className={cn(f.error && "border-error rounded-sm border-border-error")}
                 >
                   <Picture source={f.uri} alt={f.name ?? ""} aspectRatio={1} radius="sm" bordered />
@@ -169,13 +171,14 @@ export function DisputeEvidenceItem({
             accessibilityLabel={t.openFile(index, files.length)}
             onPress={onOpenFile ? () => onOpenFile(index) : undefined}
             disabled={!onOpenFile}
+            containerClassName={cn("rounded-sm", focusRing)}
             className={cn(
               "flex-row items-center gap-3 rounded-sm border bg-surface-elevated px-3 py-2",
               f.error ? "border-border-error" : "border-border",
             )}
           >
             <Icon icon={FilePdf} size="sm" />
-            <View className="flex-1 gap-[2px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <View className="flex-1 gap-[2px]">
               <Text variant="caption" weight={500} tone="primary" numberOfLines={1}>
                 {f.name ?? "Dokumen"}
               </Text>

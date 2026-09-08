@@ -164,7 +164,7 @@ export function OrderLinkShareCard({
       ) : null}
 
       {onOpen || onCancel ? (
-        <View className="flex-row flex-wrap gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+        <View className="flex-row flex-wrap gap-2">
           {onOpen ? (
             <Button variant="secondary" size="sm" fullWidth={false} onPress={onOpen}>
               {t.open}

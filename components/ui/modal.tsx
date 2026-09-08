@@ -240,7 +240,7 @@ export function Dialog({
       initialFocusRef={titleRef}
       {...modalProps}
     >
-      <View className="gap-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="gap-4">
         {icon ? (
           <View className="self-start rounded-sm border border-border p-2">
             <Icon icon={icon} size="md" tone={iconToneOf[tone]} />

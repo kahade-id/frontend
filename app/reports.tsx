@@ -4,7 +4,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * Bila dibuka dengan `targetId`/`targetName` (dari Profil Publik), tampilkan
  * <ReportForm> di atas untuk membuat laporan (POST /v1/settings/report).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -15,6 +15,7 @@ import type { ReportsSettings } from "@/lib/api/settings"
 import type { ReportUserSettingsDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -71,35 +72,25 @@ export default function ReportsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [items, setItems] = useState<ReportsSettings[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const [value, setValue] = useState<ReportFormValue>({ reason: "", detail: "" })
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.settings.getReports()
-      setItems(res ?? [])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+  /**
+   * `useApiQuery`, bukan rakitan useState/useEffect: hook ini membatalkan
+   * request lama saat layar di-unmount, memisahkan `loading` dari
+   * `refreshing`, dan mengubah error lewat `userMessage(err)`.
+   *
+   * Yang diperbaiki untuk pengguna: `handleRefresh` sebelumnya memanggil
+   * fetcher yang sama dengan muat-awal, jadi `setLoading(true)` mengganti
+   * seluruh daftar dengan <ListLoading> — layar berkedip kosong setiap kali
+   * ditarik untuk menyegarkan. Sekarang `refresh` hanya menampilkan indikator
+   * pull-to-refresh dan isi layar tetap terlihat.
+   */
+  const reports = useApiQuery<ReportsSettings[]>(
+    "reports",
+    (signal) => api.settings.getReports(signal),
+  )
+  const items = reports.data ?? []
 
   const handleSubmit = useCallback(
     async (v: ReportFormValue) => {
@@ -113,7 +104,7 @@ export default function ReportsScreen() {
         })
         toast.show({ title: "Laporan terkirim", tone: "success", duration: 3000 })
         setValue({ reason: "", detail: "" })
-        await fetchAll()
+        await reports.reload()
       } catch (err: unknown) {
         toast.show({
           title: "Gagal mengirim laporan",
@@ -124,15 +115,15 @@ export default function ReportsScreen() {
         setSubmitting(false)
       }
     },
-    [targetId, toast.show, fetchAll],
+    [targetId, toast.show, reports],
   )
 
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Laporan" />
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={reports.refresh}
+        refreshing={reports.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
@@ -153,10 +144,14 @@ export default function ReportsScreen() {
 
         <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
           <SectionHeader title="Laporan saya" />
-          {loading ? (
+          {reports.loading ? (
             <ListLoading />
-          ) : error ? (
-            <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          ) : reports.error ? (
+            <ErrorState
+              title="Gagal memuat"
+              description={reports.error}
+              onRetry={() => void reports.reload()}
+            />
           ) : items.length === 0 ? (
             <EmptyState
               icon={Flag}

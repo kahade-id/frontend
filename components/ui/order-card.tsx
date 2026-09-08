@@ -109,6 +109,7 @@ export function OrderCard({
   unread = false,
   labels,
   onPress,
+  href,
   accessibilityLabel,
   className,
   ...rest
@@ -131,8 +132,9 @@ export function OrderCard({
   return (
     <Card
       onPress={onPress}
+      href={href}
       accessibilityLabel={a11y}
-      accessibilityHint={onPress ? "Buka detail transaksi" : undefined}
+      accessibilityHint={onPress || href ? "Buka detail transaksi" : undefined}
       className={cn("gap-3", className)}
       {...rest}
     >

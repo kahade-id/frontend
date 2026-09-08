@@ -60,14 +60,14 @@ export type KycHistoryEntry = {
   rejectionReason?: string | null
 }
 
-export function getKycStatus() {
-  return http.get<KycState>("/v1/kyc/status", { auth: "required", retry: 1 })
+export function getKycStatus(signal?: AbortSignal) {
+  return http.get<KycState>("/v1/kyc/status", { auth: "required", retry: 1, signal })
 }
 
 /** GET /v1/kyc/history — paginated (page ≥1, limit ≤100; default 1/20). */
-export function getKycHistory(query: { page?: number; limit?: number } = {}) {
+export function getKycHistory(query: { page?: number; limit?: number } = {}, signal?: AbortSignal) {
   return http
-    .get<KycHistoryEntry[]>("/v1/kyc/history", { query, auth: "required", retry: 1 })
+    .get<KycHistoryEntry[]>("/v1/kyc/history", { query, auth: "required", retry: 1, signal })
     .then((raw) => readList<KycHistoryEntry>(raw, ["history"]))
 }
 

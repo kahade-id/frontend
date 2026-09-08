@@ -45,6 +45,8 @@ import {
 import { api, type UserProfile } from "@/lib/api"
 import type { SubscriptionStatus } from "@/lib/api/subscriptions"
 import { clearSession } from "@/lib/api/session"
+import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 import { installedAppVersion } from "@/lib/runtime-info"
@@ -60,6 +62,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { ListItem } from "@/components/ui/list-item"
 import { Dialog } from "@/components/ui/modal"
 import { PressableScale } from "@/components/ui/pressable-scale"
+import { RouteLink } from "@/components/ui/route-link"
 import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
@@ -148,10 +151,6 @@ export default function SettingsScreen() {
   const handleRefresh = useCallback(async () => {
     await Promise.allSettled([profileQuery.refresh(), subscriptionQuery.refresh()])
   }, [profileQuery, subscriptionQuery])
-
-  const handleItemPress = useCallback((route: Href) => {
-    router.push(route)
-  }, [])
 
   const handleSocialPress = useCallback(
     (item: SocialCommunityItem) => {
@@ -337,11 +336,19 @@ export default function SettingsScreen() {
 
         <View className="gap-4 px-6 pt-3">
           {/* ── Card Utama: Langganan ───────────────────────── */}
-          <PressableScale
-            accessibilityRole="button"
+          {/* Audit (S5): kartu ini BERNavigasi ke /subscriptions tetapi
+             dipasang sebagai PressableScale dengan accessibilityRole="button".
+             Dua akibat terbukti: (1) di web tidak ada <a href> sungguhan, jadi
+             tidak bisa ctrl/cmd-klik, klik tengah, atau "buka di tab baru";
+             (2) screen reader mengumumkan "tombol", bukan "tautan", sehingga
+             pengguna tidak tahu ini pindah layar. <RouteLink> membungkus
+             <Link asChild> di atas PressableScale — efek tekan tetap sama,
+             tetapi web dapat <a href> dan role-nya otomatis "link" (focusRing
+             juga sudah dipasang di dalamnya). */}
+          <RouteLink
+            href={ROUTES.subscriptions}
             accessibilityLabel="Menu Langganan Kahade Plus"
-            onPress={() => router.push(ROUTES.subscriptions)}
-            containerClassName="w-full"
+            containerClassName="w-full rounded-md"
             className="w-full overflow-hidden rounded-md border border-border bg-surface p-4"
           >
             <View className="flex-row items-center gap-3">
@@ -367,7 +374,7 @@ export default function SettingsScreen() {
 
               <Icon icon={CaretRight} size="sm" tone="default" />
             </View>
-          </PressableScale>
+          </RouteLink>
 
           {/* ── Card 2: Akun & Keamanan ─────────────────────── */}
           <View className="w-full overflow-hidden rounded-md border border-border bg-surface">
@@ -381,7 +388,7 @@ export default function SettingsScreen() {
                 divider={false}
                 padded={false}
                 className="px-4 py-3"
-                onPress={() => handleItemPress(item.route)}
+                href={item.route}
               />
             ))}
           </View>
@@ -399,7 +406,7 @@ export default function SettingsScreen() {
                 divider={false}
                 padded={false}
                 className="px-4 py-3"
-                onPress={() => handleItemPress(item.route)}
+                href={item.route}
               />
             ))}
           </View>
@@ -416,7 +423,7 @@ export default function SettingsScreen() {
                 divider={false}
                 padded={false}
                 className="px-4 py-3"
-                onPress={() => handleItemPress(item.route)}
+                href={item.route}
               />
             ))}
           </View>
@@ -433,7 +440,7 @@ export default function SettingsScreen() {
                 divider={false}
                 padded={false}
                 className="px-4 py-3"
-                onPress={() => handleItemPress(item.route)}
+                href={item.route}
               />
             ))}
           </View>
@@ -456,7 +463,7 @@ export default function SettingsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Buka komunitas ${item.label}`}
                   onPress={() => handleSocialPress(item)}
-                  containerClassName="items-center"
+                  containerClassName={cn("items-center rounded-md", focusRing)}
                   className="h-12 w-12 items-center justify-center rounded-md border border-border bg-surface-elevated"
                 >
                   <Icon icon={item.icon} size="md" tone="default" />

@@ -132,7 +132,7 @@ export function SearchOverlay({
               contentContainerClassName="pb-8"
             >
               {loading ? (
-                <View className="flex-row items-center gap-2 px-6 py-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+                <View className="flex-row items-center gap-2 px-6 py-3">
                   <Spinner size="sm" />
                   <Text variant="caption" tone="secondary">
                     Mencari

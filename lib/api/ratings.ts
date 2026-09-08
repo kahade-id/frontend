@@ -45,8 +45,8 @@ export type MyRatingsResponse =
       received?: { data?: Rating[]; totalPages?: number }
     }
 
-export function getMyRatings(query?: { page?: number; limit?: number }) {
-  return http.get<MyRatingsResponse>("/v1/ratings/my", { query, auth: "required", retry: 1 })
+export function getMyRatings(query?: { page?: number; limit?: number }, signal?: AbortSignal) {
+  return http.get<MyRatingsResponse>("/v1/ratings/my", { query, auth: "required", retry: 1, signal })
 }
 
 /** Normalisasi respons my-ratings → { items, totalPages? }. */
@@ -73,15 +73,31 @@ export function readMyRatings(body: MyRatingsResponse | null | undefined): {
  */
 export type PublicRatingFilter = "all" | "positive" | "neutral" | "negative"
 
-/** GET /v1/users/{username}/ratings?page&limit&filter — ulasan publik milik profil user (semua query REQUIRED). */
+/**
+ * GET /v1/users/{username}/ratings?page&limit&filter — ulasan publik milik
+ * profil user (semua query REQUIRED).
+ *
+ * Audit: sebelumnya `auth: "none"`. Spec tetap menandai endpoint ini
+ * `security: [{ access-token: [] }]`, dan `auth: "none"` membuat client.ts
+ * mengirim `token = null` — jadi saat user SUDAH login token-nya tetap
+ * ditahan dan backend membalas 401, sementara seluruh app lain berjalan
+ * normal. Mode 401-refresh (client.ts:394) juga dilewati.
+ *
+ * Dipilih `"optional"` (bukan `"required"`) karena ini rute profil publik
+ * yang bisa dimuat lewat deep link web tanpa sesi; `"required"` akan
+ * melempar UNAUTHORIZED di client sebelum request dikirim. `"optional"`
+ * mengirim token bila ada dan tetap mencoba bila tidak.
+ */
 export function getPublicRatings(
   username: string,
   query: { page: number; limit: number; filter?: Exclude<PublicRatingFilter, "all"> },
+  signal?: AbortSignal,
 ) {
   return http.get<MyRatingsResponse>(`/v1/users/${seg(username)}/ratings`, {
     query,
-    auth: "none",
+    auth: "optional",
     retry: 1,
+    signal,
   })
 }
 

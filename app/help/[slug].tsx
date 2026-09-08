@@ -1,6 +1,6 @@
 import { useEffect } from "react"
 import { ScrollView } from "react-native"
-import { router, useLocalSearchParams } from "expo-router"
+import { useLocalSearchParams } from "expo-router"
 import { Article } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
@@ -76,7 +76,7 @@ export default function HelpScreen() {
                   padded={false}
                   key={item.id}
                   title={item.title}
-                  onPress={() => router.push(ROUTES.helpArticle(item.slug ?? item.id, slug))}
+                  href={ROUTES.helpArticle(item.slug ?? item.id, slug)}
                 />
               ))
             )}

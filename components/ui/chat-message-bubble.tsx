@@ -51,6 +51,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 
 export type ChatMessageDirection = "incoming" | "outgoing" | "system"
 export type ChatMessageStatus = "sending" | "sent" | "delivered" | "read" | "failed"
@@ -161,6 +162,7 @@ export function ChatMessageBubble({
             accessibilityHint="Tekan lama untuk opsi pesan"
             scaleOnPress={false}
             onLongPress={onLongPress}
+            containerClassName={cn("rounded-md", focusRing)}
           >
             {bubble}
           </PressableScale>
@@ -171,7 +173,7 @@ export function ChatMessageBubble({
         )}
 
         {time || failed ? (
-          <View className="flex-row items-center gap-1 px-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+          <View className="flex-row items-center gap-1 px-1">
             {failed ? (
               <>
                 <Icon icon={WarningCircle} size="xs" tone="danger" />

@@ -36,27 +36,27 @@ export type ReferralHistoryEntry = {
   createdAt: string
 }
 
-export function getMyReferralCode() {
-  return http.get<ReferralCode>("/v1/referral/my-code", { auth: "required", retry: 1 })
+export function getMyReferralCode(signal?: AbortSignal) {
+  return http.get<ReferralCode>("/v1/referral/my-code", { auth: "required", retry: 1, signal })
 }
 
 export function regenerateReferralCode() {
   return http.post<ReferralCode>("/v1/referral/regenerate", undefined, { auth: "required" })
 }
 
-export function getReferralStats() {
-  return http.get<ReferralStats>("/v1/referral/stats", { auth: "required", retry: 1 })
+export function getReferralStats(signal?: AbortSignal) {
+  return http.get<ReferralStats>("/v1/referral/stats", { auth: "required", signal })
 }
 
-export function getReferralRewards() {
+export function getReferralRewards(signal?: AbortSignal) {
   return http
-    .get<ReferralReward[]>("/v1/referral/rewards", { auth: "required", retry: 1 })
+    .get<ReferralReward[]>("/v1/referral/rewards", { auth: "required", signal })
     .then((raw) => readList<ReferralReward>(raw, ["rewards"]))
 }
 
-export function getReferralHistory() {
+export function getReferralHistory(signal?: AbortSignal) {
   return http
-    .get<ReferralHistoryEntry[]>("/v1/referral/history", { auth: "required", retry: 1 })
+    .get<ReferralHistoryEntry[]>("/v1/referral/history", { auth: "required", retry: 1, signal })
     .then((raw) => readList<ReferralHistoryEntry>(raw, ["history", "referrals"]))
 }
 

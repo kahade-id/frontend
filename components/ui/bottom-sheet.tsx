@@ -76,6 +76,7 @@ import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { SafeAreaSpacer } from "@/components/ui/safe-area-spacer"
 import { tokens } from "@/lib/tokens"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -282,7 +283,7 @@ export function BottomSheet({
               size="sm"
               accessibilityLabel="Tutup"
               onPress={onRequestClose}
-              className="-mr-2 -mt-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              className="-mr-2 -mt-1"
             />
           ) : null}
         </View>
@@ -312,7 +313,15 @@ export function BottomSheet({
           {footer}
         </View>
       ) : (
-        <View style={{ height: insets.bottom }} />
+        /* Audit (S5): spacer ini ditulis tangan dan TIDAK konsisten dengan
+           jalur footer di atasnya. Footer memakai
+           `insets.bottom + tokens.space[4]`, jadi selalu punya napas 16px;
+           jalur tanpa footer hanya `insets.bottom`, yang di web dan Android
+           tanpa gesture navigation bernilai 0 — isi sheet lalu menempel ke
+           tepi bawah tanpa jarak sama sekali. <SafeAreaSpacer min={4}>
+           menghitung Math.max(inset, 16), menyamakan lantai keduanya, dan
+           sekaligus menyembunyikan dirinya dari screen reader. */
+        <SafeAreaSpacer min={4} />
       )}
     </View>
   )

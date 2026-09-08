@@ -93,15 +93,16 @@ export function listMyDisputes(query?: { page?: number; limit?: number }, signal
     .then((raw) => readList<DisputeDetail>(raw, ["disputes"]))
 }
 
-export function getDispute(disputeId: string) {
-  return http.get<DisputeDetail>(`/v1/disputes/${seg(disputeId)}`, { auth: "required", retry: 1 })
+export function getDispute(disputeId: string, signal?: AbortSignal) {
+  return http.get<DisputeDetail>(`/v1/disputes/${seg(disputeId)}`, { auth: "required", retry: 1, signal })
 }
 
-export function getDisputeEvidence(disputeId: string) {
+export function getDisputeEvidence(disputeId: string, signal?: AbortSignal) {
   return http
     .get<DisputeEvidence[]>(`/v1/disputes/${seg(disputeId)}/evidence`, {
       auth: "required",
       retry: 1,
+      signal,
     })
     .then((raw) => readList<DisputeEvidence>(raw, ["evidence", "evidences"]))
 }
@@ -129,11 +130,11 @@ export function submitDisputeClaim(disputeId: string, dto: SubmitClaimDto) {
   })
 }
 
-export function getDisputeMessages(disputeId: string) {
+export function getDisputeMessages(disputeId: string, signal?: AbortSignal) {
   return http
     .get<DisputeMessage[]>(`/v1/disputes/${seg(disputeId)}/messages`, {
       auth: "required",
-      retry: 1,
+      signal,
     })
     .then((raw) => readList<DisputeMessage>(raw, ["messages"]))
 }
@@ -172,20 +173,21 @@ export function endDisputeCall(disputeId: string) {
   })
 }
 
-export function getDisputeCalls(disputeId: string) {
+export function getDisputeCalls(disputeId: string, signal?: AbortSignal) {
   return http
     .get<DisputeCall[]>(`/v1/disputes/${seg(disputeId)}/calls`, {
       auth: "required",
-      retry: 1,
+      signal,
     })
     .then((raw) => readList<DisputeCall>(raw, ["calls"]))
 }
 
-export function getMutualResolution(disputeId: string) {
+export function getMutualResolution(disputeId: string, signal?: AbortSignal) {
   return http
     .get<MutualResolutionProposal[]>(`/v1/disputes/${seg(disputeId)}/mutual-resolution`, {
       auth: "required",
       retry: 1,
+      signal,
     })
     .then((raw) => readList<MutualResolutionProposal>(raw, ["proposals"]))
 }

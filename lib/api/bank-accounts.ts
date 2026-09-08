@@ -20,8 +20,8 @@ export type BankAccount = {
   createdAt?: string
 }
 
-export async function listBankAccounts() {
-  const raw = await http.get<BankAccount[]>("/v1/bank-accounts", { auth: "required", retry: 1 });
+export async function listBankAccounts(signal?: AbortSignal) {
+  const raw = await http.get<BankAccount[]>("/v1/bank-accounts", { auth: "required", retry: 1, signal });
   const accounts = readList<BankAccount>(raw, ["bankAccounts", "accounts", "bank_accounts"]);
   return accounts.map(account => ({
     ...account,
