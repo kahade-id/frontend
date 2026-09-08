@@ -47,6 +47,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 
 export type WalletQuickAction = {
@@ -143,7 +144,7 @@ export function WalletBalanceCard({
             accessibilityRole="button"
             accessibilityLabel={hidden ? t.show : t.hide}
             accessibilityState={{ checked: !hidden }}
-            className="-my-3 -mr-3 min-h-11 min-w-11 items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            className={cn("-my-3 -mr-3 min-h-11 min-w-11 items-center justify-center rounded-xs", focusRing)}
           >
             <Icon icon={hidden ? EyeSlash : Eye} size="sm" tone={iconTone} />
           </Pressable>

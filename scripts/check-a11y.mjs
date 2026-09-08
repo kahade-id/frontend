@@ -36,6 +36,8 @@
  *      dari lib/hit-slop atau `tokens.space[n]` (audit #1).
  *   H. Prop `pointerEvents=` ditolak — deprecated di RN dan react-native-web;
  *      wajib `style.pointerEvents`.
+ *   I. Kelas `focus-visible:` tidak boleh ditulis ulang di komponen — wajib
+ *      `focusRing`/`focusRingInset` dari lib/focus-ring (audit #6).
  *
  * Jalankan: pnpm check:a11y
  */
@@ -399,6 +401,38 @@ for (const abs of files) {
     if (!/[\s]pointerEvents=/.test(tag)) continue
     fail(
       `${rel}:${lineOf(src, m.index)} prop \`pointerEvents=\` deprecated di React Native & react-native-web — pindahkan ke \`style={{ pointerEvents: ... }}\` (audit #5).`,
+    )
+  }
+}
+
+// ------------------------------------------------------------------
+// I. Kelas `focus-visible:` tidak boleh ditulis ulang di komponen (audit #6)
+// ------------------------------------------------------------------
+// lib/focus-ring.ts adalah satu-satunya sumber indikator fokus keyboard
+// (WCAG 2.4.7) dan dokumennya eksplisit: "Jangan tulis ulang string
+// `focus-visible:` di komponen". Audit menemukan 56 penulisan ulang yang
+// semuanya salah dengan cara yang berbeda-beda, dan semuanya lolos review
+// karena SEKILAS terlihat seperti perbaikan aksesibilitas:
+//   - warna `ring-primary` + tanpa `ring-offset-background`: celah offset
+//     jatuh ke default Tailwind (#fff) sehingga di dark mode muncul halo
+//     putih di sekeliling kontrol;
+//   - tanpa `outline-none`: outline browser dobel dengan ring;
+//   - dipasang pada <View>/<Text> statis yang tidak pernah bisa fokus
+//     (`:focus-visible` tidak akan pernah cocok) — CSS mati;
+//   - dipasang pada `className` <PressableScale>, yang jatuh ke View di
+//     dalam <Animated.View> — juga tidak pernah fokus. Ring harus di
+//     `containerClassName` (lihat catatan penempatan di lib/focus-ring.ts).
+// Aturan ini memaksa semua indikator fokus lewat konstanta bersama.
+const FOCUS_RING_SOURCE = "lib/focus-ring.ts"
+for (const abs of files) {
+  const rel = relative(root, abs)
+  if (rel === FOCUS_RING_SOURCE) continue
+  const src = stripComments(readFileSync(abs, "utf8"))
+  const re = /(?:web:)?focus-visible:[a-z-]+/g
+  let m
+  while ((m = re.exec(src))) {
+    fail(
+      `${rel}:${lineOf(src, m.index)} kelas \`${m[0]}\` ditulis manual — impor \`focusRing\`/\`focusRingInset\` dari lib/focus-ring dan pasang di elemen yang BISA fokus (\`containerClassName\` pada PressableScale). Penulisan ulang menghasilkan warna/offset/radius yang beda antar komponen (audit #6).`,
     )
   }
 }

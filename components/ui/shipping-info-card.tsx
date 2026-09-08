@@ -106,7 +106,7 @@ export function ShippingInfoCard({ shipping, canEdit = false, onEdit, onTrack, o
 
   return (
     <Card padded className={cn("gap-4", className)} {...rest}>
-      <View className="flex-row items-center justify-between gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-3">
           <IconBox icon={Truck} size="md" variant="surface" />
           <View className="flex-1 gap-0.5">

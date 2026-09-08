@@ -14,7 +14,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Tone badge status: ACTIVE=success, ACCEPTED=info, EXPIRED=warning,
  *     CANCELLED=neutral — mengikuti §2.3 (semantic hanya untuk status).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinkSimple } from "phosphor-react-native"
@@ -27,13 +27,14 @@ import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
+import { LoadMore } from "@/components/ui/load-more"
 import { OrderLinkShareCard } from "@/components/ui/order-link-share-card"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
@@ -48,54 +49,38 @@ export default function OrderLinksScreen() {
   const toast = useToast()
   const { copy } = useCopy()
 
-  const [items, setItems] = useState<OrderLink[]>([])
-  const [page, setPage] = useState(1)
-  const [more, setMore] = useState<LoadMoreStatus>("idle")
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const [cancelTarget, setCancelTarget] = useState<OrderLink | null>(null)
   const [cancelling, setCancelling] = useState(false)
 
-  const fetchLinks = useCallback(async (nextPage: number) => {
-    if (nextPage === 1) {
-      setLoading(true)
-      setError(null)
-    } else {
-      setMore("loading")
-    }
-    try {
-      const res = await api.orders.listMyOrderLinks({ page: nextPage, limit: PAGE_SIZE })
+  /**
+   * `usePaginatedQuery`, bukan rakitan manual page/more/loading. Yang
+   * sebelumnya hilang dan sekarang ditangani hook: request halaman lama
+   * dibatalkan saat layar di-unmount, "muat lagi" single-flight (tap ganda
+   * tidak lagi menembak dua halaman), baris yang sudah ada TETAP tampil saat
+   * halaman berikutnya gagal, dan `refreshing` terpisah dari `loading`
+   * sehingga tarik-untuk-menyegarkan tidak lagi mengosongkan daftar.
+   *
+   * `OrderLink` tidak punya `id` — identitasnya `token`. Hook mendeduplikasi
+   * baris lewat `id`, jadi token dipetakan ke sana.
+   */
+  const query = usePaginatedQuery<OrderLink & { id: string }>(
+    "order-links",
+    async (page, signal) => {
+      const res = await api.orders.listMyOrderLinks({ page, limit: PAGE_SIZE }, signal)
       const data = res.data ?? []
-      setItems((prev) => (nextPage === 1 ? data : [...prev, ...data]))
-      setPage(nextPage)
-      const totalPages = res.meta?.totalPages
-      setMore(
-        totalPages != null
-          ? nextPage >= totalPages
-            ? "end"
-            : "idle"
-          : data.length < PAGE_SIZE
-            ? "end"
-            : "idle",
-      )
-    } catch (err) {
-      if (nextPage === 1) setError(userMessage(err))
-      else setMore("error")
-    } finally {
-      if (nextPage === 1) setLoading(false)
-    }
-  }, [])
-
-  useEffect(() => {
-    void fetchLinks(1)
-  }, [fetchLinks])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchLinks(1)
-    setRefreshing(false)
-  }, [fetchLinks])
+      return {
+        data: data.map((link) => ({ ...link, id: link.token })),
+        meta: {
+          page,
+          limit: PAGE_SIZE,
+          // Fallback meniru logika lama: tanpa totalPages dari server, halaman
+          // yang tidak penuh dianggap akhir.
+          totalPages: res.meta?.totalPages ?? (data.length < PAGE_SIZE ? page : page + 1),
+        },
+      }
+    },
+  )
+  const items = query.data
 
   const handleShare = useCallback(
     async (payload: { url: string; message: string }, title: string) => {
@@ -119,7 +104,7 @@ export default function OrderLinksScreen() {
     setCancelling(true)
     try {
       await api.orders.cancelOrderLink(cancelTarget.token)
-      setItems((prev) =>
+      query.setData((prev) =>
         prev.map((l) => (l.token === cancelTarget.token ? { ...l, status: "CANCELLED" } : l)),
       )
       toast.show({ title: "Tautan dibatalkan", tone: "success" })
@@ -139,17 +124,21 @@ export default function OrderLinksScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Order Link" />
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={query.refresh}
+        refreshing={query.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
+        {query.loading ? (
           <ListLoading />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchLinks(1)} />
+        ) : query.error ? (
+          <ErrorState
+            title="Gagal memuat"
+            description={query.error}
+            onRetry={() => void query.reload()}
+          />
         ) : items.length === 0 ? (
           <EmptyState
             icon={LinkSimple}
@@ -202,7 +191,19 @@ export default function OrderLinksScreen() {
                 />
               )
             })}
-            <LoadMore status={more} onLoadMore={() => void fetchLinks(page + 1)} hideEnd />
+            <LoadMore
+              status={
+                query.loadMoreError
+                  ? "error"
+                  : query.loadingMore
+                    ? "loading"
+                    : query.hasMore
+                      ? "idle"
+                      : "end"
+              }
+              onLoadMore={() => void query.loadMore()}
+              hideEnd
+            />
             <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
               Buat Tautan Baru
             </Button>

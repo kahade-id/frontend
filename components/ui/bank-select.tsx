@@ -30,6 +30,7 @@ import { SearchField } from "@/components/ui/search-field"
 import { Select, type SelectProps } from "@/components/ui/select"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type BankOption = {
   /** Kode unik (mis. "bca", "bri", "gopay") */
@@ -175,12 +176,12 @@ export function BankRow({ bank, selected = false, onPress, className, ...rest }:
       scaleOnPress={false}
       disabled={bank.disabled}
       onPress={onPress}
-      containerClassName={cn("w-full", bank.disabled && "opacity-disabled")}
+      containerClassName={cn("w-full", focusRingInset, bank.disabled && "opacity-disabled")}
       {...rest}
     >
       <View className={cn("h-14 w-full flex-row items-center gap-3 px-6", selected && "bg-surface", className)}>
         <BankLogo bank={bank} />
-        <Text ellipsizeMode="tail" variant="body" weight={500} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" numberOfLines={1}>
+        <Text ellipsizeMode="tail" variant="body" weight={500} className="flex-1" numberOfLines={1}>
           {bank.name}
         </Text>
         {selected ? <Icon icon={Check} size="sm" tone="active" weight="bold" /> : null}

@@ -46,11 +46,11 @@ export function getSubscriptionHistory(query?: { page?: number; limit?: number }
     .then((raw) => readList<SubscriptionHistoryEntry>(raw, ["history", "subscriptions"]))
 }
 
-export function getSubscriptionBenefits() {
+export function getSubscriptionBenefits(signal?: AbortSignal) {
   return http
     .get<
       Array<{ key: string; title: string; description?: string }>
-    >("/v1/subscriptions/benefits", { auth: "required", retry: 1 })
+    >("/v1/subscriptions/benefits", { auth: "required", retry: 1, signal })
     .then((raw) => readList<{ key: string; title: string; description?: string }>(raw, ["benefits"]))
     .catch((error: unknown) => {
       if (error && typeof error === "object" && "backendCode" in error && error.backendCode === "NO_ACTIVE_SUBSCRIPTION") return []
@@ -58,9 +58,9 @@ export function getSubscriptionBenefits() {
     })
 }
 
-export function getSubscriptionPlans() {
+export function getSubscriptionPlans(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/subscriptions/plans", { auth: "required", retry: 1 })
+    .get<unknown>("/v1/subscriptions/plans", { auth: "required", retry: 1, signal })
     .then(normalizeSubscriptionPlans)
 }
 

@@ -83,6 +83,7 @@ export function DisputeCard({
   awaitingYou = false,
   labels,
   onPress,
+  href,
   accessibilityLabel,
   className,
   ...rest
@@ -107,8 +108,9 @@ export function DisputeCard({
   return (
     <Card
       onPress={onPress}
+      href={href}
       accessibilityLabel={a11y}
-      accessibilityHint={onPress ? "Buka detail sengketa" : undefined}
+      accessibilityHint={onPress || href ? "Buka detail sengketa" : undefined}
       className={cn("gap-3", className)}
       {...rest}
     >

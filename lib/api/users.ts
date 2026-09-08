@@ -125,9 +125,9 @@ export function requestAccountDeletion(dto: RequestAccountDeletionDto) {
 }
 
 /** GET /v1/users/me/links — tautan sosial profil. */
-export function getLinks() {
+export function getLinks(signal?: AbortSignal) {
   return http
-    .get<UserLinkItemDto[]>("/v1/users/me/links", { auth: "required", retry: 1 })
+    .get<UserLinkItemDto[]>("/v1/users/me/links", { auth: "required", signal })
     .then((raw) => readList<UserLinkItemDto>(raw, ["links"]))
 }
 
@@ -141,7 +141,7 @@ export function updateLinks(dto: UpdateLinksDto) {
 /** GET /v1/users/{username} — profil publik user. */
 export function getUserByUsername(username: string) {
   return http
-    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "required", retry: 1 })
+    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "required" })
     .then((raw) => {
       const profile = readEntity<Record<string, unknown>>(raw, "user")
       const stats = asRecord(profile.stats)
@@ -321,7 +321,6 @@ export function unfollowUser(username: string) {
 export function isFavorite(username: string) {
   return http.get<{ favorited: boolean; count?: number }>(`/v1/users/${seg(username)}/favorite`, {
     auth: "required",
-    retry: 1,
   })
 }
 
@@ -371,9 +370,9 @@ export type ShowcaseItem = {
 /** Respons upload gambar showcase — spec 201 tanpa schema (UNVERIFIED). */
 export type ShowcaseUploadResult = Partial<ShowcaseItem> & { url?: string; key?: string }
 
-export function getMyShowcase() {
+export function getMyShowcase(signal?: AbortSignal) {
   return http
-    .get<ShowcaseItem[]>("/v1/users/me/showcase", { auth: "required", retry: 1 })
+    .get<ShowcaseItem[]>("/v1/users/me/showcase", { auth: "required", retry: 1, signal })
     .then((raw) => readList<ShowcaseItem>(raw, ["showcase", "items"]))
 }
 
@@ -437,11 +436,11 @@ export function deleteShowcase(id: string) {
   })
 }
 
-export function getPublicShowcase(username: string) {
+export function getPublicShowcase(username: string, signal?: AbortSignal) {
   return http
     .get<unknown>(`/v1/users/${seg(username)}/showcase`, {
       auth: "required",
-      retry: 1,
+      signal,
     })
     .then((raw) => readList<ShowcaseItem>(raw, ["items", "showcase"]))
 }
@@ -497,11 +496,15 @@ export function readQuestionList(body: QuestionListResponse | null | undefined):
 }
 
 /** Nilai enum `type` tidak didokumentasikan — asumsi "received" | "asked" (dari summary endpoint). */
-export function getMyQuestions(query: { type: MyQuestionsType; page: number; limit: number }) {
+export function getMyQuestions(
+  query: { type: MyQuestionsType; page: number; limit: number },
+  signal?: AbortSignal,
+) {
   return http.get<QuestionListResponse>("/v1/users/me/questions", {
     query,
     auth: "required",
     retry: 1,
+    signal,
   })
 }
 
@@ -516,11 +519,15 @@ export function addQuestion(username: string, question: string) {
 }
 
 /** Spec: `page` & `limit` REQUIRED. */
-export function getPublicQuestions(username: string, query: { page: number; limit: number }) {
+export function getPublicQuestions(
+  username: string,
+  query: { page: number; limit: number },
+  signal?: AbortSignal,
+) {
   return http.get<QuestionListResponse>(`/v1/users/${seg(username)}/questions`, {
     query,
     auth: "required",
-    retry: 1,
+    signal,
   })
 }
 

@@ -157,7 +157,6 @@ export function getChatAttachments(roomId: string, query: { page?: number; limit
     .get<ChatAttachmentDto[]>(`/v1/chat/rooms/${seg(roomId)}/attachments`, {
       query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
       auth: "required",
-      retry: 1,
     })
     .then((raw) => readList<ChatAttachmentDto>(raw, ["attachments"]))
 }

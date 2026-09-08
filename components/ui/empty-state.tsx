@@ -65,7 +65,7 @@ export function EmptyState({
 
       <View className={cn("items-center", compact ? "gap-1" : "gap-2", "max-w-[320px] mx-auto")}>
         {compact ? (
-          <Text variant="body" weight={600} className="text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+          <Text variant="body" weight={600} className="text-center">
             {title}
           </Text>
         ) : (

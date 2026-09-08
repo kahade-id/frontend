@@ -42,6 +42,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Rating } from "@/components/ui/rating"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
 
 export type UserDiscoverResultItemProps = Omit<ViewProps, "children"> & {
@@ -131,8 +132,8 @@ export function UserDiscoverResultItem({
             accessibilityHint="Buka profil"
             scaleOnPress={false}
             onPress={onPress}
-            containerClassName="flex-1"
-            className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            containerClassName={cn("flex-1", focusRingInset)}
+            className="flex-1"
           >
             {row}
           </PressableScale>

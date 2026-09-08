@@ -3,7 +3,7 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  * Screen — Terima Order Link (GET /v1/orders/links/{token}).
  * Preview kartu + Terima (POST accept) / Tolak (POST cancel).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -14,6 +14,7 @@ import { orderLinkStatus } from "@/lib/order-link-labels"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
@@ -29,37 +30,23 @@ export default function OrderLinkScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [link, setLink] = useState<OrderLink | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const [accepting, setAccepting] = useState(false)
   const [declineOpen, setDeclineOpen] = useState(false)
   const [declining, setDeclining] = useState(false)
 
-  const fetchLink = useCallback(async () => {
-    if (!token) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.orders.getOrderLink(token)
-      setLink(res)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [token])
-
-  useEffect(() => {
-    void fetchLink()
-  }, [fetchLink])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchLink()
-    setRefreshing(false)
-  }, [fetchLink])
+  /**
+   * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
+   * layar di-unmount, `refreshing` terpisah dari `loading` (tarik-untuk-
+   * menyegarkan tidak lagi mengganti preview dengan skeleton), dan error lewat
+   * `userMessage(err)`. Mutasi status lokal setelah Terima/Tolak tetap ada,
+   * lewat `setData` milik hook.
+   */
+  const query = useApiQuery<OrderLink>(
+    `order-link:${token}`,
+    (signal) => api.orders.getOrderLink(token, signal),
+    Boolean(token),
+  )
+  const link = query.data
 
   const handleAccept = useCallback(async () => {
     if (!link) return
@@ -72,7 +59,7 @@ export default function OrderLinkScreen() {
         tone: "success",
         duration: 4000,
       })
-      setLink({ ...link, status: "ACCEPTED" })
+      query.setData((current) => (current ? { ...current, status: "ACCEPTED" } : current))
       if (link.orderId) router.replace(ROUTES.orderDetail(link.orderId))
     } catch (err: unknown) {
       toast.show({ title: "Gagal menerima tautan", description: userMessage(err), tone: "danger" })
@@ -88,7 +75,7 @@ export default function OrderLinkScreen() {
       await api.orders.cancelOrderLink(link.token)
       toast.show({ title: "Tautan ditolak", tone: "success", duration: 3000 })
       setDeclineOpen(false)
-      setLink({ ...link, status: "CANCELLED" })
+      query.setData((current) => (current ? { ...current, status: "CANCELLED" } : current))
     } catch (err: unknown) {
       toast.show({ title: "Gagal menolak tautan", description: userMessage(err), tone: "danger" })
       setDeclineOpen(false)
@@ -103,17 +90,21 @@ export default function OrderLinkScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Order Link" />
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={query.refresh}
+        refreshing={query.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
+        {query.loading ? (
           <DetailLoading />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchLink()} />
+        ) : query.error ? (
+          <ErrorState
+            title="Gagal memuat"
+            description={query.error}
+            onRetry={() => void query.reload()}
+          />
         ) : link ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <OrderLinkPreviewCard

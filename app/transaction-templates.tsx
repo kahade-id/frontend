@@ -3,13 +3,14 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * Screen — Template Transaksi (CRUD /v1/transaction-templates).
  * Template = data order default (role, judul, jenis, nilai, tenggat, fee).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { NotePencil } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import type { TransactionTemplate as ApiTemplate } from "@/lib/api/transaction-templates"
+import { useApiQuery } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
 
 import { AmountInput } from "@/components/ui/amount-input"
@@ -54,10 +55,19 @@ export default function TransactionTemplatesScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [items, setItems] = useState<ApiTemplate[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchAll()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
+   * mengganti daftar template dengan kerangka. Request juga tidak dibatalkan
+   * saat layar ditutup.
+   */
+  const query = useApiQuery<ApiTemplate[]>(
+    "transaction-templates",
+    async (signal) => (await api.transactionTemplates.listTransactionTemplates(signal)) ?? [],
+  )
+  const items = query.data ?? []
+  const { loading, error, refreshing } = query
   const [editing, setEditing] = useState<ApiTemplate | null>(null)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<ApiTemplate>(NO_TEMPLATE)
@@ -68,28 +78,7 @@ export default function TransactionTemplatesScreen() {
   const [deleteTarget, setDeleteTarget] = useState<ApiTemplate | null>(null)
   const [deleting, setDeleting] = useState(false)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.transactionTemplates.listTransactionTemplates()
-      setItems(res ?? [])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
 
   const openCreate = useCallback(() => {
     setEditing(null)
@@ -133,7 +122,7 @@ export default function TransactionTemplatesScreen() {
       toast.show({ title: "Template disimpan", tone: "success", duration: 3000 })
       setCreating(false)
       setEditing(null)
-      await fetchAll()
+      await query.refresh()
     } catch (err: unknown) {
       toast.show({
         title: "Gagal menyimpan template",
@@ -143,7 +132,7 @@ export default function TransactionTemplatesScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [form, editing, toast.show, fetchAll])
+  }, [form, editing, toast.show, query])
 
   const handleDelete = useCallback(async () => {
     if (!deleteTarget) return
@@ -152,7 +141,7 @@ export default function TransactionTemplatesScreen() {
       await api.transactionTemplates.deleteTransactionTemplate(deleteTarget.id)
       toast.show({ title: "Template dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
-      await fetchAll()
+      await query.refresh()
     } catch (err: unknown) {
       toast.show({
         title: "Gagal menghapus template",
@@ -162,13 +151,13 @@ export default function TransactionTemplatesScreen() {
     } finally {
       setDeleting(false)
     }
-  }, [deleteTarget, toast.show, fetchAll])
+  }, [deleteTarget, toast.show, query])
 
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Template Transaksi" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -178,7 +167,7 @@ export default function TransactionTemplatesScreen() {
         {loading ? (
           <ListLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Template cepat" />

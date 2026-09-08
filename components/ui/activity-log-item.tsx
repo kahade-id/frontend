@@ -33,6 +33,8 @@ import type { IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { summarize } from "@/lib/a11y"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type ActivityLogCategory =
   | "order"
@@ -117,7 +119,7 @@ export function ActivityLogItem({
     </View>
   )
 
-  const a11yLabel = [title, description, meta, timestamp].filter(Boolean).join(", ")
+  const a11yLabel = summarize([title, description, meta, timestamp])
 
   return (
     <View className={cn("w-full", className)} {...rest}>
@@ -128,8 +130,8 @@ export function ActivityLogItem({
             accessibilityLabel={a11yLabel}
             scaleOnPress={false}
             onPress={onPress}
-            containerClassName="w-full"
-            className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            containerClassName={cn("w-full", focusRingInset)}
+            className="w-full"
           >
             {row}
           </PressableScale>

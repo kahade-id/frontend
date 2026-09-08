@@ -46,6 +46,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type ProfileStat = {
   /** Sudah diformat: "128", "4,8", "98%" */
@@ -180,8 +181,8 @@ function StatCell({ stat, loading }: { stat: ProfileStat; loading: boolean }) {
       accessibilityLabel={`${stat.label} ${stat.value}`}
       scaleOnPress={false}
       onPress={stat.onPress}
-      containerClassName="flex-1"
-      className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+      containerClassName={cn("flex-1", focusRingInset)}
+      className="flex-1"
     >
       {body}
     </PressableScale>

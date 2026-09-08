@@ -71,6 +71,8 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
+import { summarize } from "@/lib/a11y"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type SecurityLogKind =
   | "login"
@@ -221,7 +223,7 @@ export function SecurityLogItem({
     </View>
   )
 
-  const a11yLabel = [title, outcomeLabel, ...context, ip, timestamp].filter(Boolean).join(", ")
+  const a11yLabel = summarize([title, outcomeLabel, ...context, ip, timestamp])
 
   return (
     <View className={cn("w-full", unread && "bg-surface", className)} {...rest}>
@@ -233,8 +235,8 @@ export function SecurityLogItem({
             accessibilityHint="Buka detail kejadian"
             scaleOnPress={false}
             onPress={onPress}
-            containerClassName="w-full"
-            className="w-full focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            containerClassName={cn("w-full", focusRingInset)}
+            className="w-full"
           >
             {row}
           </PressableScale>

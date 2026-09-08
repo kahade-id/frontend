@@ -30,8 +30,8 @@ export function getPublicConfig(signal?: AbortSignal) {
 export function getFeeSchedule() {
   return http.get<unknown>("/v1/public/fee-schedule", opts).then(normalizeFeeSchedule)
 }
-export function getBanks() {
-  return http.get<unknown>("/v1/public/banks", opts).then(normalizeBanks)
+export function getBanks(signal?: AbortSignal) {
+  return http.get<unknown>("/v1/public/banks", { ...opts, signal }).then(normalizeBanks)
 }
 export function getSubscriptionPlans() {
   return http.get<unknown>("/v1/public/subscription-plans", opts).then(normalizeSubscriptionPlans)

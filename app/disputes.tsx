@@ -5,7 +5,6 @@
  * Audit: state async → `useApiQuery`, kerangka → <DataScreen>.
  */
 import { ShieldWarning } from "phosphor-react-native"
-import { router } from "expo-router"
 
 import { api } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
@@ -45,7 +44,7 @@ export default function DisputesScreen() {
           orderTitle={`Order ${d.orderId}`}
           status={d.status}
           updatedAt={formatDateTime(d.updatedAt ?? d.createdAt)}
-          onPress={() => router.push(ROUTES.disputeDetail(d.id))}
+          href={ROUTES.disputeDetail(d.id)}
         />
       ))}
     </DataScreen>

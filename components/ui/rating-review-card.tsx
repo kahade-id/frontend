@@ -215,7 +215,7 @@ export function RatingReviewCardSkeleton({ className, ...rest }: Omit<ViewProps,
       accessibilityLabel="Memuat ulasan"
       {...rest}
     >
-      <View className="flex-row items-center justify-between gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           <Skeleton shape="circle" width={32} height={32} />
           <View className="gap-1">

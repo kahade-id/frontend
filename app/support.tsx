@@ -54,7 +54,7 @@ export default function SupportScreen() {
               : undefined
           }
           updatedAt={t.updatedAt ? formatDateTime(t.updatedAt) : undefined}
-          onPress={() => router.push(ROUTES.supportTicket(t.id))}
+          href={ROUTES.supportTicket(t.id)}
         />
       ))}
     </DataScreen>

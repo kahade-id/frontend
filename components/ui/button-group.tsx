@@ -7,11 +7,15 @@
  * aksi di layar konfirmasi/empty state.
  *
  * Keputusan non-obvious:
- *   - direction="row": tiap anak dibungkus <View className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"> agar
+ *   - direction="row": tiap anak dibungkus <View className="flex-1"> agar
  *     lebar SAMA rata. Button sendiri default `fullWidth` (w-full) sehingga
  *     mengisi pembungkusnya. Tanpa pembungkus, dua Button w-full dalam
  *     flex-row akan overflow. `equal={false}` mematikan pembungkus untuk
  *     kombinasi IconButton + Button (ikon tetap kotak, Button mengisi sisa).
+ *     Pembungkus ini sengaja TIDAK membawa focus ring: elemen yang menerima
+ *     fokus adalah <Pressable> di dalam Button/IconButton, dan ring-nya sudah
+ *     dipasang di sana (lib/focus-ring.ts). Ring pada <View> pembungkus tidak
+ *     akan pernah muncul karena View tidak bisa difokus.
  *   - Gap default 3 (12px) — sama dengan gap antar card (§4), cukup rapat
  *     untuk terbaca sebagai satu grup aksi tanpa menyatu.
  *   - Urutan hierarki (secondary kiri, primary kanan) TIDAK dipaksa di sini

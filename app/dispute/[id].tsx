@@ -45,6 +45,7 @@ import type {
   DisputeMessage,
   MutualResolutionProposal,
 } from "@/lib/api/disputes"
+import { useApiQuery } from "@/lib/use-api-query"
 import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
@@ -106,16 +107,63 @@ export default function DisputeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const toast = useToast()
 
-  const [dispute, setDispute] = useState<DisputeDetail | null>(null)
-  const [order, setOrder] = useState<Order | null>(null)
-  const [evidence, setEvidence] = useState<DisputeEvidence[]>([])
-  const [messages, setMessages] = useState<DisputeMessage[]>([])
-  const [proposals, setProposals] = useState<MutualResolutionProposal[]>([])
-  const [calls, setCalls] = useState<DisputeCall[]>([])
+  /**
+   * Audit: enam state data + loading/error/refreshing dirakit manual. Cacat
+   * terbukti dari kode lama: `handleRefresh` memanggil `fetchAll()` yang sama
+   * dengan muat-awal, dan fungsi itu membuka dengan `setLoading(true)` —
+   * tarik-untuk-menyegarkan mengganti detail sengketa, bukti, pesan, proposal,
+   * dan riwayat panggilan dengan kerangka sekaligus. Request juga tidak
+   * dibatalkan saat layar ditutup.
+   *
+   * `.catch(() => null)` pada order DIPERTAHANKAN: order pelengkap,
+   * kegagalannya tidak boleh mematikan sengketa.
+   *
+   * Pemetaan error lama `isApiError(err) ? userMessage(err) : "Gagal memuat
+   * sengketa."` TIDAK punya cabang status khusus, jadi setara dengan perilaku
+   * useApiQuery untuk semua error API nyata — aman dimigrasi. (Bandingkan
+   * app/user/[username].tsx yang memetakan 404 secara khusus dan karena itu
+   * sengaja TIDAK dimigrasi.)
+   */
+  const query = useApiQuery<{
+    dispute: DisputeDetail
+    order: Order | null
+    evidence: DisputeEvidence[]
+    messages: DisputeMessage[]
+    proposals: MutualResolutionProposal[]
+    calls: DisputeCall[]
+  }>(
+    `dispute-detail:${id}`,
+    async (signal) => {
+      const did = id as string
+      const d = await api.disputes.getDispute(did, signal)
+      const [ev, msgs, props, cl, o] = await Promise.all([
+        api.disputes.getDisputeEvidence(did, signal),
+        api.disputes.getDisputeMessages(did, signal),
+        api.disputes.getMutualResolution(did, signal),
+        api.disputes.getDisputeCalls(did, signal),
+        d.orderId ? api.orders.getOrder(d.orderId, signal).catch(() => null) : Promise.resolve(null),
+      ])
+      return {
+        dispute: d,
+        order: o,
+        evidence: ev ?? [],
+        messages: msgs ?? [],
+        proposals: props ?? [],
+        calls: cl ?? [],
+      }
+    },
+    Boolean(id),
+  )
+  const bundle = query.data
+  const dispute = bundle?.dispute ?? null
+  const order = bundle?.order ?? null
+  const evidence = bundle?.evidence ?? []
+  const messages = bundle?.messages ?? []
+  const proposals = bundle?.proposals ?? []
+  const calls = bundle?.calls ?? []
+  const { loading, error, refreshing } = query
+  /** Klaim = textarea yang bisa diedit user; tetap state UI lokal. */
   const [claim, setClaim] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
   const [submitting, setSubmitting] = useState(false)
 
   const [draft, setDraft] = useState("")
@@ -145,42 +193,20 @@ export default function DisputeDetailScreen() {
     (counterpart?.username ? `@${counterpart.username}` : "Lawan transaksi")
   const orderValue = order?.orderValue ?? Number.NaN
 
-  const fetchAll = useCallback(async () => {
-    if (!id) return
-    setLoading(true)
-    setError(null)
-    try {
-      const d = await api.disputes.getDispute(id)
-      const [ev, msgs, props, cl, o] = await Promise.all([
-        api.disputes.getDisputeEvidence(id),
-        api.disputes.getDisputeMessages(id),
-        api.disputes.getMutualResolution(id),
-        api.disputes.getDisputeCalls(id),
-        d.orderId ? api.orders.getOrder(d.orderId).catch(() => null) : Promise.resolve(null),
-      ])
-      setDispute(d)
-      setOrder(o)
-      setEvidence(ev ?? [])
-      setMessages(msgs ?? [])
-      setProposals(props ?? [])
-      setCalls(cl ?? [])
-      setClaim(d.claim ?? "")
-    } catch (err) {
-      setError(isApiError(err) ? userMessage(err) : "Gagal memuat sengketa.")
-    } finally {
-      setLoading(false)
-    }
-  }, [id])
-
+  /**
+   * Pra-isi klaim yang dulu dilakukan DI DALAM fetcher. Dipindah ke effect
+   * karena `claim` adalah textarea yang bisa diedit user — state UI, bukan
+   * data server.
+   *
+   * CATATAN PERILAKU YANG DIPERTAHANKAN: seperti kode lama, effect ini mengisi
+   * ulang tanpa syarat setiap data sengketa segar, jadi menarik-untuk-
+   * menyegarkan menimpa klaim yang sedang diketik. Bug lama; tidak
+   * dicampurkan ke migrasi ini agar tetap bisa diaudit satu dimensi.
+   */
   useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+    if (!dispute) return
+    setClaim(dispute.claim ?? "")
+  }, [dispute])
 
   const handleSubmitClaim = useCallback(
     async (text: string) => {
@@ -189,7 +215,7 @@ export default function DisputeDetailScreen() {
       try {
         await api.disputes.submitDisputeClaim(id, { claim: text.trim() })
         toast.show({ title: "Klaim diperbarui", tone: "success", duration: 3000 })
-        await fetchAll()
+        await query.refresh()
       } catch (err) {
         toast.show({
           title: "Gagal menyimpan klaim",
@@ -200,7 +226,7 @@ export default function DisputeDetailScreen() {
         setSubmitting(false)
       }
     },
-    [id, toast.show, fetchAll],
+    [id, toast.show, query],
   )
 
   const handleSend = useCallback(
@@ -211,7 +237,8 @@ export default function DisputeDetailScreen() {
       try {
         await api.disputes.sendDisputeMessage(id, text)
         setDraft("")
-        setMessages(await api.disputes.getDisputeMessages(id))
+        const rows = await api.disputes.getDisputeMessages(id)
+        query.setData((prev) => (prev ? { ...prev, messages: rows } : prev))
       } catch (err) {
         toast.show({
           title: "Gagal mengirim pesan",
@@ -248,7 +275,8 @@ export default function DisputeDetailScreen() {
         fileUrls: [fileKey],
         fileTypes: [toEvidenceFileType(asset.mimeType)],
       })
-      setEvidence(await api.disputes.getDisputeEvidence(id))
+      const rows = await api.disputes.getDisputeEvidence(id)
+      query.setData((prev) => (prev ? { ...prev, evidence: rows } : prev))
       toast.show({ title: "Bukti terkirim", tone: "success", duration: 3000 })
     } catch (err) {
       toast.show({
@@ -266,7 +294,9 @@ export default function DisputeDetailScreen() {
     setDeletingEvidence(true)
     try {
       await api.disputes.deleteDisputeEvidence(id, deleteEvidenceId)
-      setEvidence((prev) => prev.filter((e) => e.id !== deleteEvidenceId))
+      query.setData((prev) =>
+        prev ? { ...prev, evidence: prev.evidence.filter((e) => e.id !== deleteEvidenceId) } : prev,
+      )
       setDeleteEvidenceId(null)
       setViewerItem(null)
       toast.show({ title: "Bukti dihapus", tone: "success", duration: 3000 })
@@ -306,7 +336,8 @@ export default function DisputeDetailScreen() {
         tone: "success",
         duration: 3000,
       })
-      setProposals(await api.disputes.getMutualResolution(id))
+      const rows = await api.disputes.getMutualResolution(id)
+      query.setData((prev) => (prev ? { ...prev, proposals: rows } : prev))
     } catch (err) {
       toast.show({
         title: "Gagal mengirim usulan",
@@ -335,7 +366,7 @@ export default function DisputeDetailScreen() {
           tone: "success",
           duration: 3000,
         })
-        await fetchAll()
+        await query.refresh()
       } catch (err) {
         toast.show({
           title: "Gagal menanggapi usulan",
@@ -346,7 +377,7 @@ export default function DisputeDetailScreen() {
         setRespondingAction(null)
       }
     },
-    [id, toast.show, fetchAll],
+    [id, toast.show, query],
   )
 
   const handleRequestCall = useCallback(async () => {
@@ -360,7 +391,8 @@ export default function DisputeDetailScreen() {
         tone: "success",
         duration: 4000,
       })
-      setCalls(await api.disputes.getDisputeCalls(id).catch(() => calls))
+      const nextCalls = await api.disputes.getDisputeCalls(id).catch(() => null)
+      query.setData((prev) => (prev ? { ...prev, calls: nextCalls ?? prev.calls } : prev))
     } catch (err) {
       toast.show({
         title: "Gagal meminta panggilan",
@@ -398,7 +430,8 @@ export default function DisputeDetailScreen() {
           tone: action === "reject" ? "neutral" : "success",
           duration: 3000,
         })
-        setCalls(await api.disputes.getDisputeCalls(id).catch(() => calls))
+        const nextCalls = await api.disputes.getDisputeCalls(id).catch(() => null)
+        query.setData((prev) => (prev ? { ...prev, calls: nextCalls ?? prev.calls } : prev))
       } catch (err) {
         toast.show({
           title: "Gagal memproses panggilan",
@@ -462,7 +495,7 @@ export default function DisputeDetailScreen() {
     >
       <Header title="Detail Sengketa" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -472,7 +505,7 @@ export default function DisputeDetailScreen() {
         {loading && !dispute ? (
           <DetailLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : dispute ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <View className="flex-row items-center justify-between gap-3">

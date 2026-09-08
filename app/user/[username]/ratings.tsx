@@ -6,15 +6,16 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   Negatif. Paginasi PAGE_SIZE 20 + LoadMore;
  *   respons array|{data,meta} via readMyRatings.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Star } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { tokens } from "@/lib/tokens"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -39,64 +40,43 @@ export default function PublicRatingsScreen() {
   const insets = useSafeAreaInsets()
 
   const [filter, setFilter] = useState<PublicRatingFilter>("all")
-  const [items, setItems] = useState<Rating[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
 
-  const fetchPage = useCallback(
-    async (p: number) => {
-      if (!username) return
-      const body = await api.ratings.getPublicRatings(username, {
-        page: p,
-        limit: PAGE_SIZE,
-        ...(filter === "all" ? {} : { filter }),
-      })
-      const { items: data, totalPages } = readMyRatings(body)
-      setItems((prev) => (p === 1 ? data : [...prev, ...data]))
-      setPage(p)
-      setHasMore(typeof totalPages === "number" ? p < totalPages : data.length >= PAGE_SIZE)
+  /**
+   * `usePaginatedQuery`, bukan rakitan manual page/hasMore/loadingMore.
+   * Yang sebelumnya hilang dan sekarang ditangani hook:
+   *   - ganti filter membatalkan request halaman lama (respons lambat tidak
+   *     bisa menimpa hasil filter baru);
+   *   - "muat lagi" single-flight, dan baris yang sudah ada TETAP tampil saat
+   *     halaman berikutnya gagal;
+   *   - `refreshing` terpisah dari `loading` sehingga tarik-untuk-menyegarkan
+   *     tidak lagi mengosongkan daftar.
+   * Fallback `totalPages` meniru logika lama: bila backend tidak mengirimnya,
+   * halaman penuh dianggap masih punya lanjutan.
+   */
+  const query = usePaginatedQuery<Rating>(
+    `public-ratings:${username}:${filter}`,
+    async (page, signal) => {
+      // `usePaginatedQuery` tidak punya `enabled`, jadi guard `!username`
+      // (pengganti `if (!username) return` versi lama) pindah ke sini —
+      // tanpa ini fetcher akan menembak /v1/users/undefined/ratings.
+      if (!username) return { data: [], meta: { page, limit: PAGE_SIZE, totalPages: page } }
+      const body = await api.ratings.getPublicRatings(
+        username,
+        { page, limit: PAGE_SIZE, ...(filter === "all" ? {} : { filter }) },
+        signal,
+      )
+      const { items, totalPages } = readMyRatings(body)
+      return {
+        data: items,
+        meta: {
+          page,
+          limit: PAGE_SIZE,
+          totalPages: totalPages ?? (items.length >= PAGE_SIZE ? page + 1 : page),
+        },
+      }
     },
-    [username, filter],
   )
-
-  const fetchAll = useCallback(async () => {
-    if (!username) return
-    setLoading(true)
-    setError(null)
-    try {
-      await fetchPage(1)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [username, fetchPage])
-
-  const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return
-    setLoadingMore(true)
-    try {
-      await fetchPage(page + 1)
-    } catch {
-      // gagal memuat halaman berikutnya: biarkan tombol untuk coba lagi
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [loadingMore, hasMore, fetchPage, page])
-
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+  const items = query.data
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -109,17 +89,21 @@ export default function PublicRatingsScreen() {
         ))}
       </View>
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={query.refresh}
+        refreshing={query.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
+        {query.loading ? (
           <ListLoading />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+        ) : query.error ? (
+          <ErrorState
+            title="Gagal memuat"
+            description={query.error}
+            onRetry={() => void query.reload()}
+          />
         ) : items.length === 0 ? (
           <EmptyState
             icon={Star}
@@ -158,8 +142,16 @@ export default function PublicRatingsScreen() {
               )
             })}
             <LoadMore
-              status={loadingMore ? "loading" : hasMore ? "idle" : "end"}
-              onLoadMore={() => void handleLoadMore()}
+              status={
+                query.loadMoreError
+                  ? "error"
+                  : query.loadingMore
+                    ? "loading"
+                    : query.hasMore
+                      ? "idle"
+                      : "end"
+              }
+              onLoadMore={() => void query.loadMore()}
               hideEnd
             />
           </View>

@@ -33,6 +33,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CheckCircle, Info, Warning, WarningCircle, X } from "phosphor-react-native"
 
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 import { Icon, type IconComponent, type IconTone } from "./icon"
@@ -259,7 +260,7 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
             toast.action?.onPress()
             animateOut(onDismiss)
           }}
-          className="min-h-[44px] justify-center px-2 active:opacity-disabled focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          className={cn("min-h-11 justify-center rounded-xs px-2 active:opacity-disabled", focusRing)}
         >
           <Text variant="label" weight={600}>
             {toast.action.label}

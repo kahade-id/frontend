@@ -26,6 +26,7 @@ import { Input, type InputProps } from "@/components/ui/input"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 
 export type SearchFieldProps = Omit<InputProps, "variant" | "label"> & {
@@ -103,7 +104,7 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
       accessibilityLabel={placeholder}
       accessibilityHint="Ketuk untuk mencari"
       scaleOnPress={false}
-      containerClassName={cn("w-full", containerClassName)}
+      containerClassName={cn("w-full rounded-sm", focusRing, containerClassName)}
       className={cn(
         "min-h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4 py-3",
         className,
@@ -111,7 +112,7 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
       {...rest}
     >
       <Icon icon={MagnifyingGlass} size="sm" />
-      <Text ellipsizeMode="tail" variant="bodyLarge" tone="disabled" numberOfLines={1} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <Text ellipsizeMode="tail" variant="bodyLarge" tone="disabled" numberOfLines={1} className="flex-1">
         {placeholder}
       </Text>
     </PressableScale>

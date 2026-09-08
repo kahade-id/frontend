@@ -244,7 +244,7 @@ export function SocialLinksEditor({
         {t.add}
       </Button>
       {value.length >= max ? (
-        <Text variant="caption" tone="secondary" className="text-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+        <Text variant="caption" tone="secondary" className="text-center">
           {t.maxReached(max)}
         </Text>
       ) : null}

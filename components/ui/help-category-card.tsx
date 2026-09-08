@@ -44,6 +44,7 @@ export function HelpCategoryCard({
   articleCount,
   formatCount = defaultFormatCount,
   onPress,
+  href,
   accessibilityLabel,
   className,
   ...rest
@@ -52,8 +53,9 @@ export function HelpCategoryCard({
   return (
     <Card
       onPress={onPress}
+      href={href}
       accessibilityLabel={accessibilityLabel ?? summarize([name, countText])}
-      accessibilityHint={onPress ? "Buka daftar artikel" : undefined}
+      accessibilityHint={onPress || href ? "Buka daftar artikel" : undefined}
       className={cn("gap-3", className)}
       {...rest}
     >

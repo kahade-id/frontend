@@ -34,14 +34,30 @@ import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Divider } from "@/components/ui/divider"
+import { Link, type Href } from "expo-router"
+
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 
 export type CardVariant = "default" | "elevated" | "inverted" | "outline"
 
 export type CardProps = Omit<ViewProps, "children"> &
   Pick<PressableScaleProps, "onPress" | "onLongPress" | "accessibilityLabel" | "accessibilityHint"> & {
+    /**
+     * Audit (web a11y): kartu yang BERPINDAH LAYAR harus berupa tautan, bukan
+     * tombol. Tanpa `href`, kartu interaktif dirender sebagai
+     * <PressableScale accessibilityRole="button"> — di web tidak ada <a href>
+     * sungguhan, jadi tidak bisa ctrl/cmd-klik, klik tengah, atau "buka di tab
+     * baru", dan screen reader mengumumkan "tombol" untuk sesuatu yang
+     * memindahkan pengguna ke layar lain. Mengirim `href` membungkus kartu
+     * dengan <Link asChild> (pola yang sama dengan <RouteLink> dan <ListItem>)
+     * sehingga web mendapat elemen <a> dan role-nya otomatis "link".
+     *
+     * Aditif: 87 call site lama yang hanya mengirim `onPress` tidak berubah.
+     */
+    href?: Href
     children?: ReactNode
     variant?: CardVariant
     /** Padding 20px semua sisi (default true) */
@@ -73,6 +89,7 @@ export function Card({
   selected = false,
   disabled = false,
   onPress,
+  href,
   onLongPress,
   accessibilityLabel,
   accessibilityHint,
@@ -87,22 +104,32 @@ export function Card({
     className,
   )
 
-  if (onPress || onLongPress) {
-    return (
+  // `href` ikut dihitung interaktif: kartu berhref tanpa onPress tetap harus
+  // menjadi tautan yang bisa dinavigasi, bukan jatuh ke cabang statis.
+  if (onPress || onLongPress || href) {
+    const interactive = (
       <PressableScale
-        accessibilityRole="button"
+        accessibilityRole={href ? "link" : "button"}
         accessibilityLabel={accessibilityLabel}
         accessibilityHint={accessibilityHint}
         accessibilityState={{ selected, disabled }}
         disabled={disabled}
         onPress={onPress}
         onLongPress={onLongPress}
-        containerClassName="w-full"
+        containerClassName={cn("w-full rounded-md", focusRing)}
         className={box}
         {...rest}
       >
         {children}
       </PressableScale>
+    )
+
+    return href ? (
+      <Link href={href} asChild>
+        {interactive}
+      </Link>
+    ) : (
+      interactive
     )
   }
 

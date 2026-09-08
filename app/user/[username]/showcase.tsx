@@ -2,15 +2,15 @@
  * Screen — Showcase Publik (GET /v1/users/{username}/showcase).
  * Galeri foto produk/hasil kerja milik profil user lain.
  */
-import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Images } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -23,50 +23,40 @@ export default function PublicShowcaseScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
   const insets = useSafeAreaInsets()
 
-  const [items, setItems] = useState<ShowcaseItem[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchAll = useCallback(async () => {
-    if (!username) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.users.getPublicShowcase(username)
-      setItems(res ?? [])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [username])
-
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
+  /**
+   * `useApiQuery`, bukan rakitan useState/useEffect. Tiga hal yang sebelumnya
+   * hilang dan sekarang ditangani hook: request dibatalkan saat layar
+   * di-unmount (respons lambat tidak bisa menimpa layar berikutnya),
+   * `refreshing` terpisah dari `loading` sehingga tarik-untuk-menyegarkan
+   * tidak lagi mengganti galeri dengan skeleton, dan error lewat
+   * `userMessage(err)`. `enabled` menggantikan guard `if (!username) return`.
+   */
+  const showcase = useApiQuery<ShowcaseItem[]>(
+    `public-showcase:${username}`,
+    (signal) => api.users.getPublicShowcase(username, signal),
+    Boolean(username),
+  )
+  const items = showcase.data ?? []
 
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Portofolio" />
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={showcase.refresh}
+        refreshing={showcase.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
+        {showcase.loading ? (
           <ShowcaseGalleryGrid items={[]} loading />
-        ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+        ) : showcase.error ? (
+          <ErrorState
+            title="Gagal memuat"
+            description={showcase.error}
+            onRetry={() => void showcase.reload()}
+          />
         ) : (
           <View style={{ paddingTop: tokens.space[3] }}>
             <ShowcaseGalleryGrid

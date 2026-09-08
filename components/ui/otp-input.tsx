@@ -25,6 +25,7 @@ import { useTheme } from "@/components/theme-provider"
 import { FieldHelper } from "@/components/ui/field"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 
 export type OtpInputHandle = { focus: () => void; blur: () => void; clear: () => void }
@@ -100,7 +101,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         accessibilityRole="none"
         accessibilityLabel={`Kode ${length} digit, ${code.length} dari ${length} terisi`}
         accessibilityValue={{ text: `${code.length} dari ${length}` }}
-        className={cn("flex-row justify-between gap-2", disabled && "opacity-disabled", focused && "web:focus-visible:outline-none web:focus-visible:ring-2 web:focus-visible:ring-border-focus")}
+        className={cn("flex-row justify-between gap-2 rounded-sm", disabled && "opacity-disabled", focusRing)}
 
       >
         {Array.from({ length }, (_, i) => {

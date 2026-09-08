@@ -103,7 +103,7 @@ export function Alert({
       {...rest}
     >
       {IconCmp ? (
-        <View className="pt-[2px] focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+        <View className="pt-[2px]">
           <Icon icon={IconCmp} size="sm" tone={iconTone[tone]} weight="fill" />
         </View>
       ) : null}

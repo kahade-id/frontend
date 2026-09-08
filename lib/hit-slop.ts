@@ -45,3 +45,19 @@ export const ICON_SM_HIT_SLOP = hitSlopToReach(tokens.icon.size.sm)
 
 /** Slop siap pakai untuk `<Icon size="xs">` (16px) di dalam container ≥ 44px. */
 export const ICON_XS_HIT_SLOP = hitSlopToReach(tokens.icon.size.xs)
+
+/**
+ * Slop VERTIKAL saja untuk baris teks yang bisa ditekan (mis. counter
+ * "12 Mengikuti", tombol "Tanya" di kartu showcase). Lebarnya sudah melewati
+ * target karena teksnya panjang; yang kurang hanya tingginya — `body` punya
+ * line-height 22px, jauh di bawah 44.
+ *
+ * Horizontal sengaja 0 (bukan hasil `hitSlopToReach`): baris-baris ini duduk
+ * berdampingan di `flex-row` dengan `gap-4` (16px), jadi slop kiri/kanan akan
+ * membuat dua target saling menimpa dan tap jatuh ke kontrol sebelah.
+ */
+export const TEXT_ROW_HIT_SLOP: Required<Insets> = {
+  ...hitSlopToReach(tokens.a11y.minHitTarget, tokens.typography.body.lineHeight),
+  left: 0,
+  right: 0,
+}

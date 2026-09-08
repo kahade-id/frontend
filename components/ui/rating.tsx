@@ -36,6 +36,7 @@ import { useTheme } from "@/components/theme-provider"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatDecimal } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
@@ -139,7 +140,8 @@ export function Rating({
         accessibilityRole="button"
         accessibilityLabel={`${n} dari ${max} bintang${labels?.[i] ? `, ${labels[i]}` : ""}`}
         accessibilityState={{ selected: n <= shown, disabled }}
-        className="min-h-[44px] min-w-[44px] items-center justify-center focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        containerClassName={focusRing}
+        className="min-h-11 min-w-11 items-center justify-center"
       >
         {glyph}
       </PressableScale>

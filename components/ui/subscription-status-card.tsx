@@ -167,7 +167,7 @@ export function SubscriptionStatusCard({
     // yang akan tertelan `accessible` root (audit #4).
     <Card className={cn("gap-4", className)} {...rest}>
       <CardSummary
-        className="gap-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        className="gap-4"
         label={summarize([
           planName,
           t[s],

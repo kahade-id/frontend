@@ -151,7 +151,7 @@ export function TrustScoreCard({
       </View>
 
       {showFactors ? (
-        <View className="gap-3 border-t border-border pt-4 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+        <View className="gap-3 border-t border-border pt-4">
           <Text variant="label" tone="primary">
             {t.factorsTitle}
           </Text>

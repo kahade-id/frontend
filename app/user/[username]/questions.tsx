@@ -21,7 +21,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Komentar per utas dipaginasi (COMMENT_PAGE 20 + "Muat lebih banyak")
  *     di dalam kartu, bukan semua sekaligus.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -36,6 +36,8 @@ import {
 } from "@/lib/api/users"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -72,14 +74,49 @@ export default function PublicQuestionsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [meId, setMeId] = useState<string | undefined>()
-  const [items, setItems] = useState<QuestionItem[]>([])
-  const [page, setPage] = useState(1)
-  const [hasMore, setHasMore] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit — layar ini merakit paginator sendiri. Diganti `usePaginatedQuery`
+   * karena tiga cacat terbukti dari kode lama:
+   *   1. `handleRefresh` → `fetchAll()` → `setLoading(true)`: tarik-untuk-
+   *      menyegarkan mengganti daftar pertanyaan dengan kerangka.
+   *   2. `setItems(prev => [...prev, ...data])` MENAMBAH tanpa dedupe —
+   *      halaman yang tumpang tindih membuat pertanyaan muncul dua kali.
+   *   3. `loadMore` tidak single-flight: dua tap cepat = dua request.
+   *
+   * `meId` dipisah jadi query sendiri karena bukan bagian dari halaman.
+   */
+  const meQuery = useApiQuery<{ id?: string }>("questions-me", async (signal) => {
+    const me = await api.users.getMe(signal)
+    return { id: me.id ?? undefined }
+  })
+  const meId = meQuery.data?.id
+
+  /**
+   * PENTING — `readQuestionList` mengembalikan `totalPages?: number` dan bisa
+   * `undefined` (body array polos, atau `meta`/`total_pages` hilang).
+   * `usePaginatedQuery` tidak punya fallback: `page < undefined` = false, jadi
+   * `hasMore` akan permanen false dan tombol muat-lanjut lenyap tanpa pesan.
+   * Fallback kode lama (`data.length >= PAGE_SIZE`) direplikasi sebagai
+   * `totalPages` sintetis.
+   */
+  const query = usePaginatedQuery<QuestionItem>(
+    `public-questions:${username}`,
+    async (page, signal) => {
+      if (!username) return { data: [], meta: { page: 1, limit: PAGE_SIZE, totalPages: 1 } }
+      const body = await api.users.getPublicQuestions(username, { page, limit: PAGE_SIZE }, signal)
+      const { items: rows, totalPages } = readQuestionList(body)
+      return {
+        data: rows,
+        meta: {
+          page,
+          limit: PAGE_SIZE,
+          totalPages: totalPages ?? (rows.length >= PAGE_SIZE ? page + 1 : page),
+        },
+      }
+    },
+  )
+  const items = query.data
+  const { loading, error, refreshing, loadingMore, loadMoreError, hasMore } = query
 
   const [askOpen, setAskOpen] = useState(false)
   const [askText, setAskText] = useState("")
@@ -98,58 +135,6 @@ export default function PublicQuestionsScreen() {
   const [deleteQ, setDeleteQ] = useState<QuestionItem | null>(null)
   const [deleteC, setDeleteC] = useState<QuestionComment | null>(null)
   const [deleting, setDeleting] = useState(false)
-
-  const fetchPage = useCallback(
-    async (p: number) => {
-      if (!username) return
-      const body = await api.users.getPublicQuestions(username, { page: p, limit: PAGE_SIZE })
-      const { items: data, totalPages } = readQuestionList(body)
-      setItems((prev) => (p === 1 ? data : [...prev, ...data]))
-      setPage(p)
-      setHasMore(typeof totalPages === "number" ? p < totalPages : data.length >= PAGE_SIZE)
-    },
-    [username],
-  )
-
-  const fetchAll = useCallback(async () => {
-    if (!username) return
-    setLoading(true)
-    setError(null)
-    try {
-      const [, me] = await Promise.all([fetchPage(1), api.users.getMe().catch(() => null)])
-      if (me?.id) setMeId(me.id)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [username, fetchPage])
-
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
-
-  const handleLoadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return
-    setLoadingMore(true)
-    try {
-      await fetchPage(page + 1)
-    } catch (err: unknown) {
-      toast.show({
-        title: "Gagal memuat halaman berikutnya",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setLoadingMore(false)
-    }
-  }, [loadingMore, hasMore, fetchPage, page, toast])
 
   // ── Komentar ───────────────────────────────────────────────────────
   const loadComments = useCallback(
@@ -221,7 +206,7 @@ export default function PublicQuestionsScreen() {
       toast.show({ title: "Pertanyaan terkirim", tone: "success", duration: 3000 })
       setAskOpen(false)
       setAskText("")
-      await fetchPage(1)
+      await query.refresh()
     } catch (err) {
       toast.show({
         title: "Gagal mengirim pertanyaan",
@@ -231,7 +216,7 @@ export default function PublicQuestionsScreen() {
     } finally {
       setAsking(false)
     }
-  }, [username, askText, toast, fetchPage])
+  }, [username, askText, toast, query])
 
   // ── Hapus ──────────────────────────────────────────────────────────
   const handleDelete = useCallback(async () => {
@@ -243,7 +228,7 @@ export default function PublicQuestionsScreen() {
         setDeleteQ(null)
         if (openId === deleteQ.id) setOpenId(null)
         toast.show({ title: "Pertanyaan dihapus", tone: "neutral", duration: 3000 })
-        await fetchPage(1)
+        await query.refresh()
       } else if (deleteC && openId) {
         await api.users.deleteQuestionComment(deleteC.id)
         setDeleteC(null)
@@ -255,7 +240,7 @@ export default function PublicQuestionsScreen() {
     } finally {
       setDeleting(false)
     }
-  }, [deleting, deleteQ, deleteC, openId, toast, fetchPage, loadComments])
+  }, [deleting, deleteQ, deleteC, openId, toast, query, loadComments])
 
   const isMyQuestion = (q: QuestionItem) => !!meId && q.asker?.id === meId
   const isMyComment = (c: QuestionComment) => !!meId && c.authorId === meId
@@ -271,7 +256,7 @@ export default function PublicQuestionsScreen() {
         }
       />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -281,7 +266,7 @@ export default function PublicQuestionsScreen() {
         {loading ? (
           <ListLoading />
         ) : error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : items.length === 0 ? (
           <EmptyState
             icon={ChatCircleDots}
@@ -369,9 +354,14 @@ export default function PublicQuestionsScreen() {
                 ) : null}
               </View>
             ))}
+            {/* loadMoreError kini punya permukaan sendiri. Sebelumnya
+                kegagalan muat-lanjut hanya jadi toast yang menghilang, lalu
+                status kembali "idle" — tidak ada tanda gagal dan tidak ada
+                cara mencoba lagi. */}
             <LoadMore
-              status={loadingMore ? "loading" : hasMore ? "idle" : "end"}
-              onLoadMore={() => void handleLoadMore()}
+              status={loadingMore ? "loading" : loadMoreError ? "error" : hasMore ? "idle" : "end"}
+              errorLabel={loadMoreError ?? undefined}
+              onLoadMore={() => void query.loadMore()}
               hideEnd
             />
           </View>

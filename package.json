@@ -20,7 +20,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check:api": "node scripts/gen-api-constraints.mjs --check && node scripts/audit-inventory.mjs --check",
+    "check:api": "node scripts/gen-api-constraints.mjs --check && node scripts/audit-inventory.mjs --check && node scripts/check-retry.mjs",
     "check:spec": "node scripts/gen-mobile-spec.mjs --check",
     "check:api:soft": "node scripts/check-api.mjs",
     "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:push && npm test",
@@ -32,7 +32,8 @@
     "qa:icon": "node scripts/qa-icon.mjs",
     "check:push": "node scripts/check-push.mjs",
     "eas-build-pre-install": "node scripts/check-push.mjs",
-    "check:weblinks": "node scripts/check-weblinks.mjs"
+    "check:weblinks": "node scripts/check-weblinks.mjs",
+    "verify:api": "node scripts/verify-live-api.mjs"
   },
   "engines": {
     "node": ">=22"

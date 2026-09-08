@@ -20,7 +20,6 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
-import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ShieldCheck } from "phosphor-react-native"
 
@@ -144,7 +143,7 @@ export default function BiometricSettingsScreen() {
             subtitle="Kode dari aplikasi autentikator saat masuk"
             leading={ShieldCheck}
             chevron
-            onPress={() => router.push(ROUTES.twoFactor)}
+            href={ROUTES.twoFactor}
           />
         </ListGroup>
       </View>

@@ -61,6 +61,7 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 
 export type SwipeSide = "left" | "right"
@@ -278,7 +279,7 @@ function ActionButton({ action, width, onDone }: { action: SwipeAction; width: n
           onDone()
           action.onPress()
         }}
-        containerClassName="h-full w-full"
+        containerClassName={cn("h-full w-full", focusRingInset)}
         className={cn(
           "h-full w-full items-center justify-center gap-1 px-2",
           action.destructive ? "bg-danger" : "bg-surface border-y border-border",

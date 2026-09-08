@@ -38,6 +38,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
@@ -165,7 +166,7 @@ export function NumberStepper({
         onPress={() => commit(value + dir * step)}
         onLongPress={() => startRepeat(dir)}
         onPressOut={stopRepeat}
-        containerClassName="h-full"
+        containerClassName={cn("h-full", focusRingInset)}
         className="h-full w-12 items-center justify-center"
       >
         <Icon icon={dir === 1 ? Plus : Minus} size="sm" weight="bold" tone="active" />

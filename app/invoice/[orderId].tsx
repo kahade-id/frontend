@@ -1,18 +1,20 @@
-import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Invoice (GET /v1/orders/{orderId}/invoice + receipt HTML).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage } from "@/lib/api"
 import { orderPartyName, type Invoice } from "@/lib/api/orders"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { shareContent } from "@/lib/share"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { InvoiceReceiptView } from "@/components/ui/invoice-receipt-view"
@@ -27,34 +29,18 @@ export default function InvoiceScreen() {
   const toast = useToast()
   const { copied, copy } = useCopy()
 
-  const [invoice, setInvoice] = useState<Invoice | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchInvoice = useCallback(async () => {
-    if (!orderId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.orders.getInvoice(orderId)
-      setInvoice(res)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [orderId])
-
-  useEffect(() => {
-    void fetchInvoice()
-  }, [fetchInvoice])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchInvoice()
-    setRefreshing(false)
-  }, [fetchInvoice])
+  /**
+   * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
+   * layar di-unmount, `refreshing` terpisah dari `loading` (tarik-untuk-
+   * menyegarkan tidak lagi mengganti invoice dengan skeleton), dan error lewat
+   * `userMessage(err)`. `enabled` menggantikan guard `if (!orderId) return`.
+   */
+  const query = useApiQuery<Invoice>(
+    `invoice:${orderId}`,
+    (signal) => api.orders.getInvoice(orderId, signal),
+    Boolean(orderId),
+  )
+  const invoice = query.data
 
   const handleDownload = useCallback(
     async (orderId: string) => {
@@ -77,24 +63,59 @@ export default function InvoiceScreen() {
     [toast.show],
   )
 
+  /**
+   * Bagikan invoice.
+   *
+   * Kenapa ini cacat sebelumnya: <InvoiceReceiptView> menyembunyikan tombol
+   * "Bagikan" lewat guard `{onShare ? … : null}` (baris 289-290 komponennya).
+   * Layar ini mengirim `onCopyNumber` dan `onDownload` tetapi TIDAK `onShare`,
+   * jadi struk hanya punya Salin + Unduh — padahal <OrderLinkShareCard>
+   * (app/order-links.tsx) dan kartu referral sudah bisa berbagi.
+   *
+   * Payload-nya TEKS, bukan berkas: `handleDownload` hanya mengambil HTML
+   * dari server lalu men-toast, tidak pernah menyimpan file lokal, sehingga
+   * tidak ada `fileUri` untuk <ShareFilePayload>.
+   *
+   * Pola fallback identik dengan app/order-links.tsx: bila share sheet tidak
+   * tersedia (desktop web tanpa navigator.share) jatuh ke menyalin, bukan
+   * diam — pengguna selalu dapat sesuatu.
+   */
+  const handleShare = useCallback(
+    async (inv: Invoice) => {
+      const message = `Invoice ${inv.invoiceNumber} — ${formatRupiah(inv.total)} untuk order ${inv.order.id}`
+      const outcome = await shareContent({ message, title: "Invoice Kahade" })
+      if (outcome === "unavailable") {
+        const ok = await copy(inv.invoiceNumber)
+        toast.show({
+          title: ok ? "Nomor invoice disalin" : "Tidak bisa membagikan",
+          description: ok
+            ? "Berbagi tidak tersedia di perangkat ini; tempel nomor invoice secara manual."
+            : undefined,
+          tone: ok ? "success" : "danger",
+        })
+      }
+    },
+    [copy, toast.show],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Invoice" />
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={query.refresh}
+        refreshing={query.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
+        {query.loading ? (
           <DetailLoading />
-        ) : error ? (
+        ) : query.error ? (
           <ErrorState
             title="Gagal memuat"
-            description={error}
-            onRetry={() => void fetchInvoice()}
+            description={query.error}
+            onRetry={() => void query.reload()}
           />
         ) : invoice ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -116,6 +137,7 @@ export default function InvoiceScreen() {
               ]}
               onCopyNumber={(n) => void copy(n)}
               onDownload={() => void handleDownload(invoice.order.id)}
+              onShare={() => void handleShare(invoice)}
             />
             <Button
               variant="ghost"

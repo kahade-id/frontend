@@ -19,6 +19,12 @@
  *     komponen). Hit area mengikuti tinggi baris paragraf, jadi hanya pakai
  *     inline untuk link yang juga tersedia di tempat lain atau tidak kritikal.
  *
+ *   - Focus ring keyboard (web saja, WCAG 2.4.7) dipasang di KEDUA mode:
+ *     non-inline pada `containerClassName` <PressableScale> (elemen yang bisa
+ *     fokus adalah <Pressable> terluar, lihat lib/focus-ring.ts), inline pada
+ *     className <Text> karena di RN Web <Text onPress>-lah yang menerima
+ *     tabIndex. Tanpa ini link hanya bisa di-Tab tanpa indikator apa pun.
+ *
  * Disabled: `opacity-disabled`, bukan warna solid (§9.1) — konsisten Button.
  * Weight 600 (bukan 400 body) agar underline + teks tetap terbaca di atas
  * surface abu; 500 diizinkan lewat prop `weight` untuk link di caption.
@@ -27,6 +33,9 @@ import { useCallback, useState, type ReactNode } from "react"
 import type { GestureResponderEvent, PressableProps } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens, typography } from "@/lib/tokens"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text, type TextProps } from "@/components/ui/text"
 
@@ -47,8 +56,17 @@ export type TextLinkProps = {
   containerClassName?: string
 }
 
-// hitSlop membawa target sentuh teks 22px (line-height body) ke ~44px.
-const DEFAULT_HIT_SLOP = { top: 11, bottom: 11, left: 4, right: 4 } as const
+/**
+ * hitSlop membawa target sentuh teks 22px (line-height `body`) ke 44px.
+ * Vertikal dihitung `hitSlopToReach()` (audit #1) supaya angka 44 tidak
+ * disalin manual; horizontal sengaja hanya `space[1]` — slop lebar di kiri/
+ * kanan membuat dua link yang bersebelahan saling menelan tap.
+ */
+const DEFAULT_HIT_SLOP = {
+  ...hitSlopToReach(typography.body.lineHeight),
+  left: tokens.space[1],
+  right: tokens.space[1],
+} as const
 
 export function TextLink({
   children,
@@ -83,7 +101,9 @@ export function TextLink({
         onPressOut={onOut}
         suppressHighlighting
         numberOfLines={numberOfLines}
-        className={cn(textClass, (disabled || pressed) && "opacity-disabled")}
+        // <Text onPress> di RN Web menerima fokus (tabIndex), jadi ring dipasang
+        // di sini — bukan di pembungkus, yang tidak ada pada mode inline.
+        className={cn(textClass, focusRing, (disabled || pressed) && "opacity-disabled")}
       >
         {children}
       </Text>
@@ -97,7 +117,7 @@ export function TextLink({
       disabled={disabled}
       onPress={onPress}
       hitSlop={hitSlop}
-      containerClassName={cn("self-start", containerClassName)}
+      containerClassName={cn("self-start", focusRing, containerClassName)}
     >
       <Text
         variant={variant}

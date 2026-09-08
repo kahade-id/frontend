@@ -24,11 +24,11 @@
  *     KTP adalah bukti kepemilikan langsung; galeri tetap tersedia sebagai
  *     fallback bila izin kamera ditolak.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
 import type { PresignedUrlDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
@@ -39,6 +39,7 @@ import {
   type PickImageOptions,
 } from "@/lib/image-picker"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
@@ -71,11 +72,29 @@ export default function KycScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [state, setState] = useState<KycState | null>(null)
-  const [history, setHistory] = useState<KycHistoryEntry[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
+   * `handleRefresh` memanggil `fetchAll()` yang sama dengan muat-awal, dan
+   * fungsi itu membuka dengan `setLoading(true)` — tarik-untuk-menyegarkan
+   * mengganti status KYC + riwayat dengan kerangka. Request juga tidak
+   * dibatalkan saat layar ditutup.
+   *
+   * `.catch(() => [])` pada riwayat DIPERTAHANKAN: riwayat yang gagal diambil
+   * tidak boleh mematikan status KYC yang merupakan isi utama layar.
+   */
+  const query = useApiQuery<{ state: KycState; history: KycHistoryEntry[] }>(
+    "kyc",
+    async (signal) => {
+      const [s, h] = await Promise.all([
+        api.kyc.getKycStatus(signal),
+        api.kyc.getKycHistory({ page: 1, limit: HISTORY_LIMIT }, signal).catch(() => []),
+      ])
+      return { state: s, history: h ?? [] }
+    },
+  )
+  const state = query.data?.state ?? null
+  const history = query.data?.history ?? []
+  const { loading, error, refreshing } = query
 
   const [formOpen, setFormOpen] = useState(false)
   const [nik, setNik] = useState("")
@@ -87,32 +106,7 @@ export default function KycScreen() {
   })
   const [submitting, setSubmitting] = useState(false)
 
-  const fetchAll = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const [s, h] = await Promise.all([
-        api.kyc.getKycStatus(),
-        api.kyc.getKycHistory({ page: 1, limit: HISTORY_LIMIT }).catch(() => []),
-      ])
-      setState(s)
-      setHistory(h ?? [])
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
 
-  useEffect(() => {
-    void fetchAll()
-  }, [fetchAll])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAll()
-    setRefreshing(false)
-  }, [fetchAll])
 
   const uiStatus = toKycUiStatus(state?.status)
   const isResubmit = uiStatus === "REJECTED" || uiStatus === "REVOKED"
@@ -195,7 +189,7 @@ export default function KycScreen() {
       })
       setFormOpen(false)
       resetForm()
-      await fetchAll()
+      await query.refresh()
     } catch {
       toast.show({
         title: "Gagal mengirim verifikasi",
@@ -205,13 +199,13 @@ export default function KycScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [ktp, selfie, nik, formValid, isResubmit, uploadDoc, resetForm, fetchAll, toast.show])
+  }, [ktp, selfie, nik, formValid, isResubmit, uploadDoc, resetForm, query, toast.show])
 
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Verifikasi Identitas" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void query.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -226,7 +220,7 @@ export default function KycScreen() {
             // drastis saat data tiba.
             <DetailLoading />
           ) : error ? (
-            <ErrorState title="Gagal memuat" description={error} onRetry={() => void fetchAll()} />
+            <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
           ) : (
             <>
               <KycStatusCard

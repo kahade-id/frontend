@@ -64,6 +64,8 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
+import { focusRing } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
 
 export type DeliveryProofStatus = "pending" | "confirmed" | "rejected"
@@ -167,7 +169,12 @@ function ImageTile({
   const picture = <Picture source={att.uri} alt={att.alt ?? label} aspectRatio={aspectRatio} className="w-full" />
   if (!onOpen) return picture
   return (
-    <PressableScale  onPress={() => onOpen(index)} accessibilityRole="imagebutton" accessibilityLabel={label}>
+    <PressableScale
+      onPress={() => onOpen(index)}
+      accessibilityRole="imagebutton"
+      accessibilityLabel={label}
+      containerClassName={cn("rounded-sm", focusRing)}
+    >
       {picture}
     </PressableScale>
   )
@@ -209,7 +216,7 @@ export function DeliveryProofViewer({
 
   return (
     <Card padded className={cn("gap-5", className)} {...rest}>
-      <View className="flex-row items-start gap-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="flex-row items-start gap-2">
         <Text variant="h3" className="flex-1">
           {sellerName ? t.titleFrom(sellerName) : t.title}
         </Text>
@@ -272,6 +279,7 @@ export function DeliveryProofViewer({
                 onPress={() => onOpenAttachment(indexOf(f))}
                 accessibilityRole="button"
                 accessibilityLabel={`${f.name}, ${t.openAttachment(indexOf(f), total)}`}
+                containerClassName={cn("w-full", focusRingInset)}
               >
                 {row}
               </PressableScale>

@@ -32,6 +32,7 @@ import { useCallback, useRef } from "react"
 import { Pressable, View, type ViewProps } from "react-native"
 
 import { Badge } from "@/components/ui/badge"
+import { Truncate } from "@/components/ui/truncate"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 
@@ -113,9 +114,20 @@ export function AppVersionInfoRow({
       </View>
 
       {updateId ? (
-        <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
-          {updateId.length > 12 ? `${updateId.slice(0, 8)}…${updateId.slice(-4)}` : updateId}
-        </Text>
+        /* Audit (S5): pemotongan ini menduplikasi <Truncate> — bahkan dengan
+           angka yang sama (8 dan 4 adalah default-nya). Dua cacat dari versi
+           buatan tangan: (1) screen reader membaca string TERPOTONG
+           ("abc12345…wxyz") sehingga ID tidak bisa diverifikasi; <Truncate>
+           memasang accessibilityLabel = nilai penuh. (2) Ambangnya `> 12`,
+           jadi string 13 karakter "dipotong" menjadi 13 karakter lagi —
+           `truncateMiddle` memakai `> head+tail+1` dan melewatkannya.
+           `selectable` dipertahankan false agar perilaku layar tidak berubah. */
+        <Truncate
+          value={updateId}
+          variant="caption"
+          tone="secondary"
+          selectable={false}
+        />
       ) : null}
 
       {footnote ? (

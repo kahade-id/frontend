@@ -45,6 +45,7 @@ import { IconBox } from "@/components/ui/icon-box"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type NotificationCategory =
   | "order"
@@ -158,6 +159,7 @@ export function NotificationListItem({
           scaleOnPress={false}
           onPress={onPress}
           onLongPress={onLongPress}
+          containerClassName={cn("w-full", focusRingInset)}
         >
           {row}
         </PressableScale>
@@ -167,7 +169,7 @@ export function NotificationListItem({
         </View>
       )}
       {/* Inset = px-6 (24) + IconBox md (40) + gap-3 (12) */}
-      {divider ? <View className="ml-[76px] h-px bg-border focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" /> : null}
+      {divider ? <View className="ml-[76px] h-px bg-border" /> : null}
     </View>
   )
 }

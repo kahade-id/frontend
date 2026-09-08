@@ -50,6 +50,7 @@ import { SearchField } from "@/components/ui/search-field"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type TransferRecipient = {
   id: string
@@ -121,6 +122,7 @@ function RecipientRow({
         accessibilityLabel={`${recipient.name}, @${recipient.username}${
           disabled ? `, ${verificationLabel}` : ""
         }${selected ? `, ${t.selected}` : ""}`}
+        containerClassName={cn("w-full", focusRingInset)}
         className="flex-row items-center gap-3 px-6 py-3"
       >
         <Avatar

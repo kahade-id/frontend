@@ -1,6 +1,3 @@
-import { walletTransactionStatus } from "@/lib/wallet-labels"
-import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Tarik Dana (withdraw).
  *
@@ -17,7 +14,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *     sudah ditahan (hold) dilepas — cukup "kembali" akan meninggalkan
  *     penarikan menggantung sampai OTP kedaluwarsa.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -27,6 +24,9 @@ import { api, userMessage, type WithdrawDto } from "@/lib/api"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
+import { useApiQuery } from "@/lib/use-api-query"
+import { walletTransactionStatus } from "@/lib/wallet-labels"
 
 import { AmountInput } from "@/components/ui/amount-input"
 import type { BankAccount } from "@/lib/api/bank-accounts"
@@ -35,6 +35,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { Header } from "@/components/ui/header"
 import { OtpInput } from "@/components/ui/otp-input"
 import { PinInput } from "@/components/ui/pin-input"
@@ -54,10 +55,23 @@ export default function WithdrawScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  const [accounts, setAccounts] = useState<BankAccount[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Audit: daftar rekening dirakit manual (useState loading/error/refreshing +
+   * useEffect). Cacat yang terbukti dari kode lama: `handleRefresh` memanggil
+   * `fetchAccounts()` yang SAMA dengan muat-awal, dan fungsi itu membuka
+   * dengan `setLoading(true)`. Karena cabang render `loading ? <ListLoading/>`
+   * duduk di atas pemilih rekening, tarik-untuk-menyegarkan MENGGANTI daftar
+   * rekening dengan kerangka — dan `accountId` ikut dihitung ulang dari daftar
+   * yang sedang kosong. Request juga tidak dibatalkan saat layar ditutup.
+   *
+   * `useApiQuery` memisahkan `refreshing` dari `loading` (data lama tetap
+   * tampil) dan meneruskan AbortSignal ke adapter.
+   */
+  const accountsQuery = useApiQuery<BankAccount[]>("withdraw-accounts", async (signal) => {
+    return (await api.bankAccounts.listBankAccounts(signal)) ?? []
+  })
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data])
+  const { loading, error, refreshing } = accountsQuery
 
   const [amount, setAmount] = useState(0)
   const [accountId, setAccountId] = useState<string | null>(null)
@@ -72,36 +86,23 @@ export default function WithdrawScreen() {
     ReturnType<typeof api.wallet.createWithdraw>
   > | null>(null)
 
-  const fetchAccounts = useCallback(async () => {
-    try {
-      setLoading(true)
-      setError(null)
-      const list = (await api.bankAccounts.listBankAccounts()) ?? []
-      setAccounts(list)
-      // `list` dinormalisasi sekali di atas: memakai `list ?? []` di render
-      // sementara updater di bawah membaca `list` mentah akan crash pada
-      // respons kosong yang bukan array.
-      setAccountId((prev) =>
-        list.some((a) => a.id === prev)
-          ? prev
-          : (list.find((a) => a.isPrimary)?.id ?? list[0]?.id ?? null),
-      )
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [])
-
+  /**
+   * Pilih rekening default begitu data tiba: pertahankan pilihan user selama
+   * masih ada, kalau tidak ambil yang utama lalu yang pertama. Berupa effect
+   * karena `accountId` state UI, bukan bagian data server.
+   *
+   * `accounts` sudah dinormalisasi lewat `useMemo` di atas, jadi aman dibaca
+   * langsung di sini (catatan lama soal respons kosong yang bukan array tetap
+   * berlaku dan sudah ditangani `?? []` di dalam fetcher).
+   */
   useEffect(() => {
-    void fetchAccounts()
-  }, [fetchAccounts])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchAccounts()
-    setRefreshing(false)
-  }, [fetchAccounts])
+    if (accounts.length === 0) return
+    setAccountId((prev) =>
+      accounts.some((a) => a.id === prev)
+        ? prev
+        : (accounts.find((a) => a.isPrimary)?.id ?? accounts[0]?.id ?? null),
+    )
+  }, [accounts])
 
   const handleSubmitForm = useCallback(() => {
     if (
@@ -232,7 +233,7 @@ export default function WithdrawScreen() {
     >
       <Header title="Tarik Dana" />
       <PullToRefresh
-        onRefresh={handleRefresh}
+        onRefresh={() => void accountsQuery.refresh()}
         refreshing={refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
@@ -319,7 +320,7 @@ export default function WithdrawScreen() {
                 compact
                 title="Gagal memuat rekening"
                 description={error}
-                onRetry={() => void fetchAccounts()}
+                onRetry={() => void accountsQuery.reload()}
               />
             ) : accounts.length === 0 ? (
               <EmptyState

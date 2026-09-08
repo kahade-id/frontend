@@ -60,6 +60,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { StatusIndicator } from "@/components/ui/status-indicator"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type DevicePlatform = "mobile" | "tablet" | "laptop" | "desktop" | "web"
 
@@ -257,8 +258,8 @@ export function DeviceSessionListItem({
             scaleOnPress={false}
             disabled={disabled}
             onPress={onPress}
-            containerClassName="flex-1"
-            className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+            containerClassName={cn("flex-1", focusRingInset)}
+            className="flex-1"
           >
             {row}
           </PressableScale>

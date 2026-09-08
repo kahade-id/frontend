@@ -33,6 +33,7 @@
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 import { CaretRight } from "phosphor-react-native"
+import { Link, type Href } from "expo-router"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
@@ -49,6 +50,19 @@ function isIconComponent(x: unknown): x is IconComponent {
 
 export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> & {
   title: string
+  /**
+   * Audit (web a11y): baris yang BERPINDAH LAYAR harus berupa tautan, bukan
+   * tombol. Tanpa `href`, baris interaktif dirender sebagai
+   * <PressableScale accessibilityRole="button"> — di web tidak ada <a href>
+   * sungguhan, jadi tidak bisa ctrl/cmd-klik, klik tengah, atau "buka di tab
+   * baru", dan screen reader mengumumkan "tombol" untuk sesuatu yang
+   * memindahkan pengguna ke layar lain. Mengirim `href` membungkus baris
+   * dengan <Link asChild> (pola yang sama dengan <RouteLink>) sehingga web
+   * mendapat elemen <a> dan role-nya otomatis "link".
+   *
+   * Aditif: call site lama yang hanya mengirim `onPress` tidak berubah.
+   */
+  href?: Href
   /** Disable row padding when the parent already applies the screen inset. */
   padded?: boolean
   /** Caption text-secondary ATAU node (mis. nomor rekening Mono) — simetris dengan `trailing` */
@@ -84,6 +98,7 @@ export function ListItem({
   titleLines = 1,
   disabled,
   onPress,
+  href,
   className,
   containerClassName,
   accessibilityLabel,
@@ -149,7 +164,9 @@ export function ListItem({
   const a11yLabel =
     accessibilityLabel ?? summarize([title, typeof subtitle === "string" ? subtitle : undefined])
 
-  if (!onPress) {
+  // Statis hanya bila TIDAK ada onPress DAN tidak ada href: baris berhref
+  // tanpa onPress tetap harus menjadi tautan yang bisa dinavigasi.
+  if (!onPress && !href) {
     return (
       <View
         accessible
@@ -161,9 +178,9 @@ export function ListItem({
     )
   }
 
-  return (
+  const row = (
     <PressableScale
-      accessibilityRole="button"
+      accessibilityRole={href ? "link" : "button"}
       accessibilityLabel={a11yLabel}
       accessibilityState={{ selected, disabled: !!disabled }}
       scaleOnPress={false}
@@ -174,6 +191,14 @@ export function ListItem({
     >
       {content}
     </PressableScale>
+  )
+
+  return href ? (
+    <Link href={href} asChild>
+      {row}
+    </Link>
+  ) : (
+    row
   )
 }
 

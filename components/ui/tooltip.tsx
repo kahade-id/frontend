@@ -170,7 +170,7 @@ export function Tooltip({
 
       {showLayer && anchor ? (
         <Portal>
-          <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 z-modal focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+          <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 z-modal">
             <Backdrop progress={progress} onPress={close} transparent accessibilityLabel="Tutup info" />
 
             {/* Fase ukur: posisi sementara di tepi kiri-atas, opacity 0 */}

@@ -43,6 +43,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
 import { space } from "@/lib/tokens"
 
@@ -145,6 +146,7 @@ export function ShowcaseGalleryGrid({
                   accessibilityLabel={item.alt}
                   accessibilityHint={showMore ? "Buka semua foto" : "Buka foto"}
                   onPress={() => onPressItem(item, index)}
+                  containerClassName={cn("rounded-sm", focusRing)}
                 >
                   {picture}
                 </PressableScale>

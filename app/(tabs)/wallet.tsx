@@ -175,7 +175,7 @@ export default function WalletScreen() {
         renderItem={({ item }) => (
           <WalletTransactionRow
             transaction={item}
-            onPress={() => router.push(ROUTES.walletTransaction(item.id))}
+            href={ROUTES.walletTransaction(item.id)}
           />
         )}
         empty={

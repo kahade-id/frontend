@@ -36,7 +36,6 @@ import { PaperPlaneRight, Plus, X } from "phosphor-react-native"
 import { useCallback, useState } from "react"
 import {
   Platform,
-  Pressable,
   ScrollView,
   TextInput,
   View,
@@ -251,11 +250,11 @@ export function ChatComposer({
             {...inputProps}
           />
           {showCount ? (
-            <Pressable accessibilityRole="button" className="pb-3 pl-2 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <View className="pb-3 pl-2">
               <Text variant="caption" tone={value.length >= maxLength ? "danger" : "secondary"} className="tabular-nums">
                 {value.length}/{maxLength}
               </Text>
-            </Pressable>
+            </View>
           ) : null}
         </View>
 

@@ -222,7 +222,7 @@ export function KycStatusCard({
 export function KycStatusCardSkeleton({ className, ...rest }: Omit<ViewProps, "children"> & { className?: string }) {
   return (
     <View accessible accessibilityRole="progressbar" className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)} accessibilityLabel="Memuat status verifikasi" {...rest}>
-      <View className="flex-row items-center gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="flex-row items-center gap-3">
         <Skeleton width={48} height={48} />
         <View className="flex-1 gap-2">
           <Skeleton height={20} className="w-36" />

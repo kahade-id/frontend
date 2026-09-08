@@ -31,10 +31,11 @@ export function listSupportTickets(signal?: AbortSignal) {
     .then((raw) => readList<SupportTicket>(raw, ["tickets"]))
 }
 
-export function getSupportTicket(ticketId: string) {
+export function getSupportTicket(ticketId: string, signal?: AbortSignal) {
   return http.get<SupportTicket>(`/v1/support/tickets/${seg(ticketId)}`, {
     auth: "required",
     retry: 1,
+    signal,
   })
 }
 

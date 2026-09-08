@@ -211,10 +211,24 @@ export type TransferResult = {
   balanceAfter?: number
 }
 
-/** Response GET /v1/wallet/payment-methods. */
-export function getPaymentMethods() {
+/**
+ * Response GET /v1/wallet/payment-methods.
+ *
+ * Audit: sebelumnya `auth: "none"`, padahal spec menandai endpoint ini
+ * `security: [{ access-token: [] }]` dan baris 11 file ini sendiri menetapkan
+ * "Semua endpoint security: access-token → auth: required" — 18 endpoint lain
+ * di file ini mematuhinya, hanya ini yang menyimpang.
+ *
+ * Akibatnya nyata: `auth: "none"` membuat client.ts menetapkan `token = null`
+ * (baris 376) sehingga header Authorization TIDAK PERNAH dikirim, dan juga
+ * melewati pemulihan 401 (baris 394). Keduanya pemanggilnya — app/topup.tsx
+ * dan app/subscriptions.tsx — adalah layar yang hanya bisa dicapai setelah
+ * login, jadi daftar metode pembayaran akan selalu 401 dan top-up tidak
+ * pernah bisa dipilih metodenya.
+ */
+export function getPaymentMethods(signal?: AbortSignal) {
   return http
-    .get<unknown>("/v1/wallet/payment-methods", { auth: "none", retry: 1 })
+    .get<unknown>("/v1/wallet/payment-methods", { auth: "required", retry: 1, signal })
     .then((raw) => readList<Record<string, unknown>>(raw, ["methods", "paymentMethods"]))
     .then((methods) => methods.map((method) => ({
       ...method,
@@ -325,11 +339,12 @@ export async function transferFunds(dto: TransferDto) {
 }
 
 /** GET /v1/wallet/transactions/{txId} — detail satu mutasi. */
-export function getWalletTransaction(txId: string) {
+export function getWalletTransaction(txId: string, signal?: AbortSignal) {
   return http
     .get<unknown>(`/v1/wallet/transactions/${seg(txId)}`, {
       auth: "required",
       retry: 1,
+      signal,
     })
     .then(normalizeWalletTransaction)
 }
@@ -355,7 +370,6 @@ export function getTopupHistory(
     .get<unknown>("/v1/wallet/topup-history", {
       query,
       auth: "required",
-      retry: 1,
       signal,
     })
     .then((raw) => normalizeWalletPage(raw, query))

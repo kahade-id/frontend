@@ -58,7 +58,7 @@ export function FooterBar({
       style={{ paddingBottom }}
       {...rest}
     >
-      <View className="w-full gap-3 px-6 pt-4 md:max-w-content tabular-nums focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="w-full gap-3 px-6 pt-4 md:max-w-content tabular-nums">
         {summary ? (
           <View className="flex-row items-end justify-between gap-4">
             <View className="gap-[2px]">

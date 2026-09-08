@@ -52,6 +52,7 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { focusRingInset } from "@/lib/focus-ring"
 
 export type ChatRoomLastMessage = {
   text: string
@@ -198,6 +199,7 @@ export function ChatRoomListItem({
           scaleOnPress={false}
           onPress={onPress}
           onLongPress={onLongPress}
+          containerClassName={cn("w-full", focusRingInset)}
         >
           {row}
         </PressableScale>
@@ -207,7 +209,7 @@ export function ChatRoomListItem({
         </View>
       )}
 
-      {divider ? <View className="ml-[64px] h-px bg-border focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2" /> : null}
+      {divider ? <View className="ml-[64px] h-px bg-border" /> : null}
     </View>
   )
 }

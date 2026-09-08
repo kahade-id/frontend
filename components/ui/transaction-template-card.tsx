@@ -191,7 +191,7 @@ export function TransactionTemplateCard({
       {onUse || onEdit || onDelete ? (
         <View className="flex-row items-center gap-2 border-t border-border pt-4">
           {onUse ? (
-            <Button variant="primary" size="sm" onPress={() => onUse(template)} className="flex-1 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+            <Button variant="primary" size="sm" onPress={() => onUse(template)} className="flex-1">
               {t.use}
             </Button>
           ) : null}

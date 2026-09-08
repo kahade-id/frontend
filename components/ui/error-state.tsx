@@ -73,7 +73,7 @@ export function ErrorState({
 
       <View className={cn("items-center max-w-[320px]", compact ? "gap-1" : "gap-2")}>
         {compact ? (
-          <Text variant="body" weight={600} className="text-center tabular-nums focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+          <Text variant="body" weight={600} className="text-center tabular-nums">
             {title}
           </Text>
         ) : (

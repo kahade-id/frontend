@@ -1,3 +1,4 @@
+import type { Href } from "expo-router"
 import type { WalletTransaction } from "@/lib/api/wallet"
 import { summarize } from "@/lib/a11y"
 import { formatRupiah, formatDateTime } from "@/lib/format"
@@ -14,10 +15,13 @@ import { mapValue } from "@/lib/has-own"
 export function WalletTransactionRow({
   transaction: tx,
   onPress,
+  href,
   divider = true,
 }: {
   transaction: WalletTransaction
   onPress?: () => void
+  /** Rute detail transaksi — membuat baris jadi tautan nyata di web. */
+  href?: Href
   divider?: boolean
 }) {
   return (
@@ -44,6 +48,7 @@ export function WalletTransactionRow({
       timestamp={formatDateTime(tx.createdAt)}
       reference={tx.referenceId ?? undefined}
       onPress={onPress}
+      href={href}
       divider={divider}
       inset={false}
     />

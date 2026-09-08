@@ -38,6 +38,7 @@ import { ProgressBar } from "@/components/ui/progress-bar"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
 
 export type UploadFileKind = "jpg" | "png" | "pdf"
@@ -163,7 +164,7 @@ export function UploadField({
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPress={onPick}
-          containerClassName="w-full"
+          containerClassName={cn("w-full rounded-md", focusRing)}
           className={cn(box, "min-h-[112px] items-center justify-center gap-2 p-5")}
         >
           <Icon icon={UploadSimple} size="lg" />
@@ -176,7 +177,7 @@ export function UploadField({
         </PressableScale>
       ) : (
         <View className={cn(box, "gap-3 p-4", disabled && "opacity-disabled")}>
-          <View className="flex-row items-center gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+          <View className="flex-row items-center gap-3">
             <Icon icon={FileGlyph} size="md" tone={status === "error" ? "default" : "active"} />
 
             <View className="flex-1 gap-1">

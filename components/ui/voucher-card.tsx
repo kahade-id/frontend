@@ -226,7 +226,7 @@ export function VoucherCardSkeleton({
       accessibilityLabel="Memuat voucher"
       {...rest}
     >
-      <View className="flex-row items-start gap-3 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2">
+      <View className="flex-row items-start gap-3">
         <Skeleton width={40} height={40} />
         <View className="flex-1 gap-2">
           <Skeleton height={16} className="w-20" />

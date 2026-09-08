@@ -119,6 +119,7 @@ export function SupportTicketCard({
   awaitingYou,
   labels,
   onPress,
+  href,
   accessibilityLabel,
   className,
   ...rest
@@ -139,7 +140,7 @@ export function SupportTicketCard({
     ])
 
   return (
-    <Card onPress={onPress} accessibilityLabel={a11y} accessibilityHint={onPress ? "Buka detail tiket" : undefined} className={cn("gap-3", className)} {...rest}>
+    <Card onPress={onPress} href={href} accessibilityLabel={a11y} accessibilityHint={onPress || href ? "Buka detail tiket" : undefined} className={cn("gap-3", className)} {...rest}>
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">
           {unread ? <Dot size="md" tone="primary" /> : null}

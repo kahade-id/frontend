@@ -3,16 +3,16 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  * Screen — Detail Mutasi Wallet (GET /v1/wallet/transactions/{txId}).
  * KeyValue rows sistem + Amount; PullToRefresh.
  */
-import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
 import type { WalletTransaction } from "@/lib/api/wallet"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 import {
   WALLET_TXN_LABELS,
   walletTransactionStatus,
@@ -36,34 +36,18 @@ export default function WalletTransactionScreen() {
   const { txId } = useLocalSearchParams<{ txId: string }>()
   const insets = useSafeAreaInsets()
 
-  const [txn, setTxn] = useState<WalletTransaction | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [refreshing, setRefreshing] = useState(false)
-
-  const fetchTxn = useCallback(async () => {
-    if (!txId) return
-    setLoading(true)
-    setError(null)
-    try {
-      const res = await api.wallet.getWalletTransaction(txId)
-      setTxn(res)
-    } catch (err) {
-      setError(userMessage(err))
-    } finally {
-      setLoading(false)
-    }
-  }, [txId])
-
-  useEffect(() => {
-    void fetchTxn()
-  }, [fetchTxn])
-
-  const handleRefresh = useCallback(async () => {
-    setRefreshing(true)
-    await fetchTxn()
-    setRefreshing(false)
-  }, [fetchTxn])
+  /**
+   * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
+   * layar di-unmount, `refreshing` terpisah dari `loading` (tarik-untuk-
+   * menyegarkan tidak lagi mengganti detail dengan skeleton), dan error lewat
+   * `userMessage(err)`. `enabled` menggantikan guard `if (!txId) return`.
+   */
+  const query = useApiQuery<WalletTransaction>(
+    `wallet-txn:${txId}`,
+    (signal) => api.wallet.getWalletTransaction(txId, signal),
+    Boolean(txId),
+  )
+  const txn = query.data
 
   const status = walletTransactionStatus(txn?.status)
   const direction = txn ? walletTransactionType(txn) : "UNKNOWN"
@@ -72,20 +56,20 @@ export default function WalletTransactionScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Detail Mutasi" />
       <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
+        onRefresh={query.refresh}
+        refreshing={query.refreshing}
         contentContainerClassName="px-6"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
+        {query.loading ? (
           <DetailLoading />
-        ) : error || !txn ? (
+        ) : query.error || !txn ? (
           <ErrorState
             title="Gagal memuat"
-            description={error ?? "Mutasi tidak ditemukan."}
-            onRetry={() => void fetchTxn()}
+            description={query.error ?? "Mutasi tidak ditemukan."}
+            onRetry={() => void query.reload()}
           />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
