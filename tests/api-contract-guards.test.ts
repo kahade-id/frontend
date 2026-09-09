@@ -146,3 +146,50 @@ describe("getSearchSuggestions — limit", () => {
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("limit=5")
   })
 })
+
+describe("assertDtoConstraints — pattern/minItems/maxItems", () => {
+  /**
+   * Ketiga aturan ini ada di `API_CONSTRAINTS` (ditulis generator dari spec)
+   * tetapi sebelumnya TIDAK ditegakkan — bahkan tidak ada di tipe `Rules`.
+   * Validasi tampak berjalan padahal tidak. Dikunci di sini.
+   */
+  it("menolak string yang tidak cocok `pattern` (NIK harus 16 digit)", async () => {
+    const { assertDtoConstraints } = await import("@/lib/financial")
+    const rules = { nik: { pattern: "^\\d{16}$" } }
+    expect(() => assertDtoConstraints({ nik: "123" }, rules)).toThrow()
+    expect(() => assertDtoConstraints({ nik: "3201010101010001" }, rules)).not.toThrow()
+    // Huruf di dalam 16 karakter tetap harus ditolak — bukan sekadar cek panjang.
+    expect(() => assertDtoConstraints({ nik: "320101010101000A" }, rules)).toThrow()
+  })
+
+  it("memakai pola nyata dari API_CONSTRAINTS, bukan pola bikinan test", async () => {
+    const { API_CONSTRAINTS } = await import("@/lib/api/constraints")
+    const { assertDtoConstraints } = await import("@/lib/financial")
+    // Nomor rekening: ^\d{6,20}$
+    expect(() =>
+      assertDtoConstraints({ accountNumber: "12345" }, API_CONSTRAINTS.AddBankAccountDto),
+    ).toThrow()
+    expect(() =>
+      assertDtoConstraints({ accountNumber: "123456" }, API_CONSTRAINTS.AddBankAccountDto),
+    ).not.toThrow()
+    // Kode referral: ^KH[A-Z0-9]{6,8}$ — 6..8 karakter SETELAH awalan "KH".
+    expect(() => assertDtoConstraints({ code: "KHABC123" }, API_CONSTRAINTS.ApplyReferralDto)).not.toThrow()
+    // 5 karakter setelah awalan: di bawah batas bawah.
+    expect(() => assertDtoConstraints({ code: "KHABC12" }, API_CONSTRAINTS.ApplyReferralDto)).toThrow()
+    // Awalan salah meski panjangnya sah.
+    expect(() => assertDtoConstraints({ code: "XXABC123" }, API_CONSTRAINTS.ApplyReferralDto)).toThrow()
+  })
+
+  it("menegakkan maxItems pada array", async () => {
+    const { assertDtoConstraints } = await import("@/lib/financial")
+    const rules = { notifIds: { maxItems: 2 } }
+    expect(() => assertDtoConstraints({ notifIds: ["a", "b"] }, rules)).not.toThrow()
+    expect(() => assertDtoConstraints({ notifIds: ["a", "b", "c"] }, rules)).toThrow()
+  })
+
+  it("melewati field yang tidak diisi (opsional)", async () => {
+    const { assertDtoConstraints } = await import("@/lib/financial")
+    const rules = { nik: { pattern: "^\\d{16}$" } }
+    expect(() => assertDtoConstraints({}, rules)).not.toThrow()
+  })
+})

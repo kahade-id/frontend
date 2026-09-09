@@ -36,10 +36,16 @@ type Rules = Readonly<
       readonly maximum?: number
       readonly minLength?: number
       readonly maxLength?: number
+      readonly minItems?: number
+      readonly maxItems?: number
       readonly enum?: readonly (string | number)[]
+      readonly pattern?: string
     }
   >
 >
+/** Cache `RegExp` hasil kompilasi agar pola tidak dikompilasi ulang tiap pemanggilan. */
+const patternCache = new Map<string, RegExp>()
+
 /** Runtime counterpart of generated DTO rules; a TypeScript cast must not bypass validation. */
 export function assertDtoConstraints(dto: object, rules: Rules): void {
   const values = dto as Record<string, unknown>
@@ -61,6 +67,27 @@ export function assertDtoConstraints(dto: object, rules: Rules): void {
         typeof value === "string" &&
         value.length >= (rule.minLength ?? 0) &&
         value.length <= (rule.maxLength ?? Infinity)
+    /**
+     * `pattern`, `minItems`, dan `maxItems` sebelumnya TIDAK ditegakkan, bahkan
+     * tidak ada di tipe `Rules` — padahal generator menuliskannya ke
+     * `API_CONSTRAINTS` (mis. `SubmitKycDto.nik` = `^\d{16}$`,
+     * `AddBankAccountDto.accountNumber` = `^\d{6,20}$`). Aturan itu ada di data
+     * tetapi diabaikan diam-diam, sehingga validasi tampak berjalan padahal tidak.
+     *
+     * `RegExp` dikompilasi sekali per aturan, bukan per pemanggilan.
+     */
+    if (rule.pattern != null)
+      valid =
+        valid &&
+        typeof value === "string" &&
+        (patternCache.get(rule.pattern) ??
+          patternCache.set(rule.pattern, new RegExp(rule.pattern)).get(rule.pattern)!).test(value)
+    if (rule.minItems != null || rule.maxItems != null)
+      valid =
+        valid &&
+        Array.isArray(value) &&
+        value.length >= (rule.minItems ?? 0) &&
+        value.length <= (rule.maxItems ?? Infinity)
     if (!valid)
       throw new ApiError({
         code: "VALIDATION",
