@@ -47,6 +47,7 @@ import { tokens } from "@/lib/tokens"
 import { Amount } from "@/components/ui/amount"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
+import { Stagger } from "@/components/ui/fade-in"
 import { Icon } from "@/components/ui/icon"
 import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -175,30 +176,39 @@ export default function HomeScreen() {
           contentContainerStyle: { paddingBottom: tokens.space[8] },
         }}
       >
-        {/* ── Identitas: salam + profil ───────────────────────── */}
-        <View accessibilityRole="text" className="px-6 pt-4">
-          <Text numberOfLines={1} variant="caption" tone="secondary" accessibilityLabel={`${greetingByHour()}, pengguna`}>
-            {greetingByHour()},
-          </Text>
-        </View>
-        {profile.error ? (
-          <ErrorState
-            compact
-            title="Gagal memuat profil"
-            description={profile.error}
-            onRetry={() => void profile.reload()}
-          />
-        ) : (
-          <ProfileHeader
-            name={profile.data?.fullName ?? "—"}
-            handle={profile.data?.username ? `@${profile.data.username}` : undefined}
-            avatar={{ source: profile.data?.avatarUrl ?? undefined }}
-            // Sampul hanya digambar bila memang ada: Beranda adalah layar
-            // ringkasan, slot kosong "tambah sampul" milik layar Edit Profil.
-            cover={profile.data?.headerUrl ? { source: profile.data.headerUrl } : undefined}
-            loading={profile.loading}
-          />
-        )}
+        {/*
+         * v2: empat section reveal bertingkat (fast, step 60ms — total
+         * ~430ms). Beranda adalah layar pertama setelah login; stagger
+         * memberi rasa "dibangun" tanpa menunda interaksi (semua section
+         * tetap bisa di-tap selama reveal).
+         */}
+        <Stagger duration="fast" step={60}>
+          {/* ── Identitas: salam + profil ───────────────────────── */}
+          <View>
+            <View accessibilityRole="text" className="px-6 pt-4">
+              <Text numberOfLines={1} variant="caption" tone="secondary" accessibilityLabel={`${greetingByHour()}, pengguna`}>
+                {greetingByHour()},
+              </Text>
+            </View>
+            {profile.error ? (
+              <ErrorState
+                compact
+                title="Gagal memuat profil"
+                description={profile.error}
+                onRetry={() => void profile.reload()}
+              />
+            ) : (
+              <ProfileHeader
+                name={profile.data?.fullName ?? "—"}
+                handle={profile.data?.username ? `@${profile.data.username}` : undefined}
+                avatar={{ source: profile.data?.avatarUrl ?? undefined }}
+                // Sampul hanya digambar bila memang ada: Beranda adalah layar
+                // ringkasan, slot kosong "tambah sampul" milik layar Edit Profil.
+                cover={profile.data?.headerUrl ? { source: profile.data.headerUrl } : undefined}
+                loading={profile.loading}
+              />
+            )}
+          </View>
 
         {/* ── Ringkasan ───────────────────────────────────────── */}
         <View className="gap-4 px-6 pt-2">
@@ -220,6 +230,8 @@ export default function HomeScreen() {
                   ? `${formatRupiah(wallet.data?.holdBalance ?? 0)} ditahan escrow`
                   : undefined
               }
+              // v2: info escrow = momen kepercayaan → tone accent.
+              hintTone="accent"
             />
           )}
 
@@ -275,11 +287,12 @@ export default function HomeScreen() {
           </Button>
         </VStack>
 
-        {/* ── Pintasan ────────────────────────────────────────── */}
-        <View className="px-6 pt-8">
-          <SectionHeader title="Pintasan" />
-          <QuickActionGrid actions={quickActions} className="pt-2" />
-        </View>
+          {/* ── Pintasan ────────────────────────────────────────── */}
+          <View className="px-6 pt-8">
+            <SectionHeader title="Pintasan" />
+            <QuickActionGrid actions={quickActions} className="pt-2" />
+          </View>
+        </Stagger>
       </PullToRefresh>
     </Screen>
   )
