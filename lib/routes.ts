@@ -80,6 +80,9 @@ export const ROUTES = {
   wallet: "/wallet" as Href,
   /** Tab #4 — Notifikasi (list read/unread) */
   notifications: "/notifications" as Href,
+  /** Detail satu notifikasi (GET /v1/notifications/:id) */
+  notificationDetail: (id: string) =>
+    ({ pathname: "/notification/[id]", params: { id } }) as unknown as Href,
   /** Tab #5 — Pengaturan/Profil milik sendiri */
   settings: "/settings" as Href,
 

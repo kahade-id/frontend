@@ -7,14 +7,20 @@
  * disimpan (pakai <RadioGroup>/<ChipGroup>).
  *
  * Keputusan non-obvious:
- *   - Container `rounded-sm border border-border-control bg-surface p-[2px]`
+ *   - Container `rounded-md border border-border-control bg-surface p-[2px]`
  *     (outline kontrol, >= 3:1 — WCAG 1.4.11, audit #6); segmen
  *     aktif `bg-primary` + teks `primary-foreground` mengikuti bahasa Chip
  *     selected (§9.25) — di dark mode otomatis invert. Segmen inaktif
  *     transparan dengan text-secondary.
- *   - Radius segmen `rounded-xs` (4px) di dalam container 6px: selisih 2px =
+ *   - Radius segmen `rounded-sm` (6px) di dalam container 8px: selisih 2px =
  *     padding, sehingga sudut dalam tampak konsentris (bukan konstanta baru,
- *     turunan radius.sm - p).
+ *     turunan radius.md - p). Segmen 4px di bilah 36px terbaca sebagai kotak
+ *     (laporan QA) — 6px adalah radius terbesar yang tetap konsentris dalam
+ *     batas maksimum non-pill §5 (8px).
+ *   - Container segmen `overflow-hidden`: fill aktif TIDAK PERNAH boleh
+ *     mengecat di luar batas rounded-nya, apa pun yang terjadi di dalam
+ *     (anak meluap, quirk radius platform). Tanpa ini, background aktif bisa
+ *     tampak menyiku walau kelas radius-nya benar.
  *   - Tinggi total 40px (h-10) = Button sm; segmen 36px.
  *   - Tanpa animasi geser (§1 tenang) dan tanpa scale press — PressableScale
  *     dipakai hanya untuk disabled-opacity & a11y yang seragam.
@@ -42,7 +48,7 @@ import { tokens } from "@/lib/tokens"
 
 /** Tinggi container = Button sm (h-10). Segmen = container - 2×p-[2px]. */
 const CONTAINER_H = tokens.space[10]
-const SEGMENT_PAD = tokens.radius.sm - tokens.radius.xs
+const SEGMENT_PAD = tokens.radius.md - tokens.radius.sm
 const SEGMENT_H = CONTAINER_H - SEGMENT_PAD * 2
 const CONTAINER_HIT_SLOP = hitSlopToReach(0, CONTAINER_H)
 const SEGMENT_HIT_SLOP = hitSlopToReach(0, SEGMENT_H)
@@ -75,7 +81,7 @@ export function SegmentedControl<V extends string = string>({
       accessibilityRole="radiogroup"
       hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
-        "min-h-11 w-full flex-row rounded-sm border border-border-control bg-surface p-[2px]",
+        "min-h-11 w-full flex-row rounded-md border border-border-control bg-surface p-[2px]",
         disabled && "opacity-disabled",
         className,
       )}
@@ -94,9 +100,9 @@ export function SegmentedControl<V extends string = string>({
             disabled={isDisabled}
             onPress={() => onChange(item.value)}
             hitSlop={{ top: SEGMENT_HIT_SLOP.top, bottom: SEGMENT_HIT_SLOP.bottom }}
-            containerClassName={cn("flex-1 rounded-xs", focusRingInset)}
+            containerClassName={cn("flex-1 overflow-hidden rounded-sm", focusRingInset)}
             className={cn(
-              "min-h-10 flex-1 flex-row items-center justify-center gap-1 rounded-xs px-2 py-2",
+              "min-h-10 flex-1 flex-row items-center justify-center gap-1 rounded-sm px-2 py-2",
               active ? "bg-primary" : "bg-transparent",
             )}
           >

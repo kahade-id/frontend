@@ -45,6 +45,11 @@ export const SecureKeys = {
   /** Push token terakhir yang berhasil didaftarkan ke backend */
   pushToken: "kahade.push.token",
   /**
+   * Identifier respons notifikasi terakhir yang sudah ditangani
+   * (cold-start dedupe). BUKAN rahasia — pengecualian seperti `deviceId`.
+   */
+  lastNotificationResponse: "kahade.push.lastResponse",
+  /**
    * "1" bila user sudah melewati onboarding (slide intro). BUKAN rahasia —
    * pengecualian yang disengaja, sama seperti `deviceId`: repo ini tidak
    * memasang AsyncStorage dan SecureStore adalah satu-satunya storage
@@ -65,6 +70,7 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.onboardingSeen,
   SecureKeys.themePreference,
   SecureKeys.sessionSignedOut,
+  SecureKeys.lastNotificationResponse,
 ])
 function webStorage(): Storage | null {
   try {

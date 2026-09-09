@@ -28,6 +28,7 @@ export const AUTHENTICATED_SCREENS = [
   "invoice/[orderId]",
   "kyc",
   "language",
+  "notification/[id]",
   "notification-preferences",
   "order/[id]",
   "order-link/[token]",

@@ -58,6 +58,30 @@ export async function saveBlobFile(
   return { kind: "shared", filename }
 }
 
+/**
+ * Simpan TEKS sebagai berkas (struk HTML invoice, log, dsb).
+ *
+ * Kenapa bukan `saveBlobFile(new Blob([text]))`: konstruktor Blob + round-trip
+ * `arrayBuffer()` tidak konsisten di semua runtime RN, sementara
+ * `File.write(string)` adalah jalur yang didokumentasikan expo-file-system
+ * untuk teks. Di web tetap lewat Blob + anchor (satu-satunya cara memicu
+ * unduhan browser).
+ */
+export async function saveTextFile(
+  text: string,
+  filename: string,
+  mimeType: string,
+): Promise<SavedFile> {
+  if (Platform.OS === "web") {
+    return saveBlobFile(new Blob([text], { type: `${mimeType};charset=utf-8` }), filename, mimeType)
+  }
+
+  const file = new File(Paths.cache, filename)
+  file.write(text)
+  await shareContent({ fileUri: file.uri, mimeType, dialogTitle: filename })
+  return { kind: "shared", filename }
+}
+
 /** Kutip satu sel CSV: pembatas selalu koma (RFC 4180), bukan titik-koma. */
 function csvCell(value: string | number | boolean | null | undefined): string {
   if (value == null) return ""

@@ -93,16 +93,34 @@ let handlerInstalled = false
  * tidak membuka layar dua kali setelah remount root layout.
  * Kembalikan fungsi unsubscribe.
  */
+/** Dari mana ketukan notifikasi berasal: tap saat app hidup vs cold start. */
+export type NotificationOpenSource = "tap" | "cold-start"
+
 let coldStartHandled = false
-export function subscribeNotificationOpened(onOpen: (data: unknown) => void): () => void {
+export function subscribeNotificationOpened(
+  onOpen: (data: unknown, source: NotificationOpenSource) => void,
+): () => void {
   const sub = Notifications.addNotificationResponseReceivedListener((response) => {
-    onOpen(response.notification.request.content.data)
+    onOpen(response.notification.request.content.data, "tap")
   })
   if (!coldStartHandled) {
     coldStartHandled = true
     void Notifications.getLastNotificationResponseAsync()
-      .then((response) => {
-        if (response) onOpen(response.notification.request.content.data)
+      .then(async (response) => {
+        if (!response) return
+        // Satu respons hanya boleh menavigasi SEKALI per perangkat: respons
+        // terakhir bisa dikembalikan lagi di peluncuran berikutnya (perilaku
+        // platform), yang membuat app "selalu" mendarat di Notifikasi walau
+        // dibuka dari ikon. Identifier yang sudah ditangani dilewati.
+        const id = response.notification.request.identifier
+        try {
+          const handled = await getSecureItem(SecureKeys.lastNotificationResponse)
+          if (handled === id) return
+          await setSecureItem(SecureKeys.lastNotificationResponse, id)
+        } catch {
+          // Storage gagal: tetap navigasi sekali ini, jangan blokir cold start.
+        }
+        onOpen(response.notification.request.content.data, "cold-start")
       })
       .catch(() => {})
   }

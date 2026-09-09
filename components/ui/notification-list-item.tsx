@@ -59,7 +59,12 @@ export type NotificationCategory =
   | "referral"
   | "system"
 
-const CATEGORY_ICON: Record<NotificationCategory, IconComponent> = {
+/**
+ * Ikon per kategori notifikasi — dipakai <NotificationListItem> dan layar
+ * detail (`/notification/[id]`) supaya keduanya tidak punya dua tabel ikon
+ * yang diam-diam berbeda.
+ */
+export const NOTIFICATION_CATEGORY_ICON: Record<NotificationCategory, IconComponent> = {
   order: Receipt,
   wallet: Wallet,
   chat: ChatCircleText,
@@ -132,7 +137,7 @@ export function NotificationListItem({
         (unread || selected) && "bg-surface",
       )}
     >
-      <IconBox icon={icon ?? CATEGORY_ICON[category]} size="md" variant={tone === "danger" ? "danger" : "surface"} />
+      <IconBox icon={icon ?? NOTIFICATION_CATEGORY_ICON[category]} size="md" variant={tone === "danger" ? "danger" : "surface"} />
 
       <View className="flex-1 gap-0.5">
         <Text ellipsizeMode="tail" variant="body" weight={unread ? 600 : 500} tone="primary" numberOfLines={2}>

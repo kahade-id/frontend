@@ -90,6 +90,65 @@ export function routeForNotificationReference(ref: NotificationReference): Href 
 }
 
 /**
+ * Label CTA layar detail ("Lihat order", "Buka chat", …) untuk sebuah
+ * referensi; `null` bila tidak dikenali (detail tetap tampil tanpa CTA).
+ * Tabel sejajar dengan `routeForNotificationReference` di atas.
+ */
+export function labelForNotificationReference(ref: NotificationReference): string | null {
+  const type = ref.referenceType ? normalizeType(ref.referenceType) : ""
+  if (!type) return null
+
+  switch (type) {
+    case "order":
+    case "transaction":
+    case "escrow":
+      return "Lihat order"
+    case "orderlink":
+      return "Buka order link"
+    case "dispute":
+      return "Lihat sengketa"
+    case "wallettransaction":
+    case "wallettx":
+    case "topup":
+    case "withdraw":
+    case "withdrawal":
+    case "transfer":
+      return "Lihat mutasi"
+    case "wallet":
+      return "Buka dompet"
+    case "chat":
+    case "chatroom":
+    case "message":
+      return "Buka chat"
+    case "supportticket":
+    case "ticket":
+    case "support":
+      return "Lihat tiket bantuan"
+    case "user":
+    case "profile":
+    case "follow":
+    case "follower":
+      return "Lihat profil"
+    case "kyc":
+    case "verification":
+      return "Buka verifikasi"
+    case "subscription":
+      return "Lihat langganan"
+    case "referral":
+      return "Lihat referral"
+    case "rating":
+    case "review":
+      return "Lihat ulasan"
+    case "security":
+    case "session":
+    case "login":
+      return "Buka keamanan"
+    default:
+      return null
+  }
+}
+
+/**
  * Route dari `data` payload push. Menerima `referenceType/referenceId`,
  * atau pasangan `type` + salah satu `id | orderId | disputeId | roomId |
  * ticketId | txId | username | token`.

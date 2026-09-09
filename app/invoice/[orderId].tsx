@@ -1,20 +1,33 @@
 /**
  * Screen — Invoice (GET /v1/orders/{orderId}/invoice + receipt HTML).
+ *
+ * Perbaikan keandalan (laporan "Invoice gagal memuat"):
+ *   - `getInvoice` kini menormalisasi body (lib/api/orders.ts): kunci
+ *     bersarang/berbeda nama dan angka-string tidak lagi melempar di render.
+ *   - 404 dipetakan ke penjelasan ("belum diterbitkan ...") — invoice wajar
+ *     belum ada untuk order yang belum dibayar, dan itu bukan "gagal".
+ *   - Unduh struk BENAR-BENAR menyimpan berkas (sebelumnya HTML hanya diambil
+ *     lalu dibuang; toast "siap diunduh" padahal tidak ada berkas).
+ *   - `orderId` kosong (deep link rusak) mendapat EmptyState eksplisit.
  */
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Receipt } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import { orderPartyName, type Invoice } from "@/lib/api/orders"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { shareContent } from "@/lib/share"
 import { useApiQuery } from "@/lib/use-api-query"
 
+import { saveTextFile } from "@/lib/export-file"
+
 import { Button } from "@/components/ui/button"
 import { DetailLoading } from "@/components/ui/paginated-list"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { InvoiceReceiptView } from "@/components/ui/invoice-receipt-view"
@@ -28,6 +41,7 @@ export default function InvoiceScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copied, copy } = useCopy()
+  const [downloading, setDownloading] = useState(false)
 
   /**
    * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
@@ -37,18 +51,30 @@ export default function InvoiceScreen() {
    */
   const query = useApiQuery<Invoice>(
     `invoice:${orderId}`,
-    (signal) => api.orders.getInvoice(orderId, signal),
+    (signal) =>
+      api.orders.getInvoice(orderId ?? "", signal).catch((err: unknown) => {
+        // 404 = invoice belum diterbitkan (wajar untuk order yang belum
+        // dibayar) — jelaskan, jangan "Gagal memuat" generik.
+        if (isApiError(err) && err.code === "NOT_FOUND")
+          throw new Error(
+            "Invoice belum tersedia untuk order ini. Invoice diterbitkan setelah pembayaran dikonfirmasi.",
+          )
+        throw err
+      }),
     Boolean(orderId),
   )
   const invoice = query.data
 
   const handleDownload = useCallback(
-    async (orderId: string) => {
+    async (id: string, invoiceNumber: string) => {
+      if (downloading) return
+      setDownloading(true)
       try {
-        await api.orders.getReceiptHtml(orderId)
+        const html = await api.orders.getReceiptHtml(id)
+        const saved = await saveTextFile(html, `${invoiceNumber}.html`, "text/html")
         toast.show({
-          title: "Struk siap diunduh",
-          description: "File HTML diterima dari server.",
+          title: saved.kind === "downloaded" ? "Struk diunduh" : "Struk siap dibagikan",
+          description: saved.filename,
           tone: "success",
           duration: 3000,
         })
@@ -58,9 +84,11 @@ export default function InvoiceScreen() {
           description: userMessage(err),
           tone: "danger",
         })
+      } finally {
+        setDownloading(false)
       }
     },
-    [toast.show],
+    [downloading, toast.show],
   )
 
   /**
@@ -98,6 +126,21 @@ export default function InvoiceScreen() {
     [copy, toast.show],
   )
 
+  if (!orderId) {
+    return (
+      <Screen edges={["top"]} padded={false}>
+        <Header title="Invoice" />
+        <View className="flex-1 px-6">
+          <EmptyState
+            icon={Receipt}
+            title="Order tidak diketahui"
+            description="Tautan yang Anda buka tidak memuat identitas order."
+          />
+        </View>
+      </Screen>
+    )
+  }
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Invoice" />
@@ -113,7 +156,7 @@ export default function InvoiceScreen() {
           <DetailLoading />
         ) : query.error ? (
           <ErrorState
-            title="Gagal memuat"
+            title="Gagal memuat invoice"
             description={query.error}
             onRetry={() => void query.reload()}
           />
@@ -136,13 +179,15 @@ export default function InvoiceScreen() {
                 { label: "Order", value: invoice.order.id },
               ]}
               onCopyNumber={(n) => void copy(n)}
-              onDownload={() => void handleDownload(invoice.order.id)}
+              onDownload={() => void handleDownload(invoice.order.id, invoice.invoiceNumber)}
               onShare={() => void handleShare(invoice)}
+              downloading={downloading}
             />
             <Button
               variant="ghost"
               fullWidth={false}
-              onPress={() => void handleDownload(invoice.order.id)}
+              loading={downloading}
+              onPress={() => void handleDownload(invoice.order.id, invoice.invoiceNumber)}
             >
               Unduh struk (HTML)
             </Button>

@@ -1,12 +1,18 @@
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { AMOUNT_LIMITS, isValidAmount } from "@/lib/financial"
 /**
- * Screen — Buat Transaksi (order baru) / Buat Order Link.
+ * Screen — Buat Transaksi (order baru) / Buat Order Link — WIZARD 4 LANGKAH.
  *
  * POST /v1/orders/calculate-fee + /validate-counterpart live saat input
  * berubah → POST /v1/orders (mode "Lawan tertentu") atau POST
  * /v1/orders/links (mode "Order Link", tanpa lawan) pada submit. Fee
  * di-refresh paralel dengan validasi counterpart (debounce 400ms).
+ *
+ * Langkah (seperti Register — H1 + progres di header, satu fokus per layar):
+ *   1. Cara & peran   : SegmentedControl mode + OrderRoleSelector
+ *   2. Lawan transaksi: username + CounterpartValidationCard
+ *   3. Detail pesanan : judul, deskripsi, jenis, nilai, tenggat
+ *   4. Biaya & kirim  : pembayar biaya, skema, rincian, voucher, ringkasan
  *
  * Keputusan non-obvious:
  *   - Dua mode di satu form (SegmentedControl "Lawan tertentu" / "Order Link")
@@ -19,6 +25,15 @@ import { AMOUNT_LIMITS, isValidAmount } from "@/lib/financial"
  *     terkirim dan bisa langsung membayar/membagikan.
  *   - Query `counterpart` (ROUTES.createTransactionWith) mengisi lawan lebih
  *     dulu dari profil publik; validasi tetap berjalan seperti input manual.
+ *   - Tombol "Lanjut" dijaga validitas langkah AKTIF saja (bukan `canSubmit`
+ *     global): pengguna tidak boleh dipaksa melengkapi langkah 4 untuk
+ *     sekadar pindah dari langkah 1. Submit akhir tetap memakai `canSubmit`
+ *     penuh (fee terkonfirmasi + lawan tervalidasi).
+ *   - `key={step}` pada <PullToRefresh>: pindah langkah me-remount scroller
+ *     sehingga tiap langkah selalu mulai dari atas — tanpa itu pengguna
+ *     mendarat di tengah langkah baru dengan posisi scroll warisan.
+ *   - Back header di langkah > 1 kembali ke langkah sebelumnya (bukan keluar
+ *     form): keluar tak sengaja membuang seluruh draf yang sudah diketik.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
@@ -40,14 +55,16 @@ import { tokens } from "@/lib/tokens"
 import { AmountInput } from "@/components/ui/amount-input"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { ButtonGroup } from "@/components/ui/button-group"
 import {
   CounterpartValidationCard,
   type CounterpartState,
 } from "@/components/ui/counterpart-validation-card"
-import { FeeBreakdown } from "@/components/ui/fee-breakdown"
+import { FEE_RESPONSIBILITY_LABELS, FeeBreakdown } from "@/components/ui/fee-breakdown"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
+import { Heading } from "@/components/ui/heading"
 import { Input } from "@/components/ui/input"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import {
@@ -70,6 +87,7 @@ import { VoucherRedeemBox, type AppliedVoucher } from "@/components/ui/voucher-r
 const DEBOUNCE_MS = 400
 const MIN_ORDER_VALUE = AMOUNT_LIMITS.order.minimum
 const MAX_ORDER_VALUE = AMOUNT_LIMITS.order.maximum
+const MIN_TITLE = API_CONSTRAINTS.CreateOrderDto.title.minLength
 const MIN_DESCRIPTION = API_CONSTRAINTS.CreateOrderDto.description.minLength
 const MIN_USERNAME = API_CONSTRAINTS.CreateOrderDto.counterpartUsername.minLength
 const MAX_DEADLINE_DAYS = API_CONSTRAINTS.CreateOrderDto.deliveryDeadlineDays.maximum
@@ -80,10 +98,35 @@ const MODE_ITEMS: { value: Mode; label: string }[] = [
   { value: "link", label: "Order Link" },
 ]
 
+const STEPS = [
+  {
+    title: "Cara & peran",
+    heading: "Bagaimana transaksinya?",
+    description: "Pilih cara membuat order dan peran Anda dalam transaksi ini.",
+  },
+  {
+    title: "Lawan",
+    heading: "Siapa lawan transaksi?",
+    description: "Kami memvalidasi username lawan sebelum Anda lanjut.",
+  },
+  {
+    title: "Detail",
+    heading: "Rincian pesanan",
+    description: "Jelaskan apa yang ditransaksikan dan berapa nilainya.",
+  },
+  {
+    title: "Biaya & kirim",
+    heading: "Periksa & kirim",
+    description: "Periksa biaya dan ringkasan sebelum order dibuat.",
+  },
+] as const
+const LAST_STEP = STEPS.length - 1
+
 export default function CreateTransactionScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
+  const [step, setStep] = useState(0)
   const [role, setRole] = useState<OrderRoleValue>("BUYER")
   // `counterpart` dari query (ROUTES.createTransactionWith) — profil publik
   // mengisi lawan transaksi lebih dulu; validasi tetap jalan via debounce.
@@ -135,17 +178,21 @@ export default function CreateTransactionScreen() {
   const [confirmedFeeKey, setConfirmedFeeKey] = useState<string | null>(null)
   const [confirmedCounterpart, setConfirmedCounterpart] = useState<string | null>(null)
   const [feeError, setFeeError] = useState<string | null>(null)
-  const canSubmit =
-    title.trim().length >= API_CONSTRAINTS.CreateOrderDto.title.minLength &&
+
+  // ── Validitas per langkah (gerbang tombol "Lanjut") ──────────────────
+  const counterpartConfirmed =
+    confirmedCounterpart === counterpart.trim() && counterpartState === "found"
+  const counterpartValid = mode === "link" ? !counterpart.trim() || counterpartConfirmed : counterpartConfirmed
+  const detailValid =
+    title.trim().length >= MIN_TITLE &&
     description.trim().length >= MIN_DESCRIPTION &&
     isValidAmount(orderValue, AMOUNT_LIMITS.order) &&
     deadlineDays >= 1 &&
-    deadlineDays <= MAX_DEADLINE_DAYS &&
-    confirmedFeeKey === feeKey &&
-    !feeLoading &&
-    !!fee &&
-    ((mode === "link" && !counterpart.trim()) ||
-      (confirmedCounterpart === counterpart.trim() && counterpartState === "found"))
+    deadlineDays <= MAX_DEADLINE_DAYS
+  const feeValid = confirmedFeeKey === feeKey && !feeLoading && !!fee
+  const stepValid = [true, counterpartValid, detailValid, feeValid && counterpartValid && detailValid]
+  const canSubmit =
+    detailValid && feeValid && (mode === "link" ? !counterpart.trim() || counterpartConfirmed : counterpartConfirmed)
 
   const refreshFee = useCallback(async () => {
     if (!isValidAmount(orderValue, AMOUNT_LIMITS.order)) {
@@ -322,6 +369,11 @@ export default function CreateTransactionScreen() {
     setRefreshing(false)
   }, [refreshFee, validateCounterpart])
 
+  const goNext = useCallback(() => setStep((s) => Math.min(LAST_STEP, s + 1)), [])
+  const goPrev = useCallback(() => setStep((s) => Math.max(0, s - 1)), [])
+  const meta = STEPS[step]
+  const feeConfirmed = fee != null && confirmedFeeKey === feeKey
+
   return (
     <Screen
       keyboardAvoiding
@@ -329,24 +381,37 @@ export default function CreateTransactionScreen() {
       padded={false}
       footer={
         <View>
-          {feeError ? (
+          {feeError && step === LAST_STEP ? (
             <Text variant="caption" tone="danger">
               Biaya belum terkonfirmasi: {feeError}. Tarik untuk memuat ulang.
             </Text>
           ) : null}
-          <Button
-            fullWidth
-            loading={submitting}
-            disabled={!canSubmit}
-            onPress={() => void handleSubmit()}
-          >
-            {mode === "link" ? "Buat Order Link" : "Buat transaksi"}
-          </Button>
+          <ButtonGroup>
+            {step > 0 ? (
+              <Button variant="secondary" onPress={goPrev} disabled={submitting}>
+                Kembali
+              </Button>
+            ) : null}
+            {step < LAST_STEP ? (
+              <Button onPress={goNext} disabled={!stepValid[step]}>
+                Lanjut
+              </Button>
+            ) : (
+              <Button loading={submitting} disabled={!canSubmit} onPress={() => void handleSubmit()}>
+                {mode === "link" ? "Buat Order Link" : "Buat transaksi"}
+              </Button>
+            )}
+          </ButtonGroup>
         </View>
       }
     >
-      <Header title="Buat transaksi" />
+      <Header
+        title="Buat transaksi"
+        progress={(step + 1) / STEPS.length}
+        onBack={step === 0 ? undefined : goPrev}
+      />
       <PullToRefresh
+        key={step}
         onRefresh={handleRefresh}
         refreshing={refreshing}
         contentContainerClassName="px-6"
@@ -354,153 +419,203 @@ export default function CreateTransactionScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        <FormSection title="Cara membuat">
-          <SegmentedControl<Mode> items={MODE_ITEMS} value={mode} onChange={setMode} />
+        {/* Kepala langkah ala Register: H1 + penjelasan, progres di header */}
+        <View className="gap-2 pb-2 pt-6">
           <Text variant="caption" tone="secondary">
-            {mode === "link"
-              ? "Buat tautan yang bisa dibagikan; siapa pun yang membuka dan menyetujui menjadi lawan transaksi."
-              : "Transaksi langsung dikirim ke pengguna Kahade yang Anda tentukan."}
+            Langkah {step + 1} dari {STEPS.length} — {meta.title}
           </Text>
-        </FormSection>
+          <Heading level={1}>{meta.heading}</Heading>
+          <Text variant="body" tone="secondary">
+            {meta.description}
+          </Text>
+        </View>
 
-        <FormSection title="Peran Anda" divider>
-          <OrderRoleSelector value={role} onChange={setRole} labels={ORDER_ROLE_LABELS} />
-        </FormSection>
+        {step === 0 ? (
+          <>
+            <FormSection title="Cara membuat">
+              <SegmentedControl<Mode> items={MODE_ITEMS} value={mode} onChange={setMode} />
+              <Text variant="caption" tone="secondary">
+                {mode === "link"
+                  ? "Buat tautan yang bisa dibagikan; siapa pun yang membuka dan menyetujui menjadi lawan transaksi."
+                  : "Transaksi langsung dikirim ke pengguna Kahade yang Anda tentukan."}
+              </Text>
+            </FormSection>
 
-        <FormSection title="Lawan transaksi" divider>
-          <Field
-            label="Username lawan"
-            required={counterpartRequired}
-            helperText={
-              counterpartRequired
-                ? "Contoh: @johndoe — tanpa @"
-                : "Opsional — kosongkan agar siapa pun bisa menerima tautan"
-            }
-          >
-            <Input
-              value={counterpart}
-              onChangeText={setCounterpart}
-              placeholder="johndoe"
-              autoCapitalize="none"
-              // Username bukan prosa: autocorrect/predictive text akan menulis
-              // ulang "johndoe" jadi kata kamus dan mengusulkan spasi. Field
-              // serupa di <UsernameField> sudah mematikan keduanya.
-              autoCorrect={false}
-              spellCheck={false}
-              // Jangan tawarkan autofill identitas pengguna sendiri — ini
-              // username LAWAN transaksi.
-              autoComplete="off"
-              textContentType="none"
-              returnKeyType="next"
-              maxLength={50}
-            />
-          </Field>
-          {counterpart.trim().length >= MIN_USERNAME ? (
-            <CounterpartValidationCard
-              state={counterpartState}
-              name={counterpartName}
-              username={counterpartUsername}
-              verified={counterpartVerified}
-              warnings={counterpartWarnings}
-            />
-          ) : null}
-        </FormSection>
+            <FormSection title="Peran Anda" divider>
+              <OrderRoleSelector value={role} onChange={setRole} labels={ORDER_ROLE_LABELS} />
+            </FormSection>
+          </>
+        ) : null}
 
-        <FormSection title="Detail pesanan" divider>
-          <Field label="Judul" required>
-            <Input
-              value={title}
-              onChangeText={setTitle}
-              placeholder="Jasa desain logo"
-              maxLength={100}
-            />
-          </Field>
-          <Field label="Deskripsi" required>
-            <TextArea
-              value={description}
-              onChangeText={setDescription}
-              placeholder="Jelaskan detail pekerjaan (min. 10 karakter)"
-              maxLength={500}
-              numberOfLines={4}
-            />
-          </Field>
-          <Field label="Jenis transaksi" required>
-            <OrderTypeSelector
-              value={orderType}
-              onChange={setOrderType}
-              labels={ORDER_TYPE_LABELS}
-            />
-          </Field>
-          <AmountInput
-            value={orderValue}
-            onChange={setOrderValue}
-            min={MIN_ORDER_VALUE}
-            max={MAX_ORDER_VALUE}
-            label="Nilai transaksi"
-          />
-        </FormSection>
-
-        <FormSection title="Biaya & tenggat" divider>
-          <Field
-            label="Tenggat pengiriman (hari)"
-            required
-            helperText={`1–${MAX_DEADLINE_DAYS} hari`}
-          >
-            <Input
-              value={deadlineDraft}
-              onChangeText={(raw) => {
-                const digits = raw.replace(/\D/g, "").slice(0, 2)
-                setDeadlineDraft(digits)
-                const n = digits ? Number.parseInt(digits, 10) : Number.NaN
-                // Kosong = 0 (belum valid) supaya `canSubmit` menahan kirim;
-                // angka di luar rentang dijepit ke batas terdekat.
-                setDeadlineDays(Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(0, n)) : 0)
-              }}
-              onBlur={() => {
-                if (deadlineDraft) return
-                setDeadlineDraft("1")
-                setDeadlineDays(1)
-              }}
-              keyboardType="number-pad"
-              maxLength={2}
-            />
-          </Field>
-          <Field label="Pembayar biaya" required>
-            <FeeResponsibilitySelector
-              value={feeResponsibility}
-              onChange={setFeeResponsibility}
-              feeAmount={confirmedFeeKey === feeKey ? fee?.platformFee : undefined}
-              viewer={role}
-            />
-          </Field>
-          <Button variant="ghost" size="sm" onPress={() => void openSchedule()}>
-            Lihat skema biaya platform
-          </Button>
-          {fee ? (
-            <FeeBreakdown
-              orderValue={orderValue}
-              feeAmount={fee.platformFee}
-              feeResponsibility={feeResponsibility}
-              role={role === "BUYER" ? "BUYER" : "SELLER"}
-              discountAmount={fee.discount ?? voucher?.discount}
-              loading={feeLoading}
-            />
-          ) : null}
-        </FormSection>
-
-        {mode === "direct" ? (
-          <FormSection title="Voucher" divider>
-            <VoucherRedeemBox
-              initialCode={params.voucherCode}
-              applied={voucher ?? undefined}
-              onApply={(code) => void handleApplyVoucher(code)}
-              onRemove={() => setVoucher(null)}
-              applying={applyingVoucher}
-              errorText={voucherError}
-            />
+        {step === 1 ? (
+          <FormSection title="Lawan transaksi">
+            <Field
+              label="Username lawan"
+              required={counterpartRequired}
+              helperText={
+                counterpartRequired
+                  ? "Contoh: @johndoe — tanpa @"
+                  : "Opsional — kosongkan agar siapa pun bisa menerima tautan"
+              }
+            >
+              <Input
+                value={counterpart}
+                onChangeText={setCounterpart}
+                placeholder="johndoe"
+                autoCapitalize="none"
+                // Username bukan prosa: autocorrect/predictive text akan menulis
+                // ulang "johndoe" jadi kata kamus dan mengusulkan spasi. Field
+                // serupa di <UsernameField> sudah mematikan keduanya.
+                autoCorrect={false}
+                spellCheck={false}
+                // Jangan tawarkan autofill identitas pengguna sendiri — ini
+                // username LAWAN transaksi.
+                autoComplete="off"
+                textContentType="none"
+                returnKeyType="next"
+                maxLength={50}
+              />
+            </Field>
+            {counterpart.trim().length >= MIN_USERNAME ? (
+              <CounterpartValidationCard
+                state={counterpartState}
+                name={counterpartName}
+                username={counterpartUsername}
+                verified={counterpartVerified}
+                warnings={counterpartWarnings}
+              />
+            ) : null}
           </FormSection>
         ) : null}
 
+        {step === 2 ? (
+          <FormSection title="Detail pesanan">
+            <Field label="Judul" required>
+              <Input
+                value={title}
+                onChangeText={setTitle}
+                placeholder="Jasa desain logo"
+                maxLength={100}
+              />
+            </Field>
+            <Field label="Deskripsi" required>
+              <TextArea
+                value={description}
+                onChangeText={setDescription}
+                placeholder="Jelaskan detail pekerjaan (min. 10 karakter)"
+                maxLength={500}
+                numberOfLines={4}
+              />
+            </Field>
+            <Field label="Jenis transaksi" required>
+              <OrderTypeSelector
+                value={orderType}
+                onChange={setOrderType}
+                labels={ORDER_TYPE_LABELS}
+              />
+            </Field>
+            <AmountInput
+              value={orderValue}
+              onChange={setOrderValue}
+              min={MIN_ORDER_VALUE}
+              max={MAX_ORDER_VALUE}
+              label="Nilai transaksi"
+            />
+            <Field
+              label="Tenggat pengiriman (hari)"
+              required
+              helperText={`1–${MAX_DEADLINE_DAYS} hari`}
+            >
+              <Input
+                value={deadlineDraft}
+                onChangeText={(raw) => {
+                  const digits = raw.replace(/\D/g, "").slice(0, 2)
+                  setDeadlineDraft(digits)
+                  const n = digits ? Number.parseInt(digits, 10) : Number.NaN
+                  // Kosong = 0 (belum valid) supaya `canSubmit` menahan kirim;
+                  // angka di luar rentang dijepit ke batas terdekat.
+                  setDeadlineDays(Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(0, n)) : 0)
+                }}
+                onBlur={() => {
+                  if (deadlineDraft) return
+                  setDeadlineDraft("1")
+                  setDeadlineDays(1)
+                }}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </Field>
+          </FormSection>
+        ) : null}
+
+        {step === LAST_STEP ? (
+          <>
+            <FormSection title="Biaya layanan">
+              <Field label="Pembayar biaya" required>
+                <FeeResponsibilitySelector
+                  value={feeResponsibility}
+                  onChange={setFeeResponsibility}
+                  feeAmount={feeConfirmed ? fee?.platformFee : undefined}
+                  viewer={role}
+                />
+              </Field>
+              <Button variant="ghost" size="sm" onPress={() => void openSchedule()}>
+                Lihat skema biaya platform
+              </Button>
+              {feeConfirmed ? (
+                <FeeBreakdown
+                  orderValue={orderValue}
+                  feeAmount={fee.platformFee}
+                  feeResponsibility={feeResponsibility}
+                  role={role === "BUYER" ? "BUYER" : "SELLER"}
+                  discountAmount={fee.discount ?? voucher?.discount}
+                  loading={feeLoading}
+                />
+              ) : (
+                <Text variant="body" tone="secondary">
+                  {feeLoading
+                    ? "Menghitung biaya…"
+                    : "Biaya dihitung otomatis dari nilai transaksi."}
+                </Text>
+              )}
+            </FormSection>
+
+            {mode === "direct" ? (
+              <FormSection title="Voucher" divider>
+                <VoucherRedeemBox
+                  initialCode={params.voucherCode}
+                  applied={voucher ?? undefined}
+                  onApply={(code) => void handleApplyVoucher(code)}
+                  onRemove={() => setVoucher(null)}
+                  applying={applyingVoucher}
+                  errorText={voucherError}
+                />
+              </FormSection>
+            ) : null}
+
+            <FormSection title="Ringkasan" divider>
+              <KeyValueList>
+                <KeyValue
+                  label="Cara membuat"
+                  value={mode === "link" ? "Order Link" : "Lawan tertentu"}
+                />
+                <KeyValue label="Peran Anda" value={ORDER_ROLE_LABELS[role]} />
+                {counterpart.trim() ? (
+                  <KeyValue label="Lawan" value={counterpartName ?? counterpart.trim()} />
+                ) : null}
+                <KeyValue label="Judul" value={title.trim()} />
+                <KeyValue label="Jenis" value={ORDER_TYPE_LABELS[orderType]} />
+                <KeyValue label="Nilai transaksi" value={formatRupiah(orderValue)} />
+                <KeyValue label="Tenggat" value={`${deadlineDays} hari`} />
+                <KeyValue
+                  label="Pembayar biaya"
+                  value={FEE_RESPONSIBILITY_LABELS[feeResponsibility]}
+                />
+                {voucher ? <KeyValue label="Voucher" value={voucher.code} /> : null}
+              </KeyValueList>
+            </FormSection>
+          </>
+        ) : null}
       </PullToRefresh>
       <BottomSheet
         visible={scheduleOpen}

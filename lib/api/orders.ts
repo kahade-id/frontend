@@ -21,7 +21,7 @@ import { assertDtoConstraints } from "@/lib/financial"
  *   - Tidak ada `retry` di POST/PUT: pay/complete/cancel tidak idempoten.
  *     GET list/detail memakai `retry: 1` untuk toleransi jaringan seluler.
  */
-import { readPage, readEntity } from "@/lib/api/response"
+import { asRecord, invalidResponse, readPage, readEntity } from "@/lib/api/response"
 import { AMOUNT_LIMITS, assertValidAmount } from "@/lib/financial"
 import { http, seg } from "@/lib/api/client"
 import type {
@@ -540,11 +540,103 @@ export function cancelOrderLink(token: string) {
 // Dokumen
 // ------------------------------------------------------------------
 
-export function getInvoice(orderId: string, signal?: AbortSignal) {
-  return http.get<Invoice>(`/v1/orders/${seg(orderId)}/invoice`, {
-    auth: "required",
-    signal,
+/** Angka dari backend: number, atau string numerik polos ("15000", "-1500.5"). */
+function toAmount(value: unknown): number | undefined {
+  if (typeof value === "number") return Number.isFinite(value) ? value : undefined
+  if (typeof value === "string" && /^-?\d+(\.\d+)?$/.test(value.trim())) {
+    const n = Number(value)
+    return Number.isFinite(n) ? n : undefined
+  }
+  return undefined
+}
+
+function firstString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim() ? value : undefined
+}
+
+/**
+ * Normalisasi invoice yang toleran (spec tanpa schema response).
+ *
+ * Sebelumnya `getInvoice` me-cast body mentah ke `Invoice`: satu kunci
+ * bersarang (`{ invoice: {...} }`), penamaan berbeda (`number`, `lines`,
+ * `totalAmount`), atau angka berbentuk string membuat layar melempar di
+ * tengah render ("Gagal memuat" tanpa bisa pulih). Sekarang:
+ *   - terima `{...}` langsung, `{ invoice: {...} }`, atau `{ data: {...} }`
+ *   - fallback nama kunci yang lazim + koersi angka aman
+ *   - total jatuh ke jumlah item bila tidak dikirim
+ *   - order hilang → placeholder minimal (id terisi) supaya struk tetap
+ *     bisa tampil dengan pihak "—"
+ * Body yang tidak menyerupai invoice sama sekali tetap melempar
+ * `invalidResponse` (PARSE) — lebih jujur daripada struk kosong.
+ */
+export function normalizeInvoice(raw: unknown, orderId: string): Invoice {
+  const top = asRecord(raw)
+  const src = asRecord(top?.invoice) ?? asRecord(top?.data) ?? top
+  if (!src) throw invalidResponse("invoice")
+  const pick = (...keys: string[]): unknown => {
+    for (const key of keys) {
+      const value = src[key]
+      if (value !== undefined && value !== null) return value
+    }
+    return undefined
+  }
+
+  const invoiceNumber = firstString(
+    pick("invoiceNumber", "number", "no", "invoiceNo", "invoice_number"),
+  )
+
+  const rawItems = pick("items", "lines", "details", "breakdown")
+  const items = (Array.isArray(rawItems) ? rawItems : []).map((entry, index) => {
+    const item = asRecord(entry) ?? {}
+    return {
+      label:
+        firstString(item.label ?? item.title ?? item.name ?? item.description) ??
+        `Item ${index + 1}`,
+      amount: toAmount(item.amount ?? item.value ?? item.price ?? item.total ?? item.subtotal) ?? 0,
+    }
   })
+
+  const total =
+    toAmount(pick("total", "totalAmount", "grandTotal", "grand_total", "amount")) ??
+    items.reduce((sum, item) => sum + item.amount, 0)
+  const issuedAt = firstString(pick("issuedAt", "issued_at", "createdAt", "created_at", "date")) ?? ""
+
+  const rawOrder = pick("order", "orderDetail")
+  const orderRecord = asRecord(rawOrder)
+  const order: Order =
+    orderRecord && (typeof orderRecord.id === "string" || typeof orderRecord.orderId === "string")
+      ? normalizeOrder(orderRecord as Order & Record<string, unknown>)
+      : {
+          id: orderId,
+          title: "Order",
+          description: "",
+          orderType: "OTHER",
+          status: "UNKNOWN",
+          orderValue: total,
+          feeResponsibility: "SPLIT",
+          deliveryDeadlineDays: 0,
+          createdAt: issuedAt,
+        }
+
+  if (!invoiceNumber && items.length === 0 && total === 0) throw invalidResponse("invoice")
+
+  return {
+    invoiceNumber: invoiceNumber ?? `INV-${orderId}`,
+    order,
+    issuedAt,
+    items,
+    total,
+  }
+}
+
+export function getInvoice(orderId: string, signal?: AbortSignal) {
+  return http
+    .get<unknown>(`/v1/orders/${seg(orderId)}/invoice`, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => normalizeInvoice(raw, orderId))
 }
 
 /** HTML siap cetak — render di WebView atau kirim ke expo-print. */

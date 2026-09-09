@@ -8,7 +8,8 @@ import { useToast } from "@/components/ui/toast"
  *  - Filter kategori Chip (ScrollView horizontal) — nilai PERSIS enum API
  *    `TRANSAKSI | PROMOSI | INFORMASI` (query `category`).
  *  - Tap otomatis mark-as-read (`POST /v1/notifications/:id/read`, optimistic)
- *    lalu buka entitas terkait via `routeForNotificationReference`
+ *    lalu buka DETAIL notifikasi (`/notification/[id]`) — isi penuh + CTA ke
+ *    entitas terkait via `routeForNotificationReference`
  *    (lib/notification-routing — referenceType/referenceId UNVERIFIED)
  *  - Badge tab diturunkan lewat store `lib/unread-count` (bukan poll ulang)
  *  - "Tandai semua dibaca" (`POST /v1/notifications/read-all`)
@@ -42,7 +43,8 @@ import {
 import { api, type AppNotification, type NotificationCategory, userMessage } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
-import { routeForNotificationReference } from "@/lib/notification-routing"
+import { ROUTES } from "@/lib/routes"
+import { notificationUiCategory } from "@/lib/notification-category"
 import { refreshUnreadCount, setUnreadCount } from "@/lib/unread-count"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -52,13 +54,9 @@ import { Dialog } from "@/components/ui/modal"
 import { IconButton } from "@/components/ui/icon-button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
-import {
-  NotificationListItem,
-  type NotificationCategory as UiCategory,
-} from "@/components/ui/notification-list-item"
+import { NotificationListItem } from "@/components/ui/notification-list-item"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
-import { mapValue } from "@/lib/has-own"
 
 // ------------------------------------------------------------------
 // Konstanta layar
@@ -72,17 +70,6 @@ const FILTERS: { label: string; value: FilterValue }[] = [
   { label: "Promosi", value: "PROMOSI" },
   { label: "Informasi", value: "INFORMASI" },
 ]
-
-/**
- * Peta kategori API (query enum) → kategori UI komponen (ikon).
- * TRANSAKSI → Receipt, PROMOSI → Megaphone, INFORMASI → Bell.
- * Nilai asing dari backend jatuh ke "system" (tidak crash).
- */
-const UI_CATEGORY: Record<string, UiCategory> = {
-  TRANSAKSI: "order",
-  PROMOSI: "promo",
-  INFORMASI: "system",
-}
 
 /** Ikon EmptyState per kategori filter (nilai enum API, bukan label). */
 const EMPTY_ICON: Record<FilterValue, typeof Bell> = {
@@ -456,7 +443,7 @@ export default function NotificationsScreen() {
           <NotificationListItem
             title={item.title}
             body={item.body || undefined}
-            category={mapValue(UI_CATEGORY, item.category, "system")}
+            category={notificationUiCategory(item.category)}
             timestamp={formatDateTime(item.createdAt)}
             unread={!item.isRead}
             selected={selecting && selected.has(item.id)}
@@ -466,12 +453,10 @@ export default function NotificationsScreen() {
                 return
               }
               if (!item.isRead) handleRead(item.id)
-              // Buka entitas terkait bila referensinya dikenali. Bila tidak
-              // (promosi/informasi tanpa rujukan), klik membuka menu aksi —
-              // sebelumnya ketukan semacam ini tidak melakukan apa pun.
-              const target = routeForNotificationReference(item)
-              if (target) router.push(target)
-              else setItemMenu(item)
+              // Selalu buka DETAIL dulu (`/notification/[id]`): isi penuh +
+              // CTA "Lihat ..." ke entitas terkait bila referensinya dikenali.
+              // Menu aksi tetap tersedia lewat ikon aksi dan tekan-lama.
+              router.push(ROUTES.notificationDetail(item.id))
             }}
             onLongPress={() => {
               if (selecting) toggleSelect(item.id)

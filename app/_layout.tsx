@@ -168,8 +168,15 @@ function AppShell() {
   // app/index.tsx & onSessionExpired tetap mengarahkan ke login.
   useEffect(() => {
     if (session.restoring || session.error) return
-    return subscribeNotificationOpened((data) => {
-      const target = routeForPushData(data) ?? ROUTES.notifications
+    return subscribeNotificationOpened((data, source) => {
+      const resolved = routeForPushData(data)
+      // Cold start: hanya navigasi bila payload menunjuk entitas SPESIFIK.
+      // Payload kosong/tak dikenal = tetap di Beranda (initial route) —
+      // fallback ke Notifikasi di sini membuat setiap cold start mendarat
+      // di tab yang salah. Tap saat app hidup tetap jatuh ke Notifikasi
+      // karena niat penggunanya jelas (mereka mengetuk notifikasinya).
+      if (source === "cold-start" && !resolved) return
+      const target = resolved ?? ROUTES.notifications
       router.push(session.token ? target : ROUTES.login)
       if (session.token) void refreshUnreadCount()
     })
