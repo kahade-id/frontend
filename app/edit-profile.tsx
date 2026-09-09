@@ -66,7 +66,7 @@ import { SocialLinksEditor, type SocialLink } from "@/components/ui/social-links
 import { Text } from "@/components/ui/text"
 import { Switch } from "@/components/ui/switch"
 import { TextArea } from "@/components/ui/text-area"
-import { UsernameField } from "@/components/ui/username-field"
+import { UsernameField, type UsernameAvailability } from "@/components/ui/username-field"
 import { useToast } from "@/components/ui/toast"
 
 const AVATAR_PICKER: PickImageOptions = { square: true }
@@ -109,6 +109,7 @@ export default function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
   const [links, setLinks] = useState<SocialLink[]>([])
   const [initialLinks, setInitialLinks] = useState<SocialLink[]>([])
+  const [usernameAvailability, setUsernameAvailability] = useState<UsernameAvailability>("idle")
 
   /**
    * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
@@ -186,6 +187,32 @@ export default function EditProfileScreen() {
     setInitialLinks(sorted)
   }, [loaded])
 
+  // Username availability is authenticated by the backend and only needs to
+  // run when the username is actually being changed.
+  useEffect(() => {
+    const username = form.username.trim()
+    if (!username || username === initial.username) {
+      setUsernameAvailability("idle")
+      return
+    }
+    if (username.length < 3 || username.length > 20 || !/^[a-z0-9](?:[a-z0-9._]{1,18}[a-z0-9])?$/.test(username)) {
+      setUsernameAvailability("idle")
+      return
+    }
+    const controller = new AbortController()
+    setUsernameAvailability("checking")
+    const timer = setTimeout(() => {
+      void api.users
+        .checkUsernameAvailability(username, controller.signal)
+        .then((available) => setUsernameAvailability(available ? "available" : "taken"))
+        .catch(() => setUsernameAvailability("idle"))
+    }, 450)
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [form.username, initial.username])
+
   // ── Diff → dto partial ─────────────────────────────────────────────────
   const dto = useMemo<UpdateProfileDto>(() => {
     const d: UpdateProfileDto = {}
@@ -223,6 +250,17 @@ export default function EditProfileScreen() {
 
   const save = useCallback(
     async (password?: string) => {
+      if (dto.username !== undefined && usernameAvailability !== "available") {
+        toast.show({
+          title: usernameAvailability === "checking" ? "Tunggu sebentar" : "Nama pengguna tidak tersedia",
+          description:
+            usernameAvailability === "checking"
+              ? "Kami masih memeriksa nama pengguna tersebut."
+              : "Silakan pilih nama pengguna lain.",
+          tone: "danger",
+        })
+        return
+      }
       setSubmitting(true)
       setPasswordError(undefined)
       try {
@@ -267,7 +305,7 @@ export default function EditProfileScreen() {
         setSubmitting(false)
       }
     },
-    [dto, links, linksChanged, profileChanged, query, toast.show],
+    [dto, links, linksChanged, profileChanged, toast.show, usernameAvailability],
   )
 
   const handleSubmit = useCallback(() => {
@@ -562,6 +600,7 @@ export default function EditProfileScreen() {
               <UsernameField
                 value={form.username}
                 onChangeText={(v) => set("username", v)}
+                availability={usernameAvailability}
                 helperText="Hanya bisa diganti sekali per bulan."
               />
               <Field label="Bio" helperText="Maks. 500 karakter">

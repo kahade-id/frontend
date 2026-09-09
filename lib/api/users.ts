@@ -107,6 +107,24 @@ export function updateProfile(dto: UpdateProfileDto) {
   return http.put<UserProfile, UpdateProfileDto>("/v1/users/me", dto, { auth: "required" })
 }
 
+/** GET /v1/users/availability?username=... — cek username sebelum menyimpan profil. */
+export function checkUsernameAvailability(username: string, signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/users/availability", {
+      query: { username },
+      auth: "required",
+      retry: 0,
+      signal,
+    })
+    .then((raw) => {
+      if (typeof raw === "boolean") return raw
+      const record = asRecord(raw)
+      return Boolean(
+        record?.available ?? record?.isAvailable ?? record?.is_available ?? record?.availableUsername,
+      )
+    })
+}
+
 // ------------------------------------------------------------------
 // Avatar
 // ------------------------------------------------------------------
@@ -388,6 +406,17 @@ export function discoverUsers(
         })) as DiscoveredUser[],
       }
     })
+}
+
+/** GET /v1/users/saved — profil yang disimpan user (pagination wajib). */
+export function getSavedProfiles(
+  options: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  const query = { page: 1, limit: 20, ...options }
+  return http
+    .get<unknown>("/v1/users/saved", { query, auth: "required", retry: 1, signal })
+    .then((raw) => readPage<UserConnection>(raw, query, ["users", "profiles", "saved"]))
 }
 
 export function getFavorites(signal?: AbortSignal) {
