@@ -1,8 +1,8 @@
 /**
  * Kahade — turunkan spec OpenAPI khusus mobile dari export backend lengkap.
  *
- *   docs/api/openapi.json            → export penuh backend (313 path,
- *                                      termasuk 93 path admin /v1/admin/*)
+ *   docs/api/openapi.json            → export penuh backend (path admin
+ *                                      /v1/admin/* ikut di dalamnya)
  *   docs/api/kahade-api-mobile.json  → subset yang BENAR-BENAR dipanggil
  *                                      aplikasi mobile (path admin dibuang)
  *

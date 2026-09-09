@@ -23,7 +23,7 @@ import { assertDtoConstraints } from "@/lib/financial"
  *   - `retry: 1` pada GET: jaringan seluler flaky; GET wallet/transaksi
  *     idempoten sehingga aman di-retry sekali.
  */
-import { readList } from "@/lib/api/response"
+import { pickString, readList, readVerdict } from "@/lib/api/response"
 import {
   normalizeWallet,
   normalizeWalletPage,
@@ -322,13 +322,37 @@ export async function confirmWithdrawOtp(dto: ConfirmWithdrawOtpDto) {
   }
 }
 
-/** POST /v1/wallet/withdraw/resend-otp — kirim ulang OTP penarikan. */
-export function resendWithdrawOtp(dto: ResendWithdrawOtpDto) {
-  return http.post<{ success: boolean } | { message: string }, ResendWithdrawOtpDto>(
+/**
+ * POST /v1/wallet/withdraw/resend-otp — kirim ulang OTP penarikan.
+ *
+ * Dinormalisasi: `app/withdraw.tsx` hanya meng-`await` lalu menampilkan "OTP
+ * dikirim ulang". Bila backend menjawab HTTP 200 dengan `{ success: false }`
+ * (mis. cooldown belum lewat), versi lama tetap mengklaim berhasil dan
+ * pengguna menunggu OTP yang tidak pernah datang.
+ */
+export async function resendWithdrawOtp(dto: ResendWithdrawOtpDto) {
+  const raw = await http.post<unknown, ResendWithdrawOtpDto>(
     "/v1/wallet/withdraw/resend-otp",
     dto,
     { auth: "required" },
   )
+  const { value, record } = readVerdict(raw, ["success", "sent", "resent"], true)
+  return {
+    success: value,
+    message: pickString(record, ["message", "detail"]),
+    cooldownSeconds: numberOrUndefined(record, ["cooldownSeconds", "cooldown_seconds", "retryAfter"]),
+  }
+}
+
+function numberOrUndefined(
+  record: Record<string, unknown>,
+  keys: readonly string[],
+): number | undefined {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === "number" && Number.isFinite(value)) return value
+  }
+  return undefined
 }
 
 /** POST /v1/wallet/withdraw/cancel — batalkan penarikan PENDING_OTP. */
@@ -362,11 +386,19 @@ export function getWalletTransaction(txId: string, signal?: AbortSignal) {
     .then(normalizeWalletTransaction)
 }
 
-/** POST /v1/wallet/verify-pin — verifikasi PIN wallet. */
+/**
+ * POST /v1/wallet/verify-pin — verifikasi PIN wallet.
+ *
+ * Dinormalisasi: `app/change-pin.tsx` memutuskan "PIN salah" dari
+ * `res.valid === false`. Bila backend menjawab `{ isValid: false }` dan respons
+ * hanya di-cast, `res.valid` menjadi `undefined` — bukan `false` — sehingga PIN
+ * yang SALAH lolos sebagai benar. `readVerdict` dengan fallback `false`
+ * membalik risikonya: tanpa flag yang dikenal, PIN dianggap tidak terverifikasi.
+ */
 export function verifyWalletPin(dto: VerifyPinDto) {
-  return http.post<{ valid: boolean }, VerifyPinDto>("/v1/wallet/verify-pin", dto, {
-    auth: "required",
-  })
+  return http
+    .post<unknown, VerifyPinDto>("/v1/wallet/verify-pin", dto, { auth: "required" })
+    .then((raw) => ({ valid: readVerdict(raw, ["valid", "isValid", "is_valid", "verified"], false).value }))
 }
 
 /** POST /v1/wallet/set-pin — set/ubah PIN wallet. */

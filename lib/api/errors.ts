@@ -47,6 +47,11 @@ export type ApiErrorInit = {
   method?: string
   path?: string
   cause?: unknown
+  /**
+   * Berapa lama pengguna harus menunggu sebelum mencoba lagi, dari header
+   * `Retry-After` (429/503). `undefined` bila server tidak mengirimnya.
+   */
+  retryAfterMs?: number
 }
 
 export class ApiError extends Error {
@@ -57,6 +62,7 @@ export class ApiError extends Error {
   readonly raw: unknown
   readonly method: string | undefined
   readonly path: string | undefined
+  readonly retryAfterMs: number | undefined
 
   constructor(init: ApiErrorInit) {
     super(init.message, init.cause !== undefined ? { cause: init.cause } : undefined)
@@ -68,6 +74,7 @@ export class ApiError extends Error {
     this.raw = init.raw
     this.method = init.method
     this.path = init.path
+    this.retryAfterMs = init.retryAfterMs
   }
 
   /** Sesi tidak valid — UI harus ke layar login */
@@ -200,4 +207,30 @@ export function userMessage(err: unknown): string {
     return err.message || DEFAULT_ERROR_MESSAGES[err.code]
   }
   return DEFAULT_ERROR_MESSAGES.UNKNOWN
+}
+
+/**
+ * Parse header `Retry-After` → milidetik.
+ *
+ * Header ini punya dua bentuk sah (RFC 9110 §10.2.3): delta-detik
+ * (`Retry-After: 120`) atau tanggal HTTP (`Retry-After: Wed, 21 Oct 2026
+ * 07:28:00 GMT`). Keduanya dipakai server rate-limit; hanya membaca bentuk
+ * pertama berarti separuh kasus tetap tanpa hitung mundur.
+ *
+ * Dibatasi 24 jam: tanggal yang salah/tanggal masa lalu tidak boleh membuat UI
+ * menampilkan hitung mundur absurd. `undefined` bila header tidak ada/rusak.
+ */
+export function parseRetryAfterMs(headerValue: string | null): number | undefined {
+  if (!headerValue) return undefined
+  const value = headerValue.trim()
+  if (!value) return undefined
+  const MAX_MS = 24 * 60 * 60 * 1000
+  if (/^\d+$/.test(value)) {
+    const seconds = Number(value)
+    return seconds > 0 ? Math.min(seconds * 1000, MAX_MS) : undefined
+  }
+  const dateMs = Date.parse(value)
+  if (Number.isNaN(dateMs)) return undefined
+  const delta = dateMs - Date.now()
+  return delta > 0 ? Math.min(delta, MAX_MS) : undefined
 }

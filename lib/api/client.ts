@@ -8,7 +8,13 @@ import {
   HEADER_DEVICE_INFO,
   HEADER_PLATFORM,
 } from "@/lib/api/config"
-import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES, parseErrorBody } from "@/lib/api/errors"
+import {
+  ApiError,
+  codeFromStatus,
+  DEFAULT_ERROR_MESSAGES,
+  parseErrorBody,
+  parseRetryAfterMs,
+} from "@/lib/api/errors"
 import { asRecord, invalidResponse, unwrapResponse } from "@/lib/api/response"
 import {
   clearSession,
@@ -199,6 +205,13 @@ async function toApiError(res: Response, method: HttpMethod, path: string): Prom
     raw,
     method,
     path,
+    // 429/503: server sering menyebut berapa lama harus menunggu. Tanpa ini UI
+    // hanya bisa bilang "tunggu sebentar" dan pengguna mencoba lagi terlalu
+    // cepat, memperpanjang masa throttle-nya sendiri.
+    retryAfterMs:
+      res.status === 429 || res.status === 503
+        ? parseRetryAfterMs(res.headers?.get?.("Retry-After") ?? null)
+        : undefined,
   })
 }
 
@@ -339,6 +352,22 @@ async function performRequest<TResponse, TBody>(
   checkAborted(signal)
   const url = buildUrl(path, query)
   const revision = getSessionRevision()
+  /**
+   * SATU kunci per panggilan logis, dibuat DI SINI (bukan di dalam `send()`).
+   *
+   * Sebelumnya kunci dibuat ulang setiap kali `send()` jalan. Itu tidak terlihat
+   * masalah sampai jalur 401 → refresh → kirim-ulang diperhatikan: percobaan
+   * kedua memakai kunci BARU, jadi backend tidak punya cara mengenali keduanya
+   * sebagai permintaan yang sama. Untuk mutasi keuangan (bayar pesanan, top-up,
+   * withdraw, transfer) kemampuan korelasi itu justru seluruh gunanya
+   * `Idempotency-Key`.
+   *
+   * Aman untuk GET karena GET tetap tidak diberi kunci, dan aman untuk mutasi
+   * karena `check-retry.mjs` menjamin mutasi tidak pernah di-retry otomatis —
+   * satu-satunya pengiriman ulang adalah setelah 401, yang memang HARUS berbagi
+   * kunci.
+   */
+  const idempotencyKey = method !== "GET" ? createIdempotencyKey() : null
   const send = async (token: string | null) => {
     checkAborted(signal)
     const headers: Record<string, string> = {
@@ -346,8 +375,7 @@ async function performRequest<TResponse, TBody>(
       ...(await deviceHeaders()),
       ...extraHeaders,
     }
-    if (method !== "GET" && !headers["Idempotency-Key"])
-      headers["Idempotency-Key"] = createIdempotencyKey()
+    if (idempotencyKey && !headers["Idempotency-Key"]) headers["Idempotency-Key"] = idempotencyKey
     if (body !== undefined) headers["Content-Type"] = "application/json"
     if (formData)
       for (const name of Object.keys(headers))

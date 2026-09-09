@@ -1,4 +1,11 @@
-import { asRecord, readEntity, readPage, readList } from "@/lib/api/response"
+import {
+  asRecord,
+  pickUserId,
+  readEntity,
+  readList,
+  readPage,
+  readVerdict,
+} from "@/lib/api/response"
 /**
  * Kahade — domain `users` (tag "users" di kahade-api-mobile.json).
  *
@@ -249,7 +256,13 @@ export function getUserByUsername(username: string) {
       const stats = asRecord(profile.stats)
       return {
         ...profile,
-        id: profile.id ?? profile.userId ?? "",
+        // `pickUserId` memindai `id`/`userId`/`_id` dan satu tingkat sarang
+        // (`user`/`data`/`profile`). Versi lama hanya membaca `profile.id ??
+        // profile.userId`, dan spec tidak mendokumentasikan bentuk respons
+        // endpoint ini — bila backend menaruh id di tempat lain, `profile.id`
+        // menjadi `""` dan Blokir/Laporkan gagal diam-diam atau dengan "user
+        // tidak tersedia". Layar juga mengirim username sebagai cadangan.
+        id: pickUserId(profile) || pickUserId(raw),
         verified: profile.verified ?? profile.isKycVerified,
         trustScore: profile.trustScore ?? stats?.trustScore,
         rating: profile.rating ?? stats?.rating,
@@ -386,8 +399,17 @@ export type DiscoveredUser = {
   following?: boolean
 }
 
+/**
+ * `GET /v1/users/discover`.
+ *
+ * Query yang dikirim dibatasi pada yang DIDOKUMENTASIKAN spec (`page`, `limit`).
+ * Opsi `sort` yang dulu ada di signature tidak pernah dikirim layar mana pun dan
+ * TIDAK ada di spec — bila backend memakai whitelist query, ia dibuang diam-diam
+ * sehingga urutan hasil tidak pernah berubah meski UI menawarkannya. Dihapus
+ * sampai backend mendeklarasikannya (lihat audit API-08).
+ */
 export function discoverUsers(
-  options: { page?: number; limit?: number; sort?: string } = {},
+  options: { page?: number; limit?: number } = {},
   signal?: AbortSignal,
 ) {
   const query = { page: 1, limit: 20, ...options }
@@ -480,29 +502,46 @@ export function unfollowUser(username: string) {
   })
 }
 
+export type FavoriteState = { favorited: boolean; count?: number }
+
+/**
+ * Normalizer respons favorit.
+ *
+ * `app/user/[username].tsx` menulis `setFavorite(Boolean(r?.favorited))`. Bila
+ * backend menjawab `{ isFavorite: true }`, `favorited` menjadi `undefined` dan
+ * ikon favorit selalu tampil kosong — pengguna mengira simpanannya hilang, lalu
+ * menekan lagi dan malah membatalkan. Fallback memakai nilai yang DIHARAPKAN
+ * dari aksinya (`addFavorite` → true) supaya keadaan UI tidak berbalik sendiri.
+ */
+function normalizeFavorite(raw: unknown, expected: boolean): FavoriteState {
+  const { value, record } = readVerdict(
+    raw,
+    ["favorited", "isFavorite", "is_favorite", "favorite", "saved"],
+    expected,
+  )
+  const count = record.count ?? record.total
+  return {
+    favorited: value,
+    count: typeof count === "number" && Number.isFinite(count) ? count : undefined,
+  }
+}
+
 export function isFavorite(username: string) {
-  return http.get<{ favorited: boolean; count?: number }>(`/v1/users/${seg(username)}/favorite`, {
-    auth: "required",
-  })
+  return http
+    .get<unknown>(`/v1/users/${seg(username)}/favorite`, { auth: "required" })
+    .then((raw) => normalizeFavorite(raw, false))
 }
 
 export function addFavorite(username: string) {
-  return http.post<{ favorited: boolean; count?: number }>(
-    `/v1/users/${seg(username)}/favorite`,
-    undefined,
-    {
-      auth: "required",
-    },
-  )
+  return http
+    .post<unknown>(`/v1/users/${seg(username)}/favorite`, undefined, { auth: "required" })
+    .then((raw) => normalizeFavorite(raw, true))
 }
 
 export function removeFavorite(username: string) {
-  return http.delete<{ favorited: boolean; count?: number }>(
-    `/v1/users/${seg(username)}/favorite`,
-    {
-      auth: "required",
-    },
-  )
+  return http
+    .delete<unknown>(`/v1/users/${seg(username)}/favorite`, { auth: "required" })
+    .then((raw) => normalizeFavorite(raw, false))
 }
 
 // ------------------------------------------------------------------

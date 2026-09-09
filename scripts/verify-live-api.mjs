@@ -2,7 +2,7 @@
 /**
  * Kahade — verifikasi endpoint terhadap backend HIDUP.
  *
- * `npm run check:api` membuktikan 231 pemanggilan adapter cocok dengan
+ * `npm run check:api` membuktikan setiap pemanggilan adapter cocok dengan
  * method/path yang terdokumentasi. Tool itu sendiri menulis:
  * "This is NOT authenticated endpoint verification." Skrip ini menutup
  * celah tersebut: ia benar-benar mengirim request ke backend dan merekam

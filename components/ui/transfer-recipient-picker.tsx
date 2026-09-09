@@ -4,9 +4,9 @@
  *
  * Langkah pertama alur "Transfer saldo" (`POST /v1/wallet/transfer`): pengguna
  * mengetik username, komponen menampilkan hasil `GET /v1/wallet/transfer/
- * lookup` dan daftar penerima terakhir. Transfer hanya boleh ke pengguna
- * yang sudah KYC — komponen menampilkan status itu, bukan menyembunyikan
- * pengguna yang belum verifikasi.
+ * lookup` dan daftar penerima terakhir. Status KYC penerima ditampilkan sebagai
+ * informasi; komponen TIDAK pernah menonaktifkan pilihan berdasarkan KYC —
+ * `TransferDto` di spec tidak mensyaratkannya, dan backend yang memutuskan.
  *
  * Anatomi: <SearchField> di atas -> (mengetik) hasil lookup / (kosong)
  * "Terakhir" -> tiap baris: Avatar + nama + @username + Badge KYC.
@@ -16,11 +16,15 @@
  *     menerima `results`, `loading`, `query`, `onQueryChange`. Pola ini
  *     sama dengan <SearchOverlay>/<UserDiscoverResultItem> — komponen UI
  *     tidak memegang jaringan.
- *   - Pengguna yang belum KYC (`kycVerified: false`) TETAP tampil, dengan
- *     `disabled` + Badge outline "Belum verifikasi": server pasti menolak
- *     transfer ke akun ini, dan menampilkannya mencegah pengguna mengira
- *     salah ketik username. Badge netral, bukan danger — status akun orang
- *     lain bukan error pengguna (§2.3).
+ *   - Pengguna yang belum KYC (`kycVerified: false`) TETAP tampil dan TETAP
+ *     bisa dipilih, dengan Badge outline "Belum verifikasi". Status KYC adalah
+ *     informasi, bukan gerbang: `TransferDto` di spec hanya
+ *     `{ recipientId, amount, pin, note }` — tidak ada syarat KYC — dan
+ *     `kycVerified` sering tidak dikirim backend, jadi memakainya sebagai
+ *     gerbang dulu mematikan transfer ke semua orang. Bila backend memang
+ *     menolak penerima tertentu, penolakannya muncul di langkah PIN dengan
+ *     alasan yang benar. Badge netral, bukan danger — status akun orang lain
+ *     bukan error pengguna (§2.3).
  *   - Baris dibangun dari <PressableScale> + anatomi ListItem (`px-6 py-3
  *     gap-3`, divider inset ml-[76px] = px-6 + Avatar md 40 + gap-3 12),
  *     bukan <ListItem>, karena trailing berisi Badge + ikon check dan
@@ -109,19 +113,28 @@ function RecipientRow({
   onSelect: (r: TransferRecipient) => void
   t: TransferRecipientPickerLabels
 }) {
-  const disabled = recipient.kycVerified !== true
-  const verificationLabel =
-    recipient.kycVerified === false ? t.notVerified : "Verifikasi belum diketahui"
+  // Status KYC adalah INFORMASI, bukan gerbang. Dulu baris ini berbunyi
+  // `const disabled = recipient.kycVerified !== true`, dan itu mematikan transfer
+  // ke SEMUA penerima setiap kali `GET /v1/wallet/transfer/lookup` tidak
+  // menyertakan field KYC (spec tidak mendokumentasikan bentuk responsnya, jadi
+  // `kycVerified` menjadi `undefined` → `!== true` → nonaktif). Pengguna tidak
+  // bisa memilih siapa pun tanpa pesan error apa pun.
+  //
+  // `TransferDto` di spec hanya `{ recipientId, amount, pin, note }` — tidak ada
+  // syarat KYC. Kalau backend memang menolak penerima tertentu, ia akan menolak
+  // `POST /v1/wallet/transfer` dengan alasan yang benar, dan layar menampilkannya
+  // di langkah PIN. Menolak lebih awal di klien atas dasar field yang tidak ada
+  // hanya menghasilkan jalan buntu.
+  const verificationLabel = recipient.kycVerified === false ? t.notVerified : undefined
   return (
     <View>
       <PressableScale
         scaleOnPress={false}
-        disabled={disabled}
         onPress={() => onSelect(recipient)}
         accessibilityRole="button"
-        accessibilityState={{ selected, disabled }}
+        accessibilityState={{ selected }}
         accessibilityLabel={`${recipient.name}, @${recipient.username}${
-          disabled ? `, ${verificationLabel}` : ""
+          verificationLabel ? `, ${verificationLabel}` : ""
         }${selected ? `, ${t.selected}` : ""}`}
         containerClassName={cn("w-full", focusRingInset)}
         className="flex-row items-center gap-3 px-6 py-3"
@@ -133,25 +146,19 @@ function RecipientRow({
           verified={recipient.kycVerified}
         />
         <View className="flex-1 gap-0">
-          <Text ellipsizeMode="tail"
-            variant="body"
-            weight={500}
-            tone={disabled ? "disabled" : "primary"}
-            numberOfLines={1}
-          >
+          <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1}>
             {recipient.name}
           </Text>
-          <Text variant="monoBody" tone={disabled ? "disabled" : "secondary"} numberOfLines={1}>
+          <Text variant="monoBody" tone="secondary" numberOfLines={1}>
             {`@${recipient.username}`}
           </Text>
         </View>
-        {disabled ? (
+        {verificationLabel ? (
           <Badge tone="neutral" variant="outline">
             {verificationLabel}
           </Badge>
-        ) : selected ? (
-          <Icon icon={CheckCircle} size="sm" tone="active" weight="fill" />
         ) : null}
+        {selected ? <Icon icon={CheckCircle} size="sm" tone="active" weight="fill" /> : null}
       </PressableScale>
       {divider ? <View
           accessibilityRole="none"

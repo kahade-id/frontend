@@ -32,12 +32,23 @@ export function normalizeSession(value: unknown): DeviceSession | null {
   const deviceInfo = typeof row.deviceInfo === "string" ? row.deviceInfo : undefined
   return {
     id: row.id,
+    /**
+     * `PATCH /v1/users/me/devices/{deviceId}/trust` butuh id PERANGKAT, yang
+     * berbeda dari `userSession.id`. Spec tidak mendokumentasikan bentuk respons
+     * `GET /v1/sessions`, jadi bila backend menaruhnya di tempat lain toggle
+     * "Perangkat tepercaya" buntu dengan "Status perangkat belum tersedia".
+     * Karena itu beberapa alias dicoba, bukan hanya `deviceId`.
+     */
     deviceId:
       typeof row.deviceId === "string"
         ? row.deviceId
         : typeof device?.id === "string"
           ? device.id
-          : undefined,
+          : typeof device?.deviceId === "string"
+            ? device.deviceId
+            : typeof row.userDeviceId === "string"
+              ? row.userDeviceId
+              : undefined,
     deviceName:
       (typeof row.deviceName === "string" && row.deviceName) || deviceInfo || "Perangkat tidak dikenal",
     platform: typeof row.platform === "string" ? row.platform : undefined,

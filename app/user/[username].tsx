@@ -400,10 +400,22 @@ export default function UserProfileScreen() {
   }, [handle, profileSharePayload, shareUnavailable])
 
   const handleBlock = useCallback(async () => {
-    if (!profile?.id) return
+    // `profile.id` bisa kosong bila backend tidak mengirim id pada profil publik.
+    // Versi lama langsung `return` di sini: tombol Blokir tampak tidak melakukan
+    // apa pun. Sekarang username dikirim sebagai identifier cadangan (adapter
+    // mencoba id lebih dulu, lalu username bila backend menjawab 404), dan bila
+    // keduanya tidak ada pengguna diberi tahu — bukan didiamkan.
+    if (!profile?.id && !handle) {
+      toast.show({
+        title: "Gagal memblokir pengguna",
+        description: "Identitas pengguna tidak tersedia. Muat ulang halaman lalu coba lagi.",
+        tone: "danger",
+      })
+      return
+    }
     setBlocking(true)
     try {
-      await api.settings.blockUser(profile.id)
+      await api.settings.blockUser(profile?.id ?? "", handle)
       toast.show({ title: "Pengguna diblokir", tone: "success", duration: 3000 })
       setBlockOpen(false)
       goBackOrNavigate(ROUTES.home)
@@ -416,7 +428,7 @@ export default function UserProfileScreen() {
     } finally {
       setBlocking(false)
     }
-  }, [profile?.id, toast])
+  }, [profile?.id, handle, toast])
 
   // Question & Comment handlers
   const submitAsk = useCallback(async () => {
@@ -1054,7 +1066,17 @@ export default function UserProfileScreen() {
                         variant="ghost"
                         size="sm"
                         leftIcon={Flag}
-                        onPress={() => router.push(ROUTES.reports({ targetId: profile.id, targetName: handle }))}
+                        onPress={() =>
+                          router.push(
+                            ROUTES.reports({
+                              // Username dikirim sebagai targetId bila profil publik
+                              // tidak menyertakan id — adapter melapor mencoba id
+                              // lebih dulu, lalu identifier cadangan.
+                              targetId: profile.id || handle,
+                              targetName: handle,
+                            }),
+                          )
+                        }
                       >
                         Laporkan akun
                       </Button>
@@ -1178,7 +1200,12 @@ export default function UserProfileScreen() {
             leftIcon={Flag}
             onPress={() => {
               setMoreOptionsOpen(false)
-              if (profile?.id) router.push(ROUTES.reports({ targetId: profile.id, targetName: handle }))
+              // Tanpa `id` pun laporan tetap bisa dibuka: username dipakai
+              // sebagai identifier cadangan oleh api.settings.reportUser.
+              if (profile?.id || handle)
+                router.push(
+                  ROUTES.reports({ targetId: profile?.id || handle, targetName: handle }),
+                )
             }}
           >
             Laporkan pengguna

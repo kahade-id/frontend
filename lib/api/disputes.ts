@@ -155,20 +155,28 @@ export function requestDisputeCall(disputeId: string) {
   })
 }
 
+/**
+ * Spec menandai `requestBody` ketiga aksi panggilan ini `required: true` dengan
+ * skema `CallActionDto` — yang di spec berupa objek KOSONG. Mengirim `undefined`
+ * berarti tidak ada body sama sekali, dan backend yang memvalidasi `required`
+ * menolak dengan 400/415 (cacat yang sama sudah diperbaiki untuk
+ * `POST /v1/upload/cleanup`; lihat komentar di lib/api/upload.ts). Kirim `{}`
+ * eksplisit agar `Content-Type: application/json` + body valid.
+ */
 export function acceptDisputeCall(disputeId: string) {
-  return http.post<DisputeCall>(`/v1/disputes/${seg(disputeId)}/call/accept`, undefined, {
+  return http.post<DisputeCall, Record<string, never>>(`/v1/disputes/${seg(disputeId)}/call/accept`, {}, {
     auth: "required",
   })
 }
 
 export function rejectDisputeCall(disputeId: string) {
-  return http.post<DisputeCall>(`/v1/disputes/${seg(disputeId)}/call/reject`, undefined, {
+  return http.post<DisputeCall, Record<string, never>>(`/v1/disputes/${seg(disputeId)}/call/reject`, {}, {
     auth: "required",
   })
 }
 
 export function endDisputeCall(disputeId: string) {
-  return http.post<DisputeCall>(`/v1/disputes/${seg(disputeId)}/call/end`, undefined, {
+  return http.post<DisputeCall, Record<string, never>>(`/v1/disputes/${seg(disputeId)}/call/end`, {}, {
     auth: "required",
   })
 }

@@ -32,7 +32,7 @@ import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, userMessage } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import type { TwoFactorSetup } from "@/lib/api/auth"
 import { useCopy } from "@/lib/clipboard"
 import { tokens } from "@/lib/tokens"
@@ -121,6 +121,8 @@ export default function TwoFactorScreen() {
   // ── Regenerasi kode cadangan ───────────────────────────────────────────
   const [regenOpen, setRegenOpen] = useState(false)
   const [regenPassword, setRegenPassword] = useState("")
+  /** 6 digit TOTP — `RegenerateBackupCodesDto.code` wajib di spec. */
+  const [regenCode, setRegenCode] = useState("")
   const [regenError, setRegenError] = useState<string | undefined>()
   const [regenerating, setRegenerating] = useState(false)
 
@@ -238,16 +240,22 @@ export default function TwoFactorScreen() {
 
   const openRegenerate = useCallback(() => {
     setRegenPassword("")
+    setRegenCode("")
     setRegenError(undefined)
     setRegenOpen(true)
   }, [])
 
   const handleRegenerate = useCallback(async () => {
-    if (!regenPassword) return
+    if (!regenPassword || regenCode.length !== TOTP_LENGTH) return
     setRegenerating(true)
     setRegenError(undefined)
     try {
-      const res = await api.auth.regenerateBackupCodes({ password: regenPassword })
+      // Spec: `RegenerateBackupCodesDto` = { password, code } — keduanya wajib,
+      // `code` adalah 6 digit TOTP. Mengirim password saja = 400.
+      const res = await api.auth.regenerateBackupCodes({
+        password: regenPassword,
+        code: regenCode,
+      })
       setCodes(res?.backupCodes ?? [])
       setRegenOpen(false)
       toast.show({
@@ -256,12 +264,16 @@ export default function TwoFactorScreen() {
         tone: "success",
       })
       await query.refresh()
-    } catch {
-      setRegenError("Password salah. Coba lagi.")
+    } catch (err: unknown) {
+      setRegenError(
+        isApiError(err) && err.code === "VALIDATION"
+          ? "Password atau kode autentikator salah. Coba lagi."
+          : userMessage(err),
+      )
     } finally {
       setRegenerating(false)
     }
-  }, [regenPassword, query, toast.show])
+  }, [regenPassword, regenCode, query, toast.show])
 
   const enabled = status?.enabled ?? false
 
@@ -491,12 +503,12 @@ export default function TwoFactorScreen() {
       {/* ── Dialog: regenerasi kode cadangan ──────────────────────────────── */}
       <Dialog
         title="Buat kode cadangan baru?"
-        description="Semua kode cadangan lama akan hangus. Masukkan password untuk melanjutkan."
+        description="Semua kode cadangan lama akan hangus. Masukkan password dan kode dari aplikasi autentikator untuk melanjutkan."
         visible={regenOpen}
         loading={regenerating}
         confirmLabel="Buat Kode Baru"
         cancelLabel="Batal"
-        confirmButtonProps={{ disabled: !regenPassword }}
+        confirmButtonProps={{ disabled: !regenPassword || regenCode.length !== TOTP_LENGTH }}
         onConfirm={() => void handleRegenerate()}
         onCancel={() => setRegenOpen(false)}
         onRequestClose={() => setRegenOpen(false)}
@@ -507,9 +519,19 @@ export default function TwoFactorScreen() {
           onChangeText={setRegenPassword}
           errorText={regenError}
           required
-          returnKeyType="done"
-          onSubmitEditing={() => void handleRegenerate()}
+          returnKeyType="next"
         />
+        <View className="gap-2">
+          <Text variant="label" tone="secondary">
+            Kode aplikasi autentikator
+          </Text>
+          <OtpInput
+            length={TOTP_LENGTH}
+            value={regenCode}
+            onChange={setRegenCode}
+            disabled={regenerating}
+          />
+        </View>
       </Dialog>
     </Screen>
   )

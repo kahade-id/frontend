@@ -97,11 +97,19 @@ export default function ReportsScreen() {
       if (!targetId) return
       setSubmitting(true)
       try {
-        await api.settings.reportUser({
-          targetId,
-          category: mapValue(REASON_TO_CATEGORY, v.reason, "OTHER") as ReportUserSettingsDto["category"],
-          description: v.detail.trim(),
-        })
+        await api.settings.reportUser(
+          {
+            targetId,
+            category: mapValue(REASON_TO_CATEGORY, v.reason, "OTHER") as ReportUserSettingsDto["category"],
+            description: v.detail.trim(),
+          },
+          // `targetName` adalah username. Bila `targetId` yang dikirim profil
+          // publik ternyata bukan id yang dikenali backend (spec tidak
+          // mendokumentasikan bentuk respons `GET /v1/users/{username}`),
+          // adapter mencoba ulang dengan username — inilah sebabnya Laporkan
+          // dulu gagal dengan "user tidak tersedia" di halaman user itu sendiri.
+          targetName,
+        )
         toast.show({ title: "Laporan terkirim", tone: "success", duration: 3000 })
         setValue({ reason: "", detail: "" })
         await reports.reload()

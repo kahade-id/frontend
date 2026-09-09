@@ -23,7 +23,13 @@
  *     user yang menekan "Keluar" harus benar-benar keluar.
  */
 import { http } from "@/lib/api/client"
-import { asRecord as responseRecord, invalidResponse, stringList } from "@/lib/api/response"
+import {
+  asRecord as responseRecord,
+  invalidResponse,
+  pickString,
+  readVerdict,
+  stringList,
+} from "@/lib/api/response"
 import { clearSession, getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
 import type {
   ChangePasswordDto,
@@ -37,6 +43,7 @@ import type {
   PhoneRegisterDto,
   RegisterDto,
   RequestOtpDto,
+  RegenerateBackupCodesDto,
   RequestPhoneChangeDto,
   ResendVerificationDto,
   ResetPasswordDto,
@@ -357,15 +364,24 @@ export async function resetPassword(dto: ResetPasswordDto) {
   })
 }
 
-/** Re-auth sebelum aksi sensitif (ubah email, hapus akun). */
-export function verifyPassword(dto: VerifyPasswordDto) {
-  return http.post<{ valid: boolean } | MessageResult, VerifyPasswordDto>(
-    "/v1/auth/verify-password",
-    dto,
-    {
-      auth: "required",
-    },
-  )
+/**
+ * Re-auth sebelum aksi sensitif (ubah email, hapus akun).
+ *
+ * Dinormalisasi dengan alasan yang sama seperti `verifyWalletPin`: ini gerbang
+ * keamanan. Bila backend menjawab `{ isValid: false }` dan respons hanya
+ * di-cast, `res.valid` menjadi `undefined` dan pemanggil yang menulis
+ * `if (res.valid === false)` akan MEMBIARKAN password yang salah lolos.
+ * Fallback `false` = tanpa flag yang dikenal, dianggap tidak terverifikasi.
+ */
+export async function verifyPassword(dto: VerifyPasswordDto) {
+  const raw = await http.post<unknown, VerifyPasswordDto>("/v1/auth/verify-password", dto, {
+    auth: "required",
+  })
+  const { value, record } = readVerdict(raw, ["valid", "isValid", "is_valid", "verified"], false)
+  return {
+    valid: value,
+    message: pickString(record, ["message"]),
+  }
 }
 
 export function changePassword(dto: ChangePasswordDto) {
@@ -445,11 +461,23 @@ export function disable2fa(dto: Disable2faDto) {
   return http.post<MessageResult, Disable2faDto>("/v1/auth/2fa/disable", dto, { auth: "required" })
 }
 
-/** Spec memakai `Setup2faDto` (password) sebagai body regenerate. */
-export async function regenerateBackupCodes(dto: Setup2faDto) {
-  const result = await http.post<BackupCodes, Setup2faDto>("/v1/auth/2fa/backup-codes/regenerate", dto, {
-    auth: "required",
-  })
+/**
+ * Body regenerate adalah `RegenerateBackupCodesDto` = `{ password, code }`,
+ * dengan `code` = 6 digit TOTP (`minLength: 6`, `maxLength: 6`) dan KEDUA field
+ * `required`.
+ *
+ * Komentar lama di sini berbunyi "Spec memakai `Setup2faDto` (password)" dan
+ * layar hanya mengirim `{ password }`. Itu tidak lagi benar terhadap spec:
+ * class-validator menolak dengan 400, sehingga membuat-ulang kode cadangan
+ * selalu gagal — tepat di alur pemulihan 2FA, saat kode lama mungkin sudah
+ * hilang. `code` kini wajib dari pemanggil.
+ */
+export async function regenerateBackupCodes(dto: RegenerateBackupCodesDto) {
+  const result = await http.post<BackupCodes, RegenerateBackupCodesDto>(
+    "/v1/auth/2fa/backup-codes/regenerate",
+    dto,
+    { auth: "required" },
+  )
   return {
     ...result,
     backupCodes: stringList(result.backupCodes ?? (result as any).backup_codes),
