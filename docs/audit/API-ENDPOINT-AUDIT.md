@@ -35,7 +35,7 @@ dengan membandingkan **body, query, header, security, dan enum** per operasi.
 | **Metadata `security` di spec** | 50 operasi kosong, 2 skema dangling | ❌ |
 | **Header request terdokumentasi** | 0 dari 6 header yang dikirim | ❌ |
 | Test otomatis (unit/e2e) | **0 berkas test** → `npm run check` gagal | ❌ |
-| Cakupan endpoint spec oleh aplikasi | 238 / 260 = **91,5 %** | ⚠️ |
+| Cakupan endpoint spec oleh aplikasi | 239 / 260 operasi unik = **91,9 %** (lihat §13) | ⚠️ |
 | Verifikasi terhadap backend hidup | **tidak dapat dijalankan** (lihat §7) | ⛔ |
 
 **Temuan:** 5 tingkat **S1 (harus diperbaiki sebelum rilis)**, 8 tingkat **S2**, 7 tingkat **S3**.
@@ -727,4 +727,91 @@ npm run typecheck   → EXIT=0
 npm run lint        → EXIT=0
 npm run check       → EXIT=0 (6 berkas / 66 test)
 npm run build:web   → EXIT=0
+```
+
+---
+
+## 13. Putaran keempat — koreksi angka cakupan & 21 operasi tak-terpakai
+
+### 13.1 Angka cakupan sebelumnya SALAH, dan ini sebabnya
+
+Laporan ini semula menulis **"238 / 260 = 91,5 %"**. Angka itu keliru dua kali:
+
+1. **Mencampur satuan.** `238` adalah jumlah *pemanggilan* `http.*` di `lib/api/`
+   (angka yang dicetak `npm run check:api`), sedangkan `260` adalah jumlah
+   *operasi unik* di spec. Keduanya bukan pembilang dan penyebut dari hal yang
+   sama.
+2. **Melewatkan satu endpoint yang benar-benar dipakai.** `POST /v1/auth/refresh`
+   tercatat "tak terpakai" karena sweep hanya membaca literal string di tempat
+   pemanggilan. Jalur itu sebenarnya disimpan di konstanta
+   `REFRESH_PATH = "/v1/auth/refresh"` (`lib/api/client.ts:243`) dan dipakai
+   sebagai `exchange(REFRESH_PATH, buildUrl(REFRESH_PATH), { method: "POST" })`
+   (baris 259-263).
+
+**Angka yang benar: 239 operasi unik dari 260 = 91,9 %.**
+
+Dua jebakan teknis yang membuat perhitungan pertama meleset, keduanya sudah
+diperbaiki dan perlu diingat bila sweep ini diulang:
+
+- **Urutan normalisasi.** `${seg(id)}` harus diubah jadi `{}` **lebih dulu**,
+  baru `{…}` → `{}`. Bila terbalik, hasilnya `${}` (sisa tanda `$`) dan
+  pemanggilan itu gagal dicocokkan — sweep pertama melaporkan **70 panggilan di
+  luar spec**, semuanya palsu. `scripts/audit-inventory.mjs:44` melakukan
+  `.replace(/\$\{[^}]+\}/g,"{}")` sebelum `normalize()`, dan urutan itu yang
+  dipakai ulang di sini.
+- **Pencocokan harus sadar-metode.** Sweep pertama mencocokkan path tanpa metode,
+  sehingga `PUT /v1/users/me/avatar` sempat ditandai "dipanggil" — padahal klien
+  hanya memanggil **`DELETE`** di path itu (`lib/api/users.ts:172`). Tanpa
+  metode, `DELETE` dan `PUT` pada path yang sama tertukar.
+
+Verifikasi silang: sweep yang sudah diperbaiki menghitung **238** pemanggilan
+`http.*` di `lib/api/` — persis angka yang dicetak `npm run check:api` — dan
+**0** pemanggilan di luar spec.
+
+### 13.2 Klasifikasi 21 operasi tak-terpakai
+
+Tidak ada fitur yang hilang. Setiap operasi punya penjelasan:
+
+**A. Bukan urusan klien (6).**
+
+| Operasi | Alasan |
+|---|---|
+| `GET /v1/health`, `/health/crons`, `/health/internal-ready`, `/health/webhooks` | Probe infra/orkestrator. |
+| `POST /v1/payments/midtrans-webhook` | Dipanggil Midtrans, server-to-server. |
+| `GET /v1/users/{username}/og` | Gambar Open Graph untuk pratinjau tautan; diambil crawler media sosial, bukan aplikasi. |
+
+**B. Klien memakai padanan yang berbeda (15).**
+
+| Operasi tak-terpakai | Padanan yang dipakai klien |
+|---|---|
+| `POST /v1/users/{userId}/block` | `POST /v1/settings/block/{identifier}` — `settings.ts:107` |
+| `DELETE /v1/users/{userId}/block` | `DELETE /v1/settings/block/{identifier}` — `settings.ts:115` |
+| `POST /v1/users/{userId}/report` | `POST /v1/settings/report` — `settings.ts:125` |
+| `GET /v1/settings/blocked-users` | `GET /v1/users/me/blocked` — `settings.ts:48` |
+| `GET /v1/users/search` | `GET /v1/search` — `search.ts:23` |
+| `GET /v1/app/version` | `GET /v1/public/app-version` — `public.ts:24` |
+| `GET /v1/config/exchange-rates` | `GET /v1/public/exchange-rates` — `public.ts:40` |
+| `GET /v1/wallet/export` | `GET /v1/wallet/export/csv` + `/export/pdf` — `wallet.ts:447,457` |
+| `GET /v1/users/me/devices` | `GET /v1/sessions` — `sessions.ts:81` |
+| `DELETE /v1/users/me/devices/{deviceId}` | `DELETE /v1/sessions/{sessionId}` — `sessions.ts:86` |
+| `GET /v1/users/{username}/saved` | `GET /v1/users/{username}/favorite` — `users.ts:531` |
+| `POST /v1/users/{username}/saved` | `POST /v1/users/{username}/favorite` — `users.ts:537` |
+| `DELETE /v1/users/{username}/saved` | `DELETE /v1/users/{username}/favorite` — `users.ts:543` |
+| `PUT /v1/users/me/avatar` | `POST /v1/users/me/avatar/direct` + `/confirm`, `DELETE /v1/users/me/avatar` — `users.ts:147,160,172` |
+| `PUT /v1/users/me/header` | `POST /v1/users/me/header/direct` + `/confirm`, `DELETE /v1/users/me/header` — `users.ts:203,212,222` |
+
+Catatan yang layak diteruskan ke tim backend: keberadaan **dua** jalur untuk
+block/report/saved/avatar (`/v1/users/...` dan `/v1/settings/...` atau
+`/direct`+`/confirm`) adalah duplikasi permukaan API. Klien konsisten memakai
+satu sisi, jadi tidak ada cacat — tetapi duplikasi itu menambah peluang kedua
+sisi berperilaku berbeda tanpa terlihat.
+
+### 13.3 Verifikasi putaran keempat
+
+Putaran ini **tidak mengubah kode aplikasi**; yang berubah hanya angka dan
+penjelasan di laporan ini. Verifikasi tetap dijalankan penuh:
+
+```
+npm run check       → EXIT=0 (6 berkas / 66 test)
+npm run check:api   → 238 pemanggilan cocok, 0 di luar spec
 ```
