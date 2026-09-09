@@ -277,11 +277,30 @@ export default function SubscriptionsScreen() {
           })
         } else {
           if (!selectedPlan) return
+          /**
+           * Kode metode berasal dari `GET /v1/wallet/payment-methods` (string
+           * bebas dari server), sedangkan `SubscribeDto.paymentMethod` adalah
+           * enum 19 nilai. Cast `as` di sini dulu melewati type-check tanpa
+           * memeriksa apa pun: begitu backend menawarkan satu kode di luar enum
+           * (metode baru, atau `KAHADE_WALLET` yang hanya sah untuk langganan),
+           * request 400 dan pengguna hanya melihat pesan validasi NestJS mentah
+           * di langkah PIN — tanpa tahu metode mana yang jadi masalah.
+           *
+           * Enum-nya dibaca dari API_CONSTRAINTS (dihasilkan dari spec), jadi
+           * penjaga ini ikut menyempit/melebar sendiri saat spec berubah.
+           */
+          const allowedMethods = API_CONSTRAINTS.SubscribeDto.paymentMethod.enum as readonly string[]
+          if (hasMethods && !allowedMethods.includes(methodId)) {
+            setPinError(
+              `Metode pembayaran "${methodId}" tidak didukung untuk langganan. Pilih metode lain.`,
+            )
+            submitLock.current = false
+            setSubmitting(false)
+            return
+          }
           const next = await api.subscriptions.subscribe({
             plan: planPeriod(selectedPlan),
             pin,
-            // Kode metode berasal dari GET /wallet/payment-methods (string
-            // bebas); enum SubscribeDto lebih sempit → cast terkontrol.
             paymentMethod: hasMethods ? (methodId as SubscribeDto["paymentMethod"]) : undefined,
           })
           query.setData((prev) => (prev ? { ...prev, status: next } : prev))
