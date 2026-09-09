@@ -138,6 +138,8 @@ export default function CreateTransactionScreen() {
   const [counterpartUsername, setCounterpartUsername] = useState<string | undefined>()
   const [counterpartVerified, setCounterpartVerified] = useState(false)
   const [counterpartWarnings, setCounterpartWarnings] = useState<string[]>([])
+  /** Alasan spesifik dari backend untuk state `blocked` (bukan "tidak ditemukan"). */
+  const [counterpartReason, setCounterpartReason] = useState<string | undefined>()
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
   const [orderType, setOrderType] = useState<OrderType>("SERVICE")
@@ -234,16 +236,27 @@ export default function CreateTransactionScreen() {
       const res = await api.orders.validateCounterpart({ username: q })
       if (draft.current.counterpart !== q) return
       setConfirmedCounterpart(res.valid ? q : null)
-      setCounterpartState(res.valid ? "found" : "blocked")
+      // `notFound` (user tidak ada) BEDA dari `blocked` (ada tapi tidak boleh
+      // transaksi). Sebelum normalizer di lib/api/orders.ts, bentuk respons yang
+      // namanya berbeda membuat `res.valid` undefined dan SEMUA lawan transaksi
+      // jatuh ke "blocked" — pengguna dituduh memblokir/diblokir padahal tidak.
+      setCounterpartState(res.valid ? "found" : res.notFound ? "notFound" : "blocked")
+      setCounterpartReason(res.reason)
       setCounterpartName(res.user?.fullName ?? q)
       setCounterpartUsername(res.user?.username ?? q)
       setCounterpartVerified(res.user?.kycVerified ?? false)
+      // KYC lawan transaksi BUKAN syarat transaksi: spec `CreateOrderDto` tidak
+      // menyebut KYC sama sekali, dan <CounterpartValidationCard> sengaja
+      // merender `warnings` sebagai Badge (transaksi tetap boleh), bukan Alert.
+      // Jadi status KYC hanya menjadi peringatan, tidak pernah memblokir.
       setCounterpartWarnings(
         res.valid
-          ? res.user?.kycVerified
-            ? []
-            : ["Lawan transaksi belum menyelesaikan verifikasi identitas"]
-          : [res.reason ?? "Lawan transaksi tidak valid"],
+          ? res.user && res.user.kycVerified === false
+            ? ["Lawan transaksi belum menyelesaikan verifikasi identitas"]
+            : []
+          : res.reason
+            ? [res.reason]
+            : [],
       )
     } catch (error) {
       if (draft.current.counterpart !== q) return
@@ -483,6 +496,7 @@ export default function CreateTransactionScreen() {
                 username={counterpartUsername}
                 verified={counterpartVerified}
                 warnings={counterpartWarnings}
+                reason={counterpartReason}
               />
             ) : null}
           </FormSection>

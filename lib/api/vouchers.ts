@@ -1,4 +1,4 @@
-import { readList } from "@/lib/api/response"
+import { asRecord, pickBoolean, pickString, readList, readVerdict } from "@/lib/api/response"
 /**
  * Kahade — domain `vouchers` (3 endpoint publik-otentikasi).
  * Dipakai VoucherRedeemBox saat membuat order & halaman voucher.
@@ -39,8 +39,32 @@ export function listMyVoucherUsage(signal?: AbortSignal) {
     .then((raw) => readList<Voucher>(raw, ["usages", "usage"]))
 }
 
+/**
+ * Normalizer `POST /v1/vouchers/validate`.
+ *
+ * `app/create-transaction.tsx` membaca `res.valid`; tanpa normalizer, backend
+ * yang menjawab `{ isValid: true, … }` membuat voucher apa pun tampak "tidak
+ * berlaku" (`undefined` → falsy) tanpa pesan yang menjelaskan.
+ */
+export function normalizeVoucherValidation(raw: unknown): VoucherValidation {
+  const { value, record } = readVerdict(raw, ["valid", "isValid", "is_valid", "applicable"], false)
+  const voucherRecord = asRecord(record.voucher) ?? asRecord(record.voucherDetail)
+  const voucher = voucherRecord
+    ? ({
+        ...voucherRecord,
+        code: pickString(voucherRecord, ["code", "voucherCode"]) ?? "",
+        active: pickBoolean(voucherRecord, ["active", "isActive"]) ?? true,
+      } as Voucher)
+    : undefined
+  return {
+    valid: value,
+    voucher,
+    message: pickString(record, ["message", "reason", "detail"]),
+  }
+}
+
 export function validateVoucher(dto: ValidateVoucherDto) {
-  return http.post<VoucherValidation, ValidateVoucherDto>("/v1/vouchers/validate", dto, {
-    auth: "required",
-  })
+  return http
+    .post<unknown, ValidateVoucherDto>("/v1/vouchers/validate", dto, { auth: "required" })
+    .then(normalizeVoucherValidation)
 }

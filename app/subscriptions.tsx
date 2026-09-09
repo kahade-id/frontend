@@ -277,11 +277,27 @@ export default function SubscriptionsScreen() {
           })
         } else {
           if (!selectedPlan) return
+          /**
+           * Cast `as` di bawah AMAN dan tidak perlu penjaga tambahan — jangan
+           * tambahkan pemeriksaan enum di sini.
+           *
+           * `methodId` hanya bisa berasal dari `methods`, dan daftar itu sudah
+           * disaring terhadap `API_CONSTRAINTS.SubscribeDto.paymentMethod.enum`
+           * saat data dimuat (lihat `.filter(…)` di `useApiQuery` atas). Baik
+           * `useEffect` pemilih awal maupun `onChange` PaymentMethodSelector
+           * hanya pernah menyodorkan id dari daftar tersaring tersebut.
+           *
+           * Lapis kedua: `subscribe()` memanggil `assertDtoConstraints` lebih
+           * dulu, yang melempar `ApiError` VALIDATION berbahasa Indonesia
+           * SECARA SINKRON sebelum satu pun request dikirim. Jadi nilai di luar
+           * enum tidak pernah mencapai backend, dan yang tampil di `catch`
+           * bawah adalah `userMessage(err)` — bukan body validasi NestJS.
+           *
+           * Kedua sifat itu dikunci di `tests/api-contract-guards.test.ts`.
+           */
           const next = await api.subscriptions.subscribe({
             plan: planPeriod(selectedPlan),
             pin,
-            // Kode metode berasal dari GET /wallet/payment-methods (string
-            // bebas); enum SubscribeDto lebih sempit → cast terkontrol.
             paymentMethod: hasMethods ? (methodId as SubscribeDto["paymentMethod"]) : undefined,
           })
           query.setData((prev) => (prev ? { ...prev, status: next } : prev))

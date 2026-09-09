@@ -4,6 +4,7 @@ import { readList } from "@/lib/api/response"
  * Profil/2FA/PIN tetap di users.ts & auth.ts & wallet.ts.
  */
 import { http, seg } from "@/lib/api/client"
+import { ApiError, isApiError } from "@/lib/api/errors"
 import type { ReportUserSettingsDto, UpdateLanguageDto, UpdatePrivacyDto } from "@/lib/api/types"
 
 export type BlockedUser = {
@@ -52,23 +53,80 @@ export function getBlockedUsers(signal?: AbortSignal) {
     )
 }
 
-export function blockUser(userId: string) {
-  return http.post<BlockedUser>(`/v1/settings/block/${seg(userId)}`, undefined, {
-    auth: "required",
-  })
+/**
+ * Jalankan aksi ber-`{userId}`, dan bila backend menjawab 404/"tidak ditemukan"
+ * coba sekali lagi dengan identifier cadangan (username).
+ *
+ * Kenapa perlu (cacat yang dilaporkan pengguna, bukan pencegahan): layar profil
+ * publik (`app/user/[username].tsx`) hanya pasti punya USERNAME. `profile.id`
+ * diisi dari `GET /v1/users/{username}` lewat `pickUserId()`, tetapi spec tidak
+ * mendokumentasikan bentuk respons endpoint itu, jadi `id` bisa kosong atau
+ * berisi identifier yang tidak dikenali endpoint blokir/lapor. Akibatnya Blokir
+ * dan Laporkan gagal dengan "user tidak tersedia" — di halaman orang yang
+ * justru sedang dibuka.
+ *
+ * Aturan aman yang dipakai:
+ *   - `primary` kosong → langsung pakai `fallback` (jangan pernah mengirim `""`).
+ *   - Ulang hanya pada 404 / NOT_FOUND / BAD_REQUEST dari `seg()`: pada status
+ *     itu backend TIDAK membuat apa pun, jadi tidak ada risiko duplikasi
+ *     (penting untuk laporan).
+ *   - Keduanya gagal → lempar error yang terakhir, apa adanya, supaya UI
+ *     menampilkan alasan sebenarnya dari server.
+ */
+async function withUserIdentity<T>(
+  primary: string | undefined,
+  fallback: string | undefined,
+  call: (identifier: string) => Promise<T>,
+): Promise<T> {
+  const candidates = [primary?.trim(), fallback?.trim()].filter(
+    (value): value is string => Boolean(value),
+  )
+  const unique = [...new Set(candidates)]
+  if (unique.length === 0)
+    throw new ApiError({
+      code: "VALIDATION",
+      message: "Identitas pengguna tujuan tidak tersedia. Muat ulang halaman lalu coba lagi.",
+    })
+  let lastError: unknown
+  for (const identifier of unique) {
+    try {
+      return await call(identifier)
+    } catch (error) {
+      lastError = error
+      const retryable =
+        isApiError(error) &&
+        (error.status === 404 || error.code === "NOT_FOUND" || error.code === "BAD_REQUEST")
+      if (!retryable) throw error
+    }
+  }
+  throw lastError
 }
 
-export function unblockUser(userId: string) {
-  return http.delete<void>(`/v1/settings/block/${seg(userId)}`, {
-    auth: "required",
-    responseType: "void",
-  })
+export function blockUser(userId: string, fallbackUsername?: string) {
+  return withUserIdentity(userId, fallbackUsername, (identifier) =>
+    http.post<BlockedUser>(`/v1/settings/block/${seg(identifier)}`, undefined, {
+      auth: "required",
+    }),
+  )
 }
 
-export function reportUser(dto: ReportUserSettingsDto) {
-  return http.post<ReportsSettings, ReportUserSettingsDto>("/v1/settings/report", dto, {
-    auth: "required",
-  })
+export function unblockUser(userId: string, fallbackUsername?: string) {
+  return withUserIdentity(userId, fallbackUsername, (identifier) =>
+    http.delete<void>(`/v1/settings/block/${seg(identifier)}`, {
+      auth: "required",
+      responseType: "void",
+    }),
+  )
+}
+
+export function reportUser(dto: ReportUserSettingsDto, fallbackUsername?: string) {
+  return withUserIdentity(dto.targetId, fallbackUsername, (identifier) =>
+    http.post<ReportsSettings, ReportUserSettingsDto>(
+      "/v1/settings/report",
+      { ...dto, targetId: identifier },
+      { auth: "required" },
+    ),
+  )
 }
 
 export function getReports(signal?: AbortSignal) {

@@ -21,7 +21,15 @@ import { assertDtoConstraints } from "@/lib/financial"
  *   - Tidak ada `retry` di POST/PUT: pay/complete/cancel tidak idempoten.
  *     GET list/detail memakai `retry: 1` untuk toleransi jaringan seluler.
  */
-import { asRecord, invalidResponse, readPage, readEntity } from "@/lib/api/response"
+import {
+  asRecord,
+  invalidResponse,
+  pickBoolean,
+  pickString,
+  pickUserId,
+  readPage,
+  readEntity,
+} from "@/lib/api/response"
 import { AMOUNT_LIMITS, assertValidAmount } from "@/lib/financial"
 import { http, seg } from "@/lib/api/client"
 import type {
@@ -233,8 +241,109 @@ export type FeeBreakdown = {
 
 export type CounterpartValidation = {
   valid: boolean
-  user?: OrderParty & { kycVerified?: boolean; trustScore?: number }
+  user?: OrderParty & {
+    kycVerified?: boolean
+    trustScore?: number
+    completedOrders?: number
+    rating?: number
+  }
   reason?: string
+  /**
+   * Backend bilang usernya tidak ada — BEDA dari "ada tapi tidak boleh
+   * transaksi". Layar memetakan ini ke state `notFound`, bukan `blocked`.
+   */
+  notFound?: boolean
+}
+
+/**
+ * Normalizer `POST /v1/orders/validate-counterpart`.
+ *
+ * Kenapa ini ada (cacat yang terbukti, bukan pencegahan): respons endpoint ini
+ * dulu hanya di-CAST ke `CounterpartValidation` tanpa dinormalisasi, sementara
+ * spec tidak mendokumentasikan bentuk respons sama sekali (lihat audit
+ * docs/audit/API-ENDPOINT-AUDIT.md API-06). Akibatnya bila backend mengirim
+ * `{ isValid: true, … }` — atau `{ data: { valid: true } }` — maka `res.valid`
+ * menjadi `undefined`, dan `app/create-transaction.tsx` memperlakukan nilai
+ * falsy itu sebagai DIBLOKIR:
+ *
+ *     "Tidak dapat bertransaksi / Pengguna ini tidak tersedia untuk transaksi
+ *      dengan Anda."
+ *
+ * …untuk SEMUA lawan transaksi, termasuk yang sah. Satu field yang namanya
+ * berbeda membuat seluruh fitur buat-transaksi mati dengan pesan yang
+ * menuduh pengguna lain.
+ *
+ * Aturan yang dipakai, dan kenapa:
+ *   1. Flag valid dibaca dari banyak alias (`valid`, `isValid`, `is_valid`,
+ *      `canTransact`, `allowed`).
+ *   2. Bila TIDAK ADA flag eksplisit, jangan menyimpulkan "diblokir". Selama
+ *      backend mengembalikan profil user dan tidak ada penanda blokir, hasilnya
+ *      `valid: true` — server tetap pemutus akhir saat `POST /v1/orders`.
+ *      Menolak di klien atas dasar tebakan lebih merusak daripada membiarkan
+ *      server menolak dengan alasan yang benar.
+ *   3. Penanda blokir eksplisit (`blocked`, `isBlocked`, `status: "BLOCKED"`,
+ *      `suspended`) tetap dihormati → `valid: false`.
+ *   4. "User tidak ada" dibedakan dari "user diblokir" lewat `notFound`, supaya
+ *      copy UI tidak menuduh pemblokiran.
+ */
+export function normalizeCounterpartValidation(raw: unknown): CounterpartValidation {
+  const root = asRecord(raw)
+  const nested =
+    asRecord(root?.validation) ?? asRecord(root?.result) ?? asRecord(root?.counterpart)
+  const record = nested ? { ...root, ...nested } : (root ?? {})
+
+  const userRecord =
+    asRecord(record.user) ??
+    asRecord(record.counterpart) ??
+    asRecord(record.recipient) ??
+    asRecord(record.profile)
+  const explicit = pickBoolean(record, ["valid", "isValid", "is_valid", "canTransact", "allowed"])
+  const blocked =
+    pickBoolean(record, ["blocked", "isBlocked", "is_blocked", "suspended", "isSuspended"]) ??
+    false
+  const status = typeof record.status === "string" ? record.status.toUpperCase() : undefined
+  const statusBlocked = status === "BLOCKED" || status === "SUSPENDED" || status === "BANNED"
+  const notFoundFlag = pickBoolean(record, ["notFound", "not_found"])
+  const userExists = pickBoolean(record, ["userExists", "user_exists", "exists"])
+  const notFound =
+    notFoundFlag === true ||
+    userExists === false ||
+    status === "NOT_FOUND" ||
+    (!userRecord && explicit !== true && !blocked && !statusBlocked)
+
+  const id = userRecord ? pickUserId(userRecord) : ""
+  const user =
+    userRecord && (id || pickString(userRecord, ["username"]))
+      ? {
+          id,
+          username: pickString(userRecord, ["username", "handle"]) ?? "",
+          fullName: pickString(userRecord, ["fullName", "full_name", "name"]),
+          avatarUrl: pickString(userRecord, ["avatarUrl", "avatar_url", "avatar"]) ?? null,
+          kycVerified: pickBoolean(userRecord, ["kycVerified", "isKycVerified", "verified"]),
+          trustScore: numberField(userRecord, ["trustScore", "trust_score"]),
+          completedOrders: numberField(userRecord, ["completedOrders", "totalOrdersCompleted"]),
+          rating: numberField(userRecord, ["rating", "avgRating"]),
+        }
+      : undefined
+
+  const reason = pickString(record, ["reason", "message", "detail"])
+
+  return {
+    valid: blocked || statusBlocked ? false : (explicit ?? (Boolean(user) && !notFound)),
+    user,
+    reason,
+    notFound: notFound || undefined,
+  }
+}
+
+function numberField(record: Record<string, unknown>, keys: readonly string[]): number | undefined {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === "number" && Number.isFinite(value)) return value
+    if (typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value)))
+      return Number(value)
+  }
+  return undefined
 }
 
 export type OrderSummary = Record<string, number> & { total?: number }
@@ -331,13 +440,11 @@ export function calculateFee(dto: CalculateFeeDto, signal?: AbortSignal) {
 }
 
 export function validateCounterpart(dto: ValidateCounterpartDto) {
-  return http.post<CounterpartValidation, ValidateCounterpartDto>(
-    "/v1/orders/validate-counterpart",
-    dto,
-    {
+  return http
+    .post<unknown, ValidateCounterpartDto>("/v1/orders/validate-counterpart", dto, {
       auth: "required",
-    },
-  )
+    })
+    .then(normalizeCounterpartValidation)
 }
 
 // ------------------------------------------------------------------
@@ -390,9 +497,34 @@ export function payOrderQris(orderId: string) {
 }
 
 export function getPaymentStatus(orderId: string) {
-  return http.get<PaymentStatus>(`/v1/orders/${seg(orderId)}/payment-status`, {
-    auth: "required",
-  })
+  return http
+    .get<unknown>(`/v1/orders/${seg(orderId)}/payment-status`, { auth: "required" })
+    .then(normalizePaymentStatus)
+}
+
+/**
+ * Normalizer `GET /v1/orders/{orderId}/payment-status`.
+ *
+ * `app/order/[id].tsx` mem-polling endpoint ini tiap 3 detik dan berhenti hanya
+ * bila `status` ∈ {PAID, EXPIRED, FAILED, CANCELLED}. Bila backend menaruh
+ * statusnya di `paymentStatus`/`payment.status`, versi lama membaca `undefined`
+ * — polling tidak pernah berhenti dan layar tidak pernah tahu pembayaran sudah
+ * masuk. Alias di bawah menutup itu.
+ */
+export function normalizePaymentStatus(raw: unknown): PaymentStatus {
+  const record = asRecord(raw) ?? {}
+  const nested =
+    asRecord(record.payment) ?? asRecord(record.data) ?? asRecord(record.result) ?? record
+  const rawStatus =
+    pickString(record, ["status", "paymentStatus", "payment_status"]) ??
+    pickString(nested, ["status", "paymentStatus", "payment_status"])
+  return {
+    ...nested,
+    status: (rawStatus ?? "PENDING").toUpperCase() as PaymentStatus["status"],
+    paidAt:
+      pickString(record, ["paidAt", "paid_at"]) ?? pickString(nested, ["paidAt", "paid_at"]) ?? null,
+    method: pickString(record, ["method", "paymentMethod"]) ?? pickString(nested, ["method"]) ?? null,
+  }
 }
 
 /** Penjual mulai mengerjakan/menyiapkan pesanan. */
