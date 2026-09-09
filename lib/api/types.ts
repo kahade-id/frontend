@@ -4,7 +4,7 @@
  *
  * JANGAN EDIT MANUAL. Ubah spec → `npm run gen:api`.
  *
- * Spec: Kahade API v1.0 · 89 DTO dipakai
+ * Spec: Kahade API v1.0 · 90 DTO dipakai
  * (28 schema admin-only dilewati).
  */
 
@@ -65,6 +65,11 @@ export type RequestOtpDto = {
   phoneNumber: string
   /** OTP delivery method */
   method: "SMS" | "WHATSAPP"
+  /**
+   * Stable device identifier that requested the OTP
+   * maxLength 255
+   */
+  deviceId: string
 }
 
 export type VerifyPhoneOtpDto = {
@@ -133,10 +138,27 @@ export type PhoneRegisterDto = {
    */
   referralCode?: string
   /**
-   * Device identifier for session tracking
+   * Device identifier bound to the phone-verification token
    * maxLength 255
    */
-  deviceId?: string
+  deviceId: string
+}
+
+export type RequestPhoneChangeDto = {
+  /** maxLength 20 */
+  newPhoneNumber: string
+  method: "SMS" | "WHATSAPP"
+  /** minLength 1 · maxLength 256 */
+  currentPassword: string
+  /** maxLength 16 */
+  mfaCode?: string
+}
+
+export type ConfirmPhoneChangeDto = {
+  /** maxLength 20 */
+  newPhoneNumber: string
+  /** pattern ^\d{6}$ */
+  code: string
 }
 
 export type SetUsernameDto = {
@@ -179,6 +201,11 @@ export type CorrectEmailDto = {
    * maxLength 72
    */
   password: string
+  /**
+   * Authenticator or backup code when 2FA is enabled
+   * maxLength 16
+   */
+  mfaCode?: string
 }
 
 export type LoginDto = {
@@ -297,6 +324,11 @@ export type ChangePasswordDto = {
    * minLength 12 · maxLength 72
    */
   confirmPassword: string
+  /**
+   * Authenticator or backup code when 2FA is enabled
+   * maxLength 16
+   */
+  mfaCode?: string
 }
 
 export type Setup2faDto = {
@@ -322,8 +354,8 @@ export type Disable2faDto = {
    */
   password: string
   /**
-   * Six-digit authenticator TOTP code
-   * minLength 6 · maxLength 6
+   * Six-digit authenticator TOTP code or a 10–16 character backup code
+   * minLength 6 · maxLength 16
    */
   code: string
   /**
@@ -331,6 +363,19 @@ export type Disable2faDto = {
    * minLength 6 · maxLength 6
    */
   emailOtpCode: string
+}
+
+export type RegenerateBackupCodesDto = {
+  /**
+   * Current account password
+   * maxLength 72
+   */
+  password: string
+  /**
+   * Six-digit authenticator TOTP code
+   * minLength 6 · maxLength 6
+   */
+  code: string
 }
 
 export type UpdateProfileDto = {
@@ -424,16 +469,14 @@ export type RequestAccountDeletionDto = {
    * maxLength 1000
    */
   reason?: string
-  /** TOTP code for users with 2FA enabled */
+  /**
+   * Authenticator or backup code for users with 2FA enabled
+   * maxLength 16
+   */
   mfaCode?: string
 }
 
-export type TrustDeviceDto = {
-  /** minLength 1 · maxLength 128 */
-  password: string
-  /** maxLength 16 · pattern ^\d{6}$ */
-  mfaCode?: string
-}
+export type TrustDeviceDto = Record<string, never>
 
 export type CreateShowcaseDto = {
   title: string
@@ -842,10 +885,7 @@ export type SubmitDeliveryProofDto = {
 }
 
 export type ConfirmDeliveryDto = {
-  /**
-   * Specific submitted delivery proof to review
-   * pattern ^c[a-z0-9]{24}$
-   */
+  /** Specific submitted delivery proof to review */
   proofId?: string
 }
 
@@ -855,10 +895,7 @@ export type RejectDeliveryDto = {
    * minLength 10 · maxLength 1000
    */
   note: string
-  /**
-   * Specific submitted delivery proof to reject
-   * pattern ^c[a-z0-9]{24}$
-   */
+  /** Specific submitted delivery proof to reject */
   proofId?: string
 }
 
@@ -903,48 +940,6 @@ export type CallActionDto = Record<string, never>
 export type MutualResolutionProposeDto = Record<string, never>
 
 export type MutualResolutionRespondDto = Record<string, never>
-
-export type ChatAttachmentDto = {
-  /**
-   * File name
-   * maxLength 255
-   */
-  fileName: string
-  /**
-   * File URL (must be HTTPS; trusted storage domain enforced at service layer)
-   * maxLength 512
-   */
-  fileUrl: string
-  /** MIME type */
-  mimeType: string
-  /**
-   * Thumbnail URL (must be HTTPS; trusted storage domain enforced at service layer)
-   * maxLength 512
-   */
-  thumbnailUrl?: string
-  /**
-   * File size in bytes
-   * min 1 · max 10485760
-   */
-  fileSize: number
-}
-
-export type SendMessageDto = {
-  /**
-   * Message type (TEXT, IMAGE, or FILE). SYSTEM is reserved for internal use.
-   * default "TEXT"
-   */
-  messageType?: "TEXT" | "IMAGE" | "FILE"
-  /**
-   * Message content
-   * maxLength 2000
-   */
-  content?: string
-  /** Message attachments */
-  attachments?: Array<ChatAttachmentDto>
-  /** ID of the message being replied to */
-  replyToId?: string
-}
 
 export type BatchNotificationIdsDto = {
   /** Array of notification IDs to operate on (max 50 per request) */
@@ -1003,6 +998,48 @@ export type RegisterDeviceDto = {
   deviceId?: string
 }
 
+export type ChatAttachmentDto = {
+  /**
+   * File name
+   * maxLength 255
+   */
+  fileName: string
+  /**
+   * File URL (must be HTTPS; trusted storage domain enforced at service layer)
+   * maxLength 512
+   */
+  fileUrl: string
+  /** MIME type */
+  mimeType: string
+  /**
+   * Thumbnail URL (must be HTTPS; trusted storage domain enforced at service layer)
+   * maxLength 512
+   */
+  thumbnailUrl?: string
+  /**
+   * File size in bytes
+   * min 1 · max 10485760
+   */
+  fileSize: number
+}
+
+export type SendMessageDto = {
+  /**
+   * Message type (TEXT, IMAGE, or FILE). SYSTEM is reserved for internal use.
+   * default "TEXT"
+   */
+  messageType?: "TEXT" | "IMAGE" | "FILE"
+  /**
+   * Message content
+   * maxLength 2000
+   */
+  content?: string
+  /** Message attachments */
+  attachments?: Array<ChatAttachmentDto>
+  /** ID of the message being replied to */
+  replyToId?: string
+}
+
 export type CreateRatingDto = {
   /** Order ID to rate */
   orderId: string
@@ -1041,8 +1078,8 @@ export type RatingReplyDto = {
 
 export type ValidateVoucherDto = {
   /**
-   * Voucher code
-   * maxLength 50
+   * Voucher code (A-Z, 0-9, underscore, or hyphen)
+   * maxLength 30
    */
   code: string
   /**
@@ -1146,36 +1183,3 @@ export type CreateTicketDto = {
 }
 
 export type ReplyTicketDto = Record<string, never>
-
-export type RequestPhoneChangeDto = {
-  /**
-   * New Indonesian phone number
-   * maxLength 20
-   */
-  newPhoneNumber: string
-  /** OTP delivery method */
-  method: "SMS" | "WHATSAPP"
-  /**
-   * Current account password
-   * minLength 1 · maxLength 256
-   */
-  currentPassword: string
-  /**
-   * Optional 6-digit authenticator or 10-16 character backup code
-   * maxLength 16 · pattern ^(?:\d{6}|[A-Za-z0-9]{10,16})$
-   */
-  mfaCode?: string
-}
-
-export type ConfirmPhoneChangeDto = {
-  /**
-   * New Indonesian phone number
-   * maxLength 20
-   */
-  newPhoneNumber: string
-  /**
-   * 6-digit OTP code
-   * pattern ^\d{6}$
-   */
-  code: string
-}

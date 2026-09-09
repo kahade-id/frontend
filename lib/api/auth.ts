@@ -235,7 +235,7 @@ export async function getOtpMethods(signal?: AbortSignal): Promise<OtpMethodsRes
   return { methods: normalizeOtpMethods(raw) }
 }
 
-export async function requestOtp(dto: RequestOtpDto) {
+export async function requestOtp(dto: Omit<RequestOtpDto, "deviceId">) {
   const body = await withDevice<RequestOtpDto & { deviceId?: string; deviceInfo?: string }>(dto)
   const result = await http.post<MessageResult & { expiresIn?: number; cooldownSeconds?: number }, any>(
     "/v1/auth/request-otp",
