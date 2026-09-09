@@ -25,7 +25,10 @@
  *   - Tinggi bar 56px (h-14) + paddingBottom safe-area (home indicator) via
  *     style runtime. `border-t border-border` sebagai pemisah (§6).
  *   - Tanpa scale press: item bersentuhan dan menempel tepi layar; §8 hanya
- *     menyebut scale untuk Button.
+ *     menyebut scale untuk Button. Sebagai gantinya ikon AKTIF membesar
+ *     halus 1.15x via spring playful (v2) — penanda tab aktif yang terasa
+ *     hidup tanpa menggeser layout (transform tidak reflow). Statis 1x
+ *     saat reduced motion.
  *   - Label selalu tampil (bukan icon-only): 4–5 tab dengan label 12px muat
  *     di 360px, dan label menghilangkan tebak-tebakan ikon (§1 presisi).
  *   - Focus ring web wajib ada pada ELEMEN FOKUS (container Pressable),
@@ -35,8 +38,8 @@
  *     tetapi ikon tetap diberi `hitSlop` agar label/ikon kecil tetap nyaman
  *     disentuh di web/mobile pada area tengah tab.
  */
-import type { ReactNode } from "react"
-import { View, type ViewProps } from "react-native"
+import { useEffect, useRef, type ReactNode } from "react"
+import { Animated, Easing, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { NotificationDot } from "@/components/ui/badge"
@@ -48,6 +51,8 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
+import { tokens } from "@/lib/tokens"
+import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type BottomTabItem<K extends string = string> = {
   key: K
@@ -81,6 +86,46 @@ export const TAB_BAR_HEIGHT = 60
  * Hitung eksplisit per sumbu, bukan asumsi tinggi saja.
  */
 const TAB_ITEM_HIT_SLOP = hitSlopToReach(72, TAB_BAR_HEIGHT, 80)
+
+/**
+ * Scale ikon tab aktif (v2): 24px → 27.6px — cukup terlihat sebagai penanda,
+ * tidak cukup besar untuk bertabrakan dengan label di bawahnya. Transform
+ * tidak memicu reflow sehingga bar tidak bergeser antar tab.
+ */
+const ACTIVE_ICON_SCALE = 1.15
+
+function TabIcon({ icon, active }: { icon: IconComponent; active: boolean }) {
+  const scale = useRef(new Animated.Value(active ? ACTIVE_ICON_SCALE : 1)).current
+  const reducedMotion = useReducedMotion()
+
+  useEffect(() => {
+    if (reducedMotion) {
+      scale.setValue(1)
+      return
+    }
+    const exit = tokens.motion.easing.exit
+    const anim = active
+      ? Animated.spring(scale, {
+          toValue: ACTIVE_ICON_SCALE,
+          ...tokens.motion.springPlayful,
+          useNativeDriver: true,
+        })
+      : Animated.timing(scale, {
+          toValue: 1,
+          duration: motionDuration(reducedMotion, tokens.motion.duration.fast),
+          easing: Easing.bezier(exit[0], exit[1], exit[2], exit[3]),
+          useNativeDriver: true,
+        })
+    anim.start()
+    return () => anim.stop()
+  }, [active, scale, reducedMotion])
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <Icon icon={icon} size="md" active={active} />
+    </Animated.View>
+  )
+}
 
 export function BottomTabBar<K extends string = string>({
   items,
@@ -116,7 +161,7 @@ export function BottomTabBar<K extends string = string>({
               className="h-full items-center justify-center pt-2 pb-1 gap-1"
             >
               <View className="relative items-center justify-center">
-                <Icon icon={item.icon} size="md" active={active} />
+                <TabIcon icon={item.icon} active={active} />
                 <NotificationDot visible={!!item.badge} />
               </View>
               <Text ellipsizeMode="tail"

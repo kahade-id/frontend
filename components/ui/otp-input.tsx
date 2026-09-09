@@ -17,9 +17,12 @@
  *   - `secure` menampilkan dot (●) untuk PIN; nilai asli tetap di state.
  *   - Kotak 48x56 (w-12 h-14): lebar cukup untuk satu glyph mono 24px,
  *     tinggi menyamai Input berlabel agar sejajar dalam satu form.
+ *   - `success` (v2 signature moment): semua kotak beralih ke border accent +
+ *     digit tone accent, tiap kotak "pop" spring playful ber-stagger 30ms.
+ *     Reduced motion → hanya warna, tanpa pop. Error tetap prioritas.
  */
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react"
-import { Pressable, TextInput, View, type ViewProps } from "react-native"
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
+import { Animated, Pressable, TextInput, View, type ViewProps } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
 import { FieldHelper } from "@/components/ui/field"
@@ -27,6 +30,12 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
+
+/** Selisih pop antar kotak sukses (ms) — total ~180ms untuk 6 digit. */
+const SUCCESS_STAGGER_MS = 30
+/** Scale awal pop sukses — kembali ke 1 via spring playful. */
+const SUCCESS_POP_FROM = 0.92
 
 export type OtpInputHandle = { focus: () => void; blur: () => void; clear: () => void }
 
@@ -39,11 +48,75 @@ export type OtpInputProps = Omit<ViewProps, "children"> & {
   onComplete?: (code: string) => void
   /** Tampilkan dot alih-alih digit (PIN) */
   secure?: boolean
+  /** State berhasil: border+digit accent + pop stagger (v2) */
+  success?: boolean
   errorText?: string
   helperText?: string
   disabled?: boolean
   autoFocus?: boolean
   className?: string
+}
+
+/** Satu kotak digit — pop spring sekali saat `success` berubah false→true. */
+function DigitBox({
+  index,
+  char,
+  secure,
+  isActive,
+  hasError,
+  success,
+}: {
+  index: number
+  char?: string
+  secure: boolean
+  isActive: boolean
+  hasError: boolean
+  success: boolean
+}) {
+  const scale = useRef(new Animated.Value(1)).current
+  const reducedMotion = useReducedMotion()
+  const prevSuccess = useRef(success)
+
+  useEffect(() => {
+    const justSucceeded = success && !prevSuccess.current
+    prevSuccess.current = success
+    if (!justSucceeded || reducedMotion) return
+    scale.setValue(SUCCESS_POP_FROM)
+    const anim = Animated.spring(scale, {
+      toValue: 1,
+      ...tokens.motion.springPlayful,
+      delay: index * SUCCESS_STAGGER_MS,
+      useNativeDriver: true,
+    })
+    anim.start()
+    return () => anim.stop()
+  }, [success, index, scale, reducedMotion])
+
+  return (
+    <Animated.View style={{ transform: [{ scale }] }}>
+      <View
+        className={cn(
+          "h-14 w-12 items-center justify-center rounded-sm bg-background",
+          hasError
+            ? "border-error border-border-error"
+            : success
+              ? "border border-accent"
+              : isActive
+                ? "border-focus border-border-focus"
+                : "border border-border-control",
+        )}
+      >
+        {char ? (
+          <Text variant="monoLarge" tone={success && !hasError ? "accent" : "primary"}>
+            {secure ? "\u25CF" : char}
+          </Text>
+        ) : isActive ? (
+          // Caret sederhana: garis 1.5px setinggi digit, warna border-focus
+          <View className="h-6 w-[1.5px] bg-border-focus" />
+        ) : null}
+      </View>
+    </Animated.View>
+  )
 }
 
 export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpInput(
@@ -54,6 +127,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
     onChange,
     onComplete,
     secure = false,
+    success = false,
     errorText,
     helperText,
     disabled = false,
@@ -104,32 +178,17 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         className={cn("flex-row justify-between gap-2 rounded-sm", disabled && "opacity-disabled", focusRing)}
 
       >
-        {Array.from({ length }, (_, i) => {
-          const char = code[i]
-          const isActive = focused && i === activeIndex && !disabled
-          return (
-            <View
-              key={i}
-              className={cn(
-                "h-14 w-12 items-center justify-center rounded-sm bg-background",
-                hasError
-                  ? "border-error border-border-error"
-                  : isActive
-                    ? "border-focus border-border-focus"
-                    : "border border-border-control",
-              )}
-            >
-              {char ? (
-                <Text variant="monoLarge" tone="primary">
-                  {secure ? "\u25CF" : char}
-                </Text>
-              ) : isActive ? (
-                // Caret sederhana: garis 1.5px setinggi digit, warna border-focus
-                <View className="h-6 w-[1.5px] bg-border-focus" />
-              ) : null}
-            </View>
-          )
-        })}
+        {Array.from({ length }, (_, i) => (
+          <DigitBox
+            key={i}
+            index={i}
+            char={code[i]}
+            secure={secure}
+            isActive={focused && i === activeIndex && !disabled}
+            hasError={hasError}
+            success={success && !hasError}
+          />
+        ))}
       </Pressable>
 
       {/* Input nyata — tersembunyi tapi tetap fokusable */}

@@ -67,10 +67,12 @@ export function useOverlayPresence(
   useEffect(() => {
     if (visible) {
       setMounted(true)
+      // v2: masuk dengan kurva enter (soft-decelerate), bukan standard.
+      const enter = tokens.motion.easing.enter
       const anim = Animated.timing(progress, {
         toValue: 1,
         duration: motionDuration(reducedMotion, durationIn ?? tokens.motion.overlay.enterDuration),
-        easing: Easing.bezier(...tokens.motion.easing.standard),
+        easing: Easing.bezier(enter[0], enter[1], enter[2], enter[3]),
         useNativeDriver: true,
       })
       anim.start()
@@ -83,10 +85,12 @@ export function useOverlayPresence(
     // onHidden akan salah bertindak.
     if (!mounted) return
 
+    // v2: keluar dengan kurva exit (cepat) — dismiss harus terasa segera.
+    const exit = tokens.motion.easing.exit
     const anim = Animated.timing(progress, {
       toValue: 0,
       duration: motionDuration(reducedMotion, durationOut ?? tokens.motion.overlay.exitDuration),
-      easing: Easing.bezier(...tokens.motion.easing.standard),
+      easing: Easing.bezier(exit[0], exit[1], exit[2], exit[3]),
       useNativeDriver: true,
     })
     anim.start(({ finished }) => {

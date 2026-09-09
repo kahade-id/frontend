@@ -18,6 +18,9 @@
  *     badge di ruang sempit (mis. header list) tanpa fill lebar.
  *   - Semantic color eksklusif untuk STATUS transaksi (§2.3). Jangan pakai
  *     tone success/danger untuk kategori non-status — pakai "neutral"/outline.
+ *   - Tone "accent" (v2 §2.3b) eksklusif untuk momen TRUST & ESCROW (dana
+ *     tertahan, escrow selesai, skor trust) — bukan status transaksi umum
+ *     dan bukan kategori.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -26,7 +29,7 @@ import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 
-export type BadgeTone = "neutral" | "success" | "danger" | "warning" | "info"
+export type BadgeTone = "neutral" | "success" | "danger" | "warning" | "info" | "accent"
 export type BadgeVariant = "soft" | "outline"
 
 export type BadgeProps = Omit<ViewProps, "children"> & {
@@ -45,6 +48,7 @@ const softBox: Record<BadgeTone, string> = {
   danger: "bg-danger-soft",
   warning: "bg-warning-soft",
   info: "bg-info-soft",
+  accent: "bg-accent-soft",
 }
 
 const textTone: Record<BadgeTone, TextTone> = {
@@ -53,6 +57,7 @@ const textTone: Record<BadgeTone, TextTone> = {
   danger: "danger",
   warning: "warning",
   info: "info",
+  accent: "accent",
 }
 
 const dotClass: Record<BadgeTone, string> = {
@@ -61,6 +66,7 @@ const dotClass: Record<BadgeTone, string> = {
   danger: "bg-danger",
   warning: "bg-warning",
   info: "bg-info",
+  accent: "bg-accent",
 }
 
 const iconTone: Record<BadgeTone, IconTone> = {
@@ -69,6 +75,7 @@ const iconTone: Record<BadgeTone, IconTone> = {
   danger: "danger",
   warning: "warning",
   info: "info",
+  accent: "accent",
 }
 
 export function Badge({

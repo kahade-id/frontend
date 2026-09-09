@@ -17,7 +17,7 @@
  *   - Lebar: `w-full` di dalam padding layar px-6, di-cap `md:max-w-content`
  *     dikurangi padding lewat wrapper (§11) — dialog di web lebar tetap
  *     terasa mobile, bukan dialog desktop 600px.
- *   - Radius `rounded-md` (8px) — §5: modal = md, maksimum non-pill.
+ *   - Radius `rounded-md` (8px) + elevasi high (v2 §5.2) — §5: modal = md.
  *   - Tombol Dialog di-stack vertikal (konfirmasi di atas, batal ghost di
  *     bawah): di lebar mobile dua tombol sejajar sering membuat label
  *     terpotong; stack juga menegaskan hierarki primary > ghost.
@@ -46,7 +46,9 @@ import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/component
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
+import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
+import { elevationStyle } from "@/lib/elevation"
 import { tokens } from "@/lib/tokens"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
 
@@ -90,6 +92,7 @@ export function Modal({
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
   const dismiss = dismissOnBackdrop ? onRequestClose : undefined
   const contentRef = useRef<View>(null)
+  const { mode } = useTheme()
 
   useOverlayDismissKeys(visible, dismiss)
   useBlockingOverlay(visible)
@@ -129,6 +132,7 @@ export function Modal({
                   "w-full rounded-md border border-border bg-surface-elevated p-5",
                   className,
                 )}
+                style={elevationStyle("high", mode)}
               >
                 {children}
               </View>

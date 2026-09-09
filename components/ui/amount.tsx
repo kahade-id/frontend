@@ -20,19 +20,26 @@
  *     penting daripada ornamen tipografi (§1 "Presisi").
  *   - <MonoText> = alias Text mono untuk ID transaksi / kode ref / rekening
  *     supaya pemanggil tidak menghafal variant "monoBody".
+ *   - `animated` (default true, v2 signature moment): tiap `value` berubah,
+ *     digit count-up 800ms kurva enter (via useCountUp) — bukan melompat.
+ *     Mount pertama tidak animasi; instan saat reduced motion. Matikan untuk
+ *     angka yang berubah tiap detik (timer) agar tidak animasi konstan.
  */
 import type { TextProps as RNTextProps } from "react-native"
 
 import { Text, type TextProps, type TextTone } from "@/components/ui/text"
 import { formatRupiah } from "@/lib/format"
+import { useCountUp } from "@/lib/use-count-up"
 
 export type AmountProps = Omit<RNTextProps, "children"> & {
   value: number
   size?: "large" | "body"
   tone?: Extract<
     TextTone,
-    "primary" | "secondary" | "inverse" | "success" | "danger" | "warning" | "inherit"
+    "primary" | "secondary" | "inverse" | "success" | "danger" | "warning" | "accent" | "inherit"
   >
+  /** Count-up saat value berubah (default true) — instan saat reduced motion */
+  animated?: boolean
   /** "auto": hanya minus; "always": +/-; "never": tanpa tanda */
   sign?: "auto" | "always" | "never"
   /** Sembunyikan nominal (••••••••) */
@@ -49,13 +56,15 @@ export function Amount({
   value,
   size = "body",
   tone = "primary",
+  animated = true,
   sign = "auto",
   hidden = false,
   compact = false,
   className,
   ...rest
 }: AmountProps) {
-  const text = hidden ? HIDDEN : formatRupiah(value, { sign, compact })
+  const display = useCountUp(value, animated && !hidden)
+  const text = hidden ? HIDDEN : formatRupiah(display, { sign, compact })
   return (
     <Text ellipsizeMode="tail"
       variant={size === "large" ? "monoLarge" : "monoBody"}

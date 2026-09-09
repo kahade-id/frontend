@@ -1,5 +1,5 @@
 /**
- * Kahade — <FloatingActionButton> (§9.1 Button primary, §6 no-shadow,
+ * Kahade — <FloatingActionButton> (§9.1 Button primary, §6 elevasi medium,
  * §6.2 z-index sticky, §8 motion).
  *
  * Aksi utama satu layar yang harus selalu terjangkau di atas konten scroll:
@@ -7,12 +7,11 @@
  * pojok kanan bawah, di atas safe-area + Bottom Tab Bar.
  *
  * Keputusan non-obvious:
- *   - Tanpa shadow (§6). FAB Material bergantung pada elevation untuk
- *     "mengangkat" tombol dari konten; di sistem flat pemisahnya adalah
- *     KONTRAS fill `bg-primary` (hitam di light / putih di dark) — selalu
- *     berlawanan dengan background, sehingga sudah cukup terpisah tanpa
- *     border tambahan. Border `border-primary` 1px ditambahkan hanya agar
- *     tepi tetap tegas di atas gambar/foto (sama seperti Card inverted).
+ *   - Elevasi medium (v2 §5.2): FAB secara fungsi mengambang di atas konten,
+ *     jadi mendapat shadow lembut + kontras fill `bg-primary` (hitam di light
+ *     / putih di dark) yang selalu berlawanan dengan background. Border
+ *     `border-primary` 1px menjaga tepi tetap tegas di atas gambar/foto
+ *     (sama seperti Card inverted).
  *   - Bentuk `rounded-full` 56px (pill khusus, §5) — bukan md 8px: FAB
  *     adalah pengecualian pill yang disebut §5 ("pill khusus"), dan kotak
  *     56px radius 8 terlihat seperti Card kecil yang tersesat, bukan tombol.
@@ -52,7 +51,9 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
+import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
+import { elevationStyle } from "@/lib/elevation"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
@@ -110,9 +111,12 @@ export function FloatingActionButton({
   ...rest
 }: FloatingActionButtonProps) {
   const insets = useSafeAreaInsets()
+  const { mode } = useTheme()
   const isDisabled = disabled || loading
   const bottomInset = safeArea ? insets.bottom : 0
   const hiddenOffset = SIZE + bottomOffset + bottomInset
+  // Statis per mode (bukan animated): digabung ke style Reanimated di bawah.
+  const elevStyle = elevationStyle("medium", mode)
 
   const translateY = useSharedValue(visible ? 0 : hiddenOffset)
   const opacity = useSharedValue(visible ? 1 : 0)
@@ -163,14 +167,19 @@ export function FloatingActionButton({
     </PressableScale>
   )
 
-  if (inline) return button
+  if (inline)
+    return (
+      <View style={elevStyle} className="self-end rounded-full">
+        {button}
+      </View>
+    )
 
   return (
     <View
       className="absolute z-sticky"
       style={[{ pointerEvents: "box-none" }, { right: rightOffset, bottom: bottomInset + bottomOffset }]}
     >
-      <Animated.View style={[{ pointerEvents: visible ? "auto" : "none" }, animatedStyle]}>
+      <Animated.View style={[{ pointerEvents: visible ? "auto" : "none" }, elevStyle, animatedStyle]}>
         {button}
       </Animated.View>
     </View>

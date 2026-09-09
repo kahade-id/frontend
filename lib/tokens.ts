@@ -554,6 +554,11 @@ export const motion = {
     fast: 250,
     base: 300, // Page transition push
     slow: 350,
+    /**
+     * moment 800 (v2 BARU) — signature moments yang memang harus DITONTON:
+     * ring mengisi, angka count-up. Bukan untuk transisi rutin (terlalu lama).
+     */
+    moment: 800,
   },
   /**
    * Tiga kurva sesuai tujuan (v2): masuk soft-decelerate, keluar cepat,
@@ -790,6 +795,7 @@ export function toTailwindTheme() {
       fast: `${motion.duration.fast}ms`,
       DEFAULT: `${motion.duration.base}ms`,
       slow: `${motion.duration.slow}ms`,
+      moment: `${motion.duration.moment}ms`,
     },
     transitionTimingFunction: {
       DEFAULT: motion.easing.standardCss,

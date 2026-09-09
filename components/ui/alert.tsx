@@ -13,17 +13,20 @@
  *      TopBar; default punya rounded-md dan bisa diletakkan di antara konten.
  *   4. Dismiss memakai IconButton ghost sm agar hit area tetap 44px meski
  *      ikon 16px (§10 aksesibilitas).
+ *   5. `tone="accent"` (v2 §2.3b) untuk pesan TRUST & ESCROW (dana tertahan,
+ *      perlindungan aktif) — ikon ShieldCheck. Bukan untuk info umum (info)
+ *      atau status transaksi (success/danger/warning).
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
-import { CheckCircle, Info, Warning, WarningCircle, X } from "phosphor-react-native"
+import { CheckCircle, Info, ShieldCheck, Warning, WarningCircle, X } from "phosphor-react-native"
 
 import { cn } from "@/lib/cn"
 import { Icon, type IconComponent, type IconTone } from "./icon"
 import { IconButton } from "./icon-button"
 import { Text, type TextTone } from "./text"
 
-export type AlertTone = "neutral" | "success" | "danger" | "warning" | "info"
+export type AlertTone = "neutral" | "success" | "danger" | "warning" | "info" | "accent"
 export type AlertVariant = "soft" | "outline"
 
 export type AlertProps = Omit<ViewProps, "children"> & {
@@ -49,6 +52,7 @@ const defaultIcon: Record<AlertTone, IconComponent> = {
   danger: WarningCircle,
   warning: Warning,
   info: Info,
+  accent: ShieldCheck,
 }
 
 const softBox: Record<AlertTone, string> = {
@@ -57,6 +61,7 @@ const softBox: Record<AlertTone, string> = {
   danger: "bg-danger-soft",
   warning: "bg-warning-soft",
   info: "bg-info-soft",
+  accent: "bg-accent-soft",
 }
 
 const iconTone: Record<AlertTone, IconTone> = {
@@ -65,6 +70,7 @@ const iconTone: Record<AlertTone, IconTone> = {
   danger: "danger",
   warning: "warning",
   info: "info",
+  accent: "accent",
 }
 
 const titleTone: Record<AlertTone, TextTone> = {
@@ -73,6 +79,7 @@ const titleTone: Record<AlertTone, TextTone> = {
   danger: "danger",
   warning: "warning",
   info: "info",
+  accent: "accent",
 }
 
 export function Alert({

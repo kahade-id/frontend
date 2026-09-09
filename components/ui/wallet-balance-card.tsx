@@ -165,7 +165,10 @@ export function WalletBalanceCard({
           {loading ? (
             <Skeleton height={tokens.typography.caption.lineHeight} className="w-20" />
           ) : (
-            <Amount value={held ?? Number.NaN} size="body" tone={valueTone} hidden={hidden} />
+            // Dana tertahan = momen escrow → accent (v2 §2.3b). Di varian
+            // inverted tetap inverse: accent-text gelap tidak terbaca di
+            // atas fill hitam pada light mode.
+            <Amount value={held ?? Number.NaN} size="body" tone={inverted ? "inverse" : "accent"} hidden={hidden} />
           )}
         </View>
       </View>

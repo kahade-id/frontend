@@ -5,6 +5,7 @@
  *   1. Track `bg-surface border border-border`, fill `bg-primary` (monokrom).
  *      Tone semantik hanya untuk konteks yang benar-benar berarti status
  *      (mis. dana escrow "danger" saat sengketa) — default tetap primary.
+ *      Tone "accent" (v2) untuk progres trust (skor trust, kelengkapan KYC).
  *   2. Tinggi: `sm` 4px (inline di list), `md` 8px (default). Radius pill
  *      (rounded-full) — track tipis adalah pengecualian pill yang diizinkan §5.
  *   3. Determinate dianimasikan lewat Animated width persen (native driver
@@ -23,7 +24,7 @@ import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 import { Text } from "./text"
 
-export type ProgressTone = "primary" | "success" | "danger" | "warning" | "info"
+export type ProgressTone = "primary" | "success" | "danger" | "warning" | "info" | "accent"
 export type ProgressSize = "sm" | "md"
 
 export type ProgressBarProps = Omit<ViewProps, "children"> & {
@@ -43,6 +44,7 @@ const fillClass: Record<ProgressTone, string> = {
   danger: "bg-danger",
   warning: "bg-warning",
   info: "bg-info",
+  accent: "bg-accent",
 }
 
 const trackHeight: Record<ProgressSize, string> = {

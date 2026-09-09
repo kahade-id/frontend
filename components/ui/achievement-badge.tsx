@@ -22,9 +22,15 @@
  *     bukan komponen UI). `FALLBACK_ICON` Medal untuk nama tak dikenal.
  *   - Grid 2 kolom di mobile via <Grid>/<GridItem span=6>; gap 12px = gap
  *     antar kartu (§4).
+ *   - `celebrate` (v2 signature moment): ikon "unlock" spring playful sekali
+ *     (0.6 → 1 + overshoot) saat lencana BARU diraih. Kirim true hanya dari
+ *     momen unlock (mis. setelah klaim), bukan untuk semua lencana earned di
+ *     grid — kalau semua memantul, tidak ada yang istimewa. Statis saat
+ *     reduced motion.
  */
+import { useEffect, useRef } from "react"
 import { Lock, Medal } from "phosphor-react-native"
-import { View, type ViewProps } from "react-native"
+import { Animated, View, type ViewProps } from "react-native"
 
 import { Card, type CardProps } from "@/components/ui/card"
 import { Grid, GridItem } from "@/components/ui/grid"
@@ -35,6 +41,11 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
+
+/** Scale awal unlock — kembali ke 1 via spring playful + overshoot. */
+const UNLOCK_FROM = 0.6
 
 export const FALLBACK_BADGE_ICON: IconComponent = Medal
 
@@ -63,6 +74,8 @@ const DEFAULT_LABELS: AchievementBadgeLabels = {
 export type AchievementBadgeProps = Omit<CardProps, "children" | "variant" | "padded"> &
   Omit<AchievementBadgeItem, "id"> & {
     labels?: Partial<AchievementBadgeLabels>
+    /** Animasi unlock sekali (v2) — hanya dari momen unlock, lihat docblock */
+    celebrate?: boolean
   }
 
 export function AchievementBadge({
@@ -73,6 +86,7 @@ export function AchievementBadge({
   earnedAt,
   progress,
   labels,
+  celebrate = false,
   onPress,
   accessibilityLabel,
   className,
@@ -80,6 +94,20 @@ export function AchievementBadge({
 }: AchievementBadgeProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
   const showProgress = earned === false && progress != null
+  const reducedMotion = useReducedMotion()
+  const unlock = useRef(new Animated.Value(1)).current
+  const celebrated = useRef(false)
+
+  // Unlock sekali per mount — bukan tiap render; tidak mengulang bila parent
+  // re-render (mis. setelah klaim + refresh grid).
+  useEffect(() => {
+    if (!celebrate || celebrated.current || reducedMotion) return
+    celebrated.current = true
+    unlock.setValue(UNLOCK_FROM)
+    const anim = Animated.spring(unlock, { toValue: 1, ...tokens.motion.springPlayful, useNativeDriver: true })
+    anim.start()
+    return () => anim.stop()
+  }, [celebrate, unlock, reducedMotion])
 
   const a11y =
     accessibilityLabel ??
@@ -102,13 +130,15 @@ export function AchievementBadge({
       {...rest}
     >
       <View className="relative">
-        <IconBox
-          icon={icon ?? FALLBACK_BADGE_ICON}
-          size="xl"
-          variant={earned ? "inverted" : "surface"}
-          shape="circle"
-          weight={earned ? "fill" : "regular"}
-        />
+        <Animated.View style={{ transform: [{ scale: unlock }] }}>
+          <IconBox
+            icon={icon ?? FALLBACK_BADGE_ICON}
+            size="xl"
+            variant={earned ? "inverted" : "surface"}
+            shape="circle"
+            weight={earned ? "fill" : "regular"}
+          />
+        </Animated.View>
         {earned === false ? (
           <View className="absolute -bottom-0.5 -right-0.5 h-5 w-5 items-center justify-center rounded-full border border-border bg-surface-elevated">
             <Icon icon={Lock} size={12} tone="default" weight="bold" />
