@@ -370,7 +370,7 @@ menyebutkannya.
 
 ### API-12 · Tidak ada penanganan `Retry-After` untuk 429
 
-`lib/api/errors.ts:161` memetakan 429 → `RATE_LIMITED` dengan pesan tetap
+`lib/api/errors.ts:168` memetakan 429 → `RATE_LIMITED` dengan pesan tetap
 *"Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi."* Header `Retry-After` tidak pernah
 dibaca (0 kemunculan di seluruh `lib/`).
 
@@ -848,7 +848,7 @@ alasan:
 
 1. **Request tidak pernah mencapai backend.** `subscribe()` memanggil
    `assertDtoConstraints(dto, API_CONSTRAINTS.SubscribeDto)` sebagai baris
-   pertamanya (`lib/api/subscriptions.ts:88`), dan helper itu memang
+   pertamanya (`lib/api/subscriptions.ts:90`), dan helper itu memang
    memvalidasi enum (`lib/financial.ts:50`). Nilai di luar enum melempar
    `ApiError` **secara sinkron** — test memastikan `fetch` tidak terpanggil
    sama sekali.
