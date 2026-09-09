@@ -51,6 +51,7 @@ import { ToastProvider } from "@/components/ui/toast"
 import { api } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
+import { animationDurationForScreen, animationForScreen } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 import { refreshUnreadCount } from "@/lib/unread-count"
@@ -289,7 +290,15 @@ function AppShell() {
                 >
                   <Stack.Protected guard={Boolean(session.token)}>
                     {AUTHENTICATED_SCREENS.map((name) => (
-                      <Stack.Screen key={name} name={name} />
+                      <Stack.Screen
+                        key={name}
+                        name={name}
+                        options={{
+                          // v2: push vs modal-like vs list→detail (lib/screen-transitions).
+                          animation: animationForScreen(name, reducedMotion),
+                          animationDuration: animationDurationForScreen(),
+                        }}
+                      />
                     ))}
                   </Stack.Protected>
                 </Stack>
