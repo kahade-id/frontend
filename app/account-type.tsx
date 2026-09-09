@@ -5,9 +5,10 @@
  *   - Kegagalan GET /v1/users/me sebelumnya hanya toast, lalu layar merender
  *     "PERSONAL" seolah itu tipe akun yang tersimpan. Sekarang <ErrorState>
  *     + retry lewat <DataScreen>.
- *   - Nilai enum diambil dari `API_CONSTRAINTS.UpdateProfileDto.accountType`
- *     bila spec menyediakannya, sehingga penambahan tipe akun di backend
- *     tidak lolos diam-diam sebagai pilihan yang hilang di UI.
+ *   - Nilai enum diturunkan dari `UpdateProfileDto["accountType"]` (generated
+ *     dari spec), dan `OPTION_DETAILS` bertipe `Record<AccountType, …>` yang
+ *     exhaustive — sehingga penambahan tipe akun di backend membuat typecheck
+ *     gagal, bukan lolos diam-diam sebagai pilihan yang hilang di UI.
  *   - Tombol "Simpan" dinonaktifkan bila pilihan sama dengan nilai server —
  *     sebelumnya selalu aktif dan mengirim PUT tanpa perubahan.
  */
@@ -16,21 +17,41 @@ import { Briefcase, User } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import { userMessage } from "@/lib/api/errors"
+import type { UpdateProfileDto } from "@/lib/api/types"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import type { IconComponent } from "@/components/ui/icon"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { ToggleGroup } from "@/components/ui/toggle-group"
 import { useToast } from "@/components/ui/toast"
 
-type AccountType = "PERSONAL" | "BUSINESS"
+/**
+ * Diturunkan dari spec (`UpdateProfileDto.accountType` di `lib/api/types.ts`),
+ * bukan ditulis manual — jadi enum yang bertambah di backend ikut berubah di sini.
+ */
+type AccountType = NonNullable<UpdateProfileDto["accountType"]>
 
-const OPTIONS = [
-  { value: "PERSONAL", label: "Personal", hint: "Untuk transaksi pribadi", icon: User },
-  { value: "BUSINESS", label: "Bisnis", hint: "Untuk usaha & toko online", icon: Briefcase },
-] as const satisfies ReadonlyArray<{ value: AccountType; label: string; hint: string; icon: unknown }>
+/**
+ * `Record<AccountType, …>` bersifat EXHAUSTIVE: begitu backend menambah satu
+ * nilai enum, typecheck gagal di objek ini sampai label/hint/ikonnya dilengkapi.
+ *
+ * Sebelumnya `OPTIONS` adalah array `satisfies ReadonlyArray<{ value: AccountType … }>`,
+ * yang hanya memeriksa arah sebaliknya (tiap opsi punya value sah) — sehingga
+ * nilai enum baru lolos diam-diam sebagai pilihan yang hilang di UI. Komentar
+ * audit di atas berkas ini mengklaim penjagaan itu sudah ada; sekarang memang ada.
+ */
+const OPTION_DETAILS: Record<AccountType, { label: string; hint: string; icon: IconComponent }> = {
+  PERSONAL: { label: "Personal", hint: "Untuk transaksi pribadi", icon: User },
+  BUSINESS: { label: "Bisnis", hint: "Untuk usaha & toko online", icon: Briefcase },
+}
+
+const OPTIONS = (Object.keys(OPTION_DETAILS) as AccountType[]).map((value) => ({
+  value,
+  ...OPTION_DETAILS[value],
+}))
 
 export default function AccountTypeScreen() {
   const toast = useToast()
