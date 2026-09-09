@@ -49,6 +49,7 @@ import { useWalletExport } from "@/lib/use-wallet-export"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
 import { RouteLink } from "@/components/ui/route-link"
@@ -156,42 +157,51 @@ export default function WalletScreen() {
           />
         }
         header={
-          <View>
-            {walletError ? (
-              <ErrorState
-                compact
-                title="Gagal memuat saldo"
-                description={walletError}
-                onRetry={() => void fetchWallet()}
-              />
-            ) : (
-              <WalletBalanceCard
-                available={wallet?.availableBalance}
-                held={wallet?.holdBalance}
-                loading={walletLoading}
-                onTopUp={() => handleAction("topup")}
-                onWithdraw={() => handleAction("withdraw")}
-                onTransfer={() => handleAction("transfer")}
-                style={styles.balanceCard}
-              />
-            )}
+          <FadeIn duration="base" distance={tokens.space[3]}>
+            {/*
+             * v2: kartu saldo reveal naik 12px (duration base) — satu-satunya
+             * kartu hero di layar ini, jadi geraknya boleh sedikit lebih
+             * terasa daripada kontrol Transaksi. Aman di ListHeader (mount
+             * sekali, bukan per-item); baris mutasi ikut Layout animation
+             * dari <PaginatedList>.
+             */}
+            <View>
+              {walletError ? (
+                <ErrorState
+                  compact
+                  title="Gagal memuat saldo"
+                  description={walletError}
+                  onRetry={() => void fetchWallet()}
+                />
+              ) : (
+                <WalletBalanceCard
+                  available={wallet?.availableBalance}
+                  held={wallet?.holdBalance}
+                  loading={walletLoading}
+                  onTopUp={() => handleAction("topup")}
+                  onWithdraw={() => handleAction("withdraw")}
+                  onTransfer={() => handleAction("transfer")}
+                  style={styles.balanceCard}
+                />
+              )}
 
-            <SectionHeader
-              title="Riwayat"
-              level="h3"
-              action={
-                <RouteLink
-                  href={ROUTES.walletHistory}
-                  accessibilityLabel="Lihat semua riwayat dompet"
-                  containerClassName="rounded-xs"
-                >
-                  <Text variant="body" weight={600} tone="primary">
-                    Lihat semua
-                  </Text>
-                </RouteLink>
-              }
-            />
-          </View>
+              <SectionHeader
+                title="Riwayat"
+                level="h3"
+                action={
+                  <RouteLink
+                    href={ROUTES.walletHistory}
+                    accessibilityLabel="Lihat semua riwayat dompet"
+                    containerClassName="rounded-xs"
+                  >
+                    <Text variant="body" weight={600} tone="primary">
+                      Lihat semua
+                    </Text>
+                  </RouteLink>
+                }
+              />
+            </View>
+          </FadeIn>
         }
       />
     </Screen>
