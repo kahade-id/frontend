@@ -22,23 +22,34 @@ hanya membandingkan method + path (skrip itu sendiri mencetak
 *"This is NOT authenticated endpoint verification"*). Audit ini menutup celah tersebut
 dengan membandingkan **body, query, header, security, dan enum** per operasi.
 
-| Dimensi | Hasil | Status |
-|---|---|---|
-| Path & method adapter vs spec | 238 / 238 cocok | ✅ |
-| Query key vs spec (type-resolved) | 1 penyimpangan (`sort` di `/v1/users/discover`) | ⚠️ |
-| Interpolasi path tanpa `seg()` | 0 dari 94 | ✅ |
-| `retry` pada mutasi non-GET | 0 | ✅ |
-| Drift properti DTO spec ↔ `types.ts` | 0 dari 90 DTO yang cocok | ✅ |
-| **Body request vs DTO spec** | **13 ketidakcocokan** | ❌ |
-| **Response schema di spec** | **3 dari 260 operasi** | ❌ |
-| **Kontrak error (4xx/5xx) di spec** | **0 operasi** | ❌ |
-| **Metadata `security` di spec** | 50 operasi kosong, 2 skema dangling | ❌ |
-| **Header request terdokumentasi** | 0 dari 6 header yang dikirim | ❌ |
-| Test otomatis (unit/e2e) | **0 berkas test** → `npm run check` gagal | ❌ |
-| Cakupan endpoint spec oleh aplikasi | 239 / 260 operasi unik = **91,9 %** (lihat §13) | ⚠️ |
-| Verifikasi terhadap backend hidup | **tidak dapat dijalankan** (lihat §7) | ⛔ |
+Kolom **"Saat audit"** adalah kondisi ketika audit pertama dijalankan; kolom
+**"Sekarang"** adalah kondisi setelah putaran perbaikan §10–§15. Keduanya
+dibiarkan berdampingan supaya jelas apa yang berubah dan apa yang masih terbuka.
 
-**Temuan:** 5 tingkat **S1 (harus diperbaiki sebelum rilis)**, 8 tingkat **S2**, 7 tingkat **S3**.
+| Dimensi | Saat audit | Sekarang | Status |
+|---|---|---|---|
+| Path & method adapter vs spec | 238 / 238 cocok | 238 / 238 cocok | ✅ |
+| Query key vs spec (type-resolved) | 1 penyimpangan (`sort` di `/v1/users/discover`) | **0** — `sort` dihapus (API-08) | ✅ |
+| Interpolasi path tanpa `seg()` | 0 dari 94 | 0 | ✅ |
+| `retry` pada mutasi non-GET | 0 | 0 | ✅ |
+| Drift properti DTO spec ↔ `types.ts` | 0 dari 90 DTO yang cocok | 0 | ✅ |
+| **Body request vs DTO spec** | **13 ketidakcocokan** | **0 pelanggaran**, 12 peringatan terjaga `check:api-body` | ⚠️ |
+| **Response schema di spec** | **3 dari 260 operasi** | 3 dari 260 — **celah backend**, tak bisa ditutup dari klien | ❌ |
+| **Kontrak error (4xx/5xx) di spec** | **0 operasi** | 0 — **celah backend** | ❌ |
+| **Metadata `security` di spec** | 50 operasi kosong, 2 skema dangling | sama — **celah backend** | ❌ |
+| **Header request terdokumentasi** | 0 dari 6 header yang dikirim | sama — **celah backend** | ❌ |
+| Test otomatis (unit/e2e) | **0 berkas test** → `npm run check` gagal | **7 berkas / 76 test**, `npm run check` hijau | ✅ |
+| Cakupan endpoint spec oleh aplikasi | 238 / 260 = 91,5 % *(salah hitung)* | **239 / 260 operasi unik = 91,9 %** (§13) | ⚠️ |
+| Verifikasi terhadap backend hidup | **tidak dapat dijalankan** | tetap tidak dapat dijalankan (§7) | ⛔ |
+
+**Temuan:** **5 S1** (API-01…05), **8 S2** (API-06…13), **9 S3** (API-14…22) —
+total 22, ditambah **API-23** (§12.3) dan **API-24** (§15) yang ditemukan pada
+putaran lanjutan.
+
+> **Catatan koreksi.** Angka "7 S3" dan "238/260 = 91,5 %" pada versi awal
+> ringkasan ini keliru; keduanya sudah dibetulkan (§13.1 menjelaskan sebabnya).
+> Ringkasan ini juga sempat tertinggal dari §10–§15 karena semua perbaikan
+> masuk di bagian akhir dokumen.
 
 ---
 
