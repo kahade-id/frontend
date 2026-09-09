@@ -40,3 +40,10 @@ test-results/
 
 # Pratinjau QA ikon — hasil `npm run qa:icon`, bisa di-generate ulang kapan saja.
 assets/images/__qa__/
+
+# Artefak audit endpoint — dihasilkan `npm run audit:inventory` dan ditulis ulang
+# setiap `npm run check` (lewat check:inventory), jadi selalu muncul sebagai
+# berkas baru bila tidak diabaikan. Regenerasi kapan saja; yang tetap dilacak
+# hanyalah laporan tulis-tangan docs/audit/API-ENDPOINT-AUDIT.md.
+docs/audit/inventory.json
+docs/audit/ROUTES.md
