@@ -3,10 +3,11 @@
  *
  * Slider nilai tunggal: track 4px `bg-border-control` rounded-full, fill
  * `bg-primary`, thumb 24px `bg-background` + border-focus 1.5px (bukan solid
- * hitam, supaya thumb terlihat "di atas" fill tanpa shadow — hierarki dari
- * border §6). Track memakai `border-control` (bukan `border`): bagian track
- * yang belum terisi menunjukkan sisa rentang — informasi non-teks yang wajib
- * >= 3:1 vs background (WCAG 1.4.11, audit #6).
+ * hitam, supaya thumb terlihat "di atas" fill — hierarki dari border §6).
+ * Saat dipegang (v2): thumb membesar 1.2x spring playful (UI thread) +
+ * border accent. Track memakai `border-control` (bukan `border`): bagian
+ * track yang belum terisi menunjukkan sisa rentang — informasi non-teks yang
+ * wajib >= 3:1 vs background (WCAG 1.4.11, audit #6).
  *
  * Kenapa Reanimated + Gesture Handler, bukan PanResponder (non-obvious):
  *   Dengan PanResponder, setiap gerakan jari = setState -> re-render React ->
@@ -41,12 +42,13 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View, type LayoutChangeEvent, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
-import Animated, { runOnJS, useAnimatedStyle, useSharedValue } from "react-native-reanimated"
+import Animated, { runOnJS, useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated"
 
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type SliderProps = Omit<ViewProps, "children"> & {
   value: number
@@ -82,6 +84,11 @@ const ACTIVE_OFFSET_X = 4
  * diperluas: track sudah selebar container.
  */
 const TRACK_HIT_SLOP = hitSlopToReach(THUMB)
+/**
+ * Scale thumb saat dipegang (v2): 24px → 28.8px — affordance "aktif" yang
+ * terasa tanpa menggeser posisi (scale dari tengah, bukan layout).
+ */
+const THUMB_SCALE_ACTIVE = 1.2
 
 /** Bulatkan ke step lalu clamp ke [min, max]. Worklet: dipanggil dari UI thread. */
 function snap(v: number, min: number, max: number, step: number) {
@@ -124,6 +131,13 @@ export function Slider({
   const ratio = useSharedValue(toRatio(value))
   const isDragging = useSharedValue(false)
   const lastEmitted = useSharedValue(value)
+  // v2: preferensi reduced motion dicerminkan ke UI thread agar scale thumb
+  // bisa dimatikan dari worklet (pola yang sama dengan bottom-sheet).
+  const reducedMotion = useReducedMotion()
+  const reducedSV = useSharedValue(reducedMotion)
+  useEffect(() => {
+    reducedSV.value = reducedMotion
+  }, [reducedMotion, reducedSV])
 
   // Sinkron dari parent hanya saat tidak drag (lihat header file).
   useEffect(() => {
@@ -187,8 +201,17 @@ export function Slider({
   }
 
   const fillStyle = useAnimatedStyle(() => ({ width: ratio.value * trackWidth.value }))
+  // v2: thumb membesar spring playful saat dipegang — murni UI thread (tanpa
+  // setState), statis 1x saat reduced motion.
   const thumbStyle = useAnimatedStyle(() => ({
     left: Math.max(0, ratio.value * trackWidth.value - THUMB / 2),
+    transform: [
+      {
+        scale: reducedSV.value
+          ? 1
+          : withSpring(isDragging.value ? THUMB_SCALE_ACTIVE : 1, tokens.motion.springPlayful),
+      },
+    ],
   }))
   const labelStyle = useAnimatedStyle(() => ({
     left: Math.max(0, ratio.value * trackWidth.value - THUMB / 2) - (LABEL_MIN_W - THUMB) / 2,
@@ -218,7 +241,14 @@ export function Slider({
           <Animated.View
             style={[{ pointerEvents: "none" }, [{ position: "absolute", width: THUMB, height: THUMB }, thumbStyle]]}
           >
-            <View className="h-full w-full rounded-full border-focus border-border-focus bg-background" />
+            {/* v2: border accent saat dipegang — perubahan state JS (bukan
+                per-frame), jadi tidak membebani UI thread. */}
+            <View
+              className={cn(
+                "h-full w-full rounded-full border-focus bg-background",
+                dragging ? "border-accent" : "border-border-focus",
+              )}
+            />
           </Animated.View>
 
           {dragging && formatValue ? (

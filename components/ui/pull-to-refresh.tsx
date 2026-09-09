@@ -51,6 +51,7 @@ import {
   shouldCapturePull,
 } from "@/lib/pull-math"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 const DEFAULT_THRESHOLD = tokens.space[16]
 const CONTROLLED_CONFIRM_TIMEOUT_MS = 1_000
@@ -138,12 +139,26 @@ export function PullGestureSurface({
     }
   }, [])
 
+  // v2: preferensi reduced motion dibaca lewat ref agar `springTo` (dan
+  // `panResponder` yang memakainya) tidak perlu dibuat ulang.
+  const reducedMotion = useReducedMotion()
+  const reducedRef = useRef(reducedMotion)
+  reducedRef.current = reducedMotion
+
   const springTo = useCallback(
     (toValue: number) => {
       pull.stopAnimation()
+      // Reduced motion: pindah posisi seketika, tanpa pegas.
+      if (reducedRef.current) {
+        pull.setValue(toValue)
+        return
+      }
+      // v2: settle pakai spring playful — overshoot halus saat konten kembali
+      // atau saat indikator mengunci di ambang. Hanya mengubah kurva spring,
+      // bukan arsitektur gesture (guard keselamatan di header tetap berlaku).
       Animated.spring(pull, {
         toValue,
-        ...tokens.motion.spring,
+        ...tokens.motion.springPlayful,
         useNativeDriver: true,
       }).start()
     },

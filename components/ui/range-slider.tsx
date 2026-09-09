@@ -27,7 +27,8 @@
  *     melewati; thumb min tidak bisa > thumb max - minDistance, dan sebaliknya.
  *     Dihitung di worklet dari nilai thumb LAIN yang juga shared value —
  *     jadi batas selalu memakai posisi terkini, bukan snapshot React.
- *   - Thumb yang sedang di-drag dinaikkan zIndex-nya (tokens.zIndex.sticky)
+ *   - Thumb yang sedang di-drag membesar 1.2x spring playful + border accent
+ *     (v2, ikut <Slider>), dan dinaikkan zIndex-nya (tokens.zIndex.sticky)
  *     lewat animated style supaya saat kedua thumb berdekatan, yang aktif
  *     tetap di atas. Sebelumnya ini dilakukan dengan menukar urutan render
  *     (re-render React); sekarang murni UI thread. Ini satu-satunya pemakaian
@@ -51,6 +52,7 @@ import Animated, {
   runOnJS,
   useAnimatedStyle,
   useSharedValue,
+  withSpring,
   type SharedValue,
 } from "react-native-reanimated"
 
@@ -58,6 +60,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type RangeValue = readonly [number, number]
 
@@ -85,6 +88,8 @@ const TRACK_H = tokens.space[1]
 const LABEL_MIN_W = THUMB + tokens.space[12]
 // Perluas hit area thumb 24 -> 44 (tokens.a11y.minHitTarget)
 const THUMB_HIT_SLOP = hitSlopToReach(THUMB)
+/** Scale thumb aktif (v2, ikut <Slider>): 24px → 28.8px dari tengah. */
+const THUMB_SCALE_ACTIVE = 1.2
 const ACTIVE_OFFSET_X = 4
 
 type ThumbIndex = 0 | 1
@@ -123,6 +128,12 @@ export function RangeSlider({
   const lo = useSharedValue(value[0])
   const hi = useSharedValue(value[1])
   const activeSV = useSharedValue<ThumbIndex | -1>(-1)
+  // v2: cerminkan reduced motion ke UI thread untuk scale thumb (ikut <Slider>).
+  const reducedMotion = useReducedMotion()
+  const reducedSV = useSharedValue(reducedMotion)
+  useEffect(() => {
+    reducedSV.value = reducedMotion
+  }, [reducedMotion, reducedSV])
   const start = useSharedValue(0)
   const lastLo = useSharedValue(value[0])
   const lastHi = useSharedValue(value[1])
@@ -232,6 +243,7 @@ export function RangeSlider({
           which={0}
           sv={lo}
           activeSV={activeSV}
+          reducedSV={reducedSV}
           trackWidth={trackWidth}
           min={min}
           range={range}
@@ -248,6 +260,7 @@ export function RangeSlider({
           which={1}
           sv={hi}
           activeSV={activeSV}
+          reducedSV={reducedSV}
           trackWidth={trackWidth}
           min={min}
           range={range}
@@ -271,6 +284,7 @@ type ThumbProps = {
   which: ThumbIndex
   sv: SharedValue<number>
   activeSV: SharedValue<ThumbIndex | -1>
+  reducedSV: SharedValue<boolean>
   trackWidth: SharedValue<number>
   min: number
   range: number
@@ -288,6 +302,7 @@ function Thumb({
   which,
   sv,
   activeSV,
+  reducedSV,
   trackWidth,
   min,
   range,
@@ -307,6 +322,14 @@ function Thumb({
       // `left: NaN`, yang ditolak RN dan membuat thumb hilang dari track.
       left: (Number.isFinite(x) ? x : 0) - THUMB / 2,
       zIndex: activeSV.value === which ? tokens.zIndex.sticky : tokens.zIndex.base,
+      // v2: thumb aktif membesar spring playful, murni UI thread.
+      transform: [
+        {
+          scale: reducedSV.value
+            ? 1
+            : withSpring(activeSV.value === which ? THUMB_SCALE_ACTIVE : 1, tokens.motion.springPlayful),
+        },
+      ],
     }
   })
 
@@ -324,7 +347,12 @@ function Thumb({
         hitSlop={THUMB_HIT_SLOP}
         style={[{ position: "absolute", width: THUMB, height: THUMB }, style]}
       >
-        <View className="h-full w-full rounded-full border-focus border-border-focus bg-background" />
+        <View
+          className={cn(
+            "h-full w-full rounded-full border-focus bg-background",
+            showLabel ? "border-accent" : "border-border-focus",
+          )}
+        />
         {showLabel && formatValue ? (
           <View
             className="absolute -top-8 items-center rounded-xs border border-border bg-surface-elevated px-2 py-1"
