@@ -1,5 +1,5 @@
 /**
- * Kahade Design System — Design Tokens v1.1
+ * Kahade Design System — Design Tokens v2 (Soft & Presisi)
  * ------------------------------------------------------------------
  * Single source of truth untuk semua nilai visual sistem:
  * warna, mode (light/dark), tipografi, spacing, radius, border,
@@ -10,9 +10,13 @@
  * - StyleSheet / Reanimated di React Native secara langsung
  * - CSS variables di web via `toCssVariables()`
  *
- * Prinsip inti: Flat. Modern. Minimalis. Presisi.
- * Tidak ada shadow di seluruh sistem — hierarki dibentuk lewat
- * border, kontras warna, dan spacing.
+ * Prinsip inti: Soft. Modern. Minimalis. Presisi.
+ * v2 berevolusi dari v1.1 (flat monokrom, nol shadow): basis netral hangat
+ * "Kertas", satu aksen Pinus untuk momen trust/escrow, info berwarna, depth
+ * lembut bertingkat (konsumsi via lib/elevation.ts — bukan utility shadow
+ * generik), dan motion yang lebih kaya namun tetap disengaja per konteks.
+ * Disiplin v1.1 dipertahankan: tanpa angka sembarang, kontras AA
+ * terdokumentasi, semua motion punya fallback reduced-motion.
  */
 
 // ==================================================================
@@ -25,25 +29,27 @@ export const brand = {
   white: "#FFFFFF",
 } as const
 
-/** 2.2 Neutral Scale — Cool Gray */
+/** 2.2 Neutral Scale — Warm "Kertas" (v2: pengganti abu dingin v1.1) */
 export const gray = {
-  50: "#F8F9FA", // App background (light)
-  100: "#F1F3F5", // Surface / card fill (light)
-  200: "#E9ECEF", // Cadangan — tidak lagi dipakai sebagai border default
-  300: "#DEE2E6", // Divider sangat halus (opsional, dekoratif murni)
-  400: "#CED4DA", // Border default (light)
-  500: "#ADB5BD", // Teks disabled, placeholder
-  600: "#868E96", // text-tertiary — ikon default, teks besar dekoratif (>=18px)
-  700: "#495057", // text-secondary (light) / border default (dark)
-  800: "#343A40", // Surface elevated (dark)
-  900: "#212529", // Teks utama alternatif / surface fill (dark)
-  950: "#16181B", // text-primary (light) / app background (dark, opsional)
+  50: "#FAF8F5", // App background tint (jarang dipakai langsung)
+  100: "#F2EFE9", // Surface / card fill alternatif
+  200: "#E7E2D8", // Cadangan — tidak lagi dipakai sebagai border default
+  300: "#D6CFC2", // Divider sangat halus (opsional, dekoratif murni)
+  400: "#B4AB99", // Border default hangat (dark chart terang)
+  500: "#8A8172", // Teks disabled hangat, langkah chart dark pertama
+  600: "#6E6759", // text-tertiary + border-control (light): 5.60 vs bg, 5.15 vs surface
+  700: "#4A443C", // text-secondary (light): 9.62 vs bg, 8.83 vs surface
+  800: "#2E2A26", // Surface elevated hangat (dark)
+  900: "#211D19", // Teks utama alternatif / surface fill (dark)
+  950: "#1C1917", // text-primary (light): 17.49 vs bg, 16.06 vs surface
 } as const
 
 /**
- * 2.3 Semantic Colors — didesaturasi ringan.
- * Kontras sudah AA-compliant di semua kombinasi (4.79–9.37:1).
- * Info sengaja netral (abu), bukan biru — menjaga sistem tetap monokrom.
+ * 2.3 Semantic Colors — v2 sedikit lebih hidup dari v1.1, tetap AA di dua mode.
+ * Rasio light (text/bgSoft · fill/surface): success 4.58/3.03, danger 5.83/4.44,
+ * warning 4.99/3.20, info 7.32/5.82. Dark (fill/bgSoft · fill/surface): success
+ * 9.20/9.97, danger 6.20/6.28, warning 9.49/10.41, info 7.63/7.87.
+ * Info v2 berwarna "Sungai" (biru sungai) — keluar dari abu monokrom v1.1.
  *
  * Dark mode: `text` SENGAJA == `fill` (bukan bug). Dokumen §2.3 hanya punya
  * satu kolom "Fill (dark)"; fill terang di atas bgSoft gelap sudah > AA di
@@ -52,21 +58,40 @@ export const gray = {
  */
 export const semantic = {
   success: {
-    light: { fill: "#16A34A", text: "#15803D", bgSoft: "#F0FDF4" },
+    light: { fill: "#16A34A", text: "#15803D", bgSoft: "#EDF7F0" },
     dark: { fill: "#4ADE80", text: "#4ADE80", bgSoft: "#14251A" },
   },
   danger: {
-    light: { fill: "#DC2626", text: "#B91C1C", bgSoft: "#FEF2F2" },
+    light: { fill: "#D92D20", text: "#B42318", bgSoft: "#FDEEEC" },
     dark: { fill: "#F87171", text: "#F87171", bgSoft: "#2A1616" },
   },
   warning: {
-    light: { fill: "#D97706", text: "#B45309", bgSoft: "#FFFBEB" },
+    light: { fill: "#DC6803", text: "#B54708", bgSoft: "#FEF4E8" },
     dark: { fill: "#FBBF24", text: "#FBBF24", bgSoft: "#2A2113" },
   },
   info: {
-    light: { fill: "#4B5563", text: "#374151", bgSoft: "#F3F4F6" },
-    dark: { fill: "#9CA3AF", text: "#9CA3AF", bgSoft: "#1F2124" },
+    light: { fill: "#1D5FB0", text: "#174E92", bgSoft: "#EBF2FA" },
+    dark: { fill: "#7FB3E8", text: "#7FB3E8", bgSoft: "#131E2A" },
   },
+} as const
+
+/**
+ * 2.3b Accent — satu warna matang untuk momen trust & escrow (v2 BARU).
+ * "Pinus" (hijau pinus dalam): uang, aman, sukses — kosakata escrow tanpa
+ * edukasi, syariah-friendly, menjauhi hijau neon fintech generik.
+ *
+ * Aturan pakai (disiplin, bukan dekorasi): momen/status ESCROW & TRUST
+ * (dana tertahan, escrow selesai, skor trust), BUKAN CTA umum (tetap primary
+ * hitam/putih) dan BUKAN status transaksi (tetap semantic). Lihat Button
+ * variant "accent" dan Badge/Icon tone "accent".
+ *
+ * Rasio light: text/bgSoft 7.04, text/bg 8.00 (link/CTA teks), fill/surface
+ * 5.97 (ikon), onFill/fill 6.50 (label tombol solid). Dark: fill/bgSoft 8.15,
+ * fill/surface 8.70, onFill/fill 9.36. text == fill di dark (pola §2.3).
+ */
+export const accent = {
+  light: { fill: "#0C6B4E", text: "#0A5C43", bgSoft: "#E8F3ED", onFill: "#FFFFFF" },
+  dark: { fill: "#3ECF8E", text: "#3ECF8E", bgSoft: "#10241B", onFill: "#141210" },
 } as const
 
 /**
@@ -75,48 +100,47 @@ export const semantic = {
  *
  * Langkah terendah wajib >= 3:1 terhadap background (WCAG 1.4.11): batang
  * chart adalah "graphical object required to understand the content", jadi
- * pengecualian border dekoratif §6 TIDAK berlaku. gray.400 (#CED4DA) hanya
- * 1.49:1 di atas #FFFFFF — nyaris tak terlihat sekaligus gagal kriteria.
- * Karena itu tangga dimulai dari gray.600 (3.32:1).
+ * pengecualian border dekoratif §6 TIDAK berlaku. Tangga dimulai dari
+ * gray.600 (#6E6759 = 5.60:1 vs bg, 5.15:1 vs surface).
  *
  * `chartMono` mendeskripsikan LIGHT. Dark mode harus dibaca lewat
- * `chartMonoDark`: di atas #121212 urutannya dibalik (abu lebih terang =
- * lebih menonjol), dan gray.700 yang dulu dipakai hanya 2.29:1.
+ * `chartMonoDark`: di atas #141210 urutannya dibalik (abu lebih terang =
+ * lebih menonjol).
  */
 export const chartMono = [gray[600], gray[700], gray[800]] as const
 
-/** Padanan dark dari `chartMono` — langkah terendah gray.500 = 9.03:1 vs #121212. */
+/** Padanan dark dari `chartMono` — langkah terendah gray.500 = 4.86:1 vs #141210. */
 export const chartMonoDark = [gray[500], gray[400], gray[300]] as const
 
 /** 2.4 Mode Tokens */
 export const light = {
   background: "#FFFFFF",
-  surface: "#F8F9FA", // card, input fill
-  surfaceElevated: "#FFFFFF", // dengan border, karena tanpa shadow
+  surface: "#F7F5F1", // card, input fill — warm paper (v2)
+  surfaceElevated: "#FFFFFF", // dengan border + elevasi low/high (v2)
   /**
    * border-default: card, divider, separator — border STRUKTURAL/dekoratif.
    * Kontras vs background 1.49:1 — SENGAJA di bawah 3:1. WCAG 1.4.11 hanya
    * berlaku untuk komponen UI interaktif dan bagian yang dibutuhkan untuk
-   * mengenali komponen; pembatas dekoratif dikecualikan (§6 Flat, tanpa shadow).
+   * mengenali komponen; pembatas dekoratif dikecualikan (§6).
    * JANGAN pakai untuk outline form control — pakai `borderControl`.
    */
-  borderDefault: "#CED4DA", // gray.400
+  borderDefault: "#D9D3C5", // gray.400 hangat
   /**
    * border-control: outline resting form control (Input, Select, DateField,
    * Checkbox, Radio, Switch off, NumberStepper, SegmentedControl, ToggleGroup
    * belum terpilih) DAN indikator state non-teks (dot PIN kosong, track
    * Slider, bintang Rating kosong). WCAG 1.4.11 non-text contrast >= 3:1:
-   * gray.600 vs #FFFFFF = 3.32:1, vs surface #F8F9FA = 3.15:1.
+   * #6E6759 vs #FFFFFF = 5.60:1, vs surface #F7F5F1 = 5.15:1.
    * Daftar lengkap + pengecualian: docs/audit/findings/06-non-text-contrast.md
    * Bukan untuk Button secondary (dikenali dari label) atau border kartu.
    */
-  borderControl: "#868E96", // gray.600
+  borderControl: "#6E6759", // gray.600
   borderFocus: "#000000", // fokus/aktif pada elemen interaktif
-  borderError: "#DC2626",
-  textPrimary: "#16181B",
-  textSecondary: "#495057", // gray.700 — body, caption, label (AA)
-  textTertiary: "#868E96", // gray.600 — ikon, teks besar >=18px
-  textDisabled: "#ADB5BD",
+  borderError: "#D92D20", // == danger.fill
+  textPrimary: "#1C1917", // 17.49 vs bg, 16.06 vs surface
+  textSecondary: "#4A443C", // gray.700 — body, caption, label: 9.62/8.83
+  textTertiary: "#6E6759", // gray.600 — ikon, teks besar >=18px: 5.60/5.15
+  textDisabled: "#A8A29E",
   primary: "#000000",
   primaryForeground: "#FFFFFF",
   /**
@@ -136,23 +160,22 @@ export const light = {
 } as const
 
 export const dark = {
-  background: "#121212",
-  surface: "#1A1A1A",
+  background: "#141210", // sedikit hangat dari v1.1 (#121212)
+  surface: "#1C1A16",
   /**
-   * Dinaikkan dari #212121 (1.08:1 vs background — skeleton & sheet tidak
-   * terbedakan). #2A2A2A vs #121212 = 1.34:1, setara dengan jarak
-   * surface→background di light mode. Elevated tetap butuh border-default.
+   * #2E2A24 vs #141210 = 1.31:1, setara dengan jarak elevated→background v1.1
+   * (1.34:1). Elevated tetap butuh border-default (+ shadow high di overlay).
    */
-  surfaceElevated: "#2A2A2A",
-  borderDefault: "#3A3A3A", // struktural/dekoratif — lihat catatan di `light`
-  /** WCAG 1.4.11: #6B6B6B vs #121212 = 3.52:1, vs surface #1A1A1A = 3.18:1 */
-  borderControl: "#6B6B6B",
+  surfaceElevated: "#2E2A24",
+  borderDefault: "#3A352D", // struktural/dekoratif — 1.54 vs bg, lihat `light`
+  /** WCAG 1.4.11: #7D7668 vs #141210 = 4.15:1, vs surface #1C1A16 = 3.86:1 */
+  borderControl: "#7D7668",
   borderFocus: "#FFFFFF",
-  borderError: "#F87171",
-  textPrimary: "#F5F5F5",
-  textSecondary: "#A0A0A0",
-  textTertiary: "#A0A0A0", // sama dgn secondary — kontras di dark sudah aman
-  textDisabled: "#5C5C5C",
+  borderError: "#F87171", // == danger.fill
+  textPrimary: "#F5F4F0", // 16.98 vs bg, 15.79 vs surface
+  textSecondary: "#A8A29A", // 7.39 vs bg, 6.87 vs surface
+  textTertiary: "#A8A29A", // sama dgn secondary — kontras di dark sudah aman
+  textDisabled: "#5C5750",
   primary: "#FFFFFF", // invert di dark mode
   primaryForeground: "#000000",
   overlay: "rgba(0, 0, 0, 0.6)",
@@ -169,6 +192,7 @@ export const colors = {
   brand,
   gray,
   semantic,
+  accent,
   chartMono,
   chartMonoDark,
   light,
@@ -364,19 +388,25 @@ export const layout = {
 } as const
 
 // ==================================================================
-// 5. RADIUS — sharp/minim rounded, 8px adalah maksimum non-pill
+// 5. RADIUS — sharp/minim rounded; v2 menambah lg khusus kartu besar
 // ==================================================================
 
 export const radius = {
   none: 0,
   xs: 4, // Badge, chip, input kecil, tooltip
-  sm: 6, // Button, input
-  md: 8, // Card, bottom sheet handle area, modal — MAKSIMUM non-pill
+  sm: 6, // Button, input — kontrol TETAP di sini (v2 tidak mengubah)
+  md: 8, // Card biasa, bottom sheet handle area, modal
+  /**
+   * lg 12px (v2 BARU) — HANYA untuk kartu besar/hero dan sheet di web lebar.
+   * Alasan dibatasi: radius besar di semua card (= "kit SaaS" generik) justru
+   * menghilangkan hierarki; kontrol dan kartu biasa tetap sm/md.
+   */
+  lg: 12,
   full: 999, // Avatar, dot indicator, pill khusus
 } as const
 
 // ==================================================================
-// 6. ELEVATION & BORDER — tidak ada shadow di seluruh sistem
+// 6. ELEVATION & BORDER — depth lembut bertingkat (v2)
 // ==================================================================
 
 /**
@@ -425,7 +455,24 @@ export const border = {
   },
 } as const
 
-/** Tidak ada shadow — export eksplisit untuk mencegah pemakaian tidak sengaja */
+/**
+ * 6.2 Shadow scale — "terangkat lembut", bukan drop tebal (v2 BARU).
+ * Konsumsi SELALU via `elevationStyle()` dari lib/elevation.ts — satu titik
+ * yang me-resolve warna/opacity per mode + boxShadow web + elevation Android.
+ * Jangan tulis `shadow*`/`elevation`/`boxShadow` manual di komponen, dan
+ * jangan pernah tempel level yang sama ke semua card (anti "kit SaaS"):
+ *   - flat/none : list row, divider, input resting — struktural, border saja.
+ *   - low       : kartu interaktif resting, chip terpilih.
+ *   - medium    : toast, FAB, popover/dropdown.
+ *   - high      : bottom sheet, modal/dialog.
+ *
+ * Warna shadow warm-tinted (#1C1917) di light agar menyatu dengan netral
+ * Kertas; di dark menghitam (#000000) karena shadow berwarna tak terlihat di
+ * atas background gelap — di dark, BORDER tetap pemisah utama, shadow hanya
+ * penguat. Opacity dark = light + 0.28 (low 0.34 / medium 0.38 / high 0.44):
+ * tanpa boost, shadow iOS lenyap total di atas #141210. Android tidak bisa
+ * mewarnai shadow (selalu netral) — opacity dijaga kecil agar tidak kotor.
+ */
 export const shadow = {
   none: {
     shadowColor: "transparent",
@@ -434,7 +481,32 @@ export const shadow = {
     shadowRadius: 0,
     elevation: 0,
   },
+  color: {
+    light: "#1C1917",
+    dark: "#000000",
+  },
+  low: {
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8,
+    shadowOpacity: { light: 0.06, dark: 0.34 },
+    elevation: 2,
+  },
+  medium: {
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 16,
+    shadowOpacity: { light: 0.1, dark: 0.38 },
+    elevation: 4,
+  },
+  high: {
+    shadowOffset: { width: 0, height: 12 },
+    shadowRadius: 32,
+    shadowOpacity: { light: 0.16, dark: 0.44 },
+    elevation: 8,
+  },
 } as const
+
+/** Level elevasi untuk `elevationStyle()` — "flat" == shadow.none. */
+export type ElevationLevel = "flat" | "low" | "medium" | "high"
 
 /** 6.2 Layering / Z-index */
 export const zIndex = {
@@ -483,16 +555,35 @@ export const motion = {
     base: 300, // Page transition push
     slow: 350,
   },
-  /** cubic-bezier(0.4, 0, 0.2, 1) */
+  /**
+   * Tiga kurva sesuai tujuan (v2): masuk soft-decelerate, keluar cepat,
+   * standard untuk transisi rutin. Pasangan Css untuk web/framer.
+   */
   easing: {
     standard: [0.4, 0, 0.2, 1] as const,
     standardCss: "cubic-bezier(0.4, 0, 0.2, 1)",
+    /** easeOutCubic — konten masuk, reveal, expand. */
+    enter: [0.33, 1, 0.68, 1] as const,
+    enterCss: "cubic-bezier(0.33, 1, 0.68, 1)",
+    /** easeInCubic — konten keluar; keluar harus terasa segera. */
+    exit: [0.32, 0, 0.67, 0] as const,
+    exitCss: "cubic-bezier(0.32, 0, 0.67, 0)",
   },
   /** Konfigurasi spring bersama untuk bottom sheet dan settle pull-to-refresh. */
   spring: {
     damping: 20,
     stiffness: 200,
     mass: 1,
+  },
+  /**
+   * Spring playful (v2 BARU) — overshoot halus untuk momen yang layak terasa
+   * ekspresif: unlock badge, toast masuk, sukses OTP/PIN, thumb slider aktif.
+   * JANGAN dipakai untuk bottom sheet & settle pull-to-refresh (utilitarian).
+   */
+  springPlayful: {
+    damping: 14,
+    stiffness: 170,
+    mass: 0.9,
   },
   scale: {
     press: 0.97, // Button pressed
@@ -633,6 +724,13 @@ export function toTailwindTheme() {
         text: "var(--color-info-text)",
         soft: "var(--color-info-soft)",
       },
+      // Aksen v2 (Pinus) — momen trust & escrow. Lihat §2.3b untuk aturan pakai.
+      accent: {
+        DEFAULT: "var(--color-accent-fill)",
+        text: "var(--color-accent-text)",
+        soft: "var(--color-accent-soft)",
+        foreground: "var(--color-accent-foreground)",
+      },
     },
     fontFamily: {
       sans: [fontFamily.sans, "system-ui", "sans-serif"],
@@ -666,6 +764,7 @@ export function toTailwindTheme() {
       xs: px(radius.xs),
       sm: px(radius.sm),
       md: px(radius.md),
+      lg: px(radius.lg),
       DEFAULT: px(radius.sm),
       full: px(radius.full),
     },
@@ -695,6 +794,8 @@ export function toTailwindTheme() {
     transitionTimingFunction: {
       DEFAULT: motion.easing.standardCss,
       standard: motion.easing.standardCss,
+      enter: motion.easing.enterCss,
+      exit: motion.easing.exitCss,
     },
     scale: {
       press: String(motion.scale.press),
@@ -744,6 +845,10 @@ export function toCssVariables(mode: ColorMode): Record<string, string> {
     "--color-info-fill": semantic.info[mode].fill,
     "--color-info-text": semantic.info[mode].text,
     "--color-info-soft": semantic.info[mode].bgSoft,
+    "--color-accent-fill": accent[mode].fill,
+    "--color-accent-text": accent[mode].text,
+    "--color-accent-soft": accent[mode].bgSoft,
+    "--color-accent-foreground": accent[mode].onFill,
   }
 }
 

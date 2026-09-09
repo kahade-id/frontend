@@ -34,6 +34,7 @@ export type BoxBg =
   | "danger"
   | "warning"
   | "info"
+  | "accent" // fill accent-soft — hanya momen trust & escrow (§2.3b)
 export type BoxBorder = boolean | "default" | "focus" | "error"
 
 export type BoxProps = Omit<ViewProps, "children"> & {
@@ -104,6 +105,7 @@ const bgClass: Record<BoxBg, string> = {
   danger: "bg-danger-soft",
   warning: "bg-warning-soft",
   info: "bg-info-soft",
+  accent: "bg-accent-soft",
 }
 
 const roundedClass: Record<BoxRadius, string> = {
@@ -111,6 +113,7 @@ const roundedClass: Record<BoxRadius, string> = {
   xs: "rounded-xs",
   sm: "rounded-sm",
   md: "rounded-md",
+  lg: "rounded-lg", // v2 §5: hanya kartu besar/hero — bukan default baru
   full: "rounded-full",
 }
 
