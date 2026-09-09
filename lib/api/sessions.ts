@@ -8,6 +8,7 @@ import { http, seg } from "@/lib/api/client"
 import type { TrustDeviceDto } from "@/lib/api/types"
 
 export type DeviceSession = {
+  /** userSession.id — valid only for /v1/sessions/{sessionId}. */
   id: string
   deviceName: string
   platform?: string
@@ -15,9 +16,33 @@ export type DeviceSession = {
   ip?: string
   location?: string
   current?: boolean
-  trusted?: boolean
   lastActiveAt?: string
   createdAt: string
+}
+
+/** Normalize the actual SessionsService response; never invent a device ID/trust state. */
+export function normalizeSession(value: unknown): DeviceSession | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  if (typeof row.id !== "string" || !row.id) return null
+  const deviceInfo = typeof row.deviceInfo === "string" ? row.deviceInfo : undefined
+  return {
+    id: row.id,
+    deviceName:
+      (typeof row.deviceName === "string" && row.deviceName) || deviceInfo || "Perangkat tidak dikenal",
+    platform: typeof row.platform === "string" ? row.platform : undefined,
+    browser: typeof row.browser === "string" ? row.browser : undefined,
+    ip:
+      typeof row.ipAddress === "string"
+        ? row.ipAddress
+        : typeof row.ip === "string"
+          ? row.ip
+          : undefined,
+    location: typeof row.location === "string" ? row.location : undefined,
+    current: row.isCurrentSession === true || row.current === true,
+    lastActiveAt: typeof row.lastActiveAt === "string" ? row.lastActiveAt : undefined,
+    createdAt: typeof row.createdAt === "string" ? row.createdAt : "",
+  }
 }
 
 /** Query paginasi — spec menandai `page` & `limit` REQUIRED di semua list di domain ini. */
@@ -26,8 +51,8 @@ export type SessionsPageQuery = { page: number; limit: number }
 /** GET /v1/sessions — daftar sesi login aktif (paginated; page/limit wajib). */
 export function listSessions(query: SessionsPageQuery, signal?: AbortSignal) {
   return http
-    .get<DeviceSession[]>("/v1/sessions", { query, auth: "required", retry: 1, signal })
-    .then((raw) => readList<DeviceSession>(raw, ["sessions"]))
+    .get<unknown>("/v1/sessions", { query, auth: "required", retry: 1, signal })
+    .then((raw) => readList<unknown>(raw, ["sessions"]).map(normalizeSession).filter((row): row is DeviceSession => row !== null))
 }
 
 export function deleteSession(sessionId: string) {
@@ -46,7 +71,7 @@ export function deleteOtherSessions() {
  * (lewati 2FA saat login). Spec: method PATCH dengan body `TrustDeviceDto`
  * (objek kosong — dikirim `{}` agar `Content-Type: application/json` valid).
  */
-export function trustDevice(deviceId: string, dto: TrustDeviceDto = {}) {
+export function trustDevice(deviceId: string, dto: TrustDeviceDto) {
   return http.patch<DeviceSession, TrustDeviceDto>(
     `/v1/users/me/devices/${seg(deviceId)}/trust`,
     dto,
@@ -57,8 +82,8 @@ export function trustDevice(deviceId: string, dto: TrustDeviceDto = {}) {
 }
 
 /** PATCH /v1/users/me/devices/{deviceId}/untrust. */
-export function untrustDevice(deviceId: string) {
-  return http.patch<DeviceSession>(`/v1/users/me/devices/${seg(deviceId)}/untrust`, undefined, {
+export function untrustDevice(deviceId: string, dto: TrustDeviceDto) {
+  return http.patch<DeviceSession, TrustDeviceDto>(`/v1/users/me/devices/${seg(deviceId)}/untrust`, dto, {
     auth: "required",
   })
 }

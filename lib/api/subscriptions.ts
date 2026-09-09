@@ -46,12 +46,28 @@ export function getSubscriptionHistory(query?: { page?: number; limit?: number }
     .then((raw) => readList<SubscriptionHistoryEntry>(raw, ["history", "subscriptions"]))
 }
 
+export type SubscriptionBenefit = { key: string; title: string; description?: string }
+
+export function normalizeSubscriptionBenefit(value: unknown): SubscriptionBenefit | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  const title = row.title ?? row.label
+  if (typeof row.key !== "string" || typeof title !== "string") return null
+  return {
+    key: row.key,
+    title,
+    description: typeof row.description === "string" ? row.description : undefined,
+  }
+}
+
 export function getSubscriptionBenefits(signal?: AbortSignal) {
   return http
-    .get<
-      Array<{ key: string; title: string; description?: string }>
-    >("/v1/subscriptions/benefits", { auth: "required", retry: 1, signal })
-    .then((raw) => readList<{ key: string; title: string; description?: string }>(raw, ["benefits"]))
+    .get<unknown>("/v1/subscriptions/benefits", { auth: "required", retry: 1, signal })
+    .then((raw) =>
+      readList<unknown>(raw, ["benefits"])
+        .map(normalizeSubscriptionBenefit)
+        .filter((row): row is SubscriptionBenefit => row !== null),
+    )
     .catch((error: unknown) => {
       if (error && typeof error === "object" && "backendCode" in error && error.backendCode === "NO_ACTIVE_SUBSCRIPTION") return []
       throw error

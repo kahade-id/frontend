@@ -27,6 +27,7 @@ import { asRecord as responseRecord, invalidResponse, stringList } from "@/lib/a
 import { clearSession, getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
 import type {
   ChangePasswordDto,
+  ConfirmPhoneChangeDto,
   CorrectEmailDto,
   Disable2faDto,
   Enable2faDto,
@@ -36,6 +37,7 @@ import type {
   PhoneRegisterDto,
   RegisterDto,
   RequestOtpDto,
+  RequestPhoneChangeDto,
   ResendVerificationDto,
   ResetPasswordDto,
   SetUsernameDto,
@@ -228,8 +230,8 @@ export function normalizeOtpMethods(raw: unknown): OtpMethod[] {
   return out
 }
 
-export async function getOtpMethods(): Promise<OtpMethodsResult> {
-  const raw = await http.get<unknown>("/v1/auth/otp-methods", { auth: "none" })
+export async function getOtpMethods(signal?: AbortSignal): Promise<OtpMethodsResult> {
+  const raw = await http.get<unknown>("/v1/auth/otp-methods", { auth: "none", signal })
   return { methods: normalizeOtpMethods(raw) }
 }
 
@@ -370,6 +372,35 @@ export function changePassword(dto: ChangePasswordDto) {
   return http.post<MessageResult, ChangePasswordDto>("/v1/auth/change-password", dto, {
     auth: "required",
   })
+}
+
+/** Normalize the deliberately small response shared by both phone-change steps. */
+export function normalizePhoneChangeResult(raw: unknown): MessageResult {
+  const record = responseRecord(raw)
+  if (!record || typeof record.message !== "string" || !record.message.trim()) {
+    throw invalidResponse("phone-change")
+  }
+  return { message: record.message }
+}
+
+/** Request a sensitive-action OTP. Device identity is already sent by the HTTP boundary header. */
+export async function requestPhoneChange(dto: RequestPhoneChangeDto): Promise<MessageResult> {
+  const result = await http.post<unknown, RequestPhoneChangeDto>(
+    "/v1/auth/phone-change/request",
+    dto,
+    { auth: "required" },
+  )
+  return normalizePhoneChangeResult(result)
+}
+
+/** Confirming revokes all account sessions server-side, including the current session. */
+export async function confirmPhoneChange(dto: ConfirmPhoneChangeDto): Promise<MessageResult> {
+  const result = await http.post<unknown, ConfirmPhoneChangeDto>(
+    "/v1/auth/phone-change/confirm",
+    dto,
+    { auth: "required" },
+  )
+  return normalizePhoneChangeResult(result)
 }
 
 // ------------------------------------------------------------------

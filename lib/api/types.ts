@@ -4,7 +4,7 @@
  *
  * JANGAN EDIT MANUAL. Ubah spec → `npm run gen:api`.
  *
- * Spec: Kahade API v1.0 · 87 DTO dipakai
+ * Spec: Kahade API v1.0 · 89 DTO dipakai
  * (28 schema admin-only dilewati).
  */
 
@@ -428,7 +428,12 @@ export type RequestAccountDeletionDto = {
   mfaCode?: string
 }
 
-export type TrustDeviceDto = Record<string, never>
+export type TrustDeviceDto = {
+  /** minLength 1 · maxLength 128 */
+  password: string
+  /** maxLength 16 · pattern ^\d{6}$ */
+  mfaCode?: string
+}
 
 export type CreateShowcaseDto = {
   title: string
@@ -1141,3 +1146,36 @@ export type CreateTicketDto = {
 }
 
 export type ReplyTicketDto = Record<string, never>
+
+export type RequestPhoneChangeDto = {
+  /**
+   * New Indonesian phone number
+   * maxLength 20
+   */
+  newPhoneNumber: string
+  /** OTP delivery method */
+  method: "SMS" | "WHATSAPP"
+  /**
+   * Current account password
+   * minLength 1 · maxLength 256
+   */
+  currentPassword: string
+  /**
+   * Optional 6-digit authenticator or 10-16 character backup code
+   * maxLength 16 · pattern ^(?:\d{6}|[A-Za-z0-9]{10,16})$
+   */
+  mfaCode?: string
+}
+
+export type ConfirmPhoneChangeDto = {
+  /**
+   * New Indonesian phone number
+   * maxLength 20
+   */
+  newPhoneNumber: string
+  /**
+   * 6-digit OTP code
+   * pattern ^\d{6}$
+   */
+  code: string
+}
