@@ -27,11 +27,29 @@ export type PrivacySettings = {
   showOnlineStatus: boolean
 }
 
-/** GET /v1/settings/blocked-users (juga GET /v1/users/me/blocked). */
+function normalizeBlockedUser(value: unknown): BlockedUser | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  const row = value as Record<string, unknown>
+  const id = row.userId ?? row.id
+  if (typeof id !== "string" || typeof row.username !== "string") return null
+  return {
+    id,
+    username: row.username,
+    fullName: typeof row.fullName === "string" ? row.fullName : undefined,
+    avatarUrl: typeof row.avatarUrl === "string" || row.avatarUrl === null ? row.avatarUrl : undefined,
+    blockedAt: typeof row.blockedAt === "string" ? row.blockedAt : "",
+  }
+}
+
+/** Canonical mobile list: flattened users whose `userId` is valid for unblock. */
 export function getBlockedUsers(signal?: AbortSignal) {
   return http
-    .get<BlockedUser[]>("/v1/settings/blocked-users", { auth: "required", retry: 1, signal })
-    .then((raw) => readList<BlockedUser>(raw, ["blockedUsers", "users"]))
+    .get<unknown>("/v1/users/me/blocked", { auth: "required", retry: 1, signal })
+    .then((raw) =>
+      readList<unknown>(raw, ["blockedUsers", "users"])
+        .map(normalizeBlockedUser)
+        .filter((row): row is BlockedUser => row !== null),
+    )
 }
 
 export function blockUser(userId: string) {

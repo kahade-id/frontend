@@ -42,6 +42,7 @@ import { toPaymentMethods } from "@/lib/payment-methods"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
+import { Alert } from "@/components/ui/alert"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -132,19 +133,25 @@ export default function SubscriptionsScreen() {
     status: SubscriptionStatus
     plans: SubscriptionPlan[]
     benefits: Benefit[]
+    benefitsError?: string
     methods: PaymentMethod[]
   }>("subscriptions", async (signal) => {
+    const benefitsResult = api.subscriptions
+      .getSubscriptionBenefits(signal)
+      .then((data) => ({ data, error: undefined }))
+      .catch((reason: unknown) => ({ data: [] as Benefit[], error: userMessage(reason) }))
     const [s, p, b, wallet, pm] = await Promise.all([
       api.subscriptions.getSubscriptionStatus(signal),
       api.subscriptions.getSubscriptionPlans(signal),
-      api.subscriptions.getSubscriptionBenefits(signal).catch(() => [] as Benefit[]),
+      benefitsResult,
       api.wallet.getWallet(signal),
       api.wallet.getPaymentMethods(signal),
     ])
     return {
       status: s,
       plans: p ?? [],
-      benefits: b ?? [],
+      benefits: b.data ?? [],
+      benefitsError: b.error,
       methods: toPaymentMethods(pm, { walletBalance: wallet.availableBalance }).filter((method) =>
         (API_CONSTRAINTS.SubscribeDto.paymentMethod.enum as readonly string[]).includes(method.id),
       ),
@@ -423,6 +430,12 @@ export default function SubscriptionsScreen() {
                 })}
               </View>
             )}
+
+            {bundle?.benefitsError ? (
+              <Alert tone="warning" title="Keuntungan belum dapat dimuat">
+                {bundle.benefitsError}
+              </Alert>
+            ) : null}
 
             {benefits.length > 0 ? (
               <>

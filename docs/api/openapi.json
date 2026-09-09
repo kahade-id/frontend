@@ -8160,7 +8160,7 @@
             "description": "TempToken expired or invalid 2FA code."
           }
         },
-        "summary": "Admin 2FA verify — exchange tempToken + TOTP for session tokens",
+        "summary": "Admin 2FA verify \u2014 exchange tempToken + TOTP for session tokens",
         "tags": [
           "admin-auth"
         ]
@@ -9381,7 +9381,7 @@
         },
         "responses": {
           "200": {
-            "description": "KYC approved — user kycStatus set to APPROVED and kycApprovedAt set."
+            "description": "KYC approved \u2014 user kycStatus set to APPROVED and kycApprovedAt set."
           },
           "400": {
             "description": "KYC is not in PENDING status."
@@ -9799,7 +9799,7 @@
         },
         "responses": {
           "201": {
-            "description": "Dispute resolved — DecisionRecord created and order status updated to COMPLETED."
+            "description": "Dispute resolved \u2014 DecisionRecord created and order status updated to COMPLETED."
           },
           "400": {
             "description": "Invalid status or split percentages do not sum to 100."
@@ -12455,11 +12455,69 @@
           "Health"
         ]
       }
+    },
+    "/v1/auth/phone-change/request": {
+      "post": {
+        "operationId": "AuthController_requestPhoneChange",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPhoneChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Request phone number change OTP",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/phone-change/confirm": {
+      "post": {
+        "operationId": "AuthController_confirmPhoneChange",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmPhoneChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Confirm phone number change OTP",
+        "tags": [
+          "auth"
+        ]
+      }
     }
   },
   "info": {
     "title": "Kahade API",
-    "description": "PT Kawal Hak Dengan Aman — Platform Escrow P2C Indonesia",
+    "description": "PT Kawal Hak Dengan Aman \u2014 Platform Escrow P2C Indonesia",
     "version": "1.0",
     "contact": {}
   },
@@ -12820,7 +12878,7 @@
           },
           "code": {
             "type": "string",
-            "description": "Six-digit TOTP code or 10–16 character backup code",
+            "description": "Six-digit TOTP code or 10\u201316 character backup code",
             "minLength": 6,
             "maxLength": 16
           },
@@ -13174,7 +13232,21 @@
       },
       "TrustDeviceDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "mfaCode": {
+            "type": "string",
+            "maxLength": 16,
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "password"
+        ]
       },
       "CreateShowcaseDto": {
         "type": "object",
@@ -13536,7 +13608,7 @@
           },
           "pin": {
             "type": "string",
-            "description": "Wallet PIN (6 digits) — collected by mobile but not verified for top-up"
+            "description": "Wallet PIN (6 digits) \u2014 collected by mobile but not verified for top-up"
           }
         },
         "required": [
@@ -13638,13 +13710,13 @@
           },
           "currentPin": {
             "type": "string",
-            "description": "Current wallet PIN — required when changing an existing PIN",
+            "description": "Current wallet PIN \u2014 required when changing an existing PIN",
             "minLength": 6,
             "maxLength": 6
           },
           "password": {
             "type": "string",
-            "description": "Account password — required when changing an existing PIN"
+            "description": "Account password \u2014 required when changing an existing PIN"
           }
         },
         "required": [
@@ -14849,13 +14921,13 @@
           },
           "buyerPercent": {
             "type": "number",
-            "description": "Buyer percentage for SPLIT decisions (integer 1–99)",
+            "description": "Buyer percentage for SPLIT decisions (integer 1\u201399)",
             "minimum": 1,
             "maximum": 99
           },
           "sellerPercent": {
             "type": "number",
-            "description": "Seller percentage for SPLIT decisions (integer 1–99)",
+            "description": "Seller percentage for SPLIT decisions (integer 1\u201399)",
             "minimum": 1,
             "maximum": 99
           }
@@ -14899,7 +14971,7 @@
           },
           "discountPercent": {
             "type": "number",
-            "description": "Discount percentage (0.01–100)",
+            "description": "Discount percentage (0.01\u2013100)",
             "minimum": 0.01,
             "maximum": 100
           },
@@ -15310,6 +15382,60 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "RequestPhoneChangeDto": {
+        "type": "object",
+        "properties": {
+          "newPhoneNumber": {
+            "type": "string",
+            "description": "New Indonesian phone number",
+            "maxLength": 20
+          },
+          "method": {
+            "type": "string",
+            "description": "OTP delivery method",
+            "enum": [
+              "SMS",
+              "WHATSAPP"
+            ]
+          },
+          "currentPassword": {
+            "type": "string",
+            "description": "Current account password",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "mfaCode": {
+            "type": "string",
+            "description": "Optional 6-digit authenticator or 10-16 character backup code",
+            "maxLength": 16,
+            "pattern": "^(?:\\d{6}|[A-Za-z0-9]{10,16})$"
+          }
+        },
+        "required": [
+          "newPhoneNumber",
+          "method",
+          "currentPassword"
+        ]
+      },
+      "ConfirmPhoneChangeDto": {
+        "type": "object",
+        "properties": {
+          "newPhoneNumber": {
+            "type": "string",
+            "description": "New Indonesian phone number",
+            "maxLength": 20
+          },
+          "code": {
+            "type": "string",
+            "description": "6-digit OTP code",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "newPhoneNumber",
+          "code"
         ]
       }
     }

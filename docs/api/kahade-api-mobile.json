@@ -8153,6 +8153,64 @@
           "Health"
         ]
       }
+    },
+    "/v1/auth/phone-change/request": {
+      "post": {
+        "operationId": "AuthController_requestPhoneChange",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestPhoneChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Request phone number change OTP",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/phone-change/confirm": {
+      "post": {
+        "operationId": "AuthController_confirmPhoneChange",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmPhoneChangeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Confirm phone number change OTP",
+        "tags": [
+          "auth"
+        ]
+      }
     }
   },
   "info": {
@@ -8872,7 +8930,21 @@
       },
       "TrustDeviceDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "mfaCode": {
+            "type": "string",
+            "maxLength": 16,
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "password"
+        ]
       },
       "CreateShowcaseDto": {
         "type": "object",
@@ -11008,6 +11080,60 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "RequestPhoneChangeDto": {
+        "type": "object",
+        "properties": {
+          "newPhoneNumber": {
+            "type": "string",
+            "description": "New Indonesian phone number",
+            "maxLength": 20
+          },
+          "method": {
+            "type": "string",
+            "description": "OTP delivery method",
+            "enum": [
+              "SMS",
+              "WHATSAPP"
+            ]
+          },
+          "currentPassword": {
+            "type": "string",
+            "description": "Current account password",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "mfaCode": {
+            "type": "string",
+            "description": "Optional 6-digit authenticator or 10-16 character backup code",
+            "maxLength": 16,
+            "pattern": "^(?:\\d{6}|[A-Za-z0-9]{10,16})$"
+          }
+        },
+        "required": [
+          "newPhoneNumber",
+          "method",
+          "currentPassword"
+        ]
+      },
+      "ConfirmPhoneChangeDto": {
+        "type": "object",
+        "properties": {
+          "newPhoneNumber": {
+            "type": "string",
+            "description": "New Indonesian phone number",
+            "maxLength": 20
+          },
+          "code": {
+            "type": "string",
+            "description": "6-digit OTP code",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "newPhoneNumber",
+          "code"
         ]
       }
     }

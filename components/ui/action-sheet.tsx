@@ -67,8 +67,11 @@ export function ActionSheet({
   return (
     <BottomSheet
       onRequestClose={onRequestClose}
-      // Seluruh sheet bisa di-drag: tidak ada konten scroll di dalamnya
-      dragArea="full"
+      // Gesture pan pada seluruh sheet dapat memenangkan arena gesture dari
+      // Pressable baris (terutama Android), sehingga tap menu terlihat tidak
+      // melakukan apa-apa. Batasi drag ke handle/header; area aksi tetap murni
+      // target tekan.
+      dragArea="handle"
       contentClassName="px-0 pt-0 pb-0"
       footer={
         hideCancel ? undefined : (
