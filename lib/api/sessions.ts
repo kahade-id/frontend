@@ -10,12 +10,15 @@ import type { TrustDeviceDto } from "@/lib/api/types"
 export type DeviceSession = {
   /** userSession.id — valid only for /v1/sessions/{sessionId}. */
   id: string
+  /** users/me/devices/{deviceId} — used only for trust/untrust operations. */
+  deviceId?: string
   deviceName: string
   platform?: string
   browser?: string
   ip?: string
   location?: string
   current?: boolean
+  trusted?: boolean
   lastActiveAt?: string
   createdAt: string
 }
@@ -25,9 +28,16 @@ export function normalizeSession(value: unknown): DeviceSession | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null
   const row = value as Record<string, unknown>
   if (typeof row.id !== "string" || !row.id) return null
+  const device = row.device && typeof row.device === "object" ? (row.device as Record<string, unknown>) : undefined
   const deviceInfo = typeof row.deviceInfo === "string" ? row.deviceInfo : undefined
   return {
     id: row.id,
+    deviceId:
+      typeof row.deviceId === "string"
+        ? row.deviceId
+        : typeof device?.id === "string"
+          ? device.id
+          : undefined,
     deviceName:
       (typeof row.deviceName === "string" && row.deviceName) || deviceInfo || "Perangkat tidak dikenal",
     platform: typeof row.platform === "string" ? row.platform : undefined,
@@ -40,6 +50,12 @@ export function normalizeSession(value: unknown): DeviceSession | null {
           : undefined,
     location: typeof row.location === "string" ? row.location : undefined,
     current: row.isCurrentSession === true || row.current === true,
+    trusted:
+      typeof row.trusted === "boolean"
+        ? row.trusted
+        : typeof row.isTrusted === "boolean"
+          ? row.isTrusted
+          : undefined,
     lastActiveAt: typeof row.lastActiveAt === "string" ? row.lastActiveAt : undefined,
     createdAt: typeof row.createdAt === "string" ? row.createdAt : "",
   }

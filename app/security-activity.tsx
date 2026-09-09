@@ -133,6 +133,7 @@ export default function SecurityActivityScreen() {
     sessionsQuery.refreshing || securityQuery.refreshing || activityQuery.refreshing
 
   const [revokingId, setRevokingId] = useState<string | null>(null)
+  const [trustingId, setTrustingId] = useState<string | null>(null)
   const [confirmRevoke, setConfirmRevoke] = useState<DeviceSession | null>(null)
   const [confirmOthers, setConfirmOthers] = useState(false)
   const [revokingOthers, setRevokingOthers] = useState(false)
@@ -178,6 +179,32 @@ export default function SecurityActivityScreen() {
       setRevokingOthers(false)
     }
   }, [sessionsQuery, toast.show])
+
+  const handleToggleTrust = useCallback(
+    async (session: DeviceSession, next: boolean) => {
+      if (!session.deviceId) {
+        toast.show({ title: "Status perangkat belum tersedia", tone: "danger" })
+        return
+      }
+      setTrustingId(session.id)
+      try {
+        if (next) {
+          await api.sessions.trustDevice(session.deviceId, {})
+        } else {
+          await api.sessions.untrustDevice(session.deviceId, {})
+        }
+        sessionsQuery.setData((prev) =>
+          prev.map((item) => (item.id === session.id ? { ...item, trusted: next } : item)),
+        )
+        toast.show({ title: next ? "Perangkat dipercaya" : "Kepercayaan dicabut", tone: "success" })
+      } catch (err: unknown) {
+        toast.show({ title: "Gagal mengubah perangkat tepercaya", description: userMessage(err), tone: "danger" })
+      } finally {
+        setTrustingId(null)
+      }
+    },
+    [sessionsQuery, toast.show],
+  )
 
   /**
    * `error`/`loading` milik TAB AKTIF saja. Sebelumnya keduanya berasal dari
@@ -226,6 +253,9 @@ export default function SecurityActivityScreen() {
                     lastActiveAt={s.lastActiveAt ? formatDateTime(s.lastActiveAt) : undefined}
                     lastActiveLabel={s.current ? "Aktif sekarang" : undefined}
                     current={s.current}
+                    trusted={s.trusted}
+                    onToggleTrust={(next) => void handleToggleTrust(s, next)}
+                    togglingTrust={trustingId === s.id}
                     onRevoke={s.current ? undefined : () => setConfirmRevoke(s)}
                     revoking={revokingId === s.id}
                     divider={i < sessions.length - 1}

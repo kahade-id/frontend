@@ -69,7 +69,13 @@ export function getSubscriptionBenefits(signal?: AbortSignal) {
         .filter((row): row is SubscriptionBenefit => row !== null),
     )
     .catch((error: unknown) => {
-      if (error && typeof error === "object" && "backendCode" in error && error.backendCode === "NO_ACTIVE_SUBSCRIPTION") return []
+      if (
+        error &&
+        typeof error === "object" &&
+        (("backendCode" in error && error.backendCode === "NO_ACTIVE_SUBSCRIPTION") ||
+          ("code" in error && error.code === "NOT_FOUND"))
+      )
+        return []
       throw error
     })
 }
