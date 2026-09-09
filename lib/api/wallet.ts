@@ -23,7 +23,7 @@ import { assertDtoConstraints } from "@/lib/financial"
  *   - `retry: 1` pada GET: jaringan seluler flaky; GET wallet/transaksi
  *     idempoten sehingga aman di-retry sekali.
  */
-import { pickString, readList, readVerdict } from "@/lib/api/response"
+import { pickString, pickUserId, readList, readVerdict } from "@/lib/api/response"
 import {
   normalizeWallet,
   normalizeWalletPage,
@@ -256,7 +256,13 @@ export function lookupTransferRecipient(q: string, signal?: AbortSignal) {
         const record = item as Record<string, unknown>
         return {
           ...record,
-          id: String(record.id ?? record.userId ?? ""),
+          // `pickUserId`, bukan `String(record.id ?? record.userId ?? "")`:
+          // helper ini juga membaca `user_id`/`_id`/`uid` dan membuka objek
+          // bersarang (`user`, `data`, `profile`, …), serta mengubah `id`
+          // bertipe number menjadi string. Penerima transfer yang id-nya
+          // kosong akan membuat POST /v1/wallet/transfer menembak penerima
+          // yang salah, jadi alias seluas mungkin di sini memang perlu.
+          id: pickUserId(record),
           kycVerified: record.kycVerified ?? record.isKycVerified,
         } as TransferRecipient
       }
