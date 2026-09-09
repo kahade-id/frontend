@@ -1,4 +1,4 @@
-import { readPage } from "@/lib/api/response"
+import { asRecord, readPage } from "@/lib/api/response"
 /**
  * Kahade — domain `notifications` (tag "notifications" di kahade-api-mobile.json).
  *
@@ -226,10 +226,15 @@ export function deleteReadNotifications() {
   return http.post<void>("/v1/notifications/delete-read", undefined, { auth: "required" })
 }
 
-export function getNotification(id: string) {
+export function getNotification(id: string, signal?: AbortSignal) {
   return http
-    .get<NotificationPayload>(`/v1/notifications/${seg(id)}`, { auth: "required" })
-    .then(normalizeNotification)
+    .get<unknown>(`/v1/notifications/${seg(id)}`, { auth: "required", retry: 1, signal })
+    .then((raw) => {
+      // Toleransi bentuk: `{...notif}` langsung atau tersarang `{ notification: {...} }`.
+      const record = asRecord(raw)
+      const payload = (record?.notification ?? raw) as NotificationPayload
+      return normalizeNotification(payload)
+    })
 }
 
 export function deleteNotification(id: string) {

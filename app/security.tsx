@@ -33,7 +33,8 @@
  *   - Baris memakai `href` (bukan `onPress`) agar di web menjadi <a href>
  *     sungguhan: bisa ctrl/cmd-klik dan diumumkan sebagai "tautan" (§ audit S5).
  *   - Tanpa subtitle & tanpa border kartu (mengikuti keputusan desain menu
- *     Pengaturan): judul `bodyLarge` + latar `bg-surface` saja.
+ *     Pengaturan): judul `bodyLarge` + latar `bg-surface` + `rounded-md`,
+ *     tanpa pemisah antar baris.
  */
 import { View } from "react-native"
 import {
@@ -94,7 +95,7 @@ export default function SecurityScreen() {
     >
       {/* ── Kredensial masuk ───────────────────────────────── */}
       <SectionHeader title="Kredensial" />
-      <View className="w-full overflow-hidden bg-surface">
+      <View className="w-full overflow-hidden rounded-md bg-surface">
         <ListItem
           title="Ganti Email"
           titleVariant="bodyLarge"
@@ -151,7 +152,7 @@ export default function SecurityScreen() {
 
       {/* ── Kunci perangkat ────────────────────────────────── */}
       <SectionHeader title="Kunci Perangkat" />
-      <View className="w-full overflow-hidden bg-surface">
+      <View className="w-full overflow-hidden rounded-md bg-surface">
         <ListItem
           title="Biometrik"
           titleVariant="bodyLarge"
@@ -172,7 +173,7 @@ export default function SecurityScreen() {
 
       {/* ── Perangkat & data ───────────────────────────────── */}
       <SectionHeader title="Perangkat & Data" />
-      <View className="w-full overflow-hidden bg-surface">
+      <View className="w-full overflow-hidden rounded-md bg-surface">
         <ListItem
           title="Perangkat & Log"
           titleVariant="bodyLarge"
@@ -198,7 +199,7 @@ export default function SecurityScreen() {
 
       {/* ── Zona berbahaya ─────────────────────────────────── */}
       <SectionHeader title="Zona Berbahaya" />
-      <View className="w-full overflow-hidden bg-surface">
+      <View className="w-full overflow-hidden rounded-md bg-surface">
         <ListItem
           title="Hapus Akun"
           titleVariant="bodyLarge"

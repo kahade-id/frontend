@@ -124,6 +124,10 @@ export default function TabsLayout() {
 
   return (
     <Tabs
+      // Rute awal EKSPLISIT: mengandalkan urutan deklarasi membuat tab pertama
+      // yang "menang" bergantung pada implementasi navigator — app harus
+      // selalu dibuka di Beranda, bukan di tab lain.
+      initialRouteName="home"
       screenOptions={{
         headerShown: false,
       }}

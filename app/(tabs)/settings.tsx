@@ -8,9 +8,10 @@
  *  - Pengecualian: teks di KANAN baris tetap ada karena itu STATUS, bukan
  *    penjelasan — Tampilan (Sistem/Terang/Gelap), Bahasa (Indonesia),
  *    Versi Aplikasi (vX.Y.Z), dan badge langganan.
- *  - Kartu cukup LATAR (`bg-surface`): tanpa border, tanpa radius, tanpa
- *    pemisah antar baris. Kelompok ditandai label kecil + jarak, jadi layar
- *    terbaca sebagai daftar pengaturan, bukan tumpukan kartu.
+ *  - Kartu cukup LATAR (`bg-surface`) + `rounded-md`, tanpa border dan tanpa
+ *    pemisah antar baris. Kelompok ditandai label kecil + jarak + sudut
+ *    membulat, jadi layar terbaca sebagai daftar pengaturan yang rapi,
+ *    bukan tumpukan kartu bersiku.
  *
  * Struktur:
  *  - ProfileHeader: foto sampul (header image) + avatar + nama + @username,
@@ -146,8 +147,8 @@ const SOCIAL_COMMUNITIES: SocialCommunityItem[] = [
   },
 ]
 
-/** Latar polos tanpa border/radius — satu kelas untuk semua kelompok menu. */
-const MENU_GROUP = "w-full overflow-hidden bg-surface"
+/** Latar polos + rounded — satu kelas untuk semua kelompok menu (tanpa separator antar baris). */
+const MENU_GROUP = "w-full overflow-hidden rounded-md bg-surface"
 
 /** Judul kelompok: label 13/600 (bukan H2/H3 agar tidak bersaing dengan baris). */
 function MenuGroupLabel({ children }: { children: string }) {
@@ -388,8 +389,8 @@ export default function SettingsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Buka komunitas ${item.label}`}
                   onPress={() => handleSocialPress(item)}
-                  containerClassName={cn("items-center", focusRing)}
-                  className="h-12 w-12 items-center justify-center bg-surface-elevated"
+                  containerClassName={cn("items-center rounded-md", focusRing)}
+                  className="h-12 w-12 items-center justify-center rounded-md bg-surface-elevated"
                 >
                   <Icon icon={item.icon} size="md" tone="default" />
                 </PressableScale>
