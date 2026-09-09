@@ -815,3 +815,76 @@ penjelasan di laporan ini. Verifikasi tetap dijalankan penuh:
 npm run check       → EXIT=0 (6 berkas / 66 test)
 npm run check:api   → 238 pemanggilan cocok, 0 di luar spec
 ```
+
+---
+
+## 14. Putaran kelima — satu perubahan audit ini sendiri DIKOREKSI
+
+Bagian ini mencatat cacat pada **pekerjaan audit ini**, bukan pada kode aplikasi.
+Perlu ditulis karena commit `8173df3` sudah terlanjur memuat klaim yang salah.
+
+### 14.1 Klaim yang salah
+
+Commit `8173df3` ("fix(subscriptions): tolak kode metode pembayaran di luar
+enum SubscribeDto") menambahkan penjaga enum di `app/subscriptions.tsx` dengan
+alasan:
+
+> "Cast `as` melewati type-check tanpa memeriksa apa pun, jadi satu kode di luar
+> enum membuat request 400 dan pengguna hanya melihat pesan validasi NestJS
+> mentah di langkah PIN."
+
+**Klaim itu salah di dua titik**, dan keduanya terbukti lewat test:
+
+1. **Request tidak pernah mencapai backend.** `subscribe()` memanggil
+   `assertDtoConstraints(dto, API_CONSTRAINTS.SubscribeDto)` sebagai baris
+   pertamanya (`lib/api/subscriptions.ts:88`), dan helper itu memang
+   memvalidasi enum (`lib/financial.ts:50`). Nilai di luar enum melempar
+   `ApiError` **secara sinkron** — test memastikan `fetch` tidak terpanggil
+   sama sekali.
+2. **Pesannya sudah bahasa Indonesia.** `ApiError` itu membawa
+   `"Isian paymentMethod tidak sesuai ketentuan layanan."`, dan
+   `app/subscriptions.tsx` merendernya lewat `userMessage(err)`
+   (`lib/api/errors.ts:196-207`). Tidak ada body NestJS mentah yang muncul.
+
+Selain itu penjaga tersebut **tak terjangkau**: daftar metode sudah disaring
+terhadap enum yang sama saat data dimuat (`app/subscriptions.tsx:155-157`), dan
+`methodId` hanya bisa diisi dari daftar tersaring itu — baik lewat `useEffect`
+pemilih awal (baris 207-211) maupun `onChange` `PaymentMethodSelector`
+(baris 403).
+
+### 14.2 Yang dilakukan
+
+Penjaga redundan itu **dicabut**. Cast `as SubscribeDto["paymentMethod"]`
+dipertahankan (memang aman), disertai komentar yang menjelaskan mengapa tidak
+boleh ditambah penjaga di situ — agar pola yang sama tidak diulang.
+
+Perilaku yang *sesungguhnya* melindungi alur ini sekarang dikunci di
+`tests/api-contract-guards.test.ts` (10 test), termasuk sifat yang paling mudah
+regresi: `subscribe()` melempar **sinkron**, bukan mengembalikan promise yang
+*reject*. Versi pertama test itu sendiri salah di titik ini — memakai
+`.rejects`/`.catch()` pada fungsi non-`async` — dan baru benar setelah
+diganti `expect(() => …).toThrow()`.
+
+### 14.3 Pelajaran yang berlaku untuk seluruh audit ini
+
+Dua perubahan lain pada putaran yang sama lolos tanpa koreksi, tapi keduanya
+sempat hampir salah dengan cara yang serupa:
+
+- `getSearchSuggestions` menambah `limit: 20`. Aman karena `app/search.tsx:126`
+  merender saran sebagai chip pendek dan `globalSearch` di sebelahnya sudah
+  memakai batas yang sama — **bukan** karena spec menandainya wajib.
+- Tiga layar (`blocked-users`, `favorites`, `support`) sengaja **tidak** diberi
+  `page`/`limit` walau spec menandainya wajib (§12.2), karena ketiganya tanpa
+  paginasi dan batas itu akan memotong daftar yang hari ini tampil penuh.
+
+Polanya: **"spec menandai X wajib" bukan alasan untuk mengirim X.** Yang
+menentukan adalah apakah backend menegakkannya dan apa efeknya pada layar.
+
+### 14.4 Verifikasi putaran kelima
+
+```
+npm run typecheck   → EXIT=0
+npm run lint        → EXIT=0
+npm run check       → EXIT=0 (7 berkas / 76 test)
+npm run build:web   → EXIT=0
+```

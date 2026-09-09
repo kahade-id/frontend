@@ -278,26 +278,23 @@ export default function SubscriptionsScreen() {
         } else {
           if (!selectedPlan) return
           /**
-           * Kode metode berasal dari `GET /v1/wallet/payment-methods` (string
-           * bebas dari server), sedangkan `SubscribeDto.paymentMethod` adalah
-           * enum 19 nilai. Cast `as` di sini dulu melewati type-check tanpa
-           * memeriksa apa pun: begitu backend menawarkan satu kode di luar enum
-           * (metode baru, atau `KAHADE_WALLET` yang hanya sah untuk langganan),
-           * request 400 dan pengguna hanya melihat pesan validasi NestJS mentah
-           * di langkah PIN — tanpa tahu metode mana yang jadi masalah.
+           * Cast `as` di bawah AMAN dan tidak perlu penjaga tambahan — jangan
+           * tambahkan pemeriksaan enum di sini.
            *
-           * Enum-nya dibaca dari API_CONSTRAINTS (dihasilkan dari spec), jadi
-           * penjaga ini ikut menyempit/melebar sendiri saat spec berubah.
+           * `methodId` hanya bisa berasal dari `methods`, dan daftar itu sudah
+           * disaring terhadap `API_CONSTRAINTS.SubscribeDto.paymentMethod.enum`
+           * saat data dimuat (lihat `.filter(…)` di `useApiQuery` atas). Baik
+           * `useEffect` pemilih awal maupun `onChange` PaymentMethodSelector
+           * hanya pernah menyodorkan id dari daftar tersaring tersebut.
+           *
+           * Lapis kedua: `subscribe()` memanggil `assertDtoConstraints` lebih
+           * dulu, yang melempar `ApiError` VALIDATION berbahasa Indonesia
+           * SECARA SINKRON sebelum satu pun request dikirim. Jadi nilai di luar
+           * enum tidak pernah mencapai backend, dan yang tampil di `catch`
+           * bawah adalah `userMessage(err)` — bukan body validasi NestJS.
+           *
+           * Kedua sifat itu dikunci di `tests/api-contract-guards.test.ts`.
            */
-          const allowedMethods = API_CONSTRAINTS.SubscribeDto.paymentMethod.enum as readonly string[]
-          if (hasMethods && !allowedMethods.includes(methodId)) {
-            setPinError(
-              `Metode pembayaran "${methodId}" tidak didukung untuk langganan. Pilih metode lain.`,
-            )
-            submitLock.current = false
-            setSubmitting(false)
-            return
-          }
           const next = await api.subscriptions.subscribe({
             plan: planPeriod(selectedPlan),
             pin,
