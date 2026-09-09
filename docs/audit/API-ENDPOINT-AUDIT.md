@@ -38,7 +38,7 @@ dibiarkan berdampingan supaya jelas apa yang berubah dan apa yang masih terbuka.
 | **Kontrak error (4xx/5xx) di spec** | **0 operasi** | 0 — **celah backend** | ❌ |
 | **Metadata `security` di spec** | 50 operasi kosong, 2 skema dangling | sama — **celah backend** | ❌ |
 | **Header request terdokumentasi** | 0 dari 6 header yang dikirim | sama — **celah backend** | ❌ |
-| Test otomatis (unit/e2e) | **0 berkas test** → `npm run check` gagal | **7 berkas / 76 test**, `npm run check` hijau | ✅ |
+| Test otomatis (unit/e2e) | **0 berkas test** → `npm run check` gagal | **7 berkas / 80 test**, `npm run check` hijau | ✅ |
 | Cakupan endpoint spec oleh aplikasi | 238 / 260 = 91,5 % *(salah hitung)* | **239 / 260 operasi unik = 91,9 %** (§13) | ⚠️ |
 | Verifikasi terhadap backend hidup | **tidak dapat dijalankan** | tetap tidak dapat dijalankan (§7) | ⛔ |
 
@@ -957,3 +957,107 @@ npm run check           → EXIT=0 (7 berkas / 76 test)
 npm run check:api:body  → 84 pemanggilan, 0 pelanggaran, 12 peringatan
 npm run build:web       → EXIT=0
 ```
+
+---
+
+## 16. Putaran ketujuh — API-25 & API-26: validasi klien yang tampak jalan padahal tidak
+
+Dua temuan ini berpasangan: yang pertama memperluas data validasi, yang kedua
+menemukan bahwa sebagian data itu **tidak pernah ditegakkan**.
+
+### 16.1 API-25 · daftar DTO di-hardcode, 47 DTO tak pernah tervalidasi
+
+`scripts/gen-api-constraints.mjs` memuat **daftar 11 nama DTO yang ditulis
+manual**. Spec mobile mereferensikan 88 DTO pada `paths`, dan **60** di antaranya
+punya constraint. Jadi 49 DTO ber-constraint tidak pernah masuk
+`API_CONSTRAINTS` dan mustahil divalidasi di klien.
+
+Gejala nyatanya membuat temuan ini ketemu: komentar di `app/account-type.tsx`
+menyatakan
+
+> "Nilai enum diambil dari `API_CONSTRAINTS.UpdateProfileDto.accountType`"
+
+padahal `UpdateProfileDto` **tidak ada** di `constraints.ts` (0 kemunculan) dan
+nilai enumnya di-*hardcode* di array `OPTIONS`. Komentar itu mengklaim penjagaan
+yang tidak pernah ada.
+
+**Perbaikan.** Daftar DTO kini **diturunkan dari spec**: schema yang direferensikan
+operasi pada `paths` — bukan yang sekadar menganggur di `components`, karena spec
+ini sengaja tidak memangkas skema admin (API-16) — dan punya setidaknya satu
+constraint. Hasil: **11 → 60 DTO**.
+
+Verifikasi dilakukan **secara semantik, bukan tekstual**. Diff mentah menyesatkan
+di sini: nama DTO kini terurut alfabetis, sehingga blok lama tampak "dihapus"
+(70 baris `-`) padahal hanya berpindah. Perbandingan objek-ke-objek memberi:
+
+| | Hasil |
+|---|---|
+| Nilai constraint lama yang berubah | **0** |
+| DTO lama yang hilang | **1** (`BatchNotificationIdsDto`) |
+| DTO baru | **+49** |
+
+`BatchNotificationIdsDto` aman dikeluarkan: ia **tidak punya constraint apa pun**
+— "max 50 per request" hanya ada di teks `description`, bukan `maxItems` — jadi
+dulu ia masuk sebagai objek kosong `{}`, dan tidak ada satu pun akses
+`API_CONSTRAINTS.BatchNotificationIdsDto` di seluruh repo.
+
+`app/account-type.tsx` ikut diperbaiki agar komentarnya menjadi **benar**, bukan
+sekadar dihapus: `AccountType` diturunkan dari `UpdateProfileDto["accountType"]`,
+dan `OPTION_DETAILS` bertipe `Record<AccountType, …>` yang *exhaustive*. Bentuk
+lama (`array` + `satisfies`) hanya memeriksa arah sebaliknya — tiap opsi punya
+`value` sah — sehingga nilai enum baru lolos diam-diam sebagai pilihan yang
+hilang di UI.
+
+Diuji dua arah: menambah `"ENTERPRISE"` ke enum membuat `tsc` **EXIT=2** dengan
+`Property 'ENTERPRISE' is missing in type … but required in type
+'Record<AccountType, …>'`; setelah dipulihkan **EXIT=0**.
+
+### 16.2 API-26 · `pattern`, `minItems`, `maxItems` tidak pernah ditegakkan
+
+Memperluas `API_CONSTRAINTS` membuka temuan kedua. Generator menuliskan aturan
+`pattern` ke berkas itu, tetapi `assertDtoConstraints` (`lib/financial.ts`)
+**tidak membacanya** — bahkan tipe `Rules` tidak mendeklarasikannya. Empat aturan
+ada di data dan diabaikan diam-diam:
+
+| DTO.field | Pola di spec |
+|---|---|
+| `SubmitKycDto.nik` | `^\d{16}$` |
+| `AddBankAccountDto.accountNumber` | `^\d{6,20}$` |
+| `ConfirmPhoneChangeDto.code` | `^\d{6}$` |
+| `ApplyReferralDto.code` | `^KH[A-Z0-9]{6,8}$` |
+
+Ini kelas cacat yang paling mudah terlewat: **validasi tampak berjalan padahal
+tidak**. Tidak ada error, tidak ada peringatan — hanya aturan yang tidak pernah
+diperiksa.
+
+**Perbaikan.** Tipe `Rules` diperluas, `pattern` ditegakkan (dikompilasi sekali
+per aturan lewat `patternCache`, bukan per pemanggilan), dan `minItems`/`maxItems`
+memeriksa panjang array.
+
+**Aman untuk call site yang ada** — dan ini diverifikasi, bukan diasumsikan:
+**0 dari 7** DTO yang sudah tersambung ke `assertDtoConstraints`
+(`CreateOrderDto`, `CreateOrderLinkDto`, `SubscribeDto`, `PresignedUrlDto`,
+`TopupDto`, `WithdrawDto`, `TransferDto`) punya `pattern`/`minItems`/`maxItems`.
+Jadi tidak ada perilaku yang berubah; yang berubah hanya bahwa aturan yang
+memang ada akhirnya dibaca.
+
+Empat DTO ber-`pattern` itu sendiri **sengaja belum disambungkan** ke
+`assertDtoConstraints`. Layar terkait sudah punya penjagaan masing-masing
+(`app/kyc.tsx:172` memeriksa `nik.length === NIK_LENGTH`;
+`app/bank-accounts.tsx:94` men-*strip* non-digit), dan menyambungkannya tanpa
+memverifikasi backend adalah pola yang sama yang menghasilkan perubahan keliru di
+§14. Yang ditutup di sini adalah **lubang pada fungsinya**, sehingga siapa pun
+yang menyambungkan DTO berikutnya mendapat validasi yang benar-benar bekerja.
+
+### 16.3 Verifikasi putaran ketujuh
+
+```
+npm run typecheck   → EXIT=0
+npm run lint        → EXIT=0
+npm run check       → EXIT=0 (7 berkas / 80 test)
+npm run build:web   → EXIT=0
+npm run gen:api --check → sinkron
+```
+
+Uji dua arah untuk penjaga *exhaustive*: enum diperluas → `tsc` EXIT=2;
+dipulihkan → EXIT=0.
