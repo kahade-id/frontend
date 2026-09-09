@@ -138,7 +138,10 @@ export function LoadingOverlay({ visible, message, children, onHidden }: Loading
       <View className="absolute inset-0 z-modal">
         {/* Tanpa onPress: scrim tidak bisa di-tap — proses tidak boleh diinterupsi */}
         <Backdrop progress={progress} />
-        <View style={{ pointerEvents: "none" }} className="flex-1 items-center justify-center px-6">
+        <View
+          style={{ pointerEvents: "none", zIndex: 1 }}
+          className="flex-1 items-center justify-center px-6"
+        >
           <Animated.View style={{ opacity: progress }}>
             <View
               ref={boxRef}

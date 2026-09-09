@@ -1,17 +1,33 @@
 /**
  * Tab #5 — Pengaturan (Settings)
  *
- * Sesuai spesifikasi desain v1.1 & audit:
- *  - ProfileHeader dengan avatar, nama lengkap, @username, error & retry handling.
- *  - Tanpa separator garis (divider) antar item atau antar section.
- *  - Setiap kategori dibungkus dalam Card Gray (bg-surface) yang bersih & modern.
- *  - Card Utama: Langganan (Kahade Plus / Subscriptions).
- *  - Card 2: Edit Profil, Laporan, Keamanan, Tipe Akun.
- *  - Card 3: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
- *  - Card 4: Tentang Kami, Umpan Balik, Dukungan Langsung, Tiket Bantuan.
- *  - Card 5: Syarat & ketentuan, Kebijakan privasi.
- *  - Komunitas: Bergabunglah dengan Komunitas Kami (Telegram, X, Facebook, WhatsApp, Instagram, TikTok).
- *  - Logout: Konfirmasi Dialog destruktif + unregister push device + clear session.
+ * Keputusan desain (permintaan produk 2026-09-09):
+ *  - Menu TANPA deskripsi. Satu baris = satu judul; hierarki dijaga ukuran
+ *    judul (`titleVariant="bodyLarge"` = 16/26 weight 600), bukan teks kedua
+ *    yang membuat layar ramai dan memaksa baris jadi dua kali lebih tinggi.
+ *  - Pengecualian: teks di KANAN baris tetap ada karena itu STATUS, bukan
+ *    penjelasan — Tampilan (Sistem/Terang/Gelap), Bahasa (Indonesia),
+ *    Versi Aplikasi (vX.Y.Z), dan badge langganan.
+ *  - Kartu cukup LATAR (`bg-surface`): tanpa border, tanpa radius, tanpa
+ *    pemisah antar baris. Kelompok ditandai label kecil + jarak, jadi layar
+ *    terbaca sebagai daftar pengaturan, bukan tumpukan kartu.
+ *
+ * Struktur:
+ *  - ProfileHeader: foto sampul (header image) + avatar + nama + @username,
+ *    dengan aksi ubah sampul/profil → /edit-profile.
+ *  - Kartu utama: Langganan (Kahade Plus).
+ *  - Akun: Edit Profil, Laporan & Analitik, Keamanan, Tipe Akun.
+ *  - Preferensi: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
+ *  - Bantuan: Tentang Kami, Umpan Balik, Dukungan Langsung, Tiket Bantuan.
+ *  - Legal: Syarat & ketentuan, Kebijakan privasi.
+ *  - Komunitas: Telegram, X, Facebook, WhatsApp, Instagram, TikTok.
+ *  - Keluar: Dialog konfirmasi destruktif + unregister push device + clear session.
+ *
+ * Navigasi:
+ *  - "Keamanan" → /security = PUSAT pengaturan keamanan (ganti nomor HP,
+ *    email, password, PIN, biometrik, 2FA, perangkat & log, hapus akun).
+ *  - "Laporan & Analitik" → /analytics = angka ringkasan + unduh riwayat
+ *    transaksi/dompet + tautan ke daftar laporan (/reports).
  */
 import { useCallback, useState } from "react"
 import { Linking, View } from "react-native"
@@ -20,6 +36,7 @@ import {
   Bell,
   Briefcase,
   Buildings,
+  Camera,
   CaretRight,
   ChatTeardropDots,
   CrownSimple,
@@ -59,12 +76,13 @@ import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
 import { ListItem } from "@/components/ui/list-item"
 import { Dialog } from "@/components/ui/modal"
 import { PressableScale } from "@/components/ui/pressable-scale"
-import { RouteLink } from "@/components/ui/route-link"
 import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
@@ -76,11 +94,10 @@ import { useToast } from "@/components/ui/toast"
 type MenuItemData = {
   id: string
   label: string
-  subtitle?: string
   icon: IconComponent
   route: Href
+  /** Status di kanan baris (bukan deskripsi) — mis. "Sistem", "Indonesia", "v1.0.0" */
   trailing?: string
-  destructive?: boolean
 }
 
 type SocialCommunityItem = {
@@ -128,6 +145,18 @@ const SOCIAL_COMMUNITIES: SocialCommunityItem[] = [
     url: "https://tiktok.com/@kahade",
   },
 ]
+
+/** Latar polos tanpa border/radius — satu kelas untuk semua kelompok menu. */
+const MENU_GROUP = "w-full overflow-hidden bg-surface"
+
+/** Judul kelompok: label 13/600 (bukan H2/H3 agar tidak bersaing dengan baris). */
+function MenuGroupLabel({ children }: { children: string }) {
+  return (
+    <Text variant="label" tone="secondary" className="pt-2">
+      {children}
+    </Text>
+  )
+}
 
 export default function SettingsScreen() {
   const toast = useToast()
@@ -187,61 +216,24 @@ export default function SettingsScreen() {
   const themeLabel =
     preference === "system" ? "Sistem" : preference === "dark" ? "Gelap" : "Terang"
 
-  // Card 2: Edit Profil, Laporan, Keamanan, Tipe Akun
-  const card2Items: MenuItemData[] = [
-    {
-      id: "edit-profile",
-      label: "Edit Profil",
-      subtitle: "Nama, bio, avatar & tautan publik",
-      icon: User,
-      route: ROUTES.editProfile,
-    },
-    {
-      id: "reports",
-      label: "Laporan",
-      subtitle: "Daftar laporan & riwayat penanganan",
-      icon: FileText,
-      route: ROUTES.reports(),
-    },
-    {
-      id: "security",
-      label: "Keamanan",
-      subtitle: "Password, PIN, 2FA & sesi aktif",
-      icon: ShieldCheck,
-      route: ROUTES.security,
-    },
-    {
-      id: "account-type",
-      label: "Tipe Akun",
-      subtitle: "Status verifikasi & batas transaksi",
-      icon: Briefcase,
-      route: ROUTES.accountType,
-    },
+  // ── Akun ────────────────────────────────────────────────────────
+  const accountItems: MenuItemData[] = [
+    { id: "edit-profile", label: "Edit Profil", icon: User, route: ROUTES.editProfile },
+    { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
+    { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security },
+    { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },
   ]
 
-  // Card 3: Tampilan, Notifikasi, Bahasa, Versi Aplikasi
-  const card3Items: MenuItemData[] = [
-    {
-      id: "appearance",
-      label: "Tampilan",
-      icon: Moon,
-      route: ROUTES.appearance,
-      trailing: themeLabel,
-    },
+  // ── Preferensi ──────────────────────────────────────────────────
+  const preferenceItems: MenuItemData[] = [
+    { id: "appearance", label: "Tampilan", icon: Moon, route: ROUTES.appearance, trailing: themeLabel },
     {
       id: "notifications",
       label: "Notifikasi",
-      subtitle: "Preferensi push notifikasi & email",
       icon: Bell,
       route: ROUTES.notificationPreferences,
     },
-    {
-      id: "language",
-      label: "Bahasa",
-      icon: Translate,
-      route: ROUTES.language,
-      trailing: "Indonesia (ID)",
-    },
+    { id: "language", label: "Bahasa", icon: Translate, route: ROUTES.language, trailing: "Indonesia" },
     {
       id: "app-version",
       label: "Versi Aplikasi",
@@ -251,55 +243,38 @@ export default function SettingsScreen() {
     },
   ]
 
-  // Card 4: Tentang Kami, Umpan Balik, Dukungan Langsung, Tiket Bantuan
-  const card4Items: MenuItemData[] = [
-    {
-      id: "about-us",
-      label: "Tentang Kami",
-      subtitle: "Informasi lengkap platform Kahade",
-      icon: Buildings,
-      route: ROUTES.faq,
-    },
-    {
-      id: "feedback",
-      label: "Umpan Balik",
-      subtitle: "Kirim saran & evaluasi layanan",
-      icon: ChatTeardropDots,
-      route: ROUTES.contact,
-    },
-    {
-      id: "live-support",
-      label: "Dukungan Langsung",
-      subtitle: "Chat langsung dengan tim bantuan",
-      icon: Headset,
-      route: ROUTES.chat,
-    },
-    {
-      id: "support-tickets",
-      label: "Tiket Bantuan",
-      subtitle: "Riwayat & status tiket bantuan",
-      icon: Lifebuoy,
-      route: ROUTES.support,
-    },
+  // ── Bantuan ─────────────────────────────────────────────────────
+  const supportItems: MenuItemData[] = [
+    { id: "about-us", label: "Tentang Kami", icon: Buildings, route: ROUTES.faq },
+    { id: "feedback", label: "Umpan Balik", icon: ChatTeardropDots, route: ROUTES.contact },
+    { id: "live-support", label: "Dukungan Langsung", icon: Headset, route: ROUTES.chat },
+    { id: "support-tickets", label: "Tiket Bantuan", icon: Lifebuoy, route: ROUTES.support },
   ]
 
-  // Card 5: Syarat & ketentuan, Kebijakan privasi
-  const card5Items: MenuItemData[] = [
-    {
-      id: "terms",
-      label: "Syarat & ketentuan",
-      subtitle: "Ketentuan penggunaan platform",
-      icon: Scales,
-      route: ROUTES.terms,
-    },
-    {
-      id: "privacy-policy",
-      label: "Kebijakan privasi",
-      subtitle: "Kebijakan perlindungan privasi data",
-      icon: Shield,
-      route: ROUTES.privacyPolicy,
-    },
+  // ── Legal ───────────────────────────────────────────────────────
+  const legalItems: MenuItemData[] = [
+    { id: "terms", label: "Syarat & Ketentuan", icon: Scales, route: ROUTES.terms },
+    { id: "privacy-policy", label: "Kebijakan Privasi", icon: Shield, route: ROUTES.privacyPolicy },
   ]
+
+  const renderGroup = (items: MenuItemData[]) => (
+    <View className={MENU_GROUP}>
+      {items.map((item) => (
+        <ListItem
+          key={item.id}
+          title={item.label}
+          titleVariant="bodyLarge"
+          leading={item.icon}
+          trailing={item.trailing}
+          chevron
+          divider={false}
+          padded={false}
+          className="px-4 py-3"
+          href={item.route}
+        />
+      ))}
+    </View>
+  )
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -314,7 +289,7 @@ export default function SettingsScreen() {
           },
         }}
       >
-        {/* ── Profile Header ───────────────────────────────── */}
+        {/* ── Profile Header (sampul + avatar) ───────────────── */}
         <View className="pt-2 pb-1">
           {profileQuery.error ? (
             <ErrorState
@@ -329,132 +304,82 @@ export default function SettingsScreen() {
               name={profile?.fullName ?? "—"}
               handle={profile?.username ? `@${profile.username}` : undefined}
               avatar={{ source: profile?.avatarUrl ?? undefined }}
+              cover={{
+                source: profile?.headerUrl ?? undefined,
+                placeholder: true,
+                action: (
+                  <IconButton
+                    icon={Camera}
+                    size="sm"
+                    variant="secondary"
+                    accessibilityLabel="Ubah foto sampul dan profil"
+                    onPress={() => router.push(ROUTES.editProfile)}
+                  />
+                ),
+              }}
               loading={profileQuery.loading}
             />
           )}
         </View>
 
         <View className="gap-4 px-6 pt-3">
-          {/* ── Card Utama: Langganan ───────────────────────── */}
-          {/* Audit (S5): kartu ini BERNavigasi ke /subscriptions tetapi
-             dipasang sebagai PressableScale dengan accessibilityRole="button".
-             Dua akibat terbukti: (1) di web tidak ada <a href> sungguhan, jadi
-             tidak bisa ctrl/cmd-klik, klik tengah, atau "buka di tab baru";
-             (2) screen reader mengumumkan "tombol", bukan "tautan", sehingga
-             pengguna tidak tahu ini pindah layar. <RouteLink> membungkus
-             <Link asChild> di atas PressableScale — efek tekan tetap sama,
-             tetapi web dapat <a href> dan role-nya otomatis "link" (focusRing
-             juga sudah dipasang di dalamnya). */}
+          {/* ── Kartu utama: Langganan ────────────────────────── */}
+          {/* <RouteLink> membungkus <Link asChild> di atas PressableScale:
+             efek tekan tetap, tetapi web mendapat <a href> sungguhan dan
+             screen reader mengumumkan "tautan", bukan "tombol". */}
           <RouteLink
             href={ROUTES.subscriptions}
             accessibilityLabel="Menu Langganan Kahade Plus"
-            containerClassName="w-full rounded-md"
-            className="w-full overflow-hidden rounded-md border border-border bg-surface p-4"
+            containerClassName="w-full"
+            className="w-full overflow-hidden bg-surface p-4"
           >
             <View className="flex-row items-center gap-3">
-              <View className="h-11 w-11 items-center justify-center rounded-sm bg-primary">
+              <View className="h-11 w-11 items-center justify-center bg-primary">
                 <Icon icon={CrownSimple} size="sm" tone="inverse" weight="fill" />
               </View>
 
-              <View className="flex-1 gap-0.5">
-                <View className="flex-row items-center gap-2">
-                  <Text variant="body" weight={600} tone="primary">
-                    Langganan
-                  </Text>
-                  <Badge tone={isSubscribed ? "success" : "neutral"} variant="soft">
-                    {isSubscribed ? "Plus Aktif" : "Kahade Plus"}
-                  </Badge>
-                </View>
-                <Text variant="caption" tone="secondary" numberOfLines={1}>
-                  {isSubscribed
-                    ? `Paket ${subStatus?.plan ?? "Premium"} aktif · Kelola langganan`
-                    : "Bebas biaya transaksi & fitur prioritas"}
+              <View className="flex-1 flex-row items-center gap-2">
+                <Text variant="bodyLarge" weight={600} tone="primary">
+                  Langganan
                 </Text>
+                <Badge tone={isSubscribed ? "success" : "neutral"} variant="soft">
+                  {isSubscribed ? "Plus Aktif" : "Kahade Plus"}
+                </Badge>
               </View>
 
               <Icon icon={CaretRight} size="sm" tone="default" />
             </View>
           </RouteLink>
 
-          {/* ── Card 2: Akun & Keamanan ─────────────────────── */}
-          <View className="w-full overflow-hidden rounded-md border border-border bg-surface">
-            {card2Items.map((item) => (
-              <ListItem
-                key={item.id}
-                title={item.label}
-                subtitle={item.subtitle}
-                leading={item.icon}
-                chevron
-                divider={false}
-                padded={false}
-                className="px-4 py-3"
-                href={item.route}
-              />
-            ))}
+          {/* ── Akun ─────────────────────────────────────────── */}
+          <View className="gap-2">
+            <MenuGroupLabel>Akun</MenuGroupLabel>
+            {renderGroup(accountItems)}
           </View>
 
-          {/* ── Card 3: Tampilan & Preferensi ────────────────── */}
-          <View className="w-full overflow-hidden rounded-md border border-border bg-surface">
-            {card3Items.map((item) => (
-              <ListItem
-                key={item.id}
-                title={item.label}
-                subtitle={item.subtitle}
-                leading={item.icon}
-                trailing={item.trailing}
-                chevron
-                divider={false}
-                padded={false}
-                className="px-4 py-3"
-                href={item.route}
-              />
-            ))}
+          {/* ── Preferensi ───────────────────────────────────── */}
+          <View className="gap-2">
+            <MenuGroupLabel>Preferensi</MenuGroupLabel>
+            {renderGroup(preferenceItems)}
           </View>
 
-          {/* ── Card 4: Bantuan & Layanan ────────────────────── */}
-          <View className="w-full overflow-hidden rounded-md border border-border bg-surface">
-            {card4Items.map((item) => (
-              <ListItem
-                key={item.id}
-                title={item.label}
-                subtitle={item.subtitle}
-                leading={item.icon}
-                chevron
-                divider={false}
-                padded={false}
-                className="px-4 py-3"
-                href={item.route}
-              />
-            ))}
+          {/* ── Bantuan ──────────────────────────────────────── */}
+          <View className="gap-2">
+            <MenuGroupLabel>Bantuan</MenuGroupLabel>
+            {renderGroup(supportItems)}
           </View>
 
-          {/* ── Card 5: Legal & Kebijakan ────────────────────── */}
-          <View className="w-full overflow-hidden rounded-md border border-border bg-surface">
-            {card5Items.map((item) => (
-              <ListItem
-                key={item.id}
-                title={item.label}
-                subtitle={item.subtitle}
-                leading={item.icon}
-                chevron
-                divider={false}
-                padded={false}
-                className="px-4 py-3"
-                href={item.route}
-              />
-            ))}
+          {/* ── Legal ────────────────────────────────────────── */}
+          <View className="gap-2">
+            <MenuGroupLabel>Legal</MenuGroupLabel>
+            {renderGroup(legalItems)}
           </View>
 
           {/* ── Bergabunglah dengan Komunitas Kami ──────────── */}
-          <View className="w-full gap-3 overflow-hidden rounded-md border border-border bg-surface p-4">
-            <View className="gap-1">
-              <Text variant="body" weight={600} tone="primary">
-                Bergabunglah dengan Komunitas Kami
-              </Text>
-              <Text variant="caption" tone="secondary">
-                Ikuti berita terbaru dan terhubung dengan komunitas Kahade.
-              </Text>
-            </View>
+          <View className={cn(MENU_GROUP, "gap-3 p-4")}>
+            <Text variant="bodyLarge" weight={600} tone="primary">
+              Bergabunglah dengan Komunitas Kami
+            </Text>
 
             <View className="flex-row flex-wrap items-center justify-between pt-1">
               {SOCIAL_COMMUNITIES.map((item) => (
@@ -463,8 +388,8 @@ export default function SettingsScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={`Buka komunitas ${item.label}`}
                   onPress={() => handleSocialPress(item)}
-                  containerClassName={cn("items-center rounded-md", focusRing)}
-                  className="h-12 w-12 items-center justify-center rounded-md border border-border bg-surface-elevated"
+                  containerClassName={cn("items-center", focusRing)}
+                  className="h-12 w-12 items-center justify-center bg-surface-elevated"
                 >
                   <Icon icon={item.icon} size="md" tone="default" />
                 </PressableScale>

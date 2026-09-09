@@ -157,11 +157,27 @@ export function Backdrop({
         importantForAccessibility={onPress ? "yes" : "no-hide-descendants"}
         onPress={onPress}
         disabled={!onPress}
-        className={cn(
-          "flex-1 z-backdrop",
-          transparent ? "bg-transparent" : "bg-overlay",
-          className,
-        )}
+        /*
+         * TANPA `z-backdrop` di sini (audit web 2026-09-09).
+         *
+         * z-index di CSS hanya bersaing di DALAM stacking context terdekat.
+         * Root <Animated.View> backdrop membawa `opacity` hasil animasi:
+         * selama opacity < 1 ia MEMBUAT stacking context sehingga z-index
+         * anak terkurung di dalamnya, tetapi begitu animasi selesai
+         * (opacity persis 1) stacking context itu hilang dan `z-index: 40`
+         * milik Pressable ini ikut bersaing di stacking context overlay —
+         * melawan konten sheet/dialog yang z-index-nya 0. Scrim lalu
+         * MENUTUPI isi sheet: setiap ketukan pada aksi BottomSheet/Dialog
+         * jatuh ke scrim (sheet menutup, aksi tidak jalan).
+         *
+         * Urutan lapis sekarang ditentukan eksplisit dua arah:
+         *   - Backdrop selalu saudara PERTAMA di dalam kontainer overlay;
+         *   - konten overlay memasang `zIndex: 1` (bottom-sheet, modal,
+         *     loading-screen, tooltip).
+         * Layer 40/50/60 (§6.2) tetap dipakai di KONTAINER tiap overlay
+         * (`z-backdrop`/`z-bottomSheet`/`z-modal`), bukan di dalamnya.
+         */
+        className={cn("flex-1", transparent ? "bg-transparent" : "bg-overlay", className)}
       />
     </Animated.View>
   )

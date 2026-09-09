@@ -53,6 +53,7 @@ import { View, type ImageResizeMode, type ViewProps } from "react-native"
 import { Icon } from "@/components/ui/icon"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/cn"
+import { resolveMediaSource, type MediaSource } from "@/lib/media"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { tokens } from "@/lib/tokens"
 
@@ -113,10 +114,21 @@ export function Picture({
   style,
   ...rest
 }: PictureProps) {
-  const [status, setStatus] = useState<"loading" | "loaded" | "error">("loading")
-  const src: ImageSource | number = typeof source === "string" ? { uri: source } : source
-  const sourceKey = `${recyclingKey ?? ""}:${typeof src === "number" ? String(src) : JSON.stringify(src)}`
-  useEffect(() => setStatus("loading"), [sourceKey])
+  /*
+   * URL gambar dari backend tidak selalu absolut (`/uploads/x.jpg`,
+   * `//cdn/x.jpg`, `http://api…/x.jpg`) dan di web path relatif diselesaikan
+   * browser terhadap ORIGIN PREVIEW, bukan host API — gambar lalu 404 tanpa
+   * pesan apa pun. `resolveMediaSource` (lib/media.ts) menormalkannya.
+   */
+  const src = resolveMediaSource(source as MediaSource | readonly MediaSource[])
+  const hasSource = src != null
+  const sourceKey = `${recyclingKey ?? ""}:${typeof src === "number" ? String(src) : (src?.uri ?? "")}`
+  // Sumber yang tidak bisa dinormalkan tidak punya apa pun untuk ditunggu:
+  // langsung ke fallback "gambar gagal", bukan Skeleton yang tak pernah usai.
+  const [status, setStatus] = useState<"loading" | "loaded" | "error">(
+    hasSource ? "loading" : "error",
+  )
+  useEffect(() => setStatus(hasSource ? "loading" : "error"), [sourceKey, hasSource])
   const reducedMotion = useReducedMotion()
   const decorative = alt === ""
 

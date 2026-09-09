@@ -10,15 +10,24 @@ import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
  *    cepat (isi saldo / tarik / transfer) — komponen sistem, bukan markup
  *    custom: jumlah, format Mono, sembunyikan saldo, skeleton & a11y
  *    sudah ditangani di satu tempat.
- *  - Riwayat mutasi `GET /v1/wallet/transactions` (paginasi + load-more)
- *    dirender dengan <WalletTransactionListItem> — ikon, tanda +/−, status
- *    PENDING/FAILED, & referensi dari komponen sistem.
+ *  - 10 mutasi TERBARU `GET /v1/wallet/transactions` + "Lihat semua" ke
+ *    layar Riwayat Dompet (`/wallet-history`) yang memuat seluruh riwayat
+ *    dengan filter jenis dan tombol unduh.
  *
  * Kontrak API:
  *  - GET /v1/wallet → saldo
  *  - GET /v1/wallet/transactions?page&limit&type&from&to → riwayat
  *    (spec menandai `type/from/to` required; helper lib/api/wallet.ts
  *    mengisi default yang terdokumentasi di sana)
+ *
+ * Keputusan non-obvious:
+ *  - Tab ini sengaja TIDAK lagi memuat riwayat panjang: `limit` 10 dan
+ *    `hasMore={false}` sehingga tidak ada "Muat lebih" di layar ringkasan.
+ *    Riwayat lengkap (paginasi + filter jenis + unduh CSV/cetak) hidup di
+ *    /wallet-history — satu daftar, bukan satu layar per kategori seperti
+ *    chip "Riwayat Top-up"/"Riwayat Penarikan" sebelumnya.
+ *  - Unduh riwayat memakai `useWalletExport()` (satu hook untuk Tab Dompet,
+ *    Riwayat Dompet, dan Analitik) — perilaku web/native identik di ketiganya.
  *
  * Pull-to-refresh di layar ini dilayani <PaginatedList> melalui wrapper
  * <PullToRefreshFlatList> custom yang mengikuti tangan. Wrapper memakai
@@ -28,40 +37,37 @@ import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
  * (`Promise.all`) agar angka uang tidak terpisah dari daftar yang
  * menjelaskannya.
  */
-import { useCallback, useState } from "react"
-import { Platform, StyleSheet, View } from "react-native"
+import { useCallback } from "react"
+import { StyleSheet, View } from "react-native"
 import { router, type Href } from "expo-router"
-import {
-  ArrowCircleDown,
-  ArrowCircleUp,
-  CalendarCheck,
-  FileCsv,
-  FilePdf,
-  Wallet as WalletIcon,
-} from "phosphor-react-native"
-import { File, Paths } from "expo-file-system"
+import { FileCsv, FilePdf, Wallet as WalletIcon } from "phosphor-react-native"
 
-import { api, type WalletTransaction, userMessage } from "@/lib/api"
+import { api, type WalletTransaction } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
-import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
+import { useWalletExport } from "@/lib/use-wallet-export"
 
-import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
+import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
 import { WalletBalanceCard, type WalletQuickAction } from "@/components/ui/wallet-balance-card"
-import { useToast } from "@/components/ui/toast"
 
 // ------------------------------------------------------------------
 // Konstanta layar
 // ------------------------------------------------------------------
 
-/** Spec GET /v1/wallet/transactions: page & limit required. */
-const PAGE_SIZE = 20
+/**
+ * Tab ringkasan hanya menampilkan 10 mutasi terbaru — riwayat lengkap (dengan
+ * paginasi & filter) ada di /wallet-history. Angka ini bukan `limit` backend
+ * minimum; ia dipilih agar daftar ringkas muat di satu layar bersama kartu
+ * saldo tanpa menenggelamkan aksi utama.
+ */
+const RECENT_LIMIT = 10
 
 /** Peta aksi cepat → route (semua screen sudah ada di lib/routes.ts). */
 const ACTION_ROUTE: Record<WalletQuickAction["key"], Href> = {
@@ -75,17 +81,17 @@ const ACTION_ROUTE: Record<WalletQuickAction["key"], Href> = {
 // ------------------------------------------------------------------
 
 export default function WalletScreen() {
-  const toast = useToast()
-
   // refreshOnFocus: tab Dompet tetap ter-mount, jadi tanpa ini saldo tidak
   // pernah diperbarui setelah top-up/withdraw/transfer di layar lain —
   // pengguna harus menebak kalau angkanya basi.
   const balance = useApiQuery("wallet-balance", (signal) => api.wallet.getWallet(signal), true, {
     refreshOnFocus: true,
   })
-  const history = usePaginatedQuery<WalletTransaction>("wallet-history", (page, signal) =>
-    api.wallet.getWalletTransactions({ page, limit: PAGE_SIZE }, signal),
+  const history = usePaginatedQuery<WalletTransaction>("wallet-recent", (page, signal) =>
+    api.wallet.getWalletTransactions({ page, limit: RECENT_LIMIT }, signal),
   )
+  const { exporting, exportWallet } = useWalletExport()
+
   const wallet = balance.data
   const walletLoading = balance.loading
   const walletError = balance.error
@@ -97,52 +103,7 @@ export default function WalletScreen() {
     router.push(ACTION_ROUTE[key])
   }, [])
 
-  const [exporting, setExporting] = useState<"csv" | "pdf" | null>(null)
-
-  /** Unduh file hasil export (web via anchor; native ditulis + share sheet). */
-  const handleExport = useCallback(
-    async (kind: "csv" | "pdf") => {
-      setExporting(kind)
-      try {
-        const blob =
-          kind === "csv" ? await api.wallet.exportWalletCsv() : await api.wallet.exportWalletPdf()
-        const filename = kind === "csv" ? "kahade-wallet.csv" : "kahade-wallet.html"
-        const mimeType = kind === "csv" ? "text/csv" : "text/html"
-        if (Platform.OS === "web") {
-          // The anchor must be in the document for Firefox to honour the
-          // click, and the blob URL must outlive it: revoking synchronously
-          // right after `click()` cancels the download in Firefox and for
-          // larger blobs in Chromium too. Revoke on the next macrotask.
-          const url = URL.createObjectURL(blob)
-          const a = document.createElement("a")
-          a.href = url
-          a.download = filename
-          a.rel = "noopener"
-          a.style.display = "none"
-          document.body.appendChild(a)
-          a.click()
-          setTimeout(() => {
-            a.remove()
-            URL.revokeObjectURL(url)
-          }, 0)
-        } else {
-          const file = new File(Paths.cache, filename)
-          file.write(new Uint8Array(await blob.arrayBuffer()))
-          await shareContent({ fileUri: file.uri, mimeType, dialogTitle: filename })
-        }
-        toast.show({ title: "Export dompet berhasil", tone: "success", duration: 3000 })
-      } catch (err: unknown) {
-        toast.show({
-          title: "Gagal mengekspor riwayat",
-          description: userMessage(err),
-          tone: "danger",
-        })
-      } finally {
-        setExporting(null)
-      }
-    },
-    [toast.show],
-  )
+  const recent = history.data
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -155,17 +116,17 @@ export default function WalletScreen() {
               icon={FileCsv}
               size="md"
               variant="ghost"
-              accessibilityLabel="Export riwayat CSV"
+              accessibilityLabel="Unduh riwayat dompet CSV"
               disabled={exporting !== null}
-              onPress={() => void handleExport("csv")}
+              onPress={() => void exportWallet("csv")}
             />
             <IconButton
               icon={FilePdf}
               size="md"
               variant="ghost"
-              accessibilityLabel="Export riwayat PDF"
+              accessibilityLabel="Unduh riwayat dompet untuk dicetak"
               disabled={exporting !== null}
-              onPress={() => void handleExport("pdf")}
+              onPress={() => void exportWallet("pdf")}
             />
           </>
         }
@@ -173,14 +134,18 @@ export default function WalletScreen() {
 
       <PaginatedList
         {...history}
+        // Layar ringkasan tidak memuat halaman berikutnya: riwayat lengkap
+        // (paginasi + filter jenis) ada di /wallet-history.
+        hasMore={false}
         onRefresh={handleRefresh}
         refreshing={balance.refreshing || history.refreshing}
         onRetry={history.reload}
         onLoadMore={history.loadMore}
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <WalletTransactionRow
             transaction={item}
             href={ROUTES.walletTransaction(item.id)}
+            divider={index < recent.length - 1}
           />
         )}
         empty={
@@ -211,20 +176,21 @@ export default function WalletScreen() {
               />
             )}
 
-            {/* Riwayat per jenis + jadwal penarikan — chip navigasi, bukan filter lokal */}
-            <View className="flex-row flex-wrap gap-2" style={styles.links}>
-              <Chip icon={ArrowCircleDown} onPress={() => router.push(ROUTES.topupHistory)}>
-                Riwayat Top-up
-              </Chip>
-              <Chip icon={ArrowCircleUp} onPress={() => router.push(ROUTES.withdrawHistory)}>
-                Riwayat Penarikan
-              </Chip>
-              <Chip icon={CalendarCheck} onPress={() => router.push(ROUTES.withdrawalSchedules)}>
-                Jadwal Penarikan
-              </Chip>
-            </View>
-
-            <SectionHeader title="Riwayat" />
+            <SectionHeader
+              title="Riwayat"
+              level="h3"
+              action={
+                <RouteLink
+                  href={ROUTES.walletHistory}
+                  accessibilityLabel="Lihat semua riwayat dompet"
+                  containerClassName="rounded-xs"
+                >
+                  <Text variant="body" weight={600} tone="primary">
+                    Lihat semua
+                  </Text>
+                </RouteLink>
+              }
+            />
           </View>
         }
       />
@@ -239,9 +205,6 @@ export default function WalletScreen() {
 const styles = StyleSheet.create({
   balanceCard: {
     marginTop: tokens.space[3],
-    marginBottom: tokens.space[2],
-  },
-  links: {
     marginBottom: tokens.space[2],
   },
 })

@@ -37,6 +37,7 @@ import {
   ShieldWarning,
   Wallet,
 } from "phosphor-react-native"
+import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Dot } from "@/components/ui/dot"
@@ -84,6 +85,16 @@ export type NotificationListItemProps = Omit<ViewProps, "children"> & {
   selected?: boolean
   onPress?: () => void
   onLongPress?: () => void
+  /**
+   * Aksi terlihat di kanan baris (mis. <IconButton icon={DotsThreeVertical}>
+   * yang membuka ActionSheet). Dirender DI LUAR Pressable baris supaya
+   * ketukannya tidak ikut memicu `onPress`.
+   *
+   * Ada karena `onLongPress` saja tidak bisa ditemukan: di web tidak ada
+   * affordance "tekan lama", dan pengguna yang mengetuk biasa melihat
+   * "tidak ada aksi" walau menu itu ada.
+   */
+  action?: ReactNode
   divider?: boolean
   className?: string
 }
@@ -99,6 +110,7 @@ export function NotificationListItem({
   selected = false,
   onPress,
   onLongPress,
+  action,
   divider = false,
   className,
   ...rest
@@ -149,25 +161,34 @@ export function NotificationListItem({
     </View>
   )
 
+  const content = onPress || onLongPress ? (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+      accessibilityState={{ selected }}
+      accessibilityHint={action ? "Buka notifikasi, atau buka menu aksi di kanan" : "Buka notifikasi"}
+      scaleOnPress={false}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      containerClassName={cn("w-full", focusRingInset)}
+    >
+      {row}
+    </PressableScale>
+  ) : (
+    <View accessible accessibilityLabel={a11y}>
+      {row}
+    </View>
+  )
+
   return (
     <View className={cn("w-full", className)} {...rest}>
-      {onPress || onLongPress ? (
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={a11y}
-          accessibilityState={{ selected }}
-          accessibilityHint="Buka notifikasi"
-          scaleOnPress={false}
-          onPress={onPress}
-          onLongPress={onLongPress}
-          containerClassName={cn("w-full", focusRingInset)}
-        >
-          {row}
-        </PressableScale>
-      ) : (
-        <View accessible accessibilityLabel={a11y}>
-          {row}
+      {action ? (
+        <View className="w-full flex-row items-start">
+          <View className="min-w-0 flex-1">{content}</View>
+          <View className="items-center pr-3 pt-2">{action}</View>
         </View>
+      ) : (
+        content
       )}
       {/* Inset = px-6 (24) + IconBox md (40) + gap-3 (12) */}
       {divider ? <View

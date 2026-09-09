@@ -173,9 +173,11 @@ export function Tooltip({
           <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 z-modal">
             <Backdrop progress={progress} onPress={close} transparent accessibilityLabel="Tutup info" />
 
-            {/* Fase ukur: posisi sementara di tepi kiri-atas, opacity 0 */}
+            {/* Fase ukur: posisi sementara di tepi kiri-atas, opacity 0.
+                zIndex: 1 — tooltip harus di atas scrim <Backdrop> (lihat
+                catatan stacking di components/ui/backdrop.tsx). */}
             <View
-              style={[{ pointerEvents: measuring ? "none" : "box-none" }, measuring
+              style={[{ pointerEvents: measuring ? "none" : "box-none", zIndex: 1 }, measuring
                   ? { position: "absolute", top: EDGE, left: EDGE, opacity: 0 }
                   : { position: "absolute", top, left }]}
             >

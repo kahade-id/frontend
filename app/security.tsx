@@ -1,375 +1,213 @@
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
- * Screen — Keamanan: perangkat aktif (sessions), log keamanan, log aktivitas.
+ * Screen — Keamanan (pusat pengaturan keamanan akun).
  *
- * Endpoint (lib/api/sessions.ts):
- *   GET    /v1/sessions?page&limit               daftar sesi
- *   DELETE /v1/sessions/{id} · /v1/sessions/others
- *   PATCH  /v1/users/me/devices/{id}/trust|untrust  perangkat tepercaya (lewati 2FA)
- *   GET    /v1/users/me/security-log?page&limit&action
- *   GET    /v1/users/me/activity-log?page&limit
+ * Isi layar ini adalah PINTU MASUK, bukan data: setiap baris menavigasi ke
+ * layar yang memang sudah punya kontrak API-nya sendiri. Sebelumnya menu
+ * Pengaturan → Keamanan langsung membuka daftar perangkat/log (`/security`),
+ * sehingga cara mengganti nomor HP, email, password, PIN, dan biometrik
+ * tidak bisa ditemukan dari satu tempat — layar itu kini hidup di
+ * `/security-activity` dan menjadi salah satu baris di sini.
+ *
+ * Baris & endpoint di baliknya:
+ *   Ganti Email          POST /v1/auth/correct-email      → app/change-email.tsx
+ *   Ganti Nomor HP       PUT  /v1/users/me (phoneNumber)  → app/change-phone.tsx
+ *   Ganti Password       POST /v1/auth/change-password    → app/change-password.tsx
+ *   Ganti PIN            POST /v1/wallet/set-pin          → app/change-pin.tsx
+ *   Biometrik            expo-local-authentication        → app/biometric-settings.tsx
+ *   Verifikasi 2 Langkah GET  /v1/auth/2fa/status         → app/two-factor.tsx
+ *   Perangkat & Log      GET  /v1/sessions, security-log  → app/security-activity.tsx
+ *   Privasi              GET  /v1/settings/privacy        → app/privacy-settings.tsx
+ *   Pengguna Diblokir    GET  /v1/settings/blocked-users  → app/blocked-users.tsx
+ *   Hapus Akun           POST /v1/users/me/delete-request → app/delete-account.tsx
  *
  * Keputusan non-obvious:
- *   - `trusted === false` BUKAN "mencurigakan": itu status default semua
- *     perangkat yang belum ditandai tepercaya. Versi lama menandai hampir
- *     semua sesi "Perlu ditinjau". Sekarang `trusted` dirender sebagai badge
- *     + aksi Percayai/Cabut kepercayaan; `suspicious` tidak dikirim karena
- *     API tidak menyediakan sinyalnya.
- *   - Tiga daftar dipaginasi terpisah (`page` per tab) dengan <LoadMore>;
- *     PullToRefresh mereset ketiganya ke halaman 1.
- *   - Tab "Keluar dari perangkat lain" memakai Dialog konfirmasi: mencabut
- *     semua sesi lain berdampak ke perangkat yang tidak terlihat di layar.
+ *   - Nilai di kanan baris (trailing) adalah STATUS NYATA, bukan teks hiasan:
+ *     email/nomor HP sekarang (dimasker <SensitiveText toggleable={false}>
+ *     agar tidak bocor di layar yang bisa dilihat orang lain), 2FA
+ *     aktif/nonaktif dari GET /v1/auth/2fa/status, dan label biometrik dari
+ *     perangkat ("Face ID", "sidik jari", atau "Tidak tersedia").
+ *   - Ketiga sumber status dimuat SATU query (Promise.all) supaya
+ *     pull-to-refresh menyegarkan semuanya bersama dan tidak ada tiga
+ *     skeleton bergantian. `get2faStatus` di-`.catch(() => null)`: status 2FA
+ *     sekunder — kegagalannya tidak boleh menyembunyikan menu ganti password.
+ *   - Baris memakai `href` (bukan `onPress`) agar di web menjadi <a href>
+ *     sungguhan: bisa ctrl/cmd-klik dan diumumkan sebagai "tautan" (§ audit S5).
+ *   - Tanpa subtitle & tanpa border kartu (mengikuti keputusan desain menu
+ *     Pengaturan): judul `bodyLarge` + latar `bg-surface` saja.
  */
-import { useCallback, useState } from "react"
 import { View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
+import {
+  DeviceMobile,
+  Fingerprint,
+  Key,
+  LockKey,
+  Mailbox,
+  Phone,
+  ShieldCheck,
+  Trash,
+  UserFocus,
+  UserMinus,
+} from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
-import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/api/sessions"
-import { formatDateTime } from "@/lib/format"
-import { tokens } from "@/lib/tokens"
-import type { Page } from "@/lib/api/response"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { api, type UserProfile } from "@/lib/api"
+import type { TwoFactorStatus } from "@/lib/api/auth"
+import { getBiometricCapability, type BiometricCapability } from "@/lib/biometrics"
+import { ROUTES } from "@/lib/routes"
+import { useApiQuery } from "@/lib/use-api-query"
 
-import { ActivityLogItem } from "@/components/ui/activity-log-item"
-import { Button } from "@/components/ui/button"
-import { DeviceSessionListItem } from "@/components/ui/device-session-list-item"
-import { Dialog } from "@/components/ui/modal"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
-import { Header } from "@/components/ui/header"
-import { LoadMore } from "@/components/ui/load-more"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { Screen } from "@/components/ui/screen"
+import { DataScreen } from "@/components/ui/data-screen"
+import { ListItem } from "@/components/ui/list-item"
+import { SensitiveText } from "@/components/ui/sensitive-text"
 import { SectionHeader } from "@/components/ui/section"
-import { SecurityLogItem } from "@/components/ui/security-log-item"
-import { SegmentedControl } from "@/components/ui/segmented-control"
-import { useToast } from "@/components/ui/toast"
 
-type TabKey = "devices" | "security" | "activity"
+const NO_BIOMETRIC: BiometricCapability = { available: false, kind: "none", label: "biometrik" }
 
-const TABS = [
-  { value: "devices", label: "Perangkat" },
-  { value: "security", label: "Keamanan" },
-  { value: "activity", label: "Aktivitas" },
-] as const satisfies ReadonlyArray<{ value: TabKey; label: string }>
-
-const PAGE_SIZE = 20
-
-/**
- * Ketiga endpoint daftar di layar ini mengembalikan ARRAY POLOS tanpa `meta`
- * — itulah sebabnya kode lama menulis "API list tanpa meta".
- * `usePaginatedQuery` menghitung `page < meta.totalPages`, dan tanpa
- * `totalPages` perbandingan itu `page < undefined` = false sehingga tombol
- * muat-lanjut lenyap tanpa pesan. Aturan lama ("halaman < PAGE_SIZE berarti
- * sudah habis") direplikasi di sini sebagai `totalPages` sintetis.
- */
-function listPage<T extends { id: string }>(rows: T[], page: number): Page<T> {
-  return {
-    data: rows,
-    meta: {
-      page,
-      limit: PAGE_SIZE,
-      totalPages: rows.length >= PAGE_SIZE ? page + 1 : page,
-    },
-  }
+type SecurityHub = {
+  me: UserProfile
+  twoFactor: TwoFactorStatus | null
+  biometric: BiometricCapability
 }
 
 export default function SecurityScreen() {
-  const insets = useSafeAreaInsets()
-  const toast = useToast()
-
-  const [tab, setTab] = useState<TabKey>("devices")
-
-  /**
-   * Audit — layar ini merakit tiga paginator manual sekaligus (PagedList +
-   * appendPage + loadSessions/loadSecurity/loadActivity). Diganti tiga
-   * `usePaginatedQuery`, satu per daftar. Cacat terbukti dari kode lama:
-   *
-   *   1. BLANKING. `handleRefresh` memanggil `fetchAll()` yang sama dengan
-   *      muat-awal, dan fungsi itu membuka dengan `setLoading(true)` —
-   *      tarik-untuk-menyegarkan mengganti ketiga daftar dengan kerangka.
-   *   2. TIDAK ADA GUARD STALE-RESPONSE. Layar ini tidak punya satu pun
-   *      `useRef`/`AbortController`, dan `<PullToRefresh>` di sini tidak
-   *      memasang `enabled`, jadi menarik saat muat-awal masih berjalan
-   *      mengirim `fetchAll()` kedua. `finally` milik request pertama lalu
-   *      menjalankan `setLoading(false)` sementara request kedua masih
-   *      berjalan — kerangka hilang di tengah muat.
-   *   3. ERROR SESI MEMBLOKIR TAB LAIN. Cabang `error` lama diperiksa
-   *      SEBELUM percabangan tab, padahal hanya `loadSessions` yang mengisi
-   *      `error` (kedua log di-`.catch()` karena "sekunder"). Akibatnya satu
-   *      kegagalan `/v1/sessions` menyembunyikan log keamanan DAN log
-   *      aktivitas yang berhasil dimuat. Kini tiap tab punya error sendiri.
-   *   4. `loadMore` tidak single-flight: dua tap cepat = dua request.
-   *
-   * Ketiga daftar tetap dimuat saat mount, persis seperti `Promise.all` lama.
-   */
-  const sessionsQuery = usePaginatedQuery<DeviceSession>(
-    "security-sessions",
-    async (page, signal) =>
-      listPage((await api.sessions.listSessions({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
-  )
-  const securityQuery = usePaginatedQuery<SecurityLogEntry>(
-    "security-log",
-    async (page, signal) =>
-      listPage((await api.sessions.getSecurityLog({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
-  )
-  const activityQuery = usePaginatedQuery<ActivityLogEntry>(
-    "activity-log",
-    async (page, signal) =>
-      listPage((await api.sessions.getActivityLog({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
-  )
-  const sessions = sessionsQuery.data
-  const securityLog = securityQuery.data
-  const activityLog = activityQuery.data
-  const refreshing =
-    sessionsQuery.refreshing || securityQuery.refreshing || activityQuery.refreshing
-
-  const [revokingId, setRevokingId] = useState<string | null>(null)
-  const [confirmRevoke, setConfirmRevoke] = useState<DeviceSession | null>(null)
-  const [confirmOthers, setConfirmOthers] = useState(false)
-  const [revokingOthers, setRevokingOthers] = useState(false)
-  const [trustingId, setTrustingId] = useState<string | null>(null)
-
-  /** Tarik-untuk-menyegarkan memuat ulang KETIGA daftar, seperti Promise.all lama. */
-  const handleRefresh = useCallback(async () => {
-    await Promise.all([
-      sessionsQuery.refresh(),
-      securityQuery.refresh(),
-      activityQuery.refresh(),
+  const query = useApiQuery<SecurityHub>("security-hub", async (signal) => {
+    const [me, twoFactor, biometric] = await Promise.all([
+      api.users.getMe(signal),
+      api.auth.get2faStatus(signal).catch(() => null),
+      getBiometricCapability().catch(() => NO_BIOMETRIC),
     ])
-  }, [sessionsQuery, securityQuery, activityQuery])
+    return { me, twoFactor, biometric }
+  })
 
-  const handleRevoke = useCallback(async () => {
-    if (!confirmRevoke) return
-    setRevokingId(confirmRevoke.id)
-    try {
-      await api.sessions.deleteSession(confirmRevoke.id)
-      sessionsQuery.setData((prev) => prev.filter((s) => s.id !== confirmRevoke.id))
-      toast.show({ title: "Sesi dicabut", tone: "success" })
-      setConfirmRevoke(null)
-    } catch (err: unknown) {
-      toast.show({ title: "Gagal mencabut sesi", description: userMessage(err), tone: "danger" })
-    } finally {
-      setRevokingId(null)
-    }
-  }, [confirmRevoke, sessionsQuery, toast.show])
+  const me = query.data?.me
+  const twoFactor = query.data?.twoFactor
+  const biometric = query.data?.biometric ?? NO_BIOMETRIC
 
-  const handleLogoutOthers = useCallback(async () => {
-    setRevokingOthers(true)
-    try {
-      await api.sessions.deleteOtherSessions()
-      setConfirmOthers(false)
-      await sessionsQuery.refresh()
-      toast.show({ title: "Semua perangkat lain dicabut", tone: "success" })
-    } catch (err: unknown) {
-      toast.show({
-        title: "Gagal mencabut sesi lain",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setRevokingOthers(false)
-    }
-  }, [sessionsQuery, toast.show])
-
-  const handleToggleTrust = useCallback(
-    async (session: DeviceSession, next: boolean) => {
-      setTrustingId(session.id)
-      try {
-        if (next) await api.sessions.trustDevice(session.id)
-        else await api.sessions.untrustDevice(session.id)
-        sessionsQuery.setData((prev) =>
-          prev.map((s) => (s.id === session.id ? { ...s, trusted: next } : s)),
-        )
-        toast.show({
-          title: next ? "Perangkat ditandai tepercaya" : "Kepercayaan perangkat dicabut",
-          description: next ? "Login dari perangkat ini tidak lagi meminta kode 2FA." : undefined,
-          tone: "success",
-        })
-      } catch (err: unknown) {
-        toast.show({
-          title: "Gagal memperbarui perangkat",
-          description: userMessage(err),
-          tone: "danger",
-        })
-      } finally {
-        setTrustingId(null)
-      }
-    },
-    [toast.show],
-  )
-
-  /**
-   * `error`/`loading` milik TAB AKTIF saja. Sebelumnya keduanya berasal dari
-   * `Promise.all` ketiga daftar, sehingga satu kegagalan `/v1/sessions`
-   * menyembunyikan log keamanan dan log aktivitas yang berhasil dimuat.
-   */
-  const activeQuery =
-    tab === "devices" ? sessionsQuery : tab === "security" ? securityQuery : activityQuery
-  const { loading, error } = activeQuery
-
-  const otherSessions = sessions.filter((s) => !s.current).length
+  const twoFactorLabel = twoFactor ? (twoFactor.enabled ? "Aktif" : "Nonaktif") : undefined
+  const biometricLabel = biometric.available ? biometric.label : "Tidak tersedia"
 
   return (
-    <Screen edges={["top"]} padded={false}>
-      <Header title="Keamanan" />
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        contentContainerClassName="px-6"
-        scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
-        }}
-      >
-        <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <SegmentedControl items={TABS} value={tab} onChange={(v) => setTab(v as TabKey)} />
-
-          {error ? (
-            <ErrorState title="Gagal memuat" description={error} onRetry={() => void activeQuery.reload()} />
-          ) : loading ? (
-            <ListLoading />
-          ) : tab === "devices" ? (
-            <>
-              <SectionHeader title="Perangkat aktif" />
-              {sessions.length === 0 ? (
-                <EmptyState icon={DeviceMobile} title="Tidak ada sesi aktif" />
-              ) : (
-                sessions.map((s, i) => (
-                  <DeviceSessionListItem
-                    key={s.id}
-                    deviceName={s.deviceName}
-                    client={
-                      s.platform ? `${s.platform}${s.browser ? ` · ${s.browser}` : ""}` : undefined
-                    }
-                    location={s.location}
-                    ip={s.ip}
-                    lastActiveAt={s.lastActiveAt ? formatDateTime(s.lastActiveAt) : undefined}
-                    lastActiveLabel={s.current ? "Aktif sekarang" : undefined}
-                    current={s.current}
-                    trusted={s.trusted}
-                    onToggleTrust={(next) => void handleToggleTrust(s, next)}
-                    togglingTrust={trustingId === s.id}
-                    onRevoke={s.current ? undefined : () => setConfirmRevoke(s)}
-                    revoking={revokingId === s.id}
-                    divider={i < sessions.length - 1}
-                  />
-                ))
-              )}
-              <LoadMore
-                status={
-                  sessionsQuery.loadingMore
-                    ? "loading"
-                    : sessionsQuery.loadMoreError
-                      ? "error"
-                      : sessionsQuery.hasMore
-                        ? "idle"
-                        : "end"
-                }
-                errorLabel={sessionsQuery.loadMoreError ?? undefined}
-                onLoadMore={() => void sessionsQuery.loadMore()}
-                hideEnd
+    <DataScreen
+      title="Keamanan"
+      state={query}
+      loadingMessage="Memuat pengaturan keamanan"
+      errorTitle="Gagal memuat pengaturan keamanan"
+    >
+      {/* ── Kredensial masuk ───────────────────────────────── */}
+      <SectionHeader title="Kredensial" />
+      <View className="w-full overflow-hidden bg-surface">
+        <ListItem
+          title="Ganti Email"
+          titleVariant="bodyLarge"
+          leading={Mailbox}
+          chevron
+          href={ROUTES.changeEmail}
+          trailing={
+            me?.email ? (
+              <SensitiveText
+                value={me.email}
+                mask="email"
+                mono={false}
+                variant="caption"
+                tone="secondary"
+                toggleable={false}
               />
-              <Button
-                variant="ghost"
-                onPress={() => setConfirmOthers(true)}
-                disabled={otherSessions === 0}
-              >
-                Keluar dari perangkat lain
-              </Button>
-            </>
-          ) : tab === "security" ? (
-            <>
-              <SectionHeader title="Log keamanan" />
-              {securityLog.length === 0 ? (
-                <EmptyState icon={ShieldWarning} title="Belum ada aktivitas keamanan" />
-              ) : (
-                securityLog.map((l, i) => (
-                  <SecurityLogItem
-                    key={l.id}
-                    title={l.action}
-                    ip={l.ip}
-                    timestamp={formatDateTime(l.createdAt)}
-                    divider={i < securityLog.length - 1}
-                  />
-                ))
-              )}
-              <LoadMore
-                status={
-                  securityQuery.loadingMore
-                    ? "loading"
-                    : securityQuery.loadMoreError
-                      ? "error"
-                      : securityQuery.hasMore
-                        ? "idle"
-                        : "end"
-                }
-                errorLabel={securityQuery.loadMoreError ?? undefined}
-                onLoadMore={() => void securityQuery.loadMore()}
-                hideEnd
+            ) : undefined
+          }
+        />
+        <ListItem
+          title="Ganti Nomor HP"
+          titleVariant="bodyLarge"
+          leading={Phone}
+          chevron
+          href={ROUTES.changePhone}
+          trailing={
+            me?.phoneNumber ? (
+              <SensitiveText
+                value={me.phoneNumber}
+                mask="phone"
+                mono={false}
+                variant="caption"
+                tone="secondary"
+                toggleable={false}
               />
-            </>
-          ) : (
-            <>
-              <SectionHeader title="Log aktivitas" />
-              {activityLog.length === 0 ? (
-                <EmptyState icon={ChartLine} title="Belum ada aktivitas" />
-              ) : (
-                activityLog.map((l, i) => (
-                  <ActivityLogItem
-                    key={l.id}
-                    title={l.action}
-                    description={l.description}
-                    timestamp={formatDateTime(l.createdAt)}
-                    divider={i < activityLog.length - 1}
-                  />
-                ))
-              )}
-              <LoadMore
-                status={
-                  activityQuery.loadingMore
-                    ? "loading"
-                    : activityQuery.loadMoreError
-                      ? "error"
-                      : activityQuery.hasMore
-                        ? "idle"
-                        : "end"
-                }
-                errorLabel={activityQuery.loadMoreError ?? undefined}
-                onLoadMore={() => void activityQuery.loadMore()}
-                hideEnd
-              />
-            </>
-          )}
-        </View>
-      </PullToRefresh>
+            ) : undefined
+          }
+        />
+        <ListItem
+          title="Ganti Password"
+          titleVariant="bodyLarge"
+          leading={Key}
+          chevron
+          href={ROUTES.changePassword}
+        />
+        <ListItem
+          title="Ganti PIN"
+          titleVariant="bodyLarge"
+          leading={LockKey}
+          chevron
+          href={ROUTES.changePin}
+        />
+      </View>
 
-      <Dialog
-        title="Cabut sesi ini?"
-        description={`${confirmRevoke?.deviceName ?? "Perangkat"} akan diminta masuk kembali.`}
-        visible={!!confirmRevoke}
-        destructive
-        loading={revokingId === confirmRevoke?.id}
-        confirmLabel="Cabut"
-        cancelLabel="Batal"
-        onConfirm={() => void handleRevoke()}
-        onCancel={() => setConfirmRevoke(null)}
-        onRequestClose={() => setConfirmRevoke(null)}
-      />
+      {/* ── Kunci perangkat ────────────────────────────────── */}
+      <SectionHeader title="Kunci Perangkat" />
+      <View className="w-full overflow-hidden bg-surface">
+        <ListItem
+          title="Biometrik"
+          titleVariant="bodyLarge"
+          leading={Fingerprint}
+          chevron
+          href={ROUTES.biometricSettings}
+          trailing={biometricLabel}
+        />
+        <ListItem
+          title="Verifikasi 2 Langkah"
+          titleVariant="bodyLarge"
+          leading={ShieldCheck}
+          chevron
+          href={ROUTES.twoFactor}
+          trailing={twoFactorLabel}
+        />
+      </View>
 
-      <Dialog
-        title="Keluar dari semua perangkat lain?"
-        description={`${otherSessions} sesi lain akan dicabut dan harus masuk kembali. Perangkat ini tetap masuk.`}
-        visible={confirmOthers}
-        destructive
-        loading={revokingOthers}
-        confirmLabel="Keluar dari semua"
-        cancelLabel="Batal"
-        onConfirm={() => void handleLogoutOthers()}
-        onCancel={() => setConfirmOthers(false)}
-        onRequestClose={() => setConfirmOthers(false)}
-      />
-    </Screen>
+      {/* ── Perangkat & data ───────────────────────────────── */}
+      <SectionHeader title="Perangkat & Data" />
+      <View className="w-full overflow-hidden bg-surface">
+        <ListItem
+          title="Perangkat & Log"
+          titleVariant="bodyLarge"
+          leading={DeviceMobile}
+          chevron
+          href={ROUTES.securityActivity}
+        />
+        <ListItem
+          title="Pengaturan Privasi"
+          titleVariant="bodyLarge"
+          leading={UserFocus}
+          chevron
+          href={ROUTES.privacySettings}
+        />
+        <ListItem
+          title="Pengguna Diblokir"
+          titleVariant="bodyLarge"
+          leading={UserMinus}
+          chevron
+          href={ROUTES.blockedUsers}
+        />
+      </View>
+
+      {/* ── Zona berbahaya ─────────────────────────────────── */}
+      <SectionHeader title="Zona Berbahaya" />
+      <View className="w-full overflow-hidden bg-surface">
+        <ListItem
+          title="Hapus Akun"
+          titleVariant="bodyLarge"
+          leading={Trash}
+          chevron
+          destructive
+          href={ROUTES.deleteAccount}
+        />
+      </View>
+    </DataScreen>
   )
 }

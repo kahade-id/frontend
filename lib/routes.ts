@@ -107,6 +107,12 @@ export const ROUTES = {
   withdraw: "/withdraw" as Href,
   /** POST /v1/wallet/transfer */
   transfer: "/transfer" as Href,
+  /**
+   * Riwayat SEMUA mutasi dompet dalam satu daftar (GET /v1/wallet/transactions)
+   * + filter jenis + unduh CSV/PDF. Tab Dompet hanya menampilkan 10 mutasi
+   * terbaru dan menaut ke sini ("Lihat semua").
+   */
+  walletHistory: "/wallet-history" as Href,
   /** Riwayat topup (GET /v1/wallet/topup-history) */
   topupHistory: "/topup-history" as Href,
   /** Riwayat penarikan (GET /v1/wallet/withdraw-history) */
@@ -136,6 +142,10 @@ export const ROUTES = {
   accountType: "/account-type" as Href,
   changePassword: "/change-password" as Href,
   changePin: "/change-pin" as Href,
+  /** Ganti nomor HP akun (PUT /v1/users/me { phoneNumber, currentPassword }) */
+  changePhone: "/change-phone" as Href,
+  /** Ganti email akun (POST /v1/auth/correct-email { newEmail, password }) */
+  changeEmail: "/change-email" as Href,
   biometricSettings: "/biometric-settings" as Href,
   notificationPreferences: "/notification-preferences" as Href,
   /**
@@ -154,8 +164,13 @@ export const ROUTES = {
   terms: "/terms" as Href,
   /** Dua faktor (2FA) + kode cadangan */
   twoFactor: "/two-factor" as Href,
-  /** Perangkat aktif, log keamanan, log aktivitas */
+  /**
+   * Pusat pengaturan keamanan: ganti nomor HP, ganti email, ganti password,
+   * ganti PIN, biometrik, 2FA, privasi, perangkat & log, hapus akun.
+   */
   security: "/security" as Href,
+  /** Perangkat aktif, log keamanan, log aktivitas (isi lama /security) */
+  securityActivity: "/security-activity" as Href,
   /** Pengguna diblokir (GET /v1/settings/blocked-users) */
   blockedUsers: "/blocked-users" as Href,
   /** Privasi profil (profileVisible/showOnlineStatus) */

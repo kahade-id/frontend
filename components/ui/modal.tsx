@@ -111,8 +111,12 @@ export function Modal({
       <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 z-modal">
         <Backdrop progress={progress} onPress={dismiss} />
 
-        {/* Center stage — box-none agar tap di area kosong jatuh ke Backdrop */}
-        <View style={{ pointerEvents: "box-none" }} className="flex-1 items-center justify-center px-6">
+        {/* Center stage — box-none agar tap di area kosong jatuh ke Backdrop;
+            zIndex: 1 agar isi Dialog selalu di atas scrim (lihat backdrop.tsx). */}
+        <View
+          style={{ pointerEvents: "box-none", zIndex: 1 }}
+          className="flex-1 items-center justify-center px-6"
+        >
           {/* Animated.View tidak di-interop NativeWind -> className di View pembungkus */}
           <View style={{ pointerEvents: "box-none" }} className="w-full md:max-w-content">
             <Animated.View style={{ opacity: progress, transform: [{ translateY }, { scale }] }}>

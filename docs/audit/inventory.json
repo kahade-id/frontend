@@ -1,6 +1,6 @@
 {
   "generator": "scripts/gen-inventory.mjs",
-  "routeCount": 81,
+  "routeCount": 85,
   "dynamicRouteCount": 18,
   "routes": [
     {
@@ -49,8 +49,18 @@
       "dynamic": false
     },
     {
+      "file": "app/change-email.tsx",
+      "route": "/change-email",
+      "dynamic": false
+    },
+    {
       "file": "app/change-password.tsx",
       "route": "/change-password",
+      "dynamic": false
+    },
+    {
+      "file": "app/change-phone.tsx",
+      "route": "/change-phone",
       "dynamic": false
     },
     {
@@ -269,6 +279,11 @@
       "dynamic": false
     },
     {
+      "file": "app/security-activity.tsx",
+      "route": "/security-activity",
+      "dynamic": false
+    },
+    {
       "file": "app/(tabs)/settings.tsx",
       "route": "/settings",
       "dynamic": false
@@ -381,6 +396,11 @@
     {
       "file": "app/(tabs)/wallet.tsx",
       "route": "/wallet",
+      "dynamic": false
+    },
+    {
+      "file": "app/wallet-history.tsx",
+      "route": "/wallet-history",
       "dynamic": false
     },
     {

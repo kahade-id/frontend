@@ -50,6 +50,7 @@ import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
 import { formatDate, formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
 import { goBackOrNavigate } from "@/lib/navigation"
+import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { isFilePayload, shareContent, type SharePayload } from "@/lib/share"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
@@ -66,6 +67,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { FavoriteIconButton } from "@/components/ui/favorite-icon-button"
 import { FollowButton } from "@/components/ui/follow-button"
 import { Icon } from "@/components/ui/icon"
+import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -156,6 +158,8 @@ export default function UserProfileScreen() {
 
   const handle = profile?.username ?? username
   const isSelf = Boolean(meId && profile?.id && meId === profile.id)
+  /** Foto sampul pita atas — undefined bila user belum memasangnya. */
+  const coverUri = resolveMediaUrl(profile?.headerUrl)
 
   const profileRequest = useRef(0)
 
@@ -525,7 +529,27 @@ export default function UserProfileScreen() {
       >
         {/* ── Top Cover Banner with Floating Navigation ──────── */}
         <View className="relative h-32 w-full overflow-hidden bg-surface border-b border-border">
-          {/* Subtle brand pattern overlay */}
+          {/*
+           * Foto sampul (header image) profil — `headerUrl` dari
+           * GET /v1/users/{username}. Sebelumnya pita ini SELALU berupa
+           * `bg-surface` polos: endpoint sampul ada di backend, field-nya
+           * tidak pernah dibaca, jadi "header" profil terlihat kosong.
+           * URL dinormalkan lib/media.ts (backend bisa mengirim path relatif).
+           */}
+          {coverUri ? (
+            <View className="absolute inset-0">
+              <Picture
+                source={{ uri: coverUri }}
+                alt=""
+                height={128}
+                radius="none"
+                bordered={false}
+                resizeMode="cover"
+              />
+            </View>
+          ) : null}
+
+          {/* Subtle brand pattern overlay — juga menahan kontras tombol di atas foto */}
           <View className="absolute inset-0 bg-overlay/10" />
 
           {/* Floating Top Bar */}

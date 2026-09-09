@@ -466,14 +466,30 @@ export default function NotificationsScreen() {
                 return
               }
               if (!item.isRead) handleRead(item.id)
-              // Buka entitas terkait bila referensinya dikenali
+              // Buka entitas terkait bila referensinya dikenali. Bila tidak
+              // (promosi/informasi tanpa rujukan), klik membuka menu aksi —
+              // sebelumnya ketukan semacam ini tidak melakukan apa pun.
               const target = routeForNotificationReference(item)
               if (target) router.push(target)
+              else setItemMenu(item)
             }}
             onLongPress={() => {
               if (selecting) toggleSelect(item.id)
               else setItemMenu(item)
             }}
+            // Aksi TERLIHAT untuk menu per item: tekan-lama saja tidak bisa
+            // ditemukan (di web tidak ada affordance-nya sama sekali).
+            action={
+              selecting ? undefined : (
+                <IconButton
+                  icon={DotsThreeVertical}
+                  size="sm"
+                  variant="ghost"
+                  accessibilityLabel={`Menu aksi notifikasi: ${item.title}`}
+                  onPress={() => setItemMenu(item)}
+                />
+              )
+            }
             divider={index < notifs.length - 1}
           />
         )}

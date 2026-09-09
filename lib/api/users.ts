@@ -21,6 +21,7 @@ import { http, seg } from "@/lib/api/client"
 import type {
   AddCommentDto,
   ConfirmAvatarDto,
+  ConfirmHeaderDto,
   CreateShowcaseDto,
   RequestAccountDeletionDto,
   UpdateLinksDto,
@@ -42,6 +43,13 @@ export type UserProfile = {
   emailVerified?: boolean
   phoneNumber?: string | null
   avatarUrl?: string | null
+  /**
+   * Foto sampul/header profil (POST /v1/users/me/header/direct + /confirm).
+   * Backend menyediakan endpoint-nya; tanpa field ini UI tidak pernah bisa
+   * menampilkannya. UNVERIFIED di spec GET (spec tidak menyertakan schema
+   * response), nama alias dibaca di normalizeUserProfile.
+   */
+  headerUrl?: string | null
   bio?: string | null
   accountType?: "PERSONAL" | "BUSINESS"
   /** Kontak publik (UpdateProfileDto.contactEmail/contactPhone) — UNVERIFIED di spec GET */
@@ -60,9 +68,35 @@ export type AvatarResult = {
 // Profil
 // ------------------------------------------------------------------
 
+/**
+ * Alias field profil yang mungkin dikirim backend (spec GET tanpa schema).
+ * Satu tempat supaya layar tidak menulis `?? (x as any).snake_case` sendiri.
+ */
+function firstString(
+  source: Record<string, unknown>,
+  keys: readonly string[],
+): string | null | undefined {
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === "string" && value.trim()) return value
+  }
+  return undefined
+}
+
+export function normalizeUserProfile(raw: UserProfile): UserProfile {
+  const record = raw as unknown as Record<string, unknown>
+  return {
+    ...raw,
+    avatarUrl: firstString(record, ["avatarUrl", "avatar_url", "avatar"]),
+    headerUrl: firstString(record, ["headerUrl", "header_url", "headerImage", "coverUrl"]),
+  }
+}
+
 /** GET /v1/users/me — profil lengkap user yang sedang login. */
 export function getMe(signal?: AbortSignal) {
-  return http.get<UserProfile>("/v1/users/me", { auth: "required", signal })
+  return http
+    .get<UserProfile>("/v1/users/me", { auth: "required", retry: 1, signal })
+    .then(normalizeUserProfile)
 }
 
 /**
@@ -113,6 +147,56 @@ export function deleteAvatar() {
   return http.delete<void>("/v1/users/me/avatar", { auth: "required", responseType: "void" })
 }
 
+// ------------------------------------------------------------------
+// Foto sampul (header image) profil
+// ------------------------------------------------------------------
+
+/** Hasil unggah foto sampul — bentuk mengikuti AvatarResult (UNVERIFIED). */
+export type HeaderImageResult = {
+  headerUrl: string
+  headerKey?: string
+}
+
+function normalizeHeaderResult(result: HeaderImageResult): HeaderImageResult {
+  const record = result as unknown as Record<string, unknown>
+  return {
+    ...result,
+    headerUrl:
+      result.headerUrl ??
+      firstString(record, ["header_url", "headerImage", "coverUrl", "url"]) ??
+      "",
+    headerKey: result.headerKey ?? firstString(record, ["header_key", "fileKey"]) ?? undefined,
+  }
+}
+
+/**
+ * POST /v1/users/me/header/direct — unggah foto sampul langsung (multipart
+ * `file`). Pola sama dengan avatar: direct upload memangkas round-trip
+ * presigned URL (PUT /v1/users/me/header) yang tidak dibutuhkan mobile.
+ */
+export async function uploadHeaderDirect(formData: FormData) {
+  const result = await http.post<HeaderImageResult>("/v1/users/me/header/direct", undefined, {
+    auth: "required",
+    formData,
+  })
+  return normalizeHeaderResult(result)
+}
+
+/** POST /v1/users/me/header/confirm — konfirmasi sampul yang sudah diunggah. */
+export async function confirmHeader(dto: ConfirmHeaderDto) {
+  const result = await http.post<HeaderImageResult, ConfirmHeaderDto>(
+    "/v1/users/me/header/confirm",
+    dto,
+    { auth: "required" },
+  )
+  return normalizeHeaderResult(result)
+}
+
+/** DELETE /v1/users/me/header — hapus foto sampul profil. */
+export function deleteHeader() {
+  return http.delete<void>("/v1/users/me/header", { auth: "required", responseType: "void" })
+}
+
 /** POST /v1/users/me/delete-request — minta penghapusan akun. */
 export function requestAccountDeletion(dto: RequestAccountDeletionDto) {
   return http.post<{ message: string }, RequestAccountDeletionDto>(
@@ -152,6 +236,8 @@ export function getUserByUsername(username: string) {
         trustScore: profile.trustScore ?? stats?.trustScore,
         rating: profile.rating ?? stats?.rating,
         createdAt: profile.createdAt ?? profile.created_at,
+        avatarUrl: firstString(profile, ["avatarUrl", "avatar_url", "avatar"]),
+        headerUrl: firstString(profile, ["headerUrl", "header_url", "headerImage", "coverUrl"]),
       } as PublicUserProfile
     })
 }
@@ -162,6 +248,8 @@ export type PublicUserProfile = {
   fullName?: string
   bio?: string | null
   avatarUrl?: string | null
+  /** Foto sampul profil publik — alias dibaca di getUserByUsername. */
+  headerUrl?: string | null
   verified?: boolean
   trustScore?: number
   rating?: number

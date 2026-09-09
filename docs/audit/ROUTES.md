@@ -1,6 +1,6 @@
 # Inventaris halaman (dihasilkan `npm run gen:inventory`; jangan edit manual)
 
-81 route halaman, 18 di antaranya dinamis.
+85 route halaman, 18 di antaranya dinamis.
 
 | Route | Berkas | Dinamis |
 | --- | --- | --- |
@@ -13,7 +13,9 @@
 | `/bank-accounts` | `app/bank-accounts.tsx` |  |
 | `/biometric-settings` | `app/biometric-settings.tsx` |  |
 | `/blocked-users` | `app/blocked-users.tsx` |  |
+| `/change-email` | `app/change-email.tsx` |  |
 | `/change-password` | `app/change-password.tsx` |  |
+| `/change-phone` | `app/change-phone.tsx` |  |
 | `/change-pin` | `app/change-pin.tsx` |  |
 | `/chat` | `app/chat.tsx` |  |
 | `/chat/[roomId]` | `app/chat/[roomId].tsx` | ya |
@@ -57,6 +59,7 @@
 | `/reset-password` | `app/(auth)/reset-password.tsx` |  |
 | `/search` | `app/search.tsx` |  |
 | `/security` | `app/security.tsx` |  |
+| `/security-activity` | `app/security-activity.tsx` |  |
 | `/settings` | `app/(tabs)/settings.tsx` |  |
 | `/setup-profile` | `app/(auth)/setup-profile.tsx` |  |
 | `/showcase` | `app/showcase.tsx` |  |
@@ -80,6 +83,7 @@
 | `/verify-otp` | `app/(auth)/verify-otp.tsx` |  |
 | `/vouchers` | `app/vouchers.tsx` |  |
 | `/wallet` | `app/(tabs)/wallet.tsx` |  |
+| `/wallet-history` | `app/wallet-history.tsx` |  |
 | `/wallet-transaction/[txId]` | `app/wallet-transaction/[txId].tsx` | ya |
 | `/welcome` | `app/welcome.tsx` |  |
 | `/withdraw` | `app/withdraw.tsx` |  |

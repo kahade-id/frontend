@@ -331,7 +331,14 @@ export function BottomSheet({
       <View style={{ pointerEvents: "box-none" }} className="absolute inset-0 z-bottomSheet">
         <Backdrop progress={progress} onPress={dismiss} />
 
-        <Wrapper style={{ pointerEvents: "box-none" }} className="flex-1 justify-end items-center">
+        {/* zIndex: 1 — konten sheet HARUS di atas scrim <Backdrop> (lihat
+            catatan di components/ui/backdrop.tsx: tanpa ini scrim menutupi
+            sheet di web setelah animasi fade selesai dan aksi di dalamnya
+            tidak bisa diklik). */}
+        <Wrapper
+          style={{ pointerEvents: "box-none", zIndex: 1 }}
+          className="flex-1 justify-end items-center"
+        >
           <View
             className="w-full md:max-w-content"
             style={[{ pointerEvents: "box-none" }, { maxHeight: windowHeight * MAX_HEIGHT_RATIO }]}

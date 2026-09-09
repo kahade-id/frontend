@@ -40,6 +40,12 @@ export type PickImageOptions = {
   source?: "library" | "camera"
   /** Crop persegi (avatar) */
   square?: boolean
+  /**
+   * Rasio crop [lebar, tinggi] saat `allowsEditing`. `square` adalah shortcut
+   * [1, 1]; `aspect` dipakai gambar yang bentuk tampilannya bukan persegi —
+   * foto sampul profil (16:6) misalnya. Diabaikan bila keduanya kosong.
+   */
+  aspect?: readonly [number, number]
   allowsEditing?: boolean
   /** 0–1, default 0.7 (§9.19: klien mengirim JPG terkompresi) */
   quality?: number
@@ -73,7 +79,11 @@ export async function pickImage(opts: PickImageOptions = {}): Promise<PickImageR
   const pickerOptions: ImagePicker.ImagePickerOptions = {
     mediaTypes: ["images"],
     allowsEditing: opts.allowsEditing ?? opts.square ?? false,
-    aspect: opts.square ? [1, 1] : undefined,
+    aspect: opts.square
+      ? [1, 1]
+      : opts.aspect
+        ? [opts.aspect[0], opts.aspect[1]]
+        : undefined,
     quality: opts.quality ?? DEFAULT_QUALITY,
   }
 
