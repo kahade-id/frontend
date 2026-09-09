@@ -135,6 +135,40 @@ const routes = files
       endpoints,
     }
   })
+/**
+ * Jalur HTTP NYATA yang tidak lewat `http.*`, jadi tak terlihat pemindai di atas.
+ *
+ * Tanpa daftar ini, "238 adapter calls match" mudah terbaca sebagai "semua HTTP
+ * sudah teraudit" — padahal tidak. Inilah yang membuat audit cakupan sempat
+ * salah hitung (docs/audit/API-ENDPOINT-AUDIT.md API-20 dan §13.1).
+ *
+ * Setiap entri membawa `probe`: pola yang HARUS masih ada di berkasnya. Bila
+ * pola itu hilang (kode di-refactor), skrip gagal dengan OUT_OF_BAND_STALE —
+ * jadi daftar ini tidak bisa basi diam-diam seperti allowlist biasa.
+ */
+const OUT_OF_BAND_HTTP = [
+  {
+    file: "lib/api/client.ts",
+    method: "POST",
+    path: "/v1/auth/refresh",
+    documented: true,
+    probe: /REFRESH_PATH\s*=\s*"\/v1\/auth\/refresh"/,
+    why: "refreshAccessToken() memanggil exchange() langsung agar bisa single-flight dan menghindari interceptor 401 (rekursi).",
+  },
+  {
+    file: "lib/api/upload.ts",
+    method: "PUT",
+    path: "<presigned object-storage URL>",
+    documented: false,
+    probe: /fetch\(url, \{ method, body, headers, credentials: "omit"/,
+    why: "uploadToPresignedUrl() mengunggah langsung ke object storage, bukan ke API Kahade — memang tidak ada di spec.",
+  },
+]
+
+const staleOutOfBand = OUT_OF_BAND_HTTP.filter(
+  (entry) => !fs.existsSync(entry.file) || !entry.probe.test(fs.readFileSync(entry.file, "utf8")),
+)
+
 const inventory = {
   sourceFiles: files.length,
   screens: routes.length,
@@ -142,17 +176,29 @@ const inventory = {
   documentedOperations: documented.size,
   adapterCalls: operations.length,
   undocumentedAdapterCalls: operations.filter((op) => !op.documented),
+  outOfBandHttp: OUT_OF_BAND_HTTP.map(({ probe: _probe, ...rest }) => rest),
   routes,
   operations,
 }
 if (process.argv.includes("--check")) {
+  if (staleOutOfBand.length) {
+    console.error(
+      "audit-inventory: OUT_OF_BAND_STALE — pola probe tidak lagi ditemukan, " +
+        "daftar jalur HTTP di luar `http.*` sudah basi dan harus diperbarui:\n" +
+        staleOutOfBand.map((e) => `  ${e.file} — ${e.method} ${e.path}`).join("\n"),
+    )
+    process.exitCode = 1
+  }
   if (inventory.undocumentedAdapterCalls.length) {
     console.error(inventory.undocumentedAdapterCalls)
     process.exitCode = 1
-  } else
+  } else {
+    const oob = OUT_OF_BAND_HTTP.map((e) => `${e.method} ${e.path}`).join(", ")
     console.log(
-      `API inventory OK: ${operations.length} adapter calls match documented HTTP methods/paths; ${routes.length} screens inventoried. This is NOT authenticated endpoint verification.`,
+      `API inventory OK: ${operations.length} adapter calls match documented HTTP methods/paths; ${routes.length} screens inventoried. This is NOT authenticated endpoint verification.\n` +
+        `  Di luar pemindaian \`http.*\` (${OUT_OF_BAND_HTTP.length} jalur, diverifikasi lewat probe): ${oob}.`,
     )
+  }
 } else {
   fs.mkdirSync("docs/audit", { recursive: true })
   fs.writeFileSync("docs/audit/inventory.json", JSON.stringify(inventory, null, 2) + "\n")
