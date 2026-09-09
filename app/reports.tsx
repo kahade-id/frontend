@@ -23,14 +23,31 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { ReportForm, type ReportFormValue } from "@/components/ui/report-form"
+import {
+  ReportForm,
+  type ReportFormValue,
+  type ReportReason,
+} from "@/components/ui/report-form"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
 import { hasOwn, mapValue } from "@/lib/has-own"
 
-/** Peta alasan UI → enum API POST /v1/settings/report. */
-const REASON_TO_CATEGORY: Record<string, string> = {
+/**
+ * Peta alasan UI → enum API POST /v1/settings/report.
+ *
+ * Tipe kunci = `ReportReason` (bukan `string`) sehingga setiap alasan yang
+ * ditampilkan `REPORT_REASONS` wajib punya padanan — alasan baru tanpa peta
+ * gagal `tsc`. Tipe nilai = `ReportUserSettingsDto["category"]` sehingga
+ * salah ketik nama kategori juga gagal `tsc`. Sebelumnya peta ini
+ * `Record<string, string>` dan pemanggilnya memakai cast `as ...["category"]`,
+ * jadi keduanya lolos kompilasi dan baru meledak sebagai 400 di backend.
+ *
+ * `MONEY_LAUNDERING` sengaja tidak dipetakan: enum backend boleh lebih luas
+ * daripada pilihan yang kita tampilkan; `mapValue` memakai `OTHER` sebagai
+ * jaring pengaman untuk alasan di luar peta.
+ */
+const REASON_TO_CATEGORY: Record<ReportReason, ReportUserSettingsDto["category"]> = {
   SCAM: "FRAUD",
   HARASSMENT: "TNC_VIOLATION",
   FAKE_ACCOUNT: "FAKE_IDENTITY",
@@ -100,7 +117,7 @@ export default function ReportsScreen() {
         await api.settings.reportUser(
           {
             targetId,
-            category: mapValue(REASON_TO_CATEGORY, v.reason, "OTHER") as ReportUserSettingsDto["category"],
+            category: mapValue(REASON_TO_CATEGORY, v.reason, "OTHER"),
             description: v.detail.trim(),
           },
           // `targetName` adalah username. Bila `targetId` yang dikirim profil

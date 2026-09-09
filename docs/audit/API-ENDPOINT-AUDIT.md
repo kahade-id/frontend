@@ -38,7 +38,7 @@ dibiarkan berdampingan supaya jelas apa yang berubah dan apa yang masih terbuka.
 | **Kontrak error (4xx/5xx) di spec** | **0 operasi** | 0 — **celah backend** | ❌ |
 | **Metadata `security` di spec** | 50 operasi kosong, 2 skema dangling | sama — **celah backend** | ❌ |
 | **Header request terdokumentasi** | 0 dari 6 header yang dikirim | sama — **celah backend** | ❌ |
-| Test otomatis (unit/e2e) | **0 berkas test** → `npm run check` gagal | **7 berkas / 80 test**, `npm run check` hijau | ✅ |
+| Test otomatis (unit/e2e) | **0 berkas test** → `npm run check` gagal | **7 berkas / 82 test**, `npm run check` hijau | ✅ |
 | Cakupan endpoint spec oleh aplikasi | 238 / 260 = 91,5 % *(salah hitung)* | **239 / 260 operasi unik = 91,9 %** (§13) | ⚠️ |
 | Verifikasi terhadap backend hidup | **tidak dapat dijalankan** | tetap tidak dapat dijalankan (§7) | ⛔ |
 
@@ -1061,3 +1061,125 @@ npm run gen:api --check → sinkron
 
 Uji dua arah untuk penjaga *exhaustive*: enum diperluas → `tsc` EXIT=2;
 dipulihkan → EXIT=0.
+
+## 17. Putaran kedelapan — API-27 & API-28: batas panjang yang melampaui spec
+
+Putaran ini mengejar sumbu yang belum pernah diperiksa: **apakah batas
+panjang input di UI sama dengan batas yang diterima backend**. Sumbu enum dan
+sumbu angka (`minimum`/`maximum`) sudah ditutup di putaran sebelumnya; sumbu
+`maxLength` belum.
+
+### 17.1 Metode
+
+Spec memuat `maxLength` pada **140 field** di seluruh DTO. Di sisi klien ada
+**28 literal `maxLength`** di `app/` dan `components/`. Keduanya dicocokkan
+satu per satu dengan menelusuri field DTO yang sebenarnya dikirim tiap layar —
+bukan dicocokkan berdasarkan nama, karena nama bisa menipu (lihat 17.4).
+
+### 17.2 API-27 — DITUTUP: kolom detail laporan 2× lebih longgar dari spec
+
+**Temuan.** `components/ui/report-form.tsx` membatasi TextArea detail laporan
+dengan `maxLength={1000}` — angka tulisan tangan. Padahal spec
+`ReportUserSettingsDto.description` menetapkan `maxLength: 500`.
+
+**Dampak pada pengguna.** Ini bukan kegagalan senyap. Pengguna menulis
+501-1000 karakter, penghitung di bawah kolom memberi lampu hijau sampai 1000,
+tombol "Kirim laporan" aktif (`canSubmit` hanya memeriksa alasan dan
+`detailError`, dan `detailError` hanya memeriksa `OTHER_MIN`), lalu backend
+menolak. Yang muncul hanya toast "Gagal mengirim laporan" — tanpa sebab.
+Persis kelas keluhan yang mengawali audit ini.
+
+**Perbaikan.** Batasnya diturunkan dari spec, mengikuti pola yang sudah dipakai
+`app/create-transaction.tsx:90-93`:
+
+```ts
+const MAX_DETAIL = API_CONSTRAINTS.ReportUserSettingsDto.description.maxLength
+```
+
+Dipakai pada `maxLength={MAX_DETAIL}`, dan `detailError` kini juga memeriksa
+batas atas — karena `ReportForm` bisa dikendalikan dari luar lewat prop
+`value`, jadi `maxLength` TextInput saja bukan pagar yang cukup. Bila backend
+mengubah batas, `npm run gen:api` menyeret angka ini ikut berubah.
+
+### 17.3 API-28 — DITUTUP: peta kategori laporan lolos `tsc`
+
+**Temuan.** `app/reports.tsx` memetakan alasan UI ke enum backend lewat
+`Record<string, string>` lalu memakai cast `as ReportUserSettingsDto["category"]`.
+Cast itu mematikan pemeriksaan di kedua ujung: kategori salah ketik maupun
+alasan baru tanpa padanan sama-sama lolos kompilasi dan baru meledak sebagai
+400 di backend. Ini kelas kerapuhan yang sama dengan `app/account-type.tsx`
+di putaran ketujuh.
+
+**Perbaikan.** `Record<ReportReason, ReportUserSettingsDto["category"]>` dan
+cast dihapus. **Kedua arah dibuktikan** dengan menyuntikkan kesalahan lalu
+menjalankan `tsc`:
+
+| Suntikan | Hasil |
+|---|---|
+| `SCAM: "SCAMMER"` (kategori salah ketik) | `TS2322` — tidak dapat di-assign ke union enum |
+| hapus kunci `FAKE_ACCOUNT` (peta tidak lengkap) | `TS2741` — properti wajib hilang |
+
+Isi peta sendiri **sudah benar** dan tidak diubah: `SCAM→FRAUD`,
+`HARASSMENT→TNC_VIOLATION`, `FAKE_ACCOUNT→FAKE_IDENTITY`, tiga sisanya
+identik. `MONEY_LAUNDERING` memang tak punya padanan UI — enum backend boleh
+lebih luas daripada pilihan yang ditampilkan, dan `mapValue` sudah memakai
+`OTHER` sebagai jaring pengaman.
+
+### 17.4 Tiga dugaan yang GUGUR setelah diperiksa
+
+Dicatat supaya putaran berikutnya tidak "memperbaiki" hal yang tidak rusak:
+
+| Dugaan | Kenyataan |
+|---|---|
+| `social-links-editor.tsx:235` `maxLength={40}` melanggar `UserLinkItemDto.platform` (30) | `40` itu pada kolom **label**, yang batasnya **50**. 40 < 50 → aman. Saya sempat salah tebak field karena mencocokkan berdasarkan posisi, bukan menelusuri `update(i, { label })`. |
+| `UpdateProfileDto.bio` `minLength` akan menolak bio kosong | Nilainya `minLength: 0`. Bio kosong sah. |
+| `REASON_TO_CATEGORY` mengirim nilai di luar enum | Keenam nilainya sah (lihat 17.3). |
+
+### 17.5 Temuan sampingan
+
+- **`ReferralApplyForm` adalah dead code.** `components/ui/referral-reward.tsx`
+  mengekspornya, tapi satu-satunya pemakai (`app/referral.tsx:32`) hanya
+  mengimpor `ReferralRewardListItem`. Regex-nya `/^[A-Z0-9]{6,12}$/` — padahal
+  spec `ApplyReferralDto.code` menuntut `^KH[A-Z0-9]{6,8}$` (total 8-10
+  karakter, wajib berawalan `KH`). Belum berdampak karena tak terjangkau
+  pengguna, tapi bila kelak disambungkan akan mengirim kode yang pasti
+  ditolak. Penjaga `pattern` dari API-26 akan menangkapnya begitu adapter-nya
+  dipanggil.
+- **27 literal `maxLength` lain cocok atau lebih ketat** dari spec, dan lebih
+  ketat bukan cacat: `delivery-proof.tsx` 500 vs `SubmitDeliveryProofDto` 2000,
+  `delete-account-form.tsx` 500 vs `RequestAccountDeletionDto` 1000,
+  `change-phone.tsx` 16 vs `RequestPhoneChangeDto.newPhoneNumber` 20.
+  `app/contact.tsx` dan `app/support/[ticketId].tsx` tidak bisa dibandingkan —
+  `CreateTicketDto`/`ReplyTicketDto` memang tidak mendeklarasikan field itu
+  (API-24, menunggu jawaban backend).
+- **Belum dapat diputuskan tanpa backend.** Untuk alasan selain `OTHER`,
+  `report-form` mengizinkan detail kosong sehingga `description: ""` terkirim.
+  Spec menandai `description` sebagai `required` **tanpa** `minLength` —
+  berbeda dari `ReportUserDto` yang menuntut 20. Selisih itu menunjukkan varian
+  settings memang lebih longgar, jadi string kosong kemungkinan diterima. Tidak
+  diubah, mengikuti pelajaran putaran ketiga: "spec menandai X wajib" bukan
+  alasan untuk menolak X di klien.
+
+### 17.6 Verifikasi
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `npm run check` | **EXIT=0**, 7 berkas / **82 test** (dari 80) |
+| `tsc --noEmit` | EXIT=0 |
+| `eslint` pada 3 berkas yang diubah | EXIT=0 |
+| `npm run build:web` | EXIT=0 |
+| `npm run gen:api -- --check` | EXIT=0, tetap sinkron |
+| Uji merah test baru | bug dikembalikan → `1 failed \| 15 passed` |
+| Runtime (Metro web, bundle 11.498.187 byte) | `MAX_DETAIL = API_CONSTRAINTS.ReportUserSettingsDto.description.maxLength` ada; satu-satunya `maxLength: 1000` tersisa adalah `app/user/[username].tsx:968` yang memang cocok dengan `AddCommentDto.content` = 1000 |
+
+Dua test ditambahkan di `tests/api-contract-guards.test.ts` (14 → 16): satu
+mengunci bahwa angka di `constraints.ts` sama dengan spec, satu mengunci bahwa
+`report-form.tsx` tidak lagi menulis `maxLength` sebagai angka literal.
+
+Catatan: komponen React Native **tidak** bisa diimpor di Vitest — dicoba,
+gagal dengan `SyntaxError: Unexpected token 'typeof'`, persis seperti peringatan
+`vitest.config.ts` ("Tidak ada React Native runtime"). Karena itu yang dikunci
+adalah invarian sumber, bukan perilaku render. Saat menulis test itu,
+`new URL(rel, import.meta.url)` sempat memicu `TS2769`/`TS2345` karena `URL`
+global merujuk ke tipe DOM — jebakan yang sama yang pernah menimpa
+`vitest.config.ts`; diperbaiki dengan `fileURLToPath` + `node:path resolve`.

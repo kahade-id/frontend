@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { cn } from "@/lib/cn"
 
 export type ReportReason =
@@ -74,6 +75,23 @@ export type ReportFormProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
+/**
+ * Batas atas kolom detail = batas `ReportUserSettingsDto.description` di spec.
+ *
+ * Sebelumnya angka ini ditulis tangan sebagai 1000. Padahal spec hanya
+ * menerima 500 karakter, sehingga pengguna yang menulis 501-1000 karakter
+ * (penghitung di bawah kolom justru memberi lampu hijau sampai 1000) baru
+ * ditolak backend saat submit — "Gagal mengirim laporan" tanpa sebab yang
+ * jelas. Diturunkan dari `API_CONSTRAINTS` supaya bila backend mengubah batas,
+ * `npm run gen:api` langsung menyeret angka ini ikut berubah.
+ */
+const MAX_DETAIL = API_CONSTRAINTS.ReportUserSettingsDto.description.maxLength
+
+/**
+ * Detail WAJIB hanya untuk alasan "OTHER". Spec tidak menetapkan `minLength`
+ * pada `ReportUserSettingsDto.description` (beda dari `ReportUserDto` yang
+ * menuntut 20), jadi 20 di sini murni keputusan produk, bukan tiruan spec.
+ */
 const OTHER_MIN = 20
 
 export function ReportForm({
@@ -97,9 +115,14 @@ export function ReportForm({
 
   const detailRequired = v.reason === "OTHER"
   const detailError = useMemo(() => {
+    const trimmed = v.detail.trim()
+    // Panjang dicek lebih dulu: tanpa ini, `maxLength` TextInput adalah satu-
+    // satunya pagar — dan pemanggil yang mengendalikan `value` (mis. memuat
+    // draf tersimpan) bisa melewati batas lalu ditolak backend.
+    if (trimmed.length > MAX_DETAIL) return `Maksimal ${MAX_DETAIL} karakter`
     if (!detailRequired) return undefined
-    if (v.detail.trim().length === 0) return "Jelaskan alasan laporan Anda"
-    if (v.detail.trim().length < OTHER_MIN) return `Minimal ${OTHER_MIN} karakter`
+    if (trimmed.length === 0) return "Jelaskan alasan laporan Anda"
+    if (trimmed.length < OTHER_MIN) return `Minimal ${OTHER_MIN} karakter`
     return undefined
   }, [detailRequired, v.detail])
 
@@ -136,7 +159,7 @@ export function ReportForm({
         value={v.detail}
         onChangeText={(detail) => set({ ...v, detail })}
         placeholder="Ceritakan apa yang terjadi…"
-        maxLength={1000}
+        maxLength={MAX_DETAIL}
         showCount
         errorText={v.detail.length > 0 || detailRequired ? detailError : undefined}
         helperText={!detailRequired ? "Detail membantu tim kami menindaklanjuti lebih cepat" : undefined}

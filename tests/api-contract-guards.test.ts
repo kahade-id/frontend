@@ -23,6 +23,9 @@
  * (bukan `String(record.id ?? record.userId ?? "")`), dan
  * `getSearchSuggestions` mengirim `limit` sesuai spec.
  */
+import { readFileSync } from "node:fs"
+import { dirname, resolve } from "node:path"
+import { fileURLToPath } from "node:url"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/api/session", () => ({
@@ -191,5 +194,45 @@ describe("assertDtoConstraints — pattern/minItems/maxItems", () => {
     const { assertDtoConstraints } = await import("@/lib/financial")
     const rules = { nik: { pattern: "^\\d{16}$" } }
     expect(() => assertDtoConstraints({}, rules)).not.toThrow()
+  })
+})
+
+/**
+ * API-27 — kolom detail laporan pernah dibatasi 1000 karakter, padahal spec
+ * hanya menerima 500. Pengguna yang menulis 501-1000 karakter baru ditolak
+ * saat submit, dengan pesan "Gagal mengirim laporan" tanpa sebab yang jelas;
+ * penghitung karakter di bawah kolom bahkan memberi lampu hijau sampai 1000.
+ *
+ * Komponen React Native tidak bisa diimpor di sini (lihat catatan
+ * `vitest.config.ts`: tidak ada RN runtime), jadi yang dikunci adalah
+ * invariannya: angka batas HARUS diturunkan dari spec dan tidak boleh ada
+ * angka literal di berkas formulir itu.
+ */
+describe("batas panjang kolom detail laporan (API-27)", () => {
+  // Bukan `new URL(rel, import.meta.url)`: di bawah lib DOM yang aktif,
+  // `URL` global merujuk ke tipe DOM dan tidak cocok dengan `readFileSync`
+  // (jebakan yang sama pernah menimpa `vitest.config.ts`).
+  const here = dirname(fileURLToPath(import.meta.url))
+  const read = (rel: string) => readFileSync(resolve(here, rel), "utf8")
+
+  it("angka batas di constraints cocok dengan spec", async () => {
+    const { API_CONSTRAINTS } = await import("@/lib/api/constraints")
+    const spec = JSON.parse(read("../docs/api/kahade-api-mobile.json"))
+    const fromSpec =
+      spec.components.schemas.ReportUserSettingsDto.properties.description.maxLength
+    expect(fromSpec).toBe(500)
+    expect(API_CONSTRAINTS.ReportUserSettingsDto.description.maxLength).toBe(fromSpec)
+  })
+
+  it("report-form tidak lagi menulis maxLength sebagai angka literal", () => {
+    const src = read("../components/ui/report-form.tsx")
+    // Batas diturunkan dari konstanta spec ...
+    expect(src).toMatch(
+      /MAX_DETAIL\s*=\s*API_CONSTRAINTS\.ReportUserSettingsDto\.description\.maxLength/,
+    )
+    // ... dan dipakai apa adanya pada TextArea.
+    expect(src).toContain("maxLength={MAX_DETAIL}")
+    // Regresi yang dikunci: tidak boleh ada maxLength berupa angka di berkas ini.
+    expect(src).not.toMatch(/maxLength=\{\s*\d+\s*\}/)
   })
 })
