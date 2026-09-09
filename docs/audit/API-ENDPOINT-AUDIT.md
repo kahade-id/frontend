@@ -659,3 +659,72 @@ Verifikasi tambahan: `npm run build:web` (expo export --platform web) sukses
 | "Kirim uang harusnya bisa tanpa KYC" | **Diperbaiki** (RUN-01) — gerbang KYC di pemilih penerima dihapus; KYC jadi informasi |
 | "Banyak endpoint tidak sama dengan backend" | **Diperbaiki untuk 11 titik** (RUN-01…05 + 6 normalizer verdict); sisanya celah **spec backend** yang tercantum di §3–§5 dan tidak bisa ditutup dari frontend tanpa menebak |
 | "Masih banyak yang error" | **Dipersempit**: 0 adapter tersisa yang me-*cast* respons ber-field keputusan; `check:api-body` kini menjaga kontrak body di CI |
+
+---
+
+## 12. Putaran ketiga — parameter query yang ditandai `required` di spec
+
+**Sumbu audit:** spec menandai 36 operasi dengan setidaknya satu query param
+`required: true`. Sebuah sweep AST membandingkan setiap pemanggilan adapter
+dengan daftar `required` operasi yang ditujunya, memakai tipe yang di-*resolve*
+TypeScript (bukan teks mentah), sehingga `query` yang di-*spread* dari sebuah
+objek tetap terbaca.
+
+**Hasil: 9 pemanggilan berisiko, dan 8 di antaranya BUKAN bug.**
+
+### 12.1 Bukti bahwa `required` pada query tidak ditegakkan backend
+
+Semua parameter `required` itu **tidak punya `default`** di spec. Namun
+`discoverUsers` (`lib/api/users.ts`) hanya mengirim `{ page, limit }`, padahal
+`GET /v1/users/discover` menandai **tujuh** param sebagai wajib — termasuk `q`,
+yang justru tidak boleh dikirim karena layar Discover adalah daftar *blusukan*,
+bukan hasil pencarian. Layar itu berfungsi di produksi.
+
+Kesimpulan: `required` pada query adalah artefak DTO NestJS tanpa `@IsOptional()`
+(sama seperti API-09), bukan kontrak yang ditegakkan. Karena itu mayoritas
+temuan di bawah **sengaja tidak diubah**.
+
+### 12.2 Tiga "perbaikan" yang justru akan menjadi regresi
+
+| Endpoint | Param wajib tak dikirim | Mengapa TIDAK diubah |
+|---|---|---|
+| `GET /v1/users/me/blocked` | `page`, `limit` | `app/blocked-users.tsx` memakai `useApiQuery` **tanpa** `LoadMore`/`onEndReached` — sekali muat. Menyisipkan `limit: 20` akan **memotong** daftar blokir yang hari ini tampil penuh. |
+| `GET /v1/users/favorites` | `page`, `limit` | Sama: `app/favorites.tsx` tanpa paginasi. |
+| `GET /v1/support/tickets` | `page`, `limit` | Sama: `app/support.tsx` tanpa paginasi. |
+
+Ini keputusan yang disadari: menambahkan `limit` memenuhi huruf spec tetapi
+merusak perilaku nyata. Keduanya tidak bisa dilakukan bersamaan tanpa
+menambahkan UI paginasi, dan itu di luar cakupan audit endpoint.
+
+Yang juga sengaja dibiarkan:
+
+- `GET /v1/wallet/topup-history` & `/withdraw-history` — `from`/`to` wajib tak
+  dikirim. Berbeda dengan `getWalletTransactions`, kedua endpoint ini **tidak**
+  punya batas rentang 90 hari yang terdokumentasi, jadi mengarang tanggal
+  `from`/`to` akan menyaring riwayat pengguna tanpa dasar.
+- `GET /v1/users/{username}/ratings` — `filter` sengaja dihilangkan saat
+  `ratingFilter === "all"`; komentar di `lib/api/ratings.ts:71-73` mencatat
+  produksi **menolak** `all` dan `with_comment`. Mengirimnya akan merusak.
+- `GET /v1/wallet/transactions` — `type` dihilangkan saat `"ALL"` dengan alasan
+  yang sama.
+
+### 12.3 Satu-satunya perubahan (API-23)
+
+`getSearchSuggestions` (`lib/api/search.ts`) mengirim `q` saja, padahal spec
+menandai `q` **dan** `limit` wajib. Saudaranya di berkas yang sama,
+`globalSearch`, sudah mengirim `limit: 20` untuk endpoint sejenis — jadi
+selisihnya tidak disengaja. Disamakan: `query: { limit: 20, ...query }`, dengan
+`limit` tetap bisa ditimpa pemanggil.
+
+Berbeda dari tiga kasus di atas, di sini tidak ada daftar yang terpotong:
+`app/search.tsx:126` merender saran sebagai daftar chip yang memang pendek, dan
+batas 20 mengikuti konvensi `globalSearch` di sebelahnya.
+
+### 12.4 Verifikasi putaran ketiga
+
+```
+npm run typecheck   → EXIT=0
+npm run lint        → EXIT=0
+npm run check       → EXIT=0 (6 berkas / 66 test)
+npm run build:web   → EXIT=0
+```

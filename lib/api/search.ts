@@ -57,8 +57,25 @@ export function globalSearch(
     })
 }
 
-export function getSearchSuggestions(query: { q: string }, signal?: AbortSignal) {
+/**
+ * GET /v1/search/suggestions — saran kata kunci (spec menandai `q` dan `limit`
+ * sebagai REQUIRED).
+ *
+ * Audit: sebelumnya hanya `q` yang dikirim. Saudaranya di berkas ini
+ * (`globalSearch`) sudah mengirim `limit: 20` untuk endpoint sejenis, jadi
+ * ketidakhadiran `limit` di sini adalah selisih yang tidak disengaja. Disamakan
+ * agar keduanya konsisten terhadap kontrak spec.
+ */
+export function getSearchSuggestions(
+  query: { q: string; limit?: number },
+  signal?: AbortSignal,
+) {
   return http
-    .get<string[]>("/v1/search/suggestions", { query, auth: "required", retry: 1, signal })
+    .get<string[]>("/v1/search/suggestions", {
+      query: { limit: 20, ...query },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
     .then((raw) => readList<string>(raw, ["suggestions"]))
 }
