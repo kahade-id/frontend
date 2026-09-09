@@ -1,10 +1,12 @@
 import { useCallback, useMemo, type ReactElement, type ReactNode } from "react"
 import { View, type ListRenderItem, type StyleProp, type ViewStyle } from "react-native"
+import Animated, { Layout } from "react-native-reanimated"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore } from "@/components/ui/load-more"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Skeleton, SkeletonGroup, SkeletonText } from "@/components/ui/skeleton"
 import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type PaginatedListProps<T extends { id: string }> = {
   data: T[]
@@ -123,6 +125,29 @@ export function PaginatedList<T extends { id: string }>({
   )
 
   const keyExtractor = useCallback((item: T) => item.id, [])
+  /*
+   * v2: tiap item dibungkus Animated.View dengan Layout animation (spring
+   * utilitarian — list adalah konteks kerja, bukan momen ekspresif). Efeknya
+   * HANYA saat item tambah/hapus/bergeser (data berubah); scroll biasa tidak
+   * menyentuh animasi sama sekali. Tanpa `entering`: item baru (ganti filter,
+   * load more) muncul instan — reveal per-item di list panjang = monoton.
+   * Reduced motion: layout dimatikan (View statis).
+   */
+  const reducedMotion = useReducedMotion()
+  const itemLayout = useMemo(
+    () =>
+      reducedMotion
+        ? undefined
+        : Layout.springify()
+            .damping(tokens.motion.spring.damping)
+            .stiffness(tokens.motion.spring.stiffness)
+            .mass(tokens.motion.spring.mass),
+    [reducedMotion],
+  )
+  const itemWithLayout: ListRenderItem<T> = useCallback(
+    (info) => <Animated.View layout={itemLayout}>{renderItem(info)}</Animated.View>,
+    [renderItem, itemLayout],
+  )
   const handleRefresh = useCallback(() => onRefresh(), [onRefresh])
   const handleRetry = useCallback(() => void onRetry(), [onRetry])
   const handleLoadMore = useCallback(() => void onLoadMore(), [onLoadMore])
@@ -175,7 +200,7 @@ export function PaginatedList<T extends { id: string }>({
     <PullToRefreshFlatList
       data={data}
       keyExtractor={keyExtractor}
-      renderItem={renderItem}
+      renderItem={itemWithLayout}
       style={FILL}
       contentContainerStyle={containerStyle}
       ListHeaderComponent={headerElement}

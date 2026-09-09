@@ -1,5 +1,4 @@
 import { useState } from "react"
-import { View } from "react-native"
 import { useRouter } from "expo-router"
 import { Copy, MagnifyingGlass, Plus, Receipt } from "phosphor-react-native"
 import { api, type OrderStatusFilter } from "@/lib/api"
@@ -8,6 +7,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FadeIn } from "@/components/ui/fade-in"
 import { FAB_SIZE, FloatingActionButton } from "@/components/ui/floating-action-button"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
@@ -68,14 +68,17 @@ export default function TransactionsScreen() {
           </>
         }
       />
-      <View className="gap-3 px-6 pb-3 pt-3">
+      {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
+          harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
+          animation dari dalam <PaginatedList> (hanya saat tambah/hapus). */}
+      <FadeIn duration="fast" translate={false} className="gap-3 px-6 pb-3 pt-3">
         <SegmentedControl items={FILTERS} value={filter} onChange={setFilter} />
         <DebouncedSearchField
           onQueryChange={setDebounced}
           autoFocus={false}
           placeholder="Cari transaksi, pihak, atau ID"
         />
-      </View>
+      </FadeIn>
       <PaginatedList
         {...query}
         onRefresh={query.refresh}
