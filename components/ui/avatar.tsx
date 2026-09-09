@@ -29,7 +29,7 @@
  *   - AvatarGroup menumpuk dengan overlap −8px (space.2) dan ring
  *     border-background 2px agar tiap lingkaran terpisah tanpa shadow.
  */
-import { Image, type ImageSource } from "expo-image"
+import { Image } from "expo-image"
 import { SealCheck, User } from "phosphor-react-native"
 import { useEffect, useMemo, useState } from "react"
 import { View, type ImageSourcePropType, type ViewProps } from "react-native"
@@ -38,6 +38,7 @@ import { Icon } from "@/components/ui/icon"
 import { Text, type TextVariant } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { initials as toInitials } from "@/lib/format"
+import { resolveMediaSource, type MediaSource } from "@/lib/media"
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl"
 
@@ -85,25 +86,25 @@ export function Avatar({
   const [failed, setFailed] = useState(false)
 
   /*
+   * URL dari backend TIDAK selalu absolut (`/uploads/x.jpg`, `//cdn/x.jpg`,
+   * `http://api…/x.jpg`). `resolveMediaSource` menormalkannya terhadap
+   * API_BASE_URL — tanpa itu avatar diam-diam tidak pernah tampil (404 di web,
+   * URI tak valid di native) dan pengguna hanya melihat inisial selamanya.
+   */
+  const src = useMemo(
+    () => resolveMediaSource(source as MediaSource | readonly MediaSource[]),
+    [source],
+  )
+
+  /*
    * `sourceKey` dulu dihitung dengan JSON.stringify(src) di badan render —
    * artinya serialisasi objek untuk SETIAP avatar pada SETIAP render, di
    * daftar yang justru sedang di-scroll. Sumber avatar praktis selalu berupa
-   * URL string atau hasil require(), jadi kuncinya bisa diambil langsung.
+   * URL string atau hasil require(), jadi kuncinya diambil dari sumber yang
+   * SUDAH dinormalkan (sekalian menjadi kunci daur ulang sel FlatList).
    */
-  const src = useMemo<ImageSource | number | undefined>(() => {
-    if (source == null) return undefined
-    if (typeof source === "string") return { uri: source }
-    if (typeof source === "number") return source
-    if (Array.isArray(source)) return source[0] as ImageSource
-    return source as ImageSource
-  }, [source])
-
   const sourceKey =
-    typeof source === "string"
-      ? source
-      : typeof source === "number"
-        ? String(source)
-        : ((src as ImageSource | undefined)?.uri ?? "")
+    typeof src === "number" ? String(src) : ((src as { uri?: string } | undefined)?.uri ?? "")
 
   useEffect(() => setFailed(false), [sourceKey])
   const showImage = !!src && !failed

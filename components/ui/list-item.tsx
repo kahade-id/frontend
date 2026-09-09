@@ -37,7 +37,7 @@ import { Link, type Href } from "expo-router"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
-import { Text } from "@/components/ui/text"
+import { Text, type TextVariant } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
@@ -51,6 +51,15 @@ function isIconComponent(x: unknown): x is IconComponent {
 
 export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> & {
   title: string
+  /**
+   * Skala tipografi judul (default `body` = 14/22 weight 500).
+   *
+   * Menu Pengaturan & Keamanan memakai `bodyLarge` (16/26, weight 600):
+   * barisnya satu teks tanpa subtitle, jadi judul yang lebih besar adalah
+   * satu-satunya penanda hierarki yang tersisa. Varian non-default otomatis
+   * mendapat weight 600 supaya ukuran dan tekanan naik bersama.
+   */
+  titleVariant?: TextVariant
   /**
    * Audit (web a11y): baris yang BERPINDAH LAYAR harus berupa tautan, bukan
    * tombol. Tanpa `href`, baris interaktif dirender sebagai
@@ -87,6 +96,7 @@ export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> 
 
 export function ListItem({
   title,
+  titleVariant = "body",
   padded = true,
   subtitle,
   leading,
@@ -124,8 +134,8 @@ export function ListItem({
 
         <View className="flex-1 gap-0.5">
           <Text ellipsizeMode="tail"
-            variant="body"
-            weight={500}
+            variant={titleVariant}
+            weight={titleVariant === "body" ? 500 : 600}
             tone={destructive ? "danger" : "primary"}
             numberOfLines={titleLines}
           >

@@ -71,6 +71,16 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   /** Slot lampiran, dirender di atas teks */
   children?: ReactNode
   onLongPress?: () => void
+  /**
+   * Ketuk/satu klik pada gelembung — pasang aksi yang sama dengan
+   * `onLongPress` (menu salin/hapus).
+   *
+   * Ada karena `onLongPress` saja tidak bisa ditemukan: di web tidak ada
+   * affordance "tekan lama", sehingga pengguna yang mengklik pesan melihat
+   * "tidak ada aksi" padahal menu opsinya tersedia. Lampiran tetap punya
+   * handler sendiri di dalam `children` dan menang atas ketukan gelembung.
+   */
+  onPress?: () => void
   /** Kirim ulang saat status "failed" */
   onRetry?: () => void
   labels?: { retry?: string; failed?: string }
@@ -88,6 +98,7 @@ export function ChatMessageBubble({
   senderName,
   children,
   onLongPress,
+  onPress,
   onRetry,
   labels,
   className,
@@ -155,12 +166,13 @@ export function ChatMessageBubble({
           </Text>
         ) : null}
 
-        {onLongPress ? (
+        {onLongPress || onPress ? (
           <PressableScale
             accessibilityRole="text"
             accessibilityLabel={a11yLabel}
-            accessibilityHint="Tekan lama untuk opsi pesan"
+            accessibilityHint="Ketuk atau tekan lama untuk opsi pesan"
             scaleOnPress={false}
+            onPress={onPress}
             onLongPress={onLongPress}
             containerClassName={cn("rounded-md", focusRing)}
           >

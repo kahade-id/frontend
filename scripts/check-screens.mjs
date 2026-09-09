@@ -129,7 +129,6 @@ rules.push({
     /<PullToRefresh(?:\s|>)/.test(f.src) &&
     /insets\.bottom\s*\+\s*tokens\.space/.test(f.src),
   baseline: [
-    "app/analytics.tsx",
     "app/bank-accounts.tsx",
     "app/create-transaction.tsx",
     "app/delivery-proof/[orderId].tsx",
@@ -145,7 +144,7 @@ rules.push({
     "app/ratings.tsx",
     "app/referral.tsx",
     "app/reports.tsx",
-    "app/security.tsx",
+    "app/security-activity.tsx",
     "app/showcase.tsx",
     "app/subscriptions.tsx",
     "app/support/[ticketId].tsx",
@@ -381,7 +380,6 @@ const UNUSED_UI_BASELINE = new Set([
   "components/ui/presence.tsx",
   "components/ui/result-state.tsx",
   "components/ui/search-overlay.tsx",
-  "components/ui/sensitive-text.tsx",
   "components/ui/show.tsx",
   "components/ui/signature-pad.tsx",
   "components/ui/slider.tsx",

@@ -7,6 +7,9 @@
  *   POST    /v1/users/me/avatar/direct   unggah foto (multipart `file`)
  *   POST    /v1/users/me/avatar/confirm  bila server mengembalikan avatarKey
  *   DELETE  /v1/users/me/avatar          hapus foto → kembali ke inisial
+ *   POST    /v1/users/me/header/direct   unggah foto sampul (header image)
+ *   POST    /v1/users/me/header/confirm  bila server mengembalikan headerKey
+ *   DELETE  /v1/users/me/header          hapus foto sampul
  *
  * Keputusan non-obvious:
  *   - Email AKUN (`me.email`) bersifat read-only di sini: mengubahnya adalah
@@ -29,11 +32,12 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Camera as CameraIcon, Images, Trash } from "phosphor-react-native"
+import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phosphor-react-native"
 
 import { api, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, type PickImageOptions } from "@/lib/image-picker"
 import { goBackOrNavigate } from "@/lib/navigation"
+import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import type { UserLinkItemDto } from "@/lib/api/types"
@@ -49,20 +53,27 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
+import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { PasswordField } from "@/components/ui/password-field"
 import { normalizePhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
+import { Picture } from "@/components/ui/picture"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton } from "@/components/ui/skeleton"
 import { SocialLinksEditor, type SocialLink } from "@/components/ui/social-links-editor"
+import { Text } from "@/components/ui/text"
 import { Switch } from "@/components/ui/switch"
 import { TextArea } from "@/components/ui/text-area"
 import { UsernameField } from "@/components/ui/username-field"
 import { useToast } from "@/components/ui/toast"
 
 const AVATAR_PICKER: PickImageOptions = { square: true }
+/** Sampul dipotong melebar (rasio ~2.6:1 di ProfileHeader), bukan persegi. */
+const COVER_PICKER: PickImageOptions = { allowsEditing: true, aspect: [16, 6] }
+/** Tinggi pratinjau sampul — harus sama dengan COVER_HEIGHT di ProfileHeader. */
+const COVER_HEIGHT = 120
 const MAX_LINKS = 4
 
 type ProfileForm = {
@@ -125,6 +136,11 @@ export default function EditProfileScreen() {
   const [avatarSheetOpen, setAvatarSheetOpen] = useState(false)
   const [avatarBusy, setAvatarBusy] = useState(false)
 
+  // Foto sampul (header image) profil — endpoint /v1/users/me/header/*.
+  const [headerUrl, setHeaderUrl] = useState<string | null>(null)
+  const [headerSheetOpen, setHeaderSheetOpen] = useState(false)
+  const [headerBusy, setHeaderBusy] = useState(false)
+
   const [passwordOpen, setPasswordOpen] = useState(false)
   const [currentPassword, setCurrentPassword] = useState("")
   const [passwordError, setPasswordError] = useState<string | undefined>()
@@ -164,6 +180,7 @@ export default function EditProfileScreen() {
     setAccountEmail(me.email ?? "")
     setEmailVerified(me.emailVerified)
     setAvatarUrl(me.avatarUrl ?? null)
+    setHeaderUrl(me.headerUrl ?? null)
     const sorted = [...myLinks].sort((a, b) => (a.displayOrder ?? 0) - (b.displayOrder ?? 0))
     setLinks(sorted)
     setInitialLinks(sorted)
@@ -337,6 +354,90 @@ export default function EditProfileScreen() {
       : []),
   ]
 
+  // ── Foto sampul (header image) ─────────────────────────────────────────
+  /**
+   * Pola sama dengan avatar (direct upload → confirm bila server mengembalikan
+   * key): sampul bukan bagian dto profil, jadi diunggah saat dipilih dan tidak
+   * menunggu tombol "Simpan perubahan".
+   */
+  const uploadHeader = useCallback(
+    async (source: PickImageOptions["source"]) => {
+      const picked = await pickImage({ ...COVER_PICKER, source })
+      if (picked.status === "denied") {
+        toast.show({
+          title: source === "camera" ? "Izin kamera ditolak" : "Izin galeri ditolak",
+          description: "Aktifkan di pengaturan perangkat.",
+          tone: "danger",
+        })
+        return
+      }
+      if (picked.status !== "picked") return
+      setHeaderBusy(true)
+      try {
+        const uploaded = await api.users.uploadHeaderDirect(
+          await pickedImageToFormData(picked.asset),
+        )
+        if (uploaded.headerKey) await api.users.confirmHeader({ headerKey: uploaded.headerKey })
+        if (uploaded.headerUrl) setHeaderUrl(uploaded.headerUrl)
+        toast.show({ title: "Foto sampul diperbarui", tone: "success" })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal mengunggah foto sampul",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setHeaderBusy(false)
+      }
+    },
+    [toast.show],
+  )
+
+  const removeHeader = useCallback(async () => {
+    setHeaderBusy(true)
+    try {
+      await api.users.deleteHeader()
+      setHeaderUrl(null)
+      toast.show({ title: "Foto sampul dihapus", tone: "success" })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal menghapus foto sampul",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setHeaderBusy(false)
+    }
+  }, [toast.show])
+
+  const headerActions: ActionSheetItem[] = [
+    {
+      key: "camera",
+      label: "Ambil foto",
+      icon: CameraIcon,
+      onPress: () => void uploadHeader("camera"),
+    },
+    {
+      key: "gallery",
+      label: "Pilih dari galeri",
+      icon: Images,
+      onPress: () => void uploadHeader("library"),
+    },
+    ...(headerUrl
+      ? [
+          {
+            key: "remove",
+            label: "Hapus foto sampul",
+            icon: Trash,
+            destructive: true,
+            onPress: () => void removeHeader(),
+          } satisfies ActionSheetItem,
+        ]
+      : []),
+  ]
+
+  const coverUri = resolveMediaUrl(headerUrl)
+
   return (
     <Screen
       edges={["top"]}
@@ -384,6 +485,42 @@ export default function EditProfileScreen() {
           </View>
         ) : (
           <>
+            {/* Foto sampul (header image) */}
+            <View className="pt-4">
+              <View className="relative w-full overflow-hidden rounded-md border border-border bg-surface">
+                {coverUri ? (
+                  <Picture
+                    source={{ uri: coverUri }}
+                    alt="Foto sampul profil"
+                    height={COVER_HEIGHT}
+                    radius="none"
+                    bordered={false}
+                  />
+                ) : (
+                  <View
+                    className="w-full items-center justify-center gap-1"
+                    style={{ height: COVER_HEIGHT }}
+                  >
+                    <Icon icon={ImageIcon} size="md" tone="default" />
+                    <Text variant="caption" tone="secondary">
+                      Belum ada foto sampul
+                    </Text>
+                  </View>
+                )}
+                <View className="absolute bottom-2 right-2">
+                  <IconButton
+                    icon={CameraIcon}
+                    variant="secondary"
+                    size="sm"
+                    accessibilityLabel="Ubah foto sampul"
+                    loading={headerBusy}
+                    disabled={headerBusy}
+                    onPress={() => setHeaderSheetOpen(true)}
+                  />
+                </View>
+              </View>
+            </View>
+
             <View className="items-center gap-3 py-4">
               <View className="relative">
                 <Avatar
@@ -521,6 +658,13 @@ export default function EditProfileScreen() {
         title="Foto profil"
         actions={avatarActions}
         onRequestClose={() => setAvatarSheetOpen(false)}
+      />
+
+      <ActionSheet
+        visible={headerSheetOpen}
+        title="Foto sampul"
+        actions={headerActions}
+        onRequestClose={() => setHeaderSheetOpen(false)}
       />
 
       <Dialog

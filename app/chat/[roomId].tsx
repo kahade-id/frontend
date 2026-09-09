@@ -405,6 +405,10 @@ export default function ChatRoomScreen() {
                 text={m.text}
                 time={formatDateTime(m.createdAt)}
                 grouped={messages[i - 1]?.fromUser === m.fromUser}
+                // Klik biasa membuka menu yang sama dengan tekan-lama: tanpa
+                // ini pesan terasa "mati" saat diklik (terutama di web, yang
+                // tidak punya affordance tekan-lama).
+                onPress={() => setActionMessage(m)}
                 onLongPress={() => setActionMessage(m)}
               >
                 {m.attachments?.length ? (

@@ -193,6 +193,9 @@ export default function HomeScreen() {
             name={profile.data?.fullName ?? "—"}
             handle={profile.data?.username ? `@${profile.data.username}` : undefined}
             avatar={{ source: profile.data?.avatarUrl ?? undefined }}
+            // Sampul hanya digambar bila memang ada: Beranda adalah layar
+            // ringkasan, slot kosong "tambah sampul" milik layar Edit Profil.
+            cover={profile.data?.headerUrl ? { source: profile.data.headerUrl } : undefined}
             loading={profile.loading}
           />
         )}
