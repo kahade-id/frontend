@@ -888,3 +888,61 @@ npm run lint        → EXIT=0
 npm run check       → EXIT=0 (7 berkas / 76 test)
 npm run build:web   → EXIT=0
 ```
+
+---
+
+## 15. Putaran keenam — API-24: tiket dukungan bisa terkirim tanpa isi
+
+### 15.1 Temuan
+
+`check:api-body` melaporkan 12 peringatan. Lima di antaranya berjenis
+`EXTRA_FIELD`; empat sudah tercakup API-02 (field perangkat di alur auth).
+Yang kelima **belum pernah dicatat** dan lebih berbahaya:
+
+| Operasi | Dikirim klien | DTO di spec |
+|---|---|---|
+| `POST /v1/support/tickets` | `subject`, `message`, `attachments` | `CreateTicketDto` = **hanya** `attachments` |
+| `POST /v1/support/tickets/{ticketId}/reply` | `message` | `ReplyTicketDto` = **`{}` kosong** |
+
+Sumber: `lib/api/support.ts:43` (create) dan `:51` (reply); pemanggil di
+`app/contact.tsx:36-37` dan `app/support/[ticketId].tsx:55`.
+
+### 15.2 Mengapa ini lebih parah dari API-02
+
+API-02 kehilangan `deviceId`/`deviceInfo` — data pelengkap. Di sini yang
+terancam adalah **isi tiket itu sendiri**. Dua kemungkinan, dan keduanya buruk:
+
+- **`forbidNonWhitelisted` aktif** → `400`. Pembuatan tiket mati total.
+- **`whitelist` aktif tanpa `forbid`** → `subject` dan `message` **dibuang
+  diam-diam**. Tiket tetap terbuat, `app/contact.tsx:41` tetap menampilkan
+  *"Tiket terkirim"*, pengguna menganggap keluhannya tersampaikan — padahal tim
+  dukungan menerima tiket kosong.
+
+Skenario kedua adalah **kehilangan data tanpa gejala**. Untuk `reply` lebih
+parah lagi: `ReplyTicketDto` benar-benar kosong, jadi seluruh isi balasan
+bergantung pada field yang tidak dideklarasikan spec sama sekali.
+
+### 15.3 Yang sengaja TIDAK dilakukan
+
+**`subject`/`message` tidak dihapus dari body.** Menghapusnya akan *menjamin*
+tiket kosong — memperburuk satu-satunya skenario yang berbahaya. Klien
+mengirimnya, dan itu pilihan yang benar; yang salah adalah spec-nya.
+
+Ini tidak bisa ditutup dari sisi klien tanpa menebak bentuk DTO yang sebenarnya,
+dan menebak adalah penyebab bug §10. Yang dibutuhkan adalah konfirmasi backend:
+
+1. Apakah `CreateTicketDto` seharusnya punya `subject` + `message`?
+2. Apakah `ReplyTicketDto` seharusnya punya `message`?
+3. Apakah validasi global memakai `whitelist` saja atau `whitelist` +
+   `forbidNonWhitelisted`? (Jawaban ini sekaligus menutup API-02.)
+
+Sampai terjawab, celah ini tetap tampil sebagai peringatan `EXTRA_FIELD` setiap
+`npm run check:api:body` dijalankan.
+
+### 15.4 Verifikasi putaran keenam
+
+```
+npm run check           → EXIT=0 (7 berkas / 76 test)
+npm run check:api:body  → 84 pemanggilan, 0 pelanggaran, 12 peringatan
+npm run build:web       → EXIT=0
+```
