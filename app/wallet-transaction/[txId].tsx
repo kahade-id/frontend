@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Mutasi Wallet (GET /v1/wallet/transactions/{txId}).
@@ -63,9 +64,8 @@ export default function WalletTransactionScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {query.loading ? (
-          <DetailLoading />
-        ) : query.error || !txn ? (
+        <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
+          {query.error || !txn ? (
           <ErrorState
             title="Gagal memuat"
             description={query.error ?? "Mutasi tidak ditemukan."}
@@ -110,8 +110,9 @@ export default function WalletTransactionScreen() {
                 {txn.id}
               </Text>
             </Text>
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
     </Screen>
   )

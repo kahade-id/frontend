@@ -1,4 +1,5 @@
 import { Text } from "@/components/ui/text"
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Tiket Dukungan (GET /v1/support/tickets/{id} + reply).
@@ -74,9 +75,8 @@ export default function SupportTicketDetailScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {query.loading ? (
-          <DetailLoading />
-        ) : query.error ? (
+        <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
+          {query.error ? (
           <ErrorState
             title="Gagal memuat"
             description={query.error}
@@ -119,8 +119,9 @@ export default function SupportTicketDetailScreen() {
             <Button loading={sending} disabled={!reply.trim()} onPress={() => void handleSend()}>
               Kirim balasan
             </Button>
-          </View>
-        ) : null}
+            </View>
+          ) : null}
+        </Crossfade>
       </PullToRefresh>
     </Screen>
   )

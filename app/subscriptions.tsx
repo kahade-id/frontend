@@ -1,5 +1,6 @@
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { canUsePaymentMethod } from "@/components/ui/payment-method-selector"
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Langganan Premium.
@@ -384,9 +385,8 @@ export default function SubscriptionsScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
-          <ListLoading />
-        ) : error ? (
+        <Crossfade loading={loading} skeleton={<ListLoading />}>
+          {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : step === "method" && selectedPlan ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -495,8 +495,9 @@ export default function SubscriptionsScreen() {
               onLoadMore={() => void fetchHistory(historyPage + 1, false)}
               hideEnd
             />
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       {/*
