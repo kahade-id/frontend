@@ -69,6 +69,7 @@ import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FeeBreakdown } from "@/components/ui/fee-breakdown"
+import { FadeIn } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
@@ -410,6 +411,10 @@ export default function OrderDetailScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
+        {/* v2: konten detail reveal (fast) — key per order agar reveal terulang
+            saat pindah order tanpa remount layar. Refresh (PTR) tidak memicu
+            reveal ulang karena komponen tidak me-remount. */}
+        <FadeIn key={order.id} duration="fast">
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
           {/*
            * Urutan baca (audit komposisi): STATUS -> JUDUL -> deskripsi -> ID.
@@ -694,6 +699,7 @@ export default function OrderDetailScreen() {
             />
           )}
         </View>
+        </FadeIn>
       </PullToRefresh>
 
       {/* ── Bayar ─────────────────────────────────────────────── */}
