@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Referral (my-code, stats, history, rewards, regenerate, apply).
@@ -162,9 +163,8 @@ export default function ReferralScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
-          <ListLoading />
-        ) : error ? (
+        <Crossfade loading={loading} skeleton={<ListLoading />}>
+          {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -233,8 +233,9 @@ export default function ReferralScreen() {
                 ))}
               </>
             ) : null}
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
     </Screen>
   )

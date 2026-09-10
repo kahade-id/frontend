@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Bukti pengiriman satu pesanan.
@@ -301,9 +302,8 @@ export default function DeliveryProofScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading && !order ? (
-          <DetailLoading />
-        ) : error ? (
+        <Crossfade loading={loading && !order} skeleton={<DetailLoading />}>
+          {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -365,8 +365,9 @@ export default function DeliveryProofScreen() {
                 }
               />
             ) : null}
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       <MediaViewer

@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
@@ -50,9 +51,8 @@ export default function HelpScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerClassName="gap-4 px-6 py-4"
       >
-        {query.loading ? (
-          <DetailLoading />
-        ) : query.error ? (
+        <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
+          {query.error ? (
           <ErrorState description={query.error} onRetry={() => void query.reload()} />
         ) : article ? (
           selected ? (
@@ -80,8 +80,9 @@ export default function HelpScreen() {
                 />
               ))
             )}
-          </>
-        )}
+            </>
+          )}
+        </Crossfade>
       </ScrollView>
     </Screen>
   )

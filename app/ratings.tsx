@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Ulasan Saya.
@@ -266,9 +267,8 @@ export default function RatingsScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
-          <ListLoading />
-        ) : error ? (
+        <Crossfade loading={loading} skeleton={<ListLoading />}>
+          {error ? (
           <ErrorState
             title="Gagal memuat"
             description={error}
@@ -342,8 +342,9 @@ export default function RatingsScreen() {
               onLoadMore={() => void query.loadMore()}
               hideEnd
             />
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       {/* Balas / ubah balasan */}

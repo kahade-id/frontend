@@ -26,6 +26,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { saveTextFile } from "@/lib/export-file"
 
 import { Button } from "@/components/ui/button"
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -152,9 +153,8 @@ export default function InvoiceScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {query.loading ? (
-          <DetailLoading />
-        ) : query.error ? (
+        <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
+          {query.error ? (
           <ErrorState
             title="Gagal memuat invoice"
             description={query.error}
@@ -196,8 +196,9 @@ export default function InvoiceScreen() {
                 Nomor invoice disalin
               </Button>
             ) : null}
-          </View>
-        ) : null}
+            </View>
+          ) : null}
+        </Crossfade>
       </PullToRefresh>
     </Screen>
   )
