@@ -62,8 +62,14 @@ border saja), `low` (kartu interaktif), `medium` (toast/FAB/popover), `high`
   (jarak 4px, tombol Keluar statis).
 - Auth: tiap form reveal satu kesatuan; welcome stagger; onboarding tak
   disentuh (carousel sudah punya motion).
-- Layar statis tanpa pola loading (terms, privacy, dsb.) SENGAJA tak
-  disentuh — FadeIn identik di semua layar = monoton versi baru.
+- Layar legal (terms, privacy) crossfade via `LegalDocumentScreen` bersama;
+  showcase publik & edit-profile juga crossfade (audit prompt — ketiganya
+  punya swap loading→isi yang sebelumnya keras).
+- Form utilitas statis TANPA pola loading (change-email/password/phone/pin,
+  contact, two-factor, verify-email, biometric) SENGAJA tak disentuh —
+  FadeIn identik di semua layar = monoton versi baru; yang tenang tetap
+  tenang.
+- Tooltip dapat elevasi low (bubble melayang di atas scrim).
 - Chat bubble SENGAJA tanpa animasi per-item (auto-scroll + poll = jitter).
 - Sapuan polish: easing ambient (splash, skeleton, empty-state breath) →
   kurva `standard` token; splash fade-out → kurva `exit`; denyut
@@ -77,7 +83,9 @@ border saja), `low` (kartu interaktif), `medium` (toast/FAB/popover), `high`
 - Audit reduced-motion: semua file v2 dengan `Animated`/Reanimated ter-cover
   (`useReducedMotion` langsung atau via hook bersama `useOverlayPresence` /
   `useCountUp`).
-- Web: `/`, `/welcome`, `/login`, `/transactions`, `/wallet` → 200, bundle
-  tanpa error (hanya warning pre-existing expo-notifications di web).
+- Web: `/`, `/welcome`, `/login`, `/transactions`, `/wallet`, `/terms`,
+  `/privacy-policy`, `/edit-profile`, `/user/demo/showcase` → 200, bundle
+  tanpa error (hanya warning pre-existing expo-notifications di web +
+  `Premature close` dari dev server).
 - Manual di perangkat (di luar sandbox): iOS/Android + reduced-motion ON/OFF
   + dark mode per token baru — checklist untuk QA manusia sebelum rilis.
