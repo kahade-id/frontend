@@ -110,6 +110,8 @@ export const ROUTES = {
   withdraw: "/withdraw" as Href,
   /** POST /v1/wallet/transfer */
   transfer: "/transfer" as Href,
+  /** QR terima saldo — langsung deep-link ke transfer dengan username terisi */
+  receive: "/receive" as Href,
   /**
    * Riwayat SEMUA mutasi dompet dalam satu daftar (GET /v1/wallet/transactions)
    * + filter jenis + unduh CSV/PDF. Tab Dompet hanya menampilkan 10 mutasi

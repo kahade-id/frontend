@@ -74,6 +74,8 @@ export type CardProps = Omit<ViewProps, "children"> &
      * Jangan naikkan ke "medium" kecuali kartu hero yang memang mengambang.
      */
     elevation?: ElevationLevel
+    /** Tanpa border — dipakai saat Screen background sudah abu dan kartu putih polos yang menonjol. */
+    borderless?: boolean
     className?: string
   }
 
@@ -85,9 +87,9 @@ const variantClass: Record<CardVariant, string> = {
 }
 
 /** Border: inverted memakai warna primary agar tidak ada garis abu di tepi fill hitam */
-function borderClass(variant: CardVariant, selected: boolean) {
+function borderClass(variant: CardVariant, selected: boolean, borderless?: boolean) {
+  if (borderless) return "border-0"
   if (selected) return "border-focus border-border-focus"
-  // audit #088: secondary outline di atas surface harus elevated agar border 3.32:1 terlihat; logic di pemanggil (Screen bg)
   return variant === "inverted" ? "border border-primary" : "border border-border"
 }
 
@@ -101,6 +103,7 @@ export function Card({
   href,
   onLongPress,
   elevation,
+  borderless = false,
   accessibilityLabel,
   accessibilityHint,
   className,
@@ -110,7 +113,7 @@ export function Card({
   const box = cn(
     "w-full overflow-hidden rounded-md",
     variantClass[variant],
-    borderClass(variant, selected),
+    borderClass(variant, selected, borderless),
     padded && (selected ? "p-[19.5px]" : "p-5"),
     className,
   )
