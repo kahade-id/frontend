@@ -305,6 +305,8 @@ const DARK_ALLOWLIST = {
   "components/ui/skeleton.tsx": "bg-surface dark:bg-surface-elevated (§8 loading)",
   // IconBox surface perlu elevated di dark agar terbedakan dari background (§6, ikut Skeleton).
   "components/ui/icon-box.tsx": "bg-surface dark:bg-surface-elevated (§6 hierarki, ikut Skeleton)",
+  // Lingkaran ikon menu cepat Beranda: alasan yang sama dengan IconBox surface.
+  "components/ui/quick-action-grid.tsx": "ubin ikon bg-surface dark:bg-surface-elevated (§6 hierarki, ikut IconBox)",
   // §3.2: H1/H2 turun satu tingkat weight di dark (700 → 600).
   "components/ui/text.tsx": "h1/h2 dark:font-sans-600 (§3.2 fontWeightDark)",
   // §7: logo bank berwarna di tile putih; border-border memisahkannya di dark.
