@@ -63,7 +63,7 @@ if (major < 22 || (major === 22 && minor < 6)) {
 }
 
 const tokens = await import(join(root, "lib/tokens.ts"))
-const { toTailwindTheme, toCssVariables, light, dark, semantic, brand } = tokens
+const { toTailwindTheme, toCssVariables, light, dark, semantic, accent, brand, shadow } = tokens
 
 const errors = []
 const warnings = []
@@ -136,6 +136,18 @@ for (const [name, byMode] of Object.entries(semantic)) {
     if (lightVars[cssName] !== byMode.light[prop]) fail(`${cssName} (light) ≠ semantic.${name}.light.${prop}`)
     if (darkVars[cssName] !== byMode.dark[prop]) fail(`${cssName} (dark) ≠ semantic.${name}.dark.${prop}`)
   }
+}
+// 3b. (v2 §2.3b) Accent — pemetaan var yang sama ketatnya dengan semantic.
+//     `onFill` dipetakan ke *-foreground mengikuti pola primary/primary-foreground.
+const accentSuffix = { fill: "fill", text: "text", bgSoft: "soft", onFill: "foreground" }
+for (const [prop, suffix] of Object.entries(accentSuffix)) {
+  const cssName = `--color-accent-${suffix}`
+  if (!emittedLight.has(cssName)) {
+    fail(`accent.${prop} tidak punya CSS var (${cssName} diharapkan)`)
+    continue
+  }
+  if (lightVars[cssName] !== accent.light[prop]) fail(`${cssName} (light) ≠ accent.light.${prop}`)
+  if (darkVars[cssName] !== accent.dark[prop]) fail(`${cssName} (dark) ≠ accent.dark.${prop}`)
 }
 
 // 4. Nilai valid
@@ -382,6 +394,17 @@ for (const mode of ["light", "dark"]) {
     const rFill = contrast(s.fill, t.surface)
     if (rFill < 3) fail(`kontras ${mode} semantic.${name}.fill / surface = ${rFill.toFixed(2)}:1 < 3:1 (ikon/dot status, 1.4.11)`)
   }
+  // (v2 §2.3b) Accent — tiga peran: label di soft, ikon di surface, label
+  // tombol solid di atas fill. Sama ketatnya dengan semantic.
+  {
+    const a = accent[mode]
+    const rText = contrast(a.text, a.bgSoft)
+    if (rText < 4.5) fail(`kontras ${mode} accent.text / bgSoft = ${rText.toFixed(2)}:1 < 4.5:1 (label escrow)`)
+    const rFill = contrast(a.fill, t.surface)
+    if (rFill < 3) fail(`kontras ${mode} accent.fill / surface = ${rFill.toFixed(2)}:1 < 3:1 (ikon escrow, 1.4.11)`)
+    const rOn = contrast(a.onFill, a.fill)
+    if (rOn < 4.5) fail(`kontras ${mode} accent.onFill / fill = ${rOn.toFixed(2)}:1 < 4.5:1 (label Button accent)`)
+  }
 
   /*
    * Palet chart monokrom. Batang/segmen chart adalah "graphical object
@@ -496,6 +519,37 @@ for (const dir of ["components", "app"]) {
 }
 for (const rel of Object.keys(INLINE_TYPO_ALLOWLIST)) {
   if (!typoSeen.has(rel)) warn(`INLINE_TYPO_ALLOWLIST: ${rel} tidak lagi memakai fontSize/lineHeight inline — hapus entrinya`)
+}
+
+// 12. (v2 §6.2) Shadow scale valid: offset angka, radius >= 0, elevation
+//     0–24 (batas praktis Android), opacity 0–1 per mode, warna hex valid.
+//     Nilai mentah dicek di sini; resolusi per platform + mode milik
+//     lib/elevation.ts (satu-satunya konsumen shadow.* selain token ini).
+for (const level of ["low", "medium", "high"]) {
+  const s = shadow[level]
+  if (!s) {
+    fail(`shadow.${level} hilang — skala elevasi v2 wajib low/medium/high`)
+    continue
+  }
+  const { width, height } = s.shadowOffset ?? {}
+  if (!Number.isFinite(width) || !Number.isFinite(height) || height < 0) {
+    fail(`shadow.${level}.shadowOffset harus { width, height >= 0 } angka`)
+  }
+  if (!Number.isFinite(s.shadowRadius) || s.shadowRadius < 0) {
+    fail(`shadow.${level}.shadowRadius harus angka >= 0`)
+  }
+  if (!Number.isInteger(s.elevation) || s.elevation < 0 || s.elevation > 24) {
+    fail(`shadow.${level}.elevation harus integer 0–24 (Android)`)
+  }
+  for (const m of ["light", "dark"]) {
+    const o = s.shadowOpacity?.[m]
+    if (typeof o !== "number" || o < 0 || o > 1) {
+      fail(`shadow.${level}.shadowOpacity.${m} harus angka 0–1`)
+    }
+  }
+}
+for (const m of ["light", "dark"]) {
+  if (!COLOR_RE.test(shadow.color?.[m] ?? "")) fail(`shadow.color.${m} bukan warna valid`)
 }
 
 // ------------------------------------------------------------------

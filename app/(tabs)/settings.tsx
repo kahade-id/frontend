@@ -75,6 +75,7 @@ import { useTheme } from "@/components/theme-provider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
+import { Stagger } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
@@ -352,29 +353,38 @@ export default function SettingsScreen() {
             </View>
           </RouteLink>
 
-          {/* ── Akun ─────────────────────────────────────────── */}
-          <View className="gap-2">
-            <MenuGroupLabel>Akun</MenuGroupLabel>
-            {renderGroup(accountItems)}
-          </View>
+          {/*
+           * v2: 4 grup menu reveal bertingkat. Jarak geser kecil (4px, bukan
+           * 8px) karena daftar menu rapat — gerak mengikuti densitas. Kartu
+           * Langganan, komunitas, dan tombol Keluar SENGAJA statis: hero di
+           * atas harus stabil, dan tombol destruktif tidak boleh bergeser
+           * saat jari mendekat.
+           */}
+          <Stagger duration="fast" step={50} distance={tokens.space[1]}>
+            {/* ── Akun ─────────────────────────────────────────── */}
+            <View className="gap-2">
+              <MenuGroupLabel>Akun</MenuGroupLabel>
+              {renderGroup(accountItems)}
+            </View>
 
-          {/* ── Preferensi ───────────────────────────────────── */}
-          <View className="gap-2">
-            <MenuGroupLabel>Preferensi</MenuGroupLabel>
-            {renderGroup(preferenceItems)}
-          </View>
+            {/* ── Preferensi ───────────────────────────────────── */}
+            <View className="gap-2">
+              <MenuGroupLabel>Preferensi</MenuGroupLabel>
+              {renderGroup(preferenceItems)}
+            </View>
 
-          {/* ── Bantuan ──────────────────────────────────────── */}
-          <View className="gap-2">
-            <MenuGroupLabel>Bantuan</MenuGroupLabel>
-            {renderGroup(supportItems)}
-          </View>
+            {/* ── Bantuan ──────────────────────────────────────── */}
+            <View className="gap-2">
+              <MenuGroupLabel>Bantuan</MenuGroupLabel>
+              {renderGroup(supportItems)}
+            </View>
 
-          {/* ── Legal ────────────────────────────────────────── */}
-          <View className="gap-2">
-            <MenuGroupLabel>Legal</MenuGroupLabel>
-            {renderGroup(legalItems)}
-          </View>
+            {/* ── Legal ────────────────────────────────────────── */}
+            <View className="gap-2">
+              <MenuGroupLabel>Legal</MenuGroupLabel>
+              {renderGroup(legalItems)}
+            </View>
+          </Stagger>
 
           {/* ── Bergabunglah dengan Komunitas Kami ──────────── */}
           <View className={cn(MENU_GROUP, "gap-3 p-4")}>

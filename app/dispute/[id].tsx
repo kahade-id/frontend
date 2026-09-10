@@ -62,6 +62,7 @@ import { DisputeClaimForm } from "@/components/ui/dispute-claim-form"
 import { DisputeStatusBadge } from "@/components/ui/dispute-status-badge"
 import { ErrorState } from "@/components/ui/error-state"
 import { EvidenceGrid, type EvidenceItem } from "@/components/ui/evidence-grid"
+import { Crossfade } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { ListGroup } from "@/components/ui/list-item"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
@@ -502,9 +503,9 @@ export default function DisputeDetailScreen() {
           contentContainerStyle: { paddingBottom: tokens.space[4] },
         }}
       >
-        {loading && !dispute ? (
-          <DetailLoading />
-        ) : error ? (
+        {/* v2: skeleton → sengketa crossfade (signature moment). */}
+        <Crossfade loading={loading && !dispute} skeleton={<DetailLoading />}>
+          {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : dispute ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
@@ -727,8 +728,9 @@ export default function DisputeDetailScreen() {
                 })}
               </ListGroup>
             )}
-          </View>
-        ) : null}
+            </View>
+          ) : null}
+        </Crossfade>
       </PullToRefresh>
 
       <MediaViewer

@@ -24,13 +24,15 @@
  *     Di kartu inverted delta tetap inverse (semantic text di atas bg-primary
  *     hitam tidak dijamin AA).
  *   - Loading = <Skeleton> pada baris nilai saja; label tetap tampil supaya
- *     layout tidak melompat saat data masuk.
+ *     layout tidak melompat saat data masuk. Skeleton → nilai crossfade
+ *     (v2, via <Crossfade>).
  */
 import type { ReactNode } from "react"
 import { ArrowDownRight, ArrowUpRight } from "phosphor-react-native"
 import { View } from "react-native"
 
 import { Card, type CardProps } from "@/components/ui/card"
+import { Crossfade } from "@/components/ui/fade-in"
 import { Icon, type IconTone } from "@/components/ui/icon"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text, type TextTone } from "@/components/ui/text"
@@ -48,6 +50,8 @@ export type StatCardProps = Omit<CardProps, "children"> & {
   /** Nilai sudah diformat (lib/format) atau node kustom (mis. <Amount/>) */
   value: ReactNode
   hint?: string
+  /** Tone hint — mis. "accent" untuk info escrow/kepercayaan (default secondary). */
+  hintTone?: TextTone
   delta?: StatDelta
   /** Ikon kecil di kanan atas label */
   icon?: ReactNode
@@ -71,6 +75,7 @@ export function StatCard({
   label,
   value,
   hint,
+  hintTone: hintToneProp,
   delta,
   icon,
   loading = false,
@@ -84,7 +89,10 @@ export function StatCard({
 
   const labelTone: TextTone = inverted ? "inverse" : "secondary"
   const valueTone: TextTone = inverted ? "inverse" : "primary"
-  const hintTone: TextTone = inverted ? "inverse" : "secondary"
+  // v2: hintTone bisa dioverride (mis. accent untuk escrow). Di kartu inverted
+  // tetap inverse — semantic/accent text di atas bg-primary tidak dijamin AA
+  // (aturan yang sama dengan delta).
+  const hintTone: TextTone = inverted ? "inverse" : (hintToneProp ?? "secondary")
 
   const deltaTone: TextTone = inverted
     ? "inverse"
@@ -128,15 +136,18 @@ export function StatCard({
         {icon ? <View>{icon}</View> : null}
       </View>
 
-      {loading ? (
-        <Skeleton className="h-8 w-3/5" />
-      ) : isPrimitive(value) ? (
-        <Text variant={mono ? "monoLarge" : "h2"} tone={valueTone} numberOfLines={1}>
-          {value}
-        </Text>
-      ) : (
-        value
-      )}
+      {/* v2: skeleton → nilai crossfade (signature moment), bukan swap keras.
+          Tanpa contentKey: reveal hanya saat loading → loaded, bukan tiap
+          angka berubah (count-up <Amount> yang menangani perubahan angka). */}
+      <Crossfade loading={loading} skeleton={<Skeleton className="h-8 w-3/5" />}>
+        {isPrimitive(value) ? (
+          <Text variant={mono ? "monoLarge" : "h2"} tone={valueTone} numberOfLines={1}>
+            {value}
+          </Text>
+        ) : (
+          value
+        )}
+      </Crossfade>
 
       {delta || hint ? (
         <View className="flex-row items-center gap-2">

@@ -49,6 +49,7 @@ import { refreshUnreadCount, setUnreadCount } from "@/lib/unread-count"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Chip } from "@/components/ui/chip"
+import { FadeIn } from "@/components/ui/fade-in"
 import { ScrollRow } from "@/components/ui/scroll-row"
 import { Dialog } from "@/components/ui/modal"
 import { IconButton } from "@/components/ui/icon-button"
@@ -398,20 +399,24 @@ export default function NotificationsScreen() {
       {/* ScrollRow (§9.20): baris chip filter yang bisa digeser. Mengganti
           <ScrollView horizontal> tulisan tangan — sama secara visual
           (gap 8, px 24, grow-0) plus keyboardShouldPersistTaps="handled"
-          supaya chip tetap bisa ditekan saat keyboard terbuka. */}
-      <ScrollRow contentContainerClassName="py-2">
-        <Chip
-          selected={readFilter === "UNREAD"}
-          onPress={() => setReadFilter((v) => (v === "UNREAD" ? "ALL" : "UNREAD"))}
-        >
-          Belum dibaca
-        </Chip>
-        {FILTERS.map((f) => (
-          <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
-            {f.label}
+          supaya chip tetap bisa ditekan saat keyboard terbuka.
+          v2: fade + naik 8px (fast) — chip ringan, boleh naik; bandingkan
+          kontrol Transaksi yang fade saja karena memuat field cari. */}
+      <FadeIn duration="fast">
+        <ScrollRow contentContainerClassName="py-2">
+          <Chip
+            selected={readFilter === "UNREAD"}
+            onPress={() => setReadFilter((v) => (v === "UNREAD" ? "ALL" : "UNREAD"))}
+          >
+            Belum dibaca
           </Chip>
-        ))}
-      </ScrollRow>
+          {FILTERS.map((f) => (
+            <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
+              {f.label}
+            </Chip>
+          ))}
+        </ScrollRow>
+      </FadeIn>
 
       <PaginatedList
         {...query}

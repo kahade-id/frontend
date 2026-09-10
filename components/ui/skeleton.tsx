@@ -31,6 +31,16 @@ const PulseContext = createContext<Animated.Value | null>(null)
 /** Opacity statis saat Reduce Motion: tetap terbaca "placeholder" tanpa berdenyut. */
 const STATIC_OPACITY = 0.7
 
+// v2: loop pulse memakai kurva "standard" dari token (bukan Easing.ease) —
+// satu-satunya kurva yang berubah; durasi & opacity tetap.
+const standardCurve = tokens.motion.easing.standard
+const standardEasing = Easing.bezier(
+  standardCurve[0],
+  standardCurve[1],
+  standardCurve[2],
+  standardCurve[3],
+)
+
 /**
  * Jalankan loop pulse pada `value`, atau — saat Reduce Motion aktif (audit
  * #2) — set nilai statis tanpa loop. Dipakai oleh Skeleton tunggal dan
@@ -49,13 +59,13 @@ function usePulseLoop(value: Animated.Value, enabled: boolean) {
         Animated.timing(value, {
           toValue: 0.5,
           duration: tokens.motion.duration.base * 2,
-          easing: Easing.inOut(Easing.ease),
+          easing: standardEasing,
           useNativeDriver: true,
         }),
         Animated.timing(value, {
           toValue: 1,
           duration: tokens.motion.duration.base * 2,
-          easing: Easing.inOut(Easing.ease),
+          easing: standardEasing,
           useNativeDriver: true,
         }),
       ]),

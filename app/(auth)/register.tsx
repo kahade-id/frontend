@@ -48,6 +48,7 @@ import { useLocalSearchParams, useRouter } from "expo-router"
 import { OtpMethodSelector } from "@/components/register/otp-method-selector"
 import { useOtpMethods } from "@/components/register/use-otp-methods"
 import { Alert } from "@/components/ui/alert"
+import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { FieldLabel } from "@/components/ui/field"
@@ -177,6 +178,9 @@ export default function RegisterScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* v2: form reveal satu kesatuan (fast) — pola yang sama di semua
+              layar auth; FooterBar di bawah tetap statis. */}
+          <FadeIn duration="fast">
           <View className="gap-8">
             {/* Judul konten (H1) — Header memakai H3, jadi hanya satu H1 di layar */}
             <View className="gap-2">
@@ -251,6 +255,7 @@ export default function RegisterScreen() {
               </Alert>
             ) : null}
           </View>
+          </FadeIn>
         </ScrollView>
 
         {/* Footer: CTA + jalan ke login. Pola border-t mengikuti slot footer Screen. */}

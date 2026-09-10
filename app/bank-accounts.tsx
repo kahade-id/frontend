@@ -26,6 +26,7 @@ import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
@@ -163,9 +164,8 @@ export default function BankAccountsScreen() {
         }}
       >
         <SectionHeader title="Rekening terdaftar" />
-        {loading ? (
-          <ListLoading />
-        ) : error ? (
+        <Crossfade loading={loading} skeleton={<ListLoading />}>
+          {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : accounts.length === 0 ? (
           <EmptyState
@@ -271,8 +271,9 @@ export default function BankAccountsScreen() {
             >
               Batal
             </Button>
-          </FormSection>
-        )}
+            </FormSection>
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       <Dialog

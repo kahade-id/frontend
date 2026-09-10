@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Perangkat & Aktivitas: perangkat aktif (sessions), log keamanan,
@@ -233,9 +234,10 @@ export default function SecurityActivityScreen() {
 
           {error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void activeQuery.reload()} />
-          ) : loading ? (
-            <ListLoading />
-          ) : tab === "devices" ? (
+          ) : (
+            // v2: skeleton → isi crossfade; error tetap didahulukan.
+            <Crossfade loading={loading} skeleton={<ListLoading />}>
+              {tab === "devices" ? (
             <>
               <SectionHeader title="Perangkat aktif" />
               {sessions.length === 0 ? (
@@ -346,7 +348,9 @@ export default function SecurityActivityScreen() {
                 hideEnd
               />
             </>
-          )}
+            )}
+          </Crossfade>
+        )}
         </View>
       </PullToRefresh>
 

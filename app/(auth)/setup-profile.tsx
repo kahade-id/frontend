@@ -66,6 +66,7 @@ import { Redirect, useRouter } from "expo-router"
 import { Camera as CameraIcon, PencilSimple } from "phosphor-react-native"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
+import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Alert } from "@/components/ui/alert"
 import { Avatar } from "@/components/ui/avatar"
@@ -237,6 +238,9 @@ export default function SetupProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        {/* v2: form reveal satu kesatuan (fast) — pola yang sama di semua
+            layar auth; FooterBar di bawah tetap statis. */}
+        <FadeIn duration="fast">
         <VStack gap={8}>
           {/* Welcome greeting */}
           <VStack gap={2}>
@@ -322,6 +326,7 @@ export default function SetupProfileScreen() {
             </Alert>
           ) : null}
         </VStack>
+        </FadeIn>
       </ScrollView>
 
       {/* Footer */}

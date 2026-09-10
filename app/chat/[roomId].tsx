@@ -51,6 +51,7 @@ import {
 } from "@/components/ui/chat-composer"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { Dialog } from "@/components/ui/modal"
+import { Crossfade } from "@/components/ui/fade-in"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -380,9 +381,11 @@ export default function ChatRoomScreen() {
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
       >
-        {loading && messages.length === 0 ? (
-          <ListLoading />
-        ) : error ? (
+        {/* v2: skeleton → pesan crossfade (signature moment). Bubble TIDAK
+            dianimasikan per-item: auto-scroll ke pesan terbaru + pesan baru
+            tiap poll akan jitter bila posisi divisualkan bertahap. */}
+        <Crossfade loading={loading && messages.length === 0} skeleton={<ListLoading />}>
+          {error ? (
           <ErrorState
             title="Gagal memuat"
             description={error}
@@ -427,8 +430,9 @@ export default function ChatRoomScreen() {
                 ) : undefined}
               </ChatMessageBubble>
             ))}
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </ScrollView>
 
       <MediaViewer

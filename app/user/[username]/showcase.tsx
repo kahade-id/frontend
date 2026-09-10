@@ -14,6 +14,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
@@ -49,15 +50,16 @@ export default function PublicShowcaseScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {showcase.loading ? (
-          <ShowcaseGalleryGrid items={[]} loading />
-        ) : showcase.error ? (
-          <ErrorState
-            title="Gagal memuat"
-            description={showcase.error}
-            onRetry={() => void showcase.reload()}
-          />
-        ) : (
+        {/* v2: loading → galeri crossfade (signature moment). `loading` hanya
+            true saat muat awal (refresh tidak mengganti galeri) → aman. */}
+        <Crossfade loading={showcase.loading} skeleton={<ShowcaseGalleryGrid items={[]} loading />}>
+          {showcase.error ? (
+            <ErrorState
+              title="Gagal memuat"
+              description={showcase.error}
+              onRetry={() => void showcase.reload()}
+            />
+          ) : (
           <View style={{ paddingTop: tokens.space[3] }}>
             <ShowcaseGalleryGrid
               items={items.map((it) => ({
@@ -74,7 +76,8 @@ export default function PublicShowcaseScreen() {
               }
             />
           </View>
-        )}
+          )}
+        </Crossfade>
       </PullToRefresh>
     </Screen>
   )

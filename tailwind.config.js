@@ -51,10 +51,12 @@ module.exports = {
     // §11 — satu breakpoint saja. Tidak ada sm/lg/xl/2xl.
     screens,
 
-    // §5 — 8px (md) adalah maksimum non-pill. rounded-lg dst. sengaja tidak ada.
+    // §5 (v2) — lg 12px khusus kartu besar/hero; rounded-xl dst. sengaja tidak ada.
     borderRadius,
 
-    // §6 — tidak ada shadow di seluruh sistem. `shadow-none` satu-satunya class.
+    // §6 (v2) — elevasi dikonsumsi via elevationStyle() (lib/elevation.ts),
+    // bukan class — shadow butuh resolusi per platform + mode sekaligus.
+    // `shadow-none` tetap satu-satunya class; shadow-md generik tidak ada.
     boxShadow,
 
     extend,

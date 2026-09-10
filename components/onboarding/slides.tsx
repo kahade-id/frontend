@@ -70,7 +70,9 @@ function EscrowCard() {
           <OrderStatusBadge status="PAID" />
         </View>
         <VStack gap={1}>
-          <Text variant="caption" tone="secondary">
+          {/* v2: baris "ditahan" = momen trust pertama yang dilihat calon user
+              → pine. Konsisten dengan hint escrow di Beranda & TrustScoreCard. */}
+          <Text variant="caption" tone="accent">
             Dana ditahan Kahade
           </Text>
           <Amount value={SAMPLE_AMOUNT} size="large" />

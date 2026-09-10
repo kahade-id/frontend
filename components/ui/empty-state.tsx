@@ -19,14 +19,31 @@
  *      ikon lg, judul body 600, padding lebih rapat. Default = full (py-12)
  *      dan `flex-1` agar terpusat vertikal saat menjadi satu-satunya anak
  *      Screen.
+ *   5. Ikon "bernapas" sangat halus (v2 signature moment): loop 4.8 detik,
+ *      opacity 0.55–1 + scale 0.97–1. Statis penuh saat reduced motion;
+ *      matikan via `animated={false}` bila layar sudah punya motion lain.
  */
-import type { ReactNode } from "react"
-import { View, type ViewProps } from "react-native"
+import { useEffect, useRef, type ReactNode } from "react"
+import { Animated, Easing, View, type ViewProps } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { IconBox } from "./icon-box"
 import type { IconComponent } from "./icon"
 import { Text } from "./text"
+
+/** Setengah periode napas (ms) — full loop 4.8 detik. */
+const BREATH_HALF_MS = 2400
+
+// v2: napas memakai kurva "standard" dari token (bukan Easing.ease).
+const standardCurve = tokens.motion.easing.standard
+const standardEasing = Easing.bezier(
+  standardCurve[0],
+  standardCurve[1],
+  standardCurve[2],
+  standardCurve[3],
+)
 
 export type EmptyStateProps = Omit<ViewProps, "children"> & {
   icon: IconComponent
@@ -38,6 +55,8 @@ export type EmptyStateProps = Omit<ViewProps, "children"> & {
   secondaryAction?: ReactNode
   /** Versi rapat untuk di dalam Card/Section */
   compact?: boolean
+  /** Napas idle halus (default true) — statis saat reduced motion */
+  animated?: boolean
   className?: string
 }
 
@@ -48,9 +67,45 @@ export function EmptyState({
   action,
   secondaryAction,
   compact = false,
+  animated = true,
   className,
   ...rest
 }: EmptyStateProps) {
+  const breath = useRef(new Animated.Value(1)).current
+  const reducedMotion = useReducedMotion()
+  const still = !animated || reducedMotion
+
+  useEffect(() => {
+    if (still) {
+      breath.setValue(1)
+      return
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(breath, {
+          toValue: 0,
+          duration: BREATH_HALF_MS,
+          easing: standardEasing,
+          useNativeDriver: true,
+        }),
+        Animated.timing(breath, {
+          toValue: 1,
+          duration: BREATH_HALF_MS,
+          easing: standardEasing,
+          useNativeDriver: true,
+        }),
+      ]),
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [breath, still])
+
+  const breathOpacity = breath.interpolate({ inputRange: [0, 1], outputRange: [0.55, 1] })
+  const breathScale = breath.interpolate({
+    inputRange: [0, 1],
+    outputRange: [tokens.motion.scale.press, 1],
+  })
+
   return (
     <View
       accessibilityRole="summary"
@@ -61,7 +116,9 @@ export function EmptyState({
       )}
       {...rest}
     >
-      <IconBox icon={icon} size={compact ? "lg" : "xl"} variant="surface" weight="regular" />
+      <Animated.View style={{ opacity: breathOpacity, transform: [{ scale: breathScale }] }}>
+        <IconBox icon={icon} size={compact ? "lg" : "xl"} variant="surface" weight="regular" />
+      </Animated.View>
 
       <View className={cn("items-center", compact ? "gap-1" : "gap-2", "max-w-[320px] mx-auto")}>
         {compact ? (

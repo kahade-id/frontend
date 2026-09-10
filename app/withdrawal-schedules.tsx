@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Jadwal Penarikan Otomatis (GET/POST/PUT/DELETE /v1/withdrawals/schedules).
@@ -163,9 +164,8 @@ export default function WithdrawalSchedulesScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
-          <ListLoading />
-        ) : error ? (
+        <Crossfade loading={loading} skeleton={<ListLoading />}>
+          {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : items.length === 0 && !creating ? (
           <EmptyState
@@ -235,8 +235,9 @@ export default function WithdrawalSchedulesScreen() {
                 </Button>
               </View>
             ) : null}
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       <Dialog

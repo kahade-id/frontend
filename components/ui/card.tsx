@@ -1,9 +1,8 @@
 /**
  * Kahade — <Card> + <CardHeader> / <CardBody> / <CardFooter> (§9.6).
  *
- * Kontainer konten dengan radius `md` (8px — maksimum non-pill §5) dan
- * border 1px. TIDAK ADA shadow: hierarki "naik satu layer" dibentuk dari
- * kombinasi fill + border (§6):
+ * Kontainer konten dengan radius `md` (8px) dan border 1px. Hierarki "naik
+ * satu layer" dibentuk dari kombinasi fill + border + elevasi lembut (§6 v2):
  *   - "default"  : bg-surface (abu sangat muda) + border — card biasa di atas
  *                  background putih.
  *   - "elevated" : bg-surface-elevated (putih) + border — dipakai di layar
@@ -23,6 +22,9 @@
  *   - `selected` menaikkan border ke border-focus 1.5px (pola sama dengan
  *     Radio card) — padding dikompensasi `p-[19.5px]` supaya konten tidak
  *     bergeser; nilai arbitrary ini turunan langsung dari token (20 − 0.5).
+ *   - `elevation` (v2): kartu INTERAKTIF otomatis "low", kartu statis "flat".
+ *     Override eksplisit hanya untuk kasus yang dibenarkan (mis. kartu hero
+ *     "medium"). Shadow di-resolve via elevationStyle() — tidak pernah manual.
  *   - Grouping screen reader (audit #4): Card interaktif otomatis satu elemen
  *     karena PressableScale. Card STATIS dengan `accessibilityLabel` kini juga
  *     di-`accessible` — sebelumnya label diam-diam dibuang (tidak diteruskan
@@ -38,7 +40,9 @@ import { Link, type Href } from "expo-router"
 
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
+import { elevationStyle, type ElevationLevel } from "@/lib/elevation"
 import { focusRing } from "@/lib/focus-ring"
 
 export type CardVariant = "default" | "elevated" | "inverted" | "outline"
@@ -65,6 +69,11 @@ export type CardProps = Omit<ViewProps, "children"> &
     /** Border tebal border-focus — kartu terpilih */
     selected?: boolean
     disabled?: boolean
+    /**
+     * Level elevasi v2 (default: "low" bila interaktif, "flat" bila statis).
+     * Jangan naikkan ke "medium" kecuali kartu hero yang memang mengambang.
+     */
+    elevation?: ElevationLevel
     className?: string
   }
 
@@ -91,11 +100,13 @@ export function Card({
   onPress,
   href,
   onLongPress,
+  elevation,
   accessibilityLabel,
   accessibilityHint,
   className,
   ...rest
 }: CardProps) {
+  const { mode } = useTheme()
   const box = cn(
     "w-full overflow-hidden rounded-md",
     variantClass[variant],
@@ -106,8 +117,15 @@ export function Card({
 
   // `href` ikut dihitung interaktif: kartu berhref tanpa onPress tetap harus
   // menjadi tautan yang bisa dinavigasi, bukan jatuh ke cabang statis.
-  if (onPress || onLongPress || href) {
-    const interactive = (
+  const interactive = Boolean(onPress || onLongPress || href)
+  // v2: interaktif terangkat lembut, struktural tetap flat + border (§5.2).
+  const elevStyle = elevationStyle(elevation ?? (interactive ? "low" : "flat"), mode)
+
+  if (interactive) {
+    // Shadow di View pembungkus (bukan di kotak yang di-scale): PressableScale
+    // tidak menerima style, dan shadow tidak boleh ikut menciut saat pressed.
+    // Wrapper transparan — shadow iOS tetap tercetak dari konten opaque.
+    const pressable = (
       <PressableScale
         accessibilityRole={href ? "link" : "button"}
         accessibilityLabel={accessibilityLabel}
@@ -124,12 +142,17 @@ export function Card({
       </PressableScale>
     )
 
-    return href ? (
+    const linked = href ? (
       <Link href={href} asChild>
-        {interactive}
+        {pressable}
       </Link>
     ) : (
-      interactive
+      pressable
+    )
+    return (
+      <View style={elevStyle} className="w-full rounded-md">
+        {linked}
+      </View>
     )
   }
 
@@ -142,6 +165,7 @@ export function Card({
       accessibilityLabel={accessibilityLabel}
       accessibilityHint={accessibilityHint}
       className={cn(box, disabled && "opacity-disabled")}
+      style={elevStyle}
       {...rest}
     >
       {children}

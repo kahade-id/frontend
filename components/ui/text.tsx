@@ -20,10 +20,11 @@
  * Button yang sudah punya text-primary-foreground).
  *
  * Tone `tertiary` HANYA sah untuk teks besar (>= 18px: display/h1/h2/h3/
- * monoLarge) — §2.2: `text-tertiary` (#868E96) kontras 3.32:1 di atas putih,
- * di bawah WCAG AA teks normal (4.5:1) tapi lolos AA teks besar (3:1). Pada
- * varian kecil (body/caption/label/monoBody) tone ini di-resolve ke
- * `secondary` (gray.700, 7.0:1). Ditegakkan di sini (bukan diserahkan ke
+ * monoLarge) — §2.2. Catatan v2: tertiary Kertas (#6E6759) kontras 5.60:1 di
+ * atas putih sehingga sebenarnya sudah lolos AA teks normal, tapi aturan ini
+ * SENGAJA dipertahankan sebagai disiplin hierarki (tertiary = bisu/dekoratif,
+ * secondary = terbaca). Pada varian kecil (body/caption/label/monoBody) tone
+ * ini di-resolve ke `secondary`. Ditegakkan di sini (bukan diserahkan ke
  * pemanggil) dengan pola yang sama seperti <Label> yang tidak punya opsi
  * uppercase: aturan aksesibilitas ditulis sekali, tidak bisa dilanggar
  * tanpa sengaja. Di dark mode tertiary == secondary, jadi tidak ada
@@ -53,6 +54,7 @@ export type TextTone =
   | "danger"
   | "warning"
   | "info"
+  | "accent" // v2 §2.3b: teks momen trust & escrow (link escrow, nominal escrow)
   | "inherit"
 
 export type TextProps = RNTextProps & {
@@ -108,6 +110,7 @@ const toneClass: Record<TextTone, string> = {
   danger: "text-danger-text",
   warning: "text-warning-text",
   info: "text-info-text",
+  accent: "text-accent-text",
   inherit: "",
 }
 

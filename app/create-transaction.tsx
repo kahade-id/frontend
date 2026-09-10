@@ -61,6 +61,7 @@ import {
   type CounterpartState,
 } from "@/components/ui/counterpart-validation-card"
 import { FEE_RESPONSIBILITY_LABELS, FeeBreakdown } from "@/components/ui/fee-breakdown"
+import { FadeIn } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
@@ -432,6 +433,10 @@ export default function CreateTransactionScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
+        {/* v2: tiap langkah reveal (fast). <PullToRefresh key={step}> me-remount
+            saat langkah pindah, jadi FadeIn ikut remount dan reveal terulang
+            otomatis — tanpa key tambahan. */}
+        <FadeIn duration="fast">
         {/* Kepala langkah ala Register: H1 + penjelasan, progres di header */}
         <View className="gap-2 pb-2 pt-6">
           <Text variant="caption" tone="secondary">
@@ -630,6 +635,7 @@ export default function CreateTransactionScreen() {
             </FormSection>
           </>
         ) : null}
+        </FadeIn>
       </PullToRefresh>
       <BottomSheet
         visible={scheduleOpen}

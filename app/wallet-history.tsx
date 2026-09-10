@@ -57,6 +57,7 @@ import { tokens } from "@/lib/tokens"
 import { Amount } from "@/components/ui/amount"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
@@ -222,8 +223,11 @@ export default function WalletHistoryScreen() {
         gap={tokens.space[3]}
         loadingPlaceholder={<HistorySkeleton />}
         header={
-          <View className="gap-3 pb-1">
-            <ScrollRow bleed gap={2} accessibilityLabel="Saring riwayat berdasarkan jenis">
+          // v2: filter + ringkasan reveal naik 8px (fast) — konteks "laporan":
+          // angka ringkasan adalah bintangnya, jadi ia masuk dengan gerak.
+          <FadeIn duration="fast">
+            <View className="gap-3 pb-1">
+              <ScrollRow bleed gap={2} accessibilityLabel="Saring riwayat berdasarkan jenis">
               {TYPE_FILTERS.map((filter) => (
                 <Chip
                   key={filter.value}
@@ -275,7 +279,8 @@ export default function WalletHistoryScreen() {
                 </View>
               </View>
             ) : null}
-          </View>
+            </View>
+          </FadeIn>
         }
         footer={
           <View className="gap-2 pt-4">

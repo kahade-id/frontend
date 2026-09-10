@@ -55,6 +55,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type IncomingCallType = "voice" | "video"
@@ -160,16 +161,24 @@ function PulseRing({ active, delay }: { active: boolean; delay: number }) {
     if (active) {
       progress.value = 0
       if (reducedMotion) return
+      // v2: denyut memakai kurva "enter" token (≈ easeOutCubic — pengganti
+      // Easing.out(quad) yang setara) + durasi fast dari token.
+      const enterCurve = tokens.motion.easing.enter
       progress.value = withDelay(
         delay,
         withRepeat(
-          withTiming(1, { duration: PULSE_MS, easing: Easing.out(Easing.quad) }),
+          withTiming(1, {
+            duration: PULSE_MS,
+            easing: Easing.bezier(enterCurve[0], enterCurve[1], enterCurve[2], enterCurve[3]),
+          }),
           -1,
           false,
         ),
       )
     } else {
-      progress.value = withTiming(0, { duration: reducedMotion ? 0 : 250 })
+      progress.value = withTiming(0, {
+        duration: reducedMotion ? 0 : tokens.motion.duration.fast,
+      })
     }
   }, [active, delay, progress, reducedMotion])
 

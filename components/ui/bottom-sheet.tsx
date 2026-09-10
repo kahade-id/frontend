@@ -38,7 +38,9 @@
  *     dilempar error supaya app tidak crash, tapi cukup bising untuk
  *     ketahuan saat review.
  *   - Radius `rounded-t-md` (8px) — §5: bottom sheet = md. Border atas+sisi
- *     saja (`border-b-0`) karena sisi bawah menempel tepi layar.
+ *     saja (`border-b-0`) karena sisi bawah menempel tepi layar. Elevasi high
+ *     (v2 §5.2): sheet mengambang di atas scrim — spring buka/tutup tetap
+ *     utilitarian (20/200/1), slide-nya sendiri sudah menjadi momen gerak.
  *   - Handle `bg-border` (bukan text-tertiary): handle adalah affordance
  *     dekoratif, bukan ikon — mengikuti warna divider agar tetap tenang.
  *   - `z-bottomSheet` (50): di atas backdrop (40), di bawah modal (60) —
@@ -75,8 +77,10 @@ import { IconButton } from "@/components/ui/icon-button"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
+import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
 import { SafeAreaSpacer } from "@/components/ui/safe-area-spacer"
+import { elevationStyle } from "@/lib/elevation"
 import { tokens } from "@/lib/tokens"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -153,6 +157,7 @@ export function BottomSheet({
 }: BottomSheetProps) {
   const { height: windowHeight } = useWindowDimensions()
   const insets = useSafeAreaInsets()
+  const { mode } = useTheme()
   const { mounted, progress } = useOverlayPresence(visible, { onHidden })
   const dismiss = dismissOnBackdrop ? onRequestClose : undefined
   const sheetRef = useRef<View>(null)
@@ -298,7 +303,9 @@ export function BottomSheet({
       accessibilityViewIsModal
       accessibilityLabel={accessibilityLabel ?? title}
       className="w-full rounded-t-md border border-b-0 border-border bg-surface-elevated"
-      style={{ maxHeight: windowHeight * MAX_HEIGHT_RATIO }}
+      // v2: sheet mengambang → elevasi high. Shadow di kotak statis (bukan di
+      // Animated.View geser) agar tidak dihitung ulang tiap frame drag.
+      style={[elevationStyle("high", mode), { maxHeight: windowHeight * MAX_HEIGHT_RATIO }]}
     >
       {/* Handle + header = area drag default */}
       {dragArea === "handle" ? <GestureDetector gesture={pan}>{header}</GestureDetector> : header}

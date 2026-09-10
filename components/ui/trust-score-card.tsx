@@ -10,10 +10,11 @@
  *   bawah: daftar faktor — nama · ProgressBar sm · nilai Mono ("8/10")
  *
  * Keputusan non-obvious:
- *   - Ring & bar SELALU tone primary (monokrom), tidak hijau/kuning/merah
- *     menurut skor: warna semantik eksklusif untuk status transaksi (§2.3).
- *     Skor rendah bukan "bahaya" — ia informasi. Tier-lah yang memberi
- *     konteks lewat Badge (neutral untuk semua tier; pembeda = teks).
+ *   - Ring & bar tone "accent" (v2 §2.3b): skor trust adalah momen TRUST,
+ *     satu-satunya warna yang diizinkan selain monokrom di kartu ini. BUKAN
+ *     semantik hijau/kuning/merah menurut skor: warna semantik eksklusif
+ *     untuk status transaksi (§2.3), dan skor rendah bukan "bahaya" — ia
+ *     informasi. Tier tetap Badge neutral; pembeda = teks.
  *   - Tier diterima sebagai string dari backend (mis. "BRONZE"/"SILVER"/
  *     "GOLD"/"PLATINUM") dan dipetakan ke label lewat `tierLabels`; tak
  *     dikenal -> tampil apa adanya. Tidak ada ikon/warna logam (§1).
@@ -123,8 +124,8 @@ export function TrustScoreCard({
     <Card className={cn("gap-5", className)} {...rest}>
       <View className="flex-row items-center gap-4">
         <CardSummary className="flex-1 flex-row items-center gap-4" label={a11y}>
-          <ProgressRing value={value} size={compact ? 64 : 80} strokeWidth={compact ? 5 : 6} tone="primary">
-            <Text variant={compact ? "monoBody" : "monoLarge"} tone="primary" className="tabular-nums">
+          <ProgressRing value={value} size={compact ? 64 : 80} strokeWidth={compact ? 5 : 6} tone="accent">
+            <Text variant={compact ? "monoBody" : "monoLarge"} tone="accent" className="tabular-nums">
               {value}
             </Text>
           </ProgressRing>
@@ -167,7 +168,7 @@ export function TrustScoreCard({
                     {f.value}/{f.max}
                   </Text>
                 </View>
-                <ProgressBar value={pct} size="sm" tone="primary" />
+                <ProgressBar value={pct} size="sm" tone="accent" />
               </View>
             )
           })}

@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Perpanjangan tenggat pengiriman.
@@ -282,9 +283,8 @@ export default function ExtensionScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
-          <DetailLoading />
-        ) : error ? (
+        <Crossfade loading={loading} skeleton={<DetailLoading />}>
+          {error ? (
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
@@ -341,8 +341,9 @@ export default function ExtensionScreen() {
                 />
               </>
             )}
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       {/* Respon pembeli */}

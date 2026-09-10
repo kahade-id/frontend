@@ -43,6 +43,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
@@ -214,12 +215,18 @@ export default function KycScreen() {
         }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          {loading ? (
-            // Isi layar ini = satu KycStatusCard + (opsional) form, bukan
-            // daftar kartu: <ListLoading> (4 kartu) membuat tinggi menyusut
-            // drastis saat data tiba.
-            <DetailLoading />
-          ) : error ? (
+          {/* v2: skeleton → status crossfade (signature moment); skeleton
+              sebentuk kartu detail dipertahankan agar tinggi tidak melompat. */}
+          <Crossfade
+            loading={loading}
+            skeleton={
+              // Isi layar ini = satu KycStatusCard + (opsional) form, bukan
+              // daftar kartu: <ListLoading> (4 kartu) membuat tinggi menyusut
+              // drastis saat data tiba.
+              <DetailLoading />
+            }
+          >
+            {error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
           ) : (
             <>
@@ -331,6 +338,7 @@ export default function KycScreen() {
               ) : null}
             </>
           )}
+          </Crossfade>
         </View>
       </PullToRefresh>
     </Screen>

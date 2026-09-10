@@ -76,6 +76,8 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
   // Mode OS langsung dari react-native (bukan useTheme — belum ada provider).
 
   // Loop pulse — durasi "slow" dari tokens agar konsisten dengan motion system.
+  // Kurva ikut token v2: standard (easeInOut) untuk loop ambient simetris.
+  const standardCurve = tokens.motion.easing.standard
   useEffect(() => {
     if (reducedMotion) {
       pulse.setValue(1)
@@ -86,36 +88,37 @@ export function AnimatedSplash({ ready, onFinish }: AnimatedSplashProps) {
         Animated.timing(pulse, {
           toValue: 0.55,
           duration: tokens.motion.duration.slow * 2,
-          easing: Easing.inOut(Easing.ease),
+          easing: Easing.bezier(standardCurve[0], standardCurve[1], standardCurve[2], standardCurve[3]),
           useNativeDriver: true,
         }),
         Animated.timing(pulse, {
           toValue: 1,
           duration: tokens.motion.duration.slow * 2,
-          easing: Easing.inOut(Easing.ease),
+          easing: Easing.bezier(standardCurve[0], standardCurve[1], standardCurve[2], standardCurve[3]),
           useNativeDriver: true,
         }),
       ]),
     )
     loopRef.current.start()
     return () => loopRef.current?.stop()
-  }, [pulse, reducedMotion])
+  }, [pulse, reducedMotion, standardCurve])
 
-  // Fade-out saat ready
+  // Fade-out saat ready — kurva "exit" v2: keluar harus terasa segera.
+  const exitCurve = tokens.motion.easing.exit
   useEffect(() => {
     if (!ready) return
     loopRef.current?.stop()
     Animated.timing(overlay, {
       toValue: 0,
       duration: motionDuration(reducedMotion, tokens.motion.duration.base),
-      easing: Easing.out(Easing.ease),
+      easing: Easing.bezier(exitCurve[0], exitCurve[1], exitCurve[2], exitCurve[3]),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) onFinish()
     })
     // `reducedMotion` sengaja tidak di deps: dibaca sekali saat ready.
 
-  }, [ready, overlay, onFinish])
+  }, [ready, overlay, onFinish, exitCurve])
 
   return (
     <Animated.View

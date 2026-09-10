@@ -69,6 +69,7 @@ import { FollowButton } from "@/components/ui/follow-button"
 import { Icon } from "@/components/ui/icon"
 import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QACard } from "@/components/ui/qa-card"
@@ -606,24 +607,31 @@ export default function UserProfileScreen() {
           </View>
         </View>
 
-        {loading && !profile ? (
-          /*
-           * Geometri kerangka HARUS identik dengan blok `profile` di bawah:
-           * sebelumnya kerangka memakai `pt-4` + `-mt-12` dan lingkaran 76px,
-           * sedangkan konten jadi memakai `-mt-12` tanpa `pt-4` dan Avatar
-           * `xl` (80px). Selisihnya 16px vertikal + 4px diameter, jadi avatar
-           * "melompat" tiap kali data profil tiba.
-           */
-          <View className="px-6 gap-4">
-            <View className="flex-row items-end justify-between -mt-12">
-              <Skeleton shape="circle" width={80} height={80} className="border-4 border-background" />
-              <Skeleton width={96} height={36} className="rounded-sm" />
+        {/* v2: skeleton sebentuk profil → konten crossfade. Skeleton kustom
+            (bukan <ListLoading/>) DIPERTAHANKAN — geometrinya disamakan dengan
+            konten agar avatar tidak melompat (lihat komentar di bawah). */}
+        <Crossfade
+          loading={loading && !profile}
+          skeleton={
+            <View className="px-6 gap-4">
+              {/*
+               * Geometri kerangka HARUS identik dengan blok `profile` di bawah:
+               * sebelumnya kerangka memakai `pt-4` + `-mt-12` dan lingkaran 76px,
+               * sedangkan konten jadi memakai `-mt-12` tanpa `pt-4` dan Avatar
+               * `xl` (80px). Selisihnya 16px vertikal + 4px diameter, jadi avatar
+               * "melompat" tiap kali data profil tiba.
+               */}
+              <View className="flex-row items-end justify-between -mt-12">
+                <Skeleton shape="circle" width={80} height={80} className="border-4 border-background" />
+                <Skeleton width={96} height={36} className="rounded-sm" />
+              </View>
+              <Skeleton height={24} className="w-3/5" />
+              <Skeleton height={16} className="w-4/5" />
+              <Skeleton height={16} className="w-2/5" />
             </View>
-            <Skeleton height={24} className="w-3/5" />
-            <Skeleton height={16} className="w-4/5" />
-            <Skeleton height={16} className="w-2/5" />
-          </View>
-        ) : error ? (
+          }
+        >
+          {error ? (
           <View className="px-6 pt-8">
             <ErrorState title="Gagal memuat profil" description={error} onRetry={() => void fetchProfile()} />
           </View>
@@ -740,8 +748,9 @@ export default function UserProfileScreen() {
 
                 {profile.trustScore != null ? (
                   <View className="flex-row items-center gap-1">
-                    <Icon icon={ShieldCheck} size="xs" active />
-                    <Text variant="body" weight={700} tone="primary">
+                    {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
+                    <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
+                    <Text variant="body" weight={700} tone="accent">
                       {profile.trustScore}
                     </Text>
                     <Text variant="caption" tone="secondary">
@@ -1097,6 +1106,7 @@ export default function UserProfileScreen() {
         ) : (
           <EmptyState icon={UserCircle} title="Profil tidak ditemukan" />
         )}
+        </Crossfade>
       </PullToRefresh>
 
       {/* ── Dialog Bertanya ──────────────────────────────────── */}

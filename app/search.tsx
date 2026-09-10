@@ -14,6 +14,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { LiveRegion } from "@/components/ui/live-region"
+import { FadeIn } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OrderCard } from "@/components/ui/order-card"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
@@ -103,14 +104,16 @@ export default function SearchScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Pencarian" />
-      <View className="px-6 pb-4">
+      {/* v2: kolom cari fade-in tanpa geser (pola Transaksi/FAQ) — kontrol
+          fungsional harus stabil. Hasil cari tidak direveal per-item. */}
+      <FadeIn duration="fast" translate={false} className="px-6 pb-4">
         <DebouncedSearchField
           key={seed}
           initialQuery={seed}
           onQueryChange={setKeyword}
           placeholder="Cari pengguna, pesanan, atau mutasi"
         />
-      </View>
+      </FadeIn>
       <LiveRegion message={resultMessage} politeness={result.error ? "assertive" : "polite"} />
       <PullToRefreshFlatList
         data={rows}

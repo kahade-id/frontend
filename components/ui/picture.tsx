@@ -4,8 +4,8 @@
  * Pembungkus expo-image <Image> dengan tiga perilaku yang harus seragam di app:
  *   1. Loading  : placeholder Skeleton (pulse) selama gambar belum ter-decode,
  *                 bukan area kosong yang "melompat" saat gambar muncul.
- *   2. Error    : fallback ikon ImageBroken text-tertiary di atas bg-surface
- *                 + border — bukan kotak putih polos.
+ *   2. Error    : fallback ikon ImageBroken text-tertiary di atas lingkaran
+ *                 bg-background (v2) + border — bukan kotak putih polos.
  *   3. Radius   : dibatasi ke skala §5 (none/xs/sm/md). TIDAK ada radius lebih
  *                 besar — "8px maksimum non-pill termasuk large image" (§5).
  *
@@ -184,7 +184,11 @@ export function Picture({
 
       {status === "error" ? (
         <View className="absolute inset-0 items-center justify-center">
-          <Icon icon={ImageBroken} size="lg" accessibilityLabel="Gambar gagal dimuat" />
+          {/* v2: ikon di atas lingkaran bg-background — fallback terbaca sebagai
+              "kartu" kecil yang disengaja, bukan ikon yang tercecer. */}
+          <View className="items-center justify-center rounded-full bg-background p-4">
+            <Icon icon={ImageBroken} size="lg" accessibilityLabel="Gambar gagal dimuat" />
+          </View>
         </View>
       ) : null}
     </View>

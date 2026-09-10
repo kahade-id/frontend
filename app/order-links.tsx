@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Order Link Saya (GET /v1/orders/links/my, paginated).
@@ -131,9 +132,8 @@ export default function OrderLinksScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {query.loading ? (
-          <ListLoading />
-        ) : query.error ? (
+        <Crossfade loading={query.loading} skeleton={<ListLoading />}>
+          {query.error ? (
           <ErrorState
             title="Gagal memuat"
             description={query.error}
@@ -207,8 +207,9 @@ export default function OrderLinksScreen() {
             <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
               Buat tautan baru
             </Button>
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       <Dialog

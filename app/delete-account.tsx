@@ -1,5 +1,6 @@
 import { useApiQuery } from "@/lib/use-api-query"
 import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Hapus Akun (POST /v1/users/me/delete-request).
@@ -113,9 +114,8 @@ export default function DeleteAccountScreen() {
           paddingBottom: insets.bottom + tokens.space[8],
         }}
       >
-        {prerequisites.loading ? (
-          <DetailLoading />
-        ) : prerequisites.error ? (
+        <Crossfade loading={prerequisites.loading} skeleton={<DetailLoading />}>
+          {prerequisites.error ? (
           <ErrorState
             description={prerequisites.error}
             onRetry={() => void prerequisites.reload()}
@@ -130,6 +130,7 @@ export default function DeleteAccountScreen() {
             submitting={submitting}
           />
         )}
+        </Crossfade>
       </ScrollView>
     </Screen>
   )

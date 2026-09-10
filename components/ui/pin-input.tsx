@@ -20,12 +20,14 @@
  *     gap 16px: cukup lega untuk 6 digit di lebar 320.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { View, type ViewProps } from "react-native"
+import { Animated, View, type ViewProps } from "react-native"
 
 import { PinPad, type PinPadProps } from "@/components/ui/pin-pad"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { haptic } from "@/lib/haptics"
+import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export const PIN_DEFAULT_LENGTH = 6
 
@@ -36,10 +38,27 @@ export type PinDotsProps = Omit<ViewProps, "children"> & {
   length: number
   filled: number
   error?: boolean
+  /** State berhasil: dots terisi accent + pop spring sekali (v2) */
+  success?: boolean
   className?: string
 }
 
-export function PinDots({ length, filled, error = false, className, ...rest }: PinDotsProps) {
+export function PinDots({ length, filled, error = false, success = false, className, ...rest }: PinDotsProps) {
+  const scale = useRef(new Animated.Value(1)).current
+  const reducedMotion = useReducedMotion()
+  const prevSuccess = useRef(success)
+  const showSuccess = success && !error
+
+  useEffect(() => {
+    const justSucceeded = showSuccess && !prevSuccess.current
+    prevSuccess.current = showSuccess
+    if (!justSucceeded || reducedMotion) return
+    scale.setValue(tokens.motion.scale.press)
+    const anim = Animated.spring(scale, { toValue: 1, ...tokens.motion.springPlayful, useNativeDriver: true })
+    anim.start()
+    return () => anim.stop()
+  }, [showSuccess, scale, reducedMotion])
+
   return (
     <View
       /*
@@ -52,21 +71,32 @@ export function PinDots({ length, filled, error = false, className, ...rest }: P
       accessibilityRole="progressbar"
       accessibilityLabel={`${filled} dari ${length} digit terisi`}
       accessibilityValue={{ min: 0, max: length, now: filled }}
-      className={cn("flex-row items-center justify-center gap-4", className)}
+      className={cn("items-center justify-center", className)}
       {...rest}
     >
-      {Array.from({ length }).map((_, i) => {
-        const on = i < filled
-        return (
-          <View
-            key={i}
-            className={cn(
-              "h-3 w-3 rounded-full",
-              error ? (on ? "bg-danger" : "border border-border-error") : on ? "bg-primary" : "border border-border-control",
-            )}
-          />
-        )
-      })}
+      {/* Animated.View bukan interop NativeWind: baris flex di View dalam. */}
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <View className="flex-row items-center justify-center gap-4">
+          {Array.from({ length }).map((_, i) => {
+            const on = i < filled
+            return (
+              <View
+                key={i}
+                className={cn(
+                  "h-3 w-3 rounded-full",
+                  error
+                    ? (on ? "bg-danger" : "border border-border-error")
+                    : showSuccess && on
+                      ? "bg-accent"
+                      : on
+                        ? "bg-primary"
+                        : "border border-border-control",
+                )}
+              />
+            )
+          })}
+        </View>
+      </Animated.View>
     </View>
   )
 }
@@ -96,6 +126,8 @@ export type PinInputProps = Omit<ViewProps, "children"> &
     onComplete: (pin: string) => void
     /** Error dari luar (mis. "PIN salah" dari server) — mengosongkan input */
     errorText?: string
+    /** Sukses dari luar (PIN benar) — dots accent + pop (v2) */
+    success?: boolean
     helperText?: string
     /** Judul di atas dots; default mengikuti langkah pada mode setup */
     title?: string
@@ -110,6 +142,7 @@ export function PinInput({
   onComplete,
   onBiometric,
   errorText,
+  success = false,
   helperText,
   title,
   disabled = false,
@@ -204,7 +237,7 @@ export function PinInput({
             {heading}
           </Text>
         ) : null}
-        <PinDots length={length} filled={value.length} error={!!error} />
+        <PinDots length={length} filled={value.length} error={!!error} success={success} />
         {error || helperText ? (
           <Text variant="caption" tone={error ? "danger" : "secondary"} className="text-center">
             {error ?? helperText}

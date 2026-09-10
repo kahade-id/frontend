@@ -7,6 +7,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { Screen } from "@/components/ui/screen"
@@ -22,15 +23,15 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
     <Screen edges={["top"]} padded={false}>
       <Header title={title} />
       <View className="flex-1 px-6">
-        {query.loading ? (
-          <LoadingScreen message="Memuat dokumen resmi…" />
-        ) : query.error ? (
-          <ErrorState
-            title="Dokumen belum dapat dimuat"
-            description={query.error}
-            onRetry={() => void query.reload()}
-          />
-        ) : url ? (
+        {/* v2: loading → isi crossfade (signature moment), bukan swap keras. */}
+        <Crossfade loading={query.loading} skeleton={<LoadingScreen message="Memuat dokumen resmi…" />}>
+          {query.error ? (
+            <ErrorState
+              title="Dokumen belum dapat dimuat"
+              description={query.error}
+              onRetry={() => void query.reload()}
+            />
+          ) : url ? (
           <View className="gap-4 py-6">
             <Text variant="body">
               Baca versi resmi dan terbaru dari {title.toLowerCase()} pada situs Kahade.
@@ -60,7 +61,8 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
               </Button>
             }
           />
-        )}
+          )}
+        </Crossfade>
       </View>
     </Screen>
   )

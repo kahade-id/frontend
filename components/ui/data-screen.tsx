@@ -49,6 +49,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { EmptyState, type EmptyStateProps } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade } from "@/components/ui/fade-in"
 import { Header, type HeaderProps } from "@/components/ui/header"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -126,14 +127,21 @@ export function DataScreen({
   // footer, <Screen> sendiri yang memberi inset pada FooterBar.
   const bottomPad = (footer ? 0 : insets.bottom) + tokens.space[8]
 
-  const body = loading ? (
-    <LoadingScreen message={loadingMessage} />
-  ) : error ? (
+  // v2: loading → isi crossfade (signature moment), bukan swap keras. Berlaku
+  // untuk ketiga hasil (konten/error/kosong) — error yang muncul halus tetap
+  // instan secara fungsional (muncul di frame yang sama, hanya opacity yang
+  // jalan 250ms). Refresh (PTR) tidak memicu reveal ulang: `loading` false.
+  const content = error ? (
     <ErrorState title={errorTitle} description={error} onRetry={() => void reload()} />
   ) : empty ? (
     <EmptyState {...empty} />
   ) : (
     <View className={cn("gap-4 pt-3", contentClassName)}>{children}</View>
+  )
+  const body = (
+    <Crossfade loading={loading} skeleton={<LoadingScreen message={loadingMessage} />}>
+      {content}
+    </Crossfade>
   )
 
   return (

@@ -1,7 +1,10 @@
 /**
  * Kahade — <Button> (§9.1).
  *
- * Varian: primary (solid), secondary (outline), ghost, destructive.
+ * Varian: primary (solid), secondary (outline), ghost, destructive, accent (v2).
+ * "accent" solid Pinus — EKSKLUSIF aksi trust & escrow (§2.3b: konfirmasi
+ * terima, lepas dana, verifikasi trust). CTA umum tetap primary; aksi
+ * merusak tetap destructive. Jangan pakai accent supaya "lebih berwarna".
  * State  : default, pressed (scale 0.97 via PressableScale), disabled
  *          (opacity 40%), loading (spinner inline, label tetap menahan lebar).
  *
@@ -43,7 +46,7 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive"
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive" | "accent"
 export type ButtonSize = "sm" | "md"
 
 export type ButtonProps = Omit<PressableScaleProps, "children" | "className"> & {
@@ -64,6 +67,7 @@ const variantBox: Record<ButtonVariant, string> = {
   ghost: "bg-transparent",
   // Teks putih di light, gray.950 di dark (kontras di atas fill terang)
   destructive: "bg-danger",
+  accent: "bg-accent",
 }
 
 const variantText: Record<ButtonVariant, string> = {
@@ -71,6 +75,8 @@ const variantText: Record<ButtonVariant, string> = {
   secondary: "text-text-primary",
   ghost: "text-text-primary",
   destructive: "text-white dark:text-gray-950",
+  // accent-foreground mode-aware via var (putih/gelap) — tanpa kelas dark:.
+  accent: "text-accent-foreground",
 }
 
 const variantIconTone: Record<ButtonVariant, IconTone> = {
@@ -78,6 +84,8 @@ const variantIconTone: Record<ButtonVariant, IconTone> = {
   secondary: "active",
   ghost: "active",
   destructive: "inverse",
+  // onFill accent (putih/#141210) praktis == primary-foreground di dua mode.
+  accent: "inverse",
 }
 
 const sizeBox: Record<ButtonSize, string> = {
@@ -151,7 +159,7 @@ export function Button({
         <View className="absolute inset-0 items-center justify-center">
           <Spinner
             size={size === "sm" ? "sm" : "md"}
-            tone={variant === "primary" || variant === "destructive" ? "inverse" : "active"}
+            tone={variant === "primary" || variant === "destructive" || variant === "accent" ? "inverse" : "active"}
           />
         </View>
       ) : null}

@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Terima Order Link (GET /v1/orders/links/{token}).
@@ -97,9 +98,8 @@ export default function OrderLinkScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {query.loading ? (
-          <DetailLoading />
-        ) : query.error ? (
+        <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
+          {query.error ? (
           <ErrorState
             title="Gagal memuat"
             description={query.error}
@@ -134,8 +134,9 @@ export default function OrderLinkScreen() {
                 Kembali
               </Button>
             ) : null}
-          </View>
-        ) : null}
+            </View>
+          ) : null}
+        </Crossfade>
       </PullToRefresh>
 
       <Dialog

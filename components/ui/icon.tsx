@@ -40,6 +40,7 @@ export type IconTone =
   | "danger"
   | "warning"
   | "info"
+  | "accent" // v2 §2.3b: ikon momen trust & escrow — bukan status transaksi
 
 export type IconProps = {
   icon: IconComponent
@@ -71,6 +72,8 @@ export function useIconColor(tone: IconTone = "default"): string {
     case "warning":
     case "info":
       return tokens.colors.semantic[tone][mode].fill
+    case "accent":
+      return tokens.colors.accent[mode].fill
     default:
       return palette.textTertiary
   }

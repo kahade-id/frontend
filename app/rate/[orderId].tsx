@@ -14,6 +14,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
+import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -83,9 +84,8 @@ export default function RateOrderScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {loading ? (
-          <DetailLoading />
-        ) : error || !order ? (
+        <Crossfade loading={loading} skeleton={<DetailLoading />}>
+          {error || !order ? (
           <ErrorState
             title="Gagal memuat"
             description={error ?? "Order tidak ditemukan."}
@@ -105,8 +105,9 @@ export default function RateOrderScreen() {
               }}
               orderTitle={order.title}
             />
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
     </Screen>
   )

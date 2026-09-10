@@ -9,13 +9,14 @@
  *   1. Posisi default TOP (di bawah safe-area) karena bottom sering bertabrakan
  *      dengan TabBar/sticky CTA di flow escrow. Bisa dipilih per toast.
  *   2. Animasi memakai Animated core (bukan Reanimated) agar konsisten dengan
- *      PressableScale & tetap jalan di web tanpa worklet. Slide 8px + fade,
- *      durasi motion.duration.fast, easing standard.
+ *      PressableScale & tetap jalan di web tanpa worklet. Masuk: slide 8px +
+ *      fade (kurva enter) + scale 0.97→1 spring playful (v2); keluar: fade
+ *      cepat 150ms kurva exit. Durasi masuk motion.duration.fast.
  *   3. Maks 2 toast tampil sekaligus per posisi (MAX_VISIBLE, antrean FIFO)
  *      supaya tidak menutup layar; sisanya menyusul setelah ada yang habis.
  *   4. Di web viewport dibatasi `md:max-w-content` dan di-center (§11).
  *   5. Toast tone tidak memakai bg semantik pekat — kotak `bg-surface-elevated
- *      border-border` dengan ikon berwarna, mengikuti prinsip monokrom §6.
+ *      border-border` + elevasi medium (v2 §5.2) dengan ikon berwarna.
  *      Aksi (mis. "Urungkan") lewat TextLink-style Text agar tetap ringkas.
  *   6. Toast tidak bergantung pada Alert supaya keduanya bisa berubah bebas.
  */
@@ -33,7 +34,9 @@ import { Animated, Easing, Pressable, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CheckCircle, Info, Warning, WarningCircle, X } from "phosphor-react-native"
 
+import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
+import { elevationStyle } from "@/lib/elevation"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
@@ -173,30 +176,33 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
     toast.duration ?? (tone === "danger" ? DANGER_DURATION : DEFAULT_DURATION)
   const dismissible = toast.dismissible ?? duration === 0
 
-  // Reduce Motion (audit #2): slide dihilangkan (translateY tetap 0), fade
-  // dipertahankan tapi instan (0ms) supaya `start` callback dismiss tetap jalan.
+  // Reduce Motion (audit #2): slide+scale dihilangkan, fade dipertahankan
+  // tapi instan (0ms) supaya `start` callback dismiss tetap jalan.
   const reducedMotion = useReducedMotion()
   const reducedRef = useRef(reducedMotion)
   reducedRef.current = reducedMotion
+  const { mode } = useTheme()
   const slideOffset = position === "top" ? -tokens.space[2] : tokens.space[2]
 
   const opacity = useRef(new Animated.Value(0)).current
   const translateY = useRef(new Animated.Value(reducedMotion ? 0 : slideOffset)).current
+  const scale = useRef(new Animated.Value(reducedMotion ? 1 : tokens.motion.scale.press)).current
 
   const animateOut = useCallback(
     (cb: () => void) => {
       const reduced = reducedRef.current
+      const exit = tokens.motion.easing.exit
       Animated.parallel([
         Animated.timing(opacity, {
           toValue: 0,
           duration: motionDuration(reduced, tokens.motion.duration.press),
-          easing: Easing.bezier(...tokens.motion.easing.standard),
+          easing: Easing.bezier(exit[0], exit[1], exit[2], exit[3]),
           useNativeDriver: true,
         }),
         Animated.timing(translateY, {
           toValue: reduced ? 0 : slideOffset,
           duration: motionDuration(reduced, tokens.motion.duration.press),
-          easing: Easing.bezier(...tokens.motion.easing.standard),
+          easing: Easing.bezier(exit[0], exit[1], exit[2], exit[3]),
           useNativeDriver: true,
         }),
       ]).start(({ finished }) => finished && cb())
@@ -206,19 +212,31 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
 
   useEffect(() => {
     const reduced = reducedRef.current
+    const enter = tokens.motion.easing.enter
+    const enterEasing = Easing.bezier(enter[0], enter[1], enter[2], enter[3])
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
         duration: motionDuration(reduced, tokens.motion.duration.fast),
-        easing: Easing.bezier(...tokens.motion.easing.standard),
+        easing: enterEasing,
         useNativeDriver: true,
       }),
       Animated.timing(translateY, {
         toValue: 0,
         duration: motionDuration(reduced, tokens.motion.duration.fast),
-        easing: Easing.bezier(...tokens.motion.easing.standard),
+        easing: enterEasing,
         useNativeDriver: true,
       }),
+      // v2: scale spring playful — dilewati total saat reduced (nilai awal 1).
+      ...(reduced
+        ? []
+        : [
+            Animated.spring(scale, {
+              toValue: 1,
+              ...tokens.motion.springPlayful,
+              useNativeDriver: true,
+            }),
+          ]),
     ]).start()
 
     if (duration === 0) return
@@ -234,7 +252,7 @@ export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps
     <Animated.View
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
-      style={{ opacity, transform: [{ translateY }] }}
+      style={[elevationStyle("medium", mode), { opacity, transform: [{ translateY }, { scale }] }]}
       className="w-full flex-row items-start gap-3 rounded-md border border-border bg-surface-elevated px-4 py-3"
     >
       {IconCmp ? (

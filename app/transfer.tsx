@@ -32,6 +32,7 @@ import { AmountInput } from "@/components/ui/amount-input"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { CopyableField } from "@/components/ui/copyable-field"
+import { FadeIn } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { Header } from "@/components/ui/header"
 import { PinInput } from "@/components/ui/pin-input"
@@ -158,6 +159,9 @@ export default function TransferScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
+        {/* v2: tiap fase (form → hasil) reveal — key per step agar reveal
+            terulang saat pindah fase tanpa remount layar. */}
+        <FadeIn key={step} duration="fast">
         {step === "done" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
@@ -236,6 +240,7 @@ export default function TransferScreen() {
             </Field>
           </View>
         )}
+        </FadeIn>
       </PullToRefresh>
       {/*
         SATU permukaan PIN saja (audit): sebelumnya ada DUA PinInput aktif untuk

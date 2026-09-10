@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Tanya Jawab saya.
@@ -153,9 +154,8 @@ export default function QuestionsScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
-        {query.loading ? (
-          <ListLoading />
-        ) : query.error ? (
+        <Crossfade loading={query.loading} skeleton={<ListLoading />}>
+          {query.error ? (
           <ErrorState
             title="Gagal memuat"
             description={query.error}
@@ -241,8 +241,9 @@ export default function QuestionsScreen() {
               onLoadMore={() => void query.loadMore()}
               hideEnd
             />
-          </View>
-        )}
+            </View>
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       <Dialog

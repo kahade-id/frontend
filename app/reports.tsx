@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Laporan Saya (GET /v1/settings/reports).
@@ -169,9 +170,8 @@ export default function ReportsScreen() {
 
         <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
           <SectionHeader title="Laporan saya" />
-          {reports.loading ? (
-            <ListLoading />
-          ) : reports.error ? (
+          <Crossfade loading={reports.loading} skeleton={<ListLoading />}>
+            {reports.error ? (
             <ErrorState
               title="Gagal memuat"
               description={reports.error}
@@ -207,7 +207,8 @@ export default function ReportsScreen() {
                 )
               })}
             </ListGroup>
-          )}
+            )}
+          </Crossfade>
         </View>
       </PullToRefresh>
     </Screen>

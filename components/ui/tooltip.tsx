@@ -38,11 +38,13 @@ import {
   type View as RNView,
 } from "react-native"
 
+import { useTheme } from "@/components/theme-provider"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { IconButton } from "@/components/ui/icon-button"
 import { Portal } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { elevationStyle } from "@/lib/elevation"
 import { tokens } from "@/lib/tokens"
 
 export type TooltipPlacement = "auto" | "top" | "bottom"
@@ -88,6 +90,7 @@ export function Tooltip({
     [onOpenChange],
   )
 
+  const { mode } = useTheme()
   const triggerRef = useRef<RNView>(null)
   const [anchor, setAnchor] = useState<Rect | null>(null)
   const [size, setSize] = useState<Size | null>(null)
@@ -188,7 +191,12 @@ export function Tooltip({
                   onLayout={handleLayout}
                   accessibilityRole="text"
                   accessibilityLiveRegion="polite"
-                  style={{ maxWidth: winW >= tokens.layout.breakpoint ? MAX_WIDTH_MD : MAX_WIDTH }}
+                  // v2: bubble melayang di atas scrim → elevasi low (lembut,
+                  // proporsional untuk bubble kecil; bukan medium).
+                  style={[
+                    { maxWidth: winW >= tokens.layout.breakpoint ? MAX_WIDTH_MD : MAX_WIDTH },
+                    elevationStyle("low", mode),
+                  ]}
                   className={cn(
                     "rounded-xs border border-border bg-surface-elevated px-3 py-2",
                     className,
