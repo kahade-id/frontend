@@ -51,17 +51,17 @@ import {
   ArrowCircleDown,
   ArrowCircleUp,
   ChartLineUp,
-  ChatCircleDots,
   Compass,
   Gift,
   Lightning,
   LinkSimple,
-  MagnifyingGlass,
   PaperPlaneTilt,
+  QrCode,
   Receipt,
   Scales,
   ShieldCheck,
   Ticket,
+  Tray,
   UsersThree,
   Wallet,
 } from "phosphor-react-native"
@@ -78,7 +78,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Stagger } from "@/components/ui/fade-in"
 import { HomeOverviewCard, type OverviewNotice } from "@/components/ui/home-overview-card"
-import { IconButton } from "@/components/ui/icon-button"
+import { Icon } from "@/components/ui/icon"
 import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { PromoCarousel, type PromoItem } from "@/components/ui/promo-carousel"
@@ -86,6 +86,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QuickActionGrid, type QuickAction } from "@/components/ui/quick-action-grid"
 import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
+import { SearchTrigger } from "@/components/ui/search-field"
 import { SectionHeader } from "@/components/ui/section"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
@@ -280,7 +281,7 @@ export default function HomeScreen() {
   const isBusiness = profile.data?.accountType === "BUSINESS"
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    <Screen edges={["top"]} padded={false} background="surface">
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={
@@ -349,29 +350,38 @@ export default function HomeScreen() {
               </PressableScale>
             )}
             <View className="flex-row items-center">
-              <IconButton
-                icon={MagnifyingGlass}
-                variant="ghost"
-                accessibilityLabel="Cari"
-                accessibilityHint="Buka pencarian pengguna dan transaksi"
-                onPress={() => router.push(ROUTES.search)}
-              />
-              <IconButton
-                icon={ChatCircleDots}
-                variant="ghost"
+              <PressableScale
+                accessibilityRole="button"
                 accessibilityLabel="Pesan"
                 accessibilityHint="Buka daftar percakapan"
+                haptic
                 onPress={() => router.push(ROUTES.chat)}
-              />
+                containerClassName={cn("rounded-xs", focusRing)}
+                className="h-12 w-12 items-center justify-center rounded-xs"
+              >
+                {/* Ikon chat diperbesar (tray) sesuai permintaan desain */}
+                <Icon icon={Tray} size={28} tone="active" />
+              </PressableScale>
             </View>
           </View>
 
+          {/* ── 1b. Kolom cari (kartu di atas kartu Saldo) ─────── */}
+          <View className="px-6 pt-3">
+            <SearchTrigger
+              placeholder="Cari transaksi, pengguna, atau ID"
+              variant="elevated"
+              onPress={() => router.push(ROUTES.search)}
+            />
+          </View>
+
           {/* ── 2. Kartu hero: saldo + statistik + notice ──────── */}
-          <View className="px-6 pt-2">
+          <View className="px-6 pt-3">
             <HomeOverviewCard
               available={wallet.data?.availableBalance}
               held={wallet.data?.holdBalance}
               hidden={balanceHidden}
+              borderless
+              elevation="low"
               onToggleHidden={() => setBalanceHidden((v) => !v)}
               walletLoading={wallet.loading}
               walletError={wallet.error}
@@ -384,16 +394,22 @@ export default function HomeScreen() {
                   onPress: () => router.push(ROUTES.topup),
                 },
                 {
+                  key: "receive",
+                  label: "Terima",
+                  icon: QrCode,
+                  onPress: () => router.push(ROUTES.receive),
+                },
+                {
+                  key: "transfer",
+                  label: "Kirim",
+                  icon: PaperPlaneTilt,
+                  onPress: () => router.push(ROUTES.transfer),
+                },
+                {
                   key: "withdraw",
                   label: "Tarik",
                   icon: ArrowCircleUp,
                   onPress: () => router.push(ROUTES.withdraw),
-                },
-                {
-                  key: "transfer",
-                  label: "Transfer",
-                  icon: PaperPlaneTilt,
-                  onPress: () => router.push(ROUTES.transfer),
                 },
               ]}
               stats={[

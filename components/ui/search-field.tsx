@@ -86,6 +86,8 @@ export const SearchField = forwardRef<TextInput, SearchFieldProps>(function Sear
 
 export type SearchTriggerProps = Omit<PressableScaleProps, "children" | "className"> & {
   placeholder?: string
+  /** "default" = gaya input biasa (border, bg-background); "elevated" = kartu putih tanpa border di atas latar abu. */
+  variant?: "default" | "elevated"
   className?: string
 }
 
@@ -94,9 +96,10 @@ export type SearchTriggerProps = Omit<PressableScaleProps, "children" | "classNa
  * Ref diteruskan agar bisa jadi `SearchOverlay.returnFocusRef` (audit #3).
  */
 export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function SearchTrigger(
-  { placeholder = "Cari transaksi, pihak, atau ID", className, containerClassName, ...rest },
+  { placeholder = "Cari transaksi, pihak, atau ID", variant = "default", className, containerClassName, ...rest },
   ref,
 ) {
+  const isElevated = variant === "elevated"
   return (
     <PressableScale
       ref={ref}
@@ -106,7 +109,10 @@ export const SearchTrigger = forwardRef<View, SearchTriggerProps>(function Searc
       scaleOnPress={false}
       containerClassName={cn("w-full rounded-sm", focusRing, containerClassName)}
       className={cn(
-        "min-h-12 w-full flex-row items-center gap-2 rounded-sm border border-border-control bg-background px-4 py-3",
+        "min-h-12 w-full flex-row items-center gap-2 px-4 py-3",
+        isElevated
+          ? "rounded-md bg-surface-elevated"
+          : "rounded-sm border border-border-control bg-background",
         className,
       )}
       {...rest}

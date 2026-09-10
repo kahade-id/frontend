@@ -42,6 +42,7 @@ import { Pressable, View, type ViewProps } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
 import { Card, CardSummary } from "@/components/ui/card"
+import type { ElevationLevel } from "@/lib/elevation"
 import { Divider } from "@/components/ui/divider"
 import { ErrorState } from "@/components/ui/error-state"
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -110,6 +111,10 @@ export type HomeOverviewCardProps = Omit<ViewProps, "children"> & {
   onRetrySummary?: () => void
   notice?: OverviewNotice
   labels?: Partial<HomeOverviewCardLabels>
+  /** Tanpa border (di atas latar abu) */
+  borderless?: boolean
+  /** Override elevasi kartu */
+  elevation?: ElevationLevel
   className?: string
 }
 
@@ -128,6 +133,8 @@ export function HomeOverviewCard({
   onRetrySummary,
   notice,
   labels,
+  borderless = false,
+  elevation: cardElevation,
   className,
   ...rest
 }: HomeOverviewCardProps) {
@@ -146,7 +153,7 @@ export function HomeOverviewCard({
         ])
 
   return (
-    <Card variant="elevated" elevation="medium" padded={false} className={className} {...rest}>
+    <Card variant="elevated" elevation={cardElevation ?? "medium"} padded={false} borderless={borderless} className={className} {...rest}>
       {/* ── Saldo ─────────────────────────────────────────────── */}
       <View className="gap-4 p-5">
         {walletError ? (
@@ -216,7 +223,7 @@ export function HomeOverviewCard({
                 containerClassName={cn("flex-1 rounded-sm", focusRing)}
                 className="items-center gap-2 py-1"
               >
-                <View className="h-11 w-11 items-center justify-center rounded-full border border-border bg-surface">
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-surface dark:bg-surface-elevated">
                   <Icon icon={a.icon} size="sm" tone="active" />
                 </View>
                 <Text ellipsizeMode="tail" variant="caption" weight={500} tone="primary" numberOfLines={1}>

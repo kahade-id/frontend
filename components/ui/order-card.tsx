@@ -131,10 +131,13 @@ export function OrderCard({
 
   return (
     <Card
+      variant="elevated"
+      elevation="flat"
       onPress={onPress}
       href={href}
       accessibilityLabel={a11y}
       accessibilityHint={onPress || href ? "Buka detail transaksi" : undefined}
+      borderless
       className={cn("gap-3", className)}
       {...rest}
     >

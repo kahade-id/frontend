@@ -80,11 +80,11 @@ function ActionTile({ action: a, layout }: { action: QuickAction; layout: QuickA
     >
       <View
         className={cn(
-          "relative items-center justify-center border",
+          "relative items-center justify-center",
           row ? "h-14 w-14 rounded-full" : "h-12 w-12 rounded-sm",
           a.emphasis && row
-            ? "border-primary bg-primary"
-            : "border-border bg-surface dark:bg-surface-elevated",
+            ? "bg-primary"
+            : "bg-surface-elevated dark:bg-surface-elevated",
         )}
       >
         <Icon
