@@ -41,6 +41,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
+import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
@@ -160,6 +161,9 @@ export default function VerifyTwoFactorScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* v2: form reveal satu kesatuan (fast) — pola yang sama di semua
+              layar auth; FooterBar di bawah tetap statis. */}
+          <FadeIn duration="fast">
           <View className="gap-8">
             <View className="gap-3">
               <Heading level={1} className="text-balance">
@@ -222,6 +226,7 @@ export default function VerifyTwoFactorScreen() {
               </Alert>
             ) : null}
           </View>
+          </FadeIn>
         </ScrollView>
 
         <FooterBar>

@@ -58,6 +58,7 @@ import { ScrollView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -282,6 +283,9 @@ export default function ProfileDataScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* v2: form reveal satu kesatuan (fast) — pola yang sama di semua
+              layar auth; FooterBar di bawah tetap statis. */}
+          <FadeIn duration="fast">
           <VStack gap={8}>
             {/* Intro */}
             <VStack gap={2}>
@@ -399,6 +403,7 @@ export default function ProfileDataScreen() {
               </Alert>
             ) : null}
           </VStack>
+          </FadeIn>
         </ScrollView>
 
         {/* Footer: CTA */}

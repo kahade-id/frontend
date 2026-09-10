@@ -49,6 +49,7 @@ import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { PasswordField } from "@/components/ui/password-field"
+import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { PinInput } from "@/components/ui/pin-input"
 import { Button } from "@/components/ui/button"
@@ -138,6 +139,9 @@ export default function CreateSecurityScreen() {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            {/* v2: form reveal satu kesatuan (fast) — pola yang sama di semua
+                layar auth; FooterBar di bawah tetap statis. */}
+            <FadeIn duration="fast">
             <VStack gap={8}>
               <VStack gap={2}>
                 <Heading level={1} className="text-balance">
@@ -173,6 +177,7 @@ export default function CreateSecurityScreen() {
                 />
               </VStack>
             </VStack>
+            </FadeIn>
           </ScrollView>
 
           {/* Footer: tombol Lanjut */}

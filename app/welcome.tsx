@@ -36,6 +36,7 @@ import { registerPushDevice } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 
 import { Button } from "@/components/ui/button"
+import { Stagger } from "@/components/ui/fade-in"
 import { DisplayHeading } from "@/components/ui/heading"
 import { Logo } from "@/components/ui/logo"
 import { Screen } from "@/components/ui/screen"
@@ -62,21 +63,26 @@ export default function WelcomeScreen() {
   return (
     <Screen edges={["top", "bottom"]}>
       <VStack flex justify="center" align="center" gap={6}>
-        <Logo variant="lockup" size="md" />
-        <View className="items-center gap-3">
-          <DisplayHeading className="text-center">
-            {isNewUser ? "Selamat datang\ndi Kahade" : "Selamat kembali"}
-          </DisplayHeading>
-          <Text variant="body" tone="secondary" className="text-center">
-            {isNewUser
-              ? "Akun Anda sudah siap. Mari mulai transaksi aman bersama Kahade."
-              : "Transaksi escrow aman, mudah, dan terpercaya."}
-          </Text>
-        </View>
+        {/* v2: sambutan reveal bertingkat (logo → teks → tombol). Satu dari
+            sedikit layar yang boleh sedikit teatrikal — momen emosional
+            pertama (atau kembalinya) pengguna. */}
+        <Stagger duration="base" step={80}>
+          <Logo variant="lockup" size="md" />
+          <View className="items-center gap-3">
+            <DisplayHeading className="text-center">
+              {isNewUser ? "Selamat datang\ndi Kahade" : "Selamat kembali"}
+            </DisplayHeading>
+            <Text variant="body" tone="secondary" className="text-center">
+              {isNewUser
+                ? "Akun Anda sudah siap. Mari mulai transaksi aman bersama Kahade."
+                : "Transaksi escrow aman, mudah, dan terpercaya."}
+            </Text>
+          </View>
 
-        <Button onPress={handleStart}>
-          {isNewUser ? "Mulai" : "Masuk ke beranda"}
-        </Button>
+          <Button onPress={handleStart}>
+            {isNewUser ? "Mulai" : "Masuk ke beranda"}
+          </Button>
+        </Stagger>
       </VStack>
     </Screen>
   )

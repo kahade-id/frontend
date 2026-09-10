@@ -54,6 +54,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
+import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -243,6 +244,9 @@ export default function VerifyOtpScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* v2: form reveal satu kesatuan (fast) — pola yang sama di semua
+              layar auth; FooterBar di bawah tetap statis. */}
+          <FadeIn duration="fast">
           <View className="gap-8">
             {/* Intro — H1 di body (Header memakai H3), jadi satu H1 per layar */}
             <View className="gap-3">
@@ -292,6 +296,7 @@ export default function VerifyOtpScreen() {
               </Alert>
             ) : null}
           </View>
+          </FadeIn>
         </ScrollView>
 
         {/* Footer: countdown/resend + ubah nomor */}

@@ -50,6 +50,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
+import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
 import { EmailField, isValidEmail } from "@/components/ui/email-field"
@@ -141,6 +142,9 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
+          {/* v2: form reveal satu kesatuan (fast) — form auth adalah satu unit
+              tugas; stagger per-field justru mengganggu fokus baca. */}
+          <FadeIn duration="fast">
           <VStack gap={8}>
             {/* Welcome text */}
             <VStack gap={2}>
@@ -203,6 +207,7 @@ export default function LoginScreen() {
               </Alert>
             ) : null}
           </VStack>
+          </FadeIn>
         </ScrollView>
 
         {/* Footer links */}
