@@ -36,6 +36,15 @@ import { Text } from "./text"
 /** Setengah periode napas (ms) — full loop 4.8 detik. */
 const BREATH_HALF_MS = 2400
 
+// v2: napas memakai kurva "standard" dari token (bukan Easing.ease).
+const standardCurve = tokens.motion.easing.standard
+const standardEasing = Easing.bezier(
+  standardCurve[0],
+  standardCurve[1],
+  standardCurve[2],
+  standardCurve[3],
+)
+
 export type EmptyStateProps = Omit<ViewProps, "children"> & {
   icon: IconComponent
   title: string
@@ -76,13 +85,13 @@ export function EmptyState({
         Animated.timing(breath, {
           toValue: 0,
           duration: BREATH_HALF_MS,
-          easing: Easing.inOut(Easing.ease),
+          easing: standardEasing,
           useNativeDriver: true,
         }),
         Animated.timing(breath, {
           toValue: 1,
           duration: BREATH_HALF_MS,
-          easing: Easing.inOut(Easing.ease),
+          easing: standardEasing,
           useNativeDriver: true,
         }),
       ]),

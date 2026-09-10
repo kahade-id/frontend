@@ -58,6 +58,10 @@ border saja), `low` (kartu interaktif), `medium` (toast/FAB/popover), `high`
 - Layar statis tanpa pola loading (terms, privacy, dsb.) SENGAJA tak
   disentuh — FadeIn identik di semua layar = monoton versi baru.
 - Chat bubble SENGAJA tanpa animasi per-item (auto-scroll + poll = jitter).
+- Sapuan polish: easing ambient (splash, skeleton, empty-state breath) →
+  kurva `standard` token; splash fade-out → kurva `exit`; denyut
+  incoming-call → kurva `enter` + `duration.fast`. Nilai ambient custom
+  (BREATH_HALF_MS, PULSE_MS) dipertahankan — bukan durasi standar.
 
 ## QA (Fase 5)
 

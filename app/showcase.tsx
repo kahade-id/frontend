@@ -1,3 +1,4 @@
+import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Showcase / portofolio saya.
@@ -295,9 +296,8 @@ export default function ShowcaseScreen() {
                   : undefined
               }
             />
-            {loading ? (
-              <ListLoading />
-            ) : (
+            {/* v2: skeleton → galeri crossfade (signature moment). */}
+            <Crossfade loading={loading} skeleton={<ListLoading />}>
               <ShowcaseGalleryGrid
                 items={items.map((it) => ({
                   id: it.id,
@@ -314,7 +314,7 @@ export default function ShowcaseScreen() {
                   />
                 }
               />
-            )}
+            </Crossfade>
             <Text numberOfLines={1} variant="caption" tone="secondary">
               Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
