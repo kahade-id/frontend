@@ -18,8 +18,12 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Select, SelectOptionList } from "@/components/ui/select"
 import { cn } from "@/lib/cn"
+import { LANGUAGES, type LanguageCode } from "@/lib/i18n"
 
-export type LanguageCode = "id" | "en"
+/** Tipe kode bahasa pindah ke lib/i18n (dipakai store + API); re-ekspor di sini
+ *  supaya pemakaian lama (`import { type LanguageCode } from ".../language-picker"`)
+ *  tidak berubah. */
+export type { LanguageCode } from "@/lib/i18n"
 
 export type LanguageOption<C extends string = LanguageCode> = {
   code: C
@@ -30,10 +34,17 @@ export type LanguageOption<C extends string = LanguageCode> = {
   disabled?: boolean
 }
 
-export const DEFAULT_LANGUAGES: readonly LanguageOption[] = [
-  { code: "id", nativeName: "Bahasa Indonesia", localizedName: "Indonesian" },
-  { code: "en", nativeName: "English", localizedName: "Inggris" },
-]
+/**
+ * Sumber daftar bahasa = LANGUAGES di lib/i18n (satu tempat untuk layar Bahasa
+ * DAN form onboarding). `localizedName` TIDAK diterjemahkan di sini: ia lewat
+ * <Text> komponen <Radio>, jadi kamus sudah menerapkannya saat render — dan
+ * ikut berubah bila bahasa berganti (nilai module-level tidak akan pernah).
+ */
+export const DEFAULT_LANGUAGES: readonly LanguageOption[] = LANGUAGES.map((l) => ({
+  code: l.code,
+  nativeName: l.nativeName,
+  localizedName: l.localizedName,
+}))
 
 export type LanguagePickerProps<C extends string = LanguageCode> = Omit<ViewProps, "children"> & {
   value: C | undefined

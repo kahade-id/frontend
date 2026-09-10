@@ -34,6 +34,8 @@
     "check:push": "node scripts/check-push.mjs",
     "eas-build-pre-install": "node scripts/check-push.mjs",
     "check:weblinks": "node scripts/check-weblinks.mjs",
+    "gen:i18n": "node --experimental-strip-types --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-i18n-catalog.mjs",
+    "check:i18n": "npm run gen:i18n -- --check && node scripts/check-i18n.mjs",
     "verify:api": "node scripts/verify-live-api.mjs"
   },
   "engines": {
@@ -62,6 +64,7 @@
     "expo-keep-awake": "~15.0.8",
     "expo-linking": "~8.0.12",
     "expo-local-authentication": "~17.0.9",
+    "expo-localization": "~17.0.9",
     "expo-location": "~19.0.8",
     "expo-media-library": "~18.2.1",
     "expo-notifications": "~0.32.17",

@@ -34,6 +34,7 @@ import { forwardRef } from "react"
 import { Text as RNText, type TextProps as RNTextProps } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { localizeChildren, translateProp, useLanguage } from "@/lib/i18n"
 import type { TypographyKey } from "@/lib/tokens"
 
 export type TextVariant = TypographyKey
@@ -140,9 +141,20 @@ function roleOf(variant: TextVariantProp): keyof typeof weightClass {
 }
 
 export const Text = forwardRef<RNText, TextProps>(function Text(
-  { variant = "body", tone = "primary", weight, className, ...rest },
+  { variant = "body", tone = "primary", weight, className, children, accessibilityLabel, ...rest },
   ref,
 ) {
+  // Titik terjemahan SELURUH teks di app (lihat §"Kenapa di sini" di
+  // lib/i18n/store.ts). Dua hal terjadi di baris ini:
+  //   1. `useLanguage()` berlangganan ke store bahasa, jadi teks mana pun yang
+  //      sudah ter-render ikut ter-render ulang saat user berpindah bahasa —
+  //      tanpa me-remount Stack (posisi navigasi user tetap utuh).
+  //   2. children string dilewatkan ke kamus. `localizeChildren` hanya
+  //      menyentuh string murni; angka, elemen, dan {ekspresi} lewat utuh.
+  // Di "id" keduanya no-op (kamus tidak dipakai), jadi tidak ada biaya untuk
+  // mayoritas pengguna.
+  useLanguage()
+  const localized = localizeChildren(children)
   const role = roleOf(variant)
   // Weight override hanya dipakai kalau file font-nya tersedia; kalau tidak,
   // pakai default variant (mis. serif hanya punya 500).
@@ -157,13 +169,16 @@ export const Text = forwardRef<RNText, TextProps>(function Text(
       ref={ref}
       allowFontScaling
       maxFontSizeMultiplier={2}
+      accessibilityLabel={translateProp(accessibilityLabel)}
+      {...rest}
       className={cn(
         !inherit && sizeClass[variant],
         forced ? cn(forced, role === "sans" && "tabular-nums") : !inherit && faceClass[variant],
         toneClass[resolveTone(tone, variant)],
         className,
       )}
-      {...rest}
-    />
+    >
+      {localized}
+    </RNText>
   )
 })

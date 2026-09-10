@@ -37,6 +37,7 @@ import { ScreenInsetsContext } from "@/components/ui/screen"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
+import { translateProp, useLanguage } from "@/lib/i18n"
 
 /**
  * Tinggi bar Header (px) — harus sama dengan class `h-14` di bawah (skala
@@ -114,7 +115,10 @@ export function Header({
   const router = useRouter()
   const providedInsets = useContext(ScreenInsetsContext)
   // largeTitle (H1 konten) lebih mewakili layar daripada title bar bila ada.
-  useDocumentTitle(largeTitle ?? title)
+  // Judul TAB web adalah satu-satunya teks yang tidak lewat <Text> di sini,
+  // jadi Header berlangganan bahasa + menerjemahkan sendiri.
+  useLanguage()
+  useDocumentTitle(translateProp(largeTitle ?? title))
   const [leftWidth, setLeftWidth] = useState(0)
   const [rightWidth, setRightWidth] = useState(0)
   const sideWidth = Math.max(tokens.space[12], leftWidth, rightWidth)

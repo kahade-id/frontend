@@ -52,6 +52,7 @@ import { Field, type FieldProps } from "@/components/ui/field"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translateProp, useLanguage } from "@/lib/i18n"
 import { focusRing } from "@/lib/focus-ring"
 import { ICON_SM_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
@@ -120,6 +121,12 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
 ) {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
+  // Placeholder & label aksesibilitas melewati BATAS native (RN TextInput
+  // membacanya sebagai string, bukan sebagai anak <Text>), jadi di sinilah
+  // kamus harus dipasang. `useLanguage()` membuat field ini ikut ter-render
+  // ulang saat user berpindah bahasa — tanpa itu placeholder tetap Indonesia
+  // sampai form di-mount ulang.
+  useLanguage()
 
   const [focused, setFocused] = useState(false)
   const [secure, setSecure] = useState(!!secureTextEntry)
@@ -264,7 +271,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             textAlignVertical={isMultiline ? "top" : "center"}
             secureTextEntry={secure}
             // Placeholder hanya tampil saat label sudah float / tanpa label
-            placeholder={!showLabel || floated ? placeholder : undefined}
+            placeholder={translateProp(!showLabel || floated ? placeholder : undefined)}
             placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}
@@ -273,12 +280,12 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             onFocus={handleFocus}
             onBlur={handleBlur}
             onChangeText={handleChange}
-            accessibilityLabel={label ?? placeholder}
+            accessibilityLabel={translateProp(label ?? placeholder)}
             // Error dibaca bersama field saat fokus (bukan hanya saat muncul):
             // RN tidak punya aria-invalid/errormessage lintas platform, jadi
             // pesan error dipromosikan ke hint. Hint pemanggil tetap dipakai
             // saat tidak ada error.
-            accessibilityHint={errorText ?? accessibilityHint}
+            accessibilityHint={translateProp(errorText ?? accessibilityHint)}
             accessibilityState={{ disabled }}
             className={cn(
               "w-full font-sans-400 text-bodyLarge text-text-primary",

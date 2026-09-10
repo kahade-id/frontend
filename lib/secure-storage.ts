@@ -58,6 +58,14 @@ export const SecureKeys = {
    * menampilkan intro lagi.
    */
   onboardingSeen: "kahade.onboarding.seen",
+  /**
+   * Bahasa antarmuka ("id" | "en"). BUKAN rahasia — sama seperti
+   * `themePreference` & `onboardingSeen`: 2 byte, tidak ikut cadangan cloud,
+   * dan TIDAK dihapus `clearSession()` (logout bukan alasan untuk mengembalikan
+   * bahasa ke bawaan OS). Sumber kebenaran tetap GET/PUT /v1/settings/language;
+   * ini cache agar bahasa sudah benar SEBELUM respons pertama tiba.
+   */
+  languagePreference: "kahade.language.preference",
 } as const
 
 export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
@@ -69,6 +77,7 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.deviceId,
   SecureKeys.onboardingSeen,
   SecureKeys.themePreference,
+  SecureKeys.languagePreference,
   SecureKeys.sessionSignedOut,
   SecureKeys.lastNotificationResponse,
 ])

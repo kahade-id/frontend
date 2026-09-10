@@ -33,6 +33,7 @@ import * as SplashScreen from "expo-splash-screen"
 import { useFonts } from "expo-font"
 import { installedAppVersion } from "@/lib/runtime-info"
 
+import { I18nProvider } from "@/components/i18n-provider"
 import { ThemeProvider, useTheme } from "@/components/theme-provider"
 import { AnimatedSplash } from "@/components/ui/animated-splash"
 import { ContentContainer } from "@/components/ui/content-container"
@@ -128,9 +129,14 @@ export default function RootLayout() {
       {ready ? (
         // initialPreference bisa diisi dari storage (mis. SecureStore) dan
         // onPreferenceChange dipakai untuk menyimpannya kembali.
-        <ThemeProvider initialPreference="system">
-          <AppShell />
-        </ThemeProvider>
+        // I18nProvider di LUAR ThemeProvider: teks pada layar splash/penawaran
+        // ikut berbahasa benar, dan preferensi bahasa sudah diterapkan sebelum
+        // tree app di-render.
+        <I18nProvider>
+          <ThemeProvider initialPreference="system">
+            <AppShell />
+          </ThemeProvider>
+        </I18nProvider>
       ) : null}
 
       {/* Overlay JS: pulse loop selama loading, fade-out saat ready, lalu unmount. */}
