@@ -167,7 +167,10 @@ export function DisputeCard({
               Belum tersedia
             </Text>
           ) : (
-            <Amount value={heldAmount} size="body" tone="primary" />
+            // v2: dana tertahan = accent (ikut WalletBalanceCard) — menjawab
+            // "uang saya di mana?" dengan warna kepercayaan, walau konteksnya
+            // sengketa (status badge tetap semantik danger/warning).
+            <Amount value={heldAmount} size="body" tone="accent" />
           )}
         </View>
         {updatedAt ? (
