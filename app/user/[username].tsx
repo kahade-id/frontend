@@ -748,8 +748,9 @@ export default function UserProfileScreen() {
 
                 {profile.trustScore != null ? (
                   <View className="flex-row items-center gap-1">
-                    <Icon icon={ShieldCheck} size="xs" active />
-                    <Text variant="body" weight={700} tone="primary">
+                    {/* v2: skor = accent di semua permukaan (ikut TrustScoreCard). */}
+                    <Icon icon={ShieldCheck} size="xs" tone="accent" weight="fill" />
+                    <Text variant="body" weight={700} tone="accent">
                       {profile.trustScore}
                     </Text>
                     <Text variant="caption" tone="secondary">
