@@ -16,6 +16,13 @@ Aturan yang dipertahankan: teks `tertiary` → `secondary` untuk varian kecil;
 `accent` tidak pernah dipakai untuk CTA/uang umum; di kartu inverted semua teks
 tetap `inverse` (accent/semantic tidak dijamin AA di atas bg-primary).
 
+Peta accent final (permukaan trust, BUKAN status transaksi — status tetap
+semantik: COMPLETED/RESOLVED/APPROVED/Terverifikasi tetap `success`):
+skor trust (TrustScoreCard + profil), dana ditahan (hint Beranda,
+WalletBalanceCard, DisputeCard), artefak escrow onboarding, sukses OTP/PIN,
+thumb slider aktif. Ikon tab & system bubble chat tetap monokrom (terlalu
+sering terlihat — accent harus langka agar bermakna).
+
 ## Elevasi (v2 §5.2)
 
 Satu-satunya jalan memakai shadow: `elevationStyle(level, mode)` dari
