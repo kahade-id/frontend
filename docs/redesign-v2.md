@@ -57,6 +57,14 @@ border saja), `low` (kartu interaktif), `medium` (toast/FAB/popover), `high`
 - Komponen bersama mengangkat puluhan layar sekaligus: `<DataScreen>`
   (crossfade, 17 layar), `<PaginatedList>` (Layout animation saat
   tambah/hapus, semua list), `<StatCard>` (crossfade nilai + `hintTone`).
+- Beranda (redesign 2026-09-10, referensi pola "beranda super app" di
+  `docs/image/Screenshot_20260910-134637.jpg`, dipetakan ke produk Kahade):
+  bar identitas (avatar + salam + badge tipe akun; Cari + Pesan — notifikasi
+  sudah di tab bar) → `<HomeOverviewCard>` (saldo + aksi dompet, Aktif ·
+  Selesai · Sengketa, notice kaki kartu; satu-satunya `elevation="medium"`)
+  → `<PromoCarousel>` sorotan fitur (palet soft accent/info/warning, radius lg)
+  → `<QuickActionGrid layout="row">` ikon bulat + "Buat transaksi" inverted →
+  3 `<OrderCard>` aktif (`GET /v1/orders?status=ACTIVE&limit=3`).
 - 5 tab: Beranda stagger section; Transaksi kontrol fade tanpa geser; Dompet
   kartu-saldo reveal hero; Notifikasi chip reveal; Pengaturan stagger rapat
   (jarak 4px, tombol Keluar statis).

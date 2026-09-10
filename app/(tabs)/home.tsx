@@ -1,62 +1,96 @@
 /**
  * Kahade — Tab Beranda (ringkasan / overview).
  *
- * Tugas screen ini:
- *   1. Menyapa user dengan nama + salam waktu hari
- *   2. Ringkasan saldo → `GET /v1/wallet` (Wallet + hold escrow)
- *   3. Ringkasan order → `GET /v1/orders/summary`
- *      · "Order aktif" = jumlah status yang masih berjalan
- *      · "Total transaksi" = total seluruh order
- *   4. Quick action → Buat Transaksi + grid pintasan (Isi Saldo, Order
- *      Link, Chat, Sengketa, Jelajahi, Voucher, Referral, Analitik) — semua
- *      route dari lib/routes.ts.
+ * Susunan layar (redesign 2026-09, referensi pola "beranda super app"
+ * di docs/image/Screenshot_20260910-134637.jpg — dipetakan ke produk Kahade,
+ * bukan disalin):
  *
- * Data diambil dari 3 endpoint melalui `useApiQuery` (profil, saldo,
- * ringkasan order) — satu gagal tidak membunuh halaman; tiap bagian punya
- * error + retry sendiri, request lama DIABORT sehingga respons lambat tidak
- * bisa menimpa hasil baru, dan saldo dimuat ulang diam-diam saat tab kembali
- * fokus (`refreshOnFocus`) agar tidak menampilkan angka basi setelah
- * top-up/withdraw/transfer di layar lain.
+ *   1. Bar identitas  : avatar + salam waktu hari + nama + badge tipe akun
+ *                       (Personal/Bisnis) → tap membuka Pengaturan; kanan:
+ *                       Cari + Pesan (chat). Notifikasi TIDAK ada di sini —
+ *                       sudah punya tab sendiri di bottom bar.
+ *   2. Kartu hero     : <HomeOverviewCard> — saldo (`GET /v1/wallet`) + aksi
+ *                       dompet, statistik order (`GET /v1/orders/summary`:
+ *                       Aktif · Selesai · Sengketa), dan notice "perlu
+ *                       perhatian" di kaki kartu.
+ *   3. Sorotan        : <PromoCarousel> — 3 kartu edukasi fitur Kahade
+ *                       (escrow, Order Link, referral) dari palet soft.
+ *   4. Menu cepat     : <QuickActionGrid layout="row"> — deret ikon bulat,
+ *                       "Buat transaksi" sebagai ubin inverted pertama.
+ *   5. Transaksi aktif: 3 <OrderCard> terbaru berstatus ACTIVE
+ *                       (`GET /v1/orders?status=ACTIVE&limit=3`) + "Lihat
+ *                       semua". Kosong → ajakan buat transaksi pertama.
  *
- * Komponen sistem: ProfileHeader, StatCard, Amount, Button, Skeleton.
+ * Data diambil dari 4 endpoint melalui `useApiQuery` (profil, saldo,
+ * ringkasan order, order aktif) — satu gagal tidak membunuh halaman; tiap
+ * bagian punya error + retry sendiri, request lama DIABORT sehingga respons
+ * lambat tidak bisa menimpa hasil baru, dan saldo + order aktif dimuat ulang
+ * diam-diam saat tab kembali fokus (`refreshOnFocus`) agar tidak menampilkan
+ * angka basi setelah top-up/withdraw/bayar di layar lain.
+ *
+ * Keputusan non-obvious:
+ *   - "Sembunyikan saldo" adalah state sesi (useState), bukan persisten:
+ *     repo tidak punya AsyncStorage dan SecureStore dipakai untuk rahasia;
+ *     default TAMPIL karena Beranda dibuka setelah login/PIN.
+ *   - Notice kaki kartu dipilih berdasar prioritas: sengketa aktif (danger)
+ *     > order berjalan (primary) > belum ada transaksi (primary, ajakan).
+ *     Satu notice saja — lebih dari satu = tidak ada yang penting.
+ *   - Section reveal <Stagger> step 60ms (total ~430ms untuk 5 section):
+ *     Beranda layar pertama setelah login; stagger memberi rasa "dibangun"
+ *     tanpa menunda interaksi.
+ *
+ * Komponen sistem: Avatar, Badge, IconButton, HomeOverviewCard, PromoCarousel,
+ * QuickActionGrid, OrderCard, SectionHeader, EmptyState, Skeleton.
  * Tidak ada markup card custom dan tidak ada angka/format hardcoded.
  */
-import { useCallback } from "react"
+import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useRouter } from "expo-router"
 import { useApiQuery } from "@/lib/use-api-query"
 import {
-  ArrowRight,
+  ArrowCircleDown,
+  ArrowCircleUp,
   ChartLineUp,
   ChatCircleDots,
   Compass,
   Gift,
   Lightning,
   LinkSimple,
+  MagnifyingGlass,
+  PaperPlaneTilt,
   Receipt,
   Scales,
+  ShieldCheck,
   Ticket,
+  UsersThree,
   Wallet,
 } from "phosphor-react-native"
 
 import { api, type OrderSummary, type UserProfile, type Wallet as WalletData } from "@/lib/api"
-import { formatRupiah } from "@/lib/format"
+import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
-import { Amount } from "@/components/ui/amount"
+import { Avatar } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Stagger } from "@/components/ui/fade-in"
-import { Icon } from "@/components/ui/icon"
-import { ProfileHeader } from "@/components/ui/profile-header"
+import { HomeOverviewCard, type OverviewNotice } from "@/components/ui/home-overview-card"
+import { IconButton } from "@/components/ui/icon-button"
+import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
+import { PressableScale } from "@/components/ui/pressable-scale"
+import { PromoCarousel, type PromoItem } from "@/components/ui/promo-carousel"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QuickActionGrid, type QuickAction } from "@/components/ui/quick-action-grid"
+import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import { StatCard } from "@/components/ui/stat-card"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
-import { VStack } from "@/components/ui/stack"
+import { focusRing } from "@/lib/focus-ring"
+import { cn } from "@/lib/cn"
 
 // ------------------------------------------------------------------
 // Helpers
@@ -79,9 +113,8 @@ const ACTIVE_KEYS: readonly string[] = [
   "DELIVERED",
 ]
 
-function sumNumeric(rec: Record<string, unknown>, keys?: readonly string[]): number {
-  const target = keys ?? Object.keys(rec)
-  return target.reduce((acc, key) => {
+function sumNumeric(rec: Record<string, unknown>, keys: readonly string[]): number {
+  return keys.reduce((acc, key) => {
     const v = rec[key]
     return acc + (typeof v === "number" && Number.isFinite(v) ? v : 0)
   }, 0)
@@ -92,12 +125,47 @@ function countActiveOrders(summary: OrderSummary | null): number {
   return sumNumeric(summary, ACTIVE_KEYS)
 }
 
-/** Total seluruh order (field `total` bila ada, else jumlah semua status). */
-function totalOrders(summary: OrderSummary | null): number {
-  if (!summary) return 0
-  if (typeof summary.total === "number") return summary.total
-  return sumNumeric(summary)
+function countByKey(summary: OrderSummary | null, key: string): number {
+  const v = summary?.[key]
+  return typeof v === "number" && Number.isFinite(v) ? v : 0
 }
+
+/** Jumlah kartu order aktif yang ditampilkan di Beranda. */
+const ACTIVE_PREVIEW_LIMIT = 3
+
+/** Sorotan fitur — edukasi produk Kahade, bukan promo pihak ketiga. */
+const PROMOS: readonly PromoItem[] = [
+  {
+    key: "escrow",
+    eyebrow: "Escrow Kahade",
+    title: "Dana aman sampai barang diterima",
+    description: "Uang ditahan Kahade dan baru diteruskan ke penjual setelah kamu konfirmasi.",
+    cta: "Cara kerjanya",
+    icon: ShieldCheck,
+    tone: "accent",
+    href: ROUTES.faq,
+  },
+  {
+    key: "order-link",
+    eyebrow: "Order Link",
+    title: "Jualan cukup kirim satu tautan",
+    description: "Buat link transaksi sekali, bagikan ke pembeli di chat mana pun.",
+    cta: "Buat Order Link",
+    icon: LinkSimple,
+    tone: "info",
+    href: ROUTES.orderLinks,
+  },
+  {
+    key: "referral",
+    eyebrow: "Referral",
+    title: "Ajak teman, dapat bonus saldo",
+    description: "Bagikan kode referralmu dan raih hadiah tiap teman selesai bertransaksi.",
+    cta: "Lihat kode saya",
+    icon: UsersThree,
+    tone: "warning",
+    href: ROUTES.referral,
+  },
+]
 
 // ------------------------------------------------------------------
 // Screen
@@ -105,45 +173,86 @@ function totalOrders(summary: OrderSummary | null): number {
 
 export default function HomeScreen() {
   const router = useRouter()
+  const [balanceHidden, setBalanceHidden] = useState(false)
 
-  // Tiga query terpisah (bukan satu Promise.allSettled manual): request lama
+  // Empat query terpisah (bukan satu Promise.allSettled manual): request lama
   // di-abort saat refresh, pesan galat tetap `userMessage(err)`, dan retry
-  // tiap kartu TIDAK me-reset bagian lain ke skeleton.
+  // tiap bagian TIDAK me-reset bagian lain ke skeleton.
   const profile = useApiQuery<UserProfile>("home-profile", (signal) =>
     api.users.getMe(signal),
   )
   const wallet = useApiQuery<WalletData>("home-wallet", (signal) => api.wallet.getWallet(signal), true, {
     refreshOnFocus: true,
   })
-  const summary = useApiQuery<OrderSummary>("home-order-summary", (signal) =>
-    api.orders.getOrdersSummary(signal),
+  const summary = useApiQuery<OrderSummary>(
+    "home-order-summary",
+    (signal) => api.orders.getOrdersSummary(signal),
+    true,
+    { refreshOnFocus: true },
+  )
+  const activeOrders = useApiQuery(
+    "home-active-orders",
+    (signal) => api.orders.listOrders({ page: 1, limit: ACTIVE_PREVIEW_LIMIT, status: "ACTIVE" }, signal),
+    true,
+    { refreshOnFocus: true },
   )
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([profile.refresh(), wallet.refresh(), summary.refresh()])
-  }, [profile.refresh, wallet.refresh, summary.refresh])
+    await Promise.all([profile.refresh(), wallet.refresh(), summary.refresh(), activeOrders.refresh()])
+  }, [profile.refresh, wallet.refresh, summary.refresh, activeOrders.refresh])
 
-  const activeOrders = countActiveOrders(summary.data)
-  const totalOrdersCount = totalOrders(summary.data)
+  const activeCount = countActiveOrders(summary.data)
+  const completedCount = countByKey(summary.data, "COMPLETED")
+  const disputedCount = countByKey(summary.data, "DISPUTED")
 
   const handleCreate = useCallback(() => {
     router.push(ROUTES.createTransaction)
   }, [router])
 
+  // Satu notice, dipilih berdasar prioritas — lihat docblock.
+  const notice: OverviewNotice | undefined = summary.loading
+    ? undefined
+    : disputedCount > 0
+      ? {
+          tone: "danger",
+          title: `${disputedCount} sengketa perlu perhatianmu`,
+          description: "Tanggapi sebelum tenggat agar dana tidak tertahan lebih lama",
+          onPress: () => router.push(ROUTES.disputes),
+        }
+      : activeCount > 0
+        ? {
+            tone: "primary",
+            title: `${activeCount} transaksi sedang berjalan`,
+            description: "Cek status, tenggat, dan langkah berikutnya",
+            onPress: () => router.push(ROUTES.transactions),
+          }
+        : {
+            tone: "primary",
+            title: "Mulai transaksi pertamamu",
+            description: "Jual atau beli dengan dana yang dijaga escrow",
+            onPress: handleCreate,
+          }
+
   const quickActions: QuickAction[] = [
-    { key: "topup", icon: Wallet, label: "Isi Saldo", onPress: () => router.push(ROUTES.topup) },
+    {
+      key: "create",
+      icon: Lightning,
+      label: "Buat transaksi",
+      emphasis: true,
+      onPress: handleCreate,
+    },
+    { key: "topup", icon: Wallet, label: "Isi saldo", onPress: () => router.push(ROUTES.topup) },
     {
       key: "order-links",
       icon: LinkSimple,
       label: "Order Link",
       onPress: () => router.push(ROUTES.orderLinks),
     },
-    { key: "chat", icon: ChatCircleDots, label: "Chat", onPress: () => router.push(ROUTES.chat) },
     {
       key: "disputes",
       icon: Scales,
       label: "Sengketa",
-      badge: summary.data?.DISPUTED || undefined,
+      badge: disputedCount || undefined,
       onPress: () => router.push(ROUTES.disputes),
     },
     {
@@ -167,130 +276,232 @@ export default function HomeScreen() {
     },
   ]
 
+  const displayName = profile.data?.fullName?.trim() || profile.data?.username || "Pengguna Kahade"
+  const isBusiness = profile.data?.accountType === "BUSINESS"
+
   return (
     <Screen edges={["top"]} padded={false}>
       <PullToRefresh
         onRefresh={handleRefresh}
-        refreshing={profile.refreshing || wallet.refreshing || summary.refreshing}
+        refreshing={
+          profile.refreshing || wallet.refreshing || summary.refreshing || activeOrders.refreshing
+        }
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: tokens.space[8] },
         }}
       >
-        {/*
-         * v2: empat section reveal bertingkat (fast, step 60ms — total
-         * ~430ms). Beranda adalah layar pertama setelah login; stagger
-         * memberi rasa "dibangun" tanpa menunda interaksi (semua section
-         * tetap bisa di-tap selama reveal).
-         */}
         <Stagger duration="fast" step={60}>
-          {/* ── Identitas: salam + profil ───────────────────────── */}
-          <View>
-            <View accessibilityRole="text" className="px-6 pt-4">
-              <Text numberOfLines={1} variant="caption" tone="secondary" accessibilityLabel={`${greetingByHour()}, pengguna`}>
-                {greetingByHour()},
-              </Text>
-            </View>
+          {/* ── 1. Bar identitas ───────────────────────────────── */}
+          <View className="flex-row items-center gap-3 px-6 pb-2 pt-3">
             {profile.error ? (
-              <ErrorState
-                compact
-                title="Gagal memuat profil"
-                description={profile.error}
-                onRetry={() => void profile.reload()}
-              />
+              <View className="flex-1">
+                <ErrorState
+                  compact
+                  title="Gagal memuat profil"
+                  description={profile.error}
+                  onRetry={() => void profile.reload()}
+                />
+              </View>
             ) : (
-              <ProfileHeader
-                name={profile.data?.fullName ?? "—"}
-                handle={profile.data?.username ? `@${profile.data.username}` : undefined}
-                avatar={{ source: profile.data?.avatarUrl ?? undefined }}
-                // Sampul hanya digambar bila memang ada: Beranda adalah layar
-                // ringkasan, slot kosong "tambah sampul" milik layar Edit Profil.
-                cover={profile.data?.headerUrl ? { source: profile.data.headerUrl } : undefined}
-                loading={profile.loading}
-              />
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={
+                  profile.loading
+                    ? "Memuat profil"
+                    : `${greetingByHour()}, ${displayName}${isBusiness ? ", akun bisnis" : ""}`
+                }
+                accessibilityHint="Buka Pengaturan akun"
+                onPress={() => router.push(ROUTES.settings)}
+                scaleOnPress={false}
+                containerClassName={cn("min-w-0 flex-1 rounded-sm", focusRing)}
+                className="flex-row items-center gap-3 py-1"
+              >
+                {profile.loading ? (
+                  <Skeleton shape="circle" width={40} height={40} />
+                ) : (
+                  <Avatar source={profile.data?.avatarUrl ?? undefined} name={displayName} size="md" />
+                )}
+                <View className="min-w-0 flex-1 gap-0.5">
+                  <Text variant="caption" tone="secondary" numberOfLines={1}>
+                    {greetingByHour()},
+                  </Text>
+                  <View className="flex-row items-center gap-2">
+                    {profile.loading ? (
+                      <Skeleton height={tokens.typography.body.lineHeight} className="w-32" />
+                    ) : (
+                      <>
+                        <Text
+                          variant="body"
+                          weight={600}
+                          tone="primary"
+                          numberOfLines={1}
+                          className="shrink"
+                        >
+                          {displayName}
+                        </Text>
+                        <Badge tone={isBusiness ? "info" : "neutral"} variant="soft">
+                          {isBusiness ? "Bisnis" : "Personal"}
+                        </Badge>
+                      </>
+                    )}
+                  </View>
+                </View>
+              </PressableScale>
             )}
+            <View className="flex-row items-center">
+              <IconButton
+                icon={MagnifyingGlass}
+                variant="ghost"
+                accessibilityLabel="Cari"
+                accessibilityHint="Buka pencarian pengguna dan transaksi"
+                onPress={() => router.push(ROUTES.search)}
+              />
+              <IconButton
+                icon={ChatCircleDots}
+                variant="ghost"
+                accessibilityLabel="Pesan"
+                accessibilityHint="Buka daftar percakapan"
+                onPress={() => router.push(ROUTES.chat)}
+              />
+            </View>
           </View>
 
-        {/* ── Ringkasan ───────────────────────────────────────── */}
-        <View className="gap-4 px-6 pt-2">
-          {wallet.error ? (
-            <ErrorState
-              compact
-              title="Gagal memuat saldo"
-              description={wallet.error}
-              onRetry={() => void wallet.reload()}
+          {/* ── 2. Kartu hero: saldo + statistik + notice ──────── */}
+          <View className="px-6 pt-2">
+            <HomeOverviewCard
+              available={wallet.data?.availableBalance}
+              held={wallet.data?.holdBalance}
+              hidden={balanceHidden}
+              onToggleHidden={() => setBalanceHidden((v) => !v)}
+              walletLoading={wallet.loading}
+              walletError={wallet.error}
+              onRetryWallet={() => void wallet.reload()}
+              walletActions={[
+                {
+                  key: "topup",
+                  label: "Isi saldo",
+                  icon: ArrowCircleDown,
+                  onPress: () => router.push(ROUTES.topup),
+                },
+                {
+                  key: "withdraw",
+                  label: "Tarik",
+                  icon: ArrowCircleUp,
+                  onPress: () => router.push(ROUTES.withdraw),
+                },
+                {
+                  key: "transfer",
+                  label: "Transfer",
+                  icon: PaperPlaneTilt,
+                  onPress: () => router.push(ROUTES.transfer),
+                },
+              ]}
+              stats={[
+                {
+                  key: "active",
+                  label: "Aktif",
+                  count: activeCount,
+                  onPress: () => router.push(ROUTES.transactions),
+                },
+                {
+                  key: "completed",
+                  label: "Selesai",
+                  count: completedCount,
+                  onPress: () => router.push(ROUTES.transactions),
+                },
+                {
+                  key: "disputed",
+                  label: "Sengketa",
+                  count: disputedCount,
+                  critical: true,
+                  onPress: () => router.push(ROUTES.disputes),
+                },
+              ]}
+              summaryLoading={summary.loading}
+              summaryError={summary.error}
+              onRetrySummary={() => void summary.reload()}
+              notice={notice}
             />
-          ) : (
-            <StatCard
-              label="Saldo tersedia"
-              icon={<Icon icon={Wallet} size="xs" tone="default" />}
-              loading={wallet.loading}
-              value={<Amount value={wallet.data?.availableBalance ?? Number.NaN} size="large" />}
-              hint={
-                (wallet.data?.holdBalance ?? 0) > 0
-                  ? `${formatRupiah(wallet.data?.holdBalance ?? 0)} ditahan escrow`
-                  : undefined
+          </View>
+
+          {/* ── 3. Sorotan fitur ───────────────────────────────── */}
+          <PromoCarousel items={PROMOS} className="pt-6" />
+
+          {/* ── 4. Menu cepat ──────────────────────────────────── */}
+          <View className="pt-6">
+            <SectionHeader title="Menu" level="h3" inset />
+            <QuickActionGrid actions={quickActions} layout="row" className="pt-2" />
+          </View>
+
+          {/* ── 5. Transaksi aktif ─────────────────────────────── */}
+          <View className="gap-3 px-6 pt-6">
+            <SectionHeader
+              title="Transaksi aktif"
+              level="h3"
+              action={
+                <RouteLink
+                  href={ROUTES.transactions}
+                  accessibilityLabel="Lihat semua transaksi"
+                  containerClassName="rounded-xs"
+                >
+                  <Text variant="body" weight={600} tone="primary">
+                    Lihat semua
+                  </Text>
+                </RouteLink>
               }
-              // v2: info escrow = momen kepercayaan → tone accent.
-              hintTone="accent"
             />
-          )}
-
-          {summary.error ? (
-            <ErrorState
-              compact
-              title="Gagal memuat ringkasan order"
-              description={summary.error}
-              onRetry={() => void summary.reload()}
-            />
-          ) : (
-            <View className="flex-row gap-3">
-              <StatCard
-                label="Pesanan aktif"
-                icon={<Icon icon={Receipt} size="xs" tone="default" />}
-                loading={summary.loading}
-                value={activeOrders}
-                mono
-                className="flex-1"
+            {activeOrders.error ? (
+              <ErrorState
+                compact
+                title="Gagal memuat transaksi aktif"
+                description={activeOrders.error}
+                onRetry={() => void activeOrders.reload()}
               />
-              <StatCard
-                label="Total transaksi"
-                icon={<Icon icon={ChartLineUp} size="xs" tone="default" />}
-                loading={summary.loading}
-                value={totalOrdersCount}
-                mono
-                className="flex-1"
+            ) : activeOrders.loading ? (
+              <View className="gap-3">
+                <OrderCardSkeleton />
+                <OrderCardSkeleton />
+              </View>
+            ) : (activeOrders.data?.data.length ?? 0) === 0 ? (
+              <EmptyState
+                compact
+                icon={Receipt}
+                title="Belum ada transaksi berjalan"
+                description="Transaksi yang sedang kamu jalankan akan tampil di sini."
+                action={
+                  <Button variant="primary" size="sm" fullWidth={false} leftIcon={Lightning} onPress={handleCreate}>
+                    Buat transaksi
+                  </Button>
+                }
               />
-            </View>
-          )}
-        </View>
-
-        {/*
-         * ── Aksi utama ──────────────────────────────────────────
-         * Urutan komposisi (audit): CTA primer NAIK ke atas pintasan.
-         * Sebelumnya "Buat Transaksi" — alasan utama layar ini ada —
-         * berada di paling bawah, setelah 8 ubin pintasan sekunder,
-         * sehingga aksi terpenting justru paling jauh dari jempol dan
-         * sering di luar layar pertama. Sekarang ia menempel langsung di
-         * bawah ringkasan saldo/order yang menjadi konteksnya.
-         */}
-        <VStack gap={3} className="px-6 pt-6">
-          <Button variant="primary" size="md" leftIcon={Lightning} onPress={handleCreate}>
-            Buat transaksi
-          </Button>
-          <Button
-            variant="ghost"
-            size="md"
-            onPress={() => router.push(ROUTES.transactions)}
-            rightIcon={ArrowRight}
-          >
-            Lihat semua transaksi
-          </Button>
-        </VStack>
-
-          {/* ── Pintasan ────────────────────────────────────────── */}
-          <View className="px-6 pt-8">
-            <SectionHeader title="Pintasan" />
-            <QuickActionGrid actions={quickActions} className="pt-2" />
+            ) : (
+              <View className="gap-3">
+                {activeOrders.data?.data.map((item) => {
+                  const role =
+                    item.myRole === "SELLER" ? "seller" : item.myRole === "BUYER" ? "buyer" : undefined
+                  const counterpart =
+                    role === "seller" ? item.buyer : role === "buyer" ? item.seller : undefined
+                  return (
+                    <OrderCard
+                      key={item.id}
+                      orderId={item.id}
+                      title={item.title}
+                      amount={item.orderValue}
+                      status={item.status}
+                      role={role}
+                      counterpart={{
+                        name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
+                        avatar: counterpart?.avatarUrl ?? undefined,
+                      }}
+                      timestamp={formatDateTime(item.createdAt)}
+                      deadlineAt={item.deliveryDeadlineAt ? new Date(item.deliveryDeadlineAt) : undefined}
+                      onDeadline={() => void activeOrders.refresh()}
+                      href={ROUTES.orderDetail(item.id)}
+                    />
+                  )
+                })}
+              </View>
+            )}
           </View>
         </Stagger>
       </PullToRefresh>
