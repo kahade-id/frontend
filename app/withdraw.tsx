@@ -35,6 +35,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade, FadeIn } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Header } from "@/components/ui/header"
 import { OtpInput } from "@/components/ui/otp-input"
@@ -240,6 +241,9 @@ export default function WithdrawScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
+        {/* v2: tiap fase (form → OTP → hasil) reveal — key per step agar reveal
+            terulang saat pindah fase tanpa remount layar. */}
+        <FadeIn key={step} duration="fast">
         {step === "otp" ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title="Konfirmasi OTP" />
@@ -313,9 +317,9 @@ export default function WithdrawScreen() {
             />
 
             <SectionHeader title="Rekening tujuan" />
-            {loading ? (
-              <ListLoading />
-            ) : error ? (
+            {/* v2: skeleton → rekening crossfade (signature moment). */}
+            <Crossfade loading={loading} skeleton={<ListLoading />}>
+              {error ? (
               <ErrorState
                 compact
                 title="Gagal memuat rekening"
@@ -354,10 +358,12 @@ export default function WithdrawScreen() {
                     onPress={() => setAccountId(acc.id)}
                   />
                 ))}
-              </View>
-            )}
+                </View>
+              )}
+            </Crossfade>
           </View>
         )}
+        </FadeIn>
       </PullToRefresh>
       <BottomSheet
         visible={step === "pin"}

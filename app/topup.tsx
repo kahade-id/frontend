@@ -16,6 +16,7 @@ import { AmountInput } from "@/components/ui/amount-input"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade, FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { ListLoading } from "@/components/ui/paginated-list"
 import {
@@ -193,7 +194,10 @@ export default function TopupScreen() {
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}
       >
+        {/* v2: kartu status hasil reveal — momen "instruksi dibuat" adalah
+            hasil kerja pengguna, jadi ia masuk dengan gerak. */}
         {result ? (
+          <FadeIn duration="fast">
           <View className="gap-4">
             <TopupStatusCard
               status={
@@ -229,6 +233,7 @@ export default function TopupScreen() {
               />
             ) : null}
           </View>
+          </FadeIn>
         ) : (
           <View className="gap-4">
             <SectionHeader title="Pilih nominal" />
@@ -241,9 +246,9 @@ export default function TopupScreen() {
               label="Nominal top-up"
             />
             <SectionHeader title="Metode pembayaran" />
-            {loading ? (
-              <ListLoading />
-            ) : error ? (
+            {/* v2: skeleton → metode crossfade (signature moment). */}
+            <Crossfade loading={loading} skeleton={<ListLoading />}>
+              {error ? (
               <ErrorState
                 compact
                 title="Gagal memuat metode"
@@ -263,7 +268,8 @@ export default function TopupScreen() {
                 title="Metode pembayaran belum tersedia"
                 description="Metode top-up sedang tidak tersedia. Coba lagi nanti."
               />
-            )}
+              )}
+            </Crossfade>
           </View>
         )}
       </PullToRefresh>
