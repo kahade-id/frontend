@@ -28,6 +28,9 @@ export default defineConfig({
       "expo-device": stub("expo-device"),
       "expo-application": stub("expo-application"),
       "expo-secure-store": stub("expo-secure-store"),
+      // Bahasa perangkat tidak boleh menentukan hasil test: lihat
+      // tests/stubs/expo-localization.ts.
+      "expo-localization": stub("expo-localization"),
     },
   },
   /**

@@ -26,6 +26,7 @@
  */
 import { Text, type TextProps } from "@/components/ui/text"
 import { formatDate, formatDateLong, formatDateTime, formatTime } from "@/lib/format"
+import { useLanguage } from "@/lib/i18n"
 
 export type DateTextFormat = "datetime" | "date" | "time" | "long"
 
@@ -60,6 +61,11 @@ export function DateText({
   accessibilityLabel,
   ...rest
 }: DateTextProps) {
+  // Nama bulan/hari mengikuti bahasa aktif, jadi komponen ini ikut
+  // berlangganan bahasa: tanpa itu teks "5 Mei 2026" tetap terbaca Indonesia
+  // setelah user berpindah ke English (nilainya dibentuk di sini, bukan di
+  // dalam <Text>, sehingga render ulang <Text> saja tidak cukup).
+  useLanguage()
   const shown = render(value, format)
   const spoken =
     format === "time" ? shown : `${formatDateLong(value)}, ${formatTime(value)}`

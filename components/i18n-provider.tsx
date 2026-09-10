@@ -22,10 +22,11 @@
  * hilang — kunci yang tak ditemukan jatuh ke Bahasa Indonesia.
  */
 import { useEffect, useRef, type ReactNode } from "react"
+import { Platform } from "react-native"
 
 import { api } from "@/lib/api"
 import { getSessionRevision } from "@/lib/api/session"
-import { adoptAccountLanguage, initLanguage, systemLanguage } from "@/lib/i18n"
+import { adoptAccountLanguage, initLanguage, systemLanguage, useLanguage } from "@/lib/i18n"
 import { useAuthSession } from "@/lib/use-auth-session"
 
 export function I18nProvider({ children }: { children: ReactNode }) {
@@ -38,6 +39,19 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     booted.current = true
     void initLanguage(systemLanguage())
   }, [])
+
+  // (1b) Web: <html lang> dipakai pembaca layar & mesin pencari untuk memilih
+  // pelafalan. `app/+html.tsx` menulis "id" saat prerender (tidak mungkin tahu
+  // bahasa pengunjung saat export statis), jadi atributnya disetel di sini.
+  const language = useLanguage()
+  useEffect(() => {
+    if (Platform.OS !== "web") return
+    try {
+      document.documentElement.lang = language
+    } catch {
+      /* prerender tanpa DOM */
+    }
+  }, [language])
 
   // (2) Preferensi akun. `sessionRevision` menjagai respons agar tidak pernah
   // menerapkan bahasa milik akun yang sudah diganti (logout/login cepat).

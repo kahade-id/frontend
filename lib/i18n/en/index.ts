@@ -28,11 +28,31 @@
  */
 import auth from "./auth.json"
 import labels from "./labels.json"
-import screens from "./screens-1.json"
+import screens1 from "./screens-1.json"
+import screens2 from "./screens-2.json"
+import screens3 from "./screens-3.json"
+import screens4 from "./screens-4.json"
+import screens5 from "./screens-5.json"
+import screens6 from "./screens-6.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
 export type Dict = Record<string, string>
 
-/** Urutan spread = urutan prioritas; tidak ada kunci ganda antar file (dijaga check:i18n). */
-export const EN: Dict = { ...labels, ...auth, ...tabs, ...ui, ...screens }
+/**
+ * Urutan spread tidak menentukan apa pun di sini (kunci ganda antar file
+ * ditolak `check:i18n` + test), tapi urutannya sengaja mengikuti ukuran area
+ * supaya diff mudah dibaca.
+ */
+export const EN: Dict = {
+  ...labels,
+  ...auth,
+  ...tabs,
+  ...ui,
+  ...screens1,
+  ...screens2,
+  ...screens3,
+  ...screens4,
+  ...screens5,
+  ...screens6,
+}

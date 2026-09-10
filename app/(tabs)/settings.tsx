@@ -6,7 +6,7 @@
  *    judul (`titleVariant="bodyLarge"` = 16/26 weight 600), bukan teks kedua
  *    yang membuat layar ramai dan memaksa baris jadi dua kali lebih tinggi.
  *  - Pengecualian: teks di KANAN baris tetap ada karena itu STATUS, bukan
- *    penjelasan — Tampilan (Sistem/Terang/Gelap), Bahasa (Indonesia),
+ *    penjelasan — Tampilan (Sistem/Terang/Gelap), Bahasa (bahasa aktif),
  *    Versi Aplikasi (vX.Y.Z), dan badge langganan.
  *  - Kartu cukup LATAR (`bg-surface`) + `rounded-md`, tanpa border dan tanpa
  *    pemisah antar baris. Kelompok ditandai label kecil + jarak + sudut
