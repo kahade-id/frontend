@@ -50,6 +50,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { EmailField } from "@/components/ui/email-field"
 import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
@@ -506,22 +507,27 @@ export default function EditProfileScreen() {
           keyboardShouldPersistTaps: "handled",
         }}
       >
-        {error ? (
-          <ErrorState
-            title="Gagal memuat"
-            description={error}
-            onRetry={() => void query.reload()}
-          />
-        ) : loading ? (
-          <View className="gap-4 py-4">
-            <View className="items-center">
-              <Skeleton shape="circle" className="h-20 w-20" />
+        {/* v2: skeleton → form crossfade (signature moment), bukan swap keras. */}
+        <Crossfade
+          loading={loading}
+          skeleton={
+            <View className="gap-4 py-4">
+              <View className="items-center">
+                <Skeleton shape="circle" className="h-20 w-20" />
+              </View>
+              <Skeleton className="h-14" />
+              <Skeleton className="h-14" />
+              <Skeleton className="h-24" />
             </View>
-            <Skeleton className="h-14" />
-            <Skeleton className="h-14" />
-            <Skeleton className="h-24" />
-          </View>
-        ) : (
+          }
+        >
+          {error ? (
+            <ErrorState
+              title="Gagal memuat"
+              description={error}
+              onRetry={() => void query.reload()}
+            />
+          ) : (
           <>
             {/* Foto sampul (header image) */}
             <View className="pt-4">
@@ -689,7 +695,8 @@ export default function EditProfileScreen() {
               <SocialLinksEditor value={links} onChange={setLinks} max={MAX_LINKS} />
             </FormSection>
           </>
-        )}
+          )}
+        </Crossfade>
       </PullToRefresh>
 
       <ActionSheet
