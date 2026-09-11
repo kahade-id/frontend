@@ -1,12 +1,12 @@
 /**
- * Kahade — Tarik Dana (withdraw) v2 — alur 4 langkah dengan separator progress,
+ * Kahade — Tarik Dana (withdraw) v2 — alur 3 langkah dengan separator progress,
  * keypad nominal terpusat, dan kartu konfirmasi eksklusif.
  *
- * Alur (4 langkah, tanpa "Langkah X/Y"):
- *   1. Nominal     — AmountKeypad terpusat
- *   2. Rekening    — pilih rekening bank + ringkasan
- *   3. Verifikasi  — PIN (bottom sheet, konteks nominal+rekening); OTP bila required
- *   4. Selesai     — ringkasan hasil
+ * Alur (3 langkah, tanpa "Langkah X/Y"):
+ *   1. Nominal + rekening — AmountKeypad terpusat; rekening dipilih lewat
+ *      kartu di atas keypad yang membuka BottomSheet
+ *   2. Verifikasi  — PIN (bottom sheet, konteks nominal+rekening); OTP bila required
+ *   3. Selesai     — ringkasan hasil
  *
  * API:
  *   GET  /v1/bank-accounts              → BankAccount[]
@@ -33,6 +33,7 @@ import { walletTransactionStatus } from "@/lib/wallet-labels"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
 import { BankAccountListItem } from "@/components/ui/bank-account-list-item"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { KeypadOptionCard } from "@/components/ui/keypad-option-card"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -52,9 +53,11 @@ import { useToast } from "@/components/ui/toast"
 const MIN_AMOUNT = AMOUNT_LIMITS.withdraw.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.withdraw.maximum
 const PRESETS = AMOUNT_PRESETS.withdraw
-const TOTAL_STEPS = 4
+// Alur: nominal + rekening (satu layar, rekening dipilih lewat BottomSheet)
+// → verifikasi PIN/OTP (sheet) → selesai.
+const TOTAL_STEPS = 3
 
-type Step = "amount" | "account" | "verify" | "done"
+type Step = "amount" | "verify" | "done"
 
 export default function WithdrawScreen() {
   const insets = useSafeAreaInsets()
@@ -79,6 +82,7 @@ export default function WithdrawScreen() {
 
   const [amount, setAmount] = useState(0)
   const [accountId, setAccountId] = useState<string | null>(null)
+  const [accountSheetOpen, setAccountSheetOpen] = useState(false)
   const [step, setStep] = useState<Step>("amount")
   const [verifyMode, setVerifyMode] = useState<"pin" | "otp">("pin")
   const [pinError, setPinError] = useState<string | undefined>()
@@ -100,33 +104,18 @@ export default function WithdrawScreen() {
     )
   }, [accounts])
 
-  const stepIndex: Record<Step, number> = { amount: 1, account: 2, verify: 3, done: 4 }
+  const stepIndex: Record<Step, number> = { amount: 1, verify: 2, done: 3 }
   const progress = stepIndex[step] / TOTAL_STEPS
 
   const selected = accounts.find((a) => a.id === accountId)
 
-  const canContinueAmount = isValidAmount(amount, AMOUNT_LIMITS.withdraw)
-  const canContinueAccount =
-    canContinueAmount &&
+  const canContinueAmount =
+    isValidAmount(amount, AMOUNT_LIMITS.withdraw) &&
     !!selected &&
     accounts.some((a) => a.id === accountId) &&
     !loading &&
     !error
-
-  const handleBack = useCallback(() => {
-    if (step === "account") {
-      setStep("amount")
-      return
-    }
-    if (step === "verify") {
-      // Jangan kembali dari PIN/OTP langsung keluar; tutup sheet saja.
-      setStep("account")
-      setVerifyMode("pin")
-      return
-    }
-    if (router.canGoBack()) router.back()
-    else router.replace(ROUTES.wallet)
-  }, [step])
+  const canContinueAccount = canContinueAmount
 
   const handleSubmitForm = useCallback(() => {
     if (!canContinueAccount) return
@@ -224,13 +213,7 @@ export default function WithdrawScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header
-        title="Tarik Dana"
-        progress={progress}
-        onBack={step === "amount" || step === "done" ? undefined : handleBack}
-        showBack={step === "account" || step === "verify"}
-        safeArea={false}
-      />
+      <Header title="Tarik Dana" progress={progress} safeArea={false} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         {step === "amount" ? (
@@ -253,6 +236,23 @@ export default function WithdrawScreen() {
               </FadeIn>
             </ScrollView>
 
+            {/* Rekening tujuan dipilih DI SINI lewat BottomSheet (kartu di
+                atas keypad), bukan di langkah terpisah. */}
+            <View className="px-6 pb-2">
+              <KeypadOptionCard
+                label="Rekening tujuan"
+                value={selected ? `${selected.bankName ?? selected.bankCode}` : undefined}
+                placeholder={loading ? "Memuat rekening…" : "Pilih rekening tujuan"}
+                icon={BankIcon}
+                description={
+                  selected
+                    ? `${maskAccountNumber(selected.accountNumber)} · a.n. ${selected.accountName ?? "—"}`
+                    : undefined
+                }
+                onPress={() => setAccountSheetOpen(true)}
+              />
+            </View>
+
             <AmountKeypad
               value={amount}
               onChange={setAmount}
@@ -260,104 +260,7 @@ export default function WithdrawScreen() {
               max={balance && balance > 0 ? Math.min(MAX_AMOUNT, balance) : MAX_AMOUNT}
               presets={PRESETS}
               balance={balance}
-              actionKey="check"
-              actionEnabled={canContinueAmount}
-              onAction={() => setStep("account")}
             />
-
-            <View
-              className="w-full border-t border-border bg-background px-6 pt-4"
-              style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
-            >
-              <Button
-                onPress={() => setStep("account")}
-                disabled={!canContinueAmount}
-                haptic
-              >
-                Lanjutkan
-              </Button>
-            </View>
-          </View>
-        ) : step === "account" ? (
-          <View className="flex-1">
-            <ScrollView
-              className="flex-1"
-              contentContainerClassName="px-6 pb-6 pt-6"
-              keyboardShouldPersistTaps="handled"
-              showsVerticalScrollIndicator={false}
-            >
-              <FadeIn duration="fast">
-                <View className="gap-4">
-                  <View className="gap-2">
-                    <Heading level={1} className="text-balance">
-                      Pilih rekening tujuan
-                    </Heading>
-                    <Text variant="body" tone="secondary" className="text-pretty">
-                      Dana akan ditransfer ke rekening yang Anda pilih. Pastikan rekening
-                      aktif atas nama Anda.
-                    </Text>
-                  </View>
-
-                  <TransactionSummary
-                    label="Nominal penarikan"
-                    amount={amount}
-                    amountTone="primary"
-                    subtitle={selected ? `${selected.bankName} • ${maskAccountNumber(selected.accountNumber)}` : "Pilih rekening di bawah"}
-                  >
-                    {selected ? (
-                      <KeyValue
-                        label="Pemilik rekening"
-                        value={selected.accountName ?? "—"}
-                      />
-                    ) : null}
-                  </TransactionSummary>
-
-                  {loading ? (
-                    <ListLoading />
-                  ) : error ? (
-                    <ErrorState
-                      compact
-                      title="Gagal memuat rekening"
-                      description={error}
-                      onRetry={() => void accountsQuery.reload()}
-                    />
-                  ) : accounts.length === 0 ? (
-                    <EmptyState
-                      icon={BankIcon}
-                      title="Belum ada rekening"
-                      description="Tambahkan rekening bank terlebih dahulu untuk menarik dana."
-                      action={
-                        <Button
-                          variant="secondary"
-                          fullWidth={false}
-                          onPress={() => router.push(ROUTES.bankAccounts)}
-                        >
-                          Tambah rekening
-                        </Button>
-                      }
-                    />
-                  ) : (
-                    <View className="gap-2">
-                      {accounts.map((acc, i) => (
-                        <BankAccountListItem
-                          key={acc.id}
-                          bankName={acc.bankName ?? acc.bankCode}
-                          bankCode={acc.bankCode}
-                          accountNumber={acc.accountNumber}
-                          accountHolder={acc.accountName}
-                          primary={acc.isPrimary}
-                          verified={acc.isVerified}
-                          selectable
-                          selected={acc.id === accountId}
-                          divider={i < accounts.length - 1}
-                          onPress={() => setAccountId(acc.id)}
-                        />
-                      ))}
-                    </View>
-                  )}
-                </View>
-              </FadeIn>
-            </ScrollView>
 
             <View
               className="w-full border-t border-border bg-background px-6 pt-4"
@@ -369,9 +272,6 @@ export default function WithdrawScreen() {
                 haptic
               >
                 Lanjut ke verifikasi
-              </Button>
-              <Button variant="ghost" onPress={handleBack} disabled={submitting}>
-                Kembali
               </Button>
             </View>
           </View>
@@ -430,13 +330,83 @@ export default function WithdrawScreen() {
         ) : null}
       </KeyboardAvoiding>
 
+      {/* Pilih rekening tujuan — sheet di halaman nominal */}
+      <BottomSheet
+        visible={accountSheetOpen}
+        onRequestClose={() => setAccountSheetOpen(false)}
+        title="Pilih rekening tujuan"
+        description="Dana ditransfer ke rekening atas nama Anda yang dipilih di sini."
+        footer={
+          <View
+            className="flex-row gap-3 px-6"
+            style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
+          >
+            {accounts.length === 0 ? (
+              <Button
+                variant="secondary"
+                onPress={() => {
+                  setAccountSheetOpen(false)
+                  router.push(ROUTES.bankAccounts)
+                }}
+              >
+                Tambah rekening
+              </Button>
+            ) : null}
+            <Button
+              onPress={() => setAccountSheetOpen(false)}
+              disabled={!selected}
+              className="flex-1"
+            >
+              Selesai
+            </Button>
+          </View>
+        }
+      >
+        {loading ? (
+          <ListLoading />
+        ) : error ? (
+          <ErrorState
+            compact
+            title="Gagal memuat rekening"
+            description={error}
+            onRetry={() => void accountsQuery.reload()}
+          />
+        ) : accounts.length === 0 ? (
+          <EmptyState
+            icon={BankIcon}
+            title="Belum ada rekening"
+            description="Tambahkan rekening bank terlebih dahulu untuk menarik dana."
+          />
+        ) : (
+          <View className="gap-2">
+            {accounts.map((acc) => (
+              <BankAccountListItem
+                key={acc.id}
+                bankName={acc.bankName ?? acc.bankCode}
+                bankCode={acc.bankCode}
+                accountNumber={acc.accountNumber}
+                accountHolder={acc.accountName}
+                primary={acc.isPrimary}
+                verified={acc.isVerified}
+                selectable
+                selected={acc.id === accountId}
+                onPress={() => {
+                  setAccountId(acc.id)
+                  setAccountSheetOpen(false)
+                }}
+              />
+            ))}
+          </View>
+        )}
+      </BottomSheet>
+
       {/* Step verifikasi (PIN/OTP) dalam BottomSheet agar konteks di belakang
           tetap terlihat */}
       <BottomSheet
         visible={step === "verify"}
         onRequestClose={() => {
           if (!submitting && !cancelling) {
-            setStep("account")
+            setStep("amount")
             setVerifyMode("pin")
           }
         }}

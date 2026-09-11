@@ -17,7 +17,7 @@
  *   - CTA = teks underline SAJA, tanpa panah/ikon (sesuai permintaan desain).
  *   - PageIndicator dot tetap tampil di tengah.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ScrollView,
   View,
@@ -27,6 +27,7 @@ import {
   type ViewProps,
 } from "react-native"
 import type { Href } from "expo-router"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PageIndicator } from "@/components/ui/page-indicator"
@@ -167,11 +168,17 @@ export function PromoCarousel({ items, className, ...rest }: PromoCarouselProps)
     [interval, items.length, isInfinite],
   )
 
+  // Carousel horizontal bisa berada di dalam PullToRefresh (Beranda):
+  // daftarkan ke RNGH dengan Gesture.Native() + touchAction pan-x agar geser
+  // horizontal tidak dikunci scroller vertikal induk (lihat scroll-row).
+  const nativeGesture = useMemo(() => Gesture.Native(), [])
+
   if (items.length === 0) return null
 
   return (
     <View onLayout={onLayout} className={cn("w-full gap-3", className)} {...rest}>
       {cardW > 0 ? (
+        <GestureDetector gesture={nativeGesture} touchAction="pan-x">
         <ScrollView
           ref={scrollRef}
           horizontal
@@ -240,6 +247,7 @@ export function PromoCarousel({ items, className, ...rest }: PromoCarouselProps)
             )
           })}
         </ScrollView>
+        </GestureDetector>
       ) : null}
       {items.length > 1 ? <PageIndicator count={items.length} index={index} /> : null}
     </View>

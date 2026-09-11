@@ -264,9 +264,9 @@ export default function SettingsScreen() {
 
   // ── Bantuan ─────────────────────────────────────────────────────
   const supportItems: MenuItemData[] = [
-    { id: "about-us", label: "Tentang Kami", icon: Buildings, route: ROUTES.faq },
-    { id: "feedback", label: "Umpan Balik", icon: ChatTeardropDots, route: ROUTES.contact },
-    { id: "live-support", label: "Dukungan Langsung", icon: Headset, route: ROUTES.chat },
+    { id: "about-us", label: "Tentang Kami", icon: Buildings, route: ROUTES.about },
+    { id: "feedback", label: "Umpan Balik", icon: ChatTeardropDots, route: ROUTES.feedback },
+    { id: "live-support", label: "Dukungan Langsung", icon: Headset, route: ROUTES.liveSupport },
     { id: "support-tickets", label: "Tiket Bantuan", icon: Lifebuoy, route: ROUTES.support },
   ]
 

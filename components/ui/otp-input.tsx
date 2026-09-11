@@ -22,10 +22,11 @@
  *     Reduced motion → hanya warna, tanpa pop. Error tetap prioritas.
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
-import { Animated, Pressable, TextInput, View, type ViewProps } from "react-native"
+import { Animated, TextInput, View, type ViewProps } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
 import { FieldHelper } from "@/components/ui/field"
+import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
@@ -166,6 +167,9 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
 
   // Kotak aktif = posisi karakter berikutnya (atau kotak terakhir saat penuh)
   const activeIndex = Math.min(code.length, length - 1)
+  // Dipakai di BottomSheet verifikasi email: proxy fokus wajib ikut aturan
+  // hit-test Fabric (lihat reanimated-pressable-context.ts).
+  const Pressable = useTransformAwarePressable()
 
   return (
     <View className={cn("w-full gap-2", className)} {...rest}>

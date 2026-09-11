@@ -32,12 +32,13 @@ import { useRouter } from "expo-router"
 import { Platform, View } from "react-native"
 
 import { api } from "@/lib/api"
+import { takePendingNext } from "@/lib/login-redirect"
 import { registerPushDevice } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
 import { registerWebPushDevice } from "@/lib/web-push"
 
 import { Button } from "@/components/ui/button"
-import { Stagger } from "@/components/ui/fade-in"
+import { FadeIn } from "@/components/ui/fade-in"
 import { DisplayHeading } from "@/components/ui/heading"
 import { Logo } from "@/components/ui/logo"
 import { Screen } from "@/components/ui/screen"
@@ -66,16 +67,21 @@ export default function WelcomeScreen() {
     } catch {
       // tidak ada notif bukan akhir dunia
     }
-    router.replace(ROUTES.home)
+    // Kembali ke tujuan asal bila Welcome dicapai lewat ajakan login
+    // (mis. setelah 2FA pada alur guest web; di native biasanya kosong).
+    router.replace((takePendingNext() as never) ?? ROUTES.home)
   }
 
   return (
     <Screen edges={["top", "bottom"]}>
-      <VStack flex justify="center" align="center" gap={6}>
-        {/* v2: sambutan reveal bertingkat (logo → teks → tombol). Satu dari
-            sedikit layar yang boleh sedikit teatrikal — momen emosional
-            pertama (atau kembalinya) pengguna. */}
-        <Stagger duration="base" step={80}>
+      {/* PENTING Android: satu <FadeIn> yang MENGISI tinggi layar (flex-1)
+          membungkus VStack. Pola lama memakai <Stagger>: tiap anak dibungkus
+          Animated.View flex:1 di dalam View setinggi-otomatis; di Yoga
+          native (Android) wrapper itu bisa kolaps ke tinggi 0 sehingga layar
+          tampil BLANK setelah login. Dengan FadeIn flex-1, rantai tinggi
+          terdefinisi sampai konten. Reveal tetap halus (satu fade+naik). */}
+      <FadeIn duration="base" className="flex-1">
+        <VStack flex justify="center" align="center" gap={6}>
           <Logo variant="lockup" size="md" />
           <View className="items-center gap-3">
             <DisplayHeading className="text-center">
@@ -91,8 +97,8 @@ export default function WelcomeScreen() {
           <Button onPress={handleStart}>
             {isNewUser ? "Mulai" : "Masuk ke beranda"}
           </Button>
-        </Stagger>
-      </VStack>
+        </VStack>
+      </FadeIn>
     </Screen>
   )
 }

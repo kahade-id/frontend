@@ -18,8 +18,9 @@
  * Tidak ada snapping default: untuk pager kartu penuh, pakai `snap` yang
  * mengaktifkan `pagingEnabled`-like via `snapToInterval` dari lebar item.
  */
-import type { ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 import { ScrollView, type ScrollViewProps } from "react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
 
 import type { SpaceKey } from "@/components/ui/stack"
 import { cn } from "@/lib/cn"
@@ -66,26 +67,35 @@ export function ScrollRow({
   className,
   ...rest
 }: ScrollRowProps) {
+  // Gesture.Native() per-instance (instance gesture tak boleh dibagi antar
+  // GestureDetector) mendaftarkan baris horizontal ini ke RNGH: di dalam
+  // PullToRefresh Android (scroller vertikal dibungkus Gesture.Native + Pan
+  // simultaneous) baris horizontal tanpa wrapper bisa ikut terkunci induk.
+  // touchAction="pan-x" menjaga scroll sentuh web tetap jalan (default
+  // GestureDetector RNGH di web adalah touch-action: none).
+  const nativeGesture = useMemo(() => Gesture.Native(), [])
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      // Tap pada Chip saat keyboard terbuka langsung tereksekusi
-      keyboardShouldPersistTaps="handled"
-      decelerationRate={snap ? "fast" : undefined}
-      snapToInterval={snap}
-      snapToAlignment={snap ? "start" : undefined}
-      className={cn("w-full grow-0", bleed && "-mx-6", className)}
-      contentContainerClassName={cn(
-        "flex-row",
-        alignClass[align],
-        gapClass[gap],
-        inset && "px-6",
-        contentContainerClassName,
-      )}
-      {...rest}
-    >
-      {children}
-    </ScrollView>
+    <GestureDetector gesture={nativeGesture} touchAction="pan-x">
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        // Tap pada Chip saat keyboard terbuka langsung tereksekusi
+        keyboardShouldPersistTaps="handled"
+        decelerationRate={snap ? "fast" : undefined}
+        snapToInterval={snap}
+        snapToAlignment={snap ? "start" : undefined}
+        className={cn("w-full grow-0", bleed && "-mx-6", className)}
+        contentContainerClassName={cn(
+          "flex-row",
+          alignClass[align],
+          gapClass[gap],
+          inset && "px-6",
+          contentContainerClassName,
+        )}
+        {...rest}
+      >
+        {children}
+      </ScrollView>
+    </GestureDetector>
   )
 }

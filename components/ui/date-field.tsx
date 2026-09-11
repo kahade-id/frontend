@@ -19,9 +19,10 @@
  *   - Tinggi h-14 menyamai Input/Select berlabel supaya sejajar dalam form.
  */
 import { CalendarBlank, X } from "phosphor-react-native"
-import { Pressable, View } from "react-native"
+import { View } from "react-native"
 
 import { Field, type FieldProps } from "@/components/ui/field"
+import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -67,6 +68,7 @@ export function DateField({
   containerClassName,
   ...rest
 }: DateFieldProps) {
+  const Pressable = useTransformAwarePressable()
   const hasValue = value != null
   const floated = hasValue || open
   const hasError = !!errorText

@@ -27,8 +27,9 @@
  *     ditampilkan adalah peran lawan. Ini menghindari kebingungan "Pembeli:
  *     Budi" yang bisa dibaca dua arah.
  *   - `unread` (ada update yang belum dilihat) = <Dot tone="primary"> 8px di
- *     kiri ID, bukan bg-surface pada seluruh kartu: Card sudah bg-surface,
- *     jadi tint tidak terlihat; titik hitam kecil cukup (§1 hitam = perhatian).
+ *     kiri ID, bukan tint seluruh kartu: kartu sudah memakai isi abu-abu
+ *     (gray.100/dark gray.900) agar terbaca di background putih, jadi tint
+ *     tambahan tidak terlihat; titik kecil cukup (§1 hitam = perhatian).
  *   - Deadline (`deadlineAt`) dirender <Countdown> hanya bila status masih
  *     aktif; jika sudah lewat, `onDeadline` memberi tahu parent untuk refetch
  *     — kartu tidak mengubah status sendiri (sumber kebenaran = server).
@@ -129,16 +130,19 @@ export function OrderCard({
       timestamp,
     ])
 
+  // Isi kartu abu-abu (gray.100 / gray.900 di dark), BUKAN putih: daftar
+  // Transaksi berlatar background putih sehingga kartu elevated putih
+  // hilang tanpa batas. Isi netral + border membuat kartu terbaca di
+  // atas background (transaksi) maupun surface (Beranda).
   return (
     <Card
-      variant="elevated"
+      variant="default"
       elevation="flat"
       onPress={onPress}
       href={href}
       accessibilityLabel={a11y}
       accessibilityHint={onPress || href ? "Buka detail transaksi" : undefined}
-      borderless
-      className={cn("gap-3", className)}
+      className={cn("gap-3 bg-gray-100 dark:bg-gray-900", className)}
       {...rest}
     >
       {/* Baris 1: ID + status */}
@@ -213,7 +217,10 @@ export function OrderCardSkeleton({
     <View
       accessible
       accessibilityRole="progressbar"
-      className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)}
+      className={cn(
+        "w-full gap-3 rounded-md border border-border bg-gray-100 p-5 dark:bg-gray-900",
+        className,
+      )}
       accessibilityLabel="Memuat transaksi"
       {...rest}
     >

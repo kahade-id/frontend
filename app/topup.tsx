@@ -4,8 +4,9 @@
  *
  * Alur (3 langkah, TANPA teks "Langkah X/Y" — separator progress tipis di
  * bawah header, seperti alur register):
- *   1. Nominal  — centered AmountKeypad (tidak ada keyboard OS)
- *   2. Metode   — pilih VA / e-wallet / QRIS + ringkasan
+ *   1. Nominal  — centered AmountKeypad (tidak ada keyboard OS); metode
+ *      dipilih lewat kartu di atas keypad yang membuka BottomSheet
+ *   2. Konfirmasi — ringkasan nominal + metode (ubah lewat kartu/sheet)
  *   3. Instruksi pembayaran (hasil createTopup) — TopupStatusCard
  *
  * Kontrak API:
@@ -23,23 +24,27 @@ import { api, userMessage, type TopupDto } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { useCopy } from "@/lib/clipboard"
+import { formatRupiah } from "@/lib/format"
 import { toPaymentMethods } from "@/lib/payment-methods"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { usePolling } from "@/lib/use-polling"
 import { useApiQuery } from "@/lib/use-api-query"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
+import { KeypadOptionCard } from "@/components/ui/keypad-option-card"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { ListLoading } from "@/components/ui/paginated-list"
 import {
   PaymentMethodSelector,
   canUsePaymentMethod,
+  paymentMethodKindIcon,
   type PaymentMethod,
 } from "@/components/ui/payment-method-selector"
 import { Screen } from "@/components/ui/screen"
@@ -84,6 +89,7 @@ export default function TopupScreen() {
   const [step, setStep] = useState<Step>("amount")
   const [amount, setAmount] = useState(0)
   const [methodId, setMethodId] = useState<string | null>(null)
+  const [methodSheetOpen, setMethodSheetOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [result, setResult] = useState<Awaited<ReturnType<typeof api.wallet.createTopup>> | null>(
     null,
@@ -245,6 +251,26 @@ export default function TopupScreen() {
               </FadeIn>
             </ScrollView>
 
+            {/* Pilihan metode pembayaran DI SINI (halaman nominal), di atas
+                keypad: ketuk untuk membuka BottomSheet — bukan langkah
+                terpisah. */}
+            <View className="px-6 pb-2">
+              <KeypadOptionCard
+                label="Metode pembayaran"
+                value={selectedMethod?.name}
+                placeholder={loading ? "Memuat metode…" : "Pilih metode pembayaran"}
+                icon={selectedMethod ? paymentMethodKindIcon[selectedMethod.kind] : WalletIcon}
+                description={
+                  selectedMethod
+                    ? selectedFee > 0
+                      ? `Biaya admin ${formatRupiah(selectedFee, { sign: "always" })}`
+                      : "Tanpa biaya admin"
+                    : undefined
+                }
+                onPress={() => setMethodSheetOpen(true)}
+              />
+            </View>
+
             <View className="px-0">
               <AmountKeypad
                 value={amount}
@@ -252,9 +278,6 @@ export default function TopupScreen() {
                 min={AMOUNT_LIMITS.topup.minimum}
                 max={AMOUNT_LIMITS.topup.maximum}
                 presets={AMOUNT_PRESETS.topup}
-                actionKey="check"
-                actionEnabled={canContinueAmount}
-                onAction={goNext}
               />
             </View>
 
@@ -285,11 +308,11 @@ export default function TopupScreen() {
                 <View className="gap-4">
                   <View className="gap-2">
                     <Heading level={1} className="text-balance">
-                      Pilih metode pembayaran
+                      Konfirmasi pembayaran
                     </Heading>
                     <Text variant="body" tone="secondary" className="text-pretty">
-                      Pilih cara top-up yang Anda inginkan. Biaya admin (jika ada) akan
-                      ditampilkan di samping metode.
+                      Periksa nominal dan metode pembayaran Anda. Ketuk kartu
+                      metode untuk menggantinya.
                     </Text>
                   </View>
 
@@ -303,6 +326,9 @@ export default function TopupScreen() {
                     totalHint={selectedFee > 0 ? "Termasuk biaya admin" : "Tanpa biaya admin"}
                   />
 
+                  {/* Pemilihan metode ada di halaman nominal lewat BottomSheet
+                      (ketuk kartu metode di atas keypad). Halaman ini hanya
+                      ringkasan + tombol ubah. */}
                   {loading ? (
                     <ListLoading />
                   ) : error ? (
@@ -313,11 +339,19 @@ export default function TopupScreen() {
                       onRetry={() => void methodsQuery.reload()}
                     />
                   ) : methods.length ? (
-                    <PaymentMethodSelector
-                      methods={methods}
-                      amount={amount}
-                      value={methodId ?? undefined}
-                      onChange={setMethodId}
+                    <KeypadOptionCard
+                      label="Metode pembayaran"
+                      value={selectedMethod?.name}
+                      icon={selectedMethod ? paymentMethodKindIcon[selectedMethod.kind] : WalletIcon}
+                      description={
+                        selectedMethod
+                          ? selectedFee > 0
+                            ? `Biaya admin ${formatRupiah(selectedFee, { sign: "always" })}`
+                            : "Tanpa biaya admin"
+                          : undefined
+                      }
+                      onPress={() => setMethodSheetOpen(true)}
+                      accessibilityHint="Ketuk untuk mengganti metode pembayaran"
                     />
                   ) : (
                     <EmptyState
@@ -401,6 +435,48 @@ export default function TopupScreen() {
           </ScrollView>
         )}
       </KeyboardAvoiding>
+
+      {/* Pilih metode pembayaran — sheet di halaman nominal */}
+      <BottomSheet
+        visible={methodSheetOpen}
+        onRequestClose={() => setMethodSheetOpen(false)}
+        title="Pilih metode pembayaran"
+        description="Biaya admin (jika ada) ditampilkan di samping setiap metode."
+        footer={
+          <View
+            className="px-6"
+            style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
+          >
+            <Button onPress={() => setMethodSheetOpen(false)} disabled={!isTopupMethod(methodId)}>
+              Selesai
+            </Button>
+          </View>
+        }
+      >
+        {loading ? (
+          <ListLoading />
+        ) : error ? (
+          <ErrorState
+            compact
+            title="Gagal memuat metode"
+            description={error}
+            onRetry={() => void methodsQuery.reload()}
+          />
+        ) : methods.length ? (
+          <PaymentMethodSelector
+            methods={methods}
+            amount={amount}
+            value={methodId ?? undefined}
+            onChange={setMethodId}
+          />
+        ) : (
+          <EmptyState
+            icon={WalletIcon}
+            title="Metode pembayaran belum tersedia"
+            description="Metode top-up sedang tidak tersedia. Coba lagi nanti."
+          />
+        )}
+      </BottomSheet>
     </Screen>
   )
 }

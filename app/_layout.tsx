@@ -27,7 +27,7 @@ import "../global.css"
 import { useCallback, useEffect, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
-import { Stack, useRouter } from "expo-router"
+import { Stack, usePathname, useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
 import { useFonts } from "expo-font"
@@ -42,12 +42,12 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { useAuthSession } from "@/lib/use-auth-session"
-import { AUTHENTICATED_SCREENS } from "@/lib/protected-routes"
+import { AUTHENTICATED_SCREENS, isProtectedPath } from "@/lib/protected-routes"
+import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { compareVersions, safeHttpsUrl } from "@/lib/version"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { Dialog } from "@/components/ui/modal"
 import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
-import { SmartAppBanner } from "@/components/ui/smart-app-banner"
 import { ToastProvider } from "@/components/ui/toast"
 import { api } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
@@ -75,10 +75,11 @@ SplashScreen.setOptions({
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets)
 
-  // `ready` = boleh menampilkan app. Font error TETAP dianggap ready:
-  // lebih baik app tampil dengan system font daripada stuck di splash.
-  const ready = fontsLoaded || fontError != null
-  const [splashDone, setSplashDone] = useState(false)
+  // Web tidak memakai splash/onboarding ala aplikasi: tree langsung
+  // dirender (font web ber-FOUT singkat; overlay JS justru terasa situs
+  // loading). Native tetap menunggu font siap di balik AnimatedSplash.
+  const ready = Platform.OS === "web" || fontsLoaded || fontError != null
+  const [splashDone, setSplashDone] = useState(Platform.OS === "web")
 
   useEffect(() => {
     if (fontError) {
@@ -140,8 +141,11 @@ export default function RootLayout() {
         </I18nProvider>
       ) : null}
 
-      {/* Overlay JS: pulse loop selama loading, fade-out saat ready, lalu unmount. */}
-      {!splashDone ? <AnimatedSplash ready={ready} onFinish={handleSplashFinish} /> : null}
+      {/* Overlay JS: pulse loop selama loading, fade-out saat ready, lalu
+          unmount. Tidak dirender di web (guest mode, tanpa splash). */}
+      {Platform.OS !== "web" && !splashDone ? (
+        <AnimatedSplash ready={ready} onFinish={handleSplashFinish} />
+      ) : null}
     </GestureHandlerRootView>
   )
 }
@@ -153,6 +157,14 @@ function AppShell() {
   const session = useAuthSession()
   const reducedMotion = useReducedMotion()
   const [skipRestoreError, setSkipRestoreError] = useState(false)
+
+  // Web guest mode: seluruh Stack terdaftar (guard tak pernah mencabut
+  // layar), lalu tamu tanpa akun yang membuka layar ber-auth melihat
+  // ajakan login sebagai lapisan penuh, bukan redirect paksa. Native
+  // tetap memakai guard sesi seperti semula.
+  const pathname = usePathname()
+  const isWebGuest = Platform.OS === "web" && !session.token
+  const guestBlocked = isWebGuest && isProtectedPath(pathname)
 
   // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
   // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
@@ -267,13 +279,10 @@ function AppShell() {
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
 
         {/*
-          Ajakan pasang aplikasi untuk pengunjung web seluler. Komponennya
-          mengembalikan null di native dan di desktop, jadi aman dirender
-          tanpa syarat di sini. Ditaruh sebelum kolom konten supaya
-          `position: fixed`-nya menempel di tepi atas viewport, di atas
-          Header milik tiap screen.
+          Ajakan pasang aplikasi untuk pengunjung web seluler kini berupa
+          kartu mengalir di Beranda (<SmartAppInstallCard>, di bawah kartu
+          saldo), bukan banner fixed yang menutupi Header.
         */}
-        <SmartAppBanner />
 
         {/*
           Outer: full-bleed background (bg-background sudah di ThemeProvider).
@@ -314,7 +323,11 @@ function AppShell() {
                     animationDuration: tokens.motion.duration.base,
                   }}
                 >
-                  <Stack.Protected guard={Boolean(session.token)}>
+                  {/* Web: guard selalu true (semua layar terdaftar);
+                      pemblokiran tamu ditangani GuestLoginPrompt di bawah. */}
+                  <Stack.Protected
+                    guard={Platform.OS === "web" ? true : Boolean(session.token)}
+                  >
                     {AUTHENTICATED_SCREENS.map((name) => (
                       <Stack.Screen
                         key={name}
@@ -329,6 +342,13 @@ function AppShell() {
                   </Stack.Protected>
                 </Stack>
               )}
+              {/* Tamu web membuka layar ber-auth → ajakan login penuh di
+                  atas layar (Stack tetap terpasang di baliknya). */}
+              {guestBlocked ? (
+                <View className="absolute inset-0 bg-background">
+                  <GuestLoginPrompt next={pathname} />
+                </View>
+              ) : null}
             </PortalScene>
             <PortalHost />
           </ContentContainer>

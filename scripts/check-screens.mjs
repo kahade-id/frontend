@@ -148,16 +148,13 @@ rules.push({
     "app/showcase.tsx",
     "app/subscriptions.tsx",
     "app/support/[ticketId].tsx",
-    "app/topup.tsx",
     "app/transaction-templates.tsx",
-    "app/transfer.tsx",
     "app/two-factor.tsx",
     "app/user/[username].tsx",
     "app/user/[username]/questions.tsx",
     "app/user/[username]/ratings.tsx",
     "app/user/[username]/showcase.tsx",
     "app/wallet-transaction/[txId].tsx",
-    "app/withdraw.tsx",
     "app/withdrawal-schedules.tsx",
   ],
 })
@@ -283,12 +280,31 @@ rules.push({
  *   c. `<PullToRefresh>` memakai RNGH/Reanimated di jalur scroll.
  *      Insiden force-close menunjukkan bahwa touch callback UI-thread +
  *      synchronous state manager native berada di luar React ErrorBoundary.
- *      Gesture custom produk tetap boleh, tetapi wajib memakai PanResponder +
- *      Animated RN di JS thread, tanpa GestureDetector/worklet/stateManager.
+ *      Gesture custom jalur web/iOS tetap memakai PanResponder + Animated RN
+ *      di JS thread, tanpa GestureDetector/worklet/manualActivation.
+ *      Pengecualian (audit paritas 2026-09-11): jalur Android WAJIB RNGH
+ *      karena PanResponder JS tidak bisa merebut gesture dari ScrollView
+ *      native yang kontennya memenuhi layar (RN #25226). Pola yang diizinkan
+ *      PERSIS pola resmi RNGH — `Gesture.Native()` membungkus scroller,
+ *      `Gesture.Pan()` dengan `.simultaneousWithExternalGesture(native)`,
+ *      `touchAction` dipatok, dan TANPA manualActivation/stateManager.
+ *      ScrollView horizontal di dalamnya juga wajib Gesture.Native() sendiri
+ *      (scroll-row, promo-carousel, order-summary-strip, tabs).
  *
  * Aturan ini tidak punya baseline: tidak ada layar/komponen yang boleh
  * melakukannya, sekarang maupun nanti.
  */
+/**
+ * RNGH di jalur pull-to-refresh hanya sah bila komposisi resminya lengkap
+ * dan tanpa manualActivation (sumber force-close sebelumnya).
+ */
+function safeNativePullGesture(src) {
+  return (
+    /Gesture\.Native\(\)/.test(src) &&
+    /\.simultaneousWithExternalGesture\(/.test(src) &&
+    !/manualActivation|stateManager\.(?:activate|fail)/.test(src)
+  )
+}
 const gestureHosts = [...walk(join(root, "components")), ...walk(join(root, "lib"))]
   .filter((p) => /\.tsx?$/.test(p))
   .map((p) => ({ path: rel(p), src: stripComments(readFileSync(p, "utf8")) }))
@@ -303,8 +319,11 @@ rules.push({
     (/<GestureDetector/.test(f.src) &&
       /<(?:Animated\.)?[A-Za-z]*ScrollView\b/.test(f.src) &&
       !/touchAction=/.test(f.src)) ||
+    // RNGH di pull-to-refresh hanya sah dengan komposisi resmi
+    // (lihat safeNativePullGesture); PanResponder+Animated tetap default.
     (f.path.endsWith("/pull-to-refresh.tsx") &&
-      /react-native-(?:gesture-handler|reanimated)|\bRefreshControl\b/.test(f.src)),
+      /react-native-(?:gesture-handler|reanimated)/.test(f.src) &&
+      !safeNativePullGesture(f.src)),
   baseline: [],
 })
 
@@ -393,7 +412,9 @@ const UNUSED_UI_BASELINE = new Set([
 ])
 const unusedUi = []
 for (const component of uiComponents) {
-  const name = component.replace(/^components\/ui\//, "").replace(/\.tsx$/, "")
+  // .ts (mis. context/helper murni) maupun .tsx; dulu hanya .tsx yang
+  // dipangkas sehingga modul .ts selalu tampak "tidak pernah diimpor".
+  const name = component.replace(/^components\/ui\//, "").replace(/\.tsx?$/, "")
   const importRe = new RegExp(`["'](?:@/components/ui|\\.)/${name}["']`)
   const used = allSources.some((f) => f.path !== component && importRe.test(f.src))
   if (!used) unusedUi.push(component)

@@ -24,8 +24,9 @@
  * Pressable membungkus track pas -> `rounded-full` agar ring ikut bentuk pill.
  */
 import { useEffect, useRef, type ReactNode } from "react"
-import { Animated, Easing, Pressable, View, type PressableProps } from "react-native"
+import { Animated, Easing, View, type PressableProps } from "react-native"
 
+import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
@@ -61,6 +62,9 @@ export function Switch({
   className,
   ...rest
 }: SwitchProps) {
+  // Switch bisa dipakai di dalam BottomSheet ber-transform Reanimated:
+  // pakai Pressable berbasis RNGH di sana (Fabric Android, RN #51621).
+  const Pressable = useTransformAwarePressable()
   const x = useRef(new Animated.Value(value ? 1 : 0)).current
   // Reduce Motion (audit #2): thumb pindah instan.
   const reducedMotion = useReducedMotion()

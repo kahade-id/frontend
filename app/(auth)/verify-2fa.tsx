@@ -36,7 +36,7 @@
  *     "token"), user diarahkan login ulang lewat Alert + tautan.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { Platform, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -54,6 +54,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { haptic } from "@/lib/haptics"
+import { takePendingNext } from "@/lib/login-redirect"
 import { ROUTES } from "@/lib/routes"
 import { clearPendingTwoFactorLogin, getPendingTwoFactorLogin } from "@/lib/two-factor-login"
 
@@ -112,6 +113,11 @@ export default function VerifyTwoFactorScreen() {
       await api.auth.verify2faLogin({ tempToken: pending.tempToken, code })
       clearPendingTwoFactorLogin()
       haptic("success")
+      // Web guest mode tidak memakai Welcome: langsung ke tujuan/Beranda.
+      if (Platform.OS === "web") {
+        router.replace((takePendingNext() as never) ?? ROUTES.home)
+        return
+      }
       router.replace(ROUTES.welcome())
     } catch (err) {
       haptic("error")
