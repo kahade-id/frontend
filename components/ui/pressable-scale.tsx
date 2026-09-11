@@ -34,7 +34,6 @@ import {
   Animated,
   Easing,
   Platform,
-  Pressable,
   View,
   type GestureResponderEvent,
   type PressableProps,
@@ -42,6 +41,7 @@ import {
 } from "react-native"
 
 import { cn } from "@/lib/cn"
+import { useOverlayAwarePressable } from "@/components/ui/gesture-pressable"
 import { haptic as fireHaptic, type HapticKind } from "@/lib/haptics"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -73,6 +73,12 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   },
   ref,
 ) {
+  // Di dalam BottomSheet (overlay Reanimated di Fabric native), Pressable
+  // bawaan bisa tidak memanggil onPress karena responder region-nya diukur
+  // dari shadow tree yang basi pasca-animasi (RN #51621); hook ini menukarnya
+  // dengan GesturePressable (target dari view native). Web tidak berubah.
+  const PressableComponent = useOverlayAwarePressable()
+
   const scale = useRef(new Animated.Value(1)).current
   // Reduce Motion (audit #2): scale press adalah gerakan non-esensial ->
   // dimatikan total. Feedback pressed tetap ada lewat haptic (bila opt-in)
@@ -115,7 +121,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   // Animated.timing with native driver will auto-stop on unmount, but we keep ref for safety.
 
   return (
-    <Pressable
+    <PressableComponent
       ref={ref}
       disabled={disabled}
       unstable_pressDelay={Platform.OS === "android" ? 50 : undefined}
@@ -128,6 +134,6 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
       <Animated.View style={{ transform: [{ scale }] }}>
         <View className={cn(className, disabled && "opacity-disabled")}>{children}</View>
       </Animated.View>
-    </Pressable>
+    </PressableComponent>
   )
 })

@@ -285,10 +285,36 @@ rules.push({
  *      synchronous state manager native berada di luar React ErrorBoundary.
  *      Gesture custom produk tetap boleh, tetapi wajib memakai PanResponder +
  *      Animated RN di JS thread, tanpa GestureDetector/worklet/stateManager.
+ *      Pengecualian (audit paritas 2026-09-11): `RefreshControl` native
+ *      SwipeRefreshLayout WAJIB di Android karena PanResponder JS tidak bisa
+ *      merebut gesture dari ScrollView native yang kontennya memenuhi layar
+ *      (RN #25226). Pengecualian hanya sah bila RefreshControl dirender di
+ *      dalam cabang `if (Platform.OS === "android")` — web/iOS tetap memakai
+ *      PullGestureSurface.
  *
  * Aturan ini tidak punya baseline: tidak ada layar/komponen yang boleh
  * melakukannya, sekarang maupun nanti.
  */
+/**
+ * True bila ada `refreshControl=` yang TIDAK berada di dalam blok
+ * `if (Platform.OS === "android")`. Penghitung kurung kurawal sederhana
+ * per-baris — cukup untuk struktur file pull-to-refresh.tsx.
+ */
+function nativeRefreshOutsideAndroidBranch(src) {
+  let depth = 0
+  const gateDepths = new Set()
+  for (const line of src.split("\n")) {
+    const opens = (line.match(/{/g) ?? []).length
+    const closes = (line.match(/}/g) ?? []).length
+    if (/refreshControl=/.test(line) && gateDepths.size === 0) return true
+    if (/if\s*\(\s*Platform\.OS\s*===\s*["']android["']\s*\)/.test(line)) {
+      gateDepths.add(depth + opens)
+    }
+    depth += opens - closes
+    for (const d of [...gateDepths]) if (depth < d) gateDepths.delete(d)
+  }
+  return false
+}
 const gestureHosts = [...walk(join(root, "components")), ...walk(join(root, "lib"))]
   .filter((p) => /\.tsx?$/.test(p))
   .map((p) => ({ path: rel(p), src: stripComments(readFileSync(p, "utf8")) }))
@@ -304,7 +330,9 @@ rules.push({
       /<(?:Animated\.)?[A-Za-z]*ScrollView\b/.test(f.src) &&
       !/touchAction=/.test(f.src)) ||
     (f.path.endsWith("/pull-to-refresh.tsx") &&
-      /react-native-(?:gesture-handler|reanimated)|\bRefreshControl\b/.test(f.src)),
+      (/react-native-(?:gesture-handler|reanimated)/.test(f.src) ||
+        // RefreshControl native diizinkan HANYA di dalam cabang Android.
+        nativeRefreshOutsideAndroidBranch(f.src))),
   baseline: [],
 })
 
@@ -393,7 +421,9 @@ const UNUSED_UI_BASELINE = new Set([
 ])
 const unusedUi = []
 for (const component of uiComponents) {
-  const name = component.replace(/^components\/ui\//, "").replace(/\.tsx$/, "")
+  // .ts (mis. context/helper murni) maupun .tsx; dulu hanya .tsx yang
+  // dipangkas sehingga modul .ts selalu tampak "tidak pernah diimpor".
+  const name = component.replace(/^components\/ui\//, "").replace(/\.tsx?$/, "")
   const importRe = new RegExp(`["'](?:@/components/ui|\\.)/${name}["']`)
   const used = allSources.some((f) => f.path !== component && importRe.test(f.src))
   if (!used) unusedUi.push(component)

@@ -1,10 +1,17 @@
 /**
- * Kahade — pull-to-refresh custom yang mengikuti gerakan tangan.
+ * Kahade — pull-to-refresh.
  *
  * Keputusan produk: indikator harus custom (logo Kahade) dan konten mengikuti
- * jari 1:1 sampai ambang. Implementasi ini TIDAK memakai RefreshControl native.
+ * jari 1:1 sampai ambang. Itu dipertahankan di WEB dan iOS lewat
+ * PullGestureSurface (PanResponder + Animated bawaan).
  *
- * Guard keselamatan setelah insiden force-close:
+ * PENTING — Android memakai RefreshControl native (audit paritas platform):
+ * PanResponder JS tidak dapat merebut gesture dari ScrollView/FlatList native
+ * yang kontennya memenuhi layar (native scroll mengklaim gesture & membatalkan
+ * responder JS via NativeGestureUtil), sehingga PTR custom hanya bekerja untuk
+ * konten pendek. Detail di komentar `useNativeRefreshing` di bawah.
+ *
+ * Guard keselamatan (jalur web/iOS) setelah insiden force-close:
  * - hanya memakai PanResponder + Animated bawaan React Native (JS thread);
  * - tidak ada RNGH Gesture.Pan/manualActivation/stateManager.activate/fail;
  * - tidak ada Reanimated/worklet pada jalur sentuhan/scroll;
@@ -33,6 +40,7 @@ import {
   FlatList,
   PanResponder,
   Platform,
+  RefreshControl,
   ScrollView,
   View,
   type FlatListProps,
@@ -44,6 +52,7 @@ import {
 
 import { PulsingLogo } from "@/components/ui/loading-screen"
 import { Logo } from "@/components/ui/logo"
+import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
 import {
   pullDistance,
@@ -52,6 +61,83 @@ import {
 } from "@/lib/pull-math"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
+
+// ── Android: RefreshControl native ────────────────────────────────────────
+/**
+ * Mengapa Android TIDAK memakai PullGestureSurface berbasis PanResponder di
+ * bawah ini (audit paritas platform):
+ *
+ * Di Android, begitu ScrollView/FlatList native (yang kontennya memenuhi
+ * layar) menerima gerak vertikal melewati touch slop, ia meng-KLAIM gesture
+ * secara native (ReactScrollView.handleInterceptedTouchEvent →
+ * NativeGestureUtil.notifyNativeGestureStarted) dan membatalkan responder JS
+ * induk. PanResponder JS — yang pada web (event DOM, preventDefault di fase
+ * capture) dan iOS (responder dapat mengambil alih UIScrollView di posisi
+ * atas) bisa menang tarikan — di Android tidak pernah jadi responder saat
+ * konten scrollable: pull-to-refresh hanya "hidup" untuk konten pendek.
+ * Ini adalah keterbatasan fundamental negosiasi gesture Android, bukan
+ * kesalahan threshold: https://github.com/facebook/react-native/issues/25226
+ *
+ * RefreshControl memetakan ke SwipeRefreshLayout yang merupakan
+ * NestedScrollingParent — ia diberi sisa scroll oleh scroller anak lewat
+ * nested-scroll callbacks, sehingga tarikan di posisi atas selalu tertangkap
+ * apa pun panjang kontennya. Web/iOS tetap memakai indikator logo custom
+ * (PanResponder); Android memakai spinner native (keputusan paling stabil
+ * pasca-insiden force-close; jalur RNGH custom adalah opsi masa depan bila
+ * produk menuntut indikator logo di Android).
+ */
+function useNativeRefreshing(
+  controlledRefreshing: boolean | undefined,
+  onRefresh: () => void | Promise<void>,
+): { refreshing: boolean; handleRefresh: () => void } {
+  const [uncontrolledRefreshing, setUncontrolledRefreshing] = useState(false)
+
+  const handleRefresh = useCallback(() => {
+    if (controlledRefreshing !== undefined) {
+      onRefresh()
+      return
+    }
+    setUncontrolledRefreshing(true)
+    try {
+      const result = onRefresh()
+      void Promise.resolve(result)
+        .catch(() => undefined)
+        .finally(() => setUncontrolledRefreshing(false))
+    } catch {
+      setUncontrolledRefreshing(false)
+    }
+  }, [controlledRefreshing, onRefresh])
+
+  return {
+    refreshing: controlledRefreshing ?? uncontrolledRefreshing,
+    handleRefresh,
+  }
+}
+
+function NativeRefreshControl({
+  refreshing,
+  onRefresh,
+  enabled,
+}: {
+  refreshing: boolean
+  onRefresh: () => void
+  enabled: boolean
+}) {
+  // Warna mengikuti teks utama (logo custom pun memakai foreground),
+  // background spinner mengikuti surface elevated.
+  const { mode } = useTheme()
+  const spinner = tokens.colors[mode].textTertiary
+  return (
+    <RefreshControl
+      refreshing={refreshing}
+      onRefresh={onRefresh}
+      enabled={enabled}
+      tintColor={spinner}
+      colors={[spinner]}
+      progressBackgroundColor={tokens.colors[mode].surfaceElevated}
+    />
+  )
+}
 
 const DEFAULT_THRESHOLD = tokens.space[16]
 const CONTROLLED_CONFIRM_TIMEOUT_MS = 1_000
@@ -432,6 +518,34 @@ export function PullToRefresh({
   className,
   ...rest
 }: PullToRefreshProps) {
+  const native = useNativeRefreshing(refreshing, onRefresh)
+
+  // Android: RefreshControl native (lihat catatan useNativeRefreshing).
+  if (Platform.OS === "android") {
+    return (
+      <View className={cn("flex-1", className)} {...rest}>
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName={cn("grow", contentContainerClassName)}
+          keyboardShouldPersistTaps="handled"
+          nestedScrollEnabled
+          showsVerticalScrollIndicator={false}
+          overScrollMode="never"
+          refreshControl={
+            <NativeRefreshControl
+              refreshing={native.refreshing}
+              onRefresh={native.handleRefresh}
+              enabled={enabled}
+            />
+          }
+          {...scrollViewProps}
+        >
+          {children}
+        </ScrollView>
+      </View>
+    )
+  }
+
   return (
     <PullGestureSurface
       onRefresh={onRefresh}
@@ -486,6 +600,26 @@ export function PullToRefreshFlatList<ItemT>({
   onScroll,
   ...listProps
 }: PullToRefreshFlatListProps<ItemT>) {
+  const native = useNativeRefreshing(refreshing, onRefresh)
+
+  // Android: RefreshControl native (lihat catatan useNativeRefreshing).
+  if (Platform.OS === "android") {
+    return (
+      <FlatList
+        {...listProps}
+        onScroll={onScroll}
+        overScrollMode="never"
+        refreshControl={
+          <NativeRefreshControl
+            refreshing={native.refreshing}
+            onRefresh={native.handleRefresh}
+            enabled={refreshEnabled}
+          />
+        }
+      />
+    )
+  }
+
   return (
     <PullGestureSurface
       onRefresh={onRefresh}

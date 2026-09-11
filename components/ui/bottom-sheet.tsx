@@ -75,6 +75,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { IconButton } from "@/components/ui/icon-button"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
+import { InsideReanimatedOverlayContext } from "@/components/ui/overlay-pressable-context"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
@@ -297,40 +298,53 @@ export function BottomSheet({
   )
 
   const sheet = (
-    <View
-      ref={sheetRef}
-      onLayout={handleLayout}
-      accessibilityViewIsModal
-      accessibilityLabel={accessibilityLabel ?? title}
-      className="w-full rounded-t-md border border-b-0 border-border bg-surface-elevated"
-      // v2: sheet mengambang → elevasi high. Shadow di kotak statis (bukan di
-      // Animated.View geser) agar tidak dihitung ulang tiap frame drag.
-      style={[elevationStyle("high", mode), { maxHeight: windowHeight * MAX_HEIGHT_RATIO }]}
-    >
-      {/* Handle + header = area drag default */}
-      {dragArea === "handle" ? <GestureDetector gesture={pan}>{header}</GestureDetector> : header}
+    // Provider melingkupi SELURUH kartu (header X, konten, footer): semua
+    // PressableScale di dalamnya memakai GesturePressable di native agar
+    // tetap bisa ditekan setelah animasi Reanimated (lihat
+    // overlay-pressable-context.ts — Fabric Android, RN #51621).
+    <InsideReanimatedOverlayContext.Provider value={true}>
+      <View
+        ref={sheetRef}
+        onLayout={handleLayout}
+        accessibilityViewIsModal
+        accessibilityLabel={accessibilityLabel ?? title}
+        className="w-full rounded-t-md border border-b-0 border-border bg-surface-elevated"
+        // v2: sheet mengambang → elevasi high. Shadow di kotak statis (bukan
+        // di Animated.View geser) agar tidak dihitung ulang tiap frame drag.
+        style={[
+          elevationStyle("high", mode),
+          { maxHeight: windowHeight * MAX_HEIGHT_RATIO },
+        ]}
+      >
+        {/* Handle + header = area drag default */}
+        {dragArea === "handle" ? (
+          <GestureDetector gesture={pan}>{header}</GestureDetector>
+        ) : (
+          header
+        )}
 
-      <View className={cn("shrink px-6 pt-2 pb-4", contentClassName)}>{children}</View>
+        <View className={cn("shrink px-6 pt-2 pb-4", contentClassName)}>{children}</View>
 
-      {footer ? (
-        <View
-          className="border-t border-border px-6 pt-4"
-          style={{ paddingBottom: insets.bottom + tokens.space[4] }}
-        >
-          {footer}
-        </View>
-      ) : (
-        /* Audit (S5): spacer ini ditulis tangan dan TIDAK konsisten dengan
-           jalur footer di atasnya. Footer memakai
-           `insets.bottom + tokens.space[4]`, jadi selalu punya napas 16px;
-           jalur tanpa footer hanya `insets.bottom`, yang di web dan Android
-           tanpa gesture navigation bernilai 0 — isi sheet lalu menempel ke
-           tepi bawah tanpa jarak sama sekali. <SafeAreaSpacer min={4}>
-           menghitung Math.max(inset, 16), menyamakan lantai keduanya, dan
-           sekaligus menyembunyikan dirinya dari screen reader. */
-        <SafeAreaSpacer min={4} />
-      )}
-    </View>
+        {footer ? (
+          <View
+            className="border-t border-border px-6 pt-4"
+            style={{ paddingBottom: insets.bottom + tokens.space[4] }}
+          >
+            {footer}
+          </View>
+        ) : (
+          /* Audit (S5): spacer ini ditulis tangan dan TIDAK konsisten dengan
+             jalur footer di atasnya. Footer memakai
+             `insets.bottom + tokens.space[4]`, jadi selalu punya napas 16px;
+             jalur tanpa footer hanya `insets.bottom`, yang di web dan Android
+             tanpa gesture navigation bernilai 0 — isi sheet lalu menempel ke
+             tepi bawah tanpa jarak sama sekali. <SafeAreaSpacer min={4}>
+             menghitung Math.max(inset, 16), menyamakan lantai keduanya, dan
+             sekaligus menyembunyikan dirinya dari screen reader. */
+          <SafeAreaSpacer min={4} />
+        )}
+      </View>
+    </InsideReanimatedOverlayContext.Provider>
   )
 
   return (
