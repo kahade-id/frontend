@@ -171,7 +171,9 @@ ekspektasi tim ("cuma FCM dkk. yang beda"):
   (`lib/image-picker.ts`).
 - **Versi aplikasi/OTA/EAS**: gate versi & Updates hanya native
   (`app/app-version.tsx`, dialog force-update di `_layout.tsx`).
-- **Banner ajakan install app** hanya web (`smart-app-banner.tsx`).
+- **Ajakan install app** hanya web, berupa kartu mengalir di Beranda di
+  bawah kartu saldo (`smart-app-install-card.tsx`; banner fixed di atas
+  viewport sudah dihapus; deteksi OS/store URLs di `lib/smart-app-banner.ts`).
 - **Keyboard**: `KeyboardAvoidingView` padding iOS; Android mengandalkan
   adjustResize (`components/ui/keyboard-avoiding.tsx`); tutup-keyboard-saat-
   drag dijembatani `lib/keyboard.ts` (lihat Bug-2).

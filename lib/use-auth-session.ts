@@ -28,8 +28,18 @@ export function useAuthSession() {
           return
         }
         const access = await getAccessToken()
-        if (!access && (Platform.OS === "web" || (await getRefreshToken())))
-          await refreshAccessToken()
+        if (!access && (Platform.OS === "web" || (await getRefreshToken()))) {
+          // Web mendukung refresh via cookie HttpOnly; kegagalan di sini
+          // BUKAN kondisi galat yang memblokir aplikasi — pengunjung web
+          // boleh memakai mode tamu (lihat app/index.tsx & guest gate di
+          // root layout). Native: refresh token yang ada harus valid, jadi
+          // kegagalannya ditampilkan sebagai error pemulihan sesi.
+          try {
+            await refreshAccessToken()
+          } catch (error) {
+            if (Platform.OS !== "web") throw error
+          }
+        }
       } catch (error) {
         if (alive) setError(userMessage(error))
       } finally {

@@ -66,6 +66,11 @@ export const SecureKeys = {
    * ini cache agar bahasa sudah benar SEBELUM respons pertama tiba.
    */
   languagePreference: "kahade.language.preference",
+  /**
+   * Antrean umpan balik yang belum terkirim (endpoint /v1/feedback belum
+   * tersedia atau perangkat sedang luring). BUKAN rahasia — lihat lib/feedback.
+   */
+  feedbackQueue: "kahade.feedback.queue",
 } as const
 
 export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]

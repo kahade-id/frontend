@@ -89,6 +89,7 @@ import { Screen } from "@/components/ui/screen"
 import { SearchTrigger } from "@/components/ui/search-field"
 import { SectionHeader } from "@/components/ui/section"
 import { Skeleton } from "@/components/ui/skeleton"
+import { SmartAppInstallCard } from "@/components/ui/smart-app-install-card"
 import { Text } from "@/components/ui/text"
 import { focusRing } from "@/lib/focus-ring"
 import { cn } from "@/lib/cn"
@@ -439,6 +440,12 @@ export default function HomeScreen() {
               notice={notice}
             />
           </View>
+
+          {/* ── 2b. Ajakan unduh aplikasi (hanya web seluler) ──── */}
+          {/* Menggantikan banner fixed di atas viewport: tampil
+              mengalir tepat di bawah kartu saldo. Komponen mengembalikan
+              null di native/desktop/standalone. */}
+          <SmartAppInstallCard />
 
           {/* ── 3. Sorotan fitur ───────────────────────────────── */}
           <PromoCarousel items={PROMOS} className="pt-6" />

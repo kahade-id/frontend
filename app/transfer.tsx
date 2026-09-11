@@ -3,8 +3,9 @@
  * keypad nominal terpusat, dan kartu konfirmasi eksklusif.
  *
  * Alur (3 langkah, tanpa "Langkah X/Y"):
- *   1. Penerima & nominal — cari/pilih penerima + AmountKeypad
- *   2. Konfirmasi        — ringkasan + catatan; PIN lewat BottomSheet
+ *   1. Penerima & nominal — cari/pilih penerima + AmountKeypad; catatan
+ *      diisi lewat kartu di atas keypad yang membuka BottomSheet
+ *   2. Konfirmasi        — ringkasan (catatan tampil di sini); PIN lewat BottomSheet
  *   3. Selesai           — ringkasan hasil + tautan detail
  *
  * API:
@@ -26,6 +27,8 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { walletTransactionStatus } from "@/lib/wallet-labels"
 
+import { PencilSimpleLine } from "phosphor-react-native"
+
 import { AmountKeypad } from "@/components/ui/amount-keypad"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -34,6 +37,7 @@ import { FadeIn } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
+import { KeypadOptionCard } from "@/components/ui/keypad-option-card"
 import { KeyValue } from "@/components/ui/key-value"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PinInput } from "@/components/ui/pin-input"
@@ -77,6 +81,8 @@ export default function TransferScreen() {
   const [selected, setSelected] = useState<TransferRecipient | null>(null)
   const [amount, setAmount] = useState(0)
   const [note, setNote] = useState("")
+  const [noteDraft, setNoteDraft] = useState("")
+  const [noteSheetOpen, setNoteSheetOpen] = useState(false)
   const [step, setStep] = useState<Step>("form")
   const [pinError, setPinError] = useState<string | undefined>()
   const [txId, setTxId] = useState<string | null>(null)
@@ -310,6 +316,21 @@ export default function TransferScreen() {
               </FadeIn>
             </ScrollView>
 
+            {/* Catatan ditulis DI SINI lewat BottomSheet (kartu di atas
+                keypad), bukan di langkah konfirmasi. */}
+            <View className="px-6 pb-2">
+              <KeypadOptionCard
+                label="Catatan (opsional)"
+                value={note.trim() || undefined}
+                placeholder="Tambah catatan untuk penerima"
+                icon={PencilSimpleLine}
+                onPress={() => {
+                  setNoteDraft(note)
+                  setNoteSheetOpen(true)
+                }}
+              />
+            </View>
+
             <AmountKeypad
               value={amount}
               onChange={setAmount}
@@ -322,9 +343,6 @@ export default function TransferScreen() {
                   ? `Minimal ${formatRupiah(MIN_AMOUNT)}`
                   : undefined
               }
-              actionKey="check"
-              actionEnabled={canContinueForm}
-              onAction={() => setStep("confirm")}
             />
 
             <View
@@ -373,18 +391,8 @@ export default function TransferScreen() {
                     {selected ? (
                       <KeyValue label="Penerima" value={`${selected.name} · @${selected.username}`} />
                     ) : null}
+                    {note.trim() ? <KeyValue label="Catatan" value={note.trim()} /> : null}
                   </TransactionSummary>
-
-                  <Field label="Catatan" helperText="Opsional">
-                    <TextArea
-                      value={note}
-                      onChangeText={setNote}
-                      placeholder="Catatan untuk penerima"
-                      maxLength={NOTE_MAX}
-                      multiline
-                      numberOfLines={3}
-                    />
-                  </Field>
 
                   <Text variant="caption" tone="secondary" className="text-pretty">
                     Masukkan PIN dompet Anda untuk menyetujui transfer. PIN digunakan untuk
@@ -466,6 +474,54 @@ export default function TransferScreen() {
           </ScrollView>
         ) : null}
       </KeyboardAvoiding>
+
+      {/* Editor catatan di BottomSheet — dibuka dari kartu di atas keypad */}
+      <BottomSheet
+        visible={noteSheetOpen}
+        onRequestClose={() => setNoteSheetOpen(false)}
+        title="Catatan"
+        description="Opsional. Catatan ini diterima penerima bersama transfernya."
+        avoidKeyboard
+        footer={
+          <View
+            className="flex-row gap-3 px-6"
+            style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
+          >
+            {note.trim() ? (
+              <Button
+                variant="ghost"
+                fullWidth={false}
+                onPress={() => {
+                  setNote("")
+                  setNoteDraft("")
+                  setNoteSheetOpen(false)
+                }}
+              >
+                Hapus
+              </Button>
+            ) : null}
+            <Button
+              onPress={() => {
+                setNote(noteDraft.slice(0, NOTE_MAX))
+                setNoteSheetOpen(false)
+              }}
+            >
+              Simpan catatan
+            </Button>
+          </View>
+        }
+      >
+        <Field label="Catatan untuk penerima" helperText={`${noteDraft.length}/${NOTE_MAX}`}>
+          <TextArea
+            value={noteDraft}
+            onChangeText={(value) => setNoteDraft(value.slice(0, NOTE_MAX))}
+            placeholder="Contoh: buat bayar pesanan #123"
+            multiline
+            numberOfLines={4}
+            autoFocus
+          />
+        </Field>
+      </BottomSheet>
 
       {/* PIN verifikasi di BottomSheet */}
       <BottomSheet

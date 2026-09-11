@@ -45,9 +45,9 @@
  *   - Link "Belum punya akun? Daftar" → navigate ke register screen.
  */
 import { useCallback, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { Platform, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -64,12 +64,17 @@ import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
+import { setPendingNext } from "@/lib/login-redirect"
 import { ROUTES } from "@/lib/routes"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 
 export default function LoginScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
+  // `next` dipasang oleh layar ajakan login (guest mode web): kembali ke
+  // tujuan setelah login berhasil.
+  const { next } = useLocalSearchParams<{ next?: string }>()
+  const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -82,6 +87,7 @@ export default function LoginScreen() {
     if (submitting || !isFormValid) return
     setSubmitting(true)
     setFormError(null)
+    setPendingNext(nextPath)
 
     try {
       const result = await api.auth.login({
@@ -94,6 +100,13 @@ export default function LoginScreen() {
         // `push` (bukan replace) supaya tombol kembali membawa ke form login.
         setPendingTwoFactorLogin({ tempToken: result.tempToken, email: email.trim() })
         router.push(ROUTES.verify2fa)
+        return
+      }
+
+      // Web guest mode tidak memakai layar Welcome/splash: langsung kembali
+      // ke tujuan (atau Beranda). Native tetap melalui Welcome (izin push).
+      if (Platform.OS === "web") {
+        router.replace((nextPath as never) ?? ROUTES.home)
         return
       }
 
@@ -121,7 +134,7 @@ export default function LoginScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, isFormValid, email, password, router])
+  }, [submitting, isFormValid, email, password, router, nextPath])
 
   const handleForgotPassword = useCallback(() => {
     router.push(ROUTES.forgotPassword)

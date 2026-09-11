@@ -108,7 +108,7 @@ const DEFAULT_LABELS: PaymentMethodSelectorLabels = {
   unavailable: "Sedang tidak tersedia",
 }
 
-const kindIcon: Record<PaymentMethodKind, IconComponent> = {
+export const paymentMethodKindIcon: Record<PaymentMethodKind, IconComponent> = {
   bank: Bank,
   ewallet: Wallet,
   qris: QrCode,
@@ -180,7 +180,7 @@ export function PaymentMethodSelector({
             key={m.id}
             value={m.id}
             disabled={isDisabled}
-            leading={<Icon icon={m.icon ?? kindIcon[m.kind]} size="sm" />}
+            leading={<Icon icon={m.icon ?? paymentMethodKindIcon[m.kind]} size="sm" />}
             label={
               <View className="flex-row flex-wrap items-center gap-2 tabular-nums">
                 <Text

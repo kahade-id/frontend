@@ -476,6 +476,22 @@ export function PullGestureSurface({
       return
     }
 
+    // WEB: pull-to-refresh memuat ulang DOKUMEN (refresh bawaan browser),
+    // bukan memanggil endpoint satu per satu — di hosting statis endpoint
+    // API sering tak terjangkau sehingga tarikan selalu berakhir "Tidak ada
+    // koneksi". Reload memuat ulang seluruh data sekaligus. Indikator
+    // dikunci di ambang sampai browser benar-benar memuat ulang.
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      springTo(current.threshold)
+      try {
+        current.onThresholdReached?.()
+      } catch {
+        // haptic/telemetri opsional
+      }
+      window.location.reload()
+      return
+    }
+
     requestActive.current = true
     springTo(current.threshold)
     if (controlled) setGestureRefreshing(true)
