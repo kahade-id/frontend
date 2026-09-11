@@ -26,11 +26,23 @@ import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import ts from "typescript"
 
-import { collapse, shapeOf, SLOT_TOKEN } from "../lib/i18n/shape.ts"
+import { collapse, shapeOf, SHAPE_TOKEN, SLOT_TOKEN } from "../lib/i18n/shape.ts"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const SCAN_DIRS = ["app", "components", "lib"]
-const SKIP = [/^lib\/i18n\//, /(^|\/)i18n\//, /\.test\.tsx?$/, /\.d\.ts$/]
+// `lib/fonts.ts` berisi NAMA FILE FONT & family CSS — bukan teks user, dan
+// "Sofia Sans" akan terbaca sebagai prosa oleh filter di bawah.
+// `lib/fonts.ts` & `lib/tokens.ts` = infrastruktur desain (nama file font,
+// family CSS, token warna). Nilainya terbaca seperti prosa ("Sofia Sans",
+// "EB Garamond") tapi tidak pernah tampil sebagai teks user.
+const SKIP = [
+  /^lib\/i18n\//,
+  /(^|\/)i18n\//,
+  /^lib\/fonts\.ts$/,
+  /^lib\/tokens\.ts$/,
+  /\.test\.tsx?$/,
+  /\.d\.ts$/,
+]
 
 /** Nama prop/atribut yang isinya teks untuk user. */
 const TEXT_PROPS = new Set([
@@ -52,27 +64,59 @@ const NEVER_TEXT = new Set([
   "accessibilityRole", "accessibilityState", "accessibilityLiveRegion", "edges", "channelId",
 ])
 
-/** String yang jelas bukan prosa UI. */
-function isTechnical(value) {
-  const s = value.trim()
+/**
+ * Nilai yang terbaca seperti prosa tapi bukan teks user (nama header, nama
+ * font). Didaftarkan eksplisit supaya filter umum tidak perlu ikut menebak —
+ * filter yang terlalu agresif membuang "Laki-laki" dan "Rp1.000".
+ */
+const NON_UI_VALUES = new Set([
+  "X-Device-Info",
+  "X-Request-Id",
+  "X-Idempotency-Key",
+  "Content-Type",
+  "Sofia Sans",
+  "EB Garamond",
+  "JetBrains Mono",
+])
+
+/** String yang jelas bukan prosa UI. Diterima sudah dalam BENTUK termask. */
+function isTechnical(shape) {
+  const s = shape.trim()
   if (s.length === 0) return true
+  if (NON_UI_VALUES.has(s)) return true
   if (!/\p{L}/u.test(s)) return true // angka/simbol saja
   if (s.length <= 1) return true
-  if (/^[/#.]/.test(s)) return true // route, id, warna
-  if (/^[a-z0-9]+([._/-][a-z0-9]+)*$/.test(s)) return true // token teknis lowercase
+  const dynamic = s.includes(SHAPE_TOKEN)
+  // Sisa teks setelah token {x} dilepas: untuk kalimat pendek tanpa isi
+  // ("{x}ms") dan awalan ID ("INV-{x}").
+  const stripped = s.split(SHAPE_TOKEN).join("").trim()
+  if (/[\p{L}]/u.test(stripped) === false) return true
+  if (stripped.replace(/[^\p{L}]/gu, "").length < 3) return true
+  if (/^[A-Z]{2,10}[-_ ]?$/.test(stripped)) return true // prefix ID: INV-, TX-
+  if (/^https?:\/\//.test(s)) return true
+  if (/^\^|\$$/.test(s)) return true // pola regex
+  if (s.startsWith("/") && !s.includes(" ")) return true // route
+  if (s.startsWith("#")) return true // warna
+  const braces = s.split(SHAPE_TOKEN).join("")
+  if (/[{}<>;=]|=>/.test(braces)) return true // cuplikan kode / regex
+  if (/rgba?\(|\bpx\b|font-family/.test(s)) return true // css/shadow
   if (/^[A-Z][A-Z0-9_]*$/.test(s)) return true // CONSTANT_CASE
-  if (/\s(dark|light):|^[a-z-]+-\d+$/.test(s)) return true // class tailwind
-  // Deretan token class (font-sans-{x} tabular-nums): semua suku kata kecil +
-  // tanda hubung, tidak ada spasi setelah koma, tidak ada huruf besar.
-  if (/^[a-z0-9{}\-_.\s]+$/.test(s) && /^[a-z0-9{}_-]+([ ][a-z0-9{}_-]+)*$/.test(s) && /[a-z]-[a-z0-9{}]/.test(s))
-    return true
-  // Cuplikan kode/error internal (mis. pesan di `lib/api/client.ts`): bukan
-  // teks user, jangan pernah masuk kamus.
-  if (/[<>{};=]|=>|\b(const|let|var|function|await|async|import|export|Promise|void|undefined|null|readonly|interface|type|schema|http)\b|[A-Za-z_$][A-Za-z0-9_$]*\([^)]*\)/.test(s))
-    return true
-  if (/^[-\d.,\s]+$/.test(s)) return true
-  // Tanda kurung tak seimbang = cuplikan kode (`(path,`), bukan kalimat user.
-  if (((s.match(/\(/g) ?? []).length) !== ((s.match(/\)/g) ?? []).length)) return true
+  // Token teknis murni: tanpa spasi, satu kata kecil yang boleh ber-titik /
+  // ber-strip / camelCase di segmen berikutnya — route pendek, kunci storage,
+  // media type, header. Hanya bila TIDAK ada {x}: "…{x} hari" itu prosa.
+  if (!dynamic && !/\s/.test(s) && /^[a-z][A-Za-z0-9]*([./_-][A-Za-z0-9]+)+$/.test(s)) return true
+  // SATU kata kecil tanpa tanda baca kalimat = nilai enum/config (accept,
+  // android, qris, balance), bukan teks UI. Teks UI satu kata selalu berhuruf
+  // besar di awal ("Simpan", "Batal") atau berpungkur.
+  if (!dynamic && !/\s/.test(s) && !/[\p{L}][.!?:;…)"]/.test(s) && !/\p{Lu}/u.test(s)) return true
+  if (!dynamic && /^[a-z]+[A-Z][A-Za-z]*$/.test(s)) return true // camelCase
+  // Deretan kelas Tailwind (`font-sans-{x} tabular-nums`): semua suku kata
+  // kecil + tanda hubung, tak ada huruf besar sama sekali.
+  if (/^[a-z0-9{}\-. ]+$/.test(s) && /[a-z]-[a-z0-9{]/.test(s) && !/\p{Lu}/u.test(s)) return true
+  if (/\s(dark|light):/.test(s)) return true
+  const open = (s.match(/\(/g) ?? []).length
+  const close = (s.match(/\)/g) ?? []).length
+  if (open !== close) return true // "(path," = cuplikan kode
   return false
 }
 
@@ -91,7 +135,9 @@ function addCandidate(raw, file, kind) {
   const clean = collapse(raw)
   if (!clean) return
   const { shape } = shapeOf(clean)
-  if (isTechnical(clean) && !raw.includes(SLOT_TOKEN)) return
+  // Filter dijalankan pada BENTUK (angka/${expr} → {x}), bukan teks mentah,
+  // supaya `{x}ms`, `INV-{x}`, dan `0 {x}px rgba(...)` ikut terbuang.
+  if (isTechnical(shape)) return
   const prev = found.get(shape)
   if (prev) {
     prev.count += 1
@@ -146,11 +192,17 @@ function collectStrings(node, sf, file, kind, depth = 0) {
 }
 
 function collectObjectStrings(objNode, sf, file) {
+  // Di `lib/`, label status & pesan error disimpan sebagai map
+  // (`WALLET_TXN_LABELS: Record<string, string>`, `MESSAGES` di errors.ts) yang
+  // nilainya berakhir di dalam <Text>. Nama kuncinya (TRANSFER_IN, NOT_FOUND)
+  // tentu bukan TEXT_PROPS, jadi di direktori itu SEMUA nilai string dinilai —
+  // `isTechnical` yang membuang token teknis, route, dan identifier.
+  const anyValue = file.startsWith("lib/")
   for (const prop of objNode.properties) {
     if (!ts.isPropertyAssignment(prop)) continue
     const name = prop.name.getText(sf).replace(/^["']|["']$/g, "")
     if (NEVER_TEXT.has(name)) continue
-    if (!TEXT_PROPS.has(name)) continue
+    if (!anyValue && !TEXT_PROPS.has(name)) continue
     collectStrings(prop.initializer, sf, file, name)
   }
 }

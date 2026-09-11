@@ -23,6 +23,10 @@
    "n": 7
   },
   {
+   "s": "Transaksi",
+   "n": 6
+  },
+  {
    "s": "Lanjutkan",
    "n": 5
   },
@@ -40,10 +44,6 @@
   },
   {
    "s": "Simpan",
-   "n": 5
-  },
-  {
-   "s": "Transaksi",
    "n": 5
   },
   {
@@ -100,6 +100,10 @@
   },
   {
    "s": "{x} hari",
+   "n": 3
+  },
+  {
+   "s": "Aktif",
    "n": 3
   },
   {
@@ -227,10 +231,6 @@
    "n": 3
   },
   {
-   "s": "Rp",
-   "n": 3
-  },
-  {
    "s": "Tambah rekening",
    "n": 3
   },
@@ -255,19 +255,11 @@
    "n": 2
   },
   {
-   "s": "{x}{x}",
-   "n": 2
-  },
-  {
    "s": "Ajukan perpanjangan",
    "n": 2
   },
   {
    "s": "Ajukan sengketa",
-   "n": 2
-  },
-  {
-   "s": "Aktif",
    "n": 2
   },
   {
@@ -359,7 +351,15 @@
    "n": 2
   },
   {
+   "s": "Data bentrok dengan yang sudah ada.",
+   "n": 2
+  },
+  {
    "s": "Detail Notifikasi",
+   "n": 2
+  },
+  {
+   "s": "Dibatalkan",
    "n": 2
   },
   {
@@ -424,6 +424,10 @@
   },
   {
    "s": "Huruf besar dan kecil",
+   "n": 2
+  },
+  {
+   "s": "Informasi",
    "n": 2
   },
   {
@@ -591,6 +595,10 @@
    "n": 2
   },
   {
+   "s": "Promosi",
+   "n": 2
+  },
+  {
    "s": "Referral",
    "n": 2
   },
@@ -663,11 +671,23 @@
    "n": 2
   },
   {
-   "s": "· terbaru:",
+   "s": ". Masukkan kode dan buat password baru.",
    "n": 1
   },
   {
-   "s": "(opsional)",
+   "s": ". Pastikan Anda memiliki akses ke nomor:",
+   "n": 1
+  },
+  {
+   "s": ". Periksa detail transaksi untuk status terakhir.",
+   "n": 1
+  },
+  {
+   "s": ". Tarik untuk memuat ulang.",
+   "n": 1
+  },
+  {
+   "s": "· terbaru:",
    "n": 1
   },
   {
@@ -711,7 +731,7 @@
    "n": 1
   },
   {
-   "s": "@username",
+   "s": "Ada data yang belum benar. Periksa kembali isian Anda.",
    "n": 1
   },
   {
@@ -804,6 +824,10 @@
   },
   {
    "s": "Anda tidak akan lagi melihat aktivitas atau dapat bertransaksi dengan pengguna ini.",
+   "n": 1
+  },
+  {
+   "s": "Anda tidak memiliki akses untuk tindakan ini.",
    "n": 1
   },
   {
@@ -1099,10 +1123,6 @@
    "n": 1
   },
   {
-   "s": "berkas.",
-   "n": 1
-  },
-  {
    "s": "Berlaku langsung di seluruh aplikasi dan tersimpan pada akun Anda.",
    "n": 1
   },
@@ -1136,6 +1156,10 @@
   },
   {
    "s": "Biaya minimum",
+   "n": 1
+  },
+  {
+   "s": "Biaya Platform",
    "n": 1
   },
   {
@@ -1371,6 +1395,10 @@
    "n": 1
   },
   {
+   "s": "Cashback",
+   "n": 1
+  },
+  {
    "s": "Catatan penjual",
    "n": 1
   },
@@ -1459,10 +1487,6 @@
    "n": 1
   },
   {
-   "s": "Data bentrok dengan yang sudah ada.",
-   "n": 1
-  },
-  {
    "s": "Data Diri",
    "n": 1
   },
@@ -1480,6 +1504,10 @@
   },
   {
    "s": "Data terlalu panjang untuk QR",
+   "n": 1
+  },
+  {
+   "s": "Data tidak ditemukan.",
    "n": 1
   },
   {
@@ -1508,10 +1536,6 @@
   },
   {
    "s": "Detail Sengketa",
-   "n": 1
-  },
-  {
-   "s": "Dibatalkan",
    "n": 1
   },
   {
@@ -1624,6 +1648,10 @@
   },
   {
    "s": "Email terverifikasi",
+   "n": 1
+  },
+  {
+   "s": "Escrow Order",
    "n": 1
   },
   {
@@ -2027,6 +2055,10 @@
    "n": 1
   },
   {
+   "s": "Gunakan PIN",
+   "n": 1
+  },
+  {
    "s": "Halaman tidak dapat ditampilkan",
    "n": 1
   },
@@ -2164,10 +2196,6 @@
   },
   {
    "s": "Identitas pengguna tujuan tidak tersedia. Muat ulang halaman lalu coba lagi.",
-   "n": 1
-  },
-  {
-   "s": "Informasi",
    "n": 1
   },
   {
@@ -2376,6 +2404,10 @@
   },
   {
    "s": "Kebijakan Privasi",
+   "n": 1
+  },
+  {
+   "s": "Kedaluwarsa",
    "n": 1
   },
   {
@@ -3163,6 +3195,10 @@
    "n": 1
   },
   {
+   "s": "Metode sedang tidak tersedia",
+   "n": 1
+  },
+  {
    "s": "Metode top-up sedang tidak tersedia. Coba lagi nanti.",
    "n": 1
   },
@@ -3495,6 +3531,10 @@
    "n": 1
   },
   {
+   "s": "Penarikan",
+   "n": 1
+  },
+  {
    "s": "Penarikan berhasil",
    "n": 1
   },
@@ -3508,6 +3548,10 @@
   },
   {
    "s": "Penawaran, voucher, dan pembaruan fitur.",
+   "n": 1
+  },
+  {
+   "s": "Pencairan Order",
    "n": 1
   },
   {
@@ -3623,6 +3667,10 @@
    "n": 1
   },
   {
+   "s": "Perangkat tidak dikenal",
+   "n": 1
+  },
+  {
    "s": "Perbarui aplikasi",
    "n": 1
   },
@@ -3679,6 +3727,10 @@
    "n": 1
   },
   {
+   "s": "Permintaan dibatalkan.",
+   "n": 1
+  },
+  {
    "s": "Permintaan diterima",
    "n": 1
   },
@@ -3716,6 +3768,14 @@
   },
   {
    "s": "Permintaan terkirim",
+   "n": 1
+  },
+  {
+   "s": "Permintaan tidak dapat diproses.",
+   "n": 1
+  },
+  {
+   "s": "Permintaan tidak valid.",
    "n": 1
   },
   {
@@ -3943,10 +4003,6 @@
    "n": 1
   },
   {
-   "s": "Promosi",
-   "n": 1
-  },
-  {
    "s": "Punya kode dari teman?",
    "n": 1
   },
@@ -3964,6 +4020,10 @@
   },
   {
    "s": "Referensi",
+   "n": 1
+  },
+  {
+   "s": "Refund",
    "n": 1
   },
   {
@@ -3996,6 +4056,10 @@
   },
   {
    "s": "Reset Password",
+   "n": 1
+  },
+  {
+   "s": "Respons server tidak dapat dibaca.",
    "n": 1
   },
   {
@@ -4183,6 +4247,14 @@
    "n": 1
   },
   {
+   "s": "Server terlalu lama merespons. Coba lagi sebentar.",
+   "n": 1
+  },
+  {
+   "s": "Sesi Anda telah berakhir. Silakan masuk kembali.",
+   "n": 1
+  },
+  {
    "s": "Sesi belum dapat dipulihkan",
    "n": 1
   },
@@ -4295,6 +4367,10 @@
    "n": 1
   },
   {
+   "s": "Status metode belum terkonfirmasi",
+   "n": 1
+  },
+  {
    "s": "Status order, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
    "n": 1
   },
@@ -4320,6 +4396,10 @@
   },
   {
    "s": "Subjek",
+   "n": 1
+  },
+  {
+   "s": "Sudah diterima",
    "n": 1
   },
   {
@@ -4583,11 +4663,23 @@
    "n": 1
   },
   {
+   "s": "Terjadi gangguan di server kami. Coba lagi nanti.",
+   "n": 1
+  },
+  {
+   "s": "Terjadi kesalahan. Coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Terlalu banyak percobaan gagal. Coba lagi nanti.",
    "n": 1
   },
   {
    "s": "Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
    "n": 1
   },
   {
@@ -4600,6 +4692,10 @@
   },
   {
    "s": "Terverifikasi",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
    "n": 1
   },
   {
@@ -4691,6 +4787,10 @@
    "n": 1
   },
   {
+   "s": "Topup",
+   "n": 1
+  },
+  {
    "s": "Total transaksi selesai",
    "n": 1
   },
@@ -4720,6 +4820,14 @@
   },
   {
    "s": "Transfer Dana",
+   "n": 1
+  },
+  {
+   "s": "Transfer Keluar",
+   "n": 1
+  },
+  {
+   "s": "Transfer Masuk",
    "n": 1
   },
   {
@@ -4820,6 +4928,10 @@
   },
   {
    "s": "Ubah PIN",
+   "n": 1
+  },
+  {
+   "s": "Ukuran berkas terlalu besar.",
    "n": 1
   },
   {

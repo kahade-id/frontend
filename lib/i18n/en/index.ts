@@ -27,6 +27,7 @@
  * kamus tidak boleh membengkak oleh entri no-op; fallback sudah benar.
  */
 import auth from "./auth.json"
+import errors from "./errors.json"
 import labels from "./labels.json"
 import screens1 from "./screens-1.json"
 import screens2 from "./screens-2.json"
@@ -55,4 +56,7 @@ export const EN: Dict = {
   ...screens4,
   ...screens5,
   ...screens6,
+  // Pesan error & label status dari peta di lib/ — yang paling sering muncul
+  // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
+  ...errors,
 }
