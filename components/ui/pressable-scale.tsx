@@ -41,7 +41,7 @@ import {
 } from "react-native"
 
 import { cn } from "@/lib/cn"
-import { useOverlayAwarePressable } from "@/components/ui/gesture-pressable"
+import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { haptic as fireHaptic, type HapticKind } from "@/lib/haptics"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -77,7 +77,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   // bawaan bisa tidak memanggil onPress karena responder region-nya diukur
   // dari shadow tree yang basi pasca-animasi (RN #51621); hook ini menukarnya
   // dengan GesturePressable (target dari view native). Web tidak berubah.
-  const PressableComponent = useOverlayAwarePressable()
+  const PressableComponent = useTransformAwarePressable()
 
   const scale = useRef(new Animated.Value(1)).current
   // Reduce Motion (audit #2): scale press adalah gerakan non-esensial ->

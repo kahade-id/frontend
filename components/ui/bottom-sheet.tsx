@@ -75,7 +75,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { IconButton } from "@/components/ui/icon-button"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
-import { InsideReanimatedOverlayContext } from "@/components/ui/overlay-pressable-context"
+import { InsideReanimatedTransformContext } from "@/components/ui/reanimated-pressable-context"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
@@ -301,8 +301,8 @@ export function BottomSheet({
     // Provider melingkupi SELURUH kartu (header X, konten, footer): semua
     // PressableScale di dalamnya memakai GesturePressable di native agar
     // tetap bisa ditekan setelah animasi Reanimated (lihat
-    // overlay-pressable-context.ts — Fabric Android, RN #51621).
-    <InsideReanimatedOverlayContext.Provider value={true}>
+    // reanimated-pressable-context.ts — Fabric Android, RN #51621).
+    <InsideReanimatedTransformContext.Provider value={true}>
       <View
         ref={sheetRef}
         onLayout={handleLayout}
@@ -344,7 +344,7 @@ export function BottomSheet({
           <SafeAreaSpacer min={4} />
         )}
       </View>
-    </InsideReanimatedOverlayContext.Provider>
+    </InsideReanimatedTransformContext.Provider>
   )
 
   return (

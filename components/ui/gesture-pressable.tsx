@@ -1,9 +1,10 @@
 /**
- * Kahade — <GesturePressable> + useOverlayAwarePressable().
+ * Kahade — <GesturePressable> + useTransformAwarePressable().
  *
  * Pressable react-native-gesture-handler yang sudah di-interop NativeWind,
- * dipakai HANYA di dalam overlay bergerak Reanimated (lihat
- * overlay-pressable-context.ts). RNGH Pressable dibangun di atas
+ * dipakai HANYA di dalam subtree ber-transform Reanimated (lihat
+ * reanimated-pressable-context.ts: BottomSheet, SwipeableListItem terbuka).
+ * RNGH Pressable dibangun di atas
  * `Gesture.Native()` (NativeViewGestureHandler): target sentuh dihitung dari
  * hierarki VIEW NATIVE, bukan `UIManager.measure` shadow tree yang basi
  * setelah animasi Reanimated di UI thread (facebook/react-native#51621).
@@ -31,7 +32,7 @@ import { Platform, Pressable, type PressableProps } from "react-native"
 import { cssInterop } from "nativewind"
 import { Pressable as RNGHPressable } from "react-native-gesture-handler"
 
-import { InsideReanimatedOverlayContext } from "@/components/ui/overlay-pressable-context"
+import { InsideReanimatedTransformContext } from "@/components/ui/reanimated-pressable-context"
 
 /**
  * Tipenya disamakan dengan Pressable bawaan RN. RNGH Pressable kompatibel
@@ -47,14 +48,13 @@ export type GesturePressableProps = PressableProps
 
 /**
  * Mengembalikan GesturePressable hanya saat komponen dirender di dalam
- * BottomSheet pada perangkat native; selain itu Pressable bawaan RN.
- * Dipakai oleh PressableScale (tombol/baris di seluruh sheet memakainya,
- * termasuk ActionSheet dan Select/BankSelect). Primitif mentah lain seperti
- * Switch tidak membutuhkannya karena elemen yang ditekan tidak berada di
- * dalam view yang ditranslasikan Reanimated.
+ * subtree ber-transform Reanimated pada perangkat native; selain itu
+ * Pressable bawaan RN. Dipakai oleh PressableScale (seluruh tombol/baris di
+ * BottomSheet — ActionSheet, Select/BankSelect, PinPad, form — dan baris
+ * SwipeableListItem yang tersnap) serta ikon clear/secure di <Input>.
  */
-export function useOverlayAwarePressable(): typeof Pressable {
-  const insideReanimatedOverlay = useContext(InsideReanimatedOverlayContext)
+export function useTransformAwarePressable(): typeof Pressable {
+  const insideReanimatedOverlay = useContext(InsideReanimatedTransformContext)
   // Web tetap memakai Pressable RNW (lihat catatan file): bug Fabric hanya di
   // native.
   return insideReanimatedOverlay && Platform.OS !== "web"

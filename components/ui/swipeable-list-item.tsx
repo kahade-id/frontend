@@ -59,6 +59,7 @@ import Animated, {
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
+import { InsideReanimatedTransformContext } from "@/components/ui/reanimated-pressable-context"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
@@ -260,7 +261,14 @@ export function SwipeableListItem({
 
       <GestureDetector gesture={pan}>
         <Animated.View style={rowStyle}>
-          <View className="w-full bg-background">{children}</View>
+          {/* Baris ber-translate Reanimated & bisa tersnap pada posisi
+              non-identitas (terbuka): di Fabric Android responder region
+              Pressable bawaan akan basi (RN #51621), jadi anak-anaknya
+              memakai GesturePressable via context ini. Tombol aksi di
+              belakang tidak dibungkus karena posisinya statis. */}
+          <InsideReanimatedTransformContext.Provider value={true}>
+            <View className="w-full bg-background">{children}</View>
+          </InsideReanimatedTransformContext.Provider>
         </Animated.View>
       </GestureDetector>
     </View>

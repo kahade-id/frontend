@@ -41,7 +41,6 @@ import {
   Animated,
   Easing,
   Platform,
-  Pressable,
   TextInput,
   View,
   type TextInputProps,
@@ -49,6 +48,7 @@ import {
 
 import { useTheme } from "@/components/theme-provider"
 import { Field, type FieldProps } from "@/components/ui/field"
+import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -121,6 +121,10 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
 ) {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
+  // Ikon clear/secure/right di dalam sheet Reanimated memakai Pressable
+  // berbasis native view (lihat gesture-pressable.tsx) agar tetap ditekan di
+  // Android Fabric; di luar sheet & di web tidak berubah.
+  const Pressable = useTransformAwarePressable()
   // Placeholder & label aksesibilitas melewati BATAS native (RN TextInput
   // membacanya sebagai string, bukan sebagai anak <Text>), jadi di sinilah
   // kamus harus dipasang. `useLanguage()` membuat field ini ikut ter-render

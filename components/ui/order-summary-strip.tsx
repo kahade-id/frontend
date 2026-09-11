@@ -24,7 +24,9 @@
  *     logika Chip selected §9.25, bukan border tebal — lebih terbaca saat
  *     scroll cepat.
  */
+import { useMemo } from "react"
 import { ScrollView, View, type ViewProps } from "react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
 
 import { Amount } from "@/components/ui/amount"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -77,6 +79,10 @@ export function OrderSummaryStrip({
   ...rest
 }: OrderSummaryStripProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
+  // Strip horizontal bisa berada di dalam PullToRefresh (detail order):
+  // daftarkan ke RNGH agar geser horizontal tidak dikunci induk vertikal
+  // (lihat scroll-row.tsx).
+  const nativeGesture = useMemo(() => Gesture.Native(), [])
 
   if (loading) {
     return (
@@ -89,6 +95,7 @@ export function OrderSummaryStrip({
   }
 
   return (
+    <GestureDetector gesture={nativeGesture} touchAction="pan-x">
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
@@ -148,5 +155,6 @@ export function OrderSummaryStrip({
         )
       })}
     </ScrollView>
+    </GestureDetector>
   )
 }

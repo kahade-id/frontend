@@ -25,7 +25,9 @@
  *     bersentuhan dan duduk di atas garis dasar, ring luar akan menabrak
  *     tetangga/garis; inset menjaga ring di dalam kotak tab.
  */
+import { useMemo } from "react"
 import { ScrollView, View, type ViewProps } from "react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -59,6 +61,9 @@ export function Tabs<V extends string = string>({
   className,
   ...rest
 }: TabsProps<V>) {
+  // Tab strip scrollable bisa berada di dalam PullToRefresh (profil user):
+  // daftarkan ke RNGH agar geser horizontal tidak dikunci induk vertikal.
+  const nativeGesture = useMemo(() => Gesture.Native(), [])
   const row = (
     <View
       accessibilityRole="tablist"
@@ -112,8 +117,10 @@ export function Tabs<V extends string = string>({
   if (!scrollable) return row
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} className="w-full">
-      {row}
-    </ScrollView>
+    <GestureDetector gesture={nativeGesture} touchAction="pan-x">
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} className="w-full">
+        {row}
+      </ScrollView>
+    </GestureDetector>
   )
 }

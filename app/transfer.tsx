@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage, type TransferDto } from "@/lib/api"
 import { formatRupiah } from "@/lib/format"
+import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
@@ -233,6 +234,7 @@ export default function TransferScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               keyboardDismissMode="on-drag"
+              {...dismissKeyboardOnDragProps}
               contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] + 80 }}
             >
               <FadeIn duration="fast">
@@ -349,6 +351,7 @@ export default function TransferScreen() {
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               keyboardDismissMode="on-drag"
+              {...dismissKeyboardOnDragProps}
             >
               <FadeIn duration="fast">
                 <View className="gap-4">

@@ -283,37 +283,30 @@ rules.push({
  *   c. `<PullToRefresh>` memakai RNGH/Reanimated di jalur scroll.
  *      Insiden force-close menunjukkan bahwa touch callback UI-thread +
  *      synchronous state manager native berada di luar React ErrorBoundary.
- *      Gesture custom produk tetap boleh, tetapi wajib memakai PanResponder +
- *      Animated RN di JS thread, tanpa GestureDetector/worklet/stateManager.
- *      Pengecualian (audit paritas 2026-09-11): `RefreshControl` native
- *      SwipeRefreshLayout WAJIB di Android karena PanResponder JS tidak bisa
- *      merebut gesture dari ScrollView native yang kontennya memenuhi layar
- *      (RN #25226). Pengecualian hanya sah bila RefreshControl dirender di
- *      dalam cabang `if (Platform.OS === "android")` — web/iOS tetap memakai
- *      PullGestureSurface.
+ *      Gesture custom jalur web/iOS tetap memakai PanResponder + Animated RN
+ *      di JS thread, tanpa GestureDetector/worklet/manualActivation.
+ *      Pengecualian (audit paritas 2026-09-11): jalur Android WAJIB RNGH
+ *      karena PanResponder JS tidak bisa merebut gesture dari ScrollView
+ *      native yang kontennya memenuhi layar (RN #25226). Pola yang diizinkan
+ *      PERSIS pola resmi RNGH — `Gesture.Native()` membungkus scroller,
+ *      `Gesture.Pan()` dengan `.simultaneousWithExternalGesture(native)`,
+ *      `touchAction` dipatok, dan TANPA manualActivation/stateManager.
+ *      ScrollView horizontal di dalamnya juga wajib Gesture.Native() sendiri
+ *      (scroll-row, promo-carousel, order-summary-strip, tabs).
  *
  * Aturan ini tidak punya baseline: tidak ada layar/komponen yang boleh
  * melakukannya, sekarang maupun nanti.
  */
 /**
- * True bila ada `refreshControl=` yang TIDAK berada di dalam blok
- * `if (Platform.OS === "android")`. Penghitung kurung kurawal sederhana
- * per-baris — cukup untuk struktur file pull-to-refresh.tsx.
+ * RNGH di jalur pull-to-refresh hanya sah bila komposisi resminya lengkap
+ * dan tanpa manualActivation (sumber force-close sebelumnya).
  */
-function nativeRefreshOutsideAndroidBranch(src) {
-  let depth = 0
-  const gateDepths = new Set()
-  for (const line of src.split("\n")) {
-    const opens = (line.match(/{/g) ?? []).length
-    const closes = (line.match(/}/g) ?? []).length
-    if (/refreshControl=/.test(line) && gateDepths.size === 0) return true
-    if (/if\s*\(\s*Platform\.OS\s*===\s*["']android["']\s*\)/.test(line)) {
-      gateDepths.add(depth + opens)
-    }
-    depth += opens - closes
-    for (const d of [...gateDepths]) if (depth < d) gateDepths.delete(d)
-  }
-  return false
+function safeNativePullGesture(src) {
+  return (
+    /Gesture\.Native\(\)/.test(src) &&
+    /\.simultaneousWithExternalGesture\(/.test(src) &&
+    !/manualActivation|stateManager\.(?:activate|fail)/.test(src)
+  )
 }
 const gestureHosts = [...walk(join(root, "components")), ...walk(join(root, "lib"))]
   .filter((p) => /\.tsx?$/.test(p))
@@ -329,10 +322,11 @@ rules.push({
     (/<GestureDetector/.test(f.src) &&
       /<(?:Animated\.)?[A-Za-z]*ScrollView\b/.test(f.src) &&
       !/touchAction=/.test(f.src)) ||
+    // RNGH di pull-to-refresh hanya sah dengan komposisi resmi
+    // (lihat safeNativePullGesture); PanResponder+Animated tetap default.
     (f.path.endsWith("/pull-to-refresh.tsx") &&
-      (/react-native-(?:gesture-handler|reanimated)/.test(f.src) ||
-        // RefreshControl native diizinkan HANYA di dalam cabang Android.
-        nativeRefreshOutsideAndroidBranch(f.src))),
+      /react-native-(?:gesture-handler|reanimated)/.test(f.src) &&
+      !safeNativePullGesture(f.src)),
   baseline: [],
 })
 

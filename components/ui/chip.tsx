@@ -30,8 +30,9 @@
  */
 import { X } from "phosphor-react-native"
 import type { ReactNode } from "react"
-import { Pressable, View, type ViewProps } from "react-native"
+import { View, type ViewProps } from "react-native"
 
+import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale, type PressableScaleProps } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -60,6 +61,10 @@ export function Chip({
   containerClassName,
   ...rest
 }: ChipProps) {
+  // Ikon X bisa berada di dalam BottomSheet ber-transform Reanimated: di
+  // Fabric Android Pressable mentah akan basi region-nya (lihat
+  // reanimated-pressable-context.ts), jadi ikut hook ini.
+  const Pressable = useTransformAwarePressable()
   return (
     <PressableScale
       accessibilityRole="button"

@@ -42,6 +42,7 @@ import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { useOverlayFocus, type A11yNodeRef } from "@/lib/use-overlay-focus"
+import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
 
 export type SearchOverlayProps = Pick<SearchFieldProps, "placeholder" | "onSearch" | "debounceMs"> & {
   visible: boolean
@@ -129,6 +130,7 @@ export function SearchOverlay({
             <ScrollView
               keyboardShouldPersistTaps="handled"
               keyboardDismissMode="on-drag"
+              {...dismissKeyboardOnDragProps}
               contentContainerClassName="pb-8"
             >
               {loading ? (
