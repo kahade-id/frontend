@@ -30,6 +30,7 @@ import { Chip } from "@/components/ui/chip"
 import { Field, type FieldProps } from "@/components/ui/field"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translateProp, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 
 export type TagInputProps = Omit<ViewProps, "children"> &
@@ -68,6 +69,8 @@ export function TagInput({
   const inputRef = useRef<TextInput>(null)
   const [draft, setDraft] = useState("")
   const [focused, setFocused] = useState(false)
+  // Placeholder dibaca langsung oleh TextInput native → kamus + langganan bahasa.
+  useLanguage()
 
   const full = maxTags != null && value.length >= maxTags
   const hasError = !!errorText
@@ -142,7 +145,7 @@ export function TagInput({
             ref={inputRef}
             value={draft}
             editable={!disabled}
-            placeholder={value.length === 0 ? placeholder : undefined}
+            placeholder={translateProp(value.length === 0 ? placeholder : undefined)}
             placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}

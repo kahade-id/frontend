@@ -50,6 +50,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
+import { translateProp, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 
 export const CHAT_MESSAGE_MAX = 2000
@@ -135,6 +136,8 @@ export function ChatComposer({
   ...rest
 }: ChatComposerProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
+  // Placeholder dibaca langsung oleh TextInput native → kamus + langganan bahasa.
+  useLanguage()
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
   const [focused, setFocused] = useState(false)
@@ -232,7 +235,7 @@ export function ChatComposer({
             onChangeText={(next) => onChangeText(next.slice(0, maxLength))}
             multiline
             editable={!disabled && !sending}
-            placeholder={t.placeholder}
+            placeholder={translateProp(t.placeholder)}
             placeholderTextColor={palette.textSecondary}
             selectionColor={palette.primary}
             cursorColor={palette.primary}
@@ -241,7 +244,7 @@ export function ChatComposer({
             onBlur={() => setFocused(false)}
             onKeyPress={onKeyPress}
             blurOnSubmit={false}
-            accessibilityLabel={t.placeholder}
+            accessibilityLabel={translateProp(t.placeholder)}
             className={cn(
               "flex-1 py-[11px] font-sans-400 text-bodyLarge text-text-primary",
               Platform.OS === "web" && "outline-none",
@@ -263,7 +266,7 @@ export function ChatComposer({
           variant="primary"
           size="md"
           weight="fill"
-          accessibilityLabel={t.send}
+          accessibilityLabel={translateProp(t.send) ?? t.send}
           onPress={submit}
           disabled={!ready}
           loading={sending}

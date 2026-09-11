@@ -31,6 +31,7 @@ import { Field, type FieldProps } from "@/components/ui/field"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translateProp, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 
 export const PHONE_ID_PREFIX = "+62"
@@ -96,6 +97,8 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
   ref,
 ) {
   const { mode } = useTheme()
+  // Placeholder/a11y label lewat batas native → butuh kamus + langganan bahasa.
+  useLanguage()
   const palette = tokens.colors[mode]
   const [focused, setFocused] = useState(false)
   const hasError = !!errorText
@@ -166,7 +169,7 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
           textContentType="telephoneNumber"
           // 12 digit + 2 tanda hubung
           maxLength={MAX_NATIONAL_DIGITS + 2}
-          placeholder={placeholder}
+          placeholder={translateProp(placeholder)}
           placeholderTextColor={palette.textSecondary}
           selectionColor={palette.primary}
           cursorColor={palette.primary}
@@ -174,7 +177,7 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
           onFocus={handleFocus}
           onBlur={handleBlur}
           onChangeText={handleChange}
-          accessibilityLabel={label}
+          accessibilityLabel={translateProp(label)}
           accessibilityState={{ disabled }}
           className={cn(
             "flex-1 font-mono-500 text-monoBody text-text-primary",

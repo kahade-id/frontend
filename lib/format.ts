@@ -14,6 +14,7 @@
  * format default; implementasi manual berbasis regex deterministik di semua
  * platform dan cukup untuk Rupiah bulat (§13: tidak ada desimal).
  */
+import { getLanguage } from "@/lib/i18n/store"
 
 const MONTHS_ID = [
   "Jan",
@@ -44,6 +45,67 @@ const MONTHS_ID_LONG = [
   "Desember",
 ]
 const DAYS_ID = ["Minggu", "Senin", "Selasa", "Rabu", "Kamis", "Jumat", "Sabtu"]
+
+/**
+ * Nama bulan & hari pengikut bahasa aktif (§13 menjaga URUTAN dan bentuk
+ * eksplisit, kamus yang mengganti namanya). "Mei" → "May", "Rabu" → "Wednesday".
+ *
+ * Kenapa TIDAK `Intl.DateTimeFormat("en-US")`: §13 menuntut "3 Sep 2026,
+ * 14:30" — tanggal dulu, tanpa comma setelah bulan, TANPA relative time.
+ * Intl menata ulang urutan per locale dan di Hermes (Android) dukungan Intl
+ * bergantung engine; tabel eksplisit deterministik di semua platform.
+ */
+const MONTHS_EN = [
+  "Jan",
+  "Feb",
+  "Mar",
+  "Apr",
+  "May",
+  "Jun",
+  "Jul",
+  "Aug",
+  "Sep",
+  "Oct",
+  "Nov",
+  "Dec",
+]
+const MONTHS_EN_LONG = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+]
+const DAYS_EN = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+]
+
+function monthNames(long: boolean): readonly string[] {
+  return getLanguage() === "en"
+    ? long
+      ? MONTHS_EN_LONG
+      : MONTHS_EN
+    : long
+      ? MONTHS_ID_LONG
+      : MONTHS_ID
+}
+
+function dayNames(): readonly string[] {
+  return getLanguage() === "en" ? DAYS_EN : DAYS_ID
+}
 
 /** 1000000 -> "1.000.000" (tanpa prefix) */
 export function groupThousands(n: number): string {
@@ -245,7 +307,7 @@ function pad2(n: number) {
 export function formatDate(d: Date | number | string, opts: { long?: boolean } = {}): string {
   const date = displayDate(d)
   if (!date) return "—"
-  const month = opts.long ? MONTHS_ID_LONG[date.getMonth()] : MONTHS_ID[date.getMonth()]
+  const month = monthNames(!!opts.long)[date.getMonth()]
   return `${date.getDate()} ${month} ${date.getFullYear()}`
 }
 
@@ -265,7 +327,7 @@ export function formatDateTime(d: Date | number | string): string {
 export function formatDateLong(d: Date | number | string): string {
   const date = displayDate(d)
   if (!date) return "—"
-  return `${DAYS_ID[date.getDay()]}, ${formatDate(date, { long: true })}`
+  return `${dayNames()[date.getDay()]}, ${formatDate(date, { long: true })}`
 }
 
 /** Sisa waktu detik -> "04:59" atau "1:04:59" (countdown OTP/lockout/deadline) */

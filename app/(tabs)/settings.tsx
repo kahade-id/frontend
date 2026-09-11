@@ -6,7 +6,7 @@
  *    judul (`titleVariant="bodyLarge"` = 16/26 weight 600), bukan teks kedua
  *    yang membuat layar ramai dan memaksa baris jadi dua kali lebih tinggi.
  *  - Pengecualian: teks di KANAN baris tetap ada karena itu STATUS, bukan
- *    penjelasan — Tampilan (Sistem/Terang/Gelap), Bahasa (Indonesia),
+ *    penjelasan — Tampilan (Sistem/Terang/Gelap), Bahasa (bahasa aktif),
  *    Versi Aplikasi (vX.Y.Z), dan badge langganan.
  *  - Kartu cukup LATAR (`bg-surface`) + `rounded-md`, tanpa border dan tanpa
  *    pemisah antar baris. Kelompok ditandai label kecil + jarak + sudut
@@ -67,6 +67,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
+import { languageLabel, useLanguage } from "@/lib/i18n"
 import { installedAppVersion } from "@/lib/runtime-info"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -163,6 +164,7 @@ function MenuGroupLabel({ children }: { children: string }) {
 export default function SettingsScreen() {
   const toast = useToast()
   const { preference } = useTheme()
+  const language = useLanguage()
 
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -235,7 +237,16 @@ export default function SettingsScreen() {
       icon: Bell,
       route: ROUTES.notificationPreferences,
     },
-    { id: "language", label: "Bahasa", icon: Translate, route: ROUTES.language, trailing: "Indonesia" },
+    {
+      id: "language",
+      label: "Bahasa",
+      icon: Translate,
+      route: ROUTES.language,
+      // Status baris = bahasa yang SEDANG aktif, bukan teks tetap. Dulu
+      // hardcode "Indonesia", jadi memilih English di /language tidak mengubah
+      // apa pun yang terlihat — gejala yang dilaporkan: "cuma ada Indonesia".
+      trailing: languageLabel(language),
+    },
     {
       id: "app-version",
       label: "Versi Aplikasi",

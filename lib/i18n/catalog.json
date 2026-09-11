@@ -1,0 +1,5142 @@
+{
+ "generatedBy": "scripts/gen-i18n-catalog.mjs",
+ "sourceLanguage": "id",
+ "strings": [
+  {
+   "s": "Batal",
+   "n": 38
+  },
+  {
+   "s": "Gagal memuat",
+   "n": 26
+  },
+  {
+   "s": "Hapus",
+   "n": 18
+  },
+  {
+   "s": "Kembali",
+   "n": 9
+  },
+  {
+   "s": "Password akun",
+   "n": 7
+  },
+  {
+   "s": "Transaksi",
+   "n": 6
+  },
+  {
+   "s": "Lanjutkan",
+   "n": 5
+  },
+  {
+   "s": "Masuk",
+   "n": 5
+  },
+  {
+   "s": "Pesan",
+   "n": 5
+  },
+  {
+   "s": "Semua",
+   "n": 5
+  },
+  {
+   "s": "Simpan",
+   "n": 5
+  },
+  {
+   "s": "Akses galeri ditolak",
+   "n": 4
+  },
+  {
+   "s": "Email",
+   "n": 4
+  },
+  {
+   "s": "Keamanan",
+   "n": 4
+  },
+  {
+   "s": "Lainnya",
+   "n": 4
+  },
+  {
+   "s": "Lanjut",
+   "n": 4
+  },
+  {
+   "s": "Notifikasi",
+   "n": 4
+  },
+  {
+   "s": "Order Link",
+   "n": 4
+  },
+  {
+   "s": "Sengketa",
+   "n": 4
+  },
+  {
+   "s": "Tidak bisa membagikan",
+   "n": 4
+  },
+  {
+   "s": "Tutup",
+   "n": 4
+  },
+  {
+   "s": "Ulasan",
+   "n": 4
+  },
+  {
+   "s": "Voucher",
+   "n": 4
+  },
+  {
+   "s": "{x} dari {x}",
+   "n": 3
+  },
+  {
+   "s": "{x} hari",
+   "n": 3
+  },
+  {
+   "s": "Aktif",
+   "n": 3
+  },
+  {
+   "s": "Ambil foto",
+   "n": 3
+  },
+  {
+   "s": "Buat transaksi",
+   "n": 3
+  },
+  {
+   "s": "Bukti pengiriman",
+   "n": 3
+  },
+  {
+   "s": "Catatan",
+   "n": 3
+  },
+  {
+   "s": "Deskripsi",
+   "n": 3
+  },
+  {
+   "s": "Detail Order",
+   "n": 3
+  },
+  {
+   "s": "Dompet",
+   "n": 3
+  },
+  {
+   "s": "Gagal memuat profil",
+   "n": 3
+  },
+  {
+   "s": "Gagal menghapus",
+   "n": 3
+  },
+  {
+   "s": "Gagal mengunggah foto",
+   "n": 3
+  },
+  {
+   "s": "Gagal menyimpan",
+   "n": 3
+  },
+  {
+   "s": "Invoice",
+   "n": 3
+  },
+  {
+   "s": "Isi saldo",
+   "n": 3
+  },
+  {
+   "s": "Izin galeri ditolak",
+   "n": 3
+  },
+  {
+   "s": "Izin kamera ditolak",
+   "n": 3
+  },
+  {
+   "s": "Jenis",
+   "n": 3
+  },
+  {
+   "s": "Judul",
+   "n": 3
+  },
+  {
+   "s": "Keluar",
+   "n": 3
+  },
+  {
+   "s": "Kode cadangan",
+   "n": 3
+  },
+  {
+   "s": "Kode referral",
+   "n": 3
+  },
+  {
+   "s": "Masukkan kode verifikasi",
+   "n": 3
+  },
+  {
+   "s": "Nilai transaksi",
+   "n": 3
+  },
+  {
+   "s": "Notifikasi belum dapat dihapus",
+   "n": 3
+  },
+  {
+   "s": "Order",
+   "n": 3
+  },
+  {
+   "s": "Password baru",
+   "n": 3
+  },
+  {
+   "s": "Pembayar biaya",
+   "n": 3
+  },
+  {
+   "s": "Pengikut",
+   "n": 3
+  },
+  {
+   "s": "Pertanyaan dihapus",
+   "n": 3
+  },
+  {
+   "s": "Pilih dari galeri",
+   "n": 3
+  },
+  {
+   "s": "Portofolio",
+   "n": 3
+  },
+  {
+   "s": "Riwayat",
+   "n": 3
+  },
+  {
+   "s": "Tambah rekening",
+   "n": 3
+  },
+  {
+   "s": "Tanya Jawab",
+   "n": 3
+  },
+  {
+   "s": "Terima",
+   "n": 3
+  },
+  {
+   "s": "Verifikasi",
+   "n": 3
+  },
+  {
+   "s": "Verifikasi dua langkah",
+   "n": 3
+  },
+  {
+   "s": "{x}–{x} karakter, huruf kecil/angka/._",
+   "n": 2
+  },
+  {
+   "s": "Ajukan perpanjangan",
+   "n": 2
+  },
+  {
+   "s": "Ajukan sengketa",
+   "n": 2
+  },
+  {
+   "s": "Aktifkan di pengaturan perangkat.",
+   "n": 2
+  },
+  {
+   "s": "Akun",
+   "n": 2
+  },
+  {
+   "s": "Bahasa",
+   "n": 2
+  },
+  {
+   "s": "Balasan terkirim",
+   "n": 2
+  },
+  {
+   "s": "Batalkan pesanan",
+   "n": 2
+  },
+  {
+   "s": "Belum ada foto sampul",
+   "n": 2
+  },
+  {
+   "s": "Belum ada pertanyaan",
+   "n": 2
+  },
+  {
+   "s": "Belum ada rekening",
+   "n": 2
+  },
+  {
+   "s": "Belum ada riwayat",
+   "n": 2
+  },
+  {
+   "s": "Belum ada ulasan",
+   "n": 2
+  },
+  {
+   "s": "Beri ulasan",
+   "n": 2
+  },
+  {
+   "s": "Bertanya",
+   "n": 2
+  },
+  {
+   "s": "Biometrik",
+   "n": 2
+  },
+  {
+   "s": "Blokir pengguna",
+   "n": 2
+  },
+  {
+   "s": "Buat tautan baru",
+   "n": 2
+  },
+  {
+   "s": "Buat template",
+   "n": 2
+  },
+  {
+   "s": "Buat Transaksi",
+   "n": 2
+  },
+  {
+   "s": "Buka profil",
+   "n": 2
+  },
+  {
+   "s": "Cara membuat",
+   "n": 2
+  },
+  {
+   "s": "Chat",
+   "n": 2
+  },
+  {
+   "s": "Coba lagi",
+   "n": 2
+  },
+  {
+   "s": "Daftar",
+   "n": 2
+  },
+  {
+   "s": "Data bentrok dengan yang sudah ada.",
+   "n": 2
+  },
+  {
+   "s": "Detail Notifikasi",
+   "n": 2
+  },
+  {
+   "s": "Dibatalkan",
+   "n": 2
+  },
+  {
+   "s": "Diterima",
+   "n": 2
+  },
+  {
+   "s": "Edit Profil",
+   "n": 2
+  },
+  {
+   "s": "Email baru",
+   "n": 2
+  },
+  {
+   "s": "Email diperbarui",
+   "n": 2
+  },
+  {
+   "s": "Foto profil",
+   "n": 2
+  },
+  {
+   "s": "Gagal",
+   "n": 2
+  },
+  {
+   "s": "Gagal memblokir pengguna",
+   "n": 2
+  },
+  {
+   "s": "Gagal memuat komentar",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengirim komentar",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengirim pertanyaan",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengirim pesan",
+   "n": 2
+  },
+  {
+   "s": "Ganti Email",
+   "n": 2
+  },
+  {
+   "s": "Ganti Nomor HP",
+   "n": 2
+  },
+  {
+   "s": "Hapus Akun",
+   "n": 2
+  },
+  {
+   "s": "Hapus notifikasi",
+   "n": 2
+  },
+  {
+   "s": "Huruf besar dan kecil",
+   "n": 2
+  },
+  {
+   "s": "Informasi",
+   "n": 2
+  },
+  {
+   "s": "Jasa desain logo",
+   "n": 2
+  },
+  {
+   "s": "Jelajahi",
+   "n": 2
+  },
+  {
+   "s": "Kahade",
+   "n": 2
+  },
+  {
+   "s": "Kembali ke dompet",
+   "n": 2
+  },
+  {
+   "s": "Kirim kode",
+   "n": 2
+  },
+  {
+   "s": "Kirim kode melalui",
+   "n": 2
+  },
+  {
+   "s": "Kirim Pertanyaan",
+   "n": 2
+  },
+  {
+   "s": "Kode {x} digit telah dikirim ke",
+   "n": 2
+  },
+  {
+   "s": "Kode aplikasi autentikator",
+   "n": 2
+  },
+  {
+   "s": "Komentar dihapus",
+   "n": 2
+  },
+  {
+   "s": "Komentar terkirim",
+   "n": 2
+  },
+  {
+   "s": "Langganan",
+   "n": 2
+  },
+  {
+   "s": "Laporan & Analitik",
+   "n": 2
+  },
+  {
+   "s": "Laporan saya",
+   "n": 2
+  },
+  {
+   "s": "Lawan",
+   "n": 2
+  },
+  {
+   "s": "Lencana",
+   "n": 2
+  },
+  {
+   "s": "Lihat semua",
+   "n": 2
+  },
+  {
+   "s": "Lupa password?",
+   "n": 2
+  },
+  {
+   "s": "Memuat",
+   "n": 2
+  },
+  {
+   "s": "Mengandung angka",
+   "n": 2
+  },
+  {
+   "s": "Mengandung simbol",
+   "n": 2
+  },
+  {
+   "s": "Mengikuti",
+   "n": 2
+  },
+  {
+   "s": "Minimal {x} karakter",
+   "n": 2
+  },
+  {
+   "s": "Nama lengkap",
+   "n": 2
+  },
+  {
+   "s": "Nama pengguna",
+   "n": 2
+  },
+  {
+   "s": "Negatif",
+   "n": 2
+  },
+  {
+   "s": "Netral",
+   "n": 2
+  },
+  {
+   "s": "Nomor invoice disalin",
+   "n": 2
+  },
+  {
+   "s": "Nomor resi",
+   "n": 2
+  },
+  {
+   "s": "Opsional",
+   "n": 2
+  },
+  {
+   "s": "Pencarian",
+   "n": 2
+  },
+  {
+   "s": "Pengaturan",
+   "n": 2
+  },
+  {
+   "s": "Pengguna Diblokir",
+   "n": 2
+  },
+  {
+   "s": "Peran Anda",
+   "n": 2
+  },
+  {
+   "s": "Perangkat & Log",
+   "n": 2
+  },
+  {
+   "s": "Perbaiki alamat email",
+   "n": 2
+  },
+  {
+   "s": "Periksa kotak masuk {x}.",
+   "n": 2
+  },
+  {
+   "s": "Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.",
+   "n": 2
+  },
+  {
+   "s": "Pertanyaan terkirim",
+   "n": 2
+  },
+  {
+   "s": "Pilih beberapa",
+   "n": 2
+  },
+  {
+   "s": "Positif",
+   "n": 2
+  },
+  {
+   "s": "Promosi",
+   "n": 2
+  },
+  {
+   "s": "Referral",
+   "n": 2
+  },
+  {
+   "s": "Selesai",
+   "n": 2
+  },
+  {
+   "s": "Skor Kepercayaan",
+   "n": 2
+  },
+  {
+   "s": "Sudah punya akun?",
+   "n": 2
+  },
+  {
+   "s": "Tampilan",
+   "n": 2
+  },
+  {
+   "s": "Tarik",
+   "n": 2
+  },
+  {
+   "s": "Tautan disalin",
+   "n": 2
+  },
+  {
+   "s": "Tenggat",
+   "n": 2
+  },
+  {
+   "s": "Tipe Akun",
+   "n": 2
+  },
+  {
+   "s": "Tolak",
+   "n": 2
+  },
+  {
+   "s": "Tolak pesanan",
+   "n": 2
+  },
+  {
+   "s": "Ubah ulasan",
+   "n": 2
+  },
+  {
+   "s": "Unduh riwayat dompet CSV",
+   "n": 2
+  },
+  {
+   "s": "Unduh riwayat dompet untuk dicetak",
+   "n": 2
+  },
+  {
+   "s": "Verifikasi gagal",
+   "n": 2
+  },
+  {
+   "s": "Verifikasi PIN",
+   "n": 2
+  },
+  {
+   "s": "Versi Aplikasi",
+   "n": 2
+  },
+  {
+   "s": "WhatsApp",
+   "n": 2
+  },
+  {
+   "s": ". Masukkan kode dan buat password baru.",
+   "n": 1
+  },
+  {
+   "s": ". Pastikan Anda memiliki akses ke nomor:",
+   "n": 1
+  },
+  {
+   "s": ". Periksa detail transaksi untuk status terakhir.",
+   "n": 1
+  },
+  {
+   "s": ". Tarik untuk memuat ulang.",
+   "n": 1
+  },
+  {
+   "s": "· terbaru:",
+   "n": 1
+  },
+  {
+   "s": "{x} — segera hadir",
+   "n": 1
+  },
+  {
+   "s": "{x} dibuka blokirnya",
+   "n": 1
+  },
+  {
+   "s": "{x} mengikuti",
+   "n": 1
+  },
+  {
+   "s": "{x} sengketa perlu perhatianmu",
+   "n": 1
+  },
+  {
+   "s": "{x} tahun",
+   "n": 1
+  },
+  {
+   "s": "{x} transaksi · {x}",
+   "n": 1
+  },
+  {
+   "s": "{x} transaksi sedang berjalan",
+   "n": 1
+  },
+  {
+   "s": "{x} ulasan",
+   "n": 1
+  },
+  {
+   "s": "{x}% ke pembeli",
+   "n": 1
+  },
+  {
+   "s": "@{x} di Kahade",
+   "n": 1
+  },
+  {
+   "s": "Ada data yang belum benar. Periksa kembali isian Anda.",
+   "n": 1
+  },
+  {
+   "s": "Ada masalah? Kami berdiri di tengah.",
+   "n": 1
+  },
+  {
+   "s": "Ada pembaruan",
+   "n": 1
+  },
+  {
+   "s": "Ajak teman ke Kahade",
+   "n": 1
+  },
+  {
+   "s": "Ajak teman, dapat bonus saldo",
+   "n": 1
+  },
+  {
+   "s": "Ajukan pertanyaan",
+   "n": 1
+  },
+  {
+   "s": "Aksi transaksi dinonaktifkan sampai peran Anda pada order ini diketahui.",
+   "n": 1
+  },
+  {
+   "s": "Aktifkan di pengaturan perangkat untuk melanjutkan verifikasi.",
+   "n": 1
+  },
+  {
+   "s": "Aktivitas",
+   "n": 1
+  },
+  {
+   "s": "Akun Anda akan kurang aman",
+   "n": 1
+  },
+  {
+   "s": "Akun Anda sudah terverifikasi. Anda bisa bertransaksi tanpa batasan tambahan.",
+   "n": 1
+  },
+  {
+   "s": "Akun bisnis menampilkan profil usaha Anda di marketplace, termasuk produk dan riwayat penjualan.",
+   "n": 1
+  },
+  {
+   "s": "Akun palsu",
+   "n": 1
+  },
+  {
+   "s": "Alamat",
+   "n": 1
+  },
+  {
+   "s": "Alamat email baru",
+   "n": 1
+  },
+  {
+   "s": "Alasan",
+   "n": 1
+  },
+  {
+   "s": "Alasan laporan",
+   "n": 1
+  },
+  {
+   "s": "Alasan penolakan (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Analitik",
+   "n": 1
+  },
+  {
+   "s": "Anda akan diberi tahu saat lawan menerima.",
+   "n": 1
+  },
+  {
+   "s": "Anda akan melanjutkan proses penyelesaian pesanan ini setelah pembeli membayar.",
+   "n": 1
+  },
+  {
+   "s": "Anda berhak meminta salinan seluruh data pribadi yang kami simpan.",
+   "n": 1
+  },
+  {
+   "s": "Anda tetap dapat mengakses fitur premium sampai periode berakhir.",
+   "n": 1
+  },
+  {
+   "s": "Anda tidak akan lagi melihat aktivitas atau dapat bertransaksi dengan pengguna ini.",
+   "n": 1
+  },
+  {
+   "s": "Anda tidak memiliki akses untuk tindakan ini.",
+   "n": 1
+  },
+  {
+   "s": "Aplikasi autentikator",
+   "n": 1
+  },
+  {
+   "s": "Artikel mungkin belum dipublikasikan atau telah dipindahkan.",
+   "n": 1
+  },
+  {
+   "s": "Artikel tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Atur penarikan otomatis ke rekening Anda.",
+   "n": 1
+  },
+  {
+   "s": "Atur siapa yang dapat melihat informasi profil Anda.",
+   "n": 1
+  },
+  {
+   "s": "Baca versi resmi dan terbaru dari",
+   "n": 1
+  },
+  {
+   "s": "Bagikan kode Anda. Anda dan teman mendapat hadiah saat transaksi pertamanya selesai.",
+   "n": 1
+  },
+  {
+   "s": "Bagikan kode referralmu dan raih hadiah tiap teman selesai bertransaksi.",
+   "n": 1
+  },
+  {
+   "s": "Bagikan kode saya",
+   "n": 1
+  },
+  {
+   "s": "Bagikan profil",
+   "n": 1
+  },
+  {
+   "s": "Bagikan Profil",
+   "n": 1
+  },
+  {
+   "s": "Bagikan tautan ke lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Balas",
+   "n": 1
+  },
+  {
+   "s": "Balasan akan hilang dari profil publik Anda. Tindakan ini tidak bisa dibatalkan.",
+   "n": 1
+  },
+  {
+   "s": "Balasan dihapus",
+   "n": 1
+  },
+  {
+   "s": "Balasan diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Balik kamera",
+   "n": 1
+  },
+  {
+   "s": "Bank",
+   "n": 1
+  },
+  {
+   "s": "Bank / e-wallet",
+   "n": 1
+  },
+  {
+   "s": "Bantuan",
+   "n": 1
+  },
+  {
+   "s": "Barang diterima",
+   "n": 1
+  },
+  {
+   "s": "Barang tidak sesuai deskripsi karena…",
+   "n": 1
+  },
+  {
+   "s": "Baru",
+   "n": 1
+  },
+  {
+   "s": "Batal memilih",
+   "n": 1
+  },
+  {
+   "s": "Batalkan",
+   "n": 1
+  },
+  {
+   "s": "Batalkan langganan?",
+   "n": 1
+  },
+  {
+   "s": "Batalkan order?",
+   "n": 1
+  },
+  {
+   "s": "Batalkan penarikan",
+   "n": 1
+  },
+  {
+   "s": "Batalkan Tautan",
+   "n": 1
+  },
+  {
+   "s": "Batalkan tautan ini?",
+   "n": 1
+  },
+  {
+   "s": "Bayar",
+   "n": 1
+  },
+  {
+   "s": "Bayar sekarang",
+   "n": 1
+  },
+  {
+   "s": "Beli sekarang",
+   "n": 1
+  },
+  {
+   "s": "Belum ada aktivitas",
+   "n": 1
+  },
+  {
+   "s": "Belum ada aktivitas keamanan",
+   "n": 1
+  },
+  {
+   "s": "Belum ada artikel",
+   "n": 1
+  },
+  {
+   "s": "Belum ada bukti pengiriman",
+   "n": 1
+  },
+  {
+   "s": "Belum ada email terdaftar. Menambahkan email mengaktifkan pemulihan akun dan notifikasi penting.",
+   "n": 1
+  },
+  {
+   "s": "Belum ada favorit",
+   "n": 1
+  },
+  {
+   "s": "Belum ada foto",
+   "n": 1
+  },
+  {
+   "s": "Belum ada info pengiriman",
+   "n": 1
+  },
+  {
+   "s": "Belum ada jadwal",
+   "n": 1
+  },
+  {
+   "s": "Belum ada komentar",
+   "n": 1
+  },
+  {
+   "s": "Belum ada komentar.",
+   "n": 1
+  },
+  {
+   "s": "Belum ada konten",
+   "n": 1
+  },
+  {
+   "s": "Belum ada laporan",
+   "n": 1
+  },
+  {
+   "s": "Belum ada lencana",
+   "n": 1
+  },
+  {
+   "s": "Belum ada paket tersedia",
+   "n": 1
+  },
+  {
+   "s": "Belum ada panggilan video.",
+   "n": 1
+  },
+  {
+   "s": "Belum ada pemakaian",
+   "n": 1
+  },
+  {
+   "s": "Belum ada percakapan",
+   "n": 1
+  },
+  {
+   "s": "Belum ada permintaan",
+   "n": 1
+  },
+  {
+   "s": "Belum ada pesan",
+   "n": 1
+  },
+  {
+   "s": "Belum ada pesan.",
+   "n": 1
+  },
+  {
+   "s": "Belum ada pesan. Tulis di kolom bawah untuk mediator dan lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Belum ada rekomendasi",
+   "n": 1
+  },
+  {
+   "s": "Belum ada showcase",
+   "n": 1
+  },
+  {
+   "s": "Belum ada tautan",
+   "n": 1
+  },
+  {
+   "s": "Belum ada template",
+   "n": 1
+  },
+  {
+   "s": "Belum ada tiket",
+   "n": 1
+  },
+  {
+   "s": "Belum ada transaksi berjalan",
+   "n": 1
+  },
+  {
+   "s": "Belum ada usulan penyelesaian.",
+   "n": 1
+  },
+  {
+   "s": "Belum ada voucher",
+   "n": 1
+  },
+  {
+   "s": "Belum ada voucher aktif",
+   "n": 1
+  },
+  {
+   "s": "Belum dibaca",
+   "n": 1
+  },
+  {
+   "s": "Belum punya akun?",
+   "n": 1
+  },
+  {
+   "s": "Belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Beranda",
+   "n": 1
+  },
+  {
+   "s": "Bergabung Sejak",
+   "n": 1
+  },
+  {
+   "s": "Bergabunglah dengan Komunitas Kami",
+   "n": 1
+  },
+  {
+   "s": "Berhasil diunggah",
+   "n": 1
+  },
+  {
+   "s": "Beri Ulasan",
+   "n": 1
+  },
+  {
+   "s": "Berkas dibuka di browser.",
+   "n": 1
+  },
+  {
+   "s": "Berlaku langsung di seluruh aplikasi dan tersimpan pada akun Anda.",
+   "n": 1
+  },
+  {
+   "s": "Berlaku untuk seluruh aplikasi.",
+   "n": 1
+  },
+  {
+   "s": "Berubah pikiran",
+   "n": 1
+  },
+  {
+   "s": "Biaya & kirim",
+   "n": 1
+  },
+  {
+   "s": "Biaya belum terkonfirmasi:",
+   "n": 1
+  },
+  {
+   "s": "Biaya dihitung dari nilai transaksi menurut tingkatan berikut. Angka pasti untuk order ini tampil di rincian biaya.",
+   "n": 1
+  },
+  {
+   "s": "Biaya layanan",
+   "n": 1
+  },
+  {
+   "s": "Biaya maksimum",
+   "n": 1
+  },
+  {
+   "s": "Biaya minimum",
+   "n": 1
+  },
+  {
+   "s": "Biaya Platform",
+   "n": 1
+  },
+  {
+   "s": "Bila diisi, template hanya berlaku untuk lawan ini",
+   "n": 1
+  },
+  {
+   "s": "Bio",
+   "n": 1
+  },
+  {
+   "s": "Biometrik belum tersedia di perangkat ini",
+   "n": 1
+  },
+  {
+   "s": "Biometrik diaktifkan",
+   "n": 1
+  },
+  {
+   "s": "Biometrik dimatikan",
+   "n": 1
+  },
+  {
+   "s": "Biometrik terkunci sementara",
+   "n": 1
+  },
+  {
+   "s": "Biometrik tidak dikenali",
+   "n": 1
+  },
+  {
+   "s": "Bisnis",
+   "n": 1
+  },
+  {
+   "s": "Blokir",
+   "n": 1
+  },
+  {
+   "s": "Buat Akun",
+   "n": 1
+  },
+  {
+   "s": "Buat jadwal",
+   "n": 1
+  },
+  {
+   "s": "Buat kata sandi",
+   "n": 1
+  },
+  {
+   "s": "Buat Keamanan",
+   "n": 1
+  },
+  {
+   "s": "Buat Kode Baru",
+   "n": 1
+  },
+  {
+   "s": "Buat kode cadangan baru?",
+   "n": 1
+  },
+  {
+   "s": "Buat link transaksi sekali, bagikan ke pembeli di chat mana pun.",
+   "n": 1
+  },
+  {
+   "s": "Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Buat PIN wallet",
+   "n": 1
+  },
+  {
+   "s": "Buat tiket baru",
+   "n": 1
+  },
+  {
+   "s": "Buat tiket melalui menu Hubungi Kami.",
+   "n": 1
+  },
+  {
+   "s": "Buat transaksi escrow",
+   "n": 1
+  },
+  {
+   "s": "Buat ulang QRIS",
+   "n": 1
+  },
+  {
+   "s": "Buka blokir",
+   "n": 1
+  },
+  {
+   "s": "Buka daftar percakapan",
+   "n": 1
+  },
+  {
+   "s": "Buka detail kejadian",
+   "n": 1
+  },
+  {
+   "s": "Buka detail sesi",
+   "n": 1
+  },
+  {
+   "s": "Buka dokumen resmi",
+   "n": 1
+  },
+  {
+   "s": "Buka Google Authenticator, Authy, atau aplikasi sejenis, lalu pindai kode di bawah. Jika tidak bisa memindai, masukkan kunci secara manual.",
+   "n": 1
+  },
+  {
+   "s": "Buka halaman masuk",
+   "n": 1
+  },
+  {
+   "s": "Buka Pengaturan akun",
+   "n": 1
+  },
+  {
+   "s": "Buka percakapan",
+   "n": 1
+  },
+  {
+   "s": "Buka sengketa",
+   "n": 1
+  },
+  {
+   "s": "Bukan akun Anda?",
+   "n": 1
+  },
+  {
+   "s": "Bukan sekadar transfer — ini jaminan.",
+   "n": 1
+  },
+  {
+   "s": "Bukti",
+   "n": 1
+  },
+  {
+   "s": "Bukti {x}",
+   "n": 1
+  },
+  {
+   "s": "Bukti {x} dari {x}",
+   "n": 1
+  },
+  {
+   "s": "Bukti Anda",
+   "n": 1
+  },
+  {
+   "s": "Bukti dihapus",
+   "n": 1
+  },
+  {
+   "s": "Bukti ditolak, sengketa dibuka",
+   "n": 1
+  },
+  {
+   "s": "Bukti Pengiriman",
+   "n": 1
+  },
+  {
+   "s": "Bukti pengiriman terkirim",
+   "n": 1
+  },
+  {
+   "s": "Bukti terakhir",
+   "n": 1
+  },
+  {
+   "s": "Bukti terkirim",
+   "n": 1
+  },
+  {
+   "s": "Bukti terkirim, resi gagal disimpan",
+   "n": 1
+  },
+  {
+   "s": "Bukti yang dihapus tidak bisa dikembalikan dan tidak lagi dilihat mediator.",
+   "n": 1
+  },
+  {
+   "s": "Bulan berikutnya",
+   "n": 1
+  },
+  {
+   "s": "Bulan sebelumnya",
+   "n": 1
+  },
+  {
+   "s": "Cabut",
+   "n": 1
+  },
+  {
+   "s": "Cabut sesi ini?",
+   "n": 1
+  },
+  {
+   "s": "Cara & peran",
+   "n": 1
+  },
+  {
+   "s": "Cari bantuan",
+   "n": 1
+  },
+  {
+   "s": "Cari nama pengguna atau nomor HP yang ingin Anda kirimi saldo.",
+   "n": 1
+  },
+  {
+   "s": "Cari penerima",
+   "n": 1
+  },
+  {
+   "s": "Cari pengguna, pesanan, atau mutasi",
+   "n": 1
+  },
+  {
+   "s": "Cari transaksi, pengguna, atau ID",
+   "n": 1
+  },
+  {
+   "s": "Cari transaksi, pihak, atau ID",
+   "n": 1
+  },
+  {
+   "s": "Cari username penerima",
+   "n": 1
+  },
+  {
+   "s": "Cashback",
+   "n": 1
+  },
+  {
+   "s": "Catatan penjual",
+   "n": 1
+  },
+  {
+   "s": "Catatan terlalu pendek",
+   "n": 1
+  },
+  {
+   "s": "Catatan untuk lawan transaksi (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Catatan untuk pembeli (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Catatan untuk penerima",
+   "n": 1
+  },
+  {
+   "s": "Catatan untuk penjual (opsional)…",
+   "n": 1
+  },
+  {
+   "s": "Cek status sekarang",
+   "n": 1
+  },
+  {
+   "s": "Cek status, tenggat, dan langkah berikutnya",
+   "n": 1
+  },
+  {
+   "s": "Ceritakan apa yang terjadi…",
+   "n": 1
+  },
+  {
+   "s": "Ceritakan sedikit tentang diri Anda, minat, atau bisnis Anda...",
+   "n": 1
+  },
+  {
+   "s": "Ceritakan tentang Anda",
+   "n": 1
+  },
+  {
+   "s": "Coba muat ulang halaman. Periksa riwayat transaksi sebelum mengirim ulang tindakan yang belum terkonfirmasi.",
+   "n": 1
+  },
+  {
+   "s": "Contoh: nama@email.com",
+   "n": 1
+  },
+  {
+   "s": "Daftarkan wajah atau sidik jari di pengaturan sistem perangkat, lalu kembali ke sini untuk mengaktifkannya.",
+   "n": 1
+  },
+  {
+   "s": "Dana akan ditransfer ke rekening yang Anda pilih. Pastikan rekening aktif atas nama Anda.",
+   "n": 1
+  },
+  {
+   "s": "Dana aman sampai barang diterima",
+   "n": 1
+  },
+  {
+   "s": "Dana di escrow akan dilepas ke penjual. Pastikan barang sudah sesuai sebelum melanjutkan.",
+   "n": 1
+  },
+  {
+   "s": "Dana dilepas hanya setelah barang sampai.",
+   "n": 1
+  },
+  {
+   "s": "Dana dilepas ke penjual",
+   "n": 1
+  },
+  {
+   "s": "Dana ditahan Kahade",
+   "n": 1
+  },
+  {
+   "s": "Dana escrow akan dilepas ke penjual",
+   "n": 1
+  },
+  {
+   "s": "Dana escrow dibekukan sampai mediator Kahade memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat.",
+   "n": 1
+  },
+  {
+   "s": "Data Diri",
+   "n": 1
+  },
+  {
+   "s": "Data ini digunakan untuk profil publik dan keamanan akun. Email wajib diisi meskipun Anda mendaftar dengan nomor HP.",
+   "n": 1
+  },
+  {
+   "s": "Data pribadi",
+   "n": 1
+  },
+  {
+   "s": "Data rekening baru",
+   "n": 1
+  },
+  {
+   "s": "Data terlalu panjang untuk QR",
+   "n": 1
+  },
+  {
+   "s": "Data tidak ditemukan.",
+   "n": 1
+  },
+  {
+   "s": "Dengan mendaftar, Anda setuju dengan Syarat & Ketentuan serta Kebijakan Privasi Kahade.",
+   "n": 1
+  },
+  {
+   "s": "Detail",
+   "n": 1
+  },
+  {
+   "s": "Detail diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Detail Mutasi",
+   "n": 1
+  },
+  {
+   "s": "Detail pesanan",
+   "n": 1
+  },
+  {
+   "s": "Detail pesanan salah",
+   "n": 1
+  },
+  {
+   "s": "Detail Sengketa",
+   "n": 1
+  },
+  {
+   "s": "Diberikan",
+   "n": 1
+  },
+  {
+   "s": "Dibuat",
+   "n": 1
+  },
+  {
+   "s": "Dibuka",
+   "n": 1
+  },
+  {
+   "s": "Dibutuhkan untuk membuktikan kepemilikan akun.",
+   "n": 1
+  },
+  {
+   "s": "Dibutuhkan untuk mengotorisasi perubahan nomor.",
+   "n": 1
+  },
+  {
+   "s": "digit yang ditampilkan aplikasi autentikator.",
+   "n": 1
+  },
+  {
+   "s": "Dihitung dari riwayat transaksi, verifikasi, dan penilaian pengguna lain.",
+   "n": 1
+  },
+  {
+   "s": "Ditampilkan di profil publik Anda.",
+   "n": 1
+  },
+  {
+   "s": "Ditampilkan di profil publik bila diaktifkan.",
+   "n": 1
+  },
+  {
+   "s": "Ditanyakan",
+   "n": 1
+  },
+  {
+   "s": "Dokumen Anda sedang ditinjau. Kami beri tahu hasilnya lewat notifikasi.",
+   "n": 1
+  },
+  {
+   "s": "Dokumen belum dapat dimuat",
+   "n": 1
+  },
+  {
+   "s": "Dokumen resmi belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Dokumen verifikasi",
+   "n": 1
+  },
+  {
+   "s": "Dukungan Langsung",
+   "n": 1
+  },
+  {
+   "s": "Edit profil",
+   "n": 1
+  },
+  {
+   "s": "Ekspor data pribadi",
+   "n": 1
+  },
+  {
+   "s": "Ekspor data siap",
+   "n": 1
+  },
+  {
+   "s": "Email akun",
+   "n": 1
+  },
+  {
+   "s": "Email akun dipakai untuk masuk dan tidak diubah di sini.",
+   "n": 1
+  },
+  {
+   "s": "Email belum dapat diubah",
+   "n": 1
+  },
+  {
+   "s": "Email belum diverifikasi",
+   "n": 1
+  },
+  {
+   "s": "Email ini sudah terdaftar.",
+   "n": 1
+  },
+  {
+   "s": "Email kontak",
+   "n": 1
+  },
+  {
+   "s": "Email saat ini",
+   "n": 1
+  },
+  {
+   "s": "Email salah?",
+   "n": 1
+  },
+  {
+   "s": "Email terdaftar",
+   "n": 1
+  },
+  {
+   "s": "Email terverifikasi",
+   "n": 1
+  },
+  {
+   "s": "Escrow Order",
+   "n": 1
+  },
+  {
+   "s": "Facebook",
+   "n": 1
+  },
+  {
+   "s": "Favorit",
+   "n": 1
+  },
+  {
+   "s": "Foto bukti",
+   "n": 1
+  },
+  {
+   "s": "Foto KTP",
+   "n": 1
+  },
+  {
+   "s": "Foto paket, tangkapan layar pengiriman, atau PDF. Maks",
+   "n": 1
+  },
+  {
+   "s": "Foto produk atau hasil kerja belum diunggah.",
+   "n": 1
+  },
+  {
+   "s": "Foto profil berhasil diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Foto profil dihapus",
+   "n": 1
+  },
+  {
+   "s": "Foto profil diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Foto sampul",
+   "n": 1
+  },
+  {
+   "s": "Foto sampul dihapus",
+   "n": 1
+  },
+  {
+   "s": "Foto sampul diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Foto sampul profil",
+   "n": 1
+  },
+  {
+   "s": "Foto Showcase",
+   "n": 1
+  },
+  {
+   "s": "Foto showcase ditambahkan",
+   "n": 1
+  },
+  {
+   "s": "Gagal berhenti mengikuti",
+   "n": 1
+  },
+  {
+   "s": "gagal dikenali atau saat perangkat baru dipakai masuk.",
+   "n": 1
+  },
+  {
+   "s": "Gagal masuk",
+   "n": 1
+  },
+  {
+   "s": "Gagal membatalkan langganan",
+   "n": 1
+  },
+  {
+   "s": "Gagal membatalkan tautan",
+   "n": 1
+  },
+  {
+   "s": "Gagal membuat kode baru",
+   "n": 1
+  },
+  {
+   "s": "Gagal membuat Order Link",
+   "n": 1
+  },
+  {
+   "s": "Gagal membuat QRIS",
+   "n": 1
+  },
+  {
+   "s": "Gagal membuat transaksi",
+   "n": 1
+  },
+  {
+   "s": "Gagal membuka {x}",
+   "n": 1
+  },
+  {
+   "s": "Gagal membuka blokir",
+   "n": 1
+  },
+  {
+   "s": "Gagal meminta ekspor",
+   "n": 1
+  },
+  {
+   "s": "Gagal meminta ekspor data",
+   "n": 1
+  },
+  {
+   "s": "Gagal meminta panggilan",
+   "n": 1
+  },
+  {
+   "s": "Gagal memperbarui favorit",
+   "n": 1
+  },
+  {
+   "s": "Gagal memperbarui jadwal",
+   "n": 1
+  },
+  {
+   "s": "Gagal memperbarui rekening utama",
+   "n": 1
+  },
+  {
+   "s": "Gagal memperbarui status ikuti",
+   "n": 1
+  },
+  {
+   "s": "Gagal memperbarui ulasan",
+   "n": 1
+  },
+  {
+   "s": "Gagal memproses panggilan",
+   "n": 1
+  },
+  {
+   "s": "Gagal memproses permintaan",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat halaman berikutnya",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat invoice",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat metode",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat rekening",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat saldo",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat transaksi aktif",
+   "n": 1
+  },
+  {
+   "s": "Gagal menambahkan rekening",
+   "n": 1
+  },
+  {
+   "s": "Gagal menanggapi usulan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mencabut sesi",
+   "n": 1
+  },
+  {
+   "s": "Gagal mencabut sesi lain",
+   "n": 1
+  },
+  {
+   "s": "Gagal mencari",
+   "n": 1
+  },
+  {
+   "s": "Gagal mencari penerima",
+   "n": 1
+  },
+  {
+   "s": "Gagal menerima tautan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengajukan perpanjangan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengekspor riwayat",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus balasan",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus bukti",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus foto",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus foto sampul",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus jadwal",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus pertanyaan",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus pesan",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus rekening",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus template",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengikuti",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim balasan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim bukti",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim jawaban",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim kode",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim laporan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim OTP",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim OTP email",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim tiket",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim ulasan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim usulan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengirim verifikasi",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengonfirmasi penerimaan",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengubah password",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengubah perangkat tepercaya",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengubah PIN",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengubah visibilitas",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengunduh riwayat transaksi",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengunduh struk",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengunggah bukti",
+   "n": 1
+  },
+  {
+   "s": "Gagal mengunggah foto sampul",
+   "n": 1
+  },
+  {
+   "s": "Gagal menolak bukti",
+   "n": 1
+  },
+  {
+   "s": "Gagal menolak tautan",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan bahasa",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan balasan",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan jadwal",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan klaim",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan pengaturan biometrik",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan preferensi",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan profil",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan template",
+   "n": 1
+  },
+  {
+   "s": "Gagal menyimpan tipe akun",
+   "n": 1
+  },
+  {
+   "s": "Gagal reset password",
+   "n": 1
+  },
+  {
+   "s": "Gambar atau teks yang melanggar aturan",
+   "n": 1
+  },
+  {
+   "s": "Gambar gagal dimuat",
+   "n": 1
+  },
+  {
+   "s": "Ganti email",
+   "n": 1
+  },
+  {
+   "s": "Ganti Password",
+   "n": 1
+  },
+  {
+   "s": "Ganti PIN",
+   "n": 1
+  },
+  {
+   "s": "Gunakan angka yang mudah Anda ingat",
+   "n": 1
+  },
+  {
+   "s": "Gunakan biometrik",
+   "n": 1
+  },
+  {
+   "s": "Gunakan PIN",
+   "n": 1
+  },
+  {
+   "s": "Halaman tidak dapat ditampilkan",
+   "n": 1
+  },
+  {
+   "s": "Halaman tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Hanya bisa diganti sekali per bulan.",
+   "n": 1
+  },
+  {
+   "s": "Hapus balasan?",
+   "n": 1
+  },
+  {
+   "s": "Hapus berkas",
+   "n": 1
+  },
+  {
+   "s": "Hapus bukti",
+   "n": 1
+  },
+  {
+   "s": "Hapus bukti ini?",
+   "n": 1
+  },
+  {
+   "s": "Hapus filter",
+   "n": 1
+  },
+  {
+   "s": "Hapus foto",
+   "n": 1
+  },
+  {
+   "s": "Hapus foto sampul",
+   "n": 1
+  },
+  {
+   "s": "Hapus item ini?",
+   "n": 1
+  },
+  {
+   "s": "Hapus jadwal?",
+   "n": 1
+  },
+  {
+   "s": "Hapus notifikasi?",
+   "n": 1
+  },
+  {
+   "s": "Hapus pertanyaan",
+   "n": 1
+  },
+  {
+   "s": "Hapus pertanyaan?",
+   "n": 1
+  },
+  {
+   "s": "Hapus pesan",
+   "n": 1
+  },
+  {
+   "s": "Hapus pesan ini?",
+   "n": 1
+  },
+  {
+   "s": "Hapus rekening?",
+   "n": 1
+  },
+  {
+   "s": "Hapus semua",
+   "n": 1
+  },
+  {
+   "s": "Hapus tanggal",
+   "n": 1
+  },
+  {
+   "s": "Hapus teks",
+   "n": 1
+  },
+  {
+   "s": "Hapus template?",
+   "n": 1
+  },
+  {
+   "s": "Hapus yang dipilih",
+   "n": 1
+  },
+  {
+   "s": "Hapus yang sudah dibaca",
+   "n": 1
+  },
+  {
+   "s": "Harga maksimum (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Harga minimum (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Hari ini",
+   "n": 1
+  },
+  {
+   "s": "Hubungi kami",
+   "n": 1
+  },
+  {
+   "s": "Hubungi Kami",
+   "n": 1
+  },
+  {
+   "s": "ID mutasi:",
+   "n": 1
+  },
+  {
+   "s": "Identitas belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Identitas data tidak valid.",
+   "n": 1
+  },
+  {
+   "s": "Identitas kedua pihak terverifikasi (KYC)",
+   "n": 1
+  },
+  {
+   "s": "Identitas pengguna tidak tersedia. Muat ulang halaman lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Identitas pengguna tujuan tidak tersedia. Muat ulang halaman lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Informasi Akun",
+   "n": 1
+  },
+  {
+   "s": "Informasi dasar",
+   "n": 1
+  },
+  {
+   "s": "Instagram",
+   "n": 1
+  },
+  {
+   "s": "Instruksi pembayaran dibuat",
+   "n": 1
+  },
+  {
+   "s": "Invoice Kahade",
+   "n": 1
+  },
+  {
+   "s": "Isi Saldo",
+   "n": 1
+  },
+  {
+   "s": "Isian {x} tidak sesuai ketentuan layanan.",
+   "n": 1
+  },
+  {
+   "s": "Item {x}",
+   "n": 1
+  },
+  {
+   "s": "Item akan dihapus permanen dari showcase Anda.",
+   "n": 1
+  },
+  {
+   "s": "Item dihapus",
+   "n": 1
+  },
+  {
+   "s": "Item disembunyikan",
+   "n": 1
+  },
+  {
+   "s": "Item ditampilkan",
+   "n": 1
+  },
+  {
+   "s": "Item showcase dibuat",
+   "n": 1
+  },
+  {
+   "s": "Jadikan utama",
+   "n": 1
+  },
+  {
+   "s": "Jadilah yang pertama bertanya pada profil ini.",
+   "n": 1
+  },
+  {
+   "s": "Jadwal aktif",
+   "n": 1
+  },
+  {
+   "s": "Jadwal dihapus",
+   "n": 1
+  },
+  {
+   "s": "Jadwal disimpan",
+   "n": 1
+  },
+  {
+   "s": "Jadwal Penarikan",
+   "n": 1
+  },
+  {
+   "s": "Jaga nada tetap ramah dan profesional.",
+   "n": 1
+  },
+  {
+   "s": "Jawab",
+   "n": 1
+  },
+  {
+   "s": "Jawab pertanyaan",
+   "n": 1
+  },
+  {
+   "s": "Jawaban minimal {x} karakter",
+   "n": 1
+  },
+  {
+   "s": "Jawaban terkirim",
+   "n": 1
+  },
+  {
+   "s": "Jelaskan apa yang ditransaksikan dan berapa nilainya.",
+   "n": 1
+  },
+  {
+   "s": "Jelaskan detail pekerjaan (min. {x} karakter)",
+   "n": 1
+  },
+  {
+   "s": "Jelaskan di kolom detail",
+   "n": 1
+  },
+  {
+   "s": "Jelaskan kenapa butuh waktu tambahan…",
+   "n": 1
+  },
+  {
+   "s": "Jelaskan kendala Anda",
+   "n": 1
+  },
+  {
+   "s": "Jelaskan kendala Anda. Balasan tim Kahade muncul di Tiket Bantuan.",
+   "n": 1
+  },
+  {
+   "s": "Jenis kelamin",
+   "n": 1
+  },
+  {
+   "s": "Jenis transaksi",
+   "n": 1
+  },
+  {
+   "s": "JNE, SiCepat, …",
+   "n": 1
+  },
+  {
+   "s": "Jual atau beli dengan dana yang dijaga escrow",
+   "n": 1
+  },
+  {
+   "s": "Jualan cukup kirim satu tautan",
+   "n": 1
+  },
+  {
+   "s": "Judul dan rentang harga membantu calon pembeli memahami penawaran Anda.",
+   "n": 1
+  },
+  {
+   "s": "Judul order default",
+   "n": 1
+  },
+  {
+   "s": "Jumlah transfer",
+   "n": 1
+  },
+  {
+   "s": "Kami akan mengirim kode verifikasi {x} digit ke nomor ini. Nomor HP dipakai untuk masuk dan pemberitahuan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Kami masih memeriksa nama pengguna tersebut.",
+   "n": 1
+  },
+  {
+   "s": "Kami memvalidasi username lawan sebelum Anda lanjut.",
+   "n": 1
+  },
+  {
+   "s": "Kami mengirim kode {x} digit ke alamat berikut. Masukkan kode untuk mengonfirmasi bahwa email ini milik Anda.",
+   "n": 1
+  },
+  {
+   "s": "karakter dengan kombinasi huruf besar, huruf kecil, angka, dan simbol.",
+   "n": 1
+  },
+  {
+   "s": "Kata sandi",
+   "n": 1
+  },
+  {
+   "s": "Kata sandi akun",
+   "n": 1
+  },
+  {
+   "s": "Kata sandi diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Kata sandi melindungi akun Anda. Gunakan minimal",
+   "n": 1
+  },
+  {
+   "s": "Kata-kata kasar, ancaman, atau intimidasi",
+   "n": 1
+  },
+  {
+   "s": "Ke beranda",
+   "n": 1
+  },
+  {
+   "s": "Ke penjual:",
+   "n": 1
+  },
+  {
+   "s": "Keamanan & Tindakan",
+   "n": 1
+  },
+  {
+   "s": "Kebijakan Privasi",
+   "n": 1
+  },
+  {
+   "s": "Kedaluwarsa",
+   "n": 1
+  },
+  {
+   "s": "Keluar dari Kahade?",
+   "n": 1
+  },
+  {
+   "s": "Keluar dari perangkat lain",
+   "n": 1
+  },
+  {
+   "s": "Keluar dari semua",
+   "n": 1
+  },
+  {
+   "s": "Keluar dari semua perangkat lain?",
+   "n": 1
+  },
+  {
+   "s": "Kemarin",
+   "n": 1
+  },
+  {
+   "s": "Kembali ke login",
+   "n": 1
+  },
+  {
+   "s": "Kembali ke pembeli",
+   "n": 1
+  },
+  {
+   "s": "Kepercayaan dicabut",
+   "n": 1
+  },
+  {
+   "s": "Kesepakatan bersama",
+   "n": 1
+  },
+  {
+   "s": "Kesepakatan diterima",
+   "n": 1
+  },
+  {
+   "s": "Ketuk atau tekan lama untuk opsi pesan",
+   "n": 1
+  },
+  {
+   "s": "Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.",
+   "n": 1
+  },
+  {
+   "s": "Ketuk untuk mencari",
+   "n": 1
+  },
+  {
+   "s": "Keuntungan",
+   "n": 1
+  },
+  {
+   "s": "Keuntungan belum dapat dimuat",
+   "n": 1
+  },
+  {
+   "s": "Keypad nominal",
+   "n": 1
+  },
+  {
+   "s": "Keypad PIN",
+   "n": 1
+  },
+  {
+   "s": "Kirim",
+   "n": 1
+  },
+  {
+   "s": "Kirim balasan",
+   "n": 1
+  },
+  {
+   "s": "Kirim bukti",
+   "n": 1
+  },
+  {
+   "s": "Kirim Jawaban",
+   "n": 1
+  },
+  {
+   "s": "Kirim ke @",
+   "n": 1
+  },
+  {
+   "s": "Kirim kode verifikasi",
+   "n": 1
+  },
+  {
+   "s": "Kirim permintaan",
+   "n": 1
+  },
+  {
+   "s": "Kirim Pesan",
+   "n": 1
+  },
+  {
+   "s": "Kirim saldo ke @{x} di Kahade: {x}",
+   "n": 1
+  },
+  {
+   "s": "Kirim saldo sebagai gantinya",
+   "n": 1
+  },
+  {
+   "s": "Kirim tiket",
+   "n": 1
+  },
+  {
+   "s": "Kirim ulang OTP",
+   "n": 1
+  },
+  {
+   "s": "Kirim usulan",
+   "n": 1
+  },
+  {
+   "s": "Klaim Anda",
+   "n": 1
+  },
+  {
+   "s": "Klaim diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Kode {x} digit dari Google Authenticator, Authy, atau sejenisnya. Bekerja tanpa sinyal.",
+   "n": 1
+  },
+  {
+   "s": "Kode {x} digit telah dikirim via",
+   "n": 1
+  },
+  {
+   "s": "Kode autentikator {x} digit",
+   "n": 1
+  },
+  {
+   "s": "Kode autentikator atau backup",
+   "n": 1
+  },
+  {
+   "s": "Kode baru telah dikirim",
+   "n": 1
+  },
+  {
+   "s": "Kode cadangan baru dibuat",
+   "n": 1
+  },
+  {
+   "s": "Kode cadangan hanya ditampilkan sekali saat dibuat. Jika hilang, buat set baru — kode lama otomatis tidak berlaku. Gunakan aksi pada kartu di atas untuk membuat kode baru atau mematikan verifikasi dua langkah.",
+   "n": 1
+  },
+  {
+   "s": "Kode dari aplikasi autentikator saat masuk",
+   "n": 1
+  },
+  {
+   "s": "Kode dikirim",
+   "n": 1
+  },
+  {
+   "s": "Kode dikirim ke akun WhatsApp dengan nomor ini. Membutuhkan koneksi internet.",
+   "n": 1
+  },
+  {
+   "s": "Kode dikirim ke alamat email terdaftar.",
+   "n": 1
+  },
+  {
+   "s": "Kode dikirim ke nomor HP terdaftar. Bergantung pada sinyal operator.",
+   "n": 1
+  },
+  {
+   "s": "Kode dikirim sebagai pesan SMS ke nomor Anda. Bergantung pada sinyal operator.",
+   "n": 1
+  },
+  {
+   "s": "Kode ini hanya berlaku untuk akun Anda dan tidak meminta akses apapun dari perangkat pemindai. Dana masuk langsung ke saldo dompet.",
+   "n": 1
+  },
+  {
+   "s": "Kode lama tidak berlaku lagi. Simpan kode yang baru.",
+   "n": 1
+  },
+  {
+   "s": "Kode OTP dikirim ke email Anda",
+   "n": 1
+  },
+  {
+   "s": "Kode QR untuk aplikasi autentikator",
+   "n": 1
+  },
+  {
+   "s": "Kode referral baru dibuat",
+   "n": 1
+  },
+  {
+   "s": "Kode referral diterapkan",
+   "n": 1
+  },
+  {
+   "s": "Kode referral sudah dipakai",
+   "n": 1
+  },
+  {
+   "s": "Kode verifikasi",
+   "n": 1
+  },
+  {
+   "s": "Kode verifikasi {x} digit",
+   "n": 1
+  },
+  {
+   "s": "Kode verifikasi dikirim ke {x}.",
+   "n": 1
+  },
+  {
+   "s": "Kode verifikasi email {x} digit",
+   "n": 1
+  },
+  {
+   "s": "Konfirmasi & masukkan PIN",
+   "n": 1
+  },
+  {
+   "s": "Konfirmasi password",
+   "n": 1
+  },
+  {
+   "s": "Konfirmasi password baru",
+   "n": 1
+  },
+  {
+   "s": "Konfirmasi penarikan diterima",
+   "n": 1
+  },
+  {
+   "s": "Konfirmasi penerimaan",
+   "n": 1
+  },
+  {
+   "s": "Konfirmasi transfer",
+   "n": 1
+  },
+  {
+   "s": "Kontak publik",
+   "n": 1
+  },
+  {
+   "s": "Konten",
+   "n": 1
+  },
+  {
+   "s": "Konten tidak pantas",
+   "n": 1
+  },
+  {
+   "s": "Kredensial",
+   "n": 1
+  },
+  {
+   "s": "Kunci manual",
+   "n": 1
+  },
+  {
+   "s": "Kunci Perangkat",
+   "n": 1
+  },
+  {
+   "s": "Kurir",
+   "n": 1
+  },
+  {
+   "s": "Label tampilan (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Laki-laki",
+   "n": 1
+  },
+  {
+   "s": "Lampiran masih diunggah",
+   "n": 1
+  },
+  {
+   "s": "Langganan aktif",
+   "n": 1
+  },
+  {
+   "s": "Langganan dibatalkan",
+   "n": 1
+  },
+  {
+   "s": "Langganan diperpanjang",
+   "n": 1
+  },
+  {
+   "s": "Langkah",
+   "n": 1
+  },
+  {
+   "s": "Langkah {x} dari {x}",
+   "n": 1
+  },
+  {
+   "s": "Langkah {x} dari {x} — Pindai kode QR",
+   "n": 1
+  },
+  {
+   "s": "Langkah {x} dari {x} — Verifikasi password",
+   "n": 1
+  },
+  {
+   "s": "Lanjut ·",
+   "n": 1
+  },
+  {
+   "s": "Lanjut ke verifikasi",
+   "n": 1
+  },
+  {
+   "s": "Lapisan keamanan lain",
+   "n": 1
+  },
+  {
+   "s": "Laporan",
+   "n": 1
+  },
+  {
+   "s": "Laporan bersifat rahasia. Pengguna yang dilaporkan tidak akan tahu siapa yang melapor.",
+   "n": 1
+  },
+  {
+   "s": "Laporan terkirim",
+   "n": 1
+  },
+  {
+   "s": "Laporan yang Anda kirim akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Laporkan akun",
+   "n": 1
+  },
+  {
+   "s": "Laporkan pengguna",
+   "n": 1
+  },
+  {
+   "s": "Lawan tertentu",
+   "n": 1
+  },
+  {
+   "s": "Lawan transaksi",
+   "n": 1
+  },
+  {
+   "s": "Lawan transaksi tidak merespons",
+   "n": 1
+  },
+  {
+   "s": "Legal",
+   "n": 1
+  },
+  {
+   "s": "Lengkapi data Anda",
+   "n": 1
+  },
+  {
+   "s": "Lengkapi profil Anda agar orang lain bisa mengenal Anda. Anda bisa mengubah ini nanti di pengaturan.",
+   "n": 1
+  },
+  {
+   "s": "Lewati",
+   "n": 1
+  },
+  {
+   "s": "Lewati pengenalan",
+   "n": 1
+  },
+  {
+   "s": "Lewati untuk sekarang",
+   "n": 1
+  },
+  {
+   "s": "Lihat detail transaksi",
+   "n": 1
+  },
+  {
+   "s": "Lihat pesanan",
+   "n": 1
+  },
+  {
+   "s": "Lihat pesanan terkait",
+   "n": 1
+  },
+  {
+   "s": "Lihat profil",
+   "n": 1
+  },
+  {
+   "s": "Lihat profil {x} di Kahade",
+   "n": 1
+  },
+  {
+   "s": "Lihat riwayat penarikan",
+   "n": 1
+  },
+  {
+   "s": "Lihat semua riwayat dompet",
+   "n": 1
+  },
+  {
+   "s": "Lihat semua transaksi",
+   "n": 1
+  },
+  {
+   "s": "Lihat sengketa",
+   "n": 1
+  },
+  {
+   "s": "Lihat skema biaya platform",
+   "n": 1
+  },
+  {
+   "s": "Lihat tiket saya",
+   "n": 1
+  },
+  {
+   "s": "Log aktivitas",
+   "n": 1
+  },
+  {
+   "s": "Log keamanan",
+   "n": 1
+  },
+  {
+   "s": "Login baru, perubahan kata sandi, dan perangkat.",
+   "n": 1
+  },
+  {
+   "s": "Lupa Password",
+   "n": 1
+  },
+  {
+   "s": "Maks. {x} karakter",
+   "n": 1
+  },
+  {
+   "s": "Masih ada permintaan yang menunggu tanggapan pembeli. Ajukan lagi setelah dijawab.",
+   "n": 1
+  },
+  {
+   "s": "Masuk dengan akun lain",
+   "n": 1
+  },
+  {
+   "s": "Masuk dengan akun tersebut",
+   "n": 1
+  },
+  {
+   "s": "Masuk ke akun Kahade Anda untuk melanjutkan.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan {x} digit autentikator atau kode backup Anda.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan email yang benar dan kata sandi akun untuk konfirmasi. Kode verifikasi akan dikirim ke alamat baru.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan email yang terdaftar di akun Anda. Kami akan mengirim kode verifikasi untuk mereset password.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan jumlah dana yang akan ditarik ke rekening bank Anda.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan kode",
+   "n": 1
+  },
+  {
+   "s": "Masukkan kode referral",
+   "n": 1
+  },
+  {
+   "s": "Masukkan kode referral yang Anda terima.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan kode yang dikirim ke alamat baru untuk mengaktifkannya.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan nominal",
+   "n": 1
+  },
+  {
+   "s": "Masukkan nomor HP Anda",
+   "n": 1
+  },
+  {
+   "s": "Masukkan password akun untuk mengizinkan perubahan PIN.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan password akun untuk menyiapkan aplikasi autentikator.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet Anda untuk menyetujui transfer. PIN digunakan untuk melindungi setiap transaksi keluar dari dompet.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet untuk membayar dari saldo Kahade.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet yang sedang aktif.",
+   "n": 1
+  },
+  {
+   "s": "Matikan",
+   "n": 1
+  },
+  {
+   "s": "Matikan verifikasi dua langkah",
+   "n": 1
+  },
+  {
+   "s": "Mediasi sengketa oleh tim Kahade",
+   "n": 1
+  },
+  {
+   "s": "Mediator Kahade dapat bergabung untuk memeriksa barang secara langsung.",
+   "n": 1
+  },
+  {
+   "s": "Melaporkan",
+   "n": 1
+  },
+  {
+   "s": "Membalas",
+   "n": 1
+  },
+  {
+   "s": "Membuka menu bagikan perangkat",
+   "n": 1
+  },
+  {
+   "s": "Membuka sengketa pengiriman",
+   "n": 1
+  },
+  {
+   "s": "Memeriksa kembali tautan pembaruan resmi. Pembaruan aplikasi tetap diperlukan.",
+   "n": 1
+  },
+  {
+   "s": "Memeriksa lawan transaksi",
+   "n": 1
+  },
+  {
+   "s": "Meminta pembayaran di luar escrow atau tidak mengirim barang",
+   "n": 1
+  },
+  {
+   "s": "Memuat analitik",
+   "n": 1
+  },
+  {
+   "s": "Memuat daftar…",
+   "n": 1
+  },
+  {
+   "s": "Memuat dokumen resmi…",
+   "n": 1
+  },
+  {
+   "s": "Memuat favorit…",
+   "n": 1
+  },
+  {
+   "s": "Memuat jadwal penarikan",
+   "n": 1
+  },
+  {
+   "s": "Memuat kategori",
+   "n": 1
+  },
+  {
+   "s": "Memuat kode referral",
+   "n": 1
+  },
+  {
+   "s": "Memuat lencana",
+   "n": 1
+  },
+  {
+   "s": "Memuat lencana…",
+   "n": 1
+  },
+  {
+   "s": "Memuat notifikasi",
+   "n": 1
+  },
+  {
+   "s": "Memuat order…",
+   "n": 1
+  },
+  {
+   "s": "Memuat pengaturan keamanan",
+   "n": 1
+  },
+  {
+   "s": "Memuat pengaturan privasi…",
+   "n": 1
+  },
+  {
+   "s": "Memuat preferensi bahasa…",
+   "n": 1
+  },
+  {
+   "s": "Memuat preferensi…",
+   "n": 1
+  },
+  {
+   "s": "Memuat ringkasan transaksi",
+   "n": 1
+  },
+  {
+   "s": "Memuat sengketa",
+   "n": 1
+  },
+  {
+   "s": "Memuat sengketa…",
+   "n": 1
+  },
+  {
+   "s": "Memuat skema biaya…",
+   "n": 1
+  },
+  {
+   "s": "Memuat skor kepercayaan",
+   "n": 1
+  },
+  {
+   "s": "Memuat skor…",
+   "n": 1
+  },
+  {
+   "s": "Memuat status langganan",
+   "n": 1
+  },
+  {
+   "s": "Memuat status verifikasi",
+   "n": 1
+  },
+  {
+   "s": "Memuat tautan order",
+   "n": 1
+  },
+  {
+   "s": "Memuat templat",
+   "n": 1
+  },
+  {
+   "s": "Memuat tiket",
+   "n": 1
+  },
+  {
+   "s": "Memuat tiket…",
+   "n": 1
+  },
+  {
+   "s": "Memuat tipe akun…",
+   "n": 1
+  },
+  {
+   "s": "Memuat transaksi",
+   "n": 1
+  },
+  {
+   "s": "Memuat ulasan",
+   "n": 1
+  },
+  {
+   "s": "Memuat voucher",
+   "n": 1
+  },
+  {
+   "s": "Memuat voucher…",
+   "n": 1
+  },
+  {
+   "s": "Menampilkan indikator online pada profil Anda.",
+   "n": 1
+  },
+  {
+   "s": "Mencari",
+   "n": 1
+  },
+  {
+   "s": "Menerima panggilan",
+   "n": 1
+  },
+  {
+   "s": "Mengaku sebagai orang atau bisnis lain",
+   "n": 1
+  },
+  {
+   "s": "Mengganti nomor membutuhkan password akun.",
+   "n": 1
+  },
+  {
+   "s": "Menghitung biaya",
+   "n": 1
+  },
+  {
+   "s": "Mengubah username, nomor HP, atau kontak membutuhkan password akun.",
+   "n": 1
+  },
+  {
+   "s": "Mengunggah berkas",
+   "n": 1
+  },
+  {
+   "s": "Mengunggah foto…",
+   "n": 1
+  },
+  {
+   "s": "Menolak panggilan",
+   "n": 1
+  },
+  {
+   "s": "Menu",
+   "n": 1
+  },
+  {
+   "s": "Menu Langganan Kahade Plus",
+   "n": 1
+  },
+  {
+   "s": "Menunggu",
+   "n": 1
+  },
+  {
+   "s": "Menunggu konfirmasi lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Menunggu konfirmasi pembeli.",
+   "n": 1
+  },
+  {
+   "s": "Menunggu tanggapan lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Menutup pesan ini",
+   "n": 1
+  },
+  {
+   "s": "Metode pembayaran",
+   "n": 1
+  },
+  {
+   "s": "Metode pembayaran belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Metode pengiriman kode belum tersedia. Coba lagi sebentar.",
+   "n": 1
+  },
+  {
+   "s": "Metode pengiriman OTP tidak dapat dimuat. Coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Metode sedang tidak tersedia",
+   "n": 1
+  },
+  {
+   "s": "Metode top-up sedang tidak tersedia. Coba lagi nanti.",
+   "n": 1
+  },
+  {
+   "s": "Metode unggah tidak didukung.",
+   "n": 1
+  },
+  {
+   "s": "Metode verifikasi belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Minimal {x} karakter.",
+   "n": 1
+  },
+  {
+   "s": "Minimum:",
+   "n": 1
+  },
+  {
+   "s": "Minta",
+   "n": 1
+  },
+  {
+   "s": "Minta ekspor",
+   "n": 1
+  },
+  {
+   "s": "Minta orang lain memindai kode ini untuk mengirim saldo langsung ke dompet Anda.",
+   "n": 1
+  },
+  {
+   "s": "Minta salinan data saya",
+   "n": 1
+  },
+  {
+   "s": "Minta salinan data?",
+   "n": 1
+  },
+  {
+   "s": "Mis. dikirim via JNE, estimasi {x} hari",
+   "n": 1
+  },
+  {
+   "s": "Mis. Jasa desain logo",
+   "n": 1
+  },
+  {
+   "s": "Mode warna",
+   "n": 1
+  },
+  {
+   "s": "Muat ulang untuk menampilkan jumlah yang harus dibayar.",
+   "n": 1
+  },
+  {
+   "s": "Mulai chat dengan lawan transaksi Anda.",
+   "n": 1
+  },
+  {
+   "s": "Mulai percakapan Anda.",
+   "n": 1
+  },
+  {
+   "s": "Mulai proses",
+   "n": 1
+  },
+  {
+   "s": "Mulai transaksi pertamamu",
+   "n": 1
+  },
+  {
+   "s": "mutasi dimuat",
+   "n": 1
+  },
+  {
+   "s": "Nama",
+   "n": 1
+  },
+  {
+   "s": "Nama lengkap Anda",
+   "n": 1
+  },
+  {
+   "s": "Nama pemilik rekening",
+   "n": 1
+  },
+  {
+   "s": "Nama pengguna sudah dipakai.",
+   "n": 1
+  },
+  {
+   "s": "Nama pengguna tidak tersedia",
+   "n": 1
+  },
+  {
+   "s": "Nama template",
+   "n": 1
+  },
+  {
+   "s": "Nilai order default",
+   "n": 1
+  },
+  {
+   "s": "Nilai order masuk",
+   "n": 1
+  },
+  {
+   "s": "Nominal harus berupa Rupiah bulat antara {x} dan {x}.",
+   "n": 1
+  },
+  {
+   "s": "Nominal penarikan",
+   "n": 1
+  },
+  {
+   "s": "Nominal top-up",
+   "n": 1
+  },
+  {
+   "s": "Nomor baru",
+   "n": 1
+  },
+  {
+   "s": "Nomor baru telah diverifikasi. Silakan masuk kembali.",
+   "n": 1
+  },
+  {
+   "s": "Nomor HP akun",
+   "n": 1
+  },
+  {
+   "s": "Nomor HP baru",
+   "n": 1
+  },
+  {
+   "s": "Nomor HP diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Nomor HP Indonesia",
+   "n": 1
+  },
+  {
+   "s": "Nomor HP ini sudah terdaftar.",
+   "n": 1
+  },
+  {
+   "s": "Nomor HP kontak",
+   "n": 1
+  },
+  {
+   "s": "Nomor referensi",
+   "n": 1
+  },
+  {
+   "s": "Nomor rekening",
+   "n": 1
+  },
+  {
+   "s": "Nomor resi (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Nomor saat ini",
+   "n": 1
+  },
+  {
+   "s": "Nomor salah?",
+   "n": 1
+  },
+  {
+   "s": "Nomor transaksi",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi belum dapat ditandai",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi dihapus",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi ini akan dihapus dari daftar dan tidak bisa dikembalikan.",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi ini tidak menaut ke halaman lain.",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi untuk Anda akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Opsi notifikasi",
+   "n": 1
+  },
+  {
+   "s": "Opsional — untuk keamanan dan verifikasi",
+   "n": 1
+  },
+  {
+   "s": "Order akan dibatalkan dan dana yang sudah masuk dikembalikan ke pembeli.",
+   "n": 1
+  },
+  {
+   "s": "Order Link dibuat",
+   "n": 1
+  },
+  {
+   "s": "Order link diterima",
+   "n": 1
+  },
+  {
+   "s": "Order tidak diketahui",
+   "n": 1
+  },
+  {
+   "s": "OTA memperbarui JavaScript dan aset untuk runtime yang kompatibel. Perubahan native atau versi minimum membutuhkan pembaruan dari toko aplikasi.",
+   "n": 1
+  },
+  {
+   "s": "OTP dikirim ulang",
+   "n": 1
+  },
+  {
+   "s": "OTP email",
+   "n": 1
+  },
+  {
+   "s": "pada situs Kahade.",
+   "n": 1
+  },
+  {
+   "s": "Pakai aplikasi autentikator",
+   "n": 1
+  },
+  {
+   "s": "Pakai kode",
+   "n": 1
+  },
+  {
+   "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
+   "n": 1
+  },
+  {
+   "s": "Panggilan diakhiri",
+   "n": 1
+  },
+  {
+   "s": "Panggilan diterima",
+   "n": 1
+  },
+  {
+   "s": "Panggilan ditolak",
+   "n": 1
+  },
+  {
+   "s": "Panggilan video",
+   "n": 1
+  },
+  {
+   "s": "Password berhasil diubah",
+   "n": 1
+  },
+  {
+   "s": "Password saat ini",
+   "n": 1
+  },
+  {
+   "s": "Pelecehan",
+   "n": 1
+  },
+  {
+   "s": "Pembaruan belum dapat diproses",
+   "n": 1
+  },
+  {
+   "s": "Pembaruan OTA hanya tersedia pada build native yang terhubung ke EAS Update. Web, Expo Go, dan mode development tidak menerapkan OTA melalui tombol ini.",
+   "n": 1
+  },
+  {
+   "s": "Pembaruan OTA tersedia",
+   "n": 1
+  },
+  {
+   "s": "Pembayaran",
+   "n": 1
+  },
+  {
+   "s": "Pembayaran berhasil",
+   "n": 1
+  },
+  {
+   "s": "Pembayaran QRIS diterima",
+   "n": 1
+  },
+  {
+   "s": "Pembayaran, pengiriman, konfirmasi, dan tenggat order.",
+   "n": 1
+  },
+  {
+   "s": "Pembeli",
+   "n": 1
+  },
+  {
+   "s": "Pembeli akan diberi tahu beserta alasan Anda.",
+   "n": 1
+  },
+  {
+   "s": "Pembeli akan diberi tahu untuk menyetujui atau menolak.",
+   "n": 1
+  },
+  {
+   "s": "Pembeli harus menyetujui sebelum tenggat berubah.",
+   "n": 1
+  },
+  {
+   "s": "Pembeli membayar",
+   "n": 1
+  },
+  {
+   "s": "Pemilik rekening",
+   "n": 1
+  },
+  {
+   "s": "Penarikan",
+   "n": 1
+  },
+  {
+   "s": "Penarikan berhasil",
+   "n": 1
+  },
+  {
+   "s": "Penarikan otomatis pada jadwal ini akan dihentikan.",
+   "n": 1
+  },
+  {
+   "s": "Penarikan selesai",
+   "n": 1
+  },
+  {
+   "s": "Penawaran, voucher, dan pembaruan fitur.",
+   "n": 1
+  },
+  {
+   "s": "Pencairan Order",
+   "n": 1
+  },
+  {
+   "s": "Pencarian global",
+   "n": 1
+  },
+  {
+   "s": "Pendaftaran gagal",
+   "n": 1
+  },
+  {
+   "s": "Pendapatan",
+   "n": 1
+  },
+  {
+   "s": "Penerima",
+   "n": 1
+  },
+  {
+   "s": "Penerimaan dikonfirmasi",
+   "n": 1
+  },
+  {
+   "s": "Pengaturan Privasi",
+   "n": 1
+  },
+  {
+   "s": "Pengaturan tersimpan",
+   "n": 1
+  },
+  {
+   "s": "Pengguna diblokir",
+   "n": 1
+  },
+  {
+   "s": "Pengguna favorit",
+   "n": 1
+  },
+  {
+   "s": "Pengguna lain bisa melihat profil Anda.",
+   "n": 1
+  },
+  {
+   "s": "Pengguna terdaftar Kahade Escrow & Marketplace",
+   "n": 1
+  },
+  {
+   "s": "Pengguna tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Pengguna yang Anda blokir akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Pengguna yang disarankan untuk Anda akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Pengirim akan melihat tautan sebagai dibatalkan.",
+   "n": 1
+  },
+  {
+   "s": "Pengiriman",
+   "n": 1
+  },
+  {
+   "s": "Pengumuman dan informasi lain di luar transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Penipuan",
+   "n": 1
+  },
+  {
+   "s": "Penjual",
+   "n": 1
+  },
+  {
+   "s": "Penjual mengirim",
+   "n": 1
+  },
+  {
+   "s": "Penyelesaian bersama",
+   "n": 1
+  },
+  {
+   "s": "Peran",
+   "n": 1
+  },
+  {
+   "s": "Peran Anda belum terkonfirmasi",
+   "n": 1
+  },
+  {
+   "s": "Perangkat",
+   "n": 1
+  },
+  {
+   "s": "Perangkat & Data",
+   "n": 1
+  },
+  {
+   "s": "Perangkat aktif",
+   "n": 1
+  },
+  {
+   "s": "Perangkat dipercaya",
+   "n": 1
+  },
+  {
+   "s": "Perangkat ini akan berhenti menerima notifikasi akun. Anda bisa masuk kembali kapan saja.",
+   "n": 1
+  },
+  {
+   "s": "Perangkat tidak dikenal",
+   "n": 1
+  },
+  {
+   "s": "Perbarui aplikasi",
+   "n": 1
+  },
+  {
+   "s": "Perbarui resi dari detail pesanan.",
+   "n": 1
+  },
+  {
+   "s": "Percakapan",
+   "n": 1
+  },
+  {
+   "s": "Perempuan",
+   "n": 1
+  },
+  {
+   "s": "Periksa biaya dan ringkasan sebelum order dibuat.",
+   "n": 1
+  },
+  {
+   "s": "Periksa bukti pengiriman",
+   "n": 1
+  },
+  {
+   "s": "Periksa format URL lalu coba simpan lagi.",
+   "n": 1
+  },
+  {
+   "s": "Periksa kembali",
+   "n": 1
+  },
+  {
+   "s": "Periksa kembali data Anda.",
+   "n": 1
+  },
+  {
+   "s": "Periksa kembali detail di bawah sebelum melanjutkan.",
+   "n": 1
+  },
+  {
+   "s": "Periksa koneksi dan pastikan foto jelas, lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Periksa koneksi internet atau aplikasi terkait di perangkat Anda.",
+   "n": 1
+  },
+  {
+   "s": "Periksa koneksi, lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Peringkat & lencana",
+   "n": 1
+  },
+  {
+   "s": "Permintaan dibatalkan.",
+   "n": 1
+  },
+  {
+   "s": "Permintaan diterima",
+   "n": 1
+  },
+  {
+   "s": "Permintaan diterima oleh layanan. Ikuti informasi resmi Kahade mengenai proses selanjutnya.",
+   "n": 1
+  },
+  {
+   "s": "Permintaan ekspor data dikirim",
+   "n": 1
+  },
+  {
+   "s": "Permintaan langganan diterima",
+   "n": 1
+  },
+  {
+   "s": "Permintaan panggilan dikirim",
+   "n": 1
+  },
+  {
+   "s": "Permintaan pembatalan diterima",
+   "n": 1
+  },
+  {
+   "s": "Permintaan penarikan diterima",
+   "n": 1
+  },
+  {
+   "s": "Permintaan penghapusan terkirim",
+   "n": 1
+  },
+  {
+   "s": "Permintaan perpanjangan diterima",
+   "n": 1
+  },
+  {
+   "s": "Permintaan terkirim",
+   "n": 1
+  },
+  {
+   "s": "Permintaan tidak dapat diproses.",
+   "n": 1
+  },
+  {
+   "s": "Permintaan tidak valid.",
+   "n": 1
+  },
+  {
+   "s": "Pernyataan klaim",
+   "n": 1
+  },
+  {
+   "s": "Perpanjang tenggat",
+   "n": 1
+  },
+  {
+   "s": "Perpanjangan disetujui",
+   "n": 1
+  },
+  {
+   "s": "Perpanjangan ditolak",
+   "n": 1
+  },
+  {
+   "s": "Perpanjangan Tenggat",
+   "n": 1
+  },
+  {
+   "s": "Personal",
+   "n": 1
+  },
+  {
+   "s": "Pertanyaan minimal {x} karakter",
+   "n": 1
+  },
+  {
+   "s": "Perubahan belum dapat diproses",
+   "n": 1
+  },
+  {
+   "s": "Perubahan skor kepercayaan dan lencana baru.",
+   "n": 1
+  },
+  {
+   "s": "Perubahan status order akan tercatat di sini.",
+   "n": 1
+  },
+  {
+   "s": "Pesan akan dihapus untuk semua peserta ruang.",
+   "n": 1
+  },
+  {
+   "s": "Pesan baru dari lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Pesan berulang atau promosi tidak diminta",
+   "n": 1
+  },
+  {
+   "s": "Pesan dihapus",
+   "n": 1
+  },
+  {
+   "s": "Pesan, bukti, dan keputusan sengketa.",
+   "n": 1
+  },
+  {
+   "s": "Pesanan berhasil dibuat.",
+   "n": 1
+  },
+  {
+   "s": "Pesanan ganda",
+   "n": 1
+  },
+  {
+   "s": "Pilih atau ketik jumlah saldo yang ingin Anda isi. Minimal",
+   "n": 1
+  },
+  {
+   "s": "Pilih bank atau e-wallet",
+   "n": 1
+  },
+  {
+   "s": "Pilih cara membuat order dan peran Anda dalam transaksi ini.",
+   "n": 1
+  },
+  {
+   "s": "Pilih cara top-up yang Anda inginkan. Biaya admin (jika ada) akan ditampilkan di samping metode.",
+   "n": 1
+  },
+  {
+   "s": "Pilih cara untuk mengunggah foto profil Anda",
+   "n": 1
+  },
+  {
+   "s": "Pilih kanal notifikasi untuk setiap kategori. Perubahan disimpan otomatis.",
+   "n": 1
+  },
+  {
+   "s": "Pilih metode pembayaran",
+   "n": 1
+  },
+  {
+   "s": "Pilih paket",
+   "n": 1
+  },
+  {
+   "s": "Pilih periode analitik",
+   "n": 1
+  },
+  {
+   "s": "Pilih PIN {x} digit baru. Jangan gunakan tanggal lahir atau angka berurutan.",
+   "n": 1
+  },
+  {
+   "s": "Pilih rekening tujuan",
+   "n": 1
+  },
+  {
+   "s": "Pilih skor {x} sampai {x} bintang",
+   "n": 1
+  },
+  {
+   "s": "Pilih tanggal",
+   "n": 1
+  },
+  {
+   "s": "Pilih tanggal lahir",
+   "n": 1
+  },
+  {
+   "s": "Pilih tipe akun",
+   "n": 1
+  },
+  {
+   "s": "Pilihan Akun",
+   "n": 1
+  },
+  {
+   "s": "Pilihan lainnya",
+   "n": 1
+  },
+  {
+   "s": "PIN {x} digit untuk mengonfirmasi transaksi. Jangan gunakan tanggal lahir atau angka yang mudah ditebak.",
+   "n": 1
+  },
+  {
+   "s": "PIN baru",
+   "n": 1
+  },
+  {
+   "s": "PIN berhasil diubah",
+   "n": 1
+  },
+  {
+   "s": "PIN dan biometrik di setiap transaksi",
+   "n": 1
+  },
+  {
+   "s": "PIN dompet tetap diminta bila",
+   "n": 1
+  },
+  {
+   "s": "PIN lama",
+   "n": 1
+  },
+  {
+   "s": "Pindai dengan aplikasi pembayaran",
+   "n": 1
+  },
+  {
+   "s": "Portofolio Anda",
+   "n": 1
+  },
+  {
+   "s": "Preferensi",
+   "n": 1
+  },
+  {
+   "s": "Preferensi akun belum bisa dibaca — pilihan di bawah tetap berlaku di perangkat ini.",
+   "n": 1
+  },
+  {
+   "s": "Preferensi bahasa akun",
+   "n": 1
+  },
+  {
+   "s": "Preferensi bahasa disimpan",
+   "n": 1
+  },
+  {
+   "s": "Preferensi Notifikasi",
+   "n": 1
+  },
+  {
+   "s": "Preferensi tersimpan",
+   "n": 1
+  },
+  {
+   "s": "Privasi",
+   "n": 1
+  },
+  {
+   "s": "Produk",
+   "n": 1
+  },
+  {
+   "s": "Profil diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Profil tersimpan, tautan sosial gagal disimpan",
+   "n": 1
+  },
+  {
+   "s": "Profil tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Profile terlihat publik",
+   "n": 1
+  },
+  {
+   "s": "Progres {x} persen",
+   "n": 1
+  },
+  {
+   "s": "Promo & info",
+   "n": 1
+  },
+  {
+   "s": "Punya kode dari teman?",
+   "n": 1
+  },
+  {
+   "s": "Pusat Bantuan",
+   "n": 1
+  },
+  {
+   "s": "Rata-rata {x}",
+   "n": 1
+  },
+  {
+   "s": "Rating",
+   "n": 1
+  },
+  {
+   "s": "Referensi",
+   "n": 1
+  },
+  {
+   "s": "Refund",
+   "n": 1
+  },
+  {
+   "s": "Rekening Bank",
+   "n": 1
+  },
+  {
+   "s": "Rekening berhasil ditambahkan",
+   "n": 1
+  },
+  {
+   "s": "Rekening dihapus",
+   "n": 1
+  },
+  {
+   "s": "Rekening terdaftar",
+   "n": 1
+  },
+  {
+   "s": "Rekening utama diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Rentang nominal",
+   "n": 1
+  },
+  {
+   "s": "Reset password",
+   "n": 1
+  },
+  {
+   "s": "Reset Password",
+   "n": 1
+  },
+  {
+   "s": "Respons server tidak dapat dibaca.",
+   "n": 1
+  },
+  {
+   "s": "Reward",
+   "n": 1
+  },
+  {
+   "s": "Rincian biaya belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Rincian usulan belum lengkap. Muat ulang sebelum menanggapi.",
+   "n": 1
+  },
+  {
+   "s": "Ringkasan",
+   "n": 1
+  },
+  {
+   "s": "Ringkasan masalah",
+   "n": 1
+  },
+  {
+   "s": "Riwayat belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Riwayat ditampilkan maksimal {x} hari terakhir. Unduh CSV untuk rentang lengkap yang disediakan server.",
+   "n": 1
+  },
+  {
+   "s": "Riwayat dompet",
+   "n": 1
+  },
+  {
+   "s": "Riwayat Dompet",
+   "n": 1
+  },
+  {
+   "s": "Riwayat dompet (cetak)",
+   "n": 1
+  },
+  {
+   "s": "Riwayat dompet (CSV)",
+   "n": 1
+  },
+  {
+   "s": "Riwayat dompet diunduh",
+   "n": 1
+  },
+  {
+   "s": "Riwayat dompet siap dibagikan",
+   "n": 1
+  },
+  {
+   "s": "Riwayat langganan",
+   "n": 1
+  },
+  {
+   "s": "Riwayat pemakaian",
+   "n": 1
+  },
+  {
+   "s": "Riwayat penarikan",
+   "n": 1
+  },
+  {
+   "s": "Riwayat pengajuan",
+   "n": 1
+  },
+  {
+   "s": "Riwayat status pesanan",
+   "n": 1
+  },
+  {
+   "s": "Riwayat top-up",
+   "n": 1
+  },
+  {
+   "s": "Riwayat transaksi (CSV)",
+   "n": 1
+  },
+  {
+   "s": "Riwayat transaksi akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Riwayat transaksi Anda masih kosong.",
+   "n": 1
+  },
+  {
+   "s": "Riwayat transaksi diunduh",
+   "n": 1
+  },
+  {
+   "s": "Riwayat transaksi siap dibagikan",
+   "n": 1
+  },
+  {
+   "s": "Riwayat undangan",
+   "n": 1
+  },
+  {
+   "s": "Runtime:",
+   "n": 1
+  },
+  {
+   "s": "Saldo Kahade",
+   "n": 1
+  },
+  {
+   "s": "Saldo tersedia",
+   "n": 1
+  },
+  {
+   "s": "Salin teks",
+   "n": 1
+  },
+  {
+   "s": "Salin username",
+   "n": 1
+  },
+  {
+   "s": "Salinan data akan dikirim ke email terdaftar saat siap.",
+   "n": 1
+  },
+  {
+   "s": "Saring riwayat berdasarkan jenis",
+   "n": 1
+  },
+  {
+   "s": "Sedang aktif",
+   "n": 1
+  },
+  {
+   "s": "Selamat datang kembali",
+   "n": 1
+  },
+  {
+   "s": "Selesaikan transaksi untuk membuka lencana.",
+   "n": 1
+  },
+  {
+   "s": "Selfie dengan KTP",
+   "n": 1
+  },
+  {
+   "s": "Sembunyikan dari profil",
+   "n": 1
+  },
+  {
+   "s": "Semua kode cadangan lama akan hangus. Masukkan password dan kode dari aplikasi autentikator untuk melanjutkan.",
+   "n": 1
+  },
+  {
+   "s": "Semua kode lama tidak berlaku lagi",
+   "n": 1
+  },
+  {
+   "s": "Semua layar langsung mengikuti, tanpa perlu menutup aplikasi.",
+   "n": 1
+  },
+  {
+   "s": "Semua perangkat lain dicabut",
+   "n": 1
+  },
+  {
+   "s": "Semua tiket",
+   "n": 1
+  },
+  {
+   "s": "Semua transaksi",
+   "n": 1
+  },
+  {
+   "s": "Sengketa pesanan akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Sengketa saya",
+   "n": 1
+  },
+  {
+   "s": "Sepakati pembagian dana escrow tanpa menunggu keputusan mediator.",
+   "n": 1
+  },
+  {
+   "s": "Server terlalu lama merespons. Coba lagi sebentar.",
+   "n": 1
+  },
+  {
+   "s": "Sesi Anda telah berakhir. Silakan masuk kembali.",
+   "n": 1
+  },
+  {
+   "s": "Sesi belum dapat dipulihkan",
+   "n": 1
+  },
+  {
+   "s": "Sesi dicabut",
+   "n": 1
+  },
+  {
+   "s": "Sesuai rekening",
+   "n": 1
+  },
+  {
+   "s": "Setelah itu, masukkan kode",
+   "n": 1
+  },
+  {
+   "s": "Setup Profil",
+   "n": 1
+  },
+  {
+   "s": "Showcase #",
+   "n": 1
+  },
+  {
+   "s": "Silakan masuk dengan kata sandi baru Anda.",
+   "n": 1
+  },
+  {
+   "s": "Silakan pilih nama pengguna lain.",
+   "n": 1
+  },
+  {
+   "s": "Simpan & kirim kode",
+   "n": 1
+  },
+  {
+   "s": "Simpan email baru",
+   "n": 1
+  },
+  {
+   "s": "Simpan jadwal",
+   "n": 1
+  },
+  {
+   "s": "Simpan password",
+   "n": 1
+  },
+  {
+   "s": "Simpan pengguna favorit dari profil mereka.",
+   "n": 1
+  },
+  {
+   "s": "Simpan perubahan",
+   "n": 1
+  },
+  {
+   "s": "Simpan rekening",
+   "n": 1
+  },
+  {
+   "s": "Simpan template",
+   "n": 1
+  },
+  {
+   "s": "Sisa percobaan:",
+   "n": 1
+  },
+  {
+   "s": "Skema biaya belum tersedia. Rincian biaya tetap dihitung otomatis saat nilai transaksi diisi.",
+   "n": 1
+  },
+  {
+   "s": "Skema biaya platform",
+   "n": 1
+  },
+  {
+   "s": "Skor",
+   "n": 1
+  },
+  {
+   "s": "Skor kepercayaan",
+   "n": 1
+  },
+  {
+   "s": "Skor kepercayaan dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan Anda. Semakin tinggi skor, semakin dipercaya lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Slide {x} dari {x}",
+   "n": 1
+  },
+  {
+   "s": "Slide pengenalan",
+   "n": 1
+  },
+  {
+   "s": "Spam",
+   "n": 1
+  },
+  {
+   "s": "Status",
+   "n": 1
+  },
+  {
+   "s": "Status belum dapat diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Status belum diperbarui:",
+   "n": 1
+  },
+  {
+   "s": "Status metode belum terkonfirmasi",
+   "n": 1
+  },
+  {
+   "s": "Status order, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
+   "n": 1
+  },
+  {
+   "s": "Status perangkat belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Status transfer diterima",
+   "n": 1
+  },
+  {
+   "s": "Status Verifikasi (KYC)",
+   "n": 1
+  },
+  {
+   "s": "Struk diunduh",
+   "n": 1
+  },
+  {
+   "s": "Struk siap dibagikan",
+   "n": 1
+  },
+  {
+   "s": "Subjek",
+   "n": 1
+  },
+  {
+   "s": "Sudah diterima",
+   "n": 1
+  },
+  {
+   "s": "Sudah punya tiket?",
+   "n": 1
+  },
+  {
+   "s": "Sudah saya simpan",
+   "n": 1
+  },
+  {
+   "s": "Suka",
+   "n": 1
+  },
+  {
+   "s": "Syarat & Ketentuan",
+   "n": 1
+  },
+  {
+   "s": "Tab Beranda",
+   "n": 1
+  },
+  {
+   "s": "Tab Dompet",
+   "n": 1
+  },
+  {
+   "s": "Tab Notifikasi",
+   "n": 1
+  },
+  {
+   "s": "Tab Pengaturan",
+   "n": 1
+  },
+  {
+   "s": "Tab Transaksi",
+   "n": 1
+  },
+  {
+   "s": "Tambah foto",
+   "n": 1
+  },
+  {
+   "s": "Tambahan waktu",
+   "n": 1
+  },
+  {
+   "s": "Tambahkan foto produk atau hasil kerja Anda.",
+   "n": 1
+  },
+  {
+   "s": "Tambahkan rekening bank terlebih dahulu untuk menarik dana.",
+   "n": 1
+  },
+  {
+   "s": "Tambahkan rekening bank untuk menarik dana.",
+   "n": 1
+  },
+  {
+   "s": "Tampil di profil publik Anda",
+   "n": 1
+  },
+  {
+   "s": "Tampilkan di profil",
+   "n": 1
+  },
+  {
+   "s": "Tampilkan email kontak di profil",
+   "n": 1
+  },
+  {
+   "s": "Tampilkan kode QRIS",
+   "n": 1
+  },
+  {
+   "s": "Tampilkan nomor HP kontak di profil",
+   "n": 1
+  },
+  {
+   "s": "Tampilkan status online",
+   "n": 1
+  },
+  {
+   "s": "Tanda tangan di dalam kotak",
+   "n": 1
+  },
+  {
+   "s": "Tandai dibaca",
+   "n": 1
+  },
+  {
+   "s": "Tandai selesai",
+   "n": 1
+  },
+  {
+   "s": "Tandai semua notifikasi dibaca",
+   "n": 1
+  },
+  {
+   "s": "Tandai yang dipilih dibaca",
+   "n": 1
+  },
+  {
+   "s": "Tanggal lahir",
+   "n": 1
+  },
+  {
+   "s": "Tanggal tidak tersedia",
+   "n": 1
+  },
+  {
+   "s": "Tanggapi sebelum tenggat agar dana tidak tertahan lebih lama",
+   "n": 1
+  },
+  {
+   "s": "Tanya",
+   "n": 1
+  },
+  {
+   "s": "Tanya penjual",
+   "n": 1
+  },
+  {
+   "s": "Tarik Dana",
+   "n": 1
+  },
+  {
+   "s": "Tarik ke rekening",
+   "n": 1
+  },
+  {
+   "s": "Tarik untuk menutup",
+   "n": 1
+  },
+  {
+   "s": "Tautan dibatalkan",
+   "n": 1
+  },
+  {
+   "s": "Tautan ditolak",
+   "n": 1
+  },
+  {
+   "s": "Tautan mungkin sudah berubah. Kembali ke beranda untuk melanjutkan.",
+   "n": 1
+  },
+  {
+   "s": "Tautan profil disalin",
+   "n": 1
+  },
+  {
+   "s": "Tautan saya",
+   "n": 1
+  },
+  {
+   "s": "Tautan sosial",
+   "n": 1
+  },
+  {
+   "s": "Tautan tidak bisa lagi diterima oleh siapa pun. Tindakan ini tidak dapat dibatalkan.",
+   "n": 1
+  },
+  {
+   "s": "Tautan tidak dapat dibuka. Periksa koneksi lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Tautan tidak tersedia",
+   "n": 1
+  },
+  {
+   "s": "Tautan undangan disalin",
+   "n": 1
+  },
+  {
+   "s": "Tautan unduh akan dikirim ke email terdaftar Anda.",
+   "n": 1
+  },
+  {
+   "s": "Tautan yang Anda buka tidak memuat identitas notifikasi.",
+   "n": 1
+  },
+  {
+   "s": "Tautan yang Anda buka tidak memuat identitas order.",
+   "n": 1
+  },
+  {
+   "s": "telah dikirim ke @",
+   "n": 1
+  },
+  {
+   "s": "Telegram",
+   "n": 1
+  },
+  {
+   "s": "Template cepat",
+   "n": 1
+  },
+  {
+   "s": "Template dihapus",
+   "n": 1
+  },
+  {
+   "s": "Template disimpan",
+   "n": 1
+  },
+  {
+   "s": "Template ini akan dihapus dari daftar.",
+   "n": 1
+  },
+  {
+   "s": "Template transaksi",
+   "n": 1
+  },
+  {
+   "s": "Template Transaksi",
+   "n": 1
+  },
+  {
+   "s": "Tenggat (hari)",
+   "n": 1
+  },
+  {
+   "s": "Tenggat pengiriman (hari)",
+   "n": 1
+  },
+  {
+   "s": "Tenggat saat ini",
+   "n": 1
+  },
+  {
+   "s": "Tentang",
+   "n": 1
+  },
+  {
+   "s": "Tentang Anda",
+   "n": 1
+  },
+  {
+   "s": "Tentang Kami",
+   "n": 1
+  },
+  {
+   "s": "Terapkan kode",
+   "n": 1
+  },
+  {
+   "s": "Terbit",
+   "n": 1
+  },
+  {
+   "s": "Terima order ini?",
+   "n": 1
+  },
+  {
+   "s": "Terima pesanan",
+   "n": 1
+  },
+  {
+   "s": "Terima Saldo",
+   "n": 1
+  },
+  {
+   "s": "Terjadi gangguan di server kami. Coba lagi nanti.",
+   "n": 1
+  },
+  {
+   "s": "Terjadi kesalahan. Coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Terlalu banyak percobaan gagal. Coba lagi nanti.",
+   "n": 1
+  },
+  {
+   "s": "Terlalu banyak percobaan. Tunggu beberapa saat lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Terpilih",
+   "n": 1
+  },
+  {
+   "s": "Tersedia untuk Anda",
+   "n": 1
+  },
+  {
+   "s": "Terverifikasi",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada koneksi internet. Periksa jaringan lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada notifikasi",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada OTA baru untuk runtime ini",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada sengketa",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada sesi aktif",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada transaksi untuk diunduh",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada yang diblokir",
+   "n": 1
+  },
+  {
+   "s": "Tidak bisa akses aplikasi? Pakai kode cadangan",
+   "n": 1
+  },
+  {
+   "s": "Tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Tidak ingin memberitahu",
+   "n": 1
+  },
+  {
+   "s": "Tiket",
+   "n": 1
+  },
+  {
+   "s": "Tiket Bantuan",
+   "n": 1
+  },
+  {
+   "s": "Tiket Dukungan",
+   "n": 1
+  },
+  {
+   "s": "Tiket terkirim",
+   "n": 1
+  },
+  {
+   "s": "TikTok",
+   "n": 1
+  },
+  {
+   "s": "Tim Kahade akan membalas lewat tiket ini.",
+   "n": 1
+  },
+  {
+   "s": "Tingkat penyelesaian",
+   "n": 1
+  },
+  {
+   "s": "Tipe akun diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Toko aplikasi tidak dapat dibuka. Periksa koneksi, lalu coba kembali.",
+   "n": 1
+  },
+  {
+   "s": "Tolak order?",
+   "n": 1
+  },
+  {
+   "s": "Tolak tautan ini?",
+   "n": 1
+  },
+  {
+   "s": "Top-up belum dapat dibuat",
+   "n": 1
+  },
+  {
+   "s": "Top-up, penarikan, transfer, dan mutasi saldo.",
+   "n": 1
+  },
+  {
+   "s": "Topup",
+   "n": 1
+  },
+  {
+   "s": "Total transaksi selesai",
+   "n": 1
+  },
+  {
+   "s": "Transaksi aktif",
+   "n": 1
+  },
+  {
+   "s": "Transaksi dibuat",
+   "n": 1
+  },
+  {
+   "s": "Transaksi dompet Anda akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Transaksi yang sedang kamu jalankan akan tampil di sini.",
+   "n": 1
+  },
+  {
+   "s": "Transfer",
+   "n": 1
+  },
+  {
+   "s": "Transfer berhasil",
+   "n": 1
+  },
+  {
+   "s": "Transfer Dana",
+   "n": 1
+  },
+  {
+   "s": "Transfer Keluar",
+   "n": 1
+  },
+  {
+   "s": "Transfer Masuk",
+   "n": 1
+  },
+  {
+   "s": "Tulis balasan",
+   "n": 1
+  },
+  {
+   "s": "Tulis balasan Anda",
+   "n": 1
+  },
+  {
+   "s": "Tulis jawaban Anda…",
+   "n": 1
+  },
+  {
+   "s": "Tulis komentar",
+   "n": 1
+  },
+  {
+   "s": "Tulis kronologi secara runtut…",
+   "n": 1
+  },
+  {
+   "s": "Tulis pertanyaan Anda minimal {x} karakter…",
+   "n": 1
+  },
+  {
+   "s": "Tulis pertanyaan Anda…",
+   "n": 1
+  },
+  {
+   "s": "Tulis pesan",
+   "n": 1
+  },
+  {
+   "s": "Tulis pesan untuk mediator & lawan transaksi…",
+   "n": 1
+  },
+  {
+   "s": "Tunggu sebentar",
+   "n": 1
+  },
+  {
+   "s": "Tunjukkan QR Anda",
+   "n": 1
+  },
+  {
+   "s": "Tutup ajakan unduh aplikasi",
+   "n": 1
+  },
+  {
+   "s": "Tutup info",
+   "n": 1
+  },
+  {
+   "s": "Tutup notifikasi",
+   "n": 1
+  },
+  {
+   "s": "Tutup panggilan",
+   "n": 1
+  },
+  {
+   "s": "Tutup pesan",
+   "n": 1
+  },
+  {
+   "s": "Uang ditahan Kahade dan baru diteruskan ke penjual setelah kamu konfirmasi.",
+   "n": 1
+  },
+  {
+   "s": "Ubah detail",
+   "n": 1
+  },
+  {
+   "s": "Ubah foto profil",
+   "n": 1
+  },
+  {
+   "s": "Ubah foto sampul",
+   "n": 1
+  },
+  {
+   "s": "Ubah foto sampul dan profil",
+   "n": 1
+  },
+  {
+   "s": "Ubah nomor atau metode",
+   "n": 1
+  },
+  {
+   "s": "Ubah nomor HP",
+   "n": 1
+  },
+  {
+   "s": "Ubah Password",
+   "n": 1
+  },
+  {
+   "s": "Ubah PIN",
+   "n": 1
+  },
+  {
+   "s": "Ukuran berkas terlalu besar.",
+   "n": 1
+  },
+  {
+   "s": "Ulangi kata sandi",
+   "n": 1
+  },
+  {
+   "s": "Ulangi password baru",
+   "n": 1
+  },
+  {
+   "s": "Ulasan diperbarui",
+   "n": 1
+  },
+  {
+   "s": "Ulasan pesanan akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Ulasan terkirim",
+   "n": 1
+  },
+  {
+   "s": "Umpan Balik",
+   "n": 1
+  },
+  {
+   "s": "Undang teman",
+   "n": 1
+  },
+  {
+   "s": "Unduh",
+   "n": 1
+  },
+  {
+   "s": "Unduh aplikasi Kahade untuk pengalaman lebih baik",
+   "n": 1
+  },
+  {
+   "s": "Unduh Riwayat",
+   "n": 1
+  },
+  {
+   "s": "Unduh struk (HTML)",
+   "n": 1
+  },
+  {
+   "s": "Unggah berkas gagal. Silakan coba kembali.",
+   "n": 1
+  },
+  {
+   "s": "Unggah bukti pengiriman",
+   "n": 1
+  },
+  {
+   "s": "Unggah foto",
+   "n": 1
+  },
+  {
+   "s": "Unggah foto profil",
+   "n": 1
+  },
+  {
+   "s": "Unggah terlalu lama. Periksa koneksi lalu coba kembali.",
+   "n": 1
+  },
+  {
+   "s": "Untuk keamanan, konfirmasi dengan password, kode autentikator, dan OTP yang dikirim ke email Anda.",
+   "n": 1
+  },
+  {
+   "s": "Untuk membuka aplikasi dan konfirmasi transaksi tanpa mengetik PIN.",
+   "n": 1
+  },
+  {
+   "s": "Untuk transaksi pribadi",
+   "n": 1
+  },
+  {
+   "s": "Untuk usaha & toko online",
+   "n": 1
+  },
+  {
+   "s": "URL unggah tidak aman.",
+   "n": 1
+  },
+  {
+   "s": "Username",
+   "n": 1
+  },
+  {
+   "s": "Username disalin",
+   "n": 1
+  },
+  {
+   "s": "Username lawan",
+   "n": 1
+  },
+  {
+   "s": "Username lawan (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Username mungkin sudah dipakai atau baru saja diganti.",
+   "n": 1
+  },
+  {
+   "s": "Usulan dikirim",
+   "n": 1
+  },
+  {
+   "s": "Usulan ditarik",
+   "n": 1
+  },
+  {
+   "s": "Usulan ditolak",
+   "n": 1
+  },
+  {
+   "s": "Usulkan",
+   "n": 1
+  },
+  {
+   "s": "Usulkan penyelesaian",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi {x} Langkah",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi alamat email Anda",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi dikirim",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi Dua Langkah",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi dua langkah aktif",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi dua langkah dimatikan",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi email",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi email agar notifikasi penting dan pemulihan akun bisa dikirim.",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi Identitas",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi OTP",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi password",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi sekarang",
+   "n": 1
+  },
+  {
+   "s": "Versi di toko aplikasi",
+   "n": 1
+  },
+  {
+   "s": "Versi server belum dapat diperiksa",
+   "n": 1
+  },
+  {
+   "s": "Visibilitas profil",
+   "n": 1
+  },
+  {
+   "s": "Voucher promo akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Voucher promo dan riwayat pemakaiannya akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Waktu",
+   "n": 1
+  },
+  {
+   "s": "Ya, sudah diterima",
+   "n": 1
+  },
+  {
+   "s": "Zona Berbahaya",
+   "n": 1
+  }
+ ]
+}
