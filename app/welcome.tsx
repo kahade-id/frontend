@@ -29,11 +29,12 @@
  */
 import { useLocalSearchParams } from "expo-router"
 import { useRouter } from "expo-router"
-import { View } from "react-native"
+import { Platform, View } from "react-native"
 
 import { api } from "@/lib/api"
 import { registerPushDevice } from "@/lib/push-notifications"
 import { ROUTES } from "@/lib/routes"
+import { registerWebPushDevice } from "@/lib/web-push"
 
 import { Button } from "@/components/ui/button"
 import { Stagger } from "@/components/ui/fade-in"
@@ -49,11 +50,19 @@ export default function WelcomeScreen() {
   const isNewUser = newUser === "1"
 
   async function handleStart() {
+    // Web memakai FCM Web Push (lib/web-push.web.ts), native memakai Expo
+    // push token (lib/push-notifications.ts). Keduanya bermuara ke endpoint
+    // register-device yang sama dengan `platform` berbeda. Keduanya no-op
+    // yang aman bila belum dikonfigurasi / izin ditolak — kegagalan push
+    // tidak boleh menghalangi user masuk app.
+    const deviceApi = {
+      registerDevice: (body: Parameters<typeof api.notifications.registerDevice>[0]) =>
+        api.notifications.registerDevice(body),
+      unregisterDevice: () => api.notifications.unregisterDevice(),
+    }
     try {
-      await registerPushDevice({
-        registerDevice: (body) => api.notifications.registerDevice(body),
-        unregisterDevice: () => api.notifications.unregisterDevice(),
-      })
+      if (Platform.OS === "web") await registerWebPushDevice(deviceApi)
+      else await registerPushDevice(deviceApi)
     } catch {
       // tidak ada notif bukan akhir dunia
     }

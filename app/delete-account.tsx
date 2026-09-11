@@ -19,7 +19,7 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  * memblokir form (array kosong) — backend tetap menjadi penjaga terakhir.
  */
 import { useCallback, useRef, useState } from "react"
-import { ScrollView } from "react-native"
+import { Platform, ScrollView } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -27,6 +27,7 @@ import { api } from "@/lib/api"
 import { clearSession } from "@/lib/api/session"
 import { formatRupiah } from "@/lib/format"
 import { unregisterPushDevice } from "@/lib/push-notifications"
+import { unregisterWebPushDevice } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -82,10 +83,13 @@ export default function DeleteAccountScreen() {
             "Permintaan diterima oleh layanan. Ikuti informasi resmi Kahade mengenai proses selanjutnya.",
           tone: "success",
         })
-        await unregisterPushDevice({
-          registerDevice: (dto) => api.notifications.registerDevice(dto),
+        const deviceApi = {
+          registerDevice: (dto: Parameters<typeof api.notifications.registerDevice>[0]) =>
+            api.notifications.registerDevice(dto),
           unregisterDevice: () => api.notifications.unregisterDevice(),
-        }).catch(() => undefined)
+        }
+        if (Platform.OS === "web") await unregisterWebPushDevice(deviceApi).catch(() => undefined)
+        else await unregisterPushDevice(deviceApi).catch(() => undefined)
         await clearSession()
         router.replace(ROUTES.login)
       } catch {

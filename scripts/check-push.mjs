@@ -156,6 +156,51 @@ if (!channelBlock) {
   }
 }
 
+/* ── 6. Web push (FCM Web, non-fatal) ─────────────────────────────────────
+ *
+ * Variabel Firebase Web hanya ada di environment build web (Cloudflare Pages
+ * / lokal), TIDAK di EAS Build native — karena itu tidak pernah GAGAL di
+ * sini, hanya catatan. Validasi keras (setengah jadi / project beda) ada di
+ * `scripts/gen-fcm-sw.mjs` yang berjalan sebagai bagian `npm run build:web`.
+ */
+const webVars = [
+  "EXPO_PUBLIC_FIREBASE_API_KEY",
+  "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN",
+  "EXPO_PUBLIC_FIREBASE_PROJECT_ID",
+  "EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET",
+  "EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+  "EXPO_PUBLIC_FIREBASE_APP_ID",
+  "EXPO_PUBLIC_FIREBASE_VAPID_KEY",
+]
+const webMissing = webVars.filter((name) => !(process.env[name] ?? "").trim())
+if (webMissing.length === webVars.length) {
+  note(
+    "env Firebase Web tidak diisi — web push nonaktif di build ini " +
+      "(app web tetap jalan; lihat .env.example untuk mengaktifkan).",
+  )
+} else if (webMissing.length > 0) {
+  note(
+    `env Firebase Web setengah jadi, belum diisi: ${webMissing.join(", ")}. ` +
+      "`npm run build:web` akan GAGAL sampai semuanya diisi atau semuanya dikosongkan.",
+  )
+} else if (process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID?.trim()) {
+  try {
+    const gsPath = join(root, app.android?.googleServicesFile ?? "google-services.json")
+    const nativeProject = existsSync(gsPath)
+      ? JSON.parse(readFileSync(gsPath, "utf8")).project_info?.project_id
+      : undefined
+    const webProject = process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID.trim()
+    if (nativeProject && nativeProject !== webProject) {
+      note(
+        `EXPO_PUBLIC_FIREBASE_PROJECT_ID ("${webProject}") berbeda dengan google-services.json ` +
+          `("${nativeProject}") — web dan native harus satu project Firebase.`,
+      )
+    }
+  } catch {
+    /* google-services.json rusak sudah dilaporkan di bagian 1 */
+  }
+}
+
 /* ── Hasil ──────────────────────────────────────────────────────────────── */
 for (const n of notes) console.warn(`  CATATAN  ${n}`)
 

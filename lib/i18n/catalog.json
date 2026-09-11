@@ -395,6 +395,10 @@
    "n": 2
   },
   {
+   "s": "Gagal mengaktifkan notifikasi",
+   "n": 2
+  },
+  {
    "s": "Gagal mengirim komentar",
    "n": 2
   },
@@ -756,6 +760,14 @@
   },
   {
    "s": "Aksi transaksi dinonaktifkan sampai peran Anda pada order ini diketahui.",
+   "n": 1
+  },
+  {
+   "s": "Aktifkan",
+   "n": 1
+  },
+  {
+   "s": "Aktifkan agar status order, pembayaran, dan sengketa penting muncul sebagai notifikasi browser, walau tab Kahade tidak sedang dibuka.",
    "n": 1
   },
   {
@@ -2251,6 +2263,14 @@
    "n": 1
   },
   {
+   "s": "Izin notifikasi diperlukan agar Kahade dapat memberi tahu Anda.",
+   "n": 1
+  },
+  {
+   "s": "Izin notifikasi ditolak untuk situs ini. Klik ikon kunci di address bar, ubah Notifikasi menjadi Izinkan, lalu muat ulang halaman.",
+   "n": 1
+  },
+  {
    "s": "Jadikan utama",
    "n": 1
   },
@@ -3376,6 +3396,18 @@
   },
   {
    "s": "Notifikasi belum dapat ditandai",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi browser",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi browser aktif",
+   "n": 1
+  },
+  {
+   "s": "Notifikasi browser diblokir",
    "n": 1
   },
   {

@@ -54,6 +54,7 @@ import { fontAssets } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
 import { animationDurationForScreen, animationForScreen } from "@/lib/screen-transitions"
 import { setupNotifications, subscribeNotificationOpened } from "@/lib/push-notifications"
+import { subscribeWebPushMessages } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
@@ -167,6 +168,25 @@ function AppShell() {
       if (__DEV__) console.warn("[kahade/push] setupNotification gagal:", err)
     })
   }, [])
+
+  // Pesan FCM Web saat tab terbuka (foreground) + klik notifikasi web.
+  // Cermin handler tap native di bawah: pemetaan tunggal
+  // lib/notification-routing. "foreground" hanya menyegarkan badge (tanpa
+  // navigasi — pengguna sedang memakai app); "tap" menavigasi. Di native,
+  // subscribeWebPushMessages adalah no-op (lihat lib/web-push.ts).
+  useEffect(() => {
+    if (Platform.OS !== "web") return
+    if (session.restoring || session.error) return
+    return subscribeWebPushMessages((data, source) => {
+      if (source === "foreground") {
+        if (session.token) void refreshUnreadCount()
+        return
+      }
+      const target = routeForPushData(data) ?? ROUTES.notifications
+      router.push(session.token ? target : ROUTES.login)
+      if (session.token) void refreshUnreadCount()
+    })
+  }, [router, session.restoring, session.error, session.token])
 
   // Tap notifikasi push → buka entitas terkait (order, sengketa, chat, …)
   // lewat pemetaan tunggal lib/notification-routing; tak dikenali → tab
