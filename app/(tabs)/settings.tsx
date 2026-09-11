@@ -31,7 +31,7 @@
  *    transaksi/dompet + tautan ke daftar laporan (/reports).
  */
 import { useCallback, useState } from "react"
-import { Linking, View } from "react-native"
+import { Linking, Platform, View } from "react-native"
 import { router, type Href } from "expo-router"
 import {
   Bell,
@@ -66,6 +66,7 @@ import { clearSession } from "@/lib/api/session"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { unregisterPushDevice } from "@/lib/push-notifications"
+import { unregisterWebPushDevice } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
 import { languageLabel, useLanguage } from "@/lib/i18n"
 import { installedAppVersion } from "@/lib/runtime-info"
@@ -201,10 +202,15 @@ export default function SettingsScreen() {
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
     try {
-      await unregisterPushDevice({
-        registerDevice: (dto) => api.notifications.registerDevice(dto),
+      // Web: lepas token FCM Web + hapus token-nya; native: lepas Expo token.
+      // Keduanya no-op yang aman bila push tidak aktif — logout tetap jalan.
+      const deviceApi = {
+        registerDevice: (dto: Parameters<typeof api.notifications.registerDevice>[0]) =>
+          api.notifications.registerDevice(dto),
         unregisterDevice: () => api.notifications.unregisterDevice(),
-      }).catch(() => undefined)
+      }
+      if (Platform.OS === "web") await unregisterWebPushDevice(deviceApi).catch(() => undefined)
+      else await unregisterPushDevice(deviceApi).catch(() => undefined)
       try {
         await api.auth.logout().catch(() => undefined)
       } finally {

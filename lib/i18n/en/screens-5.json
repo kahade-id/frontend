@@ -148,5 +148,13 @@
 "Suka": "Like",
 "Tambah foto": "Add photo",
 "Tambahan waktu": "Extra time",
-"Tambahkan foto produk atau hasil kerja Anda.": "Add photos of your products or work."
+"Tambahkan foto produk atau hasil kerja Anda.": "Add photos of your products or work.",
+"Notifikasi browser": "Browser notifications",
+"Notifikasi browser aktif": "Browser notifications enabled",
+"Notifikasi browser diblokir": "Browser notifications blocked",
+"Aktifkan": "Enable",
+"Aktifkan agar status order, pembayaran, dan sengketa penting muncul sebagai notifikasi browser, walau tab Kahade tidak sedang dibuka.": "Enable so order status, payments, and important disputes appear as browser notifications, even when the Kahade tab isn't open.",
+"Gagal mengaktifkan notifikasi": "Couldn't enable notifications",
+"Izin notifikasi diperlukan agar Kahade dapat memberi tahu Anda.": "Notification permission is needed so Kahade can notify you.",
+"Izin notifikasi ditolak untuk situs ini. Klik ikon kunci di address bar, ubah Notifikasi menjadi Izinkan, lalu muat ulang halaman.": "Notification permission was denied for this site. Click the lock icon in the address bar, set Notifications to Allow, then reload the page."
 }
