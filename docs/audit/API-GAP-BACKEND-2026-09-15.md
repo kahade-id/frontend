@@ -37,10 +37,14 @@ Klasifikasi:
 - **[TIDAK DIPAKAI SAJA]** — ada alternatif yang sudah dipakai aplikasi, atau sengaja dilewati.
 - **[ALIAS BAKU]** — backend punya prefix baru; aplikasi masih memakai prefix lama (tetap valid).
 
-### 2.1 Chat — 16 route `[FITUR HILANG]`
+### 2.1 Chat — 16 route `[SELESAI P1 — sesi ini]`
 
-Aplikasi saat ini hanya: list pesan, kirim pesan, tanda-baca, hapus pesan,
-upload lampiran (5 endpoint). Backend sudah menyediakan lapisan sosial penuh:
+Sebelumnya aplikasi hanya: list pesan, kirim pesan, tanda-baca, hapus pesan,
+upload lampiran (5 endpoint). Backend menyediakan lapisan sosial penuh. **Putaran
+P1 (sesi ini) mengoneksikan ke-16 route:** 13 terwiring UI (reaksi, pin, edit,
+forward, read-receipt, presence, mute, arsip, inquiry) + 3 adapter-ready
+(global search, in-room search, tandai-baca per-pesan). Detail di §7.
+
 
 | Method + path | Fungsi |
 |---|---|
@@ -196,7 +200,7 @@ cd frontend && npm run gen:api
 |---|---|---|---|
 | **P0 — SELESAI (sesi ini)** | Migrasi alias `withdrawals/schedules` → `scheduled-withdrawals` (UI list jadwal sudah ada di `app/withdrawal-schedules.tsx`) | 4 | Risiko break sepih; fitur uang |
 | **P0 — SELESAI (sesi ini)** | Business verification (submit/status/history/resubmit) + layar + entry menu | 4 | Alur uang (merchant) |
-| P1 | Chat lanjutan (edit, reactions, pin, read-receipt, typing, search, mute/archive) | 16 | Permukaan terbesar |
+| **P1 — SELESAI (sesi ini)** | Chat lanjutan (edit, reactions, pin, read-receipt, typing, search, mute/archive, inquiry, presence, forward) | 16 | Permukaan terbesar |
 | P1 | Showcase sosial (feed, like, komentar, laporkan) | 12 | Fitur sosial utama |
 | P1 | Profil sosial (saved, report user, cari user, upvote, moderasi) | 22 (−7 non-fitur) | Kelengkapan profil |
 | P2 | Wallet favorite recipients + export html | 3 | Kewenangan transaksi |
@@ -289,7 +293,67 @@ keputusan desain (token vs allowlist) oleh pemilik UI.
 yang sudah didepresiasi; backend memaparkannya dua kali, jadi total route
 "tidak dipanggil" secara literal tetap 84, bukan 78.)
 
+### 7.1 Adapter — ke-16 route kini dipanggil (`lib/api/chat.ts`)
+
+| Route | Fungsi | Status UI |
+|---|---|---|
+| `POST /v1/chat/inquiries` | `createInquiry` — ruang pra-transaksi | ✅ tombol Chat di profil pengguna → sheet (subjek + pesan) → masuk room |
+| `GET /v1/chat/search` | `searchAllMessages` | adapter-ready (UI pencarian belum) |
+| `GET /rooms/{id}/search` | `searchRoomMessages` | adapter-ready (UI pencarian belum) |
+| `PATCH …/messages/{id}` | `editChatMessage` | ✅ menu pesan → "Edit pesan" (teks sendiri, sheet + TextArea) |
+| `POST …/reactions` | `addReaction` | ✅ sheet emoji cepat (6 emoji) + ketuk chip reaksi |
+| `DELETE …/reactions/{emoji}` | `removeReaction` | ✅ ketuk lagi chip reaksi yang sudah aktif |
+| `POST …/pin` | `pinChatMessage` | ✅ menu pesan → "Pin pesan" + baris pin di atas thread |
+| `DELETE …/pin` | `unpinChatMessage` | ✅ "Lepas pin" |
+| `GET …/pins` | `getPinnedMessages` | ✅ baris chip pin (tap → menu pesan) |
+| `POST …/forward` | `forwardChatMessage` | ✅ "Teruskan" → pilih room lain dengan lawan bicara sama |
+| `PUT …/archive` | `setRoomArchived` | ✅ tekan-lama room → Arsipkan/Buka arsip (room terarsip disembunyikan) |
+| `PUT …/mute` | `setRoomMuted` | ✅ "Bisukan", "Bisukan 1 jam" (durationHours), "Bukakan suara" |
+| `GET …/presence` | `getRoomPresence` | ✅ baris "Online / Terakhir dilihat …" di ruang chat (poll 30 dtk) |
+| `POST …/typing` | `sendChatTyping` | ✅ kirim saat draft berubah, stop 3 dtk diam / setelah kirim |
+| `GET …/read-receipts` | `getReadReceipts` | ✅ ikon centang ganda `read` pada pesan sendiri |
+| `POST …/messages/{id}/read` | `markMessageRead` | adapter-ready (room-read via `POST …/read` sudah ada) |
+
+Catatan perilaku:
+- **Edit/hapus terkunci** saat order DISPUTED (backend `CHAT_MESSAGE_LOCKED_DISPUTE`);
+  error dipetakan ke toast.
+- **Forward** hanya ke room dengan lawan bicara sama (dibatasi backend; target
+  tidak cocok masuk `skipped` → ditampilkan sebagai error).
+- **Presence** di-REST-poll karena app belum menyambungkan gateway WebSocket
+  backend; indikator typing TEPAN lawan bicara pun baru bisa tampil setelah
+  realtime diimplementasikan (state kirim sudah berfungsi).
+- **Reaksi** pakai optimistic update + rollback ke state semula bila request gagal.
+
+### 7.2 Komponen yang disentuh
+
+- `components/ui/chat-message-bubble.tsx` — props baru: `reactions` + `onReact`
+  (chip reaksi), `isPinned` (ikon pin), `isEdited` (caption "diedit"), status
+  `read` sudah ada → dipakai read-receipt.
+- `app/chat/[roomId].tsx` — menu pesan diperluas (Reaksi, Pin, Edit, Teruskan,
+  Salin, Hapus), sheet emoji/edit/forward, baris pin, baris presence,
+  read-receipt, typing indicator, poll presence 30 dtk.
+- `app/chat.tsx` — dot online + ikon bisukan dari payload `GET /rooms`,
+  tekan-lama → ActionSheet arsip/mute, room terarsip disembunyikan dari list.
+- `app/user/[username].tsx` — tombol "Kirim Pesan" kini membuka sheet inquiry
+  (sebelumnya hanya menautkan ke daftar chat generik).
+
+### 7.3 Celah spec baru yang ditemukan
+
+- `POST /v1/chat/rooms/{id}/typing` — controller memakai tipe inline anonim
+  `@Body() dto: { isTyping: boolean }` sehingga OpenAPI tidak mendokumentasikan
+  requestBody (akar masalah sama dengan bug @ApiProperty di §6.4). Didaftarkan
+  di `KNOWN_DEVIATIONS` (scripts/check-api-body.mjs) + perlu
+  `TypingIndicatorDto` di backend.
+
+### 7.4 Verifikasi P1
+
+tsc ✓, lint ✓, check:spec ✓, check:api ✓ (1 known deviation baru terdokumentasi),
+check:inventory ✓, check:screens ✓, check:a11y ✓, check:weblinks ✓, check:push ✓,
+123/123 test ✓. check:tokens tetap merah 12 (pre-existing, terverifikasi baseline
+di §6.5).
+
 ---
 
 *Dihasilkan 2026-09-15. Ekstraktor route: skrip v2 (multi-class + inheritance),
-diverifikasi 450 dekorator method + 4 route warisan = 454 route.*
+diverifikasi 450 dekorator method + 4 route warisan = 454 route.
+Diperbarui sesi P1 chat: §2.1, §5, §7.*

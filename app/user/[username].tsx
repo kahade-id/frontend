@@ -42,6 +42,7 @@ import type {
   QuestionItem,
   ShowcaseItem,
 } from "@/lib/api/users"
+import { createInquiry } from "@/lib/api/chat"
 import {
   readQuestionComments,
   readQuestionList,
@@ -58,6 +59,7 @@ import { tokens } from "@/lib/tokens"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Chip } from "@/components/ui/chip"
@@ -67,6 +69,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { FavoriteIconButton } from "@/components/ui/favorite-icon-button"
 import { FollowButton } from "@/components/ui/follow-button"
 import { Icon } from "@/components/ui/icon"
+import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
 import { Crossfade } from "@/components/ui/fade-in"
@@ -122,6 +125,12 @@ export default function UserProfileScreen() {
   const [followLoading, setFollowLoading] = useState(false)
   const [followerCount, setFollowerCount] = useState<number | null>(null)
   const [followingCount, setFollowingCount] = useState<number | null>(null)
+
+  // Inquiry (nego sebelum transaksi) state
+  const [inquiryOpen, setInquiryOpen] = useState(false)
+  const [inquirySubject, setInquirySubject] = useState("")
+  const [inquiryMessage, setInquiryMessage] = useState("")
+  const [inquirySending, setInquirySending] = useState(false)
 
   // Active tab state
   const [activeTab, setActiveTab] = useState<ProfileTab>("content")
@@ -660,7 +669,11 @@ export default function UserProfileScreen() {
                       variant="secondary"
                       size="sm"
                       accessibilityLabel="Kirim Pesan"
-                      onPress={() => router.push(ROUTES.chat)}
+                      onPress={() => {
+                        setInquirySubject("")
+                        setInquiryMessage("")
+                        setInquiryOpen(true)
+                      }}
                     />
                     <FollowButton
                       following={following === true}
@@ -1232,6 +1245,67 @@ export default function UserProfileScreen() {
           </Button>
         </View>
       </Dialog>
+
+      {/* Inquiry — buka ruang pra-transaksi (POST /v1/chat/inquiries) lalu
+          langsung masuk ke ruang chat hasil inquiry. */}
+      <BottomSheet
+        visible={inquiryOpen}
+        onRequestClose={() => setInquiryOpen(false)}
+        title="Mulai percakapan"
+        description={
+          profile?.fullName
+            ? `Ajukan pertanyaan atau negosiasi dengan ${profile.fullName} sebelum transaksi.`
+            : "Ajukan pertanyaan atau negosiasi sebelum transaksi."
+        }
+        footer={
+          <Button
+            fullWidth
+            loading={inquirySending}
+            disabled={!inquiryMessage.trim()}
+            onPress={() => {
+              if (!profile?.id) return
+              setInquirySending(true)
+              createInquiry({
+                counterpartId: profile.id,
+                subject: inquirySubject.trim() || undefined,
+                message: inquiryMessage.trim(),
+              })
+                .then((res) => {
+                  setInquiryOpen(false)
+                  router.push(ROUTES.chatRoom(res.room.id))
+                })
+                .catch((err) => {
+                  toast.show({
+                    title: "Gagal memulai percakapan",
+                    description: isApiError(err) ? userMessage(err) : undefined,
+                    tone: "danger",
+                  })
+                })
+                .finally(() => setInquirySending(false))
+            }}
+          >
+            Kirim
+          </Button>
+        }
+      >
+        <View className="gap-3 px-5 pb-2">
+          <Input
+            label="Subjek (opsional)"
+            value={inquirySubject}
+            onChangeText={setInquirySubject}
+            placeholder="Mis. Harga grosir 10 pcs"
+            containerClassName="mb-1"
+          />
+          <TextArea
+            label="Pesan"
+            value={inquiryMessage}
+            onChangeText={setInquiryMessage}
+            rows={4}
+            placeholder="Tulis pertanyaan atau tawaran Anda…"
+            accessibilityLabel="Pesan inquiry"
+          />
+        </View>
+      </BottomSheet>
     </Screen>
   )
 }
