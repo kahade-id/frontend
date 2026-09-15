@@ -42,7 +42,7 @@
  *     identifier yang diketik ulang persis (§3.1 data presisi), bukan teks
  *     naratif.
  */
-import { CheckCircle, UserCircle } from "phosphor-react-native"
+import { CheckCircle, Heart, UserCircle } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -68,6 +68,7 @@ export type TransferRecipient = {
 export type TransferRecipientPickerLabels = {
   placeholder: string
   recent: string
+  favorites: string
   results: string
   notVerified: string
   emptyTitle: string
@@ -82,10 +83,21 @@ export type TransferRecipientPickerProps = Omit<ViewProps, "children"> & {
   results?: TransferRecipient[]
   /** Penerima yang pernah dipakai; tampil saat query kosong */
   recent?: TransferRecipient[]
+  /**
+   * Penerima favorit (dari `GET /v1/wallet/favorite-recipients`); tampil
+   * sebagai seksi pertama saat query kosong.
+   */
+  favorites?: TransferRecipient[]
   loading?: boolean
   /** id penerima terpilih */
   value?: string
   onSelect: (recipient: TransferRecipient) => void
+  /**
+   * id penerima yang sudah favorit. Bila `onToggleFavorite` diberikan,
+   * setiap baris menampilkan ikon hati (sibling di luar pressable baris).
+   */
+  favoriteIds?: string[]
+  onToggleFavorite?: (recipient: TransferRecipient, nextFavorite: boolean) => void
   labels?: Partial<TransferRecipientPickerLabels>
   className?: string
 }
@@ -93,6 +105,7 @@ export type TransferRecipientPickerProps = Omit<ViewProps, "children"> & {
 const DEFAULT_LABELS: TransferRecipientPickerLabels = {
   placeholder: "Cari username penerima",
   recent: "Terakhir",
+  favorites: "Favorit",
   results: "Hasil pencarian",
   notVerified: "Belum verifikasi",
   emptyTitle: "Pengguna tidak ditemukan",
@@ -106,12 +119,22 @@ function RecipientRow({
   divider,
   onSelect,
   t,
+  isFavorite,
+  onToggleFavorite,
 }: {
   recipient: TransferRecipient
   selected: boolean
   divider: boolean
   onSelect: (r: TransferRecipient) => void
   t: TransferRecipientPickerLabels
+  /** true bila penerima ini sudah favorit (diambil dari daftar favorit backend) */
+  isFavorite?: boolean
+  /**
+   * Hadir bila layar mendukung favorit (Transfer). Ikon hati dirender SEBAGAI
+   * SIBLING di luar PressableScale baris — bukan nested + stopPropagation
+   * (pola repo, cf. <UserDiscoverResultItem>).
+   */
+  onToggleFavorite?: (r: TransferRecipient, nextFavorite: boolean) => void
 }) {
   // Status KYC adalah INFORMASI, bukan gerbang. Dulu baris ini berbunyi
   // `const disabled = recipient.kycVerified !== true`, dan itu mematikan transfer
@@ -126,40 +149,74 @@ function RecipientRow({
   // di langkah PIN. Menolak lebih awal di klien atas dasar field yang tidak ada
   // hanya menghasilkan jalan buntu.
   const verificationLabel = recipient.kycVerified === false ? t.notVerified : undefined
+  const rowContent = (
+    <>
+      <Avatar
+        source={recipient.avatarUrl}
+        name={recipient.name}
+        size="md"
+        verified={recipient.kycVerified}
+      />
+      <View className="flex-1 gap-0">
+        <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1}>
+          {recipient.name}
+        </Text>
+        <Text variant="monoBody" tone="secondary" numberOfLines={1}>
+          {`@${recipient.username}`}
+        </Text>
+      </View>
+      {verificationLabel ? (
+        <Badge tone="neutral" variant="outline">
+          {verificationLabel}
+        </Badge>
+      ) : null}
+      {selected ? <Icon icon={CheckCircle} size="sm" tone="active" weight="fill" /> : null}
+    </>
+  )
+  const rowPressable = (
+    <PressableScale
+      scaleOnPress={false}
+      onPress={() => onSelect(recipient)}
+      accessibilityRole="button"
+      accessibilityState={{ selected }}
+      accessibilityLabel={`${recipient.name}, @${recipient.username}${
+        verificationLabel ? `, ${verificationLabel}` : ""
+      }${selected ? `, ${t.selected}` : ""}`}
+      containerClassName={cn(onToggleFavorite ? "flex-1 min-w-0" : "w-full", focusRingInset)}
+      className="flex-row items-center gap-3 px-6 py-3"
+    >
+      {rowContent}
+    </PressableScale>
+  )
   return (
     <View>
-      <PressableScale
-        scaleOnPress={false}
-        onPress={() => onSelect(recipient)}
-        accessibilityRole="button"
-        accessibilityState={{ selected }}
-        accessibilityLabel={`${recipient.name}, @${recipient.username}${
-          verificationLabel ? `, ${verificationLabel}` : ""
-        }${selected ? `, ${t.selected}` : ""}`}
-        containerClassName={cn("w-full", focusRingInset)}
-        className="flex-row items-center gap-3 px-6 py-3"
-      >
-        <Avatar
-          source={recipient.avatarUrl}
-          name={recipient.name}
-          size="md"
-          verified={recipient.kycVerified}
-        />
-        <View className="flex-1 gap-0">
-          <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1}>
-            {recipient.name}
-          </Text>
-          <Text variant="monoBody" tone="secondary" numberOfLines={1}>
-            {`@${recipient.username}`}
-          </Text>
+      {onToggleFavorite ? (
+        <View className="flex-row items-center">
+          {rowPressable}
+          <PressableScale
+            scaleOnPress={false}
+            haptic
+            onPress={() => onToggleFavorite(recipient, !isFavorite)}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isFavorite }}
+            accessibilityLabel={
+              isFavorite
+                ? `Hapus ${recipient.name} dari penerima favorit`
+                : `Jadikan ${recipient.name} penerima favorit`
+            }
+            containerClassName={cn("pr-4", focusRingInset)}
+          >
+            <Icon
+              icon={Heart}
+              size="md"
+              tone={isFavorite ? "accent" : "default"}
+              weight={isFavorite ? "fill" : "regular"}
+            />
+          </PressableScale>
         </View>
-        {verificationLabel ? (
-          <Badge tone="neutral" variant="outline">
-            {verificationLabel}
-          </Badge>
-        ) : null}
-        {selected ? <Icon icon={CheckCircle} size="sm" tone="active" weight="fill" /> : null}
-      </PressableScale>
+      ) : (
+        rowPressable
+      )}
       {divider ? <View
           accessibilityRole="none"
           importantForAccessibility="no"
@@ -197,9 +254,12 @@ export function TransferRecipientPicker({
   onQueryChange,
   results = [],
   recent = [],
+  favorites = [],
   loading = false,
   value,
   onSelect,
+  favoriteIds,
+  onToggleFavorite,
   labels,
   className,
   ...rest
@@ -207,6 +267,26 @@ export function TransferRecipientPicker({
   const t = { ...DEFAULT_LABELS, ...labels }
   const searching = query.trim().length > 0
   const list = searching ? results : recent
+  const favoriteSet = new Set(favoriteIds ?? [])
+
+  // Satu helper untuk semua seksi (Favorit / Terakhir / Hasil pencarian):
+  // heart hanya hadir bila layar mendukung toggle favorit. Saat idle,
+  // `isFavorite` diambil dari `favoriteSet`; hasil pencarian tidak punya
+  // baris favorit sendiri tapi tetap bisa di-toggle (backend resolve id).
+  const renderRows = (items: TransferRecipient[], withHeart: boolean) =>
+    items.map((r, i) => (
+      <RecipientRow
+        key={r.id}
+        recipient={r}
+        selected={r.id === value}
+        divider={i < items.length - 1}
+        onSelect={onSelect}
+        t={t}
+        isFavorite={withHeart ? favoriteSet.has(r.id) : undefined}
+        onToggleFavorite={withHeart ? onToggleFavorite : undefined}
+      />
+    ))
+  const hasIdleContent = !searching && (favorites.length > 0 || recent.length > 0)
 
   return (
     <View className={cn("w-full", className)} {...rest}>
@@ -229,19 +309,25 @@ export function TransferRecipientPicker({
         </View>
       ) : searching && list.length === 0 ? (
         <EmptyState icon={UserCircle} title={t.emptyTitle} description={t.emptyBody} compact />
-      ) : list.length > 0 ? (
+      ) : searching ? (
         <View>
-          <SectionLabel>{searching ? t.results : t.recent}</SectionLabel>
-          {list.map((r, i) => (
-            <RecipientRow
-              key={r.id}
-              recipient={r}
-              selected={r.id === value}
-              divider={i < list.length - 1}
-              onSelect={onSelect}
-              t={t}
-            />
-          ))}
+          <SectionLabel>{t.results}</SectionLabel>
+          {renderRows(list, Boolean(onToggleFavorite))}
+        </View>
+      ) : hasIdleContent ? (
+        <View>
+          {favorites.length > 0 ? (
+            <View>
+              <SectionLabel>{t.favorites}</SectionLabel>
+              {renderRows(favorites, true)}
+            </View>
+          ) : null}
+          {recent.length > 0 ? (
+            <View>
+              <SectionLabel>{t.recent}</SectionLabel>
+              {renderRows(recent, true)}
+            </View>
+          ) : null}
         </View>
       ) : null}
     </View>

@@ -88,7 +88,7 @@ export type {
   Paginated,
 } from "@/lib/api/orders"
 export type { UserSearchResult, UserProfile } from "@/lib/api/users"
-export type { Wallet, WalletTransaction } from "@/lib/api/wallet"
+export type { FavoriteRecipient, Wallet, WalletTransaction } from "@/lib/api/wallet"
 
 export const api = {
   auth,

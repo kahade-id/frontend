@@ -16,6 +16,13 @@ export type SubscriptionStatus = {
   plan?: string
   expiresAt?: string | null
   autoRenew?: boolean
+  /** `POST /v1/subscriptions/pause` → status server PAUSED. */
+  paused?: boolean
+  pausedAt?: string | null
+  /** Auto-resume date (jika pause dikirim `resumeAt`). */
+  resumeAt?: string | null
+  /** Enum status server (ACTIVE/PAUSED/SUSPENDED/CANCELLED/…) */
+  status?: string
 }
 
 export type SubscriptionHistoryEntry = {
@@ -33,6 +40,11 @@ export function getSubscriptionStatus(signal?: AbortSignal) {
     active: raw.active ?? raw.isActive ?? false,
     expiresAt: raw.expiresAt ?? raw.currentPeriodEnd ?? null,
     autoRenew: raw.autoRenew ?? raw.isAutoRenew ?? false,
+    // Backend mengirim `isPaused`/`pausedAt`/`resumeAt` (model Subscription);
+    // kita menormalisasi ke `paused` agar layar tidak menebak bentuk server.
+    paused: raw.paused ?? raw.isPaused ?? false,
+    pausedAt: (raw.pausedAt ?? null) as string | null,
+    resumeAt: (raw.resumeAt ?? null) as string | null,
   }) as SubscriptionStatus)
 }
 
@@ -101,4 +113,40 @@ export function renewSubscription(dto: RenewDto) {
 
 export function cancelSubscription() {
   return http.post<SubscriptionStatus>("/v1/subscriptions/cancel", undefined, { auth: "required" })
+}
+
+/**
+ * POST /v1/subscriptions/pause — jeda langganan aktif.
+ * `resumeAtIso` opsional (ISO 8601, harus tanggal MASA DEPAN); tanpa itu
+ * langganan tetap jeda sampai `resumeSubscription()` manual.
+ * Respons = model Subscription server (BUKAN bentuk /status) — layar
+ * harus `query.refresh()` setelahnya, jangan `setData` mentah-mentah.
+ */
+export function pauseSubscription(resumeAtIso?: string) {
+  return http.post<Record<string, unknown>, { resumeAt?: string }>(
+    "/v1/subscriptions/pause",
+    { ...(resumeAtIso ? { resumeAt: resumeAtIso } : {}) },
+    { auth: "required" },
+  )
+}
+
+/** POST /v1/subscriptions/resume — aktifkan kembali langganan yang dijeda. Tanpa body. */
+export function resumeSubscription() {
+  return http.post<Record<string, unknown>>("/v1/subscriptions/resume", undefined, {
+    auth: "required",
+  })
+}
+
+/**
+ * POST /v1/subscriptions/upgrade — ganti paket dengan proration (11.1).
+ * `newPlan` = key paket server ("MONTHLY" | "ANNUAL"); `pin` = PIN dompet
+ * (biaya prorasi dipotong dari saldo). Dipagari KycRequiredGuard di backend.
+ * Respons = objek hasil upgrade (bukan bentuk /status) → `query.refresh()`.
+ */
+export function upgradeSubscription(dto: { newPlan: "MONTHLY" | "ANNUAL"; pin: string }) {
+  return http.post<Record<string, unknown>, { newPlan: "MONTHLY" | "ANNUAL"; pin: string }>(
+    "/v1/subscriptions/upgrade",
+    dto,
+    { auth: "required" },
+  )
 }

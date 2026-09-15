@@ -121,6 +121,30 @@ const KNOWN_DEVIATIONS = [
       "ReportShowcaseDto dengan @ApiProperty.",
   },
   {
+    match: "POST /v1/wallet/favorite-recipients",
+    reason:
+      "Controller membaca field polos `@Body('recipientId')` + `@Body('label')` " +
+      "(tanpa class DTO) sehingga Swagger tidak mendeklarasikan requestBody. " +
+      "Klien benar mengirim { recipientId, label? } flat. Backend perlu " +
+      "AddFavoriteRecipientDto dengan @ApiProperty agar tercatat di spec.",
+  },
+  {
+    match: "POST /v1/subscriptions/upgrade",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { newPlan: any; pin: string }` " +
+      "sehingga Swagger tidak mendeklarasikan requestBody. Klien benar mengirim " +
+      "{ newPlan, pin } (newPlan = key paket MONTHLY/ANNUAL). Backend perlu " +
+      "UpgradeSubscriptionDto dengan @ApiProperty.",
+  },
+  {
+    match: "POST /v1/support/tickets/{}/rate",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { rating: number; comment?: string }` " +
+      "sehingga Swagger tidak mendeklarasikan requestBody. Klien benar mengirim " +
+      "{ rating, comment? } (rating 1–5, hanya tiket RESOLVED/CLOSED). Backend " +
+      "perlu RateTicketDto dengan @ApiProperty.",
+  },
+  {
     match: "POST /v1/chat/rooms/{}/typing",
     reason:
       "Controller memakai tipe inline anonim `@Body() dto: { isTyping: boolean }` " +
