@@ -4,8 +4,8 @@
  *
  * JANGAN EDIT MANUAL. Ubah spec → `npm run gen:api`.
  *
- * Spec: Kahade API v1.0 · 90 DTO dipakai
- * (28 schema admin-only dilewati).
+ * Spec: Kahade API v1.0 · 105 DTO dipakai
+ * (33 schema admin-only dilewati).
  */
 
 export type RegisterDto = {
@@ -92,6 +92,19 @@ export type VerifyPhoneOtpDto = {
   deviceInfo?: string
 }
 
+export type SocialLoginDto = {
+  /** Social provider */
+  provider: "google" | "apple"
+  /** ID token from social provider (Google ID token or Apple identityToken) */
+  idToken: string
+  /** Device ID for session tracking */
+  deviceId?: string
+  /** Device info (user-agent) */
+  deviceInfo?: string
+  /** Access token (required for Apple to verify) */
+  accessToken?: string
+}
+
 export type PhoneRegisterDto = {
   /** Temp token from OTP verification */
   tempToken: string
@@ -145,19 +158,35 @@ export type PhoneRegisterDto = {
 }
 
 export type RequestPhoneChangeDto = {
-  /** maxLength 20 */
+  /**
+   * New phone number (E.164)
+   * maxLength 20
+   */
   newPhoneNumber: string
+  /** OTP delivery channel */
   method: "SMS" | "WHATSAPP"
-  /** minLength 1 · maxLength 256 */
+  /**
+   * Current account password
+   * minLength 1 · maxLength 256
+   */
   currentPassword: string
-  /** maxLength 16 */
+  /**
+   * Six-digit authenticator code or 10–16 character backup code
+   * maxLength 16
+   */
   mfaCode?: string
 }
 
 export type ConfirmPhoneChangeDto = {
-  /** maxLength 20 */
+  /**
+   * New phone number (E.164)
+   * maxLength 20
+   */
   newPhoneNumber: string
-  /** pattern ^\d{6}$ */
+  /**
+   * Six-digit OTP code
+   * pattern ^\d{6}$
+   */
   code: string
 }
 
@@ -478,23 +507,64 @@ export type RequestAccountDeletionDto = {
 
 export type TrustDeviceDto = Record<string, never>
 
-export type CreateShowcaseDto = {
+export type CreateShowcaseItemDto = {
+  /** maxLength 100 */
   title: string
+  /** maxLength 500 */
   description?: string
-  imageUrl?: string
+  /**
+   * Kategori bebas untuk filter feed discover, mis. "ilustrasi".
+   * maxLength 60
+   */
+  category?: string
+  /** default "PUBLIC" */
+  visibility?: "PUBLIC" | "PRIVATE"
+  /**
+   * Harga minimum (Rupiah, bilangan bulat).
+   * min 0
+   */
   priceMin?: number
+  /**
+   * Harga maksimum (Rupiah, bilangan bulat).
+   * min 0
+   */
   priceMax?: number
+  /**
+   * Urutan tampil di etalase profil.
+   * min 0
+   */
   sortOrder?: number
+  /** Object key hasil upload presigned (purpose SHOWCASE_IMAGE) yang sudah dikonfirmasi lewat POST /upload/confirm. Maksimum 8 gambar. */
+  imageFileKeys?: Array<string>
 }
 
-export type UpdateShowcaseDto = {
+export type UpdateShowcaseItemDto = {
+  /** maxLength 100 */
   title?: string
+  /** maxLength 500 */
   description?: string
-  imageUrl?: string
+  /** maxLength 60 */
+  category?: string
+  visibility?: "PUBLIC" | "PRIVATE"
+  /** min 0 */
   priceMin?: number
+  /** min 0 */
   priceMax?: number
   isActive?: boolean
+  /** min 0 */
   sortOrder?: number
+  /** Bila diisi, seluruh gambar diganti dengan daftar key ini. */
+  imageFileKeys?: Array<string>
+}
+
+export type AttachShowcaseImagesDto = {
+  /** Object key gambar yang sudah dikonfirmasi. */
+  fileKeys: Array<string>
+}
+
+export type ReorderShowcaseImagesDto = {
+  /** Seluruh ID gambar milik item ini, dalam urutan yang diinginkan. Harus lengkap — urutan disimpan ulang sebagai sortOrder 0..n-1. */
+  imageIds: Array<string>
 }
 
 export type ReportUserDto = {
@@ -527,6 +597,11 @@ export type AnswerQuestionDto = {
   answer: string
 }
 
+export type HideContentDto = {
+  /** Kategori alasan konten disembunyikan. */
+  reason: "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER"
+}
+
 export type AddCommentDto = {
   /**
    * Comment content
@@ -537,27 +612,26 @@ export type AddCommentDto = {
   parentId?: string
 }
 
-export type SubmitKycDto = {
-  /**
-   * S3 fileKey from confirmed KTP upload (format: uploads/kyc-ktp/{userId}/{filename})
-   * contoh "uploads/kyc-ktp/user123/1700000000_abc123.jpg"
-   */
-  ktpFileKey: string
-  /**
-   * S3 fileKey from confirmed selfie upload (format: uploads/kyc-selfie/{userId}/{filename})
-   * contoh "uploads/kyc-selfie/user123/1700000000_def456.jpg"
-   */
-  selfieFileKey: string
-  /**
-   * NIK (exactly 16 digits)
-   * pattern ^\d{16}$
-   */
-  nik: string
+export type UpdateShowcaseCommentDto = {
+  /** maxLength 1000 */
+  content: string
+}
+
+export type SetCommentHiddenDto = {
+  /** Kategori alasan moderasi. Wajib diisi ketika menyembunyikan komentar. */
+  reason?: "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER"
+}
+
+export type CreateShowcaseCommentDto = {
+  /** maxLength 1000 */
+  content: string
+  /** ID komentar induk bila ini balasan. */
+  parentId?: string
 }
 
 export type PresignedUrlDto = {
   /** Upload purpose determines allowed content types, max file size, and URL expiry duration */
-  purpose: "KYC_KTP" | "KYC_SELFIE" | "AVATAR" | "CHAT_ATTACHMENT" | "DISPUTE_EVIDENCE" | "REPORT_EVIDENCE" | "DELIVERY_PROOF"
+  purpose: "KYC_KTP" | "KYC_SELFIE" | "KYC_PASSPORT" | "KYC_LIVENESS" | "BUSINESS_DOCUMENT" | "SHOWCASE_IMAGE" | "AVATAR" | "CHAT_ATTACHMENT" | "DISPUTE_EVIDENCE" | "REPORT_EVIDENCE" | "DELIVERY_PROOF"
   /** contoh "photo.jpg" */
   fileName: string
   /** contoh "image/jpeg" */
@@ -580,6 +654,64 @@ export type ConfirmUploadDto = {
 }
 
 export type CleanupFilesDto = Record<string, never>
+
+export type SubmitKycDto = {
+  /**
+   * Document type: KTP (default) or PASSPORT for WNA
+   * default "KTP"
+   */
+  documentType?: "KTP" | "PASSPORT"
+  /**
+   * S3 fileKey from confirmed KTP upload (format: uploads/kyc-ktp/{userId}/{filename}) — required if documentType=KTP
+   * contoh "uploads/kyc-ktp/user123/1700000000_abc123.jpg"
+   */
+  ktpFileKey: string
+  /**
+   * S3 fileKey for passport upload (format: uploads/kyc-passport/{userId}/{filename}) — required if documentType=PASSPORT
+   * contoh "uploads/kyc-passport/user123/1700000000_pass.jpg"
+   */
+  passportFileKey?: string
+  /**
+   * S3 fileKey from confirmed selfie upload (format: uploads/kyc-selfie/{userId}/{filename})
+   * contoh "uploads/kyc-selfie/user123/1700000000_def456.jpg"
+   */
+  selfieFileKey: string
+  /**
+   * S3 fileKey for liveness check / holding ID photo (format: uploads/kyc-liveness/{userId}/{filename}) — optional but recommended for anti-fraud
+   * contoh "uploads/kyc-liveness/user123/1700000000_live.jpg"
+   */
+  livenessFileKey?: string
+  /** NIK (exactly 16 digits) for KTP, or passport number for PASSPORT */
+  nik: string
+}
+
+export type SubmitBusinessVerificationDto = {
+  /**
+   * Nama badan usaha sesuai akta pendirian / NPWP
+   * minLength 3 · maxLength 150 · contoh "PT Kawal Hak Dengan Aman"
+   */
+  businessName: string
+  /**
+   * NPWP badan usaha — 15 digit (format lama) atau 16 digit (format NIK). Titik dan strip diizinkan dan akan dinormalisasi.
+   * contoh "01.234.567.8-901.000"
+   */
+  npwpNumber: string
+  /**
+   * Nomor akta pendirian
+   * maxLength 100
+   */
+  deedNumber?: string
+  /**
+   * Nomor SIUP / NIB
+   * maxLength 100
+   */
+  siupNumber?: string
+  /**
+   * S3 fileKey dari upload yang sudah dikonfirmasi (format: uploads/business-documents/{userId}/{filename}). Maksimal 5 dokumen.
+   * contoh ["uploads/business-documents/user123/1700000000-abc-npwp.pdf"]
+   */
+  documentFileKeys: Array<string>
+}
 
 export type AddBankAccountDto = {
   /** Bank code (must match BankCode enum) */
@@ -634,7 +766,9 @@ export type TopupDto = {
   method: "VIRTUAL_ACCOUNT_BCA" | "VIRTUAL_ACCOUNT_BNI" | "VIRTUAL_ACCOUNT_BRI" | "VIRTUAL_ACCOUNT_MANDIRI" | "VIRTUAL_ACCOUNT_CIMB" | "VIRTUAL_ACCOUNT_PERMATA" | "VIRTUAL_ACCOUNT_OTHER" | "QRIS" | "GOPAY" | "SHOPEEPAY" | "OVO" | "DANA" | "LINKAJA" | "CREDIT_CARD" | "ALFAMART" | "INDOMARET" | "AKULAKU" | "KREDIVO"
   /** Card token from Midtrans.js tokenization (required for CREDIT_CARD method) */
   cardToken?: string
-  /** Wallet PIN (6 digits) — collected by mobile but not verified for top-up */
+  /** TOPUP_BONUS voucher code to apply once the payment settles */
+  voucherCode?: string
+  /** Deprecated: Wallet PIN is no longer required for top-up (payment gateway secures it). Ignored if sent. */
   pin?: string
 }
 
@@ -668,8 +802,8 @@ export type ConfirmWithdrawOtpDto = {
   /** Transaction ID */
   txId: string
   /**
-   * OTP code (6 digits)
-   * minLength 6 · maxLength 6
+   * OTP code (6 digits by default; up to 10 when WITHDRAW_OTP_DIGITS is raised)
+   * minLength 6 · maxLength 10
    */
   otp: string
 }
@@ -690,8 +824,8 @@ export type SetPinDto = {
    * minLength 6 · maxLength 6
    */
   currentPin?: string
-  /** Account password — required when changing an existing PIN */
-  password: string
+  /** Account password — required when changing an existing PIN, optional when setting first PIN */
+  password?: string
 }
 
 export type VerifyPinDto = {
@@ -764,6 +898,10 @@ export type CreateOrderDto = {
    * maxLength 50
    */
   voucherCode?: string
+  /** Reference attachment URLs (R2 CDN) for order spec — max 5 */
+  attachments?: Array<string>
+  /** Source inquiry room ID if order originates from an INQUIRY chat (links negotiation context) */
+  inquiryRoomId?: string
 }
 
 export type ConfirmOrderDto = {
@@ -833,6 +971,8 @@ export type RespondExtensionDto = {
 }
 
 export type SubmitDisputeDto = {
+  /** Dispute category */
+  category: "ITEM_NOT_RECEIVED" | "ITEM_NOT_AS_DESCRIBED" | "DAMAGED_ITEM" | "WRONG_ITEM" | "SERVICE_NOT_RENDERED" | "PAYMENT_ISSUE" | "FRAUD" | "OTHER"
   /**
    * Dispute claim
    * minLength 20 · maxLength 2000
@@ -885,7 +1025,10 @@ export type SubmitDeliveryProofDto = {
 }
 
 export type ConfirmDeliveryDto = {
-  /** Specific submitted delivery proof to review */
+  /**
+   * Specific submitted delivery proof to review
+   * pattern ^c[a-z0-9]{24}$
+   */
   proofId?: string
 }
 
@@ -895,7 +1038,10 @@ export type RejectDeliveryDto = {
    * minLength 10 · maxLength 1000
    */
   note: string
-  /** Specific submitted delivery proof to reject */
+  /**
+   * Specific submitted delivery proof to reject
+   * pattern ^c[a-z0-9]{24}$
+   */
   proofId?: string
 }
 
@@ -922,7 +1068,7 @@ export type SubmitEvidenceDto = {
    * File types (MIME)
    * minItems 1 · maxItems 10
    */
-  fileTypes: Array<"image/jpeg" | "image/png" | "image/webp" | "application/pdf">
+  fileTypes: Array<"image/jpeg" | "image/png" | "image/webp" | "application/pdf" | "video/mp4" | "video/quicktime" | "video/webm">
 }
 
 export type SubmitClaimDto = {
@@ -981,6 +1127,18 @@ export type UpdatePreferencesDto = {
   rankingPush?: boolean
   /** Marketing email notifications */
   marketingEmail?: boolean
+  /** Marketing push notifications */
+  marketingPush?: boolean
+  /** Marketing in-app notifications */
+  marketingInApp?: boolean
+  /** Quiet hours enabled */
+  quietHoursEnabled?: boolean
+  /** Quiet hours start (HH:mm) */
+  quietHoursStart?: string
+  /** Quiet hours end (HH:mm) */
+  quietHoursEnd?: string
+  /** Preferred language */
+  language?: "id" | "en"
 }
 
 export type RegisterDeviceDto = {
@@ -996,6 +1154,21 @@ export type RegisterDeviceDto = {
    * maxLength 128
    */
   deviceId?: string
+}
+
+export type CreateInquiryDto = {
+  /** User id of the counterpart to negotiate with */
+  counterpartId: string
+  /**
+   * What the inquiry is about (e.g. item title). Shown as the conversation header.
+   * maxLength 200
+   */
+  subject?: string
+  /**
+   * First message
+   * maxLength 1000
+   */
+  message: string
 }
 
 export type ChatAttachmentDto = {
@@ -1025,10 +1198,10 @@ export type ChatAttachmentDto = {
 
 export type SendMessageDto = {
   /**
-   * Message type (TEXT, IMAGE, or FILE). SYSTEM is reserved for internal use.
+   * Message type (TEXT, IMAGE, FILE, or VOICE). SYSTEM is reserved for internal use.
    * default "TEXT"
    */
-  messageType?: "TEXT" | "IMAGE" | "FILE"
+  messageType?: "TEXT" | "IMAGE" | "FILE" | "VIDEO" | "VOICE"
   /**
    * Message content
    * maxLength 2000
@@ -1038,6 +1211,61 @@ export type SendMessageDto = {
   attachments?: Array<ChatAttachmentDto>
   /** ID of the message being replied to */
   replyToId?: string
+  /**
+   * Voice note duration in seconds. Required for VOICE messages.
+   * min 1 · max 600
+   */
+  durationSeconds?: number
+  /**
+   * Caption for image/video attachments
+   * maxLength 500
+   */
+  caption?: string
+}
+
+export type EditMessageDto = {
+  /**
+   * New message content
+   * maxLength 2000
+   */
+  content: string
+}
+
+export type AddReactionDto = {
+  /**
+   * Emoji to react with (1–8 code points)
+   * maxLength 16 · contoh "👍"
+   */
+  emoji: string
+}
+
+export type ForwardMessageDto = {
+  /**
+   * Target chat room ids (rooms with the same counterpart only)
+   * maxItems 5
+   */
+  targetRoomIds: Array<string>
+}
+
+export type ArchiveRoomDto = {
+  /**
+   * true to archive, false to unarchive
+   * default true
+   */
+  archived?: boolean
+}
+
+export type MuteRoomDto = {
+  /**
+   * true to mute, false to unmute
+   * default true
+   */
+  muted?: boolean
+  /**
+   * Mute duration in hours. Omit to mute indefinitely.
+   * min 1 · max 720
+   */
+  durationHours?: number
 }
 
 export type CreateRatingDto = {
@@ -1094,10 +1322,19 @@ export type ValidateVoucherDto = {
 export type SubscribeDto = {
   /** Subscription plan */
   plan: "MONTHLY" | "ANNUAL"
-  /** Wallet PIN for payment verification */
-  pin: string
+  /** Wallet PIN for paid subscription verification. Optional only when useTrial=true. */
+  pin?: string
   /** Payment method */
   paymentMethod?: "VIRTUAL_ACCOUNT_BCA" | "VIRTUAL_ACCOUNT_BNI" | "VIRTUAL_ACCOUNT_BRI" | "VIRTUAL_ACCOUNT_MANDIRI" | "VIRTUAL_ACCOUNT_CIMB" | "VIRTUAL_ACCOUNT_PERMATA" | "VIRTUAL_ACCOUNT_OTHER" | "QRIS" | "GOPAY" | "SHOPEEPAY" | "OVO" | "DANA" | "LINKAJA" | "CREDIT_CARD" | "ALFAMART" | "INDOMARET" | "AKULAKU" | "KREDIVO" | "KAHADE_WALLET"
+  /** Active SUBSCRIPTION_DISCOUNT campaign promo code for the first paid period */
+  promoCode?: string
+  /** Start the one-lifetime free trial instead of charging wallet balance */
+  useTrial?: boolean
+}
+
+export type PauseSubscriptionDto = {
+  /** Auto-resume date (ISO 8601). If omitted, the subscription stays paused until manual resume. */
+  resumeAt?: string
 }
 
 export type RenewDto = {
@@ -1112,11 +1349,11 @@ export type ReportUserSettingsDto = {
   category: "FRAUD" | "FAKE_IDENTITY" | "INAPPROPRIATE_CONTENT" | "TNC_VIOLATION" | "MONEY_LAUNDERING" | "SPAM" | "OTHER"
   /**
    * Report description
-   * maxLength 500
+   * minLength 20 · maxLength 500
    */
   description: string
   /**
-   * Evidence URLs
+   * Evidence URLs (must be platform CDN URLs)
    * maxItems 10
    */
   evidenceUrls?: Array<string>
@@ -1178,6 +1415,8 @@ export type CreateTemplateDto = Record<string, never>
 export type UpdateTemplateDto = Record<string, never>
 
 export type CreateTicketDto = {
+  /** Related help center article ID if user came from FAQ (14.2) */
+  relatedArticleId?: string
   /** Attachment file keys (max 5) */
   attachments?: Array<string>
 }

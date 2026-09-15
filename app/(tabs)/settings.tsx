@@ -52,6 +52,7 @@ import {
   Shield,
   ShieldCheck,
   SignOut,
+  Storefront,
   TelegramLogo,
   TiktokLogo,
   Translate,
@@ -232,6 +233,12 @@ export default function SettingsScreen() {
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
     { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security },
     { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },
+    {
+      id: "business-verification",
+      label: "Verifikasi Bisnis",
+      icon: Storefront,
+      route: ROUTES.businessVerification,
+    },
   ]
 
   // ── Preferensi ──────────────────────────────────────────────────

@@ -6,6 +6,7 @@ export const AUTHENTICATED_SCREENS = [
   "analytics",
   "badges",
   "bank-accounts",
+  "business-verification",
   "biometric-settings",
   "blocked-users",
   "change-email",

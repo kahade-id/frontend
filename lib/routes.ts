@@ -202,6 +202,8 @@ export const ROUTES = {
   // ── Fitur utama (quick action & menu) ───────────────────────────────────
   /** KYC: status + riwayat + submit */
   kyc: "/kyc" as Href,
+  /** Verifikasi bisnis (badge "Business Verified"): status + riwayat + submit — khusus akun BUSINESS */
+  businessVerification: "/business-verification" as Href,
   /** Daftar sengketa saya (GET /v1/disputes/my) */
   disputes: "/disputes" as Href,
   /** Detail satu sengketa */

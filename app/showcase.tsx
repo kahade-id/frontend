@@ -6,9 +6,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * Kontrak API (docs/api/kahade-api-mobile.json):
  *   GET    /v1/users/me/showcase             → semua item (termasuk nonaktif)
  *   POST   /v1/users/me/showcase/upload      multipart gambar (201, tanpa schema)
- *   POST   /v1/users/me/showcase             CreateShowcaseDto { title, description?,
+ *   POST   /v1/users/me/showcase             CreateShowcaseItemDto { title, description?,
  *                                            imageUrl?, priceMin?, priceMax?, sortOrder? }
- *   PUT    /v1/users/me/showcase/{id}        UpdateShowcaseDto (+ isActive)
+ *   PUT    /v1/users/me/showcase/{id}        UpdateShowcaseItemDto (+ isActive)
  *   DELETE /v1/users/me/showcase/{id}
  *
  * Alur tambah: pilih gambar → upload → bila respons sudah berupa item
@@ -67,7 +67,7 @@ type FormState = {
 }
 const EMPTY_FORM: FormState = { title: "", description: "", priceMin: 0, priceMax: 0 }
 
-type Editor = { mode: "create"; imageUrl?: string } | { mode: "edit"; item: ShowcaseItem } | null
+type Editor = { mode: "create"; imageUrl?: string; fileKey?: string } | { mode: "edit"; item: ShowcaseItem } | null
 
 function labelOf(it: ShowcaseItem): string {
   return it.title ?? it.caption ?? "Portofolio"
@@ -134,9 +134,10 @@ export default function ShowcaseScreen() {
         }
       } else {
         const imageUrl = res?.imageUrl ?? res?.url ?? res?.key ?? res?.fileKey
+        const fileKey = res?.fileKey ?? res?.key
         setForm({ ...EMPTY_FORM })
         setFormError(undefined)
-        setEditor({ mode: "create", imageUrl })
+        setEditor({ mode: "create", imageUrl, fileKey })
       }
     } catch (err) {
       toast.show({ title: "Gagal mengunggah foto", description: userMessage(err), tone: "danger" })
@@ -178,7 +179,9 @@ export default function ShowcaseScreen() {
       if (editor.mode === "create") {
         await api.users.createShowcase({
           ...payload,
-          imageUrl: editor.imageUrl,
+          // fileKey dari /showcase/upload (purpose SHOWCASE_IMAGE) — field baru
+          // CreateShowcaseItemDto; `imageUrl` (DTO lama) tidak lagi diterima backend.
+          imageFileKeys: editor.fileKey ? [editor.fileKey] : undefined,
           sortOrder: items.length,
         })
         toast.show({ title: "Item showcase dibuat", tone: "success", duration: 3000 })

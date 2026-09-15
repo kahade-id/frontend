@@ -29,11 +29,11 @@ import type {
   AddCommentDto,
   ConfirmAvatarDto,
   ConfirmHeaderDto,
-  CreateShowcaseDto,
+  CreateShowcaseItemDto,
   RequestAccountDeletionDto,
   UpdateLinksDto,
   UpdateProfileDto,
-  UpdateShowcaseDto,
+  UpdateShowcaseItemDto,
   UserLinkItemDto,
 } from "@/lib/api/types"
 
@@ -549,7 +549,7 @@ export function removeFavorite(username: string) {
 // ------------------------------------------------------------------
 
 /**
- * Item showcase — field mengikuti CreateShowcaseDto/UpdateShowcaseDto
+ * Item showcase — field mengikuti CreateShowcaseItemDto/UpdateShowcaseItemDto
  * (title, description, imageUrl, priceMin/Max, isActive, sortOrder);
  * `caption`/`fileKey` dipertahankan untuk kompatibilitas respons lama
  * (UNVERIFIED — GET tanpa schema).
@@ -598,8 +598,8 @@ export async function uploadShowcase(formData: FormData) {
   }
 }
 
-export async function createShowcase(dto: CreateShowcaseDto) {
-  const result = await http.post<ShowcaseItem, CreateShowcaseDto>("/v1/users/me/showcase", dto, {
+export async function createShowcase(dto: CreateShowcaseItemDto) {
+  const result = await http.post<ShowcaseItem, CreateShowcaseItemDto>("/v1/users/me/showcase", dto, {
     auth: "required",
   })
   return {
@@ -614,8 +614,8 @@ export async function createShowcase(dto: CreateShowcaseDto) {
   }
 }
 
-export async function updateShowcase(id: string, dto: UpdateShowcaseDto) {
-  const result = await http.put<ShowcaseItem, UpdateShowcaseDto>(`/v1/users/me/showcase/${seg(id)}`, dto, {
+export async function updateShowcase(id: string, dto: UpdateShowcaseItemDto) {
+  const result = await http.put<ShowcaseItem, UpdateShowcaseItemDto>(`/v1/users/me/showcase/${seg(id)}`, dto, {
     auth: "required",
   })
   return {
