@@ -57,6 +57,7 @@ import {
   TiktokLogo,
   Translate,
   User,
+  Bookmark,
   WhatsappLogo,
   XLogo,
 } from "phosphor-react-native"
@@ -229,6 +230,7 @@ export default function SettingsScreen() {
 
   // ── Akun ────────────────────────────────────────────────────────
   const accountItems: MenuItemData[] = [
+    { id: "saved", label: "Profil Tersimpan", icon: Bookmark, route: ROUTES.saved },
     { id: "edit-profile", label: "Edit Profil", icon: User, route: ROUTES.editProfile },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
     { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security },

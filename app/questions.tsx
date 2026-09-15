@@ -37,9 +37,19 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QACard } from "@/components/ui/qa-card"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Radio, RadioGroup } from "@/components/ui/radio"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+
+const HIDE_REASONS = [
+  { value: "SPAM", label: "Spam", description: "Link/jualan tidak relevan" },
+  { value: "INAPPROPRIATE", label: "Tidak pantas", description: "Konten menyinggung" },
+  { value: "HARASSMENT", label: "Perundungan", description: "Ancaman/pelecehan" },
+  { value: "OTHER", label: "Lainnya", description: "Jelaskan di alasan lain" },
+] as const
+type HiddenReason = (typeof HIDE_REASONS)[number]["value"]
 
 const PAGE_SIZE = 20
 /** AnswerQuestionDto: minLength 1 · maxLength 2000 (batas lokal min 10 agar jawaban bermakna) */
@@ -93,6 +103,64 @@ export default function QuestionsScreen() {
     },
   )
   const items = query.data
+  const [upvotingId, setUpvotingId] = useState<string | null>(null)
+  const [hideTarget, setHideTarget] = useState<QuestionItem | null>(null)
+  const [hideReason, setHideReason] = useState<HiddenReason>("SPAM")
+  const [hiding, setHiding] = useState(false)
+
+  const submitHide = useCallback(async () => {
+    if (!hideTarget || hiding) return
+    setHiding(true)
+    try {
+      await api.users.hideQuestion(hideTarget.id, hideReason)
+      // Pertanyaan tersembunyi hilang dari list server (filter isHidden) —
+      // cukup hapus dari state lokal.
+      query.setData((prev) => prev.filter((q) => q.id !== hideTarget.id))
+      setHideTarget(null)
+      toast.show({ title: "Pertanyaan disembunyikan", tone: "success", duration: 2500 })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal menyembunyikan pertanyaan",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setHiding(false)
+    }
+  }, [hideTarget, hideReason, hiding, query.setData, toast])
+
+  const patchQuestion = useCallback(
+    (id: string, patch: Partial<QuestionItem>) => {
+      query.setData((prev) => prev.map((q) => (q.id === id ? { ...q, ...patch } : q)))
+    },
+    [query.setData],
+  )
+
+  const handleUpvote = useCallback(
+    async (q: QuestionItem, next: boolean) => {
+      if (upvotingId) return
+      setUpvotingId(q.id)
+      const prevCount = q.upvoteCount ?? 0
+      const prevActive = q.isUpvotedByViewer === true
+      patchQuestion(q.id, { upvoteCount: Math.max(0, prevCount + (next ? 1 : -1)), isUpvotedByViewer: next })
+      try {
+        const res = next
+          ? await api.users.upvoteQuestion(q.id)
+          : await api.users.removeQuestionUpvote(q.id)
+        patchQuestion(q.id, { upvoteCount: res.upvoteCount, isUpvotedByViewer: res.upvoted })
+      } catch (err: unknown) {
+        patchQuestion(q.id, { upvoteCount: prevCount, isUpvotedByViewer: prevActive })
+        toast.show({
+          title: "Gagal memperbarui dukungan",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setUpvotingId(null)
+      }
+    },
+    [upvotingId, patchQuestion, toast],
+  )
 
   const openAnswer = useCallback((q: QuestionItem) => {
     setAnswerTarget(q)
@@ -183,6 +251,12 @@ export default function QuestionsScreen() {
               return (
                 <QACard
                   key={q.id}
+                  upvote={{
+                    count: q.upvoteCount ?? 0,
+                    active: q.isUpvotedByViewer === true,
+                    loading: upvotingId === q.id,
+                    onToggle: (next) => void handleUpvote(q, next),
+                  }}
                   question={q.question}
                   asker={
                     received
@@ -218,6 +292,18 @@ export default function QuestionsScreen() {
                           onPress={() => router.push(ROUTES.userProfile(other.username))}
                         >
                           Lihat profil
+                        </Button>
+                      ) : null}
+                      {received ? (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onPress={() => {
+                            setHideReason("SPAM")
+                            setHideTarget(q)
+                          }}
+                        >
+                          Sembunyikan
                         </Button>
                       ) : null}
                       <Button size="sm" variant="ghost" onPress={() => setDeleteTarget(q)}>
@@ -266,6 +352,31 @@ export default function QuestionsScreen() {
           showCount
         />
       </Dialog>
+
+      <BottomSheet
+        visible={hideTarget != null}
+        onRequestClose={() => setHideTarget(null)}
+        title="Sembunyikan pertanyaan"
+        description="Pertanyaan tidak lagi tampil di profil publik. Tindakan dapat dibatalkan lewat moderasi."
+        footer={
+          <Button
+            fullWidth
+            variant="destructive"
+            loading={hiding}
+            onPress={() => void submitHide()}
+          >
+            Sembunyikan
+          </Button>
+        }
+      >
+        <View className="px-5 pb-2">
+          <RadioGroup value={hideReason} onChange={(v) => setHideReason(v as HiddenReason)}>
+            {HIDE_REASONS.map((r) => (
+              <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
+            ))}
+          </RadioGroup>
+        </View>
+      </BottomSheet>
 
       <Dialog
         title="Hapus pertanyaan?"

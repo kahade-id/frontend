@@ -67,7 +67,13 @@ Catatan: backend juga punya gateway WebSocket (`src/modules/realtime`) —
 streaming realtime bukan bagian audit REST ini; chat aplikasi saat ini berbasis
 polling REST.
 
-### 2.2 Profil sosial & perangkat — 22 route
+### 2.2 Profil sosial & perangkat — 22 route `[SELESAI P1 — sesi ini]`
+
+Putaran P1 (sesi ini) mengoneksikan ke-16 route fungsional: 13 terwiring UI
+(saved, cari user, badge, hapus perangkat, upvote, sembunyikan Q&A + komentar,
+multi-foto showcase) + 3 adapter-ready (report user, unhide×2 — lihat catatan
+backend gap di §9.1). 6 route sisanya memang tidak perlu UI (duplikat/OG/alias).
+Detail di §9.
 
 | Method + path | Klasifikasi |
 |---|---|
@@ -204,7 +210,7 @@ cd frontend && npm run gen:api
 | **P0 — SELESAI (sesi ini)** | Business verification (submit/status/history/resubmit) + layar + entry menu | 4 | Alur uang (merchant) |
 | **P1 — SELESAI (sesi ini)** | Chat lanjutan (edit, reactions, pin, read-receipt, typing, search, mute/archive, inquiry, presence, forward) | 16 | Permukaan terbesar |
 | **P1 — SELESAI (sesi ini)** | Showcase sosial (feed, like, komentar, laporkan, share, moderasi) | 12 | Fitur sosial utama |
-| P1 | Profil sosial (saved, report user, cari user, upvote, moderasi) | 22 (−7 non-fitur) | Kelengkapan profil |
+| **P1 — SELESAI (sesi ini)** | Profil sosial (saved, cari user, badge, hapus perangkat, upvote, moderasi Q&A, multi-foto showcase; report user + unhide×2 adapter-ready) | 22 (−6 non-fitur) | Kelengkapan profil |
 | P2 | Wallet favorite recipients + export html | 3 | Kewenangan transaksi |
 | P2 | Langganan pause/resume/upgrade | 3 | Revenue |
 | P2 | Support close/rate/reopen, ratings helpful/delete, dispute escalate, invoice PDF, search history, referral leaderboard, blocked users, bank account edit, template use, social login, deep link showcase, help-center feedback, exchange-rates, hapus satu perangkat | 19 | Poles |
@@ -401,6 +407,72 @@ check:inventory ✓ (92 route), check:screens ✓, check:a11y ✓, check:weblink
 
 ---
 
+## 9. Putaran P1 — profil sosial & perangkat (sesi ini)
+
+### 9.1 Adapter — ke-16 route fungsional kini dipanggil (`lib/api/users.ts`)
+
+| Route | Fungsi | Status UI |
+|---|---|---|
+| `GET /v1/users/{username}/saved` | `checkSavedProfile` | ✅ ikon bookmark di header profil (state tersimpan/tidak) |
+| `POST /v1/users/{username}/saved` | `saveProfile` | ✅ tap ikon → "Simpan profil" + toast |
+| `DELETE /v1/users/{username}/saved` | `unsaveProfile` | ✅ tap ikon → "Hapus dari tersimpan" |
+| `GET /v1/users/me/saved` | `getSavedProfiles` (rewrite — respons top-level meta, bukan `Paginated`) | ✅ layar baru `app/saved.tsx` + entry menu Pengaturan (12 baris profil + unsave) |
+| `GET /v1/users/search` | `searchUsers` (q ≥ 2, throttle 10 rpm/IP) | ✅ layar Pencarian — bagian "Pengguna" memakai endpoint dedikasi (membershipRank); `/v1/search` tetap untuk pesanan/mutasi/artikel; fallback ke user `/v1/search` bila endpoint dedikasi gagal |
+| `GET /v1/users/{username}/badges` | `getVerificationBadges` (5 tipe: KYC, Bisnis, Kahade+, Trusted, Kontak) | ✅ baris badge di bawah nama profil (icon + shortLabel; label a11y = "label: description"). Peta nama ikon kebab-case Phosphor → komponen; beberapa nama tak ada di build phosphor yang terpasang (badge-check→IdentificationBadge, briefcase-check→Briefcase, envelope-check→Envelope), fallback SealCheck |
+| `DELETE /v1/users/me/devices/{deviceId}` | `removeDevice` | ✅ Perangkat & Sesi — tekan-lama baris (bukan perangkat sendiri, wajib `deviceId`) → Dialog konfirmasi. Backend mencabut SEMUA sesi perangkat itu + menghapus catatannya (login ulang + 2FA) — sengaja dipisahkan dari aksi "Keluar" yang lebih ringan |
+| `POST /v1/users/questions/{id}/upvote` | `upvoteQuestion` | ✅ chip upvote di 3 layar QACard (tab Tanya Jawab profil sendiri, halaman tanya-jawab publik, profil publik) — optimistic ±1, sinkron final `{upvoted, upvoteCount}` dari respons |
+| `DELETE /v1/users/questions/{id}/upvote` | `removeQuestionUpvote` | ✅ toggle chip yang sama |
+| `POST /v1/users/questions/{id}/hide` | `hideQuestion` (reason: SPAM/INAPPROPRIATE/HARASSMENT/OTHER) | ✅ halaman pertanyaan tab "Diterima" (pemilik) → "Sembunyikan" → BottomSheet RadioGroup alasan; baris hilang dari list (server memfilter) |
+| `POST /v1/users/questions/{id}/unhide` | `unhideQuestion` | ⚠️ adapter-ready — backend gap, lihat di bawah |
+| `POST /v1/users/comments/{id}/hide` | `hideQAComment` (reason sama) | ✅ tab Tanya Jawab profil sendiri → baris komentar → "Sembunyikan" (hanya pemilik, bukan komentar milik penjual, bukan yang sudah dihapus) → BottomSheet alasan; thread dimuat ulang |
+| `POST /v1/users/comments/{id}/unhide` | `unhideQAComment` | ⚠️ adapter-ready — backend gap, lihat di bawah |
+| `POST /v1/users/me/showcase/{id}/images` | `attachShowcaseImages(fileKeys[])` | ✅ Portofolio → item → "Kelola foto" → "Tambah foto" (pick → upload langsung → `fileKey` → lampirkan; masuk di akhir galeri; maks 8 foto/item = `SHOWCASE_MAX_IMAGES`) |
+| `PUT /v1/users/me/showcase/{id}/images/order` | `reorderShowcaseImages(imageIds[])` | ✅ "Kelola foto" → panah kiri/kanan per foto (swap lokal → kirim SELURUH daftar id; backend menyimpan ulang sortOrder 0..n-1) |
+| `DELETE /v1/users/me/showcase/images/{imageId}` | `deleteShowcaseImage` | ✅ "Kelola foto" → ikon sampah → Dialog konfirmasi (hapus cover → foto berikutnya menggantikan) |
+
+Catatan perilaku:
+- **Backend gap unhide (jangan "diperbaiki" di frontend):** baris tanya-jawab
+  dan komentar yang `isHidden` **difilter server dari daftar pemilik** (tidak
+  dikembalikan sama sekali), sehingga tidak ada permukaan UI untuk menawarkan
+  "Tampilkan kembali" — berbeda dengan komentar showcase (§8.1) yang server
+  tetap kirimkan kepada pemilik dengan `hiddenReason`. Adapter + aksi
+  sembunyikan sudah terhubung penuh; unhide menunggu perubahan backend
+  (mis. mengembalikan baris hidden kepada pemilik dengan flag + alasan).
+- **Report user** (`POST /v1/users/{userId}/report`, `ReportUserDto`
+  {category: FRAUD/FAKE_IDENTITY/INAPPROPRIATE_CONTENT/TNC_VIOLATION/
+  MONEY_LAUNDERING/SPAM/OTHER, description 20–500, evidenceUrls? ≤10},
+  throttle 5/hari): adapter `reportUser` sudah ada — permukaan UI (mis. menu
+  profil "Laporkan pengguna") belum ditentukan, follow-up kecil.
+- **Saved vs favorit**: saved = daftar pribadi (`app/saved`), favorit =
+  dukungan publik dengan counter — dua ikon terpisah di header profil.
+- **Quirk TypeScript 5.9.3 (dijumpai sesi ini):** union literal yang diturunkan
+  dari const array (`QA_HIDE_REASONS as const`) vs alias `HiddenReason` di
+  `lib/api/users.ts` gagal assignability-mutual di kompilasi besar (repro:
+  union 4 anggota dengan urutan identik di kedua sisi gagal; urutan berbeda
+  lolos — perilaku intern string checker). Workaround di layar profil:
+  `useState<HiddenReason>` + cast di boundary onChange RadioGroup. Dicatat
+  agar tidak di-debug ulang bila muncul di layar lain dengan pola sama.
+- **Galeri multi-foto**: `ShowcaseItem` kini membawa `images[]` +
+  `coverImageUrl` (alias `imageUrl` = cover); grid portofolio memakai
+  `coverImageUrl` sebagai sumber.
+
+### 9.2 Verifikasi P1-profil-sosial
+
+tsc ✓, lint (penuh) ✓, check:spec ✓ (283 path), check:api ✓ (286 adapter
+calls, 0 new finding), gen:inventory + check:inventory ✓ (93 route),
+check:screens ✓, check:a11y ✓ (322 file), check:weblinks ✓ (19 rewrite —
+tidak ada route dinamis baru), check:push ✓, 123/123 test ✓. check:tokens
+tetap merah 12 (pre-existing, §6.5).
+
+**Gap tersisa: 34 dari 86** tidak dipanggil — setelah P0 (8), P1 chat (16),
+P1 showcase (12), P1 profil sosial (16). Rincian: wallet (§2.4: 5), langganan
+(§2.7: 3), tiket support (§2.8: 3), lainnya (§2.9: 17), profil non-fitur
+(§2.2: 6). Dari 34 itu 23 fitur hilang sebenar-nya; 3 route profil
+adapter-ready menunggu keputusan (report user, unhide×2).
+
+---
+
 *Dihasilkan 2026-09-15. Ekstraktor route: skrip v2 (multi-class + inheritance),
 diverifikasi 450 dekorator method + 4 route warisan = 454 route.
-Diperbarui sesi P1 chat: §2.1, §5, §7. Diperbarui sesi P1 showcase: §2.3, §5, §8.*
+Diperbarui sesi P1 chat: §2.1, §5, §7. Diperbarui sesi P1 showcase: §2.3, §5, §8.
+Diperbarui sesi P1 profil sosial: §2.2, §5, §9.*

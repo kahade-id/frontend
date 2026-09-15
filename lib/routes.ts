@@ -254,6 +254,8 @@ export const ROUTES = {
   discover: "/discover" as Href,
   /** Favorite user (GET /v1/users/favorites) */
   favorites: "/favorites" as Href,
+  /** Profil tersimpan (GET /v1/users/saved) */
+  saved: "/saved" as Href,
   /** Followers/following user */
   followers: (username: string, tab: "followers" | "following" = "followers") =>
     ({ pathname: "/followers/[username]", params: { username, tab } }) as unknown as Href,

@@ -3,7 +3,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
-import { api, type Order, type WalletTransaction, type UserProfile } from "@/lib/api"
+import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { formatDateTime, formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -25,7 +25,7 @@ import { UserListItem } from "@/components/ui/user-list-item"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 
 type ResultRow = { id: string } & (
-  | { kind: "user"; user: UserProfile }
+  | { kind: "user"; user: UserSearchResult }
   | { kind: "order"; order: Order }
   | { kind: "transaction"; transaction: WalletTransaction }
   | { kind: "article"; article: { id: string; slug: string; title: string; snippet?: string } }
@@ -51,15 +51,35 @@ export default function SearchScreen() {
     (signal) => api.search.globalSearch({ q: keyword, limit: 20 }, signal),
     enabled,
   )
+  // Bagian "Pengguna" memakai endpoint dedikasi GET /v1/users/search (lebih
+  // kaya: membershipRank; throttle 10 rpm/IP) — /v1/search tetap dipakai
+  // untuk pesanan, mutasi, dan artikel. Bila endpoint dedikasi gagal,
+  // hasil user dari /v1/search dipakai sebagai fallback.
+  const usersResult = useApiQuery(
+    `search-users:${keyword}`,
+    (signal) => api.users.searchUsers(keyword, { limit: 20 }, signal),
+    enabled,
+  )
   const suggestions = useApiQuery(
     `suggestions:${keyword}`,
     (signal) => api.search.getSearchSuggestions({ q: keyword }, signal),
     enabled,
   )
-  const rows = useMemo<ResultRow[]>(
-    () => [
-      ...(result.data?.users ?? []).map((user) => ({
-        id: `user:${user.id}`,
+  const rows = useMemo<ResultRow[]>(() => {
+    const dedicated = usersResult.data?.users
+    const users: UserSearchResult[] =
+      dedicated ??
+      (usersResult.error
+        ? (result.data?.users ?? []).map((u) => ({
+            userId: u.id,
+            username: u.username ?? null,
+            fullName: u.fullName ?? "",
+            avatarUrl: u.avatarUrl ?? null,
+          }))
+        : [])
+    return [
+      ...users.map((user) => ({
+        id: `user:${user.userId}`,
         kind: "user" as const,
         user,
       })),
@@ -78,9 +98,8 @@ export default function SearchScreen() {
         kind: "article" as const,
         article,
       })),
-    ],
-    [result.data],
-  )
+    ]
+  }, [result.data, usersResult.data, usersResult.error])
   /**
    * Pengumuman hasil untuk screen reader (<LiveRegion> §10). Hasil pencarian
    * berubah tanpa perpindahan fokus — tanpa ini pengguna VoiceOver/TalkBack
@@ -156,7 +175,7 @@ export default function SearchScreen() {
             item.kind === "user" ? (
               <UserListItem
                 padded={false}
-                name={item.user.fullName ?? item.user.username ?? "Identitas belum tersedia"}
+                name={item.user.fullName || item.user.username || "Identitas belum tersedia"}
                 username={item.user.username ?? undefined}
                 avatar={item.user.avatarUrl ? { source: item.user.avatarUrl } : undefined}
                 chevron
@@ -220,13 +239,16 @@ export default function SearchScreen() {
           )
         }}
         ListEmptyComponent={
-          result.loading ? (
+          result.loading || usersResult.loading ? (
             <ListLoading />
-          ) : result.error ? (
+          ) : result.error || usersResult.error ? (
             <ErrorState
               title="Gagal mencari"
-              description={result.error}
-              onRetry={() => void result.reload()}
+              description={result.error || usersResult.error || "Terjadi kesalahan."}
+              onRetry={() => {
+                void result.reload()
+                void usersResult.reload()
+              }}
             />
           ) : (
             <EmptyState
@@ -240,9 +262,12 @@ export default function SearchScreen() {
             />
           )
         }
-        refreshing={result.refreshing}
-        onRefresh={() => void result.refresh()}
-        refreshEnabled={enabled && !result.loading}
+        refreshing={result.refreshing || usersResult.refreshing}
+        onRefresh={() => {
+          void result.refresh()
+          void usersResult.refresh()
+        }}
+        refreshEnabled={enabled && !result.loading && !usersResult.loading}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         initialNumToRender={8}

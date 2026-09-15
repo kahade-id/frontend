@@ -29,11 +29,11 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
+import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
-import type { ShowcaseItem } from "@/lib/api/users"
+import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
 import { pickImage, pickedImageToFormData } from "@/lib/image-picker"
 import { formatRupiah } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -48,7 +48,9 @@ import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
+import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
+import { Picture } from "@/components/ui/picture"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -60,6 +62,8 @@ import { useToast } from "@/components/ui/toast"
 /** Batas lokal (spec tidak menyebut maxLength untuk showcase) */
 const TITLE_MAX = 100
 const DESC_MAX = 500
+/** Batas foto per item — sama dengan SHOWCASE_MAX_IMAGES backend (8). */
+const SHOWCASE_MAX_IMAGES = 8
 
 type FormState = {
   title: string
@@ -111,6 +115,16 @@ export default function ShowcaseScreen() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | undefined>()
   const [saving, setSaving] = useState(false)
+
+  // ── Kelola foto item (multi-image) ────────────────────────────────
+  // ID saja yang disimpan di state — baris item diturunkan dari `items`
+  // supaya selalu sinkron setelah refresh (foto baru/terhapus/terurut ulang).
+  const [imagesItemId, setImagesItemId] = useState<string | null>(null)
+  const imagesItem = imagesItemId ? (items.find((it) => it.id === imagesItemId) ?? null) : null
+  const [attaching, setAttaching] = useState(false)
+  const [reorderingId, setReorderingId] = useState<string | null>(null)
+  const [deleteImage, setDeleteImage] = useState<ShowcaseImage | null>(null)
+  const [deletingImage, setDeletingImage] = useState(false)
 
 
 
@@ -242,6 +256,82 @@ export default function ShowcaseScreen() {
     }
   }, [deleteTarget, toast, query])
 
+  /**
+   * Lampirkan foto tambahan: pick → upload langsung (kembalikan fileKey) →
+   * POST /me/showcase/{id}/images. Foto baru masuk di AKHIR galeri
+   * (sortOrder berikutnya diisi backend).
+   */
+  const handleAttachImage = useCallback(
+    async (item: ShowcaseItem) => {
+      if (attaching) return
+      const picked = await pickImage({ allowsEditing: true })
+      if (picked.status === "denied") {
+        toast.show({ title: "Akses galeri ditolak", tone: "danger" })
+        return
+      }
+      if (picked.status !== "picked") return
+      setAttaching(true)
+      try {
+        const res = await api.users.uploadShowcase(await pickedImageToFormData(picked.asset))
+        const fileKey = res?.fileKey ?? res?.key
+        if (!fileKey) {
+          toast.show({ title: "Upload tidak menghasilkan kunci file", tone: "danger" })
+          return
+        }
+        await api.users.attachShowcaseImages(item.id, [fileKey])
+        toast.show({ title: "Foto dilampirkan", tone: "success", duration: 2500 })
+        await query.refresh()
+      } catch (err) {
+        toast.show({ title: "Gagal melampirkan foto", description: userMessage(err), tone: "danger" })
+      } finally {
+        setAttaching(false)
+      }
+    },
+    [attaching, toast, query],
+  )
+
+  /**
+   * Geser satu posisi ke kiri/kanan: swap di array lokal, lalu kirim
+   * SELURUH daftar imageIds (PUT /me/showcase/{id}/images/order menyimpan
+   * ulang sortOrder 0..n-1 sesuai urutan yang dikirim).
+   */
+  const handleMoveImage = useCallback(
+    async (item: ShowcaseItem, image: ShowcaseImage, dir: -1 | 1) => {
+      if (reorderingId) return
+      const imgs = item.images ?? []
+      const i = imgs.findIndex((x) => x.id === image.id)
+      const j = i + dir
+      if (i < 0 || j < 0 || j >= imgs.length) return
+      setReorderingId(image.id)
+      try {
+        const next = [...imgs]
+        ;[next[i], next[j]] = [next[j], next[i]]
+        await api.users.reorderShowcaseImages(item.id, next.map((x) => x.id))
+        await query.refresh()
+      } catch (err) {
+        toast.show({ title: "Gagal mengubah urutan foto", description: userMessage(err), tone: "danger" })
+      } finally {
+        setReorderingId(null)
+      }
+    },
+    [reorderingId, toast, query],
+  )
+
+  const handleDeleteImage = useCallback(async () => {
+    if (!imagesItem || !deleteImage || deletingImage) return
+    setDeletingImage(true)
+    try {
+      await api.users.deleteShowcaseImage(deleteImage.id)
+      toast.show({ title: "Foto dihapus", tone: "success", duration: 2500 })
+      setDeleteImage(null)
+      await query.refresh()
+    } catch (err) {
+      toast.show({ title: "Gagal menghapus foto", description: userMessage(err), tone: "danger" })
+    } finally {
+      setDeletingImage(false)
+    }
+  }, [imagesItem, deleteImage, deletingImage, toast, query])
+
   const menuActions: ActionSheetItem[] = menuItem
     ? [
         {
@@ -264,6 +354,16 @@ export default function ShowcaseScreen() {
             const it = menuItem
             setMenuItem(null)
             openEdit(it)
+          },
+        },
+        {
+          key: "images",
+          label: "Kelola foto",
+          description: `${menuItem.images?.length ?? 1} foto — tambah, urutkan, hapus`,
+          icon: Images,
+          onPress: () => {
+            setImagesItemId(menuItem.id)
+            setMenuItem(null)
           },
         },
         {
@@ -317,7 +417,7 @@ export default function ShowcaseScreen() {
               <ShowcaseGalleryGrid
                 items={items.map((it) => ({
                   id: it.id,
-                  source: it.imageUrl ?? it.fileKey ?? "",
+                  source: it.coverImageUrl ?? it.imageUrl ?? it.fileKey ?? "",
                   alt: `${labelOf(it)}${it.isActive === false ? " (disembunyikan)" : ""}`,
                 }))}
                 onPressItem={(_, index) => setMenuItem(items[index] ?? null)}
@@ -352,6 +452,89 @@ export default function ShowcaseScreen() {
         title={menuItem ? labelOf(menuItem) : undefined}
         description={menuItem?.isActive === false ? "Disembunyikan dari profil publik" : undefined}
         actions={menuActions}
+      />
+
+      {/* ── Kelola foto item (multi-image) ───────────────────────── */}
+      <BottomSheet
+        visible={imagesItem != null}
+        onRequestClose={() => setImagesItemId(null)}
+        title={imagesItem ? `Foto: ${labelOf(imagesItem)}` : "Foto item"}
+        description={`${imagesItem?.images?.length ?? 0} dari ${SHOWCASE_MAX_IMAGES} foto. Foto pertama menjadi cover item.`}
+        footer={
+          <Button
+            leftIcon={Plus}
+            fullWidth
+            variant="secondary"
+            loading={attaching}
+            disabled={(imagesItem?.images?.length ?? 0) >= SHOWCASE_MAX_IMAGES}
+            onPress={() => imagesItem && void handleAttachImage(imagesItem)}
+          >
+            Tambah foto
+          </Button>
+        }
+      >
+        <View className="gap-2">
+          {(imagesItem?.images ?? []).map((img, i) => (
+            <View
+              key={img.id}
+              className="flex-row items-center gap-2 rounded-md border border-border p-2"
+            >
+              <Picture source={img.imageUrl} alt="" width={56} height={56} radius="sm" />
+              <View className="flex-1 gap-0.5">
+                <Text variant="body" weight={500} tone="primary">
+                  Foto {i + 1}
+                </Text>
+                {i === 0 ? <Text variant="caption" tone="secondary">Cover item</Text> : null}
+              </View>
+              <IconButton
+                icon={CaretLeft}
+                size="sm"
+                variant="ghost"
+                accessibilityLabel={`Geser foto ${i + 1} ke kiri`}
+                disabled={i === 0 || reorderingId != null}
+                onPress={() => imagesItem && void handleMoveImage(imagesItem, img, -1)}
+              />
+              <IconButton
+                icon={CaretRight}
+                size="sm"
+                variant="ghost"
+                accessibilityLabel={`Geser foto ${i + 1} ke kanan`}
+                disabled={i === (imagesItem?.images?.length ?? 0) - 1 || reorderingId != null}
+                onPress={() => imagesItem && void handleMoveImage(imagesItem, img, 1)}
+              />
+              <IconButton
+                icon={Trash}
+                size="sm"
+                variant="ghost"
+                accessibilityLabel={`Hapus foto ${i + 1}`}
+                disabled={deletingImage}
+                onPress={() => setDeleteImage(img)}
+              />
+            </View>
+          ))}
+          {(imagesItem?.images ?? []).length === 0 ? (
+            <Text variant="caption" tone="secondary">
+              Belum ada foto — lampirkan foto pertama di bawah.
+            </Text>
+          ) : null}
+        </View>
+      </BottomSheet>
+
+      <Dialog
+        title="Hapus foto ini?"
+        description={
+          deleteImage && imagesItem?.images?.[0]?.id === deleteImage.id
+            ? "Foto cover akan digantikan foto berikutnya."
+            : "Foto akan dihapus permanen dari item ini."
+        }
+        visible={!!deleteImage}
+        destructive
+        loading={deletingImage}
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        onConfirm={() => void handleDeleteImage()}
+        onCancel={() => setDeleteImage(null)}
+        onRequestClose={() => setDeleteImage(null)}
       />
 
       <Dialog

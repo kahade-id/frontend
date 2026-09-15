@@ -118,6 +118,38 @@ export default function PublicQuestionsScreen() {
   )
   const items = query.data
   const { loading, error, refreshing, loadingMore, loadMoreError, hasMore } = query
+  const [upvotingId, setUpvotingId] = useState<string | null>(null)
+  const patchQuestion = useCallback(
+    (id: string, patch: Partial<QuestionItem>) => {
+      query.setData((prev) => prev.map((q) => (q.id === id ? { ...q, ...patch } : q)))
+    },
+    [query.setData],
+  )
+  const handleUpvote = useCallback(
+    async (q: QuestionItem, next: boolean) => {
+      if (upvotingId) return
+      setUpvotingId(q.id)
+      const prevCount = q.upvoteCount ?? 0
+      const prevActive = q.isUpvotedByViewer === true
+      patchQuestion(q.id, { upvoteCount: Math.max(0, prevCount + (next ? 1 : -1)), isUpvotedByViewer: next })
+      try {
+        const res = next
+          ? await api.users.upvoteQuestion(q.id)
+          : await api.users.removeQuestionUpvote(q.id)
+        patchQuestion(q.id, { upvoteCount: res.upvoteCount, isUpvotedByViewer: res.upvoted })
+      } catch (err: unknown) {
+        patchQuestion(q.id, { upvoteCount: prevCount, isUpvotedByViewer: prevActive })
+        toast.show({
+          title: "Gagal memperbarui dukungan",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setUpvotingId(null)
+      }
+    },
+    [upvotingId, patchQuestion, toast],
+  )
 
   const [askOpen, setAskOpen] = useState(false)
   const [askText, setAskText] = useState("")
@@ -279,6 +311,12 @@ export default function PublicQuestionsScreen() {
             {items.map((q) => (
               <View key={q.id} className="gap-3">
                 <QACard
+                  upvote={{
+                    count: q.upvoteCount ?? 0,
+                    active: q.isUpvotedByViewer === true,
+                    loading: upvotingId === q.id,
+                    onToggle: (next) => void handleUpvote(q, next),
+                  }}
                   question={q.question}
                   asker={{
                     name: q.asker?.fullName ?? q.asker?.username ?? "Seseorang",

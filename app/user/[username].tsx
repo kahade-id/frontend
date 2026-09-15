@@ -16,12 +16,16 @@ import { Pressable, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
+  Bookmark,
+  Briefcase,
   CaretLeft,
   ChatCircleDots,
   DotsThreeVertical,
+  Envelope,
   Flag,
   Handshake,
   Heart,
+  IdentificationBadge,
   Images,
   MagnifyingGlass,
   PencilSimple,
@@ -29,11 +33,15 @@ import {
   SealCheck,
   ShareNetwork,
   ShieldCheck,
+  ShieldStar,
+  Sparkle,
   Star,
   UserCircle,
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import type { HiddenReason } from "@/lib/api/users"
+
 import type { PublicRatingFilter, Rating } from "@/lib/api/ratings"
 import { readMyRatings } from "@/lib/api/ratings"
 import type {
@@ -41,6 +49,7 @@ import type {
   QuestionComment,
   QuestionItem,
   ShowcaseItem,
+  VerificationBadge,
 } from "@/lib/api/users"
 import { createInquiry } from "@/lib/api/chat"
 import {
@@ -60,6 +69,7 @@ import { tokens } from "@/lib/tokens"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Chip } from "@/components/ui/chip"
@@ -68,7 +78,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FavoriteIconButton } from "@/components/ui/favorite-icon-button"
 import { FollowButton } from "@/components/ui/follow-button"
-import { Icon } from "@/components/ui/icon"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
@@ -97,12 +107,35 @@ const PROFILE_TABS = [
   { value: "about", label: "Tentang" },
 ] as const satisfies readonly { value: ProfileTab; label: string }[]
 
+const QA_HIDE_REASONS = [
+  { value: "SPAM", label: "Spam", description: "Link/jualan tidak relevan" },
+  { value: "INAPPROPIATE", label: "Tidak pantas", description: "Konten menyinggung" },
+  { value: "HARASSMENT", label: "Perundungan", description: "Ancaman/pelecehan" },
+  { value: "OTHER", label: "Lainnya", description: "Sebutkan di keterangan" },
+] as const
+
 const RATING_FILTERS: { value: PublicRatingFilter; label: string }[] = [
   { value: "all", label: "Semua" },
   { value: "positive", label: "Positif" },
   { value: "neutral", label: "Netral" },
   { value: "negative", label: "Negatif" },
 ]
+
+/**
+ * Nama ikon badge dari backend adalah string kebab-case Phosphor. Beberapa
+ * nama TIDAK ADA di build phosphor-react-native yang terpasang
+ * (BadgeCheck, BriefcaseCheck, EnvelopeCheck), jadi dipetakan ke ekuivalen:
+ * badge-check → IdentificationBadge, briefcase-check → Briefcase,
+ * envelope-check → Envelope. Fallback SealCheck menjaga badge tak dikenal
+ * tetap terrender.
+ */
+const BADGE_ICON: Partial<Record<string, IconComponent>> = {
+  "badge-check": IdentificationBadge,
+  "briefcase-check": Briefcase,
+  sparkles: Sparkle,
+  "shield-star": ShieldStar,
+  "envelope-check": Envelope,
+}
 
 export default function UserProfileScreen() {
   const { username: rawUsername } = useLocalSearchParams<{ username: string }>()
@@ -121,6 +154,11 @@ export default function UserProfileScreen() {
   // Follow & favorite state
   const [favorite, setFavorite] = useState(false)
   const [favLoading, setFavLoading] = useState(false)
+  // "Tersimpan" (bookmark pribadi) — terpisah dari favorit publik.
+  const [saved, setSaved] = useState(false)
+  const [saveLoading, setSaveLoading] = useState(false)
+  /** Badge verifikasi aktif (GET /v1/users/{username}/badges). */
+  const [badges, setBadges] = useState<VerificationBadge[]>([])
   const [following, setFollowing] = useState<boolean | null>(null)
   const [followLoading, setFollowLoading] = useState(false)
   const [followerCount, setFollowerCount] = useState<number | null>(null)
@@ -141,6 +179,7 @@ export default function UserProfileScreen() {
 
   // Questions / Tanya Jawab state
   const [questions, setQuestions] = useState<QuestionItem[]>([])
+  const [upvotingId, setUpvotingId] = useState<string | null>(null)
   const [questionsLoading, setQuestionsLoading] = useState(false)
   const [askOpen, setAskOpen] = useState(false)
   const [askText, setAskText] = useState("")
@@ -154,6 +193,33 @@ export default function UserProfileScreen() {
   const [commentSending, setCommentSending] = useState(false)
   const [deleteQ, setDeleteQ] = useState<QuestionItem | null>(null)
   const [deleteC, setDeleteC] = useState<QuestionComment | null>(null)
+  const [hideC, setHideC] = useState<QuestionComment | null>(null)
+  const [hideCReason, setHideCReason] = useState<HiddenReason>("SPAM")
+  const [hidingC, setHidingC] = useState(false)
+
+  const submitHideComment = useCallback(async () => {
+    if (!hideC || hidingC) return
+    setHidingC(true)
+    try {
+      await api.users.hideQAComment(hideC.id, hideCReason)
+      setHideC(null)
+      toast.show({ title: "Komentar disembunyikan", tone: "success", duration: 2500 })
+      // Komentar tersembunyi tidak dikirim lagi oleh server — muat ulang thread.
+      if (openQuestionId) {
+        const body = await api.users.getQuestionComments(openQuestionId, { page: 1, limit: 20 })
+        const { items } = readQuestionComments(body)
+        setQuestionComments({ items, loading: false })
+      }
+    } catch (err) {
+      toast.show({
+        title: "Gagal menyembunyikan komentar",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setHidingC(false)
+    }
+  }, [hideC, hideCReason, hidingC, openQuestionId, toast])
   const [deleting, setDeleting] = useState(false)
 
   // Ratings / Ulasan state
@@ -244,6 +310,7 @@ export default function UserProfileScreen() {
       setFollowing(null)
       setFollowerCount(null)
       setFollowingCount(null)
+      setBadges([])
     }
     if (!username) return
     if (!opts?.silent) setLoading(true)
@@ -269,6 +336,24 @@ export default function UserProfileScreen() {
         })
         .catch(() => {
           if (current()) setFavorite(false)
+        })
+
+      void api.users
+        .checkSavedProfile(targetName)
+        .then((isSaved) => {
+          if (current()) setSaved(isSaved)
+        })
+        .catch(() => {
+          if (current()) setSaved(false)
+        })
+
+      void api.users
+        .getVerificationBadges(targetName)
+        .then((rows) => {
+          if (current()) setBadges(rows)
+        })
+        .catch(() => {
+          if (current()) setBadges([])
         })
 
       void api.users
@@ -368,6 +453,65 @@ export default function UserProfileScreen() {
       }
     },
     [handle, toast],
+  )
+
+  const handleUpvote = useCallback(
+    async (q: QuestionItem, next: boolean) => {
+      if (upvotingId) return
+      setUpvotingId(q.id)
+      const prevCount = q.upvoteCount ?? 0
+      const prevActive = q.isUpvotedByViewer === true
+      const apply = (patch: Partial<QuestionItem>) =>
+        setQuestions((prev) => prev.map((x) => (x.id === q.id ? { ...x, ...patch } : x)))
+      apply({ upvoteCount: Math.max(0, prevCount + (next ? 1 : -1)), isUpvotedByViewer: next })
+      try {
+        const res = next
+          ? await api.users.upvoteQuestion(q.id)
+          : await api.users.removeQuestionUpvote(q.id)
+        apply({ upvoteCount: res.upvoteCount, isUpvotedByViewer: res.upvoted })
+      } catch (err: unknown) {
+        apply({ upvoteCount: prevCount, isUpvotedByViewer: prevActive })
+        toast.show({
+          title: "Gagal memperbarui dukungan",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setUpvotingId(null)
+      }
+    },
+    [upvotingId, toast],
+  )
+
+  /**
+   * Simpan / hapus profil dari daftar "Tersimpan" pribadi (app/saved) —
+   * terpisah dari favorit publik yang punya counter.
+   */
+  const handleSaveProfile = useCallback(
+    async (next: boolean) => {
+      if (saveLoading) return
+      setSaveLoading(true)
+      try {
+        if (next) {
+          await api.users.saveProfile(handle)
+          setSaved(true)
+          toast.show({ title: "Profil disimpan", tone: "success", duration: 2500 })
+        } else {
+          await api.users.unsaveProfile(handle)
+          setSaved(false)
+          toast.show({ title: "Profil dihapus dari tersimpan", tone: "success", duration: 2500 })
+        }
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal memperbarui tersimpan",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setSaveLoading(false)
+      }
+    },
+    [handle, saveLoading, toast],
   )
 
   /**
@@ -687,6 +831,14 @@ export default function UserProfileScreen() {
                       accessibilityLabel={favorite ? "Hapus favorit" : "Simpan favorit"}
                       size="md"
                     />
+                    <IconButton
+                      icon={Bookmark}
+                      variant={saved ? "secondary" : "ghost"}
+                      size="sm"
+                      accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan profil"}
+                      loading={saveLoading}
+                      onPress={() => void handleSaveProfile(!saved)}
+                    />
                   </>
                 )}
               </View>
@@ -702,6 +854,24 @@ export default function UserProfileScreen() {
                   <Icon icon={SealCheck} size="sm" active weight="fill" />
                 ) : null}
               </View>
+
+              {/* Badge verifikasi aktif — icon + shortLabel, label a11y =
+                  "label: description" agar detail terbaca screen reader. */}
+              {badges.length > 0 ? (
+                <View className="flex-row flex-wrap items-center gap-1.5 pt-1">
+                  {badges.map((b) => (
+                    <Badge
+                      key={b.type}
+                      tone="neutral"
+                      variant="soft"
+                      icon={BADGE_ICON[b.icon] ?? SealCheck}
+                      accessibilityLabel={`${b.label}: ${b.description}`}
+                    >
+                      {b.shortLabel}
+                    </Badge>
+                  ))}
+                </View>
+              ) : null}
 
               {profile.bio ? (
                 <Text variant="body" tone="secondary" numberOfLines={4}>
@@ -937,6 +1107,12 @@ export default function UserProfileScreen() {
                           avatar: q.asker?.avatarUrl ? { uri: q.asker.avatarUrl } : undefined,
                         }}
                         date={q.createdAt}
+                        upvote={{
+                          count: q.upvoteCount ?? 0,
+                          active: q.isUpvotedByViewer === true,
+                          loading: upvotingId === q.id,
+                          onToggle: (next) => void handleUpvote(q, next),
+                        }}
                         answer={
                           q.answer
                             ? {
@@ -978,6 +1154,13 @@ export default function UserProfileScreen() {
                                 reply={c.reply || !!c.parentId}
                                 deleted={c.deleted}
                                 onDelete={isMyComment(c) && !c.deleted ? () => setDeleteC(c) : undefined}
+                                extra={
+                                  isSelf && !c.deleted && !c.isOwner ? (
+                                    <Button size="sm" variant="ghost" onPress={() => setHideC(c)}>
+                                      Sembunyikan
+                                    </Button>
+                                  ) : undefined
+                                }
                               />
                             ))
                           )}
@@ -1248,6 +1431,31 @@ export default function UserProfileScreen() {
 
       {/* Inquiry — buka ruang pra-transaksi (POST /v1/chat/inquiries) lalu
           langsung masuk ke ruang chat hasil inquiry. */}
+      <BottomSheet
+        visible={hideC != null}
+        onRequestClose={() => setHideC(null)}
+        title="Sembunyikan komentar"
+        description="Komentar tidak lagi tampil untuk pengguna lain. Tindakan dapat dibatalkan lewat moderasi."
+        footer={
+          <Button
+            fullWidth
+            variant="destructive"
+            loading={hidingC}
+            onPress={() => void submitHideComment()}
+          >
+            Sembunyikan
+          </Button>
+        }
+      >
+        <View className="px-5 pb-2">
+          <RadioGroup value={hideCReason} onChange={(v) => setHideCReason(v as HiddenReason)}>
+            {QA_HIDE_REASONS.map((r) => (
+              <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
+            ))}
+          </RadioGroup>
+        </View>
+      </BottomSheet>
+
       <BottomSheet
         visible={inquiryOpen}
         onRequestClose={() => setInquiryOpen(false)}

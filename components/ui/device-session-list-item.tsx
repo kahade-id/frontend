@@ -108,6 +108,8 @@ export type DeviceSessionListItemProps = Omit<ViewProps, "children"> & {
   togglingTrust?: boolean
   /** Buka detail sesi (Push §10) */
   onPress?: () => void
+  /** Tekan-lama untuk aksi sekunder (mis. hapus/lupakan perangkat) */
+  onLongPress?: () => void
   /** Cabut sesi ini; undefined = tombol tidak dirender */
   onRevoke?: () => void
   revoking?: boolean
@@ -150,6 +152,7 @@ export function DeviceSessionListItem({
   onToggleTrust,
   togglingTrust = false,
   onPress,
+  onLongPress,
   onRevoke,
   revoking = false,
   disabled = false,
@@ -250,15 +253,16 @@ export function DeviceSessionListItem({
   return (
     <View className={cn("w-full", disabled && "opacity-disabled", className)} {...rest}>
       <View className="flex-row items-center gap-3 px-6">
-        {onPress ? (
+        {onPress || onLongPress ? (
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
-            accessibilityHint="Buka detail sesi"
+            accessibilityHint={onPress ? "Buka detail sesi" : "Tahan untuk aksi perangkat"}
             accessibilityState={{ disabled }}
             scaleOnPress={false}
             disabled={disabled}
             onPress={onPress}
+            onLongPress={onLongPress}
             containerClassName={cn("flex-1", focusRingInset)}
             className="flex-1"
           >
