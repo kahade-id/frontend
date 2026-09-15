@@ -112,6 +112,15 @@ const KNOWN_DEVIATIONS = [
       "(CancelWithdrawDto). Lihat docs/audit/API-ENDPOINT-AUDIT.md API-04.",
   },
   {
+    match: "POST /v1/showcase/{}/report",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { reason: string; " +
+      "description?: string }` sehingga Swagger tidak mendokumentasikan " +
+      "requestBody (akar masalah sama dengan bug @ApiProperty). Klien benar " +
+      "mengirim { reason, description? }. Backend perlu membuat " +
+      "ReportShowcaseDto dengan @ApiProperty.",
+  },
+  {
     match: "POST /v1/chat/rooms/{}/typing",
     reason:
       "Controller memakai tipe inline anonim `@Body() dto: { isTyping: boolean }` " +

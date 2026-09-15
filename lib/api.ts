@@ -33,6 +33,7 @@ import * as ratings from "@/lib/api/ratings"
 import * as referrals from "@/lib/api/referrals"
 import * as search from "@/lib/api/search"
 import * as sessions from "@/lib/api/sessions"
+import * as showcase from "@/lib/api/showcase"
 import * as settings from "@/lib/api/settings"
 import * as subscriptions from "@/lib/api/subscriptions"
 import * as support from "@/lib/api/support"
@@ -106,6 +107,7 @@ export const api = {
   referrals,
   search,
   sessions,
+  showcase,
   settings,
   subscriptions,
   support,

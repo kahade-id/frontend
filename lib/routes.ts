@@ -261,6 +261,9 @@ export const ROUTES = {
   showcase: "/showcase" as Href,
   /** Questions milik sendiri (GET /v1/users/me/questions) */
   questions: "/questions" as Href,
+  /** Detail item showcase sosial (GET /v1/showcase/{id} + komentar/like/share) */
+  showcaseDetail: (id: string) =>
+    ({ pathname: "/showcase/[id]", params: { id } }) as unknown as Href,
   /** Showcase publik user (GET /v1/users/{username}/showcase) */
   userShowcase: (username: string) =>
     ({ pathname: "/user/[username]/showcase", params: { username } }) as unknown as Href,

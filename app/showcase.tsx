@@ -30,12 +30,14 @@ import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
+import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { pickImage, pickedImageToFormData } from "@/lib/image-picker"
 import { formatRupiah } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -242,6 +244,17 @@ export default function ShowcaseScreen() {
 
   const menuActions: ActionSheetItem[] = menuItem
     ? [
+        {
+          key: "view",
+          label: "Lihat detail",
+          description: "Halaman sosial: like, komentar, share",
+          icon: Eye,
+          onPress: () => {
+            const it = menuItem
+            setMenuItem(null)
+            router.push(ROUTES.showcaseDetail(it.id))
+          },
+        },
         {
           key: "edit",
           label: "Ubah detail",

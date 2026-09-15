@@ -85,10 +85,12 @@ polling REST.
 | `POST /v1/users/questions/{questionId}/hide` + `unhide` (2) | FITUR HILANG — sembunyikan tanya-jawab |
 | `POST /v1/users/comments/{commentId}/hide` + `unhide` (2) | FITUR HILANG — moderasi komentar |
 
-### 2.3 Showcase sosial — 12 route `[FITUR HILANG]`
+### 2.3 Showcase sosial — 12 route `[SELESAI P1 — sesi ini]`
 
-App hanya memakai showcase CRUD lama (`users/me/showcase/*`). Backend menambah
-permukaan sosial baru:
+Sebelumnya app hanya memakai showcase CRUD lama (`users/me/showcase/*`). Putaran
+P1 (sesi ini) mengoneksikan ke-12 route: adapter `lib/api/showcase.ts` + UI feed
+(tab di Jelajahi), layar detail (like/komentar/share/report/moderasi), dan entry
+point dari portofolio + galeri publik. Detail di §8.
 
 `GET /v1/showcase/feed`, `GET /v1/showcase/{showcaseId}`,
 `GET /v1/showcase/{showcaseId}/comments`, `POST /v1/showcase/{showcaseId}/comments`,
@@ -201,7 +203,7 @@ cd frontend && npm run gen:api
 | **P0 — SELESAI (sesi ini)** | Migrasi alias `withdrawals/schedules` → `scheduled-withdrawals` (UI list jadwal sudah ada di `app/withdrawal-schedules.tsx`) | 4 | Risiko break sepih; fitur uang |
 | **P0 — SELESAI (sesi ini)** | Business verification (submit/status/history/resubmit) + layar + entry menu | 4 | Alur uang (merchant) |
 | **P1 — SELESAI (sesi ini)** | Chat lanjutan (edit, reactions, pin, read-receipt, typing, search, mute/archive, inquiry, presence, forward) | 16 | Permukaan terbesar |
-| P1 | Showcase sosial (feed, like, komentar, laporkan) | 12 | Fitur sosial utama |
+| **P1 — SELESAI (sesi ini)** | Showcase sosial (feed, like, komentar, laporkan, share, moderasi) | 12 | Fitur sosial utama |
 | P1 | Profil sosial (saved, report user, cari user, upvote, moderasi) | 22 (−7 non-fitur) | Kelengkapan profil |
 | P2 | Wallet favorite recipients + export html | 3 | Kewenangan transaksi |
 | P2 | Langganan pause/resume/upgrade | 3 | Revenue |
@@ -354,6 +356,51 @@ di §6.5).
 
 ---
 
+### 8.1 Adapter — ke-12 route kini dipanggil (`lib/api/showcase.ts`)
+
+| Route | Fungsi | Status UI |
+|---|---|---|
+| `GET /v1/showcase/feed` | `getShowcaseFeed` (cursor/keyset, sort, search, category) | ✅ tab "Showcase" di Jelajahi (chip Terbaru/Populer + pencarian debounce) |
+| `GET /v1/showcase/{id}` | `getShowcaseDetail` | ✅ layar detail `app/showcase/[id].tsx` |
+| `GET /v1/showcase/{id}/comments` | `listShowcaseComments` (root + balasan 1 tingkat, offset) | ✅ daftar komentar + "Muat berikutnya" |
+| `POST /v1/showcase/{id}/comments` | `addShowcaseComment` (`parentId` = balas) | ✅ composer + mode "Membalas …" |
+| `PATCH /v1/showcase/comments/{cid}` | `updateShowcaseComment` | ✅ menu komentar → Edit (sheet) |
+| `DELETE /v1/showcase/comments/{cid}` | `deleteShowcaseComment` (pengarang ATAU pemilik) | ✅ menu komentar → Hapus (Dialog) |
+| `POST …/comments/{cid}/hide` | `hideShowcaseComment` (reason: SPAM/INAPPROPRIATE/HARASSMENT/OTHER) | ✅ menu komentar → Sembunyikan (pemilik item, RadioGroup alasan) |
+| `POST …/comments/{cid}/unhide` | `unhideShowcaseComment` | ✅ menu komentar → Tampilkan kembali |
+| `POST /v1/showcase/{id}/like` | `likeShowcase` | ✅ tombol heart (optimistic, sinkron `{liked, likeCount}` final) |
+| `DELETE /v1/showcase/{id}/like` | `unlikeShowcase` | ✅ toggle yang sama |
+| `GET /v1/showcase/{id}/share` | `getShowcaseSharePayload` | ✅ tombol share → OS share sheet (shareUrl + judul) |
+| `POST /v1/showcase/{id}/report` | `reportShowcase` (throttle 5/jam) | ✅ tombol report → sheet (RadioGroup alasan + keterangan) |
+
+Catatan perilaku:
+- **Moderasi**: komentar tersembunyi hanya dikirim server kepada pemilik item
+  (dengan `hiddenReason`), jadi UI menampilkan apa yang diterima — baris
+  "Alasan: …" + aksi Tampilkan kembali hanya muncul untuk pemilik.
+- **Like race**: `SHOWCASE_ALREADY_LIKED` (409, double-tap) disinkronkan diam-diam
+  lewat `err.backendCode`, bukan toast.
+- **Balas 1 tingkat**: tombol "Balas" hanya di komentar root
+  (backend menolak balasan balasan dengan `SHOWCASE_COMMENT_DEPTH_EXCEEDED`).
+- **CTA transaksi**: "Buat Transaksi" → `createTransactionWith(username penulis)`
+  (pr-pengisian `orderLink` full-field = follow-up kecil).
+- Entry point detail: ActionSheet portofolio sendiri ("Lihat detail") + tap foto
+  di galeri publik profil.
+
+### 8.2 Celah spec baru
+
+- `POST /v1/showcase/{id}/report` — controller memakai tipe inline anonim
+  `@Body() dto: { reason; description? }` → OpenAPI tidak mendokumentasikan
+  requestBody. Didaftarkan di `KNOWN_DEVIATIONS`; backend perlu
+  `ReportShowcaseDto` (pola sama dengan §7.3).
+
+### 8.3 Verifikasi P1-showcase
+
+tsc ✓, lint ✓, check:spec ✓, check:api ✓ (1 known deviation baru terdokumentasi),
+check:inventory ✓ (92 route), check:screens ✓, check:a11y ✓, check:weblinks ✓
+(rewrite `/showcase/:id` ditambahkan), check:push ✓, 123/123 test ✓.
+
+---
+
 *Dihasilkan 2026-09-15. Ekstraktor route: skrip v2 (multi-class + inheritance),
 diverifikasi 450 dekorator method + 4 route warisan = 454 route.
-Diperbarui sesi P1 chat: §2.1, §5, §7.*
+Diperbarui sesi P1 chat: §2.1, §5, §7. Diperbarui sesi P1 showcase: §2.3, §5, §8.*
