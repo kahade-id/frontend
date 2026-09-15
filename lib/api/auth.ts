@@ -124,6 +124,22 @@ export type CsrfToken = { csrfToken: string }
 // ------------------------------------------------------------------
 
 type WithoutDevice<T> = Omit<T, "deviceId" | "deviceInfo">
+type WithoutDeviceId<T> = Omit<T, "deviceId">
+
+/**
+ * DTO auth backend TIDAK seragam soal field perangkat (forbidNonWhitelisted
+ * aktif global — field ekstra = 400 "property X should not exist"):
+ *   - login / verify-2fa / verify-phone-otp: deviceId (wajib) + deviceInfo (opsional)
+ *   - request-otp: HANYA deviceId (deviceInfo ditolak)
+ *   - register / forgot-password / reset-password: KEDUANYA ditolak
+ * Dulu satu helper withDevice menyisipkan keduanya ke SEMUA endpoint auth —
+ * register, minta-OTP, lupa-password, dan reset-password gagal 400.
+ */
+async function withDeviceId<T extends { deviceId?: string }>(
+  dto: WithoutDeviceId<T>,
+): Promise<T> {
+  return { ...dto, deviceId: await getDeviceId() } as T
+}
 
 async function withDevice<T extends { deviceId?: string; deviceInfo?: string }>(
   dto: WithoutDevice<T>,
@@ -167,8 +183,9 @@ export async function getCsrfToken() {
 // ------------------------------------------------------------------
 
 export async function register(dto: RegisterDto) {
-  const body = await withDevice<RegisterDto & { deviceId?: string; deviceInfo?: string }>(dto)
-  const result = await http.post<MessageResult & { user?: AuthUser }, any>("/v1/auth/register", body, {
+  // RegisterDto backend TIDAK punya deviceId/deviceInfo — jangan ditambahkan
+  // (forbidNonWhitelisted → 400 "property deviceId/deviceInfo should not exist").
+  const result = await http.post<MessageResult & { user?: AuthUser }, any>("/v1/auth/register", dto, {
     auth: "none",
   })
   return result
@@ -243,7 +260,8 @@ export async function getOtpMethods(signal?: AbortSignal): Promise<OtpMethodsRes
 }
 
 export async function requestOtp(dto: Omit<RequestOtpDto, "deviceId">) {
-  const body = await withDevice<RequestOtpDto & { deviceId?: string; deviceInfo?: string }>(dto)
+  // RequestOtpDto: deviceId WAJIB, deviceInfo TIDAK dikenali → hanya deviceId.
+  const body = await withDeviceId<RequestOtpDto>(dto)
   const result = await http.post<MessageResult & { expiresIn?: number; cooldownSeconds?: number }, any>(
     "/v1/auth/request-otp",
     body,
@@ -351,15 +369,15 @@ export async function logout(dto: LogoutDto = {}): Promise<void> {
 // ------------------------------------------------------------------
 
 export async function forgotPassword(dto: ForgotPasswordDto) {
-  const body = await withDevice<ForgotPasswordDto & { deviceId?: string; deviceInfo?: string }>(dto)
-  return http.post<MessageResult, any>("/v1/auth/forgot-password", body, {
+  // ForgotPasswordDto backend TIDAK punya deviceId/deviceInfo.
+  return http.post<MessageResult, any>("/v1/auth/forgot-password", dto, {
     auth: "none",
   })
 }
 
 export async function resetPassword(dto: ResetPasswordDto) {
-  const body = await withDevice<ResetPasswordDto & { deviceId?: string; deviceInfo?: string }>(dto)
-  return http.post<MessageResult, any>("/v1/auth/reset-password", body, {
+  // ResetPasswordDto backend TIDAK punya deviceId/deviceInfo.
+  return http.post<MessageResult, any>("/v1/auth/reset-password", dto, {
     auth: "none",
   })
 }

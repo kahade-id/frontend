@@ -68,6 +68,7 @@ import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { Input } from "@/components/ui/input"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
+import { Dialog } from "@/components/ui/modal"
 import {
   FeeResponsibilitySelector,
   OrderRoleSelector,
@@ -123,6 +124,29 @@ const STEPS = [
 ] as const
 const LAST_STEP = STEPS.length - 1
 
+/**
+ * Terjemahan pesan KYC_REQUIRED backend → penjelasan Indonesia yang bisa
+ * dipahamkan ke pengguna. Ditebak dari frasa kunci pesan backend (bahasa
+ * Inggris): "Cumulative active orders…" / "Rolling 30-day…" / sisanya =
+ * aturan transaksi tunggal ≥ Rp 2jt.
+ */
+function kycReasonMessage(backendMessage: string): string {
+  if (/cumulative/i.test(backendMessage)) {
+    return (
+      "Total nilai transaksi aktif Anda (ditambah transaksi ini) mencapai batas " +
+      "Rp 2.000.000. Selesaikan verifikasi identitas (KYC) untuk melanjutkan " +
+      "membuat transaksi."
+    )
+  }
+  if (/rolling/i.test(backendMessage)) {
+    return (
+      "Total transaksi 30 hari terakhir Anda mencapai batas. Selesaikan " +
+      "verifikasi identitas (KYC) untuk melanjutkan membuat transaksi."
+    )
+  }
+  return "Transaksi dengan nilai Rp 2.000.000 ke atas membutuhkan verifikasi identitas (KYC)."
+}
+
 export default function CreateTransactionScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -174,6 +198,14 @@ export default function CreateTransactionScreen() {
   const [voucherError, setVoucherError] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  /**
+   * Backend menolak dengan KYC_REQUIRED (403). Pesan asli berbahasa Inggris
+   * dan teknis — diturunkan ke dialog bahasa Indonesia + CTA layar KYC.
+   * Aturan backend: transaksi TUNGGAL ≥ Rp 2jt perlu KYC; ATAU total transaksi
+   * aktif mencapai Rp 2jt (anti-structuring); ATAU rolling 30 hari ≥ Rp 6jt.
+   * Transaksi kecil pada akun tanpa transaksi aktif tidak terblokir.
+   */
+  const [kycReason, setKycReason] = useState<string | null>(null)
   const submitLock = useRef(false)
   const feeKey = JSON.stringify([orderValue, feeResponsibility, role, voucher?.code])
   const draft = useRef({ feeKey, counterpart: counterpart.trim() })
@@ -351,11 +383,15 @@ export default function CreateTransactionScreen() {
       })
       router.replace(order.id ? ROUTES.orderDetail(order.id) : ROUTES.transactions)
     } catch (err) {
-      toast.show({
-        title: mode === "link" ? "Gagal membuat Order Link" : "Gagal membuat transaksi",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
+      if (isApiError(err) && err.backendCode === "KYC_REQUIRED") {
+        setKycReason(kycReasonMessage(err.message))
+      } else {
+        toast.show({
+          title: mode === "link" ? "Gagal membuat Order Link" : "Gagal membuat transaksi",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
+      }
     } finally {
       submitLock.current = false
       setSubmitting(false)
@@ -681,6 +717,24 @@ export default function CreateTransactionScreen() {
           </KeyValueList>
         )}
       </BottomSheet>
+
+      <Dialog
+        title="Verifikasi identitas diperlukan"
+        description={
+          (kycReason ??
+            "Transaksi ini membutuhkan verifikasi identitas (KYC).") +
+          " Selesai verifikasi, Anda bisa melanjutkan transaksi tanpa batas nilai tersebut."
+        }
+        visible={kycReason != null}
+        confirmLabel="Verifikasi sekarang"
+        cancelLabel="Nanti dulu"
+        onConfirm={() => {
+          setKycReason(null)
+          router.push(ROUTES.kyc)
+        }}
+        onCancel={() => setKycReason(null)}
+        onRequestClose={() => setKycReason(null)}
+      />
     </Screen>
   )
 }

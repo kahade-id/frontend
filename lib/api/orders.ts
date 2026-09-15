@@ -346,7 +346,18 @@ function numberField(record: Record<string, unknown>, keys: readonly string[]): 
   return undefined
 }
 
-export type OrderSummary = Record<string, number> & { total?: number }
+/**
+ * GET /v1/orders/summary — bentuk ASLI backend (bukan per-status):
+ * asBuyer/asSeller = jumlah order aktif per peran + nilai total, inDispute =
+ * jumlah order berstatus DISPUTED (sebagai buyer ATAU seller),
+ * pendingExtensions = request perpanjangan tenggat yang masih pending.
+ */
+export type OrderSummary = {
+  asBuyer?: { count?: number; totalValue?: number }
+  asSeller?: { count?: number; totalValue?: number }
+  inDispute?: number
+  pendingExtensions?: number
+}
 
 export type AverageDurations = Record<string, number>
 
