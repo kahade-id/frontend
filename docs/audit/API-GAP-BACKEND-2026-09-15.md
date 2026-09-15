@@ -263,8 +263,14 @@ cukup path yang berubah.
    client Prisma (hanya node_modules, tidak di-commit). Di mesin normal,
    `npx prisma generate && npm run openapi:generate` tanpa stub.
 
-Cabang perbaikan: `kahade-id/backend` @ `arena/fix-orders-regex-esc` (PR
-terpisah).
+**Status:** perbaikan sudah di-commit di `kahade-id/backend` @
+`arena/fix-orders-regex-esc` (commit `b2f66a2`), tetapi bot Arena **tidak
+punya akses push** ke repo backend (403). Patch diikutkan di repo frontend:
+`docs/audit/backend-fix-regex-and-dto.patch` — terapkan di repo backend:
+```bash
+git am docs/audit/backend-fix-regex-and-dto.patch
+```
+(atau beri bot akses push, lalu `git push origin arena/fix-orders-regex-esc`).
 
 ### 6.5 Verifikasi
 
