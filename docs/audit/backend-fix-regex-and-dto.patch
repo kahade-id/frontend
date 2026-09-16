@@ -1,0 +1,82 @@
+From b2f66a27dff05d26c39fd943367da3ecbb9420b8 Mon Sep 17 00:00:00 2001
+From: kahade-id <263426719+kahade-id@users.noreply.github.com>
+Date: Tue, 15 Sep 2026 14:00:27 +0000
+Subject: [PATCH] fix: restore valid regex in escapePushBody + document
+ phone-change DTOs
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+1. orders.service.ts escapePushBody: commit d94be53 over-escaped the Bidi
+   unicode ranges, producing an invalid regex literal
+   (Range out of order in character class) that throws a SyntaxError at
+   module load — the entire orders module (and app boot) crashes. Restore
+   the original production line (f2958d0).
+
+2. change-phone.dto.ts: add explicit @ApiProperty to RequestPhoneChangeDto /
+   ConfirmPhoneChangeDto. openapi:generate runs under ts-node
+   --transpile-only, which drops design:type metadata, so DTOs without
+   @ApiProperty were exported with empty properties (RequestPhoneChangeDto
+   lost all 4 fields in the generated spec).
+---
+ src/modules/auth/dto/change-phone.dto.ts | 7 +++++++
+ src/modules/orders/orders.service.ts     | 2 +-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/src/modules/auth/dto/change-phone.dto.ts b/src/modules/auth/dto/change-phone.dto.ts
+index 17a29fc..981196c 100644
+--- a/src/modules/auth/dto/change-phone.dto.ts
++++ b/src/modules/auth/dto/change-phone.dto.ts
+@@ -1,18 +1,23 @@
+ import { IsIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
++import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+ 
+ export class RequestPhoneChangeDto {
++  @ApiProperty({ description: 'New phone number (E.164)', maxLength: 20 })
+   @IsString()
+   @MaxLength(20)
+   newPhoneNumber!: string;
+ 
++  @ApiProperty({ description: 'OTP delivery channel', enum: ['SMS', 'WHATSAPP'] })
+   @IsIn(['SMS', 'WHATSAPP'])
+   method!: 'SMS' | 'WHATSAPP';
+ 
++  @ApiProperty({ description: 'Current account password', minLength: 1, maxLength: 256 })
+   @IsString()
+   @MinLength(1)
+   @MaxLength(256)
+   currentPassword!: string;
+ 
++  @ApiPropertyOptional({ description: 'Six-digit authenticator code or 10–16 character backup code', maxLength: 16 })
+   @IsOptional()
+   @IsString()
+   @MaxLength(16)
+@@ -23,10 +28,12 @@ export class RequestPhoneChangeDto {
+ }
+ 
+ export class ConfirmPhoneChangeDto {
++  @ApiProperty({ description: 'New phone number (E.164)', maxLength: 20 })
+   @IsString()
+   @MaxLength(20)
+   newPhoneNumber!: string;
+ 
++  @ApiProperty({ description: 'Six-digit OTP code', pattern: '^\\d{6}$' })
+   @IsString()
+   @Matches(/^\d{6}$/)
+   code!: string;
+diff --git a/src/modules/orders/orders.service.ts b/src/modules/orders/orders.service.ts
+index 1e45b6a..fcb5f60 100644
+--- a/src/modules/orders/orders.service.ts
++++ b/src/modules/orders/orders.service.ts
+@@ -700,7 +700,7 @@ export class OrdersService {
+   }
+ 
+   private escapePushBody(text: string): string {
+-    return text.replace(/[\u0000-\u001F\u007F\u200E\u200F\u202A-\\u202E\\u2066-\\u2069]/g, '').replace(/[\\\\]/g, '\\\\\\\\').replace(/\"/g, '\\\\\"');
++    return text.replace(/[\u0000-\u001F\u007F\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '').replace(/[\\]/g, '\\\\').replace(/"/g, '\\"');
+   }
+ 
+   private static readonly ACTIVE_STATUSES: OrderStatus[] = [
+-- 
+2.39.5
+

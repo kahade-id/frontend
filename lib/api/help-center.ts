@@ -55,3 +55,15 @@ export function searchHelpArticles(query: string, signal?: AbortSignal) {
 export function trackHelpArticleView(id: string) {
   return http.post<void>(`/v1/help-center/items/${seg(id)}/view`, undefined, { auth: "none" })
 }
+
+/**
+ * POST /v1/help-center/items/{id}/feedback?helpful=true|false — umpan balik
+ * artikel (14.2). Endpoint PUBLIK (`@Public()`) dan parameter lewat QUERY
+ * (controller: `@Query('helpful')`), bukan body.
+ */
+export function submitHelpArticleFeedback(id: string, helpful: boolean) {
+  return http.post<unknown>(`/v1/help-center/items/${seg(id)}/feedback`, undefined, {
+    auth: "none",
+    query: { helpful: String(helpful) },
+  })
+}

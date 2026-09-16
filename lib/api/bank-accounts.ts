@@ -71,3 +71,16 @@ export async function setPrimaryBankAccount(id: string) {
     createdAt: account.createdAt ?? (account as any).created_at,
   }
 }
+
+/**
+ * PATCH /v1/bank-accounts/{id} — edit rekening.
+ * Backend HANYA menerima `{ accountName }` (nama pemilik); nomor & bank tidak
+ * bisa diubah (controller: `@Body() dto: { accountName: string }`).
+ */
+export function updateBankAccountName(id: string, accountName: string) {
+  return http.patch<BankAccount, { accountName: string }>(
+    `/v1/bank-accounts/${seg(id)}`,
+    { accountName: accountName.trim() },
+    { auth: "required" },
+  )
+}

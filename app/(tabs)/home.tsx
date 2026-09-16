@@ -106,32 +106,6 @@ function greetingByHour(): string {
   return "Selamat malam"
 }
 
-/** Status yang termasuk "masih berjalan" (vokal: ACTIVE di API list). */
-const ACTIVE_KEYS: readonly string[] = [
-  "PENDING_PAYMENT",
-  "PAID",
-  "PROCESSING",
-  "SHIPPED",
-  "DELIVERED",
-]
-
-function sumNumeric(rec: Record<string, unknown>, keys: readonly string[]): number {
-  return keys.reduce((acc, key) => {
-    const v = rec[key]
-    return acc + (typeof v === "number" && Number.isFinite(v) ? v : 0)
-  }, 0)
-}
-
-function countActiveOrders(summary: OrderSummary | null): number {
-  if (!summary) return 0
-  return sumNumeric(summary, ACTIVE_KEYS)
-}
-
-function countByKey(summary: OrderSummary | null, key: string): number {
-  const v = summary?.[key]
-  return typeof v === "number" && Number.isFinite(v) ? v : 0
-}
-
 /** Jumlah kartu order aktif yang ditampilkan di Beranda. */
 const ACTIVE_PREVIEW_LIMIT = 3
 
@@ -198,14 +172,37 @@ export default function HomeScreen() {
     true,
     { refreshOnFocus: true },
   )
+  // Jumlah order SELESAI — GET /v1/orders/summary tidak punya angka ini
+  // (hanya asBuyer/asSeller/inDispute/pendingExtensions), jadi pakai list
+  // berfilter status dengan limit 1 (murah; hanya `meta.total` yang dibaca).
+  const completedOrders = useApiQuery(
+    "home-completed-count",
+    (signal) => api.orders.listOrders({ page: 1, limit: 1, status: "COMPLETED" }, signal),
+    true,
+    { refreshOnFocus: true },
+  )
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([profile.refresh(), wallet.refresh(), summary.refresh(), activeOrders.refresh()])
-  }, [profile.refresh, wallet.refresh, summary.refresh, activeOrders.refresh])
+    await Promise.all([
+      profile.refresh(),
+      wallet.refresh(),
+      summary.refresh(),
+      activeOrders.refresh(),
+      completedOrders.refresh(),
+    ])
+  }, [profile.refresh, wallet.refresh, summary.refresh, activeOrders.refresh, completedOrders.refresh])
 
-  const activeCount = countActiveOrders(summary.data)
-  const completedCount = countByKey(summary.data, "COMPLETED")
-  const disputedCount = countByKey(summary.data, "DISPUTED")
+  // Sumber angka beranda (semuanya dari server — sebelumnya membaca key
+  // per-status pada /orders/summary yang TIDAK dikirim backend → stuck 0):
+  //   Aktif    → total list berfilter status=ACTIVE (backend: semua status berjalan)
+  //   Selesai  → total list berfilter status=COMPLETED
+  //   Sengketa → /orders/summary → inDispute
+  const activeCount = activeOrders.data?.meta?.total ?? 0
+  const completedCount = completedOrders.data?.meta?.total ?? 0
+  const disputedCount =
+    typeof summary.data?.inDispute === "number" ? summary.data.inDispute : 0
+  const countsLoading = summary.loading || activeOrders.loading || completedOrders.loading
+  const countsError = summary.error ?? activeOrders.error ?? completedOrders.error
 
   const handleCreate = useCallback(() => {
     router.push(ROUTES.createTransaction)
@@ -434,9 +431,11 @@ export default function HomeScreen() {
                   onPress: () => router.push(ROUTES.disputes),
                 },
               ]}
-              summaryLoading={summary.loading}
-              summaryError={summary.error}
-              onRetrySummary={() => void summary.reload()}
+              summaryLoading={countsLoading}
+              summaryError={countsError}
+              onRetrySummary={() =>
+                void Promise.all([summary.reload(), activeOrders.reload(), completedOrders.reload()])
+              }
               notice={notice}
             />
           </View>

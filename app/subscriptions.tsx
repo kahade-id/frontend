@@ -9,6 +9,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * POST /v1/subscriptions/subscribe { plan, pin, paymentMethod? }
  * POST /v1/subscriptions/renew     { pin }
  * POST /v1/subscriptions/cancel
+ * POST /v1/subscriptions/pause     { resumeAt? } — jeda (tanpa date picker → manual)
+ * POST /v1/subscriptions/resume    — aktifkan kembali langganan jeda
+ * POST /v1/subscriptions/upgrade   { newPlan, pin } — ganti paket + prorasi (KYC)
  *
  * Alur berlangganan: pilih paket → pilih metode bayar (GET
  * /v1/wallet/payment-methods; default KAHADE_WALLET) → masukkan PIN dompet →
@@ -73,7 +76,7 @@ const PAGE_SIZE = 10
 const MS_PER_DAY = 86_400_000
 
 type Step = "plans" | "method" | "pin"
-type PinPurpose = "subscribe" | "renew"
+type PinPurpose = "subscribe" | "renew" | "upgrade"
 
 type Benefit = { key: string; title: string; description?: string }
 
@@ -238,6 +241,15 @@ export default function SubscriptionsScreen() {
     setStep("pin")
   }, [])
 
+  // Upgrade (11.1): ganti paket dengan proration — biaya dipotong dari saldo,
+  // jadi langsung ke langkah PIN (tanpa pilih metode pembayaran).
+  const startUpgrade = useCallback((plan: SubscriptionPlan) => {
+    setSelectedPlan(plan)
+    setPinPurpose("upgrade")
+    setPinError(undefined)
+    setStep("pin")
+  }, [])
+
   const backToPlans = useCallback(() => {
     setStep("plans")
     setPinError(undefined)
@@ -267,7 +279,20 @@ export default function SubscriptionsScreen() {
       setSubmitting(true)
       setPinError(undefined)
       try {
-        if (pinPurpose === "renew") {
+        if (pinPurpose === "upgrade") {
+          // Backend membalas objek hasil upgrade (bukan bentuk /status),
+          // jadi cukup toast + refresh — jangan `setData` dengan respons mentah.
+          if (!selectedPlan) return
+          await api.subscriptions.upgradeSubscription({
+            newPlan: planPeriod(selectedPlan),
+            pin,
+          })
+          toast.show({
+            title: `Beralih ke ${selectedPlan.name} (prorasi)`,
+            tone: "success",
+            duration: 3000,
+          })
+        } else if (pinPurpose === "renew") {
           const next = await api.subscriptions.renewSubscription({ pin })
           query.setData((prev) => (prev ? { ...prev, status: next } : prev))
           toast.show({
@@ -339,6 +364,49 @@ export default function SubscriptionsScreen() {
       })
     } finally {
       setCancelling(false)
+    }
+  }, [toast.show, query])
+
+  // ---- Jeda / lanjutkan langganan (audit P2 cluster langganan) -----------
+  // Pause TIDAK dikirim `resumeAt` (opsional di server): tanpa date picker
+  // di layar, jeda bersifat manual sampai user menekan "Aktifkan kembali".
+  // Respons pause/resume = model Subscription server → refresh, bukan setData.
+  const [pauseOpen, setPauseOpen] = useState(false)
+  const [pausing, setPausing] = useState(false)
+  const [resuming, setResuming] = useState(false)
+
+  const handlePause = useCallback(async () => {
+    setPausing(true)
+    try {
+      await api.subscriptions.pauseSubscription()
+      toast.show({ title: "Langganan dijeda", tone: "success", duration: 3000 })
+      setPauseOpen(false)
+      await query.refresh()
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal menjeda langganan",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setPausing(false)
+    }
+  }, [toast.show, query])
+
+  const handleResume = useCallback(async () => {
+    setResuming(true)
+    try {
+      await api.subscriptions.resumeSubscription()
+      toast.show({ title: "Langganan dilanjutkan", tone: "success", duration: 3000 })
+      await query.refresh()
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal melanjutkan langganan",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setResuming(false)
     }
   }, [toast.show, query])
 
@@ -416,6 +484,26 @@ export default function SubscriptionsScreen() {
               onCancel={status?.active ? () => setCancelOpen(true) : undefined}
             />
 
+            {status?.paused ? (
+              <Button
+                fullWidth
+                variant="secondary"
+                loading={resuming}
+                onPress={() => void handleResume()}
+              >
+                Aktifkan kembali langganan
+              </Button>
+            ) : null}
+            {status?.active ? (
+              <Button
+                fullWidth
+                variant="ghost"
+                onPress={() => setPauseOpen(true)}
+              >
+                Jeda langganan
+              </Button>
+            ) : null}
+
             <SectionHeader title="Pilih paket" />
             {plans.length === 0 ? (
               <EmptyState compact icon={CrownSimple} title="Belum ada paket tersedia" />
@@ -424,6 +512,22 @@ export default function SubscriptionsScreen() {
                 {plans.map((plan) => {
                   const period = planPeriod(plan)
                   const isCurrent = Boolean(status?.active && currentPlan?.id === plan.id)
+                  const isActiveSubscriber = Boolean(status?.active)
+                  // Saat langganan aktif, paket lain yang LEBIH MAHAL adalah
+                  // upgrade (prorasi, PIN dompet) → /v1/subscriptions/upgrade,
+                  // bukan /subscribe (server menolak bila sudah aktif).
+                  // Paket lebih murah tidak ditawarkan (downgrade belum
+                  // didukung produk) — tanpa CTA.
+                  const isUpgradeTarget =
+                    isActiveSubscriber &&
+                    !isCurrent &&
+                    currentPlan != null &&
+                    plan.price > currentPlan.price
+                  const isDowngradeTarget =
+                    isActiveSubscriber &&
+                    !isCurrent &&
+                    currentPlan != null &&
+                    plan.price <= currentPlan.price
                   return (
                     <SubscriptionPlanCard
                       key={plan.id}
@@ -440,7 +544,16 @@ export default function SubscriptionsScreen() {
                       current={isCurrent}
                       selected={selectedPlan?.id === plan.id}
                       onPress={() => setSelectedPlan(plan)}
-                      onSubscribe={isCurrent ? undefined : () => startSubscribe(plan)}
+                      onSubscribe={
+                        isCurrent
+                          ? undefined
+                          : isUpgradeTarget
+                            ? () => startUpgrade(plan)
+                            : isDowngradeTarget
+                              ? undefined
+                              : () => startSubscribe(plan)
+                      }
+                      labels={isUpgradeTarget ? { subscribe: "Upgrade" } : undefined}
                     />
                   )
                 })}
@@ -517,9 +630,13 @@ export default function SubscriptionsScreen() {
             ? `Masukkan PIN dompet Anda untuk memperpanjang langganan${
                 currentPlan ? ` ${currentPlan.name}` : ""
               }${currentPlan ? ` sebesar ${formatRupiah(currentPlan.price)}` : ""}.`
-            : `Masukkan PIN dompet Anda untuk berlangganan${
-                selectedPlan ? ` ${selectedPlan.name}` : ""
-              }${selectedPlan ? ` sebesar ${formatRupiah(selectedPlan.price)}` : ""}.`
+            : pinPurpose === "upgrade"
+              ? `Masukkan PIN dompet Anda untuk upgrade ke ${
+                  selectedPlan ? selectedPlan.name : ""
+                }. Sisa nilai paket lama dipotong dari biaya baru (prorasi).`
+              : `Masukkan PIN dompet Anda untuk berlangganan${
+                  selectedPlan ? ` ${selectedPlan.name}` : ""
+                }${selectedPlan ? ` sebesar ${formatRupiah(selectedPlan.price)}` : ""}.`
         }
         avoidKeyboard
       >
@@ -542,6 +659,18 @@ export default function SubscriptionsScreen() {
         onConfirm={() => void handleCancel()}
         onCancel={() => setCancelOpen(false)}
         onRequestClose={() => setCancelOpen(false)}
+      />
+
+      <Dialog
+        title="Jeda langganan?"
+        description="Fitur premium dinonaktifkan sampai Anda mengaktifkannya kembali. Periode langganan yang sudah berjalan tetap berjalan selama masa jeda."
+        visible={pauseOpen}
+        loading={pausing}
+        confirmLabel="Jeda"
+        cancelLabel="Tutup"
+        onConfirm={() => void handlePause()}
+        onCancel={() => setPauseOpen(false)}
+        onRequestClose={() => setPauseOpen(false)}
       />
     </Screen>
   )

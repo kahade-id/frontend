@@ -102,6 +102,33 @@ export const ROUTES = {
    */
   createTransactionWithVoucher: (voucherCode: string) =>
     ({ pathname: "/create-transaction", params: { voucherCode } }) as unknown as Href,
+  /**
+   * Buat transaksi ter-prefill dari template (layar Template Transaksi → "Pakai").
+   * Parameter dibaca sekali saat layar mount; validasi & langkah tetap seperti biasa.
+   */
+  createTransactionFromTemplate: (t: {
+    role: string
+    title: string
+    orderType: string
+    orderValue: number
+    deliveryDeadlineDays: number
+    feeResponsibility: string
+    description?: string
+    counterpart?: string | null
+  }) =>
+    ({
+      pathname: "/create-transaction",
+      params: {
+        role: t.role,
+        title: t.title,
+        orderType: t.orderType,
+        amount: String(t.orderValue),
+        deadline: String(t.deliveryDeadlineDays),
+        fee: t.feeResponsibility,
+        ...(t.description ? { description: t.description } : {}),
+        ...(t.counterpart ? { counterpart: t.counterpart } : {}),
+      },
+    }) as unknown as Href,
 
   // ── Dompet — aksi cepat kartu saldo ─────────────────────────────────────
   /** POST /v1/wallet/topup */
@@ -202,6 +229,8 @@ export const ROUTES = {
   // ── Fitur utama (quick action & menu) ───────────────────────────────────
   /** KYC: status + riwayat + submit */
   kyc: "/kyc" as Href,
+  /** Verifikasi bisnis (badge "Business Verified"): status + riwayat + submit — khusus akun BUSINESS */
+  businessVerification: "/business-verification" as Href,
   /** Daftar sengketa saya (GET /v1/disputes/my) */
   disputes: "/disputes" as Href,
   /** Detail satu sengketa */
@@ -252,6 +281,8 @@ export const ROUTES = {
   discover: "/discover" as Href,
   /** Favorite user (GET /v1/users/favorites) */
   favorites: "/favorites" as Href,
+  /** Profil tersimpan (GET /v1/users/saved) */
+  saved: "/saved" as Href,
   /** Followers/following user */
   followers: (username: string, tab: "followers" | "following" = "followers") =>
     ({ pathname: "/followers/[username]", params: { username, tab } }) as unknown as Href,
@@ -259,6 +290,9 @@ export const ROUTES = {
   showcase: "/showcase" as Href,
   /** Questions milik sendiri (GET /v1/users/me/questions) */
   questions: "/questions" as Href,
+  /** Detail item showcase sosial (GET /v1/showcase/{id} + komentar/like/share) */
+  showcaseDetail: (id: string) =>
+    ({ pathname: "/showcase/[id]", params: { id } }) as unknown as Href,
   /** Showcase publik user (GET /v1/users/{username}/showcase) */
   userShowcase: (username: string) =>
     ({ pathname: "/user/[username]/showcase", params: { username } }) as unknown as Href,

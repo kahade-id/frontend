@@ -460,3 +460,91 @@ export function exportWalletPdf() {
     })
     .then(({ html }) => new Blob([html], { type: "text/html;charset=utf-8" }))
 }
+
+// ------------------------------------------------------------------
+// Penerima favorit — GET/POST /v1/wallet/favorite-recipients,
+// DELETE /v1/wallet/favorite-recipients/{id} (audit P2, cluster wallet).
+// ------------------------------------------------------------------
+
+/** Baris penerima favorit tersimpan (backend: wallet_favorite_recipients + join users). */
+export type FavoriteRecipient = {
+  /** id baris favorit (untuk hapus — BUKAN id penerima) */
+  id: string
+  label?: string | null
+  createdAt?: string
+  recipient: {
+    /** id pengguna (CUID) */
+    id: string
+    userId?: string
+    username: string | null
+    fullName: string
+    avatarUrl?: string | null
+  }
+}
+
+function normalizeFavoriteRecipient(item: unknown): FavoriteRecipient {
+  const record = (item ?? {}) as Record<string, unknown>
+  const nested =
+    typeof record.recipient === "object" && record.recipient !== null
+      ? (record.recipient as Record<string, unknown>)
+      : record
+  const rid = pickUserId(nested) || pickUserId(record)
+  const username =
+    typeof nested.username === "string" ? nested.username : null
+  const fullName =
+    typeof nested.fullName === "string" && nested.fullName
+      ? nested.fullName
+      : (username ?? "Penerima")
+  return {
+    id: pickUserId(record),
+    label: typeof record.label === "string" ? record.label : null,
+    createdAt: typeof record.createdAt === "string" ? record.createdAt : undefined,
+    recipient: {
+      id: rid,
+      userId: typeof nested.userId === "string" ? nested.userId : undefined,
+      username,
+      fullName,
+      avatarUrl: typeof nested.avatarUrl === "string" ? nested.avatarUrl : null,
+    },
+  }
+}
+
+/**
+ * GET /v1/wallet/favorite-recipients — daftar favorit untuk seksi "Favorit"
+ * di alur Transfer.
+ */
+export function getFavoriteRecipients(signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/wallet/favorite-recipients", {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) =>
+      readList<unknown>(raw, ["recipients", "favorites"]).map(normalizeFavoriteRecipient),
+    )
+}
+
+/**
+ * POST /v1/wallet/favorite-recipients — simpan penerima.
+ * `recipientId` bisa CUID, USR-XXXX, atau username (backend resolve ketiganya).
+ * Body sengaja flat `{recipientId, label?}` mengikuti signature controller
+ * (`@Body('recipientId')`) — bukan objek DTO.
+ */
+export async function addFavoriteRecipient(recipientId: string, label?: string) {
+  return http.post<unknown, { recipientId: string; label?: string }>(
+    "/v1/wallet/favorite-recipients",
+    { recipientId, ...(label ? { label } : {}) },
+    { auth: "required" },
+  )
+}
+
+/**
+ * DELETE /v1/wallet/favorite-recipients/{id} — hapus favorit.
+ * `favoriteId` = id baris favorit (bukan id penerima) — dari `getFavoriteRecipients`.
+ */
+export async function removeFavoriteRecipient(favoriteId: string) {
+  return http.delete<unknown>(`/v1/wallet/favorite-recipients/${seg(favoriteId)}`, {
+    auth: "required",
+  })
+}

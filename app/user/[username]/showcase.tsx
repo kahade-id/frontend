@@ -3,12 +3,13 @@
  * Galeri foto produk/hasil kerja milik profil user lain.
  */
 import { View } from "react-native"
-import { useLocalSearchParams } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Images } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -67,6 +68,10 @@ export default function PublicShowcaseScreen() {
                 source: it.imageUrl ?? it.fileKey ?? "",
                 alt: it.caption ?? "Portofolio",
               }))}
+              onPressItem={(cell) => {
+                const original = items.find((it) => it.id === cell.id)
+                if (original?.id) router.push(ROUTES.showcaseDetail(original.id))
+              }}
               empty={
                 <EmptyState
                   icon={Images}

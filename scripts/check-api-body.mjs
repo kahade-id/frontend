@@ -111,6 +111,63 @@ const KNOWN_DEVIATIONS = [
       "mustahil tanpa txId. Klien mengirim { txId }; spec yang harus dilengkapi " +
       "(CancelWithdrawDto). Lihat docs/audit/API-ENDPOINT-AUDIT.md API-04.",
   },
+  {
+    match: "POST /v1/showcase/{}/report",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { reason: string; " +
+      "description?: string }` sehingga Swagger tidak mendokumentasikan " +
+      "requestBody (akar masalah sama dengan bug @ApiProperty). Klien benar " +
+      "mengirim { reason, description? }. Backend perlu membuat " +
+      "ReportShowcaseDto dengan @ApiProperty.",
+  },
+  {
+    match: "POST /v1/wallet/favorite-recipients",
+    reason:
+      "Controller membaca field polos `@Body('recipientId')` + `@Body('label')` " +
+      "(tanpa class DTO) sehingga Swagger tidak mendeklarasikan requestBody. " +
+      "Klien benar mengirim { recipientId, label? } flat. Backend perlu " +
+      "AddFavoriteRecipientDto dengan @ApiProperty agar tercatat di spec.",
+  },
+  {
+    match: "POST /v1/subscriptions/upgrade",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { newPlan: any; pin: string }` " +
+      "sehingga Swagger tidak mendeklarasikan requestBody. Klien benar mengirim " +
+      "{ newPlan, pin } (newPlan = key paket MONTHLY/ANNUAL). Backend perlu " +
+      "UpgradeSubscriptionDto dengan @ApiProperty.",
+  },
+  {
+    match: "POST /v1/support/tickets/{}/rate",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { rating: number; comment?: string }` " +
+      "sehingga Swagger tidak mendeklarasikan requestBody. Klien benar mengirim " +
+      "{ rating, comment? } (rating 1–5, hanya tiket RESOLVED/CLOSED). Backend " +
+      "perlu RateTicketDto dengan @ApiProperty.",
+  },
+  {
+    match: "PATCH /v1/bank-accounts/{}",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { accountName: string }` " +
+      "sehingga Swagger tidak mendeklarasikan requestBody. Klien benar mengirim " +
+      "{ accountName } — backend memang hanya mengizinkan ubah nama pemilik " +
+      "(nomor & bank tetap). Backend perlu UpdateBankAccountDto dengan @ApiProperty.",
+  },
+  {
+    match: "POST /v1/disputes/{}/escalate",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { reason?: string }` " +
+      "sehingga Swagger tidak mendeklarasikan requestBody. Klien benar mengirim " +
+      "{ reason? } (opsional; maks 2x eskalasi per sengketa). Backend perlu " +
+      "EscalateDisputeDto dengan @ApiProperty.",
+  },
+  {
+    match: "POST /v1/chat/rooms/{}/typing",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { isTyping: boolean }` " +
+      "sehingga Swagger tidak mendokumentasikan requestBody (akar masalah sama " +
+      "dengan DTO telepon transpile-only). Klien benar mengirim { isTyping }. " +
+      "Backend perlu membuat TypingIndicatorDto dengan @ApiProperty.",
+  },
 ]
 
 function isKnownDeviation(operationKey) {

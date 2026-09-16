@@ -34,13 +34,18 @@
 import type { ReactNode } from "react"
 import { View } from "react-native"
 
+import { ThumbsUp } from "phosphor-react-native"
+
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { Card, type CardProps } from "@/components/ui/card"
+import { Icon } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
-import { formatDate } from "@/lib/format"
+import { focusRing } from "@/lib/focus-ring"
+import { formatDate, formatNumber } from "@/lib/format"
 
 export type QAPerson = {
   name: string
@@ -63,6 +68,17 @@ export type QACardProps = Omit<CardProps, "children" | "padded"> & {
   answerAction?: ReactNode
   /** Slot bawah: helpful toggle, laporkan, dsb. */
   footer?: ReactNode
+  /**
+   * Toggle upvote (POST/DELETE /v1/users/questions/{id}/upvote). Dirender
+   * sebagai chip di baris footer kanan; `count` memakai angka final dari
+   * respons `{ upvoted, upvoteCount }` setelah request selesai.
+   */
+  upvote?: {
+    count: number
+    active: boolean
+    loading?: boolean
+    onToggle: (next: boolean) => void
+  }
   /** Batas baris di mode daftar; undefined = penuh */
   questionLines?: number
   answerLines?: number
@@ -84,6 +100,7 @@ export function QACard({
   answer,
   answerAction,
   footer,
+  upvote,
   questionLines,
   answerLines,
   labels,
@@ -136,10 +153,57 @@ export function QACard({
         </View>
       )}
 
-      {footer ? (
-        <View className="flex-row items-center gap-3 border-t border-border px-5 py-3">{footer}</View>
+      {footer || upvote ? (
+        <View className="flex-row items-center gap-3 border-t border-border px-5 py-3">
+          {footer ? <View className="flex-row flex-1 flex-wrap gap-2">{footer}</View> : null}
+          {upvote ? <UpvoteChip {...upvote} /> : null}
+        </View>
       ) : null}
     </Card>
+  )
+}
+
+/** Chip upvote: ikon ThumbsUp + count. Aktif = fill + tone active. */
+function UpvoteChip({
+  count,
+  active,
+  loading,
+  onToggle,
+}: {
+  count: number
+  active: boolean
+  loading?: boolean
+  onToggle: (next: boolean) => void
+}) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={active ? "Tarik dukungan" : "Dukung pertanyaan"}
+      accessibilityHint={`Saat ini ${formatNumber(count)} dukungan`}
+      disabled={loading}
+      scaleOnPress={false}
+      onPress={() => onToggle(!active)}
+      containerClassName={cn(
+        "flex-row items-center gap-1 rounded-full border px-2.5 py-1",
+        active ? "border-primary bg-surface-elevated" : "border-border bg-surface",
+        focusRing,
+      )}
+    >
+      <Icon
+        icon={ThumbsUp}
+        size="xs"
+        tone={active ? "active" : "default"}
+        weight={active ? "fill" : "regular"}
+      />
+      <Text
+        variant="caption"
+        tone={active ? "primary" : "secondary"}
+        weight={600}
+        className="tabular-nums"
+      >
+        {formatNumber(count)}
+      </Text>
+    </PressableScale>
   )
 }
 

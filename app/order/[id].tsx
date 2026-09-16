@@ -46,7 +46,7 @@ import {
   Truck,
 } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type Order } from "@/lib/api"
+import { api, isApiError, userMessage, type Order, type SubmitDisputeDto } from "@/lib/api"
 import { normalizeOrder } from "@/lib/api/orders"
 import {
   isCancellable,
@@ -80,6 +80,7 @@ import { PinInput } from "@/components/ui/pin-input"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { ReasonPicker, type ReasonOption, type ReasonValue } from "@/components/ui/reason-picker"
+import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { SegmentedControl } from "@/components/ui/segmented-control"
@@ -95,6 +96,18 @@ const HOURS_PER_DAY = 24
 const NOTE_MAX = 500
 const DISPUTE_CLAIM_MIN = 20
 const DISPUTE_CLAIM_MAX = 2000
+/** Kategori sengketa — wajib di backend (SubmitDisputeDto.category). */
+const DISPUTE_CATEGORIES = [
+  { value: "ITEM_NOT_RECEIVED", label: "Barang tidak diterima" },
+  { value: "ITEM_NOT_AS_DESCRIBED", label: "Tidak sesuai deskripsi" },
+  { value: "DAMAGED_ITEM", label: "Barang rusak" },
+  { value: "WRONG_ITEM", label: "Barang salah" },
+  { value: "SERVICE_NOT_RENDERED", label: "Jasa tidak dijalankan" },
+  { value: "PAYMENT_ISSUE", label: "Masalah pembayaran" },
+  { value: "FRAUD", label: "Indikasi penipuan" },
+  { value: "OTHER", label: "Lainnya" },
+] as const
+type DisputeCategoryValue = (typeof DISPUTE_CATEGORIES)[number]["value"]
 
 const CANCEL_REASONS: readonly (ReasonOption & { code: CancelReason })[] = [
   { code: "CHANGED_MIND", label: "Berubah pikiran" },
@@ -213,6 +226,7 @@ export default function OrderDetailScreen() {
   const [cancelReason, setCancelReason] = useState<ReasonValue>({ code: undefined, note: "" })
   const [rejectReason, setRejectReason] = useState("")
   const [disputeClaim, setDisputeClaim] = useState("")
+  const [disputeCategory, setDisputeCategory] = useState<DisputeCategoryValue | undefined>(undefined)
   const [tracking, setTracking] = useState("")
   const [courier, setCourier] = useState("")
 
@@ -238,6 +252,7 @@ export default function OrderDetailScreen() {
     setPinError(undefined)
     setQris(null)
     setQrisStatus(null)
+    setDisputeCategory(undefined)
   }, [])
 
   /** Pembungkus aksi sederhana: loading, toast sukses/gagal, refetch. */
@@ -866,10 +881,14 @@ export default function OrderDetailScreen() {
             variant="destructive"
             fullWidth
             loading={submitting}
-            disabled={disputeClaim.trim().length < DISPUTE_CLAIM_MIN}
+            disabled={disputeClaim.trim().length < DISPUTE_CLAIM_MIN || !disputeCategory}
             onPress={() =>
               void runAction(
-                () => api.orders.submitDispute(order.id, { claim: disputeClaim.trim() }),
+                () =>
+                  api.orders.submitDispute(order.id, {
+                    claim: disputeClaim.trim(),
+                    category: disputeCategory as SubmitDisputeDto["category"],
+                  }),
                 "Sengketa dibuka",
                 "Gagal membuka sengketa",
               )
@@ -879,6 +898,17 @@ export default function OrderDetailScreen() {
           </Button>
         }
       >
+        <Field label="Kategori" required>
+          <RadioGroup
+            value={disputeCategory}
+            onChange={(v) => setDisputeCategory(v as DisputeCategoryValue)}
+            variant="plain"
+          >
+            {DISPUTE_CATEGORIES.map((c) => (
+              <Radio key={c.value} value={c.value} label={c.label} />
+            ))}
+          </RadioGroup>
+        </Field>
         <Field
           label="Klaim Anda"
           required

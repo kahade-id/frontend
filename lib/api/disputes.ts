@@ -226,3 +226,17 @@ export function withdrawMutualResolution(disputeId: string, proposalId: string) 
     responseType: "void",
   })
 }
+
+/**
+ * POST /v1/disputes/{id}/escalate — eskalasi manual ke admin (8.3).
+ * Body `{reason?}` (controller memakai tipe inline anonim, tanpa class DTO).
+ * Syarat backend: pemanggil = salah satu pihak sengketa; status bukan
+ * RESOLVED/ESCALATED; maks 2x eskalasi per sengketa.
+ */
+export function escalateDispute(disputeId: string, reason?: string) {
+  return http.post<Record<string, unknown>, { reason?: string }>(
+    `/v1/disputes/${seg(disputeId)}/escalate`,
+    { ...(reason && reason.trim() ? { reason: reason.trim() } : {}) },
+    { auth: "required" },
+  )
+}

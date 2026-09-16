@@ -27,6 +27,8 @@ export type Rating = {
   targetUsername?: string
   isMine?: boolean
   direction?: "GIVEN" | "RECEIVED" | (string & {})
+  /** Jumlah penanda "berguna" (kolom model Rating). */
+  helpfulCount?: number | null
   replied?: boolean
   reply?: string | null
   replyId?: string | null
@@ -127,5 +129,30 @@ export function deleteRatingReply(replyId: string) {
   return http.delete<void>(`/v1/ratings/replies/${seg(replyId)}`, {
     auth: "required",
     responseType: "void",
+  })
+}
+
+/**
+ * POST /v1/ratings/{id}/helpful — toggle "berguna" untuk ulasan (tanpa body).
+ * Balasan `{ helpful, helpfulCount }` = status SETELAH toggle.
+ * Aturan backend: ulasan sendiri TIDAK bisa ditandai berguna; ulasan
+ * tersembunyi → 404.
+ */
+export function toggleRatingHelpful(ratingId: string) {
+  return http.post<{ helpful: boolean; helpfulCount: number }>(
+    `/v1/ratings/${seg(ratingId)}/helpful`,
+    undefined,
+    { auth: "required" },
+  )
+}
+
+/**
+ * DELETE /v1/ratings/{id} — hapus ulasan SAYA (giver).
+ * Aturan backend: hanya dalam 7 hari sejak dibuat (jendela tutup →
+ * RATING_WINDOW_CLOSED).
+ */
+export function deleteMyRating(ratingId: string) {
+  return http.delete<{ deleted: boolean }>(`/v1/ratings/${seg(ratingId)}`, {
+    auth: "required",
   })
 }

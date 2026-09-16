@@ -104,6 +104,46 @@ export default function TransferScreen() {
   }))
   const loading = lookup.loading || debounced !== query.trim()
 
+  // Penerima favorit (audit P2 cluster wallet) — `GET /v1/wallet/favorite-recipients`.
+  // Tampil sebagai seksi "Favorit" saat query kosong; ikon hati di baris
+  // memanggil add/remove endpoint lalu me-refresh daftar ini.
+  const favoritesQuery = useApiQuery<import("@/lib/api").FavoriteRecipient[]>(
+    "wallet-favorites",
+    (signal) => api.wallet.getFavoriteRecipients(signal),
+  )
+  const favorites: TransferRecipient[] = (favoritesQuery.data ?? []).map((f) => ({
+    id: f.recipient.id,
+    // `label` (alias opsional, maks 50 kar) menggantikan nama di baris.
+    name: f.label && f.label.trim() ? f.label : f.recipient.fullName,
+    username: f.recipient.username ?? "",
+    avatarUrl: f.recipient.avatarUrl ?? undefined,
+  }))
+  const [togglingFavoriteId, setTogglingFavoriteId] = useState<string | null>(null)
+  const handleToggleFavorite = useCallback(
+    async (recipient: TransferRecipient, nextFavorite: boolean) => {
+      if (togglingFavoriteId) return
+      const favoriteRow = favoritesQuery.data?.find((f) => f.recipient.id === recipient.id)
+      setTogglingFavoriteId(recipient.id)
+      try {
+        const handle = recipient.username || recipient.name
+        if (nextFavorite) {
+          await api.wallet.addFavoriteRecipient(recipient.id)
+          toast.show({ title: `@${handle} disimpan ke favorit`, tone: "success", duration: 3000 })
+        } else if (favoriteRow) {
+          // Hapus memakai id BARIS favorit (bukan id penerima).
+          await api.wallet.removeFavoriteRecipient(favoriteRow.id)
+          toast.show({ title: `@${handle} dihapus dari favorit`, duration: 3000 })
+        }
+        void favoritesQuery.refresh()
+      } catch (err) {
+        toast.show({ title: userMessage(err), tone: "danger" })
+      } finally {
+        setTogglingFavoriteId(null)
+      }
+    },
+    [togglingFavoriteId, favoritesQuery.data, favoritesQuery.refresh, toast],
+  )
+
   // Sub-langkah di dalam langkah "form": penerima dulu, baru nominal.
   const [formSubStep, setFormSubStep] = useState<"recipient" | "amount">("recipient")
 
@@ -259,6 +299,9 @@ export default function TransferScreen() {
                     onQueryChange={handleQuery}
                     results={results}
                     recent={recent}
+                    favorites={favorites}
+                    favoriteIds={favorites.map((f) => f.id)}
+                    onToggleFavorite={handleToggleFavorite}
                     loading={loading}
                     value={selected?.id}
                     onSelect={handleSelect}

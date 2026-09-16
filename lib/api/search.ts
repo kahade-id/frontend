@@ -79,3 +79,59 @@ export function getSearchSuggestions(
     })
     .then((raw) => readList<string>(raw, ["suggestions"]))
 }
+
+// ------------------------------------------------------------------
+// Riwayat pencarian (audit P2 "Lainnya") —
+// GET /v1/search/history + GET /v1/search/history/clear.
+// Endpoint clear memakai GET (bentuk backend apa adanya; cek:retry hanya
+// melarang `retry` pada mutasi, dan di sini tidak ada retry).
+// ------------------------------------------------------------------
+
+export type SearchHistoryEntry = {
+  query: string
+  searchedAt?: string | null
+}
+
+/**
+ * GET /v1/search/history — riwayat pencarian user (13.2).
+ * Respons tanpa schema; item bisa string polos atau objek {query, searchedAt}.
+ */
+export function getSearchHistory(signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/search/history", { auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const rows = readList<unknown>(raw, ["history", "queries", "data"])
+      return rows
+        .map((row): SearchHistoryEntry | null => {
+          if (typeof row === "string" && row.trim()) return { query: row.trim() }
+          if (row && typeof row === "object") {
+            const record = row as Record<string, unknown>
+            const query =
+              typeof record.query === "string"
+                ? record.query.trim()
+                : typeof record.term === "string"
+                  ? record.term.trim()
+                  : typeof record.keyword === "string"
+                    ? record.keyword.trim()
+                    : ""
+            if (!query) return null
+            return {
+              query,
+              searchedAt:
+                typeof record.searchedAt === "string"
+                  ? record.searchedAt
+                  : typeof record.createdAt === "string"
+                    ? record.createdAt
+                    : null,
+            }
+          }
+          return null
+        })
+        .filter((entry): entry is SearchHistoryEntry => entry !== null)
+    })
+}
+
+/** GET /v1/search/history/clear — hapus riwayat pencarian user. */
+export function clearSearchHistory() {
+  return http.get<unknown>("/v1/search/history/clear", { auth: "required" })
+}

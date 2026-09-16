@@ -2,17 +2,28 @@
  * Test regresi identitas untuk blokir & lapor.
  *
  * Cacat yang dilaporkan pengguna: menekan "Blokir pengguna" / "Laporkan akun"
- * DI HALAMAN PROFIL orang itu sendiri gagal dengan "user tidak tersedia".
- * Sebabnya: endpoint memakai `{userId}` sedangkan layar profil publik hanya
- * pasti punya username, dan `profile.id` bisa kosong.
+ * DI HALAMAN PROFIL orang itu sendiri gagal — "Invalid ID format" /
+ * "targetId must be a valid ID".
+ *
+ * Akar masalah (dua modul backend dengan resolusi id BERBEDA):
+ *   - modul users    `POST/DELETE /v1/users/{id}/block`, `POST /v1/users/{id}/report`
+ *                    → service mencari kolom `user.userId` (format `USR-XXXX`,
+ *                    satu-satunya id yang diumumkan profil publik);
+ *   - modul settings `POST/DELETE /v1/settings/block/{id}`, `POST /v1/settings/report`
+ *                    → service mencari `user.id` (CUID internal — tidak pernah
+ *                    ada di profil publik).
+ * Adapter lama hanya memanggil modul settings dengan `USR-XXXX` → 404 →
+ * fallback username → 400 (username bukan id valid).
  *
  * Perilakuan yang dikunci di sini:
- *   1. id dicoba lebih dulu;
- *   2. bila backend menjawab 404, username dicoba (backend boleh menerima
- *      keduanya) — dan ini AMAN karena 404 berarti tidak ada data yang dibuat,
- *      jadi laporan tidak mungkin ganda;
- *   3. id kosong tidak pernah dikirim ke server;
- *   4. error non-404 (mis. 403) langsung dilempar, tidak diulang.
+ *   1. per identifier, route modul users dicoba lebih dulu (menerima
+ *      USR-XXXX — yang umum dimiliki UI), lalu modul settings (menerima CUID);
+ *   2. 404/NOT_FOUND/BAD_REQUEST memicu percobaan berikutnya (AMAN: backend
+ *      belum membuat apa pun, jadi laporan tidak mungkin ganda);
+ *   3. identifier kosong tidak pernah dikirim ke server;
+ *   4. error selain 404/400 (mis. 403) langsung dilempar, tidak diulang;
+ *   5. laporan via modul users TIDAK mengirim relatedMessageId (DTO modul
+ *      users tidak mengenalnya; forbidNonWhitelisted → 400).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -44,25 +55,27 @@ beforeEach(() => {
 })
 
 describe("blockUser", () => {
-  it("memakai id lebih dulu dan tidak memanggil ulang bila berhasil", async () => {
-    httpMock.post.mockResolvedValue({ id: "u1" })
-    await blockUser("u1", "budi")
+  it("memakai route modul users lebih dulu dan berhenti bila berhasil", async () => {
+    httpMock.post.mockResolvedValue({ message: "ok" })
+    await blockUser("USR-ABC12345", "budi")
     expect(httpMock.post).toHaveBeenCalledTimes(1)
-    expect(httpMock.post.mock.calls[0][0]).toBe("/v1/settings/block/u1")
+    expect(httpMock.post.mock.calls[0][0]).toBe("/v1/users/USR-ABC12345/block")
   })
 
-  it("jatuh ke username saat backend menjawab 404 untuk id", async () => {
-    httpMock.post.mockRejectedValueOnce(notFound()).mockResolvedValueOnce({ id: "u1" })
-    await blockUser("profil-id-yang-tidak-dikenali", "budi")
+  it("jatuh ke route modul settings (CUID) saat route users menjawab 404", async () => {
+    httpMock.post.mockRejectedValueOnce(notFound()).mockResolvedValueOnce({ message: "ok" })
+    await blockUser("cuid-internal", "budi")
     expect(httpMock.post).toHaveBeenCalledTimes(2)
-    expect(httpMock.post.mock.calls[1][0]).toBe("/v1/settings/block/budi")
+    expect(httpMock.post.mock.calls[0][0]).toBe("/v1/users/cuid-internal/block")
+    expect(httpMock.post.mock.calls[1][0]).toBe("/v1/settings/block/cuid-internal")
   })
 
-  it("langsung memakai username bila id kosong — tidak pernah mengirim path kosong", async () => {
-    httpMock.post.mockResolvedValue({ id: "u1" })
+  it("mencoba username pada kedua route bila id kosong — tidak pernah mengirim path kosong", async () => {
+    httpMock.post.mockRejectedValueOnce(notFound()).mockResolvedValueOnce({ message: "ok" })
     await blockUser("", "budi")
-    expect(httpMock.post).toHaveBeenCalledTimes(1)
-    expect(httpMock.post.mock.calls[0][0]).toBe("/v1/settings/block/budi")
+    expect(httpMock.post).toHaveBeenCalledTimes(2)
+    expect(httpMock.post.mock.calls[0][0]).toBe("/v1/users/budi/block")
+    expect(httpMock.post.mock.calls[1][0]).toBe("/v1/settings/block/budi")
   })
 
   it("melempar error yang jelas bila id DAN username tidak ada", async () => {
@@ -80,17 +93,41 @@ describe("blockUser", () => {
 describe("reportUser", () => {
   const dto = { targetId: "u1", category: "SPAM" as const, description: "akun penipuan" }
 
-  it("mengirim targetId dari dto", async () => {
-    httpMock.post.mockResolvedValue({ id: "r1" })
-    await reportUser(dto, "budi")
-    expect(httpMock.post.mock.calls[0][1]).toMatchObject({ targetId: "u1", category: "SPAM" })
+  it("rute users: target di PATH, bukan di body, dan tanpa relatedMessageId", async () => {
+    httpMock.post.mockResolvedValue({ message: "ok" })
+    await reportUser(
+      { ...dto, evidenceUrls: ["https://cdn.kahade.id/a.jpg"], relatedMessageId: "m1" },
+      "budi",
+    )
+    expect(httpMock.post.mock.calls[0][0]).toBe("/v1/users/u1/report")
+    expect(httpMock.post.mock.calls[0][1]).toMatchObject({
+      category: "SPAM",
+      description: "akun penipuan",
+      evidenceUrls: ["https://cdn.kahade.id/a.jpg"],
+    })
+    expect(httpMock.post.mock.calls[0][1]).not.toHaveProperty("targetId")
+    expect(httpMock.post.mock.calls[0][1]).not.toHaveProperty("relatedMessageId")
   })
 
-  it("mengganti targetId dengan username pada percobaan kedua", async () => {
+  it("rute settings (fallback 404): targetId kembali ke body", async () => {
     httpMock.post.mockRejectedValueOnce(notFound()).mockResolvedValueOnce({ id: "r1" })
     await reportUser(dto, "budi")
     expect(httpMock.post).toHaveBeenCalledTimes(2)
-    expect(httpMock.post.mock.calls[1][1]).toMatchObject({ targetId: "budi" })
+    expect(httpMock.post.mock.calls[1][0]).toBe("/v1/settings/report")
+    expect(httpMock.post.mock.calls[1][1]).toMatchObject({ targetId: "u1", category: "SPAM" })
+  })
+
+  it("username dicoba sebagai targetId pada percobaan terakhir (rute settings)", async () => {
+    // id 404 di kedua route, username 404 di route users, lalu berhasil di settings
+    httpMock.post
+      .mockRejectedValueOnce(notFound())
+      .mockRejectedValueOnce(notFound())
+      .mockRejectedValueOnce(notFound())
+      .mockResolvedValueOnce({ id: "r1" })
+    await reportUser(dto, "budi")
+    expect(httpMock.post).toHaveBeenCalledTimes(4)
+    expect(httpMock.post.mock.calls[3][0]).toBe("/v1/settings/report")
+    expect(httpMock.post.mock.calls[3][1]).toMatchObject({ targetId: "budi" })
   })
 
   it("tidak membuat laporan ganda bila percobaan pertama gagal selain 404", async () => {
@@ -101,10 +138,11 @@ describe("reportUser", () => {
 })
 
 describe("unblockUser", () => {
-  it("memakai jalur identitas yang sama", async () => {
-    httpMock.delete.mockRejectedValueOnce(notFound()).mockResolvedValueOnce(undefined)
-    await unblockUser("id-lama", "budi")
+  it("memakai jalur identitas yang sama (users dulu, settings cadangan)", async () => {
+    httpMock.delete.mockRejectedValueOnce(notFound()).mockResolvedValueOnce({ message: "ok" })
+    await unblockUser("USR-OLD12345", "budi")
     expect(httpMock.delete).toHaveBeenCalledTimes(2)
-    expect(httpMock.delete.mock.calls[1][0]).toBe("/v1/settings/block/budi")
+    expect(httpMock.delete.mock.calls[0][0]).toBe("/v1/users/USR-OLD12345/block")
+    expect(httpMock.delete.mock.calls[1][0]).toBe("/v1/settings/block/USR-OLD12345")
   })
 })

@@ -29,11 +29,11 @@ import type {
   AddCommentDto,
   ConfirmAvatarDto,
   ConfirmHeaderDto,
-  CreateShowcaseDto,
+  CreateShowcaseItemDto,
   RequestAccountDeletionDto,
   UpdateLinksDto,
   UpdateProfileDto,
-  UpdateShowcaseDto,
+  UpdateShowcaseItemDto,
   UserLinkItemDto,
 } from "@/lib/api/types"
 
@@ -431,6 +431,28 @@ export function discoverUsers(
 }
 
 /** GET /v1/users/saved — profil yang disimpan user (pagination wajib). */
+/** Entri GET /v1/users/saved — profil yang disimpan (terbaru dulu). */
+export type SavedProfileEntry = {
+  id: string
+  savedUserId: string
+  createdAt: string
+  user: {
+    id: string
+    userId: string
+    fullName: string | null
+    username: string
+    avatarUrl?: string | null
+    isKahadePlus?: boolean
+    kycStatus?: string
+    stats?: { averageRating: number; totalOrdersCompleted: number }
+  }
+}
+
+/**
+ * GET /v1/users/saved — daftar profil tersimpan.
+ * Meta (total/page/limit) dikirim di TOP-LEVEL respons (bukan di `meta`),
+ * jadi tidak memakai readPage umum.
+ */
 export function getSavedProfiles(
   options: { page?: number; limit?: number } = {},
   signal?: AbortSignal,
@@ -438,7 +460,15 @@ export function getSavedProfiles(
   const query = { page: 1, limit: 20, ...options }
   return http
     .get<unknown>("/v1/users/saved", { query, auth: "required", retry: 1, signal })
-    .then((raw) => readPage<UserConnection>(raw, query, ["users", "profiles", "saved"]))
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      return {
+        data: Array.isArray(record.saved) ? (record.saved as SavedProfileEntry[]) : [],
+        total: typeof record.total === "number" ? record.total : 0,
+        page: typeof record.page === "number" ? record.page : 1,
+        limit: typeof record.limit === "number" ? record.limit : 20,
+      }
+    })
 }
 
 export function getFavorites(signal?: AbortSignal) {
@@ -549,7 +579,7 @@ export function removeFavorite(username: string) {
 // ------------------------------------------------------------------
 
 /**
- * Item showcase — field mengikuti CreateShowcaseDto/UpdateShowcaseDto
+ * Item showcase — field mengikuti CreateShowcaseItemDto/UpdateShowcaseItemDto
  * (title, description, imageUrl, priceMin/Max, isActive, sortOrder);
  * `caption`/`fileKey` dipertahankan untuk kompatibilitas respons lama
  * (UNVERIFIED — GET tanpa schema).
@@ -561,11 +591,22 @@ export type ShowcaseItem = {
   caption?: string
   imageUrl?: string
   fileKey?: string
+  /** Galeri terurut; gambar pertama = cover. */
+  images?: ShowcaseImage[]
+  /** URL cover — sama dengan images[0].imageUrl (imageUrl alias deprecated). */
+  coverImageUrl?: string | null
   priceMin?: number | null
   priceMax?: number | null
   isActive?: boolean
   createdAt: string
   sortOrder?: number
+}
+
+/** Satu gambar item showcase (GET /v1/users/me/showcase → items[].images). */
+export type ShowcaseImage = {
+  id: string
+  imageUrl: string
+  sortOrder: number
 }
 
 /** Respons upload gambar showcase — spec 201 tanpa schema (UNVERIFIED). */
@@ -598,8 +639,8 @@ export async function uploadShowcase(formData: FormData) {
   }
 }
 
-export async function createShowcase(dto: CreateShowcaseDto) {
-  const result = await http.post<ShowcaseItem, CreateShowcaseDto>("/v1/users/me/showcase", dto, {
+export async function createShowcase(dto: CreateShowcaseItemDto) {
+  const result = await http.post<ShowcaseItem, CreateShowcaseItemDto>("/v1/users/me/showcase", dto, {
     auth: "required",
   })
   return {
@@ -614,8 +655,8 @@ export async function createShowcase(dto: CreateShowcaseDto) {
   }
 }
 
-export async function updateShowcase(id: string, dto: UpdateShowcaseDto) {
-  const result = await http.put<ShowcaseItem, UpdateShowcaseDto>(`/v1/users/me/showcase/${seg(id)}`, dto, {
+export async function updateShowcase(id: string, dto: UpdateShowcaseItemDto) {
+  const result = await http.put<ShowcaseItem, UpdateShowcaseItemDto>(`/v1/users/me/showcase/${seg(id)}`, dto, {
     auth: "required",
   })
   return {
@@ -660,6 +701,12 @@ export type QuestionItem = {
   /** Pemilik profil yang ditanya (ada pada daftar "asked") — UNVERIFIED */
   target?: { id: string; username: string; fullName?: string; avatarUrl?: string | null }
   commentCount?: number
+  /** Total dukungan (GET list sudah menyertakan; +isUpvotedByViewer). */
+  upvoteCount?: number
+  isUpvotedByViewer?: boolean
+  /** Moderasi pemilik profil (hanya dikirim bila viewer pemilik). */
+  isHidden?: boolean
+  hiddenReason?: HiddenReason | null
 }
 
 /** Query `GET /v1/users/me/questions` — spec: `type`, `page`, `limit` REQUIRED. */
@@ -804,5 +851,223 @@ export function deleteQuestionComment(commentId: string) {
   return http.delete<void>(`/v1/users/comments/${seg(commentId)}`, {
     auth: "required",
     responseType: "void",
+  })
+}
+
+// ==================================================================
+// Sosial profil & moderasi (sesi P1, 2026-09-15)
+// Kontrak diverifikasi terhadap users.controller / profile-qa.service /
+// verification-badge.service / showcase.service di backend.
+// ==================================================================
+
+/** Badge verifikasi aktif (GET /v1/users/{username}/badges). */
+export type VerificationBadge = {
+  /** Identifier stabil — branch di UI wajib pakai ini, bukan label. */
+  type: string
+  labelKey: string
+  label: string
+  shortLabel: string
+  description: string
+  /** Nama ikon Phosphor (string) — frontend yang memilih aset. */
+  icon: string
+  earnedAt?: string | null
+  /** 1 = prioritas tampil tertinggi (sudah terurut dari server). */
+  priority: number
+}
+
+/**
+ * Simpan / cek profil (POST|DELETE|GET /v1/users/{username}/saved).
+ * "Saved profile" terpisah dari "favorite": saved = daftar pribadi untuk
+ * dilihat lagi (app/saved), favorite = dukungan publik dengan counter.
+ */
+export function checkSavedProfile(username: string, signal?: AbortSignal) {
+  return http
+    .get<{ isSaved: boolean }>(`/v1/users/${seg(username)}/saved`, {
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((r) => (r && typeof r.isSaved === "boolean" ? r.isSaved : false))
+}
+
+export function saveProfile(username: string) {
+  return http.post<{ message: string }>(`/v1/users/${seg(username)}/saved`, undefined, {
+    auth: "required",
+  })
+}
+
+export function unsaveProfile(username: string) {
+  return http.delete<{ message: string }>(`/v1/users/${seg(username)}/saved`, {
+    auth: "required",
+  })
+}
+
+/** Item hasil GET /v1/users/search (q wajib ≥ 2 karakter, throttle 10 rpm). */
+export type UserSearchResult = {
+  userId: string
+  username: string | null
+  fullName: string
+  avatarUrl?: string | null
+  membershipRank?: string | null
+}
+
+export function searchUsers(
+  q: string,
+  options: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  const query = { q, page: options.page ?? 1, limit: options.limit ?? 10 }
+  return http
+    .get<unknown>("/v1/users/search", { query, auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      return {
+        users: Array.isArray(record.users)
+          ? (record.users as UserSearchResult[])
+          : [],
+        total: typeof record.total === "number" ? record.total : 0,
+        page: typeof record.page === "number" ? record.page : 1,
+        limit: typeof record.limit === "number" ? record.limit : 10,
+      }
+    })
+}
+
+/**
+ * Badge verifikasi publik (GET /v1/users/{username}/badges) — terurut
+ * prioritas: KYC > Business > Kahade+ > Trusted Admin > Email/Phone.
+ * Revoke terpancar dalam detik (cache TTL pendek di backend).
+ */
+export function getVerificationBadges(username: string, signal?: AbortSignal) {
+  return http
+    .get<{ username: string; badges: VerificationBadge[] }>(
+      `/v1/users/${seg(username)}/badges`,
+      { retry: 1, signal },
+    )
+    .then((r) => (Array.isArray(r?.badges) ? r.badges : []))
+}
+
+/** DELETE /v1/users/me/devices/{deviceId} — lupakan perangkat (bukan cabut sesi). */
+export function removeDevice(deviceId: string) {
+  return http.delete<{ message: string }>(`/v1/users/me/devices/${seg(deviceId)}`, {
+    auth: "required",
+  })
+}
+
+// ── Kelola gambar showcase (multi-image per item) ─────────────────────────
+
+/**
+ * POST /v1/users/me/showcase/{id}/images — lampirkan object key hasil
+ * presigned upload (purpose SHOWCASE_IMAGE) yang sudah di-confirm.
+ */
+export function attachShowcaseImages(itemId: string, fileKeys: string[]) {
+  return http.post<object, { fileKeys: string[] }>(
+    `/v1/users/me/showcase/${seg(itemId)}/images`,
+    { fileKeys },
+    { auth: "required" },
+  )
+}
+
+/**
+ * PUT /v1/users/me/showcase/{id}/images/order — kirim SELURUH id gambar
+ * dalam urutan baru (disimpan ulang sebagai sortOrder 0..n-1).
+ */
+export function reorderShowcaseImages(itemId: string, imageIds: string[]) {
+  return http.put<object, { imageIds: string[] }>(
+    `/v1/users/me/showcase/${seg(itemId)}/images/order`,
+    { imageIds },
+    { auth: "required" },
+  )
+}
+
+/** DELETE /v1/users/me/showcase/images/{imageId} — hapus satu gambar. */
+export function deleteShowcaseImage(imageId: string) {
+  return http.delete<{ message: string }>(`/v1/users/me/showcase/images/${seg(imageId)}`, {
+    auth: "required",
+  })
+}
+
+// ── Q&A: upvote & moderasi ─────────────────────────────────────────────────
+
+export type QuestionUpvoteResult = { upvoted: boolean; upvoteCount: number }
+
+/** POST /v1/users/questions/{questionId}/upvote (satu upvote per user). */
+export function upvoteQuestion(questionId: string) {
+  return http.post<QuestionUpvoteResult>(`/v1/users/questions/${seg(questionId)}/upvote`, undefined, {
+    auth: "required",
+  })
+}
+
+/** DELETE /v1/users/questions/{questionId}/upvote. */
+export function removeQuestionUpvote(questionId: string) {
+  return http.delete<QuestionUpvoteResult>(`/v1/users/questions/${seg(questionId)}/upvote`, {
+    auth: "required",
+  })
+}
+
+export type HiddenReason = "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER"
+
+/** Respons hide/unhide: baris ter-update { id, isHidden, hiddenReason, hiddenAt }. */
+export type ContentHiddenState = {
+  id: string
+  isHidden: boolean
+  hiddenReason?: HiddenReason | null
+  hiddenAt?: string | null
+}
+
+/** POST /v1/users/questions/{questionId}/hide — hanya pemilik profil. */
+export function hideQuestion(questionId: string, reason: HiddenReason) {
+  return http.post<ContentHiddenState, { reason: HiddenReason }>(
+    `/v1/users/questions/${seg(questionId)}/hide`,
+    { reason },
+    { auth: "required" },
+  )
+}
+
+/** POST /v1/users/questions/{questionId}/unhide — hanya pemilik profil. */
+export function unhideQuestion(questionId: string) {
+  return http.post<ContentHiddenState>(`/v1/users/questions/${seg(questionId)}/unhide`, undefined, {
+    auth: "required",
+  })
+}
+
+/** POST /v1/users/comments/{commentId}/hide — komentar Q&A, pemilik profil. */
+export function hideQAComment(commentId: string, reason: HiddenReason) {
+  return http.post<ContentHiddenState, { reason: HiddenReason }>(
+    `/v1/users/comments/${seg(commentId)}/hide`,
+    { reason },
+    { auth: "required" },
+  )
+}
+
+/** POST /v1/users/comments/{commentId}/unhide — komentar Q&A. */
+export function unhideQAComment(commentId: string) {
+  return http.post<ContentHiddenState>(`/v1/users/comments/${seg(commentId)}/unhide`, undefined, {
+    auth: "required",
+  })
+}
+
+// ── Laporkan pengguna ──────────────────────────────────────────────────────
+
+export type ReportUserCategory =
+  | "FRAUD"
+  | "FAKE_IDENTITY"
+  | "INAPPROPRIATE_CONTENT"
+  | "TNC_VIOLATION"
+  | "MONEY_LAUNDERING"
+  | "SPAM"
+  | "OTHER"
+
+export type ReportUserDto = {
+  category: ReportUserCategory
+  /** Wajib 20–500 karakter (validasi backend). */
+  description: string
+  /** URL bukti dari storage platform (maks 10). */
+  evidenceUrls?: string[]
+}
+
+/** POST /v1/users/{userId}/report — throttle 5/hari per user. */
+export function reportUser(userId: string, dto: ReportUserDto) {
+  return http.post<{ message: string }, ReportUserDto>(`/v1/users/${seg(userId)}/report`, dto, {
+    auth: "required",
   })
 }

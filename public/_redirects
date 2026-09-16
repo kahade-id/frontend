@@ -43,4 +43,5 @@
 /delivery-proof/:orderId   /delivery-proof/[orderId].html     200
 /followers/:username       /followers/[username].html         200
 /help/:slug                /help/[slug].html                  200
-/wallet-transaction/:txId  /wallet-transaction/[txId].html    200
+/wallet-transaction/:txId  /wallet-transaction/[txId].html          200
+/showcase/:id              /showcase/[id].html                      200

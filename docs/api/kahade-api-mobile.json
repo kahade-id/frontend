@@ -115,6 +115,30 @@
         ]
       }
     },
+    "/v1/auth/social-login": {
+      "post": {
+        "operationId": "AuthController_socialLogin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SocialLoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/v1/auth/phone-register": {
       "post": {
         "operationId": "AuthController_phoneRegister",
@@ -736,7 +760,7 @@
             "access-token": []
           }
         ],
-        "summary": "Get user trust score and badge",
+        "summary": "Get user trust score, badge, and factor breakdown",
         "tags": [
           "users"
         ]
@@ -1520,6 +1544,7 @@
     },
     "/v1/users/me/showcase/upload": {
       "post": {
+        "description": "Jalur multipart langsung (kompatibilitas client lama). Jalur yang dianjurkan: POST /upload/presigned-url dengan purpose SHOWCASE_IMAGE, PUT ke URL hasilnya, POST /upload/confirm, lalu lampirkan fileKey lewat POST /users/me/showcase/:id/images.",
         "operationId": "UsersController_uploadShowcaseImage",
         "parameters": [],
         "responses": {
@@ -1552,7 +1577,7 @@
             "access-token": []
           }
         ],
-        "summary": "Get my showcase items (including inactive)",
+        "summary": "Get my showcase items (including inactive and private)",
         "tags": [
           "users"
         ]
@@ -1565,7 +1590,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateShowcaseDto"
+                "$ref": "#/components/schemas/CreateShowcaseItemDto"
               }
             }
           }
@@ -1604,7 +1629,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateShowcaseDto"
+                "$ref": "#/components/schemas/UpdateShowcaseItemDto"
               }
             }
           }
@@ -1652,8 +1677,118 @@
         ]
       }
     },
+    "/v1/users/me/showcase/{id}/images": {
+      "post": {
+        "description": "Menerima object key hasil upload presigned (purpose SHOWCASE_IMAGE) yang sudah dikonfirmasi lewat POST /upload/confirm. Gambar ditambahkan di urutan terakhir; total gambar per item dibatasi SHOWCASE_MAX_IMAGES.",
+        "operationId": "UsersController_attachShowcaseImages",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AttachShowcaseImagesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Attach uploaded images to a showcase item",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/v1/users/me/showcase/{id}/images/order": {
+      "put": {
+        "description": "Kirim seluruh ID gambar milik item ini dalam urutan yang diinginkan.",
+        "operationId": "UsersController_reorderShowcaseImages",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReorderShowcaseImagesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Reorder the images of a showcase item",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/v1/users/me/showcase/images/{imageId}": {
+      "delete": {
+        "operationId": "UsersController_deleteShowcaseImage",
+        "parameters": [
+          {
+            "name": "imageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete one image of a showcase item",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/v1/users/me/questions": {
       "get": {
+        "description": "Section 4: `sort=top` mengurutkan berdasarkan jumlah upvote (terpopuler lebih dulu), berguna untuk memilih pertanyaan mana yang paling ditunggu jawabannya. Default `recent` (terbaru lebih dulu). Tiap pertanyaan menyertakan `upvoteCount` dan `isUpvotedByViewer`.",
         "operationId": "UsersController_getMyQuestions",
         "parameters": [
           {
@@ -1958,8 +2093,39 @@
         ]
       }
     },
+    "/v1/users/{username}/badges": {
+      "get": {
+        "description": "Mengembalikan array badge verifikasi aktif, terurut berdasarkan prioritas tampil untuk UI ruang terbatas: KYC_VERIFIED > BUSINESS_VERIFIED > KAHADE_PLUS > TRUSTED_BY_KAHADE > CONTACT_VERIFIED. Badge yang di-revoke hilang dalam beberapa detik (cache TTL pendek + invalidation post-commit).",
+        "operationId": "UsersController_getVerificationBadges",
+        "parameters": [
+          {
+            "name": "username",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get active verification badges for a public profile",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/v1/users/{username}": {
       "get": {
+        "description": "Mengembalikan profil publik per bagian: `identity` (fullName/nickname, username, bio, avatarUrl, headerUrl, accountType, membershipRank), `contact` (email/phone, hanya bila toggle showContact* aktif — selain itu null), `links` (tautan sosial media), `social` (followersCount, followingCount, isFollowing, isFollowedBy + preview 6 item), `favorites` (total, isFavoritedByViewer + preview 12 item), `badges` (array badge verifikasi aktif), `about` (memberSince, badgeEarnedDates, contact publik), `ratings` (averageRating, totalRatingCount, 5 rating terbaru), `stats`, `achievementBadges`, dan `viewer`. Menghormati profileVisible: profil privat/nonaktif/banned/terhapus menghasilkan 404. Bila ada relasi block dua arah antara viewer dan pemilik profil, hasilnya 403 USER_BLOCKED.",
         "operationId": "UsersController_getPublicProfile",
         "parameters": [
           {
@@ -1981,6 +2147,7 @@
             "access-token": []
           }
         ],
+        "summary": "Get a public profile",
         "tags": [
           "users"
         ]
@@ -2171,6 +2338,7 @@
     },
     "/v1/users/{username}/ratings": {
       "get": {
+        "description": "Section 5: mengembalikan daftar rating publik (isHidden=false, pemberi rating sehat dan profilnya tidak private) beserta agregat profil. Urutan `createdAt desc, id desc` — tiebreak `{ id }` wajib supaya offset pagination tidak menduplikasi/melewatkan baris, dan sengaja disamakan dengan preview `ratings.recent` di GET /users/:username. Respons memuat `averageRating` + `totalRatingCount` (counter denormalisasi profil) selain `total` (jumlah baris yang lolos filter halaman ini, mis. `filter=positive`) karena keduanya memang bisa berbeda. Profil private / nonaktif / banned / terhapus mengembalikan 404 USER_NOT_FOUND; viewer yang terlibat relasi block juga 404, bukan 403, agar keberadaan rating tidak bocor.",
         "operationId": "UsersController_getUserRatings",
         "parameters": [
           {
@@ -2216,6 +2384,7 @@
             "access-token": []
           }
         ],
+        "summary": "Get public ratings for a user profile",
         "tags": [
           "users"
         ]
@@ -2260,6 +2429,7 @@
         ]
       },
       "get": {
+        "description": "Hanya pertanyaan publik yang sudah dijawab dan tidak disembunyikan. Section 4 menambah `sort=recent|top` (top = upvote terbanyak) serta `upvoteCount` dan `isUpvotedByViewer` per pertanyaan. Viewer yang terlibat relasi block dengan pemilik profil mendapat 403 USER_BLOCKED, sama seperti GET /users/:username.",
         "operationId": "UsersController_getProfileQuestions",
         "parameters": [
           {
@@ -2298,6 +2468,62 @@
           }
         ],
         "summary": "Get public Q&A for a profile",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/v1/users/questions/{questionId}/upvote": {
+      "post": {
+        "operationId": "UsersController_upvoteQuestion",
+        "parameters": [
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upvote a profile question",
+        "tags": [
+          "users"
+        ]
+      },
+      "delete": {
+        "operationId": "UsersController_removeQuestionUpvote",
+        "parameters": [
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Remove your upvote from a profile question",
         "tags": [
           "users"
         ]
@@ -2366,6 +2592,75 @@
           }
         ],
         "summary": "Delete a question",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/v1/users/questions/{questionId}/hide": {
+      "post": {
+        "description": "Hanya pemilik profil. `reason` wajib diisi: SPAM, INAPPROPRIATE, HARASSMENT, atau OTHER. Pertanyaan tersembunyi hilang dari Q&A publik seketika (tidak ada cache).",
+        "operationId": "UsersController_hideQuestion",
+        "parameters": [
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Hide a question on your profile",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/v1/users/questions/{questionId}/unhide": {
+      "post": {
+        "operationId": "UsersController_unhideQuestion",
+        "parameters": [
+          {
+            "name": "questionId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Unhide a question on your profile",
         "tags": [
           "users"
         ]
@@ -2482,6 +2777,74 @@
         ]
       }
     },
+    "/v1/users/comments/{commentId}/hide": {
+      "post": {
+        "operationId": "UsersController_hideComment",
+        "parameters": [
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HideContentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Hide a Q&A comment on your profile (reason required)",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/v1/users/comments/{commentId}/unhide": {
+      "post": {
+        "operationId": "UsersController_unhideComment",
+        "parameters": [
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Unhide a Q&A comment on your profile",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/v1/users/{username}/og": {
       "get": {
         "operationId": "UsersController_getUserOgMetadata",
@@ -2511,6 +2874,537 @@
         ]
       }
     },
+    "/v1/showcase/feed": {
+      "get": {
+        "description": "Mengembalikan item showcase PUBLIC milik akun aktif yang profilnya publik. Pagination memakai CURSOR (keyset), bukan offset: teruskan `nextCursor` dari respons sebelumnya untuk halaman berikutnya. `hasMore=false` berarti feed habis. Item milik user yang saling blokir dengan viewer tidak pernah muncul; viewer anonim melihat seluruh konten publik. Setiap item menyertakan `orderLink` yang sudah ter-prefill (title/description/orderValue/counterpartUsername).",
+        "operationId": "ShowcaseController_getFeed",
+        "parameters": [
+          {
+            "name": "cursor",
+            "required": false,
+            "in": "query",
+            "description": "Cursor opaque dari field `nextCursor` respons sebelumnya. Kosongkan untuk halaman pertama.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "minimum": 1,
+              "maximum": 50,
+              "default": 20,
+              "type": "number"
+            }
+          },
+          {
+            "name": "sort",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": "latest",
+              "type": "string",
+              "enum": [
+                "latest",
+                "popular"
+              ]
+            }
+          },
+          {
+            "name": "category",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maxLength": 60,
+              "type": "string"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "description": "Mencari di title, description, category, dan username penjual.",
+            "schema": {
+              "maxLength": 100,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Discover feed for public showcase items (cursor-based)",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/showcase/comments/{commentId}": {
+      "patch": {
+        "operationId": "ShowcaseController_updateComment",
+        "parameters": [
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateShowcaseCommentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Edit your own showcase comment",
+        "tags": [
+          "showcase"
+        ]
+      },
+      "delete": {
+        "operationId": "ShowcaseController_deleteComment",
+        "parameters": [
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Delete a showcase comment (author or showcase owner)",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/showcase/comments/{commentId}/hide": {
+      "post": {
+        "description": "Hanya pemilik item showcase. `reason` wajib diisi dan menentukan kategori moderasi (SPAM / INAPPROPRIATE / HARASSMENT / OTHER). Komentar tersembunyi tidak dihitung di `commentCount` dan tidak muncul di daftar publik, tapi tetap terlihat oleh pemilik item agar bisa dibuka kembali.",
+        "operationId": "ShowcaseController_hideComment",
+        "parameters": [
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetCommentHiddenDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Hide a comment on your showcase item",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/showcase/comments/{commentId}/unhide": {
+      "post": {
+        "operationId": "ShowcaseController_unhideComment",
+        "parameters": [
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Unhide a comment on your showcase item",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/showcase/{showcaseId}/share": {
+      "get": {
+        "description": "Mengembalikan metadata untuk halaman deep link (title, description, imageUrl, authorUsername, shareUrl, appUrl). Item PRIVATE, item milik akun nonaktif/banned/terhapus/profil privat, dan item yang pemiliknya saling blokir dengan viewer ditolak (404/403) sehingga tautan share tidak bisa dipakai mengintip konten privat.",
+        "operationId": "ShowcaseController_getSharePayload",
+        "parameters": [
+          {
+            "name": "showcaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Share payload for a showcase item",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/showcase/{showcaseId}/comments": {
+      "get": {
+        "description": "Komentar root dipaginasi (offset + tiebreak { id } agar halaman stabil) dan tiap root menyertakan `replies` satu tingkat. Komentar dari user yang saling blokir dengan viewer serta komentar tersembunyi disaring, kecuali untuk pemilik item yang tetap melihat komentar tersembunyi beserta alasannya.",
+        "operationId": "ShowcaseController_listComments",
+        "parameters": [
+          {
+            "name": "showcaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Items per page",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "List comments of a showcase item (nested replies)",
+        "tags": [
+          "showcase"
+        ]
+      },
+      "post": {
+        "description": "Kirim `parentId` untuk membalas. Kedalaman dibatasi satu tingkat: membalas balasan ditolak dengan SHOWCASE_COMMENT_DEPTH_EXCEEDED. Interaksi dengan item milik user yang saling blokir ditolak 403 USER_BLOCKED.",
+        "operationId": "ShowcaseController_addComment",
+        "parameters": [
+          {
+            "name": "showcaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShowcaseCommentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Comment on a showcase item",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/showcase/{showcaseId}/like": {
+      "post": {
+        "operationId": "ShowcaseController_likeShowcase",
+        "parameters": [
+          {
+            "name": "showcaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Like a showcase item",
+        "tags": [
+          "showcase"
+        ]
+      },
+      "delete": {
+        "operationId": "ShowcaseController_unlikeShowcase",
+        "parameters": [
+          {
+            "name": "showcaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Remove your like from a showcase item",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/showcase/{showcaseId}": {
+      "get": {
+        "description": "Detail satu item showcase beserta gambar, counter, dan data OrderLink siap pakai. Setiap pemanggilan unik menaikkan `viewCount` sekali per viewer per jam (dedupe Redis SET NX + atomic increment), jadi refresh tidak menggelembungkan angka.",
+        "operationId": "ShowcaseController_getShowcase",
+        "parameters": [
+          {
+            "name": "showcaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get a showcase item",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/showcase/{showcaseId}/report": {
+      "post": {
+        "operationId": "ShowcaseController_reportShowcase",
+        "parameters": [
+          {
+            "name": "showcaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Report a showcase item (17.1)",
+        "tags": [
+          "showcase"
+        ]
+      }
+    },
+    "/v1/upload/presigned-url": {
+      "post": {
+        "operationId": "UploadController_getPresignedUrl",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PresignedUrlDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Generate pre-signed upload URL",
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/v1/upload/confirm": {
+      "post": {
+        "operationId": "UploadController_confirmUpload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmUploadDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Confirm file upload was completed",
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/v1/upload/direct": {
+      "post": {
+        "operationId": "UploadController_uploadDirect",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "purpose"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "KYC_KTP",
+                      "KYC_SELFIE",
+                      "KYC_PASSPORT",
+                      "KYC_LIVENESS",
+                      "BUSINESS_DOCUMENT",
+                      "SHOWCASE_IMAGE",
+                      "AVATAR",
+                      "CHAT_ATTACHMENT",
+                      "DISPUTE_EVIDENCE",
+                      "REPORT_EVIDENCE",
+                      "DELIVERY_PROOF"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upload file directly through the server (bypasses CORS)",
+        "tags": [
+          "upload"
+        ]
+      }
+    },
+    "/v1/upload/cleanup": {
+      "post": {
+        "operationId": "UploadController_cleanupFiles",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CleanupFilesDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete previously uploaded files (rollback partial uploads)",
+        "tags": [
+          "upload"
+        ]
+      }
+    },
     "/v1/sessions": {
       "get": {
         "operationId": "SessionsController_getActiveSessions",
@@ -2532,6 +3426,23 @@
             }
           }
         ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "tags": [
+          "sessions"
+        ]
+      },
+      "delete": {
+        "operationId": "SessionsController_revokeAll",
+        "parameters": [],
         "responses": {
           "200": {
             "description": ""
@@ -2594,6 +3505,25 @@
         ]
       }
     },
+    "/v1/sessions/devices": {
+      "get": {
+        "operationId": "SessionsController_getDevices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "tags": [
+          "sessions"
+        ]
+      }
+    },
     "/v1/kyc/submit": {
       "post": {
         "operationId": "KycController_submit",
@@ -2618,7 +3548,7 @@
             "access-token": []
           }
         ],
-        "summary": "Submit KYC request (gunakan fileKey dari /upload/confirm)",
+        "summary": "Submit KYC request (gunakan fileKey dari /upload/confirm). Supports KTP and PASSPORT.",
         "tags": [
           "kyc"
         ]
@@ -2718,23 +3648,30 @@
         ]
       }
     },
-    "/v1/upload/presigned-url": {
+    "/v1/business-verification/submit": {
       "post": {
-        "operationId": "UploadController_getPresignedUrl",
+        "description": "Hanya tersedia untuk akun dengan accountType=BUSINESS. Mengajukan NPWP, nama badan usaha, nomor akta/SIUP, dan dokumen pendukung untuk direview admin. Mengaktifkan badge \"Business Verified\" setelah APPROVED.",
+        "operationId": "BusinessVerificationController_submit",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/PresignedUrlDto"
+                "$ref": "#/components/schemas/SubmitBusinessVerificationDto"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Pengajuan tersimpan dengan status PENDING."
+          },
+          "400": {
+            "description": "Sudah ada pengajuan PENDING/APPROVED, NPWP duplikat, atau dokumen belum dikonfirmasi."
+          },
+          "403": {
+            "description": "Akun bukan BUSINESS, atau verifikasi sebelumnya sudah di-revoke."
           }
         },
         "security": [
@@ -2742,29 +3679,33 @@
             "access-token": []
           }
         ],
-        "summary": "Generate pre-signed upload URL",
+        "summary": "Submit business verification (gunakan fileKey dari /upload/confirm)",
         "tags": [
-          "upload"
+          "business-verification"
         ]
       }
     },
-    "/v1/upload/confirm": {
+    "/v1/business-verification/resubmit": {
       "post": {
-        "operationId": "UploadController_confirmUpload",
+        "description": "Hanya boleh dipanggil ketika pengajuan terakhir berstatus REJECTED dan cooldown 24 jam sudah lewat.",
+        "operationId": "BusinessVerificationController_resubmit",
         "parameters": [],
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/ConfirmUploadDto"
+                "$ref": "#/components/schemas/SubmitBusinessVerificationDto"
               }
             }
           }
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "Pengajuan baru tersimpan dengan status PENDING."
+          },
+          "400": {
+            "description": "Pengajuan terakhir bukan REJECTED, atau cooldown masih aktif."
           }
         },
         "security": [
@@ -2772,81 +3713,19 @@
             "access-token": []
           }
         ],
-        "summary": "Confirm file upload was completed",
+        "summary": "Resubmit business verification setelah ditolak",
         "tags": [
-          "upload"
+          "business-verification"
         ]
       }
     },
-    "/v1/upload/direct": {
-      "post": {
-        "operationId": "UploadController_uploadDirect",
+    "/v1/business-verification/status": {
+      "get": {
+        "operationId": "BusinessVerificationController_getStatus",
         "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "multipart/form-data": {
-              "schema": {
-                "type": "object",
-                "required": [
-                  "file",
-                  "purpose"
-                ],
-                "properties": {
-                  "file": {
-                    "type": "string",
-                    "format": "binary"
-                  },
-                  "purpose": {
-                    "type": "string",
-                    "enum": [
-                      "KYC_KTP",
-                      "KYC_SELFIE",
-                      "AVATAR",
-                      "CHAT_ATTACHMENT",
-                      "DISPUTE_EVIDENCE",
-                      "REPORT_EVIDENCE",
-                      "DELIVERY_PROOF"
-                    ]
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "security": [
-          {
-            "access-token": []
-          }
-        ],
-        "summary": "Upload file directly through the server (bypasses CORS)",
-        "tags": [
-          "upload"
-        ]
-      }
-    },
-    "/v1/upload/cleanup": {
-      "post": {
-        "operationId": "UploadController_cleanupFiles",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CleanupFilesDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
-            "description": ""
+            "description": "Status pengajuan terbaru beserta flag isBusinessVerified."
           }
         },
         "security": [
@@ -2854,9 +3733,53 @@
             "access-token": []
           }
         ],
-        "summary": "Delete previously uploaded files (rollback partial uploads)",
+        "summary": "Get current business verification status",
         "tags": [
-          "upload"
+          "business-verification"
+        ]
+      }
+    },
+    "/v1/business-verification/history": {
+      "get": {
+        "operationId": "BusinessVerificationController_getHistory",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number",
+            "schema": {
+              "minimum": 1,
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Items per page",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Riwayat pengajuan, terurut terbaru dengan tiebreak id."
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List all business verification requests (paginated)",
+        "tags": [
+          "business-verification"
         ]
       }
     },
@@ -2935,6 +3858,32 @@
       }
     },
     "/v1/bank-accounts/{id}": {
+      "patch": {
+        "operationId": "BankAccountsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "tags": [
+          "bank-accounts"
+        ]
+      },
       "delete": {
         "operationId": "BankAccountsController_delete",
         "parameters": [
@@ -3117,6 +4066,7 @@
             "access-token": []
           }
         ],
+        "summary": "Initiate wallet top-up, optionally reserving a TOPUP_BONUS voucher",
         "tags": [
           "wallet"
         ]
@@ -3518,7 +4468,7 @@
             "access-token": []
           }
         ],
-        "summary": "Export wallet transactions as CSV or XLSX",
+        "summary": "Export wallet transactions as CSV or XLSX (streaming)",
         "tags": [
           "wallet"
         ]
@@ -3538,7 +4488,7 @@
             "access-token": []
           }
         ],
-        "summary": "Export wallet transactions as CSV",
+        "summary": "Export wallet transactions as CSV (streaming file)",
         "tags": [
           "wallet"
         ]
@@ -3558,7 +4508,94 @@
             "access-token": []
           }
         ],
+        "summary": "Export wallet transactions as PDF (real PDF file)",
+        "tags": [
+          "wallet"
+        ]
+      }
+    },
+    "/v1/wallet/export/html": {
+      "get": {
+        "operationId": "WalletController_exportHtml",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
         "summary": "Export wallet transactions as printable HTML report",
+        "tags": [
+          "wallet"
+        ]
+      }
+    },
+    "/v1/wallet/favorite-recipients": {
+      "get": {
+        "operationId": "WalletController_getFavoriteRecipients",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List saved favorite transfer recipients",
+        "tags": [
+          "wallet"
+        ]
+      },
+      "post": {
+        "operationId": "WalletController_addFavoriteRecipient",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Add a favorite transfer recipient",
+        "tags": [
+          "wallet"
+        ]
+      }
+    },
+    "/v1/wallet/favorite-recipients/{id}": {
+      "delete": {
+        "operationId": "WalletController_removeFavoriteRecipient",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Remove a favorite transfer recipient",
         "tags": [
           "wallet"
         ]
@@ -3708,7 +4745,7 @@
             "in": "query",
             "schema": {
               "minimum": 1,
-              "maximum": 50,
+              "maximum": 100,
               "default": 10,
               "type": "number"
             }
@@ -3741,6 +4778,52 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "description": "Filter from date (YYYY-MM-DD) — WIB",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "description": "Filter to date (YYYY-MM-DD) — WIB",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "sortBy",
+            "required": false,
+            "in": "query",
+            "description": "Sort by field",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "createdAt",
+                "orderValue",
+                "deliveryDeadlineAt",
+                "updatedAt"
+              ]
+            }
+          },
+          {
+            "name": "sortOrder",
+            "required": false,
+            "in": "query",
+            "description": "Sort order",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ]
             }
           }
         ],
@@ -4586,6 +5669,35 @@
         ]
       }
     },
+    "/v1/orders/{orderId}/invoice/pdf": {
+      "get": {
+        "operationId": "OrdersController_getInvoicePdf",
+        "parameters": [
+          {
+            "name": "orderId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get invoice PDF (20.2)",
+        "tags": [
+          "orders"
+        ]
+      }
+    },
     "/v1/orders/{orderId}/receipt": {
       "get": {
         "operationId": "OrdersController_getReceipt",
@@ -4739,6 +5851,35 @@
             "access-token": []
           }
         ],
+        "tags": [
+          "referral"
+        ]
+      }
+    },
+    "/v1/referral/leaderboard": {
+      "get": {
+        "operationId": "ReferralController_getLeaderboard",
+        "parameters": [
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get Redis-cached referral leaderboard",
         "tags": [
           "referral"
         ]
@@ -5485,6 +6626,35 @@
         ]
       }
     },
+    "/v1/disputes/{disputeId}/escalate": {
+      "post": {
+        "operationId": "DisputesController_escalateDispute",
+        "parameters": [
+          {
+            "name": "disputeId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Manually escalate dispute to admin (8.3)",
+        "tags": [
+          "disputes"
+        ]
+      }
+    },
     "/v1/notifications": {
       "get": {
         "operationId": "NotificationsController_listNotifications",
@@ -5863,6 +7033,7 @@
     },
     "/v1/chat/rooms": {
       "get": {
+        "description": "Includes ORDER rooms and pre-transaction INQUIRY rooms. Archived rooms are hidden unless `archived=true`.",
         "operationId": "ChatController_getRooms",
         "parameters": [
           {
@@ -5871,6 +7042,91 @@
             "in": "query",
             "schema": {
               "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "archived",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List chat rooms for current user",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/inquiries": {
+      "post": {
+        "description": "Starts (or reuses) an INQUIRY room with another user so buyer and seller can negotiate before an order is created and funds are locked in escrow.",
+        "operationId": "ChatController_createInquiry",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInquiryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Open a pre-transaction conversation",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/search": {
+      "get": {
+        "description": "Substring search (min 2 chars) over message content in every room the user participates in.",
+        "operationId": "ChatController_searchAllMessages",
+        "parameters": [
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -5892,7 +7148,7 @@
             "access-token": []
           }
         ],
-        "summary": "List chat rooms for current user",
+        "summary": "Search across all of the current user's conversations",
         "tags": [
           "chat"
         ]
@@ -5951,6 +7207,7 @@
         ]
       },
       "post": {
+        "description": "Message text is scanned for off-platform circumvention (phone numbers, WhatsApp/Telegram links, \"let's continue outside the app\"). Blocking violations return HTTP 400 with code CHAT_MESSAGE_BLOCKED.",
         "operationId": "ChatController_sendMessage",
         "parameters": [
           {
@@ -5988,9 +7245,9 @@
         ]
       }
     },
-    "/v1/chat/rooms/{roomId}/read": {
-      "post": {
-        "operationId": "ChatController_markAsRead",
+    "/v1/chat/rooms/{roomId}/search": {
+      "get": {
+        "operationId": "ChatController_searchMessages",
         "parameters": [
           {
             "name": "roomId",
@@ -5998,6 +7255,30 @@
             "in": "path",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "q",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "cursor",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "limit",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "number"
             }
           }
         ],
@@ -6011,14 +7292,61 @@
             "access-token": []
           }
         ],
-        "summary": "Mark messages as read in a chat room",
+        "summary": "Search messages inside one chat room",
         "tags": [
           "chat"
         ]
       }
     },
     "/v1/chat/rooms/{roomId}/messages/{messageId}": {
+      "patch": {
+        "description": "The previous content is preserved in the message revision history, so edits never destroy dispute evidence. Blocked while the order is DISPUTED.",
+        "operationId": "ChatController_editMessage",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Edit own text message",
+        "tags": [
+          "chat"
+        ]
+      },
       "delete": {
+        "description": "Soft delete. The original content is retained for audit and for dispute resolvers. Deletion is refused while the order is DISPUTED (code CHAT_MESSAGE_LOCKED_DISPUTE).",
         "operationId": "ChatController_deleteMessage",
         "parameters": [
           {
@@ -6049,6 +7377,384 @@
           }
         ],
         "summary": "Delete own message in a chat room",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/read": {
+      "post": {
+        "operationId": "ChatController_markAsRead",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Mark messages as read in a chat room",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/messages/{messageId}/reactions": {
+      "post": {
+        "operationId": "ChatController_addReaction",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddReactionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Add an emoji reaction to a message",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/messages/{messageId}/reactions/{emoji}": {
+      "delete": {
+        "operationId": "ChatController_removeReaction",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "emoji",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Remove an emoji reaction from a message",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/messages/{messageId}/pin": {
+      "post": {
+        "operationId": "ChatController_pinMessage",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Pin a message (e.g. shipping address or tracking number)",
+        "tags": [
+          "chat"
+        ]
+      },
+      "delete": {
+        "operationId": "ChatController_unpinMessage",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Unpin a message",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/pins": {
+      "get": {
+        "operationId": "ChatController_listPinnedMessages",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "List pinned messages in a chat room",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/messages/{messageId}/forward": {
+      "post": {
+        "description": "Only allowed between rooms that share the same counterpart, so private details never leak across transactions.",
+        "operationId": "ChatController_forwardMessage",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForwardMessageDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Forward a message to other conversations",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/archive": {
+      "put": {
+        "operationId": "ChatController_setArchived",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchiveRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Archive or unarchive a conversation for the current user",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/mute": {
+      "put": {
+        "operationId": "ChatController_setMuted",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MuteRoomDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Mute or unmute a conversation for the current user",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/presence": {
+      "get": {
+        "description": "Returns isOnline=false and lastSeenAt=null when the counterpart has disabled online status in privacy settings.",
+        "operationId": "ChatController_getRoomPresence",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Online / last-seen status of the counterpart",
         "tags": [
           "chat"
         ]
@@ -6123,6 +7829,101 @@
           }
         ],
         "summary": "List room attachments",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/typing": {
+      "post": {
+        "operationId": "ChatController_typing",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Send typing indicator (16.1)",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/read-receipts": {
+      "get": {
+        "operationId": "ChatController_readReceipts",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get read receipts for room (16.2)",
+        "tags": [
+          "chat"
+        ]
+      }
+    },
+    "/v1/chat/rooms/{roomId}/messages/{messageId}/read": {
+      "post": {
+        "operationId": "ChatController_markMessageRead",
+        "parameters": [
+          {
+            "name": "roomId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "messageId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Mark single message as read (16.2)",
         "tags": [
           "chat"
         ]
@@ -6236,6 +8037,33 @@
         "tags": [
           "ratings"
         ]
+      },
+      "delete": {
+        "operationId": "RatingsController_deleteRating",
+        "parameters": [
+          {
+            "name": "ratingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Delete own rating (within 7 days)",
+        "tags": [
+          "ratings"
+        ]
       }
     },
     "/v1/ratings/{ratingId}/reply": {
@@ -6343,6 +8171,35 @@
         ]
       }
     },
+    "/v1/ratings/{ratingId}/helpful": {
+      "post": {
+        "operationId": "RatingsController_toggleHelpful",
+        "parameters": [
+          {
+            "name": "ratingId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Toggle helpful for a rating",
+        "tags": [
+          "ratings"
+        ]
+      }
+    },
     "/v1/vouchers/available": {
       "get": {
         "operationId": "VouchersController_getAvailableVouchers",
@@ -6381,7 +8238,8 @@
                 "ALL",
                 "BUYER_ONLY",
                 "SELLER_ONLY",
-                "NEW_USER"
+                "NEW_USER",
+                "DORMANT_USER"
               ]
             }
           }
@@ -6516,6 +8374,57 @@
             "access-token": []
           }
         ],
+        "summary": "Start Kahade Plus subscription, with optional one-lifetime trial or first-period promo code",
+        "tags": [
+          "subscriptions"
+        ]
+      }
+    },
+    "/v1/subscriptions/pause": {
+      "post": {
+        "operationId": "SubscriptionsController_pause",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PauseSubscriptionDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Pause active Kahade Plus subscription, optionally until resumeAt",
+        "tags": [
+          "subscriptions"
+        ]
+      }
+    },
+    "/v1/subscriptions/resume": {
+      "post": {
+        "operationId": "SubscriptionsController_resume",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Resume a paused Kahade Plus subscription",
         "tags": [
           "subscriptions"
         ]
@@ -6638,6 +8547,26 @@
             "access-token": []
           }
         ],
+        "tags": [
+          "subscriptions"
+        ]
+      }
+    },
+    "/v1/subscriptions/upgrade": {
+      "post": {
+        "operationId": "SubscriptionsController_upgrade",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Upgrade subscription with proration (11.1)",
         "tags": [
           "subscriptions"
         ]
@@ -7087,6 +9016,29 @@
         ]
       }
     },
+    "/v1/deeplinks/showcase/{showcaseId}": {
+      "get": {
+        "operationId": "DeepLinksController_showcase",
+        "parameters": [
+          {
+            "name": "showcaseId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "DeepLinks"
+        ]
+      }
+    },
     "/v1/deeplinks/order/{orderId}": {
       "get": {
         "operationId": "DeepLinksController_order",
@@ -7335,6 +9287,120 @@
         ]
       }
     },
+    "/v1/scheduled-withdrawals/schedules": {
+      "post": {
+        "operationId": "ScheduledWithdrawalsController_createSchedule",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateScheduleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Create a scheduled withdrawal",
+        "tags": [
+          "scheduled-withdrawals"
+        ]
+      },
+      "get": {
+        "operationId": "ScheduledWithdrawalsController_getSchedules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Get my scheduled withdrawals",
+        "tags": [
+          "scheduled-withdrawals"
+        ]
+      }
+    },
+    "/v1/scheduled-withdrawals/schedules/{scheduleId}": {
+      "put": {
+        "operationId": "ScheduledWithdrawalsController_updateSchedule",
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateScheduleDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Update a scheduled withdrawal",
+        "tags": [
+          "scheduled-withdrawals"
+        ]
+      },
+      "delete": {
+        "operationId": "ScheduledWithdrawalsController_deleteSchedule",
+        "parameters": [
+          {
+            "name": "scheduleId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Deactivate a scheduled withdrawal",
+        "tags": [
+          "scheduled-withdrawals"
+        ]
+      }
+    },
     "/v1/help-center/categories": {
       "get": {
         "operationId": "HelpCenterController_getCategories",
@@ -7428,6 +9494,37 @@
             "name": "id",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "help-center"
+        ]
+      }
+    },
+    "/v1/help-center/items/{id}/feedback": {
+      "post": {
+        "operationId": "HelpCenterController_feedback",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "helpful",
+            "required": true,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -7579,6 +9676,34 @@
         ]
       }
     },
+    "/v1/transaction-templates/{id}/use": {
+      "post": {
+        "operationId": "TransactionTemplatesController_recordTemplateUse",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "tags": [
+          "transaction-templates"
+        ]
+      }
+    },
     "/v1/support/tickets": {
       "get": {
         "operationId": "SupportController_getTickets",
@@ -7712,6 +9837,93 @@
         ]
       }
     },
+    "/v1/support/tickets/{ticketId}/close": {
+      "post": {
+        "operationId": "SupportController_closeTicket",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Close own ticket (14.1)",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/v1/support/tickets/{ticketId}/reopen": {
+      "post": {
+        "operationId": "SupportController_reopenTicket",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Reopen own closed ticket",
+        "tags": [
+          "support"
+        ]
+      }
+    },
+    "/v1/support/tickets/{ticketId}/rate": {
+      "post": {
+        "operationId": "SupportController_rateTicket",
+        "parameters": [
+          {
+            "name": "ticketId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "access-token": []
+          }
+        ],
+        "summary": "Rate resolved ticket (14.1)",
+        "tags": [
+          "support"
+        ]
+      }
+    },
     "/v1/config/exchange-rates": {
       "get": {
         "operationId": "ConfigApiController_getExchangeRates",
@@ -7819,6 +10031,46 @@
           }
         ],
         "summary": "Get search autocomplete suggestions",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/v1/search/history": {
+      "get": {
+        "operationId": "SearchController_history",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get search history (13.2)",
+        "tags": [
+          "Search"
+        ]
+      }
+    },
+    "/v1/search/history/clear": {
+      "get": {
+        "operationId": "SearchController_clearHistory",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Clear search history",
         "tags": [
           "Search"
         ]
@@ -8520,6 +10772,39 @@
           "deviceId"
         ]
       },
+      "SocialLoginDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "description": "Social provider",
+            "enum": [
+              "google",
+              "apple"
+            ]
+          },
+          "idToken": {
+            "type": "string",
+            "description": "ID token from social provider (Google ID token or Apple identityToken)"
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "Device ID for session tracking"
+          },
+          "deviceInfo": {
+            "type": "string",
+            "description": "Device info (user-agent)"
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "Access token (required for Apple to verify)"
+          }
+        },
+        "required": [
+          "provider",
+          "idToken"
+        ]
+      },
       "PhoneRegisterDto": {
         "type": "object",
         "properties": {
@@ -8604,10 +10889,12 @@
         "properties": {
           "newPhoneNumber": {
             "type": "string",
+            "description": "New phone number (E.164)",
             "maxLength": 20
           },
           "method": {
             "type": "string",
+            "description": "OTP delivery channel",
             "enum": [
               "SMS",
               "WHATSAPP"
@@ -8615,11 +10902,13 @@
           },
           "currentPassword": {
             "type": "string",
+            "description": "Current account password",
             "minLength": 1,
             "maxLength": 256
           },
           "mfaCode": {
             "type": "string",
+            "description": "Six-digit authenticator code or 10–16 character backup code",
             "maxLength": 16
           }
         },
@@ -8634,10 +10923,12 @@
         "properties": {
           "newPhoneNumber": {
             "type": "string",
+            "description": "New phone number (E.164)",
             "maxLength": 20
           },
           "code": {
             "type": "string",
+            "description": "Six-digit OTP code",
             "pattern": "^\\d{6}$"
           }
         },
@@ -9147,57 +11438,132 @@
         "type": "object",
         "properties": {}
       },
-      "CreateShowcaseDto": {
+      "CreateShowcaseItemDto": {
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 100
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 500
           },
-          "imageUrl": {
-            "type": "string"
+          "category": {
+            "type": "string",
+            "maxLength": 60,
+            "description": "Kategori bebas untuk filter feed discover, mis. \"ilustrasi\"."
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ],
+            "default": "PUBLIC"
           },
           "priceMin": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "description": "Harga minimum (Rupiah, bilangan bulat)."
           },
           "priceMax": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "description": "Harga maksimum (Rupiah, bilangan bulat)."
           },
           "sortOrder": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0,
+            "description": "Urutan tampil di etalase profil."
+          },
+          "imageFileKeys": {
+            "description": "Object key hasil upload presigned (purpose SHOWCASE_IMAGE) yang sudah dikonfirmasi lewat POST /upload/confirm. Maksimum 8 gambar.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
           "title"
         ]
       },
-      "UpdateShowcaseDto": {
+      "UpdateShowcaseItemDto": {
         "type": "object",
         "properties": {
           "title": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 100
           },
           "description": {
-            "type": "string"
+            "type": "string",
+            "maxLength": 500
           },
-          "imageUrl": {
-            "type": "string"
+          "category": {
+            "type": "string",
+            "maxLength": 60
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
           },
           "priceMin": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0
           },
           "priceMax": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0
           },
           "isActive": {
             "type": "boolean"
           },
           "sortOrder": {
-            "type": "number"
+            "type": "number",
+            "minimum": 0
+          },
+          "imageFileKeys": {
+            "description": "Bila diisi, seluruh gambar diganti dengan daftar key ini.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         }
+      },
+      "AttachShowcaseImagesDto": {
+        "type": "object",
+        "properties": {
+          "fileKeys": {
+            "description": "Object key gambar yang sudah dikonfirmasi.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "fileKeys"
+        ]
+      },
+      "ReorderShowcaseImagesDto": {
+        "type": "object",
+        "properties": {
+          "imageIds": {
+            "description": "Seluruh ID gambar milik item ini, dalam urutan yang diinginkan. Harus lengkap — urutan disimpan ulang sebagai sortOrder 0..n-1.",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "imageIds"
+        ]
       },
       "ReportUserDto": {
         "type": "object",
@@ -9266,6 +11632,24 @@
           "answer"
         ]
       },
+      "HideContentDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "SPAM",
+              "INAPPROPRIATE",
+              "HARASSMENT",
+              "OTHER"
+            ],
+            "description": "Kategori alasan konten disembunyikan."
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
       "AddCommentDto": {
         "type": "object",
         "properties": {
@@ -9284,29 +11668,47 @@
           "content"
         ]
       },
-      "SubmitKycDto": {
+      "UpdateShowcaseCommentDto": {
         "type": "object",
         "properties": {
-          "ktpFileKey": {
+          "content": {
             "type": "string",
-            "description": "S3 fileKey from confirmed KTP upload (format: uploads/kyc-ktp/{userId}/{filename})",
-            "example": "uploads/kyc-ktp/user123/1700000000_abc123.jpg"
-          },
-          "selfieFileKey": {
-            "type": "string",
-            "description": "S3 fileKey from confirmed selfie upload (format: uploads/kyc-selfie/{userId}/{filename})",
-            "example": "uploads/kyc-selfie/user123/1700000000_def456.jpg"
-          },
-          "nik": {
-            "type": "string",
-            "description": "NIK (exactly 16 digits)",
-            "pattern": "^\\d{16}$"
+            "maxLength": 1000
           }
         },
         "required": [
-          "ktpFileKey",
-          "selfieFileKey",
-          "nik"
+          "content"
+        ]
+      },
+      "SetCommentHiddenDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "enum": [
+              "SPAM",
+              "INAPPROPRIATE",
+              "HARASSMENT",
+              "OTHER"
+            ],
+            "description": "Kategori alasan moderasi. Wajib diisi ketika menyembunyikan komentar."
+          }
+        }
+      },
+      "CreateShowcaseCommentDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "maxLength": 1000
+          },
+          "parentId": {
+            "type": "string",
+            "description": "ID komentar induk bila ini balasan."
+          }
+        },
+        "required": [
+          "content"
         ]
       },
       "PresignedUrlDto": {
@@ -9317,6 +11719,10 @@
             "enum": [
               "KYC_KTP",
               "KYC_SELFIE",
+              "KYC_PASSPORT",
+              "KYC_LIVENESS",
+              "BUSINESS_DOCUMENT",
+              "SHOWCASE_IMAGE",
               "AVATAR",
               "CHAT_ATTACHMENT",
               "DISPUTE_EVIDENCE",
@@ -9366,6 +11772,91 @@
       "CleanupFilesDto": {
         "type": "object",
         "properties": {}
+      },
+      "SubmitKycDto": {
+        "type": "object",
+        "properties": {
+          "documentType": {
+            "type": "string",
+            "description": "Document type: KTP (default) or PASSPORT for WNA",
+            "enum": [
+              "KTP",
+              "PASSPORT"
+            ],
+            "default": "KTP"
+          },
+          "ktpFileKey": {
+            "type": "string",
+            "description": "S3 fileKey from confirmed KTP upload (format: uploads/kyc-ktp/{userId}/{filename}) — required if documentType=KTP",
+            "example": "uploads/kyc-ktp/user123/1700000000_abc123.jpg"
+          },
+          "passportFileKey": {
+            "type": "string",
+            "description": "S3 fileKey for passport upload (format: uploads/kyc-passport/{userId}/{filename}) — required if documentType=PASSPORT",
+            "example": "uploads/kyc-passport/user123/1700000000_pass.jpg"
+          },
+          "selfieFileKey": {
+            "type": "string",
+            "description": "S3 fileKey from confirmed selfie upload (format: uploads/kyc-selfie/{userId}/{filename})",
+            "example": "uploads/kyc-selfie/user123/1700000000_def456.jpg"
+          },
+          "livenessFileKey": {
+            "type": "string",
+            "description": "S3 fileKey for liveness check / holding ID photo (format: uploads/kyc-liveness/{userId}/{filename}) — optional but recommended for anti-fraud",
+            "example": "uploads/kyc-liveness/user123/1700000000_live.jpg"
+          },
+          "nik": {
+            "type": "string",
+            "description": "NIK (exactly 16 digits) for KTP, or passport number for PASSPORT"
+          }
+        },
+        "required": [
+          "ktpFileKey",
+          "selfieFileKey",
+          "nik"
+        ]
+      },
+      "SubmitBusinessVerificationDto": {
+        "type": "object",
+        "properties": {
+          "businessName": {
+            "type": "string",
+            "description": "Nama badan usaha sesuai akta pendirian / NPWP",
+            "example": "PT Kawal Hak Dengan Aman",
+            "minLength": 3,
+            "maxLength": 150
+          },
+          "npwpNumber": {
+            "type": "string",
+            "description": "NPWP badan usaha — 15 digit (format lama) atau 16 digit (format NIK). Titik dan strip diizinkan dan akan dinormalisasi.",
+            "example": "01.234.567.8-901.000"
+          },
+          "deedNumber": {
+            "type": "string",
+            "description": "Nomor akta pendirian",
+            "maxLength": 100
+          },
+          "siupNumber": {
+            "type": "string",
+            "description": "Nomor SIUP / NIB",
+            "maxLength": 100
+          },
+          "documentFileKeys": {
+            "description": "S3 fileKey dari upload yang sudah dikonfirmasi (format: uploads/business-documents/{userId}/{filename}). Maksimal 5 dokumen.",
+            "example": [
+              "uploads/business-documents/user123/1700000000-abc-npwp.pdf"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "businessName",
+          "npwpNumber",
+          "documentFileKeys"
+        ]
       },
       "AddBankAccountDto": {
         "type": "object",
@@ -9505,9 +11996,14 @@
             "type": "string",
             "description": "Card token from Midtrans.js tokenization (required for CREDIT_CARD method)"
           },
+          "voucherCode": {
+            "type": "string",
+            "description": "TOPUP_BONUS voucher code to apply once the payment settles"
+          },
           "pin": {
             "type": "string",
-            "description": "Wallet PIN (6 digits) — collected by mobile but not verified for top-up"
+            "description": "Deprecated: Wallet PIN is no longer required for top-up (payment gateway secures it). Ignored if sent.",
+            "deprecated": true
           }
         },
         "required": [
@@ -9576,9 +12072,9 @@
           },
           "otp": {
             "type": "string",
-            "description": "OTP code (6 digits)",
+            "description": "OTP code (6 digits by default; up to 10 when WITHDRAW_OTP_DIGITS is raised)",
             "minLength": 6,
-            "maxLength": 6
+            "maxLength": 10
           }
         },
         "required": [
@@ -9615,12 +12111,11 @@
           },
           "password": {
             "type": "string",
-            "description": "Account password — required when changing an existing PIN"
+            "description": "Account password — required when changing an existing PIN, optional when setting first PIN"
           }
         },
         "required": [
-          "pin",
-          "password"
+          "pin"
         ]
       },
       "VerifyPinDto": {
@@ -9752,6 +12247,17 @@
             "type": "string",
             "description": "Voucher code to apply",
             "maxLength": 50
+          },
+          "attachments": {
+            "description": "Reference attachment URLs (R2 CDN) for order spec — max 5",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "inquiryRoomId": {
+            "type": "string",
+            "description": "Source inquiry room ID if order originates from an INQUIRY chat (links negotiation context)"
           }
         },
         "required": [
@@ -9890,6 +12396,20 @@
       "SubmitDisputeDto": {
         "type": "object",
         "properties": {
+          "category": {
+            "type": "string",
+            "description": "Dispute category",
+            "enum": [
+              "ITEM_NOT_RECEIVED",
+              "ITEM_NOT_AS_DESCRIBED",
+              "DAMAGED_ITEM",
+              "WRONG_ITEM",
+              "SERVICE_NOT_RENDERED",
+              "PAYMENT_ISSUE",
+              "FRAUD",
+              "OTHER"
+            ]
+          },
           "claim": {
             "type": "string",
             "description": "Dispute claim",
@@ -9915,6 +12435,7 @@
           }
         },
         "required": [
+          "category",
           "claim"
         ]
       },
@@ -10015,7 +12536,8 @@
         "properties": {
           "proofId": {
             "type": "string",
-            "description": "Specific submitted delivery proof to review"
+            "description": "Specific submitted delivery proof to review",
+            "pattern": "^c[a-z0-9]{24}$"
           }
         }
       },
@@ -10030,7 +12552,8 @@
           },
           "proofId": {
             "type": "string",
-            "description": "Specific submitted delivery proof to reject"
+            "description": "Specific submitted delivery proof to reject",
+            "pattern": "^c[a-z0-9]{24}$"
           }
         },
         "required": [
@@ -10078,7 +12601,10 @@
                 "image/jpeg",
                 "image/png",
                 "image/webp",
-                "application/pdf"
+                "application/pdf",
+                "video/mp4",
+                "video/quicktime",
+                "video/webm"
               ]
             }
           }
@@ -10204,6 +12730,34 @@
           "marketingEmail": {
             "type": "boolean",
             "description": "Marketing email notifications"
+          },
+          "marketingPush": {
+            "type": "boolean",
+            "description": "Marketing push notifications"
+          },
+          "marketingInApp": {
+            "type": "boolean",
+            "description": "Marketing in-app notifications"
+          },
+          "quietHoursEnabled": {
+            "type": "boolean",
+            "description": "Quiet hours enabled"
+          },
+          "quietHoursStart": {
+            "type": "string",
+            "description": "Quiet hours start (HH:mm)"
+          },
+          "quietHoursEnd": {
+            "type": "string",
+            "description": "Quiet hours end (HH:mm)"
+          },
+          "language": {
+            "type": "string",
+            "description": "Preferred language",
+            "enum": [
+              "id",
+              "en"
+            ]
           }
         }
       },
@@ -10232,6 +12786,29 @@
         },
         "required": [
           "token"
+        ]
+      },
+      "CreateInquiryDto": {
+        "type": "object",
+        "properties": {
+          "counterpartId": {
+            "type": "string",
+            "description": "User id of the counterpart to negotiate with"
+          },
+          "subject": {
+            "type": "string",
+            "description": "What the inquiry is about (e.g. item title). Shown as the conversation header.",
+            "maxLength": 200
+          },
+          "message": {
+            "type": "string",
+            "description": "First message",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "counterpartId",
+          "message"
         ]
       },
       "ChatAttachmentDto": {
@@ -10278,9 +12855,11 @@
             "enum": [
               "TEXT",
               "IMAGE",
-              "FILE"
+              "FILE",
+              "VIDEO",
+              "VOICE"
             ],
-            "description": "Message type (TEXT, IMAGE, or FILE). SYSTEM is reserved for internal use.",
+            "description": "Message type (TEXT, IMAGE, FILE, or VOICE). SYSTEM is reserved for internal use.",
             "default": "TEXT"
           },
           "content": {
@@ -10298,6 +12877,86 @@
           "replyToId": {
             "type": "string",
             "description": "ID of the message being replied to"
+          },
+          "durationSeconds": {
+            "type": "number",
+            "description": "Voice note duration in seconds. Required for VOICE messages.",
+            "minimum": 1,
+            "maximum": 600
+          },
+          "caption": {
+            "type": "string",
+            "description": "Caption for image/video attachments",
+            "maxLength": 500
+          }
+        }
+      },
+      "EditMessageDto": {
+        "type": "object",
+        "properties": {
+          "content": {
+            "type": "string",
+            "description": "New message content",
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "content"
+        ]
+      },
+      "AddReactionDto": {
+        "type": "object",
+        "properties": {
+          "emoji": {
+            "type": "string",
+            "description": "Emoji to react with (1–8 code points)",
+            "example": "👍",
+            "maxLength": 16
+          }
+        },
+        "required": [
+          "emoji"
+        ]
+      },
+      "ForwardMessageDto": {
+        "type": "object",
+        "properties": {
+          "targetRoomIds": {
+            "description": "Target chat room ids (rooms with the same counterpart only)",
+            "maxItems": 5,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "targetRoomIds"
+        ]
+      },
+      "ArchiveRoomDto": {
+        "type": "object",
+        "properties": {
+          "archived": {
+            "type": "boolean",
+            "description": "true to archive, false to unarchive",
+            "default": true
+          }
+        }
+      },
+      "MuteRoomDto": {
+        "type": "object",
+        "properties": {
+          "muted": {
+            "type": "boolean",
+            "description": "true to mute, false to unmute",
+            "default": true
+          },
+          "durationHours": {
+            "type": "number",
+            "description": "Mute duration in hours. Omit to mute indefinitely.",
+            "minimum": 1,
+            "maximum": 720
           }
         }
       },
@@ -10393,7 +13052,7 @@
           },
           "pin": {
             "type": "string",
-            "description": "Wallet PIN for payment verification"
+            "description": "Wallet PIN for paid subscription verification. Optional only when useTrial=true."
           },
           "paymentMethod": {
             "type": "string",
@@ -10419,12 +13078,28 @@
               "KAHADE_WALLET"
             ],
             "description": "Payment method"
+          },
+          "promoCode": {
+            "type": "string",
+            "description": "Active SUBSCRIPTION_DISCOUNT campaign promo code for the first paid period"
+          },
+          "useTrial": {
+            "type": "boolean",
+            "description": "Start the one-lifetime free trial instead of charging wallet balance"
           }
         },
         "required": [
-          "plan",
-          "pin"
+          "plan"
         ]
+      },
+      "PauseSubscriptionDto": {
+        "type": "object",
+        "properties": {
+          "resumeAt": {
+            "type": "string",
+            "description": "Auto-resume date (ISO 8601). If omitted, the subscription stays paused until manual resume."
+          }
+        }
       },
       "RenewDto": {
         "type": "object",
@@ -10461,10 +13136,11 @@
           "description": {
             "type": "string",
             "description": "Report description",
+            "minLength": 20,
             "maxLength": 500
           },
           "evidenceUrls": {
-            "description": "Evidence URLs",
+            "description": "Evidence URLs (must be platform CDN URLs)",
             "maxItems": 10,
             "type": "array",
             "items": {
@@ -10599,6 +13275,10 @@
       "CreateTicketDto": {
         "type": "object",
         "properties": {
+          "relatedArticleId": {
+            "type": "string",
+            "description": "Related help center article ID if user came from FAQ (14.2)"
+          },
           "attachments": {
             "description": "Attachment file keys (max 5)",
             "type": "array",
@@ -10775,6 +13455,62 @@
           "reason"
         ]
       },
+      "GetBusinessDocumentUrlsDto": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "description": "Password admin untuk re-authentication (wajib untuk mengakses dokumen legalitas terenkripsi)",
+            "minLength": 1
+          }
+        },
+        "required": [
+          "password"
+        ]
+      },
+      "ReviewBusinessVerificationDto": {
+        "type": "object",
+        "properties": {
+          "notes": {
+            "type": "string",
+            "description": "Catatan review internal",
+            "maxLength": 1000
+          }
+        }
+      },
+      "RejectBusinessVerificationDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Alasan penolakan (ditampilkan ke user)",
+            "minLength": 10,
+            "maxLength": 500
+          },
+          "notes": {
+            "type": "string",
+            "description": "Catatan review internal",
+            "maxLength": 1000
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "RevokeBusinessVerificationDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Alasan pencabutan verifikasi badan usaha",
+            "minLength": 10,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
       "SendDisputeMessageDto": {
         "type": "object",
         "properties": {
@@ -10856,7 +13592,9 @@
             "type": "string",
             "enum": [
               "FEE_DISCOUNT_FLAT",
-              "FEE_DISCOUNT_PERCENT"
+              "FEE_DISCOUNT_PERCENT",
+              "WALLET_CASHBACK",
+              "TOPUP_BONUS"
             ],
             "description": "Type of voucher"
           },
@@ -10910,9 +13648,18 @@
               "ALL",
               "BUYER_ONLY",
               "SELLER_ONLY",
-              "NEW_USER"
+              "NEW_USER",
+              "DORMANT_USER"
             ],
-            "description": "Applicable to"
+            "description": "Applicable to. DORMANT_USER requires no completed order in the last 30 days when used on orders."
+          },
+          "assignedToUserId": {
+            "type": "string",
+            "description": "Internal user id when voucher is personal"
+          },
+          "campaignId": {
+            "type": "string",
+            "description": "Internal campaign id when voucher belongs to a campaign"
           }
         },
         "required": [
@@ -11167,6 +13914,11 @@
             "type": "string",
             "description": "Campaign end date (ISO 8601)"
           },
+          "promoCode": {
+            "type": "string",
+            "description": "Unique public promo code for the campaign",
+            "example": "SEPTCASHBACK"
+          },
           "discountValue": {
             "type": "number",
             "description": "Flat discount value (IDR)",
@@ -11191,13 +13943,40 @@
           },
           "targetAudience": {
             "type": "string",
-            "description": "Target audience filter"
+            "description": "Legacy display-only audience label"
+          },
+          "targetMinRank": {
+            "type": "string",
+            "enum": [
+              "BRONZE",
+              "SILVER",
+              "GOLD",
+              "PLATINUM",
+              "DIAMOND"
+            ],
+            "description": "Minimum membership rank eligible for generated vouchers"
+          },
+          "targetDormantDays": {
+            "type": "number",
+            "description": "Dormant targeting: minimum days since last completed order",
+            "minimum": 1,
+            "maximum": 3650
+          },
+          "targetNewUserOnly": {
+            "type": "boolean",
+            "description": "Only target users with zero completed orders"
           },
           "maxRedemptions": {
             "type": "number",
-            "description": "Max total redemptions",
+            "description": "Max total redemptions / personal vouchers issued",
             "minimum": 1,
             "maximum": 10000000
+          },
+          "rolloutPercent": {
+            "type": "number",
+            "description": "Staged rollout percentage (0-100)",
+            "minimum": 0,
+            "maximum": 100
           }
         },
         "required": [
@@ -11229,6 +14008,36 @@
             "type": "string",
             "description": "Campaign end date (ISO 8601)"
           },
+          "promoCode": {
+            "type": "string",
+            "description": "Unique public promo code for the campaign",
+            "example": "SEPTCASHBACK"
+          },
+          "targetAudience": {
+            "type": "string",
+            "description": "Legacy display-only audience label"
+          },
+          "targetMinRank": {
+            "type": "string",
+            "enum": [
+              "BRONZE",
+              "SILVER",
+              "GOLD",
+              "PLATINUM",
+              "DIAMOND"
+            ],
+            "description": "Minimum membership rank eligible for generated vouchers"
+          },
+          "targetDormantDays": {
+            "type": "number",
+            "description": "Dormant targeting: minimum days since last completed order",
+            "minimum": 1,
+            "maximum": 3650
+          },
+          "targetNewUserOnly": {
+            "type": "boolean",
+            "description": "Only target users with zero completed orders"
+          },
           "maxRedemptions": {
             "type": "number",
             "description": "Max total redemptions",
@@ -11243,7 +14052,7 @@
               "PAUSED",
               "ENDED"
             ],
-            "description": "Campaign status"
+            "description": "Campaign status. PAUSED stops new voucher issuance; ENDED is permanent."
           },
           "rolloutPercent": {
             "type": "number",
@@ -11280,6 +14089,24 @@
         "required": [
           "status"
         ]
+      },
+      "ReviewModerationEventDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "REVIEWED",
+              "DISMISSED",
+              "ACTIONED"
+            ],
+            "default": "REVIEWED"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 500
+          }
+        }
       }
     }
   }

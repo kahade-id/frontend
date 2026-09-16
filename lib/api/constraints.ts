@@ -37,6 +37,11 @@ export const API_CONSTRAINTS = {
       "maxLength": 1000
     }
   },
+  "AddReactionDto": {
+    "emoji": {
+      "maxLength": 16
+    }
+  },
   "AnswerQuestionDto": {
     "answer": {
       "minLength": 1,
@@ -107,6 +112,11 @@ export const API_CONSTRAINTS = {
       "maxLength": 16
     }
   },
+  "ConfirmDeliveryDto": {
+    "proofId": {
+      "pattern": "^c[a-z0-9]{24}$"
+    }
+  },
   "ConfirmOrderDto": {
     "action": {
       "enum": [
@@ -129,7 +139,7 @@ export const API_CONSTRAINTS = {
   "ConfirmWithdrawOtpDto": {
     "otp": {
       "minLength": 6,
-      "maxLength": 6
+      "maxLength": 10
     }
   },
   "CorrectEmailDto": {
@@ -141,6 +151,14 @@ export const API_CONSTRAINTS = {
     },
     "mfaCode": {
       "maxLength": 16
+    }
+  },
+  "CreateInquiryDto": {
+    "subject": {
+      "maxLength": 200
+    },
+    "message": {
+      "maxLength": 1000
     }
   },
   "CreateOrderDto": {
@@ -249,6 +267,37 @@ export const API_CONSTRAINTS = {
       "minimum": 1
     }
   },
+  "CreateShowcaseCommentDto": {
+    "content": {
+      "maxLength": 1000
+    }
+  },
+  "CreateShowcaseItemDto": {
+    "title": {
+      "maxLength": 100
+    },
+    "description": {
+      "maxLength": 500
+    },
+    "category": {
+      "maxLength": 60
+    },
+    "visibility": {
+      "enum": [
+        "PUBLIC",
+        "PRIVATE"
+      ]
+    },
+    "priceMin": {
+      "minimum": 0
+    },
+    "priceMax": {
+      "minimum": 0
+    },
+    "sortOrder": {
+      "minimum": 0
+    }
+  },
   "Disable2faDto": {
     "password": {
       "maxLength": 72
@@ -262,6 +311,11 @@ export const API_CONSTRAINTS = {
       "maxLength": 6
     }
   },
+  "EditMessageDto": {
+    "content": {
+      "maxLength": 2000
+    }
+  },
   "Enable2faDto": {
     "code": {
       "minLength": 6,
@@ -271,6 +325,21 @@ export const API_CONSTRAINTS = {
   "ForgotPasswordDto": {
     "email": {
       "maxLength": 254
+    }
+  },
+  "ForwardMessageDto": {
+    "targetRoomIds": {
+      "maxItems": 5
+    }
+  },
+  "HideContentDto": {
+    "reason": {
+      "enum": [
+        "SPAM",
+        "INAPPROPRIATE",
+        "HARASSMENT",
+        "OTHER"
+      ]
     }
   },
   "LoginDto": {
@@ -285,6 +354,12 @@ export const API_CONSTRAINTS = {
     },
     "deviceInfo": {
       "maxLength": 512
+    }
+  },
+  "MuteRoomDto": {
+    "durationHours": {
+      "minimum": 1,
+      "maximum": 720
     }
   },
   "PhoneRegisterDto": {
@@ -330,6 +405,10 @@ export const API_CONSTRAINTS = {
       "enum": [
         "KYC_KTP",
         "KYC_SELFIE",
+        "KYC_PASSPORT",
+        "KYC_LIVENESS",
+        "BUSINESS_DOCUMENT",
+        "SHOWCASE_IMAGE",
         "AVATAR",
         "CHAT_ATTACHMENT",
         "DISPUTE_EVIDENCE",
@@ -406,6 +485,9 @@ export const API_CONSTRAINTS = {
     "note": {
       "minLength": 10,
       "maxLength": 1000
+    },
+    "proofId": {
+      "pattern": "^c[a-z0-9]{24}$"
     }
   },
   "ReportUserDto": {
@@ -438,6 +520,7 @@ export const API_CONSTRAINTS = {
       ]
     },
     "description": {
+      "minLength": 20,
       "maxLength": 500
     },
     "evidenceUrls": {
@@ -532,11 +615,30 @@ export const API_CONSTRAINTS = {
       "enum": [
         "TEXT",
         "IMAGE",
-        "FILE"
+        "FILE",
+        "VIDEO",
+        "VOICE"
       ]
     },
     "content": {
       "maxLength": 2000
+    },
+    "durationSeconds": {
+      "minimum": 1,
+      "maximum": 600
+    },
+    "caption": {
+      "maxLength": 500
+    }
+  },
+  "SetCommentHiddenDto": {
+    "reason": {
+      "enum": [
+        "SPAM",
+        "INAPPROPRIATE",
+        "HARASSMENT",
+        "OTHER"
+      ]
     }
   },
   "SetPinDto": {
@@ -560,6 +662,26 @@ export const API_CONSTRAINTS = {
       "maxLength": 72
     }
   },
+  "SocialLoginDto": {
+    "provider": {
+      "enum": [
+        "google",
+        "apple"
+      ]
+    }
+  },
+  "SubmitBusinessVerificationDto": {
+    "businessName": {
+      "minLength": 3,
+      "maxLength": 150
+    },
+    "deedNumber": {
+      "maxLength": 100
+    },
+    "siupNumber": {
+      "maxLength": 100
+    }
+  },
   "SubmitClaimDto": {
     "claim": {
       "minLength": 20,
@@ -579,6 +701,18 @@ export const API_CONSTRAINTS = {
     }
   },
   "SubmitDisputeDto": {
+    "category": {
+      "enum": [
+        "ITEM_NOT_RECEIVED",
+        "ITEM_NOT_AS_DESCRIBED",
+        "DAMAGED_ITEM",
+        "WRONG_ITEM",
+        "SERVICE_NOT_RENDERED",
+        "PAYMENT_ISSUE",
+        "FRAUD",
+        "OTHER"
+      ]
+    },
     "claim": {
       "minLength": 20,
       "maxLength": 2000
@@ -605,8 +739,11 @@ export const API_CONSTRAINTS = {
     }
   },
   "SubmitKycDto": {
-    "nik": {
-      "pattern": "^\\d{16}$"
+    "documentType": {
+      "enum": [
+        "KTP",
+        "PASSPORT"
+      ]
     }
   },
   "SubscribeDto": {
@@ -682,6 +819,14 @@ export const API_CONSTRAINTS = {
       ]
     }
   },
+  "UpdatePreferencesDto": {
+    "language": {
+      "enum": [
+        "id",
+        "en"
+      ]
+    }
+  },
   "UpdateProfileDto": {
     "fullName": {
       "minLength": 2,
@@ -731,6 +876,37 @@ export const API_CONSTRAINTS = {
     },
     "trackingNotes": {
       "maxLength": 500
+    }
+  },
+  "UpdateShowcaseCommentDto": {
+    "content": {
+      "maxLength": 1000
+    }
+  },
+  "UpdateShowcaseItemDto": {
+    "title": {
+      "maxLength": 100
+    },
+    "description": {
+      "maxLength": 500
+    },
+    "category": {
+      "maxLength": 60
+    },
+    "visibility": {
+      "enum": [
+        "PUBLIC",
+        "PRIVATE"
+      ]
+    },
+    "priceMin": {
+      "minimum": 0
+    },
+    "priceMax": {
+      "minimum": 0
+    },
+    "sortOrder": {
+      "minimum": 0
     }
   },
   "ValidateCounterpartDto": {

@@ -20,6 +20,7 @@
 import * as auth from "@/lib/api/auth"
 import * as badges from "@/lib/api/badges"
 import * as bankAccounts from "@/lib/api/bank-accounts"
+import * as businessVerification from "@/lib/api/business-verification"
 import * as chat from "@/lib/api/chat"
 import * as deeplinks from "@/lib/api/deeplinks"
 import * as disputes from "@/lib/api/disputes"
@@ -32,6 +33,7 @@ import * as ratings from "@/lib/api/ratings"
 import * as referrals from "@/lib/api/referrals"
 import * as search from "@/lib/api/search"
 import * as sessions from "@/lib/api/sessions"
+import * as showcase from "@/lib/api/showcase"
 import * as settings from "@/lib/api/settings"
 import * as subscriptions from "@/lib/api/subscriptions"
 import * as support from "@/lib/api/support"
@@ -85,13 +87,14 @@ export type {
   OrderSummary,
   Paginated,
 } from "@/lib/api/orders"
-export type { UserProfile } from "@/lib/api/users"
-export type { Wallet, WalletTransaction } from "@/lib/api/wallet"
+export type { UserSearchResult, UserProfile } from "@/lib/api/users"
+export type { FavoriteRecipient, Wallet, WalletTransaction } from "@/lib/api/wallet"
 
 export const api = {
   auth,
   badges,
   bankAccounts,
+  businessVerification,
   chat,
   deeplinks,
   disputes,
@@ -104,6 +107,7 @@ export const api = {
   referrals,
   search,
   sessions,
+  showcase,
   settings,
   subscriptions,
   support,

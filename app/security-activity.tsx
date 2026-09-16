@@ -138,6 +138,8 @@ export default function SecurityActivityScreen() {
   const [confirmRevoke, setConfirmRevoke] = useState<DeviceSession | null>(null)
   const [confirmOthers, setConfirmOthers] = useState(false)
   const [revokingOthers, setRevokingOthers] = useState(false)
+  const [removeTarget, setRemoveTarget] = useState<DeviceSession | null>(null)
+  const [removingId, setRemovingId] = useState<string | null>(null)
 
   /** Tarik-untuk-menyegarkan memuat ulang KETIGA daftar, seperti Promise.all lama. */
   const handleRefresh = useCallback(async () => {
@@ -162,6 +164,32 @@ export default function SecurityActivityScreen() {
       setRevokingId(null)
     }
   }, [confirmRevoke, sessionsQuery, toast.show])
+
+  /**
+   * Hapus/lupakan perangkat (DELETE /v1/users/me/devices/{deviceId}) — beda
+   * dari cabut sesi: backend mencabut SEMUA sesi perangkat itu sekaligus dan
+   * menghapus catatannya, sehingga perangkat harus login ulang + 2FA lagi.
+   * Dipicu tekan-lama baris (bukan tombol) agar tidak bercampur dengan aksi
+   * "Keluar" yang lebih ringan.
+   */
+  const handleRemoveDevice = useCallback(async () => {
+    if (!removeTarget?.deviceId) return
+    setRemovingId(removeTarget.id)
+    try {
+      await api.users.removeDevice(removeTarget.deviceId)
+      sessionsQuery.setData((prev) => prev.filter((s) => s.id !== removeTarget.id))
+      toast.show({ title: "Perangkat dihapus", tone: "success" })
+      setRemoveTarget(null)
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal menghapus perangkat",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setRemovingId(null)
+    }
+  }, [removeTarget, sessionsQuery, toast.show])
 
   const handleLogoutOthers = useCallback(async () => {
     setRevokingOthers(true)
@@ -260,6 +288,9 @@ export default function SecurityActivityScreen() {
                     togglingTrust={trustingId === s.id}
                     onRevoke={s.current ? undefined : () => setConfirmRevoke(s)}
                     revoking={revokingId === s.id}
+                    onLongPress={
+                      s.current || !s.deviceId ? undefined : () => setRemoveTarget(s)
+                    }
                     divider={i < sessions.length - 1}
                   />
                 ))
@@ -365,6 +396,19 @@ export default function SecurityActivityScreen() {
         onConfirm={() => void handleRevoke()}
         onCancel={() => setConfirmRevoke(null)}
         onRequestClose={() => setConfirmRevoke(null)}
+      />
+
+      <Dialog
+        title="Hapus perangkat ini?"
+        description={`${removeTarget?.deviceName ?? "Perangkat"} akan dilupakan: semua sesinya dicabut dan perangkat ini harus masuk ulang beserta 2FA.`}
+        visible={!!removeTarget}
+        destructive
+        loading={removingId === removeTarget?.id}
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        onConfirm={() => void handleRemoveDevice()}
+        onCancel={() => setRemoveTarget(null)}
+        onRequestClose={() => setRemoveTarget(null)}
       />
 
       <Dialog

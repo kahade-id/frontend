@@ -44,7 +44,7 @@
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
-import { Check, Checks, Clock, WarningCircle } from "phosphor-react-native"
+import { Check, Checks, Clock, PushPin, WarningCircle } from "phosphor-react-native"
 
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -83,11 +83,22 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   onPress?: () => void
   /** Kirim ulang saat status "failed" */
   onRetry?: () => void
-  labels?: { retry?: string; failed?: string }
+  /**
+   * Reaksi emoji tersummari (GET/POST/DELETE reactions). Dirender sebagai
+   * chip kecil di bawah gelembung; ketuk chip memanggil `onReact` dengan
+   * emoji tersebut (tambah bila belum, tarik bila sudah).
+   */
+  reactions?: { emoji: string; count: number; reactedByMe: boolean }[]
+  onReact?: (emoji: string) => void
+  /** Ikon pin kecil di baris meta (pesan terpin). */
+  isPinned?: boolean
+  /** Tampilkan "diedit" di baris meta. */
+  isEdited?: boolean
+  labels?: { retry?: string; failed?: string; edited?: string }
   className?: string
 }
 
-const DEFAULT_LABELS = { retry: "Coba lagi", failed: "Gagal terkirim" }
+const DEFAULT_LABELS = { retry: "Coba lagi", failed: "Gagal terkirim", edited: "diedit" }
 
 export function ChatMessageBubble({
   direction,
@@ -100,6 +111,10 @@ export function ChatMessageBubble({
   onLongPress,
   onPress,
   onRetry,
+  reactions,
+  onReact,
+  isPinned = false,
+  isEdited = false,
   labels,
   className,
   ...rest
@@ -184,7 +199,7 @@ export function ChatMessageBubble({
           </View>
         )}
 
-        {time || failed ? (
+        {time || failed || isPinned || isEdited ? (
           <View className="flex-row items-center gap-1 px-1">
             {failed ? (
               <>
@@ -205,11 +220,55 @@ export function ChatMessageBubble({
                     {time}
                   </Text>
                 ) : null}
+                {isEdited ? (
+                  <Text variant="caption" tone="secondary">
+                    ({t.edited})
+                  </Text>
+                ) : null}
+                {isPinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
                 {outgoing && status && status !== "failed" ? (
                   <StatusGlyph status={status} />
                 ) : null}
               </>
             )}
+          </View>
+        ) : null}
+
+        {/* Label a11y di per chip (bukan di kontainer): kontainer `accessible`
+            akan menelan chip fokusable dari screen reader. */}
+        {reactions && reactions.length > 0 ? (
+          <View
+            className={cn(
+              "flex-row flex-wrap gap-1",
+              outgoing ? "justify-end" : "justify-start",
+            )}
+          >
+            {reactions.map((r) => (
+              <PressableScale
+                key={r.emoji}
+                accessibilityRole="button"
+                accessibilityLabel={`${r.emoji} ${r.count}${r.reactedByMe ? ", Anda" : ""}`}
+                accessibilityHint="Ketuk untuk mengubah reaksi"
+                scaleOnPress={false}
+                onPress={onReact ? () => onReact(r.emoji) : undefined}
+                containerClassName={cn(
+                  "flex-row items-center gap-1 rounded-full border px-2 py-0.5",
+                  r.reactedByMe ? "border-primary bg-surface-elevated" : "border-border bg-surface",
+                )}
+              >
+                <Text variant="caption">{r.emoji}</Text>
+                {r.count > 1 ? (
+                  <Text
+                    variant="caption"
+                    tone={r.reactedByMe ? "primary" : "secondary"}
+                    weight={r.reactedByMe ? 700 : 400}
+                    className="tabular-nums"
+                  >
+                    {r.count}
+                  </Text>
+                ) : null}
+              </PressableScale>
+            ))}
           </View>
         ) : null}
       </View>

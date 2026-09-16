@@ -8,7 +8,7 @@
 import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Plus, Trash } from "phosphor-react-native"
+import { PencilSimpleLine, Plus, Trash } from "phosphor-react-native"
 
 import { api, type AddBankAccountDto, userMessage } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
@@ -84,6 +84,9 @@ export default function BankAccountsScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<BankAccount | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [editTarget, setEditTarget] = useState<BankAccount | null>(null)
+  const [editName, setEditName] = useState("")
+  const [editing, setEditing] = useState(false)
 
   const handleAdd = useCallback(async () => {
     if (!bankCode || !bankName.trim() || !accountName.trim()) return
@@ -150,6 +153,26 @@ export default function BankAccountsScreen() {
     [toast.show, query],
   )
 
+  /** Edit = ganti nama pemilik saja — backend hanya menerima `{accountName}`. */
+  const handleEdit = useCallback(async () => {
+    if (!editTarget || !editName.trim()) return
+    setEditing(true)
+    try {
+      await api.bankAccounts.updateBankAccountName(editTarget.id, editName)
+      toast.show({ title: "Rekening diperbarui", tone: "success", duration: 3000 })
+      setEditTarget(null)
+      await query.refresh()
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal memperbarui rekening",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setEditing(false)
+    }
+  }, [editTarget, editName, toast.show, query])
+
   const selectedBank = useMemo(() => banks.find((b) => b.code === bankCode), [banks, bankCode])
 
   return (
@@ -189,10 +212,9 @@ export default function BankAccountsScreen() {
               />
             ))}
             <View className="gap-2 pt-2">
-              {accounts
-                .filter((acc) => !acc.isPrimary)
-                .map((acc) => (
-                  <View key={`actions-${acc.id}`} className="flex-row gap-2">
+              {accounts.map((acc) => (
+                <View key={`actions-${acc.id}`} className="flex-row gap-2">
+                  {!acc.isPrimary ? (
                     <Button
                       variant="ghost"
                       size="sm"
@@ -201,17 +223,30 @@ export default function BankAccountsScreen() {
                     >
                       Jadikan utama
                     </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      fullWidth={false}
-                      leftIcon={Trash}
-                      onPress={() => setDeleteTarget(acc)}
-                    >
-                      Hapus
-                    </Button>
-                  </View>
-                ))}
+                  ) : null}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    fullWidth={false}
+                    leftIcon={PencilSimpleLine}
+                    onPress={() => {
+                      setEditTarget(acc)
+                      setEditName(acc.accountName ?? "")
+                    }}
+                  >
+                    Edit nama
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    fullWidth={false}
+                    leftIcon={Trash}
+                    onPress={() => setDeleteTarget(acc)}
+                  >
+                    Hapus
+                  </Button>
+                </View>
+              ))}
             </View>
           </View>
         )}
@@ -298,6 +333,33 @@ export default function BankAccountsScreen() {
         onCancel={() => setDeleteTarget(null)}
         onRequestClose={() => setDeleteTarget(null)}
       />
+
+      <Dialog
+        title="Edit nama pemilik"
+        /* Sama seperti dialog hapus: nomor rekening dimasker, bukan ditulis
+           penuh (docblock <BankAccountListItem>: daftar rekening sering
+           terlihat orang lain; dialog ikut dibacakan screen reader). */
+        description={`Hanya nama pemilik yang bisa diubah — nomor ${
+          editTarget ? maskAccountNumber(editTarget.accountNumber) : ""
+        } tetap sama.`}
+        visible={!!editTarget}
+        loading={editing}
+        confirmLabel="Simpan"
+        cancelLabel="Batal"
+        onConfirm={() => void handleEdit()}
+        onCancel={() => setEditTarget(null)}
+        onRequestClose={() => setEditTarget(null)}
+      >
+        <Input
+          value={editName}
+          onChangeText={setEditName}
+          placeholder="Nama pemilik rekening"
+          autoCapitalize="words"
+          autoComplete="name"
+          textContentType="name"
+          maxLength={100}
+        />
+      </Dialog>
     </Screen>
   )
 }

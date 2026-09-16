@@ -96,7 +96,10 @@ export function readPage<T>(
 ): Page<T> {
   const data = readList<T>(value, keys)
   const record = asRecord(value)
-  const meta = asRecord(record?.meta) ?? asRecord(record?.pagination)
+  // Sebagian endpoint (mis. GET /v1/orders) mengirim paginasi di TINGKAT ATAS
+  // — {orders, total, page, limit} — bukan di `meta`. Tanpa fallback ini
+  // `meta.total` selalu undefined dan penghitung di UI (Beranda dkk.) stuck 0.
+  const meta = asRecord(record?.meta) ?? asRecord(record?.pagination) ?? record
   const page = numberOr(meta?.page, query.page ?? 1, 1)
   const limit = numberOr(meta?.limit, query.limit ?? (data.length || 1), 1)
   const total = numberOr(meta?.total, Number.NaN)
@@ -200,7 +203,12 @@ export function pickUserId(value: unknown): string {
   if (!record) return ""
   const direct = pickString(record, ["id", "userId", "user_id", "_id", "uid"])
   if (direct) return direct
-  for (const key of ["user", "data", "profile", "target", "account"]) {
+  // `identity` = bagian bersarang respons `GET /v1/users/{username}` versi
+  // baru (identity.userId = "USR-XXXX" — satu-satunya id publik yang dipakai
+  // endpoint blokir/lapor modul users). Tanpa key ini `profile.id` kosong dan
+  // Blokir/Laporkan jatuh ke fallback username yang pasti ditolak
+  // (400 "Invalid ID format" / "targetId must be a valid ID").
+  for (const key of ["user", "data", "profile", "target", "account", "identity"]) {
     const nested = pickString(asRecord(record[key]), ["id", "userId", "user_id", "_id", "uid"])
     if (nested) return nested
   }

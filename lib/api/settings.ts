@@ -54,29 +54,36 @@ export function getBlockedUsers(signal?: AbortSignal) {
 }
 
 /**
- * Jalankan aksi ber-`{userId}`, dan bila backend menjawab 404/"tidak ditemukan"
- * coba sekali lagi dengan identifier cadangan (username).
+ * Jalankan aksi blokir/lapor yang tersedia DI DUA modul backend dengan
+ * resolusi identifier BERBEDA:
  *
- * Kenapa perlu (cacat yang dilaporkan pengguna, bukan pencegahan): layar profil
- * publik (`app/user/[username].tsx`) hanya pasti punya USERNAME. `profile.id`
- * diisi dari `GET /v1/users/{username}` lewat `pickUserId()`, tetapi spec tidak
- * mendokumentasikan bentuk respons endpoint itu, jadi `id` bisa kosong atau
- * berisi identifier yang tidak dikenali endpoint blokir/lapor. Akibatnya Blokir
- * dan Laporkan gagal dengan "user tidak tersedia" — di halaman orang yang
- * justru sedang dibuka.
+ *   - Modul users   `POST/DELETE /v1/users/{userId}/block`, `POST /v1/users/{userId}/report`
+ *     → service mencari `user.userId` (format `USR-XXXX`, satu-satunya id
+ *     yang diumumkan profil publik).
+ *   - Modul settings `POST/DELETE /v1/settings/block/{userId}`, `POST /v1/settings/report`
+ *     → service mencari `user.id` (CUID internal — tidak pernah ada di
+ *     profil publik).
  *
- * Aturan aman yang dipakai:
+ * Cacat yang dilaporkan pengguna: profil publik mengirim `USR-XXXX`, adapter
+ * lama HANYA memanggil modul settings → 404 "User not found" → fallback
+ * username → 400 "Invalid ID format" / "targetId must be a valid ID".
+ *
+ * Urutan yang dipakai per identifier kandidat:
+ *   1. route modul users (menerima USR-XXXX — yang umum dimiliki UI),
+ *   2. route modul settings (menerima CUID — yang dimiliki list blokir lama),
+ *   lalu identifier cadangan (username) dengan urutan yang sama.
+ *
+ * Aturan aman:
  *   - `primary` kosong → langsung pakai `fallback` (jangan pernah mengirim `""`).
- *   - Ulang hanya pada 404 / NOT_FOUND / BAD_REQUEST dari `seg()`: pada status
- *     itu backend TIDAK membuat apa pun, jadi tidak ada risiko duplikasi
- *     (penting untuk laporan).
- *   - Keduanya gagal → lempar error yang terakhir, apa adanya, supaya UI
- *     menampilkan alasan sebenarnya dari server.
+ *   - Ulang hanya pada 404 / NOT_FOUND / BAD_REQUEST: pada status itu backend
+ *     TIDAK membuat apa pun, jadi tidak ada risiko duplikasi (penting untuk
+ *     laporan).
+ *   - Semua kandidat gagal → lempar error terakhir apa adanya.
  */
 async function withUserIdentity<T>(
   primary: string | undefined,
   fallback: string | undefined,
-  call: (identifier: string) => Promise<T>,
+  call: (identifier: string, route: "users" | "settings") => Promise<T>,
 ): Promise<T> {
   const candidates = [primary?.trim(), fallback?.trim()].filter(
     (value): value is string => Boolean(value),
@@ -89,43 +96,75 @@ async function withUserIdentity<T>(
     })
   let lastError: unknown
   for (const identifier of unique) {
-    try {
-      return await call(identifier)
-    } catch (error) {
-      lastError = error
-      const retryable =
-        isApiError(error) &&
-        (error.status === 404 || error.code === "NOT_FOUND" || error.code === "BAD_REQUEST")
-      if (!retryable) throw error
+    for (const route of ["users", "settings"] as const) {
+      try {
+        return await call(identifier, route)
+      } catch (error) {
+        lastError = error
+        const retryable =
+          isApiError(error) &&
+          (error.status === 404 || error.code === "NOT_FOUND" || error.code === "BAD_REQUEST")
+        if (!retryable) throw error
+      }
     }
   }
   throw lastError
 }
 
 export function blockUser(userId: string, fallbackUsername?: string) {
-  return withUserIdentity(userId, fallbackUsername, (identifier) =>
-    http.post<BlockedUser>(`/v1/settings/block/${seg(identifier)}`, undefined, {
-      auth: "required",
-    }),
+  return withUserIdentity(userId, fallbackUsername, (identifier, route) =>
+    route === "users"
+      ? http.post<{ message: string }>(`/v1/users/${seg(identifier)}/block`, undefined, {
+          auth: "required",
+        })
+      : http.post<{ message: string }>(`/v1/settings/block/${seg(identifier)}`, undefined, {
+          auth: "required",
+        }),
   )
 }
 
 export function unblockUser(userId: string, fallbackUsername?: string) {
-  return withUserIdentity(userId, fallbackUsername, (identifier) =>
-    http.delete<void>(`/v1/settings/block/${seg(identifier)}`, {
-      auth: "required",
-      responseType: "void",
-    }),
+  return withUserIdentity(userId, fallbackUsername, (identifier, route) =>
+    route === "users"
+      ? http.delete<{ message: string }>(`/v1/users/${seg(identifier)}/block`, {
+          auth: "required",
+        })
+      : http.delete<{ message: string }>(`/v1/settings/block/${seg(identifier)}`, {
+          auth: "required",
+        }),
   )
 }
 
 export function reportUser(dto: ReportUserSettingsDto, fallbackUsername?: string) {
-  return withUserIdentity(dto.targetId, fallbackUsername, (identifier) =>
-    http.post<ReportsSettings, ReportUserSettingsDto>(
-      "/v1/settings/report",
-      { ...dto, targetId: identifier },
-      { auth: "required" },
-    ),
+  // Kembalikan `unknown`: bentuk respons kedua route berbeda dan caller
+  // (app/reports.tsx) tidak memakai return value.
+  return withUserIdentity<unknown>(dto.targetId, fallbackUsername, (identifier, route) =>
+    route === "users"
+      ? http.post<
+          { message: string },
+          {
+            category: ReportUserSettingsDto["category"]
+            description: string
+            evidenceUrls?: string[]
+            relatedOrderId?: string
+          }
+        >(
+          `/v1/users/${seg(identifier)}/report`,
+          {
+            category: dto.category,
+            description: dto.description,
+            // Modul users tidak mengenal relatedMessageId — jangan kirim
+            // (forbidNonWhitelisted → 400).
+            evidenceUrls: dto.evidenceUrls,
+            relatedOrderId: dto.relatedOrderId,
+          },
+          { auth: "required" },
+        )
+      : http.post<ReportsSettings, ReportUserSettingsDto>(
+          "/v1/settings/report",
+          { ...dto, targetId: identifier },
+          { auth: "required" },
+        ),
   )
 }
 

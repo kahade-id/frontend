@@ -185,6 +185,37 @@ export default function DisputeDetailScreen() {
   )
   const [requestingCall, setRequestingCall] = useState(false)
 
+  // Eskalasi manual ke admin (8.3): maksimal 2x per sengketa (aturan backend),
+  // hanya oleh pihak sengketa, dan tidak untuk status RESOLVED/ESCALATED.
+  const [escalateOpen, setEscalateOpen] = useState(false)
+  const [escalateReason, setEscalateReason] = useState("")
+  const [escalating, setEscalating] = useState(false)
+
+  const handleEscalate = useCallback(async () => {
+    if (!id) return
+    setEscalating(true)
+    try {
+      await api.disputes.escalateDispute(id, escalateReason.trim() || undefined)
+      toast.show({
+        title: "Sengketa diedskalasi ke admin",
+        description: "Tim Kahade akan meninjau dan memberi keputusan.",
+        tone: "success",
+        duration: 4000,
+      })
+      setEscalateOpen(false)
+      setEscalateReason("")
+      await query.reload()
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal mengeskalasi sengketa",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setEscalating(false)
+    }
+  }, [id, escalateReason, toast.show, query])
+
   const myRole =
     order?.myRole === "SELLER" ? "seller" : order?.myRole === "BUYER" ? "buyer" : undefined
   const me = order && myRole ? (myRole === "seller" ? order.seller : order.buyer) : null
@@ -193,6 +224,13 @@ export default function DisputeDetailScreen() {
     counterpart?.fullName ??
     (counterpart?.username ? `@${counterpart.username}` : "Lawan transaksi")
   const orderValue = order?.orderValue ?? Number.NaN
+
+  // Eskalasi manual ke admin (8.3): maksimal 2x per sengketa (aturan backend),
+  // hanya oleh pihak sengketa, dan tidak untuk status RESOLVED/ESCALATED.
+  const canEscalate =
+    dispute !== null &&
+    !["RESOLVED", "ESCALATED"].includes(dispute.status) &&
+    myRole !== undefined
 
   /**
    * Pra-isi klaim yang dulu dilakukan DI DALAM fetcher. Dipindah ke effect
@@ -533,6 +571,16 @@ export default function DisputeDetailScreen() {
                 Lihat pesanan
               </Button>
             ) : null}
+            {canEscalate ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                fullWidth={false}
+                onPress={() => setEscalateOpen(true)}
+              >
+                Eskalasi ke admin
+              </Button>
+            ) : null}
 
             <DisputeClaimForm
               value={claim}
@@ -763,6 +811,26 @@ export default function DisputeDetailScreen() {
         onCancel={() => setDeleteEvidenceId(null)}
         onRequestClose={() => setDeleteEvidenceId(null)}
       />
+
+      <Dialog
+        title="Eskalasi sengketa ke admin?"
+        description="Admin Kahade akan meninjau sengketa ini dan mengambil alih keputusan. Eskalasi manual dibatasi maksimal 2x per sengketa."
+        visible={escalateOpen}
+        loading={escalating}
+        confirmLabel="Eskalasi"
+        cancelLabel="Tutup"
+        onConfirm={() => void handleEscalate()}
+        onCancel={() => setEscalateOpen(false)}
+        onRequestClose={() => setEscalateOpen(false)}
+      >
+        <TextArea
+          value={escalateReason}
+          onChangeText={setEscalateReason}
+          placeholder="Alasan eskalasi (opsional)"
+          maxLength={500}
+          numberOfLines={3}
+        />
+      </Dialog>
 
       <BottomSheet
         visible={proposeOpen}
