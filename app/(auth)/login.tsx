@@ -37,6 +37,13 @@
  *   - 2FA: kalau backend return requiresTwoFactor: true, tempToken disimpan
  *     di memori (lib/two-factor-login) dan navigasi ke /verify-2fa — BUKAN
  *     lewat param URL (kredensial tidak boleh lewat route params).
+ *   - CAPTCHA: backend hanya mewajibkannya setelah 3 login gagal dari IP yang
+ *     sama (`auth.controller.ts`) dan menolak dengan 401 `CAPTCHA_REQUIRED`.
+ *     Layar ini memuat tantangan secara LAZY — hanya saat backend benar-benar
+ *     memintanya — supaya user yang mengetik password dengan benar tidak
+ *     pernah melihat slider. Setelah tantangan tampil, percobaan berikutnya
+ *     mengirim `captchaId`/`captchaAnswer`, dan tantangan yang ditolak
+ *     (CAPTCHA_FAILED/EXPIRED) langsung diganti yang baru.
  *   - Tombol "Masuk" disabled selama submit untuk mencegah double-submit.
  *   - Email auto-trim whitespace di blur (sama seperti EmailField default).
  *   - Error handling: invalid credentials, network error, rate limited, dll.
@@ -46,6 +53,8 @@
  */
 import { useCallback, useState } from "react"
 import { Platform, ScrollView, View } from "react-native"
+
+import { CaptchaSlider } from "@/components/ui/captcha-slider"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
 
@@ -63,6 +72,8 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { VStack } from "@/components/ui/stack"
 import { api, isApiError, userMessage } from "@/lib/api"
+import type { CaptchaChallenge } from "@/lib/api/auth"
+import { CAPTCHA_MESSAGES } from "@/lib/captcha-messages"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { setPendingNext } from "@/lib/login-redirect"
 import { ROUTES } from "@/lib/routes"
@@ -81,7 +92,27 @@ export default function LoginScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
 
+  // Captcha hanya muncul bila backend memintanya (3+ login gagal per IP).
+  const [challenge, setChallenge] = useState<CaptchaChallenge | null>(null)
+  const [captchaAnswer, setCaptchaAnswer] = useState<number | null>(null)
+  const [captchaLoading, setCaptchaLoading] = useState(false)
+  const [captchaError, setCaptchaError] = useState<string | null>(null)
+
   const isFormValid = isValidEmail(email) && password.length > 0
+
+  const loadCaptcha = useCallback(async () => {
+    setCaptchaLoading(true)
+    setCaptchaError(null)
+    setCaptchaAnswer(null)
+    try {
+      setChallenge(await api.auth.generateCaptcha())
+    } catch (err) {
+      setChallenge(null)
+      setCaptchaError(userMessage(err))
+    } finally {
+      setCaptchaLoading(false)
+    }
+  }, [])
 
   const handleLogin = useCallback(async () => {
     if (submitting || !isFormValid) return
@@ -93,6 +124,10 @@ export default function LoginScreen() {
       const result = await api.auth.login({
         email: email.trim(),
         password,
+        // Dikirim hanya bila tantangan sudah dimuat — backend mengabaikannya
+        // selama captcha belum diwajibkan untuk IP ini.
+        captchaId: challenge?.captchaId,
+        captchaAnswer: captchaAnswer ?? undefined,
       })
 
       if (result.requiresTwoFactor) {
@@ -114,6 +149,23 @@ export default function LoginScreen() {
       router.replace(ROUTES.welcome())
     } catch (err) {
       if (isApiError(err)) {
+        /*
+         * Captcha diminta backend (3+ kegagalan dari IP ini). Tantangan lama
+         * yang gagal/kedaluwarsa tidak bisa dipakai ulang — backend menghapus
+         * kuncinya setelah verifikasi pertama (Redis `del`).
+         */
+        const captchaCode = err.backendCode ?? ""
+        if (
+          captchaCode === "CAPTCHA_REQUIRED" ||
+          captchaCode === "CAPTCHA_FAILED" ||
+          captchaCode === "CAPTCHA_EXPIRED"
+        ) {
+          // Selalu tantangan baru: backend menghapus kunci setelah verifikasi
+          // pertama, jadi tantangan lama tidak mungkin dipakai ulang.
+          void loadCaptcha()
+          setFormError(CAPTCHA_MESSAGES.loginRequired)
+          return
+        }
         // Invalid credentials
         if (err.code === "UNAUTHORIZED") {
           setFormError("Email atau kata sandi salah. Periksa kembali dan coba lagi.")
@@ -134,10 +186,10 @@ export default function LoginScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, isFormValid, email, password, router, nextPath])
+  }, [submitting, isFormValid, email, password, router, nextPath, challenge, captchaAnswer, loadCaptcha])
 
   const handleForgotPassword = useCallback(() => {
-    router.push(ROUTES.forgotPassword)
+    router.push(ROUTES.forgotPassword())
   }, [router])
 
   const handleRegister = useCallback(() => {
@@ -198,13 +250,26 @@ export default function LoginScreen() {
                 maxLength={PASSWORD_MAX}
                 disabled={submitting}
               />
+
+              {challenge ? (
+                <CaptchaSlider
+                  targetX={challenge.targetX}
+                  resetKey={challenge.captchaId}
+                  solved={captchaAnswer !== null}
+                  loading={captchaLoading}
+                  disabled={submitting}
+                  onSolve={setCaptchaAnswer}
+                  onRefresh={() => void loadCaptcha()}
+                  errorText={captchaError}
+                />
+              ) : null}
             </VStack>
 
             {/* Submit button */}
             <Button
               onPress={() => void handleLogin()}
               loading={submitting}
-              disabled={!isFormValid}
+              disabled={!isFormValid || (challenge !== null && captchaAnswer === null)}
             >
               Masuk
             </Button>

@@ -41,8 +41,9 @@
  *     PasswordStrength criteria di-override dari default (8→12 char).
  *   - Setelah reset berhasil → redirect ke login. User bisa login dengan
  *     password baru. Tidak ada auto-login setelah reset (keamanan).
- *   - Link "Kirim ulang kode" → panggil forgot-password lagi dengan email yang sama.
- *     Ini inline (tidak navigate ke screen lain) untuk UX yang lebih smooth.
+ *   - Link "Kirim ulang kode" → navigate ke layar Lupa Password dengan email
+ *     ter-prefill. Endpoint forgot-password mewajibkan captcha slider, dan
+ *     layar inilah yang punya tantangannya (lihat handleResendCode).
  *   - Link "Ganti email" → kembali ke forgot-password screen.
  *   - Error handling: OTP invalid/expired, password validation, network error, dll.
  *   - OTP error ditempel ke OtpInput (errorText), password error ke Alert.
@@ -103,8 +104,6 @@ export default function ResetPasswordScreen() {
   const [otpError, setOtpError] = useState<string | undefined>()
   // Resend: cooldown berjalan sejak layar dibuka (kode pertama baru saja dikirim)
   const [canResend, setCanResend] = useState(false)
-  const [resending, setResending] = useState(false)
-  const [countdownKey, setCountdownKey] = useState(0)
 
   const passwordValid = isPasswordValid(newPassword)
   const passwordsMatch =
@@ -168,36 +167,29 @@ export default function ResetPasswordScreen() {
     }
   }, [submitting, isFormValid, email, otp, newPassword, confirmPassword, router, toast])
 
-  const handleResendCode = useCallback(async () => {
-    if (resending || !canResend) return
-    setResending(true)
+  /*
+   * Kirim ulang kode TIDAK bisa dipanggil langsung dari sini.
+   *
+   * `POST /v1/auth/forgot-password` mewajibkan captcha slider (backend
+   * menolak 401 `CAPTCHA_REQUIRED` sebelum email diperiksa). Memanggilnya dari
+   * layar ini — yang tidak punya tantangan captcha — selalu gagal dan dulu
+   * memunculkan pesan "Captcha verification is required" yang tidak bisa
+   * ditindaklanjuti pengguna. Karena itu pengiriman ulang diarahkan ke layar
+   * Lupa Password (satu-satunya tempat tantangan dimuat + dijawab) dengan
+   * email sudah terisi, sehingga cukup satu ketukan "Kirim kode".
+   */
+  const handleResendCode = useCallback(() => {
+    if (!canResend) return
     setFormError(null)
     setOtpError(undefined)
-    // Panggil forgot-password lagi dengan email yang sama
-    try {
-      await api.auth.forgotPassword({ email })
-      // Sukses → tetap di layar ini; kosongkan OTP lama & mulai ulang cooldown
-      setOtp("")
-      otpRef.current?.focus()
-      setCountdownKey((k) => k + 1)
-      setCanResend(false)
-      toast.show({
-        title: "Kode baru telah dikirim",
-        description: `Periksa kotak masuk ${email}.`,
-        tone: "success",
-      })
-    } catch (err) {
-      setFormError(userMessage(err))
-    } finally {
-      setResending(false)
-    }
-  }, [email, resending, canResend, toast])
+    router.replace(ROUTES.forgotPassword(email))
+  }, [email, canResend, router])
 
   const handleChangeEmail = useCallback(() => {
-    router.replace(ROUTES.forgotPassword)
+    router.replace(ROUTES.forgotPassword())
   }, [router])
 
-  if (!email) return <Redirect href={ROUTES.forgotPassword} />
+  if (!email) return <Redirect href={ROUTES.forgotPassword()} />
 
   return (
     <Screen padded={false} edges={["top"]}>
@@ -301,12 +293,11 @@ export default function ResetPasswordScreen() {
         <FooterBar>
           <View className="flex-row items-center justify-center gap-6">
             {canResend ? (
-              <TextLink onPress={() => void handleResendCode()} disabled={submitting || resending}>
-                {resending ? "Mengirim kode baru…" : "Kirim ulang kode"}
+              <TextLink onPress={handleResendCode} disabled={submitting}>
+                Kirim ulang kode
               </TextLink>
             ) : (
               <Countdown
-                key={countdownKey}
                 seconds={DEFAULT_COOLDOWN}
                 prefix="Kirim ulang dalam"
                 tone="secondary"

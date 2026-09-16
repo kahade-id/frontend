@@ -62,8 +62,16 @@ export const ROUTES = {
    */
   verifyEmail: (email: string) =>
     ({ pathname: "/verify-email", params: { email } }) as unknown as Href,
-  /** Screen #8a — Forgot Password: kirim OTP reset */
-  forgotPassword: "/forgot-password" as Href,
+  /**
+   * Screen #8a — Forgot Password: kirim OTP reset.
+   *
+   * `email` opsional = prefill. Dipakai "Kirim ulang kode" di reset-password:
+   * endpoint forgot-password mewajibkan captcha slider, jadi pengiriman ulang
+   * HARUS lewat layar ini (satu-satunya tempat tantangan captcha dimuat dan
+   * dijawab), bukan memanggil API dari layar reset.
+   */
+  forgotPassword: (email?: string) =>
+    ({ pathname: "/forgot-password", params: email ? { email } : {} }) as unknown as Href,
   /** Screen #8b — Reset Password: verifikasi OTP + password baru */
   resetPassword: (email: string) =>
     ({ pathname: "/reset-password", params: { email } }) as unknown as Href,

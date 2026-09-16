@@ -91,12 +91,27 @@ export type VerifyOtpResult =
   | ({ isNewUser?: false; user?: AuthUser } & AuthTokens)
   | { isNewUser: true; tempToken: string }
 
+/**
+ * Tantangan captcha backend = SLIDER, bukan gambar+kode.
+ *
+ * Bentuk asli dari `POST /v1/auth/captcha/generate` (diverifikasi live):
+ *   `{ challengeId, targetX }` — `targetX` adalah posisi target dalam PERSEN
+ *   (backend membangkitkannya di rentang 20–80). Jawaban yang dikirim kembali
+ *   adalah posisi slider pengguna (`captchaAnswer`, 0–100); backend menerima
+ *   selisih ≤4 poin, dan tantangan kedaluwarsa dalam 120 detik (Redis TTL) +
+ *   minimal 800 ms sejak dibuat.
+ *
+ * Dulu tipe ini menuntut `captchaId` + `image` (captcha gambar teks) sehingga
+ * `captchaId` SELALU undefined terhadap backend sekarang: setiap request yang
+ * menyertakan captcha terkirim tanpa id dan dijawab 401 `CAPTCHA_REQUIRED`
+ * ("Captcha verification is required") — persis pesan yang dilihat pengguna di
+ * layar "Gagal mengirim kode" saat lupa password.
+ */
 export type CaptchaChallenge = {
+  /** ID tantangan (`challengeId`; alias `captchaId` lama tetap dibaca) */
   captchaId: string
-  /** Gambar puzzle (data URL / URL) */
-  image: string
-  /** Potongan puzzle yang harus digeser ke posisi X (0–100) */
-  piece?: string
+  /** Posisi target dalam persen (0–100) yang harus didekati slider */
+  targetX: number
   expiresAt?: string
 }
 
@@ -159,12 +174,22 @@ async function persistTokens(result: Record<string, unknown>): Promise<void> {
 // Captcha & CSRF
 // ------------------------------------------------------------------
 
-export async function generateCaptcha() {
-  const result = await http.post<CaptchaChallenge>("/v1/auth/captcha/generate", undefined, { auth: "none" })
+export async function generateCaptcha(): Promise<CaptchaChallenge> {
+  const raw = await http.post<unknown>("/v1/auth/captcha/generate", undefined, { auth: "none" })
+  const outer = asRecord(raw)
+  // Sebagian respons dibungkus `{ data: … }` sebelum envelope sukses dilepas.
+  const result = asRecord(outer?.data) ?? outer
+  if (!result) throw invalidResponse("captcha/generate")
+
+  const captchaId = result.challengeId ?? (result as any).challenge_id ?? (result as any).captchaId ?? (result as any).captcha_id
+  const targetX = result.targetX ?? (result as any).target_x
+  if (typeof captchaId !== "string" || !captchaId.trim() || typeof targetX !== "number")
+    throw invalidResponse("captcha/generate")
+
   return {
-    ...result,
-    captchaId: result.captchaId ?? (result as any).captcha_id,
-    expiresAt: result.expiresAt ?? (result as any).expires_at,
+    captchaId,
+    targetX,
+    expiresAt: (result as any).expiresAt ?? (result as any).expires_at,
   }
 }
 
