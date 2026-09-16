@@ -102,6 +102,33 @@ export const ROUTES = {
    */
   createTransactionWithVoucher: (voucherCode: string) =>
     ({ pathname: "/create-transaction", params: { voucherCode } }) as unknown as Href,
+  /**
+   * Buat transaksi ter-prefill dari template (layar Template Transaksi → "Pakai").
+   * Parameter dibaca sekali saat layar mount; validasi & langkah tetap seperti biasa.
+   */
+  createTransactionFromTemplate: (t: {
+    role: string
+    title: string
+    orderType: string
+    orderValue: number
+    deliveryDeadlineDays: number
+    feeResponsibility: string
+    description?: string
+    counterpart?: string | null
+  }) =>
+    ({
+      pathname: "/create-transaction",
+      params: {
+        role: t.role,
+        title: t.title,
+        orderType: t.orderType,
+        amount: String(t.orderValue),
+        deadline: String(t.deliveryDeadlineDays),
+        fee: t.feeResponsibility,
+        ...(t.description ? { description: t.description } : {}),
+        ...(t.counterpart ? { counterpart: t.counterpart } : {}),
+      },
+    }) as unknown as Href,
 
   // ── Dompet — aksi cepat kartu saldo ─────────────────────────────────────
   /** POST /v1/wallet/topup */

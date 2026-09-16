@@ -35,7 +35,7 @@ import { AMOUNT_LIMITS, isValidAmount } from "@/lib/financial"
  *   - Back header di langkah > 1 kembali ke langkah sebelumnya (bukan keluar
  *     form): keluar tak sengaja membuang seluruh draf yang sudah diketik.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -147,16 +147,76 @@ function kycReasonMessage(backendMessage: string): string {
   return "Transaksi dengan nilai Rp 2.000.000 ke atas membutuhkan verifikasi identitas (KYC)."
 }
 
+/** Bentuk prefill dari query params (ROUTES.createTransactionFromTemplate). */
+type TemplatePrefill = {
+  role?: "BUYER" | "SELLER"
+  title?: string
+  orderType?: OrderType
+  amount?: number
+  deadline?: number
+  fee?: "BUYER" | "SELLER" | "SPLIT"
+  description?: string
+}
+
 export default function CreateTransactionScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
   const [step, setStep] = useState(0)
-  const [role, setRole] = useState<OrderRoleValue>("BUYER")
-  // `counterpart` dari query (ROUTES.createTransactionWith) — profil publik
-  // mengisi lawan transaksi lebih dulu; validasi tetap jalan via debounce.
-  const params = useLocalSearchParams<{ counterpart?: string; voucherCode?: string }>()
+  // `counterpart` dari query (ROUTES.createTransactionWith /
+  // createTransactionFromTemplate) — profil publik / template mengisi lawan
+  // transaksi lebih dulu; validasi tetap jalan via debounce.
+  const params = useLocalSearchParams<{
+    counterpart?: string
+    voucherCode?: string
+    /** Prefill dari template (ROUTES.createTransactionFromTemplate). */
+    role?: string
+    title?: string
+    orderType?: string
+    amount?: string
+    deadline?: string
+    fee?: string
+    description?: string
+  }>()
   const [mode, setMode] = useState<Mode>("direct")
+  // Nilai prefill template dibersihkan SATU KALI di sini (bukan di initializer
+  // state): parameter query tidak berubah saat layar hidup, jadi hasilnya
+  // stabil dan bisa dipakai beberapa state di bawah. Tipe dikembalikan
+  // eksplisit karena inferensi useMemo melebarkan literal string jadi `string`.
+  const templatePrefill = useMemo<TemplatePrefill>(() => {
+    const amount = Number.parseInt(params.amount ?? "", 10)
+    const deadline = Number.parseInt(params.deadline ?? "", 10)
+    // Ternary per nilai literal (bukan `x === A || x === B ? x : undefined`):
+    // property query params tidak men-narrow lewat kondisi majemuk, jadi
+    // bentuknya dikembalikan sebagai literal eksplisit.
+    return {
+      role: params.role === "SELLER" ? "SELLER" : params.role === "BUYER" ? "BUYER" : undefined,
+      title: params.title?.trim() || undefined,
+      orderType:
+        params.orderType === "PHYSICAL_GOODS"
+          ? "PHYSICAL_GOODS"
+          : params.orderType === "DIGITAL_GOODS"
+            ? "DIGITAL_GOODS"
+            : params.orderType === "SERVICE"
+              ? "SERVICE"
+              : params.orderType === "OTHER"
+                ? "OTHER"
+                : undefined,
+      amount: Number.isFinite(amount) && amount > 0 ? amount : undefined,
+      deadline:
+        Number.isFinite(deadline) && deadline >= 1 ? Math.min(MAX_DEADLINE_DAYS, deadline) : undefined,
+      fee:
+        params.fee === "BUYER"
+          ? "BUYER"
+          : params.fee === "SELLER"
+            ? "SELLER"
+            : params.fee === "SPLIT"
+              ? "SPLIT"
+              : undefined,
+      description: params.description?.trim() || undefined,
+    }
+  }, [params.amount, params.title, params.orderType, params.deadline, params.fee, params.description, params.role])
+  const [role, setRole] = useState<OrderRoleValue>(templatePrefill.role ?? "BUYER")
   const [counterpart, setCounterpart] = useState(params.counterpart?.trim() ?? "")
   const [counterpartState, setCounterpartState] = useState<CounterpartState>("loading")
   const [counterpartName, setCounterpartName] = useState<string | undefined>()
@@ -165,16 +225,18 @@ export default function CreateTransactionScreen() {
   const [counterpartWarnings, setCounterpartWarnings] = useState<string[]>([])
   /** Alasan spesifik dari backend untuk state `blocked` (bukan "tidak ditemukan"). */
   const [counterpartReason, setCounterpartReason] = useState<string | undefined>()
-  const [title, setTitle] = useState("")
-  const [description, setDescription] = useState("")
-  const [orderType, setOrderType] = useState<OrderType>("SERVICE")
-  const [orderValue, setOrderValue] = useState(0)
-  const [deadlineDays, setDeadlineDays] = useState(3)
+  const [title, setTitle] = useState(templatePrefill.title ?? "")
+  const [description, setDescription] = useState(templatePrefill.description ?? "")
+  const [orderType, setOrderType] = useState<OrderType>(templatePrefill.orderType ?? "SERVICE")
+  const [orderValue, setOrderValue] = useState(templatePrefill.amount ?? 0)
+  const [deadlineDays, setDeadlineDays] = useState(templatePrefill.deadline ?? 3)
   // Draf terpisah untuk field tenggat: tanpa ini, mengosongkan field langsung
   // melompat ke "1" (NaN-parsing) sehingga pengguna tidak pernah melihat
   // keadaan kosong dan tidak yakin ketikannya terekam.
-  const [deadlineDraft, setDeadlineDraft] = useState("3")
-  const [feeResponsibility, setFeeResponsibility] = useState<"BUYER" | "SELLER" | "SPLIT">("SPLIT")
+  const [deadlineDraft, setDeadlineDraft] = useState(String(templatePrefill.deadline ?? 3))
+  const [feeResponsibility, setFeeResponsibility] = useState<"BUYER" | "SELLER" | "SPLIT">(
+    templatePrefill.fee ?? "SPLIT",
+  )
   const [fee, setFee] = useState<Awaited<ReturnType<typeof api.orders.calculateFee>> | null>(null)
   const [feeLoading, setFeeLoading] = useState(false)
   // Skema biaya publik (GET /v1/public/fee-schedule) — dimuat saat sheet dibuka

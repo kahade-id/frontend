@@ -28,7 +28,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { PencilSimple, Star } from "phosphor-react-native"
+import { PencilSimple, Star, ThumbsUp, Trash } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import { readMyRatings, type Rating } from "@/lib/api/ratings"
@@ -55,6 +55,8 @@ import { useToast } from "@/components/ui/toast"
 const PAGE_SIZE = 20
 /** RatingReplyDto.content — batas lokal sama dengan komentar ulasan (spec tanpa maxLength) */
 const REPLY_MAX = RATING_COMMENT_MAX
+/** Jendela hapus ulasan sendiri — 7 hari (aturan backend, RATING_WINDOW_CLOSED). */
+const MS_PER_DAY_DELETE_WINDOW = 7 * 24 * 60 * 60 * 1000
 
 type Segment = "RECEIVED" | "GIVEN"
 const SEGMENTS: SegmentItem<Segment>[] = [
@@ -128,6 +130,62 @@ export default function RatingsScreen() {
   const [editRating, setEditRating] = useState<Rating | null>(null)
   const [editValue, setEditValue] = useState<RatingFormValue>({ stars: 0, comment: "" })
   const [savingEdit, setSavingEdit] = useState(false)
+
+  // Hapus ulasan sendiri (jendela 7 hari, aturan backend) + toggle "berguna"
+  // untuk ulasan masuk. Status "sudah ditandai" tidak dikirim server di
+  // /ratings/my, jadi state toggle disimpan per id dari respons endpoint.
+  const [deleteRatingTarget, setDeleteRatingTarget] = useState<Rating | null>(null)
+  const [deletingRating, setDeletingRating] = useState(false)
+  const [helpfulState, setHelpfulState] = useState<Record<string, { on: boolean; count: number }>>({})
+  const [helpfulBusyId, setHelpfulBusyId] = useState<string | null>(null)
+
+  const withinDeleteWindow = useCallback((createdAt: string): boolean => {
+    const created = new Date(createdAt).getTime()
+    if (!Number.isFinite(created)) return true // server yang memutus, jangan blokir UI
+    return Date.now() - created <= MS_PER_DAY_DELETE_WINDOW
+  }, [])
+
+  const handleDeleteRating = useCallback(async () => {
+    if (!deleteRatingTarget || deletingRating) return
+    setDeletingRating(true)
+    try {
+      await api.ratings.deleteMyRating(deleteRatingTarget.id)
+      toast.show({ title: "Ulasan dihapus", tone: "neutral", duration: 3000 })
+      setDeleteRatingTarget(null)
+      await query.refresh()
+    } catch (err) {
+      toast.show({
+        title: "Gagal menghapus ulasan",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setDeletingRating(false)
+    }
+  }, [deleteRatingTarget, deletingRating, toast, query])
+
+  const handleToggleHelpful = useCallback(
+    async (rating: Rating) => {
+      if (helpfulBusyId) return
+      setHelpfulBusyId(rating.id)
+      try {
+        const result = await api.ratings.toggleRatingHelpful(rating.id)
+        setHelpfulState((prev) => ({
+          ...prev,
+          [rating.id]: { on: result.helpful, count: result.helpfulCount },
+        }))
+      } catch (err) {
+        toast.show({
+          title: "Gagal memperbarui tanda berguna",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setHelpfulBusyId(null)
+      }
+    },
+    [helpfulBusyId, toast],
+  )
 
 
 
@@ -294,6 +352,8 @@ export default function RatingsScreen() {
             {visible.map((r) => {
               const reply = replyOf(r)
               const received = segment === "RECEIVED"
+              const helpful = helpfulState[r.id]
+              const helpfulCount = helpful?.count ?? (typeof r.helpfulCount === "number" ? r.helpfulCount : 0)
               return (
                 <RatingReviewCard
                   key={r.id}
@@ -318,16 +378,40 @@ export default function RatingsScreen() {
                       : undefined
                   }
                   footer={
-                    !received ? (
+                    received ? (
                       <Button
                         variant="ghost"
                         size="sm"
-                        leftIcon={PencilSimple}
-                        onPress={() => openEditRating(r)}
+                        leftIcon={ThumbsUp}
+                        disabled={helpfulBusyId === r.id}
+                        onPress={() => void handleToggleHelpful(r)}
+                        accessibilityState={{ selected: helpful?.on ?? false }}
                       >
-                        Ubah ulasan
+                        {helpful?.on ?? false ? "Sudah ditandai berguna" : "Tandai berguna"}
+                        {helpfulCount > 0 ? ` · ${helpfulCount}` : ""}
                       </Button>
-                    ) : undefined
+                    ) : (
+                      <View className="flex-row gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          leftIcon={PencilSimple}
+                          onPress={() => openEditRating(r)}
+                        >
+                          Ubah ulasan
+                        </Button>
+                        {withinDeleteWindow(r.createdAt) ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            leftIcon={Trash}
+                            onPress={() => setDeleteRatingTarget(r)}
+                          >
+                            Hapus
+                          </Button>
+                        ) : null}
+                      </View>
+                    )
                   }
                 />
               )
@@ -382,6 +466,20 @@ export default function RatingsScreen() {
         onConfirm={() => void handleDeleteReply()}
         onCancel={() => setDeleteReply(null)}
         onRequestClose={() => setDeleteReply(null)}
+      />
+
+      {/* Hapus ulasan sendiri (jendela 7 hari) */}
+      <Dialog
+        title="Hapus ulasan ini?"
+        description="Ulasan akan hilang dari profil penerima dan skor reputasinya ikut diperbarui. Tindakan ini tidak bisa dibatalkan."
+        visible={!!deleteRatingTarget}
+        destructive
+        loading={deletingRating}
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        onConfirm={() => void handleDeleteRating()}
+        onCancel={() => setDeleteRatingTarget(null)}
+        onRequestClose={() => setDeleteRatingTarget(null)}
       />
 
       {/* Ubah ulasan yang saya beri */}

@@ -18,10 +18,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { referralUrl } from "@/lib/deeplinks"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, formatRupiah } from "@/lib/format"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 
+import { Avatar } from "@/components/ui/avatar"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { FormSection } from "@/components/ui/form-section"
@@ -33,6 +34,7 @@ import { ReferralHistoryListItem } from "@/components/ui/referral-history-list-i
 import { ReferralRewardListItem } from "@/components/ui/referral-reward"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { Text } from "@/components/ui/text"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
 import { useToast } from "@/components/ui/toast"
@@ -91,6 +93,19 @@ export default function ReferralScreen() {
   const history = query.data?.history ?? []
   const rewards = query.data?.rewards ?? []
   const { loading, error, refreshing } = query
+
+  // Papan peringkat (GET /v1/referral/leaderboard) — query terpisah dengan
+  // fallback null: papan peringkat gagal dimuat tidak boleh mematikan kode/
+  // statistik (pola yang sama dengan stats di atas).
+  const leaderboardQuery = useApiQuery<
+    import("@/lib/api/referrals").ReferralLeaderboardEntry[]
+  >(
+    "referral-leaderboard",
+    async (signal) =>
+      (await api.referrals.getReferralLeaderboard(10, signal).catch(() => undefined)) ?? [],
+  )
+  const leaderboard = (leaderboardQuery.data ?? []).slice(0, 10)
+
   const [regenerating, setRegenerating] = useState(false)
   const [applyCode, setApplyCode] = useState("")
   const [applying, setApplying] = useState(false)
@@ -178,6 +193,58 @@ export default function ReferralScreen() {
               onRegenerate={() => void handleRegenerate()}
               regenerating={regenerating}
             />
+
+            {leaderboard.length > 0 ? (
+              <>
+                <SectionHeader
+                  title="Papan peringkat"
+                  subtitle="10 undangan terbanyak (selalu 10 teratas)"
+                />
+                <View className="overflow-hidden rounded-md border border-border bg-surface">
+                  {leaderboard.map((e, i) => (
+                    <View
+                      key={`${e.rank}-${e.username}`}
+                      accessible
+                      className="flex-row items-center gap-3 px-4 py-3"
+                      accessibilityLabel={`Peringkat ${e.rank}, ${
+                        e.fullName ?? e.username
+                      }, mengundang ${e.invitedCount} orang, total reward ${formatRupiah(
+                        e.totalReward,
+                      )}`}
+                    >
+                      <View className="w-6 items-center">
+                        <Text
+                          variant="monoBody"
+                          tone={e.rank <= 3 ? "primary" : "secondary"}
+                          weight={e.rank <= 3 ? 600 : 400}
+                        >
+                          {e.rank}
+                        </Text>
+                      </View>
+                      <Avatar source={e.avatarUrl ?? undefined} name={e.fullName ?? e.username} size="sm" />
+                      <View className="flex-1 gap-0">
+                        <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1}>
+                          {e.fullName ?? e.username}
+                        </Text>
+                        <Text variant="caption" tone="secondary" numberOfLines={1}>
+                          {e.invitedCount} undangan
+                        </Text>
+                      </View>
+                      <Text variant="monoBody" tone="secondary" numberOfLines={1}>
+                        {formatRupiah(e.totalReward)}
+                      </Text>
+                      {i < leaderboard.length - 1 ? (
+                        <View
+                          accessibilityRole="none"
+                          importantForAccessibility="no"
+                          className="absolute inset-x-0 bottom-0 h-px bg-border"
+                        />
+                      ) : null}
+                    </View>
+                  ))}
+                </View>
+              </>
+            ) : null}
 
             <FormSection
               title="Punya kode dari teman?"

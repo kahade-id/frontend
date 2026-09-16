@@ -8,6 +8,7 @@ import { formatDateTime, formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -65,6 +66,27 @@ export default function SearchScreen() {
     (signal) => api.search.getSearchSuggestions({ q: keyword }, signal),
     enabled,
   )
+  // Riwayat pencarian (GET /v1/search/history) — tampil saat kolom kosong;
+  // gagal dimuat tidak boleh menghalangi pencarian (fallback kosong).
+  const historyQuery = useApiQuery<import("@/lib/api/search").SearchHistoryEntry[]>(
+    "search-history",
+    async (signal) =>
+      (await api.search.getSearchHistory(signal).catch(() => undefined)) ?? [],
+  )
+  const history = historyQuery.data ?? []
+  const [clearingHistory, setClearingHistory] = useState(false)
+  const handleClearHistory = async () => {
+    if (clearingHistory) return
+    setClearingHistory(true)
+    try {
+      await api.search.clearSearchHistory()
+      historyQuery.setData([])
+    } catch {
+      // Gagal clear = riwayat tetap tampil; pull-to-refresh akan mengulang.
+    } finally {
+      setClearingHistory(false)
+    }
+  }
   const rows = useMemo<ResultRow[]>(() => {
     const dedicated = usersResult.data?.users
     const users: UserSearchResult[] =
@@ -250,6 +272,32 @@ export default function SearchScreen() {
                 void usersResult.reload()
               }}
             />
+          ) : !enabled && history.length > 0 ? (
+            <View className="gap-3">
+              <SectionHeader title="Riwayat pencarian" />
+              <View className="flex-row flex-wrap gap-2">
+                {history.slice(0, 10).map((h, i) => (
+                  <Chip
+                    key={`${h.query}-${i}`}
+                    onPress={() => {
+                      setSeed(h.query)
+                      setKeyword(h.query)
+                    }}
+                  >
+                    {h.query}
+                  </Chip>
+                ))}
+              </View>
+              <Button
+                variant="ghost"
+                size="sm"
+                fullWidth={false}
+                loading={clearingHistory}
+                onPress={() => void handleClearHistory()}
+              >
+                Hapus riwayat
+              </Button>
+            </View>
           ) : (
             <EmptyState
               icon={MagnifyingGlass}

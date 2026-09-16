@@ -19,7 +19,7 @@
 | Total route backend saat ini | **454** = 326 mobile + 128 admin |
 | Pemanggilan adapter frontend (unik method+path) | **238** (+2 out-of-band: `auth/refresh`, presigned upload) |
 | Pemanggilan frontend yang **TIDAK ada** di backend | **0** ✅ — tidak ada fitur yang rusak karena backend berubah |
-| Route mobile backend yang **TIDAK dipanggil** aplikasi | **86** (dari 326) = **26,4 %** permukaan mobile belum terhubung |
+| Route mobile backend yang **TIDAK dipanggil** aplikasi | **86** (dari 326) — **pembaruan 2026-09-16 (P2): 70/86 sudah terhubung; 15 TIDAK DIPAKAI SAJA/alias; 1 menunggu kredensial OAuth (social-login)** |
 | Spec di repo (`docs/api/kahade-api-mobile.json`) | 225 path / **260 operasi** — **basi** terhadap backend (322 route mobile) |
 
 **Kesimpulan:** tidak ada pemanggilan yang "mati" — semua 238 adapter masih
@@ -105,11 +105,11 @@ point dari portofolio + galeri publik. Detail di §8.
 `POST /v1/showcase/comments/{commentId}/hide` + `unhide` (2),
 `DELETE /v1/showcase/comments/{commentId}`.
 
-### 2.4 Wallet — 5 route
+### 2.4 Wallet — 5 route `[SELESAI P2 — 2026-09-16]`
 
 | Method + path | Klasifikasi |
 |---|---|
-| `GET/POST /v1/wallet/favorite-recipients` (2), `DELETE …/{id}` | FITUR HILANG — penerima favorit |
+| `GET/POST /v1/wallet/favorite-recipients` (2), `DELETE …/{id}` | **SELESAI** — seksi "Favorit" + ikon hati di picker penerima Transfer (`lib/api/wallet.ts`, `transfer-recipient-picker.tsx`, `app/transfer.tsx`) |
 | `GET /v1/wallet/export` | TIDAK DIPAKAI SAJA — app memakai `export/csv` + `export/pdf` |
 | `GET /v1/wallet/export/html` | TIDAK DIPAKAI SAJA — format cadangan backend |
 
@@ -128,34 +128,41 @@ Backend memindahkan ke prefix baru `scheduled-withdrawals` (tetap alias di
 - `GET /v1/scheduled-withdrawals/schedules` (list jadwal) tidak dipanggil —
   tidak ada UI daftar jadwal.
 
-### 2.7 Langganan — 3 route `[FITUR HILANG]`
+### 2.7 Langganan — 3 route `[SELESAI P2 — 2026-09-16]`
 
-`POST /v1/subscriptions/pause`, `POST …/resume`, `POST …/upgrade` —
-app hanya subscribe/renew/cancel/status.
+`POST /v1/subscriptions/pause` (dialog "Jeda langganan"), `POST …/resume`
+(tombol "Aktifkan kembali" saat jeda), `POST …/upgrade` (paket lebih mahal
+saat langganan aktif → CTA "Upgrade" + PIN; prorasi dipotong saldo, KYC).
+Layar: `app/subscriptions.tsx`.
 
-### 2.8 Tiket support — 3 route `[FITUR HILANG]`
+### 2.8 Tiket support — 3 route `[SELESAI P2 — 2026-09-16]`
 
-`POST /v1/support/tickets/{ticketId}/close`, `…/reopen`, `…/rate` —
-app hanya buat tiket, lihat detail, balas.
+`POST /v1/support/tickets/{ticketId}/close` (dialog konfirmasi, status aktif),
+`…/reopen` (tombol untuk CLOSED), `…/rate` (rating 1–5 + komentar untuk
+RESOLVED/CLOSED; rating terkirim ditampilkan ulang). Ditemukan pula cacat
+tampilan: backend mengirim balasan di `replies` (field `message`/`isStaff`),
+frontend membaca `messages` (`text`/`fromUser`) → seksi "Percakapan" selalu
+kosong; adapter `lib/api/support.ts` kini menormalisasi (termasuk
+`ticketNumber` turunan dari id). Layar: `app/support/[ticketId].tsx`.
 
-### 2.9 Lainnya — 17 route
+### 2.9 Lainnya — 17 route `[P2 — 9 SELESAI 2026-09-16]`
 
 | Method + path | Klasifikasi |
 |---|---|
-| `POST /v1/auth/social-login` | FITUR HILANG — login Google/Apple belum di-UI |
-| `PATCH /v1/bank-accounts/{id}` | FITUR HILANG — edit rekening (app hanya tambah/hapus/set-primary) |
-| `GET /v1/config/exchange-rates` | FITUR HILANG — kurs (untuk tampilan konversi?) |
-| `GET /v1/deeplinks/showcase/{showcaseId}` | FITUR HILANG — deep link showcase (app sudah punya deep link order/profil/user) |
-| `POST /v1/disputes/{disputeId}/escalate` | FITUR HILANG — eskalasi sengketa oleh pengguna |
-| `POST /v1/help-center/items/{id}/feedback` | FITUR HILANG — umpan balik artikel bantuan |
-| `GET /v1/orders/{orderId}/invoice/pdf` | FITUR HILANG — invoice PDF (app memakai `invoice` HTML) |
-| `POST /v1/ratings/{ratingId}/helpful` | FITUR HILANG — tombol "berguna" |
-| `DELETE /v1/ratings/{ratingId}` | FITUR HILANG — hapus rating sendiri |
-| `POST /v1/transaction-templates/{id}/use` | FITUR HILANG — pakai template → transaksi |
-| `GET /v1/referral/leaderboard` | FITUR HILANG — papan peringkat referral |
-| `GET /v1/search/history` | FITUR HILANG — riwayat pencarian |
-| `GET /v1/search/history/clear` | FITUR HILANG — hapus riwayat pencarian |
-| `GET /v1/settings/blocked-users` | FITUR HILANG — daftar pengguna yang diblokir |
+| `POST /v1/auth/social-login` | **MENUNGGU KREDENSIAL** — butuh konfigurasi OAuth Google/Apple di backend (client ID/secret); tanpa itu tombol login sosial hanya akan gagal |
+| `PATCH /v1/bank-accounts/{id}` | **SELESAI** — "Edit nama" per rekening (backend hanya menerima `{accountName}`) di `app/bank-accounts.tsx` |
+| `GET /v1/config/exchange-rates` | TIDAK DIPAKAI SAJA — alias dari `GET /v1/public/exchange-rates` yang sudah terhubung (`api.public.getExchangeRates`); permukaan UI konversi mata uang belum ada (app IDR-only) |
+| `GET /v1/deeplinks/showcase/{showcaseId}` | TIDAK DIPAKAI SAJA — deep link showcase sudah diresolusi layar `showcase/[id]` (cluster P1 showcase) |
+| `POST /v1/disputes/{disputeId}/escalate` | **SELESAI** — "Eskalasi ke admin" (dialog + alasan opsional) di detail sengketa; aturan backend: pihak sengketa, bukan RESOLVED/ESCALATED, maks 2x |
+| `POST /v1/help-center/items/{id}/feedback` | **SELESAI** — "Apakah artikel ini membantu? Ya/Tidak" di akhir artikel bantuan (endpoint publik, parameter query) |
+| `GET /v1/orders/{orderId}/invoice/pdf` | TIDAK DIPAKAI SAJA — duplikat format; struk HTML sudah terhubung (unduh/bagikan di `app/invoice/[orderId].tsx`) |
+| `POST /v1/ratings/{ratingId}/helpful` | **SELESAI** — toggle "Tandai berguna" pada ulasan masuk di `app/ratings.tsx` |
+| `DELETE /v1/ratings/{ratingId}` | **SELESAI** — "Hapus" pada ulasan sendiri (jendela 7 hari) di `app/ratings.tsx` |
+| `POST /v1/transaction-templates/{id}/use` | **SELESAI** — "Pakai" pada kartu template: catat pemakaian server + `create-transaction` ter-prefill via query params |
+| `GET /v1/referral/leaderboard` | **SELESAI** — papan peringkat 10 teratas di `app/referral.tsx` |
+| `GET /v1/search/history` | **SELESAI** — riwayat pencarian (chip) saat kolom cari kosong di `app/search.tsx` |
+| `GET /v1/search/history/clear` | **SELESAI** — "Hapus riwayat" di layar pencarian (endpoint GET sesuai bentuk backend) |
+| `GET /v1/settings/blocked-users` | TIDAK DIPAKAI SAJA — daftar blokir sudah memakai `GET /v1/users/me/blocked` (`app/blocked-users.tsx`) |
 | `DELETE /v1/sessions` | TIDAK DIPAKAI SAJA — app memakai `DELETE /v1/sessions/others` (fungsi setara) |
 | `GET /v1/sessions/devices` | TIDAK DIPAKAI SAJA — app memakai `users.me.devices` |
 | `GET /v1/app/version` | TIDAK DIPAKAI SAJA — versi app dibaca dari konstanta Expo |
@@ -211,9 +218,12 @@ cd frontend && npm run gen:api
 | **P1 — SELESAI (sesi ini)** | Chat lanjutan (edit, reactions, pin, read-receipt, typing, search, mute/archive, inquiry, presence, forward) | 16 | Permukaan terbesar |
 | **P1 — SELESAI (sesi ini)** | Showcase sosial (feed, like, komentar, laporkan, share, moderasi) | 12 | Fitur sosial utama |
 | **P1 — SELESAI (sesi ini)** | Profil sosial (saved, cari user, badge, hapus perangkat, upvote, moderasi Q&A, multi-foto showcase; report user + unhide×2 adapter-ready) | 22 (−6 non-fitur) | Kelengkapan profil |
-| P2 | Wallet favorite recipients + export html | 3 | Kewenangan transaksi |
-| P2 | Langganan pause/resume/upgrade | 3 | Revenue |
-| P2 | Support close/rate/reopen, ratings helpful/delete, dispute escalate, invoice PDF, search history, referral leaderboard, blocked users, bank account edit, template use, social login, deep link showcase, help-center feedback, exchange-rates, hapus satu perangkat | 19 | Poles |
+| **P2 — SELESAI (2026-09-16)** | Wallet favorite recipients (3 route; export/export-html tetap TIDAK DIPAKAI) | 3 | Kewenangan transaksi |
+| **P2 — SELESAI (2026-09-16)** | Langganan pause/resume/upgrade | 3 | Revenue |
+| **P2 — SELESAI (2026-09-16)** | Support close/rate/reopen (+ normalisasi bentuk respons percakapan) | 3 | Poles |
+| **P2 — SELESAI (2026-09-16)** | Ratings helpful/delete, dispute escalate, search history + clear, referral leaderboard, bank account edit, template use, help-center feedback | 9 | Poles |
+| P2 — TIDAK DIPAKAI SAJA | invoice PDF (duplikat struk HTML), config/exchange-rates (alias public), deeplinks/showcase (layar sudah ada), settings/blocked-users (alias users/me/blocked) | 4 | Ada alternatif setara |
+| P2 — MENUNGGU KREDENSIAL | social login (butuh OAuth Google/Apple di backend) | 1 | Blokir konfigurasi |
 
 ## 6. Putaran P0 — yang dikerjakan sesi ini (2026-09-15)
 
@@ -475,4 +485,4 @@ adapter-ready menunggu keputusan (report user, unhide×2).
 *Dihasilkan 2026-09-15. Ekstraktor route: skrip v2 (multi-class + inheritance),
 diverifikasi 450 dekorator method + 4 route warisan = 454 route.
 Diperbarui sesi P1 chat: §2.1, §5, §7. Diperbarui sesi P1 showcase: §2.3, §5, §8.
-Diperbarui sesi P1 profil sosial: §2.2, §5, §9.*
+Diperbarui sesi P1 profil sosial: §2.2, §5, §9. Diperbarui 2026-09-16 (P2): §1, §2.4, §2.7, §2.8, §2.9, §5 — 9 route 'Lainnya' + 3 langganan + 3 support + 3 wallet favorit terhubung; catatan: `GET /v1/config/exchange-rates` adalah alias `GET /v1/public/exchange-rates` (sudah terhubung).

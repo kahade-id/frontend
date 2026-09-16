@@ -63,3 +63,81 @@ export function getReferralHistory(signal?: AbortSignal) {
 export function applyReferralCode(dto: ApplyReferralDto) {
   return http.post<ReferralCode, ApplyReferralDto>("/v1/referral/apply", dto, { auth: "required" })
 }
+
+/**
+ * Papan peringkat referral — GET /v1/referral/leaderboard?limit.
+ * Respons tidak berschema di spec (Redis-cached); field dinormalisasi
+ * defensif dari alias yang masuk akal (rank/username/invitedCount/totalReward).
+ */
+export type ReferralLeaderboardEntry = {
+  rank: number
+  username: string
+  fullName?: string
+  avatarUrl?: string | null
+  invitedCount: number
+  totalReward: number
+}
+
+function pickNumber(record: Record<string, unknown>, keys: readonly string[]): number {
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === "number" && Number.isFinite(value)) return value
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value.replace(/[^\d.-]/g, ""))
+      if (Number.isFinite(parsed)) return parsed
+    }
+  }
+  return 0
+}
+
+export function getReferralLeaderboard(limit = 50, signal?: AbortSignal) {
+  return http
+    .get<unknown>("/v1/referral/leaderboard", {
+      query: { limit },
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => {
+      const rows = readList<unknown>(raw, ["leaderboard", "data"])
+      return rows
+        .map((row, index) => {
+          const record = (row ?? {}) as Record<string, unknown>
+          const username =
+            typeof record.username === "string" && record.username
+              ? record.username
+              : typeof record.fullName === "string" && record.fullName
+                ? record.fullName
+                : ""
+          if (!username) return null
+          const entry: ReferralLeaderboardEntry = {
+            rank: pickNumber(record, ["rank", "position"]) || index + 1,
+            username,
+            fullName:
+              typeof record.fullName === "string" && record.fullName
+                ? record.fullName
+                : undefined,
+            avatarUrl:
+              typeof record.avatarUrl === "string"
+                ? record.avatarUrl
+                : (typeof record.avatar === "string" ? record.avatar : null),
+            invitedCount: pickNumber(record, [
+              "invitedCount",
+              "totalInvited",
+              "invited",
+              "referralCount",
+              "count",
+            ]),
+            totalReward: pickNumber(record, [
+              "totalReward",
+              "totalRewardAmount",
+              "reward",
+              "amount",
+              "totalAmount",
+            ]),
+          }
+          return entry
+        })
+        .filter((entry): entry is ReferralLeaderboardEntry => entry !== null)
+    })
+}

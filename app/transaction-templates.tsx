@@ -6,11 +6,13 @@ import { ListLoading } from "@/components/ui/paginated-list"
  */
 import { useCallback, useState } from "react"
 import { View } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { NotePencil } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import type { TransactionTemplate as ApiTemplate } from "@/lib/api/transaction-templates"
+import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
 
@@ -154,6 +156,34 @@ export default function TransactionTemplatesScreen() {
     }
   }, [deleteTarget, toast.show, query])
 
+  /**
+   * "Pakai" = catat pemakaian di server (usageCount/lastUsedAt) lalu buka
+   * create-transaction dengan field template ter-prefill via query params.
+   * Pencatatan bersifat statistik — gagal tidak boleh menahan alur, jadi
+   * error ditelan (navigasi tetap jalan); refresh daftar untuk angka baru.
+   */
+  const handleUse = useCallback(
+    (t: UiTemplate) => {
+      api.transactionTemplates
+        .useTransactionTemplate(t.id)
+        .then(() => void query.refresh())
+        .catch(() => {})
+      router.push(
+        ROUTES.createTransactionFromTemplate({
+          role: t.role,
+          title: t.title,
+          orderType: t.orderType,
+          orderValue: t.orderValue,
+          deliveryDeadlineDays: t.deliveryDeadlineDays,
+          feeResponsibility: t.feeResponsibility,
+          description: t.description,
+          counterpart: t.counterpartUsername,
+        }),
+      )
+    },
+    [query],
+  )
+
   return (
     <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Template Transaksi" />
@@ -194,6 +224,7 @@ export default function TransactionTemplatesScreen() {
                     counterpartUsername: t.counterpartUsername ?? undefined,
                     usageCount: t.usageCount,
                   }}
+                  onUse={handleUse}
                   onEdit={openEdit}
                   onDelete={() => setDeleteTarget(t)}
                 />

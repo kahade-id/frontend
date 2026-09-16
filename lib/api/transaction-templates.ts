@@ -56,3 +56,16 @@ export function deleteTransactionTemplate(id: string) {
     responseType: "void",
   })
 }
+
+/**
+ * POST /v1/transaction-templates/{id}/use — catat pemakaian template
+ * (usageCount/lastUsedAt di sisi server). Dipanggil saat user menekan
+ * "Pakai" dan berpindah ke create-transaction — statistik, bukan transaksi.
+ */
+export function useTransactionTemplate(id: string) {
+  return http.post<Record<string, unknown>>(
+    `/v1/transaction-templates/${seg(id)}/use`,
+    undefined,
+    { auth: "required" },
+  )
+}

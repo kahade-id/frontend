@@ -145,6 +145,22 @@ const KNOWN_DEVIATIONS = [
       "perlu RateTicketDto dengan @ApiProperty.",
   },
   {
+    match: "PATCH /v1/bank-accounts/{}",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { accountName: string }` " +
+      "sehingga Swagger tidak mendeklarasikan requestBody. Klien benar mengirim " +
+      "{ accountName } — backend memang hanya mengizinkan ubah nama pemilik " +
+      "(nomor & bank tetap). Backend perlu UpdateBankAccountDto dengan @ApiProperty.",
+  },
+  {
+    match: "POST /v1/disputes/{}/escalate",
+    reason:
+      "Controller memakai tipe inline anonim `@Body() dto: { reason?: string }` " +
+      "sehingga Swagger tidak mendeklarasikan requestBody. Klien benar mengirim " +
+      "{ reason? } (opsional; maks 2x eskalasi per sengketa). Backend perlu " +
+      "EscalateDisputeDto dengan @ApiProperty.",
+  },
+  {
     match: "POST /v1/chat/rooms/{}/typing",
     reason:
       "Controller memakai tipe inline anonim `@Body() dto: { isTyping: boolean }` " +

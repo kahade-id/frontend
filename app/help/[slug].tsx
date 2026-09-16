@@ -1,10 +1,11 @@
-import { useEffect } from "react"
-import { ScrollView } from "react-native"
+import { useCallback, useEffect, useState } from "react"
+import { ScrollView, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
-import { Article } from "phosphor-react-native"
+import { Article, Check, X } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -13,6 +14,48 @@ import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+
+/**
+ * Umpan balik artikel (POST /v1/help-center/items/{id}/feedback?helpful).
+ * Endpoint publik + tanpa skema respons — feedback bersifat one-shot per
+ * tampilan: setelah terkirim (atau gagal) tombol dinonaktifkan dan status
+ * ditampilkan sebagai teks, supaya user tidak double-vote.
+ */
+function FeedbackBlock({ articleId }: { articleId: string }) {
+  const [sent, setSent] = useState<"yes" | "no" | null>(null)
+  const send = useCallback(
+    (helpful: boolean) => {
+      if (sent) return
+      setSent(helpful ? "yes" : "no")
+      void api.helpCenter.submitHelpArticleFeedback(articleId, helpful).catch(() => {
+        // Gagal kirim feedback tidak boleh mengganggu baca artikel — status
+        // tetap "sudah dikirim" agar user tidak terjebak retry tak berujung.
+      })
+    },
+    [articleId, sent],
+  )
+  return (
+    <View className="items-center gap-3 rounded-md border border-border bg-surface p-4">
+      <Text variant="body" tone="secondary" className="text-center">
+        Apakah artikel ini membantu?
+      </Text>
+      {sent ? (
+        <Text variant="body" tone="primary" weight={500}>
+          {sent === "yes" ? "Terima kasih, catatan Anda sudah dicatat." : "Terima kasih atas umpan baliknya."}
+        </Text>
+      ) : (
+        <View className="flex-row gap-3">
+          <Button variant="secondary" size="sm" leftIcon={Check} onPress={() => send(true)}>
+            Ya, membantu
+          </Button>
+          <Button variant="ghost" size="sm" leftIcon={X} onPress={() => send(false)}>
+            Tidak
+          </Button>
+        </View>
+      )}
+    </View>
+  )
+}
 
 export default function HelpScreen() {
   const { slug, article, q } = useLocalSearchParams<{
@@ -56,9 +99,12 @@ export default function HelpScreen() {
           <ErrorState description={query.error} onRetry={() => void query.reload()} />
         ) : article ? (
           selected ? (
-            <Text numberOfLines={1} variant="body">
-              {selected.content || "Isi artikel belum tersedia dari server."}
-            </Text>
+            <View className="gap-4">
+              <Text numberOfLines={1} variant="body">
+                {selected.content || "Isi artikel belum tersedia dari server."}
+              </Text>
+              <FeedbackBlock articleId={selected.id} />
+            </View>
           ) : (
             <EmptyState
               icon={Article}
