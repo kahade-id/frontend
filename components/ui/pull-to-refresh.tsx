@@ -125,9 +125,11 @@ function NativePullGestureSurface({
   onThresholdReached,
   enabled = true,
   // onScroll JS dari pemanggil tidak dapat digabung dengan worklet scroll
-  // handler (lihat useAnimatedScrollHandler); saat ini tidak ada pemanggil
-  // yang memakainya pada jalur Android.
+  // handler (lihat useAnimatedScrollHandler) — jalur Android mengeksekusi
+  // `onScrollWorklet` (worklet, UI thread) sebagai gantinya; pemanggil web/
+  // iOS memakai onScroll biasa lewat PullGestureSurface.
   onScroll: _ignoredOnScroll,
+  onScrollWorklet,
   className,
   ...rest
 }: PullGestureSurfaceProps) {
@@ -183,10 +185,20 @@ function NativePullGestureSurface({
   }, [])
 
   // Offset scroll dibaca di UI thread — satu-satunya data yang menentukan
-  // pan boleh menggerakkan konten.
+  // pan boleh menggerakkan konten. Worklet pemanggil (mis. header yang
+  // melipat saat scroll, gaya X) dipanggil DI THREAD YANG SAMA: keputusan
+  // animasi terjadi di UI tanpa hop JS per frame — pemanggil diharapkan
+  // hanya menyentuh shared value dan memakai runOnJS seperlunya.
+  //
+  // NON-OBVIOUS: worklet dipanggil LANGSUNG dari closure (bukan lewat ref):
+  // objek ref di-copy ke UI thread saat worklet dibuat, sehingga
+  // `.current` di dalamnya beku. Pemanggil wajib menstabilkan workletnya
+  // (useCallback dengan deps stabil) — handler ini ikut dibuat ulang hanya
+  // saat identitas worklet berubah.
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollOffset.value = event.contentOffset.y
+      if (onScrollWorklet) onScrollWorklet(event.contentOffset.y)
     },
   })
 
@@ -291,7 +303,7 @@ function NativePullGestureSurface({
       alwaysBounceVertical: false,
       overScrollMode: "never",
     }),
-    [scrollHandler],
+    [scrollHandler, onScrollWorklet],
   )
 
   const contentStyle = useAnimatedStyle(() => ({
@@ -367,6 +379,12 @@ export type PullGestureSurfaceProps = Omit<ViewProps, "children"> & {
   enabled?: boolean
   /** onScroll milik scroller tetap diteruskan setelah offset internal dicatat. */
   onScroll?: ScrollViewProps["onScroll"]
+  /**
+   * Worklet (dibuat dengan direktif `'worklet'`) yang dipanggil di UI thread
+   * tiap frame scroll — HANYA jalur Android (NativePullGestureSurface).
+   * Web/iOS memakai `onScroll` biasa. Stabilkan identitasnya (useCallback).
+   */
+  onScrollWorklet?: (offsetY: number) => void
   className?: string
 }
 
@@ -813,6 +831,8 @@ export type PullToRefreshFlatListProps<ItemT> = Omit<
   refreshThreshold?: number
   onRefreshThresholdReached?: () => void
   onScroll?: FlatListProps<ItemT>["onScroll"]
+  /** Worklet scroll UI-thread (jalur Android; web/iOS pakai onScroll). */
+  onScrollWorklet?: (offsetY: number) => void
 }
 
 /** FlatList virtual dengan gesture custom yang sama, tanpa ScrollView luar. */
@@ -823,6 +843,7 @@ export function PullToRefreshFlatList<ItemT>({
   refreshThreshold,
   onRefreshThresholdReached,
   onScroll,
+  onScrollWorklet,
   ...listProps
 }: PullToRefreshFlatListProps<ItemT>) {
   // Android: PTR kustom RNGH (lihat catatan NativePullGestureSurface).
@@ -835,6 +856,7 @@ export function PullToRefreshFlatList<ItemT>({
         onThresholdReached={onRefreshThresholdReached}
         enabled={refreshEnabled}
         onScroll={onScroll}
+        onScrollWorklet={onScrollWorklet}
         className="flex-1"
       >
         {(scrollBindings) => <FlatList {...listProps} {...scrollBindings} />}

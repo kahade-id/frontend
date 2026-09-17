@@ -21,6 +21,12 @@
  *     · simpan), lalu komentar bergaya feed. Like AKTIF tinta hitam (bukan
  *     merah) — merah dicoret dari palet aksi sosial (referensi warna brand:
  *     docs/image/f739a1072b861fa6f9ae25e44ee7628e.jpg).
+ *   - 2026-09-17 #2 (polesan, selaras feed): urutan konten disamakan dengan
+ *     kartu feed — penulis DI ATAS (avatar + nama + @username + tanggal),
+ *     lalu media yang kini PAGER horizontal (geser ke foto berikutnya,
+ *     dot indicator), harga (bodyLarge), judul, deskripsi, dan baris aksi
+ *     dengan hitungan ringkas "1,4K" + label serta ikon share "export" dan
+ *     bookmark berukuran sama (md).
  *   - Layar ini JUGA dipakai untuk item milik sendiri (isOwner=true dari
  *     server): CTA transaksi disembunyikan, moderasi komentar (sembunyikan/
  *     buka/hapus komentar orang lain) muncul. Komentar tersembunyi hanya
@@ -33,16 +39,16 @@
  *   - Gambar cover = `images[0]`; galeri penuh dibuka di MediaViewer.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, View, type TextInput } from "react-native"
+import { ScrollView, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent, type TextInput } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
 import {
   BookmarkSimple,
   ChatCircle,
+  Export,
   Flag,
   Heart,
   HeartStraight,
-  ShareNetwork,
   Trash,
 } from "phosphor-react-native"
 
@@ -63,7 +69,7 @@ import {
   type ShowcaseCommentWithReplies,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
-import { formatDateTime, formatNumber } from "@/lib/format"
+import { formatCountCompact, formatDateTime, formatNumber } from "@/lib/format"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
@@ -81,6 +87,7 @@ import { Input } from "@/components/ui/input"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { Dialog } from "@/components/ui/modal"
+import { PageIndicator } from "@/components/ui/page-indicator"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Picture } from "@/components/ui/picture"
@@ -122,7 +129,17 @@ export default function ShowcaseDetailScreen() {
    * tetap ditampilkan karena menjadi bagian pola baris aksi feed (mockup §9).
    */
   const [saved, setSaved] = useState(false)
+  /** Halaman pager media yang terlihat (0-based) — dot indicator. */
+  const [mediaPage, setMediaPage] = useState(0)
+  /** Lebar kontainer pager (runtime) — lebar tiap halaman = lebar kontainer. */
+  const [pagerWidth, setPagerWidth] = useState(0)
+  const { width: windowWidth } = useWindowDimensions()
   const composerRef = useRef<TextInput>(null)
+
+  // Item berganti → pager kembali ke foto pertama.
+  useEffect(() => {
+    setMediaPage(0)
+  }, [id])
 
   // ── Komentar ────────────────────────────────────────────────────────────
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
@@ -182,15 +199,20 @@ export default function ShowcaseDetailScreen() {
 
   const isOwner = item?.isOwner === true
 
-  /** Buka MediaViewer pada foto ke-N dari galeri item. */
+  // Hanya URL yang lolos resolve — slot foto gagal-resolve tidak menyisakan
+  // halaman kosong di pager (pola sama dengan <ShowcaseFeedItem>).
+  const resolvedImages = (item?.images ?? []).flatMap((image) => {
+    const url = resolveMediaUrl(image.imageUrl)
+    return url ? [{ id: image.id, url }] : []
+  })
+
+  /** Buka MediaViewer pada foto ke-N dari pager. */
   const openViewer = (index: number) => {
     if (!item) return
-    const image = item.images[index]
+    const image = resolvedImages[index]
     if (!image) return
-    const url = resolveMediaUrl(image.imageUrl)
-    if (!url) return
     setViewerItem({
-      url,
+      url: image.url,
       title: item.title,
       caption: item.description ?? undefined,
     })
@@ -198,6 +220,17 @@ export default function ShowcaseDetailScreen() {
 
   /** Baris aksi "N Komentar" melompatkan kursor ke komposer di footer. */
   const focusComposer = () => composerRef.current?.focus()
+
+  /** Swipe pager selesai → halaman aktif untuk dot indicator. */
+  const handlePagerMomentum = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const width = pagerWidth || windowWidth
+      if (width > 0) {
+        setMediaPage(Math.max(0, Math.round(event.nativeEvent.contentOffset.x / width)))
+      }
+    },
+    [pagerWidth, windowWidth],
+  )
 
   const patchComment = useCallback(
     (patch: (c: ShowcaseComment) => ShowcaseComment | null) => {
@@ -420,8 +453,6 @@ export default function ShowcaseDetailScreen() {
     )
   }
 
-  const coverUrl = item.images[0]?.imageUrl ?? item.coverImageUrl ?? item.imageUrl
-  const resolvedCover = coverUrl ? resolveMediaUrl(coverUrl) : undefined
   const priceLabel =
     item.priceMin != null && item.priceMax != null && item.priceMin !== item.priceMax
       ? `Rp ${formatNumber(item.priceMin)} – Rp ${formatNumber(item.priceMax)}`
@@ -492,74 +523,7 @@ export default function ShowcaseDetailScreen() {
         harga, dan baris aksi sosial — semuanya mengalir di atas background
         tanpa kotak/border. Pemisah antar-bagian memakai ruang, bukan garis.
       */}
-      {/* ── Media (cover persegi + strip galeri) ── */}
-      <View>
-        {resolvedCover ? (
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={`Lihat gambar ${item.title}`}
-            onPress={() => openViewer(0)}
-          >
-            <Picture
-              source={resolvedCover}
-              alt={item.title}
-              aspectRatio={1}
-              radius="none"
-              bordered={false}
-            />
-            {item.images.length > 1 ? (
-              // Scrim `bg-overlay` hitam di kedua mode, jadi teks penghitung
-              // memakai putih eksplisit (sama dengan showcase-gallery-grid).
-              <View style={{ pointerEvents: "none" }} className="absolute right-3 top-3">
-                <View className="rounded-full bg-overlay px-2.5 py-1">
-                  <Text variant="caption" tone="inherit" className="text-white">
-                    {`${item.images.length} foto`}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-          </PressableScale>
-        ) : (
-          <View className="h-64 items-center justify-center bg-surface">
-            <Text variant="body" tone="secondary">
-              Tidak ada gambar
-            </Text>
-          </View>
-        )}
-        {item.images.length > 1 ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerClassName="gap-2 px-5 pt-3"
-          >
-            {item.images.map((image, index) => {
-              const thumb = resolveMediaUrl(image.imageUrl)
-              if (!thumb) return null
-              return (
-                <PressableScale
-                  key={image.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Lihat foto ${index + 1} dari ${item.images.length}`}
-                  onPress={() => openViewer(index)}
-                  containerClassName="h-16 w-16 overflow-hidden rounded-sm"
-                >
-                  <Picture
-                    source={thumb}
-                    alt={item.title}
-                    width={64}
-                    height={64}
-                    radius="sm"
-                    bordered={false}
-                    recyclingKey={image.id}
-                  />
-                </PressableScale>
-              )
-            })}
-          </ScrollView>
-        ) : null}
-      </View>
-
-      {/* ── Penulis + aksi bagikan/laporkan ── */}
+      {/* ── Penulis DI ATAS media (selaras kartu feed) + laporkan ── */}
       <View className="flex-row items-center gap-3 px-5 pt-4">
         <PressableScale
           accessibilityRole="button"
@@ -577,19 +541,12 @@ export default function ShowcaseDetailScreen() {
             <Text variant="body" weight={600} numberOfLines={1}>
               {item.author.fullName ?? item.author.username}
             </Text>
-            <Text variant="caption" tone="secondary" numberOfLines={1}>
-              @{item.author.username}
+            <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
+              {`@${item.author.username} · ${formatDateTime(item.createdAt)}`}
             </Text>
           </View>
           {isOwner ? <Badge variant="outline">Anda</Badge> : null}
         </PressableScale>
-        <IconButton
-          icon={ShareNetwork}
-          variant="ghost"
-          size="sm"
-          accessibilityLabel="Bagikan"
-          onPress={() => void handleShare()}
-        />
         {!isOwner ? (
           <IconButton
             icon={Flag}
@@ -601,32 +558,86 @@ export default function ShowcaseDetailScreen() {
         ) : null}
       </View>
 
-      {/* ── Caption ── */}
+      {/* ── Media: pager horizontal — geser ke foto berikutnya ── */}
+      <View className="pt-3">
+        {resolvedImages.length > 0 ? (
+          <View onLayout={(e) => setPagerWidth(e.nativeEvent.layout.width)}>
+            <ScrollView
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={handlePagerMomentum}
+            >
+              {resolvedImages.map((image, index) => (
+                <View key={image.id} style={{ width: pagerWidth || windowWidth }}>
+                  <PressableScale
+                    accessibilityRole="button"
+                    accessibilityLabel={`Lihat foto ${index + 1} dari ${resolvedImages.length}`}
+                    onPress={() => openViewer(index)}
+                    containerClassName="w-full"
+                  >
+                    <Picture
+                      source={image.url}
+                      alt={item.title}
+                      aspectRatio={1}
+                      radius="none"
+                      bordered={false}
+                      recyclingKey={image.id}
+                    />
+                  </PressableScale>
+                </View>
+              ))}
+            </ScrollView>
+            {resolvedImages.length > 1 ? (
+              // Dot di atas foto: scrim kecil tidak perlu — PageIndicator
+              // inverse (putih) terbaca di atas foto terang sekalipun karena
+              // dot inaktif memakai opacity, dan foto gelap ditolong kontras.
+              <View style={{ pointerEvents: "none" }} className="absolute inset-x-0 bottom-2">
+                <PageIndicator inverse count={resolvedImages.length} index={mediaPage} />
+              </View>
+            ) : null}
+          </View>
+        ) : (
+          <View className="h-64 items-center justify-center bg-surface">
+            <Text variant="body" tone="secondary">
+              Tidak ada gambar
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* ── Harga · kategori (nominal diperbesar, selaras feed) ── */}
+      <View className="flex-row flex-wrap items-center gap-2 px-5 pt-3">
+        <Text variant="bodyLarge" weight={600} className="tabular-nums">
+          {priceLabel}
+        </Text>
+        {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
+      </View>
+
+      {/* ── Judul ── */}
+      <View className="px-5 pt-1">
+        <Text variant="h3" numberOfLines={2}>
+          {item.title}
+        </Text>
+      </View>
+
+      {/* ── Deskripsi ── */}
       {item.description ? (
-        <Text variant="body" tone="primary" className="px-5 pt-3">
+        <Text variant="body" tone="primary" className="px-5 pt-1">
           {item.description}
         </Text>
       ) : null}
 
-      {/* ── Harga · kategori · waktu ── */}
-      <View className="flex-row flex-wrap items-center gap-2 px-5 pt-3">
-        <Text variant="body" weight={600} tone="primary">
-          {priceLabel}
-        </Text>
-        {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
-        <Text variant="caption" tone="secondary" className="ml-auto tabular-nums">
-          {formatDateTime(item.createdAt)}
-        </Text>
-      </View>
-
-      {/* ── Baris aksi sosial (like · komentar · simpan) ── */}
-      <View className="flex-row items-center px-5 pt-2">
+      {/* ── Baris aksi sosial (like · komentar · share(export) · simpan).
+           Selaras kartu feed: hitungan ringkas + label di samping ikon, dan
+           keempat ikon satu ukuran (md). ── */}
+      <View className="flex-row items-center px-2 pt-2">
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
-          accessibilityHint={`${formatNumber(likeCount)} suka`}
+          accessibilityHint={`${formatCountCompact(likeCount)} suka`}
           onPress={() => void handleToggleLike()}
-          containerClassName="min-h-11 flex-row items-center gap-2 rounded-md pr-4"
+          containerClassName="min-h-11 flex-row items-center gap-2 rounded-md px-3"
         >
           <Icon
             icon={liked ? Heart : HeartStraight}
@@ -634,31 +645,47 @@ export default function ShowcaseDetailScreen() {
             tone="active"
             weight={liked ? "fill" : "regular"}
           />
-          <Text variant="body" weight={600} tone="primary" className="tabular-nums">
-            {`${formatNumber(likeCount)} Suka`}
+          <Text variant="caption" weight={600} className="tabular-nums">
+            {formatCountCompact(likeCount)}
+          </Text>
+          <Text variant="caption" tone="secondary">
+            Suka
           </Text>
         </PressableScale>
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Tulis komentar"
-          accessibilityHint={`${formatNumber(commentTotal)} komentar`}
+          accessibilityHint={`${formatCountCompact(commentTotal)} komentar`}
           onPress={focusComposer}
-          containerClassName="min-h-11 flex-row items-center gap-2 rounded-md px-4"
+          containerClassName="min-h-11 flex-row items-center gap-2 rounded-md px-3"
         >
           <Icon icon={ChatCircle} size="md" tone="active" />
-          <Text variant="body" weight={600} tone="primary" className="tabular-nums">
-            {`${formatNumber(commentTotal)} Komentar`}
+          <Text variant="caption" weight={600} className="tabular-nums">
+            {formatCountCompact(commentTotal)}
+          </Text>
+          <Text variant="caption" tone="secondary">
+            Komentar
           </Text>
         </PressableScale>
         <View className="flex-1" />
-        <IconButton
-          icon={BookmarkSimple}
-          variant="ghost"
-          size="sm"
-          active={saved}
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="Bagikan"
+          accessibilityHint="Bagikan showcase ini"
+          onPress={() => void handleShare()}
+          containerClassName="min-h-11 min-w-11 items-center justify-center rounded-md"
+        >
+          <Icon icon={Export} size="md" tone="active" />
+        </PressableScale>
+        <PressableScale
+          accessibilityRole="button"
           accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
+          accessibilityState={{ selected: saved }}
           onPress={() => setSaved((v) => !v)}
-        />
+          containerClassName="min-h-11 min-w-11 items-center justify-center rounded-md"
+        >
+          <Icon icon={BookmarkSimple} size="md" tone="active" weight={saved ? "fill" : "regular"} />
+        </PressableScale>
       </View>
 
       {/* ── CTA transaksi ── */}

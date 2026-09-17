@@ -3,7 +3,10 @@ import { View, type ListRenderItem, type StyleProp, type ViewStyle } from "react
 import Animated, { Layout } from "react-native-reanimated"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore } from "@/components/ui/load-more"
-import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
+import {
+  PullToRefreshFlatList,
+  type PullToRefreshFlatListProps,
+} from "@/components/ui/pull-to-refresh"
 import { Skeleton, SkeletonGroup, SkeletonText } from "@/components/ui/skeleton"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -21,6 +24,14 @@ export type PaginatedListProps<T extends { id: string }> = {
   onRetry: () => void | Promise<void>
   onLoadMore: () => void | Promise<void>
   empty: ReactElement
+  /**
+   * Event scroll scroller (web/iOS) — mis. header yang melipat saat scroll.
+   * Di Android `onScroll` JS tidak berjalan (lihat pull-to-refresh); kirim
+   * pasangan worklet-nya lewat `onScrollWorklet`.
+   */
+  onScroll?: PullToRefreshFlatListProps<T>["onScroll"]
+  /** Worklet scroll UI-thread untuk jalur Android (stabil via useCallback). */
+  onScrollWorklet?: (offsetY: number) => void
   /**
    * Placeholder muat-pertama. Default <ListLoading/> (4 kartu h-24) hanya
    * cocok untuk daftar berbentuk kartu; daftar baris rapat (notifikasi,
@@ -83,6 +94,8 @@ export function PaginatedList<T extends { id: string }>({
   onRetry,
   onLoadMore,
   empty,
+  onScroll,
+  onScrollWorklet,
   loadingPlaceholder,
   header,
   footer,
@@ -199,6 +212,8 @@ export function PaginatedList<T extends { id: string }>({
   return (
     <PullToRefreshFlatList
       data={data}
+      onScroll={onScroll}
+      onScrollWorklet={onScrollWorklet}
       keyExtractor={keyExtractor}
       renderItem={itemWithLayout}
       style={FILL}
