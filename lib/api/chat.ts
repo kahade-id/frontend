@@ -178,8 +178,10 @@ function normalizeMessagesPage(raw: RawMessagesResponse): ChatMessagesPage {
 export async function getChatMessages(
   roomId: string,
   query: ChatMessagesQuery = {},
+  signal?: AbortSignal,
 ): Promise<ChatMessagesPage> {
   const raw = await http.get<RawMessagesResponse>(`/v1/chat/rooms/${seg(roomId)}/messages`, {
+    signal,
     query: {
       cursor: query.cursor,
       limit: query.limit ?? CHAT_PAGE_SIZE,

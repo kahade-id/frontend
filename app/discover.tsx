@@ -15,7 +15,7 @@
  *   - Tab Pengguna tetap memakai usePaginatedQuery (offset aman di daftar
  *     statis); hanya feed yang perlu cursor.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Compass, Images } from "phosphor-react-native"
@@ -160,29 +160,60 @@ function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
   const [refreshing, setRefreshing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const activeRequest = useRef<AbortController | null>(null)
+  const loadMoreBusy = useRef(false)
+  const hasLoadedOnce = useRef(false)
 
   const fetchPage = useCallback(
     async (cursor: string | null, mode: "initial" | "refresh" | "more") => {
+      if (mode === "more" && loadMoreBusy.current) return
+      // Sort/search/refresh supersedes every older response. Without aborting,
+      // a slow "latest" request could overwrite a newer "popular" result.
+      if (mode !== "more") activeRequest.current?.abort()
+      const controller = new AbortController()
+      activeRequest.current = controller
       if (mode === "initial") setLoading(true)
       if (mode === "refresh") setRefreshing(true)
-      if (mode === "more") setLoadingMore(true)
-      setError(null)
+      if (mode === "more") {
+        loadMoreBusy.current = true
+        setLoadingMore(true)
+      }
+      if (mode === "more") setLoadMoreError(null)
+      else setError(null)
       try {
-        const page = await getShowcaseFeed({
-          cursor: cursor ?? undefined,
-          limit: FEED_LIMIT,
-          sort,
-          search: debouncedSearch || undefined,
+        const page = await getShowcaseFeed(
+          {
+            cursor: cursor ?? undefined,
+            limit: FEED_LIMIT,
+            sort,
+            search: debouncedSearch || undefined,
+          },
+          controller.signal,
+        )
+        if (controller.signal.aborted) return
+        setItems((previous) => {
+          if (mode !== "more") return page.items
+          // Cursor feeds can overlap when new records are inserted between
+          // requests. Merge by id prevents duplicate cards and unstable keys.
+          const merged = new Map(previous.map((item) => [item.id, item]))
+          for (const item of page.items) merged.set(item.id, item)
+          return [...merged.values()]
         })
-        setItems((prev) => (mode === "more" ? [...prev, ...page.items] : page.items))
         setNextCursor(page.nextCursor)
         setHasMore(page.hasMore)
+        hasLoadedOnce.current = true
       } catch (err) {
-        setError(userMessage(err))
+        if (controller.signal.aborted) return
+        if (mode === "more") setLoadMoreError(userMessage(err))
+        else setError(userMessage(err))
       } finally {
-        setLoading(false)
-        setRefreshing(false)
-        setLoadingMore(false)
+        if (activeRequest.current === controller) {
+          setLoading(false)
+          setRefreshing(false)
+          setLoadingMore(false)
+          loadMoreBusy.current = false
+        }
       }
     },
     [sort, debouncedSearch],
@@ -190,7 +221,8 @@ function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
 
   // Reset ke halaman 1 saat sort/search berubah (termasuk muat awal).
   useEffect(() => {
-    void fetchPage(null, items.length > 0 ? "refresh" : "initial")
+    void fetchPage(null, hasLoadedOnce.current ? "refresh" : "initial")
+    return () => activeRequest.current?.abort()
   }, [fetchPage])
 
   const loadMore = useCallback(() => {
@@ -223,6 +255,7 @@ function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         loadingMore={loadingMore}
         hasMore={hasMore}
         error={error}
+        loadMoreError={loadMoreError}
         onRefresh={() => void fetchPage(null, "refresh")}
         onRetry={() => void fetchPage(null, "refresh")}
         onLoadMore={loadMore}
