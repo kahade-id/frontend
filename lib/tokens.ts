@@ -249,35 +249,44 @@ export const colors = {
 
 /**
  * 3.1 Font Roles
- * - Sofia Sans      : UI & body (default 95% layar)
+ * - Kanit           : UI & body (default 95% layar) — geometric sans Thai-latin,
+ *                     mengikuti brand sheet "Crafting Visual Harmony Through
+ *                     Type" (docs/image/e960f91e…, typography: Kanit).
  * - EB Garamond     : Display/editorial — hero, konfirmasi besar, onboarding (terbatas)
- * - JetBrains Mono  : Data presisi — nominal uang, ID transaksi, OTP, rekening
+ * - Azeret Mono     : Data presisi — nominal uang, ID transaksi, OTP, rekening.
+ *                     Pengganti JetBrains Mono (keputusan produk): nol Azeret
+ *                     POLOS tanpa diakali (tanpa titik/garis miring di dalam 0)
+ *                     sehingga tidak tertukar dengan huruf O secara visual namun
+ *                     juga bebas "matahari" di tengah angka — deret nominal
+ *                     lebih bersih. O/A/huruf kapital tetap terbedakan dari
+ *                     angka lewat bentuk (O lebih lebar & bundar).
  *
  * Semua font di-bundle offline via expo-font; tidak butuh fallback network.
  */
 export const fontFamily = {
-  sans: "Sofia Sans",
+  sans: "Kanit",
   serif: "EB Garamond",
-  mono: "JetBrains Mono",
+  mono: "Azeret Mono",
 } as const
 
 /**
  * Nama asset font per weight untuk expo-font / StyleSheet.
  * (RN membutuhkan family name spesifik per weight, bukan fontWeight.)
+ * Nama key = nama file di assets/fonts tanpa ekstensi (kontrak lib/fonts.ts).
  */
 export const fontFamilyByWeight = {
   sans: {
-    400: "SofiaSans-Regular",
-    500: "SofiaSans-Medium",
-    600: "SofiaSans-SemiBold",
-    700: "SofiaSans-Bold",
+    400: "Kanit-Regular",
+    500: "Kanit-Medium",
+    600: "Kanit-SemiBold",
+    700: "Kanit-Bold",
   },
   serif: {
     500: "EBGaramond-Medium",
   },
   mono: {
-    500: "JetBrainsMono-Medium",
-    600: "JetBrainsMono-SemiBold",
+    500: "AzeretMono-Medium",
+    600: "AzeretMono-SemiBold",
   },
 } as const
 
@@ -290,7 +299,7 @@ export const fontWeight = {
 
 /**
  * Letter-spacing skala global.
- * - mono +0.5px: JetBrains Mono dipakai untuk nominal/ID/OTP — sedikit
+ * - mono +0.5px: Azeret Mono dipakai untuk nominal/ID/OTP — sedikit
  *   renggang membuat deret angka & huruf kapital mudah dipindai.
  * - Tracking headline (display/H1/H2) TIDAK ada di sini melainkan per varian
  *   di `typography` (v2.1) karena nilainya optis: proporsional ke ukuran,
@@ -309,7 +318,7 @@ export type TypeStyle = {
   /** Weight override di dark mode (H1/H2 turun satu tingkat, 700 -> 600) */
   fontWeightDark?: (typeof fontWeight)[keyof typeof fontWeight]
   letterSpacing?: number
-  /** Angka dalam Sofia Sans pakai tabular figures agar rapi di list/tabel */
+  /** Angka dalam Kanit pakai tabular figures agar rapi di list/tabel */
   fontVariantNumeric?: "tabular-nums"
 }
 

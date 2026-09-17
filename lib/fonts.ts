@@ -8,9 +8,9 @@
  *     fallback diam-diam ke system font saat runtime.
  *
  * Kenapa helper ini perlu (non-obvious):
- *   RN TIDAK mem-resolve `fontFamily: "Sofia Sans"` + `fontWeight: "700"`
- *   ke file SofiaSans-Bold. Font yang di-load expo-font hanya bisa dipakai
- *   lewat nama registrasinya (mis. "SofiaSans-Bold") — ini berlaku di native
+ *   RN TIDAK mem-resolve `fontFamily: "Kanit"` + `fontWeight: "700"`
+ *   ke file Kanit-Bold. Font yang di-load expo-font hanya bisa dipakai
+ *   lewat nama registrasinya (mis. "Kanit-Bold") — ini berlaku di native
  *   MAUPUN web (expo-font web mendaftarkan @font-face dengan nama key).
  *   `resolveFontFamily()` memetakan (family, weight) -> nama asset.
  *
@@ -33,7 +33,7 @@ export type FontRole = keyof typeof fontFamilyByWeight // "sans" | "serif" | "mo
 /** Weight yang valid untuk suatu role (mis. serif hanya 500) */
 export type FontWeightFor<R extends FontRole> = keyof (typeof fontFamilyByWeight)[R]
 
-/** Union semua nama asset: "SofiaSans-Regular" | ... | "JetBrainsMono-SemiBold" */
+/** Union semua nama asset: "Kanit-Regular" | ... | "AzeretMono-SemiBold" */
 export type FontAssetName = {
   [R in FontRole]: (typeof fontFamilyByWeight)[R][keyof (typeof fontFamilyByWeight)[R]]
 }[FontRole]
@@ -48,13 +48,13 @@ export type FontAssetName = {
  * type-check. `require()` harus literal statis agar Metro bisa bundle.
  */
 export const fontAssets = {
-  "SofiaSans-Regular": require("../assets/fonts/SofiaSans-Regular.ttf"),
-  "SofiaSans-Medium": require("../assets/fonts/SofiaSans-Medium.ttf"),
-  "SofiaSans-SemiBold": require("../assets/fonts/SofiaSans-SemiBold.ttf"),
-  "SofiaSans-Bold": require("../assets/fonts/SofiaSans-Bold.ttf"),
+  "Kanit-Regular": require("../assets/fonts/Kanit-Regular.ttf"),
+  "Kanit-Medium": require("../assets/fonts/Kanit-Medium.ttf"),
+  "Kanit-SemiBold": require("../assets/fonts/Kanit-SemiBold.ttf"),
+  "Kanit-Bold": require("../assets/fonts/Kanit-Bold.ttf"),
   "EBGaramond-Medium": require("../assets/fonts/EBGaramond-Medium.ttf"),
-  "JetBrainsMono-Medium": require("../assets/fonts/JetBrainsMono-Medium.ttf"),
-  "JetBrainsMono-SemiBold": require("../assets/fonts/JetBrainsMono-SemiBold.ttf"),
+  "AzeretMono-Medium": require("../assets/fonts/AzeretMono-Medium.ttf"),
+  "AzeretMono-SemiBold": require("../assets/fonts/AzeretMono-SemiBold.ttf"),
 } satisfies Record<FontAssetName, number>
 
 /* -------------------------------------------------------------------------- */
@@ -65,7 +65,7 @@ export const fontAssets = {
  * Nama asset untuk role + weight. Hanya kombinasi yang ADA di tokens yang
  * lolos type-check: `font("serif", 700)` -> error di compile time.
  *
- * @example fontFamily: font("mono", 600) // "JetBrainsMono-SemiBold"
+ * @example fontFamily: font("mono", 600) // "AzeretMono-SemiBold"
  */
 export function font<R extends FontRole, W extends FontWeightFor<R>>(
   role: R,
