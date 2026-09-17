@@ -1,6 +1,34 @@
 {
   "openapi": "3.0.0",
   "paths": {
+    "/v1/webhooks/whatsapp": {
+      "post": {
+        "operationId": "WhatsappWebhookController_receiveWhatsapp",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
+    "/v1/webhooks/whatsapp/health": {
+      "get": {
+        "operationId": "WhatsappWebhookController_whatsappHealth",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "webhooks"
+        ]
+      }
+    },
     "/v1/auth/captcha/generate": {
       "post": {
         "operationId": "AuthController_generateCaptcha",
@@ -77,6 +105,77 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RequestOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/otp-trigger": {
+      "post": {
+        "operationId": "AuthController_otpTrigger",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpTriggerRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/otp-trigger/status/{refCode}": {
+      "get": {
+        "operationId": "AuthController_otpTriggerStatus",
+        "parameters": [
+          {
+            "name": "refCode",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/otp-trigger/send": {
+      "post": {
+        "operationId": "AuthController_otpTriggerSend",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OtpTriggerSendDto"
               }
             }
           }
@@ -16022,6 +16121,58 @@
           "deviceId"
         ]
       },
+      "OtpTriggerRequestDto": {
+        "type": "object",
+        "properties": {
+          "phoneNumber": {
+            "type": "string",
+            "description": "Indonesian phone number (e.g. 08xx or +628xx)",
+            "maxLength": 20
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "Stable device identifier that requested the OTP",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "phoneNumber",
+          "deviceId"
+        ]
+      },
+      "OtpTriggerSendDto": {
+        "type": "object",
+        "properties": {
+          "phoneNumber": {
+            "type": "string",
+            "description": "Indonesian phone number (e.g. 08xx or +628xx)",
+            "maxLength": 20
+          },
+          "method": {
+            "type": "string",
+            "description": "OTP delivery method",
+            "enum": [
+              "SMS",
+              "WHATSAPP"
+            ]
+          },
+          "refCode": {
+            "type": "string",
+            "description": "Reference code when sent from the trigger screen",
+            "maxLength": 8
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "Stable device identifier that requested the OTP",
+            "maxLength": 255
+          }
+        },
+        "required": [
+          "phoneNumber",
+          "method",
+          "deviceId"
+        ]
+      },
       "VerifyPhoneOtpDto": {
         "type": "object",
         "properties": {
@@ -16165,56 +16316,11 @@
       },
       "RequestPhoneChangeDto": {
         "type": "object",
-        "properties": {
-          "newPhoneNumber": {
-            "type": "string",
-            "description": "New phone number (E.164)",
-            "maxLength": 20
-          },
-          "method": {
-            "type": "string",
-            "description": "OTP delivery channel",
-            "enum": [
-              "SMS",
-              "WHATSAPP"
-            ]
-          },
-          "currentPassword": {
-            "type": "string",
-            "description": "Current account password",
-            "minLength": 1,
-            "maxLength": 256
-          },
-          "mfaCode": {
-            "type": "string",
-            "description": "Six-digit authenticator code or 10–16 character backup code",
-            "maxLength": 16
-          }
-        },
-        "required": [
-          "newPhoneNumber",
-          "method",
-          "currentPassword"
-        ]
+        "properties": {}
       },
       "ConfirmPhoneChangeDto": {
         "type": "object",
-        "properties": {
-          "newPhoneNumber": {
-            "type": "string",
-            "description": "New phone number (E.164)",
-            "maxLength": 20
-          },
-          "code": {
-            "type": "string",
-            "description": "Six-digit OTP code",
-            "pattern": "^\\d{6}$"
-          }
-        },
-        "required": [
-          "newPhoneNumber",
-          "code"
-        ]
+        "properties": {}
       },
       "SetUsernameDto": {
         "type": "object",

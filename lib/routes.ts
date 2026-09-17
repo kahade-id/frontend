@@ -35,6 +35,19 @@ export const ROUTES = {
   register: "/register" as Href,
   /** Screen #3 — OTP Verification */
   verifyOtp: (params: VerifyOtpParams) => ({ pathname: "/verify-otp", params }) as unknown as Href,
+  /**
+   * Screen #3a — WhatsApp OTP Trigger: user mengirim pesan pemicu sendiri ke
+   * bot (customer-initiated), OTP dibalas oleh bot. Jalur direct-send tetap
+   * tersedia dari layar ini.
+   */
+  whatsappTrigger: (params: {
+    phoneNumber: string
+    method: OtpMethod
+    refCode: string
+    whatsappUrl: string
+    triggerText: string
+    expiresAt: string
+  }) => ({ pathname: "/whatsapp-trigger", params }) as unknown as Href,
   /** Screen #4 — Buat Keamanan: password + PIN */
   createSecurity: "/create-security" as Href,
   /** Screen #5 — Data Diri: nama, username, email, dll */

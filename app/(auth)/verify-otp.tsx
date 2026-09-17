@@ -203,6 +203,31 @@ export default function VerifyOtpScreen() {
     setOtpError(undefined)
 
     try {
+      if (otpMethod === "WHATSAPP") {
+        // Resend WhatsApp juga customer-initiated (alasan yang sama dengan
+        // Register): bot tidak mendorong OTP tanpa diminta. Bila fitur trigger
+        // tidak tersedia (503 OTP_TRIGGER_UNAVAILABLE), jatuh ke kirim langsung.
+        try {
+          const trigger = await api.auth.requestOtpTrigger({ phoneNumber })
+          router.replace(
+            ROUTES.whatsappTrigger({
+              phoneNumber,
+              method: otpMethod,
+              refCode: trigger.refCode,
+              whatsappUrl: trigger.whatsappUrl,
+              triggerText: trigger.triggerText,
+              expiresAt: trigger.expiresAt,
+            }),
+          )
+          return
+        } catch (triggerErr) {
+          const unavailable =
+            isApiError(triggerErr) &&
+            (triggerErr.backendCode === "OTP_TRIGGER_UNAVAILABLE" ||
+              triggerErr.status === 503)
+          if (!unavailable) throw triggerErr
+        }
+      }
       const result = await api.auth.requestOtp({
         phoneNumber,
         method: otpMethod,
@@ -224,7 +249,7 @@ export default function VerifyOtpScreen() {
     } finally {
       setResending(false)
     }
-  }, [resending, phoneNumber, otpMethod])
+  }, [resending, phoneNumber, otpMethod, router])
 
   const handleChangePhone = useCallback(() => {
     router.back()

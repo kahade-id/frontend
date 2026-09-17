@@ -128,14 +128,6 @@ export const API_CONSTRAINTS = {
       "maxLength": 500
     }
   },
-  "ConfirmPhoneChangeDto": {
-    "newPhoneNumber": {
-      "maxLength": 20
-    },
-    "code": {
-      "pattern": "^\\d{6}$"
-    }
-  },
   "ConfirmWithdrawOtpDto": {
     "otp": {
       "minLength": 6,
@@ -362,6 +354,31 @@ export const API_CONSTRAINTS = {
       "maximum": 720
     }
   },
+  "OtpTriggerRequestDto": {
+    "phoneNumber": {
+      "maxLength": 20
+    },
+    "deviceId": {
+      "maxLength": 255
+    }
+  },
+  "OtpTriggerSendDto": {
+    "phoneNumber": {
+      "maxLength": 20
+    },
+    "method": {
+      "enum": [
+        "SMS",
+        "WHATSAPP"
+      ]
+    },
+    "refCode": {
+      "maxLength": 8
+    },
+    "deviceId": {
+      "maxLength": 255
+    }
+  },
   "PhoneRegisterDto": {
     "fullName": {
       "minLength": 2,
@@ -557,24 +574,6 @@ export const API_CONSTRAINTS = {
     },
     "deviceId": {
       "maxLength": 255
-    }
-  },
-  "RequestPhoneChangeDto": {
-    "newPhoneNumber": {
-      "maxLength": 20
-    },
-    "method": {
-      "enum": [
-        "SMS",
-        "WHATSAPP"
-      ]
-    },
-    "currentPassword": {
-      "minLength": 1,
-      "maxLength": 256
-    },
-    "mfaCode": {
-      "maxLength": 16
     }
   },
   "ResendVerificationDto": {

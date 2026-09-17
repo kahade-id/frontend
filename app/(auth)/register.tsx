@@ -139,6 +139,34 @@ export default function RegisterScreen() {
     const phoneNumber = toE164Id(digits)
     setSubmitting(true)
     try {
+      if (method === "WHATSAPP") {
+        // Customer-initiated: user mengirim pesan pemicu sendiri, OTP dibalas
+        // bot. Bila backend belum mengaktifkan fitur ini (503
+        // OTP_TRIGGER_UNAVAILABLE) jatuh ke pengiriman langsung.
+        try {
+          const trigger = await api.auth.requestOtpTrigger({ phoneNumber })
+          router.push(
+            ROUTES.whatsappTrigger({
+              phoneNumber,
+              method,
+              refCode: trigger.refCode,
+              whatsappUrl: trigger.whatsappUrl,
+              triggerText: trigger.triggerText,
+              expiresAt: trigger.expiresAt,
+            }),
+          )
+          return
+        } catch (triggerErr) {
+          // 503 dipetakan client ke code "SERVER"; backendCode spesifik bila
+          // backend mengirimnya. Keduanya berarti fitur belum aktif.
+          const unavailable =
+            isApiError(triggerErr) &&
+            (triggerErr.backendCode === "OTP_TRIGGER_UNAVAILABLE" ||
+              triggerErr.status === 503)
+          if (!unavailable) throw triggerErr
+          // Fitur belum aktif -> lanjut jalur langsung di bawah.
+        }
+      }
       await api.auth.requestOtp({ phoneNumber, method })
       router.push(ROUTES.verifyOtp({ phoneNumber, method }))
     } catch (err) {

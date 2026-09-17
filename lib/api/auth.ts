@@ -284,6 +284,114 @@ export async function getOtpMethods(signal?: AbortSignal): Promise<OtpMethodsRes
   return { methods: normalizeOtpMethods(raw) }
 }
 
+/**
+ * WhatsApp OTP trigger (customer-initiated conversation).
+ *
+ * Bot WhatsApp tidak mem-push OTP duluan (pola yang rawan dilaporkan dan
+ * membekukan akun bot); user yang MEMINTA lewat chat akan dibalas OTP.
+ * `requestOtpTrigger()` hanya menyiapkan permintaan tertunda + kode referensi
+ * (tidak ada pesan keluar sampai user mengirim pesan pemicunya sendiri).
+ * Layar `/whatsapp-trigger` menampilkan deeplink wa.me dan mem-polling status
+ * sampai backend membalas OTP; `sendOtpDirect()` adalah jalur cadangan.
+ */
+export type OtpTriggerRequestResult = {
+  /** Kode referensi 4 hex - mengikat pesan pemicu ke nomor & sesi ini. */
+  refCode: string
+  /** Teks lengkap yang harus dikirim user (berisi refCode). */
+  triggerText: string
+  /** Deeplink wa.me yang sudah berisi teks pemicu. */
+  whatsappUrl: string
+  expiresInSeconds: number
+  expiresAt: string
+}
+
+export type OtpTriggerPollStatus = "WAITING" | "COMPLETED" | "FAILED" | "EXPIRED"
+
+export async function requestOtpTrigger(dto: Omit<{ phoneNumber: string; deviceId?: string }, "deviceId">) {
+  const body = await withDeviceId<{ phoneNumber: string; deviceId?: string }>(dto)
+  const result = await http.post<unknown, Record<string, unknown>>(
+    "/v1/auth/otp-trigger",
+    body,
+    { auth: "none" },
+  )
+  // Envelope sukses mungkin sudah dilepas client; bila masih ada, field
+  // payload di `data` menimpa field envelope (spread terakhir menang).
+  const outer = asRecord(result)
+  const rec = { ...(outer ?? {}), ...(asRecord((outer as any)?.data) ?? {}) }
+  const refCode = pickString(rec, ["refCode", "ref_code", "referenceCode"])
+  const whatsappUrl = pickString(rec, ["whatsappUrl", "whatsapp_url", "waUrl", "deepLink"])
+  let triggerText = pickString(rec, ["triggerText", "trigger_text"])
+  if (!triggerText && whatsappUrl) {
+    // Fallback: teks pemicu ada di query `text` deeplink wa.me.
+    try {
+      triggerText = new URL(whatsappUrl).searchParams.get("text") ?? undefined
+    } catch {
+      // URL tidak valid - ditangani oleh pengecekan di bawah.
+    }
+  }
+  if (!refCode || !whatsappUrl || !triggerText) throw invalidResponse("otp-trigger")
+  const expiresInSeconds =
+    typeof rec?.expiresInSeconds === "number"
+      ? rec.expiresInSeconds
+      : typeof (rec as any)?.expires_in === "number"
+        ? (rec as any).expires_in
+        : 300
+  return {
+    refCode,
+    triggerText,
+    whatsappUrl,
+    expiresInSeconds,
+    expiresAt:
+      pickString(rec, ["expiresAt", "expires_at"]) ??
+      new Date(Date.now() + expiresInSeconds * 1000).toISOString(),
+  }
+}
+
+export async function getOtpTriggerStatus(refCode: string, signal?: AbortSignal): Promise<OtpTriggerPollStatus> {
+  const raw = await http.get<unknown>(`/v1/auth/otp-trigger/status/${encodeURIComponent(refCode)}`, {
+    auth: "none",
+    signal,
+  })
+  const outer = asRecord(raw)
+  const rec = { ...(outer ?? {}), ...(asRecord((outer as any)?.data) ?? {}) }
+  const status = typeof rec?.status === "string" ? rec.status.toUpperCase() : ""
+  if (status === "WAITING" || status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
+    return status as OtpTriggerPollStatus
+  }
+  throw invalidResponse("otp-trigger/status")
+}
+
+/** Jalur cadangan dari layar trigger: kirim langsung (meta refCode untuk audit). */
+export async function sendOtpDirect(dto: {
+  phoneNumber: string
+  method: OtpMethod
+  refCode?: string
+  deviceId?: string
+}) {
+  const body = await withDeviceId<{
+    phoneNumber: string
+    method: OtpMethod
+    refCode?: string
+    deviceId?: string
+  }>(dto)
+  const result = await http.post<unknown, Record<string, unknown>>(
+    "/v1/auth/otp-trigger/send",
+    body,
+    { auth: "none" },
+  )
+  const outer = asRecord(result)
+  const rec = { ...(outer ?? {}), ...(asRecord((outer as any)?.data) ?? {}) }
+  return {
+    message: pickString(rec, ["message"]) ?? "",
+    cooldownSeconds:
+      typeof rec?.cooldownSeconds === "number"
+        ? rec.cooldownSeconds
+        : typeof (rec as any)?.cooldown_seconds === "number"
+          ? (rec as any).cooldown_seconds
+          : undefined,
+  }
+}
+
 export async function requestOtp(dto: Omit<RequestOtpDto, "deviceId">) {
   // RequestOtpDto: deviceId WAJIB, deviceInfo TIDAK dikenali → hanya deviceId.
   const body = await withDeviceId<RequestOtpDto>(dto)
