@@ -736,6 +736,7 @@ export default function OrderDetailScreen() {
 
       {/* ── Bayar ─────────────────────────────────────────────── */}
       <BottomSheet
+        avoidKeyboard
         visible={sheet === "pay"}
         onRequestClose={closeSheet}
         title="Pembayaran"
@@ -815,6 +816,7 @@ export default function OrderDetailScreen() {
 
       {/* ── Batalkan ──────────────────────────────────────────── */}
       <BottomSheet
+        avoidKeyboard
         visible={sheet === "cancel"}
         onRequestClose={closeSheet}
         title="Batalkan order?"
@@ -852,6 +854,7 @@ export default function OrderDetailScreen() {
 
       {/* ── Tolak (penjual) ───────────────────────────────────── */}
       <BottomSheet
+        avoidKeyboard
         visible={sheet === "reject"}
         onRequestClose={closeSheet}
         title="Tolak order?"
@@ -889,6 +892,7 @@ export default function OrderDetailScreen() {
 
       {/* ── Sengketa ──────────────────────────────────────────── */}
       <BottomSheet
+        avoidKeyboard
         visible={sheet === "dispute"}
         onRequestClose={closeSheet}
         title="Ajukan sengketa"
@@ -944,6 +948,7 @@ export default function OrderDetailScreen() {
 
       {/* ── Resi / kirim (penjual) ────────────────────────────── */}
       <BottomSheet
+        avoidKeyboard
         visible={sheet === "shipping"}
         onRequestClose={closeSheet}
         title={shippingRequired ? "Info pengiriman" : "Tandai dikirim"}

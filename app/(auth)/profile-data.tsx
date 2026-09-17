@@ -425,6 +425,7 @@ export default function ProfileDataScreen() {
 
       {/* Bottom Sheet: Calendar untuk tanggal lahir */}
       <BottomSheet
+        avoidKeyboard
         visible={calendarOpen}
         onRequestClose={() => setCalendarOpen(false)}
         title="Pilih tanggal lahir"

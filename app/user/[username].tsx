@@ -1432,6 +1432,7 @@ export default function UserProfileScreen() {
       {/* Inquiry — buka ruang pra-transaksi (POST /v1/chat/inquiries) lalu
           langsung masuk ke ruang chat hasil inquiry. */}
       <BottomSheet
+        avoidKeyboard
         visible={hideC != null}
         onRequestClose={() => setHideC(null)}
         title="Sembunyikan komentar"
@@ -1457,6 +1458,7 @@ export default function UserProfileScreen() {
       </BottomSheet>
 
       <BottomSheet
+        avoidKeyboard
         visible={inquiryOpen}
         onRequestClose={() => setInquiryOpen(false)}
         title="Mulai percakapan"

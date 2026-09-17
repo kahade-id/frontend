@@ -29,7 +29,7 @@
  *   - Opsional & opt-in agar Button/IconButton/ListItem biasa tetap sunyi;
  *     hanya aksi penting (konfirmasi PIN, kirim dana) yang menyalakannya.
  */
-import { forwardRef, useCallback, useRef } from "react"
+import { forwardRef, useCallback, useEffect, useRef } from "react"
 import {
   Animated,
   Easing,
@@ -80,6 +80,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   const PressableComponent = useTransformAwarePressable()
 
   const scale = useRef(new Animated.Value(1)).current
+  const activeAnimation = useRef<Animated.CompositeAnimation | null>(null)
   // Reduce Motion (audit #2): scale press adalah gerakan non-esensial ->
   // dimatikan total. Feedback pressed tetap ada lewat haptic (bila opt-in)
   // dan state a11y; komponen turunan (Button, Chip, Card) otomatis ikut.
@@ -88,17 +89,34 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
 
   const animateTo = useCallback(
     (to: number) => {
+      // Rapid tap/press cancellation must not leave two native animations
+      // fighting over the same value (which could strand a button at 0.97).
+      activeAnimation.current?.stop()
       const anim = Animated.timing(scale, {
         toValue: to,
         duration: tokens.motion.duration.press,
         easing: Easing.bezier(...tokens.motion.easing.standard),
         useNativeDriver: true,
       })
-      anim.start()
-      return () => anim.stop()
+      activeAnimation.current = anim
+      anim.start(({ finished }) => {
+        if (finished && activeAnimation.current === anim) activeAnimation.current = null
+      })
     },
     [scale],
   )
+
+  useEffect(() => {
+    if (reducedMotion) {
+      activeAnimation.current?.stop()
+      activeAnimation.current = null
+      scale.setValue(1)
+    }
+    return () => {
+      activeAnimation.current?.stop()
+      activeAnimation.current = null
+    }
+  }, [reducedMotion, scale])
 
   const handlePressIn = useCallback(
     (e: GestureResponderEvent) => {

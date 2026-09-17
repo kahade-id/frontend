@@ -819,6 +819,7 @@ export default function ChatRoomScreen() {
       {/* Pilih emoji reaksi — sheet terpisah karena ActionSheet item memakai
           ikon, bukan teks bebas (emoji). */}
       <BottomSheet
+        avoidKeyboard
         visible={reactTarget != null}
         onRequestClose={() => setReactTarget(null)}
         title="Reaksi"
@@ -846,6 +847,7 @@ export default function ChatRoomScreen() {
 
       {/* Edit pesan teks sendiri */}
       <BottomSheet
+        avoidKeyboard
         visible={editTarget != null}
         onRequestClose={() => setEditTarget(null)}
         title="Edit pesan"
@@ -882,6 +884,7 @@ export default function ChatRoomScreen() {
 
       {/* Teruskan ke room lain dengan lawan bicara yang sama */}
       <BottomSheet
+        avoidKeyboard
         visible={forwardRooms.length > 0 && actionMessage != null}
         onRequestClose={() => setForwardRooms([])}
         title="Teruskan ke…"

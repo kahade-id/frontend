@@ -729,6 +729,7 @@ export default function ShowcaseDetailScreen() {
 
       {/* ── Edit komentar ── */}
       <BottomSheet
+        avoidKeyboard
         visible={editTarget != null}
         onRequestClose={() => setEditTarget(null)}
         title="Edit komentar"
@@ -789,6 +790,7 @@ export default function ShowcaseDetailScreen() {
 
       {/* ── Laporkan item ── */}
       <BottomSheet
+        avoidKeyboard
         visible={reportOpen}
         onRequestClose={() => setReportOpen(false)}
         title="Laporkan item"

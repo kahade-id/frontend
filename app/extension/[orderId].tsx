@@ -374,6 +374,7 @@ export default function ExtensionScreen() {
 
       {/* Pengajuan penjual */}
       <BottomSheet
+        avoidKeyboard
         visible={requestOpen}
         onRequestClose={() => (requesting ? undefined : setRequestOpen(false))}
         title="Ajukan perpanjangan"

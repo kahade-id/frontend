@@ -484,6 +484,7 @@ export default function RatingsScreen() {
 
       {/* Ubah ulasan yang saya beri */}
       <BottomSheet
+        avoidKeyboard
         visible={!!editRating}
         onRequestClose={() => (savingEdit ? undefined : setEditRating(null))}
         title="Ubah ulasan"

@@ -87,14 +87,19 @@ export function ErrorState({
           </Text>
         ) : null}
         {detail ? (
-          <MonoText tone="secondary" className="text-center text-caption" ellipsizeMode="tail" numberOfLines={1}>
+          <MonoText
+            tone="secondary"
+            className="text-center text-caption"
+            selectable
+            numberOfLines={2}
+          >
             {detail}
           </MonoText>
         ) : null}
       </View>
 
       {onRetry || action ? (
-        <View className={cn("items-center gap-2", compact ? "pt-1" : "pt-2")}>
+        <View className={cn("w-full max-w-[320px] items-center gap-2", compact ? "pt-1" : "pt-2")}>
           {onRetry ? (
             <Button
               haptic

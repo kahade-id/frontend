@@ -833,6 +833,7 @@ export default function DisputeDetailScreen() {
       </Dialog>
 
       <BottomSheet
+        avoidKeyboard
         visible={proposeOpen}
         onRequestClose={() => setProposeOpen(false)}
         title="Usulkan penyelesaian"

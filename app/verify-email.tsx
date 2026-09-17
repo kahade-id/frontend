@@ -228,6 +228,7 @@ export default function VerifyEmailScreen() {
       </KeyboardAvoiding>
 
       <BottomSheet
+        avoidKeyboard
         visible={correctOpen}
         onRequestClose={() => (correcting ? undefined : setCorrectOpen(false))}
         title="Perbaiki alamat email"

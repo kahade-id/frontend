@@ -456,6 +456,7 @@ export default function ShowcaseScreen() {
 
       {/* ── Kelola foto item (multi-image) ───────────────────────── */}
       <BottomSheet
+        avoidKeyboard
         visible={imagesItem != null}
         onRequestClose={() => setImagesItemId(null)}
         title={imagesItem ? `Foto: ${labelOf(imagesItem)}` : "Foto item"}
@@ -551,6 +552,7 @@ export default function ShowcaseScreen() {
       />
 
       <BottomSheet
+        avoidKeyboard
         visible={!!editor}
         onRequestClose={() => (saving ? undefined : setEditor(null))}
         title={editor?.mode === "create" ? "Detail item baru" : "Ubah detail"}
