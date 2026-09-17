@@ -1,56 +1,43 @@
 /**
- * Kahade — <ShowcaseFeedItem> (§9.17, §9.23; revisi 2026-09-17).
+ * Kahade — <ShowcaseFeedItem> (§9.17, §9.23; revisi 2026-09-17 #2).
  *
  * Satuan feed showcase bergaya POSTINGAN sosial (mockup docs/image/
  * IMG_20260917_224056_353.jpg) — BUKAN kartu: tanpa kotak border/background/
- * radius. Anatomi: media di atas (full-bleed — gutter dibawa pemanggil, lihat
- * ShowcaseFeedTab), lalu baris penulis (avatar + nama + username), judul
- * produk, harga, deskripsi singkat, dan baris aksi (suka · komentar · simpan ·
- * bagikan).
+ * radius. Anatomi revisi #2 mengikuti urutan yang diminta produk: baris
+ * penulis DI ATAS (avatar + nama + @username + tanggal unggah), lalu media
+ * full-bleed, lalu harga (nominal diperbesar: bodyLarge 600, bukan caption),
+ * judul, deskripsi, dan baris aksi.
  *
- * Keputusan non-obvious:
- *   - AREA POSTINGAN dan BARIS AKSI adalah dua target tap yang TERPISAH.
- *     Sebelumnya seluruh item satu <PressableScale> dan statistik hanya teks;
- *     begitu like/komentar/simpan/bagikan hidup di feed, satu target tap
- *     mustahil — tombol di dalam tombol tidak terbaca screen reader dan tap
- *     pada ikon akan membuka detail. Jadi media+penulis+judul+deskripsi
- *     dibungkus tombol/tautan ke detail, sedangkan baris aksi punya tombol
- *     sendiri (pola <CardSummary> untuk kartu yang punya aksi).
- *   - `href` merender area postingan sebagai tautan sejati di web (<a> yang
- *     bisa ctrl/cmd-klik) — pola <Card href> / <ListItem href>.
- *   - Aksi bersifat OPSIONAL: tanpa `onToggleLike`/`onOpenComments`/
- *     `onToggleSave`/`onShare`, baris aksi tetap tampil sebagai statistik
- *     statis (perilaku lama) supaya komponen ini tetap bisa dipakai sebagai
- *     preview tanpa API.
- *   - Ikon aksi memakai tone "active" (tinta utama) meski kini berupa tombol:
- *     di atas postingan tanpa kartu, ikon abu tampak "mati" (keputusan visual
- *     yang sudah ada sebelumnya). STATE suka ditandai dengan hati terisi +
- *     angka ber-weight 600, bukan pergantian warna — merah sudah dicoret dari
- *     palet aksi sosial (docs/image/f739a1072b861fa6f9ae25e44ee7628e.jpg),
- *     dan layar detail memakai penanda yang sama supaya transisi list →
- *     detail tidak "berubah arti".
+ * Baris aksi (mockup): [hati + hitungan + "Suka"] [balon + hitungan +
+ * "Komentar"] di kiri; [share ikon Export] [bookmark] di kanan — hitungan
+ * SEKOLAH teksnya (bukan di bawah ikon), dan hitungan besar diringkas
+ * "1,4K / 2M" (formatCountCompact). Keempat ikon SATU ukuran (md) supaya
+ * baris selaras; share memakai ikon "export" sesuai permintaan produk.
+ *
+ * Keputusan non-obvious (dipertahankan dari revisi sebelumnya):
+ *   - AREA POSTINGAN dan BARIS AKSI adalah dua target tap yang TERPISAH —
+ *     tombol di dalam tombol tidak terbaca screen reader dan tap pada ikon
+ *     akan membuka detail. Media+penulis+harga+judul+deskripsi dibungkus
+ *     tombol/tautan ke detail; baris aksi punya tombol sendiri.
+ *   - `href` merender area postingan sebagai tautan sejati di web.
+ *   - Aksi bersifat OPSIONAL: tanpa callback, baris aksi tampil sebagai
+ *     statistik statis supaya komponen tetap bisa dipakai sebagai preview.
  *   - Grid media: 1 foto = kotak penuh 1:1; ≥2 foto = dua kolom 1:1 (gap
- *     2px), sisanya dihitung sebagai "+N" di atas scrim `bg-overlay-media`
- *     pada foto kedua — scrim 0.7 yang sama dengan <ShowcaseGalleryGrid>
- *     supaya label putih tetap ≥ 4.5:1 di atas foto terang.
- *   - Kolom grid memakai flex-1 (bukan w-1/2) agar gap terhitung otomatis;
- *     fraksi lebar + gap justru membuat kolom kedua wrap di RN.
- *   - `divider` menggambar garis pemisah di bawah postingan (1px, §6) —
- *     pemanggil mematikan divider pada item terakhir (tidak ada garis
- *     menggantung di ujung feed).
+ *     2px), sisanya "+N" di atas scrim `bg-overlay-media` 0.7.
+ *   - `divider` menggambar garis pemisah di bawah postingan; pemanggil
+ *     mematikannya pada item terakhir.
  */
-import { BookmarkSimple, ChatCircle, Heart, HeartStraight, ShareNetwork } from "phosphor-react-native"
+import { BookmarkSimple, ChatCircle, Export, Heart, HeartStraight } from "phosphor-react-native"
 import { Link, type Href } from "expo-router"
 import { View } from "react-native"
 
-import { formatDateTime, formatNumber } from "@/lib/format"
+import { formatCountCompact, formatDateTime, formatNumber } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import { resolveMediaUrl } from "@/lib/media"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Divider } from "@/components/ui/divider"
 import { Icon } from "@/components/ui/icon"
-import { IconButton } from "@/components/ui/icon-button"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -65,7 +52,7 @@ export type ShowcaseFeedItemProps = {
   href?: Href
   /** Suka/batal suka LANGSUNG dari feed (state di parent, lihat ShowcaseFeedTab) */
   onToggleLike?: () => void
-  /** Ketuk komentar → BottomSheet daftar komentar */
+  /** Ketuk komentar → BottomSheet daftar komentar + komposer */
   onOpenComments?: () => void
   /** Simpan/batal simpan (bookmark lokal — backend belum punya endpoint koleksi) */
   onToggleSave?: () => void
@@ -109,55 +96,12 @@ export function ShowcaseFeedItem({
   const overflow = images.length > 2 ? images.length - 2 : 0
   const liked = item.isLiked === true
   const summary = `Showcase ${item.title}, ${priceLabel}, oleh ${item.author.fullName ?? item.author.username}`
+  const likeCountLabel = `${formatCountCompact(item.likeCount)} Suka`
+  const commentCountLabel = `${formatCountCompact(item.commentCount)} Komentar`
 
   const post = (
     <View className={cn(className)}>
-      {/* ── Media ── */}
-      {images.length >= 2 ? (
-        <View className="w-full flex-row gap-0.5">
-          {[0, 1].map((slot) => {
-            const image = images[slot]
-            if (!image) return null
-            return (
-              <View key={image.id} className="flex-1">
-                <Picture
-                  source={image.url}
-                  alt={item.title}
-                  aspectRatio={1}
-                  radius="none"
-                  bordered={false}
-                  recyclingKey={image.id}
-                />
-                {slot === 1 && overflow > 0 ? (
-                  // Scrim 0.7 di atas foto terang tersusun ~#4D4D4D → label
-                  // putih 8.4:1 (aritmetika sama dengan ShowcaseGalleryGrid).
-                  <View style={{ pointerEvents: "none" }} className="absolute inset-0 items-center justify-center bg-overlay-media">
-                    <Text variant="h3" tone="inherit" className="text-white">
-                      {`+${formatNumber(overflow)}`}
-                    </Text>
-                  </View>
-                ) : null}
-              </View>
-            )
-          })}
-        </View>
-      ) : resolvedCover ? (
-        <Picture
-          source={resolvedCover}
-          alt={item.title}
-          aspectRatio={1}
-          radius="none"
-          bordered={false}
-        />
-      ) : (
-        <View className="h-64 items-center justify-center bg-surface">
-          <Text variant="caption" tone="secondary">
-            Tidak ada gambar
-          </Text>
-        </View>
-      )}
-
-      {/* ── Penulis ── */}
+      {/* ── Penulis (di atas media) ── */}
       <View className="flex-row items-center gap-3 px-5 pt-3">
         <Avatar
           source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
@@ -175,21 +119,70 @@ export function ShowcaseFeedItem({
         </View>
       </View>
 
-      {/* ── Judul · harga · deskripsi ── */}
+      {/* ── Media ── */}
+      <View className="pt-3">
+        {images.length >= 2 ? (
+          <View className="w-full flex-row gap-0.5">
+            {[0, 1].map((slot) => {
+              const image = images[slot]
+              if (!image) return null
+              return (
+                <View key={image.id} className="flex-1">
+                  <Picture
+                    source={image.url}
+                    alt={item.title}
+                    aspectRatio={1}
+                    radius="none"
+                    bordered={false}
+                    recyclingKey={image.id}
+                  />
+                  {slot === 1 && overflow > 0 ? (
+                    // Scrim 0.7 di atas foto terang tersusun ~#4D4D4D → label
+                    // putih 8.4:1 (aritmetika sama dengan ShowcaseGalleryGrid).
+                    <View style={{ pointerEvents: "none" }} className="absolute inset-0 items-center justify-center bg-overlay-media">
+                      <Text variant="h3" tone="inherit" className="text-white">
+                        {`+${formatNumber(overflow)}`}
+                      </Text>
+                    </View>
+                  ) : null}
+                </View>
+              )
+            })}
+          </View>
+        ) : resolvedCover ? (
+          <Picture
+            source={resolvedCover}
+            alt={item.title}
+            aspectRatio={1}
+            radius="none"
+            bordered={false}
+          />
+        ) : (
+          <View className="h-64 items-center justify-center bg-surface">
+            <Text variant="caption" tone="secondary">
+              Tidak ada gambar
+            </Text>
+          </View>
+        )}
+      </View>
+
+      {/* ── Harga · judul · deskripsi ── */}
       <View className="gap-1 px-5 pt-3">
-        <Text variant="body" weight={600} numberOfLines={2}>
-          {item.title}
-        </Text>
-        <View className="flex-row items-center gap-2">
-          <Text variant="caption" tone="primary" weight={600}>
+        <View className="flex-row flex-wrap items-center gap-2">
+          {/* Nominal diperbesar satu tingkat (caption → bodyLarge) supaya
+              harga terbaca sebagai informasi utama postingan. */}
+          <Text variant="bodyLarge" weight={600} className="tabular-nums">
             {priceLabel}
           </Text>
           {item.category ? (
             <Text variant="caption" tone="secondary" numberOfLines={1}>
-              {`· ${item.category}`}
+              {item.category}
             </Text>
           ) : null}
         </View>
+        <Text variant="body" weight={600} numberOfLines={2}>
+          {item.title}
+        </Text>
         {item.description ? (
           <Text variant="caption" tone="secondary" numberOfLines={2}>
             {item.description}
@@ -219,7 +212,7 @@ export function ShowcaseFeedItem({
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
-      accessibilityHint={`${formatNumber(item.likeCount)} suka`}
+      accessibilityHint={likeCountLabel}
       haptic
       onPress={onToggleLike}
       containerClassName={cn("min-h-11 flex-row items-center gap-2 rounded-md px-3", focusRing)}
@@ -230,20 +223,21 @@ export function ShowcaseFeedItem({
         tone="active"
         weight={liked ? "fill" : "regular"}
       />
-      <Text
-        variant="caption"
-        tone={liked ? "primary" : "secondary"}
-        weight={liked ? 600 : 500}
-        className="tabular-nums"
-      >
-        {formatNumber(item.likeCount)}
+      <Text variant="caption" weight={600} className="tabular-nums">
+        {formatCountCompact(item.likeCount)}
+      </Text>
+      <Text variant="caption" tone="secondary">
+        Suka
       </Text>
     </PressableScale>
   ) : (
     <View className="min-h-11 flex-row items-center gap-2 px-3">
       <Icon icon={HeartStraight} size="md" tone="active" />
-      <Text variant="caption" tone="secondary" className="tabular-nums">
-        {formatNumber(item.likeCount)}
+      <Text variant="caption" weight={600} className="tabular-nums">
+        {formatCountCompact(item.likeCount)}
+      </Text>
+      <Text variant="caption" tone="secondary">
+        Suka
       </Text>
     </View>
   )
@@ -252,21 +246,27 @@ export function ShowcaseFeedItem({
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel="Komentar"
-      accessibilityHint={`${formatNumber(item.commentCount)} komentar`}
+      accessibilityHint={commentCountLabel}
       haptic
       onPress={onOpenComments}
       containerClassName={cn("min-h-11 flex-row items-center gap-2 rounded-md px-3", focusRing)}
     >
       <Icon icon={ChatCircle} size="md" tone="active" />
-      <Text variant="caption" tone="secondary" className="tabular-nums">
-        {formatNumber(item.commentCount)}
+      <Text variant="caption" weight={600} className="tabular-nums">
+        {formatCountCompact(item.commentCount)}
+      </Text>
+      <Text variant="caption" tone="secondary">
+        Komentar
       </Text>
     </PressableScale>
   ) : (
     <View className="min-h-11 flex-row items-center gap-2 px-3">
       <Icon icon={ChatCircle} size="md" tone="active" />
-      <Text variant="caption" tone="secondary" className="tabular-nums">
-        {formatNumber(item.commentCount)}
+      <Text variant="caption" weight={600} className="tabular-nums">
+        {formatCountCompact(item.commentCount)}
+      </Text>
+      <Text variant="caption" tone="secondary">
+        Komentar
       </Text>
     </View>
   )
@@ -281,29 +281,33 @@ export function ShowcaseFeedItem({
         interactivePost
       )}
 
-      {/* ── Aksi: suka · komentar (kiri) · simpan · bagikan (kanan) ── */}
+      {/* ── Aksi: suka · komentar (kiri) · share(export) · simpan (kanan).
+           Keempat ikon size md supaya baris selaras. ── */}
       <View className="flex-row items-center px-2 pt-1">
         {likeRow}
         {commentRow}
         <View className="flex-1" />
-        {onToggleSave ? (
-          <IconButton
-            icon={BookmarkSimple}
-            variant="ghost"
-            size="sm"
-            active={saved}
-            accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
-            onPress={onToggleSave}
-          />
-        ) : null}
         {onShare ? (
-          <IconButton
-            icon={ShareNetwork}
-            variant="ghost"
-            size="sm"
+          <PressableScale
+            accessibilityRole="button"
             accessibilityLabel="Bagikan"
+            accessibilityHint="Bagikan showcase ini"
             onPress={onShare}
-          />
+            containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}
+          >
+            <Icon icon={Export} size="md" tone="active" />
+          </PressableScale>
+        ) : null}
+        {onToggleSave ? (
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
+            accessibilityState={{ selected: saved }}
+            onPress={onToggleSave}
+            containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}
+          >
+            <Icon icon={BookmarkSimple} size="md" tone="active" weight={saved ? "fill" : "regular"} />
+          </PressableScale>
         ) : null}
       </View>
 

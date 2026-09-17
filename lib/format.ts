@@ -263,6 +263,39 @@ export function formatNumber(n: number): string {
 }
 
 /**
+ * Angka ringkas untuk PENGHITUNG SOSIAL (suka/komentar/view): 1400 → "1,4K",
+ * 2.000.000 → "2M" — pola feed sosial (mockup docs/image/IMG_20260917_224056).
+ * Di bawah 1000 tampil apa adanya ("999"), sebab "0,9K" lebih sulit dipindai
+ * daripada tiga digit. K/M/B (ribu/juta/miliar) dipilih untuk hitungan —
+ * BUKAN "rb"/"jt" milik `formatRupiah(compact)` — karena satuan sosial ini
+ * menempel pada ikon, bukan nominal uang; campur keduanya membuat "1,5 jt"
+ * terbaca sebagai harga di baris aksi.
+ *
+ * Pembulatan 1 desimal dengan koma (id); tingkat dinaikkan bila pembulatan
+ * menyentuh 1000 (999.999 → "1M", bukan "1000K") — tangga yang sama dengan
+ * compactBody di atas.
+ */
+export function formatCountCompact(n: number): string {
+  if (!Number.isFinite(n)) return "—"
+  const truncated = Math.trunc(n)
+  const abs = Math.abs(truncated)
+  const units = [
+    { min: 1_000_000_000, suffix: "B" },
+    { min: 1_000_000, suffix: "M" },
+    { min: 1_000, suffix: "K" },
+  ] as const
+  let i = units.findIndex((u) => abs >= u.min)
+  if (i === -1) return groupThousands(truncated)
+  let value = Math.round((abs / units[i].min) * 10) / 10
+  while (value >= 1000 && i > 0) {
+    i -= 1
+    value = Math.round((abs / units[i].min) * 10) / 10
+  }
+  const text = value % 1 === 0 ? value.toFixed(0) : value.toFixed(1).replace(".", ",")
+  return `${truncated < 0 ? "-" : ""}${text}${units[i].suffix}`
+}
+
+/**
  * Desimal lokal ID: koma sebagai pemisah desimal, tanpa Intl.
  * `formatDecimal(4.5)` → "4,5"; `formatDecimal(4)` → "4"; `formatDecimal(4.25, 1)` → "4,3".
  * Dipakai rating, persentase, dan nilai pecahan lain (§13).
