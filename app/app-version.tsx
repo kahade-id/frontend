@@ -75,7 +75,7 @@ export default function AppVersionScreen() {
           channel={Updates.channel?.trim() || "Tidak terhubung"}
           updateId={Updates.updateId ?? undefined}
         />
-        <Text numberOfLines={1} variant="caption" tone="secondary">
+        <Text variant="caption" tone="secondary">
           Runtime: {Updates.runtimeVersion?.trim() || "Tidak tersedia pada lingkungan ini"}
         </Text>
         {version.error ? (

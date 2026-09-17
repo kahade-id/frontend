@@ -66,7 +66,7 @@ export function FooterBar({
                 {summary.label}
               </Text>
               {summary.hint ? (
-                <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
+                <Text variant="caption" tone="secondary">
                   {summary.hint}
                 </Text>
               ) : null}

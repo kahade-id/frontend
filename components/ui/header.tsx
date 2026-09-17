@@ -182,14 +182,24 @@ export function Header({
         </View>
 
         {largeTitle ? (
-          <View accessibilityRole="header" className="px-6 pb-4 pt-1">
+          <View className="px-6 pb-4 pt-1">
+            {/* Role hanya pada node teks; role ganda di wrapper + anak membuat
+                VoiceOver/TalkBack membacakan judul dua kali. */}
             <Text variant="h1" accessibilityRole="header">{largeTitle}</Text>
           </View>
         ) : null}
       </View>
 
       {progress != null ? (
-        <View accessible accessibilityRole="progressbar" accessibilityValue={{ now: Math.round(progress*100), min: 0, max: 100 }} accessibilityLabel={`Progres ${Math.round(progress*100)} persen`}>
+        <View
+          accessible
+          accessibilityRole="progressbar"
+          accessibilityValue={{ now: Math.round(progress * 100), min: 0, max: 100 }}
+          accessibilityLabel={`Progres ${Math.round(progress * 100)} persen`}
+          className="w-full"
+        >
+          {/* Parent wajib full-width: Header memakai items-center, sehingga
+              `w-full` pada anak saja tidak punya containing width di web/RN. */}
           <StepProgress value={progress} className="w-full" />
         </View>
       ) : null}

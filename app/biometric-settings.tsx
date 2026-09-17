@@ -131,7 +131,7 @@ export default function BiometricSettingsScreen() {
             mengaktifkannya.
           </Alert>
         ) : (
-          <Text numberOfLines={1} variant="caption" tone="secondary">
+          <Text variant="caption" tone="secondary">
             PIN dompet tetap diminta bila {label} gagal dikenali atau saat perangkat baru dipakai masuk.
           </Text>
         )}

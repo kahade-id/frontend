@@ -431,7 +431,7 @@ export default function ShowcaseScreen() {
                 }
               />
             </Crossfade>
-            <Text numberOfLines={1} variant="caption" tone="secondary">
+            <Text variant="caption" tone="secondary">
               Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
             <Button
