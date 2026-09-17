@@ -74,9 +74,9 @@ const NON_UI_VALUES = new Set([
   "X-Request-Id",
   "X-Idempotency-Key",
   "Content-Type",
-  "Sofia Sans",
+  "Kanit",
   "EB Garamond",
-  "JetBrains Mono",
+  "Azeret Mono",
 ])
 
 /** String yang jelas bukan prosa UI. Diterima sudah dalam BENTUK termask. */

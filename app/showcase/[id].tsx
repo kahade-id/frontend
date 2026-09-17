@@ -15,6 +15,12 @@
  *   POST /v1/showcase/{id}/report          → { reason, description? } (5/jam)
  *
  * Keputusan non-obvious:
+ *   - 2026-09-17: layout dirombak mengikuti mockup postingan sosial
+ *     (docs/image/IMG_20260917_224056_353.jpg) TANPA card — media 1:1
+ *     full-bleed, baris penulis, caption, harga, baris aksi (suka · komentar
+ *     · simpan), lalu komentar bergaya feed. Like AKTIF tinta hitam (bukan
+ *     merah) — merah dicoret dari palet aksi sosial (referensi warna brand:
+ *     docs/image/f739a1072b861fa6f9ae25e44ee7628e.jpg).
  *   - Layar ini JUGA dipakai untuk item milik sendiri (isOwner=true dari
  *     server): CTA transaksi disembunyikan, moderasi komentar (sembunyikan/
  *     buka/hapus komentar orang lain) muncul. Komentar tersembunyi hanya
@@ -26,13 +32,14 @@
  *     → tombol "Balas" hanya pada komentar root.
  *   - Gambar cover = `images[0]`; galeri penuh dibuka di MediaViewer.
  */
-import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { ScrollView, View, type TextInput } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
 import {
-  Chat,
-  Eye,
+  BookmarkSimple,
+  ChatCircle,
+  DotsThree,
   Flag,
   Heart,
   HeartStraight,
@@ -109,6 +116,13 @@ export default function ShowcaseDetailScreen() {
   const [likeCount, setLikeCount] = useState(0)
   const [likePending, setLikePending] = useState(false)
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
+  /**
+   * Simpan postingan (bookmark) — UI lokal. Kontrak showcase.service belum
+   * punya endpoint koleksi tersimpan, jadi state ini tidak persisten; tombol
+   * tetap ditampilkan karena menjadi bagian pola baris aksi feed (mockup §9).
+   */
+  const [saved, setSaved] = useState(false)
+  const composerRef = useRef<TextInput>(null)
 
   // ── Komentar ────────────────────────────────────────────────────────────
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
@@ -167,6 +181,23 @@ export default function ShowcaseDetailScreen() {
   }, [item])
 
   const isOwner = item?.isOwner === true
+
+  /** Buka MediaViewer pada foto ke-N dari galeri item. */
+  const openViewer = (index: number) => {
+    if (!item) return
+    const image = item.images[index]
+    if (!image) return
+    const url = resolveMediaUrl(image.imageUrl)
+    if (!url) return
+    setViewerItem({
+      url,
+      title: item.title,
+      caption: item.description ?? undefined,
+    })
+  }
+
+  /** Baris aksi "N Komentar" melompatkan kursor ke komposer di footer. */
+  const focusComposer = () => composerRef.current?.focus()
 
   const patchComment = useCallback(
     (patch: (c: ShowcaseComment) => ShowcaseComment | null) => {
@@ -435,6 +466,7 @@ export default function ShowcaseDetailScreen() {
             ) : null}
             <View className="flex-row items-end gap-2">
               <Input
+                ref={composerRef}
                 value={draft}
                 onChangeText={setDraft}
                 placeholder="Tulis komentar…"
@@ -454,26 +486,38 @@ export default function ShowcaseDetailScreen() {
         )
       }
     >
-      {/* ── Cover ─ */}
+      {/*
+        Layout feed (mockup docs/image/IMG_20260917_224056_353.jpg, tanpa
+        card): media full-bleed 1:1 di atas, lalu identitas penulis, caption,
+        harga, dan baris aksi sosial — semuanya mengalir di atas background
+        tanpa kotak/border. Pemisah antar-bagian memakai ruang, bukan garis.
+      */}
+      {/* ── Media (cover persegi + strip galeri) ── */}
       <View>
         {resolvedCover ? (
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={`Lihat gambar ${item.title}`}
-            onPress={() =>
-              setViewerItem({
-                url: resolvedCover,
-                title: item.title,
-                caption: item.description ?? undefined,
-              })
-            }
+            onPress={() => openViewer(0)}
           >
             <Picture
               source={resolvedCover}
               alt={item.title}
-              aspectRatio={4 / 3}
+              aspectRatio={1}
               radius="none"
+              bordered={false}
             />
+            {item.images.length > 1 ? (
+              // Scrim `bg-overlay` hitam di kedua mode, jadi teks penghitung
+              // memakai putih eksplisit (sama dengan showcase-gallery-grid).
+              <View style={{ pointerEvents: "none" }} className="absolute right-3 top-3">
+                <View className="rounded-full bg-overlay px-2.5 py-1">
+                  <Text variant="caption" tone="inherit" className="text-white">
+                    {`${item.images.length} foto`}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
           </PressableScale>
         ) : (
           <View className="h-64 items-center justify-center bg-surface">
@@ -483,44 +527,45 @@ export default function ShowcaseDetailScreen() {
           </View>
         )}
         {item.images.length > 1 ? (
-          <View className="absolute right-3 top-3">
-            <Badge variant="outline" className="border-foreground bg-overlay">
-              {item.images.length} foto
-            </Badge>
-          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-2 px-5 pt-3"
+          >
+            {item.images.map((image, index) => {
+              const thumb = resolveMediaUrl(image.imageUrl)
+              if (!thumb) return null
+              return (
+                <PressableScale
+                  key={image.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Lihat foto ${index + 1} dari ${item.images.length}`}
+                  onPress={() => openViewer(index)}
+                  containerClassName="h-16 w-16 overflow-hidden rounded-sm"
+                >
+                  <Picture
+                    source={thumb}
+                    alt={item.title}
+                    width={64}
+                    height={64}
+                    radius="sm"
+                    bordered={false}
+                    recyclingKey={image.id}
+                  />
+                </PressableScale>
+              )
+            })}
+          </ScrollView>
         ) : null}
       </View>
 
-      <View className="gap-4 px-5 py-4">
-        {/* ── Judul & harga ── */}
-        <View className="gap-1">
-          <View className="flex-row items-center gap-2">
-            <Text variant="h2" className="flex-1" numberOfLines={2}>
-              {item.title}
-            </Text>
-          </View>
-          <View className="flex-row items-center gap-2">
-            <Text variant="body" tone="primary" weight={600}>
-              {priceLabel}
-            </Text>
-            {item.category ? (
-              <Badge variant="outline">{item.category}</Badge>
-            ) : null}
-          </View>
-        </View>
-
-        {item.description ? (
-          <Text variant="body" tone="secondary">
-            {item.description}
-          </Text>
-        ) : null}
-
-        {/* ── Penulis ── */}
+      {/* ── Penulis + aksi bagikan/laporkan ── */}
+      <View className="flex-row items-center gap-3 px-5 pt-4">
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={`Lihat profil ${item.author.fullName ?? item.author.username}`}
           onPress={() => router.push(ROUTES.userProfile(item.author.username))}
-          containerClassName="flex-row items-center gap-3 rounded-md py-1"
+          containerClassName="flex-1 flex-row items-center gap-3 rounded-md"
         >
           <Avatar
             source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
@@ -528,76 +573,96 @@ export default function ShowcaseDetailScreen() {
             size="md"
             verified={item.author.isKycVerified === true}
           />
-          <View className="flex-1 gap-0">
-            <Text variant="body" weight={600}>
+          <View className="flex-1 gap-0.5">
+            <Text variant="body" weight={600} numberOfLines={1}>
               {item.author.fullName ?? item.author.username}
             </Text>
-            <Text variant="caption" tone="secondary">
+            <Text variant="caption" tone="secondary" numberOfLines={1}>
               @{item.author.username}
             </Text>
           </View>
           {isOwner ? <Badge variant="outline">Anda</Badge> : null}
         </PressableScale>
-
-        {/* ── Statistik / aksi ── */}
-        <View className="flex-row items-center gap-2 rounded-md border border-border p-2">
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
-            onPress={() => void handleToggleLike()}
-            containerClassName="flex-row items-center gap-1.5 rounded-full border border-border px-3 py-1.5"
-          >
-            <Icon
-              icon={liked ? Heart : HeartStraight}
-              size="sm"
-              tone={liked ? "danger" : "default"}
-              weight={liked ? "fill" : "regular"}
-            />
-            <Text
-              variant="caption"
-              tone={liked ? "danger" : "secondary"}
-              weight={600}
-              className="tabular-nums"
-            >
-              {formatNumber(likeCount)}
-            </Text>
-          </PressableScale>
-
-          <View className="flex-row items-center gap-1.5 px-2">
-            <Icon icon={Chat} size="sm" tone="default" />
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {formatNumber(commentTotal)}
-            </Text>
-          </View>
-
-          <View className="flex-row items-center gap-1.5 px-2">
-            <Icon icon={Eye} size="sm" tone="default" />
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {formatNumber(item.viewCount)}
-            </Text>
-          </View>
-
-          <View className="flex-1" />
-
+        <IconButton
+          icon={ShareNetwork}
+          variant="ghost"
+          size="sm"
+          accessibilityLabel="Bagikan"
+          onPress={() => void handleShare()}
+        />
+        {!isOwner ? (
           <IconButton
-            icon={ShareNetwork}
+            icon={Flag}
             variant="ghost"
             size="sm"
-            accessibilityLabel="Bagikan"
-            onPress={() => void handleShare()}
+            accessibilityLabel="Laporkan"
+            onPress={() => setReportOpen(true)}
           />
-          {!isOwner ? (
-            <IconButton
-              icon={Flag}
-              variant="ghost"
-              size="sm"
-              accessibilityLabel="Laporkan"
-              onPress={() => setReportOpen(true)}
-            />
-          ) : null}
-        </View>
+        ) : null}
+      </View>
 
-        {/* ── CTA transaksi ── */}
+      {/* ── Caption ── */}
+      {item.description ? (
+        <Text variant="body" tone="primary" className="px-5 pt-3">
+          {item.description}
+        </Text>
+      ) : null}
+
+      {/* ── Harga · kategori · waktu ── */}
+      <View className="flex-row flex-wrap items-center gap-2 px-5 pt-3">
+        <Text variant="body" weight={600} tone="primary">
+          {priceLabel}
+        </Text>
+        {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
+        <Text variant="caption" tone="secondary" className="ml-auto tabular-nums">
+          {formatDateTime(item.createdAt)}
+        </Text>
+      </View>
+
+      {/* ── Baris aksi sosial (like · komentar · simpan) ── */}
+      <View className="flex-row items-center px-5 pt-2">
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
+          accessibilityHint={`${formatNumber(likeCount)} suka`}
+          onPress={() => void handleToggleLike()}
+          containerClassName="min-h-11 flex-row items-center gap-2 rounded-md pr-4"
+        >
+          <Icon
+            icon={liked ? Heart : HeartStraight}
+            size="md"
+            tone="active"
+            weight={liked ? "fill" : "regular"}
+          />
+          <Text variant="body" weight={600} tone="primary" className="tabular-nums">
+            {`${formatNumber(likeCount)} Suka`}
+          </Text>
+        </PressableScale>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="Tulis komentar"
+          accessibilityHint={`${formatNumber(commentTotal)} komentar`}
+          onPress={focusComposer}
+          containerClassName="min-h-11 flex-row items-center gap-2 rounded-md px-4"
+        >
+          <Icon icon={ChatCircle} size="md" tone="active" />
+          <Text variant="body" weight={600} tone="primary" className="tabular-nums">
+            {`${formatNumber(commentTotal)} Komentar`}
+          </Text>
+        </PressableScale>
+        <View className="flex-1" />
+        <IconButton
+          icon={BookmarkSimple}
+          variant="ghost"
+          size="sm"
+          active={saved}
+          accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
+          onPress={() => setSaved((v) => !v)}
+        />
+      </View>
+
+      {/* ── CTA transaksi ── */}
+      <View className="px-5 pt-4">
         {!isOwner ? (
           <Button
             fullWidth
@@ -612,44 +677,47 @@ export default function ShowcaseDetailScreen() {
             Item Anda — komentar di sini bisa Anda moderasi.
           </Text>
         )}
+      </View>
 
-        {/* ── Komentar ── */}
-        <View className="gap-3 pt-2">
-          <Text variant="h3">Komentar</Text>
-          <LoadMore
-            status={commentsStatus}
-            onLoadMore={() => void fetchComments(commentsPage + 1, true)}
-            hideEnd
-            idleLabel="Muat komentar berikutnya"
-          />
-          {comments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
-            <Text variant="body" tone="secondary">
-              Belum ada komentar. Jadilah yang pertama!
-            </Text>
-          ) : null}
-          {comments.map((root) => (
-            <View key={root.id} className="gap-3">
-              <CommentRow
-                comment={root}
-                isMine={isMine(root)}
-                canReply={canReply(root)}
-                onReply={setReplyTo}
-                onOpenMenu={setCommentMenu}
-              />
-              {(root.replies ?? []).map((reply) => (
-                <View key={reply.id} className="ml-10">
-                  <CommentRow
-                    comment={reply}
-                    isMine={isMine(reply)}
-                    canReply={false}
-                    onReply={setReplyTo}
-                    onOpenMenu={setCommentMenu}
-                  />
-                </View>
-              ))}
-            </View>
-          ))}
-        </View>
+      {/* ── Komentar ── */}
+      <View className="gap-4 px-5 pb-6 pt-8">
+        <Text variant="h3">Komentar</Text>
+        <LoadMore
+          status={commentsStatus}
+          onLoadMore={() => void fetchComments(commentsPage + 1, true)}
+          hideEnd
+          idleLabel="Muat komentar berikutnya"
+        />
+        {comments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
+          <Text variant="body" tone="secondary">
+            Belum ada komentar. Jadilah yang pertama!
+          </Text>
+        ) : null}
+        {comments.map((root) => (
+          <View key={root.id} className="gap-4">
+            <CommentRow
+              comment={root}
+              isMine={isMine(root)}
+              canReply={canReply(root)}
+              menuable={isMine(root) || isOwner}
+              onReply={setReplyTo}
+              onOpenMenu={setCommentMenu}
+            />
+            {(root.replies ?? []).map((reply) => (
+              // Indent 32px = avatar xs (24) + gap (8) — balasan sejajar teks induk.
+              <View key={reply.id} className="ml-8">
+                <CommentRow
+                  comment={reply}
+                  isMine={isMine(reply)}
+                  canReply={false}
+                  menuable={isMine(reply) || isOwner}
+                  onReply={setReplyTo}
+                  onOpenMenu={setCommentMenu}
+                />
+              </View>
+            ))}
+          </View>
+        ))}
       </View>
 
       <MediaViewer
@@ -669,7 +737,7 @@ export default function ShowcaseDetailScreen() {
                 {
                   key: "reply",
                   label: "Balas",
-                  icon: Chat,
+                  icon: ChatCircle,
                   onPress: () => setReplyTo(commentMenu),
                 },
               ]
@@ -829,60 +897,82 @@ export default function ShowcaseDetailScreen() {
 // Baris komentar
 // ------------------------------------------------------------------
 
+/**
+ * Baris komentar gaya feed (mockup IMG_20260917_224056_353.jpg): avatar di
+ * kiri, nama + isi + baris meta (waktu · Anda · Balas) di kanan. Menu
+ * edit/hapus/moderasi pindah ke tombol ⋯ di ujung baris — dulu SELURUH baris
+ * bisa ditekan, yang menyulitkan seleksi teks dan memicu menu sesaat jari
+ * tersenggol saat scroll.
+ */
 function CommentRow({
   comment,
   isMine,
   canReply,
+  menuable,
   onReply,
   onOpenMenu,
 }: {
   comment: ShowcaseComment
   isMine: boolean
   canReply: boolean
+  /** tampilkan tombol ⋯ (pemanggil memutuskan: pengarang ATAU pemilik item) */
+  menuable: boolean
   onReply: (c: ShowcaseComment) => void
   onOpenMenu: (c: ShowcaseComment) => void
 }) {
   const hidden = comment.isHidden === true
   return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={`Komentar dari ${comment.author.fullName ?? comment.author.username}${hidden ? ", disembunyikan" : ""}`}
-      onPress={() => onOpenMenu(comment)}
-      containerClassName="gap-1 rounded-md"
-    >
-      <View className="flex-row items-center gap-2">
-        <Avatar
-          source={comment.author.avatarUrl ? { uri: comment.author.avatarUrl } : undefined}
-          name={comment.author.fullName ?? comment.author.username}
-          size="xs"
-        />
-        <Text variant="caption" weight={600}>
-          {comment.author.fullName ?? comment.author.username}
-        </Text>
-        <Text variant="caption" tone="secondary" className="tabular-nums">
-          {formatDateTime(comment.createdAt)}
-        </Text>
-        {isMine ? <Badge variant="outline">Anda</Badge> : null}
-      </View>
-      <Text variant="body" tone={hidden ? "secondary" : "primary"}>
-        {hidden ? "(Komentar disembunyikan)" : comment.content}
-      </Text>
-      {hidden && comment.hiddenReason ? (
-        <Text variant="caption" tone="secondary">
-          Alasan: {comment.hiddenReason.toLowerCase()}
-        </Text>
-      ) : null}
-      {canReply ? (
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel="Balas komentar"
-          onPress={() => onReply(comment)}
-        >
-          <Text variant="caption" tone="primary" weight={600}>
-            Balas
+    <View className="flex-row items-start gap-2">
+      <Avatar
+        source={comment.author.avatarUrl ? { uri: comment.author.avatarUrl } : undefined}
+        name={comment.author.fullName ?? comment.author.username}
+        size="xs"
+      />
+      <View className="flex-1 gap-0.5">
+        <View className="flex-row items-center gap-2">
+          <Text variant="body" weight={600} numberOfLines={1} className="flex-1">
+            {comment.author.fullName ?? comment.author.username}
           </Text>
-        </PressableScale>
-      ) : null}
-    </PressableScale>
+          {menuable ? (
+            <IconButton
+              icon={DotsThree}
+              variant="ghost"
+              size="sm"
+              accessibilityLabel={`Opsi komentar dari ${comment.author.fullName ?? comment.author.username}`}
+              onPress={() => onOpenMenu(comment)}
+            />
+          ) : null}
+        </View>
+        <Text variant="body" tone={hidden ? "secondary" : "primary"}>
+          {hidden ? "(Komentar disembunyikan)" : comment.content}
+        </Text>
+        {hidden && comment.hiddenReason ? (
+          <Text variant="caption" tone="secondary">
+            Alasan: {comment.hiddenReason.toLowerCase()}
+          </Text>
+        ) : null}
+        <View className="flex-row items-center gap-4">
+          <Text variant="caption" tone="secondary" className="tabular-nums">
+            {formatDateTime(comment.createdAt)}
+          </Text>
+          {isMine ? (
+            <Text variant="caption" tone="secondary">
+              Anda
+            </Text>
+          ) : null}
+          {canReply ? (
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel="Balas komentar"
+              onPress={() => onReply(comment)}
+            >
+              <Text variant="caption" tone="primary" weight={600}>
+                Balas
+              </Text>
+            </PressableScale>
+          ) : null}
+        </View>
+      </View>
+    </View>
   )
 }

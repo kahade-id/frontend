@@ -313,6 +313,8 @@ const DARK_ALLOWLIST = {
   "components/ui/bank-select.tsx": "tile logo bg-white + border-border (§7 pengecualian monokrom)",
   // Teks di atas scrim bg-overlay (selalu hitam di dua mode) — putih adalah satu-satunya yang terbaca.
   "components/ui/showcase-gallery-grid.tsx": "+N text-white di atas bg-overlay (scrim hitam kedua mode)",
+  "components/ui/showcase-feed-item.tsx": "+N text-white di atas bg-overlay-media (scrim hitam kedua mode, ikut showcase-gallery-grid)",
+  "app/showcase/[id].tsx": "label 'N foto' text-white di atas bg-overlay (scrim hitam kedua mode, ikut showcase-gallery-grid)",
 }
 const DARK_VARIANT_RE = /\bdark:[a-z][a-z0-9-]*/g
 const LITERAL_CLASS_RE = /\b(?:bg|text|border|fill|stroke)-(?:white|black|gray-\d{2,3})\b/g

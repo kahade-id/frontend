@@ -41,6 +41,7 @@ import { Icon } from "@/components/ui/icon"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
 import { useToast } from "@/components/ui/toast"
 
@@ -244,9 +245,25 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         onRefresh={() => void fetchPage(null, "refresh")}
         onRetry={() => void fetchPage(null, "refresh")}
         onLoadMore={loadMore}
-        gap={12}
-        padded
+        // Feed bergaya postingan sosial: media full-bleed memotong gutter —
+        // teks di dalam <ShowcaseFeedItem> membawa px-5 sendiri.
+        padded={false}
+        gap={tokens.space[6]}
         bottomPadding={bottomPadding}
+        loadingPlaceholder={
+          <SkeletonGroup className="gap-10 py-4">
+            {Array.from({ length: 2 }, (_, index) => (
+              <View key={index} className="gap-3">
+                <Skeleton shape="card" className="aspect-square w-full" />
+                <View className="flex-row items-center gap-3 px-5">
+                  <Skeleton shape="circle" className="h-10 w-10" />
+                  <Skeleton className="h-4 w-2/5" />
+                </View>
+                <Skeleton className="mx-5 h-4 w-3/5" />
+              </View>
+            ))}
+          </SkeletonGroup>
+        }
         empty={
           <EmptyState
             icon={Images}
