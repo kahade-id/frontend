@@ -175,7 +175,7 @@ export default function VerifyTwoFactorScreen() {
               <Heading level={1} className="text-balance">
                 {mode === "totp" ? "Masukkan kode autentikator" : "Masukkan kode cadangan"}
               </Heading>
-              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+              <Text variant="body" tone="secondary" className="text-pretty">
                 {mode === "totp"
                   ? "Buka aplikasi autentikator (Google Authenticator, Authy, dsb.) dan masukkan kode 6 digit untuk akun:"
                   : "Gunakan salah satu kode cadangan yang Anda simpan saat mengaktifkan verifikasi dua langkah. Setiap kode hanya berlaku sekali."}

@@ -108,7 +108,7 @@ export default function PrivacySettingsScreen() {
     <>
       <DataScreen title="Privasi" state={query} loadingMessage="Memuat pengaturan privasi…">
         <SectionHeader title="Visibilitas profil" />
-        <Text numberOfLines={1} variant="body" tone="secondary">
+        <Text variant="body" tone="secondary">
           Atur siapa yang dapat melihat informasi profil Anda.
         </Text>
         <PrivacyToggleList

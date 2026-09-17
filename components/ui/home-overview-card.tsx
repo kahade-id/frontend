@@ -223,7 +223,7 @@ export function HomeOverviewCard({
                 containerClassName={cn("flex-1 rounded-sm", focusRing)}
                 className="items-center gap-2 py-1"
               >
-                <View className="h-11 w-11 items-center justify-center rounded-full bg-surface dark:bg-surface-elevated">
+                <View className="h-11 w-11 items-center justify-center rounded-full bg-surface">
                   <Icon icon={a.icon} size="sm" tone="active" />
                 </View>
                 <Text ellipsizeMode="tail" variant="caption" weight={500} tone="primary" numberOfLines={1}>

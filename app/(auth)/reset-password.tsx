@@ -209,7 +209,7 @@ export default function ResetPasswordScreen() {
             {/* Explanation text */}
             <VStack gap={2}>
               <Heading level={1}>Masukkan kode verifikasi</Heading>
-              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+              <Text variant="body" tone="secondary" className="text-pretty">
                 Kode 6 digit telah dikirim ke <Text weight={600}>{email}</Text>.
                 Masukkan kode dan buat password baru.
               </Text>

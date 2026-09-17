@@ -216,7 +216,7 @@ export default function LoginScreen() {
               <Heading level={1} className="text-balance">
                 Selamat datang kembali
               </Heading>
-              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+              <Text variant="body" tone="secondary" className="text-pretty">
                 Masuk ke akun Kahade Anda untuk melanjutkan.
               </Text>
             </VStack>

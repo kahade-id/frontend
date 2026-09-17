@@ -40,7 +40,6 @@ import { formatRupiah, groupThousands } from "@/lib/format"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { haptic } from "@/lib/haptics"
 import { focusRing } from "@/lib/focus-ring"
-import { useTheme } from "@/components/theme-provider"
 
 export type AmountKeypadProps = Omit<ViewProps, "children"> & {
   value: number
@@ -85,8 +84,6 @@ export function AmountKeypad({
   className,
   ...rest
 }: AmountKeypadProps) {
-  const { mode } = useTheme()
-  const palette = tokens.colors[mode]
   const reducedMotion = useReducedMotion()
 
   // Kita simpan digits sebagai string (digit mentah) supaya ketikan terasa
@@ -274,7 +271,7 @@ export function AmountKeypad({
   return (
     <View className={cn("w-full items-center", className)} {...rest}>
       {/* ----- Area tampilan nominal (CENTERED, signature) ----- */}
-      <View className="w-full items-center px-6 py-6" style={{ minHeight: 160 }}>
+      <View className="min-h-40 w-full items-center px-6 py-6">
         {/* Helper: saldo / min */}
         <View className="mb-2 h-5 items-center">
           {balance != null ? (
@@ -293,11 +290,9 @@ export function AmountKeypad({
           className="flex-row items-end justify-center"
         >
           <Text
-            variant="monoLarge"
+            variant="monoBody"
             tone={digits.length === 0 ? "disabled" : "secondary"}
-            className="mr-1"
-            // "Rp" lebih kecil dari digit utama agar fokus ke nominal
-            style={{ fontSize: 22, lineHeight: 34 }}
+            className="mb-1 mr-1"
           >
             Rp
           </Text>
@@ -305,7 +300,6 @@ export function AmountKeypad({
             <Text
               variant="monoLarge"
               tone={digits.length === 0 ? "disabled" : resolvedError ? "danger" : "primary"}
-              style={{ fontSize: 40, lineHeight: 48, letterSpacing: -0.5 }}
               adjustsFontSizeToFit
               minimumFontScale={0.6}
               numberOfLines={1}
@@ -315,14 +309,8 @@ export function AmountKeypad({
             {/* Kursor */}
             {!disabled && digits.length > 0 && !resolvedError ? (
               <View
-                style={{
-                  width: 2,
-                  height: 34,
-                  marginLeft: 2,
-                  marginBottom: 6,
-                  backgroundColor: palette.primary,
-                  opacity: cursorVisible ? 1 : 0,
-                }}
+                className="mb-1.5 ml-0.5 h-8 w-0.5 bg-primary"
+                style={{ opacity: cursorVisible ? 1 : 0 }}
               />
             ) : null}
           </View>
@@ -374,7 +362,7 @@ export function AmountKeypad({
                 label={d}
                 onPress={() => pressDigit(d)}
               >
-                <Text variant="h2" tone="primary" style={{ fontSize: 26 }}>
+                <Text variant="h2" tone="primary">
                   {d}
                 </Text>
               </Key>
@@ -385,7 +373,7 @@ export function AmountKeypad({
           {/* Kiri bawah */}
           {actionKey === "00" ? (
             <Key label="00" onPress={pressDoubleZero}>
-              <Text variant="h2" tone="primary" style={{ fontSize: 22 }}>
+              <Text variant="h2" tone="primary">
                 00
               </Text>
             </Key>
@@ -395,7 +383,7 @@ export function AmountKeypad({
 
           {/* Nol tengah */}
           <Key label="0" onPress={() => pressDigit("0")}>
-            <Text variant="h2" tone="primary" style={{ fontSize: 26 }}>
+            <Text variant="h2" tone="primary">
               0
             </Text>
           </Key>

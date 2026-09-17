@@ -278,7 +278,7 @@ export default function VerifyOtpScreen() {
               <Heading level={1} className="text-balance">
                 Masukkan kode verifikasi
               </Heading>
-              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+              <Text variant="body" tone="secondary" className="text-pretty">
                 Kode 6 digit telah dikirim via {methodLabel}. Pastikan Anda
                 memiliki akses ke nomor:
               </Text>

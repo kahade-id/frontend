@@ -147,7 +147,7 @@ export default function CreateSecurityScreen() {
                 <Heading level={1} className="text-balance">
                   Buat kata sandi
                 </Heading>
-                <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+                <Text variant="body" tone="secondary" className="text-pretty">
                   Kata sandi melindungi akun Anda. Gunakan minimal{" "}
                   {PASSWORD_MIN} karakter dengan kombinasi huruf besar, huruf
                   kecil, angka, dan simbol.

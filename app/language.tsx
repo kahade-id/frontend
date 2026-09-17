@@ -71,7 +71,7 @@ export default function LanguageScreen() {
   return (
     <DataScreen title="Bahasa" state={query} loadingMessage="Memuat preferensi bahasa…">
       <SectionHeader title="Preferensi bahasa akun" />
-      <Text numberOfLines={1} variant="body" tone="secondary">
+      <Text variant="body" tone="secondary">
         Berlaku langsung di seluruh aplikasi dan tersimpan pada akun Anda.
       </Text>
       <LanguagePicker

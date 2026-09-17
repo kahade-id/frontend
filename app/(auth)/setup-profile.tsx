@@ -247,7 +247,7 @@ export default function SetupProfileScreen() {
             <Heading level={1} className="text-balance">
               {firstName ? `Selamat datang, ${firstName}!` : "Selamat datang!"}
             </Heading>
-            <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+            <Text variant="body" tone="secondary" className="text-pretty">
               Lengkapi profil Anda agar orang lain bisa mengenal Anda.
               Anda bisa mengubah ini nanti di pengaturan.
             </Text>

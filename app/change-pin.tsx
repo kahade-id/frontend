@@ -128,7 +128,7 @@ export default function ChangePinScreen() {
         {step === "password" ? (
           <>
             <SectionHeader title="Verifikasi password" />
-            <Text numberOfLines={1} variant="body" tone="secondary">
+            <Text variant="body" tone="secondary">
               Masukkan password akun untuk mengizinkan perubahan PIN.
             </Text>
             <PasswordField

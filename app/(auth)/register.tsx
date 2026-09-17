@@ -215,7 +215,7 @@ export default function RegisterScreen() {
               <Heading level={1} className="text-balance">
                 Masukkan nomor HP Anda
               </Heading>
-              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+              <Text variant="body" tone="secondary" className="text-pretty">
                 Kami akan mengirim kode verifikasi 6 digit ke nomor ini. Nomor HP dipakai untuk
                 masuk dan pemberitahuan transaksi.
               </Text>
