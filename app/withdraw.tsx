@@ -47,6 +47,7 @@ import { OtpInput } from "@/components/ui/otp-input"
 import { PinInput } from "@/components/ui/pin-input"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 import { TransactionSummary } from "@/components/ui/transaction-summary"
 import { useToast } from "@/components/ui/toast"
 
@@ -58,6 +59,10 @@ const PRESETS = AMOUNT_PRESETS.withdraw
 const TOTAL_STEPS = 3
 
 type Step = "amount" | "verify" | "done"
+/** State overlay progres setelah PIN/OTP disubmit (processing → sukses/gagal). */
+type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
+/** Seberapa lama pesan sukses/gagal di overlay terlihat sebelum lanjut (ms). */
+const RESULT_HOLD_MS = 1400
 
 export default function WithdrawScreen() {
   const insets = useSafeAreaInsets()
@@ -91,6 +96,9 @@ export default function WithdrawScreen() {
   const submitLock = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
+  // Overlay progres: muncul begitu PIN/OTP disubmit, hasil mengganti kontennya.
+  const [progressState, setProgressState] = useState<ProgressState | null>(null)
+  const [progressError, setProgressError] = useState<string | undefined>()
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof api.wallet.createWithdraw>
   > | null>(null)
@@ -130,31 +138,37 @@ export default function WithdrawScreen() {
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
+      setProgressError(undefined)
+      setProgressState("PROCESSING")
       try {
         const dto: WithdrawDto = { amount, bankAccountId: accountId!, pin: value }
         const res = await api.wallet.createWithdraw(dto)
         setResult(res)
         if ((res.requiresOtp || res.status === "PENDING_OTP") && res.txId) {
+          // Lanjut ke langkah OTP: overlay ditutup, sheet berganti mode OTP.
           setTxId(res.txId)
           setVerifyMode("otp")
+          setProgressState(null)
         } else {
-          setStep("done")
-          toast.show({
-            title:
-              walletTransactionStatus(res.status) === "SUCCESS"
-                ? "Penarikan berhasil"
-                : "Permintaan penarikan diterima",
-            tone: walletTransactionStatus(res.status) === "SUCCESS" ? "success" : "info",
-          })
+          setProgressState("SUCCESS")
+          setTimeout(() => {
+            setProgressState(null)
+            setStep("done")
+          }, RESULT_HOLD_MS)
         }
       } catch (err) {
-        setPinError(`${userMessage(err)} Periksa riwayat sebelum mengirim ulang.`)
+        setProgressError(`${userMessage(err)} Periksa riwayat sebelum mengirim ulang.`)
+        setProgressState("FAILURE")
+        setTimeout(() => {
+          setProgressState(null)
+          setPinError(`${userMessage(err)} Periksa riwayat sebelum mengirim ulang.`)
+        }, RESULT_HOLD_MS)
       } finally {
         submitLock.current = false
         setSubmitting(false)
       }
     },
-    [amount, accountId, canContinueAccount, toast.show],
+    [amount, accountId, canContinueAccount],
   )
 
   const handleConfirmOtp = useCallback(
@@ -163,25 +177,29 @@ export default function WithdrawScreen() {
       submitLock.current = true
       setSubmitting(true)
       setOtpError(undefined)
+      setProgressError(undefined)
+      setProgressState("PROCESSING")
       try {
         const res = await api.wallet.confirmWithdrawOtp({ txId, otp })
         setResult(res)
-        setStep("done")
-        toast.show({
-          title:
-            walletTransactionStatus(res.status) === "SUCCESS"
-              ? "Penarikan selesai"
-              : "Konfirmasi penarikan diterima",
-          tone: walletTransactionStatus(res.status) === "SUCCESS" ? "success" : "info",
-        })
+        setProgressState("SUCCESS")
+        setTimeout(() => {
+          setProgressState(null)
+          setStep("done")
+        }, RESULT_HOLD_MS)
       } catch (err) {
-        setOtpError(userMessage(err))
+        setProgressError(userMessage(err))
+        setProgressState("FAILURE")
+        setTimeout(() => {
+          setProgressState(null)
+          setOtpError(userMessage(err))
+        }, RESULT_HOLD_MS)
       } finally {
         submitLock.current = false
         setSubmitting(false)
       }
     },
-    [txId, toast.show],
+    [txId],
   )
 
   const handleResend = useCallback(async () => {
@@ -399,6 +417,19 @@ export default function WithdrawScreen() {
           </View>
         )}
       </BottomSheet>
+
+      {/* Progres transaksi full-screen setelah PIN/OTP disubmit (§8 signature) */}
+      <TransactionProgressOverlay
+        visible={progressState !== null}
+        state={progressState ?? "PROCESSING"}
+        processingMessage={
+          verifyMode === "otp"
+            ? "Mengonfirmasi penarikan…"
+            : `Menarik ${formatRupiah(amount)} ke rekening…`
+        }
+        successMessage="Penarikan berhasil"
+        failureMessage={progressError ?? "Penarikan gagal. Coba lagi."}
+      />
 
       {/* Step verifikasi (PIN/OTP) dalam BottomSheet agar konteks di belakang
           tetap terlihat */}

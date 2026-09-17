@@ -44,20 +44,26 @@ import { PinInput } from "@/components/ui/pin-input"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 import { TransactionSummary } from "@/components/ui/transaction-summary"
 import {
   TransferRecipientPicker,
   type TransferRecipient,
 } from "@/components/ui/transfer-recipient-picker"
 import { useToast } from "@/components/ui/toast"
+import { isApiError } from "@/lib/api"
 
 const MIN_AMOUNT = AMOUNT_LIMITS.transfer.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.transfer.maximum
 const PRESETS = AMOUNT_PRESETS.transfer
 const NOTE_MAX = 200
 const TOTAL_STEPS = 3
+/** Seberapa lama pesan sukses/gagal di overlay terlihat sebelum lanjut (ms). */
+const RESULT_HOLD_MS = 1400
 
 type Step = "form" | "confirm" | "pin" | "done"
+/** State overlay progres setelah PIN disubmit (processing → sukses/gagal). */
+type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
 
 export default function TransferScreen() {
   const insets = useSafeAreaInsets()
@@ -88,6 +94,9 @@ export default function TransferScreen() {
   const [txId, setTxId] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [transferStatus, setTransferStatus] = useState<string | undefined>()
+  // Overlay progres: muncul begitu PIN disubmit, hasil mengganti kontennya.
+  const [progressState, setProgressState] = useState<ProgressState | null>(null)
+  const [progressError, setProgressError] = useState<string | undefined>()
   const submitLock = useRef(false)
   const debounced = useDebouncedValue(query.trim())
   const lookup = useApiQuery(
@@ -200,6 +209,8 @@ export default function TransferScreen() {
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
+      setProgressError(undefined)
+      setProgressState("PROCESSING")
       try {
         const dto: TransferDto = {
           recipientId: selected.id,
@@ -210,22 +221,35 @@ export default function TransferScreen() {
         const res = await api.wallet.transferFunds(dto)
         setTxId(res.txId ?? null)
         setTransferStatus(res.status)
-        setStep("done")
-        toast.show({
-          title:
-            walletTransactionStatus(res.status) === "SUCCESS"
-              ? "Transfer berhasil"
-              : "Status transfer diterima",
-          tone: walletTransactionStatus(res.status) === "SUCCESS" ? "success" : "info",
-        })
+        setProgressState("SUCCESS")
+        // Overlay sukses tampil sejenak, lalu lanjut ke layar hasil.
+        setTimeout(() => {
+          setProgressState(null)
+          setStep("done")
+        }, RESULT_HOLD_MS)
       } catch (err) {
-        setPinError(`${userMessage(err)} Periksa riwayat sebelum mengirim ulang.`)
+        // Gagal TIDAK berarti dana hilang: kalau request sempat terkirim
+        // (bukan gagal jaringan murni sebelum terkirim), status akhir harus
+        // diverifikasi di riwayat sebelum mengirim ulang.
+        const uncertain = !isApiError(err) || err.isTransient || err.code === "ABORTED"
+        const base = userMessage(err)
+        const msg = uncertain
+          ? `${base} Status transfer mungkin sudah diproses — periksa riwayat sebelum mengirim ulang.`
+          : base
+        setProgressError(msg)
+        setProgressState("FAILURE")
+        // Setelah pesan gagal terbaca, sheet PIN terbuka lagi (PIN dikosongkan
+        // otomatis oleh PinInput) — user bisa memilih mencoba atau membatalkan.
+        setTimeout(() => {
+          setProgressState(null)
+          setPinError(msg)
+        }, RESULT_HOLD_MS)
       } finally {
         submitLock.current = false
         setSubmitting(false)
       }
     },
-    [selected, amount, note, toast.show],
+    [selected, amount, note],
   )
 
   const maxAmount =
@@ -565,6 +589,15 @@ export default function TransferScreen() {
           />
         </Field>
       </BottomSheet>
+
+      {/* Progres transaksi full-screen setelah PIN disubmit (§8 signature) */}
+      <TransactionProgressOverlay
+        visible={progressState !== null}
+        state={progressState ?? "PROCESSING"}
+        processingMessage={`Mengirim ${formatRupiah(amount)} ke @${selected?.username ?? ""}…`}
+        successMessage="Transfer berhasil"
+        failureMessage={progressError ?? "Transfer gagal. Coba lagi."}
+      />
 
       {/* PIN verifikasi di BottomSheet */}
       <BottomSheet

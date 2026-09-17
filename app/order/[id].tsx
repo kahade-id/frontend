@@ -82,6 +82,7 @@ import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { ReasonPicker, type ReasonOption, type ReasonValue } from "@/components/ui/reason-picker"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Screen } from "@/components/ui/screen"
+import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 import { SectionHeader } from "@/components/ui/section"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
@@ -119,6 +120,8 @@ const CANCEL_REASONS: readonly (ReasonOption & { code: CancelReason })[] = [
 ]
 
 type PayMethod = "balance" | "qris"
+/** Seberapa lama pesan sukses/gagal di overlay terlihat sebelum lanjut (ms). */
+const RESULT_HOLD_MS = 1400
 const PAY_METHODS: { value: PayMethod; label: string }[] = [
   { value: "balance", label: "Saldo Kahade" },
   { value: "qris", label: "QRIS" },
@@ -214,6 +217,9 @@ export default function OrderDetailScreen() {
   // Pembayaran
   const [payMethod, setPayMethod] = useState<PayMethod>("balance")
   const [pinError, setPinError] = useState<string | undefined>()
+  // Overlay progres saat membayar escrow dari saldo (PIN disubmit).
+  const [payProgress, setPayProgress] = useState<"PROCESSING" | "SUCCESS" | "FAILURE" | null>(null)
+  const [payProgressError, setPayProgressError] = useState<string | undefined>()
   const [qris, setQris] = useState<QrisPayment | null>(null)
   const [qrisStatus, setQrisStatus] = useState<string | null>(null)
   const submitLock = useRef(false)
@@ -289,19 +295,30 @@ export default function OrderDetailScreen() {
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
+      setPayProgressError(undefined)
+      setPayProgress("PROCESSING")
       try {
         await api.orders.payOrder(order.id, { pin })
-        toast.show({ title: "Pembayaran berhasil", tone: "success", duration: 3000 })
-        closeSheet()
-        await query.refresh()
+        setPayProgress("SUCCESS")
+        setTimeout(() => {
+          setPayProgress(null)
+          closeSheet()
+          void query.refresh()
+        }, RESULT_HOLD_MS)
       } catch (err) {
-        setPinError(isApiError(err) ? userMessage(err) : "PIN salah atau saldo tidak cukup.")
+        const msg = isApiError(err) ? userMessage(err) : "PIN salah atau saldo tidak cukup."
+        setPayProgressError(msg)
+        setPayProgress("FAILURE")
+        setTimeout(() => {
+          setPayProgress(null)
+          setPinError(msg)
+        }, RESULT_HOLD_MS)
       } finally {
         submitLock.current = false
         setSubmitting(false)
       }
     },
-    [order, toast.show, closeSheet, query],
+    [order, closeSheet, query],
   )
 
   const pollPayment = useCallback(async () => {
@@ -998,6 +1015,15 @@ export default function OrderDetailScreen() {
         }
         onCancel={() => setConfirmAccept(false)}
         onRequestClose={() => setConfirmAccept(false)}
+      />
+
+      {/* Progres pembayaran escrow full-screen (PIN disubmit, §8 signature) */}
+      <TransactionProgressOverlay
+        visible={payProgress !== null}
+        state={payProgress ?? "PROCESSING"}
+        processingMessage={`Membayar ${formatRupiah(fee?.buyerPays ?? 0)} dari saldo…`}
+        successMessage="Pembayaran berhasil"
+        failureMessage={payProgressError ?? "Pembayaran gagal. Coba lagi."}
       />
     </Screen>
   )

@@ -58,6 +58,7 @@ import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { PaymentMethodSelector, type PaymentMethod } from "@/components/ui/payment-method-selector"
 import { PinInput } from "@/components/ui/pin-input"
+import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -76,6 +77,10 @@ const PAGE_SIZE = 10
 const MS_PER_DAY = 86_400_000
 
 type Step = "plans" | "method" | "pin"
+/** State overlay progres setelah PIN disubmit (processing → sukses/gagal). */
+type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
+/** Seberapa lama pesan sukses/gagal di overlay terlihat sebelum lanjut (ms). */
+const RESULT_HOLD_MS = 1400
 type PinPurpose = "subscribe" | "renew" | "upgrade"
 
 type Benefit = { key: string; title: string; description?: string }
@@ -175,6 +180,9 @@ export default function SubscriptionsScreen() {
   const submitLock = useRef(false)
   const [submitting, setSubmitting] = useState(false)
   const [pinError, setPinError] = useState<string | undefined>()
+  // Overlay progres: muncul begitu PIN disubmit, hasil mengganti kontennya.
+  const [progressState, setProgressState] = useState<ProgressState | null>(null)
+  const [progressError, setProgressError] = useState<string | undefined>()
 
   const [cancelOpen, setCancelOpen] = useState(false)
   const [cancelling, setCancelling] = useState(false)
@@ -278,6 +286,8 @@ export default function SubscriptionsScreen() {
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
+      setProgressError(undefined)
+      setProgressState("PROCESSING")
       try {
         if (pinPurpose === "upgrade") {
           // Backend membalas objek hasil upgrade (bukan bentuk /status),
@@ -333,13 +343,22 @@ export default function SubscriptionsScreen() {
             duration: 3000,
           })
         }
-        setSelectedPlan(null)
-        setStep("plans")
-        await query.refresh()
+        setProgressState("SUCCESS")
+        setTimeout(() => {
+          setProgressState(null)
+          setSelectedPlan(null)
+          setStep("plans")
+          void query.refresh()
+        }, RESULT_HOLD_MS)
       } catch (err) {
-        setPinError(
-          isApiError(err) ? userMessage(err) : "PIN salah atau pembayaran gagal. Coba lagi.",
-        )
+        const msg =
+          isApiError(err) ? userMessage(err) : "PIN salah atau pembayaran gagal. Coba lagi."
+        setProgressError(msg)
+        setProgressState("FAILURE")
+        setTimeout(() => {
+          setProgressState(null)
+          setPinError(msg)
+        }, RESULT_HOLD_MS)
       } finally {
         submitLock.current = false
         setSubmitting(false)
@@ -621,6 +640,15 @@ export default function SubscriptionsScreen() {
        * <BottomSheet avoidKeyboard> + <PinInput mode="enter"> (§10:
        * konfirmasi PIN = BottomSheet).
        */}
+      {/* Progres transaksi full-screen setelah PIN disubmit (§8 signature) */}
+      <TransactionProgressOverlay
+        visible={progressState !== null}
+        state={progressState ?? "PROCESSING"}
+        processingMessage={`Memproses langganan ${selectedPlan?.name ?? ""}…`}
+        successMessage="Berlangganan berhasil"
+        failureMessage={progressError ?? "Pembayaran gagal. Coba lagi."}
+      />
+
       <BottomSheet
         visible={step === "pin"}
         onRequestClose={closePin}
