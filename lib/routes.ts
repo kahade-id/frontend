@@ -307,8 +307,10 @@ export const ROUTES = {
   /** Followers/following user */
   followers: (username: string, tab: "followers" | "following" = "followers") =>
     ({ pathname: "/followers/[username]", params: { username, tab } }) as unknown as Href,
-  /** Showcase milik sendiri (CRUD) */
+  /** Feed sosial Showcase (tab utama). */
   showcase: "/showcase" as Href,
+  /** Showcase milik sendiri (CRUD), dibuka dari aksi tambah di feed. */
+  showcaseManagement: "/showcase-management" as Href,
   /** Questions milik sendiri (GET /v1/users/me/questions) */
   questions: "/questions" as Href,
   /** Detail item showcase sosial (GET /v1/showcase/{id} + komentar/like/share) */
@@ -342,7 +344,7 @@ export const TAB_ROUTE_NAMES = [
   "home",
   "transactions",
   "wallet",
-  "notifications",
-  "settings",
+  "showcase",
+  "discover",
 ] as const
 export type TabRouteName = (typeof TAB_ROUTE_NAMES)[number]

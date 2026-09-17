@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Compass, Images } from "phosphor-react-native"
+import { Compass, Images, UsersThree } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
@@ -37,38 +37,23 @@ import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
+import { Icon } from "@/components/ui/icon"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
-import { Tabs } from "@/components/ui/tabs"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
 import { useToast } from "@/components/ui/toast"
 
 const PAGE_LIMIT = 20
 const FEED_LIMIT = 20
 
-type DiscoverTab = "users" | "showcase"
-
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets()
-  const [tab, setTab] = useState<DiscoverTab>("users")
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Jelajahi" />
-      <Tabs<DiscoverTab>
-        items={[
-          { value: "users", label: "Pengguna", icon: Compass },
-          { value: "showcase", label: "Showcase", icon: Images },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-      {tab === "users" ? (
-        <UsersTab bottomPadding={insets.bottom + tokens.space[8]} />
-      ) : (
-        <ShowcaseFeedTab bottomPadding={insets.bottom + tokens.space[8]} />
-      )}
+      <Header showBack={false} title="Temukan pengguna" left={<Icon icon={UsersThree} size="md" tone="active" />} />
+      <UsersTab bottomPadding={insets.bottom + tokens.space[8]} />
     </Screen>
   )
 }
@@ -77,7 +62,7 @@ export default function DiscoverScreen() {
 // Tab Pengguna (offset — daftar statis)
 // ------------------------------------------------------------------
 
-function UsersTab({ bottomPadding }: { bottomPadding: number }) {
+export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
   const toast = useToast()
   const query = usePaginatedQuery<DiscoveredUser>("discover", (page, signal) =>
     api.users.discoverUsers({ page, limit: PAGE_LIMIT }, signal),
@@ -148,7 +133,7 @@ function UsersTab({ bottomPadding }: { bottomPadding: number }) {
 // Tab Showcase (cursor/keyset)
 // ------------------------------------------------------------------
 
-function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
+export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
   const [sort, setSort] = useState<ShowcaseFeedSort>("latest")
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search.trim(), 400)

@@ -145,7 +145,7 @@ rules.push({
     "app/referral.tsx",
     "app/reports.tsx",
     "app/security-activity.tsx",
-    "app/showcase.tsx",
+    "app/showcase-management.tsx",
     "app/subscriptions.tsx",
     "app/support/[ticketId].tsx",
     "app/transaction-templates.tsx",

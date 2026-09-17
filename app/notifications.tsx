@@ -2,7 +2,7 @@ import { usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { useToast } from "@/components/ui/toast"
 /**
- * Tab #4 — Notifikasi
+ * Layar Stack — Notifikasi (dibuka dari Bell di header Beranda)
  *
  * List notifikasi dari `GET /v1/notifications` (read + unread) dengan:
  *  - Filter kategori Chip (ScrollView horizontal) — nilai PERSIS enum API

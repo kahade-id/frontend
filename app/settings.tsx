@@ -1,5 +1,5 @@
 /**
- * Tab #5 — Pengaturan (Settings)
+ * Layar Stack — Pengaturan (dibuka dari identitas/avatar Beranda)
  *
  * Keputusan desain (permintaan produk 2026-09-09):
  *  - Menu TANPA deskripsi. Satu baris = satu judul; hierarki dijaga ukuran
@@ -306,7 +306,7 @@ export default function SettingsScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header showBack={false} title="Pengaturan" />
+      <Header title="Pengaturan" />
 
       <PullToRefresh
         onRefresh={handleRefresh}

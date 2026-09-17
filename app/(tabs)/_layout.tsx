@@ -8,10 +8,14 @@
  *   home          → Beranda
  *   transactions  → Transaksi
  *   wallet        → Dompet
- *   notifications → Notifikasi (badge unread dari GET /v1/notifications/unread-count)
- *   settings      → Pengaturan
+ *   showcase      → Feed sosial karya/thread
+ *   discover      → Penemuan pengguna
  *
- * Badge unread di tab Notifikasi (store bersama `lib/unread-count.ts`):
+ * Notifikasi dan Pengaturan kini menjadi layar Stack tanpa bottom navbar.
+ * Unread tetap dipoll di layout ini, lalu badge tampil pada tombol Bell di
+ * header Beranda di sebelah tombol Pesan.
+ *
+ * Badge unread Notifikasi (store bersama `lib/unread-count.ts`):
  *   - Di-poll setiap kali layout mount (AppState focus) + interval 60 detik
  *     saat app aktif di foreground. Interval bukan WebSocket — badge tidak
  *     perlu real-time; 60 detik cukup dan hemat baterai.
@@ -43,7 +47,7 @@
  */
 import { useCallback, type ComponentProps } from "react"
 import { Tabs } from "expo-router"
-import { Bell, CardsThree, House, ShoppingBag, Wallet } from "phosphor-react-native"
+import { House, ImagesSquare, ShoppingBag, UsersThree, Wallet } from "phosphor-react-native"
 
 import { RouterBottomTabBar, type RouterBottomTabBarProps } from "@/components/ui/bottom-tab-bar"
 import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
@@ -79,15 +83,15 @@ const TAB_ITEMS: Record<TabRouteName, TabVisualItem> = {
     icon: Wallet,
     accessibilityLabel: "Tab Dompet",
   },
-  notifications: {
-    label: "Notifikasi",
-    icon: Bell,
-    accessibilityLabel: "Tab Notifikasi",
+  showcase: {
+    label: "Showcase",
+    icon: ImagesSquare,
+    accessibilityLabel: "Tab Showcase sosial",
   },
-  settings: {
-    label: "Pengaturan",
-    icon: CardsThree,
-    accessibilityLabel: "Tab Pengaturan",
+  discover: {
+    label: "Discover",
+    icon: UsersThree,
+    accessibilityLabel: "Tab temukan pengguna",
   },
 }
 
@@ -99,27 +103,19 @@ export default function TabsLayout() {
   // Store bersama lib/unread-count (poll 60 d + AppState); layar Notifikasi
   // memanggil setUnreadCount/refreshUnreadCount setelah tandai dibaca → badge
   // hilang seketika tanpa menunggu poll berikutnya.
-  const { count } = useUnreadCount()
-  const hasUnread = (count ?? 0) > 0
+  // Tetap satu pemasangan poll unread; badge kini ditampilkan pada tombol
+  // notifikasi di header Beranda, bukan pada bottom navigation.
+  useUnreadCount()
 
   const renderTabBar = useCallback(
-    (props: TabsTabBarProps) => {
-      const itemsWithBadge: RouterBottomTabBarProps["items"] = {
-        ...TAB_ITEMS,
-        notifications: {
-          ...TAB_ITEMS.notifications,
-          badge: hasUnread,
-        },
-      }
-      return (
-        <RouterBottomTabBar
-          state={props.state}
-          navigation={props.navigation}
-          items={itemsWithBadge}
-        />
-      )
-    },
-    [hasUnread],
+    (props: TabsTabBarProps) => (
+      <RouterBottomTabBar
+        state={props.state}
+        navigation={props.navigation}
+        items={TAB_ITEMS}
+      />
+    ),
+    [],
   )
 
   return (
