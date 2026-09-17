@@ -22,8 +22,8 @@ const { screens, borderRadius, boxShadow, ...extend } = kahade
  * font-mono-500, font-mono-600.
  *
  * Alasan (non-obvious): di RN native, `font-sans font-bold` menghasilkan
- * fontFamily "Kanit" + fontWeight 700 — RN TIDAK memetakannya ke file
- * Kanit-Bold yang di-load expo-font, jadi jatuh ke system font. Class
+ * fontFamily "Chivo" + fontWeight 700 — RN TIDAK memetakannya ke file
+ * Chivo-Bold yang di-load expo-font, jadi jatuh ke system font. Class
  * per-weight langsung menunjuk nama asset yang terdaftar. Nama diambil dari
  * tokens.ts agar tetap satu sumber kebenaran.
  */

@@ -269,9 +269,13 @@ export const colors = {
 
 /**
  * 3.1 Font Roles
- * - Kanit           : UI & body (default 95% layar) — geometric sans Thai-latin,
- *                     mengikuti brand sheet "Crafting Visual Harmony Through
- *                     Type" (docs/image/e960f91e…, typography: Kanit).
+ * - Chivo           : UI & body (default 95% layar) — grotesque sans Latin,
+ *                     netral dan rapat. Menggantikan Kanit (keputusan produk
+ *                     2026-09-17): Kanit adalah geometric sans yang dioptimasi
+ *                     untuk Thai, sehingga huruf Latin-nya lebih lebar/melebar
+ *                     di kolom sempit (nominal, list, caption 2 baris).
+ *                     Chivo punya 4 static instance per-weight (400–700, OFL)
+ *                     yang persis dipakai sistem — lihat assets/fonts/README.md.
  * - EB Garamond     : Display/editorial — hero, konfirmasi besar, onboarding (terbatas)
  * - Azeret Mono     : Data presisi — nominal uang, ID transaksi, OTP, rekening.
  *                     Pengganti JetBrains Mono (keputusan produk): nol Azeret
@@ -284,7 +288,7 @@ export const colors = {
  * Semua font di-bundle offline via expo-font; tidak butuh fallback network.
  */
 export const fontFamily = {
-  sans: "Kanit",
+  sans: "Chivo",
   serif: "EB Garamond",
   mono: "Azeret Mono",
 } as const
@@ -296,10 +300,10 @@ export const fontFamily = {
  */
 export const fontFamilyByWeight = {
   sans: {
-    400: "Kanit-Regular",
-    500: "Kanit-Medium",
-    600: "Kanit-SemiBold",
-    700: "Kanit-Bold",
+    400: "Chivo-Regular",
+    500: "Chivo-Medium",
+    600: "Chivo-SemiBold",
+    700: "Chivo-Bold",
   },
   serif: {
     500: "EBGaramond-Medium",
@@ -338,7 +342,7 @@ export type TypeStyle = {
   /** Weight override di dark mode (H1/H2 turun satu tingkat, 700 -> 600) */
   fontWeightDark?: (typeof fontWeight)[keyof typeof fontWeight]
   letterSpacing?: number
-  /** Angka dalam Kanit pakai tabular figures agar rapi di list/tabel */
+  /** Angka dalam Chivo pakai tabular figures agar rapi di list/tabel */
   fontVariantNumeric?: "tabular-nums"
 }
 
