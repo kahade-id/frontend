@@ -132,7 +132,7 @@ export type BottomSheetProps = {
   avoidKeyboard?: boolean
   /** Dipanggil setelah animasi keluar selesai */
   onHidden?: () => void
-  /** className area konten (padding default px-6 pb-4) */
+  /** className area konten (padding default px-5 pb-4) */
   contentClassName?: string
   accessibilityLabel?: string
   /** Pemicu yang menerima fokus kembali saat sheet tutup (wajib untuk native). */
@@ -276,7 +276,7 @@ export function BottomSheet({
       ) : null}
 
       {hasHeader || closeVisible ? (
-        <View className="flex-row items-start gap-2 px-6 pt-3 pb-2">
+        <View className="flex-row items-start gap-2 px-5 pt-3 pb-2">
           <View className="flex-1 gap-1">
             {title ? (
               <Text ref={titleRef} accessibilityRole="header" variant="h3">
@@ -330,11 +330,11 @@ export function BottomSheet({
           header
         )}
 
-        <View className={cn("shrink px-6 pt-2 pb-4", contentClassName)}>{children}</View>
+        <View className={cn("shrink px-5 pt-2 pb-4", contentClassName)}>{children}</View>
 
         {footer ? (
           <View
-            className="border-t border-border px-6 pt-4"
+            className="border-t border-border px-5 pt-4"
             style={{ paddingBottom: insets.bottom + tokens.space[4] }}
           >
             {footer}

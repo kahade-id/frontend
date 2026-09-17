@@ -57,7 +57,7 @@ export type QuickActionGridProps = Omit<ViewProps, "children"> & {
   actions: readonly QuickAction[]
   layout?: QuickActionLayout
   /**
-   * Hanya layout row: padding awal/akhir 24px agar ubin pertama sejajar
+   * Hanya layout row: padding awal/akhir 20px agar ubin pertama sejajar
    * judul di atasnya (default true — dipakai di Screen padded={false}).
    */
   inset?: boolean

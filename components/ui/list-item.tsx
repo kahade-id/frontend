@@ -19,7 +19,7 @@
  *     highlight bawaan platform; `selected` (bg-surface) untuk state
  *     terpilih yang persisten (mis. rekening tujuan yang dipilih).
  *   - Divider `inset` digambar sebagai View terpisah dengan margin kiri 60px
- *     = px-6 (24) + ikon md (24) + gap-3 (12): turunan token, bukan angka baru.
+ *     = px-5 (20) + ikon md (24) + gap-3 (12): turunan token, bukan angka baru.
  *   - Leading ikon memakai <Icon> tone default (text-tertiary, §7) —
  *     bukan IconBox — supaya list padat tetap tenang. Kirim node sendiri
  *     (mis. <Avatar>/<IconBox>) kalau butuh lebih menonjol.
@@ -126,7 +126,7 @@ export function ListItem({
       <View
         className={cn(
           "min-h-14 w-full flex-row items-center gap-3 py-3",
-          padded && "px-6",
+          padded && "px-5",
           className,
         )}
       >
@@ -170,8 +170,8 @@ export function ListItem({
           accessibilityRole="none"
           importantForAccessibility="no"
           className="h-px bg-border"
-          // Inset turunan (px-4 + IconBox sm + gap-3) diambil dari token, bukan
-          // literal 60px: angka itu ikut berubah bila ukuran leading berubah.
+          // Inset turunan (px-5 + Icon md + gap-3) diambil dari token, bukan
+          // literal 56px: angka itu ikut berubah bila ukuran leading berubah.
           style={{ marginLeft: inset && leadingNode ? tokens.layout.rowDividerInset.listItem : 0 }}
         />
       ) : null}

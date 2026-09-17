@@ -491,7 +491,7 @@ export default function ShowcaseDetailScreen() {
         ) : null}
       </View>
 
-      <View className="gap-4 px-6 py-4">
+      <View className="gap-4 px-5 py-4">
         {/* ── Judul & harga ── */}
         <View className="gap-1">
           <View className="flex-row items-center gap-2">

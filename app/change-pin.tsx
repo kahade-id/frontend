@@ -122,7 +122,7 @@ export default function ChangePinScreen() {
       <Header title="Ubah PIN" />
       <ScrollView
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 px-6"
+        contentContainerClassName="gap-4 px-5"
         style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
       >
         {step === "password" ? (

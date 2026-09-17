@@ -25,7 +25,7 @@ export function GuestLoginPrompt({ next }: { next: string }) {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Masuk diperlukan" />
-      <View className="flex-1 justify-center px-6">
+      <View className="flex-1 justify-center px-5">
         <EmptyState
           icon={LockKey}
           title="Masuk dulu untuk melanjutkan"

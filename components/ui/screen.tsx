@@ -8,11 +8,11 @@
  *      pengecualian "tidak bisa di-className" dan dipasang lewat `style`.
  *      Default edges ["top","bottom"] untuk inset vertikal. Inset horizontal
  *      selalu dihormati saat nilainya ada: notch iPhone landscape dapat lebih
- *      lebar dari screen padding 24px; di portrait/web nilainya tetap 0.
- *   2. Screen padding 24px kiri-kanan (`px-6`, tokens.layout.screenPaddingX).
+ *      lebar dari screen padding 20px; di portrait/web nilainya tetap 0.
+ *   2. Screen padding 20px kiri-kanan (`px-5`, tokens.layout.screenPaddingX).
  *      Bisa dimatikan dengan `padded={false}` untuk konten full-bleed
  *      (list dengan divider, peta, gambar) — anak yang butuh padding pakai
- *      `px-6` sendiri atau <Divider inset>.
+ *      `px-5` sendiri atau <Divider inset>.
  *   3. `footer` slot: area sticky di bawah untuk CTA (Button) yang harus
  *      selalu terlihat saat body di-scroll. Dipisah dari body dengan
  *      `border-t border-border` (hierarki border, bukan shadow §6).
@@ -49,7 +49,7 @@ export type ScreenProps = Omit<ViewProps, "children"> & {
   scroll?: boolean
   /** Resize form body and sticky actions above the iOS keyboard (offset = Header 56 + inset.top). */
   keyboardAvoiding?: boolean
-  /** Padding horizontal 24px pada body. Default true. */
+  /** Padding horizontal 20px pada body. Default true. */
   padded?: boolean
   /** Sisi safe area yang di-padding. Default top + bottom. */
   edges?: Edge[]
@@ -85,13 +85,13 @@ export function Screen({
   const padTop = edges.includes("top") ? insets.top : 0
   const padBottom = edges.includes("bottom") ? insets.bottom : 0
   // Inset horizontal selalu dihormati bila ada. Pada iPhone landscape notch
-  // dapat memakan ~59pt—jauh lebih besar dari padding konten 24px. Menunggu
+  // dapat memakan ~59pt—jauh lebih besar dari padding konten 20px. Menunggu
   // setiap screen menambahkan edge kiri/kanan membuat tombol dan input dapat
   // tertutup; pada portrait/web nilainya nol sehingga tidak mengubah layout.
   const padLeft = insets.left
   const padRight = insets.right
 
-  const bodyPad = padded && "px-6"
+  const bodyPad = padded && "px-5"
 
   const Body = keyboardAvoiding ? KeyboardAvoiding : View
 

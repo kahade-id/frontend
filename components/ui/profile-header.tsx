@@ -33,7 +33,7 @@
  *     sendiri bila perlu — komponen tidak menebak panjang teks.
  *   - Loading: Skeleton menggantikan avatar, nama, handle, dan nilai stat;
  *     label stat tetap tampil supaya layout tidak melompat (pola StatCard).
- *   - Padding horizontal `px-6` (screen padding §4) ada DI DALAM komponen
+ *   - Padding horizontal `px-5` (screen padding §4) ada DI DALAM komponen
  *     karena header profil selalu full-bleed di bawah <Header> layar.
  */
 import type { ReactNode } from "react"
@@ -115,7 +115,7 @@ export function ProfileHeader({
     <View
       accessible={loading}
       accessibilityLabel={loading ? "Memuat profil" : undefined}
-      className={cn("w-full gap-4 px-6 py-4", className)}
+      className={cn("w-full gap-4 px-5 py-4", className)}
       {...rest}
     >
       {/* Foto sampul (header image) */}

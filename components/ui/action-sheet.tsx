@@ -96,7 +96,7 @@ export function ActionSheet({
               }}
               containerClassName={cn("w-full", focusRingInset)}
               className={cn(
-                "min-h-[52px] flex-row items-center gap-2 px-6 py-3 active:bg-surface",
+                "min-h-[52px] flex-row items-center gap-2 px-5 py-3 active:bg-surface",
               )}
             >
               {item.icon ? (

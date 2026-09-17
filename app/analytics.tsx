@@ -197,7 +197,7 @@ export default function AnalyticsScreen() {
       loadingMessage="Memuat analitik"
       errorTitle="Gagal memuat analitik"
       above={
-        <View className="px-6 pt-3">
+        <View className="px-5 pt-3">
           <SegmentedControl
             accessibilityLabel="Pilih periode analitik"
             items={ANALYTICS_PERIODS}

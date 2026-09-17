@@ -60,7 +60,7 @@ export function SmartAppInstallCard() {
   // (Unduh, Tutup) sehingga dikelompokkan justru menyembunyikannya dari
   // pembaca layar; teks dan tombol dibaca terpisah.
   return (
-    <View className="mx-6 mt-3 flex-row items-center gap-3 rounded-md border border-border bg-surface p-4">
+    <View className="mx-5 mt-3 flex-row items-center gap-3 rounded-md border border-border bg-surface p-4">
       <Logo variant="mark" size="sm" />
 
       <View className="min-w-0 flex-1 gap-0.5">

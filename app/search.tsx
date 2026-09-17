@@ -147,7 +147,7 @@ export default function SearchScreen() {
       <Header title="Pencarian" />
       {/* v2: kolom cari fade-in tanpa geser (pola Transaksi/FAQ) — kontrol
           fungsional harus stabil. Hasil cari tidak direveal per-item. */}
-      <FadeIn duration="fast" translate={false} className="px-6 pb-4">
+      <FadeIn duration="fast" translate={false} className="px-5 pb-4">
         <DebouncedSearchField
           key={seed}
           initialQuery={seed}

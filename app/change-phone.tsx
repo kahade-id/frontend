@@ -105,7 +105,7 @@ export default function ChangePhoneScreen() {
       </View>
     }>
       <Header title="Ganti Nomor HP" />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-6 py-4">
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-5 py-4">
         {currentPhone ? <Alert tone="neutral" title="Nomor saat ini">
           <SensitiveText value={currentPhone} mask="phone" mono={false} variant="body" toggleable={false} />
         </Alert> : null}

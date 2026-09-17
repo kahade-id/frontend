@@ -10,7 +10,7 @@
  * TIGA baris teks (nama, meta, waktu) dan dua target sentuh (baris untuk
  * detail, tombol untuk cabut sesi). ListItem membatasi title/subtitle string
  * dan menaruh trailing DI DALAM Pressable baris, sehingga tap "Keluar" ikut
- * memicu onPress baris. Komponen ini menyalin anatomi ListItem (`px-6 py-3
+ * memicu onPress baris. Komponen ini menyalin anatomi ListItem (`px-5 py-3
  * gap-3`, divider inset, tanpa scale) — pola yang sama dengan
  * <UserDiscoverResultItem> — dengan tombol sebagai sibling di luar Pressable.
  *
@@ -42,7 +42,7 @@
  *     Dialog konfirmasi bila kebijakan menuntutnya.
  *   - `revoking` menaruh Button dalam state loading (lebar tetap, tombol
  *     disabled) — komponen tetap stateless; pemanggil yang memegang promise.
- *   - Divider inset ml-[76px] = px-6 (24) + IconBox md (40) + gap-3 (12) —
+ *   - Divider inset ml-[72px] = px-5 (20) + IconBox md (40) + gap-3 (12) —
  *     turunan token, konsisten dengan aturan 60/64 di ListItem/Discover.
  *   - Aksesibilitas: baris membaca "nama, perangkat ini, meta, terakhir aktif
  *     …, perlu ditinjau" sebagai satu elemen; tombol "Keluar" berlabel
@@ -252,7 +252,7 @@ export function DeviceSessionListItem({
 
   return (
     <View className={cn("w-full", disabled && "opacity-disabled", className)} {...rest}>
-      <View className="flex-row items-center gap-3 px-6">
+      <View className="flex-row items-center gap-3 px-5">
         {onPress || onLongPress ? (
           <PressableScale
             accessibilityRole="button"

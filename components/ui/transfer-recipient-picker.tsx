@@ -25,8 +25,8 @@
  *     menolak penerima tertentu, penolakannya muncul di langkah PIN dengan
  *     alasan yang benar. Badge netral, bukan danger — status akun orang lain
  *     bukan error pengguna (§2.3).
- *   - Baris dibangun dari <PressableScale> + anatomi ListItem (`px-6 py-3
- *     gap-3`, divider inset ml-[76px] = px-6 + Avatar md 40 + gap-3 12),
+ *   - Baris dibangun dari <PressableScale> + anatomi ListItem (`px-5 py-3
+ *     gap-3`, divider inset ml-[72px] = px-5 (20) + Avatar md 40 + gap-3 12),
  *     bukan <ListItem>, karena trailing berisi Badge + ikon check dan
  *     leading adalah Avatar dengan `verified` — ListItem membatasi title/
  *     subtitle ke string. Alasan yang sama dengan <DeviceSessionListItem>.
@@ -183,7 +183,7 @@ function RecipientRow({
         verificationLabel ? `, ${verificationLabel}` : ""
       }${selected ? `, ${t.selected}` : ""}`}
       containerClassName={cn(onToggleFavorite ? "flex-1 min-w-0" : "w-full", focusRingInset)}
-      className="flex-row items-center gap-3 px-6 py-3"
+      className="flex-row items-center gap-3 px-5 py-3"
     >
       {rowContent}
     </PressableScale>
@@ -229,7 +229,7 @@ function RecipientRow({
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <View className="px-6 pb-1 pt-4">
+    <View className="px-5 pb-1 pt-4">
       <Text variant="label" tone="secondary">
         {children}
       </Text>
@@ -239,7 +239,7 @@ function SectionLabel({ children }: { children: string }) {
 
 function RowSkeleton() {
   return (
-    <View className="flex-row items-center gap-3 px-6 py-3">
+    <View className="flex-row items-center gap-3 px-5 py-3">
       <Skeleton shape="circle" width={40} height={40} />
       <View className="flex-1 gap-2">
         <Skeleton height={14} className="w-2/5" />
@@ -290,7 +290,7 @@ export function TransferRecipientPicker({
 
   return (
     <View className={cn("w-full", className)} {...rest}>
-      <View className="px-6">
+      <View className="px-5">
         <SearchField
           value={query}
           onChangeText={onQueryChange}

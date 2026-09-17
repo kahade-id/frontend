@@ -131,7 +131,7 @@ export default function InvoiceScreen() {
     return (
       <Screen edges={["top"]} padded={false}>
         <Header title="Invoice" />
-        <View className="flex-1 px-6">
+        <View className="flex-1 px-5">
           <EmptyState
             icon={Receipt}
             title="Order tidak diketahui"
@@ -148,7 +148,7 @@ export default function InvoiceScreen() {
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}

@@ -33,8 +33,11 @@ export function elevationStyle(level: ElevationLevel, mode: ColorMode): ViewStyl
   }
   if (Platform.OS !== "web") return base
   // react-native-web meneruskan `boxShadow` ke CSS. Warna ditulis sebagai
-  // rgb triplet agar alpha mengikuti opacity token per mode.
-  const rgb = mode === "light" ? "28,25,23" : "0,0,0"
+  // rgb triplet agar alpha mengikuti opacity token per mode. Triplet-nya
+  // DITURUNKAN dari `shadow.color[mode]` (bukan literal): sebelumnya "28,25,23"
+  // ditulis manual dan diam-diam menyimpang begitu warna token berubah.
+  const hex = shadow.color[mode].replace("#", "")
+  const rgb = [0, 2, 4].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(",")
   const web = {
     boxShadow: `0 ${spec.shadowOffset.height}px ${spec.shadowRadius}px rgba(${rgb},${opacity})`,
   } as unknown as ViewStyle

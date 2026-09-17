@@ -67,7 +67,7 @@ export function Tabs<V extends string = string>({
   const row = (
     <View
       accessibilityRole="tablist"
-      className={cn("flex-row border-b border-border", scrollable ? "px-6" : "w-full", className)}
+      className={cn("flex-row border-b border-border", scrollable ? "px-5" : "w-full", className)}
       {...rest}
     >
       {items.map((item) => {

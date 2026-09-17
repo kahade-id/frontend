@@ -114,7 +114,7 @@ export default function BiometricSettingsScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Biometrik" />
       <View
-        className="gap-4 px-6"
+        className="gap-4 px-5"
         style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
       >
         <Switch

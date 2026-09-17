@@ -236,7 +236,7 @@ export default function TopupScreen() {
               contentContainerStyle={{ flexGrow: 1 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              contentContainerClassName="px-6"
+              contentContainerClassName="px-5"
             >
               <FadeIn duration="fast">
                 <View className="items-center gap-2 pt-6">
@@ -254,7 +254,7 @@ export default function TopupScreen() {
             {/* Pilihan metode pembayaran DI SINI (halaman nominal), di atas
                 keypad: ketuk untuk membuka BottomSheet — bukan langkah
                 terpisah. */}
-            <View className="px-6 pb-2">
+            <View className="px-5 pb-2">
               <KeypadOptionCard
                 label="Metode pembayaran"
                 value={selectedMethod?.name}
@@ -282,7 +282,7 @@ export default function TopupScreen() {
             </View>
 
             <View
-              className="w-full border-t border-border bg-background px-6 pt-4"
+              className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
               <Button
@@ -300,7 +300,7 @@ export default function TopupScreen() {
           <View className="flex-1">
             <ScrollView
               className="flex-1"
-              contentContainerClassName="px-6 pb-6 pt-6"
+              contentContainerClassName="px-5 pb-6 pt-6"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
@@ -365,7 +365,7 @@ export default function TopupScreen() {
             </ScrollView>
 
             <View
-              className="w-full border-t border-border bg-background px-6 pt-4"
+              className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
               <Button
@@ -388,7 +388,7 @@ export default function TopupScreen() {
             contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            contentContainerClassName="px-6 pt-6"
+            contentContainerClassName="px-5 pt-6"
           >
             <FadeIn duration="fast">
               <View className="gap-4">
@@ -444,7 +444,7 @@ export default function TopupScreen() {
         description="Biaya admin (jika ada) ditampilkan di samping setiap metode."
         footer={
           <View
-            className="px-6"
+            className="px-5"
             style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
           >
             <Button onPress={() => setMethodSheetOpen(false)} disabled={!isTopupMethod(methodId)}>

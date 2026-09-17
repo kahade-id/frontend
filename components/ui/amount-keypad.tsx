@@ -271,7 +271,7 @@ export function AmountKeypad({
   return (
     <View className={cn("w-full items-center", className)} {...rest}>
       {/* ----- Area tampilan nominal (CENTERED, signature) ----- */}
-      <View className="min-h-40 w-full items-center px-6 py-6">
+      <View className="min-h-40 w-full items-center px-5 py-6">
         {/* Helper: saldo / min */}
         <View className="mb-2 h-5 items-center">
           {balance != null ? (
@@ -332,7 +332,7 @@ export function AmountKeypad({
 
       {/* ----- Preset chip ----- */}
       {presets && presets.length > 0 ? (
-        <View className="w-full flex-row flex-wrap justify-center gap-2 px-6 pb-4">
+        <View className="w-full flex-row flex-wrap justify-center gap-2 px-5 pb-4">
           {presets.map((p) => (
             <Chip
               key={p}

@@ -646,7 +646,7 @@ export default function ChatRoomScreen() {
         }
       />
       {presence ? (
-        <View className="flex-row items-center gap-2 px-6 py-1.5">
+        <View className="flex-row items-center gap-2 px-5 py-1.5">
           <View
             className={cn(
               "h-2 w-2 rounded-full",
@@ -692,7 +692,7 @@ export default function ChatRoomScreen() {
       <ScrollView
         ref={scrollRef}
         className="flex-1"
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         contentContainerStyle={{ paddingBottom: tokens.space[4] }}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
@@ -831,7 +831,7 @@ export default function ChatRoomScreen() {
         title="Reaksi"
         showHandle={false}
       >
-        <View className="flex-row flex-wrap justify-center gap-3 px-6 py-2">
+        <View className="flex-row flex-wrap justify-center gap-3 px-5 py-2">
           {QUICK_REACTIONS.map((emoji) => (
             <PressableScale
               key={emoji}

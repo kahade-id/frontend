@@ -17,6 +17,17 @@
  * generik), dan motion yang lebih kaya namun tetap disengaja per konteks.
  * Disiplin v1.1 dipertahankan: tanpa angka sembarang, kontras AA
  * terdokumentasi, semua motion punya fallback reduced-motion.
+ *
+ * v2.1 (penyempurnaan optis) merevisi tiga hal yang membuat v2 terasa
+ * "berat di mata" tanpa mengubah struktur sistem:
+ *   1. Netral: chroma "Kertas" (S 20–33%) dipangkas ke "Porselen" (S 5–9%)
+ *      — lihat §2.2. Latar krem membuat kartu kusam dan aksen hijau bergeser
+ *      ke zaitun; lightness ladder tidak disentuh sehingga kontras tetap.
+ *   2. Irama horizontal: screen padding 24 → 20px (§4) — di ponsel 360dp
+ *      gutter 24px + card 20px menyisakan kolom teks 272dp (75,6%); 20px
+ *      mengembalikan kolom ke 280dp tanpa turun ke 16px yang terasa sempit.
+ *   3. Elevasi & tracking: shadow lebih difus (radius naik, opacity turun)
+ *      dan display/H1/H2 diberi letter-spacing optis negatif (§3.2).
  */
 
 // ==================================================================
@@ -29,26 +40,45 @@ export const brand = {
   white: "#FFFFFF",
 } as const
 
-/** 2.2 Neutral Scale — Warm "Kertas" (v2: pengganti abu dingin v1.1) */
+/**
+ * 2.2 Neutral Scale — Warm-Neutral "Porselen" (v2.1)
+ *
+ * KENAPA DIGANTI dari "Kertas" v2 (penting, jangan dikembalikan):
+ * skala v2 memakai hue 36–42° dengan chroma 20–33% — gray.50 #FAF8F5 =
+ * S 33%, surface #F7F5F1 = S 27%, border #D9D3C5 = S 21%. Di atas background
+ * putih, chroma setinggi itu TIDAK lagi terbaca "hangat" melainkan BEIGE /
+ * kertas kraft: kartu tampak kusam, garis pembatas terlihat kotor, dan
+ * aksen Pinus (#0C6B4E) ikut bergeser ke zaitun karena latarnya menguning.
+ * Untuk aplikasi uang, latar yang menguning menurunkan kesan presisi.
+ *
+ * v2.1 mempertahankan hue hangat (~40°) — supaya tidak jatuh ke abu
+ * kebiruan yang terasa dingin/klinis seperti abu v1.1 — tetapi memangkas
+ * chroma ke 5–9% (±50–70% lebih rendah). TANGGA LIGHTNESS sengaja tidak
+ * diubah, karena kontras WCAG hampir seluruhnya fungsi lightness: semua
+ * rasio audit #6 tetap di tempatnya (angka per token di bawah).
+ *
+ * Angka kontras di komentar dihitung terhadap background/surface v2.1.
+ */
 export const gray = {
-  50: "#FAF8F5", // App background tint (jarang dipakai langsung)
-  100: "#F2EFE9", // Surface / card fill alternatif
-  200: "#E7E2D8", // Cadangan — tidak lagi dipakai sebagai border default
-  300: "#D6CFC2", // Divider sangat halus (opsional, dekoratif murni)
-  400: "#B4AB99", // Border default hangat (dark chart terang)
-  500: "#8A8172", // Teks disabled hangat, langkah chart dark pertama
-  600: "#6E6759", // text-tertiary + border-control (light): 5.60 vs bg, 5.15 vs surface
-  700: "#4A443C", // text-secondary (light): 9.62 vs bg, 8.83 vs surface
-  800: "#2E2A26", // Surface elevated hangat (dark)
-  900: "#211D19", // Teks utama alternatif / surface fill (dark)
-  950: "#1C1917", // text-primary (light): 17.49 vs bg, 16.06 vs surface
+  50: "#FAFAF9", // App background tint (jarang dipakai langsung) — S 9%
+  100: "#F3F3F1", // Surface / card fill alternatif
+  200: "#EAE9E6", // Cadangan — tidak lagi dipakai sebagai border default
+  300: "#D8D6D1", // Divider sangat halus (1.45 vs bg, dekoratif murni)
+  400: "#B4B0A8", // Border hangat netral (chart dark langkah 2)
+  500: "#8B867D", // Teks disabled hangat, langkah chart dark pertama (5.10 vs #141412)
+  600: "#6E6B64", // text-tertiary + border-control (light): 5.32 vs bg, 4.92 vs surface
+  700: "#4A4741", // text-secondary (light): 9.26 vs bg, 8.57 vs surface
+  800: "#2C2A27", // Chart dark (light step 3) / surface fill gelap
+  900: "#211F1D", // Teks utama alternatif / surface fill (dark)
+  950: "#1B1A18", // text-primary (light): 17.39 vs bg — juga teks di atas fill danger dark (6.29)
 } as const
 
 /**
  * 2.3 Semantic Colors — v2 sedikit lebih hidup dari v1.1, tetap AA di dua mode.
- * Rasio light (text/bgSoft · fill/surface): success 4.58/3.03, danger 5.83/4.44,
- * warning 4.99/3.20, info 7.32/5.82. Dark (fill/bgSoft · fill/surface): success
- * 9.20/9.97, danger 6.20/6.28, warning 9.49/10.41, info 7.63/7.87.
+ * Rasio light (text/bgSoft · fill/surface, dihitung ulang v2.1 di atas
+ * surface #F7F6F4): success 4.58/3.05, danger 5.83/4.47, warning 4.99/3.23,
+ * info 7.32/5.86. Dark (fill/bgSoft · fill/surface): success 9.20/9.88,
+ * danger 6.20/6.23, warning 9.49/10.32, info 7.63/7.80.
  * Info v2 berwarna "Sungai" (biru sungai) — keluar dari abu monokrom v1.1.
  *
  * Dark mode: `text` SENGAJA == `fill` (bukan bug). Dokumen §2.3 hanya punya
@@ -85,13 +115,16 @@ export const semantic = {
  * hitam/putih) dan BUKAN status transaksi (tetap semantic). Lihat Button
  * variant "accent" dan Badge/Icon tone "accent".
  *
- * Rasio light: text/bgSoft 7.04, text/bg 8.00 (link/CTA teks), fill/surface
- * 5.97 (ikon), onFill/fill 6.50 (label tombol solid). Dark: fill/bgSoft 8.15,
- * fill/surface 8.70, onFill/fill 9.36. text == fill di dark (pola §2.3).
+ * Rasio light (v2.1, di atas surface #F7F6F4): text/bgSoft 7.04, text/bg
+ * 8.00 (link/CTA teks), fill/surface 6.02 (ikon), onFill/fill 6.50 (label
+ * tombol solid). Dark: fill/bgSoft 8.15, fill/surface 8.63, onFill/fill 9.24.
+ * text == fill di dark (pola §2.3).
  */
 export const accent = {
   light: { fill: "#0C6B4E", text: "#0A5C43", bgSoft: "#E8F3ED", onFill: "#FFFFFF" },
-  dark: { fill: "#3ECF8E", text: "#3ECF8E", bgSoft: "#10241B", onFill: "#141210" },
+  // onFill dark = near-black yang sama dengan `dark.background` (v2.1:
+  // #141210 → #141412, ikut netral Porselen). onFill/fill = 9.24:1.
+  dark: { fill: "#3ECF8E", text: "#3ECF8E", bgSoft: "#10241B", onFill: "#141412" },
 } as const
 
 /**
@@ -101,7 +134,7 @@ export const accent = {
  * Langkah terendah wajib >= 3:1 terhadap background (WCAG 1.4.11): batang
  * chart adalah "graphical object required to understand the content", jadi
  * pengecualian border dekoratif §6 TIDAK berlaku. Tangga dimulai dari
- * gray.600 (#6E6759 = 5.60:1 vs bg, 5.15:1 vs surface).
+ * gray.600 (#6E6B64 = 5.32:1 vs bg, 4.92:1 vs surface).
  *
  * `chartMono` mendeskripsikan LIGHT. Dark mode harus dibaca lewat
  * `chartMonoDark`: di atas #141210 urutannya dibalik (abu lebih terang =
@@ -109,38 +142,43 @@ export const accent = {
  */
 export const chartMono = [gray[600], gray[700], gray[800]] as const
 
-/** Padanan dark dari `chartMono` — langkah terendah gray.500 = 4.86:1 vs #141210. */
+/** Padanan dark dari `chartMono` — langkah terendah gray.500 = 5.10:1 vs #141412. */
 export const chartMonoDark = [gray[500], gray[400], gray[300]] as const
 
 /** 2.4 Mode Tokens */
 export const light = {
   background: "#FFFFFF",
-  surface: "#F7F5F1", // card, input fill — warm paper (v2)
+  /**
+   * v2.1: #F7F6F4 (S 16%) menggantikan #F7F5F1 (S 27%). Selisih delta RGB
+   * terhadap putih dipangkas dari 6 menjadi 3 — cukup untuk memisahkan kartu
+   * dari background, tidak lagi cukup untuk membuat kartu terlihat krem.
+   */
+  surface: "#F7F6F4", // card, input fill — warm-neutral porcelain (v2.1)
   surfaceElevated: "#FFFFFF", // dengan border + elevasi low/high (v2)
   /**
    * border-default: card, divider, separator — border STRUKTURAL/dekoratif.
-   * Kontras vs background 1.49:1 — SENGAJA di bawah 3:1. WCAG 1.4.11 hanya
+   * Kontras vs background 1.40:1 — SENGAJA di bawah 3:1. WCAG 1.4.11 hanya
    * berlaku untuk komponen UI interaktif dan bagian yang dibutuhkan untuk
    * mengenali komponen; pembatas dekoratif dikecualikan (§6).
    * JANGAN pakai untuk outline form control — pakai `borderControl`.
    */
-  borderDefault: "#D9D3C5", // gray.400 hangat
+  borderDefault: "#DCDAD5", // gray.300-an hangat netral (1.40 vs bg)
   /**
    * border-control: outline resting form control (Input, Select, DateField,
    * Checkbox, Radio, Switch off, NumberStepper, SegmentedControl, ToggleGroup
    * belum terpilih) DAN indikator state non-teks (dot PIN kosong, track
    * Slider, bintang Rating kosong). WCAG 1.4.11 non-text contrast >= 3:1:
-   * #6E6759 vs #FFFFFF = 5.60:1, vs surface #F7F5F1 = 5.15:1.
+   * #6E6B64 vs #FFFFFF = 5.32:1, vs surface #F7F6F4 = 4.92:1.
    * Daftar lengkap + pengecualian: docs/audit/findings/06-non-text-contrast.md
    * Bukan untuk Button secondary (dikenali dari label) atau border kartu.
    */
-  borderControl: "#6E6759", // gray.600
+  borderControl: "#6E6B64", // gray.600
   borderFocus: "#000000", // fokus/aktif pada elemen interaktif
   borderError: "#D92D20", // == danger.fill
-  textPrimary: "#1C1917", // 17.49 vs bg, 16.06 vs surface
-  textSecondary: "#4A443C", // gray.700 — body, caption, label: 9.62/8.83
-  textTertiary: "#6E6759", // gray.600 — ikon, teks besar >=18px: 5.60/5.15
-  textDisabled: "#A8A29E",
+  textPrimary: "#1A1917", // 17.57 vs bg, 16.27 vs surface
+  textSecondary: "#4A4741", // gray.700 — body, caption, label: 9.26/8.57
+  textTertiary: "#6E6B64", // gray.600 — ikon, teks besar >=18px: 5.32/4.92
+  textDisabled: "#A8A59E",
   primary: "#000000",
   primaryForeground: "#FFFFFF",
   /**
@@ -160,22 +198,28 @@ export const light = {
 } as const
 
 export const dark = {
-  background: "#141210", // sedikit hangat dari v1.1 (#121212)
-  surface: "#1C1A16",
   /**
-   * #2E2A24 vs #141210 = 1.31:1, setara dengan jarak elevated→background v1.1
-   * (1.34:1). Elevated tetap butuh border-default (+ shadow high di overlay).
+   * v2.1: #141412 (S 5%) menggantikan #141210 (S 11%). Hitam kecoklatan di
+   * OLED terbaca "kotor" dan membuat teks putih terasa hangat/kusam; dengan
+   * chroma dipangkas, gelapnya tetap hangat tipis tetapi benar-benar netral.
    */
-  surfaceElevated: "#2E2A24",
-  borderDefault: "#3A352D", // struktural/dekoratif — 1.54 vs bg, lihat `light`
-  /** WCAG 1.4.11: #7D7668 vs #141210 = 4.15:1, vs surface #1C1A16 = 3.86:1 */
-  borderControl: "#7D7668",
+  background: "#141412",
+  surface: "#1C1B18",
+  /**
+   * #2E2C28 vs #141412 = 1.32:1 — dijaga di atas ambang 1.3 yang diuji
+   * check-tokens (tanpa itu skeleton/sheet tak terbedakan dari background).
+   * Elevated tetap butuh border-default (+ shadow high di overlay).
+   */
+  surfaceElevated: "#2E2C28",
+  borderDefault: "#3A3833", // struktural/dekoratif — 1.58 vs bg, lihat `light`
+  /** WCAG 1.4.11: #827D74 vs #141412 = 4.51:1, vs surface #1C1B18 = 4.21:1 */
+  borderControl: "#827D74",
   borderFocus: "#FFFFFF",
   borderError: "#F87171", // == danger.fill
-  textPrimary: "#F5F4F0", // 16.98 vs bg, 15.79 vs surface
-  textSecondary: "#A8A29A", // 7.39 vs bg, 6.87 vs surface
-  textTertiary: "#A8A29A", // sama dgn secondary — kontras di dark sudah aman
-  textDisabled: "#5C5750",
+  textPrimary: "#F5F4F1", // 16.77 vs bg, 15.66 vs surface
+  textSecondary: "#A8A59E", // 7.50 vs bg, 7.00 vs surface
+  textTertiary: "#A8A59E", // sama dgn secondary — kontras di dark sudah aman
+  textDisabled: "#615E57",
   primary: "#FFFFFF", // invert di dark mode
   primaryForeground: "#000000",
   overlay: "rgba(0, 0, 0, 0.6)",
@@ -244,7 +288,14 @@ export const fontWeight = {
   bold: 700,
 } as const
 
-/** Letter-spacing khusus JetBrains Mono (+0.5px di seluruh varian, termasuk OTP) */
+/**
+ * Letter-spacing skala global.
+ * - mono +0.5px: JetBrains Mono dipakai untuk nominal/ID/OTP — sedikit
+ *   renggang membuat deret angka & huruf kapital mudah dipindai.
+ * - Tracking headline (display/H1/H2) TIDAK ada di sini melainkan per varian
+ *   di `typography` (v2.1) karena nilainya optis: proporsional ke ukuran,
+ *   bukan konstanta tunggal.
+ */
 export const letterSpacing = {
   normal: 0,
   mono: 0.5,
@@ -269,6 +320,14 @@ export const typography = {
     fontSize: 34,
     lineHeight: 42,
     fontWeight: 500,
+    /**
+     * Tracking optis negatif (v2.1). Di >= 22px jarak antar-huruf bawaan font
+     * terlihat renggang — headline terasa "mengeja" alih-alih jadi satu
+     * bentuk. -0,5px di 34px = -1,5%, cukup merapatkan tanpa menyatukan
+     * glyph (EB Garamond punya sidebearing lebar). Body/caption tetap 0:
+     * di <= 16px tracking negatif justru menurunkan keterbacaan.
+     */
+    letterSpacing: -0.5,
   },
   h1: {
     fontFamily: fontFamily.sans,
@@ -277,6 +336,7 @@ export const typography = {
     fontWeight: 700,
     fontWeightDark: 600,
     fontVariantNumeric: "tabular-nums",
+    letterSpacing: -0.4, // -1,4% di 28px
   },
   h2: {
     fontFamily: fontFamily.sans,
@@ -285,6 +345,7 @@ export const typography = {
     fontWeight: 700,
     fontWeightDark: 600,
     fontVariantNumeric: "tabular-nums",
+    letterSpacing: -0.3, // -1,4% di 22px — di bawah ini tidak lagi terukur
   },
   h3: {
     fontFamily: fontFamily.sans,
@@ -357,30 +418,54 @@ export const space = {
   2: 8, // Gap internal komponen kecil
   3: 12, // Padding input vertikal
   4: 16, // Gap standar antar elemen
-  5: 20, // Card padding default
-  6: 24, // Screen padding horizontal
-  8: 32, // Gap antar section
+  5: 20, // Card padding default + SCREEN PADDING horizontal (v2.1)
+  6: 24, // Jarak antar section, thumb Slider (24), offset FAB
+  8: 32, // Gap antar section besar
   10: 40, // Padding card besar / hero
   12: 48, // Jarak antar blok konten besar
   16: 64, // Top spacing layar penuh (splash, empty state)
 } as const
 
 export const layout = {
-  screenPaddingX: space[6], // 24px kiri-kanan
+  /**
+   * Screen padding horizontal — v2.1: 24 → 20px.
+   *
+   * Kenapa 24 terlalu lebar: di ponsel 360dp (lebar Android paling umum)
+   * gutter 24px + card padding 20px menyisakan kolom teks 272dp = 75,6%
+   * lebar layar. Untuk layar berisi baris nominal + status + waktu, 24%
+   * lebar yang hilang untuk margin membuat angka terpotong/terpaksa wrap.
+   * Kenapa tidak 16: 16px hanya dipakai Material untuk list rapat; di kartu
+   * finansial ia membuat konten menempel ke tepi dan terasa sempit.
+   * 20px = margin halaman standar iOS HIG, kolom teks kembali ke 280dp
+   * (77,8%) dan di web (kolom di-cap 520px) tetap proporsional.
+   * Kelas Tailwind-nya `px-5`; nilai runtime via token ini.
+   */
+  screenPaddingX: space[5], // 20px kiri-kanan
   cardPadding: space[5], // 20px semua sisi
   cardGap: space[3], // 12px antar card dalam list
   iconTextGap: space[2], // 8px ikon ke teks
   /**
    * Inset kiri divider di dalam baris list, supaya garis mulai sejajar TEKS
    * (bukan ikon/avatar). Nilainya turunan komposisi, bukan angka bebas:
-   *   icon     : px-6 (24) + IconBox md (40) + gap-3 (12) = 76
-   *   avatar   : px-6 (24) + Avatar sm (32) + gap-2 (8)  = 64
-   *   listItem : px-4 (16) + IconBox sm (32) + gap-3 (12) = 60
-   * Sebelum token ini ada, ketiganya ditulis sebagai `ml-[76px]`/`ml-[64px]`/
-   * `ml-[60px]` di 10 komponen — angka turunan yang tidak bisa diverifikasi
-   * dan mudah menyimpang saat ukuran leading berubah.
+   *   icon     : px-5 (20) + IconBox md (40) + gap-3 (12) = 72
+   *   avatar   : px-5 (20) + Avatar md (40) + gap-3 (12)  = 72
+   *   listItem : px-5 (20) + Icon md (24)   + gap-3 (12) = 56
+   *   leading  : Avatar/IconBox md (40) + gap-3 (12)      = 52  ← TANPA gutter
+   *
+   * `icon`/`avatar`/`listItem` untuk komponen full-bleed yang barisnya
+   * memasang gutter sendiri (`px-5`) dan divider-nya berada DI LUAR wrapper
+   * ber-padding. `leading` untuk baris yang dirender di dalam parent yang
+   * SUDAH ber-gutter (PaginatedList `padded`, Screen `padded`, atau komponen
+   * yang dipanggil dengan `padded={false}`) — gutter tidak boleh dihitung dua
+   * kali, kalau tidak divider tergeser 20px ke kanan dari teks.
+   *
+   * Sejarah (v2.1): nilai lama `avatar: 64` dan `listItem: 60` diturunkan dari
+   * asumsi leading yang sudah tidak dipakai siapa pun (Avatar sm 32 + gap-2),
+   * padahal semua pemakai memakai leading 40px + gap-3 — divider chat & hasil
+   * cari mulai 12px di kiri teks. Angka di atas dihitung ulang dari anatomi
+   * baris yang benar-benar dirender sekarang.
    */
-  rowDividerInset: { icon: 76, avatar: 64, listItem: 60 },
+  rowDividerInset: { icon: 72, avatar: 72, listItem: 56, leading: 52 },
   /** §11 Web: satu breakpoint ~768px; di atasnya konten di-cap 520px & center */
   breakpoint: 768,
   maxContentWidth: 520,
@@ -466,12 +551,21 @@ export const border = {
  *   - medium    : toast, FAB, popover/dropdown.
  *   - high      : bottom sheet, modal/dialog.
  *
- * Warna shadow warm-tinted (#1C1917) di light agar menyatu dengan netral
- * Kertas; di dark menghitam (#000000) karena shadow berwarna tak terlihat di
- * atas background gelap — di dark, BORDER tetap pemisah utama, shadow hanya
- * penguat. Opacity dark = light + 0.28 (low 0.34 / medium 0.38 / high 0.44):
- * tanpa boost, shadow iOS lenyap total di atas #141210. Android tidak bisa
- * mewarnai shadow (selalu netral) — opacity dijaga kecil agar tidak kotor.
+ * Warna shadow warm-tinted (#1B1A18 — netral v2.1, bukan #1C1917 Kertas) di
+ * light agar menyatu dengan netral Porselen; di dark menghitam (#000000)
+ * karena shadow berwarna tak terlihat di atas background gelap — di dark,
+ * BORDER tetap pemisah utama, shadow hanya penguat. Opacity dark = light +
+ * 0.28 (low 0.34 / medium 0.38 / high 0.44): tanpa boost, shadow iOS lenyap
+ * total di atas #141412. Android tidak bisa mewarnai shadow (selalu netral)
+ * — opacity dijaga kecil agar tidak kotor.
+ *
+ * v2.1 — geometri lebih difus: radius blur naik (8→10, 16→18, 32→36) dan
+ * opacity light turun tipis (0.06→0.055, 0.10→0.09, 0.16→0.15). Shadow yang
+ * kecil-pekat terlihat seperti garis abu di bawah kartu ("stiker"); blur
+ * lebih lebar dengan alpha lebih rendah meniru cahaya ruang nyata sehingga
+ * kartu terasa terangkat, bukan ditempel. Offset tidak diubah: offset adalah
+ * arah cahaya, dan mengubahnya membuat seluruh app terlihat disinari dari
+ * sudut berbeda.
  */
 export const shadow = {
   none: {
@@ -482,25 +576,25 @@ export const shadow = {
     elevation: 0,
   },
   color: {
-    light: "#1C1917",
+    light: "#1B1A18", // == gray.950 — tinta netral, bukan coklat Kertas
     dark: "#000000",
   },
   low: {
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    shadowOpacity: { light: 0.06, dark: 0.34 },
+    shadowRadius: 10,
+    shadowOpacity: { light: 0.055, dark: 0.34 },
     elevation: 2,
   },
   medium: {
     shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 16,
-    shadowOpacity: { light: 0.1, dark: 0.38 },
+    shadowRadius: 18,
+    shadowOpacity: { light: 0.09, dark: 0.38 },
     elevation: 4,
   },
   high: {
     shadowOffset: { width: 0, height: 12 },
-    shadowRadius: 32,
-    shadowOpacity: { light: 0.16, dark: 0.44 },
+    shadowRadius: 36,
+    shadowOpacity: { light: 0.15, dark: 0.44 },
     elevation: 8,
   },
 } as const

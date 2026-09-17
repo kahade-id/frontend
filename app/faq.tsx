@@ -40,7 +40,7 @@ export default function FaqScreen() {
       <Header title="Pusat Bantuan" />
       {/* v2: kolom cari fade-in tanpa geser (pola Transaksi) — kontrol
           fungsional harus stabil. Item FAQ tidak direveal per-item. */}
-      <FadeIn duration="fast" translate={false} className="px-6 pb-4">
+      <FadeIn duration="fast" translate={false} className="px-5 pb-4">
         <DebouncedSearchField
           autoFocus={false}
           onQueryChange={setKeyword}

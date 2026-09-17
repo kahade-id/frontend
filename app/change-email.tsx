@@ -96,7 +96,7 @@ export default function ChangeEmailScreen() {
       }
     >
       <Header title="Ganti Email" />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-6 py-4">
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-5 py-4">
         <SectionHeader title="Email terdaftar" />
         {currentEmail ? (
           <Alert tone="neutral" title="Email saat ini">

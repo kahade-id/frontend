@@ -24,7 +24,7 @@
  *     keamanan → data diri, semuanya sebelum phone-register). Setup profil
  *     (#6) tidak dihitung karena terjadi SETELAH akun jadi.
  *   - <Screen padded={false}> supaya border-b Header dan border-t footer
- *     full-width; body & footer memakai px-6 sendiri. Footer tidak lewat slot
+ *     full-width; body & footer memakai px-5 sendiri. Footer tidak lewat slot
  *     `footer` Screen karena harus berada DI DALAM <KeyboardAvoiding> agar CTA
  *     terangkat bersama body saat keyboard terbuka (slot Screen ada di luar).
  *   - Header `safeArea={false}`: Screen sudah menambah paddingTop inset;
@@ -202,7 +202,7 @@ export default function RegisterScreen() {
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
           className="flex-1"
-          contentContainerClassName="grow px-6 pb-8 pt-8"
+          contentContainerClassName="grow px-5 pb-8 pt-8"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

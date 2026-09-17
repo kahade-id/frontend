@@ -766,7 +766,7 @@ export default function UserProfileScreen() {
         <Crossfade
           loading={loading && !profile}
           skeleton={
-            <View className="px-6 gap-4">
+            <View className="px-5 gap-4">
               {/*
                * Geometri kerangka HARUS identik dengan blok `profile` di bawah:
                * sebelumnya kerangka memakai `pt-4` + `-mt-12` dan lingkaran 76px,
@@ -785,13 +785,13 @@ export default function UserProfileScreen() {
           }
         >
           {error ? (
-          <View className="px-6 pt-8">
+          <View className="px-5 pt-8">
             <ErrorState title="Gagal memuat profil" description={error} onRetry={() => void fetchProfile()} />
           </View>
         ) : profile ? (
           <View className="w-full">
             {/* ── Avatar & Follow Action Row ────────────────────── */}
-            <View className="flex-row items-end justify-between px-6 -mt-12">
+            <View className="flex-row items-end justify-between px-5 -mt-12">
               <View className="rounded-full border-4 border-background bg-background">
                 <Avatar source={profile.avatarUrl ? { uri: profile.avatarUrl } : undefined} name={profile.fullName ?? handle} size="xl" />
               </View>
@@ -845,7 +845,7 @@ export default function UserProfileScreen() {
             </View>
 
             {/* ── User Identity & Bio ──────────────────────────── */}
-            <View className="gap-2 px-6 pt-3">
+            <View className="gap-2 px-5 pt-3">
               <View className="flex-row items-center gap-1">
                 <Text variant="h2" weight={700} tone="primary">
                   {profile.fullName || `@${handle}`}
@@ -976,7 +976,7 @@ export default function UserProfileScreen() {
 
             {/* ── Tab Content 1: Konten (Showcase / Feed) ───────── */}
             {activeTab === "content" ? (
-              <View className="px-6 pt-4 gap-4">
+              <View className="px-5 pt-4 gap-4">
                 {showcaseLoading ? (
                   <ListLoading />
                 ) : showcaseItems.length === 0 ? (
@@ -1074,7 +1074,7 @@ export default function UserProfileScreen() {
 
             {/* ── Tab Content 2: Tanya Jawab (Q&A) ──────────────── */}
             {activeTab === "questions" ? (
-              <View className="px-6 pt-4 gap-4">
+              <View className="px-5 pt-4 gap-4">
                 <View className="flex-row items-center justify-between">
                   <Text variant="label" tone="secondary">
                     Pertanyaan Pengguna ({questions.length})
@@ -1183,7 +1183,7 @@ export default function UserProfileScreen() {
 
             {/* ── Tab Content 3: Ulasan (Ratings) ───────────────── */}
             {activeTab === "ratings" ? (
-              <View className="px-6 pt-4 gap-4">
+              <View className="px-5 pt-4 gap-4">
                 <View className="flex-row flex-wrap gap-2">
                   {RATING_FILTERS.map((f) => (
                     <Chip
@@ -1238,7 +1238,7 @@ export default function UserProfileScreen() {
 
             {/* ── Tab Content 4: Tentang (About & Info) ─────────── */}
             {activeTab === "about" ? (
-              <View className="px-6 pt-4 gap-4">
+              <View className="px-5 pt-4 gap-4">
                 <View className="w-full gap-3 rounded-md border border-border bg-surface p-4">
                   <Text variant="body" weight={600} tone="primary">
                     Informasi Akun

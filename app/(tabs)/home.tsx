@@ -294,7 +294,7 @@ export default function HomeScreen() {
       >
         <Stagger duration="fast" step={60}>
           {/* ── 1. Bar identitas ───────────────────────────────── */}
-          <View className="flex-row items-center gap-3 px-6 pb-2 pt-3">
+          <View className="flex-row items-center gap-3 px-5 pb-2 pt-3">
             {profile.error ? (
               <View className="flex-1">
                 <ErrorState
@@ -383,7 +383,7 @@ export default function HomeScreen() {
           </View>
 
           {/* ── 1b. Kolom cari (kartu di atas kartu Saldo) ─────── */}
-          <View className="px-6 pt-3">
+          <View className="px-5 pt-3">
             <SearchTrigger
               placeholder="Cari transaksi, pengguna, atau ID"
               variant="elevated"
@@ -392,7 +392,7 @@ export default function HomeScreen() {
           </View>
 
           {/* ── 2. Kartu hero: saldo + statistik + notice ──────── */}
-          <View className="px-6 pt-3">
+          <View className="px-5 pt-3">
             <HomeOverviewCard
               available={wallet.data?.availableBalance}
               held={wallet.data?.holdBalance}
@@ -475,7 +475,7 @@ export default function HomeScreen() {
           </View>
 
           {/* ── 5. Transaksi aktif ─────────────────────────────── */}
-          <View className="gap-3 px-6 pt-6">
+          <View className="gap-3 px-5 pt-6">
             <SectionHeader
               title="Transaksi aktif"
               level="h3"

@@ -14,7 +14,7 @@
  *     `z-modal` (60) menempatkannya di atas BottomSheet (50) & di bawah
  *     Banner (70) sesuai §6.2.
  *   - Animasi memakai token `motion.overlay` (§8): fade + translateY + scale.
- *   - Lebar: `w-full` di dalam padding layar px-6, di-cap `md:max-w-content`
+ *   - Lebar: `w-full` di dalam padding layar px-5, di-cap `md:max-w-content`
  *     dikurangi padding lewat wrapper (§11) — dialog di web lebar tetap
  *     terasa mobile, bukan dialog desktop 600px.
  *   - Radius `rounded-md` (8px) + elevasi high (v2 §5.2) — §5: modal = md.
@@ -118,7 +118,7 @@ export function Modal({
             zIndex: 1 agar isi Dialog selalu di atas scrim (lihat backdrop.tsx). */}
         <View
           style={{ pointerEvents: "box-none", zIndex: 1 }}
-          className="flex-1 items-center justify-center px-6"
+          className="flex-1 items-center justify-center px-5"
         >
           {/* Animated.View tidak di-interop NativeWind -> className di View pembungkus */}
           <View style={{ pointerEvents: "box-none" }} className="w-full md:max-w-content">

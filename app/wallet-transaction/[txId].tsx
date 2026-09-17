@@ -59,7 +59,7 @@ export default function WalletTransactionScreen() {
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}

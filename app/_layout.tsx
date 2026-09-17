@@ -298,11 +298,11 @@ function AppShell() {
           <ContentContainer bordered>
             <PortalScene>
               {session.restoring ? (
-                <View className="px-6">
+                <View className="px-5">
                   <ListLoading />
                 </View>
               ) : session.error && !skipRestoreError ? (
-                <View className="flex-1 px-6">
+                <View className="flex-1 px-5">
                   <ErrorState
                     title="Sesi belum dapat dipulihkan"
                     description={session.error}

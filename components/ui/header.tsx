@@ -182,7 +182,7 @@ export function Header({
         </View>
 
         {largeTitle ? (
-          <View className="px-6 pb-4 pt-1">
+          <View className="px-5 pb-4 pt-1">
             {/* Role hanya pada node teks; role ganda di wrapper + anak membuat
                 VoiceOver/TalkBack membacakan judul dua kali. */}
             <Text variant="h1" accessibilityRole="header">{largeTitle}</Text>

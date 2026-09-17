@@ -92,7 +92,7 @@ export default function HelpScreen() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="gap-4 px-6 py-4"
+        contentContainerClassName="gap-4 px-5 py-4"
       >
         <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
           {query.error ? (

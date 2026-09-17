@@ -7,10 +7,10 @@
  *
  *   - <Center>        : items-center justify-center (+ flex-1 opsional).
  *                       Dipakai Empty State, Loading Screen, konten splash.
- *   - <Bleed>         : margin negatif −24px kiri-kanan untuk KELUAR dari
+ *   - <Bleed>         : margin negatif −20px kiri-kanan untuk KELUAR dari
  *                       screen padding (§4) — mis. ScrollView horizontal chip
  *                       yang harus menyentuh tepi layar meski parent Screen
- *                       `padded`. Anak yang perlu padding kembali pakai px-6.
+ *                       `padded`. Anak yang perlu padding kembali pakai px-5.
  *   - <AspectRatio>   : kotak dengan rasio tetap (16/9, 1, 4/3) untuk preview
  *                       gambar/dokumen. Rasio adalah angka runtime -> style.
  *   - <VisuallyHidden>: konten hanya untuk screen reader (RN tidak punya
@@ -18,10 +18,10 @@
  *                       posisi absolute. Untuk teks status tambahan (mis.
  *                       "Saldo disembunyikan") tanpa memengaruhi layout.
  *
- * Kenapa Bleed pakai `-mx-6` literal dan bukan angka dari layout token
- * (non-obvious): class harus literal agar ter-scan Tailwind; nilai 24px =
- * tokens.layout.screenPaddingX = space[6], jadi tetap satu sumber kebenaran
- * lewat skala spacing yang sama dengan Screen `px-6`.
+ * Kenapa Bleed pakai `-mx-5` literal dan bukan angka dari layout token
+ * (non-obvious): class harus literal agar ter-scan Tailwind; nilai 20px =
+ * tokens.layout.screenPaddingX = space[5], jadi tetap satu sumber kebenaran
+ * lewat skala spacing yang sama dengan Screen `px-5`.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -39,10 +39,10 @@ export function Center({ children, flex = false, className, ...rest }: BaseProps
   )
 }
 
-/** Keluar dari screen padding 24px (§4). Anak: tambahkan `px-6` bila perlu. */
+/** Keluar dari screen padding 20px (§4). Anak: tambahkan `px-5` bila perlu. */
 export function Bleed({ children, className, ...rest }: BaseProps) {
   return (
-    <View className={cn("-mx-6", className)} {...rest}>
+    <View className={cn("-mx-5", className)} {...rest}>
       {children}
     </View>
   )

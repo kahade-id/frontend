@@ -198,7 +198,7 @@ export default function ResetPasswordScreen() {
       <KeyboardAvoiding offset={insets.top}>
         <ScrollView
           className="flex-1"
-          contentContainerClassName="grow px-6 pb-8 pt-8"
+          contentContainerClassName="grow px-5 pb-8 pt-8"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >

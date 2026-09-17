@@ -85,7 +85,7 @@ export default function FeedbackScreen() {
       padded={false}
       footer={
         <View
-          className="bg-background px-6 pt-4"
+          className="bg-background px-5 pt-4"
           style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
         >
           <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!valid}>
@@ -98,7 +98,7 @@ export default function FeedbackScreen() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="px-6 py-4"
+        contentContainerClassName="px-5 py-4"
         contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
       >
         <FadeIn duration="fast">

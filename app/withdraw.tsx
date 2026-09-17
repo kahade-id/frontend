@@ -240,7 +240,7 @@ export default function WithdrawScreen() {
               contentContainerStyle={{ flexGrow: 1 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              contentContainerClassName="px-6"
+              contentContainerClassName="px-5"
             >
               <FadeIn duration="fast">
                 <View className="items-center gap-2 pt-6">
@@ -256,7 +256,7 @@ export default function WithdrawScreen() {
 
             {/* Rekening tujuan dipilih DI SINI lewat BottomSheet (kartu di
                 atas keypad), bukan di langkah terpisah. */}
-            <View className="px-6 pb-2">
+            <View className="px-5 pb-2">
               <KeypadOptionCard
                 label="Rekening tujuan"
                 value={selected ? `${selected.bankName ?? selected.bankCode}` : undefined}
@@ -281,7 +281,7 @@ export default function WithdrawScreen() {
             />
 
             <View
-              className="w-full border-t border-border bg-background px-6 pt-4"
+              className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
               <Button
@@ -299,7 +299,7 @@ export default function WithdrawScreen() {
             contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            contentContainerClassName="px-6 pt-6"
+            contentContainerClassName="px-5 pt-6"
           >
             <FadeIn duration="fast">
               <View className="gap-4">
@@ -356,7 +356,7 @@ export default function WithdrawScreen() {
         description="Dana ditransfer ke rekening atas nama Anda yang dipilih di sini."
         footer={
           <View
-            className="flex-row gap-3 px-6"
+            className="flex-row gap-3 px-5"
             style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
           >
             {accounts.length === 0 ? (

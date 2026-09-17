@@ -162,7 +162,7 @@ export default function WhatsappTriggerScreen() {
       <Header title="Verifikasi WhatsApp" safeArea={false} />
 
       <KeyboardAvoiding>
-        <View className="flex-1 gap-8 px-6 pb-8 pt-8">
+        <View className="flex-1 gap-8 px-5 pb-8 pt-8">
           <View className="gap-3">
             <Heading level={1} className="text-balance">
               Konfirmasi lewat WhatsApp

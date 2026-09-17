@@ -300,7 +300,7 @@ export default function TransferScreen() {
           <View className="flex-1">
             <ScrollView
               className="flex-1"
-              contentContainerClassName="px-6 pb-6 pt-6"
+              contentContainerClassName="px-5 pb-6 pt-6"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               keyboardDismissMode="on-drag"
@@ -344,7 +344,7 @@ export default function TransferScreen() {
             </ScrollView>
 
             <View
-              className="w-full border-t border-border bg-background px-6 pt-4"
+              className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
               <Button
@@ -365,7 +365,7 @@ export default function TransferScreen() {
               contentContainerStyle={{ flexGrow: 1 }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              contentContainerClassName="px-6"
+              contentContainerClassName="px-5"
             >
               <FadeIn duration="fast">
                 <View className="items-center gap-2 pt-6">
@@ -385,7 +385,7 @@ export default function TransferScreen() {
 
             {/* Catatan ditulis DI SINI lewat BottomSheet (kartu di atas
                 keypad), bukan di langkah konfirmasi. */}
-            <View className="px-6 pb-2">
+            <View className="px-5 pb-2">
               <KeypadOptionCard
                 label="Catatan (opsional)"
                 value={note.trim() || undefined}
@@ -413,7 +413,7 @@ export default function TransferScreen() {
             />
 
             <View
-              className="w-full border-t border-border bg-background px-6 pt-4"
+              className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
               <Button
@@ -432,7 +432,7 @@ export default function TransferScreen() {
           <View className="flex-1">
             <ScrollView
               className="flex-1"
-              contentContainerClassName="px-6 pb-6 pt-6"
+              contentContainerClassName="px-5 pb-6 pt-6"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
               keyboardDismissMode="on-drag"
@@ -470,7 +470,7 @@ export default function TransferScreen() {
             </ScrollView>
 
             <View
-              className="w-full border-t border-border bg-background px-6 pt-4"
+              className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
             >
               <Button
@@ -494,7 +494,7 @@ export default function TransferScreen() {
             contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
-            contentContainerClassName="px-6 pt-6"
+            contentContainerClassName="px-5 pt-6"
           >
             <FadeIn duration="fast">
               <View className="gap-4">
@@ -551,7 +551,7 @@ export default function TransferScreen() {
         avoidKeyboard
         footer={
           <View
-            className="flex-row gap-3 px-6"
+            className="flex-row gap-3 px-5"
             style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
           >
             {note.trim() ? (

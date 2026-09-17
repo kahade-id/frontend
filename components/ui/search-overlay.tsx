@@ -109,7 +109,7 @@ export function SearchOverlay({
         >
           <View className="w-full flex-1 md:max-w-content">
             {/* Header: field hidup + batal */}
-            <View className="flex-row items-center gap-2 px-6 py-3">
+            <View className="flex-row items-center gap-2 px-5 py-3">
               <View className="flex-1">
                 <SearchField
                   ref={fieldRef}
@@ -134,7 +134,7 @@ export function SearchOverlay({
               contentContainerClassName="pb-8"
             >
               {loading ? (
-                <View className="flex-row items-center gap-2 px-6 py-3">
+                <View className="flex-row items-center gap-2 px-5 py-3">
                   <Spinner size="sm" />
                   <Text variant="caption" tone="secondary">
                     Mencari
@@ -145,7 +145,7 @@ export function SearchOverlay({
               {!hasQuery ? (
                 recent.length > 0 ? (
                   <View>
-                    <View className="flex-row items-center justify-between px-6 pb-1 pt-3">
+                    <View className="flex-row items-center justify-between px-5 pb-1 pt-3">
                       <Text variant="label" tone="secondary">
                         {recentTitle}
                       </Text>
