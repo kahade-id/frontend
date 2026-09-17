@@ -37,7 +37,7 @@ export type DividerProps = Omit<ViewProps, "children"> & {
   /** Teks pendek di tengah garis (hanya horizontal), mis. "atau" */
   label?: string
   /**
-   * Inset kiri-kanan mengikuti screen padding (24px) — untuk divider yang
+   * Inset kiri-kanan mengikuti screen padding (20px) — untuk divider yang
    * dipakai di dalam ScrollView full-bleed tapi konten ber-padding.
    */
   inset?: boolean
@@ -73,7 +73,7 @@ export function Divider({
     return (
       <View
         accessibilityRole="none"
-        className={cn("flex-row items-center gap-3", inset && "mx-6", className)}
+        className={cn("flex-row items-center gap-3", inset && "mx-5", className)}
         {...rest}
       >
         <View className={cn("h-px flex-1", toneClass[tone])} />
@@ -89,9 +89,9 @@ export function Divider({
     <View
       accessibilityRole="none"
       importantForAccessibility="no"
-      // `w-full` + `mx-6` akan overflow di RN (100% + margin); saat inset cukup
+      // `w-full` + `mx-5` akan overflow di RN (100% + margin); saat inset cukup
       // biarkan flex-col parent me-stretch lebar (default RN), tanpa w-full.
-      className={cn("h-px", inset ? "mx-6" : "w-full", toneClass[tone], className)}
+      className={cn("h-px", inset ? "mx-5" : "w-full", toneClass[tone], className)}
       {...rest}
     />
   )

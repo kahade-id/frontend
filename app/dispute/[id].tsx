@@ -536,7 +536,7 @@ export default function DisputeDetailScreen() {
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: tokens.space[4] },
         }}
@@ -735,7 +735,7 @@ export default function DisputeDetailScreen() {
                         divider={i < calls.length - 1 && !isRequested && !isActive}
                       />
                       {isRequested && !requestedByMe ? (
-                        <View className="flex-row gap-2 px-6 pb-3">
+                        <View className="flex-row gap-2 px-5 pb-3">
                           <Button
                             size="sm"
                             variant="primary"
@@ -759,7 +759,7 @@ export default function DisputeDetailScreen() {
                         </View>
                       ) : null}
                       {isActive || (isRequested && requestedByMe) ? (
-                        <View className="px-6 pb-3">
+                        <View className="px-5 pb-3">
                           <Button
                             size="sm"
                             variant="destructive"

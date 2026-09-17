@@ -86,7 +86,7 @@ export function OrderSummaryStrip({
 
   if (loading) {
     return (
-      <View accessible accessibilityRole="progressbar" className={cn("w-full flex-row gap-3 px-6", className)} accessibilityLabel="Memuat ringkasan transaksi" {...rest}>
+      <View accessible accessibilityRole="progressbar" className={cn("w-full flex-row gap-3 px-5", className)} accessibilityLabel="Memuat ringkasan transaksi" {...rest}>
         {Array.from({ length: 3 }).map((_, i) => (
           <Skeleton key={i} shape="card" height={84} width={BOX_W} />
         ))}
@@ -99,7 +99,7 @@ export function OrderSummaryStrip({
     <ScrollView
       horizontal
       showsHorizontalScrollIndicator={false}
-      contentContainerClassName="gap-3 px-6"
+      contentContainerClassName="gap-3 px-5"
       className={cn("w-full", className)}
       accessibilityRole="tablist"
       {...rest}

@@ -120,7 +120,7 @@ export function InCallControlsBar({
     <View
       accessibilityRole="toolbar"
       className={cn(
-        "w-full items-center gap-4 border-t border-border bg-surface-elevated px-6 pb-6 pt-4",
+        "w-full items-center gap-4 border-t border-border bg-surface-elevated px-5 pb-6 pt-4",
         className,
       )}
       {...rest}

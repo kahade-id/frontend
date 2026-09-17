@@ -22,7 +22,7 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title={title} />
-      <View className="flex-1 px-6">
+      <View className="flex-1 px-5">
         {/* v2: loading → isi crossfade (signature moment), bukan swap keras. */}
         <Crossfade loading={query.loading} skeleton={<LoadingScreen message="Memuat dokumen resmi…" />}>
           {query.error ? (

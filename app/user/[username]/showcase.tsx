@@ -46,7 +46,7 @@ export default function PublicShowcaseScreen() {
       <PullToRefresh
         onRefresh={showcase.refresh}
         refreshing={showcase.refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}

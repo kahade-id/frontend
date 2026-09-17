@@ -13,7 +13,7 @@
  *     monoBody karena hampir selalu ID/nominal — data teknis (§3.1).
  *   - Timestamp di kanan atas mengikuti SecurityLogItem agar dua layar log
  *     terbaca serupa; string sudah diformat pemanggil (§13).
- *   - Divider inset ml-[76px] = px-6 + IconBox md + gap-3.
+ *   - Divider inset ml-[72px] = px-5 (20) + IconBox md (40) + gap-3 (12).
  */
 import type { ReactNode } from "react"
 import {
@@ -124,7 +124,7 @@ export function ActivityLogItem({
 
   return (
     <View className={cn("w-full", className)} {...rest}>
-      <View className="px-6">
+      <View className="px-5">
         {onPress ? (
           <PressableScale
             accessibilityRole="button"

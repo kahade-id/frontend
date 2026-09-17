@@ -431,11 +431,11 @@ export default function SubscriptionsScreen() {
 
   const footer =
     step === "method" && selectedPlan ? (
-      // Tanpa px-6 / paddingBottom sendiri: <Screen footer> membungkus node ini
-      // dengan <FooterBar>, yang sudah memasang `px-6` (baris 62) dan
+      // Tanpa px-5 / paddingBottom sendiri: <Screen footer> membungkus node ini
+      // dengan <FooterBar>, yang sudah memasang `px-5` (baris 62) dan
       // `paddingBottom = max(space[4], insets.bottom)` (baris 52). Menambahnya
-      // lagi di sini membuat padding samping jadi 48px (tombol 264px, bukan
-      // 312px, di layar 360px) dan inset bawah terhitung dua kali.
+      // lagi di sini membuat padding samping jadi 40px (tombol 280px, bukan
+      // 320px, di layar 360px) dan inset bawah terhitung dua kali.
       <View>
         <Button
           fullWidth
@@ -467,7 +467,7 @@ export default function SubscriptionsScreen() {
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}

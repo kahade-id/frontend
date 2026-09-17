@@ -125,7 +125,7 @@ export function ChatMessageBubble({
     return (
       <View
         accessibilityRole="text"
-        className={cn("w-full items-center px-6", grouped ? "mt-1" : "mt-3", className)}
+        className={cn("w-full items-center px-5", grouped ? "mt-1" : "mt-3", className)}
         {...rest}
       >
         <Text variant="caption" tone="secondary" className="text-center">
@@ -167,7 +167,7 @@ export function ChatMessageBubble({
   return (
     <View
       className={cn(
-        "w-full px-6",
+        "w-full px-5",
         outgoing ? "items-end" : "items-start",
         grouped ? "mt-1" : "mt-3",
         className,

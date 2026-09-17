@@ -97,3 +97,109 @@ border saja), `low` (kartu interaktif), `medium` (toast/FAB/popover), `high`
   `Premature close` dari dev server).
 - Manual di perangkat (di luar sandbox): iOS/Android + reduced-motion ON/OFF
   + dark mode per token baru — checklist untuk QA manusia sebelum rilis.
+
+---
+
+# v2.1 — Penyempurnaan optis (2026-09-17)
+
+Revisi kecil-angka, besar-dampak. Struktur sistem tidak berubah: satu sumber
+kebenaran tetap `lib/tokens.ts`, semua komponen mengonsumsinya lewat class
+Tailwind / `elevationStyle()` / token runtime.
+
+## 1. Netral: "Kertas" → "Porselen" (kenapa warna lama terasa coklat)
+
+Diukur dari hex v2: netral lama duduk di hue 36–42° dengan chroma 20–33%
+(`gray.50` #FAF8F5 = S 33%, `light.surface` #F7F5F1 = S 27%, `borderDefault`
+#D9D3C5 = S 21%). Di atas background putih, chroma setinggi itu tidak lagi
+terbaca "hangat" — ia terbaca **beige / kertas kraft**: kartu tampak kusam,
+garis pembatas terlihat kotor, dan karena latarnya menguning, aksen Pinus
+(#0C6B4E) ikut bergeser ke zaitun. Untuk aplikasi uang, latar yang menguning
+membaca "kurang presisi".
+
+v2.1 mempertahankan hue hangat (~40°) agar tidak jatuh ke abu kebiruan yang
+dingin/klinis (kelemahan v1.1), tetapi chroma dipangkas ke **S 5–9%**:
+
+| Token | v2 (Kertas) | v2.1 (Porselen) | Chroma |
+|---|---|---|---|
+| `gray.50` | `#FAF8F5` S 33% | `#FAFAF9` | S 9% |
+| `light.surface` | `#F7F5F1` S 27% | `#F7F6F4` | S 16% |
+| `light.borderDefault` | `#D9D3C5` S 21% | `#DCDAD5` | S 9% |
+| `light.textPrimary` | `#1C1917` | `#1A1917` | — |
+| `dark.background` | `#141210` S 11% | `#141412` | S 5% |
+| `dark.surfaceElevated` | `#2E2A24` | `#2E2C28` | 1.32 vs bg |
+
+**Tangga lightness sengaja tidak diubah**, karena rasio kontras WCAG hampir
+seluruhnya fungsi lightness. Hasil verifikasi `npm run check:tokens`
+(dihitung dari token terkirim, bukan dari asumsi):
+
+- light: textPrimary 17.57 · textSecondary 9.26 · textTertiary 5.32 ·
+  borderControl 5.32 (ambang 4.5 / 4.5 / 3 / 3)
+- dark: textPrimary 16.77 · textSecondary 7.50 · borderControl 4.51 ·
+  surfaceElevated 1.32 vs background (ambang 1.3)
+
+Yang **tidak** diubah: semantic (`success/danger/warning/info`) dan `accent`
+Pinus. Alasannya terukur, bukan selera: `success.text` di atas
+`success.bgSoft` = **4.58:1** — hanya 0.08 di atas ambang AA. Setiap
+penggelapan soft background atau hue shift langsung menjatuhkannya. Aksen
+justru terlihat lebih bersih sekarang karena latarnya berhenti menguning.
+
+## 2. Elevasi: shadow lebih difus + tinta netral
+
+`shadow.color.light` #1C1917 → **#1B1A18** (mengikuti netral baru; shadow
+coklat di atas kartu netral terlihat seperti noda). Blur dinaikkan dan opacity
+light diturunkan tipis — low 8/0.06 → 10/0.055, medium 16/0.10 → 18/0.09,
+high 32/0.16 → 36/0.15. Shadow kecil-pekat terbaca sebagai garis abu di
+bawah kartu; blur lebar + alpha rendah meniru cahaya ruang. Offset TIDAK
+diubah (offset = arah cahaya). `lib/elevation.ts` kini menurunkan triplet RGB
+web dari `shadow.color` — sebelumnya `"28,25,23"` ditulis manual dan akan
+diam-diam menyimpang.
+
+## 3. Irama horizontal: screen padding 24 → 20px
+
+Di ponsel 360dp (lebar Android paling umum) gutter 24px + card padding 20px
+menyisakan kolom teks **272dp = 75,6%** lebar layar — hampir seperempat layar
+hilang untuk margin, dan nominal + status + waktu jadi terdesak. 20px adalah
+margin halaman standar iOS HIG; kolom kembali ke **280dp (77,8%)**. 16px
+ditolak: di kartu finansial konten menempel tepi dan terasa sempit.
+
+Ikut disesuaikan (bukan sekadar sed):
+
+- `layout.screenPaddingX` = `space[5]`; semua gutter `px-6` → `px-5`
+  (102 file), termasuk `Bleed`/`ScrollRow` (`-mx-6` → `-mx-5`), `Divider
+  inset` (`mx-6` → `mx-5`) — margin negatif & inset harus sama persis dengan
+  gutter atau konten full-bleed bocor/terpotong.
+- `layout.maxContentWidth` 520 dipertahankan (kolom web tidak berubah).
+- **Bug alignment diperbaiki**: `rowDividerInset` lama diturunkan dari anatomi
+  yang sudah tidak dipakai (`avatar: 64` mengasumsikan Avatar sm 32 + gap-2,
+  padahal semua pemakai memakai Avatar md 40 + gap-3). Divider di daftar chat
+  & hasil pencarian mulai 12px di kiri teks. Nilai baru dihitung dari baris
+  yang benar-benar dirender: `icon 72` · `avatar 72` · `listItem 56` ·
+  `leading 52` (kunci baru: baris yang parent-nya sudah ber-gutter, supaya
+  gutter tidak dihitung dua kali — dipakai `UserDiscoverResultItem` dan
+  `UserListItem padded={false}`).
+
+## 4. Tipografi: tracking optis untuk headline
+
+Ukuran tidak diubah (tangga 12/13/14/16/18/22/28/34 tetap); yang ditambah
+adalah letter-spacing negatif proporsional: `display` −0.5 · `h1` −0.4 ·
+`h2` −0.3. Di ≥22px jarak antar-huruf bawaan font membuat headline terasa
+"mengeja"; di ≤16px tracking negatif justru menurunkan keterbacaan, jadi
+body/caption/label tetap 0. Mono tetap +0.5. Di Android RN 0.81 menerima
+`letterSpacing` dalam dp lalu mengonversinya ke em
+(`TextAttributeProps.getLetterSpacing()`), jadi −0.4 di H1 28px = −0.014em —
+persis yang dimaksud, bukan −0.4em.
+
+## QA v2.1
+
+- `npm run check` hijau penuh: typecheck, lint, `check:tokens` (31 var
+  light/dark + seluruh pasangan kontras dihitung dari token terkirim),
+  `check:a11y` (326 file), `check:screens`, `check:inventory`, `check:spec`
+  (288 path), `check:api`, `check:weblinks`, `check:push`, `npm test`
+  (129 tes), `test:i18n-render` (4 tes).
+- Web export (`npm run build:web`) berhasil; preview statis `npm run
+  preview:web`.
+- Belum bisa diverifikasi di sandbox ini: render di perangkat iOS/Android
+  fisik (tidak ada emulator/browser di lingkungan CI ini). Checklist QA
+  manusia: dark mode, reduced-motion, font scaling 200% pada H1/H2
+  (letterSpacing ikut skala via SP), dan alignment divider di daftar
+  chat/pencarian/perangkat.

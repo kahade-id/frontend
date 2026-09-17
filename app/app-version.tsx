@@ -66,7 +66,7 @@ export default function AppVersionScreen() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="gap-4 px-6 py-4"
+        contentContainerClassName="gap-4 px-5 py-4"
       >
         <AppVersionInfoRow
           appName={Constants.expoConfig?.name ?? "Kahade"}

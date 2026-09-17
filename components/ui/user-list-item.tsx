@@ -18,7 +18,7 @@
  *     bukan Badge: informasi pendukung, bukan status.
  *   - `blocked` meredupkan avatar & nama (opacity) tanpa warna semantik:
  *     pemblokiran adalah preferensi pengguna, bukan error.
- *   - Divider inset ml-[76px] = px-6 + Avatar md (40) + gap-3.
+ *   - Divider inset ml-[72px] = px-5 (20) + Avatar md (40) + gap-3 (12).
  */
 import type { ReactNode } from "react"
 import { CaretRight } from "phosphor-react-native"
@@ -109,7 +109,7 @@ export function UserListItem({
 
   return (
     <View className={cn("w-full", className)} {...rest}>
-      <View className={cn("flex-row items-center gap-3", padded && "px-6")}>
+      <View className={cn("flex-row items-center gap-3", padded && "px-5")}>
         {onPress ? (
           <PressableScale
             accessibilityRole="button"
@@ -133,7 +133,13 @@ export function UserListItem({
           accessibilityRole="none"
           importantForAccessibility="no"
           className="h-px bg-border"
-          style={{ marginLeft: tokens.layout.rowDividerInset.icon }}
+          style={{
+            // `padded={false}` = parent yang memasang gutter (mis. hasil Cari
+            // di dalam FlatList ber-padding): gutter tidak dihitung dua kali.
+            marginLeft: padded
+              ? tokens.layout.rowDividerInset.icon
+              : tokens.layout.rowDividerInset.leading,
+          }}
         /> : null}
     </View>
   )

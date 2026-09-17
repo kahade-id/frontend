@@ -211,13 +211,13 @@ export default function QuestionsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Tanya Jawab" />
-      <View className="px-6" style={{ paddingTop: tokens.space[3] }}>
+      <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
         <SegmentedControl items={SEGMENTS} value={type} onChange={setType} />
       </View>
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}

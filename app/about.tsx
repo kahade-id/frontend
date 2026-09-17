@@ -96,7 +96,7 @@ export default function AboutScreen() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="gap-5 px-6 py-4"
+        contentContainerClassName="gap-5 px-5 py-4"
         contentContainerStyle={{ paddingBottom: tokens.space[8] }}
       >
         {/* Identitas */}

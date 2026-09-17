@@ -350,7 +350,7 @@ export default function SettingsScreen() {
           )}
         </View>
 
-        <View className="gap-4 px-6 pt-3">
+        <View className="gap-4 px-5 pt-3">
           {/* ── Kartu utama: Langganan ────────────────────────── */}
           {/* <RouteLink> membungkus <Link asChild> di atas PressableScale:
              efek tekan tetap, tetapi web mendapat <a href> sungguhan dan

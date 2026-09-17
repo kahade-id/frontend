@@ -133,7 +133,7 @@ export function NotificationListItem({
   const row = (
     <View
       className={cn(
-        "min-h-14 flex-row items-start gap-3 px-6 py-3",
+        "min-h-14 flex-row items-start gap-3 px-5 py-3",
         (unread || selected) && "bg-surface",
       )}
     >
@@ -195,7 +195,7 @@ export function NotificationListItem({
       ) : (
         content
       )}
-      {/* Inset = px-6 (24) + IconBox md (40) + gap-3 (12) */}
+      {/* Inset = px-5 (20) + IconBox md (40) + gap-3 (12) */}
       {divider ? <View
           accessibilityRole="none"
           importantForAccessibility="no"

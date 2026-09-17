@@ -67,7 +67,7 @@ export default function ChangePasswordScreen() {
       }
     >
       <Header title="Ubah Password" />
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-6 py-4">
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-5 py-4">
         <SectionHeader title="Password baru" />
         <PasswordField
           label="Password saat ini"

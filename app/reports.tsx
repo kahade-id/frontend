@@ -150,7 +150,7 @@ export default function ReportsScreen() {
       <PullToRefresh
         onRefresh={reports.refresh}
         refreshing={reports.refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}

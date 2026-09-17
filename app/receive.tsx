@@ -70,7 +70,7 @@ export default function ReceiveScreen() {
       <Header title="Terima Saldo" safeArea={false} />
       <ScrollView
         contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
-        contentContainerClassName="px-6 pt-6 gap-6"
+        contentContainerClassName="px-5 pt-6 gap-6"
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >

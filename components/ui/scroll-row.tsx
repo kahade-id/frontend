@@ -5,11 +5,11 @@
  * metode pembayaran), atau avatar. Menstandarkan tiga hal yang sering salah:
  *   1. `gap` antar item dari skala spacing — bukan margin kanan per anak
  *      (yang meninggalkan margin yatim di item terakhir).
- *   2. Padding awal/akhir konten = screen padding 24px (`px-6`) agar item
+ *   2. Padding awal/akhir konten = screen padding 20px (`px-5`) agar item
  *      pertama sejajar dengan judul di atasnya, dan item terakhir tidak
  *      menempel tepi saat di-scroll habis.
  *   3. `bleed`: saat dipakai di dalam <Screen padded>, container diberi
- *      `-mx-6` supaya area scroll (dan item yang terpotong) menyentuh tepi
+ *      `-mx-5` supaya area scroll (dan item yang terpotong) menyentuh tepi
  *      layar — sementara padding konten menjaga alignment. Ini pola standar
  *      "edge-to-edge scroll dalam kolom ber-padding".
  *
@@ -32,9 +32,9 @@ export type ScrollRowProps = Omit<
   children?: ReactNode
   /** Jarak antar item (§4). Default 2 (8px) — rapat untuk chip. */
   gap?: SpaceKey
-  /** Padding awal/akhir konten 24px (default true) */
+  /** Padding awal/akhir konten 20px (default true) */
   inset?: boolean
-  /** -mx-6: tembus tepi saat berada di dalam Screen padded */
+  /** -mx-5: tembus tepi saat berada di dalam Screen padded */
   bleed?: boolean
   /** Lebar item + gap untuk snapping pager kartu (px, runtime) */
   snap?: number
@@ -84,12 +84,12 @@ export function ScrollRow({
         decelerationRate={snap ? "fast" : undefined}
         snapToInterval={snap}
         snapToAlignment={snap ? "start" : undefined}
-        className={cn("w-full grow-0", bleed && "-mx-6", className)}
+        className={cn("w-full grow-0", bleed && "-mx-5", className)}
         contentContainerClassName={cn(
           "flex-row",
           alignClass[align],
           gapClass[gap],
-          inset && "px-6",
+          inset && "px-5",
           contentContainerClassName,
         )}
         {...rest}

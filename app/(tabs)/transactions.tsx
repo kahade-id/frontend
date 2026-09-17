@@ -71,7 +71,7 @@ export default function TransactionsScreen() {
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
           harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
           animation dari dalam <PaginatedList> (hanya saat tambah/hapus). */}
-      <FadeIn duration="fast" translate={false} className="gap-3 px-6 pb-3 pt-3">
+      <FadeIn duration="fast" translate={false} className="gap-3 px-5 pb-3 pt-3">
         <SegmentedControl items={FILTERS} value={filter} onChange={setFilter} />
         <DebouncedSearchField
           onQueryChange={setDebounced}

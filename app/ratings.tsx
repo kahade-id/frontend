@@ -314,13 +314,13 @@ export default function RatingsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Ulasan" />
-      <View className="px-6" style={{ paddingTop: tokens.space[3] }}>
+      <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
         <SegmentedControl items={SEGMENTS} value={segment} onChange={setSegment} />
       </View>
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}

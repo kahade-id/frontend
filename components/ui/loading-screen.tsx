@@ -140,7 +140,7 @@ export function LoadingOverlay({ visible, message, children, onHidden }: Loading
         <Backdrop progress={progress} />
         <View
           style={{ pointerEvents: "none", zIndex: 1 }}
-          className="flex-1 items-center justify-center px-6"
+          className="flex-1 items-center justify-center px-5"
         >
           <Animated.View style={{ opacity: progress }}>
             <View

@@ -11,7 +11,7 @@
  *                          bersama `bordered` karena tanpa shadow (§6).
  *   - level="inverted"   : bg-primary (hitam / putih) — hero saldo.
  *
- * <Inset> = padding horizontal screen (24px) tanpa fill, untuk membungkus
+ * <Inset> = padding horizontal screen (20px) tanpa fill, untuk membungkus
  * konten di dalam Screen `padded={false}` (list full-bleed + judul ber-padding).
  *
  * Kenapa bukan sekadar `<View className="bg-surface">` (non-obvious): nama
@@ -67,10 +67,10 @@ export function Surface({
 
 export type InsetProps = ViewProps & { children?: ReactNode; className?: string }
 
-/** Padding horizontal 24px (tokens.layout.screenPaddingX) */
+/** Padding horizontal 20px (tokens.layout.screenPaddingX) */
 export function Inset({ children, className, ...rest }: InsetProps) {
   return (
-    <View className={cn("w-full px-6", className)} {...rest}>
+    <View className={cn("w-full px-5", className)} {...rest}>
       {children}
     </View>
   )

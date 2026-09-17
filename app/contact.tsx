@@ -83,7 +83,7 @@ export default function ContactScreen() {
       <ScrollView
         className="flex-1"
         keyboardShouldPersistTaps="handled"
-        contentContainerClassName="gap-4 px-6"
+        contentContainerClassName="gap-4 px-5"
         contentContainerStyle={{
           paddingTop: tokens.space[3],
           paddingBottom: insets.bottom + tokens.space[8],

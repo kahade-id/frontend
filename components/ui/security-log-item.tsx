@@ -12,7 +12,7 @@
  * (escrow dibuat -> dibayar -> dikirim). Log keamanan adalah daftar kejadian
  * independen yang dipaginasi (FlatList), tanpa "langkah berikutnya"; garis
  * penghubung akan menyiratkan kausalitas yang tidak ada. Karena itu ia
- * mengikuti irama ListItem (`px-6 py-3 gap-3`, divider inset).
+ * mengikuti irama ListItem (`px-5 py-3 gap-3`, divider inset).
  *
  * Keputusan non-obvious:
  *   - Ikon per `kind` ada default-nya (SignIn, Password, ShieldCheck, …) tapi
@@ -45,7 +45,7 @@
  *   - `unread` (kejadian baru sejak terakhir dibuka) memberi bg-surface pada
  *     baris — sama dengan `selected` ListItem — bukan NotificationDot: titik
  *     merah §9.14 khusus untuk ikon tab/avatar.
- *   - Divider inset ml-[76px] = px-6 (24) + IconBox md (40) + gap-3 (12).
+ *   - Divider inset ml-[72px] = px-5 (20) + IconBox md (40) + gap-3 (12).
  *   - Aksesibilitas: satu label gabungan "judul, hasil, konteks, waktu";
  *     tautan lapor berlabel "Laporkan: bukan Anda?" agar konteksnya jelas
  *     saat difokuskan terpisah dari baris.
@@ -228,7 +228,7 @@ export function SecurityLogItem({
 
   return (
     <View className={cn("w-full", unread && "bg-surface", className)} {...rest}>
-      <View className="px-6">
+      <View className="px-5">
         {onPress ? (
           <PressableScale
             accessibilityRole="button"

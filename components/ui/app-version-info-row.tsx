@@ -98,7 +98,7 @@ export function AppVersionInfoRow({
   const interactive = !!onLongPress || !!onDeveloperUnlock
 
   const content = (
-    <View className={cn("w-full items-center gap-1 px-6 py-4", className)}>
+    <View className={cn("w-full items-center gap-1 px-5 py-4", className)}>
       <View className="flex-row items-center gap-2">
         <Text variant="caption" tone="secondary" weight={500}>
           {appName}

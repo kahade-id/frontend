@@ -16,7 +16,7 @@
  *
  * <FormRow>: dua field berdampingan (mis. "Tanggal" | "Jam", "Kota" |
  * "Kode pos") dengan gap 12px. Di bawah breakpoint tetap berdampingan
- * (bukan stack) karena lebar konten mobile 24px-padding masih cukup untuk
+ * (bukan stack) karena lebar konten mobile 20px-padding masih cukup untuk
  * dua field pendek; untuk field panjang jangan pakai FormRow.
  *
  * Keputusan non-obvious:

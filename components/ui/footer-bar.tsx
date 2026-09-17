@@ -8,7 +8,7 @@
  * Keputusan non-obvious:
  *   - Pemisah dari body `border-t border-border` (§6, bukan shadow),
  *     bg-background agar konten yang scroll di belakangnya terpotong bersih.
- *   - Padding `px-6 pt-4` (screen padding) + paddingBottom = max(space.4,
+ *   - Padding `px-5 pt-4` (screen padding) + paddingBottom = max(space.4,
  *     inset.bottom) dari runtime (style), supaya di device tanpa home
  *     indicator tetap ada 16px dan di device dengan indicator tidak dobel.
  *     `safeArea={false}` bila parent sudah menangani inset (Screen edges).
@@ -58,7 +58,7 @@ export function FooterBar({
       style={{ paddingBottom }}
       {...rest}
     >
-      <View className="w-full gap-3 px-6 pt-4 md:max-w-content tabular-nums">
+      <View className="w-full gap-3 px-5 pt-4 md:max-w-content tabular-nums">
         {summary ? (
           <View className="flex-row flex-wrap items-end justify-between gap-4">
             <View className="min-w-0 flex-1 gap-0.5">

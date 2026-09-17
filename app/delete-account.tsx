@@ -112,7 +112,7 @@ export default function DeleteAccountScreen() {
       <ScrollView
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="gap-4 px-6"
+        contentContainerClassName="gap-4 px-5"
         contentContainerStyle={{
           paddingTop: tokens.space[3],
           paddingBottom: insets.bottom + tokens.space[8],

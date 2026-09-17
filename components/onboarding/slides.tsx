@@ -183,7 +183,7 @@ export function OnboardingSlideView({ slide, width, active }: OnboardingSlideVie
     // satu heading utama per layar). Hanya slide aktif yang masuk pohon a11y.
     <View
       style={{ width }}
-      className="flex-1 px-6"
+      className="flex-1 px-5"
       accessibilityElementsHidden={!active}
       importantForAccessibility={active ? "auto" : "no-hide-descendants"}
     >

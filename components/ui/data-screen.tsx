@@ -9,7 +9,7 @@
  *     <PullToRefresh
  *       onRefresh={handleRefresh}
  *       refreshing={refreshing}
- *       contentContainerClassName="px-6"
+ *       contentContainerClassName="px-5"
  *       scrollViewProps={{ contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] } }}
  *     >
  *       {loading ? <LoadingScreen/> : error ? <ErrorState/> : items.length === 0 ? <EmptyState/> : (
@@ -32,7 +32,7 @@
  *      pull-to-refresh, isi layar TETAP terlihat). Pola lama memanggil
  *      fetcher yang sama untuk keduanya sehingga tarik-untuk-refresh
  *      mengosongkan layar — kedipan yang tidak perlu.
- *   4. Padding konten. `px-6` + `pt-3` + `gap-4` adalah irama standar §4;
+ *   4. Padding konten. `px-5` + `pt-3` + `gap-4` adalah irama standar §4;
  *      di sini menjadi default, bukan hafalan per layar.
  *
  * `state` sengaja berbentuk struktural (bukan tipe hook tertentu) supaya
@@ -95,7 +95,7 @@ export type DataScreenProps = {
   /** Nonaktifkan gesture refresh (layar yang datanya tidak bisa dimuat ulang). */
   refreshable?: boolean
   background?: ScreenBackground
-  /** Padding horizontal 24px pada konten. Default true. */
+  /** Padding horizontal 20px pada konten. Default true. */
   padded?: boolean
   /** Kelas tambahan pembungkus konten (default `gap-4 pt-3`). */
   contentClassName?: string
@@ -154,7 +154,7 @@ export function DataScreen({
         // Gesture dimatikan saat layar sedang menampilkan LoadingScreen:
         // tidak ada konten untuk ditarik dan request-nya sudah berjalan.
         enabled={refreshable && !loading}
-        contentContainerClassName={cn(padded && "px-6")}
+        contentContainerClassName={cn(padded && "px-5")}
         scrollViewProps={{ contentContainerStyle: { paddingBottom: bottomPad } }}
       >
         {body}

@@ -14,7 +14,7 @@
  *   - Slot `action` di-align `items-end` terhadap baris judul (bukan center)
  *     agar baseline TextLink 14px sejajar dengan baseline judul 22px —
  *     mengikuti aturan §7 "align dengan baseline teks".
- *   - `inset`: beri `px-6` pada header saja — untuk Screen `padded={false}`
+ *   - `inset`: beri `px-5` pada header saja — untuk Screen `padded={false}`
  *     yang isinya list full-bleed (divider menyentuh tepi) tetapi judulnya
  *     harus sejajar screen padding.
  *   - Header dipisah sebagai export sendiri supaya list virtual (FlatList
@@ -34,7 +34,7 @@ export type SectionHeaderProps = Omit<ViewProps, "children"> & {
   /** Slot kanan: TextLink "Lihat Semua", IconButton, Badge */
   action?: ReactNode
   level?: SectionLevel
-  /** px-6 hanya pada header (untuk Screen padded={false}) */
+  /** px-5 hanya pada header (untuk Screen padded={false}) */
   inset?: boolean
   className?: string
 }
@@ -51,7 +51,7 @@ export function SectionHeader({
   return (
     <View
       accessibilityRole="header"
-      className={cn("flex-row items-end justify-between gap-4", inset && "px-6", className)}
+      className={cn("flex-row items-end justify-between gap-4", inset && "px-5", className)}
       {...rest}
     >
       <View className="flex-1 gap-1">

@@ -9,8 +9,8 @@
  * ramai, dan ID order adalah data teknis (Mono, §3.1) yang tidak butuh
  * penekanan warna.
  *
- * Mengikuti anatomi ListItem/UserDiscoverResultItem (`min-h-14 px-6 py-3
- * gap-3`, divider inset ml-[64px] = px-6 + avatar md) supaya irama list
+ * Mengikuti anatomi ListItem/UserDiscoverResultItem (`min-h-14 px-5 py-3
+ * gap-3`, divider inset ml-[72px] = px-5 (20) + Avatar md (40) + gap-3 (12)) supaya irama list
  * konsisten. Tidak dibangun di atas <ListItem> karena punya dua kolom
  * kanan (waktu di atas, unread di bawah) yang tidak ada di kontrak ListItem.
  *
@@ -127,7 +127,7 @@ export function ChatRoomListItem({
     .join(", ")
 
   const row = (
-    <View className="min-h-14 flex-row items-center gap-3 px-6 py-3">
+    <View className="min-h-14 flex-row items-center gap-3 px-5 py-3">
       <View>
         <Avatar source={avatar} name={name} size="md" verified={verified} />
         {online ? (

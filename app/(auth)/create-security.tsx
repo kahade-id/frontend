@@ -135,7 +135,7 @@ export default function CreateSecurityScreen() {
         <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
           <ScrollView
             className="flex-1"
-            contentContainerClassName="grow px-6 pb-8 pt-8"
+            contentContainerClassName="grow px-5 pb-8 pt-8"
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
@@ -190,7 +190,7 @@ export default function CreateSecurityScreen() {
       ) : (
         /* ── Step 2: PIN wallet ────────────────────────────────────── */
         <View
-          className="flex-1 px-6"
+          className="flex-1 px-5"
           style={{ paddingTop: tokens.space[8] }}
         >
           <VStack gap={8} className="items-center">

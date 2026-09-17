@@ -82,7 +82,7 @@ export default function PublicRatingsScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Ulasan" />
-      <View className="flex-row flex-wrap gap-2 px-6" style={{ paddingTop: tokens.space[3] }}>
+      <View className="flex-row flex-wrap gap-2 px-5" style={{ paddingTop: tokens.space[3] }}>
         {FILTERS.map((f) => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
             {f.label}
@@ -92,7 +92,7 @@ export default function PublicRatingsScreen() {
       <PullToRefresh
         onRefresh={query.refresh}
         refreshing={query.refreshing}
-        contentContainerClassName="px-6"
+        contentContainerClassName="px-5"
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
         }}

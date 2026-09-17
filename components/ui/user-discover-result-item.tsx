@@ -10,8 +10,9 @@
  * query lewat <Highlight> (node), dan baris meta memakai Rating inline
  * (node), bukan subtitle string. Daripada menambah 2 slot node ke ListItem
  * dan melonggarkan kontraknya untuk semua daftar, komponen ini menyalin
- * ANATOMI ListItem apa adanya: `min-h-14 px-6 py-3 gap-3`, divider
- * `inset` sejajar teks (ml-[64px] = px-6 24 + avatar md 40; pada ListItem
+ * ANATOMI ListItem apa adanya: `min-h-14 px-5 py-3 gap-3`, divider
+ * `inset` sejajar teks (rowDividerInset.leading 52 = Avatar md 40 + gap-3 12;
+ * parent sudah memasang gutter, jadi gutter tidak dihitung dua kali; pada ListItem
  * 60 karena ikon 24), pressed tanpa scale. Irama list tetap identik.
  *
  * Keputusan non-obvious:
@@ -125,7 +126,7 @@ export function UserDiscoverResultItem({
 
   return (
     <View className={cn("w-full", className)} {...rest}>
-      <View className="flex-row items-center gap-3 px-6">
+      <View className="flex-row items-center gap-3 px-5">
         {onPress ? (
           <PressableScale
             accessibilityRole="button"
@@ -151,7 +152,7 @@ export function UserDiscoverResultItem({
           accessibilityRole="none"
           importantForAccessibility="no"
           className="h-px bg-border"
-          style={{ marginLeft: tokens.layout.rowDividerInset.avatar }}
+          style={{ marginLeft: tokens.layout.rowDividerInset.leading }}
         /> : null}
     </View>
   )

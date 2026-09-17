@@ -10,7 +10,7 @@
  *
  * Keputusan non-obvious:
  *   - <Screen padded={false}>: pager harus full-width agar halaman ter-snap
- *     ke tepi; padding 24px (§4) diterapkan di dalam tiap slide dan di baris
+ *     ke tepi; padding 20px (§4) diterapkan di dalam tiap slide dan di baris
  *     header/footer sendiri. Footer TIDAK memakai slot `footer` Screen karena
  *     slot itu menggambar `border-t` — di layar hero tanpa scroll, garis itu
  *     memotong komposisi; safe-area bawah tetap dari Screen (`edges` default).
@@ -67,7 +67,7 @@ export default function OnboardingScreen() {
   return (
     <Screen padded={false}>
       {/* Baris atas: brand + jalan keluar cepat */}
-      <View className="h-14 w-full flex-row items-center justify-between px-6">
+      <View className="h-14 w-full flex-row items-center justify-between px-5">
         <Logo variant="lockup" size="sm" />
         <TextLink onPress={() => void leave(ROUTES.login)} accessibilityLabel="Lewati pengenalan">
           Lewati
@@ -80,7 +80,7 @@ export default function OnboardingScreen() {
       </FadeIn>
 
       {/* Footer: indikator + CTA + link masuk */}
-      <View className="w-full gap-6 px-6 pb-4 pt-2">
+      <View className="w-full gap-6 px-5 pb-4 pt-2">
         <PageIndicator count={ONBOARDING_SLIDES.length} index={index} />
 
         <View className="gap-4">

@@ -121,7 +121,7 @@ export function BankSelect({ banks, value, onChange, popularCodes, label, labels
         onHidden={() => setQuery("")}
         contentClassName="px-0 pb-0"
       >
-        <View className="px-6 pb-3">
+        <View className="px-5 pb-3">
           <SearchField value={query} onChangeText={setQuery} placeholder={t.searchPlaceholder} autoFocus />
         </View>
 
@@ -152,7 +152,7 @@ export function BankSelect({ banks, value, onChange, popularCodes, label, labels
 
 function SectionLabel({ children }: { children: string }) {
   return (
-    <View className="px-6 pb-2 pt-3">
+    <View className="px-5 pb-2 pt-3">
       <Text variant="label" tone="secondary">
         {children}
       </Text>
@@ -179,7 +179,7 @@ export function BankRow({ bank, selected = false, onPress, className, ...rest }:
       containerClassName={cn("w-full", focusRingInset, bank.disabled && "opacity-disabled")}
       {...rest}
     >
-      <View className={cn("h-14 w-full flex-row items-center gap-3 px-6", selected && "bg-surface", className)}>
+      <View className={cn("h-14 w-full flex-row items-center gap-3 px-5", selected && "bg-surface", className)}>
         <BankLogo bank={bank} />
         <Text ellipsizeMode="tail" variant="body" weight={500} className="flex-1" numberOfLines={1}>
           {bank.name}

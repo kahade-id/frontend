@@ -30,7 +30,7 @@ export default function FollowersScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title={tab === "followers" ? "Pengikut" : "Mengikuti"} />
-      <View className="px-6 py-4">
+      <View className="px-5 py-4">
         <SegmentedControl<Tab>
           value={tab}
           onChange={setTab}

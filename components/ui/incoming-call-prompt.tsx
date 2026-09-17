@@ -105,7 +105,7 @@ export function IncomingCallPrompt({
     <View
       accessibilityViewIsModal
       accessibilityLabel={`${sub} dari ${callerName}`}
-      className={cn("flex-1 items-center justify-between bg-background px-6 py-16", className)}
+      className={cn("flex-1 items-center justify-between bg-background px-5 py-16", className)}
       {...rest}
     >
       <View className="flex-1 items-center justify-center gap-6">
