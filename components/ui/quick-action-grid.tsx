@@ -84,7 +84,7 @@ function ActionTile({ action: a, layout }: { action: QuickAction; layout: QuickA
           row ? "h-14 w-14 rounded-full" : "h-12 w-12 rounded-sm",
           a.emphasis && row
             ? "bg-primary"
-            : "bg-surface-elevated dark:bg-surface-elevated",
+            : "bg-surface dark:bg-surface-elevated",
         )}
       >
         <Icon

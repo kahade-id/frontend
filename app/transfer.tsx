@@ -361,17 +361,21 @@ export default function TransferScreen() {
         {step === "form" && formSubStep === "amount" ? (
           // 1b. Nominal + catatan (keypad terpusat)
           <View className="flex-1">
+            {/* Judul, kartu catatan, dan keypad berada dalam SATU area scroll
+                dengan `justify-between`: judul menempel di atas, kartu + keypad
+                di bawah sehingga kartu selalu TEPAT di atas keypad. Sebelumnya
+                kartu & keypad di luar scroll dan area scroll menyusut jadi 0
+                tinggi di layar pendek — judul ("Kirim ke @username") hilang
+                dan kartu tampak menempel di bawah header. Kini konten yang
+                tidak muat cukup di-scroll, tidak saling menutupi. */}
             <ScrollView
-              contentContainerStyle={{ flexGrow: 1 }}
+              className="flex-1"
+              contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              contentContainerClassName="px-5"
             >
               <FadeIn duration="fast">
-                <View className="items-center gap-2 pt-6">
-                  {selected?.avatarUrl ? null : (
-                    <View className="mb-1" />
-                  )}
+                <View className="items-center gap-2 px-5 pt-6">
                   <Heading level={1} className="text-center text-balance">
                     Kirim ke @{selected?.username}
                   </Heading>
@@ -381,36 +385,38 @@ export default function TransferScreen() {
                   </Text>
                 </View>
               </FadeIn>
+
+              {/* Catatan ditulis DI SINI lewat BottomSheet (kartu tepat di
+                  atas keypad), bukan di langkah konfirmasi. */}
+              <View>
+                <View className="px-5 pb-2 pt-4">
+                  <KeypadOptionCard
+                    label="Catatan (opsional)"
+                    value={note.trim() || undefined}
+                    placeholder="Tambah catatan untuk penerima"
+                    icon={PencilSimpleLine}
+                    onPress={() => {
+                      setNoteDraft(note)
+                      setNoteSheetOpen(true)
+                    }}
+                  />
+                </View>
+
+                <AmountKeypad
+                  value={amount}
+                  onChange={setAmount}
+                  min={MIN_AMOUNT}
+                  max={maxAmount}
+                  presets={PRESETS}
+                  balance={balance}
+                  helperText={
+                    balance == null
+                      ? `Minimal ${formatRupiah(MIN_AMOUNT)}`
+                      : undefined
+                  }
+                />
+              </View>
             </ScrollView>
-
-            {/* Catatan ditulis DI SINI lewat BottomSheet (kartu di atas
-                keypad), bukan di langkah konfirmasi. */}
-            <View className="px-5 pb-2">
-              <KeypadOptionCard
-                label="Catatan (opsional)"
-                value={note.trim() || undefined}
-                placeholder="Tambah catatan untuk penerima"
-                icon={PencilSimpleLine}
-                onPress={() => {
-                  setNoteDraft(note)
-                  setNoteSheetOpen(true)
-                }}
-              />
-            </View>
-
-            <AmountKeypad
-              value={amount}
-              onChange={setAmount}
-              min={MIN_AMOUNT}
-              max={maxAmount}
-              presets={PRESETS}
-              balance={balance}
-              helperText={
-                balance == null
-                  ? `Minimal ${formatRupiah(MIN_AMOUNT)}`
-                  : undefined
-              }
-            />
 
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"

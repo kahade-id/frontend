@@ -39,7 +39,6 @@ import { useLocalSearchParams, router } from "expo-router"
 import {
   BookmarkSimple,
   ChatCircle,
-  DotsThree,
   Flag,
   Heart,
   HeartStraight,
@@ -85,6 +84,7 @@ import { Dialog } from "@/components/ui/modal"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Picture } from "@/components/ui/picture"
+import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
@@ -695,7 +695,7 @@ export default function ShowcaseDetailScreen() {
         ) : null}
         {comments.map((root) => (
           <View key={root.id} className="gap-4">
-            <CommentRow
+            <ShowcaseCommentRow
               comment={root}
               isMine={isMine(root)}
               canReply={canReply(root)}
@@ -706,7 +706,7 @@ export default function ShowcaseDetailScreen() {
             {(root.replies ?? []).map((reply) => (
               // Indent 32px = avatar xs (24) + gap (8) — balasan sejajar teks induk.
               <View key={reply.id} className="ml-8">
-                <CommentRow
+                <ShowcaseCommentRow
                   comment={reply}
                   isMine={isMine(reply)}
                   canReply={false}
@@ -890,89 +890,5 @@ export default function ShowcaseDetailScreen() {
         </View>
       </BottomSheet>
     </DataScreen>
-  )
-}
-
-// ------------------------------------------------------------------
-// Baris komentar
-// ------------------------------------------------------------------
-
-/**
- * Baris komentar gaya feed (mockup IMG_20260917_224056_353.jpg): avatar di
- * kiri, nama + isi + baris meta (waktu · Anda · Balas) di kanan. Menu
- * edit/hapus/moderasi pindah ke tombol ⋯ di ujung baris — dulu SELURUH baris
- * bisa ditekan, yang menyulitkan seleksi teks dan memicu menu sesaat jari
- * tersenggol saat scroll.
- */
-function CommentRow({
-  comment,
-  isMine,
-  canReply,
-  menuable,
-  onReply,
-  onOpenMenu,
-}: {
-  comment: ShowcaseComment
-  isMine: boolean
-  canReply: boolean
-  /** tampilkan tombol ⋯ (pemanggil memutuskan: pengarang ATAU pemilik item) */
-  menuable: boolean
-  onReply: (c: ShowcaseComment) => void
-  onOpenMenu: (c: ShowcaseComment) => void
-}) {
-  const hidden = comment.isHidden === true
-  return (
-    <View className="flex-row items-start gap-2">
-      <Avatar
-        source={comment.author.avatarUrl ? { uri: comment.author.avatarUrl } : undefined}
-        name={comment.author.fullName ?? comment.author.username}
-        size="xs"
-      />
-      <View className="flex-1 gap-0.5">
-        <View className="flex-row items-center gap-2">
-          <Text variant="body" weight={600} numberOfLines={1} className="flex-1">
-            {comment.author.fullName ?? comment.author.username}
-          </Text>
-          {menuable ? (
-            <IconButton
-              icon={DotsThree}
-              variant="ghost"
-              size="sm"
-              accessibilityLabel={`Opsi komentar dari ${comment.author.fullName ?? comment.author.username}`}
-              onPress={() => onOpenMenu(comment)}
-            />
-          ) : null}
-        </View>
-        <Text variant="body" tone={hidden ? "secondary" : "primary"}>
-          {hidden ? "(Komentar disembunyikan)" : comment.content}
-        </Text>
-        {hidden && comment.hiddenReason ? (
-          <Text variant="caption" tone="secondary">
-            Alasan: {comment.hiddenReason.toLowerCase()}
-          </Text>
-        ) : null}
-        <View className="flex-row items-center gap-4">
-          <Text variant="caption" tone="secondary" className="tabular-nums">
-            {formatDateTime(comment.createdAt)}
-          </Text>
-          {isMine ? (
-            <Text variant="caption" tone="secondary">
-              Anda
-            </Text>
-          ) : null}
-          {canReply ? (
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel="Balas komentar"
-              onPress={() => onReply(comment)}
-            >
-              <Text variant="caption" tone="primary" weight={600}>
-                Balas
-              </Text>
-            </PressableScale>
-          ) : null}
-        </View>
-      </View>
-    </View>
   )
 }

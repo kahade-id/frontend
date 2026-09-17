@@ -236,14 +236,17 @@ export default function WithdrawScreen() {
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         {step === "amount" ? (
           <View className="flex-1">
+            {/* Judul + kartu rekening + keypad dalam SATU area scroll dengan
+                `justify-between` — kartu selalu tepat di atas keypad dan judul
+                tidak pernah tertutup di layar pendek (lihat transfer.tsx). */}
             <ScrollView
-              contentContainerStyle={{ flexGrow: 1 }}
+              className="flex-1"
+              contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              contentContainerClassName="px-5"
             >
               <FadeIn duration="fast">
-                <View className="items-center gap-2 pt-6">
+                <View className="items-center gap-2 px-5 pt-6">
                   <Heading level={1} className="text-center text-balance">
                     Tarik ke rekening
                   </Heading>
@@ -252,33 +255,35 @@ export default function WithdrawScreen() {
                   </Text>
                 </View>
               </FadeIn>
+
+              <View>
+                {/* Rekening tujuan dipilih DI SINI lewat BottomSheet (kartu
+                    tepat di atas keypad), bukan di langkah terpisah. */}
+                <View className="px-5 pb-2 pt-4">
+                  <KeypadOptionCard
+                    label="Rekening tujuan"
+                    value={selected ? `${selected.bankName ?? selected.bankCode}` : undefined}
+                    placeholder={loading ? "Memuat rekening…" : "Pilih rekening tujuan"}
+                    icon={BankIcon}
+                    description={
+                      selected
+                        ? `${maskAccountNumber(selected.accountNumber)} · a.n. ${selected.accountName ?? "—"}`
+                        : undefined
+                    }
+                    onPress={() => setAccountSheetOpen(true)}
+                  />
+                </View>
+
+                <AmountKeypad
+                  value={amount}
+                  onChange={setAmount}
+                  min={MIN_AMOUNT}
+                  max={balance && balance > 0 ? Math.min(MAX_AMOUNT, balance) : MAX_AMOUNT}
+                  presets={PRESETS}
+                  balance={balance}
+                />
+              </View>
             </ScrollView>
-
-            {/* Rekening tujuan dipilih DI SINI lewat BottomSheet (kartu di
-                atas keypad), bukan di langkah terpisah. */}
-            <View className="px-5 pb-2">
-              <KeypadOptionCard
-                label="Rekening tujuan"
-                value={selected ? `${selected.bankName ?? selected.bankCode}` : undefined}
-                placeholder={loading ? "Memuat rekening…" : "Pilih rekening tujuan"}
-                icon={BankIcon}
-                description={
-                  selected
-                    ? `${maskAccountNumber(selected.accountNumber)} · a.n. ${selected.accountName ?? "—"}`
-                    : undefined
-                }
-                onPress={() => setAccountSheetOpen(true)}
-              />
-            </View>
-
-            <AmountKeypad
-              value={amount}
-              onChange={setAmount}
-              min={MIN_AMOUNT}
-              max={balance && balance > 0 ? Math.min(MAX_AMOUNT, balance) : MAX_AMOUNT}
-              presets={PRESETS}
-              balance={balance}
-            />
 
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"

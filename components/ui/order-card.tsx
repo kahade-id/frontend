@@ -30,6 +30,12 @@
  *     kiri ID, bukan tint seluruh kartu: kartu sudah memakai isi abu-abu
  *     (gray.100/dark gray.900) agar terbaca di background putih, jadi tint
  *     tambahan tidak terlihat; titik kecil cukup (§1 hitam = perhatian).
+ *   - 2026-09-17 — garis aksen status 4px di tepi kiri (hijau selesai, merah
+ *     sengketa, dst). Daftar panjang lebih cepat "dipindai warna" daripada
+ *     dibaca label Badge satu per satu, tapi ketebalannya sengaja minimal
+ *     (isyarat, bukan blok warna) dan tone-nya diambil dari
+ *     `orderStatusTone()` yang sama dengan Badge — satu sumber warna status,
+ *     tidak ada tabel warna kedua yang bisa drift.
  *   - Deadline (`deadlineAt`) dirender <Countdown> hanya bila status masih
  *     aktif; jika sudah lewat, `onDeadline` memberi tahu parent untuk refetch
  *     — kartu tidak mengubah status sendiri (sumber kebenaran = server).
@@ -43,8 +49,10 @@ import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Card, type CardProps } from "@/components/ui/card"
 import { Countdown } from "@/components/ui/countdown"
 import { Dot } from "@/components/ui/dot"
+import { type BadgeTone } from "@/components/ui/badge"
 import {
   isOrderActive,
+  orderStatusTone,
   OrderStatusBadge,
   type OrderRole,
   type OrderStatus,
@@ -73,6 +81,25 @@ const DEFAULT_LABELS: OrderCardLabels = {
   seller: "Penjual",
   buyer: "Pembeli",
   deadline: "Batas waktu",
+}
+
+/**
+ * Garis aksen tipis di tepi kiri kartu, mengikuti TONE status (bukan tabel
+ * warna baru): hijau selesai, merah sengketa, oranye butuh tindakan, biru
+ * sedang berjalan. Status netral (dibatalkan/dikembalikan/kedaluwarsa) tidak
+ * menggambar garis — di atas kartu abu, garis abu hanya jadi noise.
+ *
+ * 4px (`w-1`) dipilih supaya terbaca sebagai isyarat sekilas saat menggulir
+ * daftar tanpa mengubah bobot visual kartu ("tidak usah terlalu tebal") dan
+ * tetap >= 3:1 terhadap fill kartu (WCAG 1.4.11 untuk objek grafis).
+ */
+const STATUS_ACCENT: Record<BadgeTone, string | null> = {
+  success: "bg-success",
+  danger: "bg-danger",
+  warning: "bg-warning",
+  info: "bg-info",
+  accent: "bg-accent",
+  neutral: null,
 }
 
 // `role` di-Omit dari CardProps: ViewProps RN 0.81 punya `role?: Role`
@@ -119,6 +146,7 @@ export function OrderCard({
   const counterpartRole =
     role === "buyer" ? t.seller : role === "seller" ? t.buyer : "Lawan transaksi"
   const showDeadline = deadlineAt != null && isOrderActive(status)
+  const statusAccent = STATUS_ACCENT[orderStatusTone(status, role)]
 
   const a11y =
     accessibilityLabel ??
@@ -145,6 +173,16 @@ export function OrderCard({
       className={cn("gap-3 bg-surface", className)}
       {...rest}
     >
+      {/* Garis status tipis (dekoratif, 4px) — aksen visual cepat; statusnya
+          tetap dibaca dari <OrderStatusBadge> di baris pertama. */}
+      {statusAccent ? (
+        <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          className={cn("absolute bottom-0 left-0 top-0 w-1 rounded-l-md", statusAccent)}
+        />
+      ) : null}
+
       {/* Baris 1: ID + status */}
       <View className="flex-row items-center justify-between gap-3">
         <View className="flex-1 flex-row items-center gap-2">

@@ -74,7 +74,7 @@ const NON_UI_VALUES = new Set([
   "X-Request-Id",
   "X-Idempotency-Key",
   "Content-Type",
-  "Kanit",
+  "Chivo",
   "EB Garamond",
   "Azeret Mono",
 ])

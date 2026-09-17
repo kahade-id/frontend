@@ -5,26 +5,41 @@
  * IMG_20260917_224056_353.jpg) — BUKAN kartu: tanpa kotak border/background/
  * radius. Anatomi: media di atas (full-bleed — gutter dibawa pemanggil, lihat
  * ShowcaseFeedTab), lalu baris penulis (avatar + nama + username), judul
- * produk, harga, deskripsi singkat, dan baris statistik (suka · komentar).
- * Pemisah antar postingan adalah ruang (gap list), bukan garis maupun bayangan.
+ * produk, harga, deskripsi singkat, dan baris aksi (suka · komentar · simpan ·
+ * bagikan).
  *
  * Keputusan non-obvious:
- *   - Seluruh postingan satu target tap → detail (Push §10). Dengan `href`
- *     ia dirender sebagai tautan sejati di web (pola <Card href>): <a> yang
- *     bisa ctrl/cmd-klik, dan role-nya otomatis "link". Statistik TIDAK punya
- *     tombol sendiri di feed — like terjadi di halaman detail, jadi tidak ada
- *     nested-pressable.
- *   - Ikon statistik memakai tone "active" (tinta utama, bukan abu tertiary):
- *     di atas postingan tanpa kartu, ikon abu tampak "mati" — mockup
- *     menampilkan ikon tinta gelap. Angka tetap caption secondary tabular.
+ *   - AREA POSTINGAN dan BARIS AKSI adalah dua target tap yang TERPISAH.
+ *     Sebelumnya seluruh item satu <PressableScale> dan statistik hanya teks;
+ *     begitu like/komentar/simpan/bagikan hidup di feed, satu target tap
+ *     mustahil — tombol di dalam tombol tidak terbaca screen reader dan tap
+ *     pada ikon akan membuka detail. Jadi media+penulis+judul+deskripsi
+ *     dibungkus tombol/tautan ke detail, sedangkan baris aksi punya tombol
+ *     sendiri (pola <CardSummary> untuk kartu yang punya aksi).
+ *   - `href` merender area postingan sebagai tautan sejati di web (<a> yang
+ *     bisa ctrl/cmd-klik) — pola <Card href> / <ListItem href>.
+ *   - Aksi bersifat OPSIONAL: tanpa `onToggleLike`/`onOpenComments`/
+ *     `onToggleSave`/`onShare`, baris aksi tetap tampil sebagai statistik
+ *     statis (perilaku lama) supaya komponen ini tetap bisa dipakai sebagai
+ *     preview tanpa API.
+ *   - Ikon aksi memakai tone "active" (tinta utama) meski kini berupa tombol:
+ *     di atas postingan tanpa kartu, ikon abu tampak "mati" (keputusan visual
+ *     yang sudah ada sebelumnya). STATE suka ditandai dengan hati terisi +
+ *     angka ber-weight 600, bukan pergantian warna — merah sudah dicoret dari
+ *     palet aksi sosial (docs/image/f739a1072b861fa6f9ae25e44ee7628e.jpg),
+ *     dan layar detail memakai penanda yang sama supaya transisi list →
+ *     detail tidak "berubah arti".
  *   - Grid media: 1 foto = kotak penuh 1:1; ≥2 foto = dua kolom 1:1 (gap
  *     2px), sisanya dihitung sebagai "+N" di atas scrim `bg-overlay-media`
  *     pada foto kedua — scrim 0.7 yang sama dengan <ShowcaseGalleryGrid>
  *     supaya label putih tetap ≥ 4.5:1 di atas foto terang.
  *   - Kolom grid memakai flex-1 (bukan w-1/2) agar gap terhitung otomatis;
  *     fraksi lebar + gap justru membuat kolom kedua wrap di RN.
+ *   - `divider` menggambar garis pemisah di bawah postingan (1px, §6) —
+ *     pemanggil mematikan divider pada item terakhir (tidak ada garis
+ *     menggantung di ujung feed).
  */
-import { ChatCircle, HeartStraight } from "phosphor-react-native"
+import { BookmarkSimple, ChatCircle, Heart, HeartStraight, ShareNetwork } from "phosphor-react-native"
 import { Link, type Href } from "expo-router"
 import { View } from "react-native"
 
@@ -33,7 +48,9 @@ import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import { resolveMediaUrl } from "@/lib/media"
 
 import { Avatar } from "@/components/ui/avatar"
+import { Divider } from "@/components/ui/divider"
 import { Icon } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -42,13 +59,37 @@ import { focusRing } from "@/lib/focus-ring"
 
 export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
+  /** Ketuk area postingan (media/penulis/judul) → detail */
   onPress?: () => void
-  /** Tautan web (opsional) — bila dikirim, postingan jadi <a href>. */
+  /** Tautan web (opsional) — bila dikirim, area postingan jadi <a href>. */
   href?: Href
+  /** Suka/batal suka LANGSUNG dari feed (state di parent, lihat ShowcaseFeedTab) */
+  onToggleLike?: () => void
+  /** Ketuk komentar → BottomSheet daftar komentar */
+  onOpenComments?: () => void
+  /** Simpan/batal simpan (bookmark lokal — backend belum punya endpoint koleksi) */
+  onToggleSave?: () => void
+  /** Simpan aktif */
+  saved?: boolean
+  /** Bagikan item ini (share sheet native) */
+  onShare?: () => void
+  /** Garis pemisah di bawah item (matikan pada item terakhir) */
+  divider?: boolean
   className?: string
 }
 
-export function ShowcaseFeedItem({ item, onPress, href, className }: ShowcaseFeedItemProps) {
+export function ShowcaseFeedItem({
+  item,
+  onPress,
+  href,
+  onToggleLike,
+  onOpenComments,
+  onToggleSave,
+  saved = false,
+  onShare,
+  divider = false,
+  className,
+}: ShowcaseFeedItemProps) {
   const cover = item.images[0]?.imageUrl ?? item.coverImageUrl ?? item.imageUrl
   const resolvedCover = cover ? resolveMediaUrl(cover) : undefined
   // Galeri hanya berisi URL yang berhasil di-resolve — <Picture> butuh string
@@ -66,8 +107,10 @@ export function ShowcaseFeedItem({ item, onPress, href, className }: ShowcaseFee
 
   const images = gallery
   const overflow = images.length > 2 ? images.length - 2 : 0
+  const liked = item.isLiked === true
+  const summary = `Showcase ${item.title}, ${priceLabel}, oleh ${item.author.fullName ?? item.author.username}`
 
-  const body = (
+  const post = (
     <View className={cn(className)}>
       {/* ── Media ── */}
       {images.length >= 2 ? (
@@ -153,47 +196,118 @@ export function ShowcaseFeedItem({ item, onPress, href, className }: ShowcaseFee
           </Text>
         ) : null}
       </View>
-
-      {/* ── Statistik (bukan tombol — lihat catatan di atas) ── */}
-      <View className="flex-row items-center gap-4 px-5 pb-1 pt-2">
-        <View className="flex-row items-center gap-1.5">
-          <Icon icon={HeartStraight} size="xs" tone="active" />
-          <Text variant="caption" tone="secondary" className="tabular-nums">
-            {formatNumber(item.likeCount)}
-          </Text>
-        </View>
-        <View className="flex-row items-center gap-1.5">
-          <Icon icon={ChatCircle} size="xs" tone="active" />
-          <Text variant="caption" tone="secondary" className="tabular-nums">
-            {formatNumber(item.commentCount)}
-          </Text>
-        </View>
-      </View>
     </View>
   )
 
-  if (href) {
-    return (
-      <Link href={href} asChild>
-        <PressableScale
-          accessibilityRole="link"
-          accessibilityLabel={`Showcase ${item.title}, ${priceLabel}, oleh ${item.author.fullName ?? item.author.username}`}
-          containerClassName={cn("w-full", focusRing)}
-        >
-          {body}
-        </PressableScale>
-      </Link>
-    )
-  }
-
-  return (
+  // Area postingan = satu target tap ke detail. Hanya ini yang jadi tombol;
+  // baris aksi di bawahnya punya tombolnya sendiri (lihat catatan di atas).
+  const interactivePost = onPress || href ? (
     <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={`Showcase ${item.title}, ${priceLabel}, oleh ${item.author.fullName ?? item.author.username}`}
+      accessibilityRole={href ? "link" : "button"}
+      accessibilityLabel={summary}
+      accessibilityHint="Buka detail showcase"
       onPress={onPress}
       containerClassName={cn("w-full", focusRing)}
     >
-      {body}
+      {post}
     </PressableScale>
+  ) : (
+    post
+  )
+
+  const likeRow = onToggleLike ? (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
+      accessibilityHint={`${formatNumber(item.likeCount)} suka`}
+      haptic
+      onPress={onToggleLike}
+      containerClassName={cn("min-h-11 flex-row items-center gap-2 rounded-md px-3", focusRing)}
+    >
+      <Icon
+        icon={liked ? Heart : HeartStraight}
+        size="md"
+        tone="active"
+        weight={liked ? "fill" : "regular"}
+      />
+      <Text
+        variant="caption"
+        tone={liked ? "primary" : "secondary"}
+        weight={liked ? 600 : 500}
+        className="tabular-nums"
+      >
+        {formatNumber(item.likeCount)}
+      </Text>
+    </PressableScale>
+  ) : (
+    <View className="min-h-11 flex-row items-center gap-2 px-3">
+      <Icon icon={HeartStraight} size="md" tone="active" />
+      <Text variant="caption" tone="secondary" className="tabular-nums">
+        {formatNumber(item.likeCount)}
+      </Text>
+    </View>
+  )
+
+  const commentRow = onOpenComments ? (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel="Komentar"
+      accessibilityHint={`${formatNumber(item.commentCount)} komentar`}
+      haptic
+      onPress={onOpenComments}
+      containerClassName={cn("min-h-11 flex-row items-center gap-2 rounded-md px-3", focusRing)}
+    >
+      <Icon icon={ChatCircle} size="md" tone="active" />
+      <Text variant="caption" tone="secondary" className="tabular-nums">
+        {formatNumber(item.commentCount)}
+      </Text>
+    </PressableScale>
+  ) : (
+    <View className="min-h-11 flex-row items-center gap-2 px-3">
+      <Icon icon={ChatCircle} size="md" tone="active" />
+      <Text variant="caption" tone="secondary" className="tabular-nums">
+        {formatNumber(item.commentCount)}
+      </Text>
+    </View>
+  )
+
+  return (
+    <View className="w-full">
+      {href ? (
+        <Link href={href} asChild>
+          {interactivePost}
+        </Link>
+      ) : (
+        interactivePost
+      )}
+
+      {/* ── Aksi: suka · komentar (kiri) · simpan · bagikan (kanan) ── */}
+      <View className="flex-row items-center px-2 pt-1">
+        {likeRow}
+        {commentRow}
+        <View className="flex-1" />
+        {onToggleSave ? (
+          <IconButton
+            icon={BookmarkSimple}
+            variant="ghost"
+            size="sm"
+            active={saved}
+            accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
+            onPress={onToggleSave}
+          />
+        ) : null}
+        {onShare ? (
+          <IconButton
+            icon={ShareNetwork}
+            variant="ghost"
+            size="sm"
+            accessibilityLabel="Bagikan"
+            onPress={onShare}
+          />
+        ) : null}
+      </View>
+
+      {divider ? <Divider className="mt-5" /> : null}
+    </View>
   )
 }

@@ -14,6 +14,13 @@
  *     tidak menembak API tiap ketikan.
  *   - Tab Pengguna tetap memakai usePaginatedQuery (offset aman di daftar
  *     statis); hanya feed yang perlu cursor.
+ *   - Aksi sosial tersedia LANGSUNG di feed (2026-09-17): suka, komentar
+ *     (BottomSheet), simpan, bagikan. `items` adalah satu-satunya sumber
+ *     kebenaran angka — suka mengubah item di array (optimistis, lalu
+ *     disinkronkan dengan `{liked, likeCount}` final dari server), supaya
+ *     angka di kartu tidak "melompat balik" setelah refetch halaman.
+ *     Simpan (bookmark) masih lokal: kontrak showcase belum punya endpoint
+ *     koleksi tersimpan — sama dengan layar detail.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
@@ -21,14 +28,18 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Compass, Images, UsersThree } from "phosphor-react-native"
 import { router } from "expo-router"
 
-import { api, userMessage } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import type { DiscoveredUser } from "@/lib/api/users"
 import {
   getShowcaseFeed,
+  getShowcaseSharePayload,
+  likeShowcase,
+  unlikeShowcase,
   type ShowcaseFeedSort,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
 import { ROUTES } from "@/lib/routes"
+import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -40,6 +51,7 @@ import { Input } from "@/components/ui/input"
 import { Icon } from "@/components/ui/icon"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
+import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
@@ -135,6 +147,7 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
 // ------------------------------------------------------------------
 
 export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
+  const toast = useToast()
   const [sort, setSort] = useState<ShowcaseFeedSort>("latest")
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search.trim(), 400)
@@ -147,6 +160,12 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  /** Bookmark bersifat lokal (backend belum punya endpoint koleksi tersimpan). */
+  const [savedIds, setSavedIds] = useState<ReadonlySet<string>>(() => new Set())
+  /** Item yang komentarnya sedang dibuka di BottomSheet (null = tertutup). */
+  const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
+  /** Guard per item: mencegah dua request suka berbarengan pada kartu yang sama. */
+  const likeBusy = useRef<Set<string>>(new Set())
   const activeRequest = useRef<AbortController | null>(null)
   const loadMoreBusy = useRef(false)
   const hasLoadedOnce = useRef(false)
@@ -215,6 +234,88 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
     if (nextCursor && hasMore && !loadingMore) void fetchPage(nextCursor, "more")
   }, [nextCursor, hasMore, loadingMore, fetchPage])
 
+  // ── Aksi sosial di feed ────────────────────────────────────────────────
+  /** Ganti sebagian field satu item — satu sumber angka untuk kartu di list. */
+  const patchItem = useCallback((id: string, patch: Partial<ShowcaseSocialItem>) => {
+    setItems((previous) =>
+      previous.map((entry) => (entry.id === id ? { ...entry, ...patch } : entry)),
+    )
+  }, [])
+
+  /**
+   * Suka/batal suka langsung dari kartu feed. Optimistis: angka berubah saat
+   * jari menyentuh, lalu disinkronkan dengan nilai FINAL dari server
+   * (`{liked, likeCount}`) supaya tidak berbeda dengan halaman detail.
+   */
+  const handleToggleLike = useCallback(
+    async (item: ShowcaseSocialItem) => {
+      if (likeBusy.current.has(item.id)) return
+      const previous = { isLiked: item.isLiked === true, likeCount: item.likeCount }
+      const next = !previous.isLiked
+      likeBusy.current.add(item.id)
+      patchItem(item.id, {
+        isLiked: next,
+        likeCount: Math.max(0, previous.likeCount + (next ? 1 : -1)),
+      })
+      try {
+        const res = next ? await likeShowcase(item.id) : await unlikeShowcase(item.id)
+        patchItem(item.id, { isLiked: res.liked, likeCount: res.likeCount })
+      } catch (err) {
+        patchItem(item.id, previous)
+        // SHOWCASE_ALREADY_LIKED (race) bukan error pengguna — cukup sinkronkan.
+        const isRace = isApiError(err) && err.backendCode === "SHOWCASE_ALREADY_LIKED"
+        if (!isRace) {
+          toast.show({
+            title: "Gagal memperbarui suka",
+            description: userMessage(err),
+            tone: "danger",
+          })
+        }
+      } finally {
+        likeBusy.current.delete(item.id)
+      }
+    },
+    [patchItem, toast],
+  )
+
+  const handleToggleSave = useCallback((item: ShowcaseSocialItem) => {
+    setSavedIds((previous) => {
+      const next = new Set(previous)
+      if (next.has(item.id)) next.delete(item.id)
+      else next.add(item.id)
+      return next
+    })
+  }, [])
+
+  const handleShare = useCallback(
+    async (item: ShowcaseSocialItem) => {
+      try {
+        const payload = await getShowcaseSharePayload(item.id)
+        const outcome = await shareContent({
+          message: `${payload.title} — ${payload.authorFullName ?? "@" + payload.authorUsername}`,
+          url: payload.shareUrl,
+          title: payload.title,
+        })
+        if (outcome === "unavailable") {
+          toast.show({ title: "Share tidak tersedia di perangkat ini", tone: "info" })
+        }
+      } catch (err) {
+        toast.show({
+          title: "Gagal menyiapkan share",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
+      }
+    },
+    [toast],
+  )
+
+  const handleOpenDetail = useCallback((item: ShowcaseSocialItem) => {
+    // Tutup sheet lebih dulu (§9.9 stack guard) lalu buka detail.
+    setCommentItem(null)
+    router.push(ROUTES.showcaseDetail(item.id))
+  }, [])
+
   return (
     <View className="flex-1">
       <View className="gap-2 px-4 py-3">
@@ -248,7 +349,9 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         // Feed bergaya postingan sosial: media full-bleed memotong gutter —
         // teks di dalam <ShowcaseFeedItem> membawa px-5 sendiri.
         padded={false}
-        gap={tokens.space[6]}
+        // Jarak antar postingan 20px: divider di akhir tiap item jatuh
+        // hampir tepat di tengah celah (lihat <ShowcaseFeedItem divider>).
+        gap={tokens.space[5]}
         bottomPadding={bottomPadding}
         loadingPlaceholder={
           <SkeletonGroup className="gap-10 py-4">
@@ -275,12 +378,29 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
             }
           />
         }
-        renderItem={({ item }) => (
+        renderItem={({ item, index }) => (
           <ShowcaseFeedItem
             item={item}
             onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
+            onToggleLike={() => void handleToggleLike(item)}
+            onOpenComments={() => setCommentItem(item)}
+            onToggleSave={() => handleToggleSave(item)}
+            saved={savedIds.has(item.id)}
+            onShare={() => void handleShare(item)}
+            // Garis pemisah antar postingan; item terakhir tidak perlu garis
+            // menggantung di ujung feed.
+            divider={index < items.length - 1}
           />
         )}
+      />
+
+      {/* Komentar dibaca di sheet — pengguna tidak kehilangan posisi feed. */}
+      <ShowcaseCommentsSheet
+        item={commentItem}
+        onRequestClose={() => setCommentItem(null)}
+        onOpenDetail={() => {
+          if (commentItem) handleOpenDetail(commentItem)
+        }}
       />
     </View>
   )

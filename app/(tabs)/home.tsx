@@ -29,6 +29,12 @@
  * angka basi setelah top-up/withdraw/bayar di layar lain.
  *
  * Keputusan non-obvious:
+ *   - Background layar = `background` (putih), BUKAN `surface`: sebelumnya
+ *     Beranda satu-satunya layar berlatarbelakang abu, sehingga terasa seperti
+ *     "kartu raksasa" dan berbeda dari tab lain (2026-09-17). Konsekuensinya
+ *     kartu hero tidak lagi `borderless` (kartu putih tanpa border di atas
+ *     latar putih akan lenyap) dan ubin ikon <QuickActionGrid> memakai
+ *     `bg-surface` — lihat komponennya.
  *   - "Sembunyikan saldo" adalah state sesi (useState), bukan persisten:
  *     repo tidak punya AsyncStorage dan SecureStore dipakai untuk rahasia;
  *     default TAMPIL karena Beranda dibuka setelah login/PIN.
@@ -282,7 +288,7 @@ export default function HomeScreen() {
   const isBusiness = profile.data?.accountType === "BUSINESS"
 
   return (
-    <Screen edges={["top"]} padded={false} background="surface">
+    <Screen edges={["top"]} padded={false}>
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={
@@ -384,9 +390,12 @@ export default function HomeScreen() {
 
           {/* ── 1b. Kolom cari (kartu di atas kartu Saldo) ─────── */}
           <View className="px-5 pt-3">
+            {/* Variant default (outline border-control), BUKAN "elevated":
+                varian elevated = putih tanpa border dan hanya terbaca di
+                atas latar abu — latar Beranda kini putih (lihat catatan di
+                atas), jadi outline-nya harus dari border seperti <Input>. */}
             <SearchTrigger
               placeholder="Cari transaksi, pengguna, atau ID"
-              variant="elevated"
               onPress={() => router.push(ROUTES.search)}
             />
           </View>
@@ -397,7 +406,6 @@ export default function HomeScreen() {
               available={wallet.data?.availableBalance}
               held={wallet.data?.holdBalance}
               hidden={balanceHidden}
-              borderless
               elevation="low"
               onToggleHidden={() => setBalanceHidden((v) => !v)}
               walletLoading={wallet.loading}

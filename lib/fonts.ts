@@ -8,9 +8,9 @@
  *     fallback diam-diam ke system font saat runtime.
  *
  * Kenapa helper ini perlu (non-obvious):
- *   RN TIDAK mem-resolve `fontFamily: "Kanit"` + `fontWeight: "700"`
- *   ke file Kanit-Bold. Font yang di-load expo-font hanya bisa dipakai
- *   lewat nama registrasinya (mis. "Kanit-Bold") — ini berlaku di native
+ *   RN TIDAK mem-resolve `fontFamily: "Chivo"` + `fontWeight: "700"`
+ *   ke file Chivo-Bold. Font yang di-load expo-font hanya bisa dipakai
+ *   lewat nama registrasinya (mis. "Chivo-Bold") — ini berlaku di native
  *   MAUPUN web (expo-font web mendaftarkan @font-face dengan nama key).
  *   `resolveFontFamily()` memetakan (family, weight) -> nama asset.
  *
@@ -33,7 +33,7 @@ export type FontRole = keyof typeof fontFamilyByWeight // "sans" | "serif" | "mo
 /** Weight yang valid untuk suatu role (mis. serif hanya 500) */
 export type FontWeightFor<R extends FontRole> = keyof (typeof fontFamilyByWeight)[R]
 
-/** Union semua nama asset: "Kanit-Regular" | ... | "AzeretMono-SemiBold" */
+/** Union semua nama asset: "Chivo-Regular" | ... | "AzeretMono-SemiBold" */
 export type FontAssetName = {
   [R in FontRole]: (typeof fontFamilyByWeight)[R][keyof (typeof fontFamilyByWeight)[R]]
 }[FontRole]
@@ -48,10 +48,10 @@ export type FontAssetName = {
  * type-check. `require()` harus literal statis agar Metro bisa bundle.
  */
 export const fontAssets = {
-  "Kanit-Regular": require("../assets/fonts/Kanit-Regular.ttf"),
-  "Kanit-Medium": require("../assets/fonts/Kanit-Medium.ttf"),
-  "Kanit-SemiBold": require("../assets/fonts/Kanit-SemiBold.ttf"),
-  "Kanit-Bold": require("../assets/fonts/Kanit-Bold.ttf"),
+  "Chivo-Regular": require("../assets/fonts/Chivo-Regular.ttf"),
+  "Chivo-Medium": require("../assets/fonts/Chivo-Medium.ttf"),
+  "Chivo-SemiBold": require("../assets/fonts/Chivo-SemiBold.ttf"),
+  "Chivo-Bold": require("../assets/fonts/Chivo-Bold.ttf"),
   "EBGaramond-Medium": require("../assets/fonts/EBGaramond-Medium.ttf"),
   "AzeretMono-Medium": require("../assets/fonts/AzeretMono-Medium.ttf"),
   "AzeretMono-SemiBold": require("../assets/fonts/AzeretMono-SemiBold.ttf"),

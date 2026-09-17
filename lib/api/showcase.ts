@@ -167,11 +167,13 @@ export function getShowcaseDetail(showcaseId: string, signal?: AbortSignal) {
 export function listShowcaseComments(
   showcaseId: string,
   params: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
 ) {
   return http
     .get<unknown>(`/v1/showcase/${showcaseId}/comments`, {
       query: { page: params.page ?? 1, limit: params.limit ?? 20 },
       retry: 1,
+      signal,
     })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>

@@ -232,14 +232,17 @@ export default function TopupScreen() {
           // Langkah nominal: konten terpusat — hero di tengah, keypad di
           // bawah; footer CTA tunggal konsisten dengan pola register.
           <View className="flex-1">
+            {/* Judul + kartu metode + keypad dalam SATU area scroll dengan
+                `justify-between` — kartu selalu tepat di atas keypad dan judul
+                tidak pernah tertutup di layar pendek (lihat transfer.tsx). */}
             <ScrollView
-              contentContainerStyle={{ flexGrow: 1 }}
+              className="flex-1"
+              contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }}
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
-              contentContainerClassName="px-5"
             >
               <FadeIn duration="fast">
-                <View className="items-center gap-2 pt-6">
+                <View className="items-center gap-2 px-5 pt-6">
                   <Heading level={1} className="text-center text-balance">
                     Masukkan nominal
                   </Heading>
@@ -249,37 +252,37 @@ export default function TopupScreen() {
                   </Text>
                 </View>
               </FadeIn>
+
+              <View>
+                {/* Pilihan metode pembayaran DI SINI (halaman nominal), tepat
+                    di atas keypad: ketuk untuk membuka BottomSheet — bukan
+                    langkah terpisah. */}
+                <View className="px-5 pb-2 pt-4">
+                  <KeypadOptionCard
+                    label="Metode pembayaran"
+                    value={selectedMethod?.name}
+                    placeholder={loading ? "Memuat metode…" : "Pilih metode pembayaran"}
+                    icon={selectedMethod ? paymentMethodKindIcon[selectedMethod.kind] : WalletIcon}
+                    description={
+                      selectedMethod
+                        ? selectedFee > 0
+                          ? `Biaya admin ${formatRupiah(selectedFee, { sign: "always" })}`
+                          : "Tanpa biaya admin"
+                        : undefined
+                    }
+                    onPress={() => setMethodSheetOpen(true)}
+                  />
+                </View>
+
+                <AmountKeypad
+                  value={amount}
+                  onChange={setAmount}
+                  min={AMOUNT_LIMITS.topup.minimum}
+                  max={AMOUNT_LIMITS.topup.maximum}
+                  presets={AMOUNT_PRESETS.topup}
+                />
+              </View>
             </ScrollView>
-
-            {/* Pilihan metode pembayaran DI SINI (halaman nominal), di atas
-                keypad: ketuk untuk membuka BottomSheet — bukan langkah
-                terpisah. */}
-            <View className="px-5 pb-2">
-              <KeypadOptionCard
-                label="Metode pembayaran"
-                value={selectedMethod?.name}
-                placeholder={loading ? "Memuat metode…" : "Pilih metode pembayaran"}
-                icon={selectedMethod ? paymentMethodKindIcon[selectedMethod.kind] : WalletIcon}
-                description={
-                  selectedMethod
-                    ? selectedFee > 0
-                      ? `Biaya admin ${formatRupiah(selectedFee, { sign: "always" })}`
-                      : "Tanpa biaya admin"
-                    : undefined
-                }
-                onPress={() => setMethodSheetOpen(true)}
-              />
-            </View>
-
-            <View className="px-0">
-              <AmountKeypad
-                value={amount}
-                onChange={setAmount}
-                min={AMOUNT_LIMITS.topup.minimum}
-                max={AMOUNT_LIMITS.topup.maximum}
-                presets={AMOUNT_PRESETS.topup}
-              />
-            </View>
 
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"
