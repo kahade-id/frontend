@@ -115,7 +115,11 @@ export function ShowcaseGalleryGrid({
               const showMore = isLast && overflow > 0
 
               const picture = (
-                <View style={{ width: cell, height: cell }} className="overflow-hidden rounded-sm">
+                <View
+                  style={{ width: cell, height: cell }}
+                  className="overflow-hidden rounded-sm select-none"
+                  onContextMenu={(e: unknown) => (e as { preventDefault: () => void }).preventDefault?.()}
+                >
                   <Picture
                     source={item.source}
                     alt={showMore ? `${item.alt}, ${formatNumber(overflow)} foto lainnya` : item.alt}
@@ -124,6 +128,7 @@ export function ShowcaseGalleryGrid({
                     radius="sm"
                     bordered={false}
                     recyclingKey={item.id}
+                    preventDownload
                   />
                   {showMore ? (
                     // `bg-overlay-media` (0.7), bukan `bg-overlay` (0.4): di atas

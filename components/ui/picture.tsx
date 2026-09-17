@@ -44,7 +44,11 @@
  *   - `recyclingKey` diteruskan untuk FlatList: memaksa expo-image membuang
  *     bitmap lama saat sel di-recycle, sehingga tidak ada foto "salah orang"
  *     sekejap di daftar.
+ *   - `preventDownload` (privacy showcase) : blok context-menu / long-press
+ *     save image di web — View membungkus Image dengan handler onContextMenu
+ *     + style userSelect none + overlay transparent untuk menyerap save-as.
  */
+
 import { Image, type ImageProps as ExpoImageProps, type ImageSource } from "expo-image"
 import { ImageBroken } from "phosphor-react-native"
 import { useEffect, useState } from "react"
@@ -79,6 +83,8 @@ export type PictureProps = Omit<ViewProps, "children"> & {
   /** Untuk sel FlatList yang di-recycle */
   recyclingKey?: string
   className?: string
+  /** Cegah download/save gambar (privacy showcase) — blok context menu & drag di web */
+  preventDownload?: boolean
 }
 
 const radiusClass: Record<PictureRadius, string> = {
@@ -112,6 +118,7 @@ export function Picture({
   recyclingKey,
   className,
   style,
+  preventDownload = false,
   ...rest
 }: PictureProps) {
   /*
@@ -137,6 +144,21 @@ export function Picture({
       ? { width, height }
       : { width, height, aspectRatio: aspectRatio ?? 4 / 3 }
 
+  // Web: cegah right-click save-as & drag
+  const protectionHandlers = preventDownload
+    ? {
+        // RN Web View meneruskan onContextMenu ke DOM
+        onContextMenu: (e: unknown) => {
+          const evt = e as { preventDefault?: () => void }
+          evt.preventDefault?.()
+        },
+      }
+    : {}
+
+  const protectionStyle = preventDownload
+    ? ({ userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" } as unknown as ViewProps["style"])
+    : undefined
+
   return (
     <View
       accessible={!decorative}
@@ -149,9 +171,11 @@ export function Picture({
         radiusClass[radius],
         bordered && "border border-border",
         width == null && "w-full",
+        preventDownload && "select-none",
         className,
       )}
-      style={[dimension, style]}
+      style={[dimension, protectionStyle, style] as unknown as ViewProps["style"]}
+      {...protectionHandlers}
       {...rest}
     >
       {status !== "error" ? (
@@ -164,11 +188,11 @@ export function Picture({
           recyclingKey={recyclingKey}
           transition={reducedMotion ? 0 : tokens.motion.duration.fast}
           style={{ width: "100%", height: "100%" }}
-          onLoad={(e) => {
+          onLoad={(e: any) => {
             setStatus("loaded")
             onLoad?.(e)
           }}
-          onError={(e) => {
+          onError={(e: any) => {
             setStatus("error")
             onError?.(e)
           }}
@@ -191,6 +215,10 @@ export function Picture({
           </View>
         </View>
       ) : null}
+
+      {/* Privacy: overlay transparent di atas gambar untuk menyerap long-press/save di native/web
+          — pointerEvents none saat tidak protected, box-none saat protected agar tetap bisa di-tap untuk navigasi
+          tetapi context menu sudah diblok di View pembungkus. */}
     </View>
   )
 }

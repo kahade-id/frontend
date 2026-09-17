@@ -565,7 +565,9 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
                   <Skeleton shape="circle" className="h-10 w-10" />
                   <Skeleton className="h-4 w-2/5" />
                 </View>
-                <Skeleton shape="card" className="aspect-square w-full" />
+                <View className="mx-5">
+                  <Skeleton shape="card" className="aspect-square w-full" />
+                </View>
                 <Skeleton className="mx-5 h-4 w-3/5" />
               </View>
             ))}
@@ -581,6 +583,7 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
             onToggleSave={() => handleToggleSave(item)}
             saved={savedIds.has(item.id)}
             onShare={() => void handleShare(item)}
+            onReport={() => router.push(ROUTES.reports({ targetId: item.id, targetName: item.title }))}
             // Garis pemisah antar postingan; item terakhir tidak perlu garis
             // menggantung di ujung feed.
             divider={index < items.length - 1}
