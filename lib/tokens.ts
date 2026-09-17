@@ -28,6 +28,20 @@
  *      mengembalikan kolom ke 280dp tanpa turun ke 16px yang terasa sempit.
  *   3. Elevasi & tracking: shadow lebih difus (radius naik, opacity turun)
  *      dan display/H1/H2 diberi letter-spacing optis negatif (§3.2).
+ *
+ * v2.2 (2026-09-17) — RETINT monokrom palet brand. Roda warna resmi
+ * (docs/image/f739a1072b861fa6f9ae25e44ee7628e.jpg, "Designing Emotions
+ * Through Color Harmony") menyebut HEX eksplisit: #FFFFFF · #F3F4F6 ·
+ * #525252 · #262626 · #000000 — dan aksen pink #F85382 digugurkan pemilik
+ * produk ("warna merahnya ganti jadi hitam saja"). Akibatnya:
+ *   1. Netral hangat Porselen diganti ramp abu NETRAL MURNI yang meng-anchor
+ *      kelima HEX brand itu di peran yang terlihat (§2.2).
+ *   2. Aksen "Pinus" hijau menjadi hitam/putih — accent == primary (§2.3b).
+ *   3. Dark mode dibalik dari brand black: background #000000, surface
+ *      #1A1A1A, elevated #262626 — splash/adaptiveIcon (brand.black) kini
+ *      seamless dengan background dark.
+ * Struktur token, tangga lightness, dan semua ambang kontras check-tokens
+ * dipertahankan; warna status semantik (§2.3) tetap berfungsi sebagai status.
  */
 
 // ==================================================================
@@ -41,45 +55,49 @@ export const brand = {
 } as const
 
 /**
- * 2.2 Neutral Scale — Warm-Neutral "Porselen" (v2.1)
+ * 2.2 Neutral Scale — Monokrom brand (v2.2)
  *
- * KENAPA DIGANTI dari "Kertas" v2 (penting, jangan dikembalikan):
- * skala v2 memakai hue 36–42° dengan chroma 20–33% — gray.50 #FAF8F5 =
- * S 33%, surface #F7F5F1 = S 27%, border #D9D3C5 = S 21%. Di atas background
- * putih, chroma setinggi itu TIDAK lagi terbaca "hangat" melainkan BEIGE /
- * kertas kraft: kartu tampak kusam, garis pembatas terlihat kotor, dan
- * aksen Pinus (#0C6B4E) ikut bergeser ke zaitun karena latarnya menguning.
- * Untuk aplikasi uang, latar yang menguning menurunkan kesan presisi.
+ * KENAPA DIGANTI dari "Porselen" v2.1 (penting, jangan dikembalikan):
+ * palet brand resmi (docs/image/f739a1072b861fa6f9ae25e44ee7628e.jpg)
+ * menyebut HEX eksplisit — #FFFFFF, #F3F4F6, #525252, #262626, #000000 —
+ * dan satu-satunya warna jenuh di roda itu, pink #F85382, dicoret pemilik
+ * produk menjadi hitam. Jadi skala netral kini NOL chroma (hue 0, S 0%):
+ * kehangatan Porselen dipangkas total supaya app identik dengan palet brand.
  *
- * v2.1 mempertahankan hue hangat (~40°) — supaya tidak jatuh ke abu
- * kebiruan yang terasa dingin/klinis seperti abu v1.1 — tetapi memangkas
- * chroma ke 5–9% (±50–70% lebih rendah). TANGGA LIGHTNESS sengaja tidak
- * diubah, karena kontras WCAG hampir seluruhnya fungsi lightness: semua
- * rasio audit #6 tetap di tempatnya (angka per token di bawah).
+ * Roda hanya memberi 5 anak tangga, jadi 5 HEX brand di-anchor di peran
+ * yang terlihat dan runge tengah diinterpolasi netral murni (keluarga
+ * Tailwind gray/neutral) agar tangga 11 langkah — dan semua token turunan —
+ * tidak berubah strukturnya:
+ *   gray.100 = #F3F4F6 (surface) · gray.600 = #525252 (text-tertiary +
+ *   border-control) · gray.800 = #262626 (chart light step 3 + surface
+ *   elevated dark) · background/primary = #FFFFFF / #000000.
  *
- * Angka kontras di komentar dihitung terhadap background/surface v2.1.
+ * Angka kontras di komentar dihitung ulang terhadap background/surface baru
+ * (light #FFFFFF / #F3F4F6 · dark #000000 / #1A1A1A).
  */
 export const gray = {
-  50: "#FAFAF9", // App background tint (jarang dipakai langsung) — S 9%
-  100: "#F3F3F1", // Surface / card fill alternatif
-  200: "#EAE9E6", // Cadangan — tidak lagi dipakai sebagai border default
-  300: "#D8D6D1", // Divider sangat halus (1.45 vs bg, dekoratif murni)
-  400: "#B4B0A8", // Border hangat netral (chart dark langkah 2)
-  500: "#8B867D", // Teks disabled hangat, langkah chart dark pertama (5.10 vs #141412)
-  600: "#6E6B64", // text-tertiary + border-control (light): 5.32 vs bg, 4.92 vs surface
-  700: "#4A4741", // text-secondary (light): 9.26 vs bg, 8.57 vs surface
-  800: "#2C2A27", // Chart dark (light step 3) / surface fill gelap
-  900: "#211F1D", // Teks utama alternatif / surface fill (dark)
-  950: "#1B1A18", // text-primary (light): 17.39 vs bg — juga teks di atas fill danger dark (6.29)
+  50: "#FAFAFA", // App background tint (jarang dipakai langsung)
+  100: "#F3F4F6", // ← HEX brand — Surface / card fill
+  200: "#E5E7EB", // Cadangan + bgSoft aksen
+  300: "#D1D5DB", // Divider sangat halus (1.50 vs bg, dekoratif murni)
+  400: "#9CA3AF", // Border alternatif + chart dark langkah 2 (7.65 vs #000000)
+  500: "#6B7280", // Teks disabled, langkah chart dark pertama (3.94 vs #000000)
+  600: "#525252", // ← HEX brand — text-tertiary + border-control (light): 7.82 vs bg, 7.10 vs surface
+  700: "#404040", // text-secondary (light): 10.37 vs bg, 9.42 vs surface
+  800: "#262626", // ← HEX brand — Chart dark (light step 3) / surface fill gelap
+  900: "#171717", // Surface fill alternatif (dark)
+  950: "#0A0A0A", // Teks di atas fill danger dark (6.94) — tinta shadow light
 } as const
 
 /**
- * 2.3 Semantic Colors — v2 sedikit lebih hidup dari v1.1, tetap AA di dua mode.
- * Rasio light (text/bgSoft · fill/surface, dihitung ulang v2.1 di atas
- * surface #F7F6F4): success 4.58/3.05, danger 5.83/4.47, warning 4.99/3.23,
- * info 7.32/5.86. Dark (fill/bgSoft · fill/surface): success 9.20/9.88,
- * danger 6.20/6.23, warning 9.49/10.32, info 7.63/7.80.
- * Info v2 berwarna "Sungai" (biru sungai) — keluar dari abu monokrom v1.1.
+ * 2.3 Semantic Colors — status transaksi TETAP BERWARNA (v2.2): roda warna
+ * brand adalah palet identitas, bukan kosakata status — sukses/gagal/warning
+ * harus tetap terbedakan tanpa membaca label. Rasio light (text/bgSoft ·
+ * fill/surface, dihitung ulang v2.2 di atas surface #F3F4F6): success
+ * 4.58/3.10, danger 5.83/4.39, warning 4.99/3.17, info 7.32/5.75. Dark
+ * (fill/bgSoft · fill/surface, di atas #1A1A1A): success 9.20/9.99, danger
+ * 6.20/6.29, warning 9.49/10.42, info 7.63/7.88. Info v2 berwarna "Sungai"
+ * (biru sungai) — keluar dari abu monokrom v1.1.
  *
  * Dark mode: `text` SENGAJA == `fill` (bukan bug). Dokumen §2.3 hanya punya
  * satu kolom "Fill (dark)"; fill terang di atas bgSoft gelap sudah > AA di
@@ -88,7 +106,12 @@ export const gray = {
  */
 export const semantic = {
   success: {
-    light: { fill: "#16A34A", text: "#15803D", bgSoft: "#EDF7F0" },
+    /**
+     * fill digelapkan #16A34A → #15A047 (v2.2): nilai lama hanya 2.99:1 vs
+     * surface brand baru #F3F4F6 — di bawah ambang 3:1 (1.4.11) yang dijaga
+     * check-tokens. #15A047 = 3.10:1; selisihnya nyaris tak terlihat.
+     */
+    light: { fill: "#15A047", text: "#15803D", bgSoft: "#EDF7F0" },
     dark: { fill: "#4ADE80", text: "#4ADE80", bgSoft: "#14251A" },
   },
   danger: {
@@ -106,25 +129,22 @@ export const semantic = {
 } as const
 
 /**
- * 2.3b Accent — satu warna matang untuk momen trust & escrow (v2 BARU).
- * "Pinus" (hijau pinus dalam): uang, aman, sukses — kosakata escrow tanpa
- * edukasi, syariah-friendly, menjauhi hijau neon fintech generik.
+ * 2.3b Accent — v2.2 MONOKROM (dulu "Pinus" hijau #0C6B4E).
+ * Roda warna brand baru tidak punya warna jenuh: pink #F85382 dicoret
+ * pemilik produk dan diganti hitam, jadi aksen trust & escrow kini memakai
+ * tinta brand — fill #000000 (light) / #FFFFFF (dark), sama dengan
+ * `primary`. Konsekuensi yang DITERIMA: Button/Badge/Icon/Text tone
+ * "accent" tampil identik dengan primary — pembeda momen escrow tetap ada
+ * pada label dan konteks, bukan warna.
  *
- * Aturan pakai (disiplin, bukan dekorasi): momen/status ESCROW & TRUST
- * (dana tertahan, escrow selesai, skor trust), BUKAN CTA umum (tetap primary
- * hitam/putih) dan BUKAN status transaksi (tetap semantic). Lihat Button
- * variant "accent" dan Badge/Icon tone "accent".
- *
- * Rasio light (v2.1, di atas surface #F7F6F4): text/bgSoft 7.04, text/bg
- * 8.00 (link/CTA teks), fill/surface 6.02 (ikon), onFill/fill 6.50 (label
- * tombol solid). Dark: fill/bgSoft 8.15, fill/surface 8.63, onFill/fill 9.24.
- * text == fill di dark (pola §2.3).
+ * Rasio light (v2.2, di atas surface #F3F4F6): text/bgSoft 16.96 (#000000
+ * di #E5E7EB), fill/surface 19.08 (ikon), onFill/fill 21.00 (label tombol
+ * solid). Dark: fill/bgSoft 15.13, fill/surface 17.40, onFill/fill 21.00.
  */
 export const accent = {
-  light: { fill: "#0C6B4E", text: "#0A5C43", bgSoft: "#E8F3ED", onFill: "#FFFFFF" },
-  // onFill dark = near-black yang sama dengan `dark.background` (v2.1:
-  // #141210 → #141412, ikut netral Porselen). onFill/fill = 9.24:1.
-  dark: { fill: "#3ECF8E", text: "#3ECF8E", bgSoft: "#10241B", onFill: "#141412" },
+  light: { fill: "#000000", text: "#000000", bgSoft: "#E5E7EB", onFill: "#FFFFFF" },
+  // onFill dark = hitam brand yang sama dengan `dark.background`.
+  dark: { fill: "#FFFFFF", text: "#FFFFFF", bgSoft: "#262626", onFill: "#000000" },
 } as const
 
 /**
@@ -134,10 +154,10 @@ export const accent = {
  * Langkah terendah wajib >= 3:1 terhadap background (WCAG 1.4.11): batang
  * chart adalah "graphical object required to understand the content", jadi
  * pengecualian border dekoratif §6 TIDAK berlaku. Tangga dimulai dari
- * gray.600 (#6E6B64 = 5.32:1 vs bg, 4.92:1 vs surface).
+ * gray.600 (#525252 = 7.82:1 vs bg, 7.10:1 vs surface).
  *
  * `chartMono` mendeskripsikan LIGHT. Dark mode harus dibaca lewat
- * `chartMonoDark`: di atas #141210 urutannya dibalik (abu lebih terang =
+ * `chartMonoDark`: di atas #000000 urutannya dibalik (abu lebih terang =
  * lebih menonjol).
  */
 export const chartMono = [gray[600], gray[700], gray[800]] as const
@@ -147,39 +167,39 @@ export const chartMonoDark = [gray[500], gray[400], gray[300]] as const
 
 /** 2.4 Mode Tokens */
 export const light = {
-  background: "#FFFFFF",
+  background: "#FFFFFF", // ← HEX brand
   /**
-   * v2.1: #F7F6F4 (S 16%) menggantikan #F7F5F1 (S 27%). Selisih delta RGB
-   * terhadap putih dipangkas dari 6 menjadi 3 — cukup untuk memisahkan kartu
-   * dari background, tidak lagi cukup untuk membuat kartu terlihat krem.
+   * v2.2: #F3F4F6 — HEX brand abu terang di roda warna. Pemisahan kartu vs
+   * background 1.10:1 — lebih halus dari v2.1 (#F7F6F4); pemisah UTAMA kartu
+   * tetap border (§6.1), surface hanya penguat.
    */
-  surface: "#F7F6F4", // card, input fill — warm-neutral porcelain (v2.1)
+  surface: "#F3F4F6", // ← HEX brand: card, input fill
   surfaceElevated: "#FFFFFF", // dengan border + elevasi low/high (v2)
   /**
    * border-default: card, divider, separator — border STRUKTURAL/dekoratif.
-   * Kontras vs background 1.40:1 — SENGAJA di bawah 3:1. WCAG 1.4.11 hanya
+   * Kontras vs background 1.50:1 — SENGAJA di bawah 3:1. WCAG 1.4.11 hanya
    * berlaku untuk komponen UI interaktif dan bagian yang dibutuhkan untuk
    * mengenali komponen; pembatas dekoratif dikecualikan (§6).
    * JANGAN pakai untuk outline form control — pakai `borderControl`.
    */
-  borderDefault: "#DCDAD5", // gray.300-an hangat netral (1.40 vs bg)
+  borderDefault: "#D1D5DB", // gray.300 netral (1.50 vs bg)
   /**
    * border-control: outline resting form control (Input, Select, DateField,
    * Checkbox, Radio, Switch off, NumberStepper, SegmentedControl, ToggleGroup
    * belum terpilih) DAN indikator state non-teks (dot PIN kosong, track
    * Slider, bintang Rating kosong). WCAG 1.4.11 non-text contrast >= 3:1:
-   * #6E6B64 vs #FFFFFF = 5.32:1, vs surface #F7F6F4 = 4.92:1.
+   * #525252 (HEX brand) vs #FFFFFF = 7.82:1, vs surface #F3F4F6 = 7.10:1.
    * Daftar lengkap + pengecualian: docs/audit/findings/06-non-text-contrast.md
    * Bukan untuk Button secondary (dikenali dari label) atau border kartu.
    */
-  borderControl: "#6E6B64", // gray.600
-  borderFocus: "#000000", // fokus/aktif pada elemen interaktif
+  borderControl: "#525252", // ← HEX brand gray.600
+  borderFocus: "#000000", // ← HEX brand: fokus/aktif pada elemen interaktif
   borderError: "#D92D20", // == danger.fill
-  textPrimary: "#1A1917", // 17.57 vs bg, 16.27 vs surface
-  textSecondary: "#4A4741", // gray.700 — body, caption, label: 9.26/8.57
-  textTertiary: "#6E6B64", // gray.600 — ikon, teks besar >=18px: 5.32/4.92
-  textDisabled: "#A8A59E",
-  primary: "#000000",
+  textPrimary: "#000000", // ← HEX brand: 21.00 vs bg, 19.08 vs surface
+  textSecondary: "#404040", // gray.700 — body, caption, label: 10.37/9.42
+  textTertiary: "#525252", // ← HEX brand gray.600 — ikon, teks besar >=18px: 7.82/7.10
+  textDisabled: "#A1A1AA",
+  primary: "#000000", // ← HEX brand
   primaryForeground: "#FFFFFF",
   /**
    * Scrim di belakang overlay (BottomSheet, Modal, ActionSheet). Selalu hitam
@@ -199,27 +219,27 @@ export const light = {
 
 export const dark = {
   /**
-   * v2.1: #141412 (S 5%) menggantikan #141210 (S 11%). Hitam kecoklatan di
-   * OLED terbaca "kotor" dan membuat teks putih terasa hangat/kusam; dengan
-   * chroma dipangkas, gelapnya tetap hangat tipis tetapi benar-benar netral.
+   * v2.2: #000000 — brand black yang sama dengan splash/adaptiveIcon
+   * (brand.black), jadi handoff native→JS tidak berkedip sama sekali.
    */
-  background: "#141412",
-  surface: "#1C1B18",
+  background: "#000000",
+  surface: "#1A1A1A",
   /**
-   * #2E2C28 vs #141412 = 1.32:1 — dijaga di atas ambang 1.3 yang diuji
-   * check-tokens (tanpa itu skeleton/sheet tak terbedakan dari background).
-   * Elevated tetap butuh border-default (+ shadow high di overlay).
+   * #262626 (HEX brand) vs #000000 = 1.39:1 — dijaga di atas ambang 1.3
+   * yang diuji check-tokens (tanpa itu skeleton/sheet tak terbedakan dari
+   * background). Elevated tetap butuh border-default (+ shadow high di
+   * overlay).
    */
-  surfaceElevated: "#2E2C28",
-  borderDefault: "#3A3833", // struktural/dekoratif — 1.58 vs bg, lihat `light`
-  /** WCAG 1.4.11: #827D74 vs #141412 = 4.51:1, vs surface #1C1B18 = 4.21:1 */
-  borderControl: "#827D74",
+  surfaceElevated: "#262626",
+  borderDefault: "#3F3F3F", // struktural/dekoratif — 2.00 vs bg, lihat `light`
+  /** WCAG 1.4.11: #9CA3AF vs #000000 = 7.65:1, vs surface #1A1A1A = 6.34:1 */
+  borderControl: "#9CA3AF",
   borderFocus: "#FFFFFF",
   borderError: "#F87171", // == danger.fill
-  textPrimary: "#F5F4F1", // 16.77 vs bg, 15.66 vs surface
-  textSecondary: "#A8A59E", // 7.50 vs bg, 7.00 vs surface
-  textTertiary: "#A8A59E", // sama dgn secondary — kontras di dark sudah aman
-  textDisabled: "#615E57",
+  textPrimary: "#FFFFFF", // 21.00 vs bg, 17.41 vs surface
+  textSecondary: "#9CA3AF", // 7.65 vs bg, 6.34 vs surface
+  textTertiary: "#9CA3AF", // sama dgn secondary — kontras di dark sudah aman
+  textDisabled: "#525252", // ← HEX brand — disabled, tanpa ambang kontras
   primary: "#FFFFFF", // invert di dark mode
   primaryForeground: "#000000",
   overlay: "rgba(0, 0, 0, 0.6)",
@@ -560,8 +580,8 @@ export const border = {
  *   - medium    : toast, FAB, popover/dropdown.
  *   - high      : bottom sheet, modal/dialog.
  *
- * Warna shadow warm-tinted (#1B1A18 — netral v2.1, bukan #1C1917 Kertas) di
- * light agar menyatu dengan netral Porselen; di dark menghitam (#000000)
+ * Warna shadow netral murni (#0A0A0A — gray.950 v2.2) di
+ * light agar menyatu dengan ramp monokrom brand; di dark menghitam (#000000)
  * karena shadow berwarna tak terlihat di atas background gelap — di dark,
  * BORDER tetap pemisah utama, shadow hanya penguat. Opacity dark = light +
  * 0.28 (low 0.34 / medium 0.38 / high 0.44): tanpa boost, shadow iOS lenyap
@@ -585,7 +605,7 @@ export const shadow = {
     elevation: 0,
   },
   color: {
-    light: "#1B1A18", // == gray.950 — tinta netral, bukan coklat Kertas
+    light: "#0A0A0A", // == gray.950 — tinta netral murni (ramp monokrom v2.2)
     dark: "#000000",
   },
   low: {
