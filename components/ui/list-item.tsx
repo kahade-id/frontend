@@ -132,7 +132,7 @@ export function ListItem({
       >
         {leadingNode ? <View className="items-center justify-center tabular-nums">{leadingNode}</View> : null}
 
-        <View className="flex-1 gap-0.5">
+        <View className="min-w-0 flex-1 gap-0.5">
           <Text ellipsizeMode="tail"
             variant={titleVariant}
             weight={titleVariant === "body" ? 500 : 600}
@@ -158,7 +158,7 @@ export function ListItem({
               {trailing}
             </Text>
           ) : (
-            <View className="items-end justify-center">{trailing}</View>
+            <View className="min-w-0 max-w-[45%] shrink items-end justify-center">{trailing}</View>
           )
         ) : null}
 

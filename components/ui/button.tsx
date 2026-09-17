@@ -120,7 +120,7 @@ export function Button({
       disabled={isDisabled}
       hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1], left: tokens.space[1], right: tokens.space[1] } : undefined}
       containerClassName={cn(
-        fullWidth ? "w-full" : "self-start",
+        fullWidth ? "w-full max-w-full" : "max-w-full self-start",
         // Radius ikut di container: ring digambar mengikuti border-radius
         // elemen yang fokus, bukan kotak visual di dalamnya.
         "rounded-sm",

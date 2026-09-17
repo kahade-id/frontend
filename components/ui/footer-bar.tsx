@@ -19,7 +19,7 @@
  *   - Web: kolom di-cap `md:max-w-content` (§11); bar tetap full-width
  *     agar border-t menyambung ke tepi.
  */
-import type { ReactNode } from "react"
+import { Children, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -60,8 +60,8 @@ export function FooterBar({
     >
       <View className="w-full gap-3 px-6 pt-4 md:max-w-content tabular-nums">
         {summary ? (
-          <View className="flex-row items-end justify-between gap-4">
-            <View className="gap-0.5">
+          <View className="flex-row flex-wrap items-end justify-between gap-4">
+            <View className="min-w-0 flex-1 gap-0.5">
               <Text variant="caption" tone="secondary">
                 {summary.label}
               </Text>
@@ -79,7 +79,17 @@ export function FooterBar({
           </View>
         ) : null}
 
-        <View className={cn(layout === "row" ? "flex-row gap-2" : "gap-2")}>{children}</View>
+        <View className={cn(layout === "row" ? "min-w-0 flex-row gap-2" : "gap-2")}>
+          {layout === "row"
+            ? Children.map(children, (child) => (
+                // Wrapper fleksibel menjamin setiap aksi berbagi ruang yang
+                // tersedia. Tanpanya Button `w-full` mengukur diri terhadap
+                // bar footer, sehingga dua tombol dapat menjadi 2× lebar
+                // layar dan terpotong pada Android/iPhone kecil.
+                <View className="min-w-0 flex-1">{child}</View>
+              ))
+            : children}
+        </View>
       </View>
     </View>
   )
