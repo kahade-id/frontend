@@ -104,7 +104,7 @@ export default function WalletTransactionScreen() {
               {txn.description ? <KeyValue label="Deskripsi" value={txn.description} /> : null}
             </Card>
 
-            <Text numberOfLines={1} variant="caption" tone="tertiary" className="text-center">
+            <Text variant="caption" tone="tertiary" className="text-center">
               ID mutasi:{" "}
               <Text variant="monoBody" selectable>
                 {txn.id}

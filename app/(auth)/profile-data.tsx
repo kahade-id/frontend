@@ -292,7 +292,7 @@ export default function ProfileDataScreen() {
               <Heading level={1} className="text-balance">
                 Lengkapi data Anda
               </Heading>
-              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+              <Text variant="body" tone="secondary" className="text-pretty">
                 Data ini digunakan untuk profil publik dan keamanan akun.
                 Email wajib diisi meskipun Anda mendaftar dengan nomor HP.
               </Text>
@@ -425,6 +425,7 @@ export default function ProfileDataScreen() {
 
       {/* Bottom Sheet: Calendar untuk tanggal lahir */}
       <BottomSheet
+        avoidKeyboard
         visible={calendarOpen}
         onRequestClose={() => setCalendarOpen(false)}
         title="Pilih tanggal lahir"

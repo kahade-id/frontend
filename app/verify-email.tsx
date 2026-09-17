@@ -162,7 +162,7 @@ export default function VerifyEmailScreen() {
               <Heading level={1} className="text-balance">
                 Verifikasi alamat email Anda
               </Heading>
-              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+              <Text variant="body" tone="secondary" className="text-pretty">
                 Kami mengirim kode 6 digit ke alamat berikut. Masukkan kode untuk mengonfirmasi bahwa email ini milik Anda.
               </Text>
               <Text variant="monoBody" weight={600}>
@@ -228,6 +228,7 @@ export default function VerifyEmailScreen() {
       </KeyboardAvoiding>
 
       <BottomSheet
+        avoidKeyboard
         visible={correctOpen}
         onRequestClose={() => (correcting ? undefined : setCorrectOpen(false))}
         title="Perbaiki alamat email"

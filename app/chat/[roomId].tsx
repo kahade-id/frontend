@@ -145,19 +145,24 @@ export default function ChatRoomScreen() {
   const [readByCounterpart, setReadByCounterpart] = useState<Set<string>>(new Set())
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingActive = useRef(false)
+  const initialRequest = useRef<AbortController | null>(null)
 
   const fetchMessages = useCallback(async () => {
     if (!roomId) return
+    initialRequest.current?.abort()
+    const controller = new AbortController()
+    initialRequest.current = controller
     setLoading(true)
     setError(null)
     try {
       const [page, rooms] = await Promise.all([
-        api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }),
-        api.chat.listChatRooms({ page: 1, limit: CHAT_PAGE_SIZE }).catch(() => ({
+        api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
+        api.chat.listChatRooms({ page: 1, limit: CHAT_PAGE_SIZE }, controller.signal).catch(() => ({
           data: [] as ChatRoom[],
           meta: { page: 1, limit: CHAT_PAGE_SIZE, totalPages: 1 },
         })),
       ])
+      if (controller.signal.aborted) return
       const items = sortByTime(page.items)
       setMessages(items)
       setNextCursor(
@@ -170,14 +175,15 @@ export default function ChatRoomScreen() {
       // angka unread turun segera, bukan menunggu poll 60 detik.
       void refreshUnreadCount()
     } catch (err) {
-      setError(isApiError(err) ? userMessage(err) : "Gagal memuat pesan.")
+      if (!controller.signal.aborted) setError(userMessage(err))
     } finally {
-      setLoading(false)
+      if (initialRequest.current === controller && !controller.signal.aborted) setLoading(false)
     }
   }, [roomId])
 
   useEffect(() => {
     void fetchMessages()
+    return () => initialRequest.current?.abort()
   }, [fetchMessages])
 
   // ── Read receipt: pesan saya yang sudah dibaca lawan bicara ──
@@ -819,6 +825,7 @@ export default function ChatRoomScreen() {
       {/* Pilih emoji reaksi — sheet terpisah karena ActionSheet item memakai
           ikon, bukan teks bebas (emoji). */}
       <BottomSheet
+        avoidKeyboard
         visible={reactTarget != null}
         onRequestClose={() => setReactTarget(null)}
         title="Reaksi"
@@ -846,6 +853,7 @@ export default function ChatRoomScreen() {
 
       {/* Edit pesan teks sendiri */}
       <BottomSheet
+        avoidKeyboard
         visible={editTarget != null}
         onRequestClose={() => setEditTarget(null)}
         title="Edit pesan"
@@ -882,6 +890,7 @@ export default function ChatRoomScreen() {
 
       {/* Teruskan ke room lain dengan lawan bicara yang sama */}
       <BottomSheet
+        avoidKeyboard
         visible={forwardRooms.length > 0 && actionMessage != null}
         onRequestClose={() => setForwardRooms([])}
         title="Teruskan ke…"

@@ -86,7 +86,7 @@ export default function OnboardingScreen() {
         <View className="gap-4">
           <Button onPress={handlePrimary}>{isLast ? "Buat akun" : "Lanjut"}</Button>
 
-          <Text numberOfLines={1} variant="body" tone="secondary" className="text-center">
+          <Text variant="body" tone="secondary" className="text-center">
             Sudah punya akun?{" "}
             <TextLink inline onPress={() => void leave(ROUTES.login)}>
               Masuk

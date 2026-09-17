@@ -187,7 +187,7 @@ export default function ForgotPasswordScreen() {
             {/* Explanation text */}
             <VStack gap={2}>
               <Heading level={1}>Lupa password?</Heading>
-              <Text numberOfLines={1} variant="body" tone="secondary" className="text-pretty">
+              <Text variant="body" tone="secondary" className="text-pretty">
                 Masukkan email yang terdaftar di akun Anda. Kami akan mengirim
                 kode verifikasi untuk mereset password.
               </Text>

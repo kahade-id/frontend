@@ -142,7 +142,7 @@ export function OrderCard({
       href={href}
       accessibilityLabel={a11y}
       accessibilityHint={onPress || href ? "Buka detail transaksi" : undefined}
-      className={cn("gap-3 bg-gray-100 dark:bg-gray-900", className)}
+      className={cn("gap-3 bg-surface", className)}
       {...rest}
     >
       {/* Baris 1: ID + status */}
@@ -218,7 +218,7 @@ export function OrderCardSkeleton({
       accessible
       accessibilityRole="progressbar"
       className={cn(
-        "w-full gap-3 rounded-md border border-border bg-gray-100 p-5 dark:bg-gray-900",
+        "w-full gap-3 rounded-md border border-border bg-surface p-5",
         className,
       )}
       accessibilityLabel="Memuat transaksi"

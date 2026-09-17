@@ -736,6 +736,7 @@ export default function CreateTransactionScreen() {
         </FadeIn>
       </PullToRefresh>
       <BottomSheet
+        avoidKeyboard
         visible={scheduleOpen}
         onRequestClose={() => setScheduleOpen(false)}
         title="Skema biaya platform"

@@ -138,7 +138,7 @@ export function EmptyState({
       </View>
 
       {action || secondaryAction ? (
-        <View className={cn("items-center gap-2", compact ? "pt-1" : "pt-2")}>
+        <View className={cn("w-full max-w-[320px] items-center gap-2", compact ? "pt-1" : "pt-2")}>
           {action}
           {secondaryAction}
         </View>

@@ -354,6 +354,7 @@ export default function QuestionsScreen() {
       </Dialog>
 
       <BottomSheet
+        avoidKeyboard
         visible={hideTarget != null}
         onRequestClose={() => setHideTarget(null)}
         title="Sembunyikan pertanyaan"

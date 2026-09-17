@@ -311,7 +311,7 @@ export default function TwoFactorScreen() {
           {step === "password" ? (
             <>
               <SectionHeader title="Langkah 1 dari 3 — Verifikasi password" />
-              <Text numberOfLines={1} variant="body" tone="secondary">
+              <Text variant="body" tone="secondary">
                 Masukkan password akun untuk menyiapkan aplikasi autentikator.
               </Text>
               <PasswordField

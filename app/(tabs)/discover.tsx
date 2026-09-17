@@ -15,10 +15,10 @@
  *   - Tab Pengguna tetap memakai usePaginatedQuery (offset aman di daftar
  *     statis); hanya feed yang perlu cursor.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Compass, Images } from "phosphor-react-native"
+import { Compass, Images, UsersThree } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
@@ -37,38 +37,23 @@ import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Input } from "@/components/ui/input"
+import { Icon } from "@/components/ui/icon"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
-import { Tabs } from "@/components/ui/tabs"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
 import { useToast } from "@/components/ui/toast"
 
 const PAGE_LIMIT = 20
 const FEED_LIMIT = 20
 
-type DiscoverTab = "users" | "showcase"
-
 export default function DiscoverScreen() {
   const insets = useSafeAreaInsets()
-  const [tab, setTab] = useState<DiscoverTab>("users")
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Jelajahi" />
-      <Tabs<DiscoverTab>
-        items={[
-          { value: "users", label: "Pengguna", icon: Compass },
-          { value: "showcase", label: "Showcase", icon: Images },
-        ]}
-        value={tab}
-        onChange={setTab}
-      />
-      {tab === "users" ? (
-        <UsersTab bottomPadding={insets.bottom + tokens.space[8]} />
-      ) : (
-        <ShowcaseFeedTab bottomPadding={insets.bottom + tokens.space[8]} />
-      )}
+      <Header showBack={false} title="Temukan pengguna" left={<Icon icon={UsersThree} size="md" tone="active" />} />
+      <UsersTab bottomPadding={insets.bottom + tokens.space[8]} />
     </Screen>
   )
 }
@@ -77,7 +62,7 @@ export default function DiscoverScreen() {
 // Tab Pengguna (offset — daftar statis)
 // ------------------------------------------------------------------
 
-function UsersTab({ bottomPadding }: { bottomPadding: number }) {
+export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
   const toast = useToast()
   const query = usePaginatedQuery<DiscoveredUser>("discover", (page, signal) =>
     api.users.discoverUsers({ page, limit: PAGE_LIMIT }, signal),
@@ -148,7 +133,7 @@ function UsersTab({ bottomPadding }: { bottomPadding: number }) {
 // Tab Showcase (cursor/keyset)
 // ------------------------------------------------------------------
 
-function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
+export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
   const [sort, setSort] = useState<ShowcaseFeedSort>("latest")
   const [search, setSearch] = useState("")
   const debouncedSearch = useDebouncedValue(search.trim(), 400)
@@ -160,29 +145,60 @@ function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
   const [refreshing, setRefreshing] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
+  const activeRequest = useRef<AbortController | null>(null)
+  const loadMoreBusy = useRef(false)
+  const hasLoadedOnce = useRef(false)
 
   const fetchPage = useCallback(
     async (cursor: string | null, mode: "initial" | "refresh" | "more") => {
+      if (mode === "more" && loadMoreBusy.current) return
+      // Sort/search/refresh supersedes every older response. Without aborting,
+      // a slow "latest" request could overwrite a newer "popular" result.
+      if (mode !== "more") activeRequest.current?.abort()
+      const controller = new AbortController()
+      activeRequest.current = controller
       if (mode === "initial") setLoading(true)
       if (mode === "refresh") setRefreshing(true)
-      if (mode === "more") setLoadingMore(true)
-      setError(null)
+      if (mode === "more") {
+        loadMoreBusy.current = true
+        setLoadingMore(true)
+      }
+      if (mode === "more") setLoadMoreError(null)
+      else setError(null)
       try {
-        const page = await getShowcaseFeed({
-          cursor: cursor ?? undefined,
-          limit: FEED_LIMIT,
-          sort,
-          search: debouncedSearch || undefined,
+        const page = await getShowcaseFeed(
+          {
+            cursor: cursor ?? undefined,
+            limit: FEED_LIMIT,
+            sort,
+            search: debouncedSearch || undefined,
+          },
+          controller.signal,
+        )
+        if (controller.signal.aborted) return
+        setItems((previous) => {
+          if (mode !== "more") return page.items
+          // Cursor feeds can overlap when new records are inserted between
+          // requests. Merge by id prevents duplicate cards and unstable keys.
+          const merged = new Map(previous.map((item) => [item.id, item]))
+          for (const item of page.items) merged.set(item.id, item)
+          return [...merged.values()]
         })
-        setItems((prev) => (mode === "more" ? [...prev, ...page.items] : page.items))
         setNextCursor(page.nextCursor)
         setHasMore(page.hasMore)
+        hasLoadedOnce.current = true
       } catch (err) {
-        setError(userMessage(err))
+        if (controller.signal.aborted) return
+        if (mode === "more") setLoadMoreError(userMessage(err))
+        else setError(userMessage(err))
       } finally {
-        setLoading(false)
-        setRefreshing(false)
-        setLoadingMore(false)
+        if (activeRequest.current === controller) {
+          setLoading(false)
+          setRefreshing(false)
+          setLoadingMore(false)
+          loadMoreBusy.current = false
+        }
       }
     },
     [sort, debouncedSearch],
@@ -190,7 +206,8 @@ function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
 
   // Reset ke halaman 1 saat sort/search berubah (termasuk muat awal).
   useEffect(() => {
-    void fetchPage(null, items.length > 0 ? "refresh" : "initial")
+    void fetchPage(null, hasLoadedOnce.current ? "refresh" : "initial")
+    return () => activeRequest.current?.abort()
   }, [fetchPage])
 
   const loadMore = useCallback(() => {
@@ -223,6 +240,7 @@ function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         loadingMore={loadingMore}
         hasMore={hasMore}
         error={error}
+        loadMoreError={loadMoreError}
         onRefresh={() => void fetchPage(null, "refresh")}
         onRetry={() => void fetchPage(null, "refresh")}
         onLoadMore={loadMore}

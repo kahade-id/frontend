@@ -130,9 +130,10 @@ export type ShowcaseCommentsPage = {
 // ------------------------------------------------------------------
 
 /** GET /v1/showcase/feed — feed discover (cursor/keyset, publik). */
-export function getShowcaseFeed(query: ShowcaseFeedQuery = {}) {
+export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSignal) {
   return http
     .get<unknown>("/v1/showcase/feed", {
+      signal,
       query: {
         cursor: query.cursor,
         limit: query.limit ?? 20,

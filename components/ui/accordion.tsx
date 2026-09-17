@@ -156,12 +156,12 @@ export function AccordionItem({
         className="min-h-14 w-full flex-row items-center gap-3 px-4 py-3 tabular-nums"
       >
         {icon ? <Icon icon={icon} size="md" active={open} /> : null}
-        <View className="flex-1 gap-0.5">
+        <View className="min-w-0 flex-1 gap-0.5">
           <Text ellipsizeMode="tail" variant="body" weight={open ? 600 : 500} numberOfLines={2}>
             {title}
           </Text>
           {subtitle ? (
-            <Text variant="caption" tone="secondary" numberOfLines={1}>
+            <Text variant="caption" tone="secondary" numberOfLines={2}>
               {subtitle}
             </Text>
           ) : null}

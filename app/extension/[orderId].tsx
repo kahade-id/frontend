@@ -296,7 +296,7 @@ export default function ExtensionScreen() {
             ) : null}
 
             {isSeller && hasPending ? (
-              <Text numberOfLines={1} variant="caption" tone="secondary">
+              <Text variant="caption" tone="secondary">
                 Masih ada permintaan yang menunggu tanggapan pembeli. Ajukan lagi setelah dijawab.
               </Text>
             ) : null}
@@ -374,6 +374,7 @@ export default function ExtensionScreen() {
 
       {/* Pengajuan penjual */}
       <BottomSheet
+        avoidKeyboard
         visible={requestOpen}
         onRequestClose={() => (requesting ? undefined : setRequestOpen(false))}
         title="Ajukan perpanjangan"

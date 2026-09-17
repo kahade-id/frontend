@@ -183,7 +183,7 @@ export function PaginatedList<T extends { id: string }>({
   const footerElement = useMemo(
     () => (
       <>
-        {data.length > 0 && (hasMore || loadingMore) ? (
+        {data.length > 0 && (hasMore || loadingMore || !!loadMoreError) ? (
           <LoadMore
             status={loadingMore ? "loading" : loadMoreError ? "error" : "idle"}
             errorLabel={loadMoreError ?? undefined}

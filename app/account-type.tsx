@@ -86,7 +86,7 @@ export default function AccountTypeScreen() {
   return (
     <DataScreen title="Tipe Akun" state={query} loadingMessage="Memuat tipe akun…">
       <SectionHeader title="Pilih tipe akun" />
-      <Text numberOfLines={1} variant="body" tone="secondary">
+      <Text variant="body" tone="secondary">
         Akun bisnis menampilkan profil usaha Anda di marketplace, termasuk produk dan riwayat
         penjualan.
       </Text>

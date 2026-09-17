@@ -264,7 +264,14 @@ export function BottomSheet({
     <View>
       {showHandle ? (
         <View className="items-center pt-2 pb-1">
-          <View accessible accessibilityLabel="Tarik untuk menutup" accessibilityRole="adjustable" className="h-1 w-10 rounded-full bg-border" />
+          {/* Handle hanya affordance visual. Jangan expose sebagai adjustable:
+              ia tidak punya accessibilityActions dan karenanya menjadi kontrol
+              palsu bagi VoiceOver/TalkBack; tombol Tutup tetap operabel. */}
+          <View
+            accessibilityRole="none"
+            importantForAccessibility="no"
+            className="h-1 w-10 rounded-full bg-border"
+          />
         </View>
       ) : null}
 

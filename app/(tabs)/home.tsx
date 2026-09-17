@@ -50,6 +50,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import {
   ArrowCircleDown,
   ArrowCircleUp,
+  Bell,
   ChartLineUp,
   Compass,
   Gift,
@@ -72,7 +73,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { Avatar } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
+import { Badge, NotificationDot } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -93,6 +94,7 @@ import { SmartAppInstallCard } from "@/components/ui/smart-app-install-card"
 import { Text } from "@/components/ui/text"
 import { focusRing } from "@/lib/focus-ring"
 import { cn } from "@/lib/cn"
+import { useUnreadCountState } from "@/lib/unread-count"
 
 // ------------------------------------------------------------------
 // Helpers
@@ -150,6 +152,7 @@ const PROMOS: readonly PromoItem[] = [
 export default function HomeScreen() {
   const router = useRouter()
   const [balanceHidden, setBalanceHidden] = useState(false)
+  const unread = useUnreadCountState()
 
   // Empat query terpisah (bukan satu Promise.allSettled manual): request lama
   // di-abort saat refresh, pesan galat tetap `userMessage(err)`, dan retry
@@ -347,7 +350,23 @@ export default function HomeScreen() {
                 </View>
               </PressableScale>
             )}
-            <View className="flex-row items-center">
+            <View className="flex-row items-center gap-1">
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={
+                  unread.count ? `Notifikasi, ${unread.count} belum dibaca` : "Notifikasi"
+                }
+                accessibilityHint="Buka pusat notifikasi"
+                haptic
+                onPress={() => router.push(ROUTES.notifications)}
+                containerClassName={cn("rounded-xs", focusRing)}
+                className="h-12 w-12 items-center justify-center rounded-xs"
+              >
+                <View className="relative">
+                  <Icon icon={Bell} size="md" tone="active" />
+                  <NotificationDot visible={(unread.count ?? 0) > 0} />
+                </View>
+              </PressableScale>
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel="Pesan"

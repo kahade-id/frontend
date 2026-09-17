@@ -12,6 +12,7 @@
  * tanpa warna "suka" merah (like aktif hanya muncul di halaman detail).
  */
 import { Chat, Eye, HeartStraight } from "phosphor-react-native"
+import type { Href } from "expo-router"
 
 import { View } from "react-native"
 
@@ -29,7 +30,7 @@ export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
   onPress?: () => void
   /** Tautan web (opsional) — bila dikirim, kartu jadi <a href>. */
-  href?: string
+  href?: Href
   className?: string
 }
 

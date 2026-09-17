@@ -332,7 +332,7 @@ export default function KycScreen() {
               ) : null}
 
               {uiStatus === "APPROVED" ? (
-                <Text numberOfLines={1} variant="caption" tone="secondary">
+                <Text variant="caption" tone="secondary">
                   Akun Anda sudah terverifikasi. Anda bisa bertransaksi tanpa batasan tambahan.
                 </Text>
               ) : null}

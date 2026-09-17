@@ -48,7 +48,7 @@ export default function AppearanceScreen() {
       <View className="gap-4 px-6 pt-3">
         <SectionHeader title="Mode warna" subtitle="Berlaku untuk seluruh aplikasi." />
         <ThemeModeSelector />
-        <Text numberOfLines={1} variant="body" tone="secondary">
+        <Text variant="body" tone="secondary">
           {mapValue(PREFERENCE_HINT, preference, PREFERENCE_HINT.system)}
         </Text>
 

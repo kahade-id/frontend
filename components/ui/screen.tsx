@@ -6,9 +6,9 @@
  *      bar/home indicator. Inset diterapkan sebagai padding dari
  *      `useSafeAreaInsets()` — nilai runtime per-device, jadi ini masuk
  *      pengecualian "tidak bisa di-className" dan dipasang lewat `style`.
- *      Default edges ["top","bottom"]; kiri-kanan diabaikan karena screen
- *      padding 24px sudah lebih besar dari inset landscape umum, dan di web
- *      insetnya 0.
+ *      Default edges ["top","bottom"] untuk inset vertikal. Inset horizontal
+ *      selalu dihormati saat nilainya ada: notch iPhone landscape dapat lebih
+ *      lebar dari screen padding 24px; di portrait/web nilainya tetap 0.
  *   2. Screen padding 24px kiri-kanan (`px-6`, tokens.layout.screenPaddingX).
  *      Bisa dimatikan dengan `padded={false}` untuk konten full-bleed
  *      (list dengan divider, peta, gambar) — anak yang butuh padding pakai
@@ -84,8 +84,12 @@ export function Screen({
   const insets = useSafeAreaInsets()
   const padTop = edges.includes("top") ? insets.top : 0
   const padBottom = edges.includes("bottom") ? insets.bottom : 0
-  const padLeft = edges.includes("left") ? insets.left : 0
-  const padRight = edges.includes("right") ? insets.right : 0
+  // Inset horizontal selalu dihormati bila ada. Pada iPhone landscape notch
+  // dapat memakan ~59pt—jauh lebih besar dari padding konten 24px. Menunggu
+  // setiap screen menambahkan edge kiri/kanan membuat tombol dan input dapat
+  // tertutup; pada portrait/web nilainya nol sehingga tidak mengubah layout.
+  const padLeft = insets.left
+  const padRight = insets.right
 
   const bodyPad = padded && "px-6"
 
