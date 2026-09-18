@@ -34,7 +34,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated from "react-native-reanimated"
-import { Compass, Images, ImagesSquare, Plus, UsersThree } from "phosphor-react-native"
+import { Compass, Images, UsersThree } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -55,16 +55,13 @@ import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
-import { Input } from "@/components/ui/input"
 import { Icon } from "@/components/ui/icon"
-import { IconButton } from "@/components/ui/icon-button"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import { ShowcaseHeader } from "@/components/ui/showcase-header"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
-import { Tabs } from "@/components/ui/tabs"
-import { Text } from "@/components/ui/text"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
 import { useToast } from "@/components/ui/toast"
 
@@ -490,7 +487,7 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
 
   return (
     <View className="flex-1">
-      {/* ── Header lipat (bar judul + cari + strip tab, gaya profil publik) ── */}
+      {/* ── Header showcase — improved: logo + balance + inbox + profile ── */}
       <Animated.View
         style={[
           collapsing.containerStyle,
@@ -498,38 +495,13 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         ]}
       >
         <Animated.View style={collapsing.contentStyle} onLayout={collapsing.onHeaderLayout}>
-          {/* Garis dasar cuma dari <Tabs> (border-b bawaannya) — jangan
-              gandakan di wrapper. */}
-          <View className="bg-background">
-            <View className="min-h-14 w-full flex-row items-center px-3 py-1">
-              <View className="w-12 items-start justify-center">
-                <Icon icon={ImagesSquare} size="md" tone="active" />
-              </View>
-              <View className="flex-1 items-center justify-center px-2">
-                <Text accessibilityRole="header" variant="h3" numberOfLines={1} className="text-center">
-                  Showcase
-                </Text>
-              </View>
-              <View className="w-12 items-end justify-center">
-                <IconButton
-                  icon={Plus}
-                  accessibilityLabel="Kelola showcase saya"
-                  accessibilityHint="Buka halaman untuk menambah dan mengatur showcase"
-                  onPress={() => router.push(ROUTES.showcaseManagement)}
-                />
-              </View>
-            </View>
-            <View className="px-4 pb-3">
-              <Input
-                variant="search"
-                value={search}
-                onChangeText={setSearch}
-                placeholder="Cari produk atau penjual"
-                accessibilityLabel="Cari showcase"
-              />
-            </View>
-            <Tabs scrollable items={FEED_TABS} value={kind} onChange={setKind} />
-          </View>
+          <ShowcaseHeader
+            search={search}
+            onSearchChange={setSearch}
+            kind={kind}
+            onKindChange={setKind}
+            tabs={FEED_TABS}
+          />
         </Animated.View>
       </Animated.View>
 
