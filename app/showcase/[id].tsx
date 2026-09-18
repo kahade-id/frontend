@@ -14,30 +14,15 @@
  *   GET  /v1/showcase/{id}/share           → metadata deep link
  *   POST /v1/showcase/{id}/report          → { reason, description? } (5/jam)
  *
- * Keputusan non-obvious:
- *   - 2026-09-17: layout dirombak mengikuti mockup postingan sosial
- *     (docs/image/IMG_20260917_224056_353.jpg) TANPA card — media 1:1
- *     full-bleed, baris penulis, caption, harga, baris aksi (suka · komentar
- *     · simpan), lalu komentar bergaya feed. Like AKTIF tinta hitam (bukan
- *     merah) — merah dicoret dari palet aksi sosial (referensi warna brand:
- *     docs/image/f739a1072b861fa6f9ae25e44ee7628e.jpg).
- *   - 2026-09-17 #2 (polesan, selaras feed): urutan konten disamakan dengan
- *     kartu feed — penulis DI ATAS (avatar + nama + @username + tanggal),
- *     lalu media yang kini PAGER horizontal (geser ke foto berikutnya,
- *     dot indicator), harga (bodyLarge), judul, deskripsi, dan baris aksi
- *     dengan hitungan ringkas "1,4K" + label serta ikon share "export" dan
- *     bookmark berukuran sama (md).
- *   - Layar ini JUGA dipakai untuk item milik sendiri (isOwner=true dari
- *     server): CTA transaksi disembunyikan, moderasi komentar (sembunyikan/
- *     buka/hapus komentar orang lain) muncul. Komentar tersembunyi hanya
- *     dikirim server kepada pemilik, jadi UI tidak perlu menyaring sendiri.
- *   - Like memakai optimistic update + angka final dari respons
- *     `{ liked, likeCount }`; konflik SHOWCASE_ALREADY_LIKED (race) hanya
- *     menyinkronkan state, bukan error.
- *   - Balasan dibatasi 1 tingkat oleh backend (SHOWCASE_COMMENT_DEPTH_EXCEEDED)
- *     → tombol "Balas" hanya pada komentar root.
- *   - Gambar cover = `images[0]`; galeri penuh dibuka di MediaViewer.
+ * Keputusan revisi #3 (2026-09-17): 9 poin showcase
+ *   - Media KARTU (mx-5 rounded-sm, border) swipe — selaras feed, bukan full-bleed
+ *   - Separator inset di atas & bawah bar aksi (mx-5)
+ *   - Footer Kirim → PaperPlaneRight IconButton
+ *   - Header komentar: "Komentar 12" count di samping + separator
+ *   - Gambar preventDownload
+ *   - Count di samping ikon (horizontal)
  */
+
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent, type TextInput } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
@@ -49,6 +34,7 @@ import {
   Flag,
   Heart,
   HeartStraight,
+  PaperPlaneRight,
   Trash,
 } from "phosphor-react-native"
 
@@ -81,6 +67,7 @@ import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { Divider } from "@/components/ui/divider"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
@@ -123,25 +110,16 @@ export default function ShowcaseDetailScreen() {
   const [likeCount, setLikeCount] = useState(0)
   const [likePending, setLikePending] = useState(false)
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
-  /**
-   * Simpan postingan (bookmark) — UI lokal. Kontrak showcase.service belum
-   * punya endpoint koleksi tersimpan, jadi state ini tidak persisten; tombol
-   * tetap ditampilkan karena menjadi bagian pola baris aksi feed (mockup §9).
-   */
   const [saved, setSaved] = useState(false)
-  /** Halaman pager media yang terlihat (0-based) — dot indicator. */
   const [mediaPage, setMediaPage] = useState(0)
-  /** Lebar kontainer pager (runtime) — lebar tiap halaman = lebar kontainer. */
   const [pagerWidth, setPagerWidth] = useState(0)
   const { width: windowWidth } = useWindowDimensions()
   const composerRef = useRef<TextInput>(null)
 
-  // Item berganti → pager kembali ke foto pertama.
   useEffect(() => {
     setMediaPage(0)
   }, [id])
 
-  // ── Komentar ────────────────────────────────────────────────────────────
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
   const [commentTotal, setCommentTotal] = useState(0)
   const [commentsPage, setCommentsPage] = useState(1)
@@ -189,7 +167,6 @@ export default function ShowcaseDetailScreen() {
     void fetchComments(1, false)
   }, [fetchComments])
 
-  // State like mengikuti payload server saat item tiba.
   useEffect(() => {
     if (item) {
       setLiked(Boolean(item.isLiked))
@@ -199,14 +176,11 @@ export default function ShowcaseDetailScreen() {
 
   const isOwner = item?.isOwner === true
 
-  // Hanya URL yang lolos resolve — slot foto gagal-resolve tidak menyisakan
-  // halaman kosong di pager (pola sama dengan <ShowcaseFeedItem>).
-  const resolvedImages = (item?.images ?? []).flatMap((image) => {
+  const resolvedImages = ((item?.images ?? []) as any).flatMap((image: { id: string; imageUrl: string; sortOrder: number }) => {
     const url = resolveMediaUrl(image.imageUrl)
     return url ? [{ id: image.id, url }] : []
   })
 
-  /** Buka MediaViewer pada foto ke-N dari pager. */
   const openViewer = (index: number) => {
     if (!item) return
     const image = resolvedImages[index]
@@ -218,15 +192,13 @@ export default function ShowcaseDetailScreen() {
     })
   }
 
-  /** Baris aksi "N Komentar" melompatkan kursor ke komposer di footer. */
   const focusComposer = () => composerRef.current?.focus()
 
-  /** Swipe pager selesai → halaman aktif untuk dot indicator. */
   const handlePagerMomentum = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const width = pagerWidth || windowWidth
-      if (width > 0) {
-        setMediaPage(Math.max(0, Math.round(event.nativeEvent.contentOffset.x / width)))
+      const rawWidth = pagerWidth || windowWidth - 40
+      if (rawWidth > 0) {
+        setMediaPage(Math.max(0, Math.round(event.nativeEvent.contentOffset.x / rawWidth)))
       }
     },
     [pagerWidth, windowWidth],
@@ -248,7 +220,6 @@ export default function ShowcaseDetailScreen() {
     [],
   )
 
-  // ── Aksi komentar ───────────────────────────────────────────────────────
   const applyServerComment = useCallback(
     (saved: ShowcaseComment) => {
       const exists = (c: ShowcaseComment) => c.id === saved.id
@@ -260,8 +231,6 @@ export default function ShowcaseDetailScreen() {
           c.id === saved.id ? { ...c, content: saved.content, isHidden: saved.isHidden, hiddenReason: saved.hiddenReason, updatedAt: saved.updatedAt ?? c.updatedAt } : c,
         )
       }
-      // Komentar baru (baris root yang belum ada) → muat ulang halaman 1 agar
-      // count/tiebreak server yang jadi acuan, tanpa duplikat lokal.
       void fetchComments(1, false)
     },
     [comments, patchComment, fetchComments],
@@ -362,7 +331,6 @@ export default function ShowcaseDetailScreen() {
     [patchComment, toast.show],
   )
 
-  // ── Like ────────────────────────────────────────────────────────────────
   const handleToggleLike = useCallback(async () => {
     if (!id || likePending) return
     const next = !liked
@@ -374,8 +342,6 @@ export default function ShowcaseDetailScreen() {
       setLiked(res.liked)
       setLikeCount(res.likeCount)
     } catch (err) {
-      // SHOWCASE_ALREADY_LIKED (race double-like) bukan error pengguna —
-      // cukup sinkronkan state; selain itu kembalikan pilihan.
       setLiked(!next)
       setLikeCount((n) => Math.max(0, n + (next ? -1 : 1)))
       const isRace = isApiError(err) && err.backendCode === "SHOWCASE_ALREADY_LIKED"
@@ -391,7 +357,6 @@ export default function ShowcaseDetailScreen() {
     }
   }, [id, liked, likePending, toast.show])
 
-  // ── Share & report ──────────────────────────────────────────────────────
   const handleShare = useCallback(async () => {
     if (!id) return
     try {
@@ -503,26 +468,23 @@ export default function ShowcaseDetailScreen() {
                 placeholder="Tulis komentar…"
                 accessibilityLabel="Komentar baru"
                 containerClassName="flex-1"
+                onSubmitEditing={() => void handleSendComment()}
+                returnKeyType="send"
               />
-              <Button
+              <IconButton
+                icon={PaperPlaneRight}
+                variant="primary"
                 size="sm"
+                accessibilityLabel="Kirim komentar"
                 loading={sendingComment}
                 disabled={!draft.trim()}
                 onPress={() => void handleSendComment()}
-              >
-                Kirim
-              </Button>
+              />
             </View>
           </View>
         )
       }
     >
-      {/*
-        Layout feed (mockup docs/image/IMG_20260917_224056_353.jpg, tanpa
-        card): media full-bleed 1:1 di atas, lalu identitas penulis, caption,
-        harga, dan baris aksi sosial — semuanya mengalir di atas background
-        tanpa kotak/border. Pemisah antar-bagian memakai ruang, bukan garis.
-      */}
       {/* ── Penulis DI ATAS media (selaras kartu feed) + laporkan ── */}
       <View className="flex-row items-center gap-3 px-5 pt-4">
         <PressableScale
@@ -558,18 +520,20 @@ export default function ShowcaseDetailScreen() {
         ) : null}
       </View>
 
-      {/* ── Media: pager horizontal — geser ke foto berikutnya ── */}
-      <View className="pt-3">
+      {/* ── Media: CARD pager (mx-5, selaras avatar) — bukan full-bleed ── */}
+      <View className="mx-5 pt-3" onLayout={(e) => setPagerWidth(e.nativeEvent.layout.width)}>
         {resolvedImages.length > 0 ? (
-          <View onLayout={(e) => setPagerWidth(e.nativeEvent.layout.width)}>
+          <View className="overflow-hidden rounded-sm border border-border">
             <ScrollView
               horizontal
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={handlePagerMomentum}
+              // @ts-expect-error RN Web
+              onContextMenu={(e: unknown) => (e as { preventDefault: () => void }).preventDefault?.()}
             >
               {resolvedImages.map((image, index) => (
-                <View key={image.id} style={{ width: pagerWidth || windowWidth }}>
+                <View key={image.id} style={{ width: pagerWidth || windowWidth - 40 }}>
                   <PressableScale
                     accessibilityRole="button"
                     accessibilityLabel={`Lihat foto ${index + 1} dari ${resolvedImages.length}`}
@@ -583,22 +547,20 @@ export default function ShowcaseDetailScreen() {
                       radius="none"
                       bordered={false}
                       recyclingKey={image.id}
+                      preventDownload
                     />
                   </PressableScale>
                 </View>
               ))}
             </ScrollView>
             {resolvedImages.length > 1 ? (
-              // Dot di atas foto: scrim kecil tidak perlu — PageIndicator
-              // inverse (putih) terbaca di atas foto terang sekalipun karena
-              // dot inaktif memakai opacity, dan foto gelap ditolong kontras.
-              <View style={{ pointerEvents: "none" }} className="absolute inset-x-0 bottom-2">
-                <PageIndicator inverse count={resolvedImages.length} index={mediaPage} />
+              <View className="items-center bg-background py-2">
+                <PageIndicator count={resolvedImages.length} index={mediaPage} />
               </View>
             ) : null}
           </View>
         ) : (
-          <View className="h-64 items-center justify-center bg-surface">
+          <View className="h-64 items-center justify-center rounded-sm border border-border bg-surface">
             <Text variant="body" tone="secondary">
               Tidak ada gambar
             </Text>
@@ -606,7 +568,7 @@ export default function ShowcaseDetailScreen() {
         )}
       </View>
 
-      {/* ── Harga · kategori (nominal diperbesar, selaras feed) ── */}
+      {/* ── Harga · kategori ── */}
       <View className="flex-row flex-wrap items-center gap-2 px-5 pt-3">
         <Text variant="bodyLarge" weight={600} className="tabular-nums">
           {priceLabel}
@@ -614,30 +576,29 @@ export default function ShowcaseDetailScreen() {
         {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
       </View>
 
-      {/* ── Judul ── */}
       <View className="px-5 pt-1">
         <Text variant="h3" numberOfLines={2}>
           {item.title}
         </Text>
       </View>
 
-      {/* ── Deskripsi ── */}
       {item.description ? (
         <Text variant="body" tone="primary" className="px-5 pt-1">
           {item.description}
         </Text>
       ) : null}
 
-      {/* ── Baris aksi sosial (like · komentar · share(export) · simpan).
-           Selaras kartu feed: hitungan ringkas + label di samping ikon, dan
-           keempat ikon satu ukuran (md). ── */}
-      <View className="flex-row items-center px-2 pt-2">
+      {/* Separator atas aksi — inset mx-5, bukan full */}
+      <Divider inset className="mt-4" />
+
+      {/* ── Baris aksi sosial — count di samping ikon (horizontal) ── */}
+      <View className="flex-row items-center px-2 pt-1">
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
           accessibilityHint={`${formatCountCompact(likeCount)} suka`}
           onPress={() => void handleToggleLike()}
-          containerClassName="min-h-11 flex-row items-center gap-2 rounded-md px-3"
+          containerClassName="min-h-11 flex-row items-center gap-1.5 rounded-md px-3"
         >
           <Icon
             icon={liked ? Heart : HeartStraight}
@@ -657,7 +618,7 @@ export default function ShowcaseDetailScreen() {
           accessibilityLabel="Tulis komentar"
           accessibilityHint={`${formatCountCompact(commentTotal)} komentar`}
           onPress={focusComposer}
-          containerClassName="min-h-11 flex-row items-center gap-2 rounded-md px-3"
+          containerClassName="min-h-11 flex-row items-center gap-1.5 rounded-md px-3"
         >
           <Icon icon={ChatCircle} size="md" tone="active" />
           <Text variant="caption" weight={600} className="tabular-nums">
@@ -688,7 +649,9 @@ export default function ShowcaseDetailScreen() {
         </PressableScale>
       </View>
 
-      {/* ── CTA transaksi ── */}
+      {/* Separator bawah aksi — inset */}
+      <Divider inset className="mt-1" />
+
       <View className="px-5 pt-4">
         {!isOwner ? (
           <Button
@@ -706,9 +669,20 @@ export default function ShowcaseDetailScreen() {
         )}
       </View>
 
-      {/* ── Komentar ── */}
-      <View className="gap-4 px-5 pb-6 pt-8">
-        <Text variant="h3">Komentar</Text>
+      {/* ── Komentar header: count di samping + separator ── */}
+      <View className="gap-0 px-5 pb-0 pt-8">
+        <View className="flex-row items-baseline gap-2">
+          <Text variant="h3">Komentar</Text>
+          {commentTotal > 0 ? (
+            <Text variant="body" tone="secondary" className="tabular-nums">
+              {formatNumber(commentTotal)}
+            </Text>
+          ) : null}
+        </View>
+        <Divider className="mt-3" />
+      </View>
+
+      <View className="gap-4 px-5 pb-6 pt-4">
         <LoadMore
           status={commentsStatus}
           onLoadMore={() => void fetchComments(commentsPage + 1, true)}
@@ -731,7 +705,6 @@ export default function ShowcaseDetailScreen() {
               onOpenMenu={setCommentMenu}
             />
             {(root.replies ?? []).map((reply) => (
-              // Indent 32px = avatar xs (24) + gap (8) — balasan sejajar teks induk.
               <View key={reply.id} className="ml-8">
                 <ShowcaseCommentRow
                   comment={reply}
@@ -753,7 +726,6 @@ export default function ShowcaseDetailScreen() {
         onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
       />
 
-      {/* ── Menu komentar ── */}
       <ActionSheet
         visible={commentMenu != null}
         onRequestClose={() => setCommentMenu(null)}
@@ -822,7 +794,6 @@ export default function ShowcaseDetailScreen() {
         ]}
       />
 
-      {/* ── Edit komentar ── */}
       <BottomSheet
         avoidKeyboard
         visible={editTarget != null}
@@ -852,7 +823,6 @@ export default function ShowcaseDetailScreen() {
         </View>
       </BottomSheet>
 
-      {/* ── Konfirmasi hapus / sembunyikan ── */}
       <Dialog
         title={confirmKind === "hide" ? "Sembunyikan komentar ini?" : "Hapus komentar ini?"}
         description={
@@ -883,7 +853,6 @@ export default function ShowcaseDetailScreen() {
         ) : null}
       </Dialog>
 
-      {/* ── Laporkan item ── */}
       <BottomSheet
         avoidKeyboard
         visible={reportOpen}

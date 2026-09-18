@@ -1,33 +1,15 @@
 /**
  * Kahade — <ShowcaseCommentsSheet> daftar komentar + KOMPOSER satu item
- * showcase di BottomSheet (revisi 2026-09-17 #2).
+ * showcase di BottomSheet (revisi 2026-09-17 #3).
  *
- * Dipakai feed Showcase (app/(tabs)/showcase.tsx → ShowcaseFeedTab): mengetuk
- * ikon komentar pada kartu feed membuka percakapan item itu tanpa
- * meninggalkan feed — pengguna bisa MEMBACA dan MENULIS komentar langsung di
- * sheet, tidak perlu masuk layar detail (permintaan produk).
- *
- * Keputusan non-obvious:
- *   - Data diambil DI DALAM sheet (key `showcase-comments:<id>`), bukan
- *     diteruskan feed: feed berisi 20 item sekaligus, memuat komentar semua
- *     item di awal = 20 request yang 19 di antaranya tidak pernah dibuka.
- *     `item` tetap dikirim saat menutup supaya konten tidak hilang di tengah
- *     animasi keluar.
- *   - Komentar yang baru dikirim disimpan di state `localComments` dan
- *     dirender DI ATAS hasil query (query di-dedupe terhadap id lokal) —
- *     tidak ada refetch paksa, angka total = total server + lokal, dan
- *     `onCommentAdded` menaikkan hitungan kartu di feed. Reset saat item
- *     berganti supaya komentar tidak bocor ke percakapan lain.
- *   - Tinggi maksimum daftar = 55% window (nilai runtime → style, bukan
- *     className) mengikuti <BankSelect>; komposer sticky di footer sheet
- *     (avoidKeyboard) sehingga selalu terlihat.
- *   - Server mengirim balasan satu tingkat di dalam `replies` root-nya —
- *     balasan digeser 32px (ml-8) agar sejajar teks induk, sama dengan detail.
- *   - Komentar moderasi (`isHidden`) hanya terlihat oleh pemilik item; baris
- *     menampilkan penandanya lewat <ShowcaseCommentRow> tanpa logika khusus.
+ * Perubahan #3 — 9 poin showcase:
+ *  5. Tombol Kirim → IconButton PaperPlaneRight
+ *  6. Header: count di samping "Komentar" tanpa menulis "Komentar" lagi, plus separator
+ *     dan list selaras dengan title (replies ml-8 = avatar 24 + gap 8)
  */
+
 import { useCallback, useEffect, useState } from "react"
-import { ChatCircle } from "phosphor-react-native"
+import { ChatCircle, PaperPlaneRight } from "phosphor-react-native"
 import { ScrollView, View, useWindowDimensions } from "react-native"
 
 import {
@@ -41,9 +23,10 @@ import { formatNumber } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { Button } from "@/components/ui/button"
+import { Divider } from "@/components/ui/divider"
 import { ErrorState } from "@/components/ui/error-state"
 import { Icon } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
@@ -113,13 +96,15 @@ export function ShowcaseCommentsSheet({
   const total = (query.data?.total ?? item?.commentCount ?? 0) + localComments.length
   const loading = query.loading && query.data == null
 
+  // Header: "Komentar  12" — count di samping tanpa menulis "Komentar" lagi
+  const headerTitle = total > 0 ? `Komentar  ${formatNumber(total)}` : "Komentar"
+
   return (
     <BottomSheet
       avoidKeyboard
       visible={item != null}
       onRequestClose={onRequestClose}
-      title="Komentar"
-      description={total > 0 ? `${formatNumber(total)} Komentar` : undefined}
+      title={headerTitle}
       contentClassName="px-0 pb-0"
       footer={
         <View className="px-4 pb-1">
@@ -130,19 +115,26 @@ export function ShowcaseCommentsSheet({
               placeholder="Tulis komentar…"
               accessibilityLabel="Komentar baru"
               containerClassName="flex-1"
+              onSubmitEditing={() => void handleSend()}
+              returnKeyType="send"
             />
-            <Button
+            <IconButton
+              icon={PaperPlaneRight}
+              variant="primary"
               size="sm"
+              accessibilityLabel="Kirim komentar"
+              accessibilityHint="Kirim komentar showcase"
               loading={sending}
               disabled={!draft.trim()}
               onPress={() => void handleSend()}
-            >
-              Kirim
-            </Button>
+            />
           </View>
         </View>
       }
     >
+      {/* Separator di header komentar — inset selaras list px-5 */}
+      <Divider className="mx-5 mb-3" />
+
       {loading ? (
         <SkeletonGroup className="gap-4 px-5 py-2">
           {Array.from({ length: 3 }, (_, index) => (
@@ -173,6 +165,7 @@ export function ShowcaseCommentsSheet({
         </View>
       ) : (
         // Tinggi maks 55% window: nilai runtime -> style, bukan className.
+        // List selaras title: px-5 sama dengan header sheet (gap & indent konsisten)
         <ScrollView
           style={{ maxHeight: windowHeight * 0.55 }}
           keyboardShouldPersistTaps="handled"
@@ -183,7 +176,7 @@ export function ShowcaseCommentsSheet({
               <View key={root.id} className="gap-4">
                 <ShowcaseCommentRow comment={root} />
                 {(root.replies ?? []).map((reply) => (
-                  // Indent 32px = avatar xs (24) + gap (8) — sejajar teks induk.
+                  // Indent 32px = avatar xs (24) + gap (8) — sejajar teks induk, selaras title px-5.
                   <ShowcaseCommentRow key={reply.id} comment={reply} className="ml-8" />
                 ))}
               </View>
