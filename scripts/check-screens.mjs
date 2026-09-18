@@ -327,6 +327,69 @@ rules.push({
   baseline: [],
 })
 
+/**
+ * S8 — kelas baris di <PressableScale> harus dipasang pada `className`, bukan
+ * (hanya) pada `containerClassName`.
+ *
+ * PressableScale merender:
+ *   <Pressable className={containerClassName}><Animated.View><View className={className}>
+ *           {children}
+ *   </View></Animated.View></Pressable>
+ * Class di `containerClassName` hanya membentuk HIT AREA — anak langsungnya
+ * satu Animated.View, jadi `flex-row`/`gap-*` di sana tidak pernah menyentuh
+ * ikon+teks di dalamnya. View isi (`className`) memakai default RN (column),
+ * sehingga "12 Suka" jatuh ke BAWAH ikon — laporan pengguna 2026-09-18:
+ * count like/komentar di list Showcase masih di bawah, bukan di samping ikon.
+ * (Laporan yang sama sudah sempat "diperbaiki" di 2026-09-17 #3 poin 7: kelasnya
+ * ada, tapi di elemen yang salah — aturan ini yang membuatnya tidak bisa
+ * hilang lagi.)
+ *
+ * Yang dituntut HANYA sumbu baris (`flex-row`); `min-h-11`, `px-*`,
+ * `items-center`/`justify-center` untuk centering hit area memang benar di
+ * container. Aturan tanpa baseline: pola ini selalu salah.
+ */
+function pressableScaleTags(src) {
+  const tags = []
+  const RE = /<PressableScale\b/g
+  for (const m of src.matchAll(RE)) {
+    let i = m.index + m[0].length
+    let depth = 0
+    let quote = null
+    while (i < src.length) {
+      const ch = src[i]
+      if (quote) {
+        if (ch === quote) quote = null
+      } else if (ch === '"' || ch === "'" || ch === "`") quote = ch
+      else if (ch === "{" || ch === "(" || ch === "[" || ch === "<") depth++
+      else if (ch === "}" || ch === ")" || ch === "]" || ch === ">") {
+        if (ch === ">" && depth === 0) break
+        depth--
+      }
+      i++
+    }
+    tags.push(src.slice(m.index, i))
+  }
+  return tags
+}
+const pressableHosts = [...walk(join(root, "app")), ...walk(join(root, "components"))]
+  .filter((p) => p.endsWith(".tsx"))
+  .map((p) => ({ path: rel(p), src: stripComments(readFileSync(p, "utf8")) }))
+  .map((f) => ({ ...f, tags: pressableScaleTags(f.src) }))
+
+rules.push({
+  id: "S8",
+  title:
+    "kelas `flex-row` di containerClassName <PressableScale> tanpa className baris yang sama (isi jadi kolom)",
+  files: pressableHosts,
+  test: (f) =>
+    f.tags.some(
+      (tag) =>
+        /containerClassName=[^>]*flex-row/.test(tag) &&
+        !/\bclassName=[^>]*flex-row/.test(tag),
+    ),
+  baseline: [],
+})
+
 const failures = []
 const staleBaselines = []
 

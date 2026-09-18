@@ -677,9 +677,11 @@ export default function ChatRoomScreen() {
               scaleOnPress={false}
               onPress={() => setActionMessage(m)}
               containerClassName={cn(
-                "flex-row items-center gap-1.5 rounded-md border border-border bg-surface px-2.5 py-1.5",
+                "flex-row items-center rounded-md border border-border bg-surface px-2.5 py-1.5",
                 focusRing,
               )}
+              // kelas baris ada di className (View isi PressableScale) — lihat S8
+              className="flex-row items-center gap-1.5"
             >
               <Icon icon={PushPin} size="xs" tone="default" />
               <Text variant="caption" tone="secondary" className="max-w-[160px]" numberOfLines={1}>
@@ -907,9 +909,13 @@ export default function ChatRoomScreen() {
                 if (actionMessage) void handleForwardTo(actionMessage, r.id)
               }}
               containerClassName={cn(
-                "flex-row items-center gap-1 rounded-md px-4 py-3",
+                "rounded-md px-4 py-3",
                 focusRing,
               )}
+              // kelas baris + lebar penuh di className View isi PressableScale;
+              // di containerClassName `flex-row` tidak pernah menyentuh anak
+              // (S8 check-screens) dan baris jadi kolom.
+              className="w-full flex-row items-center gap-1"
             >
               <Text variant="body" className="flex-1" numberOfLines={1}>
                 {r.counterpart?.fullName ??

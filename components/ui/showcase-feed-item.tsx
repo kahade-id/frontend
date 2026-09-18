@@ -9,6 +9,11 @@
  *  7. Count di samping ikon (horizontal) — bukan di bawah
  *  8. preventDownload pada gambar showcase
  *  9. Ikon laporkan di kanan tanggal
+ *
+ * Revisi 2026-09-18 — poin 7 belum benar-benar terjadi di layar: angka suka/
+ * komentar tetap jatuh ke BAWAH ikon. Penyebabnya bukan kelasnya, tapi
+ * TEMPATNYA — lihat komentar <CountAction> di bawah. Bar aksi di halaman
+ * detail (`app/showcase/[id].tsx`) memakai koreksi yang sama.
  */
 
 import { useCallback, useState } from "react"
@@ -23,7 +28,7 @@ import { ROUTES } from "@/lib/routes"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Divider } from "@/components/ui/divider"
-import { Icon } from "@/components/ui/icon"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PageIndicator } from "@/components/ui/page-indicator"
 import { Picture } from "@/components/ui/picture"
@@ -46,6 +51,66 @@ export type ShowcaseFeedItemProps = {
   className?: string
 }
 
+/**
+ * Satu aksi hitungan di bar bawah kartu: ikon + angka + label SEJAJAR.
+ *
+ * NON-OBVIOUS (revisi 2026-09-18): kelas baris HARUS dipasang pada `className`
+ * — View ISI di dalam <PressableScale> — bukan hanya pada `containerClassName`.
+ * PressableScale merender `<Pressable><Animated.View><View className>`:
+ * `containerClassName` hanya membentuk hit area, sedangkan anaknya dibungkus
+ * dua View tanpa style. Kalau `flex-row items-center gap-*` diletakkan di hit
+ * area, isinya tetap kolom default RN dan angka jatuh ke BAWAH ikon (bug yang
+ * dilaporkan di list Showcase). Karena itu kelas baris ada di `className` dan
+ * pemisah sumbu (min-h/px/focus ring) tetap di `containerClassName`.
+ */
+function CountAction({
+  icon,
+  iconWeight = "regular",
+  count,
+  label,
+  accessibilityLabel,
+  accessibilityHint,
+  onPress,
+}: {
+  icon: IconComponent
+  iconWeight?: "fill" | "regular"
+  count: number
+  label: string
+  accessibilityLabel: string
+  accessibilityHint: string
+  onPress?: () => void
+}) {
+  const content = (
+    <>
+      <Icon icon={icon} size="md" tone="active" weight={iconWeight} />
+      <Text variant="caption" weight={600} className="tabular-nums">
+        {formatCountCompact(count)}
+      </Text>
+      <Text variant="caption" tone="secondary">
+        {label}
+      </Text>
+    </>
+  )
+
+  if (!onPress) {
+    return <View className="min-h-11 flex-row items-center gap-1.5 px-3">{content}</View>
+  }
+
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityHint={accessibilityHint}
+      haptic
+      onPress={onPress}
+      containerClassName={cn("min-h-11 flex-row items-center rounded-md px-3", focusRing)}
+      className="flex-row items-center gap-1.5"
+    >
+      {content}
+    </PressableScale>
+  )
+}
+
 export function ShowcaseFeedItem({
   item,
   onPress,
@@ -60,7 +125,7 @@ export function ShowcaseFeedItem({
   className,
 }: ShowcaseFeedItemProps) {
   void href
-  const gallery = (item.images as any).flatMap((image: { id: string; imageUrl: string; sortOrder: number }) => {
+  const gallery = item.images.flatMap((image) => {
     const url = resolveMediaUrl(image.imageUrl)
     return url ? [{ id: image.id, url }] : []
   })
@@ -95,62 +160,27 @@ export function ShowcaseFeedItem({
     else router.push(ROUTES.reports({ targetId: item.id }))
   }, [onReport, item.id])
 
-  const likeRow = onToggleLike ? (
-    <PressableScale
-      accessibilityRole="button"
+  const likeRow = (
+    <CountAction
+      icon={liked ? Heart : HeartStraight}
+      iconWeight={liked ? "fill" : "regular"}
+      count={item.likeCount}
+      label="Suka"
       accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
       accessibilityHint={likeCountLabel}
-      haptic
       onPress={onToggleLike}
-      containerClassName={cn("min-h-11 flex-row items-center gap-1.5 rounded-md px-3", focusRing)}
-    >
-      <Icon icon={liked ? Heart : HeartStraight} size="md" tone="active" weight={liked ? "fill" : "regular"} />
-      <Text variant="caption" weight={600} className="tabular-nums">
-        {formatCountCompact(item.likeCount)}
-      </Text>
-      <Text variant="caption" tone="secondary">
-        Suka
-      </Text>
-    </PressableScale>
-  ) : (
-    <View className="min-h-11 flex-row items-center gap-1.5 px-3">
-      <Icon icon={HeartStraight} size="md" tone="active" />
-      <Text variant="caption" weight={600} className="tabular-nums">
-        {formatCountCompact(item.likeCount)}
-      </Text>
-      <Text variant="caption" tone="secondary">
-        Suka
-      </Text>
-    </View>
+    />
   )
 
-  const commentRow = onOpenComments ? (
-    <PressableScale
-      accessibilityRole="button"
+  const commentRow = (
+    <CountAction
+      icon={ChatCircle}
+      count={item.commentCount}
+      label="Komentar"
       accessibilityLabel="Komentar"
       accessibilityHint={commentCountLabel}
-      haptic
       onPress={onOpenComments}
-      containerClassName={cn("min-h-11 flex-row items-center gap-1.5 rounded-md px-3", focusRing)}
-    >
-      <Icon icon={ChatCircle} size="md" tone="active" />
-      <Text variant="caption" weight={600} className="tabular-nums">
-        {formatCountCompact(item.commentCount)}
-      </Text>
-      <Text variant="caption" tone="secondary">
-        Komentar
-      </Text>
-    </PressableScale>
-  ) : (
-    <View className="min-h-11 flex-row items-center gap-1.5 px-3">
-      <Icon icon={ChatCircle} size="md" tone="active" />
-      <Text variant="caption" weight={600} className="tabular-nums">
-        {formatCountCompact(item.commentCount)}
-      </Text>
-      <Text variant="caption" tone="secondary">
-        Komentar
-      </Text>
-    </View>
+    />
   )
 
   return (
@@ -199,14 +229,12 @@ export function ShowcaseFeedItem({
             accessibilityHint="Buka detail showcase"
             onPress={onPress}
             containerClassName={cn("w-full overflow-hidden rounded-sm", focusRing)}
+            className="w-full"
           >
-            <View
-              onContextMenu={(e: unknown) => (e as { preventDefault?: () => void }).preventDefault?.()}
-              style={{ userSelect: "none" } as unknown as View["props"]["style"]}
-              className="select-none"
-            >
-              <Picture source={coverFallback} alt={item.title} aspectRatio={1} radius="sm" bordered={false} preventDownload />
-            </View>
+            {/* preventDownload (<Picture>) sudah memblok context-menu/save-as —
+                membungkusnya lagi dengan View onContextMenu hanya menambah
+                elemen dan menabrak tipe RN. */}
+            <Picture source={coverFallback} alt={item.title} aspectRatio={1} radius="sm" bordered={false} preventDownload />
           </PressableScale>
         ) : gallery.length === 1 ? (
           <PressableScale
@@ -215,22 +243,17 @@ export function ShowcaseFeedItem({
             accessibilityHint="Buka detail showcase"
             onPress={onPress}
             containerClassName={cn("w-full overflow-hidden rounded-sm", focusRing)}
+            className="w-full"
           >
-            <View
-              onContextMenu={(e: unknown) => (e as { preventDefault?: () => void }).preventDefault?.()}
-              style={{ userSelect: "none" } as unknown as View["props"]["style"]}
-              className="select-none"
-            >
-              <Picture
-                source={gallery[0].url}
-                alt={item.title}
-                aspectRatio={1}
-                radius="sm"
-                bordered={false}
-                recyclingKey={gallery[0].id}
-                preventDownload
-              />
-            </View>
+            <Picture
+              source={gallery[0].url}
+              alt={item.title}
+              aspectRatio={1}
+              radius="sm"
+              bordered={false}
+              recyclingKey={gallery[0].id}
+              preventDownload
+            />
           </PressableScale>
         ) : gallery.length > 1 ? (
           <View className="overflow-hidden rounded-sm border border-border">
@@ -239,8 +262,6 @@ export function ShowcaseFeedItem({
               pagingEnabled
               showsHorizontalScrollIndicator={false}
               onMomentumScrollEnd={handlePagerMomentum}
-              onContextMenu={(e: unknown) => (e as { preventDefault?: () => void }).preventDefault?.()}
-              style={{ userSelect: "none" } as unknown as View["props"]["style"]}
             >
               {gallery.map((image: { id: string; url: string }, index: number) => (
                 <View key={image.id} style={{ width: pageWidth }}>

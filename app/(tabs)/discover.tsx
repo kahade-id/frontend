@@ -15,8 +15,12 @@
  *     agar tidak menembak API tiap ketikan.
  *   - HEADER bergaya profil publik (bar judul + strip <Tabs>) dan MELIPAT
  *     saat scroll ke bawah / muncul lagi saat scroll ke atas (pola X) lewat
- *     useCollapsingHeader — keputusan animasi di UI thread (worklet), bukan
- *     onScroll JS per frame.
+ *     useCollapsingHeader: SATU worklet dipakai di dua jalur — Android lewat
+ *     `onScrollWorklet` (UI thread, karena `onScroll` JS tidak andal di sana)
+ *     dan web/iOS lewat `onScroll` biasa. `onScroll` TIDAK boleh diisi
+ *     `useAnimatedScrollHandler` di sini: scroller-nya FlatList biasa
+ *     (bukan Animated.FlatList), jadi handler Reanimated tidak pernah
+ *     terpanggil dan header diam — lihat komentar use-collapsing-header.ts.
  *   - Tab "Untuk Anda" & "Mengikuti" TIDAK punya endpoint backend (spec feed
  *     hanya sort latest|popular) — keduanya turunan SISI KLIEN yang jujur:
  *       * Untuk Anda = selang-seling halaman Popular + Latest (campuran

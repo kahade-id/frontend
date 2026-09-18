@@ -252,9 +252,13 @@ export function ChatMessageBubble({
                 scaleOnPress={false}
                 onPress={onReact ? () => onReact(r.emoji) : undefined}
                 containerClassName={cn(
-                  "flex-row items-center gap-1 rounded-full border px-2 py-0.5",
+                  "flex-row items-center rounded-full border px-2 py-0.5",
                   r.reactedByMe ? "border-primary bg-surface-elevated" : "border-border bg-surface",
                 )}
+                // Kelas baris HARUS di className (View isi di dalam
+                // PressableScale) — di containerClassName ia hanya mengatur
+                // hit area dan emoji+angka jadi numpuk (S8 check-screens).
+                className="flex-row items-center gap-1"
               >
                 <Text variant="caption">{r.emoji}</Text>
                 {r.count > 1 ? (
