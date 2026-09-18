@@ -1,34 +1,32 @@
 /**
- * Kahade — <ShowcaseHeader> PERFECT VERSION
+ * Kahade — <ShowcaseHeader> (bar atas tab Showcase; revisi 2026-09-18).
  *
- * Referensi awal docs/image/IMG_20260918_114629_753.jpg hanya contoh.
- * Versi perfect: minimal, premium, super-app level, monokrom + aksen hijau
- * untuk balance moment.
+ * Layout: [Logo] [Balance pill flex-1] [Gift] [Bell] [Avatar]
+ *   + baris pencarian (+ kelola showcase) + strip tab feed yang bisa di-scroll.
  *
- * Layout final (sesuai request: logo kiri, balance, inbox, profile):
- *   [Logo] [Balance Pill flex-1] [Gift/Voucher] [Bell/Notif] [Avatar]
- *   + Search row (rounded-full + create button)
- *   + Feed tabs pill with icons
+ * Revisi 2026-09-18 — empat hal yang dikoreksi dari versi sebelumnya:
+ *   1. Logo TANPA kotak latar (dulu 40×40 bg-[#DCFCE7] + border hijau) dan
+ *      TIDAK lagi hijau: render lewat <Logo variant="mark" size="md"> sehingga
+ *      tingginya 40px — SAMA dengan foto profil di ujung baris yang sama — dan
+ *      fill-nya datang dari token `primary` (hitam di light, putih di dark).
+ *   2. Gift & Bell: latar abu netral saja (`bg-surface`), tanpa border dan
+ *      tanpa shadow. Kartu saldo sengaja TETAP putih berpola kartu
+ *      (`bg-background` + `border-border`) — satu angka uang tidak boleh
+ *      tenggelam di samping dua tombol abu.
+ *   3. Balance pill: logo di dalamnya DIHAPUS (saldo tidak perlu di-branding
+ *      ulang dua baris di bawah logo) dan caret-down DIHAPUS (tidak ada menu
+ *      dropdown di ujung pill — tap membuka dompet, itu sudah seluruhnya).
+ *   4. Semua hex literal (#DCFCE7, #BBF7D0, #0EB66E, #E5E7EB, #FFFFFF)
+ *      dibuang. Palet brand v2.2 monokrom (§2.2) dan `npm run check:tokens`
+ *      memang MENOLAK class warna literal (`bg-white`, `bg-black`, ...) di
+ *      luar allowlist — file ini salah satunya. `shadow-sm`/`rounded-xl` juga
+ *      dihapus: tailwind.config meng-OVERRIDE boxShadow (hanya `none`) dan
+ *      radius (hingga `lg`), jadi kedua class itu tidak menghasilkan apa-apa.
  *
- * Perfect improvements:
- * - Spacing pakai tokens.layout.screenPaddingX (20px) → px-5
- * - Logo: 40x40 rounded-xl bg-[#DCFCE7] border-[#BBF7D0] + LogoMark 22 hijau #0EB66E
- *   soft green biar balance pill (putih) tetap hero, logo tidak tenggelam
- * - Balance pill: rounded-full (fully pill) h-10 bg-white border-[#E5E7EB]
- *   shadow-sm, left black circle 28px dengan b hijau 16px, amount mono bold
- *   14px, chevron 12px, plus 28px rounded-full hijau #0EB66E shadow
- * - Actions: 40x40 rounded-full bg-white border shadow-sm, icon 20 fill,
- *   bell & gift pakai dot hijau emerald (bukan merah) — lebih soft, sesuai
- *   referensi (dot hijau di gambar)
- * - Avatar: 40x40 rounded-full border-2 white shadow-sm, Avatar sm 32,
- *   online dot hijau 10px border-2 white absolute
- * - Search: rounded-full bg-surface (#F3F4F6) border-0, h-11, left
- *   MagnifyingGlass, clearable, + tombol create showcase 40x40 bg-primary
- *   rounded-full Plus putih di kanan (aksi utama showcase)
- * - Tabs: pill dengan icon Phosphor (Sparkle, Users, Clock, TrendUp),
- *   active bg-primary text-inverse shadow-sm, inactive bg-white border
- *   text-secondary, h-8.5 min-w 72, gap 6px icon+label, scrollable
- * - A11y, haptic, focusRing, skeleton, refreshOnFocus
+ * Titik unread memakai <NotificationDot> (§9.14) — komponen yang sama dengan
+ * badge tab bawah, bukan dot hijau custom; status "ada yang baru" = danger,
+ * bukan success. Target sentuh 40px dinaikkan ke ≥44 lewat `hitSlop` (§a11y)
+ * supaya baris tetap ramping.
  */
 
 import { useCallback } from "react"
@@ -36,7 +34,6 @@ import { View, ScrollView } from "react-native"
 import { useRouter } from "expo-router"
 import {
   Bell,
-  CaretDown,
   ClockCounterClockwise,
   Gift,
   MagnifyingGlass,
@@ -53,17 +50,17 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { useUnreadCountState } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
+import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
 
-import { LogoMark } from "@/components/ui/logo"
+import { Logo } from "@/components/ui/logo"
 import { Avatar } from "@/components/ui/avatar"
+import { NotificationDot } from "@/components/ui/badge"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { Skeleton } from "@/components/ui/skeleton"
-
-const GREEN = "#0EB66E"
 
 export type ShowcaseFeedKind = "forYou" | "following" | "latest" | "popular"
 
@@ -81,6 +78,10 @@ const TAB_ICONS: Record<ShowcaseFeedKind, typeof Sparkle> = {
   latest: ClockCounterClockwise,
   popular: TrendUp,
 }
+
+/** Kotak visual aksi di bar atas (logo, gift, bell, avatar) = 40px. */
+const ACTION_BOX = 40
+const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
 export function ShowcaseHeader({
   search,
@@ -111,9 +112,7 @@ export function ShowcaseHeader({
     : formatRupiah(balance, { compact: balance >= 1_000_000 })
 
   const displayName =
-    profileQuery.data?.fullName?.trim() ||
-    profileQuery.data?.username ||
-    "Pengguna Kahade"
+    profileQuery.data?.fullName?.trim() || profileQuery.data?.username || "Pengguna Kahade"
 
   const handleBalancePress = useCallback(() => {
     router.push(ROUTES.wallet)
@@ -125,85 +124,73 @@ export function ShowcaseHeader({
 
   return (
     <View className="bg-background">
-      {/* ── Top bar: logo + balance + inbox + profile ───────────── */}
+      {/* ── Baris atas: logo · saldo · hadiah · notifikasi · profil ── */}
       <View className="w-full flex-row items-center gap-3 px-5 pb-2.5 pt-3">
-        {/* Logo Kahade — perfect: soft green bg, border, 40x40 */}
+        {/* Logo — mark polos 40px setinggi foto profil, warna dari token */}
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Kahade, kembali ke beranda"
           accessibilityHint="Buka beranda"
           haptic
+          hitSlop={ACTION_HIT_SLOP}
           onPress={() => router.push(ROUTES.home)}
-          containerClassName={cn("rounded-xl", focusRing)}
-          className="h-10 w-10 items-center justify-center rounded-xl border border-[#BBF7D0] bg-[#DCFCE7] shadow-sm"
+          containerClassName={cn("rounded-md", focusRing)}
         >
-          <LogoMark size={22} fill={GREEN} />
+          <Logo variant="mark" size="md" />
         </PressableScale>
 
-        {/* Balance pill — perfect: rounded-full, h-10, white, shadow-sm */}
-        <View className="h-10 flex-1 flex-row items-center gap-1 rounded-full border border-[#E5E7EB] bg-white px-1 shadow-sm">
+        {/* Balance pill — hanya nominal + isi saldo. Tetap kartu putih
+            (`bg-background` + border token) supaya tetap jadi satu-satunya
+            angka yang menonjol di baris ini; yang abu cukup tombol ikonnya. */}
+        <View className="h-10 flex-1 flex-row items-center gap-1 rounded-full border border-border bg-background pr-1 pl-4">
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={`Saldo ${balanceText}, buka dompet`}
             accessibilityHint="Buka dompet"
             haptic
             onPress={handleBalancePress}
-            containerClassName={cn("flex-1 rounded-full", focusRing)}
-            className="flex-1 flex-row items-center gap-2 rounded-full py-1 pl-0.5 pr-1"
+            containerClassName={cn("h-10 flex-1 justify-center rounded-full", focusRing)}
+            className="min-w-0 flex-row items-center"
           >
-            {/* Black circle with green b */}
-            <View className="h-7 w-7 items-center justify-center rounded-full bg-black">
-              <LogoMark size={14} fill={GREEN} />
-            </View>
-
-            {/* Amount */}
-            <View className="min-w-0 flex-1 flex-row items-center gap-1">
-              {walletQuery.loading ? (
-                <Skeleton className="h-3.5 w-14 rounded-full" />
-              ) : (
-                <Text
-                  variant="body"
-                  weight={700}
-                  numberOfLines={1}
-                  className="shrink text-[14px] tracking-tight"
-                >
-                  {balanceText}
-                </Text>
-              )}
-              <Icon icon={CaretDown} size={12} tone="default" />
-            </View>
+            {walletQuery.loading ? (
+              <Skeleton className="h-3.5 w-14 rounded-full" />
+            ) : (
+              <Text variant="body" weight={700} numberOfLines={1} className="min-w-0 shrink">
+                {balanceText}
+              </Text>
+            )}
           </PressableScale>
 
-          {/* Plus — green, rounded-full, 28px, shadow */}
+          {/* Isi saldo */}
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Isi saldo"
             accessibilityHint="Buka halaman isi saldo"
             haptic
+            hitSlop={ACTION_HIT_SLOP}
             onPress={handleTopupPress}
             containerClassName={cn("rounded-full", focusRing)}
-            className="h-7 w-7 items-center justify-center rounded-full bg-[#0EB66E] shadow-sm"
+            className="h-7 w-7 items-center justify-center rounded-full bg-primary"
           >
             <Icon icon={Plus} size={14} weight="bold" tone="inverse" />
           </PressableScale>
         </View>
 
-        {/* Right actions — perfect: 40x40 rounded-full white */}
+        {/* Aksi kanan — latar abu, tanpa border/shadow */}
         <View className="flex-row items-center gap-2">
-          {/* Gift / Voucher — inbox */}
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel="Voucher dan hadiah"
             accessibilityHint="Buka voucher"
             haptic
+            hitSlop={ACTION_HIT_SLOP}
             onPress={() => router.push(ROUTES.vouchers)}
             containerClassName={cn("rounded-full", focusRing)}
-            className="h-10 w-10 items-center justify-center rounded-full border border-[#E5E7EB] bg-white shadow-sm"
+            className="h-10 w-10 items-center justify-center rounded-full bg-surface"
           >
             <Icon icon={Gift} size={20} weight="fill" tone="active" />
           </PressableScale>
 
-          {/* Bell */}
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={
@@ -211,49 +198,42 @@ export function ShowcaseHeader({
             }
             accessibilityHint="Buka notifikasi"
             haptic
+            hitSlop={ACTION_HIT_SLOP}
             onPress={() => router.push(ROUTES.notifications)}
             containerClassName={cn("rounded-full", focusRing)}
-            className="h-10 w-10 items-center justify-center rounded-full border border-[#E5E7EB] bg-white shadow-sm"
+            className="h-10 w-10 items-center justify-center rounded-full bg-surface"
           >
             <View className="relative">
               <Icon icon={Bell} size={20} weight="fill" tone="active" />
-              {(unread.count ?? 0) > 0 ? (
-                <View
-                  className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full border-2 border-white bg-[#0EB66E]"
-                  accessible
-                  accessibilityLabel="Ada notifikasi baru"
-                />
-              ) : null}
+              <NotificationDot visible={(unread.count ?? 0) > 0} />
             </View>
           </PressableScale>
 
-          {/* Avatar — profile */}
+          {/* Profil — 40px, sejajar dengan logo */}
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={`Profil ${displayName}`}
             accessibilityHint="Buka pengaturan"
             haptic
+            hitSlop={ACTION_HIT_SLOP}
             onPress={() => router.push(ROUTES.settings)}
             containerClassName={cn("rounded-full", focusRing)}
-            className="relative h-10 w-10 items-center justify-center rounded-full border-2 border-white bg-surface shadow-sm"
+            className="relative h-10 w-10"
           >
             {profileQuery.loading ? (
-              <Skeleton shape="circle" width={36} height={36} />
+              <Skeleton shape="circle" width={ACTION_BOX} height={ACTION_BOX} />
             ) : (
               <Avatar
                 source={profileQuery.data?.avatarUrl ?? undefined}
                 name={displayName}
-                size="sm"
-                className="h-9 w-9"
+                size="md"
               />
             )}
-            {/* Online dot */}
-            <View className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-white bg-[#0EB66E]" />
           </PressableScale>
         </View>
       </View>
 
-      {/* ── Search row — perfect: rounded-full + create button ─── */}
+      {/* ── Pencarian + kelola showcase ── */}
       <View className="flex-row items-center gap-2.5 px-5 pb-3 pt-1">
         <View className="flex-1">
           <Input
@@ -269,21 +249,21 @@ export function ShowcaseHeader({
           />
         </View>
 
-        {/* Create showcase — perfect: primary rounded-full 40x40 */}
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Kelola showcase saya"
           accessibilityHint="Buka halaman untuk menambah dan mengatur showcase"
           haptic
+          hitSlop={ACTION_HIT_SLOP}
           onPress={() => router.push(ROUTES.showcaseManagement)}
           containerClassName={cn("rounded-full", focusRing)}
-          className="h-10 w-10 items-center justify-center rounded-full bg-primary shadow-sm"
+          className="h-10 w-10 items-center justify-center rounded-full bg-primary"
         >
           <Icon icon={Plus} size={20} weight="bold" tone="inverse" />
         </PressableScale>
       </View>
 
-      {/* ── Feed tabs — perfect: pill with icons ────────────────── */}
+      {/* ── Strip tab feed ── */}
       <View className="border-b border-border">
         <ScrollView
           horizontal
@@ -308,22 +288,19 @@ export function ShowcaseHeader({
                 containerClassName={cn("rounded-full", focusRing)}
                 className={cn(
                   "h-8 flex-row items-center justify-center gap-1.5 rounded-full border px-3.5",
-                  active
-                    ? "border-primary bg-primary shadow-sm"
-                    : "border-border bg-white",
+                  active ? "border-primary bg-primary" : "border-transparent bg-surface",
                 )}
               >
                 <Icon
                   icon={IconCmp}
                   size={14}
                   weight={active ? "fill" : "regular"}
-                  tone={active ? "inverse" : "default"}
+                  tone={active ? "inverse" : "active"}
                 />
                 <Text
                   variant="label"
                   weight={active ? 700 : 500}
                   tone={active ? "inverse" : "secondary"}
-                  className={cn(active && "tracking-tight")}
                 >
                   {t.label}
                 </Text>

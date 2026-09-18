@@ -4,10 +4,23 @@
  *
  * Arsitektur (kenapa begini, non-obvious):
  *   - KEPUTUSAN lipat/terbuka diambil DI UI THREAD lewat worklet
- *     (`scrollWorklet`) yang diteruskan ke scroller: di Android scroller
- *     native tidak pernah memicu onScroll JS (lihat pull-to-refresh.tsx —
- *     `onScrollWorklet`), sehingga logika arah scroll wajib worklet; web/iOS
- *     memakai `onScroll` (animated handler) yang membungkus worklet sama.
+ *     (`scrollWorklet`) yang diteruskan ke scroller lewat `onScrollWorklet`:
+ *     di Android scroller native tidak pernah memicu onScroll JS (lihat
+ *     pull-to-refresh.tsx), sehingga logika arah scroll wajib worklet.
+ *   - Web/iOS memakai `onScroll` BIASA (fungsi JS) yang memanggil worklet yang
+ *     sama. REVISI 2026-09-18 — INI PENYEBAB TOOLBAR TIDAK BERGERAK DI WEB:
+ *     `onScroll` sebelumnya diisi `useAnimatedScrollHandler`. Handler
+ *     Reanimated bukan fungsi biasa — `useEvent` mengembalikan objek
+ *     `{ workletEventHandler }` yang baru di-unpack oleh komponen hasil
+ *     `createAnimatedComponent` (`Animated.ScrollView`/`Animated.FlatList`).
+ *     Scroller di sini sengaja `FlatList` biasa milik <PullGestureSurface>
+ *     (FlatList harus tetap satu-satunya pemilik scroll agar pull-to-refresh
+ *     custom tidak pecah), jadi objek itu dikirim apa adanya dan onScroll tidak
+ *     pernah terpanggil satu kalipun. Memanggil worklet dari JS thread legal:
+ *     di web UI thread == JS thread, dan `runOnJS` pendek jalan
+ *     `queueMicrotask` saat runtime-nya sudah JS
+ *     (react-native-worklets/src/threads.ts) — jadi kedua jalur berbagi SATU
+ *     implementasi, tidak ada dua versi logika lipat yang bisa drift.
  *   - Worklet hanya menulis shared value `progress` (0 terbuka → 1 terlipat)
  *     dan memanggil runOnJS SEKALI per pergantian state (untuk mirror JS
  *     `collapsed` yang mengatur pointerEvents) — bukan per frame. Animasi
@@ -24,10 +37,13 @@
  *     scrollToTop) header selalu dibuka kembali.
  */
 import { useCallback, useEffect, useState } from "react"
-import type { LayoutChangeEvent } from "react-native"
+import type {
+  LayoutChangeEvent,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+} from "react-native"
 import {
   runOnJS,
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -54,8 +70,9 @@ export function useCollapsingHeader() {
   const setCollapsedJS = useCallback((value: boolean) => setCollapsed(value), [])
 
   /**
-   * Dipanggil di UI thread tiap frame scroll. Hanya menyentuh shared value;
-   * satu-satunya hop JS (runOnJS) terjadi saat state lipat BERGANTI.
+   * Dieksekusi di UI thread tiap frame scroll (jalur Android) atau di JS
+   * thread (web/iOS). Hanya menyentuh shared value; satu-satunya hop JS
+   * (runOnJS) terjadi saat state lipat BERGANTI.
    */
   const scrollWorklet = useCallback(
     (y: number) => {
@@ -84,13 +101,19 @@ export function useCollapsingHeader() {
     [progress, lastY, reducedSV, setCollapsedJS],
   )
 
-  // Web/iOS: scroller memicu onScroll JS — bungkus worklet yang sama supaya
-  // keputusan lipat identik di semua platform.
-  const onScroll = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollWorklet(event.contentOffset.y)
+  /**
+   * `onScroll` untuk scroller NON-Animated (FlatList di <PullGestureSurface>).
+   * Harus fungsi JS biasa — lihat alasan di blok komentar atas.
+   * `scrollEventThrottle: 16` sudah dipasang pull-to-refresh, jadi frekuensi
+   * callback ini sama dengan jalur worklet di Android.
+   */
+  const onScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const y = event?.nativeEvent?.contentOffset?.y
+      if (typeof y === "number" && Number.isFinite(y)) scrollWorklet(y)
     },
-  })
+    [scrollWorklet],
+  )
 
   const containerStyle = useAnimatedStyle(() => ({
     // Sebelum onLayout pertama tinggi belum diketahui — biarkan `auto`

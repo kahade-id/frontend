@@ -118,7 +118,6 @@ export function ShowcaseGalleryGrid({
                 <View
                   style={{ width: cell, height: cell }}
                   className="overflow-hidden rounded-sm select-none"
-                  onContextMenu={(e: unknown) => (e as { preventDefault: () => void }).preventDefault?.()}
                 >
                   <Picture
                     source={item.source}

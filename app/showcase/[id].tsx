@@ -176,7 +176,7 @@ export default function ShowcaseDetailScreen() {
 
   const isOwner = item?.isOwner === true
 
-  const resolvedImages = ((item?.images ?? []) as any).flatMap((image: { id: string; imageUrl: string; sortOrder: number }) => {
+  const resolvedImages = (item?.images ?? []).flatMap((image) => {
     const url = resolveMediaUrl(image.imageUrl)
     return url ? [{ id: image.id, url }] : []
   })
@@ -491,7 +491,8 @@ export default function ShowcaseDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Lihat profil ${item.author.fullName ?? item.author.username}`}
           onPress={() => router.push(ROUTES.userProfile(item.author.username))}
-          containerClassName="flex-1 flex-row items-center gap-3 rounded-md"
+          containerClassName="flex-1 flex-row items-center rounded-md"
+          className="flex-1 flex-row items-center gap-3"
         >
           <Avatar
             source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
@@ -598,7 +599,8 @@ export default function ShowcaseDetailScreen() {
           accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
           accessibilityHint={`${formatCountCompact(likeCount)} suka`}
           onPress={() => void handleToggleLike()}
-          containerClassName="min-h-11 flex-row items-center gap-1.5 rounded-md px-3"
+          containerClassName="min-h-11 flex-row items-center rounded-md px-3"
+          className="flex-row items-center gap-1.5"
         >
           <Icon
             icon={liked ? Heart : HeartStraight}
@@ -618,7 +620,8 @@ export default function ShowcaseDetailScreen() {
           accessibilityLabel="Tulis komentar"
           accessibilityHint={`${formatCountCompact(commentTotal)} komentar`}
           onPress={focusComposer}
-          containerClassName="min-h-11 flex-row items-center gap-1.5 rounded-md px-3"
+          containerClassName="min-h-11 flex-row items-center rounded-md px-3"
+          className="flex-row items-center gap-1.5"
         >
           <Icon icon={ChatCircle} size="md" tone="active" />
           <Text variant="caption" weight={600} className="tabular-nums">
