@@ -58,7 +58,7 @@ Yang diperiksa:
 | `npm run check:weblinks` | PASS | 19 rute dinamis memiliki rewrite. |
 | `npm run check:push` | PASS | Native push siap secara konfigurasi; Web Push nonaktif karena env Firebase kosong. |
 | `npm run build:web` | PASS | 113 static routes; bundle JS web sekitar **4.32 MB** sebelum kompresi. |
-| `npm run check:i18n` | **FAIL (baseline)** | Setelah remediation katalog sinkron pada 1.574 string dan gate masuk ke `npm run check`; cakupan English yang tercatat kini 1.275/1.574 (81.0%), dengan 299 string masih fallback Bahasa Indonesia. |
+| `npm run check:i18n` | **FAIL (baseline)** | Setelah remediation katalog sinkron pada 1.574 string, seluruh 1.574 string sudah memiliki terjemahan English, dan gate masuk ke `npm run check`. |
 | `npm run test:e2e` | **FAIL (baseline)** | Setelah remediation sudah ada config + 4 smoke test; eksekusi browser lokal masih terblokir karena binary Chromium Playwright tidak tersedia/unduhan CDN terputus di environment audit. |
 | `npm run verify:api` | **TIDAK TERVERIFIKASI** | Default menunjuk `http://localhost:3000`; 91 GET berakhir NETWORK dan endpoint terproteksi tidak mendapat auth. |
 | `npm audit` | **28 vulnerability** | 8 high, 20 moderate; banyak berasal dari stack Expo/Metro dan membutuhkan rencana upgrade major. |
@@ -83,7 +83,7 @@ Perubahan berikut benar-benar sudah diterapkan di checkout ini. Status **fixed**
 | --- | --- | --- |
 | P0-01 — live support menyesatkan | **Fixed (frontend)** | `app/live-support.tsx` sekarang bernama Asisten Bantuan Otomatis, memberi disclaimer bukan tiket resmi, tidak mengaku admin, dan punya CTA tiket resmi. Percakapan tetap sesi lokal sampai backend live support tersedia. |
 | P0-02 — authenticated runtime | **Blocked external** | Tidak ada backend staging/credential hidup di workspace. `check:api` tetap hanya contract/static verification; tidak diklaim sebagai authenticated smoke. |
-| P1-01 — i18n gate/catalog | **Fixed gate; partial coverage** | `check:i18n` terhubung ke `check`, catalog 1.574 string sinkron, test 135/135. Cakupan English 81.0%; 299 string belum diterjemahkan dan harus menjadi backlog terukur. |
+| P1-01 — i18n gate/catalog | **Fixed** | `check:i18n` terhubung ke `check`, catalog 1.574 string sinkron, seluruh 1.574 string memiliki terjemahan English, dan seluruh test i18n lulus. |
 | P1-02 — E2E tidak ada | **Implemented; environment blocked** | `playwright.config.ts` mengisolasi `e2e/`, preview server deterministik, dan 4 web smoke tests. Request/deep-link smoke dapat berjalan; browser UI belum dijalankan karena binary Chromium belum tersedia dan download CDN gagal. |
 | P1-03 — realtime chat | **Blocked external** | Belum diubah menjadi WebSocket karena gateway/auth/reconnect contract backend belum tersedia; polling tetap fallback saat ini. |
 | P1-04 — push/deep link/PWA | **Partial** | Manifest, 192/512 icons, metadata, privacy-safe static shell service worker, safe web headers, dan static route smoke sudah ditambahkan. Well-known App/Universal Links sekarang kosong secara eksplisit (bukan TEAMID/fingerprint palsu), dengan warning gate; Firebase env, signing key, Team ID, dan store release tetap blocker eksternal. |
@@ -91,7 +91,7 @@ Perubahan berikut benar-benar sudah diterapkan di checkout ini. Status **fixed**
 | P1-06 — home request fan-out | **Open** | Belum diubah; memerlukan endpoint aggregate dan measurement backend/performance. |
 | P1-07 — permission/privacy | **Partial, improved** | Queue feedback kini TTL 7 hari, bounded, sanitized, dan dihapus oleh `clearSession()` saat logout. Unused camera/media/contacts/location/audio/WebRTC/tracking configuration sudah dipangkas dan didokumentasikan di `docs/PERMISSIONS.md`; physical-device permission testing dan server retention consent masih open. |
 
-**Quality-gate post-remediation:** `npm run check` (termasuk `check:permissions`), `npm run typecheck`, `npm run lint`, `npm test` (135 pass), `npm run test:i18n-render` (4 pass), `npm run build:web` (113 static routes), dan `npm run check:weblinks` berhasil. `npm run test:e2e` masih menunggu browser binary lokal/CI image.
+**Quality-gate post-remediation:** `npm run check` (termasuk `check:permissions`), `npm run typecheck`, `npm run lint`, `npm test` (136 pass), `npm run test:i18n-render` (4 pass), `npm run build:web` (113 static routes), dan `npm run check:weblinks` berhasil. `npm run test:e2e` masih menunggu browser binary lokal/CI image.
 
 ## 4. Hal-hal yang sudah kuat dan sebaiknya dipertahankan
 
@@ -184,23 +184,19 @@ Tanpa ini, status yang jujur adalah **“source verified, runtime belum verified
 
 ## P1 — prioritas sprint terdekat
 
-### P1-01 — [FIXED GATE / PARTIAL TRANSLATION] Gate i18n tidak terhubung ke pipeline utama
+### P1-01 — [FIXED] Gate i18n tidak terhubung ke pipeline utama
 
-Pada baseline audit, `npm run check:i18n` gagal karena katalog stale (1.550 vs 1.582 string). Remediation sekarang menjalankan generator AST dalam mode check, membuang entri English yang sudah mati, dan menjaga catalog sinkron pada **1.574 string**. Cakupan yang tercatat menjadi **1.275/1.574 (81.0%)**; **299 string** masih fallback ke Bahasa Indonesia sehingga gate sudah benar tetapi pekerjaan terjemahan belum selesai.
+Pada baseline audit, `npm run check:i18n` gagal karena katalog stale (1.550 vs 1.582 string). Remediation sekarang menjalankan generator AST dalam mode check, membuang entri English yang sudah mati, dan menjaga catalog sinkron pada **1.574 string**. Seluruh **1.574/1.574 string (100%)** kini memiliki terjemahan English melalui `lib/i18n/en/remediation.json` dan kamus area yang ada. Sisa identik hanya istilah merek/kognat yang memang tidak perlu diterjemahkan.
 
-Dampaknya:
-
-- layar dapat menjadi campuran Indonesia/English;
-- copy baru bisa masuk tanpa terdeteksi oleh `npm run check` karena script `check` tidak memanggil `check:i18n`;
-- accessibility label, placeholder, error, dan CTA tidak selalu konsisten bahasanya.
+Dampak tersebut adalah kondisi baseline. Setelah remediation, catalog dan kamus English sudah lengkap secara mekanis; review native speaker dan uji manual per route tetap disarankan untuk kualitas istilah, bukan lagi gap coverage.
 
 **Perbaikan:**
 
 1. **Selesai:** regenerasi katalog secara resmi; katalog kini sinkron pada 1.574 string.
-2. **Selesai:** `npm run check:i18n` sudah masuk ke `scripts.check`;
-3. pilih target cakupan bertahap, misalnya 95% untuk auth, payment, error, support, dan navigation terlebih dahulu;
-4. pindahkan label/status yang masih hardcoded ke kamus;
-5. uji perubahan bahasa pada seluruh route utama, bukan hanya komponen `Text`.
+2. **Selesai:** `npm run check:i18n` sudah masuk ke `scripts.check`.
+3. **Selesai secara mekanis:** seluruh 1.574 kunci memiliki nilai English dengan token runtime yang seimbang.
+4. **Selesai sebagai guard:** entri English yang mati dibuang dan test menolak kunci di luar katalog.
+5. **Berikutnya:** review native speaker/glossary dan uji manual route utama untuk nuansa istilah.
 
 ### P1-02 — [IMPLEMENTED, BROWSER BLOCKED] Script E2E ada di `package.json`, tetapi E2E belum ada dan script rusak
 
@@ -529,7 +525,7 @@ Sebelum P0/P1 selesai, saya tidak menyarankan menambah banyak badge, promo, vari
 ### Sprint 0 — Release confidence, 1–2 minggu
 
 1. **Selesai frontend:** hentikan positioning live-support sebagai admin; sekarang assistant dan route ke ticket.
-2. **Selesai gate:** regenerate katalog dan masukkan `check:i18n` ke `check`; terjemahan English yang masih kurang tetap backlog.
+2. **Selesai gate:** regenerate katalog dan masukkan `check:i18n` ke `check`; coverage English sudah 100%; backlog i18n berikutnya adalah review native speaker dan konsistensi glossary.
 3. **Selesai implementasi:** config, `e2e/`, dan preview server sudah ada dengan 4 smoke test; CI harus memasang browser Playwright.
 4. Tambah staging contract smoke dan seed accounts.
 5. Jalankan audit permission dan PII/local queue.
@@ -607,4 +603,4 @@ Sebelum P0/P1 selesai, saya tidak menyarankan menambah banyak badge, promo, vari
 
 ### Putusan akhir
 
-Frontend ini layak dilanjutkan dan tidak membutuhkan rewrite. Fondasinya justru cukup baik untuk iterasi cepat. Yang dibutuhkan adalah satu fase **hardening + proof**, lalu baru fase penambahan fitur. P0-01, P1-01 gate, dan P1-02 implementasi frontend sudah ditutup/diturunkan risikonya. P0-02, P1-03, dan bagian credential/runtime P1-04 tetap blocker eksternal; kualitas keseluruhan akan naik lebih besar bila blocker ini dibuktikan daripada menambahkan 20 route baru.
+Frontend ini layak dilanjutkan dan tidak membutuhkan rewrite. Fondasinya justru cukup baik untuk iterasi cepat. Yang dibutuhkan adalah satu fase **hardening + proof**, lalu baru fase penambahan fitur. P0-01, P1-01 i18n, dan P1-02 implementasi frontend sudah ditutup/diturunkan risikonya. P0-02, P1-03, dan bagian credential/runtime P1-04 tetap blocker eksternal; kualitas keseluruhan akan naik lebih besar bila blocker ini dibuktikan daripada menambahkan 20 route baru.
