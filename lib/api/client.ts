@@ -253,8 +253,12 @@ export function refreshAccessToken(): Promise<string | null> {
       "Content-Type": "application/json",
       ...(await deviceHeaders()),
     }
+    // Jalur refresh: cookie HttpOnly `kahade_refresh_token` (utama, web+native
+    // dengan credentials include) ATAU body `{ refreshToken }` (cadangan mobile,
+    // dibaca controller produksi: req.cookies?.kahade_refresh_token || body?.refreshToken).
+    // Header X-Refresh-Token DIHAPUS: tidak pernah dibaca backend dan tidak ada
+    // di CORS allowlist — hanya membuang byte.
     const stored = await getRefreshToken()
-    if (stored) headers["X-Refresh-Token"] = stored
     const reply = await exchange(
       REFRESH_PATH,
       buildUrl(REFRESH_PATH),
@@ -262,7 +266,7 @@ export function refreshAccessToken(): Promise<string | null> {
         method: "POST",
         headers,
         credentials: "include",
-        body: "{}",
+        body: JSON.stringify(stored ? { refreshToken: stored } : {}),
       },
       "json",
       API_TIMEOUT_MS,

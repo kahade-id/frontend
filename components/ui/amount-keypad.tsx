@@ -308,6 +308,7 @@ export function AmountKeypad({
             </Text>
             {/* Kursor */}
             {!disabled && digits.length > 0 && !resolvedError ? (
+              // Kursor berkedip: opacity dianimasikan; warna & dimensi via className token.
               <View
                 className="mb-1.5 ml-0.5 h-8 w-0.5 bg-primary"
                 style={{ opacity: cursorVisible ? 1 : 0 }}

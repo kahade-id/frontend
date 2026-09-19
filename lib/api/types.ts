@@ -4,7 +4,7 @@
  *
  * JANGAN EDIT MANUAL. Ubah spec → `npm run gen:api`.
  *
- * Spec: Kahade API v1.0 · 105 DTO dipakai
+ * Spec: Kahade API v1.0 · 107 DTO dipakai
  * (33 schema admin-only dilewati).
  */
 
@@ -65,6 +65,39 @@ export type RequestOtpDto = {
   phoneNumber: string
   /** OTP delivery method */
   method: "SMS" | "WHATSAPP"
+  /**
+   * Stable device identifier that requested the OTP
+   * maxLength 255
+   */
+  deviceId: string
+}
+
+export type OtpTriggerRequestDto = {
+  /**
+   * Indonesian phone number (e.g. 08xx or +628xx)
+   * maxLength 20
+   */
+  phoneNumber: string
+  /**
+   * Stable device identifier that requested the OTP
+   * maxLength 255
+   */
+  deviceId: string
+}
+
+export type OtpTriggerSendDto = {
+  /**
+   * Indonesian phone number (e.g. 08xx or +628xx)
+   * maxLength 20
+   */
+  phoneNumber: string
+  /** OTP delivery method */
+  method: "SMS" | "WHATSAPP"
+  /**
+   * Reference code when sent from the trigger screen
+   * maxLength 8
+   */
+  refCode?: string
   /**
    * Stable device identifier that requested the OTP
    * maxLength 255
@@ -158,35 +191,18 @@ export type PhoneRegisterDto = {
 }
 
 export type RequestPhoneChangeDto = {
-  /**
-   * New phone number (E.164)
-   * maxLength 20
-   */
+  /** maxLength 20 */
   newPhoneNumber: string
-  /** OTP delivery channel */
   method: "SMS" | "WHATSAPP"
-  /**
-   * Current account password
-   * minLength 1 · maxLength 256
-   */
+  /** minLength 1 · maxLength 256 */
   currentPassword: string
-  /**
-   * Six-digit authenticator code or 10–16 character backup code
-   * maxLength 16
-   */
+  /** maxLength 16 */
   mfaCode?: string
 }
 
 export type ConfirmPhoneChangeDto = {
-  /**
-   * New phone number (E.164)
-   * maxLength 20
-   */
+  /** maxLength 20 */
   newPhoneNumber: string
-  /**
-   * Six-digit OTP code
-   * pattern ^\d{6}$
-   */
   code: string
 }
 
@@ -287,7 +303,10 @@ export type Verify2faLoginDto = {
   deviceInfo?: string
 }
 
-export type RefreshTokenDto = Record<string, never>
+export type RefreshTokenDto = {
+  /** Refresh token (jalur cadangan mobile; jalur utama cookie HttpOnly) */
+  refreshToken?: string
+}
 
 export type LogoutDto = {
   /**
@@ -505,7 +524,18 @@ export type RequestAccountDeletionDto = {
   mfaCode?: string
 }
 
-export type TrustDeviceDto = Record<string, never>
+export type TrustDeviceDto = {
+  /**
+   * Current account password
+   * minLength 1 · maxLength 128
+   */
+  password: string
+  /**
+   * Authenticator code when 2FA is enabled
+   * maxLength 16
+   */
+  mfaCode?: string
+}
 
 export type CreateShowcaseItemDto = {
   /** maxLength 100 */
@@ -653,7 +683,13 @@ export type ConfirmUploadDto = {
   sha256?: string
 }
 
-export type CleanupFilesDto = Record<string, never>
+export type CleanupFilesDto = {
+  /**
+   * Object keys to delete (1-20 items)
+   * minItems 1 · maxItems 20
+   */
+  fileKeys: Array<string>
+}
 
 export type SubmitKycDto = {
   /**
@@ -1079,13 +1115,62 @@ export type SubmitClaimDto = {
   claim: string
 }
 
-export type DisputeMessageDto = Record<string, never>
+export type DisputeMessageDto = {
+  /**
+   * Message text
+   * maxLength 5000
+   */
+  message?: string
+  /**
+   * Evidence attachments
+   * maxItems 5
+   */
+  attachments?: Array<{
+    /** maxLength 512 */
+    fileKey: string
+    /** maxLength 255 */
+    fileName: string
+    /** maxLength 100 */
+    fileType: string
+    /** min 1 · max 10485760 */
+    fileSize: number
+  }>
+}
 
-export type CallActionDto = Record<string, never>
+export type CallActionDto = {
+  /**
+   * Dispute call ID
+   * minLength 1 · maxLength 100
+   */
+  callId: string
+}
 
-export type MutualResolutionProposeDto = Record<string, never>
+export type MutualResolutionProposeDto = {
+  /**
+   * Persentase kembali ke pembeli
+   * min 0 · max 100
+   */
+  buyerPercent: number
+  /**
+   * Persentase ke penjual (total 100)
+   * min 0 · max 100
+   */
+  sellerPercent: number
+  /**
+   * Alasan usulan
+   * minLength 10 · maxLength 2000
+   */
+  reason: string
+}
 
-export type MutualResolutionRespondDto = Record<string, never>
+export type MutualResolutionRespondDto = {
+  action: "ACCEPT" | "REJECT"
+  /**
+   * Catatan tanggapan (opsional)
+   * maxLength 2000
+   */
+  responseNote?: string
+}
 
 export type BatchNotificationIdsDto = {
   /** Array of notification IDs to operate on (max 50 per request) */
@@ -1410,15 +1495,65 @@ export type UpdateScheduleDto = {
   bankAccountId?: string
 }
 
-export type CreateTemplateDto = Record<string, never>
+export type CreateTemplateDto = {
+  /** minLength 1 · maxLength 50 */
+  name: string
+  /** minLength 1 · maxLength 200 */
+  title: string
+  /** maxLength 2000 */
+  description?: string
+  orderType: "PHYSICAL_GOODS" | "DIGITAL_GOODS" | "SERVICE" | "OTHER"
+  /** min 10000 · max 1000000000 */
+  orderValue: number
+  feeResponsibility?: "BUYER" | "SELLER" | "SPLIT"
+  /** min 1 · max 14 */
+  deliveryDeadlineDays?: number
+  isDefault?: boolean
+}
 
-export type UpdateTemplateDto = Record<string, never>
+export type UpdateTemplateDto = {
+  /** minLength 1 · maxLength 50 */
+  name?: string
+  /** minLength 1 · maxLength 200 */
+  title?: string
+  /** maxLength 2000 */
+  description?: string
+  orderType?: "PHYSICAL_GOODS" | "DIGITAL_GOODS" | "SERVICE" | "OTHER"
+  /** min 10000 · max 1000000000 */
+  orderValue?: number
+  feeResponsibility?: "BUYER" | "SELLER" | "SPLIT"
+  /** min 1 · max 14 */
+  deliveryDeadlineDays?: number
+  isDefault?: boolean
+}
 
 export type CreateTicketDto = {
+  /**
+   * Judul tiket
+   * minLength 1 · maxLength 200
+   */
+  subject: string
+  /**
+   * Isi tiket
+   * minLength 1 · maxLength 5000
+   */
+  message: string
+  category?: "GENERAL" | "ORDER" | "PAYMENT" | "ACCOUNT" | "KYC" | "TECHNICAL" | "OTHER"
+  /** Order terkait */
+  orderId?: string
   /** Related help center article ID if user came from FAQ (14.2) */
   relatedArticleId?: string
-  /** Attachment file keys (max 5) */
+  /**
+   * Attachment file keys (max 5)
+   * maxItems 5
+   */
   attachments?: Array<string>
 }
 
-export type ReplyTicketDto = Record<string, never>
+export type ReplyTicketDto = {
+  /**
+   * Balasan
+   * minLength 1 · maxLength 5000
+   */
+  message: string
+}

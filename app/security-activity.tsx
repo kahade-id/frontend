@@ -43,6 +43,7 @@ import { ActivityLogItem } from "@/components/ui/activity-log-item"
 import { Button } from "@/components/ui/button"
 import { DeviceSessionListItem } from "@/components/ui/device-session-list-item"
 import { Dialog } from "@/components/ui/modal"
+import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -209,31 +210,48 @@ export default function SecurityActivityScreen() {
     }
   }, [sessionsQuery, toast.show])
 
-  const handleToggleTrust = useCallback(
-    async (session: DeviceSession, next: boolean) => {
-      if (!session.deviceId) {
-        toast.show({ title: "Status perangkat belum tersedia", tone: "danger" })
-        return
+  /**
+   * Trust/untrust menuntut re-auth password (TrustDeviceDto produksi: `password`
+   * wajib, `mfaCode` opsional). Dulu dikirim `{}` → 400 selalu; sekarang dialog
+   * password ditampilkan dulu, lalu API dipanggil dengan password yang diisi.
+   */
+  const [trustTarget, setTrustTarget] = useState<{ session: DeviceSession; next: boolean } | null>(null)
+  const [trustPassword, setTrustPassword] = useState("")
+
+  const handleToggleTrust = useCallback((session: DeviceSession, next: boolean) => {
+    if (!session.deviceId) {
+      toast.show({ title: "Status perangkat belum tersedia", tone: "danger" })
+      return
+    }
+    setTrustPassword("")
+    setTrustTarget({ session, next })
+  }, [toast.show])
+
+  const handleToggleTrustConfirm = useCallback(async () => {
+    const target = trustTarget
+    const password = trustPassword.trim()
+    if (!target?.session.deviceId || !password) return
+    setTrustingId(target.session.id)
+    try {
+      if (target.next) {
+        await api.sessions.trustDevice(target.session.deviceId, { password })
+      } else {
+        await api.sessions.untrustDevice(target.session.deviceId, { password })
       }
-      setTrustingId(session.id)
-      try {
-        if (next) {
-          await api.sessions.trustDevice(session.deviceId, {})
-        } else {
-          await api.sessions.untrustDevice(session.deviceId, {})
-        }
-        sessionsQuery.setData((prev) =>
-          prev.map((item) => (item.id === session.id ? { ...item, trusted: next } : item)),
-        )
-        toast.show({ title: next ? "Perangkat dipercaya" : "Kepercayaan dicabut", tone: "success" })
-      } catch (err: unknown) {
-        toast.show({ title: "Gagal mengubah perangkat tepercaya", description: userMessage(err), tone: "danger" })
-      } finally {
-        setTrustingId(null)
-      }
-    },
-    [sessionsQuery, toast.show],
-  )
+      sessionsQuery.setData((prev) =>
+        prev.map((item) => (item.id === target.session.id ? { ...item, trusted: target.next } : item)),
+      )
+      setTrustTarget(null)
+      toast.show({
+        title: target.next ? "Perangkat dipercaya" : "Kepercayaan dicabut",
+        tone: "success",
+      })
+    } catch (err: unknown) {
+      toast.show({ title: "Gagal mengubah perangkat tepercaya", description: userMessage(err), tone: "danger" })
+    } finally {
+      setTrustingId(null)
+    }
+  }, [trustTarget, trustPassword, sessionsQuery, toast.show])
 
   /**
    * `error`/`loading` milik TAB AKTIF saja. Sebelumnya keduanya berasal dari
@@ -410,6 +428,31 @@ export default function SecurityActivityScreen() {
         onCancel={() => setRemoveTarget(null)}
         onRequestClose={() => setRemoveTarget(null)}
       />
+
+      <Dialog
+        title={trustTarget?.next ? "Percayai perangkat ini?" : "Cabut kepercayaan perangkat?"}
+        description={
+          trustTarget?.next
+            ? "Perangkat tepercaya melewati 2FA saat masuk. Masukkan password akun untuk konfirmasi."
+            : "Perangkat akan kehilangan status tepercaya dan harus melewati 2FA lagi. Masukkan password akun untuk konfirmasi."
+        }
+        visible={!!trustTarget}
+        destructive={!trustTarget?.next}
+        loading={trustingId !== null}
+        confirmLabel="Konfirmasi"
+        cancelLabel="Batal"
+        onConfirm={() => void handleToggleTrustConfirm()}
+        onCancel={() => setTrustTarget(null)}
+        onRequestClose={() => setTrustTarget(null)}
+      >
+        <Input
+          value={trustPassword}
+          onChangeText={setTrustPassword}
+          placeholder="Password akun"
+          secureTextEntry
+          autoComplete="password"
+        />
+      </Dialog>
 
       <Dialog
         title="Keluar dari semua perangkat lain?"

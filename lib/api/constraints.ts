@@ -81,6 +81,12 @@ export const API_CONSTRAINTS = {
       ]
     }
   },
+  "CallActionDto": {
+    "callId": {
+      "minLength": 1,
+      "maxLength": 100
+    }
+  },
   "CancelOrderDto": {
     "reason": {
       "enum": [
@@ -112,6 +118,12 @@ export const API_CONSTRAINTS = {
       "maxLength": 16
     }
   },
+  "CleanupFilesDto": {
+    "fileKeys": {
+      "minItems": 1,
+      "maxItems": 20
+    }
+  },
   "ConfirmDeliveryDto": {
     "proofId": {
       "pattern": "^c[a-z0-9]{24}$"
@@ -126,6 +138,11 @@ export const API_CONSTRAINTS = {
     },
     "reason": {
       "maxLength": 500
+    }
+  },
+  "ConfirmPhoneChangeDto": {
+    "newPhoneNumber": {
+      "maxLength": 20
     }
   },
   "ConfirmWithdrawOtpDto": {
@@ -290,6 +307,66 @@ export const API_CONSTRAINTS = {
       "minimum": 0
     }
   },
+  "CreateTemplateDto": {
+    "name": {
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "title": {
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "maxLength": 2000
+    },
+    "orderType": {
+      "enum": [
+        "PHYSICAL_GOODS",
+        "DIGITAL_GOODS",
+        "SERVICE",
+        "OTHER"
+      ]
+    },
+    "orderValue": {
+      "minimum": 10000,
+      "maximum": 1000000000
+    },
+    "feeResponsibility": {
+      "enum": [
+        "BUYER",
+        "SELLER",
+        "SPLIT"
+      ]
+    },
+    "deliveryDeadlineDays": {
+      "minimum": 1,
+      "maximum": 14
+    }
+  },
+  "CreateTicketDto": {
+    "subject": {
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "message": {
+      "minLength": 1,
+      "maxLength": 5000
+    },
+    "category": {
+      "enum": [
+        "GENERAL",
+        "ORDER",
+        "PAYMENT",
+        "ACCOUNT",
+        "KYC",
+        "TECHNICAL",
+        "OTHER"
+      ]
+    },
+    "attachments": {
+      "maxItems": 5
+    }
+  },
   "Disable2faDto": {
     "password": {
       "maxLength": 72
@@ -301,6 +378,14 @@ export const API_CONSTRAINTS = {
     "emailOtpCode": {
       "minLength": 6,
       "maxLength": 6
+    }
+  },
+  "DisputeMessageDto": {
+    "message": {
+      "maxLength": 5000
+    },
+    "attachments": {
+      "maxItems": 5
     }
   },
   "EditMessageDto": {
@@ -352,6 +437,31 @@ export const API_CONSTRAINTS = {
     "durationHours": {
       "minimum": 1,
       "maximum": 720
+    }
+  },
+  "MutualResolutionProposeDto": {
+    "buyerPercent": {
+      "minimum": 0,
+      "maximum": 100
+    },
+    "sellerPercent": {
+      "minimum": 0,
+      "maximum": 100
+    },
+    "reason": {
+      "minLength": 10,
+      "maxLength": 2000
+    }
+  },
+  "MutualResolutionRespondDto": {
+    "action": {
+      "enum": [
+        "ACCEPT",
+        "REJECT"
+      ]
+    },
+    "responseNote": {
+      "maxLength": 2000
     }
   },
   "OtpTriggerRequestDto": {
@@ -507,6 +617,12 @@ export const API_CONSTRAINTS = {
       "pattern": "^c[a-z0-9]{24}$"
     }
   },
+  "ReplyTicketDto": {
+    "message": {
+      "minLength": 1,
+      "maxLength": 5000
+    }
+  },
   "ReportUserDto": {
     "category": {
       "enum": [
@@ -574,6 +690,24 @@ export const API_CONSTRAINTS = {
     },
     "deviceId": {
       "maxLength": 255
+    }
+  },
+  "RequestPhoneChangeDto": {
+    "newPhoneNumber": {
+      "maxLength": 20
+    },
+    "method": {
+      "enum": [
+        "SMS",
+        "WHATSAPP"
+      ]
+    },
+    "currentPassword": {
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "mfaCode": {
+      "maxLength": 16
     }
   },
   "ResendVerificationDto": {
@@ -810,6 +944,15 @@ export const API_CONSTRAINTS = {
       "maximum": 25000000
     }
   },
+  "TrustDeviceDto": {
+    "password": {
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "mfaCode": {
+      "maxLength": 16
+    }
+  },
   "UpdateLanguageDto": {
     "language": {
       "enum": [
@@ -906,6 +1049,42 @@ export const API_CONSTRAINTS = {
     },
     "sortOrder": {
       "minimum": 0
+    }
+  },
+  "UpdateTemplateDto": {
+    "name": {
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "title": {
+      "minLength": 1,
+      "maxLength": 200
+    },
+    "description": {
+      "maxLength": 2000
+    },
+    "orderType": {
+      "enum": [
+        "PHYSICAL_GOODS",
+        "DIGITAL_GOODS",
+        "SERVICE",
+        "OTHER"
+      ]
+    },
+    "orderValue": {
+      "minimum": 10000,
+      "maximum": 1000000000
+    },
+    "feeResponsibility": {
+      "enum": [
+        "BUYER",
+        "SELLER",
+        "SPLIT"
+      ]
+    },
+    "deliveryDeadlineDays": {
+      "minimum": 1,
+      "maximum": 14
     }
   },
   "ValidateCounterpartDto": {

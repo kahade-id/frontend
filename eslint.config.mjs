@@ -35,6 +35,8 @@ export default tseslint.config(
       ".expo/types/**",
       "expo-env.d.ts",
       "nativewind-env.d.ts",
+      // Salinan referensi source backend produksi (bukan kode frontend).
+      "backend/**",
     ],
   },
   ...tseslint.configs.recommended.map((config) => ({

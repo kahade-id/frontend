@@ -113,19 +113,12 @@ export function uploadDirect(formData: FormData) {
 }
 
 /**
- * Audit kontrak: spec menandai requestBody `POST /v1/upload/cleanup` sebagai
- * `required: true` dengan skema `CleanupFilesDto`, yang di spec berupa objek
- * KOSONG (`{ "type": "object", "properties": {} }` → `Record<string, never>`).
- * Versi lama mengirim `undefined`, sehingga tidak ada body sama sekali —
- * backend yang memvalidasi `required` akan menolak dengan 400/415. Kirim
- * objek kosong eksplisit agar sesuai kontrak.
- *
- * Catatan jujur: fungsi ini saat ini TIDAK punya pemanggil (dead export), jadi
- * cacatnya belum pernah tercapai pengguna. Diperbaiki sekarang supaya tidak
- * menjadi jebakan saat nanti dipasang.
+ * Produksi menuntut `fileKeys` (1–20 item) — bukan `{}` seperti spec lama.
+ * Fungsi ini saat ini belum punya pemanggil di app (dead export), diperbaiki
+ * supaya tidak menjadi jebakan saat nanti dipasang.
  */
-export function cleanupUploads() {
-  const dto: CleanupFilesDto = {}
+export function cleanupUploads(fileKeys: string[]) {
+  const dto: CleanupFilesDto = { fileKeys }
   return http.post<void, CleanupFilesDto>("/v1/upload/cleanup", dto, { auth: "required" })
 }
 

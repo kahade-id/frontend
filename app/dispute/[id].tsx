@@ -44,6 +44,8 @@ import type {
   DisputeEvidence,
   DisputeMessage,
   MutualResolutionProposal,
+  MutualResolutionProposeBody,
+  MutualResolutionRespondBody,
 } from "@/lib/api/disputes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
@@ -351,6 +353,11 @@ export default function DisputeDetailScreen() {
   }, [id, deleteEvidenceId, toast.show])
 
   const handlePropose = useCallback(async () => {
+    // Kontrak produksi: buyerPercent + sellerPercent = 100 (integer) + reason
+    // 10–2000 char. Nominal rupiah dari UI dikonversi ke persentase pembagian.
+    const buyerPercent = orderValue > 0 ? Math.round((proposeAmount / orderValue) * 100) : 0
+    const sellerPercent = 100 - buyerPercent
+    const reason = proposeNote.trim()
     if (
       !id ||
       !myRole ||
@@ -358,15 +365,17 @@ export default function DisputeDetailScreen() {
       !Number.isSafeInteger(orderValue) ||
       !Number.isSafeInteger(proposeAmount) ||
       proposeAmount < 0 ||
-      proposeAmount > orderValue
+      proposeAmount > orderValue ||
+      reason.length < 10
     )
       return
     setProposing(true)
     try {
       await api.disputes.proposeMutualResolution(id, {
-        amount: proposeAmount,
-        note: proposeNote.trim() || undefined,
-      })
+        buyerPercent,
+        sellerPercent,
+        reason,
+      } satisfies MutualResolutionProposeBody)
       setProposeOpen(false)
       setProposeNote("")
       toast.show({
@@ -394,7 +403,7 @@ export default function DisputeDetailScreen() {
       setRespondingAction(action)
       try {
         if (action === "WITHDRAW") await api.disputes.withdrawMutualResolution(id, proposal.id)
-        else await api.disputes.respondMutualResolution(id, proposal.id, { action })
+        else await api.disputes.respondMutualResolution(id, proposal.id, { action } satisfies MutualResolutionRespondBody)
         toast.show({
           title:
             action === "ACCEPT"
@@ -445,20 +454,24 @@ export default function DisputeDetailScreen() {
 
   /**
    * Terima / tolak permintaan lawan, atau akhiri panggilan yang berjalan.
-   * Endpoint tanpa id panggilan (POST /call/accept|reject|end) — berlaku
-   * untuk panggilan aktif sengketa ini. Sesi video (WebRTC) tidak ada di
-   * app; "terima" hanya menandai kesediaan, mediator menghubungi lewat kanal
-   * yang ditentukan backend (UNVERIFIED).
+   * Produksi menuntut callId (CallActionDto) — diambil dari baris panggilan
+   * yang sedang di-tindak-lanjuti. Sesi video (WebRTC) tidak ada di app;
+   * "terima" hanya menandai kesediaan, mediator menghubungi lewat kanal
+   * yang ditentukan backend.
    */
   const [callActionBusy, setCallActionBusy] = useState<"accept" | "reject" | "end" | null>(null)
   const handleCallAction = useCallback(
-    async (action: "accept" | "reject" | "end") => {
+    async (action: "accept" | "reject" | "end", callId?: string) => {
       if (!id || callActionBusy) return
+      if (!callId) {
+        toast.show({ title: "Panggilan tidak ditemukan", tone: "danger" })
+        return
+      }
       setCallActionBusy(action)
       try {
-        if (action === "accept") await api.disputes.acceptDisputeCall(id)
-        else if (action === "reject") await api.disputes.rejectDisputeCall(id)
-        else await api.disputes.endDisputeCall(id)
+        if (action === "accept") await api.disputes.acceptDisputeCall(id, callId)
+        else if (action === "reject") await api.disputes.rejectDisputeCall(id, callId)
+        else await api.disputes.endDisputeCall(id, callId)
         toast.show({
           title:
             action === "accept"
@@ -742,7 +755,7 @@ export default function DisputeDetailScreen() {
                             className="flex-1"
                             loading={callActionBusy === "accept"}
                             disabled={callActionBusy !== null}
-                            onPress={() => void handleCallAction("accept")}
+                            onPress={() => void handleCallAction("accept", c.id)}
                           >
                             Terima
                           </Button>
@@ -752,7 +765,7 @@ export default function DisputeDetailScreen() {
                             className="flex-1"
                             loading={callActionBusy === "reject"}
                             disabled={callActionBusy !== null}
-                            onPress={() => void handleCallAction("reject")}
+                            onPress={() => void handleCallAction("reject", c.id)}
                           >
                             Tolak
                           </Button>
@@ -765,7 +778,7 @@ export default function DisputeDetailScreen() {
                             variant="destructive"
                             loading={callActionBusy === "end"}
                             disabled={callActionBusy !== null}
-                            onPress={() => void handleCallAction("end")}
+                            onPress={() => void handleCallAction("end", c.id)}
                           >
                             {isActive ? "Akhiri panggilan" : "Batalkan permintaan"}
                           </Button>
@@ -839,7 +852,12 @@ export default function DisputeDetailScreen() {
         title="Usulkan penyelesaian"
         description={`Tentukan berapa dari ${formatRupiah(orderValue)} yang dikembalikan ke pembeli; sisanya ke penjual.`}
         footer={
-          <Button fullWidth loading={proposing} onPress={() => void handlePropose()}>
+          <Button
+            fullWidth
+            loading={proposing}
+            disabled={proposeNote.trim().length < 10}
+            onPress={() => void handlePropose()}
+          >
             Kirim usulan
           </Button>
         }
@@ -858,7 +876,7 @@ export default function DisputeDetailScreen() {
           <TextArea
             value={proposeNote}
             onChangeText={setProposeNote}
-            placeholder="Catatan untuk lawan transaksi (opsional)"
+            placeholder="Jelaskan alasan usulan ini (wajib, min. 10 karakter)"
             maxLength={PROPOSAL_NOTE_MAX}
             multiline
             numberOfLines={3}

@@ -2,30 +2,32 @@ import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `disputes` (sengketa pesanan; evidence, claim, pesan, call).
  *
- * Catatan spec (docs/api/kahade-api-mobile.json): schema
- * `MutualResolutionProposeDto`, `MutualResolutionRespondDto`,
- * `DisputeMessageDto`, dan `CallActionDto` dideklarasikan `type: object`
- * TANPA properti (generator menghasilkan `Record<string, never>`). Layar
- * tidak boleh mengirim `{}` untuk aksi yang jelas butuh data (nominal usulan,
- * accept/reject), maka bentuk body didefinisikan di sini — UNVERIFIED,
- * mengikuti penamaan field respons (`amount`, `note`) dan pola `action`
- * yang dipakai endpoint lain di API ini. Sesuaikan bila spec diperbarui.
+ * Kontrak DTO di sini mengikuti SOURCE BACKEND PRODUKSI (release f498385),
+ * bukan spec lama: DisputeMessageDto { message, attachments }, CallActionDto
+ * { callId }, MutualResolutionProposeDto { buyerPercent, sellerPercent,
+ * reason }, MutualResolutionRespondDto { action, responseNote }. Spec lama
+ * mendeklarasikan keempatnya sebagai objek KOSONG dan telah menyebabkan
+ * bug body 400 di tiga fitur sengketa.
  */
 import { http, seg } from "@/lib/api/client"
-import type { SubmitClaimDto, SubmitEvidenceDto } from "@/lib/api/types"
+import type {
+  CallActionDto,
+  DisputeMessageDto,
+  MutualResolutionProposeDto,
+  MutualResolutionRespondDto,
+  SubmitClaimDto,
+  SubmitEvidenceDto,
+} from "@/lib/api/types"
 
-/** Body POST /mutual-resolution — UNVERIFIED (spec kosong). */
-export type MutualResolutionProposeBody = {
-  /** Nominal yang diusulkan kembali ke PEMBELI (sisa ke penjual) */
-  amount: number
-  note?: string
-}
+/**
+ * POST /mutual-resolution — produksi memakai PERSENTASE pembagian
+ * (buyerPercent + sellerPercent = 100, integer) + alasan 10–2000 char.
+ * Kontrak lama { amount, note } tidak pernah diterima backend (DTO produksi
+ * MutualResolutionProposeDto menolak field amount/note).
+ */
+export type MutualResolutionProposeBody = MutualResolutionProposeDto
 
-/** Body POST /mutual-resolution/{proposalId}/respond — UNVERIFIED (spec kosong). */
-export type MutualResolutionRespondBody = {
-  action: "ACCEPT" | "REJECT"
-  note?: string
-}
+export type MutualResolutionRespondBody = MutualResolutionRespondDto
 
 /** Bukti sengketa — UNVERIFIED. */
 export type DisputeEvidence = {
@@ -140,11 +142,10 @@ export function getDisputeMessages(disputeId: string, signal?: AbortSignal) {
 }
 
 export function sendDisputeMessage(disputeId: string, text: string) {
-  return http.post<DisputeMessage, { text: string }>(
+  // DTO produksi: DisputeMessageDto { message?, attachments? } — bukan { text }.
+  return http.post<DisputeMessage, DisputeMessageDto>(
     `/v1/disputes/${seg(disputeId)}/messages`,
-    {
-      text,
-    },
+    { message: text },
     { auth: "required" },
   )
 }
@@ -156,29 +157,33 @@ export function requestDisputeCall(disputeId: string) {
 }
 
 /**
- * Spec menandai `requestBody` ketiga aksi panggilan ini `required: true` dengan
- * skema `CallActionDto` — yang di spec berupa objek KOSONG. Mengirim `undefined`
- * berarti tidak ada body sama sekali, dan backend yang memvalidasi `required`
- * menolak dengan 400/415 (cacat yang sama sudah diperbaiki untuk
- * `POST /v1/upload/cleanup`; lihat komentar di lib/api/upload.ts). Kirim `{}`
- * eksplisit agar `Content-Type: application/json` + body valid.
+ * Aksi panggilan produksi memakai CallActionDto { callId } WAJIB — bukan {}
+ * seperti spec lama. `callId` = id panggilan dari GET /calls (atau respons
+ * POST /call/request). Tanpa callId backend menolak 400 "callId should not
+ * be empty".
  */
-export function acceptDisputeCall(disputeId: string) {
-  return http.post<DisputeCall, Record<string, never>>(`/v1/disputes/${seg(disputeId)}/call/accept`, {}, {
-    auth: "required",
-  })
+export function acceptDisputeCall(disputeId: string, callId: string) {
+  return http.post<DisputeCall, CallActionDto>(
+    `/v1/disputes/${seg(disputeId)}/call/accept`,
+    { callId },
+    { auth: "required" },
+  )
 }
 
-export function rejectDisputeCall(disputeId: string) {
-  return http.post<DisputeCall, Record<string, never>>(`/v1/disputes/${seg(disputeId)}/call/reject`, {}, {
-    auth: "required",
-  })
+export function rejectDisputeCall(disputeId: string, callId: string) {
+  return http.post<DisputeCall, CallActionDto>(
+    `/v1/disputes/${seg(disputeId)}/call/reject`,
+    { callId },
+    { auth: "required" },
+  )
 }
 
-export function endDisputeCall(disputeId: string) {
-  return http.post<DisputeCall, Record<string, never>>(`/v1/disputes/${seg(disputeId)}/call/end`, {}, {
-    auth: "required",
-  })
+export function endDisputeCall(disputeId: string, callId: string) {
+  return http.post<DisputeCall, CallActionDto>(
+    `/v1/disputes/${seg(disputeId)}/call/end`,
+    { callId },
+    { auth: "required" },
+  )
 }
 
 export function getDisputeCalls(disputeId: string, signal?: AbortSignal) {

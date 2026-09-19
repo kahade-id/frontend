@@ -1,10 +1,14 @@
 /**
  * Kahade — domain `transaction-templates` (template order cepat).
- * Spec: DTO `Record<string, never>` (UNVERIFIED) — bentuk disamakan dengan
- * TransactionTemplateCard di components/ui (satu sumber bentuk template order).
+ *
+ * Respons server TIDAK menyimpan `role`/`counterpartUsername` (lihat
+ * TransactionTemplatesService produksi) — kedua field dipertahankan di tipe
+ * ini hanya sebagai preferensi lokal form. REQUEST body mengikuti DTO
+ * produksi (CreateTemplateDto/UpdateTemplateDto di lib/api/types).
  */
 import { http, seg } from "@/lib/api/client"
 import { readList } from "@/lib/api/response"
+import type { CreateTemplateDto, UpdateTemplateDto } from "@/lib/api/types"
 
 export type TransactionTemplate = {
   id: string
@@ -34,16 +38,21 @@ export function getTransactionTemplate(id: string) {
   })
 }
 
-export function createTransactionTemplate(dto: Partial<TransactionTemplate>) {
-  return http.post<TransactionTemplate, Partial<TransactionTemplate>>(
+/**
+ * DTO produksi CreateTemplateDto/UpdateTemplateDto TIDAK mengenal `role` dan
+ * `counterpartUsername` (forbidNonWhitelisted menolak field ekstra dengan 400).
+ * Adapter kini menerima tipe DTO eksplisit, bukan Partial<TransactionTemplate>.
+ */
+export function createTransactionTemplate(dto: CreateTemplateDto) {
+  return http.post<TransactionTemplate, CreateTemplateDto>(
     "/v1/transaction-templates",
     dto,
     { auth: "required" },
   )
 }
 
-export function updateTransactionTemplate(id: string, dto: Partial<TransactionTemplate>) {
-  return http.put<TransactionTemplate, Partial<TransactionTemplate>>(
+export function updateTransactionTemplate(id: string, dto: UpdateTemplateDto) {
+  return http.put<TransactionTemplate, UpdateTemplateDto>(
     `/v1/transaction-templates/${seg(id)}`,
     dto,
     { auth: "required" },

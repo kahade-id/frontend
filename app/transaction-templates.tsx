@@ -106,16 +106,17 @@ export default function TransactionTemplatesScreen() {
     if (!form.name.trim() || !form.title.trim() || form.orderValue <= 0) return
     setSubmitting(true)
     try {
+      // DTO produksi tidak mengenal `role`/`counterpartUsername` — mengirim
+      // keduanya ditolak 400 (forbidNonWhitelisted). Keduanya tetap tersimpan
+      // di form lokal sebagai preferensi, tapi tidak dikirim ke server.
       const dto = {
         name: form.name.trim(),
-        role: form.role,
         title: form.title.trim(),
         description: form.description?.trim() || undefined,
         orderType: form.orderType,
         orderValue: form.orderValue,
         deliveryDeadlineDays: form.deliveryDeadlineDays,
         feeResponsibility: form.feeResponsibility,
-        counterpartUsername: form.counterpartUsername?.trim() || undefined,
       }
       if (editing) {
         await api.transactionTemplates.updateTransactionTemplate(editing.id, dto)

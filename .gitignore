@@ -47,3 +47,7 @@ assets/images/__qa__/
 # hanyalah laporan tulis-tangan docs/audit/API-ENDPOINT-AUDIT.md.
 docs/audit/inventory.json
 docs/audit/ROUTES.md
+
+# Salinan referensi source backend produksi (ditarik dari server untuk audit
+# kontrak frontend <-> backend). Bukan bagian dari build frontend.
+/backend/

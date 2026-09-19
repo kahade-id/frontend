@@ -162,6 +162,8 @@ export function OrderCard({
   // Transaksi berlatar background putih sehingga kartu elevated putih
   // hilang tanpa batas. Isi netral + border membuat kartu terbaca di
   // atas background (transaksi) maupun surface (Beranda).
+  // §6: fill monokrom netral — pengecualian visual kartu daftar tercatat di
+  // DARK_ALLOWLIST (scripts/check-tokens.mjs).
   return (
     <Card
       variant="default"

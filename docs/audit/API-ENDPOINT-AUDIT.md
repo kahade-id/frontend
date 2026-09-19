@@ -1183,3 +1183,62 @@ adalah invarian sumber, bukan perilaku render. Saat menulis test itu,
 `new URL(rel, import.meta.url)` sempat memicu `TS2769`/`TS2345` karena `URL`
 global merujuk ke tipe DOM — jebakan yang sama yang pernah menimpa
 `vitest.config.ts`; diperbaiki dengan `fileURLToPath` + `node:path resolve`.
+
+---
+
+## 18. Putaran keempat — audit terhadap BACKEND PRODUKSI (release f498385)
+
+**Tanggal:** 2026-09-19
+**Metode:** source backend produksi ditarik dari server (`/var/www/kahade-release-f498385/src`,
+bukan working tree `/var/www/kahade` yang stale), lalu seluruh pemanggilan adapter
+frontend dipetakan method+path **dan** body/DTO terhadap controller produksi.
+Validasi silang lewat curl ke backend hidup (`http://localhost:3000` di server).
+
+### 18.1 Hasil pemetaan endpoint (364 → 455 rute produksi)
+
+| Pembanding | Hasil |
+|---|---|
+| 216 pemanggilan adapter vs scan controller produksi | **216/216 cocok** — 0 path hilang, 0 method mismatch |
+| 216 pemanggilan vs `docs/api/openapi.json` lama | 125 tidak terdaftar → **spec stale**, bukan bug klien |
+
+Pelajaran: spekulasi "endpoint tidak ada di backend" dari spec lama ternyata
+hampir selalu berarti **spec lama yang basi**. Sumber kebenaran kini adalah
+source produksi.
+
+### 18.2 Bug yang DIPERBAIKI (semuanya 400/fitur-mati di produksi)
+
+| ID | Bug | Perbaikan |
+|---|---|---|
+| FIX-01 | `POST /v1/auth/refresh`: klien mengirim header `X-Refresh-Token` yang **tidak pernah dibaca backend** dan tidak ada di CORS allowlist — refresh mobile tanpa cookie selalu "Refresh token required" | `client.ts` kirim `{ refreshToken }` di body (controller produksi: `req.cookies?.kahade_refresh_token \|\| body?.refreshToken`); header dihapus. Terverifikasi curl: body dibaca ("Invalid or expired refresh token", bukan "required") |
+| FIX-02 | `sendDisputeMessage` kirim `{ text }` — produksi `DisputeMessageDto { message?, attachments? }` | body → `{ message: text }` |
+| FIX-03 | `accept/reject/endDisputeCall` kirim `{}` — produksi `CallActionDto { callId }` wajib | adapter terima `callId`; layar sengketa mengirim `c.id` dari daftar panggilan |
+| FIX-04 | `proposeMutualResolution` kirim `{ amount, note }` (karangan) — produksi `buyerPercent+sellerPercent=100` + `reason` 10–2000 wajib | layar konversi nominal→persen; alasan wajib (tombol disabled < 10 char) |
+| FIX-05 | `respondMutualResolution` kirim `{ action, note? }` — produksi `responseNote?` | body pakai `MutualResolutionRespondDto` |
+| FIX-06 | `trust/untrustDevice` kirim `{}` — produksi `TrustDeviceDto { password }` wajib | dialog password re-auth ditambahkan di security-activity |
+| FIX-07 | `create/updateTransactionTemplate` kirim `role` + `counterpartUsername` — produksi menolak keduanya (forbidNonWhitelisted) | dto dirapikan sesuai `CreateTemplateDto`/`UpdateTemplateDto` produksi |
+| FIX-08 | `cleanupUploads` kirim `{}` — produksi `CleanupFilesDto { fileKeys[] }` wajib | signature → `cleanupUploads(fileKeys)` |
+| FIX-09 | `RequestPhoneChangeDto`/`ConfirmPhoneChangeDto` tipe kosong — layar change-phone gagal typecheck setelah regenerasi | dua DTO ditambal ke kontrak produksi (`change-phone.dto.ts`) |
+
+### 18.3 Spec frontend disinkronkan dengan produksi
+
+`scripts/sync-spec-production.mjs` (baru) menambal **13 schema** di
+`docs/api/openapi.json` + `docs/api/kahade-api-mobile.json` dari kontrak yang
+diverifikasi di source produksi, lalu `npm run gen:api` meregenerasi
+`lib/api/types.ts` + `lib/api/constraints.ts`. Dengan ini `check:api-body`
+memvalidasi terhadap kontrak yang **benar**, bukan spec basi.
+
+### 18.4 Yang ikut diperbaiki agar pipeline hijau
+
+- tsconfig/eslint mengabaikan `backend/` (salinan referensi produksi, di-gitignore).
+- 12 pelanggaran `check:tokens` (3 berkas UI, pre-existing): keypad nominal
+  dikonversi ke className, 2 kartu + keypad masuk `DARK_ALLOWLIST`/
+  `INLINE_TYPO_ALLOWLIST` dengan alasan §spek.
+
+### 18.5 Verifikasi
+
+| Pemeriksaan | Hasil |
+|---|---|
+| `npm run check` (14 langkah) | **EXIT=0** — 10 berkas / 129 test + 4 test i18n-render |
+| Live curl produksi: refresh body | ✅ dibaca backend |
+| Live curl produksi: `deviceId` wajib | ✅ frontend sudah mengirim UUID valid |
+| Live curl produksi: route dispute call | ✅ ada (401 tanpa auth, bukan 404) |

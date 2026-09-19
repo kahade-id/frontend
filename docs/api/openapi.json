@@ -16316,11 +16316,49 @@
       },
       "RequestPhoneChangeDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "newPhoneNumber",
+          "method",
+          "currentPassword"
+        ],
+        "properties": {
+          "newPhoneNumber": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "SMS",
+              "WHATSAPP"
+            ]
+          },
+          "currentPassword": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "mfaCode": {
+            "type": "string",
+            "maxLength": 16
+          }
+        }
       },
       "ConfirmPhoneChangeDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "newPhoneNumber",
+          "code"
+        ],
+        "properties": {
+          "newPhoneNumber": {
+            "type": "string",
+            "maxLength": 20
+          },
+          "code": {
+            "type": "string"
+          }
+        }
       },
       "SetUsernameDto": {
         "type": "object",
@@ -16464,7 +16502,12 @@
       },
       "RefreshTokenDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "refreshToken": {
+            "type": "string",
+            "description": "Refresh token (jalur cadangan mobile; jalur utama cookie HttpOnly)"
+          }
+        }
       },
       "LogoutDto": {
         "type": "object",
@@ -16821,7 +16864,22 @@
       },
       "TrustDeviceDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "password"
+        ],
+        "properties": {
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "description": "Current account password"
+          },
+          "mfaCode": {
+            "type": "string",
+            "maxLength": 16,
+            "description": "Authenticator code when 2FA is enabled"
+          }
+        }
       },
       "CreateShowcaseItemDto": {
         "type": "object",
@@ -17156,7 +17214,20 @@
       },
       "CleanupFilesDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "fileKeys"
+        ],
+        "properties": {
+          "fileKeys": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 20,
+            "items": {
+              "type": "string"
+            },
+            "description": "Object keys to delete (1-20 items)"
+          }
+        }
       },
       "SubmitKycDto": {
         "type": "object",
@@ -18016,19 +18087,108 @@
       },
       "DisputeMessageDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 5000,
+            "description": "Message text"
+          },
+          "attachments": {
+            "type": "array",
+            "maxItems": 5,
+            "description": "Evidence attachments",
+            "items": {
+              "type": "object",
+              "required": [
+                "fileKey",
+                "fileName",
+                "fileType",
+                "fileSize"
+              ],
+              "properties": {
+                "fileKey": {
+                  "type": "string",
+                  "maxLength": 512
+                },
+                "fileName": {
+                  "type": "string",
+                  "maxLength": 255
+                },
+                "fileType": {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                "fileSize": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 10485760
+                }
+              }
+            }
+          }
+        }
       },
       "CallActionDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "callId"
+        ],
+        "properties": {
+          "callId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Dispute call ID"
+          }
+        }
       },
       "MutualResolutionProposeDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "buyerPercent",
+          "sellerPercent",
+          "reason"
+        ],
+        "properties": {
+          "buyerPercent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Persentase kembali ke pembeli"
+          },
+          "sellerPercent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 100,
+            "description": "Persentase ke penjual (total 100)"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 2000,
+            "description": "Alasan usulan"
+          }
+        }
       },
       "MutualResolutionRespondDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "ACCEPT",
+              "REJECT"
+            ]
+          },
+          "responseNote": {
+            "type": "string",
+            "maxLength": 2000,
+            "description": "Catatan tanggapan (opsional)"
+          }
+        }
       },
       "BatchNotificationIdsDto": {
         "type": "object",
@@ -18651,31 +18811,170 @@
       },
       "CreateTemplateDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "name",
+          "title",
+          "orderType",
+          "orderValue"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "orderType": {
+            "type": "string",
+            "enum": [
+              "PHYSICAL_GOODS",
+              "DIGITAL_GOODS",
+              "SERVICE",
+              "OTHER"
+            ]
+          },
+          "orderValue": {
+            "type": "number",
+            "minimum": 10000,
+            "maximum": 1000000000
+          },
+          "feeResponsibility": {
+            "type": "string",
+            "enum": [
+              "BUYER",
+              "SELLER",
+              "SPLIT"
+            ]
+          },
+          "deliveryDeadlineDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 14
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        }
       },
       "UpdateTemplateDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 50
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000
+          },
+          "orderType": {
+            "type": "string",
+            "enum": [
+              "PHYSICAL_GOODS",
+              "DIGITAL_GOODS",
+              "SERVICE",
+              "OTHER"
+            ]
+          },
+          "orderValue": {
+            "type": "number",
+            "minimum": 10000,
+            "maximum": 1000000000
+          },
+          "feeResponsibility": {
+            "type": "string",
+            "enum": [
+              "BUYER",
+              "SELLER",
+              "SPLIT"
+            ]
+          },
+          "deliveryDeadlineDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 14
+          },
+          "isDefault": {
+            "type": "boolean"
+          }
+        }
       },
       "CreateTicketDto": {
         "type": "object",
+        "required": [
+          "subject",
+          "message"
+        ],
         "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "description": "Judul tiket"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000,
+            "description": "Isi tiket"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "GENERAL",
+              "ORDER",
+              "PAYMENT",
+              "ACCOUNT",
+              "KYC",
+              "TECHNICAL",
+              "OTHER"
+            ]
+          },
+          "orderId": {
+            "type": "string",
+            "description": "Order terkait"
+          },
           "relatedArticleId": {
             "type": "string",
             "description": "Related help center article ID if user came from FAQ (14.2)"
           },
           "attachments": {
-            "description": "Attachment file keys (max 5)",
             "type": "array",
+            "maxItems": 5,
             "items": {
               "type": "string"
-            }
+            },
+            "description": "Attachment file keys (max 5)"
           }
         }
       },
       "ReplyTicketDto": {
         "type": "object",
-        "properties": {}
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000,
+            "description": "Balasan"
+          }
+        }
       },
       "AdminLoginDto": {
         "type": "object",
