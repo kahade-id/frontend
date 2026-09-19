@@ -179,6 +179,9 @@ export function ShowcaseCommentsSheet({
                   // Indent 32px = avatar xs (24) + gap (8) — sejajar teks induk, selaras title px-5.
                   <ShowcaseCommentRow key={reply.id} comment={reply} className="ml-8" />
                 ))}
+                {/* Bingkai bawah komentar terakhir — konsisten dengan garis atas
+                    & antar item (v2 2026-09, separasi BottomSheet). */}
+                <Divider />
               </View>
             ))}
           </View>

@@ -192,11 +192,14 @@ export function SelectOptionList<V extends string = string>({
   return (
     <View accessibilityRole="radiogroup" className={cn("w-full", className)} {...rest}>
       {header}
-      {options.map((opt, i) => {
+      {/* Garis BUKA di atas opsi pertama DAN di bawah tiap opsi: baris teratas
+          & terbawah ikut terbingkai seperti baris tengah (v2 2026-09,
+          separasi konsisten di semua BottomSheet). */}
+      {options.length > 0 ? <Divider /> : null}
+      {options.map((opt) => {
         const selected = opt.value === value
         return (
           <View key={opt.value}>
-            {i > 0 ? <Divider /> : null}
             <PressableScale
               accessibilityRole="radio"
               accessibilityState={{ checked: selected, disabled: !!opt.disabled }}
@@ -219,6 +222,7 @@ export function SelectOptionList<V extends string = string>({
               </View>
               {selected ? <Icon icon={Check} size="sm" weight="bold" tone="active" /> : null}
             </PressableScale>
+            <Divider />
           </View>
         )
       })}

@@ -105,7 +105,7 @@ export type HomeOverviewCardProps = Omit<ViewProps, "children"> & {
   walletError?: string | null
   onRetryWallet?: () => void
   walletActions?: readonly OverviewWalletAction[]
-  stats: readonly OverviewStat[]
+  stats?: readonly OverviewStat[]
   summaryLoading?: boolean
   summaryError?: string | null
   onRetrySummary?: () => void
@@ -127,7 +127,7 @@ export function HomeOverviewCard({
   walletError,
   onRetryWallet,
   walletActions = [],
-  stats,
+  stats = [],
   summaryLoading = false,
   summaryError,
   onRetrySummary,
@@ -235,7 +235,7 @@ export function HomeOverviewCard({
         ) : null}
       </View>
 
-      <Divider />
+      {stats.length > 0 ? <Divider /> : null}
 
       {/* ── Statistik order ──────────────────────────────────── */}
       {summaryError ? (

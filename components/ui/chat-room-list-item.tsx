@@ -1,50 +1,40 @@
 /**
  * Kahade — <ChatRoomListItem> (§9.17 List Item, §9.14 badge unread).
  *
- * Baris ruang obrolan di tab Chat: Avatar md (+ Dot online) -> nama +
- * waktu pesan terakhir di baris pertama; preview pesan + indikator
- * (unread / muted / pinned) di baris kedua. Konteks order opsional
- * (mis. "Order #KHD-2391") sebagai caption Mono text-secondary di bawah nama
- * — bukan Badge: tiga baris teks + Badge berbingkai membuat baris terlalu
- * ramai, dan ID order adalah data teknis (Mono, §3.1) yang tidak butuh
- * penekanan warna.
+ * Baris ruang obrolan di tab Chat: Avatar md (+ Dot online) -> nama + waktu
+ * pesan terakhir di baris pertama; preview pesan + indikator (unread / muted /
+ * pinned) di baris kedua. Konteks order opsional (mis. "Order #KHD-2391")
+ * sebagai caption Mono text-secondary di bawah nama — bukan Badge.
  *
- * Mengikuti anatomi ListItem/UserDiscoverResultItem (`min-h-14 px-5 py-3
- * gap-3`, divider inset ml-[72px] = px-5 (20) + Avatar md (40) + gap-3 (12)) supaya irama list
- * konsisten. Tidak dibangun di atas <ListItem> karena punya dua kolom
- * kanan (waktu di atas, unread di bawah) yang tidak ada di kontrak ListItem.
+ * v2 (2026-09):
+ *   - Daftar Chat TIDAK memakai pemisah antar baris: irama dibentuk dari
+ *     spasi (`divider` top + bottom, `gap-0.5`, `min-h`) supaya daftar pesan
+ *     terlihat rapat & sunyi, konsisten dengan daftar notifikasi. Divider
+ *     tersisa saat BARIS PERTAMA/TERAKHIR butuh bingkai dari elemen
+ *     bersebelahan (mis. kartu ringkasan).
+ *   - Trailing `<CaretRight>` di kanan sebagai affordansi "ruang bisa
+ *     dibuka", BUKAN unread-pill besar — jumlah belum dibaca jadi caption
+ *     di bawah waktu agar navigasi tidak terikat status.
+ *
+ * Mengikuti anatomi ListItem (`min-h-14 px-5 py-3 gap-3`) supaya irama list
+ * konsisten. Tidak dibangun di atas <ListItem> karena punya dua kolom kanan
+ * (waktu di atas, unread di bawah) yang tidak ada di kontrak ListItem.
  *
  * Keputusan non-obvious:
- *   - Unread count = pill `bg-primary` teks inverse caption 600 tabular,
- *     BUKAN merah. §9.14 memakai dot merah tanpa angka hanya untuk tab bar;
- *     di dalam daftar, jumlah pesan bukan status bahaya — hitam (otoritas,
- *     §1) sudah cukup menonjol di antara baris abu-abu. Angka > 99 jadi
- *     "99+" agar lebar pill tidak melebar tak terbatas.
- *   - Baris dengan unread menaikkan nama & preview ke weight 600 / tone
- *     primary; baris terbaca kembali ke 500 / secondary. Ini pembeda utama
- *     sebelum user melihat angka — sama seperti `unread` di SecurityLogItem,
- *     tapi di sini TIDAK memakai bg-surface karena avatar bulat di atas
- *     surface membuat baris terlihat "kotak-kotak".
- *   - Waktu caption tabular (bukan Mono) — alasan sama dengan
- *     ChatMessageBubble: meta percakapan, bukan timestamp teknis (§3.1).
- *     Formatnya tanggung jawab pemanggil (hari ini "14:32", kemarin
- *     "Kemarin", lebih lama "12 Mar") supaya komponen tidak mengunci aturan
- *     relatif-waktu yang bisa berubah per layar.
- *   - `typing` mengganti preview dengan "mengetik…" weight 500 text-secondary
- *     — tanpa italic (font yang di-bundle tidak menyertakan italic, §3.1)
- *     dan tanpa animasi titik: satu titik kejutan per layar (§1) sudah
- *     dipakai pull-to-refresh di daftar ini.
- *   - Prefix "Anda: " ditambahkan bila `lastMessage.fromSelf` — supaya user
- *     tahu bola ada di lawan bicara, tanpa ikon centang ganda tambahan yang
- *     akan bersaing dengan unread pill di kolom kanan.
- *   - Online = <Dot size="md" tone="success" ring> ditumpuk di kanan-bawah
- *     avatar. Ring memisahkan dari avatar tanpa shadow (§6). Dot dipasang
- *     absolute karena harus overlap — pengecualian sadar dari aturan flex.
- *   - Muted/pinned = ikon 16px text-tertiary di sebelah waktu, tanpa label.
- *     Keduanya masuk accessibilityLabel baris agar tetap terbaca SR.
+ *   - Unread count = pill kecil `bg-primary` teks inverse caption 600
+ *     tabular, BUKAN merah. §9.14 memakai dot merah tanpa angka hanya untuk
+ *     tab bar; di dalam daftar, jumlah pesan bukan status bahaya — hitam
+ *     (otoritas, §1) sudah cukup menonjol.
+ *   - Baris unread menaikkan nama ke weight 600; preview ke 500 — ini
+ *     pembeda utama sebelum user melihat angka.
+ *   - Waktu caption tabular (bukan Mono). Formatnya tanggung jawab pemanggil.
+ *   - `typing` mengganti preview dengan "mengetik…" weight 500.
+ *   - Prefix "Anda: " ditambahkan bila `lastMessage.fromSelf`.
+ *   - Online = <Dot size="md" tone="success" ring> di kanan-bawah avatar.
+ *   - Muted/pinned = ikon 16px text-tertiary di sebelah waktu.
  */
 import { View, type ViewProps } from "react-native"
-import { BellSlash, PushPin } from "phosphor-react-native"
+import { BellSlash, CaretRight, PushPin } from "phosphor-react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Dot } from "@/components/ui/dot"
@@ -78,6 +68,8 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   onPress?: () => void
   onLongPress?: () => void
   divider?: boolean
+  /** Garis batas ATAS — untuk baris pertama yang butuh bingkai (kartu dst). */
+  dividerTop?: boolean
   labels?: { you?: string; typing?: string; unread?: string }
   className?: string
 }
@@ -99,6 +91,7 @@ export function ChatRoomListItem({
   onPress,
   onLongPress,
   divider = false,
+  dividerTop = false,
   labels,
   className,
   ...rest
@@ -162,12 +155,6 @@ export function ChatRoomListItem({
           </View>
         </View>
 
-        {context ? (
-          <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500">
-            {context}
-          </Text>
-        ) : null}
-
         <View className="flex-row items-center gap-2">
           <Text
             variant="caption"
@@ -178,20 +165,41 @@ export function ChatRoomListItem({
           >
             {preview}
           </Text>
-          {hasUnread ? (
-            <View className="min-w-5 items-center justify-center rounded-full bg-primary px-[6px] py-[1px]">
-              <Text variant="caption" tone="inverse" weight={600} className="tabular-nums">
-                {unreadLabel}
-              </Text>
-            </View>
-          ) : null}
+          {/* Panel kanan-bawah: count pesan belum dibaca → chevron navigasi. */}
+          <View className="items-center">
+            {hasUnread ? (
+              <View className="items-center justify-center rounded-full bg-primary px-1.5 py-[1px]">
+                <Text variant="caption" tone="inverse" weight={600} className="tabular-nums">
+                  {unreadLabel}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+          {onPress ? <Icon icon={CaretRight} size="xs" tone="default" /> : null}
         </View>
+
+        {context ? (
+          <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500">
+            {context}
+          </Text>
+        ) : null}
       </View>
     </View>
   )
 
+  const dividerLine = (
+    <View
+      accessibilityRole="none"
+      importantForAccessibility="no"
+      className="h-px bg-border"
+      style={{ marginLeft: tokens.layout.rowDividerInset.avatar }}
+    />
+  )
+
   return (
     <View className={cn("w-full", className)} {...rest}>
+      {dividerTop ? dividerLine : null}
+
       {onPress || onLongPress ? (
         <PressableScale
           accessibilityRole="button"
@@ -210,12 +218,7 @@ export function ChatRoomListItem({
         </View>
       )}
 
-      {divider ? <View
-          accessibilityRole="none"
-          importantForAccessibility="no"
-          className="h-px bg-border"
-          style={{ marginLeft: tokens.layout.rowDividerInset.avatar }}
-        /> : null}
+      {divider ? dividerLine : null}
     </View>
   )
 }

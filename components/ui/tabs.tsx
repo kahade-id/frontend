@@ -6,11 +6,17 @@
  * untuk navigasi antar layar pakai <BottomTabBar>.
  *
  * Keputusan non-obvious:
- *   - Indikator aktif = `border-b-focus` (1.5px) `border-primary` di item,
- *     di atas garis dasar `border-b border-border` container. Border, bukan
- *     View absolut yang dianimasikan: §8 tidak mendefinisikan sliding
- *     indicator dan §1 "tenang" — pindah tab cukup instan. Item aktif
- *     memakai `-mb-[1px]` agar garis 1.5px menimpa garis dasar 1px.
+ *   - Indikator aktif = `border-b-[2px]` `bg-primary` yang MELUNCUR dengan
+ *     spring utilitarian (v2 2026-09). Sebelumnya indikator adalah border
+ *     per-item yang muncul instan — user tidak bisa melacak "dari tab mana ke
+ *     tab mana". Slide memberi affordance arah & posisi; ukuran & offset
+ *     diukur via `onLayout` tiap item (label dapat berbeda panjang, ikon,
+ *     count), BUKAN lebar rata yang salah untuk label pendek/panjang.
+ *   - Indikator duduk `-top-px` di atas garis dasar `border-t border-border`
+ *     container (bukan mengganti border item): satu View absolute yang
+ *     posisinya dianimasikan, jadi tidak ada dua border yang saling menimpa.
+ *   - `reduceMotion`: slide instan (langsung set value), konsisten dengan
+ *     aturan §8 — gerakan posisi besar diredam, bukan dihilangkan fungsinya.
  *   - Label aktif text-primary 600, inaktif text-secondary 400 — mengikuti
  *     pemisahan eksplisit §9.14 (label inaktif = text-secondary, bukan
  *     tertiary, agar AA).
@@ -25,9 +31,14 @@
  *     bersentuhan dan duduk di atas garis dasar, ring luar akan menabrak
  *     tetangga/garis; inset menjaga ring di dalam kotak tab.
  */
-import { useMemo } from "react"
-import { ScrollView, View, type ViewProps } from "react-native"
+import { useEffect, useMemo, useState } from "react"
+import { ScrollView, View, type LayoutChangeEvent, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+} from "react-native-reanimated"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -35,6 +46,8 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
+import { tokens } from "@/lib/tokens"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 
 export type TabItem<V extends string = string> = {
   value: V
@@ -53,6 +66,9 @@ export type TabsProps<V extends string = string> = Omit<ViewProps, "children"> &
   className?: string
 }
 
+/** Ketebalan indikator (px). Nilai runtime → literal lokal. */
+const INDICATOR_H = 2
+
 export function Tabs<V extends string = string>({
   items,
   value,
@@ -61,16 +77,73 @@ export function Tabs<V extends string = string>({
   className,
   ...rest
 }: TabsProps<V>) {
+  const reducedMotion = useReducedMotion()
+  // Geometri tiap tab (x + lebar) relatif terhadap strip — diukur via onLayout.
+  const [frames, setFrames] = useState<number[]>(() => items.map(() => 0))
+  const [offsets, setOffsets] = useState<number[]>(() => items.map(() => 0))
+
+  const measure = (i: number) => (e: LayoutChangeEvent) => {
+    const { x, width } = e.nativeEvent.layout
+    setFrames((prev) => {
+      const next = [...prev]
+      next[i] = width
+      return next
+    })
+    setOffsets((prev) => {
+      const next = [...prev]
+      next[i] = x
+      return next
+    })
+  }
+
+  const activeIndex = items.findIndex((item) => item.value === value)
+  const dotX = useSharedValue(0)
+  const dotW = useSharedValue(0)
+
+  useEffect(() => {
+    const targetX = offsets[activeIndex] ?? 0
+    const targetW = frames[activeIndex] ?? 0
+    const spring = {
+      ...tokens.motion.spring,
+      velocity: 6,
+    }
+    if (reducedMotion) {
+      dotX.value = targetX
+      dotW.value = targetW
+      return
+    }
+    dotX.value = withSpring(targetX, spring)
+    dotW.value = withSpring(targetW, spring)
+  }, [activeIndex, frames, offsets, reducedMotion, dotX, dotW])
+
+  const dotStyle = useAnimatedStyle(
+    () => ({
+      transform: [{ translateX: dotX.value }],
+      width: dotW.value,
+    }),
+    [],
+  )
+
   // Tab strip scrollable bisa berada di dalam PullToRefresh (profil user):
   // daftarkan ke RNGH agar geser horizontal tidak dikunci induk vertikal.
   const nativeGesture = useMemo(() => Gesture.Native(), [])
   const row = (
     <View
       accessibilityRole="tablist"
-      className={cn("flex-row border-b border-border", scrollable ? "px-5" : "w-full", className)}
+      className={cn(
+        "relative flex-row border-t border-border",
+        scrollable ? "px-5" : "w-full",
+        className,
+      )}
       {...rest}
     >
-      {items.map((item) => {
+      {/* Indikator aktif meluncur — feedback arah & posisi "sedang tab apa". */}
+      <Animated.View
+        style={[dotStyle, { height: INDICATOR_H, pointerEvents: "none" }]}
+        className="absolute -top-px left-0 z-10 rounded-t-[2px] bg-primary"
+      />
+
+      {items.map((item, index) => {
         const active = item.value === value
         return (
           <PressableScale
@@ -84,8 +157,8 @@ export function Tabs<V extends string = string>({
             containerClassName={cn(scrollable ? "rounded-xs" : "flex-1 rounded-xs", focusRingInset)}
             className={cn(
               "h-12 flex-row items-center justify-center gap-2 px-4",
-              active && "-mb-[1px] border-b-focus border-primary",
             )}
+            onLayout={measure(index)}
           >
             {item.icon ? <Icon icon={item.icon} size="sm" active={active} /> : null}
             <Text ellipsizeMode="tail"
