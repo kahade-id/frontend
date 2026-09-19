@@ -20,4 +20,10 @@ test.describe("web release smoke", () => {
     expect(assetLinks.headers()["content-type"]).toMatch(/application\/json/i)
     expect(aasa.headers()["content-type"]).toMatch(/application\/json/i)
   })
+
+  test("serves the privacy-safe PWA service worker", async ({ request }) => {
+    const worker = await request.get("/sw.js")
+    expect(worker.ok()).toBe(true)
+    expect(await worker.text()).toContain("does not cache API responses")
+  })
 })
