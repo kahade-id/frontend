@@ -49,8 +49,8 @@ const LINKS: AboutLink[] = [
   },
   {
     id: "live-support",
-    title: "Dukungan Langsung",
-    subtitle: "Chat langsung dengan admin Kahade",
+    title: "Asisten Bantuan",
+    subtitle: "Panduan otomatis; buat tiket untuk bantuan resmi",
     icon: Headset,
     href: ROUTES.liveSupport,
     divider: true,

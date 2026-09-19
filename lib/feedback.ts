@@ -1,25 +1,14 @@
 /**
  * Kahade — pengiriman umpan balik pengguna.
  *
- * Endpoint backend `POST /v1/feedback` masih berupa kontrak yang DIJADWALKAN,
- * sehingga pengiriman dibuat tahan-gagal:
- *   - Bila server merespons (2xx/4xx bisnis), hasilnya diteruskan apa adanya.
- *   - Bila server BELUM punya endpoint (404) atau perangkat sedang luring,
- *     masukan disimpan dalam antrean lokal (SecureStore; di web jatuh ke
- *     localStorage) dan dilaporkan sebagai "queued" — pengguna tetap melihat
- *     masukan terkirim, dan saat ia mengirim masukan berikutnya secara
- *     DARING, antrean lama dicoba dikirim ulang lebih dulu.
- *
- * Ini BUKAN rahasia: isinya saran/keluhan + waktu lokal, setara penyimpanan
- * preferensi. Disimpan di SecureStore hanya karena proyek tidak memasang
- * AsyncStorage (konvensi sama dengan onboardingSeen/languagePreference).
+ * Feedback offline bersifat sementara dan tidak dianggap sebagai tiket resmi.
+ * Antrean dibatasi ukuran, dibersihkan setelah TTL, dan ikut dihapus saat
+ * logout agar masukan milik akun sebelumnya tidak terbawa ke akun berikutnya.
+ * Nilai yang menunggu kirim bukan rahasia, tetapi tetap berpotensi memuat data
+ * pribadi sehingga lifecycle-nya sengaja pendek.
  */
 import { http } from "@/lib/api/client"
-import {
-  getSecureItem,
-  SecureKeys,
-  setSecureItem,
-} from "@/lib/secure-storage"
+import { getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
 
 export const FEEDBACK_CATEGORIES = [
   "Saran fitur",
@@ -45,26 +34,75 @@ export type FeedbackResult =
   | { status: "sent" }
   | { status: "queued"; reason: "offline" | "unsupported" }
 
+/** Retention pendek: feedback yang tidak terkirim bukan arsip pengguna. */
+export const FEEDBACK_QUEUE_TTL_MS = 7 * 24 * 60 * 60 * 1000
+const MAX_MESSAGE_LENGTH = 2_000
+const MAX_CONTACT_LENGTH = 254
+const MAX_QUEUE_ITEMS = 5
+/** SecureStore punya batas sekitar 2 KB per nilai; sisakan ruang aman. */
+const MAX_QUEUE_JSON_LENGTH = 1_700
+
+function isCategory(value: unknown): value is FeedbackCategory {
+  return typeof value === "string" && (FEEDBACK_CATEGORIES as readonly string[]).includes(value)
+}
+
+function normalizeInput(input: FeedbackInput): FeedbackInput {
+  return {
+    category: input.category,
+    message: input.message.trim().replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "").slice(0, MAX_MESSAGE_LENGTH),
+    contact: input.contact?.trim().slice(0, MAX_CONTACT_LENGTH) || undefined,
+    rating: input.rating,
+  }
+}
+
+function isQueuedFeedback(value: unknown): value is QueuedFeedback {
+  if (!value || typeof value !== "object") return false
+  const item = value as Partial<QueuedFeedback>
+  return (
+    isCategory(item.category) &&
+    typeof item.message === "string" &&
+    item.message.length > 0 &&
+    item.message.length <= MAX_MESSAGE_LENGTH &&
+    typeof item.queuedAt === "string" &&
+    Number.isFinite(Date.parse(item.queuedAt)) &&
+    (item.contact === undefined || typeof item.contact === "string") &&
+    (item.rating === undefined || typeof item.rating === "number")
+  )
+}
+
+function isFresh(item: QueuedFeedback, now = Date.now()): boolean {
+  const queuedAt = Date.parse(item.queuedAt)
+  return Number.isFinite(queuedAt) && now - queuedAt >= 0 && now - queuedAt <= FEEDBACK_QUEUE_TTL_MS
+}
+
 async function readQueue(): Promise<QueuedFeedback[]> {
   try {
     const raw = await getSecureItem(SecureKeys.feedbackQueue)
     if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) ? (parsed as QueuedFeedback[]) : []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    const fresh = parsed.filter(isQueuedFeedback).filter((item) => isFresh(item))
+    const bounded = fresh.slice(-MAX_QUEUE_ITEMS)
+    // Opportunistically remove expired/corrupt entries from persistent storage.
+    if (bounded.length !== parsed.length) await writeQueue(bounded)
+    return bounded
   } catch {
     return []
   }
 }
 
-async function writeQueue(items: QueuedFeedback[]): Promise<void> {
+async function writeQueue(items: QueuedFeedback[]): Promise<boolean> {
   try {
-    if (items.length === 0) {
-      await setSecureItem(SecureKeys.feedbackQueue, "")
-    } else {
-      await setSecureItem(SecureKeys.feedbackQueue, JSON.stringify(items.slice(-20)))
+    let bounded = items.slice(-MAX_QUEUE_ITEMS)
+    // Drop oldest records until the SecureStore value stays below its limit.
+    while (bounded.length > 0 && JSON.stringify(bounded).length > MAX_QUEUE_JSON_LENGTH) {
+      bounded = bounded.slice(1)
     }
+    await setSecureItem(SecureKeys.feedbackQueue, bounded.length ? JSON.stringify(bounded) : "")
+    return true
   } catch {
-    // Penyimpanan penuh/tidak tersedia — tidak boleh membuat gagal kirim.
+    // Storage penuh/tidak tersedia — caller harus memberi tahu bahwa data belum tersimpan.
+    return false
   }
 }
 
@@ -89,35 +127,46 @@ async function postFeedback(payload: FeedbackInput): Promise<void> {
   )
 }
 
-/** Coba kirim ulang antrean lama; satu kegagalan menghentikan flush. */
+/** Coba kirim ulang antrean lama tanpa menghapus item yang belum berhasil. */
 async function flushQueue(): Promise<void> {
   const pending = await readQueue()
-  for (const item of pending) {
-    const { queuedAt: _queuedAt, ...input } = item
-    await postFeedback(input)
+  for (let index = 0; index < pending.length; index += 1) {
+    const { queuedAt: _queuedAt, ...input } = pending[index]
+    try {
+      await postFeedback(input)
+    } catch {
+      // Simpan item gagal + item setelahnya; jangan retry agresif di background.
+      await writeQueue(pending.slice(index))
+      return
+    }
   }
-  await writeQueue([])
+  if (pending.length > 0) await writeQueue([])
 }
 
 /**
  * Kirim umpan balik; mengantre lokal saat endpoint belum ada / luring.
- * Tidak melempar untuk kegagalan jaringan — melempar hanya untuk kesalahan
- * validasi dari server (mis. pesan kosong) agar UI bisa menampilkan pesannya.
+ * Validasi server tetap dilempar agar UI dapat memberi pesan yang tepat.
  */
 export async function submitFeedback(input: FeedbackInput): Promise<FeedbackResult> {
-  // Pendahuluan: coba kosongkan antrean lama, kegagalannya diabaikan —
-  // masukan baru tetap akan diproses di bawah.
-  await flushQueue().catch(() => undefined)
+  const normalized = normalizeInput(input)
+  if (!isCategory(normalized.category) || normalized.message.length === 0) {
+    throw new Error("Feedback tidak boleh kosong")
+  }
+
+  await flushQueue()
 
   try {
-    await postFeedback(input)
+    await postFeedback(normalized)
     return { status: "sent" }
   } catch (err) {
     const kind = classifyFailure(err)
     if (kind === "other") throw err
     const queue = await readQueue()
-    queue.push({ ...input, queuedAt: new Date().toISOString() })
-    await writeQueue(queue)
+    queue.push({ ...normalized, queuedAt: new Date().toISOString() })
+    const stored = await writeQueue(queue)
+    if (!stored) {
+      throw new Error("Masukan belum terkirim dan tidak dapat disimpan di perangkat")
+    }
     return { status: "queued", reason: kind }
   }
 }
@@ -125,4 +174,9 @@ export async function submitFeedback(input: FeedbackInput): Promise<FeedbackResu
 /** Jumlah masukan yang masih mengantre (untuk info/diagnostik UI). */
 export async function queuedFeedbackCount(): Promise<number> {
   return (await readQueue()).length
+}
+
+/** Hapus masukan lokal yang belum terkirim (dipakai oleh logout/privacy controls). */
+export async function clearFeedbackQueue(): Promise<void> {
+  await setSecureItem(SecureKeys.feedbackQueue, "")
 }

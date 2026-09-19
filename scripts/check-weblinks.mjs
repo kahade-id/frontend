@@ -25,7 +25,9 @@ import { fileURLToPath } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
 const problems = []
+const warnings = []
 const fail = (m) => problems.push(m)
+const warn = (m) => warnings.push(m)
 
 /* ── 1. Kumpulkan rute dinamis dari app/ ────────────────────────────────── */
 const appDir = join(root, "app")
@@ -110,13 +112,17 @@ if (!existsSync(assetlinksPath)) {
   fail("public/.well-known/assetlinks.json tidak ada — App Links Android tidak bisa diverifikasi")
 } else {
   const al = JSON.parse(readFileSync(assetlinksPath, "utf8"))
-  const target = al[0]?.target
-  const appPkg = JSON.parse(readFileSync(join(root, "app.json"), "utf8")).expo.android?.package
-  if (target?.package_name !== appPkg) {
-    fail(`assetlinks.json package_name "${target?.package_name}" != app.json android.package "${appPkg}"`)
-  }
-  if (!Array.isArray(target?.sha256_cert_fingerprints)) {
-    fail("assetlinks.json: sha256_cert_fingerprints harus berupa array")
+  if (al.length === 0) {
+    warn("assetlinks.json kosong: App Links belum diaktifkan sampai fingerprint signing production tersedia")
+  } else {
+    const target = al[0]?.target
+    const appPkg = JSON.parse(readFileSync(join(root, "app.json"), "utf8")).expo.android?.package
+    if (target?.package_name !== appPkg) {
+      fail(`assetlinks.json package_name "${target?.package_name}" != app.json android.package "${appPkg}"`)
+    }
+    if (!Array.isArray(target?.sha256_cert_fingerprints) || target.sha256_cert_fingerprints.length === 0) {
+      fail("assetlinks.json: sha256_cert_fingerprints harus berupa array non-empty")
+    }
   }
 }
 
@@ -133,11 +139,14 @@ if (!existsSync(aasaPath)) {
   }
   if (aasa) {
     const details = aasa.applinks?.details ?? []
-    if (details.length === 0) fail("apple-app-site-association: applinks.details kosong")
-    const bundleId = JSON.parse(readFileSync(join(root, "app.json"), "utf8")).expo.ios?.bundleIdentifier
-    for (const d of details) {
-      if (!String(d.appID ?? "").endsWith(`.${bundleId}`)) {
-        fail(`apple-app-site-association: appID "${d.appID}" tidak berakhir dengan bundleIdentifier ".${bundleId}"`)
+    if (details.length === 0) {
+      warn("apple-app-site-association kosong: Universal Links belum diaktifkan sampai Team ID Apple tersedia")
+    } else {
+      const bundleId = JSON.parse(readFileSync(join(root, "app.json"), "utf8")).expo.ios?.bundleIdentifier
+      for (const d of details) {
+        if (!String(d.appID ?? "").endsWith(`.${bundleId}`)) {
+          fail(`apple-app-site-association: appID "${d.appID}" tidak berakhir dengan bundleIdentifier ".${bundleId}"`)
+        }
       }
     }
   }
@@ -187,6 +196,7 @@ if (problems.length === 0) {
   console.log(
     `check-weblinks: OK — ${dynamicRoutes.length} rute dinamis punya rewrite, berkas verifikasi & app.json konsisten`,
   )
+  for (const warning of warnings) console.warn(`  PERINGATAN  ${warning}`)
   process.exit(0)
 }
 for (const p of problems) console.error(`  GAGAL  ${p}`)

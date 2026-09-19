@@ -108,9 +108,8 @@ export default function FeedbackScreen() {
                 Punya saran atau menemui kendala?
               </Text>
               <Text variant="caption" tone="secondary">
-                Tuliskan masukan Anda. Ide-ide terbaik Kahade datang dari
-                pengguna. Untuk kendala transaksi yang butuh tindakan, gunakan
-                Dukungan Langsung atau tiket bantuan.
+                Tuliskan masukan Anda. Masukan ini bukan tiket bantuan. Untuk
+                kendala transaksi yang butuh tindakan, buat tiket bantuan resmi.
               </Text>
             </View>
 
