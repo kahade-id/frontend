@@ -1,14 +1,20 @@
 /**
  * Screen — Ruang Chat (GET /v1/chat/rooms). List ChatRoomListItem.
  *
+ * v2 (2026-09):
+ *   - Header: icon BACK di kiri (konsisten dengan layar stack lain, sejajar
+ *     foto profil baris list) dan icon ARSIP di kanan untuk membuka/menutup
+ *     "Daftar terarsip" — pintu masuk tetap ada walau room terarsip tidak
+ *     pernah boleh lenyap diam-diam.
+ *   - Daftar TANPA separator antar baris: irama dibentuk dari spasi &
+ *     typography (list pesan rapat), garis batas hanya diberikan pada baris
+ *     PERTAMA sebagai bingkai dari header.
+ *
  * Fitur lanjutan (spec backend chat):
- *   - Dot online dari `isOnline`/`lastSeenAt` (sudah disertakan GET /rooms)
- *     + ikon bel-slash untuk `isMuted`.
+ *   - Dot online dari `isOnline`/`lastSeenAt` + ikon bel-slash untuk `isMuted`.
  *   - Tekan lama room → ActionSheet: Arsip/Buka arsip (PUT /archive) dan
  *     Bisukan/Bukakan bisu (PUT /mute, opsi 1 jam via durationHours).
- *   - Room terarsip disembunyikan dari daftar utama (belum ada folder Arsip
- *     — follow-up); statusnya bisa diubah lewat menu tekan lama setelah
- *     dibuka ulang.
+ *   - Ruang terarsip ditampilkan di "Daftar terarsip" (bukan disembunyikan).
  */
 import { useState } from "react"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -31,6 +37,7 @@ import { ActionSheet } from "@/components/ui/action-sheet"
 import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
+import { IconButton } from "@/components/ui/icon-button"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { useToast } from "@/components/ui/toast"
@@ -43,6 +50,7 @@ export default function ChatScreen() {
   )
   const [roomMenu, setRoomMenu] = useState<ChatRoom | null>(null)
   const [roomBusy, setRoomBusy] = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
 
   // Terapkan hasil arsip/mute ke baris list tanpa memuat ulang seluruhnya.
   const patchRoom = (id: string, patch: Partial<ChatRoom>) => {
@@ -67,25 +75,47 @@ export default function ChatScreen() {
     }
   }
 
+  const archivedRooms = query.data.filter((r) => r.isArchived)
   const visibleRooms = query.data.filter((r) => !r.isArchived)
+  const shownRooms = archiveOpen ? archivedRooms : visibleRooms
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Chat" />
+      <Header
+        title={archiveOpen ? "Diarsipkan" : "Chat"}
+        right={
+          <IconButton
+            icon={Archive}
+            size="md"
+            variant="ghost"
+            active={archiveOpen}
+            accessibilityLabel={archiveOpen ? "Tutup daftar terarsip" : "Buka daftar terarsip"}
+            onPress={() => setArchiveOpen((v) => !v)}
+          />
+        }
+      />
       <PaginatedList
         {...query}
-        data={visibleRooms}
+        data={shownRooms}
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
-        gap={0}
+        gap={tokens.space[1]}
         bottomPadding={insets.bottom + tokens.space[8]}
         empty={
-          <EmptyState
-            icon={Chats}
-            title="Belum ada percakapan"
-            description="Mulai chat dengan lawan transaksi Anda."
-          />
+          archiveOpen ? (
+            <EmptyState
+              icon={Archive}
+              title="Belum ada percakapan terarsip"
+              description="Percakapan yang Anda arsipkan akan tersimpan di sini."
+            />
+          ) : (
+            <EmptyState
+              icon={Chats}
+              title="Belum ada percakapan"
+              description="Mulai chat dengan lawan transaksi Anda."
+            />
+          )
         }
         renderItem={({ item, index }) => (
           <ChatRoomListItem
@@ -106,7 +136,7 @@ export default function ChatScreen() {
             context={item.orderId ? `Pesanan ${truncateMiddle(item.orderId)}` : undefined}
             onPress={() => router.push(ROUTES.chatRoom(item.id))}
             onLongPress={() => setRoomMenu(item)}
-            divider={index < visibleRooms.length - 1}
+            dividerTop={index === 0}
           />
         )}
       />

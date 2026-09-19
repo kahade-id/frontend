@@ -294,6 +294,9 @@ export function BottomSheet({
               icon={X}
               variant="ghost"
               size="sm"
+              // v2 (2026-09): ikon X tebal — affordance tutup harus terbaca
+              // sekuat CTA-nya; regular (1.5px) terlalu ringan di atas handle.
+              weight="bold"
               accessibilityLabel="Tutup"
               onPress={onRequestClose}
               className="-mr-2 -mt-1"

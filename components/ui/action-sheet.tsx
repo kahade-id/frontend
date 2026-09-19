@@ -18,9 +18,15 @@
  *     aksi itu membuka sheet lain (mis. konfirmasi), sheet ini sudah tutup
  *     lebih dulu. Set `closeOnSelect={false}` per aksi bila perlu tetap
  *     terbuka (jarang).
- *   - Tombol "Batal" sebagai footer secondary (outline), bukan baris ke-N:
- *     memisahkan "keluar" dari daftar aksi secara visual dan menempel di atas
- *     safe-area.
+ *   - Tombol "Batal" TIDAK dirender lagi secara default (v2 2026-09): tombol
+ *     X tebal di header sudah menjadi jalan keluar sheet, dan footer primary
+ *     kedua bersaing dengan aksi terakhir. `cancelLabel` + `showCancel`
+ *     dipertahankan bagi pemanggil yang memang butuh (mis. menolak/membatalkan
+ *     aksi, bukan sekadar menutup sheet).
+ *   - Separator antar aksi full-bleed: garis teratas (di bawah header) dan
+ *     terbawah (di atas safe-area) ikut dirender, sehingga baris pertama &
+ *     terakhir punya "bingkai" seperti baris tengah — bukan hanya di antara
+ *     baris (§6 separasi konsisten).
  *   - Focus ring keyboard (web saja) `focusRingInset`: baris lebar penuh di
  *     dalam sheet yang `overflow-hidden` (radius atas) — ring luar terpotong.
  */
@@ -52,18 +58,24 @@ export type ActionSheetProps = Omit<
   "children" | "footer" | "contentClassName" | "dragArea"
 > & {
   actions: readonly ActionSheetItem[]
+  /** Footer sekunder di bawah aksi. Default kosong — tombol X di header sudah
+   *  menjadi jalan keluar sheet (v2 2026-09). */
   cancelLabel?: string
+  /** Tampilkan tombol batal (default false). */
+  showCancel?: boolean
   /** Sembunyikan tombol batal (backdrop/drag tetap bisa menutup) */
   hideCancel?: boolean
 }
 
 export function ActionSheet({
   actions,
-  cancelLabel = "Batal",
+  cancelLabel,
+  showCancel = false,
   hideCancel = false,
   onRequestClose,
   ...sheetProps
 }: ActionSheetProps) {
+  const showActionFooter = showCancel && !hideCancel
   return (
     <BottomSheet
       onRequestClose={onRequestClose}
@@ -74,18 +86,20 @@ export function ActionSheet({
       dragArea="handle"
       contentClassName="px-0 pt-0 pb-0"
       footer={
-        hideCancel ? undefined : (
+        showActionFooter ? (
           <Button variant="secondary" onPress={onRequestClose}>
-            {cancelLabel}
+            {cancelLabel ?? "Batal"}
           </Button>
-        )
+        ) : undefined
       }
       {...sheetProps}
     >
       <View accessibilityRole="menu">
-        {actions.map((item, i) => (
+        {/* Garis pembatas penuh tepat di bawah header: baris aksi PERTAMA juga
+            terbingkai konsisten dengan baris-baris di antaranya (v2 2026-09). */}
+        {actions.length > 0 ? <Divider /> : null}
+        {actions.map((item) => (
           <View key={item.key}>
-            {i > 0 ? <Divider /> : null}
             <PressableScale
               accessibilityRole="menuitem"
               scaleOnPress={false}
@@ -118,6 +132,7 @@ export function ActionSheet({
                 ) : null}
               </View>
             </PressableScale>
+            <Divider />
           </View>
         ))}
       </View>

@@ -471,6 +471,7 @@ const UNUSED_UI_BASELINE = new Set([
   "components/ui/tooltip.tsx",
   "components/ui/two-factor-method-selector.tsx",
   "components/ui/typography.tsx",
+  "components/ui/wallet-balance-card.tsx",
   "components/ui/z-stack.tsx",
 ])
 const unusedUi = []

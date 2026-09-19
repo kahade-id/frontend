@@ -2,33 +2,32 @@
  * Kahade — <NotificationListItem> baris notifikasi in-app (§9.17 List Item,
  * §9.14 indikator "ada yang baru", §2.3 semantic hanya untuk status, §13).
  *
- * Satu baris `GET /v1/notifications`. Anatomi: IconBox kategori -> judul +
- * isi (2 baris) + waktu -> Dot unread di kanan atas. Tap membuka deep link
- * (`/v1/deeplinks/notification/{id}`) — navigasi urusan pemanggil.
+ * Satu baris `GET /v1/notifications`. Anatomi (v2 2026-09):
+ *   - Baris judul: ikon-status kecil (ikon kategori / Check saat memilih) +
+ *     judul (1 baris) → waktu meta di kanan → chevron navigasi. Tidak ada
+ *     IconBox besar seragam: ikon STATUS KONTEKS (pesanan, wallet, chat,
+ *     sengketa, keamanan, promo, referral, info), bukan lonceng untuk semua.
+ *   - Isi 2 baris di bawah, DIINSET sejajar teks judul (bukan rata ikon besar)
+ *     supaya teks dan ikon kategori punya hierarki baca yang jelas.
+ * Tap membuka detail (`/notification/[id]`) — navigasi urusan pemanggil.
  *
  * Keputusan non-obvious:
- *   - Unread = <Dot size="md" tone="primary"> di kolom kanan + judul weight
- *     600 + bg-surface pada baris (pola SecurityLogItem). Berbeda dari Chat
- *     (tanpa bg) karena di sini leading-nya IconBox kotak, bukan avatar
- *     bulat — kotak di atas surface tetap rapi. Titik HITAM, bukan merah:
- *     §9.14 hanya memakai dot merah di tab bar; di dalam daftar, semua baris
- *     unread berdot merah akan terasa seperti deretan error.
- *   - `category` memilih ikon Phosphor saja; IconBox tetap `surface`
- *     (monokrom). Satu-satunya warna: `tone="danger"` bila notifikasi adalah
- *     peringatan keamanan/sengketa (IconBox danger) — status, bukan kategori.
+ *   - Unread = judul weight 600 + bg-surface (bukan kolom Dot kanan). Ikon
+ *     status dibaca sebagai "keterangan gambar"; chevron kanan hanya saat
+ *     `onPress` ada, sebagai affordansi navigasi.
+ *   - `tone="danger"` (keamanan/sengketa) mengubah WARNA ikon status (fill
+ *     danger) — status, bukan kategori.
  *   - Aksi swipe (hapus / tandai dibaca) TIDAK di sini — bungkus dengan
  *     <SwipeableListItem> di layar, supaya komponen ini tetap bisa dipakai
  *     di tempat tanpa gesture (web, sheet ringkasan).
  *   - `onLongPress` untuk mode pilih-banyak (`/read-batch`, `/delete-batch`).
- *     `selected` = bg-surface + ikon Check menggantikan Dot di kolom kanan,
- *     konsisten dengan ListItem `selected`. Sengaja BUKAN strip border kiri
- *     — pola "left-border accent" tidak ada di sistem ini (§6 hierarki dari
- *     border penuh + kontras, bukan aksen sisi).
+ *     `selected` = bg-surface + ikon Check menggantikan ikon status.
  *   - Waktu caption tabular (bukan Mono): meta, bukan timestamp teknis
  *     (§3.1); format eksplisit dari pemanggil (§13, tanpa relative time).
  */
 import {
   Bell,
+  CaretRight,
   ChatCircleText,
   Check,
   Gift,
@@ -40,9 +39,7 @@ import {
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
-import { Dot } from "@/components/ui/dot"
 import { Icon, type IconComponent } from "@/components/ui/icon"
-import { IconBox } from "@/components/ui/icon-box"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -84,10 +81,12 @@ export type NotificationListItemProps = Omit<ViewProps, "children"> & {
   /** Sudah diformat pemanggil (§13): "3 Sep 2026, 14:30" */
   timestamp?: string
   unread?: boolean
-  /** Peringatan (keamanan, sengketa) — IconBox danger */
+  /** Peringatan (keamanan, sengketa) — ikon status danger */
   tone?: "neutral" | "danger"
   /** Mode pilih-banyak */
   selected?: boolean
+  /** Getaran ringan saat ditekan — umpan balik "baris ini yang kupilih" */
+  haptic?: boolean
   onPress?: () => void
   onLongPress?: () => void
   /**
@@ -113,6 +112,7 @@ export function NotificationListItem({
   unread = false,
   tone = "neutral",
   selected = false,
+  haptic = false,
   onPress,
   onLongPress,
   action,
@@ -130,39 +130,63 @@ export function NotificationListItem({
     .filter(Boolean)
     .join(", ")
 
+  /** Ikon status: Check saat memilih, warna danger untuk peringatan. */
+  const statusIcon = selected ? Check : (icon ?? NOTIFICATION_CATEGORY_ICON[category])
+
   const row = (
     <View
       className={cn(
-        "min-h-14 flex-row items-start gap-3 px-5 py-3",
+        "min-h-14 gap-1.5 px-5 py-3",
         (unread || selected) && "bg-surface",
       )}
     >
-      <IconBox icon={icon ?? NOTIFICATION_CATEGORY_ICON[category]} size="md" variant={tone === "danger" ? "danger" : "surface"} />
-
-      <View className="flex-1 gap-0.5">
-        <Text ellipsizeMode="tail" variant="body" weight={unread ? 600 : 500} tone="primary" numberOfLines={2}>
+      {/* Baris judul: ikon status kecil → judul → waktu → chevron */}
+      <View className="flex-row items-center gap-2">
+        <View className="shrink-0 items-center justify-center">
+          <Icon
+            icon={statusIcon}
+            size="xs"
+            tone={
+              selected
+                ? "active"
+                : tone === "danger"
+                  ? "danger"
+                  : unread
+                    ? "active"
+                    : "default"
+            }
+            weight={selected ? "bold" : tone === "danger" ? "fill" : undefined}
+          />
+        </View>
+        <Text
+          ellipsizeMode="tail"
+          variant="body"
+          weight={unread ? 600 : 500}
+          tone="primary"
+          numberOfLines={1}
+          className="min-w-0 flex-1"
+        >
           {title}
         </Text>
-        {body ? (
-          <Text variant="caption" tone={unread ? "primary" : "secondary"} numberOfLines={2}>
-            {body}
-          </Text>
-        ) : null}
         {timestamp ? (
-          <Text variant="caption" tone="secondary" className="tabular-nums">
+          <Text variant="caption" tone="secondary" className="shrink-0 tabular-nums">
             {timestamp}
           </Text>
         ) : null}
+        {onPress ? <Icon icon={CaretRight} size="xs" tone="default" /> : null}
       </View>
 
-      {/* Kolom kanan: Check (selected) > Dot (unread) > kosong; lebar tetap agar teks tidak bergeser */}
-      <View className="w-5 items-center pt-1">
-        {selected ? (
-          <Icon icon={Check} size="sm" active />
-        ) : unread ? (
-          <Dot size="md" tone="primary" />
-        ) : null}
-      </View>
+      {/* Isi 2 baris di-inset sejajar teks judul (16px ikon + gap 8) */}
+      {body ? (
+        <Text
+          variant="caption"
+          tone={unread ? "primary" : "secondary"}
+          numberOfLines={2}
+          style={{ paddingLeft: tokens.icon.size.xs + tokens.space[2] }}
+        >
+          {body}
+        </Text>
+      ) : null}
     </View>
   )
 
@@ -173,6 +197,7 @@ export function NotificationListItem({
       accessibilityState={{ selected }}
       accessibilityHint={action ? "Buka notifikasi, atau buka menu aksi di kanan" : "Buka notifikasi"}
       scaleOnPress={false}
+      haptic={haptic}
       onPress={onPress}
       onLongPress={onLongPress}
       containerClassName={cn("w-full", focusRingInset)}
@@ -190,18 +215,20 @@ export function NotificationListItem({
       {action ? (
         <View className="w-full flex-row items-start">
           <View className="min-w-0 flex-1">{content}</View>
-          <View className="items-center pr-3 pt-2">{action}</View>
+          <View className="items-center pr-3 pt-1">{action}</View>
         </View>
       ) : (
         content
       )}
-      {/* Inset = px-5 (20) + IconBox md (40) + gap-3 (12) */}
-      {divider ? <View
+      {/* Inset = px-5 (20) + ikon status xs (16) + gap-2 (8) = sejajar teks */}
+      {divider ? (
+        <View
           accessibilityRole="none"
           importantForAccessibility="no"
           className="h-px bg-border"
-          style={{ marginLeft: tokens.layout.rowDividerInset.icon }}
-        /> : null}
+          style={{ marginLeft: tokens.layout.screenPaddingX + tokens.icon.size.xs + tokens.space[2] }}
+        />
+      ) : null}
     </View>
   )
 }

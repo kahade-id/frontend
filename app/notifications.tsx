@@ -5,25 +5,26 @@ import { useToast } from "@/components/ui/toast"
  * Layar Stack — Notifikasi (dibuka dari Bell di header Beranda)
  *
  * List notifikasi dari `GET /v1/notifications` (read + unread) dengan:
- *  - Filter kategori Chip (ScrollView horizontal) — nilai PERSIS enum API
- *    `TRANSAKSI | PROMOSI | INFORMASI` (query `category`).
+ *  - Tab kategori (dengan IKON — pola tab profil publik, bukan chip scroll):
+ *    TRANSAKSI / PROMOSI / INFORMASI, nilai PERSIS enum API (query `category`).
+ *  - Tidak ada lagi tab "Semua" / "Belum dibaca": filter baca dibalik satu
+ *    tombol FUNNEL di kanan header (toggle Semua ↔ Belum dibaca, query
+ *    `isRead=false`), dan tombol BACK standar di kiri header.
  *  - Tap otomatis mark-as-read (`POST /v1/notifications/:id/read`, optimistic)
  *    lalu buka DETAIL notifikasi (`/notification/[id]`) — isi penuh + CTA ke
  *    entitas terkait via `routeForNotificationReference`
- *    (lib/notification-routing — referenceType/referenceId UNVERIFIED)
- *  - Badge tab diturunkan lewat store `lib/unread-count` (bukan poll ulang)
- *  - "Tandai semua dibaca" (`POST /v1/notifications/read-all`)
- *  - Filter "Belum dibaca" (query `isRead=false`)
- *  - Long-press → ActionSheet per item: tandai dibaca / pilih beberapa /
- *    hapus (`DELETE /v1/notifications/:id`, optimistic + rollback)
- *  - Mode pilih (maks 50 = BatchNotificationIdsDto): read-batch & delete-batch
- *  - Menu ⋮ → "Hapus yang sudah dibaca" (`POST /v1/notifications/delete-read`)
- *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh
- *  - Skeleton loading pertama, EmptyState, ErrorState eksplisit
+ *    (lib/notification-routing — referenceType/referenceId UNVERIFIED).
+ *  - Badge tab diturunkan lewat store `lib/unread-count` (bukan poll ulang).
+ *  - "Tandai semua dibaca" (`POST /v1/notifications/read-all`).
+ *  - Tekan lama → ActionSheet per item + umpan balik scale & haptic pada
+ *    baris (intuitif "ini baris yang kupilih").
+ *  - Mode pilih (maks 50 = BatchNotificationIdsDto): read-batch & delete-batch.
+ *  - Menu ⋮ → "Hapus yang sudah dibaca" (`POST /v1/notifications/delete-read`).
+ *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh.
+ *  - Skeleton loading pertama, EmptyState, ErrorState eksplisit.
  *
- * Komponen sistem yang dipakai: Chip, NotificationListItem, LoadMore,
- * ErrorState, EmptyState, Skeleton — tidak ada baris custom.
- * Kategori UI komponen (ikon) dipetakan dari kategori API di `UI_CATEGORY`.
+ * Komponen sistem yang dipakai: Tabs-with-icon lokal (basis <Tabs>/§9.16),
+ * NotificationListItem, LoadMore, ErrorState, EmptyState, Skeleton.
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
@@ -34,6 +35,7 @@ import {
   CheckSquare,
   Checks,
   DotsThreeVertical,
+  FunnelSimple,
   Megaphone,
   Receipt,
   Trash,
@@ -45,12 +47,10 @@ import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { notificationUiCategory } from "@/lib/notification-category"
-import { refreshUnreadCount, setUnreadCount } from "@/lib/unread-count"
+import { refreshUnreadCount } from "@/lib/unread-count"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
-import { Chip } from "@/components/ui/chip"
-import { FadeIn } from "@/components/ui/fade-in"
-import { ScrollRow } from "@/components/ui/scroll-row"
+import { AnimatedCategoryTabs } from "@/components/ui/animated-category-tabs"
 import { Dialog } from "@/components/ui/modal"
 import { IconButton } from "@/components/ui/icon-button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -63,25 +63,19 @@ import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 // Konstanta layar
 // ------------------------------------------------------------------
 
-type FilterValue = "ALL" | NotificationCategory
-
-const FILTERS: { label: string; value: FilterValue }[] = [
-  { label: "Semua", value: "ALL" },
-  { label: "Transaksi", value: "TRANSAKSI" },
-  { label: "Promosi", value: "PROMOSI" },
-  { label: "Informasi", value: "INFORMASI" },
-]
+/** Ikon per tab kategori — ikon KONTEKS, bukan lonceng untuk semua. */
+const CATEGORY_TABS = [
+  { value: "TRANSAKSI", label: "Transaksi", icon: Receipt },
+  { value: "PROMOSI", label: "Promosi", icon: Megaphone },
+  { value: "INFORMASI", label: "Informasi", icon: Bell },
+] as const satisfies readonly { value: NotificationCategory; label: string; icon: typeof Bell }[]
 
 /** Ikon EmptyState per kategori filter (nilai enum API, bukan label). */
-const EMPTY_ICON: Record<FilterValue, typeof Bell> = {
-  ALL: Bell,
+const EMPTY_ICON: Record<NotificationCategory, typeof Bell> = {
   TRANSAKSI: Receipt,
   PROMOSI: Megaphone,
   INFORMASI: Bell,
 }
-
-/** Filter status baca (query `isRead`) — chip kedua, independen dari kategori */
-type ReadFilter = "ALL" | "UNREAD"
 
 const PAGE_SIZE = 20
 /** BatchNotificationIdsDto: "max 50 per request" */
@@ -98,17 +92,16 @@ function NotifSkeletonRow() {
     <View
       style={{
         flexDirection: "row",
-        alignItems: "flex-start",
-        gap: tokens.space[3],
+        alignItems: "center",
+        gap: tokens.space[2],
         paddingHorizontal: tokens.layout.screenPaddingX,
         paddingVertical: tokens.space[3],
       }}
     >
-      <Skeleton shape="circle" width={8} height={8} style={{ marginTop: tokens.space[1] }} />
+      <Skeleton shape="circle" width={16} height={16} />
       <View style={{ flex: 1, gap: tokens.space[1] }}>
         <Skeleton height={14} style={{ width: "60%" }} />
         <Skeleton height={12} style={{ width: "80%" }} />
-        <Skeleton height={12} style={{ width: "40%" }} />
       </View>
     </View>
   )
@@ -121,15 +114,17 @@ function NotifSkeletonRow() {
 export default function NotificationsScreen() {
   const toast = useToast()
 
-  const [filter, setFilter] = useState<FilterValue>("ALL")
-  const [readFilter, setReadFilter] = useState<ReadFilter>("ALL")
+  const [category, setCategory] = useState<NotificationCategory>("TRANSAKSI")
+  /** Funnel kanan header: true = hanya "Belum dibaca" (query isRead=false). */
+  const [unreadOnly, setUnreadOnly] = useState(false)
+
   const query = usePaginatedQuery<AppNotification>(
-    `notifications:${filter}:${readFilter}`,
+    `notifications:${category}:${unreadOnly ? "unread" : "all"}`,
     (page, signal) =>
       api.notifications.getNotifications(
         {
-          category: filter === "ALL" ? undefined : filter,
-          isRead: readFilter === "UNREAD" ? false : undefined,
+          category,
+          isRead: unreadOnly ? false : undefined,
           page,
           limit: PAGE_SIZE,
         },
@@ -137,7 +132,6 @@ export default function NotificationsScreen() {
       ),
   )
   const { data: notifs, setData: setNotifs } = query
-  const [markingAll, setMarkingAll] = useState(false)
 
   // Menu "⋮" + mode pilih (batch read/delete) + konfirmasi hapus
   const [menuOpen, setMenuOpen] = useState(false)
@@ -154,7 +148,7 @@ export default function NotificationsScreen() {
   useEffect(() => {
     setSelected(new Set())
     setSelecting(false)
-  }, [filter, readFilter])
+  }, [category, unreadOnly])
 
   const handleRead = useCallback((id: string) => {
     setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
@@ -166,21 +160,6 @@ export default function NotificationsScreen() {
       )
   }, [])
 
-  const handleMarkAll = useCallback(async () => {
-    setMarkingAll(true)
-    try {
-      await api.notifications.markAllNotificationsRead()
-      setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
-      // Badge tab hilang seketika (store bersama), tanpa menunggu poll 60 d
-      setUnreadCount(0)
-    } catch {
-      // gagal: state tidak berubah
-    } finally {
-      setMarkingAll(false)
-    }
-  }, [])
-
-  // ── Mode pilih & aksi batch ─────────────────────────────────────────
   const exitSelect = useCallback(() => {
     setSelecting(false)
     setSelected(new Set())
@@ -370,19 +349,18 @@ export default function NotificationsScreen() {
         />
       ) : (
         <Header
-          showBack={false}
           title="Notifikasi"
           right={
             <>
-              {hasUnread ? (
-                <IconButton
-                  icon={Checks}
-                  variant="ghost"
-                  accessibilityLabel="Tandai semua notifikasi dibaca"
-                  onPress={() => void handleMarkAll()}
-                  disabled={markingAll}
-                />
-              ) : null}
+              <IconButton
+                icon={FunnelSimple}
+                variant="ghost"
+                active={unreadOnly}
+                accessibilityLabel={unreadOnly ? "Tampilkan semua notifikasi" : "Hanya yang belum dibaca"}
+                accessibilityHint="Saring daftar antara semua dan belum dibaca"
+                disabled={!hasUnread && !unreadOnly}
+                onPress={() => setUnreadOnly((v) => !v)}
+              />
               {notifs.length > 0 ? (
                 <IconButton
                   icon={DotsThreeVertical}
@@ -396,35 +374,22 @@ export default function NotificationsScreen() {
         />
       )}
 
-      {/* ScrollRow (§9.20): baris chip filter yang bisa digeser. Mengganti
-          <ScrollView horizontal> tulisan tangan — sama secara visual
-          (gap 8, px 24, grow-0) plus keyboardShouldPersistTaps="handled"
-          supaya chip tetap bisa ditekan saat keyboard terbuka.
-          v2: fade + naik 8px (fast) — chip ringan, boleh naik; bandingkan
-          kontrol Transaksi yang fade saja karena memuat field cari. */}
-      <FadeIn duration="fast">
-        <ScrollRow contentContainerClassName="py-2">
-          <Chip
-            selected={readFilter === "UNREAD"}
-            onPress={() => setReadFilter((v) => (v === "UNREAD" ? "ALL" : "UNREAD"))}
-          >
-            Belum dibaca
-          </Chip>
-          {FILTERS.map((f) => (
-            <Chip key={f.value} selected={filter === f.value} onPress={() => setFilter(f.value)}>
-              {f.label}
-            </Chip>
-          ))}
-        </ScrollRow>
-      </FadeIn>
+      {/* Tab kategori dengan ikon + indikator meluncur — pola profil publik.
+          Kalau sedang memilih (mode batch) tab tetap tampil agar konteks
+          kategori yang sedang dipilih tidak hilang. */}
+      <AnimatedCategoryTabs
+        items={CATEGORY_TABS}
+        value={category}
+        onChange={setCategory}
+        className="border-b border-border"
+      />
 
       <PaginatedList
         {...query}
         padded={false}
         // Audit: default <ListLoading/> merender 4 kartu h-24; baris
         // notifikasi jauh lebih rapat, sehingga daftar "melompat" saat data
-        // tiba. Skeleton sebentuk barisnya sudah ada di file ini tapi tidak
-        // pernah dipasang.
+        // tiba. Skeleton sebentuk barisnya dipasang di sini.
         loadingPlaceholder={
           <SkeletonGroup>
             {Array.from({ length: SKELETON_COUNT }, (_, index) => (
@@ -439,9 +404,17 @@ export default function NotificationsScreen() {
         onLoadMore={query.loadMore}
         empty={
           <EmptyState
-            icon={EMPTY_ICON[filter]}
-            title="Tidak ada notifikasi"
-            description="Notifikasi untuk Anda akan muncul di sini."
+            icon={EMPTY_ICON[category]}
+            title={
+              unreadOnly
+                ? "Tidak ada notifikasi belum dibaca"
+                : "Tidak ada notifikasi"
+            }
+            description={
+              unreadOnly
+                ? "Semua notifikasi pada kategori ini sudah Anda baca."
+                : "Notifikasi untuk Anda akan muncul di sini."
+            }
           />
         }
         renderItem={({ item, index }) => (
@@ -452,6 +425,7 @@ export default function NotificationsScreen() {
             timestamp={formatDateTime(item.createdAt)}
             unread={!item.isRead}
             selected={selecting && selected.has(item.id)}
+            haptic
             onPress={() => {
               if (selecting) {
                 toggleSelect(item.id)
@@ -460,7 +434,6 @@ export default function NotificationsScreen() {
               if (!item.isRead) handleRead(item.id)
               // Selalu buka DETAIL dulu (`/notification/[id]`): isi penuh +
               // CTA "Lihat ..." ke entitas terkait bila referensinya dikenali.
-              // Menu aksi tetap tersedia lewat ikon aksi dan tekan-lama.
               router.push(ROUTES.notificationDetail(item.id))
             }}
             onLongPress={() => {
