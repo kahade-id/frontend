@@ -1,15 +1,14 @@
 /**
- * Kahade — Dukungan Langsung (live chat ke admin Kahade).
+ * Kahade — Asisten Bantuan Otomatis.
  *
- * Berbeda dari tab Chat (percakapan antar pengguna), layar ini adalah kanal
- * RESMI pengguna ↔ admin Kahade. Endpoint backend live-support belum tersedia,
- * sehingga layar ini sudah berjalan penuh sebagai klien:
+ * Berbeda dari tab Chat (percakapan antar pengguna), layar ini adalah triase
+ * mandiri berbasis aturan. Endpoint live-support belum tersedia, sehingga
+ * layar ini hanya memberi panduan umum dan bukan kanal support resmi:
  *   - UI pesan + composer memakai komponen chat yang sama dengan chat biasa;
- *   - selama endpoint belum ada, agen otomatis (triage) membalas berbasis
- *     kata kunci dan mengarahkan ke langkah yang benar;
- *   - percakapan sesi ini hidup di perangkat (tidak ada klaim pesan terkirim
- *     ke server) — saat endpoint `/v1/support/live` tersedia, hanya lapisan
- *     transport yang diganti, komponen ini tetap.
+ *   - selama endpoint belum ada, asisten otomatis membalas berbasis kata kunci;
+ *   - percakapan sesi ini hidup di perangkat dan tidak pernah diklaim terkirim
+ *     ke tim Kahade. Kasus yang membutuhkan tindakan/lampiran harus diteruskan
+ *     ke tiket resmi lewat tombol di header.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
@@ -45,8 +44,8 @@ const GREETING: Message = {
   id: "greeting",
   fromSelf: false,
   text:
-    "Halo, selamat datang di Dukungan Langsung Kahade. Saya admin Kahade. " +
-    "Ceritakan kendala yang Anda alami — pilih topik di bawah atau ketik langsung.",
+    "Halo, saya Asisten Bantuan Otomatis Kahade. " +
+    "Saya dapat memberi panduan umum. Untuk tindakan resmi, buat tiket bantuan.",
   at: new Date(),
 }
 
@@ -66,7 +65,7 @@ const RULES: Rule[] = [
     keywords: ["top", "isi saldo", "topup", "va", "virtual account", "qris", "bayar"],
     reply: [
       "Untuk isi saldo: buka tab Dompet → Isi Saldo, masukkan nominal, lalu pilih metode pembayaran (Virtual Account, e-wallet, atau QRIS).",
-      "Ikuti instruksi pembayaran yang muncul; saldo masuk otomatis setelah pembayaran terkonfirmasi. Bila sudah membayar tetapi saldo belum masuk lebih dari 15 menit, kirimkan nomor transaksinya ke sini atau buat tiket bantuan agar kami telusuri.",
+      "Ikuti instruksi pembayaran yang muncul; saldo masuk otomatis setelah pembayaran terkonfirmasi. Bila sudah membayar tetapi saldo belum masuk lebih dari 15 menit, simpan nomor transaksi, lalu buat tiket bantuan resmi agar tim dapat meninjaunya.",
     ],
   },
   {
@@ -82,12 +81,12 @@ const RULES: Rule[] = [
   {
     keywords: ["escrow", "pesanan", "transaksi", "terima barang", "konfirmasi", "seller", "pembeli", "penjual"],
     reply:
-      "Pada transaksi escrow, dana ditahan Kahade sampai pembeli mengonfirmasi barang diterupa atau tenggat berlalu. Jika barang bermasalah, gunakan tombol 'Ajukan Sengketa' di detail transaksi agar tim kami menjadi penengah.",
+      "Pada transaksi escrow, dana ditahan Kahade sampai pembeli mengonfirmasi barang diterima atau tenggat berlalu. Jika barang bermasalah, gunakan tombol 'Ajukan Sengketa' di detail transaksi. Asisten ini tidak dapat memproses sengketa.",
   },
   {
     keywords: ["sengketa", "dispute", "bukti", "mediasi"],
     reply:
-      "Sengketa ditinjau berdasarkan bukti dari kedua pihak: foto/video barang, resi, dan riwayat chat. Lengkapi bukti di halaman sengketa. Tim kami biasanya memberikan keputusan dalam 1–3 hari kerja.",
+      "Sengketa ditinjau berdasarkan bukti dari kedua pihak: foto/video barang, resi, dan riwayat chat. Lengkapi bukti di halaman sengketa. Waktu penanganan mengikuti informasi yang ditampilkan pada tiket resmi.",
   },
   {
     keywords: ["masuk", "login", "akun", "password", "kata sandi", "pin", "kunci", "2fa", "otp"],
@@ -98,14 +97,14 @@ const RULES: Rule[] = [
   },
   {
     keywords: ["halo", "hi", "hello", "pagi", "siang", "sore", "malam", "assalamu"],
-    reply: "Halo! Ada yang bisa kami bantu terkait Kahade hari ini?",
+    reply: "Halo! Saya dapat memberi panduan umum tentang Kahade.",
   },
 ]
 
 const FALLBACK =
-  "Terima kasih informasinya. Mohon tunggu, admin Kahade akan menindaklanjuti. " +
-  "Untuk kendala yang butuh lampiran atau penanganan resmi, sebaiknya buat tiket " +
-  "bantuan lewat ikon tiket di pojok atas — riwayatnya tersimpan di akun Anda."
+  "Terima kasih informasinya. Ini adalah panduan otomatis dan belum menjadi laporan resmi. " +
+  "Untuk kendala yang butuh lampiran atau penanganan tim, buat tiket bantuan " +
+  "lewat ikon tiket di pojok atas agar riwayatnya tersimpan di akun Anda."
 
 function autoReply(input: string): string[] {
   const lower = input.toLowerCase()
@@ -140,7 +139,7 @@ export default function LiveSupportScreen() {
     }
   }, [messages, typing, scrollToEnd])
 
-  const receiveFromAdmin = useCallback((replies: string[]) => {
+  const receiveFromAssistant = useCallback((replies: string[]) => {
     const t1 = setTimeout(() => setTyping(true), 500)
     timers.current.push(t1)
     replies.forEach((text, index) => {
@@ -176,10 +175,10 @@ export default function LiveSupportScreen() {
         status: "sent",
       }
       setMessages((prev) => [...prev, mine])
-      receiveFromAdmin(autoReply(clean))
+      receiveFromAssistant(autoReply(clean))
       scrollToEnd()
     },
-    [receiveFromAdmin, scrollToEnd],
+    [receiveFromAssistant, scrollToEnd],
   )
 
   const handleSend = useCallback(
@@ -193,7 +192,7 @@ export default function LiveSupportScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
-        title="Dukungan Langsung"
+        title="Asisten Bantuan"
         right={
           <RouteLink
             href={ROUTES.contact}
@@ -210,7 +209,7 @@ export default function LiveSupportScreen() {
       <View className="flex-row items-center justify-center gap-2 border-b border-border bg-surface py-2">
         <View className="h-2 w-2 rounded-full bg-success" />
         <Text variant="caption" tone="secondary">
-          Admin Kahade · waktu respons biasanya beberapa menit
+          Asisten otomatis · bukan kanal support resmi
         </Text>
       </View>
 
@@ -227,7 +226,7 @@ export default function LiveSupportScreen() {
           }}
         >
           <Text variant="caption" tone="secondary" className="text-center">
-            Percakapan ini dengan admin resmi Kahade. Jangan membagikan kata
+            Ini adalah panduan otomatis dan tidak membuka tiket. Jangan membagikan kata
             sandi, PIN, atau OTP kepada siapa pun.
           </Text>
 
@@ -242,13 +241,13 @@ export default function LiveSupportScreen() {
                 time={formatTime(message.at)}
                 status={message.fromSelf ? message.status : undefined}
                 grouped={grouped}
-                senderName={message.fromSelf ? undefined : "Admin Kahade"}
+                senderName={message.fromSelf ? undefined : "Asisten Kahade"}
               />
             )
           })}
 
           {typing ? (
-            <ChatMessageBubble direction="incoming" text="Admin sedang mengetik…" grouped />
+            <ChatMessageBubble direction="incoming" text="Asisten sedang mengetik…" grouped />
           ) : null}
         </ScrollView>
 
@@ -271,7 +270,7 @@ export default function LiveSupportScreen() {
             value={draft}
             onChangeText={setDraft}
             onSend={handleSend}
-            labels={{ placeholder: "Tulis pesan ke admin…", send: "Kirim" }}
+            labels={{ placeholder: "Tulis pertanyaan…", send: "Kirim" }}
           />
         </View>
       </KeyboardAvoiding>

@@ -29,6 +29,7 @@
 import auth from "./auth.json"
 import errors from "./errors.json"
 import labels from "./labels.json"
+import remediation from "./remediation.json"
 import screens1 from "./screens-1.json"
 import screens2 from "./screens-2.json"
 import screens3 from "./screens-3.json"
@@ -50,6 +51,7 @@ export const EN: Dict = {
   ...auth,
   ...tabs,
   ...ui,
+  ...remediation,
   ...screens1,
   ...screens2,
   ...screens3,

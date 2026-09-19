@@ -85,6 +85,7 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.languagePreference,
   SecureKeys.sessionSignedOut,
   SecureKeys.lastNotificationResponse,
+  SecureKeys.feedbackQueue,
 ])
 function webStorage(): Storage | null {
   try {
@@ -154,6 +155,7 @@ export async function clearSession(): Promise<void> {
     deleteSecureItem(SecureKeys.pinHash),
     deleteSecureItem(SecureKeys.biometricEnabled),
     deleteSecureItem(SecureKeys.pushToken),
+    deleteSecureItem(SecureKeys.feedbackQueue),
   ])
 }
 

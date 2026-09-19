@@ -22,10 +22,13 @@ export default function Html({ children }: PropsWithChildren) {
           content="Kahade — platform transaksi aman dengan escrow: kirim dan terima pembayaran, kelola dompet, dan selesaikan pesanan dalam satu aplikasi."
         />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/icon-light-32x32.png" sizes="32x32" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <script src="/register-sw.js" defer />
         {/* Bilah status/tema browser mengikuti mode terang & gelap. */}
-        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAFAF9" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111110" />
         <ScrollViewStyleReset />
       </head>
       <body>{children}</body>

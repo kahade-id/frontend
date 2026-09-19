@@ -17,6 +17,7 @@ import { GooglePlayLogo, AppleLogo, X } from "phosphor-react-native"
 
 import {
   detectMobileOS,
+  isAvailableStoreUrl,
   isDismissActive,
   isStandaloneDisplay,
   recordDismiss,
@@ -54,7 +55,8 @@ export function SmartAppInstallCard() {
     setVisible(false)
   }, [])
 
-  if (Platform.OS !== "web" || !visible || !os) return null
+  const storeUrl = os ? STORE_URLS[os] : null
+  if (Platform.OS !== "web" || !visible || !os || !isAvailableStoreUrl(storeUrl)) return null
 
   // Tanpa accessibilityLabel di root: kartu berisi tombol fokusable
   // (Unduh, Tutup) sehingga dikelompokkan justru menyembunyikannya dari
@@ -79,7 +81,7 @@ export function SmartAppInstallCard() {
           accessibilityLabel={`Unduh aplikasi Kahade di ${os === "ios" ? "App Store" : "Google Play"}`}
           // Bukan router.push: keluar dari SPA menuju domain toko.
           onPress={() => {
-            window.open(STORE_URLS[os], "_blank", "noopener,noreferrer")
+            window.open(storeUrl, "_blank", "noopener,noreferrer")
           }}
         >
           Unduh

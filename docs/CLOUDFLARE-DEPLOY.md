@@ -58,10 +58,10 @@ deploy pertama; web app tetap jalan penuh tanpa push.
   + `Cache-Control` singkat untuk berkas verifikasi + header keamanan dasar.
   Semua disalin otomatis ke `dist/` oleh `expo export`.
 - **`public/.well-known/`** — `assetlinks.json` (Android) dan
-  `apple-app-site-association` (iOS). Keduanya masih PLACEHOLDER
-  (fingerprint kosong, Team ID `TEAMID`) — lihat `docs/DEEP-LINKING.md`.
-  Aman di-deploy: tautan https terbuka sebagai web app sampai verifikasi
-  dilengkapi.
+  `apple-app-site-association` (iOS). Keduanya saat ini kosong secara
+  eksplisit sampai fingerprint signing/Team ID tersedia; bukan konfigurasi
+  placeholder yang mengklaim app link aktif. `check:weblinks` memberi warning,
+  dan tautan https tetap terbuka sebagai web app sampai verifikasi dilengkapi.
 - **`.nvmrc`** (`22`) — sinyal versi Node cadangan bila `NODE_VERSION` lupa
   diisi. Isi keduanya.
 

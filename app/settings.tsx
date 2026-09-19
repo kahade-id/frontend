@@ -19,9 +19,8 @@
  *  - Kartu utama: Langganan (Kahade Plus).
  *  - Akun: Edit Profil, Laporan & Analitik, Keamanan, Tipe Akun.
  *  - Preferensi: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
- *  - Bantuan: Tentang Kami, Umpan Balik, Dukungan Langsung, Tiket Bantuan.
+ *  - Bantuan: Tentang Kami, Umpan Balik, Asisten Bantuan, Tiket Bantuan.
  *  - Legal: Syarat & ketentuan, Kebijakan privasi.
- *  - Komunitas: Telegram, X, Facebook, WhatsApp, Instagram, TikTok.
  *  - Keluar: Dialog konfirmasi destruktif + unregister push device + clear session.
  *
  * Navigasi:
@@ -31,7 +30,7 @@
  *    transaksi/dompet + tautan ke daftar laporan (/reports).
  */
 import { useCallback, useState } from "react"
-import { Linking, Platform, View } from "react-native"
+import { Platform, View } from "react-native"
 import { router, type Href } from "expo-router"
 import {
   Bell,
@@ -41,11 +40,9 @@ import {
   CaretRight,
   ChatTeardropDots,
   CrownSimple,
-  FacebookLogo,
   FileText,
   Headset,
   Info,
-  InstagramLogo,
   Lifebuoy,
   Moon,
   Scales,
@@ -53,20 +50,14 @@ import {
   ShieldCheck,
   SignOut,
   Storefront,
-  TelegramLogo,
-  TiktokLogo,
   Translate,
   User,
   Bookmark,
-  WhatsappLogo,
-  XLogo,
 } from "phosphor-react-native"
 
 import { api, type UserProfile } from "@/lib/api"
 import type { SubscriptionStatus } from "@/lib/api/subscriptions"
 import { clearSession } from "@/lib/api/session"
-import { cn } from "@/lib/cn"
-import { focusRing } from "@/lib/focus-ring"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
@@ -85,16 +76,14 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { ListItem } from "@/components/ui/list-item"
 import { Dialog } from "@/components/ui/modal"
-import { PressableScale } from "@/components/ui/pressable-scale"
 import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
-import { useToast } from "@/components/ui/toast"
 
 // ------------------------------------------------------------------
-// Data Menu & Komunitas
+// Data Menu
 // ------------------------------------------------------------------
 
 type MenuItemData = {
@@ -105,52 +94,6 @@ type MenuItemData = {
   /** Status di kanan baris (bukan deskripsi) — mis. "Sistem", "Indonesia", "v1.0.0" */
   trailing?: string
 }
-
-type SocialCommunityItem = {
-  id: string
-  label: string
-  icon: IconComponent
-  url: string
-}
-
-const SOCIAL_COMMUNITIES: SocialCommunityItem[] = [
-  {
-    id: "telegram",
-    label: "Telegram",
-    icon: TelegramLogo,
-    url: "https://t.me/kahade",
-  },
-  {
-    id: "x",
-    label: "X",
-    icon: XLogo,
-    url: "https://x.com/kahade",
-  },
-  {
-    id: "facebook",
-    label: "Facebook",
-    icon: FacebookLogo,
-    url: "https://facebook.com/kahade",
-  },
-  {
-    id: "whatsapp",
-    label: "WhatsApp",
-    icon: WhatsappLogo,
-    url: "https://wa.me/kahade",
-  },
-  {
-    id: "instagram",
-    label: "Instagram",
-    icon: InstagramLogo,
-    url: "https://instagram.com/kahade",
-  },
-  {
-    id: "tiktok",
-    label: "TikTok",
-    icon: TiktokLogo,
-    url: "https://tiktok.com/@kahade",
-  },
-]
 
 /** Latar polos + rounded — satu kelas untuk semua kelompok menu (tanpa separator antar baris). */
 const MENU_GROUP = "w-full overflow-hidden rounded-md bg-surface"
@@ -165,7 +108,6 @@ function MenuGroupLabel({ children }: { children: string }) {
 }
 
 export default function SettingsScreen() {
-  const toast = useToast()
   const { preference } = useTheme()
   const language = useLanguage()
 
@@ -188,18 +130,6 @@ export default function SettingsScreen() {
     await Promise.allSettled([profileQuery.refresh(), subscriptionQuery.refresh()])
   }, [profileQuery, subscriptionQuery])
 
-  const handleSocialPress = useCallback(
-    (item: SocialCommunityItem) => {
-      void Linking.openURL(item.url).catch(() => {
-        toast.show({
-          title: `Gagal membuka ${item.label}`,
-          description: "Periksa koneksi internet atau aplikasi terkait di perangkat Anda.",
-          tone: "danger",
-        })
-      })
-    },
-    [toast],
-  )
 
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
@@ -275,7 +205,7 @@ export default function SettingsScreen() {
   const supportItems: MenuItemData[] = [
     { id: "about-us", label: "Tentang Kami", icon: Buildings, route: ROUTES.about },
     { id: "feedback", label: "Umpan Balik", icon: ChatTeardropDots, route: ROUTES.feedback },
-    { id: "live-support", label: "Dukungan Langsung", icon: Headset, route: ROUTES.liveSupport },
+    { id: "live-support", label: "Asisten Bantuan", icon: Headset, route: ROUTES.liveSupport },
     { id: "support-tickets", label: "Tiket Bantuan", icon: Lifebuoy, route: ROUTES.support },
   ]
 
@@ -411,28 +341,6 @@ export default function SettingsScreen() {
               {renderGroup(legalItems)}
             </View>
           </Stagger>
-
-          {/* ── Bergabunglah dengan Komunitas Kami ──────────── */}
-          <View className={cn(MENU_GROUP, "gap-3 p-4")}>
-            <Text variant="bodyLarge" weight={600} tone="primary">
-              Bergabunglah dengan Komunitas Kami
-            </Text>
-
-            <View className="flex-row flex-wrap items-center justify-between pt-1">
-              {SOCIAL_COMMUNITIES.map((item) => (
-                <PressableScale
-                  key={item.id}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Buka komunitas ${item.label}`}
-                  onPress={() => handleSocialPress(item)}
-                  containerClassName={cn("items-center rounded-md", focusRing)}
-                  className="h-12 w-12 items-center justify-center rounded-md bg-surface-elevated"
-                >
-                  <Icon icon={item.icon} size="md" tone="default" />
-                </PressableScale>
-              ))}
-            </View>
-          </View>
 
           {/* ── Keluar ───────────────────────────────────────── */}
           <View className="pt-2">
