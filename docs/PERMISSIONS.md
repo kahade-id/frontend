@@ -26,5 +26,8 @@ Permission prompts remain lazy and must happen immediately before the action.
   dead-end or a prompt loop.
 - Permission copy must name the immediate purpose and avoid broad claims.
 - Physical-device tests must cover allow, deny, restricted, and revoked states.
+- The web deployment also disables microphone, geolocation, and Topics API
+  through `Permissions-Policy`; camera remains available for the web upload
+  fallback and must still be tested separately.
 - Push/APNs/FCM credentials are separate release blockers; this document does
   not claim production push delivery.

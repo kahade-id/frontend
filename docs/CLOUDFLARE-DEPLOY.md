@@ -17,10 +17,12 @@ Workers & Pages → Create → Pages → Connect to Git → pilih repo `frontend
 | Build output directory| `dist`             |
 | Root directory        | *(kosongkan)*      |
 
-Build command di atas menjalankan dua langkah (lihat `package.json`):
+Build command di atas menjalankan tiga langkah (lihat `package.json`):
 
 1. `expo export --platform web` → menulis `dist/` (HTML per rute + 1 bundle JS).
-2. `node scripts/gen-fcm-sw.mjs` → membundle service worker FCM Web ke
+2. `node scripts/gen-web-meta.mjs` → mengisi title, description, OG, Twitter,
+   dan canonical metadata generik per route tanpa mengambil data privat/API.
+3. `node scripts/gen-fcm-sw.mjs` → membundle service worker FCM Web ke
    `dist/firebase-messaging-sw.js`, atau dilewati bila env Firebase belum
    diisi (build tetap sukses, web push nonaktif).
 

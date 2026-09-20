@@ -27,7 +27,7 @@
     "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:push && npm run check:permissions && npm run check:i18n && npm test && npm run test:i18n-render",
     "ota:preflight": "node scripts/check-ota.mjs",
     "audit:inventory": "node scripts/audit-inventory.mjs",
-    "build:web": "EXPO_OFFLINE=1 expo export --platform web && node scripts/gen-fcm-sw.mjs",
+    "build:web": "EXPO_OFFLINE=1 expo export --platform web && node scripts/gen-web-meta.mjs && node scripts/gen-fcm-sw.mjs",
     "gen:fcm-sw": "node scripts/gen-fcm-sw.mjs",
     "preview:web": "node scripts/serve-web.mjs",
     "gen:brand": "node scripts/gen-brand-assets.mjs",
