@@ -24,6 +24,23 @@ test.describe("web release smoke", () => {
   test("serves the privacy-safe PWA service worker", async ({ request }) => {
     const worker = await request.get("/sw.js")
     expect(worker.ok()).toBe(true)
-    expect(await worker.text()).toContain("does not cache API responses")
+    const source = await worker.text()
+    expect(source).toContain("does not cache API responses")
+    expect(source).toContain("firebase-messaging-sw.js")
+    expect(source).toContain("ALWAYS_NETWORK")
+  })
+
+  test("publishes a conservative crawler policy and public sitemap", async ({ request }) => {
+    const robots = await request.get("/robots.txt")
+    expect(robots.ok()).toBe(true)
+    expect(robots.headers()["content-type"]).toMatch(/text\/plain/i)
+    expect(await robots.text()).toContain("Disallow: /v1/")
+
+    const sitemap = await request.get("/sitemap.xml")
+    expect(sitemap.ok()).toBe(true)
+    expect(sitemap.headers()["content-type"]).toMatch(/application\/xml/i)
+    const xml = await sitemap.text()
+    expect(xml).toContain("https://kahade.id/")
+    expect(xml).not.toContain("/order-link/")
   })
 })

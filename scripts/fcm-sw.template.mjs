@@ -14,6 +14,8 @@
  * `__FCM_CONFIG__` diganti esbuild saat build (lihat gen-fcm-sw.mjs) dengan
  * config Firebase Web dari environment. Jangan import lib/web-push-config
  * di sini: file itu memakai `process.env` yang tidak ada di konteks SW.
+ * Worker ini didaftarkan dengan scope `/firebase-messaging/`, terpisah dari
+ * PWA shell worker `/`; registration diberikan langsung ke `getToken()`.
  *
  * Kontrak payload dengan backend (sama untuk semua platform):
  *   data: { referenceType?, referenceId?, notificationId?, url? }

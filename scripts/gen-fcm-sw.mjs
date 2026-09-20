@@ -6,11 +6,14 @@
  *
  * ── Kenapa skrip ini harus ada ──
  *
- * FCM Web mewajibkan service worker di ROOT scope (`/firebase-messaging-sw.js`).
- * `expo export` hanya menyalin `public/` apa adanya tanpa memprosesnya, jadi
- * config Firebase (yang hidup di environment build) tidak bisa di-inject ke
- * berkas statis. Skrip ini membundle `fcm-sw.template.mjs` + package `firebase`
- * dengan esbuild langsung ke `dist/`, dengan config di-inline via `define`.
+ * FCM Web membutuhkan file service worker yang dapat disajikan dari origin
+ * aplikasi. File tetap ditulis ke root (`/firebase-messaging-sw.js`), tetapi
+ * app mendaftarkannya dengan scope sempit `/firebase-messaging/` agar tidak
+ * menggantikan PWA shell worker yang memakai scope `/`. `expo export` hanya
+ * menyalin `public/` apa adanya tanpa memprosesnya, jadi config Firebase (yang
+ * hidup di environment build) tidak bisa di-inject ke berkas statis. Skrip ini
+ * membundle `fcm-sw.template.mjs` + package `firebase` dengan esbuild langsung
+ * ke `dist/`, dengan config di-inline via `define`.
  *
  * Perilaku tanpa env Firebase Web: LEWATI dengan pesan yang jelas (exit 0).
  * Build Cloudflare TIDAK BOLEH gagal hanya karena web push belum

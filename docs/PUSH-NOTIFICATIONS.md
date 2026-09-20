@@ -77,7 +77,10 @@ Arsitektur (lihat komentar di tiap file untuk rationale):
   `npm run build:web`. Tanpa CDN eksternal (tidak bergantung gstatic saat
   runtime).
 - Registrasi: Welcome (web) → `registerWebPushDevice()` → izin Notification
-  → daftar SW → `getToken(VAPID)` → `register-device` (`platform: "web"`).
+  → daftar SW FCM pada scope `/firebase-messaging/` → tunggu worker FCM aktif
+  → `getToken(VAPID)` → `register-device` (`platform: "web"`). Scope ini
+  sengaja berbeda dari PWA shell `/`; dua worker root-scope akan saling
+  menggantikan dan membuat salah satu fitur mati diam-diam.
 - Re-aktivasi: kartu "Notifikasi browser" di Preferensi Notifikasi (web
   only, muncul hanya bila izin masih `default`/`denied`).
 - Foreground: system Notification + klik → navigasi (root layout).

@@ -21,9 +21,12 @@
  *   - Izin hanya diminta dari user gesture (tombol di Welcome / Preferensi
  *     Notifikasi). Browser (terutama Safari) mengabaikan/memblokir
  *     `requestPermission()` yang dipanggil saat boot tanpa interaksi.
- *   - Registrasi SW ditunggu `navigator.serviceWorker.ready`: `getToken()`
- *     dengan registrasi yang belum `active` gagal dengan error samar
- *     ("messaging/failed-service-worker-registration").
+ *   - FCM memakai scope terpisah (`/firebase-messaging/`) dari service worker
+ *     PWA (`/`). Dua registrasi dengan scope root akan saling menggantikan dan
+ *     membuat cache shell atau background push mati secara diam-diam.
+ *   - Registrasi SW ditunggu sampai instance FCM sendiri `active`: memakai
+ *     `navigator.serviceWorker.ready` di sini salah karena properti itu bisa
+ *     menunjuk SW PWA dengan scope root, bukan worker FCM.
  *   - Pesan foreground DITAMPILKAN sebagai system Notification (bukan hanya
  *     diteruskan ke callback): pengguna yang sedang membuka tab lain tetap
  *     melihatnya. Klik notifikasi → `onOpen(data, "tap")` → root layout
@@ -45,8 +48,13 @@ import { getFirebaseWebConfig } from "@/lib/web-push-config"
 
 export type { WebPushOpenSource } from "@/lib/web-push"
 
-/** Path service worker hasil `scripts/gen-fcm-sw.mjs` (scope root `/`). */
+/**
+ * File worker tetap di root agar Cloudflare dapat menyajikannya, tetapi scope
+ * sengaja dipisah dari PWA shell. FCM menerima registration ini langsung via
+ * getToken(), jadi worker tidak perlu mengontrol halaman aplikasi.
+ */
 export const FCM_SERVICE_WORKER_URL = "/firebase-messaging-sw.js"
+export const FCM_SERVICE_WORKER_SCOPE = "/firebase-messaging/"
 
 /** Ikon notifikasi browser — PNG (SVG tidak didukung semua browser). */
 const NOTIFICATION_ICON = "/apple-icon.png"
@@ -55,6 +63,46 @@ let app: FirebaseApp | null = null
 
 function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof navigator !== "undefined"
+}
+
+/** Resolve only when this registration (not another root-scope worker) is active. */
+export function waitForServiceWorkerActive(
+  registration: ServiceWorkerRegistration,
+  timeoutMs = 15_000,
+): Promise<ServiceWorkerRegistration> {
+  if (registration.active) return Promise.resolve(registration)
+
+  return new Promise((resolve, reject) => {
+    const watched: ServiceWorker[] = []
+
+    const cleanup = () => {
+      if (timer) clearTimeout(timer)
+      registration.removeEventListener("updatefound", onUpdateFound)
+      for (const worker of watched) worker.removeEventListener("statechange", check)
+    }
+    const finish = () => {
+      if (!registration.active) return
+      cleanup()
+      resolve(registration)
+    }
+    const check = () => finish()
+    const watch = (worker: ServiceWorker | null) => {
+      if (!worker || watched.includes(worker)) return
+      watched.push(worker)
+      worker.addEventListener("statechange", check)
+    }
+    const onUpdateFound = () => watch(registration.installing)
+
+    watch(registration.installing)
+    watch(registration.waiting)
+    registration.addEventListener("updatefound", onUpdateFound)
+    const timer = setTimeout(() => {
+      cleanup()
+      reject(new Error("service worker activation timeout"))
+    }, timeoutMs)
+    // The worker may have become active between the first guard and listener setup.
+    finish()
+  })
 }
 
 function getApp(): FirebaseApp | null {
@@ -91,14 +139,10 @@ export async function getWebPushToken(): Promise<string | null> {
       if (answer !== "granted") return null
     }
 
-    const registration = await navigator.serviceWorker.register(FCM_SERVICE_WORKER_URL)
-    // `register()` resolve sebelum worker aktif; `ready` menunggu active.
-    const ready = await Promise.race([
-      navigator.serviceWorker.ready,
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("service worker timeout")), 15_000),
-      ),
-    ]).catch(() => registration)
+    const registration = await navigator.serviceWorker.register(FCM_SERVICE_WORKER_URL, {
+      scope: FCM_SERVICE_WORKER_SCOPE,
+    })
+    const ready = await waitForServiceWorkerActive(registration)
 
     const messaging = getMessaging(firebaseApp)
     return await getToken(messaging, {

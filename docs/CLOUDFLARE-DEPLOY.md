@@ -55,8 +55,12 @@ deploy pertama; web app tetap jalan penuh tanpa push.
   check gagal.
 - **`public/_headers`** — `Content-Type: application/json` untuk
   `/.well-known/apple-app-site-association` (wajib, iOS menolak tipe lain)
-  + `Cache-Control` singkat untuk berkas verifikasi + header keamanan dasar.
-  Semua disalin otomatis ke `dist/` oleh `expo export`.
+  + `Cache-Control` singkat untuk berkas verifikasi/worker + header keamanan
+  dasar. Semua disalin otomatis ke `dist/` oleh `expo export`.
+- **`public/robots.txt` + `public/sitemap.xml`** — crawler hanya diarahkan
+  ke halaman publik yang aman; rute token, uang, chat, support, dan API tidak
+  dimasukkan ke sitemap. Sitemap memakai canonical domain `kahade.id`; ubah
+  domain bila produksi resmi berbeda.
 - **`public/.well-known/`** — `assetlinks.json` (Android) dan
   `apple-app-site-association` (iOS). Keduanya saat ini kosong secara
   eksplisit sampai fingerprint signing/Team ID tersedia; bukan konfigurasi

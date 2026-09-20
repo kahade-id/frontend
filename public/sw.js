@@ -3,9 +3,14 @@
  * Deliberately does not cache API responses, authenticated pages, or anything
  * under /v1/. The shell is only a resilience layer for the public web app;
  * wallet/order data must always come from the network.
+ *
+ * FCM has its own worker at /firebase-messaging-sw.js with the narrower
+ * /firebase-messaging/ scope. Keeping the scopes separate is required: two
+ * root-scope workers would replace each other unpredictably.
  */
-const SHELL_CACHE = "kahade-shell-v1"
-const SHELL_ASSETS = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"]
+const SHELL_CACHE = "kahade-shell-v2"
+const SHELL_ASSETS = ["/", "/icon-192.png", "/icon-512.png"]
+const ALWAYS_NETWORK = new Set(["/sw.js", "/register-sw.js", "/manifest.json", "/firebase-messaging-sw.js"])
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(SHELL_CACHE).then((cache) => cache.addAll(SHELL_ASSETS)))
@@ -25,6 +30,7 @@ self.addEventListener("fetch", (event) => {
   const request = event.request
   const url = new URL(request.url)
   if (request.method !== "GET" || url.origin !== self.location.origin) return
+  if (ALWAYS_NETWORK.has(url.pathname)) return
   if (url.pathname.startsWith("/v1/") || url.pathname.startsWith("/api/")) return
   if (request.headers.has("authorization") || request.headers.has("cookie")) return
 

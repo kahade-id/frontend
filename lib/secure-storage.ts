@@ -68,7 +68,9 @@ export const SecureKeys = {
   languagePreference: "kahade.language.preference",
   /**
    * Antrean umpan balik yang belum terkirim (endpoint /v1/feedback belum
-   * tersedia atau perangkat sedang luring). BUKAN rahasia — lihat lib/feedback.
+   * tersedia atau perangkat sedang luring). Di native disimpan sementara di
+   * SecureStore; di web sengaja hanya memory agar PII tidak masuk localStorage.
+   * BUKAN rahasia — lihat lib/feedback.
    */
   feedbackQueue: "kahade.feedback.queue",
 } as const
@@ -77,7 +79,10 @@ export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
 
 const isWeb = Platform.OS === "web"
 const memory = new Map<string, string>()
-// Only non-secret preferences may persist in browser storage. Never JWT/PIN/push tokens.
+// Only small, non-sensitive preferences may persist in browser storage.
+// Feedback can contain an email or transaction context, so its offline queue is
+// memory-only on web: a reload must not leave private feedback in localStorage.
+// Never persist JWT/PIN/push tokens in the browser.
 const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.deviceId,
   SecureKeys.onboardingSeen,
@@ -85,7 +90,6 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.languagePreference,
   SecureKeys.sessionSignedOut,
   SecureKeys.lastNotificationResponse,
-  SecureKeys.feedbackQueue,
 ])
 function webStorage(): Storage | null {
   try {

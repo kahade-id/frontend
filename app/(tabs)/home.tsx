@@ -21,8 +21,9 @@
  *                       (`GET /v1/orders?status=ACTIVE&limit=3`) + "Lihat
  *                       semua". Kosong → ajakan buat transaksi pertama.
  *
- * Data diambil dari 4 endpoint melalui `useApiQuery` (profil, saldo,
- * ringkasan order, order aktif) — satu gagal tidak membunuh halaman; tiap
+ * Data diambil dari 5 endpoint melalui `useApiQuery` (profil, saldo,
+ * ringkasan order, order aktif, dan count selesai) — satu gagal tidak
+ * membunuh halaman; tiap
  * bagian punya error + retry sendiri, request lama DIABORT sehingga respons
  * lambat tidak bisa menimpa hasil baru, dan saldo + order aktif dimuat ulang
  * diam-diam saat tab kembali fokus (`refreshOnFocus`) agar tidak menampilkan
@@ -160,9 +161,11 @@ export default function HomeScreen() {
   const [balanceHidden, setBalanceHidden] = useState(false)
   const unread = useUnreadCountState()
 
-  // Empat query terpisah (bukan satu Promise.allSettled manual): request lama
+  // Lima query terpisah (bukan satu Promise.allSettled manual): request lama
   // di-abort saat refresh, pesan galat tetap `userMessage(err)`, dan retry
-  // tiap bagian TIDAK me-reset bagian lain ke skeleton.
+  // tiap bagian TIDAK me-reset bagian lain ke skeleton. Endpoint aggregate
+  // dashboard belum ada di kontrak backend, jadi fan-out ini dipertahankan
+  // sampai backend menyediakan response gabungan yang terukur.
   const profile = useApiQuery<UserProfile>("home-profile", (signal) =>
     api.users.getMe(signal),
   )
@@ -203,10 +206,18 @@ export default function HomeScreen() {
 
   // Sumber angka beranda (semuanya dari server — sebelumnya membaca key
   // per-status pada /orders/summary yang TIDAK dikirim backend → stuck 0):
-  //   Aktif    → total list berfilter status=ACTIVE (backend: semua status berjalan)
+  //   Aktif    → summary.asBuyer/asSeller.count (fallback meta list)
   //   Selesai  → total list berfilter status=COMPLETED
   //   Sengketa → /orders/summary → inDispute
-  const activeCount = activeOrders.data?.meta?.total ?? 0
+  // Summary menyatakan count aktif per peran; pakai itu bila kedua field ada
+  // agar angka tidak bergantung pada metadata pagination dari preview limit=3.
+  const buyerActiveCount = summary.data?.asBuyer?.count
+  const sellerActiveCount = summary.data?.asSeller?.count
+  const hasSummaryActiveCount =
+    typeof buyerActiveCount === "number" && typeof sellerActiveCount === "number"
+  const activeCount = hasSummaryActiveCount
+    ? buyerActiveCount + sellerActiveCount
+    : activeOrders.data?.meta?.total ?? 0
   const completedCount = completedOrders.data?.meta?.total ?? 0
   const disputedCount =
     typeof summary.data?.inDispute === "number" ? summary.data.inDispute : 0

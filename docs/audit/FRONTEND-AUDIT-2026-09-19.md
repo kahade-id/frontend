@@ -59,7 +59,7 @@ Yang diperiksa:
 | `npm run check:push` | PASS | Native push siap secara konfigurasi; Web Push nonaktif karena env Firebase kosong. |
 | `npm run build:web` | PASS | 113 static routes; bundle JS web sekitar **4.32 MB** sebelum kompresi. |
 | `npm run check:i18n` | **FAIL (baseline)** | Setelah remediation katalog sinkron pada 1.574 string, seluruh 1.574 string sudah memiliki terjemahan English, dan gate masuk ke `npm run check`. |
-| `npm run test:e2e` | **FAIL (baseline)** | Setelah remediation sudah ada config + 4 smoke test; eksekusi browser lokal masih terblokir karena binary Chromium Playwright tidak tersedia/unduhan CDN terputus di environment audit. |
+| `npm run test:e2e` | **FAIL (baseline)** | Setelah remediation sudah ada config + 5 smoke test; eksekusi browser lokal masih terblokir karena binary Chromium Playwright tidak tersedia/unduhan CDN terputus di environment audit. |
 | `npm run verify:api` | **TIDAK TERVERIFIKASI** | Default menunjuk `http://localhost:3000`; 91 GET berakhir NETWORK dan endpoint terproteksi tidak mendapat auth. |
 | `npm audit` | **28 vulnerability** | 8 high, 20 moderate; banyak berasal dari stack Expo/Metro dan membutuhkan rencana upgrade major. |
 
@@ -84,14 +84,14 @@ Perubahan berikut benar-benar sudah diterapkan di checkout ini. Status **fixed**
 | P0-01 — live support menyesatkan | **Fixed (frontend)** | `app/live-support.tsx` sekarang bernama Asisten Bantuan Otomatis, memberi disclaimer bukan tiket resmi, tidak mengaku admin, dan punya CTA tiket resmi. Percakapan tetap sesi lokal sampai backend live support tersedia. |
 | P0-02 — authenticated runtime | **Blocked external** | Tidak ada backend staging/credential hidup di workspace. `check:api` tetap hanya contract/static verification; tidak diklaim sebagai authenticated smoke. |
 | P1-01 — i18n gate/catalog | **Fixed** | `check:i18n` terhubung ke `check`, catalog 1.574 string sinkron, seluruh 1.574 string memiliki terjemahan English, dan seluruh test i18n lulus. |
-| P1-02 — E2E tidak ada | **Implemented; environment blocked** | `playwright.config.ts` mengisolasi `e2e/`, preview server deterministik, dan 4 web smoke tests. Request/deep-link smoke dapat berjalan; browser UI belum dijalankan karena binary Chromium belum tersedia dan download CDN gagal. |
+| P1-02 — E2E tidak ada | **Implemented; environment blocked** | `playwright.config.ts` mengisolasi `e2e/`, preview server deterministik, dan 5 web smoke tests. Request/deep-link smoke dapat berjalan; browser UI belum dijalankan karena binary Chromium belum tersedia dan download CDN gagal. |
 | P1-03 — realtime chat | **Blocked external** | Belum diubah menjadi WebSocket karena gateway/auth/reconnect contract backend belum tersedia; polling tetap fallback saat ini. |
-| P1-04 — push/deep link/PWA | **Partial** | Manifest, 192/512 icons, metadata, privacy-safe static shell service worker, safe web headers, dan static route smoke sudah ditambahkan. Well-known App/Universal Links sekarang kosong secara eksplisit (bukan TEAMID/fingerprint palsu), dengan warning gate; Firebase env, signing key, Team ID, dan store release tetap blocker eksternal. |
+| P1-04 — push/deep link/PWA | **Partial, hardened** | Manifest, 192/512 icons, OG metadata dasar, `robots.txt`/`sitemap.xml`, privacy-safe static shell service worker, no-cache worker headers, dan static route smoke sudah ditambahkan. FCM Web worker kini memakai scope `/firebase-messaging/` terpisah dari PWA scope `/` agar keduanya tidak saling menimpa. Well-known App/Universal Links masih kosong secara eksplisit (bukan TEAMID/fingerprint palsu), dengan warning gate; Firebase env, signing key, Team ID, dan store release tetap blocker eksternal. |
 | P1-05 — dependency vulnerability | **Not fixed; accepted blocker** | `npm ci` tetap melaporkan 28 vulnerability (8 high, 20 moderate). Tidak menjalankan upgrade major secara membabi buta; perlu migration branch dan review dependency. |
-| P1-06 — home request fan-out | **Open** | Belum diubah; memerlukan endpoint aggregate dan measurement backend/performance. |
+| P1-06 — home request fan-out | **Frontend guarded; backend open** | Home sekarang memakai count aktif dari `/orders/summary` bila tersedia, tetap mempertahankan preview/retry terisolasi, dan mendokumentasikan 5 query yang tersisa. Pengurangan request nyata tetap memerlukan endpoint aggregate backend + measurement TTFB/bytes. |
 | P1-07 — permission/privacy | **Partial, improved** | Queue feedback kini TTL 7 hari, bounded, sanitized, dan dihapus oleh `clearSession()` saat logout. Unused camera/media/contacts/location/audio/WebRTC/tracking configuration sudah dipangkas dan didokumentasikan di `docs/PERMISSIONS.md`; physical-device permission testing dan server retention consent masih open. |
 
-**Quality-gate post-remediation:** `npm run check` (termasuk `check:permissions`), `npm run typecheck`, `npm run lint`, `npm test` (136 pass), `npm run test:i18n-render` (4 pass), `npm run build:web` (113 static routes), dan `npm run check:weblinks` berhasil. `npm run test:e2e` masih menunggu browser binary lokal/CI image.
+**Quality-gate post-remediation:** `npm run check` (termasuk `check:permissions`), `npm run typecheck`, `npm run lint`, `npm test` (136 pass), `npm run test:i18n-render` (4 pass), `npm run build:web` (113 static routes), dan `npm run check:weblinks` berhasil. `npm run test:e2e` menjalankan 5 test: 3 request/deep-link smoke pass, sedangkan 2 test yang membutuhkan Chromium UI tetap terblokir oleh browser binary lokal/CI image.
 
 ## 4. Hal-hal yang sudah kuat dan sebaiknya dipertahankan
 
@@ -200,7 +200,7 @@ Dampak tersebut adalah kondisi baseline. Setelah remediation, catalog dan kamus 
 
 ### P1-02 — [IMPLEMENTED, BROWSER BLOCKED] Script E2E ada di `package.json`, tetapi E2E belum ada dan script rusak
 
-Pada baseline, `npm run test:e2e` gagal karena tidak ada config/suite dan Playwright memindai file Vitest. Remediation sudah menambahkan `playwright.config.ts` dengan `testDir: "./e2e"`, preview server statis, dan 4 smoke test untuk shell/manifest, dynamic rewrite, serta well-known JSON. Di environment audit ini browser UI belum dapat dieksekusi karena Chromium belum terpasang dan unduhan CDN gagal; CI harus menggunakan image yang sudah memiliki browser atau menjalankan `npx playwright install --with-deps chromium`. Untuk frontend seluas ini, unit test tetap tidak cukup.
+Pada baseline, `npm run test:e2e` gagal karena tidak ada config/suite dan Playwright memindai file Vitest. Remediation sudah menambahkan `playwright.config.ts` dengan `testDir: "./e2e"`, preview server statis, dan 5 smoke test untuk shell/manifest, dynamic rewrite, well-known JSON, privacy-safe service worker, robots, dan sitemap. Di environment audit ini browser UI belum dapat dieksekusi karena Chromium belum terpasang dan unduhan CDN gagal; CI harus menggunakan image yang sudah memiliki browser atau menjalankan `npx playwright install --with-deps chromium`. Untuk frontend seluas ini, unit test tetap tidak cukup.
 
 **Minimal E2E yang perlu ditambahkan:**
 
@@ -266,7 +266,7 @@ Tambahkan `npm audit --audit-level=high`, `npm outdated`, dan EAS build smoke ke
 
 ### P1-06 — Home melakukan terlalu banyak request untuk layar pertama
 
-`app/(tabs)/home.tsx` melakukan query terpisah untuk profile, wallet, order summary, active orders, dan completed count. Ini rapi dari sisi isolasi error, tetapi membuat first-open dan refresh mahal, terutama di device lambat atau jaringan seluler.
+`app/(tabs)/home.tsx` melakukan query terpisah untuk profile, wallet, order summary, active orders, dan completed count. Ini rapi dari sisi isolasi error, tetapi membuat first-open dan refresh mahal, terutama di device lambat atau jaringan seluler. Remediation frontend sekarang memakai count aktif per peran dari `/v1/orders/summary` bila backend mengirim kedua field tersebut, sehingga angka tidak bergantung pada `meta.total` dari preview limit=3; ini memperbaiki kebenaran data, bukan jumlah request.
 
 **Perbaikan:**
 
@@ -451,7 +451,7 @@ Build web berhasil, tetapi satu bundle entry sekitar 4.32 MB raw cukup berat. Ad
 
 ### 8.3 PWA
 
-Manifest, icon installability, dan metadata dasar PWA sekarang sudah ditambahkan. `public/sw.js` hanya memberi resilience untuk shell/assets statis; ia tidak mencache response API, request ber-cookie/auth, atau path `/v1/` dan `/api/`. Yang masih perlu: installability/device check, update prompt, cache invalidation berbasis release, dan validasi di browser/device nyata. Service worker FCM tetap bukan pengganti PWA service worker secara keseluruhan.
+Manifest, icon installability, metadata OG dasar, `robots.txt`, dan sitemap publik sekarang sudah ditambahkan. `public/sw.js` hanya memberi resilience untuk shell/assets statis; ia tidak mencache response API, request ber-cookie/auth, atau path `/v1/` dan `/api/`. Cache diberi versi dan worker/registrasi worker diberi `Cache-Control: no-cache` agar update tidak terjebak cache lama; FCM Web memakai scope terpisah (`/firebase-messaging/`) sehingga tidak menggantikan PWA worker. Yang masih perlu: installability/device check, update prompt, metadata per entitas publik, dan validasi di browser/device nyata. Service worker FCM tetap bukan pengganti PWA service worker secara keseluruhan.
 
 ---
 
@@ -526,7 +526,7 @@ Sebelum P0/P1 selesai, saya tidak menyarankan menambah banyak badge, promo, vari
 
 1. **Selesai frontend:** hentikan positioning live-support sebagai admin; sekarang assistant dan route ke ticket.
 2. **Selesai gate:** regenerate katalog dan masukkan `check:i18n` ke `check`; coverage English sudah 100%; backlog i18n berikutnya adalah review native speaker dan konsistensi glossary.
-3. **Selesai implementasi:** config, `e2e/`, dan preview server sudah ada dengan 4 smoke test; CI harus memasang browser Playwright.
+3. **Selesai implementasi:** config, `e2e/`, dan preview server sudah ada dengan 5 smoke test; CI harus memasang browser Playwright.
 4. Tambah staging contract smoke dan seed accounts.
 5. Jalankan audit permission dan PII/local queue.
 6. Tambahkan telemetry minimal: crash/error boundary, API request ID, boot timing.

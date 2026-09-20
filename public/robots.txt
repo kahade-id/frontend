@@ -1,0 +1,45 @@
+# Kahade public web crawler policy.
+# Financial, authenticated, tokenized, and notification routes are not public SEO pages.
+User-agent: *
+Allow: /
+Allow: /about
+Allow: /contact
+Allow: /faq
+Allow: /help/
+Allow: /privacy-policy
+Allow: /terms
+Allow: /user/
+Allow: /showcase/
+Disallow: /api/
+Disallow: /v1/
+Disallow: /chat
+Disallow: /chat/
+Disallow: /wallet
+Disallow: /wallet/
+Disallow: /transactions
+Disallow: /order/
+Disallow: /order-link/
+Disallow: /dispute
+Disallow: /dispute/
+Disallow: /notification
+Disallow: /notification/
+Disallow: /support
+Disallow: /support/
+Disallow: /invoice/
+Disallow: /rate/
+Disallow: /delivery-proof/
+Disallow: /settings
+Disallow: /settings/
+Disallow: /login
+Disallow: /register
+Disallow: /onboarding
+Disallow: /kyc
+Disallow: /transfer
+Disallow: /topup
+Disallow: /withdraw
+Disallow: /delete-account
+Disallow: /security
+Disallow: /security/
+Disallow: /_expo/
+
+Sitemap: https://kahade.id/sitemap.xml
