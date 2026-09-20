@@ -19,6 +19,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, isApiError, userMessage } from "@/lib/api"
 import { referralUrl } from "@/lib/deeplinks"
 import { formatDateTime, formatRupiah } from "@/lib/format"
+import { haptic } from "@/lib/haptics"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 
@@ -141,6 +142,7 @@ export default function ReferralScreen() {
     })
     if (outcome === "unavailable") {
       const ok = await copy(url)
+      if (ok) haptic("select")
       toast.show({
         title: ok ? "Tautan undangan disalin" : "Tidak bisa membagikan",
         tone: ok ? "success" : "danger",

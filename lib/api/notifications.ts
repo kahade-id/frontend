@@ -80,11 +80,12 @@ export type NotificationListResponse = {
  * GET /v1/notifications/unread-count
  * Tanpa `category` = total semua kategori (asumsi — lihat komentar asal).
  */
-export function getUnreadCount(category?: NotificationCategory) {
+export function getUnreadCount(category?: NotificationCategory, signal?: AbortSignal) {
   return http.get<UnreadCountResult>("/v1/notifications/unread-count", {
     query: { category },
     auth: "required",
     retry: 1,
+    signal,
   })
 }
 

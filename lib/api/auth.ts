@@ -216,13 +216,13 @@ export async function register(dto: RegisterDto) {
   return result
 }
 
-export function verifyEmail(dto: VerifyEmailDto) {
-  return http.post<MessageResult, VerifyEmailDto>("/v1/auth/verify-email", dto, { auth: "none" })
+export function verifyEmail(dto: VerifyEmailDto, signal?: AbortSignal) {
+  return http.post<MessageResult, VerifyEmailDto>("/v1/auth/verify-email", dto, { auth: "none", signal })
 }
 
 /** Varian tautan email: `GET /v1/auth/verify-email?email=&token=` */
-export function verifyEmailByLink(query: { email: string; token: string }) {
-  return http.get<MessageResult>("/v1/auth/verify-email", { query, auth: "none" })
+export function verifyEmailByLink(query: { email: string; token: string }, signal?: AbortSignal) {
+  return http.get<MessageResult>("/v1/auth/verify-email", { query, auth: "none", signal })
 }
 
 export function resendVerification(dto: ResendVerificationDto) {

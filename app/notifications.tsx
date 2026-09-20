@@ -223,6 +223,7 @@ export default function NotificationsScreen() {
     try {
       await api.notifications.deleteReadNotifications()
       setNotifs((prev) => prev.filter((n) => !n.isRead))
+      void refreshUnreadCount()
     } catch (err: unknown) {
       toast.show({
         title: "Notifikasi belum dapat dihapus",

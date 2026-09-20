@@ -26,7 +26,7 @@ import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { Plus } from "phosphor-react-native"
 
-import { api } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import {
   toBusinessVerificationUiStatus,
   type BusinessVerificationHistoryEntry,
@@ -186,7 +186,7 @@ export default function BusinessVerificationScreen() {
     } catch (err) {
       toast.show({
         title: "Gagal mengirim verifikasi bisnis",
-        description: err instanceof Error ? err.message : "Periksa koneksi dan coba lagi.",
+        description: isApiError(err) ? userMessage(err) : err instanceof Error ? err.message : "Periksa koneksi dan coba lagi.",
         tone: "danger",
       })
     } finally {

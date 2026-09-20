@@ -454,7 +454,6 @@ const UNUSED_UI_BASELINE = new Set([
   "components/ui/data-table.tsx",
   "components/ui/dispute-evidence-item.tsx",
   "components/ui/filter-sheet-content.tsx",
-  "components/ui/in-call-controls-bar.tsx",
   "components/ui/incoming-call-prompt.tsx",
   "components/ui/kyc-document-viewer.tsx",
   "components/ui/menu-list.tsx",

@@ -23,6 +23,8 @@ import { Bank as BankIcon } from "phosphor-react-native"
 
 import { api, userMessage, type WithdrawDto } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
+import { authenticateBiometric, getBiometricCapability } from "@/lib/biometrics"
+import { getSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -99,9 +101,42 @@ export default function WithdrawScreen() {
   // Overlay progres: muncul begitu PIN/OTP disubmit, hasil mengganti kontennya.
   const [progressState, setProgressState] = useState<ProgressState | null>(null)
   const [progressError, setProgressError] = useState<string | undefined>()
+  const [biometricEnabled, setBiometricEnabled] = useState(false)
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof api.wallet.createWithdraw>
   > | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const [stored, cap] = await Promise.all([
+        getSecureItem(SecureKeys.biometricEnabled).catch(() => null),
+        getBiometricCapability().catch(() => null),
+      ])
+      if (alive && stored === "1" && cap?.available) {
+        setBiometricEnabled(true)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const selected = accounts.find((a) => a.id === accountId)
+
+  const handleBiometric = useCallback(async () => {
+    const outcome = await authenticateBiometric({
+      promptMessage: `Tarik ${formatRupiah(amount)} ke ${selected?.bankName ?? "rekening"}`,
+      promptSubtitle: "Konfirmasi penarikan dana",
+    })
+    if (outcome === "failed" || outcome === "lockout") {
+      setPinError(
+        outcome === "lockout"
+          ? "Biometrik terkunci sementara. Masukkan PIN."
+          : "Biometrik tidak dikenali. Masukkan PIN.",
+      )
+    }
+  }, [amount, selected])
 
   useEffect(() => {
     if (accounts.length === 0) return
@@ -114,8 +149,6 @@ export default function WithdrawScreen() {
 
   const stepIndex: Record<Step, number> = { amount: 1, verify: 2, done: 3 }
   const progress = stepIndex[step] / TOTAL_STEPS
-
-  const selected = accounts.find((a) => a.id === accountId)
 
   const canContinueAmount =
     isValidAmount(amount, AMOUNT_LIMITS.withdraw) &&
@@ -486,6 +519,7 @@ export default function WithdrawScreen() {
           <PinInput
             mode="enter"
             onComplete={(p) => void handlePin(p)}
+            onBiometric={biometricEnabled ? () => void handleBiometric() : undefined}
             errorText={pinError}
             disabled={submitting}
           />

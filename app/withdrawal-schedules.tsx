@@ -6,16 +6,20 @@ import { ListLoading } from "@/components/ui/paginated-list"
  */
 import { useCallback, useState } from "react"
 import { View } from "react-native"
+import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Plus } from "phosphor-react-native"
+import { Bank, Plus } from "phosphor-react-native"
 
 import { api, type CreateScheduleDto, type UpdateScheduleDto, userMessage } from "@/lib/api"
+import type { BankAccount } from "@/lib/api/bank-accounts"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS } from "@/lib/financial"
 import type { WithdrawalSchedule } from "@/lib/api/withdrawals"
-import { formatRupiah } from "@/lib/format"
+import { formatRupiah, maskAccountNumber } from "@/lib/format"
+import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
 
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -25,6 +29,8 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { ScheduleField, type ScheduleValue } from "@/components/ui/schedule-field"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { Select, SelectOptionList } from "@/components/ui/select"
+import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { WithdrawalScheduleCard } from "@/components/ui/withdrawal-schedule-card"
 
@@ -47,26 +53,35 @@ export default function WithdrawalSchedulesScreen() {
   const items = query.data ?? []
   const { loading, error, refreshing } = query
 
+  const bankAccountsQuery = useApiQuery<BankAccount[]>(
+    "withdrawal-bank-accounts",
+    async (signal) => (await api.bankAccounts.listBankAccounts(signal)) ?? [],
+  )
+  const accounts = bankAccountsQuery.data ?? []
+
   const [editing, setEditing] = useState<WithdrawalSchedule | null>(null)
   const [creating, setCreating] = useState(false)
   const [schedule, setSchedule] = useState<ScheduleValue>({ dayOfWeek: 1, minAmount: 0 })
+  const [selectedBankAccountId, setSelectedBankAccountId] = useState<string>("")
+  const [bankSheetOpen, setBankSheetOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<WithdrawalSchedule | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
 
-
-
   const openCreate = useCallback(() => {
     setEditing(null)
     setCreating(true)
     setSchedule({ dayOfWeek: 1, minAmount: 0 })
-  }, [])
+    const defaultAcc = accounts.find((a) => a.isPrimary) ?? accounts[0]
+    setSelectedBankAccountId(defaultAcc?.id ?? "")
+  }, [accounts])
 
   const openEdit = useCallback((s: WithdrawalSchedule) => {
     setEditing(s)
     setCreating(false)
     setSchedule({ dayOfWeek: s.dayOfWeek, minAmount: s.minAmount ?? 0 })
+    setSelectedBankAccountId(s.bankAccount.id)
   }, [])
 
   /**
@@ -82,6 +97,15 @@ export default function WithdrawalSchedulesScreen() {
       : undefined
 
   const handleSubmit = useCallback(async () => {
+    const targetBankAccountId = editing ? editing.bankAccount.id : selectedBankAccountId
+    if (!targetBankAccountId && !editing) {
+      toast.show({
+        title: "Pilih rekening bank tujuan",
+        description: "Tambahkan atau pilih rekening bank untuk penarikan.",
+        tone: "danger",
+      })
+      return
+    }
     setSubmitting(true)
     try {
       if (editing) {
@@ -96,7 +120,7 @@ export default function WithdrawalSchedulesScreen() {
         const dto: CreateScheduleDto = {
           dayOfWeek: schedule.dayOfWeek ?? 1,
           minAmount: (schedule.minAmount ?? 0) > 0 ? (schedule.minAmount ?? undefined) : undefined,
-          bankAccountId: "",
+          bankAccountId: targetBankAccountId,
         }
         await api.withdrawals.createWithdrawalSchedule(dto)
       }
@@ -113,7 +137,7 @@ export default function WithdrawalSchedulesScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [editing, schedule, toast.show, query])
+  }, [editing, schedule, selectedBankAccountId, toast.show, query])
 
   const handleToggle = useCallback(
     async (item: WithdrawalSchedule, next: boolean) => {
@@ -208,6 +232,36 @@ export default function WithdrawalSchedulesScreen() {
                   AMOUNT_LIMITS yang digenerate dari OpenAPI, jadi preset dan
                   batas kontrak tidak bisa lagi saling menyimpang.
                 */}
+                {!editing ? (
+                  accounts.length > 0 ? (
+                    <Select
+                      label="Rekening Bank Tujuan"
+                      value={selectedBankAccountId}
+                      options={accounts.map((a) => ({
+                        value: a.id,
+                        label: `${a.bankName ?? a.bankCode} — ${maskAccountNumber(a.accountNumber)}`,
+                        description: `a.n. ${a.accountName}${a.isPrimary ? " (Utama)" : ""}`,
+                        icon: Bank,
+                      }))}
+                      open={bankSheetOpen}
+                      onPress={() => setBankSheetOpen(true)}
+                      required
+                    />
+                  ) : (
+                    <View className="gap-2 rounded-sm border border-border-control p-4">
+                      <Text variant="body" tone="danger">
+                        Belum ada rekening bank terdaftar.
+                      </Text>
+                      <Button
+                        variant="secondary"
+                        onPress={() => router.push(ROUTES.bankAccounts)}
+                      >
+                        Tambah rekening bank
+                      </Button>
+                    </View>
+                  )
+                ) : null}
+
                 <ScheduleField
                   value={schedule}
                   onChange={setSchedule}
@@ -217,7 +271,7 @@ export default function WithdrawalSchedulesScreen() {
                 />
                 <Button
                   loading={submitting}
-                  disabled={Boolean(minAmountError)}
+                  disabled={Boolean(minAmountError) || (!editing && !selectedBankAccountId)}
                   onPress={() => void handleSubmit()}
                 >
                   Simpan jadwal
@@ -239,6 +293,27 @@ export default function WithdrawalSchedulesScreen() {
           )}
         </Crossfade>
       </PullToRefresh>
+
+      <BottomSheet
+        visible={bankSheetOpen}
+        onRequestClose={() => setBankSheetOpen(false)}
+        title="Pilih Rekening Tujuan"
+        description="Pilih rekening bank untuk penarikan otomatis terjadwal."
+      >
+        <SelectOptionList
+          value={selectedBankAccountId}
+          options={accounts.map((a) => ({
+            value: a.id,
+            label: `${a.bankName ?? a.bankCode} — ${maskAccountNumber(a.accountNumber)}`,
+            description: `a.n. ${a.accountName}${a.isPrimary ? " (Utama)" : ""}`,
+            icon: Bank,
+          }))}
+          onSelect={(val) => {
+            setSelectedBankAccountId(val)
+            setBankSheetOpen(false)
+          }}
+        />
+      </BottomSheet>
 
       <Dialog
         title="Hapus jadwal?"

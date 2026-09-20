@@ -303,7 +303,11 @@ export default function HomeScreen() {
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={
-          profile.refreshing || wallet.refreshing || summary.refreshing || activeOrders.refreshing
+          profile.refreshing ||
+          wallet.refreshing ||
+          summary.refreshing ||
+          activeOrders.refreshing ||
+          completedOrders.refreshing
         }
         scrollViewProps={{
           contentContainerStyle: { paddingBottom: tokens.space[8] },

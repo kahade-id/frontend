@@ -64,6 +64,7 @@ import { DisputeClaimForm } from "@/components/ui/dispute-claim-form"
 import { DisputeStatusBadge } from "@/components/ui/dispute-status-badge"
 import { ErrorState } from "@/components/ui/error-state"
 import { EvidenceGrid, type EvidenceItem } from "@/components/ui/evidence-grid"
+import { InCallControlsBar } from "@/components/ui/in-call-controls-bar"
 import { Crossfade } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { ListGroup } from "@/components/ui/list-item"
@@ -100,6 +101,7 @@ const CALL_OUTCOME: Partial<Record<string, DisputeCallOutcome>> = {
   ACCEPTED: "ACCEPTED",
   ONGOING: "ONGOING",
   ENDED: "COMPLETED",
+  FINISHED: "COMPLETED",
   COMPLETED: "COMPLETED",
   REJECTED: "REJECTED",
   MISSED: "MISSED",
@@ -192,6 +194,13 @@ export default function DisputeDetailScreen() {
   const [escalateOpen, setEscalateOpen] = useState(false)
   const [escalateReason, setEscalateReason] = useState("")
   const [escalating, setEscalating] = useState(false)
+
+  // In-call controls
+  const [callMuted, setCallMuted] = useState(false)
+  const [callSpeaker, setCallSpeaker] = useState(false)
+  const [callVideo, setCallVideo] = useState(true)
+
+  const activeCall = calls.find((c) => c.status === "ONGOING")
 
   const handleEscalate = useCallback(async () => {
     if (!id) return
@@ -533,7 +542,18 @@ export default function DisputeDetailScreen() {
       edges={["top"]}
       padded={false}
       footer={
-        dispute ? (
+        activeCall ? (
+          <InCallControlsBar
+            durationSec={activeCall.durationSeconds}
+            muted={callMuted}
+            onToggleMute={() => setCallMuted((m) => !m)}
+            speakerOn={callSpeaker}
+            onToggleSpeaker={() => setCallSpeaker((s) => !s)}
+            videoOn={callVideo}
+            onToggleVideo={() => setCallVideo((v) => !v)}
+            onEnd={() => void handleCallAction("end", activeCall.id)}
+          />
+        ) : dispute ? (
           <ChatComposer
             value={draft}
             onChangeText={setDraft}

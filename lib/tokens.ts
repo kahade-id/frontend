@@ -269,13 +269,8 @@ export const colors = {
 
 /**
  * 3.1 Font Roles
- * - Chivo           : UI & body (default 95% layar) — grotesque sans Latin,
- *                     netral dan rapat. Menggantikan Kanit (keputusan produk
- *                     2026-09-17): Kanit adalah geometric sans yang dioptimasi
- *                     untuk Thai, sehingga huruf Latin-nya lebih lebar/melebar
- *                     di kolom sempit (nominal, list, caption 2 baris).
- *                     Chivo punya 4 static instance per-weight (400–700, OFL)
- *                     yang persis dipakai sistem — lihat assets/fonts/README.md.
+ * - Plus Jakarta Sans: UI & body (default 95% layar) — modern geometric sans,
+ *                     proporsional dan bersih untuk antarmuka finansial.
  * - EB Garamond     : Display/editorial — hero, konfirmasi besar, onboarding (terbatas)
  * - Azeret Mono     : Data presisi — nominal uang, ID transaksi, OTP, rekening.
  *                     Pengganti JetBrains Mono (keputusan produk): nol Azeret
@@ -288,7 +283,7 @@ export const colors = {
  * Semua font di-bundle offline via expo-font; tidak butuh fallback network.
  */
 export const fontFamily = {
-  sans: "Chivo",
+  sans: "Plus Jakarta Sans",
   serif: "EB Garamond",
   mono: "Azeret Mono",
 } as const
@@ -300,10 +295,10 @@ export const fontFamily = {
  */
 export const fontFamilyByWeight = {
   sans: {
-    400: "Chivo-Regular",
-    500: "Chivo-Medium",
-    600: "Chivo-SemiBold",
-    700: "Chivo-Bold",
+    400: "PlusJakartaSans-Regular",
+    500: "PlusJakartaSans-Medium",
+    600: "PlusJakartaSans-SemiBold",
+    700: "PlusJakartaSans-Bold",
   },
   serif: {
     500: "EBGaramond-Medium",

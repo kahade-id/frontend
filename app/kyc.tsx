@@ -28,7 +28,7 @@ import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
 import type { PresignedUrlDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
@@ -191,10 +191,12 @@ export default function KycScreen() {
       setFormOpen(false)
       resetForm()
       await query.refresh()
-    } catch {
+    } catch (err: unknown) {
       toast.show({
         title: "Gagal mengirim verifikasi",
-        description: "Periksa koneksi dan pastikan foto jelas, lalu coba lagi.",
+        description: isApiError(err)
+          ? userMessage(err)
+          : "Periksa koneksi dan pastikan foto jelas, lalu coba lagi.",
         tone: "danger",
       })
     } finally {

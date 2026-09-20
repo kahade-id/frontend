@@ -31,10 +31,11 @@ export function listTransactionTemplates(signal?: AbortSignal) {
     .then((raw) => readList<TransactionTemplate>(raw, ["templates"]))
 }
 
-export function getTransactionTemplate(id: string) {
+export function getTransactionTemplate(id: string, signal?: AbortSignal) {
   return http.get<TransactionTemplate>(`/v1/transaction-templates/${seg(id)}`, {
     auth: "required",
     retry: 1,
+    signal,
   })
 }
 

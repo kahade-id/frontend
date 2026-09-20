@@ -212,7 +212,11 @@ export default function ShowcaseDetailScreen() {
           const nextReplies = (root.replies ?? [])
             .map((r) => patch(r))
             .filter((r): r is ShowcaseComment => r !== null)
-          if (nextRoot === null) return nextReplies.length > 0 ? [{ ...root, replies: nextReplies }] : []
+          if (nextRoot === null) {
+            return nextReplies.length > 0
+              ? [{ ...root, content: "[Komentar ini telah dihapus]", replies: nextReplies }]
+              : []
+          }
           return [{ ...nextRoot, replies: nextReplies }]
         }),
       )

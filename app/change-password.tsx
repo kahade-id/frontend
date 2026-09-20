@@ -5,6 +5,8 @@ import { useCallback, useState } from "react"
 import { ScrollView, View } from "react-native"
 
 import { api, userMessage } from "@/lib/api"
+import { goBackOrNavigate } from "@/lib/navigation"
+import { ROUTES } from "@/lib/routes"
 
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
@@ -34,6 +36,7 @@ export default function ChangePasswordScreen() {
       setCurrent("")
       setNext("")
       setConfirm("")
+      goBackOrNavigate(ROUTES.settings)
     } catch (err: unknown) {
       // Alasan asli backend (password salah / rate limit / password pernah
       // dipakai) harus sampai ke pengguna — menebak "Periksa password saat ini"

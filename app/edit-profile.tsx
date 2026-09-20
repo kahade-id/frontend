@@ -226,7 +226,6 @@ export default function EditProfileScreen() {
     if (trimmed.fullName !== initial.fullName) d.fullName = trimmed.fullName
     if (trimmed.username !== initial.username) d.username = trimmed.username
     if (trimmed.bio !== initial.bio) d.bio = trimmed.bio
-    if (form.phone !== initial.phone) d.phoneNumber = toE164Id(form.phone)
     if (trimmed.contactEmail !== initial.contactEmail) d.contactEmail = trimmed.contactEmail
     if (form.contactPhone !== initial.contactPhone) d.contactPhone = toE164Id(form.contactPhone)
     if (form.showContactEmail !== initial.showContactEmail)
@@ -245,7 +244,6 @@ export default function EditProfileScreen() {
   /** Field sensitif yang menurut kontrak butuh `currentPassword`. */
   const needsPassword =
     dto.username !== undefined ||
-    dto.phoneNumber !== undefined ||
     dto.contactEmail !== undefined ||
     dto.contactPhone !== undefined
 
@@ -649,12 +647,22 @@ export default function EditProfileScreen() {
                   Verifikasi email agar notifikasi penting dan pemulihan akun bisa dikirim.
                 </Alert>
               ) : null}
-              <PhoneInput
-                label="Nomor HP akun"
-                value={form.phone}
-                onChangeText={(v) => set("phone", v)}
-                helperText="Mengganti nomor membutuhkan password akun."
-              />
+              <View className="gap-2">
+                <PhoneInput
+                  label="Nomor HP akun"
+                  value={form.phone}
+                  onChangeText={() => undefined}
+                  disabled
+                  helperText="Mengganti nomor HP akun membutuhkan verifikasi keamanan OTP."
+                />
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onPress={() => router.push(ROUTES.changePhone)}
+                >
+                  Ubah nomor HP akun
+                </Button>
+              </View>
             </FormSection>
 
             <FormSection

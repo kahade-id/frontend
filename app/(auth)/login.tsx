@@ -292,7 +292,7 @@ export default function LoginScreen() {
         <FooterBar>
           <View className="items-center">
             <TextLink onPress={handleForgotPassword} disabled={submitting}>
-              Lupa password?
+              Lupa kata sandi?
             </TextLink>
           </View>
 

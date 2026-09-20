@@ -148,6 +148,7 @@ export default function TransactionsScreen() {
               }}
               timestamp={formatDateTime(item.createdAt)}
               deadlineAt={item.deliveryDeadlineAt ? new Date(item.deliveryDeadlineAt) : undefined}
+              onDeadline={() => void query.refresh()}
               href={ROUTES.orderDetail(item.id)}
             />
           )

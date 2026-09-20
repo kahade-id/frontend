@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 47
+   "n": 48
   },
   {
    "s": "Gagal memuat",
@@ -15,11 +15,11 @@
    "n": 25
   },
   {
-   "s": "Kembali",
-   "n": 9
+   "s": "Lainnya",
+   "n": 10
   },
   {
-   "s": "Lainnya",
+   "s": "Kembali",
    "n": 9
   },
   {
@@ -191,6 +191,10 @@
    "n": 3
   },
   {
+   "s": "Gagal mengirim laporan",
+   "n": 3
+  },
+  {
    "s": "Gagal mengunggah foto",
    "n": 3
   },
@@ -236,6 +240,10 @@
   },
   {
    "s": "Konten menyinggung",
+   "n": 3
+  },
+  {
+   "s": "Laporan terkirim",
    "n": 3
   },
   {
@@ -443,6 +451,10 @@
    "n": 2
   },
   {
+   "s": "Buka blokir",
+   "n": 2
+  },
+  {
    "s": "Buka detail showcase",
    "n": 2
   },
@@ -523,10 +535,6 @@
    "n": 2
   },
   {
-   "s": "Gagal mengirim laporan",
-   "n": 2
-  },
-  {
    "s": "Gagal mengirim pertanyaan",
    "n": 2
   },
@@ -603,6 +611,10 @@
    "n": 2
   },
   {
+   "s": "Kirim Laporan",
+   "n": 2
+  },
+  {
    "s": "Kirim Pertanyaan",
    "n": 2
   },
@@ -627,6 +639,10 @@
    "n": 2
   },
   {
+   "s": "Konten tidak pantas",
+   "n": 2
+  },
+  {
    "s": "Langganan",
    "n": 2
   },
@@ -639,10 +655,6 @@
    "n": 2
   },
   {
-   "s": "Laporan terkirim",
-   "n": 2
-  },
-  {
    "s": "Lawan",
    "n": 2
   },
@@ -652,10 +664,6 @@
   },
   {
    "s": "Lihat semua",
-   "n": 2
-  },
-  {
-   "s": "Lupa password?",
    "n": 2
   },
   {
@@ -712,10 +720,6 @@
   },
   {
    "s": "Netral",
-   "n": 2
-  },
-  {
-   "s": "Nomor invoice disalin",
    "n": 2
   },
   {
@@ -931,10 +935,6 @@
    "n": 1
   },
   {
-   "s": "{x} dibuka blokirnya",
-   "n": 1
-  },
-  {
    "s": "{x} foto — tambah, urutkan, hapus",
    "n": 1
   },
@@ -972,6 +972,10 @@
   },
   {
    "s": "@{x} di Kahade",
+   "n": 1
+  },
+  {
+   "s": "@{x} dibuka blokirnya",
    "n": 1
   },
   {
@@ -1064,6 +1068,10 @@
   },
   {
    "s": "Alasan laporan",
+   "n": 1
+  },
+  {
+   "s": "Alasan Laporan",
    "n": 1
   },
   {
@@ -1371,6 +1379,10 @@
    "n": 1
   },
   {
+   "s": "Belum ada rekening bank terdaftar.",
+   "n": 1
+  },
+  {
    "s": "Belum ada rekomendasi",
    "n": 1
   },
@@ -1604,10 +1616,6 @@
   },
   {
    "s": "Buka beranda",
-   "n": 1
-  },
-  {
-   "s": "Buka blokir",
    "n": 1
   },
   {
@@ -1984,6 +1992,10 @@
   },
   {
    "s": "digit yang ditampilkan aplikasi autentikator.",
+   "n": 1
+  },
+  {
+   "s": "Dihapus dari favorit",
    "n": 1
   },
   {
@@ -2396,6 +2408,10 @@
   },
   {
    "s": "Gagal menghapus bukti",
+   "n": 1
+  },
+  {
+   "s": "Gagal menghapus favorit",
    "n": 1
   },
   {
@@ -2983,6 +2999,10 @@
    "n": 1
   },
   {
+   "s": "Jelaskan secara singkat detail pelanggaran...",
+   "n": 1
+  },
+  {
    "s": "Jenis kelamin",
    "n": 1
   },
@@ -3159,6 +3179,10 @@
    "n": 1
   },
   {
+   "s": "Keterangan tambahan (opsional)",
+   "n": 1
+  },
+  {
    "s": "Ketuk atau tekan lama untuk opsi pesan",
    "n": 1
   },
@@ -3224,10 +3248,6 @@
   },
   {
    "s": "Kirim langsung tanpa chat",
-   "n": 1
-  },
-  {
-   "s": "Kirim Laporan",
    "n": 1
   },
   {
@@ -3439,10 +3459,6 @@
    "n": 1
   },
   {
-   "s": "Konten tidak pantas",
-   "n": 1
-  },
-  {
    "s": "Kredensial",
    "n": 1
   },
@@ -3464,6 +3480,10 @@
   },
   {
    "s": "Laki-laki",
+   "n": 1
+  },
+  {
+   "s": "Lampiran",
    "n": 1
   },
   {
@@ -3544,6 +3564,10 @@
   },
   {
    "s": "Laporkan item",
+   "n": 1
+  },
+  {
+   "s": "Laporkan Karya",
    "n": 1
   },
   {
@@ -3663,7 +3687,15 @@
    "n": 1
   },
   {
+   "s": "Lupa kata sandi?",
+   "n": 1
+  },
+  {
    "s": "Lupa Password",
+   "n": 1
+  },
+  {
+   "s": "Lupa password?",
    "n": 1
   },
   {
@@ -3979,7 +4011,7 @@
    "n": 1
   },
   {
-   "s": "Mengganti nomor membutuhkan password akun.",
+   "s": "Mengganti nomor HP akun membutuhkan verifikasi keamanan OTP.",
    "n": 1
   },
   {
@@ -4215,6 +4247,10 @@
    "n": 1
   },
   {
+   "s": "Nomor invoice disalin",
+   "n": 1
+  },
+  {
    "s": "Nomor referensi",
    "n": 1
   },
@@ -4383,6 +4419,10 @@
    "n": 1
   },
   {
+   "s": "Pelecehan atau ujaran kebencian",
+   "n": 1
+  },
+  {
    "s": "Pembaruan belum dapat diproses",
    "n": 1
   },
@@ -4472,6 +4512,10 @@
   },
   {
    "s": "Pengguna favorit",
+   "n": 1
+  },
+  {
+   "s": "Pengguna ini akan dapat melihat profil Anda dan memulai percakapan kembali.",
    "n": 1
   },
   {
@@ -4588,10 +4632,6 @@
   },
   {
    "s": "Periksa kembali",
-   "n": 1
-  },
-  {
-   "s": "Periksa kembali data Anda.",
    "n": 1
   },
   {
@@ -4811,7 +4851,19 @@
    "n": 1
   },
   {
+   "s": "Pilih rekening bank tujuan",
+   "n": 1
+  },
+  {
+   "s": "Pilih rekening bank untuk penarikan otomatis terjadwal.",
+   "n": 1
+  },
+  {
    "s": "Pilih rekening tujuan",
+   "n": 1
+  },
+  {
+   "s": "Pilih Rekening Tujuan",
    "n": 1
   },
   {
@@ -4919,6 +4971,10 @@
    "n": 1
   },
   {
+   "s": "Profil terlihat publik",
+   "n": 1
+  },
+  {
    "s": "Profil tersimpan",
    "n": 1
   },
@@ -4932,10 +4988,6 @@
   },
   {
    "s": "Profil tidak ditemukan",
-   "n": 1
-  },
-  {
-   "s": "Profile terlihat publik",
    "n": 1
   },
   {
@@ -4980,6 +5032,10 @@
   },
   {
    "s": "Rekening Bank",
+   "n": 1
+  },
+  {
+   "s": "Rekening Bank Tujuan",
    "n": 1
   },
   {
@@ -5375,6 +5431,10 @@
    "n": 1
   },
   {
+   "s": "Spam atau penipuan",
+   "n": 1
+  },
+  {
    "s": "Status",
    "n": 1
   },
@@ -5459,7 +5519,15 @@
    "n": 1
   },
   {
+   "s": "Tambah rekening bank",
+   "n": 1
+  },
+  {
    "s": "Tambahan waktu",
+   "n": 1
+  },
+  {
+   "s": "Tambahkan atau pilih rekening bank untuk penarikan.",
    "n": 1
   },
   {
@@ -5552,6 +5620,10 @@
   },
   {
    "s": "Tarik saldo",
+   "n": 1
+  },
+  {
+   "s": "Tarik Saldo Terlebih Dahulu",
    "n": 1
   },
   {
@@ -5676,6 +5748,10 @@
   },
   {
    "s": "Terbit",
+   "n": 1
+  },
+  {
+   "s": "Terima kasih telah membantu menjaga keamanan komunitas Kahade.",
    "n": 1
   },
   {
@@ -6023,6 +6099,10 @@
    "n": 1
   },
   {
+   "s": "Ubah nomor HP akun",
+   "n": 1
+  },
+  {
    "s": "Ubah Password",
    "n": 1
   },
@@ -6084,10 +6164,6 @@
   },
   {
    "s": "Unduh riwayat dompet untuk dicetak",
-   "n": 1
-  },
-  {
-   "s": "Unduh struk (HTML)",
    "n": 1
   },
   {

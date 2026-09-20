@@ -84,8 +84,7 @@ export function IconButton({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled: !!isDisabled, busy: loading, selected: active }}
       disabled={isDisabled}
-      // sm 40px -> 48px efektif (44pt iOS / 48dp Android); md sudah 48.
-      hitSlop={size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1], left: tokens.space[1], right: tokens.space[1] } : undefined}
+      hitSlop={rest.hitSlop ?? (size === "sm" ? { top: tokens.space[1], bottom: tokens.space[1], left: tokens.space[1], right: tokens.space[1] } : undefined)}
       containerClassName={cn(
         "self-start",
         shape === "pill" ? "rounded-full" : "rounded-sm",

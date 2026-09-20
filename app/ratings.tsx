@@ -333,17 +333,28 @@ export default function RatingsScreen() {
             onRetry={() => void query.reload()}
           />
         ) : visible.length === 0 ? (
-          <EmptyState
-            icon={Star}
-            title={
-              segment === "RECEIVED" ? "Belum ada ulasan masuk" : "Belum ada ulasan yang Anda beri"
-            }
-            description={
-              segment === "RECEIVED"
-                ? "Ulasan dari lawan transaksi akan muncul di sini."
-                : "Beri ulasan dari halaman order yang sudah selesai."
-            }
-          />
+          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+            <EmptyState
+              icon={Star}
+              title={
+                segment === "RECEIVED" ? "Belum ada ulasan masuk" : "Belum ada ulasan yang Anda beri"
+              }
+              description={
+                segment === "RECEIVED"
+                  ? "Ulasan dari lawan transaksi akan muncul di sini."
+                  : "Beri ulasan dari halaman order yang sudah selesai."
+              }
+            />
+            {hasMore ? (
+              <LoadMore
+                status={loadingMore ? "loading" : loadMoreError ? "error" : "idle"}
+                errorLabel={loadMoreError ?? undefined}
+                onLoadMore={() => void query.loadMore()}
+                idleLabel="Muat ulasan di halaman berikutnya"
+                hideEnd
+              />
+            ) : null}
+          </View>
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader

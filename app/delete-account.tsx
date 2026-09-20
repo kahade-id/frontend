@@ -19,7 +19,7 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  * memblokir form (array kosong) — backend tetap menjadi penjaga terakhir.
  */
 import { useCallback, useRef, useState } from "react"
-import { Platform, ScrollView } from "react-native"
+import { Platform, ScrollView, View } from "react-native"
 import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -31,6 +31,7 @@ import { unregisterWebPushDevice } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
+import { Button } from "@/components/ui/button"
 import { DeleteAccountForm, type DeleteAccountPayload } from "@/components/ui/delete-account-form"
 import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
@@ -54,15 +55,17 @@ export default function DeleteAccountScreen() {
     ])
     if (typeof twoFa?.enabled !== "boolean") throw new Error("2FA status is unknown")
     const blockers: string[] = []
-    if (wallet.balance !== 0)
+    const hasBalance = wallet.balance !== 0
+    if (hasBalance)
       blockers.push(`Saldo ${formatRupiah(wallet.balance)} belum diselesaikan`)
     if (wallet.holdBalance == null) blockers.push("Status dana tertahan belum terkonfirmasi")
     else if (wallet.holdBalance !== 0) blockers.push("Masih ada dana tertahan di escrow")
     if (orders.data.length > 0) blockers.push("Masih ada pesanan aktif")
-    return { requireMfa: twoFa.enabled, blockers }
+    return { requireMfa: twoFa.enabled, blockers, hasBalance }
   })
   const requireMfa = prerequisites.data?.requireMfa ?? false
   const blockers = prerequisites.data?.blockers ?? ["Persyaratan penghapusan belum terkonfirmasi"]
+  const hasBalance = prerequisites.data?.hasBalance ?? false
 
   const handleSubmit = useCallback(
     async (payload: DeleteAccountPayload) => {
@@ -125,14 +128,24 @@ export default function DeleteAccountScreen() {
             onRetry={() => void prerequisites.reload()}
           />
         ) : (
-          <DeleteAccountForm
-            confirmPhrase={CONFIRM_PHRASE}
-            blockers={blockers}
-            requireMfa={requireMfa}
-            errorText={errorText}
-            onSubmit={(p) => void handleSubmit(p)}
-            submitting={submitting}
-          />
+          <View className="gap-4">
+            {hasBalance ? (
+              <Button
+                variant="secondary"
+                onPress={() => router.push(ROUTES.withdraw)}
+              >
+                Tarik Saldo Terlebih Dahulu
+              </Button>
+            ) : null}
+            <DeleteAccountForm
+              confirmPhrase={CONFIRM_PHRASE}
+              blockers={blockers}
+              requireMfa={requireMfa}
+              errorText={errorText}
+              onSubmit={(p) => void handleSubmit(p)}
+              submitting={submitting}
+            />
+          </View>
         )}
         </Crossfade>
       </ScrollView>

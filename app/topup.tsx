@@ -98,6 +98,8 @@ export default function TopupScreen() {
   const [statusError, setStatusError] = useState<string | null>(null)
   const submitLock = useRef(false)
   const pollLock = useRef(false)
+  const pollCount = useRef(0)
+  const MAX_POLL_COUNT = 180 // Max 15 minutes at 5s interval
 
   // Progress bar — nilai kontinu mengikuti langkah aktif (register-style).
   const stepIndex: Record<Step, number> = { amount: 1, method: 2, result: 3 }
@@ -131,10 +133,14 @@ export default function TopupScreen() {
   }, [])
   usePolling(
     async () => {
-      if (result?.paymentTxId) await pollStatus(result.paymentTxId)
+      if (result?.paymentTxId) {
+        if (pollCount.current >= MAX_POLL_COUNT) return
+        pollCount.current += 1
+        await pollStatus(result.paymentTxId)
+      }
     },
     POLL_MS,
-    Boolean(result?.paymentTxId && !mapValue(STATUS, result.status, undefined)),
+    Boolean(result?.paymentTxId && !mapValue(STATUS, result.status, undefined) && pollCount.current < MAX_POLL_COUNT),
   )
 
   const selectedMethod = methods.find((m) => m.id === methodId)

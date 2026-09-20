@@ -132,6 +132,6 @@ export function getSearchHistory(signal?: AbortSignal) {
 }
 
 /** GET /v1/search/history/clear — hapus riwayat pencarian user. */
-export function clearSearchHistory() {
-  return http.get<unknown>("/v1/search/history/clear", { auth: "required" })
+export function clearSearchHistory(signal?: AbortSignal) {
+  return http.get<unknown>("/v1/search/history/clear", { auth: "required", signal })
 }

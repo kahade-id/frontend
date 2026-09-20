@@ -75,6 +75,7 @@ const NON_UI_VALUES = new Set([
   "X-Idempotency-Key",
   "Content-Type",
   "Chivo",
+  "Plus Jakarta Sans",
   "EB Garamond",
   "Azeret Mono",
 ])

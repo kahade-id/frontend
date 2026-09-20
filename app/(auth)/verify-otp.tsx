@@ -228,7 +228,7 @@ export default function VerifyOtpScreen() {
           if (!unavailable) throw triggerErr
         }
       }
-      const result = await api.auth.requestOtp({
+      await api.auth.requestOtp({
         phoneNumber,
         method: otpMethod,
       })
@@ -241,9 +241,6 @@ export default function VerifyOtpScreen() {
 
       // Update cooldown kalau backend mengirim nilai spesifik
       // (tidak dipakai langsung, tapi bisa diperluas nanti)
-      if (__DEV__ && result.cooldownSeconds) {
-        console.debug("[kahade/verify-otp] cooldown dari backend:", result.cooldownSeconds)
-      }
     } catch (err) {
       setFormError({ kind: "generic", message: userMessage(err) })
     } finally {

@@ -587,10 +587,11 @@ export function requestExtension(orderId: string, dto: RequestExtensionDto) {
   )
 }
 
-export function listExtensions(orderId: string, query: PageQuery) {
+export function listExtensions(orderId: string, query: PageQuery, signal?: AbortSignal) {
   return http.get<Paginated<OrderExtension>>(`/v1/orders/${seg(orderId)}/extensions`, {
     query,
     auth: "required",
+    signal,
   })
 }
 
@@ -783,11 +784,12 @@ export function getInvoice(orderId: string, signal?: AbortSignal) {
 }
 
 /** HTML siap cetak — render di WebView atau kirim ke expo-print. */
-export function getReceiptHtml(orderId: string) {
+export function getReceiptHtml(orderId: string, signal?: AbortSignal) {
   return http.get<string>(`/v1/orders/${seg(orderId)}/receipt`, {
     auth: "required",
     responseType: "text",
     headers: { Accept: "text/html" },
     retry: 1,
+    signal,
   })
 }
