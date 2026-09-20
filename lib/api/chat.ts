@@ -217,11 +217,12 @@ export function uploadChatAttachment(roomId: string, formData: FormData) {
   })
 }
 
-export function getChatAttachments(roomId: string, query: { page?: number; limit?: number } = {}) {
+export function getChatAttachments(roomId: string, query: { page?: number; limit?: number } = {}, signal?: AbortSignal) {
   return http
     .get<ChatAttachmentDto[]>(`/v1/chat/rooms/${seg(roomId)}/attachments`, {
       query: { page: query.page ?? 1, limit: query.limit ?? CHAT_PAGE_SIZE },
       auth: "required",
+      signal,
     })
     .then((raw) => readList<ChatAttachmentDto>(raw, ["attachments"]))
 }
@@ -250,12 +251,13 @@ export function createInquiry(dto: {
 }
 
 /** GET /v1/chat/search — cari isi pesan di SEMUA percakapan pengguna. */
-export function searchAllMessages(q: string, options: { limit?: number } = {}) {
+export function searchAllMessages(q: string, options: { limit?: number } = {}, signal?: AbortSignal) {
   return http
     .get<unknown>("/v1/chat/search", {
       query: { q, limit: options.limit ?? 20 },
       auth: "required",
       retry: 1,
+      signal,
     })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
@@ -276,12 +278,14 @@ export function searchRoomMessages(
   roomId: string,
   q: string,
   options: { cursor?: string; limit?: number } = {},
+  signal?: AbortSignal,
 ) {
   return http
     .get<unknown>(`/v1/chat/rooms/${seg(roomId)}/search`, {
       query: { q, cursor: options.cursor, limit: options.limit ?? 20 },
       auth: "required",
       retry: 1,
+      signal,
     })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
@@ -357,9 +361,9 @@ export function unpinChatMessage(roomId: string, messageId: string) {
 }
 
 /** GET /v1/chat/rooms/{roomId}/pins — daftar pesan terpin. */
-export function getPinnedMessages(roomId: string) {
+export function getPinnedMessages(roomId: string, signal?: AbortSignal) {
   return http
-    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}/pins`, { auth: "required", retry: 1 })
+    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}/pins`, { auth: "required", retry: 1, signal })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
       const list = Array.isArray(record.pins)
@@ -405,10 +409,11 @@ export function setRoomMuted(roomId: string, muted = true, durationHours?: numbe
 }
 
 /** GET /v1/chat/rooms/{roomId}/presence — online/last-seen lawan bicara. */
-export function getRoomPresence(roomId: string) {
+export function getRoomPresence(roomId: string, signal?: AbortSignal) {
   return http.get<ChatPresence>(`/v1/chat/rooms/${seg(roomId)}/presence`, {
     auth: "required",
     retry: 1,
+    signal,
   })
 }
 
@@ -424,9 +429,9 @@ export function sendChatTyping(roomId: string, isTyping: boolean) {
 }
 
 /** GET /v1/chat/rooms/{roomId}/read-receipts — read receipt seluruh room. */
-export function getReadReceipts(roomId: string) {
+export function getReadReceipts(roomId: string, signal?: AbortSignal) {
   return http
-    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}/read-receipts`, { auth: "required", retry: 1 })
+    .get<unknown>(`/v1/chat/rooms/${seg(roomId)}/read-receipts`, { auth: "required", retry: 1, signal })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
       const list = Array.isArray(record.receipts) ? (record.receipts as ChatReadReceipt[]) : []

@@ -261,12 +261,12 @@ export default function SearchScreen() {
           )
         }}
         ListEmptyComponent={
-          result.loading || usersResult.loading ? (
+          result.loading && enabled ? (
             <ListLoading />
-          ) : result.error || usersResult.error ? (
+          ) : result.error ? (
             <ErrorState
               title="Gagal mencari"
-              description={result.error || usersResult.error || "Terjadi kesalahan."}
+              description={result.error}
               onRetry={() => {
                 void result.reload()
                 void usersResult.reload()

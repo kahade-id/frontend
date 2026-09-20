@@ -89,13 +89,14 @@ export default function BankAccountsScreen() {
   const [editing, setEditing] = useState(false)
 
   const handleAdd = useCallback(async () => {
-    if (!bankCode || !bankName.trim() || !accountName.trim()) return
+    const cleanAccountNumber = accountNumber.replace(/\D/g, "").trim()
+    if (!bankCode || !bankName.trim() || !accountName.trim() || !cleanAccountNumber) return
     setSubmitting(true)
     try {
       const dto: AddBankAccountDto = {
         bankCode: bankCode as AddBankAccountDto["bankCode"],
         bankName: bankName.trim() || (banks.find((b) => b.code === bankCode)?.name ?? bankCode),
-        accountNumber: accountNumber.replace(/\D/g, ""),
+        accountNumber: cleanAccountNumber,
         accountName: accountName.trim(),
       }
       await api.bankAccounts.addBankAccount(dto)
@@ -106,10 +107,10 @@ export default function BankAccountsScreen() {
       setAccountName("")
       setBankCode(undefined)
       await query.refresh()
-    } catch {
+    } catch (err: unknown) {
       toast.show({
         title: "Gagal menambahkan rekening",
-        description: "Periksa kembali data Anda.",
+        description: userMessage(err),
         tone: "danger",
       })
     } finally {
@@ -294,7 +295,7 @@ export default function BankAccountsScreen() {
             <Button
               loading={submitting}
               onPress={() => void handleAdd()}
-              disabled={!bankCode || !accountName.trim()}
+              disabled={!bankCode || !accountName.trim() || !accountNumber.replace(/\D/g, "").trim()}
             >
               Simpan rekening
             </Button>

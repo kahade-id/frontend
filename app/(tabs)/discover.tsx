@@ -58,14 +58,19 @@ import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { EmptyState } from "@/components/ui/empty-state"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Button } from "@/components/ui/button"
+import { Field } from "@/components/ui/field"
 import { Header } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { PaginatedList } from "@/components/ui/paginated-list"
+import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Screen } from "@/components/ui/screen"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { ShowcaseHeader } from "@/components/ui/showcase-header"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
+import { TextArea } from "@/components/ui/text-area"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
 import { useToast } from "@/components/ui/toast"
 
@@ -214,6 +219,11 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
   const [savedIds, setSavedIds] = useState<ReadonlySet<string>>(() => new Set())
   /** Item yang komentarnya sedang dibuka di BottomSheet (null = tertutup). */
   const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
+  /** Item yang sedang dilaporkan (null = tertutup). */
+  const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
+  const [reportReason, setReportReason] = useState<string>("SPAM")
+  const [reportDetail, setReportDetail] = useState<string>("")
+  const [submittingReport, setSubmittingReport] = useState(false)
   /** Guard per item: mencegah dua request suka berbarengan pada kartu yang sama. */
   const likeBusy = useRef<Set<string>>(new Set())
   const activeRequest = useRef<AbortController | null>(null)
@@ -489,6 +499,33 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
     )
   })()
 
+  const handleReportShowcase = useCallback(async () => {
+    if (!reportItem) return
+    setSubmittingReport(true)
+    try {
+      await api.showcase.reportShowcase(reportItem.id, {
+        reason: reportReason,
+        description: reportDetail.trim() || undefined,
+      })
+      toast.show({
+        title: "Laporan terkirim",
+        description: "Terima kasih telah membantu menjaga keamanan komunitas Kahade.",
+        tone: "success",
+        duration: 4000,
+      })
+      setReportItem(null)
+      setReportDetail("")
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal mengirim laporan",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setSubmittingReport(false)
+    }
+  }, [reportItem, reportReason, reportDetail, toast])
+
   return (
     <View className="flex-1">
       {/* ── Header showcase — improved: logo + balance + inbox + profile ── */}
@@ -559,7 +596,11 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
             onToggleSave={() => handleToggleSave(item)}
             saved={savedIds.has(item.id)}
             onShare={() => void handleShare(item)}
-            onReport={() => router.push(ROUTES.reports({ targetId: item.id, targetName: item.title }))}
+            onReport={() => {
+              setReportItem(item)
+              setReportReason("SPAM")
+              setReportDetail("")
+            }}
             // Garis pemisah antar postingan; item terakhir tidak perlu garis
             // menggantung di ujung feed.
             divider={index < items.length - 1}
@@ -573,6 +614,45 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         onRequestClose={() => setCommentItem(null)}
         onCommentAdded={handleCommentAdded}
       />
+
+      {/* Sheet Laporan Showcase */}
+      <BottomSheet
+        visible={!!reportItem}
+        onRequestClose={() => setReportItem(null)}
+        title="Laporkan Karya"
+        description={reportItem ? `Laporkan postingan "${reportItem.title}" jika melanggar panduan komunitas.` : undefined}
+        avoidKeyboard
+        footer={
+          <Button
+            variant="destructive"
+            loading={submittingReport}
+            onPress={() => void handleReportShowcase()}
+          >
+            Kirim Laporan
+          </Button>
+        }
+      >
+        <View className="gap-4">
+          <Field label="Alasan Laporan" required>
+            <RadioGroup value={reportReason} onChange={setReportReason} variant="plain">
+              <Radio value="SPAM" label="Spam atau penipuan" />
+              <Radio value="INAPPROPRIATE" label="Konten tidak pantas" />
+              <Radio value="HARASSMENT" label="Pelecehan atau ujaran kebencian" />
+              <Radio value="OTHER" label="Lainnya" />
+            </RadioGroup>
+          </Field>
+          <Field label="Keterangan tambahan (opsional)">
+            <TextArea
+              value={reportDetail}
+              onChangeText={setReportDetail}
+              placeholder="Jelaskan secara singkat detail pelanggaran..."
+              maxLength={500}
+              multiline
+              numberOfLines={3}
+            />
+          </Field>
+        </View>
+      </BottomSheet>
     </View>
   )
 }

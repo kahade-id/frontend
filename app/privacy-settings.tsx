@@ -32,7 +32,7 @@ import { useToast } from "@/components/ui/toast"
 const ITEMS = [
   {
     key: "profileVisible",
-    title: "Profile terlihat publik",
+    title: "Profil terlihat publik",
     description: "Pengguna lain bisa melihat profil Anda.",
   },
   {

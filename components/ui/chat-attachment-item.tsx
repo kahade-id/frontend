@@ -219,6 +219,10 @@ export function ChatAttachmentItem({
           <Text variant="caption" tone="danger" numberOfLines={1}>
             {t.failed}
           </Text>
+        ) : attachment.fileSize > 0 ? (
+          <Text variant="caption" tone="secondary" numberOfLines={1}>
+            {formatFileSize(attachment.fileSize)}
+          </Text>
         ) : null}
       </View>
       {errored && onRetry ? (

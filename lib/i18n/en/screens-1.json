@@ -86,7 +86,7 @@
   "Ubah ulasan": "Edit review",
   "Verifikasi PIN": "Verify PIN",
   "· terbaru:": "· latest:",
-  "{x} dibuka blokirnya": "{x} was unblocked",
+  "@{x} dibuka blokirnya": "@{x} was unblocked",
   "{x} mengikuti": "{x} follows",
   "{x} transaksi · {x}": "{x} transactions · {x}",
   "{x} ulasan": "{x} reviews",

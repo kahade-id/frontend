@@ -47,6 +47,8 @@ import {
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order, type SubmitDisputeDto } from "@/lib/api"
+import { authenticateBiometric, getBiometricCapability } from "@/lib/biometrics"
+import { getSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { normalizeOrder } from "@/lib/api/orders"
 import {
   isCancellable,
@@ -220,10 +222,43 @@ export default function OrderDetailScreen() {
   // Overlay progres saat membayar escrow dari saldo (PIN disubmit).
   const [payProgress, setPayProgress] = useState<"PROCESSING" | "SUCCESS" | "FAILURE" | null>(null)
   const [payProgressError, setPayProgressError] = useState<string | undefined>()
+  const [biometricEnabled, setBiometricEnabled] = useState(false)
   const [qris, setQris] = useState<QrisPayment | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const [stored, cap] = await Promise.all([
+        getSecureItem(SecureKeys.biometricEnabled).catch(() => null),
+        getBiometricCapability().catch(() => null),
+      ])
+      if (alive && stored === "1" && cap?.available) {
+        setBiometricEnabled(true)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const handleBiometric = useCallback(async () => {
+    const outcome = await authenticateBiometric({
+      promptMessage: `Bayar pesanan ${order?.title ?? ""}`,
+      promptSubtitle: "Konfirmasi pembayaran escrow",
+    })
+    if (outcome === "failed" || outcome === "lockout") {
+      setPinError(
+        outcome === "lockout"
+          ? "Biometrik terkunci sementara. Masukkan PIN."
+          : "Biometrik tidak dikenali. Masukkan PIN.",
+      )
+    }
+  }, [order?.title])
   const [qrisStatus, setQrisStatus] = useState<string | null>(null)
   const submitLock = useRef(false)
   const pollLock = useRef(false)
+  const qrisPollCount = useRef(0)
+  const MAX_QRIS_POLLS = 300 // Max 15 minutes at 3s interval
   const [pollError, setPollError] = useState<string | null>(null)
   const activePayment = useRef<string | null>(null)
   activePayment.current = sheet === "pay" && qris ? id : null
@@ -259,6 +294,7 @@ export default function OrderDetailScreen() {
     setQris(null)
     setQrisStatus(null)
     setDisputeCategory(undefined)
+    qrisPollCount.current = 0
   }, [])
 
   /** Pembungkus aksi sederhana: loading, toast sukses/gagal, refetch. */
@@ -341,12 +377,17 @@ export default function OrderDetailScreen() {
     }
   }, [order, toast.show, closeSheet, query])
   usePolling(
-    pollPayment,
+    async () => {
+      if (qrisPollCount.current >= MAX_QRIS_POLLS) return
+      qrisPollCount.current += 1
+      await pollPayment()
+    },
     POLL_MS,
     Boolean(
       qris &&
         sheet === "pay" &&
-        !["PAID", "EXPIRED", "FAILED", "CANCELLED"].includes(qrisStatus ?? ""),
+        !["PAID", "EXPIRED", "FAILED", "CANCELLED"].includes(qrisStatus ?? "") &&
+        qrisPollCount.current < MAX_QRIS_POLLS,
     ),
   )
 
@@ -764,6 +805,7 @@ export default function OrderDetailScreen() {
               <PinInput
                 mode="enter"
                 onComplete={(p) => void handlePayPin(p)}
+                onBiometric={biometricEnabled ? () => void handleBiometric() : undefined}
                 errorText={pinError}
                 disabled={submitting}
               />

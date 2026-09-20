@@ -59,6 +59,8 @@ export type RatingReply = {
   /** Peran pembalas relatif ke order — mengisi badge kecil di samping nama */
   role?: "buyer" | "seller"
   date: Date | number | string
+  isEdited?: boolean
+  updatedAt?: Date | number | string
   /** Balasan milik user yang login — memunculkan edit/hapus */
   mine?: boolean
 }
@@ -178,7 +180,14 @@ export function RatingReviewCard({
                 {reply.role === "seller" ? t.seller : t.buyer}
               </Badge>
             ) : null}
-            <DateText value={reply.date} format="date" variant="caption" tone="secondary" className="ml-auto" />
+            <View className="ml-auto flex-row items-center gap-1">
+              <DateText value={reply.date} format="date" variant="caption" tone="secondary" />
+              {reply.isEdited || (reply.updatedAt && String(reply.updatedAt) !== String(reply.date)) ? (
+                <Text variant="caption" tone="secondary">
+                  (diedit)
+                </Text>
+              ) : null}
+            </View>
           </View>
           <ReadMore text={reply.content} lines={3} variant="body" tone="secondary" />
           {reply.mine && (onEditReply || onDeleteReply) ? (

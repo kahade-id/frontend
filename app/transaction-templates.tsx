@@ -103,7 +103,7 @@ export default function TransactionTemplatesScreen() {
   }, [])
 
   const handleSave = useCallback(async () => {
-    if (!form.name.trim() || !form.title.trim() || form.orderValue <= 0) return
+    if (!form.name.trim() || !form.title.trim() || form.orderValue < 10_000 || form.deliveryDeadlineDays < 1) return
     setSubmitting(true)
     try {
       // DTO produksi tidak mengenal `role`/`counterpartUsername` — mengirim
@@ -325,7 +325,7 @@ export default function TransactionTemplatesScreen() {
                 </Field>
                 <Button
                   loading={submitting}
-                  disabled={!form.name.trim() || !form.title.trim() || form.orderValue <= 0}
+                  disabled={!form.name.trim() || !form.title.trim() || form.orderValue < 10_000 || form.deliveryDeadlineDays < 1}
                   onPress={() => void handleSave()}
                 >
                   Simpan template

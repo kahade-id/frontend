@@ -16,11 +16,13 @@ import { userMessage } from "@/lib/api"
 import {
   FEEDBACK_CATEGORIES,
   flushQueuedFeedback,
+  queuedFeedbackCount,
   submitFeedback,
   type FeedbackCategory,
 } from "@/lib/feedback"
 import { tokens } from "@/lib/tokens"
 
+import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { Field } from "@/components/ui/field"
@@ -42,12 +44,16 @@ export default function FeedbackScreen() {
   const [message, setMessage] = useState("")
   const [contact, setContact] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  const [queuedCount, setQueuedCount] = useState(0)
 
   // Native queue tersimpan sementara di SecureStore. Retry saat layar dibuka
   // agar antrean tidak hanya bergerak ketika pengguna kebetulan mengirim
   // masukan baru; kegagalan tetap silent karena feedback bukan transaksi.
   useEffect(() => {
     void flushQueuedFeedback()
+      .then(() => queuedFeedbackCount())
+      .then(setQueuedCount)
+      .catch(() => undefined)
   }, [])
 
   const trimmed = message.trim()
@@ -79,6 +85,7 @@ export default function FeedbackScreen() {
       }
       setMessage("")
       setContact("")
+      void queuedFeedbackCount().then(setQueuedCount).catch(() => undefined)
     } catch (err) {
       toast.show({
         title: "Masukan belum terkirim",
@@ -115,6 +122,12 @@ export default function FeedbackScreen() {
       >
         <FadeIn duration="fast">
           <View className="gap-4">
+            {queuedCount > 0 ? (
+              <Alert tone="info">
+                {`${queuedCount} masukan tersimpan di perangkat dan akan dikirim otomatis saat terhubung.`}
+              </Alert>
+            ) : null}
+
             <View className="gap-1">
               <Text variant="body" tone="primary">
                 Punya saran atau menemui kendala?

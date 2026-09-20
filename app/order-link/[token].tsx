@@ -53,15 +53,18 @@ export default function OrderLinkScreen() {
     if (!link) return
     setAccepting(true)
     try {
-      await api.orders.acceptOrderLink(link.token)
+      const order = await api.orders.acceptOrderLink(link.token)
       toast.show({
         title: "Order link diterima",
         description: "Pesanan berhasil dibuat.",
         tone: "success",
         duration: 4000,
       })
-      query.setData((current) => (current ? { ...current, status: "ACCEPTED" } : current))
-      if (link.orderId) router.replace(ROUTES.orderDetail(link.orderId))
+      query.setData((current) => (current ? { ...current, status: "ACCEPTED", orderId: order?.id ?? current.orderId } : current))
+      const targetOrderId = order?.id ?? link.orderId
+      if (targetOrderId) {
+        router.replace(ROUTES.orderDetail(targetOrderId))
+      }
     } catch (err: unknown) {
       toast.show({ title: "Gagal menerima tautan", description: userMessage(err), tone: "danger" })
     } finally {

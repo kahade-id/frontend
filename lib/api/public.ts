@@ -27,15 +27,15 @@ export function getAppVersion(signal?: AbortSignal) {
 export function getPublicConfig(signal?: AbortSignal) {
   return http.get<unknown>("/v1/public/config", { ...opts, signal }).then(normalizePublicConfig)
 }
-export function getFeeSchedule() {
-  return http.get<unknown>("/v1/public/fee-schedule", opts).then(normalizeFeeSchedule)
+export function getFeeSchedule(signal?: AbortSignal) {
+  return http.get<unknown>("/v1/public/fee-schedule", { ...opts, signal }).then(normalizeFeeSchedule)
 }
 export function getBanks(signal?: AbortSignal) {
   return http.get<unknown>("/v1/public/banks", { ...opts, signal }).then(normalizeBanks)
 }
-export function getSubscriptionPlans() {
-  return http.get<unknown>("/v1/public/subscription-plans", opts).then(normalizeSubscriptionPlans)
+export function getSubscriptionPlans(signal?: AbortSignal) {
+  return http.get<unknown>("/v1/public/subscription-plans", { ...opts, signal }).then(normalizeSubscriptionPlans)
 }
-export function getExchangeRates() {
-  return http.get<unknown>("/v1/public/exchange-rates", opts).then(normalizeExchangeRates)
+export function getExchangeRates(signal?: AbortSignal) {
+  return http.get<unknown>("/v1/public/exchange-rates", { ...opts, signal }).then(normalizeExchangeRates)
 }

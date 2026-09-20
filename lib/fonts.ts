@@ -48,10 +48,10 @@ export type FontAssetName = {
  * type-check. `require()` harus literal statis agar Metro bisa bundle.
  */
 export const fontAssets = {
-  "Chivo-Regular": require("../assets/fonts/Chivo-Regular.ttf"),
-  "Chivo-Medium": require("../assets/fonts/Chivo-Medium.ttf"),
-  "Chivo-SemiBold": require("../assets/fonts/Chivo-SemiBold.ttf"),
-  "Chivo-Bold": require("../assets/fonts/Chivo-Bold.ttf"),
+  "PlusJakartaSans-Regular": require("../assets/fonts/PlusJakartaSans-Regular.ttf"),
+  "PlusJakartaSans-Medium": require("../assets/fonts/PlusJakartaSans-Medium.ttf"),
+  "PlusJakartaSans-SemiBold": require("../assets/fonts/PlusJakartaSans-SemiBold.ttf"),
+  "PlusJakartaSans-Bold": require("../assets/fonts/PlusJakartaSans-Bold.ttf"),
   "EBGaramond-Medium": require("../assets/fonts/EBGaramond-Medium.ttf"),
   "AzeretMono-Medium": require("../assets/fonts/AzeretMono-Medium.ttf"),
   "AzeretMono-SemiBold": require("../assets/fonts/AzeretMono-SemiBold.ttf"),

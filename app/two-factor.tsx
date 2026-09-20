@@ -223,8 +223,8 @@ export default function TwoFactorScreen() {
       resetEnableFlow()
       toast.show({ title: "Verifikasi dua langkah dimatikan", tone: "success" })
       await query.refresh()
-    } catch {
-      setDisableError("Password, kode autentikator, atau OTP email tidak cocok.")
+    } catch (err: unknown) {
+      setDisableError(userMessage(err))
     } finally {
       setDisabling(false)
     }

@@ -248,9 +248,9 @@ export function updateLinks(dto: UpdateLinksDto) {
 }
 
 /** GET /v1/users/{username} — profil publik user. */
-export function getUserByUsername(username: string) {
+export function getUserByUsername(username: string, signal?: AbortSignal) {
   return http
-    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "required" })
+    .get<unknown>(`/v1/users/${seg(username)}`, { auth: "required", signal })
     .then((raw) => {
       const profile = readEntity<Record<string, unknown>>(raw, "user")
       const stats = asRecord(profile.stats)
@@ -380,8 +380,8 @@ export function getMyTrustScore(signal?: AbortSignal) {
   }>("/v1/users/me/trust-score", { auth: "required", retry: 1, signal })
 }
 
-export function getMyDashboard() {
-  return http.get<Record<string, unknown>>("/v1/users/me/dashboard", { auth: "required", retry: 1 })
+export function getMyDashboard(signal?: AbortSignal) {
+  return http.get<Record<string, unknown>>("/v1/users/me/dashboard", { auth: "required", retry: 1, signal })
 }
 
 // ------------------------------------------------------------------
@@ -556,9 +556,9 @@ function normalizeFavorite(raw: unknown, expected: boolean): FavoriteState {
   }
 }
 
-export function isFavorite(username: string) {
+export function isFavorite(username: string, signal?: AbortSignal) {
   return http
-    .get<unknown>(`/v1/users/${seg(username)}/favorite`, { auth: "required" })
+    .get<unknown>(`/v1/users/${seg(username)}/favorite`, { auth: "required", signal })
     .then((raw) => normalizeFavorite(raw, false))
 }
 
@@ -828,11 +828,16 @@ export function readQuestionComments(body: QuestionCommentListResponse | null | 
 }
 
 /** Spec: `page` & `limit` REQUIRED. */
-export function getQuestionComments(questionId: string, query: { page: number; limit: number }) {
+export function getQuestionComments(
+  questionId: string,
+  query: { page: number; limit: number },
+  signal?: AbortSignal,
+) {
   return http.get<QuestionCommentListResponse>(`/v1/users/questions/${seg(questionId)}/comments`, {
     query,
     auth: "required",
     retry: 1,
+    signal,
   })
 }
 

@@ -260,8 +260,8 @@ export function unlikeShowcase(showcaseId: string) {
 }
 
 /** GET /v1/showcase/:showcaseId/share — metadata deep link (publik). */
-export function getShowcaseSharePayload(showcaseId: string) {
-  return http.get<ShowcaseSharePayload>(`/v1/showcase/${showcaseId}/share`, { retry: 1 })
+export function getShowcaseSharePayload(showcaseId: string, signal?: AbortSignal) {
+  return http.get<ShowcaseSharePayload>(`/v1/showcase/${showcaseId}/share`, { retry: 1, signal })
 }
 
 /**

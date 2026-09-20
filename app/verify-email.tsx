@@ -22,7 +22,7 @@
  *     menginvalidasi kode lama di beberapa backend. Tombol eksplisit.
  *   - Endpoint auth: "none" di spec → dipanggil tanpa bearer; sesi tetap ada.
  */
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useLocalSearchParams, useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -62,6 +62,17 @@ export default function VerifyEmailScreen() {
 
   const { email: emailParam } = useLocalSearchParams<{ email?: string }>()
   const [email, setEmail] = useState(emailParam ?? "")
+
+  useEffect(() => {
+    if (!email) {
+      void api.users
+        .getMe()
+        .then((me) => {
+          if (me.email) setEmail(me.email)
+        })
+        .catch(() => undefined)
+    }
+  }, [email])
 
   const [otp, setOtp] = useState("")
   const [otpError, setOtpError] = useState<string | undefined>()

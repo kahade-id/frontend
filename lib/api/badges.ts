@@ -26,11 +26,11 @@ export function readBadgeList(body: BadgeListResponse | null | undefined): Badge
 }
 
 /** GET /v1/badges?page&limit — semua lencana yang tersedia (katalog). */
-export function listAllBadges(query?: { page?: number; limit?: number }) {
-  return http.get<BadgeListResponse>("/v1/badges", { query, auth: "required", retry: 1 })
+export function listAllBadges(query?: { page?: number; limit?: number }, signal?: AbortSignal) {
+  return http.get<BadgeListResponse>("/v1/badges", { query, auth: "required", retry: 1, signal })
 }
 
 /** GET /v1/badges/my?page&limit — lencana yang sudah diraih user. */
-export function listMyBadges(query?: { page?: number; limit?: number }) {
-  return http.get<BadgeListResponse>("/v1/badges/my", { query, auth: "required", retry: 1 })
+export function listMyBadges(query?: { page?: number; limit?: number }, signal?: AbortSignal) {
+  return http.get<BadgeListResponse>("/v1/badges/my", { query, auth: "required", retry: 1, signal })
 }

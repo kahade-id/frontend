@@ -109,7 +109,7 @@ const PROFILE_TABS = [
 
 const QA_HIDE_REASONS = [
   { value: "SPAM", label: "Spam", description: "Link/jualan tidak relevan" },
-  { value: "INAPPROPIATE", label: "Tidak pantas", description: "Konten menyinggung" },
+  { value: "INAPPROPRIATE", label: "Tidak pantas", description: "Konten menyinggung" },
   { value: "HARASSMENT", label: "Perundungan", description: "Ancaman/pelecehan" },
   { value: "OTHER", label: "Lainnya", description: "Sebutkan di keterangan" },
 ] as const

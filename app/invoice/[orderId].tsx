@@ -25,7 +25,6 @@ import { useApiQuery } from "@/lib/use-api-query"
 
 import { saveTextFile } from "@/lib/export-file"
 
-import { Button } from "@/components/ui/button"
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -41,7 +40,7 @@ export default function InvoiceScreen() {
   const { orderId } = useLocalSearchParams<{ orderId: string }>()
   const insets = useSafeAreaInsets()
   const toast = useToast()
-  const { copied, copy } = useCopy()
+  const { copy } = useCopy()
   const [downloading, setDownloading] = useState(false)
 
   /**
@@ -183,19 +182,6 @@ export default function InvoiceScreen() {
               onShare={() => void handleShare(invoice)}
               downloading={downloading}
             />
-            <Button
-              variant="ghost"
-              fullWidth={false}
-              loading={downloading}
-              onPress={() => void handleDownload(invoice.order.id, invoice.invoiceNumber)}
-            >
-              Unduh struk (HTML)
-            </Button>
-            {copied ? (
-              <Button variant="ghost" fullWidth={false} disabled>
-                Nomor invoice disalin
-              </Button>
-            ) : null}
             </View>
           ) : null}
         </Crossfade>

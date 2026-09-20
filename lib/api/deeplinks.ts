@@ -13,37 +13,42 @@ export type DeeplinkResolution = {
   token?: string
 }
 
-export function resolveUserDeeplink(username: string) {
+export function resolveUserDeeplink(username: string, signal?: AbortSignal) {
   return http.get<DeeplinkResolution>(`/v1/deeplinks/user/${seg(username)}`, {
     auth: "none",
     retry: 1,
+    signal,
   })
 }
 
-export function resolveProfileDeeplink(username: string) {
+export function resolveProfileDeeplink(username: string, signal?: AbortSignal) {
   return http.get<DeeplinkResolution>(`/v1/deeplinks/profile/${seg(username)}`, {
     auth: "none",
     retry: 1,
+    signal,
   })
 }
 
-export function resolveOrderLinkDeeplink(token: string) {
+export function resolveOrderLinkDeeplink(token: string, signal?: AbortSignal) {
   return http.get<DeeplinkResolution>(`/v1/deeplinks/order-link/${seg(token)}`, {
     auth: "none",
     retry: 1,
+    signal,
   })
 }
 
-export function resolveOrderDeeplink(orderId: string) {
+export function resolveOrderDeeplink(orderId: string, signal?: AbortSignal) {
   return http.get<DeeplinkResolution>(`/v1/deeplinks/order/${seg(orderId)}`, {
     auth: "none",
     retry: 1,
+    signal,
   })
 }
 
-export function resolveNotificationDeeplink(notificationId: string) {
+export function resolveNotificationDeeplink(notificationId: string, signal?: AbortSignal) {
   return http.get<DeeplinkResolution>(`/v1/deeplinks/notification/${seg(notificationId)}`, {
     auth: "none",
     retry: 1,
+    signal,
   })
 }

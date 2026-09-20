@@ -18,6 +18,8 @@ import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage, type TransferDto } from "@/lib/api"
+import { authenticateBiometric, getBiometricCapability } from "@/lib/biometrics"
+import { getSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { formatRupiah } from "@/lib/format"
 import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
 import { ROUTES } from "@/lib/routes"
@@ -97,7 +99,38 @@ export default function TransferScreen() {
   // Overlay progres: muncul begitu PIN disubmit, hasil mengganti kontennya.
   const [progressState, setProgressState] = useState<ProgressState | null>(null)
   const [progressError, setProgressError] = useState<string | undefined>()
+  const [biometricEnabled, setBiometricEnabled] = useState(false)
   const submitLock = useRef(false)
+
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      const [stored, cap] = await Promise.all([
+        getSecureItem(SecureKeys.biometricEnabled).catch(() => null),
+        getBiometricCapability().catch(() => null),
+      ])
+      if (alive && stored === "1" && cap?.available) {
+        setBiometricEnabled(true)
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const handleBiometric = useCallback(async () => {
+    const outcome = await authenticateBiometric({
+      promptMessage: `Transfer ${formatRupiah(amount)} ke @${selected?.username ?? ""}`,
+      promptSubtitle: "Konfirmasi transfer dana",
+    })
+    if (outcome === "failed" || outcome === "lockout") {
+      setPinError(
+        outcome === "lockout"
+          ? "Biometrik terkunci sementara. Masukkan PIN."
+          : "Biometrik tidak dikenali. Masukkan PIN.",
+      )
+    }
+  }, [amount, selected])
   const debounced = useDebouncedValue(query.trim())
   const lookup = useApiQuery(
     `recipients:${debounced}`,
@@ -618,6 +651,7 @@ export default function TransferScreen() {
         <PinInput
           mode="enter"
           onComplete={(p) => void handlePin(p)}
+          onBiometric={biometricEnabled ? () => void handleBiometric() : undefined}
           errorText={pinError}
           disabled={submitting}
         />
