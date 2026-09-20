@@ -2,7 +2,7 @@
 
 ## 1. Kesimpulan eksekutif
 
-Frontend ini **sudah sangat luas dan fondasi engineering-nya di atas rata-rata**, tetapi belum bisa disebut siap produksi penuh. Masalah terbesar bukan kekurangan halaman; justru sebaliknya: ada 95 route terinventarisasi, 231 komponen UI, dan permukaan fitur yang besar, sementara beberapa alur penting masih belum mempunyai bukti runtime end-to-end, sebagian kontrak backend masih diasumsikan, dan beberapa fitur terlihat selesai padahal transport-nya belum nyata.
+Frontend ini **sudah sangat luas dan fondasi engineering-nya di atas rata-rata**, tetapi belum bisa disebut siap produksi penuh. Masalah terbesar bukan kekurangan halaman; justru sebaliknya: ada 95 route terinventarisasi, 223 komponen UI yang dipindai, dan permukaan fitur yang besar, sementara beberapa alur penting masih belum mempunyai bukti runtime end-to-end, sebagian kontrak backend masih diasumsikan, dan beberapa fitur terlihat selesai padahal transport-nya belum nyata.
 
 ### Penilaian ringkas
 
@@ -12,9 +12,9 @@ Frontend ini **sudah sangat luas dan fondasi engineering-nya di atas rata-rata**
 | Cakupan fitur | **8/10** | Escrow, wallet, order, dispute, KYC, social showcase, chat, support, subscription, referral, 2FA sudah tersedia. |
 | Kedalaman/ketahanan fitur utama | **6/10** | Banyak alur belum diverifikasi di perangkat nyata atau backend hidup; chat dan live support belum production-grade. |
 | UX & information architecture | **7/10** | Design system kuat, tetapi 95 route berisiko membuat fitur penting tersembunyi dan home melakukan terlalu banyak request. |
-| Accessibility & i18n | **6.5/10** | Guard statis baik, tetapi katalog i18n sedang stale dan sekitar 252 string belum diterjemahkan ke English. |
-| Web/native release readiness | **5/10** | Web build sukses, tetapi Web Push sengaja mati tanpa env, App/Universal Links masih placeholder, EAS production belum siap. |
-| Observability & QA runtime | **4.5/10** | Unit test baik; E2E belum ada/belum dapat dijalankan; belum ada crash/performance monitoring yang nyata. |
+| Accessibility & i18n | **7.5/10** | Guard statis dan katalog English 100% sudah baik; VoiceOver/TalkBack, keyboard, dan native-speaker review tetap belum dilakukan. |
+| Web/native release readiness | **6/10** | Web build, PWA shell, route metadata, dan permission minimization membaik; Web Push/App Links/signing/device proof masih eksternal. |
+| Observability & QA runtime | **5/10** | Unit/contract test dan request smoke baik; browser UI, device matrix, authenticated runtime, serta crash/performance monitoring production belum tersedia. |
 
 **Prioritas utama saya:** jangan menambah banyak halaman baru terlebih dahulu. Tutup dulu gap kepercayaan pengguna pada uang, auth, support, notifikasi, dan release. Setelah itu baru memperluas fitur growth/social.
 
@@ -58,7 +58,7 @@ Yang diperiksa:
 | `npm run check:weblinks` | PASS | 19 rute dinamis memiliki rewrite. |
 | `npm run check:push` | PASS | Native push siap secara konfigurasi; Web Push nonaktif karena env Firebase kosong. |
 | `npm run build:web` | PASS | 113 static routes; bundle JS web sekitar **4.32 MB** sebelum kompresi. |
-| `npm run check:i18n` | **FAIL (baseline)** | Setelah remediation katalog sinkron pada 1.574 string, seluruh 1.574 string sudah memiliki terjemahan English, dan gate masuk ke `npm run check`. |
+| `npm run check:i18n` | **FAIL (baseline)** | Setelah remediation katalog sinkron pada 1.577 string, seluruh 1.577 string sudah memiliki terjemahan English, dan gate masuk ke `npm run check`. |
 | `npm run test:e2e` | **FAIL (baseline)** | Setelah remediation sudah ada config + 6 smoke test; eksekusi browser lokal masih terblokir karena binary Chromium Playwright tidak tersedia/unduhan CDN terputus di environment audit. |
 | `npm run verify:api` | **TIDAK TERVERIFIKASI** | Default menunjuk `http://localhost:3000`; 91 GET berakhir NETWORK dan endpoint terproteksi tidak mendapat auth. |
 | `npm audit` | **28 vulnerability** | 8 high, 20 moderate; banyak berasal dari stack Expo/Metro dan membutuhkan rencana upgrade major. |
@@ -83,7 +83,7 @@ Perubahan berikut benar-benar sudah diterapkan di checkout ini. Status **fixed**
 | --- | --- | --- |
 | P0-01 — live support menyesatkan | **Fixed (frontend)** | `app/live-support.tsx` sekarang bernama Asisten Bantuan Otomatis, memberi disclaimer bukan tiket resmi, tidak mengaku admin, dan punya CTA tiket resmi. Percakapan tetap sesi lokal sampai backend live support tersedia. |
 | P0-02 — authenticated runtime | **Blocked external** | Tidak ada backend staging/credential hidup di workspace. `check:api` tetap hanya contract/static verification; tidak diklaim sebagai authenticated smoke. |
-| P1-01 — i18n gate/catalog | **Fixed** | `check:i18n` terhubung ke `check`, catalog 1.574 string sinkron, seluruh 1.574 string memiliki terjemahan English, dan seluruh test i18n lulus. |
+| P1-01 — i18n gate/catalog | **Fixed** | `check:i18n` terhubung ke `check`, catalog 1.577 string sinkron, seluruh 1.577 string memiliki terjemahan English, dan seluruh test i18n lulus. |
 | P1-02 — E2E tidak ada | **Implemented; environment blocked** | `playwright.config.ts` mengisolasi `e2e/`, preview server deterministik, dan 6 web smoke tests. Request/deep-link smoke dapat berjalan; browser UI belum dijalankan karena binary Chromium belum tersedia dan download CDN gagal. |
 | P1-03 — realtime chat | **Blocked external** | Belum diubah menjadi WebSocket karena gateway/auth/reconnect contract backend belum tersedia; polling tetap fallback saat ini. |
 | P1-04 — push/deep link/PWA | **Partial, hardened** | Manifest, 192/512 icons, route-aware static metadata, `robots.txt`/`sitemap.xml`, privacy-safe static shell service worker, no-cache worker headers, dan static route smoke sudah ditambahkan. FCM Web worker kini memakai scope `/firebase-messaging/` terpisah dari PWA scope `/` agar keduanya tidak saling menimpa. Well-known App/Universal Links masih kosong secara eksplisit (bukan TEAMID/fingerprint palsu), dengan warning gate; Firebase env, signing key, Team ID, dan store release tetap blocker eksternal. |
@@ -186,15 +186,15 @@ Tanpa ini, status yang jujur adalah **“source verified, runtime belum verified
 
 ### P1-01 — [FIXED] Gate i18n tidak terhubung ke pipeline utama
 
-Pada baseline audit, `npm run check:i18n` gagal karena katalog stale (1.550 vs 1.582 string). Remediation sekarang menjalankan generator AST dalam mode check, membuang entri English yang sudah mati, dan menjaga catalog sinkron pada **1.574 string**. Seluruh **1.574/1.574 string (100%)** kini memiliki terjemahan English melalui `lib/i18n/en/remediation.json` dan kamus area yang ada. Sisa identik hanya istilah merek/kognat yang memang tidak perlu diterjemahkan.
+Pada baseline audit, `npm run check:i18n` gagal karena katalog stale (1.550 vs 1.582 string). Remediation sekarang menjalankan generator AST dalam mode check, membuang entri English yang sudah mati, dan menjaga catalog sinkron pada **1.577 string**. Seluruh **1.577/1.577 string (100%)** kini memiliki terjemahan English melalui `lib/i18n/en/remediation.json` dan kamus area yang ada. Sisa identik hanya istilah merek/kognat yang memang tidak perlu diterjemahkan.
 
 Dampak tersebut adalah kondisi baseline. Setelah remediation, catalog dan kamus English sudah lengkap secara mekanis; review native speaker dan uji manual per route tetap disarankan untuk kualitas istilah, bukan lagi gap coverage.
 
 **Perbaikan:**
 
-1. **Selesai:** regenerasi katalog secara resmi; katalog kini sinkron pada 1.574 string.
+1. **Selesai:** regenerasi katalog secara resmi; katalog kini sinkron pada 1.577 string.
 2. **Selesai:** `npm run check:i18n` sudah masuk ke `scripts.check`.
-3. **Selesai secara mekanis:** seluruh 1.574 kunci memiliki nilai English dengan token runtime yang seimbang.
+3. **Selesai secara mekanis:** seluruh 1.577 kunci memiliki nilai English dengan token runtime yang seimbang.
 4. **Selesai sebagai guard:** entri English yang mati dibuang dan test menolak kunci di luar katalog.
 5. **Berikutnya:** review native speaker/glossary dan uji manual route utama untuk nuansa istilah.
 
@@ -354,7 +354,7 @@ Dispute punya surface yang kaya: evidence, messages, calls, mutual resolution, e
 
 Showcase/feed/discover sudah luas. Prioritas berikutnya bukan lebih banyak engagement, melainkan trust & moderation:
 
-- UI **Laporkan pengguna** belum menjadi entry point yang jelas meskipun adapter `reportUser` sudah ada;
+- **Selesai frontend:** profil publik menyediakan menu **Laporkan pengguna** yang menuju form laporan dengan target ID/username dan riwayat laporan; moderation review/SLA tetap menjadi tanggung jawab backend.
 - moderation state untuk report, block, hidden content, dan appeal perlu feedback yang jelas;
 - rate limit harus tampil sebagai cooldown, bukan generic error;
 - upload multi-image perlu progress, cancel, retry, dan cleanup orphan yang bisa diaudit;
@@ -365,13 +365,13 @@ Showcase/feed/discover sudah luas. Prioritas berikutnya bukan lebih banyak engag
 
 Ticket support sudah lebih serius daripada live support: ada list, detail, reply, close/reopen, rate. Yang masih perlu:
 
-- form kategori/urgency dan attachment progress;
+- **Selesai sebagian frontend:** form tiket sekarang mengirim kategori (`GENERAL`, `ORDER`, `PAYMENT`, `ACCOUNT`, `KYC`, `TECHNICAL`, `OTHER`); urgency, attachment progress, dan kontrak SLA belum tersedia di backend/UI.
 - SLA/response estimate dan status owner;
 - push notification untuk reply staff;
 - search/filter ticket;
 - reopen reason dan duplicate ticket detection;
 - semua pesan live support otomatis menjadi ticket jika belum tersambung real-time;
-- feedback jangan diberi copy “terkirim” jika sebenarnya baru antre lokal; tampilkan “tersimpan di perangkat, belum terkirim” dengan detail yang jujur.
+- **Selesai frontend:** feedback yang masuk antrean kini menyebut data hanya tersimpan sementara di perangkat, bukan tiket/terkirim; retry dicoba saat halaman dibuka lagi atau saat masukan berikutnya dikirim. Background delivery server tetap belum dijanjikan.
 
 ### 6.7 Notifications
 

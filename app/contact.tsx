@@ -12,6 +12,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
+import { Chip } from "@/components/ui/chip"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
@@ -22,11 +23,24 @@ import { TextArea } from "@/components/ui/text-area"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 
+const TICKET_CATEGORIES = [
+  { value: "GENERAL", label: "Umum" },
+  { value: "ORDER", label: "Pesanan" },
+  { value: "PAYMENT", label: "Pembayaran" },
+  { value: "ACCOUNT", label: "Akun" },
+  { value: "KYC", label: "Verifikasi" },
+  { value: "TECHNICAL", label: "Teknis" },
+  { value: "OTHER", label: "Lainnya" },
+] as const
+
+type TicketCategory = (typeof TICKET_CATEGORIES)[number]["value"]
+
 export default function ContactScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const [subject, setSubject] = useState("")
   const [message, setMessage] = useState("")
+  const [category, setCategory] = useState<TicketCategory>("GENERAL")
   const [submitting, setSubmitting] = useState(false)
 
   const handleSubmit = useCallback(async () => {
@@ -36,6 +50,7 @@ export default function ContactScreen() {
       const res = await api.support.createSupportTicket({
         subject: subject.trim(),
         message: message.trim(),
+        category,
         attachments: [],
       })
       toast.show({
@@ -46,6 +61,7 @@ export default function ContactScreen() {
       })
       setSubject("")
       setMessage("")
+      setCategory("GENERAL")
       if (res?.id) router.replace(ROUTES.supportTicket(res.id))
       else router.replace(ROUTES.support)
     } catch (err: unknown) {
@@ -59,7 +75,7 @@ export default function ContactScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [subject, message, toast.show])
+  }, [category, subject, message, toast.show])
 
   return (
     <Screen
@@ -93,6 +109,20 @@ export default function ContactScreen() {
           title="Buat tiket baru"
           description="Jelaskan kendala Anda. Balasan tim Kahade muncul di Tiket Bantuan."
         >
+          <Field label="Kategori">
+            <View className="flex-row flex-wrap gap-2">
+              {TICKET_CATEGORIES.map((item) => (
+                <Chip
+                  key={item.value}
+                  selected={category === item.value}
+                  onPress={() => setCategory(item.value)}
+                  accessibilityRole="radio"
+                >
+                  {item.label}
+                </Chip>
+              ))}
+            </View>
+          </Field>
           <Field label="Subjek" required>
             <Input
               value={subject}

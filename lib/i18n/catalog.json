@@ -20,7 +20,7 @@
   },
   {
    "s": "Lainnya",
-   "n": 8
+   "n": 9
   },
   {
    "s": "Password akun",
@@ -65,6 +65,10 @@
   {
    "s": "Sengketa",
    "n": 5
+  },
+  {
+   "s": "Akun",
+   "n": 4
   },
   {
    "s": "Catatan",
@@ -115,6 +119,10 @@
    "n": 4
   },
   {
+   "s": "Verifikasi",
+   "n": 4
+  },
+  {
    "s": "Voucher",
    "n": 4
   },
@@ -124,10 +132,6 @@
   },
   {
    "s": "{x} hari",
-   "n": 3
-  },
-  {
-   "s": "Akun",
    "n": 3
   },
   {
@@ -328,10 +332,6 @@
   },
   {
    "s": "Umpan Balik",
-   "n": 3
-  },
-  {
-   "s": "Verifikasi",
    "n": 3
   },
   {
@@ -579,6 +579,10 @@
    "n": 2
   },
   {
+   "s": "Kategori",
+   "n": 2
+  },
+  {
    "s": "Kebijakan Privasi",
    "n": 2
   },
@@ -716,6 +720,10 @@
   },
   {
    "s": "Nomor resi",
+   "n": 2
+  },
+  {
+   "s": "Pembayaran",
    "n": 2
   },
   {
@@ -3071,10 +3079,6 @@
    "n": 1
   },
   {
-   "s": "Kategori",
-   "n": 1
-  },
-  {
    "s": "Kategori alasan:",
    "n": 1
   },
@@ -4391,10 +4395,6 @@
    "n": 1
   },
   {
-   "s": "Pembayaran",
-   "n": 1
-  },
-  {
    "s": "Pembayaran QRIS diterima",
    "n": 1
   },
@@ -4756,6 +4756,10 @@
   },
   {
    "s": "Pesan, bukti, dan keputusan sengketa.",
+   "n": 1
+  },
+  {
+   "s": "Pesanan",
    "n": 1
   },
   {
@@ -5603,6 +5607,10 @@
    "n": 1
   },
   {
+   "s": "Teknis",
+   "n": 1
+  },
+  {
    "s": "telah dikirim ke @",
    "n": 1
   },
@@ -6052,6 +6060,10 @@
   },
   {
    "s": "Ulasan terkirim",
+   "n": 1
+  },
+  {
+   "s": "Umum",
    "n": 1
   },
   {

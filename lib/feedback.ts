@@ -5,7 +5,9 @@
  * Antrean dibatasi ukuran, dibersihkan setelah TTL, dan ikut dihapus saat
  * logout agar masukan milik akun sebelumnya tidak terbawa ke akun berikutnya.
  * Nilai yang menunggu kirim bukan rahasia, tetapi tetap berpotensi memuat data
- * pribadi sehingga lifecycle-nya sengaja pendek.
+ * pribadi sehingga lifecycle-nya sengaja pendek. Tidak ada worker background
+ * yang menjamin pengiriman otomatis; retry dilakukan saat halaman feedback
+ * dibuka atau saat pengguna mengirim masukan berikutnya.
  */
 import { http } from "@/lib/api/client"
 import { getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
@@ -143,6 +145,11 @@ async function flushQueue(): Promise<void> {
   if (pending.length > 0) await writeQueue([])
 }
 
+/** Coba kirim antrean feedback secara best-effort dari lifecycle UI. */
+export async function flushQueuedFeedback(): Promise<void> {
+  await flushQueue()
+}
+
 /**
  * Kirim umpan balik; mengantre lokal saat endpoint belum ada / luring.
  * Validasi server tetap dilempar agar UI dapat memberi pesan yang tepat.
@@ -153,7 +160,7 @@ export async function submitFeedback(input: FeedbackInput): Promise<FeedbackResu
     throw new Error("Feedback tidak boleh kosong")
   }
 
-  await flushQueue()
+  await flushQueuedFeedback()
 
   try {
     await postFeedback(normalized)
