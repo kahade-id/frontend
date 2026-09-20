@@ -24,11 +24,12 @@ Satu bentuk URL melayani kedua kasus setelah verifikasi dilengkapi.
 - **Pemetaan share ↔ route** — `lib/deeplinks.ts` (`orderLinkUrl`,
   `referralUrl`, `profileUrl`) cermin route Expo Router; `ref` referral
   dibaca `register.tsx` untuk https maupun skema kustom.
-- **Berkas verifikasi ter-deploy dengan header benar** —
+- **Endpoint verifikasi disiapkan dengan header benar** —
   `public/.well-known/assetlinks.json` +
-  `public/.well-known/apple-app-site-association`, disajikan sebagai
-  `application/json` lewat `public/_headers` (iOS menolak tipe lain secara
-  diam-diam).
+  `public/.well-known/apple-app-site-association` disajikan sebagai
+  `application/json` lewat `public/_headers`. Isinya sengaja kosong sampai
+  fingerprint signing Android dan Team ID Apple tersedia; app links belum
+  diklaim aktif dan web fallback tetap menjadi perilaku aman.
 
 ## 2. Cara uji hari ini
 
@@ -52,8 +53,8 @@ untuk saat ini, bukan bug.
 ## 3. TODO: verifikasi App Links & Universal Links (butuh kredensial prod)
 
 **Android — `public/.well-known/assetlinks.json`:**
-`sha256_cert_fingerprints` masih `[]` (sengaja — fingerprint hanya valid
-dari signing key produksi). Setelah keystore produksi ada:
+Berkas saat ini `[]`, bukan konfigurasi placeholder. Setelah keystore produksi
+ada, tambahkan target dengan fingerprint signing produksi:
 
 ```bash
 keytool -list -v -keystore <upload-key>.jks | grep SHA256
@@ -69,9 +70,9 @@ adb shell pm get-app-links id.kahade   # harus: verified
 ```
 
 **iOS — `public/.well-known/apple-app-site-association`:**
-`appID` masih `TEAMID.id.kahade`. Setelah Apple Developer Program aktif:
-ganti `TEAMID` dengan Team ID (developer.apple.com → Membership) di `appID`
-dan `webcredentials`. Lalu:
+Berkas saat ini memiliki `details: []`, bukan `TEAMID` placeholder. Setelah Apple
+Developer Program aktif, tambahkan `appID` berisi Team ID (developer.apple.com
+→ Membership) dan `webcredentials`. Lalu:
 
 - Pasang app di iPhone fisik (simulator tidak memverifikasi Universal Links
   dengan andal), buka tautan https dari Notes/Mail — harus langsung membuka

@@ -21,11 +21,29 @@ export default function Html({ children }: PropsWithChildren) {
           name="description"
           content="Kahade — platform transaksi aman dengan escrow: kirim dan terima pembayaran, kelola dompet, dan selesaikan pesanan dalam satu aplikasi."
         />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Kahade" />
+        <meta property="og:title" content="Kahade — Transaksi aman dengan escrow" />
+        <meta
+          property="og:description"
+          content="Kirim dan terima pembayaran, kelola dompet, dan selesaikan pesanan dalam satu aplikasi."
+        />
+        <meta property="og:image" content="https://kahade.id/icon-512.png" />
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="Kahade — Transaksi aman dengan escrow" />
+        <meta
+          name="twitter:description"
+          content="Platform transaksi aman dengan escrow, dompet, dan penyelesaian pesanan."
+        />
+        <meta name="twitter:image" content="https://kahade.id/icon-512.png" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/icon-light-32x32.png" sizes="32x32" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
+        <link rel="manifest" href="/manifest.json" />
+        <script src="/register-sw.js" defer />
         {/* Bilah status/tema browser mengikuti mode terang & gelap. */}
-        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#ffffff" />
-        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#000000" />
+        <meta name="theme-color" media="(prefers-color-scheme: light)" content="#FAFAF9" />
+        <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#111110" />
         <ScrollViewStyleReset />
       </head>
       <body>{children}</body>

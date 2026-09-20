@@ -17,10 +17,12 @@ Workers & Pages → Create → Pages → Connect to Git → pilih repo `frontend
 | Build output directory| `dist`             |
 | Root directory        | *(kosongkan)*      |
 
-Build command di atas menjalankan dua langkah (lihat `package.json`):
+Build command di atas menjalankan tiga langkah (lihat `package.json`):
 
 1. `expo export --platform web` → menulis `dist/` (HTML per rute + 1 bundle JS).
-2. `node scripts/gen-fcm-sw.mjs` → membundle service worker FCM Web ke
+2. `node scripts/gen-web-meta.mjs` → mengisi title, description, OG, Twitter,
+   dan canonical metadata generik per route tanpa mengambil data privat/API.
+3. `node scripts/gen-fcm-sw.mjs` → membundle service worker FCM Web ke
    `dist/firebase-messaging-sw.js`, atau dilewati bila env Firebase belum
    diisi (build tetap sukses, web push nonaktif).
 
@@ -55,13 +57,17 @@ deploy pertama; web app tetap jalan penuh tanpa push.
   check gagal.
 - **`public/_headers`** — `Content-Type: application/json` untuk
   `/.well-known/apple-app-site-association` (wajib, iOS menolak tipe lain)
-  + `Cache-Control` singkat untuk berkas verifikasi + header keamanan dasar.
-  Semua disalin otomatis ke `dist/` oleh `expo export`.
+  + `Cache-Control` singkat untuk berkas verifikasi/worker + header keamanan
+  dasar. Semua disalin otomatis ke `dist/` oleh `expo export`.
+- **`public/robots.txt` + `public/sitemap.xml`** — crawler hanya diarahkan
+  ke halaman publik yang aman; rute token, uang, chat, support, dan API tidak
+  dimasukkan ke sitemap. Sitemap memakai canonical domain `kahade.id`; ubah
+  domain bila produksi resmi berbeda.
 - **`public/.well-known/`** — `assetlinks.json` (Android) dan
-  `apple-app-site-association` (iOS). Keduanya masih PLACEHOLDER
-  (fingerprint kosong, Team ID `TEAMID`) — lihat `docs/DEEP-LINKING.md`.
-  Aman di-deploy: tautan https terbuka sebagai web app sampai verifikasi
-  dilengkapi.
+  `apple-app-site-association` (iOS). Keduanya saat ini kosong secara
+  eksplisit sampai fingerprint signing/Team ID tersedia; bukan konfigurasi
+  placeholder yang mengklaim app link aktif. `check:weblinks` memberi warning,
+  dan tautan https tetap terbuka sebagai web app sampai verifikasi dilengkapi.
 - **`.nvmrc`** (`22`) — sinyal versi Node cadangan bila `NODE_VERSION` lupa
   diisi. Isi keduanya.
 

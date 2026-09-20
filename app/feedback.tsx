@@ -8,12 +8,17 @@
  * dijadwalkan, jadi kiriman yang gagal karena endpoint belum ada/luring
  * diantrekan lokal dan dikirim ulang kemudian.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { userMessage } from "@/lib/api"
-import { FEEDBACK_CATEGORIES, submitFeedback, type FeedbackCategory } from "@/lib/feedback"
+import {
+  FEEDBACK_CATEGORIES,
+  flushQueuedFeedback,
+  submitFeedback,
+  type FeedbackCategory,
+} from "@/lib/feedback"
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
@@ -38,6 +43,13 @@ export default function FeedbackScreen() {
   const [contact, setContact] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
+  // Native queue tersimpan sementara di SecureStore. Retry saat layar dibuka
+  // agar antrean tidak hanya bergerak ketika pengguna kebetulan mengirim
+  // masukan baru; kegagalan tetap silent karena feedback bukan transaksi.
+  useEffect(() => {
+    void flushQueuedFeedback()
+  }, [])
+
   const trimmed = message.trim()
   const valid = trimmed.length >= MESSAGE_MIN
 
@@ -54,7 +66,7 @@ export default function FeedbackScreen() {
         toast.show({
           title: "Masukan tersimpan",
           description:
-            "Server umpan balik belum tersedia/sedang luring; masukan akan dikirim otomatis saat tersambung.",
+            "Masukan disimpan sementara di perangkat. Pengiriman ulang dicoba saat Anda membuka halaman ini lagi atau mengirim masukan berikutnya; ini bukan tiket bantuan.",
           tone: "info",
           duration: 5000,
         })
@@ -108,9 +120,8 @@ export default function FeedbackScreen() {
                 Punya saran atau menemui kendala?
               </Text>
               <Text variant="caption" tone="secondary">
-                Tuliskan masukan Anda. Ide-ide terbaik Kahade datang dari
-                pengguna. Untuk kendala transaksi yang butuh tindakan, gunakan
-                Dukungan Langsung atau tiket bantuan.
+                Tuliskan masukan Anda. Masukan ini bukan tiket bantuan. Untuk
+                kendala transaksi yang butuh tindakan, buat tiket bantuan resmi.
               </Text>
             </View>
 
