@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
   Bookmark,
   Briefcase,
-  CaretLeft,
   ChatCircleDots,
   DotsThreeVertical,
   Envelope,
@@ -76,6 +75,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FavoriteIconButton } from "@/components/ui/favorite-icon-button"
 import { FollowButton } from "@/components/ui/follow-button"
+import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
@@ -730,57 +730,47 @@ export default function UserProfileScreen() {
         }}
       >
         {/* ── Top Bar (di atas cover) ──────────────────────────
-            Tombol navigasi diletakkan di atas sampul, bukan melayang di
-            dalamnya. Untuk profil sendiri, tombol back diganti tombol [+]
-            ke manajemen etalase. Tanpa tombol pencarian. */}
-        <View className="w-full flex-row items-center justify-between px-5 pt-2 pb-1">
-          {isSelf ? (
-            <IconButton
-              icon={Plus}
-              variant="secondary"
-              size="sm"
-              accessibilityLabel="Tambah etalase"
-              onPress={() => router.push(ROUTES.showcaseManagement)}
-            />
-          ) : (
-            <IconButton
-              icon={CaretLeft}
-              variant="secondary"
-              size="sm"
-              accessibilityLabel="Kembali"
-              onPress={() => goBackOrNavigate(ROUTES.home)}
-            />
-          )}
-
-          <View className="flex-row items-center gap-2">
-            <IconButton
-              icon={ShareNetwork}
-              variant="secondary"
-              size="sm"
-              accessibilityLabel="Bagikan Profil"
-              onPress={() => void handleShare()}
-            />
-            {profile ? (
+            <Header transparent>: @username PUSAT di bar (satu-satunya tempat
+            username ditulis — baris identitas di bawah hanya menampilkan
+            nama), tombol navigasi ghost TANPA kartu di kiri, ⋮ ghost di
+            kanan. Untuk profil sendiri, back diganti [+] ke manajemen
+            etalase. Tombol Bagikan turun ke baris aksi (sejajar ♡ / 🔖)
+            supaya bar ini hanya berisi navigasi + overflow. */}
+        <Header
+          transparent
+          title={`@${handle}`}
+          showBack={!isSelf}
+          onBack={() => goBackOrNavigate(ROUTES.home)}
+          left={
+            isSelf ? (
+              <IconButton
+                icon={Plus}
+                variant="ghost"
+                accessibilityLabel="Tambah etalase"
+                onPress={() => router.push(ROUTES.showcaseManagement)}
+              />
+            ) : undefined
+          }
+          right={
+            profile ? (
               isSelf ? (
                 <IconButton
                   icon={DotsThreeVertical}
-                  variant="secondary"
-                  size="sm"
+                  variant="ghost"
                   accessibilityLabel="Pengaturan"
                   onPress={() => router.push(ROUTES.settings)}
                 />
               ) : (
                 <IconButton
                   icon={DotsThreeVertical}
-                  variant="secondary"
-                  size="sm"
+                  variant="ghost"
                   accessibilityLabel="Pilihan lainnya"
                   onPress={() => setMoreOptionsOpen(true)}
                 />
               )
-            ) : null}
-          </View>
-        </View>
+            ) : null
+          }
+        />
 
         {/* ── Top Cover (KARTU) ────────────────────────────────
             Sampul kartu bersih tanpa tombol navigasi di dalamnya. */}
@@ -858,10 +848,16 @@ export default function UserProfileScreen() {
                 <Avatar source={profile.avatarUrl ? { uri: profile.avatarUrl } : undefined} name={profile.fullName ?? handle} size="xl" />
               </View>
 
-              {/* A.4 — hierarki: aksi tersier (Love ♡ & Tersimpan 🔖) menjadi
-                  icon button berborder di samping avatar; aksi primer/sekunder
-                  ([Ikuti] / [Kirim Pesan]) mendapat baris berlabel sendiri di
-                  bawah bio. Di profil sendiri: satu tombol [Edit profil]. */}
+              {/* A.4 — hierarki: aksi tersier (♡ Favorit, 🔖 Tersimpan, dan
+                  kini ⤴ Bagikan) duduk SATU baris di samping avatar; aksi
+                  primer/sekunder ([Ikuti] / [Kirim Pesan]) tetap mendapat
+                  baris berlabel sendiri di bawah bio. Bagikan dipindah dari
+                  top bar ke sini (permintaan produk 2026-09-21) karena ia
+                  aksi terhadap profil ini, bukan navigasi — dan di top bar ia
+                  bersaing dengan ⋮.
+                  Profil sendiri: [Edit profil] di posisi KIRI baris ini, lalu
+                  Bagikan di kanan, sehingga urutan aksinya sama dengan profil
+                  orang lain (aksi utama paling kiri). */}
               <View className="flex-row items-center gap-2 pb-1">
                 {isSelf ? (
                   <Button
@@ -894,26 +890,28 @@ export default function UserProfileScreen() {
                     />
                   </>
                 )}
+                <IconButton
+                  icon={ShareNetwork}
+                  variant="secondary"
+                  size="sm"
+                  accessibilityLabel="Bagikan profil"
+                  onPress={() => void handleShare()}
+                />
               </View>
             </View>
 
             {/* ── User Identity & Bio ──────────────────────────── */}
             <View className="gap-2 px-5 pt-3">
-              {/* A.3 — Nickname & username berdekatan */}
-              <View className="gap-0.5">
-                <View className="flex-row items-center gap-1">
-                  <Text variant="h2" weight={700} tone="primary">
-                    {profile.fullName || `@${handle}`}
-                  </Text>
-                  {profile.verified ? (
-                    <Icon icon={SealCheck} size="sm" active weight="fill" />
-                  ) : null}
-                </View>
-
-                {profile.fullName ? (
-                  <Text variant="body" tone="secondary">
-                    {`@${handle}`}
-                  </Text>
+              {/* A.3 — Nama saja. @username sudah PUSAT di top bar; ditulis
+                  lagi di sini membuat dua baris identitas yang isinya sama
+                  (permintaan produk 2026-09-21). Bila profil tanpa nama,
+                  handle naik jadi nama supaya baris ini tidak kosong. */}
+              <View className="flex-row items-center gap-1">
+                <Text variant="h2" weight={700} tone="primary">
+                  {profile.fullName || `@${handle}`}
+                </Text>
+                {profile.verified ? (
+                  <Icon icon={SealCheck} size="sm" active weight="fill" />
                 ) : null}
               </View>
 

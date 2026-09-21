@@ -16,7 +16,7 @@
   },
   {
    "s": "Kembali",
-   "n": 11
+   "n": 10
   },
   {
    "s": "Lainnya",
@@ -404,6 +404,10 @@
   },
   {
    "s": "Bagikan",
+   "n": 2
+  },
+  {
+   "s": "Bagikan profil",
    "n": 2
   },
   {
@@ -1284,14 +1288,6 @@
   },
   {
    "s": "Bagikan kode saya",
-   "n": 1
-  },
-  {
-   "s": "Bagikan profil",
-   "n": 1
-  },
-  {
-   "s": "Bagikan Profil",
    "n": 1
   },
   {
