@@ -363,6 +363,10 @@
    "n": 3
   },
   {
+   "s": "{x} dipilih",
+   "n": 2
+  },
+  {
    "s": "{x}–{x} karakter, huruf kecil/angka/._",
    "n": 2
   },
@@ -584,10 +588,6 @@
   },
   {
    "s": "Hapus Akun",
-   "n": 2
-  },
-  {
-   "s": "Hapus notifikasi",
    "n": 2
   },
   {
@@ -859,10 +859,6 @@
    "n": 2
   },
   {
-   "s": "Pilih beberapa",
-   "n": 2
-  },
-  {
    "s": "Positif",
    "n": 2
   },
@@ -1028,10 +1024,6 @@
   },
   {
    "s": "{x} ({x} percakapan)",
-   "n": 1
-  },
-  {
-   "s": "{x} dipilih",
    "n": 1
   },
   {
@@ -2844,6 +2836,10 @@
   },
   {
    "s": "Hapus jadwal?",
+   "n": 1
+  },
+  {
+   "s": "Hapus notifikasi",
    "n": 1
   },
   {
@@ -5027,6 +5023,10 @@
    "n": 1
   },
   {
+   "s": "Pilih beberapa",
+   "n": 1
+  },
+  {
    "s": "Pilih cara membuat order dan peran Anda dalam transaksi ini.",
    "n": 1
   },
@@ -5836,10 +5836,6 @@
   },
   {
    "s": "Tanda tangan di dalam kotak",
-   "n": 1
-  },
-  {
-   "s": "Tandai dibaca",
    "n": 1
   },
   {

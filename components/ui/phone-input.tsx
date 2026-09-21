@@ -156,7 +156,11 @@ export const PhoneInput = forwardRef<TextInput, PhoneInputProps>(function PhoneI
           <Text variant="monoBody" tone="secondary">
             {PHONE_ID_PREFIX}
           </Text>
-          <Divider orientation="vertical" className="h-6" />
+          {/* `self-center` WAJIB: Divider vertikal membawa `self-stretch`, dan
+              di Yoga anak ber-`alignSelf: stretch` yang tingginya dipatok
+              (h-6) menempel ke ATAS silang, bukan ke tengah — garis pemisah
+              +62 dan nomor tampak naik ke tepi atas field. */}
+          <Divider orientation="vertical" className="h-6 self-center" />
         </View>
 
         <TextInput

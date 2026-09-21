@@ -2,32 +2,38 @@
  * Kahade — <NotificationListItem> baris notifikasi in-app (§9.17 List Item,
  * §9.14 indikator "ada yang baru", §2.3 semantic hanya untuk status, §13).
  *
- * Satu baris `GET /v1/notifications`. Anatomi (v2 2026-09):
- *   - Baris judul: ikon-status kecil (ikon kategori / Check saat memilih) +
- *     judul (1 baris) → waktu meta di kanan → chevron navigasi. Tidak ada
- *     IconBox besar seragam: ikon STATUS KONTEKS (pesanan, wallet, chat,
- *     sengketa, keamanan, promo, referral, info), bukan lonceng untuk semua.
- *   - Isi 2 baris di bawah, DIINSET sejajar teks judul (bukan rata ikon besar)
- *     supaya teks dan ikon kategori punya hierarki baca yang jelas.
- * Tap membuka detail (`/notification/[id]`) — navigasi urusan pemanggil.
+ * Satu baris `GET /v1/notifications`. Anatomi (v3 2026-09-21):
+ *   - Kiri: ikon kategori di dalam chip lingkaran 32px (bukan ikon 16px
+ *     menggantung di samping judul) — notifikasi dikenali dari jenisnya
+ *     sekilas, dan chip memberi kolom vertikal yang rapi untuk 1–2 baris isi.
+ *   - Baris judul: judul (1 baris) → waktu meta di kanan.
+ *   - Isi 2 baris di bawah, sejajar judul.
+ *   - TIDAK ada chevron dan TIDAK ada tombol ⋮ per baris (permintaan produk
+ *     2026-09-21): tap membuka detail, tekan lama masuk mode pilih — sama
+ *     seperti daftar chat. Chevron menjanjikan "ada yang bisa digeser"
+ *     padahal seluruh baris memang tombol, dan ⋮ menduplikasi aksi yang
+ *     sudah ada di header mode pilih (tandai dibaca / hapus).
  *
  * Keputusan non-obvious:
- *   - Unread = judul weight 600 + bg-surface (bukan kolom Dot kanan). Ikon
- *     status dibaca sebagai "keterangan gambar"; chevron kanan hanya saat
- *     `onPress` ada, sebagai affordansi navigasi.
- *   - `tone="danger"` (keamanan/sengketa) mengubah WARNA ikon status (fill
- *     danger) — status, bukan kategori.
+ *   - Unread = judul weight 600 + `bg-surface` pada baris; chip ikonnya
+ *     dibalik jadi `bg-background` supaya tetap terbaca di atas baris
+ *     bertint (pola inversi yang sama dipakai ubin QuickActionGrid di dark).
+ *   - `tone="danger"` (keamanan/sengketa) memberi chip `bg-danger-soft` +
+ *     ikon danger: status, bukan kategori (§2.3 — warna hanya untuk makna).
+ *   - `selected` = chip jadi lingkaran primary berisi Check inverse (bukan
+ *     sekadar mengganti ikon): di tengah daftar panjang, tanda pilih harus
+ *     terlihat tanpa membaca judulnya lagi.
+ *   - Ripple hidup secara default: baris list adalah permukaan sapuan jari
+ *     (lihat PressableScale). Matikan lewat `ripple={false}` bila baris
+ *     dibungkus gesture lain.
  *   - Aksi swipe (hapus / tandai dibaca) TIDAK di sini — bungkus dengan
  *     <SwipeableListItem> di layar, supaya komponen ini tetap bisa dipakai
  *     di tempat tanpa gesture (web, sheet ringkasan).
- *   - `onLongPress` untuk mode pilih-banyak (`/read-batch`, `/delete-batch`).
- *     `selected` = bg-surface + ikon Check menggantikan ikon status.
  *   - Waktu caption tabular (bukan Mono): meta, bukan timestamp teknis
  *     (§3.1); format eksplisit dari pemanggil (§13, tanpa relative time).
  */
 import {
   Bell,
-  CaretRight,
   ChatCircleText,
   Check,
   Gift,
@@ -36,12 +42,12 @@ import {
   ShieldWarning,
   Wallet,
 } from "phosphor-react-native"
-import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
@@ -59,7 +65,8 @@ export type NotificationCategory =
 /**
  * Ikon per kategori notifikasi — dipakai <NotificationListItem> dan layar
  * detail (`/notification/[id]`) supaya keduanya tidak punya dua tabel ikon
- * yang diam-diam berbeda.
+ * yang diam-diam berbeda. Peta ini tinggal di lapisan komponen (bukan lib/):
+ * isinya komponen ikon Phosphor, yang tidak bisa di-parse di luar Metro.
  */
 export const NOTIFICATION_CATEGORY_ICON: Record<NotificationCategory, IconComponent> = {
   order: Receipt,
@@ -81,27 +88,22 @@ export type NotificationListItemProps = Omit<ViewProps, "children"> & {
   /** Sudah diformat pemanggil (§13): "3 Sep 2026, 14:30" */
   timestamp?: string
   unread?: boolean
-  /** Peringatan (keamanan, sengketa) — ikon status danger */
+  /** Peringatan (keamanan, sengketa) — chip + ikon status danger */
   tone?: "neutral" | "danger"
   /** Mode pilih-banyak */
   selected?: boolean
   /** Getaran ringan saat ditekan — umpan balik "baris ini yang kupilih" */
   haptic?: boolean
+  /** Umpan balik ripple (default hidup — baris list = permukaan sapuan jari) */
+  ripple?: boolean
   onPress?: () => void
   onLongPress?: () => void
-  /**
-   * Aksi terlihat di kanan baris (mis. <IconButton icon={DotsThreeVertical}>
-   * yang membuka ActionSheet). Dirender DI LUAR Pressable baris supaya
-   * ketukannya tidak ikut memicu `onPress`.
-   *
-   * Ada karena `onLongPress` saja tidak bisa ditemukan: di web tidak ada
-   * affordance "tekan lama", dan pengguna yang mengetuk biasa melihat
-   * "tidak ada aksi" walau menu itu ada.
-   */
-  action?: ReactNode
   divider?: boolean
   className?: string
 }
+
+/** Chip ikon: 32px, cukup untuk ikon sm (20px) + napas 6px tiap sisi. */
+const ICON_CHIP_SIZE = tokens.icon.size.sm + tokens.space[3]
 
 export function NotificationListItem({
   title,
@@ -113,120 +115,123 @@ export function NotificationListItem({
   tone = "neutral",
   selected = false,
   haptic = false,
+  ripple = true,
   onPress,
   onLongPress,
-  action,
   divider = false,
   className,
   ...rest
 }: NotificationListItemProps) {
-  const a11y = [
+  const a11y = summarize([
     unread ? "Belum dibaca" : undefined,
     title,
     body,
     timestamp,
     selected ? "dipilih" : undefined,
-  ]
-    .filter(Boolean)
-    .join(", ")
+  ])
 
-  /** Ikon status: Check saat memilih, warna danger untuk peringatan. */
-  const statusIcon = selected ? Check : (icon ?? NOTIFICATION_CATEGORY_ICON[category])
+  /** Baris bertint (belum dibaca / terpilih) → chip dibalik agar terbaca. */
+  const tinted = unread || selected
+  const danger = tone === "danger" && !selected
 
   const row = (
     <View
       className={cn(
-        "min-h-14 gap-1.5 px-5 py-3",
-        (unread || selected) && "bg-surface",
+        "min-h-16 w-full flex-row items-start gap-3 px-5 py-3",
+        tinted && "bg-surface",
       )}
     >
-      {/* Baris judul: ikon status kecil → judul → waktu → chevron */}
-      <View className="flex-row items-center gap-2">
-        <View className="shrink-0 items-center justify-center">
-          <Icon
-            icon={statusIcon}
-            size="xs"
-            tone={
-              selected
-                ? "active"
-                : tone === "danger"
-                  ? "danger"
-                  : unread
-                    ? "active"
-                    : "default"
-            }
-            weight={selected ? "bold" : tone === "danger" ? "fill" : undefined}
-          />
-        </View>
-        <Text
-          ellipsizeMode="tail"
-          variant="body"
-          weight={unread ? 600 : 500}
-          tone="primary"
-          numberOfLines={1}
-          className="min-w-0 flex-1"
-        >
-          {title}
-        </Text>
-        {timestamp ? (
-          <Text variant="caption" tone="secondary" className="shrink-0 tabular-nums">
-            {timestamp}
-          </Text>
-        ) : null}
-        {onPress ? <Icon icon={CaretRight} size="xs" tone="default" /> : null}
+      {/* Chip ikon kategori / status */}
+      <View
+        className={cn(
+          "shrink-0 items-center justify-center rounded-full",
+          selected
+            ? "bg-primary"
+            : danger
+              ? "bg-danger-soft"
+              : tinted
+                ? "bg-background"
+                : "bg-surface",
+        )}
+        style={{ height: ICON_CHIP_SIZE, width: ICON_CHIP_SIZE }}
+      >
+        <Icon
+          icon={selected ? Check : (icon ?? NOTIFICATION_CATEGORY_ICON[category])}
+          size="sm"
+          tone={
+            selected ? "inverse" : danger ? "danger" : unread ? "active" : "default"
+          }
+          weight={selected || danger ? "bold" : undefined}
+        />
       </View>
 
-      {/* Isi 2 baris di-inset sejajar teks judul (16px ikon + gap 8) */}
-      {body ? (
-        <Text
-          variant="caption"
-          tone={unread ? "primary" : "secondary"}
-          numberOfLines={2}
-          style={{ paddingLeft: tokens.icon.size.xs + tokens.space[2] }}
-        >
-          {body}
-        </Text>
-      ) : null}
+      <View className="min-w-0 flex-1 gap-1">
+        {/* Baris judul: judul → waktu */}
+        <View className="flex-row items-baseline gap-2">
+          <Text
+            ellipsizeMode="tail"
+            variant="body"
+            weight={unread ? 600 : 500}
+            tone="primary"
+            numberOfLines={1}
+            className="min-w-0 flex-1"
+          >
+            {title}
+          </Text>
+          {timestamp ? (
+            <Text variant="caption" tone="secondary" className="shrink-0 tabular-nums">
+              {timestamp}
+            </Text>
+          ) : null}
+        </View>
+
+        {body ? (
+          <Text variant="caption" tone={unread ? "primary" : "secondary"} numberOfLines={2}>
+            {body}
+          </Text>
+        ) : null}
+      </View>
     </View>
   )
 
-  const content = onPress || onLongPress ? (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={a11y}
-      accessibilityState={{ selected }}
-      accessibilityHint={action ? "Buka notifikasi, atau buka menu aksi di kanan" : "Buka notifikasi"}
-      scaleOnPress={false}
-      haptic={haptic}
-      onPress={onPress}
-      onLongPress={onLongPress}
-      containerClassName={cn("w-full", focusRingInset)}
-    >
-      {row}
-    </PressableScale>
-  ) : (
-    <View accessible accessibilityLabel={a11y}>
-      {row}
-    </View>
-  )
+  const content =
+    onPress || onLongPress ? (
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={a11y}
+        accessibilityState={{ selected }}
+        // Tanpa chevron/⋮, satu-satunya affordance adalah barisnya sendiri:
+        // hint menyebut kedua gesture supaya mode pilih tetap bisa ditemukan.
+        accessibilityHint={
+          onLongPress
+            ? "Membuka notifikasi, atau tekan lama untuk memilih beberapa"
+            : "Membuka notifikasi"
+        }
+        scaleOnPress={false}
+        ripple={ripple}
+        haptic={haptic}
+        onPress={onPress}
+        onLongPress={onLongPress}
+        containerClassName={cn("w-full", focusRingInset)}
+      >
+        {row}
+      </PressableScale>
+    ) : (
+      <View accessible accessibilityLabel={a11y}>
+        {row}
+      </View>
+    )
 
   return (
     <View className={cn("w-full", className)} {...rest}>
-      {action ? (
-        <View className="w-full flex-row items-start">
-          <View className="min-w-0 flex-1">{content}</View>
-          <View className="items-center pr-3 pt-1">{action}</View>
-        </View>
-      ) : (
-        content
-      )}
-      {/* Inset = px-5 (20) + ikon status xs (16) + gap-2 (8) = sejajar teks */}
+      {content}
+      {/* Inset = px-5 (20) + chip 32 + gap-3 (12) = sejajar teks judul */}
       {divider ? (
         <View
           accessibilityRole="none"
           importantForAccessibility="no"
           className="h-px bg-border"
-          style={{ marginLeft: tokens.layout.screenPaddingX + tokens.icon.size.xs + tokens.space[2] }}
+          style={{ marginLeft: tokens.layout.screenPaddingX + ICON_CHIP_SIZE + tokens.space[3] }}
         />
       ) : null}
     </View>
