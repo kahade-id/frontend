@@ -51,7 +51,6 @@ import { notificationUiCategory } from "@/lib/notification-category"
 import { refreshUnreadCount } from "@/lib/unread-count"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
-import { AnimatedCategoryTabs } from "@/components/ui/animated-category-tabs"
 import { Dialog } from "@/components/ui/modal"
 import { IconButton } from "@/components/ui/icon-button"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -59,17 +58,18 @@ import { Header } from "@/components/ui/header"
 import { NotificationListItem } from "@/components/ui/notification-list-item"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
+import { Tabs, type TabItem } from "@/components/ui/tabs"
 
 // ------------------------------------------------------------------
 // Konstanta layar
 // ------------------------------------------------------------------
 
-/** Ikon per tab kategori — ikon KONTEKS, bukan lonceng untuk semua. */
+/** Tab kategori — selaras dengan <Tabs> profil (tanpa ikon). */
 const CATEGORY_TABS = [
-  { value: "TRANSAKSI", label: "Transaksi", icon: Receipt },
-  { value: "PROMOSI", label: "Promosi", icon: Megaphone },
-  { value: "INFORMASI", label: "Informasi", icon: Bell },
-] as const satisfies readonly { value: NotificationCategory; label: string; icon: typeof Bell }[]
+  { value: "TRANSAKSI", label: "Transaksi" },
+  { value: "PROMOSI", label: "Promosi" },
+  { value: "INFORMASI", label: "Informasi" },
+] as const satisfies readonly TabItem<NotificationCategory>[]
 
 /** Ikon EmptyState per kategori filter (nilai enum API, bukan label). */
 const EMPTY_ICON: Record<NotificationCategory, typeof Bell> = {
@@ -379,14 +379,13 @@ export default function NotificationsScreen() {
         />
       )}
 
-      {/* Tab kategori dengan ikon + indikator meluncur — pola profil publik.
+      {/* Tab kategori — selaras dengan pola <Tabs> profil publik (tanpa ikon).
           Kalau sedang memilih (mode batch) tab tetap tampil agar konteks
           kategori yang sedang dipilih tidak hilang. */}
-      <AnimatedCategoryTabs
+      <Tabs<NotificationCategory>
         items={CATEGORY_TABS}
         value={category}
         onChange={setCategory}
-        className="border-b border-border"
       />
 
       <PaginatedList

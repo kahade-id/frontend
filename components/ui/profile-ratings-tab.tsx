@@ -30,6 +30,8 @@ export type ProfileRatingsTabProps = {
   onFilterChange: (filter: PublicRatingFilter) => void
   /** Username profil (tanpa @) — nama balasan penjual & copy empty state. */
   handle: string
+  /** Apakah ini profil milik pengguna sendiri */
+  isSelf?: boolean
 }
 
 export function ProfileRatingsTab({
@@ -38,6 +40,7 @@ export function ProfileRatingsTab({
   filter,
   onFilterChange,
   handle,
+  isSelf = false,
 }: ProfileRatingsTabProps) {
   return (
     <View className="px-5 pt-4 gap-4">
@@ -52,11 +55,19 @@ export function ProfileRatingsTab({
       {loading ? (
         <ListLoading />
       ) : ratings.length === 0 ? (
-        <EmptyState
-          icon={Star}
-          title="Belum ada ulasan"
-          description={`Ulasan transaksi dengan @${handle} akan muncul di sini.`}
-        />
+        isSelf ? (
+          <EmptyState
+            icon={Star}
+            title="Belum ada ulasan"
+            description="Ulasan transaksi Anda akan muncul di sini."
+          />
+        ) : (
+          <EmptyState
+            icon={Star}
+            title="Belum ada ulasan"
+            description={`Ulasan transaksi dengan @${handle} akan muncul di sini.`}
+          />
+        )
       ) : (
         ratings.map((r) => {
           const reviewer: RatingPerson = {

@@ -50,6 +50,7 @@ import {
   Wallet,
 } from "phosphor-react-native"
 
+import { Avatar } from "@/components/ui/avatar"
 import { NotificationDot } from "@/components/ui/badge"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import type { BottomTabBarProps as RNNBottomTabBarProps } from "@react-navigation/bottom-tabs"
@@ -67,6 +68,8 @@ export type BottomTabItem<K extends string = string> = {
   key: K
   label: string
   icon: IconComponent
+  avatarUrl?: string | null
+  avatarName?: string
   /** Titik merah "ada yang baru" (§9.14) */
   badge?: boolean
   accessibilityLabel?: string
@@ -198,6 +201,37 @@ function TabIcon({ icon, active }: { icon: IconComponent; active: boolean }) {
   )
 }
 
+/**
+ * TabAvatar — foto profil pengguna di bottom tab bar.
+ * Saat aktif (di halaman profil), lingkaran border 2px (1-3px) `border-primary`
+ * menandakan tab sedang aktif.
+ */
+function TabAvatar({
+  avatarUrl,
+  name,
+  active,
+}: {
+  avatarUrl?: string | null
+  name?: string
+  active: boolean
+}) {
+  return (
+    <View
+      className={cn(
+        "h-7 w-7 items-center justify-center rounded-full border-badge",
+        active ? "border-primary" : "border-transparent",
+      )}
+    >
+      <Avatar
+        source={avatarUrl ? { uri: avatarUrl } : undefined}
+        name={name}
+        size="xs"
+        className="h-5 w-5"
+      />
+    </View>
+  )
+}
+
 export function BottomTabBar<K extends string = string>({
   items,
   value,
@@ -218,6 +252,7 @@ export function BottomTabBar<K extends string = string>({
       <View className="h-[60px] w-full flex-row md:max-w-content">
         {items.map((item) => {
           const active = item.key === value
+          const isProfileTab = item.key === "discover" || item.avatarUrl !== undefined
           return (
             <PressableScale
               key={item.key}
@@ -232,7 +267,15 @@ export function BottomTabBar<K extends string = string>({
               className="h-full items-center justify-center pt-2 pb-1 gap-1"
             >
               <View className="relative items-center justify-center">
-                <TabIcon icon={item.icon} active={active} />
+                {isProfileTab ? (
+                  <TabAvatar
+                    avatarUrl={item.avatarUrl}
+                    name={item.avatarName}
+                    active={active}
+                  />
+                ) : (
+                  <TabIcon icon={item.icon} active={active} />
+                )}
                 <NotificationDot visible={!!item.badge} />
               </View>
               <Text ellipsizeMode="tail"

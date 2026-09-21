@@ -53,6 +53,7 @@ import { router, Tabs } from "expo-router"
 
 import { RouterBottomTabBar, TAB_BAR_ITEMS } from "@/components/ui/bottom-tab-bar"
 import { api } from "@/lib/api"
+import type { UserProfile } from "@/lib/api/users"
 import { logWarn } from "@/lib/telemetry"
 import { ROUTES, TAB_ROUTE_NAMES } from "@/lib/routes"
 import { useAuthSession } from "@/lib/use-auth-session"
@@ -80,27 +81,29 @@ export default function TabsLayout() {
   useUnreadCount({ enabled: Boolean(session.token) })
 
   /**
-   * Username sendiri — dibutuhkan tab "Profil" untuk membuka profil publik
-   * milik pengguna (/user/[username]). Diambil sekali saat sesi tersedia;
-   * kegagalan tidak fatal (tab jatuh ke gate login / layar discover).
+   * Profil pengguna yang sedang login — dibutuhkan tab "Profil" untuk membuka
+   * profil publik milik sendiri (/user/[username]) serta menampilkan foto profil
+   * di bottom navigation bar.
    */
-  const [meUsername, setMeUsername] = useState<string | null>(null)
+  const [meProfile, setMeProfile] = useState<UserProfile | null>(null)
   useEffect(() => {
     let alive = true
     if (!session.token) {
-      setMeUsername(null)
+      setMeProfile(null)
       return undefined
     }
     api.users
       .getMe()
       .then((me) => {
-        if (alive) setMeUsername(me?.username ?? null)
+        if (alive) setMeProfile(me)
       })
-      .catch((err) => logWarn("tabs:me-username", err))
+      .catch((err) => logWarn("tabs:me-profile", err))
     return () => {
       alive = false
     }
   }, [session.token])
+
+  const meUsername = meProfile?.username ?? null
 
   /**
    * Tab ke-5 = "Profil": JANGAN pindah ke layar discover; buka profil publik
@@ -118,15 +121,27 @@ export default function TabsLayout() {
     [meUsername],
   )
 
+  const tabBarItems = useMemo(
+    () => ({
+      ...TAB_BAR_ITEMS,
+      discover: {
+        ...TAB_BAR_ITEMS.discover,
+        avatarUrl: meProfile?.avatarUrl,
+        avatarName: meProfile?.fullName || meProfile?.username || undefined,
+      },
+    }),
+    [meProfile],
+  )
+
   const renderTabBar = useCallback(
     (props: TabsTabBarProps) => (
       <RouterBottomTabBar
         state={props.state}
         navigation={props.navigation}
-        items={TAB_BAR_ITEMS}
+        items={tabBarItems}
       />
     ),
-    [],
+    [tabBarItems],
   )
 
   return (

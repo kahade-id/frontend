@@ -155,6 +155,10 @@
    "n": 3
   },
   {
+   "s": "Belum ada ulasan",
+   "n": 3
+  },
+  {
    "s": "Buat transaksi",
    "n": 3
   },
@@ -432,10 +436,6 @@
   },
   {
    "s": "Belum ada showcase",
-   "n": 2
-  },
-  {
-   "s": "Belum ada ulasan",
    "n": 2
   },
   {
@@ -783,10 +783,6 @@
    "n": 2
   },
   {
-   "s": "Pencarian",
-   "n": 2
-  },
-  {
    "s": "Pengaturan",
    "n": 2
   },
@@ -880,6 +876,10 @@
   },
   {
    "s": "Syarat & Ketentuan",
+   "n": 2
+  },
+  {
+   "s": "Tambah etalase",
    "n": 2
   },
   {
@@ -1163,6 +1163,10 @@
    "n": 1
   },
   {
+   "s": "Anda belum menambahkan karya atau produk ke etalase.",
+   "n": 1
+  },
+  {
    "s": "Anda berhak meminta salinan seluruh data pribadi yang kami simpan.",
    "n": 1
   },
@@ -1360,6 +1364,10 @@
   },
   {
    "s": "Belum ada email terdaftar. Menambahkan email mengaktifkan pemulihan akun dan notifikasi penting.",
+   "n": 1
+  },
+  {
+   "s": "Belum ada etalase",
    "n": 1
   },
   {
@@ -4587,6 +4595,10 @@
    "n": 1
   },
   {
+   "s": "Pencarian",
+   "n": 1
+  },
+  {
    "s": "Pencarian global",
    "n": 1
   },
@@ -6320,6 +6332,10 @@
   },
   {
    "s": "Ulasan terkirim",
+   "n": 1
+  },
+  {
+   "s": "Ulasan transaksi Anda akan muncul di sini.",
    "n": 1
   },
   {

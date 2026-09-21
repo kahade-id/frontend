@@ -18,7 +18,7 @@
 import { useCallback, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
-import { Images } from "phosphor-react-native"
+import { Images, Plus } from "phosphor-react-native"
 
 import { isApiError, userMessage } from "@/lib/api"
 import {
@@ -33,6 +33,7 @@ import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 
+import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
@@ -55,6 +56,8 @@ export type ProfileEtalaseTabProps = {
   /** Username profil (tanpa @) — untuk copy empty state. */
   handle: string
   owner: EtalaseOwner
+  /** Apakah ini profil milik pengguna sendiri */
+  isSelf?: boolean
 }
 
 /**
@@ -110,7 +113,7 @@ function toSocialShowcaseItem(item: ShowcaseItem, owner: EtalaseOwner): Showcase
   }
 }
 
-export function ProfileEtalaseTab({ items, loading, handle, owner }: ProfileEtalaseTabProps) {
+export function ProfileEtalaseTab({ items, loading, handle, owner, isSelf = false }: ProfileEtalaseTabProps) {
   const toast = useToast()
   /** Guard per item: dua request suka berbarengan pada kartu yang sama. */
   const likeBusy = useRef<Set<string>>(new Set())
@@ -243,11 +246,29 @@ export function ProfileEtalaseTab({ items, loading, handle, owner }: ProfileEtal
           </View>
         ) : socialItems.length === 0 ? (
           <View className="px-5">
-            <EmptyState
-              icon={Images}
-              title="Belum ada konten"
-              description={`@${handle} belum membagikan foto atau showcase produk.`}
-            />
+            {isSelf ? (
+              <EmptyState
+                icon={Images}
+                title="Belum ada etalase"
+                description="Anda belum menambahkan karya atau produk ke etalase."
+                action={
+                  <Button
+                    variant="secondary"
+                    fullWidth={false}
+                    leftIcon={Plus}
+                    onPress={() => router.push(ROUTES.showcaseManagement)}
+                  >
+                    Tambah etalase
+                  </Button>
+                }
+              />
+            ) : (
+              <EmptyState
+                icon={Images}
+                title="Belum ada konten"
+                description={`@${handle} belum membagikan foto atau showcase produk.`}
+              />
+            )}
           </View>
         ) : (
           socialItems.map((item, index) => (
