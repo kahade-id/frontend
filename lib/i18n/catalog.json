@@ -71,11 +71,19 @@
    "n": 5
   },
   {
+   "s": "Showcase",
+   "n": 5
+  },
+  {
    "s": "Spam",
    "n": 5
   },
   {
    "s": "Akun",
+   "n": 4
+  },
+  {
+   "s": "Buat transaksi",
    "n": 4
   },
   {
@@ -108,10 +116,6 @@
   },
   {
    "s": "Order Link",
-   "n": 4
-  },
-  {
-   "s": "Showcase",
    "n": 4
   },
   {
@@ -156,10 +160,6 @@
   },
   {
    "s": "Belum ada ulasan",
-   "n": 3
-  },
-  {
-   "s": "Buat transaksi",
    "n": 3
   },
   {
@@ -343,6 +343,10 @@
    "n": 3
   },
   {
+   "s": "Tambah etalase",
+   "n": 3
+  },
+  {
    "s": "Tambah rekening",
    "n": 3
   },
@@ -456,6 +460,10 @@
   },
   {
    "s": "Bisnis",
+   "n": 2
+  },
+  {
+   "s": "Buat baru",
    "n": 2
   },
   {
@@ -896,10 +904,6 @@
   },
   {
    "s": "Syarat & Ketentuan",
-   "n": 2
-  },
-  {
-   "s": "Tambah etalase",
    "n": 2
   },
   {
@@ -2983,6 +2987,10 @@
    "n": 1
   },
   {
+   "s": "Isi saldo dompet",
+   "n": 1
+  },
+  {
    "s": "Isian {x} tidak sesuai ketentuan layanan.",
    "n": 1
   },
@@ -3136,6 +3144,10 @@
   },
   {
    "s": "JNE, SiCepat, …",
+   "n": 1
+  },
+  {
+   "s": "Jual atau beli dengan dana dijaga escrow",
    "n": 1
   },
   {
@@ -3976,6 +3988,10 @@
   },
   {
    "s": "Membuka pesan terpin di percakapan, atau tekan lama untuk melepas pin",
+   "n": 1
+  },
+  {
+   "s": "Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase",
    "n": 1
   },
   {
@@ -5079,6 +5095,10 @@
    "n": 1
   },
   {
+   "s": "Pilih yang mau Anda kerjakan.",
+   "n": 1
+  },
+  {
    "s": "Pilihan Akun",
    "n": 1
   },
@@ -6175,6 +6195,10 @@
    "n": 1
   },
   {
+   "s": "Top up lewat bank, QRIS, atau gerai ritel",
+   "n": 1
+  },
+  {
    "s": "Top-up belum dapat dibuat",
    "n": 1
   },
@@ -6436,6 +6460,10 @@
   },
   {
    "s": "Unggah foto profil",
+   "n": 1
+  },
+  {
+   "s": "Unggah karya atau produk ke etalase Anda",
    "n": 1
   },
   {

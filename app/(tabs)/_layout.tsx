@@ -4,15 +4,22 @@
  * Expo Router `<Tabs>` dengan custom `tabBar` menggunakan
  * `<RouterBottomTabBar>` yang sudah ada di components/ui/bottom-tab-bar.tsx.
  *
- * Tab aktif:
+ * Tab yang tampil di bottom bar (v3 2026-09-21):
  *   home          → Beranda
  *   transactions  → Transaksi
+ *   [ + ]         → tombol aksi tengah: isi saldo / buat transaksi /
+ *                   tambah etalase (CENTER_ACTION_ITEMS di bottom-tab-bar)
  *   wallet        → Dompet
- *   showcase      → Feed sosial karya/thread
- *   discover      → "Profil" (slot ke-5 dibrandakan ulang: menekannya membuka
- *                   profil publik MILIK SENDIRI di /user/[username], bukan
- *                   layar penemuan pengguna — lihat listener `tabPress` dan
- *                   TAB_BAR_ITEMS di components/ui/bottom-tab-bar.tsx)
+ *   discover      → "Profil" (slot terakhir dibranderen ulang: menekannya
+ *                   membuka profil publik MILIK SENDIRI di /user/[username],
+ *                   bukan layar penemuan pengguna — lihat listener `tabPress`
+ *                   dan TAB_BAR_ITEMS di components/ui/bottom-tab-bar.tsx)
+ *
+ * `showcase` TETAP terdaftar sebagai Tabs.Screen (rute /showcase masih hidup
+ * dan dipakai menu cepat Beranda) tetapi dikeluarkan dari bar lewat
+ * HIDDEN_TAB_ROUTES: lima tab + tombol tengah tidak menyisakan lebar label
+ * yang terbaca di 360dp. Konsekuensinya disengaja — saat pengguna berada di
+ * /showcase tidak ada tab yang aktif, karena halaman itu memang bukan tab.
  *
  * Notifikasi dan Pengaturan kini menjadi layar Stack tanpa bottom navbar.
  * Unread tetap dipoll di layout ini, lalu badge tampil pada tombol Bell di
@@ -51,7 +58,7 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react"
 import { router, Tabs } from "expo-router"
 
-import { RouterBottomTabBar, TAB_BAR_ITEMS } from "@/components/ui/bottom-tab-bar"
+import { RouterBottomTabBar, visibleTabBarItemMap } from "@/components/ui/bottom-tab-bar"
 import { api } from "@/lib/api"
 import type { UserProfile } from "@/lib/api/users"
 import { logWarn } from "@/lib/telemetry"
@@ -121,15 +128,19 @@ export default function TabsLayout() {
     [meUsername],
   )
 
+  /**
+   * Item bar = peta rute TERLIHAT (showcase sudah dibuang di dalamnya) +
+   * foto profil pada tab Profil. Satu sumber dengan bar kustom di
+   * app/user/[username].tsx lewat helper yang sama.
+   */
   const tabBarItems = useMemo(
-    () => ({
-      ...TAB_BAR_ITEMS,
-      discover: {
-        ...TAB_BAR_ITEMS.discover,
-        avatarUrl: meProfile?.avatarUrl,
-        avatarName: meProfile?.fullName || meProfile?.username || undefined,
-      },
-    }),
+    () =>
+      visibleTabBarItemMap({
+        discover: {
+          avatarUrl: meProfile?.avatarUrl,
+          avatarName: meProfile?.fullName || meProfile?.username || undefined,
+        },
+      }),
     [meProfile],
   )
 
@@ -139,6 +150,7 @@ export default function TabsLayout() {
         state={props.state}
         navigation={props.navigation}
         items={tabBarItems}
+        centerAction
       />
     ),
     [tabBarItems],

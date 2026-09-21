@@ -503,7 +503,7 @@ for (const component of UNUSED_UI_BASELINE) {
  * docs/audit/REFACTOR-PLAN.md.
  */
 const LINE_CEILING = new Map([
-  ["app/user/[username].tsx", 1493],
+  ["app/user/[username].tsx", 1483],
   ["app/chat/[roomId].tsx", 1194],
   ["app/order/[id].tsx", 1146],
   ["app/dispute/[id].tsx", 919],

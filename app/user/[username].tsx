@@ -58,7 +58,7 @@ import { profileUrl } from "@/lib/deeplinks"
 import { formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { resolveMediaUrl } from "@/lib/media"
-import { ROUTES, TAB_ROUTE_NAMES } from "@/lib/routes"
+import { ROUTES } from "@/lib/routes"
 import { isFilePayload, shareContent, type SharePayload } from "@/lib/share"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
@@ -67,7 +67,7 @@ import { logWarn } from "@/lib/telemetry"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { BottomTabBar, TAB_BAR_ITEMS } from "@/components/ui/bottom-tab-bar"
+import { BottomTabBar, TAB_BAR_ITEMS, visibleTabBarItems } from "@/components/ui/bottom-tab-bar"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -529,30 +529,19 @@ export default function UserProfileScreen() {
 
   /**
    * C.2 — Bottom Nav Bar HANYA untuk profil sendiri. Item diambil dari
-   * TAB_BAR_ITEMS (sumber tunggal bersama app/(tabs)/_layout). Slot ke-5
-   * pada peta itu adalah tab "Profil" (kunci `discover` — file tab asal),
-   * maka `value` bar ini "discover".
+   * `visibleTabBarItems()` (sumber tunggal bersama app/(tabs)/_layout, sudah
+   * membuang tab yang disembunyikan — "showcase"). Slot "Profil" (kunci
+   * `discover` — file tab asal) adalah layar ini sendiri, maka `value` bar
+   * ini "discover" dan penekanannya tidak menavigasi ke mana-mana.
    */
   const showBottomNav = isSelf && Boolean(profile)
   const bottomNavItems = useMemo(
     () =>
-      TAB_ROUTE_NAMES.map((name) => {
-        if (name === "discover") {
-          return {
-            key: name,
-            label: TAB_BAR_ITEMS[name].label,
-            icon: TAB_BAR_ITEMS[name].icon,
-            accessibilityLabel: TAB_BAR_ITEMS[name].accessibilityLabel,
-            avatarUrl: profile?.avatarUrl,
-            avatarName: profile?.fullName || handle,
-          }
-        }
-        return {
-          key: name,
-          label: TAB_BAR_ITEMS[name].label,
-          icon: TAB_BAR_ITEMS[name].icon,
-          accessibilityLabel: TAB_BAR_ITEMS[name].accessibilityLabel,
-        }
+      visibleTabBarItems({
+        discover: {
+          avatarUrl: profile?.avatarUrl,
+          avatarName: profile?.fullName || handle,
+        },
       }),
     [profile?.avatarUrl, profile?.fullName, handle],
   )
@@ -1272,6 +1261,7 @@ export default function UserProfileScreen() {
           items={bottomNavItems}
           value="discover"
           onChange={handleBottomNavChange}
+          centerAction
         />
       ) : null}
 
