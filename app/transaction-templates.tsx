@@ -1,9 +1,10 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Template Transaksi (CRUD /v1/transaction-templates).
  * Template = data order default (role, judul, jenis, nilai, tenggat, fee).
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
@@ -15,6 +16,7 @@ import type { TransactionTemplate as ApiTemplate } from "@/lib/api/transaction-t
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
+import { logWarn } from "@/lib/telemetry"
 
 import { AmountInput } from "@/components/ui/amount-input"
 import { Button } from "@/components/ui/button"
@@ -80,8 +82,6 @@ export default function TransactionTemplatesScreen() {
   const [submitting, setSubmitting] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState<ApiTemplate | null>(null)
   const [deleting, setDeleting] = useState(false)
-
-
 
   const openCreate = useCallback(() => {
     setEditing(null)
@@ -168,7 +168,7 @@ export default function TransactionTemplatesScreen() {
       api.transactionTemplates
         .useTransactionTemplate(t.id)
         .then(() => void query.refresh())
-        .catch(() => {})
+        .catch((err) => logWarn("templates:use", err))
       router.push(
         ROUTES.createTransactionFromTemplate({
           role: t.role,

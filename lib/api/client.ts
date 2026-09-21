@@ -16,6 +16,7 @@ import {
   parseRetryAfterMs,
 } from "@/lib/api/errors"
 import { asRecord, invalidResponse, unwrapResponse } from "@/lib/api/response"
+import { recordServerDate } from "@/lib/server-time"
 import {
   clearSession,
   emitSessionExpired,
@@ -228,6 +229,10 @@ async function exchange(
   return bounded(
     async (innerSignal) => {
       const response = await fetch(url, { ...init, signal: innerSignal })
+      // Offset jam server (F-13): header `Date` wajib dari origin (RFC 9110
+      // §5.6.7). Di web header ini bisa tidak terekspos CORS — null diabaikan,
+      // countdown jatuh ke jam perangkat seperti sebelumnya.
+      recordServerDate(response.headers?.get?.("Date"))
       if (!response.ok)
         return { status: response.status, error: await toApiError(response, method, path) }
       const body = await parseBody(response, type)
@@ -376,7 +381,13 @@ async function performRequest<TResponse, TBody>(
     checkAborted(signal)
     const headers: Record<string, string> = {
       Accept: "application/json",
-      ...(await deviceHeaders()),
+      // Minimalisasi data (D-14): identitas perangkat (model+OS) hanya untuk
+      // endpoint yang terautentikasi/ber-sesi. Endpoint publik (auth:"none" —
+      // showcase feed, order-link, health, legal) tidak memerlukannya, dan
+      // mengirimnya ke sana = fingerprinting tanpa manfaat. Jalur refresh
+      // tetap mengirim header device (sesi-related; backend memakainya untuk
+      // rotasi/kolom perangkat).
+      ...(auth === "none" ? {} : await deviceHeaders()),
       ...extraHeaders,
     }
     if (idempotencyKey && !headers["Idempotency-Key"]) headers["Idempotency-Key"] = idempotencyKey

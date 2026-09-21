@@ -1,5 +1,3 @@
-import { ApiError, DEFAULT_ERROR_MESSAGES, parseErrorBody } from "@/lib/api/errors"
-
 /**
  * Paksa field response menjadi array string, apa pun bentuk yang dikirim
  * backend.
@@ -11,6 +9,9 @@ import { ApiError, DEFAULT_ERROR_MESSAGES, parseErrorBody } from "@/lib/api/erro
  * pecah di momen yang tidak bisa diulang (kode hanya ditampilkan sekali).
  * Dikosongkan supaya layar tetap merender langkah berikutnya.
  */
+
+import { ApiError, DEFAULT_ERROR_MESSAGES, parseErrorBody } from "@/lib/api/errors"
+
 export function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
 }

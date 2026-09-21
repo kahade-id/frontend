@@ -9,8 +9,11 @@
  *   diprakarsai user, tidak ada pesan yang tidak diminta.
  *
  * Alur layar:
- *   1. Register memanggil `requestOtpTrigger()` lalu ke sini membawa
- *      { phoneNumber, refCode, whatsappUrl, triggerText, expiresAt }.
+ *   1. Register memanggil `requestOtpTrigger()` lalu ke sini; state alur
+ *      { phoneNumber, refCode, whatsappUrl, triggerText, expiresAt } hidup
+ *      di `lib/otp-flow.ts` (memori modul), BUKAN query param URL — B-07:
+ *      nomor HP + refCode pernah bocor ke history browser/log hosting/
+ *      Referer saat deeplink dibuka.
  *   2. User tap "Kirim lewat WhatsApp" → deeplink wa.me dengan teks terisi.
  *   3. Layar polling `GET /v1/auth/otp-trigger/status/:refCode` tiap 2.5 dtk.
  *      COMPLETED → verifikasi kode → /verify-otp (kode sudah dikirim bot).
@@ -19,10 +22,13 @@
  *
  * Deeplink: `Linking.openURL` bekerja di web (wa.me) dan native (WhatsApp).
  * Bila WhatsApp tidak terpasang, wa.me tetap membuka fallback web chat.
+ * B-08: rute ini deep-linkable, jadi `whatsappUrl` WAJIB lolos whitelist
+ * `https://wa.me|api.whatsapp.com|chat.whatsapp.com` sebelum dibuka — tanpa
+ * itu `/whatsapp-trigger?...` menjadi open-redirect / peluncur skema arbitrary.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Linking, View } from "react-native"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useRouter } from "expo-router"
 import { WhatsappLogo } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
@@ -36,6 +42,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
 import { formatPhoneId } from "@/lib/format"
+import { getOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 
 /** Interval polling status trigger (ms) — cukup cepat terasa instan, hemat request. */
@@ -45,29 +52,43 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000
 /** Cooldown tombol kirim langsung (detik) — hindari dobel kirim saat bingung. */
 const DIRECT_SEND_COOLDOWN_SECONDS = 60
 
-type Params = {
-  phoneNumber: string
-  method: string
-  refCode: string
-  whatsappUrl: string
-  triggerText: string
-  expiresAt: string
+/**
+ * B-08 (audit): whitelist ketat deeplink WhatsApp. Hanya skema https dan
+ * host resmi WhatsApp yang boleh dibuka — nilai lain (javascript:, intent:,
+ * domain penyerang) ditolak dan layar jatuh ke fallback salin-manual.
+ */
+function safeWhatsAppUrl(value: unknown): string | undefined {
+  if (typeof value !== "string" || !value) return undefined
+  try {
+    const url = new URL(value)
+    if (url.protocol !== "https:") return undefined
+    if (!/^(wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)$/.test(url.hostname)) return undefined
+    return url.toString()
+  } catch {
+    return undefined
+  }
 }
 
 export default function WhatsappTriggerScreen() {
   const router = useRouter()
-  const params = useLocalSearchParams<Params>()
+  /** State alur dari Register/verify-otp (memori modul — lihat lib/otp-flow). */
+  const flowRef = useRef(getOtpFlow())
+  const flow = flowRef.current
+  const phoneNumber = flow?.phoneNumber
+  const refCode = flow?.refCode
 
-  // Validasi param — tanpa data trigger, kembali ke Register.
+  // Tanpa data trigger di memori (deep-link/reload langsung ke rute ini),
+  // kembali ke Register — layar tidak bisa dipakai standalone.
   useEffect(() => {
-    if (!params.phoneNumber || !params.refCode || !params.whatsappUrl) {
+    if (!phoneNumber || !refCode) {
       if (router.canGoBack()) router.back()
       else router.replace(ROUTES.register)
     }
-  }, [params.phoneNumber, params.refCode, params.whatsappUrl, router])
+  }, [phoneNumber, refCode, router])
 
-  const otpMethod = (params.method as OtpMethod) || "WHATSAPP"
-  const displayPhone = params.phoneNumber ? formatPhoneId(params.phoneNumber) : ""
+  const otpMethod: OtpMethod = flow?.method ?? "WHATSAPP"
+  const displayPhone = phoneNumber ? formatPhoneId(phoneNumber) : ""
+  const waUrl = safeWhatsAppUrl(flow?.whatsappUrl)
 
   const [sending, setSending] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
@@ -83,16 +104,11 @@ export default function WhatsappTriggerScreen() {
       clearInterval(pollTimer.current)
       pollTimer.current = null
     }
-    router.replace(
-      ROUTES.verifyOtp({
-        phoneNumber: params.phoneNumber,
-        method: otpMethod,
-      }),
-    )
-  }, [otpMethod, params.phoneNumber, router])
+    router.replace(ROUTES.verifyOtp)
+  }, [router])
 
   useEffect(() => {
-    if (!params.refCode || done) return
+    if (!refCode || done) return
     startedAt.current = Date.now()
 
     const tick = async () => {
@@ -102,7 +118,7 @@ export default function WhatsappTriggerScreen() {
         return
       }
       try {
-        const status = await api.auth.getOtpTriggerStatus(params.refCode)
+        const status = await api.auth.getOtpTriggerStatus(refCode)
         if (status === "COMPLETED") {
           goVerifyOtp()
         } else if (status === "FAILED" || status === "EXPIRED") {
@@ -127,13 +143,23 @@ export default function WhatsappTriggerScreen() {
         pollTimer.current = null
       }
     }
-  }, [params.refCode, done, goVerifyOtp])
+  }, [refCode, done, goVerifyOtp])
 
   const openWhatsapp = useCallback(() => {
-    void Linking.openURL(params.whatsappUrl).catch(() => {
-      setFormError("Tidak bisa membuka WhatsApp. Salin teks di bawah dan kirim manual ke nomor bot.")
+    // B-08: URL yang tidak lolos whitelist TIDAK dibuka apa pun adanya —
+    // tampilkan instruksi manual (kode refCode tetap terlihat di layar).
+    if (!waUrl) {
+      setFormError(
+        flow?.triggerText
+          ? `Tidak bisa membuka WhatsApp otomatis. Kirim pesan "${flow.triggerText}" ke bot resmi Kahade dari nomor Anda.`
+          : "Tidak bisa membuka WhatsApp otomatis. Kirim pesan berisi kode di atas ke bot resmi Kahade dari nomor Anda.",
+      )
+      return
+    }
+    void Linking.openURL(waUrl).catch(() => {
+      setFormError("Tidak bisa membuka WhatsApp. Kirim pesan berisi kode di atas manual ke nomor bot.")
     })
-  }, [params.whatsappUrl])
+  }, [waUrl, flow])
 
   const handleDirectSend = useCallback(async () => {
     if (sending) return
@@ -142,9 +168,9 @@ export default function WhatsappTriggerScreen() {
     try {
       // Fallback: jalur kirim langsung (meta refCode hanya untuk audit).
       await api.auth.sendOtpDirect({
-        phoneNumber: params.phoneNumber,
+        phoneNumber: phoneNumber!,
         method: otpMethod,
-        refCode: params.refCode,
+        refCode: refCode!,
       })
       goVerifyOtp()
     } catch (err) {
@@ -152,10 +178,10 @@ export default function WhatsappTriggerScreen() {
     } finally {
       setSending(false)
     }
-  }, [sending, params.phoneNumber, params.refCode, otpMethod, goVerifyOtp])
+  }, [sending, phoneNumber, refCode, otpMethod, goVerifyOtp])
 
-  // Jangan render kalau param tidak valid (effect akan redirect).
-  if (!params.phoneNumber || !params.refCode || !params.whatsappUrl) return null
+  // Jangan render tanpa alur aktif (effect akan redirect).
+  if (!phoneNumber || !refCode) return null
 
   return (
     <Screen padded={false} edges={["top"]}>
@@ -184,7 +210,7 @@ export default function WhatsappTriggerScreen() {
             <Text variant="caption" tone="secondary" className="text-center text-pretty">
               WhatsApp akan terbuka dengan pesan berisi kode{" "}
               <Text variant="monoBody" weight={600}>
-                {params.refCode}
+                {refCode}
               </Text>{" "}
               — tinggal tekan kirim.
             </Text>

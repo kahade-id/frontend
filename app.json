@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Kahade",
-    "slug": "frontend",
+    "slug": "kahade",
     "scheme": "kahade",
     "version": "1.0.0",
     "icon": "./assets/images/icon.png",
@@ -117,6 +117,12 @@
           "defaultChannel": "default",
           "sounds": [],
           "enableBackgroundRemoteNotifications": true
+        }
+      ],
+      [
+        "./plugins/with-flag-secure",
+        {
+          "enabled": true
         }
       ]
     ],

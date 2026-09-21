@@ -45,6 +45,7 @@ import {
   setSecureItem,
 } from "@/lib/secure-storage"
 import { getFirebaseWebConfig } from "@/lib/web-push-config"
+import { logWarn } from "@/lib/telemetry"
 
 export type { WebPushOpenSource } from "@/lib/web-push"
 
@@ -167,12 +168,15 @@ export async function registerWebPushDevice(
   const token = await getWebPushToken()
   if (!token) return null
 
-  const previous = await getSecureItem(SecureKeys.pushToken).catch(() => null)
+  const previous = await getSecureItem(SecureKeys.pushToken).catch((err) => {
+    logWarn("web-push:read-token", err)
+    return null
+  })
   if (previous === token && !opts?.force) return token
 
   const deviceId = await getOrCreateDeviceId()
   await api.registerDevice({ token, platform: "web", deviceId })
-  await setSecureItem(SecureKeys.pushToken, token).catch(() => undefined)
+  await setSecureItem(SecureKeys.pushToken, token).catch((err) => logWarn("web-push:save-token", err))
   return token
 }
 
@@ -186,7 +190,7 @@ export async function unregisterWebPushDevice(api: RegisterDeviceApi): Promise<v
   try {
     const firebaseApp = getApp()
     if (firebaseApp && (await isSupported().catch(() => false))) {
-      await deleteToken(getMessaging(firebaseApp)).catch(() => undefined)
+      await deleteToken(getMessaging(firebaseApp)).catch((err) => logWarn("web-push:delete-token", err))
     }
   } catch {
     /* lanjut ke pelepasan backend */
@@ -196,7 +200,7 @@ export async function unregisterWebPushDevice(api: RegisterDeviceApi): Promise<v
   } catch (err) {
     if (__DEV__) console.warn("[kahade/web-push] unregister gagal (diabaikan):", err)
   } finally {
-    await deleteSecureItem(SecureKeys.pushToken).catch(() => undefined)
+    await deleteSecureItem(SecureKeys.pushToken).catch((err) => logWarn("web-push:clear-token", err))
   }
 }
 
@@ -252,7 +256,7 @@ export function subscribeWebPushMessages(
         }
       })
     })
-    .catch(() => undefined)
+    .catch((err) => logWarn("web-push:on-message", err))
 
   return () => {
     try {

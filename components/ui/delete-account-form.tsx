@@ -82,7 +82,7 @@ const DEFAULT_LABELS: DeleteAccountLabels = {
   blockersTitle: "Selesaikan dulu sebelum menghapus akun",
   reasonLabel: "Alasan (opsional)",
   reasonPlaceholder: "Bantu kami memahami alasan Anda…",
-  passwordLabel: "Password akun",
+  passwordLabel: "Kata sandi akun",
   mfaLabel: "Kode autentikator",
   mfaHelper: "6 digit dari aplikasi autentikator Anda",
   confirmCheckbox: "Saya memahami bahwa data saya akan dihapus dan tidak dapat dipulihkan.",

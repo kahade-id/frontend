@@ -32,6 +32,11 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
 import type { PresignedUrlDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
+import { logWarn } from "@/lib/telemetry"
+// D-08 (audit): validasi STRUKTUR NIK (kode wilayah, tanggal lahir terkode
+// +40 perempuan, nomor urut) — sebelumnya hanya panjang 16 digit sehingga
+// NIK mustahil (mis. digit tanggal 99) lolos ke antrian review backend.
+import { NIK_LENGTH, nikRejectionMessage, validateNikStructure } from "@/lib/nik"
 import {
   pickImage,
   pickedImageToBlob,
@@ -59,8 +64,7 @@ import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { UploadField, type UploadStatus } from "@/components/ui/upload-field"
 
-/** Panjang NIK KTP Indonesia (SubmitKycDto.nik). */
-const NIK_LENGTH = 16
+
 /** KTP: lanskap 3:2 seperti kartu fisik; selfie tanpa crop paksa. */
 const KTP_PICKER: PickImageOptions = { allowsEditing: true }
 const SELFIE_PICKER: PickImageOptions = { source: "camera" }
@@ -170,17 +174,39 @@ export default function KycScreen() {
     [],
   )
 
-  const formValid = !!ktp && !!selfie && nik.length === NIK_LENGTH
+  /**
+   * Validasi struktur hanya dinilai saat 16 digit sudah terisi — selama
+   * mengetik, error tidak boleh berkedip lebih dulu.
+   */
+  const nikCheck = nik.length === NIK_LENGTH ? validateNikStructure(nik) : null
+  const nikError =
+    nikCheck && !nikCheck.valid && nikCheck.reason
+      ? nikRejectionMessage(nikCheck.reason)
+      : undefined
+
+  const formValid = !!ktp && !!selfie && nikCheck?.valid === true
 
   const handleSubmit = useCallback(async () => {
     if (!ktp || !selfie || !formValid) return
     setSubmitting(true)
+    /**
+     * G-04: fileKey yang SUDAH terupload tapi tidak terpakai (satu dokumen
+     * gagal, atau submit KYC ditolak) menjadi orphan di S3. Kumpulkan kunci
+     * yang sukses dan bersihkan best-effort lewat `api.upload.cleanupUploads`
+     * di jalur gagal. `allSettled` (bukan `all`) supaya kunci dari dokumen
+     * yang sukses tetap terlihat saat saudaranya gagal.
+     */
+    const uploadedKeys: string[] = []
     try {
-      const [ktpFileKey, selfieFileKey] = await Promise.all([
+      const [ktpRes, selfieRes] = await Promise.allSettled([
         uploadDoc("ktp", "KYC_KTP", ktp),
         uploadDoc("selfie", "KYC_SELFIE", selfie),
       ])
-      const dto = { ktpFileKey, selfieFileKey, nik }
+      if (ktpRes.status === "fulfilled") uploadedKeys.push(ktpRes.value)
+      if (selfieRes.status === "fulfilled") uploadedKeys.push(selfieRes.value)
+      if (ktpRes.status === "rejected") throw ktpRes.reason
+      if (selfieRes.status === "rejected") throw selfieRes.reason
+      const dto = { ktpFileKey: ktpRes.value, selfieFileKey: selfieRes.value, nik }
       if (isResubmit) await api.kyc.resubmitKyc(dto)
       else await api.kyc.submitKyc(dto)
       toast.show({
@@ -192,6 +218,11 @@ export default function KycScreen() {
       resetForm()
       await query.refresh()
     } catch (err: unknown) {
+      if (uploadedKeys.length > 0) {
+        api.upload
+          .cleanupUploads(uploadedKeys)
+          .catch((cleanupErr: unknown) => logWarn("kyc:cleanup", cleanupErr))
+      }
       toast.show({
         title: "Gagal mengirim verifikasi",
         description: isApiError(err)
@@ -265,6 +296,8 @@ export default function KycScreen() {
                       returnKeyType="done"
                       maxLength={NIK_LENGTH}
                       placeholder={`${NIK_LENGTH} digit`}
+                      errorText={nikError}
+                      accessibilityLabel="NIK 16 digit sesuai KTP"
                     />
                   </Field>
                   <View className="gap-2">

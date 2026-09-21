@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Tanya Jawab Publik sebuah profil.
  *
@@ -22,6 +20,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Komentar per utas dipaginasi (COMMENT_PAGE 20 + "Muat lebih banyak")
  *     di dalam kartu, bukan semua sekaligus.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"

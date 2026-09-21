@@ -39,7 +39,13 @@ export function LegalDocumentScreen({ kind }: { kind: "terms" | "privacy" }) {
             <Button
               onPress={() => {
                 setOpenError(false)
-                void Linking.openURL(url).catch(() => setOpenError(true))
+                // D-05 (audit): URL dokumen berasal dari API — hanya https.
+                const target = safeHttpsUrl(url)
+                if (!target) {
+                  setOpenError(true)
+                  return
+                }
+                void Linking.openURL(target).catch(() => setOpenError(true))
               }}
             >
               Buka dokumen resmi

@@ -1,10 +1,12 @@
-import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `bank-accounts` (tag "bank-accounts").
  *
  * Rekening bank user: list, tambah, hapus, set utama. Semua endpoint
  * `security: access-token` → `auth: "required"`. Tipe response UNVERIFIED.
  */
+
+import { readList } from "@/lib/api/response"
+
 import { http, seg } from "@/lib/api/client"
 import type { AddBankAccountDto } from "@/lib/api/types"
 

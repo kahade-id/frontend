@@ -12,14 +12,12 @@
  *   GET  /v1/wallet/transfer/lookup?q=
  *   POST /v1/wallet/transfer               → { txId, status }
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage, type TransferDto } from "@/lib/api"
-import { authenticateBiometric, getBiometricCapability } from "@/lib/biometrics"
-import { getSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { formatRupiah } from "@/lib/format"
 import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
 import { ROUTES } from "@/lib/routes"
@@ -27,10 +25,13 @@ import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
+import { useResultTimer } from "@/lib/use-result-timer"
+import { recordRecentRecipient, useRecentRecipients } from "@/lib/ui-prefs"
 import { walletTransactionStatus } from "@/lib/wallet-labels"
 
 import { PencilSimpleLine } from "phosphor-react-native"
 
+import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -58,10 +59,14 @@ import { isApiError } from "@/lib/api"
 const MIN_AMOUNT = AMOUNT_LIMITS.transfer.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.transfer.maximum
 const PRESETS = AMOUNT_PRESETS.transfer
+/**
+ * Batas catatan transfer. A-17 (audit): nilai ini TIDAK ada di kontrak yang
+ * di-generate (`TransferDto` hanya memuat aturan `amount`) — 200 adalah
+ * keputusan klien dan dicatat sebagai deviasi spec yang diketahui sampai
+ * backend menambahkan aturan `note` ke DTO (dilacak `check:api`).
+ */
 const NOTE_MAX = 200
 const TOTAL_STEPS = 3
-/** Seberapa lama pesan sukses/gagal di overlay terlihat sebelum lanjut (ms). */
-const RESULT_HOLD_MS = 1400
 
 type Step = "form" | "confirm" | "pin" | "done"
 /** State overlay progres setelah PIN disubmit (processing → sukses/gagal). */
@@ -73,19 +78,27 @@ export default function TransferScreen() {
   const params = useLocalSearchParams<{ to?: string }>()
   const presetUsername = typeof params.to === "string" ? params.to : undefined
 
-  // Ambil saldo dompet untuk batas transfer & tampilkan di keypad
-  const balanceQuery = useApiQuery<{ balance: number }>("wallet-overview-transfer", async (signal) => {
-    try {
+  // Ambil saldo dompet untuk batas transfer & tampilkan di keypad.
+  // A-09 (audit): error TIDAK lagi disamarkan menjadi `{ balance: 0 }` —
+  // saldo gagal dimuat ditampilkan apa adanya + retry, karena "Rp0" adalah
+  // angka yang salah di layar uang. Key disatukan dengan withdraw
+  // ("wallet-overview") agar cache F-03 mendedupe GET /v1/wallet lintas layar.
+  const balanceQuery = useApiQuery<{ balance: number }>(
+    "wallet-overview",
+    async (signal) => {
       const w = await api.wallet.getWallet(signal)
       return { balance: w.balance ?? 0 }
-    } catch {
-      return { balance: 0 }
-    }
-  })
+    },
+    true,
+    { retry: 1 },
+  )
   const balance = balanceQuery.data?.balance
+  const balanceError = balanceQuery.error
 
   const [query, setQuery] = useState(presetUsername ?? "")
-  const [recent, setRecent] = useState<TransferRecipient[]>([])
+  // J-06 (audit): penerima terakhir PERSISTEN antar-sesi (lib/ui-prefs),
+  // bukan state lokal yang hilang tiap masuk layar.
+  const recent = useRecentRecipients()
   const [selected, setSelected] = useState<TransferRecipient | null>(null)
   const [amount, setAmount] = useState(0)
   const [note, setNote] = useState("")
@@ -99,51 +112,35 @@ export default function TransferScreen() {
   // Overlay progres: muncul begitu PIN disubmit, hasil mengganti kontennya.
   const [progressState, setProgressState] = useState<ProgressState | null>(null)
   const [progressError, setProgressError] = useState<string | undefined>()
-  const [biometricEnabled, setBiometricEnabled] = useState(false)
   const submitLock = useRef(false)
+  const scheduleResult = useResultTimer()
 
-  useEffect(() => {
-    let alive = true
-    void (async () => {
-      const [stored, cap] = await Promise.all([
-        getSecureItem(SecureKeys.biometricEnabled).catch(() => null),
-        getBiometricCapability().catch(() => null),
-      ])
-      if (alive && stored === "1" && cap?.available) {
-        setBiometricEnabled(true)
-      }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [])
+  // A-01 (audit): tombol biometrik DIHAPUS dari sheet PIN transfer.
+  // `TransferDto` mewajibkan `pin` mentah dan backend tidak punya jalur
+  // "biometrik → tiket konfirmasi", sehingga prompt biometrik yang "sukses"
+  // tidak punya efek apa pun (placebo). Biometrik kini dipakai untuk kunci
+  // aplikasi (app/biometric-settings.tsx + components/app-lock-gate.tsx);
+  // konfirmasi transaksi kembali ke PIN sampai backend menyediakan tiket.
 
-  const handleBiometric = useCallback(async () => {
-    const outcome = await authenticateBiometric({
-      promptMessage: `Transfer ${formatRupiah(amount)} ke @${selected?.username ?? ""}`,
-      promptSubtitle: "Konfirmasi transfer dana",
-    })
-    if (outcome === "failed" || outcome === "lockout") {
-      setPinError(
-        outcome === "lockout"
-          ? "Biometrik terkunci sementara. Masukkan PIN."
-          : "Biometrik tidak dikenali. Masukkan PIN.",
-      )
-    }
-  }, [amount, selected])
   const debounced = useDebouncedValue(query.trim())
   const lookup = useApiQuery(
     `recipients:${debounced}`,
     (signal) => api.wallet.lookupTransferRecipient(debounced, signal),
     debounced.length >= 3 && query.trim() === debounced,
   )
-  const results: TransferRecipient[] = (lookup.data ?? []).map((r) => ({
-    id: r.id,
-    name: r.fullName ?? r.username,
-    username: r.username,
-    avatarUrl: r.avatarUrl ?? undefined,
-    kycVerified: r.kycVerified,
-  }))
+  // F-08 (audit): di-memo — sebelumnya array baru per render membuat efek
+  // auto-select deep-link berjalan setiap render.
+  const results: TransferRecipient[] = useMemo(
+    () =>
+      (lookup.data ?? []).map((r) => ({
+        id: r.id,
+        name: r.fullName ?? r.username,
+        username: r.username,
+        avatarUrl: r.avatarUrl ?? undefined,
+        kycVerified: r.kycVerified,
+      })),
+    [lookup.data],
+  )
   const loading = lookup.loading || debounced !== query.trim()
 
   // Penerima favorit (audit P2 cluster wallet) — `GET /v1/wallet/favorite-recipients`.
@@ -199,9 +196,7 @@ export default function TransferScreen() {
 
   const handleSelect = useCallback((recipient: TransferRecipient) => {
     setSelected(recipient)
-    setRecent((prev) =>
-      prev.some((r) => r.id === recipient.id) ? prev : [recipient, ...prev].slice(0, 5),
-    )
+    recordRecentRecipient(recipient)
     // Jika penerima datang dari deep-link QR (preset), langsung loncat ke nominal.
     if (presetUsername && recipient.username?.toLowerCase() === presetUsername.toLowerCase()) {
       setFormSubStep("amount")
@@ -256,10 +251,12 @@ export default function TransferScreen() {
         setTransferStatus(res.status)
         setProgressState("SUCCESS")
         // Overlay sukses tampil sejenak, lalu lanjut ke layar hasil.
-        setTimeout(() => {
+        // A-14: timer dibersihkan saat unmount (useResultTimer) — back dalam
+        // jendela 1,4 d tidak lagi memaksa navigasi dari layar lain.
+        scheduleResult(() => {
           setProgressState(null)
           setStep("done")
-        }, RESULT_HOLD_MS)
+        })
       } catch (err) {
         // Gagal TIDAK berarti dana hilang: kalau request sempat terkirim
         // (bukan gagal jaringan murni sebelum terkirim), status akhir harus
@@ -273,16 +270,16 @@ export default function TransferScreen() {
         setProgressState("FAILURE")
         // Setelah pesan gagal terbaca, sheet PIN terbuka lagi (PIN dikosongkan
         // otomatis oleh PinInput) — user bisa memilih mencoba atau membatalkan.
-        setTimeout(() => {
+        scheduleResult(() => {
           setProgressState(null)
           setPinError(msg)
-        }, RESULT_HOLD_MS)
+        })
       } finally {
         submitLock.current = false
         setSubmitting(false)
       }
     },
-    [selected, amount, note],
+    [selected, amount, note, scheduleResult],
   )
 
   const maxAmount =
@@ -355,7 +352,7 @@ export default function TransferScreen() {
                     query={query}
                     onQueryChange={handleQuery}
                     results={results}
-                    recent={recent}
+                    recent={[...recent]}
                     favorites={favorites}
                     favoriteIds={favorites.map((f) => f.id)}
                     onToggleFavorite={handleToggleFavorite}
@@ -418,6 +415,24 @@ export default function TransferScreen() {
                   </Text>
                 </View>
               </FadeIn>
+
+              {/* A-09 (audit): gagal memuat saldo tidak lagi disamarkan
+                  menjadi "Rp0" — tampilkan peringatan + jalur retry. */}
+              {balanceError ? (
+                <View className="px-5 pt-4">
+                  <Alert tone="warning" title="Saldo tidak dapat dimuat">
+                    Batas maksimal kembali ke limit transfer; server tetap memvalidasi saldo Anda.
+                  </Alert>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 self-start"
+                    onPress={() => void balanceQuery.reload()}
+                  >
+                    Muat ulang saldo
+                  </Button>
+                </View>
+              ) : null}
 
               {/* Catatan ditulis DI SINI lewat BottomSheet (kartu tepat di
                   atas keypad), bukan di langkah konfirmasi. */}
@@ -651,7 +666,6 @@ export default function TransferScreen() {
         <PinInput
           mode="enter"
           onComplete={(p) => void handlePin(p)}
-          onBiometric={biometricEnabled ? () => void handleBiometric() : undefined}
           errorText={pinError}
           disabled={submitting}
         />

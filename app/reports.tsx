@@ -1,10 +1,11 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Laporan Saya (GET /v1/settings/reports).
  * Bila dibuka dengan `targetId`/`targetName` (dari Profil Publik), tampilkan
  * <ReportForm> di atas untuk membuat laporan (POST /v1/settings/report).
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
@@ -13,8 +14,8 @@ import { Flag } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import type { ReportsSettings } from "@/lib/api/settings"
-import type { ReportUserSettingsDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
+import { REPORT_CATEGORY_LABELS, REPORT_REASON_TO_CATEGORY } from "@/lib/labels/report"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -24,11 +25,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { ListGroup, ListItem } from "@/components/ui/list-item"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import {
-  ReportForm,
-  type ReportFormValue,
-  type ReportReason,
-} from "@/components/ui/report-form"
+import { ReportForm, type ReportFormValue } from "@/components/ui/report-form"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
@@ -37,25 +34,14 @@ import { hasOwn, mapValue } from "@/lib/has-own"
 /**
  * Peta alasan UI → enum API POST /v1/settings/report.
  *
- * Tipe kunci = `ReportReason` (bukan `string`) sehingga setiap alasan yang
- * ditampilkan `REPORT_REASONS` wajib punya padanan — alasan baru tanpa peta
- * gagal `tsc`. Tipe nilai = `ReportUserSettingsDto["category"]` sehingga
- * salah ketik nama kategori juga gagal `tsc`. Sebelumnya peta ini
- * `Record<string, string>` dan pemanggilnya memakai cast `as ...["category"]`,
- * jadi keduanya lolos kompilasi dan baru meledak sebagai 400 di backend.
- *
- * `MONEY_LAUNDERING` sengaja tidak dipetakan: enum backend boleh lebih luas
- * daripada pilihan yang kita tampilkan; `mapValue` memakai `OTHER` sebagai
- * jaring pengaman untuk alasan di luar peta.
+ * Peta alasan→kategori hidup di `lib/labels/report` (G-13) dengan tipe kunci
+ * `UserReportReason` dan tipe nilai `ReportUserSettingsDto["category"]` —
+ * alasan baru tanpa padanan gagal `tsc`, bukan 400 di produksi.
+ * `MONEY_LAUNDERING` sengaja tidak ditawarkan di UI; `mapValue` memakai
+ * `OTHER` sebagai jaring pengaman untuk alasan di luar peta.
  */
-const REASON_TO_CATEGORY: Record<ReportReason, ReportUserSettingsDto["category"]> = {
-  SCAM: "FRAUD",
-  HARASSMENT: "TNC_VIOLATION",
-  FAKE_ACCOUNT: "FAKE_IDENTITY",
-  INAPPROPRIATE_CONTENT: "INAPPROPRIATE_CONTENT",
-  SPAM: "SPAM",
-  OTHER: "OTHER",
-}
+// G-13: peta alasan→kategori kini satu sumber di lib/labels/report.
+const REASON_TO_CATEGORY = REPORT_REASON_TO_CATEGORY
 
 export type ReportStatus = "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED" | (string & {})
 const STATUS_TONE: Record<ReportStatus, BadgeTone> = {
@@ -72,15 +58,7 @@ const STATUS_LABELS: Record<ReportStatus, string> = {
   REJECTED: "Ditolak",
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  FRAUD: "Penipuan",
-  FAKE_IDENTITY: "Identitas palsu",
-  INAPPROPRIATE_CONTENT: "Konten tidak pantas",
-  TNC_VIOLATION: "Pelanggaran ketentuan",
-  MONEY_LAUNDERING: "Pencucian uang",
-  SPAM: "Spam",
-  OTHER: "Lainnya",
-}
+const CATEGORY_LABELS = REPORT_CATEGORY_LABELS
 
 export default function ReportsScreen() {
   const { targetId, targetName } = useLocalSearchParams<{

@@ -51,6 +51,7 @@ import {
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
 import { ROUTES } from "@/lib/routes"
+import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
 import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
@@ -635,10 +636,9 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         <View className="gap-4">
           <Field label="Alasan Laporan" required>
             <RadioGroup value={reportReason} onChange={setReportReason} variant="plain">
-              <Radio value="SPAM" label="Spam atau penipuan" />
-              <Radio value="INAPPROPRIATE" label="Konten tidak pantas" />
-              <Radio value="HARASSMENT" label="Pelecehan atau ujaran kebencian" />
-              <Radio value="OTHER" label="Lainnya" />
+              {CONTENT_REPORT_REASONS.map((r) => (
+                <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
+              ))}
             </RadioGroup>
           </Field>
           <Field label="Keterangan tambahan (opsional)">

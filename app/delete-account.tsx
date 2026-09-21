@@ -1,7 +1,3 @@
-import { useApiQuery } from "@/lib/use-api-query"
-import { ErrorState } from "@/components/ui/error-state"
-import { Crossfade } from "@/components/ui/fade-in"
-import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Hapus Akun (POST /v1/users/me/delete-request).
  *
@@ -18,6 +14,11 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  * Blocker bersifat best-effort: kegagalan memuat saldo/pesanan TIDAK
  * memblokir form (array kosong) — backend tetap menjadi penjaga terakhir.
  */
+
+import { useApiQuery } from "@/lib/use-api-query"
+import { ErrorState } from "@/components/ui/error-state"
+import { Crossfade } from "@/components/ui/fade-in"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { useCallback, useRef, useState } from "react"
 import { Platform, ScrollView, View } from "react-native"
 import { router } from "expo-router"
@@ -30,6 +31,7 @@ import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { logWarn } from "@/lib/telemetry"
 
 import { Button } from "@/components/ui/button"
 import { DeleteAccountForm, type DeleteAccountPayload } from "@/components/ui/delete-account-form"
@@ -91,8 +93,9 @@ export default function DeleteAccountScreen() {
             api.notifications.registerDevice(dto),
           unregisterDevice: () => api.notifications.unregisterDevice(),
         }
-        if (Platform.OS === "web") await unregisterWebPushDevice(deviceApi).catch(() => undefined)
-        else await unregisterPushDevice(deviceApi).catch(() => undefined)
+        if (Platform.OS === "web")
+          await unregisterWebPushDevice(deviceApi).catch((err) => logWarn("account-delete:unregister-push", err))
+        else await unregisterPushDevice(deviceApi).catch((err) => logWarn("account-delete:unregister-push", err))
         await clearSession()
         router.replace(ROUTES.login)
       } catch {

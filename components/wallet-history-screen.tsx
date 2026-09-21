@@ -14,10 +14,15 @@ import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const query = usePaginatedQuery(`wallet-history:${kind}`, (page, signal) =>
-    kind === "topup"
-      ? api.wallet.getTopupHistory({ page, limit: 20 }, signal)
-      : api.wallet.getWithdrawHistory({ page, limit: 20 }, signal),
+  const query = usePaginatedQuery(
+    `wallet-history:${kind}`,
+    (page, signal) =>
+      kind === "topup"
+        ? api.wallet.getTopupHistory({ page, limit: 20 }, signal)
+        : api.wallet.getWithdrawHistory({ page, limit: 20 }, signal),
+    // F-01 (audit): paritas dengan wallet-history.tsx — riwayat uang basi
+    // adalah bug kebenaran; refresh diam saat layar kembali fokus.
+    { refreshOnFocus: true },
   )
   return (
     <Screen edges={["top"]} padded={false}>

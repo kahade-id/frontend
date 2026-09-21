@@ -19,8 +19,10 @@
  *
  * Resend:
  *   POST /v1/auth/request-otp  body { phoneNumber, method }
- *   - Sama persis dengan yang dipanggil Register screen, memakai nomor + metode
- *     yang diwarisi dari route params.
+ *   - Sama persis dengan yang dipanggil Register screen, memakai nomor +
+ *     metode dari state alur memori (lib/otp-flow) — BUKAN route params
+ *     (B-07/B-14: param URL bisa dipalsukan orang lain untuk memicu resend
+ *     OTP ke nomor korban, dan bocor ke history/log/Referer di web).
  *   - Response: { cooldownSeconds? } → restart countdown (default 60 d).
  *
  * Keputusan non-obvious:
@@ -43,7 +45,8 @@
  *     bawah body penjelasan, bukan inline di paragraf.
  *   - tempToken disimpan di `lib/registration.ts` (module memory) — bukan
  *     SecureStore, bukan route params — karena short-lived dan tidak perlu
- *     bertahan dari restart.
+ *     bertahan dari restart. Nomor + metode alur OTP sendiri hidup di
+ *     `lib/otp-flow.ts` dengan alasan keamanan yang sama (B-07/B-14).
  *   - "Ubah nomor HP" = `router.back()` ke Register. OTP yang sudah dikirim
  *     tetap valid di backend tapi tidak dipakai — user bisa minta OTP baru
  *     dari Register dengan nomor yang berbeda.
@@ -51,7 +54,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useRouter } from "expo-router"
 
 import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -68,6 +71,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
 import { formatPhoneId } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
+import { clearOtpFlow, getOtpFlow, patchOtpFlow } from "@/lib/otp-flow"
 import { setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
 
@@ -83,21 +87,25 @@ export default function VerifyOtpScreen() {
   const insets = useSafeAreaInsets()
   const otpRef = useRef<OtpInputHandle>(null)
 
-  // Route params dari Register screen
-  const { phoneNumber, method } = useLocalSearchParams<{
-    phoneNumber: string
-    method: string
-  }>()
+  /**
+   * State alur dari Register/WhatsApp-trigger (lib/otp-flow, memori modul).
+   * Dibaca SEKALI saat mount: tanpa alur (deep-link/reload web langsung ke
+   * /verify-otp) layar ini tidak bisa dipakai standalone — B-14.
+   */
+  const flowRef = useRef(getOtpFlow())
+  const flow = flowRef.current
+  const phoneNumber = flow?.phoneNumber
+  const method = flow?.method
 
-  // Validasi param — fallback ke register kalau param hilang
+  // Tanpa alur aktif → kembali ke Register (OTP baru).
   useEffect(() => {
-    if (!phoneNumber || !method) {
+    if (!flow) {
       if (router.canGoBack()) router.back()
       else router.replace(ROUTES.register)
     }
-  }, [phoneNumber, method, router])
+  }, [flow, router])
 
-  const otpMethod = (method as OtpMethod) || "SMS"
+  const otpMethod: OtpMethod = method ?? "SMS"
   const methodLabel = otpMethod === "WHATSAPP" ? "WhatsApp" : "SMS"
   const displayPhone = phoneNumber ? formatPhoneId(phoneNumber) : ""
 
@@ -142,10 +150,12 @@ export default function VerifyOtpScreen() {
             phoneNumber,
             method: otpMethod,
           })
+          clearOtpFlow()
           router.replace(ROUTES.createSecurity)
         } else {
           // User sudah punya akun → token sudah disimpan otomatis oleh auth.ts
           // → Welcome (cek izin) sebagai user lama, lalu Home.
+          clearOtpFlow()
           router.replace(ROUTES.welcome())
         }
       } catch (err) {
@@ -209,16 +219,13 @@ export default function VerifyOtpScreen() {
         // tidak tersedia (503 OTP_TRIGGER_UNAVAILABLE), jatuh ke kirim langsung.
         try {
           const trigger = await api.auth.requestOtpTrigger({ phoneNumber })
-          router.replace(
-            ROUTES.whatsappTrigger({
-              phoneNumber,
-              method: otpMethod,
-              refCode: trigger.refCode,
-              whatsappUrl: trigger.whatsappUrl,
-              triggerText: trigger.triggerText,
-              expiresAt: trigger.expiresAt,
-            }),
-          )
+          patchOtpFlow({
+            refCode: trigger.refCode,
+            whatsappUrl: trigger.whatsappUrl,
+            triggerText: trigger.triggerText,
+            expiresAt: trigger.expiresAt,
+          })
+          router.replace(ROUTES.whatsappTrigger)
           return
         } catch (triggerErr) {
           const unavailable =
@@ -252,8 +259,8 @@ export default function VerifyOtpScreen() {
     router.back()
   }, [router])
 
-  // Jangan render kalau param tidak valid (effect akan redirect)
-  if (!phoneNumber || !method) return null
+  // Jangan render tanpa alur aktif (effect akan redirect)
+  if (!flow || !phoneNumber || !method) return null
 
   return (
     <Screen padded={false} edges={["top"]}>

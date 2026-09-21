@@ -5,8 +5,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -24,7 +24,7 @@
     "check:spec": "node scripts/gen-mobile-spec.mjs --check",
     "check:api:body": "node scripts/check-api-body.mjs",
     "check:api:soft": "node scripts/check-api.mjs && node scripts/check-api-body.mjs",
-    "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:push && npm run check:permissions && npm run check:i18n && npm test && npm run test:i18n-render",
+    "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:push && npm run check:permissions && npm run check:i18n && npm test && npm run test:components",
     "ota:preflight": "node scripts/check-ota.mjs",
     "audit:inventory": "node scripts/audit-inventory.mjs",
     "build:web": "EXPO_OFFLINE=1 expo export --platform web && node scripts/gen-web-meta.mjs && node scripts/gen-fcm-sw.mjs",
@@ -39,7 +39,7 @@
     "gen:i18n": "node --experimental-strip-types --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-i18n-catalog.mjs",
     "check:i18n": "npm run gen:i18n -- --check && node scripts/check-i18n.mjs",
     "verify:api": "node scripts/verify-live-api.mjs",
-    "test:i18n-render": "vitest run --config vitest.i18n-render.config.ts"
+    "test:components": "vitest run --config vitest.components.config.ts"
   },
   "engines": {
     "node": ">=22"

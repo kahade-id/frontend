@@ -14,21 +14,33 @@
  *     gagal → "error" + coba lagi. Saat kirim, `messageType` = IMAGE bila
  *     semua lampiran gambar, FILE bila ada non-gambar, TEXT bila tanpa
  *     lampiran.
- *   - Pesan lama dimuat ke ATAS lewat <LoadMore> dengan kursor (`nextCursor`
- *     dari server, fallback id pesan tertua) + `excludeIds` id yang sudah
- *     dimiliki agar tidak duplikat. Akhir = halaman kosong / lebih kecil
- *     dari CHAT_PAGE_SIZE.
+ *   - Pesan lama dimuat ke ATAS lewat <LoadMore> (dan otomatis saat scroll
+ *     mencapai puncak list) dengan kursor (`nextCursor` dari server, fallback
+ *     id pesan tertua) + `excludeIds` TERBATAS (EXCLUDE_IDS_MAX id terbaru;
+ *     C-02) — dedupe final tetap dihitung di dalam updater terhadap state
+ *     terkini (C-03). Akhir = halaman kosong / lebih kecil dari
+ *     CHAT_PAGE_SIZE.
+ *   - Thread dirender <FlatList> (virtualisasi, F-06) — bubble tidak lagi
+ *     ter-mount penuh untuk thread panjang.
+ *   - Poll pesan adaptif (F-07): 8 detik saat aktif, naik ke 20 detik
+ *     setelah 10 poll kosong beruntun; kembali cepat saat ada pesan baru,
+ *     mengetik, atau mengirim. Respons poll di-guard terhadap pergantian
+ *     ruang (C-05) dan sekaligus menyegarkan reaksi/pin/edit pesan yang
+ *     sudah ada (C-07).
  *   - Hapus pesan: long-press gelembung milik sendiri → ActionSheet
  *     (Salin / Hapus). Hapus memakai Dialog destruktif.
  *   - Lampiran gambar dibuka di <MediaViewer>; berkas lain → buka eksternal.
  *   - Nama lawan bicara diambil dari daftar ruang (GET /rooms tidak punya
- *     endpoint detail) — bila tidak ditemukan judul tetap "Percakapan".
+ *     endpoint detail); fallback param navigasi `title` (C-06), lalu
+ *     "Percakapan".
+ *   - Cari pesan dalam ruang (J-07): sheet + GET /rooms/{id}/search; hasil
+ *     yang termuat di thread dilompati via scrollToIndex.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { FlatList, Platform, ScrollView, View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
-import { Chats, Copy, PaperPlaneRight, PencilSimple, Package, PushPin, Smiley, Trash } from "phosphor-react-native"
+import { Chats, Copy, MagnifyingGlass, PaperPlaneRight, PencilSimple, Package, PushPin, Smiley, Trash } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { refreshUnreadCount } from "@/lib/unread-count"
@@ -44,6 +56,7 @@ import {
   getRoomPresence,
   pinChatMessage,
   removeReaction,
+  searchRoomMessages,
   sendChatTyping,
   unpinChatMessage,
   type ChatMessage,
@@ -54,6 +67,8 @@ import {
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
 import { formatDateTime } from "@/lib/format"
+import { useDebouncedValue } from "@/lib/use-debounced-value"
+import { logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -71,7 +86,7 @@ import {
 } from "@/components/ui/chat-composer"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { Dialog } from "@/components/ui/modal"
-import { Crossfade } from "@/components/ui/fade-in"
+import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -91,10 +106,27 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
 type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
 
-/** Jarak poll pesan baru saat ruang terbuka. Push tetap pemicu utama. */
+/** Jarak poll pesan baru saat ruang AKTIF. Push tetap pemicu utama. */
 const CHAT_POLL_MS = 8000
+/**
+ * F-07 (audit): setelah IDLE_AFTER_EMPTY_POLLS poll beruntun tanpa pesan
+ * baru, interval naik ke sini (idle backoff). Kembali cepat begitu ada pesan
+ * masuk, pengguna mengetik, atau mengirim — baterai & server load turun tanpa
+ * mengorbankan responsivitas saat percakapan hidup.
+ */
+const CHAT_POLL_IDLE_MS = 20000
+const IDLE_AFTER_EMPTY_POLLS = 10
 /** Jarak poll status online lawan bicara (REST; WS realtime belum ada di app). */
 const PRESENCE_POLL_MS = 30000
+/**
+ * C-02 (audit): batas id yang dikirim sebagai `excludeIds`. Thread panjang
+ * (ratusan pesan) pernah mengirim SEMUA id di query string — risiko 414 dan
+ * biaya parse backend. Duplikat hanya mungkin di sekitar batas halaman
+ * (kursor sudah dikirim), dan merge dedupe tetap menyaring apa pun.
+ */
+const EXCLUDE_IDS_MAX = 50
+/** C-07: refresh read-receipt & pin tiap N poll pesan (murah, ~32 d sekali). */
+const RECEIPTS_REFRESH_EVERY_POLLS = 4
 
 function messageTypeFor(
   attachments: ChatAttachmentDto[],
@@ -115,7 +147,11 @@ function sortByTime(items: ChatMessage[]): ChatMessage[] {
 }
 
 export default function ChatRoomScreen() {
-  const { roomId } = useLocalSearchParams<{ roomId: string }>()
+  // C-06 (audit): `title` opsional dikirim saat navigasi dari daftar chat —
+  // GET /rooms tidak punya endpoint detail dan pencarian ruang hanya memuat
+  // 30 pertama, sehingga ruang ke-31+ kehilangan nama lawan bicara di header.
+  const { roomId, title } = useLocalSearchParams<{ roomId: string; title?: string }>()
+  const titleParam = typeof title === "string" && title.trim() ? title.trim() : undefined
   const toast = useToast()
   const { copy } = useCopy()
 
@@ -146,6 +182,28 @@ export default function ChatRoomScreen() {
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const typingActive = useRef(false)
   const initialRequest = useRef<AbortController | null>(null)
+  /**
+   * C-05 (audit): roomId TERKINI untuk guard respons terbang — param ruang
+   * bisa berganti tanpa unmount (expo-router me-reuse instance), dan respons
+   * poll ruang lama tidak boleh masuk ke ruang baru / setState pasca-unmount.
+   */
+  const roomIdRef = useRef(roomId)
+  roomIdRef.current = roomId
+
+  // F-07: interval poll adaptif (aktif vs idle).
+  const [pollInterval, setPollInterval] = useState(CHAT_POLL_MS)
+  const emptyPolls = useRef(0)
+  const pollTick = useRef(0)
+
+  // J-07 (audit): pencarian pesan dalam ruang — adapter searchRoomMessages
+  // sudah ada sejak API-GAP 2026-09-15, UI-nya yang belum.
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState("")
+  const debouncedSearch = useDebouncedValue(searchQuery.trim(), 400)
+  const [searchResults, setSearchResults] = useState<ChatMessage[]>([])
+  const [searchLoading, setSearchLoading] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const searchRequest = useRef<AbortController | null>(null)
 
   const fetchMessages = useCallback(async () => {
     if (!roomId) return
@@ -157,10 +215,13 @@ export default function ChatRoomScreen() {
     try {
       const [page, rooms] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
-        api.chat.listChatRooms({ page: 1, limit: CHAT_PAGE_SIZE }, controller.signal).catch(() => ({
-          data: [] as ChatRoom[],
-          meta: { page: 1, limit: CHAT_PAGE_SIZE, totalPages: 1 },
-        })),
+        api.chat.listChatRooms({ page: 1, limit: CHAT_PAGE_SIZE }, controller.signal).catch((err) => {
+          logWarn("chat:rooms-lookup", err)
+          return {
+            data: [] as ChatRoom[],
+            meta: { page: 1, limit: CHAT_PAGE_SIZE, totalPages: 1 },
+          }
+        }),
       ])
       if (controller.signal.aborted) return
       const items = sortByTime(page.items)
@@ -170,7 +231,7 @@ export default function ChatRoomScreen() {
       )
       setOlderStatus(page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
       setRoom(rooms.data.find((r) => r.id === roomId) ?? null)
-      await api.chat.markChatRoomRead(roomId).catch(() => undefined)
+      await api.chat.markChatRoomRead(roomId).catch((err) => logWarn("chat:mark-read-open", err))
       // Ruang sudah dibuka dan ditandai terbaca → segarkan badge tab agar
       // angka unread turun segera, bukan menunggu poll 60 detik.
       void refreshUnreadCount()
@@ -196,8 +257,9 @@ export default function ChatRoomScreen() {
       setReadByCounterpart(
         new Set(receipts.filter((r) => r.isRead).map((r) => r.messageId)),
       )
-    } catch {
+    } catch (err) {
       // Read receipt bersifat kosmetik — kegagalan tidak boleh mengganggu ruang.
+      logWarn("chat:read-receipts", err)
     }
   }, [roomId])
 
@@ -206,17 +268,23 @@ export default function ChatRoomScreen() {
     if (!roomId) return
     try {
       setPinned(await getPinnedMessages(roomId))
-    } catch {
+    } catch (err) {
+      logWarn("chat:pinned", err)
       setPinned([])
     }
   }, [roomId])
 
   // ── Presence lawan bicara (REST poll; WS realtime belum ada di app) ──
-  const refreshPresence = useCallback(async () => {
+  // C-04 (audit): setInterval mentah diganti usePolling — presence tidak
+  // lagi terus dipoll saat app di background / layar tidak fokus, dan satu
+  // mekanisme polling untuk semua loop di layar ini.
+  const refreshPresence = useCallback(async (signal?: AbortSignal) => {
     if (!roomId) return
     try {
-      setPresence(await getRoomPresence(roomId))
-    } catch {
+      setPresence(await getRoomPresence(roomId, signal))
+    } catch (err) {
+      if (signal?.aborted) return
+      logWarn("chat:presence", err)
       setPresence(null)
     }
   }, [roomId])
@@ -226,9 +294,8 @@ export default function ChatRoomScreen() {
     void refreshReadReceipts()
     void refreshPinned()
     void refreshPresence()
-    const t = setInterval(() => void refreshPresence(), PRESENCE_POLL_MS)
-    return () => clearInterval(t)
   }, [roomId, refreshPresence, refreshPinned, refreshReadReceipts])
+  usePolling(refreshPresence, PRESENCE_POLL_MS, Boolean(roomId))
 
   // ── Poll pesan baru ────────────────────────────────────────────────────
   // Tanpa ini, balasan lawan bicara TIDAK PERNAH muncul selama ruang
@@ -237,33 +304,78 @@ export default function ChatRoomScreen() {
   // TERBARU (tanpa cursor) lalu menggabungkan id yang belum dikenal ke
   // thread — pesan lama yang sedang dibaca tidak pernah digeser.
   const mergeIncoming = useCallback(
-    (incoming: ChatMessage[]) => {
+    (incoming: ChatMessage[], sourceRoom?: string) => {
+      // C-05 (audit): respons terbang dari ruang lama (param berganti tanpa
+      // unmount) tidak boleh menyentuh state ruang baru.
+      if (sourceRoom !== undefined && sourceRoom !== roomIdRef.current) return 0
       let added = 0
       setMessages((prev) => {
-        const known = new Set(prev.map((m) => m.id))
+        const known = new Map(prev.map((m) => [m.id, m]))
         const fresh = incoming.filter((m) => !known.has(m.id))
         added = fresh.length
-        if (!added) return prev
+        // C-07 (audit): pesan yang SUDAH ada di thread ikut disegarkan dari
+        // data poll (reaksi, pin, edit, teks) — sebelumnya reaksi/read dari
+        // lawan bicara tidak pernah muncul sampai keluar-masuk ruang.
+        let changed = added > 0
+        const patched = prev.map((m) => {
+          const next = known.get(m.id) ? incoming.find((i) => i.id === m.id) : undefined
+          if (!next) return m
+          const same =
+            next.isPinned === m.isPinned &&
+            next.isEdited === m.isEdited &&
+            next.text === m.text &&
+            JSON.stringify(next.reactions ?? []) === JSON.stringify(m.reactions ?? [])
+          if (same) return m
+          changed = true
+          return {
+            ...m,
+            text: next.text,
+            isPinned: next.isPinned,
+            isEdited: next.isEdited,
+            editedAt: next.editedAt ?? m.editedAt,
+            reactions: next.reactions,
+          }
+        })
+        if (!changed) return prev
         // Pesan masuk dari lawan bicara → badge tab Notifikasi harus turun
         // segera (ruang terbuka = terbaca), bukan menunggu poll 60 detik.
-        if (fresh.some((m) => !m.fromUser) && roomId) {
-          void api.chat.markChatRoomRead(roomId).catch(() => undefined)
+        if (added > 0 && fresh.some((m) => !m.fromUser) && roomIdRef.current) {
+          void api.chat
+            .markChatRoomRead(roomIdRef.current)
+            .catch((err) => logWarn("chat:mark-read", err))
           void refreshUnreadCount()
         }
-        return sortByTime([...prev, ...fresh])
+        return sortByTime([...patched, ...fresh])
       })
       return added
     },
-    [roomId],
+    [],
   )
 
-  const pollNewMessages = useCallback(async () => {
-    if (!roomId) return
-    const page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE })
-    mergeIncoming(sortByTime(page.items))
-  }, [roomId, mergeIncoming])
+  const pollNewMessages = useCallback(
+    async (signal?: AbortSignal) => {
+      if (!roomId) return
+      const targetRoom = roomId
+      const page = await api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, signal)
+      const added = mergeIncoming(sortByTime(page.items), targetRoom)
+      // F-07: adaptive interval — poll kosong beruntun menaikkan interval;
+      // satu pesan baru saja sudah cukup untuk kembali ke interval cepat.
+      emptyPolls.current = added > 0 ? 0 : emptyPolls.current + 1
+      const nextInterval =
+        emptyPolls.current >= IDLE_AFTER_EMPTY_POLLS ? CHAT_POLL_IDLE_MS : CHAT_POLL_MS
+      setPollInterval((prev) => (prev === nextInterval ? prev : nextInterval))
+      // C-07: read-receipt & daftar pin disegarkan periodik (murah) selagi
+      // ruang terbuka, tidak hanya di mount dan setelah aksi sendiri.
+      pollTick.current += 1
+      if (pollTick.current % RECEIPTS_REFRESH_EVERY_POLLS === 0) {
+        void refreshReadReceipts()
+        void refreshPinned()
+      }
+    },
+    [roomId, mergeIncoming, refreshReadReceipts, refreshPinned],
+  )
 
-  usePolling(pollNewMessages, CHAT_POLL_MS, Boolean(roomId) && !error && !loading)
+  usePolling(pollNewMessages, pollInterval, Boolean(roomId) && !error && !loading)
 
   // ── Auto-scroll ke pesan terbaru ───────────────────────────────────────
   // Thread tumbuh ke bawah, tetapi ScrollView mulai di ATAS: membuka ruang
@@ -271,7 +383,10 @@ export default function ChatRoomScreen() {
   // menggulir manual. Gulir ke ujung bawah hanya ketika id pesan TERAKHIR
   // berubah (muat awal, kirim, pesan masuk) — memuat pesan lama di atas
   // (LoadMore) tidak mengubah id terakhir sehingga posisi baca tidak lompat.
-  const scrollRef = useRef<ScrollView>(null)
+  // F-06 (audit): thread dirender <FlatList> (virtualisasi) — sebelumnya
+  // ScrollView + messages.map menahan 200+ bubble ter-mount penuh dengan
+  // gambar; memori & FPS jatuh di Android low-end.
+  const scrollRef = useRef<FlatList<ChatMessage>>(null)
   const lastSeenEndId = useRef<string | undefined>(undefined)
   const lastMessageId = messages[messages.length - 1]?.id
   const handleContentSizeChange = useCallback(() => {
@@ -281,22 +396,61 @@ export default function ChatRoomScreen() {
     }
   }, [lastMessageId])
 
+  /**
+   * J-07: lompat ke pesan hasil pencarian — hanya mungkin bila pesannya
+   * sudah termuat di thread (virtualisasi mengandalkan data di state).
+   */
+  const jumpToMessage = useCallback(
+    (messageId: string) => {
+      const index = messages.findIndex((m) => m.id === messageId)
+      setSearchOpen(false)
+      if (index >= 0) {
+        scrollRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
+      } else {
+        toast.show({
+          title: "Pesan belum termuat di thread",
+          description: "Muat pesan sebelumnya untuk menjangkau riwayat yang lebih lama.",
+          tone: "info",
+        })
+      }
+    },
+    [messages, toast.show],
+  )
+
   const loadOlder = useCallback(async () => {
     if (!roomId || olderStatus === "loading" || olderStatus === "end") return
     setOlderStatus("loading")
+    const targetRoom = roomId
     try {
-      const page = await api.chat.getChatMessages(roomId, {
-        cursor: nextCursor ?? messages[0]?.id,
-        limit: CHAT_PAGE_SIZE,
-        excludeIds: messages.map((m) => m.id),
+      const page = await api.chat.getChatMessages(
+        roomId,
+        {
+          cursor: nextCursor ?? messages[0]?.id,
+          limit: CHAT_PAGE_SIZE,
+          // C-02: dibatasi N id terbaru (bukan seluruh thread) — kursor tetap
+          // sumber utama; merge di bawah tetap menyaring duplikat apa pun.
+          excludeIds: messages.slice(-EXCLUDE_IDS_MAX).map((m) => m.id),
+        },
+      )
+      if (targetRoom !== roomIdRef.current) return
+      // C-03 (audit): dedupe dihitung DI DALAM updater terhadap `prev`
+      // terkini — sebelumnya set `known` diambil dari closure, sehingga poll
+      // yang menyisipkan pesan di tengah request menghasilkan duplikat.
+      let freshCount = 0
+      let oldestId: string | undefined
+      setMessages((prev) => {
+        const known = new Set(prev.map((m) => m.id))
+        const fresh = sortByTime(page.items.filter((m) => !known.has(m.id)))
+        freshCount = fresh.length
+        oldestId = fresh[0]?.id
+        if (!freshCount) return prev
+        return sortByTime([...fresh, ...prev])
       })
-      const known = new Set(messages.map((m) => m.id))
-      const fresh = page.items.filter((m) => !known.has(m.id))
-      setMessages((prev) => sortByTime([...fresh, ...prev]))
-      const oldest = sortByTime(fresh)[0]
-      setNextCursor(page.nextCursor ?? oldest?.id ?? null)
-      setOlderStatus(fresh.length === 0 || page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
-    } catch {
+      setNextCursor(page.nextCursor ?? oldestId ?? null)
+      setOlderStatus(freshCount === 0 || page.items.length < CHAT_PAGE_SIZE ? "end" : "idle")
+    } catch (err) {
+      if (targetRoom !== roomIdRef.current) return
+      logWarn("chat:load-older", err)
       setOlderStatus("error")
     }
   }, [roomId, olderStatus, nextCursor, messages])
@@ -378,13 +532,20 @@ export default function ChatRoomScreen() {
           attachments: dtoAttachments.length ? dtoAttachments : undefined,
           replyToId: payload.replyToId,
         })
-        setMessages((prev) => [...prev, msg])
+        // C-01 (audit): append mentah bisa menghasilkan gelembung GANDA bila
+        // poll 8 detik sudah lebih dulu memasukkan pesan yang sama (server
+        // mengembalikan pesan sendiri di halaman terbaru). mergeIncoming
+        // menyaring berdasarkan id.
+        mergeIncoming([msg], roomId)
+        // Pengguna aktif → poll kembali cepat bila sedang idle.
+        emptyPolls.current = 0
+        setPollInterval(CHAT_POLL_MS)
         setDraft("")
         setAttachments([])
         // Hentikan indikator mengetik setelah pesan terkirim.
         if (typingTimer.current) clearTimeout(typingTimer.current)
         typingActive.current = false
-        void sendChatTyping(roomId, false).catch(() => undefined)
+        void sendChatTyping(roomId, false).catch((err) => logWarn("chat:typing-stop", err))
         void refreshReadReceipts()
       } catch (err) {
         toast.show({
@@ -396,7 +557,7 @@ export default function ChatRoomScreen() {
         setSending(false)
       }
     },
-    [roomId, attachments, toast.show],
+    [roomId, attachments, toast.show, mergeIncoming],
   )
 
   const handleDelete = useCallback(async () => {
@@ -433,8 +594,11 @@ export default function ChatRoomScreen() {
       const before = message.reactions ?? []
       const optimistic: ChatReaction[] = [...before]
       if (mine) {
+        // C-09 (audit): melepas reaksi sendiri dengan count===1 harus
+        // menghasilkan 0 agar filter di bawah membuang chip-nya — sebelumnya
+        // Math.max(1, …) menahan chip "hantu" sampai respons tiba (flicker).
         const idx = optimistic.findIndex((r) => r.emoji === emoji)
-        optimistic[idx] = { ...optimistic[idx], count: Math.max(1, optimistic[idx].count - 1), reactedByMe: false }
+        optimistic[idx] = { ...optimistic[idx], count: optimistic[idx].count - 1, reactedByMe: false }
       } else {
         const idx = optimistic.findIndex((r) => r.emoji === emoji)
         if (idx >= 0) optimistic[idx] = { ...optimistic[idx], count: optimistic[idx].count + 1, reactedByMe: true }
@@ -520,30 +684,47 @@ export default function ChatRoomScreen() {
     }
   }, [roomId, editTarget, editText, patchMessage, toast.show])
 
-  // ── Forward: hanya ke room lain dengan lawan bicara yang sama ──
+  // ── Forward: picker ruang penuh dengan paginasi ──
+  // C-10 (audit): sebelumnya hanya 50 ruang pertama DAN hanya yang lawan
+  // bicaranya sama — fitur nyaris tak berguna. Endpoint forward menerima
+  // array `targetRoomIds` ruang APA pun; picker kini memuat semua ruang
+  // (paginasi 50/halaman) kecuali ruang aktif.
   const [forwardRooms, setForwardRooms] = useState<ChatRoom[]>([])
-  const openForward = useCallback(async () => {
-    if (!roomId || !room?.counterpart?.id) {
-      toast.show({ title: "Tidak ada room lain untuk meneruskan", tone: "info" })
-      return
-    }
-    try {
-      const { data } = await api.chat.listChatRooms({ page: 1, limit: 50 })
-      const targets = data.filter(
-        (r) => r.id !== roomId && r.counterpart?.id === room.counterpart?.id,
-      )
-      if (targets.length === 0) {
-        toast.show({
-          title: "Tidak ada percakapan lain dengan pengguna ini",
-          tone: "info",
+  const [forwardOpen, setForwardOpen] = useState(false)
+  const [forwardLoading, setForwardLoading] = useState(false)
+  const forwardPage = useRef(1)
+  const [forwardHasMore, setForwardHasMore] = useState(false)
+
+  const loadForwardPage = useCallback(
+    async (page: number) => {
+      setForwardLoading(true)
+      try {
+        const res = await api.chat.listChatRooms({ page, limit: 50 })
+        const targets = res.data.filter((r) => r.id !== roomId)
+        setForwardRooms((prev) => {
+          if (page === 1) return targets
+          const seen = new Set(prev.map((r) => r.id))
+          return [...prev, ...targets.filter((r) => !seen.has(r.id))]
         })
-        return
+        forwardPage.current = page
+        setForwardHasMore(page < res.meta.totalPages)
+      } catch (err) {
+        logWarn("chat:forward-rooms", err)
+        toast.show({ title: "Gagal memuat daftar percakapan", tone: "danger" })
+      } finally {
+        setForwardLoading(false)
       }
-      setForwardRooms(targets)
-    } catch {
-      toast.show({ title: "Gagal memuat daftar percakapan", tone: "danger" })
-    }
-  }, [roomId, room, toast.show])
+    },
+    [roomId, toast.show],
+  )
+
+  const openForward = useCallback(() => {
+    if (!roomId) return
+    setForwardRooms([])
+    setForwardHasMore(false)
+    setForwardOpen(true)
+    void loadForwardPage(1)
+  }, [roomId, loadForwardPage])
 
   const handleForwardTo = useCallback(
     async (message: ChatMessage, targetRoomId: string) => {
@@ -558,6 +739,7 @@ export default function ChatRoomScreen() {
           })
           return
         }
+        setForwardOpen(false)
         setForwardRooms([])
         toast.show({ title: "Pesan diteruskan", tone: "success", duration: 2500 })
       } catch (err) {
@@ -571,17 +753,58 @@ export default function ChatRoomScreen() {
     [roomId, toast.show],
   )
 
+  // ── Pencarian pesan dalam ruang (J-07) ──────────────────────────────
+  useEffect(() => {
+    if (!searchOpen) return
+    searchRequest.current?.abort()
+    if (!debouncedSearch || !roomId) {
+      setSearchResults([])
+      setSearchError(null)
+      setSearchLoading(false)
+      return
+    }
+    const controller = new AbortController()
+    searchRequest.current = controller
+    setSearchLoading(true)
+    searchRoomMessages(roomId, debouncedSearch, { limit: 20 }, controller.signal)
+      .then((res) => {
+        if (controller.signal.aborted) return
+        setSearchResults(res.items)
+        setSearchError(null)
+      })
+      .catch((err) => {
+        if (controller.signal.aborted) return
+        logWarn("chat:search", err)
+        setSearchError(userMessage(err))
+        setSearchResults([])
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSearchLoading(false)
+      })
+    return () => controller.abort()
+  }, [searchOpen, debouncedSearch, roomId])
+
+  const openSearch = useCallback(() => {
+    setSearchQuery("")
+    setSearchResults([])
+    setSearchError(null)
+    setSearchOpen(true)
+  }, [])
+
   // ── Typing indicator: kirim saat draft berubah, hentikan 3 dtk setelah diam ──
   const notifyTyping = useCallback(() => {
     if (!roomId) return
     if (!typingActive.current) {
       typingActive.current = true
-      void sendChatTyping(roomId, true).catch(() => undefined)
+      void sendChatTyping(roomId, true).catch((err) => logWarn("chat:typing", err))
     }
+    // F-07: pengguna sedang mengetik → percakapan hidup, poll cepat.
+    emptyPolls.current = 0
+    setPollInterval(CHAT_POLL_MS)
     if (typingTimer.current) clearTimeout(typingTimer.current)
     typingTimer.current = setTimeout(() => {
       typingActive.current = false
-      void sendChatTyping(roomId, false).catch(() => undefined)
+      void sendChatTyping(roomId, false).catch((err) => logWarn("chat:typing", err))
     }, 3000)
   }, [roomId])
 
@@ -592,6 +815,13 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     return () => {
       if (typingTimer.current) clearTimeout(typingTimer.current)
+      // C-08 (audit): keluar ruang tanpa menghentikan indikator mengetik
+      // membuat lawan bicara melihat "sedang mengetik…" tersisa sampai TTL
+      // server. Fire-and-forget di cleanup (ref: roomId bisa sudah berganti).
+      if (typingActive.current && roomIdRef.current) {
+        void sendChatTyping(roomIdRef.current, false).catch((err) => logWarn("chat:typing-unmount", err))
+        typingActive.current = false
+      }
     }
   }, [])
 
@@ -599,9 +829,12 @@ export default function ChatRoomScreen() {
     setViewerItem({ url: a.fileUrl, mimeType: a.mimeType, title: a.fileName, fileName: a.fileName })
   }, [])
 
+  // C-06 (audit): ruang di luar 30 pertama tidak ditemukan di GET /rooms —
+  // nama lawan bicara jatuh ke param navigasi `title` sebelum "Percakapan".
   const counterpartName =
     room?.counterpart?.fullName ??
-    (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined)
+    (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined) ??
+    titleParam
   const composerAttachments = attachments
 
   return (
@@ -635,14 +868,22 @@ export default function ChatRoomScreen() {
       <Header
         title={counterpartName ?? "Percakapan"}
         right={
-          room?.orderId ? (
+          <View className="flex-row items-center">
             <IconButton
-              icon={Package}
+              icon={MagnifyingGlass}
               variant="ghost"
-              accessibilityLabel="Lihat pesanan terkait"
-              onPress={() => router.push(ROUTES.orderDetail(room.orderId!))}
+              accessibilityLabel="Cari pesan di percakapan ini"
+              onPress={openSearch}
             />
-          ) : undefined
+            {room?.orderId ? (
+              <IconButton
+                icon={Package}
+                variant="ghost"
+                accessibilityLabel="Lihat pesanan terkait"
+                onPress={() => router.push(ROUTES.orderDetail(room.orderId!))}
+              />
+            ) : null}
+          </View>
         }
       />
       {presence ? (
@@ -691,41 +932,57 @@ export default function ChatRoomScreen() {
           ))}
         </ScrollView>
       ) : null}
-      <ScrollView
+      {/* F-06 (audit): FlatList menggantikan ScrollView + messages.map —
+          thread panjang (ratusan bubble bergambar) dulu ter-mount penuh.
+          Bubble TIDAK dianimasikan per-item: auto-scroll ke pesan terbaru +
+          pesan baru tiap poll akan jitter bila posisi divisualkan bertahap. */}
+      <FlatList
         ref={scrollRef}
         className="flex-1"
+        data={messages}
+        keyExtractor={(m) => m.id}
         contentContainerClassName="px-5"
-        contentContainerStyle={{ paddingBottom: tokens.space[4] }}
+        contentContainerStyle={{ paddingBottom: tokens.space[4], flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
-      >
-        {/* v2: skeleton → pesan crossfade (signature moment). Bubble TIDAK
-            dianimasikan per-item: auto-scroll ke pesan terbaru + pesan baru
-            tiap poll akan jitter bila posisi divisualkan bertahap. */}
-        <Crossfade loading={loading && messages.length === 0} skeleton={<ListLoading />}>
-          {error ? (
-          <ErrorState
-            title="Gagal memuat"
-            description={error}
-            onRetry={() => void fetchMessages()}
-          />
-        ) : messages.length === 0 ? (
-          <EmptyState icon={Chats} title="Belum ada pesan" description="Mulai percakapan Anda." />
-        ) : (
-          <View className="gap-1" style={{ paddingTop: tokens.space[3] }}>
-            <LoadMore
-              status={olderStatus}
-              onLoadMore={() => void loadOlder()}
-              hideEnd
-              idleLabel="Muat pesan sebelumnya"
+        ListHeaderComponent={
+          messages.length > 0 ? (
+            <View style={{ paddingTop: tokens.space[3] }}>
+              <LoadMore
+                status={olderStatus}
+                onLoadMore={() => void loadOlder()}
+                hideEnd
+                idleLabel="Muat pesan sebelumnya"
+              />
+            </View>
+          ) : null
+        }
+        ListEmptyComponent={
+          loading ? (
+            <View className="pt-3">
+              <ListLoading />
+            </View>
+          ) : error ? (
+            <ErrorState
+              title="Gagal memuat"
+              description={error}
+              onRetry={() => void fetchMessages()}
             />
-            {messages.map((m, i) => (
-              <ChatMessageBubble
-                key={m.id}
-                direction={m.fromUser ? "outgoing" : "incoming"}
-                text={m.text}
-                time={formatDateTime(m.createdAt)}
-                grouped={messages[i - 1]?.fromUser === m.fromUser}
+          ) : (
+            <EmptyState
+              icon={Chats}
+              title="Belum ada pesan"
+              description="Mulai percakapan Anda."
+            />
+          )
+        }
+        renderItem={({ item: m, index }) => (
+          <View className="gap-1">
+            <ChatMessageBubble
+              direction={m.fromUser ? "outgoing" : "incoming"}
+              text={m.text}
+              time={formatDateTime(m.createdAt)}
+              grouped={index > 0 && messages[index - 1]?.fromUser === m.fromUser}
                 // Status baca pesan saya: read-receipt dari lawan bicara
                 // (GET /read-receipts) naik ke ikon centang ganda "read".
                 status={m.fromUser ? (readByCounterpart.has(m.id) ? "read" : "sent") : undefined}
@@ -752,13 +1009,29 @@ export default function ChatRoomScreen() {
                       />
                     ))}
                   </View>
-                ) : undefined}
-              </ChatMessageBubble>
-            ))}
-            </View>
-          )}
-        </Crossfade>
-      </ScrollView>
+            ) : undefined}
+          </ChatMessageBubble>
+          </View>
+        )}
+        // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
+        // ada di header list untuk status error).
+        onStartReached={() => {
+          if (olderStatus === "idle" && messages.length > 0) void loadOlder()
+        }}
+        onStartReachedThreshold={120}
+        onScrollToIndexFailed={(info) => {
+          // Tinggi bubble variabel — perkirakan lewat averageItemLength
+          // (dipakai lompat-ke-hasil-pencarian J-07).
+          scrollRef.current?.scrollToOffset({
+            offset: info.averageItemLength * info.index,
+            animated: true,
+          })
+        }}
+        initialNumToRender={12}
+        maxToRenderPerBatch={8}
+        windowSize={9}
+        removeClippedSubviews={Platform.OS === "android"}
+      />
 
       <MediaViewer
         item={viewerItem}
@@ -799,7 +1072,7 @@ export default function ChatRoomScreen() {
             key: "forward",
             label: "Teruskan",
             icon: PaperPlaneRight,
-            onPress: () => void openForward(),
+            onPress: () => openForward(),
           },
           {
             key: "copy",
@@ -890,13 +1163,16 @@ export default function ChatRoomScreen() {
         </View>
       </BottomSheet>
 
-      {/* Teruskan ke room lain dengan lawan bicara yang sama */}
+      {/* Teruskan ke percakapan lain — semua ruang, paginasi (C-10) */}
       <BottomSheet
         avoidKeyboard
-        visible={forwardRooms.length > 0 && actionMessage != null}
-        onRequestClose={() => setForwardRooms([])}
+        visible={forwardOpen && actionMessage != null}
+        onRequestClose={() => {
+          setForwardOpen(false)
+          setForwardRooms([])
+        }}
         title="Teruskan ke…"
-        description="Hanya percakapan lain dengan pengguna yang sama."
+        description="Pilih percakapan tujuan pesan."
         showHandle={false}
       >
         <View className="px-2 pb-2">
@@ -925,6 +1201,82 @@ export default function ChatRoomScreen() {
               <Icon icon={PaperPlaneRight} size="sm" tone="default" />
             </PressableScale>
           ))}
+          {forwardLoading ? (
+            <View className="py-2">
+              <ListLoading />
+            </View>
+          ) : null}
+          {!forwardLoading && forwardRooms.length === 0 ? (
+            <EmptyState
+              icon={Chats}
+              title="Belum ada percakapan lain"
+              description="Pesan dapat diteruskan ke percakapan Anda yang lain."
+            />
+          ) : null}
+          {forwardHasMore && !forwardLoading ? (
+            <Button
+              variant="ghost"
+              fullWidth
+              onPress={() => void loadForwardPage(forwardPage.current + 1)}
+            >
+              Muat percakapan lain
+            </Button>
+          ) : null}
+        </View>
+      </BottomSheet>
+
+      {/* Cari pesan dalam ruang — GET /v1/chat/rooms/{id}/search (J-07).
+          Hasil yang sudah termuat di thread bisa dilompati (scrollToIndex);
+          yang lebih tua dari riwayat termuat diberi keterangan. */}
+      <BottomSheet
+        avoidKeyboard
+        visible={searchOpen}
+        onRequestClose={() => setSearchOpen(false)}
+        title="Cari pesan"
+        description="Cari teks dalam percakapan ini."
+        showHandle={false}
+      >
+        <View className="gap-3 px-5 pb-3">
+          <Input
+            variant="search"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder="Ketik kata kunci…"
+            accessibilityLabel="Kata kunci pencarian pesan"
+            autoCapitalize="none"
+            autoCorrect={false}
+            returnKeyType="search"
+            autoFocus
+          />
+          {searchLoading ? (
+            <ListLoading />
+          ) : searchError ? (
+            <Text variant="caption" tone="danger">
+              {searchError}
+            </Text>
+          ) : debouncedSearch && searchResults.length === 0 ? (
+            <Text variant="caption" tone="secondary">
+              Tidak ada pesan yang cocok dengan kata kunci itu.
+            </Text>
+          ) : (
+            searchResults.map((r) => (
+              <PressableScale
+                key={r.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Lompat ke pesan: ${r.text ?? "(lampiran)"}`}
+                onPress={() => jumpToMessage(r.id)}
+                containerClassName={cn("rounded-md px-2 py-2", focusRing)}
+                className="w-full gap-0.5"
+              >
+                <Text variant="body" numberOfLines={2}>
+                  {r.text || (r.attachments?.length ? "(lampiran)" : "(pesan tanpa teks)")}
+                </Text>
+                <Text variant="caption" tone="secondary">
+                  {formatDateTime(r.createdAt)} · {r.fromUser ? "Anda" : counterpartName ?? "Lawan bicara"}
+                </Text>
+              </PressableScale>
+            ))
+          )}
         </View>
       </BottomSheet>
 

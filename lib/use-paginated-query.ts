@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react"
+import { useIsFocused } from "@react-navigation/native"
 import { userMessage } from "@/lib/api/errors"
 import type { Page } from "@/lib/api/response"
 
@@ -8,13 +9,38 @@ export function mergeById<T extends { id: string }>(previous: T[], incoming: T[]
   return [...values.values()]
 }
 
+export type UsePaginatedQueryOptions<T> = {
+  /**
+   * Muat ulang halaman pertama (diam, mode `refresh`) saat layar kembali
+   * fokus — paritas dengan `useApiQuery.refreshOnFocus` (F-01).
+   *
+   * Kenapa penting: daftar uang/notifikasi memakai hook ini dan tab Expo
+   * Router tetap ter-mount. Bayar pesanan di layar detail lalu kembali ke
+   * tab Transaksi tanpa ini = status "PENDING_PAYMENT" basi terus tampil
+   * sampai pull-to-refresh manual. Untuk angka/status uang, tampilan basi
+   * adalah bug kebenaran.
+   */
+  refreshOnFocus?: boolean
+  /**
+   * Komparator opsional untuk mengurutkan ulang hasil merge (F-10).
+   * `mergeById` mempertahankan urutan UNDUHAN (posisi item lama tidak
+   * berubah saat diperbarui) — benar untuk daftar stabil, salah untuk feed
+   * kronologis. Feed waktu memberikan compare (mis. waktu dibuat desc);
+   * tanpa compare perilakunya persis seperti sebelumnya.
+   */
+  compare?: (a: T, b: T) => number
+}
+
 /** Shared pagination for every long list: latest query wins, load-more single-flight, retry keeps rows. */
 export function usePaginatedQuery<T extends { id: string }>(
   key: string,
   fetcher: (page: number, signal: AbortSignal) => Promise<Page<T>>,
+  opts: UsePaginatedQueryOptions<T> = {},
 ) {
   const fetchRef = useRef(fetcher)
   fetchRef.current = fetcher
+  const compareRef = useRef(opts.compare)
+  compareRef.current = opts.compare
   const active = useRef<AbortController | null>(null)
   const ids = useRef(new Set<string>())
   const nextPage = useRef(1)
@@ -46,13 +72,20 @@ export function usePaginatedQuery<T extends { id: string }>(
       try {
         const result = await fetchRef.current(page, controller.signal)
         if (controller.signal.aborted) return
-        const hasNewIds = result.data.some((item) => !ids.current.has(item.id))
         if (reset) ids.current.clear()
         for (const item of result.data) ids.current.add(item.id)
-        setData((previous) => mergeById(reset ? [] : previous, result.data))
+        setData((previous) => {
+          const merged = mergeById(reset ? [] : previous, result.data)
+          const compare = compareRef.current
+          return compare ? [...merged].sort(compare) : merged
+        })
         nextPage.current = page + 1
-        hasNext.current =
-          result.data.length > 0 && (reset || hasNewIds) && page < result.meta.totalPages
+        // F-09: `hasNewIds` sebelumnya menghentikan paginasi bila satu
+        // halaman penuh berisi duplikat (backend menggeser urutan saat item
+        // baru masuk di atas) — item lama jadi tak terjangkau padahal
+        // `totalPages` mengatakan masih ada halaman. Duplikat sudah diurus
+        // mergeById; sumber kebenaran "masih ada halaman" adalah meta server.
+        hasNext.current = result.data.length > 0 && page < result.meta.totalPages
         setHasMore(hasNext.current)
       } catch (error) {
         if (controller.signal.aborted) return
@@ -84,6 +117,24 @@ export function usePaginatedQuery<T extends { id: string }>(
       busy.current = false
     }
   }, [load])
+
+  // F-01: refresh senyap saat kembali fokus (reset ke halaman 1, baris lama
+  // tetap tampil — `refresh`, bukan `reload`). Error muat awal juga dipulihkan.
+  const focused = useIsFocused()
+  const latest = useRef({ load, error, hasRows: false })
+  latest.current = { load, error, hasRows: data.length > 0 }
+  const everFocused = useRef(false)
+  useEffect(() => {
+    if (!opts.refreshOnFocus) return
+    if (!everFocused.current) {
+      everFocused.current = true
+      return
+    }
+    if (!focused || busy.current) return
+    if (latest.current.hasRows) void latest.current.load(true, true)
+    else if (latest.current.error) void latest.current.load(true)
+  }, [focused, opts.refreshOnFocus])
+
   const refresh = useCallback(() => load(true, true), [load])
   const reload = useCallback(() => load(true), [load])
   const loadMore = useCallback(() => load(false), [load])

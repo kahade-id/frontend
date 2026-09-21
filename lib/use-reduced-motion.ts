@@ -30,7 +30,10 @@ function subscribe(listener: () => void) {
       const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", update)
       dispose = () => {
         active = false
-        sub.remove()
+        // react-native-web mengembalikan `undefined` dari addEventListener
+        // (dan jsdom tidak punya matchMedia sehingga cabang ini tetap bisa
+        // tercapai di web) — remove() buta melempar TypeError saat unmount.
+        sub?.remove?.()
       }
     }
   }

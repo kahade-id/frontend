@@ -1,8 +1,10 @@
-import { asRecord, pickBoolean, pickString, readList, readVerdict } from "@/lib/api/response"
 /**
  * Kahade — domain `vouchers` (3 endpoint publik-otentikasi).
  * Dipakai VoucherRedeemBox saat membuat order & halaman voucher.
  */
+
+import { asRecord, pickBoolean, pickString, readList, readVerdict } from "@/lib/api/response"
+
 import { http } from "@/lib/api/client"
 import type { ValidateVoucherDto } from "@/lib/api/types"
 

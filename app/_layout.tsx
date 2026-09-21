@@ -24,8 +24,8 @@
  */
 import "../global.css"
 
-import { useCallback, useEffect, useState } from "react"
-import { Linking, Platform, View } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { AppState, Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
 import { Stack, usePathname, useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
@@ -42,6 +42,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { useAuthSession } from "@/lib/use-auth-session"
+import { PendingActionsBanner } from "@/components/pending-actions-banner"
 import { AUTHENTICATED_SCREENS, isProtectedPath } from "@/lib/protected-routes"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { compareVersions, safeHttpsUrl } from "@/lib/version"
@@ -49,7 +50,7 @@ import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { Dialog } from "@/components/ui/modal"
 import { PortalHost, PortalProvider, PortalScene } from "@/components/ui/portal"
 import { ToastProvider } from "@/components/ui/toast"
-import { api } from "@/lib/api"
+import { api, onSessionExpired } from "@/lib/api"
 import { fontAssets } from "@/lib/fonts"
 import { routeForPushData } from "@/lib/notification-routing"
 import { animationDurationForScreen, animationForScreen } from "@/lib/screen-transitions"
@@ -58,6 +59,11 @@ import { subscribeWebPushMessages } from "@/lib/web-push"
 import { ROUTES } from "@/lib/routes"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
+import { captureError, installTelemetry, logWarn } from "@/lib/telemetry"
+import { consumeOtaUpdateNotice } from "@/lib/ota-notice"
+import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
+import { AppLockGate } from "@/components/app-lock-gate"
+import { useToast } from "@/components/ui/toast"
 
 export { AppErrorBoundary as ErrorBoundary } from "@/components/app-error-boundary"
 
@@ -75,6 +81,12 @@ SplashScreen.setOptions({
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts(fontAssets)
 
+  // Handler global telemetri (unhandled rejection + JS exception) dipasang
+  // sekali per proses — idempoten terhadap Hot Reload (D-03).
+  useEffect(() => {
+    installTelemetry()
+  }, [])
+
   // Web tidak memakai splash/onboarding ala aplikasi: tree langsung
   // dirender (font web ber-FOUT singkat; overlay JS justru terasa situs
   // loading). Native tetap menunggu font siap di balik AnimatedSplash.
@@ -83,12 +95,10 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontError) {
-      // Tidak silent: log ke console + (nanti) ke Sentry/observability.
-      // Tidak melempar error agar app tetap bisa dipakai.
-      console.error(
-        "[kahade/fonts] Gagal memuat font offline; app render dengan system font.",
-        fontError,
-      )
+      // Tidak silent: masuk saluran telemetri (dev = console.error, produksi =
+      // ring buffer + sink bila terpasang). Tidak melempar error agar app
+      // tetap bisa dipakai dengan system font.
+      captureError("fonts", fontError)
     }
   }, [fontError])
 
@@ -113,6 +123,19 @@ export default function RootLayout() {
     // useDocumentTitle() — sebelumnya ini satu-satunya penulisan document.title
     // di app, jadi 98 halaman web berbagi judul tab yang sama.
     if (Platform.OS === "web") document.title = APP_TITLE
+  }, [])
+
+  // E-05 (audit): <html lang="id"> statis salah untuk pengguna mode English —
+  // screen reader web melafalkan teks EN dengan fonem Indonesia dan SEO
+  // kehilangan sinyal bahasa. Output export statis tidak bisa per-bahasa di
+  // server, jadi disinkronkan client-side begitu bahasa aktif diketahui/berubah.
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") return
+    const apply = () => {
+      document.documentElement.lang = getLanguage()
+    }
+    apply()
+    return subscribeLanguage(apply)
   }, [])
 
   return (
@@ -150,6 +173,9 @@ export default function RootLayout() {
   )
 }
 
+/** Interval minimum antar pemeriksaan force-update saat kembali foreground (B-10). */
+const VERSION_RECHECK_MS = 6 * 60 * 60 * 1000
+
 function AppShell() {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
@@ -169,8 +195,20 @@ function AppShell() {
   // Satu-satunya tempat yang mendengarkan "sesi habis" dari API client
   // (client.ts memanggil emitSessionExpired saat 401 tak bisa di-refresh).
   // Client tidak boleh import expo-router (arah dependency UI → lib), jadi
-  // redirect ke login dipasang di sini, di dalam navigator.
-  // Stack.Protected reacts to token invalidation; never navigate before the root Stack mounts.
+  // redirect ke login dipasang di sini, di dalam navigator — Stack sudah
+  // ter-mount karena AppShell merendernya.
+  //
+  // B-03 (audit): subscriber ini SEBELUMNYA tidak pernah ada — emitSessionExpired
+  // memanggil ruang kosong, sesi habis tanpa navigasi ke login. Web sengaja
+  // tidak di-redirect: token yang hilang sudah memicu guest gate
+  // (GuestLoginPrompt) untuk rute terproteksi, dan tamu web memang tidak
+  // punya sesi sejak awal (redirect akan menendang mereka dari halaman publik).
+  useEffect(() => {
+    return onSessionExpired(() => {
+      if (Platform.OS === "web") return
+      router.replace(ROUTES.login)
+    })
+  }, [router])
 
   // Handler foreground + Android channel notification dipasang sekali di
   // boot (idempoten) — channel wajib ada sebelum notifikasi tampil di
@@ -225,6 +263,10 @@ function AppShell() {
   // force-update bila versi lokal < minVersion). Tidak boleh melempar error:
   // jaringan gagal → lanjut pakai versi lokal (update tidak wajib synchronous).
   const [versionCheck, setVersionCheck] = useState(0)
+  // B-10 (audit): app yang hidup berhari-hari di background tidak pernah tahu
+  // versi minimum naik — cek ulang saat kembali foreground, dibatasi 6 jam
+  // agar tidak menembak endpoint tiap buka-tutup app.
+  const lastVersionCheckAt = useRef(Date.now())
   const [forceUpdate, setForceUpdate] = useState<{
     minVersion: string
     latestVersion?: string
@@ -234,6 +276,7 @@ function AppShell() {
 
   useEffect(() => {
     if (Platform.OS === "web") return
+    lastVersionCheckAt.current = Date.now()
     const appVersion = installedAppVersion()
     let alive = true
     api.public
@@ -262,6 +305,16 @@ function AppShell() {
     }
   }, [versionCheck])
 
+  useEffect(() => {
+    if (Platform.OS === "web") return
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state !== "active") return
+      if (Date.now() - lastVersionCheckAt.current < VERSION_RECHECK_MS) return
+      setVersionCheck((value) => value + 1)
+    })
+    return () => subscription.remove()
+  }, [])
+
   const storeUrl = safeHttpsUrl(
     forceUpdate?.storeUrl
       ? forceUpdate.storeUrl[Platform.OS === "ios" ? "ios" : "android"]
@@ -277,6 +330,9 @@ function AppShell() {
     <PortalProvider>
       <ToastProvider>
         <StatusBar style={mode === "dark" ? "light" : "dark"} />
+        {/* Pemberitahuan global non-blocking (OTA baru termuat, SW web baru) —
+            harus DI DALAM ToastProvider, di luar Stack. */}
+        <GlobalNotices />
 
         {/*
           Ajakan pasang aplikasi untuk pengunjung web seluler kini berupa
@@ -294,6 +350,10 @@ function AppShell() {
           Modal/BottomSheet/SearchOverlay/LoadingOverlay terbuka; Toast berada
           di luar Scene (ToastProvider) agar tetap terbaca sebagai alert.
         */}
+        {/* J-04 (audit): aksi uang menggantung (QRIS/top-up/withdraw OTP)
+            ditawarkan lagi di boot, di tab mana pun — catatan di
+            lib/pending-actions, resolve di layar uangnya. */}
+        <PendingActionsBanner />
         <View className="flex-1 items-center">
           <ContentContainer bordered>
             <PortalScene>
@@ -352,6 +412,10 @@ function AppShell() {
             </PortalScene>
             <PortalHost />
           </ContentContainer>
+          {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
+              menit). Dirender SETELAH konten agar menutupi seluruh tree saat
+              terkunci; no-op di web dan tanpa sesi. */}
+          {Platform.OS !== "web" ? <AppLockGate sessionActive={Boolean(session.token)} /> : null}
         </View>
       </ToastProvider>
 
@@ -398,4 +462,51 @@ function AppShell() {
       />
     </PortalProvider>
   )
+}
+
+/**
+ * Pemberitahuan global sekali-jalan (F-14 OTA + I-06 PWA).
+ *
+ * - OTA (native): bundle baru terdeteksi lewat `consumeOtaUpdateNotice()` →
+ *   toast informatif sekali per update. Pengguna tidak lagi melihat perubahan
+ *   mendadak tanpa penjelasan.
+ * - PWA (web): service worker baru mengambil alih (skipWaiting) → event
+ *   `kahade:sw-updated` dari register-sw.js → toast ajakan memuat ulang.
+ *   Dokumen network-first + aset cache-first berarti sesi yang sedang berjalan
+ *   bisa mencampur bundle lama/baru; reload adalah pemulihannya.
+ */
+function GlobalNotices() {
+  const toast = useToast()
+  const showToast = toast.show
+
+  useEffect(() => {
+    if (Platform.OS === "web") return
+    consumeOtaUpdateNotice()
+      .then((notice) => {
+        if (!notice) return
+        showToast({
+          title: "Aplikasi baru saja diperbarui",
+          description: "Perubahan terbaru sudah aktif di perangkat Anda.",
+          tone: "info",
+          duration: 6000,
+        })
+      })
+      .catch((err) => logWarn("ota:notice", err))
+  }, [showToast])
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof window === "undefined") return
+    const onUpdated = () => {
+      showToast({
+        title: "Versi baru Kahade tersedia",
+        description: "Muat ulang halaman untuk memakai versi terbaru.",
+        tone: "info",
+        duration: 10000,
+      })
+    }
+    window.addEventListener("kahade:sw-updated", onUpdated)
+    return () => window.removeEventListener("kahade:sw-updated", onUpdated)
+  }, [showToast])
+
+  return null
 }

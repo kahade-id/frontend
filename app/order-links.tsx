@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Order Link Saya (GET /v1/orders/links/my, paginated).
  *
@@ -15,30 +13,24 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Tone badge status: ACTIVE=success, ACCEPTED=info, EXPIRED=warning,
  *     CANCELLED=neutral — mengikuti §2.3 (semantic hanya untuk status).
  */
+
 import { useCallback, useState } from "react"
-import { View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinkSimple } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, type OrderLink, userMessage } from "@/lib/api"
 import { useCopy } from "@/lib/clipboard"
 import { orderLinkUrl } from "@/lib/deeplinks"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTimeWIB } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
-import { tokens } from "@/lib/tokens"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
+import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
-import { EmptyState } from "@/components/ui/empty-state"
-import { ErrorState } from "@/components/ui/error-state"
-import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
 import { OrderLinkShareCard } from "@/components/ui/order-link-share-card"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { orderLinkStatusMeta } from "@/lib/order-link-labels"
 import { useToast } from "@/components/ui/toast"
@@ -46,7 +38,6 @@ import { useToast } from "@/components/ui/toast"
 const PAGE_SIZE = 20
 
 export default function OrderLinksScreen() {
-  const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copy } = useCopy()
 
@@ -121,41 +112,33 @@ export default function OrderLinksScreen() {
     }
   }, [cancelTarget, toast.show])
 
+  /**
+   * G-02: kerangka Screen+Header+PullToRefresh+urutan-state tidak lagi
+   * disalin manual — <DataScreen> yang menangani (loading→error→empty→
+   * konten, inset bawah, px-5/pt-3/gap-4).
+   */
   return (
-    <Screen edges={["top"]} padded={false}>
-      <Header title="Order Link" />
-      <PullToRefresh
-        onRefresh={query.refresh}
-        refreshing={query.refreshing}
-        contentContainerClassName="px-5"
-        scrollViewProps={{
-          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[8] },
-        }}
-      >
-        <Crossfade loading={query.loading} skeleton={<ListLoading />}>
-          {query.error ? (
-          <ErrorState
-            title="Gagal memuat"
-            description={query.error}
-            onRetry={() => void query.reload()}
-          />
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={LinkSimple}
-            title="Belum ada tautan"
-            description="Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi."
-            action={
-              <Button
-                variant="secondary"
-                fullWidth={false}
-                onPress={() => router.push(ROUTES.createTransaction)}
-              >
-                Buat tautan baru
-              </Button>
-            }
-          />
-        ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+    <DataScreen
+      title="Order Link"
+      state={query}
+      loadingMessage="Memuat tautan…"
+      empty={
+        items.length === 0 && {
+          icon: LinkSimple,
+          title: "Belum ada tautan",
+          description: "Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi.",
+          action: (
+            <Button
+              variant="secondary"
+              fullWidth={false}
+              onPress={() => router.push(ROUTES.createTransaction)}
+            >
+              Buat tautan baru
+            </Button>
+          ),
+        }
+      }
+    >
             <SectionHeader title="Tautan saya" />
             {items.map((link) => {
               const url = link.url ?? orderLinkUrl(link.token)
@@ -169,7 +152,7 @@ export default function OrderLinksScreen() {
                   orderCode={link.token}
                   status={status}
                   expiresLabel={
-                    link.expiresAt ? `Berlaku hingga ${formatDateTime(link.expiresAt)}` : undefined
+                    link.expiresAt ? `Berlaku hingga ${formatDateTimeWIB(link.expiresAt)}` : undefined
                   }
                   onCopy={(u) => {
                     void copy(u).then(
@@ -207,10 +190,6 @@ export default function OrderLinksScreen() {
             <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
               Buat tautan baru
             </Button>
-            </View>
-          )}
-        </Crossfade>
-      </PullToRefresh>
 
       <Dialog
         title="Batalkan tautan ini?"
@@ -224,6 +203,6 @@ export default function OrderLinksScreen() {
         onCancel={() => setCancelTarget(null)}
         onRequestClose={() => setCancelTarget(null)}
       />
-    </Screen>
+    </DataScreen>
   )
 }

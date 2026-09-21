@@ -1,4 +1,3 @@
-import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `withdrawals` (jadwal penarikan otomatis).
  *
@@ -7,6 +6,9 @@ import { readList } from "@/lib/api/response"
  * sudah bermigrasi ke prefix baru; alias lama bisa dihapus backend tanpa
  * mem-break aplikasi.
  */
+
+import { readList } from "@/lib/api/response"
+
 import { http, seg } from "@/lib/api/client"
 import type { CreateScheduleDto, UpdateScheduleDto } from "@/lib/api/types"
 

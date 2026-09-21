@@ -173,8 +173,12 @@ export default function WalletHistoryScreen() {
   const [type, setType] = useState(ALL)
   const { exporting, exportWallet } = useWalletExport()
 
-  const query = usePaginatedQuery<WalletTransaction>(`wallet-history:${type}`, (page, signal) =>
-    api.wallet.getWalletTransactions({ page, limit: PAGE_SIZE, type }, signal),
+  const query = usePaginatedQuery<WalletTransaction>(
+    `wallet-history:${type}`,
+    (page, signal) => api.wallet.getWalletTransactions({ page, limit: PAGE_SIZE, type }, signal),
+    // F-01 (audit): top-up/withdraw diselesaikan di layar lain — mutasi baru
+    // harus terlihat saat kembali ke riwayat tanpa pull-to-refresh.
+    { refreshOnFocus: true },
   )
   const items = query.data
   const groups = useMemo(() => groupByDay(items), [items])

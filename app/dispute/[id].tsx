@@ -78,6 +78,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { mapValue } from "@/lib/has-own"
+import { logWarn } from "@/lib/telemetry"
 
 type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
 const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
@@ -146,7 +147,12 @@ export default function DisputeDetailScreen() {
         api.disputes.getDisputeMessages(did, signal),
         api.disputes.getMutualResolution(did, signal),
         api.disputes.getDisputeCalls(did, signal),
-        d.orderId ? api.orders.getOrder(d.orderId, signal).catch(() => null) : Promise.resolve(null),
+        d.orderId
+          ? api.orders.getOrder(d.orderId, signal).catch((err) => {
+              logWarn("dispute:order", err)
+              return null
+            })
+          : Promise.resolve(null),
       ])
       return {
         dispute: d,
@@ -448,7 +454,10 @@ export default function DisputeDetailScreen() {
         tone: "success",
         duration: 4000,
       })
-      const nextCalls = await api.disputes.getDisputeCalls(id).catch(() => null)
+      const nextCalls = await api.disputes.getDisputeCalls(id).catch((err) => {
+          logWarn("dispute:calls", err)
+          return null
+        })
       query.setData((prev) => (prev ? { ...prev, calls: nextCalls ?? prev.calls } : prev))
     } catch (err) {
       toast.show({
@@ -491,7 +500,10 @@ export default function DisputeDetailScreen() {
           tone: action === "reject" ? "neutral" : "success",
           duration: 3000,
         })
-        const nextCalls = await api.disputes.getDisputeCalls(id).catch(() => null)
+        const nextCalls = await api.disputes.getDisputeCalls(id).catch((err) => {
+          logWarn("dispute:calls", err)
+          return null
+        })
         query.setData((prev) => (prev ? { ...prev, calls: nextCalls ?? prev.calls } : prev))
       } catch (err) {
         toast.show({

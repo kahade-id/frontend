@@ -1,6 +1,3 @@
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
-import { PaginatedList } from "@/components/ui/paginated-list"
-import { useToast } from "@/components/ui/toast"
 /**
  * Layar Stack — Notifikasi (dibuka dari Bell di header Beranda)
  *
@@ -26,6 +23,10 @@ import { useToast } from "@/components/ui/toast"
  * Komponen sistem yang dipakai: Tabs-with-icon lokal (basis <Tabs>/§9.16),
  * NotificationListItem, LoadMore, ErrorState, EmptyState, Skeleton.
  */
+
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { PaginatedList } from "@/components/ui/paginated-list"
+import { useToast } from "@/components/ui/toast"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
@@ -130,6 +131,9 @@ export default function NotificationsScreen() {
         },
         signal,
       ),
+    // F-01 (audit): notifikasi baru (transfer masuk, status pesanan) harus
+    // muncul saat tab kembali fokus tanpa pull-to-refresh.
+    { refreshOnFocus: true },
   )
   const { data: notifs, setData: setNotifs } = query
 

@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Ulasan Saya.
  *
@@ -25,6 +23,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Hapus balasan lewat <Dialog destructive>, bukan langsung — balasan
  *     publik, tidak bisa dibatalkan.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -186,12 +187,6 @@ export default function RatingsScreen() {
     },
     [helpfulBusyId, toast],
   )
-
-
-
-
-
-
 
   /** Apakah ulasan ini SAYA yang menulis (→ segmen "Diberikan"). */
   const isGivenByMe = useCallback(

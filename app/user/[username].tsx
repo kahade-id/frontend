@@ -65,6 +65,7 @@ import { ROUTES } from "@/lib/routes"
 import { isFilePayload, shareContent, type SharePayload } from "@/lib/share"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
+import { logWarn } from "@/lib/telemetry"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -318,7 +319,10 @@ export default function UserProfileScreen() {
     try {
       const [res, me] = await Promise.all([
         api.users.getUserByUsername(username),
-        api.users.getMe().catch(() => null),
+        api.users.getMe().catch((err) => {
+          logWarn("profile:me-fallback", err)
+          return null
+        }),
       ])
       if (!current()) return
       setProfile(res)
@@ -1252,7 +1256,14 @@ export default function UserProfileScreen() {
                     </View>
                     <View className="flex-row items-center justify-between">
                       <Text variant="caption" tone="secondary">Skor Kepercayaan</Text>
-                      <Text variant="body" weight={600} tone="primary">{profile.trustScore ?? 100} / 100</Text>
+                      {/* D-09 (audit): fallback 100/100 = sinyal trust palsu
+                          untuk profil yang skornya tidak dikirim/gagal dimuat.
+                          Tanpa data → tampilkan "—" + keterangan. */}
+                      <Text variant="body" weight={600} tone="primary">
+                        {profile.trustScore != null
+                          ? `${profile.trustScore} / 100`
+                          : "— (belum ada skor)"}
+                      </Text>
                     </View>
                     <View className="flex-row items-center justify-between">
                       <Text variant="caption" tone="secondary">Bergabung Sejak</Text>
@@ -1482,7 +1493,10 @@ export default function UserProfileScreen() {
               })
                 .then((res) => {
                   setInquiryOpen(false)
-                  router.push(ROUTES.chatRoom(res.room.id))
+                  // C-06: nama lawan bicara = pemilik profil layar ini.
+                  router.push(
+                    ROUTES.chatRoom(res.room.id, profile?.fullName ?? `@${handle}`),
+                  )
                 })
                 .catch((err) => {
                   toast.show({

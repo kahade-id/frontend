@@ -1,8 +1,10 @@
-import { readEntity, readList } from "@/lib/api/response"
 /**
  * Kahade — domain `help-center` (4 endpoint publik-otentikasi).
  * Halaman FAQ: kategori → artikel → search.
  */
+
+import { readEntity, readList } from "@/lib/api/response"
+
 import { http, seg } from "@/lib/api/client"
 
 export type HelpCategory = {

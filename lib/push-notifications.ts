@@ -39,6 +39,7 @@ import * as Notifications from "expo-notifications"
 import { Platform } from "react-native"
 
 import { SecureKeys, deleteSecureItem, getOrCreateDeviceId, getSecureItem, setSecureItem } from "@/lib/secure-storage"
+import { logWarn } from "@/lib/telemetry"
 
 export type PushPlatform = "android" | "ios" | "web"
 
@@ -122,7 +123,7 @@ export function subscribeNotificationOpened(
         }
         onOpen(response.notification.request.content.data, "cold-start")
       })
-      .catch(() => {})
+      .catch((err) => logWarn("push:cold-start", err))
   }
   return () => sub.remove()
 }

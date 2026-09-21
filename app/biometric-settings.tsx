@@ -1,8 +1,17 @@
 /**
- * Screen — Biometrik.
+ * Screen — Biometrik (kunci aplikasi §14).
  *
- * Toggle "buka dengan Face ID / sidik jari" (preferensi lokal di SecureStore,
- * `SecureKeys.biometricEnabled`) + pintasan ke Verifikasi Dua Langkah.
+ * Toggle "kunci aplikasi dengan Face ID / sidik jari" (preferensi lokal di
+ * SecureStore, `SecureKeys.biometricEnabled`) + pintasan ke Verifikasi Dua
+ * Langkah.
+ *
+ * A-04 (audit 2026-09-20): toggle ini kini mengendalikan fitur yang BENAR-
+ * BENAR ADA — <AppLockGate> (components/app-lock-gate.tsx) mengunci app
+ * setelah background > 1 menit dan membuka lewat biometrik/PIN terverifikasi
+ * server. Copy lama ("konfirmasi transaksi tanpa mengetik PIN") DIHAPUS:
+ * transaksi uang tetap mewajibkan PIN mentah di DTO (backend tidak punya
+ * jalur biometrik → tiket), dan tombol biometrik di sheet uang sudah dicabut
+ * (A-01..A-03) karena tidak pernah mengirim apa pun.
  *
  * Keputusan non-obvious:
  *   - Sebelum mengaktifkan, perangkat WAJIB lolos prompt biometrik
@@ -27,6 +36,7 @@ import { authenticateBiometric, getBiometricCapability, type BiometricCapability
 import { canUseBiometricStorage, getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { logWarn } from "@/lib/telemetry"
 
 import { Alert } from "@/components/ui/alert"
 import { Header } from "@/components/ui/header"
@@ -51,7 +61,10 @@ export default function BiometricSettingsScreen() {
     let cancelled = false
     void (async () => {
       const [stored, cap] = await Promise.all([
-        getSecureItem(SecureKeys.biometricEnabled).catch(() => null),
+        getSecureItem(SecureKeys.biometricEnabled).catch((err) => {
+          logWarn("biometric:load-pref", err)
+          return null
+        }),
         getBiometricCapability().catch(
           () => ({ available: false, kind: "none", label: "biometrik" }) as BiometricCapability,
         ),
@@ -120,8 +133,8 @@ export default function BiometricSettingsScreen() {
         <Switch
           value={biometric}
           onChange={(v) => void handleToggle(v)}
-          label={`Buka dengan ${label}`}
-          description="Untuk membuka aplikasi dan konfirmasi transaksi tanpa mengetik PIN."
+          label={`Kunci aplikasi dengan ${label}`}
+          description={`Setelah aplikasi di latar belakang lebih dari 1 menit, Kahade meminta ${label} atau PIN dompet untuk dibuka.`}
           disabled={loading || toggling || unavailable}
         />
 
@@ -132,7 +145,8 @@ export default function BiometricSettingsScreen() {
           </Alert>
         ) : (
           <Text variant="caption" tone="secondary">
-            PIN dompet tetap diminta bila {label} gagal dikenali atau saat perangkat baru dipakai masuk.
+            PIN dompet tetap diminta bila {label} gagal dikenali atau saat perangkat baru dipakai
+            masuk. Transaksi uang (transfer, tarik dana, bayar pesanan) selalu memakai PIN dompet.
           </Text>
         )}
 

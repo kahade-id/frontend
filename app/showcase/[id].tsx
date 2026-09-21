@@ -82,17 +82,17 @@ import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
 
-const HIDE_REASONS = [
-  { value: "SPAM", label: "Spam", description: "Link/jualan tidak relevan" },
-  { value: "INAPPROPRIATE", label: "Tidak pantas", description: "Konten menyinggung" },
-  { value: "HARASSMENT", label: "Perundungan", description: "Ancaman/pelecehan" },
-  { value: "OTHER", label: "Lainnya", description: "Sebutkan di keterangan" },
-] as const
+/** G-13: opsi hide/report konten satu sumber di lib/labels/report. */
+const HIDE_REASONS = CONTENT_REPORT_REASONS
 
 const REPORT_REASONS = HIDE_REASONS
 
-type Reason = (typeof HIDE_REASONS)[number]["value"]
+type Reason = ContentReportReason
+
+/** F-06: jumlah root comment yang dirender per langkah (lihat state). */
+const COMMENT_RENDER_STEP = 40
 
 export default function ShowcaseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -124,6 +124,15 @@ export default function ShowcaseDetailScreen() {
   const [commentTotal, setCommentTotal] = useState(0)
   const [commentsPage, setCommentsPage] = useState(1)
   const [commentsStatus, setCommentsStatus] = useState<LoadMoreStatus>("idle")
+  /**
+   * F-06 (audit): layar ini scroll non-virtual (kerangka DataScreen), jadi
+   * setiap baris komentar yang dirender tetap ter-mount. Window render
+   * membatasi jumlah baris sekaligus: data penuh tetap di state (LoadMore),
+   * tetapi hanya N root pertama dirender; sisanya muncul lewat tombol
+   * "Tampilkan … komentar lainnya" (naik bertahap COMMENT_RENDER_STEP).
+   * Ratusan ShowcaseCommentRow ter-mount = memori & FPS jatuh di low-end.
+   */
+  const [commentRenderLimit, setCommentRenderLimit] = useState(COMMENT_RENDER_STEP)
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [draft, setDraft] = useState("")
   const [sendingComment, setSendingComment] = useState(false)
@@ -153,6 +162,7 @@ export default function ShowcaseDetailScreen() {
         setCommentsStatus("loading")
         const res = await listShowcaseComments(id, { page, limit: 20 })
         setComments((prev) => (append ? [...prev, ...res.data] : res.data))
+        if (!append) setCommentRenderLimit(COMMENT_RENDER_STEP)
         setCommentTotal(res.total)
         setCommentsPage(page)
         setCommentsStatus(res.hasNext ? "idle" : "end")
@@ -701,7 +711,7 @@ export default function ShowcaseDetailScreen() {
             Belum ada komentar. Jadilah yang pertama!
           </Text>
         ) : null}
-        {comments.map((root) => (
+        {comments.slice(0, commentRenderLimit).map((root) => (
           <View key={root.id} className="gap-4">
             <ShowcaseCommentRow
               comment={root}
@@ -725,6 +735,15 @@ export default function ShowcaseDetailScreen() {
             ))}
           </View>
         ))}
+        {comments.length > commentRenderLimit ? (
+          <Button
+            variant="ghost"
+            fullWidth
+            onPress={() => setCommentRenderLimit((n) => n + COMMENT_RENDER_STEP)}
+          >
+            Tampilkan komentar lainnya
+          </Button>
+        ) : null}
       </View>
 
       <MediaViewer

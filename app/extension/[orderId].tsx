@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Perpanjangan tenggat pengiriman.
  *
@@ -31,6 +29,9 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  *   - Batas 1–14 hari & alasan 10–500 karakter diambil dari DTO; pesan
  *     validasi lokal hanya mencegah request yang pasti ditolak.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
@@ -45,7 +46,7 @@ import {
   type PageQuery,
 } from "@/lib/api/orders"
 import { addDays, OrderExtensionCard } from "@/components/ui/order-extension-card"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, formatDateTimeWIB } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -74,7 +75,6 @@ const REASON_MAX = 500
 /** RespondExtensionDto.note maxLength */
 const NOTE_MAX = 500
 const PAGE_SIZE: NonNullable<PageQuery["limit"]> = 20
-
 
 type Action = { kind: "APPROVE" | "REJECT"; extension: OrderExtension } | null
 type Role = "BUYER" | "SELLER" | null
@@ -291,7 +291,7 @@ export default function ExtensionScreen() {
             {order ? (
               <KeyValueList>
                 <KeyValue label="Order" value={order.title} />
-                <KeyValue label="Tenggat saat ini" value={formatDateTime(deadline)} emphasis />
+                <KeyValue label="Tenggat saat ini" value={formatDateTimeWIB(deadline)} emphasis />
               </KeyValueList>
             ) : null}
 
@@ -351,7 +351,7 @@ export default function ExtensionScreen() {
         title={action?.kind === "APPROVE" ? "Setujui perpanjangan?" : "Tolak perpanjangan?"}
         description={
           action?.kind === "APPROVE"
-            ? `Tenggat pengiriman menjadi ${formatDateTime(addDays(deadline, action.extension.extensionDays))}. Dana tetap di escrow.`
+            ? `Tenggat pengiriman menjadi ${formatDateTimeWIB(addDays(deadline, action.extension.extensionDays))}. Dana tetap di escrow.`
             : "Tenggat pengiriman tidak berubah. Beri tahu penjual alasannya."
         }
         visible={!!action}
@@ -408,7 +408,7 @@ export default function ExtensionScreen() {
             min={DAYS_MIN}
             max={DAYS_MAX}
             suffix="hari"
-            helperText={`${DAYS_MIN}–${DAYS_MAX} hari · tenggat baru ${formatDateTime(previewDeadline)}`}
+            helperText={`${DAYS_MIN}–${DAYS_MAX} hari · tenggat baru ${formatDateTimeWIB(previewDeadline)}`}
             disabled={requesting}
             fullWidth
           />

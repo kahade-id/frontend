@@ -37,6 +37,7 @@ import { Camera as CameraIcon, Image as ImageIcon, Images, Trash } from "phospho
 import { api, type UpdateProfileDto, userMessage } from "@/lib/api"
 import { pickImage, pickedImageToFormData, type PickImageOptions } from "@/lib/image-picker"
 import { goBackOrNavigate } from "@/lib/navigation"
+import { logWarn } from "@/lib/telemetry"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -292,7 +293,7 @@ export default function EditProfileScreen() {
         goBackOrNavigate(ROUTES.settings)
       } catch {
         if (password) {
-          setPasswordError("Password salah atau perubahan ditolak.")
+          setPasswordError("Kata sandi salah atau perubahan ditolak.")
         } else {
           toast.show({
             title: "Gagal menyimpan profil",
@@ -332,14 +333,29 @@ export default function EditProfileScreen() {
       }
       if (picked.status !== "picked") return
       setAvatarBusy(true)
+      /**
+       * G-04: avatarKey yang sudah terupload tetapi confirmAvatar-nya gagal
+       * adalah orphan di S3 — bersihkan best-effort. Kunci dianggap terpakai
+       * (di-clear) begitu confirm berhasil.
+       */
+      let orphanKey: string | undefined
       try {
         const uploaded = await api.users.uploadAvatarDirect(
           await pickedImageToFormData(picked.asset),
         )
-        if (uploaded.avatarKey) await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
+        orphanKey = uploaded.avatarKey ?? undefined
+        if (uploaded.avatarKey) {
+          await api.users.confirmAvatar({ avatarKey: uploaded.avatarKey })
+          orphanKey = undefined
+        }
         if (uploaded.avatarUrl) setAvatarUrl(uploaded.avatarUrl)
         toast.show({ title: "Foto profil diperbarui", tone: "success" })
       } catch (err: unknown) {
+        if (orphanKey) {
+          api.upload
+            .cleanupUploads([orphanKey])
+            .catch((cleanupErr: unknown) => logWarn("profile:avatar-cleanup", cleanupErr))
+        }
         toast.show({
           title: "Gagal mengunggah foto",
           description: userMessage(err),
@@ -722,8 +738,8 @@ export default function EditProfileScreen() {
       />
 
       <Dialog
-        title="Konfirmasi password"
-        description="Mengubah username, nomor HP, atau kontak membutuhkan password akun."
+        title="Konfirmasi kata sandi"
+        description="Mengubah username, nomor HP, atau kontak membutuhkan kata sandi akun."
         visible={passwordOpen}
         loading={submitting}
         confirmLabel="Simpan"
@@ -734,7 +750,7 @@ export default function EditProfileScreen() {
         onRequestClose={() => setPasswordOpen(false)}
       >
         <PasswordField
-          label="Password akun"
+          label="Kata sandi akun"
           value={currentPassword}
           onChangeText={setCurrentPassword}
           errorText={passwordError}

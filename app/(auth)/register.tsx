@@ -62,6 +62,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
 import { setPendingReferralCode } from "@/lib/registration"
+import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 
 /** Registrasi via HP: 4 langkah sebelum akun jadi; ini langkah ke-1 */
@@ -145,16 +146,18 @@ export default function RegisterScreen() {
         // OTP_TRIGGER_UNAVAILABLE) jatuh ke pengiriman langsung.
         try {
           const trigger = await api.auth.requestOtpTrigger({ phoneNumber })
-          router.push(
-            ROUTES.whatsappTrigger({
-              phoneNumber,
-              method,
-              refCode: trigger.refCode,
-              whatsappUrl: trigger.whatsappUrl,
-              triggerText: trigger.triggerText,
-              expiresAt: trigger.expiresAt,
-            }),
-          )
+          // B-07 (audit): nomor + refCode + deeplink WA disimpan di memori
+          // alur (lib/otp-flow), BUKAN query param URL — di web param masuk
+          // history/log/Referer.
+          setOtpFlow({
+            phoneNumber,
+            method,
+            refCode: trigger.refCode,
+            whatsappUrl: trigger.whatsappUrl,
+            triggerText: trigger.triggerText,
+            expiresAt: trigger.expiresAt,
+          })
+          router.push(ROUTES.whatsappTrigger)
           return
         } catch (triggerErr) {
           // 503 dipetakan client ke code "SERVER"; backendCode spesifik bila
@@ -168,7 +171,8 @@ export default function RegisterScreen() {
         }
       }
       await api.auth.requestOtp({ phoneNumber, method })
-      router.push(ROUTES.verifyOtp({ phoneNumber, method }))
+      setOtpFlow({ phoneNumber, method })
+      router.push(ROUTES.verifyOtp)
     } catch (err) {
       if (isApiError(err)) {
         if (err.code === "CONFLICT") {

@@ -1,11 +1,3 @@
-import {
-  asRecord,
-  pickUserId,
-  readEntity,
-  readList,
-  readPage,
-  readVerdict,
-} from "@/lib/api/response"
 /**
  * Kahade — domain `users` (tag "users" di kahade-api-mobile.json).
  *
@@ -24,6 +16,16 @@ import {
  *     untuk presigned URL, tapi direct upload lebih simple untuk mobile
  *     (tidak perlu round-trip presigned URL).
  */
+
+import {
+  asRecord,
+  pickUserId,
+  readEntity,
+  readList,
+  readPage,
+  readVerdict,
+} from "@/lib/api/response"
+
 import { http, seg } from "@/lib/api/client"
 import type {
   AddCommentDto,

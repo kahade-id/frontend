@@ -131,7 +131,7 @@ export default function ChangeEmailScreen() {
           }
         />
         <PasswordField
-          label="Password akun"
+          label="Kata sandi akun"
           value={password}
           onChangeText={setPassword}
           maxLength={PASSWORD_MAX}

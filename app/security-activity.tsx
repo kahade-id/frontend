@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Perangkat & Aktivitas: perangkat aktif (sessions), log keamanan,
  * log aktivitas.
@@ -27,6 +25,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Tab "Keluar dari perangkat lain" memakai Dialog konfirmasi: mencabut
  *     semua sesi lain berdampak ke perangkat yang tidak terlihat di layar.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -54,6 +55,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SecurityLogItem } from "@/components/ui/security-log-item"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
+import { Text } from "@/components/ui/text"
 
 type TabKey = "devices" | "security" | "activity"
 
@@ -286,6 +288,15 @@ export default function SecurityActivityScreen() {
               {tab === "devices" ? (
             <>
               <SectionHeader title="Perangkat aktif" />
+              {/* J-12 (audit): konteks risiko — pengguna perlu tahu MENGAPA
+                  lokasi/IP/perangkat ditampilkan dan apa tindakan yang bisa
+                  diambil bila ada login asing (cabut akses + ganti kata sandi). */}
+              <Text variant="caption" tone="secondary" className="text-pretty">
+                Periksa perangkat, lokasi, dan alamat IP yang memiliki akses ke
+                akun Anda. Melihat aktivitas yang bukan Anda? Cabut akses
+                perangkat tersebut, lalu ganti kata sandi dan periksa verifikasi
+                dua langkah Anda.
+              </Text>
               {sessions.length === 0 ? (
                 <EmptyState icon={DeviceMobile} title="Tidak ada sesi aktif" />
               ) : (
@@ -433,8 +444,8 @@ export default function SecurityActivityScreen() {
         title={trustTarget?.next ? "Percayai perangkat ini?" : "Cabut kepercayaan perangkat?"}
         description={
           trustTarget?.next
-            ? "Perangkat tepercaya melewati 2FA saat masuk. Masukkan password akun untuk konfirmasi."
-            : "Perangkat akan kehilangan status tepercaya dan harus melewati 2FA lagi. Masukkan password akun untuk konfirmasi."
+            ? "Perangkat tepercaya melewati 2FA saat masuk. Masukkan kata sandi akun untuk konfirmasi."
+            : "Perangkat akan kehilangan status tepercaya dan harus melewati 2FA lagi. Masukkan kata sandi akun untuk konfirmasi."
         }
         visible={!!trustTarget}
         destructive={!trustTarget?.next}
@@ -448,7 +459,7 @@ export default function SecurityActivityScreen() {
         <Input
           value={trustPassword}
           onChangeText={setTrustPassword}
-          placeholder="Password akun"
+          placeholder="Kata sandi akun"
           secureTextEntry
           autoComplete="password"
         />

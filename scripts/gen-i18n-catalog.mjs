@@ -62,6 +62,9 @@ const NEVER_TEXT = new Set([
   "width", "height", "weight", "ellipsizeMode", "numberOfLines", "maxLength", "minLength",
   "keyboardType", "autoCapitalize", "inputMode", "textContentType", "returnKeyType",
   "accessibilityRole", "accessibilityState", "accessibilityLiveRegion", "edges", "channelId",
+  // E-08: opsi Intl.DateTimeFormat (formatDateTimeWIB di lib/format.ts) —
+  // "Asia/Jakarta"/"2-digit" adalah konfigurasi zona/padding, bukan teks UI.
+  "timeZone", "hour", "minute", "day", "month", "year", "hour12",
 ])
 
 /**
@@ -183,7 +186,13 @@ function collectStrings(node, sf, file, kind, depth = 0) {
   }
   if (ts.isCallExpression(node)) {
     const fn = node.expression.getText(sf)
-    if (/Alert\.alert|announceForAccessibility|show\(|setString\(/.test(fn)) {
+    // E-03/E-06: literal di dalam translate()/translateProp()/t() adalah
+    // kunci kamus eksplisit — WAJIB terkatalog. (Catatan: `fn` adalah teks
+    // callee tanpa tanda kurung, jadi pencocokan memakai nama, bukan `\(`.)
+    if (
+      /Alert\.alert|announceForAccessibility|show\(|setString\(/.test(fn) ||
+      /(^|\.)(translate|translateProp|t)$/.test(fn)
+    ) {
       for (const arg of node.arguments) {
         if (ts.isObjectLiteralExpression(arg)) collectObjectStrings(arg, sf, file)
         else collectStrings(arg, sf, file, kind, depth + 1)
