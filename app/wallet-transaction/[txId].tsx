@@ -1,9 +1,10 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Mutasi Wallet (GET /v1/wallet/transactions/{txId}).
  * KeyValue rows sistem + Amount; PullToRefresh.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"

@@ -1,4 +1,3 @@
-import { asRecord, readPage } from "@/lib/api/response"
 /**
  * Kahade — domain `notifications` (tag "notifications" di kahade-api-mobile.json).
  *
@@ -17,6 +16,9 @@ import { asRecord, readPage } from "@/lib/api/response"
  *   - Tipe `Notification` menggunakan nama `AppNotification` untuk menghindari
  *     konflik dengan Web API bawaan `Notification`.
  */
+
+import { asRecord, readPage } from "@/lib/api/response"
+
 import { http, seg } from "@/lib/api/client"
 import type {
   BatchNotificationIdsDto,

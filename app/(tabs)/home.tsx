@@ -36,9 +36,10 @@
  *     kartu hero tidak lagi `borderless` (kartu putih tanpa border di atas
  *     latar putih akan lenyap) dan ubin ikon <QuickActionGrid> memakai
  *     `bg-surface` — lihat komponennya.
- *   - "Sembunyikan saldo" adalah state sesi (useState), bukan persisten:
- *     repo tidak punya AsyncStorage dan SecureStore dipakai untuk rahasia;
- *     default TAMPIL karena Beranda dibuka setelah login/PIN.
+ *   - "Sembunyikan saldo" (J-05) adalah preferensi persisten di
+ *     `lib/ui-prefs` — dibagi dengan tab Dompet, bertahan antar sesi;
+ *     default TAMPIL. Tamu web (B-04) tidak menembak query `auth:"required"`
+ *     sama sekali dan melihat varian hero + CTA masuk/daftar.
  *   - Notice kaki kartu dipilih berdasar prioritas: sengketa aktif (danger)
  *     > order berjalan (primary) > belum ada transaksi (primary, ajakan).
  *     Satu notice saja — lebih dari satu = tidak ada yang penting.
@@ -50,10 +51,13 @@
  * QuickActionGrid, OrderCard, SectionHeader, EmptyState, Skeleton.
  * Tidak ada markup card custom dan tidak ada angka/format hardcoded.
  */
-import { useCallback, useState } from "react"
+import { useCallback } from "react"
 import { View } from "react-native"
 import { useRouter } from "expo-router"
 import { useApiQuery } from "@/lib/use-api-query"
+import { translate } from "@/lib/i18n"
+import { useAuthSession } from "@/lib/use-auth-session"
+import { useUiPrefs } from "@/lib/ui-prefs"
 import {
   ArrowCircleDown,
   ArrowCircleUp,
@@ -69,7 +73,7 @@ import {
   Scales,
   ShieldCheck,
   Ticket,
-  Tray,
+  Chats,
   UsersThree,
   Wallet,
 } from "phosphor-react-native"
@@ -109,10 +113,13 @@ import { useUnreadCountState } from "@/lib/unread-count"
 
 function greetingByHour(): string {
   const h = new Date().getHours()
-  if (h < 11) return "Selamat pagi"
-  if (h < 15) return "Selamat siang"
-  if (h < 18) return "Selamat sore"
-  return "Selamat malam"
+  // E-06 (audit): salam dihitung lewat translate() — teks visual DAN
+  // accessibilityLabel (yang merakit salam + nama) sama-sama ikut kamus EN.
+  // Literal di dalam translate() juga terkatalog oleh gen-i18n-catalog.
+  if (h < 11) return translate("Selamat pagi")
+  if (h < 15) return translate("Selamat siang")
+  if (h < 18) return translate("Selamat sore")
+  return translate("Selamat malam")
 }
 
 /** Jumlah kartu order aktif yang ditampilkan di Beranda. */
@@ -158,7 +165,19 @@ const PROMOS: readonly PromoItem[] = [
 
 export default function HomeScreen() {
   const router = useRouter()
-  const [balanceHidden, setBalanceHidden] = useState(false)
+  /**
+   * B-04 (audit): tamu web diarahkan app/index langsung ke /home — kelima
+   * query `auth:"required"` di bawah dulu tetap menembak tanpa sesi dan
+   * memicu badai 401 → refresh → expireSession tiap buka/fokus tab, plus
+   * Beranda tamu penuh error merah. Semua query kini di-gate token dan tamu
+   * mendapat varian hero publik (pola yang sama dengan discover.tsx).
+   */
+  const { token } = useAuthSession()
+  const isGuest = !token
+  // J-05 (audit): "sembunyikan saldo" kini preferensi persisten yang dibagi
+  // dengan tab Dompet (lib/ui-prefs) — bukan useState per sesi.
+  const { prefs, setPrefs } = useUiPrefs()
+  const balanceHidden = prefs.balanceHidden
   const unread = useUnreadCountState()
 
   // Lima query terpisah (bukan satu Promise.allSettled manual): request lama
@@ -166,22 +185,24 @@ export default function HomeScreen() {
   // tiap bagian TIDAK me-reset bagian lain ke skeleton. Endpoint aggregate
   // dashboard belum ada di kontrak backend, jadi fan-out ini dipertahankan
   // sampai backend menyediakan response gabungan yang terukur.
-  const profile = useApiQuery<UserProfile>("home-profile", (signal) =>
-    api.users.getMe(signal),
+  const profile = useApiQuery<UserProfile>(
+    "home-profile",
+    (signal) => api.users.getMe(signal),
+    !isGuest,
   )
-  const wallet = useApiQuery<WalletData>("home-wallet", (signal) => api.wallet.getWallet(signal), true, {
+  const wallet = useApiQuery<WalletData>("home-wallet", (signal) => api.wallet.getWallet(signal), !isGuest, {
     refreshOnFocus: true,
   })
   const summary = useApiQuery<OrderSummary>(
     "home-order-summary",
     (signal) => api.orders.getOrdersSummary(signal),
-    true,
+    !isGuest,
     { refreshOnFocus: true },
   )
   const activeOrders = useApiQuery(
     "home-active-orders",
     (signal) => api.orders.listOrders({ page: 1, limit: ACTIVE_PREVIEW_LIMIT, status: "ACTIVE" }, signal),
-    true,
+    !isGuest,
     { refreshOnFocus: true },
   )
   // Jumlah order SELESAI — GET /v1/orders/summary tidak punya angka ini
@@ -190,7 +211,7 @@ export default function HomeScreen() {
   const completedOrders = useApiQuery(
     "home-completed-count",
     (signal) => api.orders.listOrders({ page: 1, limit: 1, status: "COMPLETED" }, signal),
-    true,
+    !isGuest,
     { refreshOnFocus: true },
   )
 
@@ -316,7 +337,27 @@ export default function HomeScreen() {
         <Stagger duration="fast" step={60}>
           {/* ── 1. Bar identitas ───────────────────────────────── */}
           <View className="flex-row items-center gap-3 px-5 pb-2 pt-3">
-            {profile.error ? (
+            {isGuest ? (
+              <View className="flex-1 gap-1 py-1">
+                <Text variant="caption" tone="secondary">
+                  {greetingByHour()},
+                </Text>
+                <Text variant="h2" weight={700} numberOfLines={1}>
+                  Selamat datang di Kahade
+                </Text>
+                <Text variant="body" tone="secondary">
+                  Masuk untuk melihat saldo, transaksi, dan pesan Anda.
+                </Text>
+                <View className="mt-3 flex-row gap-2">
+                  <Button className="flex-1" onPress={() => router.push(ROUTES.login)}>
+                    Masuk
+                  </Button>
+                  <Button variant="secondary" className="flex-1" onPress={() => router.push(ROUTES.register)}>
+                    Daftar
+                  </Button>
+                </View>
+              </View>
+            ) : profile.error ? (
               <View className="flex-1">
                 <ErrorState
                   compact
@@ -331,7 +372,9 @@ export default function HomeScreen() {
                 accessibilityLabel={
                   profile.loading
                     ? "Memuat profil"
-                    : `${greetingByHour()}, ${displayName}${isBusiness ? ", akun bisnis" : ""}`
+                    : `${greetingByHour()}, ${displayName}${
+                        isBusiness ? `, ${translate("akun bisnis")}` : ""
+                      }`
                 }
                 accessibilityHint="Buka Pengaturan akun"
                 onPress={() => router.push(ROUTES.settings)}
@@ -371,6 +414,7 @@ export default function HomeScreen() {
                 </View>
               </PressableScale>
             )}
+            {!isGuest ? (
             <View className="flex-row items-center gap-1">
               <PressableScale
                 accessibilityRole="button"
@@ -397,13 +441,17 @@ export default function HomeScreen() {
                 containerClassName={cn("rounded-xs", focusRing)}
                 className="h-12 w-12 items-center justify-center rounded-xs"
               >
-                {/* Ikon chat diperbesar (tray) sesuai permintaan desain */}
-                <Icon icon={Tray} size={28} tone="active" />
+                {/* G-14 (audit): ikon chat disamakan dengan titik masuk lain
+                    (Chats) — Tray (nampan arsip) berdampingan dengan Bell
+                    terbaca ambigu. */}
+                <Icon icon={Chats} size={28} tone="active" />
               </PressableScale>
             </View>
+            ) : null}
           </View>
 
           {/* ── 1b. Kolom cari (kartu di atas kartu Saldo) ─────── */}
+          {!isGuest ? (
           <View className="px-5 pt-3">
             {/* Variant default (outline border-control), BUKAN "elevated":
                 varian elevated = putih tanpa border dan hanya terbaca di
@@ -414,15 +462,17 @@ export default function HomeScreen() {
               onPress={() => router.push(ROUTES.search)}
             />
           </View>
+          ) : null}
 
           {/* ── 2. Kartu hero: saldo + statistik + notice ──────── */}
+          {!isGuest ? (
           <View className="px-5 pt-3">
             <HomeOverviewCard
               available={wallet.data?.availableBalance}
               held={wallet.data?.holdBalance}
               hidden={balanceHidden}
               elevation="low"
-              onToggleHidden={() => setBalanceHidden((v) => !v)}
+              onToggleHidden={() => setPrefs({ balanceHidden: !balanceHidden })}
               walletLoading={wallet.loading}
               walletError={wallet.error}
               onRetryWallet={() => void wallet.reload()}
@@ -481,6 +531,7 @@ export default function HomeScreen() {
               notice={notice}
             />
           </View>
+          ) : null}
 
           {/* ── 2b. Ajakan unduh aplikasi (hanya web seluler) ──── */}
           {/* Menggantikan banner fixed di atas viewport: tampil
@@ -492,12 +543,15 @@ export default function HomeScreen() {
           <PromoCarousel items={PROMOS} className="pt-6" />
 
           {/* ── 4. Menu cepat ──────────────────────────────────── */}
+          {!isGuest ? (
           <View className="pt-6">
             <SectionHeader title="Menu" level="h3" inset />
             <QuickActionGrid actions={quickActions} layout="row" className="pt-2" />
           </View>
+          ) : null}
 
           {/* ── 5. Transaksi aktif ─────────────────────────────── */}
+          {!isGuest ? (
           <View className="gap-3 px-5 pt-6">
             <SectionHeader
               title="Transaksi aktif"
@@ -567,6 +621,7 @@ export default function HomeScreen() {
               </View>
             )}
           </View>
+          ) : null}
         </Stagger>
       </PullToRefresh>
     </Screen>

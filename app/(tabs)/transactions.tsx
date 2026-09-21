@@ -33,6 +33,7 @@ import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { useUiPrefs } from "@/lib/ui-prefs"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FAB_SIZE, FloatingActionButton } from "@/components/ui/floating-action-button"
@@ -59,18 +60,30 @@ const ROLE_PARAM: Record<RoleTab, "SELLER" | "BUYER"> = {
 
 export default function TransactionsScreen() {
   const router = useRouter()
-  const [role, setRole] = useState<RoleTab>("seller")
+  /**
+   * J-08 (audit): tab peran dibaca dari preferensi persisten (default
+   * "buyer" — mayoritas pengguna escrow adalah pembeli) dan diingat setiap
+   * kali pengguna menggantinya; sebelumnya selalu mulai di "Penjual".
+   */
+  const { prefs, setPrefs } = useUiPrefs()
+  const role: RoleTab = prefs.transactionsTab
   /*
    * Hanya kata kunci yang SUDAH tenang yang disimpan di sini. Teks mentah
    * tinggal di dalam <DebouncedSearchField>, supaya mengetik tidak merender
    * ulang layar ini beserta seluruh kartu pesanan yang terlihat.
    */
   const [debounced, setDebounced] = useState("")
-  const query = usePaginatedQuery(`orders:${role}:${debounced}`, (page, signal) =>
-    api.orders.listOrders(
-      { page, limit: 20, role: ROLE_PARAM[role], search: debounced || undefined },
-      signal,
-    ),
+  const query = usePaginatedQuery(
+    `orders:${role}:${debounced}`,
+    (page, signal) =>
+      api.orders.listOrders(
+        { page, limit: 20, role: ROLE_PARAM[role], search: debounced || undefined },
+        signal,
+      ),
+    // F-01 (audit): bayar/selesaikan pesanan di layar lain lalu kembali ke
+    // tab ini — status PENDING_PAYMENT basi tidak boleh bertahan tanpa
+    // pull-to-refresh manual.
+    { refreshOnFocus: true },
   )
   return (
     <Screen edges={["top"]} padded={false}>
@@ -98,7 +111,11 @@ export default function TransactionsScreen() {
           harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
           animation dari dalam <PaginatedList> (hanya saat tambah/hapus). */}
       <FadeIn duration="fast" translate={false} className="gap-3 px-5 pb-3 pt-3">
-        <SegmentedControl items={ROLE_TABS} value={role} onChange={setRole} />
+        <SegmentedControl
+          items={ROLE_TABS}
+          value={role}
+          onChange={(next) => setPrefs({ transactionsTab: next })}
+        />
         <DebouncedSearchField
           onQueryChange={setDebounced}
           autoFocus={false}

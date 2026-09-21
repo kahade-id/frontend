@@ -21,6 +21,7 @@ import {
   type FeedbackCategory,
 } from "@/lib/feedback"
 import { tokens } from "@/lib/tokens"
+import { logWarn } from "@/lib/telemetry"
 
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
@@ -53,7 +54,7 @@ export default function FeedbackScreen() {
     void flushQueuedFeedback()
       .then(() => queuedFeedbackCount())
       .then(setQueuedCount)
-      .catch(() => undefined)
+      .catch((err) => logWarn("feedback:flush", err))
   }, [])
 
   const trimmed = message.trim()
@@ -85,7 +86,7 @@ export default function FeedbackScreen() {
       }
       setMessage("")
       setContact("")
-      void queuedFeedbackCount().then(setQueuedCount).catch(() => undefined)
+      void queuedFeedbackCount().then(setQueuedCount).catch((err) => logWarn("feedback:queue-count", err))
     } catch (err) {
       toast.show({
         title: "Masukan belum terkirim",
@@ -180,6 +181,16 @@ export default function FeedbackScreen() {
                 keyboardType="default"
               />
             </Field>
+
+            {/* D-12 (audit): persetujuan eksplisit penyimpanan lokal —
+                antrean luring bisa memuat email/konteks transaksi (PII).
+                Pengguna diberitahu batas & lifecycle-nya, bukan diam-diam. */}
+            <Text variant="caption" tone="secondary" className="text-pretty">
+              Dengan mengirim, Anda setuju masukan ini (beserta kontak di atas,
+              bila diisi) disimpan sementara di perangkat ini maksimal 7 hari
+              saat offline, lalu dikirim otomatis dan dihapus. Antrean lokal
+              juga dibersihkan saat Anda keluar dari akun.
+            </Text>
           </View>
         </FadeIn>
       </ScrollView>

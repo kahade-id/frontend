@@ -356,6 +356,37 @@ export function formatDateTime(d: Date | number | string): string {
   return displayDate(d) ? `${formatDate(d)}, ${formatTime(d)}` : "—"
 }
 
+/**
+ * E-08 (audit): formatDateTime + penanda zona WIB eksplisit untuk TENGgat
+ * (deadline escrow, kedaluwarsa tautan pembayaran/QRIS, langganan).
+ * "14:30" polos ambigu bagi pengguna WITA/WIT — dan tenggat yang dipersepsi
+ * beda zona adalah sumber sengketa "terlambat konfirmasi". Backend
+ * mengoperasikan tenggat dalam WIB, jadi nilai dikonversi ke Asia/Jakarta
+ * apa pun zona perangkat. Butuh ICU (Hermes RN ≥ 0.65 default full-ICU);
+ * bila tidak tersedia, jatuh ke formatDateTime TANPA label (melabeli zona
+ * perangkat sebagai WIB lebih buruk daripada tanpa label).
+ */
+export function formatDateTimeWIB(d: Date | number | string): string {
+  const date = displayDate(d)
+  if (!date) return "—"
+  try {
+    const parts = new Intl.DateTimeFormat("id-ID", {
+      timeZone: "Asia/Jakarta",
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date)
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ""
+    const hour = get("hour") === "24" ? "00" : get("hour")
+    return `${get("day")} ${get("month")} ${get("year")}, ${hour}:${get("minute")} WIB`
+  } catch {
+    return formatDateTime(date)
+  }
+}
+
 /** "Rabu, 3 September 2026" — untuk layar konfirmasi/struk */
 export function formatDateLong(d: Date | number | string): string {
   const date = displayDate(d)

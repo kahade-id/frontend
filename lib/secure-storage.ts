@@ -36,9 +36,14 @@ export const SecureKeys = {
   sessionSignedOut: "kahade.session.signedOut",
   accessToken: "kahade.auth.accessToken",
   refreshToken: "kahade.auth.refreshToken",
-  /** Hash PIN (argon2/bcrypt dari backend, atau salted SHA lokal) — BUKAN PIN mentah */
-  pinHash: "kahade.security.pinHash",
-  /** "1" bila pengguna mengizinkan biometrik menggantikan PIN */
+  /**
+   * "1" bila pengguna mengaktifkan kunci aplikasi biometrik (app-lock §14:
+   * re-autentikasi setelah background > 1 menit — lib/app-lock.ts).
+   *
+   * Catatan audit A-05: slot lama `pinHash` DIHAPUS — tidak pernah ada kode
+   * yang menulis/membacanya (dead API yang menyesatkan). PIN diverifikasi
+   * server-side lewat POST /v1/wallet/verify-pin, tidak pernah di-hash lokal.
+   */
   biometricEnabled: "kahade.security.biometricEnabled",
   /** Fingerprint per-install untuk RegisterDeviceDto.deviceId */
   deviceId: "kahade.device.id",
@@ -73,6 +78,30 @@ export const SecureKeys = {
    * BUKAN rahasia — lihat lib/feedback.
    */
   feedbackQueue: "kahade.feedback.queue",
+  /**
+   * Preferensi UI non-sensitif (JSON kecil — lib/ui-prefs.ts): saldo
+   * disembunyikan, tab transaksi terakhir, snooze pengingat ulasan.
+   * BUKAN rahasia; boleh persist di localStorage web (tanpa PII/angka uang).
+   */
+  uiPrefs: "kahade.ui.prefs",
+  /**
+   * Penerima transfer terakhir (JSON — lib/ui-prefs.ts recentRecipients).
+   * Berisi username/nama penerima = PII ringan: di native persist, di web
+   * SENGAJA memory-only (tidak masuk WEB_PERSISTENT_KEYS).
+   */
+  recentRecipients: "kahade.transfer.recent",
+  /**
+   * Aksi uang menggantung (JSON — lib/pending-actions.ts): withdraw
+   * PENDING_OTP, QRIS menunggu, top-up belum dibayar. Berisi txId + nominal
+   * → di web memory-only seperti feedbackQueue.
+   */
+  pendingActions: "kahade.pending.actions",
+  /**
+   * Update id OTA terakhir yang diumumkan (lib/ota-notice.ts). BUKAN rahasia;
+   * level perangkat — TIDAK dihapus clearSession (update bundle tidak peduli
+   * siapa yang login).
+   */
+  lastUpdateId: "kahade.ota.lastUpdateId",
 } as const
 
 export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
@@ -90,6 +119,7 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.languagePreference,
   SecureKeys.sessionSignedOut,
   SecureKeys.lastNotificationResponse,
+  SecureKeys.uiPrefs,
 ])
 function webStorage(): Storage | null {
   try {
@@ -156,10 +186,13 @@ export async function clearSession(): Promise<void> {
   await Promise.all([
     deleteSecureItem(SecureKeys.accessToken),
     deleteSecureItem(SecureKeys.refreshToken),
-    deleteSecureItem(SecureKeys.pinHash),
     deleteSecureItem(SecureKeys.biometricEnabled),
     deleteSecureItem(SecureKeys.pushToken),
     deleteSecureItem(SecureKeys.feedbackQueue),
+    // Data milik akun (bukan preferensi perangkat): akun berikutnya di
+    // perangkat yang sama tidak boleh mewarisi jejak transaksi/penerima.
+    deleteSecureItem(SecureKeys.pendingActions),
+    deleteSecureItem(SecureKeys.recentRecipients),
   ])
 }
 

@@ -91,12 +91,16 @@ export default function ChangePinScreen() {
         // §14: percobaan PIN dibatasi. Bila backend mengunci akun, pesan itulah
         // yang harus dibaca pengguna — bukan saran "periksa password" yang
         // membuatnya mencoba lagi dan memperpanjang penguncian.
-        toast.show({
-          title: "Gagal mengubah PIN",
-          description: userMessage(err),
-          tone: "danger",
-        })
-        setStep("password")
+        const msg = userMessage(err)
+        toast.show({ title: "Gagal mengubah PIN", description: msg, tone: "danger" })
+        // A-18 (audit): error transient (jaringan/timeout/5xx) TIDAK lagi
+        // melempar pengguna ke langkah password dan membuang PIN baru yang
+        // sudah diketik dua kali — tetap di langkah "new". Hanya penolakan
+        // autentikasi (password/PIN salah menurut server) yang kembali.
+        const authRejected =
+          isApiError(err) && (err.code === "UNAUTHORIZED" || err.code === "FORBIDDEN")
+        if (authRejected) setStep("password")
+        else setNewError(msg)
       } finally {
         setSubmitting(false)
       }
@@ -127,12 +131,12 @@ export default function ChangePinScreen() {
       >
         {step === "password" ? (
           <>
-            <SectionHeader title="Verifikasi password" />
+            <SectionHeader title="Verifikasi kata sandi" />
             <Text variant="body" tone="secondary">
-              Masukkan password akun untuk mengizinkan perubahan PIN.
+              Masukkan kata sandi akun untuk mengizinkan perubahan PIN.
             </Text>
             <PasswordField
-              label="Password akun"
+              label="Kata sandi akun"
               value={password}
               onChangeText={setPassword}
               required

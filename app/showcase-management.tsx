@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Showcase / portofolio saya.
  *
@@ -26,6 +24,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Tidak ada drag-reorder: `sortOrder` diisi berurutan saat membuat item
  *     baru (di akhir); pengurutan manual dicatat di finding sebagai backlog.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -125,8 +126,6 @@ export default function ShowcaseScreen() {
   const [reorderingId, setReorderingId] = useState<string | null>(null)
   const [deleteImage, setDeleteImage] = useState<ShowcaseImage | null>(null)
   const [deletingImage, setDeletingImage] = useState(false)
-
-
 
   // ── Tambah: pilih → upload → (form bila perlu) ────────────────────
   const handleUpload = useCallback(async () => {

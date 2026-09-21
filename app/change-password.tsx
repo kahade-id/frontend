@@ -32,7 +32,7 @@ export default function ChangePasswordScreen() {
         newPassword: next,
         confirmPassword: confirm,
       })
-      toast.show({ title: "Password berhasil diubah", tone: "success", duration: 3000 })
+      toast.show({ title: "Kata sandi berhasil diubah", tone: "success", duration: 3000 })
       setCurrent("")
       setNext("")
       setConfirm("")
@@ -42,7 +42,7 @@ export default function ChangePasswordScreen() {
       // dipakai) harus sampai ke pengguna — menebak "Periksa password saat ini"
       // menyesatkan saat yang terjadi sebenarnya adalah pembatasan percobaan.
       toast.show({
-        title: "Gagal mengubah password",
+        title: "Gagal mengubah kata sandi",
         description: userMessage(err),
         tone: "danger",
       })
@@ -69,24 +69,24 @@ export default function ChangePasswordScreen() {
         </View>
       }
     >
-      <Header title="Ubah Password" />
+      <Header title="Ubah Kata Sandi" />
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerClassName="gap-4 px-5 py-4">
-        <SectionHeader title="Password baru" />
+        <SectionHeader title="Kata sandi baru" />
         <PasswordField
-          label="Password saat ini"
+          label="Kata sandi saat ini"
           value={current}
           onChangeText={setCurrent}
           required
         />
         <PasswordField
-          label="Password baru"
+          label="Kata sandi baru"
           value={next}
           onChangeText={setNext}
           required
           showStrength
         />
         <PasswordField
-          label="Ulangi password baru"
+          label="Ulangi kata sandi baru"
           value={confirm}
           onChangeText={setConfirm}
           confirmOf={next}

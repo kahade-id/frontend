@@ -65,6 +65,7 @@ import { languageLabel, useLanguage } from "@/lib/i18n"
 import { installedAppVersion } from "@/lib/runtime-info"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { logWarn } from "@/lib/telemetry"
 
 import { useTheme } from "@/components/theme-provider"
 import { Badge } from "@/components/ui/badge"
@@ -121,7 +122,11 @@ export default function SettingsScreen() {
   // Subscription status query
   const subscriptionQuery = useApiQuery<SubscriptionStatus | null>(
     "subscription-status",
-    (signal) => api.subscriptions.getSubscriptionStatus(signal).catch(() => null),
+    (signal) =>
+      api.subscriptions.getSubscriptionStatus(signal).catch((err) => {
+        logWarn("settings:subscription-status", err)
+        return null
+      }),
   )
   const subStatus = subscriptionQuery.data
   const isSubscribed = Boolean(subStatus?.active)
@@ -141,10 +146,11 @@ export default function SettingsScreen() {
           api.notifications.registerDevice(dto),
         unregisterDevice: () => api.notifications.unregisterDevice(),
       }
-      if (Platform.OS === "web") await unregisterWebPushDevice(deviceApi).catch(() => undefined)
-      else await unregisterPushDevice(deviceApi).catch(() => undefined)
+      if (Platform.OS === "web")
+        await unregisterWebPushDevice(deviceApi).catch((err) => logWarn("settings:unregister-push", err))
+      else await unregisterPushDevice(deviceApi).catch((err) => logWarn("settings:unregister-push", err))
       try {
-        await api.auth.logout().catch(() => undefined)
+        await api.auth.logout().catch((err) => logWarn("settings:logout", err))
       } finally {
         await clearSession()
       }

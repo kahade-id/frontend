@@ -42,6 +42,7 @@ import {
 
 import { cn } from "@/lib/cn"
 import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
+import { translateProp, useLanguage } from "@/lib/i18n"
 import { haptic as fireHaptic, type HapticKind } from "@/lib/haptics"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
@@ -68,11 +69,18 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     onPressIn,
     onPressOut,
     accessibilityState,
+    accessibilityLabel,
     children,
     ...rest
   },
   ref,
 ) {
+  // E-02 (audit): label aksesibilitas ikut diterjemahkan di primitif —
+  // VoiceOver/TalkBack EN sebelumnya mendengar campuran ID/EN di SEMUA
+  // tombol/baris (Button, IconButton, Chip, Card menekan PressableScale).
+  // useLanguage: label ikut ter-render ulang saat pengguna berpindah bahasa.
+  useLanguage()
+  const localizedLabel = translateProp(accessibilityLabel)
   // Di dalam BottomSheet (overlay Reanimated di Fabric native), Pressable
   // bawaan bisa tidak memanggil onPress karena responder region-nya diukur
   // dari shadow tree yang basi pasca-animasi (RN #51621); hook ini menukarnya
@@ -147,6 +155,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
       onPressOut={handlePressOut}
       accessibilityState={{ disabled: !!disabled, ...accessibilityState }}
       className={containerClassName}
+      accessibilityLabel={localizedLabel}
       {...rest}
     >
       <Animated.View style={{ transform: [{ scale }] }}>

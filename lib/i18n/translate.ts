@@ -86,7 +86,17 @@ export function translate(source: unknown, vars?: TranslateVars): string {
       out = cached
     } else {
       out = lookup(dict, source) ?? source
-      if (cache.size >= CACHE_MAX) cache.clear()
+      if (cache.size >= CACHE_MAX) {
+        // E-10 (audit): sebelumnya cache dibersihkan TOTAL saat penuh — tiap
+        // 4000 entri seluruh list panjang membayar ulang lookup kamus
+        // (collapse + shapeOf per string). Map JS berurutan inserksi: buang
+        // separuh tertua saja (FIFO), separuh panas tetap ter-cache.
+        let dropped = 0
+        for (const stale of cache.keys()) {
+          if (dropped++ >= CACHE_MAX / 2) break
+          cache.delete(stale)
+        }
+      }
       cache.set(key, out)
     }
   }

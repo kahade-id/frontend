@@ -35,6 +35,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, isApiError, userMessage } from "@/lib/api"
 import type { TwoFactorSetup } from "@/lib/api/auth"
 import { useCopy } from "@/lib/clipboard"
+import { saveBlobFile } from "@/lib/export-file"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -108,6 +109,13 @@ export default function TwoFactorScreen() {
   const [enableError, setEnableError] = useState<string | undefined>()
   const [enabling, setEnabling] = useState(false)
   const [codes, setCodes] = useState<string[]>([])
+  /**
+   * J-11 (audit): apakah pengguna sudah menyalin/mengunduh kode cadangan.
+   * "Sudah saya simpan" tanpa bukti salin/unduh memicu Dialog konfirmasi —
+   * kehilangan kode cadangan = risiko terkunci permanen dari akun.
+   */
+  const [codesSaved, setCodesSaved] = useState(false)
+  const [ackOpen, setAckOpen] = useState(false)
 
   // ── Nonaktifkan ────────────────────────────────────────────────────────
   const [disablePassword, setDisablePassword] = useState("")
@@ -134,7 +142,38 @@ export default function TwoFactorScreen() {
     setSetupError(undefined)
     setSetup(null)
     setEnableError(undefined)
+    setCodesSaved(false)
+    setAckOpen(false)
   }, [])
+
+  const handleDownloadCodes = useCallback(
+    async (text: string) => {
+      try {
+        const saved = await saveBlobFile(
+          new Blob([text], { type: "text/plain" }),
+          "kahade-kode-cadangan-2fa.txt",
+          "text/plain",
+        )
+        setCodesSaved(true)
+        toast.show({
+          title:
+            saved.kind === "downloaded"
+              ? "Kode cadangan diunduh"
+              : "Kode cadangan siap dibagikan",
+          description: saved.filename,
+          tone: "success",
+          duration: 3000,
+        })
+      } catch (err) {
+        toast.show({
+          title: "Gagal mengunduh kode cadangan",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    },
+    [toast.show],
+  )
 
   const handleStartEnable = useCallback(() => {
     resetEnableFlow()
@@ -151,7 +190,7 @@ export default function TwoFactorScreen() {
       setSetupPassword("")
       setStep("scan")
     } catch {
-      setSetupError("Password salah atau 2FA tidak bisa disiapkan. Coba lagi.")
+      setSetupError("Kata sandi salah atau 2FA tidak bisa disiapkan. Coba lagi.")
     } finally {
       setSettingUp(false)
     }
@@ -267,7 +306,7 @@ export default function TwoFactorScreen() {
     } catch (err: unknown) {
       setRegenError(
         isApiError(err) && err.code === "VALIDATION"
-          ? "Password atau kode autentikator salah. Coba lagi."
+          ? "Kata sandi atau kode autentikator salah. Coba lagi."
           : userMessage(err),
       )
     } finally {
@@ -310,12 +349,12 @@ export default function TwoFactorScreen() {
           {/* ── Langkah 1: password ─────────────────────────────────────── */}
           {step === "password" ? (
             <>
-              <SectionHeader title="Langkah 1 dari 3 — Verifikasi password" />
+              <SectionHeader title="Langkah 1 dari 3 — Verifikasi kata sandi" />
               <Text variant="body" tone="secondary">
-                Masukkan password akun untuk menyiapkan aplikasi autentikator.
+                Masukkan kata sandi akun untuk menyiapkan aplikasi autentikator.
               </Text>
               <PasswordField
-                label="Password akun"
+                label="Kata sandi akun"
                 value={setupPassword}
                 onChangeText={setSetupPassword}
                 errorText={setupError}
@@ -401,12 +440,20 @@ export default function TwoFactorScreen() {
               />
               <BackupCodesDisplay
                 codes={codes}
-                onCopyAll={(text) => void copy(text, "codes")}
+                onCopyAll={(text) => {
+                  setCodesSaved(true)
+                  void copy(text, "codes")
+                }}
+                onDownload={(text) => void handleDownloadCodes(text)}
                 onRegenerate={openRegenerate}
                 regenerating={regenerating}
               />
               {step === "codes" ? (
-                <Button onPress={resetEnableFlow}>Sudah saya simpan</Button>
+                <Button
+                  onPress={() => (codesSaved ? resetEnableFlow() : setAckOpen(true))}
+                >
+                  Sudah saya simpan
+                </Button>
               ) : null}
             </>
           ) : null}
@@ -420,7 +467,7 @@ export default function TwoFactorScreen() {
                 ke email Anda.
               </Alert>
               <PasswordField
-                label="Password akun"
+                label="Kata sandi akun"
                 value={disablePassword}
                 onChangeText={setDisablePassword}
                 required
@@ -500,10 +547,26 @@ export default function TwoFactorScreen() {
         </View>
       </PullToRefresh>
 
+      {/* J-11 (audit): konfirmasi eksplisit bila pengguna menutup alur setup
+          tanpa pernah menyalin/mengunduh kode cadangan. */}
+      <Dialog
+        title="Yakin sudah menyimpan kode cadangan?"
+        description="Jika perangkat Anda hilang atau rusak dan kode cadangan tidak tersimpan, Anda dapat terkunci dari akun. Salin atau unduh kodenya terlebih dahulu."
+        visible={ackOpen}
+        confirmLabel="Ya, sudah saya simpan"
+        cancelLabel="Kembali"
+        onConfirm={() => {
+          setAckOpen(false)
+          resetEnableFlow()
+        }}
+        onCancel={() => setAckOpen(false)}
+        onRequestClose={() => setAckOpen(false)}
+      />
+
       {/* ── Dialog: regenerasi kode cadangan ──────────────────────────────── */}
       <Dialog
         title="Buat kode cadangan baru?"
-        description="Semua kode cadangan lama akan hangus. Masukkan password dan kode dari aplikasi autentikator untuk melanjutkan."
+        description="Semua kode cadangan lama akan hangus. Masukkan kata sandi dan kode dari aplikasi autentikator untuk melanjutkan."
         visible={regenOpen}
         loading={regenerating}
         confirmLabel="Buat Kode Baru"
@@ -514,7 +577,7 @@ export default function TwoFactorScreen() {
         onRequestClose={() => setRegenOpen(false)}
       >
         <PasswordField
-          label="Password akun"
+          label="Kata sandi akun"
           value={regenPassword}
           onChangeText={setRegenPassword}
           errorText={regenError}

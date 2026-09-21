@@ -55,6 +55,7 @@ import type { TwoFactorStatus } from "@/lib/api/auth"
 import { getBiometricCapability, type BiometricCapability } from "@/lib/biometrics"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { logWarn } from "@/lib/telemetry"
 
 import { DataScreen } from "@/components/ui/data-screen"
 import { ListItem } from "@/components/ui/list-item"
@@ -73,7 +74,10 @@ export default function SecurityScreen() {
   const query = useApiQuery<SecurityHub>("security-hub", async (signal) => {
     const [me, twoFactor, biometric] = await Promise.all([
       api.users.getMe(signal),
-      api.auth.get2faStatus(signal).catch(() => null),
+      api.auth.get2faStatus(signal).catch((err) => {
+        logWarn("security:2fa-status", err)
+        return null
+      }),
       getBiometricCapability().catch(() => NO_BIOMETRIC),
     ])
     return { me, twoFactor, biometric }
@@ -135,7 +139,7 @@ export default function SecurityScreen() {
           }
         />
         <ListItem
-          title="Ganti Password"
+          title="Ganti Kata Sandi"
           titleVariant="bodyLarge"
           leading={Key}
           chevron

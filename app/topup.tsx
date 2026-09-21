@@ -30,6 +30,8 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { usePolling } from "@/lib/use-polling"
 import { useApiQuery } from "@/lib/use-api-query"
+import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
+import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -100,6 +102,12 @@ export default function TopupScreen() {
   const pollLock = useRef(false)
   const pollCount = useRef(0)
   const MAX_POLL_COUNT = 180 // Max 15 minutes at 5s interval
+  /**
+   * A-12 (audit): true setelah cap polling tercapai — UI memberi tahu bahwa
+   * pemantauan otomatis berhenti dan "Periksa status" adalah jalur manualnya.
+   * Sebelumnya polling mati diam-diam dan kartu terus terlihat "hidup".
+   */
+  const [pollStopped, setPollStopped] = useState(false)
 
   // Progress bar — nilai kontinu mengikuti langkah aktif (register-style).
   const stepIndex: Record<Step, number> = { amount: 1, method: 2, result: 3 }
@@ -124,6 +132,11 @@ export default function TopupScreen() {
         previous?.paymentTxId === id ? { ...previous, ...status, paymentTxId: id } : previous,
       )
       setStatusError(null)
+      // J-02: status final (SUCCESS/FAILED/EXPIRED/CANCELLED) diketahui →
+      // aksi menggantung diselesaikan; banner pemulihan tidak lagi relevan.
+      if (mapValue(STATUS, status?.status, undefined)) {
+        resolvePendingAction("topup-unpaid", id)
+      }
     } catch (err) {
       setStatusError(userMessage(err))
     } finally {
@@ -134,7 +147,10 @@ export default function TopupScreen() {
   usePolling(
     async () => {
       if (result?.paymentTxId) {
-        if (pollCount.current >= MAX_POLL_COUNT) return
+        if (pollCount.current >= MAX_POLL_COUNT) {
+          setPollStopped(true)
+          return
+        }
         pollCount.current += 1
         await pollStatus(result.paymentTxId)
       }
@@ -201,6 +217,17 @@ export default function TopupScreen() {
       setResult(res)
       setStep("result")
       setStatusError(null)
+      pollCount.current = 0
+      setPollStopped(false)
+      // J-04: catat top-up belum dibayar — bila layar ditutup/app mati,
+      // Beranda menawarkan pemulihan ("periksa riwayat top-up").
+      recordPendingAction({
+        kind: "topup-unpaid",
+        paymentTxId: res.paymentTxId,
+        amount,
+        createdAt: Date.now(),
+        expiresAt: toEpochMs(res.expiresAt),
+      })
       toast.show({ title: "Instruksi pembayaran dibuat", tone: "success" })
     } catch (err) {
       toast.show({
@@ -254,7 +281,7 @@ export default function TopupScreen() {
                   </Heading>
                   <Text variant="body" tone="secondary" className="text-center text-pretty">
                     Pilih atau ketik jumlah saldo yang ingin Anda isi. Minimal{" "}
-                    Rp{AMOUNT_LIMITS.topup.minimum.toLocaleString("id-ID")}.
+                    {formatRupiah(AMOUNT_LIMITS.topup.minimum)}.
                   </Text>
                 </View>
               </FadeIn>
@@ -332,7 +359,15 @@ export default function TopupScreen() {
                     subtitle={selectedMethod ? selectedMethod.name : "Pilih metode di bawah"}
                     totalLabel="Total yang dibayar"
                     totalValue={amount + selectedFee}
-                    totalHint={selectedFee > 0 ? "Termasuk biaya admin" : "Tanpa biaya admin"}
+                    totalHint={
+                      // A-15 (audit): biaya dihitung KLIEN dari aturan metode
+                      // (server tetap sumber kebenaran tagihan) — label jujur
+                      // "estimasi" mencegah selisih pembulatan terbaca sebagai
+                      // kesalahan penagihan.
+                      selectedFee > 0
+                        ? "Termasuk biaya admin (estimasi — total final mengikuti tagihan channel)"
+                        : "Tanpa biaya admin"
+                    }
                   />
 
                   {/* Pemilihan metode ada di halaman nominal lewat BottomSheet
@@ -431,6 +466,12 @@ export default function TopupScreen() {
                   onCopy={(value) => void copy(value)}
                   copied={copied}
                 />
+                {pollStopped && !mapValue(STATUS, result?.status, undefined) ? (
+                  <Alert tone="info" title="Pemantauan otomatis dihentikan">
+                    Status tidak lagi diperbarui otomatis setelah 15 menit. Pembayaran yang masuk
+                    tetap diproses channel — ketuk Periksa status untuk pembaruan manual.
+                  </Alert>
+                ) : null}
                 {statusError ? (
                   <ErrorState
                     compact

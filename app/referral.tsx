@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Referral (my-code, stats, history, rewards, regenerate, apply).
  *
@@ -12,6 +10,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Tautan undangan dibentuk `referralUrl()` (lib/deeplinks) — tanpa
  *     literal skema di layar.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -38,6 +39,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
+import { logWarn } from "@/lib/telemetry"
 import { useToast } from "@/components/ui/toast"
 
 export default function ReferralScreen() {
@@ -72,7 +74,10 @@ export default function ReferralScreen() {
   }>("referral", async (signal) => {
     const [c, s, h, r] = await Promise.all([
       api.referrals.getMyReferralCode(signal),
-      api.referrals.getReferralStats(signal).catch(() => null),
+      api.referrals.getReferralStats(signal).catch((err) => {
+        logWarn("referral:stats", err)
+        return null
+      }),
       api.referrals.getReferralHistory(signal).catch(() => []),
       api.referrals.getReferralRewards(signal).catch(() => []),
     ])
@@ -103,7 +108,10 @@ export default function ReferralScreen() {
   >(
     "referral-leaderboard",
     async (signal) =>
-      (await api.referrals.getReferralLeaderboard(10, signal).catch(() => undefined)) ?? [],
+      (await api.referrals.getReferralLeaderboard(10, signal).catch((err) => {
+        logWarn("referral:leaderboard", err)
+        return undefined
+      })) ?? [],
   )
   const leaderboard = (leaderboardQuery.data ?? []).slice(0, 10)
 
@@ -111,8 +119,6 @@ export default function ReferralScreen() {
   const [applyCode, setApplyCode] = useState("")
   const [applying, setApplying] = useState(false)
   const [applyError, setApplyError] = useState<string | undefined>()
-
-
 
   const handleRegenerate = useCallback(async () => {
     setRegenerating(true)

@@ -51,6 +51,7 @@ import { House, ImagesSquare, ShoppingBag, UsersThree, Wallet } from "phosphor-r
 
 import { RouterBottomTabBar, type RouterBottomTabBarProps } from "@/components/ui/bottom-tab-bar"
 import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
+import { useAuthSession } from "@/lib/use-auth-session"
 import { useUnreadCount } from "@/lib/unread-count"
 
 
@@ -105,7 +106,12 @@ export default function TabsLayout() {
   // hilang seketika tanpa menunggu poll berikutnya.
   // Tetap satu pemasangan poll unread; badge kini ditampilkan pada tombol
   // notifikasi di header Beranda, bukan pada bottom navigation.
-  useUnreadCount()
+  //
+  // B-05 (audit): poll DIGATE sesi — tamu web yang membuka tab tidak lagi
+  // menembak endpoint `auth:"required"` tiap 60 detik (badai 401 → refresh →
+  // clearSession). Tanpa token tidak ada badge untuk ditampilkan pula.
+  const session = useAuthSession()
+  useUnreadCount({ enabled: Boolean(session.token) })
 
   const renderTabBar = useCallback(
     (props: TabsTabBarProps) => (

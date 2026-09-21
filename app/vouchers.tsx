@@ -16,7 +16,7 @@ import { router } from "expo-router"
 
 import { api } from "@/lib/api"
 import type { Voucher } from "@/lib/api/vouchers"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, formatDateTimeWIB } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -78,7 +78,7 @@ export default function VouchersScreen() {
             discountValue={v.discountValue ?? Number.NaN}
             maxDiscount={v.maxDiscount}
             minOrderValue={v.minOrderValue}
-            expiresAt={v.expiresAt ? formatDateTime(v.expiresAt) : undefined}
+            expiresAt={v.expiresAt ? formatDateTimeWIB(v.expiresAt) : undefined}
             expiresSoon={
               v.expiresAt
                 ? new Date(v.expiresAt).getTime() - Date.now() < EXPIRES_SOON_MS

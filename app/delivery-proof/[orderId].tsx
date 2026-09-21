@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Bukti pengiriman satu pesanan.
  *
@@ -25,6 +23,9 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  *   - Form penjual disembunyikan bila bukti terakhir sudah CONFIRMED (order
  *     selesai) — tidak ada alasan mengirim bukti lagi.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useApiQuery } from "@/lib/use-api-query"
 import { View } from "react-native"

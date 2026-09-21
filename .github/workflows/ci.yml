@@ -1,0 +1,78 @@
+# H-06 (audit 2026-09-20): CI pertama repo ini — semua gate statis + test
+# yang sebelumnya hanya jalan lokal kini dieksekusi otomatis per PR.
+# Jadwal nightly khusus `npm audit` (D-01/K-04).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  schedule:
+    # 00:30 WIB — audit dependensi nightly.
+    - cron: "30 17 * * *"
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Gate utama: typecheck + lint + 9 skrip check + vitest node & komponen.
+  check:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run check
+
+  # Smoke web request-level (H-05): Playwright build export statis sendiri
+  # lewat webServer di playwright.config.ts.
+  e2e-web-smoke:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e
+
+  # Anggaran ukuran export web (H-07): gagal bila total naik >10% dari
+  # scripts/bundle-size-budget.json.
+  bundle-budget:
+    if: github.event_name != 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build:web
+      - run: npm run check:bundle
+
+  # Nightly: dependensi high/critical harus 0 di luar pengecualian sadar
+  # (D-01/K-04) — scripts/check-audit.mjs menolak temuan baru & pengecualian basi.
+  dependency-audit:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run audit:check

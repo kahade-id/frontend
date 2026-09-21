@@ -56,7 +56,7 @@ if (!problems.length) {
 }
 if (problems.length) {
   console.error("OTA DIBLOKIR:\n" + problems.map((p) => `- ${p}`).join("\n"))
-  console.error("Lihat docs/audit/OTA.md. Tidak ada update yang dipublikasikan oleh skrip ini.")
+  console.error("Lihat docs/OTA-RUNBOOK.md. Tidak ada update yang dipublikasikan oleh skrip ini.")
   process.exitCode = 1
 } else {
   console.log(

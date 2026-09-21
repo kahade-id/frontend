@@ -1,16 +1,17 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Terima Order Link (GET /v1/orders/links/{token}).
  * Preview kartu + Terima (POST accept) / Tolak (POST cancel).
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, type OrderLink, userMessage } from "@/lib/api"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTimeWIB } from "@/lib/format"
 import { orderLinkStatus } from "@/lib/order-link-labels"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
@@ -125,7 +126,7 @@ export default function OrderLinkScreen() {
               feeResponsibility={link.feeResponsibility}
               status={orderLinkStatus(link.status)}
               expiresLabel={
-                link.expiresAt ? `Berlaku hingga ${formatDateTime(link.expiresAt)}` : undefined
+                link.expiresAt ? `Berlaku hingga ${formatDateTimeWIB(link.expiresAt)}` : undefined
               }
               lockedToUsername={link.counterpartUsername ?? undefined}
               onAccept={active ? () => void handleAccept() : undefined}

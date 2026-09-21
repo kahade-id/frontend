@@ -1,4 +1,3 @@
-import { readPage } from "@/lib/api/response"
 /**
  * Kahade — domain `business-verification` (badge "Business Verified").
  *
@@ -18,6 +17,9 @@ import { readPage } from "@/lib/api/response"
  *     SATU tempat ini (null = belum ada pengajuan = NOT_SUBMITTED) supaya
  *     layar tidak salah menampilkan status.
  */
+
+import { readPage } from "@/lib/api/response"
+
 import { http } from "@/lib/api/client"
 import type { SubmitBusinessVerificationDto } from "@/lib/api/types"
 import { mapValue } from "@/lib/has-own"

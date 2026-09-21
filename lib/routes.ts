@@ -17,37 +17,24 @@
  */
 import type { Href } from "expo-router"
 
-import type { OtpMethod } from "@/lib/api/auth"
-
-/**
- * Param yang dibawa Register -> OTP Verification. `phoneNumber` sudah E.164
- * ("+62812…") — bentuk yang sama dengan yang dikirim ke `request-otp`, agar
- * `verify-otp` memakai string identik (backend mencocokkan OTP per nomor).
- */
-export type VerifyOtpParams = {
-  phoneNumber: string
-  method: OtpMethod
-}
+// B-07/B-14 (audit): layar OTP tidak lagi menerima phoneNumber/refCode/
+// whatsappUrl lewat param URL — seluruh state alur di `lib/otp-flow.ts`
+// (memori modul), URL hanya nama rute. Di web, param URL masuk history
+// browser + log hosting + Referer, dan `/verify-otp?phoneNumber=<korban>`
+// bisa dipakai memicu OTP bombing.
 
 export const ROUTES = {
   onboarding: "/onboarding" as Href,
   /** Screen #2 — Register: nomor HP + metode OTP */
   register: "/register" as Href,
-  /** Screen #3 — OTP Verification */
-  verifyOtp: (params: VerifyOtpParams) => ({ pathname: "/verify-otp", params }) as unknown as Href,
+  /** Screen #3 — OTP Verification (state alur di lib/otp-flow, tanpa param) */
+  verifyOtp: "/verify-otp" as Href,
   /**
    * Screen #3a — WhatsApp OTP Trigger: user mengirim pesan pemicu sendiri ke
    * bot (customer-initiated), OTP dibalas oleh bot. Jalur direct-send tetap
    * tersedia dari layar ini.
    */
-  whatsappTrigger: (params: {
-    phoneNumber: string
-    method: OtpMethod
-    refCode: string
-    whatsappUrl: string
-    triggerText: string
-    expiresAt: string
-  }) => ({ pathname: "/whatsapp-trigger", params }) as unknown as Href,
+  whatsappTrigger: "/whatsapp-trigger" as Href,
   /** Screen #4 — Buat Keamanan: password + PIN */
   createSecurity: "/create-security" as Href,
   /** Screen #5 — Data Diri: nama, username, email, dll */
@@ -260,8 +247,14 @@ export const ROUTES = {
   /** Daftar ruang chat (GET /v1/chat/rooms) */
   chat: "/chat" as Href,
   /** Satu ruang chat */
-  chatRoom: (roomId: string) =>
-    ({ pathname: "/chat/[roomId]", params: { roomId } }) as unknown as Href,
+  chatRoom: (roomId: string, title?: string) =>
+    ({
+      pathname: "/chat/[roomId]",
+      // C-06 (audit): `title` = nama lawan bicara dari layar asal; layar
+      // ruang memakainya sebagai fallback header (GET /rooms tanpa endpoint
+      // detail; lookup lokal hanya 30 ruang pertama).
+      params: title ? { roomId, title } : { roomId },
+    }) as unknown as Href,
   /** Langganan premium */
   subscriptions: "/subscriptions" as Href,
   /** Referral */

@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Ulasan Publik.
  *   GET /v1/users/{username}/ratings?page&limit&filter.
@@ -7,6 +5,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   Negatif. Paginasi PAGE_SIZE 20 + LoadMore;
  *   respons array|{data,meta} via readMyRatings.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"

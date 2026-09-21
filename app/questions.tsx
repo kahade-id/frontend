@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Tanya Jawab saya.
  *
@@ -15,6 +13,9 @@ import { ListLoading } from "@/components/ui/paginated-list"
  * lihat status jawaban, hapus pertanyaan saya, buka profil yang ditanya.
  * Daftar dipaginasi (PAGE_SIZE 20 + <LoadMore>); respons array|{data,meta}.
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -23,6 +24,7 @@ import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
 import { readQuestionList, type MyQuestionsType, type QuestionItem } from "@/lib/api/users"
+import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -43,13 +45,9 @@ import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-co
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 
-const HIDE_REASONS = [
-  { value: "SPAM", label: "Spam", description: "Link/jualan tidak relevan" },
-  { value: "INAPPROPRIATE", label: "Tidak pantas", description: "Konten menyinggung" },
-  { value: "HARASSMENT", label: "Perundungan", description: "Ancaman/pelecehan" },
-  { value: "OTHER", label: "Lainnya", description: "Jelaskan di alasan lain" },
-] as const
-type HiddenReason = (typeof HIDE_REASONS)[number]["value"]
+/** G-13: opsi hide satu sumber di lib/labels/report (= HiddenReason API). */
+const HIDE_REASONS = CONTENT_REPORT_REASONS
+type HiddenReason = ContentReportReason
 
 const PAGE_SIZE = 20
 /** AnswerQuestionDto: minLength 1 · maxLength 2000 (batas lokal min 10 agar jawaban bermakna) */

@@ -18,6 +18,7 @@ import { Linking } from "react-native"
 import { DownloadSimple } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
+import { safeHttpsUrl } from "@/lib/version"
 import type { PrivacySettings } from "@/lib/api/settings"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -82,13 +83,25 @@ export default function PrivacySettingsScreen() {
       const res = await api.settings.exportPrivacy()
       setExportOpen(false)
       if (res?.url) {
-        const ok = await Linking.canOpenURL(res.url)
-        if (ok) await Linking.openURL(res.url)
-        toast.show({
-          title: "Ekspor data siap",
-          description: "Berkas dibuka di browser.",
-          tone: "success",
-        })
+        // D-10 (audit): URL ekspor memuat data pribadi lengkap — WAJIB https;
+        // apa pun selain itu ditolak, bukan dibuka.
+        const target = safeHttpsUrl(res.url)
+        if (!target) {
+          toast.show({
+            title: "Ekspor data gagal dibuka",
+            description: "Tautan ekspor bukan HTTPS dan ditolak demi keamanan data Anda. Coba lagi atau hubungi dukungan.",
+            tone: "danger",
+            duration: 6000,
+          })
+        } else {
+          const ok = await Linking.canOpenURL(target)
+          if (ok) await Linking.openURL(target)
+          toast.show({
+            title: "Ekspor data siap",
+            description: "Berkas dibuka di browser.",
+            tone: "success",
+          })
+        }
       } else {
         toast.show({
           title: "Permintaan diterima",

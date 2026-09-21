@@ -22,18 +22,31 @@
  *   - Cek sesi dan flag onboarding dibaca PARALEL (keduanya SecureStore)
  *     supaya boot tidak menunggu dua round-trip Keychain berurutan.
  */
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Platform } from "react-native"
 import { Redirect } from "expo-router"
 
 import { getAccessToken } from "@/lib/api"
 import { hasSeenOnboarding } from "@/lib/onboarding"
+import { logWarn } from "@/lib/telemetry"
 import { ROUTES } from "@/lib/routes"
+
+import { ErrorState } from "@/components/ui/error-state"
+import { Screen } from "@/components/ui/screen"
 
 type Gate = "home" | "login" | "onboarding"
 
 export default function Index() {
   const [gate, setGate] = useState<Gate | null>(null)
+  /**
+   * B-09 (audit): kegagalan BACA Keychain/Keystore (reject) sebelumnya
+   * disamakan dengan "tidak ada token" (null) — error transien OS melempar
+   * pengguna yang MASIH LOGIN ke layar login. Kini dibedakan: reject → layar
+   * retry, bukan keputusan gate.
+   */
+  const [storageError, setStorageError] = useState(false)
+  const [attempt, setAttempt] = useState(0)
+  const retry = useCallback(() => setAttempt((n) => n + 1), [])
 
   useEffect(() => {
     // Web: guest mode — langsung beranda tanpa splash/onboarding/login.
@@ -42,18 +55,37 @@ export default function Index() {
       return
     }
     let alive = true
+    setStorageError(false)
     Promise.all([
-      getAccessToken().catch(() => null),
+      getAccessToken().catch((err) => {
+        logWarn("boot-gate:read-token", err)
+        throw err
+      }),
       hasSeenOnboarding().catch(() => false),
-    ]).then(([token, seen]) => {
-      if (!alive) return
-      setGate(token ? "home" : seen ? "login" : "onboarding")
-    })
+    ])
+      .then(([token, seen]) => {
+        if (!alive) return
+        setGate(token ? "home" : seen ? "login" : "onboarding")
+      })
+      .catch(() => {
+        if (alive) setStorageError(true)
+      })
     return () => {
       alive = false
     }
-  }, [])
+  }, [attempt])
 
+  if (storageError) {
+    return (
+      <Screen edges={["top"]}>
+        <ErrorState
+          title="Sesi belum dapat diperiksa"
+          description="Penyimpanan aman perangkat sedang tidak dapat dibaca. Coba lagi — data login Anda tidak hilang."
+          onRetry={retry}
+        />
+      </Screen>
+    )
+  }
   if (gate === null) return null
   return (
     <Redirect

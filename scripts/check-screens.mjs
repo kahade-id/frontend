@@ -137,7 +137,6 @@ rules.push({
     "app/invoice/[orderId].tsx",
     "app/kyc.tsx",
     "app/order-link/[token].tsx",
-    "app/order-links.tsx",
     "app/order/[id].tsx",
     "app/questions.tsx",
     "app/rate/[orderId].tsx",
@@ -494,6 +493,41 @@ for (const component of UNUSED_UI_BASELINE) {
 }
 
 // ------------------------------------------------------------------
+// S9 — ratchet ukuran "god component" (G-11 audit 2026-09-20)
+// ------------------------------------------------------------------
+/**
+ * Lima layar terbesar hanya boleh MENYUSUT. Memecah 1.500 baris sekaligus
+ * terlalu berisiko untuk satu pass; ratchet ini membuat ukurannya tidak
+ * bisa tumbuh lagi (setiap baris baru harus dibayar dengan ekstraksi), dan
+ * angka di bawah diperbarui ke bawah setiap kali sebuah seksi berhasil
+ * dikeluarkan menjadi komponen bernama. Rencana urutan pemecahan:
+ * docs/audit/REFACTOR-PLAN.md.
+ */
+const LINE_CEILING = new Map([
+  ["app/user/[username].tsx", 1534],
+  ["app/chat/[roomId].tsx", 1296],
+  ["app/order/[id].tsx", 1146],
+  ["app/dispute/[id].tsx", 919],
+  ["app/showcase/[id].tsx", 916],
+])
+for (const [file, ceiling] of LINE_CEILING) {
+  const entry = allSources.find((f) => f.path === file)
+  if (!entry) {
+    failures.push(`S9 ${file} — terdaftar di LINE_CEILING tapi tidak ditemukan (perbarui peta)`)
+    continue
+  }
+  // Hitung persis seperti `wc -l` (jumlah newline) agar plafon cocok dengan
+  // angka yang dilihat reviewer di terminal — file tanpa trailing newline
+  // tidak terhitung +1.
+  const lines = (entry.src.match(/\n/g) ?? []).length
+  if (lines > ceiling) {
+    failures.push(`S9 ${file} — ${lines} baris melewati plafon ${ceiling} (G-11: layar ini hanya boleh menyusut; ekstrak seksi ke komponen)`)
+  } else if (lines < ceiling) {
+    staleBaselines.push(`S9 ${file} — sudah ${lines} baris (< ${ceiling}); turunkan plafonnya di LINE_CEILING`)
+  }
+}
+
+// ------------------------------------------------------------------
 // Laporan
 // ------------------------------------------------------------------
 
@@ -503,6 +537,9 @@ for (const rule of rules) {
 }
 console.log(
   `  S5  sisa ${String(unusedUi.length).padStart(2)} — komponen UI tanpa satu pun pemakaian`,
+)
+console.log(
+  `  S9  plafon ${LINE_CEILING.size} berkas — god component hanya boleh menyusut (G-11)`,
 )
 
 if (staleBaselines.length) {

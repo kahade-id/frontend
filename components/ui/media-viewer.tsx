@@ -38,6 +38,7 @@ import { Modal } from "@/components/ui/modal"
 import { Picture } from "@/components/ui/picture"
 import { Text } from "@/components/ui/text"
 import { tokens } from "@/lib/tokens"
+import { safeHttpsUrl } from "@/lib/version"
 
 export type MediaViewerItem = {
   url: string
@@ -105,8 +106,15 @@ export function MediaViewer({ item, onClose, onOpenError, labels, actions }: Med
 
   const openExternal = useCallback(async () => {
     if (!item) return
+    // D-05 (audit): URL lampiran adalah data server/lawan bicara — hanya
+    // https yang boleh dibuka (tolak javascript:/intent:/file:/skema asing).
+    const target = safeHttpsUrl(item.url)
+    if (!target) {
+      onOpenError?.(t.openFailed)
+      return
+    }
     try {
-      await Linking.openURL(item.url)
+      await Linking.openURL(target)
     } catch {
       onOpenError?.(t.openFailed)
     }

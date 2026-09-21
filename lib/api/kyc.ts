@@ -1,7 +1,9 @@
-import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `kyc` (verifikasi identitas KTP + selfie).
  */
+
+import { readList } from "@/lib/api/response"
+
 import { http } from "@/lib/api/client"
 import type { SubmitKycDto } from "@/lib/api/types"
 import { mapValue } from "@/lib/has-own"

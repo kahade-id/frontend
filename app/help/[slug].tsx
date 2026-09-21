@@ -1,3 +1,10 @@
+/**
+ * Umpan balik artikel (POST /v1/help-center/items/{id}/feedback?helpful).
+ * Endpoint publik + tanpa skema respons — feedback bersifat one-shot per
+ * tampilan: setelah terkirim (atau gagal) tombol dinonaktifkan dan status
+ * ditampilkan sebagai teks, supaya user tidak double-vote.
+ */
+
 import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
@@ -5,6 +12,7 @@ import { Article, Check, X } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { logWarn } from "@/lib/telemetry"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -15,12 +23,6 @@ import { DetailLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 
-/**
- * Umpan balik artikel (POST /v1/help-center/items/{id}/feedback?helpful).
- * Endpoint publik + tanpa skema respons — feedback bersifat one-shot per
- * tampilan: setelah terkirim (atau gagal) tombol dinonaktifkan dan status
- * ditampilkan sebagai teks, supaya user tidak double-vote.
- */
 function FeedbackBlock({ articleId }: { articleId: string }) {
   const [sent, setSent] = useState<"yes" | "no" | null>(null)
   const send = useCallback(
@@ -78,7 +80,7 @@ export default function HelpScreen() {
     ? query.data?.articles?.find((item) => item.id === article || item.slug === article)
     : undefined
   useEffect(() => {
-    if (selected?.id) void api.helpCenter.trackHelpArticleView(selected.id).catch(() => undefined)
+    if (selected?.id) void api.helpCenter.trackHelpArticleView(selected.id).catch((err) => logWarn("help:track-view", err))
   }, [selected?.id])
   return (
     <Screen edges={["top"]} padded={false}>

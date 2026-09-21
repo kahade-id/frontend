@@ -11,7 +11,7 @@
  *     Button "Masuk"
  *     Alert error (jika ada)
  *   VStack (footer links)
- *     TextLink "Lupa password?"
+ *     TextLink "Lupa kata sandi?"
  *     Text "Belum punya akun? Daftar"
  *
  * Kontrak API (docs/api/kahade-api-mobile.json):
@@ -48,7 +48,7 @@
  *   - Email auto-trim whitespace di blur (sama seperti EmailField default).
  *   - Error handling: invalid credentials, network error, rate limited, dll.
  *   - Setelah login berhasil → /welcome (cek permissions; bukan user baru).
- *   - Link "Lupa password?" → navigate ke forgot-password screen.
+ *   - Link "Lupa kata sandi?" → navigate ke forgot-password screen.
  *   - Link "Belum punya akun? Daftar" → navigate ke register screen.
  */
 import { useCallback, useState } from "react"

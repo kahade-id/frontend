@@ -17,28 +17,31 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
-import { api, userMessage, type WithdrawDto } from "@/lib/api"
+import { api, isApiError, userMessage, type WithdrawDto } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
-import { authenticateBiometric, getBiometricCapability } from "@/lib/biometrics"
-import { getSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useResultTimer } from "@/lib/use-result-timer"
+import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
 import { walletTransactionStatus } from "@/lib/wallet-labels"
 
+import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
 import { BankAccountListItem } from "@/components/ui/bank-account-list-item"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { KeypadOptionCard } from "@/components/ui/keypad-option-card"
 import { Button } from "@/components/ui/button"
+import { Countdown, useCountdown } from "@/components/ui/countdown"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { Dialog } from "@/components/ui/modal"
 import { FadeIn } from "@/components/ui/fade-in"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
@@ -63,12 +66,24 @@ const TOTAL_STEPS = 3
 type Step = "amount" | "verify" | "done"
 /** State overlay progres setelah PIN/OTP disubmit (processing → sukses/gagal). */
 type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
-/** Seberapa lama pesan sukses/gagal di overlay terlihat sebelum lanjut (ms). */
-const RESULT_HOLD_MS = 1400
+/**
+ * Cooldown resend OTP default (detik) — dipakai bila backend tidak mengirim
+ * `cooldownSeconds` (A-07: paritas dengan alur OTP auth, verify-otp.tsx).
+ */
+const DEFAULT_OTP_COOLDOWN_S = 60
 
 export default function WithdrawScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  /**
+   * J-02/J-04 (audit): `?resume=<txId>` membuka kembali langkah OTP untuk
+   * penarikan PENDING_OTP yang ditinggalkan (banner "aksi menunggu" di
+   * Beranda). confirm-otp hanya butuh txId+otp, jadi resume aman tanpa
+   * membuat penarikan baru.
+   */
+  const params = useLocalSearchParams<{ resume?: string; resumeAmount?: string }>()
+  const resumeTxId = typeof params.resume === "string" && params.resume.trim() ? params.resume.trim() : null
+  const resumeAmount = Number(params.resumeAmount) || 0
 
   const accountsQuery = useApiQuery<BankAccount[]>("withdraw-accounts", async (signal) => {
     return (await api.bankAccounts.listBankAccounts(signal)) ?? []
@@ -76,16 +91,21 @@ export default function WithdrawScreen() {
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data])
   const { loading, error } = accountsQuery
 
-  // Ambil saldo dompet untuk membantu user pilih nominal (opsional)
-  const balanceQuery = useApiQuery<{ balance: number }>("wallet-overview", async (signal) => {
-    try {
+  // Ambil saldo dompet untuk membantu user pilih nominal.
+  // A-09 (audit): kegagalan TIDAK disamarkan menjadi "Rp0" — error tampil +
+  // retry; key "wallet-overview" dibagi dengan transfer/home agar cache F-03
+  // mendedupe GET /v1/wallet.
+  const balanceQuery = useApiQuery<{ balance: number }>(
+    "wallet-overview",
+    async (signal) => {
       const w = await api.wallet.getWallet(signal)
       return { balance: w.balance ?? 0 }
-    } catch {
-      return { balance: 0 }
-    }
-  })
+    },
+    true,
+    { retry: 1 },
+  )
   const balance = balanceQuery.data?.balance
+  const balanceError = balanceQuery.error
 
   const [amount, setAmount] = useState(0)
   const [accountId, setAccountId] = useState<string | null>(null)
@@ -101,42 +121,35 @@ export default function WithdrawScreen() {
   // Overlay progres: muncul begitu PIN/OTP disubmit, hasil mengganti kontennya.
   const [progressState, setProgressState] = useState<ProgressState | null>(null)
   const [progressError, setProgressError] = useState<string | undefined>()
-  const [biometricEnabled, setBiometricEnabled] = useState(false)
   const [result, setResult] = useState<Awaited<
     ReturnType<typeof api.wallet.createWithdraw>
   > | null>(null)
+  /** A-07: cooldown resend OTP (epoch ms) — dari `cooldownSeconds` backend. */
+  const [otpCooldownUntil, setOtpCooldownUntil] = useState<number | null>(null)
+  const [resending, setResending] = useState(false)
+  /** A-06: dialog "penarikan masih menunggu OTP" saat sheet ditutup. */
+  const [closeConfirmOpen, setCloseConfirmOpen] = useState(false)
+  const scheduleResult = useResultTimer()
 
+  const resendCountdown = useCountdown({ until: otpCooldownUntil ?? undefined })
+  const cooldownActive = otpCooldownUntil != null && resendCountdown.remaining > 0
+
+  // A-02 (audit): tombol biometrik DIHAPUS dari sheet PIN withdraw —
+  // `WithdrawDto` mewajibkan `pin` mentah dan tidak ada jalur backend
+  // "biometrik → tiket", jadi prompt yang sukses tidak pernah mengirim apa
+  // pun (placebo). Lihat components/app-lock-gate.tsx untuk biometrik yang
+  // benar-benar berfungsi (kunci aplikasi).
+
+  // J-04: resume penarikan PENDING_OTP dari banner "aksi menunggu".
   useEffect(() => {
-    let alive = true
-    void (async () => {
-      const [stored, cap] = await Promise.all([
-        getSecureItem(SecureKeys.biometricEnabled).catch(() => null),
-        getBiometricCapability().catch(() => null),
-      ])
-      if (alive && stored === "1" && cap?.available) {
-        setBiometricEnabled(true)
-      }
-    })()
-    return () => {
-      alive = false
-    }
-  }, [])
+    if (!resumeTxId) return
+    setTxId(resumeTxId)
+    if (resumeAmount > 0) setAmount(resumeAmount)
+    setVerifyMode("otp")
+    setStep("verify")
+  }, [resumeTxId, resumeAmount])
 
   const selected = accounts.find((a) => a.id === accountId)
-
-  const handleBiometric = useCallback(async () => {
-    const outcome = await authenticateBiometric({
-      promptMessage: `Tarik ${formatRupiah(amount)} ke ${selected?.bankName ?? "rekening"}`,
-      promptSubtitle: "Konfirmasi penarikan dana",
-    })
-    if (outcome === "failed" || outcome === "lockout") {
-      setPinError(
-        outcome === "lockout"
-          ? "Biometrik terkunci sementara. Masukkan PIN."
-          : "Biometrik tidak dikenali. Masukkan PIN.",
-      )
-    }
-  }, [amount, selected])
 
   useEffect(() => {
     if (accounts.length === 0) return
@@ -182,26 +195,47 @@ export default function WithdrawScreen() {
           setTxId(res.txId)
           setVerifyMode("otp")
           setProgressState(null)
+          // A-07: OTP baru saja dikirim — mulai cooldown resend (default 60 d
+          // bila server tidak mengirim angka).
+          setOtpCooldownUntil(Date.now() + DEFAULT_OTP_COOLDOWN_S * 1000)
+          // J-02/J-04: catat aksi menggantung — bila app ditutup/sheet
+          // ditinggalkan, Beranda bisa menawarkan pemulihan.
+          recordPendingAction({
+            kind: "withdraw-otp",
+            txId: res.txId,
+            amount,
+            createdAt: Date.now(),
+            expiresAt: toEpochMs(res.expiresAt),
+          })
         } else {
           setProgressState("SUCCESS")
-          setTimeout(() => {
+          scheduleResult(() => {
             setProgressState(null)
             setStep("done")
-          }, RESULT_HOLD_MS)
+          })
         }
       } catch (err) {
-        setProgressError(`${userMessage(err)} Periksa riwayat sebelum mengirim ulang.`)
+        // A-08 (audit): "periksa riwayat" HANYA untuk kegagalan yang tidak
+        // pasti (jaringan/timeout/abort — request mungkin sempat terkirim).
+        // Error pasti (PIN salah, validasi) tidak menyuruh pengguna memeriksa apa
+        // pun; pola disalin dari transfer.tsx.
+        const uncertain = !isApiError(err) || err.isTransient || err.code === "ABORTED"
+        const base = userMessage(err)
+        const msg = uncertain
+          ? `${base} Status penarikan mungkin sudah diproses — periksa riwayat sebelum mengirim ulang.`
+          : base
+        setProgressError(msg)
         setProgressState("FAILURE")
-        setTimeout(() => {
+        scheduleResult(() => {
           setProgressState(null)
-          setPinError(`${userMessage(err)} Periksa riwayat sebelum mengirim ulang.`)
-        }, RESULT_HOLD_MS)
+          setPinError(msg)
+        })
       } finally {
         submitLock.current = false
         setSubmitting(false)
       }
     },
-    [amount, accountId, canContinueAccount],
+    [amount, accountId, canContinueAccount, scheduleResult],
   )
 
   const handleConfirmOtp = useCallback(
@@ -215,36 +249,54 @@ export default function WithdrawScreen() {
       try {
         const res = await api.wallet.confirmWithdrawOtp({ txId, otp })
         setResult(res)
+        // Status final diketahui — aksi menggantung selesai (J-02).
+        resolvePendingAction("withdraw-otp", txId)
         setProgressState("SUCCESS")
-        setTimeout(() => {
+        scheduleResult(() => {
           setProgressState(null)
           setStep("done")
-        }, RESULT_HOLD_MS)
+        })
       } catch (err) {
         setProgressError(userMessage(err))
         setProgressState("FAILURE")
-        setTimeout(() => {
+        scheduleResult(() => {
           setProgressState(null)
           setOtpError(userMessage(err))
-        }, RESULT_HOLD_MS)
+        })
       } finally {
         submitLock.current = false
         setSubmitting(false)
       }
     },
-    [txId],
+    [txId, scheduleResult],
   )
 
   const handleResend = useCallback(async () => {
-    if (!txId) return
+    // A-07 (audit): rate-limit sisi klien — tombol dikunci countdown selama
+    // cooldown (menghormati `cooldownSeconds` backend). Spam resend = biaya
+    // SMS per pesan + memperpanjang throttle backend.
+    if (!txId || resending || cooldownActive) return
+    setResending(true)
     try {
-      await api.wallet.resendWithdrawOtp({ txId })
-      setOtpError(undefined)
-      toast.show({ title: "OTP dikirim ulang", tone: "success" })
+      const res = await api.wallet.resendWithdrawOtp({ txId })
+      const cooldownS = res.cooldownSeconds ?? DEFAULT_OTP_COOLDOWN_S
+      setOtpCooldownUntil(Date.now() + cooldownS * 1000)
+      if (res.success) {
+        setOtpError(undefined)
+        toast.show({ title: "OTP dikirim ulang", tone: "success" })
+      } else {
+        toast.show({
+          title: "OTP belum dikirim ulang",
+          description: res.message ?? "Coba lagi setelah hitung mundur selesai.",
+          tone: "warning",
+        })
+      }
     } catch (err) {
       toast.show({ title: "Gagal mengirim OTP", description: userMessage(err), tone: "danger" })
+    } finally {
+      setResending(false)
     }
-  }, [txId, toast.show])
+  }, [txId, resending, cooldownActive, toast.show])
 
   const handleCancelOtp = useCallback(async () => {
     if (!txId || submitLock.current) return
@@ -252,6 +304,8 @@ export default function WithdrawScreen() {
     setCancelling(true)
     try {
       await api.wallet.cancelWithdraw({ txId })
+      resolvePendingAction("withdraw-otp", txId)
+      setCloseConfirmOpen(false)
       toast.show({ title: "Permintaan pembatalan diterima", tone: "info" })
       router.replace(ROUTES.withdrawHistory)
     } catch (err) {
@@ -288,6 +342,23 @@ export default function WithdrawScreen() {
                   </Text>
                 </View>
               </FadeIn>
+
+              {/* A-09: saldo gagal dimuat → terlihat, bukan "Rp0". */}
+              {balanceError ? (
+                <View className="px-5 pt-4">
+                  <Alert tone="warning" title="Saldo tidak dapat dimuat">
+                    Nominal tetap bisa dimasukkan; server memvalidasi saldo saat penarikan.
+                  </Alert>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 self-start"
+                    onPress={() => void balanceQuery.reload()}
+                  >
+                    Muat ulang saldo
+                  </Button>
+                </View>
+              ) : null}
 
               <View>
                 {/* Rekening tujuan dipilih DI SINI lewat BottomSheet (kartu
@@ -359,7 +430,7 @@ export default function WithdrawScreen() {
                   }
                   subtitle={
                     selected
-                      ? `${selected.bankName} ${maskAccountNumber(selected.accountNumber)} a.n. ${selected.accountName ?? ""}`
+                      ? `${selected.bankName ?? selected.bankCode} ${maskAccountNumber(selected.accountNumber)} a.n. ${selected.accountName ?? ""}`
                       : undefined
                   }
                 >
@@ -474,10 +545,16 @@ export default function WithdrawScreen() {
       <BottomSheet
         visible={step === "verify"}
         onRequestClose={() => {
-          if (!submitting && !cancelling) {
-            setStep("amount")
-            setVerifyMode("pin")
+          if (submitting || cancelling) return
+          // A-06 (audit): saat OTP pending, `txId` sudah dibuat di server —
+          // menutup sheet begitu saja meninggalkan penarikan PENDING_OTP yang
+          // menahan saldo sampai TTL. Tawarkan pembatalan eksplisit.
+          if (verifyMode === "otp" && txId) {
+            setCloseConfirmOpen(true)
+            return
           }
+          setStep("amount")
+          setVerifyMode("pin")
         }}
         title={verifyMode === "otp" ? "Konfirmasi OTP" : "Verifikasi PIN"}
         description={
@@ -495,15 +572,20 @@ export default function WithdrawScreen() {
               errorText={otpError}
               disabled={submitting || cancelling}
             />
-            <View className="flex-row flex-wrap gap-2">
-              <Button
-                variant="ghost"
-                fullWidth={false}
-                onPress={() => void handleResend()}
-                disabled={submitting}
-              >
-                Kirim ulang OTP
-              </Button>
+            <View className="flex-row flex-wrap items-center gap-2">
+              {cooldownActive ? (
+                <Countdown until={otpCooldownUntil ?? undefined} prefix="Kirim ulang dalam" />
+              ) : (
+                <Button
+                  variant="ghost"
+                  fullWidth={false}
+                  loading={resending}
+                  onPress={() => void handleResend()}
+                  disabled={submitting}
+                >
+                  Kirim ulang OTP
+                </Button>
+              )}
               <Button
                 variant="destructive"
                 fullWidth={false}
@@ -519,12 +601,25 @@ export default function WithdrawScreen() {
           <PinInput
             mode="enter"
             onComplete={(p) => void handlePin(p)}
-            onBiometric={biometricEnabled ? () => void handleBiometric() : undefined}
             errorText={pinError}
             disabled={submitting}
           />
         )}
       </BottomSheet>
+
+      {/* A-06 (audit): sheet OTP ditutup (backdrop/back Android) saat txId
+          masih PENDING_OTP — jangan biarkan penarikan menggantung tanpa
+          keputusan pengguna. */}
+      <Dialog
+        visible={closeConfirmOpen}
+        title="Penarikan masih menunggu OTP"
+        description={`Penarikan ${formatRupiah(amount)} sudah dibuat dan menunggu kode OTP. Bila ditinggalkan, dana tetap tertahan sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas, atau kembali untuk menyelesaikan OTP.`}
+        confirmLabel="Batalkan penarikan"
+        cancelLabel="Kembali ke OTP"
+        destructive
+        onConfirm={() => void handleCancelOtp()}
+        onRequestClose={() => setCloseConfirmOpen(false)}
+      />
     </Screen>
   )
 }

@@ -1,5 +1,3 @@
-import { API_CONSTRAINTS } from "@/lib/api/constraints"
-import { assertDtoConstraints } from "@/lib/financial"
 /**
  * Kahade — domain `orders` (31 endpoint, tag "orders" di kahade-api-mobile.json).
  *
@@ -21,6 +19,10 @@ import { assertDtoConstraints } from "@/lib/financial"
  *   - Tidak ada `retry` di POST/PUT: pay/complete/cancel tidak idempoten.
  *     GET list/detail memakai `retry: 1` untuk toleransi jaringan seluler.
  */
+
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { assertDtoConstraints } from "@/lib/financial"
+
 import {
   asRecord,
   invalidResponse,
@@ -32,6 +34,7 @@ import {
 } from "@/lib/api/response"
 import { AMOUNT_LIMITS, assertValidAmount } from "@/lib/financial"
 import { http, seg } from "@/lib/api/client"
+import { getSessionRevision } from "@/lib/api/session"
 import type {
   CalculateFeeDto,
   CancelOrderDto,
@@ -489,6 +492,30 @@ export function getOrdersSummary(signal?: AbortSignal) {
 
 export function getAverageDurations(signal?: AbortSignal) {
   return http.get<AverageDurations>("/v1/orders/average-durations", { auth: "required", retry: 1, signal })
+}
+
+/**
+ * F-05 (audit 2026-09-20): `average-durations` adalah statistik GLOBAL
+ * (rata-rata waktu antar-status untuk estimasi timeline) — nilainya berubah
+ * harian, bukan per order. Menariknya tiap membuka detail order = kuota &
+ * latensi untuk angka yang sama. Cache memori per sesi (TTL 10 menit),
+ * di-invalidate otomatis saat revision sesi berubah (login/logout).
+ */
+const AVERAGE_DURATIONS_TTL_MS = 10 * 60 * 1000
+let averageDurationsCache: { revision: number; at: number; value: AverageDurations } | null = null
+
+export async function getAverageDurationsCached(signal?: AbortSignal): Promise<AverageDurations> {
+  const revision = getSessionRevision()
+  if (
+    averageDurationsCache &&
+    averageDurationsCache.revision === revision &&
+    Date.now() - averageDurationsCache.at < AVERAGE_DURATIONS_TTL_MS
+  ) {
+    return averageDurationsCache.value
+  }
+  const value = await getAverageDurations(signal)
+  averageDurationsCache = { revision, at: Date.now(), value }
+  return value
 }
 
 export function confirmOrder(orderId: string, dto: ConfirmOrderDto) {

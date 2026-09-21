@@ -42,6 +42,7 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
+import { translateProp } from "@/lib/i18n"
 
 function isIconComponent(x: unknown): x is IconComponent {
   return (
@@ -179,8 +180,11 @@ export function ListItem({
   )
 
   // Subtitle node tidak bisa dibaca SR dari sini — pemanggil wajib mengirim accessibilityLabel
-  const a11yLabel =
-    accessibilityLabel ?? summarize([title, typeof subtitle === "string" ? subtitle : undefined])
+  // E-02 (audit): label hasil rakitan (title + subtitle mentah) diterjemahkan
+  // di sini — PressableScale di bawah hanya menerjemahkan label eksplisit.
+  const a11yLabel = translateProp(
+    accessibilityLabel ?? summarize([title, typeof subtitle === "string" ? subtitle : undefined]),
+  )
 
   // Statis hanya bila TIDAK ada onPress DAN tidak ada href: baris berhref
   // tanpa onPress tetap harus menjadi tautan yang bisa dinavigasi.

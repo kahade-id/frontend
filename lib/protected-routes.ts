@@ -1,4 +1,20 @@
-/** Expo Router protected screens. Keep public onboarding/legal screens accessible without a session. */
+/**
+ * Expo Router protected screens. Keep public onboarding/legal screens
+ * accessible without a session.
+ *
+ * B-01/B-02 (audit 2026-09-20): `settings`, `receive`, `saved`,
+ * `showcase-management`, `notifications`, dan alias `profile/[id]` SEBELUMNYA
+ * tidak terdaftar — semuanya memanggil endpoint `auth:"required"`. Tanpa
+ * entri di sini, deep link native membuka layar tanpa sesi (badai 401) dan
+ * tamu web tidak pernah melihat <GuestLoginPrompt> (B-06). Alias
+ * `profile/[id]` ikut dilindungi agar konsisten dengan target kanoniknya
+ * `user/[username]` yang sudah protected (satu kebijakan untuk dua URL yang
+ * sama maksudnya). `tests/route-protection.test.ts` membandingkan inventaris
+ * rute app/ terhadap daftar ini + allowlist publik agar tidak bolong lagi.
+ */
+
+import { TAB_ROUTE_NAMES } from "@/lib/routes"
+
 export const AUTHENTICATED_SCREENS = [
   "(tabs)",
   "(auth)/setup-profile",
@@ -31,19 +47,25 @@ export const AUTHENTICATED_SCREENS = [
   "language",
   "notification/[id]",
   "notification-preferences",
+  "notifications",
   "order/[id]",
   "order-link/[token]",
   "order-links",
   "privacy-settings",
+  "profile/[id]",
   "questions",
   "rate/[orderId]",
   "ratings",
+  "receive",
   "referral",
   "reports",
+  "saved",
   "search",
   "security",
   "security-activity",
+  "settings",
   "showcase",
+  "showcase-management",
   "subscriptions",
   "support/[ticketId]",
   "support",
@@ -73,10 +95,12 @@ export const AUTHENTICATED_SCREENS = [
 // ------------------------------------------------------------------
 
 /**
- * Layar tab yang boleh ditelusuri tamu. Tab "settings" SENGAJA tidak masuk
- * (seluruh isinya akun).
+ * Layar tab yang boleh ditelusuri tamu web. Tab "showcase"/"discover" publik
+ * lewat WEB_GUEST_ALLOWED_PATHS di bawah; "notifications" DIHAPUS dari daftar
+ * ini (audit B-01): layar Notifikasi menembak `auth:"required"` tanpa
+ * guest-gate — tamu yang membukanya hanya memanen badai 401.
  */
-export const WEB_GUEST_TAB_SCREENS = ["home", "transactions", "wallet", "notifications"] as const
+export const WEB_GUEST_TAB_SCREENS = ["home", "transactions", "wallet"] as const
 
 /**
  * Path yang boleh diakses tanpa login di web. Selain layar tab di atas:
@@ -120,9 +144,20 @@ const PROTECTED_PATTERNS = AUTHENTICATED_SCREENS.filter(
   (name) => !name.startsWith("("),
 ).map(routeToRegExp)
 
-/** Tab (tabs) yang butuh login — semua kecuali yang ada di WEB_GUEST_TAB_SCREENS. */
-const PROTECTED_TABS = new Set(
-  ["settings"].filter((name) => !WEB_GUEST_TAB_SCREENS.includes(name as never)),
+/**
+ * Tab (tabs) yang butuh login — semua kecuali yang ada di WEB_GUEST_TAB_SCREENS.
+ *
+ * B-11 (audit): sebelumnya hardcode `["settings"]` yang bukan tab sama sekali
+ * (Pengaturan hidup di /settings sebagai layar Stack, bukan di (tabs)). Kini
+ * diturunkan dari `TAB_ROUTE_NAMES` (sumber yang sama dengan layout tab) —
+ * tab baru otomatis terproteksi kecuali eksplisit dibuka untuk tamu.
+ * "discover" tetap bisa diakses tamu karena WEB_GUEST_ALLOWED_PATHS diperiksa
+ * lebih dulu di `isProtectedPath`.
+ */
+const PROTECTED_TABS = new Set<string>(
+  TAB_ROUTE_NAMES.filter(
+    (name) => !WEB_GUEST_TAB_SCREENS.includes(name as (typeof WEB_GUEST_TAB_SCREENS)[number]),
+  ),
 )
 
 /**
@@ -141,7 +176,9 @@ export function isProtectedPath(pathname: string): boolean {
   )
     return false
 
-  const tabMatch = path.match(/^\/([^/]+)/)
+  // Hanya path tab PERSIS (bukan sub-path): "/showcase" terproteksi untuk
+  // tamu, tetapi corong publik "/showcase/[id]" (share/SEO) tetap terbuka.
+  const tabMatch = path.match(/^\/([^/?#]+)\/?$/)
   if (tabMatch && PROTECTED_TABS.has(tabMatch[1])) return true
 
   return PROTECTED_PATTERNS.some((re) => re.test(path))

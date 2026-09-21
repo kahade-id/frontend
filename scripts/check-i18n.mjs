@@ -18,9 +18,10 @@
  * Ditambah sanitasi: nilai kosong, newline literal, dan nilai yang sama persis
  * dengan kunci (kecuali daftar putih istilah yang tak diterjemahkan).
  */
-import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs"
-import { dirname, join, resolve } from "node:path"
+import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs"
+import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
+import ts from "typescript"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const EN_DIR = join(root, "lib/i18n/en")
@@ -116,6 +117,65 @@ if (missing.length && process.env.I18N_LIST) {
   const byCount = new Map(catalog.map((k, i) => [k, i]))
   for (const k of [...missing].sort((a, b) => byCount.get(a) - byCount.get(b)).slice(0, 60))
     console.log(`  belum: ${k}`)
+}
+
+// 5. TEMPLATE-LITERAL DI <Text>/<Heading> (E-03 audit): teks campur nilai
+//    runtime ({`Durasi ${x}`}) tidak pernah sampai ke kamus — localizeChildren
+//    hanya menerjemahkan string murni, dan penggabungan children di dalam
+//    <Text> sengaja dilarang (lib/i18n/translate.ts). Pola yang dipaksa:
+//    translate("… {x}", { … }) — literalnya terkatalog gen-i18n dan cocok
+//    persis di runtime. Hanya literal di luar ${} yang berisi >=2 huruf
+//    berurutan yang dianggap pelanggaran (slot data murni dilewatkan).
+{
+  const scanDirs = ["app", "components"]
+  const walkTsx = function* (dir) {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry)
+      if (statSync(full).isDirectory()) yield* walkTsx(full)
+      else if (full.endsWith(".tsx")) yield full
+    }
+  }
+  for (const dir of scanDirs) {
+    const abs = join(root, dir)
+    if (!existsSync(abs)) continue
+    for (const file of walkTsx(abs)) {
+      const rel = relative(root, file)
+      const sf = ts.createSourceFile(
+        file,
+        readFileSync(file, "utf8"),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TSX,
+      )
+      const visit = (node) => {
+        if (ts.isJsxElement(node)) {
+          const tag = node.openingElement.tagName.getText(sf)
+          if (tag === "Text" || tag === "Heading") {
+            for (const child of node.children) {
+              if (
+                ts.isJsxExpression(child) &&
+                child.expression &&
+                ts.isTemplateExpression(child.expression)
+              ) {
+                let literal = child.expression.head.text
+                for (const span of child.expression.templateSpans) literal += span.literal.text
+                if (/[A-Za-z]{2,}/.test(literal)) {
+                  const { line } = sf.getLineAndCharacterOfPosition(child.getStart(sf))
+                  fail(
+                    `${rel}:${line + 1}: template literal di <${tag}> tidak ter-translate (E-03) — pakai translate("… {x}", { …}): ${child
+                      .getText(sf)
+                      .slice(0, 70)}`,
+                  )
+                }
+              }
+            }
+          }
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+    }
+  }
 }
 
 if (errors.length) {

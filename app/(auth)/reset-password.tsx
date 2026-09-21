@@ -2,14 +2,14 @@
  * Kahade — Reset Password (screen #8b alur auth): verifikasi OTP + password baru.
  *
  * Struktur:
- *   <Header title="Reset Password" showBack={true}>
+ *   <Header title="Reset Kata Sandi" showBack={true}>
  *   VStack gap={8}:
  *     VStack (explanation text dengan email)
  *     VStack (form)
  *       OtpInput (6 digits)
  *       PasswordField (new password, dengan strength meter)
  *       PasswordField (confirm password)
- *     Button "Reset Password"
+ *     Button "Reset Kata Sandi"
  *     Alert error (jika ada)
  *   VStack (footer)
  *     TextLink "Kirim ulang kode"
@@ -31,17 +31,17 @@
  *   - Header WITH back button — user bisa kembali ke forgot-password untuk
  *     ganti email atau resend OTP.
  *   - OtpInput 6 digits dengan auto-focus. Tidak ada auto-submit — user
- *     tekan tombol "Reset Password" setelah semua field terisi.
+ *     tekan tombol "Reset Kata Sandi" setelah semua field terisi.
  *   - Password baru memakai PasswordField DENGAN strength meter — user
  *     perlu membuat password yang kuat (12+ char, uppercase, lowercase, digit, symbol).
  *   - Confirm password memakai PasswordField confirmOf — validasi mismatch
  *     otomatis setelah blur.
- *   - Tombol "Reset Password" disabled selama submit dan kalau form tidak valid.
+ *   - Tombol "Reset Kata Sandi" disabled selama submit dan kalau form tidak valid.
  *   - Validasi password: sama seperti registrasi (12+ char, kompleks).
  *     PasswordStrength criteria di-override dari default (8→12 char).
  *   - Setelah reset berhasil → redirect ke login. User bisa login dengan
  *     password baru. Tidak ada auto-login setelah reset (keamanan).
- *   - Link "Kirim ulang kode" → navigate ke layar Lupa Password dengan email
+ *   - Link "Kirim ulang kode" → navigate ke layar Lupa Kata Sandi dengan email
  *     ter-prefill. Endpoint forgot-password mewajibkan captcha slider, dan
  *     layar inilah yang punya tantangannya (lihat handleResendCode).
  *   - Link "Ganti email" → kembali ke forgot-password screen.
@@ -151,7 +151,7 @@ export default function ResetPasswordScreen() {
         if (err.code === "VALIDATION") {
           const mentionsPassword = /password|kata sandi/i.test(err.message || "")
           if (mentionsPassword) {
-            setFormError(err.message || "Password tidak memenuhi persyaratan.")
+            setFormError(err.message || "Kata sandi tidak memenuhi persyaratan.")
             return
           }
         }
@@ -175,7 +175,7 @@ export default function ResetPasswordScreen() {
    * layar ini — yang tidak punya tantangan captcha — selalu gagal dan dulu
    * memunculkan pesan "Captcha verification is required" yang tidak bisa
    * ditindaklanjuti pengguna. Karena itu pengiriman ulang diarahkan ke layar
-   * Lupa Password (satu-satunya tempat tantangan dimuat + dijawab) dengan
+   * Lupa Kata Sandi (satu-satunya tempat tantangan dimuat + dijawab) dengan
    * email sudah terisi, sehingga cukup satu ketukan "Kirim kode".
    */
   const handleResendCode = useCallback(() => {
@@ -193,7 +193,7 @@ export default function ResetPasswordScreen() {
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Reset Password" safeArea={false} />
+      <Header title="Reset Kata Sandi" safeArea={false} />
 
       <KeyboardAvoiding offset={insets.top}>
         <ScrollView
@@ -233,7 +233,7 @@ export default function ResetPasswordScreen() {
               />
 
               <PasswordField
-                label="Password baru"
+                label="Kata sandi baru"
                 value={newPassword}
                 onChangeText={(t) => {
                   setNewPassword(t)
@@ -251,7 +251,7 @@ export default function ResetPasswordScreen() {
               />
 
               <PasswordField
-                label="Konfirmasi password baru"
+                label="Konfirmasi kata sandi baru"
                 value={confirmPassword}
                 onChangeText={(t) => {
                   setConfirmPassword(t)
@@ -279,7 +279,7 @@ export default function ResetPasswordScreen() {
             {formError ? (
               <Alert
                 tone="danger"
-                title="Gagal reset password"
+                title="Gagal reset kata sandi"
                 onDismiss={() => setFormError(null)}
               >
                 {formError}

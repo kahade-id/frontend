@@ -8,6 +8,7 @@ import { formatDateTime, formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { logWarn } from "@/lib/telemetry"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -71,7 +72,10 @@ export default function SearchScreen() {
   const historyQuery = useApiQuery<import("@/lib/api/search").SearchHistoryEntry[]>(
     "search-history",
     async (signal) =>
-      (await api.search.getSearchHistory(signal).catch(() => undefined)) ?? [],
+      (await api.search.getSearchHistory(signal).catch((err) => {
+        logWarn("search:history", err)
+        return undefined
+      })) ?? [],
   )
   const history = historyQuery.data ?? []
   const [clearingHistory, setClearingHistory] = useState(false)

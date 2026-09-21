@@ -1,4 +1,3 @@
-import { readList, readPage } from "@/lib/api/response"
 /**
  * Kahade — domain `chat` (ruang & pesan, lampiran, read receipt).
  *
@@ -12,6 +11,9 @@ import { readList, readPage } from "@/lib/api/response"
  *     dan menormalkannya lewat `normalizeMessagesPage`.
  *   - `GET /rooms` & `GET /rooms/{roomId}/attachments` memakai page/limit.
  */
+
+import { readList, readPage } from "@/lib/api/response"
+
 import { http, seg } from "@/lib/api/client"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 

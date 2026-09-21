@@ -13,7 +13,7 @@
  *   - Sumber waktu bisa `seconds` (durasi dari mount/reset) ATAU `until`
  *     (timestamp absolut). Untuk lockout/deadline pakai `until` — kalau app
  *     ke background lalu kembali, hitungan tetap benar karena dihitung dari
- *     Date.now(), bukan dari jumlah tick yang berjalan.
+ *     serverNow(), bukan dari jumlah tick yang berjalan.
  *   - Tick 1000ms disinkronkan ke detik nyata (setTimeout ke batas detik
  *     berikutnya, bukan setInterval buta) supaya angka tidak "loncat" dua
  *     detik saat JS thread sibuk.
@@ -28,6 +28,7 @@ import { View, type ViewProps } from "react-native"
 import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatCountdown } from "@/lib/format"
+import { serverNow } from "@/lib/server-time"
 
 export type UseCountdownOptions = {
   /** Durasi detik dari saat mulai (diabaikan kalau `until` ada) */
@@ -46,13 +47,17 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
    * TERJADWAL TERUS (`NaN % 1000 || 1000` jatuh ke 1000) tanpa pernah
    * memanggil `onComplete` — timer yang hidup selamanya di balik layar.
    * Karena itu waktu yang tidak valid dikembalikan sebagai `null`.
+   *
+   * F-13 (audit 2026-09-20): semua perbandingan waktu memakai `serverNow()`
+   * (jam perangkat + offset header `Date` API). Perangkat dengan jam maju/
+   * mundur tidak lagi melihat tenggat OTP/escrow yang salah.
    */
   const computeEnd = useCallback(() => {
     if (until != null) {
       const parsed = new Date(until).getTime()
       return Number.isFinite(parsed) ? parsed : null
     }
-    const parsed = Date.now() + seconds * 1000
+    const parsed = serverNow() + seconds * 1000
     return Number.isFinite(parsed) ? parsed : null
   }, [until, seconds])
   /**
@@ -65,7 +70,7 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
     !Number.isFinite(until instanceof Date ? until.getTime() : new Date(until).getTime())
   const [endAt, setEndAt] = useState<number | null>(autoStart ? computeEnd : null)
   const [remaining, setRemaining] = useState(() =>
-    endAt != null ? Math.max(0, Math.ceil((endAt - Date.now()) / 1000)) : seconds,
+    endAt != null ? Math.max(0, Math.ceil((endAt - serverNow()) / 1000)) : seconds,
   )
   const completedRef = useRef(false)
   const onCompleteRef = useRef(onComplete)
@@ -82,7 +87,7 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
     if (endAt == null) return
     let timer: ReturnType<typeof setTimeout>
     const tick = () => {
-      const ms = endAt - Date.now()
+      const ms = endAt - serverNow()
       const s = Math.max(0, Math.ceil(ms / 1000))
       setRemaining(s)
       if (s <= 0) {

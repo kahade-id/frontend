@@ -32,6 +32,7 @@ import { PASSWORD_MAX } from "@/lib/auth-constants"
 import { haptic } from "@/lib/haptics"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
+import { logWarn } from "@/lib/telemetry"
 
 import { Alert } from "@/components/ui/alert"
 import { FooterBar } from "@/components/ui/footer-bar"
@@ -70,7 +71,7 @@ export default function VerifyEmailScreen() {
         .then((me) => {
           if (me.email) setEmail(me.email)
         })
-        .catch(() => undefined)
+        .catch((err) => logWarn("verify-email:prefill", err))
     }
   }, [email])
 

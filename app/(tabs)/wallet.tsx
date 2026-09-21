@@ -1,7 +1,3 @@
-import { useApiQuery } from "@/lib/use-api-query"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
-import { PaginatedList } from "@/components/ui/paginated-list"
-import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 /**
  * Tab #3 — Dompet
  *
@@ -27,6 +23,11 @@ import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
  *    CSV/PDF) hidup di /wallet-history, satu daftar.
  *  - Pull-to-refresh me-refresh saldo DAN riwayat bersamaan (`Promise.all`).
  */
+
+import { useApiQuery } from "@/lib/use-api-query"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { PaginatedList } from "@/components/ui/paginated-list"
+import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 import { useCallback } from "react"
 import { View } from "react-native"
 import { router, type Href } from "expo-router"
@@ -46,6 +47,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
+import { useUiPrefs } from "@/lib/ui-prefs"
 import { HomeOverviewCard } from "@/components/ui/home-overview-card"
 import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
@@ -75,6 +77,8 @@ const ACTION_ROUTE: Record<"topup" | "send" | "receive" | "withdraw", Href> = {
 // ------------------------------------------------------------------
 
 export default function WalletScreen() {
+  // J-05 (audit): preferensi "sembunyikan saldo" dibagi dengan Beranda.
+  const { prefs, setPrefs } = useUiPrefs()
   // refreshOnFocus: tab Dompet tetap ter-mount, jadi tanpa ini saldo tidak
   // pernah diperbarui setelah top-up/withdraw/transfer di layar lain.
   const balance = useApiQuery("wallet-balance", (signal) => api.wallet.getWallet(signal), true, {
@@ -145,6 +149,11 @@ export default function WalletScreen() {
                 <HomeOverviewCard
                   available={wallet?.availableBalance}
                   held={wallet?.holdBalance}
+                  // J-05 (audit): "sembunyikan saldo" = preferensi persisten
+                  // yang dibagi dengan Beranda (privasi bahu-penumpang
+                  // konsisten antar layar).
+                  hidden={prefs.balanceHidden}
+                  onToggleHidden={() => setPrefs({ balanceHidden: !prefs.balanceHidden })}
                   elevation="low"
                   walletLoading={walletLoading}
                   onRetryWallet={() => void fetchWallet()}

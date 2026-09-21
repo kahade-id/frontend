@@ -1,7 +1,3 @@
-import { API_CONSTRAINTS } from "@/lib/api/constraints"
-import { canUsePaymentMethod } from "@/components/ui/payment-method-selector"
-import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Langganan Premium.
  *
@@ -30,6 +26,11 @@ import { ListLoading } from "@/components/ui/paginated-list"
  *   - Label periode paket diambil dari `plan.key` (MONTHLY/ANNUAL); bila key
  *     tidak ada, fallback dari `durationDays` (≥ 300 hari dianggap tahunan).
  */
+
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { canUsePaymentMethod } from "@/components/ui/payment-method-selector"
+import { Crossfade } from "@/components/ui/fade-in"
+import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -41,10 +42,11 @@ import type {
   SubscriptionPlan,
   SubscriptionStatus,
 } from "@/lib/api/subscriptions"
-import { formatDateTime, formatRupiah } from "@/lib/format"
+import { formatDateTime, formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { toPaymentMethods } from "@/lib/payment-methods"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useResultTimer } from "@/lib/use-result-timer"
 
 import { Alert } from "@/components/ui/alert"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
@@ -80,7 +82,6 @@ type Step = "plans" | "method" | "pin"
 /** State overlay progres setelah PIN disubmit (processing → sukses/gagal). */
 type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
 /** Seberapa lama pesan sukses/gagal di overlay terlihat sebelum lanjut (ms). */
-const RESULT_HOLD_MS = 1400
 type PinPurpose = "subscribe" | "renew" | "upgrade"
 
 type Benefit = { key: string; title: string; description?: string }
@@ -178,6 +179,7 @@ export default function SubscriptionsScreen() {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null)
   const [methodId, setMethodId] = useState<string>("")
   const submitLock = useRef(false)
+  const scheduleResult = useResultTimer()
   const [submitting, setSubmitting] = useState(false)
   const [pinError, setPinError] = useState<string | undefined>()
   // Overlay progres: muncul begitu PIN disubmit, hasil mengganti kontennya.
@@ -344,27 +346,27 @@ export default function SubscriptionsScreen() {
           })
         }
         setProgressState("SUCCESS")
-        setTimeout(() => {
+        scheduleResult(() => {
           setProgressState(null)
           setSelectedPlan(null)
           setStep("plans")
           void query.refresh()
-        }, RESULT_HOLD_MS)
+        })
       } catch (err) {
         const msg =
           isApiError(err) ? userMessage(err) : "PIN salah atau pembayaran gagal. Coba lagi."
         setProgressError(msg)
         setProgressState("FAILURE")
-        setTimeout(() => {
+        scheduleResult(() => {
           setProgressState(null)
           setPinError(msg)
-        }, RESULT_HOLD_MS)
+        })
       } finally {
         submitLock.current = false
         setSubmitting(false)
       }
     },
-    [pinPurpose, selectedPlan, hasMethods, methodId, toast.show, query, loading, error, methods],
+    [pinPurpose, selectedPlan, hasMethods, methodId, toast.show, query, loading, error, methods, scheduleResult],
   )
 
   const handleCancel = useCallback(async () => {
@@ -495,7 +497,7 @@ export default function SubscriptionsScreen() {
               daysLeft={card.daysLeft}
               planName={status?.plan ?? undefined}
               period={currentPlan ? planPeriod(currentPlan) : undefined}
-              endsAt={status?.expiresAt ? formatDateTime(status.expiresAt) : undefined}
+              endsAt={status?.expiresAt ? formatDateTimeWIB(status.expiresAt) : undefined}
               renewalPrice={currentPlan?.price}
               autoRenew={status?.autoRenew}
               onRenew={status?.plan ? startRenew : undefined}
@@ -608,7 +610,7 @@ export default function SubscriptionsScreen() {
                   <ListItem
                     key={h.id}
                     title={h.plan}
-                    subtitle={`${formatDateTime(h.createdAt)}${h.expiresAt ? ` · s.d. ${formatDateTime(h.expiresAt)}` : ""}`}
+                    subtitle={`${formatDateTime(h.createdAt)}${h.expiresAt ? ` · s.d. ${formatDateTimeWIB(h.expiresAt)}` : ""}`}
                     trailing={
                       <View className="items-end gap-1">
                         <Text numberOfLines={1} variant="monoBody">{formatRupiah(h.amount)}</Text>

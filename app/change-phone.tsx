@@ -117,7 +117,7 @@ export default function ChangePhoneScreen() {
             onChangeText={(value) => { setPhone(normalizePhoneId(value)); setError(undefined) }} required
             helperText={unchanged ? "Nomor ini sama dengan nomor terdaftar." : "Format Indonesia, mis. 812-3456-7890."}
             errorText={phone.length > 0 && !isValidPhoneId(phone) ? "Nomor tidak valid" : undefined} />
-          <PasswordField label="Password akun" value={password} onChangeText={setPassword} required
+          <PasswordField label="Kata sandi akun" value={password} onChangeText={setPassword} required
             helperText="Dibutuhkan untuk mengotorisasi perubahan nomor." />
           {mfaRequired ? <Input label="Kode autentikator atau backup" value={mfaCode}
             onChangeText={(value) => setMfaCode(value.replace(/[^A-Za-z0-9]/g, "").slice(0, 16))}

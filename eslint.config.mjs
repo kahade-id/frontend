@@ -2,11 +2,10 @@
  * Kahade — ESLint flat config.
  *
  * Repo ini TIDAK punya linter sebelumnya (tidak ada config, tidak ada
- * dependency), padahal `components/ui/toast.tsx` sudah menulis
- * `eslint-disable-next-line react-hooks/exhaustive-deps` — sebuah penanda
- * bahwa aturan hook dipercaya, tanpa ada yang menjalankannya. Akibatnya
- * pelanggaran aturan hook (dep Effect yang salah), variabel mati lintas-file,
- * dan kesalahan async umum lolos sampai review manual.
+ * dependency) — akibatnya pelanggaran aturan hook (dep Effect yang salah),
+ * variabel mati lintas-file, dan kesalahan async umum lolos sampai review
+ * manual. (Narasi lama config ini menyebut penanda `eslint-disable` di
+ * `components/ui/toast.tsx`; penanda itu sudah tidak ada di source — G-09.)
  *
  * Cakupan sengaja MINIMAL dan non-stylistic:
  *   - Aturan gaya (kutip, titik-koma, indentasi) tidak diaktifkan — Prettier

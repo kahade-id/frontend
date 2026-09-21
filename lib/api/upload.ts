@@ -114,8 +114,9 @@ export function uploadDirect(formData: FormData) {
 
 /**
  * Produksi menuntut `fileKeys` (1–20 item) — bukan `{}` seperti spec lama.
- * Fungsi ini saat ini belum punya pemanggil di app (dead export), diperbaiki
- * supaya tidak menjadi jebakan saat nanti dipasang.
+ * Dipasang (G-04) di jalur gagal upload avatar (`app/edit-profile.tsx`) dan
+ * submit KYC (`app/kyc.tsx`): fileKey yang sudah terupload tapi tidak jadi
+ * dipakai dibersihkan best-effort agar tidak menjadi orphan di S3.
  */
 export function cleanupUploads(fileKeys: string[]) {
   const dto: CleanupFilesDto = { fileKeys }

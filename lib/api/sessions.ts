@@ -1,9 +1,11 @@
-import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `sessions` (perangkat login aktif + security/activity log).
  * Perangkat juga tersedia via users.me.devices; sessions adalah sumber utama
  * untuk layar "Keamanan > Perangkat".
  */
+
+import { readList } from "@/lib/api/response"
+
 import { http, seg } from "@/lib/api/client"
 import type { TrustDeviceDto } from "@/lib/api/types"
 

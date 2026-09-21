@@ -1,7 +1,9 @@
-import { readList } from "@/lib/api/response"
 /**
  * Kahade — domain `badges` (lencana profil publik & milik saya).
  */
+
+import { readList } from "@/lib/api/response"
+
 import { http } from "@/lib/api/client"
 
 export type Badge = {

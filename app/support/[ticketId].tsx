@@ -1,5 +1,3 @@
-import { Crossfade } from "@/components/ui/fade-in"
-import { DetailLoading } from "@/components/ui/paginated-list"
 /**
  * Screen — Detail Tiket Dukungan.
  *
@@ -8,6 +6,9 @@ import { DetailLoading } from "@/components/ui/paginated-list"
  * POST /v1/support/tickets/{id}/reopen  — buka lagi tiket CLOSED
  * POST /v1/support/tickets/{id}/rate    — rating 1–5 + komentar (RESOLVED/CLOSED)
  */
+
+import { Crossfade } from "@/components/ui/fade-in"
+import { DetailLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
@@ -19,6 +20,7 @@ import { formatDateTime } from "@/lib/format"
 import { focusRingInset } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { translate } from "@/lib/i18n"
 
 import { Star } from "phosphor-react-native"
 
@@ -205,7 +207,7 @@ export default function SupportTicketDetailScreen() {
                   {ticket.attachmentKeys.map((key, index) => (
                     <View key={key || index} className="rounded-md border border-border bg-surface px-3 py-2">
                       <Text variant="caption" tone="secondary" numberOfLines={1}>
-                        {`Lampiran #${index + 1}`}
+                        {translate("Lampiran #{x}", { x: index + 1 })}
                       </Text>
                     </View>
                   ))}

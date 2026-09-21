@@ -36,6 +36,7 @@ import screens3 from "./screens-3.json"
 import screens4 from "./screens-4.json"
 import screens5 from "./screens-5.json"
 import screens6 from "./screens-6.json"
+import screens7 from "./screens-7.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
@@ -58,6 +59,7 @@ export const EN: Dict = {
   ...screens4,
   ...screens5,
   ...screens6,
+  ...screens7,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
   ...errors,

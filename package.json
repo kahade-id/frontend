@@ -5,8 +5,8 @@
   "main": "expo-router/entry",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
+    "android": "expo run:android",
+    "ios": "expo run:ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
@@ -24,7 +24,7 @@
     "check:spec": "node scripts/gen-mobile-spec.mjs --check",
     "check:api:body": "node scripts/check-api-body.mjs",
     "check:api:soft": "node scripts/check-api.mjs && node scripts/check-api-body.mjs",
-    "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:push && npm run check:permissions && npm run check:i18n && npm test && npm run test:i18n-render",
+    "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:push && npm run check:permissions && npm run check:i18n && npm test && npm run test:components",
     "ota:preflight": "node scripts/check-ota.mjs",
     "audit:inventory": "node scripts/audit-inventory.mjs",
     "build:web": "EXPO_OFFLINE=1 expo export --platform web && node scripts/gen-web-meta.mjs && node scripts/gen-fcm-sw.mjs",
@@ -33,13 +33,16 @@
     "gen:brand": "node scripts/gen-brand-assets.mjs",
     "qa:icon": "node scripts/qa-icon.mjs",
     "check:push": "node scripts/check-push.mjs",
+    "check:ota": "node scripts/check-ota.mjs",
+    "check:bundle": "node scripts/check-bundle-size.mjs",
+    "audit:check": "node scripts/check-audit.mjs",
     "check:permissions": "node scripts/check-permissions.mjs",
     "eas-build-pre-install": "node scripts/check-permissions.mjs && node scripts/check-push.mjs",
     "check:weblinks": "node scripts/check-weblinks.mjs",
     "gen:i18n": "node --experimental-strip-types --no-warnings=MODULE_TYPELESS_PACKAGE_JSON scripts/gen-i18n-catalog.mjs",
     "check:i18n": "npm run gen:i18n -- --check && node scripts/check-i18n.mjs",
     "verify:api": "node scripts/verify-live-api.mjs",
-    "test:i18n-render": "vitest run --config vitest.i18n-render.config.ts"
+    "test:components": "vitest run --config vitest.components.config.ts"
   },
   "engines": {
     "node": ">=22"
@@ -100,10 +103,12 @@
     "jsdom": "^26.1.0",
     "typescript": "~5.9.2",
     "typescript-eslint": "^8.46.4",
-    "vitest": "^3.2.7"
+    "vitest": "^5.0.1"
   },
   "overrides": {
-    "postcss": "^8.5.28"
+    "decode-uri-component": "^0.5.0",
+    "uuid": "^11.1.1",
+    "postcss": "^8.5.23"
   },
   "packageManager": "npm@10.9.8"
 }

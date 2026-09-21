@@ -2,7 +2,7 @@
  * Kahade — Forgot Password (screen #8a alur auth): kirim OTP reset password.
  *
  * Struktur:
- *   <Header title="Lupa Password" showBack={true}>
+ *   <Header title="Lupa Kata Sandi" showBack={true}>
  *   VStack gap={8}:
  *     VStack (explanation text)
  *     VStack (form)
@@ -171,7 +171,7 @@ export default function ForgotPasswordScreen() {
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Lupa Password" safeArea={false} />
+      <Header title="Lupa Kata Sandi" safeArea={false} />
 
       <KeyboardAvoiding offset={insets.top}>
         <ScrollView
@@ -186,7 +186,7 @@ export default function ForgotPasswordScreen() {
           <VStack gap={8}>
             {/* Explanation text */}
             <VStack gap={2}>
-              <Heading level={1}>Lupa password?</Heading>
+              <Heading level={1}>Lupa kata sandi?</Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
                 Masukkan email yang terdaftar di akun Anda. Kami akan mengirim
                 kode verifikasi untuk mereset password.

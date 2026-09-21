@@ -45,8 +45,12 @@ import { useToast } from "@/components/ui/toast"
 export default function ChatScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
-  const query = usePaginatedQuery<ChatRoom>("chat-rooms", (page, signal) =>
-    api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
+  const query = usePaginatedQuery<ChatRoom>(
+    "chat-rooms",
+    (page, signal) => api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
+    // F-01 (audit): kembali dari ruang chat — unread/lastMessage di daftar
+    // disegarkan diam-diam tanpa menunggu poll atau pull-to-refresh.
+    { refreshOnFocus: true },
   )
   const [roomMenu, setRoomMenu] = useState<ChatRoom | null>(null)
   const [roomBusy, setRoomBusy] = useState(false)
@@ -134,7 +138,18 @@ export default function ChatScreen() {
             time={item.lastMessage ? formatDateTime(item.lastMessage.createdAt) : undefined}
             unreadCount={item.unreadCount}
             context={item.orderId ? `Pesanan ${truncateMiddle(item.orderId)}` : undefined}
-            onPress={() => router.push(ROUTES.chatRoom(item.id))}
+            onPress={() =>
+              router.push(
+                ROUTES.chatRoom(
+                  item.id,
+                  // C-06 (audit): layar ruang hanya mencari judul di 30 ruang
+                  // pertama — nama dikirim lewat param agar ruang ke-31+ tidak
+                  // jatuh ke "Percakapan".
+                  item.counterpart?.fullName ??
+                    (item.counterpart?.username ? `@${item.counterpart.username}` : item.subject ?? undefined),
+                ),
+              )
+            }
             onLongPress={() => setRoomMenu(item)}
             dividerTop={index === 0}
           />

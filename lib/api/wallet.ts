@@ -1,5 +1,3 @@
-import { API_CONSTRAINTS } from "@/lib/api/constraints"
-import { assertDtoConstraints } from "@/lib/financial"
 /**
  * Kahade — domain `wallet` (tag "wallet" di kahade-api-mobile.json).
  *
@@ -23,6 +21,10 @@ import { assertDtoConstraints } from "@/lib/financial"
  *   - `retry: 1` pada GET: jaringan seluler flaky; GET wallet/transaksi
  *     idempoten sehingga aman di-retry sekali.
  */
+
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { assertDtoConstraints } from "@/lib/financial"
+
 import { pickString, pickUserId, readList, readVerdict } from "@/lib/api/response"
 import {
   normalizeWallet,
