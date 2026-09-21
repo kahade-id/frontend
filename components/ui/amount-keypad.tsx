@@ -19,6 +19,18 @@
  *   - Kunci "00" (double-zero) menggantikan slot biometric saat `doubleZero`
  *     diaktifkan, mempercepat input nominal besar (100.000 → 1 + 00 + 000).
  *     Slot biometric hanya relevan untuk PIN.
+ *   - Chip preset SATU baris (v3 2026-09-21): lima nominal cepat berbagi
+ *     lebar (`flex-1`, tanpa wrap) sehingga selalu terbaca sekali lihat dan
+ *     tidak pernah mendorong keypad keluar layar di 360dp. Dulu `flex-wrap`
+ *     membuat preset pecah jadi 2–3 baris dan baris kunci paling bawah
+ *     (0 / hapus) tertutup footer sampai pengguna menggulir.
+ *   - Kepadatan adaptif: tinggi layar memutuskan ukuran kunci (64 → 56px) dan
+ *     padding area nominal. Keypad adalah kontrol utama layar ini — ia tidak
+ *     boleh ikut tergulir, jadi yang menyusut adalah keypad-nya, bukan
+ *     memaksa pengguna scroll untuk menemukan tombol hapus.
+ *   - `slot` = satu kartu konteks (metode pembayaran / rekening tujuan /
+ *     catatan transfer) yang selalu duduk TEPAT di atas keypad dan di bawah
+ *     nominal. Urutan bacanya: nominal → cara bayar → keypad.
  *   - Batas `max` ditegakkan di sini: digit yang melebihi maksimum tidak
  *     ditambahkan (bukan error merah yang terlambat).
  *   - Backspace di awal tidak menghasilkan angka negatif; angka selalu
@@ -26,8 +38,8 @@
  *   - Tampilan selalu diformat groupThousands agar terasa "hidup" saat
  *     digit bertambah — momen yang sama dengan count-up Amount.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Animated, Easing, View, type ViewProps } from "react-native"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { Animated, Easing, View, useWindowDimensions, type ViewProps } from "react-native"
 import { Backspace, Check } from "phosphor-react-native"
 
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -63,10 +75,25 @@ export type AmountKeypadProps = Omit<ViewProps, "children"> & {
   onAction?: () => void
   /** Apakah aksi saat ini bisa dijalankan (tombol check aktif/merah) */
   actionEnabled?: boolean
+  /**
+   * Kartu konteks yang dirender di antara preset dan keypad (metode
+   * pembayaran, rekening tujuan, catatan transfer). Lebar penuh; padding
+   * horizontal diatur pemanggil.
+   */
+  slot?: ReactNode
   className?: string
 }
 
 const CURSOR_BLINK_MS = 530
+
+/**
+ * Ambang tinggi layar (dp) untuk keypad padat. Di bawah angka ini, area
+ * nominal + 4 baris kunci 64px + kartu slot + CTA tidak muat sekaligus
+ * (iPhone SE 568dp, separuh layar Android, jendela web pendek) sehingga
+ * baris "0 / hapus" jatuh ke bawah lipatan. Kunci padat 56px tetap jauh di
+ * atas target sentuh minimum 44pt (audit #1).
+ */
+const COMPACT_BELOW_HEIGHT = 760
 
 export function AmountKeypad({
   value,
@@ -81,10 +108,13 @@ export function AmountKeypad({
   disabled = false,
   onAction,
   actionEnabled = true,
+  slot,
   className,
   ...rest
 }: AmountKeypadProps) {
   const reducedMotion = useReducedMotion()
+  const { height: windowHeight } = useWindowDimensions()
+  const compact = windowHeight < COMPACT_BELOW_HEIGHT
 
   // Kita simpan digits sebagai string (digit mentah) supaya ketikan terasa
   // natural (tidak melompat saat ribuan bertambah); value ke pemanggil
@@ -236,7 +266,10 @@ export function AmountKeypad({
         onLongPress={onLongPress}
         haptic="light"
         containerClassName={cn("items-center rounded-full", focusRing)}
-        className="h-16 w-16 items-center justify-center rounded-full"
+        className={cn(
+          "items-center justify-center rounded-full",
+          compact ? "h-14 w-14" : "h-16 w-16",
+        )}
       >
         {isAction ? (
           <View
@@ -252,7 +285,7 @@ export function AmountKeypad({
         )}
       </PressableScale>
     ),
-    [disabled, canPressAction],
+    [disabled, canPressAction, compact],
   )
 
   // Tampilan nominal — animasi scale kecil saat berubah (kena tombol)
@@ -271,7 +304,12 @@ export function AmountKeypad({
   return (
     <View className={cn("w-full items-center", className)} {...rest}>
       {/* ----- Area tampilan nominal (CENTERED, signature) ----- */}
-      <View className="min-h-40 w-full items-center px-5 py-6">
+      <View
+        className={cn(
+          "w-full items-center px-5",
+          compact ? "min-h-24 py-2" : "min-h-40 py-6",
+        )}
+      >
         {/* Helper: saldo / min */}
         <View className="mb-2 h-5 items-center">
           {balance != null ? (
@@ -333,7 +371,16 @@ export function AmountKeypad({
 
       {/* ----- Preset chip ----- */}
       {presets && presets.length > 0 ? (
-        <View className="w-full flex-row flex-wrap justify-center gap-2 px-5 pb-4">
+        // SATU baris, tanpa wrap: tiap chip `flex-1` sehingga lima nominal
+        // selalu muat selebar layar (label memakai format compact "Rp50 rb").
+        // `flex-nowrap` eksplisit — default RN sudah nowrap, tapi kelas ini
+        // menahan siapa pun mengembalikan wrap yang membuat keypad terdorong.
+        <View
+          className={cn(
+            "w-full flex-row flex-nowrap items-center gap-1.5 px-4",
+            compact ? "pb-2" : "pb-4",
+          )}
+        >
           {presets.map((p) => (
             <Chip
               key={p}
@@ -341,6 +388,8 @@ export function AmountKeypad({
               disabled={disabled || (max != null && p > max)}
               haptic
               onPress={() => onChange(p)}
+              containerClassName="min-w-0 flex-1 self-stretch"
+              className="h-8 justify-center px-1"
             >
               {formatRupiah(p, { compact: true })}
             </Chip>
@@ -348,11 +397,15 @@ export function AmountKeypad({
         </View>
       ) : null}
 
+      {/* Kartu konteks (metode / rekening / catatan) — selalu tepat di atas
+          keypad, di bawah nominal. */}
+      {slot ? <View className={cn("w-full", compact ? "pb-2" : "pb-3")}>{slot}</View> : null}
+
       {/* ----- Keypad ----- */}
       <View
         accessible
         accessibilityLabel="Keypad nominal"
-        className="w-full items-center gap-2 px-2"
+        className={cn("w-full items-center px-2", compact ? "gap-1" : "gap-2")}
         style={{ opacity: disabled ? tokens.motion.opacity.disabled : 1 }}
       >
         {ROWS.map((row) => (
@@ -379,7 +432,7 @@ export function AmountKeypad({
               </Text>
             </Key>
           ) : (
-            <View className="h-16 w-16" />
+            <View className={compact ? "h-14 w-14" : "h-16 w-16"} />
           )}
 
           {/* Nol tengah */}

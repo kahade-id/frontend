@@ -323,17 +323,19 @@ export default function WithdrawScreen() {
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         {step === "amount" ? (
           <View className="flex-1">
-            {/* Judul + kartu rekening + keypad dalam SATU area scroll dengan
-                `justify-between` — kartu selalu tepat di atas keypad dan judul
-                tidak pernah tertutup di layar pendek (lihat transfer.tsx). */}
+            {/* Judul + peringatan saldo adalah SATU-SATUNYA bagian yang
+                menggulir (`shrink`); keypad terpin di bawah sehingga baris
+                "0 / hapus" tidak pernah jatuh ke bawah lipatan. Kartu
+                rekening tujuan pindah ke `slot` keypad: selalu TEPAT di atas
+                keypad, di bawah nominal (permintaan produk 2026-09-21). */}
             <ScrollView
-              className="flex-1"
-              contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }}
+              className="shrink"
+              contentContainerClassName="gap-2 px-5 pt-6 pb-2"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
               <FadeIn duration="fast">
-                <View className="items-center gap-2 px-5 pt-6">
+                <View className="items-center gap-2">
                   <Heading level={1} className="text-center text-balance">
                     Tarik ke rekening
                   </Heading>
@@ -345,7 +347,7 @@ export default function WithdrawScreen() {
 
               {/* A-09: saldo gagal dimuat → terlihat, bukan "Rp0". */}
               {balanceError ? (
-                <View className="px-5 pt-4">
+                <View>
                   <Alert tone="warning" title="Saldo tidak dapat dimuat">
                     Nominal tetap bisa dimasukkan; server memvalidasi saldo saat penarikan.
                   </Alert>
@@ -359,11 +361,19 @@ export default function WithdrawScreen() {
                   </Button>
                 </View>
               ) : null}
+            </ScrollView>
 
-              <View>
-                {/* Rekening tujuan dipilih DI SINI lewat BottomSheet (kartu
-                    tepat di atas keypad), bukan di langkah terpisah. */}
-                <View className="px-5 pb-2 pt-4">
+            {/* Rekening tujuan dipilih DI SINI lewat BottomSheet, bukan di
+                langkah terpisah. */}
+            <AmountKeypad
+              value={amount}
+              onChange={setAmount}
+              min={MIN_AMOUNT}
+              max={balance && balance > 0 ? Math.min(MAX_AMOUNT, balance) : MAX_AMOUNT}
+              presets={PRESETS}
+              balance={balance}
+              slot={
+                <View className="px-5">
                   <KeypadOptionCard
                     label="Rekening tujuan"
                     value={selected ? `${selected.bankName ?? selected.bankCode}` : undefined}
@@ -377,17 +387,8 @@ export default function WithdrawScreen() {
                     onPress={() => setAccountSheetOpen(true)}
                   />
                 </View>
-
-                <AmountKeypad
-                  value={amount}
-                  onChange={setAmount}
-                  min={MIN_AMOUNT}
-                  max={balance && balance > 0 ? Math.min(MAX_AMOUNT, balance) : MAX_AMOUNT}
-                  presets={PRESETS}
-                  balance={balance}
-                />
-              </View>
-            </ScrollView>
+              }
+            />
 
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"

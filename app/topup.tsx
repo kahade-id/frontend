@@ -265,17 +265,20 @@ export default function TopupScreen() {
           // Langkah nominal: konten terpusat — hero di tengah, keypad di
           // bawah; footer CTA tunggal konsisten dengan pola register.
           <View className="flex-1">
-            {/* Judul + kartu metode + keypad dalam SATU area scroll dengan
-                `justify-between` — kartu selalu tepat di atas keypad dan judul
-                tidak pernah tertutup di layar pendek (lihat transfer.tsx). */}
+            {/* Judul + penjelasan adalah SATU-SATUNYA bagian yang boleh
+                menggulir (`shrink`): keypad di bawahnya terpin, jadi baris
+                "0 / hapus" tidak pernah jatuh ke bawah lipatan — bug lama
+                ("di layar besar angka 0-9 dan hapus tertutup, harus
+                scroll") muncul karena keypad ikut berada di dalam ScrollView
+                bersama judul dan kartu metode. */}
             <ScrollView
-              className="flex-1"
-              contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }}
+              className="shrink"
+              contentContainerClassName="items-center gap-2 px-5 pt-6 pb-2"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
               <FadeIn duration="fast">
-                <View className="items-center gap-2 px-5 pt-6">
+                <View className="items-center gap-2">
                   <Heading level={1} className="text-center text-balance">
                     Masukkan nominal
                   </Heading>
@@ -285,12 +288,19 @@ export default function TopupScreen() {
                   </Text>
                 </View>
               </FadeIn>
+            </ScrollView>
 
-              <View>
-                {/* Pilihan metode pembayaran DI SINI (halaman nominal), tepat
-                    di atas keypad: ketuk untuk membuka BottomSheet — bukan
-                    langkah terpisah. */}
-                <View className="px-5 pb-2 pt-4">
+            {/* Keypad + kartu metode. Urutan bacanya: nominal → preset →
+                metode pembayaran → keypad (permintaan produk 2026-09-21:
+                kartu metode di bawah pilihan nominal, tepat di atas keypad). */}
+            <AmountKeypad
+              value={amount}
+              onChange={setAmount}
+              min={AMOUNT_LIMITS.topup.minimum}
+              max={AMOUNT_LIMITS.topup.maximum}
+              presets={AMOUNT_PRESETS.topup}
+              slot={
+                <View className="px-5">
                   <KeypadOptionCard
                     label="Metode pembayaran"
                     value={selectedMethod?.name}
@@ -306,16 +316,8 @@ export default function TopupScreen() {
                     onPress={() => setMethodSheetOpen(true)}
                   />
                 </View>
-
-                <AmountKeypad
-                  value={amount}
-                  onChange={setAmount}
-                  min={AMOUNT_LIMITS.topup.minimum}
-                  max={AMOUNT_LIMITS.topup.maximum}
-                  presets={AMOUNT_PRESETS.topup}
-                />
-              </View>
-            </ScrollView>
+              }
+            />
 
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"
