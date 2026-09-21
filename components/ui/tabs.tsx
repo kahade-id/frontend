@@ -12,7 +12,7 @@
  *     tab mana". Slide memberi affordance arah & posisi; ukuran & offset
  *     diukur via `onLayout` tiap item (label dapat berbeda panjang, ikon,
  *     count), BUKAN lebar rata yang salah untuk label pendek/panjang.
- *   - Indikator duduk `-top-px` di atas garis dasar `border-t border-border`
+ *   - Indikator duduk di atas garis dasar `border-b border-border`
  *     container (bukan mengganti border item): satu View absolute yang
  *     posisinya dianimasikan, jadi tidak ada dua border yang saling menimpa.
  *   - `reduceMotion`: slide instan (langsung set value), konsisten dengan
@@ -131,7 +131,7 @@ export function Tabs<V extends string = string>({
     <View
       accessibilityRole="tablist"
       className={cn(
-        "relative flex-row border-t border-border",
+        "relative flex-row border-b border-border bg-background",
         scrollable ? "px-5" : "w-full",
         className,
       )}
@@ -140,7 +140,7 @@ export function Tabs<V extends string = string>({
       {/* Indikator aktif meluncur — feedback arah & posisi "sedang tab apa". */}
       <Animated.View
         style={[dotStyle, { height: INDICATOR_H, pointerEvents: "none" }]}
-        className="absolute -top-px left-0 z-10 rounded-t-[2px] bg-primary"
+        className="absolute bottom-0 left-0 z-10 rounded-t-[2px] bg-primary"
       />
 
       {items.map((item, index) => {

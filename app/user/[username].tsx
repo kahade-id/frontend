@@ -1,20 +1,14 @@
 /**
- * Screen — Profil Publik User (Binance Social / Creator Profile style)
+ * Screen — Profil User (Binance Social / Creator Profile style)
  *
- * Menggabungkan layout sosial modern:
- *  - Cover KARTU (rounded + border + margin, sama dengan Pengaturan/Edit
- *    Profil) dengan floating navigation di dalamnya.
+ *  - Navigasi atas di atas kartu sampul (+ untuk profil sendiri, back untuk orang lain).
+ *  - Cover kartu (rounded + border + margin).
  *  - Avatar bulat besar menimpa sampul 30% (70% di bawah kartu).
- *  - Hierarki aksi jelas: ♡/🔖 icon button di samping avatar, [Ikuti] primary
- *    + [Kirim Pesan] secondary di bawah bio, [Edit profil] untuk diri sendiri.
- *  - Identitas (Nama lengkap, @username, Bio multi-line).
- *  - Counter statistik interaktif (Mengikuti, Pengikut, Ulasan, Skor Kepercayaan).
- *  - Tab navigasi in-page: Etalase (Showcase), Tanya Jawab (Q&A), Ulasan
- *    (Ratings), Tentang (Info) — indikator garis hitam geser dari <Tabs>.
- *  - List Etalase memakai <ShowcaseFeedItem> — komponen & UX yang sama
- *    persis dengan feed halaman Showcase (suka, komentar, simpan, bagikan).
- *  - Bottom Nav Bar hanya dirender untuk PROFIL SENDIRI (tab "Profil");
- *    profil orang lain tidak menampilkannya.
+ *  - Identitas: Nama lengkap & @username berdekatan, bio multi-line.
+ *  - Statistik interaktif (Mengikuti, Pengikut, Ulasan, Skor) di bawah bio.
+ *  - Aksi: [Edit profil] untuk diri sendiri; [Ikuti] + [Kirim Pesan] untuk orang lain.
+ *  - Tab navigasi in-page: Etalase, Tanya Jawab, Ulasan, Tentang via <Tabs>.
+ *  - Bottom Nav Bar hanya dirender untuk PROFIL SENDIRI.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Pressable, View } from "react-native"
@@ -31,8 +25,8 @@ import {
   Handshake,
   IdentificationBadge,
   Image as ImageIcon,
-  MagnifyingGlass,
   PencilSimple,
+  Plus,
   Prohibit,
   SealCheck,
   ShareNetwork,
@@ -155,6 +149,7 @@ export default function UserProfileScreen() {
   // Profile data state
   const [profile, setProfile] = useState<PublicUserProfile | null>(null)
   const [meId, setMeId] = useState<string | null>(null)
+  const [meUsername, setMeUsername] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
@@ -242,7 +237,12 @@ export default function UserProfileScreen() {
   const [moreOptionsOpen, setMoreOptionsOpen] = useState(false)
 
   const handle = profile?.username ?? username
-  const isSelf = Boolean(meId && profile?.id && meId === profile.id)
+  const isSelf = Boolean(
+    (meId && profile?.id && meId === profile.id) ||
+      (meUsername &&
+        (username.toLowerCase() === meUsername.toLowerCase() ||
+          (profile?.username && profile.username.toLowerCase() === meUsername.toLowerCase()))),
+  )
   /** Foto sampul pita atas — undefined bila user belum memasangnya. */
   const coverUri = resolveMediaUrl(profile?.headerUrl)
 
@@ -335,6 +335,7 @@ export default function UserProfileScreen() {
       if (!current()) return
       setProfile(res)
       setMeId(me?.id ?? null)
+      setMeUsername(me?.username ?? null)
       const targetName = res.username ?? username
 
       // Fetch tab data
@@ -535,13 +536,25 @@ export default function UserProfileScreen() {
   const showBottomNav = isSelf && Boolean(profile)
   const bottomNavItems = useMemo(
     () =>
-      TAB_ROUTE_NAMES.map((name) => ({
-        key: name,
-        label: TAB_BAR_ITEMS[name].label,
-        icon: TAB_BAR_ITEMS[name].icon,
-        accessibilityLabel: TAB_BAR_ITEMS[name].accessibilityLabel,
-      })),
-    [],
+      TAB_ROUTE_NAMES.map((name) => {
+        if (name === "discover") {
+          return {
+            key: name,
+            label: TAB_BAR_ITEMS[name].label,
+            icon: TAB_BAR_ITEMS[name].icon,
+            accessibilityLabel: TAB_BAR_ITEMS[name].accessibilityLabel,
+            avatarUrl: profile?.avatarUrl,
+            avatarName: profile?.fullName || handle,
+          }
+        }
+        return {
+          key: name,
+          label: TAB_BAR_ITEMS[name].label,
+          icon: TAB_BAR_ITEMS[name].icon,
+          accessibilityLabel: TAB_BAR_ITEMS[name].accessibilityLabel,
+        }
+      }),
+    [profile?.avatarUrl, profile?.fullName, handle],
   )
   const handleBottomNavChange = useCallback((key: string) => {
     // Tab "Profil" = layar ini sendiri — tidak menavigasi ke mana-mana.
@@ -719,26 +732,70 @@ export default function UserProfileScreen() {
       <PullToRefresh
         onRefresh={handleRefresh}
         refreshing={refreshing}
-        // Hanya SATU sumber paddingBottom: `contentContainerStyle` di bawah
-        // (yang memperhitungkan inset). Sebelumnya `pb-16` di className dan
-        // `paddingBottom` di style mendeklarasikan properti yang sama —
-        // className kalah oleh style, jadi `pb-16` itu kode mati yang
-        // menyesatkan pembaca.
+        // Inset bottom ditangani BottomTabBar saat profil sendiri.
         contentContainerClassName="px-0"
         scrollViewProps={{
           contentContainerStyle: {
-            // Bottom inset sudah ditangani <BottomTabBar> saat profil sendiri —
-            // menambahkannya lagi di sini akan membuat jarak ganda.
             paddingBottom: (showBottomNav ? 0 : insets.bottom) + tokens.space[8],
           },
         }}
       >
-        {/* ── Top Cover (KARTU) with Floating Navigation ────────
-            Sampul bukan lagi strip full-width di tepi layar: bentuknya KARTU
-            (margin layar + border + rounded-md) — geometri persis
-            ProfileCoverBand (halaman Pengaturan) & pratinjau di Edit Profil,
-            jadi ketiga layar terasa seperti satu komponen yang sama. */}
-        <View className="px-5 pt-3">
+        {/* ── Top Bar (di atas cover) ──────────────────────────
+            Tombol navigasi diletakkan di atas sampul, bukan melayang di
+            dalamnya. Untuk profil sendiri, tombol back diganti tombol [+]
+            ke manajemen etalase. Tanpa tombol pencarian. */}
+        <View className="w-full flex-row items-center justify-between px-5 pt-2 pb-1">
+          {isSelf ? (
+            <IconButton
+              icon={Plus}
+              variant="secondary"
+              size="sm"
+              accessibilityLabel="Tambah etalase"
+              onPress={() => router.push(ROUTES.showcaseManagement)}
+            />
+          ) : (
+            <IconButton
+              icon={CaretLeft}
+              variant="secondary"
+              size="sm"
+              accessibilityLabel="Kembali"
+              onPress={() => goBackOrNavigate(ROUTES.home)}
+            />
+          )}
+
+          <View className="flex-row items-center gap-2">
+            <IconButton
+              icon={ShareNetwork}
+              variant="secondary"
+              size="sm"
+              accessibilityLabel="Bagikan Profil"
+              onPress={() => void handleShare()}
+            />
+            {profile ? (
+              isSelf ? (
+                <IconButton
+                  icon={DotsThreeVertical}
+                  variant="secondary"
+                  size="sm"
+                  accessibilityLabel="Pengaturan"
+                  onPress={() => router.push(ROUTES.settings)}
+                />
+              ) : (
+                <IconButton
+                  icon={DotsThreeVertical}
+                  variant="secondary"
+                  size="sm"
+                  accessibilityLabel="Pilihan lainnya"
+                  onPress={() => setMoreOptionsOpen(true)}
+                />
+              )
+            ) : null}
+          </View>
+        </View>
+
+        {/* ── Top Cover (KARTU) ────────────────────────────────
+            Sampul kartu bersih tanpa tombol navigasi di dalamnya. */}
+        <View className="px-5 pt-1">
           <View
             className="relative w-full overflow-hidden rounded-md border border-border bg-surface"
             style={{ height: COVER_HEIGHT }}
@@ -770,69 +827,6 @@ export default function UserProfileScreen() {
                 </Text>
               </View>
             ) : null}
-
-            {/* Subtle brand overlay — menahan kontras tombol di atas foto */}
-            <View className="absolute inset-0 bg-overlay/10" />
-
-            {/* Floating Top Bar (di dalam kartu sampul) */}
-            <View className="absolute inset-x-0 top-0 flex-row items-center justify-between p-2">
-              {/* C.1: profil sendiri = tanpa tombol Back (halaman ini "rumah"
-                  profil, dan sudah ada Bottom Nav Bar di bawah). */}
-              {isSelf ? (
-                <View />
-              ) : (
-                <IconButton
-                  icon={CaretLeft}
-                  variant="secondary"
-                  size="sm"
-                  accessibilityLabel="Kembali"
-                  className="h-9 w-9 rounded-full bg-overlay"
-                  onPress={() => goBackOrNavigate(ROUTES.home)}
-                />
-              )}
-
-              <View className="flex-row items-center gap-2">
-                <IconButton
-                  icon={MagnifyingGlass}
-                  variant="secondary"
-                  size="sm"
-                  accessibilityLabel="Pencarian"
-                  className="h-9 w-9 rounded-full bg-overlay"
-                  onPress={() => router.push(ROUTES.search)}
-                />
-                <IconButton
-                  icon={ShareNetwork}
-                  variant="secondary"
-                  size="sm"
-                  accessibilityLabel="Bagikan Profil"
-                  className="h-9 w-9 rounded-full bg-overlay"
-                  onPress={() => void handleShare()}
-                />
-                {profile ? (
-                  isSelf ? (
-                    /* C.1: kebab di profil sendiri = pintu ke Pengaturan. */
-                    <IconButton
-                      icon={DotsThreeVertical}
-                      variant="secondary"
-                      size="sm"
-                      accessibilityLabel="Pengaturan"
-                      className="h-9 w-9 rounded-full bg-overlay"
-                      onPress={() => router.push(ROUTES.settings)}
-                    />
-                  ) : (
-                    /* C.1: kebab di profil ORANG LAIN = Bagikan/Laporkan/Blokir. */
-                    <IconButton
-                      icon={DotsThreeVertical}
-                      variant="secondary"
-                      size="sm"
-                      accessibilityLabel="Pilihan lainnya"
-                      className="h-9 w-9 rounded-full bg-overlay"
-                      onPress={() => setMoreOptionsOpen(true)}
-                    />
-                  )
-                ) : null}
-              </View>
-            </View>
           </View>
         </View>
 
@@ -916,28 +910,28 @@ export default function UserProfileScreen() {
 
             {/* ── User Identity & Bio ──────────────────────────── */}
             <View className="gap-2 px-5 pt-3">
-              {/* A.3 — Nickname/Display Name … */}
-              <View className="flex-row items-center gap-1">
-                <Text variant="h2" weight={700} tone="primary">
-                  {profile.fullName || `@${handle}`}
-                </Text>
-                {profile.verified ? (
-                  <Icon icon={SealCheck} size="sm" active weight="fill" />
+              {/* A.3 — Nickname & username berdekatan */}
+              <View className="gap-0.5">
+                <View className="flex-row items-center gap-1">
+                  <Text variant="h2" weight={700} tone="primary">
+                    {profile.fullName || `@${handle}`}
+                  </Text>
+                  {profile.verified ? (
+                    <Icon icon={SealCheck} size="sm" active weight="fill" />
+                  ) : null}
+                </View>
+
+                {profile.fullName ? (
+                  <Text variant="body" tone="secondary">
+                    {`@${handle}`}
+                  </Text>
                 ) : null}
               </View>
-
-              {/* A.3 — … dengan username TEPAT di bawahnya (hanya bila nama
-                  tampil; kalau nama kosong, handle sudah menjadi judul). */}
-              {profile.fullName ? (
-                <Text variant="body" tone="secondary">
-                  {`@${handle}`}
-                </Text>
-              ) : null}
 
               {/* Badge verifikasi aktif — icon + shortLabel, label a11y =
                   "label: description" agar detail terbaca screen reader. */}
               {badges.length > 0 ? (
-                <View className="flex-row flex-wrap items-center gap-1.5 pt-1">
+                <View className="flex-row flex-wrap items-center gap-1.5 pt-0.5">
                   {badges.map((b) => (
                     <Badge
                       key={b.type}
@@ -962,41 +956,8 @@ export default function UserProfileScreen() {
                 </Text>
               )}
 
-              {/* ── A.4 Action Row (profil orang lain) ────────────
-                  PRIMARY  : [Ikuti] — aksi sosial utama (FollowButton
-                             otomatis turun ke secondary saat "Mengikuti").
-                  SECONDARY: [Kirim Pesan] — membuka sheet inquiry.
-                  Aksi tersier ♡/🔖 ada di samping avatar (atas). */}
-              {!isSelf ? (
-                <View className="flex-row items-center gap-2 pt-2">
-                  <View className="flex-1">
-                    <FollowButton
-                      fullWidth
-                      following={following === true}
-                      loading={followLoading || following == null}
-                      onToggle={(next) => void handleFollow(next)}
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      fullWidth
-                      leftIcon={ChatCircleDots}
-                      onPress={() => {
-                        setInquirySubject("")
-                        setInquiryMessage("")
-                        setInquiryOpen(true)
-                      }}
-                    >
-                      Kirim Pesan
-                    </Button>
-                  </View>
-                </View>
-              ) : null}
-
-              {/* ── Stats / Counter Strip ────────────────────────── */}
-              <View className="flex-row flex-wrap items-center gap-4 pt-2">
+              {/* ── Stats / Counter Strip (langsung di bawah bio) ── */}
+              <View className="flex-row flex-wrap items-center gap-4 pt-1">
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={`${formatNumber(followingCount ?? 0)} mengikuti`}
@@ -1055,37 +1016,61 @@ export default function UserProfileScreen() {
                 ) : null}
               </View>
 
-              {/* Quick Transaction Button for non-self — A.4: demoted ke
-                  secondary agar hanya ADA SATU primary di layar ([Ikuti]). */}
+              {/* ── A.4 Action Row (HANYA profil orang lain) ────────
+                  PRIMARY  : [Ikuti] — aksi sosial utama.
+                  SECONDARY: [Kirim Pesan] — membuka sheet inquiry.
+                  Diletakkan di bawah bio & statistik pengikut/mengikuti.
+                  Profil sendiri tidak menampilkan tombol-tombol ini. */}
               {!isSelf ? (
-                <View className="pt-2">
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    leftIcon={Handshake}
-                    onPress={() => router.push(ROUTES.createTransactionWith(handle))}
-                  >
-                    Buat transaksi escrow
-                  </Button>
-                </View>
+                <>
+                  <View className="flex-row items-center gap-2 pt-2">
+                    <View className="flex-1">
+                      <FollowButton
+                        fullWidth
+                        following={following === true}
+                        loading={followLoading || following == null}
+                        onToggle={(next) => void handleFollow(next)}
+                      />
+                    </View>
+                    <View className="flex-1">
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        fullWidth
+                        leftIcon={ChatCircleDots}
+                        onPress={() => {
+                          setInquirySubject("")
+                          setInquiryMessage("")
+                          setInquiryOpen(true)
+                        }}
+                      >
+                        Kirim Pesan
+                      </Button>
+                    </View>
+                  </View>
+
+                  <View className="pt-1">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      leftIcon={Handshake}
+                      onPress={() => router.push(ROUTES.createTransactionWith(handle))}
+                    >
+                      Buat transaksi escrow
+                    </Button>
+                  </View>
+                </>
               ) : null}
             </View>
 
-            {/*
-              ── Tabs Bar ─────────────────────────────────────────
-              <Tabs> dari design system (§9.16), bukan tab bar tulisan tangan.
-              Versi manual sebelumnya menyimpang dari §9.16 di tiga hal yang
-              terlihat: indikator `h-0.5 bg-primary rounded-full` (bukan
-              border-b 1.5px di atas garis dasar), bobot label aktif 700
-              (spesifikasi: 600), dan tidak ada focus ring keyboard sama
-              sekali. `tablist`/`tab` + focusRingInset sudah di dalam komponen.
-            */}
-            <Tabs<ProfileTab>
-              items={PROFILE_TABS}
-              value={activeTab}
-              onChange={setActiveTab}
-              className="pt-4"
-            />
+            {/* ── Tabs Bar ───────────────────────────────────────── */}
+            <View className="pt-4">
+              <Tabs<ProfileTab>
+                items={PROFILE_TABS}
+                value={activeTab}
+                onChange={setActiveTab}
+              />
+            </View>
 
             {/* ── Tab Content 1: Etalase (Showcase) ───────────────
                 A.5: list & interaksinya SAMA PERSIS dengan halaman Showcase
@@ -1096,6 +1081,7 @@ export default function UserProfileScreen() {
                 items={showcaseItems}
                 loading={showcaseLoading}
                 handle={handle}
+                isSelf={isSelf}
                 owner={{
                   id: profile.id,
                   username: handle,
@@ -1119,14 +1105,16 @@ export default function UserProfileScreen() {
                   <Text variant="label" tone="secondary" numberOfLines={1} className="flex-1">
                     Pertanyaan Pengguna ({questions.length})
                   </Text>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    fullWidth={false}
-                    onPress={() => setAskOpen(true)}
-                  >
-                    Bertanya
-                  </Button>
+                  {!isSelf ? (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      fullWidth={false}
+                      onPress={() => setAskOpen(true)}
+                    >
+                      Bertanya
+                    </Button>
+                  ) : null}
                 </View>
 
                 {questionsLoading ? (
@@ -1135,11 +1123,17 @@ export default function UserProfileScreen() {
                   <EmptyState
                     icon={ChatCircleDots}
                     title="Belum ada pertanyaan"
-                    description={`Jadilah yang pertama bertanya kepada @${handle}.`}
+                    description={
+                      isSelf
+                        ? "Belum ada pertanyaan dari pengguna lain."
+                        : `Jadilah yang pertama bertanya kepada @${handle}.`
+                    }
                     action={
-                      <Button variant="secondary" fullWidth={false} onPress={() => setAskOpen(true)}>
-                        Ajukan pertanyaan
-                      </Button>
+                      !isSelf ? (
+                        <Button variant="secondary" fullWidth={false} onPress={() => setAskOpen(true)}>
+                          Ajukan pertanyaan
+                        </Button>
+                      ) : undefined
                     }
                   />
                 ) : (
@@ -1253,6 +1247,7 @@ export default function UserProfileScreen() {
                 filter={ratingFilter}
                 onFilterChange={setRatingFilter}
                 handle={handle}
+                isSelf={isSelf}
               />
             ) : null}
 
