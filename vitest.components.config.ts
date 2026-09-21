@@ -56,6 +56,11 @@ export default defineConfig({
       nativewind: stub("nativewind"),
       // RNGH memuat TurboModule native saat import — tidak ada di jsdom.
       "react-native-gesture-handler": `${stub("react-native-gesture-handler")}x`,
+      // Reanimated menarik react-native-worklets yang memanggil TurboModule
+      // saat import — alasan yang sama. Stub meng-emulasi shared value +
+      // Animated.View supaya STYLE hasil animasi tetap bisa diamati test
+      // (lihat docblock tests/stubs/react-native-reanimated.tsx).
+      "react-native-reanimated": `${stub("react-native-reanimated")}x`,
     },
   },
   define: { __DEV__: "false" },

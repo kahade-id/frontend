@@ -38,7 +38,7 @@
  *     dibutuhkan, tambahkan slot `footer` daripada tombol ketiga.
  */
 import { useEffect } from "react"
-import { View, type ViewProps } from "react-native"
+import { View, type ViewProps, type ViewStyle } from "react-native"
 import { Phone, PhoneX, VideoCamera } from "phosphor-react-native"
 import Animated, {
   Easing,
@@ -149,7 +149,22 @@ export function IncomingCallPrompt({
  * Lingkaran border yang membesar & memudar. Absolute agar menumpuk di pusat
  * avatar — pengecualian sadar dari aturan flex (§ Layout), karena overlap
  * memang dibutuhkan. Ukuran dasar = avatar xl (80px, h-20 w-20).
+ *
+ * `position`/`pointerEvents` lewat style biasa dan BUKAN className pada
+ * Animated.View: reanimated mengirim lib yang sudah ter-compile dengan
+ * `react/jsx-runtime`, jadi className di sana tidak pernah menjadi style
+ * (react-native-css-interop hanya meng-interop komponen RN inti). Dengan
+ * className, ring ini kehilangan `absolute` sekaligus ukurannya → tidak
+ * terlihat dan ikut memakan tempat di kolom avatar. Alasan & bukti lengkap
+ * ada di docblock <Tabs> (components/ui/tabs.tsx).
  */
+const RING_FRAME: ViewStyle = {
+  position: "absolute",
+  // Web: jadi CSS `pointer-events`; native: prop style pointerEvents (new arch).
+  pointerEvents: "none",
+}
+
+/** @see RING_FRAME */
 function PulseRing({ active, delay }: { active: boolean; delay: number }) {
   const progress = useSharedValue(0)
   // Reduce Motion (audit #2): pulsa berulang tanpa batas adalah pemicu
@@ -188,10 +203,9 @@ function PulseRing({ active, delay }: { active: boolean; delay: number }) {
   }))
 
   return (
-    <Animated.View
-      className="absolute h-20 w-20 rounded-full border border-border"
-      style={[{ pointerEvents: "none" }, style]}
-    />
+    <Animated.View style={[RING_FRAME, style]}>
+      <View className="h-20 w-20 rounded-full border border-border" />
+    </Animated.View>
   )
 }
 

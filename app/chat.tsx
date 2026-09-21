@@ -100,6 +100,11 @@ export default function ChatScreen() {
       />
       <PaginatedList
         {...query}
+        // ChatRoomListItem memasang px-5 sendiri (dan inset divider-nya
+        // dihitung dari 20px itu). `padded` default menambah paddingHorizontal
+        // 20px lagi di contentContainer -> baris menjorok 40px, tidak sejajar
+        // Header di atasnya. Sama seperti app/notifications.tsx.
+        padded={false}
         data={shownRooms}
         onRefresh={query.refresh}
         onRetry={query.reload}

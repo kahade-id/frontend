@@ -604,8 +604,9 @@ export default function TransferScreen() {
         description="Opsional. Catatan ini diterima penerima bersama transfernya."
         avoidKeyboard
         footer={
+          // Wrapper footer BottomSheet sudah px-5 pt-4 -> tanpa px-5 lagi.
           <View
-            className="flex-row gap-3 px-5"
+            className="flex-row gap-3"
             style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
           >
             {note.trim() ? (
