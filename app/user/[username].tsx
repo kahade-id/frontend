@@ -730,15 +730,15 @@ export default function UserProfileScreen() {
         }}
       >
         {/* ── Top Bar (di atas cover) ──────────────────────────
-            <Header transparent>: @username PUSAT di bar (satu-satunya tempat
-            username ditulis — baris identitas di bawah hanya menampilkan
-            nama), tombol navigasi ghost TANPA kartu di kiri, ⋮ ghost di
-            kanan. Untuk profil sendiri, back diganti [+] ke manajemen
-            etalase. Tombol Bagikan turun ke baris aksi (sejajar ♡ / 🔖)
-            supaya bar ini hanya berisi navigasi + overflow. */}
+            <Header transparent>: @username PUSAT di bar — satu-satunya
+            tempat username ditulis (baris identitas di bawah hanya nama).
+            Navigasi ghost TANPA kartu di kiri, ⋮ ghost di kanan; profil
+            sendiri memakai [+] ke manajemen etalase. Bagikan turun ke
+            baris aksi (sejajar ♡ / 🔖). Judul dikosongkan bila param
+            username kosong (deep link rusak) — "@" sendirian lebih buruk. */}
         <Header
           transparent
-          title={`@${handle}`}
+          title={handle ? `@${handle}` : undefined}
           showBack={!isSelf}
           onBack={() => goBackOrNavigate(ROUTES.home)}
           left={
