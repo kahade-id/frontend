@@ -41,6 +41,14 @@
 import { useEffect, useRef, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import type { Href } from "expo-router"
+import {
+  House,
+  ImagesSquare,
+  ShoppingBag,
+  UserCircle,
+  Wallet,
+} from "phosphor-react-native"
 
 import { NotificationDot } from "@/components/ui/badge"
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -51,6 +59,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
+import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -62,6 +71,68 @@ export type BottomTabItem<K extends string = string> = {
   badge?: boolean
   accessibilityLabel?: string
 }
+
+// ------------------------------------------------------------------
+// Item navigasi utama aplikasi (sumber tunggal)
+// ------------------------------------------------------------------
+
+export type AppTabBarItem = Omit<BottomTabItem<TabRouteName>, "key"> & {
+  /** Rute tujuan saat item ditekan dari bar KUSTOM (di luar <Tabs>). */
+  route: Href
+}
+
+/**
+ * SATU sumber kebenaran visual bottom navigation (label + ikon + a11y +
+ * rute). Dipakai dua tempat yang HARUS selalu identik:
+ *   1. app/(tabs)/_layout.tsx — tab bar utama expo-router.
+ *   2. app/user/[username].tsx — <BottomTabBar> kustom yang hanya dirender
+ *      saat pengguna melihat profilnya SENDIRI.
+ *
+ * Slot "discover" (file app/(tabs)/discover.tsx) dibrandakan ulang sebagai
+ * "Profil" (permintaan produk): label/ikon berganti, dan penekanan tab-nya
+ * dialihkan ke profil publik milik sendiri (/user/[username]) — lihat
+ * listener tabPress di _layout. Layar /discover tetap ada untuk tautan
+ * langsung, hanya tidak lagi menjadi tujuan tab.
+ *
+ * Urutan mengikuti TAB_ROUTE_NAMES (guard di bawah mengunci kelengkapan
+ * peta terhadap registri rute di compile-time).
+ */
+export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
+  home: {
+    label: "Beranda",
+    icon: House,
+    accessibilityLabel: "Tab Beranda",
+    route: "/home" as Href,
+  },
+  transactions: {
+    label: "Transaksi",
+    icon: ShoppingBag,
+    accessibilityLabel: "Tab Transaksi",
+    route: "/transactions" as Href,
+  },
+  wallet: {
+    label: "Dompet",
+    icon: Wallet,
+    accessibilityLabel: "Tab Dompet",
+    route: "/wallet" as Href,
+  },
+  showcase: {
+    label: "Showcase",
+    icon: ImagesSquare,
+    accessibilityLabel: "Tab Showcase sosial",
+    route: "/showcase" as Href,
+  },
+  discover: {
+    label: "Profil",
+    icon: UserCircle,
+    accessibilityLabel: "Tab profil saya",
+    route: "/discover" as Href,
+  },
+}
+
+// Referensi agar urutan TAB_ROUTE_NAMES menjadi satu-satunya defisiensi urutan;
+// bila suatu hari TAB_ROUTE_NAMES berubah, Record<> di atas ikut gagal kompilasi.
+void TAB_ROUTE_NAMES
 
 export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "children"> & {
   items: readonly BottomTabItem<K>[]

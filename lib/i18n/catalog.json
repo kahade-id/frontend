@@ -111,6 +111,10 @@
    "n": 4
   },
   {
+   "s": "Showcase",
+   "n": 4
+  },
+  {
    "s": "Terima",
    "n": 4
   },
@@ -147,6 +151,10 @@
    "n": 3
   },
   {
+   "s": "Belum ada foto sampul",
+   "n": 3
+  },
+  {
    "s": "Buat transaksi",
    "n": 3
   },
@@ -179,6 +187,10 @@
    "n": 3
   },
   {
+   "s": "Gagal memperbarui suka",
+   "n": 3
+  },
+  {
    "s": "Gagal memuat komentar",
    "n": 3
   },
@@ -196,6 +208,10 @@
   },
   {
    "s": "Gagal mengunggah foto",
+   "n": 3
+  },
+  {
+   "s": "Gagal menyiapkan share",
    "n": 3
   },
   {
@@ -319,11 +335,7 @@
    "n": 3
   },
   {
-   "s": "Showcase",
-   "n": 3
-  },
-  {
-   "s": "Suka",
+   "s": "Share tidak tersedia di perangkat ini",
    "n": 3
   },
   {
@@ -403,10 +415,6 @@
    "n": 2
   },
   {
-   "s": "Belum ada foto sampul",
-   "n": 2
-  },
-  {
    "s": "Belum ada komentar. Jadilah yang pertama!",
    "n": 2
   },
@@ -444,10 +452,6 @@
   },
   {
    "s": "Bisnis",
-   "n": 2
-  },
-  {
-   "s": "Blokir pengguna",
    "n": 2
   },
   {
@@ -511,7 +515,15 @@
    "n": 2
   },
   {
+   "s": "Email kontak",
+   "n": 2
+  },
+  {
    "s": "Foto profil",
+   "n": 2
+  },
+  {
+   "s": "Foto sampul profil",
    "n": 2
   },
   {
@@ -520,10 +532,6 @@
   },
   {
    "s": "Gagal memblokir pengguna",
-   "n": 2
-  },
-  {
-   "s": "Gagal memperbarui suka",
    "n": 2
   },
   {
@@ -544,10 +552,6 @@
   },
   {
    "s": "Gagal mengirim pesan",
-   "n": 2
-  },
-  {
-   "s": "Gagal menyiapkan share",
    "n": 2
   },
   {
@@ -648,6 +652,10 @@
   },
   {
    "s": "Komentar terkirim",
+   "n": 2
+  },
+  {
+   "s": "Kontak publik",
    "n": 2
   },
   {
@@ -755,6 +763,10 @@
    "n": 2
   },
   {
+   "s": "Nomor HP kontak",
+   "n": 2
+  },
+  {
    "s": "Nomor resi",
    "n": 2
   },
@@ -772,6 +784,10 @@
   },
   {
    "s": "Pencarian",
+   "n": 2
+  },
+  {
+   "s": "Pengaturan",
    "n": 2
   },
   {
@@ -851,15 +867,15 @@
    "n": 2
   },
   {
-   "s": "Share tidak tersedia di perangkat ini",
-   "n": 2
-  },
-  {
    "s": "Skor Kepercayaan",
    "n": 2
   },
   {
    "s": "Sudah punya akun?",
+   "n": 2
+  },
+  {
+   "s": "Suka",
    "n": 2
   },
   {
@@ -1327,10 +1343,6 @@
    "n": 1
   },
   {
-   "s": "Beli sekarang",
-   "n": 1
-  },
-  {
    "s": "Belum ada aktivitas",
    "n": 1
   },
@@ -1600,6 +1612,10 @@
   },
   {
    "s": "Blokir",
+   "n": 1
+  },
+  {
+   "s": "Blokir pengguna",
    "n": 1
   },
   {
@@ -2079,10 +2095,6 @@
    "n": 1
   },
   {
-   "s": "Discover",
-   "n": 1
-  },
-  {
    "s": "Ditampilkan di profil publik Anda.",
    "n": 1
   },
@@ -2163,10 +2175,6 @@
    "n": 1
   },
   {
-   "s": "Email kontak",
-   "n": 1
-  },
-  {
    "s": "Email saat ini",
    "n": 1
   },
@@ -2200,6 +2208,10 @@
   },
   {
    "s": "Eskalasi sengketa ke admin?",
+   "n": 1
+  },
+  {
+   "s": "Etalase",
    "n": 1
   },
   {
@@ -2268,14 +2280,6 @@
   },
   {
    "s": "Foto sampul diperbarui",
-   "n": 1
-  },
-  {
-   "s": "Foto sampul profil",
-   "n": 1
-  },
-  {
-   "s": "Foto Showcase",
    "n": 1
   },
   {
@@ -3199,10 +3203,6 @@
    "n": 1
   },
   {
-   "s": "Keamanan & Tindakan",
-   "n": 1
-  },
-  {
    "s": "Kedaluwarsa",
    "n": 1
   },
@@ -3559,14 +3559,6 @@
    "n": 1
   },
   {
-   "s": "Kontak publik",
-   "n": 1
-  },
-  {
-   "s": "Konten",
-   "n": 1
-  },
-  {
    "s": "Kredensial",
    "n": 1
   },
@@ -3668,10 +3660,6 @@
   },
   {
    "s": "Laporkan",
-   "n": 1
-  },
-  {
-   "s": "Laporkan akun",
    "n": 1
   },
   {
@@ -4363,10 +4351,6 @@
    "n": 1
   },
   {
-   "s": "Nomor HP kontak",
-   "n": 1
-  },
-  {
    "s": "Nomor invoice disalin",
    "n": 1
   },
@@ -4624,10 +4608,6 @@
   },
   {
    "s": "Penerimaan dikonfirmasi",
-   "n": 1
-  },
-  {
-   "s": "Pengaturan",
    "n": 1
   },
   {
@@ -5111,7 +5091,7 @@
    "n": 1
   },
   {
-   "s": "Produk",
+   "s": "Profil",
    "n": 1
   },
   {
@@ -5539,10 +5519,6 @@
    "n": 1
   },
   {
-   "s": "Showcase #",
-   "n": 1
-  },
-  {
    "s": "Silakan masuk dengan kata sandi baru Anda.",
    "n": 1
   },
@@ -5691,11 +5667,11 @@
    "n": 1
   },
   {
-   "s": "Tab Showcase sosial",
+   "s": "Tab profil saya",
    "n": 1
   },
   {
-   "s": "Tab temukan pengguna",
+   "s": "Tab Showcase sosial",
    "n": 1
   },
   {
@@ -5792,14 +5768,6 @@
   },
   {
    "s": "Tanggapi sebelum tenggat agar dana tidak tertahan lebih lama",
-   "n": 1
-  },
-  {
-   "s": "Tanya",
-   "n": 1
-  },
-  {
-   "s": "Tanya penjual",
    "n": 1
   },
   {
@@ -6056,6 +6024,10 @@
   },
   {
    "s": "Tidak bisa akses aplikasi? Pakai kode cadangan",
+   "n": 1
+  },
+  {
+   "s": "Tidak dibagikan",
    "n": 1
   },
   {
