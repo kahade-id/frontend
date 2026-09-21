@@ -7,16 +7,16 @@
    "n": 48
   },
   {
+   "s": "Hapus",
+   "n": 26
+  },
+  {
    "s": "Gagal memuat",
    "n": 25
   },
   {
-   "s": "Hapus",
-   "n": 25
-  },
-  {
    "s": "Kembali",
-   "n": 10
+   "n": 11
   },
   {
    "s": "Lainnya",
@@ -47,10 +47,6 @@
    "n": 6
   },
   {
-   "s": "Pesan",
-   "n": 6
-  },
-  {
    "s": "Tutup",
    "n": 6
   },
@@ -60,6 +56,10 @@
   },
   {
    "s": "Komentar",
+   "n": 5
+  },
+  {
+   "s": "Pesan",
    "n": 5
   },
   {
@@ -411,6 +411,10 @@
    "n": 2
   },
   {
+   "s": "Batal memilih",
+   "n": 2
+  },
+  {
    "s": "Batalkan penarikan",
    "n": 2
   },
@@ -479,6 +483,10 @@
    "n": 2
   },
   {
+   "s": "Cari pesan",
+   "n": 2
+  },
+  {
    "s": "Coba lagi",
    "n": 2
   },
@@ -499,7 +507,7 @@
    "n": 2
   },
   {
-   "s": "Edit pesan",
+   "s": "Edit",
    "n": 2
   },
   {
@@ -683,6 +691,14 @@
    "n": 2
   },
   {
+   "s": "Lihat pesanan",
+   "n": 2
+  },
+  {
+   "s": "Lihat profil",
+   "n": 2
+  },
+  {
    "s": "Lihat semua",
    "n": 2
   },
@@ -771,6 +787,10 @@
    "n": 2
   },
   {
+   "s": "Opsi percakapan",
+   "n": 2
+  },
+  {
    "s": "Pelecehan",
    "n": 2
   },
@@ -804,6 +824,10 @@
   },
   {
    "s": "Perbaiki alamat email",
+   "n": 2
+  },
+  {
+   "s": "Percakapan",
    "n": 2
   },
   {
@@ -844,10 +868,6 @@
   },
   {
    "s": "Pusat Bantuan",
-   "n": 2
-  },
-  {
-   "s": "Reaksi",
    "n": 2
   },
   {
@@ -1003,11 +1023,39 @@
    "n": 1
   },
   {
+   "s": "{x} ({x} percakapan)",
+   "n": 1
+  },
+  {
+   "s": "{x} dipilih",
+   "n": 1
+  },
+  {
    "s": "{x} foto — tambah, urutkan, hapus",
    "n": 1
   },
   {
    "s": "{x} mengikuti",
+   "n": 1
+  },
+  {
+   "s": "{x} pesan akan dihapus untuk semua peserta ruang.",
+   "n": 1
+  },
+  {
+   "s": "{x} pesan akan diteruskan sekaligus.",
+   "n": 1
+  },
+  {
+   "s": "{x} pesan dihapus",
+   "n": 1
+  },
+  {
+   "s": "{x} pesan dipilih",
+   "n": 1
+  },
+  {
+   "s": "{x} pesan diteruskan",
    "n": 1
   },
   {
@@ -1195,7 +1243,7 @@
    "n": 1
   },
   {
-   "s": "Arsipkan",
+   "s": "Arsipkan percakapan",
    "n": 1
   },
   {
@@ -1308,10 +1356,6 @@
   },
   {
    "s": "Baru",
-   "n": 1
-  },
-  {
-   "s": "Batal memilih",
    "n": 1
   },
   {
@@ -1611,11 +1655,7 @@
    "n": 1
   },
   {
-   "s": "Bisukan",
-   "n": 1
-  },
-  {
-   "s": "Bisukan {x} jam",
+   "s": "Bisukan percakapan",
    "n": 1
   },
   {
@@ -1691,10 +1731,6 @@
    "n": 1
   },
   {
-   "s": "Buka arsip",
-   "n": 1
-  },
-  {
    "s": "Buka beranda",
    "n": 1
   },
@@ -1751,7 +1787,7 @@
    "n": 1
   },
   {
-   "s": "Buka percakapan",
+   "s": "Buka profil lawan bicara",
    "n": 1
   },
   {
@@ -1764,10 +1800,6 @@
   },
   {
    "s": "Buka voucher",
-   "n": 1
-  },
-  {
-   "s": "Bukakan suara",
    "n": 1
   },
   {
@@ -1860,14 +1892,6 @@
   },
   {
    "s": "Cari pengguna, pesanan, atau mutasi",
-   "n": 1
-  },
-  {
-   "s": "Cari pesan",
-   "n": 1
-  },
-  {
-   "s": "Cari pesan di percakapan ini",
    "n": 1
   },
   {
@@ -2127,10 +2151,6 @@
    "n": 1
   },
   {
-   "s": "Edit",
-   "n": 1
-  },
-  {
    "s": "Edit komentar",
    "n": 1
   },
@@ -2140,6 +2160,10 @@
   },
   {
    "s": "Edit nama pemilik",
+   "n": 1
+  },
+  {
+   "s": "Edit pesan",
    "n": 1
   },
   {
@@ -2743,6 +2767,10 @@
    "n": 1
   },
   {
+   "s": "Gulir ke pesan terbaru",
+   "n": 1
+  },
+  {
    "s": "Gunakan angka yang mudah Anda ingat",
    "n": 1
   },
@@ -2831,11 +2859,11 @@
    "n": 1
   },
   {
-   "s": "Hapus pesan",
+   "s": "Hapus pesan ini?",
    "n": 1
   },
   {
-   "s": "Hapus pesan ini?",
+   "s": "Hapus pesan yang dipilih?",
    "n": 1
   },
   {
@@ -3243,11 +3271,19 @@
    "n": 1
   },
   {
+   "s": "Keluarkan dari arsip",
+   "n": 1
+  },
+  {
    "s": "Kemarin",
    "n": 1
   },
   {
    "s": "Kembali ke beranda",
+   "n": 1
+  },
+  {
+   "s": "Kembali ke layar sebelumnya",
    "n": 1
   },
   {
@@ -3260,6 +3296,10 @@
   },
   {
    "s": "Kembali ke pembeli",
+   "n": 1
+  },
+  {
+   "s": "Kembalikan suara",
    "n": 1
   },
   {
@@ -3743,15 +3783,7 @@
    "n": 1
   },
   {
-   "s": "Lihat pesanan",
-   "n": 1
-  },
-  {
-   "s": "Lihat pesanan terkait",
-   "n": 1
-  },
-  {
-   "s": "Lihat profil",
+   "s": "Lihat pesanan, cari pesan, dan pengaturan ruang",
    "n": 1
   },
   {
@@ -3940,6 +3972,10 @@
   },
   {
    "s": "Membuka menu bagikan perangkat",
+   "n": 1
+  },
+  {
+   "s": "Membuka pesan terpin di percakapan, atau tekan lama untuk melepas pin",
    "n": 1
   },
   {
@@ -4164,6 +4200,10 @@
   },
   {
    "s": "Menutup pesan ini",
+   "n": 1
+  },
+  {
+   "s": "Menyalin teks pesan yang dipilih",
    "n": 1
   },
   {
@@ -4739,7 +4779,15 @@
    "n": 1
   },
   {
-   "s": "Percakapan",
+   "s": "Percakapan diarsipkan",
+   "n": 1
+  },
+  {
+   "s": "Percakapan dibisukan",
+   "n": 1
+  },
+  {
+   "s": "Percakapan dikeluarkan dari arsip",
    "n": 1
   },
   {
@@ -4931,6 +4979,10 @@
    "n": 1
   },
   {
+   "s": "Pesan terpin",
+   "n": 1
+  },
+  {
    "s": "Pesan tidak diteruskan",
    "n": 1
   },
@@ -5035,6 +5087,10 @@
    "n": 1
   },
   {
+   "s": "Pin",
+   "n": 1
+  },
+  {
    "s": "PIN {x} digit untuk mengonfirmasi transaksi. Jangan gunakan tanggal lahir atau angka yang mudah ditebak.",
    "n": 1
   },
@@ -5056,10 +5112,6 @@
   },
   {
    "s": "PIN lama",
-   "n": 1
-  },
-  {
-   "s": "Pin pesan",
    "n": 1
   },
   {
@@ -5164,6 +5216,10 @@
   },
   {
    "s": "Rating terkirim",
+   "n": 1
+  },
+  {
+   "s": "Reaksi {x}",
    "n": 1
   },
   {
@@ -5339,7 +5395,7 @@
    "n": 1
   },
   {
-   "s": "Salin teks",
+   "s": "Salin",
    "n": 1
   },
   {
@@ -5648,6 +5704,10 @@
   },
   {
    "s": "Struk siap dibagikan",
+   "n": 1
+  },
+  {
+   "s": "Suara percakapan dikembalikan",
    "n": 1
   },
   {

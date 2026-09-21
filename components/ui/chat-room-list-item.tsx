@@ -1,40 +1,54 @@
 /**
  * Kahade — <ChatRoomListItem> (§9.17 List Item, §9.14 badge unread).
  *
- * Baris ruang obrolan di tab Chat: Avatar md (+ Dot online) -> nama + waktu
- * pesan terakhir di baris pertama; preview pesan + indikator (unread / muted /
- * pinned) di baris kedua. Konteks order opsional (mis. "Order #KHD-2391")
- * sebagai caption Mono text-secondary di bawah nama — bukan Badge.
+ * Baris ruang obrolan di layar Chat. Anatomi v3 (2026-09-21, referensi
+ * WhatsApp — permintaan pemilik produk) adalah DUA baris teks tepat, tanpa
+ * baris konteks ketiga dan tanpa chevron:
  *
- * v2 (2026-09):
- *   - Daftar Chat TIDAK memakai pemisah antar baris: irama dibentuk dari
- *     spasi (`divider` top + bottom, `gap-0.5`, `min-h`) supaya daftar pesan
- *     terlihat rapat & sunyi, konsisten dengan daftar notifikasi. Divider
- *     tersisa saat BARIS PERTAMA/TERAKHIR butuh bingkai dari elemen
- *     bersebelahan (mis. kartu ringkasan).
- *   - Trailing `<CaretRight>` di kanan sebagai affordansi "ruang bisa
- *     dibuka", BUKAN unread-pill besar — jumlah belum dibaca jadi caption
- *     di bawah waktu agar navigasi tidak terikat status.
+ *   [avatar 48] nama lengkap .................. order id (mono, terpotong tengah)
+ *               preview pesan terakhir ........ [bisu] [unread] waktu
  *
- * Mengikuti anatomi ListItem (`min-h-14 px-5 py-3 gap-3`) supaya irama list
- * konsisten. Tidak dibangun di atas <ListItem> karena punya dua kolom kanan
- * (waktu di atas, unread di bawah) yang tidak ada di kontrak ListItem.
+ * Kenapa dua baris cukup (dan kenapa baris ketiga dihapus): konteks order
+ * ("Pesanan KHD-23…") dulu menempati baris ketiga sehingga tiap baris list
+ * setinggi ±86px — daftar chat terasa seperti daftar pesanan, bukan daftar
+ * percakapan. Order id dipindah ke kanan baris pertama sebagai metadata
+ * (mono, caption, tanpa kata "Pesanan" — redundan di layar Chat), dan daftar
+ * kembali rapat: satu layar memuat 8–9 percakapan, bukan 5.
+ *
+ * Ukuran & tipografi (pas di semua device, bukan hanya 360dp):
+ *   - Avatar 48px (`size="lg"` di-override `h-12 w-12`) — di antara md 40 dan
+ *     lg 56; 48 adalah titik tempat wajah tetap terbaca tanpa membuat baris
+ *     lebih tinggi dari 68px. Di layar sempit (< 360dp, mis. iPhone SE
+ *     landscape/Android go) turun ke md 40 agar nama tidak terpotong.
+ *   - Nama `bodyLarge` (16) weight 500, naik 600 saat ada pesan belum dibaca.
+ *   - Preview `body` (14) text-secondary; `text-primary` + 500 saat unread /
+ *     mengetik — pembeda utama sebelum mata sampai ke angka unread.
+ *   - Order id & waktu `caption` (12) tabular; waktu naik ke primary/500 saat
+ *     unread (pola WhatsApp: jam ikut menebal bersama badge).
  *
  * Keputusan non-obvious:
- *   - Unread count = pill kecil `bg-primary` teks inverse caption 600
- *     tabular, BUKAN merah. §9.14 memakai dot merah tanpa angka hanya untuk
- *     tab bar; di dalam daftar, jumlah pesan bukan status bahaya — hitam
- *     (otoritas, §1) sudah cukup menonjol.
- *   - Baris unread menaikkan nama ke weight 600; preview ke 500 — ini
- *     pembeda utama sebelum user melihat angka.
- *   - Waktu caption tabular (bukan Mono). Formatnya tanggung jawab pemanggil.
+ *   - TANPA pemisah antar baris dan TANPA garis di baris pertama: irama
+ *     dibentuk spasi (py-2.5) + hierarki tipografi. `divider`/`dividerTop`
+ *     tetap tersedia untuk pemakai yang butuh bingkai (mis. di bawah kartu
+ *     ringkasan) — inset-nya dihitung dari anatomi baris di bawah.
+ *   - TANPA `<CaretRight>`: seluruh baris adalah target ketuk dan daftar chat
+ *     adalah pola yang sudah dipahami; chevron hanya menambah tinta dan
+ *     menyempitkan preview pesan.
+ *   - Unread = pill `bg-primary` teks inverse caption 600 tabular (bukan
+ *     merah — §9.14 memakai dot merah tanpa angka hanya untuk tab bar; jumlah
+ *     pesan bukan status bahaya).
  *   - `typing` mengganti preview dengan "mengetik…" weight 500.
  *   - Prefix "Anda: " ditambahkan bila `lastMessage.fromSelf`.
- *   - Online = <Dot size="md" tone="success" ring> di kanan-bawah avatar.
- *   - Muted/pinned = ikon 16px text-tertiary di sebelah waktu.
+ *   - Online = <Dot size="lg" tone="success" ring> di kanan-bawah avatar.
+ *   - Mode pilih (`selecting`): baris menjadi target toggle, lencana Check
+ *     menumpuk avatar (menggantikan dot online), dan baris terpilih diberi
+ *     `bg-surface`. Dipakai layar Chat untuk aksi massal arsip/bisu — pola
+ *     yang sama dengan daftar Notifikasi, TANPA ActionSheet.
+ *   - `ripple` default ON di sini: baris list adalah permukaan yang disapu
+ *     jari (lihat PressableScale — keputusan produk 2026-09-21).
  */
-import { View, type ViewProps } from "react-native"
-import { BellSlash, CaretRight, PushPin } from "phosphor-react-native"
+import { Check, BellSlash, PushPin } from "phosphor-react-native"
+import { useWindowDimensions, View, type ViewProps } from "react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Dot } from "@/components/ui/dot"
@@ -63,18 +77,48 @@ export type ChatRoomListItemProps = Omit<ViewProps, "children"> & {
   typing?: boolean
   muted?: boolean
   pinned?: boolean
-  /** Konteks transaksi, mis. "Order #KHD-2391" — dirender Badge outline Mono */
+  /**
+   * Metadata transaksi ringkas di kanan baris pertama — order id mentah yang
+   * sudah dipotong pemanggil (`truncateMiddle(orderId)`), TANPA kata
+   * "Pesanan". Dirender Mono caption text-secondary.
+   */
   context?: string
   onPress?: () => void
   onLongPress?: () => void
+  /** Mode pilih-banyak aktif: baris menjadi toggle, lencana Check tampil. */
+  selecting?: boolean
+  /** Baris ini sedang dipilih (hanya bermakna saat `selecting`). */
+  selected?: boolean
+  /** Umpan balik ripple — default ON (baris list = permukaan sapuan jari). */
+  ripple?: boolean
   divider?: boolean
   /** Garis batas ATAS — untuk baris pertama yang butuh bingkai (kartu dst). */
   dividerTop?: boolean
-  labels?: { you?: string; typing?: string; unread?: string }
+  labels?: { you?: string; typing?: string; unread?: string; selected?: string }
   className?: string
 }
 
-const DEFAULT_LABELS = { you: "Anda", typing: "mengetik…", unread: "belum dibaca" }
+const DEFAULT_LABELS = {
+  you: "Anda",
+  typing: "mengetik…",
+  unread: "belum dibaca",
+  selected: "dipilih",
+}
+
+/**
+ * Lebar layar (dp) di bawahnya avatar turun ke `md` (40px). 360 adalah lebar
+ * Android paling umum; di bawah itu (320dp) kolom teks kehilangan 8px yang
+ * justru dibutuhkan nama panjang.
+ */
+const NARROW_WIDTH = 360
+/** Diameter avatar baris chat di layar normal — lihat docblock. */
+const AVATAR_WIDE_CLASS = "h-12 w-12"
+/**
+ * Inset divider = gutter kiri (px-4 = 16) + avatar (48) + gap (space.3 = 12)
+ * = 76, supaya garis mulai sejajar TEKS nama, bukan sejajar avatar.
+ */
+const DIVIDER_INSET_WIDE = tokens.space[4] + 48 + tokens.space[3]
+const DIVIDER_INSET_NARROW = tokens.space[4] + 40 + tokens.space[3]
 
 export function ChatRoomListItem({
   name,
@@ -90,6 +134,9 @@ export function ChatRoomListItem({
   context,
   onPress,
   onLongPress,
+  selecting = false,
+  selected = false,
+  ripple = true,
   divider = false,
   dividerTop = false,
   labels,
@@ -97,6 +144,8 @@ export function ChatRoomListItem({
   ...rest
 }: ChatRoomListItemProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
+  const { width } = useWindowDimensions()
+  const compact = width < NARROW_WIDTH
   const hasUnread = unreadCount > 0
   const unreadLabel = unreadCount > 99 ? "99+" : String(unreadCount)
 
@@ -107,9 +156,10 @@ export function ChatRoomListItem({
       : ""
 
   const a11yLabel = [
+    selecting && selected ? t.selected : undefined,
     name,
-    context,
     preview,
+    context,
     time,
     hasUnread ? `${unreadCount} ${t.unread}` : undefined,
     muted ? "dibisukan" : undefined,
@@ -120,28 +170,85 @@ export function ChatRoomListItem({
     .join(", ")
 
   const row = (
-    <View className="min-h-14 flex-row items-center gap-3 px-5 py-3">
+    <View
+      className={cn(
+        "min-h-16 flex-row items-center gap-3 px-4 py-2.5",
+        selecting && selected && "bg-surface",
+      )}
+    >
+      {/* Leading: avatar + status (online / lencana pilih) */}
       <View>
-        <Avatar source={avatar} name={name} size="md" verified={verified} />
-        {online ? (
-          <Dot size="md" tone="success" ring className="absolute bottom-0 right-0" />
+        <Avatar
+          source={avatar}
+          name={name}
+          size={compact ? "md" : "lg"}
+          verified={verified}
+          className={compact ? undefined : AVATAR_WIDE_CLASS}
+        />
+        {selecting ? (
+          <View
+            className={cn(
+              "absolute bottom-0 right-0 h-5 w-5 items-center justify-center rounded-full border-focus border-background",
+              selected ? "bg-primary" : "bg-surface",
+            )}
+          >
+            {selected ? (
+              <Icon icon={Check} size={12} tone="inverse" weight="bold" />
+            ) : null}
+          </View>
+        ) : online ? (
+          <Dot size="lg" tone="success" ring className="absolute bottom-0 right-0" />
         ) : null}
       </View>
 
-      <View className="flex-1 gap-0.5">
+      {/* Kolom teks: tepat dua baris */}
+      <View className="min-w-0 flex-1 gap-0.5">
+        {/* Baris 1 — nama (kiri) · order id (kanan) */}
         <View className="flex-row items-center gap-2">
-          <Text ellipsizeMode="tail"
-            variant="body"
+          <Text
+            ellipsizeMode="tail"
+            variant="bodyLarge"
             weight={hasUnread ? 600 : 500}
             tone="primary"
             numberOfLines={1}
-            className="flex-1"
+            className="min-w-0 flex-1"
           >
             {name}
           </Text>
-          <View className="flex-row items-center gap-1">
-            {pinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
+          {pinned ? <Icon icon={PushPin} size="xs" tone="default" /> : null}
+          {context ? (
+            <Text
+              variant="caption"
+              tone="secondary"
+              numberOfLines={1}
+              className="max-w-[38%] shrink-0 font-mono-500"
+            >
+              {context}
+            </Text>
+          ) : null}
+        </View>
+
+        {/* Baris 2 — preview pesan (kiri) · indikator + waktu (kanan) */}
+        <View className="flex-row items-center gap-2">
+          <Text
+            ellipsizeMode="tail"
+            variant="body"
+            tone={typing || hasUnread ? "primary" : "secondary"}
+            weight={typing || hasUnread ? 500 : 400}
+            numberOfLines={1}
+            className="min-w-0 flex-1"
+          >
+            {preview}
+          </Text>
+          <View className="flex-row shrink-0 items-center gap-1.5">
             {muted ? <Icon icon={BellSlash} size="xs" tone="default" /> : null}
+            {hasUnread ? (
+              <View className="items-center justify-center rounded-full bg-primary px-1.5 py-[1px]">
+                <Text variant="caption" tone="inverse" weight={600} className="tabular-nums">
+                  {unreadLabel}
+                </Text>
+              </View>
+            ) : null}
             {time ? (
               <Text
                 variant="caption"
@@ -154,35 +261,6 @@ export function ChatRoomListItem({
             ) : null}
           </View>
         </View>
-
-        <View className="flex-row items-center gap-2">
-          <Text
-            variant="caption"
-            tone={typing || hasUnread ? "primary" : "secondary"}
-            weight={typing || hasUnread ? 500 : 400}
-            numberOfLines={1}
-            className="flex-1"
-          >
-            {preview}
-          </Text>
-          {/* Panel kanan-bawah: count pesan belum dibaca → chevron navigasi. */}
-          <View className="items-center">
-            {hasUnread ? (
-              <View className="items-center justify-center rounded-full bg-primary px-1.5 py-[1px]">
-                <Text variant="caption" tone="inverse" weight={600} className="tabular-nums">
-                  {unreadLabel}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-          {onPress ? <Icon icon={CaretRight} size="xs" tone="default" /> : null}
-        </View>
-
-        {context ? (
-          <Text variant="caption" tone="secondary" numberOfLines={1} className="font-mono-500">
-            {context}
-          </Text>
-        ) : null}
       </View>
     </View>
   )
@@ -192,7 +270,7 @@ export function ChatRoomListItem({
       accessibilityRole="none"
       importantForAccessibility="no"
       className="h-px bg-border"
-      style={{ marginLeft: tokens.layout.rowDividerInset.avatar }}
+      style={{ marginLeft: compact ? DIVIDER_INSET_NARROW : DIVIDER_INSET_WIDE }}
     />
   )
 
@@ -202,10 +280,14 @@ export function ChatRoomListItem({
 
       {onPress || onLongPress ? (
         <PressableScale
-          accessibilityRole="button"
+          accessibilityRole={selecting ? "checkbox" : "button"}
           accessibilityLabel={a11yLabel}
-          accessibilityHint="Buka percakapan"
+          accessibilityState={selecting ? { selected, checked: selected } : undefined}
+          accessibilityHint={
+            selecting ? undefined : "Buka percakapan, atau tekan lama untuk memilih beberapa"
+          }
           scaleOnPress={false}
+          ripple={ripple}
           onPress={onPress}
           onLongPress={onLongPress}
           containerClassName={cn("w-full", focusRingInset)}
