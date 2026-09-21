@@ -95,7 +95,7 @@ Artinya: **pipa CI lokal hijau, tetapi hijau ≠ benar**. Mayoritas temuan di ba
 **Dampak:** bila backend hanya mengirim `bankCode`, layar hasil menampilkan "undefined •••• 1234" pada konfirmasi penarikan.
 **Saran:** `selected.bankName ?? selected.bankCode` konsisten di semua titik render.
 
-### A-11 🟠 QRIS: polling berhenti diam-diam setelah 15 menit, tanpa状态 ke pengguna
+### A-11 🟠 QRIS: polling berhenti diam-diam setelah 15 menit, tanpa status ke pengguna
 **Bukti:** `app/order/[id].tsx:261,379-391` — `MAX_QRIS_POLLS = 300`; saat tercapai, `usePolling` di-disable tetapi tidak ada state UI "pemantauan berhenti". Tidak ada countdown kedaluwarsa QR juga — hanya teks statis "Berlaku sampai {formatDateTime(qris.expiresAt)}" (`app/order/[id].tsx:823`).
 **Dampak:** pembeli yang membiarkan sheet QR terbuka >15 menit tidak tahu status tidak lagi dipantau; pembayaran yang masuk setelahnya tidak memicu toast/refresh otomatis. Tanpa countdown, pengguna tidak merasa dikejar tenggat (dan `expiresAt` dirender dengan jam perangkat — lihat F-13).
 **Saran:** tampilkan `<Countdown until={qris.expiresAt}>` hidup, dan saat poll cap/expire tercapai ubah CTA jadi "Periksa status" manual + tampilkan status EXPIRED.
@@ -317,7 +317,7 @@ Artinya: **pipa CI lokal hijau, tetapi hijau ≠ benar**. Mayoritas temuan di ba
 ### D-11 🔵 89 cast `as any` di lapisan API
 **Bukti:** `grep -rn "as any" lib/` → 89 (mayoritas `lib/api/auth.ts:184-405` dst. untuk fallback snake_case). ESLint sengaja mematikannya (`eslint.config.mjs:70-72`).
 **Dampak:** normalizer defensif bagus, tetapi `as any` ganda menandakan kontrak respons yang belum diverifikasi (selaras API-06: hanya 3/260 operasi punya response schema).
-**Saran:**替 `as any` dengan `asRecord()`/`pickString()` (sudah ada di `lib/api/response.ts`) agar akses properti tak dikenal type-safe.
+**Saran:** ganti `as any` dengan `asRecord()`/`pickString()` (sudah ada di `lib/api/response.ts`) agar akses properti tak dikenal type-safe.
 
 ### D-12 🟡 Feedback queue menyimpan email/konteks transaksi (walau dibatasi)
 **Bukti:** `lib/feedback.ts:40-45,54-55` — antrian offline di SecureStore berisi `message` (≤2000) + `contact` (≤254), TTL 7 hari; `lib/secure-storage.ts:57-64` mengakui "Feedback dapat berisi email/konteks transaksi". Di web memory-only (benar).
@@ -458,7 +458,7 @@ Artinya: **pipa CI lokal hijau, tetapi hijau ≠ benar**. Mayoritas temuan di ba
 
 ### F-09 🟡 `hasNewIds` menghentikan paginasi saat satu halaman penuh duplikat
 **Bukti:** `lib/use-paginated-query.ts:49-56` — `hasNext = … && (reset || hasNewIds) && page < totalPages`.
-**Dampak:** jika backend menggeser urutan (item baru masuk di atas) sehingga halaman berikutnya全是 duplikat, daftar berhenti memuat padahal `totalPages` mengatakan masih ada — item lama tak terjangkau.
+**Dampak:** jika backend menggeser urutan (item baru masuk di atas) sehingga halaman berikutnya seluruhnya duplikat, daftar berhenti memuat padahal `totalPages` mengatakan masih ada — item lama tak terjangkau.
 **Saran:** andalkan `page < totalPages` saja; duplikat sudah diurus `mergeById`.
 
 ### F-10 🔵 `mergeById` mempertahankan posisi lama untuk item yang diperbarui
@@ -625,7 +625,7 @@ Artinya: **pipa CI lokal hijau, tetapi hijau ≠ benar**. Mayoritas temuan di ba
 ### I-06 🟡 PWA tanpa update prompt & tanpa penanganan install
 **Bukti:** `public/sw.js:15-17` (`skipWaiting()` + `clients.claim()` — update senyap); `public/register-sw.js` tanpa event `controllerchange`; tidak ada UI "Update tersedia" / `beforeinstallprompt` selain `SmartAppInstallCard` (banner iOS/Android saja).
 **Dampak:** pengguna web bisa menjalankan bundle lama+baru campur dalam satu sesi (asset cache-first + dokumen network-first); tidak ada jalur install terarah.
-**Saran:** tunda `skipWaiting` sampai用户 konfirmasi, atau minimal toast "Versi baru dimuat".
+**Saran:** tunda `skipWaiting` sampai pengguna konfirmasi, atau minimal toast "Versi baru dimuat".
 
 ### I-07 🟡 `runtimeVersion: fingerprint` + OTA tanpa kebijakan rollback yang teruji
 **Bukti:** `app.json` (updates policy fingerprint, checkAutomatically ON_LOAD); `scripts/check-ota.mjs` ada sebagai preflight tetapi tidak ada prosedur rollback terdokumentasi di `docs/`.
@@ -697,7 +697,7 @@ Artinya: **pipa CI lokal hijau, tetapi hijau ≠ benar**. Mayoritas temuan di ba
 **Nilai:** kebutuhan pembukuan/visa/bank; minimal ubah label jadi "Cetak/PDF (HTML)" sampai backend menghasilkan PDF asli.
 
 ### J-11 💡 Unduh/cetak kode cadangan 2FA dengan konfirmasi "sudah saya simpan"
-**Konteks:** `components/ui/backup-codes-display.tsx` menampilkan + salin; tidak ada langkah konfirmasi penyimpanan/unduh berkas (rekomendasi audit §6.1 belum落地).
+**Konteks:** `components/ui/backup-codes-display.tsx` menampilkan + salin; tidak ada langkah konfirmasi penyimpanan/unduh berkas (rekomendasi audit §6.1 belum diterapkan).
 **Nilai:** mencegah lockout permanen saat kehilangan perangkat.
 
 ### J-12 💡 Penjelasan risiko perangkat baru (lokasi/IP/perangkat) di security-activity

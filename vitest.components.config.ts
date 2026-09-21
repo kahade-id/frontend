@@ -48,6 +48,11 @@ export default defineConfig({
       "expo-router": `${stub("expo-router")}x`,
       "expo-clipboard": stub("expo-clipboard"),
       // nativewind me-require `react-native` asli dari CJS (Flow) — stub.
+      // Subpath JSX HARUS di-alias eksplisit dan DULUAN: Vitest 5 (oxc)
+      // mengompilasi JSX test ke `nativewind/jsx-dev-runtime` karena
+      // jsxImportSource tsconfig; lihat tests/stubs/nativewind-jsx.ts.
+      "nativewind/jsx-dev-runtime": stub("nativewind-jsx"),
+      "nativewind/jsx-runtime": stub("nativewind-jsx"),
       nativewind: stub("nativewind"),
       // RNGH memuat TurboModule native saat import — tidak ada di jsdom.
       "react-native-gesture-handler": `${stub("react-native-gesture-handler")}x`,

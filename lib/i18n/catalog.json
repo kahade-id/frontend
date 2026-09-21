@@ -39,6 +39,10 @@
    "n": 7
   },
   {
+   "s": "{x} hari",
+   "n": 6
+  },
+  {
    "s": "Isi saldo",
    "n": 6
   },
@@ -128,10 +132,6 @@
   },
   {
    "s": "{x} dari {x}",
-   "n": 3
-  },
-  {
-   "s": "{x} hari",
    "n": 3
   },
   {
@@ -5371,6 +5371,10 @@
    "n": 1
   },
   {
+   "s": "Saring riwayat berdasarkan rentang tanggal",
+   "n": 1
+  },
+  {
    "s": "Saya butuh bantuan isi saldo/top-up",
    "n": 1
   },
@@ -5476,6 +5480,10 @@
   },
   {
    "s": "Semua transaksi",
+   "n": 1
+  },
+  {
+   "s": "Semua waktu",
    "n": 1
   },
   {

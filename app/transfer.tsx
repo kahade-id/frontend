@@ -62,8 +62,8 @@ const PRESETS = AMOUNT_PRESETS.transfer
 /**
  * Batas catatan transfer. A-17 (audit): nilai ini TIDAK ada di kontrak yang
  * di-generate (`TransferDto` hanya memuat aturan `amount`) — 200 adalah
- * keputusan klien dan dicatat sebagai deviasi spec yang diketahui sampai
- * backend menambahkan aturan `note` ke DTO (dilacak `check:api`).
+ * keputusan klien sampai backend menambahkan aturan `note` ke DTO.
+ * Dependensi & kriteria terimanya: docs/audit/BACKEND-DEPENDENCIES.md §A-17.
  */
 const NOTE_MAX = 200
 const TOTAL_STEPS = 3

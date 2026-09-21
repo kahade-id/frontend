@@ -42,7 +42,7 @@ import {
   ArrowCircleDown,
   ArrowCircleUp,
   FileCsv,
-  FilePdf,
+  Printer,
   Wallet as WalletIcon,
 } from "phosphor-react-native"
 
@@ -75,6 +75,19 @@ const ALL = "ALL"
 const TYPE_FILTERS: Array<{ label: string; value: string }> = [
   { label: "Semua", value: ALL },
   ...Object.entries(WALLET_TXN_LABELS).map(([value, label]) => ({ label, value })),
+]
+
+/**
+ * J-09 (audit): filter rentang tanggal — `GET /v1/wallet/transactions`
+ * sudah menerima `from`/`to` (dan adapter lib/api/wallet.ts meneruskannya),
+ * tapi tidak pernah dipakai layar. Preset hari, bukan date-picker: cukup
+ * untuk rekonsiliasi bulanan tanpa menambah komponen baru.
+ */
+const RANGE_FILTERS: Array<{ label: string; days: number | null }> = [
+  { label: "Semua waktu", days: null },
+  { label: "7 hari", days: 7 },
+  { label: "30 hari", days: 30 },
+  { label: "90 hari", days: 90 },
 ]
 
 // ------------------------------------------------------------------
@@ -171,11 +184,24 @@ function HistorySkeleton() {
 
 export default function WalletHistoryScreen() {
   const [type, setType] = useState(ALL)
+  const [rangeDays, setRangeDays] = useState<number | null>(null)
   const { exporting, exportWallet } = useWalletExport()
 
+  // Rentang dihitung saat query dimulai (bukan per render) supaya key stabil.
+  const range = useMemo(() => {
+    if (rangeDays === null) return { from: undefined, to: undefined }
+    const to = new Date()
+    const from = new Date(to.getTime() - rangeDays * 24 * 60 * 60 * 1000)
+    return { from: from.toISOString(), to: to.toISOString() }
+  }, [rangeDays, type])
+
   const query = usePaginatedQuery<WalletTransaction>(
-    `wallet-history:${type}`,
-    (page, signal) => api.wallet.getWalletTransactions({ page, limit: PAGE_SIZE, type }, signal),
+    `wallet-history:${type}:${rangeDays ?? "all"}`,
+    (page, signal) =>
+      api.wallet.getWalletTransactions(
+        { page, limit: PAGE_SIZE, type, from: range.from, to: range.to },
+        signal,
+      ),
     // F-01 (audit): top-up/withdraw diselesaikan di layar lain — mutasi baru
     // harus terlihat saat kembali ke riwayat tanpa pull-to-refresh.
     { refreshOnFocus: true },
@@ -207,7 +233,7 @@ export default function WalletHistoryScreen() {
               onPress={() => void exportWallet("csv")}
             />
             <IconButton
-              icon={FilePdf}
+              icon={Printer}
               size="md"
               variant="ghost"
               accessibilityLabel="Unduh riwayat dompet untuk dicetak"
@@ -243,6 +269,19 @@ export default function WalletHistoryScreen() {
                 </Chip>
               ))}
             </ScrollRow>
+
+              <ScrollRow bleed gap={2} accessibilityLabel="Saring riwayat berdasarkan rentang tanggal">
+                {RANGE_FILTERS.map((filter) => (
+                  <Chip
+                    key={filter.label}
+                    selected={rangeDays === filter.days}
+                    accessibilityState={{ selected: rangeDays === filter.days }}
+                    onPress={() => setRangeDays(filter.days)}
+                  >
+                    {filter.label}
+                  </Chip>
+                ))}
+              </ScrollRow>
 
             {/* ── Kartu ringkasan masuk vs keluar ─────────────── */}
             {items.length > 0 ? (

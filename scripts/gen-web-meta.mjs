@@ -31,6 +31,21 @@ const metadata = [
   { match: /^\/order(?:\/|$)/, title: "Detail order — Kahade", description: "Lihat detail order Kahade dan status escrow." },
   { match: /^\/user(?:\/|$)|^\/profile(?:\/|$)/, title: "Profil pengguna — Kahade", description: "Lihat profil publik pengguna Kahade." },
   { match: /^\/showcase(?:\/|$)/, title: "Showcase — Kahade", description: "Jelajahi showcase publik di Kahade." },
+  // I-05 (audit 2026-09-20): rute publik/corong lain tidak lagi berbagi judul
+  // dasar. Semua entri tetap privacy-safe: judul generik, tanpa data server.
+  { match: /^\/discover\/?$/, title: "Jelajahi Kahade", description: "Temukan penjual, showcase, dan pengguna Kahade." },
+  { match: /^\/disputes(?:\/|$)/, title: "Sengketa — Kahade", description: "Pusat penyelesaian sengketa transaksi Kahade." },
+  { match: /^\/notifications\/?$/, title: "Notifikasi — Kahade", description: "Kabar terbaru aktivitas akun dan transaksi Kahade Anda." },
+  { match: /^\/chat(?:\/|$)/, title: "Pesan — Kahade", description: "Pesan pembeli dan penjual dalam satu transaksi Kahade." },
+  { match: /^\/transactions\/?$/, title: "Riwayat transaksi — Kahade", description: "Pantau status order dan riwayat transaksi escrow Kahade Anda." },
+  { match: /^\/wallet(?:\/|$)/, title: "Dompet — Kahade", description: "Kelola saldo, top-up, dan penarikan dompet Kahade Anda." },
+  { match: /^\/settings(?:\/|$)/, title: "Pengaturan — Kahade", description: "Atur akun, keamanan, dan preferensi aplikasi Kahade." },
+  { match: /^\/support(?:\/|$)/, title: "Dukungan — Kahade", description: "Hubungi tim dukungan Kahade dan pantau tiket bantuan Anda." },
+  { match: /^\/subscriptions(?:\/|$)/, title: "Langganan Premium — Kahade", description: "Fitur premium Kahade untuk penjual dan pembeli aktif." },
+  { match: /^\/referral\/?$/, title: "Undang teman — Kahade", description: "Ajak teman bertransaksi aman di Kahade dan dapatkan reward." },
+  { match: /^\/login\/?$/, title: "Masuk — Kahade", description: "Masuk ke akun Kahade Anda." },
+  { match: /^\/register\/?$/, title: "Daftar — Kahade", description: "Buat akun Kahade dan mulai bertransaksi dengan escrow." },
+  { match: /^\/forgot-password\/?$/, title: "Pulihkan kata sandi — Kahade", description: "Langkah pemulihan kata sandi akun Kahade." },
 ]
 const canonicalRoutes = new Set(["/", "/about", "/contact", "/faq", "/privacy-policy", "/terms"])
 

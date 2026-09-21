@@ -23,6 +23,7 @@ function pickDom(props: Record<string, unknown>) {
   return out
 }
 
+
 export const AppleLogo = stub("AppleLogo")
 export const Archive = stub("Archive")
 export const ArrowCircleDown = stub("ArrowCircleDown")
@@ -150,6 +151,7 @@ export const PhoneDisconnect = stub("PhoneDisconnect")
 export const PhoneSlash = stub("PhoneSlash")
 export const PhoneX = stub("PhoneX")
 export const Plus = stub("Plus")
+export const Printer = stub("Printer")
 export const Prohibit = stub("Prohibit")
 export const PushPin = stub("PushPin")
 export const QrCode = stub("QrCode")
