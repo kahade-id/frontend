@@ -85,3 +85,14 @@ Urutan ekstraksi yang disarankan (seksi dengan seam paling bersih dulu):
 Setiap ekstraksi: pindahkan state via props (bukan context baru) kecuali
 >4 prop drilling; jalankan `npm run check` penuh; turunkan plafon S9 di
 commit yang sama.
+
+## J-03 · Action center sticky di detail order (temuan audit 💡)
+
+Ditunda SEBAGAI redesign terencana, bukan dilupakan — `app/order/[id].tsx`
+sudah menghitung `canPay/canShip/…` terpusat (satu sumber kebenaran), jadi
+memindahkan aksi ke sticky bar per role+status adalah refactor presentasi.
+Risiko sedang pada layar escrow terpenting → kerjakan berpasangan dengan
+ekstraksi sheet aksi (item 1 daftar G-11 di atas) dalam satu PR, dengan uji
+komponen untuk tiap state (`tests/*.test.tsx`, pola money-components).
+Kriteria selesai: satu bar aksi sticky + countdown seragam; plafon S9
+`order/[id]` turun di commit yang sama.

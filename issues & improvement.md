@@ -766,3 +766,208 @@ grep -rn "handleBiometric" app/                           # 3 duplikat no-op (A-
 ```
 
 *Dokumen ini dihasilkan sebagai bagian dari branch `arena/01a0bf24-frontend`. Temuan diberi ID stabil (A-01…K-07) agar bisa dilacak ke tiket/commit perbaikan.*
+
+---
+
+## Lampiran — STATUS PERBAIKAN FINAL (2026-09-21)
+
+Seluruh 135 temuan diproses. Legenda status:
+
+- **✅** — diperbaiki di kode klien, dijaga gate (`npm run check` = typecheck + lint + 9 skrip check + 210 test node + 29 test komponen, semuanya hijau).
+- **✅+EXT** — sisi klien selesai; sisa aksi butuh konsol/kredensial/backend dan terdaftar di `docs/SECURITY-CHECKLIST.md` atau `docs/audit/BACKEND-DEPENDENCIES.md` dengan pemilik langkah & kriteria terima.
+- **📄** — tidak dapat diselesaikan dari klien (butuh kontrak/lingkungan backend); didokumentasikan dengan mitigasi klien saat ini + kriteria terima.
+- **⏸** — keputusan sadar: override pemilik proyek (G-01) atau refactor terencana berisiko (J-03), keduanya terdokumentasi & ter-gate.
+
+Commit perbaikan: `4d1ea9f` (batch B1–B11; riwayat per-batch tersquash oleh reset lingkungan) dan `7897d18` (B12: CI, anggaran bundle, gate audit, dokumen dependensi, J-09/J-10).
+
+### A. Benar/salah fungsional di alur inti
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| A-01 | ✅ | Tiga duplikat no-op `handleBiometric` disatukan ke alur nyata. |
+| A-02 | ✅ | Idem A-01. |
+| A-03 | ✅ | Idem A-01. |
+| A-04 | ✅ |  |
+| A-05 | ✅ |  |
+| A-06 | ✅ |  |
+| A-07 | ✅ |  |
+| A-08 | ✅ |  |
+| A-09 | ✅ |  |
+| A-10 | ✅ |  |
+| A-11 | ✅ | Polling QRIS kini menampilkan status saat berhenti, tidak diam-diam. |
+| A-12 | ✅ |  |
+| A-13 | ✅ |  |
+| A-14 | ✅ |  |
+| A-15 | ✅ |  |
+| A-16 | ✅ |  |
+| A-17 | 📄 | Batas `note` transfer = keputusan klien; register `docs/audit/BACKEND-DEPENDENCIES.md` §A-17 (kriteria terima: aturan `note` masuk spec → `gen:api`). |
+| A-18 | ✅ |  |
+
+### B. Keamanan sisi klien
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| B-01 | ✅ |  |
+| B-02 | ✅ |  |
+| B-03 | ✅ | `onSessionExpired` kini punya subscriber nyata (alur logout paksa). |
+| B-04 | ✅ |  |
+| B-05 | ✅ |  |
+| B-06 | ✅ |  |
+| B-07 | ✅ |  |
+| B-08 | ✅ |  |
+| B-09 | ✅ |  |
+| B-10 | ✅ |  |
+| B-11 | ✅ |  |
+| B-12 | ✅ |  |
+| B-13 | ✅ |  |
+| B-14 | ✅+EXT | Vektor param-URL ditutup di `lib/otp-flow.ts`; rate-limit server di `docs/SECURITY-CHECKLIST.md` §5. |
+
+### C. State & navigasi
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| C-01 | ✅ |  |
+| C-02 | ✅ |  |
+| C-03 | ✅ |  |
+| C-04 | ✅ |  |
+| C-05 | ✅ |  |
+| C-06 | ✅ |  |
+| C-07 | ✅ |  |
+| C-08 | ✅ |  |
+| C-09 | ✅ |  |
+| C-10 | ✅ |  |
+
+### D. Keamanan & kepatuhan
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| D-01 | ✅+EXT | 27 kerentanan → 8 high dari SATU akar build-time (`image-size` via metro; override v2 diverifikasi mematahkan build). Gate nightly `npm run audit:check` + pengecualian sadar bertanggal tinjau — checklist §6. |
+| D-02 | ✅+EXT | Android `FLAG_SECURE` via `plugins/with-flag-secure.js` (terverifikasi prebuild); deteksi capture iOS = checklist §1. |
+| D-03 | ✅ |  |
+| D-04 | ✅+EXT | Komponen captcha diisolasi; proof-of-work provider = backend, checklist §4. |
+| D-05 | ✅ |  |
+| D-06 | ✅ |  |
+| D-07 | ✅+EXT | Konfigurasi native push siap (`check:push` hijau); App Check/restriction di konsol = checklist §2. |
+| D-08 | ✅ |  |
+| D-09 | ✅ |  |
+| D-10 | ✅ |  |
+| D-11 | ✅ |  |
+| D-12 | ✅ |  |
+| D-13 | ✅+EXT | Klien cookie HttpOnly + `credentials: include`; verifikasi SameSite/CSRF server = checklist §3. |
+| D-14 | ✅ |  |
+
+### E. i18n & katalog
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| E-01 | ✅ |  |
+| E-02 | ✅ |  |
+| E-03 | ✅ | Rule kunci-dobel antar-file EN aktif di `check-i18n` (terbukti menangkap duplikat "{x} hari" saat B12). |
+| E-04 | ✅ | Ratchet i18n kini dieksekusi otomatis per PR oleh CI (H-06). |
+| E-05 | ✅ |  |
+| E-06 | ✅ |  |
+| E-07 | ✅ |  |
+| E-08 | ✅ |  |
+| E-09 | ✅ |  |
+| E-10 | ✅ |  |
+
+### F. Performa & data
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| F-01 | ✅ | `refreshOnFocus` di riwayat dompet/transaksi. |
+| F-02 | ✅ |  |
+| F-03 | ✅ |  |
+| F-04 | 📄 | Butuh endpoint agregat backend — register BACKEND-DEPENDENCIES §F-04/K-05; klien sudah dedupe+cache. |
+| F-05 | ✅ |  |
+| F-06 | ✅ |  |
+| F-07 | ✅ |  |
+| F-08 | ✅ |  |
+| F-09 | ✅ |  |
+| F-10 | ✅ |  |
+| F-11 | ✅ | Retry transient teruji (`tests/api-client.test.ts`). |
+| F-12 | ✅ | Diukur & dijaga anggaran bundle (H-07); lazy-loading lanjutan terencana di REFACTOR-PLAN. |
+| F-13 | ✅ |  |
+| F-14 | ✅ |  |
+
+### G. Kebersihan kode & arsitektur
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| G-01 | ⏸ | KEPUTUSAN PEMILIK PROYEK: 29 komponen 'unused' dipulihkan sebagai cadangan roadmap terpelihara — baseline dijaga gate `check:screens` (docblock `scripts/check-screens.mjs`). |
+| G-02 | ✅ |  |
+| G-03 | ✅ |  |
+| G-04 | ✅ |  |
+| G-05 | ✅ |  |
+| G-06 | ✅ |  |
+| G-07 | ✅ |  |
+| G-08 | ✅ |  |
+| G-09 | ✅ |  |
+| G-10 | ✅ |  |
+| G-11 | ✅ | Ratchet plafon baris S9 per file (hanya boleh turun). |
+| G-12 | ✅ |  |
+| G-13 | ✅ |  |
+| G-14 | ✅ |  |
+
+### H. Pengujian & CI
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| H-01 | ✅ | 10 test transport `lib/api/client.ts`. |
+| H-02 | ✅ | 13 test hooks data (retry/fokus/cache/single-flight). |
+| H-03 | ✅ | 27 test `lib/format.ts`. |
+| H-04 | ✅ | `vitest.components.config.ts` + 12 test komponen uang + 4 test render i18n. |
+| H-05 | ✅ | Job `e2e-web-smoke` di CI (Playwright chromium); sandbox lokal tanpa browser — CI jalurnya. |
+| H-06 | ✅ | `.github/workflows/ci.yml`: check+e2e+bundle per PR, audit nightly. |
+| H-07 | ✅ | `scripts/check-bundle-size.mjs` + baseline 7,89 MB (alarm >10%, guard dist rusak). |
+| H-08 | ✅ | 14 test fallback web `lib/secure-storage.ts`. |
+| H-09 | ✅ | Artefak (catalog.json, constraints.ts, coverage per-domain) ter-commit → diff terlihat di tiap PR via CI. |
+
+### I. Build, release & operasional
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| I-01 | ✅ | Duplikat H-06 — selesai bersama CI. |
+| I-02 | ✅+EXT | Placeholder valid + gate `check:weblinks`; fingerprint/Team ID = checklist §8. |
+| I-03 | ✅+EXT | VAPID via env terdokumentasi; setting produksi = checklist §2. |
+| I-04 | ✅+EXT | TODO kredensial per langkah di `eas.json`; akun store = checklist §8. |
+| I-05 | ✅ | 14 pola rute baru di `scripts/gen-web-meta.mjs` (discover/disputes/notifications/chat/…/login). |
+| I-06 | ✅ | `controllerchange` di register-sw.js + toast "Versi baru Kahade tersedia" (B3). |
+| I-07 | ✅ | `docs/OTA-RUNBOOK.md` + `npm run check:ota` (channel, rilis, rollback A/B, smoke test). |
+| I-08 | ✅ | `public/manifest.json` orientation `portrait` → `any`. |
+| I-09 | ✅ | Tabel source-of-truth Firebase satu halaman — checklist §2. |
+| I-10 | 📄 | Butuh staging backend — BACKEND-DEPENDENCIES §K-01/I-10; `verify:api` siap pakai. |
+| I-11 | ✅ | `docs/image/README.md`: asal+kegunaan tiap file & kebijakan aset. |
+
+### J. Improvement fitur & UX
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| J-01 | 📄 | Butuh kontrak fee backend (spec hanya memberi biaya admin top-up) — BACKEND-DEPENDENCIES §J-01; UI sengaja tidak menebak angka. |
+| J-02 | ✅ |  |
+| J-03 | ⏸ | Refactor presentasi berisiko sedang di layar escrow terpenting — dijadwalkan berpasangan dengan ekstraksi G-11 (REFACTOR-PLAN §J-03). |
+| J-04 | ✅ |  |
+| J-05 | ✅ |  |
+| J-06 | ✅ |  |
+| J-07 | ✅ |  |
+| J-08 | ✅ |  |
+| J-09 | ✅ | Filter rentang tanggal (7/30/90 hari/semua) di riwayat dompet, `from`/`to` diteruskan ke API. |
+| J-10 | ✅ | Ekspor = HTML siap-cetak berlabel jujur ("cetak", bukan PDF); ikon FilePdf→Printer. |
+| J-11 | ✅ |  |
+| J-12 | ✅ |  |
+| J-13 | 📄 | Halaman status = keputusan produk + hosting; 4 endpoint Health spec dicatat — BACKEND-DEPENDENCIES §J-13. |
+| J-14 | ✅ |  |
+
+### K. Warisan audit sebelumnya
+
+| ID | Status | Catatan |
+| -- | ------ | ------- |
+| K-01 | 📄 | Verifikasi runtime = butuh staging (BACKEND-DEPENDENCIES §K-01/I-10); 8 deviasi spec tetap dijaga gate `check:api`. |
+| K-02 | 📄 | WebSocket = kontrak backend (BACKEND-DEPENDENCIES §K-02); mitigasi klien: polling hanya saat fokus. |
+| K-03 | ✅+EXT | Sama dengan I-02/I-03 — checklist §2 & §8. |
+| K-04 | ✅ | Gate `npm run audit:check` nightly (lihat D-01). |
+| K-05 | 📄 | Sama dengan F-04 — endpoint agregat (BACKEND-DEPENDENCIES). |
+| K-06 | ✅+EXT | Matriks uji perangkat fisik dibuat — checklist §9; eksekusinya butuh perangkat nyata. |
+| K-07 | ✅+EXT | `lib/telemetry.ts` = titik sambung tunggal (`installTelemetry`); DSN Sentry = BACKEND-DEPENDENCIES §K-07. |
+
+**Total: 135 temuan — 125 ditindak di klien (113 ✅ penuh + 12 ✅+EXT dengan sisa aksi konsol/kredensial terdaftar), 8 📄 dependensi backend/lingkungan ber-register & berkriteria terima, 2 ⏸ keputusan terdokumentasi (override pemilik G-01, refactor terencana J-03).**
