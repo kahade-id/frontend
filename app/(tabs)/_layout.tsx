@@ -9,7 +9,10 @@
  *   transactions  → Transaksi
  *   wallet        → Dompet
  *   showcase      → Feed sosial karya/thread
- *   discover      → Penemuan pengguna
+ *   discover      → "Profil" (slot ke-5 dibrandakan ulang: menekannya membuka
+ *                   profil publik MILIK SENDIRI di /user/[username], bukan
+ *                   layar penemuan pengguna — lihat listener `tabPress` dan
+ *                   TAB_BAR_ITEMS di components/ui/bottom-tab-bar.tsx)
  *
  * Notifikasi dan Pengaturan kini menjadi layar Stack tanpa bottom navbar.
  * Unread tetap dipoll di layout ini, lalu badge tampil pada tombol Bell di
@@ -45,56 +48,19 @@
  *   - Store eksternal (useSyncExternalStore) bukan state lokal: layar
  *     Notifikasi & push handler bisa menurunkan angka tanpa poll ulang.
  */
-import { useCallback, type ComponentProps } from "react"
-import { Tabs } from "expo-router"
-import { House, ImagesSquare, ShoppingBag, UsersThree, Wallet } from "phosphor-react-native"
+import { useCallback, useEffect, useMemo, useState, type ComponentProps } from "react"
+import { router, Tabs } from "expo-router"
 
-import { RouterBottomTabBar, type RouterBottomTabBarProps } from "@/components/ui/bottom-tab-bar"
-import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
+import { RouterBottomTabBar, TAB_BAR_ITEMS } from "@/components/ui/bottom-tab-bar"
+import { api } from "@/lib/api"
+import { logWarn } from "@/lib/telemetry"
+import { ROUTES, TAB_ROUTE_NAMES } from "@/lib/routes"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { useUnreadCount } from "@/lib/unread-count"
 
 
 /** Props tabBar @react-navigation yang diteruskan ke <Tabs> Expo Router. */
 type TabsTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0]
-
-type TabVisualItem = Omit<RouterBottomTabBarProps["items"][string], "badge">
-
-// ------------------------------------------------------------------
-// Tab item definitions
-// ------------------------------------------------------------------
-
-/**
- * Peta name→item tab bar. Kunci HARUS cocok dengan TAB_ROUTE_NAMES dan
- * nama file di app/(tabs)/ (Expo Router route name = nama file tanpa ekstensi).
- */
-const TAB_ITEMS: Record<TabRouteName, TabVisualItem> = {
-  home: {
-    label: "Beranda",
-    icon: House,
-    accessibilityLabel: "Tab Beranda",
-  },
-  transactions: {
-    label: "Transaksi",
-    icon: ShoppingBag,
-    accessibilityLabel: "Tab Transaksi",
-  },
-  wallet: {
-    label: "Dompet",
-    icon: Wallet,
-    accessibilityLabel: "Tab Dompet",
-  },
-  showcase: {
-    label: "Showcase",
-    icon: ImagesSquare,
-    accessibilityLabel: "Tab Showcase sosial",
-  },
-  discover: {
-    label: "Discover",
-    icon: UsersThree,
-    accessibilityLabel: "Tab temukan pengguna",
-  },
-}
 
 // ------------------------------------------------------------------
 // Layout
@@ -113,12 +79,51 @@ export default function TabsLayout() {
   const session = useAuthSession()
   useUnreadCount({ enabled: Boolean(session.token) })
 
+  /**
+   * Username sendiri — dibutuhkan tab "Profil" untuk membuka profil publik
+   * milik pengguna (/user/[username]). Diambil sekali saat sesi tersedia;
+   * kegagalan tidak fatal (tab jatuh ke gate login / layar discover).
+   */
+  const [meUsername, setMeUsername] = useState<string | null>(null)
+  useEffect(() => {
+    let alive = true
+    if (!session.token) {
+      setMeUsername(null)
+      return undefined
+    }
+    api.users
+      .getMe()
+      .then((me) => {
+        if (alive) setMeUsername(me?.username ?? null)
+      })
+      .catch((err) => logWarn("tabs:me-username", err))
+    return () => {
+      alive = false
+    }
+  }, [session.token])
+
+  /**
+   * Tab ke-5 = "Profil": JANGAN pindah ke layar discover; buka profil publik
+   * milik sendiri (profil sendiri merender bottom bar-nya sendiri — lihat
+   * app/user/[username].tsx). Tamu tanpa sesi diarahkan ke gate login.
+   */
+  const profileTabListeners = useMemo(
+    () => ({
+      tabPress: (event: { preventDefault: () => void }) => {
+        event.preventDefault()
+        if (meUsername) router.push(ROUTES.userProfile(meUsername))
+        else router.push(ROUTES.loginRequired())
+      },
+    }),
+    [meUsername],
+  )
+
   const renderTabBar = useCallback(
     (props: TabsTabBarProps) => (
       <RouterBottomTabBar
         state={props.state}
         navigation={props.navigation}
-        items={TAB_ITEMS}
+        items={TAB_BAR_ITEMS}
       />
     ),
     [],
@@ -136,7 +141,11 @@ export default function TabsLayout() {
       tabBar={renderTabBar}
     >
       {TAB_ROUTE_NAMES.map((name) => (
-        <Tabs.Screen key={name} name={name} />
+        <Tabs.Screen
+          key={name}
+          name={name}
+          {...(name === "discover" ? { listeners: profileTabListeners } : {})}
+        />
       ))}
     </Tabs>
   )

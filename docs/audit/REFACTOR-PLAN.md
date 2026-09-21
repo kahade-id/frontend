@@ -70,7 +70,7 @@ catat sebagai dependensi eksternal.
 
 Ratchet BARU (commit ini): aturan **S9** di `scripts/check-screens.mjs` —
 plafon baris per file, hanya boleh turun; file yang tumbuh langsung gagal.
-Plafon saat ini: `user/[username]` 1534 · `chat/[roomId]` 1296 ·
+Plafon saat ini: `user/[username]` 1498 · `chat/[roomId]` 1296 ·
 `order/[id]` 1146 · `dispute/[id]` 919 · `showcase/[id]` 916.
 
 Urutan ekstraksi yang disarankan (seksi dengan seam paling bersih dulu):

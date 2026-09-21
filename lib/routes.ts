@@ -341,3 +341,10 @@ export const TAB_ROUTE_NAMES = [
   "discover",
 ] as const
 export type TabRouteName = (typeof TAB_ROUTE_NAMES)[number]
+
+/**
+ * Peta visual item tab bar (label/ikon/a11y/rute) TIDAK tinggal di sini —
+ * sengaja di components/ui/bottom-tab-bar.tsx (TAB_BAR_ITEMS): modul ini
+ * lapisan murni yang juga diimpor test Node, sedangkan ikon Phosphor tidak
+ * bisa di-parse di luar Metro/Babel.
+ */

@@ -92,6 +92,18 @@ function firstString(
   return undefined
 }
 
+/** Pasangan `firstString` untuk flag boolean (alias camelCase/snake_case). */
+function firstBoolean(
+  source: Record<string, unknown>,
+  keys: readonly string[],
+): boolean | undefined {
+  for (const key of keys) {
+    const value = source[key]
+    if (typeof value === "boolean") return value
+  }
+  return undefined
+}
+
 export function normalizeUserProfile(raw: UserProfile): UserProfile {
   const record = raw as unknown as Record<string, unknown>
   return {
@@ -271,6 +283,13 @@ export function getUserByUsername(username: string, signal?: AbortSignal) {
         createdAt: profile.createdAt ?? profile.created_at,
         avatarUrl: firstString(profile, ["avatarUrl", "avatar_url", "avatar"]),
         headerUrl: firstString(profile, ["headerUrl", "header_url", "headerImage", "coverUrl"]),
+        // Kontak PUBLIK — backend hanya mengirimnya bila pemilik mengaktifkan
+        // "tampilkan di profil" (showContact*). Flag ikut dibaca sebagai
+        // pengaman: UI tidak boleh menampilkan kontak bila flag=false.
+        contactEmail: firstString(profile, ["contactEmail", "contact_email"]),
+        contactPhone: firstString(profile, ["contactPhone", "contact_phone"]),
+        showContactEmail: firstBoolean(profile, ["showContactEmail", "show_contact_email"]),
+        showContactPhone: firstBoolean(profile, ["showContactPhone", "show_contact_phone"]),
       } as PublicUserProfile
     })
 }
@@ -287,6 +306,12 @@ export type PublicUserProfile = {
   trustScore?: number
   rating?: number
   createdAt?: string
+  /** Kontak publik (email) — hanya dikirim backend bila pemilihannya publik. */
+  contactEmail?: string | null
+  /** Kontak publik (no. HP) — hanya dikirim backend bila pemilihannya publik. */
+  contactPhone?: string | null
+  showContactEmail?: boolean
+  showContactPhone?: boolean
   showcase?: unknown
   ratings?: unknown
 }
@@ -722,27 +747,41 @@ export type QuestionListResponse =
       meta?: { page: number; limit: number; total: number; totalPages: number }
     }
 
+/** Ambil array pertama dari kunci-kunci kandidat; undefined bila tak ada. */
+function firstArray(source: Record<string, unknown>, keys: readonly string[]): unknown[] | undefined {
+  for (const key of keys) {
+    const value = source[key]
+    if (Array.isArray(value)) return value
+  }
+  return undefined
+}
+
+/** totalPages bisa di `meta` objek maupun tingkat atas, camelCase/snake_case. */
+function readTotalPages(record: Record<string, unknown>): number | undefined {
+  const meta = asRecord(record.meta)
+  const value = meta?.totalPages ?? meta?.total_pages ?? record.totalPages ?? record.total_pages
+  return typeof value === "number" ? value : undefined
+}
+
 export function readQuestionList(body: QuestionListResponse | null | undefined): {
   items: QuestionItem[]
   totalPages?: number
 } {
   if (!body) return { items: [] }
   if (Array.isArray(body)) return { items: body }
-  const record = body as unknown as {
-    data?: QuestionItem[]
-    meta?: { totalPages?: number; total_pages?: number }
-    questions?: QuestionItem[]
-    totalPages?: number
-    total_pages?: number
-  }
-  return {
-    items: record.data ?? record.questions ?? [],
-    totalPages:
-      record.meta?.totalPages ??
-      (record.meta as any)?.total_pages ??
-      record.totalPages ??
-      record.total_pages,
-  }
+  const record = body as unknown as Record<string, unknown>
+  /**
+   * Cacat nyata (list profil tampil kosong padahal user punya pertanyaan):
+   * versi lama HANYA membaca `data`/`questions`. Backend bisa mengirim
+   * `{ items: [...] }` (konvensi readList) atau envelope bersarang
+   * `{ data: { questions: [...], meta } }` — keduanya dulu jatuh ke `[]`
+   * tanpa error, jadi EmptyState dirender di atas data yang sebenarnya ada.
+   */
+  const list = firstArray(record, ["questions", "data", "items"])
+  if (list) return { items: list as QuestionItem[], totalPages: readTotalPages(record) }
+  const nested = asRecord(record.data)
+  if (nested) return readQuestionList(nested as QuestionListResponse)
+  return { items: [] }
 }
 
 /** Nilai enum `type` tidak didokumentasikan — asumsi "received" | "asked" (dari summary endpoint). */
@@ -826,7 +865,14 @@ export function readQuestionComments(body: QuestionCommentListResponse | null | 
 } {
   if (!body) return { items: [] }
   if (Array.isArray(body)) return { items: body }
-  return { items: body.data ?? [], totalPages: body.meta?.totalPages ?? (body.meta as any)?.total_pages }
+  // Sama dengan readQuestionList di atas: kenali `comments`/`items` dan
+  // envelope bersarang `{ data: { ... } }`, bukan hanya `data` polos.
+  const record = body as unknown as Record<string, unknown>
+  const list = firstArray(record, ["comments", "data", "items"])
+  if (list) return { items: list as QuestionComment[], totalPages: readTotalPages(record) }
+  const nested = asRecord(record.data)
+  if (nested) return readQuestionComments(nested as QuestionCommentListResponse)
+  return { items: [] }
 }
 
 /** Spec: `page` & `limit` REQUIRED. */

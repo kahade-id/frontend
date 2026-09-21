@@ -149,7 +149,6 @@ rules.push({
     "app/support/[ticketId].tsx",
     "app/transaction-templates.tsx",
     "app/two-factor.tsx",
-    "app/user/[username].tsx",
     "app/user/[username]/questions.tsx",
     "app/user/[username]/ratings.tsx",
     "app/user/[username]/showcase.tsx",
@@ -504,7 +503,7 @@ for (const component of UNUSED_UI_BASELINE) {
  * docs/audit/REFACTOR-PLAN.md.
  */
 const LINE_CEILING = new Map([
-  ["app/user/[username].tsx", 1534],
+  ["app/user/[username].tsx", 1498],
   ["app/chat/[roomId].tsx", 1296],
   ["app/order/[id].tsx", 1146],
   ["app/dispute/[id].tsx", 919],
