@@ -457,7 +457,7 @@ export default function ShowcaseDetailScreen() {
       contentClassName="gap-0"
       footer={
         (
-          <View className="border-t border-border bg-background px-4 py-3">
+          <View className="border-t border-border bg-background py-3">
             {replyTo ? (
               <View className="mb-2 flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
                 <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>

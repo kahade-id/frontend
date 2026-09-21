@@ -493,8 +493,9 @@ export default function TopupScreen() {
         title="Pilih metode pembayaran"
         description="Biaya admin (jika ada) ditampilkan di samping setiap metode."
         footer={
+          // Wrapper footer BottomSheet sudah memberi px-5 pt-4; px-5 di sini
+          // membuat tombol menjorok 40px, tidak sejajar judul sheet.
           <View
-            className="px-5"
             style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
           >
             <Button onPress={() => setMethodSheetOpen(false)} disabled={!isTopupMethod(methodId)}>

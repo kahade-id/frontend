@@ -15,6 +15,21 @@
  *   - Indikator duduk di atas garis dasar `border-b border-border`
  *     container (bukan mengganti border item): satu View absolute yang
  *     posisinya dianimasikan, jadi tidak ada dua border yang saling menimpa.
+ *   - GEOMETRI indikator (absolute/bottom/left/height/zIndex) ditulis sebagai
+ *     style biasa, dan WARNA-nya lewat className pada <View> anak — BUKAN
+ *     className pada Animated.View reanimated. Sebabnya nyata, bukan gaya:
+ *     reanimated mengirim lib/module yang sudah ter-compile dengan
+ *     `react/jsx-runtime` (bukan jsx-runtime NativeWind), jadi prop className
+ *     pada Animated.View reanimated TIDAK PERNAH dikonversi menjadi style
+ *     (react-native-css-interop hanya meng-interop komponen RN inti).
+ *     Efek bug sebelumnya ganda: (1) `bg-primary` hilang → garis aktif tak
+ *     terlihat sama sekali; (2) `absolute bottom-0 left-0` hilang → indikator
+ *     jadi anak flex normal yang memakan lebar strip, sehingga `onLayout`
+ *     mengukur x tiap tab tergeser sebesar lebar indikator (garis "ke kanan")
+ *     dan lebar tab menyusut. `Animated.View` RN inti TIDAK kena masalah ini
+ *     (file-nya masih JSX Flow → ikut ter-compile dengan jsxImportSource
+ *     nativewind); hanya reanimated. Karena itu aturan repo tetap: className
+ *     di <View> anak, Animated.View hanya membawa style/transform.
  *   - `reduceMotion`: slide instan (langsung set value), konsisten dengan
  *     aturan §8 — gerakan posisi besar diredam, bukan dihilangkan fungsinya.
  *   - Label aktif text-primary 600, inaktif text-secondary 400 — mengikuti
@@ -31,8 +46,14 @@
  *     bersentuhan dan duduk di atas garis dasar, ring luar akan menabrak
  *     tetangga/garis; inset menjaga ring di dalam kotak tab.
  */
-import { useEffect, useMemo, useState } from "react"
-import { ScrollView, View, type LayoutChangeEvent, type ViewProps } from "react-native"
+import { useEffect, useMemo, useRef, useState } from "react"
+import {
+  ScrollView,
+  View,
+  type LayoutChangeEvent,
+  type ViewProps,
+  type ViewStyle,
+} from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
   useAnimatedStyle,
@@ -69,6 +90,24 @@ export type TabsProps<V extends string = string> = Omit<ViewProps, "children"> &
 /** Ketebalan indikator (px). Nilai runtime → literal lokal. */
 const INDICATOR_H = 2
 
+/**
+ * Kotak indikator: WAJIB style biasa, bukan className — lihat docblock di atas
+ * (className pada Animated.View reanimated tidak pernah menjadi style).
+ * `position: "absolute"` adalah yang membuat indikator keluar dari alur flex:
+ * tanpa itu ia memakan lebar strip dan menggeser hasil onLayout setiap tab.
+ * zIndex di sini (bukan class `z-10`) supaya indikator tetap di atas garis
+ * dasar border walau NativeWind tidak memproses elemen ini.
+ */
+const INDICATOR_FRAME: ViewStyle = {
+  position: "absolute",
+  bottom: 0,
+  left: 0,
+  height: INDICATOR_H,
+  zIndex: 10,
+  // Web: jadi CSS `pointer-events`; native: prop style pointerEvents (new arch).
+  pointerEvents: "none",
+}
+
 export function Tabs<V extends string = string>({
   items,
   value,
@@ -99,22 +138,30 @@ export function Tabs<V extends string = string>({
   const activeIndex = items.findIndex((item) => item.value === value)
   const dotX = useSharedValue(0)
   const dotW = useSharedValue(0)
+  // onLayout datang per item dan bertahap setelah mount. Selama geometri belum
+  // lengkap, indikator DIPASANG LANGSUNG (tanpa spring): kalau tidak, garis
+  // aktif "tumbuh" dari lebar 0 setiap layar dibuka lalu bergetar mengikuti
+  // pengukuran yang menyusul. Spring hanya untuk perpindahan tab sungguhan.
+  const settledRef = useRef(false)
 
   useEffect(() => {
-    const targetX = offsets[activeIndex] ?? 0
-    const targetW = frames[activeIndex] ?? 0
+    const targetX = activeIndex >= 0 ? (offsets[activeIndex] ?? 0) : 0
+    const targetW = activeIndex >= 0 ? (frames[activeIndex] ?? 0) : 0
+    if (!settledRef.current) {
+      settledRef.current = items.every((_, i) => (frames[i] ?? 0) > 0)
+    }
     const spring = {
       ...tokens.motion.spring,
       velocity: 6,
     }
-    if (reducedMotion) {
+    if (reducedMotion || !settledRef.current) {
       dotX.value = targetX
       dotW.value = targetW
       return
     }
     dotX.value = withSpring(targetX, spring)
     dotW.value = withSpring(targetW, spring)
-  }, [activeIndex, frames, offsets, reducedMotion, dotX, dotW])
+  }, [activeIndex, frames, offsets, reducedMotion, dotX, dotW, items])
 
   const dotStyle = useAnimatedStyle(
     () => ({
@@ -137,11 +184,13 @@ export function Tabs<V extends string = string>({
       )}
       {...rest}
     >
-      {/* Indikator aktif meluncur — feedback arah & posisi "sedang tab apa". */}
-      <Animated.View
-        style={[dotStyle, { height: INDICATOR_H, pointerEvents: "none" }]}
-        className="absolute bottom-0 left-0 z-10 rounded-t-[2px] bg-primary"
-      />
+      {/* Indikator aktif meluncur — feedback arah & posisi "sedang tab apa".
+          Geometri lewat style biasa (INDICATOR_FRAME), warna & radius lewat
+          className pada <View> anak: className pada Animated.View reanimated
+          tidak diproses NativeWind (lihat docblock). */}
+      <Animated.View style={[INDICATOR_FRAME, dotStyle]}>
+        <View className="h-full w-full rounded-t-[2px] bg-primary" />
+      </Animated.View>
 
       {items.map((item, index) => {
         const active = item.value === value

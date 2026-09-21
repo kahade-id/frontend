@@ -24,9 +24,10 @@
     "check:spec": "node scripts/gen-mobile-spec.mjs --check",
     "check:api:body": "node scripts/check-api-body.mjs",
     "check:api:soft": "node scripts/check-api.mjs && node scripts/check-api-body.mjs",
-    "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:push && npm run check:permissions && npm run check:i18n && npm test && npm run test:components",
+    "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run audit:classes && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:push && npm run check:permissions && npm run check:i18n && npm test && npm run test:components",
     "ota:preflight": "node scripts/check-ota.mjs",
     "audit:inventory": "node scripts/audit-inventory.mjs",
+    "audit:classes": "node scripts/audit-class-conflicts.mjs --check",
     "build:web": "EXPO_OFFLINE=1 expo export --platform web && node scripts/gen-web-meta.mjs && node scripts/gen-fcm-sw.mjs",
     "gen:fcm-sw": "node scripts/gen-fcm-sw.mjs",
     "preview:web": "node scripts/serve-web.mjs",
@@ -88,6 +89,7 @@
     "react-native-svg": "15.12.1",
     "react-native-web": "^0.21.0",
     "react-native-worklets": "0.5.1",
+    "tailwind-merge": "^3.7.0",
     "tailwindcss": "^3.4.17"
   },
   "devDependencies": {

@@ -18,6 +18,14 @@
  *     360px. `layout="row"` untuk dua tombol pendek berdampingan.
  *   - Web: kolom di-cap `md:max-w-content` (§11); bar tetap full-width
  *     agar border-t menyambung ke tepi.
+ *   - KONSEKUENSI `px-5` di atas untuk pemanggil: JANGAN menambah kelas
+ *     padding horizontal (px-, pl-, pr-) pada elemen TERLUAR isi `footer`.
+ *     Padding-nya bukan saling menimpa melainkan JUMLAH (footer menjorok
+ *     40px, tidak sejajar
+ *     Header di atasnya) — bug yang dilaporkan QA 2026-09 di feedback,
+ *     detail showcase, dan sheet topup/withdraw/transfer. Wrapper footer
+ *     <BottomSheet> berperilaku sama. Dijaga scripts/audit-class-conflicts.mjs
+ *     (npm run audit:classes).
  */
 import { Children, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"

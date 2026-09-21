@@ -107,7 +107,8 @@ export function ShowcaseCommentsSheet({
       title={headerTitle}
       contentClassName="px-0 pb-0"
       footer={
-        <View className="px-4 pb-1">
+        // Wrapper footer sheet sudah px-5 -> tanpa padding horizontal lagi.
+        <View className="pb-1">
           <View className="flex-row items-end gap-2">
             <Input
               value={draft}

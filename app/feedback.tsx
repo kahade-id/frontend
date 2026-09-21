@@ -104,8 +104,10 @@ export default function FeedbackScreen() {
       edges={["top"]}
       padded={false}
       footer={
+        // FooterBar milik <Screen> sudah memberi px-5 pt-4; duplikat di sini
+        // membuat tombol menjorok 40px dari tepi layar.
         <View
-          className="bg-background px-5 pt-4"
+          className="bg-background"
           style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
         >
           <Button onPress={() => void handleSubmit()} loading={submitting} disabled={!valid}>

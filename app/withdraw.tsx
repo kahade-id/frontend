@@ -464,8 +464,9 @@ export default function WithdrawScreen() {
         title="Pilih rekening tujuan"
         description="Dana ditransfer ke rekening atas nama Anda yang dipilih di sini."
         footer={
+          // Wrapper footer BottomSheet sudah px-5 pt-4 -> tanpa px-5 lagi.
           <View
-            className="flex-row gap-3 px-5"
+            className="flex-row gap-3"
             style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
           >
             {accounts.length === 0 ? (
