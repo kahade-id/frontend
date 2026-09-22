@@ -15,6 +15,10 @@
  * platform dan cukup untuk Rupiah bulat (§13: tidak ada desimal).
  */
 import { getLanguage } from "@/lib/i18n/store"
+import { logWarn } from "@/lib/telemetry"
+
+/** E-05: fallback formatDateTimeWIB dilaporkan sekali per proses. */
+let wibFallbackReported = false
 
 const MONTHS_ID = [
   "Jan",
@@ -320,18 +324,20 @@ export function formatDecimal(n: number, maxFractionDigits = 1): string {
 }
 
 /**
- * Durasi rata-rata dalam jam → kalimat manusia: "Biasanya sekitar 2 hari" /
- * "Biasanya sekitar 5 jam".
+ * Durasi rata-rata jam → nilai + satuan untuk frasa i18n.
  *
- * Dipakai layar detail order untuk mengatur ekspektasi pada langkah escrow
- * berikutnya (rata-rata waktu penjual memproses, kurir mengantar, dst.).
- * Tinggal di sini — bukan di layar — karena ini formatter murni: angka masuk,
- * kalimat keluar, tanpa konteks order.
+ * G-05 (audit 2026-09-22): fungsi sebelumnya mengembalikan KALIMAT Indonesia
+ * utuh ("Biasanya sekitar 2 hari") dari lapisan format. Kalimat itu tidak bisa
+ * dicocokkan kamus karena angkanya berubah-ubah, jadi pengguna English selalu
+ * mendapat teks Indonesia pada layar detail order. Sekarang formatter hanya
+ * menyediakan angka + satuan; layar merangkainya lewat `translate("… {x} …")`
+ * sehingga kalimatnya ikut terkatalog dan bisa diterjemahkan.
  */
-export function formatDurationHours(hours: number): string {
-  if (!Number.isFinite(hours) || hours <= 0) return "—"
-  if (hours >= 24) return `Biasanya sekitar ${formatDecimal(hours / 24)} hari`
-  return `Biasanya sekitar ${formatDecimal(hours, 0)} jam`
+export function durationHoursParts(hours: number): { value: string; unit: "hari" | "jam" } | null {
+  if (!Number.isFinite(hours) || hours <= 0) return null
+  return hours >= 24
+    ? { value: formatDecimal(hours / 24), unit: "hari" }
+    : { value: formatDecimal(hours, 0), unit: "jam" }
 }
 
 function displayDate(value: Date | number | string): Date | null {
@@ -384,8 +390,9 @@ export function formatDateTime(d: Date | number | string): string {
 export function formatDateTimeWIB(d: Date | number | string): string {
   const date = displayDate(d)
   if (!date) return "—"
+  const locale = getLanguage() === "en" ? "en-GB" : "id-ID"
   try {
-    const parts = new Intl.DateTimeFormat("id-ID", {
+    const parts = new Intl.DateTimeFormat(locale, {
       timeZone: "Asia/Jakarta",
       day: "numeric",
       month: "short",
@@ -398,6 +405,14 @@ export function formatDateTimeWIB(d: Date | number | string): string {
     const hour = get("hour") === "24" ? "00" : get("hour")
     return `${get("day")} ${get("month")} ${get("year")}, ${hour}:${get("minute")} WIB`
   } catch {
+    // E-05 (audit 2026-09-22): fallback ini SENGAJA tanpa label (melabeli zona
+    // perangkat sebagai WIB lebih buruk), tapi sebelumnya terjadi tanpa jejak
+    // apa pun. Sekali per proses dicatat supaya build tanpa full-ICU terlihat
+    // di telemetri alih-alih diam-diam menampilkan tenggat tanpa zona.
+    if (!wibFallbackReported) {
+      wibFallbackReported = true
+      logWarn("format:wib-fallback", new Error("Intl Asia/Jakarta tidak tersedia"))
+    }
     return formatDateTime(date)
   }
 }
@@ -410,8 +425,8 @@ export function formatDateLong(d: Date | number | string): string {
 }
 
 /** Sisa waktu detik -> "04:59" atau "1:04:59" (countdown OTP/lockout/deadline) */
-export function formatCountdown(totalSeconds: number): string {
-  if (!Number.isFinite(totalSeconds)) return "—"
+export function formatCountdown(totalSeconds: number, placeholder = "—"): string {
+  if (!Number.isFinite(totalSeconds)) return placeholder
   const s = Math.max(0, Math.floor(totalSeconds))
   const h = Math.floor(s / 3600)
   const m = Math.floor((s % 3600) / 60)
@@ -422,12 +437,23 @@ export function formatCountdown(totalSeconds: number): string {
 /**
  * Nomor rekening: tampilkan 4 digit terakhir, sisanya bullet, dikelompokkan
  * per 4 agar terbaca dalam Mono: "•••• •••• 1234".
+ *
+ * A-01 (audit 2026-09-22): versi sebelumnya menggabungkan bullet + digit lalu
+ * mengelompokkan ULANG seluruh string dari depan. Karena jumlah bullet bukan
+ * kelipatan 4 pada rekening 10/11/13/14/15 digit (BCA/BNI 10, CIMB/Mandiri 13,
+ * BRI 15), kelompok terakhir TERBELAH: "•••• ••78 90" sehingga 4 digit
+ * verifikasi terakhir tidak lagi utuh di layar konfirmasi penarikan.
+ * Sekarang grup dibentuk dari bagian tersembunyi, dan ekor yang terlihat
+ * selalu menjadi satu grup utuh.
  */
 export function maskAccountNumber(account: string, visible = 4): string {
   const digits = asText(account).replace(/\s/g, "")
-  const hidden = Math.max(0, digits.length - visible)
-  const masked = "\u2022".repeat(hidden) + digits.slice(-visible)
-  return masked.replace(/(.{4})/g, "$1 ").trim()
+  const shown = Math.max(0, Math.min(visible, digits.length))
+  const hidden = digits.length - shown
+  const groups: string[] = []
+  for (let i = 0; i < hidden; i += 4) groups.push("\u2022".repeat(Math.min(4, hidden - i)))
+  if (shown > 0) groups.push(digits.slice(-shown))
+  return groups.join(" ")
 }
 
 /** Kelompokkan nomor per 4 tanpa mask: "1234 5678 9012" */

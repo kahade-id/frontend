@@ -21,6 +21,7 @@
  */
 import { useCallback, useEffect, useSyncExternalStore } from "react"
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { serverNow } from "@/lib/server-time"
 import { logWarn } from "@/lib/telemetry"
 
 export type TransactionsTab = "buyer" | "seller"
@@ -74,7 +75,10 @@ function sanitizePrefs(raw: unknown): UiPrefs {
   const snooze: Record<string, number> = {}
   if (typeof rec.ratingSnoozeUntil === "object" && rec.ratingSnoozeUntil !== null) {
     for (const [key, value] of Object.entries(rec.ratingSnoozeUntil as Record<string, unknown>)) {
-      if (typeof value === "number" && Number.isFinite(value) && value > Date.now()) {
+      // E-03: ambang snooze ditulis dengan serverNow() (call site order/[id]) —
+      // pembacaan harus domain yang sama atau jam perangkat yang menyimpang
+      // memangkas/memanjangkan penundaan pengingat ulasan.
+      if (typeof value === "number" && Number.isFinite(value) && value > serverNow()) {
         snooze[key] = value
       }
     }
@@ -168,7 +172,7 @@ export const RATING_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000
 export function snoozeRatingReminder(orderId: string, untilMs: number): void {
   const next = { ...prefs.ratingSnoozeUntil, [orderId]: untilMs }
   // Bersihkan snooze yang sudah lewat agar blob tidak tumbuh selamanya.
-  for (const [key, value] of Object.entries(next)) if (value <= Date.now()) delete next[key]
+  for (const [key, value] of Object.entries(next)) if (value <= serverNow()) delete next[key]
   setUiPrefs({ ratingSnoozeUntil: next })
 }
 

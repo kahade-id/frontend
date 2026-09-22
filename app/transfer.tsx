@@ -23,7 +23,7 @@ import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
-import { useApiQuery } from "@/lib/use-api-query"
+import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useResultTimer } from "@/lib/use-result-timer"
 import { recordRecentRecipient, useRecentRecipients } from "@/lib/ui-prefs"
@@ -83,11 +83,17 @@ export default function TransferScreen() {
   // saldo gagal dimuat ditampilkan apa adanya + retry, karena "Rp0" adalah
   // angka yang salah di layar uang. Key disatukan dengan withdraw
   // ("wallet-overview") agar cache F-03 mendedupe GET /v1/wallet lintas layar.
-  const balanceQuery = useApiQuery<{ balance: number }>(
+  const balanceQuery = useApiQuery<{ balance?: number }>(
     "wallet-overview",
     async (signal) => {
       const w = await api.wallet.getWallet(signal)
-      return { balance: w.balance ?? 0 }
+      /*
+       * A-13 (audit 2026-09-22): `?? 0` mengubah respons sah-tapi-tanpa-field
+       * menjadi "Saldo tersedia Rp0" — angka uang yang salah di layar uang.
+       * `undefined` berarti tidak diketahui; keypad lalu menampilkan
+       * helperText, bukan saldo palsu.
+       */
+      return { balance: typeof w.balance === "number" ? w.balance : undefined }
     },
     true,
     { retry: 1 },
@@ -249,6 +255,13 @@ export default function TransferScreen() {
         const res = await api.wallet.transferFunds(dto)
         setTxId(res.txId ?? null)
         setTransferStatus(res.status)
+        /*
+         * A-17/C-01 (audit 2026-09-22): mutasi uang tanpa invalidasi cache
+         * membuat layar berikutnya (dalam TTL 5 detik) membaca saldo SEBELUM
+         * transfer. `invalidateQueryCache` dulu tidak pernah dipanggil sama
+         * sekali di seluruh app.
+         */
+        invalidateQueryCache()
         setProgressState("SUCCESS")
         // Overlay sukses tampil sejenak, lalu lanjut ke layar hasil.
         // A-14: timer dibersihkan saat unmount (useResultTimer) — back dalam
@@ -268,6 +281,17 @@ export default function TransferScreen() {
           : base
         setProgressError(msg)
         setProgressState("FAILURE")
+        /*
+         * A-15 (audit 2026-09-22): pada kegagalan tak pasti klien tidak tahu
+         * apakah debit sudah terjadi — teks saja tidak cukup. Saldo disegarkan
+         * dan cache dibuang supaya layar Dompet/riwayat yang dibuka sesudahnya
+         * menampilkan keadaan SEBENARNYA (bukan angka pra-transfer), tanpa
+         * memaksa pengguna menutup app.
+         */
+        if (uncertain) {
+          invalidateQueryCache()
+          void balanceQuery.refresh()
+        }
         // Setelah pesan gagal terbaca, sheet PIN terbuka lagi (PIN dikosongkan
         // otomatis oleh PinInput) — user bisa memilih mencoba atau membatalkan.
         scheduleResult(() => {
@@ -279,11 +303,17 @@ export default function TransferScreen() {
         setSubmitting(false)
       }
     },
-    [selected, amount, note, scheduleResult],
+    [selected, amount, note, scheduleResult, balanceQuery],
   )
 
+  /*
+   * A-05 (audit 2026-09-22): `balance && balance > 0` membuat saldo Rp0
+   * (dompet kosong) DIANGGAP "saldo tidak diketahui" sehingga batasnya
+   * dilonggarkan ke MAX_AMOUNT penuh — pengguna mengetik, menekan CTA, baru
+   * ditolak server. Nol dan tidak-diketahui sekarang dibedakan.
+   */
   const maxAmount =
-    balance && balance > 0 ? Math.min(MAX_AMOUNT, balance) : MAX_AMOUNT
+    balance == null ? MAX_AMOUNT : Math.min(MAX_AMOUNT, Math.max(0, balance))
 
   // Sub-step: pemilihan penerima + nominal di langkah "form". Kita bagi
   // layar dua: atas (pencarian penerima) yang di-scroll, bawah (keypad)
@@ -656,7 +686,15 @@ export default function TransferScreen() {
       <BottomSheet
         visible={step === "pin"}
         onRequestClose={() => {
-          if (!submitting) setStep("confirm")
+          if (submitting) return
+          /*
+           * A-16 (audit 2026-09-22): pesan gagal dari percobaan sebelumnya
+           * dibiarkan terpasang, sehingga overlay percobaan berikutnya sempat
+           * merender error BASI sebelum state PROCESSING diterapkan.
+           */
+          setProgressError(undefined)
+          setPinError(undefined)
+          setStep("confirm")
         }}
         title="Verifikasi PIN"
         description={`Transfer ${formatRupiah(amount)} ke @${selected?.username ?? ""} memerlukan PIN dompet Anda. PIN tidak akan terlihat.`}

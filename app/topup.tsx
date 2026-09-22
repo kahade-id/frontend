@@ -27,6 +27,7 @@ import { useCopy } from "@/lib/clipboard"
 import { formatRupiah } from "@/lib/format"
 import { toPaymentMethods } from "@/lib/payment-methods"
 import { ROUTES } from "@/lib/routes"
+import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
 import { usePolling } from "@/lib/use-polling"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -225,7 +226,7 @@ export default function TopupScreen() {
         kind: "topup-unpaid",
         paymentTxId: res.paymentTxId,
         amount,
-        createdAt: Date.now(),
+        createdAt: serverNow(),
         expiresAt: toEpochMs(res.expiresAt),
       })
       toast.show({ title: "Instruksi pembayaran dibuat", tone: "success" })

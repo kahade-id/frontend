@@ -190,6 +190,8 @@ describe("formatCountdown", () => {
     expect(formatCountdown(3899)).toBe("1:04:59")
     expect(formatCountdown(-5)).toBe("00:00")
     expect(formatCountdown(Number.NaN)).toBe("—")
+    // G-06: pemanggil boleh memberi label sendiri untuk nilai yang tidak valid
+    expect(formatCountdown(Number.NaN, "belum tersedia")).toBe("belum tersedia")
   })
 })
 
@@ -199,6 +201,30 @@ describe("maskAccountNumber / groupAccountNumber (PII)", () => {
     expect(maskAccountNumber("1234 5678 9012")).toBe("•••• •••• 9012") // spasi input diabaikan
     expect(maskAccountNumber("12")).toBe("12") // lebih pendek dari visible
     expect(maskAccountNumber("123456", 2)).toBe("•••• 56")
+  })
+
+  /**
+   * A-01 (audit 2026-09-22): regresi nyata — masker lama mengelompokkan ulang
+   * bullet + digit dari depan sehingga 4 digit terakhir TERBELAH pada panjang
+   * yang bukan kelipatan 4 (BCA 10 digit, CIMB/Mandiri 13, BRI 15). Empat digit
+   * terakhir adalah satu-satunya verifikasi visual pengguna di layar tarik dana,
+   * jadi kontraknya ditegakkan untuk semua panjang 4..20.
+   */
+  it("selalu menampilkan 4 digit terakhir UTUH untuk setiap panjang rekening", () => {
+    const tail = "9012"
+    for (let n = 4; n <= 20; n++) {
+      const account = `1234567890123456${"7".repeat(4)}`.slice(0, n - 4) + tail
+      const masked = maskAccountNumber(account)
+      expect(masked.endsWith(tail)).toBe(true)
+      expect(masked.slice(0, -tail.length).trimEnd()).not.toMatch(/\d/) // sisanya bullet
+    }
+  })
+
+  it("contoh per bank (10/11/13/15 digit) tidak lagi memecah digit terakhir", () => {
+    expect(maskAccountNumber("1234567890")).toBe("•••• •• 7890")
+    expect(maskAccountNumber("12345678901")).toBe("•••• ••• 8901")
+    expect(maskAccountNumber("1234567890123")).toBe("•••• •••• • 0123")
+    expect(maskAccountNumber("123456789012345")).toBe("•••• •••• ••• 2345")
   })
 
   it("groupAccountNumber tanpa mask", () => {

@@ -31,7 +31,6 @@
  *     gagal → tanpa estimasi.
  */
 
-import { usePolling } from "@/lib/use-polling"
 import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
@@ -57,20 +56,26 @@ import {
   nextOrderStatus,
   type AverageDurations,
   type CancelReason,
-  type QrisPayment,
 } from "@/lib/api/orders"
-import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
 import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } from "@/lib/ui-prefs"
+import { useQrisPayment } from "@/lib/use-qris-payment"
 import { useResultTimer } from "@/lib/use-result-timer"
 import {
   CANCEL_REASONS,
   DISPUTE_CATEGORIES,
   type DisputeCategoryValue,
 } from "@/lib/labels/dispute"
-import { useApiQuery } from "@/lib/use-api-query"
+import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
-import { formatDateTime, formatDateTimeWIB, formatDurationHours, formatRupiah } from "@/lib/format"
+import {
+  durationHoursParts,
+  formatDateTime,
+  formatDateTimeWIB,
+  formatRupiah,
+} from "@/lib/format"
+import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
+import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
 
@@ -103,7 +108,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 
 const HISTORY_LIMIT = 50
-const POLL_MS = 3000
+
 const NOTE_MAX = 500
 const DISPUTE_CLAIM_MIN = 20
 const DISPUTE_CLAIM_MAX = 2000
@@ -229,7 +234,6 @@ export default function OrderDetailScreen() {
   // Overlay progres saat membayar escrow dari saldo (PIN disubmit).
   const [payProgress, setPayProgress] = useState<"PROCESSING" | "SUCCESS" | "FAILURE" | null>(null)
   const [payProgressError, setPayProgressError] = useState<string | undefined>()
-  const [qris, setQris] = useState<QrisPayment | null>(null)
 
   // A-03 (audit): tombol biometrik DIHAPUS dari sheet pembayaran escrow —
   // PayOrderDto mewajibkan `pin` mentah dan tidak ada jalur backend
@@ -238,16 +242,27 @@ export default function OrderDetailScreen() {
   // (components/app-lock-gate.tsx), bukan di konfirmasi dana.
   const scheduleResult = useResultTimer()
 
-  const [qrisStatus, setQrisStatus] = useState<string | null>(null)
   const submitLock = useRef(false)
-  const pollLock = useRef(false)
-  const qrisPollCount = useRef(0)
-  const MAX_QRIS_POLLS = 300 // Max 15 minutes at 3s interval
-  const [pollError, setPollError] = useState<string | null>(null)
-  /** A-11 (audit): true setelah cap polling tercapai — UI mengaku berhenti. */
-  const [qrisPollStopped, setQrisPollStopped] = useState(false)
-  const activePayment = useRef<string | null>(null)
-  activePayment.current = sheet === "pay" && qris ? id : null
+
+  /**
+   * Pembayaran QRIS: intent + polling + rekonsiliasi pindah ke hook
+   * (lib/use-qris-payment.ts) supaya layar ini tidak menambah baris di atas
+   * plafon S9 — dan supaya A-14/A-02 punya satu tempat yang bisa diuji.
+   */
+  const qrisPayment = useQrisPayment({
+    orderId: id ?? null,
+    fallbackAmount: order?.orderValue ?? 0,
+    active: sheet === "pay",
+    canCreate: order?.myRole === "BUYER",
+    onPaid: () => {
+      toast.show({ title: "Pembayaran QRIS diterima", tone: "success", duration: 3000 })
+      closeSheet()
+      void query.refresh()
+    },
+    onError: (message) =>
+      toast.show({ title: "Gagal membuat QRIS", description: message, tone: "danger" }),
+  })
+  const { qris, status: qrisStatus, pollError, stopped: qrisPollStopped, creating: qrisCreating } = qrisPayment
 
   // Alasan / form
   const [cancelReason, setCancelReason] = useState<ReasonValue>({ code: undefined, note: "" })
@@ -262,27 +277,36 @@ export default function OrderDetailScreen() {
    * karena keduanya input yang bisa diedit user (`onChangeText={setTracking}`
    * baris ~906, `setCourier` ~898) — state UI, bukan data server.
    *
-   * CATATAN PERILAKU YANG DIPERTAHANKAN: seperti kode lama, effect ini mengisi
-   * ulang tanpa syarat setiap data order segar, jadi menarik-untuk-menyegarkan
-   * menimpa resi/kurir yang sedang diketik. Itu bug yang sudah ada; tidak
-   * diperbaiki di sini agar migrasi ini tetap bisa diaudit sebagai perubahan
-   * satu dimensi.
+   * A-04 (audit 2026-09-22): versi lama mengisi ulang TANPA SYARAT setiap
+   * `order` berganti identitas (pull-to-refresh, hasil `runAction`, tick
+   * polling QRIS) sehingga resi/kurir yang sedang diketik penjual terhapus di
+   * tengah jalan. Sekarang pengisian hanya terjadi bila order-nya berganti
+   * ATAU server benar-benar mengubah nilainya — refresh yang mengembalikan
+   * data identik tidak lagi menyentuh state editor.
    */
+  const trackedOrderRef = useRef<{ id: string; tracking: string; courier: string } | null>(null)
   useEffect(() => {
     if (!order) return
-    setTracking(order.trackingNumber ?? "")
-    setCourier(order.courierName ?? "")
+    const serverTracking = order.trackingNumber ?? ""
+    const serverCourier = order.courierName ?? ""
+    const previous = trackedOrderRef.current
+    const differentOrder = previous === null || previous.id !== order.id
+    const serverChanged =
+      previous !== null &&
+      (previous.tracking !== serverTracking || previous.courier !== serverCourier)
+    if (differentOrder || serverChanged) {
+      setTracking(serverTracking)
+      setCourier(serverCourier)
+    }
+    trackedOrderRef.current = { id: order.id, tracking: serverTracking, courier: serverCourier }
   }, [order])
 
   const closeSheet = useCallback(() => {
     setSheet(null)
     setPinError(undefined)
-    setQris(null)
-    setQrisStatus(null)
     setDisputeCategory(undefined)
-    setQrisPollStopped(false)
-    qrisPollCount.current = 0
-  }, [])
+    qrisPayment.reset()
+  }, [qrisPayment])
 
   /** Pembungkus aksi sederhana: loading, toast sukses/gagal, refetch. */
   const runAction = useCallback(
@@ -329,9 +353,25 @@ export default function OrderDetailScreen() {
           void query.refresh()
         })
       } catch (err) {
-        const msg = isApiError(err) ? userMessage(err) : "PIN salah atau saldo tidak cukup."
+        /*
+         * A-15 (audit 2026-09-22): timeout/jaringan berarti debit MUNGKIN sudah
+         * terjadi. Versi lama hanya menampilkan pesan kegagalan lalu membuka
+         * sheet PIN lagi — pengguna menekan bayar ulang tanpa tahu state
+         * sebenarnya, dan `Idempotency-Key` baru dibuat untuk percobaan itu.
+         * Sekarang kegagalan tak pasti memicu penyegaran data order supaya
+         * status yang terlihat berasal dari server, bukan asumsi.
+         */
+        const uncertain = !isApiError(err) || err.isTransient || err.code === "ABORTED"
+        const base = isApiError(err) ? userMessage(err) : "PIN salah atau saldo tidak cukup."
+        const msg = uncertain
+          ? `${base} Status pembayaran mungkin sudah diproses — memuat ulang status…`
+          : base
         setPayProgressError(msg)
         setPayProgress("FAILURE")
+        if (uncertain) {
+          invalidateQueryCache()
+          void query.refresh()
+        }
         scheduleResult(() => {
           setPayProgress(null)
           setPinError(msg)
@@ -344,90 +384,12 @@ export default function OrderDetailScreen() {
     [order, closeSheet, query, scheduleResult],
   )
 
-  const pollPayment = useCallback(async () => {
-    if (!order || pollLock.current || activePayment.current !== order.id) return
-    pollLock.current = true
-    try {
-      const res = await api.orders.getPaymentStatus(order.id)
-      if (activePayment.current !== order.id) return
-      setPollError(null)
-      setQrisStatus(res.status)
-      if (res.status === "PAID") {
-        // J-02: status final — aksi menggantung diselesaikan.
-        resolvePendingAction("qris-payment", order.id)
-        toast.show({ title: "Pembayaran QRIS diterima", tone: "success", duration: 3000 })
-        closeSheet()
-        await query.refresh()
-      } else if (["EXPIRED", "FAILED", "CANCELLED"].includes(res.status)) {
-        resolvePendingAction("qris-payment", order.id)
-      }
-    } catch (error) {
-      if (activePayment.current === order.id) setPollError(userMessage(error))
-    } finally {
-      pollLock.current = false
-    }
-  }, [order, toast.show, closeSheet, query])
-  usePolling(
-    async () => {
-      if (qrisPollCount.current >= MAX_QRIS_POLLS) {
-        setQrisPollStopped(true)
-        return
-      }
-      qrisPollCount.current += 1
-      await pollPayment()
-    },
-    POLL_MS,
-    Boolean(
-      qris &&
-        sheet === "pay" &&
-        !["PAID", "EXPIRED", "FAILED", "CANCELLED"].includes(qrisStatus ?? "") &&
-        qrisPollCount.current < MAX_QRIS_POLLS,
-    ),
-  )
-
-  const handlePayQris = useCallback(async () => {
-    if (!order || order.myRole !== "BUYER" || submitLock.current) return
-    // A-13 (audit): jangan buat intent kedua selagi intent aktif masih
-    // PENDING — sinkronkan statusnya dulu. "Buat ulang" hanya sah setelah
-    // status terminal (EXPIRED/FAILED/CANCELLED), itu pun intent lama sudah
-    // mati di sisi channel.
-    const terminal = ["EXPIRED", "FAILED", "CANCELLED"]
-    if (qris && !terminal.includes(qrisStatus ?? "")) {
-      await pollPayment()
-      return
-    }
-    submitLock.current = true
-    setSubmitting(true)
-    try {
-      const res = await api.orders.payOrderQris(order.id)
-      setQris(res)
-      setQrisStatus("PENDING")
-      setQrisPollStopped(false)
-      qrisPollCount.current = 0
-      // J-04: pembayaran QRIS yang ditinggalkan bisa dipulihkan dari Beranda.
-      recordPendingAction({
-        kind: "qris-payment",
-        orderId: order.id,
-        amount: res.amount ?? order.orderValue,
-        createdAt: Date.now(),
-        expiresAt: toEpochMs(res.expiresAt),
-      })
-    } catch (err) {
-      toast.show({
-        title: "Gagal membuat QRIS",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
-      // Kegagalan tidak pasti (jaringan/timeout): intent mungkin TERBUAT di
-      // server meski respons hilang — sinkronkan status sebelum user menekan
-      // lagi (mencegah intent ganda, A-13).
-      const uncertain = !isApiError(err) || err.isTransient || err.code === "ABORTED"
-      if (uncertain) await pollPayment()
-    } finally {
-      submitLock.current = false
-      setSubmitting(false)
-    }
-  }, [order, qris, qrisStatus, pollPayment, toast.show])
+  /**
+   * Pembeli memilih "Tampilkan kode QRIS" / "Buat ulang QRIS". Seluruh logika
+   * (guard intent ganda, cap polling, rekonsiliasi kegagalan tak pasti) ada di
+   * lib/use-qris-payment.ts.
+   */
+  const handlePayQris = useCallback(() => qrisPayment.createIntent(), [qrisPayment])
 
   const openChat = useCallback(async () => {
     if (!order) return
@@ -449,9 +411,16 @@ export default function OrderDetailScreen() {
     const next = nextOrderStatus(order.status)
     if (!next) return undefined
     const hours = durations?.[next]
+    // G-05: frasa diterjemahkan lewat kunci berkatalog ({x} = angkanya), bukan
+    // kalimat Indonesia yang dirakit di lapisan format.
+    const parts = hours != null ? durationHoursParts(hours) : null
     return {
       title: ORDER_STATUS_LABELS[next] ?? next,
-      description: hours != null && hours > 0 ? formatDurationHours(hours) : undefined,
+      description: !parts
+        ? undefined
+        : parts.unit === "hari"
+          ? translate("Biasanya sekitar {x} hari", { x: parts.value })
+          : translate("Biasanya sekitar {x} jam", { x: parts.value }),
     }
   }, [order, durations])
 
@@ -466,7 +435,9 @@ export default function OrderDetailScreen() {
   useUiPrefs()
   const snoozeRatingReminderForOrder = useCallback(() => {
     if (!order) return
-    snoozeRatingReminder(order.id, Date.now() + RATING_SNOOZE_MS)
+    // E-03: snooze dibandingkan terhadap jam SERVER (serverNow) di ui-prefs,
+    // jadi penulisannya harus di domain yang sama.
+    snoozeRatingReminder(order.id, serverNow() + RATING_SNOOZE_MS)
     toast.show({
       title: "Pengingat ulasan ditunda",
       description: "Pengingat muncul lagi di order ini dalam 3 hari.",
@@ -898,17 +869,15 @@ export default function OrderDetailScreen() {
               status={qrisStatus}
               pollError={pollError}
               pollStopped={qrisPollStopped}
-              submitting={submitting}
+              submitting={submitting || qrisCreating}
               copied={copied}
               onCopy={(value) => void copy(value)}
-              onExpire={() =>
-                setQrisStatus((prev) => (prev === "PENDING" || prev == null ? "EXPIRED" : prev))
-              }
+              onExpire={qrisPayment.expireLocally}
               onRecreate={() => void handlePayQris()}
-              onCheckStatus={() => void pollPayment()}
+              onCheckStatus={() => void qrisPayment.syncStatus()}
             />
           ) : (
-            <Button loading={submitting} onPress={() => void handlePayQris()}>
+            <Button loading={submitting || qrisCreating} onPress={() => void handlePayQris()}>
               Tampilkan kode QRIS
             </Button>
           )}

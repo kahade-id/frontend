@@ -57,7 +57,6 @@
   "Kata-kata kasar, ancaman, atau intimidasi": "Swear words, threats, or intimidation",
   "Ketuk atau tekan lama untuk opsi pesan": "Tap or long-press for message options",
   "Ketuk untuk mencari": "Tap to search",
-  "Keypad nominal": "Amount keypad",
   "Keypad PIN": "PIN keypad",
   "Kirim bukti": "Send evidence",
   "Kode {x} digit dari Google Authenticator, Authy, atau sejenisnya. Bekerja tanpa sinyal.": "A {x}-digit code from Google Authenticator, Authy, or similar. Works without a signal.",
@@ -164,5 +163,6 @@
   "Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase": "Opens quick options: top up, create a transaction, or add a showcase item",
   "Pilih yang mau Anda kerjakan.": "Choose what you want to work on.",
   "Top up lewat bank, QRIS, atau gerai ritel": "Top up via bank transfer, QRIS, or a retail outlet",
-  "Unggah karya atau produk ke etalase Anda": "Upload your work or products to your showcase"
+  "Unggah karya atau produk ke etalase Anda": "Upload your work or products to your showcase",
+  "Gagal membatalkan penarikan": "Couldn't cancel the withdrawal"
 }

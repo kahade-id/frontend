@@ -139,10 +139,6 @@
    "n": 4
   },
   {
-   "s": "{x} dari {x}",
-   "n": 3
-  },
-  {
    "s": "Aktif",
    "n": 3
   },
@@ -371,6 +367,10 @@
    "n": 3
   },
   {
+   "s": "{x} dari {x}",
+   "n": 2
+  },
+  {
    "s": "{x} dipilih",
    "n": 2
   },
@@ -464,6 +464,14 @@
   },
   {
    "s": "Bertanya",
+   "n": 2
+  },
+  {
+   "s": "Biasanya sekitar {x} hari",
+   "n": 2
+  },
+  {
+   "s": "Biasanya sekitar {x} jam",
    "n": 2
   },
   {
@@ -2375,6 +2383,10 @@
    "n": 1
   },
   {
+   "s": "Gagal membatalkan penarikan",
+   "n": 1
+  },
+  {
    "s": "Gagal membatalkan tautan",
    "n": 1
   },
@@ -3399,10 +3411,6 @@
    "n": 1
   },
   {
-   "s": "Keypad nominal",
-   "n": 1
-  },
-  {
    "s": "Keypad PIN",
    "n": 1
   },
@@ -4412,6 +4420,14 @@
   },
   {
    "s": "No. SIUP/NIB",
+   "n": 1
+  },
+  {
+   "s": "Nominal {x}",
+   "n": 1
+  },
+  {
+   "s": "Nominal belum diisi",
    "n": 1
   },
   {
