@@ -1,12 +1,33 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useIsFocused } from "@react-navigation/native"
 import { userMessage } from "@/lib/api/errors"
+import { useGuestPathBlocked } from "@/lib/guest-gate"
 import type { Page } from "@/lib/api/response"
 
 export function mergeById<T extends { id: string }>(previous: T[], incoming: T[]): T[] {
   const values = new Map(previous.map((item) => [item.id, item]))
   for (const item of incoming) values.set(item.id, item)
   return [...values.values()]
+}
+
+/**
+ * Pembanding untuk daftar KRONOLOGIS (C-08 audit).
+ *
+ * `mergeById` mempertahankan posisi baris lama: bila data server berubah di
+ * tengah sesi (item naik peringkat — notifikasi baru, transaksi terbaru,
+ * percakapan yang baru dibalas), urutan yang terlihat bisa berbeda dari server
+ * tanpa indikasi apa pun. Opsi `compare` sudah ada sejak F-10, tetapi TIDAK
+ * ada satu pun pemanggil yang mengisinya di checkout audit; helper ini membuat
+ * pengisiannya satu baris dan konsisten (terbaru di atas, toleran tanda waktu
+ * yang hilang/tidak valid).
+ */
+export function byTimestampDesc<T>(pick: (item: T) => string | null | undefined) {
+  const timeOf = (value: string | null | undefined) => {
+    if (!value) return 0
+    const parsed = Date.parse(value)
+    return Number.isFinite(parsed) ? parsed : 0
+  }
+  return (a: T, b: T) => timeOf(pick(b)) - timeOf(pick(a))
 }
 
 export type UsePaginatedQueryOptions<T> = {
@@ -29,6 +50,14 @@ export type UsePaginatedQueryOptions<T> = {
    * tanpa compare perilakunya persis seperti sebelumnya.
    */
   compare?: (a: T, b: T) => number
+  /**
+   * B-02 (audit): gate request untuk layar yang route-nya terbuka bagi tamu
+   * web tetapi datanya `auth:"required"` (tab Dompet/Transaksi/Pengguna).
+   * Sebelumnya hook ini selalu menembak halaman pertama; tamu web tanpa token
+   * memanen 401 → refresh → potensi `expireSession` tiap kali tab difokuskan.
+   * Default true (semua pemanggil lama tidak berubah).
+   */
+  enabled?: boolean
 }
 
 /** Shared pagination for every long list: latest query wins, load-more single-flight, retry keeps rows. */
@@ -41,7 +70,17 @@ export function usePaginatedQuery<T extends { id: string }>(
   fetchRef.current = fetcher
   const compareRef = useRef(opts.compare)
   compareRef.current = opts.compare
-  const active = useRef<AbortController | null>(null)
+  const activeRequest = useRef<AbortController | null>(null)
+  /**
+   * Jenis request yang sedang terbang — C-10 (audit).
+   *
+   * `busy` saja tidak cukup untuk memutuskan apa yang boleh dibatalkan saat
+   * layar kehilangan fokus: muat-awal dan muat-lebih sama-sama menyalakannya.
+   * Membatalkan muat-awal akan meninggalkan `loading` bernilai true tanpa ada
+   * yang memulai ulang request (layar tampak menggantung di skeleton). Jadi
+   * pembatalan saat tidak fokus HANYA berlaku untuk "more".
+   */
+  const inFlight = useRef<"initial" | "more" | null>(null)
   const ids = useRef(new Set<string>())
   const nextPage = useRef(1)
   const hasNext = useRef(true)
@@ -54,13 +93,37 @@ export function usePaginatedQuery<T extends { id: string }>(
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
 
+  /**
+   * Gerbang tamu web (B-03, lihat lib/guest-gate.ts) + gate eksplisit pemanggil
+   * (B-02). Saat tertutup, TIDAK ada request sama sekali — dan saat gerbang
+   * kembali terbuka (tamu pindah ke layar publik / habis login), `load`
+   * berubah identitas sehingga effect muat-awal menjalankannya lagi.
+   */
+  const guestBlocked = useGuestPathBlocked()
+  const active = (opts.enabled ?? true) && !guestBlocked
+
   const load = useCallback(
     async (reset: boolean, refresh = false) => {
+      if (!active) {
+        // Bersihkan sisa data akun sebelumnya; tamu tidak boleh melihat baris
+        // milik sesi lain, dan skeleton tidak boleh berputar selamanya.
+        activeRequest.current?.abort()
+        ids.current.clear()
+        setData([])
+        setHasMore(false)
+        setLoading(false)
+        setRefreshing(false)
+        setLoadingMore(false)
+        setError(null)
+        setLoadMoreError(null)
+        return
+      }
       if (!reset && (busy.current || !hasNext.current)) return
-      if (reset) active.current?.abort()
+      if (reset) activeRequest.current?.abort()
       const controller = new AbortController()
-      active.current = controller
+      activeRequest.current = controller
       busy.current = true
+      inFlight.current = reset ? "initial" : "more"
       const page = reset ? 1 : nextPage.current
       if (reset) {
         setRefreshing(refresh)
@@ -92,8 +155,9 @@ export function usePaginatedQuery<T extends { id: string }>(
         if (reset) setError(userMessage(error))
         else setLoadMoreError(userMessage(error))
       } finally {
-        if (active.current === controller) {
+        if (activeRequest.current === controller) {
           busy.current = false
+          inFlight.current = null
           if (!controller.signal.aborted) {
             setLoading(false)
             setLoadingMore(false)
@@ -102,7 +166,7 @@ export function usePaginatedQuery<T extends { id: string }>(
         }
       }
     },
-    [key],
+    [key, active],
   )
 
   useEffect(() => {
@@ -113,7 +177,7 @@ export function usePaginatedQuery<T extends { id: string }>(
     hasNext.current = true
     void load(true)
     return () => {
-      active.current?.abort()
+      activeRequest.current?.abort()
       busy.current = false
     }
   }, [load])
@@ -124,6 +188,26 @@ export function usePaginatedQuery<T extends { id: string }>(
   const latest = useRef({ load, error, hasRows: false })
   latest.current = { load, error, hasRows: data.length > 0 }
   const everFocused = useRef(false)
+  /**
+   * C-10 (audit): permintaan "muat lebih banyak" dibatalkan saat layar
+   * kehilangan fokus.
+   *
+   * Tab Expo Router tetap ter-mount, jadi tanpa ini pengguna yang menekan
+   * "muat lebih banyak" lalu langsung berpindah layar tetap menunggu respons
+   * dan tetap memanggil `setData` di layar yang tidak terlihat — kuota
+   * terbuang dan render terjadi untuk sesuatu yang tak seorang pun lihat.
+   * Muat-awal/reset TIDAK dibatalkan (data pertama tetap dibutuhkan saat
+   * kembali, dan membatalkannya akan menggantung skeleton selamanya — lihat
+   * `inFlight` di atas), hanya penambahan halaman.
+   */
+  useEffect(() => {
+    if (focused || inFlight.current !== "more") return
+    activeRequest.current?.abort()
+    busy.current = false
+    inFlight.current = null
+    setLoadingMore(false)
+  }, [focused])
+
   useEffect(() => {
     if (!opts.refreshOnFocus) return
     if (!everFocused.current) {

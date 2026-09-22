@@ -25,6 +25,7 @@
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { Plus } from "phosphor-react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
@@ -255,7 +256,10 @@ export default function BusinessVerificationScreen() {
               <Field
                 label="NPWP badan usaha"
                 required
-                helperText={`${NPWP_DIGITS_MIN}–${NPWP_DIGITS_MAX} digit; titik & strip diizinkan.`}
+                helperText={translate("{x}–{y} digit; titik & strip diizinkan.", {
+                  x: NPWP_DIGITS_MIN,
+                  y: NPWP_DIGITS_MAX,
+                })}
               >
                 <Input
                   value={npwpNumber}
@@ -301,7 +305,7 @@ export default function BusinessVerificationScreen() {
                     fullWidth={false}
                     disabled={submitting}
                     onPress={() => removeDoc(i)}
-                    accessibilityLabel={`Hapus dokumen ${d.name}`}
+                    accessibilityLabel={translate("Hapus dokumen {x}", { x: d.name })}
                   >
                     Hapus
                   </Button>
@@ -316,7 +320,7 @@ export default function BusinessVerificationScreen() {
                   onPick={() => void pickDoc()}
                   accept={["jpg", "png"]}
                   maxSizeMB={MAX_SIZE_MB}
-                  title={`Pilih foto (maks ${MAX_SIZE_MB}MB)`}
+                  title={translate("Pilih foto (maks {x}MB)", { x: MAX_SIZE_MB })}
                   disabled={submitting}
                 />
               ) : null}

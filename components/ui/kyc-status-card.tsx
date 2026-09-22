@@ -26,6 +26,7 @@
  */
 import { Clock, IdentificationCard, SealCheck, SealWarning, XCircle } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -38,15 +39,16 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
 
-export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | "REVOKED"
+/*
+ * I-07 (audit 2026-09-22): tipe + label status kini SATU sumber di
+ * `lib/labels/status.ts`; komponen ini hanya memetakan tone visualnya.
+ * Re-export dipertahankan supaya impor lama (`@/components/ui/kyc-status-card`)
+ * tidak perlu diubah serentak.
+ */
+import { KYC_STATUS_LABELS, type KycStatus } from "@/lib/labels/status"
 
-export const KYC_STATUS_LABELS: Record<KycStatus, string> = {
-  NOT_SUBMITTED: "Belum diverifikasi",
-  PENDING: "Sedang ditinjau",
-  APPROVED: "Terverifikasi",
-  REJECTED: "Ditolak",
-  REVOKED: "Dicabut",
-}
+export type { KycStatus }
+export { KYC_STATUS_LABELS }
 
 const STATUS_TONE: Record<KycStatus, BadgeTone> = {
   NOT_SUBMITTED: "neutral",
@@ -86,7 +88,7 @@ export function KycStatusBadge({ status, labels, variant = "soft", ...rest }: Ky
   const known = isKycStatus(status)
   const label = known ? labels?.[status] ?? KYC_STATUS_LABELS[status] : status
   return (
-    <Badge tone={known ? STATUS_TONE[status] : "neutral"} variant={variant} accessibilityLabel={`Status KYC: ${label}`} {...rest}>
+    <Badge tone={known ? STATUS_TONE[status] : "neutral"} variant={variant} accessibilityLabel={translate("Status KYC: {x}", { x: label })} {...rest}>
       {label}
     </Badge>
   )
@@ -160,7 +162,7 @@ export function KycStatusCard({
       <CardSummary
         className="gap-4"
         label={summarize([
-          `Verifikasi identitas: ${t[s]}`,
+          translate("Verifikasi identitas: {x}", { x: translate(t[s]) }),
           t.descriptions[s],
           needsResubmit && rejectionReason ? `${t.reasonTitle}: ${rejectionReason}` : undefined,
           ...meta,

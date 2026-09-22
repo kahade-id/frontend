@@ -36,6 +36,7 @@ import { View, type ViewProps } from "react-native"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type CopyableFieldProps = Omit<ViewProps, "children"> & {
   /** Nilai yang ditampilkan (boleh sudah diformat, mis. "1234 5678 9012") */
@@ -117,7 +118,21 @@ export function CopyableField({
           numberOfLines={wrap ? undefined : 1}
           selectable={!masked}
           accessibilityRole="text"
-          accessibilityLabel={masked ? undefined : `${label ? `${label}: ` : ""}${value.length > 24 ? `${value.slice(0, 8)}… ${value.length} karakter, ketuk salin` : value}`}
+          accessibilityLabel={
+            masked
+              ? undefined
+              : [
+                  label ? `${translate(label)}: ` : null,
+                  value.length > 24
+                    ? translate("{x}… {y} karakter, ketuk salin", {
+                        x: value.slice(0, 8),
+                        y: value.length,
+                      })
+                    : value,
+                ]
+                  .filter(Boolean)
+                  .join("")
+          }
           className="flex-1 py-3"
         >
           {shown}

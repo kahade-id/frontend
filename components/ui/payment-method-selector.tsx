@@ -45,6 +45,8 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Radio, RadioGroup, type RadioGroupProps } from "@/components/ui/radio"
 import { Text } from "@/components/ui/text"
 import { formatRupiah } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type PaymentMethodKind = "bank" | "ewallet" | "qris" | "balance"
 
@@ -203,9 +205,11 @@ export function PaymentMethodSelector({
               </View>
             }
             description={description}
-            accessibilityLabel={`${m.name}, biaya ${feeLabel}${m.recommended ? `, ${t.recommended}` : ""}${
-              typeof description === "string" ? `, ${description}` : ""
-            }`}
+            accessibilityLabel={summarize([
+              translate("{x}, biaya {y}", { x: translate(m.name), y: feeLabel }),
+              m.recommended ? translate(t.recommended) : undefined,
+              typeof description === "string" ? description : undefined,
+            ])}
           />
         )
       })}

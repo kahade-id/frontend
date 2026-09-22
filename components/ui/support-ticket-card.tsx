@@ -24,6 +24,7 @@
  */
 import { Paperclip } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { Card, type CardProps } from "@/components/ui/card"
@@ -35,15 +36,10 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
 
-export type TicketStatus = "OPEN" | "IN_PROGRESS" | "WAITING_USER" | "RESOLVED" | "CLOSED"
+import { TICKET_STATUS_LABELS, type TicketStatus } from "@/lib/labels/status"
 
-export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
-  OPEN: "Terbuka",
-  IN_PROGRESS: "Ditangani",
-  WAITING_USER: "Menunggu Anda",
-  RESOLVED: "Selesai",
-  CLOSED: "Ditutup",
-}
+export type { TicketStatus }
+
 
 const STATUS_TONE: Record<TicketStatus, BadgeTone> = {
   OPEN: "warning",
@@ -72,7 +68,7 @@ export function TicketStatusBadge({ status, size = "sm", labels, variant = "soft
   const known = isTicketStatus(status)
   const label = known ? labels?.[status] ?? TICKET_STATUS_LABELS[status] : status
   return (
-    <Badge tone={known ? STATUS_TONE[status] : "neutral"} variant={variant} dot={size === "sm"} accessibilityLabel={`Status tiket: ${label}`} {...rest}>
+    <Badge tone={known ? STATUS_TONE[status] : "neutral"} variant={variant} dot={size === "sm"} accessibilityLabel={translate("Status tiket: {x}", { x: label })} {...rest}>
       {label}
     </Badge>
   )

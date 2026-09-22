@@ -26,6 +26,12 @@
  *     lokal via `addDays` + `formatDate` (§13) agar pemanggil tidak perlu
  *     mengulang aritmetika tanggal; `newDeadline` boleh dikirim eksplisit
  *     bila server sudah menghitungnya.
+ *   - E-04 (audit): tanggal tenggat dihitung pada KALENDER ASIA/JAKARTA
+ *     (`formatDate(..., { timeZone: WIB_TIME_ZONE })`), bukan zona perangkat.
+ *     Tenggat 23:59 WIB jatuh pada hari berikutnya di WITA/WIT; menampilkannya
+ *     dalam zona perangkat membuat hari yang dibaca berbeda dari hari yang
+ *     mengikat. Cap waktu lengkap (dengan label "WIB") tetap ditampilkan layar
+ *     pemanggil lewat `formatDateTimeWIB`.
  *   - Menyetujui memperpanjang masa dana tertahan di escrow -> pemanggil
  *     WAJIB Dialog konfirmasi (§10); komponen hanya memanggil `onApprove`.
  *     "Setujui" primary karena itu jalur yang diharapkan sistem (menghindari
@@ -48,8 +54,9 @@ import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
-import { formatDate } from "@/lib/format"
+import { formatDate, WIB_TIME_ZONE } from "@/lib/format"
 import { hasOwn } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 export type OrderExtensionStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED"
 
@@ -82,7 +89,7 @@ export type OrderExtensionCardLabels = {
 
 const DEFAULT_LABELS: OrderExtensionCardLabels = {
   fromYou: "Permintaan perpanjangan dari Anda",
-  from: (name) => `Permintaan perpanjangan dari ${name}`,
+  from: (name) => translate("Permintaan perpanjangan dari {x}", { x: name }),
   currentDeadline: "Tenggat saat ini",
   newDeadline: "Tenggat baru",
   extraDays: (n) => `+${n} hari`,
@@ -91,6 +98,11 @@ const DEFAULT_LABELS: OrderExtensionCardLabels = {
   approve: "Setujui",
   reject: "Tolak",
   status: ORDER_EXTENSION_LABELS,
+}
+
+/** E-04: tenggat pengiriman adalah tanggal kalender WIB (kontrak backend). */
+function deadlineDate(value: Date | number | string): string {
+  return formatDate(value, { timeZone: WIB_TIME_ZONE })
 }
 
 export type OrderExtensionCardProps = Omit<ViewProps, "children"> & {
@@ -164,8 +176,8 @@ export function OrderExtensionCard({
           statusLabel,
           requestedAt,
           t.extraDays(extensionDays),
-          `${t.currentDeadline} ${formatDate(currentDeadline)}`,
-          `${t.newDeadline} ${formatDate(resolvedNewDeadline)}`,
+          `${t.currentDeadline} ${deadlineDate(currentDeadline)}`,
+          `${t.newDeadline} ${deadlineDate(resolvedNewDeadline)}`,
           reason ? `${t.reason}: ${reason}` : undefined,
           !pending && responseNote ? `${t.responseNote}: ${responseNote}` : undefined,
         ])}
@@ -199,7 +211,7 @@ export function OrderExtensionCard({
                 {t.currentDeadline}
               </Text>
               <Text variant="caption" weight={500} tone="secondary" className="tabular-nums">
-                {formatDate(currentDeadline)}
+                {deadlineDate(currentDeadline)}
               </Text>
             </View>
             <Icon icon={ArrowRight} size="xs" tone="default" />
@@ -208,7 +220,7 @@ export function OrderExtensionCard({
                 {t.newDeadline}
               </Text>
               <Text variant="caption" weight={600} tone="primary" className="tabular-nums">
-                {formatDate(resolvedNewDeadline)}
+                {deadlineDate(resolvedNewDeadline)}
               </Text>
             </View>
           </View>

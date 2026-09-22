@@ -17,7 +17,7 @@ import { Star } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { tokens } from "@/lib/tokens"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -58,9 +58,10 @@ export default function PublicRatingsScreen() {
   const query = usePaginatedQuery<Rating>(
     `public-ratings:${username}:${filter}`,
     async (page, signal) => {
-      // `usePaginatedQuery` tidak punya `enabled`, jadi guard `!username`
-      // (pengganti `if (!username) return` versi lama) pindah ke sini —
-      // tanpa ini fetcher akan menembak /v1/users/undefined/ratings.
+      // B-02 (audit): `usePaginatedQuery` SEKARANG punya `enabled`, tetapi
+      // guard di sini tetap dipertahankan karena username datang dari
+      // parameter rute — tanpa ini fetcher bisa menembak
+      // /v1/users/undefined/ratings sebelum rute selesai di-resolve.
       if (!username) return { data: [], meta: { page, limit: PAGE_SIZE, totalPages: page } }
       const body = await api.ratings.getPublicRatings(
         username,
@@ -77,6 +78,9 @@ export default function PublicRatingsScreen() {
         },
       }
     },
+    // C-08 (audit): ulasan terbaru di atas — server mengurutkan begitu, dan
+    // balasan ulasan yang baru masuk tidak boleh tertinggal di posisi lama.
+    { compare: byTimestampDesc<Rating>((rating) => rating.createdAt) },
   )
   const items = query.data
 

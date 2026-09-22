@@ -12,6 +12,7 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Amount } from "@/components/ui/amount"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
+import { OtpInput } from "@/components/ui/otp-input"
 import { PinInput } from "@/components/ui/pin-input"
 import { TopupStatusCard } from "@/components/ui/topup-status-card"
 
@@ -162,5 +163,99 @@ describe("<TopupStatusCard>", () => {
     )
     expect(screen.getByText("Menunggu pembayaran")).toBeTruthy()
     expect(screen.getByText("Rp50.000")).toBeTruthy()
+  })
+})
+
+/**
+ * A-03 (audit 2026-09-22) — regresi nyata yang terbukti runtime: `<OtpInput>`
+ * TIDAK mengosongkan input tersembunyinya saat server menolak kode. Karena
+ * `maxLength={length}` sudah tercapai, setiap ketukan digit berikutnya
+ * diabaikan — pengguna harus menghapus 6 digit manual sebelum bisa mencoba
+ * kode baru. Terjadi di sheet OTP penarikan (app/withdraw.tsx) dan aktivasi
+ * 2FA (app/two-factor.tsx). Test ini mengunci perilaku yang benar (sama
+ * dengan `<PinInput>` yang sudah punya test serupa di atas).
+ */
+describe("<OtpInput> menolak kode → bisa langsung diketik ulang (A-03)", () => {
+  const typeCode = (code: string) => {
+    const input = document.querySelector("input") as HTMLInputElement
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set
+    setter?.call(input, code)
+    fireEvent.input(input)
+    return input
+  }
+  const currentValue = () => (document.querySelector("input") as HTMLInputElement).value
+
+  it("kode pertama terkirim, input dikosongkan saat error, kode kedua terkirim", async () => {
+    const onComplete = vi.fn()
+    const onChange = vi.fn()
+    const { rerender } = renderInTheme(
+      <OtpInput length={6} onComplete={onComplete} onChange={onChange} />,
+    )
+    typeCode("111111")
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith("111111"))
+
+    // Server menolak → pesan error muncul. Nilai input HARUS kosong lagi.
+    rerender(wrapTheme(<OtpInput length={6} onComplete={onComplete} onChange={onChange} errorText="Kode OTP salah." />))
+    await waitFor(() => expect(currentValue()).toBe(""))
+
+    typeCode("222222")
+    await waitFor(() => expect(onComplete).toHaveBeenLastCalledWith("222222"))
+    expect(onComplete).toHaveBeenCalledTimes(2)
+  })
+
+  it("pesan error yang SAMA diulang pun tetap mengosongkan kode yang ditolak", async () => {
+    const onComplete = vi.fn()
+    const { rerender } = renderInTheme(<OtpInput length={6} onComplete={onComplete} />)
+    typeCode("123456")
+    await waitFor(() => expect(onComplete).toHaveBeenCalledWith("123456"))
+    rerender(wrapTheme(<OtpInput length={6} onComplete={onComplete} errorText="Kode OTP salah." />))
+    await waitFor(() => expect(currentValue()).toBe(""))
+
+    // Versi lama gagal di sini: string error identik → tidak ada transisi state,
+    // sehingga kode tetap penuh dan ketikan berikutnya diabaikan input native.
+    typeCode("654321")
+    await waitFor(() => expect(onComplete).toHaveBeenLastCalledWith("654321"))
+  })
+})
+
+/**
+ * A-06/H-02 (audit 2026-09-22): batas 12 digit dulu hanya ditegakkan tombol
+ * digit tunggal — tombol "00" hanya memeriksa `max`, sehingga pada layar tanpa
+ * `max` (top-up) satu tekanan bisa melewati batas keras dan mengirim angka di
+ * luar presisi integer aman. Sekarang ketiga jalur memakai satu commit.
+ */
+describe("<AmountKeypad> batas panjang & presisi (A-06/H-02)", () => {
+  it("'00' ditolak saat sudah 12 digit (batas keras, bukan dipotong)", () => {
+    const onChange = vi.fn()
+    renderInTheme(<AmountKeypad value={999_999_999_999} onChange={onChange} actionKey="00" />)
+    expect(screen.getByText("999.999.999.999")).toBeTruthy()
+    fireEvent.click(screen.getByText("00"))
+    expect(onChange).not.toHaveBeenCalled()
+  })
+
+  it("'00' pada 11 digit: hanya SATU nol yang masuk, dan tidak pernah >12 digit", () => {
+    const onChange = vi.fn()
+    renderInTheme(<AmountKeypad value={12_345_678_901} onChange={onChange} actionKey="00" />)
+    fireEvent.click(screen.getByText("00"))
+    // 1234567890100 punya 13 digit → ditolak; fallback satu nol (perilaku lama
+    // yang dipertahankan) menghasilkan 123456789010 yang MASIH 12 digit.
+    expect(onChange).toHaveBeenCalledTimes(1)
+    const emitted = onChange.mock.calls[0][0] as number
+    expect(String(emitted)).toHaveLength(12)
+    expect(emitted).toBe(123_456_789_010)
+  })
+
+  it("'00' tetap bekerja normal di bawah batas (1200)", () => {
+    const onChange = vi.fn()
+    renderInTheme(<AmountKeypad value={12} onChange={onChange} actionKey="00" />)
+    fireEvent.click(screen.getByText("00"))
+    expect(onChange).toHaveBeenLastCalledWith(1200)
+  })
+
+  it("baris nominal jadi satu elemen berlabel (F-04/A-18)", () => {
+    const { rerender } = renderInTheme(<AmountKeypad value={0} onChange={() => {}} />)
+    expect(screen.getByLabelText("Nominal belum diisi")).toBeTruthy()
+    rerender(wrapTheme(<AmountKeypad value={1_500_000} onChange={() => {}} />))
+    expect(screen.getByLabelText("Nominal Rp1.500.000")).toBeTruthy()
   })
 })

@@ -20,6 +20,11 @@ export default function FollowersScreen() {
   const { username, tab: initialTab } = useLocalSearchParams<{ username: string; tab?: Tab }>()
   const [tab, setTab] = useState<Tab>(initialTab === "following" ? "following" : "followers")
   const insets = useSafeAreaInsets()
+  // C-08 (audit): sengaja TANPA `compare` — `UserConnection` tidak membawa
+  // tanda waktu apa pun (`lib/api/users.ts`), jadi daftar ini tidak punya
+  // urutan kronologis untuk ditegakkan; urutannya milik server (alfabetis /
+  // "terbaru diikuti" sesuai backend). Menambahkan pembanding rekaan di sini
+  // akan mengacak urutan yang sudah benar.
   const query = usePaginatedQuery<UserConnection>(
     `connections:${username}:${tab}`,
     (page, signal) =>
@@ -32,6 +37,7 @@ export default function FollowersScreen() {
       <Header title={tab === "followers" ? "Pengikut" : "Mengikuti"} />
       <View className="px-5 py-4">
         <SegmentedControl<Tab>
+          accessibilityLabel="Daftar pengikut"
           value={tab}
           onChange={setTab}
           items={[

@@ -38,7 +38,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated from "react-native-reanimated"
-import { Compass, Images, UsersThree } from "phosphor-react-native"
+import { Compass, Images, LockKey, UsersThree } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -50,6 +50,9 @@ import {
   unlikeShowcase,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
+import { useHasSession } from "@/lib/guest-gate"
+import { fetchViaQueryCache } from "@/lib/query-cache"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
 import { shareContent } from "@/lib/share"
@@ -74,6 +77,7 @@ import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { TextArea } from "@/components/ui/text-area"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 const PAGE_LIMIT = 20
 const FEED_LIMIT = 20
@@ -95,8 +99,21 @@ export default function DiscoverScreen() {
 
 export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
   const toast = useToast()
-  const query = usePaginatedQuery<DiscoveredUser>("discover", (page, signal) =>
-    api.users.discoverUsers({ page, limit: PAGE_LIMIT }, signal),
+  /**
+   * B-02 (audit): tab Pengguna terbuka bagi tamu web (`/discover` ada di
+   * WEB_GUEST_ALLOWED_PATHS), sedangkan `GET /v1/users/discover`
+   * `auth:"required"` — tanpa gate token, tamu memanen 401 → refresh →
+   * potensi `expireSession` tiap kali tab difokuskan. Empty state tamu
+   * menjelaskan keadaannya, bukan menampilkan galat.
+   */
+  const hasSession = useHasSession()
+  // C-08 (audit): sengaja TANPA `compare` — tab ini menampilkan PERINGKAT
+  // rekomendasi dari server, bukan daftar kronologis. Mengurutkan ulang di
+  // klien justru merusak urutan yang dimaksudkan backend.
+  const query = usePaginatedQuery<DiscoveredUser>(
+    "discover",
+    (page, signal) => api.users.discoverUsers({ page, limit: PAGE_LIMIT }, signal),
+    { enabled: hasSession },
   )
   const { setData } = query
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -133,11 +150,20 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
       gap={0}
       bottomPadding={bottomPadding}
       empty={
-        <EmptyState
-          icon={Compass}
-          title="Belum ada rekomendasi"
-          description="Pengguna yang disarankan untuk Anda akan muncul di sini."
-        />
+        hasSession ? (
+          <EmptyState
+            icon={Compass}
+            title="Belum ada rekomendasi"
+            description="Pengguna yang disarankan untuk Anda akan muncul di sini."
+          />
+        ) : (
+          <EmptyState
+            icon={LockKey}
+            title="Masuk untuk menemukan pengguna"
+            description="Rekomendasi pengguna disusun dari riwayat transaksi dan lingkaran sosial akun Anda."
+            action={<Button onPress={() => router.push(ROUTES.login)}>Masuk</Button>}
+          />
+        )
       }
       renderItem={({ item, index }) => (
         <UserDiscoverResultItem
@@ -247,14 +273,41 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
   const followingSet = useRef<ReadonlySet<string> | null>(null)
 
   /**
+   * Sesi dibaca lewat ref supaya `ensureFollowingSet` tetap stabil: kalau
+   * `hasSession` masuk daftar dependensi, identitas callback berubah saat sesi
+   * dipulihkan di boot (tamu → login) dan `fetchPage` ikut berubah — feed yang
+   * baru saja dimuat akan ditembak ulang tanpa sebab.
+   */
+  const hasSession = useHasSession()
+  const hasSessionRef = useRef(hasSession)
+  hasSessionRef.current = hasSession
+
+  /**
    * Muat daftar akun yang diikuti (maks 4×50 = 200 — cukup untuk feed;
    * follow > 200 tetap terfilter pada 200 teratas halaman). Gagal/tamu →
    * set kosong + flag guest; empty state yang menjelaskan, bukan error.
    */
   const ensureFollowingSet = useCallback(async (signal: AbortSignal) => {
     if (followingSet.current) return followingSet.current
+    /**
+     * B-02 (audit): tamu tidak menembak `GET /v1/users/me` yang pasti 401 —
+     * tiap 401 memicu refresh token dan berpotensi mengakhiri sesi yang
+     * sebenarnya tidak ada. Empty state tamu sudah menangani kasusnya.
+     */
+    if (!hasSessionRef.current) {
+      setFollowingGuest(true)
+      followingSet.current = new Set()
+      return followingSet.current
+    }
     try {
-      const me = await api.users.getMe()
+      /**
+       * C-02 (audit): profil dibaca lewat cache bersama `queryKeys.me()` — kunci
+       * yang sama dipakai <ShowcaseHeader> di layar ini dan lintas layar lain.
+       * Sebelumnya panggilan langsung di sini tidak pernah melihat cache,
+       * sehingga GET /v1/users/me yang sama bisa ditembak berkali-kali dalam
+       * hitungan detik.
+       */
+      const me = await fetchViaQueryCache(queryKeys.me(), (s) => api.users.getMe(s), signal)
       if (!me?.username) throw new Error("guest")
       const set = new Set<string>()
       for (let page = 1; page <= 4; page++) {
@@ -493,7 +546,7 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         title="Belum ada showcase"
         description={
           debouncedSearch
-            ? `Tidak ada hasil untuk "${debouncedSearch}".`
+            ? translate('Tidak ada hasil untuk "{x}".', { x: debouncedSearch })
             : "Item showcase publik akan muncul di sini."
         }
       />
@@ -621,7 +674,7 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         visible={!!reportItem}
         onRequestClose={() => setReportItem(null)}
         title="Laporkan Karya"
-        description={reportItem ? `Laporkan postingan "${reportItem.title}" jika melanggar panduan komunitas.` : undefined}
+        description={reportItem ? translate('Laporkan postingan "{x}" jika melanggar panduan komunitas.', { x: reportItem.title }) : undefined}
         avoidKeyboard
         footer={
           <Button
@@ -635,7 +688,12 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
       >
         <View className="gap-4">
           <Field label="Alasan Laporan" required>
-            <RadioGroup value={reportReason} onChange={setReportReason} variant="plain">
+            <RadioGroup
+              accessibilityLabel="Alasan Laporan"
+              value={reportReason}
+              onChange={setReportReason}
+              variant="plain"
+            >
               {CONTENT_REPORT_REASONS.map((r) => (
                 <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
               ))}

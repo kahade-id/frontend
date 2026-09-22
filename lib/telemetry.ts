@@ -155,6 +155,25 @@ export function installTelemetry(): void {
   if (installed) return
   installed = true
 
+  /*
+   * I-03 (audit 2026-09-22): `addTelemetrySink()` dulu tidak punya SATU pun
+   * pemanggil — jalur yang katanya "siap dipakai Sentry nanti" tidak pernah
+   * dieksekusi, jadi bug di dalamnya (mis. sink yang melempar) hanya akan
+   * ketahuan saat vendor benar-benar dipasang. Sink dev ini memakai jalur yang
+   * sama dan aktif di setiap sesi pengembangan, sehingga kontraknya hidup.
+   * Di produksi tidak ada sink bawaan: ring buffer + remote opsional saja.
+   */
+  if (__DEV__) {
+    addTelemetrySink((event) => {
+      if (event.level === "warn" && sinks.size > 1) {
+        // Sink tambahan (mis. adapter vendor saat dev) sudah menangani pesan
+        // ini; jangan gandakan keluarannya di konsol.
+        return
+      }
+      console.log(`[kahade/telemetry] ${event.level} · ${event.scope} · ${event.message}`)
+    })
+  }
+
   const globalRef = globalThis as {
     ErrorUtils?: {
       getGlobalHandler?: () => ((error: unknown, isFatal?: boolean) => void) | null

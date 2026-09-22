@@ -42,18 +42,13 @@ import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
 
 export type SubscriptionPeriod = "MONTHLY" | "ANNUAL"
-export type SubscriptionStatus = "NONE" | "ACTIVE" | "EXPIRING" | "EXPIRED" | "CANCELLED"
+import { SUBSCRIPTION_STATUS_LABELS, type SubscriptionStatus } from "@/lib/labels/status"
+
+export type { SubscriptionStatus }
 
 /** Sisa hari yang membuat ACTIVE dianggap EXPIRING */
 export const EXPIRING_THRESHOLD_DAYS = 7
 
-export const SUBSCRIPTION_STATUS_LABELS: Record<SubscriptionStatus, string> = {
-  NONE: "Belum berlangganan",
-  ACTIVE: "Aktif",
-  EXPIRING: "Segera berakhir",
-  EXPIRED: "Berakhir",
-  CANCELLED: "Dihentikan",
-}
 
 const STATUS_TONE: Record<SubscriptionStatus, BadgeTone> = {
   NONE: "neutral",

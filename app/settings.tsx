@@ -58,6 +58,7 @@ import {
 
 import { api, type UserProfile } from "@/lib/api"
 import type { SubscriptionStatus } from "@/lib/api/subscriptions"
+import { queryKeys } from "@/lib/query-keys"
 import { clearSession } from "@/lib/api/session"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
@@ -108,7 +109,7 @@ export default function SettingsScreen() {
   const [loggingOut, setLoggingOut] = useState(false)
 
   // Profile data query
-  const profileQuery = useApiQuery<UserProfile>("user-me", (signal) => api.users.getMe(signal))
+  const profileQuery = useApiQuery<UserProfile>(queryKeys.me(), (signal) => api.users.getMe(signal))
   const profile = profileQuery.data
 
   // Subscription status query

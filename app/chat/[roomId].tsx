@@ -1,6 +1,5 @@
 /**
  * Screen — Ruang Chat Detail.
- *
  * GET  /v1/chat/rooms/{roomId}/messages   (kursor: cursor/limit/excludeIds)
  * POST /v1/chat/rooms/{roomId}/messages   (TEXT/IMAGE/FILE + attachments)
  * POST /v1/chat/rooms/{roomId}/upload     (multipart → ChatAttachmentDto)
@@ -869,6 +868,7 @@ export default function ChatRoomScreen() {
       actions.push({
         key: "pin",
         label: target.isPinned ? "Lepas pin" : "Pin",
+        selected: target.isPinned, // H-12: keadaan diumumkan, bukan hanya aksinya
         icon: PushPin,
         onPress: () => {
           exitSelect()

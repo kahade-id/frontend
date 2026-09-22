@@ -38,7 +38,7 @@ import type { ActivityLogEntry, DeviceSession, SecurityLogEntry } from "@/lib/ap
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import type { Page } from "@/lib/api/response"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { ActivityLogItem } from "@/components/ui/activity-log-item"
 import { Button } from "@/components/ui/button"
@@ -56,6 +56,7 @@ import { SecurityLogItem } from "@/components/ui/security-log-item"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
 import { Text } from "@/components/ui/text"
+import { translate } from "@/lib/i18n/translate"
 
 type TabKey = "devices" | "security" | "activity"
 
@@ -115,20 +116,28 @@ export default function SecurityActivityScreen() {
    *
    * Ketiga daftar tetap dimuat saat mount, persis seperti `Promise.all` lama.
    */
+  /**
+   * C-08 (audit): ketiga daftar di layar ini kronologis — perangkat/log
+   * terbaru harus di atas. Tanpa pembanding, baris lama mempertahankan posisi
+   * hasil unduhan pertama walau server sudah mengurutkan ulang.
+   */
   const sessionsQuery = usePaginatedQuery<DeviceSession>(
     "security-sessions",
     async (page, signal) =>
       listPage((await api.sessions.listSessions({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
+    { compare: byTimestampDesc<DeviceSession>((session) => session.lastActiveAt) },
   )
   const securityQuery = usePaginatedQuery<SecurityLogEntry>(
     "security-log",
     async (page, signal) =>
       listPage((await api.sessions.getSecurityLog({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
+    { compare: byTimestampDesc<SecurityLogEntry>((entry) => entry.createdAt) },
   )
   const activityQuery = usePaginatedQuery<ActivityLogEntry>(
     "activity-log",
     async (page, signal) =>
       listPage((await api.sessions.getActivityLog({ page, limit: PAGE_SIZE }, signal)) ?? [], page),
+    { compare: byTimestampDesc<ActivityLogEntry>((entry) => entry.createdAt) },
   )
   const sessions = sessionsQuery.data
   const securityLog = securityQuery.data
@@ -278,7 +287,12 @@ export default function SecurityActivityScreen() {
         }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <SegmentedControl items={TABS} value={tab} onChange={(v) => setTab(v as TabKey)} />
+          <SegmentedControl
+            accessibilityLabel="Jenis aktivitas"
+            items={TABS}
+            value={tab}
+            onChange={(v) => setTab(v as TabKey)}
+          />
 
           {error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void activeQuery.reload()} />
@@ -416,7 +430,9 @@ export default function SecurityActivityScreen() {
 
       <Dialog
         title="Cabut sesi ini?"
-        description={`${confirmRevoke?.deviceName ?? "Perangkat"} akan diminta masuk kembali.`}
+        description={translate("{x} akan diminta masuk kembali.", {
+          x: confirmRevoke?.deviceName ?? "Perangkat",
+        })}
         visible={!!confirmRevoke}
         destructive
         loading={revokingId === confirmRevoke?.id}
@@ -429,7 +445,10 @@ export default function SecurityActivityScreen() {
 
       <Dialog
         title="Hapus perangkat ini?"
-        description={`${removeTarget?.deviceName ?? "Perangkat"} akan dilupakan: semua sesinya dicabut dan perangkat ini harus masuk ulang beserta 2FA.`}
+        description={translate(
+          "{x} akan dilupakan: semua sesinya dicabut dan perangkat ini harus masuk ulang beserta {y}.",
+          { x: removeTarget?.deviceName ?? "Perangkat", y: "2FA" },
+        )}
         visible={!!removeTarget}
         destructive
         loading={removingId === removeTarget?.id}
@@ -467,7 +486,10 @@ export default function SecurityActivityScreen() {
 
       <Dialog
         title="Keluar dari semua perangkat lain?"
-        description={`${otherSessions} sesi lain akan dicabut dan harus masuk kembali. Perangkat ini tetap masuk.`}
+        description={translate(
+          "{x} sesi lain akan dicabut dan harus masuk kembali. Perangkat ini tetap masuk.",
+          { x: otherSessions },
+        )}
         visible={confirmOthers}
         destructive
         loading={revokingOthers}

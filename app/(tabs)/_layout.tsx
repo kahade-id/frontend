@@ -99,8 +99,11 @@ export default function TabsLayout() {
       setMeProfile(null)
       return undefined
     }
+    // C-02 (audit): pembacaan imperatif ikut cache bersama `queryKeys.me()` —
+    // identitas akun tidak berubah spontan, dan layar lain di tab yang sama
+    // sering membacanya pada detik yang sama.
     api.users
-      .getMe()
+      .getMeCached()
       .then((me) => {
         if (alive) setMeProfile(me)
       })

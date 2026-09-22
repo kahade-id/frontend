@@ -86,6 +86,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { VoucherRedeemBox, type AppliedVoucher } from "@/components/ui/voucher-redeem-box"
+import { translate } from "@/lib/i18n/translate"
 
 const DEBOUNCE_MS = 400
 const MIN_ORDER_VALUE = AMOUNT_LIMITS.order.minimum
@@ -550,7 +551,12 @@ export default function CreateTransactionScreen() {
         {step === 0 ? (
           <>
             <FormSection title="Cara membuat">
-              <SegmentedControl<Mode> items={MODE_ITEMS} value={mode} onChange={setMode} />
+              <SegmentedControl<Mode>
+                accessibilityLabel="Cara membuat transaksi"
+                items={MODE_ITEMS}
+                value={mode}
+                onChange={setMode}
+              />
               <Text variant="caption" tone="secondary">
                 {mode === "link"
                   ? "Buat tautan yang bisa dibagikan; siapa pun yang membuka dan menyetujui menjadi lawan transaksi."
@@ -642,7 +648,7 @@ export default function CreateTransactionScreen() {
             <Field
               label="Tenggat pengiriman (hari)"
               required
-              helperText={`1–${MAX_DEADLINE_DAYS} hari`}
+              helperText={translate("{x}–{y} hari", { x: 1, y: MAX_DEADLINE_DAYS })}
             >
               <Input
                 value={deadlineDraft}

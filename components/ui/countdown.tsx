@@ -28,6 +28,7 @@ import { View, type ViewProps } from "react-native"
 import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatCountdown } from "@/lib/format"
+import { translateProp } from "@/lib/i18n"
 import { serverNow } from "@/lib/server-time"
 
 export type UseCountdownOptions = {
@@ -69,6 +70,14 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
     until != null &&
     !Number.isFinite(until instanceof Date ? until.getTime() : new Date(until).getTime())
   const [endAt, setEndAt] = useState<number | null>(autoStart ? computeEnd : null)
+  /**
+   * E-02 (audit 2026-09-22): `restart()` dulu hanya memanggil
+   * `setEndAt(computeEnd())`. Untuk sumber waktu ABSOLUT (`until`) hasilnya
+   * angka yang sama, React me-bail-out, dan efek timer tidak dijalankan ulang —
+   * setelah hitungan mencapai 0, restart() tidak melakukan apa pun. Token ini
+   * memaksa efek ikut berjalan ulang.
+   */
+  const [runToken, setRunToken] = useState(0)
   const [remaining, setRemaining] = useState(() =>
     endAt != null ? Math.max(0, Math.ceil((endAt - serverNow()) / 1000)) : seconds,
   )
@@ -102,10 +111,11 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
     }
     tick()
     return () => clearTimeout(timer)
-  }, [endAt])
+  }, [endAt, runToken])
 
   const restart = useCallback(() => {
     completedRef.current = false
+    setRunToken((token) => token + 1)
     setEndAt(computeEnd())
   }, [computeEnd])
 
@@ -113,6 +123,12 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
     remaining,
     done: remaining <= 0,
     restart,
+    /**
+     * G-06 (audit 2026-09-22): sumber waktu yang tidak bisa dibaca diekspos
+     * sebagai flag, bukan disimpulkan dari `formatted === "—"` di pemanggil —
+     * `done` juga true saat remaining 0 sehingga penyimpulan itu salah.
+     */
+    invalid: endInvalid,
     // `—` (bukan "00:00") bila sumber waktu tidak valid: nol detik akan
     // terbaca sebagai "tenggat sudah lewat" padahal nilainya tidak diketahui.
     formatted: endInvalid ? "—" : formatCountdown(remaining),
@@ -128,6 +144,18 @@ export type CountdownProps = Omit<ViewProps, "children"> &
     /** Angka besar (monoLarge) untuk lockout PIN / deadline utama */
     large?: boolean
     className?: string
+    /**
+     * G-06 (audit 2026-09-22): teks saat sumber waktu TIDAK bisa dibaca
+     * (`until` rusak/NaN). Default "—" (kontrak lama).
+     */
+    invalidLabel?: string
+    /**
+     * F-05 (audit 2026-09-22): label aksesibilitas di-quantize ke kelipatan
+     * detik ini selama sisa > 30 detik. Tanpa ini `accessibilityLiveRegion`
+     * mengumumkan ULANG setiap detik dan menutupi konten lain; di bawah 30
+     * detik tetap per detik (di situlah angkanya penting). 1 = perilaku lama.
+     */
+    announceEverySeconds?: number
   }
 
 export function Countdown({
@@ -140,10 +168,24 @@ export function Countdown({
   tone = "secondary",
   large = false,
   className,
+  invalidLabel = "—",
+  announceEverySeconds = 5,
   ...rest
 }: CountdownProps) {
-  const { formatted } = useCountdown({ seconds, until, onComplete, autoStart })
-  const label = [prefix, formatted, suffix].filter(Boolean).join(" ")
+  const { formatted, remaining, invalid } = useCountdown({ seconds, until, onComplete, autoStart })
+  const spoken = invalid
+    ? invalidLabel
+    : formatCountdown(
+        remaining > 30 ? Math.ceil(remaining / Math.max(1, announceEverySeconds)) * Math.max(1, announceEverySeconds) : remaining,
+        invalidLabel,
+      )
+  /**
+   * G-02 (audit 2026-09-22): label aksesibilitas dirakit dari potongan string,
+   * jadi `localizeChildren` tidak pernah melihatnya (hanya <Text> anak yang
+   * diterjemahkan). Prefix/suffix dari pemanggil harus melewati `translate()`
+   * sendiri — pola yang sama dengan PressableScale.
+   */
+  const label = [translateProp(prefix), spoken, translateProp(suffix)].filter(Boolean).join(" ")
 
   return (
     <View

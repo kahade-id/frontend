@@ -17,6 +17,9 @@ import {
 } from "@/lib/api/errors"
 import { asRecord, invalidResponse, unwrapResponse } from "@/lib/api/response"
 import { recordServerDate } from "@/lib/server-time"
+import { recordBackpressure, clearBackpressure } from "@/lib/api/backpressure"
+import { invalidateQueryCache } from "@/lib/query-cache"
+import { logWarn } from "@/lib/telemetry"
 import {
   clearSession,
   emitSessionExpired,
@@ -41,7 +44,17 @@ export type RequestOptions<TBody = undefined> = {
   body?: TBody
   formData?: FormData
   query?: QueryParams
-  auth?: AuthMode
+  /**
+   * D-08 (audit): WAJIB eksplisit. Sebelumnya opsional dengan default
+   * `"optional"`, sehingga adapter yang lupa menuliskannya tetap mengirim
+   * `X-Device-Id`/`X-Device-Info` (model + OS + versi app) dan cookie
+   * (`credentials: "include"`) ke endpoint publik — kebalikan dari maksud
+   * komentar minimalisasi data di bawah. Dengan wajib, keputusan "endpoint ini
+   * publik atau tidak" tidak bisa diambil tanpa sadar: setiap pemanggil baru
+   * harus menyebutkannya, dan mode yang keliru muncul di review, bukan di
+   * produksi.
+   */
+  auth: AuthMode
   headers?: Record<string, string>
   timeoutMs?: number
   signal?: AbortSignal
@@ -301,7 +314,21 @@ let expiration: { revision: number; promise: Promise<void> } | null = null
 function expireSession(revision: number): Promise<void> {
   if (revision !== getSessionRevision()) return Promise.resolve()
   if (expiration?.revision === revision) return expiration.promise
-  const clearing = clearSession()
+  /**
+   * B-07 (audit): pembersihan sesi yang gagal TIDAK boleh menyamarkan galat
+   * otentikasi.
+   *
+   * Sebelumnya promise ini meneruskan hasil `clearSession()` apa adanya. Bila
+   * `SecureStore.deleteItemAsync` melempar (Keystore terkunci, penyimpanan
+   * penuh), `await expireSession()` di `attempt()` reject → pengguna melihat
+   * galat penyimpanan alih-alih UNAUTHORIZED, dan `emitSessionExpired()` di
+   * `.finally` di bawah tidak pernah berjalan sehingga sesi habis TANPA
+   * redirect ke login. Kegagalannya kini dicatat dan ditelan: penyimpanan
+   * akan dicoba dibersihkan lagi pada logout/boot berikutnya.
+   */
+  const clearing = clearSession().catch((error: unknown) => {
+    logWarn("client:expire-cleanup", error)
+  })
   const clearedRevision = getSessionRevision()
   const promise = clearing.finally(() => {
     // Delayed storage cleanup must not emit an expiry event for a NEW login.
@@ -317,14 +344,14 @@ const getRequests = new Map<string, Promise<unknown>>()
 /** Dedupe identical in-flight GETs. No persisted response cache; no cross-account data. */
 export function request<TResponse = unknown, TBody = undefined>(
   path: string,
-  options: RequestOptions<TBody> = {},
+  options: RequestOptions<TBody>,
 ): Promise<TResponse> {
   if ((options.method ?? "GET") !== "GET" || options.signal)
     return performRequest<TResponse, TBody>(path, options)
   const key = JSON.stringify([
     getSessionRevision(),
     buildUrl(path, options.query),
-    options.auth ?? "optional",
+    options.auth,
     options.responseType ?? "json",
     options.headers,
     options.timeoutMs,
@@ -339,6 +366,26 @@ export function request<TResponse = unknown, TBody = undefined>(
   return pending
 }
 
+/**
+ * C-01 (audit): jalur mutasi yang mengubah saldo/status escrow.
+ *
+ * Invalidsi cache ditaruh di TRANSPORT, bukan di tiap layar: sebelumnya
+ * `invalidateQueryCache()` tidak pernah dipanggil siapa pun — saldo pasca
+ * transfer/top-up bisa tampil basi selama jendela TTL 5 detik. Layar tetap
+ * boleh memanggilnya lagi (idempoten) untuk mengubah data lewat jalur lain
+ * (mis. rekonsiliasi aksi menggantung), tetapi aturan "mutasi uang membatalkan
+ * cache GET" tidak lagi bergantung pada ingatan penulis layar.
+ *
+ * `/v1/orders/*` mencakup POST/PUT yang tidak mengubah saldo
+ * (`calculate-fee`) — membatalkan cache di sana hanya memicu beberapa GET
+ * tambahan, jauh lebih murah daripada risiko saldo basi.
+ */
+const MONEY_MUTATION_PATTERNS = [/^\/v1\/wallet\/(?:topup|withdraw|transfer)(?:\/|$)/, /^\/v1\/orders(?:\/|$)/]
+
+function invalidatesMoneyCache(path: string): boolean {
+  return MONEY_MUTATION_PATTERNS.some((pattern) => pattern.test(path))
+}
+
 async function performRequest<TResponse, TBody>(
   path: string,
   options: RequestOptions<TBody>,
@@ -348,7 +395,7 @@ async function performRequest<TResponse, TBody>(
     body,
     formData,
     query,
-    auth = "optional",
+    auth,
     headers: extraHeaders,
     timeoutMs = API_TIMEOUT_MS,
     signal,
@@ -376,7 +423,21 @@ async function performRequest<TResponse, TBody>(
    * satu-satunya pengiriman ulang adalah setelah 401, yang memang HARUS berbagi
    * kunci.
    */
-  const idempotencyKey = method !== "GET" ? createIdempotencyKey() : null
+  /**
+   * D-09 (audit): kunci dibuat HANYA bila pemanggil belum menyediakannya.
+   * Sebelumnya `crypto.randomUUID()` selalu dipanggil untuk setiap mutasi dan
+   * header kiriman pemanggil hanya "tidak ditimpa" — sehingga pola "satu kunci
+   * untuk rangkaian percobaan manual" (pemulihan aksi menggantung, J-04) tidak
+   * mungkin diterapkan dari luar. Pencocokan header tidak peka huruf besar/kecil
+   * karena nama header HTTP memang begitu.
+   */
+  const providedKey = Object.keys(extraHeaders ?? {}).find(
+    (name) => name.toLowerCase() === "idempotency-key",
+  )
+  const idempotencyKey =
+    method !== "GET" && !(providedKey && extraHeaders?.[providedKey])
+      ? createIdempotencyKey()
+      : null
   const send = async (token: string | null) => {
     checkAborted(signal)
     const headers: Record<string, string> = {
@@ -433,6 +494,19 @@ async function performRequest<TResponse, TBody>(
     }
     assertSession()
     let reply = await send(token)
+    /**
+     * C-09 (audit): transport adalah satu-satunya tempat yang melihat 429/503
+     * apa pun bentuk callback pemanggilnya — polling yang menelan galatnya
+     * sendiri (`lib/unread-count.ts`, `lib/use-qris-payment.ts`, karena mereka
+     * menampilkan status inline) tidak pernah melihat `retryAfterMs`. Sinyalnya
+     * dicatat di `lib/api/backpressure.ts` supaya `usePolling` melambat, dan
+     * dihapus begitu ada respons sukses.
+     */
+    if (reply.status === 429 || reply.status === 503) {
+      recordBackpressure(reply.error?.retryAfterMs)
+    } else if (reply.status >= 200 && reply.status < 300) {
+      clearBackpressure()
+    }
     assertSession()
     if (reply.status === 401 && auth !== "none") {
       // A concurrent request may already have rotated this exact access token.
@@ -456,6 +530,10 @@ async function performRequest<TResponse, TBody>(
       }
     }
     if (reply.error) throw reply.error
+    // C-01 (audit): mutasi uang/status membatalkan cache GET DI SINI — aturan
+    // ini tidak boleh bergantung pada ingatan penulis layar. `invalidateQueryCache`
+    // idempoten, jadi layar yang memanggilnya lagi tidak masalah.
+    if (method !== "GET" && invalidatesMoneyCache(path)) invalidateQueryCache()
     return reply.value as TResponse
   }
   const retry = method === "GET" ? Math.min(2, Math.max(0, options.retry ?? 0)) : 0
@@ -476,15 +554,20 @@ async function performRequest<TResponse, TBody>(
   }
 }
 
+// D-08 (audit): `auth` tidak lagi boleh di-omit — lihat catatan di
+// RequestOptions. Tipe helper di bawah mewajibkannya untuk semua verb.
 type NoBody = Omit<RequestOptions<undefined>, "method" | "body">
 type WithBody<TBody> = Omit<RequestOptions<TBody>, "method" | "body">
+type RequiredAuth<T> = T & { auth: AuthMode }
 export const http = {
-  get: <T>(path: string, options?: NoBody) => request<T>(path, { ...options, method: "GET" }),
-  delete: <T>(path: string, options?: NoBody) => request<T>(path, { ...options, method: "DELETE" }),
-  post: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+  get: <T>(path: string, options: RequiredAuth<NoBody>) =>
+    request<T>(path, { ...options, method: "GET" }),
+  delete: <T>(path: string, options: RequiredAuth<NoBody>) =>
+    request<T>(path, { ...options, method: "DELETE" }),
+  post: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>
     request<T, B>(path, { ...options, method: "POST", body }),
-  put: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+  put: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>
     request<T, B>(path, { ...options, method: "PUT", body }),
-  patch: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+  patch: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>
     request<T, B>(path, { ...options, method: "PATCH", body }),
 }

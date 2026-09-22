@@ -16,6 +16,7 @@ import { api, userMessage } from "@/lib/api"
 import type { ReportsSettings } from "@/lib/api/settings"
 import { formatDateTime } from "@/lib/format"
 import { REPORT_CATEGORY_LABELS, REPORT_REASON_TO_CATEGORY } from "@/lib/labels/report"
+import { REPORT_STATUS_LABELS, REPORT_STATUS_TONE } from "@/lib/labels/status"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -30,6 +31,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
 import { hasOwn, mapValue } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 /**
  * Peta alasan UI → enum API POST /v1/settings/report.
@@ -43,20 +45,14 @@ import { hasOwn, mapValue } from "@/lib/has-own"
 // G-13: peta alasan→kategori kini satu sumber di lib/labels/report.
 const REASON_TO_CATEGORY = REPORT_REASON_TO_CATEGORY
 
-export type ReportStatus = "PENDING" | "REVIEWING" | "RESOLVED" | "REJECTED" | (string & {})
-const STATUS_TONE: Record<ReportStatus, BadgeTone> = {
-  PENDING: "warning",
-  REVIEWING: "warning",
-  RESOLVED: "success",
-  REJECTED: "neutral",
-}
-
-const STATUS_LABELS: Record<ReportStatus, string> = {
-  PENDING: "Menunggu tinjauan",
-  REVIEWING: "Ditinjau",
-  RESOLVED: "Selesai",
-  REJECTED: "Ditolak",
-}
+/*
+ * I-08 (audit 2026-09-22): peta status lokal dihapus — label & tone laporan
+ * hidup di `lib/labels/status.ts` bersama status lain, sehingga teks yang
+ * sama tidak lagi punya dua definisi (dan ikut ter-translate lewat
+ * `translate()` di titik render).
+ */
+const STATUS_TONE: Record<string, BadgeTone> = REPORT_STATUS_TONE
+const STATUS_LABELS: Record<string, string> = REPORT_STATUS_LABELS
 
 const CATEGORY_LABELS = REPORT_CATEGORY_LABELS
 
@@ -135,7 +131,11 @@ export default function ReportsScreen() {
       >
         {targetId ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={`Laporkan ${targetName ? `@${targetName}` : "pengguna"}`} />
+            <SectionHeader
+              title={translate("Laporkan {x}", {
+                x: targetName ? `@${targetName}` : translate("pengguna"),
+              })}
+            />
             <ReportForm
               targetName={targetName ? `@${targetName}` : undefined}
               value={value}
@@ -164,7 +164,7 @@ export default function ReportsScreen() {
           ) : (
             <ListGroup>
               {items.map((r, i) => {
-                const status = r.status as ReportStatus
+                const status = r.status as string
                 // Own keys only: `in` would also match Object.prototype
                 // keys ("toString"), whose value is a function and would be
                 // rendered as the badge label.

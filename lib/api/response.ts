@@ -11,6 +11,7 @@
  */
 
 import { ApiError, DEFAULT_ERROR_MESSAGES, parseErrorBody } from "@/lib/api/errors"
+import { logWarn } from "@/lib/telemetry"
 
 export function stringList(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : []
@@ -79,7 +80,18 @@ export function readList<T>(value: unknown, keys: readonly string[] = []): T[] {
   }
   if (record) {
     for (const [key, item] of Object.entries(record)) {
-      if (Array.isArray(item) && !NON_COLLECTION_KEYS.has(key)) return item as T[]
+      if (Array.isArray(item) && !NON_COLLECTION_KEYS.has(key)) {
+        /**
+         * C-06 (audit): fallback ini memilih "array pertama yang bukan
+         * metadata" — pada respons seperti `{ users: [...], recommendations:
+         * [...] }` hasilnya ditentukan URUTAN KUNCI, bukan domain. `keys`
+         * eksplisit menghindarinya; jalur rapuh ini harus terlihat di
+         * telemetri agar nama kunci yang salah ketik cepat ketahuan, bukan
+         * diam-diam menampilkan koleksi yang salah.
+         */
+        logWarn("api:list-fallback", { keys: keys.join("|"), picked: key })
+        return item as T[]
+      }
     }
   }
   throw invalidResponse(`collection:${keys.join("|")}`)
@@ -88,6 +100,30 @@ export function readList<T>(value: unknown, keys: readonly string[] = []): T[] {
 export type Page<T> = {
   data: T[]
   meta: { page: number; limit: number; total?: number; totalPages: number }
+}
+
+/** Kunci paginasi yang boleh dibaca dari root respons (C-07). */
+const PAGINATION_KEYS = [
+  "page",
+  "limit",
+  "perPage",
+  "per_page",
+  "total",
+  "totalPages",
+  "total_pages",
+  "hasNext",
+  "has_next",
+  "hasPrev",
+  "has_prev",
+] as const
+
+function pickKeys(
+  record: Record<string, unknown>,
+  keys: readonly string[],
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {}
+  for (const key of keys) if (key in record) picked[key] = record[key]
+  return picked
 }
 
 export function readPage<T>(
@@ -100,16 +136,43 @@ export function readPage<T>(
   // Sebagian endpoint (mis. GET /v1/orders) mengirim paginasi di TINGKAT ATAS
   // — {orders, total, page, limit} — bukan di `meta`. Tanpa fallback ini
   // `meta.total` selalu undefined dan penghitung di UI (Beranda dkk.) stuck 0.
-  const meta = asRecord(record?.meta) ?? asRecord(record?.pagination) ?? record
+  //
+  // C-07 (audit): fallback tingkat-atas dulu menerima SELURUH record, padahal
+  // field domain bernama `page`, `limit`, atau `total` cukup umum (invoice,
+  // dokumen legal) — nilainya bisa terbaca sebagai metadata paginasi. Sekarang
+  // hanya kunci paginasi yang dikenal yang diambil dari root.
+  const root = asRecord(record)
+  const meta =
+    asRecord(record?.meta) ??
+    asRecord(record?.pagination) ??
+    (root && PAGINATION_KEYS.some((key) => key in root) ? pickKeys(root, PAGINATION_KEYS) : null)
   const page = numberOr(meta?.page, query.page ?? 1, 1)
   const limit = numberOr(meta?.limit, query.limit ?? (data.length || 1), 1)
   const total = numberOr(meta?.total, Number.NaN)
   // If the server supplies no pagination metadata, don't claim there are no
   // further records on a full page. The next empty page establishes the end.
-  const totalPages = numberOr(
-    meta?.totalPages ?? meta?.total_pages,
-    Number.isFinite(total) ? Math.ceil(total / limit) : page + Number(data.length >= limit),
-  )
+  //
+  // C-05 (audit): dua penajaman pada jalur tanpa metadata —
+  //   - halaman KOSONG selalu berarti berhenti (sebelumnya, bila server
+  //     memakai `limit` sendiri yang lebih kecil dari yang kita kirim, halaman
+  //     terakhir bisa "penuh" menurut perhitungan kita dan `hasMore` terus
+  //     true → request kosong tambahan tiap kali);
+  //   - `limit` tidak lagi ditebak dari panjang data (`query.limit ?? (data.length
+  //     || 1)`) untuk perhitungan halaman; bila pemanggil tidak mengirim limit,
+  //     halaman penuh dianggap "mungkin masih ada" (aman: satu request kosong
+  //     lalu berhenti) alih-alih "berhenti" (item tak terjangkau).
+  const explicitLimit = typeof query.limit === "number" && query.limit > 0 ? query.limit : undefined
+  const reportedTotalPages = meta?.totalPages ?? meta?.total_pages
+  let totalPages: number
+  if (typeof reportedTotalPages !== "undefined") {
+    totalPages = numberOr(reportedTotalPages, 1, 1)
+  } else if (Number.isFinite(total)) {
+    totalPages = Math.ceil(total / (explicitLimit ?? limit))
+  } else if (data.length === 0) {
+    totalPages = page
+  } else {
+    totalPages = page + Number(explicitLimit ? data.length >= explicitLimit : true)
+  }
   return {
     data,
     meta: { page, limit, total: Number.isFinite(total) ? total : undefined, totalPages },
@@ -164,6 +227,50 @@ export function pickString(
     const value = record[key]
     if (typeof value === "string" && value.trim()) return value
     if (typeof value === "number" && Number.isFinite(value)) return String(value)
+  }
+  return undefined
+}
+
+/**
+ * Angka pertama yang masuk akal dari beberapa nama field (D-04 audit).
+ *
+ * Dipakai menggantikan pola `typed.camelCase ?? (x as any).snake_case` di
+ * adapter: nilainya tetap diperiksa runtime, tetapi TIDAK ada lagi cast yang
+ * mematikan pemeriksaan tipe di lapisan yang menyentuh uang.
+ *
+ * SENGAJA ketat `typeof === "number"` (tanpa koersi string): nilai yang
+ * bentuknya salah harus terlihat sebagai `undefined` di pemanggil — bukan
+ * diam-diam "diperbaiki" di sini. Koersi longgar di jalur uang pernah membuat
+ * bug tidak terdeteksi; kalau suatu endpoint memang mengirim string numerik,
+ * itu tempat yang tepat untuk menuliskannya eksplisit di adapter.
+ */
+export function pickNumber(
+  record: Record<string, unknown> | null | undefined,
+  keys: readonly string[],
+): number | undefined {
+  if (!record) return undefined
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === "number" && Number.isFinite(value)) return value
+  }
+  return undefined
+}
+
+/**
+ * Nilai apa pun yang pertama ADA (bukan undefined/null) — pilihan terakhir
+ * ketika bentuknya memang tak bisa dipastikan (mis. array kode cadangan yang
+ * panjangnya bervariasi). Sengaja tidak melakukan cast: pemanggil yang
+ * menaruh hasilnya ke tipe tertentu wajib memvalidasi sendiri (mis. lewat
+ * `stringList`), sehingga lubang tipe tidak ikut berpindah tempat.
+ */
+export function pickUnknown(
+  record: Record<string, unknown> | null | undefined,
+  keys: readonly string[],
+): unknown {
+  if (!record) return undefined
+  for (const key of keys) {
+    const value = record[key]
+    if (value !== undefined && value !== null) return value
   }
   return undefined
 }

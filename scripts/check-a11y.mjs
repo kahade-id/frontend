@@ -39,7 +39,7 @@
  *   I. Kelas `focus-visible:` tidak boleh ditulis ulang di komponen — wajib
  *      `focusRing`/`focusRingInset` dari lib/focus-ring (audit #6).
  *
- * Jalankan: pnpm check:a11y
+ * Jalankan: npm run check:a11y
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs"
@@ -57,12 +57,33 @@ const warn = (msg) => warnings.push(msg)
 // Util
 // ------------------------------------------------------------------
 
-function walk(dir, out = []) {
+/**
+ * D-12 (audit): berkas `.ts` yang berisi JSX (mis. modul yang mengekspor
+ * komponen tanpa mengubah ekstensi) dulu TIDAK pernah dipindai, dan ringkasan
+ * akhirnya tidak menyebut batas cakupan itu. Sekarang `.ts` ikut dipindai bila
+ * mengandung JSX, dan jumlah berkas yang dilewati dicetak agar cakupannya
+ * terlihat (bukan diasumsikan).
+ */
+const JSX_IN_TS = /<[A-Z][\w.]*[\s/>]|<[a-z]+[\s>][^>]*>/
+function walk(dir, out = [], skipped = []) {
   for (const name of readdirSync(dir)) {
     if (name === "node_modules" || name.startsWith(".")) continue
     const p = join(dir, name)
-    if (statSync(p).isDirectory()) walk(p, out)
-    else if (p.endsWith(".tsx")) out.push(p)
+    if (statSync(p).isDirectory()) {
+      walk(p, out, skipped)
+      continue
+    }
+    if (p.endsWith(".tsx")) {
+      out.push(p)
+      continue
+    }
+    if (p.endsWith(".ts")) {
+      // Modul non-React (tipe, konstanta, helper) tidak punya aturan a11y —
+      // tetapi `.ts` yang benar-benar merender JSX harus ikut diperiksa.
+      const src = readFileSync(p, "utf8")
+      if (JSX_IN_TS.test(src)) out.push(p)
+      else skipped.push(p)
+    }
   }
   return out
 }
@@ -144,9 +165,10 @@ function readChildren(src, tagEnd, name) {
   return src.slice(tagEnd)
 }
 
+const skippedTs = []
 const files = [
-  ...walk(join(root, "components")),
-  ...(statSync(join(root, "app")).isDirectory() ? walk(join(root, "app")) : []),
+  ...walk(join(root, "components"), [], skippedTs),
+  ...(statSync(join(root, "app")).isDirectory() ? walk(join(root, "app"), [], skippedTs) : []),
 ]
 
 // ------------------------------------------------------------------
@@ -180,6 +202,91 @@ const INTERACTIVE_RE = new RegExp(
   `<((?:${INTERACTIVE.join("|")})\\b|Rating\\b(?![^<>]*\\breadOnly\\b))`,
 )
 
+/**
+ * F-02 (audit 2026-09-22): nama komponen LOKAL yang pada akhirnya merender
+ * kontrol interaktif — dihitung TRANSITIF per berkas.
+ *
+ * Gate ini dulu hanya mengenali nama tag dari daftar tetap (Pressable, Button,
+ * …). Padahal pola paling umum di repo ini adalah pembungkus lokal
+ * (`<Key>`, `<Dot>`, `<FormatChip>`) yang di dalamnya merender
+ * `<PressableScale>`. Akibatnya aturan B ("`accessible` menelan kontrol")
+ * buta terhadap seluruh pola itu — F-01 adalah bukti nyatanya: `amount-keypad`
+ * membungkus 12 `<Key>` dan lolos bertahun-tahun meski menghilangkan 12 tombol
+ * dari pembaca layar.
+ *
+ * Cara kerja: kumpulkan nama komponen lokal (function/const/forwardRef), lalu
+ * tandai interaktif bila badannya memuat tag interaktif ATAU komponen lokal
+ * lain yang sudah ditandai; ulangi sampai stabil (fixpoint) dengan batas
+ * iterasi supaya rekursi tak sengaja tidak membuat gate berputar.
+ */
+function localInteractiveNames(src) {
+  const defs = new Map()
+  const defRe = /(?:^|\n)\s*(?:export\s+)?(?:default\s+)?(?:function|const|let)\s+([A-Z][A-Za-z0-9_]*)/g
+  let m
+  const names = []
+  while ((m = defRe.exec(src))) {
+    const name = m[1]
+    names.push(name)
+    defs.set(name, m.index)
+  }
+  const starts = [...defs.values()].sort((a, b) => a - b)
+  const bodyOf = (name) => {
+    const start = defs.get(name)
+    const next = starts.find((i) => i > start) ?? src.length
+    return src.slice(start, next)
+  }
+  const flagged = new Set()
+  for (let pass = 0; pass < 6; pass += 1) {
+    let grew = false
+    for (const name of names) {
+      if (flagged.has(name)) continue
+      const body = bodyOf(name)
+      if (INTERACTIVE_RE.test(body)) {
+        flagged.add(name)
+        grew = true
+        continue
+      }
+      for (const other of flagged) {
+        if (new RegExp(`<${other}\\b`).test(body)) {
+          flagged.add(name)
+          grew = true
+          break
+        }
+      }
+    }
+    if (!grew) break
+  }
+  return flagged
+}
+
+/**
+ * Badan definisi sebuah komponen lokal (untuk pemeriksaan penjaga).
+ * Batasnya adalah definisi BERIKUTNYA — apa pun (termasuk helper huruf kecil),
+ * karena `const Cell = profileHeaderStyles` juga menutup badan komponen di
+ * atasnya. Bila tidak ada lanjutan, batasnya akhir fungsi terdekat.
+ */
+function localBodyOf(src, name) {
+  const defRe = new RegExp(`(?:^|\\n)\\s*(?:export\\s+)?(?:default\\s+)?(?:function|const|let)\\s+${name}\\b`)
+  const m = defRe.exec(src)
+  if (!m) return ""
+  // Mulai dari NAMA komponen (bukan dari `\n` yang ikut tertangkap regex),
+  // supaya pencarian "definisi berikutnya" tidak langsung cocok dengan
+  // definisi itu sendiri.
+  const start = m.index + m[0].indexOf(name)
+  const rest = src.slice(start)
+  const nextDef = /\n(?:\s*(?:export|default)\s+)?(?:function|const|let)\s+[A-Za-z_$]/.exec(rest)
+  return nextDef ? rest.slice(0, nextDef.index) : rest
+}
+
+/** Regex interaktif untuk satu berkas: tag bawaan + pembungkus lokal. */
+function interactiveReFor(src) {
+  const local = [...localInteractiveNames(src)]
+  if (!local.length) return INTERACTIVE_RE
+  return new RegExp(
+    `<((?:${INTERACTIVE.join("|")}|${local.join("|")})\\b|Rating\\b(?![^<>]*\\breadOnly\\b))`,
+  )
+}
+
 
 // Hanya <View>: komponen lain (Card, Button, Icon, Badge, ...) menerima
 // accessibilityLabel sebagai prop dan meneruskannya sendiri.
@@ -206,6 +313,8 @@ const CONTAINER_LABEL_ALLOWLIST = {
   "components/ui/progress-bar.tsx": "role=progressbar + accessibilityValue; isinya View fill murni dekoratif.",
   "components/ui/rating.tsx": "Varian interaktif berisi 5 PressableScale bintang; role=adjustable + accessibilityActions.",
   "components/ui/showcase-gallery-grid.tsx": "Grid berisi PressableScale per foto; label hanya untuk state loading.",
+  "components/ui/radio.tsx": "Grup radio berisi <Radio> (PressableScale role=radio) — `accessible` akan menelan seluruh opsi; label grup justru dipasang agar pembaca layar mengumumkan konteks pertanyaan (F-08).",
+  "components/ui/segmented-control.tsx": "Grup segmen berisi PressableScale role=radio per segmen; `accessible` di container akan menelan semua segmen (F-08).",
 }
 
 const containerSeen = new Set()
@@ -255,8 +364,23 @@ for (const abs of files) {
       if (!isGroup) continue
       if (tag.trimEnd().endsWith("/>")) continue
       const body = readChildren(src, m.index + tag.length, name)
-      const hit = body.match(INTERACTIVE_RE)
-      if (hit) {
+      // F-02: termasuk pembungkus lokal (<Key>, <Dot>, …) yang merender kontrol.
+      const hit = body.match(interactiveReFor(src))
+      /*
+       * Pengecualian sempit (bukan allowlist berkas): bila `accessible`
+       * dikendalikan sebuah IDENTIFIER (`accessible={loading}`) dan komponen
+       * lokal yang tertangkap memakai identifier ITU sebagai penjaga sebelum
+       * merender kontrolnya (mis. `if (!stat.onPress || loading) return
+       * <Skeleton/>`), maka saat `accessible` aktif kontrolnya memang tidak
+       * dirender — tidak ada yang tertelan. Kasus nyata: ProfileHeader saat
+       * memuat profil.
+       */
+      const gate = /accessible=\{\s*([A-Za-z_$][\w$]*)\s*\}/.exec(tag)?.[1]
+      const guardedByGate =
+        !!gate &&
+        hit &&
+        new RegExp(`\\b${gate}\\b`).test(localBodyOf(src, hit[1]))
+      if (hit && !guardedByGate) {
         fail(
           `${rel}:${lineOf(src, m.index)} <${name} accessible> membungkus <${hit[1]}> — \`accessible\` menelan seluruh subtree sehingga kontrol itu HILANG dari screen reader. Pindahkan kontrol keluar grup (audit #4).`,
         )
@@ -446,9 +570,102 @@ for (const abs of files) {
 }
 
 // ------------------------------------------------------------------
+// J. Tombol yang terkunci karena validasi harus bisa dijelaskan (F-06)
+// ------------------------------------------------------------------
+// Temuan F-06: tombol simpan bisa `disabled` karena syarat validasi, tetapi
+// TIDAK ada pesan apa pun — pengguna pembaca layar menekan tombol yang tidak
+// merespons tanpa tahu bagian mana yang belum benar (temuan menyebut
+// app/bank-accounts.tsx sebagai contoh).
+//
+// Ruang lingkupnya SENGAJA sempit: hanya gate validasi yang BERNAMA
+// (`disabled={!canSave}`, `disabled={!formValid}`, …). Ekspresi lain
+// (`disabled={!onPress}` pada komponen opsional, `disabled={!canPrev}` di tepi
+// rentang kalender, `disabled={selectedCount === 0}`) bukan galat validasi
+// yang perlu diumumkan — menandainya hanya menghasilkan noise yang membuat
+// gate ini diabaikan orang. Gate validasi juga dikenali dari state proses
+// (`!submitting`) yang memang sudah punya indikator visual/loading.
+const PROCESS_RE =
+  /\b(submitting|loading|busy|deleting|saving|updating|refreshing|uploading|processing|sending|pending|inFlight)\b/
+const failuresForGate = []
+// Nama gate validasi: can*(Proceed|Submit|Save|Continue|Pay|Send|Confirm),
+// formValid, isValid, stepValid, canSaveAccount, …
+const VALIDATION_GATE_RE =
+  /\bdisabled=\{\s*!?\s*(?:can[A-Z][A-Za-z]*|formValid|isValid|stepValid|valid|[A-Za-z]+Valid)\b/
+/**
+ * Nama gate yang BUKAN validasi isian melainkan BATAS navigasi/rentang
+ * (`canPrev`/`canNext` di kalender, `canGoBack` di wizard): tombolnya hidup
+ * atau mati karena posisi, bukan karena isian yang kurang — dan labelnya
+ * sudah menyebut tujuan tombol, jadi tidak ada pesan yang perlu dicari.
+ */
+const BOUNDARY_GATE_RE = /^can(Prev|Next|Go|Back|Forward)/
+for (const abs of files) {
+  const rel = relative(root, abs)
+  const src = stripComments(readFileSync(abs, "utf8"))
+  const re = /disabled=\{[^}]*\}/g
+  let m
+  const flagged = []
+  while ((m = re.exec(src))) {
+    const expr = m[0]
+    if (!VALIDATION_GATE_RE.test(expr)) continue
+    const gateName = expr.match(/(?:can[A-Z][A-Za-z]*|formValid|isValid|stepValid|valid|[A-Za-z]+Valid)/)?.[0]
+    if (gateName && BOUNDARY_GATE_RE.test(gateName)) continue
+    const tag = readTag(src, Math.max(0, src.lastIndexOf("<", m.index)))
+    if (PROCESS_RE.test(tag)) continue
+    flagged.push(lineOf(src, m.index))
+  }
+  if (!flagged.length) continue
+  const hasExplanation =
+    /\berrorText=/.test(src) || /\baccessibilityHint=/.test(src) || /\berrorMessage=/.test(src)
+  if (hasExplanation) continue
+  failuresForGate.push(rel, flagged)
+}
+for (let i = 0; i < failuresForGate.length; i += 2) {
+  const rel = failuresForGate[i]
+  const lines = failuresForGate[i + 1]
+  fail(
+    `${rel}:${lines.join(", ")} tombol \`disabled\` dari gate VALIDASI bernama tetapi berkas ini tidak punya jalur penjelasan ` +
+      `(errorText / accessibilityHint) — pengguna screen reader tidak tahu kenapa tombolnya mati. Tampilkan pesan galat ` +
+      `(Field/FormSection \`errorText\`) atau \`accessibilityHint\` yang menyebut isian yang kurang (F-06).`,
+  )
+}
+
+// ------------------------------------------------------------------
+// K. Label aksesibilitas bertemplate wajib lewat translate() (F-09)
+// ------------------------------------------------------------------
+// Temuan F-09: `accessibilityLabel={`Hapus dokumen ${d.name}`}` adalah teks
+// yang DIUCAPKAN ke pengguna, tetapi tidak pernah masuk kamus — `localizeChildren`
+// hanya menyentuh children <Text>, bukan prop. Akibatnya label ini tetap
+// Indonesia di antarmuka Inggris (dan gate E-03 hanya memeriksa <Text>).
+// Aturan ini menyamakan perlakuan: literal di luar `${}` yang memuat >= 2 huruf
+// berurutan wajib dibungkus `translate("… {x}", { … })`.
+const LABEL_TEMPLATE_RE = /accessibilityLabel=\{\s*(`[^`]*`)\s*\}/g
+for (const abs of files) {
+  const rel = relative(root, abs)
+  const src = stripComments(readFileSync(abs, "utf8"))
+  let m
+  while ((m = LABEL_TEMPLATE_RE.exec(src))) {
+    const expr = m[1]
+    if (/translate(Prop)?\(/.test(expr)) continue
+    // Literal di luar slot runtime (${…}) — slot data murni dilewatkan.
+    const literal = expr.replace(/\$\{(?:[^{}]|\{[^{}]*\})*\}/g, "")
+    if (!/[A-Za-z]{2,}/.test(literal)) continue
+    fail(
+      `${rel}:${lineOf(src, m.index)} accessibilityLabel bertemplate tidak lewat translate() — label ini diucapkan ke ` +
+        `pengguna tetapi tetap berbahasa Indonesia di UI Inggris. Pakai translate("… {x}", { x: … }) (F-09).`,
+    )
+  }
+}
+
+// ------------------------------------------------------------------
 // Laporan
 // ------------------------------------------------------------------
-console.log(`check-a11y: ${files.length} file .tsx dipindai`)
+const tsxCount = files.filter((p) => p.endsWith(".tsx")).length
+const tsCount = files.length - tsxCount
+console.log(
+  `check-a11y: ${files.length} berkas dipindai (${tsxCount} .tsx` +
+    (tsCount ? ` + ${tsCount} .ts berisi JSX` : "") +
+    `); ${skippedTs.length} .ts non-JSX dilewati (tidak punya aturan a11y)`,
+)
 for (const w of warnings) console.warn(`  warn  ${w}`)
 for (const e of errors) console.error(`  FAIL  ${e}`)
 if (errors.length) {

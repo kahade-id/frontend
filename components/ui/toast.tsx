@@ -3,7 +3,9 @@
  *   - <ToastProvider>  : pasang SEKALI di root (di dalam ThemeProvider &
  *                        SafeAreaProvider) — merender viewport + antrean.
  *   - useToast()       : { show, dismiss, dismissAll } dari komponen mana pun.
- *   - <ToastItem>      : presentasi satu toast (diekspor untuk story/preview).
+ *   - <ToastItem>      : presentasi satu toast (internal — H-14: dulu diekspor
+ *                        "untuk story/preview", padahal repo ini tidak punya
+ *                        infrastruktur story; ekspor mati dihapus).
  *
  * Keputusan:
  *   1. Posisi default TOP (di bawah safe-area) karena bottom sering bertabrakan
@@ -73,23 +75,115 @@ const ToastContext = createContext<ToastContextValue | null>(null)
 const MAX_VISIBLE = 2
 const DEFAULT_DURATION = 4000
 const DANGER_DURATION = 8000
+/**
+ * H-01 (audit 2026-09-22): antrean toast dulu TUMBUH TANPA BATAS. Saat
+ * sekumpulan request gagal bersamaan (offline, 5xx massal), pengguna menerima
+ * puluhan toast untuk keadaan yang sama; masing-masing 4–8 detik, jadi toast
+ * terakhir baru muncul belasan detik setelah kejadiannya — dan pesan basi itu
+ * justru menutupi layar saat pengguna sudah menekan "Coba lagi".
+ *
+ * Dua penjaga:
+ *   - MAX_QUEUE: panjang antrean (tampil + menunggu) dibatasi; yang TERTUA
+ *     dibuang karena pesan terbaru mencerminkan keadaan sekarang.
+ *   - COALESCE_WINDOW_MS: toast dengan isi + posisi + tone identik dalam
+ *     jendela ini MENGGANTIKAN yang lama (durasi mulai ulang) alih-alih
+ *     menumpuk jadi dua baris kembar.
+ */
+const MAX_QUEUE = 5
+const COALESCE_WINDOW_MS = 1500
 
 let counter = 0
 
+/** Kunci koalesensi: isi toast yang dianggap "pesan yang sama". */
+function coalesceKey(opts: ToastOptions): string {
+  return [opts.position ?? "top", opts.tone ?? "neutral", opts.title, opts.description ?? ""].join(
+    "\u0001",
+  )
+}
+
+/** Isi toast terakhir per kunci koalesensi + id yang masih hidup. */
+type RecentMap = Map<string, { id: string; at: number }>
+
+/**
+ * Logika antrean (H-01) sebagai fungsi MURNI supaya batas antrean, koalesensi,
+ * dan pemotongan per posisi bisa diuji tanpa merender React
+ * (`tests/toast-queue.test.tsx`). `ToastProvider` hanya menyimpan hasilnya.
+ */
+export function enqueueToast(
+  queue: readonly ToastRecord[],
+  recent: RecentMap,
+  opts: ToastOptions,
+  id: string,
+  now: number = Date.now(),
+): { queue: ToastRecord[]; recent: RecentMap } {
+  const key = coalesceKey(opts)
+  const last = recent.get(key)
+  const previous =
+    last && now - last.at < COALESCE_WINDOW_MS ? queue.find((t) => t.id === last.id) : undefined
+  // Koalesensi: isi sama baru saja tampil → ganti yang lama (durasi mulai ulang).
+  let next = previous ? queue.filter((t) => t.id !== previous.id) : [...queue]
+  next.push({ ...opts, id })
+
+  // Batas antrean dihitung PER POSISI: toast aksi di bawah tidak boleh terbuang
+  // oleh hujan pesan error di atas. Yang TERTUA per posisi yang dibuang.
+  const position = opts.position ?? "top"
+  const samePosition = next.filter((t) => (t.position ?? "top") === position)
+  if (samePosition.length > MAX_QUEUE) {
+    const dropped = new Set(samePosition.slice(0, samePosition.length - MAX_QUEUE).map((t) => t.id))
+    next = next.filter((t) => !dropped.has(t.id))
+  }
+
+  // Peta koalesensi dibersihkan bersama antrean supaya tidak tumbuh selamanya.
+  const alive = new Set(next.map((t) => t.id))
+  const nextRecent: RecentMap = new Map()
+  for (const [k, entry] of recent) if (alive.has(entry.id)) nextRecent.set(k, entry)
+  nextRecent.set(key, { id, at: now })
+  return { queue: next, recent: nextRecent }
+}
+
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastRecord[]>([])
+  /**
+   * Cermin state untuk pemanggilan berurutan dalam satu tick: `show`/`dismiss`
+   * dipanggil dari callback async, dan pembacaan lewat cermin ini membuat
+   * keputusan antrean (buang tertua, koalesensi) tidak bergantung pada
+   * `setState` yang belum ter-flush. State tetap satu-satunya sumber render.
+   */
+  const queueRef = useRef<ToastRecord[]>([])
+  const recentRef = useRef<RecentMap>(new Map())
 
-  const dismiss = useCallback((id: string) => {
-    setToasts((prev) => prev.filter((t) => t.id !== id))
+  const commit = useCallback((next: ToastRecord[]) => {
+    queueRef.current = next
+    setToasts(next)
   }, [])
 
-  const dismissAll = useCallback(() => setToasts([]), [])
+  const dismiss = useCallback(
+    (id: string) => {
+      const next = queueRef.current.filter((t) => t.id !== id)
+      const alive = new Set(next.map((t) => t.id))
+      const nextRecent: RecentMap = new Map()
+      for (const [key, entry] of recentRef.current) if (alive.has(entry.id)) nextRecent.set(key, entry)
+      recentRef.current = nextRecent
+      commit(next)
+    },
+    [commit],
+  )
 
-  const show = useCallback((opts: ToastOptions) => {
-    const id = `toast-${++counter}`
-    setToasts((prev) => [...prev, { ...opts, id }])
-    return id
-  }, [])
+  const dismissAll = useCallback(() => {
+    recentRef.current = new Map()
+    commit([])
+  }, [commit])
+
+  const show = useCallback(
+    (opts: ToastOptions) => {
+      const id = `toast-${++counter}`
+      const { queue, recent } = enqueueToast(queueRef.current, recentRef.current, opts, id)
+      recentRef.current = recent
+      commit(queue)
+      return id
+    },
+    [commit],
+  )
 
   const value = useMemo(() => ({ show, dismiss, dismissAll }), [show, dismiss, dismissAll])
 
@@ -164,13 +258,13 @@ const iconTone: Record<ToastTone, IconTone> = {
   info: "info",
 }
 
-export type ToastItemProps = {
+type ToastItemProps = {
   toast: ToastRecord
   position?: ToastPosition
   onDismiss: () => void
 }
 
-export function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps) {
+function ToastItem({ toast, position = "top", onDismiss }: ToastItemProps) {
   const tone = toast.tone ?? "neutral"
   const duration =
     toast.duration ?? (tone === "danger" ? DANGER_DURATION : DEFAULT_DURATION)

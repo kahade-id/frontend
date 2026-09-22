@@ -62,6 +62,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
+import { translate } from "@/lib/i18n/translate"
 
 export type DevicePlatform = "mobile" | "tablet" | "laptop" | "desktop" | "web"
 
@@ -228,7 +229,10 @@ export function DeviceSessionListItem({
               loading={togglingTrust}
               disabled={disabled}
               onPress={() => onToggleTrust(!trusted)}
-              accessibilityLabel={`${trusted ? t.untrust : t.trust}: ${deviceName}`}
+              accessibilityLabel={translate("{x}: {y}", {
+              x: translate(trusted ? t.untrust : t.trust),
+              y: deviceName,
+            })}
             >
               {trusted ? t.untrust : t.trust}
             </Button>
@@ -283,7 +287,7 @@ export function DeviceSessionListItem({
             loading={revoking}
             disabled={disabled}
             onPress={onRevoke}
-            accessibilityLabel={`${t.revokeFrom} ${deviceName}`}
+            accessibilityLabel={[translate(t.revokeFrom), deviceName].join(" ")}
           >
             {t.revoke}
           </Button>

@@ -41,4 +41,11 @@ export {
 } from "./translate"
 export { resolveSystemLanguage, systemLanguage } from "./system-language"
 export { useI18n, useLanguage, useSetLanguage, useT } from "./react"
-export { shapeOf, maskNumbers, interpolate, SHAPE_TOKEN } from "./shape"
+export {
+  namedTokens,
+  normalizeNamedTokens,
+  shapeOf,
+  maskNumbers,
+  interpolate,
+  SHAPE_TOKEN,
+} from "./shape"

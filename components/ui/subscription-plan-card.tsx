@@ -57,6 +57,8 @@ import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type SubscriptionBenefit = {
   id: string
@@ -159,9 +161,12 @@ export function SubscriptionPlanCard({
       padded
       selected={selected}
       onPress={onPress}
-      accessibilityLabel={`${name}, ${formatRupiah(price)} ${period}${highlighted ? `, ${t.popular}` : ""}${
-        current ? `, ${t.current}` : ""
-      }`}
+      accessibilityLabel={summarize([
+        translate(name),
+        [formatRupiah(price), translate(period)].filter(Boolean).join(" "),
+        highlighted ? translate(t.popular) : undefined,
+        current ? translate(t.current) : undefined,
+      ])}
       className={cn("gap-5", className)}
       {...rest}
     >

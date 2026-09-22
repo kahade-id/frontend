@@ -48,6 +48,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah, truncateMiddle } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 export type OrderLinkSharePayload = {
   url: string
@@ -89,7 +90,8 @@ const DEFAULT_LABELS: OrderLinkShareCardLabels = {
   heading: "Tautan pembayaran",
   copy: "Salin tautan",
   share: "Bagikan",
-  messageTemplate: (title, amount, url) => `${title} — ${amount}\nBayar aman lewat Kahade: ${url}`,
+  messageTemplate: (title, amount, url) =>
+    `${translate("{x} — {y}", { x: title, y: amount })}\n${translate("Bayar aman lewat Kahade: {x}", { x: url })}`,
   cancel: "Batalkan tautan",
   open: "Lihat detail",
 }
@@ -144,7 +146,7 @@ export function OrderLinkShareCard({
           Teks tampil dipersingkat, tapi SR tetap membaca URL penuh (audit #4). */}
       <View className="flex-row items-center gap-2 rounded-sm border border-border bg-surface pl-3 pr-1 py-1">
         <Text
-          accessibilityLabel={`${t.heading}: ${url}`}
+          accessibilityLabel={translate("{x}: {y}", { x: translate(t.heading), y: url })}
           variant="monoBody"
           tone="primary"
           className="flex-1"

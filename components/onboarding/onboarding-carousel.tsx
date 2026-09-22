@@ -32,6 +32,7 @@ import {
 import { OnboardingSlideView, type OnboardingSlide } from "@/components/onboarding/slides"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type OnboardingCarouselHandle = {
   scrollTo: (index: number) => void
@@ -102,7 +103,12 @@ export const OnboardingCarousel = forwardRef<OnboardingCarouselHandle, Onboardin
             windowSize={slides.length}
             accessibilityRole="adjustable"
             accessibilityLabel="Slide pengenalan"
-            accessibilityValue={{ min: 1, max: slides.length, now: index + 1, text: `Slide ${index + 1} dari ${slides.length}` }}
+            accessibilityValue={{
+              min: 1,
+              max: slides.length,
+              now: index + 1,
+              text: translate("Slide {x} dari {y}", { x: index + 1, y: slides.length }),
+            }}
             accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
             onAccessibilityAction={(e) => {
               const delta = e.nativeEvent.actionName === "increment" ? 1 : -1

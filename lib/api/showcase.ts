@@ -133,6 +133,8 @@ export type ShowcaseCommentsPage = {
 export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSignal) {
   return http
     .get<unknown>("/v1/showcase/feed", {
+      // D-08 (audit): feed publik — `auth` kini wajib eksplisit.
+      auth: "none",
       signal,
       query: {
         cursor: query.cursor,
@@ -157,7 +159,11 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
 
 /** GET /v1/showcase/:showcaseId — detail item (menghitung viewCount). */
 export function getShowcaseDetail(showcaseId: string, signal?: AbortSignal) {
-  return http.get<ShowcaseSocialItem>(`/v1/showcase/${showcaseId}`, { retry: 1, signal })
+  return http.get<ShowcaseSocialItem>(`/v1/showcase/${showcaseId}`, {
+    auth: "none",
+    retry: 1,
+    signal,
+  })
 }
 
 /**
@@ -171,6 +177,7 @@ export function listShowcaseComments(
 ) {
   return http
     .get<unknown>(`/v1/showcase/${showcaseId}/comments`, {
+      auth: "none",
       query: { page: params.page ?? 1, limit: params.limit ?? 20 },
       retry: 1,
       signal,
@@ -261,7 +268,11 @@ export function unlikeShowcase(showcaseId: string) {
 
 /** GET /v1/showcase/:showcaseId/share — metadata deep link (publik). */
 export function getShowcaseSharePayload(showcaseId: string, signal?: AbortSignal) {
-  return http.get<ShowcaseSharePayload>(`/v1/showcase/${showcaseId}/share`, { retry: 1, signal })
+  return http.get<ShowcaseSharePayload>(`/v1/showcase/${showcaseId}/share`, {
+    auth: "none",
+    retry: 1,
+    signal,
+  })
 }
 
 /**

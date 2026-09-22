@@ -23,8 +23,19 @@
  *     menetap di localStorage bersama.
  */
 import { useEffect, useSyncExternalStore } from "react"
+import { AppState } from "react-native"
+
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { serverNow } from "@/lib/server-time"
 import { logWarn } from "@/lib/telemetry"
+
+/**
+ * I-04 (audit 2026-09-22): `prunePendingActions` dulu tidak pernah dipanggil —
+ * penyaringan hanya terjadi saat catatan DIBACA (boot), sehingga aksi yang
+ * kedaluwarsa selama sesi berjalan tetap hidup di memori dan banner pemulihan
+ * menawarkan aksi yang sudah mati di server.
+ */
+const PRUNE_INTERVAL_MS = 60_000
 
 export type PendingAction =
   | {
@@ -76,7 +87,16 @@ function actionKey(action: PendingAction): string {
       : `${action.kind}:${action.paymentTxId}`
 }
 
-function isStale(action: PendingAction, now = Date.now()): boolean {
+/**
+ * A-02 (audit 2026-09-22): `expiresAt` diisi dari respons server
+ * (`toEpochMs`) sedangkan `createdAt` dulu memakai `Date.now()` perangkat —
+ * dua domain jam yang berbeda dalam satu perbandingan. Perangkat dengan jam
+ * maju membuang catatan penarikan PENDING_OTP yang masih hidup (banner
+ * pemulihan hilang padahal dana masih tertahan di server); jam mundur
+ * menawarkan pemulihan untuk aksi yang sudah mati. Sekarang keduanya memakai
+ * `serverNow()`.
+ */
+function isStale(action: PendingAction, now = serverNow()): boolean {
   if (action.expiresAt && Number.isFinite(action.expiresAt) && action.expiresAt <= now) return true
   return now - action.createdAt > PENDING_TTL_MS
 }
@@ -194,6 +214,17 @@ export function usePendingActions(): readonly PendingAction[] {
   const snapshot = useSyncExternalStore(subscribe, getPendingActionsSnapshot, () => EMPTY)
   useEffect(() => {
     void loadPendingActions()
+    // I-04: buang catatan yang kedaluwarsa SELAMA sesi berjalan, bukan hanya
+    // saat boot — dan periksa lagi begitu app kembali ke depan (pengguna
+    // menutup app lebih lama dari TTL).
+    const timer = setInterval(() => prunePendingActions(), PRUNE_INTERVAL_MS)
+    const subscription = AppState.addEventListener("change", (state) => {
+      if (state === "active") prunePendingActions()
+    })
+    return () => {
+      clearInterval(timer)
+      subscription.remove()
+    }
   }, [])
   return snapshot
 }

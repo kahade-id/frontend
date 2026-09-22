@@ -27,7 +27,7 @@ import { readQuestionList, type MyQuestionsType, type QuestionItem } from "@/lib
 import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
@@ -44,6 +44,7 @@ import { Radio, RadioGroup } from "@/components/ui/radio"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 /** G-13: opsi hide satu sumber di lib/labels/report (= HiddenReason API). */
 const HIDE_REASONS = CONTENT_REPORT_REASONS
@@ -99,6 +100,8 @@ export default function QuestionsScreen() {
         },
       }
     },
+    // C-08 (audit): pertanyaan terbaru di atas; jawaban masuk mengubah urutan.
+    { compare: byTimestampDesc<QuestionItem>((question) => question.createdAt) },
   )
   const items = query.data
   const [upvotingId, setUpvotingId] = useState<string | null>(null)
@@ -169,7 +172,10 @@ export default function QuestionsScreen() {
     if (!answerTarget) return
     const value = answerText.trim()
     if (value.length < ANSWER_MIN) {
-      toast.show({ title: `Jawaban minimal ${ANSWER_MIN} karakter`, tone: "danger" })
+      toast.show({
+        title: translate("Jawaban minimal {x} karakter", { x: ANSWER_MIN }),
+        tone: "danger",
+      })
       return
     }
     setAnswering(true)
@@ -210,7 +216,12 @@ export default function QuestionsScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Tanya Jawab" />
       <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
-        <SegmentedControl items={SEGMENTS} value={type} onChange={setType} />
+        <SegmentedControl
+          accessibilityLabel="Jenis pertanyaan"
+          items={SEGMENTS}
+          value={type}
+          onChange={setType}
+        />
       </View>
       <PullToRefresh
         onRefresh={query.refresh}
@@ -241,7 +252,7 @@ export default function QuestionsScreen() {
           />
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={`${items.length} pertanyaan`} />
+            <SectionHeader title={translate("{x} pertanyaan", { x: items.length })} />
             {items.map((q) => {
               const other = received ? q.asker : q.target
               const otherName =
@@ -332,7 +343,9 @@ export default function QuestionsScreen() {
 
       <Dialog
         title="Jawab pertanyaan"
-        description={`Dari ${answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? ""}`}
+        description={translate("Dari {x}", {
+          x: answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? "",
+        })}
         visible={!!answerTarget}
         loading={answering}
         confirmLabel="Kirim Jawaban"
@@ -369,7 +382,11 @@ export default function QuestionsScreen() {
         }
       >
         <View className="px-5 pb-2">
-          <RadioGroup value={hideReason} onChange={(v) => setHideReason(v as HiddenReason)}>
+          <RadioGroup
+            accessibilityLabel="Alasan menyembunyikan"
+            value={hideReason}
+            onChange={(v) => setHideReason(v as HiddenReason)}
+          >
             {HIDE_REASONS.map((r) => (
               <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
             ))}

@@ -16,6 +16,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { translate } from "@/lib/i18n/translate"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { referralUrl } from "@/lib/deeplinks"
@@ -143,7 +144,9 @@ export default function ReferralScreen() {
     const url = referralUrl(code)
     const outcome = await shareContent({
       title: "Ajak teman ke Kahade",
-      message: `Pakai kode referral saya ${code} saat daftar di Kahade — transaksi aman dengan escrow.`,
+      message: translate("Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.", {
+        x: code,
+      }),
       url,
     })
     if (outcome === "unavailable") {
@@ -214,11 +217,12 @@ export default function ReferralScreen() {
                       key={`${e.rank}-${e.username}`}
                       accessible
                       className="flex-row items-center gap-3 px-4 py-3"
-                      accessibilityLabel={`Peringkat ${e.rank}, ${
-                        e.fullName ?? e.username
-                      }, mengundang ${e.invitedCount} orang, total reward ${formatRupiah(
-                        e.totalReward,
-                      )}`}
+                      accessibilityLabel={translate("Peringkat {x}, {y}, mengundang {z} orang, total reward {w}", {
+                        x: e.rank,
+                        y: e.fullName ?? e.username,
+                        z: e.invitedCount,
+                        w: formatRupiah(e.totalReward),
+                      })}
                     >
                       <View className="w-6 items-center">
                         <Text

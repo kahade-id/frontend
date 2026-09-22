@@ -14,6 +14,7 @@
  */
 import { useEffect, useRef } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
@@ -67,7 +68,7 @@ export function PageIndicator({ count, index, inverse = false, className, ...res
   return (
     <View
       accessibilityRole="progressbar"
-      accessibilityLabel={`Halaman ${index + 1} dari ${count}`}
+      accessibilityLabel={translate("Halaman {x} dari {y}", { x: index + 1, y: count })}
       accessibilityValue={{ min: 1, max: count, now: index + 1 }}
       className={cn("flex-row items-center justify-center gap-2", className)}
       {...rest}

@@ -23,6 +23,7 @@
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
 import { Animated, TextInput, View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { useTheme } from "@/components/theme-provider"
 import { FieldHelper } from "@/components/ui/field"
@@ -140,6 +141,8 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
 ) {
   const { mode } = useTheme()
   const inputRef = useRef<TextInput>(null)
+  /** Kode terakhir yang sudah dilaporkan ke `onComplete` (dipakai deteksi A-03). */
+  const completionRef = useRef("")
   const [internal, setInternal] = useState(defaultValue)
   const [focused, setFocused] = useState(false)
   const code = (value ?? internal).slice(0, length)
@@ -150,10 +153,40 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
       const next = raw.replace(/\D/g, "").slice(0, length)
       if (value === undefined) setInternal(next)
       onChange?.(next)
-      if (next.length === length) onComplete?.(next)
+      if (next.length === length) {
+        completionRef.current = next
+        onComplete?.(next)
+      }
     },
     [length, onChange, onComplete, value],
   )
+
+  /**
+   * A-03 (audit 2026-09-22) — bug nyata, terbukti runtime: input tersembunyi
+   * punya `maxLength={length}` dan TIDAK pernah dikosongkan saat server
+   * menolak kode (`errorText`). Setelah satu kegagalan OTP, nilai tetap 6/6
+   * sehingga setiap ketukan digit berikutnya diabaikan — pengguna harus
+   * menekan hapus 6× dulu untuk memasukkan kode baru. Terjadi di dua alur
+   * keamanan: OTP penarikan (app/withdraw.tsx) dan aktivasi 2FA
+   * (app/two-factor.tsx). PinInput sudah benar; ini menyamakan perilakunya.
+   *
+   * Dua kondisi, karena `errorText` sering berupa string KONSTAN:
+   *   1. pesan error baru muncul (transisi ke truthy), atau
+   *   2. kode yang sedang penuh sama dengan kode terakhir yang sudah dilaporkan
+   *      ke `onComplete` — artinya kode ITU yang ditolak, jadi tidak ada gunanya
+   *      membiarkannya di layar.
+   */
+  const lastErrorRef = useRef<string | undefined>(undefined)
+  useEffect(() => {
+    const previousError = lastErrorRef.current
+    lastErrorRef.current = errorText
+    if (!errorText || code.length === 0) return
+    const freshError = previousError !== errorText
+    const rejectedCode = code.length === length && code === completionRef.current
+    if (!freshError && !rejectedCode) return
+    if (value === undefined) setInternal("")
+    onChange?.("")
+  }, [code, errorText, length, onChange, value])
 
   useImperativeHandle(
     ref,
@@ -176,8 +209,14 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
       <Pressable
         onPress={() => inputRef.current?.focus()}
         disabled={disabled}
-        accessibilityRole="none"
-        accessibilityLabel={`Kode ${length} digit, ${code.length} dari ${length} terisi`}
+        /*
+         * F-03 (audit 2026-09-22): pembungkus ini adalah TARGET KETUK (fokuskan
+         * input tersembunyi) tetapi dulu diberi role "none" sehingga pembaca
+         * layar tidak mengumumkannya sebagai kontrol. Labelnya juga diduplikasi
+         * pada TextInput tersembunyi; sekarang hanya di sini.
+         */
+        accessibilityRole="button"
+        accessibilityLabel={translate("Kode {x} digit, {y} dari {z} terisi", { x: length, y: code.length, z: length })}
         accessibilityValue={{ text: `${code.length} dari ${length}` }}
         className={cn("flex-row justify-between gap-2 rounded-sm", disabled && "opacity-disabled", focusRing)}
 
@@ -207,14 +246,31 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         maxLength={length}
         keyboardType="number-pad"
         inputMode="numeric"
-        autoComplete="one-time-code"
-        textContentType="oneTimeCode"
+        /*
+         * Mode `secure` (PIN, bukan OTP): jangan minta autofill kode sekali
+         * pakai — mengarahkan sistem mengisi kode OTP ke kolom PIN, dan
+         * sebaliknya tidak pernah mengisi. Ditambah secureTextEntry supaya
+         * saran keyboard/papan klip tidak membocorkan PIN di OS.
+         */
+        autoComplete={secure ? "off" : "one-time-code"}
+        textContentType={secure ? "none" : "oneTimeCode"}
+        secureTextEntry={secure}
         caretHidden
         allowFontScaling={false}
         selectionColor={tokens.colors[mode].primary}
-        accessibilityLabel={`Kode ${length} digit, ${code.length} dari ${length} terisi`}
-        accessibilityValue={{ text: `${code.length} dari ${length}` }}
-        accessibilityState={{ disabled }}
+        /*
+         * F-03: pembungkus di atas yang mengumumkan; di NATIVE input tersembunyi
+         * disembunyikan dari pembaca layar agar tidak diumumkan dua kali.
+         *
+         * F-10 (audit 2026-09-22): di WEB input inilah kontrol fokusable yang
+         * sebenarnya (div pembungkus tidak menampung ketikan), jadi ia WAJIB
+         * punya nama — sebelumnya tanpa nama sama sekali dan uji axe
+         * melaporkan `label` tingkat critical. `aria-label` dipakai karena
+         * `accessible={false}` membuat label RN diabaikan.
+         */
+        accessible={false}
+        importantForAccessibility="no"
+        aria-label={`Kode ${length} digit`}
         className="absolute h-1 w-1 opacity-0"
       />
 

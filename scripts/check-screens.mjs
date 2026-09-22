@@ -60,6 +60,15 @@ const uiComponents = [...walk(join(root, "components", "ui"))].map((p) => rel(p)
 const allSources = [...walk(join(root, "app")), ...walk(join(root, "components")), ...walk(join(root, "lib")), ...walk(join(root, "tests"))].map(
   (p) => ({ path: rel(p), src: readFileSync(p, "utf8") }),
 )
+/*
+ * Sumber PRODUK untuk aturan S5 (komponen UI tanpa pemakaian) — sengaja tanpa
+ * `tests/`. Sejak D-03 ada test render yang mengimpor seluruh daftar baseline
+ * (`tests/unused-ui-baseline.test.tsx`); kalau test ikut dihitung sebagai
+ * "pemakaian", baseline menjadi kosong dan gate kehilangan sinyal aslinya
+ * ("tidak dipakai layar mana pun"). Yang menentukan status cadangan adalah
+ * impor dari app/components/lib, bukan dari test.
+ */
+const productSources = allSources.filter((f) => !f.path.startsWith("tests/"))
 
 // ------------------------------------------------------------------
 // Aturan
@@ -436,6 +445,12 @@ for (const rule of rules) {
  *     berkas-berkas ini ikut berubah — mereka pasti menyimpang perlahan.
  *     Sebelum memakai salah satunya, baca ulang dan adaptasi ke design
  *     system terkini, lalu HAPUS dari baseline di saat yang sama.
+ *   - Sejak D-03 (audit 2026-09-20) ada jaring pengaman minimum:
+ *     `tests/unused-ui-baseline.test.tsx` MERENDER setiap komponen di daftar
+ *     ini (npm run test:components), jadi perubahan prop/token yang membuat
+ *     komponennya crash atau tak bisa di-render ketahuan di CI. Yang BELUM
+ *     dijamin test itu: tampilan/varian prop yang tidak pernah dirender —
+ *     untuk itu tetap lakukan langkah sebelumnya (baca ulang + adaptasi).
  *   - Baseline hanya boleh menyusut. Komponen baru yang tidak pernah
  *     diimpor TETAP langsung gagal (tidak masuk daftar ini diam-diam).
  *   - Baseline basi (komponen akhirnya dipakai) juga gagal — hapus namanya.
@@ -477,7 +492,7 @@ for (const component of uiComponents) {
   // dipangkas sehingga modul .ts selalu tampak "tidak pernah diimpor".
   const name = component.replace(/^components\/ui\//, "").replace(/\.tsx?$/, "")
   const importRe = new RegExp(`["'](?:@/components/ui|\\.)/${name}["']`)
-  const used = allSources.some((f) => f.path !== component && importRe.test(f.src))
+  const used = productSources.some((f) => f.path !== component && importRe.test(f.src))
   if (!used) unusedUi.push(component)
 }
 for (const component of unusedUi) {
@@ -503,11 +518,26 @@ for (const component of UNUSED_UI_BASELINE) {
  * docs/audit/REFACTOR-PLAN.md.
  */
 const LINE_CEILING = new Map([
-  ["app/user/[username].tsx", 1481],
+  // Batch G (G-01): tiga kalimat campuran nilai runtime dipindah ke translate()
+  // dan dua blok impor dipadatkan -> 1474. Plafon TURUN mengikuti fakta.
+  ["app/user/[username].tsx", 1474],
   ["app/chat/[roomId].tsx", 1194],
-  ["app/order/[id].tsx", 1136],
-  ["app/dispute/[id].tsx", 919],
+  // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
+  // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
+  // Audit 2026-09-20 (batch E): label a11y bertemplate dipindah ke translate()
+  // di layar ini, dan kompensasinya satu baris -> 1104. Plafon TURUN mengikuti
+  // aturan "hanya boleh menyusut".
+  ["app/order/[id].tsx", 1104],
+  // Batch G (G-01): deskripsi sheet usulan penyelesaian memakai translate() dan
+  // konstanta tipe berkas dipadatkan -> 917. Plafon TURUN mengikuti fakta.
+  ["app/dispute/[id].tsx", 917],
   ["app/showcase/[id].tsx", 916],
+  // H-04 (audit 2026-09-22): PullToRefresh 881 baris menyembunyikan mesin
+  // gestur PanResponder di dalam satu komponen monolitik. Layar-layar sudah
+  // dipantau sejak lama, komponennya belum — masuk daftar pada ukuran
+  // SEKARANG, jadi ia hanya boleh menyusut (ekstrak mesin gesturnya saat
+  // disentuh berikutnya).
+  ["components/ui/pull-to-refresh.tsx", 885],
 ])
 for (const [file, ceiling] of LINE_CEILING) {
   const entry = allSources.find((f) => f.path === file)

@@ -74,6 +74,7 @@ import {
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { mapValue } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 const PAGE_SIZE = 10
 const MS_PER_DAY = 86_400_000
@@ -233,6 +234,37 @@ export default function SubscriptionsScreen() {
     [plans, status?.plan],
   )
   const hasMethods = methods.length > 0
+  /*
+   * G-01 (audit 2026-09-22): deskripsi sheet PIN dulu dirakit dari template
+   * literal + potongan bersyarat (`… langganan${plan ? ` ${plan.name}` : ""}`),
+   * sehingga `localizeChildren` tidak pernah melihatnya — pengguna EN membaca
+   * kalimat Indonesia tepat di langkah terakhir sebelum membayar. Tiga varian
+   * (perpanjang / upgrade / berlangganan) kini memakai kunci kamus, dan cabang
+   * tanpa paket mendapat kalimat sendiri sehingga tidak ada "upgrade ke ." .
+   */
+  const pinPromptDescription =
+    pinPurpose === "renew"
+      ? currentPlan
+        ? translate("Masukkan PIN dompet Anda untuk memperpanjang langganan {x} sebesar {y}.", {
+            x: currentPlan.name,
+            y: formatRupiah(currentPlan.price),
+          })
+        : translate("Masukkan PIN dompet Anda untuk memperpanjang langganan.")
+      : pinPurpose === "upgrade"
+        ? selectedPlan
+          ? translate(
+              "Masukkan PIN dompet Anda untuk upgrade ke {x}. Sisa nilai paket lama dipotong dari biaya baru (prorasi).",
+              { x: selectedPlan.name },
+            )
+          : translate(
+              "Masukkan PIN dompet Anda untuk upgrade. Sisa nilai paket lama dipotong dari biaya baru (prorasi).",
+            )
+        : selectedPlan
+          ? translate("Masukkan PIN dompet Anda untuk berlangganan {x} sebesar {y}.", {
+              x: selectedPlan.name,
+              y: formatRupiah(selectedPlan.price),
+            })
+          : translate("Masukkan PIN dompet Anda untuk berlangganan.")
 
   const startSubscribe = useCallback(
     (plan: SubscriptionPlan) => {
@@ -300,7 +332,7 @@ export default function SubscriptionsScreen() {
             pin,
           })
           toast.show({
-            title: `Beralih ke ${selectedPlan.name} (prorasi)`,
+            title: translate("Beralih ke {x} (prorasi)", { x: selectedPlan.name }),
             tone: "success",
             duration: 3000,
           })
@@ -646,7 +678,7 @@ export default function SubscriptionsScreen() {
       <TransactionProgressOverlay
         visible={progressState !== null}
         state={progressState ?? "PROCESSING"}
-        processingMessage={`Memproses langganan ${selectedPlan?.name ?? ""}…`}
+        processingMessage={translate("Memproses langganan {x}…", { x: selectedPlan?.name ?? "" })}
         successMessage="Berlangganan berhasil"
         failureMessage={progressError ?? "Pembayaran gagal. Coba lagi."}
       />
@@ -655,19 +687,7 @@ export default function SubscriptionsScreen() {
         visible={step === "pin"}
         onRequestClose={closePin}
         title="Verifikasi PIN"
-        description={
-          pinPurpose === "renew"
-            ? `Masukkan PIN dompet Anda untuk memperpanjang langganan${
-                currentPlan ? ` ${currentPlan.name}` : ""
-              }${currentPlan ? ` sebesar ${formatRupiah(currentPlan.price)}` : ""}.`
-            : pinPurpose === "upgrade"
-              ? `Masukkan PIN dompet Anda untuk upgrade ke ${
-                  selectedPlan ? selectedPlan.name : ""
-                }. Sisa nilai paket lama dipotong dari biaya baru (prorasi).`
-              : `Masukkan PIN dompet Anda untuk berlangganan${
-                  selectedPlan ? ` ${selectedPlan.name}` : ""
-                }${selectedPlan ? ` sebesar ${formatRupiah(selectedPlan.price)}` : ""}.`
-        }
+        description={pinPromptDescription}
         avoidKeyboard
       >
         <PinInput

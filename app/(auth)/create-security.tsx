@@ -85,6 +85,23 @@ export default function CreateSecurityScreen() {
     confirmPassword.length > 0 && password === confirmPassword
   const canProceed = passwordValid && passwordsMatch
 
+  /*
+   * F-06 (audit 2026-09-22): tombol "Lanjut" terkunci selama kata sandi belum
+   * memenuhi syarat / konfirmasinya belum cocok, dan sebelumnya tidak ada
+   * penjelasan apa pun di sisi tombol — pengguna (terutama pembaca layar)
+   * menekan tombol yang tidak merespons tanpa tahu apa yang kurang. Kekurangan
+   * disebut spesifik dari satu tempat, jadi pesan visual dan `accessibilityHint`
+   * tidak bisa menyimpang satu sama lain.
+   */
+  const passwordIssue =
+    password.length === 0
+      ? undefined
+      : !passwordValid
+        ? "Kata sandi belum memenuhi semua syarat di atas."
+        : !passwordsMatch
+          ? "Konfirmasi kata sandi belum cocok."
+          : undefined
+
   const handleProceedToPin = useCallback(() => {
     if (!canProceed) return
     setStep(2)
@@ -182,7 +199,19 @@ export default function CreateSecurityScreen() {
 
           {/* Footer: tombol Lanjut */}
           <FooterBar>
-            <Button onPress={handleProceedToPin} disabled={!canProceed}>
+            {/* Kekurangan yang membuat tombol terkunci (F-06) — satu tempat yang
+                sama dengan `accessibilityHint`, jadi pesan visual dan yang
+                dibacakan tidak bisa menyimpang. */}
+            {passwordIssue ? (
+              <Text variant="caption" tone="danger" accessibilityLiveRegion="polite">
+                {passwordIssue}
+              </Text>
+            ) : null}
+            <Button
+              onPress={handleProceedToPin}
+              disabled={!canProceed}
+              accessibilityHint={passwordIssue}
+            >
               Lanjut
             </Button>
           </FooterBar>

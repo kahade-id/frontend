@@ -33,9 +33,10 @@ import { PencilSimple, Star, ThumbsUp, Trash } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import { readMyRatings, type Rating } from "@/lib/api/ratings"
+import { queryKeys } from "@/lib/query-keys"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -85,11 +86,15 @@ export default function RatingsScreen() {
    * `me` dipisah jadi query sendiri karena bukan bagian dari halaman ulasan;
    * query lama juga hanya mengisinya sekali (`me ? Promise.resolve(me) : …`).
    */
-  const meQuery = useApiQuery<{ id?: string; username?: string }>(
-    "ratings-me",
-    async (signal) => {
-      const me = await api.users.getMe(signal)
-      return { id: me.id ?? undefined, username: me.username ?? undefined }
+  const meQuery = useApiQuery(
+    queryKeys.me(),
+    (signal) => api.users.getMe(signal),
+    true,
+    {
+      // C-02 (audit): dulu query TERPISAH di bawah kunci "ratings-me", sehingga
+      // GET /v1/users/me ditembak dua kali di satu layar (dan sekali lagi di
+      // tiap layar lain). Sekarang satu kunci + proyeksi `select`.
+      select: (me) => ({ id: me.id ?? undefined, username: me.username ?? undefined }),
     },
   )
   const me = meQuery.data
@@ -115,7 +120,7 @@ export default function RatingsScreen() {
         totalPages: totalPages ?? (rows.length >= PAGE_SIZE ? page + 1 : page),
       },
     }
-  })
+  }, { compare: byTimestampDesc<Rating>((rating) => rating.createdAt) })
   const items = query.data
   const { loading, error, refreshing, loadingMore, loadMoreError, hasMore } = query
   const [segment, setSegment] = useState<Segment>("RECEIVED")
@@ -310,7 +315,12 @@ export default function RatingsScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Ulasan" />
       <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
-        <SegmentedControl items={SEGMENTS} value={segment} onChange={setSegment} />
+        <SegmentedControl
+          accessibilityLabel="Jenis ulasan"
+          items={SEGMENTS}
+          value={segment}
+          onChange={setSegment}
+        />
       </View>
       <PullToRefresh
         onRefresh={() => void query.refresh()}

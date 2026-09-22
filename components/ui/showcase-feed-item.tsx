@@ -20,6 +20,7 @@ import { useCallback, useState } from "react"
 import { BookmarkSimple, ChatCircle, Export, Flag, Heart, HeartStraight } from "phosphor-react-native"
 import { router } from "expo-router"
 import { ScrollView, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { formatCountCompact, formatDateTime, formatNumber } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -140,7 +141,11 @@ export function ShowcaseFeedItem({
   const liked = item.isLiked === true
   const likeCountLabel = `${formatCountCompact(item.likeCount)} Suka`
   const commentCountLabel = `${formatCountCompact(item.commentCount)} Komentar`
-  const summary = `Showcase ${item.title}, ${priceLabel}, oleh ${item.author.fullName ?? item.author.username}`
+  const summary = translate("Showcase {x}, {y}, oleh {z}", {
+    x: item.title,
+    y: priceLabel,
+    z: item.author.fullName ?? item.author.username,
+  })
 
   const [mediaPage, setMediaPage] = useState(0)
   const [cardWidth, setCardWidth] = useState(0)
@@ -189,7 +194,7 @@ export function ShowcaseFeedItem({
       <View className="flex-row items-center gap-2 px-5 pt-3">
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={`Lihat profil ${item.author.fullName ?? item.author.username}`}
+          accessibilityLabel={translate("Lihat profil {x}", { x: item.author.fullName ?? item.author.username })}
           accessibilityHint={`@${item.author.username}`}
           onPress={() => router.push(ROUTES.userProfile(item.author.username))}
           containerClassName={cn("flex-1 flex-row items-center gap-3 rounded-md", focusRing)}
@@ -267,7 +272,7 @@ export function ShowcaseFeedItem({
                 <View key={image.id} style={{ width: pageWidth }}>
                   <PressableScale
                     accessibilityRole="button"
-                    accessibilityLabel={`${summary} — foto ${index + 1} dari ${gallery.length}`}
+                    accessibilityLabel={translate("{x} — foto {y} dari {z}", { x: summary, y: index + 1, z: gallery.length })}
                     onPress={onPress}
                     containerClassName="w-full"
                   >

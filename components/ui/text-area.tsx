@@ -28,6 +28,7 @@ import { View, type TextInput } from "react-native"
 import { Input, type InputProps } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type TextAreaProps = Omit<InputProps, "variant" | "secureTextEntry" | "clearable" | "onClear"> & {
   /** Tampilkan "n/maxLength" (default true bila maxLength ada) */
@@ -77,7 +78,9 @@ export const TextArea = forwardRef<TextInput, TextAreaProps>(function TextArea(
           weight={atLimit ? 500 : 400}
           tone={atLimit ? "danger" : "secondary"}
           accessibilityLabel={
-            maxLength != null ? `${length} dari ${maxLength} karakter` : `${length} karakter`
+            maxLength != null
+              ? translate("{x} dari {y} karakter", { x: length, y: maxLength })
+              : translate("{x} karakter", { x: length })
           }
           // Sejajar baris helper: caption 18px di dasar Field (gap-2 dari kotak)
           className="absolute bottom-0 right-0"

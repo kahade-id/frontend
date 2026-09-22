@@ -121,6 +121,16 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.lastNotificationResponse,
   SecureKeys.uiPrefs,
 ])
+/**
+ * D-07 (audit): apakah kunci ini BERTAHAN di web? Dipakai modul yang harus
+ * jujur soal nasib datanya (`lib/feedback.ts`) tanpa menyalin ulang daftar
+ * `WEB_PERSISTENT_KEYS` — dua daftar yang bisa berbeda pendapat justru sumber
+ * bug yang sedang diperbaiki.
+ */
+export function isSecureKeyPersisted(key: SecureKey): boolean {
+  return !isWeb || WEB_PERSISTENT_KEYS.has(key)
+}
+
 function webStorage(): Storage | null {
   try {
     return typeof window !== "undefined" ? window.localStorage : null

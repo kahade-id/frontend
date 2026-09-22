@@ -38,6 +38,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type CounterpartState = "loading" | "notFound" | "blocked" | "self" | "found"
 
@@ -125,7 +126,7 @@ export function CounterpartValidationCard({
       <Card
         variant="outline"
         className={cn("flex-row items-start gap-3", className)}
-        accessibilityLabel={`${cfg.title}. ${cfg.hint}`}
+        accessibilityLabel={translate("{x}. {y}", { x: translate(cfg.title), y: translate(cfg.hint) })}
         {...rest}
       >
         <IconBox icon={cfg.icon} size="md" variant={cfg.variant} />

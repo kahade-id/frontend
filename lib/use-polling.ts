@@ -8,6 +8,7 @@
 import { useEffect, useRef } from "react"
 import { AppState, Platform } from "react-native"
 import { useIsFocused } from "@react-navigation/native"
+import { backpressureRemainingMs } from "@/lib/api/backpressure"
 
 export function usePolling(
   callback: (signal: AbortSignal) => Promise<unknown>,
@@ -28,8 +29,19 @@ export function usePolling(
       (Platform.OS !== "web" ||
         typeof document === "undefined" ||
         document.visibilityState === "visible")
+    /**
+     * C-09 (audit): interval EFEKTIF = max(interval permintaan, cooldown server).
+     *
+     * Backend yang membalas 429/503 berantai (mis. endpoint payment-status saat
+     * insiden) dulu tetap ditembak pada interval tetap selama sesi pengguna,
+     * karena `retryAfterMs` hanya dibaca jalur retry `useApiQuery`. Callback
+     * polling yang menelan galatnya sendiri tidak bisa melihatnya — jadi
+     * sinyalnya diambil dari transport (`lib/api/backpressure.ts`).
+     */
     const schedule = () => {
-      if (!cancelled && visible()) timer = setTimeout(tick, intervalMs)
+      if (cancelled || !visible()) return
+      const delay = Math.max(intervalMs, backpressureRemainingMs())
+      timer = setTimeout(tick, delay)
     }
     const tick = async () => {
       if (cancelled || !visible()) return

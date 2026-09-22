@@ -49,9 +49,21 @@ import { Icon } from "@/components/ui/icon"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { formatRupiah, groupThousands } from "@/lib/format"
+import { translate } from "@/lib/i18n"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { haptic } from "@/lib/haptics"
 import { focusRing } from "@/lib/focus-ring"
+
+/**
+ * H-02 (audit 2026-09-22): satu-satunya tempat yang mengubah NILAI state form
+ * menjadi string digit. `String(1e21)` menghasilkan "1e+21" dan
+ * `parseInt("1e+21")` = 1 — keypad lalu menampilkan "Rp1" untuk nilai yang
+ * tidak aman, padahal `Number.isFinite(1e21)` true. Nilai non-safe diperlakukan
+ * sebagai "tidak ada nominal" supaya tidak pernah ada digit bohongan di layar.
+ */
+function digitsFromValue(value: number): string {
+  return Number.isSafeInteger(value) && value > 0 ? String(value) : ""
+}
 
 export type AmountKeypadProps = Omit<ViewProps, "children"> & {
   value: number
@@ -87,6 +99,13 @@ export type AmountKeypadProps = Omit<ViewProps, "children"> & {
 const CURSOR_BLINK_MS = 530
 
 /**
+ * Batas panjang digit — "batas keras triliunan" yang dulu hanya berlaku pada
+ * tombol digit tunggal. A-06 memindahkannya ke satu jalur commit agar tombol
+ * "00" dan preset mengikuti aturan yang sama.
+ */
+const MAX_DIGITS = 12
+
+/**
  * Ambang tinggi layar (dp) untuk keypad padat. Di bawah angka ini, area
  * nominal + 4 baris kunci 64px + kartu slot + CTA tidak muat sekaligus
  * (iPhone SE 568dp, separuh layar Android, jendela web pendek) sehingga
@@ -94,6 +113,24 @@ const CURSOR_BLINK_MS = 530
  * atas target sentuh minimum 44pt (audit #1).
  */
 const COMPACT_BELOW_HEIGHT = 760
+
+/**
+ * F-07 (audit 2026-09-22): ukuran tombol keypad nominal & jarak minimumnya.
+ *
+ * Ukuran 56/64 px sudah di ATAS target 44pt, jadi masalahnya bukan "tombol
+ * terlalu kecil" melainkan tidak adanya JAMINAN: `justify-around` membuat lebar
+ * efektif dan celah antar-kolom bergantung lebar layar, dan lebar tombol tidak
+ * dibatasi eksplisit sehingga mode padat di layar 320 px mendempetkan dua
+ * target (risiko salah-tekan pada alur uang). Karena tombolnya sudah ≥ 44pt,
+ * `hitSlop` justru SALAH di sini — area slop akan menyentuh tombol sebelah dan
+ * memperbesar peluang salah tekan, bukan mengecilkannya.
+ *
+ * Yang dipakai: `min-w`/`max-w` eksplisit per tombol + `gap` minimum di baris
+ * keypad. Invariannya dikunci test (`tests/money-components.test.tsx`).
+ */
+export const KEYPAD_KEY_SIZE = { default: 64, compact: 56 } as const
+/** Jarak minimum antar tombol (px) — `gap` baris, bukan hitSlop. */
+export const KEYPAD_KEY_GAP = 8
 
 export function AmountKeypad({
   value,
@@ -119,7 +156,7 @@ export function AmountKeypad({
   // Kita simpan digits sebagai string (digit mentah) supaya ketikan terasa
   // natural (tidak melompat saat ribuan bertambah); value ke pemanggil
   // adalah hasil parseInt.
-  const digits = useMemo(() => (value > 0 ? String(value) : ""), [value])
+  const digits = useMemo(() => digitsFromValue(value), [value])
   const [cursorVisible, setCursorVisible] = useState(true)
 
   const displayed = useMemo(() => {
@@ -149,31 +186,57 @@ export function AmountKeypad({
     return () => clearInterval(t)
   }, [disabled, reducedMotion])
 
+  /**
+   * A-06/H-02 (audit 2026-09-22): dulu batas panjang 12 digit hanya ditegakkan
+   * di jalur digit tunggal, sedangkan tombol "00" HANYA memeriksa `max`. Tanpa
+   * `max` (mis. top-up) satu tekanan "00" bisa melewati batas keras itu, dan
+   * `Number.isFinite` masih meloloskan nilai non-`Number.isSafeInteger`
+   * (Rp1e21) ke state form. Sekarang satu jalur commit dipakai ketiga tombol:
+   * leading zero dibuang, panjang dibatasi, dan nilai WAJIB safe integer.
+   */
+  const commitDigits = useCallback(
+    (next: string): boolean => {
+      const trimmed = next.replace(/^0+(?=\d)/, "")
+      // Keystroke yang melewati batas panjang DITOLAK (bukan dipotong diam-diam):
+      // memotong "1234567890100" → "123456789010" membuat angka di layar
+      // berbeda dari yang diketuk pengguna.
+      if (trimmed.length > MAX_DIGITS) {
+        haptic("warning")
+        return false
+      }
+      const n = trimmed.length === 0 ? 0 : parseInt(trimmed, 10)
+      if (!Number.isSafeInteger(n)) {
+        haptic("warning")
+        return false
+      }
+      if (max != null && n > max) {
+        haptic("warning")
+        return false
+      }
+      if (trimmed === digits) return false // tidak ada perubahan nyata
+      haptic("select")
+      onChange(n)
+      return true
+    },
+    [digits, max, onChange],
+  )
+
   const pressDigit = useCallback(
     (d: string) => {
       if (disabled) return
       // Mencegah leading zero banyak-banyak: "0" lalu "0" → tetap "0"
-      const next = digits === "0" ? d : digits + d
-      if (next.length > 12) return // batas keras triliunan
-      const n = parseInt(next, 10)
-      if (!Number.isFinite(n)) return
-      if (max != null && n > max) {
-        haptic("warning")
-        return
-      }
-      haptic("select")
-      onChange(n)
+      commitDigits(digits === "0" ? d : digits + d)
     },
-    [digits, disabled, max, onChange],
+    [commitDigits, digits, disabled],
   )
 
   const pressBackspace = useCallback(() => {
     if (disabled) return
     if (digits.length === 0) return
-    haptic("select")
-    const next = digits.slice(0, -1)
-    onChange(next.length === 0 ? 0 : parseInt(next, 10))
-  }, [digits, disabled, onChange])
+    // H-02: lewat jalur commit yang sama, jadi nilai yang keluar dari keypad
+    // SELALU safe integer — bukan hanya di tombol digit/00.
+    commitDigits(digits.slice(0, -1))
+  }, [commitDigits, digits, disabled])
 
   const pressDoubleZero = useCallback(() => {
     if (disabled) return
@@ -183,25 +246,12 @@ export function AmountKeypad({
       onChange(0)
       return
     }
-    // Tambahkan dua nol sekaligus; cek max
-    const next = digits + "00"
-    const n = parseInt(next, 10)
-    if (!Number.isFinite(n)) return
-    if (max != null && n > max) {
-      // fallback: coba tambah satu nol saja
-      const nextSingle = digits + "0"
-      const nSingle = parseInt(nextSingle, 10)
-      if (Number.isFinite(nSingle) && (max == null || nSingle <= max)) {
-        haptic("select")
-        onChange(nSingle)
-        return
-      }
-      haptic("warning")
-      return
-    }
-    haptic("select")
-    onChange(n)
-  }, [digits, disabled, max, onChange])
+    if (commitDigits(digits + "00")) return
+    // Ditolak (max/panjang): coba satu nol saja — perilaku lama dipertahankan,
+    // tapi sekarang lewat jalur commit yang sama sehingga batas kerasnya
+    // berlaku juga di sini.
+    if (digits !== "0") commitDigits(digits + "0")
+  }, [commitDigits, digits, disabled, onChange])
 
   const pressAction = useCallback(() => {
     if (disabled) return
@@ -211,21 +261,28 @@ export function AmountKeypad({
     }
   }, [disabled, actionKey, onAction])
 
-  // Tangkap long-press backspace (hapus semua)
-  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const onPressInBackspace = useCallback(() => {
-    longPressTimer.current = setTimeout(() => {
-      haptic("success")
-      onChange(0)
-      longPressTimer.current = null
-    }, 650)
-  }, [onChange])
-  const onPressOutBackspace = useCallback(() => {
-    if (longPressTimer.current) {
-      clearTimeout(longPressTimer.current)
-      longPressTimer.current = null
+  /**
+   * A-07 (audit 2026-09-22): hapus-semua dulu punya DUA mekanisme pada satu
+   * tekanan — timer 650 ms di `onPressIn` DAN `onLongPress` bawaan RN (~500 ms).
+   * Keduanya memanggil `onChange(0)`, lalu saat jari diangkat `onPress` lama
+   * masih memegang `digits` sebelum reset sehingga nilai yang baru dihapus
+   * HIDUP LAGI. Sekarang hanya `onLongPress` yang bekerja, dan tekanan setelah
+   * long-press ditelan agar tidak ada backspace susulan.
+   */
+  const suppressNextBackspaceRef = useRef(false)
+  const handleBackspaceLongPress = useCallback(() => {
+    if (disabled) return
+    suppressNextBackspaceRef.current = true
+    haptic("success")
+    onChange(0)
+  }, [disabled, onChange])
+  const handleBackspacePress = useCallback(() => {
+    if (suppressNextBackspaceRef.current) {
+      suppressNextBackspaceRef.current = false
+      return
     }
-  }, [])
+    pressBackspace()
+  }, [pressBackspace])
 
   const canPressAction =
     actionKey === "check" && actionEnabled && !disabled && !resolvedError && value > 0
@@ -265,7 +322,14 @@ export function AmountKeypad({
         onPressOut={onPressOut}
         onLongPress={onLongPress}
         haptic="light"
-        containerClassName={cn("items-center rounded-full", focusRing)}
+        // `min-w`/`max-w` eksplisit (F-07): tanpa ini lebar area tekan mengikuti
+        // `justify-around`, jadi di layar lebar pun target terbesar tidak pernah
+        // ditentukan dan di layar sempit dua target bisa berdempetan.
+        containerClassName={cn(
+          "items-center justify-center rounded-full",
+          compact ? "h-14 min-w-14 max-w-14" : "h-16 min-w-16 max-w-16",
+          focusRing,
+        )}
         className={cn(
           "items-center justify-center rounded-full",
           compact ? "h-14 w-14" : "h-16 w-16",
@@ -323,7 +387,20 @@ export function AmountKeypad({
           ) : null}
         </View>
 
+        {/*
+         * F-04/A-18 (audit 2026-09-22): baris nominal kini satu elemen
+         * aksesibilitas berlabel — sebelumnya pembaca layar mengumumkan "Rp"
+         * dan angkanya sebagai dua potongan terpisah, dan "0" (belum diisi vs
+         * nol) tidak bisa dibedakan. Subtree di dalamnya murni <Text> dekoratif.
+         */}
         <Animated.View
+          accessible
+          accessibilityRole="text"
+          accessibilityLabel={
+            value > 0
+              ? translate("Nominal {x}", { x: formatRupiah(value) })
+              : translate("Nominal belum diisi")
+          }
           style={{ transform: [{ scale }] }}
           className="flex-row items-end justify-center"
         >
@@ -402,14 +479,22 @@ export function AmountKeypad({
       {slot ? <View className={cn("w-full", compact ? "pb-2" : "pb-3")}>{slot}</View> : null}
 
       {/* ----- Keypad ----- */}
+      {/*
+       * F-01 (audit 2026-09-22) — regresi aksesibilitas paling berat di app:
+       * `accessible` pada View ini menjadikan SELURUH subtree satu elemen
+       * aksesibilitas, sehingga 12 tombol digit berhenti menjadi target fokus
+       * dan pengguna TalkBack/VoiceOver TIDAK bisa memasukkan nominal sama
+       * sekali (transfer, tarik dana, top-up, langganan). Komentar gate di
+       * scripts/check-a11y.mjs mencatat alasan yang sama untuk pin-pad.tsx —
+       * amount-keypad justru melakukan kebalikannya. Label area dipindah ke
+       * baris nominal di atas (yang memang satu informasi), bukan ke keypad.
+       */}
       <View
-        accessible
-        accessibilityLabel="Keypad nominal"
         className={cn("w-full items-center px-2", compact ? "gap-1" : "gap-2")}
         style={{ opacity: disabled ? tokens.motion.opacity.disabled : 1 }}
       >
         {ROWS.map((row) => (
-          <View key={row.join("")} className="w-full flex-row justify-around">
+          <View key={row.join("")} className="w-full flex-row justify-around gap-2">
             {row.map((d) => (
               <Key
                 key={d}
@@ -423,7 +508,7 @@ export function AmountKeypad({
             ))}
           </View>
         ))}
-        <View className="w-full flex-row justify-around">
+        <View className="w-full flex-row justify-around gap-2">
           {/* Kiri bawah */}
           {actionKey === "00" ? (
             <Key label="00" onPress={pressDoubleZero}>
@@ -455,10 +540,8 @@ export function AmountKeypad({
           ) : (
             <Key
               label="Hapus"
-              onPress={pressBackspace}
-              onPressIn={onPressInBackspace}
-              onPressOut={onPressOutBackspace}
-              onLongPress={() => onChange(0)}
+              onPress={handleBackspacePress}
+              onLongPress={handleBackspaceLongPress}
             >
               <Icon icon={Backspace} size="lg" tone="active" />
             </Key>

@@ -28,7 +28,16 @@ import {
   toLanguageCode,
 } from "@/lib/i18n/languages"
 import { resolveSystemLanguage } from "@/lib/i18n/system-language"
-import { SHAPE_TOKEN, SLOT_TOKEN, fillTokens, interpolate, maskNumbers, shapeOf } from "@/lib/i18n/shape"
+import {
+  SHAPE_TOKEN,
+  SLOT_TOKEN,
+  fillTokens,
+  interpolate,
+  maskNumbers,
+  namedTokens,
+  normalizeNamedTokens,
+  shapeOf,
+} from "@/lib/i18n/shape"
 import {
   adoptAccountLanguage,
   applyLanguage,
@@ -36,7 +45,7 @@ import {
   persistLanguage,
   readCachedLanguage,
 } from "@/lib/i18n/store"
-import { clearTranslationCache, translate } from "@/lib/i18n/translate"
+import { clearTranslationCache, hasTranslation, translate } from "@/lib/i18n/translate"
 
 describe("daftar bahasa", () => {
   it("hanya 'id' dan 'en' — sama dengan enum backend UpdateLanguageDto", () => {
@@ -88,6 +97,15 @@ describe("bentuk string ({x})", () => {
     const { shape, values } = shapeOf("2 dari 9")
     expect(shape).toBe(`${SHAPE_TOKEN} dari ${SHAPE_TOKEN}`)
     expect(fillTokens(`${SHAPE_TOKEN} dari ${SHAPE_TOKEN}`, values)).toBe("2 dari 9")
+  })
+
+  it("mengenali token bernama dan menormalkannya ke `{x}` (F-09)", () => {
+    expect(namedTokens("Halaman {x} dari {y}")).toEqual(["x", "y"])
+    expect(namedTokens("Tanpa token")).toEqual([])
+    expect(normalizeNamedTokens("Halaman {x} dari {y}")).toBe(`Halaman ${SHAPE_TOKEN} dari ${SHAPE_TOKEN}`)
+    // Token berulang tetap terdaftar berulang — pemanggil yang menolaknya
+    // (check:i18n) butuh daftar mentah, bukan himpunan.
+    expect(namedTokens("{x} dan {x}")).toEqual(["x", "x"])
   })
 
   it("interpolasi bernama dan posisional; token tak dikenal dibiarkan", () => {
@@ -163,11 +181,60 @@ describe("translate()", () => {
     expect(translate("12 dari 40")).toBe("12 of 40")
   })
 
+  it("mengisi label multi-slot ({x},{y}) dari objek var, urut kemunculan", () => {
+    // F-09: label aksesibilitas ber-nilai-banyak tidak bisa lewat template
+    // literal (localizeChildren tidak menyentuh children campuran). Kuncinya
+    // literal `translate("… {x} … {y}", …)`; interpolasi mencocokkan nama, jadi
+    // terjemahan boleh menukar posisi slot.
+    applyLanguage("en")
+    clearTranslationCache()
+    expect(translate("Halaman {x} dari {y}", { x: 3, y: 12 })).toBe("Page 3 of 12")
+    expect(translate("Lihat foto {x} dari {y}", { x: 2, y: 8 })).toBe("View photo 2 of 8")
+    expect(translate("PIN {x} dari {y} digit", { x: 2, y: 6 })).toBe("PIN 2 of 6 digits")
+    expect(translate("Kode {x} digit, {y} dari {z} terisi", { x: 6, y: 3, z: 6 })).toBe(
+      "6-digit code, 3 of 6 entered",
+    )
+    expect(translate("Peringkat {x}, {y}, mengundang {z} orang, total reward {w}", {
+      x: 4,
+      y: "Budi",
+      z: 12,
+      w: "Rp150.000",
+    })).toBe("Rank 4, Budi, invited 12 people, total reward Rp150.000")
+    applyLanguage("id")
+    clearTranslationCache()
+    expect(translate("Halaman {x} dari {y}", { x: 3, y: 12 })).toBe("Halaman 3 dari 12")
+  })
+
+  it("var yang hilang tidak mencetak token mentah ke pembaca layar", () => {
+    // Perilaku yang diandalkan: nilai yang tersedia tetap diisi, token tanpa
+    // nilai dibiarkan — bukan crash, bukan string kosong.
+    applyLanguage("en")
+    clearTranslationCache()
+    expect(translate("Halaman {x} dari {y}", { x: 3 })).toBe("Page 3 of {y}")
+  })
+
   it("tidak pernah mengembalikan string kosong untuk sumber terisi", () => {
     applyLanguage("en")
     clearTranslationCache()
     const out = translate("Kalimat acak yang belum ada di kamus sama sekali")
     expect(out).toBe("Kalimat acak yang belum ada di kamus sama sekali")
+  })
+
+  it("hasTranslation(): kunci persis, bentuk {x}, dan bahasa sumber", () => {
+    // G-03 (audit 2026-09-22): ekspor ini sebelumnya tidak dipakai siapa pun —
+    // gate/layar tidak punya cara memeriksa "terjemahan ini benar-benar ada".
+    // Sekarang check:i18n menolak katalog yang belum 100%, dan helper ini dipakai
+    // untuk memverifikasi sisi runtime-nya (termasuk pencocokan BENTUK).
+    applyLanguage("en")
+    clearTranslationCache()
+    expect(hasTranslation("Batal")).toBe(true)
+    expect(hasTranslation("3 ulasan")).toBe(true) // lewat BENTUK: angka → {x}
+    expect(hasTranslation("Kalimat acak yang belum ada di kamus sama sekali")).toBe(false)
+    // Bahasa sumber selalu dianggap tersedia (fallback = teks sumber itu sendiri).
+    expect(hasTranslation("Batal", SOURCE_LANGUAGE)).toBe(true)
+    expect(hasTranslation("Kalimat acak", SOURCE_LANGUAGE)).toBe(true)
+    applyLanguage("id")
+    clearTranslationCache()
   })
 
   it("melewati angka, boolean, dan nilai kosong apa adanya", () => {
@@ -198,7 +265,11 @@ describe("kamus English vs katalog", () => {
         const value = dict[key]
         expect(typeof value).toBe("string")
         expect(value.trim().length).toBeGreaterThan(0)
-        expect((key.match(/\{x\}/g) ?? []).length).toBe((value.match(/\{x\}/g) ?? []).length)
+        // Semua token bernama (`{x}`, `{y}`, `{z}`) — bukan hanya `{x}`:
+        // penerjemahan label multi-slot (F-09) boleh MENJATUHKAN satu slot tanpa
+        // terdeteksi kalau hitungannya cuma `{x}`.
+        const tokensOf = (t: string) => (t.match(/\{[A-Za-z_][A-Za-z0-9_]*\}/g) ?? []).length
+        expect(tokensOf(key), `token tidak seimbang: "${key}"`).toBe(tokensOf(value))
         expect(value).not.toMatch(/[\n\r]/)
         expect(all.has(key), `kunci dobel lintas file: "${key}"`).toBe(false)
         all.set(key, file)
@@ -213,6 +284,24 @@ describe("kamus English vs katalog", () => {
   it("cakupan tidak turun dari angka yang sudah dicapai (ratchet)", async () => {
     const floor = JSON.parse(readFileSync("lib/i18n/coverage.json", "utf8")) as { translated: number }
     expect(all.size).toBeGreaterThanOrEqual(floor.translated)
+  })
+
+  it("katalog memuat label aksesibilitas multi-slot (regresi F-09)", () => {
+    // Pernah terjadi: codegen membuang setiap string ber-kurung kurawal yang
+    // bukan `{x}` sebagai "cuplikan kode", sehingga `translate("Halaman {x}
+    // dari {y}")` tidak pernah masuk kamus — label tetap Indonesia di UI
+    // Inggris tanpa satu gate pun gagal.
+    for (const key of [
+      "Halaman {x} dari {y}",
+      "Lihat foto {x} dari {y}",
+      "PIN {x} dari {y} digit",
+      "Kode {x} digit, {y} dari {z} terisi",
+      "{x}: {y}",
+      "(lampiran)",
+      "(opsional)",
+    ]) {
+      expect(catalogKeys.has(key), `tidak ada di katalog: ${key}`).toBe(true)
+    }
   })
 
   it("EN tidak berisi kunci yang tidak dipakai app", () => {

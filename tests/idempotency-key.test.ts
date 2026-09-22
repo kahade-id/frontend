@@ -61,7 +61,9 @@ describe("Idempotency-Key", () => {
       .mockImplementationOnce(() => jsonResponse({ success: true, data: { accessToken: "token-baru" } }))
       .mockImplementationOnce(() => jsonResponse({ success: true, data: { ok: true } }))
 
-    await http.post("/v1/wallet/transfer", { recipientId: "u1", amount: 1000, pin: "123456" })
+    await http.post("/v1/wallet/transfer", { recipientId: "u1", amount: 1000, pin: "123456" }, {
+      auth: "required",
+    })
 
     // panggilan: [1] mutasi 401, [2] refresh, [3] mutasi diulang
     const keys = idempotencyKeys()
@@ -72,20 +74,42 @@ describe("Idempotency-Key", () => {
 
   it("GET tidak diberi Idempotency-Key", async () => {
     fetchMock.mockImplementationOnce(() => jsonResponse({ success: true, data: [] }))
-    await http.get("/v1/notifications")
+    await http.get("/v1/notifications", { auth: "required" })
     expect(idempotencyKeys()[0]).toBeUndefined()
+  })
+
+  it("D-09: kunci pemanggil TIDAK memicu pembuatan kunci acak (hemat UUID + pola retry manual)", async () => {
+    // `spyOn` + `mockRestore` — BUKAN `vi.stubGlobal`, karena stub global akan
+    // ikut mencabut mock `fetch` milik berkas ini dan membuat test setelahnya
+    // menembak jaringan sungguhan.
+    const randomUUID = vi.spyOn(globalThis.crypto, "randomUUID")
+    fetchMock.mockImplementationOnce(() => jsonResponse({ success: true, data: {} }))
+
+    await http.post(
+      "/v1/orders",
+      { title: "x" },
+      { auth: "required", headers: { "Idempotency-Key": "kunci-pemanggil" } },
+    )
+
+    expect(randomUUID).not.toHaveBeenCalled()
+    expect(idempotencyKeys()[0]).toBe("kunci-pemanggil")
+    randomUUID.mockRestore()
   })
 
   it("kunci dari pemanggil dihormati, tidak ditimpa", async () => {
     fetchMock.mockImplementationOnce(() => jsonResponse({ success: true, data: {} }))
-    await http.post("/v1/orders", { title: "x" }, { headers: { "Idempotency-Key": "kunci-pemanggil" } })
+    await http.post(
+      "/v1/orders",
+      { title: "x" },
+      { auth: "required", headers: { "Idempotency-Key": "kunci-pemanggil" } },
+    )
     expect(idempotencyKeys()[0]).toBe("kunci-pemanggil")
   })
 
   it("dua panggilan logis berbeda mendapat kunci berbeda", async () => {
     fetchMock.mockImplementation(() => jsonResponse({ success: true, data: {} }))
-    await http.post("/v1/wallet/transfer", { amount: 1 })
-    await http.post("/v1/wallet/transfer", { amount: 1 })
+    await http.post("/v1/wallet/transfer", { amount: 1 }, { auth: "required" })
+    await http.post("/v1/wallet/transfer", { amount: 1 }, { auth: "required" })
     const [first, second] = idempotencyKeys()
     expect(first).toBeTruthy()
     expect(second).not.toBe(first)

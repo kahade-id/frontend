@@ -47,7 +47,7 @@ import {
 } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
-import { Field, type FieldProps } from "@/components/ui/field"
+import { Field, useFieldContext, type FieldProps } from "@/components/ui/field"
 import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
@@ -83,6 +83,16 @@ export type InputProps = Omit<TextInputProps, "style" | "editable"> &
     rows?: number
     className?: string
     containerClassName?: string
+    /**
+     * H-06 (audit 2026-09-22): kontrak EKSPLISIT untuk field yang tidak ingin
+     * border bawaan (mis. kolom pencarian berbentuk pil dengan latar permukaan).
+     * Sebelumnya pemanggil menulis `border-0` di `className` dan hasilnya
+     * bergantung tailwind-merge: `border-0` (lebar) vs `border-error`/
+     * `border-focus` (varian state) bisa dianggap properti berbeda sehingga
+     * garis error/focus tetap muncul. `frame="none"` melepas SELURUH kelas
+     * frame (border + padding kompensasinya) dari komponen.
+     */
+    frame?: "default" | "none"
   }
 
 const LABEL_FLOAT_Y = -(tokens.space[3] + tokens.space[2]) // -20px: dari tengah ke garis border
@@ -105,6 +115,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     clearable,
     onClear,
     rows = 4,
+    frame = "default",
     value,
     defaultValue,
     placeholder,
@@ -120,6 +131,9 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   ref,
 ) {
   const { mode } = useTheme()
+  // F-10: label dari <Field> pembungkus (null bila berdiri sendiri).
+  const fieldContext = useFieldContext()
+  const fieldLabel = typeof fieldContext?.label === "string" ? fieldContext.label : undefined
   const palette = tokens.colors[mode]
   // Ikon clear/secure/right di dalam sheet Reanimated memakai Pressable
   // berbasis native view (lihat gesture-pressable.tsx) agar tetap ditekan di
@@ -218,11 +232,13 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           "w-full flex-row rounded-sm bg-background",
           isMultiline ? "items-start py-4" : "items-center",
           // Border: resting 1px default -> focus/error 1.5px, padding dikompensasi
-          hasError
-            ? "border-error border-border-error px-[15px]"
-            : focused
-              ? "border-focus border-border-focus px-[15px]"
-              : "border border-border-control px-4",
+          frame === "none"
+            ? "border-0 px-4"
+            : hasError
+              ? "border-error border-border-error px-[15px]"
+              : focused
+                ? "border-focus border-border-focus px-[15px]"
+                : "border border-border-control px-4",
           boxHeight,
           disabled && "opacity-disabled",
           className,
@@ -284,7 +300,14 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             onFocus={handleFocus}
             onBlur={handleBlur}
             onChangeText={handleChange}
-            accessibilityLabel={translateProp(label ?? placeholder)}
+            /*
+             * F-10 (audit 2026-09-22): nama kontrol = label Input, lalu
+             * placeholder, lalu LABEL <Field> yang membungkusnya. Sebelumnya
+             * Field+Input menghasilkan input tanpa nama sama sekali: uji axe
+             * (tests/a11y.test.tsx) melaporkan pelanggaran `label` critical di
+             * web, dan di native VoiceOver membacakan field tanpa namanya.
+             */
+            accessibilityLabel={translateProp(fieldLabel ?? label ?? placeholder)}
             // Error dibaca bersama field saat fokus (bukan hanya saat muncul):
             // RN tidak punya aria-invalid/errormessage lintas platform, jadi
             // pesan error dipromosikan ke hint. Hint pemanggil tetap dipakai

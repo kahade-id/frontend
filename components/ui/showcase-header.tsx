@@ -32,6 +32,7 @@
 import { useCallback } from "react"
 import { View, ScrollView } from "react-native"
 import { useRouter } from "expo-router"
+import { translate } from "@/lib/i18n/translate"
 import {
   Bell,
   ClockCounterClockwise,
@@ -45,6 +46,7 @@ import {
 
 import { api, type Wallet as WalletData, type UserProfile } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
+import { queryKeys } from "@/lib/query-keys"
 import { formatRupiah } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useUnreadCountState } from "@/lib/unread-count"
@@ -94,13 +96,13 @@ export function ShowcaseHeader({
   const unread = useUnreadCountState()
 
   const walletQuery = useApiQuery<WalletData>(
-    "showcase-header-wallet",
+    queryKeys.wallet(),
     (signal) => api.wallet.getWallet(signal),
     true,
     { refreshOnFocus: true },
   )
   const profileQuery = useApiQuery<UserProfile>(
-    "showcase-header-profile",
+    queryKeys.me(),
     (signal) => api.users.getMe(signal),
     true,
     { refreshOnFocus: true },
@@ -145,7 +147,7 @@ export function ShowcaseHeader({
         <View className="h-10 flex-1 flex-row items-center gap-1 rounded-full border border-border bg-background pr-1 pl-4">
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={`Saldo ${balanceText}, buka dompet`}
+            accessibilityLabel={translate("Saldo {x}, buka dompet", { x: balanceText })}
             accessibilityHint="Buka dompet"
             haptic
             onPress={handleBalancePress}
@@ -194,7 +196,9 @@ export function ShowcaseHeader({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={
-              unread.count ? `Notifikasi, ${unread.count} belum dibaca` : "Notifikasi"
+              unread.count
+                ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
+                : "Notifikasi"
             }
             accessibilityHint="Buka notifikasi"
             haptic
@@ -212,7 +216,7 @@ export function ShowcaseHeader({
           {/* Profil — 40px, sejajar dengan logo */}
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={`Profil ${displayName}`}
+            accessibilityLabel={translate("Profil {x}", { x: displayName })}
             accessibilityHint="Buka pengaturan"
             haptic
             hitSlop={ACTION_HIT_SLOP}
@@ -244,7 +248,8 @@ export function ShowcaseHeader({
             accessibilityLabel="Cari showcase"
             leftIcon={MagnifyingGlass}
             clearable
-            className="rounded-full border-0 bg-surface px-4"
+            frame="none"
+            className="rounded-full bg-surface"
             containerClassName="rounded-full"
           />
         </View>

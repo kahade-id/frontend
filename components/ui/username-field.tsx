@@ -20,6 +20,7 @@ import { TextInput, View } from "react-native"
 import { Icon } from "@/components/ui/icon"
 import { Input, type InputProps } from "@/components/ui/input"
 import { Spinner } from "@/components/ui/spinner"
+import { translate } from "@/lib/i18n/translate"
 
 export type UsernameAvailability = "idle" | "checking" | "available" | "taken"
 
@@ -48,14 +49,25 @@ export type UsernameFieldLabels = {
   hint: string
 }
 
-const DEFAULT_LABELS: UsernameFieldLabels = {
-  label: "Nama pengguna",
-  tooShort: `Minimal ${USERNAME_MIN} karakter`,
-  invalid: "Hanya huruf kecil, angka, titik, dan garis bawah",
-  checking: "Memeriksa ketersediaan…",
-  available: "Nama pengguna tersedia",
-  taken: "Nama pengguna sudah dipakai",
-  hint: `${USERNAME_MIN}–${USERNAME_MAX} karakter, huruf kecil/angka/._`,
+/**
+ * G-01 (audit 2026-09-22): label dipisah dari angka supaya bisa diterjemahkan —
+ * `translate()` di scope MODUL akan membekukan bahasa saat berkas pertama kali
+ * dimuat (pengguna yang menukar bahasa tidak melihat perubahan sampai restart),
+ * jadi nilainya dibangun saat render lewat fungsi ini.
+ */
+function defaultLabels(): UsernameFieldLabels {
+  return {
+    label: translate("Nama pengguna"),
+    tooShort: translate("Minimal {x} karakter", { x: USERNAME_MIN }),
+    invalid: translate("Hanya huruf kecil, angka, titik, dan garis bawah"),
+    checking: translate("Memeriksa ketersediaan…"),
+    available: translate("Nama pengguna tersedia"),
+    taken: translate("Nama pengguna sudah dipakai"),
+    hint: translate("{x}–{y} karakter, huruf kecil/angka/._", {
+      x: USERNAME_MIN,
+      y: USERNAME_MAX,
+    }),
+  }
 }
 
 export type UsernameFieldProps = Omit<
@@ -72,7 +84,7 @@ export const UsernameField = forwardRef<TextInput, UsernameFieldProps>(function 
   { value, onChangeText, availability = "idle", labels, label, helperText, errorText, ...rest },
   ref,
 ) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  const t = { ...defaultLabels(), ...labels }
   const formatError = useMemo(() => validateUsername(value, t), [value, t])
   const resolvedError = errorText ?? formatError
 

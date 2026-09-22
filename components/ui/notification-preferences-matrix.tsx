@@ -33,6 +33,8 @@ import { Divider } from "@/components/ui/divider"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type NotificationChannel = "InApp" | "Push" | "Email"
 export type NotificationCategory = "order" | "wallet" | "security" | "chat" | "dispute" | "ranking" | "marketing"
@@ -148,7 +150,7 @@ export function NotificationPreferencesMatrix({
                         value={locked ? true : on}
                         disabled={disabled || locked}
                         onChange={(next) => onChange({ ...value, [key]: next }, key)}
-                        accessibilityLabel={`${title}, ${channelLabels[ch]}`}
+                        accessibilityLabel={summarize([translate(title), translate(channelLabels[ch])])}
                       />
                     </View>
                   )

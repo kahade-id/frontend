@@ -56,6 +56,8 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type TransferRecipient = {
   id: string
@@ -179,9 +181,12 @@ function RecipientRow({
       onPress={() => onSelect(recipient)}
       accessibilityRole="button"
       accessibilityState={{ selected }}
-      accessibilityLabel={`${recipient.name}, @${recipient.username}${
-        verificationLabel ? `, ${verificationLabel}` : ""
-      }${selected ? `, ${t.selected}` : ""}`}
+      accessibilityLabel={summarize([
+        translate(recipient.name),
+        `@${recipient.username}`,
+        verificationLabel ? translate(verificationLabel) : undefined,
+        selected ? translate(t.selected) : undefined,
+      ])}
       containerClassName={cn(onToggleFavorite ? "flex-1 min-w-0" : "w-full", focusRingInset)}
       // Tanpa px-5: pemanggil (app/transfer.tsx) sudah menyediakan screen
       // padding px-5 lewat contentContainerClassName ScrollView. Dua lapis
@@ -205,8 +210,8 @@ function RecipientRow({
             accessibilityState={{ selected: isFavorite }}
             accessibilityLabel={
               isFavorite
-                ? `Hapus ${recipient.name} dari penerima favorit`
-                : `Jadikan ${recipient.name} penerima favorit`
+                ? translate("Hapus {x} dari penerima favorit", { x: recipient.name })
+                : translate("Jadikan {x} penerima favorit", { x: recipient.name })
             }
             containerClassName={cn("pr-4", focusRingInset)}
           >

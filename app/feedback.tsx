@@ -15,6 +15,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { userMessage } from "@/lib/api"
 import {
   FEEDBACK_CATEGORIES,
+  FEEDBACK_QUEUE_PERSISTS,
   flushQueuedFeedback,
   queuedFeedbackCount,
   submitFeedback,
@@ -34,6 +35,8 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { Platform } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 const MESSAGE_MIN = 10
 const MESSAGE_MAX = 1000
@@ -51,10 +54,22 @@ export default function FeedbackScreen() {
   // agar antrean tidak hanya bergerak ketika pengguna kebetulan mengirim
   // masukan baru; kegagalan tetap silent karena feedback bukan transaksi.
   useEffect(() => {
-    void flushQueuedFeedback()
-      .then(() => queuedFeedbackCount())
-      .then(setQueuedCount)
-      .catch((err) => logWarn("feedback:flush", err))
+    const sync = () =>
+      flushQueuedFeedback()
+        .then(() => queuedFeedbackCount())
+        .then(setQueuedCount)
+        .catch((err) => logWarn("feedback:flush", err))
+    void sync()
+    /**
+     * D-07 (audit): di web antrean hanya hidup di memori, jadi "kirim saat
+     * terhubung" harus benar-benar dicoba selama halaman masih terbuka —
+     * sebelumnya pengiriman ulang hanya terjadi saat layar dibuka lagi atau
+     * saat pengguna mengirim masukan berikutnya, dan reload menghapus
+     * antreannya. Listener `online` di sini menutup celah itu.
+     */
+    if (Platform.OS !== "web" || typeof window === "undefined") return
+    window.addEventListener("online", sync)
+    return () => window.removeEventListener("online", sync)
   }, [])
 
   const trimmed = message.trim()
@@ -72,10 +87,11 @@ export default function FeedbackScreen() {
       if (result.status === "queued") {
         toast.show({
           title: "Masukan tersimpan",
-          description:
-            "Masukan disimpan sementara di perangkat. Pengiriman ulang dicoba saat Anda membuka halaman ini lagi atau mengirim masukan berikutnya; ini bukan tiket bantuan.",
-          tone: "info",
-          duration: 5000,
+          description: FEEDBACK_QUEUE_PERSISTS
+            ? "Masukan disimpan sementara di perangkat. Pengiriman ulang dicoba saat Anda membuka halaman ini lagi atau mengirim masukan berikutnya; ini bukan tiket bantuan."
+            : "Pengiriman gagal dan versi web tidak menyimpan masukan pribadi di browser — jangan tutup halaman ini, kirim ulang setelah koneksi kembali. Untuk kendala yang butuh tindakan, buat tiket bantuan resmi.",
+          tone: FEEDBACK_QUEUE_PERSISTS ? "info" : "warning",
+          duration: 6000,
         })
       } else {
         toast.show({
@@ -127,7 +143,9 @@ export default function FeedbackScreen() {
           <View className="gap-4">
             {queuedCount > 0 ? (
               <Alert tone="info">
-                {`${queuedCount} masukan tersimpan di perangkat dan akan dikirim otomatis saat terhubung.`}
+                {FEEDBACK_QUEUE_PERSISTS
+                  ? `${queuedCount} masukan tersimpan di perangkat dan akan dikirim otomatis saat terhubung.`
+                  : `${queuedCount} masukan masih menunggu terkirim dan hanya bertahan selama halaman ini terbuka (versi web tidak menyimpan masukan pribadi di browser). Biarkan halaman ini terbuka sampai koneksi kembali, atau salin isi masukan Anda.`}
               </Alert>
             ) : null}
 
@@ -159,7 +177,11 @@ export default function FeedbackScreen() {
             <Field
               label="Masukan"
               required
-              helperText={`${trimmed.length}/${MESSAGE_MAX} karakter · minimal ${MESSAGE_MIN}`}
+              helperText={translate("{x}/{y} karakter · minimal {z}", {
+                x: trimmed.length,
+                y: MESSAGE_MAX,
+                z: MESSAGE_MIN,
+              })}
             >
               <TextArea
                 value={message}

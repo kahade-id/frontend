@@ -530,12 +530,21 @@ export function createOrder(dto: CreateOrderDto) {
   return http.post<Order, CreateOrderDto>("/v1/orders", dto, { auth: "required" })
 }
 
+/**
+ * GET /v1/orders — daftar pesanan (paginated).
+ *
+ * C-05 (audit): `limit` kini SELALU terkirim (default 20). Sebelumnya pemanggil
+ * yang lupa mengisi `limit` membuat `readPage` menghitung paginasi dari panjang
+ * data — halaman penuh bisa berarti "masih ada" atau "berhenti" tergantung
+ * tebakan, dan halaman terakhir yang kebetulan penuh memicu request kosong.
+ */
 export function listOrders(query: ListOrdersQuery = {}, signal?: AbortSignal) {
+  const page = { page: 1, limit: 20, ...query }
   return http
-    .get<unknown>("/v1/orders", { query, auth: "required", signal })
+    .get<unknown>("/v1/orders", { query: page, auth: "required", signal })
     .then((raw) => {
-      const page = readPage<Order & Record<string, unknown>>(raw, query, ["orders"])
-      return { ...page, data: page.data.map(normalizeOrder) }
+      const result = readPage<Order & Record<string, unknown>>(raw, page, ["orders"])
+      return { ...result, data: result.data.map(normalizeOrder) }
     })
 }
 

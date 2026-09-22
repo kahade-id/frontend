@@ -19,13 +19,16 @@ import {
   formatDate,
   formatDateLong,
   formatDateTime,
+  dayName,
   formatDateTimeWIB,
+  monthName,
   formatDecimal,
   formatFileSize,
   formatNumber,
   formatPhoneId,
   formatRupiah,
   formatTime,
+  WIB_TIME_ZONE,
   groupAccountNumber,
   groupThousands,
   initials,
@@ -169,6 +172,27 @@ describe("formatDate / formatTime / formatDateTime", () => {
   })
 })
 
+describe("E-06: formatDate/formatTime/formatDateTime menerima timeZone", () => {
+  it("menggeser kalender sesuai zona, bukan zona perangkat", () => {
+    // 2026-09-03 18:30 UTC = 2026-09-04 01:30 WIB (hari berikutnya).
+    const instant = Date.UTC(2026, 8, 3, 18, 30)
+    expect(formatDate(instant, { timeZone: WIB_TIME_ZONE })).toBe("4 Sep 2026")
+    expect(formatTime(instant, { timeZone: WIB_TIME_ZONE })).toBe("01:30")
+    expect(formatDateTime(instant, { timeZone: "UTC" })).toBe("3 Sep 2026, 18:30")
+  })
+
+  it("tanpa timeZone perilaku lama tidak berubah (zona perangkat)", () => {
+    const local = new Date(2026, 8, 3, 14, 5)
+    expect(formatDate(local)).toBe("3 Sep 2026")
+    expect(formatTime(local)).toBe("14:05")
+  })
+
+  it("zona tak dikenal jatuh ke zona perangkat tanpa melempar", () => {
+    const local = new Date(2026, 8, 3, 14, 5)
+    expect(formatTime(local, { timeZone: "Bukan/Zona" })).toBe("14:05")
+  })
+})
+
 describe("formatDateTimeWIB (E-08)", () => {
   it("mengonversi ke Asia/Jakarta apa pun TZ perangkat + penanda WIB", () => {
     // 2026-09-03 20:30 UTC = 2026-09-04 03:30 WIB
@@ -177,6 +201,35 @@ describe("formatDateTimeWIB (E-08)", () => {
     expect(formatDateTimeWIB(Date.UTC(2026, 8, 3, 17, 0))).toBe("4 Sep 2026, 00:00 WIB")
     // 16:59 UTC masih hari yang sama di WIB
     expect(formatDateTimeWIB(Date.UTC(2026, 8, 3, 16, 59))).toBe("3 Sep 2026, 23:59 WIB")
+  })
+
+  it("G-08: label zona mengikuti bahasa — 'WIB' hanya untuk Indonesia, 'UTC+7' untuk EN", () => {
+    const instant = Date.UTC(2026, 8, 3, 20, 30)
+    try {
+      applyLanguage("en")
+      expect(formatDateTimeWIB(instant)).toBe("4 Sep 2026, 03:30 UTC+7")
+    } finally {
+      // Bahasa sumber dipulihkan apa pun hasilnya: test lain bergantung padanya.
+      applyLanguage("id")
+    }
+    expect(formatDateTimeWIB(instant)).toBe("4 Sep 2026, 03:30 WIB")
+  })
+
+  it("G-07: monthName/dayName mengikuti bahasa aktif (dipakai <Calendar>)", () => {
+    // 0 = Januari/January; 0 = Minggu/Sunday (Date.getDay()).
+    expect(monthName(4, { long: true })).toBe("Mei")
+    expect(dayName(1)).toBe("Senin")
+    try {
+      applyLanguage("en")
+      expect(monthName(4, { long: true })).toBe("May")
+      expect(monthName(4)).toBe("May")
+      expect(dayName(1)).toBe("Monday")
+      expect(dayName(0)).toBe("Sunday")
+    } finally {
+      applyLanguage("id")
+    }
+    expect(monthName(4)).toBe("Mei")
+    expect(dayName(0)).toBe("Minggu")
   })
 
   it("input tidak valid → em-dash, bukan 'Invalid Date'", () => {
@@ -190,6 +243,8 @@ describe("formatCountdown", () => {
     expect(formatCountdown(3899)).toBe("1:04:59")
     expect(formatCountdown(-5)).toBe("00:00")
     expect(formatCountdown(Number.NaN)).toBe("—")
+    // G-06: pemanggil boleh memberi label sendiri untuk nilai yang tidak valid
+    expect(formatCountdown(Number.NaN, "belum tersedia")).toBe("belum tersedia")
   })
 })
 
@@ -199,6 +254,30 @@ describe("maskAccountNumber / groupAccountNumber (PII)", () => {
     expect(maskAccountNumber("1234 5678 9012")).toBe("•••• •••• 9012") // spasi input diabaikan
     expect(maskAccountNumber("12")).toBe("12") // lebih pendek dari visible
     expect(maskAccountNumber("123456", 2)).toBe("•••• 56")
+  })
+
+  /**
+   * A-01 (audit 2026-09-22): regresi nyata — masker lama mengelompokkan ulang
+   * bullet + digit dari depan sehingga 4 digit terakhir TERBELAH pada panjang
+   * yang bukan kelipatan 4 (BCA 10 digit, CIMB/Mandiri 13, BRI 15). Empat digit
+   * terakhir adalah satu-satunya verifikasi visual pengguna di layar tarik dana,
+   * jadi kontraknya ditegakkan untuk semua panjang 4..20.
+   */
+  it("selalu menampilkan 4 digit terakhir UTUH untuk setiap panjang rekening", () => {
+    const tail = "9012"
+    for (let n = 4; n <= 20; n++) {
+      const account = `1234567890123456${"7".repeat(4)}`.slice(0, n - 4) + tail
+      const masked = maskAccountNumber(account)
+      expect(masked.endsWith(tail)).toBe(true)
+      expect(masked.slice(0, -tail.length).trimEnd()).not.toMatch(/\d/) // sisanya bullet
+    }
+  })
+
+  it("contoh per bank (10/11/13/15 digit) tidak lagi memecah digit terakhir", () => {
+    expect(maskAccountNumber("1234567890")).toBe("•••• •• 7890")
+    expect(maskAccountNumber("12345678901")).toBe("•••• ••• 8901")
+    expect(maskAccountNumber("1234567890123")).toBe("•••• •••• • 0123")
+    expect(maskAccountNumber("123456789012345")).toBe("•••• •••• ••• 2345")
   })
 
   it("groupAccountNumber tanpa mask", () => {

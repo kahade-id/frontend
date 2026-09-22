@@ -40,6 +40,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 export type UploadFileKind = "jpg" | "png" | "pdf"
 export type UploadStatus = "idle" | "uploading" | "done" | "error"
@@ -83,7 +84,9 @@ export function validateUploadFile(
   const maxMB = opts.maxSizeMB ?? UPLOAD_DEFAULT_MAX_MB
   const kind = detectUploadKind(file)
   if (!kind || !accept.includes(kind)) {
-    return `Format tidak didukung. Gunakan ${accept.map((k) => KIND_LABEL[k]).join(", ")}.`
+    return translate("Format tidak didukung. Gunakan {x}.", {
+      x: accept.map((k) => KIND_LABEL[k]).join(", "),
+    })
   }
   if (file.size > maxMB * 1024 * 1024) {
     return `Ukuran berkas melebihi ${maxMB} MB.`
@@ -132,7 +135,10 @@ export function UploadField({
   ...rest
 }: UploadFieldProps) {
   const hasError = status === "error" || !!errorText
-  const constraint = `${accept.map((k) => KIND_LABEL[k]).join(", ")} · maks ${maxSizeMB} MB`
+  const constraint = translate("{x} · maks {y} MB", {
+    x: accept.map((k) => KIND_LABEL[k]).join(", "),
+    y: maxSizeMB,
+  })
   const kind = file ? detectUploadKind(file) : null
   const FileGlyph = kind === "pdf" ? FilePdf : ImageIcon
 
@@ -160,7 +166,7 @@ export function UploadField({
       {status === "idle" || !file ? (
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={`${title}. ${constraint}`}
+          accessibilityLabel={[translate(title), constraint].filter(Boolean).join(". ")}
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPress={onPick}

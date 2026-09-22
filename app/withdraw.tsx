@@ -24,7 +24,9 @@ import { Bank as BankIcon } from "phosphor-react-native"
 import { api, isApiError, userMessage, type WithdrawDto } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
+import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -55,6 +57,7 @@ import { Text } from "@/components/ui/text"
 import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 import { TransactionSummary } from "@/components/ui/transaction-summary"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 const MIN_AMOUNT = AMOUNT_LIMITS.withdraw.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.withdraw.maximum
@@ -83,9 +86,24 @@ export default function WithdrawScreen() {
    */
   const params = useLocalSearchParams<{ resume?: string; resumeAmount?: string }>()
   const resumeTxId = typeof params.resume === "string" && params.resume.trim() ? params.resume.trim() : null
-  const resumeAmount = Number(params.resumeAmount) || 0
+  /**
+   * A-11 (audit 2026-09-22): nilai dari URL dipakai apa adanya sebagai nominal
+   * uang — `Number(params.resumeAmount)` meloloskan `99999999999` maupun tipe
+   * `string[]` (param berulang), sehingga keypad terisi angka di luar kontrak
+   * `WithdrawDto.amount` dan baru gagal di server setelah pengguna mengetik PIN.
+   */
+  const resumeAmountRaw = Array.isArray(params.resumeAmount)
+    ? params.resumeAmount[0]
+    : params.resumeAmount
+  const resumeAmountCandidate = Number(resumeAmountRaw ?? Number.NaN)
+  const resumeAmount = isValidAmount(resumeAmountCandidate, AMOUNT_LIMITS.withdraw)
+    ? resumeAmountCandidate
+    : 0
 
-  const accountsQuery = useApiQuery<BankAccount[]>("withdraw-accounts", async (signal) => {
+  // C-02 (audit): kunci disatukan dengan layar rekening/jadwal penarikan —
+  // endpoint dan parameternya identik, jadi tidak perlu tiga salinan daftar
+  // rekening yang berbeda di cache.
+  const accountsQuery = useApiQuery<BankAccount[]>(queryKeys.bankAccounts(), async (signal) => {
     return (await api.bankAccounts.listBankAccounts(signal)) ?? []
   })
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data])
@@ -93,16 +111,18 @@ export default function WithdrawScreen() {
 
   // Ambil saldo dompet untuk membantu user pilih nominal.
   // A-09 (audit): kegagalan TIDAK disamarkan menjadi "Rp0" — error tampil +
-  // retry; key "wallet-overview" dibagi dengan transfer/home agar cache F-03
-  // mendedupe GET /v1/wallet.
-  const balanceQuery = useApiQuery<{ balance: number }>(
-    "wallet-overview",
-    async (signal) => {
-      const w = await api.wallet.getWallet(signal)
-      return { balance: w.balance ?? 0 }
-    },
+  // retry.
+  // C-02 (audit): kunci disatukan dengan Beranda/Dompet/Transfer
+  // (`queryKeys.wallet()`) dan proyeksi dihitung lewat `select`, bukan lewat
+  // request terpisah di bawah kunci sendiri.
+  const balanceQuery = useApiQuery(
+    queryKeys.wallet(),
+    (signal) => api.wallet.getWallet(signal),
     true,
-    { retry: 1 },
+    {
+      retry: 1,
+      select: (w) => ({ balance: w.balance ?? 0 }),
+    },
   )
   const balance = balanceQuery.data?.balance
   const balanceError = balanceQuery.error
@@ -197,14 +217,14 @@ export default function WithdrawScreen() {
           setProgressState(null)
           // A-07: OTP baru saja dikirim — mulai cooldown resend (default 60 d
           // bila server tidak mengirim angka).
-          setOtpCooldownUntil(Date.now() + DEFAULT_OTP_COOLDOWN_S * 1000)
+          setOtpCooldownUntil(serverNow() + DEFAULT_OTP_COOLDOWN_S * 1000)
           // J-02/J-04: catat aksi menggantung — bila app ditutup/sheet
           // ditinggalkan, Beranda bisa menawarkan pemulihan.
           recordPendingAction({
             kind: "withdraw-otp",
             txId: res.txId,
             amount,
-            createdAt: Date.now(),
+            createdAt: serverNow(),
             expiresAt: toEpochMs(res.expiresAt),
           })
         } else {
@@ -280,7 +300,7 @@ export default function WithdrawScreen() {
     try {
       const res = await api.wallet.resendWithdrawOtp({ txId })
       const cooldownS = res.cooldownSeconds ?? DEFAULT_OTP_COOLDOWN_S
-      setOtpCooldownUntil(Date.now() + cooldownS * 1000)
+      setOtpCooldownUntil(serverNow() + cooldownS * 1000)
       if (res.success) {
         setOtpError(undefined)
         toast.show({ title: "OTP dikirim ulang", tone: "success" })
@@ -309,7 +329,19 @@ export default function WithdrawScreen() {
       toast.show({ title: "Permintaan pembatalan diterima", tone: "info" })
       router.replace(ROUTES.withdrawHistory)
     } catch (err) {
+      /*
+       * A-10 (audit 2026-09-22): pembatalan dipicu dari Dialog konfirmasi,
+       * sedangkan `otpError` hanya terlihat di dalam sheet OTP di belakangnya.
+       * Saat gagal, pengguna melihat dialog yang tidak melakukan apa pun tanpa
+       * penjelasan — padahal dana masih tertahan. Pesan sekarang juga lewat
+       * toast supaya terlihat di mana pun dialog berada.
+       */
       setOtpError(userMessage(err))
+      toast.show({
+        title: "Gagal membatalkan penarikan",
+        description: userMessage(err),
+        tone: "danger",
+      })
     } finally {
       submitLock.current = false
       setCancelling(false)
@@ -431,7 +463,7 @@ export default function WithdrawScreen() {
                   }
                   subtitle={
                     selected
-                      ? `${selected.bankName ?? selected.bankCode} ${maskAccountNumber(selected.accountNumber)} a.n. ${selected.accountName ?? ""}`
+                      ? `${selected.bankName ?? selected.bankCode} ${maskAccountNumber(selected.accountNumber)} a.n. ${selected.accountName ?? "—"}`
                       : undefined
                   }
                 >
@@ -536,7 +568,7 @@ export default function WithdrawScreen() {
         processingMessage={
           verifyMode === "otp"
             ? "Mengonfirmasi penarikan…"
-            : `Menarik ${formatRupiah(amount)} ke rekening…`
+            : translate("Menarik {x} ke rekening…", { x: formatRupiah(amount) })
         }
         successMessage="Penarikan berhasil"
         failureMessage={progressError ?? "Penarikan gagal. Coba lagi."}
@@ -562,7 +594,11 @@ export default function WithdrawScreen() {
         description={
           verifyMode === "otp"
             ? "Masukkan kode verifikasi yang dikirim oleh layanan untuk menyelesaikan penarikan."
-            : `Masukkan PIN dompet Anda untuk menarik ${formatRupiah(amount)} ke ${selected?.bankName ?? "rekening Anda"} ${selected ? maskAccountNumber(selected.accountNumber) : ""}.`
+            : translate("Masukkan PIN dompet Anda untuk menarik {x} ke {y} {z}.", {
+                x: formatRupiah(amount),
+                y: selected?.bankName ?? "rekening Anda",
+                z: selected ? maskAccountNumber(selected.accountNumber) : "",
+              })
         }
         avoidKeyboard
       >
@@ -615,7 +651,10 @@ export default function WithdrawScreen() {
       <Dialog
         visible={closeConfirmOpen}
         title="Penarikan masih menunggu OTP"
-        description={`Penarikan ${formatRupiah(amount)} sudah dibuat dan menunggu kode OTP. Bila ditinggalkan, dana tetap tertahan sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas, atau kembali untuk menyelesaikan OTP.`}
+        description={translate(
+          "Penarikan {x} sudah dibuat dan menunggu kode OTP. Bila ditinggalkan, dana tetap tertahan sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas, atau kembali untuk menyelesaikan OTP.",
+          { x: formatRupiah(amount) },
+        )}
         confirmLabel="Batalkan penarikan"
         cancelLabel="Kembali ke OTP"
         destructive

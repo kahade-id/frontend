@@ -39,6 +39,7 @@ import { Text, type TextVariant } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { initials as toInitials } from "@/lib/format"
 import { resolveMediaSource, type MediaSource } from "@/lib/media"
+import { translate } from "@/lib/i18n/translate"
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl"
 
@@ -122,7 +123,7 @@ export function Avatar({
        */
       accessible
       accessibilityRole="image"
-      accessibilityLabel={name ? `Foto profil ${name}` : "Foto profil"}
+      accessibilityLabel={name ? translate("Foto profil {x}", { x: name }) : "Foto profil"}
       accessibilityHint={verified ? "Akun terverifikasi" : undefined}
       className={cn("relative", sizeBox[size], className)}
       {...rest}
@@ -164,7 +165,13 @@ export function Avatar({
 // ------------------------------------------------------------------
 
 export type AvatarGroupProps = ViewProps & {
-  items: Array<Pick<AvatarProps, "source" | "name">>
+  /**
+   * H-11 (audit 2026-09-22): `id` domain dipakai sebagai `key` bila tersedia.
+   * Sebelumnya kunci indeks: menambah/menghapus anggota di awal daftar
+   * membuat React memakai ulang elemen yang salah (foto/label berpindah baris
+   * tanpa animasi, dan pada grup bertanda verified statusnya ikut tertukar).
+   */
+  items: Array<Pick<AvatarProps, "source" | "name"> & { id?: string }>
   size?: AvatarSize
   /** Maksimum yang ditampilkan; sisanya jadi "+N" */
   max?: number
@@ -179,7 +186,7 @@ export function AvatarGroup({ items, size = "sm", max = 3, className, ...rest }:
     <View className={cn("flex-row items-center", className)} {...rest}>
       {shown.map((it, i) => (
         <View
-          key={i}
+          key={it.id ?? it.name ?? i}
           className={cn("rounded-full border-[2px] border-background", i > 0 && "-ml-2")}
         >
           <Avatar source={it.source} name={it.name} size={size} />

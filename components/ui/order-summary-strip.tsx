@@ -27,6 +27,7 @@
 import { useMemo } from "react"
 import { ScrollView, View, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -35,6 +36,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
+import { summarize } from "@/lib/a11y"
 
 export type OrderSummaryItem = {
   /** Kunci filter yang dikirim balik lewat onSelect (mis. "PENDING_PAYMENT") */
@@ -107,7 +109,7 @@ export function OrderSummaryStrip({
       {heldAmount != null ? (
         <View
           accessible
-          accessibilityLabel={`${t.heldTitle} ${formatNumber(heldAmount)} rupiah`}
+          accessibilityLabel={translate("{x} {y} rupiah", { x: t.heldTitle, y: formatNumber(heldAmount) })}
           className="h-[84px] w-[156px] justify-between gap-2 rounded-md border border-border bg-surface-elevated p-4"
         >
           <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>
@@ -133,7 +135,7 @@ export function OrderSummaryStrip({
             onPress={() => onSelect?.(item.key)}
             accessibilityRole="tab"
             accessibilityState={{ selected, disabled: !interactive }}
-            accessibilityLabel={`${item.label}, ${item.count}`}
+            accessibilityLabel={summarize([translate(item.label), item.count])}
             containerClassName={cn("rounded-md", focusRing)}
             className={cn(
               "h-[84px] w-[132px] justify-between gap-2 rounded-md border p-4",

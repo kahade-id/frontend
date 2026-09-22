@@ -24,6 +24,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Chats, PaperPlaneRight } from "phosphor-react-native"
 
@@ -177,7 +178,7 @@ export function ChatForwardSheet({
             <PressableScale
               key={r.id}
               accessibilityRole="button"
-              accessibilityLabel={`Teruskan ke ${name}`}
+              accessibilityLabel={translate("Teruskan ke {x}", { x: name })}
               disabled={sending}
               onPress={() => void forwardTo(r.id)}
               containerClassName={cn("rounded-md px-3 py-2.5", focusRing)}

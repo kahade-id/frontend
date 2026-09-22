@@ -38,6 +38,7 @@ import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
 import { translateProp, useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
 
 /**
  * Tinggi bar Header (px) — harus sama dengan class `h-14` di bawah (skala
@@ -195,7 +196,7 @@ export function Header({
           accessible
           accessibilityRole="progressbar"
           accessibilityValue={{ now: Math.round(progress * 100), min: 0, max: 100 }}
-          accessibilityLabel={`Progres ${Math.round(progress * 100)} persen`}
+          accessibilityLabel={translate("Progres {x} persen", { x: Math.round(progress * 100) })}
           className="w-full"
         >
           {/* Parent wajib full-width: Header memakai items-center, sehingga

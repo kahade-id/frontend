@@ -7,7 +7,7 @@
  *   - Access token di-CACHE di memori setelah pembacaan pertama. Membaca
  *     Keychain/Keystore tiap request itu I/O async yang terasa di list
  *     (FlashList memuat halaman berikutnya) — cukup sekali per proses, lalu
- *     cache di-invalidate saat `setAccessToken`/`clearAccessToken`.
+ *     cache di-invalidate saat `setAccessToken`/`clearSession`.
  *   - Refresh token TIDAK dipegang di sini. Spec mendefinisikan refresh
  *     lewat cookie HttpOnly `kahade_refresh_token` (RefreshTokenDto kosong),
  *     dan cookie itu dikelola OS (NSHTTPCookieStorage / CookieManager) saat
@@ -22,7 +22,9 @@
  */
 import { clearRegistrationState } from "@/lib/registration"
 import { clearPendingTwoFactorLogin } from "@/lib/two-factor-login"
+import { clearAccountPrefs } from "@/lib/ui-prefs"
 import { installedAppVersion } from "@/lib/runtime-info"
+import { logWarn } from "@/lib/telemetry"
 import * as Device from "expo-device"
 import { Platform } from "react-native"
 
@@ -34,6 +36,7 @@ import {
   SecureKeys,
   setSecureItem,
 } from "@/lib/secure-storage"
+import { clearPendingActions } from "@/lib/pending-actions"
 
 // ------------------------------------------------------------------
 // Access token
@@ -49,8 +52,18 @@ const sessionListeners = new Set<() => void>()
 export function getSessionRevision() {
   return revision
 }
-export function getSessionSnapshot() {
-  return accessTokenCache
+/**
+ * B-05 (audit): snapshot dinormalisasi ke `string | null`.
+ *
+ * Sebelumnya nilai mentah cache (`string | null | undefined`) diteruskan apa
+ * adanya, sehingga `undefined` ("belum dibaca") dan `null` ("sudah dibaca,
+ * tidak ada token") menjadi dua snapshot berbeda bagi `useSyncExternalStore`:
+ * render ulang ekstra di tiap transisi, dan hidrasi web membandingkan
+ * serverSnapshot `undefined` dengan snapshot klien yang artinya lain. Konsumen
+ * (`Boolean(token)`, gerbang tamu) memang hanya peduli "ada token atau tidak".
+ */
+export function getSessionSnapshot(): string | null {
+  return accessTokenCache ?? null
 }
 export function subscribeSession(listener: () => void) {
   sessionListeners.add(listener)
@@ -113,8 +126,20 @@ export async function startSession(tokens: {
       if (tokens.refreshToken) await setSecureItem(SecureKeys.refreshToken, tokens.refreshToken)
       await deleteSecureItem(SecureKeys.sessionSignedOut)
     } catch (error) {
-      await setSecureItem(SecureKeys.sessionSignedOut, "1").catch(() => undefined)
-      await clearSecureSession().catch(() => undefined)
+      /**
+       * D-05 (audit): kegagalan saat ROLLBACK dulu ditelan tanpa jejak
+       * (`.catch(() => undefined)`). Ini jalur paling berbahaya untuk senyap:
+       * bila penandaan "signed out" gagal, akun baru tidak bisa dibedakan dari
+       * akun lama di perangkat yang sama, dan tidak ada satu pun sinyal untuk
+       * mendiagnosisnya. Error aslinya tetap dilempar (perilaku lama), tetapi
+       * kedua kegagalan pembersihan kini tercatat.
+       */
+      await setSecureItem(SecureKeys.sessionSignedOut, "1").catch((cleanupError) =>
+        logWarn("session:rollback-signed-out", cleanupError),
+      )
+      await clearSecureSession().catch((cleanupError) =>
+        logWarn("session:rollback-clear", cleanupError),
+      )
       throw error
     }
   })
@@ -123,10 +148,19 @@ export async function startSession(tokens: {
   notifySession()
 }
 
-export async function clearAccessToken(): Promise<void> {
-  accessTokenCache = null
-  notifySession()
-  await writeInOrder(() => deleteSecureItem(SecureKeys.accessToken))
+/**
+ * B-01 (audit): fungsi ini dulu HANYA menghapus slot `accessToken` — tanpa
+ * menaikkan `revision`, tanpa `sessionSignedOut`, tanpa membersihkan data
+ * akun. Akibatnya request yang masih terbang tidak di-abort oleh
+ * `assertSession()` (`lib/api/client.ts`) dan boot berikutnya mencoba refresh
+ * lagi: "logout yang tidak benar-benar logout".
+ *
+ * Sekarang satu-satunya jalur keluar adalah `clearSession()`; nama lama
+ * dipertahankan sebagai alias agar pemanggil (bila ada) tidak bisa lagi
+ * mengambil jalur setengah-jadi itu.
+ */
+export function clearAccessToken(): Promise<void> {
+  return clearSession()
 }
 
 export async function setRefreshToken(token: string): Promise<void> {
@@ -143,12 +177,36 @@ export async function clearSession(): Promise<void> {
   notifySession()
   clearRegistrationState()
   clearPendingTwoFactorLogin()
+  /*
+   * I-04 (audit 2026-09-22): banner "pembayaran/penarikan menggantung"
+   * disimpan di perangkat untuk ditampilkan lain kali. Tanpa pembersihan saat
+   * keluar, pengguna berikutnya di perangkat yang sama melihat ajakan
+   * menyelesaikan transaksi MILIK AKUN SEBELUMNYA (dan menekannya membuka
+   * layar dengan id order yang sudah tidak berhak ia akses).
+   */
+  clearPendingActions()
+  // B-06 (audit): preferensi MILIK AKUN (snooze pengingat ulasan per orderId)
+  // ikut dibersihkan — akun berikutnya di perangkat yang sama tidak boleh
+  // mewarisi jejak transaksi akun sebelumnya. `balanceHidden`/`transactionsTab`
+  // sengaja TETAP: keduanya preferensi perangkat, bukan data akun.
+  clearAccountPrefs()
   await writeInOrder(async () => {
-    // Prevent cookie-based auto-login after an explicit/offline logout on the web.
+    // B-08 (audit): hapus dulu, BARU tandai "signed out".
+    //
+    // Urutan lama (tulis flag lalu hapus di `finally`) membuat kegagalan hapus
+    // meninggalkan perangkat yang "terkunci keluar": flag sudah tertulis
+    // padahal token masih ada, dan tiap boot berikutnya
+    // (`lib/use-auth-session.ts`) mengulang siklus itu tanpa pernah
+    // membersihkan sisa token. Dengan urutan ini, kegagalan hapus membatalkan
+    // seluruh blok → boot berikutnya mencoba lagi dari keadaan bersih.
+    await clearSecureSession()
     try {
+      // Prevent cookie-based auto-login after an explicit/offline logout on the web.
       await setSecureItem(SecureKeys.sessionSignedOut, "1")
-    } finally {
-      await clearSecureSession()
+    } catch (error) {
+      // Flag gagal ditulis TIDAK membatalkan logout (token sudah terhapus);
+      // dicatat supaya auto-login yang lolos punya jejak di log.
+      logWarn("session:signed-out", error)
     }
   })
 }

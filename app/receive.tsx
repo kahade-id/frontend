@@ -14,6 +14,7 @@ import { Copy, QrCode as QrCodeIcon, ShareNetwork, Wallet } from "phosphor-react
 import { useRouter } from "expo-router"
 
 import { api } from "@/lib/api"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -31,6 +32,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { Avatar } from "@/components/ui/avatar"
+import { translate } from "@/lib/i18n/translate"
 
 /** Scheme deep-link app. */
 const SCHEME = "kahade://transfer?to="
@@ -42,7 +44,7 @@ export default function ReceiveScreen() {
   const { copied, copy } = useCopy()
   const [qrSize, setQrSize] = useState(220)
 
-  const profile = useApiQuery("receive-profile", (signal) => api.users.getMe(signal))
+  const profile = useApiQuery(queryKeys.me(), (signal) => api.users.getMe(signal))
   const username = profile.data?.username
   const displayName = profile.data?.fullName?.trim() || username || "Pengguna Kahade"
 
@@ -58,7 +60,7 @@ export default function ReceiveScreen() {
     if (!payload) return
     try {
       await Share.share({
-        message: `Kirim saldo ke @${username} di Kahade: ${payload}`,
+        message: translate("Kirim saldo ke @{x} di Kahade: {y}", { x: username ?? "", y: payload }),
       })
     } catch {
       /* user membatalkan */

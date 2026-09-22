@@ -37,6 +37,10 @@ import screens4 from "./screens-4.json"
 import screens5 from "./screens-5.json"
 import screens6 from "./screens-6.json"
 import screens7 from "./screens-7.json"
+// screens-8 (audit G-01): kalimat yang dulu dirakit dari template literal +
+// potongan bersyarat (transfer/withdraw/langganan, dialog sesi, dan label
+// komponen) — satu berkas per batch terjemahan supaya bisa ditinjau tuntas.
+import screens8 from "./screens-8.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
@@ -60,6 +64,7 @@ export const EN: Dict = {
   ...screens5,
   ...screens6,
   ...screens7,
+  ...screens8,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
   ...errors,

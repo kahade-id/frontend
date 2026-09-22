@@ -40,6 +40,7 @@
  */
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import type { OrderStatus } from "@/lib/api/orders"
+import { translate } from "@/lib/i18n/translate"
 
 // Re-export: SATU sumber kebenaran status order = lib/api/orders.ts.
 // Komponen lain (OrderCard, Timeline, layar) tetap bisa `import type { OrderStatus } from "@/components/ui/order-status-badge"`.
@@ -69,21 +70,9 @@ export const ORDER_STATUSES: readonly OrderStatus[] = [
   "EXPIRED",
 ]
 
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  WAITING_CONFIRMATION: "Menunggu konfirmasi",
-  WAITING_PAYMENT: "Menunggu pembayaran",
-  PROCESSING: "Diproses penjual",
-  IN_DELIVERY: "Dalam pengiriman",
-  COMPLETED: "Selesai",
-  DISPUTED: "Sengketa",
-  CANCELLED: "Dibatalkan",
-  PENDING_PAYMENT: "Menunggu pembayaran",
-  PAID: "Dana di escrow",
-  SHIPPED: "Dalam pengiriman",
-  DELIVERED: "Menunggu konfirmasi",
-  REFUNDED: "Dana dikembalikan",
-  EXPIRED: "Kedaluwarsa",
-}
+import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
+
+export { ORDER_STATUS_LABELS }
 
 const BASE_TONE: Record<OrderStatus, BadgeTone> = {
   WAITING_CONFIRMATION: "warning",
@@ -160,7 +149,7 @@ export function OrderStatusBadge({ status, role, size = "sm", labels, variant = 
       tone={orderStatusTone(status, role)}
       variant={variant}
       dot={size === "sm"}
-      accessibilityLabel={`Status: ${label}`}
+      accessibilityLabel={translate("{x}: {y}", { x: translate("Status"), y: label })}
       {...rest}
     >
       {label}

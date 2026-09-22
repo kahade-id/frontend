@@ -52,6 +52,8 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type ChatMessageDirection = "incoming" | "outgoing" | "system"
 export type ChatMessageStatus = "sending" | "sent" | "delivered" | "read" | "failed"
@@ -247,7 +249,10 @@ export function ChatMessageBubble({
               <PressableScale
                 key={r.emoji}
                 accessibilityRole="button"
-                accessibilityLabel={`${r.emoji} ${r.count}${r.reactedByMe ? ", Anda" : ""}`}
+                accessibilityLabel={summarize([
+                  `${r.emoji} ${r.count}`,
+                  r.reactedByMe ? translate("Anda") : undefined,
+                ])}
                 accessibilityHint="Ketuk untuk mengubah reaksi"
                 scaleOnPress={false}
                 onPress={onReact ? () => onReact(r.emoji) : undefined}

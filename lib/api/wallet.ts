@@ -25,7 +25,14 @@
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { assertDtoConstraints } from "@/lib/financial"
 
-import { pickString, pickUserId, readList, readVerdict } from "@/lib/api/response"
+import {
+  pickBoolean,
+  pickNumber,
+  pickString,
+  pickUserId,
+  readList,
+  readVerdict,
+} from "@/lib/api/response"
 import {
   normalizeWallet,
   normalizeWalletPage,
@@ -316,10 +323,10 @@ export async function createTopup(dto: TopupDto) {
   const result = await http.post<TopupResult, TopupDto>("/v1/wallet/topup", dto, { auth: "required" })
   return {
     ...result,
-    paymentTxId: result.paymentTxId ?? (result as any).payment_tx_id,
-    paymentCode: result.paymentCode ?? (result as any).payment_code,
-    qrString: result.qrString ?? (result as any).qr_string,
-    expiresAt: result.expiresAt ?? (result as any).expires_at,
+    paymentTxId: pickString(result, ["paymentTxId", "payment_tx_id"]) ?? result.paymentTxId,
+    paymentCode: pickString(result, ["paymentCode", "payment_code"]) ?? result.paymentCode,
+    qrString: pickString(result, ["qrString", "qr_string"]) ?? result.qrString,
+    expiresAt: pickString(result, ["expiresAt", "expires_at"]) ?? result.expiresAt,
   }
 }
 
@@ -331,10 +338,10 @@ export async function getTopupStatus(paymentTxId: string) {
   })
   return {
     ...result,
-    paymentTxId: result.paymentTxId ?? (result as any).payment_tx_id,
-    paymentCode: result.paymentCode ?? (result as any).payment_code,
-    qrString: result.qrString ?? (result as any).qr_string,
-    expiresAt: result.expiresAt ?? (result as any).expires_at,
+    paymentTxId: pickString(result, ["paymentTxId", "payment_tx_id"]) ?? result.paymentTxId,
+    paymentCode: pickString(result, ["paymentCode", "payment_code"]) ?? result.paymentCode,
+    qrString: pickString(result, ["qrString", "qr_string"]) ?? result.qrString,
+    expiresAt: pickString(result, ["expiresAt", "expires_at"]) ?? result.expiresAt,
   }
 }
 
@@ -345,10 +352,10 @@ export async function createWithdraw(dto: WithdrawDto) {
   const result = await http.post<WithdrawResult, WithdrawDto>("/v1/wallet/withdraw", dto, { auth: "required" })
   return {
     ...result,
-    txId: result.txId ?? (result as any).tx_id,
-    bankAccountId: result.bankAccountId ?? (result as any).bank_account_id,
-    requiresOtp: result.requiresOtp ?? (result as any).requires_otp,
-    expiresAt: result.expiresAt ?? (result as any).expires_at,
+    txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,
+    bankAccountId: pickString(result, ["bankAccountId", "bank_account_id"]) ?? result.bankAccountId,
+    requiresOtp: pickBoolean(result, ["requiresOtp", "requires_otp"]) ?? result.requiresOtp,
+    expiresAt: pickString(result, ["expiresAt", "expires_at"]) ?? result.expiresAt,
   }
 }
 
@@ -359,10 +366,10 @@ export async function confirmWithdrawOtp(dto: ConfirmWithdrawOtpDto) {
   })
   return {
     ...result,
-    txId: result.txId ?? (result as any).tx_id,
-    bankAccountId: result.bankAccountId ?? (result as any).bank_account_id,
-    requiresOtp: result.requiresOtp ?? (result as any).requires_otp,
-    expiresAt: result.expiresAt ?? (result as any).expires_at,
+    txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,
+    bankAccountId: pickString(result, ["bankAccountId", "bank_account_id"]) ?? result.bankAccountId,
+    requiresOtp: pickBoolean(result, ["requiresOtp", "requires_otp"]) ?? result.requiresOtp,
+    expiresAt: pickString(result, ["expiresAt", "expires_at"]) ?? result.expiresAt,
   }
 }
 
@@ -413,9 +420,9 @@ export async function transferFunds(dto: TransferDto) {
   const result = await http.post<TransferResult, TransferDto>("/v1/wallet/transfer", dto, { auth: "required" })
   return {
     ...result,
-    txId: result.txId ?? (result as any).tx_id,
-    recipientId: result.recipientId ?? (result as any).recipient_id,
-    balanceAfter: result.balanceAfter ?? (result as any).balance_after,
+    txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,
+    recipientId: pickString(result, ["recipientId", "recipient_id"]) ?? result.recipientId,
+    balanceAfter: pickNumber(result, ["balanceAfter", "balance_after"]) ?? result.balanceAfter,
   }
 }
 
@@ -455,13 +462,16 @@ export function getTopupHistory(
   query: { page?: number; limit?: number } = {},
   signal?: AbortSignal,
 ) {
+  // C-05 (audit): `limit` selalu terkirim supaya paginasi tanpa metadata tidak
+  // ditebak dari panjang data.
+  const page = { page: 1, limit: 20, ...query }
   return http
     .get<unknown>("/v1/wallet/topup-history", {
-      query,
+      query: page,
       auth: "required",
       signal,
     })
-    .then((raw) => normalizeWalletPage(raw, query))
+    .then((raw) => normalizeWalletPage(raw, page))
 }
 
 /** GET /v1/wallet/withdraw-history — riwayat penarikan. */
@@ -469,14 +479,16 @@ export function getWithdrawHistory(
   query: { page?: number; limit?: number } = {},
   signal?: AbortSignal,
 ) {
+  // C-05 (audit): `limit` selalu terkirim (lihat getTopupHistory).
+  const page = { page: 1, limit: 20, ...query }
   return http
     .get<unknown>("/v1/wallet/withdraw-history", {
-      query,
+      query: page,
       auth: "required",
       retry: 1,
       signal,
     })
-    .then((raw) => normalizeWalletPage(raw, query))
+    .then((raw) => normalizeWalletPage(raw, page))
 }
 
 /** GET /v1/wallet/export/csv — unduh mutasi CSV. */

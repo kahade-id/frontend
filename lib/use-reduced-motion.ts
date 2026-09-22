@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from "react"
 import { AccessibilityInfo, Platform } from "react-native"
 
+import { logWarn } from "@/lib/telemetry"
+
 // One platform subscription, shared by all controls, cards, charts and skeletons.
 // Conservative native/SSR default avoids motion before the user's preference is known.
 let reduced = true
@@ -26,7 +28,10 @@ function subscribe(listener: () => void) {
         .then((value) => {
           if (active) update(value)
         })
-        .catch(() => undefined)
+        // D-05 (audit): nilai default (animasi aktif) tetap dipakai, tetapi
+        // ketidaktersediaan API aksesibilitas dicatat — inilah satu-satunya
+        // sinyal bahwa pengguna di perangkat itu tidak bisa mematikannya.
+        .catch((error) => logWarn("a11y:reduce-motion", error))
       const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", update)
       dispose = () => {
         active = false

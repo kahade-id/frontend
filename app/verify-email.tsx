@@ -49,6 +49,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 /** VerifyEmailDto.otp: 6 digit */
 const OTP_LENGTH = 6
@@ -66,8 +67,10 @@ export default function VerifyEmailScreen() {
 
   useEffect(() => {
     if (!email) {
+      // C-02 (audit): prefill email dari cache bersama — layar sebelumnya
+      // (pengaturan/profil) biasanya baru saja membaca profil yang sama.
       void api.users
-        .getMe()
+        .getMeCached()
         .then((me) => {
           if (me.email) setEmail(me.email)
         })
@@ -103,7 +106,11 @@ export default function VerifyEmailScreen() {
       setCountdownKey((k) => k + 1)
       setOtp("")
       otpRef.current?.focus()
-      toast.show({ title: "Kode dikirim", description: `Periksa kotak masuk ${email}.`, tone: "success" })
+      toast.show({
+        title: "Kode dikirim",
+        description: translate("Periksa kotak masuk {x}.", { x: email }),
+        tone: "success",
+      })
     } catch (err) {
       setFormError(userMessage(err))
     } finally {
@@ -150,7 +157,11 @@ export default function VerifyEmailScreen() {
       setCanResend(false)
       setCountdownKey((k) => k + 1)
       setOtp("")
-      toast.show({ title: "Email diperbarui", description: `Kode verifikasi dikirim ke ${target}.`, tone: "success" })
+      toast.show({
+        title: "Email diperbarui",
+        description: translate("Kode verifikasi dikirim ke {x}.", { x: target }),
+        tone: "success",
+      })
     } catch (err) {
       setCorrectError(userMessage(err))
     } finally {

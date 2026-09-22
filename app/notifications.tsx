@@ -27,7 +27,7 @@
  * NotificationListItem, LoadMore, ErrorState, EmptyState, Skeleton.
  */
 
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { useToast } from "@/components/ui/toast"
 import { useCallback, useEffect, useMemo, useState } from "react"
@@ -140,7 +140,12 @@ export default function NotificationsScreen() {
       ),
     // F-01 (audit): notifikasi baru (transfer masuk, status pesanan) harus
     // muncul saat tab kembali fokus tanpa pull-to-refresh.
-    { refreshOnFocus: true },
+    // C-08 (audit): notifikasi terbaru wajib di atas — daftar ini kronologis
+    // dan server mengurutkannya begitu.
+    {
+      refreshOnFocus: true,
+      compare: byTimestampDesc<AppNotification>((item) => item.createdAt),
+    },
   )
   const { data: notifs, setData: setNotifs } = query
 
@@ -420,7 +425,7 @@ export default function NotificationsScreen() {
         title={
           confirm === "delete-read"
             ? "Hapus notifikasi yang sudah dibaca?"
-            : `Hapus ${selectedCount} notifikasi?`
+            : translate("Hapus {x} notifikasi?", { x: selectedCount })
         }
         description={
           confirm === "delete-read"

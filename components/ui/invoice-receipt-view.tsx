@@ -37,6 +37,7 @@
  */
 import { Copy, DownloadSimple, ShareNetwork } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
 import { Badge, type BadgeTone } from "@/components/ui/badge"
@@ -181,7 +182,7 @@ export function InvoiceReceiptView({
               "Salin nomor" (audit #4). */}
           <View className="flex-row items-center gap-1">
             <Text
-              accessibilityLabel={`${title} nomor ${number.split("").join(" ")}`}
+              accessibilityLabel={translate("{x} nomor {y}", { x: title, y: number.split("").join(" ") })}
               variant="monoBody"
               tone="secondary"
               numberOfLines={1}
@@ -252,7 +253,7 @@ export function InvoiceReceiptView({
           label={t.total}
           emphasis
           value={<Amount value={computedTotal} size="large" />}
-          accessibilityLabel={`${t.total} ${formatRupiah(computedTotal)}`}
+          accessibilityLabel={[translate(t.total), formatRupiah(computedTotal)].join(" ")}
         />
       </KeyValueList>
 

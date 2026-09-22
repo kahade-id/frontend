@@ -42,7 +42,12 @@ const DICTS: Partial<Record<string, Dict>> = { en: EN }
 const CACHE_MAX = 4000
 const cache = new Map<string, string>()
 
-/** Uji manual/tes: bersihkan cache setelah menukar kamus atau bahasa. */
+/**
+ * Bersihkan cache terjemahan. Dipakai tes yang menukar bahasa
+ * (`tests/i18n.test.ts`, `tests/format.test.ts`) — lihat juga G-09 di
+ * `issues.md`: ekspor ini dulu tidak dipakai siapa pun, sekarang menjadi
+ * bagian dari alur uji bahasa.
+ */
 export function clearTranslationCache(): void {
   cache.clear()
 }

@@ -21,6 +21,7 @@
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -140,7 +141,7 @@ export function QaCommentItem({
               </TextLink>
             ) : null}
             {onDelete ? (
-              <TextLink variant="caption" weight={500} onPress={onDelete} accessibilityLabel={`${t.delete} komentar`}>
+              <TextLink variant="caption" weight={500} onPress={onDelete} accessibilityLabel={translate("{x} komentar", { x: t.delete })}>
                 {t.delete}
               </TextLink>
             ) : null}

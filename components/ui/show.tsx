@@ -20,6 +20,11 @@
  *
  * Hanya `md` yang tersedia karena §11 menetapkan satu breakpoint; sm/lg/xl
  * sengaja tidak ada di tailwind.config.js.
+ *
+ * H-13 (audit 2026-09-22): DORMANT — belum ada pemakainya. Dipertahankan
+ * sebagai baseline komponen (diuji `tests/unused-ui-baseline.test.tsx`),
+ * tetapi JANGAN dipakai untuk kode baru tanpa mencatat alasannya di
+ * `docs/ui-primitives.md` lebih dulu.
  */
 import type { ReactNode } from "react"
 import { Platform, View, type ViewProps } from "react-native"

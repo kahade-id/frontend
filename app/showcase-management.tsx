@@ -32,6 +32,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
 import { router } from "expo-router"
+import { translate } from "@/lib/i18n/translate"
 
 import { api, userMessage } from "@/lib/api"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
@@ -358,7 +359,7 @@ export default function ShowcaseScreen() {
         {
           key: "images",
           label: "Kelola foto",
-          description: `${menuItem.images?.length ?? 1} foto — tambah, urutkan, hapus`,
+          description: translate("{x} foto — tambah, urutkan, hapus", { x: menuItem.images?.length ?? 1 }),
           icon: Images,
           onPress: () => {
             setImagesItemId(menuItem.id)
@@ -407,7 +408,12 @@ export default function ShowcaseScreen() {
               title="Portofolio Anda"
               subtitle={
                 items.length
-                  ? `${items.length} item${hiddenCount ? ` · ${hiddenCount} disembunyikan` : ""}`
+                  ? [
+                      translate("{x} item", { x: items.length }),
+                      hiddenCount ? translate("{x} disembunyikan", { x: hiddenCount }) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
                   : undefined
               }
             />
@@ -458,8 +464,11 @@ export default function ShowcaseScreen() {
         avoidKeyboard
         visible={imagesItem != null}
         onRequestClose={() => setImagesItemId(null)}
-        title={imagesItem ? `Foto: ${labelOf(imagesItem)}` : "Foto item"}
-        description={`${imagesItem?.images?.length ?? 0} dari ${SHOWCASE_MAX_IMAGES} foto. Foto pertama menjadi cover item.`}
+        title={imagesItem ? translate("Foto: {x}", { x: labelOf(imagesItem) }) : "Foto item"}
+        description={translate("{x} dari {y} foto. Foto pertama menjadi cover item.", {
+          x: imagesItem?.images?.length ?? 0,
+          y: SHOWCASE_MAX_IMAGES,
+        })}
         footer={
           <Button
             leftIcon={Plus}
@@ -490,7 +499,7 @@ export default function ShowcaseScreen() {
                 icon={CaretLeft}
                 size="sm"
                 variant="ghost"
-                accessibilityLabel={`Geser foto ${i + 1} ke kiri`}
+                accessibilityLabel={translate("Geser foto {x} ke kiri", { x: i + 1 })}
                 disabled={i === 0 || reorderingId != null}
                 onPress={() => imagesItem && void handleMoveImage(imagesItem, img, -1)}
               />
@@ -498,7 +507,7 @@ export default function ShowcaseScreen() {
                 icon={CaretRight}
                 size="sm"
                 variant="ghost"
-                accessibilityLabel={`Geser foto ${i + 1} ke kanan`}
+                accessibilityLabel={translate("Geser foto {x} ke kanan", { x: i + 1 })}
                 disabled={i === (imagesItem?.images?.length ?? 0) - 1 || reorderingId != null}
                 onPress={() => imagesItem && void handleMoveImage(imagesItem, img, 1)}
               />
@@ -506,7 +515,7 @@ export default function ShowcaseScreen() {
                 icon={Trash}
                 size="sm"
                 variant="ghost"
-                accessibilityLabel={`Hapus foto ${i + 1}`}
+                accessibilityLabel={translate("Hapus foto {x}", { x: i + 1 })}
                 disabled={deletingImage}
                 onPress={() => setDeleteImage(img)}
               />

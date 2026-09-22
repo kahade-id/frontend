@@ -132,8 +132,22 @@ export type BottomSheetProps = {
   avoidKeyboard?: boolean
   /** Dipanggil setelah animasi keluar selesai */
   onHidden?: () => void
-  /** className area konten (padding default px-5 pb-4) */
+  /**
+   * className TAMBAHAN area konten (gap, dsb).
+   *
+   * H-05 (audit 2026-09-22): padding/radius TIDAK lagi di-override lewat
+   * className — pakai prop `padding`/`radius`. Sebelumnya pemanggil menulis
+   * `contentClassName="px-0 pb-0"` dan hasilnya bergantung pada urutan kelas
+   * tailwind-merge: perubahan default di sini bisa diam-diam mengubah daftar
+   * (mis. daftar bahasa/action sheet yang memang mengelola paddingnya sendiri).
+   */
   contentClassName?: string
+  /**
+   * Padding konten. `"default"` = px-5 pt-2 pb-4 (konten teks), `"none"` =
+   * tanpa padding horizontal/bawah (daftar yang punya baris sendiri), `"horizontal"`
+   * = px-5 saja (konten yang mengatur jarak vertikalnya sendiri).
+   */
+  padding?: "default" | "none" | "horizontal"
   accessibilityLabel?: string
   /** Pemicu yang menerima fokus kembali saat sheet tutup (wajib untuk native). */
   returnFocusRef?: A11yNodeRef
@@ -153,6 +167,7 @@ export function BottomSheet({
   avoidKeyboard = false,
   onHidden,
   contentClassName,
+  padding = "default",
   accessibilityLabel,
   returnFocusRef,
 }: BottomSheetProps) {
@@ -333,7 +348,16 @@ export function BottomSheet({
           header
         )}
 
-        <View className={cn("shrink px-5 pt-2 pb-4", contentClassName)}>{children}</View>
+        <View
+          className={cn(
+            "shrink",
+            padding === "default" && "px-5 pt-2 pb-4",
+            padding === "horizontal" && "px-5 pt-2",
+            contentClassName,
+          )}
+        >
+          {children}
+        </View>
 
         {footer ? (
           <View

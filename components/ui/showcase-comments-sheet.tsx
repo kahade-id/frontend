@@ -105,7 +105,7 @@ export function ShowcaseCommentsSheet({
       visible={item != null}
       onRequestClose={onRequestClose}
       title={headerTitle}
-      contentClassName="px-0 pb-0"
+      padding="none"
       footer={
         // Wrapper footer sheet sudah px-5 -> tanpa padding horizontal lagi.
         <View className="pb-1">

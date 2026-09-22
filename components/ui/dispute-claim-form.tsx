@@ -30,6 +30,7 @@ import { Button } from "@/components/ui/button"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type DisputeClaimLabels = {
   title: string
@@ -162,7 +163,7 @@ export function DisputeClaimForm({
         maxLength={maxLength}
         showCount={!locked}
         disabled={locked}
-        errorText={tooShort ? `Minimal ${minLength} karakter` : undefined}
+        errorText={tooShort ? translate("Minimal {x} karakter", { x: minLength }) : undefined}
       />
 
       {!locked ? (

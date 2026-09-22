@@ -80,6 +80,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, type OrderSummary, type UserProfile, type Wallet as WalletData } from "@/lib/api"
+import { queryKeys } from "@/lib/query-keys"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -187,11 +188,11 @@ export default function HomeScreen() {
   // dashboard belum ada di kontrak backend, jadi fan-out ini dipertahankan
   // sampai backend menyediakan response gabungan yang terukur.
   const profile = useApiQuery<UserProfile>(
-    "home-profile",
+    queryKeys.me(),
     (signal) => api.users.getMe(signal),
     !isGuest,
   )
-  const wallet = useApiQuery<WalletData>("home-wallet", (signal) => api.wallet.getWallet(signal), !isGuest, {
+  const wallet = useApiQuery<WalletData>(queryKeys.wallet(), (signal) => api.wallet.getWallet(signal), !isGuest, {
     refreshOnFocus: true,
   })
   const summary = useApiQuery<OrderSummary>(
@@ -256,14 +257,14 @@ export default function HomeScreen() {
     : disputedCount > 0
       ? {
           tone: "danger",
-          title: `${disputedCount} sengketa perlu perhatianmu`,
+          title: translate("{x} sengketa perlu perhatianmu", { x: disputedCount }),
           description: "Tanggapi sebelum tenggat agar dana tidak tertahan lebih lama",
           onPress: () => router.push(ROUTES.disputes),
         }
       : activeCount > 0
         ? {
             tone: "primary",
-            title: `${activeCount} transaksi sedang berjalan`,
+            title: translate("{x} transaksi sedang berjalan", { x: activeCount }),
             description: "Cek status, tenggat, dan langkah berikutnya",
             onPress: () => router.push(ROUTES.transactions),
           }
@@ -428,7 +429,9 @@ export default function HomeScreen() {
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={
-                  unread.count ? `Notifikasi, ${unread.count} belum dibaca` : "Notifikasi"
+                  unread.count
+                    ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
+                    : "Notifikasi"
                 }
                 accessibilityHint="Buka pusat notifikasi"
                 haptic

@@ -23,6 +23,11 @@
  *   - Tidak menganimasikan `height` (layout). Collapse height ada di
  *     <Collapse>; Presence sengaja hanya opacity/transform (native driver,
  *     60fps) — kalau perlu ruang ikut menutup, bungkus dengan Collapse.
+ *
+ * H-13 (audit 2026-09-22): DORMANT — belum ada pemakainya. Dipertahankan
+ * sebagai baseline komponen (diuji `tests/unused-ui-baseline.test.tsx`),
+ * tetapi JANGAN dipakai untuk kode baru tanpa mencatat alasannya di
+ * `docs/ui-primitives.md` lebih dulu.
  */
 import type { ReactNode } from "react"
 import { Animated, type ViewProps } from "react-native"

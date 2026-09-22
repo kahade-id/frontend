@@ -37,9 +37,11 @@ import {
   type QuestionItem,
 } from "@/lib/api/users"
 import { formatDateTime } from "@/lib/format"
+import type { UserProfile } from "@/lib/api/users"
+import { queryKeys } from "@/lib/query-keys"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -55,6 +57,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 const PAGE_SIZE = 20
 const COMMENT_PAGE = 20
@@ -87,10 +90,17 @@ export default function PublicQuestionsScreen() {
    *
    * `meId` dipisah jadi query sendiri karena bukan bagian dari halaman.
    */
-  const meQuery = useApiQuery<{ id?: string }>("questions-me", async (signal) => {
-    const me = await api.users.getMe(signal)
-    return { id: me.id ?? undefined }
-  })
+  /**
+   * C-02 (audit): `GET /v1/users/me` — kunci bersama `queryKeys.me()` dengan
+   * proyeksi `select` (layar ini hanya butuh id untuk menandai pertanyaan milik
+   * sendiri), bukan kunci pribadi "questions-me".
+   */
+  const meQuery = useApiQuery<UserProfile, { id?: string }>(
+    queryKeys.me(),
+    (signal) => api.users.getMe(signal),
+    true,
+    { select: (me) => ({ id: me.id ?? undefined }) },
+  )
   const meId = meQuery.data?.id
 
   /**
@@ -116,6 +126,8 @@ export default function PublicQuestionsScreen() {
         },
       }
     },
+    // C-08 (audit): daftar tanya-jawab kronologis — terbaru di atas.
+    { compare: byTimestampDesc<QuestionItem>((question) => question.createdAt) },
   )
   const items = query.data
   const { loading, error, refreshing, loadingMore, loadMoreError, hasMore } = query
@@ -231,7 +243,10 @@ export default function PublicQuestionsScreen() {
     if (!username) return
     const value = askText.trim()
     if (value.length < QUESTION_MIN) {
-      toast.show({ title: `Pertanyaan minimal ${QUESTION_MIN} karakter`, tone: "danger" })
+      toast.show({
+        title: translate("Pertanyaan minimal {x} karakter", { x: QUESTION_MIN }),
+        tone: "danger",
+      })
       return
     }
     setAsking(true)
@@ -387,7 +402,7 @@ export default function PublicQuestionsScreen() {
                       onSubmit={() => void submitComment()}
                       submitting={commentSending}
                       maxLength={COMMENT_MAX}
-                      placeholder={`Tulis komentar untuk @${username}…`}
+                      placeholder={translate("Tulis komentar untuk @{x}…", { x: username })}
                     />
                   </Card>
                 ) : null}
@@ -409,7 +424,7 @@ export default function PublicQuestionsScreen() {
       </PullToRefresh>
 
       <Dialog
-        title={`Bertanya kepada @${username}`}
+        title={translate("Bertanya kepada @{x}", { x: username })}
         description="Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya."
         visible={askOpen}
         loading={asking}

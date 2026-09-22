@@ -49,6 +49,7 @@ import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
 
 export type WalletQuickAction = {
   key: "topup" | "withdraw" | "transfer" | (string & {})
@@ -181,7 +182,7 @@ export function WalletBalanceCard({
               key={a.key}
               accessibilityRole="button"
               accessibilityLabel={a.label}
-              accessibilityHint={`Buka ${a.label}`}
+              accessibilityHint={translate("Buka {x}", { x: a.label })}
               haptic
               onPress={a.onPress}
               disabled={a.disabled}

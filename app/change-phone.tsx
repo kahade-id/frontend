@@ -16,6 +16,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { SensitiveText } from "@/components/ui/sensitive-text"
 import { useToast } from "@/components/ui/toast"
 import { api, clearSession, isApiError, type OtpMethod, type UserProfile, userMessage } from "@/lib/api"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -23,7 +24,7 @@ type Step = "request" | "confirm"
 
 export default function ChangePhoneScreen() {
   const toast = useToast()
-  const profile = useApiQuery<UserProfile>("change-phone-me", (signal) => api.users.getMe(signal))
+  const profile = useApiQuery<UserProfile>(queryKeys.me(), (signal) => api.users.getMe(signal))
   const methods = useApiQuery("change-phone-otp-methods", (signal) => api.auth.getOtpMethods(signal))
   const currentPhone = profile.data?.phoneNumber ?? ""
 

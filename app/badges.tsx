@@ -27,6 +27,7 @@ import { AchievementBadgeGrid } from "@/components/ui/achievement-badge"
 import { DataScreen } from "@/components/ui/data-screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 /** Spec: `limit` maximum 100 */
 const CATALOG_LIMIT = 100
@@ -82,7 +83,9 @@ export default function BadgesScreen() {
     >
       <SectionHeader
         title="Lencana"
-        subtitle={`${items.filter((b) => b.earned === true).length} lencana diraih ditampilkan`}
+        subtitle={translate("{x} lencana diraih ditampilkan", {
+          x: items.filter((b) => b.earned === true).length,
+        })}
       />
       <AchievementBadgeGrid
         items={items.map((b) => ({

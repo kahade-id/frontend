@@ -168,21 +168,30 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     }
   }, [reducedMotion, scale])
 
+  /**
+   * H-03 (audit 2026-09-22): callback PEMANGGIL dijalankan LEBIH DULU, baru
+   * efek internal (animasi scale + haptic). Versi sebelumnya menunggu
+   * `animateTo` + `fireHaptic` selesai, sehingga pemanggil yang mengukur
+   * durasi dari `onPressIn` (mis. long-press "hapus semua" di
+   * `amount-keypad.tsx`) mendapat titik awal yang tergeser di perangkat
+   * lambat — ambangnya jadi tidak deterministik. Efek visual/haptic tidak
+   * bergantung pada nilai balik pemanggil, jadi urutan ini aman.
+   */
   const handlePressIn = useCallback(
     (e: GestureResponderEvent) => {
+      onPressIn?.(e)
       if (shouldScale) animateTo(tokens.motion.scale.press)
       if (useUnderlay) setPressed(true)
       if (haptic) fireHaptic(haptic === true ? "light" : haptic)
-      onPressIn?.(e)
     },
     [animateTo, haptic, onPressIn, shouldScale, useUnderlay],
   )
 
   const handlePressOut = useCallback(
     (e: GestureResponderEvent) => {
+      onPressOut?.(e)
       if (shouldScale) animateTo(1)
       if (useUnderlay) setPressed(false)
-      onPressOut?.(e)
     },
     [animateTo, onPressOut, shouldScale, useUnderlay],
   )

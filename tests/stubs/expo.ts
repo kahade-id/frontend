@@ -30,8 +30,29 @@ export async function getItemAsync(key: string): Promise<string | null> {
   return memory.get(key) ?? null
 }
 export async function setItemAsync(key: string, value: string): Promise<void> {
+  if (__store.failSet) throw new Error("keystore locked")
   memory.set(key, value)
 }
 export async function deleteItemAsync(key: string): Promise<void> {
+  if (__store.failDelete) throw new Error("keystore locked")
   memory.delete(key)
+}
+
+/**
+ * Test helper: kendali kegagalan penyimpanan (Keystore terkunci, kuota penuh)
+ * + akses langsung ke isi penyimpanan palsu.
+ *
+ * Dipakai test yang MENGUJI jalan keluar dari kegagalan I/O (mis. B-08: urutan
+ * tulis flag "signed out") — bukan nilai default mana pun, jadi tidak mengubah
+ * perilaku test lain.
+ */
+export const __store = {
+  memory,
+  failDelete: false,
+  failSet: false,
+  reset() {
+    memory.clear()
+    this.failDelete = false
+    this.failSet = false
+  },
 }

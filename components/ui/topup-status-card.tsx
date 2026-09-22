@@ -48,6 +48,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { groupAccountNumber } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "EXPIRED" | "CANCELLED" | "UNKNOWN"
 
@@ -212,7 +213,11 @@ export function TopupStatusCard({
     <Card variant="elevated" padded className={cn("gap-5", className)} {...rest}>
       <CardSummary
         className="gap-5 tabular-nums"
-        label={summarize([t.status[status], `${t.amount} ${amount} rupiah`, methodLabel])}
+        label={summarize([
+          translate(t.status[status]),
+          translate("{x} {y} rupiah", { x: translate(t.amount), y: amount }),
+          methodLabel,
+        ])}
       >
         <View className="flex-row items-center justify-between gap-3">
           <StatusIndicator

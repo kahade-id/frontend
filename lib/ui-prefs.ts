@@ -21,6 +21,7 @@
  */
 import { useCallback, useEffect, useSyncExternalStore } from "react"
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { serverNow } from "@/lib/server-time"
 import { logWarn } from "@/lib/telemetry"
 
 export type TransactionsTab = "buyer" | "seller"
@@ -74,7 +75,10 @@ function sanitizePrefs(raw: unknown): UiPrefs {
   const snooze: Record<string, number> = {}
   if (typeof rec.ratingSnoozeUntil === "object" && rec.ratingSnoozeUntil !== null) {
     for (const [key, value] of Object.entries(rec.ratingSnoozeUntil as Record<string, unknown>)) {
-      if (typeof value === "number" && Number.isFinite(value) && value > Date.now()) {
+      // E-03: ambang snooze ditulis dengan serverNow() (call site order/[id]) —
+      // pembacaan harus domain yang sama atau jam perangkat yang menyimpang
+      // memangkas/memanjangkan penundaan pengingat ulasan.
+      if (typeof value === "number" && Number.isFinite(value) && value > serverNow()) {
         snooze[key] = value
       }
     }
@@ -156,6 +160,24 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
 }
 
 /**
+ * B-06 (audit): buang preferensi MILIK AKUN saat logout/sesi berakhir.
+ *
+ * `ratingSnoozeUntil` berkunci `orderId` akun yang sedang login — akun
+ * berikutnya di perangkat yang sama tidak boleh mewarisi jejak transaksi itu
+ * (alasan yang sama dengan `pendingActions`/`recentRecipients` di
+ * `clearSession()`). `balanceHidden` dan `transactionsTab` sengaja TIDAK
+ * disentuh: keduanya preferensi perangkat yang berlaku untuk siapa pun yang
+ * memakai perangkat ini.
+ *
+ * Tidak ada I/O saat tidak ada yang perlu dibersihkan (kasus paling sering:
+ * logout tanpa pernah menunda pengingat ulasan).
+ */
+export function clearAccountPrefs(): void {
+  if (Object.keys(prefs.ratingSnoozeUntil).length === 0) return
+  setUiPrefs({ ratingSnoozeUntil: {} })
+}
+
+/**
  * J-14: lama penundaan pengingat ulasan sekali tekan "Ingatkan nanti".
  *
  * Tinggal bersama fungsi snooze-nya (bukan di layar detail order) karena ini
@@ -168,11 +190,18 @@ export const RATING_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000
 export function snoozeRatingReminder(orderId: string, untilMs: number): void {
   const next = { ...prefs.ratingSnoozeUntil, [orderId]: untilMs }
   // Bersihkan snooze yang sudah lewat agar blob tidak tumbuh selamanya.
-  for (const [key, value] of Object.entries(next)) if (value <= Date.now()) delete next[key]
+  for (const [key, value] of Object.entries(next)) if (value <= serverNow()) delete next[key]
   setUiPrefs({ ratingSnoozeUntil: next })
 }
 
-export function isRatingSnoozed(orderId: string, now = Date.now()): boolean {
+/**
+ * E-03 (audit 2026-09-22): `now` memakai domain jam SERVER karena nilai yang
+ * dibandingkan (`ratingSnoozeUntil`) ditulis di domain itu dari
+ * `serverNow() + RATING_SNOOZE_MS` (layar order). Sempat campur domain
+ * (`Date.now()` di sini): perangkat dengan jam mundur 1 hari memperpanjang
+ * penundaan 3 hari menjadi 4 hari, jam maju memangkasnya.
+ */
+export function isRatingSnoozed(orderId: string, now = serverNow()): boolean {
   const until = prefs.ratingSnoozeUntil[orderId]
   return typeof until === "number" && until > now
 }
@@ -185,6 +214,8 @@ export function recordRecentRecipient(
   recipient: Omit<RecentRecipient, "usedAt">,
 ): void {
   const next = [
+    // waktu-perangkat: `usedAt` hanya untuk mengurutkan daftar "terakhir
+    // dipakai" di perangkat ini, tidak pernah dibandingkan dengan waktu server.
     { ...recipient, usedAt: Date.now() },
     ...recents.filter((r) => r.id !== recipient.id),
   ].slice(0, RECENT_MAX)

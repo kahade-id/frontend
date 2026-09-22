@@ -51,6 +51,7 @@
 import { Fingerprint, ScanSmiley } from "phosphor-react-native"
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState, type ReactNode } from "react"
 import { View } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Alert } from "@/components/ui/alert"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -359,7 +360,7 @@ export const BiometricPromptTrigger = forwardRef<BiometricPromptTriggerHandle, B
             <View
               accessible
               accessibilityRole="progressbar"
-              accessibilityLabel={`PIN ${pin.length} dari ${pinLength} digit`}
+              accessibilityLabel={translate("PIN {x} dari {y} digit", { x: pin.length, y: pinLength })}
               accessibilityValue={{ min: 0, max: pinLength, now: pin.length }}
               className="flex-row items-center gap-4"
             >

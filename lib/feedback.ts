@@ -10,7 +10,12 @@
  * dibuka atau saat pengguna mengirim masukan berikutnya.
  */
 import { http } from "@/lib/api/client"
-import { getSecureItem, SecureKeys, setSecureItem } from "@/lib/secure-storage"
+import {
+  getSecureItem,
+  isSecureKeyPersisted,
+  SecureKeys,
+  setSecureItem,
+} from "@/lib/secure-storage"
 
 export const FEEDBACK_CATEGORIES = [
   "Saran fitur",
@@ -177,6 +182,16 @@ export async function submitFeedback(input: FeedbackInput): Promise<FeedbackResu
     return { status: "queued", reason: kind }
   }
 }
+
+/**
+ * D-07 (audit): di web, antrean masukan SENGAJA hanya di memori (isi masukan
+ * bisa memuat email/konteks transaksi; reload tidak boleh meninggalkannya di
+ * localStorage). Konsekuensinya antrean itu HILANG saat halaman dimuat ulang —
+ * dan UI tidak boleh menjanjikan "akan dikirim otomatis saat terhubung" untuk
+ * data yang sudah tidak ada. Layar memakai nilai ini untuk memilih kalimat yang
+ * benar.
+ */
+export const FEEDBACK_QUEUE_PERSISTS = isSecureKeyPersisted(SecureKeys.feedbackQueue)
 
 /** Jumlah masukan yang masih mengantre (untuk info/diagnostik UI). */
 export async function queuedFeedbackCount(): Promise<number> {

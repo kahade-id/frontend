@@ -24,6 +24,7 @@
 import { useState } from "react"
 import { CheckCircle, Gift } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
 import { Badge } from "@/components/ui/badge"
@@ -72,7 +73,7 @@ export function ReferralRewardListItem({
   return (
     <ListItem
       leading={<IconBox icon={Gift} size="md" variant={credited ? "success" : "surface"} />}
-      title={`Hadiah undangan \u00B7 ${referredName}`}
+      title={translate("Hadiah undangan \u00B7 {x}", { x: referredName })}
       subtitle={
         <View className="flex-row flex-wrap items-center gap-2 tabular-nums">
           <Text variant="caption" tone="secondary">
@@ -94,7 +95,7 @@ export function ReferralRewardListItem({
           className={cn(cancelled && "line-through")}
         />
       }
-      accessibilityLabel={`Hadiah undangan ${referredName}, ${statusLabel}, ${date}`}
+      accessibilityLabel={translate("Hadiah undangan {x}, {y}, {z}", { x: referredName, y: statusLabel, z: date })}
       {...rest}
     />
   )
@@ -136,7 +137,7 @@ export function ReferralApplyForm({
       <View
         className={cn("flex-row items-center gap-3 rounded-md border border-border bg-surface p-4", className)}
         accessible
-        accessibilityLabel={`Kode referral ${appliedCode} sudah dipakai`}
+        accessibilityLabel={translate("Kode referral {x} sudah dipakai", { x: appliedCode })}
         {...rest}
       >
         <IconBox icon={CheckCircle} size="md" variant="success" />

@@ -43,6 +43,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
+import { translateProp } from "@/lib/i18n"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { tokens } from "@/lib/tokens"
 
@@ -65,6 +66,8 @@ export type SegmentedControlProps<V extends string = string> = Omit<ViewProps, "
   value: V
   onChange: (value: V) => void
   disabled?: boolean
+  /** F-08: nama grup ("Metode bayar") supaya pilihan dibacakan sebagai satu grup. */
+  accessibilityLabel?: string
   className?: string
 }
 
@@ -73,12 +76,14 @@ export function SegmentedControl<V extends string = string>({
   value,
   onChange,
   disabled = false,
+  accessibilityLabel,
   className,
   ...rest
 }: SegmentedControlProps<V>) {
   return (
     <View
       accessibilityRole="radiogroup"
+      accessibilityLabel={translateProp(accessibilityLabel)}
       hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
         "min-h-11 w-full flex-row rounded-md border border-border-control bg-surface p-[2px]",
@@ -95,6 +100,9 @@ export function SegmentedControl<V extends string = string>({
             key={item.value}
             accessibilityRole="radio"
             accessibilityState={{ checked: active, disabled: !!isDisabled }}
+            // F-10: lihat catatan di components/ui/radio.tsx — rn-web tidak
+            // mengubah accessibilityState.checked menjadi aria-checked.
+            aria-checked={active}
             accessibilityLabel={item.label}
             scaleOnPress={false}
             disabled={isDisabled}

@@ -23,6 +23,7 @@
  */
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 
+import { logWarn } from "@/lib/telemetry"
 import { isLanguageCode, SOURCE_LANGUAGE, type LanguageCode } from "./languages"
 
 let current: LanguageCode = SOURCE_LANGUAGE
@@ -74,8 +75,15 @@ let writeQueue: Promise<unknown> = Promise.resolve()
 function writeCache(next: LanguageCode): Promise<void> {
   const task = () => setSecureItem(SecureKeys.languagePreference, next)
   const run = writeQueue.then(task, task)
-  writeQueue = run.catch(() => undefined)
-  return run.catch(() => undefined)
+  /**
+   * D-05 (audit): kegagalan menyimpan preferensi bahasa tidak boleh
+   * menggagalkan alur UI (pilihan tetap berlaku untuk sesi berjalan), tetapi
+   * juga tidak boleh hilang tanpa jejak — pengguna yang bahasanya kembali ke
+   * default setelah restart perlu alasan yang bisa dilacak.
+   */
+  const logged = run.catch((error) => logWarn("i18n:write-preference", error))
+  writeQueue = logged
+  return logged
 }
 
 
