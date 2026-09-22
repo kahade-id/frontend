@@ -286,7 +286,12 @@ export default function SecurityActivityScreen() {
         }}
       >
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          <SegmentedControl items={TABS} value={tab} onChange={(v) => setTab(v as TabKey)} />
+          <SegmentedControl
+            accessibilityLabel="Jenis aktivitas"
+            items={TABS}
+            value={tab}
+            onChange={(v) => setTab(v as TabKey)}
+          />
 
           {error ? (
             <ErrorState title="Gagal memuat" description={error} onRetry={() => void activeQuery.reload()} />

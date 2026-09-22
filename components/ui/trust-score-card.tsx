@@ -27,6 +27,7 @@
  */
 import { Info } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Badge } from "@/components/ui/badge"
 import { Card, CardSummary, type CardProps } from "@/components/ui/card"
@@ -159,7 +160,7 @@ export function TrustScoreCard({
           {factors.map((f) => {
             const pct = f.max > 0 ? clamp((f.value / f.max) * 100, 0, 100) : 0
             return (
-              <View key={f.key} accessible className="gap-1" accessibilityLabel={`${f.label} ${f.value} dari ${f.max}`}>
+              <View key={f.key} accessible className="gap-1" accessibilityLabel={translate("{x} {y} dari {z}", { x: f.label, y: f.value, z: f.max })}>
                 <View className="flex-row items-center justify-between gap-3">
                   <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
                     {f.label}

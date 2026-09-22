@@ -212,7 +212,12 @@ export default function QuestionsScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Tanya Jawab" />
       <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
-        <SegmentedControl items={SEGMENTS} value={type} onChange={setType} />
+        <SegmentedControl
+          accessibilityLabel="Jenis pertanyaan"
+          items={SEGMENTS}
+          value={type}
+          onChange={setType}
+        />
       </View>
       <PullToRefresh
         onRefresh={query.refresh}
@@ -371,7 +376,11 @@ export default function QuestionsScreen() {
         }
       >
         <View className="px-5 pb-2">
-          <RadioGroup value={hideReason} onChange={(v) => setHideReason(v as HiddenReason)}>
+          <RadioGroup
+            accessibilityLabel="Alasan menyembunyikan"
+            value={hideReason}
+            onChange={(v) => setHideReason(v as HiddenReason)}
+          >
             {HIDE_REASONS.map((r) => (
               <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
             ))}

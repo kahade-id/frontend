@@ -25,6 +25,7 @@
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { Plus } from "phosphor-react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
@@ -301,7 +302,7 @@ export default function BusinessVerificationScreen() {
                     fullWidth={false}
                     disabled={submitting}
                     onPress={() => removeDoc(i)}
-                    accessibilityLabel={`Hapus dokumen ${d.name}`}
+                    accessibilityLabel={translate("Hapus dokumen {x}", { x: d.name })}
                   >
                     Hapus
                   </Button>

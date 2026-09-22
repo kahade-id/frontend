@@ -40,6 +40,7 @@
  */
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import type { OrderStatus } from "@/lib/api/orders"
+import { translate } from "@/lib/i18n/translate"
 
 // Re-export: SATU sumber kebenaran status order = lib/api/orders.ts.
 // Komponen lain (OrderCard, Timeline, layar) tetap bisa `import type { OrderStatus } from "@/components/ui/order-status-badge"`.
@@ -160,7 +161,7 @@ export function OrderStatusBadge({ status, role, size = "sm", labels, variant = 
       tone={orderStatusTone(status, role)}
       variant={variant}
       dot={size === "sm"}
-      accessibilityLabel={`Status: ${label}`}
+      accessibilityLabel={translate("{x}: {y}", { x: translate("Status"), y: label })}
       {...rest}
     >
       {label}

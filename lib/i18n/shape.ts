@@ -69,6 +69,36 @@ export function shapeOf(input: string): Shaped {
   }
 }
 
+/**
+ * Token NILAI bernama di teks sumber: `{x}`, `{y}`, `{nama}`.
+ *
+ * Kenapa perlu (audit F-09, non-obvious): label aksesibilitas berisi nilai
+ * runtime panjang ("Halaman 3 dari 12", "Lihat foto 2 dari 8") tidak bisa
+ * dibuat dengan template literal — `localizeChildren` hanya menerjemahkan
+ * string murni, dan `<Text>` campuran sengaja dibiarkan. Pola yang dipakai
+ * adalah `translate("Halaman {x} dari {y}", { x: index + 1, y: count })`.
+ * Token bernama seperti itu BUKAN cuplikan kode, tetapi pemeriksa katalog
+ * dulu membuang setiap string ber-kurung kurawal → label multi-slot tidak
+ * pernah masuk kamus (tetap Indonesia walau UI Inggris) tanpa satu gate pun
+ * yang gagal. Dua helper di bawah adalah definisi tunggal yang dipakai
+ * codegen katalog, gate `check:i18n`, dan tes.
+ */
+export const NAMED_TOKEN_RE = /\{([A-Za-z_][A-Za-z0-9_]*)\}/g
+
+/** Nama token berurutan sesuai kemunculan (`"{x} dari {y}"` → `["x", "y"]`). */
+export function namedTokens(text: string): string[] {
+  const names: string[] = []
+  // RegExp baru tiap panggilan: regex literal global menyimpan `lastIndex`
+  // antar pemanggil (bug halus yang muncul hanya di file dengan >1 panggilan).
+  for (const m of text.matchAll(new RegExp(NAMED_TOKEN_RE.source, "g"))) names.push(m[1])
+  return names
+}
+
+/** Semua token bernama → `{x}` (bentuk kanonik untuk uji "bukan teks UI"). */
+export function normalizeNamedTokens(text: string): string {
+  return text.replace(new RegExp(NAMED_TOKEN_RE.source, "g"), SHAPE_TOKEN)
+}
+
 /** Isi token `{x}` berurutan dengan nilai. Token tanpa nilai dibiarkan. */
 export function fillTokens(text: string, values: readonly string[]): string {
   if (values.length === 0 || !text.includes(SHAPE_TOKEN)) return text

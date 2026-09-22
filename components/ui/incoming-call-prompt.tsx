@@ -40,6 +40,7 @@
 import { useEffect } from "react"
 import { View, type ViewProps, type ViewStyle } from "react-native"
 import { Phone, PhoneX, VideoCamera } from "phosphor-react-native"
+import { translate } from "@/lib/i18n/translate"
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -104,7 +105,7 @@ export function IncomingCallPrompt({
   return (
     <View
       accessibilityViewIsModal
-      accessibilityLabel={`${sub} dari ${callerName}`}
+      accessibilityLabel={translate("Panggilan {x} dari {y}", { x: sub, y: callerName })}
       className={cn("flex-1 items-center justify-between bg-background px-5 py-16", className)}
       {...rest}
     >

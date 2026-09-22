@@ -11,6 +11,7 @@
 import { useCallback, useState } from "react"
 import { Heart } from "phosphor-react-native"
 import { router } from "expo-router"
+import { translate } from "@/lib/i18n/translate"
 
 import { api, userMessage } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
@@ -78,7 +79,7 @@ export default function FavoritesScreen() {
               icon={Heart}
               variant="ghost"
               size="sm"
-              accessibilityLabel={`Hapus ${u.fullName ?? u.username} dari favorit`}
+              accessibilityLabel={translate("Hapus {x} dari favorit", { x: u.fullName ?? u.username })}
               loading={removingId === u.id}
               disabled={removingId !== null}
               onPress={() => void handleRemoveFavorite(u.username, u.id)}

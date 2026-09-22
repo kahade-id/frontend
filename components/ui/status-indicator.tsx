@@ -21,6 +21,7 @@
  */
 import { useEffect, useRef } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Dot, type DotTone } from "@/components/ui/dot"
 import { Text, type TextTone } from "@/components/ui/text"
@@ -92,7 +93,7 @@ export function StatusIndicator({
     <View
       accessible
       accessibilityRole="text"
-      accessibilityLabel={`Status: ${label}`}
+      accessibilityLabel={translate("{x}: {y}", { x: translate("Status"), y: label })}
       className={cn("flex-row items-center gap-2", className)}
       {...rest}
     >

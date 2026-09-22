@@ -32,6 +32,7 @@ import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
 import { router } from "expo-router"
+import { translate } from "@/lib/i18n/translate"
 
 import { api, userMessage } from "@/lib/api"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
@@ -490,7 +491,7 @@ export default function ShowcaseScreen() {
                 icon={CaretLeft}
                 size="sm"
                 variant="ghost"
-                accessibilityLabel={`Geser foto ${i + 1} ke kiri`}
+                accessibilityLabel={translate("Geser foto {x} ke kiri", { x: i + 1 })}
                 disabled={i === 0 || reorderingId != null}
                 onPress={() => imagesItem && void handleMoveImage(imagesItem, img, -1)}
               />
@@ -498,7 +499,7 @@ export default function ShowcaseScreen() {
                 icon={CaretRight}
                 size="sm"
                 variant="ghost"
-                accessibilityLabel={`Geser foto ${i + 1} ke kanan`}
+                accessibilityLabel={translate("Geser foto {x} ke kanan", { x: i + 1 })}
                 disabled={i === (imagesItem?.images?.length ?? 0) - 1 || reorderingId != null}
                 onPress={() => imagesItem && void handleMoveImage(imagesItem, img, 1)}
               />
@@ -506,7 +507,7 @@ export default function ShowcaseScreen() {
                 icon={Trash}
                 size="sm"
                 variant="ghost"
-                accessibilityLabel={`Hapus foto ${i + 1}`}
+                accessibilityLabel={translate("Hapus foto {x}", { x: i + 1 })}
                 disabled={deletingImage}
                 onPress={() => setDeleteImage(img)}
               />

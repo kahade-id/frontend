@@ -31,6 +31,7 @@ import { Clock, MagnifyingGlass, X } from "phosphor-react-native"
 import { useRef, type ReactNode } from "react"
 import { Animated, ScrollView, StyleSheet, View, type TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { translate } from "@/lib/i18n/translate"
 
 import { useOverlayDismissKeys, useOverlayPresence } from "@/components/ui/backdrop"
 import { Button } from "@/components/ui/button"
@@ -167,7 +168,7 @@ export function SearchOverlay({
                               icon={X}
                               size="sm"
                               variant="ghost"
-                              accessibilityLabel={`Hapus "${q}" dari pencarian terakhir`}
+                              accessibilityLabel={translate('Hapus "{x}" dari pencarian terakhir', { x: q })}
                               onPress={() => onRemoveRecent(q)}
                             />
                           ) : undefined

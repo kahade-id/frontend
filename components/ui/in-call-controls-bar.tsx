@@ -39,6 +39,7 @@
  *     bertanggung jawab atas safe-area bottom.
  */
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 import {
   ArrowsLeftRight,
   Microphone,
@@ -134,7 +135,7 @@ export function InCallControlsBar({
           variant="monoBody"
           tone="secondary"
           className="tabular-nums"
-          accessibilityLabel={`Durasi ${formatCountdown(durationSec)}`}
+          accessibilityLabel={translate("Durasi {x}", { x: formatCountdown(durationSec) })}
         >
           {formatCountdown(durationSec)}
         </Text>

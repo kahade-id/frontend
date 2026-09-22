@@ -26,6 +26,7 @@
  */
 import { Clock, IdentificationCard, SealCheck, SealWarning, XCircle } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -86,7 +87,7 @@ export function KycStatusBadge({ status, labels, variant = "soft", ...rest }: Ky
   const known = isKycStatus(status)
   const label = known ? labels?.[status] ?? KYC_STATUS_LABELS[status] : status
   return (
-    <Badge tone={known ? STATUS_TONE[status] : "neutral"} variant={variant} accessibilityLabel={`Status KYC: ${label}`} {...rest}>
+    <Badge tone={known ? STATUS_TONE[status] : "neutral"} variant={variant} accessibilityLabel={translate("Status KYC: {x}", { x: label })} {...rest}>
       {label}
     </Badge>
   )

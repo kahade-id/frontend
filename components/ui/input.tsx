@@ -47,7 +47,7 @@ import {
 } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
-import { Field, type FieldProps } from "@/components/ui/field"
+import { Field, useFieldContext, type FieldProps } from "@/components/ui/field"
 import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
@@ -120,6 +120,9 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
   ref,
 ) {
   const { mode } = useTheme()
+  // F-10: label dari <Field> pembungkus (null bila berdiri sendiri).
+  const fieldContext = useFieldContext()
+  const fieldLabel = typeof fieldContext?.label === "string" ? fieldContext.label : undefined
   const palette = tokens.colors[mode]
   // Ikon clear/secure/right di dalam sheet Reanimated memakai Pressable
   // berbasis native view (lihat gesture-pressable.tsx) agar tetap ditekan di
@@ -284,7 +287,14 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
             onFocus={handleFocus}
             onBlur={handleBlur}
             onChangeText={handleChange}
-            accessibilityLabel={translateProp(label ?? placeholder)}
+            /*
+             * F-10 (audit 2026-09-22): nama kontrol = label Input, lalu
+             * placeholder, lalu LABEL <Field> yang membungkusnya. Sebelumnya
+             * Field+Input menghasilkan input tanpa nama sama sekali: uji axe
+             * (tests/a11y.test.tsx) melaporkan pelanggaran `label` critical di
+             * web, dan di native VoiceOver membacakan field tanpa namanya.
+             */
+            accessibilityLabel={translateProp(fieldLabel ?? label ?? placeholder)}
             // Error dibaca bersama field saat fokus (bukan hanya saat muncul):
             // RN tidak punya aria-invalid/errormessage lintas platform, jadi
             // pesan error dipromosikan ke hint. Hint pemanggil tetap dipakai

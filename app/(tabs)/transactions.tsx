@@ -195,6 +195,7 @@ export default function TransactionsScreen() {
           animation dari dalam <PaginatedList> (hanya saat tambah/hapus). */}
       <FadeIn duration="fast" translate={false} className="gap-3 px-5 pb-3 pt-3">
         <SegmentedControl
+          accessibilityLabel="Peran transaksi"
           items={ROLE_TABS}
           value={role}
           onChange={(next) => setPrefs({ transactionsTab: next })}

@@ -355,6 +355,7 @@ export default function ProfileDataScreen() {
             <VStack gap={3}>
               <FieldLabel required>Jenis kelamin</FieldLabel>
               <RadioGroup
+                accessibilityLabel="Jenis kelamin"
                 value={gender}
                 onChange={(v) => {
                   setGender(v as Gender)

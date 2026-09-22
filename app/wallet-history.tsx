@@ -47,6 +47,7 @@
  */
 import { useMemo, useState } from "react"
 import { View } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 import {
   ArrowCircleDown,
   ArrowCircleUp,
@@ -319,7 +320,10 @@ export default function WalletHistoryScreen() {
                 <View
                   className="gap-3 rounded-md bg-surface p-4"
                   accessible
-                  accessibilityLabel={`Ringkasan ${rangeDays} hari terakhir, ${formatNumber(items.length)} mutasi dimuat`}
+                  accessibilityLabel={translate("Ringkasan {x} hari terakhir, {y} mutasi dimuat", {
+                    x: rangeDays,
+                    y: formatNumber(items.length),
+                  })}
                 >
                   <View className="flex-row items-baseline justify-between gap-3">
                     <Text variant="caption" tone="secondary">

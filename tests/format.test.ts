@@ -26,6 +26,7 @@ import {
   formatPhoneId,
   formatRupiah,
   formatTime,
+  WIB_TIME_ZONE,
   groupAccountNumber,
   groupThousands,
   initials,
@@ -166,6 +167,27 @@ describe("formatDate / formatTime / formatDateTime", () => {
 
   it("formatDateLong hari-benar (3 Sep 2026 = Kamis)", () => {
     expect(formatDateLong(new Date(2026, 8, 3))).toBe("Kamis, 3 September 2026")
+  })
+})
+
+describe("E-06: formatDate/formatTime/formatDateTime menerima timeZone", () => {
+  it("menggeser kalender sesuai zona, bukan zona perangkat", () => {
+    // 2026-09-03 18:30 UTC = 2026-09-04 01:30 WIB (hari berikutnya).
+    const instant = Date.UTC(2026, 8, 3, 18, 30)
+    expect(formatDate(instant, { timeZone: WIB_TIME_ZONE })).toBe("4 Sep 2026")
+    expect(formatTime(instant, { timeZone: WIB_TIME_ZONE })).toBe("01:30")
+    expect(formatDateTime(instant, { timeZone: "UTC" })).toBe("3 Sep 2026, 18:30")
+  })
+
+  it("tanpa timeZone perilaku lama tidak berubah (zona perangkat)", () => {
+    const local = new Date(2026, 8, 3, 14, 5)
+    expect(formatDate(local)).toBe("3 Sep 2026")
+    expect(formatTime(local)).toBe("14:05")
+  })
+
+  it("zona tak dikenal jatuh ke zona perangkat tanpa melempar", () => {
+    const local = new Date(2026, 8, 3, 14, 5)
+    expect(formatTime(local, { timeZone: "Bukan/Zona" })).toBe("14:05")
   })
 })
 

@@ -88,8 +88,43 @@ export default function BankAccountsScreen() {
   const [accountNumber, setAccountNumber] = useState("")
   const [accountName, setAccountName] = useState("")
   const [submitting, setSubmitting] = useState(false)
+
   const [deleteTarget, setDeleteTarget] = useState<BankAccount | null>(null)
   const [deleting, setDeleting] = useState(false)
+
+  /*
+   * F-06 (audit 2026-09-22): validasi form diangkat ke SATU tempat. Sebelumnya
+   * syarat tombol hidup ditulis inline di prop `disabled` (dan tidak ada pesan
+   * apa pun saat terkunci), sehingga perilaku tombol dan penjelasan ke pengguna
+   * bisa menyimpang. Nomor rekening dibersihkan dari non-digit lebih dulu —
+   * sama dengan handler simpan — supaya spasi/pemisah hasil tempel tidak
+   * membuat tombol tampak bisa ditekan padahal isinya kosong.
+   */
+  const cleanAccountNumberForValidation = accountNumber.replace(/\D/g, "").trim()
+  const missingBank = !bankCode
+  const missingAccountNumber = !cleanAccountNumberForValidation
+  const missingAccountName = !accountName.trim()
+  const canSaveAccount = !missingBank && !missingAccountNumber && !missingAccountName
+  const missingFieldsMessage =
+    missingBank && missingAccountNumber && missingAccountName
+      ? "Pilih bank, lalu isi nomor rekening dan nama pemiliknya."
+      : missingBank
+        ? "Pilih bank penerima lebih dulu."
+        : missingAccountNumber && missingAccountName
+          ? "Isi nomor rekening dan nama pemilik rekening."
+          : missingAccountNumber
+            ? "Isi nomor rekening."
+            : missingAccountName
+              ? "Isi nama pemilik rekening."
+              : undefined
+  /*
+   * Pesan hanya muncul setelah pengguna MULAI mengisi (pola FieldHelper:
+   * form yang baru dibuka tidak langsung "berteriak"), lalu menyebutkan apa
+   * yang masih kurang — inilah yang membuat tombol terkunci bisa dimengerti
+   * tanpa melihat layar.
+   */
+  const formTouched = !!bankCode || accountNumber.length > 0 || accountName.trim().length > 0
+  const sectionError = formTouched && !canSaveAccount ? missingFieldsMessage : undefined
   const [editTarget, setEditTarget] = useState<BankAccount | null>(null)
   const [editName, setEditName] = useState("")
   const [editing, setEditing] = useState(false)
@@ -264,7 +299,18 @@ export default function BankAccountsScreen() {
             Tambah rekening
           </Button>
         ) : (
-          <FormSection title="Data rekening baru">
+          <FormSection
+            title="Data rekening baru"
+            /*
+             * F-06 (audit 2026-09-22): tombol simpan terkunci selama ada isian
+             * yang kurang, dan sebelumnya TIDAK ADA satu pun pesan — pengguna
+             * pembaca layar menekan tombol yang tidak merespons apa pun tanpa
+             * tahu bagian mana yang belum benar. Pesan per-field dipakai bila
+             * field itu memang sudah disentuh, sisanya dirangkum di sini
+             * sebagai satu live region.
+             */
+            errorText={sectionError}
+          >
             <BankSelect
               banks={banks}
               value={bankCode}
@@ -301,7 +347,7 @@ export default function BankAccountsScreen() {
             <Button
               loading={submitting}
               onPress={() => void handleAdd()}
-              disabled={!bankCode || !accountName.trim() || !accountNumber.replace(/\D/g, "").trim()}
+              disabled={!canSaveAccount}
             >
               Simpan rekening
             </Button>

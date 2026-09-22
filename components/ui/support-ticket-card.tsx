@@ -24,6 +24,7 @@
  */
 import { Paperclip } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { Card, type CardProps } from "@/components/ui/card"
@@ -72,7 +73,7 @@ export function TicketStatusBadge({ status, size = "sm", labels, variant = "soft
   const known = isTicketStatus(status)
   const label = known ? labels?.[status] ?? TICKET_STATUS_LABELS[status] : status
   return (
-    <Badge tone={known ? STATUS_TONE[status] : "neutral"} variant={variant} dot={size === "sm"} accessibilityLabel={`Status tiket: ${label}`} {...rest}>
+    <Badge tone={known ? STATUS_TONE[status] : "neutral"} variant={variant} dot={size === "sm"} accessibilityLabel={translate("Status tiket: {x}", { x: label })} {...rest}>
       {label}
     </Badge>
   )

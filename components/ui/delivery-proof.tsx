@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type DeliveryProofFormValue = {
   trackingNumber: string
@@ -82,7 +83,9 @@ export function DeliveryProofForm({
           columns={3}
         />
         <Text variant="caption" tone="secondary">
-          Foto paket, tangkapan layar pengiriman, atau PDF. Maks {maxItems} berkas.
+          {translate("Foto paket, tangkapan layar pengiriman, atau PDF. Maks {x} berkas.", {
+            x: maxItems,
+          })}
         </Text>
       </View>
 

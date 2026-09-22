@@ -550,7 +550,12 @@ export default function CreateTransactionScreen() {
         {step === 0 ? (
           <>
             <FormSection title="Cara membuat">
-              <SegmentedControl<Mode> items={MODE_ITEMS} value={mode} onChange={setMode} />
+              <SegmentedControl<Mode>
+                accessibilityLabel="Cara membuat transaksi"
+                items={MODE_ITEMS}
+                value={mode}
+                onChange={setMode}
+              />
               <Text variant="caption" tone="secondary">
                 {mode === "link"
                   ? "Buat tautan yang bisa dibagikan; siapa pun yang membuka dan menyetujui menjadi lawan transaksi."

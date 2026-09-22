@@ -579,7 +579,7 @@ export default function OrderDetailScreen() {
                 counterpart ? (
                   <TextLink
                     onPress={() => router.push(ROUTES.userProfile(counterpart.username))}
-                    accessibilityLabel={`Lihat profil @${counterpart.username}`}
+                    accessibilityLabel={translate("Lihat profil @{x}", { x: counterpart.username })}
                   >
                     {`@${counterpart.username}`}
                   </TextLink>
@@ -840,11 +840,9 @@ export default function OrderDetailScreen() {
         <View className="gap-4">
           <SegmentedControl<PayMethod>
             items={PAY_METHODS}
+            accessibilityLabel="Metode pembayaran"
             value={payMethod}
-            onChange={(v) => {
-              setPayMethod(v)
-              setPinError(undefined)
-            }}
+            onChange={(v) => { setPayMethod(v); setPinError(undefined) }}
             disabled={submitting || qris != null}
           />
           {payMethod === "balance" ? (
@@ -991,6 +989,7 @@ export default function OrderDetailScreen() {
       >
         <Field label="Kategori" required>
           <RadioGroup
+            accessibilityLabel="Kategori sengketa"
             value={disputeCategory}
             onChange={(v) => setDisputeCategory(v as DisputeCategoryValue)}
             variant="plain"

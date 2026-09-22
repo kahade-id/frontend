@@ -45,6 +45,7 @@
  *     tone, label mentah ditampilkan) supaya enum baru tidak meledakkan UI.
  */
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
@@ -257,7 +258,7 @@ export function MutualResolutionCard({
 
       <View
         accessible
-        accessibilityLabel={`${t.yourShare} ${myShare} rupiah`}
+        accessibilityLabel={translate("{x} {y} rupiah", { x: t.yourShare, y: myShare })}
         className="flex-row items-center justify-between rounded-sm border border-border bg-surface px-4 py-3"
       >
         <Text variant="label" tone="secondary">

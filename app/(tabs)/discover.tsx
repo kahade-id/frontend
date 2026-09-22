@@ -687,7 +687,12 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
       >
         <View className="gap-4">
           <Field label="Alasan Laporan" required>
-            <RadioGroup value={reportReason} onChange={setReportReason} variant="plain">
+            <RadioGroup
+              accessibilityLabel="Alasan Laporan"
+              value={reportReason}
+              onChange={setReportReason}
+              variant="plain"
+            >
               {CONTENT_REPORT_REASONS.map((r) => (
                 <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
               ))}

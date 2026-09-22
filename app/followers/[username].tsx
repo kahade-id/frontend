@@ -37,6 +37,7 @@ export default function FollowersScreen() {
       <Header title={tab === "followers" ? "Pengikut" : "Mengikuti"} />
       <View className="px-5 py-4">
         <SegmentedControl<Tab>
+          accessibilityLabel="Daftar pengikut"
           value={tab}
           onChange={setTab}
           items={[

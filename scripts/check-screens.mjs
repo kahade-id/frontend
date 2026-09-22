@@ -522,7 +522,10 @@ const LINE_CEILING = new Map([
   ["app/chat/[roomId].tsx", 1194],
   // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
   // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
-  ["app/order/[id].tsx", 1105],
+  // Audit 2026-09-20 (batch E): label a11y bertemplate dipindah ke translate()
+  // di layar ini, dan kompensasinya satu baris -> 1104. Plafon TURUN mengikuti
+  // aturan "hanya boleh menyusut".
+  ["app/order/[id].tsx", 1104],
   ["app/dispute/[id].tsx", 919],
   ["app/showcase/[id].tsx", 916],
 ])

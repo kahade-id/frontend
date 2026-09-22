@@ -31,6 +31,7 @@
  *     di dev (pola sama dengan OrderStatusBadge).
  */
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
+import { translate } from "@/lib/i18n/translate"
 
 export type DisputeStatus =
   | "OPEN"
@@ -123,7 +124,7 @@ export function DisputeStatusBadge({
       tone={disputeStatusTone(status, party)}
       variant={variant}
       dot={size === "sm"}
-      accessibilityLabel={`Status sengketa: ${label}`}
+      accessibilityLabel={translate("Status sengketa: {x}", { x: label })}
       {...rest}
     >
       {label}

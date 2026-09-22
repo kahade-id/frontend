@@ -12,6 +12,7 @@
 import { useState } from "react"
 import { Bookmark, BookmarkSimple } from "phosphor-react-native"
 import { router } from "expo-router"
+import { translate } from "@/lib/i18n/translate"
 
 import { api, userMessage } from "@/lib/api"
 import type { SavedProfileEntry } from "@/lib/api/users"
@@ -86,7 +87,7 @@ export default function SavedProfilesScreen() {
               icon={Bookmark}
               variant="ghost"
               size="sm"
-              accessibilityLabel={`Hapus ${entry.user.fullName ?? entry.user.username} dari tersimpan`}
+              accessibilityLabel={translate("Hapus {x} dari tersimpan", { x: entry.user.fullName ?? entry.user.username })}
               loading={unsavingId === entry.user.userId}
               onPress={() => void handleUnsave(entry)}
             />

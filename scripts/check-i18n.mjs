@@ -22,6 +22,7 @@ import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from "
 import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import ts from "typescript"
+import { namedTokens } from "../lib/i18n/shape.ts"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const EN_DIR = join(root, "lib/i18n/en")
@@ -41,7 +42,11 @@ if (catalog.length === 0) {
 }
 const catalogSet = new Set(catalog)
 
-const tokenCount = (s) => (s.match(/\{x\}/g) ?? []).length
+// Semua token bernama (`{x}`, `{y}`, `{z}`) — F-09: label aksesibilitas
+// multi-slot memakai `{y}`/`{z}`, dan hitungan lama yang hanya `{x}` membuat
+// terjemahan yang MENJATUHKAN satu slot tetap lolos (mis. "{x} dari {y}" →
+// "of {x}").
+const tokenCount = (s) => (s.match(/\{[A-Za-z_][A-Za-z0-9_]*\}/g) ?? []).length
 
 const seen = new Map()
 let translated = 0
@@ -166,6 +171,90 @@ if (missing.length && process.env.I18N_LIST) {
                       .getText(sf)
                       .slice(0, 70)}`,
                   )
+                }
+              }
+            }
+          }
+        }
+        ts.forEachChild(node, visit)
+      }
+      visit(sf)
+    }
+  }
+}
+
+// 6. TOKEN & VAR PADA translate() (F-09): pola `translate("… {x} …", { x })`
+//    hanya benar bila (a) nama token unik — `"{x} digit, {y} dari {x} terisi"`
+//    menaruh SATU nilai di dua tempat, sehingga "3 dari 6" bisa tercetak
+//    "3 dari 3"; (b) nama token mengikuti urutan kanonik x, y, z, w, u, v —
+//    supaya kalimat yang sama di dua layar jadi SATU kunci kamus (varian
+//    `{a}`/`{b}` membuat kamus terpecah dan cakupan turun tanpa sebab);
+//    (c) setiap token punya nilai di objek var dan tidak ada var yang tidak
+//    dipakai (typo `{y}` vs `y:` di runtime mencetak "{y}" ke layar/TalkBack).
+{
+  const CANON = ["x", "y", "z", "w", "u", "v"]
+  const scanDirs = ["app", "components", "lib"]
+  const walkTs = function* (dir) {
+    for (const entry of readdirSync(dir)) {
+      const full = join(dir, entry)
+      if (statSync(full).isDirectory()) yield* walkTs(full)
+      else if (/\.tsx?$/.test(full)) yield full
+    }
+  }
+  for (const dir of scanDirs) {
+    const abs = join(root, dir)
+    if (!existsSync(abs)) continue
+    for (const file of walkTs(abs)) {
+      const rel = relative(root, file)
+      if (rel.startsWith("lib/i18n/")) continue
+      const sf = ts.createSourceFile(
+        file,
+        readFileSync(file, "utf8"),
+        ts.ScriptTarget.Latest,
+        true,
+        ts.ScriptKind.TSX,
+      )
+      const visit = (node) => {
+        if (ts.isCallExpression(node)) {
+          const fn = node.expression.getText(sf)
+          if (/(^|\.)(translate|translateProp|t)$/.test(fn)) {
+            const [first, second] = node.arguments
+            if (first && ts.isStringLiteralLike(first)) {
+              const literal = first.text
+              const toks = namedTokens(literal)
+              if (toks.length > 0) {
+                const dup = toks.filter((t, i) => toks.indexOf(t) !== i)
+                const line = sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1
+                if (dup.length > 0)
+                  fail(
+                    `${rel}:${line}: token translate() terpakai dua kali (${[
+                      ...new Set(dup),
+                    ].join(", ")}) — satu nilai akan mengisi dua slot. Pakai nama unik x/y/z. "${literal}"`,
+                  )
+                toks.forEach((t, i) => {
+                  if (i < CANON.length && t !== CANON[i])
+                    fail(
+                      `${rel}:${line}: nama token ke-${i + 1} harus "{${CANON[i]}}" (urutan kanonik x, y, z, w…), bukan "{${t}}" — kunci kamus jadi terpecah antar layar. "${literal}"`,
+                    )
+                  if (i >= CANON.length)
+                    fail(
+                      `${rel}:${line}: terlalu banyak slot bernama (maks ${CANON.length}) — pecah kalimatnya. "${literal}"`,
+                    )
+                })
+                if (second && ts.isObjectLiteralExpression(second)) {
+                  const vars = new Set(
+                    second.properties
+                      .filter((p) => ts.isPropertyAssignment(p))
+                      .map((p) => p.name.getText(sf).replace(/^["']|["']$/g, "")),
+                  )
+                  for (const t of new Set(toks))
+                    if (!vars.has(t))
+                      fail(
+                        `${rel}:${line}: token "{${t}}" tidak punya nilai di objek var — runtime mencetak "{${t}}" apa adanya.`,
+                      )
+                  for (const v of vars)
+                    if (!toks.includes(v))
+                      fail(`${rel}:${line}: var "${v}" tidak dipakai di literal translate().`)
                 }
               }
             }

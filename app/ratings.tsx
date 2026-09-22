@@ -315,7 +315,12 @@ export default function RatingsScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Ulasan" />
       <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
-        <SegmentedControl items={SEGMENTS} value={segment} onChange={setSegment} />
+        <SegmentedControl
+          accessibilityLabel="Jenis ulasan"
+          items={SEGMENTS}
+          value={segment}
+          onChange={setSegment}
+        />
       </View>
       <PullToRefresh
         onRefresh={() => void query.refresh()}

@@ -357,24 +357,93 @@ function pad2(n: number) {
   return n < 10 ? `0${n}` : String(n)
 }
 
-/** "3 Sep 2026" */
-export function formatDate(d: Date | number | string, opts: { long?: boolean } = {}): string {
-  const date = displayDate(d)
-  if (!date) return "—"
-  const month = monthNames(!!opts.long)[date.getMonth()]
-  return `${date.getDate()} ${month} ${date.getFullYear()}`
+/** Zona kerja backend — dipakai untuk SEMUA tenggat yang mengikat (E-04). */
+export const WIB_TIME_ZONE = "Asia/Jakarta"
+
+/** E-06: fallback `timeZone` dilaporkan sekali per proses (sama seperti E-05). */
+let timeZoneFallbackReported = false
+
+type ZonedParts = { year: number; month: number; day: number; hour: number; minute: number }
+
+/**
+ * Bagian kalender TANGGAL/WAKTU di zona `timeZone` (E-06).
+ *
+ * Dipakai `formatDate`/`formatTime`/`formatDateTime` saat pemanggil meminta
+ * zona eksplisit (mis. tenggat escrow yang backend-nya beroperasi WIB). Nilai
+ * kalendernya diambil dari `Intl` supaya pergeseran tanggal (23:30 WIB = hari
+ * berikutnya di WITA) ikut benar; namanya tetap dari tabel bulan repo agar
+ * konsisten dengan sisa aplikasi.
+ *
+ * `null` = zona tidak bisa dihitung (Hermes tanpa full-ICU): pemanggil jatuh
+ * ke zona perangkat dan kejadiannya dicatat sekali supaya terlihat di
+ * telemetri — sama seperti fallback `formatDateTimeWIB` (E-05).
+ */
+function zonedParts(date: Date, timeZone: string): ZonedParts | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date)
+    const value = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? NaN)
+    const [year, month, day, hour, minute] = [
+      value("year"),
+      value("month"),
+      value("day"),
+      value("hour"),
+      value("minute"),
+    ]
+    if (![year, month, day, hour, minute].every(Number.isFinite)) throw new Error("bagian tidak lengkap")
+    return { year, month, day, hour: hour === 24 ? 0 : hour, minute }
+  } catch {
+    if (!timeZoneFallbackReported) {
+      timeZoneFallbackReported = true
+      logWarn("format:timezone-fallback", new Error(`Intl tidak mendukung zona ${timeZone}`))
+    }
+    return null
+  }
 }
 
-/** "14:30" */
-export function formatTime(d: Date | number | string): string {
+/**
+ * "3 Sep 2026" — tanggal kalender di zona perangkat, atau di `timeZone` bila
+ * diminta (E-06). Pakai `formatDate(x, { timeZone: WIB_TIME_ZONE })` untuk
+ * tanggal TENGgat supaya hari yang tampil sama di semua zona perangkat.
+ */
+export function formatDate(
+  d: Date | number | string,
+  opts: { long?: boolean; timeZone?: string } = {},
+): string {
   const date = displayDate(d)
   if (!date) return "—"
-  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`
+  const zoned = opts.timeZone ? zonedParts(date, opts.timeZone) : null
+  const day = zoned?.day ?? date.getDate()
+  const month = monthNames(!!opts.long)[(zoned?.month ?? date.getMonth() + 1) - 1]
+  const year = zoned?.year ?? date.getFullYear()
+  return `${day} ${month} ${year}`
 }
 
-/** "3 Sep 2026, 14:30" — format default timestamp di seluruh app (§13) */
-export function formatDateTime(d: Date | number | string): string {
-  return displayDate(d) ? `${formatDate(d)}, ${formatTime(d)}` : "—"
+/** "14:30" — jam di zona perangkat, atau di `timeZone` bila diminta (E-06). */
+export function formatTime(d: Date | number | string, opts: { timeZone?: string } = {}): string {
+  const date = displayDate(d)
+  if (!date) return "—"
+  const zoned = opts.timeZone ? zonedParts(date, opts.timeZone) : null
+  return `${pad2(zoned?.hour ?? date.getHours())}:${pad2(zoned?.minute ?? date.getMinutes())}`
+}
+
+/**
+ * "3 Sep 2026, 14:30" — format default timestamp di seluruh app (§13).
+ * `opts.timeZone` menambahkan dukungan zona (E-06); biarkan kosong untuk
+ * cap waktu aktivitas yang memang lebih enak dibaca relatif zona perangkat.
+ */
+export function formatDateTime(
+  d: Date | number | string,
+  opts: { timeZone?: string } = {},
+): string {
+  return displayDate(d) ? `${formatDate(d, opts)}, ${formatTime(d, opts)}` : "—"
 }
 
 /**

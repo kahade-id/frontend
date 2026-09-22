@@ -18,6 +18,7 @@
  */
 import { DotsThree } from "phosphor-react-native"
 import { View } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import type { ShowcaseComment } from "@/lib/api/showcase"
 import { formatDateTime } from "@/lib/format"
@@ -71,7 +72,7 @@ export function ShowcaseCommentRow({
                 icon={DotsThree}
                 variant="ghost"
                 size="sm"
-                accessibilityLabel={`Opsi komentar dari ${authorName}`}
+                accessibilityLabel={translate("Opsi komentar dari {x}", { x: authorName })}
                 onPress={() => onOpenMenu(comment)}
               />
             ) : null}

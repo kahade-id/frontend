@@ -149,7 +149,7 @@ export default function SupportTicketDetailScreen() {
             onPress={() => onPick(n)}
             accessibilityRole="button"
             accessibilityState={{ selected: value === n }}
-            accessibilityLabel={`${n} bintang`}
+            accessibilityLabel={translate("{x} bintang", { x: n })}
             containerClassName={focusRingInset}
           >
             <Icon

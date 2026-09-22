@@ -21,6 +21,7 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Animated, View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { PinPad, type PinPadProps } from "@/components/ui/pin-pad"
 import { Text } from "@/components/ui/text"
@@ -69,7 +70,7 @@ export function PinDots({ length, filled, error = false, success = false, classN
        */
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={`${filled} dari ${length} digit terisi`}
+      accessibilityLabel={translate("{x} dari {y} digit terisi", { x: filled, y: length })}
       accessibilityValue={{ min: 0, max: length, now: filled }}
       className={cn("items-center justify-center", className)}
       {...rest}

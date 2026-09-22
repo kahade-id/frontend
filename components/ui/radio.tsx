@@ -30,6 +30,7 @@ import { PressableScale, type PressableScaleProps } from "@/components/ui/pressa
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { translateProp } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -48,6 +49,13 @@ export type RadioGroupProps = ViewProps & {
   disabled?: boolean
   /** "card": tiap opsi dibungkus border rounded-md */
   variant?: "plain" | "card"
+  /**
+   * F-08 (audit 2026-09-22): nama grup untuk pembaca layar ("Metode
+   * pembayaran"), sehingga pengguna mendengar "pilihan 1 dari 2" dan konteks
+   * pertanyaannya. Sebelumnya role=radiogroup sudah ada tetapi tanpa nama —
+   * TalkBack mengumumkan opsi satu per satu tanpa tahu ini pilihan apa.
+   */
+  accessibilityLabel?: string
   children: ReactNode
   className?: string
 }
@@ -57,6 +65,7 @@ export function RadioGroup({
   onChange,
   disabled = false,
   variant = "plain",
+  accessibilityLabel,
   children,
   className,
   ...rest
@@ -65,6 +74,7 @@ export function RadioGroup({
     <RadioContext.Provider value={{ value, onChange, disabled, variant }}>
       <View
         accessibilityRole="radiogroup"
+        accessibilityLabel={translateProp(accessibilityLabel)}
         className={cn("w-full", variant === "card" ? "gap-3" : "gap-0", className)}
         {...rest}
       >
@@ -152,6 +162,14 @@ export function Radio({
     <PressableScale
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled }}
+      /*
+       * F-10 (audit 2026-09-22): `aria-checked` eksplisit. react-native-web
+       * TIDAK memetakan `accessibilityState.checked` ke `aria-checked` (terbukti
+       * dari uji axe: `role="radio"` tanpa atribut wajibnya = pelanggaran
+       * critical di web). Prop `aria-*` didukung RN native juga, jadi tidak ada
+       * cabang platform yang perlu dijaga.
+       */
+      aria-checked={selected}
       disabled={disabled}
       scaleOnPress={isCard}
       onPress={() => ctx.onChange(value)}

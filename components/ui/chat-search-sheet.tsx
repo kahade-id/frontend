@@ -19,6 +19,7 @@
  */
 import { useEffect, useRef, useState } from "react"
 import { View } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { searchRoomMessages, type ChatMessage } from "@/lib/api/chat"
 import { userMessage } from "@/lib/api"
@@ -142,7 +143,7 @@ export function ChatSearchSheet({
             <PressableScale
               key={r.id}
               accessibilityRole="button"
-              accessibilityLabel={`Lompat ke pesan: ${r.text ?? "(lampiran)"}`}
+              accessibilityLabel={translate("Lompat ke pesan: {x}", { x: r.text ?? translate("(lampiran)") })}
               onPress={() => onJump(r.id)}
               containerClassName={cn("rounded-md px-2 py-2", focusRing)}
               // kelas baris/lebar ada di className (View isi) — lihat S8

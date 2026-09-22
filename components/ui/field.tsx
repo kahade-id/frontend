@@ -16,11 +16,46 @@
  * terasa "loncat". Slot kosong setinggi satu baris caption (18px) menjaga
  * layout stabil. Default false karena tidak semua field butuh helper.
  */
-import { useEffect, useRef, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react"
 import { AccessibilityInfo, Platform, View, type ViewProps } from "react-native"
 
 import { cn } from "@/lib/cn"
 import { Text } from "@/components/ui/text"
+
+/**
+ * F-10 (audit 2026-09-22): konteks label untuk kontrol DI DALAM <Field>.
+ *
+ * Temuan uji axe di atas pohon render: `<Field label="Nomor rekening">` +
+ * `<Input>` menghasilkan `<input>` TANPA nama yang bisa dibaca (di web: tidak
+ * ada `<label for>`, tidak ada `aria-label`) — pelanggaran `label` tingkat
+ * critical; di native pun VoiceOver membacakan isi field tanpa nama
+ * kontrolnya, karena label selama ini murni visual (`<FieldLabel>` adalah
+ * `<Text>` di sebelah input).
+ *
+ * Kontrol yang membaca konteks ini (Input, PasswordField, TagInput, …) memakai
+ * label Field sebagai `accessibilityLabel` BILA pemanggil tidak mengirim label
+ * sendiri — jadi tidak ada call site yang perlu diubah, dan label eksplisit
+ * tetap menang.
+ */
+export type FieldContextValue = {
+  /** Teks label (string saja — label berupa node kaya tidak bisa jadi nama) */
+  label?: string
+  /** Galat field saat ini, untuk kontrol yang ingin menautkannya */
+  errorText?: string
+}
+
+export const FieldContext = createContext<FieldContextValue | null>(null)
+
+/** Label Field yang membungkus kontrol ini (null bila tidak berada di Field). */
+export function useFieldContext(): FieldContextValue | null {
+  return useContext(FieldContext)
+}
+
+/** Nama aksesibilitas kontrol: label eksplisit menang, lalu label Field. */
+export function useFieldAccessibilityLabel(explicit?: string): string | undefined {
+  const ctx = useFieldContext()
+  return explicit ?? ctx?.label
+}
 
 export type FieldProps = ViewProps & {
   label?: string
@@ -112,19 +147,27 @@ export function Field({
   className,
   ...rest
 }: FieldProps) {
+  // F-10: label diteruskan sebagai nama kontrol lewat konteks (lihat dok di atas).
+  const contextValue = useMemo<FieldContextValue>(
+    () => ({ label: typeof label === "string" ? label : undefined, errorText }),
+    [label, errorText],
+  )
+
   return (
-    <View className={cn("w-full gap-2", className)} {...rest}>
-      {label ? (
-        <FieldLabel required={required} disabled={disabled}>
-          {label}
-        </FieldLabel>
-      ) : null}
-      {children}
-      <FieldHelper
-        helperText={helperText}
-        errorText={errorText}
-        reserveSpace={reserveHelperSpace}
-      />
-    </View>
+    <FieldContext.Provider value={contextValue}>
+      <View className={cn("w-full gap-2", className)} {...rest}>
+        {label ? (
+          <FieldLabel required={required} disabled={disabled}>
+            {label}
+          </FieldLabel>
+        ) : null}
+        {children}
+        <FieldHelper
+          helperText={helperText}
+          errorText={errorText}
+          reserveSpace={reserveHelperSpace}
+        />
+      </View>
+    </FieldContext.Provider>
   )
 }

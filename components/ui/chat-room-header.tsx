@@ -46,6 +46,7 @@ import { cn } from "@/lib/cn"
 import { focusRing, focusRingInset } from "@/lib/focus-ring"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
 import { translateProp, useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
 
 export type ChatRoomHeaderProps = Omit<ViewProps, "children"> & {
   /** Nama lengkap lawan bicara (fallback: @username / "Percakapan") */
@@ -159,7 +160,7 @@ export function ChatRoomHeader({
                 {onOrderPress ? (
                   <PressableScale
                     accessibilityRole="button"
-                    accessibilityLabel={`Lihat pesanan ${orderId}`}
+                    accessibilityLabel={translate("Lihat pesanan {x}", { x: orderId })}
                     scaleOnPress={false}
                     ripple
                     hitSlop={TEXT_ROW_HIT_SLOP}

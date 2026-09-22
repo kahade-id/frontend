@@ -27,6 +27,7 @@
 import { useMemo } from "react"
 import { ScrollView, View, type ViewProps } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -107,7 +108,7 @@ export function OrderSummaryStrip({
       {heldAmount != null ? (
         <View
           accessible
-          accessibilityLabel={`${t.heldTitle} ${formatNumber(heldAmount)} rupiah`}
+          accessibilityLabel={translate("{x} {y} rupiah", { x: t.heldTitle, y: formatNumber(heldAmount) })}
           className="h-[84px] w-[156px] justify-between gap-2 rounded-md border border-border bg-surface-elevated p-4"
         >
           <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1}>

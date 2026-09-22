@@ -26,6 +26,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { ScrollView, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent, type TextInput } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
+import { translate } from "@/lib/i18n/translate"
 
 import {
   BookmarkSimple,
@@ -37,7 +38,6 @@ import {
   PaperPlaneRight,
   Trash,
 } from "phosphor-react-native"
-
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
   addShowcaseComment,
@@ -503,7 +503,7 @@ export default function ShowcaseDetailScreen() {
       <View className="flex-row items-center gap-3 px-5 pt-4">
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={`Lihat profil ${item.author.fullName ?? item.author.username}`}
+          accessibilityLabel={translate("Lihat profil {x}", { x: item.author.fullName ?? item.author.username })}
           onPress={() => router.push(ROUTES.userProfile(item.author.username))}
           containerClassName="flex-1 flex-row items-center rounded-md"
           className="flex-1 flex-row items-center gap-3"
@@ -551,7 +551,7 @@ export default function ShowcaseDetailScreen() {
                 <View key={image.id} style={{ width: pagerWidth || windowWidth - 40 }}>
                   <PressableScale
                     accessibilityRole="button"
-                    accessibilityLabel={`Lihat foto ${index + 1} dari ${resolvedImages.length}`}
+                    accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: resolvedImages.length })}
                     onPress={() => openViewer(index)}
                     containerClassName="w-full"
                   >

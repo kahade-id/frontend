@@ -14,6 +14,7 @@
  * yang sama dengan aksi "Lepas pin" di baris mode pilih).
  */
 import { View, type LayoutChangeEvent } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { CaretDown, PushPin } from "phosphor-react-native"
 
@@ -50,7 +51,7 @@ export function ChatPinnedBar({
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`Pesan terpin: ${preview}`}
+      accessibilityLabel={translate("Pesan terpin: {x}", { x: preview })}
       accessibilityHint="Membuka pesan terpin di percakapan, atau tekan lama untuk melepas pin"
       scaleOnPress={false}
       ripple

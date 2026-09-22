@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { Platform, View } from "react-native"
 import { GooglePlayLogo, AppleLogo, X } from "phosphor-react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import {
   detectMobileOS,
@@ -78,7 +79,9 @@ export function SmartAppInstallCard() {
         <Button
           size="sm"
           variant="primary"
-          accessibilityLabel={`Unduh aplikasi Kahade di ${os === "ios" ? "App Store" : "Google Play"}`}
+          accessibilityLabel={translate("Unduh aplikasi Kahade di {x}", {
+                x: os === "ios" ? "App Store" : "Google Play",
+              })}
           // Bukan router.push: keluar dari SPA menuju domain toko.
           onPress={() => {
             window.open(storeUrl, "_blank", "noopener,noreferrer")

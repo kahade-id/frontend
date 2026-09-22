@@ -26,6 +26,12 @@
  *     kebalikan dari tanda " *" required di FieldLabel. Sistem menandai
  *     yang WAJIB di level field dan yang OPSIONAL di level section, jadi
  *     tidak ada informasi yang ditulis dua kali.
+ *   - F-06 (audit 2026-09-22): `errorText` opsional di level SECTION untuk
+ *     galat yang bukan milik satu field (mis. penolakan server atas kombinasi
+ *     data, atau tombol simpan terkunci karena ada yang belum diisi). Satu
+ *     elemen ber-role `alert` per section, bukan satu live region per field:
+ *     pembaca layar mengumumkan sekali, dan urutan pengumuman tidak
+ *     bergantung pada urutan render field.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
@@ -45,6 +51,8 @@ export type FormSectionProps = Omit<ViewProps, "children"> & {
   className?: string
   /** className untuk pembungkus field (default gap-4) */
   contentClassName?: string
+  /** Galat tingkat section (F-06) — diumumkan sebagai satu live region `alert`. */
+  errorText?: string
 }
 
 export function FormSection({
@@ -55,6 +63,7 @@ export function FormSection({
   children,
   className,
   contentClassName,
+  errorText,
   ...rest
 }: FormSectionProps) {
   const hasHeader = !!title || !!description
@@ -86,6 +95,17 @@ export function FormSection({
       ) : null}
 
       <View className={cn("w-full gap-4", contentClassName)}>{children}</View>
+
+      {/*
+       * F-06: galat section diumumkan lewat role `alert` (Android/web) DAN
+       * `AccessibilityInfo.announceForAccessibility` di iOS — VoiceOver tidak
+       * mendukung live region, alasan yang sama dengan FieldHelper.
+       */}
+      {errorText ? (
+        <Text variant="caption" tone="danger" accessibilityRole="alert">
+          {errorText}
+        </Text>
+      ) : null}
     </View>
   )
 }

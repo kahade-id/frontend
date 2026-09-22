@@ -32,6 +32,7 @@
 import { useCallback } from "react"
 import { View, ScrollView } from "react-native"
 import { useRouter } from "expo-router"
+import { translate } from "@/lib/i18n/translate"
 import {
   Bell,
   ClockCounterClockwise,
@@ -146,7 +147,7 @@ export function ShowcaseHeader({
         <View className="h-10 flex-1 flex-row items-center gap-1 rounded-full border border-border bg-background pr-1 pl-4">
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={`Saldo ${balanceText}, buka dompet`}
+            accessibilityLabel={translate("Saldo {x}, buka dompet", { x: balanceText })}
             accessibilityHint="Buka dompet"
             haptic
             onPress={handleBalancePress}
@@ -213,7 +214,7 @@ export function ShowcaseHeader({
           {/* Profil — 40px, sejajar dengan logo */}
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={`Profil ${displayName}`}
+            accessibilityLabel={translate("Profil {x}", { x: displayName })}
             accessibilityHint="Buka pengaturan"
             haptic
             hitSlop={ACTION_HIT_SLOP}

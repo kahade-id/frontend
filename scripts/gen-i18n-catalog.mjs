@@ -26,7 +26,7 @@ import { dirname, join, relative, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import ts from "typescript"
 
-import { collapse, shapeOf, SHAPE_TOKEN, SLOT_TOKEN } from "../lib/i18n/shape.ts"
+import { collapse, normalizeNamedTokens, shapeOf, SHAPE_TOKEN, SLOT_TOKEN } from "../lib/i18n/shape.ts"
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..")
 const SCAN_DIRS = ["app", "components", "lib"]
@@ -84,8 +84,12 @@ const NON_UI_VALUES = new Set([
 ])
 
 /** String yang jelas bukan prosa UI. Diterima sudah dalam BENTUK termask. */
-function isTechnical(shape) {
-  const s = shape.trim()
+function isTechnical(shape, named = false) {
+  // F-09: pada string dari `translate("… {x} …")`, token bernama ({x}/{y}/{z})
+  // dinormalkan lebih dulu. Tanpa ini, `"Halaman {x} dari {y}"` dianggap
+  // "cuplikan kode" (ada `{`/`}` sisa) dan DIBUANG dari kamus → label
+  // aksesibilitas multi-slot tetap Indonesia di UI Inggris, tanpa gate gagal.
+  const s = (named ? normalizeNamedTokens(shape) : shape).trim()
   if (s.length === 0) return true
   if (NON_UI_VALUES.has(s)) return true
   if (!/\p{L}/u.test(s)) return true // angka/simbol saja
@@ -94,9 +98,17 @@ function isTechnical(shape) {
   // Sisa teks setelah token {x} dilepas: untuk kalimat pendek tanpa isi
   // ("{x}ms") dan awalan ID ("INV-{x}").
   const stripped = s.split(SHAPE_TOKEN).join("").trim()
-  if (/[\p{L}]/u.test(stripped) === false) return true
-  if (stripped.replace(/[^\p{L}]/gu, "").length < 3) return true
-  if (/^[A-Z]{2,10}[-_ ]?$/.test(stripped)) return true // prefix ID: INV-, TX-
+  // F-09: `translate("{x}: {y}", …)` / `translate("Halaman {x} dari {y}", …)`
+  // sudah ditandai MANUSIA sebagai teks UI. Tiga heuristik "sisa teks setelah
+  // token" di bawah menebak dari bentuk (`"INV-{x}"`, `"{x}ms"`, `"INV-"`), jadi
+  // hanya berlaku untuk string yang TIDAK punya token bernama — dulu dua label
+  // aksesibilitas multi-slot (`"{x}: {y}"`) diam-diam terbuang dari kamus.
+  const explicitText = named && dynamic
+  if (!explicitText) {
+    if (/[\p{L}]/u.test(stripped) === false) return true
+    if (stripped.replace(/[^\p{L}]/gu, "").length < 3) return true
+    if (/^[A-Z]{2,10}[-_ ]?$/.test(stripped)) return true // prefix ID: INV-, TX-
+  }
   if (/^https?:\/\//.test(s)) return true
   if (/^\^|\$$/.test(s)) return true // pola regex
   if (s.startsWith("/") && !s.includes(" ")) return true // route
@@ -112,7 +124,11 @@ function isTechnical(shape) {
   // SATU kata kecil tanpa tanda baca kalimat = nilai enum/config (accept,
   // android, qris, balance), bukan teks UI. Teks UI satu kata selalu berhuruf
   // besar di awal ("Simpan", "Batal") atau berpungkur.
-  if (!dynamic && !/\s/.test(s) && !/[\p{L}][.!?:;…)"]/.test(s) && !/\p{Lu}/u.test(s)) return true
+  // Flag `u` penting: tanpa itu `[\p{L}]` bukan kelas huruf (escape-nya
+  // jadi karakter literal p/{/L/), sehingga aturan ini membuang "kata
+  // tunggal apa pun tanpa huruf besar" alih-alih "kata enum huruf kecil"
+  // — dan label seperti "(lampiran)" ikut terbuang.
+  if (!dynamic && !/\s/.test(s) && !/[\p{L}][.!?:;…)"']/u.test(s) && !/\p{Lu}/u.test(s)) return true
   if (!dynamic && /^[a-z]+[A-Z][A-Za-z]*$/.test(s)) return true // camelCase
   // Deretan kelas Tailwind (`font-sans-{x} tabular-nums`): semua suku kata
   // kecil + tanda hubung, tak ada huruf besar sama sekali.
@@ -135,13 +151,15 @@ function* walk(dir) {
 /** Kunci kamus: bentuk ternormalisasi (angka → {x}). */
 const found = new Map()
 
-function addCandidate(raw, file, kind) {
+function addCandidate(raw, file, kind, named = false) {
   const clean = collapse(raw)
   if (!clean) return
   const { shape } = shapeOf(clean)
   // Filter dijalankan pada BENTUK (angka/${expr} → {x}), bukan teks mentah,
   // supaya `{x}ms`, `INV-{x}`, dan `0 {x}px rgba(...)` ikut terbuang.
-  if (isTechnical(shape)) return
+  // `named` = string datang dari argumen `translate("… {x} …")`: token bernama
+  // di dalamnya adalah slot NILAI, bukan kurung kurawal kode (F-09).
+  if (isTechnical(shape, named)) return
   const prev = found.get(shape)
   if (prev) {
     prev.count += 1
@@ -153,10 +171,10 @@ function addCandidate(raw, file, kind) {
 }
 
 /** Ambil string literal / template dari ekspresi (termasuk di dalam ternary). */
-function collectStrings(node, sf, file, kind, depth = 0) {
+function collectStrings(node, sf, file, kind, depth = 0, named = false) {
   if (!node || depth > 4) return
   if (ts.isStringLiteralLike(node)) {
-    addCandidate(node.text, file, kind)
+    addCandidate(node.text, file, kind, named)
     return
   }
   if (ts.isTemplateExpression(node)) {
@@ -166,7 +184,7 @@ function collectStrings(node, sf, file, kind, depth = 0) {
       // runtime mengisi ulang urutannya.
       out += SLOT_TOKEN + span.literal.text
     }
-    addCandidate(out, file, kind)
+    addCandidate(out, file, kind, named)
     return
   }
   if (
@@ -180,7 +198,7 @@ function collectStrings(node, sf, file, kind, depth = 0) {
   ) {
     node.forEachChild((child) => {
       if (ts.isExpressionStatement(child)) return
-      collectStrings(child, sf, file, kind, depth + 1)
+      collectStrings(child, sf, file, kind, depth + 1, named)
     })
     return
   }
@@ -189,13 +207,11 @@ function collectStrings(node, sf, file, kind, depth = 0) {
     // E-03/E-06: literal di dalam translate()/translateProp()/t() adalah
     // kunci kamus eksplisit — WAJIB terkatalog. (Catatan: `fn` adalah teks
     // callee tanpa tanda kurung, jadi pencocokan memakai nama, bukan `\(`.)
-    if (
-      /Alert\.alert|announceForAccessibility|show\(|setString\(/.test(fn) ||
-      /(^|\.)(translate|translateProp|t)$/.test(fn)
-    ) {
+    const isTranslate = /(^|\.)(translate|translateProp|t)$/.test(fn)
+    if (/Alert\.alert|announceForAccessibility|show\(|setString\(/.test(fn) || isTranslate) {
       for (const arg of node.arguments) {
         if (ts.isObjectLiteralExpression(arg)) collectObjectStrings(arg, sf, file)
-        else collectStrings(arg, sf, file, kind, depth + 1)
+        else collectStrings(arg, sf, file, kind, depth + 1, isTranslate || named)
       }
     }
   }

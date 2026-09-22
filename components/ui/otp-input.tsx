@@ -23,6 +23,7 @@
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react"
 import { Animated, TextInput, View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { useTheme } from "@/components/theme-provider"
 import { FieldHelper } from "@/components/ui/field"
@@ -215,7 +216,7 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
          * pada TextInput tersembunyi; sekarang hanya di sini.
          */
         accessibilityRole="button"
-        accessibilityLabel={`Kode ${length} digit, ${code.length} dari ${length} terisi`}
+        accessibilityLabel={translate("Kode {x} digit, {y} dari {z} terisi", { x: length, y: code.length, z: length })}
         accessibilityValue={{ text: `${code.length} dari ${length}` }}
         className={cn("flex-row justify-between gap-2 rounded-sm", disabled && "opacity-disabled", focusRing)}
 
@@ -257,10 +258,19 @@ export const OtpInput = forwardRef<OtpInputHandle, OtpInputProps>(function OtpIn
         caretHidden
         allowFontScaling={false}
         selectionColor={tokens.colors[mode].primary}
-        /* F-03: pembungkus di atas yang mengumumkan; input tersembunyi cukup
-           tidak terlihat oleh pembaca layar agar tidak diumumkan dua kali. */
+        /*
+         * F-03: pembungkus di atas yang mengumumkan; di NATIVE input tersembunyi
+         * disembunyikan dari pembaca layar agar tidak diumumkan dua kali.
+         *
+         * F-10 (audit 2026-09-22): di WEB input inilah kontrol fokusable yang
+         * sebenarnya (div pembungkus tidak menampung ketikan), jadi ia WAJIB
+         * punya nama — sebelumnya tanpa nama sama sekali dan uji axe
+         * melaporkan `label` tingkat critical. `aria-label` dipakai karena
+         * `accessible={false}` membuat label RN diabaikan.
+         */
         accessible={false}
         importantForAccessibility="no"
+        aria-label={`Kode ${length} digit`}
         className="absolute h-1 w-1 opacity-0"
       />
 

@@ -103,6 +103,24 @@ const MAX_DIGITS = 12
  */
 const COMPACT_BELOW_HEIGHT = 760
 
+/**
+ * F-07 (audit 2026-09-22): ukuran tombol keypad nominal & jarak minimumnya.
+ *
+ * Ukuran 56/64 px sudah di ATAS target 44pt, jadi masalahnya bukan "tombol
+ * terlalu kecil" melainkan tidak adanya JAMINAN: `justify-around` membuat lebar
+ * efektif dan celah antar-kolom bergantung lebar layar, dan lebar tombol tidak
+ * dibatasi eksplisit sehingga mode padat di layar 320 px mendempetkan dua
+ * target (risiko salah-tekan pada alur uang). Karena tombolnya sudah ≥ 44pt,
+ * `hitSlop` justru SALAH di sini — area slop akan menyentuh tombol sebelah dan
+ * memperbesar peluang salah tekan, bukan mengecilkannya.
+ *
+ * Yang dipakai: `min-w`/`max-w` eksplisit per tombol + `gap` minimum di baris
+ * keypad. Invariannya dikunci test (`tests/money-components.test.tsx`).
+ */
+export const KEYPAD_KEY_SIZE = { default: 64, compact: 56 } as const
+/** Jarak minimum antar tombol (px) — `gap` baris, bukan hitSlop. */
+export const KEYPAD_KEY_GAP = 8
+
 export function AmountKeypad({
   value,
   onChange,
@@ -293,7 +311,14 @@ export function AmountKeypad({
         onPressOut={onPressOut}
         onLongPress={onLongPress}
         haptic="light"
-        containerClassName={cn("items-center rounded-full", focusRing)}
+        // `min-w`/`max-w` eksplisit (F-07): tanpa ini lebar area tekan mengikuti
+        // `justify-around`, jadi di layar lebar pun target terbesar tidak pernah
+        // ditentukan dan di layar sempit dua target bisa berdempetan.
+        containerClassName={cn(
+          "items-center justify-center rounded-full",
+          compact ? "h-14 min-w-14 max-w-14" : "h-16 min-w-16 max-w-16",
+          focusRing,
+        )}
         className={cn(
           "items-center justify-center rounded-full",
           compact ? "h-14 w-14" : "h-16 w-16",
@@ -458,7 +483,7 @@ export function AmountKeypad({
         style={{ opacity: disabled ? tokens.motion.opacity.disabled : 1 }}
       >
         {ROWS.map((row) => (
-          <View key={row.join("")} className="w-full flex-row justify-around">
+          <View key={row.join("")} className="w-full flex-row justify-around gap-2">
             {row.map((d) => (
               <Key
                 key={d}
@@ -472,7 +497,7 @@ export function AmountKeypad({
             ))}
           </View>
         ))}
-        <View className="w-full flex-row justify-around">
+        <View className="w-full flex-row justify-around gap-2">
           {/* Kiri bawah */}
           {actionKey === "00" ? (
             <Key label="00" onPress={pressDoubleZero}>

@@ -194,7 +194,14 @@ export function snoozeRatingReminder(orderId: string, untilMs: number): void {
   setUiPrefs({ ratingSnoozeUntil: next })
 }
 
-export function isRatingSnoozed(orderId: string, now = Date.now()): boolean {
+/**
+ * E-03 (audit 2026-09-22): `now` memakai domain jam SERVER karena nilai yang
+ * dibandingkan (`ratingSnoozeUntil`) ditulis di domain itu dari
+ * `serverNow() + RATING_SNOOZE_MS` (layar order). Sempat campur domain
+ * (`Date.now()` di sini): perangkat dengan jam mundur 1 hari memperpanjang
+ * penundaan 3 hari menjadi 4 hari, jam maju memangkasnya.
+ */
+export function isRatingSnoozed(orderId: string, now = serverNow()): boolean {
   const until = prefs.ratingSnoozeUntil[orderId]
   return typeof until === "number" && until > now
 }
@@ -207,6 +214,8 @@ export function recordRecentRecipient(
   recipient: Omit<RecentRecipient, "usedAt">,
 ): void {
   const next = [
+    // waktu-perangkat: `usedAt` hanya untuk mengurutkan daftar "terakhir
+    // dipakai" di perangkat ini, tidak pernah dibandingkan dengan waktu server.
     { ...recipient, usedAt: Date.now() },
     ...recents.filter((r) => r.id !== recipient.id),
   ].slice(0, RECENT_MAX)

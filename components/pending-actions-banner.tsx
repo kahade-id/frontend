@@ -22,15 +22,17 @@
 import { useMemo, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
+import { translate } from "@/lib/i18n/translate"
 
 import { X } from "phosphor-react-native"
 
-import { formatDateTime, formatRupiah } from "@/lib/format"
+import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import {
   usePendingActions,
   type PendingAction,
 } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
+import { serverNow } from "@/lib/server-time"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { cn } from "@/lib/cn"
 
@@ -52,21 +54,21 @@ function describe(action: PendingAction): { title: string; meta?: string } {
       return {
         title: `Pembayaran pesanan menunggu — ${formatRupiah(action.amount)}`,
         meta: action.expiresAt
-          ? `QRIS berlaku sampai ${formatDateTime(action.expiresAt)}`
+          ? `QRIS berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
           : "Periksa status pembayaran pesanan Anda",
       }
     case "topup-unpaid":
       return {
         title: `Top-up belum dibayar — ${formatRupiah(action.amount)}`,
         meta: action.expiresAt
-          ? `Tagihan berlaku sampai ${formatDateTime(action.expiresAt)}`
+          ? `Tagihan berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
           : "Selesaikan pembayaran di layar Top-up",
       }
     case "withdraw-otp":
       return {
         title: `Penarikan menunggu OTP — ${formatRupiah(action.amount)}`,
         meta: action.expiresAt
-          ? `Kode OTP berlaku sampai ${formatDateTime(action.expiresAt)}`
+          ? `Kode OTP berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
           : "Periksa status penarikan di layar Tarik Dana",
       }
   }
@@ -89,7 +91,12 @@ export function PendingActionsBanner() {
   const [dismissed, setDismissed] = useState<Set<string>>(new Set())
 
   const visible = useMemo(() => {
-    const now = Date.now()
+    // E-03 (audit 2026-09-22): `expiresAt` datang dari respons server (domain
+    // jam server, lihat lib/pending-actions.ts A-02). Membandingkannya dengan
+    // `Date.now()` perangkat membuat banner hilang sendiri di perangkat yang
+    // jamnya maju (padahal pembayaran masih hidup) atau bertahan setelah
+    // kedaluwarsa di perangkat yang jamnya mundur.
+    const now = serverNow()
     return actions
       .filter((a) => !a.expiresAt || a.expiresAt > now)
       .filter((a) => !dismissed.has(actionKey(a)))
@@ -106,7 +113,7 @@ export function PendingActionsBanner() {
       <View className="flex-row items-center gap-2">
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={`Buka aksi menggantung: ${info.title}`}
+          accessibilityLabel={translate("Buka aksi menggantung: {x}", { x: info.title })}
           accessibilityHint={info.meta}
           onPress={() => router.push(targetOf(primary))}
           containerClassName="flex-1"

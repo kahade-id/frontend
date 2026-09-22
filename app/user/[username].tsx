@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Pressable, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { translate } from "@/lib/i18n/translate"
 import {
   Bookmark,
   Briefcase,
@@ -34,7 +35,6 @@ import {
   Sparkle,
   UserCircle,
 } from "phosphor-react-native"
-
 import { api, isApiError, userMessage } from "@/lib/api"
 import type { HiddenReason } from "@/lib/api/users"
 
@@ -947,7 +947,7 @@ export default function UserProfileScreen() {
               <View className="flex-row flex-wrap items-center gap-4 pt-1">
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`${formatNumber(followingCount ?? 0)} mengikuti`}
+                  accessibilityLabel={translate("{x} mengikuti", { x: formatNumber(followingCount ?? 0) })}
                   hitSlop={TEXT_ROW_HIT_SLOP}
                   onPress={() => router.push(ROUTES.followers(handle, "following"))}
                 >
@@ -961,7 +961,7 @@ export default function UserProfileScreen() {
 
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`${formatNumber(followerCount ?? 0)} pengikut`}
+                  accessibilityLabel={translate("{x} pengikut", { x: formatNumber(followerCount ?? 0) })}
                   hitSlop={TEXT_ROW_HIT_SLOP}
                   onPress={() => router.push(ROUTES.followers(handle))}
                 >
@@ -976,7 +976,7 @@ export default function UserProfileScreen() {
                 {profile.rating != null ? (
                   <Pressable
                     accessibilityRole="button"
-                    accessibilityLabel={`${formatDecimal(profile.rating)} dari 5, buka ulasan`}
+                    accessibilityLabel={translate("{x} dari {y}, buka ulasan", { x: formatDecimal(profile.rating), y: 5 })}
                     hitSlop={TEXT_ROW_HIT_SLOP}
                     onPress={() => setActiveTab("ratings")}
                   >
