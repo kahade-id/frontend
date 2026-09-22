@@ -107,4 +107,5 @@ export function serverNow(): number {
 export function resetServerTime(): void {
   offsetMs = 0
   recordedAt = 0
+  resetDrift()
 }

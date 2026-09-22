@@ -32,11 +32,6 @@
         "applinks:www.kahade.id"
       ],
       "supportsTablet": false,
-      "infoPlist": {
-        "UIBackgroundModes": [
-          "remote-notification"
-        ]
-      },
       "googleServicesFile": "./GoogleService-Info.plist"
     },
     "android": {
@@ -115,8 +110,7 @@
           "icon": "./assets/images/notification-icon.png",
           "color": "#000000",
           "defaultChannel": "default",
-          "sounds": [],
-          "enableBackgroundRemoteNotifications": true
+          "sounds": []
         }
       ],
       [

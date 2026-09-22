@@ -15,6 +15,7 @@ import { afterEach, describe, expect, it } from "vitest"
 
 import {
   amountInputValue,
+  durationHoursParts,
   formatCountdown,
   formatDate,
   formatDateLong,
@@ -333,5 +334,43 @@ describe("formatFileSize (audit #5: tangga >MB)", () => {
     expect(formatFileSize(1_048_575)).toBe("1,0 MB")
     expect(formatFileSize(-5)).toBe("—")
     expect(formatFileSize(Number.NaN)).toBe("—")
+  })
+})
+
+describe("formatCountdown (K-09)", () => {
+  it("format menit dan detik (mm:ss)", () => {
+    expect(formatCountdown(65)).toBe("01:05")
+    expect(formatCountdown(0)).toBe("00:00")
+  })
+
+  it("format jam bila >= 3600 detik (h:mm:ss)", () => {
+    expect(formatCountdown(3665)).toBe("1:01:05")
+    expect(formatCountdown(7200)).toBe("2:00:00")
+  })
+
+  it("menangani nilai negatif dan non-finite dengan placeholder", () => {
+    expect(formatCountdown(-10)).toBe("00:00")
+    expect(formatCountdown(NaN)).toBe("—")
+    expect(formatCountdown(Infinity)).toBe("—")
+    expect(formatCountdown(NaN, "N/A")).toBe("N/A")
+  })
+})
+
+describe("durationHoursParts (K-09, G-05)", () => {
+  it("mengembalikan hari bila >= 24 jam", () => {
+    expect(durationHoursParts(24)).toEqual({ value: "1", unit: "hari" })
+    expect(durationHoursParts(48)).toEqual({ value: "2", unit: "hari" })
+    expect(durationHoursParts(36)).toEqual({ value: "1,5", unit: "hari" })
+  })
+
+  it("mengembalikan jam bila < 24 jam", () => {
+    expect(durationHoursParts(1)).toEqual({ value: "1", unit: "jam" })
+    expect(durationHoursParts(12)).toEqual({ value: "12", unit: "jam" })
+  })
+
+  it("mengembalikan null untuk angka non-positif atau non-finite", () => {
+    expect(durationHoursParts(0)).toBeNull()
+    expect(durationHoursParts(-5)).toBeNull()
+    expect(durationHoursParts(NaN)).toBeNull()
   })
 })

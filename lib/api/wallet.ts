@@ -497,6 +497,8 @@ export function exportWalletCsv() {
     .get<{ csv: string; filename: string }>("/v1/wallet/export/csv", {
       auth: "required",
       retry: 1,
+      // L-07: endpoint ekspor data riwayat diberi batas waktu 60 detik (default 20s)
+      timeoutMs: 60_000,
     })
     .then(({ csv }) => new Blob([csv], { type: "text/csv;charset=utf-8" }))
 }
@@ -507,6 +509,8 @@ export function exportWalletPdf() {
     .get<{ html: string; filename: string }>("/v1/wallet/export/pdf", {
       auth: "required",
       retry: 1,
+      // L-07: endpoint ekspor data riwayat diberi batas waktu 60 detik (default 20s)
+      timeoutMs: 60_000,
     })
     .then(({ html }) => new Blob([html], { type: "text/html;charset=utf-8" }))
 }

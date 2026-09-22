@@ -5,7 +5,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "any",
+  "orientation": "portrait",
   "background_color": "#FAFAF9",
   "theme_color": "#FAFAF9",
   "icons": [
@@ -26,6 +26,44 @@
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Tarik Dana",
+      "short_name": "Tarik",
+      "description": "Tarik dana dompet ke rekening bank",
+      "url": "/withdraw",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Transfer Saldo",
+      "short_name": "Transfer",
+      "description": "Kirim saldo ke sesama pengguna Kahade",
+      "url": "/transfer",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Terima Saldo",
+      "short_name": "Terima",
+      "description": "Tampilkan QR code untuk menerima transfer saldo",
+      "url": "/receive",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }
