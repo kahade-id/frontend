@@ -1154,6 +1154,8 @@ perilaku) dikunci test, dan `npm run check` tetap hijau.
 | B — sesi, auth & tamu web | `7044f32` | B-01…B-12 |
 | C — kesegaran & paginasi data | `f24f086` | C-01…C-11 |
 | D — observability, baseline UI & lubang tipe | `f71e11c` | D-01…D-12 |
+| E — domain waktu & tenggat | _lihat catatan_ | E-01…E-08 |
+| F — aksesibilitas & label dinamis | _lihat catatan_ | F-01…F-10 |
 
 ## Catatan batch C — kesegaran & paginasi data (C-01…C-11)
 
@@ -1254,3 +1256,104 @@ Ringkas, supaya perilaku yang dikunci bisa ditelusuri tanpa membaca ulang diff:
 - **Verifikasi batch D** — `npm run check` hijau: 286 test unit (22 berkas) +
   93 test komponen (8 berkas, termasuk 30 dari harness baseline D-03),
   check:screens/check:i18n/check:api/check:external-urls lolos.
+
+## Catatan batch E — domain waktu & tenggat (E-01…E-08)
+
+- **E-01** — cooldown OTP kini disimpan di domain waktu SERVER
+  (`setOtpCooldownUntil(serverNow() + cooldownS * 1000)` di `app/withdraw.tsx`,
+  jalur kirim dan kirim ulang). Offset jam perangkat tidak lagi bisa membuat
+  tombol "Kirim ulang" aktif lebih cepat dari server (dan menembus penjaga
+  rate-limit di `handleResend`).
+- **E-02** — `restart()` pada `useCountdown` (`components/ui/countdown.tsx`)
+  memakai `runToken` sehingga efek timer DIJALANKAN ULANG walau `computeEnd()`
+  mengembalikan angka yang sama untuk sumber waktu absolut (`until`). Sebelumnya
+  React me-bail-out pada `setEndAt` bernilai identik → API publik yang diam-diam
+  tidak berfungsi setelah hitungan mencapai nol.
+- **E-03** — konvensi tiga domain waktu (jam server, jam perangkat, timestamp
+  dari respons) didokumentasikan di **`docs/waktu.md`** dan dijaga gate baru
+  **`scripts/check-time-domains.mjs`** (`npm run check:time-domains`, ikut
+  `npm run check`): modul yang menyimpan timestamp lintas sesi wajib memakai
+  `serverNow()` atau memakai penanda `waktu-perangkat:` + alasan. 4 modul
+  berdomain server, 465 berkas dipindai. `lib/ui-prefs.ts` (snooze pengingat
+  rating) tetap memakai jam perangkat secara sadar — penanda itulah yang
+  mencegah regresi berikutnya.
+- **E-04** — semua tenggat yang MENGIKAT (batas konfirmasi, batas sengketa,
+  durasi perpanjangan) dirender/dibandingkan di zona WIB lewat
+  `formatDateTimeWIB`; cap waktu aktivitas (riwayat, pesan) sengaja tetap di
+  zona perangkat. Keputusan ini ditulis di `docs/waktu.md`.
+- **E-05** — kegagalan `Intl` (ICU tanpa data zona) tidak lagi senyap:
+  fallback dilaporkan sekali lewat `logWarn("format:wib-fallback")`.
+- **E-06** — `displayDate`/`formatDate` menerima opsi `timeZone` (bukan
+  di-cast di pemanggil), sehingga batas hari bisa diminta dalam WIB.
+- **E-07** — `recordServerDate` memaksa pembaruan offset bila koreksi
+  AKUMULATIF melewati ambang, bukan hanya bila satu sampel ≥ 1,5 detik.
+- **E-08** — jam perangkat yang berubah saat aplikasi berjalan ditangani dengan
+  mengukur ulang offset dari header `Date` respons berikutnya dan penjaga
+  interval berbasis pengukuran terakhir.
+- **Bukti test** — `tests/time-domains.test.ts` (3) + `tests/format.test.ts`
+  (batas WIB) + `tests/countdown` (perilaku restart/quantize lewat suite
+  komponen).
+
+## Catatan batch F — aksesibilitas & label dinamis (F-01…F-10)
+
+- **F-01** — keypad nominal (`components/ui/amount-keypad.tsx`) tidak lagi
+  `accessible` pada kontainernya, jadi 12 tombol digit kembali terlihat pembaca
+  layar; baris nominal mendapat label gabungan sendiri (**F-04**:
+  `translate("Nominal {x}", …)`).
+- **F-02** — aturan B `scripts/check-a11y.mjs` kini mendeteksi komponen lokal
+  secara TRANSITIF (`localInteractiveNames()`: definisi lokal yang merender
+  `Pressable*`/`Button`/`PressableScale`), jadi `<Key>`/`<Dot>` dan pembungkus
+  baru tidak lagi bergantung pada allowlist manual. Satu pengecualian sempit
+  ditambahkan untuk kasus sah `accessible` pada pembungkus Ber-gate
+  (`guardedByGate`: `<StatCell>` merender Skeleton saat `loading`) sehingga
+  pengecualian itu TIDAK bisa menelan temuan F-01.
+- **F-03** — pembungkus `<OtpInput>` yang menjadi target ketuk memakai
+  `accessibilityRole="button"` (bukan `none`), input tersembunyinya diberi satu
+  label dan tidak lagi menggandakan pengumuman.
+- **F-05** — `Countdown` menerima `announceEverySeconds` (default 5): label yang
+  diucapkan di-quantize di atas 30 detik, dan tetap per detik di bawah 30 detik
+  (di situ angkanya menentukan) — live region tidak lagi mengantre pengumuman
+  setiap detik selama satu menit penuh.
+- **F-06** — galat form diumumkan lewat `accessibilityRole="alert"` di
+  `Field`/`FieldHelper`/`FormSection`; `app/bank-accounts.tsx` (contoh di
+  temuan) kini memasang `errorText`.
+- **F-07** — tombol keypad mode padat diverifikasi terhadap 44pt: `hitSlop`
+  TIDAK dipakai (tombol sudah ≥ 44pt dan slop akan menumpuk ke tetangga),
+  melainkan `min-w`/`max-w` eksplisit + `gap` baris yang tetap, sehingga lebar
+  area tekan tidak lagi bergantung `justify-around`.
+- **F-08** — `Radio`/`SegmentedControl` membentuk grup ber-label
+  (`accessibilityRole="radiogroup"` + label grup) dan tiap opsi memasang
+  `aria-checked` EKSPLISIT — rn-web tidak memetakan
+  `accessibilityState.checked` → `aria-checked` (diverifikasi lewat dump DOM).
+- **F-09** — 46 `accessibilityLabel` bertemplate (38 berkas) dipindah ke
+  `translate("… {x} …", { … })`, dan pemeriksa **baru di `check-a11y`
+  (aturan K)** menolak template literal di `accessibilityLabel`. Saat
+  memperluas ini ditemukan DUA cacat katalog yang selama ini menyembunyikan
+  label ber-nilai-banyak:
+  - `gen-i18n-catalog.mjs` membuang setiap string ber-kurung kurawal yang bukan
+    `{x}` sebagai "cuplikan kode" → `translate("Halaman {x} dari {y}")` tidak
+    pernah masuk kamus. Argumen `translate()` kini dikecualikan
+    (`normalizeNamedTokens`), dan `namedTokens`/`normalizeNamedTokens`
+    diekspor dari `lib/i18n/shape.ts` sebagai definisi tunggal codegen+gate.
+  - aturan "kata tunggal tanpa huruf besar = nilai enum" memakai
+    `[\p{L}]` TANPA flag `u`, sehingga `\p{L}` jadi karakter literal dan
+    aturan itu membuang "kata tunggal apa pun tanpa huruf besar" — termasuk
+    `(lampiran)`, `(opsional)`, `(diedit)` dan fragmen kalimat seperti
+    `berkas.`. Setelah flag `u` diperbaiki, 4 string UI asli ikut masuk kamus.
+  - gate `check:i18n` menambah pemeriksaan token↔var: nama token wajib unik,
+    mengikuti urutan kanonik `x, y, z, w, u, v`, dan setiap token punya nilai di
+    objek var (tanpa ini `translate("Kode {x} digit, {y} dari {x} terisi")`
+    mencetak "3 dari 3").
+  - `delivery-proof.tsx` yang menjadi sumber fragmen `berkas.` diperbaiki ke
+    satu kalimat ber-`translate()`, jadi teks itu benar-benar bisa diterjemahkan.
+- **F-10** — suite aksi **axe-core** (`tests/a11y.test.tsx`, 12 test) berjalan
+  di `vitest.components.config.ts` atas permukaan uang & form: keypad nominal,
+  PIN/OTP, dialog, kartu saldo, status top-up, countdown. Tiga cacat nyata
+  ditemukan dan diperbaiki suite ini: `Field`+`Input` tanpa nama, `role="radio"`
+  tanpa `aria-checked`, dan input OTP tersembunyi tanpa label.
+- **i18n batch E/F** — katalog **1750 string**, terjemahan **1750/1750 (100%)**;
+  14 kunci baru dari label multi-slot + 4 kunci yang tadinya terbuang filter +
+  1 kalimat `delivery-proof`; 1 kunci mati (fragmen lama) dihapus.
+- **Verifikasi batch E/F** — `npm run check` hijau: 296 test unit (23 berkas) +
+  105 test komponen (9 berkas), check:a11y/check:screens/check:i18n/
+  check:time-domains lolos.
