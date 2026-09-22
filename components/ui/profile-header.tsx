@@ -14,9 +14,11 @@
  *     kiri. Avatar `lg` (56px), bukan `xl`: xl menyisakan kolom teks < 60%
  *     lebar di 360px.
  *   - Nama H2 (22/700) — H1 disediakan untuk judul layar; nama di dalam
- *     konten satu tingkat di bawahnya. Handle `caption text-secondary`
- *     dengan prefix "@" ditulis pemanggil (komponen tidak menambah karakter
- *     agar i18n/alias non-username tetap bisa).
+ *     konten satu tingkat di bawahnya. Handle `bodyLarge text-secondary`
+ *     (16/400): cukup dekat dengan nama untuk terbaca sebagai satu blok
+ *     identitas, cukup berbeda weight untuk tidak bersaing. Prefix "@"
+ *     ditulis pemanggil (komponen tidak menambah karakter agar i18n/alias
+ *     non-username tetap bisa).
  *   - `verified` diteruskan ke <Avatar verified> (SealCheck) DAN ditulis
  *     eksplisit sebagai Badge "Terverifikasi" di baris handle: ikon kecil di
  *     avatar saja mudah terlewat, sementara status KYC adalah sinyal trust
@@ -133,7 +135,7 @@ export function ProfileHeader({
           {loading ? (
             <>
               <Skeleton height={22} className="w-3/5" />
-              <Skeleton height={14} className="w-2/5" />
+              <Skeleton height={16} className="w-2/5" />
             </>
           ) : (
             <>
@@ -143,7 +145,20 @@ export function ProfileHeader({
               {handle || verified ? (
                 <View className="flex-row flex-wrap items-center gap-2">
                   {handle ? (
-                    <Text variant="caption" tone="secondary" numberOfLines={1}>
+                    /*
+                     * `bodyLarge` (16/26), bukan `caption` (12/18).
+                     *
+                     * Handle adalah IDENTITAS, setara nama dalam arti "siapa
+                     * ini" — tetapi versi lama menaruhnya dua tingkat di bawah
+                     * nama (22px vs 12px, rasio 1,8) dan bahkan LEBIH KECIL
+                     * daripada bio (14px) yang hanya deskripsi. Akibatnya blok
+                     * identitas terasa pincang: nama besar, lalu garis tipis
+                     * yang nyaris tidak terbaca. 16px memberi rasio ~1,4
+                     * terhadap nama (satu langkah skala yang wajar untuk
+                     * pasangan judul–subjudul) dan tetap jelas di bawah nama
+                     * karena beda weight (700 vs 400) dan tone.
+                     */
+                    <Text variant="bodyLarge" tone="secondary" numberOfLines={1}>
                       {handle}
                     </Text>
                   ) : null}

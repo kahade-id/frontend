@@ -69,6 +69,36 @@ export function SectionHeader({
   )
 }
 
+/**
+ * Label kelompok menu — judul kecil di atas satu kartu daftar.
+ *
+ * Kenapa bukan `<SectionHeader level="h3">`: SectionHeader adalah judul SEKSI
+ * konten (18–22px, tone primary) dan dirancang berdampingan dengan slot
+ * `action`. Label kelompok menu bertugas lain — menamai satu kartu daftar
+ * pengaturan — dan harus jelas LEBIH KECIL daripada baris di dalamnya
+ * (`bodyLarge` 16/600). Memakai SectionHeader di sini membuat judul kelompok
+ * bersaing dengan judul baris: layar Keamanan terbaca sebagai tumpukan empat
+ * judul besar, bukan daftar pengaturan yang tenang.
+ *
+ * `accessibilityRole="header"` dipertahankan: ukuran boleh turun, semantik
+ * heading untuk navigasi screen reader tidak boleh ikut turun.
+ */
+export function MenuGroupLabel({
+  children,
+  className,
+}: {
+  children: string
+  className?: string
+}) {
+  return (
+    <View accessibilityRole="header" className={cn("pt-2", className)}>
+      <Text ellipsizeMode="tail" variant="label" tone="secondary" numberOfLines={2}>
+        {children}
+      </Text>
+    </View>
+  )
+}
+
 export type SectionProps = Omit<SectionHeaderProps, "title"> & {
   /** Tanpa title = hanya wrapper gap; berguna untuk section anonim */
   title?: string
