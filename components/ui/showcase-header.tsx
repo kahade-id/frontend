@@ -248,7 +248,8 @@ export function ShowcaseHeader({
             accessibilityLabel="Cari showcase"
             leftIcon={MagnifyingGlass}
             clearable
-            className="rounded-full border-0 bg-surface px-4"
+            frame="none"
+            className="rounded-full bg-surface"
             containerClassName="rounded-full"
           />
         </View>

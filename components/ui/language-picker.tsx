@@ -87,7 +87,7 @@ export function LanguagePicker<C extends string = LanguageCode>({
           disabled={disabled}
           onPress={() => setOpen(true)}
         />
-        <BottomSheet visible={open} onRequestClose={() => setOpen(false)} title={label} contentClassName="px-0">
+        <BottomSheet visible={open} onRequestClose={() => setOpen(false)} title={label} padding="horizontal">
           <SelectOptionList
             options={selectOptions}
             value={value}

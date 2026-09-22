@@ -83,6 +83,16 @@ export type InputProps = Omit<TextInputProps, "style" | "editable"> &
     rows?: number
     className?: string
     containerClassName?: string
+    /**
+     * H-06 (audit 2026-09-22): kontrak EKSPLISIT untuk field yang tidak ingin
+     * border bawaan (mis. kolom pencarian berbentuk pil dengan latar permukaan).
+     * Sebelumnya pemanggil menulis `border-0` di `className` dan hasilnya
+     * bergantung tailwind-merge: `border-0` (lebar) vs `border-error`/
+     * `border-focus` (varian state) bisa dianggap properti berbeda sehingga
+     * garis error/focus tetap muncul. `frame="none"` melepas SELURUH kelas
+     * frame (border + padding kompensasinya) dari komponen.
+     */
+    frame?: "default" | "none"
   }
 
 const LABEL_FLOAT_Y = -(tokens.space[3] + tokens.space[2]) // -20px: dari tengah ke garis border
@@ -105,6 +115,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     clearable,
     onClear,
     rows = 4,
+    frame = "default",
     value,
     defaultValue,
     placeholder,
@@ -221,11 +232,13 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
           "w-full flex-row rounded-sm bg-background",
           isMultiline ? "items-start py-4" : "items-center",
           // Border: resting 1px default -> focus/error 1.5px, padding dikompensasi
-          hasError
-            ? "border-error border-border-error px-[15px]"
-            : focused
-              ? "border-focus border-border-focus px-[15px]"
-              : "border border-border-control px-4",
+          frame === "none"
+            ? "border-0 px-4"
+            : hasError
+              ? "border-error border-border-error px-[15px]"
+              : focused
+                ? "border-focus border-border-focus px-[15px]"
+                : "border border-border-control px-4",
           boxHeight,
           disabled && "opacity-disabled",
           className,

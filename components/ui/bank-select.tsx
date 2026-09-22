@@ -120,7 +120,7 @@ export function BankSelect({ banks, value, onChange, popularCodes, label, labels
         title={t.sheetTitle}
         avoidKeyboard
         onHidden={() => setQuery("")}
-        contentClassName="px-0 pb-0"
+        padding="none"
       >
         <View className="px-5 pb-3">
           <SearchField value={query} onChangeText={setQuery} placeholder={t.searchPlaceholder} autoFocus />

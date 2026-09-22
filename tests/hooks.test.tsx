@@ -17,6 +17,7 @@ import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, mergeById, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { clearBackpressure, recordBackpressure, backpressureRemainingMs } from "@/lib/api/backpressure"
 import { usePolling } from "@/lib/use-polling"
+import { RESULT_HOLD_MS, useResultTimer } from "@/lib/use-result-timer"
 import { __setFocused } from "./stubs/react-navigation"
 
 beforeEach(() => {
@@ -538,5 +539,53 @@ describe("C-09: usePolling memperlambat saat server menekan", () => {
     await vi.advanceTimersByTimeAsync(1_000)
     expect(ticks).toHaveLength(3)
     expect(backpressureRemainingMs()).toBe(0)
+  })
+})
+
+describe("H-09: useResultTimer — timer per alur", () => {
+  it("dua alur berbeda tidak saling membatalkan", () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useResultTimer())
+    const pay = vi.fn()
+    const accept = vi.fn()
+    act(() => {
+      result.current(pay, "pay")
+      result.current(accept, "accept")
+    })
+    act(() => {
+      vi.advanceTimersByTime(RESULT_HOLD_MS)
+    })
+    // Sebelum H-09, `accept` membatalkan `pay` dan hanya satu yang jalan.
+    expect(pay).toHaveBeenCalledTimes(1)
+    expect(accept).toHaveBeenCalledTimes(1)
+  })
+
+  it("alur yang sama dijadwalkan ulang → hanya yang terbaru yang jalan", () => {
+    vi.useFakeTimers()
+    const { result } = renderHook(() => useResultTimer())
+    const first = vi.fn()
+    const second = vi.fn()
+    act(() => {
+      result.current(first, "pay")
+      vi.advanceTimersByTime(RESULT_HOLD_MS / 2)
+      result.current(second, "pay")
+      vi.advanceTimersByTime(RESULT_HOLD_MS)
+    })
+    expect(first).not.toHaveBeenCalled()
+    expect(second).toHaveBeenCalledTimes(1)
+  })
+
+  it("unmount membatalkan timer yang masih hidup", () => {
+    vi.useFakeTimers()
+    const { result, unmount } = renderHook(() => useResultTimer())
+    const action = vi.fn()
+    act(() => {
+      result.current(action, "pay")
+    })
+    unmount()
+    act(() => {
+      vi.advanceTimersByTime(RESULT_HOLD_MS * 2)
+    })
+    expect(action).not.toHaveBeenCalled()
   })
 })

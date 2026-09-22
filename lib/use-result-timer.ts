@@ -18,21 +18,38 @@ import { useCallback, useEffect, useRef } from "react"
 export const RESULT_HOLD_MS = 1400
 
 export function useResultTimer() {
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /**
+   * H-09 (audit 2026-09-22): dulu HANYA SATU timer. Kalau satu layar punya
+   * dua alur yang menghasilkan hasil (mis. pembayaran DAN terima pesanan, atau
+   * aksi pengguna DAN hasil polling yang tiba bersamaan), alur kedua diam-diam
+   * MEMBATALKAN yang pertama — salah satu hasil tidak pernah tampil dan
+   * overlay menggantung selamanya. Sekarang timer dipisah per `key`:
+   * pengulangan dengan key yang sama tetap saling mengganti (yang terbaru
+   * menang), tetapi antar-alur tidak lagi saling menghapus.
+   */
+  const timers = useRef(new Map<string, ReturnType<typeof setTimeout>>())
 
   useEffect(
     () => () => {
-      if (timer.current) clearTimeout(timer.current)
+      for (const t of timers.current.values()) clearTimeout(t)
+      timers.current.clear()
     },
     [],
   )
 
-  /** Jadwalkan `action` setelah RESULT_HOLD_MS; timer sebelumnya dibatalkan. */
-  return useCallback((action: () => void) => {
-    if (timer.current) clearTimeout(timer.current)
-    timer.current = setTimeout(() => {
-      timer.current = null
-      action()
-    }, RESULT_HOLD_MS)
+  /**
+   * Jadwalkan `action` setelah RESULT_HOLD_MS. `key` = nama alur (mis. "pay",
+   * "accept"); default "default" untuk layar dengan satu alur.
+   */
+  return useCallback((action: () => void, key = "default") => {
+    const existing = timers.current.get(key)
+    if (existing) clearTimeout(existing)
+    timers.current.set(
+      key,
+      setTimeout(() => {
+        timers.current.delete(key)
+        action()
+      }, RESULT_HOLD_MS),
+    )
   }, [])
 }

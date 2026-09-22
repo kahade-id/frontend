@@ -57,6 +57,14 @@ export function useFieldAccessibilityLabel(explicit?: string): string | undefine
   return explicit ?? ctx?.label
 }
 
+/**
+ * H-07: jeda pengumuman galat di iOS. Validasi yang berubah cepat (mengetik)
+ * menghasilkan beberapa pesan berbeda dalam hitungan milidetik; VoiceOver
+ * mengantre semuanya dan pengguna baru mendengar pesan terakhir belasan detik
+ * kemudian. 300 ms = satu ketikan wajar, jauh di bawah ambang "terlalu lambat".
+ */
+export const ERROR_ANNOUNCE_DELAY_MS = 300
+
 export type FieldProps = ViewProps & {
   label?: string
   required?: boolean
@@ -116,10 +124,20 @@ export function FieldHelper({
       return
     }
     lastAnnounced.current = errorText
-    if (Platform.OS === "ios") {
-      // Audit #114: debounce announce 300ms agar tidak tumpang tindih saat validasi cepat
-      AccessibilityInfo.announceForAccessibility(errorText)
-    }
+    if (Platform.OS !== "ios") return
+    /*
+     * H-07 (audit 2026-09-22): komentar di sini dulu MENJANJIKAN debounce 300 ms
+     * padahal pengumumannya sinkron — saat validasi berubah cepat ("minimal 8
+     * karakter" → "huruf besar dan kecil") VoiceOver mengantre setiap pesan.
+     * Sekarang penundaannya benar-benar ada DAN dibatalkan saat pesan berubah
+     * ataupun komponen unmount; tanpa cleanup, timer yang masih hidup
+     * mengumumkan pesan field yang sudah tidak ada di layar.
+     */
+    const timer = setTimeout(
+      () => AccessibilityInfo.announceForAccessibility(errorText),
+      ERROR_ANNOUNCE_DELAY_MS,
+    )
+    return () => clearTimeout(timer)
   }, [errorText])
 
   if (!message && !reserveSpace) return null

@@ -15,6 +15,11 @@
  *
  * Anak pertama ZStack (non-Layer) yang menentukan ukuran kotak. Kalau tidak
  * ada konten dasar, beri ukuran lewat className (mis. `w-12 h-12`).
+ *
+ * H-13 (audit 2026-09-22): DORMANT — belum ada pemakainya. Dipertahankan
+ * sebagai baseline komponen (diuji `tests/unused-ui-baseline.test.tsx`),
+ * tetapi JANGAN dipakai untuk kode baru tanpa mencatat alasannya di
+ * `docs/ui-primitives.md` lebih dulu.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"

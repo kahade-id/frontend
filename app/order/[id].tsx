@@ -240,7 +240,7 @@ export default function OrderDetailScreen() {
   // "biometrik → tiket konfirmasi", jadi prompt biometrik yang "sukses"
   // tidak pernah mengirim apa pun. Biometrik hidup di kunci aplikasi
   // (components/app-lock-gate.tsx), bukan di konfirmasi dana.
-  const scheduleResult = useResultTimer()
+  const scheduleResult = useResultTimer() // H-09: timer per alur (lihat lib/use-result-timer.ts)
 
   const submitLock = useRef(false)
 
@@ -351,7 +351,7 @@ export default function OrderDetailScreen() {
           setPayProgress(null)
           closeSheet()
           void query.refresh()
-        })
+        }, "pay")
       } catch (err) {
         /*
          * A-15 (audit 2026-09-22): timeout/jaringan berarti debit MUNGKIN sudah
@@ -375,7 +375,7 @@ export default function OrderDetailScreen() {
         scheduleResult(() => {
           setPayProgress(null)
           setPinError(msg)
-        })
+        }, "pay")
       } finally {
         submitLock.current = false
         setSubmitting(false)

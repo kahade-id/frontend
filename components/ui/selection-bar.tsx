@@ -47,6 +47,13 @@ export type SelectionAction = {
   icon: IconComponent
   tone?: "default" | "danger"
   disabled?: boolean
+  /**
+   * H-12 (audit 2026-09-22): status TERPILIH untuk aksi yang bersifat toggle
+   * (mis. "Pin" yang sudah aktif). Tanpa ini, pembaca layar hanya mendengar
+   * label aksi dan pengguna tidak tahu keadaan sekarang — padahal menekannya
+   * akan MENGUBAH keadaan itu.
+   */
+  selected?: boolean
   onPress: () => void
   accessibilityHint?: string
 }
@@ -161,7 +168,7 @@ export function SelectionBar({
                 accessibilityRole="button"
                 accessibilityLabel={action.label}
                 accessibilityHint={action.accessibilityHint}
-                accessibilityState={{ disabled: !!action.disabled }}
+                accessibilityState={{ disabled: !!action.disabled, selected: action.selected }}
                 disabled={action.disabled}
                 scaleOnPress={false}
                 ripple

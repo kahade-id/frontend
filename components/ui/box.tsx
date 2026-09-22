@@ -15,6 +15,11 @@
  * Perbedaan dengan Surface/Card: Surface = fill tanpa geometri, Card = kontrak
  * visual kartu (radius md + border + padding 20). Box = bebas dikombinasi,
  * untuk layout internal komponen lain.
+ *
+ * H-13 (audit 2026-09-22): DORMANT — belum ada pemakainya. Dipertahankan
+ * sebagai baseline komponen (diuji `tests/unused-ui-baseline.test.tsx`),
+ * tetapi JANGAN dipakai untuk kode baru tanpa mencatat alasannya di
+ * `docs/ui-primitives.md` lebih dulu.
  */
 import { forwardRef, type ReactNode } from "react"
 import { View, type View as RNView, type ViewProps } from "react-native"

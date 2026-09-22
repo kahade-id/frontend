@@ -54,6 +54,17 @@ import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { haptic } from "@/lib/haptics"
 import { focusRing } from "@/lib/focus-ring"
 
+/**
+ * H-02 (audit 2026-09-22): satu-satunya tempat yang mengubah NILAI state form
+ * menjadi string digit. `String(1e21)` menghasilkan "1e+21" dan
+ * `parseInt("1e+21")` = 1 — keypad lalu menampilkan "Rp1" untuk nilai yang
+ * tidak aman, padahal `Number.isFinite(1e21)` true. Nilai non-safe diperlakukan
+ * sebagai "tidak ada nominal" supaya tidak pernah ada digit bohongan di layar.
+ */
+function digitsFromValue(value: number): string {
+  return Number.isSafeInteger(value) && value > 0 ? String(value) : ""
+}
+
 export type AmountKeypadProps = Omit<ViewProps, "children"> & {
   value: number
   onChange: (value: number) => void
@@ -145,7 +156,7 @@ export function AmountKeypad({
   // Kita simpan digits sebagai string (digit mentah) supaya ketikan terasa
   // natural (tidak melompat saat ribuan bertambah); value ke pemanggil
   // adalah hasil parseInt.
-  const digits = useMemo(() => (value > 0 ? String(value) : ""), [value])
+  const digits = useMemo(() => digitsFromValue(value), [value])
   const [cursorVisible, setCursorVisible] = useState(true)
 
   const displayed = useMemo(() => {
@@ -222,10 +233,10 @@ export function AmountKeypad({
   const pressBackspace = useCallback(() => {
     if (disabled) return
     if (digits.length === 0) return
-    haptic("select")
-    const next = digits.slice(0, -1)
-    onChange(next.length === 0 ? 0 : parseInt(next, 10))
-  }, [digits, disabled, onChange])
+    // H-02: lewat jalur commit yang sama, jadi nilai yang keluar dari keypad
+    // SELALU safe integer — bukan hanya di tombol digit/00.
+    commitDigits(digits.slice(0, -1))
+  }, [commitDigits, digits, disabled])
 
   const pressDoubleZero = useCallback(() => {
     if (disabled) return

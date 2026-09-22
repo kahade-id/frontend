@@ -532,6 +532,12 @@ const LINE_CEILING = new Map([
   // konstanta tipe berkas dipadatkan -> 917. Plafon TURUN mengikuti fakta.
   ["app/dispute/[id].tsx", 917],
   ["app/showcase/[id].tsx", 916],
+  // H-04 (audit 2026-09-22): PullToRefresh 881 baris menyembunyikan mesin
+  // gestur PanResponder di dalam satu komponen monolitik. Layar-layar sudah
+  // dipantau sejak lama, komponennya belum — masuk daftar pada ukuran
+  // SEKARANG, jadi ia hanya boleh menyusut (ekstrak mesin gesturnya saat
+  // disentuh berikutnya).
+  ["components/ui/pull-to-refresh.tsx", 885],
 ])
 for (const [file, ceiling] of LINE_CEILING) {
   const entry = allSources.find((f) => f.path === file)

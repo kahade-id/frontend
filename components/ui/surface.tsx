@@ -17,6 +17,11 @@
  * Kenapa bukan sekadar `<View className="bg-surface">` (non-obvious): nama
  * level memaksa pemanggil memilih dari 4 layer yang ada, bukan mengarang
  * warna abu baru dengan bg-gray-*. Ini penjaga disiplin palet 3–5 warna.
+ *
+ * H-13 (audit 2026-09-22): DORMANT — belum ada pemakainya. Dipertahankan
+ * sebagai baseline komponen (diuji `tests/unused-ui-baseline.test.tsx`),
+ * tetapi JANGAN dipakai untuk kode baru tanpa mencatat alasannya di
+ * `docs/ui-primitives.md` lebih dulu.
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"

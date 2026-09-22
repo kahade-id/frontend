@@ -84,7 +84,7 @@ export function ActionSheet({
       // melakukan apa-apa. Batasi drag ke handle/header; area aksi tetap murni
       // target tekan.
       dragArea="handle"
-      contentClassName="px-0 pt-0 pb-0"
+      padding="none"
       footer={
         showActionFooter ? (
           <Button variant="secondary" onPress={onRequestClose}>
