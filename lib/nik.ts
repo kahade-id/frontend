@@ -105,7 +105,9 @@ export function validateNikStructure(value: string): NikValidation {
   if (day > maxDay) return { valid: false, reason: "BIRTH_DATE" }
 
   const serial = Number(nik.slice(12, 16))
-  if (serial < 1 || serial > 9999) return { valid: false, reason: "SERIAL" }
+  // K-08 (audit): nik.slice(12, 16) selalu 0–9999 karena sudah lolos cek \d{16},
+  // jadi serial > 9999 adalah kondisi mati. Hanya serial 0000 yang ditolak.
+  if (serial < 1) return { valid: false, reason: "SERIAL" }
 
   return { valid: true, encodedGender }
 }

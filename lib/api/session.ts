@@ -228,21 +228,31 @@ export function getDeviceId(): Promise<string> {
   return deviceIdPromise
 }
 
+let cachedAppVersion: string | undefined
+let cachedDeviceInfo: string | undefined
+
 /**
  * Deskripsi perangkat untuk `LoginDto.deviceInfo` (maxLength 512) & header
  * X-Device-Info. Contoh: "Kahade/0.1.0 (iOS 17.5; Apple iPhone 15)".
+ * L-06: Dimemoize agar tidak dihitung ulang tiap HTTP request.
  */
 export function getDeviceInfo(): string {
-  const appVersion = installedAppVersion() ?? "unknown"
-  const os = `${Device.osName ?? Platform.OS} ${Device.osVersion ?? ""}`.trim()
-  const model =
-    [Device.brand, Device.modelName].filter(Boolean).join(" ") ||
-    (Platform.OS === "web" ? "Web" : "Unknown")
-  return `Kahade/${appVersion} (${os}; ${model})`.slice(0, 512)
+  if (!cachedDeviceInfo) {
+    const appVersion = getAppVersion()
+    const os = `${Device.osName ?? Platform.OS} ${Device.osVersion ?? ""}`.trim()
+    const model =
+      [Device.brand, Device.modelName].filter(Boolean).join(" ") ||
+      (Platform.OS === "web" ? "Web" : "Unknown")
+    cachedDeviceInfo = `Kahade/${appVersion} (${os}; ${model})`.slice(0, 512)
+  }
+  return cachedDeviceInfo
 }
 
 export function getAppVersion(): string {
-  return installedAppVersion() ?? "unknown"
+  if (!cachedAppVersion) {
+    cachedAppVersion = installedAppVersion() ?? "unknown"
+  }
+  return cachedAppVersion
 }
 
 // ------------------------------------------------------------------

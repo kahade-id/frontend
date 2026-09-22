@@ -1,6 +1,6 @@
 {
   "name": "kahade",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -26,6 +26,7 @@
     "check:api:soft": "node scripts/check-api.mjs && node scripts/check-api-body.mjs",
     "check": "npm run typecheck && npm run lint && npm run check:tokens && npm run audit:classes && npm run check:a11y && npm run check:screens && npm run check:inventory && npm run check:spec && npm run check:api && npm run check:weblinks && npm run check:external-urls && npm run check:time-domains && npm run check:push && npm run check:permissions && npm run check:i18n && npm test && npm run test:components",
     "ota:preflight": "node scripts/check-ota.mjs",
+    "ota:rollback": "node scripts/ota-rollback.mjs",
     "audit:inventory": "node scripts/audit-inventory.mjs",
     "audit:classes": "node scripts/audit-class-conflicts.mjs --check",
     "build:web": "EXPO_OFFLINE=1 expo export --platform web && node scripts/gen-web-meta.mjs && node scripts/gen-fcm-sw.mjs",

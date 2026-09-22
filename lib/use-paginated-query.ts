@@ -5,6 +5,8 @@ import { useGuestPathBlocked } from "@/lib/guest-gate"
 import type { Page } from "@/lib/api/response"
 
 export function mergeById<T extends { id: string }>(previous: T[], incoming: T[]): T[] {
+  if (previous.length === 0) return incoming
+  if (incoming.length === 0) return previous
   const values = new Map(previous.map((item) => [item.id, item]))
   for (const item of incoming) values.set(item.id, item)
   return [...values.values()]
