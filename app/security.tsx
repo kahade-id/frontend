@@ -35,6 +35,14 @@
  *   - Tanpa subtitle & tanpa border kartu (mengikuti keputusan desain menu
  *     Pengaturan): judul `bodyLarge` + latar `bg-surface` + `rounded-md`,
  *     tanpa pemisah antar baris.
+ *   - Judul kelompok memakai <MenuGroupLabel> (label 13/600 secondary), BUKAN
+ *     <SectionHeader> (h2 22/700). Permintaan produk: "judul sectionnya kecil
+ *     saja seperti di pengaturan". Keduanya layar daftar pengaturan dengan
+ *     anatomi identical — kartu `bg-surface` berisi baris `bodyLarge` — jadi
+ *     hierarkinya pun harus identical: judul kelompok menamai kartu, bukan
+ *     bersaing dengan judul baris di dalamnya. Komponennya dibagikan lewat
+ *     components/ui/section.tsx supaya Pengaturan dan Keamanan tidak bisa
+ *     menyimpang lagi secara diam-diam.
  */
 import { View } from "react-native"
 import {
@@ -60,7 +68,7 @@ import { logWarn } from "@/lib/telemetry"
 import { DataScreen } from "@/components/ui/data-screen"
 import { ListItem } from "@/components/ui/list-item"
 import { SensitiveText } from "@/components/ui/sensitive-text"
-import { SectionHeader } from "@/components/ui/section"
+import { MenuGroupLabel } from "@/components/ui/section"
 
 const NO_BIOMETRIC: BiometricCapability = { available: false, kind: "none", label: "biometrik" }
 
@@ -98,120 +106,131 @@ export default function SecurityScreen() {
       errorTitle="Gagal memuat pengaturan keamanan"
     >
       {/* ── Kredensial masuk ───────────────────────────────── */}
-      <SectionHeader title="Kredensial" />
-      <View className="w-full overflow-hidden rounded-md bg-surface">
-        <ListItem
-          title="Ganti Email"
-          titleVariant="bodyLarge"
-          leading={Mailbox}
-          chevron
-          href={ROUTES.changeEmail}
-          trailing={
-            me?.email ? (
-              <SensitiveText
-                value={me.email}
-                mask="email"
-                mono={false}
-                variant="caption"
-                tone="secondary"
-                toggleable={false}
-              />
-            ) : undefined
-          }
-        />
-        <ListItem
-          title="Ganti Nomor HP"
-          titleVariant="bodyLarge"
-          leading={Phone}
-          chevron
-          href={ROUTES.changePhone}
-          trailing={
-            me?.phoneNumber ? (
-              <SensitiveText
-                value={me.phoneNumber}
-                mask="phone"
-                mono={false}
-                variant="caption"
-                tone="secondary"
-                toggleable={false}
-              />
-            ) : undefined
-          }
-        />
-        <ListItem
-          title="Ganti Kata Sandi"
-          titleVariant="bodyLarge"
-          leading={Key}
-          chevron
-          href={ROUTES.changePassword}
-        />
-        <ListItem
-          title="Ganti PIN"
-          titleVariant="bodyLarge"
-          leading={LockKey}
-          chevron
-          href={ROUTES.changePin}
-        />
+      <View className="gap-2">
+        <MenuGroupLabel>Kredensial</MenuGroupLabel>
+        <View className="w-full overflow-hidden rounded-md bg-surface">
+          <ListItem
+            title="Ganti Email"
+            titleVariant="bodyLarge"
+            leading={Mailbox}
+            chevron
+            href={ROUTES.changeEmail}
+            trailing={
+              me?.email ? (
+                <SensitiveText
+                  value={me.email}
+                  mask="email"
+                  mono={false}
+                  variant="caption"
+                  tone="secondary"
+                  toggleable={false}
+                />
+              ) : undefined
+            }
+          />
+          <ListItem
+            title="Ganti Nomor HP"
+            titleVariant="bodyLarge"
+            leading={Phone}
+            chevron
+            href={ROUTES.changePhone}
+            trailing={
+              me?.phoneNumber ? (
+                <SensitiveText
+                  value={me.phoneNumber}
+                  mask="phone"
+                  mono={false}
+                  variant="caption"
+                  tone="secondary"
+                  toggleable={false}
+                />
+              ) : undefined
+            }
+          />
+          <ListItem
+            title="Ganti Kata Sandi"
+            titleVariant="bodyLarge"
+            leading={Key}
+            chevron
+            href={ROUTES.changePassword}
+          />
+          <ListItem
+            title="Ganti PIN"
+            titleVariant="bodyLarge"
+            leading={LockKey}
+            chevron
+            href={ROUTES.changePin}
+          />
+        </View>
+
       </View>
 
       {/* ── Kunci perangkat ────────────────────────────────── */}
-      <SectionHeader title="Kunci Perangkat" />
-      <View className="w-full overflow-hidden rounded-md bg-surface">
-        <ListItem
-          title="Biometrik"
-          titleVariant="bodyLarge"
-          leading={Fingerprint}
-          chevron
-          href={ROUTES.biometricSettings}
-          trailing={biometricLabel}
-        />
-        <ListItem
-          title="Verifikasi 2 Langkah"
-          titleVariant="bodyLarge"
-          leading={ShieldCheck}
-          chevron
-          href={ROUTES.twoFactor}
-          trailing={twoFactorLabel}
-        />
+      <View className="gap-2">
+        <MenuGroupLabel>Kunci Perangkat</MenuGroupLabel>
+        <View className="w-full overflow-hidden rounded-md bg-surface">
+          <ListItem
+            title="Biometrik"
+            titleVariant="bodyLarge"
+            leading={Fingerprint}
+            chevron
+            href={ROUTES.biometricSettings}
+            trailing={biometricLabel}
+          />
+          <ListItem
+            title="Verifikasi 2 Langkah"
+            titleVariant="bodyLarge"
+            leading={ShieldCheck}
+            chevron
+            href={ROUTES.twoFactor}
+            trailing={twoFactorLabel}
+          />
+        </View>
+
       </View>
 
       {/* ── Perangkat & data ───────────────────────────────── */}
-      <SectionHeader title="Perangkat & Data" />
-      <View className="w-full overflow-hidden rounded-md bg-surface">
-        <ListItem
-          title="Perangkat & Log"
-          titleVariant="bodyLarge"
-          leading={DeviceMobile}
-          chevron
-          href={ROUTES.securityActivity}
-        />
-        <ListItem
-          title="Pengaturan Privasi"
-          titleVariant="bodyLarge"
-          leading={UserFocus}
-          chevron
-          href={ROUTES.privacySettings}
-        />
-        <ListItem
-          title="Pengguna Diblokir"
-          titleVariant="bodyLarge"
-          leading={UserMinus}
-          chevron
-          href={ROUTES.blockedUsers}
-        />
+      <View className="gap-2">
+        <MenuGroupLabel>Perangkat & Data</MenuGroupLabel>
+        <View className="w-full overflow-hidden rounded-md bg-surface">
+          <ListItem
+            title="Perangkat & Log"
+            titleVariant="bodyLarge"
+            leading={DeviceMobile}
+            chevron
+            href={ROUTES.securityActivity}
+          />
+          <ListItem
+            title="Pengaturan Privasi"
+            titleVariant="bodyLarge"
+            leading={UserFocus}
+            chevron
+            href={ROUTES.privacySettings}
+          />
+          <ListItem
+            title="Pengguna Diblokir"
+            titleVariant="bodyLarge"
+            leading={UserMinus}
+            chevron
+            href={ROUTES.blockedUsers}
+          />
+        </View>
+
       </View>
 
       {/* ── Zona berbahaya ─────────────────────────────────── */}
-      <SectionHeader title="Zona Berbahaya" />
-      <View className="w-full overflow-hidden rounded-md bg-surface">
-        <ListItem
-          title="Hapus Akun"
-          titleVariant="bodyLarge"
-          leading={Trash}
-          chevron
-          destructive
-          href={ROUTES.deleteAccount}
-        />
+      <View className="gap-2">
+        <MenuGroupLabel>Zona Berbahaya</MenuGroupLabel>
+        <View className="w-full overflow-hidden rounded-md bg-surface">
+          <ListItem
+            title="Hapus Akun"
+            titleVariant="bodyLarge"
+            leading={Trash}
+            chevron
+            destructive
+            href={ROUTES.deleteAccount}
+          />
+        </View>
       </View>
     </DataScreen>
   )

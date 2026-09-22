@@ -155,6 +155,15 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
   )
 }
 
+/**
+ * J-14: lama penundaan pengingat ulasan sekali tekan "Ingatkan nanti".
+ *
+ * Tinggal bersama fungsi snooze-nya (bukan di layar detail order) karena ini
+ * kebijakan fitur, bukan angka presentasi: layar mana pun yang nanti ikut
+ * menunda pengingat harus memakai jendela yang sama.
+ */
+export const RATING_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000
+
 /** Tunda pengingat ulasan satu order sampai `untilMs` (J-14). */
 export function snoozeRatingReminder(orderId: string, untilMs: number): void {
   const next = { ...prefs.ratingSnoozeUntil, [orderId]: untilMs }

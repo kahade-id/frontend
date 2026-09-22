@@ -9,7 +9,25 @@
  *   3. Web      : tidak ada hover state (§11) — cursor pointer saja (default
  *                 RN Web untuk Pressable dengan onPress).
  *
- * KEPUTUSAN PRODUK DISENGAJA & DIKONFIRMASI TIM (bukan default yang belum dipikirkan): scale seragam 0.97, tanpa ripple Android, tanpa hover web — JANGAN "diperbaiki" tanpa keputusan tim baru.
+ * KEPUTUSAN PRODUK DISENGAJA & DIKONFIRMASI TIM (bukan default yang belum dipikirkan): scale seragam 0.97, tanpa hover web — JANGAN "diperbaiki" tanpa keputusan tim baru.
+ *
+ * Ripple (revisi 2026-09-21, permintaan pemilik produk): permukaan yang
+ * DISAPU JARI — baris list (chat, notifikasi) dan item bottom navigation —
+ * kini memakai umpan balik ripple lewat prop opt-in `ripple`. Keputusan lama
+ * "tanpa ripple Android" diganti untuk kategori permukaan itu saja; Button,
+ * IconButton, Chip, Card, dan kontrol form TETAP tanpa ripple (scale/underlay
+ * mereka sudah cukup, dan ripple di dalam kartu beradius kecil terlihat
+ * berminyak). Jangan menyalakan `ripple` di luar kategori yang disebut di
+ * atas tanpa keputusan produk baru.
+ *
+ * Dua mekanisme, satu token (`tokens.colors[mode].pressed`):
+ *   - Android : `android_ripple` native (Material), digambar di belakang isi
+ *     baris sehingga teks tetap tajam, dan otomatis terpotong mengikuti
+ *     radius kontainer.
+ *   - iOS/web : tidak ada ripple native → underlay `bg-pressed` (lapisan
+ *     absolut seukuran kontainer) yang menyala saat ditekan, persis pola
+ *     TouchableHighlight. Kontainer diberi `overflow-hidden` supaya lapisan
+ *     itu mengikuti radius (chip/pill) alih-alih menonjol keluar.
  *
  * Kenapa transform lewat RN `Animated` + inner View (non-obvious):
  *   - Transform yang dianimasikan adalah "hal yang tidak bisa di-className",
@@ -29,7 +47,7 @@
  *   - Opsional & opt-in agar Button/IconButton/ListItem biasa tetap sunyi;
  *     hanya aksi penting (konfirmasi PIN, kirim dana) yang menyalakannya.
  */
-import { forwardRef, useCallback, useEffect, useRef } from "react"
+import { forwardRef, useCallback, useEffect, useRef, useState } from "react"
 import {
   Animated,
   Easing,
@@ -39,6 +57,7 @@ import {
   type PressableProps,
   type View as RNView,
 } from "react-native"
+import { useColorScheme } from "nativewind"
 
 import { cn } from "@/lib/cn"
 import { useTransformAwarePressable } from "@/components/ui/gesture-pressable"
@@ -56,6 +75,12 @@ export type PressableScaleProps = Omit<PressableProps, "style" | "children"> & {
   scaleOnPress?: boolean
   /** Getaran saat ditekan. `true` = "light". Default OFF (§8). */
   haptic?: boolean | HapticKind
+  /**
+   * Umpan balik sentuh "ripple" untuk permukaan yang disapu jari (baris list,
+   * item tab bar). Android memakai `android_ripple` native; iOS/web memakai
+   * underlay `bg-pressed` (lihat docblock di atas). Default OFF.
+   */
+  ripple?: boolean
   children?: React.ReactNode
 }
 
@@ -65,6 +90,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     containerClassName,
     scaleOnPress = true,
     haptic = false,
+    ripple = false,
     disabled,
     onPressIn,
     onPressOut,
@@ -94,6 +120,22 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   // dan state a11y; komponen turunan (Button, Chip, Card) otomatis ikut.
   const reducedMotion = useReducedMotion()
   const shouldScale = scaleOnPress && !reducedMotion
+
+  // ── Ripple (opt-in) ────────────────────────────────────────────────────
+  // Warna satu token untuk dua mekanisme: `android_ripple` (Android) dan
+  // underlay `bg-pressed` (iOS/web). Mode dibaca dari nativewind langsung
+  // (bukan useTheme()) supaya primitif ini tetap bisa dirender di luar
+  // ThemeProvider — nilainya identik, ThemeProvider hanya menyimpan preferensi.
+  const { colorScheme } = useColorScheme()
+  const rippleColor = tokens.colors[colorScheme === "dark" ? "dark" : "light"].pressed
+  /** Underlay hanya dibutuhkan platform tanpa ripple native. */
+  const useUnderlay = ripple && Platform.OS !== "android"
+  const [pressed, setPressed] = useState(false)
+  useEffect(() => {
+    // Prop ripple mati saat sedang ditekan (mis. masuk mode pilih) → jangan
+    // tinggalkan underlay menyala.
+    if (!useUnderlay) setPressed(false)
+  }, [useUnderlay])
 
   const animateTo = useCallback(
     (to: number) => {
@@ -129,18 +171,20 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   const handlePressIn = useCallback(
     (e: GestureResponderEvent) => {
       if (shouldScale) animateTo(tokens.motion.scale.press)
+      if (useUnderlay) setPressed(true)
       if (haptic) fireHaptic(haptic === true ? "light" : haptic)
       onPressIn?.(e)
     },
-    [animateTo, haptic, onPressIn, shouldScale],
+    [animateTo, haptic, onPressIn, shouldScale, useUnderlay],
   )
 
   const handlePressOut = useCallback(
     (e: GestureResponderEvent) => {
       if (shouldScale) animateTo(1)
+      if (useUnderlay) setPressed(false)
       onPressOut?.(e)
     },
-    [animateTo, onPressOut, shouldScale],
+    [animateTo, onPressOut, shouldScale, useUnderlay],
   )
 
   // Cleanup anim on unmount: prevent warning if component unmounts mid-press (150ms)
@@ -154,10 +198,25 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
       accessibilityState={{ disabled: !!disabled, ...accessibilityState }}
-      className={containerClassName}
+      className={cn(containerClassName, useUnderlay && "overflow-hidden")}
       accessibilityLabel={localizedLabel}
       {...rest}
+      android_ripple={ripple ? { color: rippleColor } : rest.android_ripple}
     >
+      {useUnderlay ? (
+        /* Underlay tekan iOS/web: lapisan absolut seukuran kontainer, di
+           BELAKANG isi (dirender lebih dulu) supaya teks/ikon tetap tajam.
+           `pointerEvents: "none"` agar tidak mencuri ketukan dari Pressable. */
+        <View
+          accessibilityRole="none"
+          importantForAccessibility="no"
+          style={{ pointerEvents: "none" }}
+          className={cn(
+            "absolute inset-0 bg-pressed",
+            pressed && !disabled ? "opacity-100" : "opacity-0",
+          )}
+        />
+      ) : null}
       <Animated.View style={{ transform: [{ scale }] }}>
         <View className={cn(className, disabled && "opacity-disabled")}>{children}</View>
       </Animated.View>

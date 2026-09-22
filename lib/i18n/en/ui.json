@@ -24,7 +24,6 @@
   "Berhasil diunggah": "Uploaded",
   "Buka detail kejadian": "Open event details",
   "Buka dokumen resmi": "Open official document",
-  "Buka percakapan": "Open conversation",
   "Bukan sekadar transfer — ini jaminan.": "More than a transfer — it's a guarantee.",
   "Bulan berikutnya": "Next month",
   "Bulan sebelumnya": "Previous month",
@@ -158,5 +157,12 @@
   "Ulangi kata sandi": "Repeat password",
   "Undang teman": "Invite friends",
   "Unduh": "Download",
-  "Kahade": "Kahade"
+  "Kahade": "Kahade",
+  "Buat baru": "Create new",
+  "Isi saldo dompet": "Top up wallet balance",
+  "Jual atau beli dengan dana dijaga escrow": "Sell or buy with funds held in escrow",
+  "Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase": "Opens quick options: top up, create a transaction, or add a showcase item",
+  "Pilih yang mau Anda kerjakan.": "Choose what you want to work on.",
+  "Top up lewat bank, QRIS, atau gerai ritel": "Top up via bank transfer, QRIS, or a retail outlet",
+  "Unggah karya atau produk ke etalase Anda": "Upload your work or products to your showcase"
 }

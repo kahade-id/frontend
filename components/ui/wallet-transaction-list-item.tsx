@@ -30,10 +30,15 @@ import {
   ArrowCircleUp,
   ArrowsLeftRight,
   ArrowUUpLeft,
+  Crown,
   Gift,
   LockKey,
   LockKeyOpen,
   Receipt,
+  Scales,
+  ShieldCheck,
+  Sparkle,
+  Users,
 } from "phosphor-react-native"
 import { View } from "react-native"
 
@@ -48,26 +53,49 @@ export type WalletTxType = "CREDIT" | "DEBIT" | "UNKNOWN"
 export type WalletTxStatus = "SUCCESS" | "PENDING" | "FAILED" | "UNKNOWN"
 export type WalletTxKind =
   | "topup"
+  | "bonus"
   | "withdraw"
   | "transfer_in"
   | "transfer_out"
   | "escrow_hold"
   | "escrow_release"
   | "refund"
+  | "dispute"
   | "fee"
+  | "referral"
   | "cashback"
+  | "subscription"
+  | "admin"
   | "other"
 
+/**
+ * Satu ikon per jenis mutasi. Enum backend punya 15 nilai (lihat
+ * `WALLET_TXN_TYPES` di lib/wallet-labels.ts); sebelum pemetaan ini lengkap,
+ * jenis baru seperti `REFERRAL_REWARD`, `SUBSCRIPTION_PAYMENT`,
+ * `DISPUTE_RELEASE`, `TOPUP_BONUS`, dan `ADMIN_CREDIT`/`ADMIN_DEBIT` semua
+ * jatuh ke ikon struk "other" — riwayat terlihat seragam padahal jenisnya
+ * beda, dan pengguna kehilangan penanda visual paling cepat.
+ *
+ * Pilihan ikon mengikuti metafora yang sudah dipakai: panah untuk arah uang,
+ * gembok untuk escrow, timbangan untuk sengketa, mahkota untuk langganan,
+ * percikan untuk bonus, dua orang untuk referral, perisai untuk penyesuaian
+ * admin (tindakan platform, bukan tindakan pengguna).
+ */
 const KIND_ICON: Record<WalletTxKind, IconComponent> = {
   topup: ArrowCircleDown,
+  bonus: Sparkle,
   withdraw: ArrowCircleUp,
   transfer_in: ArrowsLeftRight,
   transfer_out: ArrowsLeftRight,
   escrow_hold: LockKey,
   escrow_release: LockKeyOpen,
   refund: ArrowUUpLeft,
+  dispute: Scales,
   fee: Receipt,
+  referral: Users,
   cashback: Gift,
+  subscription: Crown,
+  admin: ShieldCheck,
   other: Receipt,
 }
 

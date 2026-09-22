@@ -391,21 +391,20 @@ export default function TransferScreen() {
         {step === "form" && formSubStep === "amount" ? (
           // 1b. Nominal + catatan (keypad terpusat)
           <View className="flex-1">
-            {/* Judul, kartu catatan, dan keypad berada dalam SATU area scroll
-                dengan `justify-between`: judul menempel di atas, kartu + keypad
-                di bawah sehingga kartu selalu TEPAT di atas keypad. Sebelumnya
-                kartu & keypad di luar scroll dan area scroll menyusut jadi 0
-                tinggi di layar pendek — judul ("Kirim ke @username") hilang
-                dan kartu tampak menempel di bawah header. Kini konten yang
-                tidak muat cukup di-scroll, tidak saling menutupi. */}
+            {/* Judul + peringatan saldo adalah SATU-SATUNYA bagian yang
+                menggulir (`shrink`); keypad terpin di bawahnya sehingga baris
+                "0 / hapus" tidak pernah tertutup (bug lama: keypad ikut
+                tergulir bersama judul dan kartu catatan). Kartu catatan kini
+                masuk `slot` keypad — selalu TEPAT di atas keypad, di bawah
+                nominal (permintaan produk 2026-09-21). */}
             <ScrollView
-              className="flex-1"
-              contentContainerStyle={{ flexGrow: 1, justifyContent: "space-between" }}
+              className="shrink"
+              contentContainerClassName="gap-2 px-5 pt-6 pb-2"
               keyboardShouldPersistTaps="handled"
               showsVerticalScrollIndicator={false}
             >
               <FadeIn duration="fast">
-                <View className="items-center gap-2 px-5 pt-6">
+                <View className="items-center gap-2">
                   <Heading level={1} className="text-center text-balance">
                     Kirim ke @{selected?.username}
                   </Heading>
@@ -419,7 +418,7 @@ export default function TransferScreen() {
               {/* A-09 (audit): gagal memuat saldo tidak lagi disamarkan
                   menjadi "Rp0" — tampilkan peringatan + jalur retry. */}
               {balanceError ? (
-                <View className="px-5 pt-4">
+                <View>
                   <Alert tone="warning" title="Saldo tidak dapat dimuat">
                     Batas maksimal kembali ke limit transfer; server tetap memvalidasi saldo Anda.
                   </Alert>
@@ -433,11 +432,24 @@ export default function TransferScreen() {
                   </Button>
                 </View>
               ) : null}
+            </ScrollView>
 
-              {/* Catatan ditulis DI SINI lewat BottomSheet (kartu tepat di
-                  atas keypad), bukan di langkah konfirmasi. */}
-              <View>
-                <View className="px-5 pb-2 pt-4">
+            {/* Catatan ditulis DI SINI lewat BottomSheet, bukan di langkah
+                konfirmasi. */}
+            <AmountKeypad
+              value={amount}
+              onChange={setAmount}
+              min={MIN_AMOUNT}
+              max={maxAmount}
+              presets={PRESETS}
+              balance={balance}
+              helperText={
+                balance == null
+                  ? `Minimal ${formatRupiah(MIN_AMOUNT)}`
+                  : undefined
+              }
+              slot={
+                <View className="px-5">
                   <KeypadOptionCard
                     label="Catatan (opsional)"
                     value={note.trim() || undefined}
@@ -449,22 +461,8 @@ export default function TransferScreen() {
                     }}
                   />
                 </View>
-
-                <AmountKeypad
-                  value={amount}
-                  onChange={setAmount}
-                  min={MIN_AMOUNT}
-                  max={maxAmount}
-                  presets={PRESETS}
-                  balance={balance}
-                  helperText={
-                    balance == null
-                      ? `Minimal ${formatRupiah(MIN_AMOUNT)}`
-                      : undefined
-                  }
-                />
-              </View>
-            </ScrollView>
+              }
+            />
 
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"

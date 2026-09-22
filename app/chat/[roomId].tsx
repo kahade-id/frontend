@@ -36,11 +36,24 @@
  *   - Cari pesan dalam ruang (J-07): sheet + GET /rooms/{id}/search; hasil
  *     yang termuat di thread dilompati via scrollToIndex.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
-import { FlatList, Platform, ScrollView, View } from "react-native"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import {
+  FlatList,
+  Platform,
+  View,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+} from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 
-import { Chats, Copy, MagnifyingGlass, PaperPlaneRight, PencilSimple, Package, PushPin, Smiley, Trash } from "phosphor-react-native"
+import {
+  Chats,
+  Copy,
+  PaperPlaneRight,
+  PencilSimple,
+  PushPin,
+  Trash,
+} from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { refreshUnreadCount } from "@/lib/unread-count"
@@ -49,14 +62,11 @@ import {
   CHAT_PAGE_SIZE,
   QUICK_REACTIONS,
   addReaction,
-  editChatMessage,
-  forwardChatMessage,
   getPinnedMessages,
   getReadReceipts,
   getRoomPresence,
   pinChatMessage,
   removeReaction,
-  searchRoomMessages,
   sendChatTyping,
   unpinChatMessage,
   type ChatMessage,
@@ -66,42 +76,38 @@ import {
 } from "@/lib/api/chat"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
-import { formatDateTime } from "@/lib/format"
-import { useDebouncedValue } from "@/lib/use-debounced-value"
+import { formatDateTime, truncateMiddle } from "@/lib/format"
+import { haptic } from "@/lib/haptics"
 import { logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
-import { ActionSheet } from "@/components/ui/action-sheet"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { Button } from "@/components/ui/button"
-import { TextArea } from "@/components/ui/text-area"
-import { IconButton } from "@/components/ui/icon-button"
-import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
+import { ChatEditSheet } from "@/components/ui/chat-edit-sheet"
+import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
+import { ChatMessageRow } from "@/components/ui/chat-message-row"
+import { ChatPinnedBar } from "@/components/ui/chat-pinned-bar"
+import { ChatRoomHeader } from "@/components/ui/chat-room-header"
+import { ChatRoomMenu } from "@/components/ui/chat-room-menu"
+import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
 import {
   ChatComposer,
   type ChatComposerPayload,
   type ComposerAttachment,
 } from "@/components/ui/chat-composer"
-import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { Dialog } from "@/components/ui/modal"
-import { Input } from "@/components/ui/input"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { Header } from "@/components/ui/header"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
-import { MediaViewer, isImageMedia, type MediaViewerItem } from "@/components/ui/media-viewer"
+import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
-import { Text } from "@/components/ui/text"
+import { ScrollToEndButton } from "@/components/ui/scroll-to-end-button"
+import { SelectionBar, type SelectionAction } from "@/components/ui/selection-bar"
 import { useToast } from "@/components/ui/toast"
-import { cn } from "@/lib/cn"
-import { focusRing } from "@/lib/focus-ring"
 import { isImageMime } from "@/lib/mime"
 
-import { Icon } from "@/components/ui/icon"
-import { PressableScale } from "@/components/ui/pressable-scale"
 
 /** Lampiran composer + berkas lokal untuk unggah ulang bila gagal. */
 type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
@@ -127,6 +133,14 @@ const PRESENCE_POLL_MS = 30000
 const EXCLUDE_IDS_MAX = 50
 /** C-07: refresh read-receipt & pin tiap N poll pesan (murah, ~32 d sekali). */
 const RECEIPTS_REFRESH_EVERY_POLLS = 4
+/**
+ * Toleransi (px) untuk menganggap pembaca masih di dasar thread. Satu bubble
+ * pendek ±44px; 48 membuat tombol "ke pesan terbaru" tidak berkedip saat
+ * tinggi konten berubah sedikit (gambar selesai diukur, reaksi muncul).
+ */
+const NEAR_BOTTOM_PX = 48
+/** Interval event scroll (ms) — cukup untuk tombol "ke pesan terbaru". */
+const SCROLL_EVENT_THROTTLE = 64
 
 function messageTypeFor(
   attachments: ChatAttachmentDto[],
@@ -166,15 +180,22 @@ export default function ChatRoomScreen() {
   const [sending, setSending] = useState(false)
 
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
-  const [actionMessage, setActionMessage] = useState<ChatMessage | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<ChatMessage | null>(null)
+  /**
+   * Mode pilih pesan (v3 2026-09-21). Tekan lama / ketuk satu pesan
+   * mengaktifkannya; header ruang digantikan <SelectionBar> berisi reaksi
+   * cepat + aksi (pin, salin, teruskan, edit, hapus) sebagai ikon berlabel.
+   * ActionSheet per pesan dihapus: dulu butuh dua langkah (buka sheet →
+   * pilih aksi) dan menutupi setengah layar.
+   */
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set())
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  /** Menu ⋮ di header ruang (lihat pesanan, cari, bisukan, arsip, profil). */
+  const [roomMenuOpen, setRoomMenuOpen] = useState(false)
 
   // ── Fitur lanjutan: reaksi, pin, edit, forward, read receipt, presence ──
-  const [reactTarget, setReactTarget] = useState<ChatMessage | null>(null)
+  const [forwardTarget, setForwardTarget] = useState<ChatMessage[] | null>(null)
   const [editTarget, setEditTarget] = useState<ChatMessage | null>(null)
-  const [editText, setEditText] = useState("")
-  const [savingEdit, setSavingEdit] = useState(false)
   const [pinned, setPinned] = useState<ChatMessage[]>([])
   const [presence, setPresence] = useState<ChatPresence | null>(null)
   /** id pesan milik sendiri yang sudah dibaca lawan bicara (read receipt). */
@@ -196,14 +217,9 @@ export default function ChatRoomScreen() {
   const pollTick = useRef(0)
 
   // J-07 (audit): pencarian pesan dalam ruang — adapter searchRoomMessages
-  // sudah ada sejak API-GAP 2026-09-15, UI-nya yang belum.
+  // sudah ada sejak API-GAP 2026-09-15, UI-nya yang belum. Kata kunci,
+  // debounce, dan hasilnya hidup di <ChatSearchSheet>; layar hanya membuka.
   const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const debouncedSearch = useDebouncedValue(searchQuery.trim(), 400)
-  const [searchResults, setSearchResults] = useState<ChatMessage[]>([])
-  const [searchLoading, setSearchLoading] = useState(false)
-  const [searchError, setSearchError] = useState<string | null>(null)
-  const searchRequest = useRef<AbortController | null>(null)
 
   const fetchMessages = useCallback(async () => {
     if (!roomId) return
@@ -397,6 +413,47 @@ export default function ChatRoomScreen() {
   }, [lastMessageId])
 
   /**
+   * Posisi baca terkini. Dua kegunaannya:
+   *   1. Tombol "ke pesan terbaru" muncul hanya saat pembaca meninggalkan
+   *      dasar thread (sebelumnya tidak ada jalan kembali selain menggulir
+   *      manual — di thread ratusan pesan itu tidak terpakai).
+   *   2. Jangkar saat baris pesan terpin muncul/hilang di ATAS list.
+   */
+  const atBottomRef = useRef(true)
+  const [atBottom, setAtBottom] = useState(true)
+  const handleScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { contentOffset, contentSize, layoutMeasurement } = e.nativeEvent
+      const bottom =
+        contentOffset.y + layoutMeasurement.height >= contentSize.height - NEAR_BOTTOM_PX
+      if (atBottomRef.current !== bottom) {
+        atBottomRef.current = bottom
+        setAtBottom(bottom)
+      }
+    },
+    [],
+  )
+
+  /**
+   * BUG YANG DIPERBAIKI (laporan 2026-09-21: "saat pesan di pin chatnya malah
+   * ke bawah"): baris pesan terpin dirender DI ATAS FlatList. Begitu ia muncul,
+   * tinggi viewport list menyusut setinggi baris itu sementara offset scroll
+   * tidak berubah — pesan terakhir terdorong keluar layar dan thread terasa
+   * "melompat ke bawah". Kompensasinya: selama pembaca berada di dasar thread,
+   * setiap perubahan tinggi baris pin diikuti `scrollToEnd` tanpa animasi
+   * (dijalankan di frame berikutnya agar ukuran konten sudah diperbarui).
+   * Pembaca yang sedang menelusuri riwayat TIDAK dipaksa turun.
+   */
+  const [pinnedBarHeight, setPinnedBarHeight] = useState(0)
+  useEffect(() => {
+    if (!atBottomRef.current) return
+    const frame = requestAnimationFrame(() => {
+      scrollRef.current?.scrollToEnd({ animated: false })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pinnedBarHeight])
+
+  /**
    * J-07: lompat ke pesan hasil pencarian — hanya mungkin bila pesannya
    * sudah termuat di thread (virtualisasi mengandalkan data di state).
    */
@@ -560,24 +617,88 @@ export default function ChatRoomScreen() {
     [roomId, attachments, toast.show, mergeIncoming],
   )
 
-  const handleDelete = useCallback(async () => {
-    if (!roomId || !deleteTarget) return
+  // ── Mode pilih: masuk / keluar / toggle ────────────────────────────────
+  const selecting = selectedIds.size > 0
+  const selectedMessages = useMemo(
+    () => messages.filter((m) => selectedIds.has(m.id)),
+    [messages, selectedIds],
+  )
+  /** Aksi per-pesan (reaksi, pin, edit) hanya sah untuk satu pilihan. */
+  const singleSelected = selectedMessages.length === 1 ? (selectedMessages[0] ?? null) : null
+
+  const exitSelect = useCallback(() => setSelectedIds(new Set()), [])
+
+  const enterSelect = useCallback((id: string) => {
+    haptic("select")
+    setSelectedIds(new Set([id]))
+  }, [])
+
+  const toggleSelect = useCallback((id: string) => {
+    haptic("select")
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  /**
+   * Hapus semua pesan terpilih milik sendiri. Backend hanya punya DELETE per
+   * pesan, jadi dipakai `Promise.allSettled`: satu pesan yang gagal (mis.
+   * sudah dihapus lawan bicara) tidak membatalkan sisanya, dan kegagalan
+   * dilaporkan sekali — bukan satu toast per pesan.
+   */
+  const handleDeleteSelected = useCallback(async () => {
+    if (!roomId) return
+    const targets = selectedMessages.filter((m) => m.fromUser)
+    if (targets.length === 0) {
+      setDeleteOpen(false)
+      exitSelect()
+      return
+    }
     setDeleting(true)
-    try {
-      await api.chat.deleteChatMessage(roomId, deleteTarget.id)
-      setMessages((prev) => prev.filter((m) => m.id !== deleteTarget.id))
-      setDeleteTarget(null)
-      toast.show({ title: "Pesan dihapus", tone: "success", duration: 2500 })
-    } catch (err) {
+    const results = await Promise.allSettled(
+      targets.map((m) => api.chat.deleteChatMessage(roomId, m.id)),
+    )
+    const removed = new Set<string>()
+    let firstError: unknown
+    results.forEach((res, i) => {
+      const target = targets[i]
+      if (!target) return
+      if (res.status === "fulfilled") removed.add(target.id)
+      else firstError ??= res.reason
+    })
+    if (removed.size > 0) {
+      setMessages((prev) => prev.filter((m) => !removed.has(m.id)))
+      haptic("success")
+      toast.show({
+        title: removed.size === 1 ? "Pesan dihapus" : `${removed.size} pesan dihapus`,
+        tone: "success",
+        duration: 2500,
+      })
+    }
+    if (firstError) {
       toast.show({
         title: "Gagal menghapus pesan",
-        description: isApiError(err) ? userMessage(err) : undefined,
+        description: isApiError(firstError) ? userMessage(firstError) : undefined,
         tone: "danger",
       })
-    } finally {
-      setDeleting(false)
     }
-  }, [roomId, deleteTarget, toast.show])
+    setDeleting(false)
+    setDeleteOpen(false)
+    exitSelect()
+  }, [exitSelect, roomId, selectedMessages, toast.show])
+
+  /** Salin semua pesan terpilih yang punya teks (dipisah baris kosong). */
+  const handleCopySelected = useCallback(() => {
+    const text = selectedMessages
+      .map((m) => m.text?.trim())
+      .filter((t): t is string => !!t)
+      .join("\n\n")
+    if (text) void copy(text)
+    exitSelect()
+  }, [copy, exitSelect, selectedMessages])
 
   /** Ganti daftar reaksi satu pesan di state thread. */
   const patchMessage = useCallback((messageId: string, patch: (m: ChatMessage) => ChatMessage) => {
@@ -650,146 +771,26 @@ export default function ChatRoomScreen() {
     [roomId, patchMessage, refreshPinned, toast.show],
   )
 
-  // ── Edit pesan teks milik sendiri ──
-  const openEdit = useCallback((message: ChatMessage) => {
-    setEditTarget(message)
-    setEditText(message.text ?? "")
-  }, [])
-
-  const handleSaveEdit = useCallback(async () => {
-    if (!roomId || !editTarget) return
-    const content = editText.trim()
-    if (!content || content === editTarget.text) {
-      setEditTarget(null)
-      return
-    }
-    setSavingEdit(true)
-    try {
-      const updated = await editChatMessage(roomId, editTarget.id, content)
-      patchMessage(editTarget.id, (m) => ({
-        ...m,
-        text: updated.text ?? content,
-        isEdited: true,
-        editedAt: (updated as { editedAt?: string }).editedAt ?? new Date().toISOString(),
-      }))
-      setEditTarget(null)
-    } catch (err) {
-      toast.show({
-        title: "Gagal menyimpan perubahan",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
-    } finally {
-      setSavingEdit(false)
-    }
-  }, [roomId, editTarget, editText, patchMessage, toast.show])
-
-  // ── Forward: picker ruang penuh dengan paginasi ──
-  // C-10 (audit): sebelumnya hanya 50 ruang pertama DAN hanya yang lawan
-  // bicaranya sama — fitur nyaris tak berguna. Endpoint forward menerima
-  // array `targetRoomIds` ruang APA pun; picker kini memuat semua ruang
-  // (paginasi 50/halaman) kecuali ruang aktif.
-  const [forwardRooms, setForwardRooms] = useState<ChatRoom[]>([])
-  const [forwardOpen, setForwardOpen] = useState(false)
-  const [forwardLoading, setForwardLoading] = useState(false)
-  const forwardPage = useRef(1)
-  const [forwardHasMore, setForwardHasMore] = useState(false)
-
-  const loadForwardPage = useCallback(
-    async (page: number) => {
-      setForwardLoading(true)
-      try {
-        const res = await api.chat.listChatRooms({ page, limit: 50 })
-        const targets = res.data.filter((r) => r.id !== roomId)
-        setForwardRooms((prev) => {
-          if (page === 1) return targets
-          const seen = new Set(prev.map((r) => r.id))
-          return [...prev, ...targets.filter((r) => !seen.has(r.id))]
-        })
-        forwardPage.current = page
-        setForwardHasMore(page < res.meta.totalPages)
-      } catch (err) {
-        logWarn("chat:forward-rooms", err)
-        toast.show({ title: "Gagal memuat daftar percakapan", tone: "danger" })
-      } finally {
-        setForwardLoading(false)
-      }
+  // ── Edit pesan teks milik sendiri (draft + simpan di <ChatEditSheet>) ──
+  const handleEdited = useCallback(
+    (messageId: string, text: string, editedAt: string) => {
+      patchMessage(messageId, (m) => ({ ...m, text, isEdited: true, editedAt }))
     },
-    [roomId, toast.show],
+    [patchMessage],
   )
 
-  const openForward = useCallback(() => {
-    if (!roomId) return
-    setForwardRooms([])
-    setForwardHasMore(false)
-    setForwardOpen(true)
-    void loadForwardPage(1)
-  }, [roomId, loadForwardPage])
+  // ── Forward: daftar ruang, paginasi, dan pengirimannya di
+  // <ChatForwardSheet>. Layar hanya menyimpan pesan yang dipilih. ──
+  const forwardOpen = forwardTarget != null
 
-  const handleForwardTo = useCallback(
-    async (message: ChatMessage, targetRoomId: string) => {
-      if (!roomId) return
-      try {
-        const res = await forwardChatMessage(roomId, message.id, [targetRoomId])
-        if (res.skipped.length > 0) {
-          toast.show({
-            title: "Pesan tidak diteruskan",
-            description: res.skipped[0].reason,
-            tone: "danger",
-          })
-          return
-        }
-        setForwardOpen(false)
-        setForwardRooms([])
-        toast.show({ title: "Pesan diteruskan", tone: "success", duration: 2500 })
-      } catch (err) {
-        toast.show({
-          title: "Gagal meneruskan pesan",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
-      }
-    },
-    [roomId, toast.show],
-  )
+  const openForward = useCallback((targets: ChatMessage[]) => {
+    if (!roomId || targets.length === 0) return
+    setForwardTarget(targets)
+  }, [roomId])
 
-  // ── Pencarian pesan dalam ruang (J-07) ──────────────────────────────
-  useEffect(() => {
-    if (!searchOpen) return
-    searchRequest.current?.abort()
-    if (!debouncedSearch || !roomId) {
-      setSearchResults([])
-      setSearchError(null)
-      setSearchLoading(false)
-      return
-    }
-    const controller = new AbortController()
-    searchRequest.current = controller
-    setSearchLoading(true)
-    searchRoomMessages(roomId, debouncedSearch, { limit: 20 }, controller.signal)
-      .then((res) => {
-        if (controller.signal.aborted) return
-        setSearchResults(res.items)
-        setSearchError(null)
-      })
-      .catch((err) => {
-        if (controller.signal.aborted) return
-        logWarn("chat:search", err)
-        setSearchError(userMessage(err))
-        setSearchResults([])
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setSearchLoading(false)
-      })
-    return () => controller.abort()
-  }, [searchOpen, debouncedSearch, roomId])
+  const closeForward = useCallback(() => setForwardTarget(null), [])
 
-  const openSearch = useCallback(() => {
-    setSearchQuery("")
-    setSearchResults([])
-    setSearchError(null)
-    setSearchOpen(true)
-  }, [])
+  const openSearch = useCallback(() => setSearchOpen(true), [])
 
   // ── Typing indicator: kirim saat draft berubah, hentikan 3 dtk setelah diam ──
   const notifyTyping = useCallback(() => {
@@ -835,7 +836,119 @@ export default function ChatRoomScreen() {
     room?.counterpart?.fullName ??
     (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined) ??
     titleParam
+  const counterpartUsername = room?.counterpart?.username
   const composerAttachments = attachments
+
+  // ── Header ruang: identitas + status + order id ────────────────────────
+  /**
+   * Baris status di bawah nama. "mengetik…" menang atas online (lawan bicara
+   * yang sedang mengetik adalah informasi paling hidup), lalu online, lalu
+   * terakhir dilihat, lalu offline. `presence` null = belum termuat → baris
+   * status dikosongkan supaya tinggi header tidak melompat dua kali.
+   */
+  const statusText = presence
+    ? presence.isOnline
+      ? "Online"
+      : presence.lastSeenAt
+        ? `Terakhir dilihat ${formatDateTime(presence.lastSeenAt)}`
+        : "Offline"
+    : undefined
+
+  // ── Aksi mode pilih pesan (ubin ikon+label di <SelectionBar>) ──────────
+  const selectionActions: SelectionAction[] = useMemo(() => {
+    const allMine = selectedMessages.length > 0 && selectedMessages.every((m) => m.fromUser)
+    const anyText = selectedMessages.some((m) => !!m.text?.trim())
+    const editable =
+      singleSelected != null &&
+      singleSelected.fromUser &&
+      singleSelected.messageType === "TEXT" &&
+      !!singleSelected.text
+    const actions: SelectionAction[] = []
+    if (singleSelected) {
+      const target = singleSelected
+      actions.push({
+        key: "pin",
+        label: target.isPinned ? "Lepas pin" : "Pin",
+        icon: PushPin,
+        onPress: () => {
+          exitSelect()
+          void handleTogglePin(target)
+        },
+      })
+    }
+    actions.push({
+      key: "copy",
+      label: "Salin",
+      icon: Copy,
+      disabled: !anyText,
+      accessibilityHint: "Menyalin teks pesan yang dipilih",
+      onPress: handleCopySelected,
+    })
+    actions.push({
+      key: "forward",
+      label: "Teruskan",
+      icon: PaperPlaneRight,
+      onPress: () => {
+        const targets = selectedMessages
+        exitSelect()
+        openForward(targets)
+      },
+    })
+    if (editable && singleSelected) {
+      const target = singleSelected
+      actions.push({
+        key: "edit",
+        label: "Edit",
+        icon: PencilSimple,
+        onPress: () => {
+          exitSelect()
+          setEditTarget(target)
+        },
+      })
+    }
+    if (allMine) {
+      actions.push({
+        key: "delete",
+        label: "Hapus",
+        icon: Trash,
+        tone: "danger",
+        onPress: () => setDeleteOpen(true),
+      })
+    }
+    return actions
+  }, [
+    exitSelect,
+    handleCopySelected,
+    handleTogglePin,
+    openForward,
+    selectedMessages,
+    singleSelected,
+  ])
+
+  /** Jumlah pesan terpilih yang benar-benar bisa dihapus (milik sendiri). */
+  const deletableCount = selectedMessages.filter((m) => m.fromUser).length
+
+  const deleteCopy = {
+    title: deletableCount === 1 ? "Hapus pesan ini?" : "Hapus pesan yang dipilih?",
+    description:
+      deletableCount === 1
+        ? "Pesan akan dihapus untuk semua peserta ruang."
+        : `${deletableCount} pesan akan dihapus untuk semua peserta ruang.`,
+  }
+
+  const jumpToLatest = useCallback(() => {
+    atBottomRef.current = true
+    setAtBottom(true)
+    scrollRef.current?.scrollToEnd({ animated: true })
+  }, [])
+
+  /** Pesan terpin terbaru — yang ditampilkan baris pin di atas thread. */
+  const latestPinned = useMemo(() => {
+    if (pinned.length === 0) return null
+    return pinned.reduce((latest, m) =>
+      new Date(m.createdAt).getTime() > new Date(latest.createdAt).getTime() ? m : latest,
+    )
+  }, [pinned])
 
   return (
     <Screen
@@ -845,6 +958,14 @@ export default function ChatRoomScreen() {
       footer={
         error || !roomId ? undefined : (
         <View>
+          {/* Kembali ke dasar thread — muncul hanya saat pembaca
+              meninggalkan bawah (deteksi di onScroll). */}
+          <ScrollToEndButton
+            visible={atBottom === false && messages.length > 0}
+            onPress={jumpToLatest}
+            label="Gulir ke pesan terbaru"
+            className="px-5 pb-2"
+          />
           <ChatComposer
             value={draft}
             onChangeText={setDraft}
@@ -865,72 +986,63 @@ export default function ChatRoomScreen() {
         )
       }
     >
-      <Header
-        title={counterpartName ?? "Percakapan"}
-        right={
-          <View className="flex-row items-center">
-            <IconButton
-              icon={MagnifyingGlass}
-              variant="ghost"
-              accessibilityLabel="Cari pesan di percakapan ini"
-              onPress={openSearch}
-            />
-            {room?.orderId ? (
-              <IconButton
-                icon={Package}
-                variant="ghost"
-                accessibilityLabel="Lihat pesanan terkait"
-                onPress={() => router.push(ROUTES.orderDetail(room.orderId!))}
-              />
-            ) : null}
-          </View>
-        }
-      />
-      {presence ? (
-        <View className="flex-row items-center gap-2 px-5 py-1.5">
-          <View
-            className={cn(
-              "h-2 w-2 rounded-full",
-              presence.isOnline ? "bg-success" : "bg-border",
-            )}
-          />
-          <Text variant="caption" tone="secondary">
-            {presence.isOnline
-              ? "Online"
-              : presence.lastSeenAt
-                ? `Terakhir dilihat ${formatDateTime(presence.lastSeenAt)}`
-                : "Offline"}
-          </Text>
-        </View>
-      ) : null}
-      {pinned.length > 0 ? (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          className="px-3"
-          contentContainerClassName="flex-row gap-2 py-2"
-        >
-          {pinned.map((m) => (
-            <PressableScale
-              key={m.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Pesan terpin: ${m.text ?? "lampiran"}`}
-              scaleOnPress={false}
-              onPress={() => setActionMessage(m)}
-              containerClassName={cn(
-                "flex-row items-center rounded-md border border-border bg-surface px-2.5 py-1.5",
-                focusRing,
-              )}
-              // kelas baris ada di className (View isi PressableScale) — lihat S8
-              className="flex-row items-center gap-1.5"
-            >
-              <Icon icon={PushPin} size="xs" tone="default" />
-              <Text variant="caption" tone="secondary" className="max-w-[160px]" numberOfLines={1}>
-                {m.text ?? "(lampiran)"}
-              </Text>
-            </PressableScale>
-          ))}
-        </ScrollView>
+      {/* Header: mode pilih mengganti identitas ruang selama pilihan aktif —
+          persis pola layar Notifikasi, tanpa ActionSheet/BottomSheet. */}
+      {selecting ? (
+        <SelectionBar
+          // translate(): template literal di atribut JSX tidak terbaca
+          // generator katalog i18n — copy dinamis wajib dibungkus.
+          title={translate(`${selectedIds.size} pesan dipilih`)}
+          actions={selectionActions}
+          onClose={exitSelect}
+          closeLabel="Keluar dari mode pilih pesan"
+          quickReactions={
+            singleSelected
+              ? {
+                  emojis: QUICK_REACTIONS,
+                  onPick: (emoji) => {
+                    const target = singleSelected
+                    exitSelect()
+                    void handleReact(target, emoji)
+                  },
+                }
+              : undefined
+          }
+        />
+      ) : (
+        <ChatRoomHeader
+          name={counterpartName ?? "Percakapan"}
+          avatar={
+            room?.counterpart?.avatarUrl ? { uri: room.counterpart.avatarUrl } : undefined
+          }
+          status={statusText}
+          online={presence?.isOnline === true}
+          loading={loading && !room}
+          orderId={room?.orderId ? truncateMiddle(room.orderId, 6, 4) : undefined}
+          onOrderPress={
+            room?.orderId ? () => router.push(ROUTES.orderDetail(room.orderId!)) : undefined
+          }
+          onProfilePress={
+            counterpartUsername
+              ? () => router.push(ROUTES.userProfile(counterpartUsername))
+              : undefined
+          }
+          onBack={() => (router.canGoBack() ? router.back() : router.replace(ROUTES.home))}
+          onMenuPress={() => setRoomMenuOpen(true)}
+        />
+      )}
+
+      {/* Baris pesan terpin: SATU baris ringkas (bukan deretan chip scroll).
+          Ketuk = lompat ke pesannya; tekan lama = lepas pin. Tingginya diukur
+          lewat onLayout untuk menjaga jangkar scroll — lihat efek di atas. */}
+      {latestPinned ? (
+        <ChatPinnedBar
+          message={latestPinned}
+          count={pinned.length}
+          onPress={(m) => jumpToMessage(m.id)}
+          onUnpin={(m) => void handleTogglePin(m)}
+          onLayout={(e) => setPinnedBarHeight(e.nativeEvent.layout.height)}
+        />
       ) : null}
       {/* F-06 (audit): FlatList menggantikan ScrollView + messages.map —
           thread panjang (ratusan bubble bergambar) dulu ter-mount penuh.
@@ -945,6 +1057,8 @@ export default function ChatRoomScreen() {
         contentContainerStyle={{ paddingBottom: tokens.space[4], flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
+        onScroll={handleScroll}
+        scrollEventThrottle={SCROLL_EVENT_THROTTLE}
         ListHeaderComponent={
           messages.length > 0 ? (
             <View style={{ paddingTop: tokens.space[3] }}>
@@ -977,41 +1091,20 @@ export default function ChatRoomScreen() {
           )
         }
         renderItem={({ item: m, index }) => (
-          <View className="gap-1">
-            <ChatMessageBubble
-              direction={m.fromUser ? "outgoing" : "incoming"}
-              text={m.text}
-              time={formatDateTime(m.createdAt)}
-              grouped={index > 0 && messages[index - 1]?.fromUser === m.fromUser}
-                // Status baca pesan saya: read-receipt dari lawan bicara
-                // (GET /read-receipts) naik ke ikon centang ganda "read".
-                status={m.fromUser ? (readByCounterpart.has(m.id) ? "read" : "sent") : undefined}
-                reactions={m.reactions}
-                onReact={(emoji) => void handleReact(m, emoji)}
-                isPinned={m.isPinned}
-                isEdited={m.isEdited}
-                // Klik biasa membuka menu yang sama dengan tekan-lama: tanpa
-                // ini pesan terasa "mati" saat diklik (terutama di web, yang
-                // tidak punya affordance tekan-lama).
-                onPress={() => setActionMessage(m)}
-                onLongPress={() => setActionMessage(m)}
-              >
-                {m.attachments?.length ? (
-                  <View className="gap-2">
-                    {m.attachments.map((a, j) => (
-                      <ChatAttachmentItem
-                        key={`${m.id}-${j}`}
-                        attachment={a}
-                        layout={
-                          isImageMedia({ url: a.fileUrl, mimeType: a.mimeType }) ? "tile" : "row"
-                        }
-                        onPress={() => openAttachment(a)}
-                      />
-                    ))}
-                  </View>
-            ) : undefined}
-          </ChatMessageBubble>
-          </View>
+          <ChatMessageRow
+            message={m}
+            previous={index > 0 ? messages[index - 1] : undefined}
+            selecting={selecting}
+            selected={selectedIds.has(m.id)}
+            readByCounterpart={readByCounterpart.has(m.id)}
+            // Mode pilih (v3 2026-09-21): di luar mode pilih ketuk/tekan lama
+            // langsung MEMILIH pesan ini (satu langkah, tanpa ActionSheet);
+            // saat mode pilih aktif setiap ketukan men-toggle pilihan. Web
+            // tetap bisa memilih tanpa affordance tekan-lama.
+            onPress={(target) => (selecting ? toggleSelect(target.id) : enterSelect(target.id))}
+            onReact={(target, emoji) => void handleReact(target, emoji)}
+            onAttachmentPress={openAttachment}
+          />
         )}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
         // ada di header list untuk status error).
@@ -1039,258 +1132,63 @@ export default function ChatRoomScreen() {
         onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
       />
 
-      <ActionSheet
-        visible={actionMessage != null}
-        onRequestClose={() => setActionMessage(null)}
-        title="Pesan"
-        actions={[
-          {
-            key: "react",
-            label: "Reaksi",
-            icon: Smiley,
-            onPress: () => setReactTarget(actionMessage),
-          },
-          {
-            key: "pin",
-            label: actionMessage?.isPinned ? "Lepas pin" : "Pin pesan",
-            icon: PushPin,
-            onPress: () => {
-              if (actionMessage) void handleTogglePin(actionMessage)
-            },
-          },
-          ...(actionMessage?.fromUser && actionMessage.messageType === "TEXT" && actionMessage.text
-            ? [
-                {
-                  key: "edit",
-                  label: "Edit pesan",
-                  icon: PencilSimple,
-                  onPress: () => openEdit(actionMessage),
-                },
-              ]
-            : []),
-          {
-            key: "forward",
-            label: "Teruskan",
-            icon: PaperPlaneRight,
-            onPress: () => openForward(),
-          },
-          {
-            key: "copy",
-            label: "Salin teks",
-            icon: Copy,
-            disabled: !actionMessage?.text,
-            onPress: () => {
-              if (actionMessage?.text) void copy(actionMessage.text)
-            },
-          },
-          ...(actionMessage?.fromUser
-            ? [
-                {
-                  key: "delete",
-                  label: "Hapus pesan",
-                  icon: Trash,
-                  destructive: true,
-                  onPress: () => setDeleteTarget(actionMessage),
-                },
-              ]
-            : []),
-        ]}
+      {/* Menu ⋮ RUANG (bukan per pesan): lihat pesanan, cari pesan, profil
+          lawan bicara, bisukan, arsipkan — mutasi ruangnya di dalam komponen. */}
+      <ChatRoomMenu
+        open={roomMenuOpen}
+        room={room}
+        counterpartUsername={counterpartUsername}
+        onClose={() => setRoomMenuOpen(false)}
+        onSearch={openSearch}
+        onRoomChange={(patch) => setRoom((prev) => (prev ? { ...prev, ...patch } : prev))}
       />
 
-      {/* Pilih emoji reaksi — sheet terpisah karena ActionSheet item memakai
-          ikon, bukan teks bebas (emoji). */}
-      <BottomSheet
-        avoidKeyboard
-        visible={reactTarget != null}
-        onRequestClose={() => setReactTarget(null)}
-        title="Reaksi"
-        showHandle={false}
-      >
-        <View className="flex-row flex-wrap justify-center gap-3 px-5 py-2">
-          {QUICK_REACTIONS.map((emoji) => (
-            <PressableScale
-              key={emoji}
-              accessibilityRole="button"
-              accessibilityLabel={`Reaksi ${emoji}`}
-              onPress={() => {
-                if (reactTarget) void handleReact(reactTarget, emoji)
-                setReactTarget(null)
-              }}
-              containerClassName={cn("items-center rounded-full p-2", focusRing)}
-            >
-              <Text variant="h2" className="text-2xl">
-                {emoji}
-              </Text>
-            </PressableScale>
-          ))}
-        </View>
-      </BottomSheet>
+      {/* Edit pesan teks sendiri — draft + simpan di dalam komponen. */}
+      <ChatEditSheet
+        message={editTarget}
+        roomId={roomId}
+        onClose={() => setEditTarget(null)}
+        onSaved={handleEdited}
+      />
 
-      {/* Edit pesan teks sendiri */}
-      <BottomSheet
-        avoidKeyboard
-        visible={editTarget != null}
-        onRequestClose={() => setEditTarget(null)}
-        title="Edit pesan"
-        footer={
-          <View className="gap-2">
-            <Button
-              fullWidth
-              loading={savingEdit}
-              disabled={!editText.trim() || editText.trim() === editTarget?.text}
-              onPress={() => void handleSaveEdit()}
-            >
-              Simpan
-            </Button>
-            <Button
-              variant="ghost"
-              fullWidth
-              onPress={() => setEditTarget(null)}
-            >
-              Batal
-            </Button>
-          </View>
-        }
-      >
-        <View className="px-5 pb-2">
-          <TextArea
-            value={editText}
-            onChangeText={setEditText}
-            rows={4}
-            placeholder="Tulis ulang pesan Anda"
-            accessibilityLabel="Isi pesan yang diedit"
-          />
-        </View>
-      </BottomSheet>
-
-      {/* Teruskan ke percakapan lain — semua ruang, paginasi (C-10) */}
-      <BottomSheet
-        avoidKeyboard
-        visible={forwardOpen && actionMessage != null}
-        onRequestClose={() => {
-          setForwardOpen(false)
-          setForwardRooms([])
+      {/* Teruskan ke percakapan lain — semua ruang, paginasi (C-10); bisa
+          membawa lebih dari satu pesan sekaligus (mode pilih). */}
+      <ChatForwardSheet
+        open={forwardOpen}
+        roomId={roomId}
+        targets={forwardTarget ?? []}
+        onClose={closeForward}
+        onForwarded={() => {
+          closeForward()
+          exitSelect()
         }}
-        title="Teruskan ke…"
-        description="Pilih percakapan tujuan pesan."
-        showHandle={false}
-      >
-        <View className="px-2 pb-2">
-          {forwardRooms.map((r) => (
-            <PressableScale
-              key={r.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Teruskan ke ${r.counterpart?.fullName ?? r.counterpart?.username ?? "percakapan"}`}
-              onPress={() => {
-                if (actionMessage) void handleForwardTo(actionMessage, r.id)
-              }}
-              containerClassName={cn(
-                "rounded-md px-4 py-3",
-                focusRing,
-              )}
-              // kelas baris + lebar penuh di className View isi PressableScale;
-              // di containerClassName `flex-row` tidak pernah menyentuh anak
-              // (S8 check-screens) dan baris jadi kolom.
-              className="w-full flex-row items-center gap-1"
-            >
-              <Text variant="body" className="flex-1" numberOfLines={1}>
-                {r.counterpart?.fullName ??
-                  `@${r.counterpart?.username ?? "—"}`}
-                {r.subject ? ` — ${r.subject}` : ""}
-              </Text>
-              <Icon icon={PaperPlaneRight} size="sm" tone="default" />
-            </PressableScale>
-          ))}
-          {forwardLoading ? (
-            <View className="py-2">
-              <ListLoading />
-            </View>
-          ) : null}
-          {!forwardLoading && forwardRooms.length === 0 ? (
-            <EmptyState
-              icon={Chats}
-              title="Belum ada percakapan lain"
-              description="Pesan dapat diteruskan ke percakapan Anda yang lain."
-            />
-          ) : null}
-          {forwardHasMore && !forwardLoading ? (
-            <Button
-              variant="ghost"
-              fullWidth
-              onPress={() => void loadForwardPage(forwardPage.current + 1)}
-            >
-              Muat percakapan lain
-            </Button>
-          ) : null}
-        </View>
-      </BottomSheet>
+      />
 
-      {/* Cari pesan dalam ruang — GET /v1/chat/rooms/{id}/search (J-07).
-          Hasil yang sudah termuat di thread bisa dilompati (scrollToIndex);
-          yang lebih tua dari riwayat termuat diberi keterangan. */}
-      <BottomSheet
-        avoidKeyboard
-        visible={searchOpen}
-        onRequestClose={() => setSearchOpen(false)}
-        title="Cari pesan"
-        description="Cari teks dalam percakapan ini."
-        showHandle={false}
-      >
-        <View className="gap-3 px-5 pb-3">
-          <Input
-            variant="search"
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholder="Ketik kata kunci…"
-            accessibilityLabel="Kata kunci pencarian pesan"
-            autoCapitalize="none"
-            autoCorrect={false}
-            returnKeyType="search"
-            autoFocus
-          />
-          {searchLoading ? (
-            <ListLoading />
-          ) : searchError ? (
-            <Text variant="caption" tone="danger">
-              {searchError}
-            </Text>
-          ) : debouncedSearch && searchResults.length === 0 ? (
-            <Text variant="caption" tone="secondary">
-              Tidak ada pesan yang cocok dengan kata kunci itu.
-            </Text>
-          ) : (
-            searchResults.map((r) => (
-              <PressableScale
-                key={r.id}
-                accessibilityRole="button"
-                accessibilityLabel={`Lompat ke pesan: ${r.text ?? "(lampiran)"}`}
-                onPress={() => jumpToMessage(r.id)}
-                containerClassName={cn("rounded-md px-2 py-2", focusRing)}
-                className="w-full gap-0.5"
-              >
-                <Text variant="body" numberOfLines={2}>
-                  {r.text || (r.attachments?.length ? "(lampiran)" : "(pesan tanpa teks)")}
-                </Text>
-                <Text variant="caption" tone="secondary">
-                  {formatDateTime(r.createdAt)} · {r.fromUser ? "Anda" : counterpartName ?? "Lawan bicara"}
-                </Text>
-              </PressableScale>
-            ))
-          )}
-        </View>
-      </BottomSheet>
+      {/* Cari pesan dalam ruang (J-07): hasil yang termuat di thread
+          dilompati via scrollToIndex, yang lebih tua diberi keterangan. */}
+      <ChatSearchSheet
+        open={searchOpen}
+        roomId={roomId}
+        counterpartName={counterpartName ?? undefined}
+        onClose={() => setSearchOpen(false)}
+        onJump={jumpToMessage}
+      />
 
+      {/* Copy dialog dipecah ke object literal: ternary/template di atribut
+          JSX tidak terbaca generator katalog i18n, sedangkan properti objek
+          (`title`, `description`) dibaca — jadi kedua varian ikut terkatalog
+          dan bisa diterjemahkan. */}
       <Dialog
-        title="Hapus pesan ini?"
-        description="Pesan akan dihapus untuk semua peserta ruang."
-        visible={deleteTarget != null}
+        title={deleteCopy.title}
+        description={deleteCopy.description}
+        visible={deleteOpen}
         destructive
         loading={deleting}
         confirmLabel="Hapus"
         cancelLabel="Batal"
-        onConfirm={() => void handleDelete()}
-        onCancel={() => setDeleteTarget(null)}
-        onRequestClose={() => setDeleteTarget(null)}
+        onConfirm={() => void handleDeleteSelected()}
+        onCancel={() => setDeleteOpen(false)}
+        onRequestClose={() => setDeleteOpen(false)}
       />
     </Screen>
   )

@@ -63,18 +63,49 @@ export type Wallet = {
   updatedAt?: string
 }
 
+/**
+ * Enum `type` mutasi wallet yang diterima backend — sumber kebenaran untuk
+ * filter `GET /v1/wallet/transactions`.
+ *
+ * Nilai di luar daftar ini DITOLAK backend dengan pesan
+ * `Invalid transaction type: "TOPUP". Valid types are: TOP_UP, WITHDRAW, ...`
+ * (dilaporkan pengguna: seluruh chip filter riwayat wallet mati). Spec mobile
+ * hanya menandai `type` sebagai "string" tanpa enum, jadi daftar ini diambil
+ * dari enum `type` pada `/v1/admin/finance/transactions` di
+ * docs/api/openapi.json — kolom database yang sama.
+ *
+ * Label, ikon, dan arah dana per nilai ada di `lib/wallet-labels.ts`
+ * (`WALLET_TXN_TYPES` mencerminkan daftar ini).
+ */
+export const WALLET_TXN_TYPE_ENUM = [
+  "TOP_UP",
+  "WITHDRAW",
+  "ORDER_LOCK",
+  "ORDER_RELEASE",
+  "ORDER_REFUND",
+  "FEE_DEDUCT",
+  "REFERRAL_REWARD",
+  "SUBSCRIPTION_PAYMENT",
+  "ADMIN_CREDIT",
+  "ADMIN_DEBIT",
+  "DISPUTE_RELEASE",
+  "TRANSFER_SENT",
+  "TRANSFER_RECEIVED",
+  "CAMPAIGN_CASHBACK",
+  "TOPUP_BONUS",
+] as const
+
+export type WalletTxnTypeValue = (typeof WALLET_TXN_TYPE_ENUM)[number]
+
 /** Satu entri riwayat transaksi wallet. */
 export type WalletTransaction = {
   id: string
-  type:
-    | "TOPUP"
-    | "WITHDRAWAL"
-    | "TRANSFER_IN"
-    | "TRANSFER_OUT"
-    | "ORDER_ESCROW"
-    | "ORDER_RELEASE"
-    | "REFUND"
-    | (string & {})
+  /**
+   * `(string & {})` dipertahankan: backend bisa menambah jenis baru tanpa
+   * merilis ulang spec, dan UI sudah menampilkan nilai asing apa adanya
+   * (lihat `WALLET_TXN_LABELS`) alih-alih crash.
+   */
+  type: WalletTxnTypeValue | (string & {})
   amount: number
   direction?: "CREDIT" | "DEBIT"
   description?: string | null
@@ -108,8 +139,13 @@ export function getWallet(signal?: AbortSignal) {
 export type WalletTransactionsQuery = {
   page: number
   limit: number
-  /** Filter tipe mutasi. Kosong berarti semua tipe; backend tidak menerima nilai ALL. */
-  type?: string
+  /**
+   * Filter tipe mutasi — HARUS salah satu `WALLET_TXN_TYPE_ENUM`. Kosong
+   * berarti semua tipe; backend tidak menerima nilai "ALL" dan menolak nilai
+   * di luar enum dengan 400 (bukan daftar kosong), jadi chip filter di layar
+   * wajib dibangun dari enum, bukan dari kunci peta label.
+   */
+  type?: WalletTxnTypeValue | string
   /** Batas awal rentang tanggal (ISO). Default 2000-01-01 (asumsi). */
   from?: string
   /** Batas akhir rentang tanggal (ISO). Default sekarang (asumsi). */

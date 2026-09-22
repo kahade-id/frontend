@@ -272,7 +272,15 @@ const CARD_FILE = /-(card|item|row)\.tsx$/
 
 // Nama file berakhiran -row/-item tapi BUKAN kartu: primitif layout murni
 // yang tidak punya konten teks sendiri. Glob di BACKLOG.md terlalu lebar.
-const NOT_A_CARD = new Set(["components/ui/scroll-row.tsx"])
+const NOT_A_CARD = new Set([
+  "components/ui/scroll-row.tsx",
+  // Baris thread chat = wrapper komposisi (pemisah hari + <ChatMessageBubble>).
+  // Elemen yang diumumkan & fokusable adalah bubble-nya sendiri, yang sudah
+  // membangun label ringkas (pengirim, isi, jam, status). Label di root baris
+  // ini either diabaikan RN (aturan A: tanpa `accessible`) atau menelan chip
+  // reaksi + tombol coba lagi di dalam bubble (aturan B) — dua-duanya regresi.
+  "components/ui/chat-message-row.tsx",
+])
 
 for (const abs of files) {
   const rel = relative(root, abs)

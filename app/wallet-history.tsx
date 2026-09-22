@@ -19,16 +19,25 @@
  *      kartu rounded — tiap kelompok menampilkan net hariannya.
  *
  * Keputusan non-obvious:
- *   - Filter jenis memakai nilai enum API PERSIS (kunci `WALLET_TXN_LABELS`)
- *     dan dikirim sebagai query `type`; "Semua" TIDAK mengirim `type` sama
- *     sekali — helper lib/api/wallet.ts sudah menolak nilai "ALL" karena
- *     backend tidak mengenalnya.
+ *   - Filter jenis memakai nilai enum API PERSIS (`WALLET_TXN_FILTERS` di
+ *     lib/wallet-labels.ts) dan dikirim sebagai query `type`; "Semua jenis"
+ *     TIDAK mengirim `type` sama sekali — helper lib/api/wallet.ts membuang
+ *     nilai "ALL" karena backend tidak mengenalnya.
+ *     BUG yang diperbaiki: chip dulu diturunkan dari kunci peta LABEL, yang
+ *     berisi tebakan lama (TOPUP, WITHDRAWAL, TRANSFER_IN, ORDER_ESCROW, …).
+ *     Backend memvalidasi `type` terhadap enum-nya dan menolak semuanya dengan
+ *     `Invalid transaction type: "TOPUP"` → tiap chip jenis menghasilkan layar
+ *     error, bukan daftar. Peta label boleh berisi alias untuk MENAMPILKAN
+ *     data lama; nilai yang DIKIRIM ke API tidak boleh.
  *   - Mengganti filter = key query baru (`wallet-history:${type}`) sehingga
  *     `usePaginatedQuery` meng-abort request filter lama dan memulai dari
  *     halaman 1. Tanpa itu, hasil filter lama bisa masuk setelah filter baru.
- *   - Rentang tanggal mengikuti default helper (≤ 90 hari, batas backend) dan
- *     dinyatakan ke pengguna lewat teks bantuan, bukan disembunyikan: tanpa
- *     keterangan itu mutasi lama terlihat "hilang".
+ *   - Rentang tanggal dinyatakan ke pengguna lewat teks bantuan, bukan
+ *     disembunyikan: tanpa keterangan itu mutasi lama terlihat "hilang".
+ *     Preset "Semua waktu" DIHAPUS — backend membatasi rentang 90 hari, jadi
+ *     chip itu menjanjikan hal yang tidak bisa dipenuhi server dan hasilnya
+ *     identik dengan chip "90 hari" di sebelahnya. Dua chip yang melakukan hal
+ *     sama, salah satunya berbohong, lebih buruk daripada tiga chip jujur.
  *   - Baris memakai `href` ke detail mutasi agar di web menjadi tautan nyata.
  *   - Pengelompokan memakai TANGGAL LOKAL perangkat (bukan UTC): mutasi jam
  *     00:30 WIB tidak boleh masuk "kemarin" hanya karena UTC-nya masih H-1.
@@ -47,10 +56,10 @@ import {
 } from "phosphor-react-native"
 
 import { api, type WalletTransaction } from "@/lib/api"
-import { formatDate, formatDateLong } from "@/lib/format"
+import { formatDate, formatDateLong, formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
-import { WALLET_TXN_LABELS, walletTransactionType } from "@/lib/wallet-labels"
+import { WALLET_TXN_FILTERS, walletTransactionType } from "@/lib/wallet-labels"
 import { useWalletExport } from "@/lib/use-wallet-export"
 import { tokens } from "@/lib/tokens"
 
@@ -71,10 +80,15 @@ import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 const PAGE_SIZE = 20
 const ALL = "ALL"
 
-/** Chip filter: "Semua" + satu chip per jenis mutasi yang dikenal UI. */
+/**
+ * Chip filter: "Semua jenis" + satu chip per nilai enum yang DITERIMA API.
+ * Label "Semua jenis" (bukan "Semua") sengaja: baris chip di bawahnya juga
+ * menyaring, dan dua chip bernama "Semua" di kolom yang sama membuat pengguna
+ * menebak-nebak filter mana yang sedang aktif.
+ */
 const TYPE_FILTERS: Array<{ label: string; value: string }> = [
-  { label: "Semua", value: ALL },
-  ...Object.entries(WALLET_TXN_LABELS).map(([value, label]) => ({ label, value })),
+  { label: "Semua jenis", value: ALL },
+  ...WALLET_TXN_FILTERS.map(({ value, label }) => ({ value, label })),
 ]
 
 /**
@@ -83,12 +97,19 @@ const TYPE_FILTERS: Array<{ label: string; value: string }> = [
  * tapi tidak pernah dipakai layar. Preset hari, bukan date-picker: cukup
  * untuk rekonsiliasi bulanan tanpa menambah komponen baru.
  */
-const RANGE_FILTERS: Array<{ label: string; days: number | null }> = [
-  { label: "Semua waktu", days: null },
+const RANGE_FILTERS: Array<{ label: string; days: number }> = [
   { label: "7 hari", days: 7 },
   { label: "30 hari", days: 30 },
   { label: "90 hari", days: 90 },
 ]
+/** Preset default = rentang terlebar yang benar-benar dilayani backend. */
+const DEFAULT_RANGE_DAYS = 90
+/**
+ * Backend menolak rentang lebih dari 90 hari. Preset "90 hari" ditarik mundur
+ * 1 jam agar tidak jatuh tepat di batas (helper lib/api/wallet.ts memakai
+ * margin yang sama: 89 hari untuk default-nya).
+ */
+const RANGE_MARGIN_MS = 60 * 60 * 1000
 
 // ------------------------------------------------------------------
 // Pengelompokan per hari (tanggal lokal perangkat)
@@ -184,19 +205,18 @@ function HistorySkeleton() {
 
 export default function WalletHistoryScreen() {
   const [type, setType] = useState(ALL)
-  const [rangeDays, setRangeDays] = useState<number | null>(null)
+  const [rangeDays, setRangeDays] = useState(DEFAULT_RANGE_DAYS)
   const { exporting, exportWallet } = useWalletExport()
 
   // Rentang dihitung saat query dimulai (bukan per render) supaya key stabil.
   const range = useMemo(() => {
-    if (rangeDays === null) return { from: undefined, to: undefined }
     const to = new Date()
-    const from = new Date(to.getTime() - rangeDays * 24 * 60 * 60 * 1000)
+    const from = new Date(to.getTime() - rangeDays * 24 * 60 * 60 * 1000 + RANGE_MARGIN_MS)
     return { from: from.toISOString(), to: to.toISOString() }
-  }, [rangeDays, type])
+  }, [rangeDays])
 
   const query = usePaginatedQuery<WalletTransaction>(
-    `wallet-history:${type}:${rangeDays ?? "all"}`,
+    `wallet-history:${type}:${rangeDays}d`,
     (page, signal) =>
       api.wallet.getWalletTransactions(
         { page, limit: PAGE_SIZE, type, from: range.from, to: range.to },
@@ -217,6 +237,12 @@ export default function WalletHistoryScreen() {
     .filter((tx) => walletTransactionType(tx) === "DEBIT")
     .reduce((sum, tx) => sum + (tx.amount || 0), 0)
   const inShare = loadedIn + loadedOut > 0 ? loadedIn / (loadedIn + loadedOut) : 0.5
+  /**
+   * Selisih masuk-keluar adalah angka yang sebenarnya dicari orang di riwayat
+   * uang ("bulan ini saya untung atau bocor?"). Versi lama hanya menampilkan
+   * dua totalnya dan membiarkan pengguna menghitung sendiri.
+   */
+  const net = loadedIn - loadedOut
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -258,17 +284,17 @@ export default function WalletHistoryScreen() {
           <FadeIn duration="fast">
             <View className="gap-3 pb-1">
               <ScrollRow bleed gap={2} accessibilityLabel="Saring riwayat berdasarkan jenis">
-              {TYPE_FILTERS.map((filter) => (
-                <Chip
-                  key={filter.value}
-                  selected={type === filter.value}
-                  accessibilityState={{ selected: type === filter.value }}
-                  onPress={() => setType(filter.value)}
-                >
-                  {filter.label}
-                </Chip>
-              ))}
-            </ScrollRow>
+                {TYPE_FILTERS.map((filter) => (
+                  <Chip
+                    key={filter.value}
+                    selected={type === filter.value}
+                    accessibilityState={{ selected: type === filter.value }}
+                    onPress={() => setType(filter.value)}
+                  >
+                    {filter.label}
+                  </Chip>
+                ))}
+              </ScrollRow>
 
               <ScrollRow bleed gap={2} accessibilityLabel="Saring riwayat berdasarkan rentang tanggal">
                 {RANGE_FILTERS.map((filter) => (
@@ -283,52 +309,63 @@ export default function WalletHistoryScreen() {
                 ))}
               </ScrollRow>
 
-            {/* ── Kartu ringkasan masuk vs keluar ─────────────── */}
-            {items.length > 0 ? (
-              <View
-                className="gap-3 rounded-md bg-surface p-4"
-                accessible
-                accessibilityLabel={`Ringkasan ${items.length} mutasi yang dimuat`}
-              >
-                <Text variant="caption" tone="secondary">
-                  {items.length} mutasi dimuat
-                </Text>
-                <View className="flex-row gap-4">
-                  <View className="flex-1 gap-1">
-                    <View className="flex-row items-center gap-1.5">
-                      <Icon icon={ArrowCircleDown} size="xs" tone="success" />
-                      <Text variant="caption" tone="secondary">
-                        Masuk
-                      </Text>
-                    </View>
-                    <Amount value={loadedIn} sign="always" tone="success" />
-                  </View>
-                  <View className="flex-1 items-end gap-1">
-                    <View className="flex-row items-center gap-1.5">
-                      <Text variant="caption" tone="secondary">
-                        Keluar
-                      </Text>
-                      <Icon icon={ArrowCircleUp} size="xs" tone="default" />
-                    </View>
-                    <Amount value={-loadedOut} sign="always" tone="primary" />
-                  </View>
-                </View>
-                {/* Bar proporsi masuk : keluar */}
+              {/* ── Kartu ringkasan masuk vs keluar ─────────────── */}
+              {items.length > 0 ? (
                 <View
-                  className="h-1.5 w-full overflow-hidden rounded-full bg-surface-elevated"
-                  accessibilityRole="none"
+                  className="gap-3 rounded-md bg-surface p-4"
+                  accessible
+                  accessibilityLabel={`Ringkasan ${rangeDays} hari terakhir, ${formatNumber(items.length)} mutasi dimuat`}
                 >
-                  <View className="h-full bg-success" style={{ width: `${inShare * 100}%` }} />
+                  <View className="flex-row items-baseline justify-between gap-3">
+                    <Text variant="caption" tone="secondary">
+                      Ringkasan mutasi
+                    </Text>
+                    <Text variant="caption" tone="tertiary">
+                      {formatNumber(items.length)} mutasi dimuat
+                    </Text>
+                  </View>
+                  <View className="flex-row gap-4">
+                    <View className="flex-1 gap-1">
+                      <View className="flex-row items-center gap-1.5">
+                        <Icon icon={ArrowCircleDown} size="xs" tone="success" />
+                        <Text variant="caption" tone="secondary">
+                          Masuk
+                        </Text>
+                      </View>
+                      <Amount value={loadedIn} sign="always" tone="success" />
+                    </View>
+                    <View className="flex-1 items-end gap-1">
+                      <View className="flex-row items-center gap-1.5">
+                        <Text variant="caption" tone="secondary">
+                          Keluar
+                        </Text>
+                        <Icon icon={ArrowCircleUp} size="xs" tone="default" />
+                      </View>
+                      <Amount value={-loadedOut} sign="always" tone="primary" />
+                    </View>
+                  </View>
+                  {/* Bar proporsi masuk : keluar */}
+                  <View
+                    className="h-1.5 w-full overflow-hidden rounded-full bg-surface-elevated"
+                    accessibilityRole="none"
+                  >
+                    <View className="h-full bg-success" style={{ width: `${inShare * 100}%` }} />
+                  </View>
+                  <View className="flex-row items-baseline justify-between gap-3 border-t border-border pt-3">
+                    <Text variant="caption" tone="secondary">
+                      Selisih
+                    </Text>
+                    <Amount value={net} sign="always" tone={net >= 0 ? "success" : "primary"} />
+                  </View>
                 </View>
-              </View>
-            ) : null}
+              ) : null}
             </View>
           </FadeIn>
         }
         footer={
           <View className="gap-2 pt-4">
             <Text variant="caption" tone="tertiary">
-              Riwayat ditampilkan maksimal 90 hari terakhir. Unduh CSV untuk rentang lengkap yang
+              Server membatasi riwayat 90 hari terakhir. Unduh CSV untuk rentang lengkap yang
               disediakan server.
             </Text>
           </View>

@@ -81,8 +81,8 @@ export const gray = {
   200: "#E5E7EB", // Cadangan + bgSoft aksen
   300: "#D1D5DB", // Divider sangat halus (1.50 vs bg, dekoratif murni)
   400: "#9CA3AF", // Border alternatif + chart dark langkah 2 (7.65 vs #000000)
-  500: "#6B7280", // Teks disabled, langkah chart dark pertama (3.94 vs #000000)
-  600: "#525252", // ← HEX brand — text-tertiary + border-control (light): 7.82 vs bg, 7.10 vs surface
+  500: "#6B7280", // border-control (light, v2.3), teks disabled, langkah chart dark pertama (3.94 vs #000000)
+  600: "#525252", // ← HEX brand — text-tertiary (light): 7.82 vs bg, 7.10 vs surface
   700: "#404040", // text-secondary (light): 10.37 vs bg, 9.42 vs surface
   800: "#262626", // ← HEX brand — Chart dark (light step 3) / surface fill gelap
   900: "#171717", // Surface fill alternatif (dark)
@@ -188,11 +188,21 @@ export const light = {
    * Checkbox, Radio, Switch off, NumberStepper, SegmentedControl, ToggleGroup
    * belum terpilih) DAN indikator state non-teks (dot PIN kosong, track
    * Slider, bintang Rating kosong). WCAG 1.4.11 non-text contrast >= 3:1:
-   * #525252 (HEX brand) vs #FFFFFF = 7.82:1, vs surface #F3F4F6 = 7.10:1.
+   * #6B7280 vs #FFFFFF = 4.83:1, vs surface #F3F4F6 = 4.40:1.
    * Daftar lengkap + pengecualian: docs/audit/findings/06-non-text-contrast.md
    * Bukan untuk Button secondary (dikenali dari label) atau border kartu.
+   *
+   * v2.3 (2026-09-21) — diturunkan dari gray.600 #525252 ke gray.500 #6B7280.
+   * Alasan (permintaan pemilik produk: "bordernya harusnya abu abu bukan
+   * hitam, hitam ketika aktif"): #525252 di atas putih terbaca hampir sama
+   * gelapnya dengan `borderFocus` #000000, sehingga keadaan resting dan fokus
+   * sebuah field nyaris tidak berbeda — hierarki state mati. gray.500 tetap
+   * "abu-abu" yang jelas sekaligus lolos ambang 3:1 yang dijaga
+   * scripts/check-tokens.mjs, jadi kontras state fokus (hitam 1.5px) kembali
+   * menjadi pembeda utama. Dark mode tidak berubah: di sana resting memang
+   * harus terang (#9CA3AF) agar terlihat di atas #000000.
    */
-  borderControl: "#525252", // ← HEX brand gray.600
+  borderControl: "#6B7280", // gray.500 netral (4.83 vs bg, 4.40 vs surface)
   borderFocus: "#000000", // ← HEX brand: fokus/aktif pada elemen interaktif
   borderError: "#D92D20", // == danger.fill
   textPrimary: "#000000", // ← HEX brand: 21.00 vs bg, 19.08 vs surface
@@ -215,6 +225,17 @@ export const light = {
    * 8.45:1 pada kasus terburuk (foto putih polos).
    */
   overlayMedia: "rgba(0, 0, 0, 0.7)",
+  /**
+   * Umpan balik SENTUH (v2.3, 2026-09-21) — satu token untuk dua mekanisme:
+   *   1. warna ripple Android (`android_ripple` di <PressableScale>), dan
+   *   2. underlay tekan di iOS/web (rgba yang sama, digambar sebagai lapisan
+   *      di atas baris) karena kedua platform itu tidak punya ripple native.
+   * Alpha rendah (0.08 di atas putih) supaya baris yang SUDAH berfill
+   * `bg-surface` (notifikasi belum dibaca, kartu terpilih) tetap menunjukkan
+   * perubahan saat ditekan tanpa menjadi blok abu pekat. Bukan warna status,
+   * jadi tidak diuji kontrasnya — ini lapisan sementara di atas permukaan.
+   */
+  pressed: "rgba(0, 0, 0, 0.08)",
 } as const
 
 export const dark = {
@@ -245,6 +266,8 @@ export const dark = {
   overlay: "rgba(0, 0, 0, 0.6)",
   /** Lihat `overlayMedia` di light — alasan dan aritmetika kontrasnya sama. */
   overlayMedia: "rgba(0, 0, 0, 0.7)",
+  /** Lihat `pressed` di light — di dark underlay-nya putih agar terbaca di atas #000. */
+  pressed: "rgba(255, 255, 255, 0.12)",
 } as const
 
 export type ModeTokens = { readonly [K in keyof typeof light]: string }
@@ -831,6 +854,7 @@ export function toTailwindTheme() {
       },
       overlay: "var(--color-overlay)",
       "overlay-media": "var(--color-overlay-media)",
+      pressed: "var(--color-pressed)",
       success: {
         DEFAULT: "var(--color-success-fill)",
         text: "var(--color-success-text)",
@@ -961,6 +985,7 @@ export function toCssVariables(mode: ColorMode): Record<string, string> {
     "--color-primary-foreground": m.primaryForeground,
     "--color-overlay": m.overlay,
     "--color-overlay-media": m.overlayMedia,
+    "--color-pressed": m.pressed,
     "--color-success-fill": semantic.success[mode].fill,
     "--color-success-text": semantic.success[mode].text,
     "--color-success-soft": semantic.success[mode].bgSoft,

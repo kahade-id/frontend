@@ -11,11 +11,13 @@
  *  - Kartu cukup LATAR (`bg-surface`) + `rounded-md`, tanpa border dan tanpa
  *    pemisah antar baris. Kelompok ditandai label kecil + jarak + sudut
  *    membulat, jadi layar terbaca sebagai daftar pengaturan yang rapi,
- *    bukan tumpukan kartu bersiku.
+ *    bukan tumpukan kartu bersiku. Kartu Langganan dan kotak ikonnya memakai
+ *    `rounded-md` yang SAMA dengan kelompok menu: radius yang berbeda di layar
+ *    yang sama terbaca sebagai "kartu ini dari sistem lain".
  *
  * Struktur:
- *  - ProfileHeader: foto sampul (header image) + avatar + nama + @username,
- *    dengan aksi ubah sampul/profil → /edit-profile.
+ *  - ProfileHeader: avatar + nama + @username (tanpa foto sampul — lihat
+ *    catatan di pemanggilannya).
  *  - Kartu utama: Langganan (Kahade Plus).
  *  - Akun: Edit Profil, Laporan & Analitik, Keamanan, Tipe Akun.
  *  - Preferensi: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
@@ -36,7 +38,6 @@ import {
   Bell,
   Briefcase,
   Buildings,
-  Camera,
   CaretRight,
   ChatTeardropDots,
   CrownSimple,
@@ -74,12 +75,12 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Stagger } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
-import { IconButton } from "@/components/ui/icon-button"
 import { ListItem } from "@/components/ui/list-item"
 import { Dialog } from "@/components/ui/modal"
 import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { RouteLink } from "@/components/ui/route-link"
+import { MenuGroupLabel } from "@/components/ui/section"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 
@@ -98,15 +99,6 @@ type MenuItemData = {
 
 /** Latar polos + rounded — satu kelas untuk semua kelompok menu (tanpa separator antar baris). */
 const MENU_GROUP = "w-full overflow-hidden rounded-md bg-surface"
-
-/** Judul kelompok: label 13/600 (bukan H2/H3 agar tidak bersaing dengan baris). */
-function MenuGroupLabel({ children }: { children: string }) {
-  return (
-    <Text variant="label" tone="secondary" className="pt-2">
-      {children}
-    </Text>
-  )
-}
 
 export default function SettingsScreen() {
   const { preference } = useTheme()
@@ -264,23 +256,19 @@ export default function SettingsScreen() {
               retrying={profileQuery.loading}
             />
           ) : (
+            /*
+             * TANPA `cover`. Foto sampul adalah milik halaman profil dan
+             * /edit-profile — di layar Pengaturan ia hanya mendorong menu ke
+             * bawah lipatan layar tanpa menambah satu pun tindakan yang belum
+             * tersedia di baris "Edit Profil". Yang dibutuhkan layar ini dari
+             * identitas pengguna adalah "akun mana yang sedang saya atur":
+             * avatar + nama + @username cukup, dan sampul justru membuatnya
+             * terlihat seperti halaman profil kedua.
+             */
             <ProfileHeader
               name={profile?.fullName ?? "—"}
               handle={profile?.username ? `@${profile.username}` : undefined}
               avatar={{ source: profile?.avatarUrl ?? undefined }}
-              cover={{
-                source: profile?.headerUrl ?? undefined,
-                placeholder: true,
-                action: (
-                  <IconButton
-                    icon={Camera}
-                    size="sm"
-                    variant="secondary"
-                    accessibilityLabel="Ubah foto sampul dan profil"
-                    onPress={() => router.push(ROUTES.editProfile)}
-                  />
-                ),
-              }}
               loading={profileQuery.loading}
             />
           )}
@@ -295,10 +283,10 @@ export default function SettingsScreen() {
             href={ROUTES.subscriptions}
             accessibilityLabel="Menu Langganan Kahade Plus"
             containerClassName="w-full"
-            className="w-full overflow-hidden bg-surface p-4"
+            className="w-full overflow-hidden rounded-md bg-surface p-4"
           >
             <View className="flex-row items-center gap-3">
-              <View className="h-11 w-11 items-center justify-center bg-primary">
+              <View className="h-11 w-11 items-center justify-center rounded-md bg-primary">
                 <Icon icon={CrownSimple} size="sm" tone="inverse" weight="fill" />
               </View>
 

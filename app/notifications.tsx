@@ -13,8 +13,11 @@
  *    (lib/notification-routing — referenceType/referenceId UNVERIFIED).
  *  - Badge tab diturunkan lewat store `lib/unread-count` (bukan poll ulang).
  *  - "Tandai semua dibaca" (`POST /v1/notifications/read-all`).
- *  - Tekan lama → ActionSheet per item + umpan balik scale & haptic pada
- *    baris (intuitif "ini baris yang kupilih").
+ *  - Tekan lama → MASUK MODE PILIH dengan baris itu terpilih + haptic
+ *    (v3 2026-09-21). ActionSheet per item dan tombol ⋮ di tiap baris
+ *    dihapus: keduanya menduplikasi aksi yang sudah ada di header mode pilih
+ *    (tandai dibaca / hapus), dan chevron/titik tiga membuat baris terasa
+ *    seperti punya dua target sentuh padahal seluruh baris adalah tombol.
  *  - Mode pilih (maks 50 = BatchNotificationIdsDto): read-batch & delete-batch.
  *  - Menu ⋮ → "Hapus yang sudah dibaca" (`POST /v1/notifications/delete-read`).
  *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh.
@@ -45,6 +48,8 @@ import {
 
 import { api, type AppNotification, type NotificationCategory, userMessage } from "@/lib/api"
 import { formatDateTime } from "@/lib/format"
+import { haptic } from "@/lib/haptics"
+import { translate } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { notificationUiCategory } from "@/lib/notification-category"
@@ -93,16 +98,18 @@ function NotifSkeletonRow() {
     <View
       style={{
         flexDirection: "row",
-        alignItems: "center",
-        gap: tokens.space[2],
+        alignItems: "flex-start",
+        // Sebentuk baris aslinya: chip ikon 32 + gap 12 + padding layar 20.
+        gap: tokens.space[3],
         paddingHorizontal: tokens.layout.screenPaddingX,
         paddingVertical: tokens.space[3],
       }}
     >
-      <Skeleton shape="circle" width={16} height={16} />
-      <View style={{ flex: 1, gap: tokens.space[1] }}>
+      <Skeleton shape="circle" width={32} height={32} />
+      <View style={{ flex: 1, gap: tokens.space[2] }}>
         <Skeleton height={14} style={{ width: "60%" }} />
-        <Skeleton height={12} style={{ width: "80%" }} />
+        <Skeleton height={12} style={{ width: "88%" }} />
+        <Skeleton height={12} style={{ width: "45%" }} />
       </View>
     </View>
   )
@@ -143,7 +150,6 @@ export default function NotificationsScreen() {
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [batchBusy, setBatchBusy] = useState(false)
   const [confirm, setConfirm] = useState<"delete-selected" | "delete-read" | null>(null)
-  const [itemMenu, setItemMenu] = useState<AppNotification | null>(null)
 
   const hasUnread = notifs.some((n) => !n.isRead)
   const hasRead = notifs.some((n) => n.isRead)
@@ -170,12 +176,20 @@ export default function NotificationsScreen() {
   }, [])
 
   const toggleSelect = useCallback((id: string) => {
+    haptic("select")
     setSelected((prev) => {
       const next = new Set(prev)
       if (next.has(id)) next.delete(id)
       else if (next.size < BATCH_MAX) next.add(id)
       return next
     })
+  }, [])
+
+  /** Tekan lama satu baris → mode pilih dengan baris itu sudah terpilih. */
+  const enterSelect = useCallback((id: string) => {
+    haptic("select")
+    setSelecting(true)
+    setSelected(new Set([id]))
   }, [])
 
   const selectedIds = useMemo(() => Array.from(selected), [selected])
@@ -240,24 +254,6 @@ export default function NotificationsScreen() {
     }
   }, [batchBusy])
 
-  const handleDeleteOne = useCallback(async (id: string) => {
-    // Optimistic: hilangkan dulu, kembalikan bila gagal
-    let removed: AppNotification | undefined
-    setNotifs((prev) => {
-      removed = prev.find((n) => n.id === id)
-      return prev.filter((n) => n.id !== id)
-    })
-    try {
-      await api.notifications.deleteNotification(id)
-      void refreshUnreadCount()
-    } catch {
-      if (removed) {
-        const back = removed
-        setNotifs((prev) => (prev.some((n) => n.id === back.id) ? prev : [back, ...prev]))
-      }
-    }
-  }, [])
-
   const menuActions: ActionSheetItem[] = [
     {
       key: "select",
@@ -280,50 +276,11 @@ export default function NotificationsScreen() {
     },
   ]
 
-  const itemActions: ActionSheetItem[] = itemMenu
-    ? [
-        ...(!itemMenu.isRead
-          ? [
-              {
-                key: "read",
-                label: "Tandai dibaca",
-                icon: Checks,
-                onPress: () => {
-                  handleRead(itemMenu.id)
-                  setItemMenu(null)
-                },
-              } satisfies ActionSheetItem,
-            ]
-          : []),
-        {
-          key: "select",
-          label: "Pilih beberapa",
-          icon: CheckSquare,
-          onPress: () => {
-            setItemMenu(null)
-            setSelecting(true)
-            setSelected(new Set([itemMenu.id]))
-          },
-        },
-        {
-          key: "delete",
-          label: "Hapus notifikasi",
-          icon: Trash,
-          destructive: true,
-          onPress: () => {
-            const id = itemMenu.id
-            setItemMenu(null)
-            void handleDeleteOne(id)
-          },
-        },
-      ]
-    : []
-
   return (
     <Screen edges={["top"]} padded={false}>
       {selecting ? (
         <Header
-          title={selectedCount > 0 ? `${selectedCount} dipilih` : "Pilih notifikasi"}
+          title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih notifikasi"}
           showBack={false}
           left={
             <IconButton
@@ -401,7 +358,9 @@ export default function NotificationsScreen() {
             ))}
           </SkeletonGroup>
         }
-        gap={tokens.space[1]}
+        // Gap 0: pemisahnya adalah divider inset di tiap baris. Gap + divider
+        // sekaligus membuat daftar terlihat bergaris ganda.
+        gap={0}
         bottomPadding={tokens.space[8]}
         onRefresh={query.refresh}
         onRetry={query.reload}
@@ -440,23 +399,11 @@ export default function NotificationsScreen() {
               // CTA "Lihat ..." ke entitas terkait bila referensinya dikenali.
               router.push(ROUTES.notificationDetail(item.id))
             }}
-            onLongPress={() => {
-              if (selecting) toggleSelect(item.id)
-              else setItemMenu(item)
-            }}
-            // Aksi TERLIHAT untuk menu per item: tekan-lama saja tidak bisa
-            // ditemukan (di web tidak ada affordance-nya sama sekali).
-            action={
-              selecting ? undefined : (
-                <IconButton
-                  icon={DotsThreeVertical}
-                  size="sm"
-                  variant="ghost"
-                  accessibilityLabel={`Menu aksi notifikasi: ${item.title}`}
-                  onPress={() => setItemMenu(item)}
-                />
-              )
-            }
+            // Tekan lama = masuk mode pilih (bukan ActionSheet per item).
+            // Di web affordance tekan-lama tidak ada, jadi hint baris
+            // menyebutnya eksplisit (lihat NotificationListItem).
+            onLongPress={() => (selecting ? toggleSelect(item.id) : enterSelect(item.id))}
+            ripple
             divider={index < notifs.length - 1}
           />
         )}
@@ -467,12 +414,6 @@ export default function NotificationsScreen() {
         onRequestClose={() => setMenuOpen(false)}
         title="Notifikasi"
         actions={hasRead ? menuActions : menuActions.filter((a) => a.key !== "delete-read")}
-      />
-      <ActionSheet
-        visible={!!itemMenu}
-        onRequestClose={() => setItemMenu(null)}
-        title={itemMenu?.title}
-        actions={itemActions}
       />
 
       <Dialog

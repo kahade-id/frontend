@@ -58,12 +58,40 @@ const TYPE_SCALE = [
   "monoBody",
 ] as const
 
+/**
+ * Kunci skala LEBAR BORDER (§6.1) — sumber: `borderWidth` di lib/tokens.ts,
+ * yang oleh `toTailwindTheme()` dipetakan ke `theme.extend.borderWidth`.
+ * `DEFAULT` (class `border`) dan `0` (class `border-0`) tidak ikut didaftar
+ * karena keduanya sudah dikenal tailwind-merge bawaan.
+ *
+ * BUG YANG DIPERBAIKI (dilaporkan QA 2026-09-21, "input jadi transparan saat
+ * aktif"): tailwind-merge mengklasifikasikan `border-focus` / `border-error` /
+ * `border-badge` sebagai kelas WARNA border (sufiksnya bukan angka yang ia
+ * kenali), sehingga pada
+ *
+ *     cn("border border-border-control", "border-focus border-border-focus")
+ *
+ * kelas `border-focus` (LEBAR 1.5px) dibuang sebagai konflik dengan
+ * `border-border-focus` (warna). Hasilnya saat field fokus/error tidak ada
+ * satu pun kelas lebar border yang tersisa → `borderWidth: 0` → kotak input
+ * kehilangan garis tepinya dan terlihat "transparan"/bolong. Pola yang sama
+ * diam-diam mematikan ring `border-badge` Avatar (lencana verifikasi) dan
+ * lingkaran avatar tab profil.
+ *
+ * Mendaftarkan nama-nama itu ke classGroup `border-w` membuat tailwind-merge
+ * membacanya sebagai LEBAR, jadi lebar vs warna tidak lagi saling membuang —
+ * persis penyelesaian yang sudah dipakai untuk type scale di atas. Ada test
+ * penjaga di tests/cn-merge.test.ts.
+ */
+const BORDER_WIDTH_SCALE = ["focus", "error", "badge"] as const
+
 const mergeClasses = extendTailwindMerge({
   extend: {
     classGroups: {
       // `extend` (bukan `override`): ukuran bawaan Tailwind & nilai arbitrary
       // (text-[14px]) tetap terdaftar, nama type scale Kahade ditambahkan.
       "font-size": [{ text: [...TYPE_SCALE] }],
+      "border-w": [{ border: [...BORDER_WIDTH_SCALE] }],
     },
   },
 })
@@ -101,3 +129,6 @@ function join(inputs: ClassValue[]): string {
 
 /** Diekspor untuk test penjaga type scale. */
 export const CN_TYPE_SCALE: readonly string[] = TYPE_SCALE
+
+/** Diekspor untuk test penjaga skala lebar border (§6.1). */
+export const CN_BORDER_WIDTH_SCALE: readonly string[] = BORDER_WIDTH_SCALE

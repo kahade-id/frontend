@@ -24,6 +24,14 @@
  * Keputusan non-obvious:
  *   - Tinggi bar 56px (h-14) + paddingBottom safe-area (home indicator) via
  *     style runtime. `border-t border-border` sebagai pemisah (§6).
+ *   - Tombol (+) di TENGAH (permintaan produk 2026-09-21): aksi membuat
+ *     sesuatu — isi saldo, buat transaksi, tambah etalase — dikumpulkan di
+ *     satu tombol terapung, bukan disebar sebagai tab. Tab yang tersisa
+ *     (4) berbagi lebar yang dilepas slot tengah, jadi label tetap muat di
+ *     360dp; tab "showcase" dikeluarkan dari bar (lihat HIDDEN_TAB_ROUTES).
+ *   - Ripple di tiap tab: bar ini permukaan sapuan jari (lihat PressableScale).
+ *     Scale press tetap mati — item menempel satu sama lain, jadi animasi
+ *     skala membuat tepi bar tampak "bernapas".
  *   - Tanpa scale press: item bersentuhan dan menempel tepi layar; §8 hanya
  *     menyebut scale untuk Button. Sebagai gantinya ikon AKTIF membesar
  *     halus 1.15x via spring playful (v2) — penanda tab aktif yang terasa
@@ -38,29 +46,35 @@
  *     tetapi ikon tetap diberi `hitSlop` agar label/ikon kecil tetap nyaman
  *     disentuh di web/mobile pada area tengah tab.
  */
-import { useEffect, useRef, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import type { Href } from "expo-router"
+import { router, type Href } from "expo-router"
 import {
   House,
   ImagesSquare,
+  Lightning,
+  Plus,
   ShoppingBag,
   UserCircle,
   Wallet,
 } from "phosphor-react-native"
 
+import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Avatar } from "@/components/ui/avatar"
 import { NotificationDot } from "@/components/ui/badge"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import type { BottomTabBarProps as RNNBottomTabBarProps } from "@react-navigation/bottom-tabs"
 
+import { useTheme } from "@/components/theme-provider"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { elevationStyle } from "@/lib/elevation"
 import { focusRingInset } from "@/lib/focus-ring"
+import { haptic } from "@/lib/haptics"
 import { hitSlopToReach } from "@/lib/hit-slop"
-import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
+import { ROUTES, TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -137,12 +151,95 @@ export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
 // bila suatu hari TAB_ROUTE_NAMES berubah, Record<> di atas ikut gagal kompilasi.
 void TAB_ROUTE_NAMES
 
+/**
+ * Rute tab yang TIDAK ditampilkan di bottom bar (permintaan produk
+ * 2026-09-21). Peta di atas sengaja tetap lengkap — ia sumber kebenaran
+ * label/ikon/rute, dan `showcase` masih dipakai untuk menavigasi ke
+ * halamannya (menu cepat Beranda) walau tidak lagi jadi tab.
+ *
+ * Kenapa dikeluarkan: lima tab + tombol (+) di tengah meninggalkan ±64dp per
+ * tab di layar 360dp — label 12px terpotong dan target sentuh mepet. Empat
+ * tab + satu tombol aksi adalah batas yang masih terbaca sekali lihat.
+ */
+export const HIDDEN_TAB_ROUTES: readonly TabRouteName[] = ["showcase"]
+
+/** Rute tab yang dirender, urut TAB_ROUTE_NAMES (tanpa yang disembunyikan). */
+export const VISIBLE_TAB_ROUTES: readonly TabRouteName[] = TAB_ROUTE_NAMES.filter(
+  (name) => !HIDDEN_TAB_ROUTES.includes(name),
+)
+
+export type TabBarItemOverrides = Partial<Record<TabRouteName, Partial<AppTabBarItem>>>
+
+/**
+ * Peta `route.name → item` untuk prop `items` <RouterBottomTabBar>: route
+ * tanpa entri di peta itu otomatis disembunyikan, jadi membuang kunci
+ * "showcase" di sini cukup untuk mengeluarkannya dari bar.
+ */
+export function visibleTabBarItemMap(
+  overrides: TabBarItemOverrides = {},
+): Record<string, AppTabBarItem> {
+  const map: Record<string, AppTabBarItem> = {}
+  for (const name of VISIBLE_TAB_ROUTES) {
+    map[name] = { ...TAB_BAR_ITEMS[name], ...overrides[name] }
+  }
+  return map
+}
+
+/**
+ * Daftar item ber-`key` untuk <BottomTabBar> kustom (layar profil sendiri).
+ * Satu sumber dengan peta di atas supaya kedua bar selalu identik.
+ */
+export function visibleTabBarItems(
+  overrides: TabBarItemOverrides = {},
+): BottomTabItem<TabRouteName>[] {
+  return VISIBLE_TAB_ROUTES.map((name) => ({
+    key: name,
+    ...TAB_BAR_ITEMS[name],
+    ...overrides[name],
+  }))
+}
+
+/**
+ * Isi sheet tombol (+): tiga aksi "membuat sesuatu" yang paling sering
+ * dipakai. Dikelompokkan di satu tombol karena ketiganya bukan TEMPAT
+ * (tab) melainkan aksi sesekali — menempatkannya sebagai tab membuat bar
+ * penuh label yang jarang disentuh.
+ */
+export const CENTER_ACTION_ITEMS: readonly ActionSheetItem[] = [
+  {
+    key: "topup",
+    label: "Isi saldo dompet",
+    description: "Top up lewat bank, QRIS, atau gerai ritel",
+    icon: Wallet,
+    onPress: () => router.push(ROUTES.topup),
+  },
+  {
+    key: "create-transaction",
+    label: "Buat transaksi",
+    description: "Jual atau beli dengan dana dijaga escrow",
+    icon: Lightning,
+    onPress: () => router.push(ROUTES.createTransaction),
+  },
+  {
+    key: "add-showcase",
+    label: "Tambah etalase",
+    description: "Unggah karya atau produk ke etalase Anda",
+    icon: ImagesSquare,
+    onPress: () => router.push(ROUTES.showcaseManagement),
+  },
+]
+
 export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "children"> & {
   items: readonly BottomTabItem<K>[]
   value: K
   onChange: (key: K) => void
   /** Long-press (mis. buka menu cepat) */
   onLongPress?: (key: K) => void
+  /**
+   * Tombol (+) di tengah bar. `true` = pakai CENTER_ACTION_ITEMS bawaan;
+   * atau kirim daftar aksi sendiri (mis. bar kustom di layar profil).
+   */
+  centerAction?: boolean | readonly ActionSheetItem[]
   className?: string
 }
 
@@ -232,15 +329,102 @@ function TabAvatar({
   )
 }
 
+/**
+ * Tombol (+) terapung di tengah bar — slot tetap 64px supaya tab di kiri dan
+ * kanannya berbagi sisa lebar dengan sama (tidak digeser flex).
+ *
+ * Lingkaran 48px `bg-primary` + ikon Plus inverse: satu-satunya elemen
+ * berwarna solid di bar, jadi mata langsung menemukannya. Naik 20px di atas
+ * tepi bar (`-mt-5`) dan memakai elevation "medium" (§5.2: FAB/popover) —
+ * bayangan itulah yang memisahkannya dari konten di belakang, bukan garis.
+ */
+function CenterActionButton({
+  onPress,
+  elevation,
+}: {
+  onPress: () => void
+  elevation: ViewProps["style"]
+}) {
+  return (
+    <View className="w-16 items-center">
+      <View style={elevation} className="-mt-5 rounded-full">
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel="Buat baru"
+          accessibilityHint="Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase"
+          scaleOnPress={false}
+          ripple
+          onPress={onPress}
+          containerClassName={cn("rounded-full bg-primary", focusRingInset)}
+          className="h-12 w-12 items-center justify-center rounded-full"
+        >
+          <Icon icon={Plus} size="md" tone="inverse" weight="bold" />
+        </PressableScale>
+      </View>
+    </View>
+  )
+}
+
 export function BottomTabBar<K extends string = string>({
   items,
   value,
   onChange,
   onLongPress,
+  centerAction,
   className,
   ...rest
 }: BottomTabBarProps<K>) {
   const insets = useSafeAreaInsets()
+  const { mode } = useTheme()
+  const [centerOpen, setCenterOpen] = useState(false)
+
+  const actions =
+    centerAction === true ? CENTER_ACTION_ITEMS : centerAction ? centerAction : undefined
+
+  // Slot tengah memecah daftar tab jadi dua kelompok; tanpa itu tombol (+)
+  // hanya "sisa flex" dan bergeser tiap jumlah tab berubah.
+  const splitAt = actions ? Math.ceil(items.length / 2) : items.length
+
+  const renderTab = (item: BottomTabItem<K>) => {
+    const active = item.key === value
+    const isProfileTab = item.key === "discover" || item.avatarUrl !== undefined
+    return (
+      <PressableScale
+        key={item.key}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: active }}
+        accessibilityLabel={item.accessibilityLabel ?? item.label}
+        scaleOnPress={false}
+        ripple
+        hitSlop={TAB_ITEM_HIT_SLOP}
+        onPress={() => onChange(item.key)}
+        onLongPress={onLongPress ? () => onLongPress(item.key) : undefined}
+        containerClassName={cn("flex-1 web:rounded-none", focusRingInset)}
+        className="h-full items-center justify-center pt-2 pb-1 gap-1"
+      >
+        <View className="relative items-center justify-center">
+          {isProfileTab ? (
+            <TabAvatar
+              avatarUrl={item.avatarUrl}
+              name={item.avatarName}
+              active={active}
+            />
+          ) : (
+            <TabIcon icon={item.icon} active={active} />
+          )}
+          <NotificationDot visible={!!item.badge} />
+        </View>
+        <Text ellipsizeMode="tail"
+          variant="caption"
+          weight={active ? 600 : 500}
+          tone={active ? "primary" : "secondary"}
+          numberOfLines={1}
+        >
+          {item.label}
+        </Text>
+      </PressableScale>
+    )
+  }
 
   return (
     <View
@@ -250,46 +434,28 @@ export function BottomTabBar<K extends string = string>({
       {...rest}
     >
       <View className="h-[60px] w-full flex-row md:max-w-content">
-        {items.map((item) => {
-          const active = item.key === value
-          const isProfileTab = item.key === "discover" || item.avatarUrl !== undefined
-          return (
-            <PressableScale
-              key={item.key}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: active }}
-              accessibilityLabel={item.accessibilityLabel ?? item.label}
-              scaleOnPress={false}
-              hitSlop={TAB_ITEM_HIT_SLOP}
-              onPress={() => onChange(item.key)}
-              onLongPress={onLongPress ? () => onLongPress(item.key) : undefined}
-              containerClassName={cn("flex-1 web:rounded-none", focusRingInset)}
-              className="h-full items-center justify-center pt-2 pb-1 gap-1"
-            >
-              <View className="relative items-center justify-center">
-                {isProfileTab ? (
-                  <TabAvatar
-                    avatarUrl={item.avatarUrl}
-                    name={item.avatarName}
-                    active={active}
-                  />
-                ) : (
-                  <TabIcon icon={item.icon} active={active} />
-                )}
-                <NotificationDot visible={!!item.badge} />
-              </View>
-              <Text ellipsizeMode="tail"
-                variant="caption"
-                weight={active ? 600 : 500}
-                tone={active ? "primary" : "secondary"}
-                numberOfLines={1}
-              >
-                {item.label}
-              </Text>
-            </PressableScale>
-          )
-        })}
+        {items.slice(0, splitAt).map(renderTab)}
+        {actions ? (
+          <CenterActionButton
+            elevation={elevationStyle("medium", mode)}
+            onPress={() => {
+              haptic("light")
+              setCenterOpen(true)
+            }}
+          />
+        ) : null}
+        {items.slice(splitAt).map(renderTab)}
       </View>
+
+      {actions ? (
+        <ActionSheet
+          visible={centerOpen}
+          onRequestClose={() => setCenterOpen(false)}
+          title="Buat baru"
+          description="Pilih yang mau Anda kerjakan."
+          actions={actions}
+        />
+      ) : null}
     </View>
   )
 }
@@ -310,18 +476,25 @@ export type RouterTabBarNavigation = Pick<RNNBottomTabBarProps["navigation"], "e
 export type RouterBottomTabBarProps = {
   state: RouterTabBarState
   navigation: RouterTabBarNavigation
-  /** Konfigurasi per route.name — route tanpa entri di sini disembunyikan */
+  /**
+   * Konfigurasi per route.name — route tanpa entri di sini disembunyikan.
+   * Pakai `visibleTabBarItems()` untuk daftar bawaan (sudah membuang
+   * HIDDEN_TAB_ROUTES) supaya tab yang tampil sama di setiap pemakai.
+   */
   items: Readonly<Record<string, Omit<BottomTabItem, "key">>>
+  /** Tombol (+) di tengah bar — lihat BottomTabBarProps.centerAction. */
+  centerAction?: boolean | readonly ActionSheetItem[]
   className?: string
 }
 
-export function RouterBottomTabBar({ state, navigation, items, className }: RouterBottomTabBarProps): ReactNode {
+export function RouterBottomTabBar({ state, navigation, items, centerAction, className }: RouterBottomTabBarProps): ReactNode {
   const visible = state.routes.filter((r) => items[r.name])
   const current = state.routes[state.index]?.name ?? ""
 
   return (
     <BottomTabBar
       className={className}
+      centerAction={centerAction}
       value={current}
       items={visible.map((r) => ({ key: r.name, ...items[r.name]! }))}
       onChange={(name) => {

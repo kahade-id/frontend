@@ -319,6 +319,21 @@ export function formatDecimal(n: number, maxFractionDigits = 1): string {
   return trimmed ? `${sign}${absInt},${trimmed}` : `${sign}${absInt}`
 }
 
+/**
+ * Durasi rata-rata dalam jam → kalimat manusia: "Biasanya sekitar 2 hari" /
+ * "Biasanya sekitar 5 jam".
+ *
+ * Dipakai layar detail order untuk mengatur ekspektasi pada langkah escrow
+ * berikutnya (rata-rata waktu penjual memproses, kurir mengantar, dst.).
+ * Tinggal di sini — bukan di layar — karena ini formatter murni: angka masuk,
+ * kalimat keluar, tanpa konteks order.
+ */
+export function formatDurationHours(hours: number): string {
+  if (!Number.isFinite(hours) || hours <= 0) return "—"
+  if (hours >= 24) return `Biasanya sekitar ${formatDecimal(hours / 24)} hari`
+  return `Biasanya sekitar ${formatDecimal(hours, 0)} jam`
+}
+
 function displayDate(value: Date | number | string): Date | null {
   if (value == null || value === "") return null
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)) {

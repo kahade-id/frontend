@@ -65,6 +65,7 @@ import {
   ChartLineUp,
   Compass,
   Gift,
+  ImagesSquare,
   Lightning,
   LinkSimple,
   PaperPlaneTilt,
@@ -300,6 +301,14 @@ export default function HomeScreen() {
       icon: Compass,
       label: "Jelajahi",
       onPress: () => router.push(ROUTES.discover),
+    },
+    {
+      // Showcase keluar dari bottom bar (v3 2026-09-21) dan jadi halaman
+      // khusus — pintasan ini jalurnya, supaya feed tidak kehilangan pintu.
+      key: "showcase",
+      icon: ImagesSquare,
+      label: "Showcase",
+      onPress: () => router.push(ROUTES.showcase),
     },
     {
       key: "vouchers",

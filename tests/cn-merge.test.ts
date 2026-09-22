@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from "vitest"
 
-import { cn, CN_TYPE_SCALE } from "@/lib/cn"
+import { cn, CN_BORDER_WIDTH_SCALE, CN_TYPE_SCALE } from "@/lib/cn"
 import { typography } from "@/lib/tokens"
 
 describe("cn() menyelesaikan konflik utility", () => {
@@ -63,5 +63,47 @@ describe("cn() menyelesaikan konflik utility", () => {
 
   it("type scale terdaftar lengkap sesuai tokens.typography", () => {
     expect([...CN_TYPE_SCALE].sort()).toEqual(Object.keys(typography).sort())
+  })
+})
+
+/**
+ * Bug QA 2026-09-21: "input jadi transparan saat fokus".
+ *
+ * Akar masalahnya bukan CSS variable: tailwind-merge mengenali `border-focus`
+ * sebagai kelas WARNA border (sufiks tak dikenal → grup border-color), lalu
+ * membuangnya karena kalah oleh `border-border-focus`. Yang tersisa hanya
+ * kelas warna tanpa lebar — border 0px, jadi garisnya hilang.
+ *
+ * Perbaikannya: lebar border bernama (`border-focus` / `border-error` /
+ * `border-badge`) didaftarkan sebagai classGroup sendiri (`border-w`) sehingga
+ * hanya saling mengalahkan sesama lebar, tidak dengan warna.
+ */
+describe("cn() membedakan lebar border bernama dari warna border", () => {
+  it("border-focus (lebar) bertahan bersama border-border-focus (warna)", () => {
+    // Persis kasus Input saat fokus: cn("border border-border-control",
+    //   "border-focus border-border-focus").
+    expect(cn("border border-border-control", "border-focus border-border-focus")).toBe(
+      "border-focus border-border-focus",
+    )
+  })
+
+  it("border-error dan border-badge juga tidak dibuang warna", () => {
+    expect(cn("border border-border-control", "border-error border-border-error")).toBe(
+      "border-error border-border-error",
+    )
+    expect(cn("border-2 border-border", "border-badge border-background")).toBe(
+      "border-badge border-background",
+    )
+  })
+
+  it("sesama lebar bernama tetap saling mengalahkan (yang terakhir menang)", () => {
+    expect(cn("border-focus", "border-error")).toBe("border-error")
+    // Lebar bernama mengalahkan lebar numerik biasa, dan sebaliknya.
+    expect(cn("border", "border-focus")).toBe("border-focus")
+    expect(cn("border-focus", "border-0")).toBe("border-0")
+  })
+
+  it("lebar bernama terdaftar lengkap sesuai CN_BORDER_WIDTH_SCALE", () => {
+    expect([...CN_BORDER_WIDTH_SCALE].sort()).toEqual(["badge", "error", "focus"])
   })
 })

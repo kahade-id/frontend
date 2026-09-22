@@ -60,7 +60,7 @@ import {
   type QrisPayment,
 } from "@/lib/api/orders"
 import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
-import { isRatingSnoozed, snoozeRatingReminder, useUiPrefs } from "@/lib/ui-prefs"
+import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } from "@/lib/ui-prefs"
 import { useResultTimer } from "@/lib/use-result-timer"
 import {
   CANCEL_REASONS,
@@ -69,8 +69,7 @@ import {
 } from "@/lib/labels/dispute"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
-import { formatDateTime, formatDateTimeWIB, formatDecimal, formatRupiah } from "@/lib/format"
-import { Countdown } from "@/components/ui/countdown"
+import { formatDateTime, formatDateTimeWIB, formatDurationHours, formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
@@ -90,7 +89,7 @@ import { OrderHistoryTimeline } from "@/components/ui/order-history-timeline"
 import { ORDER_STATUS_LABELS, OrderStatusBadge } from "@/components/ui/order-status-badge"
 import { PinInput } from "@/components/ui/pin-input"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { QRCodeDisplay } from "@/components/ui/qr-code-display"
+import { QrisPaymentPanel } from "@/components/qris-payment-panel"
 import { ReasonPicker, type ReasonValue } from "@/components/ui/reason-picker"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Screen } from "@/components/ui/screen"
@@ -105,12 +104,9 @@ import { useToast } from "@/components/ui/toast"
 
 const HISTORY_LIMIT = 50
 const POLL_MS = 3000
-const HOURS_PER_DAY = 24
 const NOTE_MAX = 500
 const DISPUTE_CLAIM_MIN = 20
 const DISPUTE_CLAIM_MAX = 2000
-/** J-14: tunda pengingat ulasan 3 hari. */
-const RATING_SNOOZE_MS = 3 * 24 * 60 * 60 * 1000
 // G-12 (audit): kategori sengketa & alasan batal kini dari lib/labels/dispute
 // (satu sumber, ditipe dari DTO yang di-generate).
 
@@ -122,10 +118,14 @@ const PAY_METHODS: { value: PayMethod; label: string }[] = [
 
 type SheetKind = "pay" | "cancel" | "reject" | "dispute" | "shipping" | null
 
-function durationLabel(hours: number): string {
-  if (hours >= HOURS_PER_DAY) return `Biasanya sekitar ${formatDecimal(hours / HOURS_PER_DAY)} hari`
-  return `Biasanya sekitar ${formatDecimal(hours, 0)} jam`
-}
+/** Status yang masih butuh rincian biaya dihitung ulang (belum final). */
+const EARLY_STATUSES: readonly string[] = [
+  "WAITING_CONFIRMATION",
+  "WAITING_PAYMENT",
+  "PROCESSING",
+  "PENDING_PAYMENT",
+  "PAID",
+]
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -193,7 +193,8 @@ export default function OrderDetailScreen() {
       if (
         !fee &&
         (role === "BUYER" || role === "SELLER") &&
-        ["PENDING_PAYMENT", "PAID"].includes(resolvedOrder.status)
+        // Status awal (enum backend + alias lama) — fee dibutuhkan sebelum bayar.
+        EARLY_STATUSES.includes(resolvedOrder.status)
       ) {
         try {
           fee = await api.orders.calculateFee(
@@ -450,9 +451,28 @@ export default function OrderDetailScreen() {
     const hours = durations?.[next]
     return {
       title: ORDER_STATUS_LABELS[next] ?? next,
-      description: hours != null && hours > 0 ? durationLabel(hours) : undefined,
+      description: hours != null && hours > 0 ? formatDurationHours(hours) : undefined,
     }
   }, [order, durations])
+
+  /**
+   * J-14: pengingat ulasan yang bisa ditunda (snooze per-order di ui-prefs).
+   * POSISI HOOK = PERBAIKAN BUG: keduanya dulu dipanggil SETELAH tiga early
+   * return, jadi render "order tiba" memakai dua hook lebih banyak daripada
+   * render "masih memuat" → React melempar "Rendered more hooks than during
+   * the previous render" → layar jatuh ke ErrorBoundary ("Halaman tidak dapat
+   * ditampilkan") tepat saat data masuk. `order` dijaga di dalam callback.
+   */
+  useUiPrefs()
+  const snoozeRatingReminderForOrder = useCallback(() => {
+    if (!order) return
+    snoozeRatingReminder(order.id, Date.now() + RATING_SNOOZE_MS)
+    toast.show({
+      title: "Pengingat ulasan ditunda",
+      description: "Pengingat muncul lagi di order ini dalam 3 hari.",
+      tone: "info",
+    })
+  }, [order, toast.show])
 
   if (loading && !order) {
     return (
@@ -479,28 +499,31 @@ export default function OrderDetailScreen() {
   const isSeller = myRole === "SELLER"
   const isBuyer = myRole === "BUYER"
   const counterpart = isBuyer ? order.seller : isSeller ? order.buyer : undefined
-  const canPay = order.status === "PENDING_PAYMENT" && isBuyer
-  const canConfirm = order.status === "PENDING_PAYMENT" && isSeller
+  /**
+   * Gerbang aksi mengikuti enum backend (WAITING_CONFIRMATION → WAITING_PAYMENT
+   * → PROCESSING → IN_DELIVERY → COMPLETED), bukan nama lama hasil tebakan —
+   * dengan status asli dari server keenam perbandingan lama SELALU false, jadi
+   * layar ini tidak menampilkan satu pun tombol aksi: pembeli tidak bisa
+   * membayar, penjual tidak bisa mengirim. Urutan endpoint di spec (create →
+   * confirm → pay → …) memastikan `/confirm` (ACCEPT/REJECT) adalah giliran
+   * PENJUAL sebelum pembeli membayar.
+   *
+   * `canProcess` sengaja hanya mengenali alias lama PAID: enum backend tidak
+   * punya status itu (pembayaran menggeser WAITING_PAYMENT langsung ke
+   * PROCESSING), dan menampilkan "Mulai proses" sebelum pembeli membayar akan
+   * menawarkan aksi yang salah.
+   */
+  const canPay = (order.status === "WAITING_PAYMENT" || order.status === "PENDING_PAYMENT") && isBuyer
+  const canConfirm = order.status === "WAITING_CONFIRMATION" && isSeller
   const canProcess = order.status === "PAID" && isSeller
   const canShip = order.status === "PROCESSING" && isSeller
-  const canReviewDelivery = (order.status === "SHIPPED" || order.status === "DELIVERED") && isBuyer
+  const canReviewDelivery =
+    (order.status === "IN_DELIVERY" ||
+      order.status === "SHIPPED" ||
+      order.status === "DELIVERED") &&
+    isBuyer
   const canRate = knownRole && order.status === "COMPLETED"
-  /**
-   * J-14: pengingat ulasan pasca-transaksi yang bisa ditunda. Snooze
-   * per-order disimpan di ui-prefs (native-only, ikut terhapus saat logout);
-   * `useUiPrefs()` membuat banner hilang seketika setelah "Ingatkan nanti"
-   * ditekan dan muncul lagi bila snooze kedaluwarsa saat layar dibuka.
-   */
-  useUiPrefs()
   const ratingReminderVisible = canRate && !isRatingSnoozed(order.id)
-  const snoozeRatingReminderForOrder = useCallback(() => {
-    snoozeRatingReminder(order.id, Date.now() + RATING_SNOOZE_MS)
-    toast.show({
-      title: "Pengingat ulasan ditunda",
-      description: "Pengingat muncul lagi di order ini dalam 3 hari.",
-      tone: "info",
-    })
-  }, [order.id, toast.show])
   const canCancel = knownRole && isCancellable(order.status)
   const canDispute = knownRole && isDisputable(order.status)
   const canExtend = knownRole && isExtendable(order.status)
@@ -724,7 +747,10 @@ export default function OrderDetailScreen() {
                 </Button>
               </>
             ) : null}
-            {!isBuyer && (order.status === "SHIPPED" || order.status === "DELIVERED") ? (
+            {!isBuyer &&
+            (order.status === "IN_DELIVERY" ||
+              order.status === "SHIPPED" ||
+              order.status === "DELIVERED") ? (
               <Button
                 variant="secondary"
                 leftIcon={Package}
@@ -863,60 +889,24 @@ export default function OrderDetailScreen() {
               />
             </>
           ) : qris ? (
-            <>
-              {pollError ? (
-                <Text variant="caption" tone="danger">
-                  Status belum diperbarui: {pollError}
-                </Text>
-              ) : null}
-              <QRCodeDisplay
-                value={qris.qrString}
-                title="Pindai dengan aplikasi pembayaran"
-                caption={`Berlaku sampai ${formatDateTimeWIB(qris.expiresAt)} · ${formatRupiah(qris.amount)}`}
-                onCopy={(v) => void copy(v)}
-                copied={copied}
-              />
-              {/* A-11 (audit): countdown HIDUP menuju kedaluwarsa QR —
-                  pengguna melihat tenggat berjalan (server-time corrected,
-                  F-13), bukan hanya timestamp statis. Saat habis, status
-                  lokal jadi EXPIRED dan CTA berubah jadi "Buat ulang". */}
-              {qrisStatus !== "PAID" &&
-              qrisStatus !== "EXPIRED" &&
-              qrisStatus !== "FAILED" &&
-              qrisStatus !== "CANCELLED" ? (
-                <Countdown
-                  until={qris.expiresAt ? new Date(qris.expiresAt) : undefined}
-                  prefix="Kedaluwarsa dalam"
-                  tone="primary"
-                  onComplete={() => setQrisStatus((prev) => (prev === "PENDING" || prev == null ? "EXPIRED" : prev))}
-                />
-              ) : null}
-              <Text
-                variant="caption"
-                tone={qrisStatus === "EXPIRED" || qrisStatus === "FAILED" ? "danger" : "secondary"}
-              >
-                {qrisStatus === "EXPIRED"
-                  ? "QRIS kedaluwarsa — buat ulang untuk mencoba lagi."
-                  : qrisStatus === "FAILED"
-                    ? "Pembayaran gagal — buat ulang untuk mencoba lagi."
-                    : qrisPollStopped
-                      ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
-                      : "Menunggu pembayaran… status diperbarui otomatis."}
-              </Text>
-              {qrisStatus === "EXPIRED" || qrisStatus === "FAILED" ? (
-                <Button
-                  variant="secondary"
-                  loading={submitting}
-                  onPress={() => void handlePayQris()}
-                >
-                  Buat ulang QRIS
-                </Button>
-              ) : (
-                <Button variant="ghost" onPress={() => void pollPayment()}>
-                  Cek status sekarang
-                </Button>
-              )}
-            </>
+            /* Panel QRIS diekstrak ke components/qris-payment-panel.tsx (S9):
+               state & mutasi tetap di layar ini, panel hanya presentasi. */
+            <QrisPaymentPanel
+              qrString={qris.qrString}
+              amount={qris.amount}
+              expiresAt={qris.expiresAt}
+              status={qrisStatus}
+              pollError={pollError}
+              pollStopped={qrisPollStopped}
+              submitting={submitting}
+              copied={copied}
+              onCopy={(value) => void copy(value)}
+              onExpire={() =>
+                setQrisStatus((prev) => (prev === "PENDING" || prev == null ? "EXPIRED" : prev))
+              }
+              onRecreate={() => void handlePayQris()}
+              onCheckStatus={() => void pollPayment()}
+            />
           ) : (
             <Button loading={submitting} onPress={() => void handlePayQris()}>
               Tampilkan kode QRIS

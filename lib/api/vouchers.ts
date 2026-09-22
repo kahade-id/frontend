@@ -14,6 +14,14 @@ export type Voucher = {
   title?: string
   description?: string
   discountType?: "FIXED" | "PERCENT"
+  /**
+   * Kosakata alternatif yang dipakai DTO admin (CreateVoucherDto):
+   * FEE_DISCOUNT_FLAT | FEE_DISCOUNT_PERCENT | WALLET_CASHBACK | TOPUP_BONUS.
+   * Spec mobile tidak mengekspor schema voucher, jadi layar membaca keduanya
+   * (`discountTypeOf` di app/vouchers.ts) — menganggap "bukan FIXED = persen"
+   * membuat voucher nominal tampil sebagai persen.
+   */
+  voucherType?: string
   discountValue?: number
   minOrderValue?: number
   maxDiscount?: number
