@@ -164,5 +164,11 @@
   "Pilih yang mau Anda kerjakan.": "Choose what you want to work on.",
   "Top up lewat bank, QRIS, atau gerai ritel": "Top up via bank transfer, QRIS, or a retail outlet",
   "Unggah karya atau produk ke etalase Anda": "Upload your work or products to your showcase",
-  "Gagal membatalkan penarikan": "Couldn't cancel the withdrawal"
+  "Gagal membatalkan penarikan": "Couldn't cancel the withdrawal",
+  "Kunci aplikasi hanya di aplikasi mobile": "App lock is only available in the mobile app",
+  "Masuk untuk menemukan pengguna": "Sign in to discover people",
+  "Rekomendasi pengguna disusun dari riwayat transaksi dan lingkaran sosial akun Anda.": "People recommendations are built from your account's transaction history and social circle.",
+  "atau PIN dompet saat membuka aplikasi.": "or your wallet PIN when you open the app.",
+  "Kahade versi web berjalan di browser tanpa akses ke biometrik perangkat. Pasang aplikasi mobile untuk memakai": "The web version of Kahade runs in a browser without access to your device biometrics. Install the mobile app to use",
+  "Versi aplikasi Anda tidak lagi didukung. Silakan perbarui ke versi {x} untuk terus menggunakan Kahade.": "Your app version is no longer supported. Please update to version {x} to keep using Kahade."
 }

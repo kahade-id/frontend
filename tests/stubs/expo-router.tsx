@@ -30,8 +30,35 @@ export function useLocalSearchParams(): Record<string, string | undefined> {
 export function useGlobalSearchParams(): Record<string, string | undefined> {
   return {}
 }
+/**
+ * Pathname aktif untuk test.
+ *
+ * B-03 (audit): gerbang tamu web (`lib/guest-gate.ts`) memutuskan dari
+ * pathname, jadi test harus bisa memindahkan layar seperti navigasi sungguhan —
+ * `__setPathname()` memberi tahu pelanggan sehingga hook ikut re-render (pola
+ * sama dengan `__setFocused()` di tests/stubs/react-navigation.ts).
+ */
+let pathname = "/"
+const pathnameListeners = new Set<() => void>()
+
+/** Test helper: pindah "layar" tanpa router sungguhan. */
+export function __setPathname(next: string): void {
+  if (pathname === next) return
+  pathname = next
+  for (const listener of pathnameListeners) listener()
+}
+
+function subscribePathname(listener: () => void): () => void {
+  pathnameListeners.add(listener)
+  return () => {
+    pathnameListeners.delete(listener)
+  }
+}
+
+const getPathname = () => pathname
+
 export function usePathname(): string {
-  return "/"
+  return React.useSyncExternalStore(subscribePathname, getPathname, getPathname)
 }
 export function useSegments(): string[] {
   return []

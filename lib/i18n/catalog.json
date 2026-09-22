@@ -27,12 +27,12 @@
    "n": 9
   },
   {
-   "s": "Simpan",
+   "s": "Masuk",
    "n": 8
   },
   {
-   "s": "Masuk",
-   "n": 7
+   "s": "Simpan",
+   "n": 8
   },
   {
    "s": "Transaksi",
@@ -1316,6 +1316,10 @@
   },
   {
    "s": "Asisten sedang mengetik…",
+   "n": 1
+  },
+  {
+   "s": "atau PIN dompet saat membuka aplikasi.",
    "n": 1
   },
   {
@@ -3219,6 +3223,10 @@
    "n": 1
   },
   {
+   "s": "Kahade versi web berjalan di browser tanpa akses ke biometrik perangkat. Pasang aplikasi mobile untuk memakai",
+   "n": 1
+  },
+  {
    "s": "Kahade, kembali ke beranda",
    "n": 1
   },
@@ -3667,6 +3675,10 @@
    "n": 1
   },
   {
+   "s": "Kunci aplikasi hanya di aplikasi mobile",
+   "n": 1
+  },
+  {
    "s": "Kunci manual",
    "n": 1
   },
@@ -3928,6 +3940,10 @@
   },
   {
    "s": "Masuk untuk melihat saldo, transaksi, dan pesan Anda.",
+   "n": 1
+  },
+  {
+   "s": "Masuk untuk menemukan pengguna",
    "n": 1
   },
   {
@@ -5351,6 +5367,10 @@
    "n": 1
   },
   {
+   "s": "Rekomendasi pengguna disusun dari riwayat transaksi dan lingkaran sosial akun Anda.",
+   "n": 1
+  },
+  {
    "s": "Rentang nominal",
    "n": 1
   },
@@ -6684,6 +6704,10 @@
   },
   {
    "s": "Verifikasi WhatsApp",
+   "n": 1
+  },
+  {
+   "s": "Versi aplikasi Anda tidak lagi didukung. Silakan perbarui ke versi {x} untuk terus menggunakan Kahade.",
    "n": 1
   },
   {

@@ -160,6 +160,24 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
 }
 
 /**
+ * B-06 (audit): buang preferensi MILIK AKUN saat logout/sesi berakhir.
+ *
+ * `ratingSnoozeUntil` berkunci `orderId` akun yang sedang login — akun
+ * berikutnya di perangkat yang sama tidak boleh mewarisi jejak transaksi itu
+ * (alasan yang sama dengan `pendingActions`/`recentRecipients` di
+ * `clearSession()`). `balanceHidden` dan `transactionsTab` sengaja TIDAK
+ * disentuh: keduanya preferensi perangkat yang berlaku untuk siapa pun yang
+ * memakai perangkat ini.
+ *
+ * Tidak ada I/O saat tidak ada yang perlu dibersihkan (kasus paling sering:
+ * logout tanpa pernah menunda pengingat ulasan).
+ */
+export function clearAccountPrefs(): void {
+  if (Object.keys(prefs.ratingSnoozeUntil).length === 0) return
+  setUiPrefs({ ratingSnoozeUntil: {} })
+}
+
+/**
  * J-14: lama penundaan pengingat ulasan sekali tekan "Ingatkan nanti".
  *
  * Tinggal bersama fungsi snooze-nya (bukan di layar detail order) karena ini

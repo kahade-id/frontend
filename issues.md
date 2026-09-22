@@ -1139,3 +1139,16 @@ find app components lib -name '*.ts*' | xargs wc -l | sort -rn | head -20
 Audit ini menemukan **138 cacat** di atas basis repo yang seluruh pipeline-nya hijau. Tiga di antaranya dibuktikan dengan reproduksi yang dijalankan di checkout ini — dan ketiganya berada di jalur yang paling sensitif: **verifikasi nomor rekening**, **pemasukan OTP penarikan**, dan **penghitung waktu kirim ulang OTP**. Itu pola yang berulang di seluruh laporan: gate repo memeriksa **bentuk kode** (token, pola aksesibilitas, kontrak path/metode, sinkronisasi katalog), sementara cacat yang tersisa hidup di **perilaku** yang hanya terlihat bila fungsinya benar-benar dijalankan dengan data yang tidak komplit (nomor rekening 10 digit, offset jam server, error yang sama dua kali).
 
 Oleh karena itu rekomendasi tunggal yang paling berdampak bukan memperbaiki 138 butir satu per satu, melainkan menutup celah tiga gate: (1) test perilaku untuk `lib/format.ts`, `lib/server-time.ts`, dan `components/ui/{countdown,otp-input}.tsx`; (2) deteksi aksesibilitas berbasis render untuk layar uang; (3) gate yang menolak `Date.now()` pada nilai yang disimpan/dibandingkan lintas basis waktu. Ketiganya akan menangkap A-01, A-03, E-01, F-01, A-02, dan E-03 secara otomatis di kemudian hari.
+
+---
+
+# N. Status perbaikan
+
+Diperbarui per batch perbaikan; nomor mengacu ke temuan di atas. Satu temuan
+dianggap selesai hanya bila perbaikannya ada di kode + (bila menyangkut
+perilaku) dikunci test, dan `npm run check` tetap hijau.
+
+| Batch | Commit | Temuan yang diperbaiki |
+|---|---|---|
+| A — uang, waktu, aksesibilitas | `01513fa` | A-01…A-07, A-10, A-11, A-13…A-19, C-01 (pemanggil), E-01…E-03, E-05, E-07, E-08, F-01, F-03…F-05, G-02, G-05, G-06, G-08, H-02, I-04 |
+| B — sesi, auth & tamu web | batch ini | B-01…B-12 |

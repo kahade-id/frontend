@@ -28,7 +28,7 @@
  *     app/two-factor.tsx.
  */
 import { useCallback, useEffect, useState } from "react"
-import { View } from "react-native"
+import { Platform, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ShieldCheck } from "phosphor-react-native"
 
@@ -130,24 +130,40 @@ export default function BiometricSettingsScreen() {
         className="gap-4 px-5"
         style={{ paddingTop: tokens.space[3], paddingBottom: insets.bottom + tokens.space[8] }}
       >
-        <Switch
-          value={biometric}
-          onChange={(v) => void handleToggle(v)}
-          label={`Kunci aplikasi dengan ${label}`}
-          description={`Setelah aplikasi di latar belakang lebih dari 1 menit, Kahade meminta ${label} atau PIN dompet untuk dibuka.`}
-          disabled={loading || toggling || unavailable}
-        />
-
-        {unavailable ? (
-          <Alert tone="info" title="Biometrik belum tersedia di perangkat ini">
-            Daftarkan wajah atau sidik jari di pengaturan sistem perangkat, lalu kembali ke sini untuk
-            mengaktifkannya.
+        {Platform.OS === "web" ? (
+          /**
+           * B-11 (audit): kunci aplikasi hanya hidup di native — `<AppLockGate>`
+           * tidak dirender di web (app/_layout.tsx) dan `canUseBiometricStorage()`
+           * selalu false di sana. Sebelumnya halaman ini tetap menampilkan Switch
+           * mati beserta janji "setelah 1 menit di latar belakang…", menawarkan
+           * fitur yang tidak akan pernah aktif di platform itu.
+           */
+          <Alert tone="info" title="Kunci aplikasi hanya di aplikasi mobile">
+            Kahade versi web berjalan di browser tanpa akses ke biometrik perangkat. Pasang aplikasi
+            mobile untuk memakai {label} atau PIN dompet saat membuka aplikasi.
           </Alert>
         ) : (
-          <Text variant="caption" tone="secondary">
-            PIN dompet tetap diminta bila {label} gagal dikenali atau saat perangkat baru dipakai
-            masuk. Transaksi uang (transfer, tarik dana, bayar pesanan) selalu memakai PIN dompet.
-          </Text>
+          <>
+            <Switch
+              value={biometric}
+              onChange={(v) => void handleToggle(v)}
+              label={`Kunci aplikasi dengan ${label}`}
+              description={`Setelah aplikasi di latar belakang lebih dari 1 menit, Kahade meminta ${label} atau PIN dompet untuk dibuka.`}
+              disabled={loading || toggling || unavailable}
+            />
+
+            {unavailable ? (
+              <Alert tone="info" title="Biometrik belum tersedia di perangkat ini">
+                Daftarkan wajah atau sidik jari di pengaturan sistem perangkat, lalu kembali ke sini
+                untuk mengaktifkannya.
+              </Alert>
+            ) : (
+              <Text variant="caption" tone="secondary">
+                PIN dompet tetap diminta bila {label} gagal dikenali atau saat perangkat baru dipakai
+                masuk. Transaksi uang (transfer, tarik dana, bayar pesanan) selalu memakai PIN dompet.
+              </Text>
+            )}
+          </>
         )}
 
         <SectionHeader title="Lapisan keamanan lain" />

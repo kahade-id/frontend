@@ -61,6 +61,7 @@ import { refreshUnreadCount } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 import { captureError, installTelemetry, logWarn } from "@/lib/telemetry"
 import { consumeOtaUpdateNotice } from "@/lib/ota-notice"
+import { translate } from "@/lib/i18n/translate"
 import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
 import { AppLockGate } from "@/components/app-lock-gate"
 import { useToast } from "@/components/ui/toast"
@@ -176,6 +177,26 @@ export default function RootLayout() {
 /** Interval minimum antar pemeriksaan force-update saat kembali foreground (B-10). */
 const VERSION_RECHECK_MS = 6 * 60 * 60 * 1000
 
+/**
+ * B-09 (audit): pengguna perlu tahu SEBERAPA JAUH versinya tertinggal, bukan
+ * hanya ambang minimumnya — `latestVersion` dari server kini ikut disebut.
+ */
+function forceUpdateDescription(
+  detail: { minVersion: string; latestVersion?: string; message?: string | null } | null,
+): string {
+  const minVersion = detail?.minVersion ?? "yang didukung"
+  const latest = detail?.latestVersion
+  const target = latest && latest !== detail?.minVersion ? `${latest} (minimum ${minVersion})` : minVersion
+  // Teks ini melewati `translate()` (dengan variabel objek, bukan template
+  // literal di dalam atribut JSX) supaya kalimatnya ikut terkatalog i18n —
+  // generator katalog tidak memindai ekspresi `{...}` pada atribut JSX.
+  const base = translate(
+    "Versi aplikasi Anda tidak lagi didukung. Silakan perbarui ke versi {x} untuk terus menggunakan Kahade.",
+    { x: target },
+  )
+  return detail?.message ? `${base}\n\n${detail.message}` : base
+}
+
 function AppShell() {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
@@ -271,11 +292,20 @@ function AppShell() {
     minVersion: string
     latestVersion?: string
     message?: string | null
-    storeUrl?: { ios?: string; android?: string } | null
+    /** B-09 (audit): `web` ikut — normalizer sudah membacanya (storeUrl.web). */
+    storeUrl?: { ios?: string; android?: string; web?: string } | null
   } | null>(null)
 
   useEffect(() => {
-    if (Platform.OS === "web") return
+    /**
+     * B-09 (audit): pemeriksaan versi juga berjalan di WEB.
+     *
+     * `/v1/public/app-version` mengembalikan nilai per platform (termasuk
+     * `web`, lihat `normalizeAppVersion`) — sebelumnya cabang `Platform.OS
+     * === "web"` membuat bundle web basi tidak pernah ketahuan selain lewat
+     * notifikasi service worker. `installedAppVersion()` di web membaca versi
+     * bundle yang SEDANG berjalan, jadi perbandingannya tetap bermakna.
+     */
     lastVersionCheckAt.current = Date.now()
     const appVersion = installedAppVersion()
     let alive = true
@@ -315,11 +345,38 @@ function AppShell() {
     return () => subscription.remove()
   }, [])
 
+  useEffect(() => {
+    // B-09 (audit): web tidak punya AppState — `visibilitychange` adalah
+    // padanannya untuk tab/PWA yang dibiarkan terbuka lama. Ambang waktu yang
+    // sama (VERSION_RECHECK_MS) dipakai agar tab yang dibuka-tutup tidak
+    // menembak endpoint ini terus-menerus.
+    if (Platform.OS !== "web" || typeof document === "undefined") return
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") return
+      if (Date.now() - lastVersionCheckAt.current < VERSION_RECHECK_MS) return
+      setVersionCheck((value) => value + 1)
+    }
+    document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange)
+  }, [])
+
+  /**
+   * B-09 (audit): `storeUrl.web` ikut dibaca — sebelumnya web selalu memakai
+   * tautan Android (satu-satunya cabang non-iOS).
+   */
   const storeUrl = safeHttpsUrl(
     forceUpdate?.storeUrl
-      ? forceUpdate.storeUrl[Platform.OS === "ios" ? "ios" : "android"]
+      ? Platform.OS === "ios"
+        ? forceUpdate.storeUrl.ios
+        : Platform.OS === "android"
+          ? forceUpdate.storeUrl.android
+          : forceUpdate.storeUrl.web
       : undefined,
   )
+  /** Di web versi terbaru selalu berjarak satu reload (dokumen network-first). */
+  const reloadWebApp = () => {
+    if (typeof window !== "undefined") window.location.reload()
+  }
 
   return (
     // PortalProvider + ToastProvider HARUS di dalam ThemeProvider (kita sudah
@@ -427,11 +484,18 @@ function AppShell() {
       */}
       <Dialog
         title="Perbarui aplikasi"
-        description={`Versi aplikasi Anda tidak lagi didukung. Silakan perbarui ke versi minimum ${forceUpdate?.minVersion ?? "yang didukung"} untuk terus menggunakan Kahade.${forceUpdate?.message ? `\n\n${forceUpdate.message}` : ""}`}
+        description={forceUpdateDescription(forceUpdate)}
         visible={!!forceUpdate}
         hideCancel
-        confirmLabel={storeUrl ? "Buka Toko Aplikasi" : "Periksa kembali"}
+        confirmLabel={storeUrl ? "Buka Toko Aplikasi" : Platform.OS === "web" ? "Muat ulang halaman" : "Periksa kembali"}
         onConfirm={() => {
+          if (!storeUrl && Platform.OS === "web") {
+            // B-09 (audit): tanpa tautan toko, aksi yang benar-benar memulihkan
+            // pengguna web adalah memuat ulang dokumen (bundle terbaru), bukan
+            // memeriksa ulang versi yang sama.
+            reloadWebApp()
+            return
+          }
           if (storeUrl)
             void Linking.openURL(storeUrl).catch(() =>
               setForceUpdate((current) =>

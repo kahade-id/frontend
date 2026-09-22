@@ -38,7 +38,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Animated from "react-native-reanimated"
-import { Compass, Images, UsersThree } from "phosphor-react-native"
+import { Compass, Images, LockKey, UsersThree } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -50,6 +50,7 @@ import {
   unlikeShowcase,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
+import { useHasSession } from "@/lib/guest-gate"
 import { ROUTES } from "@/lib/routes"
 import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
 import { shareContent } from "@/lib/share"
@@ -95,8 +96,18 @@ export default function DiscoverScreen() {
 
 export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
   const toast = useToast()
-  const query = usePaginatedQuery<DiscoveredUser>("discover", (page, signal) =>
-    api.users.discoverUsers({ page, limit: PAGE_LIMIT }, signal),
+  /**
+   * B-02 (audit): tab Pengguna terbuka bagi tamu web (`/discover` ada di
+   * WEB_GUEST_ALLOWED_PATHS), sedangkan `GET /v1/users/discover`
+   * `auth:"required"` — tanpa gate token, tamu memanen 401 → refresh →
+   * potensi `expireSession` tiap kali tab difokuskan. Empty state tamu
+   * menjelaskan keadaannya, bukan menampilkan galat.
+   */
+  const hasSession = useHasSession()
+  const query = usePaginatedQuery<DiscoveredUser>(
+    "discover",
+    (page, signal) => api.users.discoverUsers({ page, limit: PAGE_LIMIT }, signal),
+    { enabled: hasSession },
   )
   const { setData } = query
   const [pendingId, setPendingId] = useState<string | null>(null)
@@ -133,11 +144,20 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
       gap={0}
       bottomPadding={bottomPadding}
       empty={
-        <EmptyState
-          icon={Compass}
-          title="Belum ada rekomendasi"
-          description="Pengguna yang disarankan untuk Anda akan muncul di sini."
-        />
+        hasSession ? (
+          <EmptyState
+            icon={Compass}
+            title="Belum ada rekomendasi"
+            description="Pengguna yang disarankan untuk Anda akan muncul di sini."
+          />
+        ) : (
+          <EmptyState
+            icon={LockKey}
+            title="Masuk untuk menemukan pengguna"
+            description="Rekomendasi pengguna disusun dari riwayat transaksi dan lingkaran sosial akun Anda."
+            action={<Button onPress={() => router.push(ROUTES.login)}>Masuk</Button>}
+          />
+        )
       }
       renderItem={({ item, index }) => (
         <UserDiscoverResultItem

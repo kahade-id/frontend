@@ -17,6 +17,7 @@ import {
 } from "@/lib/api/errors"
 import { asRecord, invalidResponse, unwrapResponse } from "@/lib/api/response"
 import { recordServerDate } from "@/lib/server-time"
+import { logWarn } from "@/lib/telemetry"
 import {
   clearSession,
   emitSessionExpired,
@@ -301,7 +302,21 @@ let expiration: { revision: number; promise: Promise<void> } | null = null
 function expireSession(revision: number): Promise<void> {
   if (revision !== getSessionRevision()) return Promise.resolve()
   if (expiration?.revision === revision) return expiration.promise
-  const clearing = clearSession()
+  /**
+   * B-07 (audit): pembersihan sesi yang gagal TIDAK boleh menyamarkan galat
+   * otentikasi.
+   *
+   * Sebelumnya promise ini meneruskan hasil `clearSession()` apa adanya. Bila
+   * `SecureStore.deleteItemAsync` melempar (Keystore terkunci, penyimpanan
+   * penuh), `await expireSession()` di `attempt()` reject → pengguna melihat
+   * galat penyimpanan alih-alih UNAUTHORIZED, dan `emitSessionExpired()` di
+   * `.finally` di bawah tidak pernah berjalan sehingga sesi habis TANPA
+   * redirect ke login. Kegagalannya kini dicatat dan ditelan: penyimpanan
+   * akan dicoba dibersihkan lagi pada logout/boot berikutnya.
+   */
+  const clearing = clearSession().catch((error: unknown) => {
+    logWarn("client:expire-cleanup", error)
+  })
   const clearedRevision = getSessionRevision()
   const promise = clearing.finally(() => {
     // Delayed storage cleanup must not emit an expiry event for a NEW login.

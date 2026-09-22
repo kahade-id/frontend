@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useIsFocused } from "@react-navigation/native"
 import { ApiError, userMessage } from "@/lib/api/errors"
 import { getSessionRevision } from "@/lib/api/session"
+import { useGuestPathBlocked } from "@/lib/guest-gate"
 
 export type UseApiQueryOptions = {
   /**
@@ -92,9 +93,20 @@ export function useApiQuery<T>(
 ) {
   const fetchRef = useRef(fetcher)
   fetchRef.current = fetcher
+  /**
+   * B-03 (audit): layar ber-auth yang sedang tertutup <GuestLoginPrompt>
+   * (tamu web) TIDAK boleh menembak endpoint `auth:"required"` — layar di
+   * balik lapisan itu tetap ter-mount, jadi tanpa gerbang ini tiap deep link
+   * tamu ke /order/x, /kyc, /settings menghasilkan 401 → refresh → potensi
+   * `expireSession` yang tidak pernah bisa berhasil. Gerbangnya terpusat di
+   * `lib/guest-gate.ts` supaya definisinya sama dengan yang dipakai root
+   * layout saat memunculkan lapisan login.
+   */
+  const guestBlocked = useGuestPathBlocked()
+  const active = enabled && !guestBlocked
   const current = useRef<AbortController | null>(null)
   const [data, setData] = useState<T | null>(null)
-  const [loading, setLoading] = useState(enabled)
+  const [loading, setLoading] = useState(active)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -103,7 +115,7 @@ export function useApiQuery<T>(
       current.current?.abort()
       const controller = new AbortController()
       current.current = controller
-      if (!enabled) {
+      if (!active) {
         setLoading(false)
         setRefreshing(false)
         setError(null)
@@ -166,7 +178,7 @@ export function useApiQuery<T>(
         }
       }
     },
-    [key, enabled, opts.retry, opts.useCache],
+    [key, active, opts.retry, opts.useCache],
   )
 
   useEffect(() => {
@@ -179,8 +191,8 @@ export function useApiQuery<T>(
   const focused = useIsFocused()
   const hasData = useRef(false)
   hasData.current = data != null
-  const latest = useRef({ load, enabled, error })
-  latest.current = { load, enabled, error }
+  const latest = useRef({ load, enabled: active, error })
+  latest.current = { load, enabled: active, error }
   const everFocused = useRef(false)
   useEffect(() => {
     if (!opts.refreshOnFocus) return

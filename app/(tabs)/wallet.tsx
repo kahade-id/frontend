@@ -24,6 +24,7 @@
  *  - Pull-to-refresh me-refresh saldo DAN riwayat bersamaan (`Promise.all`).
  */
 
+import { useHasSession } from "@/lib/guest-gate"
 import { useApiQuery } from "@/lib/use-api-query"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -53,6 +54,7 @@ import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
+import { GuestLoginPrompt } from "@/components/web-guest-gate"
 
 // ------------------------------------------------------------------
 // Konstanta layar
@@ -81,11 +83,22 @@ export default function WalletScreen() {
   const { prefs, setPrefs } = useUiPrefs()
   // refreshOnFocus: tab Dompet tetap ter-mount, jadi tanpa ini saldo tidak
   // pernah diperbarui setelah top-up/withdraw/transfer di layar lain.
-  const balance = useApiQuery("wallet-balance", (signal) => api.wallet.getWallet(signal), true, {
+  /**
+   * B-02 (audit): tamu web BOLEH membuka tab Dompet (route-nya di allowlist
+   * WEB_GUEST_TAB_SCREENS), tetapi `GET /v1/wallet` + `/v1/wallet/transactions`
+   * keduanya `auth:"required"`. Sebelum ini tab Dompet adalah satu-satunya tab
+   * tanpa gate token: tiap fokus tab menembak 401 → refresh → potensi
+   * `expireSession`. Pola yang sama sudah dipakai Beranda (`isGuest`) dan tab
+   * Transaksi/Pengguna.
+   */
+  const hasSession = useHasSession()
+  const balance = useApiQuery("wallet-balance", (signal) => api.wallet.getWallet(signal), hasSession, {
     refreshOnFocus: true,
   })
-  const history = usePaginatedQuery<WalletTransaction>("wallet-recent", (page, signal) =>
-    api.wallet.getWalletTransactions({ page, limit: RECENT_LIMIT }, signal),
+  const history = usePaginatedQuery<WalletTransaction>(
+    "wallet-recent",
+    (page, signal) => api.wallet.getWalletTransactions({ page, limit: RECENT_LIMIT }, signal),
+    { enabled: hasSession },
   )
 
   const wallet = balance.data
@@ -100,6 +113,10 @@ export default function WalletScreen() {
   }, [])
 
   const recent = history.data
+
+  // Tamu: kartu saldo kosong/"Rp 0" akan menyesatkan — tampilkan ajakan masuk
+  // (komponen yang sama dengan gate root layout) alih-alih dompet palsu.
+  if (!hasSession) return <GuestLoginPrompt next="/wallet" />
 
   return (
     <Screen edges={["top"]} padded={false}>

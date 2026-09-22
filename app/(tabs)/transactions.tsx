@@ -44,11 +44,13 @@ import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { useHasSession } from "@/lib/guest-gate"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
+import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FAB_SIZE, FloatingActionButton } from "@/components/ui/floating-action-button"
@@ -120,6 +122,13 @@ export default function TransactionsScreen() {
    * field dengan `initialQuery` kosong, persis pola `seed` di app/search.tsx.
    */
   const [fieldKey, setFieldKey] = useState(0)
+  /**
+   * B-02 (audit): tab Transaksi terbuka bagi tamu web
+   * (WEB_GUEST_TAB_SCREENS), sedangkan `GET /v1/orders` `auth:"required"` —
+   * tanpa gate token setiap fokus tab menembak 401 → refresh → potensi
+   * `expireSession`. Tamu kini melihat ajakan masuk, bukan daftar kosong.
+   */
+  const hasSession = useHasSession()
   const query = usePaginatedQuery(
     `orders:${role}:${status}:${debounced}`,
     (page, signal) =>
@@ -135,9 +144,10 @@ export default function TransactionsScreen() {
       ),
     // F-01 (audit): bayar/selesaikan pesanan di layar lain lalu kembali ke
     // tab ini — status basi tidak boleh bertahan tanpa pull-to-refresh manual.
-    { refreshOnFocus: true },
+    { refreshOnFocus: true, enabled: hasSession },
   )
   const filtered = status !== ALL_STATUS || Boolean(debounced)
+  if (!hasSession) return <GuestLoginPrompt next="/transactions" />
   return (
     <Screen edges={["top"]} padded={false}>
       <Header

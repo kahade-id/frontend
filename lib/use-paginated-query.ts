@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useIsFocused } from "@react-navigation/native"
 import { userMessage } from "@/lib/api/errors"
+import { useGuestPathBlocked } from "@/lib/guest-gate"
 import type { Page } from "@/lib/api/response"
 
 export function mergeById<T extends { id: string }>(previous: T[], incoming: T[]): T[] {
@@ -29,6 +30,14 @@ export type UsePaginatedQueryOptions<T> = {
    * tanpa compare perilakunya persis seperti sebelumnya.
    */
   compare?: (a: T, b: T) => number
+  /**
+   * B-02 (audit): gate request untuk layar yang route-nya terbuka bagi tamu
+   * web tetapi datanya `auth:"required"` (tab Dompet/Transaksi/Pengguna).
+   * Sebelumnya hook ini selalu menembak halaman pertama; tamu web tanpa token
+   * memanen 401 → refresh → potensi `expireSession` tiap kali tab difokuskan.
+   * Default true (semua pemanggil lama tidak berubah).
+   */
+  enabled?: boolean
 }
 
 /** Shared pagination for every long list: latest query wins, load-more single-flight, retry keeps rows. */
@@ -41,7 +50,7 @@ export function usePaginatedQuery<T extends { id: string }>(
   fetchRef.current = fetcher
   const compareRef = useRef(opts.compare)
   compareRef.current = opts.compare
-  const active = useRef<AbortController | null>(null)
+  const activeRequest = useRef<AbortController | null>(null)
   const ids = useRef(new Set<string>())
   const nextPage = useRef(1)
   const hasNext = useRef(true)
@@ -54,12 +63,35 @@ export function usePaginatedQuery<T extends { id: string }>(
   const [loadMoreError, setLoadMoreError] = useState<string | null>(null)
   const [hasMore, setHasMore] = useState(false)
 
+  /**
+   * Gerbang tamu web (B-03, lihat lib/guest-gate.ts) + gate eksplisit pemanggil
+   * (B-02). Saat tertutup, TIDAK ada request sama sekali — dan saat gerbang
+   * kembali terbuka (tamu pindah ke layar publik / habis login), `load`
+   * berubah identitas sehingga effect muat-awal menjalankannya lagi.
+   */
+  const guestBlocked = useGuestPathBlocked()
+  const active = (opts.enabled ?? true) && !guestBlocked
+
   const load = useCallback(
     async (reset: boolean, refresh = false) => {
+      if (!active) {
+        // Bersihkan sisa data akun sebelumnya; tamu tidak boleh melihat baris
+        // milik sesi lain, dan skeleton tidak boleh berputar selamanya.
+        activeRequest.current?.abort()
+        ids.current.clear()
+        setData([])
+        setHasMore(false)
+        setLoading(false)
+        setRefreshing(false)
+        setLoadingMore(false)
+        setError(null)
+        setLoadMoreError(null)
+        return
+      }
       if (!reset && (busy.current || !hasNext.current)) return
-      if (reset) active.current?.abort()
+      if (reset) activeRequest.current?.abort()
       const controller = new AbortController()
-      active.current = controller
+      activeRequest.current = controller
       busy.current = true
       const page = reset ? 1 : nextPage.current
       if (reset) {
@@ -92,7 +124,7 @@ export function usePaginatedQuery<T extends { id: string }>(
         if (reset) setError(userMessage(error))
         else setLoadMoreError(userMessage(error))
       } finally {
-        if (active.current === controller) {
+        if (activeRequest.current === controller) {
           busy.current = false
           if (!controller.signal.aborted) {
             setLoading(false)
@@ -102,7 +134,7 @@ export function usePaginatedQuery<T extends { id: string }>(
         }
       }
     },
-    [key],
+    [key, active],
   )
 
   useEffect(() => {
@@ -113,7 +145,7 @@ export function usePaginatedQuery<T extends { id: string }>(
     hasNext.current = true
     void load(true)
     return () => {
-      active.current?.abort()
+      activeRequest.current?.abort()
       busy.current = false
     }
   }, [load])

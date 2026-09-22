@@ -98,6 +98,16 @@ let handlerInstalled = false
 export type NotificationOpenSource = "tap" | "cold-start"
 
 let coldStartHandled = false
+/**
+ * B-10 (audit): cadangan IN-MEMORI untuk dedupe cold-start.
+ *
+ * Dedupe berbasis penyimpanan hanya bekerja bila baca+tulis sukses. Bila
+ * penyimpanan gagal (KuotaExceeded di web, Keystore terkunci di native),
+ * respons yang sama akan diterima lagi pada peluncuran berikutnya → satu tap
+ * memicu dua navigasi. Identifier terakhir yang sudah ditangani karena itu
+ * diingat juga di memori proses.
+ */
+let lastColdStartId: string | null = null
 export function subscribeNotificationOpened(
   onOpen: (data: unknown, source: NotificationOpenSource) => void,
 ): () => void {
@@ -114,13 +124,19 @@ export function subscribeNotificationOpened(
         // platform), yang membuat app "selalu" mendarat di Notifikasi walau
         // dibuka dari ikon. Identifier yang sudah ditangani dilewati.
         const id = response.notification.request.identifier
+        // B-10 (audit): cek memori lebih dulu — murah dan tetap bekerja saat
+        // penyimpanan tidak bisa ditulis.
+        if (lastColdStartId === id) return
         try {
           const handled = await getSecureItem(SecureKeys.lastNotificationResponse)
           if (handled === id) return
           await setSecureItem(SecureKeys.lastNotificationResponse, id)
-        } catch {
-          // Storage gagal: tetap navigasi sekali ini, jangan blokir cold start.
+        } catch (error) {
+          // Storage gagal: tetap navigasi sekali ini, jangan blokir cold start —
+          // tetapi catat supaya penanganan ganda punya jejak di log.
+          logWarn("push:cold-start-dedupe", error)
         }
+        lastColdStartId = id
         onOpen(response.notification.request.content.data, "cold-start")
       })
       .catch((err) => logWarn("push:cold-start", err))
