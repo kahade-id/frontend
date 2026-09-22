@@ -30,6 +30,10 @@
  *
  * `onQueryChange` menerima teks yang sudah di-trim, dan hanya dipanggil bila
  * nilainya benar-benar berubah — supaya spasi di ujung tidak memicu request.
+ *
+ * `initialQuery` boleh diubah dari luar untuk mengisi/mengosongkan kolom
+ * (chip saran, riwayat, tombol atur ulang) tanpa me-remount komponen, jadi
+ * fokus dan keyboard tidak hilang.
  */
 import { forwardRef, useCallback, useEffect, useRef, useState } from "react"
 import type { TextInput } from "react-native"
@@ -76,8 +80,21 @@ export const DebouncedSearchField = forwardRef<TextInput, DebouncedSearchFieldPr
       [emit],
     )
 
+    /*
+     * `initialQuery` adalah SEED dari luar, bukan nilai terkendali: setelah
+     * mount teks milik komponen ini. Tetapi perubahan seed harus ikut terlihat
+     * — pemakai (layar Pencarian) mengisinya saat pengguna menekan chip saran
+     * atau riwayat, dan saat mengosongkannya lewat "Atur ulang pencarian".
+     *
+     * Versi lama hanya menyamakan `emitted` dan membiarkan teks lama di layar,
+     * sehingga pemanggil terpaksa me-remount komponen lewat `key` yang
+     * berubah. Remount membuang fokus: keyboard menutup dan pengguna harus
+     * mengetuk kolomnya lagi tepat setelah memilih saran. Sinkronisasi di sini
+     * membuat `key` tidak diperlukan dan fokus tetap utuh.
+     */
     useEffect(() => {
       emitted.current = initialQuery.trim()
+      setText(initialQuery)
     }, [initialQuery])
 
     return (
