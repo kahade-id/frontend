@@ -17,6 +17,12 @@
   //  Catatan: berkas ini boleh berkomentar. EAS mem-parse-nya dengan
   //  `golden-fleece`, bukan JSON.parse, jadi `//` aman dan tidak akan
   //  terhapus saat `eas build` menulis ulang berkas.
+  //
+  //  PENTING — slug: slug di app.json WAJIB "frontend" (bukan "kahade")
+  //  karena proyek EAS c3931e6f-c945-44d3-8ae8-1665c54fdf94 dibuat dengan
+  //  slug "frontend" dan slug EAS tidak bisa diganti. `name`, `scheme`,
+  //  bundle identifier, dan `package` tetap "Kahade"/"kahade"/"id.kahade"
+  //  — slug hanya nama proyek di EAS, bukan identitas aplikasi.
   // ══════════════════════════════════════════════════════════════════════
 
   "cli": {

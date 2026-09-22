@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Kahade",
-    "slug": "kahade",
+    "slug": "frontend",
     "scheme": "kahade",
     "version": "1.0.0",
     "icon": "./assets/images/icon.png",
