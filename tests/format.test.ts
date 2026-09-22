@@ -19,7 +19,9 @@ import {
   formatDate,
   formatDateLong,
   formatDateTime,
+  dayName,
   formatDateTimeWIB,
+  monthName,
   formatDecimal,
   formatFileSize,
   formatNumber,
@@ -199,6 +201,35 @@ describe("formatDateTimeWIB (E-08)", () => {
     expect(formatDateTimeWIB(Date.UTC(2026, 8, 3, 17, 0))).toBe("4 Sep 2026, 00:00 WIB")
     // 16:59 UTC masih hari yang sama di WIB
     expect(formatDateTimeWIB(Date.UTC(2026, 8, 3, 16, 59))).toBe("3 Sep 2026, 23:59 WIB")
+  })
+
+  it("G-08: label zona mengikuti bahasa — 'WIB' hanya untuk Indonesia, 'UTC+7' untuk EN", () => {
+    const instant = Date.UTC(2026, 8, 3, 20, 30)
+    try {
+      applyLanguage("en")
+      expect(formatDateTimeWIB(instant)).toBe("4 Sep 2026, 03:30 UTC+7")
+    } finally {
+      // Bahasa sumber dipulihkan apa pun hasilnya: test lain bergantung padanya.
+      applyLanguage("id")
+    }
+    expect(formatDateTimeWIB(instant)).toBe("4 Sep 2026, 03:30 WIB")
+  })
+
+  it("G-07: monthName/dayName mengikuti bahasa aktif (dipakai <Calendar>)", () => {
+    // 0 = Januari/January; 0 = Minggu/Sunday (Date.getDay()).
+    expect(monthName(4, { long: true })).toBe("Mei")
+    expect(dayName(1)).toBe("Senin")
+    try {
+      applyLanguage("en")
+      expect(monthName(4, { long: true })).toBe("May")
+      expect(monthName(4)).toBe("May")
+      expect(dayName(1)).toBe("Monday")
+      expect(dayName(0)).toBe("Sunday")
+    } finally {
+      applyLanguage("id")
+    }
+    expect(monthName(4)).toBe("Mei")
+    expect(dayName(0)).toBe("Minggu")
   })
 
   it("input tidak valid → em-dash, bukan 'Invalid Date'", () => {

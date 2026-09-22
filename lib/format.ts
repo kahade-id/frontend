@@ -17,8 +17,6 @@
 import { getLanguage } from "@/lib/i18n/store"
 import { logWarn } from "@/lib/telemetry"
 
-/** E-05: fallback formatDateTimeWIB dilaporkan sekali per proses. */
-let wibFallbackReported = false
 
 const MONTHS_ID = [
   "Jan",
@@ -478,31 +476,25 @@ export function formatDateTime(
 export function formatDateTimeWIB(d: Date | number | string): string {
   const date = displayDate(d)
   if (!date) return "—"
-  const locale = getLanguage() === "en" ? "en-GB" : "id-ID"
-  try {
-    const parts = new Intl.DateTimeFormat(locale, {
-      timeZone: "Asia/Jakarta",
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).formatToParts(date)
-    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ""
-    const hour = get("hour") === "24" ? "00" : get("hour")
-    return `${get("day")} ${get("month")} ${get("year")}, ${hour}:${get("minute")} WIB`
-  } catch {
+  /*
+   * G-08 (audit 2026-09-22): kalender diambil lewat `zonedParts` (bukan
+   * `Intl.DateTimeFormat` terpisah dengan locale sendiri). Sebelumnya WIB
+   * memakai locale "en-GB" yang menyingkat September menjadi "Sept", sementara
+   * `formatDate` memakai tabel MONTHS_EN ("Sep") — dua ejaan berbeda di satu
+   * layar. Sekarang nama bulan/hari selalu dari tabel repo (konsisten §13) dan
+   * yang dipilih menurut bahasa hanya LABEL ZONA: pembaca English tidak
+   * mengenal singkatan "WIB", jadi yang muncul offsetnya (UTC+7).
+   */
+  const zoned = zonedParts(date, WIB_TIME_ZONE)
+  if (!zoned) {
     // E-05 (audit 2026-09-22): fallback ini SENGAJA tanpa label (melabeli zona
-    // perangkat sebagai WIB lebih buruk), tapi sebelumnya terjadi tanpa jejak
-    // apa pun. Sekali per proses dicatat supaya build tanpa full-ICU terlihat
-    // di telemetri alih-alih diam-diam menampilkan tenggat tanpa zona.
-    if (!wibFallbackReported) {
-      wibFallbackReported = true
-      logWarn("format:wib-fallback", new Error("Intl Asia/Jakarta tidak tersedia"))
-    }
+    // perangkat sebagai WIB lebih buruk) — `zonedParts` sudah mencatat
+    // penyebabnya sekali per proses ke telemetri.
     return formatDateTime(date)
   }
+  const month = monthNames(false)[zoned.month - 1]
+  const zone = getLanguage() === "en" ? "UTC+7" : "WIB"
+  return `${zoned.day} ${month} ${zoned.year}, ${pad2(zoned.hour)}:${pad2(zoned.minute)} ${zone}`
 }
 
 /** "Rabu, 3 September 2026" — untuk layar konfirmasi/struk */

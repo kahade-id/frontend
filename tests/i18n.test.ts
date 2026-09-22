@@ -45,7 +45,7 @@ import {
   persistLanguage,
   readCachedLanguage,
 } from "@/lib/i18n/store"
-import { clearTranslationCache, translate } from "@/lib/i18n/translate"
+import { clearTranslationCache, hasTranslation, translate } from "@/lib/i18n/translate"
 
 describe("daftar bahasa", () => {
   it("hanya 'id' dan 'en' — sama dengan enum backend UpdateLanguageDto", () => {
@@ -218,6 +218,23 @@ describe("translate()", () => {
     clearTranslationCache()
     const out = translate("Kalimat acak yang belum ada di kamus sama sekali")
     expect(out).toBe("Kalimat acak yang belum ada di kamus sama sekali")
+  })
+
+  it("hasTranslation(): kunci persis, bentuk {x}, dan bahasa sumber", () => {
+    // G-03 (audit 2026-09-22): ekspor ini sebelumnya tidak dipakai siapa pun —
+    // gate/layar tidak punya cara memeriksa "terjemahan ini benar-benar ada".
+    // Sekarang check:i18n menolak katalog yang belum 100%, dan helper ini dipakai
+    // untuk memverifikasi sisi runtime-nya (termasuk pencocokan BENTUK).
+    applyLanguage("en")
+    clearTranslationCache()
+    expect(hasTranslation("Batal")).toBe(true)
+    expect(hasTranslation("3 ulasan")).toBe(true) // lewat BENTUK: angka → {x}
+    expect(hasTranslation("Kalimat acak yang belum ada di kamus sama sekali")).toBe(false)
+    // Bahasa sumber selalu dianggap tersedia (fallback = teks sumber itu sendiri).
+    expect(hasTranslation("Batal", SOURCE_LANGUAGE)).toBe(true)
+    expect(hasTranslation("Kalimat acak", SOURCE_LANGUAGE)).toBe(true)
+    applyLanguage("id")
+    clearTranslationCache()
   })
 
   it("melewati angka, boolean, dan nilai kosong apa adanya", () => {

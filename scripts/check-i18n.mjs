@@ -48,6 +48,59 @@ const catalogSet = new Set(catalog)
 // "of {x}").
 const tokenCount = (s) => (s.match(/\{[A-Za-z_][A-Za-z0-9_]*\}/g) ?? []).length
 
+/**
+ * G-04 (audit 2026-09-22): daftar putih KOGNAT/MEREK.
+ *
+ * Gate lama menyebut setiap entri identik "kognat/merek, bukan bug" tanpa
+ * memeriksa satu pun — entri yang lupa diterjemahkan (mis. "Pin" untuk PIN
+ * perangkat, atau istilah yang kebetulan sama) ikut tersembunyi di angka itu.
+ * Dengan allowlist eksplisit, entri identik BARU langsung gagal dan harus
+ * diputuskan: diterjemahkan, atau didaftarkan di sini dengan alasannya.
+ */
+const COGNATE_ALLOWLIST = new Map([
+  // Nama merek/produk — tidak pernah diterjemahkan.
+  ["Kahade", "nama produk"],
+  ["WhatsApp", "nama layanan"],
+  ["JNE, SiCepat, …", "nama kurir"],
+  // Kata serapan yang memang dipakai di UI English.
+  ["Email", "serapan baku"],
+  ["Reset password", "istilah baku keamanan"],
+  ["Cashback", "istilah baku e-commerce"],
+  ["Showcase", "istilah produk Kahade"],
+  ["Invoice", "istilah dokumen"],
+  ["Order", "istilah transaksi"],
+  ["Bank", "serapan baku"],
+  ["Bank / e-wallet", "serapan baku + istilah produk"],
+  ["Bio", "label singkat profil"],
+  ["Personal", "nama jenis akun"],
+  ["Rating", "serapan baku"],
+  ["Reward", "serapan baku"],
+  ["Status", "serapan baku"],
+  ["Username", "istilah baku akun"],
+  ["Referral", "serapan baku"],
+  ["Legal", "nama seksi"],
+  ["Menu", "serapan baku"],
+  ["Transfer", "serapan baku"],
+  ["Spam", "serapan baku"],
+  ["Edit", "serapan baku"],
+  ["Chat", "serapan baku"],
+  ["Minimum:", "label dengan titik dua, sama di kedua bahasa"],
+  ["Runtime:", "label dengan titik dua, sama di kedua bahasa"],
+  // Operasi ikon: "pin" (kerja) sama di EN; yang beda adalah "Lepas pin".
+  ["Pin", "kata kerja 'pin' sama di EN"],
+  // Bentuk yang HANYA terdiri dari token + tanda baca: tidak ada teks untuk
+  // diterjemahkan — pengisian token mengikuti bahasa pemanggil.
+  ["{x} {y}", "hanya token"],
+  ["{x} {y}%", "hanya token + %"],
+  ["{x} {y} rupiah", "hanya token + satuan mata uang"],
+  ["{x} {y}%, {z} rupiah", "hanya token + satuan mata uang"],
+  ["{x} — {y}", "hanya token + pemisah"],
+  ["{x}, {y}", "hanya token + pemisah"],
+  ["{x}. {y}", "hanya token + pemisah"],
+  ["{x}: {y}", "hanya token + pemisah"],
+  ["Item {x}", "hanya token + kata benda yang sama di EN"],
+])
+
 const seen = new Map()
 let translated = 0
 for (const file of readdirSync(EN_DIR).sort()) {
@@ -87,16 +140,38 @@ for (const file of readdirSync(EN_DIR).sort()) {
     const vt = tokenCount(value)
     if (kt !== vt)
       fail(`${rel}: token {x} tidak seimbang (${kt} di kunci, ${vt} di nilai) — "${key}"`)
-    // Nilai identik dengan kunci ITU BENAR untuk kata serapan/kognat ("Bank",
-    // "Spam", "Reset password", nama merek), jadi tidak boleh jadi error. Yang
-    // berbahaya adalah entri kosong — sudah dicek di atas.
-    if (value === key) identical.push(`${rel}: ${key}`)
+    // G-04: identik hanya boleh untuk kognat/merek yang terdaftar.
+    if (value === key) {
+      if (!COGNATE_ALLOWLIST.has(key))
+        fail(
+          `${rel}: terjemahan identik dengan sumber — "${key}". Kalau ini memang ` +
+            `kognat/merek, daftarkan di COGNATE_ALLOWLIST beserta alasannya; kalau bukan, terjemahkan.`,
+        )
+      identical.push(`${rel}: ${key}`)
+    }
     translated += 1
   }
 }
 
 const missing = catalog.filter((k) => !seen.has(k))
 const percent = ((translated / catalog.length) * 100).toFixed(1)
+
+/*
+ * G-03 (audit 2026-09-22): "100%" hanya bermakna bila setiap kunci katalog
+ * BENAR-BENAR punya terjemahan. Sebelumnya gate hanya memasang ratchet
+ * (cakupan tidak boleh turun), jadi katalog yang di-generate ulang selalu
+ * tampak 100% walau kunci barunya jatuh ke teks sumber. Sejak sekarang kunci
+ * tanpa terjemahan = GAGAL: string UI baru harus diberi terjemahan di batch
+ * yang sama (fallback runtime ke Indonesia tetap ada sebagai jaring pengaman,
+ * bukan sebagai kebijakan).
+ */
+if (missing.length > 0) {
+  const detail = process.env.I18N_LIST ? `\n${missing.slice(0, 40).map((k) => `    - ${k}`).join("\n")}` : ""
+  fail(
+    `${missing.length} kunci katalog belum punya terjemahan (lihat I18N_LIST=1 untuk daftarnya) — ` +
+      `tambahkan ke lib/i18n/en/*.json dalam batch yang sama.${detail}`,
+  )
+}
 
 const prev = existsSync(COVERAGE) ? JSON.parse(readFileSync(COVERAGE, "utf8")) : { percent: 0, translated: 0 }
 const wentDown = translated < prev.translated
