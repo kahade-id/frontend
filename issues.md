@@ -1153,6 +1153,7 @@ perilaku) dikunci test, dan `npm run check` tetap hijau.
 | A — uang, waktu, aksesibilitas | `01513fa` | A-01…A-07, A-10, A-11, A-13…A-19, C-01 (pemanggil), E-01…E-03, E-05, E-07, E-08, F-01, F-03…F-05, G-02, G-05, G-06, G-08, H-02, I-04 |
 | B — sesi, auth & tamu web | `7044f32` | B-01…B-12 |
 | C — kesegaran & paginasi data | `f24f086` | C-01…C-11 |
+| D — observability, baseline UI & lubang tipe | (diisi setelah commit) | D-01…D-12 |
 
 ## Catatan batch C — kesegaran & paginasi data (C-01…C-11)
 
@@ -1192,3 +1193,64 @@ Ringkas, supaya perilaku yang dikunci bisa ditelusuri tanpa membaca ulang diff:
 - **C-11** — logout hanya punya satu jalur (`clearSession()` dari
   `lib/api/session.ts`) yang menaikkan revisi sesi; entri cache milik revisi
   lain selalu dibuang saat dibaca. Bukti: `tests/query-cache.test.ts`.
+
+## Catatan batch D — observability, baseline UI & lubang tipe (D-01…D-12)
+
+- **D-01** — satu validator tautan eksternal di `lib/external-url.ts` (skema
+  https/http, host tanpa kredensial, blokir skema berbahaya) dan gate baru
+  `scripts/check-external-urls.mjs` di `npm run check`: 6 pemanggilan
+  `openURL()` kini wajib lewat validator.
+- **D-02** — `.env.example` mendokumentasikan `EXPO_PUBLIC_TELEMETRY_URL`
+  (sink remote MATI secara default; tanpa PII/body mentah) dan
+  `EXPO_PUBLIC_TELEMETRY_DEBUG`; kartu "Diagnostik" di `app/about.tsx`
+  menampilkan 5 peristiwa terakhir dari `getTelemetryBuffer()` plus tombol
+  "Salin diagnostik" (JSON penuh) — tampil hanya saat `__DEV__` atau flag debug
+  dinyalakan, jadi tidak pernah muncul di build produksi biasa.
+- **D-03** — komponen baseline S5 TIDAK dihapus (keputusan produk) tetapi kini
+  dijaga: `tests/unused-ui-baseline.test.tsx` merender seluruh 29 komponen
+  dengan prop minimal (30 test) di dalam `ThemeProvider` + `PortalProvider`,
+  sehingga perubahan token/prop yang membuatnya crash ketahuan di CI. Gate S5
+  menilai "dipakai" hanya dari sumber PRODUK (app/components/lib) — bukan dari
+  test — supaya daftar baseline tidak menguap begitu testnya ditambahkan. Dua
+  stub ikut diperbaiki supaya render itu mungkin: `Gesture.*` RNGH kini
+  pembangun rantai (`chainable`) dan ada stub `react-native-safe-area-context`.
+  Diketahui dan sengaja dibiarkan: `Chip onRemove` merender tombol di dalam
+  tombol (invalid HTML di web) — perbaikannya menyentuh Chip yang dipakai
+  banyak layar filter, di luar lingkup D-03.
+- **D-04** — **nol `as any` di seluruh kode** (sebelumnya 87 di
+  `lib/api/{auth,bank-accounts,users,wallet}.ts`). Penggantinya picker bertipe
+  di `lib/api/response.ts`: `pickNumber` (SENGAJA ketat `typeof number`, tanpa
+  koersi string — koersi longgar di jalur uang menyembunyikan data salah),
+  `pickUnknown`, plus `pickString`/`pickBoolean` yang sudah ada. Ringkasnya,
+  lubang tipe di lapisan yang menyentuh uang ditutup tanpa mengubah perilaku
+  runtime nilai yang valid. Bukti: `tests/response-helpers.test.ts`
+  (+3 test picker), `tests/captcha.test.ts` tetap menuntut `targetX` string
+  DITOLAK (`invalidResponse`).
+- **D-05/D-06** — catch yang tadinya sunyi kini menulis `logWarn` dengan scope
+  yang bisa dilacak: `session:rollback-signed-out`, `session:rollback-clear`,
+  `i18n:write-preference`, `pull-to-refresh:callback` (3 jalur),
+  `theme:read-preference`, `theme:write-preference`, `a11y:reduce-motion`.
+  Perilaku UI tidak berubah; error asli saat start sesi tetap di-`throw`.
+- **D-07** — `isSecureKeyPersisted()` (`lib/secure-storage.ts`) menjadi satu
+  sumber kebenaran soal apa yang benar-benar bertahan di web, dan
+  `FEEDBACK_QUEUE_PERSISTS` (`lib/feedback.ts`) dipakai layar umpan balik untuk
+  berkata jujur: di web antrean hanya di memori → peringatan + pengiriman ulang
+  otomatis saat peristiwa `online`.
+- **D-08** — `auth` WAJIB di `RequestOptions`/`http.*` (`RequiredAuth<T>`):
+  lupa menentukan mode auth jadi error ketik, bukan 401 diam-diam.
+- **D-09** — `Idempotency-Key` dari pemanggil MENANG (pencocokan
+  case-insensitive); kunci acak hanya dibuat bila pemanggil tidak memberi.
+  Bukti: `tests/idempotency-key.test.ts` (+1 test: kunci pemanggil tidak
+  memicu `crypto.randomUUID`).
+- **D-10** — nilai header idempotensi dibatasi 300 karakter.
+- **D-11** — penyimpanan mentah tidak lagi jadi properti enumerable: `#raw`
+  privat + getter, supaya `JSON.stringify`/spread tidak pernah mengirimkan
+  respons mentah ke luar.
+- **D-12** — gate a11y juga memindai `.ts` yang memuat JSX (sebelumnya hanya
+  `.tsx`), jadi berkas dengan JSX di dalam `.ts` tidak lagi lolos tanpa cek.
+- **i18n** — 4 string baru (kartu diagnostik + salinan layar umpan balik web)
+  dikatalogkan dan diterjemahkan; `lib/i18n/coverage.json` diperbarui:
+  **1698/1698 (100%)**.
+- **Verifikasi batch D** — `npm run check` hijau: 286 test unit (22 berkas) +
+  93 test komponen (8 berkas, termasuk 30 dari harness baseline D-03),
+  check:screens/check:i18n/check:api/check:external-urls lolos.

@@ -77,6 +77,7 @@ import {
   reachedThreshold,
   shouldCapturePull,
 } from "@/lib/pull-math"
+import { logWarn } from "@/lib/telemetry"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -169,7 +170,11 @@ function NativePullGestureSurface({
       }
       setInternalRefreshing(true)
       Promise.resolve(onRefreshRef.current?.())
-        .catch(() => undefined)
+        // D-06 (audit): kegagalan callback refresh milik LAYAR dulu ditelan
+        // tanpa jejak di dalam mesin gesture ini — kalau gesture kembali
+        // bermasalah, tidak ada data apa pun untuk diagnosis. UI tetap bersih
+        // (spinner dimatikan di finally); yang ditambahkan hanya jejaknya.
+        .catch((error) => logWarn("pull-to-refresh:callback", error))
         .finally(() => setInternalRefreshing(false))
     } catch {
       setInternalRefreshing(false)
@@ -542,7 +547,7 @@ export function PullGestureSurface({
       }
 
       void Promise.resolve(result)
-        .catch(() => undefined)
+        .catch((error) => logWarn("pull-to-refresh:callback", error))
         .finally(() => {
           if (
             threwSynchronously ||
@@ -555,7 +560,7 @@ export function PullGestureSurface({
     }
 
     void Promise.resolve(result)
-      .catch(() => undefined)
+      .catch((error) => logWarn("pull-to-refresh:callback", error))
       .finally(finishRefresh)
   }, [controlled, finishRefresh, springTo])
 

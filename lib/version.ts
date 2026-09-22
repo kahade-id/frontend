@@ -1,3 +1,5 @@
+import { safeHttpsLink } from "@/lib/external-url"
+
 /** Compare numeric version segments without the 1.2 vs 1.2.0 radix bug. Invalid data never forces an update. */
 export function compareVersions(
   left: string | null | undefined,
@@ -17,12 +19,11 @@ export function compareVersions(
   return 0
 }
 
+/**
+ * D-01 (audit): aturan skema URL kini hidup di SATU tempat
+ * (`lib/external-url.ts`) supaya tidak ada dua validator yang bisa berbeda
+ * pendapat. Nama ini dipertahankan karena sudah dipakai banyak call-site.
+ */
 export function safeHttpsUrl(value: unknown): string | undefined {
-  if (typeof value !== "string" || !value.trim()) return undefined
-  try {
-    const url = new URL(value)
-    return url.protocol === "https:" && !url.username && !url.password ? url.toString() : undefined
-  } catch {
-    return undefined
-  }
+  return safeHttpsLink(value)
 }

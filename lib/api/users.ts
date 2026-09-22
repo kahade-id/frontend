@@ -19,6 +19,9 @@
 
 import {
   asRecord,
+  pickBoolean,
+  pickNumber,
+  pickString,
   pickUserId,
   readEntity,
   readList,
@@ -184,8 +187,8 @@ export async function uploadAvatarDirect(formData: FormData) {
   })
   return {
     ...result,
-    avatarUrl: result.avatarUrl ?? (result as any).avatar_url,
-    avatarKey: result.avatarKey ?? (result as any).avatar_key,
+    avatarUrl: pickString(result, ["avatarUrl", "avatar_url"]),
+    avatarKey: pickString(result, ["avatarKey", "avatar_key"]),
   }
 }
 
@@ -196,8 +199,8 @@ export async function confirmAvatar(dto: ConfirmAvatarDto) {
   })
   return {
     ...result,
-    avatarUrl: result.avatarUrl ?? (result as any).avatar_url,
-    avatarKey: result.avatarKey ?? (result as any).avatar_key,
+    avatarUrl: pickString(result, ["avatarUrl", "avatar_url"]),
+    avatarKey: pickString(result, ["avatarKey", "avatar_key"]),
   }
 }
 
@@ -677,12 +680,12 @@ export async function uploadShowcase(formData: FormData) {
   })
   return {
     ...result,
-    imageUrl: result.imageUrl ?? (result as any).image_url,
-    fileKey: result.fileKey ?? (result as any).file_key,
-    priceMin: result.priceMin ?? (result as any).price_min,
-    priceMax: result.priceMax ?? (result as any).price_max,
-    isActive: result.isActive ?? (result as any).is_active,
-    sortOrder: result.sortOrder ?? (result as any).sort_order,
+    imageUrl: pickString(result, ["imageUrl", "image_url"]),
+    fileKey: pickString(result, ["fileKey", "file_key"]),
+    priceMin: pickNumber(result, ["priceMin", "price_min"]),
+    priceMax: pickNumber(result, ["priceMax", "price_max"]),
+    isActive: pickBoolean(result, ["isActive", "is_active"]),
+    sortOrder: pickNumber(result, ["sortOrder", "sort_order"]),
   }
 }
 
@@ -692,13 +695,13 @@ export async function createShowcase(dto: CreateShowcaseItemDto) {
   })
   return {
     ...result,
-    imageUrl: result.imageUrl ?? (result as any).image_url,
-    fileKey: result.fileKey ?? (result as any).file_key,
-    priceMin: result.priceMin ?? (result as any).price_min,
-    priceMax: result.priceMax ?? (result as any).price_max,
-    isActive: result.isActive ?? (result as any).is_active,
-    sortOrder: result.sortOrder ?? (result as any).sort_order,
-    createdAt: result.createdAt ?? (result as any).created_at,
+    imageUrl: pickString(result, ["imageUrl", "image_url"]),
+    fileKey: pickString(result, ["fileKey", "file_key"]),
+    priceMin: pickNumber(result, ["priceMin", "price_min"]),
+    priceMax: pickNumber(result, ["priceMax", "price_max"]),
+    isActive: pickBoolean(result, ["isActive", "is_active"]),
+    sortOrder: pickNumber(result, ["sortOrder", "sort_order"]),
+    createdAt: pickString(result, ["createdAt", "created_at"]),
   }
 }
 
@@ -708,13 +711,13 @@ export async function updateShowcase(id: string, dto: UpdateShowcaseItemDto) {
   })
   return {
     ...result,
-    imageUrl: result.imageUrl ?? (result as any).image_url,
-    fileKey: result.fileKey ?? (result as any).file_key,
-    priceMin: result.priceMin ?? (result as any).price_min,
-    priceMax: result.priceMax ?? (result as any).price_max,
-    isActive: result.isActive ?? (result as any).is_active,
-    sortOrder: result.sortOrder ?? (result as any).sort_order,
-    createdAt: result.createdAt ?? (result as any).created_at,
+    imageUrl: pickString(result, ["imageUrl", "image_url"]),
+    fileKey: pickString(result, ["fileKey", "file_key"]),
+    priceMin: pickNumber(result, ["priceMin", "price_min"]),
+    priceMax: pickNumber(result, ["priceMax", "price_max"]),
+    isActive: pickBoolean(result, ["isActive", "is_active"]),
+    sortOrder: pickNumber(result, ["sortOrder", "sort_order"]),
+    createdAt: pickString(result, ["createdAt", "created_at"]),
   }
 }
 
@@ -1014,7 +1017,8 @@ export function getVerificationBadges(username: string, signal?: AbortSignal) {
   return http
     .get<{ username: string; badges: VerificationBadge[] }>(
       `/v1/users/${seg(username)}/badges`,
-      { retry: 1, signal },
+      // D-08 (audit): badge verifikasi bersifat publik.
+      { auth: "none", retry: 1, signal },
     )
     .then((r) => (Array.isArray(r?.badges) ? r.badges : []))
 }

@@ -26,7 +26,10 @@ import { http } from "@/lib/api/client"
 import {
   asRecord as responseRecord,
   invalidResponse,
+  pickBoolean,
+  pickNumber,
   pickString,
+  pickUnknown,
   readVerdict,
   stringList,
 } from "@/lib/api/response"
@@ -181,15 +184,17 @@ export async function generateCaptcha(): Promise<CaptchaChallenge> {
   const result = asRecord(outer?.data) ?? outer
   if (!result) throw invalidResponse("captcha/generate")
 
-  const captchaId = result.challengeId ?? (result as any).challenge_id ?? (result as any).captchaId ?? (result as any).captcha_id
-  const targetX = result.targetX ?? (result as any).target_x
-  if (typeof captchaId !== "string" || !captchaId.trim() || typeof targetX !== "number")
-    throw invalidResponse("captcha/generate")
+  // D-04 (audit): tanpa cast — nilai diperiksa runtime oleh picker bertipe,
+  // jadi salah nama field kembali menjadi `undefined` yang terlihat, bukan
+  // nilai yang lolos lewat lubang tipe.
+  const captchaId = pickString(result, ["challengeId", "challenge_id", "captchaId", "captcha_id"])
+  const targetX = pickNumber(result, ["targetX", "target_x"])
+  if (!captchaId || typeof targetX !== "number") throw invalidResponse("captcha/generate")
 
   return {
     captchaId,
     targetX,
-    expiresAt: (result as any).expiresAt ?? (result as any).expires_at,
+    expiresAt: pickString(result, ["expiresAt", "expires_at"]),
   }
 }
 
@@ -197,9 +202,10 @@ export async function getCsrfToken() {
   // The live backend derives the CSRF token from the authenticated user's
   // `sub` and `jti`; this route is protected even though it is under /auth.
   const result = await http.get<CsrfToken>("/v1/auth/csrf-token", { auth: "required" })
+  const record = asRecord(result)
   return {
     ...result,
-    csrfToken: result.csrfToken ?? (result as any).csrf_token,
+    csrfToken: pickString(record, ["csrfToken", "csrf_token"]) ?? result.csrfToken,
   }
 }
 
@@ -316,8 +322,8 @@ export async function requestOtpTrigger(dto: Omit<{ phoneNumber: string; deviceI
   )
   // Envelope sukses mungkin sudah dilepas client; bila masih ada, field
   // payload di `data` menimpa field envelope (spread terakhir menang).
-  const outer = asRecord(result)
-  const rec = { ...(outer ?? {}), ...(asRecord((outer as any)?.data) ?? {}) }
+  const outer = asRecord(result) ?? {}
+  const rec = { ...outer, ...(asRecord(outer.data) ?? {}) }
   const refCode = pickString(rec, ["refCode", "ref_code", "referenceCode"])
   const whatsappUrl = pickString(rec, ["whatsappUrl", "whatsapp_url", "waUrl", "deepLink"])
   let triggerText = pickString(rec, ["triggerText", "trigger_text"])
@@ -330,12 +336,7 @@ export async function requestOtpTrigger(dto: Omit<{ phoneNumber: string; deviceI
     }
   }
   if (!refCode || !whatsappUrl || !triggerText) throw invalidResponse("otp-trigger")
-  const expiresInSeconds =
-    typeof rec?.expiresInSeconds === "number"
-      ? rec.expiresInSeconds
-      : typeof (rec as any)?.expires_in === "number"
-        ? (rec as any).expires_in
-        : 300
+  const expiresInSeconds = pickNumber(rec, ["expiresInSeconds", "expires_in"]) ?? 300
   return {
     refCode,
     triggerText,
@@ -352,8 +353,8 @@ export async function getOtpTriggerStatus(refCode: string, signal?: AbortSignal)
     auth: "none",
     signal,
   })
-  const outer = asRecord(raw)
-  const rec = { ...(outer ?? {}), ...(asRecord((outer as any)?.data) ?? {}) }
+  const outer = asRecord(raw) ?? {}
+  const rec = { ...outer, ...(asRecord(outer.data) ?? {}) }
   const status = typeof rec?.status === "string" ? rec.status.toUpperCase() : ""
   if (status === "WAITING" || status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
     return status as OtpTriggerPollStatus
@@ -379,31 +380,26 @@ export async function sendOtpDirect(dto: {
     body,
     { auth: "none" },
   )
-  const outer = asRecord(result)
-  const rec = { ...(outer ?? {}), ...(asRecord((outer as any)?.data) ?? {}) }
+  const outer = asRecord(result) ?? {}
+  const rec = { ...outer, ...(asRecord(outer.data) ?? {}) }
   return {
     message: pickString(rec, ["message"]) ?? "",
-    cooldownSeconds:
-      typeof rec?.cooldownSeconds === "number"
-        ? rec.cooldownSeconds
-        : typeof (rec as any)?.cooldown_seconds === "number"
-          ? (rec as any).cooldown_seconds
-          : undefined,
+    cooldownSeconds: pickNumber(rec, ["cooldownSeconds", "cooldown_seconds"]),
   }
 }
 
 export async function requestOtp(dto: Omit<RequestOtpDto, "deviceId">) {
   // RequestOtpDto: deviceId WAJIB, deviceInfo TIDAK dikenali → hanya deviceId.
   const body = await withDeviceId<RequestOtpDto>(dto)
-  const result = await http.post<MessageResult & { expiresIn?: number; cooldownSeconds?: number }, any>(
-    "/v1/auth/request-otp",
-    body,
-    { auth: "none" },
-  )
+  const result = await http.post<
+    MessageResult & { expiresIn?: number; cooldownSeconds?: number },
+    Record<string, unknown>
+  >("/v1/auth/request-otp", body, { auth: "none" })
+  const record = asRecord(result) ?? {}
   return {
     ...result,
-    expiresIn: result.expiresIn ?? (result as any).expires_in,
-    cooldownSeconds: result.cooldownSeconds ?? (result as any).cooldown_seconds,
+    expiresIn: pickNumber(record, ["expiresIn", "expires_in"]) ?? result.expiresIn,
+    cooldownSeconds: pickNumber(record, ["cooldownSeconds", "cooldown_seconds"]) ?? result.cooldownSeconds,
   }
 }
 
@@ -414,8 +410,9 @@ export async function verifyOtp(dto: WithoutDevice<VerifyPhoneOtpDto>) {
   })
   if (!responseRecord(result)) throw invalidResponse("verify-otp")
   
-  const isNew = result.isNewUser ?? (result as any).is_new_user
-  const tempToken = (result as any).tempToken ?? (result as any).temp_token
+  const record = asRecord(result) ?? {}
+  const isNew = pickBoolean(record, ["isNewUser", "is_new_user"]) ?? result.isNewUser
+  const tempToken = pickString(record, ["tempToken", "temp_token"])
 
   if (isNew) {
     if (typeof tempToken !== "string" || !tempToken)
@@ -455,8 +452,10 @@ export async function login(dto: WithoutDevice<LoginDto>) {
   if (!responseRecord(result)) throw invalidResponse("login")
   
   // Normalize response keys that might be snake_case
-  const requires2fa = result.requiresTwoFactor ?? (result as any).requires_two_factor
-  const tempToken = (result as any).tempToken ?? (result as any).temp_token
+  const record = asRecord(result) ?? {}
+  const requires2fa =
+    pickBoolean(record, ["requiresTwoFactor", "requires_two_factor"]) ?? result.requiresTwoFactor
+  const tempToken = pickString(record, ["tempToken", "temp_token"])
 
   if (requires2fa) {
     if (typeof tempToken !== "string" || !tempToken)
@@ -578,7 +577,9 @@ export async function get2faStatus(signal?: AbortSignal) {
   const result = await http.get<TwoFactorStatus>("/v1/auth/2fa/status", { auth: "required", signal })
   return {
     ...result,
-    backupCodesRemaining: result.backupCodesRemaining ?? (result as any).backup_codes_remaining,
+    backupCodesRemaining:
+      pickNumber(asRecord(result), ["backupCodesRemaining", "backup_codes_remaining"]) ??
+      result.backupCodesRemaining,
   }
 }
 
@@ -586,8 +587,8 @@ export async function setup2fa(dto: Setup2faDto) {
   const result = await http.post<TwoFactorSetup, Setup2faDto>("/v1/auth/2fa/setup", dto, { auth: "required" })
   return {
     ...result,
-    otpauthUrl: result.otpauthUrl ?? (result as any).otpauth_url,
-    qrCode: result.qrCode ?? (result as any).qr_code,
+    otpauthUrl: pickString(asRecord(result), ["otpauthUrl", "otpauth_url"]) ?? result.otpauthUrl,
+    qrCode: pickString(asRecord(result), ["qrCode", "qr_code"]) ?? result.qrCode,
   }
 }
 
@@ -597,7 +598,7 @@ export async function enable2fa(dto: Enable2faDto) {
   })
   return {
     ...result,
-    backupCodes: stringList(result.backupCodes ?? (result as any).backup_codes),
+    backupCodes: stringList(result.backupCodes ?? pickUnknown(asRecord(result), ["backup_codes"])),
   }
 }
 
@@ -631,6 +632,6 @@ export async function regenerateBackupCodes(dto: RegenerateBackupCodesDto) {
   )
   return {
     ...result,
-    backupCodes: stringList(result.backupCodes ?? (result as any).backup_codes),
+    backupCodes: stringList(result.backupCodes ?? pickUnknown(asRecord(result), ["backup_codes"])),
   }
 }

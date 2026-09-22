@@ -232,6 +232,50 @@ export function pickString(
 }
 
 /**
+ * Angka pertama yang masuk akal dari beberapa nama field (D-04 audit).
+ *
+ * Dipakai menggantikan pola `typed.camelCase ?? (x as any).snake_case` di
+ * adapter: nilainya tetap diperiksa runtime, tetapi TIDAK ada lagi cast yang
+ * mematikan pemeriksaan tipe di lapisan yang menyentuh uang.
+ *
+ * SENGAJA ketat `typeof === "number"` (tanpa koersi string): nilai yang
+ * bentuknya salah harus terlihat sebagai `undefined` di pemanggil — bukan
+ * diam-diam "diperbaiki" di sini. Koersi longgar di jalur uang pernah membuat
+ * bug tidak terdeteksi; kalau suatu endpoint memang mengirim string numerik,
+ * itu tempat yang tepat untuk menuliskannya eksplisit di adapter.
+ */
+export function pickNumber(
+  record: Record<string, unknown> | null | undefined,
+  keys: readonly string[],
+): number | undefined {
+  if (!record) return undefined
+  for (const key of keys) {
+    const value = record[key]
+    if (typeof value === "number" && Number.isFinite(value)) return value
+  }
+  return undefined
+}
+
+/**
+ * Nilai apa pun yang pertama ADA (bukan undefined/null) — pilihan terakhir
+ * ketika bentuknya memang tak bisa dipastikan (mis. array kode cadangan yang
+ * panjangnya bervariasi). Sengaja tidak melakukan cast: pemanggil yang
+ * menaruh hasilnya ke tipe tertentu wajib memvalidasi sendiri (mis. lewat
+ * `stringList`), sehingga lubang tipe tidak ikut berpindah tempat.
+ */
+export function pickUnknown(
+  record: Record<string, unknown> | null | undefined,
+  keys: readonly string[],
+): unknown {
+  if (!record) return undefined
+  for (const key of keys) {
+    const value = record[key]
+    if (value !== undefined && value !== null) return value
+  }
+  return undefined
+}
+
+/**
  * Baca "verdict" boolean dari respons + kembalikan record-nya untuk field lain.
  *
  * Kelas cacat yang ditutup helper ini: beberapa endpoint menjawab dengan flag

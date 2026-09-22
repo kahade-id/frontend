@@ -59,10 +59,19 @@ export class ApiError extends Error {
   readonly status: number | undefined
   readonly backendCode: string | undefined
   readonly validationMessages: string[] | undefined
-  readonly raw: unknown
   readonly method: string | undefined
   readonly path: string | undefined
   readonly retryAfterMs: number | undefined
+
+  /**
+   * D-11 (audit): body respons mentah disimpan di field privat dan hanya
+   * dibuka lewat getter. Sebelumnya `raw` adalah properti biasa, sehingga
+   * `JSON.stringify(err)` — atau logger apa pun yang menyerialisasi error —
+   * ikut mengirim body tersebut, yang pada endpoint order/auth bisa memuat
+   * data akun. Getter di prototype TIDAK enumerable, jadi tidak ikut
+   * serialisasi, sementara pemakaian debug (`err.raw`) tetap bekerja.
+   */
+  readonly #raw: unknown
 
   constructor(init: ApiErrorInit) {
     super(init.message, init.cause !== undefined ? { cause: init.cause } : undefined)
@@ -71,10 +80,15 @@ export class ApiError extends Error {
     this.status = init.status
     this.backendCode = init.backendCode
     this.validationMessages = init.validationMessages
-    this.raw = init.raw
+    this.#raw = init.raw
     this.method = init.method
     this.path = init.path
     this.retryAfterMs = init.retryAfterMs
+  }
+
+  /** Body respons mentah — untuk log/debug; JANGAN tampilkan ke user. */
+  get raw(): unknown {
+    return this.#raw
   }
 
   /** Sesi tidak valid — UI harus ke layar login */
@@ -112,6 +126,25 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null
 }
 
+/**
+ * Batas panjang pesan backend yang boleh sampai ke UI (D-10 audit).
+ *
+ * Pesan class-validator bersarang bisa ribuan karakter dan memuat jalur
+ * internal (nama DTO, aturan, indeks array). Itu berguna di log, bukan di
+ * toast: di UI ia mendorong tombol keluar layar dan membocorkan detail yang
+ * tidak perlu. 300 karakter cukup untuk pesan manusia paling panjang.
+ */
+const USER_MESSAGE_MAX = 300
+
+/** Potong pesan untuk UI tanpa memotong di tengah kata terakhir. */
+function toUserMessage(value: string): string {
+  const text = value.trim()
+  if (text.length <= USER_MESSAGE_MAX) return text
+  const cut = text.slice(0, USER_MESSAGE_MAX)
+  const lastSpace = cut.lastIndexOf(" ")
+  return `${(lastSpace > USER_MESSAGE_MAX * 0.6 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`
+}
+
 export function parseErrorBody(body: unknown): {
   message: string | undefined
   backendCode: string | undefined
@@ -134,15 +167,18 @@ export function parseErrorBody(body: unknown): {
   const src: NestErrorBody = nested ?? rec
 
   const rawMessage = src.message ?? rec.message
+  // D-10 (audit): `validationMessages` dipakai layar/form untuk menampilkan
+  // alasan per field — panjangnya dibatasi dengan aturan yang sama seperti
+  // pesan tunggal supaya jalur array tidak jadi celah.
   const validationMessages = Array.isArray(rawMessage)
-    ? rawMessage.filter((m): m is string => typeof m === "string")
+    ? rawMessage.filter((m): m is string => typeof m === "string").map(toUserMessage)
     : undefined
   const message = Array.isArray(rawMessage)
     ? validationMessages?.[0]
     : typeof rawMessage === "string"
-      ? rawMessage
+      ? toUserMessage(rawMessage)
       : typeof rec.error === "string"
-        ? rec.error
+        ? toUserMessage(rec.error)
         : undefined
 
   const backendCode = [

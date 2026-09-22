@@ -125,8 +125,20 @@ export async function startSession(tokens: {
       if (tokens.refreshToken) await setSecureItem(SecureKeys.refreshToken, tokens.refreshToken)
       await deleteSecureItem(SecureKeys.sessionSignedOut)
     } catch (error) {
-      await setSecureItem(SecureKeys.sessionSignedOut, "1").catch(() => undefined)
-      await clearSecureSession().catch(() => undefined)
+      /**
+       * D-05 (audit): kegagalan saat ROLLBACK dulu ditelan tanpa jejak
+       * (`.catch(() => undefined)`). Ini jalur paling berbahaya untuk senyap:
+       * bila penandaan "signed out" gagal, akun baru tidak bisa dibedakan dari
+       * akun lama di perangkat yang sama, dan tidak ada satu pun sinyal untuk
+       * mendiagnosisnya. Error aslinya tetap dilempar (perilaku lama), tetapi
+       * kedua kegagalan pembersihan kini tercatat.
+       */
+      await setSecureItem(SecureKeys.sessionSignedOut, "1").catch((cleanupError) =>
+        logWarn("session:rollback-signed-out", cleanupError),
+      )
+      await clearSecureSession().catch((cleanupError) =>
+        logWarn("session:rollback-clear", cleanupError),
+      )
       throw error
     }
   })

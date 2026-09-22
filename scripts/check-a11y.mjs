@@ -57,12 +57,33 @@ const warn = (msg) => warnings.push(msg)
 // Util
 // ------------------------------------------------------------------
 
-function walk(dir, out = []) {
+/**
+ * D-12 (audit): berkas `.ts` yang berisi JSX (mis. modul yang mengekspor
+ * komponen tanpa mengubah ekstensi) dulu TIDAK pernah dipindai, dan ringkasan
+ * akhirnya tidak menyebut batas cakupan itu. Sekarang `.ts` ikut dipindai bila
+ * mengandung JSX, dan jumlah berkas yang dilewati dicetak agar cakupannya
+ * terlihat (bukan diasumsikan).
+ */
+const JSX_IN_TS = /<[A-Z][\w.]*[\s/>]|<[a-z]+[\s>][^>]*>/
+function walk(dir, out = [], skipped = []) {
   for (const name of readdirSync(dir)) {
     if (name === "node_modules" || name.startsWith(".")) continue
     const p = join(dir, name)
-    if (statSync(p).isDirectory()) walk(p, out)
-    else if (p.endsWith(".tsx")) out.push(p)
+    if (statSync(p).isDirectory()) {
+      walk(p, out, skipped)
+      continue
+    }
+    if (p.endsWith(".tsx")) {
+      out.push(p)
+      continue
+    }
+    if (p.endsWith(".ts")) {
+      // Modul non-React (tipe, konstanta, helper) tidak punya aturan a11y —
+      // tetapi `.ts` yang benar-benar merender JSX harus ikut diperiksa.
+      const src = readFileSync(p, "utf8")
+      if (JSX_IN_TS.test(src)) out.push(p)
+      else skipped.push(p)
+    }
   }
   return out
 }
@@ -144,9 +165,10 @@ function readChildren(src, tagEnd, name) {
   return src.slice(tagEnd)
 }
 
+const skippedTs = []
 const files = [
-  ...walk(join(root, "components")),
-  ...(statSync(join(root, "app")).isDirectory() ? walk(join(root, "app")) : []),
+  ...walk(join(root, "components"), [], skippedTs),
+  ...(statSync(join(root, "app")).isDirectory() ? walk(join(root, "app"), [], skippedTs) : []),
 ]
 
 // ------------------------------------------------------------------
@@ -448,7 +470,13 @@ for (const abs of files) {
 // ------------------------------------------------------------------
 // Laporan
 // ------------------------------------------------------------------
-console.log(`check-a11y: ${files.length} file .tsx dipindai`)
+const tsxCount = files.filter((p) => p.endsWith(".tsx")).length
+const tsCount = files.length - tsxCount
+console.log(
+  `check-a11y: ${files.length} berkas dipindai (${tsxCount} .tsx` +
+    (tsCount ? ` + ${tsCount} .ts berisi JSX` : "") +
+    `); ${skippedTs.length} .ts non-JSX dilewati (tidak punya aturan a11y)`,
+)
 for (const w of warnings) console.warn(`  warn  ${w}`)
 for (const e of errors) console.error(`  FAIL  ${e}`)
 if (errors.length) {

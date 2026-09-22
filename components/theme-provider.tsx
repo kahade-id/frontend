@@ -49,6 +49,7 @@ import { View } from "react-native"
 import { useColorScheme, vars } from "nativewind"
 
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { logWarn } from "@/lib/telemetry"
 import { toCssVariables, type ColorMode } from "@/lib/tokens"
 
 export type ThemePreference = ColorMode | "system"
@@ -91,7 +92,9 @@ export function ThemeProvider({
         )
           setPreferenceState(stored)
       })
-      .catch(() => undefined)
+      // D-05 (audit): preferensi tema gagal dibaca → tema default dipakai;
+      // tetap dicatat supaya "tema saya kembali sendiri" bisa dilacak.
+      .catch((error) => logWarn("theme:read-preference", error))
     return () => {
       alive = false
     }
@@ -108,7 +111,9 @@ export function ThemeProvider({
     (p: ThemePreference) => {
       changed.current = true
       setPreferenceState(p)
-      void setSecureItem(SecureKeys.themePreference, p).catch(() => undefined)
+      void setSecureItem(SecureKeys.themePreference, p).catch((error) =>
+        logWarn("theme:write-preference", error),
+      )
       onPreferenceChange?.(p)
     },
     [onPreferenceChange],

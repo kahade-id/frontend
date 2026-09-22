@@ -44,7 +44,17 @@ export type RequestOptions<TBody = undefined> = {
   body?: TBody
   formData?: FormData
   query?: QueryParams
-  auth?: AuthMode
+  /**
+   * D-08 (audit): WAJIB eksplisit. Sebelumnya opsional dengan default
+   * `"optional"`, sehingga adapter yang lupa menuliskannya tetap mengirim
+   * `X-Device-Id`/`X-Device-Info` (model + OS + versi app) dan cookie
+   * (`credentials: "include"`) ke endpoint publik — kebalikan dari maksud
+   * komentar minimalisasi data di bawah. Dengan wajib, keputusan "endpoint ini
+   * publik atau tidak" tidak bisa diambil tanpa sadar: setiap pemanggil baru
+   * harus menyebutkannya, dan mode yang keliru muncul di review, bukan di
+   * produksi.
+   */
+  auth: AuthMode
   headers?: Record<string, string>
   timeoutMs?: number
   signal?: AbortSignal
@@ -334,14 +344,14 @@ const getRequests = new Map<string, Promise<unknown>>()
 /** Dedupe identical in-flight GETs. No persisted response cache; no cross-account data. */
 export function request<TResponse = unknown, TBody = undefined>(
   path: string,
-  options: RequestOptions<TBody> = {},
+  options: RequestOptions<TBody>,
 ): Promise<TResponse> {
   if ((options.method ?? "GET") !== "GET" || options.signal)
     return performRequest<TResponse, TBody>(path, options)
   const key = JSON.stringify([
     getSessionRevision(),
     buildUrl(path, options.query),
-    options.auth ?? "optional",
+    options.auth,
     options.responseType ?? "json",
     options.headers,
     options.timeoutMs,
@@ -385,7 +395,7 @@ async function performRequest<TResponse, TBody>(
     body,
     formData,
     query,
-    auth = "optional",
+    auth,
     headers: extraHeaders,
     timeoutMs = API_TIMEOUT_MS,
     signal,
@@ -413,7 +423,21 @@ async function performRequest<TResponse, TBody>(
    * satu-satunya pengiriman ulang adalah setelah 401, yang memang HARUS berbagi
    * kunci.
    */
-  const idempotencyKey = method !== "GET" ? createIdempotencyKey() : null
+  /**
+   * D-09 (audit): kunci dibuat HANYA bila pemanggil belum menyediakannya.
+   * Sebelumnya `crypto.randomUUID()` selalu dipanggil untuk setiap mutasi dan
+   * header kiriman pemanggil hanya "tidak ditimpa" — sehingga pola "satu kunci
+   * untuk rangkaian percobaan manual" (pemulihan aksi menggantung, J-04) tidak
+   * mungkin diterapkan dari luar. Pencocokan header tidak peka huruf besar/kecil
+   * karena nama header HTTP memang begitu.
+   */
+  const providedKey = Object.keys(extraHeaders ?? {}).find(
+    (name) => name.toLowerCase() === "idempotency-key",
+  )
+  const idempotencyKey =
+    method !== "GET" && !(providedKey && extraHeaders?.[providedKey])
+      ? createIdempotencyKey()
+      : null
   const send = async (token: string | null) => {
     checkAborted(signal)
     const headers: Record<string, string> = {
@@ -530,15 +554,20 @@ async function performRequest<TResponse, TBody>(
   }
 }
 
+// D-08 (audit): `auth` tidak lagi boleh di-omit — lihat catatan di
+// RequestOptions. Tipe helper di bawah mewajibkannya untuk semua verb.
 type NoBody = Omit<RequestOptions<undefined>, "method" | "body">
 type WithBody<TBody> = Omit<RequestOptions<TBody>, "method" | "body">
+type RequiredAuth<T> = T & { auth: AuthMode }
 export const http = {
-  get: <T>(path: string, options?: NoBody) => request<T>(path, { ...options, method: "GET" }),
-  delete: <T>(path: string, options?: NoBody) => request<T>(path, { ...options, method: "DELETE" }),
-  post: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+  get: <T>(path: string, options: RequiredAuth<NoBody>) =>
+    request<T>(path, { ...options, method: "GET" }),
+  delete: <T>(path: string, options: RequiredAuth<NoBody>) =>
+    request<T>(path, { ...options, method: "DELETE" }),
+  post: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>
     request<T, B>(path, { ...options, method: "POST", body }),
-  put: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+  put: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>
     request<T, B>(path, { ...options, method: "PUT", body }),
-  patch: <T, B = undefined>(path: string, body?: B, options?: WithBody<B>) =>
+  patch: <T, B = undefined>(path: string, body: B | undefined, options: RequiredAuth<WithBody<B>>) =>
     request<T, B>(path, { ...options, method: "PATCH", body }),
 }

@@ -41,6 +41,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
+import { safeWhatsAppLink } from "@/lib/external-url"
 import { formatPhoneId } from "@/lib/format"
 import { getOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
@@ -52,22 +53,10 @@ const POLL_TIMEOUT_MS = 5 * 60 * 1000
 /** Cooldown tombol kirim langsung (detik) — hindari dobel kirim saat bingung. */
 const DIRECT_SEND_COOLDOWN_SECONDS = 60
 
-/**
- * B-08 (audit): whitelist ketat deeplink WhatsApp. Hanya skema https dan
- * host resmi WhatsApp yang boleh dibuka — nilai lain (javascript:, intent:,
- * domain penyerang) ditolak dan layar jatuh ke fallback salin-manual.
- */
-function safeWhatsAppUrl(value: unknown): string | undefined {
-  if (typeof value !== "string" || !value) return undefined
-  try {
-    const url = new URL(value)
-    if (url.protocol !== "https:") return undefined
-    if (!/^(wa\.me|api\.whatsapp\.com|chat\.whatsapp\.com)$/.test(url.hostname)) return undefined
-    return url.toString()
-  } catch {
-    return undefined
-  }
-}
+// D-01 (audit): whitelist deeplink WhatsApp pindah ke validator bersama
+// `lib/external-url.ts` (skema https + host resmi WhatsApp) — aturan yang sama
+// tidak lagi disalin ulang di sini, dan gate `check-external-urls.mjs`
+// memastikan setiap pemanggil `openURL` melewati validator.
 
 export default function WhatsappTriggerScreen() {
   const router = useRouter()
@@ -88,7 +77,7 @@ export default function WhatsappTriggerScreen() {
 
   const otpMethod: OtpMethod = flow?.method ?? "WHATSAPP"
   const displayPhone = phoneNumber ? formatPhoneId(phoneNumber) : ""
-  const waUrl = safeWhatsAppUrl(flow?.whatsappUrl)
+  const waUrl = safeWhatsAppLink(flow?.whatsappUrl)
 
   const [sending, setSending] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)

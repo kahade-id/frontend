@@ -16,7 +16,9 @@ vi.mock("@/lib/telemetry", () => ({ logWarn: (...args: unknown[]) => logWarn(...
 
 import {
   pickBoolean,
+  pickNumber,
   pickString,
+  pickUnknown,
   pickUserId,
   readList,
   readPage,
@@ -195,5 +197,25 @@ describe("C-05: paginasi tanpa metadata berhenti dengan benar", () => {
     // sehingga paginasi berhenti lebih awal dan item tak terjangkau.
     const page = readPage<number>({ items: [1, 2], total: 25 }, { page: 1, limit: 10 }, ["items"])
     expect(page.meta.totalPages).toBe(3) // ceil(25/10)
+  })
+})
+
+describe("D-04: picker bertipe menggantikan `as any`", () => {
+  it("pickNumber ketat: angka saja, tanpa koersi string", () => {
+    expect(pickNumber({ a: 5 }, ["a"])).toBe(5)
+    expect(pickNumber({ a: "5" }, ["a"])).toBeUndefined()
+    expect(pickNumber({ a: Number.NaN }, ["a"])).toBeUndefined()
+    expect(pickNumber({ b: 7 }, ["a", "b"])).toBe(7)
+  })
+
+  it("pickUnknown mengambil nilai pertama yang ada — termasuk array/objek", () => {
+    expect(pickUnknown({ codes: ["a"] }, ["backupCodes", "codes"])).toEqual(["a"])
+    expect(pickUnknown({ a: null, b: 1 }, ["a", "b"])).toBe(1)
+    expect(pickUnknown({}, ["a"])).toBeUndefined()
+  })
+
+  it("pickBoolean tetap menerima string 'true'/'false' dari backend", () => {
+    expect(pickBoolean({ a: "true" }, ["a"])).toBe(true)
+    expect(pickBoolean({ a: "false", b: true }, ["a", "b"])).toBe(false)
   })
 })

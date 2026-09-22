@@ -56,6 +56,9 @@ export default defineConfig({
       nativewind: stub("nativewind"),
       // RNGH memuat TurboModule native saat import — tidak ada di jsdom.
       "react-native-gesture-handler": `${stub("react-native-gesture-handler")}x`,
+      // Safe-area juga TurboModule; stub memberi inset 0 yang deterministik
+      // (D-03 — komponen baseline seperti Banner memakainya).
+      "react-native-safe-area-context": `${stub("react-native-safe-area-context")}x`,
       // Reanimated menarik react-native-worklets yang memanggil TurboModule
       // saat import — alasan yang sama. Stub meng-emulasi shared value +
       // Animated.View supaya STYLE hasil animasi tetap bisa diamati test

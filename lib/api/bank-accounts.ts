@@ -5,7 +5,7 @@
  * `security: access-token` → `auth: "required"`. Tipe response UNVERIFIED.
  */
 
-import { readList } from "@/lib/api/response"
+import { pickBoolean, pickString, readList } from "@/lib/api/response"
 
 import { http, seg } from "@/lib/api/client"
 import type { AddBankAccountDto } from "@/lib/api/types"
@@ -27,13 +27,13 @@ export async function listBankAccounts(signal?: AbortSignal) {
   const accounts = readList<BankAccount>(raw, ["bankAccounts", "accounts", "bank_accounts"]);
   return accounts.map(account => ({
     ...account,
-    bankCode: account.bankCode ?? (account as any).bank_code,
-    bankName: account.bankName ?? (account as any).bank_name,
-    accountNumber: account.accountNumber ?? (account as any).account_number,
-    accountName: account.accountName ?? (account as any).account_name,
-    isPrimary: account.isPrimary ?? (account as any).is_primary,
-    isVerified: account.isVerified ?? (account as any).is_verified,
-    createdAt: account.createdAt ?? (account as any).created_at,
+    bankCode: pickString(account, ["bankCode", "bank_code"]) ?? account.bankCode,
+    bankName: pickString(account, ["bankName", "bank_name"]) ?? account.bankName,
+    accountNumber: pickString(account, ["accountNumber", "account_number"]) ?? account.accountNumber,
+    accountName: pickString(account, ["accountName", "account_name"]) ?? account.accountName,
+    isPrimary: pickBoolean(account, ["isPrimary", "is_primary"]) ?? account.isPrimary,
+    isVerified: pickBoolean(account, ["isVerified", "is_verified"]) ?? account.isVerified,
+    createdAt: pickString(account, ["createdAt", "created_at"]) ?? account.createdAt,
   }))
 }
 
@@ -41,13 +41,13 @@ export async function addBankAccount(dto: AddBankAccountDto) {
   const account = await http.post<BankAccount, AddBankAccountDto>("/v1/bank-accounts", dto, { auth: "required" })
   return {
     ...account,
-    bankCode: account.bankCode ?? (account as any).bank_code,
-    bankName: account.bankName ?? (account as any).bank_name,
-    accountNumber: account.accountNumber ?? (account as any).account_number,
-    accountName: account.accountName ?? (account as any).account_name,
-    isPrimary: account.isPrimary ?? (account as any).is_primary,
-    isVerified: account.isVerified ?? (account as any).is_verified,
-    createdAt: account.createdAt ?? (account as any).created_at,
+    bankCode: pickString(account, ["bankCode", "bank_code"]) ?? account.bankCode,
+    bankName: pickString(account, ["bankName", "bank_name"]) ?? account.bankName,
+    accountNumber: pickString(account, ["accountNumber", "account_number"]) ?? account.accountNumber,
+    accountName: pickString(account, ["accountName", "account_name"]) ?? account.accountName,
+    isPrimary: pickBoolean(account, ["isPrimary", "is_primary"]) ?? account.isPrimary,
+    isVerified: pickBoolean(account, ["isVerified", "is_verified"]) ?? account.isVerified,
+    createdAt: pickString(account, ["createdAt", "created_at"]) ?? account.createdAt,
   }
 }
 
@@ -64,13 +64,13 @@ export async function setPrimaryBankAccount(id: string) {
   })
   return {
     ...account,
-    bankCode: account.bankCode ?? (account as any).bank_code,
-    bankName: account.bankName ?? (account as any).bank_name,
-    accountNumber: account.accountNumber ?? (account as any).account_number,
-    accountName: account.accountName ?? (account as any).account_name,
-    isPrimary: account.isPrimary ?? (account as any).is_primary,
-    isVerified: account.isVerified ?? (account as any).is_verified,
-    createdAt: account.createdAt ?? (account as any).created_at,
+    bankCode: pickString(account, ["bankCode", "bank_code"]) ?? account.bankCode,
+    bankName: pickString(account, ["bankName", "bank_name"]) ?? account.bankName,
+    accountNumber: pickString(account, ["accountNumber", "account_number"]) ?? account.accountNumber,
+    accountName: pickString(account, ["accountName", "account_name"]) ?? account.accountName,
+    isPrimary: pickBoolean(account, ["isPrimary", "is_primary"]) ?? account.isPrimary,
+    isVerified: pickBoolean(account, ["isVerified", "is_verified"]) ?? account.isVerified,
+    createdAt: pickString(account, ["createdAt", "created_at"]) ?? account.createdAt,
   }
 }
 
