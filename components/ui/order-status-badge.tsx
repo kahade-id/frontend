@@ -70,21 +70,9 @@ export const ORDER_STATUSES: readonly OrderStatus[] = [
   "EXPIRED",
 ]
 
-export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  WAITING_CONFIRMATION: "Menunggu konfirmasi",
-  WAITING_PAYMENT: "Menunggu pembayaran",
-  PROCESSING: "Diproses penjual",
-  IN_DELIVERY: "Dalam pengiriman",
-  COMPLETED: "Selesai",
-  DISPUTED: "Sengketa",
-  CANCELLED: "Dibatalkan",
-  PENDING_PAYMENT: "Menunggu pembayaran",
-  PAID: "Dana di escrow",
-  SHIPPED: "Dalam pengiriman",
-  DELIVERED: "Menunggu konfirmasi",
-  REFUNDED: "Dana dikembalikan",
-  EXPIRED: "Kedaluwarsa",
-}
+import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
+
+export { ORDER_STATUS_LABELS }
 
 const BASE_TONE: Record<OrderStatus, BadgeTone> = {
   WAITING_CONFIRMATION: "warning",

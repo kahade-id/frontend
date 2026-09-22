@@ -33,16 +33,9 @@
 import { Badge, type BadgeProps, type BadgeTone } from "@/components/ui/badge"
 import { translate } from "@/lib/i18n/translate"
 
-export type DisputeStatus =
-  | "OPEN"
-  | "AWAITING_RESPONSE"
-  | "UNDER_REVIEW"
-  | "MUTUAL_RESOLUTION"
-  | "RESOLVED_BUYER"
-  | "RESOLVED_SELLER"
-  | "RESOLVED_MUTUAL"
-  | "CLOSED"
-  | "ESCALATED"
+import { DISPUTE_STATUS_LABELS, type DisputeStatus } from "@/lib/labels/status"
+
+export type { DisputeStatus }
 
 /** Posisi user di sengketa ini */
 export type DisputeParty = "claimant" | "respondent"
@@ -59,17 +52,6 @@ export const DISPUTE_STATUSES: readonly DisputeStatus[] = [
   "ESCALATED",
 ]
 
-export const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
-  OPEN: "Sengketa dibuka",
-  AWAITING_RESPONSE: "Menunggu tanggapan",
-  UNDER_REVIEW: "Ditinjau Kahade",
-  MUTUAL_RESOLUTION: "Proposal damai",
-  RESOLVED_BUYER: "Selesai — untuk pembeli",
-  RESOLVED_SELLER: "Selesai — untuk penjual",
-  RESOLVED_MUTUAL: "Selesai — disepakati",
-  CLOSED: "Ditutup",
-  ESCALATED: "Dieskalasi",
-}
 
 const BASE_TONE: Record<DisputeStatus, BadgeTone> = {
   OPEN: "warning",

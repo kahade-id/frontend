@@ -82,9 +82,6 @@ export const NOTIFICATION_CHANNELS = {
 export type NotificationChannelId =
   (typeof NOTIFICATION_CHANNELS)[keyof typeof NOTIFICATION_CHANNELS]
 
-/** @deprecated pakai `NOTIFICATION_CHANNELS.default` */
-export const DEFAULT_CHANNEL_ID = NOTIFICATION_CHANNELS.default
-
 let handlerInstalled = false
 
 /**

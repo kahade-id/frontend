@@ -39,7 +39,7 @@
  *   I. Kelas `focus-visible:` tidak boleh ditulis ulang di komponen — wajib
  *      `focusRing`/`focusRingInset` dari lib/focus-ring (audit #6).
  *
- * Jalankan: pnpm check:a11y
+ * Jalankan: npm run check:a11y
  */
 
 import { readFileSync, readdirSync, statSync } from "node:fs"

@@ -36,15 +36,10 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
 
-export type TicketStatus = "OPEN" | "IN_PROGRESS" | "WAITING_USER" | "RESOLVED" | "CLOSED"
+import { TICKET_STATUS_LABELS, type TicketStatus } from "@/lib/labels/status"
 
-export const TICKET_STATUS_LABELS: Record<TicketStatus, string> = {
-  OPEN: "Terbuka",
-  IN_PROGRESS: "Ditangani",
-  WAITING_USER: "Menunggu Anda",
-  RESOLVED: "Selesai",
-  CLOSED: "Ditutup",
-}
+export type { TicketStatus }
+
 
 const STATUS_TONE: Record<TicketStatus, BadgeTone> = {
   OPEN: "warning",

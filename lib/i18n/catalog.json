@@ -39,6 +39,10 @@
    "n": 8
   },
   {
+   "s": "Sengketa",
+   "n": 7
+  },
+  {
    "s": "Transaksi",
    "n": 7
   },
@@ -51,7 +55,7 @@
    "n": 6
   },
   {
-   "s": "Sengketa",
+   "s": "Selesai",
    "n": 6
   },
   {
@@ -89,6 +93,10 @@
   {
    "s": "Spam",
    "n": 5
+  },
+  {
+   "s": "Aktif",
+   "n": 4
   },
   {
    "s": "Akun",
@@ -152,10 +160,6 @@
   },
   {
    "s": "{x} {y} rupiah",
-   "n": 3
-  },
-  {
-   "s": "Aktif",
    "n": 3
   },
   {
@@ -356,10 +360,6 @@
   },
   {
    "s": "Riwayat",
-   "n": 3
-  },
-  {
-   "s": "Selesai",
    "n": 3
   },
   {
@@ -619,6 +619,10 @@
    "n": 2
   },
   {
+   "s": "Dalam pengiriman",
+   "n": 2
+  },
+  {
    "s": "Data bentrok dengan yang sudah ada.",
    "n": 2
   },
@@ -627,7 +631,19 @@
    "n": 2
   },
   {
+   "s": "Dibatalkan",
+   "n": 2
+  },
+  {
    "s": "Diterima",
+   "n": 2
+  },
+  {
+   "s": "Ditolak",
+   "n": 2
+  },
+  {
+   "s": "Ditutup",
    "n": 2
   },
   {
@@ -756,6 +772,10 @@
   },
   {
    "s": "Kebijakan Privasi",
+   "n": 2
+  },
+  {
+   "s": "Kedaluwarsa",
    "n": 2
   },
   {
@@ -888,6 +908,14 @@
   },
   {
    "s": "Mengandung simbol",
+   "n": 2
+  },
+  {
+   "s": "Menunggu konfirmasi",
+   "n": 2
+  },
+  {
+   "s": "Menunggu pembayaran",
    "n": 2
   },
   {
@@ -1112,6 +1140,14 @@
   },
   {
    "s": "Tentang Kami",
+   "n": 2
+  },
+  {
+   "s": "Terbuka",
+   "n": 2
+  },
+  {
+   "s": "Terverifikasi",
    "n": 2
   },
   {
@@ -1883,11 +1919,23 @@
    "n": 1
   },
   {
+   "s": "Belum berlangganan",
+   "n": 1
+  },
+  {
+   "s": "Belum diverifikasi",
+   "n": 1
+  },
+  {
    "s": "Belum punya akun?",
    "n": 1
   },
   {
    "s": "Belum tersedia",
+   "n": 1
+  },
+  {
+   "s": "Berakhir",
    "n": 1
   },
   {
@@ -2371,7 +2419,15 @@
    "n": 1
   },
   {
+   "s": "Dana di escrow",
+   "n": 1
+  },
+  {
    "s": "Dana di escrow akan dilepas ke penjual. Pastikan barang sudah sesuai sebelum melanjutkan.",
+   "n": 1
+  },
+  {
+   "s": "Dana dikembalikan",
    "n": 1
   },
   {
@@ -2471,10 +2527,6 @@
    "n": 1
   },
   {
-   "s": "Dibatalkan",
-   "n": 1
-  },
-  {
    "s": "Diberikan",
    "n": 1
   },
@@ -2495,11 +2547,23 @@
    "n": 1
   },
   {
+   "s": "Dicabut",
+   "n": 1
+  },
+  {
+   "s": "Dieskalasi",
+   "n": 1
+  },
+  {
    "s": "digit yang ditampilkan aplikasi autentikator.",
    "n": 1
   },
   {
    "s": "Dihapus dari favorit",
+   "n": 1
+  },
+  {
+   "s": "Dihentikan",
    "n": 1
   },
   {
@@ -2511,6 +2575,10 @@
    "n": 1
   },
   {
+   "s": "Diproses penjual",
+   "n": 1
+  },
+  {
    "s": "Ditampilkan di profil publik Anda.",
    "n": 1
   },
@@ -2519,7 +2587,19 @@
    "n": 1
   },
   {
+   "s": "Ditangani",
+   "n": 1
+  },
+  {
    "s": "Ditanyakan",
+   "n": 1
+  },
+  {
+   "s": "Ditinjau",
+   "n": 1
+  },
+  {
+   "s": "Ditinjau mediator",
    "n": 1
   },
   {
@@ -3747,10 +3827,6 @@
    "n": 1
   },
   {
-   "s": "Kedaluwarsa",
-   "n": 1
-  },
-  {
    "s": "Kekuatan kata sandi: {x}",
    "n": 1
   },
@@ -4751,6 +4827,14 @@
    "n": 1
   },
   {
+   "s": "Menang pembeli",
+   "n": 1
+  },
+  {
+   "s": "Menang penjual",
+   "n": 1
+  },
+  {
    "s": "Menarik {x} ke rekening…",
    "n": 1
   },
@@ -4807,6 +4891,10 @@
    "n": 1
   },
   {
+   "s": "Menunggu balasan Anda",
+   "n": 1
+  },
+  {
    "s": "Menunggu balasan kode…",
    "n": 1
   },
@@ -4819,7 +4907,15 @@
    "n": 1
   },
   {
+   "s": "Menunggu tanggapan",
+   "n": 1
+  },
+  {
    "s": "Menunggu tanggapan lawan transaksi.",
+   "n": 1
+  },
+  {
+   "s": "Menunggu tinjauan",
    "n": 1
   },
   {
@@ -4936,6 +5032,10 @@
   },
   {
    "s": "Mulai transaksi pertamamu",
+   "n": 1
+  },
+  {
+   "s": "Musyawarah",
    "n": 1
   },
   {
@@ -6199,6 +6299,14 @@
    "n": 1
   },
   {
+   "s": "Sedang ditinjau",
+   "n": 1
+  },
+  {
+   "s": "Segera berakhir",
+   "n": 1
+  },
+  {
    "s": "sejak {x}",
    "n": 1
   },
@@ -6304,6 +6412,10 @@
   },
   {
    "s": "Sengketa saya",
+   "n": 1
+  },
+  {
+   "s": "Sepakat",
    "n": 1
   },
   {
@@ -6828,10 +6940,6 @@
   },
   {
    "s": "Teruskan ke…",
-   "n": 1
-  },
-  {
-   "s": "Terverifikasi",
    "n": 1
   },
   {

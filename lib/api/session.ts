@@ -36,6 +36,7 @@ import {
   SecureKeys,
   setSecureItem,
 } from "@/lib/secure-storage"
+import { clearPendingActions } from "@/lib/pending-actions"
 
 // ------------------------------------------------------------------
 // Access token
@@ -176,6 +177,14 @@ export async function clearSession(): Promise<void> {
   notifySession()
   clearRegistrationState()
   clearPendingTwoFactorLogin()
+  /*
+   * I-04 (audit 2026-09-22): banner "pembayaran/penarikan menggantung"
+   * disimpan di perangkat untuk ditampilkan lain kali. Tanpa pembersihan saat
+   * keluar, pengguna berikutnya di perangkat yang sama melihat ajakan
+   * menyelesaikan transaksi MILIK AKUN SEBELUMNYA (dan menekannya membuka
+   * layar dengan id order yang sudah tidak berhak ia akses).
+   */
+  clearPendingActions()
   // B-06 (audit): preferensi MILIK AKUN (snooze pengingat ulasan per orderId)
   // ikut dibersihkan — akun berikutnya di perangkat yang sama tidak boleh
   // mewarisi jejak transaksi akun sebelumnya. `balanceHidden`/`transactionsTab`
