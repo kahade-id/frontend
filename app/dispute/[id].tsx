@@ -79,14 +79,10 @@ import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { mapValue } from "@/lib/has-own"
 import { logWarn } from "@/lib/telemetry"
+import { translate } from "@/lib/i18n/translate"
 
 type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
-const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-]
+const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
 const PROPOSAL_NOTE_MAX = 500
 
 /** Picker bisa melaporkan MIME di luar enum DTO (mis. image/heic) → jatuh ke JPEG (picker sudah mengompres ke JPEG). */
@@ -882,7 +878,9 @@ export default function DisputeDetailScreen() {
         visible={proposeOpen}
         onRequestClose={() => setProposeOpen(false)}
         title="Usulkan penyelesaian"
-        description={`Tentukan berapa dari ${formatRupiah(orderValue)} yang dikembalikan ke pembeli; sisanya ke penjual.`}
+        description={translate("Tentukan berapa dari {x} yang dikembalikan ke pembeli; sisanya ke penjual.", {
+          x: formatRupiah(orderValue),
+        })}
         footer={
           <Button
             fullWidth

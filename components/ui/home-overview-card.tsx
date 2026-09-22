@@ -54,6 +54,7 @@ import { cn } from "@/lib/cn"
 import { focusRing, focusRingInset } from "@/lib/focus-ring"
 import { formatNumber, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
 
 export type OverviewWalletAction = {
   key: string
@@ -217,7 +218,7 @@ export function HomeOverviewCard({
                 key={a.key}
                 accessibilityRole="button"
                 accessibilityLabel={a.label}
-                accessibilityHint={`Buka ${a.label}`}
+                accessibilityHint={translate("Buka {x}", { x: a.label })}
                 haptic
                 onPress={a.onPress}
                 containerClassName={cn("flex-1 rounded-sm", focusRing)}
@@ -258,9 +259,11 @@ export function HomeOverviewCard({
                 <PressableScale
                   accessibilityRole="button"
                   accessibilityLabel={
-                    summaryLoading ? `Memuat ${s.label}` : `${s.label}, ${formatNumber(s.count)}`
+                    summaryLoading
+                      ? translate("Memuat {x}", { x: s.label })
+                      : [translate(s.label), formatNumber(s.count)].join(", ")
                   }
-                  accessibilityHint={s.onPress ? `Buka daftar ${s.label.toLowerCase()}` : undefined}
+                  accessibilityHint={s.onPress ? translate("Buka daftar {x}", { x: s.label.toLowerCase() }) : undefined}
                   accessibilityState={{ disabled: !s.onPress }}
                   disabled={!s.onPress}
                   scaleOnPress={false}

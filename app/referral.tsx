@@ -144,7 +144,9 @@ export default function ReferralScreen() {
     const url = referralUrl(code)
     const outcome = await shareContent({
       title: "Ajak teman ke Kahade",
-      message: `Pakai kode referral saya ${code} saat daftar di Kahade — transaksi aman dengan escrow.`,
+      message: translate("Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.", {
+        x: code,
+      }),
       url,
     })
     if (outcome === "unavailable") {

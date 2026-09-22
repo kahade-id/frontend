@@ -39,6 +39,7 @@ import { Text, type TextVariant } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { initials as toInitials } from "@/lib/format"
 import { resolveMediaSource, type MediaSource } from "@/lib/media"
+import { translate } from "@/lib/i18n/translate"
 
 export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl"
 
@@ -122,7 +123,7 @@ export function Avatar({
        */
       accessible
       accessibilityRole="image"
-      accessibilityLabel={name ? `Foto profil ${name}` : "Foto profil"}
+      accessibilityLabel={name ? translate("Foto profil {x}", { x: name }) : "Foto profil"}
       accessibilityHint={verified ? "Akun terverifikasi" : undefined}
       className={cn("relative", sizeBox[size], className)}
       {...rest}

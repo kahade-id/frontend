@@ -49,6 +49,8 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type BackupCodesLabels = {
   title: string
@@ -145,7 +147,9 @@ export function BackupCodesDisplay({
               key={`${code}-${i}`}
               accessible
               accessibilityLabel={
-                masked ? `Kode ${i + 1}, tersembunyi` : `${isUsed ? `${t.used}, ` : ""}${spellOut(code)}`
+                masked
+                  ? translate("Kode {x}, tersembunyi", { x: i + 1 })
+                  : summarize([isUsed ? translate(t.used) : undefined, spellOut(code)])
               }
               className={cn(
                 "w-1/2 items-center justify-center py-3",

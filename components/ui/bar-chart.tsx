@@ -49,6 +49,7 @@ import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
+import { translate } from "@/lib/i18n/translate"
 
 export type ChartStatusTone = "success" | "danger" | "warning" | "info"
 export type ChartSeries = "primary" | "mono" | "status"
@@ -215,7 +216,7 @@ export function BarChart({
           <View
             key={`${d.label}-${i}`}
             accessible
-            accessibilityLabel={`${d.label}: ${formatValue(d.value)}`}
+            accessibilityLabel={translate("{x}: {y}", { x: translate(d.label), y: formatValue(d.value) })}
             className="flex-row items-center gap-3"
           >
             <Text ellipsizeMode="tail" variant="caption" tone="secondary" numberOfLines={1} className="w-1/4">
@@ -261,7 +262,7 @@ export function BarChart({
             <View
               key={`${d.label}-${i}`}
               accessible
-              accessibilityLabel={`${d.label}: ${formatValue(d.value)}`}
+              accessibilityLabel={translate("{x}: {y}", { x: translate(d.label), y: formatValue(d.value) })}
               className="flex-1 items-center justify-end gap-1"
               style={{ height }}
             >

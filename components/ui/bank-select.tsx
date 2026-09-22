@@ -31,6 +31,7 @@ import { Select, type SelectProps } from "@/components/ui/select"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
+import { translate } from "@/lib/i18n/translate"
 
 export type BankOption = {
   /** Kode unik (mis. "bca", "bri", "gopay") */
@@ -200,7 +201,7 @@ export function BankLogo({ bank, size = 40 }: { bank: Pick<BankOption, "logo" | 
   
   return (
     <View className="overflow-hidden rounded-xs border border-border bg-white" style={{ width: size, height: size }}>
-      <Picture source={bank.logo} alt={`Logo ${bank.name}`} width={size} height={size} resizeMode="contain" radius="none" />
+      <Picture source={bank.logo} alt={translate("Logo {x}", { x: bank.name })} width={size} height={size} resizeMode="contain" radius="none" />
     </View>
   )
 }

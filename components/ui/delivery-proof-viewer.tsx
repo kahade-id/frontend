@@ -67,6 +67,8 @@ import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { focusRing } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type DeliveryProofStatus = "pending" | "confirmed" | "rejected"
 
@@ -128,7 +130,7 @@ export type DeliveryProofViewerProps = Omit<ViewProps, "children"> & {
 
 const DEFAULT_LABELS: DeliveryProofViewerLabels = {
   title: "Bukti pengiriman",
-  titleFrom: (name) => `Bukti dari ${name}`,
+  titleFrom: (name) => translate("Bukti dari {x}", { x: name }),
   status: { pending: "Menunggu konfirmasi", confirmed: "Diterima", rejected: "Ditolak" },
   tracking: "Nomor resi",
   copyTracking: "Salin nomor resi",
@@ -278,7 +280,7 @@ export function DeliveryProofViewer({
                 scaleOnPress={false}
                 onPress={() => onOpenAttachment(indexOf(f))}
                 accessibilityRole="button"
-                accessibilityLabel={`${f.name}, ${t.openAttachment(indexOf(f), total)}`}
+                accessibilityLabel={summarize([f.name, translate(t.openAttachment(indexOf(f), total))])}
                 containerClassName={cn("w-full", focusRingInset)}
               >
                 {row}
@@ -299,7 +301,7 @@ export function DeliveryProofViewer({
               menelan IconButton "Salin" di sebelahnya (audit #4). */}
           <View className="flex-row items-center gap-2 rounded-sm border border-border bg-surface pl-3 pr-1 py-1">
             <Text
-              accessibilityLabel={`${t.tracking} ${trackingNumber.split("").join(" ")}`}
+              accessibilityLabel={[translate(t.tracking), trackingNumber.split("").join(" ")].join(" ")}
               variant="monoBody"
               className="flex-1"
               numberOfLines={1}

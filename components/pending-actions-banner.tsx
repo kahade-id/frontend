@@ -52,21 +52,21 @@ function describe(action: PendingAction): { title: string; meta?: string } {
   switch (action.kind) {
     case "qris-payment":
       return {
-        title: `Pembayaran pesanan menunggu — ${formatRupiah(action.amount)}`,
+        title: translate("Pembayaran pesanan menunggu — {x}", { x: formatRupiah(action.amount) }),
         meta: action.expiresAt
           ? `QRIS berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
           : "Periksa status pembayaran pesanan Anda",
       }
     case "topup-unpaid":
       return {
-        title: `Top-up belum dibayar — ${formatRupiah(action.amount)}`,
+        title: translate("Top-up belum dibayar — {x}", { x: formatRupiah(action.amount) }),
         meta: action.expiresAt
           ? `Tagihan berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
           : "Selesaikan pembayaran di layar Top-up",
       }
     case "withdraw-otp":
       return {
-        title: `Penarikan menunggu OTP — ${formatRupiah(action.amount)}`,
+        title: translate("Penarikan menunggu OTP — {x}", { x: formatRupiah(action.amount) }),
         meta: action.expiresAt
           ? `Kode OTP berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
           : "Periksa status penarikan di layar Tarik Dana",

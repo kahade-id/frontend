@@ -30,6 +30,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
 import { hasOwn, mapValue } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 /**
  * Peta alasan UI → enum API POST /v1/settings/report.
@@ -135,7 +136,11 @@ export default function ReportsScreen() {
       >
         {targetId ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={`Laporkan ${targetName ? `@${targetName}` : "pengguna"}`} />
+            <SectionHeader
+              title={translate("Laporkan {x}", {
+                x: targetName ? `@${targetName}` : translate("pengguna"),
+              })}
+            />
             <ReportForm
               targetName={targetName ? `@${targetName}` : undefined}
               value={value}

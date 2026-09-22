@@ -833,7 +833,7 @@ export default function OrderDetailScreen() {
         title="Pembayaran"
         description={
           fee?.buyerPays != null
-            ? `Total ${formatRupiah(fee.buyerPays)} masuk ke escrow Kahade.`
+            ? translate("Total {x} masuk ke escrow Kahade.", { x: formatRupiah(fee.buyerPays) })
             : "Total pembayaran belum terkonfirmasi. Muat ulang rincian biaya sebelum membayar."
         }
       >
@@ -1002,7 +1002,7 @@ export default function OrderDetailScreen() {
         <Field
           label="Klaim Anda"
           required
-          helperText={`Minimal ${DISPUTE_CLAIM_MIN} karakter — jelaskan apa yang tidak sesuai.`}
+          helperText={translate("Minimal {x} karakter — jelaskan apa yang tidak sesuai.", { x: DISPUTE_CLAIM_MIN })}
         >
           <TextArea
             value={disputeClaim}
@@ -1095,7 +1095,7 @@ export default function OrderDetailScreen() {
       <TransactionProgressOverlay
         visible={payProgress !== null}
         state={payProgress ?? "PROCESSING"}
-        processingMessage={`Membayar ${formatRupiah(fee?.buyerPays ?? 0)} dari saldo…`}
+        processingMessage={translate("Membayar {x} dari saldo…", { x: formatRupiah(fee?.buyerPays ?? 0) })}
         successMessage="Pembayaran berhasil"
         failureMessage={payProgressError ?? "Pembayaran gagal. Coba lagi."}
       />

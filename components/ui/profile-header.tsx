@@ -54,6 +54,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { resolveMediaUrl } from "@/lib/media"
+import { translate } from "@/lib/i18n/translate"
 
 export type ProfileStat = {
   /** Sudah diformat: "128", "4,8", "98%" */
@@ -277,7 +278,11 @@ function StatCell({ stat, loading }: { stat: ProfileStat; loading: boolean }) {
 
   if (!stat.onPress || loading) {
     return (
-      <View accessible accessibilityLabel={`${stat.label} ${stat.value}`} className="flex-1">
+      <View
+        accessible
+        accessibilityLabel={[translate(stat.label), stat.value].filter(Boolean).join(" ")}
+        className="flex-1"
+      >
         {body}
       </View>
     )
@@ -286,7 +291,7 @@ function StatCell({ stat, loading }: { stat: ProfileStat; loading: boolean }) {
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={`${stat.label} ${stat.value}`}
+      accessibilityLabel={[translate(stat.label), stat.value].filter(Boolean).join(" ")}
       scaleOnPress={false}
       onPress={stat.onPress}
       containerClassName={cn("flex-1", focusRingInset)}

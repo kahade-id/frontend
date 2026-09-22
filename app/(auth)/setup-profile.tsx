@@ -83,6 +83,7 @@ import { api, getAccessToken, isApiError, userMessage } from "@/lib/api"
 import { clearRegistrationState, getRegistrationState } from "@/lib/registration"
 import { pickImage, pickedImageToFormData, type PickedImage, type PickImageOptions } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
+import { translate } from "@/lib/i18n/translate"
 
 /** Crop persegi + kompresi avatar sebelum upload (§9.19: klien mengirim JPG/PNG). */
 const AVATAR_PICKER: PickImageOptions = { square: true }
@@ -245,7 +246,7 @@ export default function SetupProfileScreen() {
           {/* Welcome greeting */}
           <VStack gap={2}>
             <Heading level={1} className="text-balance">
-              {firstName ? `Selamat datang, ${firstName}!` : "Selamat datang!"}
+              {firstName ? translate("Selamat datang, {x}!", { x: firstName }) : "Selamat datang!"}
             </Heading>
             <Text variant="body" tone="secondary" className="text-pretty">
               Lengkapi profil Anda agar orang lain bisa mengenal Anda.

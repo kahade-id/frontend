@@ -29,6 +29,7 @@ import { View, type ViewProps } from "react-native"
 import { Divider } from "@/components/ui/divider"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type KeyValueAlign = "row" | "stack"
 
@@ -78,7 +79,10 @@ export function KeyValue({
   return (
     <View
       accessible
-      accessibilityLabel={`${label}: ${isPrimitive(value) ? value : ""}`}
+      accessibilityLabel={translate("{x}: {y}", {
+        x: translate(label),
+        y: isPrimitive(value) ? String(value) : "",
+      })}
       className={cn(
         "w-full py-3",
         isRow ? "flex-row items-start justify-between gap-4" : "flex-col gap-1",

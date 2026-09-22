@@ -60,6 +60,8 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { focusRingInset } from "@/lib/focus-ring"
 import { formatFileSize } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type KycDocumentStatus = "pending" | "approved" | "rejected"
 
@@ -126,8 +128,8 @@ const DEFAULT_LABELS: KycDocumentViewerLabels = {
   reupload: "Unggah ulang",
   reveal: "Tampilkan",
   uploadedAt: "Diunggah",
-  open: (label) => `Buka ${label} ukuran penuh`,
-  alt: (label) => `Foto ${label} yang Anda unggah`,
+  open: (label) => translate("Buka {x} ukuran penuh", { x: label }),
+  alt: (label) => translate("Foto {x} yang Anda unggah", { x: label }),
 }
 
 const statusTone: Record<KycDocumentStatus, StatusIndicatorTone> = {
@@ -181,7 +183,7 @@ function DocumentImage({
         scaleOnPress={false}
         onPress={() => onOpen(doc)}
         accessibilityRole="button"
-        accessibilityLabel={`${doc.file.name}, ${t.open(label)}`}
+        accessibilityLabel={summarize([doc.file.name, translate(t.open(label))])}
         containerClassName={cn("w-full", focusRingInset)}
       >
         {row}
@@ -209,7 +211,7 @@ function DocumentImage({
         scaleOnPress={false}
         onPress={() => onReveal?.(doc)}
         accessibilityRole="button"
-        accessibilityLabel={`${t.reveal} ${label}`}
+        accessibilityLabel={[translate(t.reveal), translate(label)].join(" ")}
         containerClassName={cn("rounded-md", focusRing)}
         className="relative overflow-hidden rounded-md"
       >
@@ -294,7 +296,7 @@ export function KycDocumentViewer({
                 loading={reuploadingId === doc.id}
                 disabled={reuploadingId != null && reuploadingId !== doc.id}
                 onPress={() => onReupload(doc)}
-                accessibilityHint={`Memulai ulang unggah ${label}`}
+                accessibilityHint={translate("Memulai ulang unggah {x}", { x: label })}
               >
                 {t.reupload}
               </Button>

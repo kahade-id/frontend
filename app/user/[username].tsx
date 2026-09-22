@@ -36,17 +36,8 @@ import {
   UserCircle,
 } from "phosphor-react-native"
 import { api, isApiError, userMessage } from "@/lib/api"
-import type { HiddenReason } from "@/lib/api/users"
-
-import type { PublicRatingFilter, Rating } from "@/lib/api/ratings"
-import { readMyRatings } from "@/lib/api/ratings"
-import type {
-  PublicUserProfile,
-  QuestionComment,
-  QuestionItem,
-  ShowcaseItem,
-  VerificationBadge,
-} from "@/lib/api/users"
+import type { HiddenReason, PublicUserProfile, QuestionComment, QuestionItem, ShowcaseItem, VerificationBadge } from "@/lib/api/users"
+import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { createInquiry } from "@/lib/api/chat"
 import {
   readQuestionComments,
@@ -563,8 +554,8 @@ export default function UserProfileScreen() {
     (): SharePayload => {
       const h = handle ?? ""
       return {
-        title: `@${h} di Kahade`,
-        message: `Lihat profil ${profile?.fullName ?? `@${h}`} di Kahade`,
+        title: translate("@{x} di Kahade", { x: h }),
+        message: translate("Lihat profil {x} di Kahade", { x: profile?.fullName ?? `@${h}` }),
         url: profileUrl(h),
       }
     },
@@ -1113,7 +1104,7 @@ export default function UserProfileScreen() {
                     description={
                       isSelf
                         ? "Belum ada pertanyaan dari pengguna lain."
-                        : `Jadilah yang pertama bertanya kepada @${handle}.`
+                        : translate("Jadilah yang pertama bertanya kepada @{x}.", { x: handle })
                     }
                     action={
                       !isSelf ? (
@@ -1214,7 +1205,7 @@ export default function UserProfileScreen() {
                             onSubmit={() => void submitComment()}
                             submitting={commentSending}
                             maxLength={1000}
-                            placeholder={`Tulis balasan untuk @${handle}…`}
+                            placeholder={translate("Tulis balasan untuk @{x}…", { x: handle })}
                           />
                         </Card>
                       ) : null}
@@ -1265,7 +1256,7 @@ export default function UserProfileScreen() {
 
       {/* ── Dialog Bertanya ──────────────────────────────────── */}
       <Dialog
-        title={`Bertanya kepada @${handle}`}
+        title={translate("Bertanya kepada @{x}", { x: handle })}
         description="Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya."
         visible={askOpen}
         loading={asking}
@@ -1311,7 +1302,7 @@ export default function UserProfileScreen() {
 
       {/* ── Dialog Blokir ────────────────────────────────────── */}
       <Dialog
-        title={`Blokir @${handle}?`}
+        title={translate("Blokir @{x}?", { x: handle })}
         description="Anda tidak akan lagi melihat aktivitas atau dapat bertransaksi dengan pengguna ini."
         visible={blockOpen}
         destructive
@@ -1422,7 +1413,9 @@ export default function UserProfileScreen() {
         title="Mulai percakapan"
         description={
           profile?.fullName
-            ? `Ajukan pertanyaan atau negosiasi dengan ${profile.fullName} sebelum transaksi.`
+            ? translate("Ajukan pertanyaan atau negosiasi dengan {x} sebelum transaksi.", {
+                x: profile.fullName,
+              })
             : "Ajukan pertanyaan atau negosiasi sebelum transaksi."
         }
         footer={

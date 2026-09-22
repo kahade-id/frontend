@@ -161,7 +161,7 @@ export function KycStatusCard({
       <CardSummary
         className="gap-4"
         label={summarize([
-          `Verifikasi identitas: ${t[s]}`,
+          translate("Verifikasi identitas: {x}", { x: translate(t[s]) }),
           t.descriptions[s],
           needsResubmit && rejectionReason ? `${t.reasonTitle}: ${rejectionReason}` : undefined,
           ...meta,

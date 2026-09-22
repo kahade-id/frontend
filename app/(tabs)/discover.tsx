@@ -77,6 +77,7 @@ import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { TextArea } from "@/components/ui/text-area"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 const PAGE_LIMIT = 20
 const FEED_LIMIT = 20
@@ -545,7 +546,7 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         title="Belum ada showcase"
         description={
           debouncedSearch
-            ? `Tidak ada hasil untuk "${debouncedSearch}".`
+            ? translate('Tidak ada hasil untuk "{x}".', { x: debouncedSearch })
             : "Item showcase publik akan muncul di sini."
         }
       />
@@ -673,7 +674,7 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         visible={!!reportItem}
         onRequestClose={() => setReportItem(null)}
         title="Laporkan Karya"
-        description={reportItem ? `Laporkan postingan "${reportItem.title}" jika melanggar panduan komunitas.` : undefined}
+        description={reportItem ? translate('Laporkan postingan "{x}" jika melanggar panduan komunitas.', { x: reportItem.title }) : undefined}
         avoidKeyboard
         footer={
           <Button

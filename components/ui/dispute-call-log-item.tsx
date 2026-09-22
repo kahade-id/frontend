@@ -38,6 +38,7 @@ import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { formatCountdown } from "@/lib/format"
 import { hasOwn } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 export type DisputeCallOutcome =
   | "REQUESTED"
@@ -79,7 +80,7 @@ export type DisputeCallLogItemLabels = {
 const DEFAULT_LABELS: DisputeCallLogItemLabels = {
   outcome: DISPUTE_CALL_LABELS,
   requestedByYou: "Diminta oleh Anda",
-  requestedBy: (name) => `Diminta oleh ${name}`,
+  requestedBy: (name) => translate("Diminta oleh {x}", { x: name }),
   withMediator: "Mediator Kahade hadir",
   join: "Gabung",
 }
@@ -169,7 +170,7 @@ export function DisputeCallLogItem({
       accessibilityLabel={summarize([
         title,
         subtitleText,
-        completed ? `durasi ${duration}` : undefined,
+        completed ? translate("durasi {x}", { x: duration }) : undefined,
       ])}
       {...rest}
     />

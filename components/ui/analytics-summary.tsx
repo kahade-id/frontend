@@ -30,6 +30,8 @@ import { SectionHeader } from "@/components/ui/section"
 import { StatCard, type StatDelta } from "@/components/ui/stat-card"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type AnalyticsStat = {
   id: string
@@ -115,7 +117,10 @@ export function AnalyticsSummary({
             series="primary"
             showValues
             formatValue={formatChartValue}
-            accessibilityLabel={`${chartTitle}${periodLabel ? `, ${periodLabel}` : ""} — ${chart?.length ?? 0} periode`}
+            accessibilityLabel={translate("{x} — {y} periode", {
+              x: summarize([translate(chartTitle), translate(periodLabel)]),
+              y: chart?.length ?? 0,
+            })}
           />
         </Card>
       ) : null}

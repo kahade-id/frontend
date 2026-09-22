@@ -32,6 +32,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 export default function BankAccountsScreen() {
   const insets = useSafeAreaInsets()
@@ -374,9 +375,10 @@ export default function BankAccountsScreen() {
            screen reader, jadi nomor lengkap bisa terdengar di tempat umum.
            Dimasker agar konsisten dengan daftar; nama bank + 4 digit terakhir
            tetap cukup untuk memastikan rekening mana yang dihapus. */
-        description={`${deleteTarget?.bankName ?? ""} ${
-          deleteTarget ? maskAccountNumber(deleteTarget.accountNumber) : ""
-        } akan dihapus dari daftar.`}
+        description={translate("{x} {y} akan dihapus dari daftar.", {
+          x: deleteTarget?.bankName ?? "",
+          y: deleteTarget ? maskAccountNumber(deleteTarget.accountNumber) : "",
+        })}
         visible={!!deleteTarget}
         destructive
         loading={deleting}
@@ -392,9 +394,9 @@ export default function BankAccountsScreen() {
         /* Sama seperti dialog hapus: nomor rekening dimasker, bukan ditulis
            penuh (docblock <BankAccountListItem>: daftar rekening sering
            terlihat orang lain; dialog ikut dibacakan screen reader). */
-        description={`Hanya nama pemilik yang bisa diubah — nomor ${
-          editTarget ? maskAccountNumber(editTarget.accountNumber) : ""
-        } tetap sama.`}
+        description={translate("Hanya nama pemilik yang bisa diubah — nomor {x} tetap sama.", {
+          x: editTarget ? maskAccountNumber(editTarget.accountNumber) : "",
+        })}
         visible={!!editTarget}
         loading={editing}
         confirmLabel="Simpan"

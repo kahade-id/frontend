@@ -30,6 +30,8 @@ import { View, type ViewProps } from "react-native"
 import { Dot, type DotTone } from "@/components/ui/dot"
 import { Text, type TextTone } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type TimelineStatus = "done" | "current" | "upcoming"
 export type TimelineTone = "neutral" | "danger" | "warning"
@@ -105,9 +107,11 @@ export function Timeline({ items, className, ...rest }: TimelineProps) {
           <View
             key={item.id}
             accessible
-            accessibilityLabel={`${item.title}, ${statusLabel[status]}${
-              item.timestamp ? `, ${item.timestamp}` : ""
-            }`}
+            accessibilityLabel={summarize([
+              translate(item.title),
+              translate(statusLabel[status]),
+              item.timestamp,
+            ])}
             className="flex-row gap-3"
           >
             {/* Kolom node + garis */}

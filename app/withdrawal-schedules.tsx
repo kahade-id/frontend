@@ -35,6 +35,7 @@ import { Select, SelectOptionList } from "@/components/ui/select"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { WithdrawalScheduleCard } from "@/components/ui/withdrawal-schedule-card"
+import { translate } from "@/lib/i18n/translate"
 
 export default function WithdrawalSchedulesScreen() {
   const insets = useSafeAreaInsets()
@@ -270,7 +271,9 @@ export default function WithdrawalSchedulesScreen() {
                   onChange={setSchedule}
                   presets={AMOUNT_PRESETS.withdraw}
                   errorText={minAmountError}
-                  helperText={`Minimum penarikan ${formatRupiah(AMOUNT_LIMITS.withdraw.minimum)}.`}
+                  helperText={translate("Minimum penarikan {x}.", {
+                    x: formatRupiah(AMOUNT_LIMITS.withdraw.minimum),
+                  })}
                 />
                 <Button
                   loading={submitting}

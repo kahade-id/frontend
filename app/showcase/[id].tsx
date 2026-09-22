@@ -611,7 +611,7 @@ export default function ShowcaseDetailScreen() {
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
-          accessibilityHint={`${formatCountCompact(likeCount)} suka`}
+          accessibilityHint={translate("{x} suka", { x: formatCountCompact(likeCount) })}
           onPress={() => void handleToggleLike()}
           containerClassName="min-h-11 flex-row items-center rounded-md px-3"
           className="flex-row items-center gap-1.5"
@@ -632,7 +632,7 @@ export default function ShowcaseDetailScreen() {
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Tulis komentar"
-          accessibilityHint={`${formatCountCompact(commentTotal)} komentar`}
+          accessibilityHint={translate("{x} komentar", { x: formatCountCompact(commentTotal) })}
           onPress={focusComposer}
           containerClassName="min-h-11 flex-row items-center rounded-md px-3"
           className="flex-row items-center gap-1.5"

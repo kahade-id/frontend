@@ -253,7 +253,7 @@ export function InvoiceReceiptView({
           label={t.total}
           emphasis
           value={<Amount value={computedTotal} size="large" />}
-          accessibilityLabel={`${t.total} ${formatRupiah(computedTotal)}`}
+          accessibilityLabel={[translate(t.total), formatRupiah(computedTotal)].join(" ")}
         />
       </KeyValueList>
 

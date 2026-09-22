@@ -425,7 +425,7 @@ export default function NotificationsScreen() {
         title={
           confirm === "delete-read"
             ? "Hapus notifikasi yang sudah dibaca?"
-            : `Hapus ${selectedCount} notifikasi?`
+            : translate("Hapus {x} notifikasi?", { x: selectedCount })
         }
         description={
           confirm === "delete-read"

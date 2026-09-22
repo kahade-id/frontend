@@ -39,6 +39,8 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatDecimal } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type RatingSize = "sm" | "md" | "lg"
 
@@ -138,7 +140,10 @@ export function Rating({
         disabled={disabled}
         onPress={() => select(n)}
         accessibilityRole="button"
-        accessibilityLabel={`${n} dari ${max} bintang${labels?.[i] ? `, ${labels[i]}` : ""}`}
+        accessibilityLabel={summarize([
+          translate("{x} dari {y} bintang", { x: n, y: max }),
+          labels?.[i],
+        ])}
         accessibilityState={{ selected: n <= shown, disabled }}
         containerClassName={focusRing}
         className="min-h-11 min-w-11 items-center justify-center"
@@ -151,7 +156,9 @@ export function Rating({
   return (
     <View
       accessibilityRole={interactive ? "adjustable" : undefined}
-      accessibilityLabel={interactive ? "Rating" : `Rating ${formatScore(shown)} dari ${max}`}
+      accessibilityLabel={
+        interactive ? "Rating" : translate("Rating {x} dari {y}", { x: formatScore(shown), y: max })
+      }
       accessibilityValue={
         interactive ? { min: 0, max, now: shown, text: `${shown} dari ${max}` } : undefined
       }

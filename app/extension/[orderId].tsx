@@ -65,6 +65,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 /** Batas RequestExtensionDto (spec): extensionDays 1–14, reason 10–500 */
 const DAYS_MIN = 1
@@ -315,7 +316,7 @@ export default function ExtensionScreen() {
               />
             ) : (
               <>
-                <SectionHeader title={`${items.length} permintaan`} />
+                <SectionHeader title={translate("{x} permintaan", { x: items.length })} />
                 {items.map((ext) => {
                   const pending = ext.status === "PENDING"
                   const canRespond = pending && isBuyer
@@ -353,7 +354,9 @@ export default function ExtensionScreen() {
         title={action?.kind === "APPROVE" ? "Setujui perpanjangan?" : "Tolak perpanjangan?"}
         description={
           action?.kind === "APPROVE"
-            ? `Tenggat pengiriman menjadi ${formatDateTimeWIB(addDays(deadline, action.extension.extensionDays))}. Dana tetap di escrow.`
+            ? translate("Tenggat pengiriman menjadi {x}. Dana tetap di escrow.", {
+                x: formatDateTimeWIB(addDays(deadline, action.extension.extensionDays)),
+              })
             : "Tenggat pengiriman tidak berubah. Beri tahu penjual alasannya."
         }
         visible={!!action}
@@ -410,7 +413,11 @@ export default function ExtensionScreen() {
             min={DAYS_MIN}
             max={DAYS_MAX}
             suffix="hari"
-            helperText={`${DAYS_MIN}–${DAYS_MAX} hari · tenggat baru ${formatDateTimeWIB(previewDeadline)}`}
+            helperText={translate("{x}–{y} hari · tenggat baru {z}", {
+              x: DAYS_MIN,
+              y: DAYS_MAX,
+              z: formatDateTimeWIB(previewDeadline),
+            })}
             disabled={requesting}
             fullWidth
           />
@@ -425,7 +432,7 @@ export default function ExtensionScreen() {
             maxLength={REASON_MAX}
             showCount
             errorText={reasonError}
-            helperText={reasonError ? undefined : `Minimal ${REASON_MIN} karakter`}
+            helperText={reasonError ? undefined : translate("Minimal {x} karakter", { x: REASON_MIN })}
             disabled={requesting}
             required
           />

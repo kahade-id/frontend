@@ -57,6 +57,7 @@ import { haptic } from "@/lib/haptics"
 import { takePendingNext } from "@/lib/login-redirect"
 import { ROUTES } from "@/lib/routes"
 import { clearPendingTwoFactorLogin, getPendingTwoFactorLogin } from "@/lib/two-factor-login"
+import { translate } from "@/lib/i18n/translate"
 
 /** Panjang TOTP (RFC 6238) — sama dengan `minLength` Verify2faLoginDto.code */
 const TOTP_LENGTH = 6
@@ -214,7 +215,11 @@ export default function VerifyTwoFactorScreen() {
                 textContentType="oneTimeCode"
                 maxLength={BACKUP_MAX + 3}
                 errorText={fieldError}
-                helperText={fieldError ? undefined : `${BACKUP_MIN}–${BACKUP_MAX} karakter, spasi diabaikan`}
+                helperText={
+                  fieldError
+                    ? undefined
+                    : translate("{x}–{y} karakter, spasi diabaikan", { x: BACKUP_MIN, y: BACKUP_MAX })
+                }
                 disabled={verifying || tokenExpired}
                 autoFocus
                 returnKeyType="done"

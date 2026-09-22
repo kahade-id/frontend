@@ -38,13 +38,16 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { dayName, monthName } from "@/lib/format"
+import { useLanguage } from "@/lib/i18n"
 
-const MONTHS_ID_LONG = [
-  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
-  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
-]
-/** Minggu dimulai Senin (kebiasaan kalender Indonesia) */
-const WEEKDAYS_ID = ["Sen", "Sel", "Rab", "Kam", "Jum", "Sab", "Min"]
+/*
+ * G-07 (audit 2026-09-22): nama bulan & hari TIDAK lagi tabel Indonesia lokal.
+ * `monthName()`/`dayName()` (lib/format.ts) memilih tabel menurut bahasa aktif,
+ * dan komponen ini memanggil `useLanguage()` supaya ikut render ulang saat
+ * bahasa ditukar. Urutan kolom tetap Senin→Minggu (kebiasaan Indonesia).
+ */
+const WEEK_ORDER_START_MONDAY = [1, 2, 3, 4, 5, 6, 0]
 const ROWS = 6
 
 export function startOfDay(d: Date): Date {
@@ -106,11 +109,14 @@ export function Calendar({
     return out
   }, [month])
 
+  // G-07: `monthName`/`dayName` membaca bahasa aktif saat dipanggil — hook ini
+  // yang memaksa render ulang komponen saat pengguna menukar bahasa.
+  useLanguage()
   const isOutOfRange = (d: Date) => (min != null && d < min) || (max != null && d > max)
   const canPrev = !disabled && !(min && sameMonth(month, min)) && !(min && month < min)
   const canNext = !disabled && !(max && sameMonth(month, max)) && !(max && month > max)
 
-  const monthLabel = `${MONTHS_ID_LONG[month.getMonth()]} ${month.getFullYear()}`
+  const monthLabel = `${monthName(month.getMonth(), { long: true })} ${month.getFullYear()}`
 
   return (
     <View className={cn("w-full gap-3", disabled && "opacity-disabled", className)} {...rest}>
@@ -139,10 +145,10 @@ export function Calendar({
 
       {/* Nama hari */}
       <View className="flex-row">
-        {WEEKDAYS_ID.map((w) => (
+        {WEEK_ORDER_START_MONDAY.map((w) => (
           <View key={w} className="flex-1 items-center py-1">
             <Text variant="caption" tone="secondary" weight={500}>
-              {w}
+              {dayName(w).slice(0, 3)}
             </Text>
           </View>
         ))}
@@ -163,7 +169,9 @@ export function Calendar({
                 <PressableScale
                   key={d.getTime()}
                   accessibilityRole="button"
-                  accessibilityLabel={`${d.getDate()} ${MONTHS_ID_LONG[d.getMonth()]} ${d.getFullYear()}`}
+                  accessibilityLabel={[d.getDate(), monthName(d.getMonth(), { long: true }), d.getFullYear()].join(
+                    " ",
+                  )}
                   accessibilityState={{ selected, disabled: cellDisabled }}
                   disabled={cellDisabled}
                   onPress={() => onChange?.(d)}

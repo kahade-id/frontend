@@ -32,6 +32,7 @@ import { View, type ViewProps } from "react-native"
 import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type PasswordStrengthLevel = 0 | 1 | 2 | 3 | 4
 
@@ -45,6 +46,10 @@ export const PASSWORD_MIN_LENGTH = 8
 
 /** Kriteria default — urutan = urutan tampil di daftar */
 export const DEFAULT_PASSWORD_CRITERIA: readonly PasswordCriterion[] = [
+  // i18n-shape-aman: label ini hanya berbeda pada ANGKA (PASSWORD_MIN_LENGTH),
+  // dan `maskNumbers` menormalkan angka jadi token {x} — jadi kunci kamusnya
+  // tetap sama dengan bentuk runtime. Nilainya diterjemahkan saat render
+  // (`translate(c.label)` di bawah), bukan di scope modul.
   { key: "length", label: `Minimal ${PASSWORD_MIN_LENGTH} karakter`, test: (p) => p.length >= PASSWORD_MIN_LENGTH },
   { key: "case", label: "Huruf besar dan kecil", test: (p) => /[a-z]/.test(p) && /[A-Z]/.test(p) },
   { key: "digit", label: "Mengandung angka", test: (p) => /\d/.test(p) },
@@ -117,7 +122,7 @@ export function PasswordStrength({
             weight={500}
             tone={level === 1 ? "danger" : "secondary"}
             accessibilityLiveRegion="polite"
-            accessibilityLabel={label ? `Kekuatan kata sandi: ${label}` : undefined}
+            accessibilityLabel={label ? translate("Kekuatan kata sandi: {x}", { x: label }) : undefined}
             className="min-w-[72px] text-right"
           >
             {label}
@@ -138,7 +143,7 @@ export function PasswordStrength({
                   tone={ok ? "active" : "default"}
                 />
                 <Text variant="caption" tone={ok ? "primary" : "secondary"}>
-                  {c.label}
+                  {translate(c.label)}
                 </Text>
               </View>
             )

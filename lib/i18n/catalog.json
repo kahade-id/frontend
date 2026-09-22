@@ -27,6 +27,10 @@
    "n": 9
   },
   {
+   "s": "{x}: {y}",
+   "n": 8
+  },
+  {
    "s": "Masuk",
    "n": 8
   },
@@ -60,6 +64,10 @@
   },
   {
    "s": "Komentar",
+   "n": 5
+  },
+  {
+   "s": "Minimal {x} karakter",
    "n": 5
   },
   {
@@ -143,11 +151,19 @@
    "n": 4
   },
   {
+   "s": "{x} {y} rupiah",
+   "n": 3
+  },
+  {
    "s": "Aktif",
    "n": 3
   },
   {
    "s": "Ambil foto",
+   "n": 3
+  },
+  {
+   "s": "Anda",
    "n": 3
   },
   {
@@ -168,6 +184,10 @@
   },
   {
    "s": "Buat Transaksi",
+   "n": 3
+  },
+  {
+   "s": "Buka {x}",
    "n": 3
   },
   {
@@ -291,6 +311,10 @@
    "n": 3
   },
   {
+   "s": "Nama pengguna",
+   "n": 3
+  },
+  {
    "s": "Nilai transaksi",
    "n": 3
   },
@@ -371,7 +395,15 @@
    "n": 3
   },
   {
-   "s": "{x} {y} rupiah",
+   "s": "{x} {y}",
+   "n": 2
+  },
+  {
+   "s": "{x} {y}%",
+   "n": 2
+  },
+  {
+   "s": "{x} {y}%, {z} rupiah",
    "n": 2
   },
   {
@@ -383,15 +415,43 @@
    "n": 2
   },
   {
+   "s": "{x} foto — tambah, urutkan, hapus",
+   "n": 2
+  },
+  {
+   "s": "{x} komentar",
+   "n": 2
+  },
+  {
    "s": "{x} mengikuti",
    "n": 2
   },
   {
-   "s": "{x}–{x} karakter, huruf kecil/angka/._",
+   "s": "{x} sengketa perlu perhatianmu",
    "n": 2
   },
   {
-   "s": "{x}: {y}",
+   "s": "{x} transaksi sedang berjalan",
+   "n": 2
+  },
+  {
+   "s": "{x}–{y} karakter, huruf kecil/angka/._",
+   "n": 2
+  },
+  {
+   "s": "@{x} di Kahade",
+   "n": 2
+  },
+  {
+   "s": "@{x} dibuka blokirnya",
+   "n": 2
+  },
+  {
+   "s": "@{x} dihapus dari favorit",
+   "n": 2
+  },
+  {
+   "s": "@{x} disimpan ke favorit",
    "n": 2
   },
   {
@@ -420,10 +480,6 @@
   },
   {
    "s": "Ancaman/pelecehan",
-   "n": 2
-  },
-  {
-   "s": "Anda",
    "n": 2
   },
   {
@@ -479,6 +535,10 @@
    "n": 2
   },
   {
+   "s": "Beralih ke {x} (prorasi)",
+   "n": 2
+  },
+  {
    "s": "Beri ulasan",
    "n": 2
   },
@@ -487,11 +547,19 @@
    "n": 2
   },
   {
+   "s": "Bertanya kepada @{x}",
+   "n": 2
+  },
+  {
    "s": "Biasanya sekitar {x} hari",
    "n": 2
   },
   {
    "s": "Biasanya sekitar {x} jam",
+   "n": 2
+  },
+  {
+   "s": "Biaya admin {x}",
    "n": 2
   },
   {
@@ -528,6 +596,10 @@
   },
   {
    "s": "Buka profil",
+   "n": 2
+  },
+  {
+   "s": "Bukti {x} dari {y}",
    "n": 2
   },
   {
@@ -663,6 +735,10 @@
    "n": 2
   },
   {
+   "s": "Jawaban minimal {x} karakter",
+   "n": 2
+  },
+  {
    "s": "Jenis kelamin",
    "n": 2
   },
@@ -707,11 +783,19 @@
    "n": 2
   },
   {
+   "s": "Kirim saldo ke @{x} di Kahade: {y}",
+   "n": 2
+  },
+  {
    "s": "Kode {x} digit telah dikirim ke",
    "n": 2
   },
   {
    "s": "Kode aplikasi autentikator",
+   "n": 2
+  },
+  {
+   "s": "Kode verifikasi dikirim ke {x}.",
    "n": 2
   },
   {
@@ -763,6 +847,10 @@
    "n": 2
   },
   {
+   "s": "Lihat profil {x} di Kahade",
+   "n": 2
+  },
+  {
    "s": "Lihat semua",
    "n": 2
   },
@@ -811,7 +899,7 @@
    "n": 2
   },
   {
-   "s": "Minimal {x} karakter",
+   "s": "Minimal {x} karakter.",
    "n": 2
   },
   {
@@ -835,10 +923,6 @@
    "n": 2
   },
   {
-   "s": "Nama pengguna",
-   "n": 2
-  },
-  {
    "s": "Negatif",
    "n": 2
   },
@@ -855,7 +939,15 @@
    "n": 2
   },
   {
+   "s": "Notifikasi, {x} belum dibaca",
+   "n": 2
+  },
+  {
    "s": "Opsi percakapan",
+   "n": 2
+  },
+  {
+   "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
    "n": 2
   },
   {
@@ -867,11 +959,19 @@
    "n": 2
   },
   {
+   "s": "Pembayaran pesanan menunggu — {x}",
+   "n": 2
+  },
+  {
    "s": "Pembeli",
    "n": 2
   },
   {
    "s": "Penarikan",
+   "n": 2
+  },
+  {
+   "s": "Penarikan menunggu OTP — {x}",
    "n": 2
   },
   {
@@ -903,11 +1003,19 @@
    "n": 2
   },
   {
+   "s": "Periksa kotak masuk {x}.",
+   "n": 2
+  },
+  {
    "s": "Permintaan dibatalkan.",
    "n": 2
   },
   {
    "s": "Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.",
+   "n": 2
+  },
+  {
+   "s": "Pertanyaan minimal {x} karakter",
    "n": 2
   },
   {
@@ -967,6 +1075,10 @@
    "n": 2
   },
   {
+   "s": "Slide {x} dari {y}",
+   "n": 2
+  },
+  {
    "s": "Sudah punya akun?",
    "n": 2
   },
@@ -1020,6 +1132,10 @@
   },
   {
    "s": "Tolak pesanan",
+   "n": 2
+  },
+  {
+   "s": "Top-up belum dibayar — {x}",
    "n": 2
   },
   {
@@ -1119,6 +1235,14 @@
    "n": 1
   },
   {
+   "s": "{x} — {y}",
+   "n": 1
+  },
+  {
+   "s": "{x} — {y} periode",
+   "n": 1
+  },
+  {
    "s": "{x} — foto {y} dari {z}",
    "n": 1
   },
@@ -1127,7 +1251,15 @@
    "n": 1
   },
   {
+   "s": "{x} · maks {y} MB",
+   "n": 1
+  },
+  {
    "s": "{x} ({x} percakapan)",
+   "n": 1
+  },
+  {
+   "s": "{x} {y} akan dihapus dari daftar.",
    "n": 1
   },
   {
@@ -1135,7 +1267,19 @@
    "n": 1
   },
   {
+   "s": "{x} akan dilupakan: semua sesinya dicabut dan perangkat ini harus masuk ulang beserta {y}.",
+   "n": 1
+  },
+  {
+   "s": "{x} akan diminta masuk kembali.",
+   "n": 1
+  },
+  {
    "s": "{x} bintang",
+   "n": 1
+  },
+  {
+   "s": "{x} dari {y} bintang",
    "n": 1
   },
   {
@@ -1143,15 +1287,43 @@
    "n": 1
   },
   {
+   "s": "{x} dari {y} foto. Foto pertama menjadi cover item.",
+   "n": 1
+  },
+  {
+   "s": "{x} dari {y} karakter",
+   "n": 1
+  },
+  {
    "s": "{x} dari {y}, buka ulasan",
    "n": 1
   },
   {
-   "s": "{x} foto — tambah, urutkan, hapus",
+   "s": "{x} digit",
    "n": 1
   },
   {
-   "s": "{x} komentar",
+   "s": "{x} disembunyikan",
+   "n": 1
+  },
+  {
+   "s": "{x} foto lainnya",
+   "n": 1
+  },
+  {
+   "s": "{x} item",
+   "n": 1
+  },
+  {
+   "s": "{x} karakter",
+   "n": 1
+  },
+  {
+   "s": "{x} lencana diraih ditampilkan",
+   "n": 1
+  },
+  {
+   "s": "{x} memberi {y} dari {z} bintang",
    "n": 1
   },
   {
@@ -1160,6 +1332,14 @@
   },
   {
    "s": "{x} pengikut",
+   "n": 1
+  },
+  {
+   "s": "{x} permintaan",
+   "n": 1
+  },
+  {
+   "s": "{x} pertanyaan",
    "n": 1
   },
   {
@@ -1183,7 +1363,11 @@
    "n": 1
   },
   {
-   "s": "{x} sengketa perlu perhatianmu",
+   "s": "{x} sesi lain akan dicabut dan harus masuk kembali. Perangkat ini tetap masuk.",
+   "n": 1
+  },
+  {
+   "s": "{x} suka",
    "n": 1
   },
   {
@@ -1195,10 +1379,6 @@
    "n": 1
   },
   {
-   "s": "{x} transaksi sedang berjalan",
-   "n": 1
-  },
-  {
    "s": "{x} ulasan",
    "n": 1
   },
@@ -1207,23 +1387,55 @@
    "n": 1
   },
   {
+   "s": "{x}–{x} karakter, huruf kecil/angka/._",
+   "n": 1
+  },
+  {
+   "s": "{x}–{y} hari",
+   "n": 1
+  },
+  {
+   "s": "{x}–{y} hari · tenggat baru {z}",
+   "n": 1
+  },
+  {
+   "s": "{x}–{y} karakter, spasi diabaikan",
+   "n": 1
+  },
+  {
+   "s": "{x}, {y}",
+   "n": 1
+  },
+  {
+   "s": "{x}, {y} dari {z} terpakai",
+   "n": 1
+  },
+  {
+   "s": "{x}, {y} perlu perhatian",
+   "n": 1
+  },
+  {
+   "s": "{x}, biaya {y}",
+   "n": 1
+  },
+  {
+   "s": "{x}. {y}",
+   "n": 1
+  },
+  {
+   "s": "{x}… {y} karakter, ketuk salin",
+   "n": 1
+  },
+  {
+   "s": "{x}/{y} karakter · minimal {z}",
+   "n": 1
+  },
+  {
    "s": "{x}% ke pembeli",
    "n": 1
   },
   {
-   "s": "@{x} di Kahade",
-   "n": 1
-  },
-  {
-   "s": "@{x} dibuka blokirnya",
-   "n": 1
-  },
-  {
-   "s": "@{x} dihapus dari favorit",
-   "n": 1
-  },
-  {
-   "s": "@{x} disimpan ke favorit",
+   "s": "@{x} belum membagikan foto atau showcase produk.",
    "n": 1
   },
   {
@@ -1252,6 +1464,10 @@
   },
   {
    "s": "Ajukan pertanyaan",
+   "n": 1
+  },
+  {
+   "s": "Ajukan pertanyaan atau negosiasi dengan {x} sebelum transaksi.",
    "n": 1
   },
   {
@@ -1511,6 +1727,10 @@
    "n": 1
   },
   {
+   "s": "Bayar aman lewat Kahade: {x}",
+   "n": 1
+  },
+  {
    "s": "Bayar sekarang",
    "n": 1
   },
@@ -1671,10 +1891,6 @@
    "n": 1
   },
   {
-   "s": "Beralih ke {x} (prorasi)",
-   "n": 1
-  },
-  {
    "s": "Beranda",
    "n": 1
   },
@@ -1700,6 +1916,10 @@
   },
   {
    "s": "Berlaku langsung di seluruh aplikasi dan tersimpan pada akun Anda.",
+   "n": 1
+  },
+  {
+   "s": "Berlaku sampai {x} · {y}",
    "n": 1
   },
   {
@@ -1779,6 +1999,10 @@
    "n": 1
   },
   {
+   "s": "Blokir @{x}?",
+   "n": 1
+  },
+  {
    "s": "Blokir pengguna",
    "n": 1
   },
@@ -1851,11 +2075,23 @@
    "n": 1
   },
   {
+   "s": "Buka {x} ukuran penuh",
+   "n": 1
+  },
+  {
    "s": "Buka aksi menggantung: {x}",
    "n": 1
   },
   {
    "s": "Buka beranda",
+   "n": 1
+  },
+  {
+   "s": "Buka blokir @{x}?",
+   "n": 1
+  },
+  {
+   "s": "Buka daftar {x}",
    "n": 1
   },
   {
@@ -1943,11 +2179,11 @@
    "n": 1
   },
   {
-   "s": "Bukti {x} dari {x}",
+   "s": "Bukti Anda",
    "n": 1
   },
   {
-   "s": "Bukti Anda",
+   "s": "Bukti dari {x}",
    "n": 1
   },
   {
@@ -2107,6 +2343,10 @@
    "n": 1
   },
   {
+   "s": "Contoh transaksi {x}",
+   "n": 1
+  },
+  {
    "s": "Contoh: buat bayar pesanan #{x}",
    "n": 1
   },
@@ -2156,6 +2396,14 @@
   },
   {
    "s": "Dana escrow dibekukan sampai mediator Kahade memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat.",
+   "n": 1
+  },
+  {
+   "s": "dari {x}",
+   "n": 1
+  },
+  {
+   "s": "Dari {x}",
    "n": 1
   },
   {
@@ -2259,6 +2507,10 @@
    "n": 1
   },
   {
+   "s": "Diminta oleh {x}",
+   "n": 1
+  },
+  {
    "s": "Ditampilkan di profil publik Anda.",
    "n": 1
   },
@@ -2280,6 +2532,10 @@
   },
   {
    "s": "Dokumen verifikasi",
+   "n": 1
+  },
+  {
+   "s": "durasi {x}",
    "n": 1
   },
   {
@@ -2391,7 +2647,15 @@
    "n": 1
   },
   {
+   "s": "Format tidak didukung. Gunakan {x}.",
+   "n": 1
+  },
+  {
    "s": "Foto",
+   "n": 1
+  },
+  {
+   "s": "Foto {x} yang Anda unggah",
    "n": 1
   },
   {
@@ -2423,6 +2687,10 @@
    "n": 1
   },
   {
+   "s": "Foto profil {x}",
+   "n": 1
+  },
+  {
    "s": "Foto profil berhasil diperbarui",
    "n": 1
   },
@@ -2448,6 +2716,10 @@
   },
   {
    "s": "Foto showcase ditambahkan",
+   "n": 1
+  },
+  {
+   "s": "Foto: {x}",
    "n": 1
   },
   {
@@ -2931,6 +3203,14 @@
    "n": 1
   },
   {
+   "s": "hadiah {x} rupiah",
+   "n": 1
+  },
+  {
+   "s": "Hadiah undangan · {x}",
+   "n": 1
+  },
+  {
    "s": "Hadiah undangan {x}, {y}, {z}",
    "n": 1
   },
@@ -2959,6 +3239,14 @@
    "n": 1
   },
   {
+   "s": "Hanya huruf kecil, angka, titik, dan garis bawah",
+   "n": 1
+  },
+  {
+   "s": "Hanya nama pemilik yang bisa diubah — nomor {x} tetap sama.",
+   "n": 1
+  },
+  {
    "s": "Hapus \"{x}\" dari pencarian terakhir",
    "n": 1
   },
@@ -2967,7 +3255,15 @@
    "n": 1
   },
   {
+   "s": "Hapus {x} dari penerima favorit",
+   "n": 1
+  },
+  {
    "s": "Hapus {x} dari tersimpan",
+   "n": 1
+  },
+  {
+   "s": "Hapus {x} notifikasi?",
    "n": 1
   },
   {
@@ -3091,6 +3387,10 @@
    "n": 1
   },
   {
+   "s": "hemat {x} rupiah",
+   "n": 1
+  },
+  {
    "s": "Hubungi kami",
    "n": 1
   },
@@ -3203,7 +3503,15 @@
    "n": 1
   },
   {
+   "s": "Jadikan {x} penerima favorit",
+   "n": 1
+  },
+  {
    "s": "Jadikan utama",
+   "n": 1
+  },
+  {
+   "s": "Jadilah yang pertama bertanya kepada @{x}.",
    "n": 1
   },
   {
@@ -3244,10 +3552,6 @@
   },
   {
    "s": "Jawab pertanyaan",
-   "n": 1
-  },
-  {
-   "s": "Jawaban minimal {x} karakter",
    "n": 1
   },
   {
@@ -3447,6 +3751,10 @@
    "n": 1
   },
   {
+   "s": "Kekuatan kata sandi: {x}",
+   "n": 1
+  },
+  {
    "s": "Kelola foto",
    "n": 1
   },
@@ -3619,10 +3927,6 @@
    "n": 1
   },
   {
-   "s": "Kirim saldo ke @{x} di Kahade: {x}",
-   "n": 1
-  },
-  {
    "s": "Kirim saldo sebagai gantinya",
    "n": 1
   },
@@ -3655,6 +3959,10 @@
    "n": 1
   },
   {
+   "s": "kode {x}",
+   "n": 1
+  },
+  {
    "s": "Kode {x} digit dari Google Authenticator, Authy, atau sejenisnya. Bekerja tanpa sinyal.",
    "n": 1
   },
@@ -3664,6 +3972,10 @@
   },
   {
    "s": "Kode {x} digit, {y} dari {z} terisi",
+   "n": 1
+  },
+  {
+   "s": "Kode {x}, tersembunyi",
    "n": 1
   },
   {
@@ -3739,6 +4051,10 @@
    "n": 1
   },
   {
+   "s": "Kode QR: {x}",
+   "n": 1
+  },
+  {
    "s": "Kode referral {x} sudah dipakai",
    "n": 1
   },
@@ -3760,10 +4076,6 @@
   },
   {
    "s": "Kode verifikasi {x} digit",
-   "n": 1
-  },
-  {
-   "s": "Kode verifikasi dikirim ke {x}.",
    "n": 1
   },
   {
@@ -3824,6 +4136,10 @@
   },
   {
    "s": "Kredensial",
+   "n": 1
+  },
+  {
+   "s": "Kunci aplikasi dengan {x}",
    "n": 1
   },
   {
@@ -3931,6 +4247,10 @@
    "n": 1
   },
   {
+   "s": "Laporkan {x}",
+   "n": 1
+  },
+  {
    "s": "Laporkan item",
    "n": 1
   },
@@ -3940,6 +4260,10 @@
   },
   {
    "s": "Laporkan pengguna",
+   "n": 1
+  },
+  {
+   "s": "Laporkan postingan \"{x}\" jika melanggar panduan komunitas.",
    "n": 1
   },
   {
@@ -4015,10 +4339,6 @@
    "n": 1
   },
   {
-   "s": "Lihat profil {x} di Kahade",
-   "n": 1
-  },
-  {
    "s": "Lihat profil @{x}",
    "n": 1
   },
@@ -4056,6 +4376,10 @@
   },
   {
    "s": "Login baru, perubahan kata sandi, dan perangkat.",
+   "n": 1
+  },
+  {
+   "s": "Logo {x}",
    "n": 1
   },
   {
@@ -4175,7 +4499,35 @@
    "n": 1
   },
   {
+   "s": "Masukkan PIN dompet Anda untuk berlangganan {x} sebesar {y}.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet Anda untuk berlangganan.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet Anda untuk memperpanjang langganan {x} sebesar {y}.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet Anda untuk memperpanjang langganan.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet Anda untuk menarik {x} ke {y} {z}.",
+   "n": 1
+  },
+  {
    "s": "Masukkan PIN dompet Anda untuk menyetujui transfer. PIN digunakan untuk melindungi setiap transaksi keluar dari dompet.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet Anda untuk upgrade ke {x}. Sisa nilai paket lama dipotong dari biaya baru (prorasi).",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN dompet Anda untuk upgrade. Sisa nilai paket lama dipotong dari biaya baru (prorasi).",
    "n": 1
   },
   {
@@ -4207,6 +4559,10 @@
    "n": 1
   },
   {
+   "s": "Membayar {x} dari saldo…",
+   "n": 1
+  },
+  {
    "s": "Membuka menu bagikan perangkat",
    "n": 1
   },
@@ -4227,7 +4583,19 @@
    "n": 1
   },
   {
+   "s": "Memeriksa ketersediaan…",
+   "n": 1
+  },
+  {
    "s": "Memeriksa lawan transaksi",
+   "n": 1
+  },
+  {
+   "s": "Memproses langganan {x}…",
+   "n": 1
+  },
+  {
+   "s": "Memuat {x}",
    "n": 1
   },
   {
@@ -4375,7 +4743,15 @@
    "n": 1
   },
   {
+   "s": "Memulai ulang unggah {x}",
+   "n": 1
+  },
+  {
    "s": "Menampilkan indikator online pada profil Anda.",
+   "n": 1
+  },
+  {
+   "s": "Menarik {x} ke rekening…",
    "n": 1
   },
   {
@@ -4395,7 +4771,15 @@
    "n": 1
   },
   {
+   "s": "Mengirim {x} ke @{y}…",
+   "n": 1
+  },
+  {
    "s": "Mengubah username, nomor HP, atau kontak membutuhkan kata sandi akun.",
+   "n": 1
+  },
+  {
+   "s": "mengundang Anda sebagai {x}",
    "n": 1
   },
   {
@@ -4467,7 +4851,15 @@
    "n": 1
   },
   {
-   "s": "Minimal {x} karakter.",
+   "s": "Minimal {x}",
+   "n": 1
+  },
+  {
+   "s": "Minimal {x} karakter — jelaskan apa yang tidak sesuai.",
+   "n": 1
+  },
+  {
+   "s": "Minimum penarikan {x}.",
    "n": 1
   },
   {
@@ -4563,7 +4955,15 @@
    "n": 1
   },
   {
+   "s": "Nama pengguna sudah dipakai",
+   "n": 1
+  },
+  {
    "s": "Nama pengguna sudah dipakai.",
+   "n": 1
+  },
+  {
+   "s": "Nama pengguna tersedia",
    "n": 1
   },
   {
@@ -4580,6 +4980,10 @@
   },
   {
    "s": "NIK {x} digit sesuai KTP",
+   "n": 1
+  },
+  {
+   "s": "NIK harus {x} digit sesuai KTP. Pastikan foto terang dan seluruh kartu terlihat.",
    "n": 1
   },
   {
@@ -4795,10 +5199,6 @@
    "n": 1
   },
   {
-   "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
-   "n": 1
-  },
-  {
    "s": "Panggilan {x} dari {y}",
    "n": 1
   },
@@ -4847,10 +5247,6 @@
    "n": 1
   },
   {
-   "s": "Pembayaran pesanan menunggu — {x}",
-   "n": 1
-  },
-  {
    "s": "Pembayaran QRIS diterima",
    "n": 1
   },
@@ -4875,11 +5271,11 @@
    "n": 1
   },
   {
-   "s": "Penarikan masih menunggu OTP",
+   "s": "Penarikan {x} sudah dibuat dan menunggu kode OTP. Bila ditinggalkan, dana tetap tertahan sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas, atau kembali untuk menyelesaikan OTP.",
    "n": 1
   },
   {
-   "s": "Penarikan menunggu OTP — {x}",
+   "s": "Penarikan masih menunggu OTP",
    "n": 1
   },
   {
@@ -4924,6 +5320,14 @@
   },
   {
    "s": "Penerimaan dikonfirmasi",
+   "n": 1
+  },
+  {
+   "s": "Pengajuan #{x}",
+   "n": 1
+  },
+  {
+   "s": "Pengajuan KYC {x}",
    "n": 1
   },
   {
@@ -5115,10 +5519,6 @@
    "n": 1
   },
   {
-   "s": "Periksa kotak masuk {x}.",
-   "n": 1
-  },
-  {
    "s": "Periksa nominal dan metode pembayaran Anda. Ketuk kartu metode untuk menggantinya.",
    "n": 1
   },
@@ -5163,6 +5563,10 @@
    "n": 1
   },
   {
+   "s": "Permintaan perpanjangan dari {x}",
+   "n": 1
+  },
+  {
    "s": "Permintaan perpanjangan diterima",
    "n": 1
   },
@@ -5204,10 +5608,6 @@
   },
   {
    "s": "Pertanyaan disembunyikan",
-   "n": 1
-  },
-  {
-   "s": "Pertanyaan minimal {x} karakter",
    "n": 1
   },
   {
@@ -5312,6 +5712,10 @@
   },
   {
    "s": "Pilih dokumen",
+   "n": 1
+  },
+  {
+   "s": "Pilih foto (maks {x}MB)",
    "n": 1
   },
   {
@@ -5495,6 +5899,10 @@
    "n": 1
   },
   {
+   "s": "Proposal dari {x}",
+   "n": 1
+  },
+  {
    "s": "Punya kode dari promo atau kampanye? Periksa di sini.",
    "n": 1
   },
@@ -5512,6 +5920,10 @@
   },
   {
    "s": "Rating",
+   "n": 1
+  },
+  {
+   "s": "Rating {x} dari {y}",
    "n": 1
   },
   {
@@ -5695,6 +6107,10 @@
    "n": 1
   },
   {
+   "s": "Saat ini {x} dukungan",
+   "n": 1
+  },
+  {
    "s": "Saldo {x}, buka dompet",
    "n": 1
   },
@@ -5783,11 +6199,19 @@
    "n": 1
   },
   {
+   "s": "sejak {x}",
+   "n": 1
+  },
+  {
    "s": "Selamat datang di Kahade",
    "n": 1
   },
   {
    "s": "Selamat datang kembali",
+   "n": 1
+  },
+  {
+   "s": "Selamat datang, {x}!",
    "n": 1
   },
   {
@@ -5919,11 +6343,19 @@
    "n": 1
   },
   {
+   "s": "Setelah aplikasi di latar belakang lebih dari satu menit, Kahade meminta {x} atau PIN dompet untuk dibuka.",
+   "n": 1
+  },
+  {
    "s": "Setelah itu, masukkan kode",
    "n": 1
   },
   {
    "s": "Setup Profil",
+   "n": 1
+  },
+  {
+   "s": "Showcase {x}, {y}, oleh {z}",
    "n": 1
   },
   {
@@ -5996,10 +6428,6 @@
   },
   {
    "s": "Skor kepercayaan dihitung dari verifikasi identitas, riwayat transaksi, dan ulasan Anda. Semakin tinggi skor, semakin dipercaya lawan transaksi.",
-   "n": 1
-  },
-  {
-   "s": "Slide {x} dari {x}",
    "n": 1
   },
   {
@@ -6311,6 +6739,10 @@
    "n": 1
   },
   {
+   "s": "Tenggat pengiriman menjadi {x}. Dana tetap di escrow.",
+   "n": 1
+  },
+  {
    "s": "Tenggat saat ini",
    "n": 1
   },
@@ -6408,6 +6840,10 @@
   },
   {
    "s": "Tidak",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada hasil untuk \"{x}\".",
    "n": 1
   },
   {
@@ -6527,11 +6963,11 @@
    "n": 1
   },
   {
-   "s": "Top-up belum dibayar — {x}",
+   "s": "Top-up, penarikan, transfer, dan mutasi saldo.",
    "n": 1
   },
   {
-   "s": "Top-up, penarikan, transfer, dan mutasi saldo.",
+   "s": "Total {x} masuk ke escrow Kahade.",
    "n": 1
   },
   {
@@ -6567,6 +7003,10 @@
    "n": 1
   },
   {
+   "s": "Transfer {x} ke @{y} memerlukan PIN dompet Anda. PIN tidak akan terlihat.",
+   "n": 1
+  },
+  {
    "s": "Transfer Dana",
    "n": 1
   },
@@ -6579,7 +7019,15 @@
    "n": 1
   },
   {
+   "s": "Tulis balasan untuk @{x}…",
+   "n": 1
+  },
+  {
    "s": "Tulis jawaban Anda…",
+   "n": 1
+  },
+  {
+   "s": "Tulis komentar untuk @{x}…",
    "n": 1
   },
   {
@@ -6728,6 +7176,10 @@
   },
   {
    "s": "Ulasan transaksi Anda akan muncul di sini.",
+   "n": 1
+  },
+  {
+   "s": "Ulasan transaksi dengan @{x} akan muncul di sini.",
    "n": 1
   },
   {
@@ -6896,6 +7348,10 @@
   },
   {
    "s": "Verifikasi identitas diperlukan",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi identitas: {x}",
    "n": 1
   },
   {

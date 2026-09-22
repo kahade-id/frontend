@@ -15,6 +15,7 @@ import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
+import { translate } from "@/lib/i18n/translate"
 
 export const RATING_FILTERS: { value: PublicRatingFilter; label: string }[] = [
   { value: "all", label: "Semua" },
@@ -65,7 +66,7 @@ export function ProfileRatingsTab({
           <EmptyState
             icon={Star}
             title="Belum ada ulasan"
-            description={`Ulasan transaksi dengan @${handle} akan muncul di sini.`}
+            description={translate("Ulasan transaksi dengan @{x} akan muncul di sini.", { x: handle })}
           />
         )
       ) : (

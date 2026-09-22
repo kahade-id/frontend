@@ -43,6 +43,8 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { Radio, RadioGroup, type RadioGroupProps } from "@/components/ui/radio"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type TwoFactorMethodId = "authenticator" | "sms" | "email"
 
@@ -173,9 +175,12 @@ export function TwoFactorMethodSelector({
             description={description}
             disabled={isUnavailable}
             leading={<Icon icon={m.icon ?? DEFAULT_ICON[m.id]} size="md" tone={isUnavailable ? "disabled" : "default"} />}
-            accessibilityLabel={`${m.label}${m.recommended ? `, ${t.recommended}` : ""}${
-              isCurrent ? `, ${t.current}` : ""
-            }${isUnavailable ? `, ${m.unavailable}` : ""}`}
+            accessibilityLabel={summarize([
+              translate(m.label),
+              m.recommended ? translate(t.recommended) : undefined,
+              isCurrent ? translate(t.current) : undefined,
+              isUnavailable ? translate(m.unavailable) : undefined,
+            ])}
           />
         )
       })}

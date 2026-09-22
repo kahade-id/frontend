@@ -111,6 +111,25 @@ function dayNames(): readonly string[] {
   return getLanguage() === "en" ? DAYS_EN : DAYS_ID
 }
 
+/**
+ * Nama bulan ke-`index` (0 = Januari) untuk bahasa aktif.
+ *
+ * G-07 (audit 2026-09-22): `monthNames()`/`dayNames()` memilih bahasa saat
+ * DIPANGGIL, jadi komponen pemakai WAJIB memanggil `useLanguage()` agar ikut
+ * render ulang saat bahasa ditukar. Helper ini dipakai
+ * `components/ui/calendar.tsx`, yang sebelumnya punya tabel Indonesia sendiri
+ * (`MONTHS_ID_LONG`/`WEEKDAYS_ID`) — pengguna English melihat "Mei 2026" dan
+ * pembaca layar mendengar "12 Mei 2026" walau seluruh layar sudah Inggris.
+ */
+export function monthName(index: number, opts: { long?: boolean } = {}): string {
+  return monthNames(!!opts.long)[((index % 12) + 12) % 12]
+}
+
+/** Nama hari untuk `Date.getDay()` (0 = Minggu), bahasa aktif. */
+export function dayName(day: number): string {
+  return dayNames()[((day % 7) + 7) % 7]
+}
+
 /** 1000000 -> "1.000.000" (tanpa prefix) */
 export function groupThousands(n: number): string {
   if (!Number.isFinite(n)) return "—"

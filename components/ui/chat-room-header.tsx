@@ -47,6 +47,7 @@ import { focusRing, focusRingInset } from "@/lib/focus-ring"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
 import { translateProp, useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type ChatRoomHeaderProps = Omit<ViewProps, "children"> & {
   /** Nama lengkap lawan bicara (fallback: @username / "Percakapan") */
@@ -221,7 +222,7 @@ export function ChatRoomHeader({
           {onProfilePress ? (
             <PressableScale
               accessibilityRole="button"
-              accessibilityLabel={`${title}${status ? `, ${status}` : ""}`}
+              accessibilityLabel={summarize([translate(title), status ? translate(status) : undefined])}
               accessibilityHint="Buka profil lawan bicara"
               scaleOnPress={false}
               ripple
@@ -233,7 +234,7 @@ export function ChatRoomHeader({
           ) : (
             <View
               accessible
-              accessibilityLabel={`${title}${status ? `, ${status}` : ""}`}
+              accessibilityLabel={summarize([translate(title), status ? translate(status) : undefined])}
               className="min-w-0 flex-1"
             >
               {identity}

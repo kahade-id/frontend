@@ -26,6 +26,7 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator, type StatusIndicatorTone } from "@/components/ui/status-indicator"
 import { summarize } from "@/lib/a11y"
 import { hasOwn } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 export type ReferralStatus = "PENDING" | "QUALIFIED" | "REWARDED" | "EXPIRED"
 
@@ -89,7 +90,12 @@ export function ReferralHistoryListItem({
       chevron={!!onPress}
       onPress={onPress}
       inset={inset}
-      accessibilityLabel={summarize([name, label, showReward ? `hadiah ${rewardAmount} rupiah` : undefined, joinedAt])}
+      accessibilityLabel={summarize([
+        name,
+        label,
+        showReward ? translate("hadiah {x} rupiah", { x: rewardAmount }) : undefined,
+        joinedAt,
+      ])}
       {...rest}
     />
   )

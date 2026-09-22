@@ -44,6 +44,7 @@ import { Radio, RadioGroup } from "@/components/ui/radio"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 /** G-13: opsi hide satu sumber di lib/labels/report (= HiddenReason API). */
 const HIDE_REASONS = CONTENT_REPORT_REASONS
@@ -171,7 +172,10 @@ export default function QuestionsScreen() {
     if (!answerTarget) return
     const value = answerText.trim()
     if (value.length < ANSWER_MIN) {
-      toast.show({ title: `Jawaban minimal ${ANSWER_MIN} karakter`, tone: "danger" })
+      toast.show({
+        title: translate("Jawaban minimal {x} karakter", { x: ANSWER_MIN }),
+        tone: "danger",
+      })
       return
     }
     setAnswering(true)
@@ -248,7 +252,7 @@ export default function QuestionsScreen() {
           />
         ) : (
           <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
-            <SectionHeader title={`${items.length} pertanyaan`} />
+            <SectionHeader title={translate("{x} pertanyaan", { x: items.length })} />
             {items.map((q) => {
               const other = received ? q.asker : q.target
               const otherName =
@@ -339,7 +343,9 @@ export default function QuestionsScreen() {
 
       <Dialog
         title="Jawab pertanyaan"
-        description={`Dari ${answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? ""}`}
+        description={translate("Dari {x}", {
+          x: answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? "",
+        })}
         visible={!!answerTarget}
         loading={answering}
         confirmLabel="Kirim Jawaban"

@@ -17,6 +17,7 @@ import { Countdown } from "@/components/ui/countdown"
 import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Text } from "@/components/ui/text"
 import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 /**
  * Status intent yang sudah terminal — countdown tidak lagi relevan dan
@@ -75,7 +76,10 @@ export function QrisPaymentPanel({
       <QRCodeDisplay
         value={qrString}
         title="Pindai dengan aplikasi pembayaran"
-        caption={`Berlaku sampai ${formatDateTimeWIB(expiresAt ?? "")} · ${formatRupiah(amount)}`}
+        caption={translate("Berlaku sampai {x} · {y}", {
+          x: formatDateTimeWIB(expiresAt ?? ""),
+          y: formatRupiah(amount),
+        })}
         onCopy={onCopy}
         copied={copied}
       />

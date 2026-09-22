@@ -56,6 +56,7 @@ import {
 } from "@/components/ui/transfer-recipient-picker"
 import { useToast } from "@/components/ui/toast"
 import { isApiError } from "@/lib/api"
+import { translate } from "@/lib/i18n/translate"
 
 const MIN_AMOUNT = AMOUNT_LIMITS.transfer.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.transfer.maximum
@@ -181,11 +182,18 @@ export default function TransferScreen() {
         const handle = recipient.username || recipient.name
         if (nextFavorite) {
           await api.wallet.addFavoriteRecipient(recipient.id)
-          toast.show({ title: `@${handle} disimpan ke favorit`, tone: "success", duration: 3000 })
+          toast.show({
+            title: translate("@{x} disimpan ke favorit", { x: handle }),
+            tone: "success",
+            duration: 3000,
+          })
         } else if (favoriteRow) {
           // Hapus memakai id BARIS favorit (bukan id penerima).
           await api.wallet.removeFavoriteRecipient(favoriteRow.id)
-          toast.show({ title: `@${handle} dihapus dari favorit`, duration: 3000 })
+          toast.show({
+            title: translate("@{x} dihapus dari favorit", { x: handle }),
+            duration: 3000,
+          })
         }
         void favoritesQuery.refresh()
       } catch (err) {
@@ -483,7 +491,7 @@ export default function TransferScreen() {
               balance={balance}
               helperText={
                 balance == null
-                  ? `Minimal ${formatRupiah(MIN_AMOUNT)}`
+                  ? translate("Minimal {x}", { x: formatRupiah(MIN_AMOUNT) })
                   : undefined
               }
               slot={
@@ -685,7 +693,10 @@ export default function TransferScreen() {
       <TransactionProgressOverlay
         visible={progressState !== null}
         state={progressState ?? "PROCESSING"}
-        processingMessage={`Mengirim ${formatRupiah(amount)} ke @${selected?.username ?? ""}…`}
+        processingMessage={translate("Mengirim {x} ke @{y}…", {
+          x: formatRupiah(amount),
+          y: selected?.username ?? "",
+        })}
         successMessage="Transfer berhasil"
         failureMessage={progressError ?? "Transfer gagal. Coba lagi."}
       />
@@ -705,7 +716,10 @@ export default function TransferScreen() {
           setStep("confirm")
         }}
         title="Verifikasi PIN"
-        description={`Transfer ${formatRupiah(amount)} ke @${selected?.username ?? ""} memerlukan PIN dompet Anda. PIN tidak akan terlihat.`}
+        description={translate(
+          "Transfer {x} ke @{y} memerlukan PIN dompet Anda. PIN tidak akan terlihat.",
+          { x: formatRupiah(amount), y: selected?.username ?? "" },
+        )}
         avoidKeyboard
       >
         <PinInput

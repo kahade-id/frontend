@@ -196,7 +196,9 @@ export function ShowcaseHeader({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={
-              unread.count ? `Notifikasi, ${unread.count} belum dibaca` : "Notifikasi"
+              unread.count
+                ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
+                : "Notifikasi"
             }
             accessibilityHint="Buka notifikasi"
             haptic

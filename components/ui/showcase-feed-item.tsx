@@ -141,7 +141,11 @@ export function ShowcaseFeedItem({
   const liked = item.isLiked === true
   const likeCountLabel = `${formatCountCompact(item.likeCount)} Suka`
   const commentCountLabel = `${formatCountCompact(item.commentCount)} Komentar`
-  const summary = `Showcase ${item.title}, ${priceLabel}, oleh ${item.author.fullName ?? item.author.username}`
+  const summary = translate("Showcase {x}, {y}, oleh {z}", {
+    x: item.title,
+    y: priceLabel,
+    z: item.author.fullName ?? item.author.username,
+  })
 
   const [mediaPage, setMediaPage] = useState(0)
   const [cardWidth, setCardWidth] = useState(0)

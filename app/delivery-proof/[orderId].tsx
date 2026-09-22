@@ -55,6 +55,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 const MAX_PROOF_FILES = 10
 const MIN_DESCRIPTION = 10
@@ -230,7 +231,7 @@ export default function DeliveryProofScreen() {
       if (description.length < MIN_DESCRIPTION) {
         toast.show({
           title: "Catatan terlalu pendek",
-          description: `Minimal ${MIN_DESCRIPTION} karakter.`,
+          description: translate("Minimal {x} karakter.", { x: MIN_DESCRIPTION }),
           tone: "warning",
         })
         return
@@ -282,7 +283,7 @@ export default function DeliveryProofScreen() {
       setViewerItem({
         url: a.uri,
         mimeType: a.kind === "pdf" ? "application/pdf" : "image/jpeg",
-        title: `Bukti ${index + 1} dari ${attachments.length}`,
+        title: translate("Bukti {x} dari {y}", { x: index + 1, y: attachments.length }),
         caption: [latest.description, formatDateTime(latest.createdAt)].filter(Boolean).join(" · "),
         fileName: a.kind === "pdf" ? a.name : undefined,
       })

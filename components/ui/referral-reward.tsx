@@ -73,7 +73,7 @@ export function ReferralRewardListItem({
   return (
     <ListItem
       leading={<IconBox icon={Gift} size="md" variant={credited ? "success" : "surface"} />}
-      title={`Hadiah undangan \u00B7 ${referredName}`}
+      title={translate("Hadiah undangan \u00B7 {x}", { x: referredName })}
       subtitle={
         <View className="flex-row flex-wrap items-center gap-2 tabular-nums">
           <Text variant="caption" tone="secondary">

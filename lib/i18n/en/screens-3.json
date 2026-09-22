@@ -117,7 +117,6 @@
   "Kirim kode verifikasi": "Send verification code",
   "Kirim permintaan": "Send request",
   "Kirim Pesan": "Send message",
-  "Kirim saldo ke @{x} di Kahade: {x}": "Send a balance to @{x} on Kahade: {x}",
   "Kirim saldo sebagai gantinya": "Send funds instead",
   "Kirim tiket": "Send ticket",
   "Kirim ulang OTP": "Resend OTP",
@@ -146,5 +145,6 @@
   "Kunci manual": "Manual key",
   "Kunci Perangkat": "Device lock",
   "Etalase": "Showcase",
-  "Tidak dibagikan": "Not shared"
+  "Tidak dibagikan": "Not shared",
+  "Kirim saldo ke @{x} di Kahade: {y}": "Send a balance to @{x} on Kahade: {x}"
 }

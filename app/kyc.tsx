@@ -63,6 +63,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { UploadField, type UploadStatus } from "@/components/ui/upload-field"
+import { translate } from "@/lib/i18n/translate"
 
 
 /** KTP: lanskap 3:2 seperti kartu fisik; selfie tanpa crop paksa. */
@@ -286,7 +287,10 @@ export default function KycScreen() {
               {canSubmit && formOpen ? (
                 <FormSection
                   title={isResubmit ? "Kirim ulang dokumen" : "Kirim dokumen"}
-                  description={`NIK harus ${NIK_LENGTH} digit sesuai KTP. Pastikan foto terang dan seluruh kartu terlihat.`}
+                  description={translate(
+                    "NIK harus {x} digit sesuai KTP. Pastikan foto terang dan seluruh kartu terlihat.",
+                    { x: NIK_LENGTH },
+                  )}
                 >
                   <Field label="NIK" required>
                     <Input
@@ -295,7 +299,7 @@ export default function KycScreen() {
                       keyboardType="number-pad"
                       returnKeyType="done"
                       maxLength={NIK_LENGTH}
-                      placeholder={`${NIK_LENGTH} digit`}
+                      placeholder={translate("{x} digit", { x: NIK_LENGTH })}
                       errorText={nikError}
                       accessibilityLabel="NIK 16 digit sesuai KTP"
                     />

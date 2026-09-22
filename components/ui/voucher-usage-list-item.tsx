@@ -21,6 +21,7 @@ import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { truncateMiddle } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 export type VoucherUsageListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing" | "chevron"> & {
   title: string
@@ -51,7 +52,12 @@ export function VoucherUsageListItem({ title, code, savedAmount, orderId, usedAt
       chevron={!!onPress}
       onPress={onPress}
       inset={inset}
-      accessibilityLabel={summarize([title, `kode ${code}`, `hemat ${Math.abs(savedAmount)} rupiah`, usedAt])}
+      accessibilityLabel={summarize([
+        title,
+        translate("kode {x}", { x: code }),
+        translate("hemat {x} rupiah", { x: Math.abs(savedAmount) }),
+        usedAt,
+      ])}
       accessibilityHint={onPress ? "Buka detail transaksi" : undefined}
       {...rest}
     />

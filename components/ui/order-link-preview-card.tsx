@@ -51,6 +51,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 export type OrderLinkStatus = "ACTIVE" | "ACCEPTED" | "CANCELLED" | "EXPIRED"
 
@@ -81,7 +82,7 @@ export type OrderLinkPreviewCardLabels = {
 }
 
 const DEFAULT_LABELS: OrderLinkPreviewCardLabels = {
-  invitesYouAs: (role) => `mengundang Anda sebagai ${role}`,
+  invitesYouAs: (role) => translate("mengundang Anda sebagai {x}", { x: role }),
   buyer: "Pembeli",
   seller: "Penjual",
   type: "Jenis",

@@ -38,6 +38,7 @@ import { Text } from "@/components/ui/text"
 import { Timeline } from "@/components/ui/timeline"
 import { VStack } from "@/components/ui/stack"
 import { summarize } from "@/lib/a11y"
+import { translate } from "@/lib/i18n/translate"
 
 export type OnboardingSlide = {
   key: string
@@ -58,7 +59,7 @@ function EscrowCard() {
     <Card
       variant="elevated"
       accessibilityLabel={summarize([
-        `Contoh transaksi ${SAMPLE_ORDER_ID}`,
+        translate("Contoh transaksi {x}", { x: SAMPLE_ORDER_ID }),
         "Rp2.500.000",
         "Diproses penjual",
         "Pembeli andi.p, Penjual toko.rani",

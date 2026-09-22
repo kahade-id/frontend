@@ -37,6 +37,7 @@ import { ScrollRow } from "@/components/ui/scroll-row"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
+import { translate } from "@/lib/i18n/translate"
 
 export type QuickAction = {
   key: string
@@ -69,8 +70,10 @@ function ActionTile({ action: a, layout }: { action: QuickAction; layout: QuickA
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={a.badge ? `${a.label}, ${a.badge} perlu perhatian` : a.label}
-      accessibilityHint={a.accessibilityHint ?? `Buka ${a.label}`}
+      accessibilityLabel={
+        a.badge ? translate("{x}, {y} perlu perhatian", { x: a.label, y: a.badge }) : a.label
+      }
+      accessibilityHint={a.accessibilityHint ?? translate("Buka {x}", { x: a.label })}
       accessibilityState={{ disabled: a.disabled }}
       disabled={a.disabled}
       haptic

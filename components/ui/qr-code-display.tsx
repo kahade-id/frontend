@@ -50,6 +50,7 @@ import { Picture, type PictureProps } from "@/components/ui/picture"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
 
 export type QRErrorCorrection = "L" | "M" | "Q" | "H"
 
@@ -139,7 +140,7 @@ export function QRCodeDisplay({
       <View
         accessible
         accessibilityRole="image"
-        accessibilityLabel={accessibilityLabel ?? `Kode QR: ${captionText || value}`}
+        accessibilityLabel={accessibilityLabel ?? translate("Kode QR: {x}", { x: captionText || value })}
         className="relative items-center justify-center overflow-hidden rounded-md border border-border"
         style={{ width: size, height: size, backgroundColor: tokens.colors.brand.white }}
       >

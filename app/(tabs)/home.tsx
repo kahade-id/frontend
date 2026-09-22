@@ -257,14 +257,14 @@ export default function HomeScreen() {
     : disputedCount > 0
       ? {
           tone: "danger",
-          title: `${disputedCount} sengketa perlu perhatianmu`,
+          title: translate("{x} sengketa perlu perhatianmu", { x: disputedCount }),
           description: "Tanggapi sebelum tenggat agar dana tidak tertahan lebih lama",
           onPress: () => router.push(ROUTES.disputes),
         }
       : activeCount > 0
         ? {
             tone: "primary",
-            title: `${activeCount} transaksi sedang berjalan`,
+            title: translate("{x} transaksi sedang berjalan", { x: activeCount }),
             description: "Cek status, tenggat, dan langkah berikutnya",
             onPress: () => router.push(ROUTES.transactions),
           }
@@ -429,7 +429,9 @@ export default function HomeScreen() {
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={
-                  unread.count ? `Notifikasi, ${unread.count} belum dibaca` : "Notifikasi"
+                  unread.count
+                    ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
+                    : "Notifikasi"
                 }
                 accessibilityHint="Buka pusat notifikasi"
                 haptic

@@ -94,7 +94,7 @@ export type MutualResolutionCardLabels = {
 
 const DEFAULT_LABELS: MutualResolutionCardLabels = {
   fromYou: "Proposal dari Anda",
-  from: (name) => `Proposal dari ${name}`,
+  from: (name) => translate("Proposal dari {x}", { x: name }),
   buyerShare: "Kembali ke pembeli",
   sellerShare: "Diterima penjual",
   yourShare: "Bagian Anda",
@@ -226,7 +226,10 @@ export function MutualResolutionCard({
           className="h-2 w-full flex-row overflow-hidden rounded-full bg-border"
           accessible
           accessibilityRole="progressbar"
-          accessibilityLabel={`${t.buyerShare} ${buyerPct}%, ${t.sellerShare} ${sellerPct}%`}
+          accessibilityLabel={[
+            translate("{x} {y}%", { x: translate(t.buyerShare), y: buyerPct }),
+            translate("{x} {y}%", { x: translate(t.sellerShare), y: sellerPct }),
+          ].join(", ")}
           accessibilityValue={{ min: 0, max: 100, now: buyerPct, text: `${buyerPct}% ke pembeli` }}
         >
           <View className={cn("h-full", isBuyer ? "bg-primary" : "bg-text-tertiary")} style={{ width: `${buyerPct}%` }} />
@@ -236,8 +239,16 @@ export function MutualResolutionCard({
         <View
           accessible
           accessibilityLabel={summarize([
-            `${t.buyerShare} ${buyerPct}%, ${buyer} rupiah`,
-            `${t.sellerShare} ${sellerPct}%, ${seller} rupiah`,
+            translate("{x} {y}%, {z} rupiah", {
+              x: translate(t.buyerShare),
+              y: buyerPct,
+              z: buyer,
+            }),
+            translate("{x} {y}%, {z} rupiah", {
+              x: translate(t.sellerShare),
+              y: sellerPct,
+              z: seller,
+            }),
           ])}
           className="flex-row justify-between gap-4"
         >
@@ -268,7 +279,11 @@ export function MutualResolutionCard({
       </View>
 
       {note ? (
-        <View accessible accessibilityLabel={`${t.note}: ${note}`} className="gap-1">
+        <View
+        accessible
+        accessibilityLabel={translate("{x}: {y}", { x: translate(t.note), y: note })}
+        className="gap-1"
+      >
           <Text variant="label" tone="secondary">
             {t.note}
           </Text>

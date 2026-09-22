@@ -39,6 +39,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 /** Pemilik profil — penulis semua item etalase (endpoint sudah per-username). */
 export type EtalaseOwner = {
@@ -266,7 +267,7 @@ export function ProfileEtalaseTab({ items, loading, handle, owner, isSelf = fals
               <EmptyState
                 icon={Images}
                 title="Belum ada konten"
-                description={`@${handle} belum membagikan foto atau showcase produk.`}
+                description={translate("@{x} belum membagikan foto atau showcase produk.", { x: handle })}
               />
             )}
           </View>

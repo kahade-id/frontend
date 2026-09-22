@@ -31,6 +31,8 @@ import { ProgressBar, type ProgressTone } from "@/components/ui/progress-bar"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 // ------------------------------------------------------------------
 // Benefit list
@@ -75,7 +77,9 @@ export function SubscriptionBenefitList({
         const hasQuota = typeof b.limit === "number"
         const used = b.used ?? 0
         const pct = hasQuota && b.limit! > 0 ? Math.min(100, Math.round((used / b.limit!) * 100)) : 0
-        const a11y = hasQuota ? `${b.label}, ${used} dari ${b.limit} terpakai` : `${b.label}, ${unlimitedLabel}`
+        const a11y = hasQuota
+          ? translate("{x}, {y} dari {z} terpakai", { x: b.label, y: used, z: b.limit as number })
+          : translate("{x}, {y}", { x: b.label, y: unlimitedLabel })
 
         return (
           <View key={b.id} accessible accessibilityLabel={a11y}>
@@ -213,7 +217,7 @@ export function SubscriptionHistoryListItem({
           </Badge>
         </View>
       }
-      accessibilityLabel={`${planName}, ${periodRange}, ${statusLabel}`}
+      accessibilityLabel={summarize([translate(planName), translate(periodRange), translate(statusLabel)])}
       {...rest}
     />
   )

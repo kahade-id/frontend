@@ -56,6 +56,7 @@ import { TopupStatusCard, type PaymentStatus } from "@/components/ui/topup-statu
 import { TransactionSummary } from "@/components/ui/transaction-summary"
 import { useToast } from "@/components/ui/toast"
 import { mapValue } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 const POLL_MS = 5000
 const TOTAL_STEPS = 3 // nominal → metode → instruksi (separator progress)
@@ -310,7 +311,9 @@ export default function TopupScreen() {
                     description={
                       selectedMethod
                         ? selectedFee > 0
-                          ? `Biaya admin ${formatRupiah(selectedFee, { sign: "always" })}`
+                          ? translate("Biaya admin {x}", {
+                              x: formatRupiah(selectedFee, { sign: "always" }),
+                            })
                           : "Tanpa biaya admin"
                         : undefined
                     }
@@ -393,7 +396,9 @@ export default function TopupScreen() {
                       description={
                         selectedMethod
                           ? selectedFee > 0
-                            ? `Biaya admin ${formatRupiah(selectedFee, { sign: "always" })}`
+                            ? translate("Biaya admin {x}", {
+                              x: formatRupiah(selectedFee, { sign: "always" }),
+                            })
                             : "Tanpa biaya admin"
                           : undefined
                       }

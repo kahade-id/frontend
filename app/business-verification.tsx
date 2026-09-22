@@ -256,7 +256,10 @@ export default function BusinessVerificationScreen() {
               <Field
                 label="NPWP badan usaha"
                 required
-                helperText={`${NPWP_DIGITS_MIN}–${NPWP_DIGITS_MAX} digit; titik & strip diizinkan.`}
+                helperText={translate("{x}–{y} digit; titik & strip diizinkan.", {
+                  x: NPWP_DIGITS_MIN,
+                  y: NPWP_DIGITS_MAX,
+                })}
               >
                 <Input
                   value={npwpNumber}
@@ -317,7 +320,7 @@ export default function BusinessVerificationScreen() {
                   onPick={() => void pickDoc()}
                   accept={["jpg", "png"]}
                   maxSizeMB={MAX_SIZE_MB}
-                  title={`Pilih foto (maks ${MAX_SIZE_MB}MB)`}
+                  title={translate("Pilih foto (maks {x}MB)", { x: MAX_SIZE_MB })}
                   disabled={submitting}
                 />
               ) : null}

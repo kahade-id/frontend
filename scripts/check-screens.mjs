@@ -518,7 +518,9 @@ for (const component of UNUSED_UI_BASELINE) {
  * docs/audit/REFACTOR-PLAN.md.
  */
 const LINE_CEILING = new Map([
-  ["app/user/[username].tsx", 1481],
+  // Batch G (G-01): tiga kalimat campuran nilai runtime dipindah ke translate()
+  // dan dua blok impor dipadatkan -> 1474. Plafon TURUN mengikuti fakta.
+  ["app/user/[username].tsx", 1474],
   ["app/chat/[roomId].tsx", 1194],
   // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
   // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
@@ -526,7 +528,9 @@ const LINE_CEILING = new Map([
   // di layar ini, dan kompensasinya satu baris -> 1104. Plafon TURUN mengikuti
   // aturan "hanya boleh menyusut".
   ["app/order/[id].tsx", 1104],
-  ["app/dispute/[id].tsx", 919],
+  // Batch G (G-01): deskripsi sheet usulan penyelesaian memakai translate() dan
+  // konstanta tipe berkas dipadatkan -> 917. Plafon TURUN mengikuti fakta.
+  ["app/dispute/[id].tsx", 917],
   ["app/showcase/[id].tsx", 916],
 ])
 for (const [file, ceiling] of LINE_CEILING) {

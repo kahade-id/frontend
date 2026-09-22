@@ -56,6 +56,7 @@ import { SecurityLogItem } from "@/components/ui/security-log-item"
 import { SegmentedControl } from "@/components/ui/segmented-control"
 import { useToast } from "@/components/ui/toast"
 import { Text } from "@/components/ui/text"
+import { translate } from "@/lib/i18n/translate"
 
 type TabKey = "devices" | "security" | "activity"
 
@@ -429,7 +430,9 @@ export default function SecurityActivityScreen() {
 
       <Dialog
         title="Cabut sesi ini?"
-        description={`${confirmRevoke?.deviceName ?? "Perangkat"} akan diminta masuk kembali.`}
+        description={translate("{x} akan diminta masuk kembali.", {
+          x: confirmRevoke?.deviceName ?? "Perangkat",
+        })}
         visible={!!confirmRevoke}
         destructive
         loading={revokingId === confirmRevoke?.id}
@@ -442,7 +445,10 @@ export default function SecurityActivityScreen() {
 
       <Dialog
         title="Hapus perangkat ini?"
-        description={`${removeTarget?.deviceName ?? "Perangkat"} akan dilupakan: semua sesinya dicabut dan perangkat ini harus masuk ulang beserta 2FA.`}
+        description={translate(
+          "{x} akan dilupakan: semua sesinya dicabut dan perangkat ini harus masuk ulang beserta {y}.",
+          { x: removeTarget?.deviceName ?? "Perangkat", y: "2FA" },
+        )}
         visible={!!removeTarget}
         destructive
         loading={removingId === removeTarget?.id}
@@ -480,7 +486,10 @@ export default function SecurityActivityScreen() {
 
       <Dialog
         title="Keluar dari semua perangkat lain?"
-        description={`${otherSessions} sesi lain akan dicabut dan harus masuk kembali. Perangkat ini tetap masuk.`}
+        description={translate(
+          "{x} sesi lain akan dicabut dan harus masuk kembali. Perangkat ini tetap masuk.",
+          { x: otherSessions },
+        )}
         visible={confirmOthers}
         destructive
         loading={revokingOthers}

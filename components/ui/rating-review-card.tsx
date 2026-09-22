@@ -45,6 +45,7 @@ import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type RatingPerson = {
   name: string
@@ -126,7 +127,9 @@ export function RatingReviewCard({
   // Ringkasan header saja. Komentar & balasan memakai <ReadMore> yang punya
   // toggle "Selengkapnya", dan balasan punya TextLink Ubah/Hapus — semuanya
   // interaktif, jadi tidak boleh masuk grup `accessible` (audit #4).
-  const a11y = accessibilityLabel ?? summarize([`${reviewer.name} memberi ${stars} dari 5 bintang`])
+  const a11y =
+    accessibilityLabel ??
+    summarize([translate("{x} memberi {y} dari {z} bintang", { x: reviewer.name, y: stars, z: 5 })])
 
   return (
     <Card className={cn("gap-3", className)} {...rest}>
@@ -158,7 +161,7 @@ export function RatingReviewCard({
 
       {orderId ? (
         <Text
-          accessibilityLabel={`${t.orderPrefix} ${orderId}`}
+          accessibilityLabel={[translate(t.orderPrefix), orderId].join(" ")}
           variant="caption"
           tone="secondary"
           numberOfLines={1}

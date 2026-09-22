@@ -359,7 +359,7 @@ export default function ShowcaseScreen() {
         {
           key: "images",
           label: "Kelola foto",
-          description: `${menuItem.images?.length ?? 1} foto — tambah, urutkan, hapus`,
+          description: translate("{x} foto — tambah, urutkan, hapus", { x: menuItem.images?.length ?? 1 }),
           icon: Images,
           onPress: () => {
             setImagesItemId(menuItem.id)
@@ -408,7 +408,12 @@ export default function ShowcaseScreen() {
               title="Portofolio Anda"
               subtitle={
                 items.length
-                  ? `${items.length} item${hiddenCount ? ` · ${hiddenCount} disembunyikan` : ""}`
+                  ? [
+                      translate("{x} item", { x: items.length }),
+                      hiddenCount ? translate("{x} disembunyikan", { x: hiddenCount }) : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
                   : undefined
               }
             />
@@ -459,8 +464,11 @@ export default function ShowcaseScreen() {
         avoidKeyboard
         visible={imagesItem != null}
         onRequestClose={() => setImagesItemId(null)}
-        title={imagesItem ? `Foto: ${labelOf(imagesItem)}` : "Foto item"}
-        description={`${imagesItem?.images?.length ?? 0} dari ${SHOWCASE_MAX_IMAGES} foto. Foto pertama menjadi cover item.`}
+        title={imagesItem ? translate("Foto: {x}", { x: labelOf(imagesItem) }) : "Foto item"}
+        description={translate("{x} dari {y} foto. Foto pertama menjadi cover item.", {
+          x: imagesItem?.images?.length ?? 0,
+          y: SHOWCASE_MAX_IMAGES,
+        })}
         footer={
           <Button
             leftIcon={Plus}

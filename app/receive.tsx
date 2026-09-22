@@ -32,6 +32,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { Avatar } from "@/components/ui/avatar"
+import { translate } from "@/lib/i18n/translate"
 
 /** Scheme deep-link app. */
 const SCHEME = "kahade://transfer?to="
@@ -59,7 +60,7 @@ export default function ReceiveScreen() {
     if (!payload) return
     try {
       await Share.share({
-        message: `Kirim saldo ke @${username} di Kahade: ${payload}`,
+        message: translate("Kirim saldo ke @{x} di Kahade: {y}", { x: username ?? "", y: payload }),
       })
     } catch {
       /* user membatalkan */

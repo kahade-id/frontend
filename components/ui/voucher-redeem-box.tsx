@@ -46,6 +46,8 @@ import { Input } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
+import { summarize } from "@/lib/a11y"
 
 export type AppliedVoucher = {
   code: string
@@ -132,7 +134,12 @@ export function VoucherRedeemBox({
         <Icon icon={Tag} size="sm" tone="active" weight="fill" />
         <View
           accessible
-          accessibilityLabel={`${t.heading} ${applied.code.split("").join(" ")}, ${t.applied}${applied.title ? `, ${applied.title}` : ""}`}
+          accessibilityLabel={summarize([
+            translate(t.heading),
+            applied.code.split("").join(" "),
+            translate(t.applied),
+            applied.title ? translate(applied.title) : undefined,
+          ])}
           className="flex-1 gap-0 tabular-nums"
         >
           <View className="flex-row items-center gap-2">

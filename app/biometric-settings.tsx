@@ -46,6 +46,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 // UX polish: biometric toggle memakai Switch dengan haptic + description caption (audit #029)
 export default function BiometricSettingsScreen() {
@@ -147,8 +148,11 @@ export default function BiometricSettingsScreen() {
             <Switch
               value={biometric}
               onChange={(v) => void handleToggle(v)}
-              label={`Kunci aplikasi dengan ${label}`}
-              description={`Setelah aplikasi di latar belakang lebih dari 1 menit, Kahade meminta ${label} atau PIN dompet untuk dibuka.`}
+              label={translate("Kunci aplikasi dengan {x}", { x: label })}
+              description={translate(
+                "Setelah aplikasi di latar belakang lebih dari satu menit, Kahade meminta {x} atau PIN dompet untuk dibuka.",
+                { x: label },
+              )}
               disabled={loading || toggling || unavailable}
             />
 

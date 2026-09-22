@@ -46,6 +46,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
 import { space } from "@/lib/tokens"
+import { translate } from "@/lib/i18n/translate"
 
 export type ShowcaseItem = {
   id: string
@@ -121,7 +122,13 @@ export function ShowcaseGalleryGrid({
                 >
                   <Picture
                     source={item.source}
-                    alt={showMore ? `${item.alt}, ${formatNumber(overflow)} foto lainnya` : item.alt}
+                    alt={
+                      showMore
+                        ? [item.alt, translate("{x} foto lainnya", { x: formatNumber(overflow) })]
+                            .filter(Boolean)
+                            .join(", ")
+                        : item.alt
+                    }
                     width={cell}
                     height={cell}
                     radius="sm"

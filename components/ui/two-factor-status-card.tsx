@@ -29,6 +29,7 @@ import { Skeleton, SkeletonText } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type TwoFactorMethod = "TOTP" | "SMS" | "EMAIL"
 
@@ -123,14 +124,24 @@ export function TwoFactorStatusCard({
       <CardSummary
         className="gap-4"
         label={summarize([
-          t.title,
-          enabled ? t.enabled : t.disabled,
-          enabledAt && enabled ? `sejak ${enabledAt}` : undefined,
-          enabled && methodLabel ? `${t.method} ${methodLabel}` : undefined,
-          enabled && typeof backupCodesRemaining === "number"
-            ? `${t.backupCodes} ${backupCodesRemaining}${typeof backupCodesTotal === "number" ? ` dari ${backupCodesTotal}` : ""}${lowBackup ? `, ${t.lowBackup}` : ""}`
+          translate(t.title),
+          translate(enabled ? t.enabled : t.disabled),
+          enabledAt && enabled ? translate("sejak {x}", { x: enabledAt }) : undefined,
+          enabled && methodLabel
+            ? translate("{x} {y}", { x: translate(t.method), y: methodLabel })
             : undefined,
-          !enabled ? t.disabledHint : undefined,
+          enabled && typeof backupCodesRemaining === "number"
+            ? [
+                translate("{x} {y}", { x: translate(t.backupCodes), y: backupCodesRemaining }),
+                typeof backupCodesTotal === "number"
+                  ? translate("dari {x}", { x: backupCodesTotal })
+                  : null,
+                lowBackup ? translate(t.lowBackup) : null,
+              ]
+                .filter(Boolean)
+                .join(" ")
+            : undefined,
+          !enabled ? translate(t.disabledHint) : undefined,
         ])}
       >
         <View className="flex-row items-center gap-3">

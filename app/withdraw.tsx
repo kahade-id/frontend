@@ -57,6 +57,7 @@ import { Text } from "@/components/ui/text"
 import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 import { TransactionSummary } from "@/components/ui/transaction-summary"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 const MIN_AMOUNT = AMOUNT_LIMITS.withdraw.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.withdraw.maximum
@@ -567,7 +568,7 @@ export default function WithdrawScreen() {
         processingMessage={
           verifyMode === "otp"
             ? "Mengonfirmasi penarikan…"
-            : `Menarik ${formatRupiah(amount)} ke rekening…`
+            : translate("Menarik {x} ke rekening…", { x: formatRupiah(amount) })
         }
         successMessage="Penarikan berhasil"
         failureMessage={progressError ?? "Penarikan gagal. Coba lagi."}
@@ -593,7 +594,11 @@ export default function WithdrawScreen() {
         description={
           verifyMode === "otp"
             ? "Masukkan kode verifikasi yang dikirim oleh layanan untuk menyelesaikan penarikan."
-            : `Masukkan PIN dompet Anda untuk menarik ${formatRupiah(amount)} ke ${selected?.bankName ?? "rekening Anda"} ${selected ? maskAccountNumber(selected.accountNumber) : ""}.`
+            : translate("Masukkan PIN dompet Anda untuk menarik {x} ke {y} {z}.", {
+                x: formatRupiah(amount),
+                y: selected?.bankName ?? "rekening Anda",
+                z: selected ? maskAccountNumber(selected.accountNumber) : "",
+              })
         }
         avoidKeyboard
       >
@@ -646,7 +651,10 @@ export default function WithdrawScreen() {
       <Dialog
         visible={closeConfirmOpen}
         title="Penarikan masih menunggu OTP"
-        description={`Penarikan ${formatRupiah(amount)} sudah dibuat dan menunggu kode OTP. Bila ditinggalkan, dana tetap tertahan sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas, atau kembali untuk menyelesaikan OTP.`}
+        description={translate(
+          "Penarikan {x} sudah dibuat dan menunggu kode OTP. Bila ditinggalkan, dana tetap tertahan sampai permintaan kedaluwarsa. Batalkan sekarang agar saldo langsung bebas, atau kembali untuk menyelesaikan OTP.",
+          { x: formatRupiah(amount) },
+        )}
         confirmLabel="Batalkan penarikan"
         cancelLabel="Kembali ke OTP"
         destructive

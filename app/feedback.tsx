@@ -36,6 +36,7 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { Platform } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 const MESSAGE_MIN = 10
 const MESSAGE_MAX = 1000
@@ -176,7 +177,11 @@ export default function FeedbackScreen() {
             <Field
               label="Masukan"
               required
-              helperText={`${trimmed.length}/${MESSAGE_MAX} karakter · minimal ${MESSAGE_MIN}`}
+              helperText={translate("{x}/{y} karakter · minimal {z}", {
+                x: trimmed.length,
+                y: MESSAGE_MAX,
+                z: MESSAGE_MIN,
+              })}
             >
               <TextArea
                 value={message}

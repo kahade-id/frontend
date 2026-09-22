@@ -23,6 +23,7 @@ import { KycStatusBadge, type KycStatus } from "@/components/ui/kyc-status-card"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
+import { translate } from "@/lib/i18n/translate"
 
 export type KycDocumentType = "KTP" | "PASSPORT" | "SIM"
 
@@ -63,7 +64,9 @@ export function KycHistoryListItem({
   return (
     <ListItem
       leading={<IconBox icon={IdentificationCard} size="md" variant={boxVariant} />}
-      title={`Pengajuan #${attempt}${docLabel ? ` \u00B7 ${docLabel}` : ""}`}
+      title={[translate("Pengajuan #{x}", { x: attempt }), docLabel ? translate(docLabel) : null]
+        .filter(Boolean)
+        .join(" \u00B7 ")}
       subtitle={
         <View className="gap-0.5">
           <View className="flex-row flex-wrap items-center gap-x-2">
@@ -90,7 +93,12 @@ export function KycHistoryListItem({
       }
       trailing={<KycStatusBadge status={status} />}
       titleLines={1}
-      accessibilityLabel={summarize([`Pengajuan KYC ${attempt}`, docLabel, submittedAt, rejectionReason])}
+      accessibilityLabel={summarize([
+        translate("Pengajuan KYC {x}", { x: attempt }),
+        docLabel,
+        submittedAt,
+        rejectionReason,
+      ])}
       {...rest}
     />
   )

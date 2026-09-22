@@ -57,6 +57,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 const PAGE_SIZE = 20
 const COMMENT_PAGE = 20
@@ -242,7 +243,10 @@ export default function PublicQuestionsScreen() {
     if (!username) return
     const value = askText.trim()
     if (value.length < QUESTION_MIN) {
-      toast.show({ title: `Pertanyaan minimal ${QUESTION_MIN} karakter`, tone: "danger" })
+      toast.show({
+        title: translate("Pertanyaan minimal {x} karakter", { x: QUESTION_MIN }),
+        tone: "danger",
+      })
       return
     }
     setAsking(true)
@@ -398,7 +402,7 @@ export default function PublicQuestionsScreen() {
                       onSubmit={() => void submitComment()}
                       submitting={commentSending}
                       maxLength={COMMENT_MAX}
-                      placeholder={`Tulis komentar untuk @${username}…`}
+                      placeholder={translate("Tulis komentar untuk @{x}…", { x: username })}
                     />
                   </Card>
                 ) : null}
@@ -420,7 +424,7 @@ export default function PublicQuestionsScreen() {
       </PullToRefresh>
 
       <Dialog
-        title={`Bertanya kepada @${username}`}
+        title={translate("Bertanya kepada @{x}", { x: username })}
         description="Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya."
         visible={askOpen}
         loading={asking}

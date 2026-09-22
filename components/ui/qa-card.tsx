@@ -46,6 +46,7 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatDate, formatNumber } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 
 export type QAPerson = {
   name: string
@@ -179,7 +180,7 @@ function UpvoteChip({
     <PressableScale
       accessibilityRole="button"
       accessibilityLabel={active ? "Tarik dukungan" : "Dukung pertanyaan"}
-      accessibilityHint={`Saat ini ${formatNumber(count)} dukungan`}
+      accessibilityHint={translate("Saat ini {x} dukungan", { x: formatNumber(count) })}
       disabled={loading}
       scaleOnPress={false}
       onPress={() => onToggle(!active)}

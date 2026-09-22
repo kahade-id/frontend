@@ -36,6 +36,7 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatNumber } from "@/lib/format"
+import { summarize } from "@/lib/a11y"
 
 export type OrderSummaryItem = {
   /** Kunci filter yang dikirim balik lewat onSelect (mis. "PENDING_PAYMENT") */
@@ -134,7 +135,7 @@ export function OrderSummaryStrip({
             onPress={() => onSelect?.(item.key)}
             accessibilityRole="tab"
             accessibilityState={{ selected, disabled: !interactive }}
-            accessibilityLabel={`${item.label}, ${item.count}`}
+            accessibilityLabel={summarize([translate(item.label), item.count])}
             containerClassName={cn("rounded-md", focusRing)}
             className={cn(
               "h-[84px] w-[132px] justify-between gap-2 rounded-md border p-4",

@@ -56,6 +56,7 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatDate, WIB_TIME_ZONE } from "@/lib/format"
 import { hasOwn } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 export type OrderExtensionStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED"
 
@@ -88,7 +89,7 @@ export type OrderExtensionCardLabels = {
 
 const DEFAULT_LABELS: OrderExtensionCardLabels = {
   fromYou: "Permintaan perpanjangan dari Anda",
-  from: (name) => `Permintaan perpanjangan dari ${name}`,
+  from: (name) => translate("Permintaan perpanjangan dari {x}", { x: name }),
   currentDeadline: "Tenggat saat ini",
   newDeadline: "Tenggat baru",
   extraDays: (n) => `+${n} hari`,

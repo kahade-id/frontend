@@ -20,6 +20,7 @@ import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 export default function BlockedUsersScreen() {
   const toast = useToast()
@@ -36,7 +37,11 @@ export default function BlockedUsersScreen() {
         await api.settings.unblockUser(user.id)
         setData((prev) => (prev ?? []).filter((u) => u.id !== user.id))
         setConfirmTarget(null)
-        toast.show({ title: `@${user.username} dibuka blokirnya`, tone: "success", duration: 3000 })
+        toast.show({
+          title: translate("@{x} dibuka blokirnya", { x: user.username }),
+          tone: "success",
+          duration: 3000,
+        })
       } catch (err) {
         toast.show({ title: "Gagal membuka blokir", description: userMessage(err), tone: "danger" })
       } finally {
@@ -85,7 +90,7 @@ export default function BlockedUsersScreen() {
       </DataScreen>
 
       <Dialog
-        title={confirmTarget ? `Buka blokir @${confirmTarget.username}?` : "Buka blokir?"}
+        title={confirmTarget ? translate("Buka blokir @{x}?", { x: confirmTarget.username }) : "Buka blokir?"}
         description="Pengguna ini akan dapat melihat profil Anda dan memulai percakapan kembali."
         visible={confirmTarget !== null}
         loading={unblockingId !== null}
