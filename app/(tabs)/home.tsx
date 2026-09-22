@@ -80,6 +80,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, type OrderSummary, type UserProfile, type Wallet as WalletData } from "@/lib/api"
+import { queryKeys } from "@/lib/query-keys"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -187,11 +188,11 @@ export default function HomeScreen() {
   // dashboard belum ada di kontrak backend, jadi fan-out ini dipertahankan
   // sampai backend menyediakan response gabungan yang terukur.
   const profile = useApiQuery<UserProfile>(
-    "home-profile",
+    queryKeys.me(),
     (signal) => api.users.getMe(signal),
     !isGuest,
   )
-  const wallet = useApiQuery<WalletData>("home-wallet", (signal) => api.wallet.getWallet(signal), !isGuest, {
+  const wallet = useApiQuery<WalletData>(queryKeys.wallet(), (signal) => api.wallet.getWallet(signal), !isGuest, {
     refreshOnFocus: true,
   })
   const summary = useApiQuery<OrderSummary>(

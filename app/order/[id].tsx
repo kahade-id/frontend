@@ -178,7 +178,7 @@ export default function OrderDetailScreen() {
       ])
       const me = o.myRole
         ? null
-        : await api.users.getMe(signal).catch((err) => {
+        : await api.users.getMeCached(signal).catch((err) => {
             logWarn("order:me-fallback", err)
             return null
           })

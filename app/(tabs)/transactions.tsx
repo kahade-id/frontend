@@ -44,8 +44,9 @@ import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import type { Order } from "@/lib/api/orders"
 import { useHasSession } from "@/lib/guest-gate"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
@@ -144,7 +145,14 @@ export default function TransactionsScreen() {
       ),
     // F-01 (audit): bayar/selesaikan pesanan di layar lain lalu kembali ke
     // tab ini — status basi tidak boleh bertahan tanpa pull-to-refresh manual.
-    { refreshOnFocus: true, enabled: hasSession },
+    // C-08 (audit): pesanan baru bisa masuk saat sesi berjalan; tanpa
+    // pembanding ini baris lama tetap di posisinya walau server sudah
+    // mengurutkan ulang.
+    {
+      refreshOnFocus: true,
+      enabled: hasSession,
+      compare: byTimestampDesc<Order>((order) => order.createdAt),
+    },
   )
   const filtered = status !== ALL_STATUS || Boolean(debounced)
   if (!hasSession) return <GuestLoginPrompt next="/transactions" />

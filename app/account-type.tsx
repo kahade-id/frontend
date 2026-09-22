@@ -18,6 +18,8 @@ import { Briefcase, User } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { userMessage } from "@/lib/api/errors"
 import type { UpdateProfileDto } from "@/lib/api/types"
+import type { UserProfile } from "@/lib/api/users"
+import { queryKeys } from "@/lib/query-keys"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
@@ -55,8 +57,17 @@ const OPTIONS = (Object.keys(OPTION_DETAILS) as AccountType[]).map((value) => ({
 
 export default function AccountTypeScreen() {
   const toast = useToast()
-  const query = useApiQuery<AccountType>("account-type", (signal) =>
-    api.users.getMe(signal).then((me) => (me.accountType as AccountType) ?? "PERSONAL"),
+  /**
+   * C-02 (audit): endpoint ini adalah `GET /v1/users/me` — kuncinya `queryKeys.me()`,
+   * bukan kunci pribadi "account-type". Bentuk yang dibutuhkan layar ini
+   * (satu nilai tipe akun) diproyeksikan lewat `select`, jadi respons baku yang
+   * di-cache tetap SATU bentuk untuk semua layar.
+   */
+  const query = useApiQuery<UserProfile, AccountType>(
+    queryKeys.me(),
+    (signal) => api.users.getMe(signal),
+    true,
+    { select: (me) => (me.accountType as AccountType) ?? "PERSONAL" },
   )
   const serverValue = query.data ?? undefined
   const [picked, setPicked] = useState<AccountType | undefined>(undefined)
@@ -69,7 +80,9 @@ export default function AccountTypeScreen() {
     setSubmitting(true)
     try {
       await api.users.updateProfile({ accountType: value })
-      setData(value)
+      // `setData` menerima nilai BAKU (profil), bukan hasil `select` — jadi
+      // pembaruan optimistis ditulis sebagai patch field, bukan penggantian.
+      setData((previous) => (previous ? { ...previous, accountType: value } : previous))
       setPicked(undefined)
       toast.show({ title: "Tipe akun diperbarui", tone: "success", duration: 3000 })
     } catch (err) {

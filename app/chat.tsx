@@ -45,7 +45,7 @@ import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -86,7 +86,8 @@ export default function ChatScreen() {
     (page, signal) => api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
     // F-01 (audit): kembali dari ruang chat — unread/lastMessage di daftar
     // disegarkan diam-diam tanpa menunggu poll atau pull-to-refresh.
-    { refreshOnFocus: true },
+    // C-08 (audit): percakapan yang baru dibalas harus naik ke atas.
+    { refreshOnFocus: true, compare: byTimestampDesc<ChatRoom>((room) => room.updatedAt) },
   )
   const [archiveOpen, setArchiveOpen] = useState(false)
 

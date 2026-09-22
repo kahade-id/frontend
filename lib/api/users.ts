@@ -27,6 +27,8 @@ import {
 } from "@/lib/api/response"
 
 import { http, seg } from "@/lib/api/client"
+import { fetchViaQueryCache } from "@/lib/query-cache"
+import { queryKeys } from "@/lib/query-keys"
 import type {
   AddCommentDto,
   ConfirmAvatarDto,
@@ -118,6 +120,24 @@ export function getMe(signal?: AbortSignal) {
   return http
     .get<UserProfile>("/v1/users/me", { auth: "required", retry: 1, signal })
     .then(normalizeUserProfile)
+}
+
+/**
+ * `GET /v1/users/me` lewat cache bersama (C-02 audit) — untuk pembacaan
+ * IMPERATIF (di dalam fungsi async/effect), bukan dari hook.
+ *
+ * Kenapa perlu: beberapa layar membutuhkan identitas (id/username/email) di
+ * tengah alur async — layout tab, prefill email, penentuan peran pesanan.
+ * Sebelumnya semuanya memanggil `getMe()` langsung, jadi endpoint yang sama
+ * ditembak berkali-kali dalam hitungan detik, dan hasilnya tidak pernah
+ * terlihat oleh `useApiQuery` yang memakai kunci yang sama. Data identitas
+ * (id, username, email) tidak berubah spontan, jadi jendela cache 5 detik di
+ * sini aman dan menghemat request nyata.
+ *
+ * Hook TETAP memakai `getMe` langsung: ia menulis cache sendiri lewat `load()`.
+ */
+export function getMeCached(signal?: AbortSignal) {
+  return fetchViaQueryCache(queryKeys.me(), (inner) => getMe(inner), signal)
 }
 
 /**

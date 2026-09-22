@@ -152,7 +152,7 @@ export default function ShowcaseDetailScreen() {
   const [reporting, setReporting] = useState(false)
 
   useEffect(() => {
-    void api.users.getMe().then((me) => setMeId(me.id ?? null)).catch(() => setMeId(null))
+    void api.users.getMeCached().then((me) => setMeId(me.id ?? null)).catch(() => setMeId(null))
   }, [])
 
   const fetchComments = useCallback(

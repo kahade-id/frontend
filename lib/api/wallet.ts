@@ -455,13 +455,16 @@ export function getTopupHistory(
   query: { page?: number; limit?: number } = {},
   signal?: AbortSignal,
 ) {
+  // C-05 (audit): `limit` selalu terkirim supaya paginasi tanpa metadata tidak
+  // ditebak dari panjang data.
+  const page = { page: 1, limit: 20, ...query }
   return http
     .get<unknown>("/v1/wallet/topup-history", {
-      query,
+      query: page,
       auth: "required",
       signal,
     })
-    .then((raw) => normalizeWalletPage(raw, query))
+    .then((raw) => normalizeWalletPage(raw, page))
 }
 
 /** GET /v1/wallet/withdraw-history — riwayat penarikan. */
@@ -469,14 +472,16 @@ export function getWithdrawHistory(
   query: { page?: number; limit?: number } = {},
   signal?: AbortSignal,
 ) {
+  // C-05 (audit): `limit` selalu terkirim (lihat getTopupHistory).
+  const page = { page: 1, limit: 20, ...query }
   return http
     .get<unknown>("/v1/wallet/withdraw-history", {
-      query,
+      query: page,
       auth: "required",
       retry: 1,
       signal,
     })
-    .then((raw) => normalizeWalletPage(raw, query))
+    .then((raw) => normalizeWalletPage(raw, page))
 }
 
 /** GET /v1/wallet/export/csv — unduh mutasi CSV. */

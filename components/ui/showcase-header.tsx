@@ -45,6 +45,7 @@ import {
 
 import { api, type Wallet as WalletData, type UserProfile } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
+import { queryKeys } from "@/lib/query-keys"
 import { formatRupiah } from "@/lib/format"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useUnreadCountState } from "@/lib/unread-count"
@@ -94,13 +95,13 @@ export function ShowcaseHeader({
   const unread = useUnreadCountState()
 
   const walletQuery = useApiQuery<WalletData>(
-    "showcase-header-wallet",
+    queryKeys.wallet(),
     (signal) => api.wallet.getWallet(signal),
     true,
     { refreshOnFocus: true },
   )
   const profileQuery = useApiQuery<UserProfile>(
-    "showcase-header-profile",
+    queryKeys.me(),
     (signal) => api.users.getMe(signal),
     true,
     { refreshOnFocus: true },

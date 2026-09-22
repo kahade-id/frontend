@@ -51,6 +51,8 @@ import {
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
 import { useHasSession } from "@/lib/guest-gate"
+import { fetchViaQueryCache } from "@/lib/query-cache"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
 import { shareContent } from "@/lib/share"
@@ -104,6 +106,9 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
    * menjelaskan keadaannya, bukan menampilkan galat.
    */
   const hasSession = useHasSession()
+  // C-08 (audit): sengaja TANPA `compare` — tab ini menampilkan PERINGKAT
+  // rekomendasi dari server, bukan daftar kronologis. Mengurutkan ulang di
+  // klien justru merusak urutan yang dimaksudkan backend.
   const query = usePaginatedQuery<DiscoveredUser>(
     "discover",
     (page, signal) => api.users.discoverUsers({ page, limit: PAGE_LIMIT }, signal),
@@ -267,14 +272,41 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
   const followingSet = useRef<ReadonlySet<string> | null>(null)
 
   /**
+   * Sesi dibaca lewat ref supaya `ensureFollowingSet` tetap stabil: kalau
+   * `hasSession` masuk daftar dependensi, identitas callback berubah saat sesi
+   * dipulihkan di boot (tamu → login) dan `fetchPage` ikut berubah — feed yang
+   * baru saja dimuat akan ditembak ulang tanpa sebab.
+   */
+  const hasSession = useHasSession()
+  const hasSessionRef = useRef(hasSession)
+  hasSessionRef.current = hasSession
+
+  /**
    * Muat daftar akun yang diikuti (maks 4×50 = 200 — cukup untuk feed;
    * follow > 200 tetap terfilter pada 200 teratas halaman). Gagal/tamu →
    * set kosong + flag guest; empty state yang menjelaskan, bukan error.
    */
   const ensureFollowingSet = useCallback(async (signal: AbortSignal) => {
     if (followingSet.current) return followingSet.current
+    /**
+     * B-02 (audit): tamu tidak menembak `GET /v1/users/me` yang pasti 401 —
+     * tiap 401 memicu refresh token dan berpotensi mengakhiri sesi yang
+     * sebenarnya tidak ada. Empty state tamu sudah menangani kasusnya.
+     */
+    if (!hasSessionRef.current) {
+      setFollowingGuest(true)
+      followingSet.current = new Set()
+      return followingSet.current
+    }
     try {
-      const me = await api.users.getMe()
+      /**
+       * C-02 (audit): profil dibaca lewat cache bersama `queryKeys.me()` — kunci
+       * yang sama dipakai <ShowcaseHeader> di layar ini dan lintas layar lain.
+       * Sebelumnya panggilan langsung di sini tidak pernah melihat cache,
+       * sehingga GET /v1/users/me yang sama bisa ditembak berkali-kali dalam
+       * hitungan detik.
+       */
+      const me = await fetchViaQueryCache(queryKeys.me(), (s) => api.users.getMe(s), signal)
       if (!me?.username) throw new Error("guest")
       const set = new Set<string>()
       for (let page = 1; page <= 4; page++) {

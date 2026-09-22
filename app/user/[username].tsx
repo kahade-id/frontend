@@ -327,7 +327,7 @@ export default function UserProfileScreen() {
     try {
       const [res, me] = await Promise.all([
         api.users.getUserByUsername(username),
-        api.users.getMe().catch((err) => {
+        api.users.getMeCached().catch((err) => {
           logWarn("profile:me-fallback", err)
           return null
         }),

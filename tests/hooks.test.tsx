@@ -9,17 +9,24 @@
  * stub @react-navigation/native — fokus dikendalikan via __setFocused).
  */
 import { act, renderHook, waitFor } from "@testing-library/react"
-import { beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ApiError } from "@/lib/api/errors"
 import type { Page } from "@/lib/api/response"
 import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
-import { mergeById, usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, mergeById, usePaginatedQuery } from "@/lib/use-paginated-query"
+import { clearBackpressure, recordBackpressure, backpressureRemainingMs } from "@/lib/api/backpressure"
+import { usePolling } from "@/lib/use-polling"
 import { __setFocused } from "./stubs/react-navigation"
 
 beforeEach(() => {
   invalidateQueryCache()
+  clearBackpressure()
   __setFocused(true)
+})
+
+afterEach(() => {
+  vi.useRealTimers()
 })
 
 function deferred<T>() {
@@ -340,5 +347,196 @@ describe("usePaginatedQuery", () => {
     ]))
     expect(result.current.refreshing).toBe(false)
     expect(result.current.loading).toBe(false)
+  })
+})
+
+// ------------------------------------------------------------------
+// C-08: urutan kronologis setelah merge
+// ------------------------------------------------------------------
+
+describe("C-08: compare mengurutkan ulang hasil merge", () => {
+  type LogRow = { id: string; createdAt: string }
+
+  it("byTimestampDesc menaruh yang terbaru di atas, toleran nilai hilang/rusak", () => {
+    const compare = byTimestampDesc<Partial<LogRow>>((row) => row.createdAt)
+    const rows: Partial<LogRow>[] = [
+      { id: "lama", createdAt: "2026-09-20T10:00:00.000Z" },
+      { id: "rusak", createdAt: "bukan-tanggal" },
+      { id: "baru", createdAt: "2026-09-22T10:00:00.000Z" },
+      { id: "kosong" },
+    ]
+    expect([...rows].sort(compare).map((row) => row.id)).toEqual([
+      "baru",
+      "lama",
+      "rusak", // tidak valid & kosong sama-sama 0 → keduanya di bawah
+      "kosong",
+    ])
+  })
+
+  it("tanpa compare, mergeById mempertahankan urutan unduhan (perilaku lama)", () => {
+    const merged = mergeById(
+      [
+        { id: "a", createdAt: "2026-09-20T10:00:00.000Z" },
+        { id: "b", createdAt: "2026-09-22T10:00:00.000Z" },
+      ],
+      [{ id: "a", createdAt: "2026-09-22T10:00:00.000Z" }],
+    )
+    expect(merged.map((row) => row.id)).toEqual(["a", "b"])
+  })
+
+  it("dengan compare, baris yang naik peringkat benar-benar berpindah ke atas", async () => {
+    // Server memperbarui `updatedAt` baris "a" → ia harus pindah ke atas,
+    // bukan tetap di posisi lama seperti perilaku mergeById default.
+    const rows: Record<number, LogRow[]> = {
+      1: [
+        { id: "a", createdAt: "2026-09-20T10:00:00.000Z" },
+        { id: "b", createdAt: "2026-09-19T10:00:00.000Z" },
+      ],
+      2: [
+        { id: "a", createdAt: "2026-09-22T10:00:00.000Z" },
+        { id: "c", createdAt: "2026-09-21T10:00:00.000Z" },
+      ],
+    }
+    const { result } = renderHook(() =>
+      usePaginatedQuery<LogRow>(
+        "c08-order",
+        async (page) => ({
+          data: rows[page] ?? [],
+          meta: { page, limit: 2, totalPages: 2 },
+        }),
+        { compare: byTimestampDesc<LogRow>((row) => row.createdAt) },
+      ),
+    )
+    await waitFor(() => expect(result.current.data).toHaveLength(2))
+
+    await act(async () => {
+      result.current.loadMore()
+      await Promise.resolve()
+    })
+    await waitFor(() => expect(result.current.data).toHaveLength(3))
+    expect(result.current.data.map((row) => row.id)).toEqual(["a", "c", "b"])
+  })
+
+  it("daftar tanpa kolom waktu (mis. pengikut) tidak diurutkan ulang", async () => {
+    const { result } = renderHook(() =>
+      usePaginatedQuery<{ id: string }>(
+        "c08-no-time",
+        async (page) => ({
+          data: page === 1 ? [{ id: "z" }, { id: "a" }] : [{ id: "m" }],
+          meta: { page, limit: 2, totalPages: 2 },
+        }),
+        // tanpa `compare` — urutan server dihormati apa adanya
+      ),
+    )
+    await waitFor(() => expect(result.current.data).toHaveLength(2))
+    expect(result.current.data.map((row) => row.id)).toEqual(["z", "a"])
+  })
+})
+
+// ------------------------------------------------------------------
+// C-10: load-more dibatalkan saat layar kehilangan fokus
+// ------------------------------------------------------------------
+
+describe("C-10: unfocus membatalkan loadMore", () => {
+  it("load-more yang sedang jalan dibatalkan saat layar tidak fokus", async () => {
+    const gate = deferred<Page<Row>>()
+    let page2Signal: AbortSignal | undefined
+    const { result, rerender } = renderHook(() =>
+      // Catatan: nama parameter TIDAK boleh `page` — helper halaman di atas
+      // juga bernama `page`, dan bayangannya membuat fetcher melempar.
+      usePaginatedQuery<Row>("c10-abort-more", async (p, signal) => {
+        if (p === 1) return page([{ id: "a", v: 1 }], 2, 1)
+        page2Signal = signal
+        return gate.promise
+      }),
+    )
+    await waitFor(() => expect(result.current.data).toHaveLength(1))
+
+    act(() => {
+      result.current.loadMore()
+    })
+    await waitFor(() => expect(result.current.loadingMore).toBe(true))
+
+    __setFocused(false)
+    rerender()
+
+    await waitFor(() => expect(page2Signal?.aborted).toBe(true))
+    expect(result.current.loadingMore).toBe(false)
+
+    // Respons yang telat tidak boleh menyentuh state (tidak nambah baris).
+    gate.resolve(page([{ id: "b", v: 1 }], 2, 2))
+    await act(async () => {
+      await Promise.resolve()
+    })
+    expect(result.current.data.map((row) => row.id)).toEqual(["a"])
+  })
+
+  it("muat-awal TIDAK dibatalkan saat layar tidak fokus (skeleton tidak menggantung)", async () => {
+    const gate = deferred<Page<Row>>()
+    let initialSignal: AbortSignal | undefined
+    const { result, rerender } = renderHook(() =>
+      usePaginatedQuery<Row>("c10-initial-keeps", async (_p, signal) => {
+        initialSignal = signal
+        return gate.promise
+      }),
+    )
+    await waitFor(() => expect(initialSignal).toBeDefined())
+
+    __setFocused(false)
+    rerender()
+
+    expect(initialSignal?.aborted).toBe(false)
+    expect(result.current.loading).toBe(true) // masih benar-benar memuat
+
+    gate.resolve(page([{ id: "a", v: 1 }], 1, 1))
+    await waitFor(() => expect(result.current.data).toHaveLength(1))
+    expect(result.current.loading).toBe(false)
+  })
+})
+
+// ------------------------------------------------------------------
+// C-09: polling menghormati tekanan balik
+// ------------------------------------------------------------------
+
+describe("C-09: usePolling memperlambat saat server menekan", () => {
+  it("tick berikutnya menunggu cooldown, bukan interval tetap", async () => {
+    vi.useFakeTimers()
+    const ticks: number[] = []
+    renderHook(() =>
+      usePolling(async () => {
+        ticks.push(Date.now())
+        // Server membalas 429 berantai → transport mencatat cooldown.
+        recordBackpressure(undefined, Date.now())
+      }, 1_000),
+    )
+
+    // Tick pertama jatuh setelah interval (1 dtk); sesudahnya cooldown 5 detik
+    // menahan tick berikutnya meski interval permintaannya hanya 1 detik.
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(ticks).toHaveLength(1)
+
+    await vi.advanceTimersByTimeAsync(1_500)
+    expect(ticks).toHaveLength(1)
+
+    await vi.advanceTimersByTimeAsync(4_000)
+    expect(ticks).toHaveLength(2)
+  })
+
+  it("kembali ke interval normal begitu server pulih (clearBackpressure)", async () => {
+    vi.useFakeTimers()
+    const ticks: number[] = []
+    renderHook(() =>
+      usePolling(async () => {
+        ticks.push(Date.now())
+      }, 1_000),
+    )
+
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(ticks).toHaveLength(1)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(ticks).toHaveLength(2)
+    await vi.advanceTimersByTimeAsync(1_000)
+    expect(ticks).toHaveLength(3)
+    expect(backpressureRemainingMs()).toBe(0)
   })
 })

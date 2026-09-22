@@ -16,6 +16,7 @@ import type { BankAccount } from "@/lib/api/bank-accounts"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS } from "@/lib/financial"
 import type { WithdrawalSchedule } from "@/lib/api/withdrawals"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { tokens } from "@/lib/tokens"
@@ -54,8 +55,9 @@ export default function WithdrawalSchedulesScreen() {
   const items = query.data ?? []
   const { loading, error, refreshing } = query
 
+  // C-02 (audit): kunci disatukan dengan layar rekening/penarikan.
   const bankAccountsQuery = useApiQuery<BankAccount[]>(
-    "withdrawal-bank-accounts",
+    queryKeys.bankAccounts(),
     async (signal) => (await api.bankAccounts.listBankAccounts(signal)) ?? [],
   )
   const accounts = bankAccountsQuery.data ?? []

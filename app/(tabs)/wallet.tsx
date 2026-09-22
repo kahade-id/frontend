@@ -24,9 +24,10 @@
  *  - Pull-to-refresh me-refresh saldo DAN riwayat bersamaan (`Promise.all`).
  */
 
+import { queryKeys } from "@/lib/query-keys"
 import { useHasSession } from "@/lib/guest-gate"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 import { useCallback } from "react"
@@ -92,13 +93,15 @@ export default function WalletScreen() {
    * Transaksi/Pengguna.
    */
   const hasSession = useHasSession()
-  const balance = useApiQuery("wallet-balance", (signal) => api.wallet.getWallet(signal), hasSession, {
+  const balance = useApiQuery(queryKeys.wallet(), (signal) => api.wallet.getWallet(signal), hasSession, {
     refreshOnFocus: true,
   })
   const history = usePaginatedQuery<WalletTransaction>(
     "wallet-recent",
     (page, signal) => api.wallet.getWalletTransactions({ page, limit: RECENT_LIMIT }, signal),
-    { enabled: hasSession },
+    // C-08 (audit): mutasi terbaru harus naik ke atas walau baris lama sudah
+    // terlanjur ada di daftar (mergeById mempertahankan posisi lama).
+    { enabled: hasSession, compare: byTimestampDesc<WalletTransaction>((tx) => tx.createdAt) },
   )
 
   const wallet = balance.data

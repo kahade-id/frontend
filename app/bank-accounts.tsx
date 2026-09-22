@@ -53,6 +53,12 @@ export default function BankAccountsScreen() {
    *
    * Kedua request tetap satu query (Promise.all) — seperti layar lain —
    * karena daftar rekening dan katalog bank selalu dibutuhkan bersamaan.
+   *
+   * C-02 (audit): karenanya layar ini SENGAJA tidak memakai
+   * `queryKeys.bankAccounts()`. Kunci itu menyimpan `BankAccount[]` (dipakai
+   * penarikan & jadwal penarikan); query di sini menyimpan objek gabungan
+   * `{ accounts, banks }`. Menyatukannya akan saling meracuni bentuk data —
+   * aturan lengkapnya ada di `lib/query-keys.ts`.
    */
   const query = useApiQuery<{ accounts: BankAccount[]; banks: BankOption[] }>(
     "bank-accounts",

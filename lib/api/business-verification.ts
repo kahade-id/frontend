@@ -107,9 +107,17 @@ export function getBusinessVerificationHistory(
   query: { page?: number; limit?: number } = {},
   signal?: AbortSignal,
 ) {
+  // C-05 (audit): `limit` selalu terkirim (default 20 = default spec) supaya
+  // paginasi tanpa metadata tidak ditebak dari panjang data.
+  const page = { page: 1, limit: 20, ...query }
   return http
-    .get<unknown>("/v1/business-verification/history", { query, auth: "required", retry: 1, signal })
-    .then((raw) => readPage<BusinessVerificationHistoryEntry>(raw, query, ["requests", "history"]))
+    .get<unknown>("/v1/business-verification/history", {
+      query: page,
+      auth: "required",
+      retry: 1,
+      signal,
+    })
+    .then((raw) => readPage<BusinessVerificationHistoryEntry>(raw, page, ["requests", "history"]))
 }
 
 /** POST /v1/business-verification/submit — pengajuan pertama. */

@@ -20,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api, userMessage, type TransferDto } from "@/lib/api"
 import { formatRupiah } from "@/lib/format"
 import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
@@ -81,22 +82,29 @@ export default function TransferScreen() {
   // Ambil saldo dompet untuk batas transfer & tampilkan di keypad.
   // A-09 (audit): error TIDAK lagi disamarkan menjadi `{ balance: 0 }` —
   // saldo gagal dimuat ditampilkan apa adanya + retry, karena "Rp0" adalah
-  // angka yang salah di layar uang. Key disatukan dengan withdraw
-  // ("wallet-overview") agar cache F-03 mendedupe GET /v1/wallet lintas layar.
-  const balanceQuery = useApiQuery<{ balance?: number }>(
-    "wallet-overview",
-    async (signal) => {
-      const w = await api.wallet.getWallet(signal)
+  // angka yang salah di layar uang.
+  //
+  // C-02 (audit): kunci kini `queryKeys.wallet()` — kunci yang SAMA dengan
+  // Beranda/Dompet, sehingga GET /v1/wallet benar-benar ter-dedupe dan
+  // invalidasi cache menjangkau semua layar. Proyeksi `{ balance }` dihitung
+  // lewat `select` dari respons baku, jadi bentuk proyeksi tidak pernah masuk
+  // cache dan tidak bisa dibaca layar yang mengharapkan `WalletData` penuh.
+  const balanceQuery = useApiQuery(
+    queryKeys.wallet(),
+    (signal) => api.wallet.getWallet(signal),
+    true,
+    {
+      retry: 1,
       /*
        * A-13 (audit 2026-09-22): `?? 0` mengubah respons sah-tapi-tanpa-field
        * menjadi "Saldo tersedia Rp0" — angka uang yang salah di layar uang.
        * `undefined` berarti tidak diketahui; keypad lalu menampilkan
        * helperText, bukan saldo palsu.
        */
-      return { balance: typeof w.balance === "number" ? w.balance : undefined }
+      select: (w) => ({
+        balance: typeof w.balance === "number" ? w.balance : undefined,
+      }),
     },
-    true,
-    { retry: 1 },
   )
   const balance = balanceQuery.data?.balance
   const balanceError = balanceQuery.error

@@ -24,7 +24,7 @@ import { orderLinkUrl } from "@/lib/deeplinks"
 import { formatDateTimeWIB } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { shareContent } from "@/lib/share"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
@@ -70,6 +70,10 @@ export default function OrderLinksScreen() {
           totalPages: res.meta?.totalPages ?? (data.length < PAGE_SIZE ? page : page + 1),
         },
       }
+    },
+    // C-08 (audit): tautan terbaru di atas.
+    {
+      compare: byTimestampDesc<OrderLink & { id: string }>((link) => link.createdAt),
     },
   )
   const items = query.data

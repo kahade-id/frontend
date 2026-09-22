@@ -1151,4 +1151,44 @@ perilaku) dikunci test, dan `npm run check` tetap hijau.
 | Batch | Commit | Temuan yang diperbaiki |
 |---|---|---|
 | A — uang, waktu, aksesibilitas | `01513fa` | A-01…A-07, A-10, A-11, A-13…A-19, C-01 (pemanggil), E-01…E-03, E-05, E-07, E-08, F-01, F-03…F-05, G-02, G-05, G-06, G-08, H-02, I-04 |
-| B — sesi, auth & tamu web | batch ini | B-01…B-12 |
+| B — sesi, auth & tamu web | `7044f32` | B-01…B-12 |
+| C — kesegaran & paginasi data | batch ini | C-01…C-11 |
+
+## Catatan batch C — kesegaran & paginasi data (C-01…C-11)
+
+Ringkas, supaya perilaku yang dikunci bisa ditelusuri tanpa membaca ulang diff:
+
+- **C-01** — `lib/api/client.ts` membatalkan seluruh cache GET setelah mutasi
+  dompet/order berhasil (`MONEY_MUTATION_PATTERNS`), jadi aturannya tidak lagi
+  bergantung pada ingatan penulis layar. Bukti: `tests/api-client.test.ts`.
+- **C-02** — kunci dipusatkan di `lib/query-keys.ts` (`wallet`, `me`,
+  `bankAccounts`) dan seluruh 12 pemanggil dimigrasikan; layar yang butuh bentuk
+  lain memakai `select`. Pembacaan imperatif lewat `api.users.getMeCached()`
+  sehingga ikut cache yang sama. Query GABUNGAN (beberapa endpoint dalam satu
+  fetcher) sengaja tetap memakai kunci sendiri — alasannya di `lib/query-keys.ts`.
+  Bukti: `tests/query-keys-shared.test.tsx`.
+- **C-03/C-04** — cache dipindah ke `lib/query-cache.ts` (tanpa React) dengan
+  TTL 5 s, eviksi FIFO 200 entri, dan penyegaran latar stale-while-revalidate
+  setelah 2 s. Dua bug ikut ditutup saat verifikasi: penanda `revalidating`
+  bocor bila request latar dibatalkan, dan `select` dipakai untuk proyeksi
+  tanpa meracuni bentuk baku. Bukti: `tests/query-cache.test.ts`.
+- **C-05/C-06/C-07** — `readPage` hanya membaca kunci paginasi yang dikenal dari
+  root, berhenti pada halaman kosong, dan menghitung `totalPages` dari `total`
+  ÷ limit yang DIKIRIM (bukan panjang data); `limit` eksplisit kini terkirim dari
+  adapter (`listOrders`, `getNotifications`, `getBusinessVerificationHistory`,
+  `getTopupHistory`, `getWithdrawHistory`); fallback `readList` dicatat ke
+  telemetri (`api:list-fallback`). Bukti: `tests/response-helpers.test.ts`.
+- **C-08** — `byTimestampDesc` dipakai di seluruh daftar kronologis (11 berkas);
+  dua daftar sengaja tanpa pembanding karena tidak punya kolom waktu (pengikut)
+  atau memang berperingkat dari server (Discover). Bukti: `tests/hooks.test.tsx`.
+- **C-09** — `lib/api/backpressure.ts` mencatat 429/503 dari transport
+  (`Retry-After` dihormati, tumbuh 2×, batas 2 menit) dan `usePolling` memakai
+  sisa cooldown sebagai interval minimum. Bukti: `tests/backpressure.test.ts`,
+  `tests/api-client.test.ts`, `tests/hooks.test.tsx`.
+- **C-10** — `loadMore` dibatalkan saat layar kehilangan fokus. Saat
+  verifikasi, pembatalan berbasis `busy` terbukti akan menggantung skeleton
+  (muat-awal juga menyalakan `busy`) — kini `inFlight` membedakan
+  initial/more. Bukti: `tests/hooks.test.tsx`.
+- **C-11** — logout hanya punya satu jalur (`clearSession()` dari
+  `lib/api/session.ts`) yang menaikkan revisi sesi; entri cache milik revisi
+  lain selalu dibuang saat dibaca. Bukti: `tests/query-cache.test.ts`.

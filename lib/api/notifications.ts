@@ -125,16 +125,18 @@ export function getNotifications(
   } = {},
   signal?: AbortSignal,
 ) {
+  // C-05 (audit): `limit` selalu terkirim (default 20 = default spec).
+  const page = { page: 1, limit: 20, ...query }
   return http
     .get<NotificationListResponse>("/v1/notifications", {
-      query,
+      query: page,
       auth: "required",
       retry: 1,
       signal,
     })
     .then((raw) => {
-      const page = readPage<NotificationPayload>(raw, query, ["notifications"])
-      return { ...page, data: page.data.map(normalizeNotification) }
+      const result = readPage<NotificationPayload>(raw, page, ["notifications"])
+      return { ...result, data: result.data.map(normalizeNotification) }
     })
 }
 

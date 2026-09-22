@@ -27,7 +27,7 @@ import { readQuestionList, type MyQuestionsType, type QuestionItem } from "@/lib
 import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
@@ -99,6 +99,8 @@ export default function QuestionsScreen() {
         },
       }
     },
+    // C-08 (audit): pertanyaan terbaru di atas; jawaban masuk mengubah urutan.
+    { compare: byTimestampDesc<QuestionItem>((question) => question.createdAt) },
   )
   const items = query.data
   const [upvotingId, setUpvotingId] = useState<string | null>(null)

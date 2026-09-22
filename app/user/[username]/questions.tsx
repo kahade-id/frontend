@@ -37,9 +37,11 @@ import {
   type QuestionItem,
 } from "@/lib/api/users"
 import { formatDateTime } from "@/lib/format"
+import type { UserProfile } from "@/lib/api/users"
+import { queryKeys } from "@/lib/query-keys"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -87,10 +89,17 @@ export default function PublicQuestionsScreen() {
    *
    * `meId` dipisah jadi query sendiri karena bukan bagian dari halaman.
    */
-  const meQuery = useApiQuery<{ id?: string }>("questions-me", async (signal) => {
-    const me = await api.users.getMe(signal)
-    return { id: me.id ?? undefined }
-  })
+  /**
+   * C-02 (audit): `GET /v1/users/me` — kunci bersama `queryKeys.me()` dengan
+   * proyeksi `select` (layar ini hanya butuh id untuk menandai pertanyaan milik
+   * sendiri), bukan kunci pribadi "questions-me".
+   */
+  const meQuery = useApiQuery<UserProfile, { id?: string }>(
+    queryKeys.me(),
+    (signal) => api.users.getMe(signal),
+    true,
+    { select: (me) => ({ id: me.id ?? undefined }) },
+  )
   const meId = meQuery.data?.id
 
   /**
@@ -116,6 +125,8 @@ export default function PublicQuestionsScreen() {
         },
       }
     },
+    // C-08 (audit): daftar tanya-jawab kronologis — terbaru di atas.
+    { compare: byTimestampDesc<QuestionItem>((question) => question.createdAt) },
   )
   const items = query.data
   const { loading, error, refreshing, loadingMore, loadMoreError, hasMore } = query

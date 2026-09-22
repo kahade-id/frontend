@@ -58,7 +58,7 @@ import {
 import { api, type WalletTransaction } from "@/lib/api"
 import { formatDate, formatDateLong, formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { WALLET_TXN_FILTERS, walletTransactionType } from "@/lib/wallet-labels"
 import { useWalletExport } from "@/lib/use-wallet-export"
 import { tokens } from "@/lib/tokens"
@@ -224,7 +224,12 @@ export default function WalletHistoryScreen() {
       ),
     // F-01 (audit): top-up/withdraw diselesaikan di layar lain — mutasi baru
     // harus terlihat saat kembali ke riwayat tanpa pull-to-refresh.
-    { refreshOnFocus: true },
+    // C-08 (audit): urutan kronologis harus mengikuti server setelah data
+    // berubah, bukan posisi baris saat pertama dimuat.
+    {
+      refreshOnFocus: true,
+      compare: byTimestampDesc<WalletTransaction>((tx) => tx.createdAt),
+    },
   )
   const items = query.data
   const groups = useMemo(() => groupByDay(items), [items])

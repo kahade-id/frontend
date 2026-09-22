@@ -31,6 +31,7 @@ import { router } from "expo-router"
 
 import { api, type UserProfile, userMessage } from "@/lib/api"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -47,7 +48,7 @@ import { useToast } from "@/components/ui/toast"
 export default function ChangeEmailScreen() {
   const toast = useToast()
 
-  const query = useApiQuery<UserProfile>("change-email-me", (signal) => api.users.getMe(signal))
+  const query = useApiQuery<UserProfile>(queryKeys.me(), (signal) => api.users.getMe(signal))
   const currentEmail = query.data?.email ?? ""
 
   const [email, setEmail] = useState("")

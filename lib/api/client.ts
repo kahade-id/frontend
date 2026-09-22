@@ -17,6 +17,8 @@ import {
 } from "@/lib/api/errors"
 import { asRecord, invalidResponse, unwrapResponse } from "@/lib/api/response"
 import { recordServerDate } from "@/lib/server-time"
+import { recordBackpressure, clearBackpressure } from "@/lib/api/backpressure"
+import { invalidateQueryCache } from "@/lib/query-cache"
 import { logWarn } from "@/lib/telemetry"
 import {
   clearSession,
@@ -354,6 +356,26 @@ export function request<TResponse = unknown, TBody = undefined>(
   return pending
 }
 
+/**
+ * C-01 (audit): jalur mutasi yang mengubah saldo/status escrow.
+ *
+ * Invalidsi cache ditaruh di TRANSPORT, bukan di tiap layar: sebelumnya
+ * `invalidateQueryCache()` tidak pernah dipanggil siapa pun — saldo pasca
+ * transfer/top-up bisa tampil basi selama jendela TTL 5 detik. Layar tetap
+ * boleh memanggilnya lagi (idempoten) untuk mengubah data lewat jalur lain
+ * (mis. rekonsiliasi aksi menggantung), tetapi aturan "mutasi uang membatalkan
+ * cache GET" tidak lagi bergantung pada ingatan penulis layar.
+ *
+ * `/v1/orders/*` mencakup POST/PUT yang tidak mengubah saldo
+ * (`calculate-fee`) — membatalkan cache di sana hanya memicu beberapa GET
+ * tambahan, jauh lebih murah daripada risiko saldo basi.
+ */
+const MONEY_MUTATION_PATTERNS = [/^\/v1\/wallet\/(?:topup|withdraw|transfer)(?:\/|$)/, /^\/v1\/orders(?:\/|$)/]
+
+function invalidatesMoneyCache(path: string): boolean {
+  return MONEY_MUTATION_PATTERNS.some((pattern) => pattern.test(path))
+}
+
 async function performRequest<TResponse, TBody>(
   path: string,
   options: RequestOptions<TBody>,
@@ -448,6 +470,19 @@ async function performRequest<TResponse, TBody>(
     }
     assertSession()
     let reply = await send(token)
+    /**
+     * C-09 (audit): transport adalah satu-satunya tempat yang melihat 429/503
+     * apa pun bentuk callback pemanggilnya — polling yang menelan galatnya
+     * sendiri (`lib/unread-count.ts`, `lib/use-qris-payment.ts`, karena mereka
+     * menampilkan status inline) tidak pernah melihat `retryAfterMs`. Sinyalnya
+     * dicatat di `lib/api/backpressure.ts` supaya `usePolling` melambat, dan
+     * dihapus begitu ada respons sukses.
+     */
+    if (reply.status === 429 || reply.status === 503) {
+      recordBackpressure(reply.error?.retryAfterMs)
+    } else if (reply.status >= 200 && reply.status < 300) {
+      clearBackpressure()
+    }
     assertSession()
     if (reply.status === 401 && auth !== "none") {
       // A concurrent request may already have rotated this exact access token.
@@ -471,6 +506,10 @@ async function performRequest<TResponse, TBody>(
       }
     }
     if (reply.error) throw reply.error
+    // C-01 (audit): mutasi uang/status membatalkan cache GET DI SINI — aturan
+    // ini tidak boleh bergantung pada ingatan penulis layar. `invalidateQueryCache`
+    // idempoten, jadi layar yang memanggilnya lagi tidak masalah.
+    if (method !== "GET" && invalidatesMoneyCache(path)) invalidateQueryCache()
     return reply.value as TResponse
   }
   const retry = method === "GET" ? Math.min(2, Math.max(0, options.retry ?? 0)) : 0

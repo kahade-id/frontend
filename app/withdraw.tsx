@@ -24,6 +24,7 @@ import { Bank as BankIcon } from "phosphor-react-native"
 import { api, isApiError, userMessage, type WithdrawDto } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
@@ -98,7 +99,10 @@ export default function WithdrawScreen() {
     ? resumeAmountCandidate
     : 0
 
-  const accountsQuery = useApiQuery<BankAccount[]>("withdraw-accounts", async (signal) => {
+  // C-02 (audit): kunci disatukan dengan layar rekening/jadwal penarikan —
+  // endpoint dan parameternya identik, jadi tidak perlu tiga salinan daftar
+  // rekening yang berbeda di cache.
+  const accountsQuery = useApiQuery<BankAccount[]>(queryKeys.bankAccounts(), async (signal) => {
     return (await api.bankAccounts.listBankAccounts(signal)) ?? []
   })
   const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data])
@@ -106,16 +110,18 @@ export default function WithdrawScreen() {
 
   // Ambil saldo dompet untuk membantu user pilih nominal.
   // A-09 (audit): kegagalan TIDAK disamarkan menjadi "Rp0" — error tampil +
-  // retry; key "wallet-overview" dibagi dengan transfer/home agar cache F-03
-  // mendedupe GET /v1/wallet.
-  const balanceQuery = useApiQuery<{ balance: number }>(
-    "wallet-overview",
-    async (signal) => {
-      const w = await api.wallet.getWallet(signal)
-      return { balance: w.balance ?? 0 }
-    },
+  // retry.
+  // C-02 (audit): kunci disatukan dengan Beranda/Dompet/Transfer
+  // (`queryKeys.wallet()`) dan proyeksi dihitung lewat `select`, bukan lewat
+  // request terpisah di bawah kunci sendiri.
+  const balanceQuery = useApiQuery(
+    queryKeys.wallet(),
+    (signal) => api.wallet.getWallet(signal),
     true,
-    { retry: 1 },
+    {
+      retry: 1,
+      select: (w) => ({ balance: w.balance ?? 0 }),
+    },
   )
   const balance = balanceQuery.data?.balance
   const balanceError = balanceQuery.error

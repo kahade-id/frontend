@@ -66,8 +66,10 @@ export default function VerifyEmailScreen() {
 
   useEffect(() => {
     if (!email) {
+      // C-02 (audit): prefill email dari cache bersama — layar sebelumnya
+      // (pengaturan/profil) biasanya baru saja membaca profil yang sama.
       void api.users
-        .getMe()
+        .getMeCached()
         .then((me) => {
           if (me.email) setEmail(me.email)
         })

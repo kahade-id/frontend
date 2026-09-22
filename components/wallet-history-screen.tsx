@@ -2,9 +2,10 @@ import { useRouter } from "expo-router"
 import { ArrowCircleDown, ArrowCircleUp } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api } from "@/lib/api"
+import type { WalletTransaction } from "@/lib/api/wallet"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
-import { usePaginatedQuery } from "@/lib/use-paginated-query"
+import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -22,7 +23,11 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
         : api.wallet.getWithdrawHistory({ page, limit: 20 }, signal),
     // F-01 (audit): paritas dengan wallet-history.tsx — riwayat uang basi
     // adalah bug kebenaran; refresh diam saat layar kembali fokus.
-    { refreshOnFocus: true },
+    // C-08 (audit): urutan kronologis mengikuti server.
+    {
+      refreshOnFocus: true,
+      compare: byTimestampDesc<WalletTransaction>((tx) => tx.createdAt),
+    },
   )
   return (
     <Screen edges={["top"]} padded={false}>

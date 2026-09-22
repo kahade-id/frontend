@@ -12,6 +12,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ApiError } from "@/lib/api/errors"
 import { http } from "@/lib/api/client"
+import { backpressureRemainingMs, clearBackpressure } from "@/lib/api/backpressure"
+import { invalidateQueryCache, queryCacheSize, writeQueryCache } from "@/lib/query-cache"
 import {
   clearSession,
   getAccessToken,
@@ -80,6 +82,10 @@ beforeEach(async () => {
   await clearSession()
   await setAccessToken("access-lama")
   await setRefreshToken("refresh-lama")
+  // C-01/C-09: dua store global ini hidup lintas-test — tanpa reset, test
+  // berikutnya bisa lulus karena sisa keadaan test sebelumnya.
+  invalidateQueryCache()
+  clearBackpressure()
 })
 
 afterEach(() => {
@@ -271,5 +277,100 @@ describe("retry & timeout", () => {
     await expect(
       http.get("/v1/wallet/me", { auth: "required", signal: controller.signal }),
     ).rejects.toMatchObject({ code: "ABORTED" })
+  })
+})
+
+// ------------------------------------------------------------------
+// C-01: mutasi uang membatalkan cache GET di transport
+// ------------------------------------------------------------------
+
+describe("C-01: invalidasi cache setelah mutasi", () => {
+  it("mutasi dompet/order membatalkan SELURUH cache GET, apa pun kunci layarnya", async () => {
+    for (const path of ["/v1/wallet/topup", "/v1/wallet/withdraw", "/v1/wallet/transfer", "/v1/orders"]) {
+      installFetch({ refresh: ok({}), others: [ok({ id: "x" })] })
+      writeQueryCache("wallet", { availableBalance: 1 })
+      writeQueryCache("me", { username: "kahade" })
+      expect(queryCacheSize()).toBe(2)
+
+      await http.post(path, {}, { auth: "required" })
+
+      expect(queryCacheSize()).toBe(0)
+    }
+  })
+
+  it("mutasi BUKAN uang tidak mengosongkan cache (biaya request tidak naik tanpa sebab)", async () => {
+    installFetch({ refresh: ok({}), others: [ok({})] })
+    writeQueryCache("wallet", { availableBalance: 1 })
+
+    await http.post("/v1/showcase/abc/like", {}, { auth: "required" })
+
+    expect(queryCacheSize()).toBe(1)
+  })
+
+  it("mutasi yang GAGAL tidak membatalkan cache — tidak ada perubahan data", async () => {
+    installFetch({ refresh: ok({}), others: [jsonResponse(500, {})] })
+    writeQueryCache("wallet", { availableBalance: 1 })
+
+    await expect(http.post("/v1/wallet/transfer", {}, { auth: "required" })).rejects.toMatchObject({
+      code: "SERVER",
+    })
+    expect(queryCacheSize()).toBe(1)
+  })
+
+  it("GET tetap tidak menyentuh cache (hanya mutasi yang membatalkan)", async () => {
+    installFetch({ refresh: ok({}), others: [ok({ availableBalance: 5 })] })
+    writeQueryCache("wallet", { availableBalance: 1 })
+
+    await http.get("/v1/wallet", { auth: "required" })
+
+    expect(queryCacheSize()).toBe(1)
+  })
+})
+
+// ------------------------------------------------------------------
+// C-09: tekanan balik 429/503 tercatat dari transport
+// ------------------------------------------------------------------
+
+describe("C-09: tekanan balik 429/503", () => {
+  it("429 dengan Retry-After → cooldown sepanjang instruksi server", async () => {
+    installFetch({
+      refresh: ok({}),
+      others: [jsonResponse(429, { success: false, code: "RATE_LIMITED" }, { "Retry-After": "30" })],
+    })
+
+    await expect(http.get("/v1/orders/o-1/payment-status", { auth: "required" })).rejects.toBeTruthy()
+
+    // 30 detik — bukan interval tetap, dan bukan angka lain.
+    expect(backpressureRemainingMs()).toBeGreaterThan(29_000)
+    expect(backpressureRemainingMs()).toBeLessThanOrEqual(30_000)
+  })
+
+  it("503 tanpa Retry-After tetap memicu cooldown dasar", async () => {
+    installFetch({ refresh: ok({}), others: [jsonResponse(503, {})] })
+
+    await expect(http.get("/v1/orders/o-1/payment-status", { auth: "required" })).rejects.toBeTruthy()
+
+    expect(backpressureRemainingMs()).toBeGreaterThan(4_000)
+  })
+
+  it("respons sukses berikutnya menghapus cooldown", async () => {
+    installFetch({
+      refresh: ok({}),
+      others: [jsonResponse(429, {}, { "Retry-After": "60" }), ok({ status: "PAID" })],
+    })
+
+    await expect(http.get("/v1/orders/o-1/payment-status", { auth: "required" })).rejects.toBeTruthy()
+    expect(backpressureRemainingMs()).toBeGreaterThan(0)
+
+    await http.get("/v1/orders/o-1/payment-status", { auth: "required" })
+    expect(backpressureRemainingMs()).toBe(0)
+  })
+
+  it("kegagalan non-throttle (500) tidak membebani cooldown", async () => {
+    installFetch({ refresh: ok({}), others: [jsonResponse(500, {})] })
+
+    await expect(http.get("/v1/orders/o-1/payment-status", { auth: "required" })).rejects.toBeTruthy()
+
+    expect(backpressureRemainingMs()).toBe(0)
   })
 })

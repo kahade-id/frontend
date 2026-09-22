@@ -131,7 +131,9 @@ export default function ExtensionScreen() {
   const resolveRole = useCallback(async (o: Order, signal?: AbortSignal): Promise<Role> => {
     if (o.myRole === "SELLER" || o.myRole === "BUYER") return o.myRole
     try {
-      const me = await api.users.getMe(signal)
+      // C-02 (audit): cache bersama `queryKeys.me()` — peran pesanan
+      // diselesaikan dari identitas yang sama dengan layar lain.
+      const me = await api.users.getMeCached(signal)
       if (me?.id && me.id === o.seller?.id) return "SELLER"
       if (me?.id && me.id === o.buyer?.id) return "BUYER"
     } catch {
