@@ -25,6 +25,7 @@ import { useMemo, useState } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Alert } from "@/components/ui/alert"
+import type { ReportReasonOption } from "@/lib/labels/report"
 import { Button } from "@/components/ui/button"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Text } from "@/components/ui/text"
@@ -32,29 +33,16 @@ import { TextArea } from "@/components/ui/text-area"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { cn } from "@/lib/cn"
 
-export type ReportReason =
-  | "SCAM"
-  | "HARASSMENT"
-  | "FAKE_ACCOUNT"
-  | "INAPPROPRIATE_CONTENT"
-  | "SPAM"
-  | "OTHER"
-
-export type ReportReasonOption = {
-  value: ReportReason | string
-  label: string
-  description?: string
-}
-
-export const REPORT_REASONS: readonly ReportReasonOption[] = [
-  { value: "SCAM", label: "Penipuan", description: "Meminta pembayaran di luar escrow atau tidak mengirim barang" },
-  { value: "HARASSMENT", label: "Pelecehan", description: "Kata-kata kasar, ancaman, atau intimidasi" },
-  { value: "FAKE_ACCOUNT", label: "Akun palsu", description: "Mengaku sebagai orang atau bisnis lain" },
-  { value: "INAPPROPRIATE_CONTENT", label: "Konten tidak pantas", description: "Gambar atau teks yang melanggar aturan" },
-  { value: "SPAM", label: "Spam", description: "Pesan berulang atau promosi tidak diminta" },
-  { value: "OTHER", label: "Lainnya", description: "Jelaskan di kolom detail" },
-]
-
+/**
+ * I-06 (audit 2026-09-22): daftar alasan TIDAK lagi didefinisikan di sini.
+ *
+ * Sebelumnya komponen ini punya `ReportReason`/`REPORT_REASONS` sendiri di
+ * samping `USER_REPORT_REASONS`/`CONTENT_REPORT_REASONS` di
+ * `lib/labels/report.ts` — dua taksonomi dengan enum berbeda untuk alur yang
+ * sama, dan layar mana pun yang lupa mengirim `reasons` diam-diam memakai set
+ * yang salah (kategori terkirim mentah ke endpoint enum → 400 di produksi).
+ * Sekarang daftarnya WAJIB dikirim pemanggil dari satu sumber itu.
+ */
 export type ReportFormValue = {
   reason: string
   detail: string
@@ -63,7 +51,7 @@ export type ReportFormValue = {
 export type ReportFormProps = Omit<ViewProps, "children"> & {
   /** Mis. "@budisantoso" atau "pesanan ORD-2026-0912" */
   targetName?: string
-  reasons?: readonly ReportReasonOption[]
+  reasons: readonly ReportReasonOption[]
   value?: ReportFormValue
   onChange?: (next: ReportFormValue) => void
   /** Bila ada -> tombol submit dirender di bawah form */
@@ -96,7 +84,7 @@ const OTHER_MIN = 20
 
 export function ReportForm({
   targetName,
-  reasons = REPORT_REASONS,
+  reasons,
   value,
   onChange,
   onSubmit,

@@ -413,6 +413,23 @@ for (const rule of rules) {
       )
   }
   rule.remaining = offenders.filter((f) => baseline.has(f)).length
+  /*
+   * I-10 (audit 2026-09-22): baseline membuat S1/S3 "beku" — jumlah sisanya
+   * dilaporkan tiap run tetapi tidak ada yang memaksa angka itu turun. Sekarang
+   * panjang baseline = plafon: setiap layar yang berhasil dikonversi harus
+   * dihapus dari daftarnya (pesan "baseline basi" menuntut itu), dan menambah
+   * anggota baru menjadi pelanggaran, bukan keputusan sunyi.
+   */
+  rule.ceiling = rule.ceiling ?? baseline.size
+  if (baseline.size > rule.ceiling) {
+    failures.push(
+      `${rule.id} baseline ${baseline.size} entri melewati plafon ${rule.ceiling} — konversi layarnya, jangan menambah pengecualian`,
+    )
+  } else if (baseline.size < rule.ceiling) {
+    staleBaselines.push(
+      `${rule.id} baseline turun ke ${baseline.size} (< plafon ${rule.ceiling}); turunkan \`ceiling\` di definisi aturan`,
+    )
+  }
 }
 
 // ------------------------------------------------------------------
@@ -499,6 +516,24 @@ for (const component of unusedUi) {
   if (!UNUSED_UI_BASELINE.has(component))
     failures.push(`S5 ${component} — komponen UI tidak pernah diimpor di mana pun`)
 }
+/*
+ * I-01 (audit 2026-09-22): gate S5 hanya menolak PENAMBAHAN komponen tak
+ * terpakai — jumlahnya bisa berhenti di 29 selamanya tanpa ada yang menyadari
+ * baseline itu "beku". Plafon di bawah adalah ratchet: ia hanya boleh TURUN,
+ * dan setiap penurunan harus dibayar dengan memakai (atau menghapus) satu
+ * komponen. Pesan "baseline basi" akan meminta angkanya diturunkan begitu
+ * komponennya terpakai.
+ */
+const UNUSED_UI_CEILING = 29
+if (unusedUi.length > UNUSED_UI_CEILING) {
+  failures.push(
+    `S5 ${unusedUi.length} komponen UI tanpa pemakaian melewati plafon ${UNUSED_UI_CEILING} — pakai atau hapus komponennya, jangan menambah baseline`,
+  )
+} else if (unusedUi.length < UNUSED_UI_CEILING) {
+  staleBaselines.push(
+    `S5 sisa ${unusedUi.length} komponen (< plafon ${UNUSED_UI_CEILING}); turunkan UNUSED_UI_CEILING di scripts/check-screens.mjs`,
+  )
+}
 for (const component of UNUSED_UI_BASELINE) {
   if (!unusedUi.includes(component))
     staleBaselines.push(
@@ -538,6 +573,23 @@ const LINE_CEILING = new Map([
   // SEKARANG, jadi ia hanya boleh menyusut (ekstrak mesin gesturnya saat
   // disentuh berikutnya).
   ["components/ui/pull-to-refresh.tsx", 885],
+  /*
+   * I-09 (audit 2026-09-22): daftar lama hanya mengunci lima layar yang sudah
+   * besar, jadi berkas baru boleh tumbuh ke 800+ baris tanpa satu pun gate
+   * berbunyi. Sekarang anggotanya = SEMUA berkas sumber > 700 baris pada saat
+   * audit (ukuran sekarang, jadi hanya boleh menyusut). Layar-layar 700–900
+   * baris ikut masuk supaya "god component" tidak berpindah tempat.
+   */
+  ["app/create-transaction.tsx", 810],
+  ["app/edit-profile.tsx", 765],
+  ["app/transfer.tsx", 734],
+  ["app/subscriptions.tsx", 726],
+  ["app/(tabs)/discover.tsx", 716],
+  ["lib/api/orders.ts", 890],
+  ["lib/api/users.ts", 1150],
+  ["lib/api/constraints.ts", 1157],
+  ["lib/api/types.ts", 1559],
+  ["lib/tokens.ts", 1027],
 ])
 for (const [file, ceiling] of LINE_CEILING) {
   const entry = allSources.find((f) => f.path === file)
