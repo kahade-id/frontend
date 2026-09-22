@@ -1152,7 +1152,7 @@ perilaku) dikunci test, dan `npm run check` tetap hijau.
 |---|---|---|
 | A — uang, waktu, aksesibilitas | `01513fa` | A-01…A-07, A-10, A-11, A-13…A-19, C-01 (pemanggil), E-01…E-03, E-05, E-07, E-08, F-01, F-03…F-05, G-02, G-05, G-06, G-08, H-02, I-04 |
 | B — sesi, auth & tamu web | `7044f32` | B-01…B-12 |
-| C — kesegaran & paginasi data | batch ini | C-01…C-11 |
+| C — kesegaran & paginasi data | `f24f086` | C-01…C-11 |
 
 ## Catatan batch C — kesegaran & paginasi data (C-01…C-11)
 
