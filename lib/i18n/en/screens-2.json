@@ -11,7 +11,6 @@
   "Belum ada template": "No templates yet",
   "Belum ada tiket": "No tickets yet",
   "Belum ada usulan penyelesaian.": "No proposed resolution yet.",
-  "Belum ada voucher": "No vouchers yet",
   "Belum ada voucher aktif": "No active vouchers",
   "Bergabung Sejak": "Member since",
   "Beri Ulasan": "Leave a review",
@@ -144,5 +143,18 @@
   "Gagal mencari penerima": "Couldn't search for recipients",
   "Gagal menerima tautan": "Couldn't accept the link",
   "Gagal mengajukan perpanjangan": "Couldn't request an extension",
-  "Gagal menghapus balasan": "Couldn't delete the reply"
+  "Gagal menghapus balasan": "Couldn't delete the reply",
+  "Kode promo": "Promo code",
+  "Punya kode dari promo atau kampanye? Periksa di sini.": "Got a code from a promo or campaign? Check it here.",
+  "Kode berlaku. Potongan diterapkan saat transaksi dibuat.": "The code is valid. The discount is applied when the transaction is created.",
+  "Pakai di transaksi baru": "Use in a new transaction",
+  "Voucher aktif": "Active vouchers",
+  "Voucher terpakai": "Used vouchers",
+  "Voucher yang sudah Anda pakai akan tercatat di sini.": "Vouchers you have used will be listed here.",
+  "kali dipakai": "times used",
+  "Saring hasil pencarian": "Filter search results",
+  "Saran pencarian": "Search suggestions",
+  "Atur ulang pencarian": "Reset search",
+  "Pengguna": "Users",
+  "Mutasi": "Transactions"
 }
