@@ -19,11 +19,11 @@
    "n": 10
   },
   {
-   "s": "Lainnya",
-   "n": 10
+   "s": "Kata sandi akun",
+   "n": 9
   },
   {
-   "s": "Kata sandi akun",
+   "s": "Lainnya",
    "n": 9
   },
   {
@@ -91,10 +91,6 @@
    "n": 5
   },
   {
-   "s": "Spam",
-   "n": 5
-  },
-  {
    "s": "Aktif",
    "n": 4
   },
@@ -136,6 +132,10 @@
   },
   {
    "s": "Metode pembayaran",
+   "n": 4
+  },
+  {
+   "s": "Spam",
    "n": 4
   },
   {
@@ -259,10 +259,6 @@
    "n": 3
   },
   {
-   "s": "Jelaskan di kolom detail",
-   "n": 3
-  },
-  {
    "s": "Jenis",
    "n": 3
   },
@@ -292,10 +288,6 @@
   },
   {
    "s": "Komentar dihapus",
-   "n": 3
-  },
-  {
-   "s": "Konten tidak pantas",
    "n": 3
   },
   {
@@ -340,10 +332,6 @@
   },
   {
    "s": "Pengikut",
-   "n": 3
-  },
-  {
-   "s": "Penipuan",
    "n": 3
   },
   {
@@ -468,10 +456,6 @@
   },
   {
    "s": "Aktifkan di pengaturan perangkat.",
-   "n": 2
-  },
-  {
-   "s": "Akun palsu",
    "n": 2
   },
   {
@@ -711,10 +695,6 @@
    "n": 2
   },
   {
-   "s": "Gambar atau teks yang melanggar aturan",
-   "n": 2
-  },
-  {
    "s": "Ganti Email",
    "n": 2
   },
@@ -755,15 +735,15 @@
    "n": 2
   },
   {
+   "s": "Jelaskan di kolom detail",
+   "n": 2
+  },
+  {
    "s": "Jenis kelamin",
    "n": 2
   },
   {
    "s": "Kahade",
-   "n": 2
-  },
-  {
-   "s": "Kata-kata kasar, ancaman, atau intimidasi",
    "n": 2
   },
   {
@@ -839,6 +819,10 @@
    "n": 2
   },
   {
+   "s": "Konten tidak pantas",
+   "n": 2
+  },
+  {
    "s": "Laporan & Analitik",
    "n": 2
   },
@@ -891,15 +875,7 @@
    "n": 2
   },
   {
-   "s": "Meminta pembayaran di luar escrow atau tidak mengirim barang",
-   "n": 2
-  },
-  {
    "s": "Memuat",
-   "n": 2
-  },
-  {
-   "s": "Mengaku sebagai orang atau bisnis lain",
    "n": 2
   },
   {
@@ -979,10 +955,6 @@
    "n": 2
   },
   {
-   "s": "Pelecehan",
-   "n": 2
-  },
-  {
    "s": "Pembayaran",
    "n": 2
   },
@@ -1008,6 +980,10 @@
   },
   {
    "s": "Pengguna Diblokir",
+   "n": 2
+  },
+  {
+   "s": "Penipuan",
    "n": 2
   },
   {
@@ -1052,10 +1028,6 @@
   },
   {
    "s": "Perundungan",
-   "n": 2
-  },
-  {
-   "s": "Pesan berulang atau promosi tidak diminta",
    "n": 2
   },
   {
@@ -1540,6 +1512,10 @@
   },
   {
    "s": "Akun bisnis menampilkan profil usaha Anda di marketplace, termasuk produk dan riwayat penjualan.",
+   "n": 1
+  },
+  {
+   "s": "Akun palsu",
    "n": 1
   },
   {
@@ -3227,6 +3203,10 @@
    "n": 1
   },
   {
+   "s": "Gambar atau teks yang melanggar aturan",
+   "n": 1
+  },
+  {
    "s": "Gambar gagal dimuat",
    "n": 1
   },
@@ -3808,6 +3788,10 @@
   },
   {
    "s": "Kata sandi saat ini",
+   "n": 1
+  },
+  {
+   "s": "Kata-kata kasar, ancaman, atau intimidasi",
    "n": 1
   },
   {
@@ -4667,6 +4651,10 @@
    "n": 1
   },
   {
+   "s": "Meminta pembayaran di luar escrow atau tidak mengirim barang",
+   "n": 1
+  },
+  {
    "s": "Memproses langganan {x}…",
    "n": 1
   },
@@ -4844,6 +4832,10 @@
   },
   {
    "s": "Menerima panggilan",
+   "n": 1
+  },
+  {
+   "s": "Mengaku sebagai orang atau bisnis lain",
    "n": 1
   },
   {
@@ -5331,6 +5323,10 @@
    "n": 1
   },
   {
+   "s": "Pelecehan",
+   "n": 1
+  },
+  {
    "s": "Pemantauan otomatis dihentikan",
    "n": 1
   },
@@ -5740,6 +5736,10 @@
   },
   {
    "s": "Pesan belum termuat di thread",
+   "n": 1
+  },
+  {
+   "s": "Pesan berulang atau promosi tidak diminta",
    "n": 1
   },
   {

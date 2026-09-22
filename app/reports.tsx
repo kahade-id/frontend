@@ -15,7 +15,11 @@ import { Flag } from "phosphor-react-native"
 import { api, userMessage } from "@/lib/api"
 import type { ReportsSettings } from "@/lib/api/settings"
 import { formatDateTime } from "@/lib/format"
-import { REPORT_CATEGORY_LABELS, REPORT_REASON_TO_CATEGORY } from "@/lib/labels/report"
+import {
+  REPORT_CATEGORY_LABELS,
+  REPORT_REASON_TO_CATEGORY,
+  USER_REPORT_REASONS,
+} from "@/lib/labels/report"
 import { REPORT_STATUS_LABELS, REPORT_STATUS_TONE } from "@/lib/labels/status"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -138,6 +142,9 @@ export default function ReportsScreen() {
             />
             <ReportForm
               targetName={targetName ? `@${targetName}` : undefined}
+              // I-06: alasan dari SATU sumber (lib/labels/report) — komponen
+              // tidak lagi punya daftar cadangan yang berbeda tipe.
+              reasons={USER_REPORT_REASONS}
               value={value}
               onChange={setValue}
               onSubmit={(v) => void handleSubmit(v)}
