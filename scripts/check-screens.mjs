@@ -505,7 +505,7 @@ for (const component of UNUSED_UI_BASELINE) {
 const LINE_CEILING = new Map([
   ["app/user/[username].tsx", 1481],
   ["app/chat/[roomId].tsx", 1194],
-  ["app/order/[id].tsx", 1146],
+  ["app/order/[id].tsx", 1136],
   ["app/dispute/[id].tsx", 919],
   ["app/showcase/[id].tsx", 916],
 ])

@@ -52,7 +52,37 @@ export default tseslint.config(
     },
     plugins: { "react-hooks": reactHooks },
     rules: {
-      ...reactHooks.configs["flat/recommended"].rules,
+      /*
+       * Ditulis EKSPLISIT, bukan `...reactHooks.configs["flat/recommended"].rules`.
+       *
+       * Bentuk spread itu diam-diam TIDAK mengaktifkan apa pun: sejak
+       * eslint-plugin-react-hooks v6, `configs["flat/recommended"]` adalah
+       * ARRAY objek config, sehingga `.rules` di dalamnya `undefined` dan
+       * spread `undefined` adalah no-op. Akibatnya `rules-of-hooks` mati di
+       * seluruh repo sementara `npm run lint` tetap hijau — dan itulah yang
+       * meloloskan bug produksi nyata: `app/order/[id].tsx` memanggil
+       * `useUiPrefs()` + `useCallback()` SETELAH tiga early return, sehingga
+       * render "order sudah tiba" memakai lebih banyak hook daripada render
+       * "masih memuat". React melempar "Rendered more hooks than during the
+       * previous render" dan layar jatuh ke ErrorBoundary tepat saat data
+       * berhasil dimuat. Linter yang seharusnya menangkap ini tidak pernah
+       * berjalan. Jangan kembalikan ke bentuk spread tanpa memeriksa bahwa
+       * `reactHooks.configs[...]` adalah objek, bukan array.
+       */
+      "react-hooks/rules-of-hooks": "error",
+      /*
+       * `exhaustive-deps` sengaja OFF, bukan "warn".
+       *
+       * Mengaktifkannya sekarang mencetak 132 warning warisan di seluruh repo
+       * (sebelumnya aturan ini tidak pernah benar-benar berjalan karena bug
+       * spread di atas). Lautan warning itu menenggelamkan satu-satunya sinyal
+       * yang penting di gate ini — error `rules-of-hooks`, kelas bug yang
+       * menjatuhkan seluruh layar ke ErrorBoundary. Bakar dulu backlog-nya per
+       * berkas, baru naikkan ke "warn" (pola ratchet yang sama dipakai
+       * `check:i18n` dan `check:screens`). `scripts/**` sudah lebih dulu
+       * mematikannya dengan alasan yang sama.
+       */
+      "react-hooks/exhaustive-deps": "off",
       // Kontrak repo: banyak helper sengaja memakai parameter `signal` yang
       // mungkin tak terpakai di implementasi tertentu — tsc menutup sisanya.
       "@typescript-eslint/no-unused-vars": [

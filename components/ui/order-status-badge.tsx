@@ -22,15 +22,16 @@
  *   EXPIRED          neutral  link/tagihan lewat batas waktu
  *
  * Keputusan non-obvious:
- *   - Schema OpenAPI mobile TIDAK mengekspor enum status order (hanya alur
- *     endpoint). Union `OrderStatus` di sini adalah kontrak sisi klien; status
- *     asing dari server jatuh ke tone "neutral" + label apa adanya (tidak
- *     crash, tidak menebak warna) — dan `console.warn` di dev.
- *   - "Menunggu tindakan SAYA" (PENDING_PAYMENT untuk pembeli, DELIVERED
- *     untuk pembeli, PAID untuk penjual) ditandai `warning`, bukan `info`:
- *     warning = "ada yang harus Anda lakukan", info = "sedang berjalan di
- *     pihak lain". Karena peran (pembeli/penjual) mengubah siapa yang harus
- *     bertindak, `role` opsional menggeser PAID -> warning bila penjual.
+ *   - Schema OpenAPI mobile TIDAK mengekspor enum status order; enum-nya ada
+ *     di `/v1/admin/orders` (docs/api/openapi.json) dan itulah yang dipakai:
+ *     WAITING_CONFIRMATION → WAITING_PAYMENT → PROCESSING → IN_DELIVERY →
+ *     COMPLETED, cabang DISPUTED/CANCELLED. Status asing tetap jatuh ke tone
+ *     "neutral" + label apa adanya (tidak crash, tidak menebak warna) dan
+ *     `console.warn` di dev.
+ *   - "Menunggu tindakan SAYA" ditandai `warning`, bukan `info`: warning =
+ *     "ada yang harus Anda lakukan", info = "sedang berjalan di pihak lain".
+ *     Karena peran mengubah siapa yang harus bertindak, `role` opsional
+ *     menggeser tone lewat peta `ROLE_ACTS_ON`.
  *   - Badge `dot` default ON: dalam daftar padat titik warna membantu scan
  *     tanpa membaca teks; di header detail (`size="md"`) dot dimatikan
  *     karena Badge sudah berdiri sendiri.
@@ -46,41 +47,56 @@ export type { OrderStatus } from "@/lib/api/orders"
 
 export type OrderRole = "buyer" | "seller"
 
+/**
+ * Enum backend lebih dulu, urut alur hidup order; alias lama di belakang.
+ * Urutan ini juga yang dibaca `Object.entries` di layar filter, jadi status
+ * yang paling sering dicari pengguna muncul paling awal.
+ */
 export const ORDER_STATUSES: readonly OrderStatus[] = [
-  "PENDING_PAYMENT",
-  "PAID",
+  "WAITING_CONFIRMATION",
+  "WAITING_PAYMENT",
   "PROCESSING",
-  "SHIPPED",
-  "DELIVERED",
+  "IN_DELIVERY",
   "COMPLETED",
   "DISPUTED",
   "CANCELLED",
+  // Alias lama (lihat catatan di OrderStatus, lib/api/orders.ts).
+  "PENDING_PAYMENT",
+  "PAID",
+  "SHIPPED",
+  "DELIVERED",
   "REFUNDED",
   "EXPIRED",
 ]
 
 export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
-  PENDING_PAYMENT: "Menunggu pembayaran",
-  PAID: "Dana di escrow",
+  WAITING_CONFIRMATION: "Menunggu konfirmasi",
+  WAITING_PAYMENT: "Menunggu pembayaran",
   PROCESSING: "Diproses penjual",
-  SHIPPED: "Dalam pengiriman",
-  DELIVERED: "Menunggu konfirmasi",
+  IN_DELIVERY: "Dalam pengiriman",
   COMPLETED: "Selesai",
   DISPUTED: "Sengketa",
   CANCELLED: "Dibatalkan",
+  PENDING_PAYMENT: "Menunggu pembayaran",
+  PAID: "Dana di escrow",
+  SHIPPED: "Dalam pengiriman",
+  DELIVERED: "Menunggu konfirmasi",
   REFUNDED: "Dana dikembalikan",
   EXPIRED: "Kedaluwarsa",
 }
 
 const BASE_TONE: Record<OrderStatus, BadgeTone> = {
-  PENDING_PAYMENT: "warning",
-  PAID: "info",
+  WAITING_CONFIRMATION: "warning",
+  WAITING_PAYMENT: "warning",
   PROCESSING: "info",
-  SHIPPED: "info",
-  DELIVERED: "warning",
+  IN_DELIVERY: "info",
   COMPLETED: "success",
   DISPUTED: "danger",
   CANCELLED: "neutral",
+  PENDING_PAYMENT: "warning",
+  PAID: "info",
+  SHIPPED: "info",
+  DELIVERED: "warning",
   REFUNDED: "neutral",
   EXPIRED: "neutral",
 }
@@ -90,19 +106,34 @@ export function isOrderStatus(s: string): s is OrderStatus {
 }
 
 /**
- * Tone untuk status + peran. Penjual yang melihat PAID harus bertindak
- * (memproses) -> warning; pembeli melihat PAID hanya menunggu -> info.
- * Pembeli melihat DELIVERED harus konfirmasi -> warning; penjual menunggu -> info.
+ * Status yang menuntut tindakan peran ini → `warning` ("ada yang harus ANDA
+ * lakukan"). Sisanya `info` ("sedang berjalan di pihak lain").
+ *
+ * Ditulis sebagai peta peran, bukan rantai `if` per status: versi lama hanya
+ * mengenal tiga kombinasi (PAID/DELIVERED/PROCESSING) sehingga status backend
+ * yang sebenarnya — WAITING_CONFIRMATION, WAITING_PAYMENT, IN_DELIVERY — selalu
+ * jatuh ke tone dasar dan badge "menunggu pembayaran" milik pembeli tidak
+ * pernah terlihat mendesak.
+ */
+const ROLE_ACTS_ON: Record<OrderRole, ReadonlySet<string>> = {
+  buyer: new Set(["WAITING_PAYMENT", "IN_DELIVERY", "PENDING_PAYMENT", "DELIVERED"]),
+  seller: new Set(["WAITING_CONFIRMATION", "PROCESSING", "PAID"]),
+}
+
+/**
+ * Tone untuk status + peran. Status final (sukses/sengketa/netral) TIDAK
+ * pernah bergeser karena peran — pergeseran hanya berlaku pada status yang
+ * masih berjalan, di mana "siapa yang harus bertindak" memang bergantung peran.
  */
 export function orderStatusTone(status: string, role?: OrderRole): BadgeTone {
   if (!isOrderStatus(status)) {
     if (__DEV__) console.warn(`[kahade/order-status] status tidak dikenal: "${status}"`)
     return "neutral"
   }
-  if (role === "seller" && status === "PAID") return "warning"
-  if (role === "seller" && status === "DELIVERED") return "info"
-  if (role === "buyer" && status === "PROCESSING") return "info"
-  return BASE_TONE[status]
+  const base = BASE_TONE[status]
+  if (base === "success" || base === "danger" || base === "neutral") return base
+  if (role && ROLE_ACTS_ON[role].has(status)) return "warning"
+  return role ? "info" : base
 }
 
 /** Status yang masih hidup (belum final) — untuk filter "Aktif" & pulse */

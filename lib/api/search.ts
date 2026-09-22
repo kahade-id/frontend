@@ -2,7 +2,7 @@
  * Kahade — domain `search` (pencarian global + saran).
  */
 
-import { readEntity, invalidResponse, readList } from "@/lib/api/response"
+import { asRecord, readEntity, invalidResponse, readList } from "@/lib/api/response"
 
 import { http } from "@/lib/api/client"
 import { normalizeOrder, type Order } from "@/lib/api/orders"
@@ -73,13 +73,63 @@ export function getSearchSuggestions(
   signal?: AbortSignal,
 ) {
   return http
-    .get<string[]>("/v1/search/suggestions", {
+    .get<unknown>("/v1/search/suggestions", {
       query: { limit: 20, ...query },
       auth: "required",
       retry: 1,
       signal,
     })
-    .then((raw) => readList<string>(raw, ["suggestions"]))
+    .then((raw) => readSuggestionList(readList<unknown>(raw, ["suggestions"])))
+}
+
+/**
+ * Paksa tiap item saran menjadi string biasa.
+ *
+ * BUG NYATA (bukan hardening spekulatif): versi lama memakai
+ * `readList<string>()` yang hanya MENG-CAST — tidak ada pemeriksaan runtime.
+ * Bila backend mengirim objek (`[{ "query": "bpjs" }]`, bentuk yang sama
+ * dipakai endpoint riwayat di berkas ini) alih-alih string polos, objek itu
+ * lolos sampai ke `<Chip key={s}>{s}</Chip>` di layar Pencarian. React lalu
+ * melempar "Objects are not valid as a React child" dan SELURUH layar jatuh
+ * ke ErrorBoundary ("Halaman tidak dapat ditampilkan") begitu saran pertama
+ * tiba — persis setelah pengguna menekan Enter.
+ *
+ * `stringList()` di `lib/api/response.ts` diciptakan untuk kelas bug ini
+ * (kasus `BackupCodes`), tetapi hanya menerima string polos; di sini bentuk
+ * objek ikut dinormalkan seperti `getSearchHistory()` sudah lakukan, supaya
+ * saran tetap tampil alih-alih dibuang diam-diam.
+ */
+export function readSuggestionList(rows: readonly unknown[]): string[] {
+  const out: string[] = []
+  for (const row of rows) {
+    if (typeof row === "string") {
+      const text = row.trim()
+      if (text) out.push(text)
+      continue
+    }
+    const record = asRecord(row)
+    if (!record) continue
+    const text = [
+      record.query,
+      record.suggestion,
+      record.text,
+      record.value,
+      record.keyword,
+      record.title,
+    ].find((candidate): candidate is string => typeof candidate === "string" && !!candidate.trim())
+    if (text) out.push(text.trim())
+  }
+  // Dedupe case-insensitive: backend bisa mengirim "BPJS" dan "bpjs"
+  // berdampingan, dan chip ganda untuk kata yang sama hanya menambah
+  // kebisingan. Kemunculan PERTAMA yang dipertahankan — urutan saran dari
+  // backend adalah peringkat relevansi, jadi entri belakangan tidak boleh
+  // menimpanya (Map.set naif justru menyimpan nilai terakhir).
+  const unique = new Map<string, string>()
+  for (const text of out) {
+    const key = text.toLowerCase()
+    if (!unique.has(key)) unique.set(key, text)
+  }
+  return [...unique.values()]
 }
 
 // ------------------------------------------------------------------

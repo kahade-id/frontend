@@ -60,14 +60,18 @@ function EscrowCard() {
       accessibilityLabel={summarize([
         `Contoh transaksi ${SAMPLE_ORDER_ID}`,
         "Rp2.500.000",
-        "Dana di escrow",
+        "Diproses penjual",
         "Pembeli andi.p, Penjual toko.rani",
       ])}
     >
       <VStack gap={4}>
         <View className="flex-row items-center justify-between gap-3">
           <MonoText tone="secondary">{SAMPLE_ORDER_ID}</MonoText>
-          <OrderStatusBadge status="PAID" />
+          {/* Status contoh memakai enum backend yang asli (PROCESSING = dana
+              sudah di escrow, penjual sedang bekerja) — menampilkan alias lama
+              "PAID" di slide pengenalan berarti mengenalkan kosakata yang
+              tidak akan pernah ditemui pengguna di aplikasi. */}
+          <OrderStatusBadge status="PROCESSING" />
         </View>
         <VStack gap={1}>
           {/* v2: baris "ditahan" = momen trust pertama yang dilihat calon user

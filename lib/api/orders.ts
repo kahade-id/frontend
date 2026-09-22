@@ -88,14 +88,29 @@ export type PageQuery = { page: number; limit: number }
  * sini, komponen badge mengimpor ulang (re-export) tipe ini.
  */
 export type OrderStatus =
-  | "PENDING_PAYMENT"
-  | "PAID"
+  // ── Enum backend (otoritatif) ────────────────────────────────────────────
+  // Sumber: parameter `status` pada `/v1/admin/orders` di docs/api/openapi.json
+  // — satu-satunya tempat spec mengekspor enum ini; spec mobile hanya menulis
+  // "string". Dikonfirmasi pengguna: status nyata mencakup "menunggu
+  // konfirmasi" dan "menunggu pembayaran", bukan hanya selesai/dibatalkan.
+  | "WAITING_CONFIRMATION"
+  | "WAITING_PAYMENT"
   | "PROCESSING"
-  | "SHIPPED"
-  | "DELIVERED"
+  | "IN_DELIVERY"
   | "COMPLETED"
   | "DISPUTED"
   | "CANCELLED"
+  // ── Alias lama ───────────────────────────────────────────────────────────
+  // Union versi sebelumnya ditebak dari nama endpoint (create → pay → process
+  // → shipping → delivery-proof) dan TIDAK cocok dengan enum backend, jadi
+  // setiap gerbang aksi di layar detail order selalu evaluates false dan
+  // tombol Bayar/Kirim/Konfirmasi tidak pernah muncul. Nilai lama dipertahankan
+  // HANYA sebagai toleransi tampilan (label + tone tetap ada) supaya data lama
+  // di cache tidak tampil sebagai enum mentah; jangan dipakai untuk logika baru.
+  | "PENDING_PAYMENT"
+  | "PAID"
+  | "SHIPPED"
+  | "DELIVERED"
   | "REFUNDED"
   | "EXPIRED"
   | (string & {}) // toleransi nilai baru dari backend tanpa runtime error
@@ -111,30 +126,50 @@ export type OrderStatus =
  * tanpa aksi. Satu status baru dari backend hanya boleh diputuskan di sini.
  */
 
-/** Sengketa hanya masuk akal setelah dana benar-benar masuk escrow. */
+/**
+ * Sengketa hanya masuk akal setelah dana benar-benar masuk escrow — yaitu
+ * sejak pembeli membayar (PROCESSING) sampai barang dinyatakan tiba
+ * (IN_DELIVERY). WAITING_PAYMENT sengaja di luar: dananya belum ada, jadi
+ * yang benar adalah membatalkan, bukan menyengketakan.
+ */
 export function isDisputable(status: OrderStatus): boolean {
-  return ["PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(status)
+  return ["PROCESSING", "IN_DELIVERY", "PAID", "SHIPPED", "DELIVERED"].includes(status)
 }
 
 /** Perpanjangan tenggat hanya selama pekerjaan berjalan (belum diterima pembeli). */
 export function isExtendable(status: OrderStatus): boolean {
-  return ["PAID", "PROCESSING", "SHIPPED"].includes(status)
+  return ["PROCESSING", "IN_DELIVERY", "PAID", "SHIPPED"].includes(status)
 }
 
 /**
  * Pembatalan masih terbuka selama order belum selesai DAN belum disengketakan
  * (order DISPUTED diselesaikan lewat alur sengketa, bukan tombol batal).
+ * WAITING_CONFIRMATION ikut: order yang belum diterima penjual adalah kasus
+ * pembatalan paling umum.
  */
 export function isCancellable(status: OrderStatus): boolean {
-  return ["PENDING_PAYMENT", "PAID", "PROCESSING", "SHIPPED", "DELIVERED"].includes(status)
+  return [
+    "WAITING_CONFIRMATION",
+    "WAITING_PAYMENT",
+    "PROCESSING",
+    "IN_DELIVERY",
+    "PENDING_PAYMENT",
+    "PAID",
+    "SHIPPED",
+    "DELIVERED",
+  ].includes(status)
 }
 
 /** Transisi "jalur bahagia" berikutnya — dipakai untuk estimasi durasi timeline. */
 export function nextOrderStatus(status: OrderStatus): OrderStatus | undefined {
   return {
+    WAITING_CONFIRMATION: "WAITING_PAYMENT",
+    WAITING_PAYMENT: "PROCESSING",
+    PROCESSING: "IN_DELIVERY",
+    IN_DELIVERY: "COMPLETED",
+    // Rantai alias lama (lihat catatan di OrderStatus).
     PENDING_PAYMENT: "PAID",
     PAID: "PROCESSING",
-    PROCESSING: "SHIPPED",
     SHIPPED: "DELIVERED",
     DELIVERED: "COMPLETED",
   }[status as string] as OrderStatus | undefined
@@ -154,8 +189,32 @@ export type Paginated<T> = {
  * yang sedang berjalan — layar filter "Aktif" WAJIB mengirim `ACTIVE`,
  * bukan salah satu status spesifik.
  */
+/**
+ * Status yang BOLEH dipakai sebagai filter `GET /v1/orders?status=` — hanya
+ * enum backend, tanpa alias lama.
+ *
+ * Dipisah dari `ORDER_STATUSES` (yang ikut memuat alias lama demi toleransi
+ * TAMPILAN) karena menurunkan chip filter dari peta label adalah persis
+ * kesalahan yang membuat filter riwayat dompet mengirim nilai tak sah dan
+ * ditolak 400 oleh backend. Urutannya = alur hidup order, jadi chip tersusun
+ * seperti cerita transaksinya, bukan abjad.
+ */
+export const ORDER_STATUS_FILTERS = [
+  "WAITING_CONFIRMATION",
+  "WAITING_PAYMENT",
+  "PROCESSING",
+  "IN_DELIVERY",
+  "COMPLETED",
+  "DISPUTED",
+  "CANCELLED",
+] as const satisfies readonly OrderStatus[]
+
 export type OrderStatusFilter =
   | "ACTIVE"
+  | "WAITING_CONFIRMATION"
+  | "WAITING_PAYMENT"
+  | "PROCESSING"
+  | "IN_DELIVERY"
   | "COMPLETED"
   | "CANCELLED"
   | "DISPUTED"
