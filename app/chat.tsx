@@ -271,6 +271,10 @@ export default function ChatScreen() {
         />
       ) : (
         <Header
+          // Chat = slot navbar (bukan push dari layar lain): tidak ada Back.
+          // Satu-satunya keluar adalah slot navbar di bawah — pola yang sama
+          // dengan tab Transaksi/Dompet.
+          showBack={false}
           title={archiveOpen ? "Diarsipkan" : "Chat"}
           right={
             <IconButton

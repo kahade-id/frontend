@@ -17,7 +17,7 @@
  */
 
 import { memo, useCallback } from "react"
-import { BookmarkSimple, ChatCircle, Export, Flag, Heart, HeartStraight } from "phosphor-react-native"
+import { BookmarkSimple, ChatCircle, Export, Flag } from "phosphor-react-native"
 import { router } from "expo-router"
 import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
@@ -33,6 +33,7 @@ import { Avatar } from "@/components/ui/avatar"
 import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
+import { LikeAction } from "@/components/ui/like-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -128,7 +129,6 @@ function ShowcaseFeedItemBase({
   const priceLabel = showcasePriceLabelOrFallback(item)
 
   const liked = item.isLiked === true
-  const likeCountLabel = `${formatCountCompact(item.likeCount)} Suka`
   const commentCountLabel = `${formatCountCompact(item.commentCount)} Komentar`
   const summary = translate("Showcase {x}, {y}, oleh {z}", {
     x: item.title,
@@ -147,15 +147,9 @@ function ShowcaseFeedItemBase({
   }, [item.category])
 
   const likeRow = (
-    <CountAction
-      icon={liked ? Heart : HeartStraight}
-      iconWeight={liked ? "fill" : "regular"}
-      count={item.likeCount}
-      label="Suka"
-      accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
-      accessibilityHint={likeCountLabel}
-      onPress={onToggleLike}
-    />
+    // Revisi 2026-09-23: suka = MERAH + motion pop/ring (<LikeAction>) —
+    // menggantikan CountAction generik yang dulu dipakai di sini.
+    <LikeAction liked={liked} count={item.likeCount} label="Suka" onPress={onToggleLike} />
   )
 
   const commentRow = (

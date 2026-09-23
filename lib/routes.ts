@@ -76,13 +76,14 @@ export const ROUTES = {
   resetPassword: (email: string) =>
     ({ pathname: "/reset-password", params: { email } }) as unknown as Href,
 
-  // ── Kerangka navigasi: 5 tab root di app/(tabs)/ ─────────────────────
-  // Tab Beranda memakai file `home.tsx` (URL `/home`), BUKAN `index.tsx`:
-  // `app/index.tsx` sudah menjadi gate awal `/` dan dua route dengan path
-  // sama akan bertabrakan di Expo Router.
-  /** Tab #1 — Beranda (sapaan, saldo, order aktif, quick action) */
-  home: "/home" as Href,
-  /** Tab #2 — Transaksi (list order + filter status) */
+  // ── Kerangka navigasi: tab root di app/(tabs)/ ────────────────────────
+  // Beranda DIHAPUS (2026-09-23): tab pertama app kini Etalase. `ROUTES.home`
+  // pun menunjuk ke sana supaya semua penerimaan setelah login, fallback Back,
+  // dan gate `/` mendarat di Etalase — bukan ke rute yang sudah tidak ada.
+  // URL lama `/home` tetap hidup lewat redirect `app/home.tsx` → `/showcase`.
+  /** Tujuan awal app — tab Etalase (mantan tab Beranda) */
+  home: "/showcase" as Href,
+  /** Tab Transaksi (list order + filter status) */
   transactions: "/transactions" as Href,
   /** Tab #3 — Dompet (saldo, Topup/Withdraw/Transfer, riwayat ringkas) */
   wallet: "/wallet" as Href,
@@ -378,9 +379,12 @@ export const ROUTES = {
 /**
  * Nama route (= nama file) di `app/(tabs)/`. Dipakai `Tabs.Screen name=…`
  * dan peta item tab bar; disatukan di sini agar rename file cukup satu tempat.
+ *
+ * "home" DIHAPUS (2026-09-23): layar Beranda tidak ada lagi — tab pertama
+ * kini Etalase (`showcase`) dan URL `/home` diarahkan ke sana lewat
+ * redirect `app/home.tsx`.
  */
 export const TAB_ROUTE_NAMES = [
-  "home",
   "transactions",
   "wallet",
   "showcase",

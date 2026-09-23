@@ -35,7 +35,7 @@ export default function TabsLayout() {
 
   return (
     <Tabs
-      initialRouteName="home"
+      initialRouteName="showcase"
       screenOptions={{
         headerShown: false,
       }}

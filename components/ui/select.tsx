@@ -192,14 +192,16 @@ export function SelectOptionList<V extends string = string>({
   return (
     <View accessibilityRole="radiogroup" className={cn("w-full", className)} {...rest}>
       {header}
-      {/* Garis BUKA di atas opsi pertama DAN di bawah tiap opsi: baris teratas
-          & terbawah ikut terbingkai seperti baris tengah (v2 2026-09,
-          separasi konsisten di semua BottomSheet). */}
+      {/* Revisi 2026-09-23 (paritas ActionSheet): pemisah antar opsi DIHAPUS.
+          Tersisa dua divider — di bawah title (bingkai atas grup) dan di atas
+          opsi paling bawah (permintaan produk: list sheet tanpa garis
+          berulang). */}
       {options.length > 0 ? <Divider /> : null}
-      {options.map((opt) => {
+      {options.map((opt, index) => {
         const selected = opt.value === value
         return (
           <View key={opt.value}>
+            {index === options.length - 1 && options.length > 1 ? <Divider /> : null}
             <PressableScale
               accessibilityRole="radio"
               accessibilityState={{ checked: selected, disabled: !!opt.disabled }}
@@ -222,7 +224,6 @@ export function SelectOptionList<V extends string = string>({
               </View>
               {selected ? <Icon icon={Check} size="sm" weight="bold" tone="active" /> : null}
             </PressableScale>
-            <Divider />
           </View>
         )
       })}

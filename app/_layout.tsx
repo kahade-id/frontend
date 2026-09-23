@@ -392,9 +392,9 @@ function AppShell() {
         <GlobalNotices />
 
         {/*
-          Ajakan pasang aplikasi untuk pengunjung web seluler kini berupa
-          kartu mengalir di Beranda (<SmartAppInstallCard>, di bawah kartu
-          saldo), bukan banner fixed yang menutupi Header.
+          Ajakan pasang aplikasi untuk pengunjung web seluler dulu berupa kartu
+          mengalir (<SmartAppInstallCard>) di Beranda — Beranda dihapus, jadi
+          kartu itu ikut ditarik; pintu pasang kini hanya metadata PWA.
         */}
 
         {/*

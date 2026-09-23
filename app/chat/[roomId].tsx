@@ -38,7 +38,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   FlatList,
-  Platform,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -1123,7 +1122,8 @@ export default function ChatRoomScreen() {
         initialNumToRender={12}
         maxToRenderPerBatch={8}
         windowSize={9}
-        removeClippedSubviews={Platform.OS === "android"}
+      // removeClippedSubviews DIHAPUS (2026-09-23): sumber klasik baris/layar
+      // blank saat scroll di Android — view terpotong tak selalu direstorasi.
       />
 
       <MediaViewer

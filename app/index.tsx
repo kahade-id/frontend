@@ -2,13 +2,14 @@
  * Kahade — gate rute awal (`/`).
  *
  * Memutuskan ke mana user diarahkan saat app dibuka:
- *   - WEB: selalu ke Beranda. Pengunjung boleh menelusuri aplikasi tanpa
- *     login (guest mode); layar yang butuh akun menampilkan ajakan login
- *     (<LoginRequiredScreen>, digerakkan dari root layout). Splash/onboarding
- *     seperti aplikasi native juga tidak dipakai di web.
- *   - NATIVE, masih punya access token → /home (sesi lanjut; bila token
- *     kedaluwarsa, client akan refresh atau memancarkan `sessionExpired`
- *     yang di root layout mengarahkan ke /login)
+ *   - WEB: selalu ke tab pertama (Etalase — Beranda dihapus). Pengunjung boleh
+ *     menelusuri aplikasi tanpa login (guest mode); layar yang butuh akun
+ *     menampilkan ajakan login (<LoginRequiredScreen>, digerakkan dari root
+ *     layout). Splash/onboarding seperti aplikasi native juga tidak dipakai
+ *     di web.
+ *   - NATIVE, masih punya access token → ROUTES.home (= /showcase, sesi
+ *     lanjut; bila token kedaluwarsa, client akan refresh atau memancarkan
+ *     `sessionExpired` yang di root layout mengarahkan ke /login)
  *   - NATIVE, belum pernah melihat intro → /onboarding
  *   - NATIVE, sudah → /login
  *

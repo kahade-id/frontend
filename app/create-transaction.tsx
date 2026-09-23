@@ -537,11 +537,11 @@ export default function CreateTransactionScreen() {
             saat langkah pindah, jadi FadeIn ikut remount dan reveal terulang
             otomatis — tanpa key tambahan. */}
         <FadeIn duration="fast">
-        {/* Kepala langkah ala Register: H1 + penjelasan, progres di header */}
+        {/* Kepala langkah ala Register: H1 + penjelasan, progres di header.
+            Teks "Langkah X dari Y — judul" DIHAPUS (2026-09-23): progres
+            langkah sudah terwakili <StepProgress> di header — dua penanda
+            untuk satu fakta adalah kebisingan. */}
         <View className="gap-2 pb-2 pt-6">
-          <Text variant="caption" tone="secondary">
-            Langkah {step + 1} dari {STEPS.length} — {meta.title}
-          </Text>
           <Heading level={1}>{meta.heading}</Heading>
           <Text variant="body" tone="secondary">
             {meta.description}

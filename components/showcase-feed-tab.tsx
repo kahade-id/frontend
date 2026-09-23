@@ -114,9 +114,11 @@ export type ShowcaseFeedTabProps = {
 export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: ShowcaseFeedTabProps) {
   const params = useLocalSearchParams<{ kind?: string; search?: string }>()
   const kind: ShowcaseFeedKind = params.kind === "following" || params.kind === "latest" || params.kind === "popular" ? params.kind : "forYou"
+  // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
+  // cari kini layar /search. Param `search` tetap dibaca agar URL lama
+  // `/showcase?search=…` (deep link/bookmark) masih terfilter dengan benar.
   const search = typeof params.search === "string" ? params.search.slice(0, 100) : ""
   const setKind = (next: ShowcaseFeedKind) => router.setParams({ kind: next })
-  const setSearch = (next: string) => router.setParams({ search: next || undefined })
   const debouncedSearch = useDebouncedValue(search.trim(), 400)
   const collapsing = useCollapsingHeader()
 
@@ -481,7 +483,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
 
   return (
     <View className="flex-1">
-      {/* ── Header showcase — improved: logo + balance + inbox + profile ── */}
+      {/* ── Header showcase — pensil kelola · logo · notifikasi + tab feed ── */}
       <Animated.View
         style={[
           collapsing.containerStyle,
@@ -489,13 +491,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         ]}
       >
         <Animated.View style={collapsing.contentStyle} onLayout={collapsing.onHeaderLayout}>
-          <ShowcaseHeader
-            search={search}
-            onSearchChange={setSearch}
-            kind={kind}
-            onKindChange={setKind}
-            tabs={FEED_TABS}
-          />
+          <ShowcaseHeader kind={kind} onKindChange={setKind} tabs={FEED_TABS} />
         </Animated.View>
       </Animated.View>
 

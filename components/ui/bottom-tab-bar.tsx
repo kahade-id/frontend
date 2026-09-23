@@ -55,7 +55,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import {
   CardsThree,
-  House,
   Lightning,
   Plus,
   ShoppingBag,
@@ -117,12 +116,9 @@ export type AppTabBarItem = Omit<BottomTabItem<TabRouteName>, "key"> & {
  * peta terhadap registri rute di compile-time).
  */
 export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
-  home: {
-    label: "Beranda",
-    icon: House,
-    accessibilityLabel: "Tab Beranda",
-    route: "/home" as Href,
-  },
+  // "home" DIHAPUS (2026-09-23): layar Beranda sudah tidak ada — tab pertama
+  // kini Etalase (entri `showcase` di bawah), dan URL /home di-redirect ke
+  // sana (app/home.tsx).
   transactions: {
     label: "Transaksi",
     icon: ShoppingBag,
@@ -160,7 +156,7 @@ void TAB_ROUTE_NAMES
  * Rute tab yang TIDAK ditampilkan di bottom bar (permintaan produk
  * 2026-09-21). Peta di atas sengaja tetap lengkap — ia sumber kebenaran
  * label/ikon/rute, dan `showcase` masih dipakai untuk menavigasi ke
- * halamannya (menu cepat Beranda) walau tidak lagi jadi tab.
+ * halamannya walau tidak lagi jadi tab.
  *
  * Kenapa dikeluarkan: lima tab + tombol (+) di tengah meninggalkan ±64dp per
  * tab di layar 360dp — label 12px terpotong dan target sentuh mepet. Empat
