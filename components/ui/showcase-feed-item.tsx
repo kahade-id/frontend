@@ -7,23 +7,32 @@
  *    ditampilkan "Harga lewat diskusi".
  *  - B-02: pager multi-slide hanya me-render <Picture> untuk slide aktif ±1
  *    (slide lain jadi placeholder seukuran) — tidak ada lagi 8 gambar
- *    ter-mount per kartu.
- *  - B-03: prop `href` mati DIHAPUS (dulu diterima lalu dibuang).
+ *    ter-mount per kartu (implementasi di <ShowcaseMediaGallery>).
+ *  - B-03: prop `href` mati DIHAPUS (dulu diterima lalu dibuang); badge
+ *    kategori kini SAUDARA pressable ringkaran (bukan button-in-button).
  *  - B-04: `onLayout` diketik `LayoutChangeEvent`, bukan `any`.
  *  - B-05: bendera lapor disembunyikan untuk item milik sendiri (feed
  *    sejajar dengan halaman detail).
+ *  - B-10: cap waktu relatif (`formatRelativeTime`) khas feed sosial.
  *  - A-12: badge kategori bisa ditekan → feed terfilter kategori itu
  *    (param `category` pada rute tab /showcase).
+ *  - H-04: tap penulis untuk tamu → loginRequired(next=profil).
+ *  - M-03: istilah "showcase" untuk user diganti "karya".
+ *
+ * Memo: komponen ini `memo` — kartu di feed tab membaca state sosialnya
+ * sendiri (FeedCard/EtalaseCard) dan meneruskan HANYA prop yang stabil,
+ * sehingga satu tap ♥ tidak me-render ulang seluruh sel (audit A-08).
  */
 
 import { memo, useCallback } from "react"
 import { BookmarkSimple, ChatCircle, Export, Flag } from "phosphor-react-native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
-import { formatCountCompact, formatDateTime } from "@/lib/format"
+import { formatCountCompact, formatRelativeTime } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
+import { useHasSession } from "@/lib/guest-gate"
 import { showcaseImages } from "@/lib/showcase-social"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { ROUTES } from "@/lib/routes"
@@ -125,12 +134,19 @@ function ShowcaseFeedItemBase({
   divider = false,
   className,
 }: ShowcaseFeedItemProps) {
+  // L-01: tab feed aktif dari param rute (hook harus di body render).
+  const { kind } = useLocalSearchParams<{ kind?: string }>()
+  // H-04: gate tap penulis untuk tamu (profil = layar terproteksi).
+  const hasSession = useHasSession()
   const gallery = showcaseImages(item)
   const priceLabel = showcasePriceLabelOrFallback(item)
 
   const liked = item.isLiked === true
-  const commentCountLabel = `${formatCountCompact(item.commentCount)} Komentar`
-  const summary = translate("Showcase {x}, {y}, oleh {z}", {
+  // B-05 (audit 2026-09-23): hint dirakit lewat `translate` + token —
+  // template literal mentah tidak bisa diterjemahkan ("12 Komentar" di EN).
+  const commentCountLabel = translate("{x} Komentar", { x: formatCountCompact(item.commentCount) })
+  // M-03 (audit 2026-09-23): istilah "showcase" diganti "karya" untuk user.
+  const summary = translate("Karya {x}, {y}, oleh {z}", {
     x: item.title,
     y: priceLabel,
     z: item.author.fullName ?? item.author.username,
@@ -143,8 +159,9 @@ function ShowcaseFeedItemBase({
 
   /** A-12: kategori sebagai filter feed — tab /showcase menerima param kategori. */
   const handleCategoryPress = useCallback(() => {
-    if (item.category) router.push(ROUTES.showcaseWithCategory(item.category))
-  }, [item.category])
+    // L-01 (audit 2026-09-23): teruskan tab feed aktif — dulu selalu forYou.
+    if (item.category) router.push(ROUTES.showcaseWithCategory(item.category, kind))
+  }, [item.category, kind])
 
   const likeRow = (
     // Revisi 2026-09-23: suka = MERAH + motion pop/ring (<LikeAction>) —
@@ -165,13 +182,22 @@ function ShowcaseFeedItemBase({
 
   return (
     <View className={cn("w-full", className)}>
-      {/* ── Penulis + laporkan ── */}
+      {/* ── Penulis + laporkan ──
+          H-04 (audit 2026-09-23): profil induk `user/[username]` terproteksi —
+          tamu diarahkan ke loginRequired dengan `next` profil, jadi tidak
+          "menabrak dinding" tanpa konteks; setelah login mendarat di profil. */}
       <View className="flex-row items-center gap-2 px-5 pt-3">
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={translate("Lihat profil {x}", { x: item.author.fullName ?? item.author.username })}
           accessibilityHint={`@${item.author.username}`}
-          onPress={() => router.push(ROUTES.userProfile(item.author.username))}
+          onPress={() =>
+            router.push(
+              hasSession
+                ? ROUTES.userProfile(item.author.username)
+                : ROUTES.loginRequired(`/user/${encodeURIComponent(item.author.username)}`),
+            )
+          }
           containerClassName={cn("flex-1 flex-row items-center gap-3 rounded-md", focusRing)}
           className="flex-1 flex-row items-center gap-3"
         >
@@ -186,7 +212,8 @@ function ShowcaseFeedItemBase({
               {item.author.fullName ?? item.author.username}
             </Text>
             <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
-              {`@${item.author.username} · ${formatDateTime(item.createdAt)}`}
+              {/* B-10 (audit 2026-09-23): cap waktu relatif khas feed sosial. */}
+              {`@${item.author.username} · ${formatRelativeTime(item.createdAt)}`}
             </Text>
           </View>
         </PressableScale>
@@ -196,8 +223,8 @@ function ShowcaseFeedItemBase({
             icon={Flag}
             variant="ghost"
             size="sm"
-            accessibilityLabel="Laporkan showcase"
-            accessibilityHint="Laporkan showcase ini"
+            accessibilityLabel={translate("Laporkan karya")}
+            accessibilityHint={translate("Laporkan karya ini")}
             onPress={handleReport}
           />
         ) : null}
@@ -208,43 +235,58 @@ function ShowcaseFeedItemBase({
         <ShowcaseMediaGallery images={gallery} title={item.title} onOpen={() => onPress?.()} />
       </View>
 
-      {/* ── Harga · judul · deskripsi (tap ke detail) ── */}
-      <PressableScale
-        accessibilityRole={onPress ? "button" : undefined}
-        accessibilityLabel={onPress ? summary : undefined}
-        accessibilityHint={onPress ? "Buka detail showcase" : undefined}
-        onPress={onPress}
-        containerClassName={cn("w-full", focusRing)}
-      >
-        <View className="gap-1 px-5 pt-3">
-          <View className="flex-row flex-wrap items-center gap-2">
+      {/* ── Harga · judul · deskripsi (tap ke detail) ──
+          B-03 (audit 2026-09-23): badge kategori kini SAUDARA (bukan anak)
+          pressable ringkasan — button di dalam role=button = HTML tidak valid
+          & iOS `accessible` induk menyembunyikan tombol kategori dari
+          VoiceOver. Susunan visual (baris harga+badge, lalu judul & deskripsi)
+          tetap sama. */}
+      <View className="gap-1 px-5 pt-3">
+        <View className="flex-row flex-wrap items-center gap-2">
+          <PressableScale
+            accessibilityRole={onPress ? "button" : undefined}
+            accessibilityLabel={onPress ? summary : undefined}
+            accessibilityHint={onPress ? translate("Buka detail karya") : undefined}
+            onPress={onPress}
+            containerClassName={cn("rounded-sm", focusRing)}
+          >
             <Text variant="bodyLarge" weight={600} className="tabular-nums">
               {priceLabel}
             </Text>
-            {item.category ? (
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={translate("Filter kategori {x}", { x: item.category })}
-                accessibilityHint="Tampilkan feed kategori ini"
-                onPress={handleCategoryPress}
-                containerClassName={cn("rounded-sm", focusRing)}
-              >
-                <Text variant="caption" tone="secondary" numberOfLines={1}>
-                  {item.category}
-                </Text>
-              </PressableScale>
-            ) : null}
-          </View>
-          <Text variant="body" weight={600} numberOfLines={2}>
-            {item.title}
-          </Text>
-          {item.description ? (
-            <Text variant="caption" tone="secondary" numberOfLines={2}>
-              {item.description}
-            </Text>
+          </PressableScale>
+          {item.category ? (
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Filter kategori {x}", { x: item.category })}
+              accessibilityHint={translate("Tampilkan feed kategori ini")}
+              onPress={handleCategoryPress}
+              containerClassName={cn("rounded-sm", focusRing)}
+            >
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
+                {item.category}
+              </Text>
+            </PressableScale>
           ) : null}
         </View>
-      </PressableScale>
+        <PressableScale
+          accessibilityRole={onPress ? "button" : undefined}
+          accessibilityLabel={onPress ? item.title : undefined}
+          accessibilityHint={onPress ? translate("Buka detail karya") : undefined}
+          onPress={onPress}
+          containerClassName={cn("rounded-sm", focusRing)}
+        >
+          <View className="gap-1">
+            <Text variant="body" weight={600} numberOfLines={2}>
+              {item.title}
+            </Text>
+            {item.description ? (
+              <Text variant="caption" tone="secondary" numberOfLines={2}>
+                {item.description}
+              </Text>
+            ) : null}
+          </View>
+        </PressableScale>
+      </View>
 
       {/* ── Separator atas aksi (inset, bukan full) ── */}
       <Divider inset className="mt-3" />
@@ -257,8 +299,8 @@ function ShowcaseFeedItemBase({
         {onShare ? (
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel="Bagikan"
-            accessibilityHint="Bagikan showcase ini"
+            accessibilityLabel={translate("Bagikan")}
+            accessibilityHint={translate("Bagikan karya ini")}
             onPress={onShare}
             containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}
           >

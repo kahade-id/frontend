@@ -44,6 +44,7 @@ import { ClockCounterClockwise, Images, MagnifyingGlass } from "phosphor-react-n
 import { router } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
+import { showcaseImages } from "@/lib/showcase-social"
 import { formatDateTime, formatNumber } from "@/lib/format"
 import { resolveMediaUrl } from "@/lib/media"
 import { translate } from "@/lib/i18n/translate"
@@ -512,6 +513,19 @@ export default function SearchScreen() {
             />
           )
         }
+        // L-03 (audit 2026-09-23): postingan dibatasi 12 — tautan penelusuran
+        // lanjutan ke feed Etalase (search=) saat hasil masih terpotong.
+        ListFooterComponent={
+          wantPosts && postsResult.data?.hasMore ? (
+            <Button
+              variant="ghost"
+              fullWidth
+              onPress={() => router.push(ROUTES.showcaseSearch(keyword.trim()))}
+            >
+              Lihat semua di Etalase
+            </Button>
+          ) : null
+        }
         refreshing={result.refreshing || usersResult.refreshing || postsResult.refreshing}
         onRefresh={() => {
           void result.refresh()
@@ -540,8 +554,9 @@ const THUMB = 48
  * hasil lain di layar ini.
  */
 function ShowcaseResultRow({ item }: { item: ShowcaseSocialItem }) {
-  const image =
-    item.images[0]?.imageUrl ?? item.coverImageUrl ?? item.imageUrl ?? null
+  // L-02 (audit 2026-09-23): SATU resolver gambar bersama (showcaseImages),
+  // bukan rantai `images[0] ?? coverImageUrl ?? imageUrl` milik sendiri.
+  const image = showcaseImages(item)[0]?.url ?? null
   return (
     <PressableScale
       accessibilityRole="button"

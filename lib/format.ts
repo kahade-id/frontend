@@ -9,11 +9,16 @@
  *   - Tanggal   : selalu eksplisit "3 Sep 2026, 14:30" — TIDAK ada relative
  *                 time ("2 jam lalu").
  *
+ * PENGECUALIAN (B-10, audit Etalase 2026-09-23): CAP WAKTU DI FEED SOSIAL
+ * etalase memakai `formatRelativeTime` ("2 jam") — konvensi feed sosial;
+ * semua permukaan lain (detail, transaksi, riwayat) tetap eksplisit §13.
+ *
  * Kenapa tidak memakai `Intl.NumberFormat("id-ID")` (non-obvious): di
  * Android (Hermes) dukungan Intl bergantung versi engine dan bisa jatuh ke
  * format default; implementasi manual berbasis regex deterministik di semua
  * platform dan cukup untuk Rupiah bulat (§13: tidak ada desimal).
  */
+import { translate } from "@/lib/i18n/translate"
 import { getLanguage } from "@/lib/i18n/store"
 import { logWarn } from "@/lib/telemetry"
 
@@ -441,6 +446,27 @@ export function formatDate(
   const month = monthNames(!!opts.long)[(zoned?.month ?? date.getMonth() + 1) - 1]
   const year = zoned?.year ?? date.getFullYear()
   return `${day} ${month} ${year}`
+}
+
+/**
+ * B-10 (audit Etalase 2026-09-23): waktu relatif untuk CAP WAKTU FEED SOSIAL
+ * ("Baru saja", "5 menit", "2 jam", "3 hari") — lewat 7 hari jatuh ke
+ * `formatDate` eksplisit (§13). Satuan jam/menit/hari memakai bentuk pendek
+ * bahasa Inggris di kamus ("{x}m") supaya tidak butuh pluralisasi.
+ */
+export function formatRelativeTime(d: Date | number | string, now: Date | number = Date.now()): string {
+  const then = displayDate(d)?.getTime()
+  if (then == null || !Number.isFinite(then)) return "—"
+  const base = typeof now === "number" ? now : now.getTime()
+  const deltaSec = Math.max(0, Math.floor((base - then) / 1000))
+  if (deltaSec < 60) return translate("Baru saja")
+  const minutes = Math.floor(deltaSec / 60)
+  if (minutes < 60) return translate("{x} menit", { x: minutes })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return translate("{x} jam", { x: hours })
+  const days = Math.floor(hours / 24)
+  if (days < 7) return translate("{x} hari", { x: days })
+  return formatDate(d)
 }
 
 /** "14:30" — jam di zona perangkat, atau di `timeZone` bila diminta (E-06). */

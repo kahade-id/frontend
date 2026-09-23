@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { type ReactNode } from "react"
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
@@ -5,13 +6,20 @@ import type { ShowcaseFeedPage, ShowcaseSocialItem } from "@/lib/api/showcase"
 const mocks = vi.hoisted(() => ({
   feed: vi.fn(), following: vi.fn(), me: vi.fn(), session: false,
   params: { kind: "following" } as Record<string, string>, renders: 0,
+  // N-02 (audit 2026-09-23): versi dirty & fokus HIDUP (bukan konstan) —
+  // regresi A-01/A-08 harus bisa ditangkap test di bawah.
+  dirtyVersion: 0, focused: true,
 }))
 vi.mock("expo-router", () => ({ router: { push: vi.fn(), setParams: vi.fn() }, useLocalSearchParams: () => mocks.params }))
+// Modul native di lingkungan test: cukup stub nol / hook fokus statis.
+vi.mock("phosphor-react-native", () => ({ Images: () => null, X: () => null }))
+vi.mock("react-native-reanimated", () => ({ default: { View: ({ children }: { children: ReactNode }) => <>{children}</> } }))
+vi.mock("@react-navigation/native", () => ({ useIsFocused: () => mocks.focused }))
 vi.mock("@/lib/api", () => ({ api: { users: { getMe: mocks.me, getFollowing: mocks.following } }, isApiError: () => false, userMessage: () => "failed" }))
 vi.mock("@/lib/api/showcase", () => ({ getShowcaseFeed: mocks.feed }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => mocks.session, useSessionRevision: () => 0 }))
 vi.mock("@/lib/query-cache", () => ({ fetchViaQueryCache: (_key: string, fetcher: (signal: AbortSignal) => unknown, signal: AbortSignal) => fetcher(signal) }))
-vi.mock("@/lib/showcase-social-prefs", () => ({ showcaseFeedDirtyVersion: () => 0, useShowcaseDirtyVersion: () => 0 }))
+vi.mock("@/lib/showcase-social-prefs", () => ({ showcaseFeedDirtyVersion: () => mocks.dirtyVersion, useShowcaseDirtyVersion: () => mocks.dirtyVersion, isShowcaseReported: () => false }))
 vi.mock("@/lib/use-showcase-social-actions", () => ({ useShowcaseSocialActions: () => ({}) }))
 vi.mock("@/lib/use-collapsing-header", () => ({ useCollapsingHeader: () => ({}) }))
 vi.mock("@/components/ui/showcase-comments-sheet", () => ({ ShowcaseCommentsSheet: () => null }))
@@ -51,6 +59,8 @@ beforeEach(() => {
   mocks.session = false
   mocks.params = { kind: "following" }
   mocks.renders = 0
+  mocks.dirtyVersion = 0
+  mocks.focused = true
   mocks.me.mockResolvedValue({ username: "me" })
   mocks.following.mockResolvedValue({ data: [{ username: "followed" }], meta: { totalPages: 1 } })
   mocks.feed.mockResolvedValue(page([]))
@@ -69,7 +79,7 @@ describe("actual feed component E09–E20", () => {
     mocks.session = true
     mocks.following.mockResolvedValue({ data: [], meta: { totalPages: 1 } })
     render(<ShowcaseFeedTab bottomPadding={0} />)
-    await screen.findByText("Kamu belum mengikuti siapa pun")
+    await screen.findByText("Anda belum mengikuti siapa pun")
     expect(mocks.feed).not.toHaveBeenCalled()
   })
   it("reads following relationships beyond the previous 200-account cap", async () => {
@@ -124,5 +134,26 @@ describe("actual feed component E09–E20", () => {
     await screen.findByText("popular-result")
     await act(async () => pending.resolve(page([item("stale-latest")])))
     expect(screen.queryByText("stale-latest")).toBeNull()
+  })
+  it("A-01/A-08: refetch dirty hanya saat kembali fokus — tidak saat blur", async () => {
+    // N-02: mock dirty HIDUP — regresi A-01 (dirty akibat aksi sosial →
+    // refetch → reset list) kini tertangkap lewat test ini.
+    mocks.params = { kind: "latest" }
+    mocks.feed.mockResolvedValue(page([item("one")], "c1"))
+    const view = render(<ShowcaseFeedTab bottomPadding={0} />)
+    await screen.findByText("one")
+    expect(mocks.feed).toHaveBeenCalledTimes(1)
+
+    // Mutasi etalase di layar lain sementara tab blur.
+    mocks.focused = false
+    mocks.dirtyVersion = 1
+    view.rerender(<ShowcaseFeedTab bottomPadding={0} />)
+    await new Promise((resolve) => setTimeout(resolve, 20))
+    expect(mocks.feed).toHaveBeenCalledTimes(1) // A-01: tidak refetch saat blur
+
+    mocks.focused = true
+    view.rerender(<ShowcaseFeedTab bottomPadding={0} />)
+    await waitFor(() => expect(mocks.feed).toHaveBeenCalledTimes(2)) // A-08: fokus kembali → segar
+    await screen.findByText("one")
   })
 })

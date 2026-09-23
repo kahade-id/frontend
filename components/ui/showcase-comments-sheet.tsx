@@ -8,16 +8,28 @@
  *    listShowcaseComments sudah menyertakan komentar yang baru dikirim).
  *  - G-02: sheet hanya memuat 30 komentar root; bila ada lebih, baris bawah
  *    menawarkan "Lihat semua komentar" → halaman detail (paginasi penuh).
- *  - G-03/C-08: state dibuang saat sheet DITUTUP (item → null), bukan hanya
- *    saat id berganti — tidak ada jendela draf/listing basi.
- *  - G-04: membuka ulang item yang sama meng-RELOAD query (data komentar
- *    dari kunjungan sebelumnya tidak diasumsikan masih segar).
+ *  - G-03/C-08: state percakapan (komentar lokal) dibuang saat sheet
+ *    DITUTUP — tidak ada jendela listing basi.
+ *  - G-04: membuka ulang item meng-RELOAD query (lihat kunci `useApiQuery`
+ *    yang memuat showcaseId — enabled flip → muat ulang); data komentar dari
+ *    kunjungan sebelumnya tidak diasumsikan masih segar.
  *  - F-04 kelas yang sama: komposer dibatasi 1000 karakter (kontrak DTO).
  *  - A-05 kelas yang sama: tamu tidak melihat komposer — tombol "Masuk"
  *    sebagai gantinya (membaca komentar tetap boleh, endpoint publik).
+ *
+ * Revisi audit Etalase 2026-09-23:
+ *  - C-02: aksi sosial (♥/simpan/bagikan/lapor) TANPA dirty. Komentar =
+ *    mutasi konten: markShowcaseFeedDirty() TEPAT SEKALI per mutasi sukses
+ *    (kontrak tests/showcase-comments-lifecycle) — tanda konsistensi hitungan,
+ *    bukan refetch paksa sekarang; feed menyegarkan saat fokus kembali.
+ *  - D-02: hitungan kartu feed naik optimis via onCommentAdded (tanpa dirty).
+ *  - E-01: query.error tidak menyembunyikan komentar lokal yang baru terkirim.
+ *  - E-02: judul "Komentar {x}" lewat translate.
+ *  - E-05: draf disimpan PER ITEM — pindah item / tutup sheet tidak membuang
+ *    ketikan; kembali ke item lama memulihkannya. Ganti sesi membuang semua.
  */
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { ChatCircle, PaperPlaneRight } from "phosphor-react-native"
 import { ScrollView, View, useWindowDimensions } from "react-native"
 import { router } from "expo-router"
@@ -29,8 +41,10 @@ import {
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
 import { isApiError, userMessage } from "@/lib/api"
+import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { formatNumber } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 import { useHasSession } from "@/lib/guest-gate"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -54,7 +68,6 @@ const COMMENT_MAX = API_CONSTRAINTS.CreateShowcaseCommentDto.content.maxLength
 
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { useSessionRevision } from "@/lib/guest-gate"
-import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 
 export type ShowcaseCommentsSheetProps = {
   /** Item yang komentarnya dibuka. `null` = sheet tertutup. */
@@ -87,24 +100,41 @@ export function ShowcaseCommentsSheet({
   const [localComments, setLocalComments] = useState<ShowcaseCommentWithReplies[]>([])
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
+  /** E-05 (audit 2026-09-23): draf PER ITEM — dipulihkan saat kembali. */
+  const draftsFor = useRef<Map<string, string>>(new Map())
+  const draftOwner = useRef<string | null>(null)
+  const draftRef = useRef("")
+  const updateDraft = useCallback((value: string) => {
+    draftRef.current = value
+    setDraft(value)
+  }, [])
 
   /**
-   * G-03/C-08: tutup sheet ATAU ganti item = percakapan lain: buang
-   * draf & komentar lokal. (Efek kunci pada `showcaseId`; undefined→id
-   * juga berjalan saat dibuka.)
+   * G-03/C-08: tutup sheet = buang komentar lokal (listing basi). E-05:
+   * draf dipertahankan untuk item yang sama — hanya ganti item / ganti sesi
+   * yang membuangnya.
    */
   useEffect(() => {
+    const next = showcaseId ?? null
+    const prev = draftOwner.current
+    if (prev !== next) {
+      if (prev != null && draftRef.current) draftsFor.current.set(prev, draftRef.current)
+      draftOwner.current = next
+      const restored = (next != null ? draftsFor.current.get(next) : undefined) ?? ""
+      draftRef.current = restored
+      setDraft(restored)
+    }
     setLocalComments([])
-    setDraft("")
     setSending(false)
   }, [showcaseId, revision])
 
-  /**
-   * G-04: buka ulang (item → non-null) memuat ulang komentar, termasuk
-   * untuk item yang sama — respons lama tidak diasumsikan segar.
-   * Buka pertama kali sudah diambil oleh useApiQuery (enabled flip), jadi
-   * hanya reload bila sebelumnya PERNAH terbuka sesi ini.
-   */
+  /** Ganti sesi = ganti pemilik draf — buang semuanya (privasi). */
+  useEffect(() => {
+    draftsFor.current.clear()
+    draftRef.current = ""
+    setDraft("")
+  }, [revision])
+
   const handleSend = useCallback(async () => {
     if (!showcaseId || !hasSession) return
     const content = draft.trim()
@@ -114,10 +144,14 @@ export function ShowcaseCommentsSheet({
     setSending(true)
     try {
       const saved = await addShowcaseComment(showcaseId, { content })
+      // Kontrak tests/showcase-comments-lifecycle: dirty TEPAT SEKALI per
+      // mutasi sukses — bahkan saat respons telat mendarat di item lain
+      // (komentar memang tercipta di server → hitungan berubah). Tanpa ini
+      // kartu feed yang tidak punya onCommentAdded tidak pernah sinkron.
       markShowcaseFeedDirty()
       if (!task.valid()) return
       setLocalComments((previous) => [{ ...saved, replies: [] }, ...previous])
-      setDraft((current) => current.trim() === content ? "" : current)
+      if (draftRef.current.trim() === content) updateDraft("")
       onCommentAdded?.(showcaseId)
     } catch (err) {
       if (!task.valid()) return
@@ -130,7 +164,7 @@ export function ShowcaseCommentsSheet({
       if (task.valid()) setSending(false)
       task.finish()
     }
-  }, [showcaseId, draft, sending, onCommentAdded, toast.show, hasSession, operation])
+  }, [showcaseId, draft, sending, onCommentAdded, toast.show, hasSession, operation, updateDraft])
 
   const localIds = new Set(localComments.map((c) => c.id))
   const serverComments = query.data?.data.filter((c) => !localIds.has(c.id)) ?? []
@@ -156,8 +190,8 @@ export function ShowcaseCommentsSheet({
     router.push(ROUTES.showcaseDetail(showcaseId))
   }, [showcaseId, onRequestClose])
 
-  // Header: "Komentar  12" — count di samping tanpa menulis "Komentar" lagi
-  const headerTitle = total > 0 ? `Komentar  ${formatNumber(total)}` : "Komentar"
+  // Header: "Komentar  12" — count di samping. E-02: lewat `translate`.
+  const headerTitle = total > 0 ? translate("Komentar {x}", { x: formatNumber(total) }) : translate("Komentar")
 
   return (
     <BottomSheet
@@ -174,7 +208,7 @@ export function ShowcaseCommentsSheet({
               <Input
                 disabled={sending}
                 value={draft}
-                onChangeText={setDraft}
+                onChangeText={updateDraft}
                 placeholder="Tulis komentar…"
                 accessibilityLabel="Komentar baru"
                 containerClassName="flex-1"
@@ -182,17 +216,25 @@ export function ShowcaseCommentsSheet({
                 onSubmitEditing={() => void handleSend()}
                 returnKeyType="send"
               />
-              <IconButton
-                icon={PaperPlaneRight}
-                variant="primary"
-                size="sm"
-                accessibilityLabel="Kirim komentar"
-                accessibilityHint="Kirim komentar showcase"
-                loading={sending}
-                disabled={!draft.trim()}
-                onPress={() => void handleSend()}
-              />
-            </View>
+                <IconButton
+                  icon={PaperPlaneRight}
+                  variant="primary"
+                  size="sm"
+                  accessibilityLabel="Kirim komentar"
+                  accessibilityHint={translate("Kirim komentar")}
+                  loading={sending}
+                  disabled={!draft.trim()}
+                  onPress={() => void handleSend()}
+                />
+              </View>
+              {/* D-19 (audit 2026-09-23): batas 2000 dulu memotong senyap di tengah
+                  kalimat. Konter muncul saat mendekati batas supaya jeda penulisan
+                  tidak mengejutkan. */}
+              {draft.length >= COMMENT_MAX - 200 ? (
+                <Text className="mt-1 text-right text-2xs text-neutral-400">
+                  {draft.length}/{COMMENT_MAX}
+                </Text>
+              ) : null}
           </View>
         ) : (
           // A-05 (kelas): tamu tidak melihat komposer — ajakan login.
@@ -222,7 +264,10 @@ export function ShowcaseCommentsSheet({
             </View>
           ))}
         </SkeletonGroup>
-      ) : query.error ? (
+      ) : query.error && comments.length === 0 ? (
+        // E-01 (audit 2026-09-23): error query TIDAK menyembunyikan komentar
+        // lokal yang baru terkirim — error hanya tampil bila tak ada yang bisa
+        // ditampilkan.
         <View className="px-5 pb-2">
           <ErrorState
             compact

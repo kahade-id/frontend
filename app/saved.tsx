@@ -60,8 +60,10 @@ export default function SavedProfilesScreen() {
       state={query}
       loadingMessage="Memuat profil tersimpan…"
       contentClassName="gap-1"
+      // J-01 (audit 2026-09-23): section karya tersimpan punya query sendiri —
+      // tidak boleh ikut hilang saat query PROFIL tersimpan loading/error.
+      persistent={<ShowcaseSavedCollection />}
     >
-      <ShowcaseSavedCollection />
       <SectionHeader title="Profil tersimpan" />
       {items.map((entry, i) => (
         <UserListItem

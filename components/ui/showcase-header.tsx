@@ -8,8 +8,10 @@
  *
  *   1. Baris atas TIGA elemen simetris: pensil (kelola/buat etalase) di kiri,
  *      logo Kahade tepat di tengah, lonceng notifikasi di kanan. Kedua ikon
- *      memakai weight "bold" (BUKAN fill) dan TANPA background — jejak
- *      visualnya satu guratan, bukan kartu/kotak berisi.
+ *      memakai weight "regular" (BUKAN bold/fill) dan TANPA background —
+ *      jejak visualnya satu guratan tipis, bukan kartu/kotak berisi.
+ *      Glif: PencilSimpleLine (pencil-simple-line) dan BellSimple
+ *      (bell-simple) — permintaan produk 2026-09-23.
  *   2. Balance pill DIHAPUS dari header: saldo bukan konteks etalase; angka
  *      dompet tetap hidup di tab Dompet (mode wallet).
  *   3. Baris pencarian + tombol (+) DIHAPUS. Pencarian dipusatkan di SATU
@@ -26,15 +28,16 @@
 import { View, ScrollView } from "react-native"
 import { useRouter } from "expo-router"
 import {
-  Bell,
+  BellSimple,
   ClockCounterClockwise,
-  PencilSimple,
+  PencilSimpleLine,
   Sparkle,
   TrendUp,
   Users,
 } from "phosphor-react-native"
 
 import { ROUTES } from "@/lib/routes"
+import { useHasSession } from "@/lib/guest-gate"
 import { useUnreadCountState } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
@@ -71,23 +74,30 @@ const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps) {
   const router = useRouter()
   const unread = useUnreadCountState()
+  // A-10 (audit 2026-09-23): kelola & notifikasi = layar terproteksi —
+  // tamu diarahkan ke loginRequired(next=…) dengan konteks, bukan menabrak
+  // dinding login (polanya sama dengan aksi sosial di feed).
+  const hasSession = useHasSession()
+  const goProtected = (target: typeof ROUTES.showcaseManagement, path: string) => {
+    router.push(hasSession ? target : ROUTES.loginRequired(path))
+  }
 
   return (
     <View className="bg-background">
       {/* ── Baris atas: kelola (pensil) · logo · notifikasi ── */}
       <View className="w-full flex-row items-center justify-between px-5 pb-2.5 pt-3">
-        {/* Kelola/buat etalase — bold, tanpa latar (permintaan produk). */}
+        {/* Kelola/buat etalase — regular, tanpa latar (permintaan produk). */}
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel="Kelola etalase saya"
-          accessibilityHint="Buka halaman untuk menambah dan mengatur etalase"
+          accessibilityLabel={translate("Kelola etalase saya")}
+          accessibilityHint={translate("Buka halaman untuk menambah dan mengatur etalase")}
           haptic
           hitSlop={ACTION_HIT_SLOP}
-          onPress={() => router.push(ROUTES.showcaseManagement)}
+          onPress={() => goProtected(ROUTES.showcaseManagement, "/showcase-management")}
           containerClassName={cn("rounded-md", focusRing)}
           className="h-10 w-10 items-center justify-center"
         >
-          <Icon icon={PencilSimple} size="md" weight="bold" tone="active" />
+          <Icon icon={PencilSimpleLine} size="md" weight="regular" tone="active" />
         </PressableScale>
 
         {/* Logo — pusat baris. Dulu tombol "kembali ke beranda"; Beranda
@@ -102,24 +112,24 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
           <Logo variant="mark" size="md" />
         </View>
 
-        {/* Notifikasi — bold, tanpa latar; titik unread dari store yang sama
+        {/* Notifikasi — regular, tanpa latar; titik unread dari store yang sama
             dengan badge tab (§9.14), bukan dot custom. */}
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={
             unread.count
               ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
-              : "Notifikasi"
+              : translate("Notifikasi")
           }
-          accessibilityHint="Buka notifikasi"
+          accessibilityHint={translate("Buka notifikasi")}
           haptic
           hitSlop={ACTION_HIT_SLOP}
-          onPress={() => router.push(ROUTES.notifications)}
+          onPress={() => goProtected(ROUTES.notifications, "/notifications")}
           containerClassName={cn("rounded-md", focusRing)}
           className="h-10 w-10 items-center justify-center"
         >
           <View className="relative">
-            <Icon icon={Bell} size="md" weight="bold" tone="active" />
+            <Icon icon={BellSimple} size="md" weight="regular" tone="active" />
             <NotificationDot visible={(unread.count ?? 0) > 0} />
           </View>
         </PressableScale>
@@ -130,6 +140,10 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
+          // A-15 (audit 2026-09-23): container tab WAJIB `tablist` — anak-anak
+          // `accessibilityRole="tab"` tanpa induk tablist ambigu bagi AT
+          // (paritas tabs.tsx:179).
+          accessibilityRole="tablist"
           contentContainerStyle={{
             paddingHorizontal: tokens.space[5],
             gap: tokens.space[2],

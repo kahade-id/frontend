@@ -1,10 +1,10 @@
 /** Account-scoped Etalase preferences. Public bookmark IDs persist locally (max 25),
  * clear at logout, and hydrate only for the matching owner. Likes are session-only. */
-import { useCallback, useMemo, useSyncExternalStore } from "react"
+import { useMemo, useSyncExternalStore } from "react"
 import { getSessionRevision, subscribeSession } from "@/lib/api/session"
+import { ApiError } from "@/lib/api/errors"
 import { getSecureItem, setSecureItem, deleteSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
-import { invalidateQueryPrefix } from "@/lib/query-cache"
 
 export type ShowcaseLikeState = { isLiked: boolean; likeCount: number }
 
@@ -13,11 +13,17 @@ type SocialPrefs = {
   saved: Record<string, true>
   /** state suka terakhir yang DIKETAHUI (nilai final server). */
   likes: Record<string, ShowcaseLikeState>
+  /**
+   * F-04 (audit 2026-09-23): id item yang sudah dilaporkan sesi ini —
+   * sheet lapor menampilkan state "sudah dilaporkan", feed pelapor
+   * menyembunyikannya (balasan moderasi ada di sisi server).
+   */
+  reported: Record<string, true>
   /** Naik setiap ada mutasi "etalase saya" (buat/ubah/hapus). */
   feedDirtyVersion: number
 }
 
-const EMPTY: SocialPrefs = { saved: {}, likes: {}, feedDirtyVersion: 0 }
+const EMPTY: SocialPrefs = { saved: {}, likes: {}, reported: {}, feedDirtyVersion: 0 }
 
 let state: SocialPrefs = EMPTY
 const listeners = new Set<() => void>()
@@ -44,7 +50,16 @@ export function toggleShowcaseSaved(id: string) {
   const saved = { ...state.saved }
   if (saved[id]) delete saved[id]
   else {
-    if (Object.keys(saved).length >= 25) throw new Error("Maksimal 25 karya tersimpan di perangkat ini. Hapus salah satu untuk menyimpan karya lain.")
+    if (Object.keys(saved).length >= 25) {
+      // C-01 (audit 2026-09-23): pesan batas harus sampai ke pengguna —
+      // ApiError (bukan Error biasa) supaya `userMessage` meneruskan wording
+      // ini, bukan "Terjadi kesalahan. Coba lagi."
+      throw new ApiError({
+        code: "CONFLICT",
+        message: "Maksimal 25 karya tersimpan di perangkat ini. Hapus salah satu untuk menyimpan karya lain.",
+        backendCode: "SHOWCASE_SAVED_LIMIT",
+      })
+    }
     saved[id] = true
   }
   emit({ saved })
@@ -87,13 +102,17 @@ export function getShowcaseLikeOverride(id: string): ShowcaseLikeState | undefin
 }
 
 // ------------------------------------------------------------------
-// Spanduk "feed harus disegarkan" (mutasi dari layar manajemen).
+// Spanduk "feed harus disegarkan" — HANYA untuk mutasi "etalase saya"
+// (buat/ubah/hapus/urut). Aksi sosial (suka/komentar) TIDAK memakai jalur
+// ini: cukup store override + patch lokal — audit A-01/C-02 (2026-09-23):
+// satu tap ♥ memicu refetch feed yang mem-reset halaman 2..N.
 // ------------------------------------------------------------------
 
 export function markShowcaseFeedDirty() {
-  invalidateQueryPrefix("showcase-")
-  invalidateQueryPrefix("public-showcase:")
-  invalidateQueryPrefix("my-showcase")
+  // C-06 (audit 2026-09-23): invalidateQueryPrefix dihapus — seluruh konsumen
+  // prefix "showcase-*"/"my-showcase" memakai useCache:false, jadi invalidasi
+  // tidak pernah berefek. Sinyal dirtyVersion di bawah adalah satu-satunya
+  // mekanisme yang benar-benar dipakai layar.
   emit({ feedDirtyVersion: state.feedDirtyVersion + 1 })
 }
 
@@ -102,14 +121,24 @@ export function showcaseFeedDirtyVersion(): number {
   return state.feedDirtyVersion
 }
 
-/** Hook kecil untuk handler aksi sosial yang digerbang sesi (audit A-05). */
-export function useRequireSessionAction(hasSession: boolean) {
-  return useCallback(
-    (action: () => void, onGuest: () => void) => {
-      if (!hasSession) onGuest()
-      else action()
-    },
-    [hasSession],
+// ------------------------------------------------------------------
+// Laporan (F-04): "sudah dilaporkan" per item untuk sesi ini.
+// ------------------------------------------------------------------
+
+export function markShowcaseReported(id: string) {
+  emit({ reported: { ...state.reported, [id]: true } })
+}
+
+export function isShowcaseReported(id: string): boolean {
+  return state.reported[id] === true
+}
+
+/** Flag lapor untuk satu item (stabil: hanya re-render saat item ini berubah). */
+export function useShowcaseReported(id: string): boolean {
+  return useSyncExternalStore(
+    subscribe,
+    () => state.reported[id] === true,
+    () => false,
   )
 }
 
@@ -123,7 +152,7 @@ subscribeSession(() => {
   bookmarkQueue = bookmarkQueue.then(() => deleteSecureItem(SecureKeys.showcaseBookmarks)).catch(() => {
     logWarn("showcase:bookmark-clear", new Error("Local bookmark cleanup failed"))
   })
-  emit({ saved: {}, likes: {}, feedDirtyVersion: state.feedDirtyVersion + 1 })
+  emit({ saved: {}, likes: {}, reported: {}, feedDirtyVersion: state.feedDirtyVersion + 1 })
 })
 
 export function clearShowcaseLikeOverride(id: string) {

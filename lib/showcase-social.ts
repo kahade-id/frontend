@@ -18,6 +18,7 @@ import { showcaseUrl } from "@/lib/deeplinks"
 import { copyToClipboard } from "@/lib/clipboard"
 import { translate } from "@/lib/i18n/translate"
 import { resolveMediaUrl } from "@/lib/media"
+import { showcasePriceLabel } from "@/lib/showcase-labels"
 import { shareContent, type ShareOutcome } from "@/lib/share"
 
 /** Judul fallback SATU-SATUNYA untuk item tanpa judul (audit J-04). */
@@ -134,18 +135,24 @@ export type ShowcaseShareResult = {
  * desktop tanpa WebShare API), tautan disalin ke clipboard dan hasilnya
  * dilaporkan sebagai "copied" supaya pemanggil menampilkan toast yang benar
  * ("Tautan disalin", bukan "Share tidak tersedia").
+ *
+ * C-08 (audit 2026-09-23): item yang sudah dikenal memakai `item.shareUrl`
+ * dari backend bila ada (fallback ke URL rakitan lokal), dan pesan share kini
+ * menyertakan label harga — dulu payload backend diabaikan total.
  */
 export async function shareShowcaseById(id: string, item?: ShowcaseSocialItem): Promise<ShowcaseShareResult> {
   // Known item: invoke OS/browser share within the original user gesture, no network await.
   const payload: ShowcaseSharePayload = item ? {
     showcaseId: id, title: item.title, description: item.description ?? "",
+    priceLabel: showcasePriceLabel(item) ?? undefined,
     authorUsername: item.author.username, authorFullName: item.author.fullName,
-    shareUrl: showcaseUrl(id),
+    shareUrl: item.shareUrl || showcaseUrl(id),
   } : await getShowcaseSharePayload(id).catch(() => ({
     showcaseId: id, title: translate("Etalase"), description: "", authorUsername: "", shareUrl: showcaseUrl(id),
   }))
+  const price = payload.priceLabel ? ` — ${payload.priceLabel}` : ""
   const outcome = await shareContent({
-    message: `${payload.title} — ${payload.authorFullName ?? "@" + payload.authorUsername}`,
+    message: `${payload.title}${price} — ${payload.authorFullName ?? "@" + payload.authorUsername}`,
     url: payload.shareUrl,
     title: payload.title,
   })

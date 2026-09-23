@@ -47,6 +47,8 @@ export default defineConfig({
       "expo-image": `${stub("expo-image")}x`,
       "expo-router": `${stub("expo-router")}x`,
       "expo-clipboard": stub("expo-clipboard"),
+      // Sheet OS share (lib/share dari shareShowcaseById) — native EventEmitter.
+      "expo-sharing": stub("expo-sharing"),
       // nativewind me-require `react-native` asli dari CJS (Flow) — stub.
       // Subpath JSX HARUS di-alias eksplisit dan DULUAN: Vitest 5 (oxc)
       // mengompilasi JSX test ke `nativewind/jsx-dev-runtime` karena

@@ -4,8 +4,8 @@
  *
  * JANGAN EDIT MANUAL. Ubah spec → `npm run gen:api`.
  *
- * Spec: Kahade API v1.0 · 107 DTO dipakai
- * (33 schema admin-only dilewati).
+ * Spec: Kahade API v1.0 · 108 DTO dipakai
+ * (39 schema admin-only dilewati).
  */
 
 export type RegisterDto = {
@@ -1556,4 +1556,11 @@ export type ReplyTicketDto = {
    * minLength 1 · maxLength 5000
    */
   message: string
+}
+
+export type CreateShowcaseReportDto = {
+  /** Kategori moderasi konten */
+  reason: string
+  /** maxLength 500 */
+  description?: string
 }

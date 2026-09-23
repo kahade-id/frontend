@@ -96,6 +96,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
     onPressOut,
     accessibilityState,
     accessibilityLabel,
+    accessibilityHint,
     children,
     ...rest
   },
@@ -105,8 +106,11 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
   // VoiceOver/TalkBack EN sebelumnya mendengar campuran ID/EN di SEMUA
   // tombol/baris (Button, IconButton, Chip, Card menekan PressableScale).
   // useLanguage: label ikut ter-render ulang saat pengguna berpindah bahasa.
+  // M-01 (audit Etalase 2026-09-23): HINT ikut diterjemahkan — dulu hanya
+  // label, sehingga "Buka detail showcase" dst. tetap bahasa Indonesia di EN.
   useLanguage()
   const localizedLabel = translateProp(accessibilityLabel)
+  const localizedHint = translateProp(accessibilityHint)
   // Di dalam BottomSheet (overlay Reanimated di Fabric native), Pressable
   // bawaan bisa tidak memanggil onPress karena responder region-nya diukur
   // dari shadow tree yang basi pasca-animasi (RN #51621); hook ini menukarnya
@@ -209,6 +213,7 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
       accessibilityState={{ disabled: !!disabled, ...accessibilityState }}
       className={cn(containerClassName, useUnderlay && "overflow-hidden")}
       accessibilityLabel={localizedLabel}
+      accessibilityHint={localizedHint}
       {...rest}
       android_ripple={ripple ? { color: rippleColor } : rest.android_ripple}
     >

@@ -20,6 +20,8 @@ function pickDom(props: Record<string, unknown>) {
   const out: Record<string, unknown> = {}
   if (props.testID) out["data-testid"] = props.testID
   if (props.accessibilityLabel) out["aria-label"] = props.accessibilityLabel
+  // Weight ikut ke DOM supaya tes kosakata ikon bisa mengunci regular vs bold.
+  if (typeof props.weight === "string") out["data-weight"] = props.weight
   return out
 }
 
@@ -45,6 +47,7 @@ export const At = stub("At")
 export const Backspace = stub("Backspace")
 export const Bank = stub("Bank")
 export const Bell = stub("Bell")
+export const BellSimple = stub("BellSimple")
 export const BellSlash = stub("BellSlash")
 export const BellZ = stub("BellZ")
 export const Bookmark = stub("Bookmark")
@@ -61,6 +64,7 @@ export const CaretLeft = stub("CaretLeft")
 export const CaretRight = stub("CaretRight")
 export const ChartLine = stub("ChartLine")
 export const ChartLineUp = stub("ChartLineUp")
+export const ChatCenteredText = stub("ChatCenteredText")
 export const ChatCircle = stub("ChatCircle")
 export const ChatCircleDots = stub("ChatCircleDots")
 export const ChatCircleText = stub("ChatCircleText")
@@ -161,6 +165,7 @@ export const Question = stub("Question")
 export const Receipt = stub("Receipt")
 export const Scales = stub("Scales")
 export const ScanSmiley = stub("ScanSmiley")
+export const Scroll = stub("Scroll")
 export const SealCheck = stub("SealCheck")
 export const SealWarning = stub("SealWarning")
 export const ShareNetwork = stub("ShareNetwork")

@@ -3,7 +3,7 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { Platform, View } from "react-native"
+import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
@@ -88,7 +88,7 @@ function formToPayload(form: FormState) {
     description: form.description.trim(),
     priceMin: form.priceMin ?? undefined,
     priceMax: form.priceMax ?? undefined,
-    category: form.category.trim(),
+    category: form.category.trim().replace(/\s+/g, " "),
     visibility: form.isPublic ? ("PUBLIC" as const) : ("PRIVATE" as const),
   }
 }
@@ -204,7 +204,14 @@ function ShowcaseManagement() {
     try {
       const picked = await pickImages({ selectionLimit: SHOWCASE_MAX_IMAGES })
       if (picked.status === "denied") {
-        toast.show({ title: "Akses galeri ditolak", tone: "danger" })
+        toast.show({
+          title: "Akses galeri ditolak",
+          description: "Izinkan akses foto di pengaturan perangkat untuk memilih karya.",
+          tone: "danger",
+          // G-22 (audit 2026-09-23): tanpa jalan pintas, pengguna harus
+          // mencari sendiri halaman izin di OS.
+          action: { label: "Buka pengaturan", onPress: () => void Linking.openSettings() },
+        })
         return
       }
       if (picked.status !== "picked" || controller.signal.aborted) return
@@ -469,7 +476,14 @@ function ShowcaseManagement() {
     try {
       const picked = await pickImages({ selectionLimit: slots })
       if (picked.status === "denied") {
-        toast.show({ title: "Akses galeri ditolak", tone: "danger" })
+        toast.show({
+          title: "Akses galeri ditolak",
+          description: "Izinkan akses foto di pengaturan perangkat untuk memilih karya.",
+          tone: "danger",
+          // G-22 (audit 2026-09-23): tanpa jalan pintas, pengguna harus
+          // mencari sendiri halaman izin di OS.
+          action: { label: "Buka pengaturan", onPress: () => void Linking.openSettings() },
+        })
         return
       }
       if (picked.status !== "picked" || controller.signal.aborted) return
@@ -652,7 +666,7 @@ function ShowcaseManagement() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Etalase" />
+      <Header title="Kelola Etalase" />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
@@ -670,7 +684,7 @@ function ShowcaseManagement() {
               subtitle={
                 items.length
                   ? [
-                      translate("{x} item", { x: items.length }),
+                      translate("{x} karya", { x: items.length }),
                       hiddenCount ? translate("{x} disembunyikan", { x: hiddenCount }) : null,
                     ]
                       .filter(Boolean)
@@ -846,7 +860,19 @@ function ShowcaseManagement() {
         }
       >
         <View className="gap-4">
-          {uncertainCreate ? <Text tone="danger">Status simpan belum pasti. Coba Simpan lagi untuk melanjutkan permintaan yang sama, atau segarkan daftar sebelum membuat karya baru.</Text> : null}
+          {uncertainCreate ? (
+            // G-15 (audit 2026-09-23): banner punya tombol segarkan — dulu
+            // pengguna disuruh "segarkan daftar" tanpa tombolnya.
+            <View className="gap-2 rounded-md border border-border p-3">
+              <Text tone="danger">
+                Status simpan belum pasti. Coba Simpan lagi untuk melanjutkan permintaan yang sama,
+                atau segarkan daftar sebelum membuat karya baru.
+              </Text>
+              <Button variant="secondary" onPress={() => void query.reload()}>
+                Segarkan daftar
+              </Button>
+            </View>
+          ) : null}
           {previews.length > 0 ? <View className="gap-2">
             <Text>Pratinjau foto — foto pertama menjadi cover</Text>
             <View className="flex-row flex-wrap gap-2">

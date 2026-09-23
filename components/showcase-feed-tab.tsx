@@ -1,6 +1,31 @@
 /** Public cursor feed. Page data and cursors commit atomically; account/filter changes fence old responses.
- * Following remains a client-side filter until a server-side following-feed contract exists. */
-import { useCallback, useEffect, useRef, useState, memo } from "react"
+ * Following remains a client-side filter until a server-side following-feed contract exists (audit A-17).
+ *
+ * Revisi audit Etalase 2026-09-23:
+ *  - A-01/C-02: aksi sosial (♥/komentar) TIDAK memanggil markShowcaseFeedDirty
+ *    (lihat pemanggil) — sinyal dirty hanya untuk mutasi "etalase saya", dan
+ *    efek di bawah hanya menyegarkan saat tab fokus KEMBALI (bukan di tengah
+ *    scroll). Halaman 2..N dan posisi scroll tidak lagi ter-reset oleh ♥.
+ *  - A-02: tab "Mengikuti" tidak lagi refetch penuh di SETIAP fokus — cukup
+ *    saat dirty (mutasi manajemen) atau tarik-segarkan; fetch ganda saat mount
+ *    (efek muat-awal + efek fokus) ikut hilang.
+ *  - A-03: daftar following dibatasi FOLLOWING_MAX_PAGES dan diambil paralel
+ *    kecil (bukan loop serial tanpa batas). Butuh endpoint
+ *    GET /showcase/feed?following=true (A-17) untuk skala penuh.
+ *  - A-04: cache daftar following per akun DI LEVEL MODUL — benar-benar
+ *    dipakai (dulu selalu di-null sebelum sempat dibaca).
+ *  - A-05: error parsial "Untuk Anda" saat load-more tampil di footer
+ *    (loadMoreError), retry-nya melanjutkan halaman, bukan refresh penuh.
+ *  - A-06: chip `?search=` kini bisa dihapus (sama seperti kategori).
+ *  - A-07/A-08: renderItem stabil (divider via ref) dan FeedCard memo penuh.
+ *  - A-09/L-07: "Karya tersimpan" digate sesi; "Etalase saya" berlabel eksplisit.
+ *  - A-11/A-21: item per (tab × filter × sesi) di-cache — pindah tab instan.
+ *  - A-12: filter following cocok per userId ATAU username-lowercase.
+ *  - A-13: tarik-segarkan hanya menyentuh state following di tab Mengikuti.
+ *  - A-16: debounce param URL dibuang (tidak ada input yang mengetiknya).
+ *  - F-04: item yang sudah dilaporkan sesi ini disembunyikan dari feed.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react"
 import { View } from "react-native"
 import Animated from "react-native-reanimated"
 import { Images, X } from "phosphor-react-native"
@@ -22,10 +47,13 @@ import {
   type FeedPageState,
   type ShowcaseFeedFilter,
 } from "@/lib/showcase-feed-logic"
-import { showcaseFeedDirtyVersion, useShowcaseDirtyVersion } from "@/lib/showcase-social-prefs"
+import {
+  isShowcaseReported,
+  showcaseFeedDirtyVersion,
+  useShowcaseDirtyVersion,
+} from "@/lib/showcase-social-prefs"
 import { tokens } from "@/lib/tokens"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
-import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 
 import { translate } from "@/lib/i18n/translate"
@@ -51,6 +79,14 @@ const FEED_LIMIT = 20
  */
 const FOLLOWING_MIN_ITEMS = 5
 const FOLLOWING_MAX_PAGES = 3
+/**
+ * A-03: batas atas halaman daftar following (50 akun/halaman → 1.000 akun)
+ * yang diambil per sesi, di paralel batch kecil. 5.000 follow tidak lagi
+ * berarti 100 request serial sebelum paint; cache A-04 memastikan ini hanya
+ * terjadi sekali per akun per sesi. Solusi penuh = endpoint server (A-17).
+ */
+const FOLLOWING_INDEX_MAX_PAGES = 20
+const FOLLOWING_INDEX_PARALLEL = 4
 
 // ------------------------------------------------------------------
 // Tab Showcase (cursor/keyset) — header lipat + tab feed gaya profil publik
@@ -64,11 +100,33 @@ const FEED_TABS = [
   { value: "popular", label: "Populer" },
 ] as const satisfies readonly { value: ShowcaseFeedKind; label: string }[]
 
+/** A-04: cache daftar following per akun — lihat `followingIndexRef`. */
+type FollowingIndex = { owner: string; keys: ReadonlySet<string> }
+
+/** A-12: kunci identitas berikut — `u:{userId}` (stabil) ATAU `n:{username-lowercase}`. */
+function followingKeysOf(users: readonly { userId?: string; username?: string }[]): Set<string> {
+  const keys = new Set<string>()
+  for (const user of users) {
+    if (user?.userId) keys.add(`u:${user.userId}`)
+    if (user?.username) keys.add(`n:${user.username.toLowerCase()}`)
+  }
+  return keys
+}
+
+function followedBy(keys: ReadonlySet<string>, item: ShowcaseSocialItem): boolean {
+  return (
+    (item.author.userId != null && keys.has(`u:${item.author.userId}`)) ||
+    keys.has(`n:${item.author.username.toLowerCase()}`)
+  )
+}
+
 /**
- * Kartu memo (A-09): membaca state sosialnya sendiri lewat hook, sehingga
+ * Kartu memo (A-08/A-09): membaca state sosialnya sendiri lewat hook, sehingga
  * `renderItem` induk bisa useCallback dan FlatList tidak menggambar ulang
  * sel lain di setiap render induk. Override suka/simpan berasal dari store
  * bersama — sinkron dengan layar detail & profil dalam satu sesi.
+ * SEMUA callback dibungkus useCallback + `display` useMemo: identitas prop
+ * <ShowcaseFeedItem> (yang `memo`) stabil di antara render FeedCard.
  */
 type FeedCardProps = {
   item: ShowcaseSocialItem
@@ -85,20 +143,32 @@ const FeedCard = memo(function FeedCard({
 }: FeedCardProps) {
   const { liked, likeCount, saved, toggleLike, toggleSave, share } =
     useShowcaseSocialActions(item)
-  const display =
-    liked === (item.isLiked === true) && likeCount === item.likeCount
-      ? item
-      : { ...item, isLiked: liked, likeCount }
+  const display = useMemo(
+    () =>
+      liked === (item.isLiked === true) && likeCount === item.likeCount
+        ? item
+        : { ...item, isLiked: liked, likeCount },
+    [item, liked, likeCount],
+  )
+  // L-01/L-06: `kind` dibawa ke detail supaya badge kategori di sana
+  // mempertahankan tab aktif.
+  const { kind } = useLocalSearchParams<{ kind?: string }>()
+  const handlePress = useCallback(
+    () => router.push(ROUTES.showcaseDetail(item.id, { kind })),
+    [item.id, kind],
+  )
+  const handleComments = useCallback(() => onOpenComments(item), [onOpenComments, item])
+  const handleReport = useCallback(() => onReport(item), [onReport, item])
   return (
     <ShowcaseFeedItem
       item={display}
-      onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
+      onPress={handlePress}
       onToggleLike={toggleLike}
-      onOpenComments={() => onOpenComments(item)}
+      onOpenComments={handleComments}
       onToggleSave={toggleSave}
       saved={saved}
       onShare={share}
-      onReport={() => onReport(item)}
+      onReport={handleReport}
       divider={divider}
     />
   )
@@ -116,10 +186,13 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   const kind: ShowcaseFeedKind = params.kind === "following" || params.kind === "latest" || params.kind === "popular" ? params.kind : "forYou"
   // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
   // cari kini layar /search. Param `search` tetap dibaca agar URL lama
-  // `/showcase?search=…` (deep link/bookmark) masih terfilter dengan benar.
+  // `/showcase?search=…` (deep link/bookmark) masih terfilter dengan benar —
+  // dan chip-nya kini bisa DIHAPUS (A-06).
   const search = typeof params.search === "string" ? params.search.slice(0, 100) : ""
   const setKind = (next: ShowcaseFeedKind) => router.setParams({ kind: next })
-  const debouncedSearch = useDebouncedValue(search.trim(), 400)
+  // A-16: debounce dibuang — tidak ada kolom ketik yang mengubah `search`
+  // di layar ini; debounce hanya menunda fetch saat param URL berubah.
+  const activeSearch = search.trim()
   const collapsing = useCollapsingHeader()
 
   const [items, setItems] = useState<ShowcaseSocialItem[]>([])
@@ -134,11 +207,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   /**
    * A-13: daftar akun yang diikuti kini STATE (bukan ref) supaya empty-state
    * ikut re-render saat nilai berubah. `null` = belum dimuat sesi ini.
-   * A-04: milik `followingOwner` — ganti akun membuang cache.
+   * A-04: kepemilikan + cache-nya hidup di level modul (lihat above).
    */
   const [followingSet, setFollowingSet] = useState<ReadonlySet<string> | null>(null)
-  const followingOwner = useRef<string | null>(null)
-  const followingCache = useRef<ReadonlySet<string> | null>(null)
   /** Item yang komentarnya sedang dibuka di BottomSheet (null = tertutup). */
   const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
   /** Item yang sedang dilaporkan (null = tertutup). */
@@ -158,6 +229,23 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
     latest: { filter: {}, state: emptyFeedPageState() },
     popular: { filter: {}, state: emptyFeedPageState() },
   })
+  /**
+   * A-11/A-21: cache ITEM per (tab × filter × sesi) — pindah tab memulihkan
+   * isi + posisi paginasi instan tanpa skeleton/fetch ulang.
+   */
+  const itemsCache = useRef<
+    Partial<Record<ShowcaseFeedKind, { revision: number; filter: ShowcaseFeedFilter; items: ShowcaseSocialItem[]; hasMore: boolean }>>
+  >({})
+  /** Cermin `items` untuk commit atomik cache (tanpa side-effect di updater). */
+  const itemsRef = useRef<ShowcaseSocialItem[]>([])
+  /** A-07: panjang list terkini untuk `divider` — renderItem tetap stabil. */
+  const itemsLengthRef = useRef(0)
+  /**
+   * A-04: cache daftar following per akun — hidup selama tab terpasang
+   * (antar pindah tab TANPA fetch ulang), dibuang saat ganti sesi/akun
+   * (lihat efek revision) atau tarik-segarkan di tab Mengikuti (A-13).
+   */
+  const followingIndexRef = useRef<FollowingIndex | null>(null)
   /** Versi dirty yang sudah dikonsumsi (A-08). */
   const dirtySeen = useRef(showcaseFeedDirtyVersion())
 
@@ -170,19 +258,26 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   const dirtyVersion = useShowcaseDirtyVersion()
   const hasSessionRef = useRef(hasSession)
   hasSessionRef.current = hasSession
+  const revisionRef = useRef(revision)
+  revisionRef.current = revision
 
   const markGuest = useCallback(() => {
-    followingOwner.current = null
-    followingCache.current = null
+    followingIndexRef.current = null
     setFollowingSet((previous) => previous?.size === 0 ? previous : new Set())
     setFollowingGuest(true)
   }, [])
 
+  /** Filter aktif — kunci himpunan hasil (tab × search × kategori). */
+  const filter: ShowcaseFeedFilter = useMemo(
+    () => ({ search: activeSearch || undefined, category: category || undefined }),
+    [activeSearch, category],
+  )
+
   /**
-   * Muat daftar akun yang diikuti (maks 4×50 = 200 — cukup untuk feed).
-   * A-03: hanya 401/403 yang berarti tamu; error lain di-RETHROW supaya
-   * pemanggil menampilkan ErrorState, bukan pseudologin.
-   * A-04: cache hanya dipakai bila `me.username` sama dengan pemilik cache.
+   * Muat daftar akun yang diikuti (A-03: maks FOLLOWING_INDEX_MAX_PAGES × 50,
+   * paralel batch FOLLOWING_INDEX_PARALLEL). Hanya 401/403 yang berarti tamu;
+   * error lain di-RETHROW supaya pemanggil menampilkan ErrorState, bukan
+   * pseudologin. A-04: cache per akun (ref tab) — hanya fetch saat miss.
    */
   const ensureFollowingSet = useCallback(
     async (signal: AbortSignal): Promise<ReadonlySet<string>> => {
@@ -192,26 +287,38 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       }
       try {
         const me = await fetchViaQueryCache(queryKeys.me(), (s) => api.users.getMe(s), signal)
-        if (!me?.username) {
+        const username = me?.username
+        if (!username) {
           markGuest()
           return new Set()
         }
-        if (followingCache.current && followingOwner.current === me.username) return followingCache.current
-        const set = new Set<string>()
-        for (let page = 1; ; page++) {
+        const cached = followingIndexRef.current
+        if (cached && cached.owner === username) {
+          setFollowingSet(cached.keys)
+          setFollowingGuest(false)
+          return cached.keys
+        }
+        const first = await api.users.getFollowing(username, { page: 1, limit: 50 }, signal)
+        const pages = [first]
+        const total = Math.min(
+          Math.max(typeof first.meta?.totalPages === "number" ? first.meta.totalPages : 1, 1),
+          FOLLOWING_INDEX_MAX_PAGES,
+        )
+        for (let start = 2; start <= total; start += FOLLOWING_INDEX_PARALLEL) {
           if (signal.aborted) throw new Error("Aborted")
-          const res = await api.users.getFollowing(me.username, { page, limit: 50 }, signal)
-          const previousSize = set.size
-          for (const user of res.data) set.add(user.username)
-          if (res.data.length > 0 && previousSize === set.size) throw new Error("Daftar mengikuti tidak dapat dilanjutkan.")
-          if (res.data.length < 50 || page >= res.meta.totalPages) break
+          const batch: number[] = []
+          for (let page = start; page < Math.min(start + FOLLOWING_INDEX_PARALLEL, total + 1); page++) batch.push(page)
+          const results = await Promise.all(
+            batch.map((page) => api.users.getFollowing(username, { page, limit: 50 }, signal)),
+          )
+          pages.push(...results)
         }
         if (signal.aborted) throw new Error("Aborted")
-        followingCache.current = set
-        followingOwner.current = me.username
-        setFollowingSet(set)
+        const keys = followingKeysOf(pages.flatMap((res) => res.data))
+        followingIndexRef.current = { owner: username, keys }
+        setFollowingSet(keys)
         setFollowingGuest(false)
-        return set
+        return keys
       } catch (err) {
         if (signal.aborted) throw err
         if (isApiError(err) && (err.status === 401 || err.status === 403)) {
@@ -244,10 +351,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         setError(null)
       }
 
-      const filter: ShowcaseFeedFilter = {
-        search: debouncedSearch || undefined,
-        category: category || undefined,
-      }
       const entry = pageStates.current[kind]
       // Private transaction: no cursor advancement escapes before items commit.
       const slot: FeedPageState = { cursors: { ...entry.state.cursors }, hasMore: { ...entry.state.hasMore } }
@@ -299,7 +402,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
           if (pages[0].status === "rejected") slot.hasMore.latest = true
           if (pages[1].status === "rejected") slot.hasMore.popular = true
           if (pages.some((result) => result.status === "rejected")) {
-            setError(translate("Sebagian karya belum dapat dimuat. Coba lagi."))
+            // A-05: saat load-more, error PARSIAL tampil di footer (retry
+            // melanjutkan kursor) — jangan tukar seluruh list dengan banner
+            // di atas yang "Coba lagi"-nya membuang halaman 2..N.
+            const partial = translate("Sebagian karya belum dapat dimuat. Coba lagi.")
+            if (mode === "more") setLoadMoreError(partial)
+            else setError(partial)
           }
           if (latestPage) {
             slot.cursors.latest = latestPage.nextCursor
@@ -331,7 +439,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
             if (controller.signal.aborted) return
             slot.cursors.latest = page.nextCursor
             slot.hasMore.latest = page.hasMore
-            collected.push(...page.items.filter((item) => set.has(item.author.username)))
+            collected.push(...page.items.filter((item) => followedBy(set, item)))
             if (collected.length >= FOLLOWING_MIN_ITEMS || !page.hasMore) break
           }
           incoming = collected
@@ -341,8 +449,21 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         if (controller.signal.aborted || activeRequest.current !== controller) return
         entry.state = slot
         entry.filter = filter
-        setItems((previous) => (mode === "more" ? mergeById(previous, incoming) : incoming))
+        // F-04 (audit 2026-09-23): item yang sudah dilaporkan sesi ini
+        // disembunyikan dari feed pelapor (moderasi ada di server).
+        const visible = incoming.filter((item) => !isShowcaseReported(item.id))
+        const nextItems = mode === "more" ? mergeById(itemsRef.current, visible) : visible
+        itemsRef.current = nextItems
+        itemsLengthRef.current = nextItems.length
+        setItems(nextItems)
         setHasMore(nextHasMore)
+        // A-11/A-21: simpan hasil untuk (tab × filter × sesi) — pindah tab instan.
+        itemsCache.current[kind] = {
+          revision: revisionRef.current,
+          filter,
+          items: nextItems,
+          hasMore: nextHasMore,
+        }
       } catch (err) {
         if (controller.signal.aborted) return
         if (mode === "more") setLoadMoreError(userMessage(err))
@@ -357,35 +478,56 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         }
       }
     },
-    [kind, debouncedSearch, category, ensureFollowingSet],
+    [kind, filter, ensureFollowingSet],
   )
 
-  // Reset ke halaman 1 saat tab/search/kategori berubah (termasuk muat awal).
+  // A-11/A-21: pindah tab/filter — pulihkan cache instan, fetch hanya bila
+  // belum ada hasil tersimpan untuk himpunan (tab × filter × sesi) itu.
   useEffect(() => {
-    followingCache.current = null
-    followingOwner.current = null
-    setItems([])
-    setHasMore(false)
-    void fetchPage("initial")
+    const cached = itemsCache.current[kind]
+    if (cached && cached.revision === revision && sameFeedFilter(cached.filter, filter)) {
+      itemsRef.current = cached.items
+      itemsLengthRef.current = cached.items.length
+      setItems(cached.items)
+      setHasMore(cached.hasMore)
+      setLoading(false)
+      setRefreshing(false)
+      setLoadingMore(false)
+      setError(null)
+      setLoadMoreError(null)
+    } else {
+      itemsRef.current = []
+      itemsLengthRef.current = 0
+      setItems([])
+      setHasMore(false)
+      void fetchPage("initial")
+    }
     return () => activeRequest.current?.abort()
-  }, [fetchPage, revision, hasSession])
+  }, [fetchPage, revision, hasSession, kind, filter])
+
+  /** Ganti sesi = ganti pemilik daftar following — buang cache-nya. */
+  useEffect(() => {
+    followingIndexRef.current = null
+  }, [revision])
 
   /**
    * A-08: mutasi dari layar manajemen memanggil markShowcaseFeedDirty() —
    * saat tab ini fokus kembali dan ada tanda baru, segarkan diam-diam.
-   * (Tab Expo tetap ter-mount; efek muat-awal tidak berjalan ulang.)
+   * (Tab Expo tetap ter-mounted; efek muat-awal tidak berjalan ulang.)
+   * A-02: `kind === "following"` TIDAK lagi memaksa refetch — daftar
+   * following cukup disegarkan tarik-ke-bawah (A-13) atau oleh dirty.
    */
   const isFocused = useIsFocused()
   useEffect(() => {
     if (!isFocused) return
     const current = showcaseFeedDirtyVersion()
-    if (current !== dirtySeen.current || kind === "following") {
-      followingCache.current = null
-      followingOwner.current = null
+    if (current !== dirtySeen.current) {
+      // A-04: cache following TIDAK dibuang di sini — dirty = mutasi etalase,
+      // bukan perubahan hubungan follow.
       dirtySeen.current = current
       void fetchPage("refresh")
     }
-  }, [isFocused, fetchPage, dirtyVersion, kind])
+  }, [isFocused, fetchPage, dirtyVersion])
 
   const loadMore = useCallback(() => {
     if (hasMore && !loadingMore && !refreshing && !loading) void fetchPage("more")
@@ -408,18 +550,24 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
     )
   }, [])
 
-  /** A-09: renderItem STABIL — hanya berganti bila handler/jumlah berubah. */
+  /** A-07: renderItem STABIL — divider dihitung lewat ref, bukan closure items. */
   const renderItem = useCallback(
     ({ item, index }: { item: ShowcaseSocialItem; index: number }) => (
       <FeedCard
         item={item}
-        divider={index < items.length - 1}
+        divider={index < itemsLengthRef.current - 1}
         onOpenComments={handleOpenComments}
         onReport={handleOpenReport}
       />
     ),
-    [handleOpenComments, handleOpenReport, items.length],
+    [handleOpenComments, handleOpenReport],
   )
+
+  const openSaved = useCallback(() => {
+    // A-09 (audit 2026-09-23): /saved terproteksi — tamu diarahkan ke
+    // loginRequired dengan `next`, bukan menabrak dinding tanpa konteks.
+    router.push(hasSession ? ROUTES.saved : ROUTES.loginRequired("/saved"))
+  }, [hasSession])
 
   const emptyState = (() => {
     if (kind === "following" && followingGuest) {
@@ -427,7 +575,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         <EmptyState
           icon={Images}
           title="Masuk untuk melihat feed mengikuti"
-          description="Masuk terlebih dahulu agar kami bisa menampilkan showcase dari akun yang kamu ikuti."
+          description="Masuk terlebih dahulu agar kami bisa menampilkan karya dari akun yang Anda ikuti."
           action={
             <Button onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>Masuk</Button>
           }
@@ -438,8 +586,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       return (
         <EmptyState
           icon={Images}
-          title="Kamu belum mengikuti siapa pun"
+          title="Anda belum mengikuti siapa pun"
           description="Temukan penjual lewat tab Temukan, ikuti mereka, dan karyanya akan muncul di sini."
+          // A-18 (audit 2026-09-23): tombol ke tujuan yang disebut copy-nya.
+          action={<Button onPress={() => router.push(ROUTES.discover)}>Buka Temukan</Button>}
         />
       )
     }
@@ -447,8 +597,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       return (
         <EmptyState
           icon={Images}
-          title={hasMore ? translate("Masih mencari karya dari akun yang diikuti") : translate("Belum ada showcase dari akun yang diikuti")}
-          description={hasMore ? translate("Lanjutkan pencarian pada halaman berikutnya.") : translate("Saat akun yang kamu ikuti membagikan karya, karyanya muncul di sini.")}
+          title={hasMore ? translate("Masih mencari karya dari akun yang diikuti") : translate("Belum ada karya dari akun yang diikuti")}
+          description={hasMore ? translate("Lanjutkan pencarian pada halaman berikutnya.") : translate("Saat akun yang Anda ikuti membagikan karya, karyanya muncul di sini.")}
         />
       )
     }
@@ -457,15 +607,23 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         icon={Images}
         title="Belum ada karya di etalase"
         description={
-          debouncedSearch
-            ? translate('Tidak ada hasil untuk "{x}".', { x: debouncedSearch })
+          activeSearch
+            ? translate('Tidak ada hasil untuk "{x}".', { x: activeSearch })
             : "Karya publik dari penjual Kahade akan muncul di sini."
+        }
+        // A-20 (audit 2026-09-23): CTA isi etalase untuk pemilik akun.
+        action={
+          hasSession ? (
+            <Button variant="secondary" onPress={() => router.push(ROUTES.showcaseManagement)}>
+              Tambah karya
+            </Button>
+          ) : undefined
         }
       />
     )
   })()
 
-  /** A-12: chip filter kategori aktif di atas list (scroll ikut konten). */
+  /** A-06: chip filter aktif di atas list (scroll ikut konten). */
   const categoryChip = category ? (
     <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
       <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
@@ -477,6 +635,22 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         size="sm"
         accessibilityLabel={translate("Hapus filter kategori {x}", { x: category })}
         onPress={onClearCategory}
+      />
+    </View>
+  ) : null
+
+  /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya. */
+  const searchChip = activeSearch ? (
+    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+        {translate('Cari: "{x}"', { x: activeSearch })}
+      </Text>
+      <IconButton
+        icon={X}
+        variant="ghost"
+        size="sm"
+        accessibilityLabel={translate("Hapus pencarian {x}", { x: activeSearch })}
+        onPress={() => router.setParams({ search: undefined })}
       />
     </View>
   ) : null
@@ -505,10 +679,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         error={error}
         loadMoreError={loadMoreError}
         onRefresh={() => {
-          // Tarik-segarkan juga cache "mengikuti" supaya follow baru terbaca.
-          followingCache.current = null
-          setFollowingSet(null)
-          followingOwner.current = null
+          // A-13: hanya tab "Mengikuti" yang punya cache hubungan follow —
+          // jangan reset state following di tab lain (empty-state ikut kedip).
+          if (kind === "following") {
+            followingIndexRef.current = null
+            setFollowingSet(null)
+          }
           void fetchPage("refresh")
         }}
         onRetry={() => void fetchPage("refresh")}
@@ -522,7 +698,35 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         // hampir tepat di tengah celah (lihat <ShowcaseFeedItem divider>).
         gap={tokens.space[5]}
         bottomPadding={bottomPadding}
-        header={<View className="px-5"><Button variant="ghost" onPress={() => router.push(ROUTES.saved)}>Karya tersimpan</Button>{categoryChip}</View>}
+        header={
+          <View className="px-5">
+            <View className="flex-row flex-wrap items-center gap-2">
+              {/* A-09: tergate sesi (loginRequired dengan next untuk tamu). */}
+              <Button variant="ghost" onPress={openSaved}>Karya tersimpan</Button>
+              {/* L-07: entri eksplisit "Etalase saya" (bukan hanya ikon pensil). */}
+              {hasSession ? (
+                <Button variant="ghost" onPress={() => router.push(ROUTES.showcaseManagement)}>
+                  Etalase saya
+                </Button>
+              ) : null}
+            </View>
+            {/* G-24 (audit 2026-09-23): ajakan isi etalase di BERANDA (dulu hanya
+                terlihat saat feed kosong). Teks ber-? mengikuti konvensi ID
+                ber-katalog F-02. */}
+            {hasSession ? (
+              <View className="mt-3 flex-row items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-2.5">
+                <Text variant="caption" tone="secondary" className="flex-1">
+                  Punya karya? Pamerkan di sini.
+                </Text>
+                <Button variant="secondary" size="sm" onPress={() => router.push(ROUTES.showcaseManagement)}>
+                  Tambah karya
+                </Button>
+              </View>
+            ) : null}
+            {searchChip}
+            {categoryChip}
+          </View>
+        }
         loadingPlaceholder={
           <SkeletonGroup className="gap-10 py-4">
             {Array.from({ length: 2 }, (_, index) => (

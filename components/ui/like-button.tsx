@@ -183,9 +183,12 @@ export function LikeAction({ liked, count, onPress, label = "Suka", className }:
   }
 
   return (
+    // B-04 (audit 2026-09-23): literal ternary dibungkus `translate` —
+    // string di dalam `{}` atribut JSX tidak terbaca scanner i18n lama
+    // (scanner-nya sudah diperbaiki; pemanggilan eksplisit menjamin lookup).
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
+      accessibilityLabel={liked ? translate("Hapus suka") : translate("Sukai")}
       accessibilityHint={translate("{x} suka", { x: formatCountCompact(count) })}
       accessibilityState={{ selected: liked }}
       haptic

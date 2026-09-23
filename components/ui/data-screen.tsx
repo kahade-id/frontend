@@ -103,6 +103,13 @@ export type DataScreenProps = {
   /** Node yang selalu dirender di atas area state (mis. tab/segmented). */
   above?: ReactNode
   /**
+   * J-01 (audit 2026-09-23): konten yang TIDAK ikut tergantikan skeleton /
+   * ErrorState saat `state` loading/error — dirender selalu di dalam scroller.
+   * Tanpa prop ini section mandiri (mis. Karya tersimpan di app/saved) ikut
+   * hilang hanya karena query SECTION SEBELAH sedang loading/gagal.
+   */
+  persistent?: ReactNode
+  /**
    * Dock di bawah scroll (navbar shell). Safe-area bawah menjadi milik dock,
    * bukan padding list — jangan mengirim dock yang juga menambah inset.
    */
@@ -144,6 +151,7 @@ export function DataScreen({
   above,
   dock,
   shiftFade = false,
+  persistent,
   children,
 }: DataScreenProps) {
   const { loading, refreshing = false, error, refresh, reload } = state
@@ -176,6 +184,7 @@ export function DataScreen({
       docked={!!dock}
       hasFooter={!!footer}
     >
+      {persistent}
       {body}
     </DataScroll>
   )
