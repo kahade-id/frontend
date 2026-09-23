@@ -282,9 +282,21 @@ export const ROUTES = {
       pathname: "/help/[slug]",
       params: { slug: category ?? article, article, ...(category ? {} : { q: title ?? article }) },
     }) as unknown as Href,
-  /** Profil publik user (GET /v1/users/{username}) */
-  userProfile: (username: string) =>
-    ({ pathname: "/user/[username]", params: { username } }) as unknown as Href,
+  /**
+   * Profil publik user (GET /v1/users/{username}).
+   *
+   * `self: true` (dari tombol Profil di navbar) = pernyataan pengirim bahwa
+   * ini profil MILIK SENDIRI — dipakai layar untuk merender navbar shell di
+   * frame pertama, sebelum `getMe` selesai (navbar tidak boleh menghilang
+   * sebentar tiap kali tab Profil ditekan). Bukan data sensitif: tanpa token
+   * yang sah isi profilnya tetap tertutup; param salah-satu paling buruk
+   * menampilkan navbar di profil orang lain.
+   */
+  userProfile: (username: string, opts: { self?: boolean } = {}) =>
+    ({
+      pathname: "/user/[username]",
+      params: { username, ...(opts.self ? { self: "1" } : {}) },
+    }) as unknown as Href,
 
   // ── Analitik & komunitas (users) ───────────────────────────────────────
   /** Statistik & analitik (GET /v1/users/me/stats + /analytics) */

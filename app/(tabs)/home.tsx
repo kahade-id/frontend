@@ -9,6 +9,9 @@
  *                       (Personal/Bisnis) → tap membuka Pengaturan; kanan:
  *                       Cari + Pesan (chat). Notifikasi TIDAK ada di sini —
  *                       sudah punya tab sendiri di bottom bar.
+ *   1b. Baris cari    : <SearchTrigger> + pil kompak <ModeSwitcher>
+ *                       (E-Commerce ⇄ E-Wallet) — keduanya di header sticky,
+ *                       tidak ikut scroll.
  *   2. Kartu hero     : <HomeOverviewCard> — saldo (`GET /v1/wallet`) + aksi
  *                       dompet, statistik order (`GET /v1/orders/summary`:
  *                       Aktif · Selesai · Sengketa), dan notice "perlu
@@ -62,18 +65,18 @@ import {
   ArrowCircleDown,
   ArrowCircleUp,
   Bell,
+  CardsThree,
   ChartLineUp,
   Compass,
   Gift,
-  ImagesSquare,
   Lightning,
   LinkSimple,
   PaperPlaneTilt,
+  Percent,
   QrCode,
   Receipt,
   Scales,
   ShieldCheck,
-  Ticket,
   Chats,
   UsersThree,
   Wallet,
@@ -91,7 +94,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Stagger } from "@/components/ui/fade-in"
-import { ModeShiftFade, ModeSwitcherBar } from "@/components/ui/mode-switcher"
+import { ModeShiftFade, ModeSwitcher } from "@/components/ui/mode-switcher"
 import { HomeOverviewCard, type OverviewNotice } from "@/components/ui/home-overview-card"
 import { Icon } from "@/components/ui/icon"
 import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
@@ -305,17 +308,19 @@ export default function HomeScreen() {
       onPress: () => router.push(ROUTES.discover),
     },
     {
-      // Showcase keluar dari bottom bar (v3 2026-09-21) dan jadi halaman
-      // khusus — pintasan ini jalurnya, supaya feed tidak kehilangan pintu.
+      // Etalase (feed showcase sosial) keluar dari bottom bar (v3 2026-09-21)
+      // dan jadi halaman khusus — pintasan ini jalurnya, supaya feed tidak
+      // kehilangan pintu. Ikon CardsThree = ikon "Etalase" yang sama dengan
+      // slot primer navbar mode commerce & switcher mode.
       key: "showcase",
-      icon: ImagesSquare,
-      label: "Showcase",
+      icon: CardsThree,
+      label: "Etalase",
       onPress: () => router.push(ROUTES.showcase),
     },
     {
       key: "vouchers",
-      icon: Ticket,
-      label: "Voucher",
+      icon: Percent,
+      label: "Promo",
       onPress: () => router.push(ROUTES.vouchers),
     },
     { key: "referral", icon: Gift, label: "Referral", onPress: () => router.push(ROUTES.referral) },
@@ -333,7 +338,7 @@ export default function HomeScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <View className="z-sticky border-b border-border bg-background">
-          {/* ── 1. Bar identitas — di luar scroll supaya switcher tetap di atas ── */}
+          {/* ── 1. Bar identitas — di luar scroll supaya cari & switcher tetap di atas ── */}
           <View className="flex-row items-center gap-3 px-5 pb-2 pt-3">
             {isGuest ? (
               <View className="flex-1 gap-1 py-1">
@@ -449,7 +454,23 @@ export default function HomeScreen() {
             </View>
             ) : null}
           </View>
-        <ModeSwitcherBar className="pt-1" />
+
+          {/* ── 1b. Baris pencarian + switcher mode ───────────────
+              Beranda layar netral: pencarian (selalu terlihat, tidak ikut
+              scroll) + pil kompak E-Commerce ⇄ E-Wallet. Switcher tidak lagi
+              baris penuh sendiri — cukup sekecil aksi header lain, dan tetap
+              satu-satunya di layar ini. */}
+          <View className="flex-row items-center gap-3 px-5 pb-3">
+            {!isGuest ? (
+              <View className="min-w-0 flex-1">
+                <SearchTrigger
+                  placeholder="Cari transaksi, pengguna, atau ID"
+                  onPress={() => router.push(ROUTES.search)}
+                />
+              </View>
+            ) : null}
+            <ModeSwitcher />
+          </View>
       </View>
       <ModeShiftFade>
       <PullToRefresh
@@ -466,20 +487,6 @@ export default function HomeScreen() {
         }}
       >
         <Stagger duration="fast" step={60}>
-          {/* ── 1b. Kolom cari (kartu di atas kartu Saldo) ─────── */}
-          {!isGuest ? (
-          <View className="px-5 pt-3">
-            {/* Variant default (outline border-control), BUKAN "elevated":
-                varian elevated = putih tanpa border dan hanya terbaca di
-                atas latar abu — latar Beranda kini putih (lihat catatan di
-                atas), jadi outline-nya harus dari border seperti <Input>. */}
-            <SearchTrigger
-              placeholder="Cari transaksi, pengguna, atau ID"
-              onPress={() => router.push(ROUTES.search)}
-            />
-          </View>
-          ) : null}
-
           {/* ── 2. Kartu hero: saldo + statistik + notice ──────── */}
           {!isGuest ? (
           <View className="px-5 pt-3">

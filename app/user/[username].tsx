@@ -57,7 +57,6 @@ import { logWarn } from "@/lib/telemetry"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { ModeSwitcherBar } from "@/components/ui/mode-switcher"
 import { ShellTabBar } from "@/components/ui/shell-tab-bar"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Button } from "@/components/ui/button"
@@ -132,7 +131,10 @@ const BADGE_ICON: Partial<Record<string, IconComponent>> = {
 }
 
 export default function UserProfileScreen() {
-  const { username: rawUsername } = useLocalSearchParams<{ username: string }>()
+  const { username: rawUsername, self: selfParam } = useLocalSearchParams<{
+    username: string
+    self?: string
+  }>()
   const username = rawUsername ?? ""
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -519,8 +521,18 @@ export default function UserProfileScreen() {
     [handle, saveLoading, toast],
   )
 
-  /** Navbar shell hanya di profil sendiri — orang lain tidak melihat tab bar. */
-  const showBottomNav = isSelf && Boolean(profile)
+  /**
+   * Navbar shell hanya di profil sendiri — orang lain tidak melihat tab bar.
+   *
+   * Revisi 2026-09-23: navbar TIDAK lagi menunggu `profile`/`getMe` termuat.
+   * Dulu `isSelf && Boolean(profile)` — menekan tab Profil membuat navbar
+   * hilang sebentar (bar layar tab meluncur keluar, bar layar ini baru
+   * dirender setelah fetch selesai). Sekarang navbar tampil sejak frame
+   * pertama lewat dua sinyal: param rute `self` (dikirim tombol Profil di
+   * navbar, yang SUDAH tahu ini profil sendiri) atau `isSelf` yang dihitung
+   * ulang begitu `meUsername` tiba.
+   */
+  const showBottomNav = isSelf || selfParam === "1"
 
   /**
    * Payload + fallback berbagi dipisah dari tombolnya supaya <ShareSheetTrigger>
@@ -741,8 +753,6 @@ export default function UserProfileScreen() {
             ) : null
           }
         />
-
-        {isSelf ? <ModeSwitcherBar className="bg-transparent px-5 pb-2 pt-1" /> : null}
 
         {/* ── Top Cover (KARTU) ────────────────────────────────
             Sampul kartu bersih tanpa tombol navigasi di dalamnya. */}

@@ -158,7 +158,7 @@ export default function TransactionsScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header title="Transaksi" showBack={false} modeSwitcher />
+        <Header title="Transaksi" showBack={false} />
         <GuestLoginPrompt bare next="/transactions" />
       </Screen>
     )
@@ -168,7 +168,6 @@ export default function TransactionsScreen() {
       <Header
         title="Transaksi"
         showBack={false}
-        modeSwitcher
         right={
           <>
             <IconButton

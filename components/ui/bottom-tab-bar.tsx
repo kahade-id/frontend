@@ -26,9 +26,12 @@
  *     style runtime. `border-t border-border` sebagai pemisah (§6).
  *   - Tombol (+) di TENGAH (permintaan produk 2026-09-21): aksi membuat
  *     sesuatu — isi saldo, buat transaksi, tambah etalase — dikumpulkan di
- *     satu tombol terapung, bukan disebar sebagai tab. Tab yang tersisa
- *     (4) berbagi lebar yang dilepas slot tengah, jadi label tetap muat di
- *     360dp; tab "showcase" dikeluarkan dari bar (lihat HIDDEN_TAB_ROUTES).
+ *     satu tombol, bukan disebar sebagai tab. Revisi 2026-09-23: tombol ini
+ *     HIDUP DI DALAM tinggi bar (lingkaran 44px terpusat vertikal), bukan
+ *     lagi lingkaran 48px yang mengambang melewati tepi atas bar. Tab yang
+ *     tersisa (4) berbagi lebar yang dilepas slot tengah, jadi label tetap
+ *     muat di 360dp; tab "showcase" dikeluarkan dari bar (lihat
+ *     HIDDEN_TAB_ROUTES).
  *   - Ripple di tiap tab: bar ini permukaan sapuan jari (lihat PressableScale).
  *     Scale press tetap mati — item menempel satu sama lain, jadi animasi
  *     skala membuat tepi bar tampak "bernapas".
@@ -51,8 +54,8 @@ import { Animated, Easing, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import {
+  CardsThree,
   House,
-  ImagesSquare,
   Lightning,
   Plus,
   ShoppingBag,
@@ -66,11 +69,9 @@ import { NotificationDot } from "@/components/ui/badge"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import type { BottomTabBarProps as RNNBottomTabBarProps } from "@react-navigation/bottom-tabs"
 
-import { useTheme } from "@/components/theme-provider"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { elevationStyle } from "@/lib/elevation"
 import { focusRingInset } from "@/lib/focus-ring"
 import { haptic } from "@/lib/haptics"
 import { hitSlopToReach } from "@/lib/hit-slop"
@@ -135,9 +136,12 @@ export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
     route: "/wallet" as Href,
   },
   showcase: {
-    label: "Showcase",
-    icon: ImagesSquare,
-    accessibilityLabel: "Tab Showcase sosial",
+    // "Etalase" + CardsThree — SATU nama & ikon dengan slot primer mode
+    // commerce (lib/app-mode.ts) dan switcher mode: tujuannya sama
+    // (/showcase), jangan sampai tiga sebutan untuk satu tempat.
+    label: "Etalase",
+    icon: CardsThree,
+    accessibilityLabel: "Tab Etalase",
     route: "/showcase" as Href,
   },
   discover: {
@@ -225,7 +229,7 @@ export const CENTER_ACTION_ITEMS: readonly ActionSheetItem[] = [
     key: "add-showcase",
     label: "Tambah etalase",
     description: "Unggah karya atau produk ke etalase Anda",
-    icon: ImagesSquare,
+    icon: CardsThree,
     onPress: () => router.push(ROUTES.showcaseManagement),
   },
 ]
@@ -350,13 +354,18 @@ function TabAvatar({
 }
 
 /**
- * Tombol (+) terapung di tengah bar — slot tetap 64px supaya tab di kiri dan
- * kanannya berbagi sisa lebar dengan sama (tidak digeser flex).
+ * Tombol aksi di tengah bar — quick menu (commerce) & scan/bayar (wallet).
+ * Slot tetap 64px supaya tab di kiri dan kanannya berbagi sisa lebar dengan
+ * sama (tidak digeser flex).
  *
- * Lingkaran 48px `bg-primary` + ikon Plus inverse: satu-satunya elemen
- * berwarna solid di bar, jadi mata langsung menemukannya. Naik 20px di atas
- * tepi bar (`-mt-5`) dan memakai elevation "medium" (§5.2: FAB/popover) —
- * bayangan itulah yang memisahkannya dari konten di belakang, bukan garis.
+ * Revisi 2026-09-23: tombol HIDUP DI DALAM tinggi bar (60px), bukan lagi
+ * lingkaran yang mengambang 20px di atas tepi bar. Lingkaran 44px
+ * (`h-11` = target sentuh minimum) dipusatkan vertikal — 8px napas di atas
+ * dan bawahnya — sehingga bar tidak "ditembus" dan konten di belakang bar
+ * tidak pernah tertutup tombol. `bg-primary` + ikon inverse tetap satu-
+ * satunya elemen solid di bar, jadi tetap jelas itu aksi utama; kontrasnya
+ * dengan latar bar sudah memisahkannya tanpa elevation (§6: elevasi untuk
+ * FAB yang melayang di atas konten — tombol di dalam bar bukan FAB).
  */
 function CenterGlyph({ icon, motionKey }: { icon: IconComponent; motionKey?: string }) {
   const reducedMotion = useReducedMotion()
@@ -393,14 +402,12 @@ function CenterGlyph({ icon, motionKey }: { icon: IconComponent; motionKey?: str
 
 function CenterActionButton({
   onPress,
-  elevation,
   icon = Plus,
   accessibilityLabel,
   accessibilityHint,
   motionKey,
 }: {
   onPress: () => void
-  elevation: ViewProps["style"]
   icon?: IconComponent
   accessibilityLabel?: string
   accessibilityHint?: string
@@ -408,24 +415,22 @@ function CenterActionButton({
 }) {
   useLanguage()
   return (
-    <View className="w-16 items-center">
-      <View style={elevation} className="-mt-5 rounded-full">
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={accessibilityLabel ?? "Buat baru"}
-          accessibilityHint={
-            accessibilityHint ??
-            translate("Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase")
-          }
-          scaleOnPress={false}
-          ripple
-          onPress={onPress}
-          containerClassName={cn("rounded-full bg-primary", focusRingInset)}
-          className="h-12 w-12 items-center justify-center rounded-full"
-        >
-          <CenterGlyph icon={icon} motionKey={motionKey} />
-        </PressableScale>
-      </View>
+    <View className="w-16 flex-col items-center justify-center">
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={accessibilityLabel ?? "Buat baru"}
+        accessibilityHint={
+          accessibilityHint ??
+          translate("Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase")
+        }
+        scaleOnPress={false}
+        ripple
+        onPress={onPress}
+        containerClassName={cn("rounded-full bg-primary", focusRingInset)}
+        className="h-11 w-11 items-center justify-center rounded-full"
+      >
+        <CenterGlyph icon={icon} motionKey={motionKey} />
+      </PressableScale>
     </View>
   )
 }
@@ -505,7 +510,6 @@ export function BottomTabBar<K extends string = string>({
   ...rest
 }: BottomTabBarProps<K>) {
   const insets = useSafeAreaInsets()
-  const { mode } = useTheme()
   const [centerOpen, setCenterOpen] = useState(false)
 
   const actions = center
@@ -576,7 +580,6 @@ export function BottomTabBar<K extends string = string>({
               {items.slice(0, splitAt).map(renderTab)}
             </ChromeFade>
             <CenterActionButton
-              elevation={elevationStyle("medium", mode)}
               icon={center?.icon}
               accessibilityLabel={center?.accessibilityLabel}
               accessibilityHint={center?.accessibilityHint}

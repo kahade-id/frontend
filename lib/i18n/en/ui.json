@@ -183,5 +183,8 @@
   "Kode {x} digit, {y} dari {z} terisi": "{x}-digit code, {y} of {z} entered",
   "Panggilan {x} dari {y}": "{x} from {y}",
   "PIN {x} dari {y} digit": "PIN {x} of {y} digits",
-  "Foto paket, tangkapan layar pengiriman, atau PDF. Maks {x} berkas.": "Package photos, delivery screenshots, or PDF. Max {x} files."
+  "Foto paket, tangkapan layar pengiriman, atau PDF. Maks {x} berkas.": "Package photos, delivery screenshots, or PDF. Max {x} files.",
+  "Cari di etalase": "Search the marketplace",
+  "Kelola etalase saya": "Manage my shop",
+  "Buka halaman untuk menambah dan mengatur etalase": "Open the page to add and arrange your shop"
 }

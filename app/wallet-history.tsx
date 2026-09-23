@@ -256,7 +256,6 @@ export default function WalletHistoryScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header
         title="Riwayat Dompet"
-        modeSwitcher
         right={
           <>
             <IconButton

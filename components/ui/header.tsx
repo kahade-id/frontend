@@ -31,7 +31,6 @@ import { ArrowLeft, X } from "phosphor-react-native"
 import { useRouter } from "expo-router"
 
 import { IconButton } from "@/components/ui/icon-button"
-import { ModeSwitcher } from "@/components/ui/mode-switcher"
 import { StepProgress } from "@/components/ui/stepper"
 import { Text } from "@/components/ui/text"
 import { ScreenInsetsContext } from "@/components/ui/screen"
@@ -92,8 +91,6 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
   right?: ReactNode
   /** 0–1: bar progres tipis di bawah header (§9.22) */
   progress?: number
-  /** Pil E-Commerce ⇄ E-Wallet tepat di bawah bar judul. */
-  modeSwitcher?: boolean
   /** Tanpa border & bg — untuk hero */
   transparent?: boolean
   /** Safe area top ikut dipadding (default true; false bila SafeAreaView di luar) */
@@ -110,7 +107,6 @@ export function Header({
   left,
   right,
   progress,
-  modeSwitcher = false,
   transparent = false,
   safeArea,
   className,
@@ -185,12 +181,6 @@ export function Header({
             </View>
           </View>
         </View>
-
-        {modeSwitcher ? (
-          <View className="px-5 pb-3 pt-2">
-            <ModeSwitcher />
-          </View>
-        ) : null}
 
         {largeTitle ? (
           <View className="px-5 pb-4 pt-1">
