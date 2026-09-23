@@ -25,7 +25,7 @@
  */
 
 import { memo, useCallback } from "react"
-import { BookmarkSimple, ChatCircle, Export, Flag } from "phosphor-react-native"
+import { BookmarkSimple, ChatCircle, Export, Flag, FunnelSimple } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
@@ -57,6 +57,7 @@ export type ShowcaseFeedItemProps = {
   saved?: boolean
   onShare?: () => void
   onReport?: () => void
+  onOptions?: () => void
   divider?: boolean
   className?: string
 }
@@ -131,6 +132,7 @@ function ShowcaseFeedItemBase({
   saved = false,
   onShare,
   onReport,
+  onOptions,
   divider = false,
   className,
 }: ShowcaseFeedItemProps) {
@@ -220,12 +222,12 @@ function ShowcaseFeedItemBase({
         {/* B-05: lapor tidak masuk akal untuk karya sendiri (selaras detail). */}
         {!item.isOwner ? (
           <IconButton
-            icon={Flag}
+            icon={onOptions ? FunnelSimple : Flag}
             variant="ghost"
             size="sm"
-            accessibilityLabel={translate("Laporkan karya")}
-            accessibilityHint={translate("Laporkan karya ini")}
-            onPress={handleReport}
+            accessibilityLabel={onOptions ? translate("Pilihan karya") : translate("Laporkan karya")}
+            accessibilityHint={onOptions ? translate("Tidak tertarik atau laporkan karya") : translate("Laporkan karya ini")}
+            onPress={onOptions ?? handleReport}
           />
         ) : null}
       </View>

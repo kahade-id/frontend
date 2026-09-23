@@ -58,3 +58,28 @@ describe("A-01/C-02: aksi sosial tidak menandai feed dirty", () => {
     expect(showcaseFeedDirtyVersion()).toBe(before) // A-01: TANPA dirty
   })
 })
+
+// Use the real store: visibility changes must not refetch/reset paginated data.
+describe("feed visibility", () => {
+  it("reacts immediately to reports and dismissals without marking the feed dirty", async () => {
+    const { useShowcaseHiddenIds, dismissShowcase, markShowcaseReported, isShowcaseReported } = await import("@/lib/showcase-social-prefs")
+    const before = showcaseFeedDirtyVersion()
+    const { result, unmount } = renderHook(() => useShowcaseHiddenIds())
+    act(() => dismissShowcase("not-interested"))
+    expect(result.current.has("not-interested")).toBe(true)
+    expect(isShowcaseReported("not-interested")).toBe(false)
+    act(() => markShowcaseReported("reported-work"))
+    expect(result.current.has("reported-work")).toBe(true)
+    expect(showcaseFeedDirtyVersion()).toBe(before)
+    unmount()
+  })
+  it("clears dismissed and reported IDs on session change", async () => {
+    const { useShowcaseHiddenIds, dismissShowcase, markShowcaseReported } = await import("@/lib/showcase-social-prefs")
+    const { clearSession } = await import("@/lib/api/session")
+    const { result, unmount } = renderHook(() => useShowcaseHiddenIds())
+    act(() => { dismissShowcase("old-owner"); markShowcaseReported("old-report") })
+    await act(async () => { await clearSession() })
+    expect(result.current.size).toBe(0)
+    unmount()
+  })
+})

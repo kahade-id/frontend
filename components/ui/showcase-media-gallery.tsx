@@ -87,7 +87,7 @@ export function ShowcaseMediaGallery({ images, title, onOpen }: {
             <CaretLeft size={18} color="#FFFFFF" weight="bold" />
           </PressableScale>
           <View className="flex-row items-center gap-3">
-            <View accessibilityLiveRegion="polite" className="flex-row items-center gap-1.5">
+            <View accessible accessibilityLabel={translate("Foto {x} dari {y}", { x: page + 1, y: images.length })} accessibilityLiveRegion="polite" className="flex-row items-center gap-1.5">
               {images.map((image, index) => (
                 <View
                   key={`dot-${image.id}`}
@@ -98,9 +98,7 @@ export function ShowcaseMediaGallery({ images, title, onOpen }: {
                 />
               ))}
             </View>
-            <Text variant="caption" tone="inherit" className="text-white tabular-nums">
-              {translate("Foto {x} dari {y}", { x: page + 1, y: images.length })}
-            </Text>
+
           </View>
           <PressableScale
             accessibilityRole="button"

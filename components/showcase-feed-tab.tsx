@@ -18,7 +18,7 @@
  *    (loadMoreError), retry-nya melanjutkan halaman, bukan refresh penuh.
  *  - A-06: chip `?search=` kini bisa dihapus (sama seperti kategori).
  *  - A-07/A-08: renderItem stabil (divider via ref) dan FeedCard memo penuh.
- *  - A-09/L-07: "Karya tersimpan" digate sesi; "Etalase saya" berlabel eksplisit.
+ *  - Akses kelola dipusatkan pada pensil; simpan tersedia di pengaturan.
  *  - A-11/A-21: item per (tab × filter × sesi) di-cache — pindah tab instan.
  *  - A-12: filter following cocok per userId ATAU username-lowercase.
  *  - A-13: tarik-segarkan hanya menyentuh state following di tab Mengikuti.
@@ -49,6 +49,8 @@ import {
 } from "@/lib/showcase-feed-logic"
 import {
   isShowcaseReported,
+  dismissShowcase,
+  useShowcaseHiddenIds,
   showcaseFeedDirtyVersion,
   useShowcaseDirtyVersion,
 } from "@/lib/showcase-social-prefs"
@@ -58,6 +60,7 @@ import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 
 import { translate } from "@/lib/i18n/translate"
 
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { IconButton } from "@/components/ui/icon-button"
@@ -168,7 +171,7 @@ const FeedCard = memo(function FeedCard({
       onToggleSave={toggleSave}
       saved={saved}
       onShare={share}
-      onReport={handleReport}
+      onOptions={handleReport}
       divider={divider}
     />
   )
@@ -213,6 +216,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   /** Item yang komentarnya sedang dibuka di BottomSheet (null = tertutup). */
   const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
   /** Item yang sedang dilaporkan (null = tertutup). */
+  const hiddenIds = useShowcaseHiddenIds()
+  const [actionItem, setActionItem] = useState<ShowcaseSocialItem | null>(null)
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
   const activeRequest = useRef<AbortController | null>(null)
   const loadMoreBusy = useRef(false)
@@ -239,7 +244,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   /** Cermin `items` untuk commit atomik cache (tanpa side-effect di updater). */
   const itemsRef = useRef<ShowcaseSocialItem[]>([])
   /** A-07: panjang list terkini untuk `divider` — renderItem tetap stabil. */
+  const visibleItems = useMemo(() => items.filter((item) => !hiddenIds.has(item.id)), [items, hiddenIds])
   const itemsLengthRef = useRef(0)
+  itemsLengthRef.current = visibleItems.length
   /**
    * A-04: cache daftar following per akun — hidup selama tab terpasang
    * (antar pindah tab TANPA fetch ulang), dibuang saat ganti sesi/akun
@@ -454,7 +461,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         const visible = incoming.filter((item) => !isShowcaseReported(item.id))
         const nextItems = mode === "more" ? mergeById(itemsRef.current, visible) : visible
         itemsRef.current = nextItems
-        itemsLengthRef.current = nextItems.length
         setItems(nextItems)
         setHasMore(nextHasMore)
         // A-11/A-21: simpan hasil untuk (tab × filter × sesi) — pindah tab instan.
@@ -487,7 +493,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
     const cached = itemsCache.current[kind]
     if (cached && cached.revision === revision && sameFeedFilter(cached.filter, filter)) {
       itemsRef.current = cached.items
-      itemsLengthRef.current = cached.items.length
       setItems(cached.items)
       setHasMore(cached.hasMore)
       setLoading(false)
@@ -497,7 +502,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       setLoadMoreError(null)
     } else {
       itemsRef.current = []
-      itemsLengthRef.current = 0
       setItems([])
       setHasMore(false)
       void fetchPage("initial")
@@ -508,6 +512,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   /** Ganti sesi = ganti pemilik daftar following — buang cache-nya. */
   useEffect(() => {
     followingIndexRef.current = null
+    setActionItem(null)
+    setReportItem(null)
+    setCommentItem(null)
   }, [revision])
 
   /**
@@ -538,7 +545,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   }, [])
 
   const handleOpenReport = useCallback((item: ShowcaseSocialItem) => {
-    setReportItem(item)
+    setActionItem(item)
   }, [])
 
   /** Komentar baru dari komposer sheet — hitungan kartu ikut bertambah. */
@@ -562,12 +569,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
     ),
     [handleOpenComments, handleOpenReport],
   )
-
-  const openSaved = useCallback(() => {
-    // A-09 (audit 2026-09-23): /saved terproteksi — tamu diarahkan ke
-    // loginRequired dengan `next`, bukan menabrak dinding tanpa konteks.
-    router.push(hasSession ? ROUTES.saved : ROUTES.loginRequired("/saved"))
-  }, [hasSession])
 
   const emptyState = (() => {
     if (kind === "following" && followingGuest) {
@@ -671,7 +672,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
 
       <ModeShiftFade>
       <PaginatedList
-        data={items}
+        data={visibleItems}
         loading={loading}
         refreshing={refreshing}
         loadingMore={loadingMore}
@@ -698,35 +699,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         // hampir tepat di tengah celah (lihat <ShowcaseFeedItem divider>).
         gap={tokens.space[5]}
         bottomPadding={bottomPadding}
-        header={
-          <View className="px-5">
-            <View className="flex-row flex-wrap items-center gap-2">
-              {/* A-09: tergate sesi (loginRequired dengan next untuk tamu). */}
-              <Button variant="ghost" onPress={openSaved}>Karya tersimpan</Button>
-              {/* L-07: entri eksplisit "Etalase saya" (bukan hanya ikon pensil). */}
-              {hasSession ? (
-                <Button variant="ghost" onPress={() => router.push(ROUTES.showcaseManagement)}>
-                  Etalase saya
-                </Button>
-              ) : null}
-            </View>
-            {/* G-24 (audit 2026-09-23): ajakan isi etalase di BERANDA (dulu hanya
-                terlihat saat feed kosong). Teks ber-? mengikuti konvensi ID
-                ber-katalog F-02. */}
-            {hasSession ? (
-              <View className="mt-3 flex-row items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-2.5">
-                <Text variant="caption" tone="secondary" className="flex-1">
-                  Punya karya? Pamerkan di sini.
-                </Text>
-                <Button variant="secondary" size="sm" onPress={() => router.push(ROUTES.showcaseManagement)}>
-                  Tambah karya
-                </Button>
-              </View>
-            ) : null}
-            {searchChip}
-            {categoryChip}
-          </View>
-        }
+        header={searchChip || categoryChip ? <View>{searchChip}{categoryChip}</View> : undefined}
         loadingPlaceholder={
           <SkeletonGroup className="gap-10 py-4">
             {Array.from({ length: 2 }, (_, index) => (
@@ -754,6 +727,19 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         onRequestClose={() => setCommentItem(null)}
         onCommentAdded={handleCommentAdded}
       />
+
+      <BottomSheet visible={!!actionItem} onRequestClose={() => setActionItem(null)} title="Pilihan karya">
+        <View className="gap-3">
+          <Button variant="ghost" onPress={() => {
+            if (actionItem) dismissShowcase(actionItem.id)
+            setActionItem(null)
+          }}>Tidak tertarik</Button>
+          <Button variant="ghost" onPress={() => {
+            setReportItem(actionItem)
+            setActionItem(null)
+          }}>Laporkan karya</Button>
+        </View>
+      </BottomSheet>
 
       {/* A-11: SATU sheet laporan (audit: disalin dari versi inline lama). */}
       <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />

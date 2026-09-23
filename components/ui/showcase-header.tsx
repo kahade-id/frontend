@@ -25,7 +25,7 @@
  * `shadow-sm`/`rounded-xl` tetap tidak ada (lihat tailwind.config).
  */
 
-import { View, ScrollView } from "react-native"
+import { View } from "react-native"
 import { useRouter } from "expo-router"
 import {
   BellSimple,
@@ -39,7 +39,6 @@ import {
 import { ROUTES } from "@/lib/routes"
 import { useHasSession } from "@/lib/guest-gate"
 import { useUnreadCountState } from "@/lib/unread-count"
-import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
@@ -49,7 +48,7 @@ import { Logo } from "@/components/ui/logo"
 import { NotificationDot } from "@/components/ui/badge"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
-import { Text } from "@/components/ui/text"
+import { Tabs } from "@/components/ui/tabs"
 import type { IconComponent } from "@/components/ui/icon"
 
 export type ShowcaseFeedKind = "forYou" | "following" | "latest" | "popular"
@@ -136,55 +135,14 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
       </View>
 
       {/* ── Strip tab feed ── */}
-      <View className="border-b border-border">
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          // A-15 (audit 2026-09-23): container tab WAJIB `tablist` — anak-anak
-          // `accessibilityRole="tab"` tanpa induk tablist ambigu bagi AT
-          // (paritas tabs.tsx:179).
-          accessibilityRole="tablist"
-          contentContainerStyle={{
-            paddingHorizontal: tokens.space[5],
-            gap: tokens.space[2],
-            paddingBottom: tokens.space[3],
-          }}
-        >
-          {tabs.map((t) => {
-            const active = t.value === kind
-            const IconCmp = TAB_ICONS[t.value] ?? Sparkle
-            return (
-              <PressableScale
-                key={t.value}
-                accessibilityRole="tab"
-                accessibilityState={{ selected: active }}
-                accessibilityLabel={t.label}
-                haptic
-                onPress={() => onKindChange(t.value)}
-                containerClassName={cn("rounded-full", focusRing)}
-                className={cn(
-                  "h-8 flex-row items-center justify-center gap-1.5 rounded-full border px-3.5",
-                  active ? "border-primary bg-primary" : "border-transparent bg-surface",
-                )}
-              >
-                <Icon
-                  icon={IconCmp}
-                  size={14}
-                  weight={active ? "fill" : "regular"}
-                  tone={active ? "inverse" : "active"}
-                />
-                <Text
-                  variant="label"
-                  weight={active ? 700 : 500}
-                  tone={active ? "inverse" : "secondary"}
-                >
-                  {t.label}
-                </Text>
-              </PressableScale>
-            )
-          })}
-        </ScrollView>
-      </View>
+      <Tabs
+        items={tabs.map((tab) => ({ ...tab, icon: TAB_ICONS[tab.value] }))}
+        value={kind}
+        onChange={onKindChange}
+        scrollable
+        activeIconOnly
+        largeLabels
+      />
     </View>
   )
 }

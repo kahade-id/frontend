@@ -18,12 +18,13 @@ type SocialPrefs = {
    * sheet lapor menampilkan state "sudah dilaporkan", feed pelapor
    * menyembunyikannya (balasan moderasi ada di sisi server).
    */
+  dismissed: Record<string, true>
   reported: Record<string, true>
   /** Naik setiap ada mutasi "etalase saya" (buat/ubah/hapus). */
   feedDirtyVersion: number
 }
 
-const EMPTY: SocialPrefs = { saved: {}, likes: {}, reported: {}, feedDirtyVersion: 0 }
+const EMPTY: SocialPrefs = { saved: {}, likes: {}, dismissed: {}, reported: {}, feedDirtyVersion: 0 }
 
 let state: SocialPrefs = EMPTY
 const listeners = new Set<() => void>()
@@ -125,6 +126,18 @@ export function showcaseFeedDirtyVersion(): number {
 // Laporan (F-04): "sudah dilaporkan" per item untuk sesi ini.
 // ------------------------------------------------------------------
 
+/** Not interested is session-local, not a moderation report. */
+export function dismissShowcase(id: string) {
+  emit({ dismissed: { ...state.dismissed, [id]: true } })
+}
+
+/** Reactive visibility: reports/dismissals remove already loaded cards immediately. */
+export function useShowcaseHiddenIds(): ReadonlySet<string> {
+  const reported = useSyncExternalStore(subscribe, () => state.reported, () => EMPTY.reported)
+  const dismissed = useSyncExternalStore(subscribe, () => state.dismissed, () => EMPTY.dismissed)
+  return useMemo(() => new Set([...Object.keys(reported), ...Object.keys(dismissed)]), [reported, dismissed])
+}
+
 export function markShowcaseReported(id: string) {
   emit({ reported: { ...state.reported, [id]: true } })
 }
@@ -152,7 +165,7 @@ subscribeSession(() => {
   bookmarkQueue = bookmarkQueue.then(() => deleteSecureItem(SecureKeys.showcaseBookmarks)).catch(() => {
     logWarn("showcase:bookmark-clear", new Error("Local bookmark cleanup failed"))
   })
-  emit({ saved: {}, likes: {}, reported: {}, feedDirtyVersion: state.feedDirtyVersion + 1 })
+  emit({ saved: {}, likes: {}, dismissed: {}, reported: {}, feedDirtyVersion: state.feedDirtyVersion + 1 })
 })
 
 export function clearShowcaseLikeOverride(id: string) {

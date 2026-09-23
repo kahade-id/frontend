@@ -59,6 +59,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  withTiming,
 } from "react-native-reanimated"
 
 import { Icon, type IconComponent } from "@/components/ui/icon"
@@ -85,6 +86,9 @@ export type TabsProps<V extends string = string> = Omit<ViewProps, "children"> &
   /** Scroll horizontal untuk banyak tab (> 4) */
   scrollable?: boolean
   className?: string
+  /** Opt-in feed treatment; default profile tabs stay unchanged. */
+  activeIconOnly?: boolean
+  largeLabels?: boolean
 }
 
 /** Ketebalan indikator (px). Nilai runtime → literal lokal. */
@@ -108,11 +112,28 @@ const INDICATOR_FRAME: ViewStyle = {
   pointerEvents: "none",
 }
 
+function ActiveTabIcon({ icon, active }: { icon: IconComponent; active: boolean }) {
+  const reduced = useReducedMotion()
+  const progress = useSharedValue(active ? 1 : 0)
+  useEffect(() => {
+    progress.value = withTiming(active ? 1 : 0, { duration: reduced ? 0 : 180 })
+  }, [active, reduced, progress])
+  const style = useAnimatedStyle(() => ({
+    width: progress.value * 24,
+    opacity: progress.value,
+    transform: [{ translateX: (1 - progress.value) * -6 }],
+    overflow: "hidden",
+  }))
+  return <Animated.View style={style}><Icon icon={icon} size="sm" active={active} /></Animated.View>
+}
+
 export function Tabs<V extends string = string>({
   items,
   value,
   onChange,
   scrollable = false,
+  activeIconOnly = false,
+  largeLabels = false,
   className,
   ...rest
 }: TabsProps<V>) {
@@ -205,13 +226,14 @@ export function Tabs<V extends string = string>({
             onPress={() => onChange(item.value)}
             containerClassName={cn(scrollable ? "rounded-xs" : "flex-1 rounded-xs", focusRingInset)}
             className={cn(
-              "h-12 flex-row items-center justify-center gap-2 px-4",
+              "h-12 flex-row items-center justify-center px-4",
+              !activeIconOnly && "gap-2",
             )}
             onLayout={measure(index)}
           >
-            {item.icon ? <Icon icon={item.icon} size="sm" active={active} /> : null}
+            {item.icon ? (activeIconOnly ? <ActiveTabIcon icon={item.icon} active={active} /> : <Icon icon={item.icon} size="sm" active={active} />) : null}
             <Text ellipsizeMode="tail"
-              variant="body"
+              variant={largeLabels ? "bodyLarge" : "body"}
               weight={active ? 600 : 400}
               tone={active ? "primary" : "secondary"}
               numberOfLines={1}
