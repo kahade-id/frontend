@@ -1,13 +1,17 @@
 {
+  "{x} — segera hadir": "{x} — coming soon",
   "{x} hari": "{x} days",
   "{x} tahun": "{x} years",
-  "{x} — segera hadir": "{x} — coming soon",
+  "Biasanya sekitar {x} hari": "Usually about {x} days",
+  "Biasanya sekitar {x} jam": "Usually about {x} hours",
   "Gagal mengekspor riwayat": "Couldn't export history",
   "Identitas data tidak valid.": "Invalid data identity.",
   "Identitas pengguna tujuan tidak tersedia. Muat ulang halaman lalu coba lagi.": "The recipient's identity isn't available. Reload the page and try again.",
   "Isian {x} tidak sesuai ketentuan layanan.": "{x} doesn't meet the service requirements.",
   "Item {x}": "Item {x}",
   "Metode unggah tidak didukung.": "Unsupported upload method.",
+  "Nominal {x}": "Amount {x}",
+  "Nominal belum diisi": "No amount entered yet",
   "Nominal harus berupa Rupiah bulat antara {x} dan {x}.": "The amount must be a whole rupiah figure between {x} and {x}.",
   "Pengumuman dan informasi lain di luar transaksi.": "Announcements and other information unrelated to transactions.",
   "Riwayat dompet diunduh": "Wallet history downloaded",
@@ -15,9 +19,5 @@
   "Status order, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.": "Order status, escrow deposits and withdrawals, and payment deadlines. Keeping this on is strongly recommended.",
   "Unggah berkas gagal. Silakan coba kembali.": "File upload failed. Please try again.",
   "Unggah terlalu lama. Periksa koneksi lalu coba kembali.": "The upload took too long. Check your connection and try again.",
-  "URL unggah tidak aman.": "Unsafe upload URL.",
-  "Biasanya sekitar {x} hari": "Usually about {x} days",
-  "Biasanya sekitar {x} jam": "Usually about {x} hours",
-  "Nominal {x}": "Amount {x}",
-  "Nominal belum diisi": "No amount entered yet"
+  "URL unggah tidak aman.": "Unsafe upload URL."
 }

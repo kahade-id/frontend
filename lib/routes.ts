@@ -104,6 +104,37 @@ export const ROUTES = {
   createTransactionWith: (username: string) =>
     ({ pathname: "/create-transaction", params: { counterpart: username } }) as unknown as Href,
   /**
+   * Buat transaksi ter-prefill dari `orderLink` item showcase (audit F-01).
+   * Kontrak backend hanya membawa title/description/orderValue(+valid flag)/
+   * counterpartUsername — role/TIPE/fee TIDAK ada di kontrak, jadi tidak
+   * dipalsukan di sini; layar create-transaction mengenali params
+   * counterpart/title/description/amount (title & description & counterpart
+   * selalu lolos; amount hanya bila orderValueValid — nilai sampah tidak
+   * boleh mengisi kolom nominal).
+   */
+  createTransactionFromShowcase: (
+    orderLink: {
+      title: string
+      description: string
+      orderValue?: number | null
+      orderValueValid?: boolean
+      counterpartUsername?: string
+    },
+    fallbackCounterpart: string,
+  ) =>
+    ({
+      pathname: "/create-transaction",
+      params: {
+        counterpart: orderLink.counterpartUsername ?? fallbackCounterpart,
+        title: orderLink.title,
+        description: orderLink.description,
+        amount:
+          orderLink.orderValueValid && typeof orderLink.orderValue === "number"
+            ? String(orderLink.orderValue)
+            : undefined,
+      },
+    }) as unknown as Href,
+  /**
    * Buat transaksi dengan voucher terpasang (dari halaman Voucher).
    * Audit: layar Voucher sebelumnya menulis `pathname: "/create-transaction"`
    * langsung — satu-satunya route literal yang tersisa di `app/`.
@@ -314,6 +345,9 @@ export const ROUTES = {
     ({ pathname: "/followers/[username]", params: { username, tab } }) as unknown as Href,
   /** Feed sosial Showcase (tab utama). */
   showcase: "/showcase" as Href,
+  /** Feed etalase terfilter kategori (A-12: badge kategori → feed terfilter). */
+  showcaseWithCategory: (category: string) =>
+    ({ pathname: "/showcase", params: { category } }) as unknown as Href,
   /** Showcase milik sendiri (CRUD), dibuka dari aksi tambah di feed. */
   showcaseManagement: "/showcase-management" as Href,
   /** Questions milik sendiri (GET /v1/users/me/questions) */

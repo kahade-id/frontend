@@ -31,6 +31,10 @@ export default defineConfig({
       // Bahasa perangkat tidak boleh menentukan hasil test: lihat
       // tests/stubs/expo-localization.ts.
       "expo-localization": stub("expo-localization"),
+      // `expo-clipboard` ditarik lib/clipboard (share etalase) — native EventEmitter.
+      "expo-clipboard": stub("expo-clipboard"),
+      // `expo-sharing` ditarik lib/share (sheet OS share) — native EventEmitter.
+      "expo-sharing": stub("expo-sharing"),
     },
   },
   /**

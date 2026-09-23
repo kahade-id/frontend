@@ -56,6 +56,7 @@ const PUBLIC_SCREENS = new Set<string>([
   "terms",
   "verify-email", // alur auth email
   "showcase/[id]", // corong share/SEO publik — detail karya bisa dilihat tamu
+  "user/[username]/showcase", // galeri etalase publik (audit Etalase 2026-09-23, I-05)
 ])
 
 function collectRoutes(dir: string, prefix = ""): string[] {
@@ -155,6 +156,7 @@ describe("isProtectedPath (guest web)", () => {
       "/privacy-policy",
       "/login",
       "/register",
+      "/showcase", // tab Etalase publik (audit Etalase 2026-09-23) — feed auth:"none"
       "/showcase/abc", // detail karya = corong share publik
     ]) {
       expect(isProtectedPath(path), `${path} harus publik`).toBe(false)
@@ -172,10 +174,13 @@ describe("isProtectedPath (guest web)", () => {
   })
 
   it("tab yang dilindungi diturunkan dari TAB_ROUTE_NAMES, bukan hardcode (B-11)", () => {
-    // showcase satu-satunya tab di luar daftar tamu yang tidak masuk
-    // allowlist eksplisit → harus terproteksi untuk tamu.
+    // Revisi audit Etalase (2026-09-23): tab "showcase" kini PUBLIK untuk
+    // tamu web — feed-nya memang auth:"none" dan detail item sudah lebih
+    // dulu publik. Yang tetap terproteksi adalah turunannya
+    // (/showcase-management) dan aksi sosial di dalamnya (digate sesi).
     expect(TAB_ROUTE_NAMES).toContain("showcase")
-    expect(isProtectedPath("/showcase")).toBe(true)
+    expect(isProtectedPath("/showcase")).toBe(false)
+    expect(isProtectedPath("/showcase-management")).toBe(true)
     // Tab tamu tetap terbuka.
     for (const tab of WEB_GUEST_TAB_SCREENS) {
       expect(isProtectedPath(`/${tab}`)).toBe(false)

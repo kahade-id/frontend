@@ -731,10 +731,18 @@ export function deleteShowcase(id: string) {
 export function getPublicShowcase(username: string, signal?: AbortSignal) {
   return http
     .get<unknown>(`/v1/users/${seg(username)}/showcase`, {
-      auth: "required",
+      /**
+       * C-04 (audit Etalase, 2026-09-23): "none" — endpoint ini berbagi
+       * permukaan yang sama dengan feed/detail sosial (keduanya auth:"none")
+       * dan corong "lihat profil → lihat etalase" harus terbuka untuk tamu.
+       * Bila backend masih menjawab 401, lapisan layar kini menampilkan
+       * ErrorState+retry yang jujur (C-01), bukan empty-state palsu.
+       */
+      auth: "none",
       signal,
     })
-    .then((raw) => readList<ShowcaseItem>(raw, ["items", "showcase"]))
+    // Urutan kunci SAMA dengan getMyShowcase (audit H-02): ["showcase", "items"].
+    .then((raw) => readList<ShowcaseItem>(raw, ["showcase", "items"]))
 }
 
 // ------------------------------------------------------------------

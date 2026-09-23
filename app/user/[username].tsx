@@ -174,6 +174,11 @@ export default function UserProfileScreen() {
   // sosial + interaksinya milik <ProfileEtalaseTab> (ekstrak G-11).
   const [showcaseItems, setShowcaseItems] = useState<ShowcaseItem[]>([])
   const [showcaseLoading, setShowcaseLoading] = useState(false)
+  /**
+   * C-01 (audit Etalase): gagal memuat etalase bukan "belum ada konten" —
+   * pesan error disimpan dan tab menampilkan ErrorState + coba lagi.
+   */
+  const [showcaseError, setShowcaseError] = useState<string | null>(null)
 
   // Questions / Tanya Jawab state
   const [questions, setQuestions] = useState<QuestionItem[]>([])
@@ -241,19 +246,45 @@ export default function UserProfileScreen() {
   const coverUri = resolveMediaUrl(profile?.headerUrl)
 
   const profileRequest = useRef(0)
+  /**
+   * C-02 (audit Etalase): token generasi fetch tab. Pindah profil menaikkan
+   * token → respons etalase milik profil LAMA dibuang, tidak menimpa state
+   * profil baru. (fetchProfile sudah punya token sendiri untuk header.)
+   */
+  const tabRequest = useRef(0)
+
+  /**
+   * Ambil etalase saja (dipakai fetchTabContents & tombol "Coba lagi" C-01).
+   * Dijaga token tabRequest — hanya panggilan TERBARU yang boleh menulis.
+   */
+  const fetchShowcaseTab = useCallback((targetName: string) => {
+    const started = ++tabRequest.current
+    const current = () => tabRequest.current === started
+    setShowcaseLoading(true)
+    setShowcaseError(null)
+    void api.users
+      .getPublicShowcase(targetName)
+      .then((res) => {
+        if (current()) setShowcaseItems(res ?? [])
+      })
+      .catch((err: unknown) => {
+        if (current()) {
+          setShowcaseItems([])
+          setShowcaseError(userMessage(err))
+        }
+      })
+      .finally(() => {
+        if (current()) setShowcaseLoading(false)
+      })
+  }, [])
 
   // Fetch all tab contents
   const fetchTabContents = useCallback(
     async (targetName: string) => {
-      setShowcaseLoading(true)
       setQuestionsLoading(true)
       setRatingsLoading(true)
 
-      void api.users
-        .getPublicShowcase(targetName)
-        .then((res) => setShowcaseItems(res ?? []))
-        .catch(() => setShowcaseItems([]))
-        .finally(() => setShowcaseLoading(false))
+      fetchShowcaseTab(targetName)
 
       void api.users
         .getPublicQuestions(targetName, { page: 1, limit: 20 })
@@ -277,7 +308,7 @@ export default function UserProfileScreen() {
         .catch(() => setRatings([]))
         .finally(() => setRatingsLoading(false))
     },
-    [ratingFilter],
+    [ratingFilter, fetchShowcaseTab],
   )
 
   /**
@@ -1049,6 +1080,8 @@ export default function UserProfileScreen() {
               <ProfileEtalaseTab
                 items={showcaseItems}
                 loading={showcaseLoading}
+                error={showcaseError}
+                onRetry={() => fetchShowcaseTab(handle)}
                 handle={handle}
                 isSelf={isSelf}
                 owner={{

@@ -250,20 +250,30 @@ export function unhideShowcaseComment(commentId: string) {
   })
 }
 
+/** State suka final server (audit H-01: baca defensif, jangan cast mentah). */
+function toLikeState(raw: unknown): { liked: boolean; likeCount: number } {
+  const record = (raw ?? {}) as Record<string, unknown>
+  return {
+    liked: record.liked === true,
+    likeCount:
+      typeof record.likeCount === "number" && Number.isFinite(record.likeCount)
+        ? record.likeCount
+        : 0,
+  }
+}
+
 /** POST /v1/showcase/:showcaseId/like → `{ liked: true, likeCount }`. */
 export function likeShowcase(showcaseId: string) {
-  return http.post<{ liked: boolean; likeCount: number }>(
-    `/v1/showcase/${showcaseId}/like`,
-    undefined,
-    { auth: "required" },
-  )
+  return http
+    .post<unknown>(`/v1/showcase/${showcaseId}/like`, undefined, { auth: "required" })
+    .then(toLikeState)
 }
 
 /** DELETE /v1/showcase/:showcaseId/like → `{ liked: false, likeCount }`. */
 export function unlikeShowcase(showcaseId: string) {
-  return http.delete<{ liked: boolean; likeCount: number }>(`/v1/showcase/${showcaseId}/like`, {
-    auth: "required",
-  })
+  return http
+    .delete<unknown>(`/v1/showcase/${showcaseId}/like`, { auth: "required" })
+    .then(toLikeState)
 }
 
 /** GET /v1/showcase/:showcaseId/share — metadata deep link (publik). */

@@ -102,6 +102,40 @@ export async function pickedImageToBlob(img: PickedImage): Promise<Blob> {
   return (await fetch(img.uri)).blob()
 }
 
+export type PickImagesResult =
+  | { status: "picked"; assets: PickedImage[] }
+  | { status: "cancelled" }
+  | { status: "denied" }
+
+/**
+ * Pilih BANYAK gambar sekaligus (audit D-11: etalase dulu satu-per-satu —
+ * 8 foto = 16 interaksi). Tanpa crop (`allowsMultipleSelection` tidak bisa
+ * digabung `allowsEditing` di expo-image-picker) — karya portrait/landscape
+ * tidak lagi dipotong paksa 1:1; kartu/grid tetap membungkus visual persegi.
+ */
+export async function pickImages(opts: {
+  /** Maksimum aset yang boleh dipilih (default 8). 1 = perilaku single. */
+  selectionLimit?: number
+  quality?: number
+} = {}): Promise<PickImagesResult> {
+  if (Platform.OS !== "web") {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync()
+    if (!perm.granted) return { status: "denied" }
+  }
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ["images"],
+    allowsMultipleSelection: true,
+    selectionLimit: Math.max(1, opts.selectionLimit ?? 8),
+    quality: opts.quality ?? DEFAULT_QUALITY,
+  })
+  if (result.canceled) return { status: "cancelled" }
+  const assets = (result.assets ?? []).map((asset, index) =>
+    toPicked(asset, `image-${Date.now()}-${index}.jpg`),
+  )
+  if (assets.length === 0) return { status: "cancelled" }
+  return { status: "picked", assets }
+}
+
 /**
  * FormData multipart untuk endpoint `/direct` (avatar, showcase). Nama field
  * default `file` sesuai kontrak upload langsung.
