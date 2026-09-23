@@ -1,53 +1,15 @@
-/**
- * Kahade — <ShowcaseFeedTab> feed publik etalase (ekstrak G-11 dari
- * app/(tabs)/discover.tsx, revisi audit 2026-09-23).
- *
- * GET /v1/showcase/feed — cursor/keyset-based, dengan tab feed (Untuk Anda/
- * Mengikuti/Terbaru/Populer) + pencarian + filter kategori, dan header yang
- * MELIPAT saat scroll (pola X).
- *
- * Revisi audit Etalase (2026-09-23) — bug paginasi & state yang diperbaiki:
- *   - A-01: KURSOR DIRESET di setiap muat-awal/refresh (`resetFeedPageState`).
- *     Dulu kursor keyset tidak pernah di-reset, sehingga pull-to-refresh /
- *     ganti tab / ganti kata kunci mengambil halaman N+1 dan MENGHAPUS
- *     halaman yang sudah tampil. Kursor juga kini hidup per
- *     (tab × kata kunci × kategori), bukan per tab saja.
- *   - A-02: tab "Mengikuti" memfilter sisi klien — satu halaman mentah bisa
- *     lolos filter 0 item; klien kini mengambil halaman lanjutan otomatis
- *     (maks FOLLOWING_MAX_PAGES per fetch) sampai minimal terisi, bukan
- *     menampilkan empty-state palsu tanpa jalan maju.
- *   - A-03: error pada `ensureFollowingSet` diklasifikasi — hanya 401/403
- *     berarti "tamu"; error jaringan/server tampil sebagai ErrorState+retry,
- *     bukan pseudologin.
- *   - A-04: cache "akun yang diikuti" dikunci pada `me.username` — ganti
- *     akun pada perangkat yang sama membuang cache akun lama.
- *   - A-05/A-06/A-07: aksi sosial lewat SATU hook `useShowcaseSocialActions`
- *     (store bersama): tamu diarahkan ke layar login; suka/simpan sinkron
- *     antar layar (feed ↔ detail ↔ profil) dalam satu sesi.
- *   - A-08: mutasi dari layar manajemen mengangkat spanduk dirty —
- *     feed menyegarkan diri saat fokus kembali (useIsFocused).
- *   - A-09: `renderItem` useCallback + kartu memo — mengetik di kolom cari
- *     tidak lagi menggambar ulang semua sel yang tampak.
- *   - A-10: empty-state tamu "Mengikuti" punya tombol Masuk.
- *   - A-11: lapor item memakai <ShowcaseReportSheet> bersama.
- *   - A-12: filter kategori (param rute /showcase?category=…) + chip aktif.
- *
- * Keputusan non-obvious yang DIPERTAHANKAN dari revisi sebelumnya:
- *   - PAGINASI CURSOR (keyset), bukan page/offset.
- *   - Header lipat: SATU worklet dua jalur — lihat use-collapsing-header.
- *   - Tab "Untuk Anda" & "Mengikuti" = turunan sisi klien yang jujur.
- *   - State async dirakit manual (kursor keyset tidak cocok helper offset).
- */
+/** Public cursor feed. Page data and cursors commit atomically; account/filter changes fence old responses.
+ * Following remains a client-side filter until a server-side following-feed contract exists. */
 import { useCallback, useEffect, useRef, useState, memo } from "react"
 import { View } from "react-native"
 import Animated from "react-native-reanimated"
 import { Images, X } from "phosphor-react-native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { useIsFocused } from "@react-navigation/native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
-import { useHasSession } from "@/lib/guest-gate"
+import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { fetchViaQueryCache } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
@@ -60,7 +22,7 @@ import {
   type FeedPageState,
   type ShowcaseFeedFilter,
 } from "@/lib/showcase-feed-logic"
-import { showcaseFeedDirtyVersion } from "@/lib/showcase-social-prefs"
+import { showcaseFeedDirtyVersion, useShowcaseDirtyVersion } from "@/lib/showcase-social-prefs"
 import { tokens } from "@/lib/tokens"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useDebouncedValue } from "@/lib/use-debounced-value"
@@ -150,8 +112,11 @@ export type ShowcaseFeedTabProps = {
 }
 
 export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: ShowcaseFeedTabProps) {
-  const [kind, setKind] = useState<ShowcaseFeedKind>("forYou")
-  const [search, setSearch] = useState("")
+  const params = useLocalSearchParams<{ kind?: string; search?: string }>()
+  const kind: ShowcaseFeedKind = params.kind === "following" || params.kind === "latest" || params.kind === "popular" ? params.kind : "forYou"
+  const search = typeof params.search === "string" ? params.search.slice(0, 100) : ""
+  const setKind = (next: ShowcaseFeedKind) => router.setParams({ kind: next })
+  const setSearch = (next: string) => router.setParams({ search: next || undefined })
   const debouncedSearch = useDebouncedValue(search.trim(), 400)
   const collapsing = useCollapsingHeader()
 
@@ -171,13 +136,13 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
    */
   const [followingSet, setFollowingSet] = useState<ReadonlySet<string> | null>(null)
   const followingOwner = useRef<string | null>(null)
+  const followingCache = useRef<ReadonlySet<string> | null>(null)
   /** Item yang komentarnya sedang dibuka di BottomSheet (null = tertutup). */
   const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
   /** Item yang sedang dilaporkan (null = tertutup). */
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
   const activeRequest = useRef<AbortController | null>(null)
   const loadMoreBusy = useRef(false)
-  const hasLoadedOnce = useRef(false)
   /**
    * State paginasi per (tab × filter) — KUNCI A-01: kursor keyset hanya valid
    * untuk himpunan hasil yang persis sama. Mengganti tab/kata kunci/kategori
@@ -199,12 +164,15 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
    * refetch saat sesi dipulihkan di boot) — lihat revisi sebelumnya.
    */
   const hasSession = useHasSession()
+  const revision = useSessionRevision()
+  const dirtyVersion = useShowcaseDirtyVersion()
   const hasSessionRef = useRef(hasSession)
   hasSessionRef.current = hasSession
 
   const markGuest = useCallback(() => {
     followingOwner.current = null
-    setFollowingSet(new Set())
+    followingCache.current = null
+    setFollowingSet((previous) => previous?.size === 0 ? previous : new Set())
     setFollowingGuest(true)
   }, [])
 
@@ -226,13 +194,18 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
           markGuest()
           return new Set()
         }
-        if (followingSet && followingOwner.current === me.username) return followingSet
+        if (followingCache.current && followingOwner.current === me.username) return followingCache.current
         const set = new Set<string>()
-        for (let page = 1; page <= 4; page++) {
+        for (let page = 1; ; page++) {
+          if (signal.aborted) throw new Error("Aborted")
           const res = await api.users.getFollowing(me.username, { page, limit: 50 }, signal)
+          const previousSize = set.size
           for (const user of res.data) set.add(user.username)
+          if (res.data.length > 0 && previousSize === set.size) throw new Error("Daftar mengikuti tidak dapat dilanjutkan.")
           if (res.data.length < 50 || page >= res.meta.totalPages) break
         }
+        if (signal.aborted) throw new Error("Aborted")
+        followingCache.current = set
         followingOwner.current = me.username
         setFollowingSet(set)
         setFollowingGuest(false)
@@ -246,12 +219,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         throw err
       }
     },
-    [followingSet, markGuest],
+    [markGuest],
   )
 
   const fetchPage = useCallback(
     async (mode: "initial" | "refresh" | "more") => {
-      if (mode === "more" && loadMoreBusy.current) return
+      if (mode === "more" && (loadMoreBusy.current || activeRequest.current)) return
       // Tab/search/refresh supersedes every older response. Without aborting,
       // a slow "latest" request could overwrite a newer "popular" result.
       if (mode !== "more") activeRequest.current?.abort()
@@ -264,6 +237,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         setLoadingMore(true)
         setLoadMoreError(null)
       } else {
+        loadMoreBusy.current = false
+        setLoadMoreError(null)
         setError(null)
       }
 
@@ -272,7 +247,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         category: category || undefined,
       }
       const entry = pageStates.current[kind]
-      const slot = entry.state
+      // Private transaction: no cursor advancement escapes before items commit.
+      const slot: FeedPageState = { cursors: { ...entry.state.cursors }, hasMore: { ...entry.state.hasMore } }
 
       /**
        * A-01 (inti perbaikan): initial/refresh SELALU mulai dari halaman 1 —
@@ -282,7 +258,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       if (mode !== "more" || !sameFeedFilter(entry.filter, filter)) {
         resetFeedPageState(slot)
       }
-      entry.filter = filter
 
       const query = {
         limit: FEED_LIMIT,
@@ -305,7 +280,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         } else if (kind === "forYou") {
           // Dua sumber paralel; sisi yang habis (hasMore false) tidak
           // ditembak ulang pada load-more berikutnya.
-          const [latestPage, popularPage] = await Promise.all([
+          const pages = await Promise.allSettled([
             mode !== "more" || slot.hasMore.latest
               ? getShowcaseFeed({ ...query, sort: "latest", cursor: slot.cursors.latest ?? undefined }, controller.signal)
               : Promise.resolve(null),
@@ -313,6 +288,17 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
               ? getShowcaseFeed({ ...query, sort: "popular", cursor: slot.cursors.popular ?? undefined }, controller.signal)
               : Promise.resolve(null),
           ])
+          if (controller.signal.aborted) return
+          if (pages.every((result) => result.status === "rejected")) {
+            throw (pages[0] as PromiseRejectedResult).reason
+          }
+          const latestPage = pages[0].status === "fulfilled" ? pages[0].value : null
+          const popularPage = pages[1].status === "fulfilled" ? pages[1].value : null
+          if (pages[0].status === "rejected") slot.hasMore.latest = true
+          if (pages[1].status === "rejected") slot.hasMore.popular = true
+          if (pages.some((result) => result.status === "rejected")) {
+            setError(translate("Sebagian karya belum dapat dimuat. Coba lagi."))
+          }
           if (latestPage) {
             slot.cursors.latest = latestPage.nextCursor
             slot.hasMore.latest = latestPage.hasMore
@@ -335,7 +321,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
            * dan kosong = memang habis, bukan tak sempat termuat.
            */
           const collected: ShowcaseSocialItem[] = []
-          for (let pageIndex = 0; pageIndex < FOLLOWING_MAX_PAGES; pageIndex++) {
+          for (let pageIndex = 0; set.size > 0 && pageIndex < FOLLOWING_MAX_PAGES; pageIndex++) {
             const page = await getShowcaseFeed(
               { ...query, sort: "latest", cursor: slot.cursors.latest ?? undefined },
               controller.signal,
@@ -347,19 +333,21 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
             if (collected.length >= FOLLOWING_MIN_ITEMS || !page.hasMore) break
           }
           incoming = collected
-          nextHasMore = slot.hasMore.latest
+          nextHasMore = set.size > 0 && slot.hasMore.latest
         }
 
-        if (controller.signal.aborted) return
+        if (controller.signal.aborted || activeRequest.current !== controller) return
+        entry.state = slot
+        entry.filter = filter
         setItems((previous) => (mode === "more" ? mergeById(previous, incoming) : incoming))
         setHasMore(nextHasMore)
-        hasLoadedOnce.current = true
       } catch (err) {
         if (controller.signal.aborted) return
         if (mode === "more") setLoadMoreError(userMessage(err))
         else setError(userMessage(err))
       } finally {
         if (activeRequest.current === controller) {
+          activeRequest.current = null
           setLoading(false)
           setRefreshing(false)
           setLoadingMore(false)
@@ -372,9 +360,13 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
 
   // Reset ke halaman 1 saat tab/search/kategori berubah (termasuk muat awal).
   useEffect(() => {
-    void fetchPage(hasLoadedOnce.current ? "refresh" : "initial")
+    followingCache.current = null
+    followingOwner.current = null
+    setItems([])
+    setHasMore(false)
+    void fetchPage("initial")
     return () => activeRequest.current?.abort()
-  }, [fetchPage])
+  }, [fetchPage, revision, hasSession])
 
   /**
    * A-08: mutasi dari layar manajemen memanggil markShowcaseFeedDirty() —
@@ -385,15 +377,17 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   useEffect(() => {
     if (!isFocused) return
     const current = showcaseFeedDirtyVersion()
-    if (current !== dirtySeen.current) {
+    if (current !== dirtySeen.current || kind === "following") {
+      followingCache.current = null
+      followingOwner.current = null
       dirtySeen.current = current
       void fetchPage("refresh")
     }
-  }, [isFocused, fetchPage])
+  }, [isFocused, fetchPage, dirtyVersion, kind])
 
   const loadMore = useCallback(() => {
-    if (hasMore && !loadingMore) void fetchPage("more")
-  }, [hasMore, loadingMore, fetchPage])
+    if (hasMore && !loadingMore && !refreshing && !loading) void fetchPage("more")
+  }, [hasMore, loadingMore, refreshing, loading, fetchPage])
 
   const handleOpenComments = useCallback((item: ShowcaseSocialItem) => {
     setCommentItem(item)
@@ -433,7 +427,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
           title="Masuk untuk melihat feed mengikuti"
           description="Masuk terlebih dahulu agar kami bisa menampilkan showcase dari akun yang kamu ikuti."
           action={
-            <Button onPress={() => router.push(ROUTES.loginRequired())}>Masuk</Button>
+            <Button onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>Masuk</Button>
           }
         />
       )
@@ -451,8 +445,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       return (
         <EmptyState
           icon={Images}
-          title="Belum ada showcase dari akun yang diikuti"
-          description="Saat akun yang kamu ikuti membagikan karya, karyanya muncul di sini."
+          title={hasMore ? translate("Masih mencari karya dari akun yang diikuti") : translate("Belum ada showcase dari akun yang diikuti")}
+          description={hasMore ? translate("Lanjutkan pencarian pada halaman berikutnya.") : translate("Saat akun yang kamu ikuti membagikan karya, karyanya muncul di sini.")}
         />
       )
     }
@@ -516,6 +510,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         loadMoreError={loadMoreError}
         onRefresh={() => {
           // Tarik-segarkan juga cache "mengikuti" supaya follow baru terbaca.
+          followingCache.current = null
           setFollowingSet(null)
           followingOwner.current = null
           void fetchPage("refresh")
@@ -531,7 +526,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         // hampir tepat di tengah celah (lihat <ShowcaseFeedItem divider>).
         gap={tokens.space[5]}
         bottomPadding={bottomPadding}
-        header={categoryChip ?? undefined}
+        header={<View className="px-5"><Button variant="ghost" onPress={() => router.push(ROUTES.saved)}>Karya tersimpan</Button>{categoryChip}</View>}
         loadingPlaceholder={
           <SkeletonGroup className="gap-10 py-4">
             {Array.from({ length: 2 }, (_, index) => (

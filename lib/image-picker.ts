@@ -132,6 +132,9 @@ export async function pickImages(opts: {
   const assets = (result.assets ?? []).map((asset, index) =>
     toPicked(asset, `image-${Date.now()}-${index}.jpg`),
   )
+  if (assets.length > Math.max(1, opts.selectionLimit ?? 8)) {
+    throw new Error(`Pilih maksimal ${Math.max(1, opts.selectionLimit ?? 8)} foto.`)
+  }
   if (assets.length === 0) return { status: "cancelled" }
   return { status: "picked", assets }
 }

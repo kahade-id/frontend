@@ -47,3 +47,8 @@ export function referralUrl(code: string): string {
 export function profileUrl(username: string): string {
   return https(`/user/${encodeURIComponent(username)}`)
 }
+
+/** Canonical public item URL, safe for native and web share gestures. */
+export function showcaseUrl(id: string): string {
+  return https(`/showcase/${encodeURIComponent(id)}`)
+}

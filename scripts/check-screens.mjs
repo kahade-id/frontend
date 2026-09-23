@@ -557,7 +557,7 @@ const LINE_CEILING = new Map([
   // dan dua blok impor dipadatkan -> 1474. Plafon TURUN mengikuti fakta.
   // 2026-09-23: navbar shell profil kini tampil sejak frame pertama (param
   // `self` + isSelf tanpa menunggu profile) -> 1456.
-  ["app/user/[username].tsx", 1456],
+  ["app/user/[username].tsx", 1439],
   ["app/chat/[roomId].tsx", 1194],
   // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
   // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
@@ -568,7 +568,7 @@ const LINE_CEILING = new Map([
   // Batch G (G-01): deskripsi sheet usulan penyelesaian memakai translate() dan
   // konstanta tipe berkas dipadatkan -> 917. Plafon TURUN mengikuti fakta.
   ["app/dispute/[id].tsx", 917],
-  ["app/showcase/[id].tsx", 916],
+  ["app/showcase/[id].tsx", 893],
   // H-04 (audit 2026-09-22): PullToRefresh 881 baris menyembunyikan mesin
   // gestur PanResponder di dalam satu komponen monolitik. Layar-layar sudah
   // dipantau sejak lama, komponennya belum — masuk daftar pada ukuran
@@ -590,7 +590,7 @@ const LINE_CEILING = new Map([
   // (discover-users-tab.tsx, showcase-feed-tab.tsx) -> layar tinggal kerangka.
   ["app/(tabs)/discover.tsx", 32],
   ["lib/api/orders.ts", 890],
-  ["lib/api/users.ts", 1150],
+  ["lib/api/users.ts", 1138],
   ["lib/api/constraints.ts", 1157],
   ["lib/api/types.ts", 1559],
   ["lib/tokens.ts", 1027],

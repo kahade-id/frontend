@@ -16,15 +16,16 @@
  *    (param `category` pada rute tab /showcase).
  */
 
-import { memo, useCallback, useState } from "react"
+import { memo, useCallback } from "react"
 import { BookmarkSimple, ChatCircle, Export, Flag, Heart, HeartStraight } from "phosphor-react-native"
 import { router } from "expo-router"
-import { ScrollView, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
+import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
 import { formatCountCompact, formatDateTime } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
-import { resolveMediaUrl } from "@/lib/media"
+import { showcaseImages } from "@/lib/showcase-social"
+import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { ROUTES } from "@/lib/routes"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 
@@ -32,8 +33,6 @@ import { Avatar } from "@/components/ui/avatar"
 import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
-import { PageIndicator } from "@/components/ui/page-indicator"
-import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
@@ -112,8 +111,6 @@ function CountAction({
   )
 }
 
-/** Radius jendela render slide media: aktif ±1; selebihnya placeholder (B-02). */
-const MEDIA_RENDER_WINDOW = 1
 
 function ShowcaseFeedItemBase({
   item,
@@ -127,11 +124,7 @@ function ShowcaseFeedItemBase({
   divider = false,
   className,
 }: ShowcaseFeedItemProps) {
-  const gallery = item.images.flatMap((image) => {
-    const url = resolveMediaUrl(image.imageUrl)
-    return url ? [{ id: image.id, url }] : []
-  })
-  const coverFallback = !gallery.length ? resolveMediaUrl(item.coverImageUrl ?? item.imageUrl) : undefined
+  const gallery = showcaseImages(item)
   const priceLabel = showcasePriceLabelOrFallback(item)
 
   const liked = item.isLiked === true
@@ -143,26 +136,9 @@ function ShowcaseFeedItemBase({
     z: item.author.fullName ?? item.author.username,
   })
 
-  const [mediaPage, setMediaPage] = useState(0)
-  const [cardWidth, setCardWidth] = useState(0)
-  const { width: windowWidth } = useWindowDimensions()
-  const pageWidth = cardWidth > 0 ? cardWidth : Math.max(0, windowWidth - 40)
-
-  const handleCardLayout = useCallback((event: LayoutChangeEvent) => {
-    setCardWidth(event.nativeEvent.layout.width)
-  }, [])
-
-  const handlePagerMomentum = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const w = cardWidth || windowWidth - 40
-      if (w > 0) setMediaPage(Math.max(0, Math.round(event.nativeEvent.contentOffset.x / w)))
-    },
-    [cardWidth, windowWidth],
-  )
-
   const handleReport = useCallback(() => {
     if (onReport) onReport()
-    else router.push(ROUTES.reports({ targetId: item.id }))
+    else router.push(ROUTES.showcaseDetail(item.id))
   }, [onReport, item.id])
 
   /** A-12: kategori sebagai filter feed — tab /showcase menerima param kategori. */
@@ -234,87 +210,8 @@ function ShowcaseFeedItemBase({
       </View>
 
       {/* ── Media CARD (mx-5) swipe ── */}
-      <View className="mx-5 pt-3" onLayout={handleCardLayout}>
-        {gallery.length === 0 && coverFallback ? (
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={summary}
-            accessibilityHint="Buka detail showcase"
-            onPress={onPress}
-            containerClassName={cn("w-full overflow-hidden rounded-sm", focusRing)}
-            className="w-full"
-          >
-            {/* preventDownload (<Picture>) sudah memblok context-menu/save-as —
-                membungkusnya lagi dengan View onContextMenu hanya menambah
-                elemen dan menabrak tipe RN. */}
-            <Picture source={coverFallback} alt={item.title} aspectRatio={1} radius="sm" bordered={false} preventDownload />
-          </PressableScale>
-        ) : gallery.length === 1 ? (
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={summary}
-            accessibilityHint="Buka detail showcase"
-            onPress={onPress}
-            containerClassName={cn("w-full overflow-hidden rounded-sm", focusRing)}
-            className="w-full"
-          >
-            <Picture
-              source={gallery[0].url}
-              alt={item.title}
-              aspectRatio={1}
-              radius="sm"
-              bordered={false}
-              recyclingKey={gallery[0].id}
-              preventDownload
-            />
-          </PressableScale>
-        ) : gallery.length > 1 ? (
-          <View className="overflow-hidden rounded-sm border border-border">
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={handlePagerMomentum}
-            >
-              {gallery.map((image: { id: string; url: string }, index: number) => (
-                <View key={image.id} style={{ width: pageWidth }}>
-                  {/* B-02: hanya slide di sekitar halaman aktif yang memuat
-                      gambar; sisanya placeholder seukuran agar lebar pager
-                      & offset paging tidak berubah. */}
-                  {Math.abs(index - mediaPage) <= MEDIA_RENDER_WINDOW ? (
-                    <PressableScale
-                      accessibilityRole="button"
-                      accessibilityLabel={translate("{x} — foto {y} dari {z}", { x: summary, y: index + 1, z: gallery.length })}
-                      onPress={onPress}
-                      containerClassName="w-full"
-                    >
-                      <Picture
-                        source={image.url}
-                        alt={item.title}
-                        aspectRatio={1}
-                        radius="none"
-                        bordered={false}
-                        recyclingKey={image.id}
-                        preventDownload
-                      />
-                    </PressableScale>
-                  ) : (
-                    <View className="aspect-square w-full bg-surface" />
-                  )}
-                </View>
-              ))}
-            </ScrollView>
-            <View className="items-center bg-background py-2">
-              <PageIndicator count={gallery.length} index={mediaPage} />
-            </View>
-          </View>
-        ) : (
-          <View className="h-64 items-center justify-center rounded-sm border border-border bg-surface">
-            <Text variant="caption" tone="secondary">
-              Tidak ada gambar
-            </Text>
-          </View>
-        )}
+      <View className="mx-5 pt-3">
+        <ShowcaseMediaGallery images={gallery} title={item.title} onOpen={() => onPress?.()} />
       </View>
 
       {/* ── Harga · judul · deskripsi (tap ke detail) ── */}

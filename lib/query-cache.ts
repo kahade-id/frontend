@@ -129,3 +129,8 @@ export async function fetchViaQueryCache<T>(
 export function queryCacheSize(): number {
   return queryCache.size
 }
+
+/** Invalidate a feature family without discarding unrelated financial queries. */
+export function invalidateQueryPrefix(prefix: string) {
+  for (const key of queryCache.keys()) if (key.startsWith(prefix)) queryCache.delete(key)
+}

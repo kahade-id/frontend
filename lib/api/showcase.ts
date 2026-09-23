@@ -9,8 +9,8 @@
  * 2026-09-15): feed kursor-based (keyset), komentar offset + tiebreak id,
  * like/unlike mengembalikan `{ liked, likeCount }` final.
  */
-import { http } from "./client"
-import { readList } from "./response"
+import { http, seg } from "./client"
+import { readList, asRecord, invalidResponse } from "./response"
 
 // ------------------------------------------------------------------
 // Tipe
@@ -134,36 +134,39 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
   return http
     .get<unknown>("/v1/showcase/feed", {
       // D-08 (audit): feed publik — `auth` kini wajib eksplisit.
-      auth: "none",
+      auth: "optional",
       signal,
       query: {
         cursor: query.cursor,
         limit: query.limit ?? 20,
         sort: query.sort ?? "latest",
-        category: query.category,
-        search: query.search,
+        category: query.category?.trim().slice(0, 60),
+        search: query.search?.trim().slice(0, 100),
       },
       retry: 1,
     })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
+      if (record.hasMore === true && (typeof record.nextCursor !== "string" || !record.nextCursor || record.nextCursor === query.cursor)) {
+        throw invalidResponse("showcase:cursor")
+      }
       return {
-        items: readList<ShowcaseSocialItem>(record, ["items"]),
+        items: readList<unknown>(record, ["items"]).map(parseShowcaseItem),
         sort: record.sort === "popular" ? "popular" : "latest",
         limit: typeof record.limit === "number" ? record.limit : 20,
         hasMore: record.hasMore === true,
-        nextCursor: (record.nextCursor as string | null | undefined) ?? null,
+        nextCursor: typeof record.nextCursor === "string" ? record.nextCursor : null,
       } satisfies ShowcaseFeedPage
     })
 }
 
 /** GET /v1/showcase/:showcaseId — detail item (menghitung viewCount). */
 export function getShowcaseDetail(showcaseId: string, signal?: AbortSignal) {
-  return http.get<ShowcaseSocialItem>(`/v1/showcase/${showcaseId}`, {
-    auth: "none",
-    retry: 1,
+  return http.get<ShowcaseSocialItem>(`/v1/showcase/${seg(showcaseId)}`, {
+    auth: "optional",
+    retry: 0,
     signal,
-  })
+  }).then(parseShowcaseItem)
 }
 
 /**
@@ -176,18 +179,18 @@ export function listShowcaseComments(
   signal?: AbortSignal,
 ) {
   return http
-    .get<unknown>(`/v1/showcase/${showcaseId}/comments`, {
-      auth: "none",
+    .get<unknown>(`/v1/showcase/${seg(showcaseId)}/comments`, {
+      auth: "optional",
       query: { page: params.page ?? 1, limit: params.limit ?? 20 },
       retry: 1,
       signal,
     })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
-      const data = readList<ShowcaseCommentWithReplies>(record, ["data"]).map((c) => ({
-        ...c,
-        replies: Array.isArray(c.replies) ? c.replies : [],
-      }))
+      const data = readList<unknown>(record, ["data"]).map((rawComment) => {
+        const c = asRecord(rawComment)
+        return { ...parseShowcaseComment(c), replies: Array.isArray(c?.replies) ? c.replies.map(parseShowcaseComment) : [] }
+      })
       return {
         data,
         total: typeof record.total === "number" ? record.total : data.length,
@@ -206,7 +209,7 @@ export function addShowcaseComment(
   dto: { content: string; parentId?: string },
 ) {
   return http.post<ShowcaseComment, { content: string; parentId?: string }>(
-    `/v1/showcase/${showcaseId}/comments`,
+    `/v1/showcase/${seg(showcaseId)}/comments`,
     dto,
     { auth: "required" },
   )
@@ -215,7 +218,7 @@ export function addShowcaseComment(
 /** PATCH /v1/showcase/comments/:commentId — edit komentar sendiri. */
 export function updateShowcaseComment(commentId: string, content: string) {
   return http.patch<ShowcaseComment, { content: string }>(
-    `/v1/showcase/comments/${commentId}`,
+    `/v1/showcase/comments/${seg(commentId)}`,
     { content },
     { auth: "required" },
   )
@@ -223,7 +226,7 @@ export function updateShowcaseComment(commentId: string, content: string) {
 
 /** DELETE /v1/showcase/comments/:commentId — pengarang ATAU pemilik item. */
 export function deleteShowcaseComment(commentId: string) {
-  return http.delete<{ message: string }>(`/v1/showcase/comments/${commentId}`, {
+  return http.delete<{ message: string }>(`/v1/showcase/comments/${seg(commentId)}`, {
     auth: "required",
   })
 }
@@ -237,7 +240,7 @@ export function hideShowcaseComment(
   reason: "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER",
 ) {
   return http.post<ShowcaseComment, { reason: string }>(
-    `/v1/showcase/comments/${commentId}/hide`,
+    `/v1/showcase/comments/${seg(commentId)}/hide`,
     { reason },
     { auth: "required" },
   )
@@ -245,7 +248,7 @@ export function hideShowcaseComment(
 
 /** POST /v1/showcase/comments/:commentId/unhide — buka kembali komentar. */
 export function unhideShowcaseComment(commentId: string) {
-  return http.post<ShowcaseComment>(`/v1/showcase/comments/${commentId}/unhide`, undefined, {
+  return http.post<ShowcaseComment>(`/v1/showcase/comments/${seg(commentId)}/unhide`, undefined, {
     auth: "required",
   })
 }
@@ -257,7 +260,7 @@ function toLikeState(raw: unknown): { liked: boolean; likeCount: number } {
     liked: record.liked === true,
     likeCount:
       typeof record.likeCount === "number" && Number.isFinite(record.likeCount)
-        ? record.likeCount
+        ? Math.max(0, Math.floor(record.likeCount))
         : 0,
   }
 }
@@ -265,20 +268,20 @@ function toLikeState(raw: unknown): { liked: boolean; likeCount: number } {
 /** POST /v1/showcase/:showcaseId/like → `{ liked: true, likeCount }`. */
 export function likeShowcase(showcaseId: string) {
   return http
-    .post<unknown>(`/v1/showcase/${showcaseId}/like`, undefined, { auth: "required" })
+    .post<unknown>(`/v1/showcase/${seg(showcaseId)}/like`, undefined, { auth: "required" })
     .then(toLikeState)
 }
 
 /** DELETE /v1/showcase/:showcaseId/like → `{ liked: false, likeCount }`. */
 export function unlikeShowcase(showcaseId: string) {
   return http
-    .delete<unknown>(`/v1/showcase/${showcaseId}/like`, { auth: "required" })
+    .delete<unknown>(`/v1/showcase/${seg(showcaseId)}/like`, { auth: "required" })
     .then(toLikeState)
 }
 
 /** GET /v1/showcase/:showcaseId/share — metadata deep link (publik). */
 export function getShowcaseSharePayload(showcaseId: string, signal?: AbortSignal) {
-  return http.get<ShowcaseSharePayload>(`/v1/showcase/${showcaseId}/share`, {
+  return http.get<ShowcaseSharePayload>(`/v1/showcase/${seg(showcaseId)}/share`, {
     auth: "none",
     retry: 1,
     signal,
@@ -294,8 +297,55 @@ export function reportShowcase(
   dto: { reason: string; description?: string },
 ) {
   return http.post<{ reported: boolean; reportId?: string }, { reason: string; description?: string }>(
-    `/v1/showcase/${showcaseId}/report`,
+    `/v1/showcase/${seg(showcaseId)}/report`,
     dto,
     { auth: "required" },
   )
+}
+
+/** Decode network entities before they reach renderers; generic casts are not validation. */
+export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
+  const value = asRecord(raw)
+  const author = asRecord(value?.author)
+  if (!value || typeof value.id !== "string" || !value.id ||
+      !author || typeof author.userId !== "string" || typeof author.username !== "string") {
+    throw invalidResponse("showcase:item")
+  }
+  const count = (v: unknown) => typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0
+  const images = Array.isArray(value.images) ? value.images.flatMap((rawImage, index) => {
+    const image = asRecord(rawImage)
+    return image && typeof image.imageUrl === "string" ? [{
+      id: typeof image.id === "string" ? image.id : `${value.id}-${index}`,
+      imageUrl: image.imageUrl,
+      sortOrder: typeof image.sortOrder === "number" ? image.sortOrder : index,
+    }] : []
+  }).sort((a, b) => a.sortOrder - b.sortOrder) : []
+  return {
+    ...value,
+    id: value.id,
+    title: typeof value.title === "string" ? value.title : "",
+    createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
+    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : "",
+    images,
+    description: typeof value.description === "string" ? value.description : null,
+    category: typeof value.category === "string" ? value.category : null,
+    coverImageUrl: typeof value.coverImageUrl === "string" ? value.coverImageUrl : null,
+    imageUrl: typeof value.imageUrl === "string" ? value.imageUrl : null,
+    priceMin: typeof value.priceMin === "number" && Number.isFinite(value.priceMin) && value.priceMin >= 0 ? value.priceMin : null,
+    priceMax: typeof value.priceMax === "number" && Number.isFinite(value.priceMax) && value.priceMax >= 0 ? value.priceMax : null,
+    author: { ...author, userId: author.userId, username: author.username,
+      fullName: typeof author.fullName === "string" ? author.fullName : null },
+    likeCount: count(value.likeCount), commentCount: count(value.commentCount), viewCount: count(value.viewCount),
+    isLiked: value.isLiked === true, isOwner: value.isOwner === true,
+  } as ShowcaseSocialItem
+}
+
+export function parseShowcaseComment(raw: unknown): ShowcaseComment {
+  const value = asRecord(raw)
+  const author = asRecord(value?.author)
+  if (!value || typeof value.id !== "string" || typeof value.content !== "string" ||
+      !author || typeof author.userId !== "string" || typeof author.username !== "string") {
+    throw invalidResponse("showcase:comment")
+  }
+  return { ...value, author: { ...author, fullName: typeof author.fullName === "string" ? author.fullName : null } } as ShowcaseComment
 }

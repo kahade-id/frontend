@@ -84,6 +84,8 @@ export const SecureKeys = {
    * BUKAN rahasia; boleh persist di localStorage web (tanpa PII/angka uang).
    */
   uiPrefs: "kahade.ui.prefs",
+  /** At most 25 public item IDs, scoped to one account; cleared at logout. */
+  showcaseBookmarks: "kahade.showcase.bookmarks",
   /**
    * Penerima transfer terakhir (JSON — lib/ui-prefs.ts recentRecipients).
    * Berisi username/nama penerima = PII ringan: di native persist, di web
@@ -120,6 +122,7 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.sessionSignedOut,
   SecureKeys.lastNotificationResponse,
   SecureKeys.uiPrefs,
+  SecureKeys.showcaseBookmarks,
 ])
 /**
  * D-07 (audit): apakah kunci ini BERTAHAN di web? Dipakai modul yang harus
@@ -203,6 +206,7 @@ export async function clearSession(): Promise<void> {
     // perangkat yang sama tidak boleh mewarisi jejak transaksi/penerima.
     deleteSecureItem(SecureKeys.pendingActions),
     deleteSecureItem(SecureKeys.recentRecipients),
+    deleteSecureItem(SecureKeys.showcaseBookmarks),
   ])
 }
 

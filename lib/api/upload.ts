@@ -36,10 +36,10 @@ export type DirectUpload = {
   url: string
 }
 
-export function requestPresignedUrl(dto: PresignedUrlDto) {
+export function requestPresignedUrl(dto: PresignedUrlDto, signal?: AbortSignal) {
   assertDtoConstraints(dto, API_CONSTRAINTS.PresignedUrlDto)
   return http
-    .post<unknown, PresignedUrlDto>("/v1/upload/presigned-url", dto, { auth: "required" })
+    .post<unknown, PresignedUrlDto>("/v1/upload/presigned-url", dto, { auth: "required", signal })
     .then((raw) => {
       const value = raw as Record<string, unknown>
       return {
@@ -56,6 +56,7 @@ export async function uploadToPresignedUrl(
   blob: Blob,
   fileName = "upload",
   timeoutMs = 60_000,
+  signal?: AbortSignal,
 ) {
   const url = safeHttpsUrl(upload.url)
   if (!url) throw new ApiError({ code: "VALIDATION", message: "URL unggah tidak aman." })
@@ -71,6 +72,9 @@ export async function uploadToPresignedUrl(
     headers.delete("Content-Type") // fetch owns the multipart boundary.
   } else if (!headers.has("Content-Type") && blob.type) headers.set("Content-Type", blob.type)
   const controller = new AbortController()
+  const abort = () => controller.abort()
+  signal?.addEventListener("abort", abort, { once: true })
+  if (signal?.aborted) controller.abort()
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
     const response = await Promise.race([
@@ -95,15 +99,17 @@ export async function uploadToPresignedUrl(
       })
   } finally {
     clearTimeout(timer)
+    signal?.removeEventListener("abort", abort)
   }
 }
 export async function putToPresignedUrl(url: string, blob: Blob, headers?: Record<string, string>) {
   return uploadToPresignedUrl({ url, method: "PUT", headers }, blob)
 }
 
-export function confirmUpload(dto: ConfirmUploadDto) {
+export function confirmUpload(dto: ConfirmUploadDto, signal?: AbortSignal) {
   return http.post<ConfirmedUpload, ConfirmUploadDto>("/v1/upload/confirm", dto, {
     auth: "required",
+    signal,
   })
 }
 

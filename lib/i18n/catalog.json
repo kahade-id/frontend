@@ -15,19 +15,19 @@
    "n": 24
   },
   {
+   "s": "Etalase",
+   "n": 11
+  },
+  {
    "s": "Kembali",
    "n": 10
   },
   {
-   "s": "Etalase",
-   "n": 9
+   "s": "Lainnya",
+   "n": 10
   },
   {
    "s": "Kata sandi akun",
-   "n": 9
-  },
-  {
-   "s": "Lainnya",
    "n": 9
   },
   {
@@ -79,10 +79,6 @@
    "n": 5
   },
   {
-   "s": "Gagal mengunggah foto",
-   "n": 5
-  },
-  {
    "s": "Komentar",
    "n": 5
   },
@@ -124,6 +120,10 @@
   },
   {
    "s": "Gagal mengirim komentar",
+   "n": 4
+  },
+  {
+   "s": "Gagal mengunggah foto",
    "n": 4
   },
   {
@@ -395,10 +395,6 @@
    "n": 2
   },
   {
-   "s": "{x} dari {y} foto gagal diunggah",
-   "n": 2
-  },
-  {
    "s": "{x} dari {y} lencana diraih",
    "n": 2
   },
@@ -408,18 +404,6 @@
   },
   {
    "s": "{x} foto — tambah, urutkan, hapus",
-   "n": 2
-  },
-  {
-   "s": "{x} foto dilampirkan",
-   "n": 2
-  },
-  {
-   "s": "{x} foto dilampirkan, {y} gagal",
-   "n": 2
-  },
-  {
-   "s": "{x} foto gagal diunggah.",
    "n": 2
   },
   {
@@ -591,10 +575,6 @@
    "n": 2
   },
   {
-   "s": "Buka detail showcase",
-   "n": 2
-  },
-  {
    "s": "Buka profil",
    "n": 2
   },
@@ -691,6 +671,10 @@
    "n": 2
   },
   {
+   "s": "Gagal memperbarui suka",
+   "n": 2
+  },
+  {
    "s": "Gagal memuat etalase",
    "n": 2
   },
@@ -727,11 +711,23 @@
    "n": 2
   },
   {
+   "s": "Geser foto {x} ke kanan",
+   "n": 2
+  },
+  {
+   "s": "Geser foto {x} ke kiri",
+   "n": 2
+  },
+  {
    "s": "Hapus Akun",
    "n": 2
   },
   {
    "s": "Hapus filter",
+   "n": 2
+  },
+  {
+   "s": "Hapus foto {x}",
    "n": 2
   },
   {
@@ -772,6 +768,14 @@
   },
   {
    "s": "Kahade",
+   "n": 2
+  },
+  {
+   "s": "Karya dinonaktifkan",
+   "n": 2
+  },
+  {
+   "s": "Karya tersimpan",
    "n": 2
   },
   {
@@ -859,7 +863,7 @@
    "n": 2
   },
   {
-   "s": "Laporkan",
+   "s": "Laporkan pengguna",
    "n": 2
   },
   {
@@ -923,6 +927,10 @@
    "n": 2
   },
   {
+   "s": "Mengunggah foto {x} dari {y}",
+   "n": 2
+  },
+  {
    "s": "Menunggu konfirmasi",
    "n": 2
   },
@@ -948,6 +956,10 @@
   },
   {
    "s": "Muat ulang tantangan",
+   "n": 2
+  },
+  {
+   "s": "Mulai Rp {x}",
    "n": 2
   },
   {
@@ -1147,6 +1159,10 @@
    "n": 2
   },
   {
+   "s": "Tampilkan karya lainnya",
+   "n": 2
+  },
+  {
    "s": "Tampilkan secara publik",
    "n": 2
   },
@@ -1176,10 +1192,6 @@
   },
   {
    "s": "Terverifikasi",
-   "n": 2
-  },
-  {
-   "s": "Tidak ada gambar",
    "n": 2
   },
   {
@@ -1312,14 +1324,6 @@
   },
   {
    "s": "{x} — {y} periode",
-   "n": 1
-  },
-  {
-   "s": "{x} — coba lampirkan lagi.",
-   "n": 1
-  },
-  {
-   "s": "{x} — foto {y} dari {z}",
    "n": 1
   },
   {
@@ -1560,6 +1564,10 @@
   },
   {
    "s": "Aktifkan agar status order, pembayaran, dan sengketa penting muncul sebagai notifikasi browser, walau tab Kahade tidak sedang dibuka.",
+   "n": 1
+  },
+  {
+   "s": "Aktifkan karya",
    "n": 1
   },
   {
@@ -1819,6 +1827,10 @@
    "n": 1
   },
   {
+   "s": "Batalkan unggahan",
+   "n": 1
+  },
+  {
    "s": "Bayar aman lewat Kahade: {x}",
    "n": 1
   },
@@ -1868,6 +1880,10 @@
   },
   {
    "s": "Belum ada karya di etalase",
+   "n": 1
+  },
+  {
+   "s": "Belum ada karya tersimpan",
    "n": 1
   },
   {
@@ -1928,10 +1944,6 @@
   },
   {
    "s": "Belum ada pesan. Tulis di kolom bawah untuk mediator dan lawan transaksi.",
-   "n": 1
-  },
-  {
-   "s": "Belum ada profil tersimpan",
    "n": 1
   },
   {
@@ -2116,6 +2128,14 @@
   },
   {
    "s": "Bonus Topup",
+   "n": 1
+  },
+  {
+   "s": "Buang",
+   "n": 1
+  },
+  {
+   "s": "Buang perubahan?",
    "n": 1
   },
   {
@@ -2440,6 +2460,10 @@
   },
   {
    "s": "Chat",
+   "n": 1
+  },
+  {
+   "s": "Coba lagi foto gagal",
    "n": 1
   },
   {
@@ -2811,7 +2835,23 @@
    "n": 1
   },
   {
+   "s": "Foto {x}",
+   "n": 1
+  },
+  {
+   "s": "Foto {x} dari {y}",
+   "n": 1
+  },
+  {
    "s": "Foto {x} yang Anda unggah",
+   "n": 1
+  },
+  {
+   "s": "Foto berikut gagal diunggah. Coba lagi atau keluarkan dari pilihan sebelum menyimpan.",
+   "n": 1
+  },
+  {
+   "s": "Foto berikutnya",
    "n": 1
   },
   {
@@ -2823,7 +2863,7 @@
    "n": 1
   },
   {
-   "s": "Foto diunggah — lengkapi detail, lalu tampilkan di profil",
+   "s": "Foto dilampirkan",
    "n": 1
   },
   {
@@ -2871,11 +2911,7 @@
    "n": 1
   },
   {
-   "s": "Foto terunggah tapi gagal dilampirkan",
-   "n": 1
-  },
-  {
-   "s": "Foto yang berhasil disimpan saat Anda menekan Simpan.",
+   "s": "Foto sebelumnya",
    "n": 1
   },
   {
@@ -2987,10 +3023,6 @@
    "n": 1
   },
   {
-   "s": "Gagal memperbarui suka",
-   "n": 1
-  },
-  {
    "s": "Gagal memperbarui tanda berguna",
    "n": 1
   },
@@ -3024,6 +3056,10 @@
   },
   {
    "s": "Gagal memuat invoice",
+   "n": 1
+  },
+  {
+   "s": "Gagal memuat karya tersimpan",
    "n": 1
   },
   {
@@ -3275,6 +3311,10 @@
    "n": 1
   },
   {
+   "s": "Gagal menyimpan karya",
+   "n": 1
+  },
+  {
    "s": "Gagal menyimpan klaim",
    "n": 1
   },
@@ -3340,14 +3380,6 @@
   },
   {
    "s": "Geser atau ketuk lintasan sampai penanda sejajar dengan garis tujuan.",
-   "n": 1
-  },
-  {
-   "s": "Geser foto {x} ke kanan",
-   "n": 1
-  },
-  {
-   "s": "Geser foto {x} ke kiri",
    "n": 1
   },
   {
@@ -3455,6 +3487,10 @@
    "n": 1
   },
   {
+   "s": "Hapus dari tersimpan",
+   "n": 1
+  },
+  {
    "s": "Hapus dokumen {x}",
    "n": 1
   },
@@ -3464,10 +3500,6 @@
   },
   {
    "s": "Hapus foto",
-   "n": 1
-  },
-  {
-   "s": "Hapus foto {x}",
    "n": 1
   },
   {
@@ -3560,6 +3592,10 @@
   },
   {
    "s": "Harga minimum (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Harga yang sudah terisi belum dapat dikosongkan. Masukkan nominal baru, termasuk {x} untuk gratis.",
    "n": 1
   },
   {
@@ -3887,15 +3923,11 @@
    "n": 1
   },
   {
-   "s": "Karya disembunyikan",
-   "n": 1
-  },
-  {
    "s": "Karya ditambahkan",
    "n": 1
   },
   {
-   "s": "Karya ditampilkan di profil",
+   "s": "Karya tidak tersedia — coba buka lagi",
    "n": 1
   },
   {
@@ -3984,6 +4016,10 @@
   },
   {
    "s": "Keluarkan dari arsip",
+   "n": 1
+  },
+  {
+   "s": "Keluarkan foto gagal",
    "n": 1
   },
   {
@@ -4363,6 +4399,10 @@
    "n": 1
   },
   {
+   "s": "Kunci unggahan tidak tersedia.",
+   "n": 1
+  },
+  {
    "s": "Kurir",
    "n": 1
   },
@@ -4431,6 +4471,14 @@
    "n": 1
   },
   {
+   "s": "Lanjut mengedit",
+   "n": 1
+  },
+  {
+   "s": "Lanjutkan pencarian pada halaman berikutnya.",
+   "n": 1
+  },
+  {
    "s": "Lapisan keamanan lain",
    "n": 1
   },
@@ -4447,15 +4495,15 @@
    "n": 1
   },
   {
+   "s": "Laporkan",
+   "n": 1
+  },
+  {
    "s": "Laporkan {x}",
    "n": 1
   },
   {
    "s": "Laporkan Karya",
-   "n": 1
-  },
-  {
-   "s": "Laporkan pengguna",
    "n": 1
   },
   {
@@ -4611,11 +4659,19 @@
    "n": 1
   },
   {
+   "s": "Maksimal {x} karya di perangkat ini. Simpanan dihapus saat keluar akun.",
+   "n": 1
+  },
+  {
    "s": "Masalah pembayaran",
    "n": 1
   },
   {
    "s": "Masih ada permintaan yang menunggu tanggapan pembeli. Ajukan lagi setelah dijawab.",
+   "n": 1
+  },
+  {
+   "s": "Masih mencari karya dari akun yang diikuti",
    "n": 1
   },
   {
@@ -4640,6 +4696,10 @@
   },
   {
    "s": "Masuk terlebih dahulu agar kami bisa menampilkan showcase dari akun yang kamu ikuti.",
+   "n": 1
+  },
+  {
+   "s": "Masuk untuk melaporkan",
    "n": 1
   },
   {
@@ -4840,6 +4900,10 @@
   },
   {
    "s": "Memuat karya",
+   "n": 1
+  },
+  {
+   "s": "Memuat karya tersimpan…",
    "n": 1
   },
   {
@@ -5183,10 +5247,6 @@
    "n": 1
   },
   {
-   "s": "Mulai Rp {x}",
-   "n": 1
-  },
-  {
    "s": "Mulai transaksi pertamamu",
    "n": 1
   },
@@ -5336,6 +5396,10 @@
   },
   {
    "s": "Nomor transaksi",
+   "n": 1
+  },
+  {
+   "s": "Nonaktifkan karya",
    "n": 1
   },
   {
@@ -5875,6 +5939,10 @@
    "n": 1
   },
   {
+   "s": "Perubahan dan foto yang belum disimpan akan dibuang.",
+   "n": 1
+  },
+  {
    "s": "Perubahan skor kepercayaan dan lencana baru.",
    "n": 1
   },
@@ -6088,6 +6156,10 @@
   },
   {
    "s": "Populer",
+   "n": 1
+  },
+  {
+   "s": "Pratinjau foto — foto pertama menjadi cover",
    "n": 1
   },
   {
@@ -6443,6 +6515,10 @@
    "n": 1
   },
   {
+   "s": "Sebagian karya belum dapat dimuat. Coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Sebutkan di keterangan",
    "n": 1
   },
@@ -6504,10 +6580,6 @@
   },
   {
    "s": "Selisih",
-   "n": 1
-  },
-  {
-   "s": "Sembunyikan dari profil",
    "n": 1
   },
   {
@@ -6659,10 +6731,6 @@
    "n": 1
   },
   {
-   "s": "Simpan pengguna dari profil mereka untuk dilihat lagi di sini.",
-   "n": 1
-  },
-  {
    "s": "Simpan pengguna favorit dari profil mereka.",
    "n": 1
   },
@@ -6719,6 +6787,10 @@
    "n": 1
   },
   {
+   "s": "Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.",
+   "n": 1
+  },
+  {
    "s": "Status metode belum terkonfirmasi",
    "n": 1
   },
@@ -6732,6 +6804,10 @@
   },
   {
    "s": "Status sengketa: {x}",
+   "n": 1
+  },
+  {
+   "s": "Status simpan belum pasti. Coba Simpan lagi untuk melanjutkan permintaan yang sama, atau segarkan daftar sebelum membuat karya baru.",
    "n": 1
   },
   {
@@ -6840,10 +6916,6 @@
   },
   {
    "s": "Tampilkan {x} lainnya",
-   "n": 1
-  },
-  {
-   "s": "Tampilkan di profil",
    "n": 1
   },
   {
@@ -7128,6 +7200,10 @@
   },
   {
    "s": "Tidak",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada gambar",
    "n": 1
   },
   {
@@ -7520,6 +7596,10 @@
   },
   {
    "s": "Unggah terlalu lama. Periksa koneksi lalu coba kembali.",
+   "n": 1
+  },
+  {
+   "s": "Unggahan dibatalkan.",
    "n": 1
   },
   {

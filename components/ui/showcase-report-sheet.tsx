@@ -15,6 +15,10 @@ import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
+import { router } from "expo-router"
+import { ROUTES } from "@/lib/routes"
+import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
+import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { api, userMessage } from "@/lib/api"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
@@ -34,6 +38,9 @@ export type ShowcaseReportSheetProps = {
 
 export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportSheetProps) {
   const toast = useToast()
+  const hasSession = useHasSession()
+  const revision = useSessionRevision()
+  const operation = useShowcaseOperation(item?.id)
   const [reason, setReason] = useState<string>("SPAM")
   const [detail, setDetail] = useState<string>("")
   const [submitting, setSubmitting] = useState(false)
@@ -42,16 +49,25 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
   useEffect(() => {
     setReason("SPAM")
     setDetail("")
-  }, [item?.id])
+    setSubmitting(false)
+  }, [item?.id, revision])
 
   const handleSubmit = useCallback(async () => {
     if (!item || submitting) return
+    if (!hasSession) {
+      onRequestClose()
+      router.push(ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
+      return
+    }
+    const task = operation.begin()
+    if (!task) return
     setSubmitting(true)
     try {
       await api.showcase.reportShowcase(item.id, {
         reason,
         description: detail.trim() || undefined,
       })
+      if (!task.valid()) return
       toast.show({
         title: "Laporan terkirim",
         description: "Terima kasih telah membantu menjaga keamanan komunitas Kahade.",
@@ -60,15 +76,17 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
       })
       onRequestClose()
     } catch (err) {
+      if (!task.valid()) return
       toast.show({
         title: "Gagal mengirim laporan",
         description: userMessage(err),
         tone: "danger",
       })
     } finally {
-      setSubmitting(false)
+      if (task.valid()) setSubmitting(false)
+      task.finish()
     }
-  }, [item, submitting, reason, detail, toast, onRequestClose])
+  }, [item, submitting, reason, detail, toast, onRequestClose, hasSession, operation])
 
   return (
     <BottomSheet
@@ -85,7 +103,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
       avoidKeyboard
       footer={
         <Button variant="destructive" loading={submitting} onPress={() => void handleSubmit()}>
-          Kirim Laporan
+          {hasSession ? translate("Kirim Laporan") : translate("Masuk untuk melaporkan")}
         </Button>
       }
     >
@@ -104,6 +122,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
         </Field>
         <Field label="Keterangan tambahan (opsional)">
           <TextArea
+            disabled={submitting || !hasSession}
             value={detail}
             onChangeText={setDetail}
             placeholder="Jelaskan secara singkat detail pelanggaran..."

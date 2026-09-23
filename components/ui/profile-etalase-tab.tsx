@@ -108,6 +108,8 @@ export function ProfileEtalaseTab({
   isSelf = false,
 }: ProfileEtalaseTabProps) {
   /** Item yang komentarnya sedang dibuka (null = tertutup). */
+  const [renderLimit, setRenderLimit] = useState(20)
+  useEffect(() => { setRenderLimit(20) }, [handle])
   const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
   /** C-03: item yang sedang dilaporkan (null = tertutup). */
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
@@ -231,7 +233,7 @@ export function ProfileEtalaseTab({
           </View>
         ) : (
           <>
-            {patchedItems.map((item, index) => (
+            {patchedItems.slice(0, renderLimit).map((item, index) => (
               <EtalaseCard
                 key={item.id}
                 item={item}
@@ -240,6 +242,7 @@ export function ProfileEtalaseTab({
                 onReport={handleOpenReport}
               />
             ))}
+            {patchedItems.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 20)}>Tampilkan karya lainnya</Button> : null}
             {/* E-03: taut ke layar galeri grid publik (jangan biarkan kode mati). */}
             <View className="px-5">
               <Button

@@ -1,3 +1,4 @@
+import { useProfileShowcase } from "@/lib/use-profile-showcase"
 /**
  * Screen — Profil User (Binance Social / Creator Profile style)
  *
@@ -13,7 +14,6 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Pressable, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { translate } from "@/lib/i18n/translate"
 import {
   Bookmark,
@@ -36,7 +36,7 @@ import {
   UserCircle,
 } from "phosphor-react-native"
 import { api, isApiError, userMessage } from "@/lib/api"
-import type { HiddenReason, PublicUserProfile, QuestionComment, QuestionItem, ShowcaseItem, VerificationBadge } from "@/lib/api/users"
+import type { HiddenReason, PublicUserProfile, QuestionComment, QuestionItem, VerificationBadge } from "@/lib/api/users"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
 import { createInquiry } from "@/lib/api/chat"
 import {
@@ -51,7 +51,6 @@ import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { isFilePayload, shareContent, type SharePayload } from "@/lib/share"
 import { TEXT_ROW_HIT_SLOP } from "@/lib/hit-slop"
-import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -73,7 +72,7 @@ import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
 import { Crossfade } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { DataScroll } from "@/components/ui/data-screen"
 import { QACard } from "@/components/ui/qa-card"
 import { QaCommentComposer, QaCommentItem } from "@/components/ui/qa-comment-item"
 import { ProfileAboutTab } from "@/components/ui/profile-about-tab"
@@ -136,7 +135,6 @@ export default function UserProfileScreen() {
     self?: string
   }>()
   const username = rawUsername ?? ""
-  const insets = useSafeAreaInsets()
   const toast = useToast()
   const { copy } = useCopy()
 
@@ -172,13 +170,7 @@ export default function UserProfileScreen() {
 
   // Etalase / Showcase state — item MENTAH dari API; normalisasi ke bentuk
   // sosial + interaksinya milik <ProfileEtalaseTab> (ekstrak G-11).
-  const [showcaseItems, setShowcaseItems] = useState<ShowcaseItem[]>([])
-  const [showcaseLoading, setShowcaseLoading] = useState(false)
-  /**
-   * C-01 (audit Etalase): gagal memuat etalase bukan "belum ada konten" —
-   * pesan error disimpan dan tab menampilkan ErrorState + coba lagi.
-   */
-  const [showcaseError, setShowcaseError] = useState<string | null>(null)
+  const { items: showcaseItems, loading: showcaseLoading, error: showcaseError, fetch: fetchShowcaseTab } = useProfileShowcase()
 
   // Questions / Tanya Jawab state
   const [questions, setQuestions] = useState<QuestionItem[]>([])
@@ -246,38 +238,6 @@ export default function UserProfileScreen() {
   const coverUri = resolveMediaUrl(profile?.headerUrl)
 
   const profileRequest = useRef(0)
-  /**
-   * C-02 (audit Etalase): token generasi fetch tab. Pindah profil menaikkan
-   * token → respons etalase milik profil LAMA dibuang, tidak menimpa state
-   * profil baru. (fetchProfile sudah punya token sendiri untuk header.)
-   */
-  const tabRequest = useRef(0)
-
-  /**
-   * Ambil etalase saja (dipakai fetchTabContents & tombol "Coba lagi" C-01).
-   * Dijaga token tabRequest — hanya panggilan TERBARU yang boleh menulis.
-   */
-  const fetchShowcaseTab = useCallback((targetName: string) => {
-    const started = ++tabRequest.current
-    const current = () => tabRequest.current === started
-    setShowcaseLoading(true)
-    setShowcaseError(null)
-    void api.users
-      .getPublicShowcase(targetName)
-      .then((res) => {
-        if (current()) setShowcaseItems(res ?? [])
-      })
-      .catch((err: unknown) => {
-        if (current()) {
-          setShowcaseItems([])
-          setShowcaseError(userMessage(err))
-        }
-      })
-      .finally(() => {
-        if (current()) setShowcaseLoading(false)
-      })
-  }, [])
-
   // Fetch all tab contents
   const fetchTabContents = useCallback(
     async (targetName: string) => {
@@ -731,17 +691,7 @@ export default function UserProfileScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={refreshing}
-        // Inset bottom ditangani BottomTabBar saat profil sendiri.
-        contentContainerClassName="px-0"
-        scrollViewProps={{
-          contentContainerStyle: {
-            paddingBottom: showBottomNav ? tokens.space[4] : insets.bottom + tokens.space[8],
-          },
-        }}
-      >
+      <DataScroll onRefresh={handleRefresh} refreshing={refreshing} padded={false} docked={showBottomNav}>
         {/* ── Top Bar (di atas cover) ──────────────────────────
             <Header transparent>: @username PUSAT di bar — satu-satunya
             tempat username ditulis (baris identitas di bawah hanya nama).
@@ -1263,7 +1213,7 @@ export default function UserProfileScreen() {
           <EmptyState icon={UserCircle} title="Profil tidak ditemukan" />
         )}
         </Crossfade>
-      </PullToRefresh>
+      </DataScroll>
 
       {/* Navbar yang sama dengan tab — isi slot ikut mode. Orang lain tidak
           merender bar ini. */}

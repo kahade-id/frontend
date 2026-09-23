@@ -1,30 +1,10 @@
-/**
- * Kahade — store bersama preferensi sosial Etalase (suka & simpan).
- *
- * Kenapa modul ini ada (audit A-06/A-07/C-05/C-06): state suka & simpan
- * sebelumnya `useState` LOKAL di TIGA layar berbeda (feed, tab Etalase
- * profil, halaman detail). Akibatnya:
- *   - Simpan di feed → buka detail → ikon bookmark kosong (dan sebaliknya).
- *   - Unlike di detail → kembali ke feed → kartu masih menampilkan ♥ penuh
- *     dengan angka lama (patch optimistis menimpa data segar tanpa batas).
- *
- * Solusinya: SATU store eksternal (pola `lib/api/session.ts`) yang dibaca
- * ketiga layar lewat `useShowcaseSaved` / `useShowcaseLikeOverride` dan
- * ditulis lewat `toggleShowcaseSaved` / `setShowcaseLikeState`. Nilai like
- * yang disimpan adalah NILAI FINAL SERVER (`{liked, likeCount}` hasil
- * sinkronisasi), jadi override ini lebih akurat daripada data feed yang bisa
- * basi — bukan tebakan optimistis berumur panjang.
- *
- * Cakupan sengaja memori-sesi (backend belum punya endpoint koleksi
- * tersimpan, dan repo tidak membawa AsyncStorage/MMKV): konsisten di semua
- * layar selama app hidup; tidak berpura-pura persisten lintas instal.
- *
- * `feedDirtyVersion`: spanduk "etalase saya berubah" — mutasi di layar
- * manajemen memanggil `markShowcaseFeedDirty()`; tab feed mengonsumsinya
- * saat fokus kembali (audit A-08: item baru dahulu tidak pernah muncul di
- * feed tanpa refresh manual).
- */
-import { useCallback, useSyncExternalStore } from "react"
+/** Account-scoped Etalase preferences. Public bookmark IDs persist locally (max 25),
+ * clear at logout, and hydrate only for the matching owner. Likes are session-only. */
+import { useCallback, useMemo, useSyncExternalStore } from "react"
+import { getSessionRevision, subscribeSession } from "@/lib/api/session"
+import { getSecureItem, setSecureItem, deleteSecureItem, SecureKeys } from "@/lib/secure-storage"
+import { logWarn } from "@/lib/telemetry"
+import { invalidateQueryPrefix } from "@/lib/query-cache"
 
 export type ShowcaseLikeState = { isLiked: boolean; likeCount: number }
 
@@ -63,8 +43,12 @@ function subscribe(listener: () => void) {
 export function toggleShowcaseSaved(id: string) {
   const saved = { ...state.saved }
   if (saved[id]) delete saved[id]
-  else saved[id] = true
+  else {
+    if (Object.keys(saved).length >= 25) throw new Error("Maksimal 25 karya tersimpan di perangkat ini. Hapus salah satu untuk menyimpan karya lain.")
+    saved[id] = true
+  }
   emit({ saved })
+  persistBookmarks()
 }
 
 export function isShowcaseSaved(id: string): boolean {
@@ -107,6 +91,9 @@ export function getShowcaseLikeOverride(id: string): ShowcaseLikeState | undefin
 // ------------------------------------------------------------------
 
 export function markShowcaseFeedDirty() {
+  invalidateQueryPrefix("showcase-")
+  invalidateQueryPrefix("public-showcase:")
+  invalidateQueryPrefix("my-showcase")
   emit({ feedDirtyVersion: state.feedDirtyVersion + 1 })
 }
 
@@ -124,4 +111,64 @@ export function useRequireSessionAction(hasSession: boolean) {
     },
     [hasSession],
   )
+}
+
+/** Account state is never inherited by a subsequent login in the same process. */
+let sessionRevision = getSessionRevision()
+subscribeSession(() => {
+  if (sessionRevision === getSessionRevision()) return
+  sessionRevision = getSessionRevision()
+  bookmarkOwner = null
+  hydration = null
+  bookmarkQueue = bookmarkQueue.then(() => deleteSecureItem(SecureKeys.showcaseBookmarks)).catch(() => {
+    logWarn("showcase:bookmark-clear", new Error("Local bookmark cleanup failed"))
+  })
+  emit({ saved: {}, likes: {}, feedDirtyVersion: state.feedDirtyVersion + 1 })
+})
+
+export function clearShowcaseLikeOverride(id: string) {
+  const likes = { ...state.likes }
+  delete likes[id]
+  emit({ likes })
+}
+
+export function useShowcaseDirtyVersion() {
+  return useSyncExternalStore(subscribe, showcaseFeedDirtyVersion, () => 0)
+}
+
+let bookmarkOwner: string | null = null
+let hydration: { owner: string; revision: number; promise: Promise<void> } | null = null
+let bookmarkQueue: Promise<void> = Promise.resolve()
+
+export function loadShowcaseBookmarks(owner: string): Promise<void> {
+  const revision = getSessionRevision()
+  if (hydration?.owner === owner && hydration.revision === revision) return hydration.promise
+  const promise = (async () => {
+    await bookmarkQueue
+    const raw = await getSecureItem(SecureKeys.showcaseBookmarks)
+    if (revision !== getSessionRevision()) return
+    let ids: unknown = []
+    try {
+      const record = raw ? JSON.parse(raw) : null
+      if (record?.owner === owner) ids = record.ids
+    } catch { /* Invalid local data is replaced, never trusted as an API response. */ }
+    bookmarkOwner = owner
+    const safe = Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string" && id.length <= 64).slice(0, 25) : []
+    emit({ saved: Object.fromEntries(safe.map((id) => [id, true as const])) })
+  })()
+  hydration = { owner, revision, promise }
+  promise.catch(() => { if (hydration?.promise === promise) hydration = null })
+  return promise
+}
+function persistBookmarks() {
+  if (!bookmarkOwner) return
+  const revision = getSessionRevision()
+  const payload = JSON.stringify({ owner: bookmarkOwner, ids: Object.keys(state.saved) })
+  bookmarkQueue = bookmarkQueue.then(async () => {
+    if (revision === getSessionRevision()) await setSecureItem(SecureKeys.showcaseBookmarks, payload)
+  }).catch(() => logWarn("showcase:bookmark-save", new Error("Local bookmark persistence failed")))
+}
+export function useShowcaseSavedIds(): string[] {
+  const saved = useSyncExternalStore(subscribe, () => state.saved, () => EMPTY.saved)
+  return useMemo(() => Object.keys(saved), [saved])
 }

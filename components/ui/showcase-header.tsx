@@ -206,6 +206,7 @@ export function ShowcaseHeader({
         <View className="flex-1">
           <Input
             variant="search"
+            maxLength={100}
             value={search}
             onChangeText={onSearchChange}
             placeholder="Cari produk atau penjual"

@@ -1,21 +1,4 @@
-/**
- * Kahade — domain `users` (tag "users" di kahade-api-mobile.json).
- *
- * Hanya endpoint yang dipakai alur auth (setup profil) dan navigasi dasar
- * yang diimplementasikan di sini. Endpoint lain (follow, block, report,
- * showcase, questions, analytics, dll) ditambahkan saat screen terkait
- * dibangun — mengikuti aturan "jangan implementasi yang belum dipakai".
- *
- * Semua endpoint di sini memakai `auth: "required"` (butuh Bearer token).
- *
- * Keputusan non-obvious:
- *   - `updateProfile` hanya mengirim field yang diisi (partial update).
- *     DTO class-validator menerima field opsional yang di-omit.
- *   - Avatar upload mengikuti pola 2 langkah: `uploadAvatarDirect` (multipart)
- *     → `confirmAvatar` (key). Spec menyediakan `PUT /v1/users/me/avatar`
- *     untuk presigned URL, tapi direct upload lebih simple untuk mobile
- *     (tidak perlu round-trip presigned URL).
- */
+/** Users API adapters. Public resources use optional authentication; mutations require a session. */
 
 import {
   asRecord,
@@ -650,6 +633,8 @@ export type ShowcaseItem = {
   isActive?: boolean
   createdAt: string
   sortOrder?: number
+  category?: string | null
+  visibility?: "PUBLIC" | "PRIVATE"
 }
 
 /** Satu gambar item showcase (GET /v1/users/me/showcase → items[].images). */
@@ -689,9 +674,10 @@ export async function uploadShowcase(formData: FormData) {
   }
 }
 
-export async function createShowcase(dto: CreateShowcaseItemDto) {
+export async function createShowcase(dto: CreateShowcaseItemDto, idempotencyKey?: string) {
   const result = await http.post<ShowcaseItem, CreateShowcaseItemDto>("/v1/users/me/showcase", dto, {
     auth: "required",
+    ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
   })
   return {
     ...result,
@@ -731,14 +717,8 @@ export function deleteShowcase(id: string) {
 export function getPublicShowcase(username: string, signal?: AbortSignal) {
   return http
     .get<unknown>(`/v1/users/${seg(username)}/showcase`, {
-      /**
-       * C-04 (audit Etalase, 2026-09-23): "none" — endpoint ini berbagi
-       * permukaan yang sama dengan feed/detail sosial (keduanya auth:"none")
-       * dan corong "lihat profil → lihat etalase" harus terbuka untuk tamu.
-       * Bila backend masih menjawab 401, lapisan layar kini menampilkan
-       * ErrorState+retry yang jujur (C-01), bukan empty-state palsu.
-       */
-      auth: "none",
+      // Public when supported by the deployment; preserve bearer identity for signed-in viewers.
+      auth: "optional",
       signal,
     })
     // Urutan kunci SAMA dengan getMyShowcase (audit H-02): ["showcase", "items"].
