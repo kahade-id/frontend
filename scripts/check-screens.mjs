@@ -572,7 +572,7 @@ const LINE_CEILING = new Map([
   // konstanta tipe berkas dipadatkan -> 917. Plafon TURUN mengikuti fakta.
   ["app/dispute/[id].tsx", 917],
   // 2026-09-23b: baris aksi suka diganti <LikeAction> (blok inline hilang) -> 871.
-  ["app/showcase/[id].tsx", 871],
+  ["app/showcase/[id].tsx", 826],
   // H-04 (audit 2026-09-22): PullToRefresh 881 baris menyembunyikan mesin
   // gestur PanResponder di dalam satu komponen monolitik. Layar-layar sudah
   // dipantau sejak lama, komponennya belum — masuk daftar pada ukuran
@@ -594,9 +594,9 @@ const LINE_CEILING = new Map([
   // (discover-users-tab.tsx, showcase-feed-tab.tsx) -> layar tinggal kerangka.
   ["app/(tabs)/discover.tsx", 32],
   ["lib/api/orders.ts", 890],
-  ["lib/api/users.ts", 1138],
-  ["lib/api/constraints.ts", 1157],
-  ["lib/api/types.ts", 1559],
+  ["lib/api/users.ts", 1119],
+  ["lib/api/constraints.ts", 1181], // GENERATED dari spec — plafon mengikuti gen:api (F-01 audit 2026-09-23)
+  ["lib/api/types.ts", 1566], // GENERATED dari spec — plafon mengikuti gen:api
   ["lib/tokens.ts", 1027],
 ])
 for (const [file, ceiling] of LINE_CEILING) {

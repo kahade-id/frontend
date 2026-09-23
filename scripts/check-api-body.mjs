@@ -111,15 +111,8 @@ const KNOWN_DEVIATIONS = [
       "mustahil tanpa txId. Klien mengirim { txId }; spec yang harus dilengkapi " +
       "(CancelWithdrawDto). Lihat docs/audit/API-ENDPOINT-AUDIT.md API-04.",
   },
-  {
-    match: "POST /v1/showcase/{}/report",
-    reason:
-      "Controller memakai tipe inline anonim `@Body() dto: { reason: string; " +
-      "description?: string }` sehingga Swagger tidak mendokumentasikan " +
-      "requestBody (akar masalah sama dengan bug @ApiProperty). Klien benar " +
-      "mengirim { reason, description? }. Backend perlu membuat " +
-      "ReportShowcaseDto dengan @ApiProperty.",
-  },
+  // "POST /v1/showcase/{}/report" dihapus (F-01 audit 2026-09-23): spec kini
+  // mendokumentasikan CreateShowcaseReportDto { reason, description? ≤500 }.
   {
     match: "POST /v1/wallet/favorite-recipients",
     reason:

@@ -38,8 +38,9 @@
 import { useState, type ReactNode } from "react"
 import { View, type LayoutChangeEvent, type ViewProps } from "react-native"
 
-import { EyeSlash } from "phosphor-react-native"
+import { EyeSlash, Images } from "phosphor-react-native"
 
+import { Icon } from "@/components/ui/icon"
 import { Picture, type PictureProps } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -61,6 +62,11 @@ export type ShowcaseItem = {
    * di profil publik.
    */
   hidden?: boolean
+  /**
+   * G-23 (audit 2026-09-23): label kecil overlay kiri-bawah (mis. label
+   * harga) — opsional, tanpa mengubah tata letak sel persegi.
+   */
+  meta?: string
 }
 
 export type ShowcaseGalleryGridProps = Omit<ViewProps, "children"> & {
@@ -75,6 +81,12 @@ export type ShowcaseGalleryGridProps = Omit<ViewProps, "children"> & {
   loadingCount?: number
   /** Dirender saat items kosong dan tidak loading */
   empty?: ReactNode
+  /**
+   * I-02 (audit 2026-09-23): hint tap sel kontekstual — galeri publik
+   * membuka DETAIL karya (bukan "Buka foto"), manajemen membuka menu karya.
+   */
+  openHint?: string
+  openMoreHint?: string
   className?: string
 }
 
@@ -89,6 +101,8 @@ export function ShowcaseGalleryGrid({
   loading = false,
   loadingCount,
   empty,
+  openHint,
+  openMoreHint,
   className,
   ...rest
 }: ShowcaseGalleryGridProps) {
@@ -123,28 +137,43 @@ export function ShowcaseGalleryGrid({
           : shown.map((item, index) => {
               const isLast = index === shown.length - 1
               const showMore = isLast && overflow > 0
+              // G-13 (audit 2026-09-23): sel tanpa cover = placeholder NETRAL
+              // (bidang surface + ikon) — `source: ""` dulu langsung jatuh ke
+              // fallback "gambar gagal" (ImageBroken) yang menyesatkan.
+              const hasSource = typeof item.source === "string" ? item.source.length > 0 : !!item.source
 
               const picture = (
                 <View
                   style={{ width: cell, height: cell }}
                   className="overflow-hidden rounded-sm select-none"
                 >
-                  <Picture
-                    source={item.source}
-                    alt={
-                      showMore
-                        ? [item.alt, translate("{x} foto lainnya", { x: formatNumber(overflow) })]
-                            .filter(Boolean)
-                            .join(", ")
-                        : item.alt
-                    }
-                    width={cell}
-                    height={cell}
-                    radius="sm"
-                    bordered={false}
-                    recyclingKey={item.id}
-                    preventDownload
-                  />
+                  {hasSource ? (
+                    <Picture
+                      source={item.source}
+                      alt={
+                        showMore
+                          ? [item.alt, translate("{x} foto lainnya", { x: formatNumber(overflow) })]
+                              .filter(Boolean)
+                              .join(", ")
+                          : item.alt
+                      }
+                      width={cell}
+                      height={cell}
+                      radius="sm"
+                      bordered={false}
+                      recyclingKey={item.id}
+                      preventDownload
+                    />
+                  ) : (
+                    <View
+                      className="h-full w-full items-center justify-center bg-surface"
+                      accessible
+                      accessibilityRole="image"
+                      accessibilityLabel={item.alt}
+                    >
+                      <Icon icon={Images} size="md" tone="default" />
+                    </View>
+                  )}
                   {item.hidden ? (
                     // D-06: marker visual "disembunyikan" — scrim tipis +
                     // badge ikon. Tidak ikut dalam label; `item.alt` sudah
@@ -158,6 +187,18 @@ export function ShowcaseGalleryGrid({
                             seperti label "+N" di bawah). */}
                         <EyeSlash size={16} color="#FFFFFF" weight="fill" />
                       </View>
+                    </View>
+                  ) : null}
+                  {item.meta ? (
+                    // G-23: label kecil kiri-bawah (harga/status) di atas
+                    // scrim — putih eksplisit seperti label "+N".
+                    <View
+                      style={{ pointerEvents: "none" }}
+                      className="absolute bottom-0 left-0 bg-overlay-media px-1.5 py-0.5"
+                    >
+                      <Text variant="caption" tone="inherit" className="text-white">
+                        {item.meta}
+                      </Text>
                     </View>
                   ) : null}
                   {showMore ? (
@@ -186,7 +227,12 @@ export function ShowcaseGalleryGrid({
                   key={item.id}
                   accessibilityRole="button"
                   accessibilityLabel={item.alt}
-                  accessibilityHint={showMore ? "Buka semua foto" : "Buka foto"}
+                  // I-02: hint kontekstual per pemanggil (default "Buka foto").
+                  accessibilityHint={
+                    showMore
+                      ? translate(openMoreHint ?? "Buka semua foto")
+                      : translate(openHint ?? "Buka foto")
+                  }
                   onPress={() => onPressItem(item, index)}
                   containerClassName={cn("rounded-sm", focusRing)}
                 >

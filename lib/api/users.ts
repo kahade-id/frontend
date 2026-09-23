@@ -644,35 +644,16 @@ export type ShowcaseImage = {
   sortOrder: number
 }
 
-/** Respons upload gambar showcase — spec 201 tanpa schema (UNVERIFIED). */
-export type ShowcaseUploadResult = Partial<ShowcaseItem> & { url?: string; key?: string }
-
 export function getMyShowcase(signal?: AbortSignal) {
   return http
     .get<ShowcaseItem[]>("/v1/users/me/showcase", { auth: "required", retry: 1, signal })
     .then((raw) => readList<ShowcaseItem>(raw, ["showcase", "items"]))
 }
 
-/**
- * POST /v1/users/me/showcase/upload — unggah gambar. Backend bisa langsung
- * membuat item (mengembalikan ShowcaseItem) ATAU hanya mengembalikan
- * `imageUrl`/`url` untuk dipakai di createShowcase (UNVERIFIED).
- */
-export async function uploadShowcase(formData: FormData) {
-  const result = await http.post<ShowcaseUploadResult>("/v1/users/me/showcase/upload", undefined, {
-    formData,
-    auth: "required",
-  })
-  return {
-    ...result,
-    imageUrl: pickString(result, ["imageUrl", "image_url"]),
-    fileKey: pickString(result, ["fileKey", "file_key"]),
-    priceMin: pickNumber(result, ["priceMin", "price_min"]),
-    priceMax: pickNumber(result, ["priceMax", "price_max"]),
-    isActive: pickBoolean(result, ["isActive", "is_active"]),
-    sortOrder: pickNumber(result, ["sortOrder", "sort_order"]),
-  }
-}
+// G-16 (audit 2026-09-23): adapter multipart lama `uploadShowcase` DIHAPUS —
+// 0 pemakai sejak alur unggah-only (presigned) di lib/showcase-upload.ts, dan
+// tipenya UNVERIFIED. Jalur upload presigned TIDAK PERNAH jatuh ke endpoint
+// auto-create ini (lihat docblock modul showcase-upload).
 
 export async function createShowcase(dto: CreateShowcaseItemDto, idempotencyKey?: string) {
   const result = await http.post<ShowcaseItem, CreateShowcaseItemDto>("/v1/users/me/showcase", dto, {

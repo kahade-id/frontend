@@ -103,7 +103,9 @@ export const ROUTES = {
   createTransaction: "/create-transaction" as Href,
   /** Buat transaksi dengan lawan transaksi terisi (dari profil publik) */
   createTransactionWith: (username: string) =>
-    ({ pathname: "/create-transaction", params: { counterpart: username } }) as unknown as Href,
+    // L-04 (audit 2026-09-23): penonton karya orang lain pasti PEMBELI —
+    // peran BUYER di-prefill, bukan disuruh memilih manual.
+    ({ pathname: "/create-transaction", params: { counterpart: username, role: "BUYER" } }) as unknown as Href,
   /**
    * Buat transaksi ter-prefill dari `orderLink` item showcase (audit F-01).
    * Kontrak backend hanya membawa title/description/orderValue(+valid flag)/
@@ -127,6 +129,8 @@ export const ROUTES = {
       pathname: "/create-transaction",
       params: {
         counterpart: orderLink.counterpartUsername ?? fallbackCounterpart,
+        // L-04 (audit 2026-09-23): prefill dari karya = pembeli.
+        role: "BUYER",
         title: orderLink.title,
         description: orderLink.description,
         amount:
@@ -346,16 +350,30 @@ export const ROUTES = {
     ({ pathname: "/followers/[username]", params: { username, tab } }) as unknown as Href,
   /** Feed sosial Showcase (tab utama). */
   showcase: "/showcase" as Href,
-  /** Feed etalase terfilter kategori (A-12: badge kategori → feed terfilter). */
-  showcaseWithCategory: (category: string) =>
-    ({ pathname: "/showcase", params: { category } }) as unknown as Href,
+  /**
+   * Feed etalase terfilter kategori (A-12: badge kategori → feed terfilter).
+   * L-01 (audit 2026-09-23): `kind` (tab aktif) diteruskan supaya mendarat
+   * di tab yang sama — tanpa ini selalu jatuh ke default `forYou`.
+   */
+  showcaseSearch: (search: string) =>
+    ({ pathname: "/showcase", params: { search } }) as unknown as Href,
+  showcaseWithCategory: (category: string, kind?: string) =>
+    ({ pathname: "/showcase", params: kind ? { category, kind } : { category } }) as unknown as Href,
   /** Showcase milik sendiri (CRUD), dibuka dari aksi tambah di feed. */
   showcaseManagement: "/showcase-management" as Href,
   /** Questions milik sendiri (GET /v1/users/me/questions) */
   questions: "/questions" as Href,
   /** Detail item showcase sosial (GET /v1/showcase/{id} + komentar/like/share) */
-  showcaseDetail: (id: string) =>
-    ({ pathname: "/showcase/[id]", params: { id } }) as unknown as Href,
+  showcaseDetail: (id: string, opts: { kind?: string; comment?: string } = {}) =>
+    // L-06: `comment` = deep link highlight komentar; `kind` dipakai L-01.
+    ({
+      pathname: "/showcase/[id]",
+      params: {
+        id,
+        ...(opts.kind ? { kind: opts.kind } : {}),
+        ...(opts.comment ? { comment: opts.comment } : {}),
+      },
+    }) as unknown as Href,
   /** Showcase publik user (GET /v1/users/{username}/showcase) */
   userShowcase: (username: string) =>
     ({ pathname: "/user/[username]/showcase", params: { username } }) as unknown as Href,
@@ -366,7 +384,7 @@ export const ROUTES = {
   userRatings: (username: string) =>
     ({ pathname: "/user/[username]/ratings", params: { username } }) as unknown as Href,
   /** Laporan saya (GET /v1/settings/reports) + form lapor bila target diberikan */
-  reports: (opts: { targetId?: string; targetName?: string } = {}) =>
+  reports: (opts: { targetId?: string; targetName?: string; commentId?: string; commentBody?: string } = {}) =>
     ({ pathname: "/reports", params: opts.targetId ? opts : {} }) as unknown as Href,
   /** Detail satu mutasi wallet (GET /v1/wallet/transactions/{txId}) */
   walletTransaction: (txId: string) =>

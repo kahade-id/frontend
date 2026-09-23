@@ -12,12 +12,12 @@ import { useCallback, useEffect, useState } from "react"
 import { usePathname, useRouter, type Href } from "expo-router"
 import {
   CardsThree,
-  Chats,
-  ClockCounterClockwise,
+  ChatCenteredText,
   PaperPlaneTilt,
   Percent,
   Plus,
   QrCode,
+  Scroll,
   ShoppingBag,
   UserCircle,
   Wallet,
@@ -52,19 +52,19 @@ import { useAuthSession } from "@/lib/use-auth-session"
  *     Beranda) — permintaan produk 2026-09-23.
  *   - Promo = Percent (simbol diskon universal; "Ticket" disimpan untuk
  *     konten voucher di dalam halaman Promo).
- *   - Dompet/History/Transaksi/Pesan tetap: Wallet, ClockCounterClockwise,
- *     ShoppingBag, Chats.
+ *   - Dompet = Wallet, History = Scroll, Transaksi = ShoppingBag,
+ *     Pesan = ChatCenteredText (permintaan produk 2026-09-23).
  */
 const SLOT_ICONS: Record<AppMode, Record<Exclude<ShellSlotId, "profile">, IconComponent>> = {
   commerce: {
     primary: CardsThree,
     secondary: ShoppingBag,
-    tertiary: Chats,
+    tertiary: ChatCenteredText,
   },
   wallet: {
     primary: Wallet,
     secondary: Percent,
-    tertiary: ClockCounterClockwise,
+    tertiary: Scroll,
   },
 }
 

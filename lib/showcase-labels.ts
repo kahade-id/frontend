@@ -42,10 +42,15 @@ export function showcasePriceLabel(item: ShowcasePriceLike): string | null {
   const max = item.priceMax ?? null
   const lo = min != null && Number.isFinite(min) && min >= 0 ? min : null
   const hi = max != null && Number.isFinite(max) && max >= 0 ? max : null
+  // B-06 (audit 2026-09-23): nol eksplisit = GRATIS (form manajemen menyebut
+  // "0 untuk gratis") — jangan tampilkan "Rp 0". Berlaku untuk 0/0 maupun
+  // satu-satunya terikat yang bernilai 0. Rentang 0–N (> 0) tetap "Rp 0 – N".
+  if (lo === 0 && (hi === null || hi === 0)) return translate("Gratis")
+  if (hi === 0 && lo === null) return translate("Gratis")
   if (lo != null && hi != null && hi < lo) return translate("Mulai Rp {x}", { x: formatNumber(lo) })
   if (lo != null && hi != null) {
-    if (lo === hi) return `Rp ${formatNumber(lo)}`
-    return `Rp ${formatNumber(lo)} – ${formatNumber(hi)}`
+    if (lo === hi) return translate("Rp {x}", { x: formatNumber(lo) })
+    return translate("Rp {x} – {y}", { x: formatNumber(lo), y: formatNumber(hi) })
   }
   if (lo != null) return translate("Mulai Rp {x}", { x: formatNumber(lo) })
   if (hi != null) return translate("Hingga Rp {x}", { x: formatNumber(hi) })

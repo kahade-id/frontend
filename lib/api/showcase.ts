@@ -11,6 +11,7 @@
  */
 import { http, seg } from "./client"
 import { readList, asRecord, invalidResponse } from "./response"
+import { translate } from "@/lib/i18n/translate"
 
 // ------------------------------------------------------------------
 // Tipe
@@ -140,7 +141,7 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
         cursor: query.cursor,
         limit: query.limit ?? 20,
         sort: query.sort ?? "latest",
-        category: query.category?.trim().slice(0, 60),
+        category: query.category?.trim().replace(/\s+/g, " ").slice(0, 60),
         search: query.search?.trim().slice(0, 100),
       },
       retry: 1,
@@ -164,6 +165,10 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
 export function getShowcaseDetail(showcaseId: string, signal?: AbortSignal) {
   return http.get<ShowcaseSocialItem>(`/v1/showcase/${seg(showcaseId)}`, {
     auth: "optional",
+    // D-08 (audit 2026-09-23): `retry: 0` DIHAPUS dari lapis hook (pemanggil
+    // mendapat 1 retry F-11). Di lapis transport TETAP 0 — kontrak endpoint
+    // ini MENAIKKAN viewCount, auto-retry transport bisa menghitung dua kali
+    // (lihat tests/showcase-api-contract "disables view retries").
     retry: 0,
     signal,
   }).then(parseShowcaseItem)
@@ -253,30 +258,33 @@ export function unhideShowcaseComment(commentId: string) {
   })
 }
 
-/** State suka final server (audit H-01: baca defensif, jangan cast mentah). */
-function toLikeState(raw: unknown): { liked: boolean; likeCount: number } {
+/** State suka final server (audit H-01: baca defensif, jangan cast mentah).
+ * K-04 (audit 2026-09-23): `likeCount` yang hilang → `fallbackCount` (nilai
+ * optimistis pemanggil), BUKAN 0 — "0 Suka" setelah like sukses adalah bohong. */
+function toLikeState(raw: unknown, fallbackCount = 0): { liked: boolean; likeCount: number } {
   const record = (raw ?? {}) as Record<string, unknown>
+  const fallback = Number.isFinite(fallbackCount) ? Math.max(0, Math.floor(fallbackCount)) : 0
   return {
     liked: record.liked === true,
     likeCount:
       typeof record.likeCount === "number" && Number.isFinite(record.likeCount)
         ? Math.max(0, Math.floor(record.likeCount))
-        : 0,
+        : fallback,
   }
 }
 
 /** POST /v1/showcase/:showcaseId/like → `{ liked: true, likeCount }`. */
-export function likeShowcase(showcaseId: string) {
+export function likeShowcase(showcaseId: string, fallbackCount = 0) {
   return http
     .post<unknown>(`/v1/showcase/${seg(showcaseId)}/like`, undefined, { auth: "required" })
-    .then(toLikeState)
+    .then((raw) => toLikeState(raw, fallbackCount))
 }
 
 /** DELETE /v1/showcase/:showcaseId/like → `{ liked: false, likeCount }`. */
-export function unlikeShowcase(showcaseId: string) {
+export function unlikeShowcase(showcaseId: string, fallbackCount = 0) {
   return http
     .delete<unknown>(`/v1/showcase/${seg(showcaseId)}/like`, { auth: "required" })
-    .then(toLikeState)
+    .then((raw) => toLikeState(raw, fallbackCount))
 }
 
 /** GET /v1/showcase/:showcaseId/share — metadata deep link (publik). */
@@ -303,7 +311,11 @@ export function reportShowcase(
   )
 }
 
-/** Decode network entities before they reach renderers; generic casts are not validation. */
+/** Decode network entities before they reach renderers; generic casts are not validation.
+ * K-01 (audit 2026-09-23): TANPA spread `...value` — setiap field dibaca
+ * tipe-demi-tipe. Dulu `orderLink.title: 5` & `visibility: 42` lolos mentah ke
+ * prefill transaksi (`routes.ts`). B-02: judul kosong → fallback "Tanpa judul"
+ * sudah di LAPIsan parser (bukan hanya jalur toSocialShowcaseItem). */
 export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
   const value = asRecord(raw)
   const author = asRecord(value?.author)
@@ -312,6 +324,9 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
     throw invalidResponse("showcase:item")
   }
   const count = (v: unknown) => typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0
+  const str = (v: unknown): string | null => (typeof v === "string" ? v : null)
+  const num = (v: unknown): number | null =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null
   const images = Array.isArray(value.images) ? value.images.flatMap((rawImage, index) => {
     const image = asRecord(rawImage)
     return image && typeof image.imageUrl === "string" ? [{
@@ -320,26 +335,54 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
       sortOrder: typeof image.sortOrder === "number" ? image.sortOrder : index,
     }] : []
   }).sort((a, b) => a.sortOrder - b.sortOrder) : []
+  /** `orderLink` dipakai prefill transaksi — semua bagian harus bertipe benar. */
+  const rawLink = asRecord(value.orderLink)
+  const orderLink = rawLink
+    ? {
+        title: typeof rawLink.title === "string" ? rawLink.title : "",
+        description: typeof rawLink.description === "string" ? rawLink.description : "",
+        orderValue: num(rawLink.orderValue),
+        orderValueValid: rawLink.orderValueValid === true,
+        ...(typeof rawLink.counterpartUsername === "string" && rawLink.counterpartUsername
+          ? { counterpartUsername: rawLink.counterpartUsername }
+          : {}),
+      }
+    : null
   return {
-    ...value,
     id: value.id,
-    title: typeof value.title === "string" ? value.title : "",
+    title: typeof value.title === "string" && value.title.trim() ? value.title : translate("Tanpa judul"),
     createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : "",
     images,
     description: typeof value.description === "string" ? value.description : null,
-    category: typeof value.category === "string" ? value.category : null,
+    // G-20 (audit 2026-09-23): kategori bebas-teks dinormalisasi (trim + spasi
+    // ganda) supaya "Kriya " / "Kriya  Jaya" tidak jadi kelompok sendiri.
+    category: typeof value.category === "string"
+      ? value.category.trim().replace(/\s+/g, " ")
+      : null,
+    visibility: typeof value.visibility === "string" ? value.visibility : undefined,
+    isActive: typeof value.isActive === "boolean" ? value.isActive : undefined,
     coverImageUrl: typeof value.coverImageUrl === "string" ? value.coverImageUrl : null,
     imageUrl: typeof value.imageUrl === "string" ? value.imageUrl : null,
-    priceMin: typeof value.priceMin === "number" && Number.isFinite(value.priceMin) && value.priceMin >= 0 ? value.priceMin : null,
-    priceMax: typeof value.priceMax === "number" && Number.isFinite(value.priceMax) && value.priceMax >= 0 ? value.priceMax : null,
-    author: { ...author, userId: author.userId, username: author.username,
-      fullName: typeof author.fullName === "string" ? author.fullName : null },
+    priceMin: num(value.priceMin),
+    priceMax: num(value.priceMax),
+    author: {
+      userId: author.userId,
+      username: author.username,
+      fullName: typeof author.fullName === "string" ? author.fullName : null,
+      avatarUrl: str(author.avatarUrl),
+      membershipRank: str(author.membershipRank),
+      isKycVerified: author.isKycVerified === true,
+      isVip: author.isVip === true,
+    },
     likeCount: count(value.likeCount), commentCount: count(value.commentCount), viewCount: count(value.viewCount),
     isLiked: value.isLiked === true, isOwner: value.isOwner === true,
-  } as ShowcaseSocialItem
+    orderLink,
+    shareUrl: typeof value.shareUrl === "string" && value.shareUrl ? value.shareUrl : undefined,
+  }
 }
 
+/** K-05 (audit 2026-09-23): createdAt/showcaseId/isHidden kini tervalidasi. */
 export function parseShowcaseComment(raw: unknown): ShowcaseComment {
   const value = asRecord(raw)
   const author = asRecord(value?.author)
@@ -347,5 +390,24 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
       !author || typeof author.userId !== "string" || typeof author.username !== "string") {
     throw invalidResponse("showcase:comment")
   }
-  return { ...value, author: { ...author, fullName: typeof author.fullName === "string" ? author.fullName : null } } as ShowcaseComment
+  const reason = value.hiddenReason
+  return {
+    id: value.id,
+    showcaseId: typeof value.showcaseId === "string" ? value.showcaseId : "",
+    parentId: typeof value.parentId === "string" ? value.parentId : null,
+    content: value.content,
+    isHidden: value.isHidden === true,
+    hiddenReason:
+      reason === "SPAM" || reason === "INAPPROPRIATE" || reason === "HARASSMENT" || reason === "OTHER"
+        ? reason
+        : null,
+    createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
+    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : undefined,
+    author: {
+      userId: author.userId,
+      username: author.username,
+      fullName: typeof author.fullName === "string" ? author.fullName : null,
+      avatarUrl: typeof author.avatarUrl === "string" ? author.avatarUrl : null,
+    },
+  }
 }

@@ -20,6 +20,7 @@
  */
 import * as ImagePicker from "expo-image-picker"
 import { Platform } from "react-native"
+import { ApiError } from "@/lib/api/errors"
 
 export type PickedImage = {
   uri: string
@@ -133,7 +134,12 @@ export async function pickImages(opts: {
     toPicked(asset, `image-${Date.now()}-${index}.jpg`),
   )
   if (assets.length > Math.max(1, opts.selectionLimit ?? 8)) {
-    throw new Error(`Pilih maksimal ${Math.max(1, opts.selectionLimit ?? 8)} foto.`)
+    // G-05 (audit 2026-09-23): ApiError — `userMessage` meneruskan pesan ini
+    // apa adanya. Error biasa ditelan jadi "Terjadi kesalahan. Coba lagi."
+    throw new ApiError({
+      code: "VALIDATION",
+      message: `Pilih maksimal ${Math.max(1, opts.selectionLimit ?? 8)} foto.`,
+    })
   }
   if (assets.length === 0) return { status: "cancelled" }
   return { status: "picked", assets }

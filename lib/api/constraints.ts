@@ -307,6 +307,11 @@ export const API_CONSTRAINTS = {
       "minimum": 0
     }
   },
+  "CreateShowcaseReportDto": {
+    "description": {
+      "maxLength": 500
+    }
+  },
   "CreateTemplateDto": {
     "name": {
       "minLength": 1,
@@ -793,6 +798,25 @@ export const API_CONSTRAINTS = {
   "Setup2faDto": {
     "password": {
       "maxLength": 72
+    }
+  },
+  "ShowcaseCommentDto": {
+    "hiddenReason": {
+      "enum": [
+        "SPAM",
+        "INAPPROPRIATE",
+        "HARASSMENT",
+        "OTHER",
+        null
+      ]
+    }
+  },
+  "ShowcaseItemDto": {
+    "visibility": {
+      "enum": [
+        "PUBLIC",
+        "PRIVATE"
+      ]
     }
   },
   "SocialLoginDto": {

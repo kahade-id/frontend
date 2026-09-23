@@ -79,7 +79,9 @@ describe("Etalase regression invariants", () => {
     expect(parseShowcaseComment(comment("ok")).id).toBe("ok")
   })
   it("E34 explicit zero differs from unspecified price", () => {
-    expect(showcasePriceLabel({ priceMin: 0, priceMax: 0 })).toBe("Rp 0")
+    // Audit 2026-09-23 (B-05/E-03): 0 eksplisit = GRATIS — selaras dengan
+    // formatShowcasePrice (0→"Gratis"); (0,0) tidak lagi "Rp 0".
+    expect(showcasePriceLabel({ priceMin: 0, priceMax: 0 })).toBe("Gratis")
     expect(showcasePriceLabel({ priceMin: null, priceMax: null })).toBeNull()
     expect(showcasePriceLabel({ priceMin: NaN })).toBeNull()
   })

@@ -31,7 +31,7 @@ import {
   type ShowcaseCommentWithReplies,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
-import { formatCountCompact, formatDateTime, formatNumber } from "@/lib/format"
+import { formatCountCompact } from "@/lib/format"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ROUTES } from "@/lib/routes"
@@ -46,7 +46,6 @@ import { showcaseImages } from "@/lib/showcase-social"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
-import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -57,13 +56,14 @@ import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { LikeAction } from "@/components/ui/like-button"
-import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
+import type { LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { Dialog } from "@/components/ui/modal"
 import { PressableScale } from "@/components/ui/pressable-scale"
+import { ShowcaseAuthorRow } from "@/components/showcase-author-row"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
-import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
+import { ShowcaseDetailComments } from "@/components/showcase-detail-comments"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
@@ -88,14 +88,20 @@ export default function ShowcaseDetailScreen() {
     `showcase-detail:${revision}:${id}`,
     (signal) => getShowcaseDetail(id, signal),
     Boolean(id),
-    { retry: 0, useCache: false, refreshOnFocus: true },
+    // D-08 (audit 2026-09-23): jangan `retry: 0` di lapis hook — satu
+    // gangguan jaringan sesaat tidak boleh langsung layar error penuh.
+    { useCache: false, refreshOnFocus: true },
   )
   const item = query.data
 
   // I-03: judul dokumen = judul item; fallback nama fitur (J-01).
-  useDocumentTitle(item?.title ?? translate("Etalase"))
+  // D-09: "" juga harus jatuh ke "Etalase" ("" ?? x tetap "").
+  useDocumentTitle(item?.title || translate("Etalase"))
 
-  if (!item || query.error) {
+  // D-01 (audit 2026-09-23): error refresh/fokus-ulang TIDAK menggantikan
+  // konten yang masih ada — draf komentar & posisi scroll tetap hidup.
+  // ErrorState hanya saat belum ada data sama sekali.
+  if (!item) {
     return (
       <DataScreen
         title="Etalase"
@@ -139,12 +145,20 @@ function ShowcaseDetailContent({
   const { liked, likeCount, saved, toggleLike, toggleSave, share, hasSession } =
     useShowcaseSocialActions(item)
 
+  // L-01/L-06 (audit 2026-09-23): param rute untuk tab asal & highlight.
+  const { kind: tabKind, comment: highlightComment } = useLocalSearchParams<{
+    kind?: string
+    comment?: string
+  }>()
   const [meId, setMeId] = useState<string | null>(null)
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
   const composerRef = useRef<TextInput>(null)
 
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
-  const [commentTotal, setCommentTotal] = useState(0)
+  // D-07 (audit 2026-09-23): mulai dari `item.commentCount` — tidak ada
+  // kilatan "0 Komentar" lalu melompat. D-05: patch lokal sinkron dengan
+  // SEMUA komentar (root+balasan) seperti `commentCount` kartu feed.
+  const [commentTotal, setCommentTotal] = useState(item.commentCount ?? 0)
   const [commentsPage, setCommentsPage] = useState(1)
   // F-06: berawal "loading" — bingkai awal yang jujur.
   const [commentsStatus, setCommentsStatus] = useState<LoadMoreStatus>("loading")
@@ -302,7 +316,6 @@ function ShowcaseDetailContent({
       }
       mutationPending.current = false
       task.finish()
-      if (task.valid()) void fetchComments(commentsPage, false)
     }
   }, [id, draft, replyTo, insertLocalComment, toast.show, hasSession, operation, fetchComments, commentsPage])
 
@@ -335,7 +348,6 @@ function ShowcaseDetailContent({
       }
       mutationPending.current = false
       task.finish()
-      if (task.valid()) void fetchComments(commentsPage, false)
     }
   }, [editTarget, editText, patchComment, toast.show, operation, fetchComments, commentsPage])
 
@@ -350,16 +362,20 @@ function ShowcaseDetailContent({
       if (confirmKind === "delete") {
         await deleteShowcaseComment(confirmTarget.id)
         if (!task.valid()) return
-      markShowcaseFeedDirty()
-      patchComment((comment) => comment.id === confirmTarget.id ? null : comment)
-        // F-08: hanya HAPUS yang menggeser total.
-        setCommentTotal((n) => Math.max(0, n - 1))
+        markShowcaseFeedDirty()
+        // D-06: patchComments menghapus root BESERTA balasannya.
+        const removed =
+          1 + (comments.find((c) => c.id === confirmTarget.id)?.replies?.length ?? 0)
+        patchComment((comment) => comment.id === confirmTarget.id ? null : comment)
+        // F-08/D-05: hanya HAPUS yang menggeser total — ikut jumlah yang
+        // benar-benar hilang (root + balasan).
+        setCommentTotal((n) => Math.max(0, n - removed))
         toast.show({ title: "Komentar dihapus", tone: "success", duration: 2500 })
       } else {
         const saved = await hideShowcaseComment(confirmTarget.id, hideReason)
         if (!task.valid()) return
-      markShowcaseFeedDirty()
-      patchComment((c) =>
+        markShowcaseFeedDirty()
+        patchComment((c) =>
           c.id === saved.id ? { ...c, isHidden: true, hiddenReason: hideReason } : c,
         )
         toast.show({ title: "Komentar disembunyikan", tone: "success", duration: 2500 })
@@ -379,7 +395,6 @@ function ShowcaseDetailContent({
       }
       mutationPending.current = false
       task.finish()
-      if (task.valid()) void fetchComments(commentsPage, false)
     }
   }, [confirmTarget, confirmKind, hideReason, patchComment, toast.show, operation, fetchComments, commentsPage])
 
@@ -409,7 +424,6 @@ function ShowcaseDetailContent({
         mutationPending.current = false
         if (task.valid()) setCommentsStatus((status) => status === "loading" ? "idle" : status)
         task.finish()
-        if (task.valid()) void fetchComments(commentsPage, false)
       }
     },
     [patchComment, toast.show, operation, fetchComments, commentsPage],
@@ -428,19 +442,34 @@ function ShowcaseDetailContent({
   const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && c.parentId == null
   const isMine = (c: ShowcaseComment) => meId != null && c.author.userId === meId
 
-  /** F-05: laporkan KOMENTAR = laporkan penulisnya (layar /reports). */
+  /**
+   * D-03 (audit 2026-09-23): lapor komentar = kirim BUKTI komentarnya —
+   * id + isi ikut terbawa ke /reports (dulu hanya userId penulis, sehingga
+   * ID/isi komentar tidak pernah sampai ke moderator). targetName membuat
+   * judul form spesifik, bukan "Laporkan pengguna" generik.
+   */
   const handleReportComment = useCallback((comment: ShowcaseComment) => {
-    router.push(ROUTES.reports({ targetId: comment.author.userId }))
+    router.push(
+      ROUTES.reports({
+        targetId: comment.author.userId,
+        targetName: comment.author.username,
+        commentId: comment.id,
+        commentBody: comment.content.slice(0, 200),
+      }),
+    )
   }, [])
 
-  /** F-01: hormati orderLink saat tersedia; jatuh ke counterpart saja. */
+  /**
+   * F-01: hormati orderLink saat tersedia; jatuh ke counterpart saja.
+   * D-04 (audit 2026-09-23): tamu tidak boleh menabrak create-transaction
+   * yang terproteksi — gate ke loginRequired dengan `next` kembali ke detail.
+   */
   const handleCreateTransaction = useCallback(() => {
-    router.push(
-      item.orderLink
-        ? ROUTES.createTransactionFromShowcase(item.orderLink, item.author.username)
-        : ROUTES.createTransactionWith(item.author.username),
-    )
-  }, [item])
+    const target = item.orderLink
+      ? ROUTES.createTransactionFromShowcase(item.orderLink, item.author.username)
+      : ROUTES.createTransactionWith(item.author.username)
+    router.push(hasSession ? target : ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
+  }, [item, hasSession])
 
   return (
     <DataScreen
@@ -506,44 +535,14 @@ function ShowcaseDetailContent({
         </View>
       }
     >
-      {/* ── Penulis DI ATAS media (selaras kartu feed) + laporkan ── */}
-      <View className="flex-row items-center gap-3 px-5 pt-4">
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={translate("Lihat profil {x}", {
-            x: item.author.fullName ?? item.author.username,
-          })}
-          onPress={() => router.push(ROUTES.userProfile(item.author.username))}
-          containerClassName={cn("flex-1 flex-row items-center rounded-md", focusRing)}
-          className="flex-1 flex-row items-center gap-3"
-        >
-          <Avatar
-            source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
-            name={item.author.fullName ?? item.author.username}
-            size="md"
-            verified={item.author.isKycVerified === true}
-          />
-          <View className="flex-1 gap-0.5">
-            <Text variant="body" weight={600} numberOfLines={1}>
-              {item.author.fullName ?? item.author.username}
-            </Text>
-            <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
-              {`@${item.author.username} · ${formatDateTime(item.createdAt)}`}
-            </Text>
-          </View>
-          {isOwner ? <Badge variant="outline">Anda</Badge> : null}
-        </PressableScale>
-        {/* B-05 selaras: bendera disembunyikan untuk item sendiri. */}
-        {!isOwner ? (
-          <IconButton
-            icon={Flag}
-            variant="ghost"
-            size="sm"
-            accessibilityLabel="Laporkan"
-            onPress={() => setReportItem(item)}
-          />
-        ) : null}
-      </View>
+      {/* ── Penulis DI ATAS media (selaras kartu feed) + laporkan ──
+          (G-11: baris penulis + aksi diekstrak ke ShowcaseAuthorRow) */}
+      <ShowcaseAuthorRow
+        item={item}
+        isOwner={isOwner}
+        hasSession={hasSession}
+        onReport={() => setReportItem(item)}
+      />
 
       {/* ── Media: CARD pager (mx-5, selaras avatar) — bukan full-bleed ── */}
       <View className="mx-5 pt-3">
@@ -560,7 +559,8 @@ function ShowcaseDetailContent({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={translate("Lihat kategori {x}", { x: item.category })}
-            onPress={() => router.push(ROUTES.showcaseWithCategory(item.category as string))}
+            // L-01: teruskan tab aktif dari param `?kind=` bila ada.
+            onPress={() => router.push(ROUTES.showcaseWithCategory(item.category as string, tabKind))}
             containerClassName={cn("rounded-full", focusRing)}
           >
             <Badge variant="outline">{item.category}</Badge>
@@ -654,70 +654,25 @@ function ShowcaseDetailContent({
         )}
       </View>
 
-      {/* ── Komentar header: count di samping + separator ── */}
-      <View className="gap-0 px-5 pb-0 pt-8">
-        <View className="flex-row items-baseline gap-2">
-          <Text variant="h3">Komentar</Text>
-          {commentTotal > 0 ? (
-            <Text variant="body" tone="secondary" className="tabular-nums">
-              {formatNumber(commentTotal)}
-            </Text>
-          ) : null}
-        </View>
-        <Divider className="mt-3" />
-      </View>
-
-      <View className="gap-4 px-5 pb-6 pt-4">
-        {/* F-06: status "loading" di awal — tanpa kilatan kosong/tombol. */}
-        {comments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
-          <Text variant="body" tone="secondary">
-            Belum ada komentar. Jadilah yang pertama!
-          </Text>
-        ) : null}
-        {comments.slice(0, commentRenderLimit).map((root) => (
-          <View key={root.id} className="gap-4">
-            <ShowcaseCommentRow
-              comment={root}
-              isMine={isMine(root)}
-              canReply={canReply(root)}
-              menuable={isMine(root) || isOwner || (!root.isHidden && hasSession)}
-              onReply={setReplyTo}
-              onOpenMenu={setCommentMenu}
-            />
-            {(root.replies ?? []).map((reply) => (
-              <View key={reply.id} className="ml-8">
-                <ShowcaseCommentRow
-                  comment={reply}
-                  isMine={isMine(reply)}
-                  canReply={false}
-                  menuable={isMine(reply) || isOwner || (!reply.isHidden && hasSession)}
-                  onReply={setReplyTo}
-                  onOpenMenu={setCommentMenu}
-                />
-              </View>
-            ))}
-          </View>
-        ))}
-        {comments.length > commentRenderLimit ? (
-          <Button
-            variant="ghost"
-            fullWidth
-            onPress={() => setCommentRenderLimit((n) => n + COMMENT_RENDER_STEP)}
-          >
-            Tampilkan komentar lainnya
-          </Button>
-        ) : null}
-        {/* F-07: halaman baru ditambahkan DI BAWAH → tombolnya di bawah. */}
-        <LoadMore
-          status={commentsStatus}
-          onLoadMore={() => {
-            const request = commentsStatus === "error" ? failedComments.current : { page: commentsPage + 1, append: true }
-            void fetchComments(request.page, request.append)
-          }}
-          hideEnd
-          idleLabel="Muat komentar berikutnya"
-        />
-      </View>
+      {/* G-11/S9: utas komentar diekstrak ke komponen sendiri. */}
+      <ShowcaseDetailComments
+        comments={comments}
+        commentTotal={commentTotal}
+        commentsStatus={commentsStatus}
+        commentRenderLimit={commentRenderLimit}
+        highlightComment={highlightComment}
+        isOwner={isOwner}
+        hasSession={hasSession}
+        isMine={isMine}
+        canReply={canReply}
+        onReply={setReplyTo}
+        onOpenMenu={setCommentMenu}
+        onShowMore={() => setCommentRenderLimit((n) => n + COMMENT_RENDER_STEP)}
+        onLoadMore={() => {
+          const request = commentsStatus === "error" ? failedComments.current : { page: commentsPage + 1, append: true }
+          void fetchComments(request.page, request.append)
+        }}
+      />
 
       <MediaViewer
         item={viewerItem}

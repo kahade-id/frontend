@@ -47,20 +47,11 @@ export function resolveOrderDeeplink(orderId: string, signal?: AbortSignal) {
   })
 }
 
+/**
+ * GET /v1/deeplinks/notification/{notificationId} — resolusi tautan notifikasi.
+ */
 export function resolveNotificationDeeplink(notificationId: string, signal?: AbortSignal) {
   return http.get<DeeplinkResolution>(`/v1/deeplinks/notification/${seg(notificationId)}`, {
-    auth: "none",
-    retry: 1,
-    signal,
-  })
-}
-
-/**
- * GET /v1/deeplinks/showcase/{showcaseId} — resolusi tautan etalase yang
- * universal-link tidak tangkap (audit H-3: endpoint spec sebelumnya yatim).
- */
-export function resolveShowcaseDeeplink(showcaseId: string, signal?: AbortSignal) {
-  return http.get<DeeplinkResolution>(`/v1/deeplinks/showcase/${seg(showcaseId)}`, {
     auth: "none",
     retry: 1,
     signal,

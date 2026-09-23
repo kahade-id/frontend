@@ -217,7 +217,7 @@ export function ProfileEtalaseTab({
                     leftIcon={Plus}
                     onPress={() => router.push(ROUTES.showcaseManagement)}
                   >
-                    Tambah etalase
+                    Tambah karya
                   </Button>
                 }
               />
@@ -237,7 +237,10 @@ export function ProfileEtalaseTab({
               <EtalaseCard
                 key={item.id}
                 item={item}
-                divider={index < patchedItems.length - 1}
+                // H-05 (audit 2026-09-23): divider dihitung dari SLICE yang
+                // dirender — kartu terakhir sebelum "Tampilkan lainnya" tidak
+                // lagi diberi garis seolah masih ada kartu sesudahnya.
+                divider={index < Math.min(renderLimit, patchedItems.length) - 1}
                 onOpenComments={handleOpenComments}
                 onReport={handleOpenReport}
               />

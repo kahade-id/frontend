@@ -58,7 +58,12 @@ export type ShowcaseFeedFilter = {
  * kursor hanya per-tab, jadi kata kunci baru memakai kursor lama).
  */
 export function sameFeedFilter(a: ShowcaseFeedFilter, b: ShowcaseFeedFilter): boolean {
-  return (a.search ?? "") === (b.search ?? "") && (a.category ?? "") === (b.category ?? "")
+  // G-20 (audit 2026-09-23): identitas cache membanding kategori tanpa
+  // membedakan huruf besar/kecil — filter "Kriya"/"kriya" = kueri yang sama.
+  return (
+    (a.search ?? "") === (b.search ?? "") &&
+    (a.category ?? "").toLocaleLowerCase() === (b.category ?? "").toLocaleLowerCase()
+  )
 }
 
 /** Selang-seling dua halaman (popular dulu = bobot engagement), dedupe id. */

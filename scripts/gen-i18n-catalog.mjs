@@ -173,6 +173,15 @@ function addCandidate(raw, file, kind, named = false) {
 /** Ambil string literal / template dari ekspresi (termasuk di dalam ternary). */
 function collectStrings(node, sf, file, kind, depth = 0, named = false) {
   if (!node || depth > 4) return
+  // M-02 (audit Etalase 2026-09-23): nilai atribut JSX berbentuk `{...}`
+  // adalah JsxExpression — WAJIB dibungkus dulu. Tanpa ini, string literal di
+  // dalam kurung kurawal (ternary `accessibilityHint={a ? "Buka foto" :
+  // "Buka semua foto"}`, template, dsb.) tidak pernah masuk katalog, sehingga
+  // penerjemah tidak pernah melihatnya dan check:i18n tidak pernah menagihnya.
+  if (ts.isJsxExpression(node)) {
+    if (node.expression) collectStrings(node.expression, sf, file, kind, depth + 1, named)
+    return
+  }
   if (ts.isStringLiteralLike(node)) {
     addCandidate(node.text, file, kind, named)
     return

@@ -61,9 +61,11 @@ const STATUS_LABELS: Record<string, string> = REPORT_STATUS_LABELS
 const CATEGORY_LABELS = REPORT_CATEGORY_LABELS
 
 export default function ReportsScreen() {
-  const { targetId, targetName } = useLocalSearchParams<{
+  const { targetId, targetName, commentId, commentBody } = useLocalSearchParams<{
     targetId?: string
     targetName?: string
+    commentId?: string
+    commentBody?: string
   }>()
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -97,7 +99,15 @@ export default function ReportsScreen() {
           {
             targetId,
             category: mapValue(REASON_TO_CATEGORY, v.reason, "OTHER"),
-            description: v.detail.trim(),
+            // D-03 (audit 2026-09-23): bila yang dilaporkan sebuah KOMENTAR,
+            // id + kutipan isinya ikut disertakan sebagai bukti untuk
+            // moderator (endpoint tetap reportUser — lihat issues-etalase.md).
+            description: [
+              commentId ? `Komentar (id ${commentId}): "${commentBody ?? ""}"` : "",
+              v.detail.trim(),
+            ]
+              .filter(Boolean)
+              .join("\n\n"),
           },
           // `targetName` adalah username. Bila `targetId` yang dikirim profil
           // publik ternyata bukan id yang dikenali backend (spec tidak

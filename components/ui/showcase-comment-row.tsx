@@ -19,15 +19,24 @@ import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
  */
 import { DotsThree } from "phosphor-react-native"
 import { View } from "react-native"
+import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
 import type { ShowcaseComment } from "@/lib/api/showcase"
 import { formatDateTime } from "@/lib/format"
+import { useHasSession } from "@/lib/guest-gate"
+import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
+import { hitSlopToReach } from "@/lib/hit-slop"
+import { ROUTES } from "@/lib/routes"
 
 import { Avatar } from "@/components/ui/avatar"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+
+/** D-15: tautan "Balas" setinggi teks — jangkauan sentuh dinaikkan via hitSlop. */
+const REPLY_HIT_SLOP = hitSlopToReach(44)
 
 export type ShowcaseCommentRowProps = {
   comment: ShowcaseComment
@@ -52,8 +61,15 @@ export function ShowcaseCommentRow({
   onOpenMenu,
   className,
 }: ShowcaseCommentRowProps) {
+  const hasSession = useHasSession()
   const hidden = comment.isHidden === true
   const authorName = comment.author.fullName ?? comment.author.username
+  // D-18 (audit 2026-09-23): komentar yang diedit diberi penanda — dulu
+  // `updatedAt` diabaikan. (ISO-8601: perbandingan string cukup andal.)
+  const edited =
+    typeof comment.updatedAt === "string" &&
+    comment.updatedAt.length > 0 &&
+    comment.updatedAt !== comment.createdAt
 
   return (
     <View className={className}>
@@ -65,9 +81,24 @@ export function ShowcaseCommentRow({
         />
         <View className="flex-1 gap-0.5">
           <View className="flex-row items-center gap-2">
-            <Text variant="body" weight={600} numberOfLines={1} className="flex-1">
-              {authorName}
-            </Text>
+            {/* D-20 (audit 2026-09-23): nama penulis bisa ditekan → profil
+                (gated login untuk tamu, pola H-04). */}
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Lihat profil {x}", { x: authorName })}
+              onPress={() =>
+                router.push(
+                  hasSession
+                    ? ROUTES.userProfile(comment.author.username)
+                    : ROUTES.loginRequired(`/user/${encodeURIComponent(comment.author.username)}`),
+                )
+              }
+              containerClassName={cn("flex-1 rounded-sm", focusRing)}
+            >
+              <Text variant="body" weight={600} numberOfLines={1}>
+                {authorName}
+              </Text>
+            </PressableScale>
             {menuable && onOpenMenu ? (
               <IconButton
                 icon={DotsThree}
@@ -79,30 +110,37 @@ export function ShowcaseCommentRow({
             ) : null}
           </View>
           <Text variant="body" tone={hidden ? "secondary" : "primary"}>
-            {hidden ? "(Komentar disembunyikan)" : comment.content}
+            {hidden ? translate("(Komentar disembunyikan)") : comment.content}
           </Text>
           {hidden && comment.hiddenReason ? (
             <Text variant="caption" tone="secondary">
-              Alasan: {translate(CONTENT_REPORT_REASONS.find((reason) => reason.value === comment.hiddenReason)?.label ?? "Lainnya")}
+              {translate("Alasan: {x}", {
+                x: translate(CONTENT_REPORT_REASONS.find((reason) => reason.value === comment.hiddenReason)?.label ?? "Lainnya"),
+              })}
             </Text>
           ) : null}
           <View className="flex-row items-center gap-4">
             <Text variant="caption" tone="secondary" className="tabular-nums">
               {formatDateTime(comment.createdAt)}
+              {edited ? ` ${translate("(diedit)")}` : null}
             </Text>
             {isMine ? (
               <Text variant="caption" tone="secondary">
-                Anda
+                {translate("Anda")}
               </Text>
             ) : null}
             {canReply && onReply ? (
               <PressableScale
                 accessibilityRole="button"
-                accessibilityLabel="Balas komentar"
+                accessibilityLabel={translate("Balas komentar")}
+                // D-15 (audit 2026-09-23): target sentuh 44px via hitSlop —
+                // tanpa membesarkan tinggi baris komentar (min-h-11 akan
+                // membuat tiap komentar jauh lebih tinggi).
+                hitSlop={REPLY_HIT_SLOP}
                 onPress={() => onReply(comment)}
               >
                 <Text variant="caption" tone="primary" weight={600}>
-                  Balas
+                  {translate("Balas")}
                 </Text>
               </PressableScale>
             ) : null}

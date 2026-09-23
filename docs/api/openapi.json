@@ -1668,7 +1668,17 @@
         "parameters": [],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShowcaseItemDto"
+                  }
+                }
+              }
+            }
           }
         },
         "security": [
@@ -1696,7 +1706,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseItemDto"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -2267,14 +2284,19 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ShowcaseItemDto"
+                  }
+                }
+              }
+            }
           }
         },
-        "security": [
-          {
-            "access-token": []
-          }
-        ],
         "summary": "Get public showcase items for a user",
         "tags": [
           "users"
@@ -3221,7 +3243,14 @@
         ],
         "responses": {
           "200": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseCommentsPageDto"
+                }
+              }
+            }
           }
         },
         "summary": "List comments of a showcase item (nested replies)",
@@ -3254,7 +3283,14 @@
         },
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseCommentDto"
+                }
+              }
+            }
           }
         },
         "summary": "Comment on a showcase item",
@@ -3349,13 +3385,30 @@
         ],
         "responses": {
           "201": {
-            "description": ""
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShowcaseReportResultDto"
+                }
+              }
+            }
           }
         },
         "summary": "Report a showcase item (17.1)",
         "tags": [
           "showcase"
-        ]
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateShowcaseReportDto"
+              }
+            }
+          }
+        }
       }
     },
     "/v1/upload/presigned-url": {
@@ -19791,6 +19844,257 @@
             "maxLength": 500
           }
         }
+      },
+      "CreateShowcaseReportDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Kategori moderasi konten"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ShowcaseReportResultDto": {
+        "type": "object",
+        "properties": {
+          "reported": {
+            "type": "boolean"
+          },
+          "reportId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "reported"
+        ]
+      },
+      "ShowcaseAuthorDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "username": {
+            "type": "string"
+          },
+          "fullName": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "membershipRank": {
+            "type": "string",
+            "nullable": true
+          },
+          "isKycVerified": {
+            "type": "boolean"
+          },
+          "isVip": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "userId",
+          "username"
+        ]
+      },
+      "ShowcaseImageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "imageUrl"
+        ]
+      },
+      "ShowcaseItemDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "caption": {
+            "type": "string"
+          },
+          "imageUrl": {
+            "type": "string"
+          },
+          "fileKey": {
+            "type": "string"
+          },
+          "images": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShowcaseImageDto"
+            }
+          },
+          "coverImageUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "priceMin": {
+            "type": "number",
+            "nullable": true
+          },
+          "priceMax": {
+            "type": "number",
+            "nullable": true
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "integer"
+          },
+          "category": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PUBLIC",
+              "PRIVATE"
+            ]
+          },
+          "author": {
+            "$ref": "#/components/schemas/ShowcaseAuthorDto"
+          },
+          "isLiked": {
+            "type": "boolean"
+          },
+          "isOwner": {
+            "type": "boolean"
+          },
+          "viewCount": {
+            "type": "integer"
+          },
+          "likeCount": {
+            "type": "integer"
+          },
+          "commentCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt"
+        ]
+      },
+      "ShowcaseCommentDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "showcaseId": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": "string",
+            "nullable": true
+          },
+          "content": {
+            "type": "string"
+          },
+          "isHidden": {
+            "type": "boolean"
+          },
+          "hiddenReason": {
+            "type": "string",
+            "nullable": true,
+            "enum": [
+              "SPAM",
+              "INAPPROPRIATE",
+              "HARASSMENT",
+              "OTHER",
+              null
+            ]
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "author": {
+            "$ref": "#/components/schemas/ShowcaseAuthorDto"
+          },
+          "replies": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShowcaseCommentDto"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "showcaseId",
+          "content",
+          "createdAt",
+          "author"
+        ]
+      },
+      "ShowcaseCommentsPageDto": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ShowcaseCommentDto"
+            }
+          },
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "totalPages": {
+            "type": "integer"
+          },
+          "hasNext": {
+            "type": "boolean"
+          },
+          "hasPrev": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "data"
+        ]
       }
     }
   }

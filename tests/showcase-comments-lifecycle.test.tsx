@@ -1,8 +1,12 @@
+// @vitest-environment jsdom
 import { type ReactNode } from "react"
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 const mocks = vi.hoisted(() => ({ send: vi.fn(), toast: vi.fn(), dirty: vi.fn(), session: true }))
+// Ikon phosphor = modul native; di lingkungan test cukup komponen nol.
+vi.mock("phosphor-react-native", () => ({ ChatCircle: () => null, PaperPlaneRight: () => null }))
+vi.mock("expo-router", () => ({ router: { push: vi.fn() } }))
 vi.mock("@/lib/api/showcase", () => ({ addShowcaseComment: mocks.send, listShowcaseComments: vi.fn() }))
 vi.mock("@/lib/api", () => ({ isApiError: () => false, userMessage: () => "failed" }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => mocks.session, useSessionRevision: () => 0 }))
