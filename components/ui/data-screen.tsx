@@ -112,6 +112,23 @@ export type DataScreenProps = {
   children?: ReactNode
 }
 
+/** Shared inset-aware scroller for data screens with either fixed or scrolling headers. */
+export function DataScroll({ children, onRefresh, refreshing, enabled = true, padded = true, docked = false, hasFooter = false }: {
+  children: ReactNode
+  onRefresh: () => void | Promise<void>
+  refreshing: boolean
+  enabled?: boolean
+  padded?: boolean
+  docked?: boolean
+  hasFooter?: boolean
+}) {
+  const insets = useSafeAreaInsets()
+  const paddingBottom = docked ? tokens.space[4] : (hasFooter ? 0 : insets.bottom) + tokens.space[8]
+  return <PullToRefresh onRefresh={onRefresh} refreshing={refreshing} enabled={enabled}
+    contentContainerClassName={cn(padded && "px-5")}
+    scrollViewProps={{ contentContainerStyle: { paddingBottom } }}>{children}</PullToRefresh>
+}
+
 export function DataScreen({
   title,
   header,
@@ -129,14 +146,7 @@ export function DataScreen({
   shiftFade = false,
   children,
 }: DataScreenProps) {
-  const insets = useSafeAreaInsets()
   const { loading, refreshing = false, error, refresh, reload } = state
-
-  // Bottom inset dipindah ke konten ScrollView (Screen `edges` tanpa "bottom")
-  // supaya baris terakhir bisa di-scroll melewati home indicator. Bila ada
-  // footer, <Screen> sendiri yang memberi inset pada FooterBar. Dock (navbar)
-  // sudah membawa inset-nya sendiri — jangan dijumlah dua kali.
-  const bottomPad = dock ? tokens.space[4] : (footer ? 0 : insets.bottom) + tokens.space[8]
 
   // v2: loading → isi crossfade (signature moment), bukan swap keras. Berlaku
   // untuk ketiga hasil (konten/error/kosong) — error yang muncul halus tetap
@@ -156,17 +166,18 @@ export function DataScreen({
   )
 
   const scroller = (
-    <PullToRefresh
+    <DataScroll
       onRefresh={refresh}
       refreshing={refreshing}
       // Gesture dimatikan saat layar sedang menampilkan LoadingScreen:
       // tidak ada konten untuk ditarik dan request-nya sudah berjalan.
       enabled={refreshable && !loading}
-      contentContainerClassName={cn(padded && "px-5")}
-      scrollViewProps={{ contentContainerStyle: { paddingBottom: bottomPad } }}
+      padded={padded}
+      docked={!!dock}
+      hasFooter={!!footer}
     >
       {body}
-    </PullToRefresh>
+    </DataScroll>
   )
 
   return (

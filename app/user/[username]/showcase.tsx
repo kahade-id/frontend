@@ -15,12 +15,13 @@
  *  - I-05: route dikeluarkan dari daftar protected — halaman publik.
  *  - J-01: nama fitur "Etalase" (bukan "Portofolio").
  */
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Images } from "phosphor-react-native"
 
+import { useSessionRevision } from "@/lib/guest-gate"
 import { api } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { translate } from "@/lib/i18n/translate"
@@ -44,6 +45,8 @@ const GALLERY_RENDER_STEP = 60
 export default function PublicShowcaseScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
   const insets = useSafeAreaInsets()
+  const revision = useSessionRevision()
+  useEffect(() => setRenderLimit(GALLERY_RENDER_STEP), [username])
   const [renderLimit, setRenderLimit] = useState(GALLERY_RENDER_STEP)
 
   /**
@@ -55,16 +58,17 @@ export default function PublicShowcaseScreen() {
    * `userMessage(err)`. `enabled` menggantikan guard `if (!username) return`.
    */
   const showcase = useApiQuery<ShowcaseItem[]>(
-    `public-showcase:${username}`,
+    `public-showcase:${revision}:${username}`,
     (signal) => api.users.getPublicShowcase(username, signal),
     Boolean(username),
+    { refreshOnFocus: true, useCache: false },
   )
   const items = showcase.data ?? []
 
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title={translate("Etalase — @{x}", { x: username ?? "" })} />
-      <PullToRefresh
+      <PullToRefresh key={`${revision}:${username}`}
         onRefresh={showcase.refresh}
         refreshing={showcase.refreshing}
         contentContainerClassName="px-5"
@@ -108,7 +112,7 @@ export default function PublicShowcaseScreen() {
                 onPress={() => setRenderLimit((n) => n + GALLERY_RENDER_STEP)}
               >
                 {translate("Tampilkan {x} lainnya", {
-                  x: items.length - renderLimit,
+                  x: Math.min(items.length - renderLimit, GALLERY_RENDER_STEP),
                 })}
               </Button>
             ) : null}

@@ -37,12 +37,12 @@ export type ShowcasePriceLike = {
  * `showcasePriceLabelOrFallback`).
  */
 export function showcasePriceLabel(item: ShowcasePriceLike): string | null {
-  // Konvensi menurun dari form (priceMin/priceMax 0 = "tidak diisi") & DTO
-  // (minimum: 0) → normalisasi 0 → null; tanpa ini "Rp 1.000 – 0" bisa tampil.
+  // Zero is a valid explicit price; null means unspecified. Invalid legacy ranges fall back to the lower bound.
   const min = item.priceMin ?? null
   const max = item.priceMax ?? null
-  const lo = min != null && min > 0 ? min : null
-  const hi = max != null && max > 0 ? max : null
+  const lo = min != null && Number.isFinite(min) && min >= 0 ? min : null
+  const hi = max != null && Number.isFinite(max) && max >= 0 ? max : null
+  if (lo != null && hi != null && hi < lo) return translate("Mulai Rp {x}", { x: formatNumber(lo) })
   if (lo != null && hi != null) {
     if (lo === hi) return `Rp ${formatNumber(lo)}`
     return `Rp ${formatNumber(lo)} – ${formatNumber(hi)}`

@@ -28,7 +28,7 @@ import { useSyncExternalStore } from "react"
 import { Platform } from "react-native"
 import { usePathname } from "expo-router"
 
-import { getSessionSnapshot, subscribeSession } from "@/lib/api/session"
+import { getSessionRevision, getSessionSnapshot, subscribeSession } from "@/lib/api/session"
 import { isProtectedPath } from "@/lib/protected-routes"
 
 /** Snapshot server = belum ada sesi (SSR/hidrasi web). */
@@ -58,4 +58,9 @@ export function useGuestPathBlocked(): boolean {
   const token = useSessionToken()
   const pathname = usePathname()
   return Platform.OS === "web" && token === null && isProtectedPath(pathname)
+}
+
+/** Changes on account transitions, not access-token rotation. */
+export function useSessionRevision(): number {
+  return useSyncExternalStore(subscribeSession, getSessionRevision, () => 0)
 }

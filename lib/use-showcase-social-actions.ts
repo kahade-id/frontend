@@ -1,33 +1,24 @@
-/**
- * Kahade — useShowcaseSocialActions: SATU implementasi aksi sosial kartu
- * etalase (suka, simpan, bagikan) untuk tiga layar (feed, tab Etalase
- * profil, detail). Audit yang diperbaiki di sini:
- *
- *   - A-05/C-06: tamu yang menekan aksi ber-auth diarahkan ke layar ajakan
- *     login (ROUTES.loginRequired), bukan memanen 401 + toast generik.
- *   - A-06/A-07/C-05: state suka & simpan hidup di store bersama
- *     (`lib/showcase-social-prefs.ts`) — menekan ♥ di feed langsung terlihat
- *     di detail, dan sebaliknya; nilai suka yang disimpan adalah nilai
- *     FINAL server, jadi layar lain selalu sinkron.
- *   - I-04: share memakai `shareShowcaseById` (fallback salin tautan saat
- *     WebShare tidak tersedia), lengkap dengan toast hasil yang benar.
- *
- * Kontrak: panggil SEKALI per kartu/detail. Handler yang dikembalikan sudah
- * memakai useCallback; `likeBusy` menjaga double-tap per item.
- */
-import { useCallback, useRef } from "react"
+/** Shared social actions: account-scoped state, item-wide mutation lock, gesture-safe sharing. */
+import { useCallback, useEffect, useRef } from "react"
 import { router } from "expo-router"
 
-import { isApiError, userMessage } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import {
+  getShowcaseDetail,
   likeShowcase,
   unlikeShowcase,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
-import { useHasSession } from "@/lib/guest-gate"
+import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
+import { getSessionRevision } from "@/lib/api/session"
+import { acquireShowcaseMutation, showcaseMutationPending } from "@/lib/showcase-state"
 import { ROUTES } from "@/lib/routes"
 import { shareShowcaseById } from "@/lib/showcase-social"
 import {
+  loadShowcaseBookmarks,
+  clearShowcaseLikeOverride,
+  getShowcaseLikeOverride,
+  markShowcaseFeedDirty,
   setShowcaseLikeState,
   toggleShowcaseSaved,
   useShowcaseLikeOverride,
@@ -51,17 +42,29 @@ export type ShowcaseSocialActions = {
 export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSocialActions {
   const toast = useToast()
   const hasSession = useHasSession()
+  const sessionRevision = useSessionRevision()
   const override = useShowcaseLikeOverride(item.id)
   const saved = useShowcaseSaved(item.id)
+  useEffect(() => {
+    const revision = getSessionRevision()
+    if (hasSession) void api.users.getMeCached().then((me) => {
+      if (revision === getSessionRevision()) return loadShowcaseBookmarks(me.id)
+    }).catch(() => {})
+  }, [hasSession, sessionRevision])
   /** Guard per item: dua request suka berbarengan. */
   const likeBusy = useRef(false)
+  const previousItem = useRef(item)
+  useEffect(() => {
+    if (previousItem.current !== item && !showcaseMutationPending(`${getSessionRevision()}:like:${item.id}`)) clearShowcaseLikeOverride(item.id)
+    previousItem.current = item
+  }, [item])
 
   const liked = override?.isLiked ?? item.isLiked === true
   const likeCount = override?.likeCount ?? item.likeCount
 
   const requireLogin = useCallback(() => {
-    router.push(ROUTES.loginRequired())
-  }, [])
+    router.push(ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
+  }, [item.id])
 
   /**
    * Suka/batal suka. Optimistis ke store (semua layar ikut berubah), lalu
@@ -72,10 +75,12 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
       requireLogin()
       return
     }
-    if (likeBusy.current) return
+    const revision = getSessionRevision()
+    const release = acquireShowcaseMutation(`${revision}:like:${item.id}`)
+    if (!release) return
     const previous: ShowcaseLikeStateSnapshot = {
-      isLiked: liked,
-      likeCount,
+      isLiked: getShowcaseLikeOverride(item.id)?.isLiked ?? liked,
+      likeCount: getShowcaseLikeOverride(item.id)?.likeCount ?? likeCount,
     }
     const next = !previous.isLiked
     likeBusy.current = true
@@ -86,12 +91,25 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
     void (async () => {
       try {
         const res = next ? await likeShowcase(item.id) : await unlikeShowcase(item.id)
+        if (revision !== getSessionRevision()) return
         setShowcaseLikeState(item.id, { isLiked: res.liked, likeCount: res.likeCount })
+        markShowcaseFeedDirty()
       } catch (err) {
+        if (revision !== getSessionRevision()) return
         setShowcaseLikeState(item.id, previous)
         // SHOWCASE_ALREADY_LIKED (race) bukan error pengguna — cukup sinkronkan.
         const isRace = isApiError(err) && err.backendCode === "SHOWCASE_ALREADY_LIKED"
-        if (!isRace) {
+        if (isRace) {
+          try {
+            const fresh = await getShowcaseDetail(item.id)
+            if (revision === getSessionRevision()) setShowcaseLikeState(item.id, {
+              isLiked: fresh.isLiked === true, likeCount: fresh.likeCount,
+            })
+          } catch {
+            if (revision === getSessionRevision()) clearShowcaseLikeOverride(item.id)
+            toast.show({ title: "Gagal memperbarui suka", tone: "danger" })
+          }
+        } else {
           toast.show({
             title: "Gagal memperbarui suka",
             description: userMessage(err),
@@ -99,6 +117,7 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
           })
         }
       } finally {
+        release()
         likeBusy.current = false
       }
     })()
@@ -109,14 +128,20 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
       requireLogin()
       return
     }
-    toggleShowcaseSaved(item.id)
-  }, [hasSession, requireLogin, item.id])
+    const revision = getSessionRevision()
+    void api.users.getMeCached().then(async (me) => {
+      if (revision !== getSessionRevision()) return
+      await loadShowcaseBookmarks(me.id)
+      if (revision !== getSessionRevision()) return
+      toggleShowcaseSaved(item.id)
+    }).catch((error) => toast.show({ title: "Gagal menyimpan karya", description: userMessage(error), tone: "danger" }))
+  }, [hasSession, requireLogin, item.id, toast])
 
   const share = useCallback(() => {
     void (async () => {
       try {
         // Share boleh tamu (endpoint auth:none) — konversi corong publik.
-        const { outcome } = await shareShowcaseById(item.id)
+        const { outcome } = await shareShowcaseById(item.id, item)
         if (outcome === "copied") {
           toast.show({ title: "Tautan disalin ke papan klip", tone: "success", duration: 2500 })
         } else if (outcome === "unavailable") {
@@ -130,7 +155,7 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
         })
       }
     })()
-  }, [item.id, toast])
+  }, [item, toast])
 
   return { liked, likeCount, saved, hasSession, requireLogin, toggleLike, toggleSave, share }
 }

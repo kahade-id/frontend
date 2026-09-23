@@ -1,3 +1,4 @@
+import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
 /**
  * Kahade — <ShowcaseCommentRow> baris komentar showcase (gaya feed).
  *
@@ -82,7 +83,7 @@ export function ShowcaseCommentRow({
           </Text>
           {hidden && comment.hiddenReason ? (
             <Text variant="caption" tone="secondary">
-              Alasan: {comment.hiddenReason.toLowerCase()}
+              Alasan: {translate(CONTENT_REPORT_REASONS.find((reason) => reason.value === comment.hiddenReason)?.label ?? "Lainnya")}
             </Text>
           ) : null}
           <View className="flex-row items-center gap-4">

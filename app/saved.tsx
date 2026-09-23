@@ -1,3 +1,4 @@
+import { ShowcaseSavedCollection } from "@/components/ui/showcase-saved-collection"
 /**
  * Screen — Profil Tersimpan (GET /v1/users/saved).
  *
@@ -10,7 +11,7 @@
  * jadi layar cukup useApiQuery satu halaman pertama (daftar pribadi, kecil).
  */
 import { useState } from "react"
-import { Bookmark, BookmarkSimple } from "phosphor-react-native"
+import { Bookmark } from "phosphor-react-native"
 import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
@@ -58,15 +59,9 @@ export default function SavedProfilesScreen() {
       title="Tersimpan"
       state={query}
       loadingMessage="Memuat profil tersimpan…"
-      empty={
-        items.length === 0 && {
-          icon: BookmarkSimple,
-          title: "Belum ada profil tersimpan",
-          description: "Simpan pengguna dari profil mereka untuk dilihat lagi di sini.",
-        }
-      }
       contentClassName="gap-1"
     >
+      <ShowcaseSavedCollection />
       <SectionHeader title="Profil tersimpan" />
       {items.map((entry, i) => (
         <UserListItem

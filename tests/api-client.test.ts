@@ -374,3 +374,19 @@ describe("C-09: tekanan balik 429/503", () => {
     expect(backpressureRemainingMs()).toBe(0)
   })
 })
+
+it("Etalase optional-auth guest 401 does not refresh or expire a nonexistent session", async () => {
+  await clearSession()
+  const revision = getSessionRevision()
+  const mock = installFetch({ refresh: jsonResponse(401, {}), others: [jsonResponse(401, { message: "Authentication required" })] })
+  await expect(http.get("/v1/users/test/showcase", { auth: "optional" })).rejects.toMatchObject({ status: 401 })
+  expect(mock.refreshCalls()).toHaveLength(0)
+  expect(getSessionRevision()).toBe(revision)
+  expect(mock.moneyCalls()[0].init.headers.Authorization).toBeUndefined()
+})
+
+it("Etalase optional-auth sends the active bearer while preserving public access policy", async () => {
+  const mock = installFetch({ refresh: jsonResponse(401, {}), others: [ok({ id: "work" })] })
+  await http.get("/v1/showcase/work", { auth: "optional" })
+  expect(mock.moneyCalls()[0].init.headers.Authorization).toBe("Bearer access-lama")
+})

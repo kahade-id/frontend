@@ -17,7 +17,7 @@
  *    sebagai gantinya (membaca komentar tetap boleh, endpoint publik).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ChatCircle, PaperPlaneRight } from "phosphor-react-native"
 import { ScrollView, View, useWindowDimensions } from "react-native"
 import { router } from "expo-router"
@@ -52,6 +52,10 @@ const SHEET_COMMENT_LIMIT = 30
 /** Kontrak DTO CreateShowcaseCommentDto (sumber: constraints.ts, D-08). */
 const COMMENT_MAX = API_CONSTRAINTS.CreateShowcaseCommentDto.content.maxLength
 
+import { useShowcaseOperation } from "@/lib/use-showcase-operation"
+import { useSessionRevision } from "@/lib/guest-gate"
+import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
+
 export type ShowcaseCommentsSheetProps = {
   /** Item yang komentarnya dibuka. `null` = sheet tertutup. */
   item: ShowcaseSocialItem | null
@@ -69,11 +73,14 @@ export function ShowcaseCommentsSheet({
   const toast = useToast()
   const hasSession = useHasSession()
   const showcaseId = item?.id
+  const revision = useSessionRevision()
+  const operation = useShowcaseOperation(showcaseId)
   const query = useApiQuery(
-    `showcase-comments:${showcaseId ?? "none"}`,
+    `showcase-comments:${revision}:${showcaseId ?? "none"}`,
     (signal) =>
       listShowcaseComments(showcaseId as string, { page: 1, limit: SHEET_COMMENT_LIMIT }, signal),
     Boolean(showcaseId),
+    { useCache: false },
   )
 
   /** Komentar yang ditulis dari komposer sheet (belum tentu ada di query). */
@@ -89,7 +96,8 @@ export function ShowcaseCommentsSheet({
   useEffect(() => {
     setLocalComments([])
     setDraft("")
-  }, [showcaseId])
+    setSending(false)
+  }, [showcaseId, revision])
 
   /**
    * G-04: buka ulang (item → non-null) memuat ulang komentar, termasuk
@@ -97,37 +105,32 @@ export function ShowcaseCommentsSheet({
    * Buka pertama kali sudah diambil oleh useApiQuery (enabled flip), jadi
    * hanya reload bila sebelumnya PERNAH terbuka sesi ini.
    */
-  const hasOpenedRef = useRef(false)
-  useEffect(() => {
-    if (!showcaseId) return
-    if (hasOpenedRef.current) {
-      void query.reload()
-    } else {
-      hasOpenedRef.current = true
-    }
-    // Hanya pada transisi buka — query.reload tidak menjadi trigger ulang.
-  }, [showcaseId])
-
   const handleSend = useCallback(async () => {
-    if (!showcaseId) return
+    if (!showcaseId || !hasSession) return
     const content = draft.trim()
     if (!content || sending) return
+    const task = operation.begin()
+    if (!task) return
     setSending(true)
     try {
       const saved = await addShowcaseComment(showcaseId, { content })
+      markShowcaseFeedDirty()
+      if (!task.valid()) return
       setLocalComments((previous) => [{ ...saved, replies: [] }, ...previous])
-      setDraft("")
+      setDraft((current) => current.trim() === content ? "" : current)
       onCommentAdded?.(showcaseId)
     } catch (err) {
+      if (!task.valid()) return
       toast.show({
         title: "Gagal mengirim komentar",
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
     } finally {
-      setSending(false)
+      if (task.valid()) setSending(false)
+      task.finish()
     }
-  }, [showcaseId, draft, sending, onCommentAdded, toast.show])
+  }, [showcaseId, draft, sending, onCommentAdded, toast.show, hasSession, operation])
 
   const localIds = new Set(localComments.map((c) => c.id))
   const serverComments = query.data?.data.filter((c) => !localIds.has(c.id)) ?? []
@@ -169,6 +172,7 @@ export function ShowcaseCommentsSheet({
           <View className="pb-1">
             <View className="flex-row items-end gap-2">
               <Input
+                disabled={sending}
                 value={draft}
                 onChangeText={setDraft}
                 placeholder="Tulis komentar…"
@@ -193,7 +197,7 @@ export function ShowcaseCommentsSheet({
         ) : (
           // A-05 (kelas): tamu tidak melihat komposer — ajakan login.
           <View className="pb-1">
-            <Button onPress={() => router.push(ROUTES.loginRequired())}>
+            <Button onPress={() => router.push(ROUTES.loginRequired(`/showcase/${encodeURIComponent(showcaseId ?? "")}`))}>
               Masuk untuk berkomentar
             </Button>
           </View>

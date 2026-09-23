@@ -166,8 +166,8 @@ export function PaginatedList<T extends { id: string }>({
   const handleLoadMore = useCallback(() => void onLoadMore(), [onLoadMore])
 
   const handleEndReached = useCallback(() => {
-    if (hasMore && !loading && !loadingMore && !loadMoreError) void onLoadMore()
-  }, [hasMore, loading, loadingMore, loadMoreError, onLoadMore])
+    if (hasMore && !loading && !refreshing && !loadingMore && !loadMoreError) void onLoadMore()
+  }, [hasMore, loading, refreshing, loadingMore, loadMoreError, onLoadMore])
 
   const headerElement = useMemo(
     () => (
@@ -196,7 +196,7 @@ export function PaginatedList<T extends { id: string }>({
   const footerElement = useMemo(
     () => (
       <>
-        {data.length > 0 && (hasMore || loadingMore || !!loadMoreError) ? (
+        {!loading && (hasMore || loadingMore || !!loadMoreError) ? (
           <LoadMore
             status={loadingMore ? "loading" : loadMoreError ? "error" : "idle"}
             errorLabel={loadMoreError ?? undefined}
@@ -206,7 +206,7 @@ export function PaginatedList<T extends { id: string }>({
         {footer}
       </>
     ),
-    [data.length, hasMore, loadingMore, loadMoreError, footer, handleLoadMore],
+    [loading, hasMore, loadingMore, loadMoreError, footer, handleLoadMore],
   )
 
   return (

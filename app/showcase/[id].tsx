@@ -1,56 +1,9 @@
-/**
- * Screen — Detail Item Showcase (GET /v1/showcase/{showcaseId}).
- *
- * Kontrak (showcase.service.ts, sesi P1 2026-09-15):
- *   GET  /v1/showcase/{id}                 → item + images + counter + orderLink
- *                                            (viewCount di-increment sekali/viewer/jam)
- *   GET  /v1/showcase/{id}/comments        → root + balasan 1 tingkat (offset)
- *   POST /v1/showcase/{id}/comments        → komentar / balas (parentId)
- *   PATCH /v1/showcase/comments/{cid}      → edit komentar sendiri
- *   DELETE /v1/showcase/comments/{cid}     → hapus (pengarang ATAU pemilik item)
- *   POST   /v1/showcase/comments/{cid}/hide    → moderasi (pemilik item, reason)
- *   POST   /v1/showcase/comments/{cid}/unhide  → buka kembali (pemilik item)
- *   POST /v1/showcase/{id}/like / DELETE   → { liked, likeCount } final
- *   GET  /v1/showcase/{id}/share           → metadata deep link
- *   POST /v1/showcase/{id}/report          → { reason, description? } (5/jam)
- *
- * Perbaikan audit Etalase (2026-09-23):
- *   F-01 CTA "Buat Transaksi" MENGHORMATI `orderLink` — prefill judul/
- *        deskripsi/nominal(bila valid)/counterpart via
- *        ROUTES.createTransactionFromShowcase (dulu CTA generik ke username).
- *   F-02 Kirim komentar TIDAK me-reset paginasi: komentar tersimpan
- *        disisipkan ke state (root → unshift; balasan → append ke induk);
- *        total +1. Halaman 2..N yang sudah dimuat tidak dibuang.
- *   F-03 fetchComments memakai AbortController per request + abort on
- *        unmount — tidak ada lagi setState setelah unmount / respons basi.
- *   F-04 Komposer & editor komentar dibatasi 1000 karakter (kontrak DTO).
- *   F-05 Menu komentar kini punya "Laporkan" (lapor PENULIS komentar ke
- *        layar /reports, bukan endpoint showcase — moderasi terbuka untuk
- *        pihak ketiga, bukan hanya pemilik/pengarang).
- *   F-06 `commentsStatus` berawal "loading" — tidak ada lagi kilatan
- *        "belum ada komentar"/tombol Muat sebelum fetch pertama.
- *   F-07 Tombol "Muat komentar berikutnya" DI BAWAH daftar (halaman baru
- *        memang ditambahkan di bawah).
- *   F-08 Total komentar hanya berubah pada tambah/hapus — hide/unhide tidak
- *        menggeser angka (komentar tetap ada, hanya bertopeng).
- *   F-09 Layar bisa ditarik-segarkan: refresh memuat ulang item + komentar.
- *   F-10 Bar aksi memakai focus-ring web (pola yang sama dengan kartu feed).
- *   A-05 Tamu: aksi sosial lewat hook bergate (login-required); komposer
- *        diganti tombol "Masuk untuk berkomentar".
- *   A-11 Lapor item memakai <ShowcaseReportSheet> bersama (copy seragam
- *        "Laporkan Karya" — dulu title "Laporkan item").
- *   I-03 Judul dokumen web = JUDUL ITEM (bukan kata generik "Showcase").
- *   J-01 Lokalisasi: label kosong harga via util bersama; judul layar
- *        "Etalase" (nama produk), bukan "Showcase".
- */
+/** Public Etalase detail with optional viewer authentication and fenced comment mutations.
+ * Comment reads reconcile complete loaded pages after a mutation. Server authorization remains authoritative. */
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  ScrollView,
   View,
-  useWindowDimensions,
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
   type TextInput,
 } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
@@ -83,11 +36,16 @@ import {
 import { formatCountCompact, formatDateTime, formatNumber } from "@/lib/format"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
-import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useApiQuery } from "@/lib/use-api-query"
+
+import { useSessionRevision } from "@/lib/guest-gate"
+import { useShowcaseOperation } from "@/lib/use-showcase-operation"
+import { mergeComments, patchComments } from "@/lib/showcase-state"
+import { showcaseImages } from "@/lib/showcase-social"
+import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { Avatar } from "@/components/ui/avatar"
@@ -103,10 +61,9 @@ import { Input } from "@/components/ui/input"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { Dialog } from "@/components/ui/modal"
-import { PageIndicator } from "@/components/ui/page-indicator"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Radio, RadioGroup } from "@/components/ui/radio"
-import { Picture } from "@/components/ui/picture"
+import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { Text } from "@/components/ui/text"
@@ -126,18 +83,20 @@ const COMMENT_MAX = API_CONSTRAINTS.CreateShowcaseCommentDto.content.maxLength
 
 export default function ShowcaseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const revision = useSessionRevision()
 
   const query = useApiQuery<ShowcaseSocialItem>(
-    `showcase-detail:${id}`,
+    `showcase-detail:${revision}:${id}`,
     (signal) => getShowcaseDetail(id, signal),
     Boolean(id),
+    { retry: 0, useCache: false, refreshOnFocus: true },
   )
   const item = query.data
 
   // I-03: judul dokumen = judul item; fallback nama fitur (J-01).
   useDocumentTitle(item?.title ?? translate("Etalase"))
 
-  if (!item) {
+  if (!item || query.error) {
     return (
       <DataScreen
         title="Etalase"
@@ -154,12 +113,12 @@ export default function ShowcaseDetailScreen() {
     )
   }
 
-  return <ShowcaseDetailContent key={item.id} item={item} query={query} />
+  return <ShowcaseDetailContent key={`${revision}:${item.id}`} item={item} query={query} />
 }
 
 /**
  * Konten detail dipisah supaya hook sosial (& hook lain) tidak dipanggil
- * kondisional — `item` selalu non-null di sini. `key={item.id}` memastikan
+ * kondisional — `item` selalu non-null di sini. `key={`${revision}:${item.id}`}` memastikan
  * state komentar tidak bocor antar item bila rute [id] dipakai ulang.
  */
 function ShowcaseDetailContent({
@@ -170,6 +129,9 @@ function ShowcaseDetailContent({
   query: ReturnType<typeof useApiQuery<ShowcaseSocialItem>>
 }) {
   const id = item.id
+  const revision = useSessionRevision()
+  const operation = useShowcaseOperation(id)
+  const mutationPending = useRef(false)
   const toast = useToast()
   /**
    * A-05/A-06/A-07: suka & simpan lewat store bersama — sinkron dengan feed
@@ -180,9 +142,6 @@ function ShowcaseDetailContent({
 
   const [meId, setMeId] = useState<string | null>(null)
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
-  const [mediaPage, setMediaPage] = useState(0)
-  const [pagerWidth, setPagerWidth] = useState(0)
-  const { width: windowWidth } = useWindowDimensions()
   const composerRef = useRef<TextInput>(null)
 
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
@@ -209,8 +168,13 @@ function ShowcaseDetailContent({
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
 
   useEffect(() => {
-    void api.users.getMeCached().then((me) => setMeId(me.id ?? null)).catch(() => setMeId(null))
-  }, [])
+    let alive = true
+    setMeId(null)
+    if (hasSession) void api.users.getMeCached().then((me) => {
+      if (alive) setMeId(me.id ?? null)
+    }).catch(() => { if (alive) setMeId(null) })
+    return () => { alive = false }
+  }, [hasSession, revision])
 
   /**
    * F-03: AbortController per request — request lama dibatalkan saat yang
@@ -219,20 +183,34 @@ function ShowcaseDetailContent({
    * yang menimpa daftar terbaru.
    */
   const commentsAbort = useRef<AbortController | null>(null)
+  const failedComments = useRef({ page: 1, append: false })
   const fetchComments = useCallback(
     async (page: number, append: boolean) => {
+      if (mutationPending.current) return
+      failedComments.current = { page, append }
       commentsAbort.current?.abort()
       const controller = new AbortController()
       commentsAbort.current = controller
       try {
         setCommentsStatus("loading")
-        const res = await listShowcaseComments(id, { page, limit: 20 }, controller.signal)
-        if (controller.signal.aborted) return
-        setComments((prev) => (append ? [...prev, ...res.data] : res.data))
-        if (!append) setCommentRenderLimit(COMMENT_RENDER_STEP)
-        setCommentTotal(res.total)
-        setCommentsPage(page)
-        setCommentsStatus(res.hasNext ? "idle" : "end")
+        let collected: ShowcaseCommentWithReplies[] = []
+        let lastPage = append ? page : 1
+        let total = 0
+        let hasNext = false
+        for (let cursor = append ? page : 1; cursor <= page; cursor++) {
+          const res = await listShowcaseComments(id, { page: cursor, limit: 20 }, controller.signal)
+          if (controller.signal.aborted) return
+          collected = mergeComments(collected, res.data)
+          total = res.total
+          hasNext = res.hasNext
+          lastPage = cursor
+          if (!res.hasNext) break
+        }
+        setComments((prev) => append ? mergeComments(prev, collected) : collected)
+        if (!append && page === 1) setCommentRenderLimit(COMMENT_RENDER_STEP)
+        setCommentTotal(total)
+        setCommentsPage(lastPage)
+        setCommentsStatus(hasNext ? "idle" : "end")
       } catch {
         if (controller.signal.aborted) return
         setCommentsStatus("error")
@@ -245,12 +223,9 @@ function ShowcaseDetailContent({
     return () => commentsAbort.current?.abort()
   }, [fetchComments])
 
-  const isOwner = item.isOwner === true
+  const isOwner = item.isOwner === true || (hasSession && meId === item.author.userId)
 
-  const resolvedImages = item.images.flatMap((image) => {
-    const url = resolveMediaUrl(image.imageUrl)
-    return url ? [{ id: image.id, url }] : []
-  })
+  const resolvedImages = showcaseImages(item)
 
   const openViewer = (index: number) => {
     const image = resolvedImages[index]
@@ -264,32 +239,9 @@ function ShowcaseDetailContent({
 
   const focusComposer = () => composerRef.current?.focus()
 
-  const handlePagerMomentum = useCallback(
-    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const rawWidth = pagerWidth || windowWidth - 40
-      if (rawWidth > 0) {
-        setMediaPage(Math.max(0, Math.round(event.nativeEvent.contentOffset.x / rawWidth)))
-      }
-    },
-    [pagerWidth, windowWidth],
-  )
-
   const patchComment = useCallback(
     (patch: (c: ShowcaseComment) => ShowcaseComment | null) => {
-      setComments((prev) =>
-        prev.flatMap((root) => {
-          const nextRoot = patch(root)
-          const nextReplies = (root.replies ?? [])
-            .map((r) => patch(r))
-            .filter((r): r is ShowcaseComment => r !== null)
-          if (nextRoot === null) {
-            return nextReplies.length > 0
-              ? [{ ...root, content: "[Komentar ini telah dihapus]", replies: nextReplies }]
-              : []
-          }
-          return [{ ...nextRoot, replies: nextReplies }]
-        }),
-      )
+      setComments((prev) => patchComments(prev, patch))
     },
     [],
   )
@@ -321,94 +273,147 @@ function ShowcaseDetailContent({
 
   const handleSendComment = useCallback(async () => {
     const content = draft.trim()
-    if (!content) return
+    if (!content || !hasSession) return
+    const task = operation.begin()
+    if (!task) return
+    mutationPending.current = true
+    commentsAbort.current?.abort()
     setSendingComment(true)
     try {
       const saved = await addShowcaseComment(id, {
         content,
         parentId: replyTo?.id,
       })
-      setDraft("")
+      markShowcaseFeedDirty()
+      if (!task.valid()) return
+      setDraft((current) => current.trim() === content ? "" : current)
       setReplyTo(null)
       insertLocalComment(saved)
     } catch (err) {
+      if (!task.valid()) return
       toast.show({
         title: "Gagal mengirim komentar",
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
     } finally {
-      setSendingComment(false)
+      if (task.valid()) {
+        setSendingComment(false)
+        setCommentsStatus((status) => status === "loading" ? "idle" : status)
+      }
+      mutationPending.current = false
+      task.finish()
+      if (task.valid()) void fetchComments(commentsPage, false)
     }
-  }, [id, draft, replyTo, insertLocalComment, toast.show])
+  }, [id, draft, replyTo, insertLocalComment, toast.show, hasSession, operation, fetchComments, commentsPage])
 
   const handleSaveEdit = useCallback(async () => {
     if (!editTarget) return
     const content = editText.trim()
     if (!content) return
+    const task = operation.begin()
+    if (!task) return
+    mutationPending.current = true
+    commentsAbort.current?.abort()
     setSavingComment(true)
     try {
       const saved = await updateShowcaseComment(editTarget.id, content)
+      if (!task.valid()) return
+      markShowcaseFeedDirty()
       patchComment((c) => (c.id === saved.id ? { ...c, content: saved.content } : c))
       setEditTarget(null)
     } catch (err) {
+      if (!task.valid()) return
       toast.show({
         title: "Gagal menyimpan komentar",
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
     } finally {
-      setSavingComment(false)
+      if (task.valid()) {
+        setSavingComment(false)
+        setCommentsStatus((status) => status === "loading" ? "idle" : status)
+      }
+      mutationPending.current = false
+      task.finish()
+      if (task.valid()) void fetchComments(commentsPage, false)
     }
-  }, [editTarget, editText, patchComment, toast.show])
+  }, [editTarget, editText, patchComment, toast.show, operation, fetchComments, commentsPage])
 
   const handleConfirmAction = useCallback(async () => {
     if (!confirmTarget) return
+    const task = operation.begin()
+    if (!task) return
+    mutationPending.current = true
+    commentsAbort.current?.abort()
     setConfirmBusy(true)
     try {
       if (confirmKind === "delete") {
         await deleteShowcaseComment(confirmTarget.id)
-        patchComment(() => null)
+        if (!task.valid()) return
+      markShowcaseFeedDirty()
+      patchComment((comment) => comment.id === confirmTarget.id ? null : comment)
         // F-08: hanya HAPUS yang menggeser total.
         setCommentTotal((n) => Math.max(0, n - 1))
         toast.show({ title: "Komentar dihapus", tone: "success", duration: 2500 })
       } else {
         const saved = await hideShowcaseComment(confirmTarget.id, hideReason)
-        patchComment((c) =>
+        if (!task.valid()) return
+      markShowcaseFeedDirty()
+      patchComment((c) =>
           c.id === saved.id ? { ...c, isHidden: true, hiddenReason: hideReason } : c,
         )
         toast.show({ title: "Komentar disembunyikan", tone: "success", duration: 2500 })
       }
       setConfirmTarget(null)
     } catch (err) {
+      if (!task.valid()) return
       toast.show({
         title: "Gagal memperbarui komentar",
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
     } finally {
-      setConfirmBusy(false)
+      if (task.valid()) {
+        setConfirmBusy(false)
+        setCommentsStatus((status) => status === "loading" ? "idle" : status)
+      }
+      mutationPending.current = false
+      task.finish()
+      if (task.valid()) void fetchComments(commentsPage, false)
     }
-  }, [confirmTarget, confirmKind, hideReason, patchComment, toast.show])
+  }, [confirmTarget, confirmKind, hideReason, patchComment, toast.show, operation, fetchComments, commentsPage])
 
   const handleUnhide = useCallback(
     async (comment: ShowcaseComment) => {
+      const task = operation.begin()
+      if (!task) return
+      mutationPending.current = true
+      commentsAbort.current?.abort()
       try {
         const saved = await unhideShowcaseComment(comment.id)
+        if (!task.valid()) return
+        markShowcaseFeedDirty()
         patchComment((c) =>
           c.id === saved.id ? { ...c, isHidden: false, hiddenReason: null } : c,
         )
         // F-08: unhide tidak mengubah total (komentar tidak pernah hilang).
         toast.show({ title: "Komentar ditampilkan kembali", tone: "success", duration: 2500 })
       } catch (err) {
+        if (!task.valid()) return
         toast.show({
           title: "Gagal membuka komentar",
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
+      } finally {
+        mutationPending.current = false
+        if (task.valid()) setCommentsStatus((status) => status === "loading" ? "idle" : status)
+        task.finish()
+        if (task.valid()) void fetchComments(commentsPage, false)
       }
     },
-    [patchComment, toast.show],
+    [patchComment, toast.show, operation, fetchComments, commentsPage],
   )
 
   /** F-09: tarik-segarkan memuat ulang item DAN komentar halaman 1. */
@@ -473,6 +478,7 @@ function ShowcaseDetailContent({
             <View className="flex-row items-end gap-2">
               <Input
                 ref={composerRef}
+                disabled={sendingComment}
                 value={draft}
                 onChangeText={setDraft}
                 placeholder="Tulis komentar…"
@@ -494,7 +500,7 @@ function ShowcaseDetailContent({
             </View>
           ) : (
             // A-05: tamu diarahkan login, bukan komposer yang berujung 401.
-            <Button onPress={() => router.push(ROUTES.loginRequired())}>
+            <Button onPress={() => router.push(ROUTES.loginRequired(`/showcase/${encodeURIComponent(id)}`))}>
               Masuk untuk berkomentar
             </Button>
           )}
@@ -541,57 +547,8 @@ function ShowcaseDetailContent({
       </View>
 
       {/* ── Media: CARD pager (mx-5, selaras avatar) — bukan full-bleed ── */}
-      <View
-        className="mx-5 pt-3"
-        onLayout={(e) => setPagerWidth(e.nativeEvent.layout.width)}
-      >
-        {resolvedImages.length > 0 ? (
-          <View className="overflow-hidden rounded-sm border border-border">
-            <ScrollView
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={handlePagerMomentum}
-              // @ts-expect-error RN Web
-              onContextMenu={(e: unknown) => (e as { preventDefault: () => void }).preventDefault?.()}
-            >
-              {resolvedImages.map((image, index) => (
-                <View key={image.id} style={{ width: pagerWidth || windowWidth - 40 }}>
-                  <PressableScale
-                    accessibilityRole="button"
-                    accessibilityLabel={translate("Lihat foto {x} dari {y}", {
-                      x: index + 1,
-                      y: resolvedImages.length,
-                    })}
-                    onPress={() => openViewer(index)}
-                    containerClassName="w-full"
-                  >
-                    <Picture
-                      source={image.url}
-                      alt={item.title}
-                      aspectRatio={1}
-                      radius="none"
-                      bordered={false}
-                      recyclingKey={image.id}
-                      preventDownload
-                    />
-                  </PressableScale>
-                </View>
-              ))}
-            </ScrollView>
-            {resolvedImages.length > 1 ? (
-              <View className="items-center bg-background py-2">
-                <PageIndicator count={resolvedImages.length} index={mediaPage} />
-              </View>
-            ) : null}
-          </View>
-        ) : (
-          <View className="h-64 items-center justify-center rounded-sm border border-border bg-surface">
-            <Text variant="body" tone="secondary">
-              Tidak ada gambar
-            </Text>
-          </View>
-        )}
+      <View className="mx-5 pt-3">
+        <ShowcaseMediaGallery images={resolvedImages} title={item.title} onOpen={openViewer} />
       </View>
 
       {/* ── Harga · kategori ── */}
@@ -613,7 +570,7 @@ function ShowcaseDetailContent({
       </View>
 
       <View className="px-5 pt-1">
-        <Text variant="h3" numberOfLines={2}>
+        <Text variant="h3">
           {item.title}
         </Text>
       </View>
@@ -775,7 +732,10 @@ function ShowcaseDetailContent({
         {/* F-07: halaman baru ditambahkan DI BAWAH → tombolnya di bawah. */}
         <LoadMore
           status={commentsStatus}
-          onLoadMore={() => void fetchComments(commentsPage + 1, true)}
+          onLoadMore={() => {
+            const request = commentsStatus === "error" ? failedComments.current : { page: commentsPage + 1, append: true }
+            void fetchComments(request.page, request.append)
+          }}
           hideEnd
           idleLabel="Muat komentar berikutnya"
         />
@@ -843,7 +803,7 @@ function ShowcaseDetailContent({
             ? [
                 {
                   key: "report",
-                  label: "Laporkan",
+                  label: "Laporkan pengguna",
                   icon: Flag,
                   onPress: () => handleReportComment(commentMenu),
                 },

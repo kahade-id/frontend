@@ -14,6 +14,7 @@ import {
   type ShowcaseSocialItem as SocialItem,
 } from "@/lib/api/showcase"
 import type { ShowcaseItem } from "@/lib/api/users"
+import { showcaseUrl } from "@/lib/deeplinks"
 import { copyToClipboard } from "@/lib/clipboard"
 import { translate } from "@/lib/i18n/translate"
 import { resolveMediaUrl } from "@/lib/media"
@@ -134,8 +135,15 @@ export type ShowcaseShareResult = {
  * dilaporkan sebagai "copied" supaya pemanggil menampilkan toast yang benar
  * ("Tautan disalin", bukan "Share tidak tersedia").
  */
-export async function shareShowcaseById(id: string): Promise<ShowcaseShareResult> {
-  const payload = await getShowcaseSharePayload(id)
+export async function shareShowcaseById(id: string, item?: ShowcaseSocialItem): Promise<ShowcaseShareResult> {
+  // Known item: invoke OS/browser share within the original user gesture, no network await.
+  const payload: ShowcaseSharePayload = item ? {
+    showcaseId: id, title: item.title, description: item.description ?? "",
+    authorUsername: item.author.username, authorFullName: item.author.fullName,
+    shareUrl: showcaseUrl(id),
+  } : await getShowcaseSharePayload(id).catch(() => ({
+    showcaseId: id, title: translate("Etalase"), description: "", authorUsername: "", shareUrl: showcaseUrl(id),
+  }))
   const outcome = await shareContent({
     message: `${payload.title} — ${payload.authorFullName ?? "@" + payload.authorUsername}`,
     url: payload.shareUrl,
@@ -146,4 +154,14 @@ export async function shareShowcaseById(id: string): Promise<ShowcaseShareResult
     if (copied) return { outcome: "copied", payload }
   }
   return { outcome, payload }
+}
+
+/** Identical media fallback and ordering on feed, detail and gallery. */
+export function showcaseImages(item: ShowcaseSocialItem): { id: string; url: string }[] {
+  const images = item.images.flatMap((image) => {
+    const url = resolveMediaUrl(image.imageUrl)
+    return url ? [{ id: image.id, url }] : []
+  })
+  const cover = resolveMediaUrl(item.coverImageUrl) ?? resolveMediaUrl(item.imageUrl)
+  return images.length ? images : cover ? [{ id: item.id, url: cover }] : []
 }

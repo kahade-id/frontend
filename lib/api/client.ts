@@ -508,7 +508,7 @@ async function performRequest<TResponse, TBody>(
       clearBackpressure()
     }
     assertSession()
-    if (reply.status === 401 && auth !== "none") {
+    if (reply.status === 401 && (auth === "required" || (auth === "optional" && token))) {
       // A concurrent request may already have rotated this exact access token.
       const current = await getAccessToken()
       const fresh = current && current !== token ? current : await refreshAccessToken()

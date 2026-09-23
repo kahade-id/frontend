@@ -24,7 +24,7 @@ export default function SocialShowcaseScreen() {
 
   const params = useLocalSearchParams<{ category?: string }>()
   const category = typeof params.category === "string" && params.category.trim()
-    ? params.category.trim()
+    ? params.category.trim().slice(0, 60)
     : undefined
 
   return (
