@@ -118,7 +118,6 @@
   "Eskalasi ke admin": "Escalate to admin",
   "Eskalasi sengketa ke admin?": "Escalate dispute to admin?",
   "Etalase Anda": "Your showcase",
-  "Etalase saya": "My showcase",
   "Etalase — @{x}": "Showcase — @{x}",
   "Filter kategori {x}": "Category filter {x}",
   "Fitur ini khusus pengguna yang sudah punya akun Kahade. Masuk atau daftar untuk melanjutkan, lalu Anda kembali ke halaman yang dituju.": "This feature is only for Kahade account holders. Sign in or register to continue, then you'll return to the intended page.",
@@ -412,7 +411,6 @@
   "Profil dihapus dari tersimpan": "Profile removed from saved",
   "Profil disimpan": "Profile saved",
   "Profil tersimpan": "Saved profile",
-  "Punya karya? Pamerkan di sini.": "Got creations? Show them off here.",
   "Punya saran atau menemui kendala?": "Have a suggestion or run into a problem?",
   "Rating Anda": "Your rating",
   "Rating terkirim": "Rating submitted",
@@ -558,5 +556,8 @@
   "{x} pesan akan diteruskan sekaligus.": "{x} messages will be forwarded at once.",
   "{x} undangan terbanyak (selalu {x} teratas)": "Top {x} invitations (always the top {x})",
   "{x}–{x} huruf/angka": "{x}–{x} letters/digits",
-  "— tinggal tekan kirim.": "— just tap send."
+  "— tinggal tekan kirim.": "— just tap send.",
+  "Pilihan karya": "Work options",
+  "Tidak tertarik": "Not interested",
+  "Tidak tertarik atau laporkan karya": "Not interested or report this work"
 }

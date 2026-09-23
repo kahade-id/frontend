@@ -371,6 +371,10 @@
    "n": 3
   },
   {
+   "s": "Laporkan karya",
+   "n": 3
+  },
+  {
    "s": "Lencana",
    "n": 3
   },
@@ -427,6 +431,10 @@
    "n": 3
   },
   {
+   "s": "Pilihan karya",
+   "n": 3
+  },
+  {
    "s": "Profil",
    "n": 3
   },
@@ -452,10 +460,6 @@
   },
   {
    "s": "Tab profil saya",
-   "n": 3
-  },
-  {
-   "s": "Tambah karya",
    "n": 3
   },
   {
@@ -931,6 +935,10 @@
    "n": 2
   },
   {
+   "s": "Foto {x} dari {y}",
+   "n": 2
+  },
+  {
    "s": "Foto berikutnya",
    "n": 2
   },
@@ -1131,10 +1139,6 @@
    "n": 2
   },
   {
-   "s": "Karya tersimpan",
-   "n": 2
-  },
-  {
    "s": "Kategori",
    "n": 2
   },
@@ -1268,10 +1272,6 @@
   },
   {
    "s": "Laporkan {x}",
-   "n": 2
-  },
-  {
-   "s": "Laporkan karya",
    "n": 2
   },
   {
@@ -1715,6 +1715,10 @@
    "n": 2
   },
   {
+   "s": "Tambah karya",
+   "n": 2
+  },
+  {
    "s": "Tampilan",
    "n": 2
   },
@@ -1776,6 +1780,10 @@
   },
   {
    "s": "Tidak pantas",
+   "n": 2
+  },
+  {
+   "s": "Tidak tertarik atau laporkan karya",
    "n": 2
   },
   {
@@ -3371,10 +3379,6 @@
    "n": 1
   },
   {
-   "s": "Etalase saya",
-   "n": 1
-  },
-  {
    "s": "Favorit",
    "n": 1
   },
@@ -3396,10 +3400,6 @@
   },
   {
    "s": "Foto",
-   "n": 1
-  },
-  {
-   "s": "Foto {x} dari {y}",
    "n": 1
   },
   {
@@ -4436,6 +4436,10 @@
   },
   {
    "s": "Karya sudah dilaporkan",
+   "n": 1
+  },
+  {
+   "s": "Karya tersimpan",
    "n": 1
   },
   {
@@ -6831,10 +6835,6 @@
    "n": 1
   },
   {
-   "s": "Punya karya? Pamerkan di sini.",
-   "n": 1
-  },
-  {
    "s": "Punya kode dari promo atau kampanye? Periksa di sini.",
    "n": 1
   },
@@ -7900,6 +7900,10 @@
   },
   {
    "s": "Tidak sesuai deskripsi",
+   "n": 1
+  },
+  {
+   "s": "Tidak tertarik",
    "n": 1
   },
   {

@@ -60,7 +60,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
   }, [item?.id, revision])
 
   const handleSubmit = useCallback(async () => {
-    if (!item || submitting) return
+    if (!item || submitting || reported) return
     if (!hasSession) {
       onRequestClose()
       // C-03 (audit 2026-09-23): tujuan kembali = halaman detail item ini.
@@ -96,7 +96,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
       if (task.valid()) setSubmitting(false)
       task.finish()
     }
-  }, [item, submitting, reason, detail, toast, onRequestClose, hasSession, operation])
+  }, [item, submitting, reason, detail, toast, onRequestClose, hasSession, operation, reported])
 
   return (
     <BottomSheet
@@ -117,7 +117,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
           loading={submitting}
           // F-02: submit butuh alasan yang DIPILIH (kecuali jalur tamu = ajakan
           // login yang tidak mengirim apa pun).
-          disabled={hasSession && !reason}
+          disabled={reported || (hasSession && !reason)}
           onPress={() => void handleSubmit()}
         >
           {hasSession ? translate("Kirim Laporan") : translate("Masuk untuk melaporkan")}

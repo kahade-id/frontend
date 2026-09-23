@@ -24,7 +24,11 @@
  * dilihat <Tabs> di perangkat.
  */
 import { render, waitFor } from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, it } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+
+import type { ReactNode, ComponentType } from "react"
+vi.mock("@/components/ui/icon", () => ({ Icon: ({ icon: Glyph }: { icon: ComponentType }) => <Glyph /> }))
+vi.mock("@/components/ui/text", () => ({ Text: ({ variant, children }: { variant: string; children: ReactNode }) => <span data-variant={variant}>{children}</span> }))
 
 import { Tabs, type TabItem } from "@/components/ui/tabs"
 
@@ -146,4 +150,25 @@ describe("<Tabs> indikator aktif", () => {
     rerender(<Tabs items={ITEMS} value="about" onChange={() => {}} />)
     await waitFor(() => expect(indicator.style.transform).toMatch(/translateX\(300px\)/))
   })
+})
+
+it("feed label sizing is opt-in; profile labels keep the body variant", () => {
+  const { container, rerender } = render(<Tabs items={ITEMS} value="content" onChange={() => {}} />)
+  expect(container.querySelector('[data-variant=bodyLarge]')).toBeNull()
+  expect(container.querySelectorAll('[data-variant=body]').length).toBe(4)
+  rerender(<Tabs items={ITEMS} value="content" onChange={() => {}} activeIconOnly largeLabels />)
+  expect(container.querySelectorAll('[data-variant=bodyLarge]').length).toBe(4)
+  rerender(<Tabs items={ITEMS} value="content" onChange={() => {}} />)
+  expect(container.querySelector('[data-variant=bodyLarge]')).toBeNull()
+})
+
+it("active-only icons collapse inactive slots and move to the selected tab", async () => {
+  const { Sparkle } = await import("phosphor-react-native")
+  const items = ITEMS.map(item => ({ ...item, icon: Sparkle }))
+  const { container, rerender } = render(<Tabs items={items} value="content" onChange={() => {}} activeIconOnly />)
+  const slots = () => Array.from(container.querySelectorAll('[data-icon="Sparkle"]')).map(icon => icon.parentElement as HTMLElement)
+  await waitFor(() => expect(slots().map(slot => slot.style.width)).toEqual(["24px", "0px", "0px", "0px"]))
+  rerender(<Tabs items={items} value="ratings" onChange={() => {}} activeIconOnly />)
+  await waitFor(() => expect(slots().map(slot => slot.style.width)).toEqual(["0px", "0px", "24px", "0px"]))
+  expect(slots().map(slot => slot.style.opacity)).toEqual(["0", "0", "1", "0"])
 })
