@@ -99,6 +99,11 @@ const COGNATE_ALLOWLIST = new Map([
   ["{x}. {y}", "hanya token + pemisah"],
   ["{x}: {y}", "hanya token + pemisah"],
   ["Item {x}", "hanya token + kata benda yang sama di EN"],
+  // Mode E-Wallet memakai istilah produk yang sama di kedua bahasa.
+  ["E-Commerce", "nama mode produk"],
+  ["E-Wallet", "nama mode produk"],
+  ["Wallet", "nama slot mode, sama di EN"],
+  ["History", "nama slot mode, sama di EN"],
 ])
 
 const seen = new Map()

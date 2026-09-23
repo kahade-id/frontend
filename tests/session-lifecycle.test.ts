@@ -65,10 +65,11 @@ describe("B-05: snapshot sesi ternormalisasi", () => {
 })
 
 describe("B-06: preferensi akun dibersihkan, preferensi perangkat tidak", () => {
-  it("clearSession membuang snooze ulasan tetapi mempertahankan balanceHidden/transactionsTab", async () => {
+  it("clearSession membuang snooze ulasan tetapi mempertahankan balanceHidden/transactionsTab/appMode", async () => {
     setUiPrefs({
       balanceHidden: true,
       transactionsTab: "seller",
+      appMode: "wallet",
       ratingSnoozeUntil: { "order-1": Date.now() + 60_000 },
     })
 
@@ -78,5 +79,6 @@ describe("B-06: preferensi akun dibersihkan, preferensi perangkat tidak", () => 
     expect(prefs.ratingSnoozeUntil).toEqual({})
     expect(prefs.balanceHidden).toBe(true)
     expect(prefs.transactionsTab).toBe("seller")
+    expect(prefs.appMode).toBe("wallet")
   })
 })

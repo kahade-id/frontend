@@ -72,6 +72,7 @@ import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Screen } from "@/components/ui/screen"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { ShowcaseHeader } from "@/components/ui/showcase-header"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { TextArea } from "@/components/ui/text-area"
@@ -87,7 +88,12 @@ export default function DiscoverScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header showBack={false} title="Temukan pengguna" left={<Icon icon={UsersThree} size="md" tone="active" />} />
+      <Header
+        showBack={false}
+        title="Temukan pengguna"
+        modeSwitcher
+        left={<Icon icon={UsersThree} size="md" tone="active" />}
+      />
       <UsersTab bottomPadding={insets.bottom + tokens.space[8]} />
     </Screen>
   )
@@ -600,6 +606,7 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
         </Animated.View>
       </Animated.View>
 
+      <ModeShiftFade>
       <PaginatedList
         data={items}
         loading={loading}
@@ -661,6 +668,7 @@ export function ShowcaseFeedTab({ bottomPadding }: { bottomPadding: number }) {
           />
         )}
       />
+      </ModeShiftFade>
 
       {/* Komentar dibaca & ditulis di sheet — pengguna tidak kehilangan posisi feed. */}
       <ShowcaseCommentsSheet

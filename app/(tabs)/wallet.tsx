@@ -49,6 +49,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
+import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { HomeOverviewCard } from "@/components/ui/home-overview-card"
 import { RouteLink } from "@/components/ui/route-link"
@@ -119,12 +120,20 @@ export default function WalletScreen() {
 
   // Tamu: kartu saldo kosong/"Rp 0" akan menyesatkan — tampilkan ajakan masuk
   // (komponen yang sama dengan gate root layout) alih-alih dompet palsu.
-  if (!hasSession) return <GuestLoginPrompt next="/wallet" />
+  if (!hasSession) {
+    return (
+      <Screen edges={["top"]} padded={false}>
+        <Header showBack={false} title="Dompet" modeSwitcher />
+        <GuestLoginPrompt bare next="/wallet" />
+      </Screen>
+    )
+  }
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header showBack={false} title="Dompet" />
+      <Header showBack={false} title="Dompet" modeSwitcher />
 
+      <ModeShiftFade>
       <PaginatedList
         {...history}
         // Layar ringkasan tidak memuat halaman berikutnya: riwayat lengkap
@@ -227,6 +236,7 @@ export default function WalletScreen() {
           </FadeIn>
         }
       />
+      </ModeShiftFade>
     </Screen>
   )
 }

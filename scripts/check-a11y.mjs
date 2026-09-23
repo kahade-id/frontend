@@ -315,6 +315,7 @@ const CONTAINER_LABEL_ALLOWLIST = {
   "components/ui/showcase-gallery-grid.tsx": "Grid berisi PressableScale per foto; label hanya untuk state loading.",
   "components/ui/radio.tsx": "Grup radio berisi <Radio> (PressableScale role=radio) — `accessible` akan menelan seluruh opsi; label grup justru dipasang agar pembaca layar mengumumkan konteks pertanyaan (F-08).",
   "components/ui/segmented-control.tsx": "Grup segmen berisi PressableScale role=radio per segmen; `accessible` di container akan menelan semua segmen (F-08).",
+  "components/ui/mode-switcher.tsx": "Grup mode berisi PressableScale role=radio per pil; `accessible` di container akan menelan kedua pilihan (F-08).",
 }
 
 const containerSeen = new Set()

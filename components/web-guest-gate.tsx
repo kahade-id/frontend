@@ -16,33 +16,41 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { Screen } from "@/components/ui/screen"
 
-export function GuestLoginPrompt({ next }: { next: string }) {
+export function GuestLoginPrompt({ next, bare = false }: { next: string; bare?: boolean }) {
   const router = useRouter()
   const loginHref = next
     ? ({ pathname: "/login", params: { next } } as const)
     : ROUTES.login
 
+  const body = (
+    <View className="flex-1 justify-center px-5">
+      <EmptyState
+        icon={LockKey}
+        title="Masuk dulu untuk melanjutkan"
+        description="Fitur ini khusus pengguna yang sudah punya akun Kahade. Masuk atau daftar untuk melanjutkan, lalu Anda kembali ke halaman yang dituju."
+        action={
+          <View className="w-full gap-2">
+            <Button onPress={() => router.push(loginHref)}>Masuk</Button>
+            <Button variant="secondary" onPress={() => router.push(ROUTES.register)}>
+              Buat akun baru
+            </Button>
+            <Button variant="ghost" onPress={() => router.replace(ROUTES.home)}>
+              Kembali ke beranda
+            </Button>
+          </View>
+        }
+      />
+    </View>
+  )
+
+  // `bare`: pemanggil sudah punya Screen + header (dan switcher mode), jadi
+  // prompt tidak membungkus ulang — kalau tidak, tamu kehilangan jalan ganti mode.
+  if (bare) return body
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header title="Masuk diperlukan" />
-      <View className="flex-1 justify-center px-5">
-        <EmptyState
-          icon={LockKey}
-          title="Masuk dulu untuk melanjutkan"
-          description="Fitur ini khusus pengguna yang sudah punya akun Kahade. Masuk atau daftar untuk melanjutkan, lalu Anda kembali ke halaman yang dituju."
-          action={
-            <View className="w-full gap-2">
-              <Button onPress={() => router.push(loginHref)}>Masuk</Button>
-              <Button variant="secondary" onPress={() => router.push(ROUTES.register)}>
-                Buat akun baru
-              </Button>
-              <Button variant="ghost" onPress={() => router.replace(ROUTES.home)}>
-                Kembali ke beranda
-              </Button>
-            </View>
-          }
-        />
-      </View>
+      {body}
     </Screen>
   )
 }

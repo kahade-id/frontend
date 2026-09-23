@@ -69,6 +69,8 @@ import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
+import { ModeShiftFade } from "@/components/ui/mode-switcher"
+import { ShellTabBar } from "@/components/ui/shell-tab-bar"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -254,6 +256,7 @@ export default function WalletHistoryScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header
         title="Riwayat Dompet"
+        modeSwitcher
         right={
           <>
             <IconButton
@@ -276,6 +279,7 @@ export default function WalletHistoryScreen() {
         }
       />
 
+      <ModeShiftFade>
       <PaginatedList
         {...query}
         data={groups}
@@ -283,6 +287,7 @@ export default function WalletHistoryScreen() {
         onRetry={query.reload}
         onLoadMore={query.loadMore}
         gap={tokens.space[3]}
+        bottomPadding={tokens.space[4]}
         loadingPlaceholder={<HistorySkeleton />}
         header={
           // v2: filter + ringkasan reveal naik 8px (fast) — konteks "laporan":
@@ -429,6 +434,8 @@ export default function WalletHistoryScreen() {
           )
         }}
       />
+      </ModeShiftFade>
+      <ShellTabBar />
     </Screen>
   )
 }

@@ -56,6 +56,7 @@ import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
 
 import { Logo } from "@/components/ui/logo"
+import { ModeSwitcherBar } from "@/components/ui/mode-switcher"
 import { Avatar } from "@/components/ui/avatar"
 import { NotificationDot } from "@/components/ui/badge"
 import { Icon } from "@/components/ui/icon"
@@ -236,6 +237,8 @@ export function ShowcaseHeader({
           </PressableScale>
         </View>
       </View>
+
+      <ModeSwitcherBar className="px-5 pb-2 pt-1" />
 
       {/* ── Pencarian + kelola showcase ── */}
       <View className="flex-row items-center gap-2.5 px-5 pb-3 pt-1">

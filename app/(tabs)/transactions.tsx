@@ -38,7 +38,7 @@
  */
 import { useState } from "react"
 import { useRouter } from "expo-router"
-import { Copy, Link, MagnifyingGlass, Plus, Receipt, Scales } from "phosphor-react-native"
+import { Copy, Link, MagnifyingGlass, Receipt, Scales } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
 import { formatDateTime } from "@/lib/format"
@@ -54,8 +54,8 @@ import { Chip } from "@/components/ui/chip"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
-import { FAB_SIZE, FloatingActionButton } from "@/components/ui/floating-action-button"
 import { Header } from "@/components/ui/header"
+import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { IconButton } from "@/components/ui/icon-button"
 import { OrderCard } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
@@ -155,12 +155,20 @@ export default function TransactionsScreen() {
     },
   )
   const filtered = status !== ALL_STATUS || Boolean(debounced)
-  if (!hasSession) return <GuestLoginPrompt next="/transactions" />
+  if (!hasSession) {
+    return (
+      <Screen edges={["top"]} padded={false}>
+        <Header title="Transaksi" showBack={false} modeSwitcher />
+        <GuestLoginPrompt bare next="/transactions" />
+      </Screen>
+    )
+  }
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
         title="Transaksi"
         showBack={false}
+        modeSwitcher
         right={
           <>
             <IconButton
@@ -190,6 +198,7 @@ export default function TransactionsScreen() {
           </>
         }
       />
+      <ModeShiftFade>
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
           harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
           animation dari dalam <PaginatedList> (hanya saat tambah/hapus). */}
@@ -224,9 +233,7 @@ export default function TransactionsScreen() {
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
-        // FAB melayang DI ATAS list: sisakan tinggi FAB + offset bawahnya
-        // + satu gap, supaya baris terakhir tidak tertutup tombol.
-        bottomPadding={FAB_SIZE + tokens.space[4] + tokens.space[8]}
+        bottomPadding={tokens.space[8]}
         empty={
           <EmptyState
             icon={Receipt}
@@ -287,15 +294,7 @@ export default function TransactionsScreen() {
           )
         }}
       />
-      <FloatingActionButton
-        icon={Plus}
-        accessibilityLabel="Buat Transaksi"
-        label="Buat Transaksi"
-        extended={query.data.length === 0 && !query.loading}
-        onPress={() => router.push(ROUTES.createTransaction)}
-        bottomOffset={tokens.space[4]}
-        safeArea={false}
-      />
+      </ModeShiftFade>
     </Screen>
   )
 }
