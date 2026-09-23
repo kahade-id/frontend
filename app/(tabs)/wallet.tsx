@@ -21,6 +21,9 @@
  *  - Tab ini sengaja TIDAK memuat riwayat panjang: `limit` 10 dan
  *    `hasMore={false}` — riwayat lengkap (paginasi + filter jenis + unduh
  *    CSV/PDF) hidup di /wallet-history, satu daftar.
+ *  - ModeSwitcher TIDAK ada di header ini lagi (2026-09-23): satu-satunya
+ *    switch mode kini halaman profil sendiri, supaya satu kontrol punya satu
+ *    rumah. Slot navbar bawah tetap mengikuti mode.
  *  - Pull-to-refresh me-refresh saldo DAN riwayat bersamaan (`Promise.all`).
  */
 
@@ -49,7 +52,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
-import { ModeShiftFade, ModeSwitcher } from "@/components/ui/mode-switcher"
+import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { HomeOverviewCard } from "@/components/ui/home-overview-card"
 import { RouteLink } from "@/components/ui/route-link"
@@ -123,7 +126,7 @@ export default function WalletScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header showBack={false} title="Dompet" right={<ModeSwitcher />} />
+        <Header showBack={false} title="Dompet" />
         <GuestLoginPrompt bare next="/wallet" />
       </Screen>
     )
@@ -131,7 +134,7 @@ export default function WalletScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header showBack={false} title="Dompet" right={<ModeSwitcher />} />
+      <Header showBack={false} title="Dompet" />
 
       <ModeShiftFade>
       <PaginatedList

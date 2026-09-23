@@ -557,7 +557,10 @@ const LINE_CEILING = new Map([
   // dan dua blok impor dipadatkan -> 1474. Plafon TURUN mengikuti fakta.
   // 2026-09-23: navbar shell profil kini tampil sejak frame pertama (param
   // `self` + isSelf tanpa menunggu profile) -> 1456.
-  ["app/user/[username].tsx", 1439],
+  // 2026-09-23b: tanda [+] kiri profil diganti ModeSwitcher (impor + header
+  // diringkas) -> 1433.
+  ["app/user/[username].tsx", 1433],
+  // 2026-09-23b: removeClippedSubviews dihapus (fix scroll blank Android).
   ["app/chat/[roomId].tsx", 1194],
   // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
   // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
@@ -568,7 +571,8 @@ const LINE_CEILING = new Map([
   // Batch G (G-01): deskripsi sheet usulan penyelesaian memakai translate() dan
   // konstanta tipe berkas dipadatkan -> 917. Plafon TURUN mengikuti fakta.
   ["app/dispute/[id].tsx", 917],
-  ["app/showcase/[id].tsx", 893],
+  // 2026-09-23b: baris aksi suka diganti <LikeAction> (blok inline hilang) -> 871.
+  ["app/showcase/[id].tsx", 871],
   // H-04 (audit 2026-09-22): PullToRefresh 881 baris menyembunyikan mesin
   // gestur PanResponder di dalam satu komponen monolitik. Layar-layar sudah
   // dipantau sejak lama, komponennya belum — masuk daftar pada ukuran

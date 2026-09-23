@@ -204,8 +204,11 @@ export function ShowcaseCommentsSheet({
         )
       }
     >
-      {/* Separator di header komentar — inset selaras list px-5 */}
-      <Divider className="mx-5 mb-3" />
+      {/* Pemisah di bawah title — FULL-BLEED (revisi 2026-09-23: dulu inset
+          mx-5 mulai dari tepi teks komentar; permintaan produk: garis ini
+          menyambung dua tepi layar seperti header sheet, bukan mengikuti
+          indent konten). */}
+      <Divider className="mb-3" />
 
       {loading ? (
         <SkeletonGroup className="gap-4 px-5 py-2">
@@ -244,6 +247,10 @@ export function ShowcaseCommentsSheet({
           showsVerticalScrollIndicator={false}
         >
           <View className="gap-4 px-5 pb-6 pt-1">
+            {/* Pemisah antar komentar DIHAPUS (2026-09-23): jarak (gap-4) cukup
+                memisahkan utas; satu-satunya garis di sheet ini adalah di bawah
+                title (full-bleed) dan border atas footer komposer — "atas aksi
+                paling bawah". */}
             {comments.map((root) => (
               <View key={root.id} className="gap-4">
                 <ShowcaseCommentRow comment={root} />
@@ -251,9 +258,6 @@ export function ShowcaseCommentsSheet({
                   // Indent 32px = avatar xs (24) + gap (8) — sejajar teks induk, selaras title px-5.
                   <ShowcaseCommentRow key={reply.id} comment={reply} className="ml-8" />
                 ))}
-                {/* Bingkai bawah komentar terakhir — konsisten dengan garis atas
-                    & antar item (v2 2026-09, separasi BottomSheet). */}
-                <Divider />
               </View>
             ))}
             {maybeMore ? (

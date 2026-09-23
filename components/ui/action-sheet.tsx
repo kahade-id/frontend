@@ -7,8 +7,9 @@
  *
  * Keputusan non-obvious:
  *   - Setiap aksi adalah baris penuh (min-h 52px) dengan ikon kiri opsional,
- *     dipisah <Divider>. Bukan grid ikon ala iOS share sheet — konsisten
- *     dengan List Item (§9.17) & mudah dibaca satu tangan.
+ *     TANPA garis pemisah antar baris (revisi 2026-09-23 — hanya dua divider:
+ *     di bawah title & di atas aksi terbawah). Bukan grid ikon ala iOS share
+ *     sheet — konsisten dengan List Item (§9.17) & mudah dibaca satu tangan.
  *   - `scaleOnPress={false}`: baris lebar penuh yang mengecil 3% terlihat
  *     "goyang"; feedback pressed cukup `active:bg-surface` (kontras fill).
  *   - Aksi destruktif memakai teks `danger` DAN ikon tone danger — satu-
@@ -23,10 +24,10 @@
  *     kedua bersaing dengan aksi terakhir. `cancelLabel` + `showCancel`
  *     dipertahankan bagi pemanggil yang memang butuh (mis. menolak/membatalkan
  *     aksi, bukan sekadar menutup sheet).
- *   - Separator antar aksi full-bleed: garis teratas (di bawah header) dan
- *     terbawah (di atas safe-area) ikut dirender, sehingga baris pertama &
- *     terakhir punya "bingkai" seperti baris tengah — bukan hanya di antara
- *     baris (§6 separasi konsisten).
+ *   - Separator antar aksi dihapus (2026-09-23): garis teratas (di bawah
+ *     header) dan satu garis di atas aksi TERAKHIR dipertahankan — baris
+ *     pertama tetap terbingkai dan baris paling bawah tetap diberi aksen,
+ *     tanpa deretan garis di antaranya (permintaan produk: list sheet tenang).
  *   - Focus ring keyboard (web saja) `focusRingInset`: baris lebar penuh di
  *     dalam sheet yang `overflow-hidden` (radius atas) — ring luar terpotong.
  */
@@ -95,11 +96,15 @@ export function ActionSheet({
       {...sheetProps}
     >
       <View accessibilityRole="menu">
-        {/* Garis pembatas penuh tepat di bawah header: baris aksi PERTAMA juga
-            terbingkai konsisten dengan baris-baris di antaranya (v2 2026-09). */}
+        {/* Revisi 2026-09-23: pemisah antar baris DIHAPUS — list tenang tanpa
+            garis berulang. Yang tersisa TEPAT DUA (permintaan produk): satu di
+            bawah title (bingkai atas grup aksi) dan satu di ATAS aksi paling
+            bawah (aksen "baris terakhir berbeda", pola menu iOS untuk aksi
+            destruktif/terpisah). */}
         {actions.length > 0 ? <Divider /> : null}
-        {actions.map((item) => (
+        {actions.map((item, index) => (
           <View key={item.key}>
+            {index === actions.length - 1 && actions.length > 1 ? <Divider /> : null}
             <PressableScale
               accessibilityRole="menuitem"
               scaleOnPress={false}
@@ -132,7 +137,6 @@ export function ActionSheet({
                 ) : null}
               </View>
             </PressableScale>
-            <Divider />
           </View>
         ))}
       </View>

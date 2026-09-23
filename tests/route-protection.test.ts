@@ -43,6 +43,7 @@ const PUBLIC_SCREENS = new Set<string>([
   "(auth)/verify-otp",
   "(auth)/whatsapp-trigger",
   // Konten publik/legal/corong akuisisi
+  "home", // redirect /home → /showcase (Beranda dihapus 2026-09-23); publik seperti tujuannya
   "about",
   "app-version", // info versi (GET /v1/public/app-version, auth none)
   "appearance", // preferensi tema lokal, tanpa API ber-auth

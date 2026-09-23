@@ -1,224 +1,82 @@
 /**
- * Kahade — <ShowcaseHeader> (bar atas tab Etalase; revisi 2026-09-23).
+ * Kahade — <ShowcaseHeader> (bar atas tab Etalase; revisi 2026-09-23b).
  *
- * Layout: [Logo] [Balance pill flex-1] [ModeSwitcher] [Bell]
- *   + baris pencarian (+ kelola etalase) + strip tab feed yang bisa di-scroll.
+ * Layout (permintaan produk 2026-09-23):
  *
- * Revisi 2026-09-23 — header dirampingkan agar switcher mode muat DI DALAM
- * baris atas (permintaan: switcher kecil, satu, di header halaman mode):
- *   1. ModeSwitcher E-Commerce ⇄ E-Wallet kini pil kompak ber-ikon
- *      (CardsThree/Wallet) yang menempel di baris atas — menggantikan baris
- *      pil lebar penuh di bawahnya. Ikon CardsThree = ikon "Etalase" yang
- *      sama dengan slot primer navbar bawah, jadi switcher terbaca sebagai
- *      keluarga ikon yang sama.
- *   2. Gift & avatar keluar dari baris atas: voucher/promo sudah punya rumah
- *      di tab Promo (mode wallet), dan profil ada di slot Profil navbar —
- *      mengulang keduanya di sini membuat baris atas penuh dan switcher
- *      tidak kebagian tempat. Bell tetap: satu-satunya pintu notifikasi
- *      mode commerce.
- *   3. Balance pill tetap kartu putih berpola kartu (`bg-background` +
- *      `border-border`) — jembatan cepat ke dompet dari mode belanja: tap
- *      isi nominalnya membuka tab Dompet, (+) membuka isi saldo.
- *   4. Semua hex literal tetap dilarang (`npm run check:tokens`);
- *      `shadow-sm`/`rounded-xl` tetap tidak ada (lihat tailwind.config).
+ *      [ ✎ kelola ]  [ (logo) ]  [ 🔔 notifikasi ]
+ *      [ tab feed: Untuk Anda · Mengikuti · Terbaru · Populer ]
  *
- * Titik unread memakai <NotificationDot> (§9.14) — komponen yang sama dengan
- * badge tab bawah, bukan dot hijau custom; status "ada yang baru" = danger,
- * bukan success. Target sentuh 40px dinaikkan ke ≥44 lewat `hitSlop` (§a11y)
- * supaya baris tetap ramping.
+ *   1. Baris atas TIGA elemen simetris: pensil (kelola/buat etalase) di kiri,
+ *      logo Kahade tepat di tengah, lonceng notifikasi di kanan. Kedua ikon
+ *      memakai weight "bold" (BUKAN fill) dan TANPA background — jejak
+ *      visualnya satu guratan, bukan kartu/kotak berisi.
+ *   2. Balance pill DIHAPUS dari header: saldo bukan konteks etalase; angka
+ *      dompet tetap hidup di tab Dompet (mode wallet).
+ *   3. Baris pencarian + tombol (+) DIHAPUS. Pencarian dipusatkan di SATU
+ *      layar (`/search`, pintu dari tab Transaksi) yang kini juga mencari
+ *      postingan etalase; kelola etalase pindah ke ikon pensil di baris atas.
+ *   4. ModeSwitcher DIHAPUS dari sini — satu-satunya rumah switch mode kini
+ *      halaman profil sendiri (app/user/[username].tsx).
+ *   5. Strip tab feed tetap: satu-satunya kontrol memilih jenis feed.
+ *
+ * Semua hex literal tetap dilarang (`npm run check:tokens`);
+ * `shadow-sm`/`rounded-xl` tetap tidak ada (lihat tailwind.config).
  */
 
-import { useCallback } from "react"
 import { View, ScrollView } from "react-native"
 import { useRouter } from "expo-router"
-import { translate } from "@/lib/i18n/translate"
 import {
   Bell,
   ClockCounterClockwise,
-  MagnifyingGlass,
-  Plus,
+  PencilSimple,
   Sparkle,
   TrendUp,
   Users,
 } from "phosphor-react-native"
 
-import { api, type Wallet as WalletData } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
-import { queryKeys } from "@/lib/query-keys"
-import { formatRupiah } from "@/lib/format"
-import { useHasSession } from "@/lib/guest-gate"
-import { useApiQuery } from "@/lib/use-api-query"
 import { useUnreadCountState } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
+import { translate } from "@/lib/i18n"
 
 import { Logo } from "@/components/ui/logo"
-import { ModeSwitcher } from "@/components/ui/mode-switcher"
 import { NotificationDot } from "@/components/ui/badge"
 import { Icon } from "@/components/ui/icon"
-import { Input } from "@/components/ui/input"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
-import { Skeleton } from "@/components/ui/skeleton"
+import type { IconComponent } from "@/components/ui/icon"
 
 export type ShowcaseFeedKind = "forYou" | "following" | "latest" | "popular"
 
 export type ShowcaseHeaderProps = {
-  search: string
-  onSearchChange: (v: string) => void
   kind: ShowcaseFeedKind
   onKindChange: (k: ShowcaseFeedKind) => void
   tabs: readonly { value: ShowcaseFeedKind; label: string }[]
 }
 
-const TAB_ICONS: Record<ShowcaseFeedKind, typeof Sparkle> = {
+const TAB_ICONS: Record<ShowcaseFeedKind, IconComponent> = {
   forYou: Sparkle,
   following: Users,
   latest: ClockCounterClockwise,
   popular: TrendUp,
 }
 
-/** Kotak visual aksi di bar atas (logo, bell) = 40px. */
+/** Kotak aksi kiri/kanan 40px — pasangan simetris agar logo benar-benar tengah. */
 const ACTION_BOX = 40
 const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
-export function ShowcaseHeader({
-  search,
-  onSearchChange,
-  kind,
-  onKindChange,
-  tabs,
-}: ShowcaseHeaderProps) {
+export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps) {
   const router = useRouter()
   const unread = useUnreadCountState()
-  // B-02 (pola audit): /showcase terproteksi untuk tamu web, tetapi layar
-  // tetap ter-mount di belakang gate — query saldo digate sesi supaya tamu
-  // yang tersesat ke sini tidak memanen 401 → refresh di balik overlay.
-  const hasSession = useHasSession()
-
-  const walletQuery = useApiQuery<WalletData>(
-    queryKeys.wallet(),
-    (signal) => api.wallet.getWallet(signal),
-    hasSession,
-    { refreshOnFocus: true },
-  )
-
-  const balance = walletQuery.data?.availableBalance ?? 0
-  const balanceText = walletQuery.loading
-    ? "Rp—"
-    : formatRupiah(balance, { compact: balance >= 1_000_000 })
-
-  const handleBalancePress = useCallback(() => {
-    router.push(ROUTES.wallet)
-  }, [router])
-
-  const handleTopupPress = useCallback(() => {
-    router.push(ROUTES.topup)
-  }, [router])
 
   return (
     <View className="bg-background">
-      {/* ── Baris atas: logo · saldo · switcher mode · notifikasi ── */}
-      <View className="w-full flex-row items-center gap-3 px-5 pb-2.5 pt-3">
-        {/* Logo — mark polos 40px setinggi foto profil, warna dari token */}
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel="Kahade, kembali ke beranda"
-          accessibilityHint="Buka beranda"
-          haptic
-          hitSlop={ACTION_HIT_SLOP}
-          onPress={() => router.push(ROUTES.home)}
-          containerClassName={cn("rounded-md", focusRing)}
-        >
-          <Logo variant="mark" size="md" />
-        </PressableScale>
-
-        {/* Balance pill — hanya nominal + isi saldo. Tetap kartu putih
-            (`bg-background` + border token) supaya tetap jadi satu-satunya
-            angka yang menonjol di baris ini; yang abu cukup tombol ikonnya. */}
-        <View className="h-10 flex-1 flex-row items-center gap-1 rounded-full border border-border bg-background pr-1 pl-4">
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={translate("Saldo {x}, buka dompet", { x: balanceText })}
-            accessibilityHint="Buka dompet"
-            haptic
-            onPress={handleBalancePress}
-            containerClassName={cn("h-10 flex-1 justify-center rounded-full", focusRing)}
-            className="min-w-0 flex-row items-center"
-          >
-            {walletQuery.loading ? (
-              <Skeleton className="h-3.5 w-14 rounded-full" />
-            ) : (
-              <Text variant="body" weight={700} numberOfLines={1} className="min-w-0 shrink">
-                {balanceText}
-              </Text>
-            )}
-          </PressableScale>
-
-          {/* Isi saldo */}
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel="Isi saldo"
-            accessibilityHint="Buka halaman isi saldo"
-            haptic
-            hitSlop={ACTION_HIT_SLOP}
-            onPress={handleTopupPress}
-            containerClassName={cn("rounded-full", focusRing)}
-            className="h-7 w-7 items-center justify-center rounded-full bg-primary"
-          >
-            <Icon icon={Plus} size={14} weight="bold" tone="inverse" />
-          </PressableScale>
-        </View>
-
-        {/* Aksi kanan — switcher mode (pil kompak) + lonceng notifikasi.
-            Switcher DI DALAM baris atas: satu-satunya tempat pergantian mode
-            di halaman Etalase, sejajar dengan aksi lain, bukan baris sendiri
-            yang memakan tinggi header. */}
-        <View className="flex-row items-center gap-2">
-          <ModeSwitcher />
-
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={
-              unread.count
-                ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
-                : "Notifikasi"
-            }
-            accessibilityHint="Buka notifikasi"
-            haptic
-            hitSlop={ACTION_HIT_SLOP}
-            onPress={() => router.push(ROUTES.notifications)}
-            containerClassName={cn("rounded-full", focusRing)}
-            className="h-10 w-10 items-center justify-center rounded-full bg-surface"
-          >
-            <View className="relative">
-              <Icon icon={Bell} size={20} weight="fill" tone="active" />
-              <NotificationDot visible={(unread.count ?? 0) > 0} />
-            </View>
-          </PressableScale>
-        </View>
-      </View>
-
-      {/* ── Pencarian + kelola etalase ── */}
-      <View className="flex-row items-center gap-2.5 px-5 pb-3 pt-1">
-        <View className="flex-1">
-          <Input
-            variant="search"
-            maxLength={100}
-            value={search}
-            onChangeText={onSearchChange}
-            placeholder="Cari produk atau penjual"
-            accessibilityLabel="Cari di etalase"
-            leftIcon={MagnifyingGlass}
-            clearable
-            frame="none"
-            className="rounded-full bg-surface"
-            containerClassName="rounded-full"
-          />
-        </View>
-
+      {/* ── Baris atas: kelola (pensil) · logo · notifikasi ── */}
+      <View className="w-full flex-row items-center justify-between px-5 pb-2.5 pt-3">
+        {/* Kelola/buat etalase — bold, tanpa latar (permintaan produk). */}
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Kelola etalase saya"
@@ -226,10 +84,44 @@ export function ShowcaseHeader({
           haptic
           hitSlop={ACTION_HIT_SLOP}
           onPress={() => router.push(ROUTES.showcaseManagement)}
-          containerClassName={cn("rounded-full", focusRing)}
-          className="h-10 w-10 items-center justify-center rounded-full bg-primary"
+          containerClassName={cn("rounded-md", focusRing)}
+          className="h-10 w-10 items-center justify-center"
         >
-          <Icon icon={Plus} size={20} weight="bold" tone="inverse" />
+          <Icon icon={PencilSimple} size="md" weight="bold" tone="active" />
+        </PressableScale>
+
+        {/* Logo — pusat baris. Dulu tombol "kembali ke beranda"; Beranda
+            sudah tidak ada dan halaman ini ADALAH tab pertama, jadi logo
+            kembali menjadi tanda blok jurnalistik (bukan tombol). */}
+        <View
+          accessible
+          accessibilityRole="image"
+          accessibilityLabel="Kahade"
+          className="flex-1 items-center"
+        >
+          <Logo variant="mark" size="md" />
+        </View>
+
+        {/* Notifikasi — bold, tanpa latar; titik unread dari store yang sama
+            dengan badge tab (§9.14), bukan dot custom. */}
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={
+            unread.count
+              ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
+              : "Notifikasi"
+          }
+          accessibilityHint="Buka notifikasi"
+          haptic
+          hitSlop={ACTION_HIT_SLOP}
+          onPress={() => router.push(ROUTES.notifications)}
+          containerClassName={cn("rounded-md", focusRing)}
+          className="h-10 w-10 items-center justify-center"
+        >
+          <View className="relative">
+            <Icon icon={Bell} size="md" weight="bold" tone="active" />
+            <NotificationDot visible={(unread.count ?? 0) > 0} />
+          </View>
         </PressableScale>
       </View>
 

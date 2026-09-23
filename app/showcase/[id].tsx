@@ -14,8 +14,6 @@ import {
   ChatCircle,
   Export,
   Flag,
-  Heart,
-  HeartStraight,
   PaperPlaneRight,
   Trash,
 } from "phosphor-react-native"
@@ -58,6 +56,7 @@ import { useDocumentTitle } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
+import { LikeAction } from "@/components/ui/like-button"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { Dialog } from "@/components/ui/modal"
@@ -584,32 +583,11 @@ function ShowcaseDetailContent({
       {/* Separator atas aksi — inset mx-5, bukan full */}
       <Divider inset className="mt-4" />
 
-      {/* ── Baris aksi sosial — count di samping ikon (horizontal) ── */}
+      {/* ── Baris aksi sosial — count di samping ikon (horizontal) ──
+          Suka memakai <LikeAction>: merah + motion pop/ring, paritas dengan
+          kartu feed (permintaan produk 2026-09-23). */}
       <View className="flex-row items-center px-2 pt-1">
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
-          accessibilityHint={translate("{x} suka", { x: formatCountCompact(likeCount) })}
-          onPress={toggleLike}
-          containerClassName={cn(
-            "min-h-11 flex-row items-center rounded-md px-3",
-            focusRing,
-          )}
-          className="flex-row items-center gap-1.5"
-        >
-          <Icon
-            icon={liked ? Heart : HeartStraight}
-            size="md"
-            tone="active"
-            weight={liked ? "fill" : "regular"}
-          />
-          <Text variant="caption" weight={600} className="tabular-nums">
-            {formatCountCompact(likeCount)}
-          </Text>
-          <Text variant="caption" tone="secondary">
-            Suka
-          </Text>
-        </PressableScale>
+        <LikeAction liked={liked} count={likeCount} label="Suka" onPress={toggleLike} />
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Tulis komentar"

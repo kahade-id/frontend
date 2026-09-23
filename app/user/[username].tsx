@@ -8,7 +8,7 @@ import { useProfileShowcase } from "@/lib/use-profile-showcase"
  *  - Identitas: Nama lengkap & @username berdekatan, bio multi-line.
  *  - Statistik interaktif (Mengikuti, Pengikut, Ulasan, Skor) di bawah bio.
  *  - Aksi: [Edit profil] untuk diri sendiri; [Ikuti] + [Kirim Pesan] untuk orang lain.
- *  - Tab navigasi in-page: Etalase, Tanya Jawab, Ulasan, Tentang via <Tabs>.
+ *  - Tab navigasi in-page: Etalase, Utas (QEtalase, Tanya Jawab, Ulasan, TentangA), Ulasan, Tentang via <Tabs>.
  *  - Bottom Nav Bar hanya dirender untuk PROFIL SENDIRI.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -26,7 +26,6 @@ import {
   IdentificationBadge,
   Image as ImageIcon,
   PencilSimple,
-  Plus,
   Prohibit,
   SealCheck,
   ShareNetwork,
@@ -79,6 +78,7 @@ import { ProfileAboutTab } from "@/components/ui/profile-about-tab"
 import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
 import { ProfileRatingsTab } from "@/components/ui/profile-ratings-tab"
 import { Screen } from "@/components/ui/screen"
+import { ModeSwitcher } from "@/components/ui/mode-switcher"
 import { ShareSheetTrigger } from "@/components/ui/share-sheet-trigger"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
@@ -95,7 +95,7 @@ type ProfileTab = "content" | "questions" | "ratings" | "about"
  */
 const PROFILE_TABS = [
   { value: "content", label: "Etalase" },
-  { value: "questions", label: "Tanya Jawab" },
+  { value: "questions", label: "Utas" },
   { value: "ratings", label: "Ulasan" },
   { value: "about", label: "Tentang" },
 ] as const satisfies readonly { value: ProfileTab; label: string }[]
@@ -695,25 +695,19 @@ export default function UserProfileScreen() {
         {/* ── Top Bar (di atas cover) ──────────────────────────
             <Header transparent>: @username PUSAT di bar — satu-satunya
             tempat username ditulis (baris identitas di bawah hanya nama).
-            Navigasi ghost TANPA kartu di kiri, ⋮ ghost di kanan; profil
-            sendiri memakai [+] ke manajemen etalase. Bagikan turun ke
-            baris aksi (sejajar ♡ / 🔖). Judul dikosongkan bila param
-            username kosong (deep link rusak) — "@" sendirian lebih buruk. */}
+            Navigasi ghost TANPA kartu: profil sendiri memakai switch mode
+            (Etalase ⇄ Dompet — satu-satunya rumah ModeSwitcher sejak
+            2026-09-23, menggantikan tanda [+] yang pindah ke ikon pensil
+            header Etalase); profil orang lain tetap ikon Back. ⋮ ghost di
+            kanan. Bagikan turun ke baris aksi (sejajar ♡ / 🔖). Judul
+            dikosongkan bila param username kosong (deep link rusak) — "@"
+            sendirian lebih buruk. */}
         <Header
           transparent
           title={handle ? `@${handle}` : undefined}
           showBack={!isSelf}
           onBack={() => goBackOrNavigate(ROUTES.home)}
-          left={
-            isSelf ? (
-              <IconButton
-                icon={Plus}
-                variant="ghost"
-                accessibilityLabel="Tambah etalase"
-                onPress={() => router.push(ROUTES.showcaseManagement)}
-              />
-            ) : undefined
-          }
+          left={isSelf ? <ModeSwitcher /> : undefined}
           right={
             profile ? (
               isSelf ? (
@@ -1044,7 +1038,7 @@ export default function UserProfileScreen() {
               />
             ) : null}
 
-            {/* ── Tab Content 2: Tanya Jawab (Q&A) ──────────────── */}
+            {/* ── Tab Content 2: Utas (QTab Content 2: Tanya Jawab (Q&A)A, mantan "Tanya Jawab") ──────────────── */}
             {activeTab === "questions" ? (
               <View className="px-5 pt-4 gap-4">
                 {/*

@@ -1,28 +1,33 @@
 /**
- * Layar Stack — Pencarian global (pengguna, pesanan, mutasi, artikel bantuan).
+ * Layar Stack — Pencarian global (pengguna, POSTINGAN etalase, pesanan,
+ * mutasi, artikel bantuan).
+ *
+ * Revisi 2026-09-23: kolom pencarian di header Etalase DIHAPUS — layar INI
+ * satu-satunya pusat pencarian app (permintaan produk). Karena itu kini
+ * mencari juga postingan etalase (GET /v1/showcase/feed?search=…, publik).
  *
  * Anatomi: kolom cari → (saat ada kata kunci) chip cakupan + chip saran →
  * hasil berkelompok → (saat kolom kosong) riwayat pencarian.
  *
  * Keputusan desain:
- *   - CAKUPAN bisa dipersempit (Semua | Pengguna | Pesanan | Mutasi) dan
- *     dikirim sebagai parameter `types` ke `GET /v1/search` — endpoint itu
- *     memang menerima daftar jenis, dan versi lama selalu mengirim ketiganya
- *     lalu membuang sebagian hasilnya di klien. Menyaring di server berarti
- *     jatah `limit: 20` dipakai untuk jenis yang benar-benar diminta, bukan
- *     habis dibagi tiga: mencari "budi" dengan cakupan Pengguna kini bisa
- *     mengembalikan 20 orang, bukan 20 hasil campur yang kebetulan berisi
- *     beberapa orang.
+ *   - CAKUPAN bisa dipersempit (Semua | Pengguna | Postingan | Pesanan |
+ *     Mutasi). Untuk jenis yang memang didukung `GET /v1/search`, cakupan
+ *     dikirim sebagai parameter `types` — endpoint itu menerima daftar jenis,
+ *     dan versi lama selalu mengirim semuanya lalu membuang sebagian hasilnya
+ *     di klien. Menyaring di server berarti jatah `limit: 20` dipakai untuk
+ *     jenis yang benar-benar diminta: mencari "budi" dengan cakupan Pengguna
+ *     kini bisa mengembalikan 20 orang, bukan 20 hasil campur yang kebetulan
+ *     berisi beberapa orang.
+ *   - Postingan TIDAK lewat /v1/search (jenis itu tidak ada di endpoint
+ *     tersebut) — ia memakai feed etalase dengan parameter `search`, pola
+ *     yang sama dengan tab Etalase. Cakupan "Postingan" pun tidak
+ *     menembakkan /v1/search sama sekali (paritas dengan cakupan Pengguna).
  *   - Chip cakupan HANYA muncul setelah ada kata kunci. Menawarkan filter
  *     atas hasil yang belum ada adalah kontrol tanpa objek.
  *   - Bagian "Pengguna" memakai endpoint dedikasi GET /v1/users/search (lebih
  *     kaya: membershipRank; throttle 10 rpm/IP) — /v1/search tetap dipakai
  *     untuk pesanan, mutasi, dan artikel. Bila endpoint dedikasi gagal, hasil
  *     user dari /v1/search dipakai sebagai fallback.
- *   - Cakupan "Pengguna" TIDAK memanggil GET /v1/search sama sekali. Versi
- *     lama selalu menembakkan keduanya (global + dedikasi) lalu membuang hasil
- *     global bila dedikasi berhasil — dua request untuk satu daftar yang sama.
- *     Kini endpoint global hanya jalan bila jenis lain memang diminta.
  *   - Judul kelompok membawa JUMLAH hasil. Dalam daftar campur, "Pesanan"
  *     saja tidak memberi tahu apakah ada 1 atau 40 pesanan di bawahnya, dan
  *     pengguna harus menggulir untuk tahu.
@@ -35,11 +40,16 @@
 import { useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ClockCounterClockwise, MagnifyingGlass } from "phosphor-react-native"
+import { ClockCounterClockwise, Images, MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
+import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { formatDateTime, formatNumber } from "@/lib/format"
+import { resolveMediaUrl } from "@/lib/media"
+import { translate } from "@/lib/i18n/translate"
+import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/routes"
+import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
@@ -49,10 +59,13 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
+import { Icon } from "@/components/ui/icon"
 import { LiveRegion } from "@/components/ui/live-region"
 import { FadeIn } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OrderCard } from "@/components/ui/order-card"
+import { Picture } from "@/components/ui/picture"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { ScrollRow } from "@/components/ui/scroll-row"
@@ -61,26 +74,29 @@ import { Text } from "@/components/ui/text"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { UserListItem } from "@/components/ui/user-list-item"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
+import { focusRing } from "@/lib/focus-ring"
 
 type ResultRow = { id: string } & (
   | { kind: "user"; user: UserSearchResult }
+  | { kind: "showcase"; showcase: ShowcaseSocialItem }
   | { kind: "order"; order: Order }
   | { kind: "transaction"; transaction: WalletTransaction }
   | { kind: "article"; article: { id: string; slug: string; title: string; snippet?: string } }
 )
 
-/** Cakupan hasil — "all" mengirim ketiga jenis, sisanya menyaring di server. */
-type Scope = "all" | "users" | "orders" | "transactions"
+/** Cakupan hasil — "all" mengirim semua jenis, sisanya menyaring per sumber. */
+type Scope = "all" | "users" | "posts" | "orders" | "transactions"
 
 const SCOPES: ReadonlyArray<{ value: Scope; label: string }> = [
   { value: "all", label: "Semua" },
   { value: "users", label: "Pengguna" },
+  { value: "posts", label: "Postingan" },
   { value: "orders", label: "Pesanan" },
   { value: "transactions", label: "Mutasi" },
 ]
 
-/** Parameter `types` untuk GET /v1/search per cakupan. */
-const SCOPE_TYPES: Record<Scope, string> = {
+/** Parameter `types` untuk GET /v1/search per cakupan (postingan di luar endpoint ini). */
+const SCOPE_TYPES: Record<Exclude<Scope, "posts">, string> = {
   all: "users,orders,transactions",
   users: "users",
   orders: "orders",
@@ -90,6 +106,7 @@ const SCOPE_TYPES: Record<Scope, string> = {
 /** Judul kelompok + jumlah hasil (dipakai di header tiap kelompok). */
 const SECTION_TITLE: Record<ResultRow["kind"], string> = {
   user: "Pengguna",
+  showcase: "Postingan",
   order: "Pesanan",
   transaction: "Mutasi",
   article: "Bantuan",
@@ -126,27 +143,45 @@ export default function SearchScreen() {
   const [clearingHistory, setClearingHistory] = useState(false)
   const enabled = keyword.trim().length >= MIN_KEYWORD
   const wantUsers = scope === "all" || scope === "users"
+  const wantPosts = scope === "all" || scope === "posts"
   // Cakupan "Pengguna" dilayani endpoint dedikasi saja — tidak ada alasan
   // menembakkan GET /v1/search untuk daftar yang hasilnya dibuang.
   const usersOnly = scope === "users"
+  // Cakupan "Postingan" juga DI LUAR /v1/search (jenis itu tidak didukung
+  // endpoint) — dilayani feed etalase dengan parameter `search`.
+  const postsOnly = scope === "posts"
 
   const result = useApiQuery(
     `search:${scope}:${keyword}`,
     (signal) =>
-      api.search.globalSearch({ q: keyword, types: SCOPE_TYPES[scope], limit: 20 }, signal),
-    enabled && !usersOnly,
+      api.search.globalSearch(
+        { q: keyword, types: SCOPE_TYPES[scope as Exclude<Scope, "posts">], limit: 20 },
+        signal,
+      ),
+    enabled && !usersOnly && !postsOnly,
   )
   const usersResult = useApiQuery(
     `search-users:${keyword}`,
     (signal) => api.users.searchUsers(keyword, { limit: 20 }, signal),
     enabled && wantUsers,
   )
-  // Keadaan daftar = gabungan dua request. Tanpa ini, cakupan "Pengguna"
-  // mengumumkan "Tidak ada hasil" sepersekian detik lebih awal (query global
-  // dimatikan sehingga `loading`-nya false) dan kesalahannya tidak pernah
-  // tampil karena ErrorState hanya membaca `result.error`.
-  const loading = enabled && (result.loading || usersResult.loading)
-  const searchError = usersOnly ? usersResult.error : result.error
+  // Postingan etalase — feed publik (auth:"optional"), 12 hasil cukup untuk
+  // satu layar; penelusuran lanjutan hidup di tab Etalase itu sendiri.
+  const postsResult = useApiQuery(
+    `search-posts:${keyword}`,
+    (signal) => getShowcaseFeed({ search: keyword, limit: 12 }, signal),
+    enabled && wantPosts,
+  )
+  // Keadaan daftar = gabungan ketiga request. Tanpa ini, cakupan "Pengguna"/
+  // "Postingan" mengumumkan "Tidak ada hasil" sepersekian detik lebih awal
+  // (query lain dimatikan sehingga `loading`-nya false) dan kesalahannya
+  // tidak pernah tampil karena ErrorState hanya membaca `result.error`.
+  const loading = enabled && (result.loading || usersResult.loading || postsResult.loading)
+  const searchError = usersOnly
+    ? usersResult.error
+    : postsOnly
+      ? postsResult.error
+      : (result.error ?? postsResult.error)
   const suggestions = useApiQuery(
     `suggestions:${keyword}`,
     (signal) => api.search.getSearchSuggestions({ q: keyword }, signal),
@@ -194,28 +229,36 @@ export default function SearchScreen() {
           : []))
     return [
       ...users.map((user) => ({ id: `user:${user.userId}`, kind: "user" as const, user })),
-      ...(scope === "users" ? [] : (result.data?.orders ?? [])).map((order) => ({
+      ...(!wantPosts ? [] : (postsResult.data?.items ?? [])).map((showcase) => ({
+        id: `showcase:${showcase.id}`,
+        kind: "showcase" as const,
+        showcase,
+      })),
+      ...(scope === "users" || scope === "posts" ? [] : (result.data?.orders ?? [])).map((order) => ({
         id: `order:${order.id}`,
         kind: "order" as const,
         order,
       })),
-      ...(scope === "users" ? [] : (result.data?.transactions ?? [])).map((transaction) => ({
-        id: `transaction:${transaction.id}`,
-        kind: "transaction" as const,
-        transaction,
-      })),
+      ...(scope === "users" || scope === "posts" ? [] : (result.data?.transactions ?? [])).map(
+        (transaction) => ({
+          id: `transaction:${transaction.id}`,
+          kind: "transaction" as const,
+          transaction,
+        }),
+      ),
       ...(scope === "all" ? (result.data?.articles ?? []) : []).map((article) => ({
         id: `article:${article.id}`,
         kind: "article" as const,
         article,
       })),
     ]
-  }, [result.data, usersResult.data, usersResult.error, scope, wantUsers])
+  }, [result.data, usersResult.data, usersResult.error, postsResult.data, scope, wantUsers, wantPosts])
 
   /** Jumlah per jenis — ditampilkan di judul kelompok. */
   const counts = useMemo(() => {
     const next: Record<ResultRow["kind"], number> = {
       user: 0,
+      showcase: 0,
       order: 0,
       transaction: 0,
       article: 0,
@@ -277,7 +320,7 @@ export default function SearchScreen() {
           key={seedNonce}
           initialQuery={seed}
           onQueryChange={setKeyword}
-          placeholder="Cari pengguna, pesanan, atau mutasi"
+          placeholder="Cari postingan, pengguna, pesanan, atau mutasi"
         />
       </FadeIn>
       <LiveRegion message={resultMessage} politeness={searchError ? "assertive" : "polite"} />
@@ -352,6 +395,8 @@ export default function SearchScreen() {
                 highlight={keyword}
                 href={ROUTES.helpArticle(item.article.slug, undefined, item.article.title)}
               />
+            ) : item.kind === "showcase" ? (
+              <ShowcaseResultRow item={item.showcase} />
             ) : (
               (() => {
                 const role =
@@ -414,6 +459,7 @@ export default function SearchScreen() {
               onRetry={() => {
                 void result.reload()
                 void usersResult.reload()
+                void postsResult.reload()
               }}
             />
           ) : !enabled && history.length > 0 ? (
@@ -444,7 +490,7 @@ export default function SearchScreen() {
               description={
                 enabled
                   ? "Coba kata kunci yang lebih spesifik, atau perluas cakupan ke Semua."
-                  : "Masukkan setidaknya dua karakter untuk mencari pengguna, pesanan, dan mutasi."
+                  : "Masukkan setidaknya dua karakter untuk mencari postingan, pengguna, pesanan, dan mutasi."
               }
               action={
                 enabled ? (
@@ -466,10 +512,11 @@ export default function SearchScreen() {
             />
           )
         }
-        refreshing={result.refreshing || usersResult.refreshing}
+        refreshing={result.refreshing || usersResult.refreshing || postsResult.refreshing}
         onRefresh={() => {
           void result.refresh()
           void usersResult.refresh()
+          void postsResult.refresh()
         }}
         refreshEnabled={enabled && !loading}
         keyboardShouldPersistTaps="handled"
@@ -478,5 +525,61 @@ export default function SearchScreen() {
         windowSize={7}
       />
     </Screen>
+  )
+}
+
+/** Ukuran thumbnail hasil postingan — sejajar avatar baris Pengguna. */
+const THUMB = 48
+
+/**
+ * Baris hasil POSTINGAN etalase (revisi 2026-09-23 — pencarian terpusat).
+ *
+ * Ringkas sengaja: thumbnail 48px + judul + harga · @penjual + waktu — cukup
+ * untuk mengenali karya tanpa menggandakan bobot kartu feed. Ketukan membuka
+ * halaman detail (bukan memutar galeri) supaya polanya sama dengan jenis
+ * hasil lain di layar ini.
+ */
+function ShowcaseResultRow({ item }: { item: ShowcaseSocialItem }) {
+  const image =
+    item.images[0]?.imageUrl ?? item.coverImageUrl ?? item.imageUrl ?? null
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={translate("Postingan {x} oleh {y}", {
+        x: item.title,
+        y: item.author.fullName ?? item.author.username,
+      })}
+      accessibilityHint="Buka detail postingan"
+      onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
+      containerClassName={cn("min-h-14 w-full rounded-md", focusRing)}
+      className="flex-row items-center gap-3 py-2"
+    >
+      {image ? (
+        <Picture
+          source={{ uri: resolveMediaUrl(image) }}
+          alt=""
+          width={THUMB}
+          height={THUMB}
+          radius="sm"
+          bordered={false}
+          recyclingKey={`search:${item.id}`}
+        />
+      ) : (
+        <View className="h-12 w-12 items-center justify-center rounded-sm bg-surface">
+          <Icon icon={Images} size="sm" tone="default" />
+        </View>
+      )}
+      <View className="min-w-0 flex-1 gap-0.5">
+        <Text variant="body" weight={600} numberOfLines={1}>
+          {item.title}
+        </Text>
+        <Text variant="caption" tone="secondary" numberOfLines={1}>
+          {`${showcasePriceLabelOrFallback(item)} · @${item.author.username}`}
+        </Text>
+      </View>
+      <Text variant="caption" tone="tertiary" className="tabular-nums">
+        {formatDateTime(item.createdAt)}
+      </Text>
+    </PressableScale>
   )
 }
