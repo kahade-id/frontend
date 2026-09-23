@@ -473,6 +473,11 @@ const INLINE_TYPO_ALLOWLIST = {
   // §3.1: huruf placeholder & wordmark diskalakan proporsional ke tinggi mark
   // (size prop), bukan nilai type scale — tidak ada varian Text yang cocok.
   "components/ui/logo.tsx": "fontSize/lineHeight proporsional ke ukuran mark (§3.1, §16.5)",
+  // §3 + Reanimated: label segmen mode memakai <Reanimated.Text> (warna label
+  // di-interpolate mengikuti posisi thumb), dan jsx-runtime Reanimated tidak
+  // di-interop NativeWind — className varian <Text> tidak pernah jadi style.
+  // Nilai tetap satu sumber: tokens.typography.label (= varian "label").
+  "components/ui/mode-switcher.tsx": "tipografi label segmen dari tokens.typography.label di <Reanimated.Text> (§3, interop NativeWind)",
 }
 const LAYOUT_KEYS =
   "width|height|minWidth|minHeight|maxWidth|maxHeight|padding[A-Za-z]*|margin[A-Za-z]*|border[A-Za-z]*Radius|gap|rowGap|columnGap|top|left|right|bottom|start|end|inset[A-Za-z]*|border[A-Za-z]*Width|translateX|translateY"

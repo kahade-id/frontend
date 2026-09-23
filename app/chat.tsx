@@ -229,7 +229,6 @@ export default function ChatScreen() {
           // tidak terbaca generator katalog i18n (hanya children JSX, properti
           // objek, dan argumen translate()), jadi copy dinamis harus dibungkus.
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih percakapan"}
-          modeSwitcher
           showBack={false}
           left={
             <IconButton
@@ -273,7 +272,6 @@ export default function ChatScreen() {
       ) : (
         <Header
           title={archiveOpen ? "Diarsipkan" : "Chat"}
-          modeSwitcher
           right={
             <IconButton
               icon={Archive}

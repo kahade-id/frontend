@@ -555,7 +555,9 @@ for (const component of UNUSED_UI_BASELINE) {
 const LINE_CEILING = new Map([
   // Batch G (G-01): tiga kalimat campuran nilai runtime dipindah ke translate()
   // dan dua blok impor dipadatkan -> 1474. Plafon TURUN mengikuti fakta.
-  ["app/user/[username].tsx", 1474],
+  // 2026-09-23: navbar shell profil kini tampil sejak frame pertama (param
+  // `self` + isSelf tanpa menunggu profile) -> 1456.
+  ["app/user/[username].tsx", 1456],
   ["app/chat/[roomId].tsx", 1194],
   // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
   // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
@@ -584,7 +586,9 @@ const LINE_CEILING = new Map([
   ["app/edit-profile.tsx", 765],
   ["app/transfer.tsx", 734],
   ["app/subscriptions.tsx", 726],
-  ["app/(tabs)/discover.tsx", 716],
+  // 2026-09-23: UsersTab & ShowcaseFeedTab diekstrak ke components/
+  // (discover-users-tab.tsx, showcase-feed-tab.tsx) -> layar tinggal kerangka.
+  ["app/(tabs)/discover.tsx", 32],
   ["lib/api/orders.ts", 890],
   ["lib/api/users.ts", 1150],
   ["lib/api/constraints.ts", 1157],

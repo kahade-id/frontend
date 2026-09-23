@@ -71,6 +71,14 @@
    "n": 5
   },
   {
+   "s": "Dompet",
+   "n": 5
+  },
+  {
+   "s": "Etalase",
+   "n": 5
+  },
+  {
    "s": "Komentar",
    "n": 5
   },
@@ -87,7 +95,7 @@
    "n": 5
   },
   {
-   "s": "Showcase",
+   "s": "Tidak bisa membagikan",
    "n": 5
   },
   {
@@ -104,10 +112,6 @@
   },
   {
    "s": "Catatan",
-   "n": 4
-  },
-  {
-   "s": "Dompet",
    "n": 4
   },
   {
@@ -135,7 +139,19 @@
    "n": 4
   },
   {
+   "s": "Lihat semua",
+   "n": 4
+  },
+  {
    "s": "Metode pembayaran",
+   "n": 4
+  },
+  {
+   "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
+   "n": 4
+  },
+  {
+   "s": "Promo",
    "n": 4
   },
   {
@@ -147,19 +163,11 @@
    "n": 4
   },
   {
-   "s": "Tidak bisa membagikan",
-   "n": 4
-  },
-  {
    "s": "Ulasan",
    "n": 4
   },
   {
    "s": "Verifikasi",
-   "n": 4
-  },
-  {
-   "s": "Voucher",
    "n": 4
   },
   {
@@ -299,6 +307,10 @@
    "n": 3
   },
   {
+   "s": "Lencana",
+   "n": 3
+  },
+  {
    "s": "Masukkan kode verifikasi",
    "n": 3
   },
@@ -363,6 +375,10 @@
    "n": 3
   },
   {
+   "s": "Showcase",
+   "n": 3
+  },
+  {
    "s": "Status",
    "n": 3
   },
@@ -407,6 +423,10 @@
    "n": 2
   },
   {
+   "s": "{x} dari {y} lencana diraih",
+   "n": 2
+  },
+  {
    "s": "{x} dipilih",
    "n": 2
   },
@@ -448,6 +468,10 @@
   },
   {
    "s": "@{x} disimpan ke favorit",
+   "n": 2
+  },
+  {
+   "s": "Ajak teman ke Kahade",
    "n": 2
   },
   {
@@ -667,10 +691,6 @@
    "n": 2
   },
   {
-   "s": "Etalase",
-   "n": 2
-  },
-  {
    "s": "Foto profil",
    "n": 2
   },
@@ -847,10 +867,6 @@
    "n": 2
   },
   {
-   "s": "Lencana",
-   "n": 2
-  },
-  {
    "s": "Lihat pesanan",
    "n": 2
   },
@@ -864,10 +880,6 @@
   },
   {
    "s": "Lihat profil {x} di Kahade",
-   "n": 2
-  },
-  {
-   "s": "Lihat semua",
    "n": 2
   },
   {
@@ -971,7 +983,7 @@
    "n": 2
   },
   {
-   "s": "Pakai kode referral saya {x} saat daftar di Kahade — transaksi aman dengan escrow.",
+   "s": "Papan peringkat",
    "n": 2
   },
   {
@@ -1028,6 +1040,10 @@
   },
   {
    "s": "Periksa kotak masuk {x}.",
+   "n": 2
+  },
+  {
+   "s": "Peringkat {x}, {y}, mengundang {z} orang, total reward {w}",
    "n": 2
   },
   {
@@ -1111,6 +1127,10 @@
    "n": 2
   },
   {
+   "s": "Tab Etalase",
+   "n": 2
+  },
+  {
    "s": "Tab Transaksi",
    "n": 2
   },
@@ -1128,6 +1148,10 @@
   },
   {
    "s": "Tautan disalin",
+   "n": 2
+  },
+  {
+   "s": "Tautan undangan disalin",
    "n": 2
   },
   {
@@ -1203,6 +1227,10 @@
    "n": 2
   },
   {
+   "s": "Undang teman",
+   "n": 2
+  },
+  {
    "s": "Verifikasi Bisnis",
    "n": 2
   },
@@ -1224,6 +1252,10 @@
   },
   {
    "s": "Versi Aplikasi",
+   "n": 2
+  },
+  {
+   "s": "Voucher",
    "n": 2
   },
   {
@@ -1415,7 +1447,15 @@
    "n": 1
   },
   {
+   "s": "{x} undangan",
+   "n": 1
+  },
+  {
    "s": "{x} undangan terbanyak (selalu {x} teratas)",
+   "n": 1
+  },
+  {
+   "s": "{x} undangan terbanyak bulan ini",
    "n": 1
   },
   {
@@ -1484,10 +1524,6 @@
   },
   {
    "s": "Admin Kahade akan meninjau sengketa ini dan mengambil alih keputusan. Eskalasi manual dibatasi maksimal {x}x per sengketa.",
-   "n": 1
-  },
-  {
-   "s": "Ajak teman ke Kahade",
    "n": 1
   },
   {
@@ -1592,6 +1628,10 @@
   },
   {
    "s": "Anda berhak meminta salinan seluruh data pribadi yang kami simpan.",
+   "n": 1
+  },
+  {
+   "s": "Anda dan teman mendapat hadiah saat transaksi pertamanya selesai.",
    "n": 1
   },
   {
@@ -1955,6 +1995,10 @@
    "n": 1
   },
   {
+   "s": "Berikutnya: {x} — {y} persen",
+   "n": 1
+  },
+  {
    "s": "Berkas dibuka di browser.",
    "n": 1
   },
@@ -2167,11 +2211,15 @@
    "n": 1
   },
   {
+   "s": "Buka halaman lencana",
+   "n": 1
+  },
+  {
    "s": "Buka halaman masuk",
    "n": 1
   },
   {
-   "s": "Buka halaman untuk menambah dan mengatur showcase",
+   "s": "Buka halaman untuk menambah dan mengatur etalase",
    "n": 1
   },
   {
@@ -2184,10 +2232,6 @@
   },
   {
    "s": "Buka notifikasi",
-   "n": 1
-  },
-  {
-   "s": "Buka pengaturan",
    "n": 1
   },
   {
@@ -2204,10 +2248,6 @@
   },
   {
    "s": "Buka sengketa",
-   "n": 1
-  },
-  {
-   "s": "Buka voucher",
    "n": 1
   },
   {
@@ -2295,6 +2335,10 @@
    "n": 1
   },
   {
+   "s": "Cari di etalase",
+   "n": 1
+  },
+  {
    "s": "Cari nama pengguna atau nomor HP yang ingin Anda kirimi saldo.",
    "n": 1
   },
@@ -2308,10 +2352,6 @@
   },
   {
    "s": "Cari produk atau penjual",
-   "n": 1
-  },
-  {
-   "s": "Cari showcase",
    "n": 1
   },
   {
@@ -3251,6 +3291,10 @@
    "n": 1
   },
   {
+   "s": "Ganti mode aplikasi ke {x}",
+   "n": 1
+  },
+  {
    "s": "Ganti PIN",
    "n": 1
   },
@@ -3847,11 +3891,11 @@
    "n": 1
   },
   {
-   "s": "Kelola foto",
+   "s": "Kelola etalase saya",
    "n": 1
   },
   {
-   "s": "Kelola showcase saya",
+   "s": "Kelola foto",
    "n": 1
   },
   {
@@ -4155,6 +4199,10 @@
    "n": 1
   },
   {
+   "s": "Kode referral Anda",
+   "n": 1
+  },
+  {
    "s": "Kode referral baru dibuat",
    "n": 1
   },
@@ -4232,6 +4280,10 @@
   },
   {
    "s": "Kredensial",
+   "n": 1
+  },
+  {
+   "s": "Kumpulkan lencana dari aktivitas transaksi Anda.",
    "n": 1
   },
   {
@@ -4443,11 +4495,19 @@
    "n": 1
   },
   {
+   "s": "Lihat semua lencana",
+   "n": 1
+  },
+  {
    "s": "Lihat semua riwayat dompet",
    "n": 1
   },
   {
    "s": "Lihat semua transaksi",
+   "n": 1
+  },
+  {
+   "s": "Lihat semua undangan dan reward",
    "n": 1
   },
   {
@@ -4767,6 +4827,10 @@
    "n": 1
   },
   {
+   "s": "Memuat promo…",
+   "n": 1
+  },
+  {
    "s": "Memuat ringkasan transaksi",
    "n": 1
   },
@@ -4836,10 +4900,6 @@
   },
   {
    "s": "Memuat voucher",
-   "n": 1
-  },
-  {
-   "s": "Memuat voucher…",
    "n": 1
   },
   {
@@ -5359,10 +5419,6 @@
    "n": 1
   },
   {
-   "s": "Papan peringkat",
-   "n": 1
-  },
-  {
    "s": "Pelanggaran ketentuan",
    "n": 1
   },
@@ -5664,10 +5720,6 @@
   },
   {
    "s": "Periksa perangkat, lokasi, dan alamat IP yang memiliki akses ke akun Anda. Melihat aktivitas yang bukan Anda? Cabut akses perangkat tersebut, lalu ganti kata sandi dan periksa verifikasi dua langkah Anda.",
-   "n": 1
-  },
-  {
-   "s": "Peringkat {x}, {y}, mengundang {z} orang, total reward {w}",
    "n": 1
   },
   {
@@ -6007,10 +6059,6 @@
    "n": 1
   },
   {
-   "s": "Profil {x}",
-   "n": 1
-  },
-  {
    "s": "Profil diperbarui",
    "n": 1
   },
@@ -6036,10 +6084,6 @@
   },
   {
    "s": "Profil tidak ditemukan",
-   "n": 1
-  },
-  {
-   "s": "Promo",
    "n": 1
   },
   {
@@ -6675,10 +6719,6 @@
    "n": 1
   },
   {
-   "s": "Tab Etalase",
-   "n": 1
-  },
-  {
    "s": "Tab History",
    "n": 1
   },
@@ -6688,10 +6728,6 @@
   },
   {
    "s": "Tab Promo",
-   "n": 1
-  },
-  {
-   "s": "Tab Showcase sosial",
    "n": 1
   },
   {
@@ -6848,10 +6884,6 @@
   },
   {
    "s": "Tautan tidak tersedia",
-   "n": 1
-  },
-  {
-   "s": "Tautan undangan disalin",
    "n": 1
   },
   {
@@ -7363,10 +7395,6 @@
    "n": 1
   },
   {
-   "s": "Undang teman",
-   "n": 1
-  },
-  {
    "s": "Unduh",
    "n": 1
   },
@@ -7584,10 +7612,6 @@
   },
   {
    "s": "Voucher aktif",
-   "n": 1
-  },
-  {
-   "s": "Voucher dan hadiah",
    "n": 1
   },
   {

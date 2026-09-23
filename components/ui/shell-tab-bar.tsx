@@ -11,14 +11,14 @@
 import { useCallback, useEffect, useState } from "react"
 import { usePathname, useRouter, type Href } from "expo-router"
 import {
+  CardsThree,
   Chats,
   ClockCounterClockwise,
   PaperPlaneTilt,
+  Percent,
   Plus,
   QrCode,
   ShoppingBag,
-  Storefront,
-  Ticket,
   UserCircle,
   Wallet,
 } from "phosphor-react-native"
@@ -46,15 +46,24 @@ import { logWarn } from "@/lib/telemetry"
 import { useUnreadCountState } from "@/lib/unread-count"
 import { useAuthSession } from "@/lib/use-auth-session"
 
+/**
+ * Ikon per slot — SATU kosakata dengan ikon mode di tempat lain:
+ *   - Etalase = CardsThree (sama dengan segmen switcher mode & pintasan
+ *     Beranda) — permintaan produk 2026-09-23.
+ *   - Promo = Percent (simbol diskon universal; "Ticket" disimpan untuk
+ *     konten voucher di dalam halaman Promo).
+ *   - Dompet/History/Transaksi/Pesan tetap: Wallet, ClockCounterClockwise,
+ *     ShoppingBag, Chats.
+ */
 const SLOT_ICONS: Record<AppMode, Record<Exclude<ShellSlotId, "profile">, IconComponent>> = {
   commerce: {
-    primary: Storefront,
+    primary: CardsThree,
     secondary: ShoppingBag,
     tertiary: Chats,
   },
   wallet: {
     primary: Wallet,
-    secondary: Ticket,
+    secondary: Percent,
     tertiary: ClockCounterClockwise,
   },
 }
@@ -107,7 +116,9 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
     try {
       const profile = me ?? (await api.users.getMeCached())
       if (profile?.username) {
-        router.push(ROUTES.userProfile(profile.username))
+        // `self: true` — navbar shell layar profil harus terlihat sejak
+        // frame pertama (lihat catatan di ROUTES.userProfile).
+        router.push(ROUTES.userProfile(profile.username, { self: true }))
         return
       }
     } catch (err) {

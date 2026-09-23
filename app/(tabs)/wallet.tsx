@@ -49,7 +49,7 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
-import { ModeShiftFade } from "@/components/ui/mode-switcher"
+import { ModeShiftFade, ModeSwitcher } from "@/components/ui/mode-switcher"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { HomeOverviewCard } from "@/components/ui/home-overview-card"
 import { RouteLink } from "@/components/ui/route-link"
@@ -123,7 +123,7 @@ export default function WalletScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header showBack={false} title="Dompet" modeSwitcher />
+        <Header showBack={false} title="Dompet" right={<ModeSwitcher />} />
         <GuestLoginPrompt bare next="/wallet" />
       </Screen>
     )
@@ -131,7 +131,7 @@ export default function WalletScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header showBack={false} title="Dompet" modeSwitcher />
+      <Header showBack={false} title="Dompet" right={<ModeSwitcher />} />
 
       <ModeShiftFade>
       <PaginatedList

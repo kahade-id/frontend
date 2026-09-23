@@ -1,27 +1,26 @@
 /**
- * Kahade — <ShowcaseHeader> (bar atas tab Showcase; revisi 2026-09-18).
+ * Kahade — <ShowcaseHeader> (bar atas tab Etalase; revisi 2026-09-23).
  *
- * Layout: [Logo] [Balance pill flex-1] [Gift] [Bell] [Avatar]
- *   + baris pencarian (+ kelola showcase) + strip tab feed yang bisa di-scroll.
+ * Layout: [Logo] [Balance pill flex-1] [ModeSwitcher] [Bell]
+ *   + baris pencarian (+ kelola etalase) + strip tab feed yang bisa di-scroll.
  *
- * Revisi 2026-09-18 — empat hal yang dikoreksi dari versi sebelumnya:
- *   1. Logo TANPA kotak latar (dulu 40×40 bg-[#DCFCE7] + border hijau) dan
- *      TIDAK lagi hijau: render lewat <Logo variant="mark" size="md"> sehingga
- *      tingginya 40px — SAMA dengan foto profil di ujung baris yang sama — dan
- *      fill-nya datang dari token `primary` (hitam di light, putih di dark).
- *   2. Gift & Bell: latar abu netral saja (`bg-surface`), tanpa border dan
- *      tanpa shadow. Kartu saldo sengaja TETAP putih berpola kartu
- *      (`bg-background` + `border-border`) — satu angka uang tidak boleh
- *      tenggelam di samping dua tombol abu.
- *   3. Balance pill: logo di dalamnya DIHAPUS (saldo tidak perlu di-branding
- *      ulang dua baris di bawah logo) dan caret-down DIHAPUS (tidak ada menu
- *      dropdown di ujung pill — tap membuka dompet, itu sudah seluruhnya).
- *   4. Semua hex literal (#DCFCE7, #BBF7D0, #0EB66E, #E5E7EB, #FFFFFF)
- *      dibuang. Palet brand v2.2 monokrom (§2.2) dan `npm run check:tokens`
- *      memang MENOLAK class warna literal (`bg-white`, `bg-black`, ...) di
- *      luar allowlist — file ini salah satunya. `shadow-sm`/`rounded-xl` juga
- *      dihapus: tailwind.config meng-OVERRIDE boxShadow (hanya `none`) dan
- *      radius (hingga `lg`), jadi kedua class itu tidak menghasilkan apa-apa.
+ * Revisi 2026-09-23 — header dirampingkan agar switcher mode muat DI DALAM
+ * baris atas (permintaan: switcher kecil, satu, di header halaman mode):
+ *   1. ModeSwitcher E-Commerce ⇄ E-Wallet kini pil kompak ber-ikon
+ *      (CardsThree/Wallet) yang menempel di baris atas — menggantikan baris
+ *      pil lebar penuh di bawahnya. Ikon CardsThree = ikon "Etalase" yang
+ *      sama dengan slot primer navbar bawah, jadi switcher terbaca sebagai
+ *      keluarga ikon yang sama.
+ *   2. Gift & avatar keluar dari baris atas: voucher/promo sudah punya rumah
+ *      di tab Promo (mode wallet), dan profil ada di slot Profil navbar —
+ *      mengulang keduanya di sini membuat baris atas penuh dan switcher
+ *      tidak kebagian tempat. Bell tetap: satu-satunya pintu notifikasi
+ *      mode commerce.
+ *   3. Balance pill tetap kartu putih berpola kartu (`bg-background` +
+ *      `border-border`) — jembatan cepat ke dompet dari mode belanja: tap
+ *      isi nominalnya membuka tab Dompet, (+) membuka isi saldo.
+ *   4. Semua hex literal tetap dilarang (`npm run check:tokens`);
+ *      `shadow-sm`/`rounded-xl` tetap tidak ada (lihat tailwind.config).
  *
  * Titik unread memakai <NotificationDot> (§9.14) — komponen yang sama dengan
  * badge tab bawah, bukan dot hijau custom; status "ada yang baru" = danger,
@@ -36,7 +35,6 @@ import { translate } from "@/lib/i18n/translate"
 import {
   Bell,
   ClockCounterClockwise,
-  Gift,
   MagnifyingGlass,
   Plus,
   Sparkle,
@@ -44,10 +42,11 @@ import {
   Users,
 } from "phosphor-react-native"
 
-import { api, type Wallet as WalletData, type UserProfile } from "@/lib/api"
+import { api, type Wallet as WalletData } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { queryKeys } from "@/lib/query-keys"
 import { formatRupiah } from "@/lib/format"
+import { useHasSession } from "@/lib/guest-gate"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useUnreadCountState } from "@/lib/unread-count"
 import { tokens } from "@/lib/tokens"
@@ -56,8 +55,7 @@ import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
 
 import { Logo } from "@/components/ui/logo"
-import { ModeSwitcherBar } from "@/components/ui/mode-switcher"
-import { Avatar } from "@/components/ui/avatar"
+import { ModeSwitcher } from "@/components/ui/mode-switcher"
 import { NotificationDot } from "@/components/ui/badge"
 import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
@@ -82,7 +80,7 @@ const TAB_ICONS: Record<ShowcaseFeedKind, typeof Sparkle> = {
   popular: TrendUp,
 }
 
-/** Kotak visual aksi di bar atas (logo, gift, bell, avatar) = 40px. */
+/** Kotak visual aksi di bar atas (logo, bell) = 40px. */
 const ACTION_BOX = 40
 const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
@@ -95,17 +93,15 @@ export function ShowcaseHeader({
 }: ShowcaseHeaderProps) {
   const router = useRouter()
   const unread = useUnreadCountState()
+  // B-02 (pola audit): /showcase terproteksi untuk tamu web, tetapi layar
+  // tetap ter-mount di belakang gate — query saldo digate sesi supaya tamu
+  // yang tersesat ke sini tidak memanen 401 → refresh di balik overlay.
+  const hasSession = useHasSession()
 
   const walletQuery = useApiQuery<WalletData>(
     queryKeys.wallet(),
     (signal) => api.wallet.getWallet(signal),
-    true,
-    { refreshOnFocus: true },
-  )
-  const profileQuery = useApiQuery<UserProfile>(
-    queryKeys.me(),
-    (signal) => api.users.getMe(signal),
-    true,
+    hasSession,
     { refreshOnFocus: true },
   )
 
@@ -113,9 +109,6 @@ export function ShowcaseHeader({
   const balanceText = walletQuery.loading
     ? "Rp—"
     : formatRupiah(balance, { compact: balance >= 1_000_000 })
-
-  const displayName =
-    profileQuery.data?.fullName?.trim() || profileQuery.data?.username || "Pengguna Kahade"
 
   const handleBalancePress = useCallback(() => {
     router.push(ROUTES.wallet)
@@ -127,7 +120,7 @@ export function ShowcaseHeader({
 
   return (
     <View className="bg-background">
-      {/* ── Baris atas: logo · saldo · hadiah · notifikasi · profil ── */}
+      {/* ── Baris atas: logo · saldo · switcher mode · notifikasi ── */}
       <View className="w-full flex-row items-center gap-3 px-5 pb-2.5 pt-3">
         {/* Logo — mark polos 40px setinggi foto profil, warna dari token */}
         <PressableScale
@@ -179,20 +172,12 @@ export function ShowcaseHeader({
           </PressableScale>
         </View>
 
-        {/* Aksi kanan — latar abu, tanpa border/shadow */}
+        {/* Aksi kanan — switcher mode (pil kompak) + lonceng notifikasi.
+            Switcher DI DALAM baris atas: satu-satunya tempat pergantian mode
+            di halaman Etalase, sejajar dengan aksi lain, bukan baris sendiri
+            yang memakan tinggi header. */}
         <View className="flex-row items-center gap-2">
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel="Voucher dan hadiah"
-            accessibilityHint="Buka voucher"
-            haptic
-            hitSlop={ACTION_HIT_SLOP}
-            onPress={() => router.push(ROUTES.vouchers)}
-            containerClassName={cn("rounded-full", focusRing)}
-            className="h-10 w-10 items-center justify-center rounded-full bg-surface"
-          >
-            <Icon icon={Gift} size={20} weight="fill" tone="active" />
-          </PressableScale>
+          <ModeSwitcher />
 
           <PressableScale
             accessibilityRole="button"
@@ -213,34 +198,10 @@ export function ShowcaseHeader({
               <NotificationDot visible={(unread.count ?? 0) > 0} />
             </View>
           </PressableScale>
-
-          {/* Profil — 40px, sejajar dengan logo */}
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={translate("Profil {x}", { x: displayName })}
-            accessibilityHint="Buka pengaturan"
-            haptic
-            hitSlop={ACTION_HIT_SLOP}
-            onPress={() => router.push(ROUTES.settings)}
-            containerClassName={cn("rounded-full", focusRing)}
-            className="relative h-10 w-10"
-          >
-            {profileQuery.loading ? (
-              <Skeleton shape="circle" width={ACTION_BOX} height={ACTION_BOX} />
-            ) : (
-              <Avatar
-                source={profileQuery.data?.avatarUrl ?? undefined}
-                name={displayName}
-                size="md"
-              />
-            )}
-          </PressableScale>
         </View>
       </View>
 
-      <ModeSwitcherBar className="px-5 pb-2 pt-1" />
-
-      {/* ── Pencarian + kelola showcase ── */}
+      {/* ── Pencarian + kelola etalase ── */}
       <View className="flex-row items-center gap-2.5 px-5 pb-3 pt-1">
         <View className="flex-1">
           <Input
@@ -248,7 +209,7 @@ export function ShowcaseHeader({
             value={search}
             onChangeText={onSearchChange}
             placeholder="Cari produk atau penjual"
-            accessibilityLabel="Cari showcase"
+            accessibilityLabel="Cari di etalase"
             leftIcon={MagnifyingGlass}
             clearable
             frame="none"
@@ -259,8 +220,8 @@ export function ShowcaseHeader({
 
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel="Kelola showcase saya"
-          accessibilityHint="Buka halaman untuk menambah dan mengatur showcase"
+          accessibilityLabel="Kelola etalase saya"
+          accessibilityHint="Buka halaman untuk menambah dan mengatur etalase"
           haptic
           hitSlop={ACTION_HIT_SLOP}
           onPress={() => router.push(ROUTES.showcaseManagement)}

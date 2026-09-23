@@ -1,31 +1,51 @@
 /**
- * Kahade — pemilih mode E-Commerce ⇄ E-Wallet.
+ * Kahade — pemilih mode E-Commerce ⇄ E-Wallet (KOMPAK, revisi 2026-09-23).
  *
- * Dua pil bersebelahan di bawah bar atas. Bentuk mengikuti <SegmentedControl>
- * (rounded-md, border-control, tinggi 40, thumb rounded-sm bg-primary) tetapi
- * thumb-nya MELUNCUR — segmented control sengaja tanpa geser, sedangkan
- * pergantian mode harus terasa di kedua arah.
+ * Pil kecil dua segmen IKON yang hidup DI DALAM bar header halaman mode
+ * (Etalase & Dompet):
  *
- * Warna label mengikuti posisi thumb (bukan state terpilih yang meloncat):
- * teks di atas thumb selalu inverse, teks di luar selalu secondary, supaya
- * kontras tidak pecah di tengah spring.
+ *      [ ▦ CardsThree | 👛 Wallet ]
+ *
+ *   - Lebar pil mengikuti isi (~86px di ponsel) — BUKAN lagi baris penuh
+ *     h-10 di bawah header. "Kecil dan satu saja": satu kontrol, satu tempat
+ *     per layar, bukan teriakan setiap kali layar dibuka.
+ *   - Ikon mengikuti kosakata ikon app: CardsThree = etalase (sama dengan
+ *     slot primer mode commerce di navbar bawah), Wallet = dompet. Ikon
+ *     dipilih agar switcher terbaca sebagai bagian keluarga ikon lain, bukan
+ *     sistem sendiri.
+ *   - Label teks hanya muncul di breakpoint md+ (web/tablet): di ponsel pil
+ *     ikon-saja cukup — konteks halaman (Etalase/Dompet) sudah menjelaskan
+ *     sisi mana yang aktif; di layar lebar label membuat kontrol baru
+ *     langsung terbaca tanpa belajar ikon.
+ *   - Thumb `bg-primary` tetap MELUNCUR (spring) di antara dua segmen —
+ *     pergantian mode harus terasa di kedua arah. Warna label mengikuti
+ *     posisi thumb (bukan state terpilih yang meloncat); ikon di-crossfade
+ *     dua lapis (inverse/secondary) karena warna ikon Phosphor adalah prop,
+ *     bukan style yang bisa di-interpolate.
+ *   - A11y tetap radiogroup "Mode aplikasi" dengan label penuh per segmen
+ *     ("E-Commerce"/"E-Wallet") — pengguna pembaca layar tidak bergantung
+ *     pada ikon.
  *
  * `Animated.View` Reanimated tidak di-interop NativeWind — fill thumb ada di
  * <View> anak. Geser konten layar memakai RN Animated (pola FadeIn), bukan
  * Reanimated, karena yang digerakkan hanya opacity + translateX.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react"
-import { Animated, Easing, View, type LayoutChangeEvent, type ViewStyle } from "react-native"
+import { Animated, Easing, StyleSheet, View, type LayoutChangeEvent, type ViewStyle } from "react-native"
 import { usePathname, useRouter, type Href } from "expo-router"
 import Reanimated, {
+  Extrapolation,
+  interpolate,
   interpolateColor,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
   type SharedValue,
 } from "react-native-reanimated"
+import { CardsThree, Wallet } from "phosphor-react-native"
 
 import { useTheme } from "@/components/theme-provider"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
@@ -51,13 +71,34 @@ import { modes, tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
 const MODES = [
-  { value: "commerce", label: "E-Commerce" },
-  { value: "wallet", label: "E-Wallet" },
-] as const satisfies readonly { value: AppMode; label: string }[]
+  {
+    value: "commerce",
+    /** Label singkat yang terlihat (md+) — nama TUJUAN, bukan jargon mode. */
+    label: "Etalase",
+    /** Label a11y — nama MODE; pembaca layar tidak melihat ikon. */
+    accessibilityLabel: "E-Commerce",
+    icon: CardsThree,
+  },
+  {
+    value: "wallet",
+    label: "Dompet",
+    accessibilityLabel: "E-Wallet",
+    icon: Wallet,
+  },
+] as const satisfies readonly {
+  value: AppMode
+  label: string
+  accessibilityLabel: string
+  icon: IconComponent
+}[]
 
-/** Tinggi container = Button sm (h-10). Thumb = container − 2×padding. */
-const CONTAINER_H = tokens.space[10]
-const SEGMENT_PAD = tokens.radius.md - tokens.radius.sm
+/**
+ * Tinggi pil 32px (`h-8`) — sekecil kontrol header boleh: label ikon-saja,
+ * tidak ada teks yang harus muat. Target sentuh 44pt tetap terpenuhi lewat
+ * hitSlop vertikal 6px (pola yang sama dengan <SegmentedControl>).
+ */
+const CONTAINER_H = tokens.space[8]
+const SEGMENT_PAD = 2
 const SEGMENT_H = CONTAINER_H - SEGMENT_PAD * 2
 const CONTAINER_HIT_SLOP = hitSlopToReach(0, CONTAINER_H)
 const SEGMENT_HIT_SLOP = hitSlopToReach(0, SEGMENT_H)
@@ -107,6 +148,47 @@ export function useSwitchAppMode() {
   )
 }
 
+/**
+ * Ikon segmen — dua lapis saling-crossfade mengikuti progress thumb.
+ * Warna ikon Phosphor adalah PROP (bukan style), jadi interpolasi warna
+ * langsung tidak mungkin; dua <Icon> bertumpuk dengan opacity teranimasi
+ * memberi transisi yang sama mulusnya tanpa mengubah API ikon.
+ */
+function SegmentGlyph({
+  icon,
+  index,
+  progress,
+  inverseColor,
+  ghostColor,
+}: {
+  icon: IconComponent
+  index: number
+  progress: SharedValue<number>
+  inverseColor: string
+  ghostColor: string
+}) {
+  const inverseStyle = useAnimatedStyle(() => ({
+    // CLAMP wajib: spring bisa overshoot melewati [0,1] — tanpa clamp ikon
+    // inverse bisa "menyala" balik di ujung pantulan.
+    opacity: interpolate(progress.value, [0, 1], index === 0 ? [1, 0] : [0, 1], Extrapolation.CLAMP),
+  }))
+  const ghostStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(progress.value, [0, 1], index === 0 ? [0, 1] : [1, 0], Extrapolation.CLAMP),
+  }))
+  return (
+    <View className="h-5 w-5 items-center justify-center">
+      {/* className sengaja tidak dipakai di lapisan Reanimated (tidak pernah
+          menjadi style) — geometri dijamin absoluteFill + ikon 20×20. */}
+      <Reanimated.View style={[StyleSheet.absoluteFill, inverseStyle]}>
+        <Icon icon={icon} size="sm" weight="fill" color={inverseColor} />
+      </Reanimated.View>
+      <Reanimated.View style={[StyleSheet.absoluteFill, ghostStyle]}>
+        <Icon icon={icon} size="sm" color={ghostColor} />
+      </Reanimated.View>
+    </View>
+  )
+}
+
 function PillLabel({
   label,
   index,
@@ -131,22 +213,32 @@ function PillLabel({
     ),
   }))
   return (
-    <Reanimated.Text
-      style={[
-        {
-          fontFamily: tokens.fontFamilyByWeight.sans[600],
-          fontSize: tokens.typography.label.fontSize,
-          lineHeight: tokens.typography.label.lineHeight,
-          textAlign: "center",
-        },
-        style,
-      ]}
-      numberOfLines={1}
-      allowFontScaling
-      maxFontSizeMultiplier={2}
-    >
-      {translate(label)}
-    </Reanimated.Text>
+    // Visibility class ada di <View> biasa, BUKAN di Reanimated.Text: lib
+    // Reanimated tidak di-interop NativeWind, className di komponennya tidak
+    // pernah menjadi style (pola yang sama dengan thumb). Label hanya tampil
+    // di layar md+ (web/tablet); di ponsel pil tetap ikon-saja.
+    <View className="hidden md:flex">
+      <Reanimated.Text
+        style={[
+          {
+            // §3 + interop NativeWind: <Reanimated.Text> tidak meng-hydrate
+            // className (jsx-runtime Reanimated bukan NativeWind), jadi varian
+            // <Text> tidak bisa dipakai — nilai di bawah PERSIS tokens.
+            // typography.label (varian "label") dan tercatat di
+            // INLINE_TYPO_ALLOWLIST check-tokens.
+            fontFamily: tokens.fontFamilyByWeight.sans[600],
+            fontSize: tokens.typography.label.fontSize,
+            lineHeight: tokens.typography.label.lineHeight,
+          },
+          style,
+        ]}
+        numberOfLines={1}
+        allowFontScaling
+        maxFontSizeMultiplier={2}
+      >
+        {translate(label)}
+      </Reanimated.Text>
+    </View>
   )
 }
 
@@ -166,6 +258,10 @@ export function ModeSwitcher({ className }: { className?: string }) {
   const pillW = useSharedValue(0)
   const inverse = useSharedValue(modes[themeMode].primaryForeground)
   const secondary = useSharedValue(modes[themeMode].textSecondary)
+  // Warna ikon statis per mode tema (re-render saat tema berubah) — ikon
+  // Phosphor tidak bisa diinterpolate warnanya lewat shared value.
+  const inverseColor = modes[themeMode].primaryForeground
+  const ghostColor = modes[themeMode].textSecondary
   const played = useRef(false)
   const settled = useRef(false)
 
@@ -240,12 +336,12 @@ export function ModeSwitcher({ className }: { className?: string }) {
       accessibilityLabel={translateProp("Mode aplikasi")}
       hitSlop={{ top: CONTAINER_HIT_SLOP.top, bottom: CONTAINER_HIT_SLOP.bottom }}
       className={cn(
-        "h-10 w-full flex-row items-stretch rounded-md border border-border-control bg-surface p-[2px]",
+        "h-8 flex-row items-stretch rounded-full border border-border-control bg-surface p-[2px]",
         className,
       )}
     >
       <Reanimated.View style={[PILL_FRAME, pillStyle]}>
-        <View className="h-full w-full rounded-sm bg-primary" />
+        <View className="h-full w-full rounded-full bg-primary" />
       </Reanimated.View>
       {MODES.map((item, index) => {
         const active = item.value === mode
@@ -255,14 +351,24 @@ export function ModeSwitcher({ className }: { className?: string }) {
             accessibilityRole="radio"
             accessibilityState={{ checked: active }}
             aria-checked={active}
-            accessibilityLabel={item.label}
+            accessibilityLabel={translate(item.accessibilityLabel)}
+            accessibilityHint={translate("Ganti mode aplikasi ke {x}", {
+              x: translate(item.accessibilityLabel),
+            })}
             scaleOnPress={false}
             onPress={() => switchMode(item.value)}
             onLayout={onLayout(index)}
             hitSlop={{ top: SEGMENT_HIT_SLOP.top, bottom: SEGMENT_HIT_SLOP.bottom }}
-            containerClassName={cn("z-sticky flex-1 overflow-hidden rounded-sm", focusRingInset)}
-            className="h-full flex-1 items-center justify-center rounded-sm px-2"
+            containerClassName={cn("z-sticky min-w-10 flex-1 overflow-hidden rounded-full", focusRingInset)}
+            className="h-full flex-row flex-1 items-center justify-center gap-1 rounded-full px-2"
           >
+            <SegmentGlyph
+              icon={item.icon}
+              index={index}
+              progress={progress}
+              inverseColor={inverseColor}
+              ghostColor={ghostColor}
+            />
             <PillLabel
               label={item.label}
               index={index}
@@ -273,17 +379,6 @@ export function ModeSwitcher({ className }: { className?: string }) {
           </PressableScale>
         )
       })}
-    </View>
-  )
-}
-
-/** Switcher dengan gutter layar — untuk chrome yang bukan <Header>. */
-export function ModeSwitcherBar({ className }: { className?: string }) {
-  return (
-    <View className={cn("w-full items-center bg-background px-5 pb-3 pt-2", className)}>
-      <View className="w-full md:max-w-content">
-        <ModeSwitcher />
-      </View>
     </View>
   )
 }

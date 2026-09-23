@@ -113,5 +113,6 @@
   "Orang lain membayar dengan memindai QR ini": "Someone else pays by scanning this QR",
   "Pilih cara membayar.": "Choose how to pay.",
   "Membuka halaman buat transaksi": "Opens the create-transaction page",
-  "Membuka kirim saldo atau QR terima": "Opens send balance or a receive QR"
+  "Membuka kirim saldo atau QR terima": "Opens send balance or a receive QR",
+  "Ganti mode aplikasi ke {x}": "Switch app mode to {x}"
 }
