@@ -5,12 +5,14 @@
 import { http, seg } from "@/lib/api/client"
 
 export type DeeplinkResolution = {
-  kind: "user" | "profile" | "order-link" | "order" | "notification"
+  kind: "user" | "profile" | "order-link" | "order" | "notification" | "showcase"
   id?: string
   username?: string
   orderId?: string
   notificationId?: string
   token?: string
+  /** id item etalase (kind "showcase"). */
+  showcaseId?: string
 }
 
 export function resolveUserDeeplink(username: string, signal?: AbortSignal) {
@@ -47,6 +49,18 @@ export function resolveOrderDeeplink(orderId: string, signal?: AbortSignal) {
 
 export function resolveNotificationDeeplink(notificationId: string, signal?: AbortSignal) {
   return http.get<DeeplinkResolution>(`/v1/deeplinks/notification/${seg(notificationId)}`, {
+    auth: "none",
+    retry: 1,
+    signal,
+  })
+}
+
+/**
+ * GET /v1/deeplinks/showcase/{showcaseId} — resolusi tautan etalase yang
+ * universal-link tidak tangkap (audit H-3: endpoint spec sebelumnya yatim).
+ */
+export function resolveShowcaseDeeplink(showcaseId: string, signal?: AbortSignal) {
+  return http.get<DeeplinkResolution>(`/v1/deeplinks/showcase/${seg(showcaseId)}`, {
     auth: "none",
     retry: 1,
     signal,

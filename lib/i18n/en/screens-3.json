@@ -1,4 +1,5 @@
 {
+  "Etalase": "Showcase",
   "Gagal menghapus bukti": "Couldn't delete the evidence",
   "Gagal menghapus foto": "Couldn't delete the photo",
   "Gagal menghapus foto sampul": "Couldn't delete the cover photo",
@@ -47,7 +48,6 @@
   "Hapus bukti ini?": "Delete this evidence?",
   "Hapus foto": "Delete photo",
   "Hapus foto sampul": "Delete cover photo",
-  "Hapus item ini?": "Delete this item?",
   "Hapus jadwal?": "Delete this schedule?",
   "Hapus notifikasi?": "Delete this notification?",
   "Hapus pertanyaan": "Delete question",
@@ -68,11 +68,6 @@
   "Instruksi pembayaran dibuat": "Payment instructions created",
   "Invoice Kahade": "Kahade invoice",
   "Isi Saldo": "Top up",
-  "Item akan dihapus permanen dari showcase Anda.": "The item will be permanently removed from your showcase.",
-  "Item dihapus": "Item deleted",
-  "Item disembunyikan": "Item hidden",
-  "Item ditampilkan": "Item shown",
-  "Item showcase dibuat": "Showcase item created",
   "Jadikan utama": "Make primary",
   "Jadilah yang pertama bertanya pada profil ini.": "Be the first to ask a question on this profile.",
   "Jadwal aktif": "Active schedule",
@@ -91,7 +86,6 @@
   "Jelaskan kendala Anda. Balasan tim Kahade muncul di Tiket Bantuan.": "Describe your issue. The Kahade team's reply appears in Support tickets.",
   "Jenis transaksi": "Transaction type",
   "JNE, SiCepat, …": "JNE, SiCepat, …",
-  "Judul dan rentang harga membantu calon pembeli memahami penawaran Anda.": "A title and price range help buyers understand your offer.",
   "Judul order default": "Default order title",
   "Jumlah transfer": "Transfer amount",
   "Kami masih memeriksa nama pengguna tersebut.": "We're still checking that username.",
@@ -108,7 +102,6 @@
   "Kepercayaan dicabut": "Trust revoked",
   "Kesepakatan bersama": "Mutual agreement",
   "Kesepakatan diterima": "Agreement accepted",
-  "Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.": "Tap an item to edit details, hide, or delete it.",
   "Keuntungan": "Benefits",
   "Keuntungan belum dapat dimuat": "Benefits couldn't be loaded",
   "Kirim balasan": "Send reply",
@@ -117,6 +110,7 @@
   "Kirim kode verifikasi": "Send verification code",
   "Kirim permintaan": "Send request",
   "Kirim Pesan": "Send message",
+  "Kirim saldo ke @{x} di Kahade: {y}": "Send a balance to @{x} on Kahade: {x}",
   "Kirim saldo sebagai gantinya": "Send funds instead",
   "Kirim tiket": "Send ticket",
   "Kirim ulang OTP": "Resend OTP",
@@ -144,7 +138,5 @@
   "Kredensial": "Credentials",
   "Kunci manual": "Manual key",
   "Kunci Perangkat": "Device lock",
-  "Etalase": "Showcase",
-  "Tidak dibagikan": "Not shared",
-  "Kirim saldo ke @{x} di Kahade: {y}": "Send a balance to @{x} on Kahade: {x}"
+  "Tidak dibagikan": "Not shared"
 }

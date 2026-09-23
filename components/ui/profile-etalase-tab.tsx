@@ -2,58 +2,59 @@
  * Kahade — <ProfileEtalaseTab>: isi tab "Etalase" di profil publik user.
  *
  * Diekstrak dari app/user/[username].tsx (G-11: god component hanya boleh
- * menyusut). Seluruh logika sosial tab ini (normalisasi item, suka, simpan,
- * bagikan, sheet komentar) hidup di sini supaya layar induk tinggal memegang
- * data mentah + navigasi tab.
+ * menyusut). Seluruh logika sosial tab ini hidup di sini supaya layar induk
+ * tinggal memegang data mentah + navigasi tab.
  *
  * PRINSIP UTAMA (permintaan produk A.5): list tab ini SAMA PERSIS dengan
- * list halaman Showcase — komponen <ShowcaseFeedItem> yang sama (penulis,
- * media card swipe, harga, judul, bar aksi Suka/Komentar/Bagikan/Simpan,
- * divider inset) dan parameter jarak yang sama dengan <PaginatedList> di
- * ShowcaseFeedTab (container tanpa px-5 — item membawa gutter sendiri;
- * jarak antar item tokens.space[5]). Handler suka/simpan/bagikan/komentar
- * disalin paruh-per-paruh dari ShowcaseFeedTab agar perilaku optimistis
- * (ubah angka dulu, sinkron nilai final server) identik.
+ * list halaman Etalase — komponen <ShowcaseFeedItem> yang sama dan
+ * parameter jarak yang sama.
+ *
+ * Revisi audit Etalase (2026-09-23):
+ *  - C-01: induk meneruskan `error` + `onRetry` — gagal memuat tidak lagi
+ *    tampil sebagai "belum ada konten"; ErrorState compact + Coba lagi.
+ *  - C-03: "Laporkan" memakai <ShowcaseReportSheet> (POST /showcase/{id}/
+ *    report) — BUKAN lagi endpoint lapor-pengguna dengan ID showcase.
+ *  - C-05: patch komentar di-reset saat identitas `items` berubah karena
+ *    refresh jaringan — angka optimistis tidak menimpa nilai server baru.
+ *  - C-06/A-05/A-06: suka & simpan lewat `useShowcaseSocialActions` (store
+ *    bersama + gate tamu ke login-required); identik dengan feed & detail.
+ *  - C-07/J-04: normalisasi via `toSocialShowcaseItem` bersama — judul
+ *    fallback netral "Tanpa judul", cover ikut urutan resolver kanonik.
+ *  - B-05 parity: item dari profil sendiri ditandai isOwner (via
+ *    toSocialShowcaseItem isSelf) — bendera lapor tidak muncul di karya
+ *    sendiri.
  */
-import { useCallback, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { Images, Plus } from "phosphor-react-native"
 
-import { isApiError, userMessage } from "@/lib/api"
-import {
-  getShowcaseSharePayload,
-  likeShowcase,
-  unlikeShowcase,
-  type ShowcaseSocialItem,
-} from "@/lib/api/showcase"
+import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import type { ShowcaseItem } from "@/lib/api/users"
-import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
-import { shareContent } from "@/lib/share"
+import { toSocialShowcaseItem, type ShowcaseOwner } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
+import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ErrorState } from "@/components/ui/error-state"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
-import { useToast } from "@/components/ui/toast"
+import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { translate } from "@/lib/i18n/translate"
 
 /** Pemilik profil — penulis semua item etalase (endpoint sudah per-username). */
-export type EtalaseOwner = {
-  id: string
-  username: string
-  fullName?: string
-  avatarUrl?: string | null
-  verified?: boolean
-}
+export type EtalaseOwner = ShowcaseOwner
 
 export type ProfileEtalaseTabProps = {
   /** Item mentah dari GET /v1/users/{username}/showcase. */
   items: ShowcaseItem[]
   loading: boolean
+  /** C-01: gagal memuat tab — string pesan, bukan empty-state. */
+  error?: string | null
+  onRetry?: () => void
   /** Username profil (tanpa @) — untuk copy empty state. */
   handle: string
   owner: EtalaseOwner
@@ -62,73 +63,58 @@ export type ProfileEtalaseTabProps = {
 }
 
 /**
- * Normalisasi GET /v1/users/{username}/showcase (ShowcaseItem) ke bentuk
- * <ShowcaseFeedItem> (ShowcaseSocialItem). Respons backend BISA sudah
- * membawa field sosial (likeCount/isLiked/images[]) — semuanya dibaca
- * defensif; yang tidak ada diisi nilai netral.
+ * Kartu memo: membaca state sosialnya sendiri (store bersama) — menekan ♥
+ * di sini langsung terlihat di feed/detail dan sebaliknya (A-07/C-06).
  */
-function toSocialShowcaseItem(item: ShowcaseItem, owner: EtalaseOwner): ShowcaseSocialItem {
-  const raw = item as ShowcaseItem & Partial<ShowcaseSocialItem>
-  const images = Array.isArray(raw.images)
-    ? raw.images
-        .map((image, index) => {
-          const url = resolveMediaUrl(image?.imageUrl)
-          return url
-            ? {
-                id: image.id ?? `${item.id}-${index}`,
-                imageUrl: url,
-                sortOrder: image.sortOrder ?? index,
-              }
-            : null
-        })
-        .filter((image): image is { id: string; imageUrl: string; sortOrder: number } => image != null)
-    : []
-  if (images.length === 0) {
-    // Item lama mungkin hanya punya cover tunggal (imageUrl) atau key storage.
-    const cover = resolveMediaUrl(item.coverImageUrl ?? item.imageUrl ?? item.fileKey)
-    if (cover) images.push({ id: item.id, imageUrl: cover, sortOrder: 0 })
-  }
-  return {
-    id: item.id,
-    title: item.title ?? item.caption ?? "Showcase",
-    description: item.description ?? item.caption ?? null,
-    category: raw.category ?? null,
-    images,
-    coverImageUrl: item.coverImageUrl ?? item.imageUrl ?? null,
-    imageUrl: item.imageUrl ?? null,
-    priceMin: item.priceMin ?? null,
-    priceMax: item.priceMax ?? null,
-    likeCount: typeof raw.likeCount === "number" ? raw.likeCount : 0,
-    commentCount: typeof raw.commentCount === "number" ? raw.commentCount : 0,
-    viewCount: typeof raw.viewCount === "number" ? raw.viewCount : 0,
-    isLiked: raw.isLiked === true,
-    createdAt: item.createdAt,
-    updatedAt: (raw as { updatedAt?: string }).updatedAt ?? item.createdAt,
-    author: {
-      userId: owner.id,
-      username: owner.username,
-      fullName: owner.fullName ?? null,
-      avatarUrl: owner.avatarUrl ?? null,
-      isKycVerified: owner.verified === true,
-    },
-  }
-}
+const EtalaseCard = memo(function EtalaseCard({
+  item,
+  divider,
+  onOpenComments,
+  onReport,
+}: {
+  item: ShowcaseSocialItem
+  divider: boolean
+  onOpenComments: (item: ShowcaseSocialItem) => void
+  onReport: (item: ShowcaseSocialItem) => void
+}) {
+  const { liked, likeCount, saved, toggleLike, toggleSave, share } =
+    useShowcaseSocialActions(item)
+  const display =
+    liked === (item.isLiked === true) && likeCount === item.likeCount
+      ? item
+      : { ...item, isLiked: liked, likeCount }
+  return (
+    <ShowcaseFeedItem
+      item={display}
+      onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
+      onToggleLike={toggleLike}
+      onOpenComments={() => onOpenComments(item)}
+      onToggleSave={toggleSave}
+      saved={saved}
+      onShare={share}
+      onReport={() => onReport(item)}
+      divider={divider}
+    />
+  )
+})
 
-export function ProfileEtalaseTab({ items, loading, handle, owner, isSelf = false }: ProfileEtalaseTabProps) {
-  const toast = useToast()
-  /** Guard per item: dua request suka berbarengan pada kartu yang sama. */
-  const likeBusy = useRef<Set<string>>(new Set())
-  /** Bookmark item — lokal (backend belum punya endpoint koleksi tersaved). */
-  const [savedIds, setSavedIds] = useState<ReadonlySet<string>>(() => new Set())
-  /** Item yang komentarnya sedang dibuka di BottomSheet (null = tertutup). */
+export function ProfileEtalaseTab({
+  items,
+  loading,
+  error,
+  onRetry,
+  handle,
+  owner,
+  isSelf = false,
+}: ProfileEtalaseTabProps) {
+  /** Item yang komentarnya sedang dibuka (null = tertutup). */
   const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
+  /** C-03: item yang sedang dilaporkan (null = tertutup). */
+  const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
 
   /**
-   * Normalisasi raw → sosial adalah TURUNAN MURNI (useMemo tanpa state
-   * cermin — setState saat render dilarang). Interaksi pengguna (suka,
-   * komentar) disimpan sebagai patch per-id di atas turunan itu, persis
-   * pola optimistis `items` di feed: angka berubah dulu, sinkron server
-   * menimpa patch, fetch ulang mengganti basis.
+   * Normalisasi raw → sosial adalah TURUNAN MURNI. `isSelf` menandai
+   * kepemilikan (moderasi + sembunyikan bendera, paritas B-05).
    */
   const {
     id: ownerId,
@@ -137,106 +123,66 @@ export function ProfileEtalaseTab({ items, loading, handle, owner, isSelf = fals
     avatarUrl: ownerAvatarUrl,
     verified: ownerVerified,
   } = owner
-  const base = useMemo(
+  const socialItems = useMemo(
     () =>
       items.map((item) =>
-        toSocialShowcaseItem(item, {
-          id: ownerId,
-          username: ownerUsername,
-          fullName: ownerFullName,
-          avatarUrl: ownerAvatarUrl,
-          verified: ownerVerified,
-        }),
+        toSocialShowcaseItem(
+          item,
+          {
+            id: ownerId,
+            username: ownerUsername,
+            fullName: ownerFullName,
+            avatarUrl: ownerAvatarUrl,
+            verified: ownerVerified,
+          },
+          isSelf,
+        ),
       ),
-    [items, ownerId, ownerUsername, ownerFullName, ownerAvatarUrl, ownerVerified],
+    [items, isSelf, ownerId, ownerUsername, ownerFullName, ownerAvatarUrl, ownerVerified],
   )
-  const [patches, setPatches] = useState<Record<string, Partial<ShowcaseSocialItem>>>({})
-  const socialItems = useMemo(
-    () => base.map((entry) => (patches[entry.id] ? { ...entry, ...patches[entry.id] } : entry)),
-    [base, patches],
-  )
-
-  /** Ganti sebagian field satu item — satu sumber angka untuk kartu di list. */
-  const patchItem = useCallback((id: string, patch: Partial<ShowcaseSocialItem>) => {
-    setPatches((previous) => ({ ...previous, [id]: { ...previous[id], ...patch } }))
-  }, [])
 
   /**
-   * Suka/batal suka langsung dari kartu. Optimistis: angka berubah saat jari
-   * menyentuh, lalu disinkronkan dengan nilai FINAL dari server
-   * (`{liked, likeCount}`) supaya tidak berbeda dengan halaman detail.
+   * Patch lokal kini HANYA hitungan komentar (suka/simpan hidup di store
+   * bersama). C-05: patch dibuang saat `items` berubah identitas karena
+   * refresh jaringan — angka server terbaru yang menang lagi.
    */
-  const handleToggleLike = useCallback(
-    async (item: ShowcaseSocialItem) => {
-      if (likeBusy.current.has(item.id)) return
-      const previous = { isLiked: item.isLiked === true, likeCount: item.likeCount }
-      const next = !previous.isLiked
-      likeBusy.current.add(item.id)
-      patchItem(item.id, {
-        isLiked: next,
-        likeCount: Math.max(0, previous.likeCount + (next ? 1 : -1)),
-      })
-      try {
-        const res = next ? await likeShowcase(item.id) : await unlikeShowcase(item.id)
-        patchItem(item.id, { isLiked: res.liked, likeCount: res.likeCount })
-      } catch (err) {
-        patchItem(item.id, previous)
-        // SHOWCASE_ALREADY_LIKED (race) bukan error pengguna — cukup sinkronkan.
-        const isRace = isApiError(err) && err.backendCode === "SHOWCASE_ALREADY_LIKED"
-        if (!isRace) {
-          toast.show({
-            title: "Gagal memperbarui suka",
-            description: userMessage(err),
-            tone: "danger",
-          })
-        }
-      } finally {
-        likeBusy.current.delete(item.id)
-      }
-    },
-    [patchItem, toast],
-  )
-
-  const handleToggleSave = useCallback((item: ShowcaseSocialItem) => {
-    setSavedIds((previous) => {
-      const next = new Set(previous)
-      if (next.has(item.id)) next.delete(item.id)
-      else next.add(item.id)
-      return next
-    })
-  }, [])
-
-  const handleShare = useCallback(
-    async (item: ShowcaseSocialItem) => {
-      try {
-        const payload = await getShowcaseSharePayload(item.id)
-        const outcome = await shareContent({
-          message: `${payload.title} — ${payload.authorFullName ?? "@" + payload.authorUsername}`,
-          url: payload.shareUrl,
-          title: payload.title,
-        })
-        if (outcome === "unavailable") {
-          toast.show({ title: "Share tidak tersedia di perangkat ini", tone: "info" })
-        }
-      } catch (err) {
-        toast.show({
-          title: "Gagal menyiapkan share",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
-      }
-    },
-    [toast],
+  const [patches, setPatches] = useState<Record<string, Partial<ShowcaseSocialItem>>>({})
+  const prevItems = useRef(items)
+  useEffect(() => {
+    if (prevItems.current !== items) {
+      prevItems.current = items
+      setPatches({})
+    }
+  }, [items])
+  const patchedItems = useMemo(
+    () =>
+      socialItems.map((entry) => (patches[entry.id] ? { ...entry, ...patches[entry.id] } : entry)),
+    [socialItems, patches],
   )
 
   /** Komentar baru dari komposer sheet — hitungan kartu ikut bertambah. */
   const handleCommentAdded = useCallback(
     (id: string) => {
-      const current = socialItems.find((entry) => entry.id === id)?.commentCount ?? 0
-      patchItem(id, { commentCount: current + 1 })
+      setPatches((previous) => ({
+        ...previous,
+        [id]: {
+          ...previous[id],
+          commentCount:
+            (previous[id]?.commentCount ??
+              socialItems.find((entry) => entry.id === id)?.commentCount ??
+              0) + 1,
+        },
+      }))
     },
-    [patchItem, socialItems],
+    [socialItems],
   )
+
+  const handleOpenComments = useCallback((item: ShowcaseSocialItem) => {
+    setCommentItem(item)
+  }, [])
+  const handleOpenReport = useCallback((item: ShowcaseSocialItem) => {
+    setReportItem(item)
+  }, [])
 
   return (
     <>
@@ -245,7 +191,17 @@ export function ProfileEtalaseTab({ items, loading, handle, owner, isSelf = fals
           <View className="px-5">
             <ListLoading />
           </View>
-        ) : socialItems.length === 0 ? (
+        ) : error ? (
+          // C-01: gagal memuat ≠ kosong — selalu ada jalan mencoba ulang.
+          <View className="px-5">
+            <ErrorState
+              compact
+              title="Gagal memuat etalase"
+              description={error}
+              onRetry={onRetry}
+            />
+          </View>
+        ) : patchedItems.length === 0 ? (
           <View className="px-5">
             {isSelf ? (
               <EmptyState
@@ -267,36 +223,46 @@ export function ProfileEtalaseTab({ items, loading, handle, owner, isSelf = fals
               <EmptyState
                 icon={Images}
                 title="Belum ada konten"
-                description={translate("@{x} belum membagikan foto atau showcase produk.", { x: handle })}
+                description={translate("@{x} belum membagikan foto atau karya produk.", {
+                  x: handle,
+                })}
               />
             )}
           </View>
         ) : (
-          socialItems.map((item, index) => (
-            <ShowcaseFeedItem
-              key={item.id}
-              item={item}
-              onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
-              onToggleLike={() => void handleToggleLike(item)}
-              onOpenComments={() => setCommentItem(item)}
-              onToggleSave={() => handleToggleSave(item)}
-              saved={savedIds.has(item.id)}
-              onShare={() => void handleShare(item)}
-              // Tanpa onReport: default komponen membuka halaman laporan —
-              // persis perilaku feed halaman Showcase.
-              divider={index < socialItems.length - 1}
-            />
-          ))
+          <>
+            {patchedItems.map((item, index) => (
+              <EtalaseCard
+                key={item.id}
+                item={item}
+                divider={index < patchedItems.length - 1}
+                onOpenComments={handleOpenComments}
+                onReport={handleOpenReport}
+              />
+            ))}
+            {/* E-03: taut ke layar galeri grid publik (jangan biarkan kode mati). */}
+            <View className="px-5">
+              <Button
+                variant="ghost"
+                onPress={() => router.push(ROUTES.userShowcase(handle))}
+              >
+                Lihat sebagai galeri
+              </Button>
+            </View>
+          </>
         )}
       </View>
 
       {/* Komentar dibaca & ditulis di sheet — paritas dengan halaman
-          Showcase (pengguna tidak kehilangan posisi list). */}
+          Etalase (pengguna tidak kehilangan posisi list). */}
       <ShowcaseCommentsSheet
         item={commentItem}
         onRequestClose={() => setCommentItem(null)}
         onCommentAdded={handleCommentAdded}
       />
+
+      {/* C-03: lapor ITEM ke endpoint showcase, sheet bersama (A-11). */}
+      <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />
     </>
   )
 }

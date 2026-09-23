@@ -38,6 +38,8 @@
 import { useState, type ReactNode } from "react"
 import { View, type LayoutChangeEvent, type ViewProps } from "react-native"
 
+import { EyeSlash } from "phosphor-react-native"
+
 import { Picture, type PictureProps } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -52,6 +54,13 @@ export type ShowcaseItem = {
   id: string
   source: PictureProps["source"]
   alt: string
+  /**
+   * Penanda VISUAL item nonaktif/PRIVATE (audit D-06): scrim meredupkan +
+   * badge EyeSlash — dulu penanda disembunyikan hanya hidup di label
+   * aksesibilitas, jadi pemilik awas tidak tahu kenapa karyanya tidak tampil
+   * di profil publik.
+   */
+  hidden?: boolean
 }
 
 export type ShowcaseGalleryGridProps = Omit<ViewProps, "children"> & {
@@ -136,6 +145,21 @@ export function ShowcaseGalleryGrid({
                     recyclingKey={item.id}
                     preventDownload
                   />
+                  {item.hidden ? (
+                    // D-06: marker visual "disembunyikan" — scrim tipis +
+                    // badge ikon. Tidak ikut dalam label; `item.alt` sudah
+                    // membawa info serupa untuk pembaca layar.
+                    <View
+                      style={{ pointerEvents: "none" }}
+                      className="absolute inset-0 bg-overlay"
+                    >
+                      <View className="absolute right-1 top-1 rounded-full bg-overlay-media p-1">
+                        {/* Putih eksplisit — scrim hitam di kedua mode (sama
+                            seperti label "+N" di bawah). */}
+                        <EyeSlash size={16} color="#FFFFFF" weight="fill" />
+                      </View>
+                    </View>
+                  ) : null}
                   {showMore ? (
                     // `bg-overlay-media` (0.7), bukan `bg-overlay` (0.4): di atas
                     // foto terang scrim 0.4 tersusun jadi #999999 dan label "+N"

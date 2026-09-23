@@ -77,7 +77,9 @@ export const AUTHENTICATED_SCREENS = [
   "two-factor",
   "user/[username]/questions",
   "user/[username]/ratings",
-  "user/[username]/showcase",
+  // Revisi audit Etalase 2026-09-23 (I-05): galeri etalase publik per user
+  // dikeluarkan dari daftar ini — halaman indeks "et al." yang bisa dibagikan
+  // ("user/[username]/showcase" kini publik; profil induknya tetap protected).
   "user/[username]",
   "vouchers",
   "wallet-history",
@@ -95,12 +97,18 @@ export const AUTHENTICATED_SCREENS = [
 // ------------------------------------------------------------------
 
 /**
- * Layar tab yang boleh ditelusuri tamu web. Tab "showcase"/"discover" publik
- * lewat WEB_GUEST_ALLOWED_PATHS di bawah; "notifications" DIHAPUS dari daftar
- * ini (audit B-01): layar Notifikasi menembak `auth:"required"` tanpa
+ * Layar tab yang boleh ditelusuri tamu web. "notifications" DIHAPUS dari
+ * daftar ini (audit B-01): layar Notifikasi menembak `auth:"required"` tanpa
  * guest-gate — tamu yang membukanya hanya memanen badai 401.
+ *
+ * REVISI 2026-09-23 (audit Etalase I-01): "showcase" dibuka untuk tamu.
+ * Feed-nya memang publik (`GET /v1/showcase/feed` auth:"none"), rute detail
+ * `/showcase/[id]` sudah lebih dulu publik (corong share/SEO), dan seluruh
+ * aksi yang butuh akun di dalam tab (suka/komentar/simpan/lapor, saldo,
+ * kelola, notifikasi) masing-masing digate sesi. Menutup tab ini dulu hanya
+ * menutup corong penemuan pasar yang backend-nya sendiri izinkan.
  */
-export const WEB_GUEST_TAB_SCREENS = ["home", "transactions", "wallet"] as const
+export const WEB_GUEST_TAB_SCREENS = ["home", "transactions", "wallet", "showcase"] as const
 
 /**
  * Path yang boleh diakses tanpa login di web. Selain layar tab di atas:
@@ -176,8 +184,9 @@ export function isProtectedPath(pathname: string): boolean {
   )
     return false
 
-  // Hanya path tab PERSIS (bukan sub-path): "/showcase" terproteksi untuk
-  // tamu, tetapi corong publik "/showcase/[id]" (share/SEO) tetap terbuka.
+  // Hanya path tab PERSIS (bukan sub-path): tab di WEB_GUEST_TAB_SCREENS
+  // sudah lolos allowlist di atas; sub-path publik seperti corong share
+  // "/showcase/[id]" tidak terkena pencocokan tab.
   const tabMatch = path.match(/^\/([^/?#]+)\/?$/)
   if (tabMatch && PROTECTED_TABS.has(tabMatch[1])) return true
 

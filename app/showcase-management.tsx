@@ -1,33 +1,44 @@
 /**
- * Screen — Showcase / portofolio saya.
+ * Screen — Etalase saya (manajemen).
  *
  * Kontrak API (docs/api/kahade-api-mobile.json):
  *   GET    /v1/users/me/showcase             → semua item (termasuk nonaktif)
- *   POST   /v1/users/me/showcase/upload      multipart gambar (201, tanpa schema)
  *   POST   /v1/users/me/showcase             CreateShowcaseItemDto { title, description?,
- *                                            imageUrl?, priceMin?, priceMax?, sortOrder? }
+ *                                            imageFileKeys?, priceMin?, priceMax?,
+ *                                            category?, visibility?, sortOrder? }
  *   PUT    /v1/users/me/showcase/{id}        UpdateShowcaseItemDto (+ isActive)
  *   DELETE /v1/users/me/showcase/{id}
+ * Unggah foto: presigned → PUT objek → POST /upload/confirm → fileKey
+ * (satu pintu di lib/showcase-upload.ts, audit D-04; multipart lama = fallback).
  *
- * Alur tambah: pilih gambar → upload → bila respons sudah berupa item
- * (punya `id`) selesai; bila hanya `imageUrl`/`url`/`key` → buka form
- * (judul wajib, deskripsi, rentang harga) → createShowcase. UNVERIFIED mana
- * yang dilakukan backend; keduanya ditangani.
+ * Alur tambah: pilih BEBERAPA foto (D-11) → unggah → buka form (judul wajib,
+ * deskripsi, rentang harga, KATEGORI, VISIBILITAS — D-02) → createShowcase
+ * dengan imageFileKeys. Bila fallback multipart mengembalikan item utuh
+ * (res.id), item ditandai NONAKTIF (draft — D-01) dan form edit dibuka
+ * supaya publikasi tidak pernah terjadi tanpa konfirmasi judul.
  *
- * Tap item → ActionSheet: Ubah detail (form → updateShowcase), Sembunyikan/
- * Tampilkan (isActive), Hapus (Dialog destructive). Item nonaktif ditandai
- * di judul sheet supaya user tahu kenapa tidak tampil di profil publik.
- *
- * Keputusan non-obvious:
- *   - Harga memakai <AmountInput> (format Rupiah §13) dengan validasi
- *     priceMax ≥ priceMin lokal; 0 = tidak diisi (undefined ke server).
- *   - Tidak ada drag-reorder: `sortOrder` diisi berurutan saat membuat item
- *     baru (di akhir); pengurutan manual dicatat di finding sebagai backlog.
+ * Perbaikan audit Etalase (2026-09-23):
+ *   D-01 Tidak ada lagi item terbit-tanpa-judul dari unggah foto: item yang
+ *        dibuat otomatis backend disembunyikan (isActive false) & form edit
+ *        dibuka; pengguna yang menyadarinya dari grid (badge, D-06).
+ *   D-02 Field kategori & visibilitas bisa diisi (form create & edit).
+ *   D-03 sortOrder item baru = max(sortOrder)+1 (bukan items.length) —
+ *        tidak menabrak urutan setelah hapus item di tengah.
+ *   D-05 Label harga via `showcasePriceLabel` bersama (feed/detail/manajemen
+ *        identik; rentang sama → harga tunggal).
+ *   D-06 Item nonaktif ditandai VISUAL di grid (scrim + badge EyeSlash).
+ *   D-07 Skeleton = grid persegi (bukan ListLoading kartu h-24).
+ *   D-08 Batas form & MAX_IMAGES dari API_CONSTRAINTS (constraints.ts).
+ *   D-09 Key yang terunggah tapi gagal dipakai dibersihkan best-effort.
+ *   D-10 Reorder foto = edit LOKAL di sheet, SATU PUT saat sheet ditutup.
+ *   D-11 Multi-pick (pilih beberapa foto sekaligus, tanpa crop paksa 1:1).
+ *   J-01 Nama fitur "Etalase" (judul layar, copy), bukan "Portofolio".
+ *   Tiap mutasi sukses memanggil markShowcaseFeedDirty() → tab feed
+ *        menyegarkan dirinya saat fokus kembali (A-08).
  */
 
 import { Crossfade } from "@/components/ui/fade-in"
-import { ListLoading } from "@/components/ui/paginated-list"
-import { useCallback, useState } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
@@ -35,11 +46,15 @@ import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
 import { api, userMessage } from "@/lib/api"
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
-import { pickImage, pickedImageToFormData } from "@/lib/image-picker"
-import { formatRupiah } from "@/lib/format"
+import { pickImages } from "@/lib/image-picker"
 import { useApiQuery } from "@/lib/use-api-query"
 import { ROUTES } from "@/lib/routes"
+import { showcasePriceLabel } from "@/lib/showcase-labels"
+import { showcaseCoverOf, untitledShowcaseTitle } from "@/lib/showcase-social"
+import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
+import { cleanupPendingShowcaseKeys, uploadShowcasePhoto } from "@/lib/showcase-upload"
 import { tokens } from "@/lib/tokens"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -57,14 +72,16 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
+import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 
-/** Batas lokal (spec tidak menyebut maxLength untuk showcase) */
-const TITLE_MAX = 100
-const DESC_MAX = 500
-/** Batas foto per item — sama dengan SHOWCASE_MAX_IMAGES backend (8). */
+/** Batas form — D-08: TURUNAN dari kontrak backend, bukan angka lokal. */
+const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
+const DESC_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.description.maxLength
+const CATEGORY_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.category.maxLength
+/** Batas foto per item (DTO imageFileKeys: "Maksimum 8 gambar"). */
 const SHOWCASE_MAX_IMAGES = 8
 
 type FormState = {
@@ -72,21 +89,52 @@ type FormState = {
   description: string
   priceMin: number
   priceMax: number
+  /** D-02: kategori & visibilitas ikut diisi dari aplikasi. */
+  category: string
+  isPublic: boolean
 }
-const EMPTY_FORM: FormState = { title: "", description: "", priceMin: 0, priceMax: 0 }
+const EMPTY_FORM: FormState = {
+  title: "",
+  description: "",
+  priceMin: 0,
+  priceMax: 0,
+  category: "",
+  isPublic: true,
+}
 
-type Editor = { mode: "create"; imageUrl?: string; fileKey?: string } | { mode: "edit"; item: ShowcaseItem } | null
+type Editor =
+  | { mode: "create"; fileKeys: string[] }
+  | { mode: "edit"; item: ShowcaseItem }
+  | null
 
+/** Judul tampil item mentah — fallback netral bersama (J-04). */
 function labelOf(it: ShowcaseItem): string {
-  return it.title ?? it.caption ?? "Portofolio"
+  return it.title ?? it.caption ?? untitledShowcaseTitle()
 }
 
-function priceLabel(it: ShowcaseItem): string | undefined {
-  if (it.priceMin && it.priceMax)
-    return `${formatRupiah(it.priceMin)} – ${formatRupiah(it.priceMax)}`
-  if (it.priceMin) return `Mulai ${formatRupiah(it.priceMin)}`
-  if (it.priceMax) return `Hingga ${formatRupiah(it.priceMax)}`
-  return undefined
+/** Nilai opsional (buat & ubah) — harga 0 = tidak diisi (undefined). */
+function formToPayload(form: FormState) {
+  return {
+    description: form.description.trim() || undefined,
+    priceMin: form.priceMin || undefined,
+    priceMax: form.priceMax || undefined,
+    category: form.category.trim() || undefined,
+    visibility: form.isPublic ? ("PUBLIC" as const) : ("PRIVATE" as const),
+  }
+}
+
+/** Baca `sortOrder` maksimum +1 (D-03) — tahan item tanpa sortOrder. */
+function nextSortOrder(items: ShowcaseItem[]): number {
+  return items.reduce((max, it) => Math.max(max, typeof it.sortOrder === "number" ? it.sortOrder : 0), 0) + 1
+}
+
+/** Kategori/visibilitas dari respons mentah (ShowcaseItem belum mengetiknya). */
+function rawMeta(it: ShowcaseItem): { category: string; isPublic: boolean } {
+  const raw = it as ShowcaseItem & { category?: string | null; visibility?: string | null }
+  return {
+    category: typeof raw.category === "string" ? raw.category : "",
+    isPublic: raw.visibility !== "PRIVATE",
+  }
 }
 
 export default function ShowcaseScreen() {
@@ -117,6 +165,11 @@ export default function ShowcaseScreen() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | undefined>()
   const [saving, setSaving] = useState(false)
+  /**
+   * Key yang sudah terunggah dari flow create & belum ter-commit — dibersihkan
+   * bila pengguna membatalkan form (D-09; create gagal juga membersihkan).
+   */
+  const pendingKeys = useRef<string[]>([])
 
   // ── Kelola foto item (multi-image) ────────────────────────────────
   // ID saja yang disimpan di state — baris item diturunkan dari `items`
@@ -124,43 +177,118 @@ export default function ShowcaseScreen() {
   const [imagesItemId, setImagesItemId] = useState<string | null>(null)
   const imagesItem = imagesItemId ? (items.find((it) => it.id === imagesItemId) ?? null) : null
   const [attaching, setAttaching] = useState(false)
-  const [reorderingId, setReorderingId] = useState<string | null>(null)
   const [deleteImage, setDeleteImage] = useState<ShowcaseImage | null>(null)
   const [deletingImage, setDeletingImage] = useState(false)
 
-  // ── Tambah: pilih → upload → (form bila perlu) ────────────────────
+  /**
+   * D-10: urutan foto diedit LOKAL (draft) — panah menukar posisi di draft;
+   * SATU UpsertImagesOrder dikirim saat sheet DITUTUP (bukan 2 request per
+   * klik). `null` = tidak ada perubahan sejak sheet dibuka/terakhir commit.
+   */
+  const [orderDraft, setOrderDraft] = useState<string[] | null>(null)
+  const [committingOrder, setCommittingOrder] = useState(false)
+
+  /** Mutasi sukses → tab feed menyegarkan diri saat fokus kembali (A-08). */
+  const touchFeed = useCallback(() => markShowcaseFeedDirty(), [])
+
+  // ── Tambah: multi-pick → unggah → form ────────────────────────────
   const handleUpload = useCallback(async () => {
-    const picked = await pickImage({ allowsEditing: true })
+    const picked = await pickImages({ selectionLimit: SHOWCASE_MAX_IMAGES })
     if (picked.status === "denied") {
       toast.show({ title: "Akses galeri ditolak", tone: "danger" })
       return
     }
     if (picked.status !== "picked") return
     setUploading(true)
+    const uploadedKeys: string[] = []
     try {
-      const res = await api.users.uploadShowcase(await pickedImageToFormData(picked.asset))
-      if (res?.id) {
-        // Backend langsung membuat item
-        toast.show({ title: "Foto showcase ditambahkan", tone: "success", duration: 3000 })
-        await query.refresh()
-        // Tawarkan lengkapi detail (judul/harga) bila belum ada judul
-        if (!res.title) {
-          setForm({ ...EMPTY_FORM })
-          setEditor({ mode: "edit", item: { ...(res as ShowcaseItem), id: res.id } })
+      /**
+       * Unggah berurutan (bukan paralel): progress jujur + batas fileKey
+       * backend; bila satu gagal, file yang sudah sukses dibersihkan (D-09)
+       * dan pengguna diberi tahu spesifik.
+       */
+      let autoItem: { itemId: string; title?: string | null } | null = null
+      const failed: string[] = []
+      for (const asset of picked.assets) {
+        try {
+          const outcome = await uploadShowcasePhoto(asset)
+          if (outcome.kind === "item") {
+            // Cabang multipart lama: backend SUDAH membuat item.
+            autoItem = { itemId: outcome.itemId, title: outcome.title }
+          } else {
+            uploadedKeys.push(outcome.fileKey)
+          }
+        } catch {
+          failed.push(asset.name)
         }
-      } else {
-        const imageUrl = res?.imageUrl ?? res?.url ?? res?.key ?? res?.fileKey
-        const fileKey = res?.fileKey ?? res?.key
-        setForm({ ...EMPTY_FORM })
-        setFormError(undefined)
-        setEditor({ mode: "create", imageUrl, fileKey })
       }
+
+      if (autoItem) {
+        /**
+         * D-01: item buatan-otomatis LANGSUNG disembunyikan — tidak ada
+         * lagi item TERBIT tanpa judul; form edit dibuka agar pengguna
+         * sadar dan melengkapi. Publikasi = aksi eksplisit (toggle di menu).
+         */
+        try {
+          await api.users.updateShowcase(autoItem.itemId, { isActive: false })
+        } catch {
+          // best-effort: grid D-06 tetap menunjukkan status sebenarnya.
+        }
+        await query.refresh()
+        touchFeed()
+        // NOTE: query.data di closure ini STALE (render lama) — item lengkap
+        // belum tentu bisa ditemukan; stub seadanya cukup untuk form edit.
+        const item = {
+          id: autoItem.itemId,
+          title: autoItem.title ?? undefined,
+          createdAt: new Date().toISOString(),
+        } as ShowcaseItem
+        setForm({
+          ...EMPTY_FORM,
+          title: item.title ?? item.caption ?? "",
+          description: item.description ?? "",
+          priceMin: item.priceMin ?? 0,
+          priceMax: item.priceMax ?? 0,
+          ...rawMeta(item),
+        })
+        setFormError(undefined)
+        setEditor({ mode: "edit", item })
+        toast.show({
+          title: "Foto diunggah — lengkapi detail, lalu tampilkan di profil",
+          tone: "info",
+          duration: 4000,
+        })
+        // Key presigned yang tidak terpakai cabang ini → bersih (D-09).
+        void cleanupPendingShowcaseKeys(uploadedKeys)
+        return
+      }
+
+      if (uploadedKeys.length === 0) {
+        toast.show({
+          title: "Gagal mengunggah foto",
+          description: failed.length > 0 ? translate("{x} foto gagal diunggah.", { x: failed.length }) : undefined,
+          tone: "danger",
+        })
+        return
+      }
+      if (failed.length > 0) {
+        toast.show({
+          title: translate("{x} dari {y} foto gagal diunggah", { x: failed.length, y: picked.assets.length }),
+          description: "Foto yang berhasil disimpan saat Anda menekan Simpan.",
+          tone: "danger",
+        })
+      }
+      pendingKeys.current = uploadedKeys
+      setForm({ ...EMPTY_FORM })
+      setFormError(undefined)
+      setEditor({ mode: "create", fileKeys: uploadedKeys })
     } catch (err) {
+      void cleanupPendingShowcaseKeys(uploadedKeys)
       toast.show({ title: "Gagal mengunggah foto", description: userMessage(err), tone: "danger" })
     } finally {
       setUploading(false)
     }
-  }, [toast, query])
+  }, [toast, query, touchFeed])
 
   const openEdit = useCallback((item: ShowcaseItem) => {
     setForm({
@@ -168,9 +296,19 @@ export default function ShowcaseScreen() {
       description: item.description ?? "",
       priceMin: item.priceMin ?? 0,
       priceMax: item.priceMax ?? 0,
+      ...rawMeta(item),
     })
     setFormError(undefined)
     setEditor({ mode: "edit", item })
+  }, [])
+
+  /** Tutup editor — membatalkan create membersihkan key tertunda (D-09). */
+  const closeEditor = useCallback(() => {
+    setEditor((current) => {
+      if (current?.mode === "create") void cleanupPendingShowcaseKeys(current.fileKeys)
+      pendingKeys.current = []
+      return null
+    })
   }, [])
 
   const handleSave = useCallback(async () => {
@@ -185,34 +323,34 @@ export default function ShowcaseScreen() {
       return
     }
     setSaving(true)
-    const payload = {
-      title,
-      description: form.description.trim() || undefined,
-      priceMin: form.priceMin || undefined,
-      priceMax: form.priceMax || undefined,
-    }
+    const payload = { title, ...formToPayload(form) }
     try {
       if (editor.mode === "create") {
         await api.users.createShowcase({
           ...payload,
-          // fileKey dari /showcase/upload (purpose SHOWCASE_IMAGE) — field baru
-          // CreateShowcaseItemDto; `imageUrl` (DTO lama) tidak lagi diterima backend.
-          imageFileKeys: editor.fileKey ? [editor.fileKey] : undefined,
-          sortOrder: items.length,
+          // fileKey hasil presigned+confirm (purpose SHOWCASE_IMAGE, D-04).
+          imageFileKeys: editor.fileKeys.length > 0 ? editor.fileKeys : undefined,
+          sortOrder: nextSortOrder(items),
         })
-        toast.show({ title: "Item showcase dibuat", tone: "success", duration: 3000 })
+        pendingKeys.current = []
+        toast.show({ title: "Karya ditambahkan", tone: "success", duration: 3000 })
       } else {
         await api.users.updateShowcase(editor.item.id, payload)
         toast.show({ title: "Detail diperbarui", tone: "success", duration: 3000 })
       }
       setEditor(null)
+      touchFeed()
       await query.refresh()
     } catch (err) {
+      if (editor.mode === "create") {
+        // Create gagal: form tetap terbuka agar pengguna bisa mencoba lagi;
+        // key HANYA dibersihkan bila pengguna membatalkan (closeEditor).
+      }
       toast.show({ title: "Gagal menyimpan", description: userMessage(err), tone: "danger" })
     } finally {
       setSaving(false)
     }
-  }, [editor, saving, form, items.length, toast, query])
+  }, [editor, saving, form, items, toast, query, touchFeed])
 
   const handleToggleActive = useCallback(
     async (item: ShowcaseItem) => {
@@ -222,11 +360,12 @@ export default function ShowcaseScreen() {
       try {
         await api.users.updateShowcase(item.id, { isActive: next })
         toast.show({
-          title: next ? "Item ditampilkan" : "Item disembunyikan",
+          title: next ? "Karya ditampilkan di profil" : "Karya disembunyikan",
           tone: "success",
           duration: 2500,
         })
         setMenuItem(null)
+        touchFeed()
         await query.refresh()
       } catch (err) {
         toast.show({
@@ -238,7 +377,7 @@ export default function ShowcaseScreen() {
         setToggling(false)
       }
     },
-    [toggling, toast, query],
+    [toggling, toast, query, touchFeed],
   )
 
   const handleDelete = useCallback(async () => {
@@ -246,25 +385,29 @@ export default function ShowcaseScreen() {
     setDeleting(true)
     try {
       await api.users.deleteShowcase(deleteTarget.id)
-      toast.show({ title: "Item dihapus", tone: "success", duration: 3000 })
+      toast.show({ title: "Karya dihapus", tone: "success", duration: 3000 })
       setDeleteTarget(null)
+      touchFeed()
       await query.refresh()
     } catch (err) {
       toast.show({ title: "Gagal menghapus", description: userMessage(err), tone: "danger" })
     } finally {
       setDeleting(false)
     }
-  }, [deleteTarget, toast, query])
+  }, [deleteTarget, toast, query, touchFeed])
 
   /**
-   * Lampirkan foto tambahan: pick → upload langsung (kembalikan fileKey) →
-   * POST /me/showcase/{id}/images. Foto baru masuk di AKHIR galeri
-   * (sortOrder berikutnya diisi backend).
+   * Lampirkan foto tambahan — MULTI-PICK (D-11): pilih beberapa sekaligus,
+   * unggah satu-satu, lalu SATU attach untuk semua key yang berhasil.
+   * Key yang terunggah tapi gagal dilampirkan dibersihkan (D-09) dan toast
+   * menyebut alasannya spesifik (bukan "fileKey boolean" generik).
    */
   const handleAttachImage = useCallback(
     async (item: ShowcaseItem) => {
       if (attaching) return
-      const picked = await pickImage({ allowsEditing: true })
+      const slots = SHOWCASE_MAX_IMAGES - (item.images?.length ?? 0)
+      if (slots <= 0) return
+      const picked = await pickImages({ selectionLimit: slots })
       if (picked.status === "denied") {
         toast.show({ title: "Akses galeri ditolak", tone: "danger" })
         return
@@ -272,50 +415,108 @@ export default function ShowcaseScreen() {
       if (picked.status !== "picked") return
       setAttaching(true)
       try {
-        const res = await api.users.uploadShowcase(await pickedImageToFormData(picked.asset))
-        const fileKey = res?.fileKey ?? res?.key
-        if (!fileKey) {
-          toast.show({ title: "Upload tidak menghasilkan kunci file", tone: "danger" })
+        const keys: string[] = []
+        let failedUploads = 0
+        for (const asset of picked.assets) {
+          try {
+            const outcome = await uploadShowcasePhoto(asset)
+            if (outcome.kind === "fileKey") keys.push(outcome.fileKey)
+            else failedUploads += 1 // cabang item-utuh tidak berlaku untuk lampiran
+          } catch {
+            failedUploads += 1
+          }
+        }
+        if (keys.length > 0) {
+          try {
+            await api.users.attachShowcaseImages(item.id, keys)
+          } catch (err) {
+            // D-09: upload sukses tapi attach gagal → bersihkan key orphan.
+            void cleanupPendingShowcaseKeys(keys)
+            throw err
+          }
+        }
+        if (failedUploads > 0 && keys.length === 0) {
+          toast.show({ title: "Gagal mengunggah foto", tone: "danger" })
           return
         }
-        await api.users.attachShowcaseImages(item.id, [fileKey])
-        toast.show({ title: "Foto dilampirkan", tone: "success", duration: 2500 })
+        toast.show({
+          title:
+            failedUploads > 0
+              ? translate("{x} foto dilampirkan, {y} gagal", { x: keys.length, y: failedUploads })
+              : translate("{x} foto dilampirkan", { x: keys.length }),
+          tone: failedUploads > 0 ? "info" : "success",
+          duration: 3000,
+        })
+        touchFeed()
         await query.refresh()
       } catch (err) {
-        toast.show({ title: "Gagal melampirkan foto", description: userMessage(err), tone: "danger" })
+        toast.show({
+          title: "Foto terunggah tapi gagal dilampirkan",
+          description: `${userMessage(err)} — coba lampirkan lagi.`,
+          tone: "danger",
+        })
       } finally {
         setAttaching(false)
       }
     },
-    [attaching, toast, query],
+    [attaching, toast, query, touchFeed],
   )
 
-  /**
-   * Geser satu posisi ke kiri/kanan: swap di array lokal, lalu kirim
-   * SELURUH daftar imageIds (PUT /me/showcase/{id}/images/order menyimpan
-   * ulang sortOrder 0..n-1 sesuai urutan yang dikirim).
-   */
-  const handleMoveImage = useCallback(
-    async (item: ShowcaseItem, image: ShowcaseImage, dir: -1 | 1) => {
-      if (reorderingId) return
-      const imgs = item.images ?? []
-      const i = imgs.findIndex((x) => x.id === image.id)
+  // ── D-10: reorder foto — draft lokal, SATU commit saat sheet tutup ──
+  const openImagesSheet = useCallback((item: ShowcaseItem) => {
+    setOrderDraft(null)
+    setImagesItemId(item.id)
+  }, [])
+
+  /** ID foto efektif: draft bila ada perubahan, kalau tidak urutan server. */
+  const effectiveImageIds: string[] = useMemo(() => {
+    const server = (imagesItem?.images ?? []).map((img) => img.id)
+    if (!orderDraft) return server
+    // Draft hanya valid bila himpunan ID-nya masih sama dengan server
+    // (attach/delete di tengah sesi sheet menggagalkan draft secara alami).
+    return orderDraft.length === server.length && server.every((id) => orderDraft.includes(id))
+      ? orderDraft
+      : server
+  }, [imagesItem, orderDraft])
+
+  const moveImage = useCallback(
+    (imageId: string, dir: -1 | 1) => {
+      const current = effectiveImageIds
+      const i = current.indexOf(imageId)
       const j = i + dir
-      if (i < 0 || j < 0 || j >= imgs.length) return
-      setReorderingId(image.id)
-      try {
-        const next = [...imgs]
-        ;[next[i], next[j]] = [next[j], next[i]]
-        await api.users.reorderShowcaseImages(item.id, next.map((x) => x.id))
-        await query.refresh()
-      } catch (err) {
-        toast.show({ title: "Gagal mengubah urutan foto", description: userMessage(err), tone: "danger" })
-      } finally {
-        setReorderingId(null)
-      }
+      if (i < 0 || j < 0 || j >= current.length) return
+      const next = [...current]
+      ;[next[i], next[j]] = [next[j], next[i]]
+      setOrderDraft(next)
     },
-    [reorderingId, toast, query],
+    [effectiveImageIds],
   )
+
+  /** Commit draft urutan (dipanggil saat sheet ditutup). */
+  const closeImagesSheet = useCallback(async () => {
+    const itemId = imagesItemId
+    const draft = orderDraft
+    const server = (imagesItem?.images ?? []).map((img) => img.id)
+    setImagesItemId(null)
+    setOrderDraft(null)
+    if (!itemId || !draft || draft.join("|") === server.join("|")) return
+    if (committingOrder) return
+    setCommittingOrder(true)
+    try {
+      await api.users.reorderShowcaseImages(itemId, draft)
+      touchFeed()
+      await query.refresh()
+      toast.show({ title: "Urutan foto disimpan", tone: "success", duration: 2500 })
+    } catch (err) {
+      toast.show({
+        title: "Gagal mengubah urutan foto",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setCommittingOrder(false)
+    }
+  }, [imagesItemId, imagesItem, orderDraft, committingOrder, query, toast, touchFeed])
 
   const handleDeleteImage = useCallback(async () => {
     if (!imagesItem || !deleteImage || deletingImage) return
@@ -324,20 +525,21 @@ export default function ShowcaseScreen() {
       await api.users.deleteShowcaseImage(deleteImage.id)
       toast.show({ title: "Foto dihapus", tone: "success", duration: 2500 })
       setDeleteImage(null)
+      touchFeed()
       await query.refresh()
     } catch (err) {
       toast.show({ title: "Gagal menghapus foto", description: userMessage(err), tone: "danger" })
     } finally {
       setDeletingImage(false)
     }
-  }, [imagesItem, deleteImage, deletingImage, toast, query])
+  }, [imagesItem, deleteImage, deletingImage, toast, query, touchFeed])
 
   const menuActions: ActionSheetItem[] = menuItem
     ? [
         {
           key: "view",
           label: "Lihat detail",
-          description: "Halaman sosial: like, komentar, share",
+          description: "Halaman sosial: suka, komentar, bagikan",
           icon: Eye,
           onPress: () => {
             const it = menuItem
@@ -348,7 +550,7 @@ export default function ShowcaseScreen() {
         {
           key: "edit",
           label: "Ubah detail",
-          description: priceLabel(menuItem),
+          description: showcasePriceLabel(menuItem) ?? undefined,
           icon: PencilSimple,
           onPress: () => {
             const it = menuItem
@@ -362,8 +564,9 @@ export default function ShowcaseScreen() {
           description: translate("{x} foto — tambah, urutkan, hapus", { x: menuItem.images?.length ?? 1 }),
           icon: Images,
           onPress: () => {
-            setImagesItemId(menuItem.id)
+            const it = menuItem
             setMenuItem(null)
+            openImagesSheet(it)
           },
         },
         {
@@ -389,9 +592,15 @@ export default function ShowcaseScreen() {
 
   const hiddenCount = items.filter((it) => it.isActive === false).length
 
+  /** Baris foto mengikuti effectiveImageIds (draft D-10). */
+  const imageRows = effectiveImageIds.flatMap((id) => {
+    const img = (imagesItem?.images ?? []).find((entry) => entry.id === id)
+    return img ? [img] : []
+  })
+
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Portofolio" />
+      <Header title="Etalase" />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
@@ -405,7 +614,7 @@ export default function ShowcaseScreen() {
         ) : (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader
-              title="Portofolio Anda"
+              title="Etalase Anda"
               subtitle={
                 items.length
                   ? [
@@ -417,14 +626,19 @@ export default function ShowcaseScreen() {
                   : undefined
               }
             />
-            {/* v2: skeleton → galeri crossfade (signature moment). */}
-            <Crossfade loading={loading} skeleton={<ListLoading />}>
+            {/* D-07: skeleton = grid persegi (bentuk cocok dengan konten). */}
+            <Crossfade loading={loading} skeleton={<ShowcaseGalleryGrid items={[]} loading />}>
               <ShowcaseGalleryGrid
-                items={items.map((it) => ({
-                  id: it.id,
-                  source: it.coverImageUrl ?? it.imageUrl ?? it.fileKey ?? "",
-                  alt: `${labelOf(it)}${it.isActive === false ? " (disembunyikan)" : ""}`,
-                }))}
+                items={items.map((it) => {
+                  const isHidden = it.isActive === false || rawMeta(it).isPublic === false
+                  return {
+                    id: it.id,
+                    // E-01 kelas yang sama: satu resolver cover bersama.
+                    source: showcaseCoverOf(it) ?? "",
+                    alt: `${labelOf(it)}${isHidden ? " (disembunyikan)" : ""}`,
+                    hidden: isHidden,
+                  }
+                })}
                 onPressItem={(_, index) => setMenuItem(items[index] ?? null)}
                 loading={false}
                 empty={
@@ -437,7 +651,7 @@ export default function ShowcaseScreen() {
               />
             </Crossfade>
             <Text variant="caption" tone="secondary">
-              Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.
+              Ketuk karya untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
             <Button
               leftIcon={Plus}
@@ -459,13 +673,13 @@ export default function ShowcaseScreen() {
         actions={menuActions}
       />
 
-      {/* ── Kelola foto item (multi-image) ───────────────────────── */}
+      {/* ── Kelola foto item (multi-image; D-10 reorder lokal) ─────── */}
       <BottomSheet
         avoidKeyboard
         visible={imagesItem != null}
-        onRequestClose={() => setImagesItemId(null)}
-        title={imagesItem ? translate("Foto: {x}", { x: labelOf(imagesItem) }) : "Foto item"}
-        description={translate("{x} dari {y} foto. Foto pertama menjadi cover item.", {
+        onRequestClose={() => void closeImagesSheet()}
+        title={imagesItem ? translate("Foto: {x}", { x: labelOf(imagesItem) }) : "Foto karya"}
+        description={translate("{x} dari {y} foto. Foto pertama menjadi cover karya.", {
           x: imagesItem?.images?.length ?? 0,
           y: SHOWCASE_MAX_IMAGES,
         })}
@@ -483,7 +697,7 @@ export default function ShowcaseScreen() {
         }
       >
         <View className="gap-2">
-          {(imagesItem?.images ?? []).map((img, i) => (
+          {imageRows.map((img, i) => (
             <View
               key={img.id}
               className="flex-row items-center gap-2 rounded-md border border-border p-2"
@@ -493,23 +707,23 @@ export default function ShowcaseScreen() {
                 <Text variant="body" weight={500} tone="primary">
                   Foto {i + 1}
                 </Text>
-                {i === 0 ? <Text variant="caption" tone="secondary">Cover item</Text> : null}
+                {i === 0 ? <Text variant="caption" tone="secondary">Cover karya</Text> : null}
               </View>
               <IconButton
                 icon={CaretLeft}
                 size="sm"
                 variant="ghost"
                 accessibilityLabel={translate("Geser foto {x} ke kiri", { x: i + 1 })}
-                disabled={i === 0 || reorderingId != null}
-                onPress={() => imagesItem && void handleMoveImage(imagesItem, img, -1)}
+                disabled={i === 0}
+                onPress={() => moveImage(img.id, -1)}
               />
               <IconButton
                 icon={CaretRight}
                 size="sm"
                 variant="ghost"
                 accessibilityLabel={translate("Geser foto {x} ke kanan", { x: i + 1 })}
-                disabled={i === (imagesItem?.images?.length ?? 0) - 1 || reorderingId != null}
-                onPress={() => imagesItem && void handleMoveImage(imagesItem, img, 1)}
+                disabled={i === imageRows.length - 1}
+                onPress={() => moveImage(img.id, 1)}
               />
               <IconButton
                 icon={Trash}
@@ -521,7 +735,7 @@ export default function ShowcaseScreen() {
               />
             </View>
           ))}
-          {(imagesItem?.images ?? []).length === 0 ? (
+          {imageRows.length === 0 ? (
             <Text variant="caption" tone="secondary">
               Belum ada foto — lampirkan foto pertama di bawah.
             </Text>
@@ -534,7 +748,7 @@ export default function ShowcaseScreen() {
         description={
           deleteImage && imagesItem?.images?.[0]?.id === deleteImage.id
             ? "Foto cover akan digantikan foto berikutnya."
-            : "Foto akan dihapus permanen dari item ini."
+            : "Foto akan dihapus permanen dari karya ini."
         }
         visible={!!deleteImage}
         destructive
@@ -547,8 +761,8 @@ export default function ShowcaseScreen() {
       />
 
       <Dialog
-        title="Hapus item ini?"
-        description="Item akan dihapus permanen dari showcase Anda."
+        title="Hapus karya ini?"
+        description="Karya akan dihapus permanen dari etalase Anda."
         visible={!!deleteTarget}
         destructive
         loading={deleting}
@@ -562,15 +776,15 @@ export default function ShowcaseScreen() {
       <BottomSheet
         avoidKeyboard
         visible={!!editor}
-        onRequestClose={() => (saving ? undefined : setEditor(null))}
-        title={editor?.mode === "create" ? "Detail item baru" : "Ubah detail"}
-        description="Judul dan rentang harga membantu calon pembeli memahami penawaran Anda."
+        onRequestClose={() => (saving ? undefined : closeEditor())}
+        title={editor?.mode === "create" ? "Detail karya baru" : "Ubah detail"}
+        description="Judul, kategori, dan rentang harga membantu calon pembeli memahami penawaran Anda."
         footer={
           <View className="gap-2">
             <Button variant="primary" loading={saving} onPress={() => void handleSave()} fullWidth>
               Simpan
             </Button>
-            <Button variant="ghost" disabled={saving} onPress={() => setEditor(null)} fullWidth>
+            <Button variant="ghost" disabled={saving} onPress={closeEditor} fullWidth>
               Batal
             </Button>
           </View>
@@ -600,6 +814,16 @@ export default function ShowcaseScreen() {
             rows={3}
             disabled={saving}
           />
+          {/* D-02: kategori (kontrak menganggur sebelum audit) */}
+          <Input
+            label="Kategori (opsional)"
+            value={form.category}
+            onChangeText={(t) => setForm((f) => ({ ...f, category: t }))}
+            placeholder="Jasa desain, kerajinan, digital…"
+            autoCapitalize="sentences"
+            maxLength={CATEGORY_MAX}
+            disabled={saving}
+          />
           <AmountInput
             label="Harga minimum (opsional)"
             value={form.priceMin}
@@ -619,6 +843,25 @@ export default function ShowcaseScreen() {
             errorText={formError && form.title.trim() ? formError : undefined}
             disabled={saving}
           />
+          {/* D-02: visibilitas PUBLIC/PRIVATE */}
+          <View className="flex-row items-center justify-between gap-3">
+            <View className="flex-1 gap-1">
+              <Text variant="body" weight={500}>
+                Tampilkan secara publik
+              </Text>
+              <Text variant="caption" tone="secondary">
+                {form.isPublic
+                  ? "Karya terlihat di feed & profil publik Anda."
+                  : "Karya disimpan sebagai draf privat (tidak terlihat pengunjung)."}
+              </Text>
+            </View>
+            <Switch
+              value={form.isPublic}
+              onChange={(v) => setForm((f) => ({ ...f, isPublic: v }))}
+              accessibilityLabel="Tampilkan secara publik"
+              disabled={saving}
+            />
+          </View>
         </View>
       </BottomSheet>
     </Screen>

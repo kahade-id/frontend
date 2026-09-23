@@ -80,6 +80,12 @@ export function routeForNotificationReference(ref: NotificationReference): Href 
     case "rating":
     case "review":
       return ROUTES.ratings
+    case "showcase":
+    case "etalase":
+    case "showcaselike":
+    case "showcasecomment":
+      // Audit Etalase I-02: notifikasi suka/komentar karya → detail item.
+      return id ? ROUTES.showcaseDetail(id) : ROUTES.showcase
     case "security":
     case "session":
     case "login":
@@ -139,6 +145,11 @@ export function labelForNotificationReference(ref: NotificationReference): strin
     case "rating":
     case "review":
       return "Lihat ulasan"
+    case "showcase":
+    case "etalase":
+    case "showcaselike":
+    case "showcasecomment":
+      return "Lihat karya"
     case "security":
     case "session":
     case "login":

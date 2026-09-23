@@ -1,31 +1,32 @@
 /**
  * Kahade — <ShowcaseFeedItem> (§9.17, §9.23; revisi 2026-09-17 #3).
  *
- * Revisi #3 — 9 poin showcase:
- *  1. Header collapsing sampai tab (feed tab header lives inside ShowcaseFeedTab — worklet)
- *  2. Media KARTU swipe (mx-5 rounded-sm, selaras avatar & simpan) — bukan full-bleed +N
- *  3. Separator inset di ATAS & BAWAH bar aksi (mx-5, bukan full)
- *  4. Tap avatar/nama → profil pembuat
- *  7. Count di samping ikon (horizontal) — bukan di bawah
- *  8. preventDownload pada gambar showcase
- *  9. Ikon laporkan di kanan tanggal
- *
- * Revisi 2026-09-18 — poin 7 belum benar-benar terjadi di layar: angka suka/
- * komentar tetap jatuh ke BAWAH ikon. Penyebabnya bukan kelasnya, tapi
- * TEMPATNYA — lihat komentar <CountAction> di bawah. Bar aksi di halaman
- * detail (`app/showcase/[id].tsx`) memakai koreksi yang sama.
+ * Revisi 2026-09-23 (audit Etalase):
+ *  - B-01: label harga dari SATU util `showcasePriceLabelOrFallback`
+ *    (lib/showcase-labels) — item dengan hanya `priceMax` tidak lagi
+ *    ditampilkan "Harga lewat diskusi".
+ *  - B-02: pager multi-slide hanya me-render <Picture> untuk slide aktif ±1
+ *    (slide lain jadi placeholder seukuran) — tidak ada lagi 8 gambar
+ *    ter-mount per kartu.
+ *  - B-03: prop `href` mati DIHAPUS (dulu diterima lalu dibuang).
+ *  - B-04: `onLayout` diketik `LayoutChangeEvent`, bukan `any`.
+ *  - B-05: bendera lapor disembunyikan untuk item milik sendiri (feed
+ *    sejajar dengan halaman detail).
+ *  - A-12: badge kategori bisa ditekan → feed terfilter kategori itu
+ *    (param `category` pada rute tab /showcase).
  */
 
-import { useCallback, useState } from "react"
+import { memo, useCallback, useState } from "react"
 import { BookmarkSimple, ChatCircle, Export, Flag, Heart, HeartStraight } from "phosphor-react-native"
 import { router } from "expo-router"
-import { ScrollView, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
+import { ScrollView, View, useWindowDimensions, type LayoutChangeEvent, type NativeScrollEvent, type NativeSyntheticEvent } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
-import { formatCountCompact, formatDateTime, formatNumber } from "@/lib/format"
+import { formatCountCompact, formatDateTime } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
+import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Divider } from "@/components/ui/divider"
@@ -41,7 +42,6 @@ import { focusRing } from "@/lib/focus-ring"
 export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
   onPress?: () => void
-  href?: unknown
   onToggleLike?: () => void
   onOpenComments?: () => void
   onToggleSave?: () => void
@@ -112,10 +112,12 @@ function CountAction({
   )
 }
 
-export function ShowcaseFeedItem({
+/** Radius jendela render slide media: aktif ±1; selebihnya placeholder (B-02). */
+const MEDIA_RENDER_WINDOW = 1
+
+function ShowcaseFeedItemBase({
   item,
   onPress,
-  href,
   onToggleLike,
   onOpenComments,
   onToggleSave,
@@ -125,18 +127,12 @@ export function ShowcaseFeedItem({
   divider = false,
   className,
 }: ShowcaseFeedItemProps) {
-  void href
   const gallery = item.images.flatMap((image) => {
     const url = resolveMediaUrl(image.imageUrl)
     return url ? [{ id: image.id, url }] : []
   })
   const coverFallback = !gallery.length ? resolveMediaUrl(item.coverImageUrl ?? item.imageUrl) : undefined
-  const priceLabel =
-    item.priceMin != null && item.priceMax != null && item.priceMin !== item.priceMax
-      ? `Rp ${formatNumber(item.priceMin)} – ${formatNumber(item.priceMax)}`
-      : item.priceMin != null
-        ? `Rp ${formatNumber(item.priceMin)}`
-        : "Harga lewat diskusi"
+  const priceLabel = showcasePriceLabelOrFallback(item)
 
   const liked = item.isLiked === true
   const likeCountLabel = `${formatCountCompact(item.likeCount)} Suka`
@@ -152,6 +148,10 @@ export function ShowcaseFeedItem({
   const { width: windowWidth } = useWindowDimensions()
   const pageWidth = cardWidth > 0 ? cardWidth : Math.max(0, windowWidth - 40)
 
+  const handleCardLayout = useCallback((event: LayoutChangeEvent) => {
+    setCardWidth(event.nativeEvent.layout.width)
+  }, [])
+
   const handlePagerMomentum = useCallback(
     (event: NativeSyntheticEvent<NativeScrollEvent>) => {
       const w = cardWidth || windowWidth - 40
@@ -164,6 +164,11 @@ export function ShowcaseFeedItem({
     if (onReport) onReport()
     else router.push(ROUTES.reports({ targetId: item.id }))
   }, [onReport, item.id])
+
+  /** A-12: kategori sebagai filter feed — tab /showcase menerima param kategori. */
+  const handleCategoryPress = useCallback(() => {
+    if (item.category) router.push(ROUTES.showcaseWithCategory(item.category))
+  }, [item.category])
 
   const likeRow = (
     <CountAction
@@ -215,18 +220,21 @@ export function ShowcaseFeedItem({
             </Text>
           </View>
         </PressableScale>
-        <IconButton
-          icon={Flag}
-          variant="ghost"
-          size="sm"
-          accessibilityLabel="Laporkan showcase"
-          accessibilityHint="Laporkan showcase ini"
-          onPress={handleReport}
-        />
+        {/* B-05: lapor tidak masuk akal untuk karya sendiri (selaras detail). */}
+        {!item.isOwner ? (
+          <IconButton
+            icon={Flag}
+            variant="ghost"
+            size="sm"
+            accessibilityLabel="Laporkan showcase"
+            accessibilityHint="Laporkan showcase ini"
+            onPress={handleReport}
+          />
+        ) : null}
       </View>
 
       {/* ── Media CARD (mx-5) swipe ── */}
-      <View className="mx-5 pt-3" onLayout={(e: any) => setCardWidth(e.nativeEvent.layout.width)}>
+      <View className="mx-5 pt-3" onLayout={handleCardLayout}>
         {gallery.length === 0 && coverFallback ? (
           <PressableScale
             accessibilityRole="button"
@@ -270,22 +278,29 @@ export function ShowcaseFeedItem({
             >
               {gallery.map((image: { id: string; url: string }, index: number) => (
                 <View key={image.id} style={{ width: pageWidth }}>
-                  <PressableScale
-                    accessibilityRole="button"
-                    accessibilityLabel={translate("{x} — foto {y} dari {z}", { x: summary, y: index + 1, z: gallery.length })}
-                    onPress={onPress}
-                    containerClassName="w-full"
-                  >
-                    <Picture
-                      source={image.url}
-                      alt={item.title}
-                      aspectRatio={1}
-                      radius="none"
-                      bordered={false}
-                      recyclingKey={image.id}
-                      preventDownload
-                    />
-                  </PressableScale>
+                  {/* B-02: hanya slide di sekitar halaman aktif yang memuat
+                      gambar; sisanya placeholder seukuran agar lebar pager
+                      & offset paging tidak berubah. */}
+                  {Math.abs(index - mediaPage) <= MEDIA_RENDER_WINDOW ? (
+                    <PressableScale
+                      accessibilityRole="button"
+                      accessibilityLabel={translate("{x} — foto {y} dari {z}", { x: summary, y: index + 1, z: gallery.length })}
+                      onPress={onPress}
+                      containerClassName="w-full"
+                    >
+                      <Picture
+                        source={image.url}
+                        alt={item.title}
+                        aspectRatio={1}
+                        radius="none"
+                        bordered={false}
+                        recyclingKey={image.id}
+                        preventDownload
+                      />
+                    </PressableScale>
+                  ) : (
+                    <View className="aspect-square w-full bg-surface" />
+                  )}
                 </View>
               ))}
             </ScrollView>
@@ -316,9 +331,17 @@ export function ShowcaseFeedItem({
               {priceLabel}
             </Text>
             {item.category ? (
-              <Text variant="caption" tone="secondary" numberOfLines={1}>
-                {item.category}
-              </Text>
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={translate("Filter kategori {x}", { x: item.category })}
+                accessibilityHint="Tampilkan feed kategori ini"
+                onPress={handleCategoryPress}
+                containerClassName={cn("rounded-sm", focusRing)}
+              >
+                <Text variant="caption" tone="secondary" numberOfLines={1}>
+                  {item.category}
+                </Text>
+              </PressableScale>
             ) : null}
           </View>
           <Text variant="body" weight={600} numberOfLines={2}>
@@ -368,3 +391,10 @@ export function ShowcaseFeedItem({
     </View>
   )
 }
+
+/**
+ * Memo: sel kartu hanya dirender ulang bila prop-nya berubah (audit A-09 —
+ * sebelumnya renderItem inline membuat SELURUH sel tampak dirender ulang di
+ * setiap ketikan kolom pencarian).
+ */
+export const ShowcaseFeedItem = memo(ShowcaseFeedItemBase)

@@ -14,17 +14,45 @@
  *   GET  /v1/showcase/{id}/share           → metadata deep link
  *   POST /v1/showcase/{id}/report          → { reason, description? } (5/jam)
  *
- * Keputusan revisi #3 (2026-09-17): 9 poin showcase
- *   - Media KARTU (mx-5 rounded-sm, border) swipe — selaras feed, bukan full-bleed
- *   - Separator inset di atas & bawah bar aksi (mx-5)
- *   - Footer Kirim → PaperPlaneRight IconButton
- *   - Header komentar: "Komentar 12" count di samping + separator
- *   - Gambar preventDownload
- *   - Count di samping ikon (horizontal)
+ * Perbaikan audit Etalase (2026-09-23):
+ *   F-01 CTA "Buat Transaksi" MENGHORMATI `orderLink` — prefill judul/
+ *        deskripsi/nominal(bila valid)/counterpart via
+ *        ROUTES.createTransactionFromShowcase (dulu CTA generik ke username).
+ *   F-02 Kirim komentar TIDAK me-reset paginasi: komentar tersimpan
+ *        disisipkan ke state (root → unshift; balasan → append ke induk);
+ *        total +1. Halaman 2..N yang sudah dimuat tidak dibuang.
+ *   F-03 fetchComments memakai AbortController per request + abort on
+ *        unmount — tidak ada lagi setState setelah unmount / respons basi.
+ *   F-04 Komposer & editor komentar dibatasi 1000 karakter (kontrak DTO).
+ *   F-05 Menu komentar kini punya "Laporkan" (lapor PENULIS komentar ke
+ *        layar /reports, bukan endpoint showcase — moderasi terbuka untuk
+ *        pihak ketiga, bukan hanya pemilik/pengarang).
+ *   F-06 `commentsStatus` berawal "loading" — tidak ada lagi kilatan
+ *        "belum ada komentar"/tombol Muat sebelum fetch pertama.
+ *   F-07 Tombol "Muat komentar berikutnya" DI BAWAH daftar (halaman baru
+ *        memang ditambahkan di bawah).
+ *   F-08 Total komentar hanya berubah pada tambah/hapus — hide/unhide tidak
+ *        menggeser angka (komentar tetap ada, hanya bertopeng).
+ *   F-09 Layar bisa ditarik-segarkan: refresh memuat ulang item + komentar.
+ *   F-10 Bar aksi memakai focus-ring web (pola yang sama dengan kartu feed).
+ *   A-05 Tamu: aksi sosial lewat hook bergate (login-required); komposer
+ *        diganti tombol "Masuk untuk berkomentar".
+ *   A-11 Lapor item memakai <ShowcaseReportSheet> bersama (copy seragam
+ *        "Laporkan Karya" — dulu title "Laporkan item").
+ *   I-03 Judul dokumen web = JUDUL ITEM (bukan kata generik "Showcase").
+ *   J-01 Lokalisasi: label kosong harga via util bersama; judul layar
+ *        "Etalase" (nama produk), bukan "Showcase".
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, View, useWindowDimensions, type NativeScrollEvent, type NativeSyntheticEvent, type TextInput } from "react-native"
+import {
+  ScrollView,
+  View,
+  useWindowDimensions,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  type TextInput,
+} from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
@@ -39,26 +67,26 @@ import {
   Trash,
 } from "phosphor-react-native"
 import { api, isApiError, userMessage } from "@/lib/api"
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import {
   addShowcaseComment,
   deleteShowcaseComment,
   getShowcaseDetail,
-  getShowcaseSharePayload,
   hideShowcaseComment,
-  likeShowcase,
   listShowcaseComments,
-  reportShowcase,
   unhideShowcaseComment,
-  unlikeShowcase,
   updateShowcaseComment,
   type ShowcaseComment,
   type ShowcaseCommentWithReplies,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
 import { formatCountCompact, formatDateTime, formatNumber } from "@/lib/format"
+import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
-import { shareContent } from "@/lib/share"
+import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
+import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useApiQuery } from "@/lib/use-api-query"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
@@ -68,6 +96,7 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Divider } from "@/components/ui/divider"
+import { useDocumentTitle } from "@/components/ui/header"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
@@ -79,24 +108,24 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Picture } from "@/components/ui/picture"
 import { ShowcaseCommentRow } from "@/components/ui/showcase-comment-row"
+import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
 
-/** G-13: opsi hide/report konten satu sumber di lib/labels/report. */
+/** G-13: opsi hide konten satu sumber di lib/labels/report. */
 const HIDE_REASONS = CONTENT_REPORT_REASONS
-
-const REPORT_REASONS = HIDE_REASONS
 
 type Reason = ContentReportReason
 
-/** F-06: jumlah root comment yang dirender per langkah (lihat state). */
+/** F-06(revisi lama): jumlah root comment yang dirender per langkah. */
 const COMMENT_RENDER_STEP = 40
+/** Kontrak DTO CreateShowcaseCommentDto (audit F-04, sumber constraints.ts). */
+const COMMENT_MAX = API_CONSTRAINTS.CreateShowcaseCommentDto.content.maxLength
 
 export default function ShowcaseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
-  const toast = useToast()
 
   const query = useApiQuery<ShowcaseSocialItem>(
     `showcase-detail:${id}`,
@@ -105,34 +134,64 @@ export default function ShowcaseDetailScreen() {
   )
   const item = query.data
 
+  // I-03: judul dokumen = judul item; fallback nama fitur (J-01).
+  useDocumentTitle(item?.title ?? translate("Etalase"))
+
+  if (!item) {
+    return (
+      <DataScreen
+        title="Etalase"
+        state={{
+          loading: query.loading,
+          refreshing: query.refreshing,
+          error: query.error,
+          refresh: query.refresh,
+          reload: query.reload,
+        }}
+        loadingMessage="Memuat karya"
+        errorTitle="Gagal memuat"
+      />
+    )
+  }
+
+  return <ShowcaseDetailContent key={item.id} item={item} query={query} />
+}
+
+/**
+ * Konten detail dipisah supaya hook sosial (& hook lain) tidak dipanggil
+ * kondisional — `item` selalu non-null di sini. `key={item.id}` memastikan
+ * state komentar tidak bocor antar item bila rute [id] dipakai ulang.
+ */
+function ShowcaseDetailContent({
+  item,
+  query,
+}: {
+  item: ShowcaseSocialItem
+  query: ReturnType<typeof useApiQuery<ShowcaseSocialItem>>
+}) {
+  const id = item.id
+  const toast = useToast()
+  /**
+   * A-05/A-06/A-07: suka & simpan lewat store bersama — sinkron dengan feed
+   * & profil dalam satu sesi; tamu diarahkan ke layar login oleh hook.
+   */
+  const { liked, likeCount, saved, toggleLike, toggleSave, share, hasSession } =
+    useShowcaseSocialActions(item)
+
   const [meId, setMeId] = useState<string | null>(null)
-  const [liked, setLiked] = useState(false)
-  const [likeCount, setLikeCount] = useState(0)
-  const [likePending, setLikePending] = useState(false)
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
-  const [saved, setSaved] = useState(false)
   const [mediaPage, setMediaPage] = useState(0)
   const [pagerWidth, setPagerWidth] = useState(0)
   const { width: windowWidth } = useWindowDimensions()
   const composerRef = useRef<TextInput>(null)
 
-  useEffect(() => {
-    setMediaPage(0)
-  }, [id])
-
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
   const [commentTotal, setCommentTotal] = useState(0)
   const [commentsPage, setCommentsPage] = useState(1)
-  const [commentsStatus, setCommentsStatus] = useState<LoadMoreStatus>("idle")
-  /**
-   * F-06 (audit): layar ini scroll non-virtual (kerangka DataScreen), jadi
-   * setiap baris komentar yang dirender tetap ter-mount. Window render
-   * membatasi jumlah baris sekaligus: data penuh tetap di state (LoadMore),
-   * tetapi hanya N root pertama dirender; sisanya muncul lewat tombol
-   * "Tampilkan … komentar lainnya" (naik bertahap COMMENT_RENDER_STEP).
-   * Ratusan ShowcaseCommentRow ter-mount = memori & FPS jatuh di low-end.
-   */
+  // F-06: berawal "loading" — bingkai awal yang jujur.
+  const [commentsStatus, setCommentsStatus] = useState<LoadMoreStatus>("loading")
   const [commentRenderLimit, setCommentRenderLimit] = useState(COMMENT_RENDER_STEP)
+  const [commentsRefreshing, setCommentsRefreshing] = useState(false)
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [draft, setDraft] = useState("")
   const [sendingComment, setSendingComment] = useState(false)
@@ -146,53 +205,54 @@ export default function ShowcaseDetailScreen() {
   const [confirmBusy, setConfirmBusy] = useState(false)
   const [hideReason, setHideReason] = useState<Reason>("SPAM")
 
-  const [reportOpen, setReportOpen] = useState(false)
-  const [reportReason, setReportReason] = useState<Reason>("SPAM")
-  const [reportDescription, setReportDescription] = useState("")
-  const [reporting, setReporting] = useState(false)
+  /** A-11: sheet laporan bersama — null = tertutup. */
+  const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
 
   useEffect(() => {
     void api.users.getMeCached().then((me) => setMeId(me.id ?? null)).catch(() => setMeId(null))
   }, [])
 
+  /**
+   * F-03: AbortController per request — request lama dibatalkan saat yang
+   * baru dimulai, dan semuanya dibatalkan saat unmount (lihat cleanup effect
+   * di bawah), sehingga tidak ada setState pada komponen mati / respons basi
+   * yang menimpa daftar terbaru.
+   */
+  const commentsAbort = useRef<AbortController | null>(null)
   const fetchComments = useCallback(
     async (page: number, append: boolean) => {
-      if (!id) return
+      commentsAbort.current?.abort()
+      const controller = new AbortController()
+      commentsAbort.current = controller
       try {
         setCommentsStatus("loading")
-        const res = await listShowcaseComments(id, { page, limit: 20 })
+        const res = await listShowcaseComments(id, { page, limit: 20 }, controller.signal)
+        if (controller.signal.aborted) return
         setComments((prev) => (append ? [...prev, ...res.data] : res.data))
         if (!append) setCommentRenderLimit(COMMENT_RENDER_STEP)
         setCommentTotal(res.total)
         setCommentsPage(page)
         setCommentsStatus(res.hasNext ? "idle" : "end")
       } catch {
+        if (controller.signal.aborted) return
         setCommentsStatus("error")
       }
     },
     [id],
   )
-
   useEffect(() => {
     void fetchComments(1, false)
+    return () => commentsAbort.current?.abort()
   }, [fetchComments])
 
-  useEffect(() => {
-    if (item) {
-      setLiked(Boolean(item.isLiked))
-      setLikeCount(item.likeCount)
-    }
-  }, [item])
+  const isOwner = item.isOwner === true
 
-  const isOwner = item?.isOwner === true
-
-  const resolvedImages = (item?.images ?? []).flatMap((image) => {
+  const resolvedImages = item.images.flatMap((image) => {
     const url = resolveMediaUrl(image.imageUrl)
     return url ? [{ id: image.id, url }] : []
   })
 
   const openViewer = (index: number) => {
-    if (!item) return
     const image = resolvedImages[index]
     if (!image) return
     setViewerItem({
@@ -234,24 +294,32 @@ export default function ShowcaseDetailScreen() {
     [],
   )
 
-  const applyServerComment = useCallback(
-    (saved: ShowcaseComment) => {
-      const exists = (c: ShowcaseComment) => c.id === saved.id
-      const known =
-        comments.some((r) => exists(r)) ||
-        comments.some((r) => (r.replies ?? []).some(exists))
-      if (known) {
-        patchComment((c) =>
-          c.id === saved.id ? { ...c, content: saved.content, isHidden: saved.isHidden, hiddenReason: saved.hiddenReason, updatedAt: saved.updatedAt ?? c.updatedAt } : c,
-        )
+  /**
+   * F-02: komentar terkirim disisipkan LOKAL (bukan fetchComments(1,false)
+   * yang membuang halaman 2..N). Balasan di-append ke induknya; root baru
+   * di-unshift. Total +1. Pelurusan akhir diserahkan refresh berikutnya.
+   */
+  const insertLocalComment = useCallback((saved: ShowcaseComment) => {
+    setComments((prev) => {
+      if (saved.parentId) {
+        let appended = false
+        const next = prev.map((root) => {
+          if (root.id === saved.parentId) {
+            appended = true
+            return { ...root, replies: [...(root.replies ?? []), saved] }
+          }
+          return root
+        })
+        // Induk tidak terlihat (halaman lebih baru) → tampilkan sebagai root
+        // sementara; lebih baik terlihat dua kali sesaat daripada hilang.
+        return appended ? next : [{ ...saved, replies: [] }, ...prev]
       }
-      void fetchComments(1, false)
-    },
-    [comments, patchComment, fetchComments],
-  )
+      return [{ ...saved, replies: [] }, ...prev]
+    })
+    setCommentTotal((n) => n + 1)
+  }, [])
 
   const handleSendComment = useCallback(async () => {
-    if (!id) return
     const content = draft.trim()
     if (!content) return
     setSendingComment(true)
@@ -262,7 +330,7 @@ export default function ShowcaseDetailScreen() {
       })
       setDraft("")
       setReplyTo(null)
-      applyServerComment(saved)
+      insertLocalComment(saved)
     } catch (err) {
       toast.show({
         title: "Gagal mengirim komentar",
@@ -272,7 +340,7 @@ export default function ShowcaseDetailScreen() {
     } finally {
       setSendingComment(false)
     }
-  }, [id, draft, replyTo, applyServerComment, toast.show])
+  }, [id, draft, replyTo, insertLocalComment, toast.show])
 
   const handleSaveEdit = useCallback(async () => {
     if (!editTarget) return
@@ -281,9 +349,7 @@ export default function ShowcaseDetailScreen() {
     setSavingComment(true)
     try {
       const saved = await updateShowcaseComment(editTarget.id, content)
-      patchComment((c) =>
-        c.id === saved.id ? { ...c, content: saved.content } : c,
-      )
+      patchComment((c) => (c.id === saved.id ? { ...c, content: saved.content } : c))
       setEditTarget(null)
     } catch (err) {
       toast.show({
@@ -303,6 +369,7 @@ export default function ShowcaseDetailScreen() {
       if (confirmKind === "delete") {
         await deleteShowcaseComment(confirmTarget.id)
         patchComment(() => null)
+        // F-08: hanya HAPUS yang menggeser total.
         setCommentTotal((n) => Math.max(0, n - 1))
         toast.show({ title: "Komentar dihapus", tone: "success", duration: 2500 })
       } else {
@@ -310,7 +377,6 @@ export default function ShowcaseDetailScreen() {
         patchComment((c) =>
           c.id === saved.id ? { ...c, isHidden: true, hiddenReason: hideReason } : c,
         )
-        setCommentTotal((n) => Math.max(0, n - 1))
         toast.show({ title: "Komentar disembunyikan", tone: "success", duration: 2500 })
       }
       setConfirmTarget(null)
@@ -332,7 +398,7 @@ export default function ShowcaseDetailScreen() {
         patchComment((c) =>
           c.id === saved.id ? { ...c, isHidden: false, hiddenReason: null } : c,
         )
-        setCommentTotal((n) => n + 1)
+        // F-08: unhide tidak mengubah total (komentar tidak pernah hilang).
         toast.show({ title: "Komentar ditampilkan kembali", tone: "success", duration: 2500 })
       } catch (err) {
         toast.show({
@@ -345,135 +411,65 @@ export default function ShowcaseDetailScreen() {
     [patchComment, toast.show],
   )
 
-  const handleToggleLike = useCallback(async () => {
-    if (!id || likePending) return
-    const next = !liked
-    setLiked(next)
-    setLikeCount((n) => Math.max(0, n + (next ? 1 : -1)))
-    setLikePending(true)
-    try {
-      const res = next ? await likeShowcase(id) : await unlikeShowcase(id)
-      setLiked(res.liked)
-      setLikeCount(res.likeCount)
-    } catch (err) {
-      setLiked(!next)
-      setLikeCount((n) => Math.max(0, n + (next ? -1 : 1)))
-      const isRace = isApiError(err) && err.backendCode === "SHOWCASE_ALREADY_LIKED"
-      if (!isRace) {
-        toast.show({
-          title: "Gagal memperbarui suka",
-          description: userMessage(err),
-          tone: "danger",
-        })
-      }
-    } finally {
-      setLikePending(false)
-    }
-  }, [id, liked, likePending, toast.show])
+  /** F-09: tarik-segarkan memuat ulang item DAN komentar halaman 1. */
+  const handleRefresh = useCallback(() => {
+    if (commentsRefreshing) return
+    setCommentsRefreshing(true)
+    void query.refresh()
+    void fetchComments(1, false).finally(() => setCommentsRefreshing(false))
+  }, [commentsRefreshing, query, fetchComments])
 
-  const handleShare = useCallback(async () => {
-    if (!id) return
-    try {
-      const payload = await getShowcaseSharePayload(id)
-      const outcome = await shareContent({
-        message: `${payload.title} — ${payload.authorFullName ?? "@" + payload.authorUsername}`,
-        url: payload.shareUrl,
-        title: payload.title,
-      })
-      if (outcome === "unavailable") {
-        toast.show({ title: "Share tidak tersedia di perangkat ini", tone: "info" })
-      }
-    } catch (err) {
-      toast.show({
-        title: "Gagal menyiapkan share",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
-    }
-  }, [id, toast.show])
+  const priceLabel = showcasePriceLabelOrFallback(item)
 
-  const handleReport = useCallback(async () => {
-    if (!id) return
-    setReporting(true)
-    try {
-      await reportShowcase(id, {
-        reason: reportReason,
-        description: reportDescription.trim() || undefined,
-      })
-      setReportOpen(false)
-      setReportDescription("")
-      toast.show({ title: "Laporan terkirim", tone: "success", duration: 2500 })
-    } catch (err) {
-      toast.show({
-        title: "Gagal mengirim laporan",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
-    } finally {
-      setReporting(false)
-    }
-  }, [id, reportReason, reportDescription, toast.show])
-
-  if (!item) {
-    return (
-      <DataScreen
-        title="Showcase"
-        state={{
-          loading: query.loading,
-          refreshing: query.refreshing,
-          error: query.error,
-          refresh: query.refresh,
-          reload: query.reload,
-        }}
-        loadingMessage="Memuat item showcase"
-        errorTitle="Gagal memuat"
-        refreshable={false}
-      />
-    )
-  }
-
-  const priceLabel =
-    item.priceMin != null && item.priceMax != null && item.priceMin !== item.priceMax
-      ? `Rp ${formatNumber(item.priceMin)} – Rp ${formatNumber(item.priceMax)}`
-      : item.priceMin != null
-        ? `Rp ${formatNumber(item.priceMin)}`
-        : "Harga lewat diskusi"
-
-  const canReply = (c: ShowcaseComment) => !c.isHidden && c.parentId == null
+  const canReply = (c: ShowcaseComment) => hasSession && !c.isHidden && c.parentId == null
   const isMine = (c: ShowcaseComment) => meId != null && c.author.userId === meId
+
+  /** F-05: laporkan KOMENTAR = laporkan penulisnya (layar /reports). */
+  const handleReportComment = useCallback((comment: ShowcaseComment) => {
+    router.push(ROUTES.reports({ targetId: comment.author.userId }))
+  }, [])
+
+  /** F-01: hormati orderLink saat tersedia; jatuh ke counterpart saja. */
+  const handleCreateTransaction = useCallback(() => {
+    router.push(
+      item.orderLink
+        ? ROUTES.createTransactionFromShowcase(item.orderLink, item.author.username)
+        : ROUTES.createTransactionWith(item.author.username),
+    )
+  }, [item])
 
   return (
     <DataScreen
-      title="Showcase"
+      title="Etalase"
       padded={false}
       state={{
         loading: false,
-        refreshing: query.refreshing,
+        refreshing: query.refreshing || commentsRefreshing,
         error: null,
-        refresh: query.refresh,
-        reload: query.reload,
+        refresh: handleRefresh,
+        reload: handleRefresh,
       }}
-      refreshable={false}
+      refreshable
       contentClassName="gap-0"
       footer={
-        (
-          <View className="border-t border-border bg-background py-3">
-            {replyTo ? (
-              <View className="mb-2 flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
-                <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-                  Membalas {replyTo.author.fullName ?? `@${replyTo.author.username}`}
+        <View className="border-t border-border bg-background py-3">
+          {replyTo ? (
+            <View className="mb-2 flex-row items-center gap-2 rounded-md bg-surface-elevated px-3 py-1.5">
+              <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+                Membalas {replyTo.author.fullName ?? `@${replyTo.author.username}`}
+              </Text>
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel="Batalkan balasan"
+                onPress={() => setReplyTo(null)}
+              >
+                <Text variant="caption" tone="primary">
+                  Batal
                 </Text>
-                <PressableScale
-                  accessibilityRole="button"
-                  accessibilityLabel="Batalkan balasan"
-                  onPress={() => setReplyTo(null)}
-                >
-                  <Text variant="caption" tone="primary">
-                    Batal
-                  </Text>
-                </PressableScale>
-              </View>
-            ) : null}
+              </PressableScale>
+            </View>
+          ) : null}
+          {hasSession ? (
             <View className="flex-row items-end gap-2">
               <Input
                 ref={composerRef}
@@ -482,6 +478,7 @@ export default function ShowcaseDetailScreen() {
                 placeholder="Tulis komentar…"
                 accessibilityLabel="Komentar baru"
                 containerClassName="flex-1"
+                maxLength={COMMENT_MAX}
                 onSubmitEditing={() => void handleSendComment()}
                 returnKeyType="send"
               />
@@ -495,17 +492,24 @@ export default function ShowcaseDetailScreen() {
                 onPress={() => void handleSendComment()}
               />
             </View>
-          </View>
-        )
+          ) : (
+            // A-05: tamu diarahkan login, bukan komposer yang berujung 401.
+            <Button onPress={() => router.push(ROUTES.loginRequired())}>
+              Masuk untuk berkomentar
+            </Button>
+          )}
+        </View>
       }
     >
       {/* ── Penulis DI ATAS media (selaras kartu feed) + laporkan ── */}
       <View className="flex-row items-center gap-3 px-5 pt-4">
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={translate("Lihat profil {x}", { x: item.author.fullName ?? item.author.username })}
+          accessibilityLabel={translate("Lihat profil {x}", {
+            x: item.author.fullName ?? item.author.username,
+          })}
           onPress={() => router.push(ROUTES.userProfile(item.author.username))}
-          containerClassName="flex-1 flex-row items-center rounded-md"
+          containerClassName={cn("flex-1 flex-row items-center rounded-md", focusRing)}
           className="flex-1 flex-row items-center gap-3"
         >
           <Avatar
@@ -524,19 +528,23 @@ export default function ShowcaseDetailScreen() {
           </View>
           {isOwner ? <Badge variant="outline">Anda</Badge> : null}
         </PressableScale>
+        {/* B-05 selaras: bendera disembunyikan untuk item sendiri. */}
         {!isOwner ? (
           <IconButton
             icon={Flag}
             variant="ghost"
             size="sm"
             accessibilityLabel="Laporkan"
-            onPress={() => setReportOpen(true)}
+            onPress={() => setReportItem(item)}
           />
         ) : null}
       </View>
 
       {/* ── Media: CARD pager (mx-5, selaras avatar) — bukan full-bleed ── */}
-      <View className="mx-5 pt-3" onLayout={(e) => setPagerWidth(e.nativeEvent.layout.width)}>
+      <View
+        className="mx-5 pt-3"
+        onLayout={(e) => setPagerWidth(e.nativeEvent.layout.width)}
+      >
         {resolvedImages.length > 0 ? (
           <View className="overflow-hidden rounded-sm border border-border">
             <ScrollView
@@ -551,7 +559,10 @@ export default function ShowcaseDetailScreen() {
                 <View key={image.id} style={{ width: pagerWidth || windowWidth - 40 }}>
                   <PressableScale
                     accessibilityRole="button"
-                    accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: resolvedImages.length })}
+                    accessibilityLabel={translate("Lihat foto {x} dari {y}", {
+                      x: index + 1,
+                      y: resolvedImages.length,
+                    })}
                     onPress={() => openViewer(index)}
                     containerClassName="w-full"
                   >
@@ -588,7 +599,17 @@ export default function ShowcaseDetailScreen() {
         <Text variant="bodyLarge" weight={600} className="tabular-nums">
           {priceLabel}
         </Text>
-        {item.category ? <Badge variant="outline">{item.category}</Badge> : null}
+        {item.category ? (
+          // A-12: badge kategori juga menavigasi ke feed terfilter.
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={translate("Lihat kategori {x}", { x: item.category })}
+            onPress={() => router.push(ROUTES.showcaseWithCategory(item.category as string))}
+            containerClassName={cn("rounded-full", focusRing)}
+          >
+            <Badge variant="outline">{item.category}</Badge>
+          </PressableScale>
+        ) : null}
       </View>
 
       <View className="px-5 pt-1">
@@ -612,8 +633,11 @@ export default function ShowcaseDetailScreen() {
           accessibilityRole="button"
           accessibilityLabel={liked ? "Hapus suka" : "Sukai"}
           accessibilityHint={translate("{x} suka", { x: formatCountCompact(likeCount) })}
-          onPress={() => void handleToggleLike()}
-          containerClassName="min-h-11 flex-row items-center rounded-md px-3"
+          onPress={toggleLike}
+          containerClassName={cn(
+            "min-h-11 flex-row items-center rounded-md px-3",
+            focusRing,
+          )}
           className="flex-row items-center gap-1.5"
         >
           <Icon
@@ -634,7 +658,10 @@ export default function ShowcaseDetailScreen() {
           accessibilityLabel="Tulis komentar"
           accessibilityHint={translate("{x} komentar", { x: formatCountCompact(commentTotal) })}
           onPress={focusComposer}
-          containerClassName="min-h-11 flex-row items-center rounded-md px-3"
+          containerClassName={cn(
+            "min-h-11 flex-row items-center rounded-md px-3",
+            focusRing,
+          )}
           className="flex-row items-center gap-1.5"
         >
           <Icon icon={ChatCircle} size="md" tone="active" />
@@ -649,20 +676,31 @@ export default function ShowcaseDetailScreen() {
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel="Bagikan"
-          accessibilityHint="Bagikan showcase ini"
-          onPress={() => void handleShare()}
-          containerClassName="min-h-11 min-w-11 items-center justify-center rounded-md"
+          accessibilityHint="Bagikan karya ini"
+          onPress={() => void share()}
+          containerClassName={cn(
+            "min-h-11 min-w-11 items-center justify-center rounded-md",
+            focusRing,
+          )}
         >
           <Icon icon={Export} size="md" tone="active" />
         </PressableScale>
         <PressableScale
           accessibilityRole="button"
           accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
-          accessibilityState={{ selected: saved }}
-          onPress={() => setSaved((v) => !v)}
-          containerClassName="min-h-11 min-w-11 items-center justify-center rounded-md"
+          accessibilityHint="Simpan karya ini"
+          onPress={toggleSave}
+          containerClassName={cn(
+            "min-h-11 min-w-11 items-center justify-center rounded-md",
+            focusRing,
+          )}
         >
-          <Icon icon={BookmarkSimple} size="md" tone="active" weight={saved ? "fill" : "regular"} />
+          <Icon
+            icon={BookmarkSimple}
+            size="md"
+            tone="active"
+            weight={saved ? "fill" : "regular"}
+          />
         </PressableScale>
       </View>
 
@@ -671,17 +709,12 @@ export default function ShowcaseDetailScreen() {
 
       <View className="px-5 pt-4">
         {!isOwner ? (
-          <Button
-            fullWidth
-            onPress={() =>
-              router.push(ROUTES.createTransactionWith(item.author.username))
-            }
-          >
+          <Button fullWidth onPress={handleCreateTransaction}>
             Buat Transaksi
           </Button>
         ) : (
           <Text variant="caption" tone="secondary" className="text-center">
-            Item Anda — komentar di sini bisa Anda moderasi.
+            Karya Anda — komentar di sini bisa Anda moderasi.
           </Text>
         )}
       </View>
@@ -700,12 +733,7 @@ export default function ShowcaseDetailScreen() {
       </View>
 
       <View className="gap-4 px-5 pb-6 pt-4">
-        <LoadMore
-          status={commentsStatus}
-          onLoadMore={() => void fetchComments(commentsPage + 1, true)}
-          hideEnd
-          idleLabel="Muat komentar berikutnya"
-        />
+        {/* F-06: status "loading" di awal — tanpa kilatan kosong/tombol. */}
         {comments.length === 0 && commentsStatus !== "loading" && commentsStatus !== "error" ? (
           <Text variant="body" tone="secondary">
             Belum ada komentar. Jadilah yang pertama!
@@ -717,7 +745,7 @@ export default function ShowcaseDetailScreen() {
               comment={root}
               isMine={isMine(root)}
               canReply={canReply(root)}
-              menuable={isMine(root) || isOwner}
+              menuable={isMine(root) || isOwner || (!root.isHidden && hasSession)}
               onReply={setReplyTo}
               onOpenMenu={setCommentMenu}
             />
@@ -727,7 +755,7 @@ export default function ShowcaseDetailScreen() {
                   comment={reply}
                   isMine={isMine(reply)}
                   canReply={false}
-                  menuable={isMine(reply) || isOwner}
+                  menuable={isMine(reply) || isOwner || (!reply.isHidden && hasSession)}
                   onReply={setReplyTo}
                   onOpenMenu={setCommentMenu}
                 />
@@ -744,6 +772,13 @@ export default function ShowcaseDetailScreen() {
             Tampilkan komentar lainnya
           </Button>
         ) : null}
+        {/* F-07: halaman baru ditambahkan DI BAWAH → tombolnya di bawah. */}
+        <LoadMore
+          status={commentsStatus}
+          onLoadMore={() => void fetchComments(commentsPage + 1, true)}
+          hideEnd
+          idleLabel="Muat komentar berikutnya"
+        />
       </View>
 
       <MediaViewer
@@ -803,6 +838,17 @@ export default function ShowcaseDetailScreen() {
                 },
               ]
             : []),
+          // F-05: laporkan komentar orang lain (bukan milik sendiri).
+          ...(commentMenu && hasSession && !isMine(commentMenu)
+            ? [
+                {
+                  key: "report",
+                  label: "Laporkan",
+                  icon: Flag,
+                  onPress: () => handleReportComment(commentMenu),
+                },
+              ]
+            : []),
           ...(commentMenu && (isMine(commentMenu) || isOwner)
             ? [
                 {
@@ -843,6 +889,7 @@ export default function ShowcaseDetailScreen() {
             value={editText}
             onChangeText={setEditText}
             rows={3}
+            maxLength={COMMENT_MAX}
             placeholder="Tulis ulang komentar"
             accessibilityLabel="Komentar yang diedit"
           />
@@ -879,38 +926,8 @@ export default function ShowcaseDetailScreen() {
         ) : null}
       </Dialog>
 
-      <BottomSheet
-        avoidKeyboard
-        visible={reportOpen}
-        onRequestClose={() => setReportOpen(false)}
-        title="Laporkan item"
-        description="Laporan ditinjau tim Kahade. Maksimal 5 laporan per jam."
-        footer={
-          <Button
-            fullWidth
-            variant="destructive"
-            loading={reporting}
-            onPress={() => void handleReport()}
-          >
-            Kirim Laporan
-          </Button>
-        }
-      >
-        <View className="gap-3 px-5 pb-2">
-          <RadioGroup value={reportReason} onChange={(v) => setReportReason(v as Reason)}>
-            {REPORT_REASONS.map((r) => (
-              <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
-            ))}
-          </RadioGroup>
-          <TextArea
-            value={reportDescription}
-            onChangeText={setReportDescription}
-            rows={3}
-            placeholder="Keterangan (opsional)"
-            accessibilityLabel="Keterangan laporan"
-          />
-        </View>
-      </BottomSheet>
+      {/* A-11: SATU sheet laporan (copy seragam "Laporkan Karya"). */}
+      <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />
     </DataScreen>
   )
 }

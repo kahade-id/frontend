@@ -12,11 +12,15 @@
   },
   {
    "s": "Gagal memuat",
-   "n": 25
+   "n": 24
   },
   {
    "s": "Kembali",
    "n": 10
+  },
+  {
+   "s": "Etalase",
+   "n": 9
   },
   {
    "s": "Kata sandi akun",
@@ -27,15 +31,15 @@
    "n": 9
   },
   {
+   "s": "Masuk",
+   "n": 9
+  },
+  {
    "s": "Transaksi",
    "n": 9
   },
   {
    "s": "{x}: {y}",
-   "n": 8
-  },
-  {
-   "s": "Masuk",
    "n": 8
   },
   {
@@ -75,7 +79,7 @@
    "n": 5
   },
   {
-   "s": "Etalase",
+   "s": "Gagal mengunggah foto",
    "n": 5
   },
   {
@@ -227,10 +231,6 @@
    "n": 3
   },
   {
-   "s": "Gagal memperbarui suka",
-   "n": 3
-  },
-  {
    "s": "Gagal memuat komentar",
    "n": 3
   },
@@ -240,18 +240,6 @@
   },
   {
    "s": "Gagal menghapus",
-   "n": 3
-  },
-  {
-   "s": "Gagal mengirim laporan",
-   "n": 3
-  },
-  {
-   "s": "Gagal mengunggah foto",
-   "n": 3
-  },
-  {
-   "s": "Gagal menyiapkan share",
    "n": 3
   },
   {
@@ -303,10 +291,6 @@
    "n": 3
   },
   {
-   "s": "Laporan terkirim",
-   "n": 3
-  },
-  {
    "s": "Lencana",
    "n": 3
   },
@@ -355,10 +339,6 @@
    "n": 3
   },
   {
-   "s": "Portofolio",
-   "n": 3
-  },
-  {
    "s": "Profil",
    "n": 3
   },
@@ -368,14 +348,6 @@
   },
   {
    "s": "Semua",
-   "n": 3
-  },
-  {
-   "s": "Share tidak tersedia di perangkat ini",
-   "n": 3
-  },
-  {
-   "s": "Showcase",
    "n": 3
   },
   {
@@ -423,6 +395,10 @@
    "n": 2
   },
   {
+   "s": "{x} dari {y} foto gagal diunggah",
+   "n": 2
+  },
+  {
    "s": "{x} dari {y} lencana diraih",
    "n": 2
   },
@@ -432,6 +408,18 @@
   },
   {
    "s": "{x} foto — tambah, urutkan, hapus",
+   "n": 2
+  },
+  {
+   "s": "{x} foto dilampirkan",
+   "n": 2
+  },
+  {
+   "s": "{x} foto dilampirkan, {y} gagal",
+   "n": 2
+  },
+  {
+   "s": "{x} foto gagal diunggah.",
    "n": 2
   },
   {
@@ -507,10 +495,6 @@
    "n": 2
   },
   {
-   "s": "Bagikan showcase ini",
-   "n": 2
-  },
-  {
    "s": "Bahasa",
    "n": 2
   },
@@ -531,6 +515,10 @@
    "n": 2
   },
   {
+   "s": "Belum ada etalase",
+   "n": 2
+  },
+  {
    "s": "Belum ada komentar. Jadilah yang pertama!",
    "n": 2
   },
@@ -544,10 +532,6 @@
   },
   {
    "s": "Belum ada riwayat",
-   "n": 2
-  },
-  {
-   "s": "Belum ada showcase",
    "n": 2
   },
   {
@@ -707,6 +691,10 @@
    "n": 2
   },
   {
+   "s": "Gagal memuat etalase",
+   "n": 2
+  },
+  {
    "s": "Gagal memuat metode",
    "n": 2
   },
@@ -716,6 +704,10 @@
   },
   {
    "s": "Gagal menghapus foto",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengirim laporan",
    "n": 2
   },
   {
@@ -756,6 +748,10 @@
   },
   {
    "s": "Isi akta atau SIUP — minimal satu.",
+   "n": 2
+  },
+  {
+   "s": "Item etalase",
    "n": 2
   },
   {
@@ -804,10 +800,6 @@
   },
   {
    "s": "Kirim komentar",
-   "n": 2
-  },
-  {
-   "s": "Kirim Laporan",
    "n": 2
   },
   {
@@ -863,6 +855,14 @@
    "n": 2
   },
   {
+   "s": "Laporan terkirim",
+   "n": 2
+  },
+  {
+   "s": "Laporkan",
+   "n": 2
+  },
+  {
    "s": "Lawan",
    "n": 2
   },
@@ -888,6 +888,10 @@
   },
   {
    "s": "Lupa kata sandi?",
+   "n": 2
+  },
+  {
+   "s": "Masuk untuk berkomentar",
    "n": 2
   },
   {
@@ -1143,6 +1147,10 @@
    "n": 2
   },
   {
+   "s": "Tampilkan secara publik",
+   "n": 2
+  },
+  {
    "s": "Tarik",
    "n": 2
   },
@@ -1307,6 +1315,10 @@
    "n": 1
   },
   {
+   "s": "{x} — coba lampirkan lagi.",
+   "n": 1
+  },
+  {
    "s": "{x} — foto {y} dari {z}",
    "n": 1
   },
@@ -1351,7 +1363,7 @@
    "n": 1
   },
   {
-   "s": "{x} dari {y} foto. Foto pertama menjadi cover item.",
+   "s": "{x} dari {y} foto. Foto pertama menjadi cover karya.",
    "n": 1
   },
   {
@@ -1507,7 +1519,7 @@
    "n": 1
   },
   {
-   "s": "@{x} belum membagikan foto atau showcase produk.",
+   "s": "@{x} belum membagikan foto atau karya produk.",
    "n": 1
   },
   {
@@ -1703,6 +1715,10 @@
    "n": 1
   },
   {
+   "s": "Bagikan karya ini",
+   "n": 1
+  },
+  {
    "s": "Bagikan kode Anda. Anda dan teman mendapat hadiah saat transaksi pertamanya selesai.",
    "n": 1
   },
@@ -1712,6 +1728,10 @@
   },
   {
    "s": "Bagikan kode saya",
+   "n": 1
+  },
+  {
+   "s": "Bagikan showcase ini",
    "n": 1
   },
   {
@@ -1827,10 +1847,6 @@
    "n": 1
   },
   {
-   "s": "Belum ada etalase",
-   "n": 1
-  },
-  {
    "s": "Belum ada favorit",
    "n": 1
   },
@@ -1848,6 +1864,10 @@
   },
   {
    "s": "Belum ada jadwal",
+   "n": 1
+  },
+  {
+   "s": "Belum ada karya di etalase",
    "n": 1
   },
   {
@@ -2443,7 +2463,7 @@
    "n": 1
   },
   {
-   "s": "Cover item",
+   "s": "Cover karya",
    "n": 1
   },
   {
@@ -2759,7 +2779,19 @@
    "n": 1
   },
   {
+   "s": "Etalase — @{x}",
+   "n": 1
+  },
+  {
+   "s": "Etalase Anda",
+   "n": 1
+  },
+  {
    "s": "Favorit",
+   "n": 1
+  },
+  {
+   "s": "Filter kategori {x}",
    "n": 1
   },
   {
@@ -2791,7 +2823,7 @@
    "n": 1
   },
   {
-   "s": "Foto dilampirkan",
+   "s": "Foto diunggah — lengkapi detail, lalu tampilkan di profil",
    "n": 1
   },
   {
@@ -2839,7 +2871,11 @@
    "n": 1
   },
   {
-   "s": "Foto showcase ditambahkan",
+   "s": "Foto terunggah tapi gagal dilampirkan",
+   "n": 1
+  },
+  {
+   "s": "Foto yang berhasil disimpan saat Anda menekan Simpan.",
    "n": 1
   },
   {
@@ -2856,10 +2892,6 @@
   },
   {
    "s": "Gagal masuk",
-   "n": 1
-  },
-  {
-   "s": "Gagal melampirkan foto",
    "n": 1
   },
   {
@@ -2952,6 +2984,10 @@
   },
   {
    "s": "Gagal memperbarui status ikuti",
+   "n": 1
+  },
+  {
+   "s": "Gagal memperbarui suka",
    "n": 1
   },
   {
@@ -3223,6 +3259,10 @@
    "n": 1
   },
   {
+   "s": "Gagal menyiapkan share",
+   "n": 1
+  },
+  {
    "s": "Gagal menyimpan bahasa",
    "n": 1
   },
@@ -3351,7 +3391,7 @@
    "n": 1
   },
   {
-   "s": "Halaman sosial: like, komentar, share",
+   "s": "Halaman sosial: suka, komentar, bagikan",
    "n": 1
   },
   {
@@ -3419,6 +3459,10 @@
    "n": 1
   },
   {
+   "s": "Hapus filter kategori {x}",
+   "n": 1
+  },
+  {
    "s": "Hapus foto",
    "n": 1
   },
@@ -3435,11 +3479,11 @@
    "n": 1
   },
   {
-   "s": "Hapus item ini?",
+   "s": "Hapus jadwal?",
    "n": 1
   },
   {
-   "s": "Hapus jadwal?",
+   "s": "Hapus karya ini?",
    "n": 1
   },
   {
@@ -3507,6 +3551,10 @@
    "n": 1
   },
   {
+   "s": "Harga lewat diskusi",
+   "n": 1
+  },
+  {
    "s": "Harga maksimum (opsional)",
    "n": 1
   },
@@ -3520,6 +3568,10 @@
   },
   {
    "s": "hemat {x} rupiah",
+   "n": 1
+  },
+  {
+   "s": "Hingga Rp {x}",
    "n": 1
   },
   {
@@ -3607,30 +3659,6 @@
    "n": 1
   },
   {
-   "s": "Item akan dihapus permanen dari showcase Anda.",
-   "n": 1
-  },
-  {
-   "s": "Item Anda — komentar di sini bisa Anda moderasi.",
-   "n": 1
-  },
-  {
-   "s": "Item dihapus",
-   "n": 1
-  },
-  {
-   "s": "Item disembunyikan",
-   "n": 1
-  },
-  {
-   "s": "Item ditampilkan",
-   "n": 1
-  },
-  {
-   "s": "Item showcase dibuat",
-   "n": 1
-  },
-  {
    "s": "Izin notifikasi diperlukan agar Kahade dapat memberi tahu Anda.",
    "n": 1
   },
@@ -3676,6 +3704,10 @@
   },
   {
    "s": "Jangan tutup aplikasi sampai proses selesai.",
+   "n": 1
+  },
+  {
+   "s": "Jasa desain, kerajinan, digital…",
    "n": 1
   },
   {
@@ -3779,11 +3811,11 @@
    "n": 1
   },
   {
-   "s": "Judul dan rentang harga membantu calon pembeli memahami penawaran Anda.",
+   "s": "Judul order default",
    "n": 1
   },
   {
-   "s": "Judul order default",
+   "s": "Judul, kategori, dan rentang harga membantu calon pembeli memahami penawaran Anda.",
    "n": 1
   },
   {
@@ -3843,6 +3875,30 @@
    "n": 1
   },
   {
+   "s": "Karya akan dihapus permanen dari etalase Anda.",
+   "n": 1
+  },
+  {
+   "s": "Karya Anda — komentar di sini bisa Anda moderasi.",
+   "n": 1
+  },
+  {
+   "s": "Karya dihapus",
+   "n": 1
+  },
+  {
+   "s": "Karya disembunyikan",
+   "n": 1
+  },
+  {
+   "s": "Karya ditambahkan",
+   "n": 1
+  },
+  {
+   "s": "Karya ditampilkan di profil",
+   "n": 1
+  },
+  {
    "s": "Kata kunci pencarian pesan",
    "n": 1
   },
@@ -3871,11 +3927,19 @@
    "n": 1
   },
   {
+   "s": "Kategori (opsional)",
+   "n": 1
+  },
+  {
    "s": "Kategori alasan:",
    "n": 1
   },
   {
    "s": "Kategori sengketa",
+   "n": 1
+  },
+  {
+   "s": "Kategori: {x}",
    "n": 1
   },
   {
@@ -3963,14 +4027,6 @@
    "n": 1
   },
   {
-   "s": "Keterangan (opsional)",
-   "n": 1
-  },
-  {
-   "s": "Keterangan laporan",
-   "n": 1
-  },
-  {
    "s": "Keterangan tambahan (opsional)",
    "n": 1
   },
@@ -3983,7 +4039,7 @@
    "n": 1
   },
   {
-   "s": "Ketuk item untuk mengubah detail, menyembunyikan, atau menghapus.",
+   "s": "Ketuk karya untuk mengubah detail, menyembunyikan, atau menghapus.",
    "n": 1
   },
   {
@@ -4040,6 +4096,10 @@
   },
   {
    "s": "Kirim langsung tanpa chat",
+   "n": 1
+  },
+  {
+   "s": "Kirim Laporan",
    "n": 1
   },
   {
@@ -4383,23 +4443,11 @@
    "n": 1
   },
   {
-   "s": "Laporan ditinjau tim Kahade. Maksimal {x} laporan per jam.",
-   "n": 1
-  },
-  {
    "s": "Laporan yang Anda kirim akan muncul di sini.",
    "n": 1
   },
   {
-   "s": "Laporkan",
-   "n": 1
-  },
-  {
    "s": "Laporkan {x}",
-   "n": 1
-  },
-  {
-   "s": "Laporkan item",
    "n": 1
   },
   {
@@ -4479,6 +4527,10 @@
    "n": 1
   },
   {
+   "s": "Lihat kategori {x}",
+   "n": 1
+  },
+  {
    "s": "Lihat pesanan {x}",
    "n": 1
   },
@@ -4492,6 +4544,14 @@
   },
   {
    "s": "Lihat riwayat penarikan",
+   "n": 1
+  },
+  {
+   "s": "Lihat sebagai galeri",
+   "n": 1
+  },
+  {
+   "s": "Lihat semua komentar",
    "n": 1
   },
   {
@@ -4775,11 +4835,11 @@
    "n": 1
   },
   {
-   "s": "Memuat item showcase",
+   "s": "Memuat jadwal penarikan",
    "n": 1
   },
   {
-   "s": "Memuat jadwal penarikan",
+   "s": "Memuat karya",
    "n": 1
   },
   {
@@ -5120,6 +5180,10 @@
   },
   {
    "s": "Mulai proses",
+   "n": 1
+  },
+  {
+   "s": "Mulai Rp {x}",
    "n": 1
   },
   {
@@ -6027,10 +6091,6 @@
    "n": 1
   },
   {
-   "s": "Portofolio Anda",
-   "n": 1
-  },
-  {
    "s": "Preferensi",
    "n": 1
   },
@@ -6295,7 +6355,7 @@
    "n": 1
   },
   {
-   "s": "Saat akun yang kamu ikuti membagikan showcase, postingannya muncul di sini.",
+   "s": "Saat akun yang kamu ikuti membagikan karya, karyanya muncul di sini.",
    "n": 1
   },
   {
@@ -6559,6 +6619,10 @@
    "n": 1
   },
   {
+   "s": "Share tidak tersedia di perangkat ini",
+   "n": 1
+  },
+  {
    "s": "Showcase {x}, {y}, oleh {z}",
    "n": 1
   },
@@ -6584,6 +6648,10 @@
   },
   {
    "s": "Simpan jadwal",
+   "n": 1
+  },
+  {
+   "s": "Simpan karya ini",
    "n": 1
   },
   {
@@ -6771,11 +6839,19 @@
    "n": 1
   },
   {
+   "s": "Tampilkan {x} lainnya",
+   "n": 1
+  },
+  {
    "s": "Tampilkan di profil",
    "n": 1
   },
   {
    "s": "Tampilkan email kontak di profil",
+   "n": 1
+  },
+  {
+   "s": "Tampilkan feed kategori ini",
    "n": 1
   },
   {
@@ -6827,6 +6903,10 @@
    "n": 1
   },
   {
+   "s": "Tanpa judul",
+   "n": 1
+  },
+  {
    "s": "Tarik dana",
    "n": 1
   },
@@ -6848,6 +6928,10 @@
   },
   {
    "s": "Tautan dibatalkan",
+   "n": 1
+  },
+  {
+   "s": "Tautan disalin ke papan klip",
    "n": 1
   },
   {
@@ -7459,11 +7543,11 @@
    "n": 1
   },
   {
-   "s": "Upload tidak menghasilkan kunci file",
+   "s": "URL unggah tidak aman.",
    "n": 1
   },
   {
-   "s": "URL unggah tidak aman.",
+   "s": "Urutan foto disimpan",
    "n": 1
   },
   {
