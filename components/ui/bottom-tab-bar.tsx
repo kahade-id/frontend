@@ -74,6 +74,7 @@ import { elevationStyle } from "@/lib/elevation"
 import { focusRingInset } from "@/lib/focus-ring"
 import { haptic } from "@/lib/haptics"
 import { hitSlopToReach } from "@/lib/hit-slop"
+import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES, TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
@@ -107,9 +108,9 @@ export type AppTabBarItem = Omit<BottomTabItem<TabRouteName>, "key"> & {
  *
  * Slot "discover" (file app/(tabs)/discover.tsx) dibrandakan ulang sebagai
  * "Profil" (permintaan produk): label/ikon berganti, dan penekanan tab-nya
- * dialihkan ke profil publik milik sendiri (/user/[username]) — lihat
- * listener tabPress di _layout. Layar /discover tetap ada untuk tautan
- * langsung, hanya tidak lagi menjadi tujuan tab.
+ * dialihkan ke profil publik milik sendiri (/user/[username]) oleh
+ * ShellTabBar — bukan listener tabPress. Layar /discover tetap ada untuk
+ * tautan langsung, hanya tidak lagi menjadi tujuan tab.
  *
  * Urutan mengikuti TAB_ROUTE_NAMES (guard di bawah mengunci kelengkapan
  * peta terhadap registri rute di compile-time).
@@ -229,6 +230,13 @@ export const CENTER_ACTION_ITEMS: readonly ActionSheetItem[] = [
   },
 ]
 
+export type BottomTabCenter = {
+  icon: IconComponent
+  accessibilityLabel: string
+  accessibilityHint: string
+  onPress: () => void
+}
+
 export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "children"> & {
   items: readonly BottomTabItem<K>[]
   value: K
@@ -237,9 +245,21 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
   onLongPress?: (key: K) => void
   /**
    * Tombol (+) di tengah bar. `true` = pakai CENTER_ACTION_ITEMS bawaan;
-   * atau kirim daftar aksi sendiri (mis. bar kustom di layar profil).
+   * atau kirim daftar aksi sendiri. Diabaikan bila `center` diisi —
+   * shell mode memakai `center` supaya ikon dan aksi ikut mode.
    */
   centerAction?: boolean | readonly ActionSheetItem[]
+  /** Tombol tengah kustom (posisi & bentuk tetap; ikon/aksi dari pemanggil). */
+  center?: BottomTabCenter
+  /**
+   * Ganti nilai ini untuk memudarkan ikon/label slot (bukan menggeser
+   * lingkaran tengah). Shell mengirim mode aktif.
+   */
+  motionKey?: string
+  /** 1 = geser dari kanan, -1 = dari kiri. */
+  motionDir?: 1 | -1
+  /** Mount pertama ikut memudar bila shift mode masih segar (bar stack baru). */
+  enterOnMount?: boolean
   className?: string
 }
 
@@ -338,30 +358,136 @@ function TabAvatar({
  * tepi bar (`-mt-5`) dan memakai elevation "medium" (§5.2: FAB/popover) —
  * bayangan itulah yang memisahkannya dari konten di belakang, bukan garis.
  */
+function CenterGlyph({ icon, motionKey }: { icon: IconComponent; motionKey?: string }) {
+  const reducedMotion = useReducedMotion()
+  const opacity = useRef(new Animated.Value(1)).current
+  const first = useRef(true)
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    if (reducedMotion) {
+      opacity.setValue(1)
+      return
+    }
+    opacity.setValue(0)
+    const enter = tokens.motion.easing.enter
+    const anim = Animated.timing(opacity, {
+      toValue: 1,
+      duration: motionDuration(reducedMotion, tokens.motion.duration.fast),
+      easing: Easing.bezier(enter[0], enter[1], enter[2], enter[3]),
+      useNativeDriver: true,
+    })
+    anim.start()
+    return () => anim.stop()
+  }, [icon, motionKey, reducedMotion, opacity])
+
+  return (
+    <Animated.View style={{ opacity }}>
+      <Icon icon={icon} size="md" tone="inverse" weight="bold" />
+    </Animated.View>
+  )
+}
+
 function CenterActionButton({
   onPress,
   elevation,
+  icon = Plus,
+  accessibilityLabel,
+  accessibilityHint,
+  motionKey,
 }: {
   onPress: () => void
   elevation: ViewProps["style"]
+  icon?: IconComponent
+  accessibilityLabel?: string
+  accessibilityHint?: string
+  motionKey?: string
 }) {
+  useLanguage()
   return (
     <View className="w-16 items-center">
       <View style={elevation} className="-mt-5 rounded-full">
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel="Buat baru"
-          accessibilityHint="Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase"
+          accessibilityLabel={accessibilityLabel ?? "Buat baru"}
+          accessibilityHint={
+            accessibilityHint ??
+            translate("Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase")
+          }
           scaleOnPress={false}
           ripple
           onPress={onPress}
           containerClassName={cn("rounded-full bg-primary", focusRingInset)}
           className="h-12 w-12 items-center justify-center rounded-full"
         >
-          <Icon icon={Plus} size="md" tone="inverse" weight="bold" />
+          <CenterGlyph icon={icon} motionKey={motionKey} />
         </PressableScale>
       </View>
     </View>
+  )
+}
+
+/**
+ * Crossfade slot kiri/kanan. Lingkaran tengah TIDAK ikut geser — hanya
+ * glifnya yang memudar, supaya posisi tombol menonjol tetap.
+ */
+function ChromeFade({
+  motionKey,
+  dir,
+  enterOnMount,
+  children,
+}: {
+  motionKey?: string
+  dir: 1 | -1
+  enterOnMount?: boolean
+  children: ReactNode
+}) {
+  const reducedMotion = useReducedMotion()
+  const opacity = useRef(new Animated.Value(1)).current
+  const translateX = useRef(new Animated.Value(0)).current
+  const first = useRef(true)
+
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      // Jangan memudarkan bar saat app baru dibuka — hanya saat mount
+      // bertepatan dengan pergantian mode (layar stack yang baru didorong).
+      if (!enterOnMount) return
+    }
+    if (!motionKey || reducedMotion) {
+      opacity.setValue(1)
+      translateX.setValue(0)
+      return
+    }
+    opacity.setValue(0)
+    translateX.setValue(dir * tokens.space[2])
+    const enter = tokens.motion.easing.enter
+    const duration = motionDuration(reducedMotion, tokens.motion.duration.fast)
+    const anim = Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration,
+        easing: Easing.bezier(enter[0], enter[1], enter[2], enter[3]),
+        useNativeDriver: true,
+      }),
+      Animated.timing(translateX, {
+        toValue: 0,
+        duration,
+        easing: Easing.bezier(enter[0], enter[1], enter[2], enter[3]),
+        useNativeDriver: true,
+      }),
+    ])
+    anim.start()
+    return () => anim.stop()
+  }, [motionKey, dir, enterOnMount, reducedMotion, opacity, translateX])
+
+  return (
+    <Animated.View style={{ flex: 1, flexDirection: "row", opacity, transform: [{ translateX }] }}>
+      {children}
+    </Animated.View>
   )
 }
 
@@ -371,6 +497,10 @@ export function BottomTabBar<K extends string = string>({
   onChange,
   onLongPress,
   centerAction,
+  center,
+  motionKey,
+  motionDir = 1,
+  enterOnMount,
   className,
   ...rest
 }: BottomTabBarProps<K>) {
@@ -378,12 +508,18 @@ export function BottomTabBar<K extends string = string>({
   const { mode } = useTheme()
   const [centerOpen, setCenterOpen] = useState(false)
 
-  const actions =
-    centerAction === true ? CENTER_ACTION_ITEMS : centerAction ? centerAction : undefined
+  const actions = center
+    ? undefined
+    : centerAction === true
+      ? CENTER_ACTION_ITEMS
+      : centerAction
+        ? centerAction
+        : undefined
 
   // Slot tengah memecah daftar tab jadi dua kelompok; tanpa itu tombol (+)
   // hanya "sisa flex" dan bergeser tiap jumlah tab berubah.
-  const splitAt = actions ? Math.ceil(items.length / 2) : items.length
+  const showCenter = Boolean(center || actions)
+  const splitAt = showCenter ? Math.ceil(items.length / 2) : items.length
 
   const renderTab = (item: BottomTabItem<K>) => {
     const active = item.key === value
@@ -434,17 +570,30 @@ export function BottomTabBar<K extends string = string>({
       {...rest}
     >
       <View className="h-[60px] w-full flex-row md:max-w-content">
-        {items.slice(0, splitAt).map(renderTab)}
-        {actions ? (
-          <CenterActionButton
-            elevation={elevationStyle("medium", mode)}
-            onPress={() => {
-              haptic("light")
-              setCenterOpen(true)
-            }}
-          />
-        ) : null}
-        {items.slice(splitAt).map(renderTab)}
+        {showCenter ? (
+          <>
+            <ChromeFade motionKey={motionKey} dir={motionDir} enterOnMount={enterOnMount}>
+              {items.slice(0, splitAt).map(renderTab)}
+            </ChromeFade>
+            <CenterActionButton
+              elevation={elevationStyle("medium", mode)}
+              icon={center?.icon}
+              accessibilityLabel={center?.accessibilityLabel}
+              accessibilityHint={center?.accessibilityHint}
+              motionKey={motionKey}
+              onPress={() => {
+                haptic("light")
+                if (center) center.onPress()
+                else setCenterOpen(true)
+              }}
+            />
+            <ChromeFade motionKey={motionKey} dir={motionDir} enterOnMount={enterOnMount}>
+              {items.slice(splitAt).map(renderTab)}
+            </ChromeFade>
+          </>
+        ) : (
+          items.map(renderTab)
+        )}
       </View>
 
       {actions ? (

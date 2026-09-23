@@ -52,6 +52,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import { Crossfade } from "@/components/ui/fade-in"
 import { Header, type HeaderProps } from "@/components/ui/header"
 import { LoadingScreen } from "@/components/ui/loading-screen"
+import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen, type ScreenBackground } from "@/components/ui/screen"
 import { cn } from "@/lib/cn"
@@ -101,6 +102,13 @@ export type DataScreenProps = {
   contentClassName?: string
   /** Node yang selalu dirender di atas area state (mis. tab/segmented). */
   above?: ReactNode
+  /**
+   * Dock di bawah scroll (navbar shell). Safe-area bawah menjadi milik dock,
+   * bukan padding list — jangan mengirim dock yang juga menambah inset.
+   */
+  dock?: ReactNode
+  /** Reveal horizontal isi layar bila perpindahan mode baru saja mendarat di sini. */
+  shiftFade?: boolean
   children?: ReactNode
 }
 
@@ -117,6 +125,8 @@ export function DataScreen({
   padded = true,
   contentClassName,
   above,
+  dock,
+  shiftFade = false,
   children,
 }: DataScreenProps) {
   const insets = useSafeAreaInsets()
@@ -124,8 +134,9 @@ export function DataScreen({
 
   // Bottom inset dipindah ke konten ScrollView (Screen `edges` tanpa "bottom")
   // supaya baris terakhir bisa di-scroll melewati home indicator. Bila ada
-  // footer, <Screen> sendiri yang memberi inset pada FooterBar.
-  const bottomPad = (footer ? 0 : insets.bottom) + tokens.space[8]
+  // footer, <Screen> sendiri yang memberi inset pada FooterBar. Dock (navbar)
+  // sudah membawa inset-nya sendiri — jangan dijumlah dua kali.
+  const bottomPad = dock ? tokens.space[4] : (footer ? 0 : insets.bottom) + tokens.space[8]
 
   // v2: loading → isi crossfade (signature moment), bukan swap keras. Berlaku
   // untuk ketiga hasil (konten/error/kosong) — error yang muncul halus tetap
@@ -144,21 +155,26 @@ export function DataScreen({
     </Crossfade>
   )
 
+  const scroller = (
+    <PullToRefresh
+      onRefresh={refresh}
+      refreshing={refreshing}
+      // Gesture dimatikan saat layar sedang menampilkan LoadingScreen:
+      // tidak ada konten untuk ditarik dan request-nya sudah berjalan.
+      enabled={refreshable && !loading}
+      contentContainerClassName={cn(padded && "px-5")}
+      scrollViewProps={{ contentContainerStyle: { paddingBottom: bottomPad } }}
+    >
+      {body}
+    </PullToRefresh>
+  )
+
   return (
     <Screen edges={["top"]} padded={false} background={background} footer={footer}>
       <Header title={title} {...header} />
       {above}
-      <PullToRefresh
-        onRefresh={refresh}
-        refreshing={refreshing}
-        // Gesture dimatikan saat layar sedang menampilkan LoadingScreen:
-        // tidak ada konten untuk ditarik dan request-nya sudah berjalan.
-        enabled={refreshable && !loading}
-        contentContainerClassName={cn(padded && "px-5")}
-        scrollViewProps={{ contentContainerStyle: { paddingBottom: bottomPad } }}
-      >
-        {body}
-      </PullToRefresh>
+      {shiftFade ? <ModeShiftFade>{scroller}</ModeShiftFade> : scroller}
+      {dock}
     </Screen>
   )
 }

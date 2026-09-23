@@ -27,6 +27,10 @@
    "n": 9
   },
   {
+   "s": "Transaksi",
+   "n": 9
+  },
+  {
    "s": "{x}: {y}",
    "n": 8
   },
@@ -43,15 +47,15 @@
    "n": 7
   },
   {
-   "s": "Transaksi",
-   "n": 7
-  },
-  {
    "s": "{x} hari",
    "n": 6
   },
   {
    "s": "Isi saldo",
+   "n": 6
+  },
+  {
+   "s": "Pesan",
    "n": 6
   },
   {
@@ -79,10 +83,6 @@
    "n": 5
   },
   {
-   "s": "Pesan",
-   "n": 5
-  },
-  {
    "s": "Sembunyikan",
    "n": 5
   },
@@ -104,6 +104,10 @@
   },
   {
    "s": "Catatan",
+   "n": 4
+  },
+  {
+   "s": "Dompet",
    "n": 4
   },
   {
@@ -179,15 +183,15 @@
    "n": 3
   },
   {
+   "s": "Bayar",
+   "n": 3
+  },
+  {
    "s": "Belum ada foto sampul",
    "n": 3
   },
   {
    "s": "Belum ada ulasan",
-   "n": 3
-  },
-  {
-   "s": "Buat Transaksi",
    "n": 3
   },
   {
@@ -208,10 +212,6 @@
   },
   {
    "s": "Detail Order",
-   "n": 3
-  },
-  {
-   "s": "Dompet",
    "n": 3
   },
   {
@@ -347,6 +347,10 @@
    "n": 3
   },
   {
+   "s": "Profil",
+   "n": 3
+  },
+  {
    "s": "Riwayat",
    "n": 3
   },
@@ -360,6 +364,10 @@
   },
   {
    "s": "Status",
+   "n": 3
+  },
+  {
+   "s": "Tab profil saya",
    "n": 3
   },
   {
@@ -559,15 +567,15 @@
    "n": 2
   },
   {
-   "s": "Buat baru",
-   "n": 2
-  },
-  {
    "s": "Buat tautan baru",
    "n": 2
   },
   {
    "s": "Buat template",
+   "n": 2
+  },
+  {
+   "s": "Buat Transaksi",
    "n": 2
   },
   {
@@ -656,6 +664,10 @@
   },
   {
    "s": "Escrow Order",
+   "n": 2
+  },
+  {
+   "s": "Etalase",
    "n": 2
   },
   {
@@ -875,6 +887,14 @@
    "n": 2
   },
   {
+   "s": "Membuka halaman buat transaksi",
+   "n": 2
+  },
+  {
+   "s": "Membuka kirim saldo atau QR terima",
+   "n": 2
+  },
+  {
    "s": "Memuat",
    "n": 2
   },
@@ -1088,6 +1108,10 @@
   },
   {
    "s": "Syarat & Ketentuan",
+   "n": 2
+  },
+  {
+   "s": "Tab Transaksi",
    "n": 2
   },
   {
@@ -1735,10 +1759,6 @@
    "n": 1
   },
   {
-   "s": "Bayar",
-   "n": 1
-  },
-  {
    "s": "Bayar aman lewat Kahade: {x}",
    "n": 1
   },
@@ -2040,6 +2060,10 @@
   },
   {
    "s": "Buat akun baru",
+   "n": 1
+  },
+  {
+   "s": "Buat baru",
    "n": 1
   },
   {
@@ -2599,6 +2623,14 @@
    "n": 1
   },
   {
+   "s": "E-Commerce",
+   "n": 1
+  },
+  {
+   "s": "E-Wallet",
+   "n": 1
+  },
+  {
    "s": "Edit komentar",
    "n": 1
   },
@@ -2684,10 +2716,6 @@
   },
   {
    "s": "Eskalasi sengketa ke admin?",
-   "n": 1
-  },
-  {
-   "s": "Etalase",
    "n": 1
   },
   {
@@ -3451,6 +3479,10 @@
    "n": 1
   },
   {
+   "s": "History",
+   "n": 1
+  },
+  {
    "s": "Hubungi kami",
    "n": 1
   },
@@ -3984,6 +4016,10 @@
   },
   {
    "s": "Kirim rating",
+   "n": 1
+  },
+  {
+   "s": "Kirim saldo",
    "n": 1
   },
   {
@@ -4987,6 +5023,10 @@
    "n": 1
   },
   {
+   "s": "Mode aplikasi",
+   "n": 1
+  },
+  {
    "s": "Mode warna",
    "n": 1
   },
@@ -5240,6 +5280,10 @@
   },
   {
    "s": "Opsional. Catatan ini diterima penerima bersama transfernya.",
+   "n": 1
+  },
+  {
+   "s": "Orang lain membayar dengan memindai QR ini",
    "n": 1
   },
   {
@@ -5803,6 +5847,10 @@
    "n": 1
   },
   {
+   "s": "Pilih cara membayar.",
+   "n": 1
+  },
+  {
    "s": "Pilih cara membuat order dan peran Anda dalam transaksi ini.",
    "n": 1
   },
@@ -5959,10 +6007,6 @@
    "n": 1
   },
   {
-   "s": "Profil",
-   "n": 1
-  },
-  {
    "s": "Profil {x}",
    "n": 1
   },
@@ -5992,6 +6036,10 @@
   },
   {
    "s": "Profil tidak ditemukan",
+   "n": 1
+  },
+  {
+   "s": "Promo",
    "n": 1
   },
   {
@@ -6627,7 +6675,19 @@
    "n": 1
   },
   {
-   "s": "Tab profil saya",
+   "s": "Tab Etalase",
+   "n": 1
+  },
+  {
+   "s": "Tab History",
+   "n": 1
+  },
+  {
+   "s": "Tab Pesan",
+   "n": 1
+  },
+  {
+   "s": "Tab Promo",
    "n": 1
   },
   {
@@ -6635,7 +6695,7 @@
    "n": 1
   },
   {
-   "s": "Tab Transaksi",
+   "s": "Tab Wallet",
    "n": 1
   },
   {
@@ -6696,6 +6756,10 @@
   },
   {
    "s": "Tampilkan nomor HP kontak di profil",
+   "n": 1
+  },
+  {
+   "s": "Tampilkan QR terima",
    "n": 1
   },
   {
@@ -7119,6 +7183,10 @@
    "n": 1
   },
   {
+   "s": "Transfer ke username Kahade",
+   "n": 1
+  },
+  {
    "s": "Tulis balasan",
    "n": 1
   },
@@ -7536,6 +7604,10 @@
   },
   {
    "s": "Waktu",
+   "n": 1
+  },
+  {
+   "s": "Wallet",
    "n": 1
   },
   {

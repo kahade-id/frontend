@@ -50,6 +50,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 
 import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
+import { ShellTabBar } from "@/components/ui/shell-tab-bar"
 import { EmptyState } from "@/components/ui/empty-state"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
@@ -153,6 +154,9 @@ export default function VouchersScreen() {
   return (
     <DataScreen
       title="Voucher"
+      header={{ modeSwitcher: true }}
+      dock={<ShellTabBar />}
+      shiftFade
       state={query}
       loadingMessage="Memuat voucher…"
       /*

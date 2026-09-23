@@ -29,7 +29,6 @@
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
-import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Archive, BellSlash, BellZ, Chats, X } from "phosphor-react-native"
 import { router } from "expo-router"
 
@@ -51,6 +50,8 @@ import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
+import { ModeShiftFade } from "@/components/ui/mode-switcher"
+import { ShellTabBar } from "@/components/ui/shell-tab-bar"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
@@ -79,7 +80,6 @@ function ChatSkeletonRow() {
 }
 
 export default function ChatScreen() {
-  const insets = useSafeAreaInsets()
   const toast = useToast()
   const query = usePaginatedQuery<ChatRoom>(
     "chat-rooms",
@@ -229,6 +229,7 @@ export default function ChatScreen() {
           // tidak terbaca generator katalog i18n (hanya children JSX, properti
           // objek, dan argumen translate()), jadi copy dinamis harus dibungkus.
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih percakapan"}
+          modeSwitcher
           showBack={false}
           left={
             <IconButton
@@ -272,6 +273,7 @@ export default function ChatScreen() {
       ) : (
         <Header
           title={archiveOpen ? "Diarsipkan" : "Chat"}
+          modeSwitcher
           right={
             <IconButton
               icon={Archive}
@@ -285,6 +287,7 @@ export default function ChatScreen() {
           }
         />
       )}
+      <ModeShiftFade>
       <PaginatedList
         {...query}
         // ChatRoomListItem memasang px-4 sendiri. `padded` default menambah
@@ -305,7 +308,7 @@ export default function ChatScreen() {
             ))}
           </SkeletonGroup>
         }
-        bottomPadding={insets.bottom + tokens.space[8]}
+        bottomPadding={tokens.space[4]}
         empty={
           archiveOpen ? (
             <EmptyState
@@ -368,6 +371,8 @@ export default function ChatScreen() {
           />
         )}
       />
+      </ModeShiftFade>
+      <ShellTabBar />
     </Screen>
   )
 }

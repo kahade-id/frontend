@@ -31,6 +31,11 @@ export type UiPrefs = {
   balanceHidden: boolean
   /** Tab Transaksi terakhir yang dipilih pengguna. */
   transactionsTab: TransactionsTab
+  /**
+   * Mode navbar (E-Commerce / E-Wallet). Preferensi perangkat, sama seperti
+   * `balanceHidden`: logout tidak boleh mengembalikannya ke commerce.
+   */
+  appMode: "commerce" | "wallet"
   /** orderId → epoch ms sampai kapan pengingat ulasan ditunda (J-14). */
   ratingSnoozeUntil: Record<string, number>
 }
@@ -38,6 +43,7 @@ export type UiPrefs = {
 const DEFAULT_PREFS: UiPrefs = {
   balanceHidden: false,
   transactionsTab: "buyer",
+  appMode: "commerce",
   ratingSnoozeUntil: {},
 }
 
@@ -86,6 +92,8 @@ function sanitizePrefs(raw: unknown): UiPrefs {
   return {
     balanceHidden: rec.balanceHidden === true,
     transactionsTab: rec.transactionsTab === "seller" ? "seller" : "buyer",
+    // Field-by-field: lupa menyalin appMode di sini membuat mode hilang saat load.
+    appMode: rec.appMode === "wallet" ? "wallet" : "commerce",
     ratingSnoozeUntil: snooze,
   }
 }
@@ -165,9 +173,9 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
  * `ratingSnoozeUntil` berkunci `orderId` akun yang sedang login — akun
  * berikutnya di perangkat yang sama tidak boleh mewarisi jejak transaksi itu
  * (alasan yang sama dengan `pendingActions`/`recentRecipients` di
- * `clearSession()`). `balanceHidden` dan `transactionsTab` sengaja TIDAK
- * disentuh: keduanya preferensi perangkat yang berlaku untuk siapa pun yang
- * memakai perangkat ini.
+ * `clearSession()`). `balanceHidden`, `transactionsTab`, dan `appMode`
+ * sengaja TIDAK disentuh: ketiganya preferensi perangkat yang berlaku untuk
+ * siapa pun yang memakai perangkat ini.
  *
  * Tidak ada I/O saat tidak ada yang perlu dibersihkan (kasus paling sering:
  * logout tanpa pernah menunda pengingat ulasan).

@@ -91,6 +91,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Stagger } from "@/components/ui/fade-in"
+import { ModeShiftFade, ModeSwitcherBar } from "@/components/ui/mode-switcher"
 import { HomeOverviewCard, type OverviewNotice } from "@/components/ui/home-overview-card"
 import { Icon } from "@/components/ui/icon"
 import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
@@ -331,21 +332,8 @@ export default function HomeScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={
-          profile.refreshing ||
-          wallet.refreshing ||
-          summary.refreshing ||
-          activeOrders.refreshing ||
-          completedOrders.refreshing
-        }
-        scrollViewProps={{
-          contentContainerStyle: { paddingBottom: tokens.space[8] },
-        }}
-      >
-        <Stagger duration="fast" step={60}>
-          {/* ── 1. Bar identitas ───────────────────────────────── */}
+      <View className="z-sticky border-b border-border bg-background">
+          {/* ── 1. Bar identitas — di luar scroll supaya switcher tetap di atas ── */}
           <View className="flex-row items-center gap-3 px-5 pb-2 pt-3">
             {isGuest ? (
               <View className="flex-1 gap-1 py-1">
@@ -461,7 +449,23 @@ export default function HomeScreen() {
             </View>
             ) : null}
           </View>
-
+        <ModeSwitcherBar className="pt-1" />
+      </View>
+      <ModeShiftFade>
+      <PullToRefresh
+        onRefresh={handleRefresh}
+        refreshing={
+          profile.refreshing ||
+          wallet.refreshing ||
+          summary.refreshing ||
+          activeOrders.refreshing ||
+          completedOrders.refreshing
+        }
+        scrollViewProps={{
+          contentContainerStyle: { paddingBottom: tokens.space[8] },
+        }}
+      >
+        <Stagger duration="fast" step={60}>
           {/* ── 1b. Kolom cari (kartu di atas kartu Saldo) ─────── */}
           {!isGuest ? (
           <View className="px-5 pt-3">
@@ -636,6 +640,7 @@ export default function HomeScreen() {
           ) : null}
         </Stagger>
       </PullToRefresh>
+      </ModeShiftFade>
     </Screen>
   )
 }

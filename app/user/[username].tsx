@@ -10,7 +10,7 @@
  *  - Tab navigasi in-page: Etalase, Tanya Jawab, Ulasan, Tentang via <Tabs>.
  *  - Bottom Nav Bar hanya dirender untuk PROFIL SENDIRI.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { Pressable, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -57,7 +57,8 @@ import { logWarn } from "@/lib/telemetry"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { BottomTabBar, TAB_BAR_ITEMS, visibleTabBarItems } from "@/components/ui/bottom-tab-bar"
+import { ModeSwitcherBar } from "@/components/ui/mode-switcher"
+import { ShellTabBar } from "@/components/ui/shell-tab-bar"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -518,30 +519,8 @@ export default function UserProfileScreen() {
     [handle, saveLoading, toast],
   )
 
-  /**
-   * C.2 — Bottom Nav Bar HANYA untuk profil sendiri. Item diambil dari
-   * `visibleTabBarItems()` (sumber tunggal bersama app/(tabs)/_layout, sudah
-   * membuang tab yang disembunyikan — "showcase"). Slot "Profil" (kunci
-   * `discover` — file tab asal) adalah layar ini sendiri, maka `value` bar
-   * ini "discover" dan penekanannya tidak menavigasi ke mana-mana.
-   */
+  /** Navbar shell hanya di profil sendiri — orang lain tidak melihat tab bar. */
   const showBottomNav = isSelf && Boolean(profile)
-  const bottomNavItems = useMemo(
-    () =>
-      visibleTabBarItems({
-        discover: {
-          avatarUrl: profile?.avatarUrl,
-          avatarName: profile?.fullName || handle,
-        },
-      }),
-    [profile?.avatarUrl, profile?.fullName, handle],
-  )
-  const handleBottomNavChange = useCallback((key: string) => {
-    // Tab "Profil" = layar ini sendiri — tidak menavigasi ke mana-mana.
-    if (key === "discover") return
-    const target = TAB_BAR_ITEMS[key as keyof typeof TAB_BAR_ITEMS]?.route
-    if (target) router.navigate(target)
-  }, [])
 
   /**
    * Payload + fallback berbagi dipisah dari tombolnya supaya <ShareSheetTrigger>
@@ -716,7 +695,7 @@ export default function UserProfileScreen() {
         contentContainerClassName="px-0"
         scrollViewProps={{
           contentContainerStyle: {
-            paddingBottom: (showBottomNav ? 0 : insets.bottom) + tokens.space[8],
+            paddingBottom: showBottomNav ? tokens.space[4] : insets.bottom + tokens.space[8],
           },
         }}
       >
@@ -762,6 +741,8 @@ export default function UserProfileScreen() {
             ) : null
           }
         />
+
+        {isSelf ? <ModeSwitcherBar className="bg-transparent px-5 pb-2 pt-1" /> : null}
 
         {/* ── Top Cover (KARTU) ────────────────────────────────
             Sampul kartu bersih tanpa tombol navigasi di dalamnya. */}
@@ -1241,18 +1222,9 @@ export default function UserProfileScreen() {
         </Crossfade>
       </PullToRefresh>
 
-      {/* ── C.2 Bottom Nav Bar — HANYA profil sendiri ────────────
-          Item & label sama persis dengan tab bar utama (TAB_BAR_ITEMS);
-          tab aktif = "Profil" (kunci discover). Profil orang lain tidak
-          merender bar ini sama sekali. */}
-      {showBottomNav ? (
-        <BottomTabBar
-          items={bottomNavItems}
-          value="discover"
-          onChange={handleBottomNavChange}
-          centerAction
-        />
-      ) : null}
+      {/* Navbar yang sama dengan tab — isi slot ikut mode. Orang lain tidak
+          merender bar ini. */}
+      {showBottomNav ? <ShellTabBar /> : null}
 
       {/* ── Dialog Bertanya ──────────────────────────────────── */}
       <Dialog
