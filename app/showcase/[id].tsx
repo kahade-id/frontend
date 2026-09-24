@@ -10,9 +10,7 @@ import { useLocalSearchParams, router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
 import {
-  BookmarkSimple,
   ChatCircle,
-  Export,
   Flag,
   PaperPlaneRight,
   Trash,
@@ -31,7 +29,6 @@ import {
   type ShowcaseCommentWithReplies,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
-import { formatCountCompact } from "@/lib/format"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ROUTES } from "@/lib/routes"
@@ -43,7 +40,8 @@ import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
 import { showcaseImages } from "@/lib/showcase-social"
-import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
+import { queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
+import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { Badge } from "@/components/ui/badge"
@@ -52,10 +50,8 @@ import { Button } from "@/components/ui/button"
 import { DataScreen } from "@/components/ui/data-screen"
 import { Divider } from "@/components/ui/divider"
 import { useDocumentTitle } from "@/components/ui/header"
-import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
-import { LikeAction } from "@/components/ui/like-button"
 import type { LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { Dialog } from "@/components/ui/modal"
@@ -63,6 +59,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { ShowcaseAuthorRow } from "@/components/showcase-author-row"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
+import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseDetailComments } from "@/components/showcase-detail-comments"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { Text } from "@/components/ui/text"
@@ -142,7 +139,7 @@ function ShowcaseDetailContent({
    * A-05/A-06/A-07: suka & simpan lewat store bersama — sinkron dengan feed
    * & profil dalam satu sesi; tamu diarahkan ke layar login oleh hook.
    */
-  const { liked, likeCount, saved, toggleLike, toggleSave, share, hasSession } =
+  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, hasSession } =
     useShowcaseSocialActions(item)
 
   // L-01/L-06 (audit 2026-09-23): param rute untuk tab asal & highlight.
@@ -297,7 +294,9 @@ function ShowcaseDetailContent({
         content,
         parentId: replyTo?.id,
       })
-      markShowcaseFeedDirty()
+      // F-01/C-01 (audit 2026-09-24): delta ke ledger — feed/profil ikut naik
+      // TANPA refetch yang membuang halaman 2..N.
+      queueShowcaseCommentCount(id, 1)
       if (!task.valid()) return
       setDraft((current) => current.trim() === content ? "" : current)
       setReplyTo(null)
@@ -305,7 +304,7 @@ function ShowcaseDetailContent({
     } catch (err) {
       if (!task.valid()) return
       toast.show({
-        title: "Gagal mengirim komentar",
+        title: SHOWCASE_COMMENT_MESSAGES.sendFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -331,13 +330,13 @@ function ShowcaseDetailContent({
     try {
       const saved = await updateShowcaseComment(editTarget.id, content)
       if (!task.valid()) return
-      markShowcaseFeedDirty()
+      // Suntingan tidak mengubah hitungan komentar — tidak ada event ledger.
       patchComment((c) => (c.id === saved.id ? { ...c, content: saved.content } : c))
       setEditTarget(null)
     } catch (err) {
       if (!task.valid()) return
       toast.show({
-        title: "Gagal menyimpan komentar",
+        title: SHOWCASE_COMMENT_MESSAGES.saveFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -362,29 +361,32 @@ function ShowcaseDetailContent({
       if (confirmKind === "delete") {
         await deleteShowcaseComment(confirmTarget.id)
         if (!task.valid()) return
-        markShowcaseFeedDirty()
         // D-06: patchComments menghapus root BESERTA balasannya.
         const removed =
           1 + (comments.find((c) => c.id === confirmTarget.id)?.replies?.length ?? 0)
+        // F-01 (audit 2026-09-24): delta negatif ke ledger, bukan refetch.
+        queueShowcaseCommentCount(id, -removed)
         patchComment((comment) => comment.id === confirmTarget.id ? null : comment)
         // F-08/D-05: hanya HAPUS yang menggeser total — ikut jumlah yang
         // benar-benar hilang (root + balasan).
         setCommentTotal((n) => Math.max(0, n - removed))
-        toast.show({ title: "Komentar dihapus", tone: "success", duration: 2500 })
+        toast.show({ title: SHOWCASE_COMMENT_MESSAGES.deleted, tone: "success", duration: 2500 })
       } else {
         const saved = await hideShowcaseComment(confirmTarget.id, hideReason)
         if (!task.valid()) return
-        markShowcaseFeedDirty()
+        // Hide tidak mengubah hitungan yang DITAMPILKAN (komentar tetap ada
+        // untuk pemilik; apakah server mengeluarkannya dari hitungan publik
+        // tidak dinyatakan di kontrak) — tidak ada event ledger yang dikarang.
         patchComment((c) =>
           c.id === saved.id ? { ...c, isHidden: true, hiddenReason: hideReason } : c,
         )
-        toast.show({ title: "Komentar disembunyikan", tone: "success", duration: 2500 })
+        toast.show({ title: SHOWCASE_COMMENT_MESSAGES.hidden, tone: "success", duration: 2500 })
       }
       setConfirmTarget(null)
     } catch (err) {
       if (!task.valid()) return
       toast.show({
-        title: "Gagal memperbarui komentar",
+        title: SHOWCASE_COMMENT_MESSAGES.updateFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -407,16 +409,16 @@ function ShowcaseDetailContent({
       try {
         const saved = await unhideShowcaseComment(comment.id)
         if (!task.valid()) return
-        markShowcaseFeedDirty()
+        // Unhide = kebalikan hide: tidak ada perubahan hitungan yang pasti.
         patchComment((c) =>
           c.id === saved.id ? { ...c, isHidden: false, hiddenReason: null } : c,
         )
         // F-08: unhide tidak mengubah total (komentar tidak pernah hilang).
-        toast.show({ title: "Komentar ditampilkan kembali", tone: "success", duration: 2500 })
+        toast.show({ title: SHOWCASE_COMMENT_MESSAGES.restored, tone: "success", duration: 2500 })
       } catch (err) {
         if (!task.valid()) return
         toast.show({
-          title: "Gagal membuka komentar",
+          title: SHOWCASE_COMMENT_MESSAGES.revealFailed,
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -583,61 +585,19 @@ function ShowcaseDetailContent({
       {/* Separator atas aksi — inset mx-5, bukan full */}
       <Divider inset className="mt-4" />
 
-      {/* ── Baris aksi sosial — count di samping ikon (horizontal) ──
-          Suka memakai <LikeAction>: merah + motion pop/ring, paritas dengan
-          kartu feed (permintaan produk 2026-09-23). */}
-      <View className="flex-row items-center px-2 pt-1">
-        <LikeAction liked={liked} count={likeCount} label="Suka" onPress={toggleLike} />
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel="Tulis komentar"
-          accessibilityHint={translate("{x} komentar", { x: formatCountCompact(commentTotal) })}
-          onPress={focusComposer}
-          containerClassName={cn(
-            "min-h-11 flex-row items-center rounded-md px-3",
-            focusRing,
-          )}
-          className="flex-row items-center gap-1.5"
-        >
-          <Icon icon={ChatCircle} size="md" tone="active" />
-          <Text variant="caption" weight={600} className="tabular-nums">
-            {formatCountCompact(commentTotal)}
-          </Text>
-          <Text variant="caption" tone="secondary">
-            Komentar
-          </Text>
-        </PressableScale>
-        <View className="flex-1" />
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel="Bagikan"
-          accessibilityHint="Bagikan karya ini"
-          onPress={() => void share()}
-          containerClassName={cn(
-            "min-h-11 min-w-11 items-center justify-center rounded-md",
-            focusRing,
-          )}
-        >
-          <Icon icon={Export} size="md" tone="active" />
-        </PressableScale>
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
-          accessibilityHint="Simpan karya ini"
-          onPress={toggleSave}
-          containerClassName={cn(
-            "min-h-11 min-w-11 items-center justify-center rounded-md",
-            focusRing,
-          )}
-        >
-          <Icon
-            icon={BookmarkSimple}
-            size="md"
-            tone="active"
-            weight={saved ? "fill" : "regular"}
-          />
-        </PressableScale>
-      </View>
+      {/* G-11/S9: baris aksi diekstrak ke ShowcaseDetailActions. */}
+      <ShowcaseDetailActions
+        liked={liked}
+        likeCount={likeCount}
+        likePending={likePending}
+        onToggleLike={toggleLike}
+        commentTotal={commentTotal}
+        onCommentPress={focusComposer}
+        saved={saved}
+        savedPending={savedPending}
+        onToggleSave={toggleSave}
+        onShare={() => void share()}
+      />
 
       {/* Separator bawah aksi — inset */}
       <Divider inset className="mt-1" />

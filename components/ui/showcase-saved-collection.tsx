@@ -16,7 +16,9 @@
  *    dua tombol ghost tanpa identitas karya.
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { Image, View } from "react-native"
+import { View } from "react-native"
+
+import { Picture } from "@/components/ui/picture"
 import { Trash } from "phosphor-react-native"
 import { router } from "expo-router"
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -27,6 +29,7 @@ import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import {
   loadShowcaseBookmarks,
   toggleShowcaseSaved,
+  SHOWCASE_SAVED_LIMIT,
   useShowcaseSavedIds,
 } from "@/lib/showcase-social-prefs"
 import { translate } from "@/lib/i18n/translate"
@@ -154,8 +157,13 @@ export function ShowcaseSavedCollection() {
   return (
     <View className="gap-3 pb-5">
       <Text variant="h3">Karya tersimpan</Text>
+      {/* U-01 (audit 2026-09-24): kuota dulu hanya diketahui setelah gagal
+          menyimpan; sekarang terlihat berapa slot yang tersisa. */}
       <Text variant="caption" tone="secondary">
-        Maksimal 25 karya di perangkat ini. Simpanan dihapus saat keluar akun.
+        {translate("{x}/{y} tersimpan di perangkat ini. Simpanan dihapus saat keluar akun.", {
+          x: ids.length,
+          y: SHOWCASE_SAVED_LIMIT,
+        })}
       </Text>
       {rows.map(({ id, state }) => {
         if (state.status === "gone") return null
@@ -195,11 +203,19 @@ export function ShowcaseSavedCollection() {
             >
               {/* J-05: thumbnail + identitas karya, bukan dua tombol telanjang. */}
               <View className="flex-row items-center gap-3 pr-2">
+                {/* P-01 (audit 2026-09-24): <Picture> kanonik — paritas
+                    proteksi unggah/unduh (preventDownload) & recyclingKey
+                    dengan feed, detail, dan galeri. */}
                 {cover ? (
-                  <Image
-                    source={{ uri: cover }}
-                    className="h-14 w-14 rounded-sm bg-surface"
-                    accessibilityLabel={item.title || translate("Foto karya")}
+                  <Picture
+                    source={cover}
+                    alt={item.title || translate("Foto karya")}
+                    width={56}
+                    height={56}
+                    radius="sm"
+                    preventDownload
+                    recyclingKey={id}
+                    className="bg-surface"
                   />
                 ) : (
                   <View className="h-14 w-14 rounded-sm bg-surface" />

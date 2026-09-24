@@ -106,6 +106,32 @@ describe("Idempotency-Key", () => {
     expect(idempotencyKeys()[0]).toBe("kunci-pemanggil")
   })
 
+  /**
+   * K-06 (audit 2026-09-24): kontrak Etalase — percobaan ULANG manual yang
+   * memakai kunci yang sama harus terlihat identik oleh backend. Ini yang
+   * membuat laporan/komentar tidak tercipta dua kali saat respons hilang.
+   */
+  it("Etalase: kunci yang disediakan pemanggil dipakai apa adanya pada percobaan ulang", async () => {
+    fetchMock.mockImplementation(() => jsonResponse({ success: true, data: { id: "s1" } }))
+    const { reportShowcase, addShowcaseComment } = await import("@/lib/api/showcase")
+    const { createShowcase } = await import("@/lib/api/users")
+
+    await createShowcase({ title: "Kursi" } as never, "kunci-buat-1")
+    await createShowcase({ title: "Kursi" } as never, "kunci-buat-1")
+    await reportShowcase("s1", { reason: "SPAM" }, "kunci-lapor-1")
+    await addShowcaseComment("s1", { content: "halo" }, "kunci-komentar-1")
+
+    const keys = idempotencyKeys()
+    expect(keys).toEqual(["kunci-buat-1", "kunci-buat-1", "kunci-lapor-1", "kunci-komentar-1"])
+  })
+
+  it("Etalase: tanpa kunci pemanggil, transport membuat kunci sendiri (bukan kosong)", async () => {
+    fetchMock.mockImplementation(() => jsonResponse({ success: true, data: { id: "s1" } }))
+    const { reportShowcase } = await import("@/lib/api/showcase")
+    await reportShowcase("s1", { reason: "SPAM" })
+    expect(idempotencyKeys()[0]).toMatch(/^[0-9a-f-]{36}$/)
+  })
+
   it("dua panggilan logis berbeda mendapat kunci berbeda", async () => {
     fetchMock.mockImplementation(() => jsonResponse({ success: true, data: {} }))
     await http.post("/v1/wallet/transfer", { amount: 1 }, { auth: "required" })

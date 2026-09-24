@@ -55,6 +55,13 @@ export type ShowcaseFeedItemProps = {
   onOpenComments?: () => void
   onToggleSave?: () => void
   saved?: boolean
+  /**
+   * S-01/S-02 (audit 2026-09-24): request suka/simpan sedang berjalan. Kartu
+   * menampilkan state "sedang diproses" (a11y `busy`) — dulu tap kedua diam
+   * tanpa umpan balik apa pun.
+   */
+  likePending?: boolean
+  savePending?: boolean
   onShare?: () => void
   onReport?: () => void
   onOptions?: () => void
@@ -130,6 +137,8 @@ function ShowcaseFeedItemBase({
   onOpenComments,
   onToggleSave,
   saved = false,
+  likePending = false,
+  savePending = false,
   onShare,
   onReport,
   onOptions,
@@ -168,7 +177,13 @@ function ShowcaseFeedItemBase({
   const likeRow = (
     // Revisi 2026-09-23: suka = MERAH + motion pop/ring (<LikeAction>) —
     // menggantikan CountAction generik yang dulu dipakai di sini.
-    <LikeAction liked={liked} count={item.likeCount} label="Suka" onPress={onToggleLike} />
+    <LikeAction
+      liked={liked}
+      count={item.likeCount}
+      label="Suka"
+      busy={likePending}
+      onPress={onToggleLike}
+    />
   )
 
   const commentRow = (
@@ -176,8 +191,11 @@ function ShowcaseFeedItemBase({
       icon={ChatCircle}
       count={item.commentCount}
       label="Komentar"
-      accessibilityLabel="Komentar"
-      accessibilityHint={commentCountLabel}
+      // A-02 (audit 2026-09-24): label a11y TIDAK lagi mengulang teks visual
+      // ("Komentar" di layar + "Komentar" di pembaca layar) — kini angka yang
+      // dibacakan, sesuai informasi yang dicari pengguna.
+      accessibilityLabel={commentCountLabel}
+      accessibilityHint={translate("Buka komentar")}
       onPress={onOpenComments}
     />
   )
@@ -226,7 +244,9 @@ function ShowcaseFeedItemBase({
             variant="ghost"
             size="sm"
             accessibilityLabel={onOptions ? translate("Pilihan karya") : translate("Laporkan karya")}
-            accessibilityHint={onOptions ? translate("Tidak tertarik atau laporkan karya") : translate("Laporkan karya ini")}
+            // A-03 (audit 2026-09-24): hint tidak lagi menyebut dua aksi yang
+            // bisa berubah — isi sheet tidak dijanjikan di muka.
+            accessibilityHint={onOptions ? translate("Buka opsi karya") : translate("Laporkan karya ini")}
             onPress={onOptions ?? handleReport}
           />
         ) : null}
@@ -313,7 +333,7 @@ function ShowcaseFeedItemBase({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
-            accessibilityState={{ selected: saved }}
+            accessibilityState={{ selected: saved, busy: savePending }}
             onPress={onToggleSave}
             containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}
           >

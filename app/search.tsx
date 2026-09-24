@@ -54,6 +54,7 @@ import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
+import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -336,7 +337,7 @@ export default function SearchScreen() {
         ListHeaderComponent={
           enabled ? (
             <View className="gap-3 pb-4">
-              <ScrollRow bleed gap={2} accessibilityLabel="Saring hasil pencarian">
+              <ScrollRow bleed gap={2} accessibilityLabel={translate("Saring hasil pencarian")}>
                 {SCOPES.map((option) => (
                   <Chip
                     key={option.value}
@@ -585,9 +586,19 @@ function ShowcaseResultRow({ item }: { item: ShowcaseSocialItem }) {
         </View>
       )}
       <View className="min-w-0 flex-1 gap-0.5">
-        <Text variant="body" weight={600} numberOfLines={1}>
-          {item.title}
-        </Text>
+        <View className="flex-row items-center gap-1.5">
+          <Text variant="body" weight={600} numberOfLines={1} className="min-w-0 flex-1">
+            {item.title}
+          </Text>
+          {/* P-03 (audit 2026-09-24): pemilik tidak bisa membedakan karyanya
+              sendiri (privat/nonaktif) dari karya publik di hasil pencarian.
+              Badge hanya untuk pemilik — pengunjung tidak perlu tahu. */}
+          {item.isOwner && item.isActive === false ? (
+            <Badge variant="outline">{translate("Nonaktif")}</Badge>
+          ) : item.isOwner && item.visibility && item.visibility !== "PUBLIC" ? (
+            <Badge variant="outline">{translate("Privat")}</Badge>
+          ) : null}
+        </View>
         <Text variant="caption" tone="secondary" numberOfLines={1}>
           {`${showcasePriceLabelOrFallback(item)} · @${item.author.username}`}
         </Text>

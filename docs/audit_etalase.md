@@ -1,5 +1,14 @@
 # Audit Mendalam End-to-End — Fitur Etalase (Showcase)
 
+> **USANG (2026-09-24).** Dokumen ini adalah catatan audit Etalase per
+> 2026-09-23. Banyak temuannya SUDAH diperbaiki di kode (lihat penanda
+> revisi `A-01…A-21`, `B-05`, `C-01…C-08`, `D-15…D-21`, `E-01…E-03`,
+> `H-04/H-05`, `L-06` di sumber), dan audit lanjutannya ada di
+> `docs/audit-etalase-mendalam-2026-09-24.md` (+ laporan perbaikan
+> `docs/audit-etalase-perbaikan-2026-09-24.md`). JANGAN mengutip daftar di
+> bawah sebagai bug yang masih hidup tanpa memverifikasi ulang di HEAD.
+
+
 **Tanggal:** 2026-09-23 · **Branch:** `arena/01a0ce63-frontend` @ `e3b414c`
 **Cakupan (dibaca baris per baris):** `app/(tabs)/showcase.tsx`, `components/showcase-feed-tab.tsx`, `lib/showcase-feed-logic.ts`, `components/ui/showcase-header.tsx`, `components/ui/showcase-feed-item.tsx`, `components/ui/showcase-media-gallery.tsx`, `components/ui/like-button.tsx`, `lib/use-showcase-social-actions.ts`, `lib/showcase-social-prefs.ts`, `lib/showcase-social.ts`, `lib/showcase-labels.ts`, `lib/showcase-state.ts`, `lib/use-showcase-operation.ts`, `app/showcase/[id].tsx`, `components/ui/showcase-comment-row.tsx`, `components/ui/showcase-comments-sheet.tsx`, `components/ui/showcase-report-sheet.tsx`, `app/showcase-management.tsx`, `lib/showcase-upload.ts`, `lib/image-picker.ts`, `components/ui/showcase-gallery-grid.tsx`, `components/ui/profile-etalase-tab.tsx`, `lib/use-profile-showcase.ts`, `app/user/[username].tsx` (bagian etalase), `app/user/[username]/showcase.tsx`, `components/ui/showcase-saved-collection.tsx`, `app/saved.tsx`, `app/search.tsx` (bagian postingan), `lib/api/showcase.ts`, bagian showcase `lib/api/users.ts`, `lib/protected-routes.ts`, `lib/routes.ts`, `lib/notification-routing.ts`, `lib/i18n/*`, kontrak `docs/api/kahade-api-mobile.json`, serta semua test/e2e showcase.
 

@@ -2,10 +2,14 @@
  * Following remains a client-side filter until a server-side following-feed contract exists (audit A-17).
  *
  * Revisi audit Etalase 2026-09-23:
- *  - A-01/C-02: aksi sosial (♥/komentar) TIDAK memanggil markShowcaseFeedDirty
- *    (lihat pemanggil) — sinyal dirty hanya untuk mutasi "etalase saya", dan
- *    efek di bawah hanya menyegarkan saat tab fokus KEMBALI (bukan di tengah
- *    scroll). Halaman 2..N dan posisi scroll tidak lagi ter-reset oleh ♥.
+ *  - A-01/C-02 + F-01/C-01 (2026-09-24): aksi sosial (♥/komentar) TIDAK
+ *    memanggil markShowcaseFeedDirty — sinyal dirty hanya untuk mutasi
+ *    "etalase saya" (buat/ubah/hapus/urut). Hitungan komentar dari layar mana
+ *    pun datang lewat ledger `queueShowcaseCommentCount()` dan diterapkan ke
+ *    daftar yang sudah dimuat (lihat efek `appliedCommentSeq`), sehingga satu
+ *    komentar tidak pernah lagi membuang halaman 2..N atau menimpa kenaikan
+ *    optimistis. Koreksi 2026-09-24: docblock ini sebelumnya mengklaim hal itu
+ *    padahal sheet komentar masih memanggil markShowcaseFeedDirty().
  *  - A-02: tab "Mengikuti" tidak lagi refetch penuh di SETIAP fokus — cukup
  *    saat dirty (mutasi manajemen) atau tarik-segarkan; fetch ganda saat mount
  *    (efek muat-awal + efek fokus) ikut hilang.
@@ -50,13 +54,19 @@ import {
 import {
   isShowcaseReported,
   dismissShowcase,
+  undismissShowcase,
+  showcaseCommentCountsSince,
+  showcaseCommentCountSeq,
+  useShowcaseCommentCountSeq,
   useShowcaseHiddenIds,
   showcaseFeedDirtyVersion,
   useShowcaseDirtyVersion,
 } from "@/lib/showcase-social-prefs"
+import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
+import { useToast } from "@/components/ui/toast"
 
 import { translate } from "@/lib/i18n/translate"
 
@@ -144,7 +154,7 @@ const FeedCard = memo(function FeedCard({
   onOpenComments,
   onReport,
 }: FeedCardProps) {
-  const { liked, likeCount, saved, toggleLike, toggleSave, share } =
+  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share } =
     useShowcaseSocialActions(item)
   const display = useMemo(
     () =>
@@ -170,6 +180,8 @@ const FeedCard = memo(function FeedCard({
       onOpenComments={handleComments}
       onToggleSave={toggleSave}
       saved={saved}
+      likePending={likePending}
+      savePending={savedPending}
       onShare={share}
       onOptions={handleReport}
       divider={divider}
@@ -213,6 +225,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
    * A-04: kepemilikan + cache-nya hidup di level modul (lihat above).
    */
   const [followingSet, setFollowingSet] = useState<ReadonlySet<string> | null>(null)
+  /**
+   * F-05 (audit 2026-09-24): penanda hasil TERPOTONG di tab "Mengikuti".
+   * Daftar following masih dihitung di klien dengan plafon
+   * FOLLOWING_MAX_PAGES, jadi feed bisa tampak "habis" padahal masih ada.
+   */
+  const [followingPartial, setFollowingPartial] = useState(false)
   /** Item yang komentarnya sedang dibuka di BottomSheet (null = tertutup). */
   const [commentItem, setCommentItem] = useState<ShowcaseSocialItem | null>(null)
   /** Item yang sedang dilaporkan (null = tertutup). */
@@ -263,6 +281,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   const hasSession = useHasSession()
   const revision = useSessionRevision()
   const dirtyVersion = useShowcaseDirtyVersion()
+  /** S-04: toast aksi "Tidak tertarik" membawa tombol Urungkan. */
+  const toast = useToast()
   const hasSessionRef = useRef(hasSession)
   hasSessionRef.current = hasSession
   const revisionRef = useRef(revision)
@@ -340,6 +360,13 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
 
   const fetchPage = useCallback(
     async (mode: "initial" | "refresh" | "more") => {
+      /**
+       * Watermark hitungan komentar diambil SEBELUM request: respons yang
+       * mendarat nanti sudah memuat semua event sampai titik ini, sehingga
+       * event yang datang SESUDAHNYA tetap diterapkan (tidak ada yang hilang,
+       * tidak ada yang dihitung dua kali).
+       */
+      const commentSeqAtStart = showcaseCommentCountSeq()
       if (mode === "more" && (loadMoreBusy.current || activeRequest.current)) return
       // Tab/search/refresh supersedes every older response. Without aborting,
       // a slow "latest" request could overwrite a newer "popular" result.
@@ -379,6 +406,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       try {
         let incoming: ShowcaseSocialItem[] = []
         let nextHasMore = false
+        /** F-05: di-set di cabang `following` bila plafon sisi klien tercapai. */
+        let truncatedFollowing = false
 
         if (kind === "latest" || kind === "popular") {
           const page = await getShowcaseFeed(
@@ -438,7 +467,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
            * dan kosong = memang habis, bukan tak sempat termuat.
            */
           const collected: ShowcaseSocialItem[] = []
-          for (let pageIndex = 0; set.size > 0 && pageIndex < FOLLOWING_MAX_PAGES; pageIndex++) {
+          let pageIndex = 0
+          for (; set.size > 0 && pageIndex < FOLLOWING_MAX_PAGES; pageIndex++) {
             const page = await getShowcaseFeed(
               { ...query, sort: "latest", cursor: slot.cursors.latest ?? undefined },
               controller.signal,
@@ -449,17 +479,20 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
             collected.push(...page.items.filter((item) => followedBy(set, item)))
             if (collected.length >= FOLLOWING_MIN_ITEMS || !page.hasMore) break
           }
+          truncatedFollowing = pageIndex >= FOLLOWING_MAX_PAGES && slot.hasMore.latest && set.size > 0
           incoming = collected
           nextHasMore = set.size > 0 && slot.hasMore.latest
         }
 
         if (controller.signal.aborted || activeRequest.current !== controller) return
+        setFollowingPartial(kind === "following" && truncatedFollowing)
         entry.state = slot
         entry.filter = filter
         // F-04 (audit 2026-09-23): item yang sudah dilaporkan sesi ini
         // disembunyikan dari feed pelapor (moderasi ada di server).
         const visible = incoming.filter((item) => !isShowcaseReported(item.id))
         const nextItems = mode === "more" ? mergeById(itemsRef.current, visible) : visible
+        appliedCommentSeq.current = Math.max(appliedCommentSeq.current, commentSeqAtStart)
         itemsRef.current = nextItems
         setItems(nextItems)
         setHasMore(nextHasMore)
@@ -536,6 +569,32 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
     }
   }, [isFocused, fetchPage, dirtyVersion])
 
+  /**
+   * F-01/F-03/C-01 (audit 2026-09-24): hitungan komentar dari sheet/detail
+   * diterapkan DI SINI — tanpa satu pun request jaringan. `appliedCommentSeq`
+   * adalah watermark: hanya event yang belum pernah diterapkan ke daftar ini
+   * yang diproses, jadi membuka dua permukaan (feed + tab profil) tidak
+   * menghitung dua kali. Efek berjalan walau tab tidak fokus supaya daftar
+   * sudah benar saat pengguna kembali.
+   */
+  const commentSeq = useShowcaseCommentCountSeq()
+  const appliedCommentSeq = useRef(showcaseCommentCountSeq())
+  useEffect(() => {
+    const { events, seq } = showcaseCommentCountsSince(appliedCommentSeq.current)
+    if (events.length === 0) return
+    appliedCommentSeq.current = seq
+    const next = applyShowcaseCommentCountDelta(itemsRef.current, events)
+    if (next !== itemsRef.current) {
+      itemsRef.current = next
+      setItems(next)
+    }
+    const cached = itemsCache.current[kind]
+    if (cached) {
+      const patched = applyShowcaseCommentCountDelta(cached.items, events)
+      if (patched !== cached.items) itemsCache.current[kind] = { ...cached, items: patched }
+    }
+  }, [commentSeq, kind])
+
   const loadMore = useCallback(() => {
     if (hasMore && !loadingMore && !refreshing && !loading) void fetchPage("more")
   }, [hasMore, loadingMore, refreshing, loading, fetchPage])
@@ -546,15 +605,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
 
   const handleOpenReport = useCallback((item: ShowcaseSocialItem) => {
     setActionItem(item)
-  }, [])
-
-  /** Komentar baru dari komposer sheet — hitungan kartu ikut bertambah. */
-  const handleCommentAdded = useCallback((id: string) => {
-    setItems((previous) =>
-      previous.map((entry) =>
-        entry.id === id ? { ...entry, commentCount: entry.commentCount + 1 } : entry,
-      ),
-    )
   }, [])
 
   /** A-07: renderItem STABIL — divider dihitung lewat ref, bukan closure items. */
@@ -606,11 +656,13 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
     return (
       <EmptyState
         icon={Images}
-        title="Belum ada karya di etalase"
+        // F-06 (audit 2026-09-24): copy menyebut konteks FEED, bukan halaman
+        // etalase satu penjual — "penjual Kahade" membingungkan di sini.
+        title={translate("Belum ada karya untuk ditampilkan")}
         description={
           activeSearch
             ? translate('Tidak ada hasil untuk "{x}".', { x: activeSearch })
-            : "Karya publik dari penjual Kahade akan muncul di sini."
+            : translate("Karya publik dari pengguna Kahade akan muncul di sini.")
         }
         // A-20 (audit 2026-09-23): CTA isi etalase untuk pemilik akun.
         action={
@@ -623,6 +675,20 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       />
     )
   })()
+
+  /**
+   * F-05: tab "Mengikuti" memakai filter sisi klien (plafon
+   * FOLLOWING_MAX_PAGES). Bila hasil terpotong, katakan apa adanya — jangan
+   * biarkan pengguna mengira sudah melihat semua karya akun yang diikuti.
+   * Usulan jangka panjang tetap: `GET /showcase/feed?following=true`.
+   */
+  const followingPartialNotice = kind === "following" && followingPartial ? (
+    <View className="mx-5 mt-3 rounded-md border border-border bg-surface px-3 py-2">
+      <Text variant="caption" tone="secondary">
+        {translate("Sebagian karya belum dapat dimuat. Tarik untuk menyegarkan.")}
+      </Text>
+    </View>
+  ) : null
 
   /** A-06: chip filter aktif di atas list (scroll ikut konten). */
   const categoryChip = category ? (
@@ -699,7 +765,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         // hampir tepat di tengah celah (lihat <ShowcaseFeedItem divider>).
         gap={tokens.space[5]}
         bottomPadding={bottomPadding}
-        header={searchChip || categoryChip ? <View>{searchChip}{categoryChip}</View> : undefined}
+        header={
+          searchChip || categoryChip || followingPartialNotice ? (
+            <View>{searchChip}{categoryChip}{followingPartialNotice}</View>
+          ) : undefined
+        }
         loadingPlaceholder={
           <SkeletonGroup className="gap-10 py-4">
             {Array.from({ length: 2 }, (_, index) => (
@@ -722,16 +792,21 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       </ModeShiftFade>
 
       {/* Komentar dibaca & ditulis di sheet — pengguna tidak kehilangan posisi feed. */}
-      <ShowcaseCommentsSheet
-        item={commentItem}
-        onRequestClose={() => setCommentItem(null)}
-        onCommentAdded={handleCommentAdded}
-      />
+      <ShowcaseCommentsSheet item={commentItem} onRequestClose={() => setCommentItem(null)} />
 
       <BottomSheet visible={!!actionItem} onRequestClose={() => setActionItem(null)} title="Pilihan karya">
         <View className="gap-3">
           <Button variant="ghost" onPress={() => {
-            if (actionItem) dismissShowcase(actionItem.id)
+            if (actionItem) {
+              const dismissed = actionItem.id
+              dismissShowcase(dismissed)
+              // S-04 (audit 2026-09-24): tindakan yang menghilangkan kartu
+              // tanpa jejak harus bisa dibatalkan.
+              toast.show({
+                title: "Karya disembunyikan dari feed",
+                action: { label: "Urungkan", onPress: () => undismissShowcase(dismissed) },
+              })
+            }
             setActionItem(null)
           }}>Tidak tertarik</Button>
           <Button variant="ghost" onPress={() => {

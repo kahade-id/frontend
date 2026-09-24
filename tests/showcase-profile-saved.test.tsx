@@ -33,7 +33,13 @@ vi.mock("@/lib/api/session", () => ({ getSessionRevision: () => 1 }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => true, useSessionRevision: () => 1 }))
 vi.mock("@/lib/showcase-social-prefs", () => ({
   useShowcaseDirtyVersion: () => mocks.dirtyVersion,
+  // F-01/C-01 (audit 2026-09-24): ledger hitungan komentar — tanpa event.
+  showcaseCommentCountSeq: () => 0,
+  showcaseCommentCountsSince: () => ({ events: [], seq: 0 }),
+  useShowcaseCommentCountSeq: () => 0,
   useShowcaseSavedIds: () => mocks.savedIds,
+  // U-01 (audit 2026-09-24): kuota tersimpan kini ditampilkan di header.
+  SHOWCASE_SAVED_LIMIT: 25,
   toggleShowcaseSaved: (id: string) => {
     mocks.toggled.push(id)
     mocks.savedIds = mocks.savedIds.filter((x) => x !== id)

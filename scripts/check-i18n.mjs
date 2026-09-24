@@ -99,6 +99,10 @@ const COGNATE_ALLOWLIST = new Map([
   ["{x}. {y}", "hanya token + pemisah"],
   ["{x}: {y}", "hanya token + pemisah"],
   ["Item {x}", "hanya token + kata benda yang sama di EN"],
+  // Q-02/Q-03 (audit 2026-09-24): istilah yang memang sama di kedua bahasa.
+  ["Kahade Plus", "nama paket produk"],
+  ["Order {x}", "istilah transaksi + token"],
+  ["User", "istilah baku peran akun"],
   // Mode E-Wallet memakai istilah produk yang sama di kedua bahasa.
   ["E-Commerce", "nama mode produk"],
   ["E-Wallet", "nama mode produk"],

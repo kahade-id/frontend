@@ -572,7 +572,10 @@ const LINE_CEILING = new Map([
   // konstanta tipe berkas dipadatkan -> 917. Plafon TURUN mengikuti fakta.
   ["app/dispute/[id].tsx", 917],
   // 2026-09-23b: baris aksi suka diganti <LikeAction> (blok inline hilang) -> 871.
-  ["app/showcase/[id].tsx", 826],
+  // 2026-09-24: baris aksi (suka · komentar · bagikan · simpan) diekstrak ke
+  // components/ui/showcase-detail-actions.tsx saat memperbaiki audit Etalase
+  // mendalam -> 787. Plafon TURUN mengikuti fakta (hanya boleh menyusut).
+  ["app/showcase/[id].tsx", 786],
   // H-04 (audit 2026-09-22): PullToRefresh 881 baris menyembunyikan mesin
   // gestur PanResponder di dalam satu komponen monolitik. Layar-layar sudah
   // dipantau sejak lama, komponennya belum — masuk daftar pada ukuran

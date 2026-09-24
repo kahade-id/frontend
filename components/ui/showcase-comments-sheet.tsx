@@ -17,12 +17,14 @@
  *  - A-05 kelas yang sama: tamu tidak melihat komposer — tombol "Masuk"
  *    sebagai gantinya (membaca komentar tetap boleh, endpoint publik).
  *
- * Revisi audit Etalase 2026-09-23:
- *  - C-02: aksi sosial (♥/simpan/bagikan/lapor) TANPA dirty. Komentar =
- *    mutasi konten: markShowcaseFeedDirty() TEPAT SEKALI per mutasi sukses
- *    (kontrak tests/showcase-comments-lifecycle) — tanda konsistensi hitungan,
- *    bukan refetch paksa sekarang; feed menyegarkan saat fokus kembali.
- *  - D-02: hitungan kartu feed naik optimis via onCommentAdded (tanpa dirty).
+ * Revisi audit Etalase 2026-09-23 / 2026-09-24:
+ *  - F-01/C-01 (2026-09-24): komentar TIDAK memanggil markShowcaseFeedDirty().
+ *    Satu komentar dari sheet ini dulu memicu refetch feed yang sedang fokus,
+ *    membuang halaman 2..N dan menimpa kenaikan hitungan optimistis. Sekarang
+ *    setiap mutasi sukses mendaftarkan DELTA ke ledger
+ *    `queueShowcaseCommentCount()` (TEPAT SEKALI per mutasi sukses) yang
+ *    diterapkan semua permukaan kartu tanpa satu pun request jaringan.
+ *  - D-02: hitungan kartu naik lewat ledger yang sama (tanpa dirty).
  *  - E-01: query.error tidak menyembunyikan komentar lokal yang baru terkirim.
  *  - E-02: judul "Komentar {x}" lewat translate.
  *  - E-05: draf disimpan PER ITEM — pindah item / tutup sheet tidak membuang
@@ -40,8 +42,9 @@ import {
   type ShowcaseCommentWithReplies,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
-import { isApiError, userMessage } from "@/lib/api"
-import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
+import { createIdempotencyKey, isApiError, userMessage } from "@/lib/api"
+import { queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
+import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
@@ -73,14 +76,11 @@ export type ShowcaseCommentsSheetProps = {
   /** Item yang komentarnya dibuka. `null` = sheet tertutup. */
   item: ShowcaseSocialItem | null
   onRequestClose: () => void
-  /** Komentar terkirim dari sheet — feed menaikkan hitungan kartunya. */
-  onCommentAdded?: (showcaseId: string) => void
 }
 
 export function ShowcaseCommentsSheet({
   item,
   onRequestClose,
-  onCommentAdded,
 }: ShowcaseCommentsSheetProps) {
   const { height: windowHeight } = useWindowDimensions()
   const toast = useToast()
@@ -102,6 +102,12 @@ export function ShowcaseCommentsSheet({
   const [sending, setSending] = useState(false)
   /** E-05 (audit 2026-09-23): draf PER ITEM — dipulihkan saat kembali. */
   const draftsFor = useRef<Map<string, string>>(new Map())
+  /**
+   * S-03 (audit 2026-09-24): satu Idempotency-Key per (item × isi komentar).
+   * Percobaan ulang setelah timeout memakai kunci yang SAMA, jadi komentar
+   * tidak tercatat dua kali; isi komentar berbeda = aksi berbeda = kunci baru.
+   */
+  const sendKey = useRef<{ item: string; content: string; key: string } | null>(null)
   const draftOwner = useRef<string | null>(null)
   const draftRef = useRef("")
   const updateDraft = useCallback((value: string) => {
@@ -143,20 +149,26 @@ export function ShowcaseCommentsSheet({
     if (!task) return
     setSending(true)
     try {
-      const saved = await addShowcaseComment(showcaseId, { content })
-      // Kontrak tests/showcase-comments-lifecycle: dirty TEPAT SEKALI per
+      const keyed = sendKey.current?.item === showcaseId && sendKey.current?.content === content
+        ? sendKey.current.key
+        : (sendKey.current = { item: showcaseId, content, key: createIdempotencyKey() }).key
+      const saved = await addShowcaseComment(showcaseId, { content }, keyed)
+      // Kontrak tests/showcase-comments-lifecycle: delta TEPAT SEKALI per
       // mutasi sukses — bahkan saat respons telat mendarat di item lain
-      // (komentar memang tercipta di server → hitungan berubah). Tanpa ini
-      // kartu feed yang tidak punya onCommentAdded tidak pernah sinkron.
-      markShowcaseFeedDirty()
+      // (komentar memang tercipta di server → hitungan berubah). Ledger
+      // menggantikan markShowcaseFeedDirty supaya tidak ada refetch yang
+      // membuang halaman 2..N (F-01/C-01 audit 2026-09-24).
+      queueShowcaseCommentCount(showcaseId, 1)
       if (!task.valid()) return
       setLocalComments((previous) => [{ ...saved, replies: [] }, ...previous])
+      // Kiriman ini tuntas — teks yang sama berikutnya adalah aksi BARU.
+      sendKey.current = null
       if (draftRef.current.trim() === content) updateDraft("")
-      onCommentAdded?.(showcaseId)
     } catch (err) {
       if (!task.valid()) return
       toast.show({
-        title: "Gagal mengirim komentar",
+        // D-01: label bersama dengan layar detail (satu sumber copy).
+        title: SHOWCASE_COMMENT_MESSAGES.sendFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -164,7 +176,7 @@ export function ShowcaseCommentsSheet({
       if (task.valid()) setSending(false)
       task.finish()
     }
-  }, [showcaseId, draft, sending, onCommentAdded, toast.show, hasSession, operation, updateDraft])
+  }, [showcaseId, draft, sending, toast.show, hasSession, operation, updateDraft])
 
   const localIds = new Set(localComments.map((c) => c.id))
   const serverComments = query.data?.data.filter((c) => !localIds.has(c.id)) ?? []

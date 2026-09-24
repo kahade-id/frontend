@@ -43,6 +43,11 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
+import {
+  showcaseCommentCountSeq,
+  showcaseCommentCountsSince,
+  useShowcaseCommentCountSeq,
+} from "@/lib/showcase-social-prefs"
 import { translate } from "@/lib/i18n/translate"
 
 /** Pemilik profil — penulis semua item etalase (endpoint sudah per-username). */
@@ -77,7 +82,7 @@ const EtalaseCard = memo(function EtalaseCard({
   onOpenComments: (item: ShowcaseSocialItem) => void
   onReport: (item: ShowcaseSocialItem) => void
 }) {
-  const { liked, likeCount, saved, toggleLike, toggleSave, share } =
+  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share } =
     useShowcaseSocialActions(item)
   const display =
     liked === (item.isLiked === true) && likeCount === item.likeCount
@@ -91,6 +96,8 @@ const EtalaseCard = memo(function EtalaseCard({
       onOpenComments={() => onOpenComments(item)}
       onToggleSave={toggleSave}
       saved={saved}
+      likePending={likePending}
+      savePending={savedPending}
       onShare={share}
       onReport={() => onReport(item)}
       divider={divider}
@@ -147,36 +154,46 @@ export function ProfileEtalaseTab({
    * Patch lokal kini HANYA hitungan komentar (suka/simpan hidup di store
    * bersama). C-05: patch dibuang saat `items` berubah identitas karena
    * refresh jaringan — angka server terbaru yang menang lagi.
+   *
+   * F-01/F-03 (audit 2026-09-24): sumber patch = LEDGER hitungan komentar
+   * (`queueShowcaseCommentCount`) yang sama dengan feed, sehingga komentar
+   * dari sheet/detail ikut terlihat di sini tanpa refetch. Watermark menjaga
+   * event yang sudah diterapkan tidak dihitung dua kali.
    */
   const [patches, setPatches] = useState<Record<string, Partial<ShowcaseSocialItem>>>({})
+  const commentSeq = useShowcaseCommentCountSeq()
+  const appliedCommentSeq = useRef(showcaseCommentCountSeq())
   const prevItems = useRef(items)
   useEffect(() => {
     if (prevItems.current !== items) {
       prevItems.current = items
+      // Data jaringan baru = patch lama usang; watermark ikut maju karena
+      // respons ini sudah memuat semua event sampai titik sekarang.
+      appliedCommentSeq.current = showcaseCommentCountSeq()
       setPatches({})
     }
   }, [items])
+
+  useEffect(() => {
+    const { events, seq } = showcaseCommentCountsSince(appliedCommentSeq.current)
+    if (events.length === 0) return
+    appliedCommentSeq.current = seq
+    setPatches((previous) => {
+      const next = { ...previous }
+      for (const event of events) {
+        const base =
+          next[event.id]?.commentCount ??
+          socialItems.find((entry) => entry.id === event.id)?.commentCount ??
+          0
+        next[event.id] = { ...next[event.id], commentCount: Math.max(0, base + event.delta) }
+      }
+      return next
+    })
+  }, [commentSeq, socialItems])
   const patchedItems = useMemo(
     () =>
       socialItems.map((entry) => (patches[entry.id] ? { ...entry, ...patches[entry.id] } : entry)),
     [socialItems, patches],
-  )
-
-  /** Komentar baru dari komposer sheet — hitungan kartu ikut bertambah. */
-  const handleCommentAdded = useCallback(
-    (id: string) => {
-      setPatches((previous) => ({
-        ...previous,
-        [id]: {
-          ...previous[id],
-          commentCount:
-            (previous[id]?.commentCount ??
-              socialItems.find((entry) => entry.id === id)?.commentCount ??
-              0) + 1,
-        },
-      }))
-    },
-    [socialItems],
   )
 
   const handleOpenComments = useCallback((item: ShowcaseSocialItem) => {
@@ -261,11 +278,7 @@ export function ProfileEtalaseTab({
 
       {/* Komentar dibaca & ditulis di sheet — paritas dengan halaman
           Etalase (pengguna tidak kehilangan posisi list). */}
-      <ShowcaseCommentsSheet
-        item={commentItem}
-        onRequestClose={() => setCommentItem(null)}
-        onCommentAdded={handleCommentAdded}
-      />
+      <ShowcaseCommentsSheet item={commentItem} onRequestClose={() => setCommentItem(null)} />
 
       {/* C-03: lapor ITEM ke endpoint showcase, sheet bersama (A-11). */}
       <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />

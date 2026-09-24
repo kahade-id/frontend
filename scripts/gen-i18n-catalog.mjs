@@ -114,9 +114,23 @@ function isTechnical(shape, named = false) {
   if (s.startsWith("/") && !s.includes(" ")) return true // route
   if (s.startsWith("#")) return true // warna
   const braces = s.split(SHAPE_TOKEN).join("")
-  if (/[{}<>;=]|=>/.test(braces)) return true // cuplikan kode / regex
+  // Q-03 (audit 2026-09-24): `;` dulu otomatis dianggap cuplikan kode, sehingga
+  // kalimat UI multi-klausa ("Karya diaktifkan; pengaturan publik atau privat
+  // tetap berlaku") tidak pernah masuk katalog. `;` hanya menandakan kode bila
+  // TIDAK dipisah spasi atau kalimatnya terlalu pendek untuk jadi prosa.
+  const words = s.trim().split(/\s+/).length
+  const semicolonIsCode = s.includes(";") && !(s.includes("; ") && words >= 3)
+  if (/[{}<>]|=>|=/.test(braces) || semicolonIsCode) return true // cuplikan kode / regex
   if (/rgba?\(|\bpx\b|font-family/.test(s)) return true // css/shadow
   if (/^[A-Z][A-Z0-9_]*$/.test(s)) return true // CONSTANT_CASE
+  // Q-02 lanjutan (2026-09-24): children ekspresi JSX juga memuat DATA, bukan
+  // cuma teks — dua pola di bawah ini terbukti bukan teks UI dan tidak boleh
+  // memaksa terjemahan (keduanya muncul begitu JsxExpression ikut dipindai).
+  // 1) path SVG (`M {x} {x} l {x} …`): deretan perintah satu huruf + angka.
+  if (/\b[mMlLhHvVcCsSqQaAzZ]\s*-?\{x\}/.test(s) && !/[.!?]/.test(s)) return true
+  // 2) kunci teknis ber-token (`search:{x}`, `page:{x}`): awalan huruf kecil
+  //    + titik dua + token, tanpa spasi sama sekali.
+  if (/^[a-z][a-z0-9_-]*:\{x\}$/.test(s)) return true
   // Token teknis murni: tanpa spasi, satu kata kecil yang boleh ber-titik /
   // ber-strip / camelCase di segmen berikutnya — route pendek, kunci storage,
   // media type, header. Hanya bila TIDAK ada {x}: "…{x} hari" itu prosa.
@@ -217,7 +231,9 @@ function collectStrings(node, sf, file, kind, depth = 0, named = false) {
     // kunci kamus eksplisit — WAJIB terkatalog. (Catatan: `fn` adalah teks
     // callee tanpa tanda kurung, jadi pencocokan memakai nama, bukan `\(`.)
     const isTranslate = /(^|\.)(translate|translateProp|t)$/.test(fn)
-    if (/Alert\.alert|announceForAccessibility|show\(|setString\(/.test(fn) || isTranslate) {
+    // Q-04 (audit 2026-09-24): `setFormError("…")` juga teks UI — sebelumnya
+    // literal di argumen itu tidak pernah dikumpulkan (pesan validasi form).
+    if (/Alert\.alert|announceForAccessibility|show\(|setString\(|setFormError\(/.test(fn) || isTranslate) {
       for (const arg of node.arguments) {
         if (ts.isObjectLiteralExpression(arg)) collectObjectStrings(arg, sf, file)
         else collectStrings(arg, sf, file, kind, depth + 1, isTranslate || named)
@@ -263,6 +279,12 @@ for (const dir of SCAN_DIRS) {
         collectObjectStrings(node, sf, rel)
       } else if (ts.isCallExpression(node)) {
         collectStrings(node, sf, rel, "call")
+      } else if (ts.isJsxExpression(node) && node.expression) {
+        // Q-02 (audit 2026-09-24): children ekspresi JSX dulu TIDAK pernah
+        // dikunjungi — `{cond ? "A" : "B"}` (mis. penjelasan visibilitas di
+        // layar manajemen) tidak pernah masuk katalog, jadi terjemahannya
+        // tidak pernah bisa ada meski `translate()` ditambahkan kemudian.
+        collectStrings(node.expression, sf, rel, "jsx-expr")
       }
       ts.forEachChild(node, visit)
     }

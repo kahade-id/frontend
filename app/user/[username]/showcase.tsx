@@ -46,8 +46,10 @@ export default function PublicShowcaseScreen() {
   const { username } = useLocalSearchParams<{ username: string }>()
   const insets = useSafeAreaInsets()
   const revision = useSessionRevision()
-  useEffect(() => setRenderLimit(GALLERY_RENDER_STEP), [username])
+  // P-05 (audit 2026-09-24): `useState` DULU sebelum efek yang memakainya —
+  // urutan lama sah secara runtime tapi menyesatkan saat dibaca/di-refactor.
   const [renderLimit, setRenderLimit] = useState(GALLERY_RENDER_STEP)
+  useEffect(() => setRenderLimit(GALLERY_RENDER_STEP), [username])
 
   /**
    * `useApiQuery`, bukan rakitan useState/useEffect. Tiga hal yang sebelumnya

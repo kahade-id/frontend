@@ -46,6 +46,7 @@ import { Backdrop, useOverlayDismissKeys, useOverlayPresence } from "@/component
 import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { Portal, useBlockingOverlay } from "@/components/ui/portal"
 import { Text } from "@/components/ui/text"
+import { translateProp } from "@/lib/i18n/translate"
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
 import { elevationStyle } from "@/lib/elevation"
@@ -242,7 +243,7 @@ export function Dialog({
 
   return (
     <Modal
-      accessibilityLabel={title}
+      accessibilityLabel={translateProp(title)}
       onRequestClose={onRequestClose}
       dismissOnBackdrop={dismissable}
       initialFocusRef={titleRef}
