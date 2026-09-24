@@ -80,6 +80,19 @@ export default function OrderLinksScreen() {
 
   const handleShare = useCallback(
     async (payload: { url: string; message: string }, title: string) => {
+      // M-36 (audit end-to-end, issue #99): url kosong = share sheet tanpa isi
+      // berguna — jatuh ke SALIN Teks pesan, jangan panggil jalur bagikan.
+      if (!payload.url.trim()) {
+        const ok = await copy(payload.message)
+        toast.show({
+          title: ok ? "Teks tautan disalin" : "Tidak bisa membagikan",
+          description: ok
+            ? "Tautan belum punya URL; kalimat siap kirim disalin ke papan klip."
+            : undefined,
+          tone: ok ? "success" : "danger",
+        })
+        return
+      }
       const outcome = await shareContent({ message: payload.message, url: payload.url, title })
       if (outcome === "unavailable") {
         const ok = await copy(payload.url)
@@ -99,11 +112,28 @@ export default function OrderLinksScreen() {
     if (!cancelTarget) return
     setCancelling(true)
     try {
-      await api.orders.cancelOrderLink(cancelTarget.token)
+      // M-37 (audit end-to-end, issue #29): HASIL `cancelOrderLink` (D-12)
+      // dipakai — dulu dibuang lalu status lokal dipaksa "CANCELLED" + toast
+      // "Tautan dibatalkan" apa pun keputusan server (mis. tautan sudah
+      // diterima → status sebenarnya ACCEPTED, kartu berbohong).
+      const res = await api.orders.cancelOrderLink(cancelTarget.token)
+      const confirmed = (res.status ?? "CANCELLED") as OrderLink["status"]
       query.setData((prev) =>
-        prev.map((l) => (l.token === cancelTarget.token ? { ...l, status: "CANCELLED" } : l)),
+        prev.map((l) =>
+          l.token === cancelTarget.token
+            ? { ...l, status: confirmed, ...(res.status ? {} : {}) }
+            : l,
+        ),
       )
-      toast.show({ title: "Tautan dibatalkan", tone: "success" })
+      toast.show({
+        title:
+          confirmed === "CANCELLED"
+            ? "Tautan dibatalkan"
+            : res.status
+              ? `Status tautan: ${orderLinkStatusMeta(res.status).label}`
+              : "Pembatalan dikirim",
+        tone: confirmed === "CANCELLED" ? "success" : "info",
+      })
       setCancelTarget(null)
     } catch (err: unknown) {
       toast.show({

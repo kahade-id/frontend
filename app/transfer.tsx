@@ -18,6 +18,7 @@ import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage, type TransferDto } from "@/lib/api"
+import { createIdempotencyKey } from "@/lib/api/client"
 import { formatRupiah } from "@/lib/format"
 import { dismissKeyboardOnDragProps } from "@/lib/keyboard"
 import { queryKeys } from "@/lib/query-keys"
@@ -128,6 +129,8 @@ export default function TransferScreen() {
   const [progressState, setProgressState] = useState<ProgressState | null>(null)
   const [progressError, setProgressError] = useState<string | undefined>()
   const submitLock = useRef(false)
+  /** M-08 (issue #5): satu `Idempotency-Key` per siklus transfer (lihat order/[id]). */
+  const transferKeyRef = useRef<string | null>(null)
   const scheduleResult = useResultTimer()
 
   // A-01 (audit): tombol biometrik DIHAPUS dari sheet PIN transfer.
@@ -268,7 +271,11 @@ export default function TransferScreen() {
           pin: pinValue,
           note: note.trim() || undefined,
         }
-        const res = await api.wallet.transferFunds(dto)
+        const res = await api.wallet.transferFunds(
+          dto,
+          transferKeyRef.current ?? (transferKeyRef.current = createIdempotencyKey()),
+        )
+        transferKeyRef.current = null
         setTxId(res.txId ?? null)
         setTransferStatus(res.status)
         /*
@@ -290,7 +297,11 @@ export default function TransferScreen() {
         // Gagal TIDAK berarti dana hilang: kalau request sempat terkirim
         // (bukan gagal jaringan murni sebelum terkirim), status akhir harus
         // diverifikasi di riwayat sebelum mengirim ulang.
-        const uncertain = !isApiError(err) || err.isTransient || err.code === "ABORTED"
+        const uncertain =
+          !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
+        // M-08: gagal pasti = transfer baru boleh dicoba (kunci baru);
+        // tak pasti menahan kunci yang sama (retry = transfer yang sama).
+        if (!uncertain) transferKeyRef.current = null
         const base = userMessage(err)
         const msg = uncertain
           ? `${base} Status transfer mungkin sudah diproses — periksa riwayat sebelum mengirim ulang.`

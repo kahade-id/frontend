@@ -138,11 +138,19 @@ export function isOrderActive(status: string): boolean {
  * Fungsi inilah yang dipakai kartu/timeline untuk menampilkan countdown.
  */
 export function hasLiveDeadline(status: string): boolean {
+  // M-22 (audit end-to-end, issue #74): `IN_DELIVERY` ikut — justru saat barang
+  // dikirim pengguna harus melihat hitung mundur masa konfirmasi penerimaan
+  // (jendela buka sengketa/konfirmasi). Dulu countdown hilang di fase ini.
   return (
     isOrderStatus(status) &&
-    ["WAITING_CONFIRMATION", "WAITING_PAYMENT", "PENDING_PAYMENT", "PROCESSING", "PAID"].includes(
-      status,
-    )
+    [
+      "WAITING_CONFIRMATION",
+      "WAITING_PAYMENT",
+      "PENDING_PAYMENT",
+      "PROCESSING",
+      "PAID",
+      "IN_DELIVERY",
+    ].includes(status)
   )
 }
 

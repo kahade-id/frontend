@@ -2,7 +2,7 @@
  * PROBE AUDIT (sementara) — escrow/order end-to-end.
  * File ini dipakai untuk MEMBUKTIKAN temuan audit lewat eksekusi nyata.
  */
-import { describe, it, vi } from "vitest"
+import { describe, expect, it, vi } from "vitest"
 
 vi.mock("@/lib/api/session", () => ({
   getAccessToken: () => Promise.resolve("t"),
@@ -97,11 +97,18 @@ describe("PROBE escrow", () => {
     }
   })
 
-  it("P6: normalizeInvoice", () => {
-    tryRun("kosong", () => JSON.stringify(normalizeInvoice({}, "o1")))
-    log("negatif:", JSON.stringify(normalizeInvoice({ total: "-5000", invoiceNumber: "I" }, "o1").total))
-    log("desimal:", JSON.stringify(normalizeInvoice({ total: "1500.50", invoiceNumber: "I" }, "o1").total))
-    log("fallback nomor:", normalizeInvoice({ total: 10, order: { id: "o9" } }, "o1").invoiceNumber)
+  it("P6: normalizeInvoice (kontrak B-08/B-09/B-14/I-12)", () => {
+    // Bukan invoice sama sekali → PARSE, bukan struk palsu.
+    tryRun("kosong", () => normalizeInvoice({}, "o1"))
+    expect(() => normalizeInvoice({}, "o1")).toThrow()
+    // B-08: total negatif = respons kacau → TOLAK (dulu dirender sebagai struk sah).
+    tryRun("negatif", () => normalizeInvoice({ total: "-5000", invoiceNumber: "I" }, "o1"))
+    expect(() => normalizeInvoice({ total: "-5000", invoiceNumber: "I" }, "o1")).toThrow()
+    // B-09/I-12: nominal tak sah (desimal) terbaca "tidak ada" → total jatuh ke
+    // jumlah item (0) — TIDAK dibundarkan jadi Rp1.501, TIDAK jadi baris Rp0.
+    expect(normalizeInvoice({ total: "1500.50", invoiceNumber: "I" }, "o1").total).toBe(0)
+    // B-14: nomor invoice TIDAK PERNAH dikarang.
+    expect(normalizeInvoice({ total: 10, order: { id: "o9" } }, "o1").invoiceNumber).toBeUndefined()
   })
 
   it("P7: readPage / readList", () => {
@@ -221,11 +228,12 @@ describe("PROBE escrow", () => {
     }
   })
 
-  it("P31: error envelope tanpa kunci data lolos unwrapResponse", () => {
-    const out = unwrapResponse({ success: false, message: "Insufficient balance" })
-    log("unwrap({success:false,message}) =>", JSON.stringify(out))
-    const pay = normalizePaymentStatus(out)
-    log("payment-status dari envelope error =>", JSON.stringify(pay), "terminal?", ["PAID","EXPIRED","FAILED","CANCELLED"].includes(pay.status))
+  it("P31: error envelope success:false DITOLAK unwrapResponse (kontrak B-04)", () => {
+    // Dulu envelope error "lolos" jadi objek polos → normalizePaymentStatus
+    // menyamar jadi PENDING non-terminal (polling abadi). Kini melempar
+    // ApiError — tidak pernah sampai jadi status pembayaran.
+    tryRun("unwrap", () => unwrapResponse({ success: false, message: "Insufficient balance" }))
+    expect(() => unwrapResponse({ success: false, message: "Insufficient balance" })).toThrow()
   })
 
   it("P29: isOrderStatus vs ORDER_STATUS_FILTERS vs alias", () => {

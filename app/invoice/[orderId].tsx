@@ -198,7 +198,21 @@ export default function InvoiceScreen() {
             <InvoiceReceiptView
               mode="invoice"
               number={invoice.invoiceNumber ?? "—"}
-              status={{ label: "Terverifikasi", tone: "success" }}
+              // M-19 (audit end-to-end, issue #63/#66): badge MEMANTULKAN status
+              // asli — dulu hardcode "Terverifikasi" (success) APA PUN kondisi
+              // order, dan status kosong merender badge tanpa teks. Tidak ada
+              // status terbaca = "—" (B-14), bukan klaim "terverifikasi".
+              status={(() => {
+                const s = (invoice.status ?? "").toUpperCase()
+                if (!s) return { label: "—", tone: "neutral" as const }
+                if (s === "PAID" || s === "LUNAS" || s === "COMPLETED" || s === "SETTLED")
+                  return { label: "Lunas", tone: "success" as const }
+                if (s === "PENDING" || s === "UNPAID" || s === "WAITING")
+                  return { label: "Belum bayar", tone: "warning" as const }
+                if (s === "EXPIRED" || s === "CANCELLED" || s === "FAILED")
+                  return { label: "Batal", tone: "danger" as const }
+                return { label: s, tone: "neutral" as const }
+              })()}
               from={{ name: orderPartyName(invoice.order.seller) ?? "—" }}
               to={{ name: orderPartyName(invoice.order.buyer) ?? "—" }}
               items={invoice.items.map((i, idx) => ({
@@ -210,6 +224,13 @@ export default function InvoiceScreen() {
               meta={[
                 { label: "Terbit", value: formatDateTime(invoice.issuedAt) },
                 { label: "Order", value: invoice.order.id },
+                // M-56 (audit end-to-end, issue #101): baris biaya TIDAK hilang
+                // diam-diam — `normalizeFeeBreakdown` bisa `undefined` dan dulu
+                // tidak ada jejak di struk. Tidak terbaca = "—" (B-14).
+                {
+                  label: "Biaya platform",
+                  value: invoice.fee ? formatRupiah(invoice.fee.platformFee) : "—",
+                },
               ]}
               onCopyNumber={(n) => void copy(n)}
               onDownload={() => void handleDownload(invoice.order.id, invoice.invoiceNumber)}

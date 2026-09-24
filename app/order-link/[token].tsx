@@ -10,7 +10,7 @@ import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { api, type OrderLink, userMessage } from "@/lib/api"
+import { api, isApiError, type OrderLink, userMessage } from "@/lib/api"
 import { formatDateTimeWIB } from "@/lib/format"
 import { orderLinkStatus } from "@/lib/order-link-labels"
 import { goBackOrNavigate } from "@/lib/navigation"
@@ -45,7 +45,16 @@ export default function OrderLinkScreen() {
    */
   const query = useApiQuery<OrderLink>(
     `order-link:${token}`,
-    (signal) => api.orders.getOrderLink(token, signal),
+    // M-38 (audit end-to-end, issue #27/#28): pratinjau `previewOrderLink`
+    // (deeplink publik `auth:"none"`, F-01) adalah pintu UTAMA — dulu layar
+    // memanggil `getOrderLink` (auth) terus sehingga fungsi publik MATI dan
+    // penerima tanpa sesi tidak bisa memuat halaman sama sekali. `getOrderLink`
+    // tetap cadangan bila deeplink nonaktif di server.
+    (signal) =>
+      api.orders.previewOrderLink(token, signal).catch((err: unknown) => {
+        if (isApiError(err) && err.code === "ABORTED") throw err
+        return api.orders.getOrderLink(token, signal)
+      }),
     Boolean(token),
   )
   const link = query.data
@@ -81,10 +90,20 @@ export default function OrderLinkScreen() {
     if (!link) return
     setDeclining(true)
     try {
-      await api.orders.cancelOrderLink(link.token)
-      toast.show({ title: "Tautan ditolak", tone: "success", duration: 3000 })
+      // M-37 (audit end-to-end, issue #30): hasil `cancelOrderLink` (D-12)
+      // dipakai — dulu dibuang dan status dipaksa "CANCELLED" + toast "Tautan
+      // ditolak" apa pun jawaban server.
+      const res = await api.orders.cancelOrderLink(link.token)
+      const confirmed = (res.status ?? "CANCELLED") as OrderLink["status"]
+      query.setData((current) => (current ? { ...current, status: confirmed } : current))
+      toast.show({
+        title: confirmed === "CANCELLED" ? "Tautan ditolak" : "Penolakan dikirim",
+        description:
+          confirmed === "CANCELLED" ? undefined : "Server melaporkan status lain — periksa tautan.",
+        tone: confirmed === "CANCELLED" ? "success" : "info",
+        duration: 3000,
+      })
       setDeclineOpen(false)
-      query.setData((current) => (current ? { ...current, status: "CANCELLED" } : current))
     } catch (err: unknown) {
       toast.show({ title: "Gagal menolak tautan", description: userMessage(err), tone: "danger" })
       setDeclineOpen(false)
@@ -93,7 +112,20 @@ export default function OrderLinkScreen() {
     }
   }, [link, toast.show])
 
-  const active = link?.status === "ACTIVE"
+  // M-39 (audit end-to-end, issue #32): status ASING/tak dikenal tidak diam-diam
+  // menghilangkan tombol Terima/Tolak — hanya status final yang pasti yang
+  // mematikannya; selain itu tawarkan aksi + tombol muat ulang sudah ada di
+  // PullToRefresh.
+  const KNOWN_FINAL: ReadonlySet<string> = new Set([
+    "ACCEPTED",
+    "CANCELLED",
+    "EXPIRED",
+    "COMPLETED",
+    "USED",
+    "REJECTED",
+  ])
+  const active =
+    link != null && (link.status === "ACTIVE" || !KNOWN_FINAL.has(link.status))
 
   return (
     <Screen edges={["top"]} padded={false}>

@@ -232,6 +232,31 @@ export function parseErrorBody(body: unknown): {
   return { message, backendCode, validationMessages }
 }
 
+/**
+ * M-35 (audit end-to-end 2026-09-24, issue #81): petakan kode mentah backend
+ * (`code`/`errorCode`/`error_code`) ke `ApiErrorCode` yang dikenal sistem —
+ * dipakai `unwrapResponse` untuk klasifikasi `success:false` tanpa kunci error.
+ * Kode tak dikenal → `undefined` (pemanggil memakai BAD_REQUEST/VALIDATION).
+ */
+export function codeFromBackend(backendCode: string | undefined): ApiErrorCode | undefined {
+  if (!backendCode) return undefined
+  const k = backendCode.toUpperCase().replace(/[^A-Z0-9]+/g, "_")
+  // Urutan penting: "INVALID_TOKEN" mengandung "VALID" — cek sesi dulu.
+  if (
+    k.includes("UNAUTHORIZED") ||
+    k.includes("INVALID_TOKEN") ||
+    k.includes("TOKEN_EXPIRED") ||
+    k.includes("SESSION_EXPIRED")
+  )
+    return "UNAUTHORIZED"
+  if (k.includes("FORBIDDEN") || k.includes("KYC")) return "FORBIDDEN"
+  if (k.includes("NOT_FOUND") || k === "NO_SUCH_ENTITY") return "NOT_FOUND"
+  if (k.includes("CONFLICT") || k.includes("ALREADY") || k.includes("DUPLICATE")) return "CONFLICT"
+  if (k.includes("TIMEOUT") || k.includes("TIMED_OUT")) return "TIMEOUT"
+  if (k.includes("VALID")) return "VALIDATION"
+  return undefined
+}
+
 export function codeFromStatus(status: number, hasValidationMessages: boolean): ApiErrorCode {
   if (status === 400) return hasValidationMessages ? "VALIDATION" : "BAD_REQUEST"
   if (status === 401) return "UNAUTHORIZED"

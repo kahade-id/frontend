@@ -240,6 +240,19 @@ export function getPendingActionsSnapshot(): readonly PendingAction[] {
   return actions
 }
 
+/**
+ * M-09 (audit end-to-end 2026-09-24, issue #12): penolak nadi yang ringan —
+ * "masih ada aksi `kind` ini yang hidup?" tanpa subscribe. Dipakai layar yang
+ * harus mencegah tindakan kedua selagi yang pertama belum jelas nasibnya
+ * (mis. membuat order baru selagi QRIS pembayaran lama masih menggantung).
+ * Sekali jalan dengan `isActivePendingAction` versi rumah: basi ikut dihitung
+ * mati.
+ */
+export function hasPendingLive(kind: PendingAction["kind"]): boolean {
+  const now = serverNow()
+  return actions.some((action) => action.kind === kind && !isStale(action, now))
+}
+
 const EMPTY: readonly PendingAction[] = []
 
 /** Hook daftar aksi menggantung (sudah disaring basi saat load). */

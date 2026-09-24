@@ -15,6 +15,7 @@
  *                akun ditangguhkan. Tombol lanjut TIDAK dirender.
  *   - found    : Avatar + nama + @handle + Badge KYC + stat (transaksi, rating)
  *                + peringatan (`warnings`) bila ada + tombol "Gunakan".
+ *   - error    : jaringan/PARSE saat memeriksa — BUKAN vonis; ajak coba lagi.
  *
  * Keputusan non-obvious:
  *   - `isSelf` (mengetik username sendiri) diperlakukan seperti `blocked`
@@ -40,13 +41,15 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 
-export type CounterpartState = "loading" | "notFound" | "blocked" | "self" | "found"
+export type CounterpartState = "loading" | "notFound" | "blocked" | "self" | "error" | "found"
 
 export type CounterpartLabels = {
   notFound: string
   notFoundHint: string
   blocked: string
   blockedHint: string
+  error: string
+  errorHint: string
   self: string
   selfHint: string
   verified: string
@@ -77,6 +80,8 @@ const DEFAULT_LABELS: CounterpartLabels = {
   notFoundHint: "Periksa kembali username atau nomor HP yang Anda masukkan.",
   blocked: "Tidak dapat bertransaksi",
   blockedHint: "Pengguna ini tidak tersedia untuk transaksi dengan Anda.",
+  error: "Gagal memeriksa",
+  errorHint: "Koneksi bermasalah — status lawan transaksi belum pasti. Ketuk untuk mencoba lagi.",
   self: "Ini akun Anda sendiri",
   selfHint: "Masukkan username lawan transaksi, bukan milik Anda.",
   verified: "Terverifikasi",
@@ -102,6 +107,11 @@ export function CounterpartValidationCard({
   ...rest
 }: CounterpartValidationCardProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
+  // M-57 (audit end-to-end 2026-09-24, issue #104): alasan dari server
+  // DIBATASI tampilannya (280 karakter + elipsis) — dulu teks mentah berapa
+  // pun panjangnya mengalir ke kartu (pesan validasi bisa berupa larik raksasa).
+  const reasonText =
+    typeof reason === "string" && reason.length > 280 ? `${reason.slice(0, 280)}…` : reason
 
   if (state === "loading") {
     return (
@@ -121,7 +131,9 @@ export function CounterpartValidationCard({
         ? { icon: UserCircleMinus, variant: "warning" as const, title: t.notFound, hint: t.notFoundHint }
         : state === "self"
           ? { icon: UserSwitch, variant: "warning" as const, title: t.self, hint: t.selfHint }
-          : { icon: Prohibit, variant: "danger" as const, title: t.blocked, hint: reason ?? t.blockedHint }
+          : state === "error"
+            ? { icon: Prohibit, variant: "warning" as const, title: t.error, hint: reasonText ?? t.errorHint }
+            : { icon: Prohibit, variant: "danger" as const, title: t.blocked, hint: reasonText ?? t.blockedHint }
 
     return (
       <Card

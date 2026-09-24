@@ -72,6 +72,15 @@ export type ListOrdersQuery = {
   status?: string
   role?: "BUYER" | "SELLER" | "ALL"
   search?: string
+  /**
+   * I-05 (audit end-to-end): spek `GET /v1/orders` menyediakan filter rentang
+   * (`from`/`to`) dan urutan (`sortBy`/`sortOrder`) yang dulu tidak diekspos
+   * klien sama sekali. String tanggal ISO; opsional.
+   */
+  from?: string
+  to?: string
+  sortBy?: string
+  sortOrder?: "ASC" | "DESC"
 }
 
 /** Query paginasi wajib (`page!`, `limit!`). */
@@ -228,6 +237,11 @@ export const ORDER_STATUS_FILTERS = [
   "COMPLETED",
   "DISPUTED",
   "CANCELLED",
+  // M-53 (audit end-to-end 2026-09-24, issue #77): `REFUNDED`/`EXPIRED` ADA di
+  // `OrderStatusFilter` dan enum backend — dulu tidak punya chip, transaksi
+  // yang direfund/kedaluwarsa tidak bisa difilter.
+  "REFUNDED",
+  "EXPIRED",
 ] as const satisfies readonly OrderStatus[]
 
 /**
@@ -297,6 +311,15 @@ export type Order = {
   description: string
   orderType: OrderType
   status: OrderStatus
+  /**
+   * I-03 (audit end-to-end 2026-09-24): status SEBELUM alias A-08 dipetakan.
+   * Gerbang aksi legacy (`canProcess` yang hanya berlaku di backend lama saat
+   * status masih `PAID`) tidak bisa dibedakan dari `PROCESSING` hasil mapping
+   * `PAID → PROCESSING` — tanpa jejak ini tombol "Mulai proses" (`POST
+   * /orders/{id}/process`) mustahil muncul untuk backend legacy. Hanya untuk
+   * LOGIKA gerbang; tampilan tetap memakai `status`.
+   */
+  rawStatus?: string
   orderValue: number
   feeResponsibility: FeeResponsibility
   deliveryDeadlineDays: number
@@ -318,6 +341,14 @@ export type Order = {
   voucherCode?: string | null
   /** A-03: pembayaran sudah masuk (penanda "WAITING_PAYMENT sudah dibayar"). */
   paidAt?: string | null
+  /**
+   * M-49 (audit end-to-end, issue #67): penanda order SUDAH dinilai — dipakai
+   * guard anti-rating-ganda di `app/rate/[orderId].tsx`. Whitelist normalize
+   * tanpa field ini membuat guard mustahil aktif (user bisa kirim ulasan dua
+   * kali). Boolean strict (pickBoolean) — bukan truthy string.
+   */
+  rated?: boolean
+  isRated?: boolean
   createdAt: string
   updatedAt?: string
 }
@@ -406,7 +437,12 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
   const status = (hasOwn(LEGACY_STATUS_ALIASES, rawStatus)
     ? LEGACY_STATUS_ALIASES[rawStatus]
     : rawStatus) as OrderStatus
-  const orderValue = toAmount(record.orderValue ?? record.order_value ?? record.value) ?? 0
+  const orderValueRaw = record.orderValue ?? record.order_value ?? record.value
+  // I-04 (audit end-to-end): nilai uang yang ADA tapi tidak sah (desimal/NaN)
+  // TIDAK lagi dijadikan 0 diam-diam — angka palsu di kartu order adalah
+  // cacat nominal. Tidak ada = 0 (daftar lama yang memang mengosongkan).
+  const orderValue = orderValueRaw == null ? 0 : toAmount(orderValueRaw)
+  if (orderValue === undefined) throw invalidResponse("order.orderValue")
   const deliveryDeadlineDays =
     toAmount(record.deliveryDeadlineDays ?? record.delivery_deadline_days) ?? 0
   return {
@@ -415,6 +451,7 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     description: typeof record.description === "string" ? record.description : "",
     orderType: (pickString(record, ["orderType", "order_type"]) ?? "OTHER") as OrderType,
     status,
+    rawStatus: rawStatus || undefined,
     orderValue,
     feeResponsibility: (pickString(record, [
       "feeResponsibility",
@@ -430,6 +467,10 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     courierName: optionalText(record.courierName ?? record.courier_name),
     voucherCode: pickString(record, ["voucherCode", "voucher_code", "voucher"]) ?? null,
     paidAt: pickString(record, ["paidAt", "paid_at"]) ?? null,
+    // M-49 (audit end-to-end, issue #67): penanda sudah-dinilai DIPERTAHANKAN
+    // (boolean strict) — guard rating ganda di layar bergantung padanya.
+    rated: pickBoolean(record, ["rated", "is_rated", "alreadyRated", "already_rated"]) ?? undefined,
+    isRated: pickBoolean(record, ["isRated", "is_rated"]) ?? undefined,
     createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
     updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : undefined,
   }
@@ -458,6 +499,13 @@ export type CounterpartValidation = {
    * transaksi". Layar memetakan ini ke state `notFound`, bukan `blocked`.
    */
   notFound?: boolean
+  /**
+   * I-02 (audit end-to-end 2026-09-24): respons TANPA sinyal apa pun (objek
+   * kosong/null setelah dibuka) — status pemeriksaan TIDAK DIKETAHUI. Versi
+   * lama memaksanya menjadi `notFound` ("user tidak ditemukan") yang tetap
+   * sebuah vonis; layar memetakan flag ini ke state "error" (coba lagi).
+   */
+  unknown?: boolean
 }
 
 /**
@@ -526,13 +574,19 @@ export function normalizeCounterpartValidation(raw: unknown): CounterpartValidat
    * mengklasifikasikan `{valid:false, reason:"Anda diblokir oleh pengguna ini"}`
    * sebagai "tidak ditemukan" — alasan asli dibuang dan pengguna dituduh salah
    * mengetik username. `valid:false` + `reason` = terblokir, dengan alasan
-   * ditampilkan; respons tanpa apa pun sama sekali tetap "tidak ditemukan".
+   * ditampilkan.
+   *
+   * I-02 (audit end-to-end): respons tanpa APA PUN sinyal kini `unknown: true`
+   * (status tidak diketahui → layar "coba lagi"), bukan `notFound` — versi
+   * lama memaksakan vonis "user tidak ditemukan" untuk objek kosong.
    */
+  const noSignals =
+    explicit === undefined && !userRecord && !blocked && !statusBlocked && !reason
   const notFound =
     notFoundFlag === true ||
     userExists === false ||
     status === "NOT_FOUND" ||
-    (explicit === undefined && !userRecord && !blocked && !statusBlocked && !reason)
+    (noSignals ? false : false)
 
   const id = userRecord ? pickUserId(userRecord) : ""
   const user =
@@ -554,6 +608,7 @@ export function normalizeCounterpartValidation(raw: unknown): CounterpartValidat
     user,
     reason,
     notFound: notFound || undefined,
+    unknown: noSignals || undefined,
   }
 }
 
@@ -589,6 +644,13 @@ export type PaymentStatus = {
    * tidak pernah berhenti untuk respons error/tak berbentuk).
    */
   status: "PENDING" | "PAID" | "EXPIRED" | "FAILED" | "UNKNOWN" | (string & {})
+  /**
+   * M-06 (audit end-to-end 2026-09-24): flag boolean hasil pembacaan strict
+   * (alias `is_paid|paid` / `is_expired|expired`, angka 0/1). `isPaid` juga
+   * true bila `status` sudah `PAID` — dipakai hook QRIS (issue #8).
+   */
+  isPaid?: boolean
+  isExpired?: boolean
   paidAt?: string | null
   method?: string | null
 }
@@ -660,6 +722,13 @@ export type OrderLink = {
 export type Invoice = {
   /** B-14: OPSIONAL — nomor asli dari server; klien TIDAK PERNAH mengarang nomor invoice. */
   invoiceNumber?: string
+  /**
+   * M-19 (audit end-to-end, issue #63/#66/#101): status & fee IKUT tipe —
+   * keduanya memang dihasilkan `normalizeInvoice` tapi hilang dari deklarasi,
+   * sehingga layar tidak bisa memakainya tanpa cast. `status` bisa "" (B-14).
+   */
+  status?: string
+  fee?: FeeBreakdown
   order: Order
   issuedAt: string
   items: Array<{ label: string; amount: number }>
@@ -739,7 +808,15 @@ export function listOrders(query: ListOrdersQuery = {}, signal?: AbortSignal) {
     .then((raw) => {
       const result = readPage<Order & Record<string, unknown>>(raw, page, ["orders"])
       const data = result.data
-        .map(normalizeOrder)
+        // I-04: baris dengan uang rusak ikut DIBUANG (prinsip D-11) — satu
+        // baris tak sah tidak boleh menjatuhkan seluruh daftar dengan PARSE.
+        .flatMap((item) => {
+          try {
+            return [normalizeOrder(item)]
+          } catch {
+            return []
+          }
+        })
         // D-11 (audit escrow 2026-09-24): baris tanpa id dibuang — dulu tampil
         // sebagai kartu valid yang setiap aksinya melempar `seg("")`.
         .filter((order) => order.id !== "")
@@ -750,7 +827,14 @@ export function listOrders(query: ListOrdersQuery = {}, signal?: AbortSignal) {
 export function getOrder(orderId: string, signal?: AbortSignal) {
   return http
     .get<unknown>(`/v1/orders/${seg(orderId)}`, { auth: "required", retry: 1, signal })
-    .then((raw) => normalizeOrder(readEntity<Order & Record<string, unknown>>(raw, "order")))
+    .then((raw) => {
+      const order = normalizeOrder(readEntity<Order & Record<string, unknown>>(raw, "order"))
+      // I-06: detail tanpa id bukan order yang sah — dulu tampil normal dengan
+      // `id: ""` sehingga setiap aksi di layar melempar "Identitas data tidak
+      // valid" (seg("")) di tengah jalan. Lebih jujur gagal di pintu masuk.
+      if (!order.id) throw invalidResponse("order.id")
+      return order
+    })
 }
 
 export function getOrdersSummary(signal?: AbortSignal) {
@@ -849,10 +933,13 @@ export function payOrder(orderId: string, dto: PayOrderDto, idempotencyKey?: str
   })
 }
 
-export function payOrderQris(orderId: string) {
+export function payOrderQris(orderId: string, idempotencyKey?: string) {
   return http
     .post<unknown>(`/v1/orders/${seg(orderId)}/pay-qris`, undefined, {
       auth: "required",
+      // I-07 (audit end-to-end): intent QRIS ganda = dua tagihan untuk satu
+    // order saat retry manual — kunci pemanggil (satu per sesi intent).
+      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
     })
     .then((raw) => {
       // D-05: dulu di-cast — `qrString` undefined dirender sebagai QR kosong.
@@ -920,8 +1007,12 @@ export function normalizePaymentStatus(raw: unknown): PaymentStatus {
   const expiredFlag = pick(["expired", "isExpired", "is_expired"])
   const failedFlag = pick(["failed", "isFailed", "is_failed"])
   const cancelledFlag = pick(["cancelled", "canceled", "isCancelled", "isCanceled"])
+  const deeper = asRecord(nested.payment) ?? asRecord(nested.transaction) ?? null
   const paidAt =
-    pickString(record, ["paidAt", "paid_at"]) ?? pickString(nested, ["paidAt", "paid_at"]) ?? null
+    pickString(record, ["paidAt", "paid_at"]) ??
+    pickString(nested, ["paidAt", "paid_at"]) ??
+    pickString(deeper, ["paidAt", "paid_at"]) ??
+    null
 
   let status = rawStatus?.toUpperCase()
   if (!status || status === "PENDING") {
@@ -935,6 +1026,11 @@ export function normalizePaymentStatus(raw: unknown): PaymentStatus {
 
   return {
     status: status as PaymentStatus["status"],
+    // M-06 (audit end-to-end, issue #8): field boolean diisi dari hasil
+    // pembacaan strict di atas (dulu `isPaid`/`isExpired` dijanjikan tipe tapi
+    // TIDAK PERNAH ikut return → `res.isPaid` selalu undefined di layar).
+    isPaid: paidFlag === true || status === "PAID",
+    isExpired: expiredFlag === true || status === "EXPIRED",
     paidAt,
     method: pickString(record, ["method", "paymentMethod"]) ?? pickString(nested, ["method"]) ?? null,
   }
@@ -946,25 +1042,30 @@ export function processOrder(orderId: string) {
 }
 
 export function updateShipping(orderId: string, dto: UpdateShippingDto) {
+  // I-09 (audit end-to-end): aturan generated (`trackingNumber` min 3,
+  // `courierName` min 2) ditegakkan di klien — dulu lolos ke jaringan dan
+  // kembali 400 di tengah alur kirim.
+  assertDtoConstraints(dto, API_CONSTRAINTS.UpdateShippingDto)
   return http.put<Order, UpdateShippingDto>(`/v1/orders/${seg(orderId)}/shipping`, dto, {
     auth: "required",
   })
 }
 
 /**
- * A-13 (audit escrow 2026-09-24): rilis dana kini punya SATU kontrak —
- * `ConfirmDeliveryDto` (opsional `proofId` berpola `^c[a-z0-9]{24}$`).
- * Versi lama `completeOrder` tanpa body dan `confirmDelivery({proofId})`
- * adalah dua jalur rilis escrow yang tidak konsisten; keduanya kini
- * memakai DTO yang sama sehingga bukti yang direview bisa disertakan.
+ * I-08 (audit end-to-end 2026-09-24): `POST /v1/orders/{id}/complete` di
+ * spesifikasi TANPA `requestBody` — komentar A-13 lama mengklaim rilis dana
+ * membawa `ConfirmDeliveryDto`, padahal body `{}`/`{proofId}` hanya sah di
+ * `/delivery-proof/confirm`. Kirim tanpa body mengikuti kontrak; validator
+ * strict backend tidak lagi berpeluang menolak rilis dana dengan 400.
  */
-export function completeOrder(orderId: string, dto: ConfirmDeliveryDto = {}) {
-  return http.post<Order, ConfirmDeliveryDto>(`/v1/orders/${seg(orderId)}/complete`, dto, {
+export function completeOrder(orderId: string) {
+  return http.post<Order>(`/v1/orders/${seg(orderId)}/complete`, undefined, {
     auth: "required",
   })
 }
 
 export function cancelOrder(orderId: string, dto: CancelOrderDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.CancelOrderDto)
   return http.post<Order, CancelOrderDto>(`/v1/orders/${seg(orderId)}/cancel`, dto, {
     auth: "required",
   })
@@ -1001,7 +1102,10 @@ export function getOrderHistory(orderId: string, query: PageQuery, signal?: Abor
           const item = asRecord(entry) ?? {}
           const toStatus = pickString(item, ["toStatus", "to_status", "status"]) ?? ""
           return {
-            id: pickString(item, ["id", "historyId"]) ?? `h-${index}-${toStatus}`,
+            // I-13: id sintetis memuat nomor halaman — indeks terulang tiap
+            // halaman membuat id `h-0-…` tabrakan saat digabung (kunci React +
+            // mergeById menimpa entri).
+            id: pickString(item, ["id", "historyId"]) ?? `h-${query.page}-${index}-${toStatus}`,
             fromStatus: (pickString(item, ["fromStatus", "from_status"]) ?? null) as OrderStatus | null,
             toStatus: toStatus as OrderStatus,
             actor: pickString(item, ["actor", "actorRole", "actor_role"]) ?? null,
@@ -1019,6 +1123,7 @@ export function getOrderHistory(orderId: string, query: PageQuery, signal?: Abor
 // ------------------------------------------------------------------
 
 export function requestExtension(orderId: string, dto: RequestExtensionDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.RequestExtensionDto)
   return http
     .post<unknown, RequestExtensionDto>(`/v1/orders/${seg(orderId)}/extensions`, dto, {
       auth: "required",
@@ -1043,7 +1148,12 @@ export function listExtensions(orderId: string, query: PageQuery, signal?: Abort
         "extensions",
         "requests",
       ])
-      return { ...page, data: page.data.map(normalizeOrderExtension) }
+      return {
+        ...page,
+        // I-10: entri tanpa id dibuang (prinsip D-11) — tombol Setujui/Tolak
+        // pada entri `id: ""` melempar `seg("")` "Identitas data tidak valid".
+        data: page.data.map(normalizeOrderExtension).filter((ext) => ext.id !== ""),
+      }
     })
 }
 
@@ -1061,6 +1171,7 @@ export function normalizeOrderExtension(raw: unknown): OrderExtension {
 }
 
 export function respondExtension(orderId: string, extensionId: string, dto: RespondExtensionDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.RespondExtensionDto)
   return http
     .put<unknown, RespondExtensionDto>(
       `/v1/orders/${seg(orderId)}/extensions/${seg(extensionId)}`,
@@ -1075,6 +1186,7 @@ export function respondExtension(orderId: string, extensionId: string, dto: Resp
 // ------------------------------------------------------------------
 
 export function submitDeliveryProof(orderId: string, dto: SubmitDeliveryProofDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.SubmitDeliveryProofDto)
   return http
     .post<unknown, SubmitDeliveryProofDto>(`/v1/orders/${seg(orderId)}/delivery-proof`, dto, {
       auth: "required",
@@ -1122,6 +1234,7 @@ export function normalizeDeliveryProof(raw: unknown): DeliveryProof {
 }
 
 export function confirmDelivery(orderId: string, dto: ConfirmDeliveryDto = {}) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.ConfirmDeliveryDto)
   return http.post<Order, ConfirmDeliveryDto>(
     `/v1/orders/${seg(orderId)}/delivery-proof/confirm`,
     dto,
@@ -1132,6 +1245,7 @@ export function confirmDelivery(orderId: string, dto: ConfirmDeliveryDto = {}) {
 }
 
 export function rejectDelivery(orderId: string, dto: RejectDeliveryDto) {
+  assertDtoConstraints(dto, API_CONSTRAINTS.RejectDeliveryDto)
   return http
     .post<unknown, RejectDeliveryDto>(`/v1/orders/${seg(orderId)}/delivery-proof/reject`, dto, {
       auth: "required",
@@ -1143,11 +1257,14 @@ export function rejectDelivery(orderId: string, dto: RejectDeliveryDto) {
 // Order via Link
 // ------------------------------------------------------------------
 
-export function createOrderLink(dto: CreateOrderLinkDto) {
+export function createOrderLink(dto: CreateOrderLinkDto, idempotencyKey?: string) {
   assertDtoConstraints(dto, API_CONSTRAINTS.CreateOrderLinkDto)
   assertValidAmount(dto.orderValue, AMOUNT_LIMITS.order)
   return http
-    .post<unknown, CreateOrderLinkDto>("/v1/orders/links", dto, { auth: "required" })
+    .post<unknown, CreateOrderLinkDto>("/v1/orders/links", dto, {
+      auth: "required",
+      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+    })
     .then((raw) => normalizeOrderLink(raw))
 }
 
@@ -1167,7 +1284,18 @@ export function listMyOrderLinks(query: PageQuery, signal?: AbortSignal) {
         "links",
         "orderLinks",
       ])
-      return { ...page, data: page.data.map(normalizeOrderLink) }
+      // I-04: baris rusak dibuang per-entri (prinsip D-11) — bukan menjatuhkan
+      // seluruh daftar tautan.
+      return {
+        ...page,
+        data: page.data.flatMap((item) => {
+          try {
+            return [normalizeOrderLink(item)]
+          } catch {
+            return []
+          }
+        }),
+      }
     })
 }
 
@@ -1183,7 +1311,23 @@ export function normalizeOrderLink(raw: unknown): OrderLink {
   const nested = asRecord(item.link) ?? asRecord(item.data) ?? item
   const token = pickString(nested, ["token", "linkToken", "link_token", "slug"])
   if (!token) throw invalidResponse("order-link.token")
-  const orderValue = toAmount(nested.orderValue ?? nested.order_value ?? nested.value)
+  const orderValueRaw = nested.orderValue ?? nested.order_value ?? nested.value
+  // I-04 (audit end-to-end): nilai tautan yang ADA tapi tidak sah = PARSE —
+  // dulu jatuh `?? 0` dan tautan dibagikan menampilkan "Rp0".
+  const orderValue = orderValueRaw == null ? 0 : toAmount(orderValueRaw)
+  if (orderValue === undefined) throw invalidResponse("order-link.orderValue")
+  // I-11: `creator` dulu sengaja di-drop (`creator: undefined`) sehingga kartu
+  // pratinjau selalu menampilkan "—" meski backend mengirim pihak pembuat.
+  const creatorRecord =
+    asRecord(nested.creator) ?? asRecord(nested.user) ?? asRecord(nested.createdBy)
+  const creator = creatorRecord
+    ? {
+        id: String(creatorRecord.id ?? creatorRecord.userId ?? ""),
+        username: typeof creatorRecord.username === "string" ? creatorRecord.username : "",
+        fullName: typeof creatorRecord.fullName === "string" ? creatorRecord.fullName : undefined,
+        avatarUrl: typeof creatorRecord.avatarUrl === "string" ? creatorRecord.avatarUrl : null,
+      }
+    : undefined
   return {
     token,
     url: pickString(nested, ["url", "linkUrl", "shareUrl"]) ?? undefined,
@@ -1191,14 +1335,14 @@ export function normalizeOrderLink(raw: unknown): OrderLink {
     title: pickString(nested, ["title", "name"]) ?? "",
     description: pickString(nested, ["description", "detail"]) ?? "",
     orderType: (pickString(nested, ["orderType", "order_type"]) ?? "OTHER") as OrderType,
-    orderValue: orderValue ?? 0,
+    orderValue,
     deliveryDeadlineDays: toAmount(nested.deliveryDeadlineDays ?? nested.delivery_deadline_days) ?? 0,
     feeResponsibility: (pickString(nested, ["feeResponsibility", "fee_responsibility"]) ??
       "SPLIT") as FeeResponsibility,
     counterpartUsername:
       pickString(nested, ["counterpartUsername", "counterpart_username", "counterpart"]) ?? null,
     status: (pickString(nested, ["status", "state"]) ?? "ACTIVE") as OrderLink["status"],
-    creator: undefined,
+    creator,
     orderId: pickString(nested, ["orderId", "order_id"]) ?? null,
     expiresAt: pickString(nested, ["expiresAt", "expires_at"]) ?? null,
     createdAt: pickString(nested, ["createdAt", "created_at"]) ?? "",
@@ -1357,16 +1501,23 @@ export function normalizeInvoice(raw: unknown, orderId: string): Invoice {
   )
 
   const rawItems = pick("items", "lines", "details", "breakdown")
-  const items = (Array.isArray(rawItems) ? rawItems : []).map((entry, index) => {
+  // I-12 (audit end-to-end): item dengan nominal ADA tapi tidak sah (desimal)
+  // DIBUANG — dulu dijadikan `0` sehingga struk resmi menampilkan baris
+  // "Rp0" yang tidak pernah ada. Item tanpa nominal sama sekali tetap masuk
+  // dengan 0 (baris keterangan non-harga).
+  const items = (Array.isArray(rawItems) ? rawItems : []).flatMap((entry, index) => {
     const item = asRecord(entry) ?? {}
-    return {
-      label:
-        firstString(item.label ?? item.title ?? item.name ?? item.description) ??
-        `Item ${index + 1}`,
-      // B-09: item non-integer dianggap tidak ada (0) — nilai desimal tidak
-      // boleh beredar di struk yang dibaca sebagai dokumen finansial.
-      amount: toAmount(item.amount ?? item.value ?? item.price ?? item.total ?? item.subtotal) ?? 0,
-    }
+    const amountRaw = item.amount ?? item.value ?? item.price ?? item.total ?? item.subtotal
+    const amount = amountRaw == null ? 0 : toAmount(amountRaw)
+    if (amount === undefined) return []
+    return [
+      {
+        label:
+          firstString(item.label ?? item.title ?? item.name ?? item.description) ??
+          `Item ${index + 1}`,
+        amount,
+      },
+    ]
   })
 
   const total =
@@ -1396,7 +1547,10 @@ export function normalizeInvoice(raw: unknown, orderId: string): Invoice {
           createdAt: issuedAt,
         }
 
-  if (!invoiceNumber && items.length === 0 && total === 0) throw invalidResponse("invoice")
+  // I-12: kepekaan "menyerupai invoice" ditambah jejak `order`/`issuedAt` —
+  // dulu struk tanpa baris item & total 0 langsung PARSE meski datanya lengkap.
+  if (!invoiceNumber && items.length === 0 && total === 0 && !orderRecord && !issuedAt)
+    throw invalidResponse("invoice")
 
   return {
     // B-14 (audit escrow 2026-09-24): nomor invoice TIDAK PERNAH dikarang

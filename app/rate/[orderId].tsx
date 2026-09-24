@@ -3,13 +3,14 @@
  * Memakai <RatingForm> sistem: bintang + komentar, dipicu dari Detail Order
  * saat status COMPLETED.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Star } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
+import { readMyRatings } from "@/lib/api/ratings"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -67,6 +68,10 @@ export default function RateOrderScreen() {
           description: userMessage(err),
           tone: "danger",
         })
+      } finally {
+        // M-50 (audit end-to-end, issue #69): `setSubmitting(false)` di `finally`
+        // — dulu hanya di `catch`; jalur sukses mengandalkan unmount yang tidak
+        // terjadi bila navigasi tertahan.
         setSubmitting(false)
       }
     },
@@ -74,6 +79,39 @@ export default function RateOrderScreen() {
   )
 
   const counterpart = order?.myRole === "SELLER" ? order?.buyer : order?.seller
+
+  /**
+   * M-51 (audit end-to-end, issue #68): dedupe LEWAT daftar ulasan milik user
+   * (`getMyRatings`) — flag `rated`/`isRated` di payload order tidak selalu
+   * dikirim backend; tanpa jalur kedua ini pengguna tetap bisa mengirim ulasan
+   * dua kali saat flag hilang. Gagal memuat daftar = biarkan flag order yang
+   * memutuskan (jangan menghalangi user karena jaringan).
+   */
+  const [ratedByList, setRatedByList] = useState<boolean | null>(null)
+  useEffect(() => {
+    if (!orderId) return
+    let cancelled = false
+    void api.ratings
+      .getMyRatings({ page: 1, limit: 50 })
+      .then((res) => {
+        if (cancelled) return
+        // Bentuk respons my-ratings beragam (array polos / {data} / {given,
+        // received}) — `readMyRatings` yang menyatukan, bukan akses `.data`
+        // langsung yang nihil untuk bentuk array.
+        const rows = readMyRatings(res).items as Array<{ orderId?: unknown }>
+        setRatedByList(rows.some((r) => r.orderId === orderId))
+      })
+      .catch(() => {
+        if (!cancelled) setRatedByList(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [orderId])
+  const alreadyRated =
+    Boolean((order as { rated?: boolean } | null)?.rated) ||
+    Boolean((order as { isRated?: boolean } | null)?.isRated) ||
+    ratedByList === true
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -102,10 +140,9 @@ export default function RateOrderScreen() {
             title="Pesanan belum selesai"
             description="Ulasan hanya bisa diberikan setelah pesanan berstatus selesai."
           />
-        ) : (order as { rated?: boolean; isRated?: boolean }).rated ||
-          (order as { isRated?: boolean }).isRated ? (
-          // H-07: satu order satu ulasan — yang sudah dinilai tidak menampilkan
-          // form kedua (server menolak duplikat).
+        ) : alreadyRated ? (
+          // H-07 + M-51: satu order satu ulasan — flag order ATAU daftar
+          // ulasan milik user (yang mana pun terbaca) mematikan form kedua.
           <EmptyState
             icon={Star}
             title="Sudah dinilai"

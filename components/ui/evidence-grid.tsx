@@ -59,6 +59,21 @@ export function isImageEvidence(mime: string): boolean {
   return isImageMime(mime)
 }
 
+/**
+ * M-21 (audit end-to-end, issue #57): resolver tipe-MIME dengan alias —
+ * dulu `item.mimeType` dibaca mentah; backend yang mengirim `fileType`/
+ * `mime_type` membuat foto bukti dirender sebagai tile "PDF". Tipe-MIME
+ * tidak dikenal tetap jatuh ke tile dokumen (lebih aman daripada klaim gambar).
+ */
+export function resolveEvidenceMime(item: EvidenceItem | Record<string, unknown>): string {
+  const r = item as Record<string, unknown>
+  for (const key of ["mimeType", "fileType", "mime_type", "mime", "contentType", "content_type"]) {
+    const value = r[key]
+    if (typeof value === "string" && value) return value
+  }
+  return ""
+}
+
 export type EvidenceGridLabels = {
   you: string
   add: string
@@ -85,7 +100,7 @@ export type EvidenceTileProps = Omit<ViewProps, "children"> & {
 
 export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels, className, ...rest }: EvidenceTileProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
-  const isImage = isImageEvidence(item.mimeType)
+  const isImage = isImageEvidence(resolveEvidenceMime(item))
   const owner = item.mine ? t.you : item.uploaderName
   const showRemove = item.mine && canDelete && !!onRemove
 

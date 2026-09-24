@@ -545,6 +545,11 @@ export function formatDateTime(
  */
 export function formatDateTimeWIB(d: Date | number | string): string {
   const date = displayDateWib(d)
+  // M-15 (audit end-to-end, issue #93): data KOSONG = "—" TANPA label zona —
+  // dulu `formatDateTimeWIB("")` merender "— WIB", label zona untuk data yang
+  // tidak ada. Input non-kosong yang TIDAK VALID tetap "— WIB" (I-07 terkunci
+  // tests/format.test.ts: baris rusak dibedakan dari baris tanpa tanggal).
+  if (d == null || d === "") return "—"
   if (!date) return `— ${getLanguage() === "en" ? "UTC+7" : "WIB"}`
   /*
    * G-08 (audit 2026-09-22): kalender diambil lewat `zonedParts` (bukan

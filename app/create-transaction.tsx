@@ -44,6 +44,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
   api,
   isApiError,
+  createIdempotencyKey,
   userMessage,
   type CreateOrderDto,
   type CreateOrderLinkDto,
@@ -271,7 +272,15 @@ export default function CreateTransactionScreen() {
    */
   const [kycReason, setKycReason] = useState<string | null>(null)
   const submitLock = useRef(false)
-  const feeKey = JSON.stringify([orderValue, feeResponsibility, role, voucher?.code])
+  /**
+   * M-08 (audit end-to-end, issue #1/#4/#102): satu `Idempotency-Key` per
+   * SIKLUS submit — ditahan saat kegagalan tak pasti (order/link MUNGKIN sudah
+   * terbuat), di-reset setelah sukses/gagal pasti. Dulu `createOrder(dto)`
+   * tanpa kunci → PARSE/timeout setelah order terbentuk + submit ulang =
+   * order GANDA.
+   */
+  const submitKeyRef = useRef<string | null>(null)
+  const feeKey = JSON.stringify([orderValue, feeResponsibility, role, voucher?.code, voucher?.discount])
   const draft = useRef({ feeKey, counterpart: counterpart.trim() })
   draft.current = { feeKey, counterpart: counterpart.trim() }
   const [confirmedFeeKey, setConfirmedFeeKey] = useState<string | null>(null)
@@ -337,7 +346,17 @@ export default function CreateTransactionScreen() {
       // transaksi). Sebelum normalizer di lib/api/orders.ts, bentuk respons yang
       // namanya berbeda membuat `res.valid` undefined dan SEMUA lawan transaksi
       // jatuh ke "blocked" — pengguna dituduh memblokir/diblokir padahal tidak.
-      setCounterpartState(res.valid ? "found" : res.notFound ? "notFound" : "blocked")
+      // I-02 (audit end-to-end): `unknown` (respons tanpa sinyal apa pun) juga
+      // BUKAN vonis — dulu ikut jatuh "blocked"/"notFound" yang menuduh.
+      setCounterpartState(
+        res.valid
+          ? "found"
+          : res.unknown
+            ? "error"
+            : res.notFound
+              ? "notFound"
+              : "blocked",
+      )
       setCounterpartReason(res.reason)
       setCounterpartName(res.user?.fullName ?? q)
       setCounterpartUsername(res.user?.username ?? q)
@@ -358,7 +377,11 @@ export default function CreateTransactionScreen() {
     } catch (error) {
       if (draft.current.counterpart !== q) return
       setConfirmedCounterpart(null)
-      setCounterpartState("blocked")
+      // I-02 (audit end-to-end): jaringan/timeout/PARSE BUKAN "diblokir".
+      // Versi lama menuduh pengguna memblokir/diblokir setiap kali koneksi
+      // drop — vonis salah yang membatalkan transaksi. State `error` mengajak
+      // mencoba lagi tanpa menyimpulkan apa pun tentang lawan transaksi.
+      setCounterpartState("error")
       setCounterpartWarnings([userMessage(error)])
     }
   }, [counterpart])
@@ -395,8 +418,17 @@ export default function CreateTransactionScreen() {
           discount: Number.isFinite(v?.discountValue) ? v?.discountValue : undefined,
           title: v?.title,
         })
-      } catch {
-        setVoucherError("Kode voucher tidak berlaku.")
+      } catch (err) {
+        // M-26 (audit end-to-end, issue #18): "Voucher tidak valid" HANYA untuk
+        // penolakan pasti server. PARSE/jaringan = pemeriksaan gagal — voucher
+        // bisa saja sah; jangan menghakimi kodenya.
+        const uncertain =
+          !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
+        setVoucherError(
+          uncertain
+            ? "Gagal memeriksa voucher — periksa koneksi, lalu coba lagi."
+            : "Kode voucher tidak berlaku.",
+        )
       } finally {
         setApplyingVoucher(false)
       }
@@ -423,7 +455,11 @@ export default function CreateTransactionScreen() {
           ...base,
           counterpartUsername: counterpart.trim() || undefined,
         }
-        const link = await api.orders.createOrderLink(dto)
+        const link = await api.orders.createOrderLink(
+          dto,
+          submitKeyRef.current ?? (submitKeyRef.current = createIdempotencyKey()),
+        )
+        submitKeyRef.current = null
         toast.show({
           title: "Order Link dibuat",
           description: "Bagikan tautan ke lawan transaksi.",
@@ -438,7 +474,11 @@ export default function CreateTransactionScreen() {
         counterpartUsername: counterpart.trim(),
         voucherCode: voucher?.code,
       }
-      const order = await api.orders.createOrder(dto)
+      const order = await api.orders.createOrder(
+        dto,
+        submitKeyRef.current ?? (submitKeyRef.current = createIdempotencyKey()),
+      )
+      submitKeyRef.current = null
       toast.show({
         title: "Transaksi dibuat",
         description: "Menunggu konfirmasi lawan transaksi.",
@@ -450,10 +490,28 @@ export default function CreateTransactionScreen() {
       if (isApiError(err) && err.backendCode === "KYC_REQUIRED") {
         setKycReason(kycReasonMessage(err.message))
       } else {
+        // M-27 (audit end-to-end, issue #102): gagal tak pasti (PARSE/timeout
+        // SETELAH objek terbentuk di server) menahan kunci submit + memakai
+        // pesan "mungkin sudah dibuat" — dulu "Gagal membuat transaksi" mutlak
+        // mendorong submit ulang = order/link ganda.
+        const uncertain =
+          !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
+        if (!uncertain) submitKeyRef.current = null
+        // String literal penuh (kunci i18n = teks sumber; jangan rakit dinamis).
         toast.show({
-          title: mode === "link" ? "Gagal membuat Order Link" : "Gagal membuat transaksi",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
+          title: uncertain
+            ? mode === "link"
+              ? "Order Link mungkin sudah dibuat"
+              : "Transaksi mungkin sudah dibuat"
+            : mode === "link"
+              ? "Gagal membuat Order Link"
+              : "Gagal membuat transaksi",
+          description: uncertain
+            ? "Koneksi terputus di tengah pemeriksaan server — periksa daftar transaksi sebelum mengirim ulang."
+            : isApiError(err)
+              ? userMessage(err)
+              : undefined,
+          tone: uncertain ? "warning" : "danger",
         })
       }
     } finally {
@@ -499,9 +557,18 @@ export default function CreateTransactionScreen() {
               dulu baru muncul di langkah terakhir, pengguna mengisi 3 langkah
               tanpa tahu fee tidak bisa dihitung. */}
           {feeError ? (
-            <Text variant="caption" tone="danger">
-              Biaya belum terkonfirmasi: {feeError}. Tarik untuk memuat ulang.
-            </Text>
+            <View className="gap-1">
+              <Text variant="caption" tone="danger">
+                Biaya belum terkonfirmasi: {feeError}. Tarik untuk memuat ulang.
+              </Text>
+              {/* M-24 (audit end-to-end, issue #20): jalan keluar TERLIHAT —
+                  dulu satu-satunya pemulihan adalah gestur tarik-untuk-muat-ulang
+                  yang tidak disebut tombol mana pun; "Lanjut" terasa terkunci
+                  permanen setelah calculate-fee gagal (jaringan). */}
+              <Button variant="ghost" size="sm" loading={feeLoading} onPress={() => void refreshFee()}>
+                Hitung ulang biaya
+              </Button>
+            </View>
           ) : null}
           <ButtonGroup>
             {step > 0 ? (
@@ -703,6 +770,12 @@ export default function CreateTransactionScreen() {
                   feeResponsibility={feeResponsibility}
                   role={role === "BUYER" ? "BUYER" : "SELLER"}
                   discountAmount={fee.discount ?? voucher?.discount}
+                  // M-25 (audit end-to-end, issue #15): angka SERVER (B-01)
+                  // diteruskan — dulu hanya detail order yang memakai
+                  // buyerPays/sellerGets server; preview create-order memakai
+                  // fallback lokal terus sehingga voucher SPLIT salah hitung.
+                  buyerPays={fee.buyerPays}
+                  sellerGets={fee.sellerReceives}
                   loading={feeLoading}
                 />
               ) : (

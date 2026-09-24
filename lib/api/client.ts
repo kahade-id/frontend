@@ -405,8 +405,17 @@ export function request<TResponse = unknown, TBody = undefined>(
  * cache GET aplikasi dan memicu request beruntun di tab lain. Keduanya kini
  * diecualikan secara eksplisit; mutasi state order (pay, process, cancel, …)
  * tetap menyapu cache.
+ *
+ * I-01 (audit escrow end-to-end 2026-09-24): resolusi bersama sengketa
+ * (`/v1/disputes/{id}/mutual-resolution[/…]`) MEMBELAH dana escrow saat
+ * diterima (respond ACCEPT) — mutasi uang sejati yang dulu tidak tercakup
+ * pola mana pun sehingga saldo/holdBalance tetap basi setelah pembagian dana.
  */
-const MONEY_MUTATION_PATTERNS = [/^\/v1\/wallet\/(?:topup|withdraw|transfer)(?:\/|$)/, /^\/v1\/orders(?:\/|$)/]
+const MONEY_MUTATION_PATTERNS = [
+  /^\/v1\/wallet\/(?:topup|withdraw|transfer)(?:\/|$)/,
+  /^\/v1\/orders(?:\/|$)/,
+  /^\/v1\/disputes\/.+\/mutual-resolution(?:\/|$)/,
+]
 const PURE_CALCULATION_PATHS = [/^\/v1\/orders\/calculate-fee$/, /^\/v1\/orders\/validate-counterpart$/]
 
 function invalidatesMoneyCache(path: string): boolean {

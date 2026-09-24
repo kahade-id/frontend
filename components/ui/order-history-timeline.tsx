@@ -96,10 +96,19 @@ export function mapOrderHistoryToTimeline(
   const lastIdx = entries.length - 1
 
   const items: TimelineItem[] = entries.map((e, i) => {
-    const statusLabel =
-      labels.statuses[e.toStatus as OrderStatus] ??
+    // M-12 (audit end-to-end 2026-09-24, issue #70 / P-C): indeksasi kamus
+    // HARUS lewat hasOwn — `statuses["valueOf"]`/`["toString"]` mengembalikan
+    // FUNGSI prototipe (bukan undefined), jadi `??` jatuh-tempat tidak pernah
+    // jalan dan React crash "Functions are not valid as a React child".
+    const statusLabel = (Object.prototype.hasOwnProperty.call(labels.statuses, e.toStatus)
+      ? labels.statuses[e.toStatus as OrderStatus]
+      : undefined) ??
       (isOrderStatus(e.toStatus) ? ORDER_STATUS_LABELS[e.toStatus] : e.toStatus)
-    const actorLabel = e.actor ? labels.actors[e.actor as OrderHistoryActor] ?? e.actor : undefined
+    const actorLabel = e.actor
+      ? (Object.prototype.hasOwnProperty.call(labels.actors, e.actor)
+          ? labels.actors[e.actor as OrderHistoryActor]
+          : undefined) ?? e.actor
+      : undefined
     // J-06 (audit escrow 2026-09-24): kalimat digabung via translate supaya
     // urutan kata bisa dibalik bahasa lain — dulu `parts.join(" — ")`
     // (potongan sudah diterjemahkan, tetapi rangkaiannya lolos katalog).

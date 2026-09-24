@@ -18,13 +18,16 @@ import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Text } from "@/components/ui/text"
 import { formatDateTimeWIB, formatRupiah } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
+import { toEpochMs } from "@/lib/pending-actions"
 
 /**
  * Status intent yang sudah terminal — countdown tidak lagi relevan dan
  * pemantauan otomatis berhenti. "PAID" termasuk: setelah dibayar, yang tampil
- * adalah keberhasilan, bukan hitung mundur.
+ * adalah keberhasilan, bukan hitung mundur. "UNKNOWN" juga (M-17, issue #12):
+ * status tak dikenal bukan "masih menunggu" — hitung mundur tidak menyelesaikan
+ * apa pun dan polling C-01 memang berhenti di status ini.
  */
-const TERMINAL_STATUS = new Set(["PAID", "EXPIRED", "FAILED", "CANCELLED"])
+const TERMINAL_STATUS = new Set(["PAID", "EXPIRED", "FAILED", "CANCELLED", "UNKNOWN"])
 
 export type QrisPaymentPanelProps = {
   qrString: string
@@ -90,7 +93,13 @@ export function QrisPaymentPanel({
        * tetap jalan karena tenggat QR sudah berlaku sejak dibuat. */}
       {!TERMINAL_STATUS.has(status ?? "") ? (
         <Countdown
-          until={expiresAt ? new Date(expiresAt) : undefined}
+          // M-18 (audit end-to-end, issue #73): `expiresAt` bisa epoch-detik
+          // atau ISO — `new Date("1700000000")` = Invalid Date (countdown "—").
+          // Lewat `toEpochMs` (aturan domain jam C-04) lalu ke Date ms.
+          until={(() => {
+            const ms = toEpochMs(expiresAt)
+            return ms != null ? new Date(ms) : undefined
+          })()}
           prefix="Kedaluwarsa dalam"
           tone="primary"
           onComplete={onExpire}
@@ -101,9 +110,14 @@ export function QrisPaymentPanel({
           ? "QRIS kedaluwarsa — buat ulang untuk mencoba lagi."
           : status === "FAILED"
             ? "Pembayaran gagal — buat ulang untuk mencoba lagi."
-            : pollStopped
-              ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
-              : "Menunggu pembayaran… status diperbarui otomatis."}
+            : status === "UNKNOWN"
+              ? // M-17 (audit end-to-end, issue #13): dulu jatuh ke "Menunggu
+                // pembayaran…" untuk status yang TIDAK diketahui — klaim palsu
+                // selagi uang bisa sudah berpindah. Arahkan ke jalur nyata.
+                "Status pembayaran belum pasti — cek status sekarang, atau bayar dengan metode lain."
+              : pollStopped
+                ? "Pemantauan otomatis dihentikan setelah 15 menit — gunakan Cek status sekarang."
+                : "Menunggu pembayaran… status diperbarui otomatis."}
       </Text>
       {failed ? (
         <Button variant="secondary" loading={submitting} onPress={onRecreate}>

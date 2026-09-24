@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Bank as BankIcon } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type WithdrawDto } from "@/lib/api"
+import { createIdempotencyKey } from "@/lib/api/client"
 import type { BankAccount } from "@/lib/api/bank-accounts"
 import { formatRupiah, maskAccountNumber } from "@/lib/format"
 import { queryKeys } from "@/lib/query-keys"
@@ -136,6 +137,8 @@ export default function WithdrawScreen() {
   const [otpError, setOtpError] = useState<string | undefined>()
   const [txId, setTxId] = useState<string | null>(null)
   const submitLock = useRef(false)
+  /** M-08 (issue #5): satu `Idempotency-Key` per siklus penarikan (lihat order/[id]). */
+  const withdrawKeyRef = useRef<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
   const [cancelling, setCancelling] = useState(false)
   // Overlay progres: muncul begitu PIN/OTP disubmit, hasil mengganti kontennya.
@@ -208,7 +211,11 @@ export default function WithdrawScreen() {
       setProgressState("PROCESSING")
       try {
         const dto: WithdrawDto = { amount, bankAccountId: accountId!, pin: value }
-        const res = await api.wallet.createWithdraw(dto)
+        const res = await api.wallet.createWithdraw(
+          dto,
+          withdrawKeyRef.current ?? (withdrawKeyRef.current = createIdempotencyKey()),
+        )
+        withdrawKeyRef.current = null
         setResult(res)
         if ((res.requiresOtp || res.status === "PENDING_OTP") && res.txId) {
           // Lanjut ke langkah OTP: overlay ditutup, sheet berganti mode OTP.
@@ -239,7 +246,11 @@ export default function WithdrawScreen() {
         // pasti (jaringan/timeout/abort — request mungkin sempat terkirim).
         // Error pasti (PIN salah, validasi) tidak menyuruh pengguna memeriksa apa
         // pun; pola disalin dari transfer.tsx.
-        const uncertain = !isApiError(err) || err.isTransient || err.code === "ABORTED"
+        const uncertain =
+          !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
+        // M-08: gagal pasti = penarikan baru boleh dicoba (kunci baru);
+        // tak pasti menahan kunci yang sama. PARSE = nasib dana tak terbaca.
+        if (!uncertain) withdrawKeyRef.current = null
         const base = userMessage(err)
         const msg = uncertain
           ? `${base} Status penarikan mungkin sudah diproses — periksa riwayat sebelum mengirim ulang.`

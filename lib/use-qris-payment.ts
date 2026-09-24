@@ -20,6 +20,7 @@
 import { useCallback, useRef, useState } from "react"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { createIdempotencyKey } from "@/lib/api/client"
 import type { QrisPayment } from "@/lib/api/orders"
 import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
 import { serverNow } from "@/lib/server-time"
@@ -33,17 +34,30 @@ const POLL_MS = 3_000
  * "Bayar metode lain" (bukan berhenti tanpa jalan keluar).
  */
 const MAX_POLLS = 300
-/** Status yang tidak perlu dipoll lagi (terminal). */
-const TERMINAL: readonly string[] = ["PAID", "EXPIRED", "FAILED", "CANCELLED"]
+/** Status yang menghentikan polling — PAID ikut (sheet ditutup via onPaid). */
+const TERMINAL: readonly string[] = ["PAID", "EXPIRED", "FAILED", "CANCELLED", "UNKNOWN"]
 
 /**
  * M-04 (audit escrow 2026-09-24): cast `(TERMINAL as readonly string[])`
  * (3 tempat) adalah kebocoran type-safety di jalur pembayaran — dihapus;
  * `TERMINAL` kini `readonly string[]` sehingga `includes(status)` sah tanpa
  * menurunkan tipe secara paksa.
+ *
+ * M-05 (audit end-to-end 2026-09-24, issue #11): dua pertanyaan berbeda
+ * DIPISAHKAN — (a) "boleh polling berhenti?" (PAID = ya) vs (b) "apakah
+ * intent ini sudah selesai-tanpa-dibayar?" (PAID = TIDAK). Dulu satu
+ * `isTerminalStatus` dipakai untuk keduanya, sehingga intent berstatus PAID
+ * dianggap "selesai" dan tombol Bayar lolos membuat INTENT KEDUA di atas
+ * order yang sudah lunas.
  */
-function isTerminalStatus(status: string | null | undefined): boolean {
+function isPollStopStatus(status: string | null | undefined): boolean {
   return status != null && TERMINAL.includes(status)
+}
+
+/** Intent selesai tanpa sukses bayar — PAID BUKAN di sini (lihat M-05).
+ *  UNKNOWN juga bukan: nasibnya belum jelas, jangan disimpulkan. */
+function isTerminalStatus(status: string | null | undefined): boolean {
+  return status != null && status !== "PAID" && status !== "UNKNOWN" && TERMINAL.includes(status)
 }
 
 export type UseQrisPaymentOptions = {
@@ -78,6 +92,13 @@ export function useQrisPayment({
   const creatingRef = useRef(false)
   /** G-04: satu request status dalam satu waktu (poll + manual berbagi). */
   const syncInFlight = useRef<Promise<string | null> | null>(null)
+  /**
+   * M-08 (audit end-to-end, issue #3): `Idempotency-Key` per siklus pembuatan
+   * intent — ditahan saat kegagalan tak pasti (retry tombol = intent yang sama
+   * di mata server), di-reset setelah intent sukses terbentuk. Dulu tiap tekan
+   * "Buat QRIS" memakai kunci baru → ganda saat timeout.
+   */
+  const intentKeyRef = useRef<string | null>(null)
 
   // Callback terbaru disimpan di ref: hook ini tidak boleh memaksa pemanggil
   // membungkus semuanya dengan useCallback hanya demi stabilitas.
@@ -101,7 +122,12 @@ export function useQrisPayment({
         const res = await api.orders.getPaymentStatus(orderId)
         setPollError(null)
         setStatus(res.status)
-        if (res.status === "PAID") {
+        // M-06 (audit end-to-end, issue #8): `isPaid` boolean server ikut
+        // dipercaya (alias `is_paid|paid|number 1/0` dinormalisasi strict) —
+        // dulu hanya `status === "PAID"`; status tak dikenali + `isPaid:true`
+        // tidak pernah memicu onPaid.
+        if (res.status === "PAID" || res.isPaid === true) {
+          setStatus("PAID")
           // J-02: status final — aksi menggantung diselesaikan.
           resolvePendingAction("qris-payment", orderId)
           onPaidRef.current()
@@ -130,7 +156,7 @@ export function useQrisPayment({
       await syncStatus()
     },
     POLL_MS,
-    Boolean(orderId && active && qris && !isTerminalStatus(status) && pollCount.current < MAX_POLLS),
+    Boolean(orderId && active && qris && !isPollStopStatus(status) && pollCount.current < MAX_POLLS),
   )
 
   /** Buat intent QRIS (atau sinkronkan dulu bila masih ada intent aktif). */
@@ -143,14 +169,21 @@ export function useQrisPayment({
     // syarat — tombol tidak responsif saat hasil baca kosong. Kini bila hasil
     // sinkronisasi menunjukkan intent sudah terminal, SATU tekan yang sama
     // langsung membuat intent baru (tanpa menuntut tekan kedua).
+    // M-05: `isTerminalStatus` TANPA PAID — status PAID masuk cabang ini,
+    // tersinkron PAID, lalu BERHENTI (tidak membuat intent kedua di order
+    // yang sudah lunas).
     if (qris && !isTerminalStatus(status)) {
       const synced = await syncStatus()
-      if (synced == null || !isTerminalStatus(synced)) return
+      if (synced == null || synced === "PAID" || !isTerminalStatus(synced)) return
     }
     creatingRef.current = true
     setCreating(true)
     try {
-      const res = await api.orders.payOrderQris(orderId)
+      const res = await api.orders.payOrderQris(
+        orderId,
+        intentKeyRef.current ?? (intentKeyRef.current = createIdempotencyKey()),
+      )
+      intentKeyRef.current = null
       setQris(res)
       setStatus("PENDING")
       setStopped(false)
@@ -164,14 +197,23 @@ export function useQrisPayment({
         expiresAt: toEpochMs(res.expiresAt),
       })
     } catch (err) {
-      onErrorRef.current(userMessage(err))
       /*
-       * Kegagalan tidak pasti (jaringan/timeout): intent mungkin TERBUAT di
-       * server meski respons hilang. Sinkronkan status SEKARANG — bukan lewat
-       * polling yang masih terkunci pada state render (A-14).
+       * Kegagalan tidak pasti (jaringan/timeout/PARSE): intent mungkin TERBUAT
+       * di server meski respons hilang. Sinkronkan status SEKARANG (A-14).
+       * M-13 (audit end-to-end, issue #14): toast error TIDAK muncul duluan —
+       * dulu user selalu melihat "gagal" padahal QRIS bisa jadi sudah terbit.
+       * Pesan yang tampil netral; kegagalan PASTI tetap memakai pesan error.
        */
-      if (!isApiError(err) || err.isTransient || err.code === "ABORTED") {
+      const uncertain =
+        !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
+      if (uncertain) {
+        onErrorRef.current(
+          "Koneksi bermasalah — QRIS mungkin sudah dibuat. Memeriksa status…",
+        )
         await syncStatus()
+      } else {
+        intentKeyRef.current = null
+        onErrorRef.current(userMessage(err))
       }
     } finally {
       creatingRef.current = false
@@ -186,6 +228,7 @@ export function useQrisPayment({
     setPollError(null)
     setStopped(false)
     pollCount.current = 0
+    intentKeyRef.current = null
   }, [])
 
   /**
@@ -193,17 +236,30 @@ export function useQrisPayment({
    *
    * C-05 (audit escrow 2026-09-24): countdown yang habis TIDAK boleh menang
    * atas kenyataan pembayaran. Konfirmasi ke server lebih dulu; hanya bila
-   * status masih belum terbayar status lokal jadi EXPIRED — dan bila server
-   * ternyata PAID, `syncStatus` sudah memicu `onPaid`.
+   * server MENYATAKAN belum terbayar (`PENDING`) status lokal jadi EXPIRED.
+   *
+   * M-14 (audit end-to-end, issue #9): `synced == null` (cek GAGAL — jaringan
+   * dsb.) TIDAK boleh dipaksa EXPIRED — pembayaran bisa saja sudah masuk.
+   * Status jadi `UNKNOWN` (nasib belum jelas; panel menawarkan "Cek status
+   * sekarang" + "Bayar metode lain", bukan klaim palsu apa pun).
    */
   const expireLocally = useCallback(() => {
     void (async () => {
       const synced = await syncStatus()
-      if (synced == null || synced === "PENDING") {
-        setStatus((prev) => (prev === "PENDING" || prev == null ? "EXPIRED" : prev))
+      if (synced === "PENDING") {
+        setStatus((prev) => {
+          const next = prev === "PENDING" || prev == null ? "EXPIRED" : prev
+          // M-07 (audit end-to-end, issue #10): expiry lokal yang final ikut
+          // menyelesaikan aksi menggantung — dulu pending "qris-payment"
+          // tetap nongol di Beranda sampai expiresAt-nya lewat sendiri.
+          if (next === "EXPIRED" && orderId) resolvePendingAction("qris-payment", orderId)
+          return next
+        })
+      } else if (synced == null) {
+        setStatus((prev) => (prev == null || prev === "PENDING" ? "UNKNOWN" : prev))
       }
     })()
-  }, [syncStatus])
+  }, [syncStatus, orderId])
 
   return {
     qris,
