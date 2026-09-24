@@ -78,10 +78,25 @@ export function writeQueryCache(key: string, data: unknown, now = Date.now()): v
  * Dipanggil (a) setelah mutasi yang mengubah saldo/status — otomatis dari
  * `lib/api/client.ts` untuk jalur uang & order, dan (b) manual dari layar yang
  * mengubah data lewat jalur lain (mis. rekonsiliasi aksi menggantung).
+ *
+ * G-05 (audit escrow 2026-09-24): invalidasi juga memberi tahu PENDENGAR —
+ * cache statistik jangka panjang (`getAverageDurationsCached`) punya TTL
+ * sendiri (10 menit, kuota) dan tidak disimpan di `queryCache`; tanpa
+ * pemberitahuan ini mutasi uang tidak pernah menyegarkan angka estimasi itu.
  */
+const invalidateListeners = new Set<() => void>()
+
+export function onQueryCacheInvalidation(listener: () => void): () => void {
+  invalidateListeners.add(listener)
+  return () => {
+    invalidateListeners.delete(listener)
+  }
+}
+
 export function invalidateQueryCache(key?: string): void {
   if (key === undefined) queryCache.clear()
   else queryCache.delete(key)
+  for (const listener of [...invalidateListeners]) listener()
 }
 
 /** Tandai bahwa penyegaran latar untuk key ini sedang berjalan (C-04). */

@@ -64,7 +64,9 @@ describe("formatRupiah", () => {
     expect(formatRupiah(1_500_000)).toBe("Rp1.500.000")
     expect(formatRupiah(0)).toBe("Rp0")
     expect(formatRupiah(-50_000)).toBe("-Rp50.000")
-    expect(formatRupiah(1500.4)).toBe("Rp1.500") // dibulatkan
+    // I-04 (audit escrow 2026-09-24): pecahan nyata TIDAK dibulatkan
+    // diam-diam — ditandai "—" (data rusak), bukan "Rp1.500".
+    expect(formatRupiah(1500.4)).toBe("—")
     expect(formatRupiah(Number.NaN)).toBe("—")
   })
 
@@ -233,8 +235,10 @@ describe("formatDateTimeWIB (E-08)", () => {
     expect(dayName(0)).toBe("Minggu")
   })
 
-  it("input tidak valid → em-dash, bukan 'Invalid Date'", () => {
-    expect(formatDateTimeWIB("bukan tanggal")).toBe("—")
+  it("input tidak valid → em-dash berzona, bukan 'Invalid Date'", () => {
+    // I-07 (audit escrow 2026-09-24): fallback menyertakan label zona supaya
+    // baris rusak bisa dibedakan dari baris yang memang tanpa tanggal.
+    expect(formatDateTimeWIB("bukan tanggal")).toBe("— WIB")
   })
 })
 
@@ -358,14 +362,16 @@ describe("formatCountdown (K-09)", () => {
 
 describe("durationHoursParts (K-09, G-05)", () => {
   it("mengembalikan hari bila >= 24 jam", () => {
-    expect(durationHoursParts(24)).toEqual({ value: "1", unit: "hari" })
-    expect(durationHoursParts(48)).toEqual({ value: "2", unit: "hari" })
-    expect(durationHoursParts(36)).toEqual({ value: "1,5", unit: "hari" })
+    // I-05 (audit escrow 2026-09-24): `unit` kini enum "day"/"hour" — teks
+    // terjemahan dirangkai layar lewat `translate()`, bukan di formatter.
+    expect(durationHoursParts(24)).toEqual({ value: "1", unit: "day" })
+    expect(durationHoursParts(48)).toEqual({ value: "2", unit: "day" })
+    expect(durationHoursParts(36)).toEqual({ value: "1,5", unit: "day" })
   })
 
   it("mengembalikan jam bila < 24 jam", () => {
-    expect(durationHoursParts(1)).toEqual({ value: "1", unit: "jam" })
-    expect(durationHoursParts(12)).toEqual({ value: "12", unit: "jam" })
+    expect(durationHoursParts(1)).toEqual({ value: "1", unit: "hour" })
+    expect(durationHoursParts(12)).toEqual({ value: "12", unit: "hour" })
   })
 
   it("mengembalikan null untuk angka non-positif atau non-finite", () => {

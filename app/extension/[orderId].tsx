@@ -32,7 +32,7 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -143,10 +143,33 @@ export default function ExtensionScreen() {
     return null
   }, [])
 
+  /**
+   * F-02 (audit escrow 2026-09-24): `fetchPage` kini membawa AbortSignal yang
+   * dibatalkan saat unmount — dulu request halaman memperbarui state setelah
+   * layar ditutup dan bisa balapan dengan penyegaran (halaman lama mendarat
+   * belakangan menimpa data segar).
+   */
+  const pageAbortRef = useRef<AbortController | null>(null)
+  useEffect(() => () => pageAbortRef.current?.abort(), [])
+
   const fetchPage = useCallback(
     async (p: number) => {
       if (!orderId) return
-      const res = await api.orders.listExtensions(orderId, { page: p, limit: PAGE_SIZE })
+      pageAbortRef.current?.abort()
+      const controller = new AbortController()
+      pageAbortRef.current = controller
+      let res
+      try {
+        res = await api.orders.listExtensions(
+          orderId,
+          { page: p, limit: PAGE_SIZE },
+          controller.signal,
+        )
+      } catch (err) {
+        if (controller.signal.aborted) return
+        throw err
+      }
+      if (controller.signal.aborted) return
       const data = res?.data ?? []
       setItems((prev) => (p === 1 ? data : [...prev, ...data]))
       setPage(p)
@@ -255,13 +278,21 @@ export default function ExtensionScreen() {
   // Tenggat saat ini — dari order (deadline eksplisit atau createdAt + hari)
   const deadline = useMemo(() => {
     if (!order) return new Date()
-    return order.deliveryDeadlineAt ?? addDays(order.createdAt, order.deliveryDeadlineDays)
-  }, [order])
+    const base = order.deliveryDeadlineAt ?? addDays(order.createdAt, order.deliveryDeadlineDays)
+    // F-08 (audit escrow 2026-09-24): fallback `createdAt + hari` dulu
+    // mengabaikan perpanjangan yang SUDAH DISETUJUI sehingga pratinjau
+    // "Tenggat baru" menghitung dari basis yang salah. Deadline eksplisit dari
+    // server sudah memuat perpanjangan; hanya fallback yang perlu ditambah.
+    if (order.deliveryDeadlineAt) return base
+    const extraDays = items
+      .filter((e) => e.status === "APPROVED")
+      .reduce((sum, e) => sum + (Number.isFinite(e.extensionDays) ? e.extensionDays : 0), 0)
+    return extraDays > 0 ? addDays(base, extraDays) : base
+  }, [order, items])
   const previewDeadline = useMemo(() => addDays(deadline, days), [deadline, days])
 
   const isSeller = role === "SELLER"
   const isBuyer = role === "BUYER"
-  const requesterName = order ? orderPartyName(order.seller) : undefined
   const hasPending = items.some((e) => e.status === "PENDING")
   const canRequest = isSeller && !!order && isExtendable(order.status) && !hasPending
 
@@ -320,6 +351,20 @@ export default function ExtensionScreen() {
                 {items.map((ext) => {
                   const pending = ext.status === "PENDING"
                   const canRespond = pending && isBuyer
+                  // F-06 (audit escrow 2026-09-24): pihak pengaju dibaca dari
+                  // data ekstensi bila ada (`requesterId`) — dulu selalu
+                  // `isSeller`/nama penjual sehingga kartu tertukar pihak begitu
+                  // pembeli diizinkan mengajukan. Fallback ke penjual hanya
+                  // untuk payload lama (kini memang hanya penjual yang mengajukan).
+                  const requesterId = (ext as { requesterId?: string }).requesterId
+                  const requestedByMe = requesterId
+                    ? requesterId === (isSeller ? order?.seller?.id : order?.buyer?.id)
+                    : isSeller
+                  const requesterIsBuyer = requesterId != null && requesterId === order?.buyer?.id
+                  const perRequesterName = order
+                    ? (ext as { requesterName?: string }).requesterName ??
+                      orderPartyName(requesterIsBuyer ? order.buyer : order.seller)
+                    : undefined
                   return (
                     <OrderExtensionCard
                       key={ext.id}
@@ -327,8 +372,8 @@ export default function ExtensionScreen() {
                       currentDeadline={deadline}
                       reason={ext.reason}
                       status={ext.status}
-                      requestedByMe={isSeller}
-                      requesterName={requesterName}
+                      requestedByMe={requestedByMe}
+                      requesterName={perRequesterName}
                       requesterAvatar={order?.seller?.avatarUrl ?? undefined}
                       responseNote={ext.note ?? undefined}
                       requestedAt={formatDateTime(ext.createdAt)}

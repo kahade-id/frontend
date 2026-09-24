@@ -36,6 +36,7 @@ import {
 } from "@/components/ui/order-status-badge"
 import { Timeline, type TimelineItem, type TimelineTone } from "@/components/ui/timeline"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type OrderHistoryActor = "BUYER" | "SELLER" | "SYSTEM" | "ADMIN"
 
@@ -89,7 +90,9 @@ export function mapOrderHistoryToTimeline(
   labels: OrderHistoryLabels,
   expectedNext?: OrderHistoryTimelineProps["expectedNext"],
 ): TimelineItem[] {
-  const active = isOrderActive(currentStatus)
+  // A-09: DISPUTED belum final tetapi alur state-machine sudah keluar —
+  // entri terakhir tidak diberi penanda "current" yang berdenyut.
+  const active = isOrderActive(currentStatus) && currentStatus !== "DISPUTED"
   const lastIdx = entries.length - 1
 
   const items: TimelineItem[] = entries.map((e, i) => {
@@ -97,14 +100,20 @@ export function mapOrderHistoryToTimeline(
       labels.statuses[e.toStatus as OrderStatus] ??
       (isOrderStatus(e.toStatus) ? ORDER_STATUS_LABELS[e.toStatus] : e.toStatus)
     const actorLabel = e.actor ? labels.actors[e.actor as OrderHistoryActor] ?? e.actor : undefined
-    const parts: string[] = []
-    if (actorLabel) parts.push(`${labels.by} ${actorLabel}`)
-    if (e.note) parts.push(e.note)
+    // J-06 (audit escrow 2026-09-24): kalimat digabung via translate supaya
+    // urutan kata bisa dibalik bahasa lain — dulu `parts.join(" — ")`
+    // (potongan sudah diterjemahkan, tetapi rangkaiannya lolos katalog).
+    const description =
+      actorLabel && e.note
+        ? translate("{by} — {note}", { by: `${labels.by} ${actorLabel}`, note: e.note })
+        : actorLabel
+          ? `${labels.by} ${actorLabel}`
+          : e.note
 
     return {
       id: e.id,
       title: statusLabel,
-      description: parts.length > 0 ? parts.join(" \u2014 ") : undefined,
+      description: description || undefined,
       timestamp: e.timestamp,
       status: i === lastIdx && active ? "current" : "done",
       tone: toneFor(e.toStatus),

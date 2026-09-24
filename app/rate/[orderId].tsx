@@ -7,6 +7,7 @@ import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { Star } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import { goBackOrNavigate } from "@/lib/navigation"
@@ -16,6 +17,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
+import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -90,6 +92,24 @@ export default function RateOrderScreen() {
             title="Gagal memuat"
             description={error ?? "Order tidak ditemukan."}
             onRetry={() => void query.reload()}
+          />
+        ) : order.status !== "COMPLETED" ? (
+          // H-07 (audit escrow 2026-09-24): form ulasan hanya untuk pesanan
+          // BERSTATUS COMPLETED — dulu bisa dibuka untuk status apa pun dan
+          // ditolak server setelah diketik.
+          <EmptyState
+            icon={Star}
+            title="Pesanan belum selesai"
+            description="Ulasan hanya bisa diberikan setelah pesanan berstatus selesai."
+          />
+        ) : (order as { rated?: boolean; isRated?: boolean }).rated ||
+          (order as { isRated?: boolean }).isRated ? (
+          // H-07: satu order satu ulasan — yang sudah dinilai tidak menampilkan
+          // form kedua (server menolak duplikat).
+          <EmptyState
+            icon={Star}
+            title="Sudah dinilai"
+            description="Anda sudah memberi ulasan untuk pesanan ini."
           />
         ) : (
           <View style={{ paddingTop: tokens.space[3] }}>

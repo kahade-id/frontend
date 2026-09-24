@@ -27,10 +27,19 @@ export function invalidResponse(context: string): ApiError {
   return new ApiError({ code: "PARSE", message: DEFAULT_ERROR_MESSAGES.PARSE, path: context })
 }
 
-/** Confirmed against api.kahade.id on 2026-09-05. Do not unwrap ordinary paginated {data,meta}. */
+/**
+ * Confirmed against api.kahade.id on 2026-09-05. Do not unwrap ordinary paginated {data,meta}.
+ *
+ * B-04 (audit escrow 2026-09-24): guard `success:false` dulu diuji SETELAH
+ * syarat `"data" in body`, sehingga bentuk error paling lazim —
+ * `{success:false, message}` tanpa kunci `data` — bocor ke pemanggil sebagai
+ * body sukses: `getPaymentStatus` memaksa status `PENDING` (polling QRIS tak
+ * berujung), `readList` melempar PARSE yang membingungkan. Kini `success:false`
+ * DIPUTUSKAN DULU, apa pun kunci lain yang ikut.
+ */
 export function unwrapResponse(value: unknown): unknown {
   const body = asRecord(value)
-  if (!body || typeof body.success !== "boolean" || !("data" in body)) return value
+  if (!body || typeof body.success !== "boolean") return value
   if (!body.success) {
     const parsed = parseErrorBody(body)
     throw new ApiError({
@@ -41,6 +50,7 @@ export function unwrapResponse(value: unknown): unknown {
       raw: value,
     })
   }
+  if (!("data" in body)) return value
   // Mutation endpoints can return only a human-readable acknowledgement.
   return body.data ?? (typeof body.message === "string" ? { message: body.message } : null)
 }
@@ -64,7 +74,7 @@ const NON_COLLECTION_KEYS = new Set([
  *
  * Fallback terakhir itu ditambahkan karena cacat nyata: spec tidak
  * mendokumentasikan bentuk respons list mana pun (lihat
- * docs/audit/API-ENDPOINT-AUDIT.md API-06), jadi tiap `keys` di `lib/api/*`
+ * docs/audit-escrow-mendalam-2026-09-24.md §D), jadi tiap `keys` di `lib/api/*`
  * adalah tebakan. Begitu backend memakai nama lain — `{ blockedUsers: [...] }`
  * vs `{ users: [...] }` — versi lama melempar dan SELURUH layar list mati dengan
  * "Respons tidak dapat dibaca", padahal datanya ada di depan mata.
@@ -202,6 +212,15 @@ export function readEntity<T>(value: unknown, key: string): T {
  * backend tidak menyertakan field-nya — transfer tidak bisa dilakukan ke siapa
  * pun. "Tidak tahu" bukan "tidak". Pemanggil yang butuh keputusan biner harus
  * menuliskan fallback-nya sendiri secara eksplisit.
+ *
+ * D-10 (audit escrow 2026-09-24): koersi diperluas ke `1`/`0` dan `"yes"`/
+ * `"no"` (case-insensitive). Bentuk itu pernah terjadi lintas versi API dan
+ * dulu menghasilkan `undefined` → `normalizeCounterpartValidation` menyimpulkan
+ * "pengguna tidak ditemukan" untuk SEMUA lawan transaksi (fitur buat-transaksi
+ * mati total dengan pesan yang menuduh). Nilai ADA tapi tetap tak terbaca
+ * (mis. `"maybe"`) memang menghasilkan `undefined` di sini — pemanggil yang
+ * menyimpulkan negatif dari `undefined` untuk flag yang JELAS-JELAS ADA wajib
+ * memeriksa keberadaan kuncinya (lihat `normalizeCounterpartValidation`).
  */
 export function pickBoolean(
   record: Record<string, unknown> | null | undefined,
@@ -211,8 +230,13 @@ export function pickBoolean(
   for (const key of keys) {
     const value = record[key]
     if (typeof value === "boolean") return value
-    if (value === "true") return true
-    if (value === "false") return false
+    if (value === 1) return true
+    if (value === 0) return false
+    if (typeof value === "string") {
+      const normalized = value.trim().toLowerCase()
+      if (normalized === "true" || normalized === "yes" || normalized === "1") return true
+      if (normalized === "false" || normalized === "no" || normalized === "0") return false
+    }
   }
   return undefined
 }

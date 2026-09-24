@@ -140,7 +140,30 @@ export function getDisputeMessages(disputeId: string, signal?: AbortSignal) {
       auth: "required",
       signal,
     })
-    .then((raw) => readList<DisputeMessage>(raw, ["messages"]))
+    .then((raw) => {
+      const list = readList<DisputeMessage>(raw, ["messages"])
+      return list.map(normalizeDisputeMessage).filter((m): m is DisputeMessage => m !== null)
+    })
+}
+
+/**
+ * D-13 (audit escrow 2026-09-24): DTO produksi memakai `message`, tipe klien
+ * lama membaca `text` — bubble kosong bila server mengirim `message`.
+ * `text` dinormalisasi dari `text|message|content`; tanpa isi yang terbaca,
+ * baris dibuang (pesan kosong bukan bukti komunikasi).
+ */
+function normalizeDisputeMessage(raw: DisputeMessage): DisputeMessage | null {
+  const record = raw as unknown as Record<string, unknown>
+  const text =
+    typeof record.text === "string" && record.text
+      ? record.text
+      : typeof record.message === "string" && record.message
+        ? record.message
+        : typeof record.content === "string" && record.content
+          ? record.content
+          : ""
+  if (!text) return null
+  return { ...raw, text, fromUser: raw.fromUser === true }
 }
 
 export function sendDisputeMessage(disputeId: string, text: string) {

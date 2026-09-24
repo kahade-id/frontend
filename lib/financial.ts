@@ -47,11 +47,52 @@ type Rules = Readonly<
 const patternCache = new Map<string, RegExp>()
 
 /** Runtime counterpart of generated DTO rules; a TypeScript cast must not bypass validation. */
+/**
+ * Porsi biaya (0–1) per pihak untuk satu skema penanggung.
+ *
+ * B-07 (audit escrow 2026-09-24): `feeShare` HANYA untuk label persen — semua
+ * perhitungan UANG wajib `splitFee` (satu jalur; nilai integer). Jangan pakai
+ * `feeShare` untuk menghitung nominal: 0.5 × fee desimal menghasilkan pecahan.
+ */
+export function feeShare(responsibility: string): { buyer: number; seller: number } {
+  if (responsibility === "BUYER") return { buyer: 1, seller: 0 }
+  if (responsibility === "SELLER") return { buyer: 0, seller: 1 }
+  return { buyer: 0.5, seller: 0.5 }
+}
+
+/**
+ * Pembagian nominal biaya per penanggung — INTEGER Rupiah (B-03).
+ *
+ * B-03: fee desimal pernah dibagi `Math.floor(fee / 2)` menjadi pecahan
+ * (5000,5) yang beredar di kartu biaya. Sumber kini integer (`toAmount`),
+ * dan defensif terakhir: nilai non-integer di-truncate ke bawah — lebih baik
+ * sisa 1 rupiah tampil eksplisit di baris SPLIT (B-11) daripada pecahan.
+ * SPLIT: sisa pembulatan DIBEBANKAN KE PEMBELI (`buyer = fee - half`) —
+ * dipertahankan karena sudah dikomunikasikan di UI (B-11).
+ */
+export function splitFee(feeAmount: number, responsibility: string): { buyer: number; seller: number } {
+  const fee = Math.max(Math.trunc(feeAmount) || 0, 0)
+  if (responsibility === "BUYER") return { buyer: fee, seller: 0 }
+  if (responsibility === "SELLER") return { buyer: 0, seller: fee }
+  const half = Math.floor(fee / 2)
+  return { buyer: fee - half, seller: half }
+}
+
 export function assertDtoConstraints(dto: object, rules: Rules): void {
   const values = dto as Record<string, unknown>
   for (const [key, rule] of Object.entries(rules)) {
     const value = values[key]
-    if (value == null) continue // Optionality is enforced by the DTO and server.
+    // B-12 (audit escrow 2026-09-24): hanya `undefined` yang OPSIONAL.
+    // `null` dulu lolos lewat `value == null` — `attachments: null` /
+    // `voucherCode: null` mem-bypass minItems/maxItems lalu dikirim sebagai
+    // `"attachments":null` yang ditolak validator backend. `null` untuk field
+    // non-nullable = VALIDATION di klien juga.
+    if (value === undefined) continue
+    if (value === null)
+      throw new ApiError({
+        code: "VALIDATION",
+        message: `Isian ${key} tidak sesuai ketentuan layanan.`,
+      })
     let valid = true
     if (rule.enum) valid = rule.enum.includes(value as string | number)
     if (rule.minimum != null || rule.maximum != null)

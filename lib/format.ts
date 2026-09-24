@@ -189,10 +189,18 @@ export function formatRupiah(
   amount: number,
   opts: { sign?: "auto" | "always" | "never"; compact?: boolean } = {},
 ): string {
-  if (!Number.isFinite(amount) || !Number.isSafeInteger(Math.round(amount))) return "—"
+  if (!Number.isFinite(amount)) return "—"
+  /**
+   * I-04 (audit escrow 2026-09-24): pembulatan `Math.round` lama menyembunyikan
+   * pecahan uang ("Rp1.001" untuk 1000,5) di nominal yang mengikat. Rupiah
+   * hanya integer di app ini; pecahan nyata (toleransi artefak float 1e-6)
+   * adalah data rusak — TAMPILKAN "—", jangan bulatkan diam-diam.
+   */
+  const rounded = Math.round(amount)
+  if (!Number.isSafeInteger(rounded) || Math.abs(amount - rounded) > 1e-6) return "—"
   const { sign = "auto", compact = false } = opts
-  const negative = amount < 0
-  const abs = Math.abs(Math.round(amount))
+  const negative = rounded < 0
+  const abs = Math.abs(rounded)
   const body = compact ? compactBody(abs) : groupThousands(abs)
   const prefix = negative ? "-" : sign === "always" && amount > 0 ? "+" : ""
   return `${prefix}Rp${body}`
@@ -251,6 +259,15 @@ export function parseRupiahPartial(input: string): number {
     const [head = "", ...rest] = groups
     if (!/^\d{1,3}$/.test(head)) return Number.NaN
     if (!rest.every((g) => /^\d{0,4}$/.test(g))) return Number.NaN
+    /**
+     * B-10 (audit escrow 2026-09-24): string multi-titik dengan grup terakhir
+     * BUKAN 3 digit ("1.000.50" gaya Eropa = 1000,50) adalah pemisah ambigu —
+     * dulu digitnya digabung menjadi 100050 (100x lipat dari maksud) di field
+     * nominal escrow. DITOLAK (nilai lama dipertahankan), bukan diam-diam
+     * dibuang tanda bacanya. "1.000.000" (grup 3) tetap diterima.
+     */
+    const lastGroup = groups[groups.length - 1] ?? ""
+    if (groups.length > 2 && lastGroup.length !== 3) return Number.NaN
   }
   const digits = text.replace(/\D/g, "")
   if (!digits || digits.length > 15) return Number.NaN
@@ -354,12 +371,16 @@ export function formatDecimal(n: number, maxFractionDigits = 1): string {
  * mendapat teks Indonesia pada layar detail order. Sekarang formatter hanya
  * menyediakan angka + satuan; layar merangkainya lewat `translate("… {x} …")`
  * sehingga kalimatnya ikut terkatalog dan bisa diterjemahkan.
+ *
+ * I-05 (audit escrow 2026-09-24): `unit` kini ENUM `"day" | "hour"`, bukan
+ * teks Indonesia ("hari"/"jam") — teks mentah di return value membuat pemanggil
+ * yang membaca `parts.unit` langsung menampilkan frasa tak terjemahkan.
  */
-export function durationHoursParts(hours: number): { value: string; unit: "hari" | "jam" } | null {
+export function durationHoursParts(hours: number): { value: string; unit: "day" | "hour" } | null {
   if (!Number.isFinite(hours) || hours <= 0) return null
   return hours >= 24
-    ? { value: formatDecimal(hours / 24), unit: "hari" }
-    : { value: formatDecimal(hours, 0), unit: "jam" }
+    ? { value: formatDecimal(hours / 24), unit: "day" }
+    : { value: formatDecimal(hours, 0), unit: "hour" }
 }
 
 function displayDate(value: Date | number | string): Date | null {
@@ -373,6 +394,27 @@ function displayDate(value: Date | number | string): Date | null {
   }
   const date = value instanceof Date ? value : new Date(value)
   return Number.isFinite(date.getTime()) ? date : null
+}
+
+/**
+ * H-03 (audit escrow 2026-09-24): string tanggal-hari-saja (`YYYY-MM-DD`)
+ * diinterpretasikan sebagai tengah malam DI ZONA `WIB`, bukan tengah malam
+ * zona perangkat. Versi lama `formatDateTimeWIB("2026-09-24")` menampilkan
+ * "07:00 WIB" di perangkat UTC — jam berbeda-beda di tiap zona perangkat
+ * dengan LABEL yang sama, persis kerusakan persepsi tenggat yang dihindari
+ * `formatDateTimeWIB`. Offset tetap +7 (WIB tanpa DST) cukup untuk nilai
+ * date-only; nilai ber-waktu tetap dikonversi lewat `zonedParts`.
+ */
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000
+
+function displayDateWib(value: Date | number | string): Date | null {
+  if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    const [year, month, day] = value.trim().split("-").map(Number)
+    const utcMidnight = Date.UTC(year, month - 1, day)
+    const date = new Date(utcMidnight - WIB_OFFSET_MS)
+    return Number.isFinite(date.getTime()) ? date : null
+  }
+  return displayDate(value)
 }
 
 function pad2(n: number) {
@@ -439,7 +481,7 @@ export function formatDate(
   d: Date | number | string,
   opts: { long?: boolean; timeZone?: string } = {},
 ): string {
-  const date = displayDate(d)
+  const date = opts.timeZone === WIB_TIME_ZONE ? displayDateWib(d) : displayDate(d)
   if (!date) return "—"
   const zoned = opts.timeZone ? zonedParts(date, opts.timeZone) : null
   const day = zoned?.day ?? date.getDate()
@@ -471,7 +513,7 @@ export function formatRelativeTime(d: Date | number | string, now: Date | number
 
 /** "14:30" — jam di zona perangkat, atau di `timeZone` bila diminta (E-06). */
 export function formatTime(d: Date | number | string, opts: { timeZone?: string } = {}): string {
-  const date = displayDate(d)
+  const date = opts.timeZone === WIB_TIME_ZONE ? displayDateWib(d) : displayDate(d)
   if (!date) return "—"
   const zoned = opts.timeZone ? zonedParts(date, opts.timeZone) : null
   return `${pad2(zoned?.hour ?? date.getHours())}:${pad2(zoned?.minute ?? date.getMinutes())}`
@@ -486,7 +528,9 @@ export function formatDateTime(
   d: Date | number | string,
   opts: { timeZone?: string } = {},
 ): string {
-  return displayDate(d) ? `${formatDate(d, opts)}, ${formatTime(d, opts)}` : "—"
+  return (opts.timeZone === WIB_TIME_ZONE ? displayDateWib(d) : displayDate(d))
+    ? `${formatDate(d, opts)}, ${formatTime(d, opts)}`
+    : "—"
 }
 
 /**
@@ -500,8 +544,8 @@ export function formatDateTime(
  * perangkat sebagai WIB lebih buruk daripada tanpa label).
  */
 export function formatDateTimeWIB(d: Date | number | string): string {
-  const date = displayDate(d)
-  if (!date) return "—"
+  const date = displayDateWib(d)
+  if (!date) return `— ${getLanguage() === "en" ? "UTC+7" : "WIB"}`
   /*
    * G-08 (audit 2026-09-22): kalender diambil lewat `zonedParts` (bukan
    * `Intl.DateTimeFormat` terpisah dengan locale sendiri). Sebelumnya WIB
@@ -530,13 +574,21 @@ export function formatDateLong(d: Date | number | string): string {
   return `${dayNames()[date.getDay()]}, ${formatDate(date, { long: true })}`
 }
 
-/** Sisa waktu detik -> "04:59" atau "1:04:59" (countdown OTP/lockout/deadline) */
+/** Sisa waktu detik -> "04:59" atau "1:04:59" (countdown OTP/lockout/deadline).
+ *
+ * I-06 (audit escrow 2026-09-24): durasi ≥ 24 jam kini menyebut hari
+ * ("2 hari 04:59") — versi lama menumpuk jadi "52:48:00" yang dibaca sebagai
+ * 52 jam tanpa konteks hari. Label hari lewat kamus, bagian jam:menit:detik
+ * tetap clock-style (netral bahasa).
+ */
 export function formatCountdown(totalSeconds: number, placeholder = "—"): string {
   if (!Number.isFinite(totalSeconds)) return placeholder
   const s = Math.max(0, Math.floor(totalSeconds))
-  const h = Math.floor(s / 3600)
+  const days = Math.floor(s / 86400)
+  const h = Math.floor((s % 86400) / 3600)
   const m = Math.floor((s % 3600) / 60)
   const sec = s % 60
+  if (days > 0) return `${translate("{x} hari", { x: days })} ${pad2(h)}:${pad2(m)}:${pad2(sec)}`
   return h > 0 ? `${h}:${pad2(m)}:${pad2(sec)}` : `${pad2(m)}:${pad2(sec)}`
 }
 

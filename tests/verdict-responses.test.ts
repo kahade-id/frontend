@@ -67,8 +67,11 @@ describe("normalizePaymentStatus", () => {
     expect(normalizePaymentStatus({ payment: { status: "EXPIRED" } }).status).toBe("EXPIRED")
   })
 
-  it("default PENDING bila backend tidak mengirim status", () => {
-    expect(normalizePaymentStatus({}).status).toBe("PENDING")
+  it("status tanpa nilai → UNKNOWN, bukan PENDING abadi (C-01)", () => {
+    // C-01 (audit escrow 2026-09-24): default `PENDING` membuat polling QRIS
+    // tidak pernah berhenti untuk respons error/tak berbentuk. Respons tanpa
+    // status kini ditandai UNKNOWN (berhenti poll; bukan sukses, bukan gagal).
+    expect(normalizePaymentStatus({}).status).toBe("UNKNOWN")
   })
 
   it("membawa paidAt dan method", () => {

@@ -148,6 +148,32 @@ export function listChatRooms(
     })
 }
 
+/**
+ * Cari ruang chat milik SATU order dengan memindai halaman ruang secara
+ * beraturan dan BERHENTI begitu ketemu (maksimal `FIND_ROOM_MAX_PAGES` halaman).
+ *
+ * G-09 (audit escrow 2026-09-24): `openChat` dulu memuat `listChatRooms()`
+ * sekali besar hanya untuk mencari satu ruang, dan ruang lama di luar halaman
+ * pertama tidak pernah ketemu → pengguna salah arah ke daftar chat. Memindai
+ * berhalaman + berhenti saat ketemu menjamin ruang ketemu bila masih ada di
+ * jendela wajar, tanpa memuat seluruh daftar ruang.
+ */
+export const FIND_ROOM_MAX_PAGES = 5
+
+export async function findChatRoomByOrder(
+  orderId: string,
+  signal?: AbortSignal,
+): Promise<ChatRoom | null> {
+  for (let page = 1; page <= FIND_ROOM_MAX_PAGES; page += 1) {
+    const res = await listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal)
+    const match = res.data.find((r) => r.orderId === orderId)
+    if (match) return match
+    // Halaman tidak penuh = daftar habis; berhenti lebih awal.
+    if (res.data.length < CHAT_PAGE_SIZE) break
+  }
+  return null
+}
+
 export type ChatMessagesQuery = {
   /** Kursor halaman berikutnya (dari `nextCursor` atau id pesan tertua) */
   cursor?: string

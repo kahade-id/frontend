@@ -18,7 +18,9 @@ import { View, type ViewProps } from "react-native"
 
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { TextArea } from "@/components/ui/text-area"
+import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
 
 export type ReasonOption = {
   code: string
@@ -44,6 +46,13 @@ export type ReasonPickerProps = Omit<ViewProps, "children"> & {
   /** Tampilkan catatan untuk semua opsi (bukan hanya "Lainnya") */
   alwaysShowNote?: boolean
   noteMaxLength?: number
+  /**
+   * N-06 (audit escrow 2026-09-24): aturan panjang catatan BERBEDA per aksi
+   * (`RejectDeliveryDto.note` min 10/maks 1000; `CancelOrderDto.note` maks
+   * 500 tanpa minimum) — nilai minimum/ maksimum ditampilkan sebagai petunjuk,
+   * bukan hanya ditegakkan diam-diam oleh tombol yang tidak aktif.
+   */
+  noteMinLength?: number
   errorText?: string
   disabled?: boolean
   labels?: Partial<ReasonPickerLabels>
@@ -62,6 +71,7 @@ export function ReasonPicker({
   onChange,
   alwaysShowNote = false,
   noteMaxLength = 300,
+  noteMinLength = 0,
   errorText,
   disabled = false,
   labels,
@@ -86,17 +96,28 @@ export function ReasonPicker({
       </RadioGroup>
 
       {showNote ? (
-        <TextArea
-          label={t.noteLabel}
-          placeholder={t.notePlaceholder}
-          value={value.note}
-          onChangeText={(note) => onChange({ code: value.code, note })}
-          maxLength={noteMaxLength}
-          rows={3}
-          required={!!selected?.other}
-          errorText={errorText}
-          disabled={disabled}
-        />
+        <>
+          <TextArea
+            label={t.noteLabel}
+            placeholder={t.notePlaceholder}
+            value={value.note}
+            onChangeText={(note) => onChange({ code: value.code, note })}
+            maxLength={noteMaxLength}
+            rows={3}
+            required={!!selected?.other}
+            errorText={errorText}
+            disabled={disabled}
+          />
+          {/* N-06: aturan panjang ditampilkan, bukan hanya ditegakkan senyap. */}
+          <Text variant="caption" tone="secondary">
+            {noteMinLength > 0
+              ? translate("Minimal {min} · maksimal {max} karakter", {
+                  min: noteMinLength,
+                  max: noteMaxLength,
+                })
+              : translate("Maksimal {max} karakter", { max: noteMaxLength })}
+          </Text>
+        </>
       ) : null}
     </View>
   )

@@ -47,6 +47,7 @@ import { tokens } from "@/lib/tokens"
 import type { Order } from "@/lib/api/orders"
 import { useHasSession } from "@/lib/guest-gate"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
+import { useCallback, useEffect, useRef } from "react"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
@@ -155,6 +156,27 @@ export default function TransactionsScreen() {
     },
   )
   const filtered = status !== ALL_STATUS || Boolean(debounced)
+  /**
+   * G-03 (audit escrow 2026-09-24): N kartu yang countdown tenggatnya habis
+   * bersamaan (batch order) dulu memicu N `query.refresh()` beruntun yang
+   * saling membatalkan (tiap load meng-abort load sebelumnya) — daftar bisa
+   * gagal segar justru saat status berubah. Refresh digabung: yang pertama
+   * menjadwal, semua kejadian dalam jendela 750 ms dihitung satu refresh.
+   */
+  const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const scheduleRefresh = useCallback(() => {
+    if (refreshTimerRef.current) return
+    refreshTimerRef.current = setTimeout(() => {
+      refreshTimerRef.current = null
+      void query.refresh()
+    }, 750)
+  }, [query])
+  useEffect(
+    () => () => {
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+    },
+    [],
+  )
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
@@ -287,7 +309,7 @@ export default function TransactionsScreen() {
               }}
               timestamp={formatDateTime(item.createdAt)}
               deadlineAt={item.deliveryDeadlineAt ? new Date(item.deliveryDeadlineAt) : undefined}
-              onDeadline={() => void query.refresh()}
+              onDeadline={scheduleRefresh}
               href={ROUTES.orderDetail(item.id)}
             />
           )

@@ -30,7 +30,7 @@
  *     diaktifkan — bukti dikirim lewat EvidenceGrid supaya tercatat sebagai
  *     evidence, bukan pesan.
  */
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { Handshake, VideoCamera } from "phosphor-react-native"
@@ -82,10 +82,27 @@ import { logWarn } from "@/lib/telemetry"
 import { translate } from "@/lib/i18n/translate"
 
 type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
-const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = ["image/jpeg", "image/png", "image/webp", "application/pdf"]
+/**
+ * E-09 (audit escrow 2026-09-24): enum DTO produksi memuat 7 MIME (termasuk
+ * video/mp4|quicktime|webm) — versi lama membatasi ke 4 sehingga bukti video
+ * ditolak/dikirim ber-label salah. Kini seluruh enum didukung.
+ */
+const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]
 const PROPOSAL_NOTE_MAX = 500
 
-/** Picker bisa melaporkan MIME di luar enum DTO (mis. image/heic) → jatuh ke JPEG (picker sudah mengompres ke JPEG). */
+/**
+ * MIME picker → enum DTO. Yang sudah ada di enum diteruskan apa adanya;
+ * di luar enum jatuh ke JPEG (picker gambar sudah mengompres ke JPEG).
+ * E-09: jangan pernah mengirim label MIME yang tidak sesuai isi berkas.
+ */
 function toEvidenceFileType(mime: string): EvidenceFileType {
   return (EVIDENCE_FILE_TYPES as readonly string[]).includes(mime)
     ? (mime as EvidenceFileType)
@@ -186,6 +203,10 @@ export default function DisputeDetailScreen() {
   const [proposeAmount, setProposeAmount] = useState(0)
   const [proposeNote, setProposeNote] = useState("")
   const [proposing, setProposing] = useState(false)
+  // E-06 (audit escrow 2026-09-24): catatan tanggapan opsional untuk
+  // `MutualResolutionRespondDto.responseNote` (≤2000) — dulu tidak pernah
+  // dikirim meski kontrak mendukungnya.
+  const [respondNote, setRespondNote] = useState("")
   const [respondingAction, setRespondingAction] = useState<"ACCEPT" | "REJECT" | "WITHDRAW" | null>(
     null,
   )
@@ -240,24 +261,37 @@ export default function DisputeDetailScreen() {
 
   // Eskalasi manual ke admin (8.3): maksimal 2x per sengketa (aturan backend),
   // hanya oleh pihak sengketa, dan tidak untuk status RESOLVED/ESCALATED.
+  // E-08 (audit escrow 2026-09-24): bila server mengirim `escalationCount`,
+  // batas 2x ditegakkan di klien juga — tombol tidak menawarkan percobaan yang
+  // pasti ditolak. Tanpa hitungan, tombol tetap aktif dan penolakan backend
+  // yang spesifik ditampilkan apa adanya (fallback jujur).
+  const escalationCount =
+    typeof (dispute as { escalationCount?: unknown } | null)?.escalationCount === "number"
+      ? ((dispute as { escalationCount?: number }).escalationCount ?? 0)
+      : undefined
   const canEscalate =
     dispute !== null &&
     !["RESOLVED", "ESCALATED"].includes(dispute.status) &&
-    myRole !== undefined
+    myRole !== undefined &&
+    (escalationCount === undefined || escalationCount < 2)
 
   /**
-   * Pra-isi klaim yang dulu dilakukan DI DALAM fetcher. Dipindah ke effect
-   * karena `claim` adalah textarea yang bisa diedit user — state UI, bukan
-   * data server.
-   *
-   * CATATAN PERILAKU YANG DIPERTAHANKAN: seperti kode lama, effect ini mengisi
-   * ulang tanpa syarat setiap data sengketa segar, jadi menarik-untuk-
-   * menyegarkan menimpa klaim yang sedang diketik. Bug lama; tidak
-   * dicampurkan ke migrasi ini agar tetap bisa diaudit satu dimensi.
+   * E-04 (audit escrow 2026-09-24): pra-isi klaim HANYA saat sengketa
+   * berganti identitas atau server benar-benar mengubah nilainya (pola yang
+   * dipakai `app/order/[id].tsx` untuk resi). Versi lama menimpa draft klaim
+   * yang sedang dikikti setiap `query.refresh()` — pengguna kehilangan tulisan.
    */
+  const trackedClaimRef = useRef<{ id: string; claim: string } | null>(null)
   useEffect(() => {
     if (!dispute) return
-    setClaim(dispute.claim ?? "")
+    const serverClaim = dispute.claim ?? ""
+    const previous = trackedClaimRef.current
+    const differentDispute = previous === null || previous.id !== dispute.id
+    const serverChanged = previous !== null && previous.claim !== serverClaim
+    if (differentDispute || serverChanged) {
+      setClaim(serverClaim)
+      trackedClaimRef.current = { id: dispute.id, claim: serverClaim }
+    }
   }, [dispute])
 
   const handleSubmitClaim = useCallback(
@@ -301,7 +335,7 @@ export default function DisputeDetailScreen() {
         setSending(false)
       }
     },
-    [id, toast.show],
+    [id, toast.show, query],
   )
 
   const handleAddEvidence = useCallback(async () => {
@@ -339,7 +373,7 @@ export default function DisputeDetailScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [id, toast.show])
+  }, [id, toast.show, query])
 
   const handleDeleteEvidence = useCallback(async () => {
     if (!id || !deleteEvidenceId) return
@@ -361,18 +395,33 @@ export default function DisputeDetailScreen() {
     } finally {
       setDeletingEvidence(false)
     }
-  }, [id, deleteEvidenceId, toast.show])
+  }, [id, deleteEvidenceId, toast.show, query])
 
   const handlePropose = useCallback(async () => {
     // Kontrak produksi: buyerPercent + sellerPercent = 100 (integer) + reason
     // 10–2000 char. Nominal rupiah dari UI dikonversi ke persentase pembagian.
-    const buyerPercent = orderValue > 0 ? Math.round((proposeAmount / orderValue) * 100) : 0
+    //
+    // E-03 (audit escrow 2026-09-24): nominal yang tidak jatuh tepat di
+    // kelipatan `orderValue/100` dulu dibulatkan persennya saja, sehingga
+    // pembagian backend ≠ nominal pratinjau (mis. 3.333 dari 10.000 → 33/67
+    // = 3.300/6.700). `proposeAmount` dinormalkan ke bagi-persen DULU
+    // (`Math.round(x/100)`), dan angka itulah yang tampil di pratinjau.
+    const buyerPercent =
+      orderValue > 0 ? Math.min(100, Math.max(0, Math.round((proposeAmount / orderValue) * 100))) : 0
     const sellerPercent = 100 - buyerPercent
     const reason = proposeNote.trim()
+    if (!id || !myRole || proposing || !order) {
+      // E-10: order gagal dimuat = usulan tidak akan terkirim — beri tahu,
+      // jangan diam-diam return.
+      if (!order)
+        toast.show({
+          title: "Detail order belum termuat",
+          description: "Segarkan layar sebelum mengirim usulan penyelesaian.",
+          tone: "danger",
+        })
+      return
+    }
     if (
-      !id ||
-      !myRole ||
-      proposing ||
       !Number.isSafeInteger(orderValue) ||
       !Number.isSafeInteger(proposeAmount) ||
       proposeAmount < 0 ||
@@ -409,12 +458,24 @@ export default function DisputeDetailScreen() {
   }, [id, proposeAmount, proposeNote, orderValue, myRole, proposing, toast.show])
 
   const handleRespond = useCallback(
-    async (proposal: MutualResolutionProposal, action: "ACCEPT" | "REJECT" | "WITHDRAW") => {
+    async (
+      proposal: MutualResolutionProposal,
+      action: "ACCEPT" | "REJECT" | "WITHDRAW",
+      responseNote?: string,
+    ) => {
       if (!id) return
       setRespondingAction(action)
       try {
         if (action === "WITHDRAW") await api.disputes.withdrawMutualResolution(id, proposal.id)
-        else await api.disputes.respondMutualResolution(id, proposal.id, { action } satisfies MutualResolutionRespondBody)
+        else {
+          // E-06 (audit escrow 2026-09-24): `MutualResolutionRespondDto`
+          // mendukung `responseNote` (≤2000) — dulu tidak pernah dikirim.
+          const note = responseNote?.trim()
+          await api.disputes.respondMutualResolution(id, proposal.id, {
+            action,
+            ...(note ? { responseNote: note } : {}),
+          } satisfies MutualResolutionRespondBody)
+        }
         toast.show({
           title:
             action === "ACCEPT"
@@ -464,7 +525,9 @@ export default function DisputeDetailScreen() {
     } finally {
       setRequestingCall(false)
     }
-  }, [id, calls, toast.show])
+    // E-07 (audit escrow 2026-09-24): `calls` pernah ada di dep padahal tidak
+    // dipakai (re-render percuma); `query` justru hilang dari dep handler lain.
+  }, [id, toast.show, query])
 
   /**
    * Terima / tolak permintaan lawan, atau akhiri panggilan yang berjalan.
@@ -514,18 +577,32 @@ export default function DisputeDetailScreen() {
     [id, callActionBusy, calls, toast.show],
   )
 
-  const evidenceItems = useMemo<EvidenceItem[]>(
-    () =>
-      evidence.map((e) => ({
+  const evidenceItems = useMemo<EvidenceItem[]>(() => {
+    const meId = me?.id
+    return evidence.map((e) => {
+      // E-05 (audit escrow 2026-09-24): flag `mine`/`uploadedByMe` default
+      // `false` membuat bukti sendiri tidak bisa dihapus & berjudul "Bukti
+      // {lawan}". Fallback terakhir: cocokkan `uploadedBy`/`userId` dengan
+      // `me.id`; benar-benar tak dikenal → `false` (aman: tanpa tombol hapus).
+      const record = e as unknown as Record<string, unknown>
+      const uploadedBy =
+        typeof record.uploadedBy === "string"
+          ? record.uploadedBy
+          : typeof record.userId === "string"
+            ? record.userId
+            : undefined
+      const mine =
+        e.mine ?? e.uploadedByMe ?? (uploadedBy != null && meId != null ? uploadedBy === meId : false)
+      return {
         id: e.id,
         url: e.url ?? e.fileKey ?? "",
         mimeType: e.fileType ?? "image/jpeg",
-        mine: e.mine ?? e.uploadedByMe ?? false,
+        mine,
         description: e.description,
         uploadedAt: formatDateTime(e.createdAt),
-      })),
-    [evidence],
-  )
+      }
+    })
+  }, [evidence, me?.id])
 
   const openEvidence = useCallback(
     (item: EvidenceItem) =>
@@ -681,7 +758,18 @@ export default function DisputeDetailScreen() {
                 Belum ada usulan penyelesaian.
               </Text>
             ) : (
-              proposals.map((p) => {
+              <>
+                {proposals.some((p) => p.status === "PENDING" && p.proposerId !== me?.id) ? (
+                  <TextArea
+                    value={respondNote}
+                    onChangeText={setRespondNote}
+                    placeholder="Catatan tanggapan (opsional) — disertakan saat menerima/menolak usulan"
+                    maxLength={2000}
+                    multiline
+                    numberOfLines={2}
+                  />
+                ) : null}
+              {proposals.map((p) => {
                 const proposedByMe = Boolean(me?.id && p.proposerId === me.id)
                 const total = Number.isFinite(orderValue)
                   ? orderValue
@@ -720,10 +808,14 @@ export default function DisputeDetailScreen() {
                     respondedAt={p.respondedAt ? formatDateTime(p.respondedAt) : undefined}
                     expiresAt={p.expiresAt ? new Date(p.expiresAt) : undefined}
                     onAccept={
-                      pending && !proposedByMe ? () => void handleRespond(p, "ACCEPT") : undefined
+                      pending && !proposedByMe
+                        ? () => void handleRespond(p, "ACCEPT", respondNote)
+                        : undefined
                     }
                     onReject={
-                      pending && !proposedByMe ? () => void handleRespond(p, "REJECT") : undefined
+                      pending && !proposedByMe
+                        ? () => void handleRespond(p, "REJECT", respondNote)
+                        : undefined
                     }
                     onWithdraw={
                       pending && proposedByMe ? () => void handleRespond(p, "WITHDRAW") : undefined
@@ -733,7 +825,8 @@ export default function DisputeDetailScreen() {
                     withdrawing={respondingAction === "WITHDRAW"}
                   />
                 )
-              })
+              })}
+              </>
             )}
 
             <SectionHeader
@@ -885,7 +978,13 @@ export default function DisputeDetailScreen() {
           <Button
             fullWidth
             loading={proposing}
-            disabled={proposeNote.trim().length < 10}
+            disabled={
+              proposeNote.trim().length < 10 ||
+              !order ||
+              !Number.isSafeInteger(orderValue) ||
+              proposeAmount < 0 ||
+              proposeAmount > orderValue
+            }
             onPress={() => void handlePropose()}
           >
             Kirim usulan
@@ -893,6 +992,13 @@ export default function DisputeDetailScreen() {
         }
       >
         <View className="gap-4">
+          {!order ? (
+            // E-10 (audit escrow 2026-09-24): order gagal dimuat = usulan tidak
+            // terkirim — alasan eksplisit, bukan tombol yang diam-diam batal.
+            <Text variant="caption" tone="danger">
+              Detail order belum termuat — segarkan layar sebelum mengirim usulan.
+            </Text>
+          ) : null}
           <AmountInput
             value={proposeAmount}
             onChange={setProposeAmount}
@@ -900,8 +1006,23 @@ export default function DisputeDetailScreen() {
             max={orderValue || undefined}
             label="Kembali ke pembeli"
           />
+          {/*
+            E-03 (audit escrow 2026-09-24): backend hanya menerima persen
+            integer, jadi pratinjau MENAMPILKAN hasil bagi persen yang benar-
+            benar dikirim — nominal masukan yang tidak jatuh di kelipatan
+            `orderValue/100` dibulatkan ke kelipatan itu (bukan ke-ribuan).
+          */}
           <Text variant="caption" tone="secondary">
-            Ke penjual: {formatRupiah(Math.max(0, orderValue - proposeAmount))}
+            Ke penjual:{" "}
+            {formatRupiah(
+              Math.max(
+                0,
+                orderValue -
+                  (orderValue > 0
+                    ? Math.round((Math.round((proposeAmount / orderValue) * 100) / 100) * orderValue)
+                    : proposeAmount),
+              ),
+            )}
           </Text>
           <TextArea
             value={proposeNote}

@@ -90,6 +90,7 @@ export type InvoiceReceiptLabels = {
   total: string
   copyNumber: string
   download: string
+  downloadPdf: string
   share: string
 }
 
@@ -110,6 +111,8 @@ export type InvoiceReceiptViewProps = Omit<ViewProps, "children"> & {
   footnote?: string
   onCopyNumber?: (number: string) => void
   onDownload?: () => void
+  /** O-04: unduh struk PDF resmi (endpoint `invoice/pdf`). */
+  onDownloadPdf?: () => void
   onShare?: () => void
   downloading?: boolean
   labels?: Partial<InvoiceReceiptLabels>
@@ -125,7 +128,10 @@ const DEFAULT_LABELS: InvoiceReceiptLabels = {
   subtotal: "Subtotal",
   total: "Total",
   copyNumber: "Salin nomor",
-  download: "Unduh PDF",
+  // Label dulu "Unduh PDF" padahal aksinya menyimpan HTML (D-14/O-04) —
+  // kini dipisah: HTML = "Unduh struk", PDF resmi = "Unduh PDF".
+  download: "Unduh struk",
+  downloadPdf: "Unduh PDF",
   share: "Bagikan",
 }
 
@@ -160,6 +166,7 @@ export function InvoiceReceiptView({
   footnote,
   onCopyNumber,
   onDownload,
+  onDownloadPdf,
   onShare,
   downloading = false,
   labels,
@@ -274,11 +281,22 @@ export function InvoiceReceiptView({
         </Text>
       ) : null}
 
-      {onDownload || onShare ? (
+      {onDownload || onDownloadPdf || onShare ? (
         <View className="flex-row gap-3 border-t border-border pt-4">
-          {onDownload ? (
+          {onDownloadPdf ? (
             <Button
               variant="secondary"
+              leftIcon={DownloadSimple}
+              loading={downloading}
+              onPress={onDownloadPdf}
+              containerClassName="flex-1"
+            >
+              {t.downloadPdf}
+            </Button>
+          ) : null}
+          {onDownload ? (
+            <Button
+              variant="ghost"
               leftIcon={DownloadSimple}
               loading={downloading}
               onPress={onDownload}

@@ -131,7 +131,9 @@ export function DisputeCallLogItem({
   const ongoing = oc === "ONGOING"
   const completed = known && oc === "COMPLETED"
 
-  const title = known ? t.outcome[oc] : outcome
+  // J-07 (audit escrow 2026-09-24): status asing tidak dirender sebagai judul
+  // (dulu teks enum server mentah) — label generik, ikon fallback COMPLETED.
+  const title = known ? t.outcome[oc] : translate("Panggilan")
   const requester = requestedByMe ? t.requestedByYou : t.requestedBy(counterpartName)
   const subtitleText = [requester, timestamp, withMediator ? t.withMediator : undefined]
     .filter(Boolean)

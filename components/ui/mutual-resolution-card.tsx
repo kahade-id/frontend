@@ -230,7 +230,15 @@ export function MutualResolutionCard({
             translate("{x} {y}%", { x: translate(t.buyerShare), y: buyerPct }),
             translate("{x} {y}%", { x: translate(t.sellerShare), y: sellerPct }),
           ].join(", ")}
-          accessibilityValue={{ min: 0, max: 100, now: buyerPct, text: `${buyerPct}% ke pembeli` }}
+          accessibilityValue={{
+            min: 0,
+            max: 100,
+            now: buyerPct,
+            // J-02/K-05 (audit escrow 2026-09-24): teks a11y lewat kamus —
+            // dulu kalimat Indonesia hardcoded, pembaca layar English tidak
+            // menerjemahkannya.
+            text: translate("{x}% kembali ke pembeli", { x: buyerPct }),
+          }}
         >
           <View className={cn("h-full", isBuyer ? "bg-primary" : "bg-text-tertiary")} style={{ width: `${buyerPct}%` }} />
           <View className={cn("h-full", isBuyer ? "bg-text-tertiary" : "bg-primary")} style={{ width: `${sellerPct}%` }} />

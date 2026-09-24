@@ -23,13 +23,25 @@ export function mergeById<T extends { id: string }>(previous: T[], incoming: T[]
  * pengisiannya satu baris dan konsisten (terbaru di atas, toleran tanda waktu
  * yang hilang/tidak valid).
  */
-export function byTimestampDesc<T>(pick: (item: T) => string | null | undefined) {
+export function byTimestampDesc<T extends { id: string }>(
+  pick: (item: T) => string | null | undefined,
+) {
   const timeOf = (value: string | null | undefined) => {
     if (!value) return 0
     const parsed = Date.parse(value)
     return Number.isFinite(parsed) ? parsed : 0
   }
-  return (a: T, b: T) => timeOf(pick(b)) - timeOf(pick(a))
+  return (a: T, b: T) => {
+    // G-07 (audit escrow 2026-09-24): `createdAt` bisa IDENTIK antar item dalam
+    // satu batch (mis. beberapa Order Link dibuat berbarengan) — tanpa
+    // tiebreaker, perbandingan `0` membuat urutan antar-merge tidak
+    // deterministik. Kunci akhir `id` menjamin urutan stabil kapan pun
+    // digabung/urut ulang.
+    const diff = timeOf(pick(b)) - timeOf(pick(a))
+    if (diff !== 0) return diff
+    if (a.id === b.id) return 0
+    return a.id < b.id ? 1 : -1
+  }
 }
 
 export type UsePaginatedQueryOptions<T> = {
