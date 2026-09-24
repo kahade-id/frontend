@@ -130,9 +130,14 @@ export function FeeBreakdown({
    * fallback hanya untuk preview create-order yang belum punya angka server.
    */
   const discount = Math.max(Math.trunc(discountAmount) || 0, 0)
-  const discountShare = splitFee(discount, feeResponsibility)
-  const pays = buyerPays ?? orderValue + share.buyer - discountShare.buyer
-  const gets = sellerGets ?? orderValue - share.seller + discountShare.seller
+  // M-11 (audit end-to-end 2026-09-24, issue #16-17): voucher = potongan
+  // TAGIHAN PEMBELI penuh (P-D: order 150rb + voucher 50rb → pembeli bayar
+  // 100rb, BUKAN 150rb); penjual tetap menerima `orderValue − fee.seller`
+  // (BUKAN orderValue − fee.seller + share voucher — itu membuat penjual
+  // "menerima" 195rb dari order 150rb). Invariant B-06 tetap terjaga:
+  // pays − gets = (s.b − D) − (−s.s) = fee − discount.
+  const pays = buyerPays ?? orderValue + share.buyer - discount
+  const gets = sellerGets ?? orderValue - share.seller
 
   if (loading) {
     return (

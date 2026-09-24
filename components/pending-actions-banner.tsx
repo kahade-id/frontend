@@ -52,21 +52,33 @@ function describe(action: PendingAction): { title: string; meta?: string } {
   switch (action.kind) {
     case "qris-payment":
       return {
-        title: translate("Pembayaran pesanan menunggu — {x}", { x: formatRupiah(action.amount) }),
+        // M-33 (audit end-to-end, issue #94): nominal 0 (fallback saat record
+        // dibuat sebelum angka dikenal) tidak dicetak "Rp0" — banner bilang
+        // nominal belum diketahui, bukan menakar uang dengan angka palsu.
+        title: translate("Pembayaran pesanan menunggu — {x}", {
+          x: action.amount > 0 ? formatRupiah(action.amount) : "nominal belum diketahui",
+        }),
         meta: action.expiresAt
           ? translate("QRIS berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
           : "Periksa status pembayaran pesanan Anda",
       }
     case "topup-unpaid":
       return {
-        title: translate("Top-up belum dibayar — {x}", { x: formatRupiah(action.amount) }),
+        // M-60: aturan cetak yang sama dengan qris (M-33) — nominal 0 (fallback
+        // sebelum angka dikenal) tidak dicetak "Rp0" seolah uangnya nol.
+        title: translate("Top-up belum dibayar — {x}", {
+          x: action.amount > 0 ? formatRupiah(action.amount) : "nominal belum diketahui",
+        }),
         meta: action.expiresAt
           ? translate("Tagihan berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
           : "Selesaikan pembayaran di layar Top-up",
       }
     case "withdraw-otp":
       return {
-        title: translate("Penarikan menunggu OTP — {x}", { x: formatRupiah(action.amount) }),
+        // M-60: lihat aturan cetak qris/topup — "Rp0" tidak pernah dicetak.
+        title: translate("Penarikan menunggu OTP — {x}", {
+          x: action.amount > 0 ? formatRupiah(action.amount) : "nominal belum diketahui",
+        }),
         meta: action.expiresAt
           ? translate("Kode OTP berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
           : "Periksa status penarikan di layar Tarik Dana",

@@ -20,7 +20,8 @@ import { useRouter } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
-import { api, userMessage, type TopupDto } from "@/lib/api"
+import { api, isApiError, userMessage, type TopupDto } from "@/lib/api"
+import { createIdempotencyKey } from "@/lib/api/client"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
 import { useCopy } from "@/lib/clipboard"
@@ -85,7 +86,15 @@ export default function TopupScreen() {
 
   const methodsQuery = useApiQuery<PaymentMethod[]>("topup-methods", async (signal) => {
     const raw = await api.wallet.getPaymentMethods(signal)
-    return toPaymentMethods(raw).filter((method) => isTopupMethod(method.id))
+    return (
+      toPaymentMethods(raw)
+        .filter((method) => isTopupMethod(method.id))
+        // M-23 (audit end-to-end, issue #58): kartu kredit DITARIK dari daftar
+        // top-up — DTO produksi mensyaratkan `cardToken` untuk CREDIT_CARD dan
+        // UI ini TIDAK punya alur tokenisasi kartu; menawarkannya = jalan buntu
+        // pasti 400. Saat alur kartu hadir, kembalikan dengan form token-nya.
+        .filter((method) => method.id !== "CREDIT_CARD")
+    )
   })
   const methods = useMemo(() => methodsQuery.data ?? [], [methodsQuery.data])
   const { loading, error } = methodsQuery
@@ -101,6 +110,8 @@ export default function TopupScreen() {
   const [statusLoading, setStatusLoading] = useState(false)
   const [statusError, setStatusError] = useState<string | null>(null)
   const submitLock = useRef(false)
+  /** M-08 (issue #5): satu `Idempotency-Key` per siklus top-up (lihat order/[id]). */
+  const payKeyRef = useRef<string | null>(null)
   const pollLock = useRef(false)
   const pollCount = useRef(0)
   const MAX_POLL_COUNT = 180 // Max 15 minutes at 5s interval
@@ -214,7 +225,11 @@ export default function TopupScreen() {
     submitLock.current = true
     setSubmitting(true)
     try {
-      const res = await api.wallet.createTopup({ amount, method: methodId })
+      const res = await api.wallet.createTopup(
+        { amount, method: methodId },
+        payKeyRef.current ?? (payKeyRef.current = createIdempotencyKey()),
+      )
+      payKeyRef.current = null
       if (!res?.paymentTxId) throw new Error("Missing payment transaction ID")
       setResult(res)
       setStep("result")
@@ -232,6 +247,12 @@ export default function TopupScreen() {
       })
       toast.show({ title: "Instruksi pembayaran dibuat", tone: "success" })
     } catch (err) {
+      // M-08: gagal tak pasti MENAHAN kunci (tekan ulang = top-up yang sama di
+      // mata server); gagal pasti menggantinya. PARSE = 200 body rusak → bisa
+      // jadi top-up sudah terbit → ikut ditahan.
+      const uncertain =
+        !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
+      if (!uncertain) payKeyRef.current = null
       toast.show({
         title: "Top-up belum dapat dibuat",
         description: userMessage(err),

@@ -65,7 +65,13 @@ export function DeliveryProofForm({
     onChange?.(next)
   }
 
-  const canSubmit = items.length > 0 && !submitting
+  // M-59 (audit end-to-end, issue #36 sisi form): `UpdateShippingDto.trackingNumber`
+  // minLength 3 — resi 1–2 karakter PASTI ditolak server, dulu form tetap
+  // mengizinkan "Kirim bukti" sehingga pengguna baru tahu setelah bukti terkirim
+  // (400 setengah jalan). Kosong tetap sah (opsional; pesanan jasa/digital).
+  const tracking = v.trackingNumber.trim()
+  const trackingOk = tracking.length === 0 || tracking.length >= 3
+  const canSubmit = items.length > 0 && trackingOk && !submitting
 
   return (
     <View className={cn("gap-5", className)} {...rest}>

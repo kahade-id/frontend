@@ -317,10 +317,15 @@ export function lookupTransferRecipient(q: string, signal?: AbortSignal) {
 }
 
 /** POST /v1/wallet/topup — mulai top-up (dapat paymentTxId untuk poll). */
-export async function createTopup(dto: TopupDto) {
+export async function createTopup(dto: TopupDto, idempotencyKey?: string) {
   assertDtoConstraints(dto, API_CONSTRAINTS.TopupDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.topup)
-  const result = await http.post<TopupResult, TopupDto>("/v1/wallet/topup", dto, { auth: "required" })
+  const result = await http.post<TopupResult, TopupDto>("/v1/wallet/topup", dto, {
+    auth: "required",
+    // I-16 (audit end-to-end): satu kunci per formulir top-up — retry manual
+    // setelah timeout tidak lagi berpeluang membuat dua transaksi topup.
+    ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+  })
   return {
     ...result,
     paymentTxId: pickString(result, ["paymentTxId", "payment_tx_id"]) ?? result.paymentTxId,
@@ -346,10 +351,14 @@ export async function getTopupStatus(paymentTxId: string) {
 }
 
 /** POST /v1/wallet/withdraw — tarik dana (bisa memerlukan OTP). */
-export async function createWithdraw(dto: WithdrawDto) {
+export async function createWithdraw(dto: WithdrawDto, idempotencyKey?: string) {
   assertDtoConstraints(dto, API_CONSTRAINTS.WithdrawDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.withdraw)
-  const result = await http.post<WithdrawResult, WithdrawDto>("/v1/wallet/withdraw", dto, { auth: "required" })
+  const result = await http.post<WithdrawResult, WithdrawDto>("/v1/wallet/withdraw", dto, {
+    auth: "required",
+    // I-16: lihat createTopup — penarikan ganda = dua kali keluar dana.
+    ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+  })
   return {
     ...result,
     txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,
@@ -414,10 +423,14 @@ export function cancelWithdraw(dto: { txId: string }) {
 }
 
 /** POST /v1/wallet/transfer — kirim dana ke user lain. */
-export async function transferFunds(dto: TransferDto) {
+export async function transferFunds(dto: TransferDto, idempotencyKey?: string) {
   assertDtoConstraints(dto, API_CONSTRAINTS.TransferDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.transfer)
-  const result = await http.post<TransferResult, TransferDto>("/v1/wallet/transfer", dto, { auth: "required" })
+  const result = await http.post<TransferResult, TransferDto>("/v1/wallet/transfer", dto, {
+    auth: "required",
+    // I-16: lihat createTopup — transfer ganda = dua kali kirim dana.
+    ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+  })
   return {
     ...result,
     txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,

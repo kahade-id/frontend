@@ -178,12 +178,28 @@ export default function DeliveryProofScreen() {
 
   const handleConfirm = useCallback(async () => {
     if (!latest || !orderId) return
+    // M-40 (audit end-to-end, issue #33): `proofId` WAJIB (ConfirmDeliveryDto,
+    // `/delivery-proof/confirm` body REQUIRED) — `latest.id` bisa "" (fallback
+    // normalizer). Dulu `proofId: ""` dikirim = 400 pasti. Id kosong = jangan
+    // kirim, minta muat ulang.
+    if (!latest.id) {
+      toast.show({
+        title: "Bukti belum punya identitas server",
+        description: "Muat ulang halaman, lalu konfirmasi kembali.",
+        tone: "warning",
+      })
+      return
+    }
     setConfirming(true)
     try {
       await api.orders.confirmDelivery(orderId, { proofId: latest.id })
       toast.show({ title: "Penerimaan dikonfirmasi", tone: "success", duration: 3000 })
       setConfirmOpen(false)
-      await query.refresh()
+      // M-41 (audit end-to-end, issue #37): refetch BUKAN bagian mutasi —
+      // dulu satu `try`; `query.refresh()` gagal menampilkan "Gagal
+      // mengonfirmasi" padahal konfirmasi SUDAH dikirim (toast sukses sudah
+      // tampil, lalu tertimpa pesan gagal yang menyesatkan).
+      void query.refresh().catch(() => {})
     } catch (err) {
       toast.show({
         title: "Gagal mengonfirmasi penerimaan",
@@ -198,11 +214,21 @@ export default function DeliveryProofScreen() {
   const handleReject = useCallback(
     async (note: string) => {
       if (!latest || !orderId) return
+      // M-40 (issue #35): lihat handleConfirm — proofId kosong = 400 pasti.
+      if (!latest.id) {
+        toast.show({
+          title: "Bukti belum punya identitas server",
+          description: "Muat ulang halaman, lalu tolak kembali.",
+          tone: "warning",
+        })
+        return
+      }
       setRejecting(true)
       try {
         await api.orders.rejectDelivery(orderId, { note, proofId: latest.id })
         toast.show({ title: "Bukti ditolak, sengketa dibuka", tone: "danger", duration: 3000 })
-        await query.refresh()
+        // M-41 (issue #37): refetch dipisah dari mutasi (lihat handleConfirm).
+        void query.refresh().catch(() => {})
       } catch (err) {
         toast.show({
           title: "Gagal menolak bukti",
@@ -268,13 +294,25 @@ export default function DeliveryProofScreen() {
         })
         return
       }
+      const tracking = value.trackingNumber.trim()
+      // M-42 (audit end-to-end, issue #36): validasi resi SEBELUM mutasi —
+      // dulu `updateShipping` (min 3) baru dicek server SETELAH bukti terkirim
+      // (setengah jalan). Semua syarat dicek di depan; tidak ada mutasi parsial
+      // karena alasan yang bisa diketahui lebih awal.
+      if (tracking && tracking !== (order?.trackingNumber ?? "") && tracking.length < 3) {
+        toast.show({
+          title: "Nomor resi terlalu pendek",
+          description: "Minimal 3 karakter, atau kosongkan bila tidak dikirim dari sini.",
+          tone: "warning",
+        })
+        return
+      }
       setSubmitting(true)
       try {
         await api.orders.submitDeliveryProof(orderId, {
           description,
           fileUrls: uploads.map((u) => u.fileKey),
         })
-        const tracking = value.trackingNumber.trim()
         if (tracking && tracking !== (order?.trackingNumber ?? "")) {
           try {
             await api.orders.updateShipping(orderId, { trackingNumber: tracking })
@@ -294,12 +332,23 @@ export default function DeliveryProofScreen() {
           tone: "success",
           duration: 4000,
         })
-        await query.refresh()
+        // M-41 (issue #37): refetch dipisah dari mutasi (lihat handleConfirm).
+        void query.refresh().catch(() => {})
       } catch (err) {
+        // M-43 (audit end-to-end, issue #38): kegagalan TAK PASTI (PARSE/
+        // timeout) = bukti MUNGKIN sudah tersimpan. Unggahan TETAP dipertahankan
+        // (fileKey yang sama) — tekan kirim ulang TANPA memilih file lagi
+        // (memilih ulang = objek ganda di storage).
+        const uncertain =
+          !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
         toast.show({
-          title: "Gagal mengirim bukti",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
+          title: uncertain ? "Bukti mungkin sudah terkirim" : "Gagal mengirim bukti",
+          description: uncertain
+            ? "Koneksi terputus di tengah pengiriman — periksa daftar bukti; foto pilihan tetap tersimpan, tekan kirim ulang tanpa memilih ulang."
+            : isApiError(err)
+              ? userMessage(err)
+              : undefined,
+          tone: uncertain ? "warning" : "danger",
         })
       } finally {
         setSubmitting(false)

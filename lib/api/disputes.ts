@@ -9,8 +9,11 @@
  * bug body 400 di tiga fitur sengketa.
  */
 
-import { readList } from "@/lib/api/response"
+import { pickString, readList, readPage } from "@/lib/api/response"
 
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { assertDtoConstraints } from "@/lib/financial"
+import { toAmount } from "@/lib/api/orders"
 import { http, seg } from "@/lib/api/client"
 import type {
   CallActionDto,
@@ -72,6 +75,10 @@ export type MutualResolutionProposal = {
   buyerAmount?: number
   sellerAmount?: number
   note?: string
+  /** Persentase pembagian (kontrak PRODUKSI) — UNVERIFIED, alias di I-23. */
+  buyerPercent?: number
+  sellerPercent?: number
+  sellerNote?: string
   status: "PENDING" | "ACCEPTED" | "REJECTED" | "WITHDRAWN" | "EXPIRED" | string
   createdAt: string
   respondedAt?: string | null
@@ -91,14 +98,50 @@ export type DisputeDetail = {
   messages?: DisputeMessage[]
 }
 
+/**
+ * I-21 (audit end-to-end 2026-09-24): whitelist + alias detail sengketa —
+ * dulu `getDispute` mengembalikan mentahan `as DisputeDetail`; `orderId`
+ * snake_case (`order_id`) dan `claim` alternatif (`reason`/`title`) tidak
+ * terbaca → tautan "Lihat transaksi" dan judul klaim kosong.
+ */
+function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
+  const d = (raw ?? {}) as unknown as Record<string, unknown>
+  const claimRaw = d.claim ?? d.reason ?? d.title ?? d.description
+  return {
+    id: pickString(d, ["id", "disputeId", "dispute_id"]) ?? "",
+    orderId: pickString(d, ["orderId", "order_id", "transactionId", "transaction_id"]) ?? "",
+    status: pickString(d, ["status", "state"]) ?? "",
+    claim: typeof claimRaw === "string" ? claimRaw : "",
+    openedById: pickString(d, ["openedById", "opened_by_id", "claimantId", "claimant_id", "reporterId"]),
+    createdAt: pickString(d, ["createdAt", "created_at", "openedAt", "opened_at"]) ?? "",
+    updatedAt: pickString(d, ["updatedAt", "updated_at", "lastUpdatedAt"]),
+    messages: Array.isArray(d.messages) ? (d.messages as DisputeMessage[]) : undefined,
+  }
+}
+
 export function listMyDisputes(query?: { page?: number; limit?: number }, signal?: AbortSignal) {
   return http
-    .get<Array<DisputeDetail>>("/v1/disputes/my", { query, auth: "required", retry: 1, signal })
-    .then((raw) => readList<DisputeDetail>(raw, ["disputes"]))
+    .get<unknown>("/v1/disputes/my", { query, auth: "required", retry: 1, signal })
+    .then((raw) => {
+      // M-52 (audit end-to-end 2026-09-24, issue #43): hasil berbentuk `Page`
+      // (readPage) supaya layar bisa memuat halaman berikutnya — dulu hanya
+      // `readList` polos dan layar memuat 50 baris pertama tanpa load-more.
+      // Id sintetis page-qualified (pola D-11) untuk entri tanpa id server.
+      const page = readPage<unknown>(raw, query ?? { page: 1, limit: 50 }, ["disputes"])
+      return {
+        ...page,
+        data: page.data.map((entry, index) => {
+          const d = normalizeDisputeDetail((entry ?? {}) as DisputeDetail)
+          return d.id ? d : { ...d, id: `d-${page.meta.page}-${index}` }
+        }),
+      }
+    })
 }
 
 export function getDispute(disputeId: string, signal?: AbortSignal) {
-  return http.get<DisputeDetail>(`/v1/disputes/${seg(disputeId)}`, { auth: "required", retry: 1, signal })
+  return http
+    .get<DisputeDetail>(`/v1/disputes/${seg(disputeId)}`, { auth: "required", retry: 1, signal })
+    .then(normalizeDisputeDetail)
 }
 
 export function getDisputeEvidence(disputeId: string, signal?: AbortSignal) {
@@ -112,6 +155,9 @@ export function getDisputeEvidence(disputeId: string, signal?: AbortSignal) {
 }
 
 export function submitDisputeEvidence(disputeId: string, dto: SubmitEvidenceDto) {
+  // I-22 (audit end-to-end): validasi DTO sebelum kirim — dulu bukti pendek
+  // dikirim, backend menolak 400 berisi jargon validasi (temuan B-13, P-J).
+  assertDtoConstraints(dto, API_CONSTRAINTS.SubmitEvidenceDto)
   return http.post<DisputeEvidence, SubmitEvidenceDto>(
     `/v1/disputes/${seg(disputeId)}/evidence`,
     dto,
@@ -129,6 +175,8 @@ export function deleteDisputeEvidence(disputeId: string, evidenceId: string) {
 }
 
 export function submitDisputeClaim(disputeId: string, dto: SubmitClaimDto) {
+  // I-22: lihat submitDisputeEvidence — deskripsi < 20 char dulu lolos ke 400.
+  assertDtoConstraints(dto, API_CONSTRAINTS.SubmitClaimDto)
   return http.post<DisputeDetail, SubmitClaimDto>(`/v1/disputes/${seg(disputeId)}/claim`, dto, {
     auth: "required",
   })
@@ -163,11 +211,31 @@ function normalizeDisputeMessage(raw: DisputeMessage): DisputeMessage | null {
           ? record.content
           : ""
   if (!text) return null
-  return { ...raw, text, fromUser: raw.fromUser === true }
+  // M-55 (audit end-to-end 2026-09-24, issue #55): cast mentah dibatasi —
+  // `fromUser` membaca alias `mine|fromMe` dan `direction` ("OUT"/"SENT" =
+  // milik saya), `createdAt` tipe-ketat (D-03). Dulu `direction`/timestamp
+  // aneh lolos apa adanya ke bubble dan format waktu.
+  const direction = pickString(record, ["direction", "dir", "side"])
+  const fromUser =
+    record.fromUser === true ||
+    record.mine === true ||
+    record.fromMe === true ||
+    direction === "OUT" ||
+    direction === "SENT" ||
+    direction === "OWN"
+  const createdAtRaw = record.createdAt ?? record.created_at ?? record.sentAt ?? record.sent_at
+  return {
+    id: pickString(record, ["id", "messageId", "message_id"]) ?? "",
+    text,
+    fromUser,
+    createdAt: typeof createdAtRaw === "string" ? createdAtRaw : "",
+  }
 }
 
 export function sendDisputeMessage(disputeId: string, text: string) {
   // DTO produksi: DisputeMessageDto { message?, attachments? } — bukan { text }.
+  // I-22: lihat submitDisputeEvidence (assert pesan kosong/terlalu panjang).
+  assertDtoConstraints({ message: text }, API_CONSTRAINTS.DisputeMessageDto)
   return http.post<DisputeMessage, DisputeMessageDto>(
     `/v1/disputes/${seg(disputeId)}/messages`,
     { message: text },
@@ -188,6 +256,8 @@ export function requestDisputeCall(disputeId: string) {
  * be empty".
  */
 export function acceptDisputeCall(disputeId: string, callId: string) {
+  // I-22: lihat submitDisputeEvidence (assert callId kosong sebelum 400).
+  assertDtoConstraints({ callId }, API_CONSTRAINTS.CallActionDto)
   return http.post<DisputeCall, CallActionDto>(
     `/v1/disputes/${seg(disputeId)}/call/accept`,
     { callId },
@@ -196,6 +266,8 @@ export function acceptDisputeCall(disputeId: string, callId: string) {
 }
 
 export function rejectDisputeCall(disputeId: string, callId: string) {
+  // I-22: lihat acceptDisputeCall.
+  assertDtoConstraints({ callId }, API_CONSTRAINTS.CallActionDto)
   return http.post<DisputeCall, CallActionDto>(
     `/v1/disputes/${seg(disputeId)}/call/reject`,
     { callId },
@@ -204,6 +276,8 @@ export function rejectDisputeCall(disputeId: string, callId: string) {
 }
 
 export function endDisputeCall(disputeId: string, callId: string) {
+  // I-22: lihat acceptDisputeCall.
+  assertDtoConstraints({ callId }, API_CONSTRAINTS.CallActionDto)
   return http.post<DisputeCall, CallActionDto>(
     `/v1/disputes/${seg(disputeId)}/call/end`,
     { callId },
@@ -217,7 +291,56 @@ export function getDisputeCalls(disputeId: string, signal?: AbortSignal) {
       auth: "required",
       signal,
     })
-    .then((raw) => readList<DisputeCall>(raw, ["calls"]))
+    .then((raw) =>
+      // M-55 (audit end-to-end, issue #55): item panggilan dinormalisasi —
+      // dulu `readList<DisputeCall>` cast mentah (`createdAt`/`status`/id
+      // snake_case tidak terbaca).
+      readList<unknown>(raw, ["calls", "records"]).map((entry) => {
+        const c = (entry ?? {}) as unknown as Record<string, unknown>
+        const createdAtRaw = c.createdAt ?? c.created_at ?? c.requestedAt ?? c.requested_at
+        return {
+          id: pickString(c, ["id", "callId", "call_id"]) ?? "",
+          status: (pickString(c, ["status", "callStatus", "call_status"]) ?? "") as DisputeCall["status"],
+          requesterId: pickString(c, ["requesterId", "requester_id", "callerId", "caller_id"]),
+          requestedAt: pickString(c, ["requestedAt", "requested_at"]),
+          startedAt: pickString(c, ["startedAt", "started_at"]),
+          endedAt: pickString(c, ["endedAt", "ended_at"]),
+          durationSeconds: toAmount(c.durationSeconds ?? c.duration_seconds),
+          withMediator: c.withMediator === true,
+          createdAt: typeof createdAtRaw === "string" ? createdAtRaw : undefined,
+        } as DisputeCall
+      }),
+    )
+}
+
+/**
+ * I-23 (audit end-to-end): normalisasi proposal resolusi — dulu dikembalikan
+ * `as MutualResolutionProposal[]` mentah: `buyer_amount`/`seller_amount`
+ * snake_case dan `buyer_percent`/`seller_percent` (kontrak PRODUKSI adalah
+ * persentase, lihat catatan MutualResolutionProposeBody) tidak terbaca →
+ * nominal/persen proposal tampil undefined, alias `amount`→buyer hilang.
+ */
+function normalizeMutualProposal(raw: unknown): MutualResolutionProposal {
+  const p = (raw ?? {}) as unknown as Record<string, unknown>
+  const createdAtRaw = p.createdAt ?? p.created_at ?? p.proposedAt ?? p.proposed_at
+  const respondedAtRaw = p.respondedAt ?? p.responded_at
+  const expiresAtRaw = p.expiresAt ?? p.expires_at
+  return {
+    id: pickString(p, ["id", "proposalId", "proposal_id", "mutualResolutionId", "mutual_resolution_id"]) ?? "",
+    proposerId: pickString(p, ["proposerId", "proposer_id", "proposerUserId", "proposer_user_id", "buyerUserId", "buyer_user_id"]) ?? "",
+    // I-23: `amount` = alias nominal-ke-pembeli (temuan audit B-16) — dipertahankan.
+    amount: toAmount(p.amount ?? p.buyerAmount ?? p.buyer_amount ?? p.buyerPercent ?? p.buyer_percent),
+    buyerAmount: toAmount(p.buyerAmount ?? p.buyer_amount),
+    sellerAmount: toAmount(p.sellerAmount ?? p.seller_amount),
+    buyerPercent: toAmount(p.buyerPercent ?? p.buyer_percent ?? p.buyerPercentage),
+    sellerPercent: toAmount(p.sellerPercent ?? p.seller_percent ?? p.sellerPercentage),
+    note: pickString(p, ["note", "reason", "buyer_note", "buyerNote", "notes"]),
+    sellerNote: pickString(p, ["seller_note", "sellerNote", "seller_reason", "sellerReason"]),
+    status: ((pickString(p, ["status", "state", "proposalStatus", "proposal_status"]) ?? "PENDING").toUpperCase()) as MutualResolutionProposal["status"],
+    createdAt: typeof createdAtRaw === "string" ? createdAtRaw : "",
+    respondedAt: typeof respondedAtRaw === "string" ? respondedAtRaw : (respondedAtRaw == null ? null : undefined),
+    expiresAt: typeof expiresAtRaw === "string" ? expiresAtRaw : (expiresAtRaw == null ? null : undefined),
+  }
 }
 
 export function getMutualResolution(disputeId: string, signal?: AbortSignal) {
@@ -227,15 +350,21 @@ export function getMutualResolution(disputeId: string, signal?: AbortSignal) {
       retry: 1,
       signal,
     })
-    .then((raw) => readList<MutualResolutionProposal>(raw, ["proposals"]))
+    .then((raw) =>
+      readList<unknown>(raw, ["proposals", "resolutions", "items"]).map(normalizeMutualProposal),
+    )
 }
 
 export function proposeMutualResolution(disputeId: string, dto: MutualResolutionProposeBody) {
-  return http.post<MutualResolutionProposal, MutualResolutionProposeBody>(
-    `/v1/disputes/${seg(disputeId)}/mutual-resolution`,
-    dto,
-    { auth: "required" },
-  )
+  // I-22: lihat submitDisputeEvidence — persen tidak valid dulu lolos ke 400.
+  assertDtoConstraints(dto, API_CONSTRAINTS.MutualResolutionProposeDto)
+  return http
+    .post<unknown, MutualResolutionProposeBody>(
+      `/v1/disputes/${seg(disputeId)}/mutual-resolution`,
+      dto,
+      { auth: "required" },
+    )
+    .then(normalizeMutualProposal)
 }
 
 export function respondMutualResolution(
@@ -243,11 +372,15 @@ export function respondMutualResolution(
   proposalId: string,
   dto: MutualResolutionRespondBody,
 ) {
-  return http.post<MutualResolutionProposal, MutualResolutionRespondBody>(
-    `/v1/disputes/${seg(disputeId)}/mutual-resolution/${seg(proposalId)}/respond`,
-    dto,
-    { auth: "required" },
-  )
+  // I-22: lihat submitDisputeEvidence.
+  assertDtoConstraints(dto, API_CONSTRAINTS.MutualResolutionRespondDto)
+  return http
+    .post<unknown, MutualResolutionRespondBody>(
+      `/v1/disputes/${seg(disputeId)}/mutual-resolution/${seg(proposalId)}/respond`,
+      dto,
+      { auth: "required" },
+    )
+    .then(normalizeMutualProposal)
 }
 
 export function withdrawMutualResolution(disputeId: string, proposalId: string) {

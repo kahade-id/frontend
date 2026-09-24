@@ -325,7 +325,18 @@ export default function ExtensionScreen() {
             {order ? (
               <KeyValueList>
                 <KeyValue label="Order" value={order.title} />
-                <KeyValue label="Tenggat saat ini" value={formatDateTimeWIB(deadline)} emphasis />
+                <KeyValue
+                  label="Tenggat saat ini"
+                  // M-58 (audit end-to-end, issue #41/#95): `addDays(createdAt
+                  // kosong)` = Invalid Date → tampil "—" murni, bukan "— WIB"
+                  // (label zona untuk data yang tidak ada).
+                  value={(() => {
+                    const ms =
+                      deadline instanceof Date ? deadline.getTime() : new Date(deadline).getTime()
+                    return Number.isFinite(ms) ? formatDateTimeWIB(deadline) : "—"
+                  })()}
+                  emphasis
+                />
               </KeyValueList>
             ) : null}
 
@@ -374,7 +385,14 @@ export default function ExtensionScreen() {
                       status={ext.status}
                       requestedByMe={requestedByMe}
                       requesterName={perRequesterName}
-                      requesterAvatar={order?.seller?.avatarUrl ?? undefined}
+                      // M-44 (audit end-to-end, issue #40): avatar MEMILIH
+                      // pihak pemohon (pembeli bila `requesterIsBuyer`) — dulu
+                      // selalu wajah penjual apa pun pemohonnya (F-06 hanya
+                      // memperbaiki nama).
+                      requesterAvatar={
+                        (requesterIsBuyer ? order?.buyer?.avatarUrl : order?.seller?.avatarUrl) ??
+                        undefined
+                      }
                       responseNote={ext.note ?? undefined}
                       requestedAt={formatDateTime(ext.createdAt)}
                       onApprove={canRespond ? () => openAction("APPROVE", ext) : undefined}

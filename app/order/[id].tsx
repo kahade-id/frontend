@@ -47,6 +47,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order, type SubmitDisputeDto } from "@/lib/api"
+import { createIdempotencyKey } from "@/lib/api/client"
 import { normalizeOrder } from "@/lib/api/orders"
 import {
   getAverageDurationsCached,
@@ -260,7 +261,13 @@ export default function OrderDetailScreen() {
           ? {
               ...prev,
               history: [...prev.history, ...rows],
-              historyHasMore: rows.length >= HISTORY_LIMIT,
+              // M-31 (audit end-to-end, issue #75): `meta.totalPages` juga
+              // dipakai saat load-more — heuristik `rows.length >= LIMIT`
+              // menyembunyikan "Muat lagi" prematur bila halaman terisi parsial.
+              historyHasMore:
+                res?.meta?.totalPages != null
+                  ? res.meta.totalPages > nextPage
+                  : rows.length >= HISTORY_LIMIT,
             }
           : prev,
       )
@@ -294,6 +301,15 @@ export default function OrderDetailScreen() {
   const scheduleResult = useResultTimer() // H-09: timer per alur (lihat lib/use-result-timer.ts)
 
   const submitLock = useRef(false)
+  /**
+   * M-08 (audit end-to-end 2026-09-24, issue #3/#7): satu `Idempotency-Key`
+   * per SIKLUS pembayaran — dibuat saat percobaan pertama, DIPERTAHANKAN saat
+   * kegagalan tak pasti (jaringan/PARSE/ABORTED), di-reset setelah sukses atau
+   * kegagalan pasti (PIN salah → percobaan berikutnya = pembayaran baru).
+   * Dulu tiap retry `payOrder` memakai kunci otomatis baru — server membaca
+   * "pembayaran kedua" bila yang pertama sebenarnya sudah terdebit.
+   */
+  const payKeyRef = useRef<string | null>(null)
 
   /**
    * Pembayaran QRIS: intent + polling + rekonsiliasi pindah ke hook
@@ -396,7 +412,8 @@ export default function OrderDetailScreen() {
       setPayProgressError(undefined)
       setPayProgress("PROCESSING")
       try {
-        await api.orders.payOrder(order.id, { pin })
+        await api.orders.payOrder(order.id, { pin }, payKeyRef.current ?? (payKeyRef.current = createIdempotencyKey()))
+        payKeyRef.current = null
         setPayProgress("SUCCESS")
         scheduleResult(() => {
           setPayProgress(null)
@@ -412,7 +429,8 @@ export default function OrderDetailScreen() {
          * Sekarang kegagalan tak pasti memicu penyegaran data order supaya
          * status yang terlihat berasal dari server, bukan asumsi.
          */
-        const uncertain = !isApiError(err) || err.isTransient || err.code === "ABORTED"
+        const uncertain =
+          !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
         // C-08 (audit escrow 2026-09-24): non-ApiError TIDAK diterjemahkan
         // menjadi "PIN salah atau saldo tidak cukup" — kesalahan jaringan
         // menutupi penyebab sebenarnya dan menyalahkan PIN pengguna.
@@ -422,6 +440,9 @@ export default function OrderDetailScreen() {
           : base
         setPayProgressError(msg)
         setPayProgress("FAILURE")
+        // M-08: kegagalan PASTI = pembayaran baru boleh dicoba dengan kunci
+        // baru; kegagalan tak pasti MENAHAN kunci yang sama untuk rekonfirmasi.
+        if (!uncertain) payKeyRef.current = null
         if (uncertain) {
           invalidateQueryCache()
           void query.refresh()
@@ -540,15 +561,18 @@ export default function OrderDetailScreen() {
    * confirm → pay → …) memastikan `/confirm` (ACCEPT/REJECT) adalah giliran
    * PENJUAL sebelum pembeli membayar.
    *
-   * `canProcess` sengaja hanya mengenali alias lama PAID: enum backend tidak
-   * punya status itu (pembayaran menggeser WAITING_PAYMENT langsung ke
-   * PROCESSING), dan menampilkan "Mulai proses" sebelum pembeli membayar akan
-   * menawarkan aksi yang salah.
+   * M-29 (audit end-to-end, issue #22): `canProcess` MEMAKAI `rawStatus`
+   * (pra-alias) — normalisasi mengubah "PAID" → "PROCESSING" (A-08), sehingga
+   * `order.status === "PAID"` mustahil true dan tombol "Mulai proses" tidak
+   * pernah muncul. Dengan `rawStatus === "PAID"` gerbang legacy hidup lagi
+   * TANPA mengubah tampilan status. `canShip` MENGEKUALIKAN `rawStatus !==
+   * "PAID"` — kalau tidak, dua tombol ("Mulai proses" DAN "Isi resi") muncul
+   * bersamaan untuk order yang sama.
    */
   const canPay = (order.status === "WAITING_PAYMENT" || order.status === "PENDING_PAYMENT") && isBuyer
   const canConfirm = order.status === "WAITING_CONFIRMATION" && isSeller
-  const canProcess = order.status === "PAID" && isSeller
-  const canShip = order.status === "PROCESSING" && isSeller
+  const canProcess = order.rawStatus === "PAID" && isSeller
+  const canShip = order.status === "PROCESSING" && order.rawStatus !== "PAID" && isSeller
   const canReviewDelivery =
     (order.status === "IN_DELIVERY" ||
       order.status === "SHIPPED" ||
@@ -712,7 +736,7 @@ export default function OrderDetailScreen() {
           <View className="gap-2">
             {canPay ? (
               <>
-                {!fee ? (
+                {!fee || fee.buyerPays == null ? (
                   <ErrorState
                     compact
                     title="Rincian biaya belum tersedia"
@@ -720,7 +744,11 @@ export default function OrderDetailScreen() {
                     onRetry={() => void query.reload()}
                   />
                 ) : null}
-                <Button disabled={!fee} onPress={() => setSheet("pay")}>
+                {/* M-30 (audit end-to-end, issue #91): tombol Bayar terkunci
+                    SELAMA nominal belum terlihat — dulu `disabled={!fee}` tetap
+                    mengizinkan bayar saat `fee` ada tapi `buyerPays` kosong
+                    (label "Bayar —" = membayar tanpa nominal terlihat). */}
+                <Button disabled={!fee || fee.buyerPays == null} onPress={() => setSheet("pay")}>
                   {/* B-05 (audit escrow 2026-09-24): label tidak pernah mencetak
                       `orderValue` sebagai total bayar (tanpa fee/diskon) — saat
                       fee belum terhitung tampil "—", bukan angka yang lebih kecil. */}
@@ -778,21 +806,13 @@ export default function OrderDetailScreen() {
                   onPress={() =>
                     void runAction(
                       async () => {
-                        // A-13 (audit escrow 2026-09-24): rilis dana membawa
-                        // `proofId` bukti yang direview (kontrak
-                        // `ConfirmDeliveryDto` yang sama dengan jalur
-                        // konfirmasi) — dulu `completeOrder` tanpa apa pun,
-                        // melepas escrow tanpa jejak bukti yang dibuka.
-                        const proofs = await api.orders
-                          .listDeliveryProofs(order.id)
-                          .catch(() => [])
-                        const latest = [...proofs].sort(
-                          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-                        )[0]
-                        await api.orders.completeOrder(
-                          order.id,
-                          latest?.id ? { proofId: latest.id } : {},
-                        )
+                        // M-28 (audit end-to-end, issue #23-25): spesifikasi
+                        // `POST /v1/orders/{id}/complete` TANPA requestBody —
+                        // jejak bukti melekat pada order di sisi server. Komentar
+                        // A-13 lama (mengklaim `ConfirmDeliveryDto` dipakai di
+                        // sini) MENYESATKAN dan menghasilkan panggilan
+                        // `completeOrder(id, {proofId})` yang ditolak validator.
+                        await api.orders.completeOrder(order.id)
                       },
                       "Order selesai",
                       "Gagal menyelesaikan order",
@@ -1007,7 +1027,17 @@ export default function OrderDetailScreen() {
                         ? "Pembayaran diterima"
                         : s === "PENDING"
                           ? "Status diperbarui — belum terbayar"
-                          : `Status pembayaran: ${s}`,
+                          : // M-32 (audit end-to-end, issue #78): enum mentah
+                            // ("EXPIRED", "UNKNOWN", …) tidak dipaparkan ke user.
+                            s === "EXPIRED"
+                            ? "QRIS sudah kedaluwarsa"
+                            : s === "FAILED"
+                              ? "Pembayaran gagal"
+                              : s === "CANCELLED"
+                                ? "Pembayaran dibatalkan"
+                                : s === "UNKNOWN"
+                                  ? "Status belum pasti — cek lagi sebentar lagi"
+                                  : "Status diperbarui",
                     tone: s === "PAID" ? "success" : "info",
                     duration: 2500,
                   })

@@ -88,11 +88,17 @@ describe("uang (B-03/B-06/B-07/B-11/I-04)", () => {
     const orderValue = 100_000
     const fee = 10_000
     const discount = 2_000
+    // M-11 (audit end-to-end): rumus fallback FeeBreakdown diperbaiki —
+    // voucher penuh memotong TAGIHAN pembeli; penjual tidak menerima share
+    // voucher. pays = V + s.b − D; gets = V − s.s.
     const share = splitFee(fee, "SPLIT")
-    const discountShare = splitFee(discount, "SPLIT")
-    const pays = orderValue + share.buyer - discountShare.buyer
-    const gets = orderValue - share.seller + discountShare.seller
+    const pays = orderValue + share.buyer - discount
+    const gets = orderValue - share.seller
     expect(pays - gets).toBe(fee - discount)
+    // V=100rb, fee=10rb SPLIT (s.b=5rb), diskon=2rb → pays=100+5−2=103rb;
+    // gets=100−5=95rb. Voucher penuh memotong tagihan pembeli (M-11).
+    expect(pays).toBe(103_000)
+    expect(gets).toBe(95_000)
   })
 
   it("feeShare hanya label persen (B-07)", () => {

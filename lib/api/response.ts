@@ -10,7 +10,7 @@
  * Dikosongkan supaya layar tetap merender langkah berikutnya.
  */
 
-import { ApiError, DEFAULT_ERROR_MESSAGES, parseErrorBody } from "@/lib/api/errors"
+import { ApiError, DEFAULT_ERROR_MESSAGES, parseErrorBody, codeFromBackend } from "@/lib/api/errors"
 import { logWarn } from "@/lib/telemetry"
 
 export function stringList(value: unknown): string[] {
@@ -39,11 +39,25 @@ export function invalidResponse(context: string): ApiError {
  */
 export function unwrapResponse(value: unknown): unknown {
   const body = asRecord(value)
-  if (!body || typeof body.success !== "boolean") return value
+  if (!body || typeof body.success !== "boolean") {
+    // M-34 (audit end-to-end, issue #80): envelope MURNI `{data, message?}`
+    // tanpa `success` ikut di-unwrap — dulu lolos apa adanya dan cast
+    // (mis. `DisputeDetail`) menerima `{data:{…}}` dengan `id` undefined.
+    // Kunci lain (`meta`, `total`, `orders`, …) membuat body BUKAN envelope
+    // murni — `{data:[…], meta}` paginated tetap utuh (kontrak readPage).
+    if (body && "data" in body && Object.keys(body).every((k) => k === "data" || k === "message")) {
+      return body.data
+    }
+    return value
+  }
   if (!body.success) {
     const parsed = parseErrorBody(body)
     throw new ApiError({
-      code: "BAD_REQUEST",
+      // M-35 (audit end-to-end, issue #81): klasifikasi MEMAKAI kode server
+      // (`code`/`errorCode`/`error_code`) bila dikenal — dulu selalu
+      // `BAD_REQUEST` generik sehingga `isTransient`/retry tidak melihat
+      // sinyal server (timeout, token kedaluwarsa, dsb.).
+      code: codeFromBackend(parsed.backendCode) ?? (parsed.validationMessages?.length ? "VALIDATION" : "BAD_REQUEST"),
       message: parsed.message ?? DEFAULT_ERROR_MESSAGES.BAD_REQUEST,
       backendCode: parsed.backendCode,
       validationMessages: parsed.validationMessages,

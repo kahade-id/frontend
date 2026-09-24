@@ -42,6 +42,7 @@ import { Copy, Link, MagnifyingGlass, Receipt, Scales } from "phosphor-react-nat
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
 import { formatDateTime } from "@/lib/format"
+import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import type { Order } from "@/lib/api/orders"
@@ -308,7 +309,14 @@ export default function TransactionsScreen() {
                 avatar: counterpart?.avatarUrl ?? undefined,
               }}
               timestamp={formatDateTime(item.createdAt)}
-              deadlineAt={item.deliveryDeadlineAt ? new Date(item.deliveryDeadlineAt) : undefined}
+              deadlineAt={
+                // M-54 (audit end-to-end, issue #72): `toEpochMs` (domain jam
+                // C-04) — `new Date("1700000000")` string epoch-detik = Invalid
+                // Date dan countdown tenggat menampilkan "—".
+                toEpochMs(item.deliveryDeadlineAt) != null
+                  ? new Date(toEpochMs(item.deliveryDeadlineAt) as number)
+                  : undefined
+              }
               onDeadline={scheduleRefresh}
               href={ROUTES.orderDetail(item.id)}
             />

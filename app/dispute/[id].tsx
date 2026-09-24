@@ -96,7 +96,7 @@ const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
   "video/quicktime",
   "video/webm",
 ]
-const PROPOSAL_NOTE_MAX = 500
+const PROPOSAL_NOTE_MAX = 2000
 
 /**
  * MIME picker → enum DTO. Yang sudah ada di enum diteruskan apa adanya;
@@ -301,7 +301,11 @@ export default function DisputeDetailScreen() {
       try {
         await api.disputes.submitDisputeClaim(id, { claim: text.trim() })
         toast.show({ title: "Klaim diperbarui", tone: "success", duration: 3000 })
-        await query.refresh()
+        // M-45 (audit end-to-end, issue #46): refetch BUKAN bagian mutasi —
+        // dulu satu `try`; `query.refresh()` gagal → toast "Gagal menyimpan
+        // klaim" padahal klaim SUDAH tersimpan (toast sukses sudah tampil lalu
+        // tertimpa kontradiksi).
+        void query.refresh().catch(() => {})
       } catch (err) {
         toast.show({
           title: "Gagal menyimpan klaim",
@@ -323,8 +327,16 @@ export default function DisputeDetailScreen() {
       try {
         await api.disputes.sendDisputeMessage(id, text)
         setDraft("")
-        const rows = await api.disputes.getDisputeMessages(id)
-        query.setData((prev) => (prev ? { ...prev, messages: rows } : prev))
+        // M-45 (audit end-to-end, issue #44): refetch pesan TERPISAH — dulu
+        // `sendDisputeMessage` + `getDisputeMessages` satu `try` dan draft sudah
+        // dikosongkan: refetch gagal → "Gagal mengirim pesan" padahal pesan
+        // TERKIRIM dan draft user HILANG.
+        try {
+          const rows = await api.disputes.getDisputeMessages(id)
+          query.setData((prev) => (prev ? { ...prev, messages: rows } : prev))
+        } catch {
+          // Pesan sudah terkirim — daftar menyusul saat penyegaran berikutnya.
+        }
       } catch (err) {
         toast.show({
           title: "Gagal mengirim pesan",
@@ -361,9 +373,16 @@ export default function DisputeDetailScreen() {
         fileUrls: [fileKey],
         fileTypes: [toEvidenceFileType(asset.mimeType)],
       })
-      const rows = await api.disputes.getDisputeEvidence(id)
-      query.setData((prev) => (prev ? { ...prev, evidence: rows } : prev))
+      // M-45 (audit end-toend, issue #45): toast sukses LANGSUNG setelah bukti
+      // tersimpan, refetch TERPISAH — dulu toast baru muncul setelah refetch dan
+      // refetch gagal = "Gagal mengunggah bukti" padahal bukti SUDAH tersimpan.
       toast.show({ title: "Bukti terkirim", tone: "success", duration: 3000 })
+      try {
+        const rows = await api.disputes.getDisputeEvidence(id)
+        query.setData((prev) => (prev ? { ...prev, evidence: rows } : prev))
+      } catch {
+        // Bukti sudah tersimpan — daftar menyusul saat penyegaran berikutnya.
+      }
     } catch (err) {
       toast.show({
         title: "Gagal mengunggah bukti",
@@ -444,8 +463,15 @@ export default function DisputeDetailScreen() {
         tone: "success",
         duration: 3000,
       })
-      const rows = await api.disputes.getMutualResolution(id)
-      query.setData((prev) => (prev ? { ...prev, proposals: rows } : prev))
+      // M-45 (audit end-to-end, issue #48): refetch daftar usulan TERPISAH —
+      // dulu satu `try`; `getMutualResolution` gagal → "Gagal mengirim usulan"
+      // padahal usulan SUDAH terkirim.
+      try {
+        const rows = await api.disputes.getMutualResolution(id)
+        query.setData((prev) => (prev ? { ...prev, proposals: rows } : prev))
+      } catch {
+        // Usulan sudah terkirim — daftar menyusul saat penyegaran berikutnya.
+      }
     } catch (err) {
       toast.show({
         title: "Gagal mengirim usulan",
@@ -455,7 +481,10 @@ export default function DisputeDetailScreen() {
     } finally {
       setProposing(false)
     }
-  }, [id, proposeAmount, proposeNote, orderValue, myRole, proposing, toast.show])
+    // M-46 (audit end-to-end, issue #53): `order` masuk deps — guard di atas
+    // membaca `order`, dulu closure hanya disegarkan oleh `orderValue`/`myRole`
+    // sehingga bisa menahan `order` basi.
+  }, [id, proposeAmount, proposeNote, orderValue, myRole, order, proposing, toast.show])
 
   const handleRespond = useCallback(
     async (
@@ -476,18 +505,21 @@ export default function DisputeDetailScreen() {
             ...(note ? { responseNote: note } : {}),
           } satisfies MutualResolutionRespondBody)
         }
-        toast.show({
-          title:
-            action === "ACCEPT"
-              ? "Kesepakatan diterima"
-              : action === "REJECT"
-                ? "Usulan ditolak"
-                : "Usulan ditarik",
-          tone: "success",
-          duration: 3000,
-        })
-        await query.refresh()
-      } catch (err) {
+      toast.show({
+        title:
+          action === "ACCEPT"
+            ? "Kesepakatan diterima"
+            : action === "REJECT"
+              ? "Usulan ditolak"
+              : "Usulan ditarik",
+        tone: "success",
+        duration: 3000,
+      })
+      // M-45 (audit end-to-end, issue #47): refetch TERPISAH — menerima usulan
+      // MEMBELAH dana escrow; dulu refetch gagal → "Gagal menanggapi usulan"
+      // padahal pembagian dana SUDAH dieksekusi server (paling menyesatkan).
+      void query.refresh().catch(() => {})
+    } catch (err) {
         toast.show({
           title: "Gagal menanggapi usulan",
           description: isApiError(err) ? userMessage(err) : undefined,
@@ -776,7 +808,18 @@ export default function DisputeDetailScreen() {
                   : p.buyerAmount != null && p.sellerAmount != null
                     ? p.buyerAmount + p.sellerAmount
                     : Number.NaN
-                const buyerAmount = p.buyerAmount ?? p.amount
+                // M-47 (audit end-to-end, issue #49): kontrak PRODUKSI proposal
+                // bersistem PERSENTASE (buyerPercent+sellerPercent=100) — dulu
+                // pembaca hanya nominal (`p.buyerAmount ?? p.amount`) sehingga
+                // payload persen = "Rincian usulan belum lengkap" PERMANEN.
+                // Persen dikonversi ke nominal dari orderValue; nominal eksplisit
+                // tetap menang bila ada.
+                const buyerAmount =
+                  p.buyerAmount ??
+                  p.amount ??
+                  (p.buyerPercent != null && Number.isFinite(orderValue)
+                    ? Math.round((p.buyerPercent / 100) * orderValue)
+                    : undefined)
                 if (
                   !myRole ||
                   buyerAmount == null ||
@@ -795,7 +838,12 @@ export default function DisputeDetailScreen() {
                     key={p.id}
                     totalAmount={total}
                     buyerAmount={buyerAmount}
-                    sellerAmount={p.sellerAmount ?? Math.max(0, total - buyerAmount)}
+                    sellerAmount={
+                      p.sellerAmount ??
+                      (p.sellerPercent != null && Number.isFinite(orderValue)
+                        ? Math.max(0, orderValue - buyerAmount)
+                        : Math.max(0, total - buyerAmount))
+                    }
                     status={p.status}
                     proposedByMe={proposedByMe}
                     proposerName={proposedByMe ? undefined : counterpartName}
@@ -808,12 +856,16 @@ export default function DisputeDetailScreen() {
                     respondedAt={p.respondedAt ? formatDateTime(p.respondedAt) : undefined}
                     expiresAt={p.expiresAt ? new Date(p.expiresAt) : undefined}
                     onAccept={
-                      pending && !proposedByMe
+                      // M-48 (audit end-to-end, issue #98): identitas WAJIB —
+                      // dulu `me` belum termuat membuat semua usulan "milik
+                      // lawan" dan tombol terima/menolak ditawarkan untuk usulan
+                      // SENDIRI (membalas usulan sendiri = pembagian dana aneh).
+                      pending && !proposedByMe && Boolean(me?.id)
                         ? () => void handleRespond(p, "ACCEPT", respondNote)
                         : undefined
                     }
                     onReject={
-                      pending && !proposedByMe
+                      pending && !proposedByMe && Boolean(me?.id)
                         ? () => void handleRespond(p, "REJECT", respondNote)
                         : undefined
                     }

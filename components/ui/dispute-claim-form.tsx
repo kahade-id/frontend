@@ -91,8 +91,8 @@ export function DisputeClaimForm({
   deadline,
   updatedAt,
   locked = false,
-  minLength = 50,
-  maxLength = 3000,
+  minLength = 20,
+  maxLength = 5000,
   labels,
   className,
   ...rest

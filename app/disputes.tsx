@@ -3,50 +3,61 @@
  * List DisputeCard; tap → detail sengketa (route /dispute/[id]).
  *
  * Audit: state async → `useApiQuery`, kerangka → <DataScreen>.
+ *
+ * M-52 (audit end-to-end 2026-09-24, issue #43): daftar DIPAGINASI
+ * (`usePaginatedQuery` + <PaginatedList>, pola tab Transaksi) — dulu hanya
+ * 50 sengketa pertama yang bisa dibuka tanpa jalan memuat lebih banyak.
  */
 import { ShieldWarning } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
+import type { DisputeDetail } from "@/lib/api/disputes"
 import { formatDateTime } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
-import { useApiQuery } from "@/lib/use-api-query"
+import { tokens } from "@/lib/tokens"
+import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
-import { DataScreen } from "@/components/ui/data-screen"
 import { DisputeCard } from "@/components/ui/dispute-card"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Header } from "@/components/ui/header"
+import { PaginatedList } from "@/components/ui/paginated-list"
+import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 
 const PAGE_LIMIT = 50
 
 export default function DisputesScreen() {
-  const query = useApiQuery("disputes", (signal) =>
-    api.disputes.listMyDisputes({ page: 1, limit: PAGE_LIMIT }, signal),
+  const query = usePaginatedQuery<DisputeDetail>("disputes", (page, signal) =>
+    api.disputes.listMyDisputes({ page, limit: PAGE_LIMIT }, signal),
   )
-  const items = query.data ?? []
 
   return (
-    <DataScreen
-      title="Sengketa"
-      state={query}
-      loadingMessage="Memuat sengketa…"
-      empty={
-        items.length === 0 && {
-          icon: ShieldWarning,
-          title: "Tidak ada sengketa",
-          description: "Sengketa pesanan akan muncul di sini.",
+    <Screen edges={["top"]} padded={false}>
+      <Header title="Sengketa" />
+      <PaginatedList
+        {...query}
+        onRefresh={query.refresh}
+        onRetry={query.reload}
+        onLoadMore={query.loadMore}
+        bottomPadding={tokens.space[8]}
+        header={<SectionHeader title="Sengketa saya" />}
+        empty={
+          <EmptyState
+            icon={ShieldWarning}
+            title="Tidak ada sengketa"
+            description="Sengketa pesanan akan muncul di sini."
+          />
         }
-      }
-    >
-      <SectionHeader title="Sengketa saya" />
-      {items.map((d) => (
-        <DisputeCard
-          key={d.id}
-          disputeId={d.id}
-          orderTitle={`Order ${d.orderId}`}
-          status={d.status}
-          updatedAt={formatDateTime(d.updatedAt ?? d.createdAt)}
-          href={ROUTES.disputeDetail(d.id)}
-        />
-      ))}
-    </DataScreen>
+        renderItem={({ item }) => (
+          <DisputeCard
+            disputeId={item.id}
+            orderTitle={`Order ${item.orderId}`}
+            status={item.status}
+            updatedAt={formatDateTime(item.updatedAt ?? item.createdAt)}
+            href={ROUTES.disputeDetail(item.id)}
+          />
+        )}
+      />
+    </Screen>
   )
 }
