@@ -92,7 +92,8 @@ const DEFAULT_LABELS: OrderExtensionCardLabels = {
   from: (name) => translate("Permintaan perpanjangan dari {x}", { x: name }),
   currentDeadline: "Tenggat saat ini",
   newDeadline: "Tenggat baru",
-  extraDays: (n) => `+${n} hari`,
+  // J-01 (audit escrow 2026-09-24): label FUNGSI tetap harus lewat translate.
+  extraDays: (n) => translate("+{x} hari", { x: n }),
   reason: "Alasan",
   responseNote: "Catatan tanggapan",
   approve: "Setujui",
@@ -127,6 +128,14 @@ export type OrderExtensionCardProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
+/**
+ * Tambah hari ke tanggal.
+ *
+ * F-07 (audit escrow 2026-09-24): input tak valid menghasilkan `Invalid Date`
+ * — kerusakannya sudah DITAHAN di lapisan tampilan: `formatDateTimeWIB`/
+ * `formatDateTime` mengembalikan "— WIB"/"—" untuk nilai tak valid (H-03/I-07),
+ * bukan teks "Invalid Date" di pratinjau "Tenggat baru".
+ */
 export function addDays(d: Date | number | string, days: number): Date {
   const base = d instanceof Date ? new Date(d.getTime()) : new Date(d)
   base.setDate(base.getDate() + days)

@@ -26,6 +26,7 @@
  *     melompat saat user mengubah nominal dan fee dihitung ulang.
  */
 import { type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
 import { Card } from "@/components/ui/card"
@@ -48,37 +49,33 @@ export type FeeBreakdownLabels = {
   feeHint?: string
 }
 
+// J-03 (audit escrow 2026-09-24): label default dibungkus `translate()` di
+// titik definisi (usulan audit) supaya masuk katalog i18n.
 const DEFAULT_LABELS: FeeBreakdownLabels = {
-  orderValue: "Nilai transaksi",
-  serviceFee: "Biaya layanan",
+  orderValue: translate("Nilai transaksi"),
+  serviceFee: translate("Biaya layanan"),
   responsibility: {
-    BUYER: "Ditanggung pembeli",
-    SELLER: "Ditanggung penjual",
-    SPLIT: "Dibagi dua pihak",
+    BUYER: translate("Ditanggung pembeli"),
+    SELLER: translate("Ditanggung penjual"),
+    SPLIT: translate("Dibagi dua pihak"),
   },
-  voucher: "Potongan voucher",
-  buyerPays: "Pembeli membayar",
-  sellerGets: "Penjual menerima",
+  voucher: translate("Potongan voucher"),
+  buyerPays: translate("Pembeli membayar"),
+  sellerGets: translate("Penjual menerima"),
   feeHint: undefined,
 }
 
 /** Label penanggung biaya — dipakai FeeResponsibilitySelector & detail order */
 export const FEE_RESPONSIBILITY_LABELS: Record<FeeResponsibility, string> = DEFAULT_LABELS.responsibility
 
-/** Porsi biaya (0–1) per pihak untuk satu skema penanggung */
-export function feeShare(responsibility: FeeResponsibility): { buyer: number; seller: number } {
-  if (responsibility === "BUYER") return { buyer: 1, seller: 0 }
-  if (responsibility === "SELLER") return { buyer: 0, seller: 1 }
-  return { buyer: 0.5, seller: 0.5 }
-}
+/**
+ * B-03/B-07 (audit escrow 2026-09-24): `feeShare`/`splitFee` pindah ke
+ * `lib/financial.ts` (matematika uang murni, teruji di
+ * tests/orders-domain.test.ts) — di sini hanya di-re-export untuk pemakai lama.
+ */
+import { splitFee } from "@/lib/financial"
 
-export function splitFee(feeAmount: number, responsibility: FeeResponsibility): { buyer: number; seller: number } {
-  const fee = Math.max(feeAmount, 0)
-  if (responsibility === "BUYER") return { buyer: fee, seller: 0 }
-  if (responsibility === "SELLER") return { buyer: 0, seller: fee }
-  const half = Math.floor(fee / 2)
-  return { buyer: fee - half, seller: half }
-}
+export { feeShare, splitFee } from "@/lib/financial"
 
 // `role` di-Omit dari ViewProps: RN 0.81 punya `role?: Role` (aksesibilitas)
 // yang literal-nya disjoint dengan FeeRole — tanpa Omit seluruh props = never.
@@ -120,8 +117,19 @@ export function FeeBreakdown({
   }
 
   const share = splitFee(feeAmount, feeResponsibility)
-  // Diskon mengurangi biaya, dialokasikan ke pihak yang menanggung biaya.
-  const discount = Math.min(Math.max(discountAmount, 0), feeAmount)
+  /**
+   * B-02 (audit escrow 2026-09-24): potongan voucher TIDAK lagi di-clamp ke
+   * feeAmount — voucher yang lebih besar dari biaya platform (mis. gratis
+   * ongkir + potongan) tampil penuh sesuai nominal server. Clamp membuat
+   * baris "Potongan voucher" pernah menampilkan angka yang lebih kecil dari
+   * yang dipakai backend.
+   *
+   * B-06: model fallback lokal memuaskan invariant `pays - gets == fee -
+   * discount` (diuji di tests/orders-domain.test.ts). Saat server mengirim
+   * `buyerPays`/`sellerGets`, angka server itulah yang tampil (B-01) —
+   * fallback hanya untuk preview create-order yang belum punya angka server.
+   */
+  const discount = Math.max(Math.trunc(discountAmount) || 0, 0)
   const discountShare = splitFee(discount, feeResponsibility)
   const pays = buyerPays ?? orderValue + share.buyer - discountShare.buyer
   const gets = sellerGets ?? orderValue - share.seller + discountShare.seller
@@ -167,6 +175,9 @@ export function FeeBreakdown({
           <Amount value={share.buyer} size="body" tone="inherit" className="text-caption" />
           {" / "}
           <Amount value={share.seller} size="body" tone="inherit" className="text-caption" />
+          {/* B-11: sisa pembulatan 1 Rupiah dibebankan ke pembeli —
+              dieksplisitkan, bukan diam-diam tersembunyi di angka baris atas. */}
+          {share.buyer !== share.seller ? " (sisa pembulatan ke pembeli)" : ""}
         </Text>
       ) : null}
     </Card>

@@ -173,7 +173,12 @@ export default function OrderLinksScreen() {
                   onOpen={
                     link.status === "ACCEPTED" && link.orderId
                       ? () => router.push(ROUTES.orderDetail(link.orderId as string))
-                      : () => router.push(ROUTES.orderLink(link.token))
+                      : // F-09 (audit escrow 2026-09-24): ACCEPTED tanpa `orderId`
+                        // (payload lama) membuka halaman tautan yang memuat ulang
+                        // data via token — begitu `orderId` muncul di sana, kartu
+                        // pratinjau menawarkan "Lihat pesanan". Dibanding membentuk
+                        // `/order/` telanjang, ini jalur aman yang tetap sampai tujuan.
+                        () => router.push(ROUTES.orderLink(link.token))
                   }
                 />
               )

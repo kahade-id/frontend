@@ -98,7 +98,11 @@ export const ROUTES = {
   // ── Stack screen di luar tab ──────────────────────────────────────────
   /** Detail satu order (di-push dari Tab Transaksi & Beranda) */
   orderDetail: (orderId: string) =>
-    ({ pathname: "/order/[id]", params: { id: orderId } }) as unknown as Href,
+    // H-02 (audit escrow 2026-09-24): id kosong membentuk "/order/" yang 404
+    // (akar sama dengan A-07/D-11). Tanpa id valid, jangan bentuk rute detail.
+    orderId
+      ? ({ pathname: "/order/[id]", params: { id: orderId } } as unknown as Href)
+      : ("/orders" as Href),
   /** Buat transaksi baru (di-push dari FAB Tab Transaksi & quick action Beranda) */
   createTransaction: "/create-transaction" as Href,
   /** Buat transaksi dengan lawan transaksi terisi (dari profil publik) */
@@ -201,16 +205,25 @@ export const ROUTES = {
   orderLinks: "/order-links" as Href,
   /** Invoice pesanan (GET /v1/orders/{id}/invoice) */
   invoice: (orderId: string) =>
-    ({ pathname: "/invoice/[orderId]", params: { orderId } }) as unknown as Href,
+    // H-02: akar sama — id kosong tidak boleh membentuk rute telanjang.
+    orderId
+      ? ({ pathname: "/invoice/[orderId]", params: { orderId } } as unknown as Href)
+      : ("/transactions" as Href),
   /** Resolusi deeplink order-link (GET /v1/deeplinks/order-link/{token}) */
   orderLink: (token: string) =>
-    ({ pathname: "/order-link/[token]", params: { token } }) as unknown as Href,
+    token
+      ? ({ pathname: "/order-link/[token]", params: { token } } as unknown as Href)
+      : ("/order-links" as Href),
   /** Form bukti pengiriman satu pesanan */
   deliveryProof: (orderId: string) =>
-    ({ pathname: "/delivery-proof/[orderId]", params: { orderId } }) as unknown as Href,
+    orderId
+      ? ({ pathname: "/delivery-proof/[orderId]", params: { orderId } } as unknown as Href)
+      : ("/transactions" as Href),
   /** Perpanjangan tenggat satu pesanan */
   extension: (orderId: string) =>
-    ({ pathname: "/extension/[orderId]", params: { orderId } }) as unknown as Href,
+    orderId
+      ? ({ pathname: "/extension/[orderId]", params: { orderId } } as unknown as Href)
+      : ("/transactions" as Href),
 
   // ── Pengaturan — semua sub-screen menu ──────────────────────────────────
   editProfile: "/edit-profile" as Href,
@@ -276,10 +289,19 @@ export const ROUTES = {
   /** Verifikasi bisnis (badge "Business Verified"): status + riwayat + submit — khusus akun BUSINESS */
   businessVerification: "/business-verification" as Href,
   /** Daftar sengketa saya (GET /v1/disputes/my) */
+  // H-02 (audit escrow 2026-09-24): katalog ini SENGAJA tanpa slash akhir —
+  // Expo Router menormalkan "/disputes" dan "/disputes/" ke file
+  // `app/disputes.tsx` yang sama (dan `as Href` di tiap entri dikembalikan ke
+  // validasi typed-routes setelah semua file rute ada). Yang harus konsisten
+  // adalah SATU bentuk di katalog ini; semua pemanggil memakai ROUTES, bukan
+  // literal path, jadi tidak ada lagi rute telanjang yang bisa terpeleset.
   disputes: "/disputes" as Href,
   /** Detail satu sengketa */
   disputeDetail: (disputeId: string) =>
-    ({ pathname: "/dispute/[id]", params: { id: disputeId } }) as unknown as Href,
+    // H-02: akar sama — id kosong tidak boleh membentuk rute telanjang.
+    disputeId
+      ? ({ pathname: "/dispute/[id]", params: { id: disputeId } } as unknown as Href)
+      : ("/disputes" as Href),
   /** Daftar ruang chat (GET /v1/chat/rooms) */
   chat: "/chat" as Href,
   /** Satu ruang chat */
@@ -388,10 +410,16 @@ export const ROUTES = {
     ({ pathname: "/reports", params: opts.targetId ? opts : {} }) as unknown as Href,
   /** Detail satu mutasi wallet (GET /v1/wallet/transactions/{txId}) */
   walletTransaction: (txId: string) =>
-    ({ pathname: "/wallet-transaction/[txId]", params: { txId } }) as unknown as Href,
+    // H-02: akar sama — id kosong tidak boleh membentuk rute telanjang.
+    txId
+      ? ({ pathname: "/wallet-transaction/[txId]", params: { txId } } as unknown as Href)
+      : ("/wallet-history" as Href),
   /** Beri ulasan pesanan selesai (POST /v1/ratings) */
   rateOrder: (orderId: string) =>
-    ({ pathname: "/rate/[orderId]", params: { orderId } }) as unknown as Href,
+    // H-02: akar sama — id kosong tidak boleh membentuk rute telanjang.
+    orderId
+      ? ({ pathname: "/rate/[orderId]", params: { orderId } } as unknown as Href)
+      : ("/transactions" as Href),
 } as const
 
 /**

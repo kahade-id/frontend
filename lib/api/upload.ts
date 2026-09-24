@@ -42,11 +42,22 @@ export function requestPresignedUrl(dto: PresignedUrlDto, signal?: AbortSignal) 
     .post<unknown, PresignedUrlDto>("/v1/upload/presigned-url", dto, { auth: "required", signal })
     .then((raw) => {
       const value = raw as Record<string, unknown>
-      return {
-        ...value,
-        url: value.url ?? value.uploadUrl,
-        expiresAt: value.expiresAt ?? value.expires_at,
+      const upload: PresignedUpload = {
+        ...(value as Record<string, unknown>),
+        url: (value.url ?? value.uploadUrl) as string,
+        expiresAt: (value.expiresAt ?? value.expires_at) as string | undefined,
       } as PresignedUpload
+      /**
+       * D-15 (audit escrow 2026-09-24): `fileKey` dulu lolos apa adanya —
+       * `undefined` berakhir di `fileUrls: [undefined]` → `"fileUrls":[null]`
+       * ditolak validator server SETELAH objek terunggah (objek yatim).
+       * `url` wajib string; `fileKey` wajib non-kosong sebelum dipakai DTO.
+       */
+      if (typeof upload.url !== "string" || !upload.url)
+        throw new ApiError({ code: "PARSE", message: "Respons unggah tidak memuat URL." })
+      if (typeof upload.fileKey !== "string" || !upload.fileKey)
+        throw new ApiError({ code: "PARSE", message: "Respons unggah tidak memuat kunci berkas." })
+      return upload
     })
 }
 
@@ -102,8 +113,13 @@ export async function uploadToPresignedUrl(
     signal?.removeEventListener("abort", abort)
   }
 }
-export async function putToPresignedUrl(url: string, blob: Blob, headers?: Record<string, string>) {
-  return uploadToPresignedUrl({ url, method: "PUT", headers }, blob)
+export async function putToPresignedUrl(
+  url: string,
+  blob: Blob,
+  headers?: Record<string, string>,
+  signal?: AbortSignal,
+) {
+  return uploadToPresignedUrl({ url, method: "PUT", headers }, blob, "upload", 60_000, signal)
 }
 
 export function confirmUpload(dto: ConfirmUploadDto, signal?: AbortSignal) {
@@ -113,9 +129,19 @@ export function confirmUpload(dto: ConfirmUploadDto, signal?: AbortSignal) {
   })
 }
 
-/** Multipart langsung ke server dengan field `file`. */
-export function uploadDirect(formData: FormData) {
-  return http.post<DirectUpload>("/v1/upload/direct", undefined, { formData, auth: "required" })
+/**
+ * Multipart langsung ke server dengan field `file`.
+ *
+ * O-01 (audit escrow 2026-09-24): `signal` membatalkan penggantian foto
+ * avatar / unggah galeri saat pengguna menutup layar — dulu hasilnya tetap
+ * terkirim dan menimpa yang lama tanpa bisa dicegah.
+ */
+export function uploadDirect(formData: FormData, signal?: AbortSignal) {
+  return http.post<DirectUpload>("/v1/upload/direct", undefined, {
+    formData,
+    auth: "required",
+    signal,
+  })
 }
 
 /**
@@ -132,25 +158,36 @@ export function cleanupUploads(fileKeys: string[]) {
 /**
  * Upload dari asset lokal (dipakai form bukti/KYC): ambil blob, minta
  * presigned URL, PUT, lalu confirm. Kembalikan fileKey siap kirim.
+ *
+ * O-01 (audit escrow 2026-09-24): `signal` membatalkan SELURUH rantai
+ * (presigned → PUT → confirm) — bukan hanya langkah terakhir. Cleanup fileKey
+ * yang sudah terlanjur terunggah TIDAK diikat signal (harus tetap jalan saat
+ * pembatalan, supaya tidak menyisakan orphan di S3).
  */
 export async function uploadPresigned(
   purpose: PresignedUrlDto["purpose"],
   fileName: string,
   contentType: string,
   blob: Blob,
+  signal?: AbortSignal,
 ) {
-  const presigned = await requestPresignedUrl({
-    purpose,
-    fileName,
-    contentType,
-    fileSize: blob.size,
-  })
+  const presigned = await requestPresignedUrl(
+    {
+      purpose,
+      fileName,
+      contentType,
+      fileSize: blob.size,
+    },
+    signal,
+  )
   await uploadToPresignedUrl(
     { ...presigned, headers: { "Content-Type": contentType, ...presigned.headers } },
     blob,
     fileName,
+    60_000,
+    signal,
   )
-  const confirmed = await confirmUpload({ fileKey: presigned.fileKey })
+  const confirmed = await confirmUpload({ fileKey: presigned.fileKey }, signal)
   return { fileKey: presigned.fileKey, url: confirmed.url }
 }
 

@@ -495,7 +495,10 @@ export default function CreateTransactionScreen() {
       padded={false}
       footer={
         <View>
-          {feeError && step === LAST_STEP ? (
+          {/* N-05 (audit escrow 2026-09-24): galat fee tampil di SEMUA langkah —
+              dulu baru muncul di langkah terakhir, pengguna mengisi 3 langkah
+              tanpa tahu fee tidak bisa dihitung. */}
+          {feeError ? (
             <Text variant="caption" tone="danger">
               Biaya belum terkonfirmasi: {feeError}. Tarik untuk memuat ulang.
             </Text>
@@ -658,7 +661,14 @@ export default function CreateTransactionScreen() {
                   const n = digits ? Number.parseInt(digits, 10) : Number.NaN
                   // Kosong = 0 (belum valid) supaya `canSubmit` menahan kirim;
                   // angka di luar rentang dijepit ke batas terdekat.
-                  setDeadlineDays(Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(0, n)) : 0)
+                  //
+                  // N-03 (audit escrow 2026-09-24): dulu hanya nilai TERKIRIM
+                  // yang dijepit — input "20" tetap tampil "20" sementara
+                  // `deliveryDeadlineDays` yang dikirim 14. Draft ikut ditulis
+                  // ulang ke angka yang benar-benar dikirim.
+                  const clamped = Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(0, n)) : 0
+                  setDeadlineDays(clamped)
+                  if (digits && clamped !== n) setDeadlineDraft(clamped >= 1 ? String(clamped) : "")
                 }}
                 onBlur={() => {
                   if (deadlineDraft) return

@@ -14,6 +14,7 @@
 import type { BadgeTone } from "@/components/ui/badge"
 import type { OrderLinkStatus } from "@/components/ui/order-link-preview-card"
 import { hasOwn } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
 
 export const ORDER_LINK_STATUS_LABELS: Record<OrderLinkStatus, string> = {
   ACTIVE: "Aktif",
@@ -38,14 +39,28 @@ export function isOrderLinkStatus(status: string): status is OrderLinkStatus {
   return hasOwn(ORDER_LINK_STATUS_LABELS, status)
 }
 
-/** Status tautan yang dikenal komponen; nilai asing dipetakan ke EXPIRED. */
-export function orderLinkStatus(status: string): OrderLinkStatus {
-  return isOrderLinkStatus(status) ? status : "EXPIRED"
+/**
+ * Status tautan yang dikenal komponen; nilai ASING → `undefined`.
+ *
+ * F-05 (audit escrow 2026-09-24): versi lama memetakan nilai asing ke
+ * `EXPIRED` — status `PENDING`/baru dari backend tampil "Kedaluwarsa"
+ * (pengguna mengira tautannya mati dan tidak mencoba membukanya). Sekarang
+ * status asing TIDAK dipaksa ke salah satu status; pemanggil membiarkan kartu
+ * tanpa status khusus dan memakai `orderLinkStatusMeta` untuk label netral.
+ */
+export function orderLinkStatus(status: string): OrderLinkStatus | undefined {
+  return isOrderLinkStatus(status) ? status : undefined
 }
 
-/** Label + tone untuk Badge. Status asing tampil apa adanya, tone netral. */
+/**
+ * Label + tone untuk Badge.
+ *
+ * J-04 (audit escrow 2026-09-24): nilai asing TIDAK dirender apa adanya
+ * (teks server mentah sebagai label badge bisa berupa enum Inggris acak) —
+ * label generik + tone netral.
+ */
 export function orderLinkStatusMeta(status: string): { label: string; tone: BadgeTone } {
   return isOrderLinkStatus(status)
     ? { label: ORDER_LINK_STATUS_LABELS[status], tone: ORDER_LINK_STATUS_TONE[status] }
-    : { label: status, tone: "neutral" }
+    : { label: translate("Status tidak dikenal"), tone: "neutral" }
 }

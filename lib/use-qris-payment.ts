@@ -27,10 +27,24 @@ import { usePolling } from "@/lib/use-polling"
 
 /** Interval polling status pembayaran (dulu konstanta di layar). */
 const POLL_MS = 3_000
-/** 300 × 3 detik = 15 menit; setelah cap tercapai UI mengaku berhenti (A-11 lama). */
+/**
+ * 300 × 3 detik = 15 menit. C-10 (audit escrow 2026-09-24): setelah cap,
+ * UI berhenti polling TETAPI tetap menyediakan "Cek status sekarang" +
+ * "Bayar metode lain" (bukan berhenti tanpa jalan keluar).
+ */
 const MAX_POLLS = 300
 /** Status yang tidak perlu dipoll lagi (terminal). */
-const TERMINAL = ["PAID", "EXPIRED", "FAILED", "CANCELLED"] as const
+const TERMINAL: readonly string[] = ["PAID", "EXPIRED", "FAILED", "CANCELLED"]
+
+/**
+ * M-04 (audit escrow 2026-09-24): cast `(TERMINAL as readonly string[])`
+ * (3 tempat) adalah kebocoran type-safety di jalur pembayaran — dihapus;
+ * `TERMINAL` kini `readonly string[]` sehingga `includes(status)` sah tanpa
+ * menurunkan tipe secara paksa.
+ */
+function isTerminalStatus(status: string | null | undefined): boolean {
+  return status != null && TERMINAL.includes(status)
+}
 
 export type UseQrisPaymentOptions = {
   /** Order yang sedang dibuka, `null` saat parameter rute belum siap. */
@@ -62,6 +76,8 @@ export function useQrisPayment({
   const [creating, setCreating] = useState(false)
   const pollCount = useRef(0)
   const creatingRef = useRef(false)
+  /** G-04: satu request status dalam satu waktu (poll + manual berbagi). */
+  const syncInFlight = useRef<Promise<string | null> | null>(null)
 
   // Callback terbaru disimpan di ref: hook ini tidak boleh memaksa pemanggil
   // membungkus semuanya dengan useCallback hanya demi stabilitas.
@@ -76,22 +92,32 @@ export function useQrisPayment({
    */
   const syncStatus = useCallback(async (): Promise<string | null> => {
     if (!orderId) return null
-    try {
-      const res = await api.orders.getPaymentStatus(orderId)
-      setPollError(null)
-      setStatus(res.status)
-      if (res.status === "PAID") {
-        // J-02: status final — aksi menggantung diselesaikan.
-        resolvePendingAction("qris-payment", orderId)
-        onPaidRef.current()
-      } else if ((TERMINAL as readonly string[]).includes(res.status)) {
-        resolvePendingAction("qris-payment", orderId)
+    // G-04 (audit escrow 2026-09-24): tick poll dan `syncStatus` manual
+    // (createIntent/onCheckStatus) tidak boleh berjalan paralel — satu
+    // request dalam satu waktu; pemanggil berikutnya membagi hasil yang sama.
+    if (syncInFlight.current) return syncInFlight.current
+    const run = (async () => {
+      try {
+        const res = await api.orders.getPaymentStatus(orderId)
+        setPollError(null)
+        setStatus(res.status)
+        if (res.status === "PAID") {
+          // J-02: status final — aksi menggantung diselesaikan.
+          resolvePendingAction("qris-payment", orderId)
+          onPaidRef.current()
+        } else if (isTerminalStatus(res.status)) {
+          resolvePendingAction("qris-payment", orderId)
+        }
+        return res.status
+      } catch (error) {
+        setPollError(userMessage(error))
+        return null
+      } finally {
+        syncInFlight.current = null
       }
-      return res.status
-    } catch (error) {
-      setPollError(userMessage(error))
-      return null
-    }
+    })()
+    syncInFlight.current = run
+    return run
   }, [orderId])
 
   usePolling(
@@ -104,13 +130,7 @@ export function useQrisPayment({
       await syncStatus()
     },
     POLL_MS,
-    Boolean(
-      orderId &&
-        active &&
-        qris &&
-        !(TERMINAL as readonly string[]).includes(status ?? "") &&
-        pollCount.current < MAX_POLLS,
-    ),
+    Boolean(orderId && active && qris && !isTerminalStatus(status) && pollCount.current < MAX_POLLS),
   )
 
   /** Buat intent QRIS (atau sinkronkan dulu bila masih ada intent aktif). */
@@ -118,9 +138,14 @@ export function useQrisPayment({
     if (!orderId || !canCreate || creatingRef.current) return
     // A-13 (audit lama, dipertahankan): jangan buat intent kedua selagi intent
     // aktif belum terminal — sinkronkan statusnya lebih dulu.
-    if (qris && !(TERMINAL as readonly string[]).includes(status ?? "")) {
-      await syncStatus()
-      return
+    //
+    // C-11 (audit escrow 2026-09-24): dulu `syncStatus()` lalu `return` tanpa
+    // syarat — tombol tidak responsif saat hasil baca kosong. Kini bila hasil
+    // sinkronisasi menunjukkan intent sudah terminal, SATU tekan yang sama
+    // langsung membuat intent baru (tanpa menuntut tekan kedua).
+    if (qris && !isTerminalStatus(status)) {
+      const synced = await syncStatus()
+      if (synced == null || !isTerminalStatus(synced)) return
     }
     creatingRef.current = true
     setCreating(true)
@@ -163,11 +188,22 @@ export function useQrisPayment({
     pollCount.current = 0
   }, [])
 
-  /** Dipakai panel saat countdown QR habis: status lokal jadi EXPIRED. */
-  const expireLocally = useCallback(
-    () => setStatus((prev) => (prev === "PENDING" || prev == null ? "EXPIRED" : prev)),
-    [],
-  )
+  /**
+   * Dipakai panel saat countdown QR habis.
+   *
+   * C-05 (audit escrow 2026-09-24): countdown yang habis TIDAK boleh menang
+   * atas kenyataan pembayaran. Konfirmasi ke server lebih dulu; hanya bila
+   * status masih belum terbayar status lokal jadi EXPIRED — dan bila server
+   * ternyata PAID, `syncStatus` sudah memicu `onPaid`.
+   */
+  const expireLocally = useCallback(() => {
+    void (async () => {
+      const synced = await syncStatus()
+      if (synced == null || synced === "PENDING") {
+        setStatus((prev) => (prev === "PENDING" || prev == null ? "EXPIRED" : prev))
+      }
+    })()
+  }, [syncStatus])
 
   return {
     qris,

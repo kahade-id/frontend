@@ -153,6 +153,8 @@ export default function OrderDetailScreen() {
   const query = useApiQuery<{
     order: Order
     history: Awaited<ReturnType<typeof api.orders.getOrderHistory>>["data"]
+    /** G-08: masih ada halaman riwayat berikutnya? */
+    historyHasMore: boolean
     durations: AverageDurations | null
     fee: Awaited<ReturnType<typeof api.orders.calculateFee>> | null
   }>(
@@ -182,17 +184,17 @@ export default function OrderDetailScreen() {
             logWarn("order:me-fallback", err)
             return null
           })
+      // A-12 (audit escrow 2026-09-24): inferensi dari USERNAME DIHAPUS —
+      // username bisa berubah setelah order dibuat sehingga peran tertukar dan
+      // tombol aksi pihak salah menyala. Fallback hanya cocokkan `me.id`;
+      // tidak ketemu → `undefined` dan layar menyembunyikan aksi (`knownRole`).
       const role =
         o.myRole ??
         (me?.id && o.buyer?.id === me.id
           ? "BUYER"
           : me?.id && o.seller?.id === me.id
             ? "SELLER"
-            : me?.username && o.buyer?.username === me.username
-              ? "BUYER"
-              : me?.username && o.seller?.username === me.username
-                ? "SELLER"
-                : undefined)
+            : undefined)
       const resolvedOrder = normalizeOrder({ ...o, myRole: role })
       let fee = resolvedOrder.fee ?? null
       if (
@@ -207,6 +209,10 @@ export default function OrderDetailScreen() {
               orderValue: resolvedOrder.orderValue,
               feeResponsibility: resolvedOrder.feeResponsibility,
               role,
+              // A-10 (audit escrow 2026-09-24): voucher order asli disertakan
+              // — dulu fee dihitung ulang tanpa diskon sehingga angka
+              // FeeBreakdown lebih besar dari tagihan sebenarnya.
+              voucherCode: resolvedOrder.voucherCode ?? undefined,
             },
             signal,
           )
@@ -214,14 +220,59 @@ export default function OrderDetailScreen() {
           // fee opsional
         }
       }
-      return { order: resolvedOrder, history: h?.data ?? [], durations: d, fee }
+      return {
+        order: resolvedOrder,
+        history: h?.data ?? [],
+        // G-08: halaman berikutnya ada bila meta.totalPages bilang begitu;
+        // tanpa meta, halaman penuh = kemungkinan masih ada.
+        historyHasMore: h?.meta?.totalPages != null ? h.meta.totalPages > 1 : (h?.data?.length ?? 0) >= HISTORY_LIMIT,
+        durations: d,
+        fee,
+      }
     },
     Boolean(id),
   )
   const order = query.data?.order ?? null
   const history = query.data?.history ?? []
+  const historyHasMore = query.data?.historyHasMore ?? false
   const durations = query.data?.durations ?? null
   const fee = query.data?.fee ?? null
+  /**
+   * G-08 (audit escrow 2026-09-24): riwayat order dibatasi `HISTORY_LIMIT`
+   * (50) entri per halaman; sisa riwayat sebelumnya tidak bisa dibuka. Tombol
+   * "Muat lebih riwayat" memuat halaman berikutnya dan MENAMPAKKANNYA (append,
+   * bukan `setData` polos yang menimpa) — `historyHasMore` dari meta.totalPages,
+   * heuristik halaman penuh bila meta tidak ada.
+   */
+  const [historyLoadingMore, setHistoryLoadingMore] = useState(false)
+  const loadMoreHistory = useCallback(async () => {
+    if (!order || historyLoadingMore) return
+    setHistoryLoadingMore(true)
+    try {
+      const nextPage = Math.floor(history.length / HISTORY_LIMIT) + 1
+      const res = await api.orders.getOrderHistory(order.id, {
+        page: nextPage,
+        limit: HISTORY_LIMIT,
+      })
+      const rows = res?.data ?? []
+      query.setData((prev) =>
+        prev
+          ? {
+              ...prev,
+              history: [...prev.history, ...rows],
+              historyHasMore: rows.length >= HISTORY_LIMIT,
+            }
+          : prev,
+      )
+    } catch {
+      toast.show({
+        title: "Gagal memuat riwayat berikutnya. Coba lagi.",
+        tone: "danger",
+      })
+    } finally {
+      setHistoryLoadingMore(false)
+    }
+  }, [order, history.length, historyLoadingMore, query, toast])
   const { loading, error, refreshing } = query
   const [submitting, setSubmitting] = useState(false)
 
@@ -362,7 +413,10 @@ export default function OrderDetailScreen() {
          * status yang terlihat berasal dari server, bukan asumsi.
          */
         const uncertain = !isApiError(err) || err.isTransient || err.code === "ABORTED"
-        const base = isApiError(err) ? userMessage(err) : "PIN salah atau saldo tidak cukup."
+        // C-08 (audit escrow 2026-09-24): non-ApiError TIDAK diterjemahkan
+        // menjadi "PIN salah atau saldo tidak cukup" — kesalahan jaringan
+        // menutupi penyebab sebenarnya dan menyalahkan PIN pengguna.
+        const base = isApiError(err) ? userMessage(err) : "Pembayaran gagal — penyebab tidak diketahui."
         const msg = uncertain
           ? `${base} Status pembayaran mungkin sudah diproses — memuat ulang status…`
           : base
@@ -372,9 +426,12 @@ export default function OrderDetailScreen() {
           invalidateQueryCache()
           void query.refresh()
         }
+        // C-09 (audit escrow 2026-09-24): pesan PIN/kesalahan langsung tampil
+        // di PinInput SEKARANG — dulu baru diisi setelah overlay 1,4 detik,
+        // pengguna menunggu tanpa tahu PIN-nya ditolak.
+        setPinError(msg)
         scheduleResult(() => {
           setPayProgress(null)
-          setPinError(msg)
         }, "pay")
       } finally {
         submitLock.current = false
@@ -394,14 +451,18 @@ export default function OrderDetailScreen() {
   const openChat = useCallback(async () => {
     if (!order) return
     try {
-      const rooms = await api.chat.listChatRooms()
-      const room = rooms.data.find((r) => r.orderId === order.id)
+      // G-09 (audit escrow 2026-09-24): cari ruang order via pemindaian
+      // berpaginasi yang berhenti saat ketemu (lihat `findChatRoomByOrder`) —
+      // dulu memuat daftar ruang sekali besar dan ruang lama di luar halaman
+      // pertama tidak ketemu.
+      const room = await api.chat.findChatRoomByOrder(order.id)
       router.push(
         room
           ? ROUTES.chatRoom(room.id, room.counterpart?.fullName ?? undefined)
           : ROUTES.chat,
       )
     } catch {
+      // Gagal cari ruang → daftar chat adalah pintu keluar yang aman.
       router.push(ROUTES.chat)
     }
   }, [order])
@@ -418,7 +479,7 @@ export default function OrderDetailScreen() {
       title: ORDER_STATUS_LABELS[next] ?? next,
       description: !parts
         ? undefined
-        : parts.unit === "hari"
+        : parts.unit === "day"
           ? translate("Biasanya sekitar {x} hari", { x: parts.value })
           : translate("Biasanya sekitar {x} jam", { x: parts.value }),
     }
@@ -608,6 +669,11 @@ export default function OrderDetailScreen() {
               feeResponsibility={order.feeResponsibility}
               role={isBuyer ? "BUYER" : "SELLER"}
               discountAmount={fee.discount}
+              // B-01 (audit escrow 2026-09-24): teruskan angka FINAL server —
+              // dulu kartu menghitung ulang lokal sehingga angka kartu bisa
+              // berbeda dari tombol "Bayar".
+              buyerPays={fee.buyerPays}
+              sellerGets={fee.sellerReceives}
             />
           ) : null}
 
@@ -655,7 +721,10 @@ export default function OrderDetailScreen() {
                   />
                 ) : null}
                 <Button disabled={!fee} onPress={() => setSheet("pay")}>
-                  Bayar {formatRupiah(fee?.buyerPays ?? order.orderValue)}
+                  {/* B-05 (audit escrow 2026-09-24): label tidak pernah mencetak
+                      `orderValue` sebagai total bayar (tanpa fee/diskon) — saat
+                      fee belum terhitung tampil "—", bukan angka yang lebih kecil. */}
+                  Bayar {fee?.buyerPays != null ? formatRupiah(fee.buyerPays) : "—"}
                 </Button>
               </>
             ) : null}
@@ -708,7 +777,23 @@ export default function OrderDetailScreen() {
                   loading={submitting}
                   onPress={() =>
                     void runAction(
-                      () => api.orders.completeOrder(order.id),
+                      async () => {
+                        // A-13 (audit escrow 2026-09-24): rilis dana membawa
+                        // `proofId` bukti yang direview (kontrak
+                        // `ConfirmDeliveryDto` yang sama dengan jalur
+                        // konfirmasi) — dulu `completeOrder` tanpa apa pun,
+                        // melepas escrow tanpa jejak bukti yang dibuka.
+                        const proofs = await api.orders
+                          .listDeliveryProofs(order.id)
+                          .catch(() => [])
+                        const latest = [...proofs].sort(
+                          (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+                        )[0]
+                        await api.orders.completeOrder(
+                          order.id,
+                          latest?.id ? { proofId: latest.id } : {},
+                        )
+                      },
                       "Order selesai",
                       "Gagal menyelesaikan order",
                     )
@@ -740,14 +825,19 @@ export default function OrderDetailScreen() {
           {/* ── Aksi sekunder ────────────────────────────────────── */}
           <SectionHeader title="Lainnya" />
           <View className="flex-row flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={Receipt}
-              onPress={() => router.push(ROUTES.invoice(order.id))}
-            >
-              Invoice
-            </Button>
+            {/* H-08 (audit escrow 2026-09-24): invoice "belum diterbitkan"
+                untuk WAITING_CONFIRMATION — tombol disembunyikan, bukan
+                membuka layar struk kosong. */}
+            {order.status !== "WAITING_CONFIRMATION" ? (
+              <Button
+                variant="secondary"
+                size="sm"
+                leftIcon={Receipt}
+                onPress={() => router.push(ROUTES.invoice(order.id))}
+              >
+                Invoice
+              </Button>
+            ) : null}
             <Button
               variant="secondary"
               size="sm"
@@ -756,6 +846,28 @@ export default function OrderDetailScreen() {
             >
               Chat
             </Button>
+            {order.status === "REFUNDED" || order.status === "EXPIRED" ? (
+              // A-11 (audit escrow 2026-09-24): order berstatus REFUNDED/EXPIRED
+              // dulu hanya punya badge — pengguna tidak tahu harus berbuat apa
+              // setelah dananya kembali. Dua jalur keluar eksplisit: buat
+              // transaksi baru, atau periksa mutasi pengembalian dana.
+              <>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => router.push(ROUTES.createTransaction)}
+                >
+                  Buat transaksi baru
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onPress={() => router.push(ROUTES.walletHistory)}
+                >
+                  Lihat mutasi dana
+                </Button>
+              </>
+            ) : null}
             {canExtend ? (
               <Button
                 variant="secondary"
@@ -821,6 +933,17 @@ export default function OrderDetailScreen() {
               description="Perubahan status order akan tercatat di sini."
             />
           )}
+          {historyHasMore ? (
+            <View style={{ marginTop: tokens.space[3] }}>
+              <Button
+                variant="ghost"
+                loading={historyLoadingMore}
+                onPress={() => void loadMoreHistory()}
+              >
+                Muat lebih riwayat
+              </Button>
+            </View>
+          ) : null}
         </View>
         </FadeIn>
       </PullToRefresh>
@@ -872,7 +995,24 @@ export default function OrderDetailScreen() {
               onCopy={(value) => void copy(value)}
               onExpire={qrisPayment.expireLocally}
               onRecreate={() => void handlePayQris()}
-              onCheckStatus={() => void qrisPayment.syncStatus()}
+              onCheckStatus={() => {
+                // N-07 (audit escrow 2026-09-24): "Cek status sekarang" memberi
+                // umpan balik hasil — dulu hanya diam (atau `pollError` bila
+                // gagal), pengguna tidak tahu status sudah dicek.
+                void qrisPayment.syncStatus().then((s) => {
+                  if (s == null) return
+                  toast.show({
+                    title:
+                      s === "PAID"
+                        ? "Pembayaran diterima"
+                        : s === "PENDING"
+                          ? "Status diperbarui — belum terbayar"
+                          : `Status pembayaran: ${s}`,
+                    tone: s === "PAID" ? "success" : "info",
+                    duration: 2500,
+                  })
+                })
+              }}
             />
           ) : (
             <Button loading={submitting || qrisCreating} onPress={() => void handlePayQris()}>
@@ -888,7 +1028,14 @@ export default function OrderDetailScreen() {
         visible={sheet === "cancel"}
         onRequestClose={closeSheet}
         title="Batalkan order?"
-        description="Order akan dibatalkan dan dana yang sudah masuk dikembalikan ke pembeli."
+        // N-01 (audit escrow 2026-09-24): janji refund hanya benar bila dana
+        // sudah di escrow (PAID/PROCESSING). Status sebelum bayar tidak punya
+        // dana yang "dikembalikan" — copy mengikuti kenyataan dana per status.
+        description={
+          order.status === "PAID" || order.status === "PROCESSING"
+            ? "Order akan dibatalkan dan dana di escrow dikembalikan ke pembeli."
+            : "Order akan dibatalkan. Belum ada dana di escrow untuk status ini — tidak ada pengembalian dana."
+        }
         footer={
           <Button
             variant="destructive"
@@ -1075,7 +1222,11 @@ export default function OrderDetailScreen() {
 
       <Dialog
         title="Terima order ini?"
-        description="Anda akan melanjutkan proses penyelesaian pesanan ini setelah pembeli membayar."
+        // N-02 (audit escrow 2026-09-24): `confirmOrder({action:"ACCEPT"})`
+        // terjadi SEBELUM pembayaran — copy lama ("…setelah pembeli membayar")
+        // membuat penjual menunggu pembayaran yang justru baru bisa dilakukan
+        // setelah order diterima.
+        description="Order diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk."
         visible={confirmAccept}
         loading={submitting}
         confirmLabel="Terima"
@@ -1095,7 +1246,13 @@ export default function OrderDetailScreen() {
       <TransactionProgressOverlay
         visible={payProgress !== null}
         state={payProgress ?? "PROCESSING"}
-        processingMessage={translate("Membayar {x} dari saldo…", { x: formatRupiah(fee?.buyerPays ?? 0) })}
+        processingMessage={
+          // C-12 (audit escrow 2026-09-24): fee null tidak mencetak "Membayar
+          // Rp0 dari saldo…" — tanpa angka yang pasti, tanpa nominal palsu.
+          fee?.buyerPays != null
+            ? translate("Membayar {x} dari saldo…", { x: formatRupiah(fee.buyerPays) })
+            : "Membayar dari saldo…"
+        }
         successMessage="Pembayaran berhasil"
         failureMessage={payProgressError ?? "Pembayaran gagal. Coba lagi."}
       />

@@ -128,25 +128,32 @@ export type DeliveryProofViewerProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
+// J-03 (audit escrow 2026-09-24): label default dibungkus `translate()` di titik definisi.
 const DEFAULT_LABELS: DeliveryProofViewerLabels = {
-  title: "Bukti pengiriman",
+  title: translate("Bukti pengiriman"),
   titleFrom: (name) => translate("Bukti dari {x}", { x: name }),
-  status: { pending: "Menunggu konfirmasi", confirmed: "Diterima", rejected: "Ditolak" },
-  tracking: "Nomor resi",
-  copyTracking: "Salin nomor resi",
-  note: "Catatan penjual",
-  uploadedAt: "Diunggah",
-  escrowNotice: "Dana di escrow akan dilepas ke penjual setelah Anda mengonfirmasi penerimaan.",
-  confirm: "Konfirmasi diterima",
-  reject: "Tolak bukti",
-  rejectSubmit: "Tolak dan buka sengketa",
-  rejectCancel: "Batal",
-  rejectReasonLabel: "Alasan penolakan",
-  rejectReasonPlaceholder: "Jelaskan apa yang tidak sesuai…",
-  rejectReasonHelper: "Penolakan akan membuka sengketa yang ditinjau tim Kahade.",
-  rejectReasonTooShort: (min) => `Minimal ${min} karakter`,
-  rejectedTitle: "Bukti ditolak",
-  openAttachment: (i, total) => `Buka lampiran ${i + 1} dari ${total}`,
+  status: {
+    pending: translate("Menunggu konfirmasi"),
+    confirmed: translate("Diterima"),
+    rejected: translate("Ditolak"),
+  },
+  tracking: translate("Nomor resi"),
+  copyTracking: translate("Salin nomor resi"),
+  note: translate("Catatan penjual"),
+  uploadedAt: translate("Diunggah"),
+  escrowNotice: translate(
+    "Dana di escrow akan dilepas ke penjual setelah Anda mengonfirmasi penerimaan.",
+  ),
+  confirm: translate("Konfirmasi diterima"),
+  reject: translate("Tolak bukti"),
+  rejectSubmit: translate("Tolak dan buka sengketa"),
+  rejectCancel: translate("Batal"),
+  rejectReasonLabel: translate("Alasan penolakan"),
+  rejectReasonPlaceholder: translate("Jelaskan apa yang tidak sesuai…"),
+  rejectReasonHelper: translate("Penolakan akan membuka sengketa yang ditinjau tim Kahade."),
+  rejectReasonTooShort: (min) => translate("Minimal {x} karakter", { x: min }),
+  rejectedTitle: translate("Bukti ditolak"),
+  openAttachment: (i, total) => translate("Buka lampiran {i} dari {total}", { i: i + 1, total }),
 }
 
 const statusTone: Record<DeliveryProofStatus, BadgeTone> = {
@@ -191,7 +198,7 @@ export function DeliveryProofViewer({
   sellerName,
   uploadedAtLabel,
   rejectionReason,
-  viewer = "buyer",
+  viewer,
   onOpenAttachment,
   onCopyTracking,
   onConfirm,
@@ -213,6 +220,10 @@ export function DeliveryProofViewer({
   const [hero, ...thumbs] = images
   const total = attachments.length
   const indexOf = (a: DeliveryProofAttachment) => attachments.indexOf(a)
+  // E-02 (audit escrow 2026-09-24): default `viewer = "buyer"` (dihapus)
+  // membuat pihak berperan tak-dikenal melihat "Konfirmasi diterima" — tombol
+  // rilis dana escrow. Aksi hanya untuk pemanggil yang MENYATAKAN peran
+  // pembeli; tanpa pernyataan peran, tampilan read-only.
   const showActions = viewer === "buyer" && status === "pending" && (onConfirm || onReject)
   const busy = confirming || rejecting
 
@@ -301,7 +312,7 @@ export function DeliveryProofViewer({
               menelan IconButton "Salin" di sebelahnya (audit #4). */}
           <View className="flex-row items-center gap-2 rounded-sm border border-border bg-surface pl-3 pr-1 py-1">
             <Text
-              accessibilityLabel={[translate(t.tracking), trackingNumber.split("").join(" ")].join(" ")}
+                accessibilityLabel={[translate(t.tracking), trackingNumber].join(" ")}
               variant="monoBody"
               className="flex-1"
               numberOfLines={1}

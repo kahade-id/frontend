@@ -54,21 +54,21 @@ function describe(action: PendingAction): { title: string; meta?: string } {
       return {
         title: translate("Pembayaran pesanan menunggu — {x}", { x: formatRupiah(action.amount) }),
         meta: action.expiresAt
-          ? `QRIS berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
+          ? translate("QRIS berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
           : "Periksa status pembayaran pesanan Anda",
       }
     case "topup-unpaid":
       return {
         title: translate("Top-up belum dibayar — {x}", { x: formatRupiah(action.amount) }),
         meta: action.expiresAt
-          ? `Tagihan berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
+          ? translate("Tagihan berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
           : "Selesaikan pembayaran di layar Top-up",
       }
     case "withdraw-otp":
       return {
         title: translate("Penarikan menunggu OTP — {x}", { x: formatRupiah(action.amount) }),
         meta: action.expiresAt
-          ? `Kode OTP berlaku sampai ${formatDateTimeWIB(action.expiresAt)}`
+          ? translate("Kode OTP berlaku sampai {x}", { x: formatDateTimeWIB(action.expiresAt) })
           : "Periksa status penarikan di layar Tarik Dana",
       }
   }

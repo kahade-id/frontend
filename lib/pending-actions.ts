@@ -61,11 +61,30 @@ export type PendingAction =
       expiresAt?: number
     }
 
-/** Normalisasi expiresAt server (epoch number ATAU ISO string) → epoch ms. */
+/**
+ * Normalisasi expiresAt server (epoch number ATAU ISO string) → epoch ms.
+ *
+ * C-04 + I-01 (audit escrow 2026-09-24): domain jam pernah dicampur —
+ * epoch DETIK (1700000000) dianggap milidetik sehingga dihitung tahun 1970
+ * (catatan hidup langsung "kedaluwarsa"), sementara string numerik
+ * `"1700000000000"` dibuang ke `undefined`. Sekarang:
+ *   - angka > 1e12  → sudah ms;
+ *   - angka 1e9..1e12 → epoch detik → ×1000;
+ *   - string numerik → proses sebagai angka (aturan sama);
+ *   - string lain → Date.parse (ISO-8601 dst.).
+ */
 export function toEpochMs(value: unknown): number | undefined {
-  if (typeof value === "number" && Number.isFinite(value)) return value
+  const normalizeNumber = (n: number): number | undefined => {
+    if (!Number.isFinite(n) || n <= 0) return undefined
+    if (n > 1e12) return n
+    if (n >= 1e9) return n * 1000
+    return undefined
+  }
+  if (typeof value === "number") return normalizeNumber(value)
   if (typeof value === "string") {
-    const parsed = Date.parse(value)
+    const trimmed = value.trim()
+    if (/^\d+$/.test(trimmed)) return normalizeNumber(Number(trimmed))
+    const parsed = Date.parse(trimmed)
     if (Number.isFinite(parsed)) return parsed
   }
   return undefined
@@ -147,7 +166,10 @@ export function loadPendingActions(): Promise<void> {
         if (!rawValue) return
         try {
           actions = sanitize(JSON.parse(rawValue))
-        } catch {
+        } catch (err) {
+          // JSON rusak = catatan tidak bisa dipercaya; buang dan laporkan
+          // (dulu `catch {}` tanpa jejak — kegagalan persistensi tak terlihat).
+          logWarn("pending-actions:parse", err)
           actions = []
         }
         emit()
@@ -166,8 +188,19 @@ function persist() {
   )
 }
 
-/** Catat aksi menggantung (dedupe by kind+id; yang terbaru menang). */
+/**
+ * Catat aksi menggantung (dedupe by kind+id; yang terbaru menang).
+ *
+ * C-04 (audit escrow 2026-09-24): aksi yang datang sudah kedaluwarsa/TTL
+ * (mis. membuat QRIS dari respons basi setelah app lama di background) tidak
+ * dicatat — banner tidak boleh menawarkan langkah yang sudah lewat. Guard
+ * "langkah selesai" lain ada di konsumen: `use-qris-payment` menghapus
+ * catatan begitu order settled/completed, dan tiap layar sinkron dengan
+ * status server sebelum mengeksekusi (pending-actions kini tanpa step
+ * machine — layar adalah sumber kebenaran langkah).
+ */
 export function recordPendingAction(action: PendingAction): void {
+  if (isStale(action)) return
   const key = actionKey(action)
   actions = [action, ...actions.filter((existing) => actionKey(existing) !== key)].slice(
     0,

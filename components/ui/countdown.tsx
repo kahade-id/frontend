@@ -58,6 +58,12 @@ export function useCountdown({ seconds = 0, until, onComplete, autoStart = true 
       const parsed = new Date(until).getTime()
       return Number.isFinite(parsed) ? parsed : null
     }
+    // C-03 (audit escrow 2026-09-24): `seconds <= 0` TANPA `until` berarti
+    // sumber waktu BELUM ADA (mis. `expiresAt` QRIS belum turun) — dulu
+    // dihitung "berakhir sekarang" sehingga `onComplete` langsung terpicu dan
+    // intent QRIS yang baru dibuat ditandai EXPIRED lokal. Timer tanpa sumber
+    // = idle (null), bukan durasi 0 yang menembak onComplete.
+    if (!(seconds > 0)) return null
     const parsed = serverNow() + seconds * 1000
     return Number.isFinite(parsed) ? parsed : null
   }, [until, seconds])
@@ -176,7 +182,13 @@ export function Countdown({
   const spoken = invalid
     ? invalidLabel
     : formatCountdown(
-        remaining > 30 ? Math.ceil(remaining / Math.max(1, announceEverySeconds)) * Math.max(1, announceEverySeconds) : remaining,
+        // K-03 (audit escrow 2026-09-24): sisa waktu diumumkan APA ADANYA —
+        // pembulatan ke kelipatan `announceEverySeconds` mengumumkan "30"
+        // untuk 31 detik dan membingungkan pengguna pembaca layar pada detik-
+        // detik terakhir. `announceEverySeconds` tetap dipakai untuk interval
+        // pengumuman (lihat `announceEverySeconds` di hook), bukan membulatkan
+        // nilai yang terlihat.
+        remaining,
         invalidLabel,
       )
   /**

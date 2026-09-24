@@ -65,6 +65,10 @@ export default function OrderLinkScreen() {
       const targetOrderId = order?.id ?? link.orderId
       if (targetOrderId) {
         router.replace(ROUTES.orderDetail(targetOrderId))
+      } else {
+        // F-04 (audit escrow 2026-09-24): respons tanpa `id` tidak membentuk
+        // rute telanjang — arahkan ke daftar transaksi tempat pesanan baru muncul.
+        router.replace(ROUTES.transactions)
       }
     } catch (err: unknown) {
       toast.show({ title: "Gagal menerima tautan", description: userMessage(err), tone: "danger" })

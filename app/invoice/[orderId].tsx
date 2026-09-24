@@ -23,7 +23,7 @@ import { tokens } from "@/lib/tokens"
 import { shareContent } from "@/lib/share"
 import { useApiQuery } from "@/lib/use-api-query"
 
-import { saveTextFile } from "@/lib/export-file"
+import { saveBlobFile, saveTextFile } from "@/lib/export-file"
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
@@ -66,12 +66,15 @@ export default function InvoiceScreen() {
   const invoice = query.data
 
   const handleDownload = useCallback(
-    async (id: string, invoiceNumber: string) => {
+    async (id: string, invoiceNumber: string | undefined) => {
       if (downloading) return
       setDownloading(true)
       try {
         const html = await api.orders.getReceiptHtml(id)
-        const saved = await saveTextFile(html, `${invoiceNumber}.html`, "text/html")
+        // H-04 (audit escrow 2026-09-24): nama berkas memakai nomor ASLI dari
+        // server; bila tidak ada, id order (klien tidak pernah mengarang
+        // `INV-…` — B-14).
+        const saved = await saveTextFile(html, `${invoiceNumber ?? `order-${id}`}.html`, "text/html")
         toast.show({
           title: saved.kind === "downloaded" ? "Struk diunduh" : "Struk siap dibagikan",
           description: saved.filename,
@@ -81,6 +84,37 @@ export default function InvoiceScreen() {
       } catch (err: unknown) {
         toast.show({
           title: "Gagal mengunduh struk",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      } finally {
+        setDownloading(false)
+      }
+    },
+    [downloading, toast.show],
+  )
+
+  /**
+   * O-04 (audit escrow 2026-09-24): unduh struk PDF resmi
+   * (`GET /v1/orders/{id}/invoice/pdf`) — dokumen arsip yang sah, menggantikan
+   * kebiasaan mengarsipkan HTML hasil unduh (D-14/L-02).
+   */
+  const handleDownloadPdf = useCallback(
+    async (id: string, invoiceNumber: string | undefined) => {
+      if (downloading) return
+      setDownloading(true)
+      try {
+        const blob = await api.orders.getInvoicePdf(id)
+        const saved = await saveBlobFile(blob, `${invoiceNumber ?? `order-${id}`}.pdf`, "application/pdf")
+        toast.show({
+          title: saved.kind === "downloaded" ? "Struk PDF diunduh" : "Struk PDF siap dibagikan",
+          description: saved.filename,
+          tone: "success",
+          duration: 3000,
+        })
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal mengunduh struk PDF",
           description: userMessage(err),
           tone: "danger",
         })
@@ -110,10 +144,10 @@ export default function InvoiceScreen() {
    */
   const handleShare = useCallback(
     async (inv: Invoice) => {
-      const message = `Invoice ${inv.invoiceNumber} — ${formatRupiah(inv.total)} untuk order ${inv.order.id}`
+      const message = `Invoice ${inv.invoiceNumber ?? inv.order.id} — ${formatRupiah(inv.total)} untuk order ${inv.order.id}`
       const outcome = await shareContent({ message, title: "Invoice Kahade" })
       if (outcome === "unavailable") {
-        const ok = await copy(inv.invoiceNumber)
+        const ok = inv.invoiceNumber ? await copy(inv.invoiceNumber) : await copy(inv.order.id)
         toast.show({
           title: ok ? "Nomor invoice disalin" : "Tidak bisa membagikan",
           description: ok
@@ -163,12 +197,12 @@ export default function InvoiceScreen() {
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <InvoiceReceiptView
               mode="invoice"
-              number={invoice.invoiceNumber}
+              number={invoice.invoiceNumber ?? "—"}
               status={{ label: "Terverifikasi", tone: "success" }}
               from={{ name: orderPartyName(invoice.order.seller) ?? "—" }}
               to={{ name: orderPartyName(invoice.order.buyer) ?? "—" }}
               items={invoice.items.map((i, idx) => ({
-                id: `${invoice.invoiceNumber}-${idx}`,
+                id: `${invoice.invoiceNumber ?? invoice.order.id}-${idx}`,
                 title: i.label,
                 amount: i.amount,
               }))}
@@ -179,6 +213,7 @@ export default function InvoiceScreen() {
               ]}
               onCopyNumber={(n) => void copy(n)}
               onDownload={() => void handleDownload(invoice.order.id, invoice.invoiceNumber)}
+              onDownloadPdf={() => void handleDownloadPdf(invoice.order.id, invoice.invoiceNumber)}
               onShare={() => void handleShare(invoice)}
               downloading={downloading}
             />

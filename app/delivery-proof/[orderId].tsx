@@ -70,13 +70,32 @@ function toStatus(status: string): DeliveryProofStatus {
   return "pending"
 }
 
+/**
+ * E-01 + L-01 (audit escrow 2026-09-24): dulu SEMUA `fileUrls` dipetakan ke
+ * `kind:"image"` — PDF bukti kirim dirender sebagai gambar rusak; object key
+ * mentah dipakai apa adanya sebagai `uri`. `fileUrls` dari GET adalah URL siap
+ * tampil (lihat normalizeDeliveryProof) — yang bukan http(s) TIDAK dirender
+ * (object key bukan URL publik), dan jenisnya dibaca dari ekstensinya.
+ */
+function isRenderableUrl(uri: string): boolean {
+  return /^https?:\/\//i.test(uri)
+}
+
 function toAttachments(p: DeliveryProof): DeliveryProofAttachment[] {
-  const imgs: DeliveryProofAttachment[] = (p.fileUrls ?? []).map((uri) => ({ kind: "image", uri }))
-  const pdfs: DeliveryProofAttachment[] = (p.linkUrls ?? []).map((uri) => ({
-    kind: "pdf",
-    uri,
-    name: fileNameFromUrl(uri, FALLBACK_FILE_NAME),
-  }))
+  const imgs: DeliveryProofAttachment[] = []
+  const pdfs: DeliveryProofAttachment[] = []
+  for (const uri of p.fileUrls ?? []) {
+    if (!isRenderableUrl(uri)) continue
+    if (/\.pdf($|\?)/i.test(uri)) {
+      pdfs.push({ kind: "pdf", uri, name: fileNameFromUrl(uri, FALLBACK_FILE_NAME) })
+    } else {
+      imgs.push({ kind: "image", uri })
+    }
+  }
+  for (const uri of p.linkUrls ?? []) {
+    if (!isRenderableUrl(uri)) continue
+    pdfs.push({ kind: "pdf", uri, name: fileNameFromUrl(uri, FALLBACK_FILE_NAME) })
+  }
   return [...imgs, ...pdfs]
 }
 
@@ -117,6 +136,11 @@ export default function DeliveryProofScreen() {
 
   // Sisi penjual
   const [uploads, setUploads] = useState<UploadedProof[]>([])
+  // G-10 (audit escrow 2026-09-24): reset lampiran lokal saat berpindah order
+  // (deep link antar-order) — dulu unggahan order sebelumnya ikut terkirim.
+  useEffect(() => {
+    setUploads([])
+  }, [orderId])
   const [uploading, setUploading] = useState(false)
   const [form, setForm] = useState<DeliveryProofFormValue>({ trackingNumber: "", note: "" })
   const [submitting, setSubmitting] = useState(false)
@@ -128,7 +152,15 @@ export default function DeliveryProofScreen() {
     )[0]
   }, [proofs])
 
-  const isSeller = order?.myRole === "SELLER"
+  /**
+   * E-02 + H-01 (audit escrow 2026-09-24): peran TIDAK boleh default ke
+   * pembeli — `viewer="buyer"` menampilkan "Konfirmasi diterima" (rilis dana
+   * escrow) kepada pihak yang belum terkonfirmasi perannya. `myRole` yang
+   * hilang berarti layar ini READ-ONLY dengan penjelasan, bukan tombol rilis.
+   */
+  const knownRole: "buyer" | "seller" | null =
+    order?.myRole === "SELLER" ? "seller" : order?.myRole === "BUYER" ? "buyer" : null
+  const isSeller = knownRole === "seller"
   const sellerName = order ? orderPartyName(order.seller) : undefined
   const attachments = useMemo(() => (latest ? toAttachments(latest) : []), [latest])
 
@@ -338,6 +370,15 @@ export default function DeliveryProofScreen() {
               </>
             ) : null}
 
+            {order && !knownRole ? (
+              // E-02/H-01: bukan pihak order / peran tidak dikirim server —
+              // bukan tombol rilis dana; jelaskan mengapa read-only.
+              <ErrorState
+                title="Peran Anda di order ini tidak dikenal"
+                description="Aksi konfirmasi disembunyikan sampai server mengirim peran Anda. Hubungi bantuan bila ini pesanan Anda."
+              />
+            ) : null}
+
             {latest ? (
               <>
                 {showSellerForm ? <SectionHeader title="Bukti terakhir" /> : null}
@@ -348,7 +389,7 @@ export default function DeliveryProofScreen() {
                   note={latest.description}
                   uploadedAtLabel={formatDateTime(latest.createdAt)}
                   rejectionReason={latest.note ?? undefined}
-                  viewer={isSeller ? "seller" : "buyer"}
+                  viewer={knownRole ?? undefined}
                   onConfirm={() => setConfirmOpen(true)}
                   onReject={(note) => void handleReject(note)}
                   confirming={confirming}

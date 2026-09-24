@@ -43,6 +43,7 @@
  *     supaya list tidak melompat saat data masuk.
  */
 import { View, type ViewProps } from "react-native"
+import { translate } from "@/lib/i18n/translate"
 
 import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
@@ -51,7 +52,7 @@ import { Countdown } from "@/components/ui/countdown"
 import { Dot } from "@/components/ui/dot"
 import { type BadgeTone } from "@/components/ui/badge"
 import {
-  isOrderActive,
+  hasLiveDeadline,
   orderStatusTone,
   OrderStatusBadge,
   type OrderRole,
@@ -61,6 +62,9 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { hasOwn } from "@/lib/has-own"
+import { formatRupiah } from "@/lib/format"
+import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 
 export type OrderCounterpart = {
   name: string
@@ -77,10 +81,13 @@ export type OrderCardLabels = {
   deadline: string
 }
 
+// J-03 (audit escrow 2026-09-24): label default dibungkus `translate()` di
+// titik definisi supaya masuk katalog i18n dan ikut terjemah di mode English
+// (dulu string polos Indonesia — pindai katalog tidak menemukan properti objek).
 const DEFAULT_LABELS: OrderCardLabels = {
-  seller: "Penjual",
-  buyer: "Pembeli",
-  deadline: "Batas waktu",
+  seller: translate("Penjual"),
+  buyer: translate("Pembeli"),
+  deadline: translate("Batas waktu"),
 }
 
 /**
@@ -145,7 +152,7 @@ export function OrderCard({
   const t = { ...DEFAULT_LABELS, ...labels }
   const counterpartRole =
     role === "buyer" ? t.seller : role === "seller" ? t.buyer : "Lawan transaksi"
-  const showDeadline = deadlineAt != null && isOrderActive(status)
+  const showDeadline = deadlineAt != null && hasLiveDeadline(status)
   const statusAccent = STATUS_ACCENT[orderStatusTone(status, role)]
 
   const a11y =
@@ -154,6 +161,10 @@ export function OrderCard({
       unread ? "Ada pembaruan" : undefined,
       `Order ${orderId}`,
       title,
+      // K-02 (audit escrow 2026-09-24): nominal dan STATUS — dua informasi
+      // finansial terpenting kartu — kini ikut diumumkan pembaca layar.
+      hasOwn(ORDER_STATUS_LABELS, status) ? ORDER_STATUS_LABELS[status as OrderStatus] : undefined,
+      formatRupiah(amount),
       `${counterpartRole} ${counterpart.name}`,
       timestamp,
     ])

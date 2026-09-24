@@ -281,6 +281,24 @@ export function useApiQuery<TRaw, T = TRaw>(
    * `setData` menerima nilai BAKU (bukan hasil `select`) — dipakai layar untuk
    * pembaruan optimistis (mis. buka/tutup status di daftar). Dokumentasi ini
    * penting karena tipe `data` sudah diproyeksikan.
+   *
+   * G-02 (audit escrow 2026-09-24): tulisan manual `setData` MEMBATALKAN
+   * request yang masih berjalan — respons basi dari fetch yang berangkat
+   * sebelum aksi tidak boleh menimpa hasil aksi (balapan `setData` vs
+   * `refresh` di detail sengketa: pesan terkirim hilang saat refresh lama
+   * mendarat belakangan).
+   *
+   * M-05 (audit escrow 2026-09-24): objek hasil di-memo — dulu literal baru
+   * tiap render membuat callback layar (`handlePayPin`, `runAction`) yang
+   * memasukkan `query` ke dep array dibuat ulang terus-menerus.
    */
-  return { data, setData: setRaw, loading, refreshing, error, refresh, reload }
+  const setData = useCallback<typeof setRaw>((value) => {
+    current.current?.abort()
+    setRaw(value)
+  }, [])
+
+  return useMemo(
+    () => ({ data, setData, loading, refreshing, error, refresh, reload }),
+    [data, setData, loading, refreshing, error, refresh, reload],
+  )
 }

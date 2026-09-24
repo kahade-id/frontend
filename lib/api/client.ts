@@ -85,8 +85,14 @@ export function buildUrl(path: string, query?: QueryParams): string {
   const base = `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`
   const parts: string[] = []
   for (const [key, value] of Object.entries(query ?? {})) {
-    if (value === null || value === undefined) continue
+    // H-06 (audit escrow 2026-09-24): string kosong DILEWATI seperti
+    // null/undefined — `buildUrl({status:""})` dulu menembak `?status=` yang
+    // membuat backend mengembalikan daftar kosong misterius (bug nyata yang
+    // sudah pernah terjadi; kontrak "jangan kirim string kosong" kini berlaku
+    // di lapisan transport, bukan hanya ingatan penulis layar).
+    if (value === null || value === undefined || value === "") continue
     for (const item of Array.isArray(value) ? value : [value]) {
+      if (item === null || item === undefined || item === "") continue
       if (typeof item === "number" && !Number.isFinite(item))
         throw new Error(`Invalid query: ${key}`)
       parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(item))}`)
@@ -106,8 +112,25 @@ export function seg(value: string | number): string {
   ) {
     throw new ApiError({ code: "BAD_REQUEST", message: "Identitas data tidak valid." })
   }
+  // H-05 (audit escrow 2026-09-24): id dengan garis miring/spasi/kontrol
+  // DITOLAK, bukan di-encode diam-diam (`a/b` → `a%2Fb` = URL ganda yang
+  // 404 tanpa pesan yang bisa ditindaklanjuti). Karakter yang diizinkan untuk
+  // segmen identitas (UUID, id `c…`, token base64url) semuanya aman.
+  if (/[\\/?#\s]|[\u0000-\u001f]/.test(segment)) {
+    throw new ApiError({ code: "BAD_REQUEST", message: "Identitas data tidak valid." })
+  }
   return encodeURIComponent(segment)
 }
+
+/**
+ * L-03 (audit escrow 2026-09-24): lapisan redaksi untuk SALINAN body mutasi
+ * yang dipakai jalur log/diagnostik — PIN dompet, OTP, dan token sesi tidak
+ * boleh ikut tercatat lewat debug/telemetri masa depan yang membaca body.
+ * Body yang DIKIRIM ke server tetap utuh (kontrak `PayOrderDto.pin`);
+ * implementasi `redactSensitive` ada di `lib/api/errors.ts` (dipakai
+ * konstruktor `ApiError` sebagai jaring pengaman terakhir).
+ */
+export { redactSensitive } from "@/lib/api/errors"
 
 async function deviceHeaders(): Promise<Record<string, string>> {
   return {
@@ -376,13 +399,18 @@ export function request<TResponse = unknown, TBody = undefined>(
  * (mis. rekonsiliasi aksi menggantung), tetapi aturan "mutasi uang membatalkan
  * cache GET" tidak lagi bergantung pada ingatan penulis layar.
  *
- * `/v1/orders/*` mencakup POST/PUT yang tidak mengubah saldo
- * (`calculate-fee`) — membatalkan cache di sana hanya memicu beberapa GET
- * tambahan, jauh lebih murah daripada risiko saldo basi.
+ * G-01 (audit escrow 2026-09-24): `calculate-fee` dan `validate-counterpart`
+ * adalah KALKULASI MURNI (POST tanpa efek samping) — dulu ikut tercakup pola
+ * `/v1/orders*` sehingga setiap ketik nominal (debounce 400ms) menyapu SELURUH
+ * cache GET aplikasi dan memicu request beruntun di tab lain. Keduanya kini
+ * diecualikan secara eksplisit; mutasi state order (pay, process, cancel, …)
+ * tetap menyapu cache.
  */
 const MONEY_MUTATION_PATTERNS = [/^\/v1\/wallet\/(?:topup|withdraw|transfer)(?:\/|$)/, /^\/v1\/orders(?:\/|$)/]
+const PURE_CALCULATION_PATHS = [/^\/v1\/orders\/calculate-fee$/, /^\/v1\/orders\/validate-counterpart$/]
 
 function invalidatesMoneyCache(path: string): boolean {
+  if (PURE_CALCULATION_PATHS.some((pattern) => pattern.test(path))) return false
   return MONEY_MUTATION_PATTERNS.some((pattern) => pattern.test(path))
 }
 
@@ -489,6 +517,7 @@ async function performRequest<TResponse, TBody>(
           message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
           method,
           path,
+          requestBody: body,
         })
       }
     }
@@ -525,6 +554,7 @@ async function performRequest<TResponse, TBody>(
             message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
             method,
             path,
+            requestBody: body,
           })
         )
       }

@@ -130,6 +130,22 @@ export function isOrderActive(status: string): boolean {
   return isOrderStatus(status) && !["COMPLETED", "CANCELLED", "REFUNDED", "EXPIRED"].includes(status)
 }
 
+/**
+ * A-09 (audit escrow 2026-09-24): "belum final" ≠ "punya tenggat yang
+ * mengikat". `DISPUTED` masih belum final (tetap di filter Aktif), tetapi
+ * tenggat KIRIM sudah bukan keputusan — countdown "Batas waktu" pada order
+ * sengketa menyesatkan dan memicu refresh sia-sia saat habis (G-07).
+ * Fungsi inilah yang dipakai kartu/timeline untuk menampilkan countdown.
+ */
+export function hasLiveDeadline(status: string): boolean {
+  return (
+    isOrderStatus(status) &&
+    ["WAITING_CONFIRMATION", "WAITING_PAYMENT", "PENDING_PAYMENT", "PROCESSING", "PAID"].includes(
+      status,
+    )
+  )
+}
+
 // `role` di-Omit: ViewProps RN punya `role?: Role` (a11y) yang disjoint dengan
 // OrderRole — tanpa Omit, `role` tereduksi menjadi `undefined` saja.
 export type OrderStatusBadgeProps = Omit<BadgeProps, "children" | "tone" | "dot" | "role"> & {

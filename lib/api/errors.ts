@@ -34,6 +34,28 @@ export type ApiErrorCode =
   | "PARSE" // body bukan JSON padahal diharapkan JSON
   | "UNKNOWN"
 
+/**
+ * L-03 (audit escrow 2026-09-24): lapisan redaksi untuk body REQUEST yang
+ * masuk ke jalur log/diagnostik — PIN dompet, OTP, password, dan token sesi
+ * diganti `"***"`. Body yang DIKIRIM ke server tetap utuh (kontrak
+ * `PayOrderDto.pin` wajib); yang disamakan hanya SALINAN untuk inspeksi.
+ * Dipakai `ApiError` (field `requestBody`) dan tersedia untuk logger lain.
+ */
+const SENSITIVE_KEYS =
+  /^(?:pin|password|passcode|otp|secret|accessToken|refreshToken|access_token|refresh_token|authorization)$/i
+
+export function redactSensitive<T>(value: T): T {
+  if (Array.isArray(value)) return value.map((item) => redactSensitive(item)) as unknown as T
+  if (value && typeof value === "object") {
+    const out: Record<string, unknown> = {}
+    for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = SENSITIVE_KEYS.test(key) ? "***" : redactSensitive(item)
+    }
+    return out as T
+  }
+  return value
+}
+
 export type ApiErrorInit = {
   code: ApiErrorCode
   message: string
@@ -44,6 +66,13 @@ export type ApiErrorInit = {
   validationMessages?: string[]
   /** Body respons mentah (untuk log/debug — JANGAN tampilkan ke user) */
   raw?: unknown
+  /**
+   * L-03 (audit escrow 2026-09-24): salinan body REQUEST untuk diagnostik.
+   * WAJIB melewati redaksi — konstruktor memanggil `redactSensitive` apa pun
+   * yang diberikan pemanggil, sehingga PIN/OTP/token tidak bisa bocor ke
+   * logger/telemetri yang membaca field ini di masa depan.
+   */
+  requestBody?: unknown
   method?: string
   path?: string
   cause?: unknown
@@ -72,6 +101,7 @@ export class ApiError extends Error {
    * serialisasi, sementara pemakaian debug (`err.raw`) tetap bekerja.
    */
   readonly #raw: unknown
+  readonly #requestBody: unknown
 
   constructor(init: ApiErrorInit) {
     super(init.message, init.cause !== undefined ? { cause: init.cause } : undefined)
@@ -81,6 +111,10 @@ export class ApiError extends Error {
     this.backendCode = init.backendCode
     this.validationMessages = init.validationMessages
     this.#raw = init.raw
+    // L-03: selalu disamarkan di titik ini — jaring pengaman terakhir sebelum
+    // body request (bisa berisi PIN) masuk ke jalur log/debug.
+    this.#requestBody =
+      init.requestBody !== undefined ? redactSensitive(init.requestBody) : undefined
     this.method = init.method
     this.path = init.path
     this.retryAfterMs = init.retryAfterMs
@@ -89,6 +123,11 @@ export class ApiError extends Error {
   /** Body respons mentah — untuk log/debug; JANGAN tampilkan ke user. */
   get raw(): unknown {
     return this.#raw
+  }
+
+  /** Body request dengan nilai sensitif sudah `***` — untuk log/debug. */
+  get requestBody(): unknown {
+    return this.#requestBody
   }
 
   /** Sesi tidak valid — UI harus ke layar login */

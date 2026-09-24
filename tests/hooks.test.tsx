@@ -359,8 +359,9 @@ describe("C-08: compare mengurutkan ulang hasil merge", () => {
   type LogRow = { id: string; createdAt: string }
 
   it("byTimestampDesc menaruh yang terbaru di atas, toleran nilai hilang/rusak", () => {
-    const compare = byTimestampDesc<Partial<LogRow>>((row) => row.createdAt)
-    const rows: Partial<LogRow>[] = [
+    // G-07: id WAJIB ada (kunci tiebreaker); `createdAt` tetap boleh hilang/rusak.
+    const compare = byTimestampDesc<Partial<LogRow> & { id: string }>((row) => row.createdAt)
+    const rows: Array<Partial<LogRow> & { id: string }> = [
       { id: "lama", createdAt: "2026-09-20T10:00:00.000Z" },
       { id: "rusak", createdAt: "bukan-tanggal" },
       { id: "baru", createdAt: "2026-09-22T10:00:00.000Z" },

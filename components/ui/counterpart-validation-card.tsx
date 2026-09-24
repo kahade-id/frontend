@@ -81,7 +81,8 @@ const DEFAULT_LABELS: CounterpartLabels = {
   selfHint: "Masukkan username lawan transaksi, bukan milik Anda.",
   verified: "Terverifikasi",
   confirm: "Gunakan",
-  transactions: (n) => `${n} transaksi selesai`,
+  // J-01 (audit escrow 2026-09-24): label FUNGSI tetap harus lewat translate.
+  transactions: (n) => translate("{x} transaksi selesai", { x: n }),
 }
 
 export function CounterpartValidationCard({
