@@ -16,6 +16,7 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
 import { validImageOrder, showcaseIsHidden } from "@/lib/showcase-state"
+import { SHOWCASE_MAX_IMAGES } from "@/lib/showcase-limits"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { getSessionRevision } from "@/lib/api/session"
@@ -51,8 +52,14 @@ import { useToast } from "@/components/ui/toast"
 const TITLE_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.title.maxLength
 const DESC_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.description.maxLength
 const CATEGORY_MAX = API_CONSTRAINTS.CreateShowcaseItemDto.category.maxLength
-/** Batas foto per item (DTO imageFileKeys: "Maksimum 8 gambar"). */
-const SHOWCASE_MAX_IMAGES = 8
+/**
+ * M-03 (audit 2026-09-24): batas foto per item hidup di SATU tempat.
+ * Sumber: kebijakan produk/UI (kontrak `AttachShowcaseImagesDto.fileKeys`
+ * TIDAK mendeklarasikan maxItems — jadi angka ini tidak bisa diturunkan dari
+ * `API_CONSTRAINTS`), dipakai untuk memilih, menghitung slot, dan menonaktifkan
+ * tombol. Lihat `lib/showcase-limits.ts`.
+ */
+
 
 type FormState = {
   title: string
@@ -354,11 +361,11 @@ function ShowcaseManagement() {
     if (!editor || saveBusy.current || uploadBusy.current || failedAssets.length > 0 || (editor.mode === "create" && editor.fileKeys.length === 0)) return
     const title = form.title.trim()
     if (!title) {
-      setFormError("Judul wajib diisi.")
+      setFormError(translate("Judul wajib diisi."))
       return
     }
     if (form.priceMin != null && form.priceMax != null && form.priceMax < form.priceMin) {
-      setFormError("Harga maksimum harus ≥ harga minimum.")
+      setFormError(translate("Harga maksimum harus ≥ harga minimum."))
       return
     }
     if (editor.mode === "edit" && ((editor.item.priceMin != null && form.priceMin == null) || (editor.item.priceMax != null && form.priceMax == null))) {
@@ -703,6 +710,12 @@ function ShowcaseManagement() {
                     source: showcaseCoverOf(it) ?? "",
                     alt: `${labelOf(it)}${isHidden ? " (disembunyikan)" : ""}`,
                     hidden: isHidden,
+                    // M-05 (audit 2026-09-24): kuota foto dulu hanya terlihat
+                    // setelah membuka editor galeri; sekarang tampil di sel.
+                    meta: translate("{x}/{y} foto", {
+                      x: it.images?.length ?? 0,
+                      y: SHOWCASE_MAX_IMAGES,
+                    }),
                   }
                 })}
                 onPressItem={(_, index) => setMenuItem(items[index] ?? null)}
@@ -963,8 +976,8 @@ function ShowcaseManagement() {
               </Text>
               <Text variant="caption" tone="secondary">
                 {form.isPublic
-                  ? "Karya terlihat di feed & profil publik Anda."
-                  : "Karya disimpan sebagai draf privat (tidak terlihat pengunjung)."}
+                  ? translate("Karya terlihat di feed & profil publik Anda.")
+                  : translate("Karya disimpan sebagai draf privat (tidak terlihat pengunjung).")}
               </Text>
             </View>
             <Switch

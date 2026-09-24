@@ -386,7 +386,7 @@ export default function UserProfileScreen() {
     } catch (err) {
       if (current()) {
         setError(
-          isApiError(err) && err.status !== 404 ? userMessage(err) : "Profil tidak ditemukan.",
+          isApiError(err) && err.status !== 404 ? userMessage(err) : translate("Profil tidak ditemukan."),
         )
       }
     } finally {
@@ -1049,7 +1049,7 @@ export default function UserProfileScreen() {
                  */}
                 <View className="flex-row items-center justify-between gap-3">
                   <Text variant="label" tone="secondary" numberOfLines={1} className="flex-1">
-                    Pertanyaan Pengguna ({questions.length})
+                    {translate("Pertanyaan Pengguna ({x})", { x: questions.length })}
                   </Text>
                   {!isSelf ? (
                     <Button
@@ -1117,7 +1117,7 @@ export default function UserProfileScreen() {
                               fullWidth={false}
                               onPress={() => void toggleComments(q)}
                             >
-                              {openQuestionId === q.id ? "Tutup balasan" : "Lihat balasan"}
+                              {openQuestionId === q.id ? translate("Tutup balasan") : translate("Lihat balasan")}
                             </Button>
                             {isMyQuestion(q) ? (
                               <Button

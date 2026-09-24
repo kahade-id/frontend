@@ -13,13 +13,26 @@ const mocks = vi.hoisted(() => ({
 vi.mock("expo-router", () => ({ router: { push: vi.fn(), setParams: vi.fn() }, useLocalSearchParams: () => mocks.params }))
 // Modul native di lingkungan test: cukup stub nol / hook fokus statis.
 vi.mock("phosphor-react-native", () => ({ Images: () => null, X: () => null }))
+// S-04: feed-tab memakai useToast (aksi "Tidak tertarik" bisa diurungkan);
+// provider asli hanya ada di app/_layout.tsx, jadi di test di-mock.
+vi.mock("@/components/ui/toast", () => ({ useToast: () => ({ show: vi.fn() }) }))
 vi.mock("react-native-reanimated", () => ({ default: { View: ({ children }: { children: ReactNode }) => <>{children}</> } }))
 vi.mock("@react-navigation/native", () => ({ useIsFocused: () => mocks.focused }))
 vi.mock("@/lib/api", () => ({ api: { users: { getMe: mocks.me, getFollowing: mocks.following } }, isApiError: () => false, userMessage: () => "failed" }))
 vi.mock("@/lib/api/showcase", () => ({ getShowcaseFeed: mocks.feed }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => mocks.session, useSessionRevision: () => 0 }))
 vi.mock("@/lib/query-cache", () => ({ fetchViaQueryCache: (_key: string, fetcher: (signal: AbortSignal) => unknown, signal: AbortSignal) => fetcher(signal) }))
-vi.mock("@/lib/showcase-social-prefs", () => ({ showcaseFeedDirtyVersion: () => mocks.dirtyVersion, useShowcaseDirtyVersion: () => mocks.dirtyVersion, isShowcaseReported: () => false, useShowcaseHiddenIds: () => new Set(), dismissShowcase: vi.fn() }))
+vi.mock("@/lib/showcase-social-prefs", () => ({
+  showcaseFeedDirtyVersion: () => mocks.dirtyVersion,
+  useShowcaseDirtyVersion: () => mocks.dirtyVersion,
+  isShowcaseReported: () => false,
+  useShowcaseHiddenIds: () => new Set(),
+  dismissShowcase: vi.fn(),
+  // F-01/C-01 (audit 2026-09-24): ledger hitungan komentar — tanpa event.
+  showcaseCommentCountSeq: () => 0,
+  showcaseCommentCountsSince: () => ({ events: [], seq: 0 }),
+  useShowcaseCommentCountSeq: () => 0,
+}))
 vi.mock("@/lib/use-showcase-social-actions", () => ({ useShowcaseSocialActions: () => ({}) }))
 vi.mock("@/lib/use-collapsing-header", () => ({ useCollapsingHeader: () => ({}) }))
 vi.mock("@/components/ui/bottom-sheet", () => ({ BottomSheet: () => null }))
@@ -35,10 +48,11 @@ vi.mock("@/components/ui/empty-state", () => ({ EmptyState: ({ title }: { title:
 vi.mock("@/components/ui/skeleton", () => ({ Skeleton: () => null, SkeletonGroup: () => null }))
 vi.mock("@/components/ui/paginated-list", () => ({ PaginatedList: (props: {
   data: ShowcaseSocialItem[]; loading: boolean; refreshing: boolean; loadMoreError: string | null;
-  empty: ReactNode; onRefresh: () => void; onLoadMore: () => void; onRetry: () => void;
+  empty: ReactNode; header?: ReactNode; onRefresh: () => void; onLoadMore: () => void; onRetry: () => void;
 }) => {
   mocks.renders++
   return <div>
+    {props.header}
     <span data-testid="loading">{String(props.loading || props.refreshing)}</span>
     <span data-testid="more-error">{props.loadMoreError}</span>
     {props.data.map(item => <span key={item.id}>{item.id}</span>)}
@@ -94,6 +108,27 @@ describe("actual feed component E09–E20", () => {
     await screen.findByText("last-account-work")
     expect(mocks.following.mock.calls.some(call => call[1].page === 5)).toBe(true)
   })
+  it("F-05: memberi tahu saat hasil tab Mengikuti terpotong plafon klien", async () => {
+    mocks.session = true
+    // Setiap halaman hanya lolos filter 1 item (< FOLLOWING_MIN_ITEMS) dan
+    // masih hasMore → loop memakai SELURUH jatah FOLLOWING_MAX_PAGES, lalu
+    // berhenti karena plafon, bukan karena feed habis.
+    mocks.feed.mockResolvedValue(page([item("only-one")], "next"))
+    render(<ShowcaseFeedTab bottomPadding={0} />)
+    await waitFor(() => expect(screen.getAllByText("only-one").length).toBeGreaterThan(0))
+    expect(
+      screen.getByText("Sebagian karya belum dapat dimuat. Tarik untuk menyegarkan."),
+    ).toBeTruthy()
+  })
+
+  it("F-05: tidak menampilkan peringatan saat hasil following memang habis", async () => {
+    mocks.session = true
+    mocks.feed.mockResolvedValue(page([item("last-account-work")]))
+    render(<ShowcaseFeedTab bottomPadding={0} />)
+    await screen.findByText("last-account-work")
+    expect(screen.queryByText("Sebagian karya belum dapat dimuat. Tarik untuk menyegarkan.")).toBeNull()
+  })
+
   it("refresh blocks concurrent more and clears the old load-more error", async () => {
     mocks.params = { kind: "latest" }
     mocks.feed.mockResolvedValueOnce(page([item("one")], "cursor-1")).mockRejectedValueOnce(new Error("offline"))

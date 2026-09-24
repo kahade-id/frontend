@@ -21,6 +21,29 @@ import { resolveMediaUrl } from "@/lib/media"
 import { showcasePriceLabel } from "@/lib/showcase-labels"
 import { shareContent, type ShareOutcome } from "@/lib/share"
 
+/**
+ * Terapkan delta hitungan komentar (ledger `showcase-social-prefs`) ke sebuah
+ * daftar item. Mengembalikan ARRAY YANG SAMA bila tidak ada item yang cocok —
+ * supaya pemanggil tidak memicu render ulang yang tidak perlu
+ * (F-01/F-03 audit 2026-09-24: hitungan komentar tidak lagi lewat refetch).
+ */
+export function applyShowcaseCommentCountDelta(
+  items: ShowcaseSocialItem[],
+  events: readonly { id: string; delta: number }[],
+): ShowcaseSocialItem[] {
+  if (events.length === 0 || items.length === 0) return items
+  const deltas = new Map<string, number>()
+  for (const event of events) deltas.set(event.id, (deltas.get(event.id) ?? 0) + event.delta)
+  let changed = false
+  const next = items.map((entry) => {
+    const delta = deltas.get(entry.id)
+    if (!delta) return entry
+    changed = true
+    return { ...entry, commentCount: Math.max(0, entry.commentCount + delta) }
+  })
+  return changed ? next : items
+}
+
 /** Judul fallback SATU-SATUNYA untuk item tanpa judul (audit J-04). */
 export function untitledShowcaseTitle(): string {
   return translate("Tanpa judul")

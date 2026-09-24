@@ -50,55 +50,12 @@ export async function cleanupPendingShowcaseKeys(fileKeys: string[]): Promise<vo
   }
 }
 
-export type ShowcasePhotoUploadResult = {
-  /** Berhasil — URUTAN pilihan asli dipertahankan (foto pertama = cover). */
-  uploaded: { fileKey: string; asset: PickedImage }[]
-  /** Gagal per foto (G-06) — satu kegagalan tidak menggagalkan batch. */
-  failed: PickedImage[]
-}
-
-/**
- * G-21 (audit 2026-09-23): unggah banyak foto dengan konkurensi kecil
- * (default 3) — dulu serial per foto. `onSettled(done, total)` dipanggil
- * setiap foto selesai (sukses/gagal) untuk progres; pembatalan lewat `signal`
- * (foto yang belum mulai langsung dihitung gagal, pemanggil membersihkan
- * key hasil unggah bila membatalkan batch).
+/*
+ * P-06 (audit 2026-09-24): `uploadShowcasePhotos()` (batch konkurensi-3 +
+ * progres) DIHAPUS — 0 pemanggil di seluruh repo sejak alur yang dipakai
+ * adalah unggah satu-per-satu dari layar manajemen (dengan pratinjau per
+ * foto), sehingga janji "G-21: tidak lagi serial" di docblock lamanya tidak
+ * pernah benar-benar berlaku. Kalau nanti produk memakai pemilihan BANYAK
+ * foto sekaligus (pickImages selectionLimit > 1), hidupkan kembali batch ini
+ * bersama pemanggilnya, bukan lebih dulu.
  */
-export async function uploadShowcasePhotos(
-  assets: PickedImage[],
-  opts: {
-    signal?: AbortSignal
-    onSettled?: (done: number, total: number) => void
-    concurrency?: number
-  } = {},
-): Promise<ShowcasePhotoUploadResult> {
-  const total = assets.length
-  const slots: ({ fileKey: string; asset: PickedImage } | null)[] = new Array(total).fill(null)
-  const ok = new Array<boolean>(total).fill(false)
-  let settled = 0
-  let next = 0
-  const worker = async () => {
-    for (;;) {
-      const index = next
-      next += 1
-      if (index >= total) return
-      if (!opts.signal?.aborted) {
-        try {
-          const outcome = await uploadShowcasePhoto(assets[index], opts.signal)
-          slots[index] = { fileKey: outcome.fileKey, asset: assets[index] }
-          ok[index] = true
-        } catch {
-          /* kegagalan per foto — batch lanjut (G-06) */
-        }
-      }
-      settled += 1
-      opts.onSettled?.(settled, total)
-    }
-  }
-  const width = Math.max(1, Math.min(opts.concurrency ?? 3, total || 1))
-  await Promise.all(Array.from({ length: width }, () => worker()))
-  return {
-    uploaded: slots.filter((entry): entry is { fileKey: string; asset: PickedImage } => entry != null),
-    failed: assets.filter((_, index) => !ok[index]),
-  }
-}

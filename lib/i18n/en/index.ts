@@ -41,6 +41,10 @@ import screens7 from "./screens-7.json"
 // potongan bersyarat (transfer/withdraw/langganan, dialog sesi, dan label
 // komponen) — satu berkas per batch terjemahan supaya bisa ditinjau tuntas.
 import screens8 from "./screens-8.json"
+// screens-9 (audit 2026-09-24, Q-02/Q-03/Q-04): string yang dulu LUMPUH di
+// pemindai katalog — children ekspresi JSX, kalimat ber-`;`, dan argumen
+// `setFormError()` — plus 9 kunci Etalase yang memang belum pernah ada.
+import screens9 from "./screens-9.json"
 import tabs from "./tabs.json"
 import ui from "./ui.json"
 
@@ -65,6 +69,7 @@ export const EN: Dict = {
   ...screens6,
   ...screens7,
   ...screens8,
+  ...screens9,
   // Pesan error & label status dari peta di lib/ — yang paling sering muncul
   // saat jaringan bermasalah, jadi jangan sampai jatuh ke Bahasa Indonesia.
   ...errors,

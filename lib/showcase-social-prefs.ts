@@ -47,17 +47,24 @@ function subscribe(listener: () => void) {
 // Simpan (bookmark) — bersifat lokal sampai kontrak koleksi ada.
 // ------------------------------------------------------------------
 
+/**
+ * U-01 (audit 2026-09-24): batas simpan per perangkat. Sebelumnya angka 25
+ * hanya hidup di dalam `toggleShowcaseSaved` + satu kalimat copy, jadi UI
+ * tidak pernah bisa menampilkan kuota. Satu konstanta, semua pemakai.
+ */
+export const SHOWCASE_SAVED_LIMIT = 25
+
 export function toggleShowcaseSaved(id: string) {
   const saved = { ...state.saved }
   if (saved[id]) delete saved[id]
   else {
-    if (Object.keys(saved).length >= 25) {
+    if (Object.keys(saved).length >= SHOWCASE_SAVED_LIMIT) {
       // C-01 (audit 2026-09-23): pesan batas harus sampai ke pengguna —
       // ApiError (bukan Error biasa) supaya `userMessage` meneruskan wording
       // ini, bukan "Terjadi kesalahan. Coba lagi."
       throw new ApiError({
         code: "CONFLICT",
-        message: "Maksimal 25 karya tersimpan di perangkat ini. Hapus salah satu untuk menyimpan karya lain.",
+        message: `Maksimal ${SHOWCASE_SAVED_LIMIT} karya tersimpan di perangkat ini. Hapus salah satu untuk menyimpan karya lain.`,
         backendCode: "SHOWCASE_SAVED_LIMIT",
       })
     }
@@ -71,11 +78,35 @@ export function isShowcaseSaved(id: string): boolean {
   return state.saved[id] === true
 }
 
+/**
+ * S-02 (audit 2026-09-24): nilai simpan OPTIMISTIS sementara hidrasi bookmark
+ * berjalan. Dulu label baru berubah setelah dua lompatan async
+ * (`getMeCached()` → `loadShowcaseBookmarks()`), sehingga tombol terasa mati di
+ * jaringan lambat. Override ini yang dibaca UI; nilai commit tetap di `saved`.
+ */
+const pendingSaved: Record<string, boolean> = {}
+
+export function setShowcaseSavedPending(id: string, value: boolean | null) {
+  if (value == null) {
+    if (!(id in pendingSaved)) return
+    delete pendingSaved[id]
+  } else {
+    if (pendingSaved[id] === value) return
+    pendingSaved[id] = value
+  }
+  emit({})
+}
+
+export function useShowcaseSavedPending(id: string): boolean {
+  return useSyncExternalStore(subscribe, () => id in pendingSaved, () => false)
+}
+
 /** `saved` untuk SATU item; stabil: hanya re-render saat nilai item ini toggle. */
 export function useShowcaseSaved(id: string): boolean {
   return useSyncExternalStore(
     subscribe,
-    () => state.saved[id] === true,
+    // S-02: nilai pending (optimistis) menang atas nilai commit selama hidrasi.
+    () => (id in pendingSaved ? pendingSaved[id] : state.saved[id] === true),
     () => false,
   )
 }
@@ -117,6 +148,66 @@ export function markShowcaseFeedDirty() {
   emit({ feedDirtyVersion: state.feedDirtyVersion + 1 })
 }
 
+// ------------------------------------------------------------------
+// Hitungan komentar lintas layar — LEDGER EVENT, bukan consume-once.
+//
+// F-01/F-03/C-01/C-02 (audit 2026-09-24): satu komentar dulu memanggil
+// `markShowcaseFeedDirty()` sehingga feed yang sedang fokus langsung refetch
+// dan membuang halaman 2..N — plus menimpa kenaikan hitungan optimistis.
+// Jalur penggantinya: layar yang menulis komentar mendaftarkan DELTA di sini,
+// dan setiap permukaan yang menampilkan kartu (feed, tab profil) menerapkan
+// event yang belum pernah ia terapkan — tanpa satu pun request jaringan.
+//
+// Kenapa ledger + watermark, bukan "konsumsi sekali": dua permukaan bisa
+// ter-mount bersamaan (feed + profil). Konsumsi sekali membuat salah satunya
+// kehilangan event; watermark per-konsumen membuat keduanya ikut sinkron.
+// Konsumen yang baru saja memuat data segar menaikkan watermark-nya ke posisi
+// saat request DIMULAI (respons sudah memuat perubahan itu), sehingga tidak
+// ada penghitungan ganda.
+// ------------------------------------------------------------------
+
+export type ShowcaseCommentCountEvent = { id: string; delta: number }
+
+const COMMENT_EVENT_LIMIT = 200
+const commentEvents: ShowcaseCommentCountEvent[] = []
+let commentEventSeq = 0
+
+/** Daftarkan perubahan hitungan komentar (delta) untuk satu item showcase. */
+export function queueShowcaseCommentCount(id: string, delta: number) {
+  if (!id || !Number.isFinite(delta) || delta === 0) return
+  commentEvents.push({ id, delta })
+  if (commentEvents.length > COMMENT_EVENT_LIMIT) commentEvents.shift()
+  commentEventSeq += 1
+  emit({})
+}
+
+/** Posisi ledger saat ini — "data segar saya sudah memuat semua event sampai sini". */
+export function showcaseCommentCountSeq(): number {
+  return commentEventSeq
+}
+
+/** Event yang terdaftar SETELAH `sinceSeq` (watermark milik konsumen). */
+export function showcaseCommentCountsSince(sinceSeq: number): {
+  events: readonly ShowcaseCommentCountEvent[]
+  seq: number
+} {
+  const dropped = commentEventSeq - commentEvents.length
+  const start = Math.max(sinceSeq - dropped, 0)
+  return { events: commentEvents.slice(start), seq: commentEventSeq }
+}
+
+/** Versi ledger untuk pemicu re-render (snapshot primitif, stabil). */
+export function useShowcaseCommentCountSeq(): number {
+  return useSyncExternalStore(subscribe, showcaseCommentCountSeq, () => 0)
+}
+
+/** Ganti sesi = buang event akun sebelumnya. */
+export function clearShowcaseCommentCounts() {
+  commentEvents.length = 0
+  commentEventSeq += 1
+  emit({})
+}
+
 /** Versi dirty saat ini — bandingkan dengan snapshot yang disimpan pemanggil. */
 export function showcaseFeedDirtyVersion(): number {
   return state.feedDirtyVersion
@@ -136,6 +227,17 @@ export function useShowcaseHiddenIds(): ReadonlySet<string> {
   const reported = useSyncExternalStore(subscribe, () => state.reported, () => EMPTY.reported)
   const dismissed = useSyncExternalStore(subscribe, () => state.dismissed, () => EMPTY.dismissed)
   return useMemo(() => new Set([...Object.keys(reported), ...Object.keys(dismissed)]), [reported, dismissed])
+}
+
+/**
+ * S-04 (audit 2026-09-24): "Tidak tertarik" kini bisa DIBATALKAN — aksi yang
+ * menghilangkan kartu dari feed tanpa jejak adalah jebakan salah tap.
+ */
+export function undismissShowcase(id: string) {
+  if (!(id in state.dismissed)) return
+  const dismissed = { ...state.dismissed }
+  delete dismissed[id]
+  emit({ dismissed })
 }
 
 export function markShowcaseReported(id: string) {
@@ -165,7 +267,9 @@ subscribeSession(() => {
   bookmarkQueue = bookmarkQueue.then(() => deleteSecureItem(SecureKeys.showcaseBookmarks)).catch(() => {
     logWarn("showcase:bookmark-clear", new Error("Local bookmark cleanup failed"))
   })
+  for (const id of Object.keys(pendingSaved)) delete pendingSaved[id]
   emit({ saved: {}, likes: {}, dismissed: {}, reported: {}, feedDirtyVersion: state.feedDirtyVersion + 1 })
+  clearShowcaseCommentCounts()
 })
 
 export function clearShowcaseLikeOverride(id: string) {

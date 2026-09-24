@@ -125,7 +125,7 @@ export function ShowcaseGalleryGrid({
     <View
       onLayout={onLayout}
       accessibilityRole={loading ? "progressbar" : undefined}
-      accessibilityLabel={loading ? "Memuat etalase" : undefined}
+      accessibilityLabel={loading ? translate("Memuat etalase") : undefined}
       className={cn("w-full flex-row flex-wrap gap-2", className)}
       {...rest}
     >

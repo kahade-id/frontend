@@ -1,5 +1,5 @@
 /** Shared social actions: account-scoped state, item-wide mutation lock, gesture-safe sharing. */
-import { useCallback, useEffect, useRef } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { router, useGlobalSearchParams, usePathname } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
@@ -19,9 +19,11 @@ import {
   clearShowcaseLikeOverride,
   getShowcaseLikeOverride,
   setShowcaseLikeState,
+  setShowcaseSavedPending,
   toggleShowcaseSaved,
   useShowcaseLikeOverride,
   useShowcaseSaved,
+  useShowcaseSavedPending,
 } from "@/lib/showcase-social-prefs"
 import { useToast } from "@/components/ui/toast"
 
@@ -49,6 +51,13 @@ export type ShowcaseSocialActions = {
   likeCount: number
   saved: boolean
   hasSession: boolean
+  /**
+   * S-01/S-02 (audit 2026-09-24): request suka/simpan sedang berjalan. UI
+   * memakainya untuk state "sedang diproses" — bukan lagi diam tanpa umpan
+   * balik; tap kedua saat suka berjalan kini DIANTRE (lihat `toggleLike`).
+   */
+  likePending: boolean
+  savedPending: boolean
   /** Tampilkan ajakan login (dipakai juga komposer komentar & tombol lapor). */
   requireLogin: () => void
   toggleLike: () => void
@@ -62,6 +71,11 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
   const sessionRevision = useSessionRevision()
   const override = useShowcaseLikeOverride(item.id)
   const saved = useShowcaseSaved(item.id)
+  const savedPending = useShowcaseSavedPending(item.id)
+  const [likePending, setLikePending] = useState(false)
+  /** S-01: satu toggle ditahan saat request suka sebelumnya masih berjalan. */
+  const queuedLike = useRef(false)
+  const runLikeRef = useRef<() => void>(() => {})
   useEffect(() => {
     const revision = getSessionRevision()
     if (hasSession) void api.users.getMeCached().then((me) => {
@@ -88,24 +102,35 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
    * disinkronkan dengan nilai FINAL dari server `{liked, likeCount}`.
    * C-02 (audit 2026-09-23): TIDAK memanggil markShowcaseFeedDirty — satu
    * tap tidak boleh memicu refetch feed (A-01: halaman 2..N ter-reset).
+   *
+   * S-01 (audit 2026-09-24): nilai dibaca ULANG dari store saat eksekusi
+   * (bukan dari closure), sehingga tap kedua saat request pertama masih
+   * berjalan tidak diabaikan — ia dieksekusi setelah request pertama selesai
+   * dan hasil akhirnya = keinginan terakhir pengguna.
    */
-  const toggleLike = useCallback(() => {
-    if (!hasSession) {
-      requireLogin()
-      return
-    }
+  const runLike = useCallback(() => {
     const revision = getSessionRevision()
     const release = acquireShowcaseMutation(`${revision}:like:${item.id}`)
-    if (!release) return
+    if (!release) {
+      // Masih ada request untuk item ini (kartu ini atau kartu lain yang
+      // menampilkan item yang sama) — tahan satu toggle, jangan buang diam-diam.
+      queuedLike.current = true
+      return
+    }
+    const current = getShowcaseLikeOverride(item.id) ?? {
+      isLiked: item.isLiked === true,
+      likeCount: item.likeCount,
+    }
     const previous: ShowcaseLikeStateSnapshot = {
-      isLiked: getShowcaseLikeOverride(item.id)?.isLiked ?? liked,
-      likeCount: getShowcaseLikeOverride(item.id)?.likeCount ?? likeCount,
+      isLiked: current.isLiked,
+      likeCount: current.likeCount,
     }
     const next = !previous.isLiked
     setShowcaseLikeState(item.id, {
       isLiked: next,
       likeCount: Math.max(0, previous.likeCount + (next ? 1 : -1)),
     })
+    setLikePending(true)
     void (async () => {
       try {
         // K-04: fallback = nilai optimistis — respons tanpa `likeCount`
@@ -140,24 +165,67 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
         }
       } finally {
         release()
+        if (queuedLike.current) {
+          // S-01: eksekusi toggle yang ditahan — state dibaca ulang di runLike.
+          queuedLike.current = false
+          runLikeRef.current()
+        } else {
+          setLikePending(false)
+        }
       }
     })()
-  }, [hasSession, requireLogin, liked, likeCount, item.id, toast])
+  }, [item.id, item.isLiked, item.likeCount, toast])
 
+  /** Versi terbaru `runLike` untuk eksekusi tertunda di dalam finally. */
+  useEffect(() => {
+    runLikeRef.current = runLike
+  }, [runLike])
+
+  const toggleLike = useCallback(() => {
+    if (!hasSession) {
+      requireLogin()
+      return
+    }
+    // Sudah ada request berjalan → antre satu toggle (S-01), bukan drop senyap.
+    if (showcaseMutationPending(`${getSessionRevision()}:like:${item.id}`)) {
+      queuedLike.current = true
+      return
+    }
+    runLike()
+  }, [hasSession, requireLogin, runLike, item.id])
+
+  /**
+   * Simpan/batal simpan.
+   *
+   * S-02 (audit 2026-09-24): override optimistis dipasang SEKARANG — label
+   * berubah seketika, tidak lagi menunggu `getMeCached()` →
+   * `loadShowcaseBookmarks()`. Commit ke store tetap terjadi SETELAH hidrasi
+   * (supaya penulisan lokal tidak ditimpa pembacaan storage), dan override
+   * dilepas saat commit selesai/gagal.
+   */
   const toggleSave = useCallback(() => {
     if (!hasSession) {
       requireLogin()
       return
     }
     const revision = getSessionRevision()
-    void api.users.getMeCached().then(async (me) => {
-      if (revision !== getSessionRevision()) return
-      await loadShowcaseBookmarks(me.id)
-      if (revision !== getSessionRevision()) return
-      toggleShowcaseSaved(item.id)
-    }).catch((error) => toast.show({ title: "Gagal menyimpan karya", description: userMessage(error), tone: "danger" }))
-    // C-01: userMessage(ApiError) meneruskan pesan batas 25 apa adanya.
-  }, [hasSession, requireLogin, item.id, toast])
+    const wanted = !saved
+    setShowcaseSavedPending(item.id, wanted)
+    void (async () => {
+      try {
+        const me = await api.users.getMeCached()
+        if (revision !== getSessionRevision()) return
+        await loadShowcaseBookmarks(me.id)
+        if (revision !== getSessionRevision()) return
+        toggleShowcaseSaved(item.id)
+      } catch (error) {
+        // C-01: userMessage(ApiError) meneruskan pesan batas 25 apa adanya.
+        toast.show({ title: "Gagal menyimpan karya", description: userMessage(error), tone: "danger" })
+      } finally {
+        setShowcaseSavedPending(item.id, null)
+      }
+    })()
+  }, [hasSession, requireLogin, item.id, saved, toast])
 
   const share = useCallback(() => {
     void (async () => {
@@ -179,7 +247,18 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
     })()
   }, [item, toast])
 
-  return { liked, likeCount, saved, hasSession, requireLogin, toggleLike, toggleSave, share }
+  return {
+    liked,
+    likeCount,
+    saved,
+    hasSession,
+    likePending,
+    savedPending,
+    requireLogin,
+    toggleLike,
+    toggleSave,
+    share,
+  }
 }
 
 type ShowcaseLikeStateSnapshot = { isLiked: boolean; likeCount: number }

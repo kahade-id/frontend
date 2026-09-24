@@ -11,7 +11,7 @@
  * Endpoint: POST /v1/showcase/{id}/report — alasan memakai himpunan moderasi
  * konten `CONTENT_REPORT_REASONS` (bukan enum lapor pengguna).
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 
@@ -19,7 +19,7 @@ import { router } from "expo-router"
 import { ROUTES } from "@/lib/routes"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
-import { api, userMessage } from "@/lib/api"
+import { api, createIdempotencyKey, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
@@ -52,11 +52,19 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
   // F-04: item yang sudah dilaporkan sesi ini → state "sudah dilaporkan".
   const reported = useShowcaseReported(item?.id ?? "")
 
+  /**
+   * S-03 (audit 2026-09-24): kunci idempotensi per ITEM, dipakai ulang pada
+   * percobaan berikutnya — laporan yang sudah terkirim tapi responsnya hilang
+   * (timeout) tidak tercatat dua kali. Dibuang setelah kiriman tuntas.
+   */
+  const reportKey = useRef<{ item: string; key: string } | null>(null)
+
   // Reset form setiap item berubah / sheet dibuka ulang.
   useEffect(() => {
     setReason("")
     setDetail("")
     setSubmitting(false)
+    reportKey.current = null
   }, [item?.id, revision])
 
   const handleSubmit = useCallback(async () => {
@@ -72,12 +80,18 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
     if (!task) return
     setSubmitting(true)
     try {
-      await api.showcase.reportShowcase(item.id, {
-        reason,
-        description: detail.trim() || undefined,
-      })
+      if (reportKey.current?.item !== item.id) {
+        reportKey.current = { item: item.id, key: createIdempotencyKey() }
+      }
+      await api.showcase.reportShowcase(
+        item.id,
+        { reason, description: detail.trim() || undefined },
+        reportKey.current.key,
+      )
       if (!task.valid()) return
       markShowcaseReported(item.id)
+      // Laporan tuntas — percobaan berikutnya (bila ada) adalah aksi baru.
+      reportKey.current = null
       toast.show({
         title: "Laporan terkirim",
         description: "Terima kasih telah membantu menjaga keamanan komunitas Kahade.",
@@ -132,6 +146,19 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
           <Text variant="body" tone="secondary">
             {translate("Laporan Anda sedang ditinjau moderasi. Karya ini disembunyikan dari feed Anda.")}
           </Text>
+          {/* U-05 (audit 2026-09-24): setelah lapor, pengguna dulu buntu —
+              tidak ada jalan melihat status/riwayat. Sekarang ada tautan ke
+              halaman "Laporan saya" (GET /v1/settings/reports). */}
+          <Button
+            variant="ghost"
+            fullWidth={false}
+            onPress={() => {
+              onRequestClose()
+              router.push(ROUTES.reports())
+            }}
+          >
+            {translate("Lihat riwayat laporan")}
+          </Button>
         </View>
       ) : (
       <View className="gap-4">

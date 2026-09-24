@@ -8,6 +8,20 @@
  * Kontrak respons diverifikasi terhadap `showcase.service.ts` (sesi P1,
  * 2026-09-15): feed kursor-based (keyset), komentar offset + tiebreak id,
  * like/unlike mengembalikan `{ liked, likeCount }` final.
+ *
+ * KEBIJAKAN RETRY per endpoint (K-05 audit 2026-09-24) — dulu hanya tersebar
+ * sebagai komentar di titik pemakaian, sehingga mudah dilanggar tanpa jejak.
+ * `check-retry.mjs` hanya menjaga "mutasi tidak pernah retry otomatis"; tabel
+ * ini menjaga sisi sebaliknya (endpoint GET mana yang AMAN untuk retry):
+ *
+ *   | Endpoint                              | retry | alasan                      |
+ *   |---------------------------------------|-------|-----------------------------|
+ *   | GET /v1/showcase/feed                 |   1   | idempoten, murni baca       |
+ *   | GET /v1/showcase/:id                  |   0   | MENAIKKAN viewCount         |
+ *   | GET /v1/showcase/:id/comments         |   1   | idempoten, murni baca       |
+ *   | GET /v1/users/me/showcase             |   1   | idempoten, murni baca       |
+ *   | GET /v1/users/:username/showcase      |   0   | selaras daftar detail       |
+ *   | semua mutasi (POST/PUT/PATCH/DELETE)  |   0   | selalu; lihat check-retry   |
  */
 import { http, seg } from "./client"
 import { readList, asRecord, invalidResponse } from "./response"
@@ -209,14 +223,23 @@ export function listShowcaseComments(
 }
 
 /** POST /v1/showcase/:showcaseId/comments — komentar / balas (`parentId`). */
+/**
+ * `idempotencyKey` (S-03, audit 2026-09-24): komposer memakai satu kunci per
+ * (item × isi komentar) sehingga percobaan ulang setelah waktu habis tidak
+ * menciptakan komentar kedua bila kiriman pertama sebenarnya berhasil.
+ */
 export function addShowcaseComment(
   showcaseId: string,
   dto: { content: string; parentId?: string },
+  idempotencyKey?: string,
 ) {
   return http.post<ShowcaseComment, { content: string; parentId?: string }>(
     `/v1/showcase/${seg(showcaseId)}/comments`,
     dto,
-    { auth: "required" },
+    {
+      auth: "required",
+      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+    },
   )
 }
 
@@ -300,14 +323,25 @@ export function getShowcaseSharePayload(showcaseId: string, signal?: AbortSignal
  * POST /v1/showcase/:showcaseId/report — laporkan item (throttle 5/jam).
  * `reason` mengikuti kategori moderasi konten backend.
  */
+/**
+ * S-03 (audit 2026-09-24): pemanggil boleh mengirim `Idempotency-Key` untuk
+ * SATU aksi logis. Lapisan transport memang sudah membuat kunci per panggilan,
+ * tapi percobaan ULANG manual (setelah timeout/gagal jaringan) adalah panggilan
+ * baru — tanpa kunci yang dibawa pemanggil, laporan yang sebenarnya sudah
+ * terkirim bisa tercatat dua kali.
+ */
 export function reportShowcase(
   showcaseId: string,
   dto: { reason: string; description?: string },
+  idempotencyKey?: string,
 ) {
   return http.post<{ reported: boolean; reportId?: string }, { reason: string; description?: string }>(
     `/v1/showcase/${seg(showcaseId)}/report`,
     dto,
-    { auth: "required" },
+    {
+      auth: "required",
+      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+    },
   )
 }
 
@@ -402,7 +436,13 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
         ? reason
         : null,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
-    updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : undefined,
+    // K-04 (audit 2026-09-24): `updatedAt` dipakai UI untuk penanda "(diedit)"
+    // — bentuknya dinormalkan di sini supaya nilai tak terurai tidak pernah
+    // sampai ke perbandingan waktu (lihat isEditedComment).
+    updatedAt:
+      typeof value.updatedAt === "string" && Number.isFinite(Date.parse(value.updatedAt))
+        ? value.updatedAt
+        : undefined,
     author: {
       userId: author.userId,
       username: author.username,

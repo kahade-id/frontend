@@ -16,11 +16,12 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ShowcaseFeedTab } from "@/components/showcase-feed-tab"
 import { Screen } from "@/components/ui/screen"
 import { useDocumentTitle } from "@/components/ui/header"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 
 export default function SocialShowcaseScreen() {
   const insets = useSafeAreaInsets()
-  useDocumentTitle("Etalase")
+  useDocumentTitle(translate("Etalase"))
 
   const params = useLocalSearchParams<{ category?: string }>()
   const category = typeof params.category === "string" && params.category.trim()

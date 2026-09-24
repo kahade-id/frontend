@@ -27,7 +27,6 @@ import { formatDateTime } from "@/lib/format"
 import { useHasSession } from "@/lib/guest-gate"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
-import { hitSlopToReach } from "@/lib/hit-slop"
 import { ROUTES } from "@/lib/routes"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -35,8 +34,22 @@ import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 
-/** D-15: tautan "Balas" setinggi teks — jangkauan sentuh dinaikkan via hitSlop. */
-const REPLY_HIT_SLOP = hitSlopToReach(44)
+
+/**
+ * C-04 (audit 2026-09-24): komentar dianggap diedit hanya bila `updatedAt`
+ * benar-benar BERBEDA dari `createdAt` (toleransi 1 detik, karena server bisa
+ * mengirim presisi detik vs milidetik). Perbandingan string mentah dulu
+ * memunculkan penanda "(diedit)" palsu.
+ */
+const EDITED_TOLERANCE_MS = 1000
+
+export function isEditedComment(createdAt: string, updatedAt?: string | null): boolean {
+  if (typeof updatedAt !== "string" || updatedAt.length === 0) return false
+  const created = Date.parse(createdAt)
+  const updated = Date.parse(updatedAt)
+  if (!Number.isFinite(created) || !Number.isFinite(updated)) return createdAt !== updatedAt
+  return Math.abs(updated - created) > EDITED_TOLERANCE_MS
+}
 
 export type ShowcaseCommentRowProps = {
   comment: ShowcaseComment
@@ -65,11 +78,11 @@ export function ShowcaseCommentRow({
   const hidden = comment.isHidden === true
   const authorName = comment.author.fullName ?? comment.author.username
   // D-18 (audit 2026-09-23): komentar yang diedit diberi penanda — dulu
-  // `updatedAt` diabaikan. (ISO-8601: perbandingan string cukup andal.)
-  const edited =
-    typeof comment.updatedAt === "string" &&
-    comment.updatedAt.length > 0 &&
-    comment.updatedAt !== comment.createdAt
+  // `updatedAt` diabaikan. C-04 (audit 2026-09-24): perbandingan memakai waktu
+  // terurai dengan toleransi 1 detik, bukan kesamaan string — server yang
+  // mengirim presisi berbeda (detik vs milidetik) dulu memunculkan penanda
+  // "(diedit)" palsu pada komentar yang tidak pernah disunting.
+  const edited = isEditedComment(comment.createdAt, comment.updatedAt)
 
   return (
     <View className={className}>
@@ -112,6 +125,14 @@ export function ShowcaseCommentRow({
           <Text variant="body" tone={hidden ? "secondary" : "primary"}>
             {hidden ? translate("(Komentar disembunyikan)") : comment.content}
           </Text>
+          {/* C-03 (audit 2026-09-24): tamu tanpa sesi tidak punya menu ⋯,
+              jadi baris tersembunyi tanpa `hiddenReason` dulu tampil sebagai
+              kalimat misterius. Sekarang ALASAN STATIS selalu ada. */}
+          {hidden && !comment.hiddenReason ? (
+            <Text variant="caption" tone="secondary">
+              {translate("Disembunyikan karena melanggar pedoman komunitas.")}
+            </Text>
+          ) : null}
           {hidden && comment.hiddenReason ? (
             <Text variant="caption" tone="secondary">
               {translate("Alasan: {x}", {
@@ -133,10 +154,15 @@ export function ShowcaseCommentRow({
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={translate("Balas komentar")}
-                // D-15 (audit 2026-09-23): target sentuh 44px via hitSlop —
-                // tanpa membesarkan tinggi baris komentar (min-h-11 akan
-                // membuat tiap komentar jauh lebih tinggi).
-                hitSlop={REPLY_HIT_SLOP}
+                // A-01 (audit 2026-09-24): dulu area 44px HANYA tak terlihat
+                // (hitSlop `REPLY_HIT_SLOP`), jadi tidak ada petunjuk visual
+                // sama sekali. Sekarang targetnya benar-benar setinggi 44px
+                // (min-h-11) dan terbaca sebagai tombol kecil bergaris —
+                // paritas dengan target sentuh lain di aplikasi.
+                containerClassName={cn(
+                  "min-h-11 justify-center rounded-sm border border-border-control px-2.5",
+                  focusRing,
+                )}
                 onPress={() => onReply(comment)}
               >
                 <Text variant="caption" tone="primary" weight={600}>

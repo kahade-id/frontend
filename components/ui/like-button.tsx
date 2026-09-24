@@ -55,6 +55,13 @@ export type LikeActionProps = {
   onPress?: () => void
   /** Label setelah angka (default "Suka"). */
   label?: string
+  /**
+   * S-01 (audit 2026-09-24): request suka sedang berjalan. Tombol tetap bisa
+   * ditekan (toggle berikutnya DIANTRE oleh hook), tapi pembaca layar diberi
+   * tahu lewat `busy` dan visualnya diredupkan — dulu tap kedua tidak
+   * menghasilkan umpan balik apa pun.
+   */
+  busy?: boolean
   className?: string
 }
 
@@ -62,7 +69,7 @@ const RING_BOX = 40
 /** Ukuran ikon — sama dengan CountAction (Icon size="md"). */
 const HEART_SIZE = tokens.icon.size.md
 
-export function LikeAction({ liked, count, onPress, label = "Suka", className }: LikeActionProps) {
+export function LikeAction({ liked, count, onPress, label = "Suka", busy = false, className }: LikeActionProps) {
   const { mode } = useTheme()
   const reducedMotion = useReducedMotion()
   const dangerFill = tokens.colors.semantic.danger[mode].fill
@@ -190,11 +197,11 @@ export function LikeAction({ liked, count, onPress, label = "Suka", className }:
       accessibilityRole="button"
       accessibilityLabel={liked ? translate("Hapus suka") : translate("Sukai")}
       accessibilityHint={translate("{x} suka", { x: formatCountCompact(count) })}
-      accessibilityState={{ selected: liked }}
+      accessibilityState={{ selected: liked, busy }}
       haptic
       onPress={onPress}
       containerClassName={cn("min-h-11 flex-row items-center rounded-md px-3", focusRing)}
-      className={cn("flex-row items-center gap-1.5", className)}
+      className={cn("flex-row items-center gap-1.5", busy && "opacity-60", className)}
     >
       {content}
     </PressableScale>
