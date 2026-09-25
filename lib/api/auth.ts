@@ -1,26 +1,34 @@
 /**
- * Kahade — domain `auth` (26 endpoint, tag "auth" di kahade-api-mobile.json).
+ * Kahade — domain `auth` (tag "auth" di kahade-api-mobile.json).
  *
  * Tipe REQUEST diimpor dari lib/api/types.ts (dihasilkan dari spec — persis).
+ * Spec auth di-selaras-kan dengan kontrak auth-rework (2026-09-26, frozen):
+ * login pakai `identifier`, OTP hanya via WhatsApp customer-initiated,
+ * registrasi via nomor HP + password (min 8, tanpa kompleksitas), lokasi
+ * presisi opsional di semua request auth sensitif.
  *
  * Tipe RESPONSE: spec TIDAK punya schema response untuk auth (hanya
  * `200: { description: "" }`). Bentuk di bawah adalah kontrak MINIMAL yang
- * dibutuhkan alur klien (mis. login harus mengembalikan accessToken atau
- * tempToken 2FA) dan ditandai `// UNVERIFIED`. Saat backend membagikan contoh
- * response, cocokkan di sini — pemakai modul ini tidak perlu berubah.
+ * dibutuhkan alur klien dan ditandai `// UNVERIFIED`. Saat backend membagikan
+ * contoh response, cocokkan di sini — pemakai modul ini tidak perlu berubah.
  *
  * Keputusan non-obvious:
  *   - `deviceId`/`deviceInfo` di LoginDto, Verify2faLoginDto, VerifyPhoneOtpDto,
- *     PhoneRegisterDto DIISI OTOMATIS dari session.ts. Screen hanya mengirim
- *     kredensial; parameter bertipe `Omit<Dto, "deviceId" | "deviceInfo">`
- *     supaya tidak ada yang lupa/menyimpang dari deviceId per-install.
- *   - Endpoint yang mengembalikan access token (login, verify-2fa, verify-otp,
- *     phone-register) LANGSUNG menyimpannya ke SecureStore di sini, bukan di
- *     screen — satu tempat, tidak ada jalur login yang lupa menyimpan token.
+ *     PhoneRegisterDto, MigratePhoneConfirmDto DIISI OTOMATIS dari session.ts.
+ *     Screen hanya mengirim kredensial; parameter bertipe
+ *     `Omit<Dto, "deviceId" | "deviceInfo">` supaya tidak ada yang
+ *     lupa/menyimpang dari deviceId per-install.
+ *   - Endpoint yang mengembalikan access token (login, verify-2fa, verify-otp
+ *     existing_user, phone-register, migrate-phone/confirm) LANGSUNG
+ *     menyimpannya ke SecureStore di sini, bukan di screen — satu tempat,
+ *     tidak ada jalur login yang lupa menyimpan token.
  *   - Semua endpoint auth publik memakai `auth: "none"` agar 401 dari
  *     password salah TIDAK memicu refresh token (lihat client.ts).
  *   - `logout()` membersihkan sesi lokal MESKI request gagal (offline) —
  *     user yang menekan "Keluar" harus benar-benar keluar.
+ *   - `location` (LocationDto) opsional di SEMUA request auth sensitif.
+ *     Screen memanggil `getAuthLocation()` (lib/location.ts) — null bila izin
+ *     ditolak/gagal, dan alur TIDAK boleh diblokir karenanya.
  */
 import { http } from "@/lib/api/client"
 import {
@@ -41,11 +49,12 @@ import type {
   Disable2faDto,
   Enable2faDto,
   ForgotPasswordDto,
+  LocationDto,
   LoginDto,
   LogoutDto,
+  MigratePhoneConfirmDto,
+  OtpTriggerRequestDto,
   PhoneRegisterDto,
-  RegisterDto,
-  RequestOtpDto,
   RegenerateBackupCodesDto,
   RequestPhoneChangeDto,
   ResendVerificationDto,
@@ -57,6 +66,9 @@ import type {
   VerifyPasswordDto,
   VerifyPhoneOtpDto,
 } from "@/lib/api/types"
+
+/** Lokasi presisi opsional yang dilampirkan ke request auth sensitif. */
+export type { LocationDto }
 
 // ------------------------------------------------------------------
 // Tipe response — UNVERIFIED (tidak ada di spec; lihat catatan header)
@@ -81,18 +93,34 @@ export type AuthUser = {
 }
 
 /**
- * Login bisa berakhir di 2 cabang: sukses penuh (token) atau butuh 2FA
- * (tempToken untuk `/2fa/verify-login`). Discriminated union agar screen
- * wajib menangani keduanya.
+ * Login bisa berakhir di 3 cabang: sukses penuh (token), butuh 2FA
+ * (tempToken untuk `/2fa/verify-login`), atau akun lama yang WAJIB migrasi
+ * tambah nomor HP (migrationToken untuk layar `/phone-migration`).
+ * Discriminated union agar screen wajib menangani ketiganya.
+ *
+ * PENTING: cabang migrasi TIDAK menyimpan token — `persistTokens` tidak boleh
+ * dipanggil sebelum cabang ini diperiksa (tidak ada accessToken di response).
  */
 export type LoginResult =
-  | ({ requiresTwoFactor?: false; user?: AuthUser } & AuthTokens)
+  | ({ requiresTwoFactor?: false; requiresPhoneMigration?: false; user?: AuthUser } & AuthTokens)
   | { requiresTwoFactor: true; tempToken: string; user?: AuthUser }
+  | { requiresPhoneMigration: true; migrationToken: string }
 
-/** Hasil verify-otp telepon: sudah punya akun → token; belum → tempToken untuk phone-register. */
+/**
+ * Hasil verify-otp telepon (kontrak auth-rework): status eksplisit, bukan
+ * boolean. `tempToken` dipakai langkah berikutnya sesuai status:
+ *   - new_user → phone-register
+ *   - password_reset → reset-password
+ *   - migration_verified → migrate-phone/confirm
+ *   - existing_user → token (disimpan otomatis)
+ */
+export type VerifyOtpStatus = "new_user" | "existing_user" | "password_reset" | "migration_verified"
+
 export type VerifyOtpResult =
-  | ({ isNewUser?: false; user?: AuthUser } & AuthTokens)
-  | { isNewUser: true; tempToken: string }
+  | { status: "new_user"; tempToken: string }
+  | ({ status: "existing_user"; user?: AuthUser } & AuthTokens)
+  | { status: "password_reset"; tempToken: string }
+  | { status: "migration_verified"; tempToken: string }
 
 /**
  * Tantangan captcha backend = SLIDER, bukan gambar+kode.
@@ -118,7 +146,9 @@ export type CaptchaChallenge = {
   expiresAt?: string
 }
 
-export type OtpMethod = RequestOtpDto["method"]
+/** Metode OTP lama (dipakai alur change-phone) — enum eksplisit karena DTO
+ *  RequestOtpDto sudah dihapus dari spec (endpoint request-otp = 410). */
+export type OtpMethod = "SMS" | "WHATSAPP"
 export type OtpMethodsResult = { methods: OtpMethod[] }
 
 export type TwoFactorStatus = { enabled: boolean; backupCodesRemaining?: number }
@@ -148,10 +178,9 @@ type WithoutDeviceId<T> = Omit<T, "deviceId">
  * DTO auth backend TIDAK seragam soal field perangkat (forbidNonWhitelisted
  * aktif global — field ekstra = 400 "property X should not exist"):
  *   - login / verify-2fa / verify-phone-otp: deviceId (wajib) + deviceInfo (opsional)
- *   - request-otp: HANYA deviceId (deviceInfo ditolak)
- *   - register / forgot-password / reset-password: KEDUANYA ditolak
- * Dulu satu helper withDevice menyisipkan keduanya ke SEMUA endpoint auth —
- * register, minta-OTP, lupa-password, dan reset-password gagal 400.
+ *   - otp-trigger / phone-register / migrate-phone/confirm: deviceId (wajib)
+ *   - forgot-password / reset-password: TANPA deviceId/deviceInfo
+ * withDevice/withDeviceId dipakai sesuai DTO masing-masing.
  */
 async function withDeviceId<T extends { deviceId?: string }>(
   dto: WithoutDeviceId<T>,
@@ -210,17 +239,14 @@ export async function getCsrfToken() {
 }
 
 // ------------------------------------------------------------------
-// Registrasi email
+// Registrasi email — DIHAPUS (kontrak auth-rework 2026-09-26).
+//
+// POST /v1/auth/register (email) dijawab backend dengan 410; registrasi
+// kini HANYA via nomor HP: requestOtpTrigger(purpose="register") →
+// verify-otp → phoneRegister. Fungsi `register()` dihapus — tidak ada
+// pemanggil yang tersisa. Endpoint verifikasi email di bawah ini (untuk
+// akun yang sudah punya email) tidak terdampak kontrak dan dipertahankan.
 // ------------------------------------------------------------------
-
-export async function register(dto: RegisterDto) {
-  // RegisterDto backend TIDAK punya deviceId/deviceInfo — jangan ditambahkan
-  // (forbidNonWhitelisted → 400 "property deviceId/deviceInfo should not exist").
-  const result = await http.post<MessageResult & { user?: AuthUser }, any>("/v1/auth/register", dto, {
-    auth: "none",
-  })
-  return result
-}
 
 export function verifyEmail(dto: VerifyEmailDto, signal?: AbortSignal) {
   return http.post<MessageResult, VerifyEmailDto>("/v1/auth/verify-email", dto, { auth: "none", signal })
@@ -245,7 +271,7 @@ export function correctEmail(dto: CorrectEmailDto) {
 // Registrasi / login via nomor telepon (OTP)
 // ------------------------------------------------------------------
 
-/** Semua metode yang dikenal spec (`RequestOtpDto.method` enum) — urutan = urutan tampil default. */
+/** Semua metode yang dikenal — urutan = urutan tampil default. */
 export const OTP_METHODS: readonly OtpMethod[] = ["SMS", "WHATSAPP"]
 
 function isOtpMethod(value: unknown): value is OtpMethod {
@@ -291,17 +317,23 @@ export async function getOtpMethods(signal?: AbortSignal): Promise<OtpMethodsRes
 }
 
 /**
- * WhatsApp OTP trigger (customer-initiated conversation).
+ * WhatsApp OTP trigger (customer-initiated conversation) — SATU-SATUNYA jalur
+ * OTP (kontrak auth-rework 2026-09-26).
  *
  * Bot WhatsApp tidak mem-push OTP duluan (pola yang rawan dilaporkan dan
  * membekukan akun bot); user yang MEMINTA lewat chat akan dibalas OTP.
  * `requestOtpTrigger()` hanya menyiapkan permintaan tertunda + kode referensi
- * (tidak ada pesan keluar sampai user mengirim pesan pemicunya sendiri).
- * Layar `/whatsapp-trigger` menampilkan deeplink wa.me dan mem-polling status
- * sampai backend membalas OTP; `sendOtpDirect()` adalah jalur cadangan.
+ * 12 hex (tidak ada pesan keluar sampai user mengirim pesan pemicunya
+ * sendiri). Layar `/whatsapp-trigger` menampilkan deeplink wa.me dan
+ * mem-polling status sampai backend membalas OTP.
+ *
+ * TIDAK ADA jalur kirim-langsung: `sendOtpDirect()` dan `requestOtp()`
+ * dihapus — backend menjawab 410 untuk keduanya.
  */
+export type OtpTriggerPurpose = OtpTriggerRequestDto["purpose"]
+
 export type OtpTriggerRequestResult = {
-  /** Kode referensi 4 hex - mengikat pesan pemicu ke nomor & sesi ini. */
+  /** Kode referensi 12 hex uppercase - mengikat pesan pemicu ke nomor & sesi ini. */
   refCode: string
   /** Teks lengkap yang harus dikirim user (berisi refCode). */
   triggerText: string
@@ -313,16 +345,11 @@ export type OtpTriggerRequestResult = {
 
 export type OtpTriggerPollStatus = "WAITING" | "COMPLETED" | "FAILED" | "EXPIRED"
 
-export async function requestOtpTrigger(dto: Omit<{ phoneNumber: string; deviceId?: string }, "deviceId">) {
-  const body = await withDeviceId<{ phoneNumber: string; deviceId?: string }>(dto)
-  const result = await http.post<unknown, Record<string, unknown>>(
-    "/v1/auth/otp-trigger",
-    body,
-    { auth: "none" },
-  )
+/** Parser payload trigger — dipakai requestOtpTrigger & forgotPassword (bentuk sama). */
+function parseOtpTriggerResult(raw: unknown, endpoint: string): OtpTriggerRequestResult {
   // Envelope sukses mungkin sudah dilepas client; bila masih ada, field
   // payload di `data` menimpa field envelope (spread terakhir menang).
-  const outer = asRecord(result) ?? {}
+  const outer = asRecord(raw) ?? {}
   const rec = { ...outer, ...(asRecord(outer.data) ?? {}) }
   const refCode = pickString(rec, ["refCode", "ref_code", "referenceCode"])
   const whatsappUrl = pickString(rec, ["whatsappUrl", "whatsapp_url", "waUrl", "deepLink"])
@@ -335,8 +362,8 @@ export async function requestOtpTrigger(dto: Omit<{ phoneNumber: string; deviceI
       // URL tidak valid - ditangani oleh pengecekan di bawah.
     }
   }
-  if (!refCode || !whatsappUrl || !triggerText) throw invalidResponse("otp-trigger")
-  const expiresInSeconds = pickNumber(rec, ["expiresInSeconds", "expires_in"]) ?? 300
+  if (!refCode || !whatsappUrl || !triggerText) throw invalidResponse(endpoint)
+  const expiresInSeconds = pickNumber(rec, ["expiresInSeconds", "expires_in"]) ?? 600
   return {
     refCode,
     triggerText,
@@ -348,7 +375,36 @@ export async function requestOtpTrigger(dto: Omit<{ phoneNumber: string; deviceI
   }
 }
 
-export async function getOtpTriggerStatus(refCode: string, signal?: AbortSignal): Promise<OtpTriggerPollStatus> {
+export async function requestOtpTrigger(dto: {
+  phoneNumber: string
+  purpose: OtpTriggerPurpose
+  migrationToken?: string
+  location?: LocationDto
+}) {
+  const body = await withDeviceId<OtpTriggerRequestDto>({
+    phoneNumber: dto.phoneNumber,
+    purpose: dto.purpose,
+    migrationToken: dto.migrationToken,
+    location: dto.location,
+  })
+  const result = await http.post<unknown, Record<string, unknown>>(
+    "/v1/auth/otp-trigger",
+    body,
+    { auth: "none" },
+  )
+  return parseOtpTriggerResult(result, "otp-trigger")
+}
+
+export type OtpTriggerStatusResult = {
+  status: OtpTriggerPollStatus
+  /** Tujuan OTP — echo backend; untuk validasi silang dengan alur lokal. */
+  purpose?: OtpTriggerPurpose
+}
+
+export async function getOtpTriggerStatus(
+  refCode: string,
+  signal?: AbortSignal,
+): Promise<OtpTriggerStatusResult> {
   const raw = await http.get<unknown>(`/v1/auth/otp-trigger/status/${encodeURIComponent(refCode)}`, {
     auth: "none",
     signal,
@@ -357,75 +413,85 @@ export async function getOtpTriggerStatus(refCode: string, signal?: AbortSignal)
   const rec = { ...outer, ...(asRecord(outer.data) ?? {}) }
   const status = typeof rec?.status === "string" ? rec.status.toUpperCase() : ""
   if (status === "WAITING" || status === "COMPLETED" || status === "FAILED" || status === "EXPIRED") {
-    return status as OtpTriggerPollStatus
+    const purposeRaw = typeof rec?.purpose === "string" ? rec.purpose : undefined
+    const purpose = (
+      purposeRaw === "register" ||
+      purposeRaw === "login" ||
+      purposeRaw === "forgot_password" ||
+      purposeRaw === "migrate_phone"
+        ? purposeRaw
+        : undefined
+    ) as OtpTriggerPurpose | undefined
+    return { status: status as OtpTriggerPollStatus, purpose }
   }
   throw invalidResponse("otp-trigger/status")
 }
 
-/** Jalur cadangan dari layar trigger: kirim langsung (meta refCode untuk audit). */
-export async function sendOtpDirect(dto: {
+export async function verifyOtp(dto: {
   phoneNumber: string
-  method: OtpMethod
-  refCode?: string
-  deviceId?: string
-}) {
-  const body = await withDeviceId<{
-    phoneNumber: string
-    method: OtpMethod
-    refCode?: string
-    deviceId?: string
-  }>(dto)
-  const result = await http.post<unknown, Record<string, unknown>>(
-    "/v1/auth/otp-trigger/send",
-    body,
-    { auth: "none" },
-  )
-  const outer = asRecord(result) ?? {}
-  const rec = { ...outer, ...(asRecord(outer.data) ?? {}) }
-  return {
-    message: pickString(rec, ["message"]) ?? "",
-    cooldownSeconds: pickNumber(rec, ["cooldownSeconds", "cooldown_seconds"]),
-  }
-}
-
-export async function requestOtp(dto: Omit<RequestOtpDto, "deviceId">) {
-  // RequestOtpDto: deviceId WAJIB, deviceInfo TIDAK dikenali → hanya deviceId.
-  const body = await withDeviceId<RequestOtpDto>(dto)
-  const result = await http.post<
-    MessageResult & { expiresIn?: number; cooldownSeconds?: number },
-    Record<string, unknown>
-  >("/v1/auth/request-otp", body, { auth: "none" })
-  const record = asRecord(result) ?? {}
-  return {
-    ...result,
-    expiresIn: pickNumber(record, ["expiresIn", "expires_in"]) ?? result.expiresIn,
-    cooldownSeconds: pickNumber(record, ["cooldownSeconds", "cooldown_seconds"]) ?? result.cooldownSeconds,
-  }
-}
-
-export async function verifyOtp(dto: WithoutDevice<VerifyPhoneOtpDto>) {
-  const body = await withDevice<VerifyPhoneOtpDto>(dto)
-  const result = await http.post<VerifyOtpResult, VerifyPhoneOtpDto>("/v1/auth/verify-otp", body, {
+  code: string
+  location?: LocationDto
+}): Promise<VerifyOtpResult> {
+  const body = await withDevice<VerifyPhoneOtpDto & { location?: LocationDto }>(dto)
+  const result = await http.post<unknown, Record<string, unknown>>("/v1/auth/verify-otp", body, {
     auth: "none",
   })
   if (!responseRecord(result)) throw invalidResponse("verify-otp")
-  
-  const record = asRecord(result) ?? {}
-  const isNew = pickBoolean(record, ["isNewUser", "is_new_user"]) ?? result.isNewUser
-  const tempToken = pickString(record, ["tempToken", "temp_token"])
 
-  if (isNew) {
+  const record = asRecord(result) ?? {}
+  const statusRaw = pickString(record, ["status"])
+  const status = (
+    statusRaw === "new_user" ||
+    statusRaw === "existing_user" ||
+    statusRaw === "password_reset" ||
+    statusRaw === "migration_verified"
+      ? statusRaw
+      : undefined
+  ) as VerifyOtpStatus | undefined
+
+  // Fallback defensif: backend lama mengirim boolean isNewUser.
+  const legacyNew = status === undefined ? pickBoolean(record, ["isNewUser", "is_new_user"]) : undefined
+  const resolved: VerifyOtpStatus | undefined =
+    status ?? (legacyNew === undefined ? undefined : legacyNew ? "new_user" : "existing_user")
+  if (!resolved) throw invalidResponse("verify-otp/status")
+
+  const tempToken = pickString(record, ["tempToken", "temp_token"])
+  if (resolved !== "existing_user") {
     if (typeof tempToken !== "string" || !tempToken)
       throw invalidResponse("verify-otp/tempToken")
-    return { ...result, isNewUser: true, tempToken }
-  } else {
-    await persistTokens(result)
+    return { status: resolved, tempToken }
   }
-  return result
+  await persistTokens(record)
+  // record sudah ternormalisasi sebagai Record; status eksplisit adalah
+  // satu-satunya bentuk yang dipakai pemanggil.
+  return { status: "existing_user" } as VerifyOtpResult
 }
 
-export async function phoneRegister(dto: Omit<PhoneRegisterDto, "deviceId">) {
-  const body: PhoneRegisterDto = { ...dto, deviceId: await getDeviceId() }
+/**
+ * Registrasi via nomor HP — DISDERHANAKAN (kontrak auth-rework).
+ * Hanya: tempToken (dari verify-otp status new_user), nama lengkap, username
+ * opsional (backend auto-generate bila kosong), password (min 8, tanpa
+ * syarat kompleksitas), deviceId, lokasi opsional.
+ *
+ * Field lama (dateOfBirth, gender, email, pin, address, referralCode) tidak
+ * lagi dikirim — backend 410/tidak mengenalnya. PIN wallet diatur belakangan
+ * di Pengaturan (layar change-pin), bukan saat registrasi.
+ */
+export async function phoneRegister(dto: {
+  tempToken: string
+  fullName: string
+  username?: string
+  password: string
+  location?: LocationDto
+}) {
+  const body: PhoneRegisterDto = {
+    tempToken: dto.tempToken,
+    fullName: dto.fullName,
+    username: dto.username?.trim() ? dto.username.trim() : undefined,
+    password: dto.password,
+    deviceId: await getDeviceId(),
+    location: dto.location,
+  }
   const result = await http.post<AuthTokens & { user?: AuthUser }, PhoneRegisterDto>(
     "/v1/auth/phone-register",
     body,
@@ -433,6 +499,27 @@ export async function phoneRegister(dto: Omit<PhoneRegisterDto, "deviceId">) {
       auth: "none",
     },
   )
+  await persistTokens(result)
+  return result
+}
+
+/**
+ * Konfirmasi migrasi nomor HP (kontrak auth-rework — endpoint baru).
+ * Dipanggil setelah verify-otp status `migration_verified`: menukar tempToken
+ * menjadi sesi penuh (token disimpan otomatis).
+ */
+export async function confirmPhoneMigration(dto: {
+  tempToken: string
+  location?: LocationDto
+}) {
+  const body = await withDeviceId<MigratePhoneConfirmDto>({
+    tempToken: dto.tempToken,
+    location: dto.location,
+  })
+  const result = await http.post<
+    AuthTokens & { user?: AuthUser; message?: string },
+    MigratePhoneConfirmDto
+  >("/v1/auth/migrate-phone/confirm", body, { auth: "none" })
   await persistTokens(result)
   return result
 }
@@ -446,15 +533,29 @@ export function setUsername(dto: SetUsernameDto) {
 // Login / 2FA / sesi
 // ------------------------------------------------------------------
 
-export async function login(dto: WithoutDevice<LoginDto>) {
-  const body = await withDevice<LoginDto>(dto)
+export async function login(dto: WithoutDevice<LoginDto> & { location?: LocationDto }) {
+  const body = await withDevice<LoginDto & { location?: LocationDto }>(dto)
   const result = await http.post<LoginResult, LoginDto>("/v1/auth/login", body, { auth: "none" })
   if (!responseRecord(result)) throw invalidResponse("login")
-  
+
   // Normalize response keys that might be snake_case
   const record = asRecord(result) ?? {}
+
+  // Cabang migrasi DIPERIKSA DULU: tidak ada accessToken di response ini,
+  // jadi persistTokens() tidak boleh dipanggil sebelum cabang ini.
+  const requiresMigration =
+    pickBoolean(record, ["requiresPhoneMigration", "requires_phone_migration"]) ??
+    (result as { requiresPhoneMigration?: boolean }).requiresPhoneMigration
+  const migrationToken = pickString(record, ["migrationToken", "migration_token"])
+  if (requiresMigration) {
+    if (typeof migrationToken !== "string" || !migrationToken)
+      throw invalidResponse("login/migrationToken")
+    return { ...result, requiresPhoneMigration: true, migrationToken }
+  }
+
   const requires2fa =
-    pickBoolean(record, ["requiresTwoFactor", "requires_two_factor"]) ?? result.requiresTwoFactor
+    pickBoolean(record, ["requiresTwoFactor", "requires_two_factor"]) ??
+    (result as { requiresTwoFactor?: boolean }).requiresTwoFactor
   const tempToken = pickString(record, ["tempToken", "temp_token"])
 
   if (requires2fa) {
@@ -497,19 +598,41 @@ export async function logout(dto: LogoutDto = {}): Promise<void> {
 }
 
 // ------------------------------------------------------------------
-// Password
+// Password — kontrak auth-rework: reset via WhatsApp OTP, bukan email.
 // ------------------------------------------------------------------
 
-export async function forgotPassword(dto: ForgotPasswordDto) {
-  // ForgotPasswordDto backend TIDAK punya deviceId/deviceInfo.
-  return http.post<MessageResult, any>("/v1/auth/forgot-password", dto, {
+/**
+ * Lupa kata sandi: HANYA nomor HP (`identifier`; email → 400).
+ * Response = payload trigger WhatsApp yang sama seperti otp-trigger +
+ * `{ via: "whatsapp_trigger" }`. Layar forgot-password langsung meneruskan
+ * payload ini ke `/whatsapp-trigger` (tanpa request kedua).
+ */
+export async function forgotPassword(dto: { identifier: string; location?: LocationDto }) {
+  const body: ForgotPasswordDto = {
+    identifier: dto.identifier,
+    location: dto.location,
+  }
+  const result = await http.post<unknown, ForgotPasswordDto>("/v1/auth/forgot-password", body, {
     auth: "none",
   })
+  return { ...parseOtpTriggerResult(result, "forgot-password"), via: "whatsapp_trigger" as const }
 }
 
-export async function resetPassword(dto: ResetPasswordDto) {
-  // ResetPasswordDto backend TIDAK punya deviceId/deviceInfo.
-  return http.post<MessageResult, any>("/v1/auth/reset-password", dto, {
+/**
+ * Reset kata sandi: tempToken dari verify-otp (status `password_reset`) +
+ * kata sandi baru (min 8). Tidak ada lagi field email/otp/confirmPassword.
+ */
+export async function resetPassword(dto: {
+  tempToken: string
+  newPassword: string
+  location?: LocationDto
+}) {
+  const body: ResetPasswordDto = {
+    tempToken: dto.tempToken,
+    newPassword: dto.newPassword,
+    location: dto.location,
+  }
+  return http.post<MessageResult, ResetPasswordDto>("/v1/auth/reset-password", body, {
     auth: "none",
   })
 }

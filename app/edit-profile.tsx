@@ -608,7 +608,7 @@ export default function EditProfileScreen() {
                   onChangeText={(v) => set("fullName", v)}
                   maxLength={60}
                   placeholder="Nama lengkap Anda"
-                  // Field yang sama di (auth)/profile-data sudah membawa
+                  // Field yang sama di (auth)/register-security sudah membawa
                   // keempat prop ini; tanpanya iOS/Android tidak menawarkan
                   // nama dari kontak dan kapitalisasi tiap kata tidak otomatis.
                   autoComplete="name"

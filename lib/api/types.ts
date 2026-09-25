@@ -4,73 +4,9 @@
  *
  * JANGAN EDIT MANUAL. Ubah spec → `npm run gen:api`.
  *
- * Spec: Kahade API v1.0 · 108 DTO dipakai
- * (39 schema admin-only dilewati).
+ * Spec: Kahade API v1.0 · 107 DTO dipakai
+ * (42 schema admin-only dilewati).
  */
-
-export type RegisterDto = {
-  /**
-   * Full name
-   * minLength 2 · maxLength 60
-   */
-  fullName: string
-  /**
-   * Unique username (3-30 characters)
-   * minLength 3 · maxLength 30
-   */
-  username?: string
-  /**
-   * Email address
-   * maxLength 254
-   */
-  email: string
-  /**
-   * Password (min 12 chars, must contain uppercase, lowercase, digit, and special character)
-   * minLength 12 · maxLength 72
-   */
-  password: string
-  /**
-   * Confirm password
-   * minLength 12 · maxLength 72
-   */
-  confirmPassword: string
-  /**
-   * Phone number (E.164 or local Indonesian format, e.g. 08xx)
-   * maxLength 20
-   */
-  phoneNumber?: string
-  /**
-   * Date of birth (ISO 8601: YYYY-MM-DD)
-   * contoh "1995-06-15"
-   */
-  dateOfBirth?: string
-  /** Gender */
-  gender?: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY"
-  /**
-   * Referral code (optional)
-   * maxLength 20
-   */
-  referralCode?: string
-  /** Captcha challenge ID */
-  captchaId?: string
-  /** Captcha answer (X position 0-100) */
-  captchaAnswer?: number
-}
-
-export type RequestOtpDto = {
-  /**
-   * Indonesian phone number (e.g. 08xx or +628xx)
-   * maxLength 20
-   */
-  phoneNumber: string
-  /** OTP delivery method */
-  method: "SMS" | "WHATSAPP"
-  /**
-   * Stable device identifier that requested the OTP
-   * maxLength 255
-   */
-  deviceId: string
-}
 
 export type OtpTriggerRequestDto = {
   /**
@@ -83,26 +19,12 @@ export type OtpTriggerRequestDto = {
    * maxLength 255
    */
   deviceId: string
-}
-
-export type OtpTriggerSendDto = {
-  /**
-   * Indonesian phone number (e.g. 08xx or +628xx)
-   * maxLength 20
-   */
-  phoneNumber: string
-  /** OTP delivery method */
-  method: "SMS" | "WHATSAPP"
-  /**
-   * Reference code when sent from the trigger screen
-   * maxLength 8
-   */
-  refCode?: string
-  /**
-   * Stable device identifier that requested the OTP
-   * maxLength 255
-   */
-  deviceId: string
+  /** Tujuan OTP */
+  purpose: "register" | "login" | "forgot_password" | "migrate_phone"
+  /** Token migrasi (wajib bila purpose=migrate_phone) */
+  migrationToken?: string
+  /** Lokasi presisi perangkat (opsional) */
+  location?: LocationDto
 }
 
 export type VerifyPhoneOtpDto = {
@@ -123,6 +45,8 @@ export type VerifyPhoneOtpDto = {
    * maxLength 512
    */
   deviceInfo?: string
+  /** Lokasi presisi perangkat (opsional) */
+  location?: LocationDto
 }
 
 export type SocialLoginDto = {
@@ -139,55 +63,30 @@ export type SocialLoginDto = {
 }
 
 export type PhoneRegisterDto = {
-  /** Temp token from OTP verification */
+  /** Temp token dari verifikasi OTP (status new_user) */
   tempToken: string
   /**
-   * Full name
+   * Nama lengkap
    * minLength 2 · maxLength 60
    */
   fullName: string
   /**
-   * Unique username (3-30 characters)
+   * Username unik (opsional — dibuat otomatis bila kosong)
    * minLength 3 · maxLength 30
    */
-  username: string
+  username?: string
   /**
-   * Date of birth (ISO 8601: YYYY-MM-DD)
-   * contoh "1995-06-15"
-   */
-  dateOfBirth: string
-  /** Gender */
-  gender: "MALE" | "FEMALE" | "OTHER" | "PREFER_NOT_TO_SAY"
-  /**
-   * Email address
-   * maxLength 254
-   */
-  email: string
-  /**
-   * Password (min 12 chars, must contain uppercase, lowercase, digit, and special character)
-   * minLength 12 · maxLength 72
+   * Kata sandi (minimal 8 karakter, tanpa syarat kompleksitas)
+   * minLength 8 · maxLength 72
    */
   password: string
   /**
-   * Wallet PIN (6 digits)
-   * minLength 6 · maxLength 6
-   */
-  pin: string
-  /**
-   * Full address
-   * maxLength 500
-   */
-  address?: string
-  /**
-   * Referral code (optional)
-   * maxLength 20
-   */
-  referralCode?: string
-  /**
-   * Device identifier bound to the phone-verification token
+   * Device identifier
    * maxLength 255
    */
   deviceId: string
+  /** Lokasi presisi perangkat (opsional) */
+  location?: LocationDto
 }
 
 export type RequestPhoneChangeDto = {
@@ -255,10 +154,10 @@ export type CorrectEmailDto = {
 
 export type LoginDto = {
   /**
-   * User email address
+   * Username, email, atau nomor HP
    * maxLength 254
    */
-  email: string
+  identifier: string
   /**
    * User password
    * maxLength 72
@@ -278,6 +177,8 @@ export type LoginDto = {
   captchaId?: string
   /** Captcha answer (X position 0-100) */
   captchaAnswer?: number
+  /** Lokasi presisi perangkat (opsional) */
+  location?: LocationDto
 }
 
 export type Verify2faLoginDto = {
@@ -318,37 +219,24 @@ export type LogoutDto = {
 
 export type ForgotPasswordDto = {
   /**
-   * Email address
-   * maxLength 254
+   * Nomor HP terdaftar (E.164). Email tidak lagi diterima.
+   * maxLength 20
    */
-  email: string
-  /** Captcha challenge ID */
-  captchaId?: string
-  /** Captcha answer (X position 0-100) */
-  captchaAnswer?: number
+  identifier: string
+  /** Lokasi presisi perangkat (opsional) */
+  location?: LocationDto
 }
 
 export type ResetPasswordDto = {
+  /** Temp token dari verifikasi OTP (status password_reset) */
+  tempToken: string
   /**
-   * Email address
-   * maxLength 254
-   */
-  email: string
-  /**
-   * OTP code (6 digits)
-   * minLength 6 · maxLength 6
-   */
-  otp: string
-  /**
-   * New password
-   * minLength 12 · maxLength 72
+   * Kata sandi baru (minimal 8 karakter)
+   * minLength 8 · maxLength 72
    */
   newPassword: string
-  /**
-   * Confirm new password
-   * minLength 12 · maxLength 72
-   */
-  confirmPassword: string
+  /** Lokasi presisi perangkat (opsional) */
+  location?: LocationDto
 }
 
 export type VerifyPasswordDto = {
@@ -1563,4 +1451,38 @@ export type CreateShowcaseReportDto = {
   reason: string
   /** maxLength 500 */
   description?: string
+}
+
+export type LocationDto = {
+  /**
+   * Lintang (-90..90)
+   * min -90 · max 90
+   */
+  latitude: number
+  /**
+   * Bujur (-180..180)
+   * min -180 · max 180
+   */
+  longitude: number
+  /** Akurasi dalam meter (bila tersedia) */
+  accuracy?: number
+  /**
+   * Waktu pengambilan lokasi (ISO 8601)
+   * format date-time
+   */
+  timestamp?: string
+  /** Sumber lokasi, mis. gps/network */
+  source?: string
+}
+
+export type MigratePhoneConfirmDto = {
+  /** Temp token dari verifikasi OTP (status migration_verified) */
+  tempToken: string
+  /**
+   * Device identifier
+   * maxLength 255
+   */
+  deviceId: string
+  /** Lokasi presisi perangkat (opsional) */
+  location?: LocationDto
 }

@@ -14,8 +14,8 @@
 
 export type PendingTwoFactorLogin = {
   tempToken: string
-  /** Email yang dipakai login — hanya untuk ditampilkan di layar verifikasi. */
-  email: string
+  /** Identifier yang dipakai login — hanya untuk ditampilkan di layar verifikasi. */
+  identifier: string
 }
 
 let pending: PendingTwoFactorLogin | null = null

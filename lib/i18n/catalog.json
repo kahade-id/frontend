@@ -20,7 +20,7 @@
   },
   {
    "s": "Lainnya",
-   "n": 15
+   "n": 14
   },
   {
    "s": "Simpan",
@@ -31,15 +31,15 @@
    "n": 12
   },
   {
+   "s": "Minimal {x} karakter",
+   "n": 12
+  },
+  {
    "s": "Etalase",
    "n": 11
   },
   {
    "s": "{x} hari",
-   "n": 10
-  },
-  {
-   "s": "Minimal {x} karakter",
    "n": 10
   },
   {
@@ -171,6 +171,14 @@
    "n": 5
   },
   {
+   "s": "Gagal",
+   "n": 5
+  },
+  {
+   "s": "Gagal menyimpan",
+   "n": 5
+  },
+  {
    "s": "Hapus pertanyaan?",
    "n": 5
   },
@@ -180,10 +188,6 @@
   },
   {
    "s": "Kirim komentar",
-   "n": 5
-  },
-  {
-   "s": "Lanjut",
    "n": 5
   },
   {
@@ -271,10 +275,6 @@
    "n": 4
   },
   {
-   "s": "Email",
-   "n": 4
-  },
-  {
    "s": "Foto profil",
    "n": 4
   },
@@ -284,10 +284,6 @@
   },
   {
    "s": "Gagal mengunggah foto",
-   "n": 4
-  },
-  {
-   "s": "Gagal menyimpan",
    "n": 4
   },
   {
@@ -328,6 +324,10 @@
   },
   {
    "s": "Komentar dihapus",
+   "n": 4
+  },
+  {
+   "s": "Lanjut",
    "n": 4
   },
   {
@@ -695,10 +695,6 @@
    "n": 3
   },
   {
-   "s": "Gagal",
-   "n": 3
-  },
-  {
    "s": "Gagal memperbarui dukungan",
    "n": 3
   },
@@ -823,7 +819,7 @@
    "n": 3
   },
   {
-   "s": "Kirim ulang kode",
+   "s": "Kirim kode",
    "n": 3
   },
   {
@@ -843,11 +839,11 @@
    "n": 3
   },
   {
-   "s": "Kode referral",
+   "s": "Kode referral {x} sudah dipakai",
    "n": 3
   },
   {
-   "s": "Kode referral {x} sudah dipakai",
+   "s": "Konfirmasi kata sandi",
    "n": 3
   },
   {
@@ -919,10 +915,6 @@
    "n": 3
   },
   {
-   "s": "Masukkan kode verifikasi",
-   "n": 3
-  },
-  {
    "s": "Masukkan PIN dompet Anda untuk menarik {x} ke {y} {z}.",
    "n": 3
   },
@@ -968,10 +960,6 @@
   },
   {
    "s": "Mode aplikasi",
-   "n": 3
-  },
-  {
-   "s": "Nama pengguna",
    "n": 3
   },
   {
@@ -1523,6 +1511,10 @@
    "n": 2
   },
   {
+   "s": "Buat akun",
+   "n": 2
+  },
+  {
    "s": "Buat jadwal",
    "n": 2
   },
@@ -1651,15 +1643,7 @@
    "n": 2
   },
   {
-   "s": "Daftar",
-   "n": 2
-  },
-  {
    "s": "Dalam pengiriman",
-   "n": 2
-  },
-  {
-   "s": "Data bentrok dengan yang sudah ada.",
    "n": 2
   },
   {
@@ -1704,6 +1688,10 @@
   },
   {
    "s": "Edit Profil",
+   "n": 2
+  },
+  {
+   "s": "Email",
    "n": 2
   },
   {
@@ -1847,10 +1835,6 @@
    "n": 2
   },
   {
-   "s": "Huruf besar dan kecil",
-   "n": 2
-  },
-  {
    "s": "Identitas data tidak valid.",
    "n": 2
   },
@@ -1899,10 +1883,6 @@
    "n": 2
   },
   {
-   "s": "Jenis kelamin",
-   "n": 2
-  },
-  {
    "s": "Judul wajib diisi.",
    "n": 2
   },
@@ -1920,6 +1900,10 @@
   },
   {
    "s": "Karya sudah dilaporkan",
+   "n": 2
+  },
+  {
+   "s": "Kata sandi",
    "n": 2
   },
   {
@@ -1987,14 +1971,6 @@
    "n": 2
   },
   {
-   "s": "Kirim kode",
-   "n": 2
-  },
-  {
-   "s": "Kirim kode melalui",
-   "n": 2
-  },
-  {
    "s": "Kirim kode verifikasi",
    "n": 2
   },
@@ -2011,6 +1987,10 @@
    "n": 2
   },
   {
+   "s": "Kirim ulang kode",
+   "n": 2
+  },
+  {
    "s": "Kirim ulang verifikasi",
    "n": 2
   },
@@ -2020,10 +2000,6 @@
   },
   {
    "s": "Kode {x} digit",
-   "n": 2
-  },
-  {
-   "s": "Kode {x} digit telah dikirim ke",
    "n": 2
   },
   {
@@ -2044,6 +2020,10 @@
   },
   {
    "s": "Kode cadangan baru",
+   "n": 2
+  },
+  {
+   "s": "Kode referral",
    "n": 2
   },
   {
@@ -2167,10 +2147,6 @@
    "n": 2
   },
   {
-   "s": "Lupa kata sandi?",
-   "n": 2
-  },
-  {
    "s": "Maksimal {x} karakter",
    "n": 2
   },
@@ -2183,10 +2159,6 @@
    "n": 2
   },
   {
-   "s": "Masukkan {x} digit kode dari email",
-   "n": 2
-  },
-  {
    "s": "Masukkan {x} digit kode yang diterima",
    "n": 2
   },
@@ -2195,7 +2167,15 @@
    "n": 2
   },
   {
+   "s": "Masukkan kode verifikasi",
+   "n": 2
+  },
+  {
    "s": "Masukkan kode verifikasi yang dikirim oleh layanan untuk menyelesaikan penarikan.",
+   "n": 2
+  },
+  {
+   "s": "Masukkan nomor HP Anda",
    "n": 2
   },
   {
@@ -2275,14 +2255,6 @@
    "n": 2
   },
   {
-   "s": "Mengandung angka",
-   "n": 2
-  },
-  {
-   "s": "Mengandung simbol",
-   "n": 2
-  },
-  {
    "s": "Mengirim {x} ke @{y}…",
    "n": 2
   },
@@ -2335,10 +2307,6 @@
    "n": 2
   },
   {
-   "s": "Muat ulang tantangan",
-   "n": 2
-  },
-  {
    "s": "Mulai mencari",
    "n": 2
   },
@@ -2359,6 +2327,10 @@
    "n": 2
   },
   {
+   "s": "Nama pengguna",
+   "n": 2
+  },
+  {
    "s": "Negatif",
    "n": 2
   },
@@ -2368,6 +2340,18 @@
   },
   {
    "s": "Nominal disembunyikan untuk privasi",
+   "n": 2
+  },
+  {
+   "s": "Nomor HP akun",
+   "n": 2
+  },
+  {
+   "s": "Nomor HP baru",
+   "n": 2
+  },
+  {
+   "s": "Nomor HP Indonesia",
    "n": 2
   },
   {
@@ -2967,6 +2951,10 @@
    "n": 2
   },
   {
+   "s": "Username",
+   "n": 2
+  },
+  {
    "s": "Username minimal {x} karakter.",
    "n": 2
   },
@@ -2976,10 +2964,6 @@
   },
   {
    "s": "Verifikasi gagal",
-   "n": 2
-  },
-  {
-   "s": "Verifikasi keamanan",
    "n": 2
   },
   {
@@ -3004,14 +2988,6 @@
   },
   {
    "s": ". Ganti tipe akun terlebih dahulu, lalu ajukan kembali.",
-   "n": 1
-  },
-  {
-   "s": ". Masukkan kode dan buat password baru.",
-   "n": 1
-  },
-  {
-   "s": ". Pastikan Anda memiliki akses ke nomor:",
    "n": 1
   },
   {
@@ -3143,10 +3119,6 @@
    "n": 1
   },
   {
-   "s": "{x}–{x} karakter, huruf kecil/angka/._",
-   "n": 1
-  },
-  {
    "s": "{x}, {y}",
    "n": 1
   },
@@ -3251,6 +3223,10 @@
    "n": 1
   },
   {
+   "s": "Akun Anda belum memiliki nomor HP. Kami membutuhkan nomor HP yang aktif untuk keamanan akun dan verifikasi transaksi.",
+   "n": 1
+  },
+  {
    "s": "Akun Anda sudah siap. Mari mulai transaksi aman bersama Kahade.",
    "n": 1
   },
@@ -3264,10 +3240,6 @@
   },
   {
    "s": "Akun palsu",
-   "n": 1
-  },
-  {
-   "s": "Alamat",
    "n": 1
   },
   {
@@ -3827,10 +3799,6 @@
    "n": 1
   },
   {
-   "s": "Buat akun",
-   "n": 1
-  },
-  {
    "s": "Buat Akun",
    "n": 1
   },
@@ -3843,11 +3811,11 @@
    "n": 1
   },
   {
-   "s": "Buat kata sandi",
+   "s": "Buat Kata Sandi",
    "n": 1
   },
   {
-   "s": "Buat Keamanan",
+   "s": "Buat kata sandi baru",
    "n": 1
   },
   {
@@ -3868,10 +3836,6 @@
   },
   {
    "s": "Buat Pesanan",
-   "n": 1
-  },
-  {
-   "s": "Buat PIN wallet",
    "n": 1
   },
   {
@@ -4059,14 +4023,6 @@
    "n": 1
   },
   {
-   "s": "Bulan berikutnya",
-   "n": 1
-  },
-  {
-   "s": "Bulan sebelumnya",
-   "n": 1
-  },
-  {
    "s": "Cabut",
    "n": 1
   },
@@ -4175,11 +4131,15 @@
    "n": 1
   },
   {
-   "s": "Contoh: nama@email.com",
+   "s": "Contoh: johndoe, nama@email.com, atau {x}xxxxxxx",
    "n": 1
   },
   {
    "s": "Cover karya",
+   "n": 1
+  },
+  {
+   "s": "Daftar",
    "n": 1
   },
   {
@@ -4247,11 +4207,11 @@
    "n": 1
   },
   {
-   "s": "Data Diri",
+   "s": "dari nomor:",
    "n": 1
   },
   {
-   "s": "Data ini digunakan untuk profil publik dan keamanan akun. Email wajib diisi meskipun Anda mendaftar dengan nomor HP.",
+   "s": "Data bentrok dengan yang sudah ada.",
    "n": 1
   },
   {
@@ -4271,7 +4231,7 @@
    "n": 1
   },
   {
-   "s": "Dengan mendaftar, Anda setuju dengan Syarat & Ketentuan serta Kebijakan Privasi Kahade.",
+   "s": "Dengan membuat akun, Anda menyetujui Syarat & Ketentuan serta Kebijakan Privasi Kahade.",
    "n": 1
   },
   {
@@ -4308,10 +4268,6 @@
   },
   {
    "s": "Detail Sengketa",
-   "n": 1
-  },
-  {
-   "s": "detik di layar berikutnya",
    "n": 1
   },
   {
@@ -4503,10 +4459,6 @@
    "n": 1
   },
   {
-   "s": "Email ini sudah terdaftar.",
-   "n": 1
-  },
-  {
    "s": "Email saat ini",
    "n": 1
   },
@@ -4664,6 +4616,10 @@
   },
   {
    "s": "Gagal membatalkan tautan",
+   "n": 1
+  },
+  {
+   "s": "Gagal membuat akun",
    "n": 1
   },
   {
@@ -4911,10 +4867,6 @@
    "n": 1
   },
   {
-   "s": "Gagal mengirim kode",
-   "n": 1
-  },
-  {
    "s": "Gagal mengirim OTP",
    "n": 1
   },
@@ -5075,10 +5027,6 @@
    "n": 1
   },
   {
-   "s": "Gagal reset kata sandi",
-   "n": 1
-  },
-  {
    "s": "Gambar atau teks yang melanggar aturan",
    "n": 1
   },
@@ -5088,10 +5036,6 @@
   },
   {
    "s": "Gambar gagal dimuat",
-   "n": 1
-  },
-  {
-   "s": "Ganti email",
    "n": 1
   },
   {
@@ -5120,10 +5064,6 @@
   },
   {
    "s": "Gulir ke pesan terbaru",
-   "n": 1
-  },
-  {
-   "s": "Gunakan angka yang mudah Anda ingat",
    "n": 1
   },
   {
@@ -5247,10 +5187,6 @@
    "n": 1
   },
   {
-   "s": "Hapus tanggal",
-   "n": 1
-  },
-  {
    "s": "Hapus teks",
    "n": 1
   },
@@ -5296,6 +5232,10 @@
   },
   {
    "s": "Hubungi kami",
+   "n": 1
+  },
+  {
+   "s": "Huruf besar dan kecil",
    "n": 1
   },
   {
@@ -5555,7 +5495,19 @@
    "n": 1
   },
   {
-   "s": "Kami akan mengirim kode verifikasi {x} digit ke nomor ini. Nomor HP dipakai untuk masuk dan pemberitahuan transaksi.",
+   "s": "Kami akan memandu Anda mengirim pesan ke WhatsApp resmi Kahade. Kode verifikasi akan dibalas lewat chat tersebut.",
+   "n": 1
+  },
+  {
+   "s": "Kami akan meminta Anda mengirim pesan ke WhatsApp resmi Kahade, lalu membalas kode verifikasi {x} digit.",
+   "n": 1
+  },
+  {
+   "s": "Kami akan memverifikasi nomor ini lewat WhatsApp — Anda akan diminta mengirim pesan ke WhatsApp resmi Kahade.",
+   "n": 1
+  },
+  {
+   "s": "Kami akan mengirim kode verifikasi {x} digit lewat WhatsApp ke nomor ini. Nomor HP dipakai untuk masuk dan pemberitahuan transaksi.",
    "n": 1
   },
   {
@@ -5572,10 +5524,6 @@
   },
   {
    "s": "Kami mengirim kode {x} digit ke alamat berikut. Masukkan kode untuk mengonfirmasi bahwa email ini milik Anda.",
-   "n": 1
-  },
-  {
-   "s": "karakter dengan kombinasi huruf besar, huruf kecil, angka, dan simbol.",
    "n": 1
   },
   {
@@ -5623,19 +5571,11 @@
    "n": 1
   },
   {
-   "s": "Kata sandi",
+   "s": "Kata Sandi Baru",
    "n": 1
   },
   {
    "s": "Kata sandi berhasil diubah",
-   "n": 1
-  },
-  {
-   "s": "Kata sandi diperbarui",
-   "n": 1
-  },
-  {
-   "s": "Kata sandi melindungi akun Anda. Gunakan minimal",
    "n": 1
   },
   {
@@ -5700,10 +5640,6 @@
   },
   {
    "s": "Kembali ke beranda",
-   "n": 1
-  },
-  {
-   "s": "Kembali ke login",
    "n": 1
   },
   {
@@ -5807,7 +5743,11 @@
    "n": 1
   },
   {
-   "s": "Kirim langsung tanpa chat",
+   "s": "Kirim kode melalui",
+   "n": 1
+  },
+  {
+   "s": "Kirim kode via WhatsApp",
    "n": 1
   },
   {
@@ -5851,10 +5791,6 @@
    "n": 1
   },
   {
-   "s": "Kirim ulang tersedia setelah",
-   "n": 1
-  },
-  {
    "s": "Kirim usulan",
    "n": 1
   },
@@ -5879,7 +5815,11 @@
    "n": 1
   },
   {
-   "s": "Kode {x} digit telah dikirim via",
+   "s": "Kode {x} digit telah dibalas via WhatsApp. Pastikan Anda memiliki akses ke nomor:",
+   "n": 1
+  },
+  {
+   "s": "Kode {x} digit telah dikirim ke",
    "n": 1
   },
   {
@@ -5975,6 +5915,10 @@
    "n": 1
   },
   {
+   "s": "Kode referensi Anda",
+   "n": 1
+  },
+  {
    "s": "Kode referral Anda",
    "n": 1
   },
@@ -6047,14 +5991,6 @@
    "n": 1
   },
   {
-   "s": "Konfirmasi kata sandi",
-   "n": 1
-  },
-  {
-   "s": "Konfirmasi kata sandi baru",
-   "n": 1
-  },
-  {
    "s": "Konfirmasi lewat WhatsApp",
    "n": 1
   },
@@ -6123,10 +6059,6 @@
    "n": 1
   },
   {
-   "s": "Laki-laki",
-   "n": 1
-  },
-  {
    "s": "Lampiran",
    "n": 1
   },
@@ -6164,6 +6096,10 @@
   },
   {
    "s": "Langkah {x} dari {x} — Verifikasi kata sandi",
+   "n": 1
+  },
+  {
+   "s": "Langkah berikutnya: Anda akan diminta mengirim pesan ke WhatsApp resmi Kahade. Kode verifikasi dibalas lewat chat tersebut — bukan pesan mendadak dari kami.",
    "n": 1
   },
   {
@@ -6219,7 +6155,7 @@
    "n": 1
   },
   {
-   "s": "Lengkapi data Anda",
+   "s": "Lengkapi data diri Anda",
    "n": 1
   },
   {
@@ -6319,6 +6255,10 @@
    "n": 1
   },
   {
+   "s": "Lupa kata sandi?",
+   "n": 1
+  },
+  {
    "s": "Maks. {x} karakter",
    "n": 1
   },
@@ -6344,6 +6284,10 @@
   },
   {
    "s": "Masuk dengan akun tersebut",
+   "n": 1
+  },
+  {
+   "s": "Masuk dengan WhatsApp",
    "n": 1
   },
   {
@@ -6419,10 +6363,6 @@
    "n": 1
   },
   {
-   "s": "Masukkan email yang terdaftar di akun Anda. Kami akan mengirim kode verifikasi untuk mereset password.",
-   "n": 1
-  },
-  {
    "s": "Masukkan jumlah dana yang akan ditarik ke rekening bank Anda.",
    "n": 1
   },
@@ -6460,10 +6400,6 @@
   },
   {
    "s": "Masukkan nominal",
-   "n": 1
-  },
-  {
-   "s": "Masukkan nomor HP Anda",
    "n": 1
   },
   {
@@ -6552,6 +6488,10 @@
   },
   {
    "s": "Memeriksa lawan transaksi",
+   "n": 1
+  },
+  {
+   "s": "Meminta kode baru…",
    "n": 1
   },
   {
@@ -6723,6 +6663,14 @@
    "n": 1
   },
   {
+   "s": "Mengandung angka",
+   "n": 1
+  },
+  {
+   "s": "Mengandung simbol",
+   "n": 1
+  },
+  {
    "s": "Mengganti nomor HP akun membutuhkan verifikasi keamanan OTP.",
    "n": 1
   },
@@ -6732,10 +6680,6 @@
   },
   {
    "s": "Menghitung biaya…",
-   "n": 1
-  },
-  {
-   "s": "Mengirim kode baru…",
    "n": 1
   },
   {
@@ -6811,10 +6755,6 @@
    "n": 1
   },
   {
-   "s": "Metode pengiriman kode belum tersedia. Coba lagi sebentar.",
-   "n": 1
-  },
-  {
    "s": "Metode pengiriman OTP tidak dapat dimuat. Coba lagi.",
    "n": 1
   },
@@ -6824,10 +6764,6 @@
   },
   {
    "s": "Metode unggah tidak didukung.",
-   "n": 1
-  },
-  {
-   "s": "Metode verifikasi belum tersedia",
    "n": 1
   },
   {
@@ -6844,6 +6780,10 @@
   },
   {
    "s": "Minta ekspor",
+   "n": 1
+  },
+  {
+   "s": "Minta kode baru",
    "n": 1
   },
   {
@@ -6923,6 +6863,10 @@
    "n": 1
   },
   {
+   "s": "Muat ulang tantangan",
+   "n": 1
+  },
+  {
    "s": "Muat ulang untuk menampilkan jumlah yang harus dibayar.",
    "n": 1
   },
@@ -6972,10 +6916,6 @@
   },
   {
    "s": "Nama pengguna sudah dipakai",
-   "n": 1
-  },
-  {
-   "s": "Nama pengguna sudah dipakai.",
    "n": 1
   },
   {
@@ -7043,19 +6983,11 @@
    "n": 1
   },
   {
-   "s": "Nomor HP akun",
-   "n": 1
-  },
-  {
-   "s": "Nomor HP baru",
+   "s": "Nomor HP Anda sudah terverifikasi. Terakhir, buat kata sandi dan isi data diri untuk menyelesaikan akun.",
    "n": 1
   },
   {
    "s": "Nomor HP diperbarui",
-   "n": 1
-  },
-  {
-   "s": "Nomor HP Indonesia",
    "n": 1
   },
   {
@@ -7143,11 +7075,7 @@
    "n": 1
   },
   {
-   "s": "Opsional",
-   "n": 1
-  },
-  {
-   "s": "Opsional — untuk keamanan dan verifikasi",
+   "s": "Opsional — bisa diisi nanti",
    "n": 1
   },
   {
@@ -7344,10 +7272,6 @@
   },
   {
    "s": "Pencucian uang",
-   "n": 1
-  },
-  {
-   "s": "Pendaftaran gagal",
    "n": 1
   },
   {
@@ -7560,10 +7484,6 @@
   },
   {
    "s": "Percakapan yang Anda arsipkan akan tersimpan di sini.",
-   "n": 1
-  },
-  {
-   "s": "Perempuan",
    "n": 1
   },
   {
@@ -7847,6 +7767,10 @@
    "n": 1
   },
   {
+   "s": "Pilih kata sandi baru untuk akun Anda. Minimal {x} karakter.",
+   "n": 1
+  },
+  {
    "s": "Pilih maksimal {x} foto.",
    "n": 1
   },
@@ -7887,14 +7811,6 @@
    "n": 1
   },
   {
-   "s": "Pilih tanggal",
-   "n": 1
-  },
-  {
-   "s": "Pilih tanggal lahir",
-   "n": 1
-  },
-  {
    "s": "Pilih tipe akun",
    "n": 1
   },
@@ -7912,10 +7828,6 @@
   },
   {
    "s": "Pin",
-   "n": 1
-  },
-  {
-   "s": "PIN {x} digit untuk mengonfirmasi transaksi. Jangan gunakan tanggal lahir atau angka yang mudah ditebak.",
    "n": 1
   },
   {
@@ -8124,14 +8036,6 @@
   },
   {
    "s": "Rentang nominal",
-   "n": 1
-  },
-  {
-   "s": "Reset Kata Sandi",
-   "n": 1
-  },
-  {
-   "s": "Reset password",
    "n": 1
   },
   {
@@ -8523,11 +8427,11 @@
    "n": 1
   },
   {
-   "s": "Setup Profil",
+   "s": "Setelah kata sandi tersimpan, Anda akan diarahkan untuk masuk kembali dengan kata sandi baru.",
    "n": 1
   },
   {
-   "s": "Silakan masuk dengan kata sandi baru Anda.",
+   "s": "Setup Profil",
    "n": 1
   },
   {
@@ -8552,6 +8456,10 @@
   },
   {
    "s": "Simpan jadwal",
+   "n": 1
+  },
+  {
+   "s": "Simpan kata sandi",
    "n": 1
   },
   {
@@ -8735,6 +8643,10 @@
    "n": 1
   },
   {
+   "s": "Tambah Nomor HP",
+   "n": 1
+  },
+  {
    "s": "Tambah rekening bank",
    "n": 1
   },
@@ -8748,6 +8660,10 @@
   },
   {
    "s": "Tambahkan foto produk atau hasil kerja Anda.",
+   "n": 1
+  },
+  {
+   "s": "Tambahkan nomor HP Anda",
    "n": 1
   },
   {
@@ -8812,10 +8728,6 @@
   },
   {
    "s": "Tandai yang dipilih dibaca",
-   "n": 1
-  },
-  {
-   "s": "Tanggal lahir",
    "n": 1
   },
   {
@@ -9139,15 +9051,15 @@
    "n": 1
   },
   {
+   "s": "Tidak bisa membuka WhatsApp otomatis? Kirim pesan berisi kode di atas secara manual ke",
+   "n": 1
+  },
+  {
    "s": "Tidak dibagikan",
    "n": 1
   },
   {
    "s": "Tidak ditemukan",
-   "n": 1
-  },
-  {
-   "s": "Tidak ingin memberitahu",
    "n": 1
   },
   {
@@ -9527,7 +9439,7 @@
    "n": 1
   },
   {
-   "s": "Untuk keamanan, kode dikirim sebagai balasan chat kamu sendiri — bukan pesan mendadak dari kami. Nomor:",
+   "s": "Untuk keamanan, kode dikirim sebagai balasan chat kamu sendiri — bukan pesan mendadak dari kami. Anda HARUS mengirim pesan dulu ke WhatsApp resmi Kahade",
    "n": 1
   },
   {
@@ -9559,7 +9471,7 @@
    "n": 1
   },
   {
-   "s": "Username",
+   "s": "Username / Email / Nomor HP",
    "n": 1
   },
   {
@@ -9664,6 +9576,10 @@
   },
   {
    "s": "Verifikasi kata sandi",
+   "n": 1
+  },
+  {
+   "s": "Verifikasi keamanan",
    "n": 1
   },
   {

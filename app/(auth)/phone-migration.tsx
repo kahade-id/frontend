@@ -1,33 +1,38 @@
 /**
- * Kahade — Lupa Kata Sandi (phone-based, customer-initiated WhatsApp).
+ * Kahade — Migrasi Nomor HP (akun lama yang login tanpa nomor HP).
+ *
+ * Kapan muncul: login mengembalikan `{ requiresPhoneMigration: true,
+ * migrationToken }` — akun ada tapi belum punya nomor HP. migrationToken
+ * short-lived untuk satu alur ini (diterima via route params, bukan memori).
  *
  * Struktur:
- *   <Header title="Lupa Kata Sandi" progress={1/3} showBack>
+ *   <Header title="Tambah Nomor HP" showBack={false}>
  *   VStack gap={8}:
  *     VStack (H1 + penjelasan)
- *     PhoneInput (nomor HP akun)
+ *     PhoneInput
  *     Button "Kirim kode"
  *     Alert error (jika ada)
  *
  * Kontrak API (kontrak auth-rework 2026-09-26, frozen):
- *   POST /v1/auth/forgot-password  body { identifier, location? }
- *   - `identifier` = nomor HP akun (login menerima username/email/nomor HP,
- *     tetapi jalur reset via OTP WhatsApp hanya bisa ke nomor HP terdaftar).
- *   - Backend men-trigger OTP WhatsApp ke nomor tersebut dan mengembalikan
- *     payload trigger: { refCode, whatsappUrl, triggerText, expiresAt }.
- *   - verify-otp dengan status password_reset → tempToken disimpan di
- *     lib/password-reset.ts → /reset-password (buat kata sandi baru).
+ *   POST /v1/auth/otp-trigger  body { phoneNumber, purpose: "migrate_phone",
+ *     migrationToken, deviceId, location? }
+ *   - verify-otp dengan status migration_verified → confirmPhoneMigration({
+ *     tempToken, location? }) → sesi penuh → welcome.
+ *   - migrationToken diteruskan saat resend di verify-otp via otp-flow state.
  *
  * Keputusan non-obvious:
- *   - Tidak ada email, tidak ada captcha — alur lama dihapus.
- *   - 404 (nomor tidak terdaftar) tetap di-respons dengan instruksi WA yang
- *     sama agar tidak membocorkan akun mana yang ada (anti-enumerasi).
- *   - Lokasi opsional dicatat; null = lanjut tanpa lokasi.
+ *   - Tanpa migrationToken (deep-link langsung) layar tidak bisa dipakai —
+ *     kembali ke /login. `migrationToken` dari useLocalSearchParams.
+ *   - showBack={false}: user tidak boleh kembali ke layar login dan "lupa"
+ *     migrasi — akunnya belum bisa dipakai sampai nomor ditambahkan.
+ *   - Nomor HP diverifikasi via WhatsApp customer-initiated, sama seperti
+ *     registrasi; setelah verify-otp status migration_verified,
+ *     confirmPhoneMigration menukar tempToken jadi sesi penuh.
  */
 import { useCallback, useRef, useState } from "react"
 import { ScrollView, TextInput } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useRouter } from "expo-router"
+import { useLocalSearchParams, useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
@@ -45,13 +50,11 @@ import { getAuthLocation } from "@/lib/location"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 
-/** Lupa kata sandi = 3 langkah: nomor → trigger WA → OTP → kata sandi baru. */
-const STEP_PROGRESS = 1 / 3
-
-export default function ForgotPasswordScreen() {
+export default function PhoneMigrationScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const phoneRef = useRef<TextInput>(null)
+  const { migrationToken } = useLocalSearchParams<{ migrationToken?: string }>()
 
   const [digits, setDigits] = useState("")
   const [phoneError, setPhoneError] = useState<string | undefined>()
@@ -61,6 +64,11 @@ export default function ForgotPasswordScreen() {
   const handleSubmit = useCallback(async () => {
     if (submitting) return
     setFormError(null)
+
+    if (!migrationToken) {
+      setFormError("Sesi migrasi tidak valid. Silakan masuk kembali.")
+      return
+    }
 
     if (!isValidPhoneId(digits)) {
       setPhoneError(
@@ -75,21 +83,22 @@ export default function ForgotPasswordScreen() {
     const phoneNumber = toE164Id(digits)
     setSubmitting(true)
     try {
-      // Backend memicu OTP WhatsApp ke nomor ini dan mengembalikan payload
-      // trigger yang sama bentuknya dengan requestOtpTrigger.
-      const result = await api.auth.forgotPassword({
-        identifier: phoneNumber,
+      const trigger = await api.auth.requestOtpTrigger({
+        phoneNumber,
+        purpose: "migrate_phone",
+        migrationToken,
         location: (await getAuthLocation()) ?? undefined,
       })
-      // parseOtpTriggerResult sudah throw bila payload tidak valid; bila
-      // kembali, field trigger dijamin ada.
+      // migrationToken disimpan di otp-flow agar resend di verify-otp bisa
+      // meneruskannya tanpa lewat route params lagi.
       setOtpFlow({
         phoneNumber,
-        purpose: "forgot_password",
-        refCode: result.refCode,
-        whatsappUrl: result.whatsappUrl,
-        triggerText: result.triggerText,
-        expiresAt: result.expiresAt,
+        purpose: "migrate_phone",
+        migrationToken,
+        refCode: trigger.refCode,
+        whatsappUrl: trigger.whatsappUrl,
+        triggerText: trigger.triggerText,
+        expiresAt: trigger.expiresAt,
       })
       router.push(ROUTES.whatsappTrigger)
     } catch (err) {
@@ -97,11 +106,11 @@ export default function ForgotPasswordScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [digits, router, submitting])
+  }, [digits, migrationToken, router, submitting])
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Lupa Kata Sandi" progress={STEP_PROGRESS} safeArea={false} />
+      <Header title="Tambah Nomor HP" safeArea={false} showBack={false} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
@@ -114,16 +123,16 @@ export default function ForgotPasswordScreen() {
             <VStack gap={8}>
               <VStack gap={2}>
                 <Heading level={1} className="text-balance">
-                  Masukkan nomor HP Anda
+                  Tambahkan nomor HP Anda
                 </Heading>
                 <Text variant="body" tone="secondary" className="text-pretty">
-                  Kami akan memandu Anda mengirim pesan ke WhatsApp resmi
-                  Kahade. Kode verifikasi akan dibalas lewat chat tersebut.
+                  Akun Anda belum memiliki nomor HP. Kami membutuhkan nomor HP
+                  yang aktif untuk keamanan akun dan verifikasi transaksi.
                 </Text>
               </VStack>
 
               <PhoneInput
-                accessibilityLabel="Nomor HP akun"
+                accessibilityLabel="Nomor HP baru"
                 ref={phoneRef}
                 value={digits}
                 onChangeText={(t) => {
@@ -139,6 +148,11 @@ export default function ForgotPasswordScreen() {
                 onSubmitEditing={() => void handleSubmit()}
                 disabled={submitting}
               />
+
+              <Text variant="caption" tone="secondary" className="text-pretty">
+                Kami akan memverifikasi nomor ini lewat WhatsApp — Anda akan
+                diminta mengirim pesan ke WhatsApp resmi Kahade.
+              </Text>
 
               {formError ? (
                 <Alert tone="danger" title="Gagal" onDismiss={() => setFormError(null)}>

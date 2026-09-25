@@ -1,28 +1,26 @@
 /**
- * Kahade — Register (screen #2 alur auth): nomor HP + metode OTP.
+ * Kahade — Register (screen #2 alur auth): nomor HP → OTP WhatsApp.
  *
  * Struktur:
  *   <Header title="Buat Akun" progress=1/4>          ← §9.22 bar tipis
  *   H1 "Masukkan nomor HP Anda" + body penjelasan
  *   <PhoneInput>                                     ← +62 tetap, digit nasional
- *   Label "Kirim kode melalui" + {methodsError ? <ErrorState compact title="Metode verifikasi belum tersedia" description={methodsError} onRetry={refetchMethods} /> : null}
-            <OtpMethodSelector> ← dari GET otp-methods
  *   [Alert error form, bila ada]
  *   ── footer: [Kirim Kode]  •  Sudah punya akun? Masuk
  *
- * Kontrak API (docs/api/kahade-api-mobile.json):
- *   POST /v1/auth/request-otp  body RequestOtpDto { phoneNumber, method }
- *   - `phoneNumber` dikirim E.164 (`toE164Id`) — spec menerima 08xx ATAU +62,
- *     kita pilih satu bentuk kanonik supaya string yang sama persis dipakai
- *     lagi di `verify-otp` (dibawa lewat param rute).
- *   - `method` PERSIS enum "SMS" | "WHATSAPP".
- *   - TIDAK ada `deviceId` di DTO ini (berbeda dari verify-otp/login) —
- *     jadi screen ini tidak menyentuh session.ts sama sekali.
+ * Kontrak API (kontrak auth-rework 2026-09-26, frozen):
+ *   POST /v1/auth/otp-trigger  body { phoneNumber, purpose: "register", deviceId, location? }
+ *   - `phoneNumber` dikirim E.164 (`toE164Id`) — bentuk kanonik yang sama
+ *     dipakai lagi di `verify-otp`.
+ *   - OTP HANYA via WhatsApp customer-initiated: user mengirim pesan pemicu
+ *     (berisi refCode 12 hex) ke bot resmi, bot membalas kode 6 digit.
+ *   - TIDAK ADA pilihan metode SMS/WhatsApp dan TIDAK ADA jalur kirim
+ *     langsung — keduanya dihapus dari kontrak.
+ *   - 409 = nomor sudah terdaftar → arahkan ke Masuk.
  *
  * Keputusan non-obvious:
- *   - Progress 0.25: registrasi via HP = 4 langkah server-side (nomor → OTP →
- *     keamanan → data diri, semuanya sebelum phone-register). Setup profil
- *     (#6) tidak dihitung karena terjadi SETELAH akun jadi.
+ *   - Progress 0.25: registrasi via HP = 4 langkah (nomor → trigger WA →
+ *     OTP → kata sandi + data diri → phone-register).
  *   - <Screen padded={false}> supaya border-b Header dan border-t footer
  *     full-width; body & footer memakai px-5 sendiri. Footer tidak lewat slot
  *     `footer` Screen karena harus berada DI DALAM <KeyboardAvoiding> agar CTA
@@ -32,36 +30,31 @@
  *   - Validasi nomor terjadi saat submit (bukan on-change) — memerahkan field
  *     saat user baru mengetik 3 digit terasa menghakimi (§12 tone tenang).
  *     Error hilang begitu user mengubah nilai.
- *   - Metode default = item pertama dari backend (diturunkan, bukan disimpan
- *     di state) sehingga tidak ada frame "belum ada yang terpilih" dan tidak
- *     perlu effect sinkronisasi.
  *   - 409 (nomor sudah terdaftar) ditangani khusus: Alert + tautan "Masuk" —
  *     ini jalan keluar yang benar, bukan mengulang request.
  *   - Error validasi backend yang menyebut nomor ditempel ke field; sisanya ke
  *     <Alert tone="danger"> (sudah role=alert + live region assertive).
+ *   - State alur (nomor + refCode + deeplink WA) disimpan di memori modul
+ *     (lib/otp-flow), BUKAN query param URL — B-07/B-14.
  */
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useRef, useState } from "react"
 import { ScrollView, TextInput, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useLocalSearchParams, useRouter } from "expo-router"
+import { useRouter } from "expo-router"
 
-import { OtpMethodSelector } from "@/components/register/otp-method-selector"
-import { useOtpMethods } from "@/components/register/use-otp-methods"
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
-import { FieldLabel } from "@/components/ui/field"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { isValidPhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
-import { ErrorState } from "@/components/ui/error-state"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
-import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
-import { setPendingReferralCode } from "@/lib/registration"
+import { api, isApiError, userMessage } from "@/lib/api"
+import { getAuthLocation } from "@/lib/location"
 import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 
@@ -75,32 +68,10 @@ export default function RegisterScreen() {
   const insets = useSafeAreaInsets()
   const phoneRef = useRef<TextInput>(null)
 
-  const {
-    methods,
-    loading: methodsLoading,
-    error: methodsError,
-    refetch: refetchMethods,
-  } = useOtpMethods()
-
-  // Deep link referral `kahade://register?ref=<code>` (lib/deeplinks) —
-  // disimpan ke registration state, dipakai screen #5 sebagai prefill.
-  const { ref } = useLocalSearchParams<{ ref?: string }>()
-  useEffect(() => {
-    if (ref) setPendingReferralCode(ref)
-  }, [ref])
-
   const [digits, setDigits] = useState("")
   const [phoneError, setPhoneError] = useState<string | undefined>()
-  const [pickedMethod, setPickedMethod] = useState<OtpMethod | undefined>()
   const [formError, setFormError] = useState<FormError | null>(null)
   const [submitting, setSubmitting] = useState(false)
-
-  // Default = pilihan pertama backend; kalau user memilih yang lalu hilang
-  // dari daftar (refetch), jatuh kembali ke pilihan pertama.
-  const method = useMemo<OtpMethod | undefined>(
-    () => (pickedMethod && methods.includes(pickedMethod) ? pickedMethod : methods[0]),
-    [pickedMethod, methods],
-  )
 
   const handleDigits = useCallback((next: string) => {
     setDigits(next)
@@ -129,50 +100,29 @@ export default function RegisterScreen() {
       phoneRef.current?.focus()
       return
     }
-    if (!method) {
-      setFormError({
-        kind: "generic",
-        message: "Metode pengiriman kode belum tersedia. Coba lagi sebentar.",
-      })
-      return
-    }
 
     const phoneNumber = toE164Id(digits)
     setSubmitting(true)
     try {
-      if (method === "WHATSAPP") {
-        // Customer-initiated: user mengirim pesan pemicu sendiri, OTP dibalas
-        // bot. Bila backend belum mengaktifkan fitur ini (503
-        // OTP_TRIGGER_UNAVAILABLE) jatuh ke pengiriman langsung.
-        try {
-          const trigger = await api.auth.requestOtpTrigger({ phoneNumber })
-          // B-07 (audit): nomor + refCode + deeplink WA disimpan di memori
-          // alur (lib/otp-flow), BUKAN query param URL — di web param masuk
-          // history/log/Referer.
-          setOtpFlow({
-            phoneNumber,
-            method,
-            refCode: trigger.refCode,
-            whatsappUrl: trigger.whatsappUrl,
-            triggerText: trigger.triggerText,
-            expiresAt: trigger.expiresAt,
-          })
-          router.push(ROUTES.whatsappTrigger)
-          return
-        } catch (triggerErr) {
-          // 503 dipetakan client ke code "SERVER"; backendCode spesifik bila
-          // backend mengirimnya. Keduanya berarti fitur belum aktif.
-          const unavailable =
-            isApiError(triggerErr) &&
-            (triggerErr.backendCode === "OTP_TRIGGER_UNAVAILABLE" ||
-              triggerErr.status === 503)
-          if (!unavailable) throw triggerErr
-          // Fitur belum aktif -> lanjut jalur langsung di bawah.
-        }
-      }
-      await api.auth.requestOtp({ phoneNumber, method })
-      setOtpFlow({ phoneNumber, method })
-      router.push(ROUTES.verifyOtp)
+      // Customer-initiated: user mengirim pesan pemicu sendiri, OTP dibalas
+      // bot. Satu-satunya jalur OTP — tidak ada fallback kirim langsung.
+      const trigger = await api.auth.requestOtpTrigger({
+        phoneNumber,
+        purpose: "register",
+        location: (await getAuthLocation()) ?? undefined,
+      })
+      // B-07 (audit): nomor + refCode + deeplink WA disimpan di memori
+      // alur (lib/otp-flow), BUKAN query param URL — di web param masuk
+      // history/log/Referer.
+      setOtpFlow({
+        phoneNumber,
+        purpose: "register",
+        refCode: trigger.refCode,
+        whatsappUrl: trigger.whatsappUrl,
+        triggerText: trigger.triggerText,
+        expiresAt: trigger.expiresAt,
+      })
+      router.push(ROUTES.whatsappTrigger)
     } catch (err) {
       if (isApiError(err)) {
         if (err.code === "CONFLICT") {
@@ -196,7 +146,7 @@ export default function RegisterScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [digits, method, router, submitting])
+  }, [digits, router, submitting])
 
   // edges top saja: inset bawah dijumlahkan di footer (bukan di Screen) agar tidak ganda
   return (
@@ -220,8 +170,9 @@ export default function RegisterScreen() {
                 Masukkan nomor HP Anda
               </Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
-                Kami akan mengirim kode verifikasi 6 digit ke nomor ini. Nomor HP dipakai untuk
-                masuk dan pemberitahuan transaksi.
+                Kami akan mengirim kode verifikasi 6 digit lewat WhatsApp ke
+                nomor ini. Nomor HP dipakai untuk masuk dan pemberitahuan
+                transaksi.
               </Text>
             </View>
 
@@ -239,34 +190,11 @@ export default function RegisterScreen() {
               disabled={submitting}
             />
 
-            <View className="gap-3">
-              <FieldLabel>Kirim kode melalui</FieldLabel>
-              {/*
-                Audit: `methodsError`/`refetchMethods` sebelumnya dihitung tapi
-                tidak pernah dirender — bila GET /v1/auth/otp-methods gagal atau
-                mengembalikan daftar kosong, pengguna hanya melihat area kosong
-                tanpa penjelasan maupun jalan keluar, dan tombol "Kirim Kode"
-                menolak diam-diam. Kegagalan kanal harus terlihat dan bisa
-                dicoba ulang di tempat.
-              */}
-              {methodsError && !methodsLoading ? (
-                <ErrorState
-                  compact
-                  title="Metode verifikasi belum tersedia"
-                  description={methodsError}
-                  onRetry={refetchMethods}
-                  retrying={methodsLoading}
-                />
-              ) : (
-                <OtpMethodSelector
-                  value={method}
-                  onChange={setPickedMethod}
-                  methods={methods}
-                  loading={methodsLoading}
-                  disabled={submitting}
-                />
-              )}
-            </View>
+            <Text variant="caption" tone="secondary" className="text-pretty">
+              Langkah berikutnya: Anda akan diminta mengirim pesan ke WhatsApp
+              resmi Kahade. Kode verifikasi dibalas lewat chat tersebut — bukan
+              pesan mendadak dari kami.
+            </Text>
 
             {formError ? (
               <Alert
@@ -295,7 +223,6 @@ export default function RegisterScreen() {
           <Button
             onPress={() => void handleSubmit()}
             loading={submitting}
-            disabled={methodsLoading}
           >
             Kirim kode
           </Button>

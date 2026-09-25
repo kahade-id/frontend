@@ -1,72 +1,71 @@
 /**
- * Kahade — Login (screen #7 alur auth): email + password.
+ * Kahade — Login (screen #7 alur auth): identifier + password, atau WhatsApp.
  *
  * Struktur:
  *   <Header title="Masuk" showBack={false}>
  *   VStack gap={8}:
  *     VStack (welcome text)
  *     VStack (form fields)
- *       EmailField
+ *       Input "Username / Email / Nomor HP"
  *       PasswordField (tanpa strength meter — ini login, bukan registrasi)
  *     Button "Masuk"
  *     Alert error (jika ada)
+ *     Divider "atau"
+ *     VStack (opsi WhatsApp)
+ *       Button secondary "Masuk dengan WhatsApp" → expand PhoneInput + kirim kode
  *   VStack (footer links)
  *     TextLink "Lupa kata sandi?"
  *     Text "Belum punya akun? Daftar"
  *
- * Kontrak API (docs/api/kahade-api-mobile.json):
- *   POST /v1/auth/login  body LoginDto { email, password, deviceId }
- *   - deviceId auto-inject oleh withDevice() di auth.ts
+ * Kontrak API (kontrak auth-rework 2026-09-26, frozen):
+ *   POST /v1/auth/login  body { identifier, password, deviceId, deviceInfo?, location? }
+ *   - `identifier` = username ATAU email ATAU nomor HP.
+ *   - deviceId/deviceInfo auto-inject oleh withDevice() di auth.ts; `location`
+ *     diisi dari getAuthLocation() (null bila izin ditolak — tidak memblokir).
  *   - Response: LoginResult = discriminated union
- *     - requiresTwoFactor: false → { accessToken, user? } → token disimpan otomatis
- *     - requiresTwoFactor: true → { tempToken, user? } → /verify-2fa (kode TOTP
- *       atau backup code → POST /v1/auth/2fa/verify-login)
+ *     - requiresPhoneMigration: true → { migrationToken } → /phone-migration
+ *       (akun lama wajib tambah nomor HP; cabang ini TIDAK menyimpan token)
+ *     - requiresTwoFactor: true → { tempToken } → /verify-2fa
+ *     - sukses → { accessToken, user? } → token disimpan otomatis
+ *
+ * Opsi WhatsApp: requestOtpTrigger({ purpose: "login" }) → /whatsapp-trigger
+ * → /verify-otp. Hasil existing_user → sesi langsung; new_user → lanjut
+ * registrasi (layar buat kata sandi).
  *
  * Keputusan non-obvious:
  *   - Header TANPA back button — ini entry point untuk user yang sudah punya akun.
- *     User bisa kembali ke onboarding via tombol "Daftar" (tapi onboarding sudah seen,
- *     jadi tidak akan muncul lagi). Satu-satunya jalan keluar adalah close app atau
- *     navigate ke register via link "Belum punya akun? Daftar".
- *   - PasswordField TIDAK pakai showStrength — ini login, bukan registrasi. User
- *     tidak perlu melihat kekuatan password saat masuk. Label memakai default
- *     komponen ("Kata sandi") — istilah yang sama dengan alur registrasi dan
- *     reset; jangan campur "Password"/"Kata sandi" antar layar (§12).
+ *   - PasswordField TANPA showStrength — ini login, bukan registrasi.
  *   - `offset` KeyboardAvoiding = inset atas + tinggi Header, sama seperti
- *     layar registrasi; tanpa tinggi header, padding keyboard iOS kurang 56px
- *     dan field bawah tertutup keyboard.
- *   - 2FA: kalau backend return requiresTwoFactor: true, tempToken disimpan
- *     di memori (lib/two-factor-login) dan navigasi ke /verify-2fa — BUKAN
- *     lewat param URL (kredensial tidak boleh lewat route params).
+ *     layar registrasi.
+ *   - 2FA: requiresTwoFactor → tempToken + identifier di memori
+ *     (lib/two-factor-login) → /verify-2fa (push, bukan replace).
+ *   - Migrasi: requiresPhoneMigration → migrationToken lewat param route ke
+ *     /phone-migration (short-lived, satu alur).
  *   - CAPTCHA: backend hanya mewajibkannya setelah 3 login gagal dari IP yang
- *     sama (`auth.controller.ts`) dan menolak dengan 401 `CAPTCHA_REQUIRED`.
- *     Layar ini memuat tantangan secara LAZY — hanya saat backend benar-benar
- *     memintanya — supaya user yang mengetik password dengan benar tidak
- *     pernah melihat slider. Setelah tantangan tampil, percobaan berikutnya
- *     mengirim `captchaId`/`captchaAnswer`, dan tantangan yang ditolak
- *     (CAPTCHA_FAILED/EXPIRED) langsung diganti yang baru.
+ *     sama dan menolak dengan 401 `CAPTCHA_REQUIRED`. Layar memuat tantangan
+ *     secara LAZY — hanya saat backend benar-benar memintanya.
  *   - Tombol "Masuk" disabled selama submit untuk mencegah double-submit.
- *   - Email auto-trim whitespace di blur (sama seperti EmailField default).
- *   - Error handling: invalid credentials, network error, rate limited, dll.
  *   - Setelah login berhasil → /welcome (cek permissions; bukan user baru).
- *   - Link "Lupa kata sandi?" → navigate ke forgot-password screen.
- *   - Link "Belum punya akun? Daftar" → navigate ke register screen.
  */
-import { useCallback, useState } from "react"
-import { Platform, ScrollView, View } from "react-native"
+import { useCallback, useRef, useState } from "react"
+import { Platform, ScrollView, TextInput, View } from "react-native"
 
 import { CaptchaSlider } from "@/components/ui/captcha-slider"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useLocalSearchParams, useRouter } from "expo-router"
+import { WhatsappLogo } from "phosphor-react-native"
 
 import { Alert } from "@/components/ui/alert"
+import { Divider } from "@/components/ui/divider"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
-import { EmailField, isValidEmail } from "@/components/ui/email-field"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
+import { Input } from "@/components/ui/input"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PasswordField } from "@/components/ui/password-field"
+import { isValidPhoneId, PhoneInput, toE164Id } from "@/components/ui/phone-input"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
@@ -75,7 +74,9 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import type { CaptchaChallenge } from "@/lib/api/auth"
 import { CAPTCHA_MESSAGES } from "@/lib/captcha-messages"
 import { PASSWORD_MAX } from "@/lib/auth-constants"
+import { getAuthLocation } from "@/lib/location"
 import { setPendingNext } from "@/lib/login-redirect"
+import { setOtpFlow } from "@/lib/otp-flow"
 import { ROUTES } from "@/lib/routes"
 import { setPendingTwoFactorLogin } from "@/lib/two-factor-login"
 
@@ -87,10 +88,17 @@ export default function LoginScreen() {
   const { next } = useLocalSearchParams<{ next?: string }>()
   const nextPath = typeof next === "string" && next.startsWith("/") ? next : undefined
 
-  const [email, setEmail] = useState("")
+  const [identifier, setIdentifier] = useState("")
   const [password, setPassword] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Opsi WhatsApp: expand inline di bawah form password.
+  const [waExpanded, setWaExpanded] = useState(false)
+  const [waDigits, setWaDigits] = useState("")
+  const [waPhoneError, setWaPhoneError] = useState<string | undefined>()
+  const [waSubmitting, setWaSubmitting] = useState(false)
+  const waPhoneRef = useRef<TextInput>(null)
 
   // Captcha hanya muncul bila backend memintanya (3+ login gagal per IP).
   const [challenge, setChallenge] = useState<CaptchaChallenge | null>(null)
@@ -98,7 +106,7 @@ export default function LoginScreen() {
   const [captchaLoading, setCaptchaLoading] = useState(false)
   const [captchaError, setCaptchaError] = useState<string | null>(null)
 
-  const isFormValid = isValidEmail(email) && password.length > 0
+  const isFormValid = identifier.trim().length > 0 && password.length > 0
 
   const loadCaptcha = useCallback(async () => {
     setCaptchaLoading(true)
@@ -114,6 +122,17 @@ export default function LoginScreen() {
     }
   }, [])
 
+  const goAfterLogin = useCallback(() => {
+    // Web guest mode tidak memakai layar Welcome/splash: langsung kembali
+    // ke tujuan (atau Beranda). Native tetap melalui Welcome (izin push).
+    if (Platform.OS === "web") {
+      router.replace((nextPath as never) ?? ROUTES.home)
+      return
+    }
+    // Login berhasil → welcome screen (cek permissions). Bukan user baru.
+    router.replace(ROUTES.welcome())
+  }, [router, nextPath])
+
   const handleLogin = useCallback(async () => {
     if (submitting || !isFormValid) return
     setSubmitting(true)
@@ -122,31 +141,32 @@ export default function LoginScreen() {
 
     try {
       const result = await api.auth.login({
-        email: email.trim(),
+        identifier: identifier.trim(),
         password,
         // Dikirim hanya bila tantangan sudah dimuat — backend mengabaikannya
         // selama captcha belum diwajibkan untuk IP ini.
         captchaId: challenge?.captchaId,
         captchaAnswer: captchaAnswer ?? undefined,
+        // Lokasi opsional untuk keamanan akun; null = lanjut tanpa lokasi.
+        location: (await getAuthLocation()) ?? undefined,
       })
 
-      if (result.requiresTwoFactor) {
+      if ("requiresPhoneMigration" in result && result.requiresPhoneMigration) {
+        // Akun lama belum punya nomor HP → wajib migrasi. migrationToken
+        // short-lived untuk satu alur ini.
+        router.replace(ROUTES.phoneMigration(result.migrationToken))
+        return
+      }
+
+      if ("requiresTwoFactor" in result && result.requiresTwoFactor) {
         // Akun memakai TOTP → simpan tempToken di memori, lanjut ke layar kode.
         // `push` (bukan replace) supaya tombol kembali membawa ke form login.
-        setPendingTwoFactorLogin({ tempToken: result.tempToken, email: email.trim() })
+        setPendingTwoFactorLogin({ tempToken: result.tempToken, identifier: identifier.trim() })
         router.push(ROUTES.verify2fa)
         return
       }
 
-      // Web guest mode tidak memakai layar Welcome/splash: langsung kembali
-      // ke tujuan (atau Beranda). Native tetap melalui Welcome (izin push).
-      if (Platform.OS === "web") {
-        router.replace((nextPath as never) ?? ROUTES.home)
-        return
-      }
-
-      // Login berhasil → welcome screen (cek permissions). Bukan user baru.
-      router.replace(ROUTES.welcome())
+      goAfterLogin()
     } catch (err) {
       if (isApiError(err)) {
         /*
@@ -168,7 +188,7 @@ export default function LoginScreen() {
         }
         // Invalid credentials
         if (err.code === "UNAUTHORIZED") {
-          setFormError("Email atau kata sandi salah. Periksa kembali dan coba lagi.")
+          setFormError("Username, email, atau kata sandi salah. Periksa kembali dan coba lagi.")
           return
         }
         // Rate limited
@@ -178,7 +198,7 @@ export default function LoginScreen() {
         }
         // Validation error
         if (err.code === "VALIDATION" || err.code === "BAD_REQUEST") {
-          setFormError(err.message || "Data tidak valid. Periksa email dan kata sandi Anda.")
+          setFormError(err.message || "Data tidak valid. Periksa kembali data masuk Anda.")
           return
         }
       }
@@ -186,7 +206,59 @@ export default function LoginScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, isFormValid, email, password, router, nextPath, challenge, captchaAnswer, loadCaptcha])
+  }, [submitting, isFormValid, identifier, password, router, nextPath, challenge, captchaAnswer, loadCaptcha, goAfterLogin])
+
+  const handleWhatsappLogin = useCallback(async () => {
+    if (waSubmitting) return
+    setWaPhoneError(undefined)
+    setFormError(null)
+
+    if (!isValidPhoneId(waDigits)) {
+      setWaPhoneError(
+        waDigits.length === 0
+          ? "Nomor HP wajib diisi."
+          : "Nomor HP tidak valid. Gunakan nomor Indonesia yang diawali 8, 9–12 digit.",
+      )
+      waPhoneRef.current?.focus()
+      return
+    }
+
+    const phoneNumber = toE164Id(waDigits)
+    setWaSubmitting(true)
+    try {
+      const trigger = await api.auth.requestOtpTrigger({
+        phoneNumber,
+        purpose: "login",
+        location: (await getAuthLocation()) ?? undefined,
+      })
+      // State alur di memori modul (B-07/B-14): nomor + refCode tidak lewat URL.
+      setOtpFlow({
+        phoneNumber,
+        purpose: "login",
+        refCode: trigger.refCode,
+        whatsappUrl: trigger.whatsappUrl,
+        triggerText: trigger.triggerText,
+        expiresAt: trigger.expiresAt,
+      })
+      router.push(ROUTES.whatsappTrigger)
+    } catch (err) {
+      if (isApiError(err)) {
+        // 404 = nomor belum terdaftar → arahkan ke registrasi (jalan keluar
+        // yang benar, bukan mengulang request).
+        if (err.code === "NOT_FOUND") {
+          setFormError("Nomor HP ini belum terdaftar. Silakan daftar akun baru terlebih dahulu.")
+          return
+        }
+        if (err.code === "RATE_LIMITED") {
+          setFormError("Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.")
+          return
+        }
+      }
+      setFormError(userMessage(err))
+    } finally {
+      setWaSubmitting(false)
+    }
+  }, [waSubmitting, waDigits, router])
 
   const handleForgotPassword = useCallback(() => {
     router.push(ROUTES.forgotPassword())
@@ -223,14 +295,18 @@ export default function LoginScreen() {
 
             {/* Form fields */}
             <VStack gap={4}>
-              <EmailField
-                label="Email"
-                value={email}
-                helperText="Contoh: nama@email.com"
+              <Input
+                label="Username / Email / Nomor HP"
+                value={identifier}
                 onChangeText={(t) => {
-                  setEmail(t)
+                  setIdentifier(t)
                   setFormError(null)
                 }}
+                helperText="Contoh: johndoe, nama@email.com, atau 0812xxxxxxx"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="username"
+                textContentType="username"
                 autoFocus
                 required
                 returnKeyType="next"
@@ -284,6 +360,52 @@ export default function LoginScreen() {
                 {formError}
               </Alert>
             ) : null}
+
+            {/* Opsi kedua: masuk dengan WhatsApp (OTP, tanpa password) */}
+            <Divider label="atau" />
+            <VStack gap={4}>
+              {!waExpanded ? (
+                <Button
+                  variant="secondary"
+                  leftIcon={WhatsappLogo}
+                  onPress={() => setWaExpanded(true)}
+                  disabled={submitting}
+                >
+                  Masuk dengan WhatsApp
+                </Button>
+              ) : (
+                <VStack gap={4}>
+                  <PhoneInput
+                    accessibilityLabel="Nomor HP Indonesia"
+                    ref={waPhoneRef}
+                    value={waDigits}
+                    onChangeText={(t) => {
+                      setWaDigits(t)
+                      setWaPhoneError(undefined)
+                      setFormError(null)
+                    }}
+                    errorText={waPhoneError}
+                    reserveHelperSpace
+                    required
+                    autoFocus
+                    returnKeyType="done"
+                    onSubmitEditing={() => void handleWhatsappLogin()}
+                    disabled={waSubmitting}
+                  />
+                  <Button
+                    onPress={() => void handleWhatsappLogin()}
+                    loading={waSubmitting}
+                    leftIcon={WhatsappLogo}
+                  >
+                    Kirim kode via WhatsApp
+                  </Button>
+                  <Text variant="caption" tone="secondary" className="text-pretty">
+                    Kami akan meminta Anda mengirim pesan ke WhatsApp resmi
+                    Kahade, lalu membalas kode verifikasi 6 digit.
+                  </Text>
+                </VStack>
+              )}
+            </VStack>
           </VStack>
           </FadeIn>
         </ScrollView>

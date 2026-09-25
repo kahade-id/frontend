@@ -25,20 +25,30 @@ import type { Href } from "expo-router"
 
 export const ROUTES = {
   onboarding: "/onboarding" as Href,
-  /** Screen #2 — Register: nomor HP + metode OTP */
+  /** Screen #2 — Register: nomor HP → OTP WhatsApp (customer-initiated) */
   register: "/register" as Href,
   /** Screen #3 — OTP Verification (state alur di lib/otp-flow, tanpa param) */
   verifyOtp: "/verify-otp" as Href,
   /**
    * Screen #3a — WhatsApp OTP Trigger: user mengirim pesan pemicu sendiri ke
-   * bot (customer-initiated), OTP dibalas oleh bot. Jalur direct-send tetap
-   * tersedia dari layar ini.
+   * bot (customer-initiated), OTP dibalas oleh bot. TIDAK ADA jalur
+   * kirim-langsung (dihapus di auth-rework 2026-09-26).
    */
   whatsappTrigger: "/whatsapp-trigger" as Href,
-  /** Screen #4 — Buat Keamanan: password + PIN */
-  createSecurity: "/create-security" as Href,
-  /** Screen #5 — Data Diri: nama, username, email, dll */
-  profileData: "/profile-data" as Href,
+  /**
+   * Screen #4 — Buat Kata Sandi: nama lengkap + username opsional + password
+   * (min 8, tanpa kompleksitas) → POST /v1/auth/phone-register.
+   * Guard: butuh registration state (tempToken) dari verify-otp.
+   */
+  registerSecurity: "/register-security" as Href,
+  /**
+   * Migrasi nomor HP akun lama: user login dengan kredensial lama, backend
+   * menjawab requiresPhoneMigration + migrationToken → layar ini meminta nomor
+   * HP baru → OTP WhatsApp (purpose=migrate_phone) → migrate-phone/confirm.
+   * migrationToken dibawa lewat param (short-lived, satu alur).
+   */
+  phoneMigration: (migrationToken: string) =>
+    ({ pathname: "/phone-migration", params: { migrationToken } }) as unknown as Href,
   /** Screen #6 — Setup Profil: foto + bio (opsional, setelah akun jadi) */
   setupProfile: "/setup-profile" as Href,
   /**
@@ -49,7 +59,10 @@ export const ROUTES = {
    */
   welcome: (opts: { newUser?: boolean } = {}) =>
     ({ pathname: "/welcome", params: opts.newUser ? { newUser: "1" } : {} }) as unknown as Href,
-  /** Screen #7 — Login: email + password */
+  /**
+   * Screen #7 — Login: identifier (username / email / nomor HP) + password,
+   * plus opsi "Masuk dengan WhatsApp" (OTP, purpose=login).
+   */
   login: "/login" as Href,
   /**
    * Screen #7b — Verifikasi 2FA saat login (POST /v1/auth/2fa/verify-login).
@@ -63,18 +76,19 @@ export const ROUTES = {
   verifyEmail: (email: string) =>
     ({ pathname: "/verify-email", params: { email } }) as unknown as Href,
   /**
-   * Screen #8a — Forgot Password: kirim OTP reset.
+   * Screen #8a — Forgot Password: kirim OTP reset via WhatsApp.
    *
-   * `email` opsional = prefill. Dipakai "Kirim ulang kode" di reset-password:
-   * endpoint forgot-password mewajibkan captcha slider, jadi pengiriman ulang
-   * HARUS lewat layar ini (satu-satunya tempat tantangan captcha dimuat dan
-   * dijawab), bukan memanggil API dari layar reset.
+   * Auth-rework: HANYA nomor HP (email → 400). Response forgot-password
+   * adalah payload trigger WhatsApp — layar ini langsung meneruskannya ke
+   * `/whatsapp-trigger` lewat state alur (lib/otp-flow), tanpa request kedua.
    */
-  forgotPassword: (email?: string) =>
-    ({ pathname: "/forgot-password", params: email ? { email } : {} }) as unknown as Href,
-  /** Screen #8b — Reset Password: verifikasi OTP + password baru */
-  resetPassword: (email: string) =>
-    ({ pathname: "/reset-password", params: { email } }) as unknown as Href,
+  forgotPassword: () => ("/forgot-password" as Href),
+  /**
+   * Screen #8b — Reset Password: kata sandi baru (min 8).
+   * tempToken dibawa lewat state modul (lib/password-reset), bukan param —
+   * kredensial tidak boleh lewat URL (B-07/B-14).
+   */
+  resetPassword: () => ("/reset-password" as Href),
 
   // ── Kerangka navigasi: tab root di app/(tabs)/ ────────────────────────
   // Beranda DIHAPUS (2026-09-23): tab pertama app kini Etalase. `ROUTES.home`
