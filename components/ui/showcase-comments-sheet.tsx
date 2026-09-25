@@ -394,30 +394,40 @@ export function ShowcaseCommentsSheet({
                 memisahkan utas; satu-satunya garis di sheet ini adalah di bawah
                 title (full-bleed) dan border atas footer komposer — "atas aksi
                 paling bawah". */}
-            {comments.map((root) => (
-              <View key={root.id} className="gap-4">
-                <ShowcaseCommentRow
-                  comment={root}
-                  isMine={isMine(root)}
-                  canReply={hasSession}
-                  menuable={true}
-                  onReply={(c) => setReplyTo(c)}
-                  onOpenMenu={(c) => setCommentMenu(c)}
-                />
-                {(root.replies ?? []).map((reply) => (
-                  // Indent 32px = avatar xs (24) + gap (8) — sejajar teks induk, selaras title px-5.
+            {comments.map((root) => {
+              const replies = root.replies ?? []
+              return (
+                <View key={root.id}>
+                  {/*
+                    Balasan dikirim sebagai ANAK komentar induk (revisi
+                    2026-09-26): garis utas di kolom avatar induk turun
+                    menyambung balasan, dan indentasinya mengikuti lebar
+                    avatar + gap — bukan angka ml-8 yang dirawat terpisah.
+                  */}
                   <ShowcaseCommentRow
-                    key={reply.id}
-                    comment={reply}
-                    isMine={isMine(reply)}
-                    canReply={false}
+                    comment={root}
+                    isMine={isMine(root)}
+                    canReply={hasSession}
                     menuable={true}
+                    onReply={(c) => setReplyTo(c)}
                     onOpenMenu={(c) => setCommentMenu(c)}
-                    className="ml-8"
-                  />
-                ))}
-              </View>
-            ))}
+                    threaded={replies.length > 0}
+                  >
+                    {replies.map((reply) => (
+                      <ShowcaseCommentRow
+                        key={reply.id}
+                        comment={reply}
+                        avatarSize="xs"
+                        isMine={isMine(reply)}
+                        canReply={false}
+                        menuable={true}
+                        onOpenMenu={(c) => setCommentMenu(c)}
+                      />
+                    ))}
+                  </ShowcaseCommentRow>
+                </View>
+              )
+            })}
             {maybeMore ? (
               // G-02: jalan membaca komentar di luar 30 pertama.
               <Button variant="secondary" onPress={handleSeeAll}>

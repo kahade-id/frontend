@@ -1,54 +1,63 @@
 /**
- * Screen — Halaman Lainnya (More / Menu Pusat Layanan).
+ * Screen — Halaman Lainnya (revisi 2026-09-26, permintaan produk).
  *
- * Menggantikan tab Profil di bottom navigation bar:
- *  - Profil kini memiliki alur tampilan yang sama seperti profil pengguna lain
- *    (halaman stack dengan tombol Back dan tanpa bottom navbar).
- *  - Halaman Lainnya menjadi pusat kendali layanan terstruktur per kategori:
- *    1. Transaksi & Escrow (Order Link, Template Transaksi, Sengketa, Transaksi Berjalan, Riwayat)
- *    2. Promo & Rewards (Voucher, Kode Promo, Ajak Teman / Referral, Leaderboard, Badges)
- *    3. Etalase & Kreator (Kelola Etalase, Tersimpan, Favorit, Tanya Jawab, Ulasan)
- *    4. Keuangan & Rekening (Rekening Bank, Jadwal Penarikan, Top Up & Tarik, Mutasi Dompet, Pindai QR)
- *    5. Akun, Keamanan & Pengaturan (Keamanan, KYC, Verifikasi Bisnis, Notifikasi, Pengaturan)
- *    6. Bantuan & Dukungan (Pusat Bantuan, Live Support, Feedback, Syarat & Ketentuan)
- *  - Menyediakan kartu profil ringkas pengguna untuk navigasi ke profil lengkap.
- *  - Menyediakan pengalih mode aplikasi (E-Commerce ⇄ E-Wallet) yang tetap ada dan intuitif.
+ * Sebelumnya halaman ini TERBACA SEBAGAI HALAMAN PENGATURAN: enam kategori
+ * menu berisi 20+ baris berikon, dan separuh isinya duplikat persis dari
+ * /settings (Keamanan, KYC, Notifikasi, Tampilan, Bahasa, Pusat Bantuan,
+ * Live Support, Umpan Balik, Syarat & Ketentuan…). Satu halaman, dua pintu
+ * ke tempat yang sama.
+ *
+ * Kini ia menjadi PAPAN AKSES CEPAT:
+ *
+ *      [ kartu profil saya ]        → tetap (sudah bagus)
+ *      [ kartu mode aplikasi ]      → tetap (sudah bagus)
+ *      Transaksi   ● ● ● ●          → lingkaran ABU-ABU + judul di bawah
+ *      Etalase     ● ●
+ *      Uang        ● ● ●
+ *      Alat        ● ●
+ *      ⋮ (kanan atas)               → Pengaturan (bukan pemindai)
+ *
+ * Keputusan:
+ *   - Lingkaran dikELOMPOKKAN PER KATEGORI dengan label kecil (bukan satu
+ *     datar tanpa judul): sepuluh ikon tanpa pembagian tidak terbaca lebih
+ *     baik daripada daftar panjang yang diganti.
+ *   - Latar lingkaran = `bg-surface-raised` TANPA border (bukan IconBox
+ *     "surface" yang berbingkai): warna abu-abunya yang jadi wadah, ikonnya
+ *     yang dibaca.
+ *   - Yang tersisa di sini hanyalah jalan pintas ke halaman yang TIDAK ada
+ *     di Pengaturan. Entri yang sudah hidup di /settings dibuang dari sini,
+ *     bukan diduplikat. Order Link/Template/Sengketa tetap MASUK: yang
+ *     dihapus permintaan #4 adalah ikon-ikon di header transaksi, bukan
+ *     halamannya.
+ *   - Ikon titik-tiga di kanan atas menggantikan ikon pemindai: pemindai
+ *     sudah menempel permanen di navbar bawah mode dompet, sedangkan
+ *     Pengaturan sebelumnya cuma bisa dicapai dengan menggulir ke baris
+ *     terbawah halaman ini.
+ *   - `marginBottom` setinggi navbar DIHAPUS dari ScrollView (bug "gap putih
+ *     di atas navbar"): navbar kini dirender di root layout sebagai SAUDARA
+ *     di bawah <Stack>, jadi ruangnya sudah di luar layar ini — margin itu
+ *     malah menyisakan bidang kosong tepat di atas navbar.
  */
 import { useCallback } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 import {
-  ArrowCircleDown,
-  ArrowCircleUp,
   ArrowRight,
   Bank,
-  Bell,
-  BookmarkSimple,
-  Briefcase,
-  CalendarCheck,
   CaretRight,
-  ChatCircleDots,
-  ClockCounterClockwise,
+  DotsThree,
   FileText,
-  GearSix,
   Gift,
-  Headset,
-  Heart,
-  IdentificationCard,
+  Handshake,
   Link,
   PencilSimpleLine,
-  Question,
+  Plus,
+  Receipt,
   Scales,
   Scan,
-  SealCheck,
-  ShieldCheck,
-  ShoppingBag,
-  Star,
   Ticket,
-  Trophy,
   User,
-  Wallet,
 } from "phosphor-react-native"
 
 import { api, type UserProfile } from "@/lib/api"
@@ -57,35 +66,33 @@ import { useAppMode } from "@/lib/app-mode"
 import { ROUTES } from "@/lib/routes"
 import { translate } from "@/lib/i18n/translate"
 import { useApiQuery } from "@/lib/use-api-query"
-import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
+import { tokens } from "@/lib/tokens"
 
 import { Avatar } from "@/components/ui/avatar"
-import { Badge, type BadgeTone } from "@/components/ui/badge"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Divider } from "@/components/ui/divider"
 import { Header, useDocumentTitle } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
 import { ModeSwitcher } from "@/components/ui/mode-switcher"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
-import { Button } from "@/components/ui/button"
 
-type MenuItem = {
+type QuickAction = {
   id: string
   label: string
-  description?: string
   icon: IconComponent
-  badge?: string | number
-  badgeTone?: BadgeTone
   onPress: () => void
 }
 
-type MenuCategory = {
+/** Satu kategori akses cepat: label kecil + deretan lingkaran. */
+type QuickGroup = {
   id: string
-  title: string
-  description?: string
-  items: MenuItem[]
+  label: string
+  items: QuickAction[]
 }
 
 export default function MoreScreen() {
@@ -105,263 +112,6 @@ export default function MoreScreen() {
 
   const isKycVerified = Boolean((profile as unknown as { isKycVerified?: boolean })?.isKycVerified)
 
-  // Ambil ringkasan / transaksi aktif
-  const ordersSummaryQuery = useApiQuery(
-    "more:orders-active",
-    (signal) => api.orders.listOrders({ status: "ACTIVE", limit: 1 }, signal),
-    Boolean(token),
-  )
-  const activeOrdersCount = ordersSummaryQuery.data?.meta?.total ?? ordersSummaryQuery.data?.data?.length ?? 0
-
-  const categories: MenuCategory[] = [
-    {
-      id: "transactions",
-      title: "Transaksi & Escrow",
-      description: "Kelola pesanan, bukti, dan penyelesaian masalah transaksi",
-      items: [
-        {
-          id: "active-orders",
-          label: "Transaksi Berjalan",
-          description: "Pesanan aktif yang sedang diproses escrow",
-          icon: ShoppingBag,
-          badge: activeOrdersCount > 0 ? `${activeOrdersCount} aktif` : undefined,
-          badgeTone: "info",
-          onPress: () => router.push(ROUTES.transactions),
-        },
-        {
-          id: "order-links",
-          label: "Order Link",
-          description: "Tautan pembayaran instan untuk transaksi praktis",
-          icon: Link,
-          onPress: () => router.push(ROUTES.orderLinks),
-        },
-        {
-          id: "templates",
-          label: "Template Transaksi",
-          description: "Format transaksi siap pakai untuk transaksi rutin",
-          icon: FileText,
-          onPress: () => router.push(ROUTES.transactionTemplates),
-        },
-        {
-          id: "disputes",
-          label: "Sengketa & Mediasi",
-          description: "Penyelesaian kendala transaksi dengan tim penengah",
-          icon: Scales,
-          onPress: () => router.push(ROUTES.disputes),
-        },
-        {
-          id: "order-history",
-          label: "Riwayat Transaksi",
-          description: "Semua catatan transaksi selesai dan dibatalkan",
-          icon: ClockCounterClockwise,
-          onPress: () => router.push(ROUTES.transactions),
-        },
-      ],
-    },
-    {
-      id: "promos",
-      title: "Promo, Event & Hadiah",
-      description: "Keuntungan biaya, voucher diskon, dan apresiasi akun",
-      items: [
-        {
-          id: "vouchers",
-          label: "Voucher & Kode Promo",
-          description: "Kupon potongan biaya transaksi escrow",
-          icon: Ticket,
-          onPress: () => router.push(ROUTES.vouchers),
-        },
-        {
-          id: "referral",
-          label: "Ajak Teman & Event",
-          description: "Undang teman dan dapatkan komisi saldo",
-          icon: Gift,
-          badge: "Bonus",
-          badgeTone: "success",
-          onPress: () => router.push(ROUTES.referral),
-        },
-        {
-          id: "trust-score",
-          label: "Skor Kepercayaan & Reputasi",
-          description: "Tingkat kepercayaan akun dan rekam jejak",
-          icon: Trophy,
-          onPress: () => router.push(ROUTES.trustScore),
-        },
-        {
-          id: "badges",
-          label: "Lencana Penghargaan",
-          description: "Pencapaian transaksi dan lencana verifikasi",
-          icon: SealCheck,
-          onPress: () => router.push(ROUTES.badges),
-        },
-      ],
-    },
-    {
-      id: "showcase",
-      title: "Etalase & Jualan",
-      description: "Tampilkan karya, produk, dan interaksi dengan peminat",
-      items: [
-        {
-          id: "showcase-management",
-          label: "Kelola Etalase",
-          description: "Tambah, edit, dan pantau status etalase Anda",
-          icon: PencilSimpleLine,
-          onPress: () => router.push(ROUTES.showcaseManagement),
-        },
-        {
-          id: "saved",
-          label: "Item Tersimpan",
-          description: "Koleksi etalase yang Anda bookmark untuk nanti",
-          icon: BookmarkSimple,
-          onPress: () => router.push(ROUTES.saved),
-        },
-        {
-          id: "favorites",
-          label: "Karya Disukai",
-          description: "Daftar postingan etalase yang Anda beri apresiasi",
-          icon: Heart,
-          onPress: () => router.push(ROUTES.favorites),
-        },
-        {
-          id: "questions",
-          label: "Tanya Jawab & Utas",
-          description: "Pertanyaan seputar produk dan etalase Anda",
-          icon: ChatCircleDots,
-          onPress: () => router.push(ROUTES.questions),
-        },
-        {
-          id: "ratings",
-          label: "Ulasan & Penilaian",
-          description: "Ulasan dari pihak yang telah bertransaksi dengan Anda",
-          icon: Star,
-          onPress: () => router.push(ROUTES.ratings),
-        },
-      ],
-    },
-    {
-      id: "finance",
-      title: "Keuangan & Rekening Bank",
-      description: "Pengaturan rekening tujuan, pencairan, dan riwayat mutasi",
-      items: [
-        {
-          id: "bank-accounts",
-          label: "Rekening Bank & E-Wallet",
-          description: "Daftar rekening bank terverifikasi untuk penarikan",
-          icon: Bank,
-          onPress: () => router.push(ROUTES.bankAccounts),
-        },
-        {
-          id: "withdrawal-schedules",
-          label: "Jadwal Penarikan Otomatis",
-          description: "Atur penarikan saldo berkala secara terjadwal",
-          icon: CalendarCheck,
-          onPress: () => router.push(ROUTES.withdrawalSchedules),
-        },
-        {
-          id: "topup-history",
-          label: "Riwayat Top Up",
-          description: "Catatan riwayat isi saldo dompet Kahade",
-          icon: ArrowCircleDown,
-          onPress: () => router.push(ROUTES.topupHistory),
-        },
-        {
-          id: "withdraw-history",
-          label: "Riwayat Penarikan Dana",
-          description: "Status pencairan dana ke rekening bank",
-          icon: ArrowCircleUp,
-          onPress: () => router.push(ROUTES.withdrawHistory),
-        },
-        {
-          id: "wallet-history",
-          label: "Riwayat Mutasi Dompet",
-          description: "Rincian menyeluruh semua arus saldo masuk dan keluar",
-          icon: Wallet,
-          onPress: () => router.push(ROUTES.walletHistory),
-        },
-        {
-          id: "scan",
-          label: "Pindai QR / Bayar",
-          description: "Scan QRIS, QR Kahade terima saldo, atau tautan",
-          icon: Scan,
-          onPress: () => router.push(ROUTES.scan),
-        },
-      ],
-    },
-    {
-      id: "account",
-      title: "Akun, Keamanan & Pengaturan",
-      description: "Proteksi identitas, data diri, dan preferensi aplikasi",
-      items: [
-        {
-          id: "security",
-          label: "Keamanan Akun",
-          description: "PIN transaksi, kata sandi, 2FA, dan biometrik",
-          icon: ShieldCheck,
-          onPress: () => router.push(ROUTES.security),
-        },
-        {
-          id: "kyc",
-          label: "Verifikasi Identitas (KYC)",
-          description: "Verifikasi kartu identitas untuk limit transaksi maksimal",
-          icon: IdentificationCard,
-          badge: isKycVerified ? "Terverifikasi" : "Belum",
-          badgeTone: isKycVerified ? "success" : "neutral",
-          onPress: () => router.push(ROUTES.kyc),
-        },
-        {
-          id: "business-verification",
-          label: "Verifikasi Bisnis",
-          description: "Identitas entitas usaha dan profil toko terpercaya",
-          icon: Briefcase,
-          onPress: () => router.push(ROUTES.businessVerification),
-        },
-        {
-          id: "notifications-pref",
-          label: "Preferensi Notifikasi",
-          description: "Pengaturan pemberitahuan pesan dan transaksi",
-          icon: Bell,
-          onPress: () => router.push(ROUTES.notificationPreferences),
-        },
-        {
-          id: "settings",
-          label: "Pengaturan & Tampilan",
-          description: "Bahasa, tema aplikasi, dan preferensi akun",
-          icon: GearSix,
-          onPress: () => router.push(ROUTES.settings),
-        },
-      ],
-    },
-    {
-      id: "support",
-      title: "Bantuan & Layanan",
-      description: "Pusat bantuan pelanggan dan informasi resmi Kahade",
-      items: [
-        {
-          id: "help-center",
-          label: "Pusat Bantuan & FAQ",
-          description: "Jawaban pertanyaan umum dan panduan bertransaksi",
-          icon: Question,
-          onPress: () => router.push(ROUTES.support),
-        },
-        {
-          id: "live-support",
-          label: "Live Support 24/7",
-          description: "Hubungi tim bantuan resmi Kahade via percakapan langsung",
-          icon: Headset,
-          badge: "Online",
-          badgeTone: "success",
-          onPress: () => router.push(ROUTES.liveSupport),
-        },
-        {
-          id: "feedback",
-          label: "Hubungi Kami & Saran",
-          description: "Kirim masukan atau laporkan kendala operasional",
-          icon: ChatCircleDots,
-          onPress: () => router.push(ROUTES.feedback),
-        },
-      ],
-    },
-  ]
-
   const handleOpenProfile = useCallback(() => {
     if (!token || !profile?.username) {
       router.push(ROUTES.loginRequired("/more"))
@@ -370,30 +120,133 @@ export default function MoreScreen() {
     router.push(ROUTES.userProfile(profile.username))
   }, [profile?.username, router, token])
 
+  /*
+    Akses cepat DIKELOMPOKKAN PER KATEGORI (revisi 2026-09-26): setiap entri
+    berupa lingkaran abu-abu berisi ikon dengan judul tepat di bawahnya,
+    bukan baris daftar ber-deskripsi seperti Pengaturan. Yang masuk ke sini
+    hanyalah halaman yang TIDAK punya pintu di Pengaturan — Order Link,
+    Template, dan Sengketa tetap ada di sini karena yang dihapus (item 4)
+    adalah IKON di header transaksi, bukan halamannya.
+  */
+  const groups: QuickGroup[] = [
+    {
+      id: "transaksi",
+      label: "Transaksi",
+      items: [
+        {
+          id: "create-transaction",
+          label: "Buat Pesanan",
+          icon: Handshake,
+          onPress: () => router.push(ROUTES.createTransaction),
+        },
+        {
+          id: "order-links",
+          label: "Order Link",
+          icon: Link,
+          onPress: () => router.push(ROUTES.orderLinks),
+        },
+        {
+          id: "templates",
+          label: "Template",
+          icon: FileText,
+          onPress: () => router.push(ROUTES.transactionTemplates),
+        },
+        {
+          id: "disputes",
+          label: "Sengketa",
+          icon: Scales,
+          onPress: () => router.push(ROUTES.disputes),
+        },
+      ],
+    },
+    {
+      id: "etalase",
+      label: "Etalase",
+      items: [
+        {
+          id: "showcase-create",
+          label: "Buat Karya",
+          icon: Plus,
+          onPress: () => router.push(ROUTES.showcaseCreate),
+        },
+        {
+          id: "showcase-management",
+          label: "Kelola Etalase",
+          icon: PencilSimpleLine,
+          onPress: () => router.push(ROUTES.showcaseManagement),
+        },
+      ],
+    },
+    {
+      id: "uang",
+      label: "Uang",
+      items: [
+        {
+          id: "vouchers",
+          label: "Voucher",
+          icon: Ticket,
+          onPress: () => router.push(ROUTES.vouchers),
+        },
+        {
+          id: "bank-accounts",
+          label: "Rekening",
+          icon: Bank,
+          onPress: () => router.push(ROUTES.bankAccounts),
+        },
+        {
+          id: "transactions",
+          label: "Riwayat Order",
+          icon: Receipt,
+          onPress: () => router.push(ROUTES.transactions),
+        },
+      ],
+    },
+    {
+      id: "alat",
+      label: "Alat",
+      items: [
+        {
+          id: "scan",
+          label: "Pindai QR",
+          icon: Scan,
+          onPress: () => router.push(ROUTES.scan),
+        },
+        {
+          id: "referral",
+          label: "Undang Teman",
+          icon: Gift,
+          onPress: () => router.push(ROUTES.referral),
+        },
+      ],
+    },
+  ]
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
         showBack={false}
         title="Lainnya"
         right={
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel="Pindai QR"
-            accessibilityHint="Buka pemindai kode QR"
-            haptic
-            onPress={() => router.push(ROUTES.scan)}
-            containerClassName="rounded-md"
-            className="h-10 w-10 items-center justify-center"
-          >
-            <Icon icon={Scan} size="md" tone="active" />
-          </PressableScale>
+          /*
+           * Titik tiga = PENGATURAN (permintaan produk 2026-09-26). Ikon
+           * pemindai yang lama diganti: pemindai sudah menjadi tombol tengah
+           * navbar di mode dompet, sedangkan Pengaturan tidak punya pintu
+           * dari header mana pun.
+           */
+          <IconButton
+            icon={DotsThree}
+            variant="ghost"
+            accessibilityLabel="Pengaturan"
+            accessibilityHint="Buka halaman pengaturan"
+            onPress={() => router.push(ROUTES.settings)}
+          />
         }
       />
 
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerClassName="px-5 pt-3 pb-8 gap-5"
-        style={{ marginBottom: insets.bottom + TAB_BAR_HEIGHT }}
+        contentContainerClassName="px-5 pt-3 gap-5"
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
       >
         {/* ── KARTU PROFIL RINGKAS ── */}
         {token && profile ? (
@@ -418,9 +271,7 @@ export default function MoreScreen() {
                     <Text variant="bodyLarge" weight={600} numberOfLines={1}>
                       {profile.fullName || profile.username}
                     </Text>
-                    {isKycVerified ? (
-                      <Badge tone="success">KYC</Badge>
-                    ) : null}
+                    {isKycVerified ? <Badge tone="success">KYC</Badge> : null}
                   </View>
                   <Text variant="caption" tone="secondary" numberOfLines={1}>
                     @{profile.username}
@@ -464,10 +315,7 @@ export default function MoreScreen() {
                 </Text>
               </View>
             </View>
-            <Button
-              variant="primary"
-              onPress={() => router.push(ROUTES.loginRequired("/more"))}
-            >
+            <Button variant="primary" onPress={() => router.push(ROUTES.loginRequired("/more"))}>
               Masuk atau Daftar
             </Button>
           </Card>
@@ -490,67 +338,31 @@ export default function MoreScreen() {
           </View>
         </Card>
 
-        {/* ── KATEGORI MENU ── */}
-        {categories.map((category) => (
-          <View key={category.id} className="gap-2">
-            <View className="px-1 gap-0.5">
-              <Text variant="h3" weight={600}>
-                {category.title}
+        {/* ── LINGKARAN AKSES CEPAT, Dikelompokkan per kategori ── */}
+        <View className="gap-5">
+          <Text variant="h3" weight={600} className="px-1">
+            Akses cepat
+          </Text>
+          {groups.map((group) => (
+            <View key={group.id} className="gap-3">
+              <Text variant="caption" tone="secondary" weight={600} className="px-1">
+                {group.label}
               </Text>
-              {category.description ? (
-                <Text variant="caption" tone="secondary">
-                  {category.description}
-                </Text>
-              ) : null}
-            </View>
-
-            <Card variant="elevated" className="overflow-hidden p-0">
-              {category.items.map((item, index) => {
-                const isLast = index === category.items.length - 1
-                return (
-                  <View key={item.id}>
-                    <PressableScale
-                      accessibilityRole="button"
-                      accessibilityLabel={item.label}
-                      accessibilityHint={item.description}
-                      onPress={item.onPress}
-                      containerClassName="w-full"
-                      className="w-full flex-row items-center gap-3 px-4 py-3.5"
-                    >
-                      <View className="h-10 w-10 items-center justify-center rounded-sm bg-surface">
-                        <Icon icon={item.icon} size="md" tone="active" />
-                      </View>
-
-                      <View className="flex-1 min-w-0 gap-0.5">
-                        <View className="flex-row items-center gap-2">
-                          <Text variant="body" weight={600} numberOfLines={1} className="flex-1">
-                            {item.label}
-                          </Text>
-                          {item.badge ? (
-                            <Badge tone={item.badgeTone ?? "neutral"}>
-                              {String(item.badge)}
-                            </Badge>
-                          ) : null}
-                        </View>
-                        {item.description ? (
-                          <Text variant="caption" tone="secondary" numberOfLines={1}>
-                            {item.description}
-                          </Text>
-                        ) : null}
-                      </View>
-
-                      <Icon icon={CaretRight} size="sm" tone="default" />
-                    </PressableScale>
-                    {!isLast ? <Divider className="ml-16" /> : null}
+              <View className="flex-row flex-wrap">
+                {group.items.map((action) => (
+                  // Lebar 1/4 = 4 lingkaran per baris (360dp terkecil);
+                  // baris terakhir rata kiri, tidak ditarik melebar.
+                  <View key={action.id} className="w-1/4 items-center pb-4">
+                    <QuickActionButton action={action} />
                   </View>
-                )
-              })}
-            </Card>
-          </View>
-        ))}
+                ))}
+              </View>
+            </View>
+          ))}
+        </View>
 
         {/* ── CATATAN KAKI APLIKASI ── */}
-        <View className="items-center justify-center py-4 gap-1">
+        <View className="items-center justify-center py-2 gap-1">
           <Text variant="caption" tone="secondary">
             Kahade Safe Escrow & Commerce · Versi 1.0.0
           </Text>
@@ -560,5 +372,37 @@ export default function MoreScreen() {
         </View>
       </ScrollView>
     </Screen>
+  )
+}
+
+/**
+ * Satu lingkaran akses cepat: LINGKARAN ABU-ABU 56px + judul 12px di bawahnya
+ * (permintaan produk 2026-09-26).
+ *
+ * Kenapa latar `bg-surface-raised` dan bukan <IconBox variant="surface">:
+ * varian itu menggambar BORDER, sehingga delapan lingkaran berderet tampak
+ * sebagai delapan kancing berbingkai. Tanpa border, warna abu-abunya yang
+ * membentuk wadah — ikonnya yang dibaca, bukan kotaknya.
+ *
+ * Judul dibatasi dua baris dan dipusat, sehingga "Kelola Etalase" yang
+ * terbungkus tetap sejajar dengan lingkaran tetangganya.
+ */
+function QuickActionButton({ action }: { action: QuickAction }) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={action.label}
+      haptic
+      onPress={action.onPress}
+      containerClassName="items-center rounded-md"
+      className="items-center gap-2 px-1 py-1"
+    >
+      <View className="h-14 w-14 items-center justify-center rounded-full bg-surface-raised">
+        <Icon icon={action.icon} size="md" tone="default" />
+      </View>
+      <Text variant="caption" tone="primary" numberOfLines={2} className="text-center">
+        {action.label}
+      </Text>
+    </PressableScale>
   )
 }

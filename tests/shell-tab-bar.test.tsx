@@ -98,7 +98,10 @@ describe("<ShellTabBar> mengikuti halaman", () => {
     expect(screen.getByRole("tab", { name: "Tab Promo" })).toBeTruthy()
     expect(screen.getByRole("tab", { name: "Tab History" })).toBeTruthy()
     expect(screen.queryByRole("tab", { name: "Tab Etalase" })).toBeNull()
-    expect(screen.getByRole("button", { name: "Bayar" })).toBeTruthy()
+    // 2026-09-26: tombol tengah mode dompet MEMBUKA PEMINDAI langsung —
+    // bukan lagi ActionSheet "Bayar" (satu ketukan ekstra untuk sampai ke
+    // kamera). Kirim & terima sudah ada di kartu saldo halaman Dompet.
+    expect(screen.getByRole("button", { name: "Pindai QR" })).toBeTruthy()
   })
 
   it("/more dipakai kedua mode — mengikuti mode tersimpan", async () => {

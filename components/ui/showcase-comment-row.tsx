@@ -7,6 +7,17 @@ import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
  * (components/ui/showcase-comments-sheet.tsx) — supaya bentuk, format waktu,
  * dan penanda "(Komentar disembunyikan)" tidak pernah berbeda antar layar.
  *
+ * Revisi tata letak 2026-09-26 (permintaan produk):
+ *   - USERNAME SEJAJAR DENGAN PUNCAK FOTO PROFIL: baris identitas
+ *     (@nama • waktu) diberi tinggi tetap 24px (`h-6`) di puncak kolom kanan,
+ *     sehingga teksnya tidak melayang di tengah avatar seperti sebelumnya
+ *     (tombol ⋯ yang sederet dengannya membuat baris itu setinggi 40px).
+ *     Isi komentar kini persis DI BAWAH baris identitas.
+ *   - GARIS UTAS: `threaded` menarik garis 1px dari bawah avatar turun
+ *     mengikuti tinggi balasan, dan balasan dirender di dalam kolom kanan
+ *     lewat `children` — jadi garisnya benar-benar menyambung komentar induk
+ *     dengan balasannya, bukan berhenti di bawah teks induk.
+ *
  * Keputusan non-obvious:
  *   - Menu ⋯ hanyalah tombol kecil di ujung baris (bukan tap seluruh baris):
  *     seluruh baris yang bisa ditekan menyulitkan seleksi teks dan memicu menu
@@ -18,6 +29,7 @@ import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
  *     cukup tampil statis tanpa affordance yang tidak berfungsi.
  */
 import { DotsThree } from "phosphor-react-native"
+import type { ReactNode } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
@@ -63,6 +75,15 @@ export type ShowcaseCommentRowProps = {
   onOpenMenu?: (c: ShowcaseComment) => void
   /** Tonjolkan komentar baru/terpilih (mis. dari notifikasi) */
   className?: string
+  /**
+   * Tarik garis utas dari bawah avatar ke bawah — pakai bila komentar ini
+   * MEMILIKI balasan (dan balasannya dikirim lewat `children`).
+   */
+  threaded?: boolean
+  /** Balasan komentar ini — dirender di kolom kanan, di bawah teks komentar. */
+  children?: ReactNode
+  /** Ukuran avatar: "sm" untuk komentar utama, "xs" untuk balasan. */
+  avatarSize?: "xs" | "sm"
 }
 
 export function ShowcaseCommentRow({
@@ -73,6 +94,9 @@ export function ShowcaseCommentRow({
   onReply,
   onOpenMenu,
   className,
+  threaded = false,
+  children,
+  avatarSize = "sm",
 }: ShowcaseCommentRowProps) {
   const hasSession = useHasSession()
   const hidden = comment.isHidden === true
@@ -82,74 +106,96 @@ export function ShowcaseCommentRow({
   const timeLabel = formatRelativeTime(comment.createdAt)
 
   return (
-    <View className={className}>
-      <View className="flex-row items-start gap-2">
+    <View className={cn("flex-row gap-2", className)}>
+      {/*
+        KOLOM KIRI: foto profil + (opsional) garis utas.
+        Kolom ini diregangkan mengikuti tinggi baris (align stretch), sehingga
+        `flex-1` pada garis membuatnya turun sampai balasan terakhir — bukan
+        berhenti di bawah teks komentar induk.
+      */}
+      <View className="items-center">
         <Avatar
           source={comment.author.avatarUrl ? { uri: comment.author.avatarUrl } : undefined}
           name={authorName}
-          size="xs"
+          size={avatarSize}
         />
-        <View className="flex-1 gap-0.5">
-          <View className="flex-row items-center gap-2">
-            {/* Username gray regular: @username • 3 h lalu (sesuai request bug #3) */}
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={translate("Lihat profil {x}", { x: authorName })}
-              onPress={() =>
-                router.push(
-                  hasSession
-                    ? ROUTES.userProfile(comment.author.username)
-                    : ROUTES.loginRequired(`/user/${encodeURIComponent(comment.author.username)}`),
-                )
-              }
-              containerClassName={cn("flex-1 rounded-sm", focusRing)}
-            >
-              <Text variant="caption" tone="secondary" weight={400} numberOfLines={1} className="tabular-nums">
-                @{username} • {timeLabel}
-                {edited ? ` ${translate("(diedit)")}` : null}
-                {isMine ? ` • ${translate("Anda")}` : null}
-              </Text>
-            </PressableScale>
-            {menuable && onOpenMenu ? (
-              <IconButton
-                icon={DotsThree}
-                variant="ghost"
-                size="sm"
-                accessibilityLabel={translate("Opsi komentar dari {x}", { x: authorName })}
-                onPress={() => onOpenMenu(comment)}
-              />
-            ) : null}
-          </View>
-          <Text variant="body" tone={hidden ? "secondary" : "primary"} weight={400}>
-            {hidden ? translate("(Komentar disembunyikan)") : comment.content}
-          </Text>
-          {hidden && !comment.hiddenReason ? (
-            <Text variant="caption" tone="secondary">
-              {translate("Disembunyikan karena melanggar pedoman komunitas.")}
+        {threaded ? <View className="mt-1 w-px flex-1 bg-border" /> : null}
+      </View>
+
+      {/* KOLOM KANAN: identitas → isi → aksi → balasan */}
+      <View className="min-w-0 flex-1 gap-1">
+        {/*
+          Baris identitas TINGGI TETAP 24px: username kini sejajar dengan
+          puncak foto profil, dan isi komentar persis di bawahnya. Tombol ⋯
+          dibiarkan sederet walau lebih tinggi dari barisnya — tidak ada alasan
+          menggulung avatar hanya demi sebuah ikon 32px.
+        */}
+        <View className="h-6 flex-row items-center gap-2">
+          {/* Username gray regular: @username • 3 h lalu (sesuai request bug #3) */}
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={translate("Lihat profil {x}", { x: authorName })}
+            onPress={() =>
+              router.push(
+                hasSession
+                  ? ROUTES.userProfile(comment.author.username)
+                  : ROUTES.loginRequired(`/user/${encodeURIComponent(comment.author.username)}`),
+              )
+            }
+            containerClassName={cn("min-w-0 flex-1 rounded-sm", focusRing)}
+          >
+            <Text variant="caption" tone="secondary" weight={400} numberOfLines={1} className="tabular-nums">
+              @{username} • {timeLabel}
+              {edited ? ` ${translate("(diedit)")}` : null}
+              {isMine ? ` • ${translate("Anda")}` : null}
             </Text>
-          ) : null}
-          {hidden && comment.hiddenReason ? (
-            <Text variant="caption" tone="secondary">
-              {translate("Alasan: {x}", {
-                x: translate(CONTENT_REPORT_REASONS.find((reason) => reason.value === comment.hiddenReason)?.label ?? "Lainnya"),
-              })}
-            </Text>
-          ) : null}
-          {canReply && onReply ? (
-            <View className="flex-row items-center pt-1">
-              <PressableScale
-                accessibilityRole="button"
-                accessibilityLabel={translate("Balas komentar")}
-                containerClassName={cn("justify-center rounded-sm px-0 py-1", focusRing)}
-                onPress={() => onReply(comment)}
-              >
-                <Text variant="caption" tone="secondary" weight={500}>
-                  {translate("Balas")}
-                </Text>
-              </PressableScale>
-            </View>
+          </PressableScale>
+          {menuable && onOpenMenu ? (
+            <IconButton
+              icon={DotsThree}
+              variant="ghost"
+              size="sm"
+              accessibilityLabel={translate("Opsi komentar dari {x}", { x: authorName })}
+              onPress={() => onOpenMenu(comment)}
+            />
           ) : null}
         </View>
+
+        <Text variant="body" tone={hidden ? "secondary" : "primary"} weight={400}>
+          {hidden ? translate("(Komentar disembunyikan)") : comment.content}
+        </Text>
+
+        {hidden && !comment.hiddenReason ? (
+          <Text variant="caption" tone="secondary">
+            {translate("Disembunyikan karena melanggar pedoman komunitas.")}
+          </Text>
+        ) : null}
+        {hidden && comment.hiddenReason ? (
+          <Text variant="caption" tone="secondary">
+            {translate("Alasan: {x}", {
+              x: translate(CONTENT_REPORT_REASONS.find((reason) => reason.value === comment.hiddenReason)?.label ?? "Lainnya"),
+            })}
+          </Text>
+        ) : null}
+
+        {canReply && onReply ? (
+          <View className="flex-row items-center pt-0.5">
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Balas komentar")}
+              containerClassName={cn("justify-center rounded-sm px-0 py-1", focusRing)}
+              onPress={() => onReply(comment)}
+            >
+              <Text variant="caption" tone="secondary" weight={500}>
+                {translate("Balas")}
+              </Text>
+            </PressableScale>
+          </View>
+        ) : null}
+
+        {/* Balasan hidup di kolom yang SAMA dengan komentar induk, sehingga
+            garis utas di kiri benar-benar menyambung keduanya. */}
+        {children ? <View className="mt-1 gap-3">{children}</View> : null}
       </View>
     </View>
   )

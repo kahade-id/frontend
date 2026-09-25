@@ -66,7 +66,12 @@ describe("kosakata ikon header Etalase", () => {
       </ThemeProvider>,
     )
 
-    const manage = iconsIn(screen.getByRole("button", { name: "Kelola etalase saya" }))
+    /*
+      Revisi 2026-09-26 (item #10): ikon pensil kini MEMBUKA HALAMAN
+      pembuatan karya (/showcase/create), bukan halaman kelola etalase —
+      jadi labelnya "Buat karya baru". Glifnya tetap PencilSimpleLine.
+    */
+    const manage = iconsIn(screen.getByRole("button", { name: "Buat karya baru" }))
     const bell = iconsIn(screen.getByRole("button", { name: "Notifikasi" }))
 
     expect(manage).toEqual([{ name: "PencilSimpleLine", weight: "regular" }])

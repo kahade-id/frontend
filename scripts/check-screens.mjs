@@ -564,7 +564,7 @@ const LINE_CEILING = new Map([
   ["app/user/[username].tsx", 1410],
   // 2026-09-23b: removeClippedSubviews dihapus (fix scroll blank Android).
   // 2026-09-26: fix covered (insets.bottom+space) + blank (removeClippedSubviews false) -> 1263.
-  ["app/chat/[roomId].tsx", 1259],
+  ["app/chat/[roomId].tsx", 1232],
   // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
   // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
   // Audit 2026-09-20 (batch E): label a11y bertemplate dipindah ke translate()

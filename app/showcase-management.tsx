@@ -1,5 +1,14 @@
-/** Etalase management: upload-only drafts, explicit publication, recoverable photo ordering.
- * Legacy auto-create upload is intentionally disabled; see the deep-audit remediation log. */
+/**
+ * Etalase management: upload-only drafts, explicit publication, recoverable
+ * photo ordering. Legacy auto-create upload is intentionally disabled; see the
+ * deep-audit remediation log.
+ *
+ * Revisi 2026-09-26 — MEMBUAT karya pindah ke halaman penuh `/showcase/create`
+ * (permintaan produk): sheet form di sini terlalu sempit untuk pratinjau foto
+ * yang bisa diurutkan + enam field, dan ikon pensil di header Etalase kini
+ * berujung langsung ke halaman itu. Halaman ini tersisa untuk MENGUBAH karya
+ * yang sudah ada: detail teks, foto, urutan cover, sembunyikan, hapus.
+ */
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -10,9 +19,7 @@ import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash
 import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
-import { createIdempotencyKey } from "@/lib/api/client"
-import type { CreateShowcaseItemDto } from "@/lib/api/types"
-import { api, isApiError, userMessage } from "@/lib/api"
+import { api, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
 import { validImageOrder, showcaseIsHidden } from "@/lib/showcase-state"
@@ -20,7 +27,7 @@ import { SHOWCASE_MAX_IMAGES } from "@/lib/showcase-limits"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { getSessionRevision } from "@/lib/api/session"
-import { pickImages, type PickedImage } from "@/lib/image-picker"
+import { pickImages } from "@/lib/image-picker"
 import { useApiQuery } from "@/lib/use-api-query"
 import { ROUTES } from "@/lib/routes"
 import { showcasePriceLabel } from "@/lib/showcase-labels"
@@ -79,10 +86,8 @@ const EMPTY_FORM: FormState = {
   isPublic: true,
 }
 
-type Editor =
-  | { mode: "create"; fileKeys: string[] }
-  | { mode: "edit"; item: ShowcaseItem }
-  | null
+type Editor = { mode: "edit"; item: ShowcaseItem } | null
+
 
 /** Judul tampil item mentah — fallback netral bersama (J-04). */
 function labelOf(it: ShowcaseItem): string {
@@ -91,18 +96,21 @@ function labelOf(it: ShowcaseItem): string {
 
 /** Explicit zero is a valid price; null means no draft price. */
 function formToPayload(form: FormState) {
+  /*
+   * Harga minimum TANPA maksimum = HARGA PASTI (2026-09-26): penjual yang
+   * menetapkan satu harga hanya mengisi kolom pertama, dan menyimpannya apa
+   * adanya membuat kartu etalase menampilkan "Mulai Rp 100.000" seolah itu
+   * sekadar batas bawah. Lihat lib/showcase-labels.ts.
+   */
+  const priceMin = form.priceMin ?? undefined
+  const priceMax = form.priceMax ?? (form.priceMin != null ? form.priceMin : undefined)
   return {
     description: form.description.trim(),
-    priceMin: form.priceMin ?? undefined,
-    priceMax: form.priceMax ?? undefined,
+    priceMin,
+    priceMax,
     category: form.category.trim().replace(/\s+/g, " "),
     visibility: form.isPublic ? ("PUBLIC" as const) : ("PRIVATE" as const),
   }
-}
-
-/** Baca `sortOrder` maksimum +1 (D-03) — tahan item tanpa sortOrder. */
-function nextSortOrder(items: ShowcaseItem[]): number {
-  return items.reduce((max, it) => Math.max(max, typeof it.sortOrder === "number" ? it.sortOrder : 0), 0) + 1
 }
 
 /** Kategori/visibilitas dari respons mentah (ShowcaseItem belum mengetiknya). */
@@ -143,7 +151,6 @@ function ShowcaseManagement() {
   const items = query.data ?? []
   const [renderLimit, setRenderLimit] = useState(60)
   const { loading, error, refreshing } = query
-  const [uploading, setUploading] = useState(false)
 
   const [menuItem, setMenuItem] = useState<ShowcaseItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ShowcaseItem | null>(null)
@@ -154,20 +161,10 @@ function ShowcaseManagement() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | undefined>()
   const [saving, setSaving] = useState(false)
-  /**
-   * Key yang sudah terunggah dari flow create & belum ter-commit — dibersihkan
-   * bila pengguna membatalkan form (D-09; create gagal juga membersihkan).
-   */
-  const pendingKeys = useRef<string[]>([])
-  const createAttempt = useRef<{ key: string; dto: CreateShowcaseItemDto } | null>(null)
-  const [uncertainCreate, setUncertainCreate] = useState(false)
   const uploadAbort = useRef<AbortController | null>(null)
   const uploadBusy = useRef(false)
   const saveBusy = useRef(false)
   const mounted = useRef(true)
-  const [progress, setProgress] = useState("")
-  const [previews, setPreviews] = useState<{ fileKey: string; asset: PickedImage }[]>([])
-  const [failedAssets, setFailedAssets] = useState<PickedImage[]>([])
   const [discardOpen, setDiscardOpen] = useState(false)
   const initialForm = useRef(EMPTY_FORM)
   useEffect(() => {
@@ -175,8 +172,6 @@ function ShowcaseManagement() {
     return () => {
       mounted.current = false
       uploadAbort.current?.abort()
-      // Never delete keys while a create may have committed server-side.
-      if (!saveBusy.current && !createAttempt.current) void cleanupPendingShowcaseKeys(pendingKeys.current)
     }
   }, [revision])
 
@@ -200,112 +195,11 @@ function ShowcaseManagement() {
   /** Mutasi sukses → tab feed menyegarkan diri saat fokus kembali (A-08). */
   const touchFeed = useCallback(() => markShowcaseFeedDirty(), [])
 
-  // ── Tambah: multi-pick → unggah → form ────────────────────────────
-  const handleUpload = useCallback(async () => {
-    if (uploadBusy.current) return
-    uploadBusy.current = true
-    const controller = new AbortController()
-    uploadAbort.current = controller
-    const uploaded: { fileKey: string; asset: PickedImage }[] = []
-    const failures: PickedImage[] = []
-    try {
-      const picked = await pickImages({ selectionLimit: SHOWCASE_MAX_IMAGES })
-      if (picked.status === "denied") {
-        toast.show({
-          title: "Akses galeri ditolak",
-          description: "Izinkan akses foto di pengaturan perangkat untuk memilih karya.",
-          tone: "danger",
-          // G-22 (audit 2026-09-23): tanpa jalan pintas, pengguna harus
-          // mencari sendiri halaman izin di OS.
-          action: { label: "Buka pengaturan", onPress: () => void Linking.openSettings() },
-        })
-        return
-      }
-      if (picked.status !== "picked" || controller.signal.aborted) return
-      setUploading(true)
-      for (const [index, asset] of picked.assets.entries()) {
-        setProgress(translate("Mengunggah foto {x} dari {y}", { x: index + 1, y: picked.assets.length }))
-        try {
-          const outcome = await uploadShowcasePhoto(asset, controller.signal)
-          uploaded.push({ fileKey: outcome.fileKey, asset })
-        } catch (error) {
-          if (controller.signal.aborted) throw error
-          failures.push(asset)
-        }
-      }
-      if (controller.signal.aborted || revision !== getSessionRevision()) {
-        void cleanupPendingShowcaseKeys(uploaded.map((entry) => entry.fileKey))
-        return
-      }
-      const keys = uploaded.map((entry) => entry.fileKey)
-      pendingKeys.current = keys
-      createAttempt.current = null
-      setUncertainCreate(false)
-      setPreviews(uploaded)
-      setFailedAssets(failures)
-      setForm({ ...EMPTY_FORM })
-      initialForm.current = EMPTY_FORM
-      setFormError(undefined)
-      setEditor({ mode: "create", fileKeys: keys })
-    } catch (error) {
-      void cleanupPendingShowcaseKeys(uploaded.map((entry) => entry.fileKey))
-      if (!controller.signal.aborted && mounted.current) toast.show({
-        title: "Gagal mengunggah foto", description: userMessage(error), tone: "danger",
-      })
-    } finally {
-      uploadBusy.current = false
-      if (uploadAbort.current === controller) uploadAbort.current = null
-      if (mounted.current) { setUploading(false); setProgress("") }
-    }
-  }, [toast, revision])
-
-  const retryFailedPhotos = useCallback(async () => {
-    if (uploadBusy.current || saveBusy.current || !failedAssets.length) return
-    uploadBusy.current = true
-    setUploading(true)
-    const controller = new AbortController()
-    uploadAbort.current = controller
-    const next = [...previews]
-    const failures: PickedImage[] = []
-    try {
-      for (const [index, asset] of failedAssets.entries()) {
-        setProgress(translate("Mengunggah foto {x} dari {y}", { x: index + 1, y: failedAssets.length }))
-        try {
-          const result = await uploadShowcasePhoto(asset, controller.signal)
-          next.push({ fileKey: result.fileKey, asset })
-        } catch { failures.push(asset) }
-      }
-      if (!mounted.current || revision !== getSessionRevision()) {
-        void cleanupPendingShowcaseKeys(next.slice(previews.length).map((entry) => entry.fileKey))
-        return
-      }
-      pendingKeys.current = next.map((entry) => entry.fileKey)
-      setPreviews(next)
-      setFailedAssets(failures)
-      setEditor({ mode: "create", fileKeys: pendingKeys.current })
-    } finally {
-      uploadBusy.current = false
-      uploadAbort.current = null
-      if (mounted.current) { setUploading(false); setProgress("") }
-    }
-  }, [failedAssets, previews, revision])
-
-  const changePreview = (index: number, direction: -1 | 0 | 1) => {
-    if (saveBusy.current || uploadBusy.current || uncertainCreate) return
-    const next = [...previews]
-    if (direction === 0) {
-      const [removed] = next.splice(index, 1)
-      if (removed) void cleanupPendingShowcaseKeys([removed.fileKey])
-    } else {
-      const destination = index + direction
-      if (destination < 0 || destination >= next.length) return
-      ;[next[index], next[destination]] = [next[destination], next[index]]
-    }
-    pendingKeys.current = next.map((entry) => entry.fileKey)
-    setPreviews(next)
-    setEditor({ mode: "create", fileKeys: pendingKeys.current })
-  }
-
+  // ── Ubah detail item ──────────────────────────────────────────────
+  // ALUR BUAT KARYA BARU dipindah ke halaman penuh `/showcase/create`
+  // (2026-09-26): form + pratinjau foto yang bisa diurutkan terlalu tinggi
+  // untuk BottomSheet, dan ikon pensil di header Etalase kini berujung di
+  // sana. Halaman ini hanya mengubah item yang sudah ada.
   const openEdit = useCallback((item: ShowcaseItem) => {
     const nextForm = {
       title: item.title ?? item.caption ?? "",
@@ -316,22 +210,14 @@ function ShowcaseManagement() {
     }
     initialForm.current = nextForm
     setForm(nextForm)
-    setPreviews([])
-    setFailedAssets([])
     setFormError(undefined)
     setEditor({ mode: "edit", item })
   }, [])
 
-  /** Tutup editor — membatalkan create membersihkan key tertunda (D-09). */
+  /** Tutup editor (ubah detail). */
   const closeEditor = useCallback(() => {
     if (saveBusy.current || uploadBusy.current) return
-    if (editor?.mode === "create" && !createAttempt.current) void cleanupPendingShowcaseKeys(pendingKeys.current)
-    pendingKeys.current = []
     setEditor(null)
-    createAttempt.current = null
-    setUncertainCreate(false)
-    setPreviews([])
-    setFailedAssets([])
     setDiscardOpen(false)
     const action = pendingNavigation.current
     pendingNavigation.current = null
@@ -339,11 +225,11 @@ function ShowcaseManagement() {
   }, [editor, navigation])
   const requestCloseEditor = useCallback(() => {
     if (saveBusy.current || uploadBusy.current) return
-    if (editor?.mode === "create" || JSON.stringify(form) !== JSON.stringify(initialForm.current)) setDiscardOpen(true)
+    if (JSON.stringify(form) !== JSON.stringify(initialForm.current)) setDiscardOpen(true)
     else closeEditor()
   }, [editor, form, closeEditor])
 
-  const dirtyEditor = editor != null && (editor.mode === "create" || JSON.stringify(form) !== JSON.stringify(initialForm.current))
+  const dirtyEditor = editor != null && JSON.stringify(form) !== JSON.stringify(initialForm.current)
   usePreventRemove(dirtyEditor, ({ data }) => {
     if (saveBusy.current || uploadBusy.current) return
     pendingNavigation.current = data.action
@@ -358,7 +244,7 @@ function ShowcaseManagement() {
   const cancelDiscard = () => { pendingNavigation.current = null; setDiscardOpen(false) }
 
   const handleSave = useCallback(async () => {
-    if (!editor || saveBusy.current || uploadBusy.current || failedAssets.length > 0 || (editor.mode === "create" && editor.fileKeys.length === 0)) return
+    if (!editor || saveBusy.current || uploadBusy.current) return
     const title = form.title.trim()
     if (!title) {
       setFormError(translate("Judul wajib diisi."))
@@ -368,7 +254,7 @@ function ShowcaseManagement() {
       setFormError(translate("Harga maksimum harus ≥ harga minimum."))
       return
     }
-    if (editor.mode === "edit" && ((editor.item.priceMin != null && form.priceMin == null) || (editor.item.priceMax != null && form.priceMax == null))) {
+    if (editor.item.priceMin != null && form.priceMin == null) {
       setFormError(translate("Harga yang sudah terisi belum dapat dikosongkan. Masukkan nominal baru, termasuk 0 untuk gratis."))
       return
     }
@@ -376,38 +262,20 @@ function ShowcaseManagement() {
     setSaving(true)
     const payload = { title, ...formToPayload(form) }
     try {
-      if (editor.mode === "create") {
-        createAttempt.current ??= { key: createIdempotencyKey(), dto: {
-          ...payload, imageFileKeys: [...editor.fileKeys], sortOrder: nextSortOrder(items),
-        } }
-        await api.users.createShowcase(createAttempt.current.dto, createAttempt.current.key)
-        createAttempt.current = null
-        pendingKeys.current = []
-        if (!mounted.current || revision !== getSessionRevision()) return
-        setUncertainCreate(false)
-        toast.show({ title: "Karya ditambahkan", tone: "success", duration: 3000 })
-      } else {
-        await api.users.updateShowcase(editor.item.id, payload)
-        if (!mounted.current || revision !== getSessionRevision()) return
-        toast.show({ title: "Detail diperbarui", tone: "success", duration: 3000 })
-      }
+      await api.users.updateShowcase(editor.item.id, payload)
+      if (!mounted.current || revision !== getSessionRevision()) return
+      toast.show({ title: "Detail diperbarui", tone: "success", duration: 3000 })
       setEditor(null)
       touchFeed()
       await query.refresh()
     } catch (err) {
       if (!mounted.current || revision !== getSessionRevision()) return
-      if (editor.mode === "create") {
-        // Only a definite rejected request is safe to edit/clean up. Transport timeouts may have committed.
-        const rejected = isApiError(err) && [400, 403, 404, 413, 422].includes(err.status ?? 0)
-        if (rejected) createAttempt.current = null
-        setUncertainCreate(!rejected)
-      }
       toast.show({ title: "Gagal menyimpan", description: userMessage(err), tone: "danger" })
     } finally {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
     }
-  }, [editor, form, items, toast, query, touchFeed, failedAssets.length, revision])
+  }, [editor, form, toast, query, touchFeed, revision])
 
   const handleToggleActive = useCallback(
     async (item: ShowcaseItem) => {
@@ -733,15 +601,17 @@ function ShowcaseManagement() {
             <Text variant="caption" tone="secondary">
               Ketuk karya untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
+            {/*
+              Buat karya = HALAMAN PENUH (/showcase/create, 2026-09-26):
+              form + pratinjau yang bisa diurutkan terlalu tinggi untuk sheet.
+            */}
             <Button
               leftIcon={Plus}
-              loading={uploading}
               variant="secondary"
-              onPress={() => void handleUpload()}
+              onPress={() => router.push(ROUTES.showcaseCreate)}
             >
-              Tambah foto
+              Buat karya baru
             </Button>
-            {uploading ? <View className="gap-2"><Text accessibilityLiveRegion="polite">{progress}</Text><Button variant="ghost" onPress={() => uploadAbort.current?.abort()}>Batalkan unggahan</Button></View> : null}
           </View>
         )}
       </PullToRefresh>
@@ -859,55 +729,20 @@ function ShowcaseManagement() {
         avoidKeyboard
         visible={!!editor}
         onRequestClose={requestCloseEditor}
-        title={editor?.mode === "create" ? "Detail karya baru" : "Ubah detail"}
+        title="Ubah detail"
         description="Judul, kategori, dan rentang harga membantu calon pembeli memahami penawaran Anda."
         footer={
           <View className="gap-2">
-            <Button variant="primary" loading={saving} disabled={uploading || failedAssets.length > 0 || (editor?.mode === "create" && previews.length === 0)} onPress={() => void handleSave()} fullWidth>
+            <Button variant="primary" loading={saving} onPress={() => void handleSave()} fullWidth>
               Simpan
             </Button>
-            <Button variant="ghost" disabled={saving || uploading} onPress={requestCloseEditor} fullWidth>
+            <Button variant="ghost" disabled={saving} onPress={requestCloseEditor} fullWidth>
               Batal
             </Button>
           </View>
         }
       >
         <View className="gap-4">
-          {uncertainCreate ? (
-            // G-15 (audit 2026-09-23): banner punya tombol segarkan — dulu
-            // pengguna disuruh "segarkan daftar" tanpa tombolnya.
-            <View className="gap-2 rounded-md border border-border p-3">
-              <Text tone="danger">
-                Status simpan belum pasti. Coba Simpan lagi untuk melanjutkan permintaan yang sama,
-                atau segarkan daftar sebelum membuat karya baru.
-              </Text>
-              <Button variant="secondary" onPress={() => void query.reload()}>
-                Segarkan daftar
-              </Button>
-            </View>
-          ) : null}
-          {previews.length > 0 ? <View className="gap-2">
-            <Text>Pratinjau foto — foto pertama menjadi cover</Text>
-            <View className="flex-row flex-wrap gap-2">
-              {previews.map((entry, index) => <View key={entry.fileKey} className="gap-1">
-                <Picture source={entry.asset.uri} alt={translate("Foto {x}", { x: index + 1 })} width={80} height={80} />
-                <View className="flex-row">
-                  <IconButton icon={CaretLeft} accessibilityLabel={translate("Geser foto {x} ke kiri", { x: index + 1 })} disabled={saving || uploading || uncertainCreate || index === 0} onPress={() => changePreview(index, -1)} />
-                  <IconButton icon={CaretRight} accessibilityLabel={translate("Geser foto {x} ke kanan", { x: index + 1 })} disabled={saving || uploading || uncertainCreate || index === previews.length - 1} onPress={() => changePreview(index, 1)} />
-                  <IconButton icon={Trash} accessibilityLabel={translate("Hapus foto {x}", { x: index + 1 })} disabled={saving || uploading || uncertainCreate} onPress={() => changePreview(index, 0)} />
-                </View>
-              </View>)}
-            </View>
-          </View> : null}
-          {failedAssets.length > 0 ? <View className="gap-2">
-            <Text tone="danger">Foto berikut gagal diunggah. Coba lagi atau keluarkan dari pilihan sebelum menyimpan.</Text>
-            {failedAssets.map((asset, index) => <View key={`${asset.uri}-${index}`} className="gap-1">
-              <Text>{asset.name}</Text>
-              <Button variant="ghost" disabled={uploading} onPress={() => setFailedAssets((entries) => entries.filter((_, i) => i !== index))}>Keluarkan foto gagal</Button>
-            </View>)}
-            <Button loading={uploading} onPress={() => void retryFailedPhotos()}>Coba lagi foto gagal</Button>
-            {uploading ? <Text accessibilityLiveRegion="polite">{progress}</Text> : null}
-          </View> : null}
           <Input
             label="Judul"
             value={form.title}
@@ -920,7 +755,7 @@ function ShowcaseManagement() {
             maxLength={TITLE_MAX}
             errorText={formError && !form.title.trim() ? formError : undefined}
             required
-            disabled={saving || uploading || uncertainCreate}
+            disabled={saving}
           />
           <TextArea
             label="Deskripsi"
@@ -929,7 +764,7 @@ function ShowcaseManagement() {
             maxLength={DESC_MAX}
             showCount
             rows={3}
-            disabled={saving || uploading || uncertainCreate}
+            disabled={saving}
           />
           {/* D-02: kategori (kontrak menganggur sebelum audit) */}
           <Input
@@ -939,7 +774,7 @@ function ShowcaseManagement() {
             placeholder="Jasa desain, kerajinan, digital…"
             autoCapitalize="sentences"
             maxLength={CATEGORY_MAX}
-            disabled={saving || uploading || uncertainCreate}
+            disabled={saving}
           />
           <Input
             label="Harga minimum (opsional)"
@@ -952,7 +787,7 @@ function ShowcaseManagement() {
               setForm((f) => ({ ...f, priceMin: v }))
               setFormError(undefined)
             }}
-            disabled={saving || uploading || uncertainCreate}
+            disabled={saving}
           />
           <Input
             label="Harga maksimum (opsional)"
@@ -966,7 +801,7 @@ function ShowcaseManagement() {
               setFormError(undefined)
             }}
             errorText={formError && form.title.trim() ? formError : undefined}
-            disabled={saving || uploading || uncertainCreate}
+            disabled={saving}
           />
           {/* D-02: visibilitas PUBLIC/PRIVATE */}
           <View className="flex-row items-center justify-between gap-3">
@@ -984,7 +819,7 @@ function ShowcaseManagement() {
               value={form.isPublic}
               onChange={(v) => setForm((f) => ({ ...f, isPublic: v }))}
               accessibilityLabel="Tampilkan secara publik"
-              disabled={saving || uploading || uncertainCreate}
+              disabled={saving}
             />
           </View>
         </View>

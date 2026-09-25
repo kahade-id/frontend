@@ -65,6 +65,7 @@ export const AUTHENTICATED_SCREENS = [
   "settings",
   "showcase",
   "showcase-management",
+  "showcase/create",
   "subscriptions",
   "support/[ticketId]",
   "support",

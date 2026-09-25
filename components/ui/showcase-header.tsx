@@ -6,7 +6,7 @@
  *      [ ✎ kelola ]  [ (logo) ]  [ 🔔 notifikasi ]
  *      [ tab feed: Untuk Anda · Mengikuti · Terbaru · Populer ]
  *
- *   1. Baris atas TIGA elemen simetris: pensil (kelola/buat etalase) di kiri,
+ *   1. Baris atas TIGA elemen simetris: pensil (BUAT karya) di kiri,
  *      logo Kahade tepat di tengah, lonceng notifikasi di kanan. Kedua ikon
  *      memakai weight "regular" (BUKAN bold/fill) dan TANPA background —
  *      jejak visualnya satu guratan tipis, bukan kartu/kotak berisi.
@@ -26,7 +26,7 @@
  */
 
 import { View } from "react-native"
-import { useRouter } from "expo-router"
+import { useRouter, type Href } from "expo-router"
 import {
   BellSimple,
   ClockCounterClockwise,
@@ -78,7 +78,7 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
   // tamu diarahkan ke loginRequired(next=…) dengan konteks, bukan menabrak
   // dinding login (polanya sama dengan aksi sosial di feed).
   const hasSession = useHasSession()
-  const goProtected = (target: typeof ROUTES.showcaseManagement, path: string) => {
+  const goProtected = (target: Href, path: string) => {
     router.push(hasSession ? target : ROUTES.loginRequired(path))
   }
 
@@ -86,15 +86,21 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
     <View className="bg-background">
       {/* ── Baris atas: kelola (pensil) · logo · notifikasi & search ── */}
       <View className="w-full flex-row items-center justify-between px-5 pb-2.5 pt-3">
-        {/* Kelola/buat etalase — regular, tanpa latar (permintaan produk). */}
+        {/*
+          Pensil = BUAT KARYA (revisi 2026-09-26): ikon ini dulu membuka
+          halaman Kelola Etalase, padahal niat pengguna yang menekan ikon
+          "tulis/kelola" di puncak feed hampir selalu "saya mau menambahkan
+          karya". Kelola tetap satu ketukan dari sana lewat lingkaran di
+          halaman Lainnya dan dari halaman pembuatan.
+        */}
         <View className="flex-row items-center justify-start min-w-[84px]">
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={translate("Kelola etalase saya")}
-            accessibilityHint={translate("Buka halaman untuk menambah dan mengatur etalase")}
+            accessibilityLabel={translate("Buat karya baru")}
+            accessibilityHint={translate("Buka halaman untuk menambah karya ke etalase Anda")}
             haptic
             hitSlop={ACTION_HIT_SLOP}
-            onPress={() => goProtected(ROUTES.showcaseManagement, "/showcase-management")}
+            onPress={() => goProtected(ROUTES.showcaseCreate, "/showcase/create")}
             containerClassName={cn("rounded-md", focusRing)}
             className="h-10 w-10 items-center justify-center"
           >

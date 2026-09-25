@@ -14,15 +14,13 @@
  * `parkShellTab`). Bar di layar stack mengirim `navigation` kosong — cleanup
  * `undefined` akan menghapus navigator yang masih dipakai tab.
  */
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect } from "react"
 import { usePathname, useRouter, type Href } from "expo-router"
 import {
   CardsThree,
   ChatCenteredText,
-  PaperPlaneTilt,
   Percent,
   Plus,
-  QrCode,
   Scan,
   Scroll,
   ShoppingBag,
@@ -30,7 +28,6 @@ import {
   Wallet,
 } from "phosphor-react-native"
 
-import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { BottomTabBar, type BottomTabItem } from "@/components/ui/bottom-tab-bar"
 import { type IconComponent } from "@/components/ui/icon"
 import {
@@ -52,6 +49,12 @@ import { ROUTES } from "@/lib/routes"
 import { useUnreadCountState } from "@/lib/unread-count"
 
 /**
+ * Tombol tengah mode E-Wallet = PEMINDAI (revisi 2026-09-26): sebelumnya ia
+ * membuka ActionSheet "Bayar" berisi tiga pilihan (pindai, kirim, terima),
+ * padahal kirim & terima sudah menempel di kartu saldo halaman Dompet — satu
+ * ketukan ekstra untuk sampai ke pemindai, dan sheet yang muncul di atas
+ * navbar justru menutupi tujuan akhirnya.
+ *
  * Ikon per slot — SATU kosakata dengan ikon mode di tempat lain:
  *   - Etalase = CardsThree (sama dengan segmen switcher mode & pintasan
  *     Beranda) — permintaan produk 2026-09-23.
@@ -84,7 +87,6 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
   const pathname = usePathname()
   const router = useRouter()
   const unread = useUnreadCountState()
-  const [payOpen, setPayOpen] = useState(false)
   const shift = getModeShift()
 
   /**
@@ -126,30 +128,6 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
   const activeId = activeShellSlot(pathname, mode)
   const value = activeId ? shellSlots(mode).find((slot) => slot.id === activeId)?.key ?? "" : ""
 
-  const payActions: ActionSheetItem[] = [
-    {
-      key: "scan",
-      label: "Pindai QR",
-      description: "Scan QRIS, transfer QR, atau order link",
-      icon: Scan,
-      onPress: () => router.push(ROUTES.scan),
-    },
-    {
-      key: "transfer",
-      label: "Kirim saldo",
-      description: "Transfer ke username Kahade",
-      icon: PaperPlaneTilt,
-      onPress: () => router.push(ROUTES.transfer),
-    },
-    {
-      key: "receive",
-      label: "Tampilkan QR terima",
-      description: "Orang lain membayar dengan memindai QR ini",
-      icon: QrCode,
-      onPress: () => router.push(ROUTES.receive),
-    },
-  ]
-
   return (
     <>
       <BottomTabBar
@@ -168,19 +146,12 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
                 onPress: () => router.push(ROUTES.createTransaction),
               }
             : {
-                icon: QrCode,
-                accessibilityLabel: "Bayar",
-                accessibilityHint: translate("Membuka kirim saldo atau QR terima"),
-                onPress: () => setPayOpen(true),
+                icon: Scan,
+                accessibilityLabel: "Pindai QR",
+                accessibilityHint: translate("Membuka pemindai kode QR"),
+                onPress: () => router.push(ROUTES.scan),
               }
         }
-      />
-      <ActionSheet
-        visible={payOpen}
-        onRequestClose={() => setPayOpen(false)}
-        title="Bayar"
-        description="Pilih cara membayar."
-        actions={payActions}
       />
     </>
   )

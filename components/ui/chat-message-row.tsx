@@ -44,6 +44,12 @@ export type ChatMessageRowProps = {
   selected: boolean
   /** Read receipt: pesan saya sudah dibaca lawan bicara. */
   readByCounterpart: boolean
+  /**
+   * Lawan bicara ruang ini — foto & nama untuk gelembung MASUK (revisi
+   * 2026-09-26). Opsional: ruang tanpa data pihak (mis. obrolan sistem)
+   * tetap tampil seperti sebelumnya, tanpa kolom avatar.
+   */
+  counterpart?: { name?: string | null; avatarUrl?: string | null }
   /** Ketuk / tekan lama: layar memutuskan memilih atau men-toggle. */
   onPress: (message: ChatMessage) => void
   /** Reaksi emoji dari chip di bawah bubble (bubar saat mode pilih). */
@@ -58,6 +64,7 @@ export function ChatMessageRow({
   selecting,
   selected,
   readByCounterpart,
+  counterpart,
   onPress,
   onReact,
   onAttachmentPress,
@@ -78,6 +85,16 @@ export function ChatMessageRow({
         text={message.text}
         time={formatTime(message.createdAt)}
         grouped={grouped}
+        /*
+         * Penanda arah (2026-09-26): geoembung MASUK membawa foto & nama
+         * lawan bicara, pesan KELUAR tetap murni kanan + bg-primary. Nama
+         * hanya muncul di pesan pertama kelompok (aturan ada di dalam
+         * <ChatMessageBubble>), jadi percakapan panjang tidak berubah jadi
+         * daftar nama.
+         */
+        senderName={message.fromUser ? undefined : (counterpart?.name ?? undefined)}
+        avatarName={message.fromUser ? undefined : (counterpart?.name ?? undefined)}
+        avatarUrl={message.fromUser ? undefined : counterpart?.avatarUrl}
         // Status baca pesan saya: read-receipt dari lawan bicara
         // (GET /read-receipts) naik ke ikon centang ganda "read".
         status={message.fromUser ? (readByCounterpart ? "read" : "sent") : undefined}

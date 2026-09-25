@@ -44,9 +44,12 @@ describe("showcasePriceLabel (B-01/D-05)", () => {
     { name: "null eksplisit → null", item: { priceMin: null, priceMax: null }, expect: null },
     { name: "min==max → harga tunggal (BUKAN rentang ganda)", item: { priceMin: 5000, priceMax: 5000 }, expect: "Rp 5.000" },
     { name: "rentang → satu kali Rp", item: { priceMin: 5_000, priceMax: 25_000 }, expect: "Rp 5.000 – 25.000" },
-    { name: "hanya min → Mulai", item: { priceMin: 10_000 }, expect: "Mulai Rp 10.000" },
+    // B-01/D-05 diperbarui 2026-09-26: batas bawah saja kini dibaca sebagai
+    // HARGA PASTI (form selalu menyimpan priceMax = priceMin), jadi tanpa
+    // kata "Mulai". "Mulai" hanya tersisa untuk rentang terbalik (data lama).
+    { name: "hanya min → harga pasti", item: { priceMin: 10_000 }, expect: "Rp 10.000" },
     { name: "hanya max → Hingga (B-01: data tidak dibuang!)", item: { priceMax: 500_000 }, expect: "Hingga Rp 500.000" },
-    { name: "max 0 dianggap tidak diisi → jatuh ke sisi min ('Mulai')", item: { priceMin: 1000, priceMax: 0 }, expect: "Mulai Rp 1.000" },
+    { name: "max 0 dianggap tidak diisi → jatuh ke sisi min (harga pasti)", item: { priceMin: 1000, priceMax: 0 }, expect: "Rp 1.000" },
   ]
   for (const c of cases) {
     it(c.name, () => {

@@ -132,25 +132,17 @@ describe("planModeChange", () => {
     })
   })
 
-  it("memetakan slot yang sama, bukan selalu ke primer", () => {
-    expect(planModeChange("/transactions", "wallet")).toMatchObject({
-      kind: "go",
-      href: "/vouchers",
-      method: "navigate",
-      parkTab: "vouchers",
-    })
-    expect(planModeChange("/chat", "wallet")).toMatchObject({
-      kind: "go",
-      href: "/wallet-history",
-      method: "navigate",
-      parkTab: "wallet-history",
-    })
-    expect(planModeChange("/vouchers", "commerce")).toMatchObject({
-      kind: "go",
-      href: "/transactions",
-      method: "navigate",
-      parkTab: "transactions",
-    })
+  /*
+   * Revisi 2026-09-26: ganti mode TIDAK lagi memetakan slot → slot dan tidak
+   * memarkir tab primer saat halaman shell sedang terbuka. Pengguna yang
+   * berada di /transactions (slot 2 commerce) tetap di /transactions setelah
+   * menggeser mode ke E-Wallet — yang berubah hanya isi navbar.
+   */
+  it("halaman shell tetap di tempat, tanpa park yang memindahkan layar", () => {
+    for (const path of ["/transactions", "/chat", "/showcase", "/wallet", "/vouchers", "/wallet-history", "/more"]) {
+      expect(planModeChange(path, "wallet"), path).toEqual({ kind: "stay", parkTab: null })
+      expect(planModeChange(path, "commerce"), path).toEqual({ kind: "stay", parkTab: null })
+    }
   })
 
   it("profil sendiri tetap, rute netral tetap, keduanya memarkir primer baru", () => {

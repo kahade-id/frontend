@@ -5,14 +5,14 @@
  * dua navbar. File ini murni: tidak mengimpor expo-router atau ikon, supaya
  * rencana navigasi bisa diuji tanpa stub router.
  *
- * Aturan pindah mode (tidak meninggalkan shell mode lain sebagai target Back):
- *   - tab → tab: `navigate`
- *   - tab → stack: `push`, lalu park tab primer mode baru
- *   - stack → tab: `dismissTo` bila ada, kalau tidak `navigate`, lalu park
- *   - stack → stack: `replace`, lalu park tab primer mode baru
- *   - profil sendiri: tetap di tempat, hanya park tab primer mode baru
- *   - /home dan /discover: masuk ke slot primer mode baru
- *   - rute netral lain: tetap, park tab primer
+ * Aturan pindah mode (revisi 2026-09-26 — ganti mode TIDAK memindahkan halaman):
+ *   - halaman shell (8 halaman + /more): TETAP di tempat, tanpa park. Yang
+ *     berganti hanya isi navbar — lihat `planModeChange`.
+ *   - /home dan /discover (bukan milik mode mana pun): masuk ke slot primer
+ *     mode baru (`navigate` bila itu tab, `leave-to-tab` bila stack).
+ *   - rute di luar shell (detail, form, profil sendiri): tetap di tempat;
+ *     park tab primer mode baru hanya menyiapkan tab yang terbuka saat stack
+ *     ini ditutup, tanpa mengubah apa yang sedang terlihat.
  *
  * Park = `navigation.navigate(tabName)` pada navigator tab yang didaftarkan
  * layout `(tabs)`. Navbar stack tidak boleh mendaftar — cleanup-nya akan
@@ -285,11 +285,6 @@ export function resolveShellBar(path: string, mode: AppMode): ShellBarResolution
   return slot ? { mode: effective, slot } : null
 }
 
-function parkTabFor(mode: AppMode, dest: ShellDestination | null): ShellTabName {
-  if (dest?.tab && isExactTabPath(dest.href)) return dest.tab
-  return primaryTabFor(mode)
-}
-
 function methodFor(
   path: string,
   dest: ShellDestination,
@@ -309,32 +304,27 @@ function methodFor(
 export function planModeChange(path: string, to: AppMode): ModeNavPlan {
   const current = normalizeShellPath(path)
   const primary = SHELL_DESTINATIONS[to].primary
-  if (current === "/more") {
-    return { kind: "stay", parkTab: primaryTabFor(to) }
+  /*
+   * Halaman shell (termasuk /more): TETAP DI TEMPAT dan TANPA park.
+   * `parkShellTab()` bernavigasi di navigator tab, jadi memarkir tab primer
+   * mode baru sama saja dengan memindahkan layar — itulah sebabnya dulu
+   * menggeser mode di /more mengirim pengguna ke /wallet.
+   */
+  if (current === "/more" || matchingSlot(current) != null) {
+    return { kind: "stay", parkTab: null }
   }
-  // Cocokkan ke kedua tabel: path commerce tidak pernah cocok slot wallet.
-  const fromSlot = matchingSlot(current)
-  if (fromSlot == null) {
-    if (current === "/home" || current === "/discover") {
-      return {
-        kind: "go",
-        href: primary.href,
-        method: isExactTabPath(current) ? "navigate" : "leave-to-tab",
-        parkTab: primary.tab ?? primaryTabFor(to),
-      }
+  // /home dan /discover bukan milik mode mana pun — masuk ke primer mode baru.
+  if (current === "/home" || current === "/discover") {
+    return {
+      kind: "go",
+      href: primary.href,
+      method: isExactTabPath(current) ? "navigate" : "leave-to-tab",
+      parkTab: primary.tab ?? primaryTabFor(to),
     }
-    return { kind: "stay", parkTab: primaryTabFor(to) }
   }
-  const dest = SHELL_DESTINATIONS[to][fromSlot.id]
-  if (dest.href === current) {
-    return { kind: "stay", parkTab: primaryTabFor(to) }
-  }
-  return {
-    kind: "go",
-    href: dest.href,
-    method: methodFor(current, dest),
-    parkTab: parkTabFor(to, dest),
-  }
+  // Rute di luar shell (detail, form, profil sendiri): yang terlihat tidak
+  // berubah; park hanya menyiapkan tab terbuka saat stack ini ditutup.
+  return { kind: "stay", parkTab: primaryTabFor(to) }
 }
 
 /**
