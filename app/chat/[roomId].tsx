@@ -46,7 +46,6 @@ import { useLocalSearchParams, router } from "expo-router"
 
 import {
   Chats,
-  CheckCircle,
   Copy,
   PaperPlaneRight,
   PencilSimple,
@@ -85,7 +84,6 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
-import { Button } from "@/components/ui/button"
 import { ChatEditSheet } from "@/components/ui/chat-edit-sheet"
 import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
 import { ChatMessageRow } from "@/components/ui/chat-message-row"
@@ -93,22 +91,16 @@ import { ChatPinnedBar } from "@/components/ui/chat-pinned-bar"
 import { ChatRoomHeader } from "@/components/ui/chat-room-header"
 import { ChatRoomMenu } from "@/components/ui/chat-room-menu"
 import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
-import {
-  ChatComposer,
-  type ChatComposerPayload,
-  type ComposerAttachment,
-} from "@/components/ui/chat-composer"
+import { type ChatComposerPayload, type ComposerAttachment } from "@/components/ui/chat-composer"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { Icon } from "@/components/ui/icon"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
-import { ScrollToEndButton } from "@/components/ui/scroll-to-end-button"
+import { ChatRoomFooter } from "@/components/ui/chat-room-footer"
 import { SelectionBar, type SelectionAction } from "@/components/ui/selection-bar"
-import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { isImageMime } from "@/lib/mime"
 
@@ -998,54 +990,33 @@ export default function ChatRoomScreen() {
       padded={false}
       footer={
         error || !roomId ? undefined : (
-        <View>
-          {/* Kembali ke dasar thread — muncul hanya saat pembaca
-              meninggalkan bawah (deteksi di onScroll). */}
-          <ScrollToEndButton
-            visible={atBottom === false && messages.length > 0}
-            onPress={jumpToLatest}
-            label="Gulir ke pesan terbaru"
-            className="px-5 pb-2"
-          />
-          {isChatCompleted ? (
-            <View className="border-t border-border bg-surface px-4 py-3">
-              <View className="items-center justify-center gap-1.5 rounded-lg bg-surface-raised px-4 py-3">
-                <View className="flex-row items-center gap-2">
-                  <Icon icon={CheckCircle} size="sm" tone="default" />
-                  <Text variant="caption" tone="secondary" className="font-medium text-center">
-                    {closedNoticeText}
-                  </Text>
-                </View>
-                {room?.orderId ? (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onPress={() => router.push(ROUTES.orderDetail(room.orderId!))}
-                  >
-                    Lihat detail transaksi
-                  </Button>
-                ) : null}
-              </View>
-            </View>
-          ) : (
-            <ChatComposer
-              value={draft}
-              onChangeText={setDraft}
-              onSend={(p) => void handleSend(p)}
-              attachments={composerAttachments}
-              onAttach={() => void handleAttach()}
-              onRemoveAttachment={(localId) =>
-                setAttachments((prev) => prev.filter((a) => a.localId !== localId))
-              }
-              onRetryAttachment={(localId) => {
-                const a = attachments.find((x) => x.localId === localId)
-                if (a?.picked) void uploadAttachment(localId, a.picked)
-              }}
-              sending={sending}
-              disabled={loading}
-            />
-          )}
-        </View>
+        /*
+          Footer dipecah ke <ChatRoomFooter> (2026-09-26): layar ini
+          menyentuh plafon G-11, dan blok ini murni penyusunan — tidak
+          memakai state ruang selain yang dilewatkan sebagai prop.
+        */
+        <ChatRoomFooter
+          showJumpToLatest={atBottom === false && messages.length > 0}
+          onJumpToLatest={jumpToLatest}
+          completed={isChatCompleted}
+          closedNotice={closedNoticeText}
+          orderId={room?.orderId}
+          onOpenOrder={(id) => router.push(ROUTES.orderDetail(id))}
+          draft={draft}
+          onDraftChange={setDraft}
+          onSend={(p) => void handleSend(p)}
+          attachments={composerAttachments}
+          onAttach={() => void handleAttach()}
+          onRemoveAttachment={(localId) =>
+            setAttachments((prev) => prev.filter((a) => a.localId !== localId))
+          }
+          onRetryAttachment={(localId) => {
+            const a = attachments.find((x) => x.localId === localId)
+            if (a?.picked) void uploadAttachment(localId, a.picked)
+          }}
+          sending={sending}
+          disabled={loading}
+        />
         )
       }
     >
@@ -1161,6 +1132,8 @@ export default function ChatRoomScreen() {
             selecting={selecting}
             selected={selectedIds.has(m.id)}
             readByCounterpart={readByCounterpart.has(m.id)}
+            // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
+            counterpart={{ name: counterpartName, avatarUrl: room?.counterpart?.avatarUrl }}
             // Mode pilih (v3 2026-09-21): di luar mode pilih ketuk/tekan lama
             // langsung MEMILIH pesan ini (satu langkah, tanpa ActionSheet);
             // saat mode pilih aktif setiap ketukan men-toggle pilihan. Web

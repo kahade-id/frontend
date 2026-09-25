@@ -46,6 +46,7 @@ import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 import { Check, Checks, Clock, PushPin, WarningCircle } from "phosphor-react-native"
 
+import { Avatar } from "@/components/ui/avatar"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -83,6 +84,23 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    * handler sendiri di dalam `children` dan menang atas ketukan gelembung.
    */
   onPress?: () => void
+  /**
+   * Foto & nama PENGIRIM gelembung masuk (revisi 2026-09-26, permintaan
+   * produk: "bedakan antara user dengan lawan bicara").
+   *
+   * Arah pesan sebelumnya hanya ditanggung oleh posisi (kiri/kanan) dan
+   * warna (surface vs primary). Itu cukup di layar terang, tetapi di
+   * percakapan panjang yang didominasi satu pihak — atau di chat bertiga
+   * (admin mediasi) — mata kehilangan jalur siapa yang bicara. Avatar di
+   * sisi kiri + nama pengirim di atas gelembung membuat arah terbaca
+   * seketika, juga untuk pengguna yang tidak membedakan warna (§10).
+   *
+   * Kolom avatar HANYA disediakan bila pemanggil mengirim `avatarName`
+   * atau `avatarUrl`: layar yang belum punya data pengirim (mis. tiket
+   * bantuan) tidak boleh tiba-tiba menjorok 32px.
+   */
+  avatarUrl?: string | null
+  avatarName?: string | null
   /** Kirim ulang saat status "failed" */
   onRetry?: () => void
   /**
@@ -102,6 +120,13 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
 
 const DEFAULT_LABELS = { retry: "Coba lagi", failed: "Gagal terkirim", edited: "diedit" }
 
+/**
+ * Pengganti foto pada pesan masuk yang tergabung (`grouped`) — lebarnya PERSIS
+ * <Avatar size="xs"> (24px) + gap 8px, supaya gelembung lanjutan dari pengirim
+ * yang sama tidak bergeser ke kiri.
+ */
+const AVATAR_SPACER = { width: 24, height: 24 } as const
+
 export function ChatMessageBubble({
   direction,
   text,
@@ -118,6 +143,8 @@ export function ChatMessageBubble({
   isPinned = false,
   isEdited = false,
   labels,
+  avatarUrl,
+  avatarName,
   className,
   ...rest
 }: ChatMessageBubbleProps) {
@@ -139,6 +166,14 @@ export function ChatMessageBubble({
 
   const outgoing = direction === "outgoing"
   const failed = outgoing && status === "failed"
+  /**
+   * Kolom avatar hanya disediakan bila pengirimnya dikenal (lihat docblock
+   * `avatarName`) — kalau tidak, baris pesan masuk tetap menempel ke kiri
+   * seperti sebelumnya.
+   */
+  const hasAvatarColumn = !outgoing && Boolean(avatarName || avatarUrl)
+  /** Avatar hanya di pesan PERTAMA kelompok; sisanya dapat spacer selebar itu. */
+  const showAvatar = hasAvatarColumn && !grouped
 
   const bubble = (
     <View
@@ -169,16 +204,35 @@ export function ChatMessageBubble({
   return (
     <View
       className={cn(
-        "w-full px-5",
-        outgoing ? "items-end" : "items-start",
+        "w-full flex-row items-start px-5",
+        outgoing ? "justify-end" : "justify-start",
         grouped ? "mt-1" : "mt-3",
         className,
       )}
       {...rest}
     >
-      <View className={cn("max-w-[80%] gap-1", outgoing ? "items-end" : "items-start")}>
+      {/*
+        Kolom kiri khusus PESAN MASUK: foto lawan bicara di pesan pertama
+        setiap kelompok, dan spacer selebar foto di kelompok lanjutannya
+        supaya tepi kiri seluruh gelembung masuk sejajar (bukan menjorok).
+      */}
+      {hasAvatarColumn ? (
+        <View className="mr-2 items-center">
+          {showAvatar ? (
+            <Avatar
+              source={avatarUrl ? { uri: avatarUrl } : undefined}
+              name={avatarName ?? ""}
+              size="xs"
+            />
+          ) : (
+            <View style={AVATAR_SPACER} />
+          )}
+        </View>
+      ) : null}
+
+      <View className={cn("max-w-[76%] gap-1", outgoing ? "items-end" : "items-start")}>
         {senderName && !outgoing && !grouped ? (
-          <Text variant="caption" tone="secondary" weight={500} className="px-1">
+          <Text variant="caption" tone="secondary" weight={500} numberOfLines={1}>
             {senderName}
           </Text>
         ) : null}

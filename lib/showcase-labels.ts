@@ -16,9 +16,17 @@
  * Semantik (disepakati dari union tiga layar):
  *   min & max berbeda → "Rp {min} – {max}" (satu prefiks Rp)
  *   min == max        → "Rp {min}" (harga pasti, bukan rentang)
- *   hanya min         → "Mulai Rp {min}"  (penjual membuka dari harga tsb.)
+ *   hanya min         → "Rp {min}" (HARGA PASTI — lihat catatan 2026-09-26)
  *   hanya max         → "Hingga Rp {max}" (penjual menutup di harga tsb.)
  *   keduanya kosong   → "Harga lewat diskusi"
+ *
+ * Revisi 2026-09-26 (permintaan produk): "hanya min" tidak lagi ditulis
+ * "Mulai Rp {min}". Form penjual punya dua kolom (minimum & maksimum), dan
+ * penjual yang menetapkan SATU harga cuma mengisi yang pertama — menampilkan
+ * "Mulai" di situ mengubah harga pasti menjadi kesan "bisa jadi lebih mahal".
+ * "Mulai" tersisa hanya untuk data lama yang rentangnya terbalik (batas atas
+ * lebih kecil dari batas bawah), tempat batas bawah memang tidak bisa
+ * dipercaya sebagai harga akhir.
  *
  * `translate()` dipanggil dengan LITERAL eksplisit (bukan variabel) supaya
  * pemindai `gen:i18n` menangkap bentuknya dengan token {x}.
@@ -47,13 +55,21 @@ export function showcasePriceLabel(item: ShowcasePriceLike): string | null {
   // satu-satunya terikat yang bernilai 0. Rentang 0–N (> 0) tetap "Rp 0 – N".
   if (lo === 0 && (hi === null || hi === 0)) return translate("Gratis")
   if (hi === 0 && lo === null) return translate("Gratis")
-  if (lo != null && hi != null && hi < lo) return translate("Mulai Rp {x}", { x: formatNumber(lo) })
-  if (lo != null && hi != null) {
-    if (lo === hi) return translate("Rp {x}", { x: formatNumber(lo) })
-    return translate("Rp {x} – {y}", { x: formatNumber(lo), y: formatNumber(hi) })
+  /*
+    Batas atas 0 DI SAMPING batas bawah > 0 dibaca "kolom maksimum tidak
+    diisi" — form bisa mengirim 0 untuk angka yang dikosongkan, dan kalau
+    itu dianggap batas sungguhan, karya harga pasti akan tampil "Mulai".
+    (Nol tetap bermakna "gratis" bila ia satu-satunya batas, lihat B-06.)
+  */
+  const upper = hi === 0 && lo != null && lo > 0 ? null : hi
+  if (lo != null && upper != null && upper < lo) return translate("Mulai Rp {x}", { x: formatNumber(lo) })
+  if (lo != null && upper != null) {
+    if (lo === upper) return translate("Rp {x}", { x: formatNumber(lo) })
+    return translate("Rp {x} – {y}", { x: formatNumber(lo), y: formatNumber(upper) })
   }
-  if (lo != null) return translate("Mulai Rp {x}", { x: formatNumber(lo) })
-  if (hi != null) return translate("Hingga Rp {x}", { x: formatNumber(hi) })
+  // Satu-satunya terikat = harga PASTI, bukan "mulai dari" (2026-09-26).
+  if (lo != null) return translate("Rp {x}", { x: formatNumber(lo) })
+  if (upper != null) return translate("Hingga Rp {x}", { x: formatNumber(upper) })
   return null
 }
 

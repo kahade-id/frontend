@@ -14,9 +14,23 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import type { ShowcaseComment, ShowcaseCommentWithReplies } from "@/lib/api/showcase"
 
+/*
+  Revisi 2026-09-26: balasan kini dikirim sebagai ANAK baris induk (garis
+  utas menyambung keduanya), jadi mock ini WAJIB merender `children` —
+  tanpa itu seluruh utas hilang dan test di bawah menguji pohon kosong.
+*/
 vi.mock("@/components/ui/showcase-comment-row", () => ({
-  ShowcaseCommentRow: ({ comment }: { comment: ShowcaseComment }) => (
-    <span data-testid={`row-${comment.id}`}>{comment.id}</span>
+  ShowcaseCommentRow: ({
+    comment,
+    children,
+  }: {
+    comment: ShowcaseComment
+    children?: ReactNode
+  }) => (
+    <div data-testid={`row-${comment.id}`}>
+      {comment.id}
+      {children}
+    </div>
   ),
 }))
 vi.mock("@/components/ui/divider", () => ({ Divider: () => null }))

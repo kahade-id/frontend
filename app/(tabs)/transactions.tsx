@@ -32,13 +32,13 @@
  *   - Hanya kata kunci yang SUDAH tenang yang disimpan di state layar. Teks
  *     mentah tinggal di dalam <DebouncedSearchField>, supaya mengetik tidak
  *     merender ulang layar ini beserta seluruh kartu pesanan yang terlihat.
- *   - Header memuat empat <IconButton variant="ghost"> (order link, sengketa,
- *     template, pencarian global). <Header> mengukur lebar sisi kanan dan
- *     tetap menengahkan judul, jadi empat ikon tidak menggeser "Transaksi".
+ *   - Saringan STATUS hidup di bloknya sendiri di bawah pil peran (revisi
+ *     2026-09-26): menempel langsung di bawah <SegmentedControl> membuat dua
+ *     kontrol berbeda terbaca sebagai satu kelompok tab.
  */
 import { useState } from "react"
-import { useRouter } from "expo-router"
-import { Copy, Link, MagnifyingGlass, Receipt, Scales } from "phosphor-react-native"
+import { View } from "react-native"
+import { Receipt } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
@@ -60,10 +60,10 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
-import { IconButton } from "@/components/ui/icon-button"
 import { OrderCard } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
+import { Text } from "@/components/ui/text"
 import { ScrollRow } from "@/components/ui/scroll-row"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 
@@ -98,7 +98,6 @@ const STATUS_CHIPS: ReadonlyArray<{ label: string; value: string }> = [
 ]
 
 export default function TransactionsScreen() {
-  const router = useRouter()
   const insets = useSafeAreaInsets()
   /**
    * J-08 (audit): tab peran dibaca dari preferensi persisten (default
@@ -176,49 +175,58 @@ export default function TransactionsScreen() {
   }
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header
-        title="Transaksi"
-        showBack={false}
-        right={
-          <>
-            <IconButton
-              icon={Link}
-              variant="ghost"
-              accessibilityLabel="Order Link"
-              onPress={() => router.push(ROUTES.orderLinks)}
-            />
-            <IconButton
-              icon={Scales}
-              variant="ghost"
-              accessibilityLabel="Sengketa"
-              onPress={() => router.push(ROUTES.disputes)}
-            />
-            <IconButton
-              icon={Copy}
-              variant="ghost"
-              accessibilityLabel="Template transaksi"
-              onPress={() => router.push(ROUTES.transactionTemplates)}
-            />
-            <IconButton
-              icon={MagnifyingGlass}
-              variant="ghost"
-              accessibilityLabel="Pencarian global"
-              onPress={() => router.push(ROUTES.search)}
-            />
-          </>
-        }
-      />
+      {/*
+       * Header TANPA ikon aksi (permintaan produk 2026-09-26): empat ikon
+       * lama (order link, sengketa, template, pencarian) semuanya sudah ada
+       * di halaman Lainnya sebagai lingkaran akses cepat, dan pencarian
+       * global bisa dibuka dari mana saja lewat ikon kaca pembesar di header
+       * Etalase. Empat ikon itu membuat judul "Transaksi" tergeser dan
+       * menghabiskan sisi kanan header untuk pintu yang duplikat.
+       */}
+      <Header title="Transaksi" showBack={false} />
       <ModeShiftFade>
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
           harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
           animation dari dalam <PaginatedList> (hanya saat tambah/hapus). */}
-      <FadeIn duration="fast" translate={false} className="gap-3 bg-background px-5 pb-3 pt-3">
+      <FadeIn duration="fast" translate={false} className="bg-background px-5 pb-3 pt-3">
         <SegmentedControl
           accessibilityLabel="Peran transaksi"
           items={ROLE_TABS}
           value={role}
           onChange={(next) => setPrefs({ transactionsTab: next })}
         />
+      </FadeIn>
+      {/*
+       * Saringan status = BLOK TERSENDIRI (permintaan produk 2026-09-26).
+       *
+       * Sebelumnya chip status menempel langsung di bawah <SegmentedControl>
+       * tanpa pemisah apa pun, sehingga dua kontrol berbeda terbaca sebagai
+       * satu kelompok tab — pengguna menyangka chip itu halaman lain yang
+       * bisa digeser. Kini ia berdiri di atas bidang `bg-surface` dengan
+       * border bawah, berlabel "Filter status", dan punya tombol reset yang
+       * hanya muncul saat saringan aktif.
+       */}
+      <FadeIn
+        duration="fast"
+        translate={false}
+        className="gap-2 border-b border-border bg-surface px-5 pb-3 pt-3"
+      >
+        <View className="flex-row items-center justify-between gap-3">
+          <Text variant="caption" tone="secondary">
+            Filter status
+          </Text>
+          {filtered ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              fullWidth={false}
+              accessibilityLabel="Tampilkan semua status"
+              onPress={() => setStatus(ALL_STATUS)}
+            >
+              Tampilkan semua
+            </Button>
+          ) : null}
+        </View>
         <ScrollRow bleed gap={2} accessibilityLabel="Saring transaksi berdasarkan status">
           {STATUS_CHIPS.map((chip) => (
             <Chip

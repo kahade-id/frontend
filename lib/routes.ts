@@ -387,6 +387,13 @@ export const ROUTES = {
     ({ pathname: "/showcase", params: kind ? { category, kind } : { category } }) as unknown as Href,
   /** Showcase milik sendiri (CRUD), dibuka dari aksi tambah di feed. */
   showcaseManagement: "/showcase-management" as Href,
+  /**
+   * Halaman PENUH pembuatan karya (revisi 2026-09-26, permintaan produk):
+   * ikon pensil di header Etalase dan tombol "Tambah foto" di Kelola Etalase
+   * berujung di sini — bukan di BottomSheet form yang menutupi separuh layar.
+   * Rute statis ini menang atas `showcase/[id]` untuk path /showcase/create.
+   */
+  showcaseCreate: "/showcase/create" as Href,
   /** Questions milik sendiri (GET /v1/users/me/questions) */
   questions: "/questions" as Href,
   /** Detail item showcase sosial (GET /v1/showcase/{id} + komentar/like/share) */

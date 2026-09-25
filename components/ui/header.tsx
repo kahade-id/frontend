@@ -87,6 +87,15 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
   onBack?: () => void
   /** Node kustom di kiri (mengganti tombol back), mis. <Logo size="sm" /> */
   left?: ReactNode
+  /**
+   * Isi kolom tengah — MENGGANTIKAN judul teks, mis. kolom pencarian yang
+   * hidup di header (permintaan produk 2026-09-26).
+   *
+   * `title` tetap dibaca untuk judul dokumen web (`useDocumentTitle`), jadi
+   * layar yang memakai `center` tetap mengirimkan judulnya — hanya tidak
+   * merender teks itu di baris bar.
+   */
+  center?: ReactNode
   /** Aksi kanan — kirim <IconButton variant="ghost"> */
   right?: ReactNode
   /** 0–1: bar progres tipis di bawah header (§9.22) */
@@ -105,6 +114,7 @@ export function Header({
   backKind = "back",
   onBack,
   left,
+  center,
   right,
   progress,
   transparent = false,
@@ -158,18 +168,28 @@ export function Header({
             <View onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}>{leftNode}</View>
           </View>
 
-          <View className="flex-1 items-center justify-center px-2">
-            {title ? (
-              <Text ellipsizeMode="tail"
-                accessibilityRole="header"
-                variant="h3"
-                numberOfLines={1}
-                className="text-center"
-              >
-                {title}
-              </Text>
-            ) : null}
-          </View>
+          {/*
+            Kolom tengah: judul teks (default) atau slot kustom penuh lebar
+            (`center` — kolom pencarian). Slot ini mengambil seluruh ruang
+            sisa supaya kontrol di dalamnya tidak terdesak oleh lebar kolom
+            kiri/kanan yang diukur.
+          */}
+          {center ? (
+            <View className="flex-1 flex-row items-center">{center}</View>
+          ) : (
+            <View className="flex-1 items-center justify-center px-2">
+              {title ? (
+                <Text ellipsizeMode="tail"
+                  accessibilityRole="header"
+                  variant="h3"
+                  numberOfLines={1}
+                  className="text-center"
+                >
+                  {title}
+                </Text>
+              ) : null}
+            </View>
+          )}
 
           {/* Kolom kanan: minimal 1 slot agar judul tetap center saat kosong */}
           <View style={{ width: sideWidth }} className="items-end justify-center">

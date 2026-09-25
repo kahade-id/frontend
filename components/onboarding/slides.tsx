@@ -42,6 +42,13 @@ import { translate } from "@/lib/i18n/translate"
 
 export type OnboardingSlide = {
   key: string
+  /**
+   * Label kecil di atas judul (revisi 2026-09-26): satu frasa yang
+   * memberitahu APA yang sedang dilihat calon pengguna sebelum mereka
+   * membaca judulnya — artefak di slide ini bisa terbaca sebagai "kartu
+   * transaksi biasa" tanpa penanda itu.
+   */
+  eyebrow: string
   title: string
   body: string
   artifact: ReactNode
@@ -150,18 +157,21 @@ function ProtectionCard() {
 export const ONBOARDING_SLIDES: readonly OnboardingSlide[] = [
   {
     key: "guarantee",
+    eyebrow: "Dana ditahan, bukan ditransfer",
     title: "Bukan sekadar transfer — ini jaminan.",
     body: "Dana pembeli ditahan Kahade, bukan langsung ke penjual. Kedua pihak terlindungi sejak rupiah pertama.",
     artifact: <EscrowCard />,
   },
   {
     key: "release",
+    eyebrow: "Alur escrow",
     title: "Dana dilepas hanya setelah barang sampai.",
     body: "Penjual mengirim, Anda mengonfirmasi. Baru setelah itu dana diteruskan — setiap langkah tercatat.",
     artifact: <FlowCard />,
   },
   {
     key: "protection",
+    eyebrow: "Tiga lapis perlindungan",
     title: "Ada masalah? Kami berdiri di tengah.",
     body: "Identitas terverifikasi, PIN di setiap transaksi, dan tim mediasi bila terjadi sengketa.",
     artifact: <ProtectionCard />,
@@ -196,6 +206,10 @@ export function OnboardingSlideView({ slide, width, active }: OnboardingSlideVie
       <View className="flex-1 justify-center py-6">{slide.artifact}</View>
 
       <VStack gap={3} className="pb-8">
+        {/* Eyebrow: penanda konteks sebelum judul (revisi 2026-09-26). */}
+        <Text variant="caption" tone="tertiary" weight={600} className="uppercase">
+          {slide.eyebrow}
+        </Text>
         <DisplayHeading>{slide.title}</DisplayHeading>
         <Text variant="bodyLarge" tone="secondary" className="text-pretty">
           {slide.body}

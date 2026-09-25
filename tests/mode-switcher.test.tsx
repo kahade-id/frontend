@@ -6,9 +6,12 @@
  *      E-Wallet — tanpa memandang mode aktif (bukan dua kontrol, bukan tab).
  *   2. Radio mode AKTIF ber-`checked`; menekan mode aktif tidak menembak
  *      navigasi (tidak ada push/navigate tambahan).
- *   3. Menekan mode lain dari halaman etalase (/showcase) menavigasi ke
- *      halaman primer mode itu (/wallet) — pil ikon di header tetap
- *      mengganti isi shell, bukan sekadar hiasan.
+ *   3. Menekan mode lain dari halaman shell (/showcase) TETAP DI HALAMAN
+ *      ITU — revisi 2026-09-26: menggeser mode tidak boleh memindahkan
+ *      layar (dulu menggeser mode di /more mengirim pengguna ke /wallet).
+ *      Yang berubah hanya isi navbar bawah + park tab, dan itu direkam di
+ *      `getModeShift()`. Navigasi baru terjadi bila halaman sekarang bukan
+ *      milik mode mana pun (/home, /discover) — lihat tes terakhir.
  *   4. Ikon segmen memakai kosakata ikon etalase/dompet: CardsThree &
  *      Wallet (permintaan "ikon etalase cards_three").
  *
@@ -64,7 +67,7 @@ describe("<ModeSwitcher> kompak", () => {
     expect(screen.getByRole("radio", { name: "E-Wallet" })).toBeTruthy()
   })
 
-  it("radio mode aktif ter-checked, memetik mode lain menavigasi ke primernya", () => {
+  it("radio mode aktif ter-checked, memetik mode lain MENETAP di halaman shell", () => {
     renderSwitcher()
 
     // Mode awal commerce: E-Commerce checked, E-Wallet tidak.
@@ -75,7 +78,30 @@ describe("<ModeSwitcher> kompak", () => {
       screen.getByRole("radio", { name: "E-Wallet" }).click()
     })
 
-    // Preferensi berubah, navigasi ke primer wallet, shift tercatat.
+    /*
+      Preferensi berubah dan shift tercatat — TANPA memindahkan layar.
+      Inilah inti revisi 2026-09-26: menggeser mode di dalam shell tidak
+      boleh mengusir pengguna dari halaman yang sedang dibacanya.
+    */
+    expect(getUiPrefsSnapshot().appMode).toBe("wallet")
+    expect(getModeShift()?.to).toBe("wallet")
+    expect(navigateSpy).not.toHaveBeenCalled()
+    expect(pushSpy).not.toHaveBeenCalled()
+  })
+
+  it("dari halaman non-shell (/home), mode masih membuka primer mode baru", () => {
+    /*
+      Pengecualian yang tersisa: /home dan /discover bukan milik mode mana
+      pun, jadi menetap di sana berarti switcher tidak mengubah apa pun yang
+      terlihat. Di situ navigasi ke primer mode baru tetap tepat.
+    */
+    __setPathname("/home")
+    renderSwitcher()
+
+    act(() => {
+      screen.getByRole("radio", { name: "E-Wallet" }).click()
+    })
+
     expect(getUiPrefsSnapshot().appMode).toBe("wallet")
     expect(navigateSpy).toHaveBeenCalledWith("/wallet")
     expect(getModeShift()?.to).toBe("wallet")

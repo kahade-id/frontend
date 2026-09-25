@@ -40,7 +40,7 @@
 import { useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ClockCounterClockwise, Images, MagnifyingGlass } from "phosphor-react-native"
+import { ArrowUpLeft, ClockCounterClockwise, Images, MagnifyingGlass } from "phosphor-react-native"
 import { router } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -56,14 +56,15 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Chip } from "@/components/ui/chip"
+import { Divider } from "@/components/ui/divider"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
 import { Icon } from "@/components/ui/icon"
 import { LiveRegion } from "@/components/ui/live-region"
-import { FadeIn } from "@/components/ui/fade-in"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OrderCard } from "@/components/ui/order-card"
 import { Picture } from "@/components/ui/picture"
@@ -71,7 +72,6 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { ScrollRow } from "@/components/ui/scroll-row"
-import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { UserListItem } from "@/components/ui/user-list-item"
@@ -312,19 +312,38 @@ export default function SearchScreen() {
     setKeyword(next.trim())
   }
 
+  /*
+   * Tata letak (revisi 2026-09-26, permintaan produk): KOLOM CARI DI HEADER.
+   *
+   * Kolom pencarian kini menempati slot tengah <Header>, bukan baris sendiri
+   * di bawah judul "Pencarian". Alasannya dua:
+   *   1. Kolom itu SATU-SATUNYA alasan layar ini ada — ia harus yang pertama
+   *      terlihat dan tidak pernah tergulir keluar; dan
+   *   2. judul teks di atas kolom menghabiskan satu baris penuh (56px) hanya
+   *      untuk mengulang apa yang sudah dikatakan placeholder.
+   * `title` tetap dikirim ke <Header> supaya judul dokumen web terjaga — ia
+   * hanya tidak dirender di baris bar (slot `center` yang mengambil alih).
+   *
+   * Sisanya mengikuti urutan lama, dengan dua penyempurnaan: ringkasan jumlah
+   * hasil di bawah chip cakupan (daftar campuran tanpa angka memaksa pengguna
+   * menggulir untuk tahu ada berapa hasil), dan riwayat pencarian sebagai
+   * BARIS berikon — bukan kumpulan chip — supaya polanya sama dengan daftar di
+   * layar lain dan tiap entri punya target sentuh penuh lebar.
+   */
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title="Pencarian" />
-      {/* v2: kolom cari fade-in tanpa geser (pola Transaksi/FAQ) — kontrol
-          fungsional harus stabil. Hasil cari tidak direveal per-item. */}
-      <FadeIn duration="fast" translate={false} className="px-5 pb-4">
-        <DebouncedSearchField
-          key={seedNonce}
-          initialQuery={seed}
-          onQueryChange={setKeyword}
-          placeholder="Cari postingan, pengguna, pesanan, atau mutasi"
-        />
-      </FadeIn>
+      <Header
+        title="Pencarian"
+        center={
+          <DebouncedSearchField
+            key={seedNonce}
+            initialQuery={seed}
+            onQueryChange={setKeyword}
+            placeholder="Cari karya, pengguna, pesanan…"
+            containerClassName="flex-1"
+          />
+        }
+      />
       <LiveRegion message={resultMessage} politeness={searchError ? "assertive" : "polite"} />
       <PullToRefreshFlatList
         data={rows}
@@ -336,7 +355,7 @@ export default function SearchScreen() {
         }}
         ListHeaderComponent={
           enabled ? (
-            <View className="gap-3 pb-4">
+            <View className="gap-3 pb-4 pt-1">
               <ScrollRow bleed gap={2} accessibilityLabel={translate("Saring hasil pencarian")}>
                 {SCOPES.map((option) => (
                   <Chip
@@ -349,6 +368,19 @@ export default function SearchScreen() {
                   </Chip>
                 ))}
               </ScrollRow>
+              {/* Ringkasan hasil. Sengaja DISEMBUNYIKAN saat daftar kosong —
+                  <EmptyState> di bawah sudah mengatakannya, dan dua kalimat
+                  untuk satu keadaan hanya menambah kebisingan. */}
+              {loading || rows.length > 0 ? (
+                <Text variant="caption" tone="tertiary">
+                  {loading
+                    ? translate("Mencari…")
+                    : translate("{x} hasil untuk {y}", {
+                        x: formatNumber(rows.length),
+                        y: keyword.trim(),
+                      })}
+                </Text>
+              ) : null}
               {suggestionChips.length ? (
                 <View className="gap-2">
                   <Text variant="caption" tone="tertiary">
@@ -364,6 +396,13 @@ export default function SearchScreen() {
                 </View>
               ) : null}
             </View>
+          ) : history.length > 0 ? (
+            <RecentSearches
+              entries={history.slice(0, 8).map((entry) => entry.query)}
+              clearing={clearingHistory}
+              onPick={applyQuery}
+              onClear={() => void handleClearHistory()}
+            />
           ) : null
         }
         ItemSeparatorComponent={() => <View className="h-3" />}
@@ -464,27 +503,6 @@ export default function SearchScreen() {
                 void postsResult.reload()
               }}
             />
-          ) : !enabled && history.length > 0 ? (
-            <View className="gap-3">
-              <SectionHeader title="Riwayat pencarian" level="h3" />
-              <View className="flex-row flex-wrap gap-2">
-                {history.slice(0, 10).map((h, i) => (
-                  <Chip key={`${h.query}-${i}`} onPress={() => applyQuery(h.query)}>
-                    {h.query}
-                  </Chip>
-                ))}
-              </View>
-              <Button
-                variant="ghost"
-                size="sm"
-                fullWidth={false}
-                leftIcon={ClockCounterClockwise}
-                loading={clearingHistory}
-                onPress={() => void handleClearHistory()}
-              >
-                Hapus riwayat
-              </Button>
-            </View>
           ) : (
             <EmptyState
               icon={MagnifyingGlass}
@@ -540,6 +558,67 @@ export default function SearchScreen() {
         windowSize={7}
       />
     </Screen>
+  )
+}
+
+/**
+ * Riwayat pencarian (revisi 2026-09-26) — BARIS, bukan chip.
+ *
+ * Delapan entri terakhir sebagai baris berikon jam dengan target sentuh
+ * sebesar barisnya; ikon panah di kanan menandai bahwa ketukan MENGISI kolom
+ * (bukan membuka halaman baru). Sebelumnya riwayat berupa chip yang menumpuk
+ * di satu baris melipat — kata kunci panjang terpotong dan tidak ada ruang
+ * untuk tombol hapus yang jelas.
+ */
+function RecentSearches({
+  entries,
+  clearing,
+  onPick,
+  onClear,
+}: {
+  entries: readonly string[]
+  clearing: boolean
+  onPick: (query: string) => void
+  onClear: () => void
+}) {
+  return (
+    <View className="gap-2 pb-4 pt-1">
+      <View className="flex-row items-center justify-between gap-3">
+        <Text variant="label" tone="secondary">
+          Riwayat pencarian
+        </Text>
+        <Button
+          variant="ghost"
+          size="sm"
+          fullWidth={false}
+          loading={clearing}
+          onPress={onClear}
+        >
+          Hapus riwayat
+        </Button>
+      </View>
+      <Card variant="elevated" className="gap-0 p-0">
+        {entries.map((query, index) => (
+          <View key={`${query}-${index}`}>
+            {index > 0 ? <Divider /> : null}
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Cari {x}", { x: query })}
+              accessibilityHint={translate("Mengisi kolom pencarian dengan kata kunci ini")}
+              onPress={() => onPick(query)}
+              containerClassName="w-full rounded-xs"
+              className="w-full flex-row items-center gap-3 px-4 py-3"
+            >
+              <Icon icon={ClockCounterClockwise} size="sm" tone="default" />
+              <Text variant="body" numberOfLines={1} className="min-w-0 flex-1">
+                {query}
+              </Text>
+              <Icon icon={ArrowUpLeft} size="sm" tone="default" />
+            </PressableScale>
+          </View>
+        ))}
+      </Card>
+    </View>
   )
 }
 
