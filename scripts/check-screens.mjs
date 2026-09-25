@@ -151,8 +151,10 @@ rules.push({
     "app/rate/[orderId].tsx",
     "app/ratings.tsx",
     "app/referral.tsx",
+    "app/dispute/[id].tsx",
     "app/reports.tsx",
     "app/security-activity.tsx",
+    "app/settings.tsx",
     "app/showcase-management.tsx",
     "app/subscriptions.tsx",
     "app/support/[ticketId].tsx",
@@ -558,9 +560,11 @@ const LINE_CEILING = new Map([
   // `self` + isSelf tanpa menunggu profile) -> 1456.
   // 2026-09-23b: tanda [+] kiri profil diganti ModeSwitcher (impor + header
   // diringkas) -> 1433.
-  ["app/user/[username].tsx", 1433],
+  // 2026-09-26b: navbar persisten di root (hapus per-page ShellTabBar) -> 1429.
+  ["app/user/[username].tsx", 1429],
   // 2026-09-23b: removeClippedSubviews dihapus (fix scroll blank Android).
-  ["app/chat/[roomId].tsx", 1194],
+  // 2026-09-26: fix covered (insets.bottom+space) + blank (removeClippedSubviews false) -> 1197.
+  ["app/chat/[roomId].tsx", 1197],
   // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
   // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
   // Audit 2026-09-20 (batch E): label a11y bertemplate dipindah ke translate()
@@ -575,18 +579,21 @@ const LINE_CEILING = new Map([
   // R2 #95: seksi (header/pesan/penyelesaian-bersama/panggilan/dialog/sheet
   // usulan) diekstrak ke components/dispute-detail-sections.tsx +
   // dispute-messages-section.tsx -> 914.
-  ["app/dispute/[id].tsx", 914],
+  // 2026-09-26: fix covered (insets.bottom) -> 916.
+  ["app/dispute/[id].tsx", 916],
   // 2026-09-23b: baris aksi suka diganti <LikeAction> (blok inline hilang) -> 871.
   // 2026-09-24: baris aksi (suka · komentar · bagikan · simpan) diekstrak ke
   // components/ui/showcase-detail-actions.tsx saat memperbaiki audit Etalase
   // mendalam -> 787. Plafon TURUN mengikuti fakta (hanya boleh menyusut).
-  ["app/showcase/[id].tsx", 786],
+  // 2026-09-26: share sheet (ShowcaseShareSheet) + visible state -> 788.
+  ["app/showcase/[id].tsx", 788],
   // H-04 (audit 2026-09-22): PullToRefresh 881 baris menyembunyikan mesin
   // gestur PanResponder di dalam satu komponen monolitik. Layar-layar sudah
   // dipantau sejak lama, komponennya belum — masuk daftar pada ukuran
   // SEKARANG, jadi ia hanya boleh menyusut (ekstrak mesin gesturnya saat
   // disentuh berikutnya).
-  ["components/ui/pull-to-refresh.tsx", 885],
+  // 2026-09-26: fix blank-on-scroll Android (collapsable/overflow) -> 891.
+  ["components/ui/pull-to-refresh.tsx", 891],
   /*
    * I-09 (audit 2026-09-22): daftar lama hanya mengunci lima layar yang sudah
    * besar, jadi berkas baru boleh tumbuh ke 800+ baris tanpa satu pun gate

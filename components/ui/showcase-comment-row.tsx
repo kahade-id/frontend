@@ -23,7 +23,7 @@ import { router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
 import type { ShowcaseComment } from "@/lib/api/showcase"
-import { formatDateTime } from "@/lib/format"
+import { formatRelativeTime } from "@/lib/format"
 import { useHasSession } from "@/lib/guest-gate"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
@@ -77,12 +77,9 @@ export function ShowcaseCommentRow({
   const hasSession = useHasSession()
   const hidden = comment.isHidden === true
   const authorName = comment.author.fullName ?? comment.author.username
-  // D-18 (audit 2026-09-23): komentar yang diedit diberi penanda — dulu
-  // `updatedAt` diabaikan. C-04 (audit 2026-09-24): perbandingan memakai waktu
-  // terurai dengan toleransi 1 detik, bukan kesamaan string — server yang
-  // mengirim presisi berbeda (detik vs milidetik) dulu memunculkan penanda
-  // "(diedit)" palsu pada komentar yang tidak pernah disunting.
+  const username = comment.author.username
   const edited = isEditedComment(comment.createdAt, comment.updatedAt)
+  const timeLabel = formatRelativeTime(comment.createdAt)
 
   return (
     <View className={className}>
@@ -94,8 +91,7 @@ export function ShowcaseCommentRow({
         />
         <View className="flex-1 gap-0.5">
           <View className="flex-row items-center gap-2">
-            {/* D-20 (audit 2026-09-23): nama penulis bisa ditekan → profil
-                (gated login untuk tamu, pola H-04). */}
+            {/* Username gray regular: @username • 3 h lalu (sesuai request bug #3) */}
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={translate("Lihat profil {x}", { x: authorName })}
@@ -108,8 +104,10 @@ export function ShowcaseCommentRow({
               }
               containerClassName={cn("flex-1 rounded-sm", focusRing)}
             >
-              <Text variant="body" weight={600} numberOfLines={1}>
-                {authorName}
+              <Text variant="caption" tone="secondary" weight={400} numberOfLines={1} className="tabular-nums">
+                @{username} • {timeLabel}
+                {edited ? ` ${translate("(diedit)")}` : null}
+                {isMine ? ` • ${translate("Anda")}` : null}
               </Text>
             </PressableScale>
             {menuable && onOpenMenu ? (
@@ -122,12 +120,9 @@ export function ShowcaseCommentRow({
               />
             ) : null}
           </View>
-          <Text variant="body" tone={hidden ? "secondary" : "primary"}>
+          <Text variant="body" tone={hidden ? "secondary" : "primary"} weight={400}>
             {hidden ? translate("(Komentar disembunyikan)") : comment.content}
           </Text>
-          {/* C-03 (audit 2026-09-24): tamu tanpa sesi tidak punya menu ⋯,
-              jadi baris tersembunyi tanpa `hiddenReason` dulu tampil sebagai
-              kalimat misterius. Sekarang ALASAN STATIS selalu ada. */}
           {hidden && !comment.hiddenReason ? (
             <Text variant="caption" tone="secondary">
               {translate("Disembunyikan karena melanggar pedoman komunitas.")}
@@ -140,37 +135,20 @@ export function ShowcaseCommentRow({
               })}
             </Text>
           ) : null}
-          <View className="flex-row items-center gap-4">
-            <Text variant="caption" tone="secondary" className="tabular-nums">
-              {formatDateTime(comment.createdAt)}
-              {edited ? ` ${translate("(diedit)")}` : null}
-            </Text>
-            {isMine ? (
-              <Text variant="caption" tone="secondary">
-                {translate("Anda")}
-              </Text>
-            ) : null}
-            {canReply && onReply ? (
+          {canReply && onReply ? (
+            <View className="flex-row items-center pt-1">
               <PressableScale
                 accessibilityRole="button"
                 accessibilityLabel={translate("Balas komentar")}
-                // A-01 (audit 2026-09-24): dulu area 44px HANYA tak terlihat
-                // (hitSlop `REPLY_HIT_SLOP`), jadi tidak ada petunjuk visual
-                // sama sekali. Sekarang targetnya benar-benar setinggi 44px
-                // (min-h-11) dan terbaca sebagai tombol kecil bergaris —
-                // paritas dengan target sentuh lain di aplikasi.
-                containerClassName={cn(
-                  "min-h-11 justify-center rounded-sm border border-border-control px-2.5",
-                  focusRing,
-                )}
+                containerClassName={cn("justify-center rounded-sm px-0 py-1", focusRing)}
                 onPress={() => onReply(comment)}
               >
-                <Text variant="caption" tone="primary" weight={600}>
+                <Text variant="caption" tone="secondary" weight={500}>
                   {translate("Balas")}
                 </Text>
               </PressableScale>
-            ) : null}
-          </View>
+            </View>
+          ) : null}
         </View>
       </View>
     </View>

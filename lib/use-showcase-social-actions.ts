@@ -13,7 +13,6 @@ import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { getSessionRevision } from "@/lib/api/session"
 import { acquireShowcaseMutation, showcaseMutationPending } from "@/lib/showcase-state"
 import { ROUTES } from "@/lib/routes"
-import { shareShowcaseById } from "@/lib/showcase-social"
 import {
   loadShowcaseBookmarks,
   clearShowcaseLikeOverride,
@@ -63,6 +62,8 @@ export type ShowcaseSocialActions = {
   toggleLike: () => void
   toggleSave: () => void
   share: () => void
+  shareSheetVisible: boolean
+  setShareSheetVisible: (v: boolean) => void
 }
 
 export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSocialActions {
@@ -227,25 +228,8 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
     })()
   }, [hasSession, requireLogin, item.id, saved, toast])
 
-  const share = useCallback(() => {
-    void (async () => {
-      try {
-        // Share boleh tamu (endpoint auth:none) — konversi corong publik.
-        const { outcome } = await shareShowcaseById(item.id, item)
-        if (outcome === "copied") {
-          toast.show({ title: "Tautan disalin ke papan klip", tone: "success", duration: 2500 })
-        } else if (outcome === "unavailable") {
-          toast.show({ title: "Share tidak tersedia di perangkat ini", tone: "info" })
-        }
-      } catch (err) {
-        toast.show({
-          title: "Gagal menyiapkan share",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
-      }
-    })()
-  }, [item, toast])
+  const [shareSheetVisible, setShareSheetVisible] = useState(false)
+  const share = useCallback(() => setShareSheetVisible(true), [])
 
   return {
     liked,
@@ -258,6 +242,8 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
     toggleLike,
     toggleSave,
     share,
+    shareSheetVisible,
+    setShareSheetVisible,
   }
 }
 

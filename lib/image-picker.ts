@@ -114,8 +114,55 @@ export async function pickImage(opts: PickImageOptions = {}): Promise<PickImageR
   }
 }
 
-/** Blob untuk `api.upload.uploadPresigned` (PUT ke presigned URL). */
+/** Blob untuk `api.upload.uploadPresigned` (PUT ke presigned URL).
+ * Android: `fetch(file://)` / `content://` tidak andal di Hermes/new-arch,
+ * jadi coba fetch dulu lalu fallback ke expo-file-system (File API) yang
+ * membaca byte langsung. Mime dipertahankan dari PickedImage.
+ */
 export async function pickedImageToBlob(img: PickedImage): Promise<Blob> {
+  if (Platform.OS === "web") {
+    return (await fetch(img.uri)).blob()
+  }
+  // Coba fetch biasa – berhasil di iOS dan sebagian Android file://
+  try {
+    const res = await fetch(img.uri)
+    if (res.ok) {
+      const blob = await res.blob()
+      // Beberapa Android mengembalikan blob size 0 untuk content:// walau ok
+      if (blob.size > 0) {
+        // Pastikan type terisi
+        if (!blob.type && img.mimeType) {
+          return new Blob([blob], { type: img.mimeType })
+        }
+        return blob
+      }
+    }
+  } catch {}
+  // Fallback: baca via expo-file-system (mendukung file:// & content://)
+  try {
+    const { File } = await import("expo-file-system")
+    const file = new File(img.uri)
+    // File API baru (SDK 54) – cek exists lalu baca bytes
+    // Fallback ke readAsStringAsync base64 jika bytes tidak tersedia
+    if (typeof (file as unknown as { exists?: boolean }).exists === "boolean") {
+      if (!(file as unknown as { exists: boolean }).exists) throw new Error("file not exists")
+    }
+    // Coba bytes()
+    const maybeBytes = (file as unknown as { bytes?: () => Promise<Uint8Array> }).bytes
+    if (typeof maybeBytes === "function") {
+      const bytes = await maybeBytes.call(file)
+      return new Blob([bytes as unknown as BlobPart], { type: img.mimeType })
+    }
+    // Fallback lama: base64
+    const { readAsStringAsync } = await import("expo-file-system/legacy")
+    const base64 = await (readAsStringAsync as unknown as (uri: string, opts: { encoding: string }) => Promise<string>)(img.uri, { encoding: "base64" } as never)
+    const binary = atob(base64)
+    const len = binary.length
+    const bytes = new Uint8Array(len)
+    for (let i = 0; i < len; i++) bytes[i] = binary.charCodeAt(i)
+    return new Blob([bytes], { type: img.mimeType })
+  } catch {}
+  // Terakhir: coba fetch lagi – biar error asli keluar
   return (await fetch(img.uri)).blob()
 }
 

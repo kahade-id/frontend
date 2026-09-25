@@ -78,6 +78,7 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
+import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { ShowcaseHeader, type ShowcaseFeedKind } from "@/components/ui/showcase-header"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
@@ -154,7 +155,7 @@ const FeedCard = memo(function FeedCard({
   onOpenComments,
   onReport,
 }: FeedCardProps) {
-  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share } =
+  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
     useShowcaseSocialActions(item)
   const display = useMemo(
     () =>
@@ -173,19 +174,22 @@ const FeedCard = memo(function FeedCard({
   const handleComments = useCallback(() => onOpenComments(item), [onOpenComments, item])
   const handleReport = useCallback(() => onReport(item), [onReport, item])
   return (
-    <ShowcaseFeedItem
-      item={display}
-      onPress={handlePress}
-      onToggleLike={toggleLike}
-      onOpenComments={handleComments}
-      onToggleSave={toggleSave}
-      saved={saved}
-      likePending={likePending}
-      savePending={savedPending}
-      onShare={share}
-      onOptions={handleReport}
-      divider={divider}
-    />
+    <>
+      <ShowcaseFeedItem
+        item={display}
+        onPress={handlePress}
+        onToggleLike={toggleLike}
+        onOpenComments={handleComments}
+        onToggleSave={toggleSave}
+        saved={saved}
+        likePending={likePending}
+        savePending={savedPending}
+        onShare={share}
+        onOptions={handleReport}
+        divider={divider}
+      />
+      <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={() => setShareSheetVisible(false)} />
+    </>
   )
 })
 

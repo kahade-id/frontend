@@ -7,6 +7,7 @@
  */
 import { useCallback } from "react"
 import { ScrollView, View } from "react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import Constants from "expo-constants"
 
 import {
@@ -92,6 +93,7 @@ const LINKS: AboutLink[] = [
 ]
 
 export default function AboutScreen() {
+  const insets = useSafeAreaInsets()
   const version = installedAppVersion() ?? Constants.expoConfig?.version ?? "—"
   const build = installedBuildNumber()
   const { copy } = useCopy()
@@ -119,7 +121,7 @@ export default function AboutScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
         contentContainerClassName="gap-5 px-5 py-4"
-        contentContainerStyle={{ paddingBottom: tokens.space[8] }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[8] }}
       >
         {/* Identitas */}
         <Card elevation="flat" className="items-center gap-3 p-6">

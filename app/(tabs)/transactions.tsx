@@ -39,12 +39,14 @@
 import { useState } from "react"
 import { useRouter } from "expo-router"
 import { Copy, Link, MagnifyingGlass, Receipt, Scales } from "phosphor-react-native"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
 import { formatDateTime } from "@/lib/format"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
 import type { Order } from "@/lib/api/orders"
 import { useHasSession } from "@/lib/guest-gate"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -98,6 +100,7 @@ const STATUS_CHIPS: ReadonlyArray<{ label: string; value: string }> = [
 
 export default function TransactionsScreen() {
   const router = useRouter()
+  const insets = useSafeAreaInsets()
   /**
    * J-08 (audit): tab peran dibaca dari preferensi persisten (default
    * "buyer" — mayoritas pengguna escrow adalah pembeli) dan diingat setiap
@@ -228,7 +231,7 @@ export default function TransactionsScreen() {
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
           harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
           animation dari dalam <PaginatedList> (hanya saat tambah/hapus). */}
-      <FadeIn duration="fast" translate={false} className="gap-3 px-5 pb-3 pt-3">
+      <FadeIn duration="fast" translate={false} className="gap-3 bg-background px-5 pb-3 pt-3">
         <SegmentedControl
           accessibilityLabel="Peran transaksi"
           items={ROLE_TABS}
@@ -259,7 +262,7 @@ export default function TransactionsScreen() {
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
-        bottomPadding={tokens.space[8]}
+        bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
         empty={
           <EmptyState
             icon={Receipt}

@@ -72,7 +72,6 @@ import { ReferralCodeCard } from "@/components/ui/referral-code-card"
 import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import { ShellTabBar } from "@/components/ui/shell-tab-bar"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { VoucherCard } from "@/components/ui/voucher-card"
@@ -394,7 +393,6 @@ export default function VouchersScreen() {
       <Screen edges={["top"]} padded={false}>
         <Header showBack={false} title="Promo" />
         <GuestLoginPrompt bare next="/vouchers" />
-        <ShellTabBar />
       </Screen>
     )
   }
@@ -402,7 +400,6 @@ export default function VouchersScreen() {
   return (
     <DataScreen
       title="Promo"
-      dock={<ShellTabBar />}
       shiftFade
       state={query}
       loadingMessage="Memuat promo…"

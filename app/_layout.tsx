@@ -64,6 +64,8 @@ import { consumeOtaUpdateNotice } from "@/lib/ota-notice"
 import { translate } from "@/lib/i18n/translate"
 import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
 import { AppLockGate } from "@/components/app-lock-gate"
+import { ShellTabBar } from "@/components/ui/shell-tab-bar"
+import { activeShellSlot, useAppMode } from "@/lib/app-mode"
 import { useToast } from "@/components/ui/toast"
 
 export { AppErrorBoundary as ErrorBoundary } from "@/components/app-error-boundary"
@@ -467,6 +469,7 @@ function AppShell() {
                 </View>
               ) : null}
             </PortalScene>
+            <PersistentShellBar />
             <PortalHost />
           </ContentContainer>
           {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
@@ -529,6 +532,27 @@ function AppShell() {
 }
 
 /**
+ * Persistent bottom nav — satu instance untuk semua shell destinations
+ * (tab + stack shell seperti /chat, /vouchers, /wallet-history, own profile).
+ * Sebelumnya bar dibuat PER HALAMAN (Tabs bar + per-page <ShellTabBar/>),
+ * sehingga navigasi antar mode (mis. wallet → history) membuat bar ikut
+ * hilang/replace dengan animasi slide. Kini bar hidup di root (di dalam
+ * ContentContainer yang sama, di bawah Stack), jadi tetap ada saat Stack
+ * berpindah — flow identik etalase↔transaksi yang memang tab. Ditampilkan
+ * hanya untuk shell destinations (activeShellSlot !== null) agar layar
+ * detail (order, chat room, settings) tidak tertutup.
+ */
+function PersistentShellBar() {
+  const pathname = usePathname()
+  const mode = useAppMode()
+  // activeShellSlot mengembalikan null untuk rute non-shell (detail, form, dll)
+  // — bar disembunyikan di sana agar tidak menutupi konten detail.
+  const visible = activeShellSlot(pathname, mode) != null
+  if (!visible) return null
+  return <ShellTabBar />
+}
+
+ /**
  * Pemberitahuan global sekali-jalan (F-14 OTA + I-06 PWA).
  *
  * - OTA (native): bundle baru terdeteksi lewat `consumeOtaUpdateNotice()` →

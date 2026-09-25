@@ -209,12 +209,20 @@ function parkTabFor(mode: AppMode, dest: ShellDestination | null): ShellTabName 
   return primaryTabFor(mode)
 }
 
+const STABLE_BAR_PATHS = new Set(["/chat", "/vouchers", "/wallet-history"])
+
 function methodFor(
   path: string,
   dest: ShellDestination,
 ): "navigate" | "push" | "replace" | "leave-to-tab" {
   const destIsTab = dest.tab != null && isExactTabPath(dest.href)
   const hereIsTab = isExactTabPath(path)
+  // Bottom-bar stack destinations harus terasa seperti tab (tanpa double bar)
+  // → pakai replace agar tidak menumpuk dan animasi 'none' (screen-transitions)
+  if (STABLE_BAR_PATHS.has(normalizeShellPath(dest.href))) {
+    if (hereIsTab) return "replace"
+    return "replace"
+  }
   if (destIsTab && hereIsTab) return "navigate"
   if (destIsTab && !hereIsTab) return "leave-to-tab"
   if (!destIsTab && hereIsTab) return "push"
