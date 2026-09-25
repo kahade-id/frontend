@@ -154,6 +154,10 @@ export default function TransactionsScreen() {
       refreshOnFocus: true,
       enabled: hasSession,
       compare: byTimestampDesc<Order>((order) => order.createdAt),
+      // R2 (butir #110): tiap commit pencarian ber-debounce mengubah kunci →
+      // baris lama tetap tampil selama halaman-1 filter baru dimuat (mode
+      // refresh senyap), bukan skeleton penuh yang terlihat seperti flicker.
+      keepPreviousOnKeyChange: true,
     },
   )
   const filtered = status !== ALL_STATUS || Boolean(debounced)
@@ -313,9 +317,10 @@ export default function TransactionsScreen() {
                 // M-54 (audit end-to-end, issue #72): `toEpochMs` (domain jam
                 // C-04) — `new Date("1700000000")` string epoch-detik = Invalid
                 // Date dan countdown tenggat menampilkan "—".
-                toEpochMs(item.deliveryDeadlineAt) != null
-                  ? new Date(toEpochMs(item.deliveryDeadlineAt) as number)
-                  : undefined
+                // R2 (audit ronde-2, butir #65): teruskan EPOCH MS primitif,
+                // bukan `new Date()` per render — identitas prop yang baru tiap
+                // render merangkai-ulang effect countdown tanpa alasan.
+                toEpochMs(item.deliveryDeadlineAt) ?? undefined
               }
               onDeadline={scheduleRefresh}
               href={ROUTES.orderDetail(item.id)}

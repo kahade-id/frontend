@@ -21,7 +21,21 @@ import { orderPartyName, type Invoice } from "@/lib/api/orders"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { shareContent } from "@/lib/share"
+import { shortId } from "@/lib/short-id"
 import { useApiQuery } from "@/lib/use-api-query"
+import { usePolling } from "@/lib/use-polling"
+import { FEE_RESPONSIBILITY_LABELS } from "@/components/ui/fee-breakdown"
+
+/** R2 (#25): status invoice yang final — polling berhenti di sini. */
+const INVOICE_TERMINAL_STATUSES = new Set([
+  "PAID",
+  "LUNAS",
+  "COMPLETED",
+  "SETTLED",
+  "EXPIRED",
+  "CANCELLED",
+  "FAILED",
+])
 
 import { saveBlobFile, saveTextFile } from "@/lib/export-file"
 
@@ -62,8 +76,23 @@ export default function InvoiceScreen() {
         throw err
       }),
     Boolean(orderId),
+    // R2 (audit ronde-2, butir #84): kembali dari layar pembayaran (invoice
+    // tergenerasi async) menyegarkan otomatis — pelengkap polling #25.
+    { refreshOnFocus: true },
   )
   const invoice = query.data
+
+  // R2 (audit ronde-2, butir #25): invoice digenerasikan async setelah
+  // pembayaran — poll 15 detik sampai status final (PAID/EXPIRED/CANCELLED)
+  // tercapai; jangan paksa pengguna menutup-membuka layar untuk melihatnya.
+  usePolling(
+    async () => {
+      await query.refresh().catch(() => {})
+    },
+    15_000,
+    Boolean(orderId) &&
+      !INVOICE_TERMINAL_STATUSES.has((invoice?.status ?? "").toUpperCase()),
+  )
 
   const handleDownload = useCallback(
     async (id: string, invoiceNumber: string | undefined) => {
@@ -144,7 +173,9 @@ export default function InvoiceScreen() {
    */
   const handleShare = useCallback(
     async (inv: Invoice) => {
-      const message = `Invoice ${inv.invoiceNumber ?? inv.order.id} — ${formatRupiah(inv.total)} untuk order ${inv.order.id}`
+      // R2 (audit ronde-2, butir #83): UUID mentah tidak ikut kalimat yang
+      // dibagikan ke pihak luar — shortcode 8 heksa sudah cukup merujuk.
+      const message = `Invoice ${inv.invoiceNumber ?? `#${shortId(inv.order.id)}`} — ${formatRupiah(inv.total)} untuk order #${shortId(inv.order.id)}`
       const outcome = await shareContent({ message, title: "Invoice Kahade" })
       if (outcome === "unavailable") {
         const ok = inv.invoiceNumber ? await copy(inv.invoiceNumber) : await copy(inv.order.id)
@@ -230,6 +261,15 @@ export default function InvoiceScreen() {
                 {
                   label: "Biaya platform",
                   value: invoice.fee ? formatRupiah(invoice.fee.platformFee) : "—",
+                },
+                // R2 (audit ronde-2, butir #82): tanpa konteks tanggung-jawab
+                // biaya, angka total di arsip abadi bisa disalah-tafsirkan.
+                {
+                  label: "Biaya ditanggung",
+                  value:
+                    FEE_RESPONSIBILITY_LABELS[invoice.order.feeResponsibility] ??
+                    invoice.order.feeResponsibility ??
+                    "—",
                 },
               ]}
               onCopyNumber={(n) => void copy(n)}

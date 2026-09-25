@@ -26,6 +26,15 @@ export function isPdfMime(mime: string | null | undefined): boolean {
 }
 
 /**
+ * R2 (audit ronde-2, butir #36): video (mp4/quicktime/webm) BUKAN gambar dan
+ * BUKAN PDF — tanpa klasifikasi sendiri, ubin bukti video tampil sebagai
+ * ikon PDF yang menyesatkan peninjau.
+ */
+export function isVideoMime(mime: string | null | undefined): boolean {
+  return typeof mime === "string" && mime.startsWith("video/")
+}
+
+/**
  * Ekstensi berkas dalam huruf kapital (`"dokumen.pdf"` → `"PDF"`), atau
  * `undefined` bila tidak ada ekstensi atau namanya bukan string. Sengaja
  * mengembalikan `undefined` — badge ekstensi di ubin lampiran bersifat

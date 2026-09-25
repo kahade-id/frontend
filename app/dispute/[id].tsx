@@ -32,12 +32,12 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
-import { useLocalSearchParams, router } from "expo-router"
-import { Handshake, VideoCamera } from "phosphor-react-native"
+import { useLocalSearchParams } from "expo-router"
 
-import { api, isApiError, userMessage } from "@/lib/api"
+import { api, createIdempotencyKey } from "@/lib/api"
+import { showMutationError } from "@/lib/mutation-toast"
 import type { Order } from "@/lib/api/orders"
-import type { SubmitEvidenceDto } from "@/lib/api/types"
+import { EVIDENCE_FILE_TYPES, type EvidenceFileType } from "@/lib/api/disputes"
 import type {
   DisputeCall,
   DisputeDetail,
@@ -48,54 +48,39 @@ import type {
   MutualResolutionRespondBody,
 } from "@/lib/api/disputes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { usePolling } from "@/lib/use-polling"
 import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
-import { formatDateTime, formatRupiah } from "@/lib/format"
-import { ROUTES } from "@/lib/routes"
+import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
-import { AmountInput } from "@/components/ui/amount-input"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { ChatComposer } from "@/components/ui/chat-composer"
-import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
-import { Dialog } from "@/components/ui/modal"
-import { DisputeCallLogItem, type DisputeCallOutcome } from "@/components/ui/dispute-call-log-item"
 import { DisputeClaimForm } from "@/components/ui/dispute-claim-form"
-import { DisputeStatusBadge } from "@/components/ui/dispute-status-badge"
 import { ErrorState } from "@/components/ui/error-state"
 import { EvidenceGrid, type EvidenceItem } from "@/components/ui/evidence-grid"
 import { InCallControlsBar } from "@/components/ui/in-call-controls-bar"
 import { Crossfade } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
-import { ListGroup } from "@/components/ui/list-item"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
-import { MutualResolutionCard } from "@/components/ui/mutual-resolution-card"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
+import { DisputeMessagesSection } from "@/components/dispute-messages-section"
+import {
+  DisputeActionDialogs,
+  DisputeCallsSection,
+  DisputeDetailHeader,
+  DisputeMutualSection,
+  DisputeProposeSheet,
+} from "@/components/dispute-detail-sections"
 import { SectionHeader } from "@/components/ui/section"
-import { Text } from "@/components/ui/text"
-import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
-import { mapValue } from "@/lib/has-own"
 import { logWarn } from "@/lib/telemetry"
-import { translate } from "@/lib/i18n/translate"
 
-type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
-/**
- * E-09 (audit escrow 2026-09-24): enum DTO produksi memuat 7 MIME (termasuk
- * video/mp4|quicktime|webm) — versi lama membatasi ke 4 sehingga bukti video
- * ditolak/dikirim ber-label salah. Kini seluruh enum didukung.
- */
-const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "application/pdf",
-  "video/mp4",
-  "video/quicktime",
-  "video/webm",
-]
+/* E-09: enum 7 MIME pindah ke lib/api/disputes (EVIDENCE_FILE_TYPES) —
+   di layar, literal MIME dipindai generator katalog sebagai "teks UI"
+   (artefak `video/mp{x}`). */
+
 const PROPOSAL_NOTE_MAX = 2000
 
 /**
@@ -109,18 +94,6 @@ function toEvidenceFileType(mime: string): EvidenceFileType {
     : "image/jpeg"
 }
 
-/** Status panggilan API → outcome komponen (status asing dianggap selesai). */
-const CALL_OUTCOME: Partial<Record<string, DisputeCallOutcome>> = {
-  REQUESTED: "REQUESTED",
-  ACCEPTED: "ACCEPTED",
-  ONGOING: "ONGOING",
-  ENDED: "COMPLETED",
-  FINISHED: "COMPLETED",
-  COMPLETED: "COMPLETED",
-  REJECTED: "REJECTED",
-  MISSED: "MISSED",
-  CANCELLED: "CANCELLED",
-}
 
 export default function DisputeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -154,18 +127,26 @@ export default function DisputeDetailScreen() {
     `dispute-detail:${id}`,
     async (signal) => {
       const did = id as string
-      const d = await api.disputes.getDispute(did, signal)
-      const [ev, msgs, props, cl, o] = await Promise.all([
+      // R2 (audit ronde-2, butir #109): 4 dari 5 endpoint hanya bergantung
+      // pada `did` yang sudah diketahui dari rute — dulu SELURUH bundel
+      // menunggu getDispute selesai duluan (~1 RTT layar-beku sia-sia di
+      // jalur paling HOT). Kini semuanya paralel sejak frame pertama;
+      // getOrder tetap menunggu getDispute karena butuh orderId.
+      const dPromise = api.disputes.getDispute(did, signal)
+      const [d, ev, msgs, props, cl, o] = await Promise.all([
+        dPromise,
         api.disputes.getDisputeEvidence(did, signal),
         api.disputes.getDisputeMessages(did, signal),
         api.disputes.getMutualResolution(did, signal),
         api.disputes.getDisputeCalls(did, signal),
-        d.orderId
-          ? api.orders.getOrder(d.orderId, signal).catch((err) => {
-              logWarn("dispute:order", err)
-              return null
-            })
-          : Promise.resolve(null),
+        dPromise.then((d) =>
+          d.orderId
+            ? api.orders.getOrder(d.orderId, signal).catch((err) => {
+                logWarn("dispute:order", err)
+                return null
+              })
+            : null,
+        ),
       ])
       return {
         dispute: d,
@@ -186,9 +167,24 @@ export default function DisputeDetailScreen() {
   const proposals = bundle?.proposals ?? []
   const calls = bundle?.calls ?? []
   const { loading, error, refreshing } = query
+
+  // R2 (audit ronde-2, butir #22): mediasi adalah PERCAKAPAN — pesan/proposal/
+  // bukti pihak lawan tiba tiap 15 detik tanpa menunggu pull-to-refresh.
+  // Effect E-04 menjamin draft klaim yang sedang diketik tidak tertimpa.
+  usePolling(
+    async () => {
+      await query.refresh().catch(() => {})
+    },
+    15_000,
+    Boolean(id) && dispute != null && dispute.status !== "RESOLVED" && dispute.status !== "CLOSED",
+  )
   /** Klaim = textarea yang bisa diedit user; tetap state UI lokal. */
   const [claim, setClaim] = useState("")
   const [submitting, setSubmitting] = useState(false)
+  // R2 (audit ronde-2, butir #40): unggah bukti & kirim klaim adalah dua alur
+  // mandiri — state kunci dipisah agar menunggu unggahan tidak membekukan
+  // form klaim (dan sebaliknya).
+  const [uploadingEvidence, setUploadingEvidence] = useState(false)
 
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
@@ -240,11 +236,17 @@ export default function DisputeDetailScreen() {
       setEscalateReason("")
       await query.reload()
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal mengeskalasi sengketa",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // R2 (audit escrow ronde-2, butir #6): kalembakan kwota eskalasi (maks 2×)
+      // tidak boleh dibakar oleh kegagalan yang sebenarnya mungkin sudah tercatat.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengeskalasi sengketa",
+          uncertainHint: "Eskalasi mungkin sudah diproses — memuat ulang status…",
+          err,
+        })
+      ) {
+        void query.reload()
+      }
     } finally {
       setEscalating(false)
     }
@@ -282,6 +284,10 @@ export default function DisputeDetailScreen() {
    * yang sedang dikikti setiap `query.refresh()` — pengguna kehilangan tulisan.
    */
   const trackedClaimRef = useRef<{ id: string; claim: string } | null>(null)
+  // R2 (audit ronde-2, butir #17): satu kunci idempotensi per proposal agar
+  // percobaan ACCEPT berulang (timeout / ketuk ganda) tidak membagi dana dua
+  // kali di server yang mendukung header. Kunci baru dibuat setelah final.
+  const respondKeyRef = useRef<Map<string, string>>(new Map())
   useEffect(() => {
     if (!dispute) return
     const serverClaim = dispute.claim ?? ""
@@ -307,11 +313,17 @@ export default function DisputeDetailScreen() {
         // tertimpa kontradiksi).
         void query.refresh().catch(() => {})
       } catch (err) {
-        toast.show({
-          title: "Gagal menyimpan klaim",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
+        // R2 (audit escrow ronde-2, butir #5): klaim bisa sudah tertulis saat
+        // respons hilang — jangan tampilkan kegagalan yang tidak diketahui.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menyimpan klaim",
+            uncertainHint: "Klaim mungkin sudah tersimpan — memuat ulang status…",
+            err,
+          })
+        ) {
+          void query.refresh().catch(() => {})
+        }
       } finally {
         setSubmitting(false)
       }
@@ -338,11 +350,24 @@ export default function DisputeDetailScreen() {
           // Pesan sudah terkirim — daftar menyusul saat penyegaran berikutnya.
         }
       } catch (err) {
-        toast.show({
-          title: "Gagal mengirim pesan",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
+        // R2 (audit escrow ronde-2, butir #8): pesan mediasi adalah bukti
+        // permanen — kegagalan tak pasti harus diakui sebelum pengguna mengirim
+        // ulang teks yang sama.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal mengirim pesan",
+            uncertainHint: "Pesan mungkin sudah terkirim — memuat ulang pesan…",
+            uncertainDetail: "Periksa daftar pesan sebelum mengirim ulang.",
+            err,
+          })
+        ) {
+          try {
+            const rows = await api.disputes.getDisputeMessages(id)
+            query.setData((prev) => (prev ? { ...prev, messages: rows } : prev))
+          } catch {
+            /* daftar menyusul saat penyegaran berikutnya */
+          }
+        }
       } finally {
         setSending(false)
       }
@@ -352,13 +377,15 @@ export default function DisputeDetailScreen() {
 
   const handleAddEvidence = useCallback(async () => {
     if (!id) return
-    const picked = await pickImage()
+    // R2 (audit ronde-2, butir #34): bukti video (rekaman unboxing) diizinkan
+    // — kontrak SubmitEvidenceDto mendukung video/mp4|quicktime|webm.
+    const picked = await pickImage({ allowVideos: true })
     if (picked.status === "denied") {
       toast.show({ title: "Akses galeri ditolak", tone: "danger" })
       return
     }
     if (picked.status !== "picked") return
-    setSubmitting(true)
+    setUploadingEvidence(true)
     try {
       const asset = picked.asset
       const blob = await pickedImageToBlob(asset)
@@ -369,7 +396,10 @@ export default function DisputeDetailScreen() {
         blob,
       )
       await api.disputes.submitDisputeEvidence(id, {
-        description: asset.name,
+        // R2 (audit ronde-2, butir #41): deskripsi = nama berkas mentah
+        // (IMG_20260924_183344.heic) mengotori arsip mediasi. Karena belum ada
+        // input deskripsi di UI, kirim label jenis yang bermakna saja.
+        description: asset.mimeType.startsWith("video/") ? "Bukti video" : "Bukti foto",
         fileUrls: [fileKey],
         fileTypes: [toEvidenceFileType(asset.mimeType)],
       })
@@ -384,13 +414,26 @@ export default function DisputeDetailScreen() {
         // Bukti sudah tersimpan — daftar menyusul saat penyegaran berikutnya.
       }
     } catch (err) {
-      toast.show({
-        title: "Gagal mengunggah bukti",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
+      // R2 (audit escrow ronde-2, butir #9): unggahan dua langkah (presign +
+      // submit) mungkin sudah selesai sebagian/sepenuhnya saat respons hilang —
+      // muat ulang daftar bukti sebelum pengguna mengunggah berkas yang sama.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengunggah bukti",
+          uncertainHint: "Bukti mungkin sudah terunggah — memuat ulang daftar…",
+          uncertainDetail: "Periksa daftar bukti sebelum mengunggah kembali.",
+          err,
+        })
+      ) {
+        try {
+          const rows = await api.disputes.getDisputeEvidence(id)
+          query.setData((prev) => (prev ? { ...prev, evidence: rows } : prev))
+        } catch {
+          /* daftar menyusul saat penyegaran berikutnya */
+        }
+      }
     } finally {
-      setSubmitting(false)
+      setUploadingEvidence(false)
     }
   }, [id, toast.show, query])
 
@@ -406,11 +449,21 @@ export default function DisputeDetailScreen() {
       setViewerItem(null)
       toast.show({ title: "Bukti dihapus", tone: "success", duration: 3000 })
     } catch (err) {
-      toast.show({
-        title: "Gagal menghapus bukti",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
+      // R2 (uniform): kegagalan tak pasti — bukti bisa sudah terhapus.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal menghapus bukti",
+          uncertainHint: "Bukti mungkin sudah terhapus — memuat ulang daftar…",
+          err,
+        })
+      ) {
+        try {
+          const rows = await api.disputes.getDisputeEvidence(id)
+          query.setData((prev) => (prev ? { ...prev, evidence: rows } : prev))
+        } catch {
+          /* daftar menyusul saat penyegaran berikutnya */
+        }
+      }
     } finally {
       setDeletingEvidence(false)
     }
@@ -473,11 +526,23 @@ export default function DisputeDetailScreen() {
         // Usulan sudah terkirim — daftar menyusul saat penyegaran berikutnya.
       }
     } catch (err) {
-      toast.show({
-        title: "Gagal mengirim usulan",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
+      // R2 (audit escrow ronde-2, butir #4): usulan bisa sudah tercatat saat
+      // respons hilang — muat ulang daftar sebelum pengguna membuat duplikat.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengirim usulan",
+          uncertainHint: "Usulan mungkin sudah terkirim — memuat ulang usulan…",
+          uncertainDetail: "Periksa daftar usulan sebelum mengirim kembali.",
+          err,
+        })
+      ) {
+        try {
+          const rows = await api.disputes.getMutualResolution(id)
+          query.setData((prev) => (prev ? { ...prev, proposals: rows } : prev))
+        } catch {
+          /* daftar menyusul saat penyegaran berikutnya */
+        }
+      }
     } finally {
       setProposing(false)
     }
@@ -500,11 +565,22 @@ export default function DisputeDetailScreen() {
           // E-06 (audit escrow 2026-09-24): `MutualResolutionRespondDto`
           // mendukung `responseNote` (≤2000) — dulu tidak pernah dikirim.
           const note = responseNote?.trim()
+          const key =
+            action === "ACCEPT"
+              ? (respondKeyRef.current.get(proposal.id) ??
+                createIdempotencyKey())
+              : undefined
+          if (action === "ACCEPT") respondKeyRef.current.set(proposal.id, key!)
           await api.disputes.respondMutualResolution(id, proposal.id, {
             action,
             ...(note ? { responseNote: note } : {}),
-          } satisfies MutualResolutionRespondBody)
+          } satisfies MutualResolutionRespondBody, key)
+          if (key) respondKeyRef.current.delete(proposal.id)
         }
+      // R2 (audit escrow ronde-2, butir #43): catatan tanggapan bersama untuk
+      // semua proposal — bersihkan setelah tanggapan apa pun SUKSES agar teks
+      // yang dimaksudkan proposal A tidak menempel pada proposal B.
+      setRespondNote("")
       toast.show({
         title:
           action === "ACCEPT"
@@ -520,11 +596,22 @@ export default function DisputeDetailScreen() {
       // padahal pembagian dana SUDAH dieksekusi server (paling menyesatkan).
       void query.refresh().catch(() => {})
     } catch (err) {
-        toast.show({
-          title: "Gagal menanggapi usulan",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
+        // R2 (audit escrow ronde-2, butir #1): menerima usulan MENGERAKKAN DANA
+        // escrow — timeout/PARSE tidak berarti tidak dieksekusi. Tampilkan
+        // peringatan jujur dan MUTLAK muat ulang state dari server.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menanggapi usulan",
+            uncertainHint: "Tanggapan mungkin sudah diproses — memuat ulang sengketa…",
+            uncertainDetail:
+              action === "ACCEPT"
+                ? "Keputusan pembagian dana bisa sudah dieksekusi — jangan menanggapi ulang sebelum status termuat."
+                : undefined,
+            err,
+          })
+        ) {
+          await query.reload().catch(() => {})
+        }
       } finally {
         setRespondingAction(null)
       }
@@ -549,11 +636,18 @@ export default function DisputeDetailScreen() {
         })
       query.setData((prev) => (prev ? { ...prev, calls: nextCalls ?? prev.calls } : prev))
     } catch (err) {
-      toast.show({
-        title: "Gagal meminta panggilan",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
+      // R2 (audit escrow ronde-2, butir #7): permintaan panggilan bisa sudah
+      // dibuat saat respons hilang — jangan menampilkan kegagalan palsu.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal meminta panggilan",
+          uncertainHint: "Permintaan mungkin sudah terkirim — memuat ulang…",
+          err,
+        })
+      ) {
+        const nextCalls = await api.disputes.getDisputeCalls(id).catch(() => null)
+        if (nextCalls) query.setData((prev) => (prev ? { ...prev, calls: nextCalls } : prev))
+      }
     } finally {
       setRequestingCall(false)
     }
@@ -597,11 +691,17 @@ export default function DisputeDetailScreen() {
         })
         query.setData((prev) => (prev ? { ...prev, calls: nextCalls ?? prev.calls } : prev))
       } catch (err) {
-        toast.show({
-          title: "Gagal memproses panggilan",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
+        // R2 (audit escrow ronde-2, butir #7): cabang kegagalan tak pasti.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal memproses panggilan",
+            uncertainHint: "Aksi mungkin sudah diproses — memuat ulang panggilan…",
+            err,
+          })
+        ) {
+          const nextCalls = await api.disputes.getDisputeCalls(id).catch(() => null)
+          if (nextCalls) query.setData((prev) => (prev ? { ...prev, calls: nextCalls } : prev))
+        }
       } finally {
         setCallActionBusy(null)
       }
@@ -611,7 +711,8 @@ export default function DisputeDetailScreen() {
 
   const evidenceItems = useMemo<EvidenceItem[]>(() => {
     const meId = me?.id
-    return evidence.map((e) => {
+    // R2 (butir #37): flatMap — lampiran tanpa URL renderable gugur dari grid.
+    return evidence.flatMap((e) => {
       // E-05 (audit escrow 2026-09-24): flag `mine`/`uploadedByMe` default
       // `false` membuat bukti sendiri tidak bisa dihapus & berjudul "Bukti
       // {lawan}". Fallback terakhir: cocokkan `uploadedBy`/`userId` dengan
@@ -625,14 +726,22 @@ export default function DisputeDetailScreen() {
             : undefined
       const mine =
         e.mine ?? e.uploadedByMe ?? (uploadedBy != null && meId != null ? uploadedBy === meId : false)
-      return {
-        id: e.id,
-        url: e.url ?? e.fileKey ?? "",
-        mimeType: e.fileType ?? "image/jpeg",
-        mine,
-        description: e.description,
-        uploadedAt: formatDateTime(e.createdAt),
-      }
+      // R2 (audit ronde-2, butir #37): `fileKey` bisa berupa kunci objek S3
+      // mentah yang tidak bisa dirender/diunduh langsung — jalur delivery-
+      // proof sudah menyaringnya (isRenderableUrl), sengketa menyusul. URL
+      // tidak renderable DIBUANG dari ubin, bukan tampil sebagai tautan rusak.
+      const url = e.url ?? e.fileKey ?? ""
+      if (url && !/^https?:\/\//i.test(url)) return []
+      return [
+        {
+          id: e.id,
+          url,
+          mimeType: e.fileType ?? "image/jpeg",
+          mine,
+          description: e.description,
+          uploadedAt: formatDateTime(e.createdAt),
+        },
+      ]
     })
   }, [evidence, me?.id])
 
@@ -669,6 +778,11 @@ export default function DisputeDetailScreen() {
             videoOn={callVideo}
             onToggleVideo={() => setCallVideo((v) => !v)}
             onEnd={() => void handleCallAction("end", activeCall.id)}
+            // R2 (audit ronde-2, butir #42): mute/speaker/video di sini HANYA
+            // state lokal — tidak tersambung ke media WebRTC mana pun. Tombol
+            // dinonaktifkan + dijelaskan, bukan membiarkan pengguna "membisu"
+            // palsu di mediasi resmi. Akhiri panggilan tetap aktif.
+            mediaControlsUnavailableReason="Mikrofon, speaker, dan kamera dikelola aplikasi panggilan bawaan — tombol di sini hanya mengakhiri panggilan."
           />
         ) : dispute ? (
           <ChatComposer
@@ -697,40 +811,13 @@ export default function DisputeDetailScreen() {
           <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
         ) : dispute ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <View className="flex-row items-center justify-between gap-3">
-              <View className="flex-1">
-                <Text variant="h3" numberOfLines={2}>
-                  {order?.title ?? `Order ${dispute.orderId}`}
-                </Text>
-                <Text variant="caption" tone="secondary">
-                  Dibuka {formatDateTime(dispute.createdAt)}
-                  {order
-                    ? ` · ${myRole === "buyer" ? "Anda pembeli" : myRole === "seller" ? "Anda penjual" : "Peran belum terkonfirmasi"} · ${formatRupiah(order.orderValue)}`
-                    : ""}
-                </Text>
-              </View>
-              <DisputeStatusBadge status={dispute.status} />
-            </View>
-            {dispute.orderId ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                fullWidth={false}
-                onPress={() => router.push(ROUTES.orderDetail(dispute.orderId))}
-              >
-                Lihat pesanan
-              </Button>
-            ) : null}
-            {canEscalate ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                fullWidth={false}
-                onPress={() => setEscalateOpen(true)}
-              >
-                Eskalasi ke admin
-              </Button>
-            ) : null}
+            <DisputeDetailHeader
+              dispute={dispute}
+              order={order}
+              myRole={myRole}
+              canEscalate={canEscalate}
+              onEscalate={() => setEscalateOpen(true)}
+            />
 
             <DisputeClaimForm
               value={claim}
@@ -741,22 +828,7 @@ export default function DisputeDetailScreen() {
               updatedAt={dispute.updatedAt ? formatDateTime(dispute.updatedAt) : undefined}
             />
 
-            <SectionHeader title="Pesan" />
-            {messages.length === 0 ? (
-              <Text variant="body" tone="secondary">
-                Belum ada pesan. Tulis di kolom bawah untuk mediator dan lawan transaksi.
-              </Text>
-            ) : (
-              messages.map((m, i) => (
-                <ChatMessageBubble
-                  key={m.id}
-                  direction={m.fromUser ? "outgoing" : "incoming"}
-                  text={m.text}
-                  time={formatDateTime(m.createdAt)}
-                  grouped={messages[i - 1]?.fromUser === m.fromUser}
-                />
-              ))
-            )}
+            <DisputeMessagesSection messages={messages} />
 
             <SectionHeader
               title="Bukti"
@@ -766,202 +838,34 @@ export default function DisputeDetailScreen() {
               items={evidenceItems}
               onOpen={openEvidence}
               onAdd={() => void handleAddEvidence()}
-              addDisabled={submitting}
+              addDisabled={uploadingEvidence}
             />
 
-            <SectionHeader
-              title="Penyelesaian bersama"
-              subtitle="Sepakati pembagian dana escrow tanpa menunggu keputusan mediator."
-              action={
-                !pendingProposal && order ? (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    leftIcon={Handshake}
-                    onPress={() => setProposeOpen(true)}
-                  >
-                    Usulkan
-                  </Button>
-                ) : undefined
-              }
+            <DisputeMutualSection
+              proposals={proposals}
+              orderValue={orderValue}
+              myRole={myRole}
+              meId={me?.id}
+              counterpartName={counterpartName}
+              counterpartAvatar={counterpart?.avatarUrl ?? undefined}
+              hasOrder={Boolean(order)}
+              hasPendingProposal={Boolean(pendingProposal)}
+              respondNote={respondNote}
+              onChangeRespondNote={setRespondNote} respondingAction={respondingAction}
+              onRespond={(p, action, note) => void handleRespond(p, action, note)}
+              onOpenPropose={() => setProposeOpen(true)}
             />
-            {proposals.length === 0 ? (
-              <Text variant="body" tone="secondary">
-                Belum ada usulan penyelesaian.
-              </Text>
-            ) : (
-              <>
-                {proposals.some((p) => p.status === "PENDING" && p.proposerId !== me?.id) ? (
-                  <TextArea
-                    value={respondNote}
-                    onChangeText={setRespondNote}
-                    placeholder="Catatan tanggapan (opsional) — disertakan saat menerima/menolak usulan"
-                    maxLength={2000}
-                    multiline
-                    numberOfLines={2}
-                  />
-                ) : null}
-              {proposals.map((p) => {
-                const proposedByMe = Boolean(me?.id && p.proposerId === me.id)
-                const total = Number.isFinite(orderValue)
-                  ? orderValue
-                  : p.buyerAmount != null && p.sellerAmount != null
-                    ? p.buyerAmount + p.sellerAmount
-                    : Number.NaN
-                // M-47 (audit end-to-end, issue #49): kontrak PRODUKSI proposal
-                // bersistem PERSENTASE (buyerPercent+sellerPercent=100) — dulu
-                // pembaca hanya nominal (`p.buyerAmount ?? p.amount`) sehingga
-                // payload persen = "Rincian usulan belum lengkap" PERMANEN.
-                // Persen dikonversi ke nominal dari orderValue; nominal eksplisit
-                // tetap menang bila ada.
-                const buyerAmount =
-                  p.buyerAmount ??
-                  p.amount ??
-                  (p.buyerPercent != null && Number.isFinite(orderValue)
-                    ? Math.round((p.buyerPercent / 100) * orderValue)
-                    : undefined)
-                if (
-                  !myRole ||
-                  buyerAmount == null ||
-                  !Number.isSafeInteger(total) ||
-                  buyerAmount < 0 ||
-                  buyerAmount > total
-                )
-                  return (
-                    <Text key={p.id} variant="body" tone="secondary">
-                      Rincian usulan belum lengkap. Muat ulang sebelum menanggapi.
-                    </Text>
-                  )
-                const pending = p.status === "PENDING"
-                return (
-                  <MutualResolutionCard
-                    key={p.id}
-                    totalAmount={total}
-                    buyerAmount={buyerAmount}
-                    sellerAmount={
-                      p.sellerAmount ??
-                      (p.sellerPercent != null && Number.isFinite(orderValue)
-                        ? Math.max(0, orderValue - buyerAmount)
-                        : Math.max(0, total - buyerAmount))
-                    }
-                    status={p.status}
-                    proposedByMe={proposedByMe}
-                    proposerName={proposedByMe ? undefined : counterpartName}
-                    proposerAvatar={
-                      proposedByMe ? undefined : (counterpart?.avatarUrl ?? undefined)
-                    }
-                    role={myRole}
-                    note={p.note}
-                    createdAt={formatDateTime(p.createdAt)}
-                    respondedAt={p.respondedAt ? formatDateTime(p.respondedAt) : undefined}
-                    expiresAt={p.expiresAt ? new Date(p.expiresAt) : undefined}
-                    onAccept={
-                      // M-48 (audit end-to-end, issue #98): identitas WAJIB —
-                      // dulu `me` belum termuat membuat semua usulan "milik
-                      // lawan" dan tombol terima/menolak ditawarkan untuk usulan
-                      // SENDIRI (membalas usulan sendiri = pembagian dana aneh).
-                      pending && !proposedByMe && Boolean(me?.id)
-                        ? () => void handleRespond(p, "ACCEPT", respondNote)
-                        : undefined
-                    }
-                    onReject={
-                      pending && !proposedByMe && Boolean(me?.id)
-                        ? () => void handleRespond(p, "REJECT", respondNote)
-                        : undefined
-                    }
-                    onWithdraw={
-                      pending && proposedByMe ? () => void handleRespond(p, "WITHDRAW") : undefined
-                    }
-                    accepting={respondingAction === "ACCEPT"}
-                    rejecting={respondingAction === "REJECT"}
-                    withdrawing={respondingAction === "WITHDRAW"}
-                  />
-                )
-              })}
-              </>
-            )}
 
-            <SectionHeader
-              title="Panggilan video"
-              subtitle="Mediator Kahade dapat bergabung untuk memeriksa barang secara langsung."
-              action={
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  leftIcon={VideoCamera}
-                  loading={requestingCall}
-                  disabled={!myRole || hasCallInProgress}
-                  onPress={() => void handleRequestCall()}
-                >
-                  Minta
-                </Button>
-              }
+            <DisputeCallsSection
+              calls={calls}
+              meId={me?.id}
+              counterpartName={counterpartName}
+              myRoleKnown={Boolean(myRole)} hasCallInProgress={hasCallInProgress}
+              requestingCall={requestingCall}
+              callActionBusy={callActionBusy}
+              onCallAction={(action, callId) => void handleCallAction(action, callId)}
+              onRequestCall={() => void handleRequestCall()}
             />
-            {calls.length === 0 ? (
-              <Text variant="body" tone="secondary">
-                Belum ada panggilan video.
-              </Text>
-            ) : (
-              <ListGroup>
-                {calls.map((c, i) => {
-                  const requestedByMe = Boolean(me?.id && c.requesterId === me.id)
-                  const isRequested = c.status === "REQUESTED"
-                  const isActive = c.status === "ACCEPTED" || c.status === "ONGOING"
-                  return (
-                    <View key={c.id}>
-                      <DisputeCallLogItem
-                        outcome={mapValue(CALL_OUTCOME, c.status, c.status)}
-                        requestedByMe={requestedByMe}
-                        counterpartName={counterpartName}
-                        timestamp={formatDateTime(
-                          c.startedAt ?? c.requestedAt ?? c.createdAt ?? "",
-                        )}
-                        durationSeconds={c.durationSeconds}
-                        withMediator={c.withMediator}
-                        divider={i < calls.length - 1 && !isRequested && !isActive}
-                      />
-                      {isRequested && !requestedByMe ? (
-                        <View className="flex-row gap-2 px-5 pb-3">
-                          <Button
-                            size="sm"
-                            variant="primary"
-                            className="flex-1"
-                            loading={callActionBusy === "accept"}
-                            disabled={callActionBusy !== null}
-                            onPress={() => void handleCallAction("accept", c.id)}
-                          >
-                            Terima
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            className="flex-1"
-                            loading={callActionBusy === "reject"}
-                            disabled={callActionBusy !== null}
-                            onPress={() => void handleCallAction("reject", c.id)}
-                          >
-                            Tolak
-                          </Button>
-                        </View>
-                      ) : null}
-                      {isActive || (isRequested && requestedByMe) ? (
-                        <View className="px-5 pb-3">
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            loading={callActionBusy === "end"}
-                            disabled={callActionBusy !== null}
-                            onPress={() => void handleCallAction("end", c.id)}
-                          >
-                            {isActive ? "Akhiri panggilan" : "Batalkan permintaan"}
-                          </Button>
-                        </View>
-                      ) : null}
-                    </View>
-                  )
-                })}
-              </ListGroup>
-            )}
             </View>
           ) : null}
         </Crossfade>
@@ -985,107 +889,27 @@ export default function DisputeDetailScreen() {
         }
       />
 
-      <Dialog
-        title="Hapus bukti ini?"
-        description="Bukti yang dihapus tidak bisa dikembalikan dan tidak lagi dilihat mediator."
-        visible={deleteEvidenceId != null}
-        destructive
-        loading={deletingEvidence}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
-        onConfirm={() => void handleDeleteEvidence()}
-        onCancel={() => setDeleteEvidenceId(null)}
-        onRequestClose={() => setDeleteEvidenceId(null)}
+      <DisputeActionDialogs
+        deleteOpen={deleteEvidenceId != null} deleting={deletingEvidence}
+        onConfirmDelete={() => void handleDeleteEvidence()}
+        onCloseDelete={() => setDeleteEvidenceId(null)}
+        escalateOpen={escalateOpen} escalating={escalating}
+        escalateReason={escalateReason}
+        onChangeEscalateReason={setEscalateReason}
+        onConfirmEscalate={() => void handleEscalate()}
+        onCloseEscalate={() => setEscalateOpen(false)}
       />
 
-      <Dialog
-        title="Eskalasi sengketa ke admin?"
-        description="Admin Kahade akan meninjau sengketa ini dan mengambil alih keputusan. Eskalasi manual dibatasi maksimal 2x per sengketa."
-        visible={escalateOpen}
-        loading={escalating}
-        confirmLabel="Eskalasi"
-        cancelLabel="Tutup"
-        onConfirm={() => void handleEscalate()}
-        onCancel={() => setEscalateOpen(false)}
-        onRequestClose={() => setEscalateOpen(false)}
-      >
-        <TextArea
-          value={escalateReason}
-          onChangeText={setEscalateReason}
-          placeholder="Alasan eskalasi (opsional)"
-          maxLength={500}
-          numberOfLines={3}
-        />
-      </Dialog>
-
-      <BottomSheet
-        avoidKeyboard
-        visible={proposeOpen}
-        onRequestClose={() => setProposeOpen(false)}
-        title="Usulkan penyelesaian"
-        description={translate("Tentukan berapa dari {x} yang dikembalikan ke pembeli; sisanya ke penjual.", {
-          x: formatRupiah(orderValue),
-        })}
-        footer={
-          <Button
-            fullWidth
-            loading={proposing}
-            disabled={
-              proposeNote.trim().length < 10 ||
-              !order ||
-              !Number.isSafeInteger(orderValue) ||
-              proposeAmount < 0 ||
-              proposeAmount > orderValue
-            }
-            onPress={() => void handlePropose()}
-          >
-            Kirim usulan
-          </Button>
-        }
-      >
-        <View className="gap-4">
-          {!order ? (
-            // E-10 (audit escrow 2026-09-24): order gagal dimuat = usulan tidak
-            // terkirim — alasan eksplisit, bukan tombol yang diam-diam batal.
-            <Text variant="caption" tone="danger">
-              Detail order belum termuat — segarkan layar sebelum mengirim usulan.
-            </Text>
-          ) : null}
-          <AmountInput
-            value={proposeAmount}
-            onChange={setProposeAmount}
-            min={0}
-            max={orderValue || undefined}
-            label="Kembali ke pembeli"
-          />
-          {/*
-            E-03 (audit escrow 2026-09-24): backend hanya menerima persen
-            integer, jadi pratinjau MENAMPILKAN hasil bagi persen yang benar-
-            benar dikirim — nominal masukan yang tidak jatuh di kelipatan
-            `orderValue/100` dibulatkan ke kelipatan itu (bukan ke-ribuan).
-          */}
-          <Text variant="caption" tone="secondary">
-            Ke penjual:{" "}
-            {formatRupiah(
-              Math.max(
-                0,
-                orderValue -
-                  (orderValue > 0
-                    ? Math.round((Math.round((proposeAmount / orderValue) * 100) / 100) * orderValue)
-                    : proposeAmount),
-              ),
-            )}
-          </Text>
-          <TextArea
-            value={proposeNote}
-            onChangeText={setProposeNote}
-            placeholder="Jelaskan alasan usulan ini (wajib, min. 10 karakter)"
-            maxLength={PROPOSAL_NOTE_MAX}
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-      </BottomSheet>
+      <DisputeProposeSheet
+        open={proposeOpen} onClose={() => setProposeOpen(false)}
+        orderLoaded={Boolean(order)}
+        orderValue={orderValue}
+        proposeAmount={proposeAmount} onChangeAmount={setProposeAmount}
+        proposeNote={proposeNote} onChangeNote={setProposeNote}
+        noteMax={PROPOSAL_NOTE_MAX}
+        proposing={proposing}
+        onSubmit={() => void handlePropose()}
+      />
     </Screen>
   )
 }

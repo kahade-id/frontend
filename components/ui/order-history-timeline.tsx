@@ -69,9 +69,17 @@ export type OrderHistoryTimelineProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
+// R2 (audit ronde-2, butir #88): label default TETAP lewat translate() —
+// string Indonesia mentah di DEFAULT_LABELS tidak pernah tercatat katalog
+// sehingga pengguna English membaca campuran bahasa.
 const DEFAULT_LABELS: OrderHistoryLabels = {
-  by: "oleh",
-  actors: { BUYER: "Pembeli", SELLER: "Penjual", SYSTEM: "Sistem", ADMIN: "Admin Kahade" },
+  by: translate("oleh"),
+  actors: {
+    BUYER: translate("Pembeli"),
+    SELLER: translate("Penjual"),
+    SYSTEM: translate("Sistem"),
+    ADMIN: translate("Admin Kahade"),
+  },
   statuses: {},
 }
 
@@ -114,7 +122,8 @@ export function mapOrderHistoryToTimeline(
     // (potongan sudah diterjemahkan, tetapi rangkaiannya lolos katalog).
     const description =
       actorLabel && e.note
-        ? translate("{by} — {note}", { by: `${labels.by} ${actorLabel}`, note: e.note })
+        ? // R2 (audit ronde-2, butir #86): token kanonik {x}/{y}.
+          translate("{x} — {y}", { x: `${labels.by} ${actorLabel}`, y: e.note })
         : actorLabel
           ? `${labels.by} ${actorLabel}`
           : e.note

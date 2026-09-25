@@ -28,7 +28,7 @@ export const AMOUNT_PRESETS = {
   transfer: [25_000, 50_000, 100_000, 500_000, 1_000_000],
 }
 
-type Rules = Readonly<
+export type Rules = Readonly<
   Record<
     string,
     {

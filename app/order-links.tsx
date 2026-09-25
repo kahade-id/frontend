@@ -18,7 +18,8 @@ import { useCallback, useState } from "react"
 import { LinkSimple } from "phosphor-react-native"
 import { router } from "expo-router"
 
-import { api, type OrderLink, userMessage } from "@/lib/api"
+import { api, type OrderLink } from "@/lib/api"
+import { showMutationError } from "@/lib/mutation-toast"
 import { useCopy } from "@/lib/clipboard"
 import { orderLinkUrl } from "@/lib/deeplinks"
 import { formatDateTimeWIB } from "@/lib/format"
@@ -27,10 +28,12 @@ import { shareContent } from "@/lib/share"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
-import { DataScreen } from "@/components/ui/data-screen"
 import { Dialog } from "@/components/ui/modal"
-import { LoadMore } from "@/components/ui/load-more"
+import { EmptyState } from "@/components/ui/empty-state"
+import { Header } from "@/components/ui/header"
+import { PaginatedList } from "@/components/ui/paginated-list"
 import { OrderLinkShareCard } from "@/components/ui/order-link-share-card"
+import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { orderLinkStatusMeta } from "@/lib/order-link-labels"
 import { useToast } from "@/components/ui/toast"
@@ -74,6 +77,9 @@ export default function OrderLinksScreen() {
     // C-08 (audit): tautan terbaru di atas.
     {
       compare: byTimestampDesc<OrderLink & { id: string }>((link) => link.createdAt),
+      // R2 (audit ronde-2, butir #27): status tautan (DITERIMA/KEDALUWARSA)
+      // yang berubah saat pengguna berpindah layar terpantul saat kembali.
+      refreshOnFocus: true,
     },
   )
   const items = query.data
@@ -136,45 +142,28 @@ export default function OrderLinksScreen() {
       })
       setCancelTarget(null)
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal membatalkan tautan",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // R2 (audit ronde-2, butir #16): respons hilang ≠ pembatalan batal; muat
+      // ulang daftar supaya tuju-status final dari server terlihat. `query`
+      // ikut masuk deps handler — sebelumnya dipakai tanpa tercantum (laten).
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal membatalkan tautan",
+          uncertainHint: "Pembatalan mungkin sudah diproses — memuat ulang daftar…",
+          err,
+        })
+      ) {
+        void query.refresh().catch(() => {})
+      }
     } finally {
       setCancelling(false)
     }
-  }, [cancelTarget, toast.show])
+  }, [cancelTarget, toast.show, query])
 
-  /**
-   * G-02: kerangka Screen+Header+PullToRefresh+urutan-state tidak lagi
-   * disalin manual — <DataScreen> yang menangani (loading→error→empty→
-   * konten, inset bawah, px-5/pt-3/gap-4).
-   */
-  return (
-    <DataScreen
-      title="Order Link"
-      state={query}
-      loadingMessage="Memuat tautan…"
-      empty={
-        items.length === 0 && {
-          icon: LinkSimple,
-          title: "Belum ada tautan",
-          description: "Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi.",
-          action: (
-            <Button
-              variant="secondary"
-              fullWidth={false}
-              onPress={() => router.push(ROUTES.createTransaction)}
-            >
-              Buat tautan baru
-            </Button>
-          ),
-        }
-      }
-    >
-            <SectionHeader title="Tautan saya" />
-            {items.map((link) => {
+  // R2 (audit ronde-2, butir #74): daftar DIVIRTUALISASI (FlatList via
+  // PaginatedList) — dulu ScrollView + items.map me-render SELURUH kartu
+  // share (QR + handler per baris) setelah beberapa halaman dimuat.
+  const renderLinkItem = useCallback(
+    ({ item: link }: { item: OrderLink & { id: string } }) => {
               const url = link.url ?? orderLinkUrl(link.token)
               const status = orderLinkStatusMeta(link.status)
               return (
@@ -183,7 +172,10 @@ export default function OrderLinksScreen() {
                   url={url}
                   title={link.title}
                   amount={link.orderValue}
-                  orderCode={link.token}
+                  // R2 (audit ronde-2, butir #70): token PENUH = kredensial
+                  // penerimaan order; yang tampil permanen di daftar disensor
+                  // (4 terakhir). Menyalin/berbagi tetap memakai URL utuh.
+                  orderCode={`…${link.token.slice(-4)}`}
                   status={status}
                   expiresLabel={
                     link.expiresAt ? `Berlaku hingga ${formatDateTimeWIB(link.expiresAt)}` : undefined
@@ -212,23 +204,43 @@ export default function OrderLinksScreen() {
                   }
                 />
               )
-            })}
-            <LoadMore
-              status={
-                query.loadMoreError
-                  ? "error"
-                  : query.loadingMore
-                    ? "loading"
-                    : query.hasMore
-                      ? "idle"
-                      : "end"
-              }
-              onLoadMore={() => void query.loadMore()}
-              hideEnd
-            />
-            <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
-              Buat tautan baru
-            </Button>
+    },
+    [cancelTarget?.token, cancelling, copy, handleShare, toast.show],
+  )
+
+  return (
+    <Screen edges={["top"]} padded={false}>
+      <Header title="Order Link" />
+      <PaginatedList
+        {...query}
+        data={items}
+        renderItem={renderLinkItem}
+        onRefresh={query.refresh}
+        onRetry={query.reload}
+        onLoadMore={query.loadMore}
+        header={<SectionHeader title="Tautan saya" />}
+        empty={
+          <EmptyState
+            icon={LinkSimple}
+            title="Belum ada tautan"
+            description="Buat order link dari layar buat transaksi, lalu bagikan ke lawan transaksi."
+            action={
+              <Button
+                variant="secondary"
+                fullWidth={false}
+                onPress={() => router.push(ROUTES.createTransaction)}
+              >
+                Buat tautan baru
+              </Button>
+            }
+          />
+        }
+        footer={
+          <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
+            Buat tautan baru
+          </Button>
+        }
+      />
 
       <Dialog
         title="Batalkan tautan ini?"
@@ -242,6 +254,6 @@ export default function OrderLinksScreen() {
         onCancel={() => setCancelTarget(null)}
         onRequestClose={() => setCancelTarget(null)}
       />
-    </DataScreen>
+    </Screen>
   )
 }

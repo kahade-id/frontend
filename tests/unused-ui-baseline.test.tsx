@@ -1,5 +1,6 @@
 /**
- * D-03 (audit 2026-09-20): 29 komponen UI "cadangan roadmap".
+ * D-03 (audit 2026-09-20): 28 komponen UI "cadangan roadmap".
+ * (R2 #101: order-summary-strip dihapus — dead code permanen di surface order.)
  *
  * Komponen di `UNUSED_UI_BASELINE` (scripts/check-screens.mjs) sengaja
  * dipertahankan sebagai cadangan fitur roadmap, tetapi tidak dipakai layar mana
@@ -62,7 +63,6 @@ import { FilterSheetContent } from "@/components/ui/filter-sheet-content"
 import { IncomingCallPrompt } from "@/components/ui/incoming-call-prompt"
 import { KycDocumentViewer } from "@/components/ui/kyc-document-viewer"
 import { MenuItem, MenuList } from "@/components/ui/menu-list"
-import { OrderSummaryStrip } from "@/components/ui/order-summary-strip"
 import { Presence } from "@/components/ui/presence"
 import { ResultState } from "@/components/ui/result-state"
 import { SearchOverlay } from "@/components/ui/search-overlay"
@@ -254,18 +254,6 @@ describe("D-03: komponen baseline S5 masih bisa dirender", () => {
     )
   })
 
-  it("order-summary-strip", () => {
-    renderInApp(
-      <OrderSummaryStrip
-        items={[
-          { key: "PENDING", label: "Menunggu", count: 2 },
-          { key: "DISPUTE", label: "Sengketa", count: 1, critical: true },
-        ]}
-        onSelect={noop}
-      />,
-    )
-  })
-
   it("presence", () => {
     renderInApp(
       <Presence visible>
@@ -404,7 +392,6 @@ describe("D-03: komponen baseline S5 masih bisa dirender", () => {
       "incoming-call-prompt",
       "kyc-document-viewer",
       "menu-list",
-      "order-summary-strip",
       "presence",
       "result-state",
       "search-overlay",
@@ -420,6 +407,6 @@ describe("D-03: komponen baseline S5 masih bisa dirender", () => {
       "wallet-balance-card",
       "z-stack",
     ]
-    expect(baselineModules).toHaveLength(29)
+    expect(baselineModules).toHaveLength(28)
   })
 })

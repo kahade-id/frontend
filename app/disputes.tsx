@@ -13,6 +13,7 @@ import { ShieldWarning } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import type { DisputeDetail } from "@/lib/api/disputes"
 import { formatDateTime } from "@/lib/format"
+import { orderFallbackLabel } from "@/lib/short-id"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
@@ -27,8 +28,12 @@ import { SectionHeader } from "@/components/ui/section"
 const PAGE_LIMIT = 50
 
 export default function DisputesScreen() {
-  const query = usePaginatedQuery<DisputeDetail>("disputes", (page, signal) =>
-    api.disputes.listMyDisputes({ page, limit: PAGE_LIMIT }, signal),
+  const query = usePaginatedQuery<DisputeDetail>(
+    "disputes",
+    (page, signal) => api.disputes.listMyDisputes({ page, limit: PAGE_LIMIT }, signal),
+    // R2 (audit ronde-2, butir #26): kembali dari detail sengketa (yang status
+    // nya bisa berubah, mis. penyelesaian bersama diterima) menyegarkan daftar.
+    { refreshOnFocus: true },
   )
 
   return (
@@ -51,7 +56,10 @@ export default function DisputesScreen() {
         renderItem={({ item }) => (
           <DisputeCard
             disputeId={item.id}
-            orderTitle={`Order ${item.orderId}`}
+            // R2 (audit ronde-2, butir #38): fallback short-id — UUID mentah
+            // 36 karakter tidak bisa dikenali manusia; judul order asli belum
+            // dibawa endpoint daftar sengketa.
+            orderTitle={orderFallbackLabel(item.orderId)}
             status={item.status}
             updatedAt={formatDateTime(item.updatedAt ?? item.createdAt)}
             href={ROUTES.disputeDetail(item.id)}

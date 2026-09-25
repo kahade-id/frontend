@@ -42,13 +42,17 @@
  *   - Loading = <OrderCardSkeleton> terpisah dengan tinggi sama (≈132px)
  *     supaya list tidak melompat saat data masuk.
  */
+import { useEffect, useRef, useState } from "react"
 import { View, type ViewProps } from "react-native"
 import { translate } from "@/lib/i18n/translate"
+import { translateProp } from "@/lib/i18n"
+import { formatCountdown } from "@/lib/format"
+import { shortId } from "@/lib/short-id"
+import { useClockTick } from "@/lib/use-clock-tick"
 
 import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Card, type CardProps } from "@/components/ui/card"
-import { Countdown } from "@/components/ui/countdown"
 import { Dot } from "@/components/ui/dot"
 import { type BadgeTone } from "@/components/ui/badge"
 import {
@@ -159,7 +163,9 @@ export function OrderCard({
     accessibilityLabel ??
     summarize([
       unread ? "Ada pembaruan" : undefined,
-      `Order ${orderId}`,
+      // R2 (audit ronde-2, butir #67): pembaca layar tidak disuguhi UUID 36
+      // karakter — 8 heksa pertama cukup membedakan order milik satu pengguna.
+      `Order #${shortId(orderId)}`,
       title,
       // K-02 (audit escrow 2026-09-24): nominal dan STATUS — dua informasi
       // finansial terpenting kartu — kini ikut diumumkan pembaca layar.
@@ -252,10 +258,60 @@ export function OrderCard({
           </Text>
           {/* tone primary: tenggat adalah informasi, bukan bahaya — warna
               semantik disimpan untuk Badge status (§2.3) */}
-          <Countdown until={deadlineAt} tone="primary" onComplete={onDeadline} />
+          <OrderCardDeadline until={deadlineAt} onComplete={onDeadline} />
         </View>
       ) : null}
     </Card>
+  )
+}
+
+/**
+ * R2 (audit ronde-2, butir #64+#65): countdown kartu BERBAGI satu detak 1-Hz
+ * global (`useClockTick`) alih-alih satu interval per kartu — 20 kartu di
+ * layar daftar = 1 interval. Waktu dinyatakan epoch ms + `Date.now` domain
+ * server (`serverNow` di dalam tick) bukan Date baru per render cell (#65).
+ * `onComplete` ditembak sekali di batas habis; berhenti subscribe setelahnya.
+ */
+function OrderCardDeadline({
+  until,
+  onComplete,
+}: {
+  until: Date | number
+  onComplete?: () => void
+}) {
+  const untilMs =
+    until instanceof Date ? until.getTime() : typeof until === "number" ? until : NaN
+  const valid = Number.isFinite(untilMs)
+  const [done, setDone] = useState(false)
+  const now = useClockTick(valid && !done)
+  const firedRef = useRef(false)
+  // Reset saat target tenggat berganti (kartu didaur ulang FlatList).
+  useEffect(() => {
+    setDone(false)
+    firedRef.current = false
+  }, [untilMs])
+  const remainingSec = valid ? Math.max(0, Math.ceil((untilMs - now) / 1000)) : null
+  useEffect(() => {
+    if (remainingSec === 0 && !firedRef.current) {
+      firedRef.current = true
+      setDone(true)
+      onComplete?.()
+    }
+  }, [remainingSec, onComplete])
+  return (
+    <Text
+      variant="monoBody"
+      tone="primary"
+      accessibilityLabel={
+        translateProp(
+          valid
+            ? translate("Tenggat dalam {x}", { x: formatCountdown(remainingSec ?? 0) })
+            : "Tenggat tidak diketahui",
+        )
+      }
+    >
+      {valid ? formatCountdown(remainingSec ?? 0) : "—"}
+    </Text>
   )
 }
 

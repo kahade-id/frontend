@@ -69,7 +69,6 @@ export const WALLET_TXN_LABELS: Record<string, string> = {
   SUBSCRIPTION_PAYMENT: "Langganan",
   ADMIN_CREDIT: "Penyesuaian Masuk",
   ADMIN_DEBIT: "Penyesuaian Keluar",
-
   /*
    * Alias bentuk lama — HANYA untuk menampilkan data yang terlanjur tersimpan
    * di cache/riwayat lokal. Jangan pernah dipakai sebagai nilai filter: alias
@@ -83,6 +82,21 @@ export const WALLET_TXN_LABELS: Record<string, string> = {
   REFUND: "Refund Order",
   FEE: "Biaya Platform",
   CASHBACK: "Cashback",
+}
+
+/**
+ * R2 (audit ronde-2, butir #80): kamus label STATUS mutasi — pengguna tidak
+ * boleh membaca enum mentah (PENDING_SETTLEMENT/RELEASED) di riwayat uang.
+ */
+export const WALLET_TXN_STATUS_LABELS: Record<string, string> = {
+  COMPLETED: "Selesai",
+  PENDING: "Menunggu",
+  PENDING_SETTLEMENT: "Menunggu penyelesaian",
+  SETTLED: "Terselesaikan",
+  RELEASED: "Dicairkan",
+  PROCESSING: "Diproses",
+  FAILED: "Gagal",
+  CANCELLED: "Dibatalkan",
 }
 
 /** Chip filter jenis mutasi — dibangun HANYA dari enum yang sah di API. */

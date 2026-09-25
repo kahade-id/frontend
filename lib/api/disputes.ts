@@ -12,6 +12,7 @@
 import { pickString, readList, readPage } from "@/lib/api/response"
 
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
+import { LOCAL_CONSTRAINTS } from "@/lib/api/local-constraints"
 import { assertDtoConstraints } from "@/lib/financial"
 import { toAmount } from "@/lib/api/orders"
 import { http, seg } from "@/lib/api/client"
@@ -118,6 +119,18 @@ function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
     messages: Array.isArray(d.messages) ? (d.messages as DisputeMessage[]) : undefined,
   }
 }
+
+/** E-09/R2: seluruh 7 MIME kontrak bukti (sentral di lib/, bukan layar). */
+export type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
+export const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/pdf",
+  "video/mp4",
+  "video/quicktime",
+  "video/webm",
+]
 
 export function listMyDisputes(query?: { page?: number; limit?: number }, signal?: AbortSignal) {
   return http
@@ -371,14 +384,20 @@ export function respondMutualResolution(
   disputeId: string,
   proposalId: string,
   dto: MutualResolutionRespondBody,
+  idempotencyKey?: string,
 ) {
   // I-22: lihat submitDisputeEvidence.
+  // R2 (audit ronde-2, butir #17): ACCEPT membagi dana — pemanggil meneruskan
+  // idempotency key per-siklus-form (pola C-06 createOrder/payOrder).
   assertDtoConstraints(dto, API_CONSTRAINTS.MutualResolutionRespondDto)
   return http
     .post<unknown, MutualResolutionRespondBody>(
       `/v1/disputes/${seg(disputeId)}/mutual-resolution/${seg(proposalId)}/respond`,
       dto,
-      { auth: "required" },
+      {
+        auth: "required",
+        ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+      },
     )
     .then(normalizeMutualProposal)
 }
@@ -397,6 +416,10 @@ export function withdrawMutualResolution(disputeId: string, proposalId: string) 
  * RESOLVED/ESCALATED; maks 2x eskalasi per sengketa.
  */
 export function escalateDispute(disputeId: string, reason?: string) {
+  // R2 (butir #103): schema eskalasi tidak ada di spec (body anonim) —
+  // validasi lokal: reason opsional, bila diisi ≥10 karakter (sama dengan
+  // dialog eskalasi di layar; jangan kirim alasan yang pasti ditolak).
+  assertDtoConstraints({ reason }, LOCAL_CONSTRAINTS.EscalateDisputeDto)
   return http.post<Record<string, unknown>, { reason?: string }>(
     `/v1/disputes/${seg(disputeId)}/escalate`,
     { ...(reason && reason.trim() ? { reason: reason.trim() } : {}) },

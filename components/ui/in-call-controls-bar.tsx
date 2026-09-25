@@ -73,6 +73,13 @@ export type InCallControlsBarProps = Omit<ViewProps, "children"> & {
   onEnd: () => void
   /** Nonaktifkan semua toggle (mis. saat menghubungkan), Tutup tetap aktif */
   disabled?: boolean
+  /**
+   * R2 (audit ronde-2, butir #42): bila kontrol media (mute/speaker/kamera)
+   * BELUM tersambung ke objek WebRTC nyata, jangan menampilkannya sebagai
+   * tombol palsu yang bisa ditekan — nonaktifkan dan jelaskan alasannya
+   * (teks ini dirender sebagai caption). Tombol akhiri panggilan tetap aktif.
+   */
+  mediaControlsUnavailableReason?: string
   labels?: {
     mute?: string
     unmute?: string
@@ -109,12 +116,15 @@ export function InCallControlsBar({
   onFlipCamera,
   onEnd,
   disabled = false,
+  mediaControlsUnavailableReason,
   labels,
   className,
   ...rest
 }: InCallControlsBarProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
   const showVideo = onToggleVideo != null
+  // Kontrol media ikut TERKUNCI saat alasan ketidaktersediaan diberikan.
+  const mediaDisabled = disabled || mediaControlsUnavailableReason != null
   const showFlip = onFlipCamera != null && videoOn !== false
 
   return (
@@ -126,6 +136,12 @@ export function InCallControlsBar({
       )}
       {...rest}
     >
+      {mediaControlsUnavailableReason ? (
+        <Text variant="caption" tone="secondary" className="text-center">
+          {mediaControlsUnavailableReason}
+        </Text>
+      ) : null}
+
       {statusText ? (
         <Text variant="caption" tone="secondary">
           {statusText}
@@ -148,7 +164,7 @@ export function InCallControlsBar({
             label={muted ? t.mute : t.unmute}
             active={muted}
             onPress={onToggleMute}
-            disabled={disabled}
+            disabled={mediaDisabled}
             accessibilityLabel={muted ? "Nyalakan mikrofon" : "Bisukan mikrofon"}
           />
           <Control
@@ -156,7 +172,7 @@ export function InCallControlsBar({
             label={speakerOn ? t.speaker : t.earpiece}
             active={speakerOn}
             onPress={onToggleSpeaker}
-            disabled={disabled}
+            disabled={mediaDisabled}
             accessibilityLabel={speakerOn ? "Matikan speaker" : "Nyalakan speaker"}
           />
           {showVideo ? (
@@ -165,7 +181,7 @@ export function InCallControlsBar({
               label={videoOn ? t.cameraOn : t.cameraOff}
               active={videoOn === false}
               onPress={onToggleVideo!}
-              disabled={disabled}
+              disabled={mediaDisabled}
               accessibilityLabel={videoOn ? "Matikan kamera" : "Nyalakan kamera"}
             />
           ) : null}
@@ -175,7 +191,7 @@ export function InCallControlsBar({
               label={t.flip}
               active={false}
               onPress={onFlipCamera!}
-              disabled={disabled}
+              disabled={mediaDisabled}
               accessibilityLabel="Balik kamera"
             />
           ) : null}

@@ -52,6 +52,14 @@ export type QrisPaymentPanelProps = {
   onRecreate: () => void
   /** "Cek status sekarang" — pembaruan manual selagi menunggu. */
   onCheckStatus: () => void
+  /**
+   * R2 (audit ronde-2, butir #29/#30): jalan keluar "Bayar metode lain" yang
+   * dijanjikan copy UNKNOWN/pollStopped (C-10/M-14 use-qris-payment) namun
+   * dulu tidak pernah wujud — reset intent agar SegmentedControl terbuka.
+   * Ditampilkan hanya di status UNKNOWN / pemantauan berhenti; di status
+   * terminal jalan keluar sudah ada ("Buat ulang QRIS").
+   */
+  onUseOtherMethod?: () => void
 }
 
 export function QrisPaymentPanel({
@@ -67,6 +75,7 @@ export function QrisPaymentPanel({
   onExpire,
   onRecreate,
   onCheckStatus,
+  onUseOtherMethod,
 }: QrisPaymentPanelProps) {
   const failed = status === "EXPIRED" || status === "FAILED"
   return (
@@ -79,10 +88,17 @@ export function QrisPaymentPanel({
       <QRCodeDisplay
         value={qrString}
         title="Pindai dengan aplikasi pembayaran"
-        caption={translate("Berlaku sampai {x} · {y}", {
-          x: formatDateTimeWIB(expiresAt ?? ""),
-          y: formatRupiah(amount),
-        })}
+        // R2 (audit ronde-2, butir #31): `expiresAt` hilang pernah membuat
+        // caption "Berlaku sampai — · Rp…" (formatDateTimeWIB("") = "—").
+        // Tanpa tenggat, jatuh ke nominal saja — tidak ada strip warping "—".
+        caption={
+          expiresAt
+            ? translate("Berlaku sampai {x} · {y}", {
+                x: formatDateTimeWIB(expiresAt),
+                y: formatRupiah(amount),
+              })
+            : formatRupiah(amount)
+        }
         onCopy={onCopy}
         copied={copied}
       />
@@ -124,9 +140,18 @@ export function QrisPaymentPanel({
           Buat ulang QRIS
         </Button>
       ) : (
-        <Button variant="ghost" onPress={onCheckStatus}>
-          Cek status sekarang
-        </Button>
+        <>
+          <Button variant="ghost" onPress={onCheckStatus}>
+            Cek status sekarang
+          </Button>
+          {onUseOtherMethod && (status === "UNKNOWN" || pollStopped) ? (
+            // R2 (butir #29/#30): copy UNKNOWN menjanjikan "bayar dengan
+            // metode lain" — tombolnya kini benar-benar ada.
+            <Button variant="secondary" disabled={submitting} onPress={onUseOtherMethod}>
+              Bayar dengan metode lain
+            </Button>
+          ) : null}
+        </>
       )}
     </>
   )

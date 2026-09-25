@@ -26,14 +26,17 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useApiQuery } from "@/lib/use-api-query"
-import { View } from "react-native"
+import { usePolling } from "@/lib/use-polling"
+import { Text } from "@/components/ui/text"
+import { Pressable, View } from "react-native"
 import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Package } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type Order } from "@/lib/api"
+import { api, createIdempotencyKey, isApiError, userMessage, type Order } from "@/lib/api"
+import { showMutationError } from "@/lib/mutation-toast"
 import { orderPartyName, type DeliveryProof } from "@/lib/api/orders"
 import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
 import { formatDateTime } from "@/lib/format"
@@ -81,11 +84,17 @@ function isRenderableUrl(uri: string): boolean {
   return /^https?:\/\//i.test(uri)
 }
 
-function toAttachments(p: DeliveryProof): DeliveryProofAttachment[] {
+function toAttachments(p: DeliveryProof): { items: DeliveryProofAttachment[]; dropped: number } {
   const imgs: DeliveryProofAttachment[] = []
   const pdfs: DeliveryProofAttachment[] = []
+  // R2 (audit ronde-2, butir #47): URI tak renderable tidak lagi hilang tanpa
+  // jejak — dihitung di `dropped` dan dilaporkan ke UI sebagai placeholder.
+  let dropped = 0
   for (const uri of p.fileUrls ?? []) {
-    if (!isRenderableUrl(uri)) continue
+    if (!isRenderableUrl(uri)) {
+      dropped += 1
+      continue
+    }
     if (/\.pdf($|\?)/i.test(uri)) {
       pdfs.push({ kind: "pdf", uri, name: fileNameFromUrl(uri, FALLBACK_FILE_NAME) })
     } else {
@@ -93,10 +102,22 @@ function toAttachments(p: DeliveryProof): DeliveryProofAttachment[] {
     }
   }
   for (const uri of p.linkUrls ?? []) {
-    if (!isRenderableUrl(uri)) continue
+    if (!isRenderableUrl(uri)) {
+      dropped += 1
+      continue
+    }
     pdfs.push({ kind: "pdf", uri, name: fileNameFromUrl(uri, FALLBACK_FILE_NAME) })
   }
-  return [...imgs, ...pdfs]
+  return { items: [...imgs, ...pdfs], dropped }
+}
+
+/** R2 (butir #46): label status riwayat yang JUJUR — nilai tak dikenal tidak
+ *  diturunkan menjadi "Menunggu konfirmasi" (lihat juga #48). */
+function proofHistoryLabel(status: string): string {
+  if (status === "PENDING") return "Menunggu konfirmasi"
+  if (status === "CONFIRMED") return "Dikonfirmasi"
+  if (status === "REJECTED") return "Ditolak"
+  return status || "Status tidak dikenal"
 }
 
 export default function DeliveryProofScreen() {
@@ -130,6 +151,10 @@ export default function DeliveryProofScreen() {
   const proofs = query.data?.proofs ?? []
   const { loading, error, refreshing } = query
   const [confirming, setConfirming] = useState(false)
+  // R2 (butir #17): kunci idempotensi konfirmasi — dibuat ulang saat siklus
+  // konfirmasi dimulai ulang (sukses / gagal pasti), DIPERTAHANKAN saat hasil
+  // uncertain agar retry manual memakai kunci yang sama.
+  const confirmKeyRef = useRef<string | null>(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
@@ -145,12 +170,27 @@ export default function DeliveryProofScreen() {
   const [form, setForm] = useState<DeliveryProofFormValue>({ trackingNumber: "", note: "" })
   const [submitting, setSubmitting] = useState(false)
 
-  const latest = useMemo(() => {
-    if (proofs.length === 0) return null
-    return [...proofs].sort(
-      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-    )[0]
-  }, [proofs])
+  const sortedProofs = useMemo(
+    () =>
+      [...proofs].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      ),
+    [proofs],
+  )
+  const latest = sortedProofs[0] ?? null
+  // R2 (audit ronde-2, butir #46): riwayat bukti lama yang dijanjikan JSDoc
+  // layar ("tetap tampil di bawah sebagai riwayat") kini benar-benar dirender.
+  const pastProofs = sortedProofs.slice(1)
+
+  // R2 (audit ronde-2, butir #23): status bukti/penolakan pihak lawan menyegar
+  // tiap 20 detik saat layar terbuka; berhenti setelah CONFIRMED (final).
+  usePolling(
+    async () => {
+      await query.refresh().catch(() => {})
+    },
+    20_000,
+    Boolean(orderId) && latest?.status !== "CONFIRMED",
+  )
 
   /**
    * E-02 + H-01 (audit escrow 2026-09-24): peran TIDAK boleh default ke
@@ -162,7 +202,11 @@ export default function DeliveryProofScreen() {
     order?.myRole === "SELLER" ? "seller" : order?.myRole === "BUYER" ? "buyer" : null
   const isSeller = knownRole === "seller"
   const sellerName = order ? orderPartyName(order.seller) : undefined
-  const attachments = useMemo(() => (latest ? toAttachments(latest) : []), [latest])
+  const latestAttachments = useMemo(
+    () => (latest ? toAttachments(latest) : { items: [], dropped: 0 }),
+    [latest],
+  )
+  const attachments = latestAttachments.items
 
   /**
    * Pra-isi nomor resi yang dulu dilakukan DI DALAM fetcher. Dipindah ke effect
@@ -192,7 +236,13 @@ export default function DeliveryProofScreen() {
     }
     setConfirming(true)
     try {
-      await api.orders.confirmDelivery(orderId, { proofId: latest.id })
+      // R2 (audit ronde-2, butir #17): kunci idempotensi per siklus dialog
+      // konfirmasi — ketukan ganda / retry pasca-timeout aman. Kunci disimpan
+      // sampai respons final (sukses ATAU gagal pasti) lalu dibuat ulang.
+      const key =
+        confirmKeyRef.current ?? (confirmKeyRef.current = createIdempotencyKey())
+      await api.orders.confirmDelivery(orderId, { proofId: latest.id }, key)
+      confirmKeyRef.current = null
       toast.show({ title: "Penerimaan dikonfirmasi", tone: "success", duration: 3000 })
       setConfirmOpen(false)
       // M-41 (audit end-to-end, issue #37): refetch BUKAN bagian mutasi —
@@ -201,11 +251,23 @@ export default function DeliveryProofScreen() {
       // tampil, lalu tertimpa pesan gagal yang menyesatkan).
       void query.refresh().catch(() => {})
     } catch (err) {
-      toast.show({
-        title: "Gagal mengonfirmasi penerimaan",
-        description: isApiError(err) ? userMessage(err) : undefined,
-        tone: "danger",
-      })
+      // R2 (audit escrow ronde-2, butir #2): konfirmasi MERILIS dana escrow ke
+      // penjual — respons yang hilang bukan berarti rilis batal. Tanamkan
+      // peringatan jujur dan wajib muat ulang state dari server.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengonfirmasi penerimaan",
+          uncertainHint: "Konfirmasi mungkin sudah diproses — memuat ulang status…",
+          uncertainDetail: "Dana escrow bisa sudah dirilis — jangan konfirmasi ulang.",
+          err,
+        })
+      ) {
+        await query.reload().catch(() => {})
+      } else {
+        // Gagal pasti (server menolak & request diterima): siklus berakhir,
+        // retry berikutnya = upaya BARU dengan kunci baru.
+        confirmKeyRef.current = null
+      }
     } finally {
       setConfirming(false)
     }
@@ -230,11 +292,18 @@ export default function DeliveryProofScreen() {
         // M-41 (issue #37): refetch dipisah dari mutasi (lihat handleConfirm).
         void query.refresh().catch(() => {})
       } catch (err) {
-        toast.show({
-          title: "Gagal menolak bukti",
-          description: isApiError(err) ? userMessage(err) : undefined,
-          tone: "danger",
-        })
+        // R2 (audit escrow ronde-2, butir #3): penolakan bisa membuka sengketa —
+        // retry pada kegagalan tak pasti berisiko menolak/sengketa ganda.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal menolak bukti",
+            uncertainHint: "Penolakan mungkin sudah diproses — memuat ulang status…",
+            uncertainDetail: "Sengketa bisa sudah dibuka — periksa status sebelum menolak kembali.",
+            err,
+          })
+        ) {
+          await query.reload().catch(() => {})
+        }
       } finally {
         setRejecting(false)
       }
@@ -244,7 +313,9 @@ export default function DeliveryProofScreen() {
 
   const handleAddEvidence = useCallback(async () => {
     if (uploads.length >= MAX_PROOF_FILES) return
-    const picked = await pickImage()
+    // R2 (audit ronde-2, butir #34): bukti pengiriman pun boleh berupa video
+    // (kontrak SubmitEvidenceDto mendukung) — selaras dengan jalur sengketa.
+    const picked = await pickImage({ allowVideos: true })
     if (picked.status === "denied") {
       toast.show({ title: "Akses galeri ditolak", tone: "danger" })
       return
@@ -372,6 +443,19 @@ export default function DeliveryProofScreen() {
     [attachments, latest],
   )
 
+  /** R2 (butir #46): buka lampiran pertama bukti riwayat dalam viewer yang sama. */
+  const openProofAttachment = useCallback((proof: DeliveryProof) => {
+    const first = toAttachments(proof).items[0]
+    if (!first) return
+    setViewerItem({
+      url: first.uri,
+      mimeType: first.kind === "pdf" ? "application/pdf" : "image/jpeg",
+      title: proofHistoryLabel(proof.status),
+      caption: [proof.description, formatDateTime(proof.createdAt)].filter(Boolean).join(" · "),
+      fileName: first.kind === "pdf" ? first.name : undefined,
+    })
+  }, [])
+
   const showSellerForm = isSeller && latest?.status !== "CONFIRMED"
 
   return (
@@ -445,6 +529,16 @@ export default function DeliveryProofScreen() {
                   rejecting={rejecting}
                   onOpenAttachment={openAttachment}
                 />
+                {latestAttachments.dropped > 0 ? (
+                  // R2 (butir #47): lampiran yang disaring karena bukan tautan
+                  // renderable dilaporkan, bukan diam-diam hilang.
+                  <Text variant="caption" tone="secondary">
+                    {translate(
+                      "{x} lampiran tidak dapat ditampilkan (bukan tautan unduhan langsung).",
+                      { x: latestAttachments.dropped },
+                    )}
+                  </Text>
+                ) : null}
               </>
             ) : !showSellerForm ? (
               <EmptyState
@@ -456,6 +550,53 @@ export default function DeliveryProofScreen() {
                     : "Penjual belum mengunggah bukti. Anda akan diberi tahu saat tersedia."
                 }
               />
+            ) : null}
+
+            {pastProofs.length > 0 ? (
+              // R2 (audit ronde-2, butir #46/#49): seluruh riwayat bukti
+              // sebelumnya dirender (konfirmasi hanya berlaku untuk TERAKHIR
+              // — disebutkan eksplisit agar pembeli tidak mencari tombol pada
+              // bukti lama).
+              <>
+                <SectionHeader
+                  title="Riwayat bukti sebelumnya"
+                  subtitle="Konfirmasi/tolak hanya berlaku untuk bukti terbaru. Ketuk untuk melihat lampiran."
+                />
+                {pastProofs.map((p) => {
+                  const atts = toAttachments(p)
+                  return (
+                    <Pressable
+                      key={p.id || p.createdAt}
+                      onPress={atts.items.length > 0 ? () => openProofAttachment(p) : undefined}
+                      disabled={atts.items.length === 0}
+                      accessibilityRole="button"
+                      className="rounded-sm border border-border bg-surface p-3"
+                    >
+                      <View className="flex-row items-center justify-between gap-2">
+                        <Text variant="body" weight={500}>
+                          {proofHistoryLabel(p.status)}
+                        </Text>
+                        <Text variant="caption" tone="secondary">
+                          {formatDateTime(p.createdAt)}
+                        </Text>
+                      </View>
+                      {p.description ? (
+                        <Text variant="caption" tone="secondary" numberOfLines={2}>
+                          {p.description}
+                        </Text>
+                      ) : null}
+                      <Text variant="caption" tone="secondary">
+                        {atts.items.length > 0
+                          ? translate("{x} lampiran", { x: atts.items.length })
+                          : "Tanpa lampiran yang dapat ditampilkan"}
+                        {atts.dropped > 0
+                          ? translate(" · {x} tak dapat ditampilkan", { x: atts.dropped })
+                          : ""}
+                      </Text>
+                    </Pressable>
+                  )
+                })}
+              </>
             ) : null}
             </View>
           )}

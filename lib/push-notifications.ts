@@ -38,6 +38,7 @@ import * as Device from "expo-device"
 import * as Notifications from "expo-notifications"
 import { Platform } from "react-native"
 
+import { invalidateQueryCache } from "@/lib/query-cache"
 import { SecureKeys, deleteSecureItem, getOrCreateDeviceId, getSecureItem, setSecureItem } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
 
@@ -154,6 +155,19 @@ export async function setupNotifications(): Promise<void> {
         shouldPlaySound: false,
         shouldSetBadge: true,
       }),
+    })
+    /**
+     * R2 (audit ronde-2, butir #20): listener notifikasi FOREGROUND. Dulu
+     * satu-satunya reaksi pada notifikasi yang tiba saat app terbuka adalah
+     * banner sistem — data di layar yang sedang tampil tidak berubah sampai
+     * pengguna menarik-refresh manual, seolah-olah app "tidak tahu" pesanan
+     * lawan transaksi sudah dibayar/terverifikasi. Kini notifikasi masuk
+     * menginvalidasi cache query: hook `useApiQuery` yang terpasang
+     * (disubscribe di sana) langsung me-revalidate diam-diam di latar, dan
+     * layar yang dibuka berikutnya selalu membaca data segar.
+     */
+    Notifications.addNotificationReceivedListener(() => {
+      invalidateQueryCache()
     })
     handlerInstalled = true
   }

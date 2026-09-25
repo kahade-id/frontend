@@ -153,7 +153,9 @@ const DEFAULT_LABELS: DeliveryProofViewerLabels = {
   rejectReasonHelper: translate("Penolakan akan membuka sengketa yang ditinjau tim Kahade."),
   rejectReasonTooShort: (min) => translate("Minimal {x} karakter", { x: min }),
   rejectedTitle: translate("Bukti ditolak"),
-  openAttachment: (i, total) => translate("Buka lampiran {i} dari {total}", { i: i + 1, total }),
+  // R2 (audit ronde-2, butir #85): token kanonik {x}/{y} — kunci kamus tidak
+  // lagi terpecah dari layar lain dan terjemahan EN benar-benar dipakai.
+  openAttachment: (i, total) => translate("Buka lampiran {x} dari {y}", { x: i + 1, y: total }),
 }
 
 const statusTone: Record<DeliveryProofStatus, BadgeTone> = {

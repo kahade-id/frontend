@@ -175,7 +175,7 @@ export function Countdown({
   large = false,
   className,
   invalidLabel = "—",
-  announceEverySeconds = 5,
+  announceEverySeconds: _announceEverySeconds = 5,
   ...rest
 }: CountdownProps) {
   const { formatted, remaining, invalid } = useCountdown({ seconds, until, onComplete, autoStart })

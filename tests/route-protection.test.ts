@@ -58,6 +58,10 @@ const PUBLIC_SCREENS = new Set<string>([
   "verify-email", // alur auth email
   "showcase/[id]", // corong share/SEO publik — detail karya bisa dilihat tamu
   "user/[username]/showcase", // galeri etalase publik (audit Etalase 2026-09-23, I-05)
+  // R2 (audit ronde-2, butir #69): preview order-link publik (auth:"none") —
+  // corong share wajib bisa dibuka tamu; aksi Terima/Tolak digerbang sesi di
+  // dalam layar (dialihkan ke login membawa next-path).
+  "order-link/[token]",
 ])
 
 function collectRoutes(dir: string, prefix = ""): string[] {

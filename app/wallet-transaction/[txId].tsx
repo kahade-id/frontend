@@ -5,18 +5,22 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
-import { View } from "react-native"
-import { useLocalSearchParams } from "expo-router"
+import { Pressable, View } from "react-native"
+import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import type { WalletTransaction } from "@/lib/api/wallet"
 import { formatDateTime } from "@/lib/format"
+import { ROUTES } from "@/lib/routes"
+import { shortId } from "@/lib/short-id"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import {
   WALLET_TXN_LABELS,
+  WALLET_TXN_STATUS_LABELS,
   walletTransactionStatus,
   walletTransactionType,
   isWalletCredit,
@@ -99,9 +103,40 @@ export default function WalletTransactionScreen() {
 
             <Card padded className="gap-3">
               <KeyValue label="Jenis" value={mapValue(WALLET_TXN_LABELS, txn.type, txn.type)} />
-              <KeyValue label="Status" value={txn.status ?? "Status belum tersedia"} />
+              <KeyValue
+                label="Status"
+                // R2 (audit ronde-2, butir #80): enum mentah tidak dipaparkan;
+                // nilai tak dikenal tetap lolos apa adanya (pola mapValue).
+                value={
+                  txn.status
+                    ? mapValue(WALLET_TXN_STATUS_LABELS, txn.status, txn.status)
+                    : "Status belum tersedia"
+                }
+              />
               <KeyValue label="Waktu" value={formatDateTime(txn.createdAt)} />
-              {txn.referenceId ? <KeyValue label="Referensi" value={txn.referenceId} mono /> : null}
+              {txn.referenceId ? (
+                // R2 (audit ronde-2, butir #81): referensi mutasi escrow adalah
+                // TAUTAN ke entitas terkait, bukan jalan buntu salin-tempel.
+                <Pressable
+                  accessibilityRole="link"
+                  accessibilityLabel={translate("Buka referensi {x}", { x: txn.referenceId })}
+                  onPress={() => {
+                    router.push(
+                      txn.type === "DISPUTE_RELEASE"
+                        ? ROUTES.disputeDetail(txn.referenceId!)
+                        : ROUTES.orderDetail(txn.referenceId!),
+                    )
+                  }}
+                  className="flex-row items-center justify-between gap-2"
+                >
+                  <Text variant="body" tone="secondary">
+                    Referensi
+                  </Text>
+                  <Text variant="monoBody" tone="primary" numberOfLines={1}>
+                    {shortId(txn.referenceId)} ›
+                  </Text>
+                </Pressable>
+              ) : null}
               {txn.description ? <KeyValue label="Deskripsi" value={txn.description} /> : null}
             </Card>
 
