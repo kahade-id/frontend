@@ -50,43 +50,42 @@ import {
   type CreateOrderLinkDto,
 } from "@/lib/api"
 import type { FeeSchedule } from "@/lib/api/public"
-import { formatDecimal, formatRupiah } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { AmountInput } from "@/components/ui/amount-input"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { ButtonGroup } from "@/components/ui/button-group"
 import {
-  CounterpartValidationCard,
   type CounterpartState,
 } from "@/components/ui/counterpart-validation-card"
-import { FEE_RESPONSIBILITY_LABELS, FeeBreakdown } from "@/components/ui/fee-breakdown"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { Input } from "@/components/ui/input"
-import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { Dialog } from "@/components/ui/modal"
 import {
-  FeeResponsibilitySelector,
-  OrderRoleSelector,
   OrderTypeSelector,
-  ORDER_ROLE_LABELS,
   ORDER_TYPE_LABELS,
   type OrderRoleValue,
   type OrderType,
 } from "@/components/ui/order-form-selectors"
+import {
+  CounterpartStep,
+  CreateIntroStep,
+  FeeScheduleSheet,
+  FeeServiceSection,
+  OrderSummarySection,
+  VoucherSection,
+} from "@/components/create-transaction-review"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
-import { SegmentedControl } from "@/components/ui/segmented-control"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
-import { VoucherRedeemBox, type AppliedVoucher } from "@/components/ui/voucher-redeem-box"
+import type { AppliedVoucher } from "@/components/ui/voucher-redeem-box"
 import { translate } from "@/lib/i18n/translate"
 
 const DEBOUNCE_MS = 400
@@ -98,10 +97,6 @@ const MIN_USERNAME = API_CONSTRAINTS.CreateOrderDto.counterpartUsername.minLengt
 const MAX_DEADLINE_DAYS = API_CONSTRAINTS.CreateOrderDto.deliveryDeadlineDays.maximum
 
 type Mode = "direct" | "link"
-const MODE_ITEMS: { value: Mode; label: string }[] = [
-  { value: "direct", label: "Lawan tertentu" },
-  { value: "link", label: "Order Link" },
-]
 
 const STEPS = [
   {
@@ -134,6 +129,10 @@ const LAST_STEP = STEPS.length - 1
  * aturan transaksi tunggal ≥ Rp 2jt.
  */
 function kycReasonMessage(backendMessage: string): string {
+  // R2 (audit ronde-2, butir #62): DETEKSI dialog KYC sudah berbasis kode
+  // mesin (`err.backendCode === "KYC_REQUIRED"` di catch submit) — regex di
+  // sini HANYA memilih wording penjelasan. Copy server yang berubah/memakai
+  // bahasa lain jatuh ke pesan generik yang AMAN (bukan false-positive/negatif).
   if (/cumulative/i.test(backendMessage)) {
     return (
       "Total nilai transaksi aktif Anda (ditambah transaksi ini) mencapai batas " +
@@ -339,9 +338,21 @@ export default function CreateTransactionScreen() {
     }
     setCounterpartState("loading")
     try {
-      const res = await api.orders.validateCounterpart({ username: q })
+      // R2 (audit ronde-2, butir #57): sinyal identitas diri untuk cabang
+      // "self" kartu validasi — dulu state itu tak pernah diset sehingga order
+      // escrow ke akun sendiri lolos sampai ditolak server.
+      const [res, me] = await Promise.all([
+        api.orders.validateCounterpart({ username: q }),
+        api.users.getMeCached().catch(() => null),
+      ])
       if (draft.current.counterpart !== q) return
-      setConfirmedCounterpart(res.valid ? q : null)
+      const isSelf =
+        (me?.id != null && res.user?.id != null && me.id === res.user.id) ||
+        (me?.username != null &&
+          res.user?.username != null &&
+          me.username.toLowerCase() === res.user.username.toLowerCase()) ||
+        (me?.username != null && me.username.toLowerCase() === q.toLowerCase())
+      setConfirmedCounterpart(res.valid && !isSelf ? q : null)
       // `notFound` (user tidak ada) BEDA dari `blocked` (ada tapi tidak boleh
       // transaksi). Sebelum normalizer di lib/api/orders.ts, bentuk respons yang
       // namanya berbeda membuat `res.valid` undefined dan SEMUA lawan transaksi
@@ -349,13 +360,15 @@ export default function CreateTransactionScreen() {
       // I-02 (audit end-to-end): `unknown` (respons tanpa sinyal apa pun) juga
       // BUKAN vonis — dulu ikut jatuh "blocked"/"notFound" yang menuduh.
       setCounterpartState(
-        res.valid
-          ? "found"
-          : res.unknown
-            ? "error"
-            : res.notFound
-              ? "notFound"
-              : "blocked",
+        isSelf
+          ? "self"
+          : res.valid
+            ? "found"
+            : res.unknown
+              ? "error"
+              : res.notFound
+                ? "notFound"
+                : "blocked",
       )
       setCounterpartReason(res.reason)
       setCounterpartName(res.user?.fullName ?? q)
@@ -620,66 +633,23 @@ export default function CreateTransactionScreen() {
 
         {step === 0 ? (
           <>
-            <FormSection title="Cara membuat">
-              <SegmentedControl<Mode>
-                accessibilityLabel="Cara membuat transaksi"
-                items={MODE_ITEMS}
-                value={mode}
-                onChange={setMode}
-              />
-              <Text variant="caption" tone="secondary">
-                {mode === "link"
-                  ? "Buat tautan yang bisa dibagikan; siapa pun yang membuka dan menyetujui menjadi lawan transaksi."
-                  : "Transaksi langsung dikirim ke pengguna Kahade yang Anda tentukan."}
-              </Text>
-            </FormSection>
-
-            <FormSection title="Peran Anda" divider>
-              <OrderRoleSelector value={role} onChange={setRole} labels={ORDER_ROLE_LABELS} />
-            </FormSection>
+            <CreateIntroStep mode={mode} onChangeMode={setMode} role={role} onChangeRole={setRole} />
           </>
         ) : null}
 
         {step === 1 ? (
-          <FormSection title="Lawan transaksi">
-            <Field
-              label="Username lawan"
-              required={counterpartRequired}
-              helperText={
-                counterpartRequired
-                  ? "Contoh: @johndoe — tanpa @"
-                  : "Opsional — kosongkan agar siapa pun bisa menerima tautan"
-              }
-            >
-              <Input
-                value={counterpart}
-                onChangeText={setCounterpart}
-                placeholder="johndoe"
-                autoCapitalize="none"
-                // Username bukan prosa: autocorrect/predictive text akan menulis
-                // ulang "johndoe" jadi kata kamus dan mengusulkan spasi. Field
-                // serupa di <UsernameField> sudah mematikan keduanya.
-                autoCorrect={false}
-                spellCheck={false}
-                // Jangan tawarkan autofill identitas pengguna sendiri — ini
-                // username LAWAN transaksi.
-                autoComplete="off"
-                textContentType="none"
-                returnKeyType="next"
-                maxLength={50}
-              />
-            </Field>
-            {counterpart.trim().length >= MIN_USERNAME ? (
-              <CounterpartValidationCard
-                state={counterpartState}
-                name={counterpartName}
-                username={counterpartUsername}
-                verified={counterpartVerified}
-                warnings={counterpartWarnings}
-                reason={counterpartReason}
-              />
-            ) : null}
-          </FormSection>
+          <CounterpartStep
+            value={counterpart}
+            onChange={setCounterpart}
+            required={counterpartRequired}
+            minUsername={MIN_USERNAME}
+            state={counterpartState}
+            name={counterpartName}
+            username={counterpartUsername}
+            verified={counterpartVerified}
+            warnings={counterpartWarnings}
+            reason={counterpartReason}
+          />
         ) : null}
 
         {step === 2 ? (
@@ -751,125 +721,51 @@ export default function CreateTransactionScreen() {
 
         {step === LAST_STEP ? (
           <>
-            <FormSection title="Biaya layanan">
-              <Field label="Pembayar biaya" required>
-                <FeeResponsibilitySelector
-                  value={feeResponsibility}
-                  onChange={setFeeResponsibility}
-                  feeAmount={feeConfirmed ? fee?.platformFee : undefined}
-                  viewer={role}
-                />
-              </Field>
-              <Button variant="ghost" size="sm" onPress={() => void openSchedule()}>
-                Lihat skema biaya platform
-              </Button>
-              {feeConfirmed ? (
-                <FeeBreakdown
-                  orderValue={orderValue}
-                  feeAmount={fee.platformFee}
-                  feeResponsibility={feeResponsibility}
-                  role={role === "BUYER" ? "BUYER" : "SELLER"}
-                  discountAmount={fee.discount ?? voucher?.discount}
-                  // M-25 (audit end-to-end, issue #15): angka SERVER (B-01)
-                  // diteruskan — dulu hanya detail order yang memakai
-                  // buyerPays/sellerGets server; preview create-order memakai
-                  // fallback lokal terus sehingga voucher SPLIT salah hitung.
-                  buyerPays={fee.buyerPays}
-                  sellerGets={fee.sellerReceives}
-                  loading={feeLoading}
-                />
-              ) : (
-                <Text variant="body" tone="secondary">
-                  {feeLoading
-                    ? "Menghitung biaya…"
-                    : "Biaya dihitung otomatis dari nilai transaksi."}
-                </Text>
-              )}
-            </FormSection>
+            <FeeServiceSection
+              feeResponsibility={feeResponsibility}
+              onChangeFeeResponsibility={setFeeResponsibility}
+              feeConfirmed={feeConfirmed}
+              fee={fee}
+              role={role}
+              orderValue={orderValue}
+              voucherDiscount={voucher?.discount}
+              feeLoading={feeLoading}
+              onOpenSchedule={() => void openSchedule()}
+            />
 
             {mode === "direct" ? (
-              <FormSection title="Voucher" divider>
-                <VoucherRedeemBox
-                  initialCode={params.voucherCode}
-                  applied={voucher ?? undefined}
-                  onApply={(code) => void handleApplyVoucher(code)}
-                  onRemove={() => setVoucher(null)}
-                  applying={applyingVoucher}
-                  errorText={voucherError}
-                />
-              </FormSection>
+              <VoucherSection
+                initialCode={params.voucherCode}
+                applied={voucher ?? undefined}
+                onApply={(code) => void handleApplyVoucher(code)}
+                onRemove={() => setVoucher(null)}
+                applying={applyingVoucher}
+                errorText={voucherError}
+              />
             ) : null}
 
-            <FormSection title="Ringkasan" divider>
-              <KeyValueList>
-                <KeyValue
-                  label="Cara membuat"
-                  value={mode === "link" ? "Order Link" : "Lawan tertentu"}
-                />
-                <KeyValue label="Peran Anda" value={ORDER_ROLE_LABELS[role]} />
-                {counterpart.trim() ? (
-                  <KeyValue label="Lawan" value={counterpartName ?? counterpart.trim()} />
-                ) : null}
-                <KeyValue label="Judul" value={title.trim()} />
-                <KeyValue label="Jenis" value={ORDER_TYPE_LABELS[orderType]} />
-                <KeyValue label="Nilai transaksi" value={formatRupiah(orderValue)} />
-                <KeyValue label="Tenggat" value={`${deadlineDays} hari`} />
-                <KeyValue
-                  label="Pembayar biaya"
-                  value={FEE_RESPONSIBILITY_LABELS[feeResponsibility]}
-                />
-                {voucher ? <KeyValue label="Voucher" value={voucher.code} /> : null}
-              </KeyValueList>
-            </FormSection>
+            <OrderSummarySection
+              mode={mode}
+              role={role}
+              counterpart={counterpart}
+              counterpartName={counterpartName}
+              title={title}
+              orderType={orderType}
+              orderValue={orderValue}
+              deadlineDays={deadlineDays}
+              feeResponsibility={feeResponsibility}
+              voucherCode={voucher?.code}
+            />
           </>
         ) : null}
         </FadeIn>
       </PullToRefresh>
-      <BottomSheet
-        avoidKeyboard
+      <FeeScheduleSheet
         visible={scheduleOpen}
         onRequestClose={() => setScheduleOpen(false)}
-        title="Skema biaya platform"
-        description="Biaya dihitung dari nilai transaksi menurut tingkatan berikut. Angka pasti untuk order ini tampil di rincian biaya."
-      >
-        {scheduleLoading ? (
-          <Text variant="body" tone="secondary">
-            Memuat skema biaya…
-          </Text>
-        ) : !schedule || schedule.tiers.length === 0 ? (
-          <Text variant="body" tone="secondary">
-            Skema biaya belum tersedia. Rincian biaya tetap dihitung otomatis saat nilai transaksi
-            diisi.
-          </Text>
-        ) : (
-          <KeyValueList>
-            {schedule.tiers.map((t, i) => (
-              <KeyValue
-                key={`${t.minValue}-${t.maxValue ?? "max"}-${i}`}
-                label={
-                  t.maxValue == null
-                    ? `≥ ${formatRupiah(t.minValue)}`
-                    : `${formatRupiah(t.minValue)} – ${formatRupiah(t.maxValue)}`
-                }
-                value={
-                  [
-                    t.feePercent != null ? `${formatDecimal(t.feePercent, 2)}%` : null,
-                    t.feeFlat != null ? formatRupiah(t.feeFlat) : null,
-                  ]
-                    .filter(Boolean)
-                    .join(" + ") || "—"
-                }
-              />
-            ))}
-            {schedule.minFee != null ? (
-              <KeyValue label="Biaya minimum" value={formatRupiah(schedule.minFee)} />
-            ) : null}
-            {schedule.maxFee != null ? (
-              <KeyValue label="Biaya maksimum" value={formatRupiah(schedule.maxFee)} />
-            ) : null}
-          </KeyValueList>
-        )}
-      </BottomSheet>
+        scheduleLoading={scheduleLoading}
+        schedule={schedule}
+      />
 
       <Dialog
         title="Verifikasi identitas diperlukan"

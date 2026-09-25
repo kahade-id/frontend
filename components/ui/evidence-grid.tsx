@@ -25,7 +25,7 @@
  *   - Ubin "Tambah bukti" (`onAdd`) adalah ubin pertama bergaris putus-putus
  *     dengan ikon Plus — konsisten dengan pola UploadField.
  */
-import { FilePdf, Plus, X } from "phosphor-react-native"
+import { FilePdf, Plus, VideoCamera, X } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
@@ -35,9 +35,20 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
-import { isImageMime } from "@/lib/mime"
+import { isImageMime, isVideoMime } from "@/lib/mime"
 
-export type EvidenceMime = "image/jpeg" | "image/png" | "image/webp" | "application/pdf"
+// R2 (audit ronde-2, butir #35): union disetarakan dengan 7 MIME kontrak
+// SubmitEvidenceDto — HEIC/video yang lolos pemilih tidak lagi mentok di
+// tipe yang lebih sempit.
+export type EvidenceMime =
+  | "image/jpeg"
+  | "image/png"
+  | "image/webp"
+  | "image/heic"
+  | "application/pdf"
+  | "video/mp4"
+  | "video/quicktime"
+  | "video/webm"
 
 export type EvidenceItem = {
   id: string
@@ -57,6 +68,11 @@ export type EvidenceItem = {
 // `typeof` ada di `lib/mime`.
 export function isImageEvidence(mime: string): boolean {
   return isImageMime(mime)
+}
+
+/** R2 (butir #36): klasifikasi video — ikon & label khusus, bukan ikon PDF. */
+export function isVideoEvidence(mime: string): boolean {
+  return isVideoMime(mime)
 }
 
 /**
@@ -100,11 +116,13 @@ export type EvidenceTileProps = Omit<ViewProps, "children"> & {
 
 export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels, className, ...rest }: EvidenceTileProps) {
   const t = { ...DEFAULT_LABELS, ...labels }
-  const isImage = isImageEvidence(resolveEvidenceMime(item))
+  const resolvedMime = resolveEvidenceMime(item)
+  const isImage = isImageEvidence(resolvedMime)
+  const isVideo = !isImage && isVideoEvidence(resolvedMime)
   const owner = item.mine ? t.you : item.uploaderName
   const showRemove = item.mine && canDelete && !!onRemove
 
-  const a11y = [isImage ? "Foto bukti" : t.pdf, item.description, owner ? `dari ${owner}` : undefined, item.uploadedAt]
+  const a11y = [isImage ? "Foto bukti" : isVideo ? "Video bukti" : t.pdf, item.description, owner ? `dari ${owner}` : undefined, item.uploadedAt]
     .filter(Boolean)
     .join(", ")
 
@@ -120,7 +138,23 @@ export function EvidenceTile({ item, onOpen, onRemove, canDelete = false, labels
         className="h-full w-full overflow-hidden rounded-sm border border-border bg-surface"
       >
         {isImage || item.thumbnailUrl ? (
-          <Picture source={item.thumbnailUrl ?? item.url} alt="" aspectRatio={1} radius="none" resizeMode="cover" recyclingKey={item.id} className="h-full w-full" />
+          <View className="h-full w-full">
+            <Picture source={item.thumbnailUrl ?? item.url} alt="" aspectRatio={1} radius="none" resizeMode="cover" recyclingKey={item.id} className="h-full w-full" />
+            {isVideo ? (
+              /* R2 (butir #36): thumbnail video tetap diberi penanda supaya
+                 tidak disangka foto diam. */
+              <View className="absolute inset-0 items-center justify-center">
+                <Icon icon={VideoCamera} size="lg" tone="inverse" />
+              </View>
+            ) : null}
+          </View>
+        ) : isVideo ? (
+          <View className="h-full w-full items-center justify-center gap-1">
+            <Icon icon={VideoCamera} size="xl" tone="default" />
+            <Text variant="caption" tone="secondary">
+              Video
+            </Text>
+          </View>
         ) : (
           <View className="h-full w-full items-center justify-center gap-1">
             <Icon icon={FilePdf} size="xl" tone="default" />

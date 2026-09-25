@@ -63,6 +63,7 @@ export {
   ApiError,
   DEFAULT_ERROR_MESSAGES,
   isApiError,
+  isUncertainMutationError,
   userMessage,
   type ApiErrorCode,
 } from "@/lib/api/errors"

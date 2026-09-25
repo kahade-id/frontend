@@ -21,6 +21,28 @@ import { getSessionRevision } from "@/lib/api/session"
 export const QUERY_CACHE_TTL_MS = 5_000
 
 /**
+ * R2 (audit ronde-2, butir #104): TTL per KELAS data. Order aktif memang
+ * pantas 5 detik; data yang nyaris statis (template, invoice, limit, paket
+ * langganan, tiket bantuan) boleh 60 detik — navigasi balik ≤1 menit tidak
+ * lagi memicu kilatan skeleton untuk data yang pasti sama.
+ * Pencocokan prefix (kunci berbentuk `kelas:…`); kelas yang tidak terdaftar
+ * memakai default 5 detik.
+ */
+const QUERY_CACHE_TTL_RULES: ReadonlyArray<[prefix: string, ttlMs: number]> = [
+  ["transaction-templates:", 60_000], // app/transaction-templates.tsx
+  ["invoice:", 60_000], // app/invoice/[orderId].tsx
+  ["support-ticket:", 60_000], // daftar/detail tiket bantuan
+  ["help:", 60_000], // artikel bantuan (publikasi tulen)
+  ["article:", 60_000],
+]
+
+/** TTL efektif untuk sebuah kunci cache. */
+export function queryCacheTtlMs(key: string): number {
+  for (const [prefix, ttl] of QUERY_CACHE_TTL_RULES) if (key.startsWith(prefix)) return ttl
+  return QUERY_CACHE_TTL_MS
+}
+
+/**
  * Umur minimum sebelum entri cache boleh DISEGARKAN DI LATAR (C-04 audit).
  *
  * TTL 5 detik dipakai untuk dedupe navigasi bolak-balik; di dalam jendela itu
@@ -57,7 +79,7 @@ export function readQueryCacheEntry<T>(key: string): QueryCacheHit<T> | null {
     queryCache.delete(key)
     return null
   }
-  if (Date.now() - entry.at > QUERY_CACHE_TTL_MS) {
+  if (Date.now() - entry.at > queryCacheTtlMs(key)) {
     queryCache.delete(key)
     return null
   }

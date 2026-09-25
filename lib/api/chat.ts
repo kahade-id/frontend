@@ -160,17 +160,39 @@ export function listChatRooms(
  */
 export const FIND_ROOM_MAX_PAGES = 5
 
+/**
+ * R2 (audit ronde-2, butir #112): backend belum menyediakan
+ * `GET /chat/rooms/by-order/{id}`, jadi satu MATCH dipetakan dan diingat agar
+ * penyapuan halaman-halaman daftar room (beberapa GET, ~5 detik TTL) tidak
+ * diulang tiap kali order yang sama dibuka. Hasil NEGATIF ikut di-cache singkat
+ * supaya perjalanan order-baru-tanpa-room tidak menyapu sampai 5 halaman
+ * berkali-kali; TTL negatif lebih kecil karena room bisa muncul kapan saja.
+ */
+const FIND_ROOM_CACHE_TTL_MS = 5 * 60_000
+const FIND_ROOM_MISS_TTL_MS = 30_000
+const findRoomCache = new Map<string, { room: ChatRoom | null; at: number }>()
+
 export async function findChatRoomByOrder(
   orderId: string,
   signal?: AbortSignal,
 ): Promise<ChatRoom | null> {
+  const hit = findRoomCache.get(orderId)
+  if (hit) {
+    const ttl = hit.room ? FIND_ROOM_CACHE_TTL_MS : FIND_ROOM_MISS_TTL_MS
+    if (!hit.room || Date.now() - hit.at < ttl) return hit.room
+    // Positif kedaluwarsa: verifikasi ulang ringan — room bisa jadi dipindah.
+  }
   for (let page = 1; page <= FIND_ROOM_MAX_PAGES; page += 1) {
     const res = await listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal)
     const match = res.data.find((r) => r.orderId === orderId)
-    if (match) return match
+    if (match) {
+      findRoomCache.set(orderId, { room: match, at: Date.now() })
+      return match
+    }
     // Halaman tidak penuh = daftar habis; berhenti lebih awal.
     if (res.data.length < CHAT_PAGE_SIZE) break
   }
+  findRoomCache.set(orderId, { room: null, at: Date.now() })
   return null
 }
 

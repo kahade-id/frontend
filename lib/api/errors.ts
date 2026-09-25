@@ -145,6 +145,26 @@ export function isApiError(err: unknown): err is ApiError {
   return err instanceof ApiError
 }
 
+/**
+ * R2 (audit escrow ronde-2, butir #1–#16, #19): klasifikasi "kegagalan TAK
+ * PASTI" untuk mutasi — jaringan/timeout/PARSE/ABORTED/non-ApiError berarti
+ * perubahan MUNGKIN sudah terjadi di server meski respons hilang.
+ *
+ * Pola ini sebelumnya tersalin inline di `handlePayPin` / `handlePayQris` /
+ * `handleSubmitProof` (ronde-1) tetapi belum ada di seluruh handler mutasi
+ * sengketa/ekstensi/order-link/rating/template — dipusatkan di sini supaya
+ * setiap mutasi uang memakai definisi yang sama. UI yang menampilkan cabang
+ * ini tidak boleh menuduh "gagal" saat nasib mutasi tidak diketahui.
+ */
+export function isUncertainMutationError(err: unknown): boolean {
+  return (
+    !isApiError(err) ||
+    err.isTransient ||
+    err.code === "ABORTED" ||
+    err.code === "PARSE"
+  )
+}
+
 // ------------------------------------------------------------------
 // Parsing body error backend (format NestJS)
 // ------------------------------------------------------------------

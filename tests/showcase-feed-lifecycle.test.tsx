@@ -21,7 +21,15 @@ vi.mock("@react-navigation/native", () => ({ useIsFocused: () => mocks.focused }
 vi.mock("@/lib/api", () => ({ api: { users: { getMe: mocks.me, getFollowing: mocks.following } }, isApiError: () => false, userMessage: () => "failed" }))
 vi.mock("@/lib/api/showcase", () => ({ getShowcaseFeed: mocks.feed }))
 vi.mock("@/lib/guest-gate", () => ({ useHasSession: () => mocks.session, useSessionRevision: () => 0 }))
-vi.mock("@/lib/query-cache", () => ({ fetchViaQueryCache: (_key: string, fetcher: (signal: AbortSignal) => unknown, signal: AbortSignal) => fetcher(signal) }))
+vi.mock("@/lib/query-cache", () => ({
+  CACHE_REVALIDATE_AFTER_MS: 0,
+  fetchViaQueryCache: (_key: string, fetcher: (signal: AbortSignal) => unknown, signal: AbortSignal) => fetcher(signal),
+  markQueryRevalidating: () => true,
+  onQueryCacheInvalidation: () => () => {},
+  readQueryCacheEntry: () => null,
+  releaseQueryRevalidation: () => {},
+  writeQueryCache: () => {},
+}))
 vi.mock("@/lib/showcase-social-prefs", () => ({
   showcaseFeedDirtyVersion: () => mocks.dirtyVersion,
   useShowcaseDirtyVersion: () => mocks.dirtyVersion,

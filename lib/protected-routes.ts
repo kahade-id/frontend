@@ -49,7 +49,6 @@ export const AUTHENTICATED_SCREENS = [
   "notification-preferences",
   "notifications",
   "order/[id]",
-  "order-link/[token]",
   "order-links",
   "privacy-settings",
   "profile/[id]",
@@ -127,6 +126,10 @@ export const WEB_GUEST_ALLOWED_PATHS: readonly string[] = [
   "/live-support",
   "/terms",
   "/privacy-policy",
+  // R2 (audit ronde-2, butir #69): preview order-link publik (auth:"none")
+  // adalah corong share — tamu web boleh membuka; aksi Terima/Tolak di dalam
+  // tetap digerbang sesi (dialihkan ke login membawa next-path).
+  "/order-link",
   // Alur auth (native-only, tapi aman bila terbuka di web)
   "/onboarding",
   "/login",

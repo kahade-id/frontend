@@ -16,7 +16,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-
 import { api, userMessage, type TransferDto } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { formatRupiah } from "@/lib/format"
@@ -30,9 +29,7 @@ import { useDebouncedValue } from "@/lib/use-debounced-value"
 import { useResultTimer } from "@/lib/use-result-timer"
 import { recordRecentRecipient, useRecentRecipients } from "@/lib/ui-prefs"
 import { walletTransactionStatus } from "@/lib/wallet-labels"
-
 import { PencilSimpleLine } from "phosphor-react-native"
-
 import { Alert } from "@/components/ui/alert"
 import { AmountKeypad } from "@/components/ui/amount-keypad"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
@@ -58,7 +55,6 @@ import {
 import { useToast } from "@/components/ui/toast"
 import { isApiError } from "@/lib/api"
 import { translate } from "@/lib/i18n/translate"
-
 const MIN_AMOUNT = AMOUNT_LIMITS.transfer.minimum
 const MAX_AMOUNT = AMOUNT_LIMITS.transfer.maximum
 const PRESETS = AMOUNT_PRESETS.transfer
@@ -70,17 +66,14 @@ const PRESETS = AMOUNT_PRESETS.transfer
  */
 const NOTE_MAX = 200
 const TOTAL_STEPS = 3
-
 type Step = "form" | "confirm" | "pin" | "done"
 /** State overlay progres setelah PIN disubmit (processing → sukses/gagal). */
 type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
-
 export default function TransferScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const params = useLocalSearchParams<{ to?: string }>()
   const presetUsername = typeof params.to === "string" ? params.to : undefined
-
   // Ambil saldo dompet untuk batas transfer & tampilkan di keypad.
   // A-09 (audit): error TIDAK lagi disamarkan menjadi `{ balance: 0 }` —
   // saldo gagal dimuat ditampilkan apa adanya + retry, karena "Rp0" adalah
@@ -110,7 +103,6 @@ export default function TransferScreen() {
   )
   const balance = balanceQuery.data?.balance
   const balanceError = balanceQuery.error
-
   const [query, setQuery] = useState(presetUsername ?? "")
   // J-06 (audit): penerima terakhir PERSISTEN antar-sesi (lib/ui-prefs),
   // bukan state lokal yang hilang tiap masuk layar.
@@ -132,14 +124,12 @@ export default function TransferScreen() {
   /** M-08 (issue #5): satu `Idempotency-Key` per siklus transfer (lihat order/[id]). */
   const transferKeyRef = useRef<string | null>(null)
   const scheduleResult = useResultTimer()
-
   // A-01 (audit): tombol biometrik DIHAPUS dari sheet PIN transfer.
   // `TransferDto` mewajibkan `pin` mentah dan backend tidak punya jalur
   // "biometrik → tiket konfirmasi", sehingga prompt biometrik yang "sukses"
   // tidak punya efek apa pun (placebo). Biometrik kini dipakai untuk kunci
   // aplikasi (app/biometric-settings.tsx + components/app-lock-gate.tsx);
   // konfirmasi transaksi kembali ke PIN sampai backend menyediakan tiket.
-
   const debounced = useDebouncedValue(query.trim())
   const lookup = useApiQuery(
     `recipients:${debounced}`,
@@ -160,7 +150,6 @@ export default function TransferScreen() {
     [lookup.data],
   )
   const loading = lookup.loading || debounced !== query.trim()
-
   // Penerima favorit (audit P2 cluster wallet) — `GET /v1/wallet/favorite-recipients`.
   // Tampil sebagai seksi "Favorit" saat query kosong; ikon hati di baris
   // memanggil add/remove endpoint lalu me-refresh daftar ini.
@@ -207,18 +196,14 @@ export default function TransferScreen() {
     },
     [togglingFavoriteId, favoritesQuery.data, favoritesQuery.refresh, toast],
   )
-
   // Sub-langkah di dalam langkah "form": penerima dulu, baru nominal.
   const [formSubStep, setFormSubStep] = useState<"recipient" | "amount">("recipient")
-
   const stepIndex: Record<Step, number> = { form: 1, confirm: 2, pin: 2, done: 3 }
   const progress = stepIndex[step] / TOTAL_STEPS
-
   const handleQuery = useCallback((value: string) => {
     setQuery(value)
     setSelected(null)
   }, [])
-
   const handleSelect = useCallback((recipient: TransferRecipient) => {
     setSelected(recipient)
     recordRecentRecipient(recipient)
@@ -227,7 +212,6 @@ export default function TransferScreen() {
       setFormSubStep("amount")
     }
   }, [presetUsername])
-
   // Bila deep-link `?to=<username>` dan lookup mengembalikan satu hasil yang
   // cocok dengan username itu, pilih otomatis.
   useEffect(() => {
@@ -240,9 +224,7 @@ export default function TransferScreen() {
       handleSelect(match)
     }
   }, [presetUsername, results, selected, handleSelect])
-
   const canContinueForm = !!selected && isValidAmount(amount, AMOUNT_LIMITS.transfer)
-
   const handleBack = useCallback(() => {
     if (step === "confirm") {
       setStep("form")
@@ -255,7 +237,6 @@ export default function TransferScreen() {
     if (router.canGoBack()) router.back()
     else router.replace(ROUTES.wallet)
   }, [step])
-
   const handlePin = useCallback(
     async (pinValue: string) => {
       if (submitLock.current || !selected || !isValidAmount(amount, AMOUNT_LIMITS.transfer)) return
@@ -332,7 +313,6 @@ export default function TransferScreen() {
     },
     [selected, amount, note, scheduleResult, balanceQuery],
   )
-
   /*
    * A-05 (audit 2026-09-22): `balance && balance > 0` membuat saldo Rp0
    * (dompet kosong) DIANGGAP "saldo tidak diketahui" sehingga batasnya
@@ -341,7 +321,6 @@ export default function TransferScreen() {
    */
   const maxAmount =
     balance == null ? MAX_AMOUNT : Math.min(MAX_AMOUNT, Math.max(0, balance))
-
   // Sub-step: pemilihan penerima + nominal di langkah "form". Kita bagi
   // layar dua: atas (pencarian penerima) yang di-scroll, bawah (keypad)
   // statis. Tapi karena penerima hanya butuh area kecil, dan keypad besar,
@@ -351,11 +330,9 @@ export default function TransferScreen() {
   // Namun, pengalaman yang lebih baik: bagi "form" dalam dua sub-langkah
   // (pilih penerima dulu, baru nominal+catatan). Agar progress bar tetap
   // 3 langkah (form dihitung 1), kita transisikan di dalam langkah "form".
-
   // Penerima dipilih: tombol "Lanjut" muncul di area CTA; user bisa
   // mengganti pilihan sebelum masuk ke langkah nominal. Kita TIDAK auto-advance
   // supaya user tetap merasa memegang kendali (§12).
-
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
@@ -380,7 +357,6 @@ export default function TransferScreen() {
         }
         safeArea={false}
       />
-
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         {step === "form" && formSubStep === "recipient" ? (
           // 1a. Pilih penerima
@@ -404,7 +380,6 @@ export default function TransferScreen() {
                       Cari nama pengguna atau nomor HP yang ingin Anda kirimi saldo.
                     </Text>
                   </View>
-
                   <TransferRecipientPicker
                     query={query}
                     onQueryChange={handleQuery}
@@ -417,7 +392,6 @@ export default function TransferScreen() {
                     value={selected?.id}
                     onSelect={handleSelect}
                   />
-
                   {lookup.error ? (
                     <ErrorState
                       compact
@@ -429,7 +403,6 @@ export default function TransferScreen() {
                 </View>
               </FadeIn>
             </ScrollView>
-
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
@@ -444,7 +417,6 @@ export default function TransferScreen() {
             </View>
           </View>
         ) : null}
-
         {step === "form" && formSubStep === "amount" ? (
           // 1b. Nominal + catatan (keypad terpusat)
           <View className="flex-1">
@@ -471,7 +443,6 @@ export default function TransferScreen() {
                   </Text>
                 </View>
               </FadeIn>
-
               {/* A-09 (audit): gagal memuat saldo tidak lagi disamarkan
                   menjadi "Rp0" — tampilkan peringatan + jalur retry. */}
               {balanceError ? (
@@ -490,7 +461,6 @@ export default function TransferScreen() {
                 </View>
               ) : null}
             </ScrollView>
-
             {/* Catatan ditulis DI SINI lewat BottomSheet, bukan di langkah
                 konfirmasi. */}
             <AmountKeypad
@@ -520,7 +490,6 @@ export default function TransferScreen() {
                 </View>
               }
             />
-
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
@@ -535,7 +504,6 @@ export default function TransferScreen() {
             </View>
           </View>
         ) : null}
-
         {step === "confirm" ? (
           // 2. Konfirmasi — tampilkan ringkasan, catatan, CTA bayar
           <View className="flex-1">
@@ -557,7 +525,6 @@ export default function TransferScreen() {
                       Periksa kembali detail di bawah sebelum melanjutkan.
                     </Text>
                   </View>
-
                   <TransactionSummary
                     label="Jumlah transfer"
                     amount={amount}
@@ -569,7 +536,6 @@ export default function TransferScreen() {
                     ) : null}
                     {note.trim() ? <KeyValue label="Catatan" value={note.trim()} /> : null}
                   </TransactionSummary>
-
                   <Text variant="caption" tone="secondary" className="text-pretty">
                     Masukkan PIN dompet Anda untuk menyetujui transfer. PIN digunakan untuk
                     melindungi setiap transaksi keluar dari dompet.
@@ -577,7 +543,6 @@ export default function TransferScreen() {
                 </View>
               </FadeIn>
             </ScrollView>
-
             <View
               className="w-full border-t border-border bg-background px-5 pt-4"
               style={{ paddingBottom: Math.max(tokens.space[4], insets.bottom) }}
@@ -595,7 +560,6 @@ export default function TransferScreen() {
             </View>
           </View>
         ) : null}
-
         {step === "done" ? (
           // 3. Selesai
           <ScrollView
@@ -628,12 +592,10 @@ export default function TransferScreen() {
                   {txId ? <KeyValue label="Nomor transaksi" value={txId} mono /> : null}
                   {note.trim() ? <KeyValue label="Catatan" value={note.trim()} /> : null}
                 </TransactionSummary>
-
                 <Text variant="body" tone="secondary" className="text-pretty">
                   {formatRupiah(amount)} telah dikirim ke @{selected?.username}.
                   Periksa detail transaksi untuk status terakhir.
                 </Text>
-
                 {txId ? (
                   <Button
                     variant="secondary"
@@ -650,7 +612,6 @@ export default function TransferScreen() {
           </ScrollView>
         ) : null}
       </KeyboardAvoiding>
-
       {/* Editor catatan di BottomSheet — dibuka dari kartu di atas keypad */}
       <BottomSheet
         visible={noteSheetOpen}
@@ -699,7 +660,6 @@ export default function TransferScreen() {
           />
         </Field>
       </BottomSheet>
-
       {/* Progres transaksi full-screen setelah PIN disubmit (§8 signature) */}
       <TransactionProgressOverlay
         visible={progressState !== null}
@@ -711,17 +671,13 @@ export default function TransferScreen() {
         successMessage="Transfer berhasil"
         failureMessage={progressError ?? "Transfer gagal. Coba lagi."}
       />
-
       {/* PIN verifikasi di BottomSheet */}
       <BottomSheet
         visible={step === "pin"}
         onRequestClose={() => {
           if (submitting) return
-          /*
-           * A-16 (audit 2026-09-22): pesan gagal dari percobaan sebelumnya
-           * dibiarkan terpasang, sehingga overlay percobaan berikutnya sempat
-           * merender error BASI sebelum state PROCESSING diterapkan.
-           */
+          // A-16 (audit 2026-09-22): pesan gagal percobaan sebelumnya tidak
+          // boleh sempat dirender basi di overlay percobaan berikutnya.
           setProgressError(undefined)
           setPinError(undefined)
           setStep("confirm")

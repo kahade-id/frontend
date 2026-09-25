@@ -9,9 +9,11 @@ import { useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Star } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
+import { showMutationError } from "@/lib/mutation-toast"
 import { readMyRatings } from "@/lib/api/ratings"
 import { goBackOrNavigate } from "@/lib/navigation"
+import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -39,7 +41,10 @@ export default function RateOrderScreen() {
    * layar ditutup (AbortSignal sekarang diteruskan ke adapter).
    */
   const query = useApiQuery<Awaited<ReturnType<typeof api.orders.getOrder>>>(
-    `rate-order:${orderId}`,
+    // R2 (audit ronde-2, butir #98): Order mentah berbagi kunci cache kanonik
+    // `order:${id}` — layar yang membuka detail order lalu ke ulasan tidak
+    // menembak GET /orders/{id} kedua bila kunci kanonik masih segar.
+    queryKeys.order(orderId as string),
     (signal) => api.orders.getOrder(orderId as string, signal),
     Boolean(orderId),
   )
@@ -63,11 +68,18 @@ export default function RateOrderScreen() {
         toast.show({ title: "Ulasan terkirim", tone: "success", duration: 3000 })
         goBackOrNavigate(ROUTES.orderDetail(orderId))
       } catch (err: unknown) {
-        toast.show({
-          title: "Gagal mengirim ulasan",
-          description: userMessage(err),
-          tone: "danger",
-        })
+        // R2 (audit ronde-2, butir #15): ulasan bisa sudah terkirim saat respons
+        // hilang — muat ulang dedupe order sebelum form terbuka lagi.
+        if (
+          showMutationError(toast.show, {
+            failTitle: "Gagal mengirim ulasan",
+            uncertainHint: "Ulasan mungkin sudah terkirim — memuat ulang status…",
+            uncertainDetail: "Periksa halaman order sebelum mengirim ulang.",
+            err,
+          })
+        ) {
+          void query.refresh().catch(() => {})
+        }
       } finally {
         // M-50 (audit end-to-end, issue #69): `setSubmitting(false)` di `finally`
         // — dulu hanya di `catch`; jalur sukses mengandalkan unmount yang tidak
@@ -75,7 +87,7 @@ export default function RateOrderScreen() {
         setSubmitting(false)
       }
     },
-    [orderId, toast.show],
+    [orderId, toast.show, query],
   )
 
   const counterpart = order?.myRole === "SELLER" ? order?.buyer : order?.seller
@@ -91,19 +103,32 @@ export default function RateOrderScreen() {
   useEffect(() => {
     if (!orderId) return
     let cancelled = false
-    void api.ratings
-      .getMyRatings({ page: 1, limit: 50 })
-      .then((res) => {
-        if (cancelled) return
-        // Bentuk respons my-ratings beragam (array polos / {data} / {given,
-        // received}) — `readMyRatings` yang menyatukan, bukan akses `.data`
-        // langsung yang nihil untuk bentuk array.
-        const rows = readMyRatings(res).items as Array<{ orderId?: unknown }>
-        setRatedByList(rows.some((r) => r.orderId === orderId))
-      })
-      .catch(() => {
+    // R2 (audit ronde-2, butir #79): dedupe dulu hanya membaca halaman-1 (≤50
+    // ulasan) — ulasan yang lebih lama dari 50 posisi lolos dan server 400
+    // memvonis "duplikat" setelah pengguna menulis ulasan. Kini memindai
+    // SEMUA halaman dengan berhenti-dini saat ketemu (maks. 10 halaman =
+    // 500 ulasan; melewati itu flag order yang memutuskan, komentar M-51).
+    void (async () => {
+      try {
+        for (let page = 1; page <= 10; page += 1) {
+          const res = await api.ratings.getMyRatings({ page, limit: 50 })
+          if (cancelled) return
+          // Bentuk respons my-ratings beragam (array polos / {data} / {given,
+          // received}) — `readMyRatings` yang menyatukan, bukan akses `.data`
+          // langsung yang nihil untuk bentuk array.
+          const rows = readMyRatings(res).items as Array<{ orderId?: unknown }>
+          if (rows.some((r) => r.orderId === orderId)) {
+            setRatedByList(true)
+            return
+          }
+          const totalPages = (res as { meta?: { totalPages?: number } })?.meta?.totalPages
+          if (totalPages != null ? page >= totalPages : rows.length < 50) break
+        }
+        if (!cancelled) setRatedByList(false)
+      } catch {
         if (!cancelled) setRatedByList(null)
-      })
+      }
+    })()
     return () => {
       cancelled = true
     }

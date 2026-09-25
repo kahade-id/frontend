@@ -27,6 +27,13 @@ export const queryKeys = {
   me: () => "me",
   /** `GET /v1/bank-accounts` — daftar rekening bank milik pengguna. */
   bankAccounts: () => "bank-accounts",
+  /**
+   * `GET /v1/orders/{id}` — payload Order MENTAH (bukan bundle layar).
+   * R2 (#98): layar yang hanya butuh Order apa adanya (mis. rate) memakai
+   * kunci ini; bundle layar gabungan (order-detail/delivery-proof/extension)
+   * tetap berkunci sendiri karena bentuk datanya berbeda (doktrin C-02).
+   */
+  order: (orderId: string) => `order:${orderId}`,
 } as const
 
 /**

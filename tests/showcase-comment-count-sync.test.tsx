@@ -45,7 +45,13 @@ vi.mock("@/lib/guest-gate", () => ({
   useGuestPathBlocked: () => false,
 }))
 vi.mock("@/lib/query-cache", () => ({
+  CACHE_REVALIDATE_AFTER_MS: 0,
   fetchViaQueryCache: (_key: string, fetcher: (signal: AbortSignal) => unknown, signal: AbortSignal) => fetcher(signal),
+  markQueryRevalidating: () => true,
+  onQueryCacheInvalidation: () => () => {},
+  readQueryCacheEntry: () => null,
+  releaseQueryRevalidation: () => {},
+  writeQueryCache: () => {},
 }))
 vi.mock("@/lib/use-showcase-social-actions", () => ({ useShowcaseSocialActions: () => ({}) }))
 vi.mock("@/lib/use-collapsing-header", () => ({ useCollapsingHeader: () => ({}) }))

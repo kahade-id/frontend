@@ -72,6 +72,14 @@ export type UsePaginatedQueryOptions<T> = {
    * Default true (semua pemanggil lama tidak berubah).
    */
   enabled?: boolean
+  /**
+   * R2 (audit ronde-2, butir #110): saat `key` berubah (mis. ketukan pencarian
+   * ber-debounce), baris LAMA tetap tampil dalam mode refresh senyap alih-alih
+   * diganti skeleton penuh — tiap commit query dulu memicu skeleton → paint
+   * ulang yang terlihat seperti flicker di jaringan lambat.
+   * Default false (perilaku lama untuk daftar lain).
+   */
+  keepPreviousOnKeyChange?: boolean
 }
 
 /** Shared pagination for every long list: latest query wins, load-more single-flight, retry keeps rows. */
@@ -183,13 +191,23 @@ export function usePaginatedQuery<T extends { id: string }>(
     [key, active],
   )
 
+  // R2 #110: jumlah baris tersimpan di ref supaya effect kunci-berubah bisa
+  // memutuskan mode refresh-senyap tanpa membaca state (stale closure).
+  const rowCount = useRef(0)
+  if (data.length !== rowCount.current) rowCount.current = data.length
+  const keepPrevious = opts.keepPreviousOnKeyChange === true
   useEffect(() => {
-    ids.current.clear()
-    setData([])
+    const hasRows = rowCount.current > 0
+    if (!(keepPrevious && hasRows)) {
+      ids.current.clear()
+      setData([])
+    }
     setHasMore(false)
     nextPage.current = 1
     hasNext.current = true
-    void load(true)
+    // Baris lama dipertahankan → muat-awal kunci baru sebagai REFRESH senyap
+    // (indikator tarik-ulang tipis), bukan skeleton penuh (#110).
+    void load(true, keepPrevious && hasRows)
     return () => {
       activeRequest.current?.abort()
       busy.current = false

@@ -39,6 +39,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Clock, Plus } from "phosphor-react-native"
 
 import { api, userMessage, type Order } from "@/lib/api"
+import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import {
   isExtendable,
   orderPartyName,
@@ -49,6 +50,8 @@ import { addDays, OrderExtensionCard } from "@/components/ui/order-extension-car
 import { formatDateTime, formatDateTimeWIB } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { usePolling } from "@/lib/use-polling"
+import { showMutationError } from "@/lib/mutation-toast"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -67,14 +70,17 @@ import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
 
-/** Batas RequestExtensionDto (spec): extensionDays 1–14, reason 10–500 */
-const DAYS_MIN = 1
-const DAYS_MAX = 14
+// R2 (audit ronde-2, butir #78): batas diambil dari API_CONSTRAINTS (satu
+// sumber kebenaran, tergenerasi dari spec) — konstanta lokal yang ditulis
+// ulang berisiko drift diam-diam saat server mengetatkan batas.
+const EXT_C = API_CONSTRAINTS.RequestExtensionDto
+const DAYS_MIN = EXT_C.extensionDays.minimum ?? 1
+const DAYS_MAX = EXT_C.extensionDays.maximum ?? 14
 const DAYS_DEFAULT = 3
-const REASON_MIN = 10
-const REASON_MAX = 500
+const REASON_MIN = EXT_C.reason.minLength ?? 10
+const REASON_MAX = EXT_C.reason.maxLength ?? 500
 /** RespondExtensionDto.note maxLength */
-const NOTE_MAX = 500
+const NOTE_MAX = API_CONSTRAINTS.RespondExtensionDto.note.maxLength ?? 500
 const PAGE_SIZE: NonNullable<PageQuery["limit"]> = 20
 
 type Action = { kind: "APPROVE" | "REJECT"; extension: OrderExtension } | null
@@ -95,22 +101,57 @@ export default function ExtensionScreen() {
    * `resolveRole` tetap DI DALAM fetcher karena hasilnya data server yang
    * diturunkan dari order, bukan state UI.
    *
-   * Daftar perpanjangan SENGAJA tetap memakai paginator manual `fetchPage`
-   * di bawah: menggantinya dengan usePaginatedQuery akan mengubah semantik
-   * (dedupe by id, hasMore, loadMore) dan itu perubahan lain, bukan bagian
-   * dari perbaikan blanking ini.
+   * Halaman-1 daftar perpanjangan ikut dalam fetcher (#75/#76); halaman
+   * BERIKUTNYA tetap lewat paginator manual `fetchPage` (load-more) —
+   * menggantinya dengan usePaginatedQuery akan mengubah semantik (dedupe by
+   * id, hasMore, loadMore) dan itu perubahan lain.
    */
-  const query = useApiQuery<{ order: Order | null; role: Role }>(
+  const query = useApiQuery<{
+    order: Order | null
+    role: Role
+    /** R2 (butir #75): halaman-1 daftar pengajuan ikut dalam SATU fetcher. */
+    list: { items: OrderExtension[]; hasMore: boolean }
+  }>(
     `order-extension:${orderId}`,
     async (signal) => {
-      const o = (await api.orders.getOrder(orderId as string, signal)) ?? null
-      return { order: o, role: o ? await resolveRole(o, signal) : null }
+      // R2 (audit ronde-2, butir #75/#76): getOrder & halaman-1 daftar
+      // pengajuan DIPARARELkan dalam satu fetcher — dulu rantai serial
+      // getOrder → (bundle effect) → fetchPage(1): dua roundtrip berturut-
+      // turut untuk dua resource tak-berkait, dan halaman-1 ikut ditembak
+      // ulang setiap refresh ringan (identitas bundle baru tiap refetch).
+      const [o, listRes] = await Promise.all([
+        api.orders.getOrder(orderId as string, signal),
+        api.orders
+          .listExtensions(orderId as string, { page: 1, limit: PAGE_SIZE }, signal)
+          .catch(() => null),
+      ])
+      const rows = listRes?.data ?? []
+      const totalPages = listRes?.meta?.totalPages
+      return {
+        order: o ?? null,
+        role: o ? await resolveRole(o, signal) : null,
+        list: {
+          items: rows,
+          hasMore:
+            typeof totalPages === "number" ? totalPages > 1 : rows.length >= PAGE_SIZE,
+        },
+      }
     },
     Boolean(orderId),
   )
   const bundle = query.data
   const order = bundle?.order ?? null
   const role = bundle?.role ?? null
+
+  // R2 (audit ronde-2, butir #24): persetujuan/penolakan perpanjangan dari
+  // pihak lawan menyegar tiap 20 detik saat layar terbuka.
+  usePolling(
+    async () => {
+      await query.refresh().catch(() => {})
+    },
+    20_000,
+    Boolean(orderId),
+  )
   const [items, setItems] = useState<OrderExtension[]>([])
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
@@ -179,17 +220,14 @@ export default function ExtensionScreen() {
     [orderId],
   )
 
-  /**
-   * `fetchPage(1)` dulu dipanggil DI DALAM fetcher (lewat Promise.all).
-   * Dipindah ke effect karena ia efek samping pada state daftar, bukan bagian
-   * dari data yang dikembalikan query. Bergantung pada `bundle` supaya ikut
-   * jalan tiap penyegaran berhasil — persis perilaku lama, ketika
-   * `handleRefresh` memanggil `fetchAll()` yang memuat ulang halaman 1.
-   */
+  // R2 (butir #75/#76): halaman-1 kini tiba BERSAMA fetcher — effect hanya
+  // menyinkronkan state paginator manual (load-more), tanpa request jaringan.
   useEffect(() => {
     if (!bundle) return
-    void fetchPage(1)
-  }, [bundle, fetchPage])
+    setItems(bundle.list.items)
+    setPage(1)
+    setHasMore(bundle.list.hasMore)
+  }, [bundle])
 
   const handleLoadMore = useCallback(async () => {
     if (loadingMore || !hasMore) return
@@ -229,11 +267,18 @@ export default function ExtensionScreen() {
       setAction(null)
       await query.refresh()
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal memproses permintaan",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // R2 (audit ronde-2, butir #10): APPROVE mengubah tenggat escrow — muat
+      // ulang dari server saat hasil tidak diketahui.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal memproses permintaan",
+          uncertainHint: "Respons mungkin sudah dicatat — memuat ulang…",
+          uncertainDetail: "Tenggat bisa sudah berubah — periksa daftar permintaan.",
+          err,
+        })
+      ) {
+        await query.refresh().catch(() => {})
+      }
     } finally {
       setBusy(false)
     }
@@ -265,11 +310,17 @@ export default function ExtensionScreen() {
       setRequestOpen(false)
       await query.refresh()
     } catch (err) {
-      toast.show({
-        title: "Gagal mengajukan perpanjangan",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // R2 (audit ronde-2, butir #11): permintaan bisa sudah terbuat saat
+      // respons hilang — muat ulang sebelum pengguna mengajukan duplikat.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal mengajukan perpanjangan",
+          uncertainHint: "Permintaan mungkin sudah terkirim — memuat ulang…",
+          err,
+        })
+      ) {
+        await query.refresh().catch(() => {})
+      }
     } finally {
       setRequesting(false)
     }

@@ -111,11 +111,12 @@ export function ReasonPicker({
           {/* N-06: aturan panjang ditampilkan, bukan hanya ditegakkan senyap. */}
           <Text variant="caption" tone="secondary">
             {noteMinLength > 0
-              ? translate("Minimal {min} · maksimal {max} karakter", {
-                  min: noteMinLength,
-                  max: noteMaxLength,
+              ? // R2 (audit ronde-2, butir #87): token kanonik {x}/{y}.
+                translate("Minimal {x} · maksimal {y} karakter", {
+                  x: noteMinLength,
+                  y: noteMaxLength,
                 })
-              : translate("Maksimal {max} karakter", { max: noteMaxLength })}
+              : translate("Maksimal {x} karakter", { x: noteMaxLength })}
           </Text>
         </>
       ) : null}

@@ -11,10 +11,12 @@ import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { NotePencil } from "phosphor-react-native"
 
-import { api, userMessage } from "@/lib/api"
+import { api } from "@/lib/api"
+import { showMutationError } from "@/lib/mutation-toast"
 import type { TransactionTemplate as ApiTemplate } from "@/lib/api/transaction-templates"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
+import { translate } from "@/lib/i18n/translate"
 import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
 
@@ -56,6 +58,9 @@ const NO_TEMPLATE: ApiTemplate = {
   feeResponsibility: "SPLIT",
 }
 
+/** R2 #92: batas kartu awal yang dirender sebelum pengguna membuka semuanya. */
+const TEMPLATE_VISIBLE_CAP = 20
+
 export default function TransactionTemplatesScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -70,9 +75,22 @@ export default function TransactionTemplatesScreen() {
   const query = useApiQuery<ApiTemplate[]>(
     "transaction-templates",
     async (signal) => (await api.transactionTemplates.listTransactionTemplates(signal)) ?? [],
+    undefined,
+    // R2 (audit ronde-2, butir #28): perubahan dari sesi lain/web terlihat
+    // saat layar dikunjungi ulang — tanpa ini, TTL cache menahan lama.
+    { refreshOnFocus: true },
   )
   const items = query.data ?? []
   const { loading, error, refreshing } = query
+  /**
+   * R2 (audit ronde-2, butir #92): daftar dirender dalam ScrollView dari
+   * state non-paginated — server (dan fitur premium) membolehkan jumlah
+   * template tumbuh. Cap lokal menjaga jumlah kartu awal yang dirender;
+   * sisanya dibuka eksplisit (daftar ratusan kartu tetap sekali ketuk).
+   */
+  const [showAllTemplates, setShowAllTemplates] = useState(false)
+  const visibleItems = showAllTemplates ? items : items.slice(0, TEMPLATE_VISIBLE_CAP)
+  const hiddenCount = items.length - visibleItems.length
   const [editing, setEditing] = useState<ApiTemplate | null>(null)
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState<ApiTemplate>(NO_TEMPLATE)
@@ -128,11 +146,17 @@ export default function TransactionTemplatesScreen() {
       setEditing(null)
       await query.refresh()
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal menyimpan template",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // R2 (audit ronde-2, butir #12): simpan bisa sudah berhasil saat respons
+      // hilang — muat ulang daftar sebelum pengguna membuat template ganda.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal menyimpan template",
+          uncertainHint: "Template mungkin sudah tersimpan — memuat ulang daftar…",
+          err,
+        })
+      ) {
+        await query.refresh().catch(() => {})
+      }
     } finally {
       setSubmitting(false)
     }
@@ -147,11 +171,16 @@ export default function TransactionTemplatesScreen() {
       setDeleteTarget(null)
       await query.refresh()
     } catch (err: unknown) {
-      toast.show({
-        title: "Gagal menghapus template",
-        description: userMessage(err),
-        tone: "danger",
-      })
+      // R2 (uniform): kegagalan tak pasti — template bisa sudah terhapus.
+      if (
+        showMutationError(toast.show, {
+          failTitle: "Gagal menghapus template",
+          uncertainHint: "Template mungkin sudah terhapus — memuat ulang daftar…",
+          err,
+        })
+      ) {
+        await query.refresh().catch(() => {})
+      }
     } finally {
       setDeleting(false)
     }
@@ -209,7 +238,7 @@ export default function TransactionTemplatesScreen() {
                 action={<Button onPress={openCreate}>Buat template</Button>}
               />
             ) : (
-              items.map((t) => (
+              visibleItems.map((t) => (
                 <TransactionTemplateCard
                   key={t.id}
                   template={{
@@ -231,6 +260,11 @@ export default function TransactionTemplatesScreen() {
                 />
               ))
             )}
+            {hiddenCount > 0 ? (
+              <Button variant="ghost" onPress={() => setShowAllTemplates(true)}>
+                {translate("Tampilkan semua {x} template", { x: items.length })}
+              </Button>
+            ) : null}
 
             {!creating ? (
               <Button variant="secondary" onPress={openCreate}>

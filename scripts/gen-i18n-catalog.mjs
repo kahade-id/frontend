@@ -53,6 +53,9 @@ const TEXT_PROPS = new Set([
   "descriptionText", "emptyMessage", "emptyText", "loadingMessage", "leftLabel", "rightLabel",
   "okLabel", "headerTitle", "sheetTitle", "alt", "summary", "note", "unit", "sectionTitle",
   "groupLabel", "optionLabel", "valueLabel", "prefixText", "suffixText", "tooltip", "aria-label",
+  // R2 (audit escrow ronde-2): kontrak helper `showMutationError`
+  // (lib/mutation-toast) — stringnya tampil di toast seperti `title`/`description`.
+  "failTitle", "uncertainHint", "uncertainDetail",
 ])
 
 /** Nama prop yang meski ada di objek config tidak pernah tampil sebagai teks. */
@@ -131,6 +134,9 @@ function isTechnical(shape, named = false) {
   // 2) kunci teknis ber-token (`search:{x}`, `page:{x}`): awalan huruf kecil
   //    + titik dua + token, tanpa spasi sama sekali.
   if (/^[a-z][a-z0-9_-]*:\{x\}$/.test(s)) return true
+  // R2 #89: media type (MIME) — "video/mp4" dinormalkan ke "video/mp{x}"
+  // sehingga lolos filter token-teknis (butir `!dynamic`); tetap bukan teks UI.
+  if (/^(application|audio|font|image|multipart|text|video)\/[a-z0-9.+-]*$/.test(braces)) return true
   // Token teknis murni: tanpa spasi, satu kata kecil yang boleh ber-titik /
   // ber-strip / camelCase di segmen berikutnya — route pendek, kunci storage,
   // media type, header. Hanya bila TIDAK ada {x}: "…{x} hari" itu prosa.

@@ -50,16 +50,26 @@ export type PickImageOptions = {
   allowsEditing?: boolean
   /** 0–1, default 0.7 (§9.19: klien mengirim JPG terkompresi) */
   quality?: number
+  /**
+   * R2 (audit ronde-2, butir #34): sertakan video dalam pemilih (bukti
+   * sengketa/pengiriman — kontrak mendukung video/mp4|quicktime|webm).
+   * OPT-IN agar avatar/sampul/profil tidak ikut berubah perilaku.
+   * `allowsEditing` diabaikan untuk video oleh expo-image-picker.
+   */
+  allowVideos?: boolean
 }
 
 const DEFAULT_MIME = "image/jpeg"
 const DEFAULT_QUALITY = 0.7
 
 function toPicked(asset: ImagePicker.ImagePickerAsset, fallbackName: string): PickedImage {
+  // R2 (butir #34): MIME fallback mengikuti JENIS aset — video yang tidak
+  // melaporkan mimeType (Android lama) tidak boleh dilabeli image/jpeg.
+  const isVideo = asset.type === "video"
   return {
     uri: asset.uri,
     name: asset.fileName ?? fallbackName,
-    mimeType: asset.mimeType ?? DEFAULT_MIME,
+    mimeType: asset.mimeType ?? (isVideo ? "video/mp4" : DEFAULT_MIME),
     size: asset.fileSize ?? 0,
     width: asset.width,
     height: asset.height,
@@ -78,7 +88,7 @@ export async function pickImage(opts: PickImageOptions = {}): Promise<PickImageR
   }
 
   const pickerOptions: ImagePicker.ImagePickerOptions = {
-    mediaTypes: ["images"],
+    mediaTypes: opts.allowVideos ? ["images", "videos"] : ["images"],
     allowsEditing: opts.allowsEditing ?? opts.square ?? false,
     aspect: opts.square
       ? [1, 1]
@@ -95,7 +105,13 @@ export async function pickImage(opts: PickImageOptions = {}): Promise<PickImageR
 
   const asset = result.canceled ? null : (result.assets[0] ?? null)
   if (!asset) return { status: "cancelled" }
-  return { status: "picked", asset: toPicked(asset, `image-${Date.now()}.jpg`) }
+  return {
+    status: "picked",
+    asset: toPicked(
+      asset,
+      asset.type === "video" ? `video-${Date.now()}.mp4` : `image-${Date.now()}.jpg`,
+    ),
+  }
 }
 
 /** Blob untuk `api.upload.uploadPresigned` (PUT ke presigned URL). */

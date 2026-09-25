@@ -159,6 +159,8 @@ describe("PROBE audit escrow e2e", () => {
     const formSrc = src("components/ui/dispute-claim-form.tsx")
     expect(formSrc).toContain("maxLength = 5000") // samai SubmitClaimDto.claim
     expect(formSrc).toContain("minLength = 20") // samai SubmitClaimDto.claim
+    // PROPOSAL_NOTE_MAX tetap konstanta layar (dipakai sheet usulan hasil
+    // ekstraksi #95 via prop noteMax).
     const screenSrc = src("app/dispute/[id].tsx")
     expect(screenSrc).toContain("PROPOSAL_NOTE_MAX = 2000") // samai reason kontrak
   })
@@ -181,9 +183,9 @@ describe("PROBE audit escrow e2e", () => {
     console.log("[PROBE-L]", terminal?.trim())
     expect(terminal).toBeDefined()
     expect(terminal).toContain("UNKNOWN")
-    // orders.ts normalizePaymentStatus (C-01) menjanjikan "polling berhenti" utk
+    // orders.ts normalizePaymentStatus (C-01) di orders-endpoints.ts (pecahan #97) menjanjikan "polling berhenti" utk
     // UNKNOWN — kini hook TERMINAL memuat UNKNOWN: polling berhenti juga.
-    expect(src("lib/api/orders.ts")).toContain("hasilnya `UNKNOWN` dan polling berhenti")
+    expect(src("lib/api/orders-endpoints.ts")).toContain("hasilnya `UNKNOWN` dan polling berhenti")
   })
 
   it("P-M (regresi): layar order-link publik memakai previewOrderLink (auth none)", () => {
@@ -234,14 +236,14 @@ describe("PROBE audit escrow e2e", () => {
     // Outbound: MutualResolutionProposeDto = {buyerPercent, sellerPercent, reason?}
     expect(API_CONSTRAINTS.MutualResolutionProposeDto.buyerPercent).toBeDefined()
     expect(API_CONSTRAINTS.MutualResolutionProposeDto.sellerPercent).toBeDefined()
-    // Inbound: app/dispute/[id].tsx hanya membaca buyerAmount/amount; tidak ada
-    // satu pun pembaca buyerPercent di seluruh repo (kecuali komentar kontrak).
+    // Inbound: pembaca proposal dulu app/dispute/[id].tsx; R2 #95 mengekstraknya
+    // ke components/dispute-detail-sections.tsx — logika identik dipindah.
     const readers = ["app", "components", "lib"]
       .flatMap((dir) => walk(dir))
       .filter((f) => /\.tsx?$/.test(f))
       .filter((f) => src(f).includes("buyerPercent"))
     console.log("[PROBE-O] file yang memuat 'buyerPercent':", JSON.stringify(readers))
-    const screenSrc = src("app/dispute/[id].tsx")
+    const screenSrc = src("components/dispute-detail-sections.tsx")
     expect(screenSrc).toContain("p.buyerAmount ??")
     expect(screenSrc).toContain("p.amount ??")
     expect(screenSrc).toContain("buyerPercent != null")

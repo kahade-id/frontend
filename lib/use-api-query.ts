@@ -5,6 +5,7 @@ import { useGuestPathBlocked } from "@/lib/guest-gate"
 import {
   CACHE_REVALIDATE_AFTER_MS,
   markQueryRevalidating,
+  onQueryCacheInvalidation,
   readQueryCacheEntry,
   releaseQueryRevalidation,
   writeQueryCache,
@@ -244,6 +245,23 @@ export function useApiQuery<TRaw, T = TRaw>(
     void load()
     return () => current.current?.abort()
   }, [load])
+
+  /**
+   * R2 (audit ronde-2, butir #20): revalidate diam-diam saat cache
+   * diinvalidasi global — mis. notifikasi foreground masuk (pesanan lawan
+   * transaksi berubah status) atau mutasi uang selesai. Dulu invalidasi hanya
+   * membersihkan cache sehingga layar yang SEDANG tampil tetap menampilkan
+   * data basi sampai pull-to-refresh manual; kini hook yang terpasang ikut
+   * menyegarkan di latar (tanpa spinner, penanda revalidasi tunggal mencegah
+   * tembakan ganda lintas-hook).
+   */
+  useEffect(() => {
+    if (!active) return
+    return onQueryCacheInvalidation(() => {
+      if (!latest.current.enabled) return
+      if (markQueryRevalidating(key)) void latest.current.load(true, true)
+    })
+  }, [active, key])
 
   // Refresh saat layar kembali fokus — lihat UseApiQueryOptions.refreshOnFocus.
   const focused = useIsFocused()

@@ -296,7 +296,7 @@ rules.push({
  *      `Gesture.Pan()` dengan `.simultaneousWithExternalGesture(native)`,
  *      `touchAction` dipatok, dan TANPA manualActivation/stateManager.
  *      ScrollView horizontal di dalamnya juga wajib Gesture.Native() sendiri
- *      (scroll-row, promo-carousel, order-summary-strip, tabs).
+ *      (scroll-row, promo-carousel, tabs).
  *
  * Aturan ini tidak punya baseline: tidak ada layar/komponen yang boleh
  * melakukannya, sekarang maupun nanti.
@@ -487,7 +487,6 @@ const UNUSED_UI_BASELINE = new Set([
   "components/ui/incoming-call-prompt.tsx",
   "components/ui/kyc-document-viewer.tsx",
   "components/ui/menu-list.tsx",
-  "components/ui/order-summary-strip.tsx",
   "components/ui/presence.tsx",
   "components/ui/result-state.tsx",
   "components/ui/search-overlay.tsx",
@@ -524,7 +523,7 @@ for (const component of unusedUi) {
  * komponen. Pesan "baseline basi" akan meminta angkanya diturunkan begitu
  * komponennya terpakai.
  */
-const UNUSED_UI_CEILING = 29
+const UNUSED_UI_CEILING = 28
 if (unusedUi.length > UNUSED_UI_CEILING) {
   failures.push(
     `S5 ${unusedUi.length} komponen UI tanpa pemakaian melewati plafon ${UNUSED_UI_CEILING} — pakai atau hapus komponennya, jangan menambah baseline`,
@@ -567,10 +566,16 @@ const LINE_CEILING = new Map([
   // Audit 2026-09-20 (batch E): label a11y bertemplate dipindah ke translate()
   // di layar ini, dan kompensasinya satu baris -> 1104. Plafon TURUN mengikuti
   // aturan "hanya boleh menyusut".
-  ["app/order/[id].tsx", 1104],
+  // R2 #94: sheet aksi (bayar/batal/tolak/sengketa/resi) + dialog konfirmasi +
+  // overlay progres + aksi sekunder diekstrak ke components/order-action-sheets.tsx
+  // -> 1065. Plafon TURUN mengikuti fakta.
+  ["app/order/[id].tsx", 1061],
   // Batch G (G-01): deskripsi sheet usulan penyelesaian memakai translate() dan
   // konstanta tipe berkas dipadatkan -> 917. Plafon TURUN mengikuti fakta.
-  ["app/dispute/[id].tsx", 917],
+  // R2 #95: seksi (header/pesan/penyelesaian-bersama/panggilan/dialog/sheet
+  // usulan) diekstrak ke components/dispute-detail-sections.tsx +
+  // dispute-messages-section.tsx -> 914.
+  ["app/dispute/[id].tsx", 914],
   // 2026-09-23b: baris aksi suka diganti <LikeAction> (blok inline hilang) -> 871.
   // 2026-09-24: baris aksi (suka · komentar · bagikan · simpan) diekstrak ke
   // components/ui/showcase-detail-actions.tsx saat memperbaiki audit Etalase
@@ -589,14 +594,18 @@ const LINE_CEILING = new Map([
    * audit (ukuran sekarang, jadi hanya boleh menyusut). Layar-layar 700–900
    * baris ikut masuk supaya "god component" tidak berpindah tempat.
    */
-  ["app/create-transaction.tsx", 810],
+  // R2 #96: seksi langkah tinjau (biaya/voucher/ringkasan/sheet skema biaya +
+  // langkah 0-1) diekstrak ke components/create-transaction-review.tsx -> 789.
+  ["app/create-transaction.tsx", 789],
   ["app/edit-profile.tsx", 765],
-  ["app/transfer.tsx", 734],
+  ["app/transfer.tsx", 701],  // R2 #96: pemadatan blank-line setelah ekstraksi sheet (turun mengikuti fakta)
   ["app/subscriptions.tsx", 726],
   // 2026-09-23: UsersTab & ShowcaseFeedTab diekstrak ke components/
   // (discover-users-tab.tsx, showcase-feed-tab.tsx) -> layar tinggal kerangka.
   ["app/(tabs)/discover.tsx", 32],
-  ["lib/api/orders.ts", 890],
+  // R2 #97: facade murni re-export — implementasi pindah ke orders-shared/
+  // orders-endpoints/orders-delivery/orders-links/orders-invoice.ts.
+  ["lib/api/orders.ts", 26],
   ["lib/api/users.ts", 1119],
   ["lib/api/constraints.ts", 1181], // GENERATED dari spec — plafon mengikuti gen:api (F-01 audit 2026-09-23)
   ["lib/api/types.ts", 1566], // GENERATED dari spec — plafon mengikuti gen:api

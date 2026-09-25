@@ -37,16 +37,12 @@ import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import {
-  ChatCircleDots,
   ClockCounterClockwise,
   Package,
-  Receipt,
-  ShieldWarning,
-  Timer,
   Truck,
 } from "phosphor-react-native"
 
-import { api, isApiError, userMessage, type Order, type SubmitDisputeDto } from "@/lib/api"
+import { api, isApiError, userMessage, type Order } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
 import { normalizeOrder } from "@/lib/api/orders"
 import {
@@ -56,16 +52,13 @@ import {
   isExtendable,
   nextOrderStatus,
   type AverageDurations,
-  type CancelReason,
 } from "@/lib/api/orders"
 import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } from "@/lib/ui-prefs"
+import { usePolling } from "@/lib/use-polling"
 import { useQrisPayment } from "@/lib/use-qris-payment"
 import { useResultTimer } from "@/lib/use-result-timer"
-import {
-  CANCEL_REASONS,
-  DISPUTE_CATEGORIES,
-  type DisputeCategoryValue,
-} from "@/lib/labels/dispute"
+import type { DisputeCategoryValue } from "@/lib/labels/dispute"
+import { type ReasonValue } from "@/components/ui/reason-picker"
 import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
 import { useCopy } from "@/lib/clipboard"
 import {
@@ -80,47 +73,46 @@ import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
 
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
-import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { FeeBreakdown } from "@/components/ui/fee-breakdown"
 import { FadeIn } from "@/components/ui/fade-in"
-import { Field } from "@/components/ui/field"
 import { Header } from "@/components/ui/header"
-import { Input } from "@/components/ui/input"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { OrderHistoryTimeline } from "@/components/ui/order-history-timeline"
 import { ORDER_STATUS_LABELS, OrderStatusBadge } from "@/components/ui/order-status-badge"
-import { PinInput } from "@/components/ui/pin-input"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { QrisPaymentPanel } from "@/components/qris-payment-panel"
-import { ReasonPicker, type ReasonValue } from "@/components/ui/reason-picker"
-import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Screen } from "@/components/ui/screen"
-import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
+import {
+  OrderActionSheets,
+  OrderSecondaryActions,
+  OrderConfirmDialogs,
+  OrderPayProgressOverlay,
+  OrderPaymentSheet,
+} from "@/components/order-action-sheets"
 import { SectionHeader } from "@/components/ui/section"
-import { SegmentedControl } from "@/components/ui/segmented-control"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { Text } from "@/components/ui/text"
-import { TextArea } from "@/components/ui/text-area"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
 
 const HISTORY_LIMIT = 50
 
 const NOTE_MAX = 500
+/** R2 #108: status terminal — polling berhenti & riwayat penuh dimuat lazy. */
+const ORDER_TERMINAL_STATUSES: readonly string[] = [
+  "COMPLETED",
+  "REFUNDED",
+  "EXPIRED",
+  "CANCELLED",
+]
 const DISPUTE_CLAIM_MIN = 20
 const DISPUTE_CLAIM_MAX = 2000
 // G-12 (audit): kategori sengketa & alasan batal kini dari lib/labels/dispute
 // (satu sumber, ditipe dari DTO yang di-generate).
 
 type PayMethod = "balance" | "qris"
-const PAY_METHODS: { value: PayMethod; label: string }[] = [
-  { value: "balance", label: "Saldo Kahade" },
-  { value: "qris", label: "QRIS" },
-]
 
 type SheetKind = "pay" | "cancel" | "reject" | "dispute" | "shipping" | null
 
@@ -156,6 +148,8 @@ export default function OrderDetailScreen() {
     history: Awaited<ReturnType<typeof api.orders.getOrderHistory>>["data"]
     /** G-08: masih ada halaman riwayat berikutnya? */
     historyHasMore: boolean
+    /** R2 (butir #50): halaman riwayat yang sudah termuat (muat-awal = 1). */
+    historyPage: number
     durations: AverageDurations | null
     fee: Awaited<ReturnType<typeof api.orders.calculateFee>> | null
   }>(
@@ -221,12 +215,19 @@ export default function OrderDetailScreen() {
           // fee opsional
         }
       }
+      // R2 (audit ronde-2, butir #108): order selesai tidak lagi membayar
+      // langkah SERIAL apa pun — kalkulasi fee hanya berjalan untuk status
+      // awal (EARLY_STATUSES di atas; terminal tidak membutuhkan fee), dan
+      // riwayat diambil PARALEL dengan detail+durasi (Promise.all), sehingga
+      // tidak pernah menambah RTT. Versi lama punya susulan serial fee/riwayat
+      // yang ikut menahan TTI order terminal.
       return {
         order: resolvedOrder,
         history: h?.data ?? [],
         // G-08: halaman berikutnya ada bila meta.totalPages bilang begitu;
         // tanpa meta, halaman penuh = kemungkinan masih ada.
         historyHasMore: h?.meta?.totalPages != null ? h.meta.totalPages > 1 : (h?.data?.length ?? 0) >= HISTORY_LIMIT,
+        historyPage: 1,
         durations: d,
         fee,
       }
@@ -234,6 +235,19 @@ export default function OrderDetailScreen() {
     Boolean(id),
   )
   const order = query.data?.order ?? null
+  // R2 (audit ronde-2, butir #21): status pihak lawan (bayar/kirim/konfirmasi)
+  // menyegar otomatis tiap 15 detik selama layar terbuka — tanpa pull-to-
+  // refresh. Order status terminal berhenti dipoll. Galat ditelan oleh
+  // useApiQuery (masuk state error), callback ini tidak melempar.
+  // R2 #108: status terminal dipusatkan pada satu konstanta (dipakai polling
+  // stop DAN pintasan riwayat terminal di fetcher).
+  usePolling(
+    async () => {
+      await query.refresh().catch(() => {})
+    },
+    15_000,
+    Boolean(id && order && !ORDER_TERMINAL_STATUSES.includes(order.status)),
+  )
   const history = query.data?.history ?? []
   const historyHasMore = query.data?.historyHasMore ?? false
   const durations = query.data?.durations ?? null
@@ -246,31 +260,48 @@ export default function OrderDetailScreen() {
    * heuristik halaman penuh bila meta tidak ada.
    */
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false)
+  // R2 (butir #54): affordance loading tombol Chat.
+  const [chatBusy, setChatBusy] = useState(false)
+  const historyPage = query.data?.historyPage ?? 1
   const loadMoreHistory = useCallback(async () => {
     if (!order || historyLoadingMore) return
     setHistoryLoadingMore(true)
     try {
-      const nextPage = Math.floor(history.length / HISTORY_LIMIT) + 1
+      // R2 (audit ronde-2, butir #50): halaman berikutnya = halaman DIMUAT
+      // TERAKHIR + 1, disimpan di data query — derivasi `floor(length/LIMIT)`
+      // meminta halaman-1 ULANG saat halaman pertama parsial (30/50 baris)
+      // sehingga timeline berlipat (60 render / 30 unik). Refresh data
+      // me-reset `historyPage` ke 1 melalui fetcher (satu sumber kebenaran).
+      const nextPage = historyPage + 1
       const res = await api.orders.getOrderHistory(order.id, {
         page: nextPage,
         limit: HISTORY_LIMIT,
       })
       const rows = res?.data ?? []
-      query.setData((prev) =>
-        prev
-          ? {
-              ...prev,
-              history: [...prev.history, ...rows],
-              // M-31 (audit end-to-end, issue #75): `meta.totalPages` juga
-              // dipakai saat load-more — heuristik `rows.length >= LIMIT`
-              // menyembunyikan "Muat lagi" prematur bila halaman terisi parsial.
-              historyHasMore:
-                res?.meta?.totalPages != null
-                  ? res.meta.totalPages > nextPage
-                  : rows.length >= HISTORY_LIMIT,
-            }
-          : prev,
-      )
+      query.setData((prev) => {
+        if (!prev) return prev
+        // Dedupe berlapis: baris yang id-nya sudah ada (penomoran server yang
+        // bergeser saat entri baru masuk) tidak dirender dua kali.
+        const seen = new Set(prev.history.map((r) => (r as { id?: string }).id ?? JSON.stringify(r)))
+        const fresh = rows.filter((r) => {
+          const key = (r as { id?: string }).id ?? JSON.stringify(r)
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+        return {
+          ...prev,
+          history: [...prev.history, ...fresh],
+          historyPage: nextPage,
+          // M-31 (audit end-to-end, issue #75): `meta.totalPages` juga
+          // dipakai saat load-more — heuristik `rows.length >= LIMIT`
+          // menyembunyikan "Muat lagi" prematur bila halaman terisi parsial.
+          historyHasMore:
+            res?.meta?.totalPages != null
+              ? res.meta.totalPages > nextPage
+              : rows.length >= HISTORY_LIMIT,
+        }
+      })
     } catch {
       toast.show({
         title: "Gagal memuat riwayat berikutnya. Coba lagi.",
@@ -279,7 +310,7 @@ export default function OrderDetailScreen() {
     } finally {
       setHistoryLoadingMore(false)
     }
-  }, [order, history.length, historyLoadingMore, query, toast])
+  }, [order, historyPage, historyLoadingMore, query, toast])
   const { loading, error, refreshing } = query
   const [submitting, setSubmitting] = useState(false)
 
@@ -310,6 +341,9 @@ export default function OrderDetailScreen() {
    * "pembayaran kedua" bila yang pertama sebenarnya sudah terdebit.
    */
   const payKeyRef = useRef<string | null>(null)
+  // R2 (audit ronde-2, butir #17): kunci untuk "Tandai selesai" (rilis escrow);
+  // dibersihkan setelah SUKSES — uncertain-fail mempertahankan untuk retry.
+  const completeKeyRef = useRef<string | null>(null)
 
   /**
    * Pembayaran QRIS: intent + polling + rekonsiliasi pindah ke hook
@@ -329,7 +363,7 @@ export default function OrderDetailScreen() {
     onError: (message) =>
       toast.show({ title: "Gagal membuat QRIS", description: message, tone: "danger" }),
   })
-  const { qris, status: qrisStatus, pollError, stopped: qrisPollStopped, creating: qrisCreating } = qrisPayment
+  const { status: qrisStatus, pollError, creating: qrisCreating } = qrisPayment
 
   // Alasan / form
   const [cancelReason, setCancelReason] = useState<ReasonValue>({ code: undefined, note: "" })
@@ -382,12 +416,13 @@ export default function OrderDetailScreen() {
       submitLock.current = true
       setSubmitting(true)
       try {
-        await fn()
+        // R2 (butir #53): hasil fn diteruskan — respons submitDispute dipakai navigasi.
+        const result = await fn()
         toast.show({ title: success, tone: "success", duration: 3000 })
         closeSheet()
         setConfirmAccept(false)
         await query.refresh()
-        return true
+        return result ?? true
       } catch (err) {
         toast.show({
           title: failure,
@@ -406,6 +441,11 @@ export default function OrderDetailScreen() {
   const handlePayPin = useCallback(
     async (pin: string) => {
       if (!order || order.myRole !== "BUYER" || submitLock.current) return
+      // R2 (butir #32): handler menolak bayar tanpa nominal escrow terverifikasi.
+      if (fee?.buyerPays == null) {
+        setPinError("Muat ulang rincian biaya sebelum membayar.")
+        return
+      }
       submitLock.current = true
       setSubmitting(true)
       setPinError(undefined)
@@ -450,7 +490,12 @@ export default function OrderDetailScreen() {
         // C-09 (audit escrow 2026-09-24): pesan PIN/kesalahan langsung tampil
         // di PinInput SEKARANG — dulu baru diisi setelah overlay 1,4 detik,
         // pengguna menunggu tanpa tahu PIN-nya ditolak.
-        setPinError(msg)
+        // R2 (audit ronde-2, butir #33): PinInput hanya membawa KALIMAT PERTAMA —
+        // pesan multi-kalimat penuh tetap wajib tampil SEKALI di overlay
+        // (`payProgressError`), bukan dua render identik yang merusak keypad.
+        const dotIdx = msg.indexOf(". ")
+        const firstSentence = dotIdx > 0 ? msg.slice(0, dotIdx + 1) : msg
+        setPinError(firstSentence.length > 90 ? `${firstSentence.slice(0, 90).trimEnd()}…` : firstSentence)
         scheduleResult(() => {
           setPayProgress(null)
         }, "pay")
@@ -459,7 +504,7 @@ export default function OrderDetailScreen() {
         setSubmitting(false)
       }
     },
-    [order, closeSheet, query, scheduleResult],
+    [order, fee, closeSheet, query, scheduleResult],
   )
 
   /**
@@ -469,8 +514,20 @@ export default function OrderDetailScreen() {
    */
   const handlePayQris = useCallback(() => qrisPayment.createIntent(), [qrisPayment])
 
+  // R2 (audit ronde-2, butir #18): "Buat ulang QRIS" = ganti transaksi QRIS
+  // aktif server-side — destruktif bila pengguna baru saja membayar QR lama.
+  // Wajib konfirmasi eksplisit; cabang gagal-tak-pasti sudah di hook (A-14).
+  const [confirmRecreateQris, setConfirmRecreateQris] = useState(false)
+
+  const openChatBusyRef = useRef(false)
   const openChat = useCallback(async () => {
     if (!order) return
+    // R2 (audit ronde-2, butir #54): pemindaian room bisa memakan beberapa GET
+    // serial — tanpa guard, tap berulang memulai pemindaian ganda. Tombol
+    // juga menampilkan spinner lewat state di bawah.
+    if (openChatBusyRef.current) return
+    openChatBusyRef.current = true
+    setChatBusy(true)
     try {
       // G-09 (audit escrow 2026-09-24): cari ruang order via pemindaian
       // berpaginasi yang berhenti saat ketemu (lihat `findChatRoomByOrder`) —
@@ -485,6 +542,9 @@ export default function OrderDetailScreen() {
     } catch {
       // Gagal cari ruang → daftar chat adalah pintu keluar yang aman.
       router.push(ROUTES.chat)
+    } finally {
+      openChatBusyRef.current = false
+      setChatBusy(false)
     }
   }, [order])
 
@@ -812,7 +872,16 @@ export default function OrderDetailScreen() {
                         // A-13 lama (mengklaim `ConfirmDeliveryDto` dipakai di
                         // sini) MENYESATKAN dan menghasilkan panggilan
                         // `completeOrder(id, {proofId})` yang ditolak validator.
-                        await api.orders.completeOrder(order.id)
+                        await api.orders.completeOrder(
+                          order.id,
+                          // R2 (audit ronde-2, butir #17): kunci idempotensi
+                          // per siklus (pola payOrder di atas) — retry pasca-
+                          // timeout tidak melepas dana dua kali di server yang
+                          // mendukung header. Dibersihkan setelah SUKSES.
+                          completeKeyRef.current ??
+                            (completeKeyRef.current = createIdempotencyKey()),
+                        )
+                        completeKeyRef.current = null
                       },
                       "Order selesai",
                       "Gagal menyelesaikan order",
@@ -844,90 +913,17 @@ export default function OrderDetailScreen() {
 
           {/* ── Aksi sekunder ────────────────────────────────────── */}
           <SectionHeader title="Lainnya" />
-          <View className="flex-row flex-wrap gap-2">
-            {/* H-08 (audit escrow 2026-09-24): invoice "belum diterbitkan"
-                untuk WAITING_CONFIRMATION — tombol disembunyikan, bukan
-                membuka layar struk kosong. */}
-            {order.status !== "WAITING_CONFIRMATION" ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={Receipt}
-                onPress={() => router.push(ROUTES.invoice(order.id))}
-              >
-                Invoice
-              </Button>
-            ) : null}
-            <Button
-              variant="secondary"
-              size="sm"
-              leftIcon={ChatCircleDots}
-              onPress={() => void openChat()}
-            >
-              Chat
-            </Button>
-            {order.status === "REFUNDED" || order.status === "EXPIRED" ? (
-              // A-11 (audit escrow 2026-09-24): order berstatus REFUNDED/EXPIRED
-              // dulu hanya punya badge — pengguna tidak tahu harus berbuat apa
-              // setelah dananya kembali. Dua jalur keluar eksplisit: buat
-              // transaksi baru, atau periksa mutasi pengembalian dana.
-              <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => router.push(ROUTES.createTransaction)}
-                >
-                  Buat transaksi baru
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onPress={() => router.push(ROUTES.walletHistory)}
-                >
-                  Lihat mutasi dana
-                </Button>
-              </>
-            ) : null}
-            {canExtend ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={Timer}
-                onPress={() => router.push(ROUTES.extension(order.id))}
-              >
-                Perpanjang tenggat
-              </Button>
-            ) : null}
-            {isDisputed ? (
-              <Button
-                variant="secondary"
-                size="sm"
-                leftIcon={ShieldWarning}
-                onPress={() => router.push(ROUTES.disputes)}
-              >
-                Lihat sengketa
-              </Button>
-            ) : canDispute ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                leftIcon={ShieldWarning}
-                onPress={() => setSheet("dispute")}
-              >
-                Ajukan sengketa
-              </Button>
-            ) : null}
-            {canCancel ? (
-              <Button
-                variant="ghost"
-                size="sm"
-                onPress={() => setSheet("cancel")}
-                disabled={submitting}
-              >
-                Batalkan pesanan
-              </Button>
-            ) : null}
-          </View>
+          <OrderSecondaryActions
+            order={order}
+            chatBusy={chatBusy}
+            onOpenChat={() => void openChat()}
+            canExtend={canExtend}
+            isDisputed={isDisputed}
+            canDispute={canDispute}
+            canCancel={canCancel}
+            submitting={submitting}
+            onOpenSheet={(kind) => setSheet(kind)}
+          />
 
           <SectionHeader title="Riwayat" />
           {history.length > 0 ? (
@@ -969,322 +965,96 @@ export default function OrderDetailScreen() {
       </PullToRefresh>
 
       {/* ── Bayar ─────────────────────────────────────────────── */}
-      <BottomSheet
-        avoidKeyboard
-        visible={sheet === "pay"}
-        onRequestClose={closeSheet}
-        title="Pembayaran"
-        description={
-          fee?.buyerPays != null
-            ? translate("Total {x} masuk ke escrow Kahade.", { x: formatRupiah(fee.buyerPays) })
-            : "Total pembayaran belum terkonfirmasi. Muat ulang rincian biaya sebelum membayar."
-        }
-      >
-        <View className="gap-4">
-          <SegmentedControl<PayMethod>
-            items={PAY_METHODS}
-            accessibilityLabel="Metode pembayaran"
-            value={payMethod}
-            onChange={(v) => { setPayMethod(v); setPinError(undefined) }}
-            disabled={submitting || qris != null}
-          />
-          {payMethod === "balance" ? (
-            <>
-              <Text variant="body" tone="secondary">
-                Masukkan PIN dompet untuk membayar dari saldo Kahade.
-              </Text>
-              <PinInput
-                mode="enter"
-                onComplete={(p) => void handlePayPin(p)}
-                errorText={pinError}
-                disabled={submitting}
-              />
-            </>
-          ) : qris ? (
-            /* Panel QRIS diekstrak ke components/qris-payment-panel.tsx (S9):
-               state & mutasi tetap di layar ini, panel hanya presentasi. */
-            <QrisPaymentPanel
-              qrString={qris.qrString}
-              amount={qris.amount}
-              expiresAt={qris.expiresAt}
-              status={qrisStatus}
-              pollError={pollError}
-              pollStopped={qrisPollStopped}
-              submitting={submitting || qrisCreating}
-              copied={copied}
-              onCopy={(value) => void copy(value)}
-              onExpire={qrisPayment.expireLocally}
-              onRecreate={() => void handlePayQris()}
-              onCheckStatus={() => {
-                // N-07 (audit escrow 2026-09-24): "Cek status sekarang" memberi
-                // umpan balik hasil — dulu hanya diam (atau `pollError` bila
-                // gagal), pengguna tidak tahu status sudah dicek.
-                void qrisPayment.syncStatus().then((s) => {
-                  if (s == null) return
-                  toast.show({
-                    title:
-                      s === "PAID"
-                        ? "Pembayaran diterima"
-                        : s === "PENDING"
-                          ? "Status diperbarui — belum terbayar"
-                          : // M-32 (audit end-to-end, issue #78): enum mentah
-                            // ("EXPIRED", "UNKNOWN", …) tidak dipaparkan ke user.
-                            s === "EXPIRED"
-                            ? "QRIS sudah kedaluwarsa"
-                            : s === "FAILED"
-                              ? "Pembayaran gagal"
-                              : s === "CANCELLED"
-                                ? "Pembayaran dibatalkan"
-                                : s === "UNKNOWN"
-                                  ? "Status belum pasti — cek lagi sebentar lagi"
-                                  : "Status diperbarui",
-                    tone: s === "PAID" ? "success" : "info",
-                    duration: 2500,
-                  })
-                })
-              }}
-            />
-          ) : (
-            <Button loading={submitting || qrisCreating} onPress={() => void handlePayQris()}>
-              Tampilkan kode QRIS
-            </Button>
-          )}
-        </View>
-      </BottomSheet>
+      <OrderPaymentSheet
+        open={sheet === "pay"}
+        onClose={closeSheet}
+        feeBuyerPays={fee?.buyerPays ?? null}
+        payMethod={payMethod}
+        onChangePayMethod={(v) => {
+          setPayMethod(v)
+          setPinError(undefined)
+        }}
+        submitting={submitting}
+        pinError={pinError}
+        onPayPin={(p) => void handlePayPin(p)}
+        qrisPayment={qrisPayment}
+        qrisStatus={qrisStatus}
+        pollError={pollError}
+        copied={copied}
+        onCopy={(value) => void copy(value)}
+        onRequestRecreate={() => setConfirmRecreateQris(true)}
+        onUseOtherMethod={() => {
+          // R2 (audit ronde-2, butir #29/#30): lepas intent QRIS aktif —
+          // SegmentedControl terbuka lagi dan pengguna bisa pindah ke
+          // saldo/PIN. Intent di server tetap terminal-sendiri bila
+          // kedaluwarsa (reset hanya urusan klien).
+          qrisPayment.reset()
+          toast.show({
+            title: "Silakan pilih metode pembayaran lain.",
+            tone: "info",
+            duration: 2500,
+          })
+        }}
+        onShowQris={() => void handlePayQris()}
+      />
 
-      {/* ── Batalkan ──────────────────────────────────────────── */}
-      <BottomSheet
-        avoidKeyboard
-        visible={sheet === "cancel"}
-        onRequestClose={closeSheet}
-        title="Batalkan order?"
-        // N-01 (audit escrow 2026-09-24): janji refund hanya benar bila dana
-        // sudah di escrow (PAID/PROCESSING). Status sebelum bayar tidak punya
-        // dana yang "dikembalikan" — copy mengikuti kenyataan dana per status.
-        description={
-          order.status === "PAID" || order.status === "PROCESSING"
-            ? "Order akan dibatalkan dan dana di escrow dikembalikan ke pembeli."
-            : "Order akan dibatalkan. Belum ada dana di escrow untuk status ini — tidak ada pengembalian dana."
+      <OrderActionSheets
+        sheet={
+          sheet === "cancel" || sheet === "reject" || sheet === "dispute" || sheet === "shipping"
+            ? sheet
+            : null
         }
-        footer={
-          <Button
-            variant="destructive"
-            fullWidth
-            loading={submitting}
-            disabled={!cancelValid}
-            onPress={() =>
-              void runAction(
-                () =>
-                  api.orders.cancelOrder(order.id, {
-                    reason: cancelReason.code as CancelReason,
-                    note: cancelReason.note.trim() || undefined,
-                  }),
-                "Order dibatalkan",
-                "Gagal membatalkan order",
-              )
-            }
-          >
-            Batalkan pesanan
-          </Button>
-        }
-      >
-        <ReasonPicker
-          options={CANCEL_REASONS}
-          value={cancelReason}
-          onChange={setCancelReason}
-          noteMaxLength={NOTE_MAX}
-          disabled={submitting}
-        />
-      </BottomSheet>
+        onClose={closeSheet}
+        order={order}
+        submitting={submitting}
+        cancelValid={cancelValid}
+        cancelReason={cancelReason}
+        onChangeCancelReason={setCancelReason}
+        rejectReason={rejectReason}
+        onChangeRejectReason={setRejectReason}
+        disputeClaim={disputeClaim}
+        onChangeDisputeClaim={setDisputeClaim}
+        disputeCategory={disputeCategory}
+        onChangeDisputeCategory={setDisputeCategory}
+        tracking={tracking}
+        onChangeTracking={setTracking}
+        courier={courier}
+        onChangeCourier={setCourier}
+        shippingRequired={shippingRequired}
+        runAction={runAction}
+        noteMax={NOTE_MAX}
+        disputeClaimMin={DISPUTE_CLAIM_MIN}
+        disputeClaimMax={DISPUTE_CLAIM_MAX}
+      />
 
-      {/* ── Tolak (penjual) ───────────────────────────────────── */}
-      <BottomSheet
-        avoidKeyboard
-        visible={sheet === "reject"}
-        onRequestClose={closeSheet}
-        title="Tolak order?"
-        description="Pembeli akan diberi tahu beserta alasan Anda."
-        footer={
-          <Button
-            variant="destructive"
-            fullWidth
-            loading={submitting}
-            onPress={() =>
-              void runAction(
-                () =>
-                  api.orders.confirmOrder(order.id, {
-                    action: "REJECT",
-                    reason: rejectReason.trim() || undefined,
-                  }),
-                "Order ditolak",
-                "Gagal menolak order",
-              )
-            }
-          >
-            Tolak pesanan
-          </Button>
-        }
-      >
-        <TextArea
-          value={rejectReason}
-          onChangeText={setRejectReason}
-          placeholder="Alasan penolakan (opsional)"
-          maxLength={NOTE_MAX}
-          multiline
-          numberOfLines={3}
-        />
-      </BottomSheet>
-
-      {/* ── Sengketa ──────────────────────────────────────────── */}
-      <BottomSheet
-        avoidKeyboard
-        visible={sheet === "dispute"}
-        onRequestClose={closeSheet}
-        title="Ajukan sengketa"
-        description="Dana escrow dibekukan sampai mediator Kahade memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat."
-        footer={
-          <Button
-            variant="destructive"
-            fullWidth
-            loading={submitting}
-            disabled={disputeClaim.trim().length < DISPUTE_CLAIM_MIN || !disputeCategory}
-            onPress={() =>
-              void runAction(
-                () =>
-                  api.orders.submitDispute(order.id, {
-                    claim: disputeClaim.trim(),
-                    category: disputeCategory as SubmitDisputeDto["category"],
-                  }),
-                "Sengketa dibuka",
-                "Gagal membuka sengketa",
-              )
-            }
-          >
-            Buka sengketa
-          </Button>
-        }
-      >
-        <Field label="Kategori" required>
-          <RadioGroup
-            accessibilityLabel="Kategori sengketa"
-            value={disputeCategory}
-            onChange={(v) => setDisputeCategory(v as DisputeCategoryValue)}
-            variant="plain"
-          >
-            {DISPUTE_CATEGORIES.map((c) => (
-              <Radio key={c.value} value={c.value} label={c.label} />
-            ))}
-          </RadioGroup>
-        </Field>
-        <Field
-          label="Klaim Anda"
-          required
-          helperText={translate("Minimal {x} karakter — jelaskan apa yang tidak sesuai.", { x: DISPUTE_CLAIM_MIN })}
-        >
-          <TextArea
-            value={disputeClaim}
-            onChangeText={setDisputeClaim}
-            placeholder="Barang tidak sesuai deskripsi karena…"
-            maxLength={DISPUTE_CLAIM_MAX}
-            multiline
-            numberOfLines={5}
-          />
-        </Field>
-      </BottomSheet>
-
-      {/* ── Resi / kirim (penjual) ────────────────────────────── */}
-      <BottomSheet
-        avoidKeyboard
-        visible={sheet === "shipping"}
-        onRequestClose={closeSheet}
-        title={shippingRequired ? "Info pengiriman" : "Tandai dikirim"}
-        description={
-          shippingRequired
-            ? "Nomor resi & kurir wajib untuk barang fisik."
-            : "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil."
-        }
-        footer={
-          <Button
-            fullWidth
-            loading={submitting}
-            disabled={shippingRequired && (tracking.trim().length < 3 || courier.trim().length < 2)}
-            onPress={() =>
-              void runAction(
-                () =>
-                  api.orders.updateShipping(order.id, {
-                    trackingNumber: tracking.trim() || undefined,
-                    courierName: courier.trim() || undefined,
-                  }),
-                "Info pengiriman disimpan",
-                "Gagal menyimpan info pengiriman",
-              )
-            }
-          >
-            Simpan
-          </Button>
-        }
-      >
-        <View className="gap-4">
-          <Field label="Kurir" required={shippingRequired}>
-            <Input
-              value={courier}
-              onChangeText={setCourier}
-              placeholder="JNE, SiCepat, …"
-              autoCapitalize="words"
-              returnKeyType="next"
-              maxLength={100}
-            />
-          </Field>
-          <Field label="Nomor resi" required={shippingRequired}>
-            <Input
-              value={tracking}
-              onChangeText={setTracking}
-              placeholder="Nomor resi"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              spellCheck={false}
-              returnKeyType="done"
-              maxLength={100}
-            />
-          </Field>
-        </View>
-      </BottomSheet>
-
-      <Dialog
-        title="Terima order ini?"
-        // N-02 (audit escrow 2026-09-24): `confirmOrder({action:"ACCEPT"})`
-        // terjadi SEBELUM pembayaran — copy lama ("…setelah pembeli membayar")
-        // membuat penjual menunggu pembayaran yang justru baru bisa dilakukan
-        // setelah order diterima.
-        description="Order diterima, dan pembeli dapat melanjutkan pembayaran ke escrow. Selesaikan pekerjaan sesuai kesepakatan setelah dana masuk."
-        visible={confirmAccept}
-        loading={submitting}
-        confirmLabel="Terima"
-        cancelLabel="Tutup"
-        onConfirm={() =>
+      <OrderConfirmDialogs
+        acceptOpen={confirmAccept}
+        acceptLoading={submitting}
+        onAcceptConfirm={() =>
           void runAction(
-            () => api.orders.confirmOrder(order.id, { action: "ACCEPT" }),
+            () =>
+              api.orders.confirmOrder(order.id, {
+                action: "ACCEPT",
+              }),
             "Order dikonfirmasi",
             "Gagal mengonfirmasi order",
           )
         }
-        onCancel={() => setConfirmAccept(false)}
-        onRequestClose={() => setConfirmAccept(false)}
+        onAcceptClose={() => setConfirmAccept(false)}
+        recreateOpen={confirmRecreateQris}
+        recreateLoading={submitting || qrisCreating}
+        onRecreateConfirm={() => {
+          setConfirmRecreateQris(false)
+          void handlePayQris()
+        }}
+        onRecreateClose={() => setConfirmRecreateQris(false)}
       />
 
-      {/* Progres pembayaran escrow full-screen (PIN disubmit, §8 signature) */}
-      <TransactionProgressOverlay
+      <OrderPayProgressOverlay
         visible={payProgress !== null}
         state={payProgress ?? "PROCESSING"}
-        processingMessage={
-          // C-12 (audit escrow 2026-09-24): fee null tidak mencetak "Membayar
-          // Rp0 dari saldo…" — tanpa angka yang pasti, tanpa nominal palsu.
-          fee?.buyerPays != null
-            ? translate("Membayar {x} dari saldo…", { x: formatRupiah(fee.buyerPays) })
-            : "Membayar dari saldo…"
-        }
-        successMessage="Pembayaran berhasil"
-        failureMessage={payProgressError ?? "Pembayaran gagal. Coba lagi."}
+        feeBuyerPays={fee?.buyerPays}
+        error={payProgressError}
       />
     </Screen>
   )

@@ -369,24 +369,49 @@ export function request<TResponse = unknown, TBody = undefined>(
   path: string,
   options: RequestOptions<TBody>,
 ): Promise<TResponse> {
-  if ((options.method ?? "GET") !== "GET" || options.signal)
+  if ((options.method ?? "GET") !== "GET")
     return performRequest<TResponse, TBody>(path, options)
+  // R2 (audit ronde-2, butir #99): signal TIDAK lagi melewati dedupe. Hampir
+  // semua pemanggil (useApiQuery/usePaginatedQuery) memasok AbortSignal, jadi
+  // cabang lama membuat dedupe tidak pernah aktif di jalur utama — dua layar
+  // mount bersamaan = dua GET identik paralel. Kini request pita dibagikan,
+  // dan abort seorang pemanggil hanya melepaskan ACARANYA sendiri (fetch
+  // bersama tetap jalan untuk pemanggil lain). Tata urutannya penting: jangan
+  // MULAI request pita baru saat satu-satunya pemanggilnya sudah aborted —
+  // tanpa gerbang ini fetch menembus jaringan (mengabaikan abort-nya sendiri).
+  const { signal, ...shared } = options
+  if (signal?.aborted) return Promise.reject(aborted(path))
   const key = JSON.stringify([
     getSessionRevision(),
-    buildUrl(path, options.query),
-    options.auth,
-    options.responseType ?? "json",
-    options.headers,
-    options.timeoutMs,
-    options.retry,
+    buildUrl(path, shared.query),
+    shared.auth,
+    shared.responseType ?? "json",
+    shared.headers,
+    shared.timeoutMs,
+    shared.retry,
   ])
   const existing = getRequests.get(key)
-  if (existing) return existing as Promise<TResponse>
-  const pending = performRequest<TResponse, TBody>(path, options).finally(() => {
-    if (getRequests.get(key) === pending) getRequests.delete(key)
+  const pending = (existing ??
+    performRequest<TResponse, TBody>(path, shared as RequestOptions<TBody>).finally(() => {
+      if (getRequests.get(key) === pending) getRequests.delete(key)
+    })) as Promise<TResponse>
+  if (!existing) getRequests.set(key, pending)
+  if (!signal) return pending
+  if (signal.aborted) return Promise.reject(aborted())
+  return new Promise<TResponse>((resolve, reject) => {
+    const onAbort = () => reject(aborted())
+    signal.addEventListener("abort", onAbort, { once: true })
+    pending.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort)
+        resolve(value)
+      },
+      (error) => {
+        signal.removeEventListener("abort", onAbort)
+        reject(error)
+      },
+    )
   })
-  getRequests.set(key, pending)
-  return pending
 }
 
 /**

@@ -66,6 +66,7 @@ const COGNATE_ALLOWLIST = new Map([
   ["Email", "serapan baku"],
   ["Reset password", "istilah baku keamanan"],
   ["Cashback", "istilah baku e-commerce"],
+  ["Video", "kata serapan baku (ID/EN identik)"],
   ["Showcase", "istilah produk Kahade"],
   ["Invoice", "istilah dokumen"],
   ["Order", "istilah transaksi"],
