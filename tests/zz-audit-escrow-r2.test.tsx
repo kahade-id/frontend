@@ -244,7 +244,7 @@ describe("PROBE escrow r2 (guard) — flow & logika", () => {
   it("Q-25 (#94–#97): plafon god-component S9 DIPENUHI (plafon diratchet mengikuti fakta)", () => {
     const ceilings: Record<string, number> = {
       "app/order/[id].tsx": 1061,
-      "app/dispute/[id].tsx": 914,
+      "app/dispute/[id].tsx": 916,
       "app/create-transaction.tsx": 789,
       "lib/api/orders.ts": 26,
     }

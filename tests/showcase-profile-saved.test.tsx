@@ -21,7 +21,17 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock("expo-router", () => ({ router: { push: vi.fn() } }))
-vi.mock("phosphor-react-native", () => ({ Images: () => null, Plus: () => null, Trash: () => null }))
+// ProfileEtalaseTab kini me-mount ShowcaseShareSheet per kartu (PR #110) —
+// mock harus menyediakan SEMUA ikon yang diimpor modul share sheet.
+vi.mock("phosphor-react-native", () => ({
+  ChatCircle: () => null,
+  Copy: () => null,
+  Images: () => null,
+  PaperPlaneTilt: () => null,
+  Plus: () => null,
+  ShareNetwork: () => null,
+  Trash: () => null,
+}))
 vi.mock("@react-navigation/native", () => ({ useIsFocused: () => mocks.focused }))
 vi.mock("@/lib/api", () => ({
   api: { users: { getPublicShowcase: mocks.getPublicShowcase, getMeCached: mocks.getMeCached } },
@@ -55,6 +65,9 @@ vi.mock("@/components/ui/showcase-feed-item", () => ({
 }))
 vi.mock("@/components/ui/showcase-comments-sheet", () => ({ ShowcaseCommentsSheet: () => null }))
 vi.mock("@/components/ui/showcase-report-sheet", () => ({ ShowcaseReportSheet: () => null }))
+// Sheet share (PR #110) memanggil useTheme/useToast di dalam BottomSheet —
+// sama seperti comments/report sheet, cukup null di sini (bukan objek test).
+vi.mock("@/components/ui/showcase-share-sheet", () => ({ ShowcaseShareSheet: () => null }))
 vi.mock("@/components/ui/paginated-list", () => ({ ListLoading: () => null, PaginatedList: () => null }))
 vi.mock("@/components/ui/button", () => ({
   Button: ({ children, onPress }: { children: unknown; onPress?: () => void }) => (

@@ -22,7 +22,17 @@ vi.mock("expo-router", () => ({
   router: { push: vi.fn(), setParams: vi.fn() },
   useLocalSearchParams: () => ({ kind: "latest" }),
 }))
-vi.mock("phosphor-react-native", () => ({ ChatCircle: () => null, Images: () => null, PaperPlaneRight: () => null, X: () => null }))
+// ChatCircle/PaperPlaneRight dipakai kartu; ikon sheet share (PR #110) —
+// tanpa export ini modul ShowcaseShareSheet gagal dibuat saat impor.
+vi.mock("phosphor-react-native", () => ({
+  ChatCircle: () => null,
+  Copy: () => null,
+  Images: () => null,
+  PaperPlaneRight: () => null,
+  PaperPlaneTilt: () => null,
+  ShareNetwork: () => null,
+  X: () => null,
+}))
 vi.mock("react-native-reanimated", () => ({ default: { View: ({ children }: { children: ReactNode }) => <>{children}</> } }))
 vi.mock("@react-navigation/native", () => ({ useIsFocused: () => true }))
 vi.mock("@/lib/api", () => ({

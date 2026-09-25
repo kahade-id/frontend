@@ -81,7 +81,9 @@ describe("planModeChange", () => {
     expect(planModeChange("/transactions", "wallet")).toMatchObject({
       kind: "go",
       href: "/vouchers",
-      method: "push",
+      // STABLE_BAR_PATHS (PR #110): bar stabil memakai replace — jangan
+      // menumpuk stack di belakang tab yang sama.
+      method: "replace",
       parkTab: "wallet",
     })
     expect(planModeChange("/chat/room-9", "wallet")).toMatchObject({
@@ -112,11 +114,13 @@ describe("planModeChange", () => {
 })
 
 describe("planSlotPress", () => {
-  it("tidak memarkir saat mendorong layar stack", () => {
+  it("tidak memarkir saat meninggalkan layar stack (tujuan bar stabil = replace)", () => {
     expect(planSlotPress("/home", SHELL_DESTINATIONS.commerce.tertiary)).toEqual({
       kind: "go",
       href: "/chat",
-      method: "push",
+      // /chat ∈ STABLE_BAR_PATHS (PR #110) — replace, bukan push; parkTab
+      // tetap null: Back tetap kembali ke tab sebelumnya.
+      method: "replace",
       parkTab: null,
     })
   })

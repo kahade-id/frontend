@@ -53,7 +53,10 @@ describe("A-01/C-02: aksi sosial tidak menandai feed dirty", () => {
     act(() => result.current.toggleSave())
     await act(async () => {})
     act(() => result.current.share())
-    await waitFor(() => expect(mocks.share).toHaveBeenCalled())
+    // PR #110 (sheet share): share() MEMBUKA ShowcaseShareSheet —
+    // shareShowcaseById hanya dipanggil dari dalam sheet saat opsi dipilih.
+    // Yang dijaga test ini: membuka sheet TIDAK menandai feed dirty.
+    expect(result.current.shareSheetVisible).toBe(true)
 
     expect(showcaseFeedDirtyVersion()).toBe(before) // A-01: TANPA dirty
   })
