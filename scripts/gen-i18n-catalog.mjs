@@ -84,6 +84,9 @@ const NON_UI_VALUES = new Set([
   "Plus Jakarta Sans",
   "EB Garamond",
   "Azeret Mono",
+  // Opsi encoding readAsStringAsync (fallback upload base64) — angka di dalam
+  // "base64" ternormalisasi jadi "base{x}", jangan dicocokkan bentuk mentah.
+  "base{x}",
 ])
 
 /** String yang jelas bukan prosa UI. Diterima sudah dalam BENTUK termask. */

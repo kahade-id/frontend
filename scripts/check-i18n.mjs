@@ -61,6 +61,8 @@ const COGNATE_ALLOWLIST = new Map([
   // Nama merek/produk — tidak pernah diterjemahkan.
   ["Kahade", "nama produk"],
   ["WhatsApp", "nama layanan"],
+  ["Telegram", "nama layanan"],
+  ["X (Twitter)", "nama layanan (X sudah jadi merek; koma Twitter demi kejelasan)"],
   ["JNE, SiCepat, …", "nama kurir"],
   // Kata serapan yang memang dipakai di UI English.
   ["Email", "serapan baku"],

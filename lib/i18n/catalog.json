@@ -155,10 +155,6 @@
    "n": 5
   },
   {
-   "s": "Anda",
-   "n": 5
-  },
-  {
    "s": "Dompet",
    "n": 5
   },
@@ -212,6 +208,10 @@
   },
   {
    "s": "Akun",
+   "n": 4
+  },
+  {
+   "s": "Anda",
    "n": 4
   },
   {
@@ -1100,6 +1100,10 @@
   },
   {
    "s": "Tandai dikirim",
+   "n": 3
+  },
+  {
+   "s": "Tautan disalin",
    "n": 3
   },
   {
@@ -2487,6 +2491,10 @@
    "n": 2
   },
   {
+   "s": "Pilih tujuan berbagi. Tautan akan disalin jika aplikasi tidak tersedia.",
+   "n": 2
+  },
+  {
    "s": "Positif",
    "n": 2
   },
@@ -2660,10 +2668,6 @@
   },
   {
    "s": "Tarik dukungan",
-   "n": 2
-  },
-  {
-   "s": "Tautan disalin",
    "n": 2
   },
   {
@@ -2864,6 +2868,10 @@
   },
   {
    "s": "Voucher",
+   "n": 2
+  },
+  {
+   "s": "WhatsApp",
    "n": 2
   },
   {
@@ -3255,6 +3263,10 @@
    "n": 1
   },
   {
+   "s": "Bagikan etalase",
+   "n": 1
+  },
+  {
    "s": "Bagikan kode Anda. Anda dan teman mendapat hadiah saat transaksi pertamanya selesai.",
    "n": 1
   },
@@ -3568,6 +3580,10 @@
   },
   {
    "s": "Berkas dibuka di browser.",
+   "n": 1
+  },
+  {
+   "s": "Berkas kosong atau tidak terbaca.",
    "n": 1
   },
   {
@@ -4803,6 +4819,10 @@
    "n": 1
   },
   {
+   "s": "Gagal menyalin",
+   "n": 1
+  },
+  {
    "s": "Gagal menyalin diagnostik",
    "n": 1
   },
@@ -4812,10 +4832,6 @@
   },
   {
    "s": "Gagal menyembunyikan pertanyaan",
-   "n": 1
-  },
-  {
-   "s": "Gagal menyiapkan share",
    "n": 1
   },
   {
@@ -5888,6 +5904,10 @@
   },
   {
    "s": "Label tampilan (opsional)",
+   "n": 1
+  },
+  {
+   "s": "Lainnya (aplikasi lain)",
    "n": 1
   },
   {
@@ -7971,6 +7991,10 @@
    "n": 1
   },
   {
+   "s": "Salin tautan",
+   "n": 1
+  },
+  {
    "s": "Salin username",
    "n": 1
   },
@@ -8200,10 +8224,6 @@
   },
   {
    "s": "Setup Profil",
-   "n": 1
-  },
-  {
-   "s": "Share tidak tersedia di perangkat ini",
    "n": 1
   },
   {
@@ -8547,10 +8567,6 @@
    "n": 1
   },
   {
-   "s": "Tautan disalin ke papan klip",
-   "n": 1
-  },
-  {
    "s": "Tautan ditolak",
    "n": 1
   },
@@ -8616,6 +8632,10 @@
   },
   {
    "s": "telah dikirim ke @",
+   "n": 1
+  },
+  {
+   "s": "Telegram",
    "n": 1
   },
   {
@@ -9403,11 +9423,11 @@
    "n": 1
   },
   {
-   "s": "WhatsApp",
+   "s": "WhatsApp akan terbuka dengan pesan berisi kode",
    "n": 1
   },
   {
-   "s": "WhatsApp akan terbuka dengan pesan berisi kode",
+   "s": "X (Twitter)",
    "n": 1
   },
   {

@@ -37,6 +37,20 @@
  *     yang `console.warn` di dev bila dua sheet terbuka bersamaan — tidak
  *     dilempar error supaya app tidak crash, tapi cukup bising untuk
  *     ketahuan saat review.
+ *   - Area konten ScrollView TANPA `flex-1` (audit 2026-09-25): root sheet
+ *     ber-height-AUTO (mengikuti konten, dibatasi `maxHeight`). `flex-1` =
+ *     flex-basis 0; di Yoga kontainer auto-height, anak ber-basis-0 dihitung
+ *     0px — wrapper & ScrollView ikut 0 sehingga SEMUA isi sheet hilang dan
+ *     yang tersisa hanya handle + judul + X (regresi PR #110 ketika ScrollView
+ *     ditambahkan). Kontrak flex wrapper dipaksa INLINE (`flexBasis: "auto"`,
+ *     `flexGrow: 0`, `flexShrink: 1`, `minHeight: 0`) — inline style menang
+ *     atas className, sehingga `flex-1` yang ditambahkan kembali pun tak bisa
+ *     menjatuhkan basis ke 0 (juga terobservasi oleh guard di
+ *     tests/bottom-sheet-content.test.tsx). Hasil simulasi Yoga 3.2: konten
+ *     500px → sheet 586px (tanpa scroll); konten 3000px → sheet ter-cap 720px
+ *     dengan wrapper menyusut ke 634px sehingga ScrollView membatasi & men-
+ *     scroll isinya. Sisi web: min-height inline dibutuhkan karena CSS auto
+ *     minimum size (content-based) memblokir shrink untuk flex item.
  *   - Radius `rounded-t-md` (8px) — §5: bottom sheet = md. Border atas+sisi
  *     saja (`border-b-0`) karena sisi bawah menempel tepi layar. Elevasi high
  *     (v2 §5.2): sheet mengambang di atas scrim — spring buka/tutup tetap
@@ -349,10 +363,22 @@ export function BottomSheet({
           header
         )}
 
-        <View className="min-h-0 flex-1 shrink" style={{ flexShrink: 1 }}>
+        {/* Audit 2026-09-25 (lihat catatan docblock di atas): root sheet
+            ber-height-auto — `flex-1` (flex-basis 0) membuat Yoga menghitung
+            wrapper 0px sehingga seluruh konten sheet hilang (hanya title + X
+            yang tampil; regresi PR #110). Kontrak flex dipaksa INLINE di
+            bawah: inline style menang atas className, jadi "flex-1" yang
+            ditambahkan kembali tak bisa menjatuhkan basis ke 0.
+            ScrollView RN sendiri punya default flexGrow/Shrink = 1
+            (styles.baseVertical) sehingga saat root ter-cap maxHeight dan
+            wrapper menyusut, ScrollView ikut terbatas lalu men-scroll. */}
+        <View
+          className="min-h-0 shrink"
+          style={{ minHeight: 0, flexGrow: 0, flexShrink: 1, flexBasis: "auto" }}
+        >
           <ScrollView
             // S7: RNGH GestureDetector + ScrollView wajib patok touchAction di web
-            // @ts-ignore - touchAction forwarded to web div via react-native-web
+            // @ts-expect-error - touchAction forwarded to web div via react-native-web
             touchAction="pan-y"
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"

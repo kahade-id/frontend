@@ -17,6 +17,7 @@ import { ChatCircle, Copy, PaperPlaneTilt, ShareNetwork } from "phosphor-react-n
 
 import { copyToClipboard } from "@/lib/clipboard"
 import { showcaseUrl } from "@/lib/deeplinks"
+import { safeHttpsLink, safeWhatsAppLink } from "@/lib/external-url"
 import { shareContent } from "@/lib/share"
 import { showcasePriceLabel } from "@/lib/showcase-labels"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -51,12 +52,27 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
 
   const handleSystem = async () => {
     const outcome = await shareContent({ message, url: shareUrl, title })
-    if (outcome === "copied") toast.show({ title: "Tautan disalin", tone: "success" })
-    else if (outcome === "unavailable") toast.show({ title: "Share tidak tersedia", tone: "info" })
+    // Audit 2026-09-25: sheet berjanji "Tautan akan disalin jika aplikasi
+    // tidak tersedia" — sebelumnya cabang `outcome === "copied"` mustahil
+    // (ShareOutcome hanya "shared" | "dismissed" | "unavailable"), jadi
+    // fallback salin tidak pernah terjalankan dan tsc gagal TS2367. Ikuti
+    // fallback audit I-04 di shareShowcaseById: unavailable → SALIN.
+    if (outcome === "unavailable") {
+      await handleCopy()
+      return
+    }
     onClose()
   }
 
-  const openUrl = async (url: string) => {
+  const openUrl = async (raw: string) => {
+    // D-01 (gate check:external-urls): semua URL di sheet ini konstanta lokal
+    // (wa/tg/x di bawah), tetap melewati validator — https saja, dan wa.me
+    // dipatok ke host resmi WhatsApp. Nilai gagal validasi → fallback share.
+    const url = raw.startsWith("https://wa.me/") ? safeWhatsAppLink(raw) : safeHttpsLink(raw)
+    if (!url) {
+      await handleSystem()
+      return
+    }
     try {
       const can = await Linking.canOpenURL(url)
       if (can) await Linking.openURL(url)
