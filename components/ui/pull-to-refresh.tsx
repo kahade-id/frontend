@@ -324,7 +324,7 @@ function NativePullGestureSurface({
   }))
 
   return (
-    <View className={cn("flex-1 overflow-hidden", className)} {...rest}>
+    <View collapsable={false} className={cn("flex-1", className)} style={{ overflow: "visible" }} {...rest}>
       <View
         style={[{ pointerEvents: "none" }, { height: threshold }]}
         accessible={refreshing}
@@ -341,7 +341,7 @@ function NativePullGestureSurface({
         )}
       </View>
 
-      <Reanimated.View style={[{ flex: 1 }, contentStyle]}>
+      <Reanimated.View collapsable={false} style={[{ flex: 1 }, contentStyle]}>
         {/* touchAction="pan-y": default RNGH di web adalah none (akan
             membekukan scroll); native component harus anak langsung
             GestureDetector (dokumen Gesture.Native). */}
@@ -707,7 +707,9 @@ export function PullGestureSurface({
 
   return (
     <View
-      className={cn("flex-1 overflow-hidden", className)}
+      collapsable={false}
+      className={cn("flex-1", className)}
+      style={{ overflow: "visible" }}
       {...rest}
       {...panResponder.panHandlers}
     >
@@ -729,7 +731,7 @@ export function PullGestureSurface({
         )}
       </View>
 
-      <Animated.View style={{ flex: 1, transform: [{ translateY: pull }] }}>
+      <Animated.View collapsable={false} style={{ flex: 1, transform: [{ translateY: pull }] }}>
         {children(scrollBindings)}
       </Animated.View>
     </View>
@@ -784,6 +786,8 @@ export function PullToRefresh({
             keyboardShouldPersistTaps="handled"
             nestedScrollEnabled
             showsVerticalScrollIndicator={false}
+            removeClippedSubviews={false}
+            collapsable={false}
             {...scrollViewProps}
             {...scrollBindings}
           >
@@ -812,6 +816,8 @@ export function PullToRefresh({
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
           showsVerticalScrollIndicator={false}
+          removeClippedSubviews={false}
+          collapsable={false}
           {...scrollViewProps}
           {...scrollBindings}
         >
@@ -864,7 +870,7 @@ export function PullToRefreshFlatList<ItemT>({
         onScrollWorklet={onScrollWorklet}
         className="flex-1"
       >
-        {(scrollBindings) => <FlatList {...listProps} {...scrollBindings} />}
+        {(scrollBindings) => <FlatList removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
       </NativePullGestureSurface>
     )
   }
@@ -879,7 +885,7 @@ export function PullToRefreshFlatList<ItemT>({
       onScroll={onScroll}
       className="flex-1"
     >
-      {(scrollBindings) => <FlatList {...listProps} {...scrollBindings} />}
+      {(scrollBindings) => <FlatList removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
     </PullGestureSurface>
   )
 }

@@ -55,7 +55,6 @@ import { logWarn } from "@/lib/telemetry"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
-import { ShellTabBar } from "@/components/ui/shell-tab-bar"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -1209,10 +1208,7 @@ export default function UserProfileScreen() {
         </Crossfade>
       </DataScroll>
 
-      {/* Navbar yang sama dengan tab — isi slot ikut mode. Orang lain tidak
-          merender bar ini. */}
-      {showBottomNav ? <ShellTabBar /> : null}
-
+      {/* Navbar kini persisten di root (_layout PersistentShellBar) — tidak per halaman. */}
       {/* ── Dialog Bertanya ──────────────────────────────────── */}
       <Dialog
         title={translate("Bertanya kepada @{x}", { x: handle })}

@@ -77,6 +77,7 @@ import { Stagger } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { ListItem } from "@/components/ui/list-item"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Dialog } from "@/components/ui/modal"
 import { ProfileHeader } from "@/components/ui/profile-header"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
@@ -104,6 +105,7 @@ const MENU_GROUP = "w-full overflow-hidden rounded-md bg-surface"
 export default function SettingsScreen() {
   const { preference } = useTheme()
   const language = useLanguage()
+  const insets = useSafeAreaInsets()
 
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
@@ -242,7 +244,7 @@ export default function SettingsScreen() {
         refreshing={profileQuery.refreshing || subscriptionQuery.refreshing}
         scrollViewProps={{
           contentContainerStyle: {
-            paddingBottom: tokens.space[16],
+            paddingBottom: insets.bottom + tokens.space[16],
           },
         }}
       >

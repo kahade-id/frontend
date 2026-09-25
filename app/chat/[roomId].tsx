@@ -81,6 +81,7 @@ import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChatEditSheet } from "@/components/ui/chat-edit-sheet"
 import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
@@ -159,6 +160,7 @@ function sortByTime(items: ChatMessage[]): ChatMessage[] {
 }
 
 export default function ChatRoomScreen() {
+  const insets = useSafeAreaInsets()
   // C-06 (audit): `title` opsional dikirim saat navigasi dari daftar chat —
   // GET /rooms tidak punya endpoint detail dan pencarian ruang hanya memuat
   // 30 pertama, sehingga ruang ke-31+ kehilangan nama lawan bicara di header.
@@ -1050,10 +1052,11 @@ export default function ChatRoomScreen() {
       <FlatList
         ref={scrollRef}
         className="flex-1"
+        removeClippedSubviews={false}
         data={messages}
         keyExtractor={(m) => m.id}
         contentContainerClassName="px-5"
-        contentContainerStyle={{ paddingBottom: tokens.space[4], flexGrow: 1 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[4], flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={handleContentSizeChange}
         onScroll={handleScroll}

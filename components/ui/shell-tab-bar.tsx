@@ -117,8 +117,8 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
       const profile = me ?? (await api.users.getMeCached())
       if (profile?.username) {
         // `self: true` — navbar shell layar profil harus terlihat sejak
-        // frame pertama (lihat catatan di ROUTES.userProfile).
-        router.push(ROUTES.userProfile(profile.username, { self: true }))
+        // frame pertama. Pakai replace agar tidak double stack & animasi 'none'
+        router.replace(ROUTES.userProfile(profile.username, { self: true }) as Href)
         return
       }
     } catch (err) {

@@ -111,16 +111,18 @@ export function Screen({
       >
         {scroll ? (
           <ScrollView
+            collapsable={false}
             className="flex-1"
             contentContainerClassName={cn("grow", bodyPad, contentContainerClassName)}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
+            removeClippedSubviews={false}
             {...scrollViewProps}
           >
             {children}
           </ScrollView>
         ) : (
-          <View className={cn("flex-1", bodyPad)}>{children}</View>
+          <View collapsable={false} className={cn("flex-1", bodyPad)}>{children}</View>
         )}
 
         {footer ? <FooterBar>{footer}</FooterBar> : null}

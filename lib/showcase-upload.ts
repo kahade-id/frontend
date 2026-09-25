@@ -15,11 +15,18 @@ export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSign
   }
   try {
     check()
-    const blob = await pickedImageToBlob(asset)
+    let blob = await pickedImageToBlob(asset)
+    // Android: blob.type bisa kosong → paksa mime dari asset agar presigned header benar
+    if (!blob.type && asset.mimeType) {
+      blob = new Blob([blob], { type: asset.mimeType })
+    }
+    // Fallback ukuran: presigned butuh fileSize akurat, blob.size 0 di Android lama → pakai asset.size
+    const effectiveSize = blob.size > 0 ? blob.size : asset.size > 0 ? asset.size : blob.size
+    if (effectiveSize <= 0) throw new ApiError({ code: "VALIDATION", message: "Berkas kosong atau tidak terbaca." })
     check()
     stage = "presign"
     const upload = await api.upload.requestPresignedUrl({
-      purpose: "SHOWCASE_IMAGE", fileName: asset.name, contentType: asset.mimeType, fileSize: blob.size,
+      purpose: "SHOWCASE_IMAGE", fileName: asset.name, contentType: asset.mimeType, fileSize: effectiveSize,
     }, signal)
     if (!upload.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
     fileKey = upload.fileKey

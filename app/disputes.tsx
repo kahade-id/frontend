@@ -24,10 +24,12 @@ import { Header } from "@/components/ui/header"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 const PAGE_LIMIT = 50
 
 export default function DisputesScreen() {
+  const insets = useSafeAreaInsets()
   const query = usePaginatedQuery<DisputeDetail>(
     "disputes",
     (page, signal) => api.disputes.listMyDisputes({ page, limit: PAGE_LIMIT }, signal),
@@ -44,7 +46,7 @@ export default function DisputesScreen() {
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
-        bottomPadding={tokens.space[8]}
+        bottomPadding={insets.bottom + tokens.space[8]}
         header={<SectionHeader title="Sengketa saya" />}
         empty={
           <EmptyState

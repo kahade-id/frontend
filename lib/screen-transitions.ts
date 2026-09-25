@@ -65,8 +65,23 @@ const DETAIL_SCREENS: ReadonlySet<string> = new Set([
   "wallet-transaction/[txId]",
 ])
 
+/**
+ * Bottom-bar destinations — harus terasa seperti ganti tab, bukan push halaman baru.
+ * Tanpa ini, stack screen di atas Tabs membuat bottom bar terlihat double/ganti
+ * (slide_from_right menggeser bar lama keluar dan bar baru masuk).
+ * Pakai 'none' agar bar tetap di tempat, hanya konten yang berganti — sama
+ * seperti etalase & transaksi yang memang tab.
+ */
+const STABLE_BAR_SCREENS: ReadonlySet<string> = new Set([
+  "chat",
+  "vouchers",
+  "wallet-history",
+  "user/[username]",
+])
+
 export function animationForScreen(name: string, reducedMotion: boolean): ScreenAnimation {
   if (reducedMotion) return "none"
+  if (STABLE_BAR_SCREENS.has(name)) return "none"
   if (MODAL_LIKE_SCREENS.has(name)) return "slide_from_bottom"
   if (DETAIL_SCREENS.has(name)) return "fade_from_bottom"
   return "slide_from_right"

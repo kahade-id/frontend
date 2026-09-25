@@ -58,6 +58,7 @@
 import { X } from "phosphor-react-native"
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import {
+  ScrollView,
   View,
   useWindowDimensions,
   type LayoutChangeEvent,
@@ -348,15 +349,22 @@ export function BottomSheet({
           header
         )}
 
-        <View
-          className={cn(
-            "shrink",
-            padding === "default" && "px-5 pt-2 pb-4",
-            padding === "horizontal" && "px-5 pt-2",
-            contentClassName,
-          )}
-        >
-          {children}
+        <View className="min-h-0 flex-1 shrink" style={{ flexShrink: 1 }}>
+          <ScrollView
+            // S7: RNGH GestureDetector + ScrollView wajib patok touchAction di web
+            // @ts-ignore - touchAction forwarded to web div via react-native-web
+            touchAction="pan-y"
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+            contentContainerClassName={cn(
+              padding === "default" && "px-5 pt-2 pb-4",
+              padding === "horizontal" && "px-5 pt-2",
+              contentClassName,
+            )}
+          >
+            {children}
+          </ScrollView>
         </View>
 
         {footer ? (

@@ -52,6 +52,7 @@ import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { notificationUiCategory } from "@/lib/notification-category"
 import { refreshUnreadCount } from "@/lib/unread-count"
 
@@ -121,6 +122,7 @@ function NotifSkeletonRow() {
 
 export default function NotificationsScreen() {
   const toast = useToast()
+  const insets = useSafeAreaInsets()
 
   const [category, setCategory] = useState<NotificationCategory>("TRANSAKSI")
   /** Funnel kanan header: true = hanya "Belum dibaca" (query isRead=false). */
@@ -366,7 +368,7 @@ export default function NotificationsScreen() {
         // Gap 0: pemisahnya adalah divider inset di tiap baris. Gap + divider
         // sekaligus membuat daftar terlihat bergaris ganda.
         gap={0}
-        bottomPadding={tokens.space[8]}
+        bottomPadding={insets.bottom + tokens.space[8]}
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}

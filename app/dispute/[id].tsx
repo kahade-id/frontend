@@ -52,6 +52,7 @@ import { usePolling } from "@/lib/use-polling"
 import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Button } from "@/components/ui/button"
 import { ChatComposer } from "@/components/ui/chat-composer"
@@ -97,6 +98,7 @@ function toEvidenceFileType(mime: string): EvidenceFileType {
 
 export default function DisputeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const insets = useSafeAreaInsets()
   const toast = useToast()
 
   /**
@@ -802,7 +804,7 @@ export default function DisputeDetailScreen() {
         refreshing={refreshing}
         contentContainerClassName="px-5"
         scrollViewProps={{
-          contentContainerStyle: { paddingBottom: tokens.space[4] },
+          contentContainerStyle: { paddingBottom: insets.bottom + tokens.space[4] },
         }}
       >
         {/* v2: skeleton → sengketa crossfade (signature moment). */}

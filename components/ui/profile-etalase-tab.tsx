@@ -43,6 +43,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
+import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import {
   showcaseCommentCountSeq,
   showcaseCommentCountsSince,
@@ -82,26 +83,29 @@ const EtalaseCard = memo(function EtalaseCard({
   onOpenComments: (item: ShowcaseSocialItem) => void
   onReport: (item: ShowcaseSocialItem) => void
 }) {
-  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share } =
+  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
     useShowcaseSocialActions(item)
   const display =
     liked === (item.isLiked === true) && likeCount === item.likeCount
       ? item
       : { ...item, isLiked: liked, likeCount }
   return (
-    <ShowcaseFeedItem
-      item={display}
-      onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
-      onToggleLike={toggleLike}
-      onOpenComments={() => onOpenComments(item)}
-      onToggleSave={toggleSave}
-      saved={saved}
-      likePending={likePending}
-      savePending={savedPending}
-      onShare={share}
-      onReport={() => onReport(item)}
-      divider={divider}
-    />
+    <>
+      <ShowcaseFeedItem
+        item={display}
+        onPress={() => router.push(ROUTES.showcaseDetail(item.id))}
+        onToggleLike={toggleLike}
+        onOpenComments={() => onOpenComments(item)}
+        onToggleSave={toggleSave}
+        saved={saved}
+        likePending={likePending}
+        savePending={savedPending}
+        onShare={share}
+        onReport={() => onReport(item)}
+        divider={divider}
+      />
+      <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={() => setShareSheetVisible(false)} />
+    </>
   )
 })
 

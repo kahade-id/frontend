@@ -45,13 +45,14 @@ import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
+import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
 
 import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
-import { ShellTabBar } from "@/components/ui/shell-tab-bar"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
@@ -81,6 +82,7 @@ function ChatSkeletonRow() {
 
 export default function ChatScreen() {
   const toast = useToast()
+  const insets = useSafeAreaInsets()
   const query = usePaginatedQuery<ChatRoom>(
     "chat-rooms",
     (page, signal) => api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
@@ -310,7 +312,7 @@ export default function ChatScreen() {
             ))}
           </SkeletonGroup>
         }
-        bottomPadding={tokens.space[4]}
+        bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
         empty={
           archiveOpen ? (
             <EmptyState
@@ -374,7 +376,6 @@ export default function ChatScreen() {
         )}
       />
       </ModeShiftFade>
-      <ShellTabBar />
     </Screen>
   )
 }

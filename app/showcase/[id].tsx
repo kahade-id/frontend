@@ -62,6 +62,7 @@ import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseDetailComments } from "@/components/showcase-detail-comments"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
+import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
@@ -139,7 +140,7 @@ function ShowcaseDetailContent({
    * A-05/A-06/A-07: suka & simpan lewat store bersama — sinkron dengan feed
    * & profil dalam satu sesi; tamu diarahkan ke layar login oleh hook.
    */
-  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, hasSession } =
+  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible, hasSession } =
     useShowcaseSocialActions(item)
 
   // L-01/L-06 (audit 2026-09-23): param rute untuk tab asal & highlight.
@@ -781,6 +782,7 @@ function ShowcaseDetailContent({
 
       {/* A-11: SATU sheet laporan (copy seragam "Laporkan Karya"). */}
       <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />
+      <ShowcaseShareSheet visible={shareSheetVisible} item={item} onClose={() => setShareSheetVisible(false)} />
     </DataScreen>
   )
 }

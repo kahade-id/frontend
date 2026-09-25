@@ -222,6 +222,8 @@ export function PaginatedList<T extends { id: string }>({
       initialNumToRender={8}
       maxToRenderPerBatch={8}
       windowSize={7}
+      removeClippedSubviews={false}
+      collapsable={false}
     />
   )
 }
