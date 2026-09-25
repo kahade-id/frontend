@@ -59,7 +59,6 @@ import Reanimated, {
   Extrapolation,
   interpolate,
   runOnJS,
-  useAnimatedScrollHandler,
   useAnimatedStyle,
   useSharedValue,
   withSpring,
@@ -106,10 +105,10 @@ import { useReducedMotion } from "@/lib/use-reduced-motion"
  *     benar-benar berpindah; di posisi atas dengan overscroll dimatikan,
  *     tarikan turun tidak bisa meng-scroll apa pun sehingga Pan yang
  *     menggerakkan indikator — di posisi mana pun dalam daftar.
- *   - Offset scroll dibaca di UI thread lewat useAnimatedScrollHandler; Pan
- *     TIDAK memindahkan konten saat offset > 0 (tanpa manualActivation —
- *     gerak di tengah list tetap sepenuhnya milik scroller karena pan hanya
- *     mengubah translate saat di puncak).
+ *   - Offset scroll dicatat `handleScroll` (FUNGSI JS — objek worklet-handler
+ *     Reanimated dilarang di scroller polos = "blank scroll"). Pan TIDAK
+ *     memindahkan konten saat offset > 0 (tanpa manualActivation — gerak di
+ *     tengah list milik scroller; pan hanya ubah translate di puncak).
  * Indikator tetap logo Kahade (bukan spinner RefreshControl).
  *
  * Aturan aman yang dijaga scripts/check-screens.mjs (S7):
@@ -118,17 +117,16 @@ import { useReducedMotion } from "@/lib/use-reduced-motion"
  *   - tanpa manualActivation/stateManager (sumber force-close sebelumnya
  *     pada pola ini).
  */
-function NativePullGestureSurface({
+export function NativePullGestureSurface({
   children,
   onRefresh,
   refreshing: refreshingProp,
   threshold = DEFAULT_THRESHOLD,
   onThresholdReached,
   enabled = true,
-  // onScroll JS dari pemanggil tidak dapat digabung dengan worklet scroll
-  // handler (lihat useAnimatedScrollHandler) — jalur Android mengeksekusi
-  // `onScrollWorklet` (worklet, UI thread) sebagai gantinya; pemanggil web/
-  // iOS memakai onScroll biasa lewat PullGestureSurface.
+  // onScroll pemanggil DIABAIKAN di jalur Android: kontrak kirim
+  // `onScrollWorklet` (dipanggil `handleScroll` tiap frame); web/iOS memakai
+  // onScroll biasa. Feed mengirim keduanya — dieksekusi dua = lipat ganda.
   onScroll: _ignoredOnScroll,
   onScrollWorklet,
   className,
@@ -189,23 +187,25 @@ function NativePullGestureSurface({
     }
   }, [])
 
-  // Offset scroll dibaca di UI thread — satu-satunya data yang menentukan
-  // pan boleh menggerakkan konten. Worklet pemanggil (mis. header yang
-  // melipat saat scroll, gaya X) dipanggil DI THREAD YANG SAMA: keputusan
-  // animasi terjadi di UI tanpa hop JS per frame — pemanggil diharapkan
-  // hanya menyentuh shared value dan memakai runOnJS seperlunya.
-  //
-  // NON-OBVIOUS: worklet dipanggil LANGSUNG dari closure (bukan lewat ref):
-  // objek ref di-copy ke UI thread saat worklet dibuat, sehingga
-  // `.current` di dalamnya beku. Pemanggil wajib menstabilkan workletnya
-  // (useCallback dengan deps stabil) — handler ini ikut dibuat ulang hanya
-  // saat identitas worklet berubah.
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      scrollOffset.value = event.contentOffset.y
-      if (onScrollWorklet) onScrollWorklet(event.contentOffset.y)
+  // ── onScroll scroller: FUNGSI JS — dilarang useAnimatedScrollHandler ────
+  // `useEvent` Reanimated 4 mengembalikan OBJEK { workletEventHandler } — hanya
+  // untuk Animated.ScrollView/FlatList. Scroller POLOS memanggil
+  // `props.onScroll(e)` apa adanya (ScrollView.js `_handleScroll`; RNWeb identik)
+  // → objek = TypeError FATAL di scroll frame pertama → expo-updates
+  // error-recovery menghancurkan React context (expo/expo#41543) = layar putih
+  // nempel ("blank scroll Android"; 3x salah disembuhkan di lapisan
+  // removeClippedSubviews/collapsable). Jalur sah lain: Animated.* +
+  // useAnimatedScrollHandler. Shared value ditulis dari JS thread legal (Pan baca
+  // sinkronisasi; scroller polos lewat JS tiap frame) — worklet juga legal dari JS.
+  const handleScroll = useCallback(
+    (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const y = event?.nativeEvent?.contentOffset?.y
+      if (typeof y !== "number" || !Number.isFinite(y)) return
+      scrollOffset.value = y
+      if (onScrollWorklet) onScrollWorklet(y)
     },
-  })
+    [scrollOffset, onScrollWorklet],
+  )
 
   const nativeGesture = useMemo(() => Gesture.Native(), [])
 
@@ -296,7 +296,7 @@ function NativePullGestureSurface({
 
   const scrollBindings = useMemo<NativePullBindings>(
     () => ({
-      onScroll: scrollHandler,
+      onScroll: handleScroll,
       // Android: keyboardDismissMode="on-drag" tidak didukung scroller native
       // (lihat lib/keyboard.ts); ini menutup SEMUA layar ber-PTR, web/iOS
       // memakai prop aslinya dari pemanggil.
@@ -308,7 +308,7 @@ function NativePullGestureSurface({
       alwaysBounceVertical: false,
       overScrollMode: "never",
     }),
-    [scrollHandler, onScrollWorklet],
+    [handleScroll],
   )
 
   const contentStyle = useAnimatedStyle(() => ({
@@ -366,7 +366,7 @@ type NativePullBindings = Pick<
 const DEFAULT_THRESHOLD = tokens.space[16]
 const CONTROLLED_CONFIRM_TIMEOUT_MS = 1_000
 
-type PullScrollBindings = Pick<
+export type PullScrollBindings = Pick<
   ScrollViewProps,
   | "onScroll"
   | "scrollEventThrottle"
@@ -385,9 +385,9 @@ export type PullGestureSurfaceProps = Omit<ViewProps, "children"> & {
   /** onScroll milik scroller tetap diteruskan setelah offset internal dicatat. */
   onScroll?: ScrollViewProps["onScroll"]
   /**
-   * Worklet (dibuat dengan direktif `'worklet'`) yang dipanggil di UI thread
-   * tiap frame scroll — HANYA jalur Android (NativePullGestureSurface).
-   * Web/iOS memakai `onScroll` biasa. Stabilkan identitasnya (useCallback).
+   * Worklet (dibuat dengan direktif `'worklet'`) yang dipanggil tiap frame —
+   * HANYA jalur Android (dari JS thread, lihat handleScroll). Web/iOS memakai
+   * `onScroll` biasa. Stabilkan identitasnya (useCallback).
    */
   onScrollWorklet?: (offsetY: number) => void
   className?: string
@@ -842,7 +842,7 @@ export type PullToRefreshFlatListProps<ItemT> = Omit<
   refreshThreshold?: number
   onRefreshThresholdReached?: () => void
   onScroll?: FlatListProps<ItemT>["onScroll"]
-  /** Worklet scroll UI-thread (jalur Android; web/iOS pakai onScroll). */
+  /** Worklet scroll per-frame (jalur Android — dipanggil dari JS thread; web/iOS pakai onScroll). */
   onScrollWorklet?: (offsetY: number) => void
 }
 

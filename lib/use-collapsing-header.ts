@@ -3,10 +3,11 @@
  * muncul lagi saat scroll ke atas (pola feed X/Twitter), dipakai tab Showcase.
  *
  * Arsitektur (kenapa begini, non-obvious):
- *   - KEPUTUSAN lipat/terbuka diambil DI UI THREAD lewat worklet
- *     (`scrollWorklet`) yang diteruskan ke scroller lewat `onScrollWorklet`:
- *     di Android scroller native tidak pernah memicu onScroll JS (lihat
- *     pull-to-refresh.tsx), sehingga logika arah scroll wajib worklet.
+ *   - KEPUTUSAN lipat/terbuka ada di SATU worklet (`scrollWorklet`) yang
+ *     dieksekusi lewat dua pintu dengan isi identik: `onScrollWorklet` di
+ *     jalur Android (NativePullGestureSurface memanggilnya tiap frame dari
+ *     JS thread — lihat handleScroll di pull-to-refresh.tsx) dan `onScroll`
+ *     JS biasa di web/iOS. Tidak ada dua versi logika yang bisa drift.
  *   - Web/iOS memakai `onScroll` BIASA (fungsi JS) yang memanggil worklet yang
  *     sama. REVISI 2026-09-18 — INI PENYEBAB TOOLBAR TIDAK BERGERAK DI WEB:
  *     `onScroll` sebelumnya diisi `useAnimatedScrollHandler`. Handler
@@ -16,7 +17,13 @@
  *     Scroller di sini sengaja `FlatList` biasa milik <PullGestureSurface>
  *     (FlatList harus tetap satu-satunya pemilik scroll agar pull-to-refresh
  *     custom tidak pecah), jadi objek itu dikirim apa adanya dan onScroll tidak
- *     pernah terpanggil satu kalipun. Memanggil worklet dari JS thread legal:
+ *     pernah terpanggil satu kalipun. REVISI 2026-09-25 — pola yang sama di
+ *     JALUR ANDROID bukan sekadar "tidak pernah terpanggil", tapi FATAL:
+ *     ScrollView polos memanggil `props.onScroll(e)` apa adanya → objek =
+ *     TypeError pada scroll frame pertama → expo-updates-error-recovery
+ *     menghancurkan React context → layar putih nempel ("blank scroll").
+ *     Perbaikannya di pull-to-refresh.tsx (`handleScroll` fungsi JS).
+ *     Memanggil worklet dari JS thread legal:
  *     di web UI thread == JS thread, dan `runOnJS` pendek jalan
  *     `queueMicrotask` saat runtime-nya sudah JS
  *     (react-native-worklets/src/threads.ts) — jadi kedua jalur berbagi SATU
