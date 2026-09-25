@@ -4,6 +4,12 @@
  * Satu struktur (tinggi, lingkaran tengah, lima slot). Yang berubah bersama
  * mode hanya ikon, label, dan tujuan. Profil tetap di slot terakhir.
  *
+ * Revisi 2026-09-25 (bug "navbar etalase hilang"): isi bar mengikuti HALAMAN
+ * yang sedang dibuka, bukan hanya preferensi mode tersimpan. Halaman milik
+ * mode lain (mis. /showcase saat mode tersimpan = wallet) memakai slot mode
+ * pemiliknya — lihat `resolveShellBar` di lib/app-mode.ts untuk aturan
+ * lengkapnya; `/more` (dipakai kedua mode) tetap mengikuti mode aktif.
+ *
  * Hanya bar di layout `(tabs)` yang mendaftarkan navigator tab (untuk
  * `parkShellTab`). Bar di layar stack mengirim `navigation` kosong — cleanup
  * `undefined` akan menghapus navigator yang masih dipakai tab.
@@ -34,6 +40,7 @@ import {
   modeShiftIsFresh,
   planSlotPress,
   registerShellTabNavigator,
+  resolveShellBar,
   shellSlots,
   useAppMode,
   type AppMode,
@@ -73,12 +80,23 @@ export type ShellTabNavigation = {
 
 export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation }) {
   useLanguage()
-  const mode = useAppMode()
+  const storedMode = useAppMode()
   const pathname = usePathname()
   const router = useRouter()
   const unread = useUnreadCountState()
   const [payOpen, setPayOpen] = useState(false)
   const shift = getModeShift()
+
+  /**
+   * Mode EFEKTIF bar untuk halaman ini (2026-09-25).
+   *
+   * Halaman milik satu mode menentukan isi bar-nya sendiri: membuka /showcase
+   * dengan preferensi mode = wallet tetap menampilkan slot commerce (Etalase
+   * sebagai slot aktif) — sebelumnya bar hilang total di halaman itu. `/more`
+   * dipakai kedua mode, jadi ia mengikuti preferensi tersimpan. Preferensi
+   * tidak diubah di sini (lihat docblock `resolveShellBar`).
+   */
+  const mode = resolveShellBar(pathname, storedMode)?.mode ?? storedMode
 
   useEffect(() => {
     if (!navigation) return

@@ -38,6 +38,32 @@ test.describe("etalase — jalur publik tamu", () => {
     expect(html).not.toContain("<title>metadata-showcase-id")
   })
 
+  /**
+   * Regresi 2026-09-25 — "navbar etalase hilang".
+   *
+   * Bar pernah hilang TOTAL di /showcase ketika preferensi mode tersimpan
+   * adalah `wallet` (halaman commerce tidak ada di peta slot wallet), dan
+   * karena HTML hasil export memakai preferensi default `commerce`, bar
+   * sempat terlihat lalu lenyap begitu `loadUiPrefs()` selesai — gejala
+   * "di-refresh muncul sebentar lalu hilang".
+   */
+  test("navbar bawah tetap ada di /showcase walau mode tersimpan = wallet", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("kahade.ui.prefs", JSON.stringify({ appMode: "wallet" }))
+    })
+    const response = await page.goto("/showcase", { waitUntil: "domcontentloaded" })
+    expect(response?.status()).toBe(200)
+
+    const etalaseTab = page.getByRole("tab", { name: "Tab Etalase" })
+    await expect(etalaseTab).toBeVisible()
+
+    // Setelah hidrasi + preferensi tersimpan terbaca: bar tetap ada, Etalase aktif.
+    await page.waitForLoadState("networkidle").catch(() => {})
+    await expect(etalaseTab).toBeVisible()
+    await expect(etalaseTab).toHaveAttribute("aria-selected", "true")
+    await expect(page.getByRole("tab", { name: "Tab Wallet" })).toHaveCount(0)
+  })
+
   test("galeri etalase publik user ter-rewrite & tidak digate (I-05)", async ({ page }) => {
     const response = await page.goto("/user/e2e-user/showcase", { waitUntil: "domcontentloaded" })
     expect(response?.status()).toBe(200)

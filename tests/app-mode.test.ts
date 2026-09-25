@@ -17,7 +17,9 @@ import {
   primaryTabFor,
   registerShellTabNavigator,
   resetAppModeForTest,
+  resolveShellBar,
   setAppMode,
+  shellPageMode,
   SHELL_DESTINATIONS,
   type ModeNavigator,
 } from "@/lib/app-mode"
@@ -63,6 +65,54 @@ describe("path shell", () => {
     expect(activeShellSlot("/more", "wallet")).toBe("more")
     expect(activeShellSlot("/user/ada", "wallet")).toBeNull()
     expect(activeShellSlot("/user/ada/edit", "wallet")).toBeNull()
+  })
+})
+
+/**
+ * Regresi 2026-09-25 — "navbar etalase hilang".
+ *
+ * `activeShellSlot("/showcase", "wallet")` memang null (halaman commerce di
+ * daftar wallet), TAPI bar tidak boleh ikut hilang: halaman yang dibuka yang
+ * menentukan isi bar. Sebelumnya preferensi `appMode` = "wallet" membuat
+ * halaman Etalase tidak punya navbar sama sekali, dan bar sempat berkedip
+ * saat hydration karena render pertama memakai preferensi default commerce.
+ */
+describe("resolveShellBar", () => {
+  it("halaman mode lain tetap punya bar dengan slot halaman itu", () => {
+    expect(resolveShellBar("/showcase", "wallet")).toEqual({ mode: "commerce", slot: "primary" })
+    expect(resolveShellBar("/transactions", "wallet")).toEqual({ mode: "commerce", slot: "secondary" })
+    expect(resolveShellBar("/chat", "wallet")).toEqual({ mode: "commerce", slot: "tertiary" })
+    expect(resolveShellBar("/wallet", "commerce")).toEqual({ mode: "wallet", slot: "primary" })
+    expect(resolveShellBar("/vouchers", "commerce")).toEqual({ mode: "wallet", slot: "secondary" })
+    expect(resolveShellBar("/wallet-history", "commerce")).toEqual({ mode: "wallet", slot: "tertiary" })
+  })
+
+  it("halaman sendiri menghasilkan mode yang sama (tanpa mengubah preferensi)", () => {
+    expect(resolveShellBar("/showcase", "commerce")).toEqual({ mode: "commerce", slot: "primary" })
+    expect(resolveShellBar("/wallet", "wallet")).toEqual({ mode: "wallet", slot: "primary" })
+    expect(getUiPrefsSnapshot().appMode).toBe("commerce")
+  })
+
+  it("/more dipakai kedua mode — mengikuti mode aktif", () => {
+    expect(resolveShellBar("/more", "wallet")).toEqual({ mode: "wallet", slot: "more" })
+    expect(resolveShellBar("/more", "commerce")).toEqual({ mode: "commerce", slot: "more" })
+  })
+
+  it("rute non-shell tetap tanpa bar", () => {
+    expect(resolveShellBar("/showcase/abc", "commerce")).toBeNull()
+    expect(resolveShellBar("/showcase-management", "commerce")).toBeNull()
+    expect(resolveShellBar("/user/ada/showcase", "wallet")).toBeNull()
+    expect(resolveShellBar("/chat/room-1", "wallet")).toBeNull()
+    expect(resolveShellBar("/settings", "commerce")).toBeNull()
+    expect(resolveShellBar("/home", "commerce")).toBeNull()
+  })
+
+  it("shellPageMode: /more netral, halaman lain milik modenya", () => {
+    expect(shellPageMode("/more")).toBeNull()
+    expect(shellPageMode("/showcase")).toBe("commerce")
+    expect(shellPageMode("/chat/")).toBe("commerce")
+    expect(shellPageMode("/wallet")).toBe("wallet")
+    expect(shellPageMode("/orders")).toBeNull()
   })
 })
 
