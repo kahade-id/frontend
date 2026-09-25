@@ -47,16 +47,21 @@ describe("path shell", () => {
     expect(pathMatchesBase("/wallet/", "/wallet")).toBe(true)
   })
 
-  it("menyorot slot dari pathname, bukan dari index tab", () => {
+  it("menyorot slot dari pathname, hanya di 8 halaman shell", () => {
     expect(activeShellSlot("/home", "commerce")).toBeNull()
     expect(activeShellSlot("/discover", "wallet")).toBeNull()
     expect(activeShellSlot("/showcase", "commerce")).toBe("primary")
-    expect(activeShellSlot("/showcase/abc", "commerce")).toBe("primary")
+    expect(activeShellSlot("/showcase/abc", "commerce")).toBeNull()
     expect(activeShellSlot("/showcase-management", "commerce")).toBeNull()
     expect(activeShellSlot("/transactions", "commerce")).toBe("secondary")
-    expect(activeShellSlot("/chat/room-1", "commerce")).toBe("tertiary")
+    expect(activeShellSlot("/chat", "commerce")).toBe("tertiary")
+    expect(activeShellSlot("/chat/room-1", "commerce")).toBeNull()
+    expect(activeShellSlot("/more", "commerce")).toBe("more")
+    expect(activeShellSlot("/wallet", "wallet")).toBe("primary")
     expect(activeShellSlot("/vouchers", "wallet")).toBe("secondary")
-    expect(activeShellSlot("/user/ada", "wallet")).toBe("profile")
+    expect(activeShellSlot("/wallet-history", "wallet")).toBe("tertiary")
+    expect(activeShellSlot("/more", "wallet")).toBe("more")
+    expect(activeShellSlot("/user/ada", "wallet")).toBeNull()
     expect(activeShellSlot("/user/ada/edit", "wallet")).toBeNull()
   })
 })
@@ -72,7 +77,7 @@ describe("planModeChange", () => {
     expect(planModeChange("/discover", "commerce")).toEqual({
       kind: "go",
       href: "/showcase",
-      method: "navigate",
+      method: "leave-to-tab",
       parkTab: "showcase",
     })
   })
@@ -81,21 +86,19 @@ describe("planModeChange", () => {
     expect(planModeChange("/transactions", "wallet")).toMatchObject({
       kind: "go",
       href: "/vouchers",
-      // STABLE_BAR_PATHS (PR #110): bar stabil memakai replace — jangan
-      // menumpuk stack di belakang tab yang sama.
-      method: "replace",
-      parkTab: "wallet",
+      method: "navigate",
+      parkTab: "vouchers",
     })
-    expect(planModeChange("/chat/room-9", "wallet")).toMatchObject({
+    expect(planModeChange("/chat", "wallet")).toMatchObject({
       kind: "go",
       href: "/wallet-history",
-      method: "replace",
-      parkTab: "wallet",
+      method: "navigate",
+      parkTab: "wallet-history",
     })
     expect(planModeChange("/vouchers", "commerce")).toMatchObject({
       kind: "go",
       href: "/transactions",
-      method: "leave-to-tab",
+      method: "navigate",
       parkTab: "transactions",
     })
   })
@@ -114,27 +117,25 @@ describe("planModeChange", () => {
 })
 
 describe("planSlotPress", () => {
-  it("tidak memarkir saat meninggalkan layar stack (tujuan bar stabil = replace)", () => {
+  it("menavigasi antar tab dan memarkir tab tujuan", () => {
     expect(planSlotPress("/home", SHELL_DESTINATIONS.commerce.tertiary)).toEqual({
       kind: "go",
       href: "/chat",
-      // /chat ∈ STABLE_BAR_PATHS (PR #110) — replace, bukan push; parkTab
-      // tetap null: Back tetap kembali ke tab sebelumnya.
-      method: "replace",
-      parkTab: null,
+      method: "navigate",
+      parkTab: "chat",
     })
   })
 
-  it("tetap di tempat bila sudah di tujuan atau slot profil", () => {
+  it("tetap di tempat bila sudah di tujuan atau slot Lainnya", () => {
     expect(planSlotPress("/chat", SHELL_DESTINATIONS.commerce.tertiary)).toEqual({
       kind: "stay",
       parkTab: null,
     })
-    expect(planSlotPress("/wallet", SHELL_DESTINATIONS.wallet.profile).kind).toBe("stay")
+    expect(planSlotPress("/more", SHELL_DESTINATIONS.wallet.more).kind).toBe("stay")
   })
 
   it("dari stack ke tab memakai leave-to-tab dan memarkir tab tujuan", () => {
-    expect(planSlotPress("/chat", SHELL_DESTINATIONS.commerce.primary)).toEqual({
+    expect(planSlotPress("/settings", SHELL_DESTINATIONS.commerce.primary)).toEqual({
       kind: "go",
       href: "/showcase",
       method: "leave-to-tab",

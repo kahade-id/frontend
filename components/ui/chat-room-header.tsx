@@ -216,6 +216,7 @@ export function ChatRoomHeader({
             ripple
             accessibilityLabel="Kembali"
             accessibilityHint="Kembali ke layar sebelumnya"
+            containerClassName="self-center"
             onPress={onBack}
           />
 
@@ -227,7 +228,7 @@ export function ChatRoomHeader({
               scaleOnPress={false}
               ripple
               onPress={onProfilePress}
-              containerClassName={cn("min-w-0 flex-1 rounded-sm", focusRingInset)}
+              containerClassName={cn("min-w-0 flex-1 self-center rounded-sm", focusRingInset)}
             >
               {identity}
             </PressableScale>
@@ -235,7 +236,7 @@ export function ChatRoomHeader({
             <View
               accessible
               accessibilityLabel={summarize([translate(title), status ? translate(status) : undefined])}
-              className="min-w-0 flex-1"
+              className="min-w-0 flex-1 self-center"
             >
               {identity}
             </View>
@@ -250,6 +251,7 @@ export function ChatRoomHeader({
             weight="bold"
             accessibilityLabel="Opsi percakapan"
             accessibilityHint="Lihat pesanan, cari pesan, dan pengaturan ruang"
+            containerClassName="self-center"
             onPress={onMenuPress}
           />
         </View>

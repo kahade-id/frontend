@@ -46,6 +46,7 @@ import { useLocalSearchParams, router } from "expo-router"
 
 import {
   Chats,
+  CheckCircle,
   Copy,
   PaperPlaneRight,
   PencilSimple,
@@ -54,6 +55,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
+import { getOrder, type Order } from "@/lib/api/orders"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { usePolling } from "@/lib/use-polling"
 import {
@@ -83,6 +85,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
+import { Button } from "@/components/ui/button"
 import { ChatEditSheet } from "@/components/ui/chat-edit-sheet"
 import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
 import { ChatMessageRow } from "@/components/ui/chat-message-row"
@@ -98,12 +101,14 @@ import {
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
+import { Icon } from "@/components/ui/icon"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ScrollToEndButton } from "@/components/ui/scroll-to-end-button"
 import { SelectionBar, type SelectionAction } from "@/components/ui/selection-bar"
+import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { isImageMime } from "@/lib/mime"
 
@@ -192,6 +197,41 @@ export default function ChatRoomScreen() {
   const [deleting, setDeleting] = useState(false)
   /** Menu ⋮ di header ruang (lihat pesanan, cari, bisukan, arsip, profil). */
   const [roomMenuOpen, setRoomMenuOpen] = useState(false)
+  const [order, setOrder] = useState<Order | null>(null)
+
+  useEffect(() => {
+    if (!room?.orderId) {
+      setOrder(null)
+      return
+    }
+    let cancelled = false
+    getOrder(room.orderId)
+      .then((ord) => {
+        if (!cancelled) setOrder(ord)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [room?.orderId])
+
+  const isOrderClosed =
+    order != null && ["COMPLETED", "CANCELLED", "REFUNDED", "EXPIRED"].includes(order.status)
+
+  const isChatCompleted =
+    isOrderClosed ||
+    (room as { isClosed?: boolean; status?: string; orderStatus?: string } | null)?.isClosed === true ||
+    ["CLOSED", "COMPLETED"].includes((room as { status?: string } | null)?.status ?? "") ||
+    (room as { orderStatus?: string } | null)?.orderStatus === "COMPLETED"
+
+  const closedNoticeText =
+    order?.status === "CANCELLED"
+      ? translate("Percakapan ini telah ditutup karena transaksi dibatalkan.")
+      : order?.status === "REFUNDED"
+      ? translate("Percakapan ini telah ditutup karena dana transaksi telah dikembalikan.")
+      : order?.status === "EXPIRED"
+      ? translate("Percakapan ini telah ditutup karena transaksi telah kedaluwarsa.")
+      : translate("Percakapan ini telah ditutup karena transaksi telah selesai.")
 
   // ── Fitur lanjutan: reaksi, pin, edit, forward, read receipt, presence ──
   const [forwardTarget, setForwardTarget] = useState<ChatMessage[] | null>(null)
@@ -564,7 +604,7 @@ export default function ChatRoomScreen() {
 
   const handleSend = useCallback(
     async (payload: ChatComposerPayload) => {
-      if (!roomId) return
+      if (!roomId || isChatCompleted) return
       const content = payload.content.trim()
       const ready = attachments.filter((a) => a.status !== "uploading" && a.status !== "error")
       if (!content && ready.length === 0) return
@@ -967,22 +1007,44 @@ export default function ChatRoomScreen() {
             label="Gulir ke pesan terbaru"
             className="px-5 pb-2"
           />
-          <ChatComposer
-            value={draft}
-            onChangeText={setDraft}
-            onSend={(p) => void handleSend(p)}
-            attachments={composerAttachments}
-            onAttach={() => void handleAttach()}
-            onRemoveAttachment={(localId) =>
-              setAttachments((prev) => prev.filter((a) => a.localId !== localId))
-            }
-            onRetryAttachment={(localId) => {
-              const a = attachments.find((x) => x.localId === localId)
-              if (a?.picked) void uploadAttachment(localId, a.picked)
-            }}
-            sending={sending}
-            disabled={loading}
-          />
+          {isChatCompleted ? (
+            <View className="border-t border-border bg-surface px-4 py-3">
+              <View className="items-center justify-center gap-1.5 rounded-lg bg-surface-raised px-4 py-3">
+                <View className="flex-row items-center gap-2">
+                  <Icon icon={CheckCircle} size="sm" tone="default" />
+                  <Text variant="caption" tone="secondary" className="font-medium text-center">
+                    {closedNoticeText}
+                  </Text>
+                </View>
+                {room?.orderId ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onPress={() => router.push(ROUTES.orderDetail(room.orderId!))}
+                  >
+                    Lihat detail transaksi
+                  </Button>
+                ) : null}
+              </View>
+            </View>
+          ) : (
+            <ChatComposer
+              value={draft}
+              onChangeText={setDraft}
+              onSend={(p) => void handleSend(p)}
+              attachments={composerAttachments}
+              onAttach={() => void handleAttach()}
+              onRemoveAttachment={(localId) =>
+                setAttachments((prev) => prev.filter((a) => a.localId !== localId))
+              }
+              onRetryAttachment={(localId) => {
+                const a = attachments.find((x) => x.localId === localId)
+                if (a?.picked) void uploadAttachment(localId, a.picked)
+              }}
+              sending={sending}
+              disabled={loading}
+            />
+          )}
         </View>
         )
       }

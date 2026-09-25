@@ -561,10 +561,10 @@ const LINE_CEILING = new Map([
   // 2026-09-23b: tanda [+] kiri profil diganti ModeSwitcher (impor + header
   // diringkas) -> 1433.
   // 2026-09-26b: navbar persisten di root (hapus per-page ShellTabBar) -> 1429.
-  ["app/user/[username].tsx", 1429],
+  ["app/user/[username].tsx", 1410],
   // 2026-09-23b: removeClippedSubviews dihapus (fix scroll blank Android).
-  // 2026-09-26: fix covered (insets.bottom+space) + blank (removeClippedSubviews false) -> 1197.
-  ["app/chat/[roomId].tsx", 1197],
+  // 2026-09-26: fix covered (insets.bottom+space) + blank (removeClippedSubviews false) -> 1263.
+  ["app/chat/[roomId].tsx", 1259],
   // Audit 2026-09-22: alur pembayaran QRIS dipindah ke lib/use-qris-payment.ts
   // → 1136 turun ke 1105 (A-14/A-02 diperbaiki di hook yang sama).
   // Audit 2026-09-20 (batch E): label a11y bertemplate dipindah ke translate()
@@ -609,7 +609,7 @@ const LINE_CEILING = new Map([
   ["app/subscriptions.tsx", 726],
   // 2026-09-23: UsersTab & ShowcaseFeedTab diekstrak ke components/
   // (discover-users-tab.tsx, showcase-feed-tab.tsx) -> layar tinggal kerangka.
-  ["app/(tabs)/discover.tsx", 32],
+  ["app/discover.tsx", 29],
   // R2 #97: facade murni re-export — implementasi pindah ke orders-shared/
   // orders-endpoints/orders-delivery/orders-links/orders-invoice.ts.
   ["lib/api/orders.ts", 26],

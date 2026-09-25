@@ -26,7 +26,7 @@
  * sini.
  */
 import { useEffect, useMemo, useReducer } from "react"
-import { View, type ViewProps } from "react-native"
+import { Text, View, type TextProps, type ViewProps } from "react-native"
 
 type Listener = () => void
 const listeners = new Set<Listener>()
@@ -161,6 +161,11 @@ function AnimatedView(props: ViewProps) {
   return <View {...props} />
 }
 
+function AnimatedText(props: TextProps) {
+  useValueSubscription()
+  return <Text {...props} />
+}
+
 export function createAnimatedComponent<T>(component: T): T {
   return component
 }
@@ -168,7 +173,7 @@ export function createAnimatedComponent<T>(component: T): T {
 const Animated = {
   View: AnimatedView,
   ScrollView: View,
-  Text: View,
+  Text: AnimatedText,
   createAnimatedComponent,
 }
 

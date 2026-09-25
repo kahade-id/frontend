@@ -266,7 +266,15 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
   /** Cermin `items` untuk commit atomik cache (tanpa side-effect di updater). */
   const itemsRef = useRef<ShowcaseSocialItem[]>([])
   /** A-07: panjang list terkini untuk `divider` — renderItem tetap stabil. */
-  const visibleItems = useMemo(() => items.filter((item) => !hiddenIds.has(item.id)), [items, hiddenIds])
+  const visibleItems = useMemo(() => {
+    const seen = new Set<string>()
+    return items.filter((item) => {
+      if (hiddenIds.has(item.id)) return false
+      if (seen.has(item.id)) return false
+      seen.add(item.id)
+      return true
+    })
+  }, [items, hiddenIds])
   const itemsLengthRef = useRef(0)
   itemsLengthRef.current = visibleItems.length
   /**

@@ -229,7 +229,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
     >
       <View
         className={cn(
-          "w-full flex-row rounded-sm bg-background",
+          "w-full flex-row rounded-sm",
+          focused ? "bg-background" : "bg-surface",
           isMultiline ? "items-start py-4" : "items-center",
           // Border: resting 1px default -> focus/error 1.5px, padding dikompensasi
           frame === "none"
@@ -263,8 +264,8 @@ export const Input = forwardRef<TextInput, InputProps>(function Input(
               )}
             >
               <Animated.View style={[labelStyle, { transformOrigin: "left center" }]}>
-                {/* bg-background + px-1 "memotong" garis border saat float */}
-                <View className={cn("-mx-1 px-1", floated && "bg-background")}>
+                {/* bg-background/bg-surface + px-1 "memotong" garis border saat float */}
+                <View className={cn("-mx-1 px-1", floated && (focused ? "bg-background" : "bg-surface"))}>
                   <Text ellipsizeMode="tail"
                     variant="bodyLarge"
                     tone={hasError ? "danger" : focused ? "primary" : "secondary"}
