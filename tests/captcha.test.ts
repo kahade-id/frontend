@@ -15,8 +15,9 @@
  *   1. `generateCaptcha()` memetakan `challengeId`/`targetX` (termasuk bentuk
  *      terbungkus `{ data }` dan snake_case) dan MENOLAK bentuk tak dikenal
  *      alih-alih mengembalikan `captchaId` kosong;
- *   2. `forgotPassword()` meneruskan `captchaId` + `captchaAnswer` apa adanya
- *      di body, karena backend memvalidasinya lewat class-validator.
+ *   2. `forgotPassword()` (kontrak auth-rework 2026-09-26) mengirim
+ *      `{ identifier }` — tanpa captcha — dan mengembalikan payload trigger
+ *      WhatsApp yang sudah di-parse (`via: "whatsapp_trigger"`).
  */
 import { beforeEach, describe, expect, it, vi } from "vitest"
 
@@ -71,16 +72,22 @@ describe("generateCaptcha", () => {
 })
 
 describe("forgotPassword", () => {
-  it("mengirim captchaId dan captchaAnswer bersama email", async () => {
-    httpMock.post.mockResolvedValue({ message: "ok" })
+  it("mengirim identifier dan mengembalikan payload trigger WhatsApp", async () => {
+    httpMock.post.mockResolvedValue({
+      refCode: "ABCDEF123456",
+      whatsappUrl: "https://wa.me/6285786035715?text=KAHADE%20ABCDEF123456",
+      triggerText: "KAHADE ABCDEF123456",
+      expiresAt: "2026-09-26T10:00:00Z",
+    })
 
-    await forgotPassword({ email: "budi@example.com", captchaId: "abc", captchaAnswer: 61 })
+    const result = await forgotPassword({ identifier: "+6281234567890" })
 
     expect(httpMock.post.mock.calls[0][0]).toBe("/v1/auth/forgot-password")
     expect(httpMock.post.mock.calls[0][1]).toEqual({
-      email: "budi@example.com",
-      captchaId: "abc",
-      captchaAnswer: 61,
+      identifier: "+6281234567890",
+      location: undefined,
     })
+    expect(result.via).toBe("whatsapp_trigger")
+    expect(result.refCode).toBe("ABCDEF123456")
   })
 })

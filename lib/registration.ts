@@ -1,9 +1,9 @@
 /**
- * Kahade — state registrasi sementara (alur phone-register multi-step).
+ * Kahade — state registrasi sementara (alur phone-register, auth-rework).
  *
- * Menyimpan `tempToken` dari `verify-otp` + metadata yang diperlukan screen
- * berikutnya (Buat Keamanan → Data Diri → `phone-register`). Module-level
- * memory, BUKAN SecureStore:
+ * Menyimpan `tempToken` dari `verify-otp` (status `new_user`) + nomor HP yang
+ * sedang didaftarkan untuk layar berikutnya (buat kata sandi + data diri →
+ * `phone-register`). Module-level memory, BUKAN SecureStore:
  *
  *   - `tempToken` short-lived (beberapa menit sebelum expire di backend).
  *   - Bukan rahasia jangka panjang — hanya bermakna di dalam alur registrasi
@@ -17,41 +17,25 @@
  * Web: module-level variable hilang saat reload, sama seperti SecureStore
  * (yang di web jatuh ke memori proses). Konsisten.
  *
+ * Auth-rework: phone-register disederhanakan — hanya tempToken, nama
+ * lengkap, username opsional, dan password. Password dikumpulkan dan langsung
+ * disubmit di layar yang sama (tidak lagi disimpan di state antar-screen),
+ * dan PIN wallet tidak lagi diminta saat registrasi.
+ *
  * Hanya SATU registrasi aktif pada satu waktu. `setRegistrationState`
  * menimpa state sebelumnya.
  */
-import type { OtpMethod } from "@/lib/api"
-
 export type RegistrationState = {
-  /** Temp token dari `POST /v1/auth/verify-otp` (isNewUser: true). */
+  /** Temp token dari `POST /v1/auth/verify-otp` (status `new_user`). */
   tempToken: string
-  /** Nomor HP E.164 yang sedang didaftarkan — dipakai lagi di `phone-register`. */
+  /** Nomor HP E.164 yang sedang didaftarkan — untuk ditampilkan kembali. */
   phoneNumber: string
-  /** Metode OTP yang dipilih (dokumentasi; tidak wajib di `phone-register`). */
-  method: OtpMethod
-  /** Kata sandi dari screen #4 (Buat Keamanan). */
-  password?: string
-  /** PIN wallet 6 digit dari screen #4. */
-  pin?: string
-  /** Nama lengkap dari screen #5 — dipakai untuk sapaan di Setup Profil. */
+  /**
+   * Nama lengkap pasca phone-register — hanya untuk sapaan di
+   * setup-profile. Tidak pernah menyimpan password. Boleh kosong saat
+   * phone-register belum dipanggil.
+   */
   fullName?: string
-}
-
-/**
- * Kode referral dari deep link `kahade://register?ref=<code>` (lib/deeplinks
- * `referralUrl`). Disimpan terpisah dari RegistrationState karena tiba di
- * screen #2 (sebelum ada tempToken) dan baru dipakai di screen #5 sebagai
- * prefill field "Kode referral" (PhoneRegisterDto.referralCode).
- */
-let pendingReferralCode: string | null = null
-
-export function setPendingReferralCode(code: string | null): void {
-  const clean = code?.trim() ?? ""
-  pendingReferralCode = clean.length > 0 ? clean : null
-}
-
-export function getPendingReferralCode(): string | null {
-  return pendingReferralCode
 }
 
 let state: RegistrationState | null = null
@@ -69,5 +53,9 @@ export function getRegistrationState(): RegistrationState | null {
 /** Hapus state — dipanggil setelah `phone-register` berhasil, atau user membatalkan. */
 export function clearRegistrationState(): void {
   state = null
-  pendingReferralCode = null
+}
+
+/** Reset memori (dipakai test). */
+export function resetRegistrationStateForTest(): void {
+  state = null
 }

@@ -12,12 +12,15 @@ const app = JSON.parse(readFileSync(new URL("../app.json", import.meta.url), "ut
 const plugins = app.plugins.map((plugin) => (Array.isArray(plugin) ? plugin[0] : plugin))
 const problems = []
 
+// expo-location DICABUT dari daftar larangan (auth-rework 2026-09-26):
+// pencatatan lokasi presisi saat login/registrasi/reset-password adalah entry
+// point aktif (lib/location.ts → getAuthLocation, dipanggil semua endpoint
+// auth). Izin lokasi = bagian dari kontrak keamanan akun, bukan dead config.
 const forbiddenPlugins = [
   "expo-audio",
   "expo-background-task",
   "expo-camera",
   "expo-contacts",
-  "expo-location",
   "expo-media-library",
   "@config-plugins/react-native-webrtc",
 ]
@@ -26,10 +29,12 @@ for (const plugin of forbiddenPlugins) {
 }
 
 const explicitPermissions = app.android?.permissions ?? []
+// ACCESS_FINE_LOCATION / ACCESS_COARSE_LOCATION DICABUT dari larangan
+// (alasan sama seperti expo-location di atas): dideklarasikan eksplisit di
+// app.json untuk pencatatan lokasi auth. Keduanya tetap dilarang BILA tidak
+// ada pemakaian — penjagaannya kini implisit lewat lib/location.ts.
 const forbiddenPermissions = [
   "android.permission.READ_CONTACTS",
-  "android.permission.ACCESS_FINE_LOCATION",
-  "android.permission.ACCESS_COARSE_LOCATION",
   "android.permission.RECORD_AUDIO",
   "android.permission.MODIFY_AUDIO_SETTINGS",
   "android.permission.READ_MEDIA_IMAGES",

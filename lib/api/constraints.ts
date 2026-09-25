@@ -405,8 +405,8 @@ export const API_CONSTRAINTS = {
     }
   },
   "ForgotPasswordDto": {
-    "email": {
-      "maxLength": 254
+    "identifier": {
+      "maxLength": 20
     }
   },
   "ForwardMessageDto": {
@@ -425,7 +425,7 @@ export const API_CONSTRAINTS = {
     }
   },
   "LoginDto": {
-    "email": {
+    "identifier": {
       "maxLength": 254
     },
     "password": {
@@ -436,6 +436,11 @@ export const API_CONSTRAINTS = {
     },
     "deviceInfo": {
       "maxLength": 512
+    }
+  },
+  "MigratePhoneConfirmDto": {
+    "deviceId": {
+      "maxLength": 255
     }
   },
   "MuteRoomDto": {
@@ -475,23 +480,14 @@ export const API_CONSTRAINTS = {
     },
     "deviceId": {
       "maxLength": 255
-    }
-  },
-  "OtpTriggerSendDto": {
-    "phoneNumber": {
-      "maxLength": 20
     },
-    "method": {
+    "purpose": {
       "enum": [
-        "SMS",
-        "WHATSAPP"
+        "register",
+        "login",
+        "forgot_password",
+        "migrate_phone"
       ]
-    },
-    "refCode": {
-      "maxLength": 8
-    },
-    "deviceId": {
-      "maxLength": 255
     }
   },
   "PhoneRegisterDto": {
@@ -503,30 +499,9 @@ export const API_CONSTRAINTS = {
       "minLength": 3,
       "maxLength": 30
     },
-    "gender": {
-      "enum": [
-        "MALE",
-        "FEMALE",
-        "OTHER",
-        "PREFER_NOT_TO_SAY"
-      ]
-    },
-    "email": {
-      "maxLength": 254
-    },
     "password": {
-      "minLength": 12,
+      "minLength": 8,
       "maxLength": 72
-    },
-    "pin": {
-      "minLength": 6,
-      "maxLength": 6
-    },
-    "address": {
-      "maxLength": 500
-    },
-    "referralCode": {
-      "maxLength": 20
     },
     "deviceId": {
       "maxLength": 255
@@ -576,41 +551,6 @@ export const API_CONSTRAINTS = {
     },
     "deviceId": {
       "maxLength": 128
-    }
-  },
-  "RegisterDto": {
-    "fullName": {
-      "minLength": 2,
-      "maxLength": 60
-    },
-    "username": {
-      "minLength": 3,
-      "maxLength": 30
-    },
-    "email": {
-      "maxLength": 254
-    },
-    "password": {
-      "minLength": 12,
-      "maxLength": 72
-    },
-    "confirmPassword": {
-      "minLength": 12,
-      "maxLength": 72
-    },
-    "phoneNumber": {
-      "maxLength": 20
-    },
-    "gender": {
-      "enum": [
-        "MALE",
-        "FEMALE",
-        "OTHER",
-        "PREFER_NOT_TO_SAY"
-      ]
-    },
-    "referralCode": {
-      "maxLength": 20
     }
   },
   "RejectDeliveryDto": {
@@ -683,20 +623,6 @@ export const API_CONSTRAINTS = {
       "maxLength": 500
     }
   },
-  "RequestOtpDto": {
-    "phoneNumber": {
-      "maxLength": 20
-    },
-    "method": {
-      "enum": [
-        "SMS",
-        "WHATSAPP"
-      ]
-    },
-    "deviceId": {
-      "maxLength": 255
-    }
-  },
   "RequestPhoneChangeDto": {
     "newPhoneNumber": {
       "maxLength": 20
@@ -721,19 +647,8 @@ export const API_CONSTRAINTS = {
     }
   },
   "ResetPasswordDto": {
-    "email": {
-      "maxLength": 254
-    },
-    "otp": {
-      "minLength": 6,
-      "maxLength": 6
-    },
     "newPassword": {
-      "minLength": 12,
-      "maxLength": 72
-    },
-    "confirmPassword": {
-      "minLength": 12,
+      "minLength": 8,
       "maxLength": 72
     }
   },

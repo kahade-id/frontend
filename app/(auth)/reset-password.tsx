@@ -1,313 +1,189 @@
 /**
- * Kahade — Reset Password (screen #8b alur auth): verifikasi OTP + password baru.
+ * Kahade — Buat Kata Sandi Baru (reset setelah OTP WhatsApp terverifikasi).
  *
  * Struktur:
- *   <Header title="Reset Kata Sandi" showBack={true}>
+ *   <Header title="Kata Sandi Baru" progress={3/3}>
  *   VStack gap={8}:
- *     VStack (explanation text dengan email)
- *     VStack (form)
- *       OtpInput (6 digits)
- *       PasswordField (new password, dengan strength meter)
- *       PasswordField (confirm password)
- *     Button "Reset Kata Sandi"
+ *     VStack (H1 + penjelasan)
+ *     PasswordField (kata sandi baru)
+ *     PasswordField (konfirmasi)
+ *     Button "Simpan kata sandi"
  *     Alert error (jika ada)
- *   VStack (footer)
- *     TextLink "Kirim ulang kode"
- *     TextLink "Ganti email"
  *
- * Kontrak API (docs/api/kahade-api-mobile.json):
- *   POST /v1/auth/reset-password  body ResetPasswordDto { email, otp, newPassword, confirmPassword }
- *   - Response: MessageResult { message }
- *   - Setelah reset berhasil, user bisa login dengan password baru
- *
- * Alur lengkap:
- *   1. User datang dari forgot-password screen dengan email sebagai param
- *   2. User masukkan OTP (6 digit) yang diterima via email
- *   3. User masukkan password baru (12+ char, kompleks)
- *   4. User konfirmasi password baru
- *   5. Submit → reset password → redirect ke login dengan pesan sukses
+ * Kontrak API (kontrak auth-rework 2026-09-26, frozen):
+ *   POST /v1/auth/reset-password  body { tempToken, newPassword, location? }
+ *   - OTP sudah diverifikasi di /verify-otp (status password_reset) — layar
+ *     ini TIDAK lagi menerima kode OTP; yang disimpan hanya tempToken di
+ *     lib/password-reset.ts (memori modul, bukan route params).
+ *   - Kata sandi minimum 8 karakter TANPA syarat complexity (keputusan
+ *     produk) — tidak ada hint complexity dan tidak ada strength meter.
+ *   - Setelah sukses: state reset dibersihkan, user diarahkan ke /login
+ *     (belum login — sesi baru dibuat saat login ulang).
  *
  * Keputusan non-obvious:
- *   - Header WITH back button — user bisa kembali ke forgot-password untuk
- *     ganti email atau resend OTP.
- *   - OtpInput 6 digits dengan auto-focus. Tidak ada auto-submit — user
- *     tekan tombol "Reset Kata Sandi" setelah semua field terisi.
- *   - Password baru memakai PasswordField DENGAN strength meter — user
- *     perlu membuat password yang kuat (12+ char, uppercase, lowercase, digit, symbol).
- *   - Confirm password memakai PasswordField confirmOf — validasi mismatch
- *     otomatis setelah blur.
- *   - Tombol "Reset Kata Sandi" disabled selama submit dan kalau form tidak valid.
- *   - Validasi password: sama seperti registrasi (12+ char, kompleks).
- *     PasswordStrength criteria di-override dari default (8→12 char).
- *   - Setelah reset berhasil → redirect ke login. User bisa login dengan
- *     password baru. Tidak ada auto-login setelah reset (keamanan).
- *   - Link "Kirim ulang kode" → navigate ke layar Lupa Kata Sandi dengan email
- *     ter-prefill. Endpoint forgot-password mewajibkan captcha slider, dan
- *     layar inilah yang punya tantangannya (lihat handleResendCode).
- *   - Link "Ganti email" → kembali ke forgot-password screen.
- *   - Error handling: OTP invalid/expired, password validation, network error, dll.
- *   - OTP error ditempel ke OtpInput (errorText), password error ke Alert.
+ *   - Tanpa tempToken di memori (deep-link/reload langsung ke rute ini),
+ *     layar tidak bisa dipakai — kembali ke /forgot-password.
+ *   - Konfirmasi harus persis sama; bandingkan saat submit (bukan on-change)
+ *     agar error tidak berkedip saat mengetik.
+ *   - Lokasi opsional dicatat; null = lanjut tanpa lokasi.
  */
-import { useCallback, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { useCallback, useEffect, useState } from "react"
+import { ScrollView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Redirect, useLocalSearchParams, useRouter } from "expo-router"
+import { useRouter } from "expo-router"
 
 import { Alert } from "@/components/ui/alert"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Button } from "@/components/ui/button"
-import { Countdown } from "@/components/ui/countdown"
-import { Header } from "@/components/ui/header"
+import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
-import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
 import { PasswordField } from "@/components/ui/password-field"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
-import { TextLink } from "@/components/ui/text-link"
-import { useToast } from "@/components/ui/toast"
 import { VStack } from "@/components/ui/stack"
-import { api, isApiError, userMessage } from "@/lib/api"
-import { PASSWORD_MAX, SECURITY_CRITERIA, isPasswordValid } from "@/lib/auth-constants"
+import { api, userMessage } from "@/lib/api"
+import { isPasswordValid } from "@/lib/auth-constants"
+import { getAuthLocation } from "@/lib/location"
+import { clearPasswordResetState, getPasswordResetState } from "@/lib/password-reset"
 import { ROUTES } from "@/lib/routes"
 
-/** Cooldown kirim ulang (detik) — bila backend tidak mengirim `cooldownSeconds` */
-const DEFAULT_COOLDOWN = 60
+/** Lupa kata sandi = 3 langkah: nomor → trigger WA → OTP → kata sandi baru. */
+const STEP_PROGRESS = 3 / 3
 
 export default function ResetPasswordScreen() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
-  const otpRef = useRef<OtpInputHandle>(null)
-  const toast = useToast()
 
-  // Email dari route params (dari forgot-password screen)
-  const { email } = useLocalSearchParams<{ email: string }>()
+  // tempToken hasil verifikasi OTP (memori modul, bukan route params).
+  const resetRef = useState(getPasswordResetState)[0]
+  const tempToken = resetRef?.tempToken
 
-  /*
-   * Guard: kalau email tidak ada, kembali ke forgot-password.
-   *
-   * Dulu penjaga ini `return null` di sini — SEBELUM 8 `useState` di bawah.
-   * `email` dibaca dari parameter rute, yang bisa berubah selama layar hidup
-   * (deep link kedua, navigasi balik), sehingga jumlah hook bisa berubah di
-   * tengah hidup komponen -> React melempar "Rendered fewer hooks than
-   * expected". `router.replace` di dalam render juga efek samping yang
-   * memicu peringatan "cannot update a component while rendering".
-   * Kini penjaga dirender di bawah, setelah semua hook, sebagai <Redirect>.
-   */
+  // Tanpa tempToken (deep-link/reload langsung ke rute ini) → tidak bisa
+  // dipakai; kembali ke awal alur.
+  useEffect(() => {
+    if (!tempToken) {
+      if (router.canGoBack()) router.back()
+      else router.replace(ROUTES.forgotPassword())
+    }
+  }, [tempToken, router])
 
-  const [otp, setOtp] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
-  const [submitting, setSubmitting] = useState(false)
+  const [passwordError, setPasswordError] = useState<string | undefined>()
+  const [confirmError, setConfirmError] = useState<string | undefined>()
   const [formError, setFormError] = useState<string | null>(null)
-  const [otpError, setOtpError] = useState<string | undefined>()
-  // Resend: cooldown berjalan sejak layar dibuka (kode pertama baru saja dikirim)
-  const [canResend, setCanResend] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
 
-  const passwordValid = isPasswordValid(newPassword)
-  const passwordsMatch =
-    confirmPassword.length > 0 && newPassword === confirmPassword
-  const isFormValid = otp.length === 6 && passwordValid && passwordsMatch
-
-  const handleReset = useCallback(async () => {
-    if (submitting || !isFormValid) return
-    setSubmitting(true)
+  const handleSubmit = useCallback(async () => {
+    if (submitting || !tempToken) return
     setFormError(null)
-    setOtpError(undefined)
 
+    if (!isPasswordValid(newPassword)) {
+      setPasswordError("Kata sandi minimal 8 karakter.")
+      return
+    }
+    if (confirmPassword !== newPassword) {
+      setConfirmError("Konfirmasi kata sandi tidak sama.")
+      return
+    }
+
+    setSubmitting(true)
     try {
       await api.auth.resetPassword({
-        email,
-        otp,
+        tempToken,
         newPassword,
-        confirmPassword,
+        location: (await getAuthLocation()) ?? undefined,
       })
-
-      // Success → toast (provider di root layout, tetap tampil setelah replace) → login
-      toast.show({
-        title: "Kata sandi diperbarui",
-        description: "Silakan masuk dengan kata sandi baru Anda.",
-        tone: "success",
-      })
-      if (router.canDismiss()) {
-        router.dismissAll()
-      } else {
-        router.replace(ROUTES.login)
-      }
+      clearPasswordResetState()
+      // Kata sandi berubah → user login ulang (belum punya sesi).
+      router.replace(ROUTES.login)
     } catch (err) {
-      if (isApiError(err)) {
-        // OTP invalid/expired
-        if (err.code === "UNAUTHORIZED" || err.code === "BAD_REQUEST") {
-          const mentionsOtp = /otp|code|kode|invalid|expired/i.test(err.message || "")
-          if (mentionsOtp) {
-            setOtpError(err.message || "Kode tidak valid atau sudah kedaluwarsa.")
-            setOtp("")
-            otpRef.current?.focus()
-            return
-          }
-        }
-        // Password validation
-        if (err.code === "VALIDATION") {
-          const mentionsPassword = /password|kata sandi/i.test(err.message || "")
-          if (mentionsPassword) {
-            setFormError(err.message || "Kata sandi tidak memenuhi persyaratan.")
-            return
-          }
-        }
-        // Rate limited
-        if (err.code === "RATE_LIMITED") {
-          setFormError("Terlalu banyak percobaan. Tunggu beberapa saat sebelum mencoba lagi.")
-          return
-        }
-      }
       setFormError(userMessage(err))
     } finally {
       setSubmitting(false)
     }
-  }, [submitting, isFormValid, email, otp, newPassword, confirmPassword, router, toast])
+  }, [submitting, tempToken, newPassword, confirmPassword, router])
 
-  /*
-   * Kirim ulang kode TIDAK bisa dipanggil langsung dari sini.
-   *
-   * `POST /v1/auth/forgot-password` mewajibkan captcha slider (backend
-   * menolak 401 `CAPTCHA_REQUIRED` sebelum email diperiksa). Memanggilnya dari
-   * layar ini — yang tidak punya tantangan captcha — selalu gagal dan dulu
-   * memunculkan pesan "Captcha verification is required" yang tidak bisa
-   * ditindaklanjuti pengguna. Karena itu pengiriman ulang diarahkan ke layar
-   * Lupa Kata Sandi (satu-satunya tempat tantangan dimuat + dijawab) dengan
-   * email sudah terisi, sehingga cukup satu ketukan "Kirim kode".
-   */
-  const handleResendCode = useCallback(() => {
-    if (!canResend) return
-    setFormError(null)
-    setOtpError(undefined)
-    router.replace(ROUTES.forgotPassword(email))
-  }, [email, canResend, router])
-
-  const handleChangeEmail = useCallback(() => {
-    router.replace(ROUTES.forgotPassword())
-  }, [router])
-
-  if (!email) return <Redirect href={ROUTES.forgotPassword()} />
+  if (!tempToken) return null
 
   return (
     <Screen padded={false} edges={["top"]}>
-      <Header title="Reset Kata Sandi" safeArea={false} />
+      <Header title="Kata Sandi Baru" progress={STEP_PROGRESS} safeArea={false} />
 
-      <KeyboardAvoiding offset={insets.top}>
+      <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
         <ScrollView
           className="flex-1"
           contentContainerClassName="grow px-5 pb-8 pt-8"
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* v2: form reveal satu kesatuan (fast) — pola yang sama di semua
-              layar auth; FooterBar di bawah tetap statis. */}
           <FadeIn duration="fast">
-          <VStack gap={8}>
-            {/* Explanation text */}
-            <VStack gap={2}>
-              <Heading level={1}>Masukkan kode verifikasi</Heading>
-              <Text variant="body" tone="secondary" className="text-pretty">
-                Kode 6 digit telah dikirim ke <Text weight={600}>{email}</Text>.
-                Masukkan kode dan buat password baru.
-              </Text>
-            </VStack>
+            <VStack gap={8}>
+              <VStack gap={2}>
+                <Heading level={1} className="text-balance">
+                  Buat kata sandi baru
+                </Heading>
+                <Text variant="body" tone="secondary" className="text-pretty">
+                  Pilih kata sandi baru untuk akun Anda. Minimal 8 karakter.
+                </Text>
+              </VStack>
 
-            {/* Form fields */}
-            <VStack gap={4}>
-              <OtpInput
-                ref={otpRef}
-                length={6}
-                value={otp}
-                onChange={(code) => {
-                  setOtp(code)
-                  setOtpError(undefined)
-                  setFormError(null)
-                }}
-                errorText={otpError}
-                helperText={otpError ? undefined : "Masukkan 6 digit kode dari email"}
-                disabled={submitting}
-                autoFocus
-              />
+              <VStack gap={4}>
+                <PasswordField
+                  label="Kata sandi baru"
+                  value={newPassword}
+                  onChangeText={(t) => {
+                    setNewPassword(t)
+                    setPasswordError(undefined)
+                    setFormError(null)
+                  }}
+                  errorText={passwordError}
+                  helperText="Minimal 8 karakter"
+                  required
+                  autoFocus
+                  returnKeyType="next"
+                  disabled={submitting}
+                />
+                <PasswordField
+                  label="Konfirmasi kata sandi"
+                  value={confirmPassword}
+                  onChangeText={(t) => {
+                    setConfirmPassword(t)
+                    setConfirmError(undefined)
+                    setFormError(null)
+                  }}
+                  errorText={confirmError}
+                  required
+                  returnKeyType="done"
+                  onSubmitEditing={() => void handleSubmit()}
+                  disabled={submitting}
+                />
+              </VStack>
 
-              <PasswordField
-                label="Kata sandi baru"
-                value={newPassword}
-                onChangeText={(t) => {
-                  setNewPassword(t)
-                  setFormError(null)
-                }}
-                showStrength
-                strengthProps={{
-                  criteria: SECURITY_CRITERIA,
-                  showCriteria: true,
-                }}
-                disabled={submitting}
-                required
-                maxLength={PASSWORD_MAX}
-                returnKeyType="next"
-              />
-
-              <PasswordField
-                label="Konfirmasi kata sandi baru"
-                value={confirmPassword}
-                onChangeText={(t) => {
-                  setConfirmPassword(t)
-                  setFormError(null)
-                }}
-                confirmOf={newPassword}
-                disabled={submitting}
-                required
-                maxLength={PASSWORD_MAX}
-                returnKeyType="done"
-                onSubmitEditing={() => void handleReset()}
-              />
-            </VStack>
-
-            {/* Submit button */}
-            <Button
-              onPress={() => void handleReset()}
-              loading={submitting}
-              disabled={!isFormValid}
-            >
-              Reset password
-            </Button>
-
-            {/* Error alert */}
-            {formError ? (
-              <Alert
-                tone="danger"
-                title="Gagal reset kata sandi"
-                onDismiss={() => setFormError(null)}
+              <Button
+                onPress={() => void handleSubmit()}
+                loading={submitting}
+                disabled={newPassword.length === 0 || confirmPassword.length === 0}
               >
-                {formError}
-              </Alert>
-            ) : null}
-          </VStack>
+                Simpan kata sandi
+              </Button>
+
+              {formError ? (
+                <Alert tone="danger" title="Gagal menyimpan" onDismiss={() => setFormError(null)}>
+                  {formError}
+                </Alert>
+              ) : null}
+            </VStack>
           </FadeIn>
         </ScrollView>
 
-        {/* Footer links */}
         <FooterBar>
-          <View className="flex-row items-center justify-center gap-6">
-            {canResend ? (
-              <TextLink onPress={handleResendCode} disabled={submitting}>
-                Kirim ulang kode
-              </TextLink>
-            ) : (
-              <Countdown
-                seconds={DEFAULT_COOLDOWN}
-                prefix="Kirim ulang dalam"
-                tone="secondary"
-                onComplete={() => setCanResend(true)}
-              />
-            )}
-            <TextLink onPress={handleChangeEmail} disabled={submitting}>
-              Ganti email
-            </TextLink>
-          </View>
+          <Text variant="caption" tone="secondary" className="text-center text-pretty">
+            Setelah kata sandi tersimpan, Anda akan diarahkan untuk masuk
+            kembali dengan kata sandi baru.
+          </Text>
         </FooterBar>
       </KeyboardAvoiding>
     </Screen>

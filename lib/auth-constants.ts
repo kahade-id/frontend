@@ -1,18 +1,23 @@
 /**
- * Kahade — Shared authentication constants.
+ * Kahade — Shared authentication constants (auth-rework 2026-09-26).
  *
- * Shared between create-security.tsx and reset-password.tsx to avoid duplication.
+ * Keputusan produk: kata sandi minimal 8 karakter TANPA syarat kompleksitas
+ * (huruf besar/kecil, angka, simbol dihapus). Pengguna cenderung malas dengan
+ * aturan rumit; keamanan ganda didapat dari OTP WhatsApp + rate limiting +
+ * lockout di backend, bukan dari kerumitan password.
+ *
+ * Dipakai bersama layar yang meminta kata sandi baru (register-security,
+ * reset-password) agar checklist dan validasi selalu sinkron.
  */
 import type { PasswordCriterion } from "@/components/ui/password-strength"
 
-/** Panjang minimum password sesuai PhoneRegisterDto (12 char, bukan 8 default) */
-export const PASSWORD_MIN = 12
+/** Panjang minimum kata sandi sesuai kontrak auth-rework (8 karakter). */
+export const PASSWORD_MIN = 8
 export const PASSWORD_MAX = 72
 
 /**
- * Criteria password disesuaikan dengan validasi backend PhoneRegisterDto:
- * min 12 char, uppercase, lowercase, digit, special character.
- * Override dari DEFAULT_PASSWORD_CRITERIA (yang memakai min 8).
+ * Satu-satunya kriteria: panjang minimum. Sengaja tanpa syarat huruf
+ * besar/kecil/angka/simbol (keputusan produk — lihat docblock di atas).
  */
 export const SECURITY_CRITERIA: readonly PasswordCriterion[] = [
   {
@@ -20,24 +25,9 @@ export const SECURITY_CRITERIA: readonly PasswordCriterion[] = [
     label: `Minimal ${PASSWORD_MIN} karakter`,
     test: (p) => p.length >= PASSWORD_MIN,
   },
-  {
-    key: "case",
-    label: "Huruf besar dan kecil",
-    test: (p) => /[a-z]/.test(p) && /[A-Z]/.test(p),
-  },
-  {
-    key: "digit",
-    label: "Mengandung angka",
-    test: (p) => /\d/.test(p),
-  },
-  {
-    key: "symbol",
-    label: "Mengandung simbol",
-    test: (p) => /[^A-Za-z0-9]/.test(p),
-  },
 ]
 
-/** Validasi password sesuai kontrak PhoneRegisterDto */
+/** Validasi kata sandi sesuai kontrak: 8–72 karakter. */
 export function isPasswordValid(pw: string): boolean {
-  return SECURITY_CRITERIA.every((c) => c.test(pw)) && pw.length <= PASSWORD_MAX
+  return pw.length >= PASSWORD_MIN && pw.length <= PASSWORD_MAX
 }

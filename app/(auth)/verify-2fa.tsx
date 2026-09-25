@@ -182,7 +182,7 @@ export default function VerifyTwoFactorScreen() {
                   : "Gunakan salah satu kode cadangan yang Anda simpan saat mengaktifkan verifikasi dua langkah. Setiap kode hanya berlaku sekali."}
               </Text>
               <Text variant="monoBody" weight={600}>
-                {pending.email}
+                {pending.identifier}
               </Text>
             </View>
 

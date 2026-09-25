@@ -614,8 +614,8 @@ const LINE_CEILING = new Map([
   // orders-endpoints/orders-delivery/orders-links/orders-invoice.ts.
   ["lib/api/orders.ts", 26],
   ["lib/api/users.ts", 1119],
-  ["lib/api/constraints.ts", 1181], // GENERATED dari spec — plafon mengikuti gen:api (F-01 audit 2026-09-23)
-  ["lib/api/types.ts", 1566], // GENERATED dari spec — plafon mengikuti gen:api
+  ["lib/api/constraints.ts", 1096], // GENERATED dari spec — plafon mengikuti gen:api (F-01 audit 2026-09-23)
+  ["lib/api/types.ts", 1488], // GENERATED dari spec — plafon mengikuti gen:api
   ["lib/tokens.ts", 1027],
 ])
 for (const [file, ceiling] of LINE_CEILING) {

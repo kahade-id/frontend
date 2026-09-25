@@ -9,50 +9,43 @@
  *   [Alert error, bila ada]
  *   ── footer: countdown / kirim ulang  •  ubah nomor HP
  *
- * Kontrak API (docs/api/kahade-api-mobile.json):
- *   POST /v1/auth/verify-otp  body VerifyPhoneOtpDto { phoneNumber, code, deviceId }
- *   - `deviceId` + `deviceInfo` DIINJEKSI OTOMATIS oleh `withDevice()` di auth.ts.
- *   - Response (UNVERIFIED — spec hanya `200: ""`): discriminated union
- *     `VerifyOtpResult`:
- *       • isNewUser: true  → { tempToken } → simpan di registration state → screen #4
- *       • isNewUser: false → { accessToken } → token disimpan otomatis → welcome
+ * Kontrak API (kontrak auth-rework 2026-09-26, frozen):
+ *   POST /v1/auth/verify-otp  body { phoneNumber, code, deviceId, deviceInfo?, location? }
+ *   - `deviceId` + `deviceInfo` DIINJEKSI OTOMATIS oleh `withDevice()` di auth.ts;
+ *     `location` dari getAuthLocation() (null = lanjut tanpa lokasi).
+ *   - Response: status eksplisit —
+ *       • new_user          → { tempToken } → simpan di registration state
+ *                             → /register-security (buat kata sandi)
+ *       • existing_user     → { accessToken } → token disimpan otomatis
+ *                             → welcome
+ *       • password_reset    → { tempToken } → simpan di password-reset state
+ *                             → /reset-password
+ *       • migration_verified→ { tempToken } → confirmPhoneMigration()
+ *                             → sesi penuh → welcome
  *
- * Resend:
- *   POST /v1/auth/request-otp  body { phoneNumber, method }
- *   - Sama persis dengan yang dipanggil Register screen, memakai nomor +
- *     metode dari state alur memori (lib/otp-flow) — BUKAN route params
- *     (B-07/B-14: param URL bisa dipalsukan orang lain untuk memicu resend
- *     OTP ke nomor korban, dan bocor ke history/log/Referer di web).
- *   - Response: { cooldownSeconds? } → restart countdown (default 60 d).
+ * Kirim ulang: OTP HANYA via WhatsApp customer-initiated — resend = trigger
+ * BARU via requestOtpTrigger(purpose yang sama) → kembali ke /whatsapp-trigger
+ * (user mengirim pesan pemicu lagi). TIDAK ADA jalur kirim langsung.
+ *
+ * State alur (nomor + purpose + migrationToken) hidup di memori modul
+ * (lib/otp-flow) — BUKAN route params (B-07/B-14).
  *
  * Keputusan non-obvious:
  *   - Submit MANUAL via tombol, BUKAN auto-submit saat 6 digit terisi — user
  *     punya kontrol penuh kapan kode dikirim, dan tombol memberi target sentuh
- *     yang jelas (44px+). OtpInput.onComplete hanya dipakai untuk fokus ke
- *     tombol secara visual (disabled → enabled).
+ *     yang jelas (44px+).
  *   - Haptic feedback di momen kritikal (§8): "success" saat verifikasi
  *     berhasil, "error" saat OTP ditolak. Tidak dipakai untuk interaksi ringan.
  *   - Error dari backend dibedakan: pesan yang mengandung "code"/"otp"/"kode"
- *     ditempel ke OtpInput (errorText), sisanya ke <Alert>. Ini menghindari
- *     dua tempat error yang membingungkan untuk masalah yang sama.
- *   - Countdown default 60 detik (tidak bergantung response `cooldownSeconds`
- *     dari request awal — Register screen tidak menyimpannya). Saat resend
- *     berhasil, countdown restart dari 60 (atau `cooldownSeconds` bila ada).
- *   - `canResend` = countdown selesai. Tampilan berubah dari Countdown ke
- *     TextLink "Kirim ulang kode" — tidak ada tombol besar di footer untuk
- *     aksi sekunder.
- *   - Nomor HP ditampilkan Mono (data presisi, berdiri sendiri — §3.1) di
- *     bawah body penjelasan, bukan inline di paragraf.
- *   - tempToken disimpan di `lib/registration.ts` (module memory) — bukan
- *     SecureStore, bukan route params — karena short-lived dan tidak perlu
- *     bertahan dari restart. Nomor + metode alur OTP sendiri hidup di
- *     `lib/otp-flow.ts` dengan alasan keamanan yang sama (B-07/B-14).
- *   - "Ubah nomor HP" = `router.back()` ke Register. OTP yang sudah dikirim
- *     tetap valid di backend tapi tidak dipakai — user bisa minta OTP baru
- *     dari Register dengan nomor yang berbeda.
+ *     ditempel ke OtpInput (errorText), sisanya ke <Alert>.
+ *   - Countdown default 60 detik. Saat kirim ulang berhasil, user diarahkan
+ *     ke /whatsapp-trigger (trigger baru, kode referensi baru).
+ *   - tempToken disimpan di memori modul (lib/registration.ts /
+ *     lib/password-reset.ts) — bukan SecureStore, bukan route params.
+ *   - "Ubah nomor HP" = `router.back()` ke layar asal.
  */
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { Platform, ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
@@ -68,16 +61,18 @@ import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
-import { api, isApiError, userMessage, type OtpMethod } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import { formatPhoneId } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
+import { getAuthLocation } from "@/lib/location"
 import { clearOtpFlow, getOtpFlow, patchOtpFlow } from "@/lib/otp-flow"
-import { setRegistrationState } from "@/lib/registration"
+import { clearPasswordResetState, setPasswordResetState } from "@/lib/password-reset"
+import { clearRegistrationState, setRegistrationState } from "@/lib/registration"
 import { ROUTES } from "@/lib/routes"
 
 /** Progress: registrasi via HP = 4 langkah, ini langkah ke-2 */
 const STEP_PROGRESS = 2 / 4
-/** Cooldown default resend OTP (detik) — bila backend tidak mengirim `cooldownSeconds` */
+/** Cooldown default kirim ulang (detik) */
 const DEFAULT_COOLDOWN = 60
 
 type FormError = { kind: "generic"; message: string } | null
@@ -88,16 +83,16 @@ export default function VerifyOtpScreen() {
   const otpRef = useRef<OtpInputHandle>(null)
 
   /**
-   * State alur dari Register/WhatsApp-trigger (lib/otp-flow, memori modul).
+   * State alur dari layar asal (lib/otp-flow, memori modul).
    * Dibaca SEKALI saat mount: tanpa alur (deep-link/reload web langsung ke
    * /verify-otp) layar ini tidak bisa dipakai standalone — B-14.
    */
   const flowRef = useRef(getOtpFlow())
   const flow = flowRef.current
   const phoneNumber = flow?.phoneNumber
-  const method = flow?.method
+  const purpose = flow?.purpose
 
-  // Tanpa alur aktif → kembali ke Register (OTP baru).
+  // Tanpa alur aktif → kembali ke awal (OTP baru).
   useEffect(() => {
     if (!flow) {
       if (router.canGoBack()) router.back()
@@ -105,8 +100,6 @@ export default function VerifyOtpScreen() {
     }
   }, [flow, router])
 
-  const otpMethod: OtpMethod = method ?? "SMS"
-  const methodLabel = otpMethod === "WHATSAPP" ? "WhatsApp" : "SMS"
   const displayPhone = phoneNumber ? formatPhoneId(phoneNumber) : ""
 
   const [code, setCode] = useState("")
@@ -126,9 +119,15 @@ export default function VerifyOtpScreen() {
     setFormError(null)
   }, [])
 
+  const goWelcome = useCallback(() => {
+    // Web guest mode: langsung ke Beranda; native: Welcome (cek permissions).
+    if (Platform.OS === "web") router.replace(ROUTES.home)
+    else router.replace(ROUTES.welcome())
+  }, [router])
+
   const doVerify = useCallback(
     async (otpCode: string) => {
-      if (verifying || !phoneNumber) return
+      if (verifying || !phoneNumber || !purpose) return
       if (otpCode.length < 6) return
 
       setVerifying(true)
@@ -136,27 +135,47 @@ export default function VerifyOtpScreen() {
       setOtpError(undefined)
 
       try {
+        const location = (await getAuthLocation()) ?? undefined
         const result = await api.auth.verifyOtp({
           phoneNumber,
           code: otpCode,
+          location,
         })
 
         haptic("success")
+        clearOtpFlow()
 
-        if ("isNewUser" in result && result.isNewUser) {
-          // User baru → simpan tempToken + phoneNumber → lanjut ke screen #4
-          setRegistrationState({
-            tempToken: result.tempToken,
-            phoneNumber,
-            method: otpMethod,
-          })
-          clearOtpFlow()
-          router.replace(ROUTES.createSecurity)
-        } else {
-          // User sudah punya akun → token sudah disimpan otomatis oleh auth.ts
-          // → Welcome (cek izin) sebagai user lama, lalu Home.
-          clearOtpFlow()
-          router.replace(ROUTES.welcome())
+        switch (result.status) {
+          case "new_user":
+            // Belum punya akun (registrasi / login-WA dengan nomor baru) →
+            // lanjut buat kata sandi + data diri.
+            clearPasswordResetState()
+            setRegistrationState({ tempToken: result.tempToken, phoneNumber })
+            router.replace(ROUTES.registerSecurity)
+            break
+          case "password_reset":
+            // Lupa kata sandi → lanjut buat kata sandi baru.
+            clearRegistrationState()
+            setPasswordResetState({ tempToken: result.tempToken, phoneNumber })
+            router.replace(ROUTES.resetPassword())
+            break
+          case "migration_verified":
+            // Migrasi nomor HP → tukar tempToken jadi sesi penuh.
+            clearRegistrationState()
+            clearPasswordResetState()
+            await api.auth.confirmPhoneMigration({
+              tempToken: result.tempToken,
+              location,
+            })
+            goWelcome()
+            break
+          case "existing_user":
+          default:
+            // Token sudah disimpan otomatis oleh auth.ts → masuk app.
+            clearRegistrationState()
+            clearPasswordResetState()
+            goWelcome()
+            break
         }
       } catch (err) {
         haptic("error")
@@ -199,68 +218,54 @@ export default function VerifyOtpScreen() {
         setVerifying(false)
       }
     },
-    [verifying, phoneNumber, otpMethod, router],
+    [verifying, phoneNumber, purpose, router, goWelcome],
   )
 
   const handleVerify = useCallback(() => {
     void doVerify(code)
   }, [code, doVerify])
 
+  /**
+   * Kirim ulang = trigger WhatsApp BARU (customer-initiated). Tidak ada jalur
+   * kirim langsung — user kembali ke /whatsapp-trigger dan mengirim pesan
+   * pemicu lagi dengan kode referensi yang baru.
+   */
   const handleResend = useCallback(async () => {
-    if (resending || !phoneNumber) return
+    if (resending || !phoneNumber || !purpose) return
     setResending(true)
     setFormError(null)
     setOtpError(undefined)
 
     try {
-      if (otpMethod === "WHATSAPP") {
-        // Resend WhatsApp juga customer-initiated (alasan yang sama dengan
-        // Register): bot tidak mendorong OTP tanpa diminta. Bila fitur trigger
-        // tidak tersedia (503 OTP_TRIGGER_UNAVAILABLE), jatuh ke kirim langsung.
-        try {
-          const trigger = await api.auth.requestOtpTrigger({ phoneNumber })
-          patchOtpFlow({
-            refCode: trigger.refCode,
-            whatsappUrl: trigger.whatsappUrl,
-            triggerText: trigger.triggerText,
-            expiresAt: trigger.expiresAt,
-          })
-          router.replace(ROUTES.whatsappTrigger)
-          return
-        } catch (triggerErr) {
-          const unavailable =
-            isApiError(triggerErr) &&
-            (triggerErr.backendCode === "OTP_TRIGGER_UNAVAILABLE" ||
-              triggerErr.status === 503)
-          if (!unavailable) throw triggerErr
-        }
-      }
-      await api.auth.requestOtp({
+      const trigger = await api.auth.requestOtpTrigger({
         phoneNumber,
-        method: otpMethod,
+        purpose,
+        migrationToken: flow?.migrationToken,
+        location: (await getAuthLocation()) ?? undefined,
       })
-      // Restart countdown — increment key untuk re-mount Countdown component
+      patchOtpFlow({
+        refCode: trigger.refCode,
+        whatsappUrl: trigger.whatsappUrl,
+        triggerText: trigger.triggerText,
+        expiresAt: trigger.expiresAt,
+      })
       setCountdownKey((k) => k + 1)
       setCanResend(false)
-      // Clear code agar user memasukkan kode baru
       setCode("")
-      otpRef.current?.focus()
-
-      // Update cooldown kalau backend mengirim nilai spesifik
-      // (tidak dipakai langsung, tapi bisa diperluas nanti)
+      router.replace(ROUTES.whatsappTrigger)
     } catch (err) {
       setFormError({ kind: "generic", message: userMessage(err) })
     } finally {
       setResending(false)
     }
-  }, [resending, phoneNumber, otpMethod, router])
+  }, [resending, phoneNumber, purpose, flow, router])
 
   const handleChangePhone = useCallback(() => {
     router.back()
   }, [router])
 
   // Jangan render tanpa alur aktif (effect akan redirect)
-  if (!flow || !phoneNumber || !method) return null
+  if (!flow || !phoneNumber || !purpose) return null
 
   return (
     <Screen padded={false} edges={["top"]}>
@@ -283,7 +288,7 @@ export default function VerifyOtpScreen() {
                 Masukkan kode verifikasi
               </Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
-                Kode 6 digit telah dikirim via {methodLabel}. Pastikan Anda
+                Kode 6 digit telah dibalas via WhatsApp. Pastikan Anda
                 memiliki akses ke nomor:
               </Text>
               {/* Nomor HP berdiri sendiri — data presisi (§3.1 → Mono) */}
@@ -333,7 +338,7 @@ export default function VerifyOtpScreen() {
           <View className="items-center">
             {canResend ? (
               <TextLink onPress={handleResend} disabled={resending}>
-                {resending ? "Mengirim kode baru…" : "Kirim ulang kode"}
+                {resending ? "Meminta kode baru…" : "Kirim ulang kode"}
               </TextLink>
             ) : (
               <Countdown

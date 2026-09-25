@@ -57,58 +57,10 @@
         ]
       }
     },
-    "/v1/auth/register": {
-      "post": {
-        "operationId": "AuthController_register",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RegisterDto"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "auth"
-        ]
-      }
-    },
     "/v1/auth/otp-methods": {
       "get": {
         "operationId": "AuthController_getOtpMethods",
         "parameters": [],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/request-otp": {
-      "post": {
-        "operationId": "AuthController_requestOtp",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/RequestOtpDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": ""
@@ -156,30 +108,6 @@
             }
           }
         ],
-        "responses": {
-          "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "auth"
-        ]
-      }
-    },
-    "/v1/auth/otp-trigger/send": {
-      "post": {
-        "operationId": "AuthController_otpTriggerSend",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OtpTriggerSendDto"
-              }
-            }
-          }
-        },
         "responses": {
           "200": {
             "description": ""
@@ -10745,6 +10673,30 @@
           "Health"
         ]
       }
+    },
+    "/v1/auth/migrate-phone/confirm": {
+      "post": {
+        "operationId": "AuthController_confirmPhoneMigration",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MigratePhoneConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "auth"
+        ]
+      }
     }
   },
   "info": {
@@ -10907,11 +10859,30 @@
             "type": "string",
             "description": "Stable device identifier that requested the OTP",
             "maxLength": 255
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "register",
+              "login",
+              "forgot_password",
+              "migrate_phone"
+            ],
+            "description": "Tujuan OTP"
+          },
+          "migrationToken": {
+            "type": "string",
+            "description": "Token migrasi (wajib bila purpose=migrate_phone)"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationDto",
+            "description": "Lokasi presisi perangkat (opsional)"
           }
         },
         "required": [
           "phoneNumber",
-          "deviceId"
+          "deviceId",
+          "purpose"
         ]
       },
       "OtpTriggerSendDto": {
@@ -10968,6 +10939,10 @@
             "type": "string",
             "description": "Device information",
             "maxLength": 512
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationDto",
+            "description": "Lokasi presisi perangkat (opsional)"
           }
         },
         "required": [
@@ -11014,77 +10989,40 @@
         "properties": {
           "tempToken": {
             "type": "string",
-            "description": "Temp token from OTP verification"
+            "description": "Temp token dari verifikasi OTP (status new_user)"
           },
           "fullName": {
             "type": "string",
-            "description": "Full name",
+            "description": "Nama lengkap",
             "minLength": 2,
             "maxLength": 60
           },
           "username": {
             "type": "string",
-            "description": "Unique username (3-30 characters)",
+            "description": "Username unik (opsional — dibuat otomatis bila kosong)",
             "minLength": 3,
             "maxLength": 30
           },
-          "dateOfBirth": {
-            "type": "string",
-            "description": "Date of birth (ISO 8601: YYYY-MM-DD)",
-            "example": "1995-06-15"
-          },
-          "gender": {
-            "type": "string",
-            "description": "Gender",
-            "enum": [
-              "MALE",
-              "FEMALE",
-              "OTHER",
-              "PREFER_NOT_TO_SAY"
-            ]
-          },
-          "email": {
-            "type": "string",
-            "description": "Email address",
-            "maxLength": 254
-          },
           "password": {
             "type": "string",
-            "description": "Password (min 12 chars, must contain uppercase, lowercase, digit, and special character)",
-            "minLength": 12,
+            "description": "Kata sandi (minimal 8 karakter, tanpa syarat kompleksitas)",
+            "minLength": 8,
             "maxLength": 72
-          },
-          "pin": {
-            "type": "string",
-            "description": "Wallet PIN (6 digits)",
-            "minLength": 6,
-            "maxLength": 6
-          },
-          "address": {
-            "type": "string",
-            "description": "Full address",
-            "maxLength": 500
-          },
-          "referralCode": {
-            "type": "string",
-            "description": "Referral code (optional)",
-            "maxLength": 20
           },
           "deviceId": {
             "type": "string",
-            "description": "Device identifier bound to the phone-verification token",
+            "description": "Device identifier",
             "maxLength": 255
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationDto",
+            "description": "Lokasi presisi perangkat (opsional)"
           }
         },
         "required": [
           "tempToken",
           "fullName",
-          "username",
-          "dateOfBirth",
-          "gender",
-          "email",
           "password",
-          "pin",
           "deviceId"
         ]
       },
@@ -11208,9 +11146,9 @@
       "LoginDto": {
         "type": "object",
         "properties": {
-          "email": {
+          "identifier": {
             "type": "string",
-            "description": "User email address",
+            "description": "Username, email, atau nomor HP",
             "maxLength": 254
           },
           "password": {
@@ -11235,10 +11173,14 @@
           "captchaAnswer": {
             "type": "number",
             "description": "Captcha answer (X position 0-100)"
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationDto",
+            "description": "Lokasi presisi perangkat (opsional)"
           }
         },
         "required": [
-          "email",
+          "identifier",
           "password",
           "deviceId"
         ]
@@ -11296,56 +11238,41 @@
       "ForgotPasswordDto": {
         "type": "object",
         "properties": {
-          "email": {
+          "identifier": {
             "type": "string",
-            "description": "Email address",
-            "maxLength": 254
+            "description": "Nomor HP terdaftar (E.164). Email tidak lagi diterima.",
+            "maxLength": 20
           },
-          "captchaId": {
-            "type": "string",
-            "description": "Captcha challenge ID"
-          },
-          "captchaAnswer": {
-            "type": "number",
-            "description": "Captcha answer (X position 0-100)"
+          "location": {
+            "$ref": "#/components/schemas/LocationDto",
+            "description": "Lokasi presisi perangkat (opsional)"
           }
         },
         "required": [
-          "email"
+          "identifier"
         ]
       },
       "ResetPasswordDto": {
         "type": "object",
         "properties": {
-          "email": {
+          "tempToken": {
             "type": "string",
-            "description": "Email address",
-            "maxLength": 254
-          },
-          "otp": {
-            "type": "string",
-            "description": "OTP code (6 digits)",
-            "minLength": 6,
-            "maxLength": 6
+            "description": "Temp token dari verifikasi OTP (status password_reset)"
           },
           "newPassword": {
             "type": "string",
-            "description": "New password",
-            "minLength": 12,
+            "description": "Kata sandi baru (minimal 8 karakter)",
+            "minLength": 8,
             "maxLength": 72
           },
-          "confirmPassword": {
-            "type": "string",
-            "description": "Confirm new password",
-            "minLength": 12,
-            "maxLength": 72
+          "location": {
+            "$ref": "#/components/schemas/LocationDto",
+            "description": "Lokasi presisi perangkat (opsional)"
           }
         },
         "required": [
-          "email",
-          "otp",
-          "newPassword",
-          "confirmPassword"
+          "tempToken",
+          "newPassword"
         ]
       },
       "VerifyPasswordDto": {
@@ -14815,6 +14742,62 @@
         },
         "required": [
           "data"
+        ]
+      },
+      "LocationDto": {
+        "type": "object",
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "description": "Lintang (-90..90)",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "description": "Bujur (-180..180)",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "accuracy": {
+            "type": "number",
+            "description": "Akurasi dalam meter (bila tersedia)"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Waktu pengambilan lokasi (ISO 8601)"
+          },
+          "source": {
+            "type": "string",
+            "description": "Sumber lokasi, mis. gps/network"
+          }
+        },
+        "required": [
+          "latitude",
+          "longitude"
+        ]
+      },
+      "MigratePhoneConfirmDto": {
+        "type": "object",
+        "properties": {
+          "tempToken": {
+            "type": "string",
+            "description": "Temp token dari verifikasi OTP (status migration_verified)"
+          },
+          "deviceId": {
+            "type": "string",
+            "description": "Device identifier",
+            "maxLength": 255
+          },
+          "location": {
+            "$ref": "#/components/schemas/LocationDto",
+            "description": "Lokasi presisi perangkat (opsional)"
+          }
+        },
+        "required": [
+          "tempToken",
+          "deviceId"
         ]
       }
     }
