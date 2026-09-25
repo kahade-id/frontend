@@ -62,6 +62,7 @@ const PUBLIC_SCREENS = new Set<string>([
   // corong share wajib bisa dibuka tamu; aksi Terima/Tolak digerbang sesi di
   // dalam layar (dialihkan ke login membawa next-path).
   "order-link/[token]",
+  "scan",
 ])
 
 function collectRoutes(dir: string, prefix = ""): string[] {

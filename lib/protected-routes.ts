@@ -107,7 +107,7 @@ export const AUTHENTICATED_SCREENS = [
  * kelola, notifikasi) masing-masing digate sesi. Menutup tab ini dulu hanya
  * menutup corong penemuan pasar yang backend-nya sendiri izinkan.
  */
-export const WEB_GUEST_TAB_SCREENS = ["transactions", "wallet", "showcase"] as const
+export const WEB_GUEST_TAB_SCREENS = ["transactions", "wallet", "showcase", "more"] as const
 
 /**
  * Path yang boleh diakses tanpa login di web. Selain layar tab di atas:
@@ -118,7 +118,9 @@ export const WEB_GUEST_ALLOWED_PATHS: readonly string[] = [
   "/home", // redirect ke /showcase (Beranda dihapus) — publik seperti tujuannya
   "/login-required",
   "/search",
+  "/scan",
   "/discover",
+  "/more",
   "/faq",
   "/help",
   "/about",

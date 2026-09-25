@@ -94,6 +94,10 @@ export const ROUTES = {
     ({ pathname: "/notification/[id]", params: { id } }) as unknown as Href,
   /** Tab #5 — Pengaturan/Profil milik sendiri */
   settings: "/settings" as Href,
+  /** Tab #4 — Lainnya (menu & kategori) */
+  more: "/more" as Href,
+  /** Pindai QR / Scan code */
+  scan: "/scan" as Href,
 
   // ── Stack screen di luar tab ──────────────────────────────────────────
   /** Detail satu order (di-push dari Tab Transaksi & Beranda) */
@@ -431,10 +435,13 @@ export const ROUTES = {
  * redirect `app/home.tsx`.
  */
 export const TAB_ROUTE_NAMES = [
-  "transactions",
-  "wallet",
   "showcase",
-  "discover",
+  "transactions",
+  "chat",
+  "wallet",
+  "vouchers",
+  "wallet-history",
+  "more",
 ] as const
 export type TabRouteName = (typeof TAB_ROUTE_NAMES)[number]
 

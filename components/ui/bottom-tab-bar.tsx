@@ -55,10 +55,13 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import {
   CardsThree,
+  ChatCenteredText,
   Lightning,
+  Percent,
   Plus,
+  Scroll,
   ShoppingBag,
-  UserCircle,
+  SquaresFour,
   Wallet,
 } from "phosphor-react-native"
 
@@ -140,11 +143,29 @@ export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
     accessibilityLabel: "Tab Etalase",
     route: "/showcase" as Href,
   },
-  discover: {
-    label: "Profil",
-    icon: UserCircle,
-    accessibilityLabel: "Tab profil saya",
-    route: "/discover" as Href,
+  chat: {
+    label: "Pesan",
+    icon: ChatCenteredText,
+    accessibilityLabel: "Tab Pesan",
+    route: "/chat" as Href,
+  },
+  vouchers: {
+    label: "Promo",
+    icon: Percent,
+    accessibilityLabel: "Tab Promo",
+    route: "/vouchers" as Href,
+  },
+  "wallet-history": {
+    label: "History",
+    icon: Scroll,
+    accessibilityLabel: "Tab History",
+    route: "/wallet-history" as Href,
+  },
+  more: {
+    label: "Lainnya",
+    icon: SquaresFour,
+    accessibilityLabel: "Tab Lainnya",
+    route: "/more" as Href,
   },
 }
 

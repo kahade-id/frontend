@@ -65,7 +65,6 @@ import { OrderCard } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ScrollRow } from "@/components/ui/scroll-row"
-import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 
 /** Peran pengguna pada order — nilai yang dikirim ke `GET /v1/orders?role=`. */
@@ -114,20 +113,6 @@ export default function TransactionsScreen() {
   const { prefs, setPrefs } = useUiPrefs()
   const role: RoleTab = prefs.transactionsTab
   const [status, setStatus] = useState(ALL_STATUS)
-  /*
-   * Hanya kata kunci yang SUDAH tenang yang disimpan di sini. Teks mentah
-   * tinggal di dalam <DebouncedSearchField>, supaya mengetik tidak merender
-   * ulang layar ini beserta seluruh kartu pesanan yang terlihat.
-   */
-  const [debounced, setDebounced] = useState("")
-  /**
-   * <DebouncedSearchField> memegang teksnya sendiri (itu sebabnya mengetik
-   * tidak merender ulang layar), jadi mengosongkan `debounced` saja TIDAK
-   * mengosongkan kolomnya — pengguna akan melihat kata kunci masih tertulis
-   * sementara hasilnya sudah tidak disaring. Menaikkan key ini me-remount
-   * field dengan `initialQuery` kosong, persis pola `seed` di app/search.tsx.
-   */
-  const [fieldKey, setFieldKey] = useState(0)
   /**
    * B-02 (audit): tab Transaksi terbuka bagi tamu web
    * (WEB_GUEST_TAB_SCREENS), sedangkan `GET /v1/orders` `auth:"required"` —
@@ -136,7 +121,7 @@ export default function TransactionsScreen() {
    */
   const hasSession = useHasSession()
   const query = usePaginatedQuery(
-    `orders:${role}:${status}:${debounced}`,
+    `orders:${role}:${status}`,
     (page, signal) =>
       api.orders.listOrders(
         {
@@ -144,7 +129,6 @@ export default function TransactionsScreen() {
           limit: 20,
           role: ROLE_PARAM[role],
           status: status === ALL_STATUS ? undefined : status,
-          search: debounced || undefined,
         },
         signal,
       ),
@@ -157,13 +141,10 @@ export default function TransactionsScreen() {
       refreshOnFocus: true,
       enabled: hasSession,
       compare: byTimestampDesc<Order>((order) => order.createdAt),
-      // R2 (butir #110): tiap commit pencarian ber-debounce mengubah kunci →
-      // baris lama tetap tampil selama halaman-1 filter baru dimuat (mode
-      // refresh senyap), bukan skeleton penuh yang terlihat seperti flicker.
       keepPreviousOnKeyChange: true,
     },
   )
-  const filtered = status !== ALL_STATUS || Boolean(debounced)
+  const filtered = status !== ALL_STATUS
   /**
    * G-03 (audit escrow 2026-09-24): N kartu yang countdown tenggatnya habis
    * bersamaan (batch order) dulu memicu N `query.refresh()` beruntun yang
@@ -250,12 +231,6 @@ export default function TransactionsScreen() {
             </Chip>
           ))}
         </ScrollRow>
-        <DebouncedSearchField
-          key={fieldKey}
-          onQueryChange={setDebounced}
-          autoFocus={false}
-          placeholder="Cari transaksi, pihak, atau ID"
-        />
       </FadeIn>
       <PaginatedList
         {...query}
@@ -289,8 +264,6 @@ export default function TransactionsScreen() {
                   fullWidth={false}
                   onPress={() => {
                     setStatus(ALL_STATUS)
-                    setDebounced("")
-                    setFieldKey((key) => key + 1)
                   }}
                 >
                   Hapus filter

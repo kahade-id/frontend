@@ -30,6 +30,7 @@ import { useRouter } from "expo-router"
 import {
   BellSimple,
   ClockCounterClockwise,
+  MagnifyingGlass,
   PencilSimpleLine,
   Sparkle,
   TrendUp,
@@ -83,25 +84,25 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
 
   return (
     <View className="bg-background">
-      {/* ── Baris atas: kelola (pensil) · logo · notifikasi ── */}
+      {/* ── Baris atas: kelola (pensil) · logo · notifikasi & search ── */}
       <View className="w-full flex-row items-center justify-between px-5 pb-2.5 pt-3">
         {/* Kelola/buat etalase — regular, tanpa latar (permintaan produk). */}
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={translate("Kelola etalase saya")}
-          accessibilityHint={translate("Buka halaman untuk menambah dan mengatur etalase")}
-          haptic
-          hitSlop={ACTION_HIT_SLOP}
-          onPress={() => goProtected(ROUTES.showcaseManagement, "/showcase-management")}
-          containerClassName={cn("rounded-md", focusRing)}
-          className="h-10 w-10 items-center justify-center"
-        >
-          <Icon icon={PencilSimpleLine} size="md" weight="regular" tone="active" />
-        </PressableScale>
+        <View className="flex-row items-center justify-start min-w-[84px]">
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={translate("Kelola etalase saya")}
+            accessibilityHint={translate("Buka halaman untuk menambah dan mengatur etalase")}
+            haptic
+            hitSlop={ACTION_HIT_SLOP}
+            onPress={() => goProtected(ROUTES.showcaseManagement, "/showcase-management")}
+            containerClassName={cn("rounded-md", focusRing)}
+            className="h-10 w-10 items-center justify-center"
+          >
+            <Icon icon={PencilSimpleLine} size="md" weight="regular" tone="active" />
+          </PressableScale>
+        </View>
 
-        {/* Logo — pusat baris. Dulu tombol "kembali ke beranda"; Beranda
-            sudah tidak ada dan halaman ini ADALAH tab pertama, jadi logo
-            kembali menjadi tanda blok jurnalistik (bukan tombol). */}
+        {/* Logo — pusat baris simetris. */}
         <View
           accessible
           accessibilityRole="image"
@@ -111,27 +112,41 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
           <Logo variant="mark" size="md" />
         </View>
 
-        {/* Notifikasi — regular, tanpa latar; titik unread dari store yang sama
-            dengan badge tab (§9.14), bukan dot custom. */}
-        <PressableScale
-          accessibilityRole="button"
-          accessibilityLabel={
-            unread.count
-              ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
-              : translate("Notifikasi")
-          }
-          accessibilityHint={translate("Buka notifikasi")}
-          haptic
-          hitSlop={ACTION_HIT_SLOP}
-          onPress={() => goProtected(ROUTES.notifications, "/notifications")}
-          containerClassName={cn("rounded-md", focusRing)}
-          className="h-10 w-10 items-center justify-center"
-        >
-          <View className="relative">
-            <Icon icon={BellSimple} size="md" weight="regular" tone="active" />
-            <NotificationDot visible={(unread.count ?? 0) > 0} />
-          </View>
-        </PressableScale>
+        {/* Notifikasi & Search di kanan */}
+        <View className="flex-row items-center justify-end gap-1 min-w-[84px]">
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              unread.count
+                ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
+                : translate("Notifikasi")
+            }
+            accessibilityHint={translate("Buka notifikasi")}
+            haptic
+            hitSlop={ACTION_HIT_SLOP}
+            onPress={() => goProtected(ROUTES.notifications, "/notifications")}
+            containerClassName={cn("rounded-md", focusRing)}
+            className="h-10 w-10 items-center justify-center"
+          >
+            <View className="relative">
+              <Icon icon={BellSimple} size="md" weight="regular" tone="active" />
+              <NotificationDot visible={(unread.count ?? 0) > 0} />
+            </View>
+          </PressableScale>
+
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={translate("Cari")}
+            accessibilityHint={translate("Buka pencarian")}
+            haptic
+            hitSlop={ACTION_HIT_SLOP}
+            onPress={() => router.push(ROUTES.search)}
+            containerClassName={cn("rounded-md", focusRing)}
+            className="h-10 w-10 items-center justify-center"
+          >
+            <Icon icon={MagnifyingGlass} size="md" weight="regular" tone="active" />
+          </PressableScale>
+        </View>
       </View>
 
       {/* ── Strip tab feed ── */}

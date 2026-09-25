@@ -17,16 +17,16 @@ import {
   Percent,
   Plus,
   QrCode,
+  Scan,
   Scroll,
   ShoppingBag,
-  UserCircle,
+  SquaresFour,
   Wallet,
 } from "phosphor-react-native"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { BottomTabBar, type BottomTabItem } from "@/components/ui/bottom-tab-bar"
 import { type IconComponent } from "@/components/ui/icon"
-import { api, type UserProfile } from "@/lib/api"
 import {
   activeShellSlot,
   applyModeNavigation,
@@ -42,9 +42,7 @@ import {
 } from "@/lib/app-mode"
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
-import { logWarn } from "@/lib/telemetry"
 import { useUnreadCountState } from "@/lib/unread-count"
-import { useAuthSession } from "@/lib/use-auth-session"
 
 /**
  * Ikon per slot — SATU kosakata dengan ikon mode di tempat lain:
@@ -55,7 +53,7 @@ import { useAuthSession } from "@/lib/use-auth-session"
  *   - Dompet = Wallet, History = Scroll, Transaksi = ShoppingBag,
  *     Pesan = ChatCenteredText (permintaan produk 2026-09-23).
  */
-const SLOT_ICONS: Record<AppMode, Record<Exclude<ShellSlotId, "profile">, IconComponent>> = {
+const SLOT_ICONS: Record<AppMode, Record<Exclude<ShellSlotId, "more">, IconComponent>> = {
   commerce: {
     primary: CardsThree,
     secondary: ShoppingBag,
@@ -78,9 +76,7 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
   const mode = useAppMode()
   const pathname = usePathname()
   const router = useRouter()
-  const { token } = useAuthSession()
   const unread = useUnreadCountState()
-  const [me, setMe] = useState<UserProfile | null>(null)
   const [payOpen, setPayOpen] = useState(false)
   const shift = getModeShift()
 
@@ -90,49 +86,8 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
     return () => registerShellTabNavigator(null)
   }, [navigation])
 
-  useEffect(() => {
-    if (!token) {
-      setMe(null)
-      return
-    }
-    let alive = true
-    api.users
-      .getMeCached()
-      .then((profile) => {
-        if (alive) setMe(profile)
-      })
-      .catch((err) => logWarn("shell-tab:me", err))
-    return () => {
-      alive = false
-    }
-  }, [token])
-
-  const openProfile = useCallback(async () => {
-    if (activeShellSlot(pathname, mode) === "profile") return
-    if (!token) {
-      router.push(ROUTES.loginRequired())
-      return
-    }
-    try {
-      const profile = me ?? (await api.users.getMeCached())
-      if (profile?.username) {
-        // `self: true` — navbar shell layar profil harus terlihat sejak
-        // frame pertama. Pakai replace agar tidak double stack & animasi 'none'
-        router.replace(ROUTES.userProfile(profile.username, { self: true }) as Href)
-        return
-      }
-    } catch (err) {
-      logWarn("shell-tab:profile", err)
-    }
-    router.push(ROUTES.loginRequired())
-  }, [me, mode, pathname, router, token])
-
   const onChange = useCallback(
     (key: string) => {
-      if (key === "discover") {
-        void openProfile()
-        return
-      }
       const dest = shellSlots(mode).find((slot) => slot.key === key)
       if (!dest) return
       const plan = planSlotPress(pathname, dest)
@@ -146,14 +101,21 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
             : undefined,
       })
     },
-    [mode, openProfile, pathname, router],
+    [mode, pathname, router],
   )
 
-  const items: BottomTabItem[] = shellSlots(mode).map((slot) => toItem(slot, mode, me, unread.count))
+  const items: BottomTabItem[] = shellSlots(mode).map((slot) => toItem(slot, mode, unread.count))
   const activeId = activeShellSlot(pathname, mode)
   const value = activeId ? shellSlots(mode).find((slot) => slot.id === activeId)?.key ?? "" : ""
 
   const payActions: ActionSheetItem[] = [
+    {
+      key: "scan",
+      label: "Pindai QR",
+      description: "Scan QRIS, transfer QR, atau order link",
+      icon: Scan,
+      onPress: () => router.push(ROUTES.scan),
+    },
     {
       key: "transfer",
       label: "Kirim saldo",
@@ -209,17 +171,14 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
 function toItem(
   slot: ShellDestination,
   mode: AppMode,
-  me: UserProfile | null,
   unread: number | null,
 ): BottomTabItem {
-  if (slot.id === "profile") {
+  if (slot.id === "more") {
     return {
       key: slot.key,
       label: slot.label,
-      icon: UserCircle,
+      icon: SquaresFour,
       accessibilityLabel: slot.accessibilityLabel,
-      avatarUrl: me?.avatarUrl,
-      avatarName: me?.fullName || me?.username || undefined,
     }
   }
   return {

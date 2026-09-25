@@ -225,8 +225,10 @@ export function ChatComposer({
 
         <View
           className={cn(
-            "min-h-12 flex-1 flex-row items-end rounded-sm bg-background",
-            focused ? "border-focus border-border-focus px-[15px]" : "border border-border-control px-4",
+            "min-h-12 flex-1 flex-row items-end rounded-full",
+            focused
+              ? "border-focus border-border-focus bg-background px-[15px]"
+              : "border border-border-control bg-surface px-4",
             disabled && "opacity-disabled",
           )}
         >

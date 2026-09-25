@@ -19,16 +19,28 @@
  * ada/tidaknya header native & tab bar di route tersebut, sehingga lebih
  * aman dipasang eksplisit oleh layar yang memang berisi input.
  */
-import type { ReactNode } from "react"
-import { KeyboardAvoidingView, Platform, View, type ViewProps } from "react-native"
+import { useEffect, type ReactNode } from "react"
+import {
+  Keyboard,
+  KeyboardAvoidingView,
+  LayoutAnimation,
+  Platform,
+  UIManager,
+  View,
+  type ViewProps,
+} from "react-native"
 
 import { cn } from "@/lib/cn"
+
+if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental) {
+  UIManager.setLayoutAnimationEnabledExperimental(true)
+}
 
 export type KeyboardAvoidingProps = Omit<ViewProps, "children"> & {
   children?: ReactNode
   /** keyboardVerticalOffset — tinggi header/safe-area di atas area ini */
   offset?: number
-  /** Paksa behavior (default: ios "padding", android undefined) */
+  /** Paksa behavior (default: ios "padding", android "height") */
   behavior?: "padding" | "height" | "position"
   className?: string
 }
@@ -40,6 +52,35 @@ export function KeyboardAvoiding({
   className,
   ...rest
 }: KeyboardAvoidingProps) {
+  useEffect(() => {
+    if (Platform.OS === "web") return
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow"
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide"
+
+    const showSub = Keyboard.addListener(showEvent, (e) => {
+      LayoutAnimation.configureNext({
+        duration: e?.duration || 250,
+        update: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+        },
+      })
+    })
+
+    const hideSub = Keyboard.addListener(hideEvent, (e) => {
+      LayoutAnimation.configureNext({
+        duration: e?.duration || 200,
+        update: {
+          type: LayoutAnimation.Types.easeInEaseOut,
+        },
+      })
+    })
+
+    return () => {
+      showSub.remove()
+      hideSub.remove()
+    }
+  }, [])
+
   if (Platform.OS === "web") {
     return (
       <View className={cn("flex-1", className)} {...rest}>
@@ -50,7 +91,7 @@ export function KeyboardAvoiding({
 
   return (
     <KeyboardAvoidingView
-      behavior={behavior ?? (Platform.OS === "ios" ? "padding" : undefined)}
+      behavior={behavior ?? (Platform.OS === "ios" ? "padding" : "height")}
       keyboardVerticalOffset={offset}
       className={cn("flex-1", className)}
       {...rest}

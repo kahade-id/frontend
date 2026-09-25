@@ -22,18 +22,22 @@ import { setUiPrefs, useUiPrefs, type UiPrefs } from "@/lib/ui-prefs"
 
 export type AppMode = UiPrefs["appMode"]
 
-export type ShellSlotId = "primary" | "secondary" | "tertiary" | "profile"
+export type ShellSlotId = "primary" | "secondary" | "tertiary" | "more"
 
-/** Nama route di dalam <Tabs>. `discover` adalah profil sendiri. */
-export type ShellTabName = "showcase" | "transactions" | "wallet" | "discover"
+/** Nama route di dalam <Tabs>. `more` adalah halaman lainnya. */
+export type ShellTabName =
+  | "showcase"
+  | "transactions"
+  | "chat"
+  | "wallet"
+  | "vouchers"
+  | "wallet-history"
+  | "more"
 
 export type ShellDestination = {
   id: ShellSlotId
-  /**
-   * Kunci stabil di navbar. Profil tetap `discover` supaya avatar dan
-   * pencarian item lama (key discover) tidak pecah.
-   */
-  key: "primary" | "secondary" | "tertiary" | "discover"
+  /** Kunci stabil di navbar. */
+  key: "primary" | "secondary" | "tertiary" | "more" | "discover"
   label: string
   accessibilityLabel: string
   href: string
@@ -41,9 +45,27 @@ export type ShellDestination = {
   tab: ShellTabName | null
 }
 
+const COMMERCE_MORE: ShellDestination = {
+  id: "more",
+  key: "more",
+  label: "Lainnya",
+  accessibilityLabel: "Tab Lainnya",
+  href: "/more",
+  tab: "more",
+}
+
+const WALLET_MORE: ShellDestination = {
+  id: "more",
+  key: "more",
+  label: "Lainnya",
+  accessibilityLabel: "Tab Lainnya",
+  href: "/more",
+  tab: "more",
+}
+
 export const SHELL_DESTINATIONS: Record<
   AppMode,
-  Record<ShellSlotId, ShellDestination>
+  Record<ShellSlotId, ShellDestination> & { profile?: ShellDestination }
 > = {
   commerce: {
     primary: {
@@ -68,16 +90,10 @@ export const SHELL_DESTINATIONS: Record<
       label: "Pesan",
       accessibilityLabel: "Tab Pesan",
       href: "/chat",
-      tab: null,
+      tab: "chat",
     },
-    profile: {
-      id: "profile",
-      key: "discover",
-      label: "Profil",
-      accessibilityLabel: "Tab profil saya",
-      href: "/discover",
-      tab: "discover",
-    },
+    more: COMMERCE_MORE,
+    profile: COMMERCE_MORE,
   },
   wallet: {
     primary: {
@@ -94,7 +110,7 @@ export const SHELL_DESTINATIONS: Record<
       label: "Promo",
       accessibilityLabel: "Tab Promo",
       href: "/vouchers",
-      tab: null,
+      tab: "vouchers",
     },
     tertiary: {
       id: "tertiary",
@@ -102,20 +118,23 @@ export const SHELL_DESTINATIONS: Record<
       label: "History",
       accessibilityLabel: "Tab History",
       href: "/wallet-history",
-      tab: null,
+      tab: "wallet-history",
     },
-    profile: {
-      id: "profile",
-      key: "discover",
-      label: "Profil",
-      accessibilityLabel: "Tab profil saya",
-      href: "/discover",
-      tab: "discover",
-    },
+    more: WALLET_MORE,
+    profile: WALLET_MORE,
   },
 }
 
-const TAB_PATHS = new Set(["/home", "/transactions", "/wallet", "/showcase", "/discover"])
+const TAB_PATHS = new Set([
+  "/home",
+  "/showcase",
+  "/transactions",
+  "/chat",
+  "/wallet",
+  "/vouchers",
+  "/wallet-history",
+  "/more",
+])
 
 /** Jendela shift dianggap "baru" — layar tujuan yang mount di dalamnya ikut animasi masuk. */
 export const MODE_SHIFT_FRESH_MS = 700
@@ -159,7 +178,7 @@ let pendingPark: ShellTabName | null = null
 
 export function shellSlots(mode: AppMode): readonly ShellDestination[] {
   const table = SHELL_DESTINATIONS[mode]
-  return [table.primary, table.secondary, table.tertiary, table.profile]
+  return [table.primary, table.secondary, table.tertiary, table.more]
 }
 
 export function primaryTabFor(mode: AppMode): ShellTabName {
@@ -188,20 +207,31 @@ function isExactTabPath(path: string): boolean {
   return TAB_PATHS.has(normalizeShellPath(path))
 }
 
-function isOwnProfile(path: string): boolean {
-  return /^\/user\/[^/]+$/.test(normalizeShellPath(path))
+const COMMERCE_SHELL_SLOTS: Record<string, ShellSlotId> = {
+  "/showcase": "primary",
+  "/transactions": "secondary",
+  "/chat": "tertiary",
+  "/more": "more",
 }
 
-/** Slot yang sedang ditonjolkan. Null di /home, /discover, dan rute netral. */
+const WALLET_SHELL_SLOTS: Record<string, ShellSlotId> = {
+  "/wallet": "primary",
+  "/vouchers": "secondary",
+  "/wallet-history": "tertiary",
+  "/more": "more",
+}
+
+/**
+ * Slot yang sedang ditonjolkan.
+ * Bottom navbar HANYA muncul di tepat 8 halaman shell:
+ * 4 di mode commerce (/showcase, /transactions, /chat, /more) dan
+ * 4 di mode wallet (/wallet, /vouchers, /wallet-history, /more).
+ * Profil publik (termasuk profil sendiri) dan halaman detail/chat room tidak menampilkan bar.
+ */
 export function activeShellSlot(path: string, mode: AppMode): ShellSlotId | null {
   const current = normalizeShellPath(path)
-  if (isOwnProfile(current)) return "profile"
-  const table = SHELL_DESTINATIONS[mode]
-  const ordered: ShellDestination[] = [table.primary, table.secondary, table.tertiary]
-  for (const slot of ordered) {
-    if (pathMatchesBase(current, slot.href)) return slot.id
-  }
-  return null
+  const map = mode === "commerce" ? COMMERCE_SHELL_SLOTS : WALLET_SHELL_SLOTS
+  return map[current] ?? null
 }
 
 function parkTabFor(mode: AppMode, dest: ShellDestination | null): ShellTabName {
@@ -209,20 +239,12 @@ function parkTabFor(mode: AppMode, dest: ShellDestination | null): ShellTabName 
   return primaryTabFor(mode)
 }
 
-const STABLE_BAR_PATHS = new Set(["/chat", "/vouchers", "/wallet-history"])
-
 function methodFor(
   path: string,
   dest: ShellDestination,
 ): "navigate" | "push" | "replace" | "leave-to-tab" {
   const destIsTab = dest.tab != null && isExactTabPath(dest.href)
   const hereIsTab = isExactTabPath(path)
-  // Bottom-bar stack destinations harus terasa seperti tab (tanpa double bar)
-  // → pakai replace agar tidak menumpuk dan animasi 'none' (screen-transitions)
-  if (STABLE_BAR_PATHS.has(normalizeShellPath(dest.href))) {
-    if (hereIsTab) return "replace"
-    return "replace"
-  }
   if (destIsTab && hereIsTab) return "navigate"
   if (destIsTab && !hereIsTab) return "leave-to-tab"
   if (!destIsTab && hereIsTab) return "push"
@@ -236,7 +258,7 @@ function methodFor(
 export function planModeChange(path: string, to: AppMode): ModeNavPlan {
   const current = normalizeShellPath(path)
   const primary = SHELL_DESTINATIONS[to].primary
-  if (isOwnProfile(current)) {
+  if (current === "/more") {
     return { kind: "stay", parkTab: primaryTabFor(to) }
   }
   // Cocokkan ke kedua tabel: path commerce tidak pernah cocok slot wallet.
@@ -252,10 +274,10 @@ export function planModeChange(path: string, to: AppMode): ModeNavPlan {
     }
     return { kind: "stay", parkTab: primaryTabFor(to) }
   }
-  if (fromSlot.id === "profile") {
+  const dest = SHELL_DESTINATIONS[to][fromSlot.id]
+  if (dest.href === current) {
     return { kind: "stay", parkTab: primaryTabFor(to) }
   }
-  const dest = SHELL_DESTINATIONS[to][fromSlot.id]
   return {
     kind: "go",
     href: dest.href,
@@ -270,8 +292,9 @@ export function planModeChange(path: string, to: AppMode): ModeNavPlan {
  * mode. Park hanya saat tujuan sendiri adalah tab.
  */
 export function planSlotPress(path: string, dest: ShellDestination): ModeNavPlan {
+  if (!dest) return { kind: "stay", parkTab: null }
   const current = normalizeShellPath(path)
-  if (dest.id === "profile" || current === normalizeShellPath(dest.href)) {
+  if (current === normalizeShellPath(dest.href)) {
     return { kind: "stay", parkTab: null }
   }
   const method = methodFor(current, dest)
@@ -282,9 +305,8 @@ export function planSlotPress(path: string, dest: ShellDestination): ModeNavPlan
 function matchingSlot(path: string): ShellDestination | null {
   for (const mode of ["commerce", "wallet"] as const) {
     const slotId = activeShellSlot(path, mode)
-    if (slotId && slotId !== "profile") return SHELL_DESTINATIONS[mode][slotId]
+    if (slotId) return SHELL_DESTINATIONS[mode][slotId]
   }
-  if (isOwnProfile(path)) return SHELL_DESTINATIONS.commerce.profile
   return null
 }
 

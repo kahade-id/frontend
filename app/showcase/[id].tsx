@@ -554,7 +554,7 @@ function ShowcaseDetailContent({
 
       {/* ── Harga · kategori ── */}
       <View className="flex-row flex-wrap items-center gap-2 px-5 pt-3">
-        <Text variant="bodyLarge" weight={600} className="tabular-nums">
+        <Text variant="h2" weight={700} className="tabular-nums">
           {priceLabel}
         </Text>
         {item.category ? (

@@ -209,7 +209,7 @@ function ShowcaseFeedItemBase({
       <View className="flex-row items-center gap-2 px-5 pt-3">
         <PressableScale
           accessibilityRole="button"
-          accessibilityLabel={translate("Lihat profil {x}", { x: item.author.fullName ?? item.author.username })}
+          accessibilityLabel={translate("Lihat profil {x}", { x: item.author.fullName?.trim() || item.author.username })}
           accessibilityHint={`@${item.author.username}`}
           onPress={() =>
             router.push(
@@ -218,21 +218,20 @@ function ShowcaseFeedItemBase({
                 : ROUTES.loginRequired(`/user/${encodeURIComponent(item.author.username)}`),
             )
           }
-          containerClassName={cn("flex-1 flex-row items-center gap-3 rounded-md", focusRing)}
-          className="flex-1 flex-row items-center gap-3"
+          containerClassName={cn("min-w-0 flex-1 rounded-md", focusRing)}
+          className="flex-row items-center gap-3"
         >
           <Avatar
             source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
-            name={item.author.fullName ?? item.author.username}
+            name={item.author.fullName?.trim() || item.author.username}
             size="md"
             verified={item.author.isKycVerified === true}
           />
-          <View className="flex-1 gap-0.5">
+          <View className="min-w-0 flex-1 justify-center">
             <Text variant="body" weight={600} numberOfLines={1}>
-              {item.author.fullName ?? item.author.username}
+              {item.author.fullName?.trim() || item.author.username}
             </Text>
-            <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
-              {/* B-10 (audit 2026-09-23): cap waktu relatif khas feed sosial. */}
+            <Text variant="caption" tone="secondary" numberOfLines={1}>
               {`@${item.author.username} · ${formatRelativeTime(item.createdAt)}`}
             </Text>
           </View>
@@ -272,7 +271,7 @@ function ShowcaseFeedItemBase({
             onPress={onPress}
             containerClassName={cn("rounded-sm", focusRing)}
           >
-            <Text variant="bodyLarge" weight={600} className="tabular-nums">
+            <Text variant="h2" weight={700} className="tabular-nums">
               {priceLabel}
             </Text>
           </PressableScale>

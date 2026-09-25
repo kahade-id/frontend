@@ -32,17 +32,21 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { ChatCircle, PaperPlaneRight } from "phosphor-react-native"
+import { ChatCircle, Copy, Flag, PaperPlaneRight, Trash, X } from "phosphor-react-native"
 import { ScrollView, View, useWindowDimensions } from "react-native"
 import { router } from "expo-router"
 
 import {
   addShowcaseComment,
+  deleteShowcaseComment,
   listShowcaseComments,
+  type ShowcaseComment,
   type ShowcaseCommentWithReplies,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
 import { createIdempotencyKey, isApiError, userMessage } from "@/lib/api"
+import { getMeCached } from "@/lib/api/users"
+import { useCopy } from "@/lib/clipboard"
 import { queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
@@ -52,6 +56,7 @@ import { useHasSession } from "@/lib/guest-gate"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
 
+import { ActionSheet } from "@/components/ui/action-sheet"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Divider } from "@/components/ui/divider"
@@ -100,6 +105,58 @@ export function ShowcaseCommentsSheet({
   const [localComments, setLocalComments] = useState<ShowcaseCommentWithReplies[]>([])
   const [draft, setDraft] = useState("")
   const [sending, setSending] = useState(false)
+  const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
+  const [commentMenu, setCommentMenu] = useState<ShowcaseComment | null>(null)
+  const { copy } = useCopy()
+  const [meId, setMeId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!hasSession) {
+      setMeId(null)
+      return
+    }
+    try {
+      const p = getMeCached?.()
+      if (p && typeof p.then === "function") {
+        p.then((u) => {
+          if (u?.id) setMeId(u.id)
+        }).catch(() => undefined)
+      }
+    } catch {
+      // noop
+    }
+  }, [hasSession])
+
+  const isMine = useCallback(
+    (c: ShowcaseComment) => meId != null && c.author.userId === meId,
+    [meId],
+  )
+
+  const handleDeleteComment = useCallback(
+    async (target: ShowcaseComment) => {
+      try {
+        await deleteShowcaseComment(target.id)
+        toast.show({ title: "Komentar dihapus", tone: "success" })
+        setLocalComments((prev) =>
+          prev
+            .filter((c) => c.id !== target.id)
+            .map((c) => ({
+              ...c,
+              replies: (c.replies ?? []).filter((r) => r.id !== target.id),
+            })),
+        )
+        void query.reload()
+      } catch (err) {
+        toast.show({
+          title: "Gagal menghapus komentar",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
+      }
+    },
+    [toast, query],
+  )
+
   /** E-05 (audit 2026-09-23): draf PER ITEM — dipulihkan saat kembali. */
   const draftsFor = useRef<Map<string, string>>(new Map())
   /**
@@ -132,6 +189,8 @@ export function ShowcaseCommentsSheet({
     }
     setLocalComments([])
     setSending(false)
+    setReplyTo(null)
+    setCommentMenu(null)
   }, [showcaseId, revision])
 
   /** Ganti sesi = ganti pemilik draf — buang semuanya (privasi). */
@@ -152,7 +211,11 @@ export function ShowcaseCommentsSheet({
       const keyed = sendKey.current?.item === showcaseId && sendKey.current?.content === content
         ? sendKey.current.key
         : (sendKey.current = { item: showcaseId, content, key: createIdempotencyKey() }).key
-      const saved = await addShowcaseComment(showcaseId, { content }, keyed)
+      const saved = await addShowcaseComment(
+        showcaseId,
+        { content, parentId: replyTo?.id },
+        keyed,
+      )
       // Kontrak tests/showcase-comments-lifecycle: delta TEPAT SEKALI per
       // mutasi sukses — bahkan saat respons telat mendarat di item lain
       // (komentar memang tercipta di server → hitungan berubah). Ledger
@@ -160,9 +223,18 @@ export function ShowcaseCommentsSheet({
       // membuang halaman 2..N (F-01/C-01 audit 2026-09-24).
       queueShowcaseCommentCount(showcaseId, 1)
       if (!task.valid()) return
-      setLocalComments((previous) => [{ ...saved, replies: [] }, ...previous])
+      if (replyTo?.id) {
+        setLocalComments((previous) =>
+          previous.map((c) =>
+            c.id === replyTo.id ? { ...c, replies: [...(c.replies ?? []), saved] } : c,
+          ),
+        )
+      } else {
+        setLocalComments((previous) => [{ ...saved, replies: [] }, ...previous])
+      }
       // Kiriman ini tuntas — teks yang sama berikutnya adalah aksi BARU.
       sendKey.current = null
+      setReplyTo(null)
       if (draftRef.current.trim() === content) updateDraft("")
     } catch (err) {
       if (!task.valid()) return
@@ -176,7 +248,7 @@ export function ShowcaseCommentsSheet({
       if (task.valid()) setSending(false)
       task.finish()
     }
-  }, [showcaseId, draft, sending, toast.show, hasSession, operation, updateDraft])
+  }, [showcaseId, draft, sending, toast.show, hasSession, operation, replyTo, updateDraft])
 
   const localIds = new Set(localComments.map((c) => c.id))
   const serverComments = query.data?.data.filter((c) => !localIds.has(c.id)) ?? []
@@ -216,37 +288,51 @@ export function ShowcaseCommentsSheet({
         // Wrapper footer sheet sudah px-5 -> tanpa padding horizontal lagi.
         hasSession ? (
           <View className="pb-1">
+            {replyTo ? (
+              <View className="mb-2 flex-row items-center justify-between rounded bg-surface px-3 py-1.5">
+                <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
+                  {translate("Membalas @{x}", { x: replyTo.author.username })}
+                </Text>
+                <IconButton
+                  icon={X}
+                  variant="ghost"
+                  size="sm"
+                  accessibilityLabel={translate("Batalkan balasan")}
+                  onPress={() => setReplyTo(null)}
+                />
+              </View>
+            ) : null}
             <View className="flex-row items-end gap-2">
               <Input
                 disabled={sending}
                 value={draft}
                 onChangeText={updateDraft}
-                placeholder="Tulis komentar…"
+                placeholder={replyTo ? translate("Tulis balasan…") : "Tulis komentar…"}
                 accessibilityLabel="Komentar baru"
                 containerClassName="flex-1"
                 maxLength={COMMENT_MAX}
                 onSubmitEditing={() => void handleSend()}
                 returnKeyType="send"
               />
-                <IconButton
-                  icon={PaperPlaneRight}
-                  variant="primary"
-                  size="sm"
-                  accessibilityLabel="Kirim komentar"
-                  accessibilityHint={translate("Kirim komentar")}
-                  loading={sending}
-                  disabled={!draft.trim()}
-                  onPress={() => void handleSend()}
-                />
-              </View>
-              {/* D-19 (audit 2026-09-23): batas 2000 dulu memotong senyap di tengah
-                  kalimat. Konter muncul saat mendekati batas supaya jeda penulisan
-                  tidak mengejutkan. */}
-              {draft.length >= COMMENT_MAX - 200 ? (
-                <Text className="mt-1 text-right text-2xs text-neutral-400">
-                  {draft.length}/{COMMENT_MAX}
-                </Text>
-              ) : null}
+              <IconButton
+                icon={PaperPlaneRight}
+                variant="primary"
+                size="sm"
+                accessibilityLabel="Kirim komentar"
+                accessibilityHint={translate("Kirim komentar")}
+                loading={sending}
+                disabled={!draft.trim()}
+                onPress={() => void handleSend()}
+              />
+            </View>
+            {/* D-19 (audit 2026-09-23): batas 2000 dulu memotong senyap di tengah
+                kalimat. Konter muncul saat mendekati batas supaya jeda penulisan
+                tidak mengejutkan. */}
+            {draft.length >= COMMENT_MAX - 200 ? (
+              <Text className="mt-1 text-right text-2xs text-neutral-400">
+                {draft.length}/{COMMENT_MAX}
+              </Text>
+            ) : null}
           </View>
         ) : (
           // A-05 (kelas): tamu tidak melihat komposer — ajakan login.
@@ -310,10 +396,25 @@ export function ShowcaseCommentsSheet({
                 paling bawah". */}
             {comments.map((root) => (
               <View key={root.id} className="gap-4">
-                <ShowcaseCommentRow comment={root} />
+                <ShowcaseCommentRow
+                  comment={root}
+                  isMine={isMine(root)}
+                  canReply={hasSession}
+                  menuable={true}
+                  onReply={(c) => setReplyTo(c)}
+                  onOpenMenu={(c) => setCommentMenu(c)}
+                />
                 {(root.replies ?? []).map((reply) => (
                   // Indent 32px = avatar xs (24) + gap (8) — sejajar teks induk, selaras title px-5.
-                  <ShowcaseCommentRow key={reply.id} comment={reply} className="ml-8" />
+                  <ShowcaseCommentRow
+                    key={reply.id}
+                    comment={reply}
+                    isMine={isMine(reply)}
+                    canReply={false}
+                    menuable={true}
+                    onOpenMenu={(c) => setCommentMenu(c)}
+                    className="ml-8"
+                  />
                 ))}
               </View>
             ))}
@@ -326,6 +427,70 @@ export function ShowcaseCommentsSheet({
           </View>
         </ScrollView>
       )}
+
+      <ActionSheet
+        visible={commentMenu != null}
+        onRequestClose={() => setCommentMenu(null)}
+        title="Opsi Komentar"
+        actions={[
+          ...(commentMenu && !commentMenu.parentId && hasSession
+            ? [
+                {
+                  key: "reply",
+                  label: "Balas komentar",
+                  icon: ChatCircle,
+                  onPress: () => {
+                    const target = commentMenu
+                    setCommentMenu(null)
+                    setReplyTo(target)
+                  },
+                },
+              ]
+            : []),
+          ...(commentMenu
+            ? [
+                {
+                  key: "copy",
+                  label: "Salin teks",
+                  icon: Copy,
+                  onPress: () => {
+                    const text = commentMenu.content
+                    setCommentMenu(null)
+                    void copy(text)
+                  },
+                },
+              ]
+            : []),
+          ...(commentMenu && (isMine(commentMenu) || item?.isOwner)
+            ? [
+                {
+                  key: "delete",
+                  label: "Hapus komentar",
+                  icon: Trash,
+                  destructive: true,
+                  onPress: () => {
+                    const target = commentMenu
+                    setCommentMenu(null)
+                    void handleDeleteComment(target)
+                  },
+                },
+              ]
+            : []),
+          ...(commentMenu && !isMine(commentMenu)
+            ? [
+                {
+                  key: "report",
+                  label: "Laporkan komentar",
+                  icon: Flag,
+                  onPress: () => {
+                    setCommentMenu(null)
+                    if (showcaseId) router.push(ROUTES.showcaseDetail(showcaseId))
+                  },
+                },
+              ]
+            : []),
+        ]}
+      />
     </BottomSheet>
   )
 }

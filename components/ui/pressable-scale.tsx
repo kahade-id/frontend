@@ -231,7 +231,13 @@ export const PressableScale = forwardRef<RNView, PressableScaleProps>(function P
           )}
         />
       ) : null}
-      <Animated.View style={{ transform: [{ scale }] }}>
+      <Animated.View
+        style={[
+          { transform: [{ scale }] },
+          containerClassName?.includes("flex-1") && { flex: 1 },
+          containerClassName?.includes("w-full") && { width: "100%" },
+        ]}
+      >
         <View className={cn(className, disabled && "opacity-disabled")}>{children}</View>
       </Animated.View>
     </PressableComponent>

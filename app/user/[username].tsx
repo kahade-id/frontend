@@ -77,7 +77,6 @@ import { ProfileAboutTab } from "@/components/ui/profile-about-tab"
 import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
 import { ProfileRatingsTab } from "@/components/ui/profile-ratings-tab"
 import { Screen } from "@/components/ui/screen"
-import { ModeSwitcher } from "@/components/ui/mode-switcher"
 import { ShareSheetTrigger } from "@/components/ui/share-sheet-trigger"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
@@ -129,7 +128,7 @@ const BADGE_ICON: Partial<Record<string, IconComponent>> = {
 }
 
 export default function UserProfileScreen() {
-  const { username: rawUsername, self: selfParam } = useLocalSearchParams<{
+  const { username: rawUsername } = useLocalSearchParams<{
     username: string
     self?: string
   }>()
@@ -511,18 +510,7 @@ export default function UserProfileScreen() {
     [handle, saveLoading, toast],
   )
 
-  /**
-   * Navbar shell hanya di profil sendiri — orang lain tidak melihat tab bar.
-   *
-   * Revisi 2026-09-23: navbar TIDAK lagi menunggu `profile`/`getMe` termuat.
-   * Dulu `isSelf && Boolean(profile)` — menekan tab Profil membuat navbar
-   * hilang sebentar (bar layar tab meluncur keluar, bar layar ini baru
-   * dirender setelah fetch selesai). Sekarang navbar tampil sejak frame
-   * pertama lewat dua sinyal: param rute `self` (dikirim tombol Profil di
-   * navbar, yang SUDAH tahu ini profil sendiri) atau `isSelf` yang dihitung
-   * ulang begitu `meUsername` tiba.
-   */
-  const showBottomNav = isSelf || selfParam === "1"
+
 
   /**
    * Payload + fallback berbagi dipisah dari tombolnya supaya <ShareSheetTrigger>
@@ -690,23 +678,16 @@ export default function UserProfileScreen() {
 
   return (
     <Screen edges={["top"]} padded={false}>
-      <DataScroll onRefresh={handleRefresh} refreshing={refreshing} padded={false} docked={showBottomNav}>
+      <DataScroll onRefresh={handleRefresh} refreshing={refreshing} padded={false}>
         {/* ── Top Bar (di atas cover) ──────────────────────────
             <Header transparent>: @username PUSAT di bar — satu-satunya
             tempat username ditulis (baris identitas di bawah hanya nama).
-            Navigasi ghost TANPA kartu: profil sendiri memakai switch mode
-            (Etalase ⇄ Dompet — satu-satunya rumah ModeSwitcher sejak
-            2026-09-23, menggantikan tanda [+] yang pindah ke ikon pensil
-            header Etalase); profil orang lain tetap ikon Back. ⋮ ghost di
-            kanan. Bagikan turun ke baris aksi (sejajar ♡ / 🔖). Judul
-            dikosongkan bila param username kosong (deep link rusak) — "@"
-            sendirian lebih buruk. */}
+            Profil sekarang seragam memiliki tombol Back untuk semua pengguna. */}
         <Header
           transparent
           title={handle ? `@${handle}` : undefined}
-          showBack={!isSelf}
+          showBack={true}
           onBack={() => goBackOrNavigate(ROUTES.home)}
-          left={isSelf ? <ModeSwitcher /> : undefined}
           right={
             profile ? (
               isSelf ? (
