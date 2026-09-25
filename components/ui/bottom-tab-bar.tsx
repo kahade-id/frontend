@@ -549,6 +549,10 @@ export function BottomTabBar<K extends string = string>({
       <PressableScale
         key={item.key}
         accessibilityRole="tab"
+        // `aria-selected` eksplisit: react-native-web 0.21 TIDAK memetakan
+        // accessibilityState.selected ke DOM (pola sama dengan aria-checked di
+        // ModeSwitcher) — tanpa ini tab aktif tidak terbaca pembaca layar web.
+        aria-selected={active}
         accessibilityState={{ selected: active }}
         accessibilityLabel={item.accessibilityLabel ?? item.label}
         scaleOnPress={false}

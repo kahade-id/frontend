@@ -227,11 +227,62 @@ const WALLET_SHELL_SLOTS: Record<string, ShellSlotId> = {
  * 4 di mode commerce (/showcase, /transactions, /chat, /more) dan
  * 4 di mode wallet (/wallet, /vouchers, /wallet-history, /more).
  * Profil publik (termasuk profil sendiri) dan halaman detail/chat room tidak menampilkan bar.
+ *
+ * Catatan (2026-09-25): fungsi ini hanya melihat daftar halaman MODE YANG
+ * AKTIF. Untuk memutuskan apakah bar tampil di halaman milik mode lain —
+ * kasus "navbar etalase hilang" — pakai `resolveShellBar()` di bawah.
  */
 export function activeShellSlot(path: string, mode: AppMode): ShellSlotId | null {
   const current = normalizeShellPath(path)
   const map = mode === "commerce" ? COMMERCE_SHELL_SLOTS : WALLET_SHELL_SLOTS
   return map[current] ?? null
+}
+
+/**
+ * Mode yang "memiliki" halaman shell ini; `null` bila path bukan halaman shell.
+ *
+ * `/more` sengaja `null`: halaman itu ada di KEDUA peta dan dipakai bersama
+ * (kartu pengalih mode ada di sana), jadi mode aktifnya ditentukan pemanggil.
+ */
+export function shellPageMode(path: string): AppMode | null {
+  const current = normalizeShellPath(path)
+  const commerce = COMMERCE_SHELL_SLOTS[current]
+  const wallet = WALLET_SHELL_SLOTS[current]
+  if (commerce && wallet) return null
+  if (commerce) return "commerce"
+  if (wallet) return "wallet"
+  return null
+}
+
+export type ShellBarResolution = { mode: AppMode; slot: ShellSlotId }
+
+/**
+ * Slot + mode efektif bottom navbar untuk `path`.
+ *
+ * Bug yang diperbaiki (2026-09-25): `activeShellSlot(path, mode)` hanya
+ * mengenal daftar halaman mode yang SEDANG aktif, sehingga membuka /showcase
+ * (halaman mode commerce) dengan preferensi `appMode` = "wallet" membuat bar
+ * hilang SELURUHNYA — tidak ada navbar sama sekali di halaman itu. Gejalanya
+ * makin membingungkan karena dokumen HTML hasil export (dan render pertama
+ * saat hydration) memakai preferensi default `commerce`: bar terlihat, lalu
+ * lenyap begitu `loadUiPrefs()` selesai membaca localStorage — persis keluhan
+ * "di-refresh muncul sebentar lalu hilang".
+ *
+ * Aturan yang berlaku sekarang — HALAMAN yang menentukan isi bar:
+ *   - halaman milik satu mode (mis. /showcase) memakai slot mode pemiliknya,
+ *     apa pun preferensi tersimpan: /showcase di mode wallet = bar commerce
+ *     dengan slot primer (Etalase) aktif, sehingga pengguna tetap bisa
+ *     berpindah halaman;
+ *   - `/more` dipakai kedua mode → mengikuti mode aktif;
+ *   - rute non-shell (detail, form, chat room) → null, bar tetap disembunyikan.
+ *
+ * Preferensi `appMode` sengaja TIDAK ditulis ulang di sini: halaman hanya
+ * memakai bar miliknya, bukan mengubah pilihan mode pengguna.
+ */
+export function resolveShellBar(path: string, mode: AppMode): ShellBarResolution | null {
+  const effective = shellPageMode(path) ?? mode
+  const slot = activeShellSlot(path, effective)
+  return slot ? { mode: effective, slot } : null
 }
 
 function parkTabFor(mode: AppMode, dest: ShellDestination | null): ShellTabName {
