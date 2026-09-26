@@ -631,6 +631,32 @@ export default function ChatRoomScreen() {
         toast.show({ title: "Lampiran masih diunggah", tone: "info" })
         return
       }
+      // Optimistic message: tampilkan langsung agar tidak ada jeda kosong.
+      const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
+      const optimisticMsg: ChatMessage = {
+        id: tempId,
+        text: content || undefined,
+        messageType: messageTypeFor(
+          ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
+            fileName,
+            fileUrl,
+            mimeType,
+            fileSize,
+            thumbnailUrl,
+          })),
+        ),
+        fromUser: true,
+        attachments: ready.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
+          fileName,
+          fileUrl,
+          mimeType,
+          fileSize,
+          thumbnailUrl,
+        })),
+        replyToId: payload.replyToId ?? null,
+        createdAt: new Date().toISOString(),
+      }
+      setMessages((prev) => [...prev, optimisticMsg])
       setSending(true)
       try {
         const dtoAttachments: ChatAttachmentDto[] = ready.map(
@@ -648,10 +674,8 @@ export default function ChatRoomScreen() {
           attachments: dtoAttachments.length ? dtoAttachments : undefined,
           replyToId: payload.replyToId,
         })
-        // C-01 (audit): append mentah bisa menghasilkan gelembung GANDA bila
-        // poll 8 detik sudah lebih dulu memasukkan pesan yang sama (server
-        // mengembalikan pesan sendiri di halaman terbaru). mergeIncoming
-        // menyaring berdasarkan id.
+        // Ganti optimistic dengan pesan asli dari server.
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)))
         mergeIncoming([msg], roomId)
         // Pengguna aktif → poll kembali cepat bila sedang idle.
         emptyPolls.current = 0
@@ -664,6 +688,8 @@ export default function ChatRoomScreen() {
         void sendChatTyping(roomId, false).catch((err) => logWarn("chat:typing-stop", err))
         void refreshReadReceipts()
       } catch (err) {
+        // Hapus optimistic message jika gagal.
+        setMessages((prev) => prev.filter((m) => m.id !== tempId))
         toast.show({
           title: "Gagal mengirim pesan",
           description: isApiError(err) ? userMessage(err) : undefined,

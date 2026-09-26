@@ -262,7 +262,7 @@ function ShowcaseFeedItemBase({
           <IconButton
             icon={onOptions ? DotsThreeCircle : Flag}
             variant="ghost"
-            size="sm"
+            size="md"
             accessibilityLabel={onOptions ? translate("Pilihan karya") : translate("Laporkan karya")}
             // A-03 (audit 2026-09-24): hint tidak lagi menyebut dua aksi yang
             // bisa berubah — isi sheet tidak dijanjikan di muka.
@@ -273,7 +273,7 @@ function ShowcaseFeedItemBase({
           <IconButton
             icon={DotsThreeCircle}
             variant="ghost"
-            size="sm"
+            size="md"
             accessibilityLabel={translate("Kelola karya")}
             accessibilityHint={translate("Buka opsi kelola karya")}
             onPress={onManage}

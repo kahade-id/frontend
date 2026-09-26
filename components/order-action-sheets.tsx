@@ -485,9 +485,9 @@ export function OrderSecondaryActions({
   return (
     <View className="flex-row flex-wrap gap-2">
       {/* H-08 (audit escrow 2026-09-24): invoice "belum diterbitkan" untuk
-          WAITING_CONFIRMATION — tombol disembunyikan, bukan membuka layar
-          struk kosong. */}
-      {order.status !== "WAITING_CONFIRMATION" ? (
+          WAITING_CONFIRMATION dan CANCELLED — tombol disembunyikan, bukan
+          membuka layar struk kosong. */}
+      {order.status !== "WAITING_CONFIRMATION" && order.status !== "CANCELLED" ? (
         <Button
           variant="secondary"
           size="sm"

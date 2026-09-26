@@ -42,6 +42,7 @@ import { Highlight } from "@/components/ui/highlight"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Rating } from "@/components/ui/rating"
 import { Text } from "@/components/ui/text"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
@@ -96,18 +97,22 @@ export function UserDiscoverResultItem({
 
   const row = (
     <View className="min-h-14 flex-1 flex-row items-center gap-3 py-3">
-      <Avatar source={avatar} name={name} size="md" verified={verified} />
+      <Avatar source={avatar} name={name} size="md" />
 
       <View className="flex-1 gap-0.5">
-        <Highlight
-          text={name}
-          query={query}
-          variant="body"
-          weight={500}
-          tone="primary"
-          matchWeight={600}
-          numberOfLines={1}
-        />
+        <View className="flex-row items-center gap-1">
+          <Highlight
+            text={name}
+            query={query}
+            variant="body"
+            weight={500}
+            tone="primary"
+            matchWeight={600}
+            numberOfLines={1}
+            className="min-w-0 shrink"
+          />
+          {verified ? <VerifiedSeal badges={null} verified={verified} size={13} /> : null}
+        </View>
         {meta.length > 0 || rating != null ? (
           <View className="flex-row items-center gap-2">
             {meta.length > 0 ? (

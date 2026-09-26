@@ -92,12 +92,11 @@ export function UserListItem({
     .filter(Boolean)
     .join(", ")
 
-  const showVerified = verified || !!sealTier
   const body = (
     <View
       className={cn("min-h-14 flex-1 flex-row items-center gap-3 py-3", blocked && "opacity-60")}
     >
-      <Avatar source={avatar?.source} name={name} size="md" verified={showVerified} sealTier={sealTier ?? undefined} />
+      <Avatar source={avatar?.source} name={name} size="md" />
       <View className="flex-1 gap-0.5">
         <VerifiedName
           name={name}
