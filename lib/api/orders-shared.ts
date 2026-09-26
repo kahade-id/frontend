@@ -339,9 +339,17 @@ export function normalizeFeeBreakdown(raw: unknown): FeeBreakdown | undefined {
   // desimal ditolak) — bukan cast bebas yang bisa menghasilkan `NaN`.
   const orderValue = toAmount(src.orderValue ?? src.order_value ?? src.value)
   const platformFee = toAmount(src.platformFee ?? src.platform_fee ?? src.fee ?? src.feeAmount)
-  const buyerPays = toAmount(src.buyerPays ?? src.buyer_pays ?? src.totalBuyer ?? src.buyerTotal)
+  const buyerPays = toAmount(
+    src.buyerPays ?? src.buyer_pays ?? src.totalBuyer ?? src.buyerTotal ?? src.buyerPayAmount ?? src.buyer_pay_amount,
+  )
   const sellerReceives = toAmount(
-    src.sellerReceives ?? src.seller_receives ?? src.sellerGets ?? src.seller_gets ?? src.totalSeller,
+    src.sellerReceives ??
+      src.seller_receives ??
+      src.sellerGets ??
+      src.seller_gets ??
+      src.totalSeller ??
+      src.sellerReceiveAmount ??
+      src.seller_receive_amount,
   )
   // Angka inti tidak lengkap → tolak (jangan beri `NaN` ke komponen uang).
   if (
