@@ -52,6 +52,9 @@ export type ShowcaseFeedFilter = {
   category?: string
   /** Filter lokasi free-text (users.address milik owner, case-insensitive). */
   location?: string
+  /** DC-012: filter harga (IDR). */
+  minPrice?: number
+  maxPrice?: number
 }
 
 /**
@@ -67,7 +70,10 @@ export function sameFeedFilter(a: ShowcaseFeedFilter, b: ShowcaseFeedFilter): bo
   return (
     (a.search ?? "") === (b.search ?? "") &&
     (a.category ?? "").toLocaleLowerCase() === (b.category ?? "").toLocaleLowerCase() &&
-    (a.location ?? "").toLocaleLowerCase() === (b.location ?? "").toLocaleLowerCase()
+    (a.location ?? "").toLocaleLowerCase() === (b.location ?? "").toLocaleLowerCase() &&
+    // DC-012: harga ikut identitas himpunan hasil.
+    (a.minPrice ?? -1) === (b.minPrice ?? -1) &&
+    (a.maxPrice ?? -1) === (b.maxPrice ?? -1)
   )
 }
 

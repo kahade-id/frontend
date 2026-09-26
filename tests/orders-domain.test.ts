@@ -17,7 +17,9 @@ import {
   isCancellable,
   isDisputable,
   isExtendable,
+  isRatingWindowOpen,
   nextOrderStatus,
+  normalizeOrder,
   toAmount,
   normalizeInvoice,
   ORDER_STATUS_FILTERS,
@@ -40,31 +42,84 @@ import { toEpochMs } from "@/lib/pending-actions"
 import { feeShare, splitFee } from "@/lib/financial"
 
 describe("state machine: status × peran", () => {
-  it("pembatalan hanya pra-kirim (A-04)", () => {
+  it("pembatalan hanya WAITING_CONFIRMATION/WAITING_PAYMENT (EO-001)", () => {
+    // EO-001: selaras backend cancelOrder — PROCESSING/PAID tidak bisa dibatalkan.
     expect(isCancellable("WAITING_CONFIRMATION")).toBe(true)
-    expect(isCancellable("PROCESSING")).toBe(true)
+    expect(isCancellable("WAITING_PAYMENT")).toBe(true)
+    expect(isCancellable("PROCESSING")).toBe(false)
+    expect(isCancellable("PAID")).toBe(false)
     expect(isCancellable("IN_DELIVERY")).toBe(false)
     expect(isCancellable("DELIVERED")).toBe(false)
+    expect(isCancellable("COMPLETED")).toBe(false)
   })
 
-  it("sengketa terbuka sejak dana berjalan + WAITING_CONFIRMATION (A-05/A-06)", () => {
-    expect(isDisputable("WAITING_CONFIRMATION")).toBe(true)
-    expect(isDisputable("PAID")).toBe(true)
+  it("sengketa hanya PROCESSING/IN_DELIVERY (EO-002)", () => {
+    // EO-002: selaras backend submitDispute — WAITING_CONFIRMATION dikeluarkan.
+    expect(isDisputable("WAITING_CONFIRMATION")).toBe(false)
+    expect(isDisputable("WAITING_PAYMENT")).toBe(false)
+    expect(isDisputable("PROCESSING")).toBe(true)
     expect(isDisputable("IN_DELIVERY")).toBe(true)
     expect(isDisputable("COMPLETED")).toBe(false)
-    expect(isDisputable("WAITING_PAYMENT")).toBe(false)
+    expect(isDisputable("CANCELLED")).toBe(false)
   })
 
-  it("perpanjangan hanya pra-kirim (F-03)", () => {
-    expect(isExtendable("PROCESSING")).toBe(true)
-    expect(isExtendable("IN_DELIVERY")).toBe(false)
+  it("perpanjangan hanya IN_DELIVERY (EO-003)", () => {
+    // EO-003: selaras backend order-extensions — hanya IN_DELIVERY; gate peran
+    // (seller saja) ada di layar, bukan di fungsi murni ini.
+    expect(isExtendable("IN_DELIVERY")).toBe(true)
+    expect(isExtendable("WAITING_PAYMENT")).toBe(false)
+    expect(isExtendable("PROCESSING")).toBe(false)
+    expect(isExtendable("PAID")).toBe(false)
     expect(isExtendable("DELIVERED")).toBe(false)
+    expect(isExtendable("COMPLETED")).toBe(false)
   })
 
   it("nextOrderStatus kebal kunci prototipe (A-01/M-03)", () => {
     expect(nextOrderStatus("toString")).toBeUndefined()
     expect(nextOrderStatus("constructor")).toBeUndefined()
     expect(typeof nextOrderStatus("WAITING_CONFIRMATION")).toBe("string")
+  })
+
+  it("jendela rating 7 hari dari completedAt (EO-009)", () => {
+    // EO-009: selaras RATING_WINDOW_DAYS backend — CTA "Ulas sekarang" hanya
+    // dalam 7 hari setelah completedAt.
+    const now = Date.now()
+    const iso = (ms: number) => new Date(ms).toISOString()
+    const DAY = 24 * 60 * 60 * 1000
+    expect(isRatingWindowOpen(iso(now))).toBe(true)
+    expect(isRatingWindowOpen(iso(now - 6 * DAY))).toBe(true)
+    expect(isRatingWindowOpen(iso(now - 7 * DAY + 60_000))).toBe(true)
+    expect(isRatingWindowOpen(iso(now - 7 * DAY - 1000))).toBe(false)
+    expect(isRatingWindowOpen(iso(now - 30 * DAY))).toBe(false)
+    // Fail-closed: completedAt hilang/invalid → CTA disembunyikan (backend
+    // pasti menolak rating tanpa timestamp).
+    expect(isRatingWindowOpen(null)).toBe(false)
+    expect(isRatingWindowOpen(undefined)).toBe(false)
+    expect(isRatingWindowOpen("")).toBe(false)
+    expect(isRatingWindowOpen("bukan-tanggal")).toBe(false)
+  })
+
+  it("normalizeOrder mempertahankan completedAt (EO-009)", () => {
+    const base = {
+      id: "O1",
+      title: "T",
+      description: "D",
+      orderType: "OTHER",
+      status: "COMPLETED",
+      orderValue: 100000,
+      feeResponsibility: "SPLIT",
+      deliveryDeadlineDays: 3,
+      createdAt: "2026-09-20T00:00:00.000Z",
+    } as const
+    expect(normalizeOrder({ ...base, completedAt: "2026-09-25T10:00:00.000Z" }).completedAt).toBe(
+      "2026-09-25T10:00:00.000Z",
+    )
+    // Alias snake_case juga dipungut.
+    expect(normalizeOrder({ ...base, completed_at: "2026-09-25T10:00:00.000Z" }).completedAt).toBe(
+      "2026-09-25T10:00:00.000Z",
+    )
+    // Tidak ada → null (bukan undefined liar), konsisten dengan paidAt.
+    expect(normalizeOrder({ ...base }).completedAt).toBeNull()
   })
 
   it("ORDER_STATUS_FILTERS sinkron dengan tabel label (I-03)", () => {

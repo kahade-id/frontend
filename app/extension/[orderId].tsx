@@ -13,7 +13,9 @@
  *   - myRole === "SELLER" → tombol "Ajukan perpanjangan" (BottomSheet:
  *     NumberStepper hari + TextArea alasan). Disembunyikan bila masih ada
  *     permintaan PENDING (server juga menolak; kita cegah klik sia-sia) atau
- *     order tidak lagi di fase pengerjaan (PAID/PROCESSING/SHIPPED).
+ *     order tidak berstatus IN_DELIVERY (EO-003: backend HANYA menerima
+ *     IN_DELIVERY — perpanjangan tenggat pengiriman hanya relevan saat barang
+ *     sudah di jalan).
  *   - myRole === "BUYER"  → Setujui/Tolak pada kartu PENDING via Dialog
  *     (catatan opsional ≤ 500).
  *   Bila `myRole` tidak dikirim server, peran diturunkan dari

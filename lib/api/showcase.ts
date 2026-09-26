@@ -63,6 +63,12 @@ export type ShowcaseSocialItem = {
   id: string
   title: string
   description?: string | null
+  /**
+   * DC-007 (audit Discovery 2026-09-26): deskripsi HTML subscriber Kahade+
+   * (benefit 7). Backend mengirim apa adanya; frontend WAJIB render via
+   * <ShowcaseHtmlView> (sanitasi) — JANGAN render mentah.
+   */
+  descriptionHtml?: string | null
   category?: string | null
   visibility?: string
   isActive?: boolean
@@ -75,6 +81,8 @@ export type ShowcaseSocialItem = {
   likeCount: number
   commentCount: number
   viewCount: number
+  /** DC-008: berapa kali deep link share item ini dibuka (backend S-4). */
+  shareCount?: number
   /** viewer menyukai item ini (butuh auth; false bila anonim). */
   isLiked?: boolean
   /** viewer adalah pemilik item (moderasi komentar terbuka). */
@@ -140,6 +148,13 @@ export type ShowcaseFeedQuery = {
    * alamat (users.address) yang cocok case-insensitive, mis. "Jakarta".
    */
   location?: string
+  /**
+   * DC-012 (audit Discovery 2026-09-26): filter harga (IDR, integer >= 0).
+   * Backend: minPrice/maxPrice (showcase-feed-query.dto.ts) — irisan rentang
+   * terhadap [priceMin, priceMax] item.
+   */
+  minPrice?: number
+  maxPrice?: number
 }
 
 export type ShowcaseFeedPage = {
@@ -178,6 +193,15 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
         category: query.category?.trim().replace(/\s+/g, " ").slice(0, 60),
         search: query.search?.trim().slice(0, 100),
         location: query.location?.trim().slice(0, 100) || undefined,
+        // DC-012: teruskan filter harga bila valid (integer >= 0).
+        minPrice:
+          typeof query.minPrice === "number" && Number.isFinite(query.minPrice) && query.minPrice >= 0
+            ? Math.floor(query.minPrice)
+            : undefined,
+        maxPrice:
+          typeof query.maxPrice === "number" && Number.isFinite(query.maxPrice) && query.maxPrice >= 0
+            ? Math.floor(query.maxPrice)
+            : undefined,
       },
       retry: 1,
     })
@@ -492,6 +516,13 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
       sealTier: asSealTier(author.sealTier),
     },
     likeCount: count(value.likeCount), commentCount: count(value.commentCount), viewCount: count(value.viewCount),
+    // DC-008: shareCount dikirim backend, sebelumnya dibuang parser.
+    shareCount: count(value.shareCount),
+    // DC-007: descriptionHtml (Kahade+ benefit 7) — render via
+    // <ShowcaseHtmlView>, jangan pernah mentah.
+    descriptionHtml: typeof value.descriptionHtml === "string" && value.descriptionHtml.trim()
+      ? value.descriptionHtml
+      : null,
     isLiked: value.isLiked === true, isOwner: value.isOwner === true,
     orderLink,
     shareUrl: typeof value.shareUrl === "string" && value.shareUrl ? value.shareUrl : undefined,

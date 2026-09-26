@@ -236,13 +236,14 @@ export function OrderActionSheets({
         visible={sheet === "cancel"}
         onRequestClose={onClose}
         title="Batalkan order?"
-        // N-01 (audit escrow 2026-09-24): janji refund hanya benar bila dana
-        // sudah di escrow (PAID/PROCESSING). Status sebelum bayar tidak punya
-        // dana yang "dikembalikan" — copy mengikuti kenyataan dana per status.
+        // EO-001 (audit 2026-09-26): janji refund dihapus. Gate `isCancellable`
+        // kini hanya membuka WAITING_CONFIRMATION/WAITING_PAYMENT (selaras
+        // backend `cancelOrder`) — status pra-bayar tidak punya dana di escrow,
+        // jadi copy yang jujur adalah TIDAK ADA pengembalian dana. Cabang lama
+        // ("dana di escrow dikembalikan") adalah janji yang tak bisa ditepati
+        // karena backend menolak pembatalan PROCESSING/PAID.
         description={
-          order.status === "PAID" || order.status === "PROCESSING"
-            ? "Order akan dibatalkan dan dana di escrow dikembalikan ke pembeli."
-            : "Order akan dibatalkan. Belum ada dana di escrow untuk status ini — tidak ada pengembalian dana."
+          "Order akan dibatalkan. Belum ada dana di escrow untuk status ini — tidak ada pengembalian dana."
         }
         footer={
           <Button

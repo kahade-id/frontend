@@ -468,11 +468,33 @@ export type DiscoveredUser = {
  * sehingga urutan hasil tidak pernah berubah meski UI menawarkannya. Dihapus
  * sampai backend mendeklarasikannya (lihat audit API-08).
  */
+/**
+ * DC-013 (audit Discovery 2026-09-26): backend GET /v1/users/discover menerima
+ * minRating, minTransactions, isKycVerified, membershipRank — sebelumnya tidak
+ * pernah dikirim. Opsi opsional; perilaku default (tanpa filter) tidak berubah.
+ */
+export type DiscoverUsersFilter = {
+  minRating?: number
+  minTransactions?: number
+  isKycVerified?: boolean
+  membershipRank?: string
+}
+
 export function discoverUsers(
-  options: { page?: number; limit?: number } = {},
+  options: { page?: number; limit?: number } & DiscoverUsersFilter = {},
   signal?: AbortSignal,
 ) {
-  const query = { page: 1, limit: 20, ...options }
+  const { minRating, minTransactions, isKycVerified, membershipRank, ...paging } = options
+  const query: Record<string, string | number | boolean | null | undefined> = { page: 1, limit: 20, ...paging }
+  // Hanya kirim filter yang terisi — backend mengabaikan undefined, tetapi
+  // query param eksplisit "undefined" justru merusak (ParseQueryStringPipe).
+  if (typeof minRating === "number" && Number.isFinite(minRating) && minRating > 0)
+    query.minRating = minRating
+  if (typeof minTransactions === "number" && Number.isFinite(minTransactions) && minTransactions > 0)
+    query.minTransactions = Math.floor(minTransactions)
+  if (isKycVerified === true) query.isKycVerified = "true"
+  if (typeof membershipRank === "string" && membershipRank.trim())
+    query.membershipRank = membershipRank.trim()
   return http
     .get<unknown>("/v1/users/discover", { query, auth: "required", retry: 1, signal })
     .then((raw) => {

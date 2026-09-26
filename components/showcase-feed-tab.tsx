@@ -30,14 +30,15 @@
  *  - F-04: item yang sudah dilaporkan sesi ini disembunyikan dari feed.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react"
-import { View } from "react-native"
+import { TextInput, View } from "react-native"
 import Animated from "react-native-reanimated"
-import { Images, X } from "phosphor-react-native"
+import { CurrencyCircleDollar, Images, X } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useIsFocused } from "@react-navigation/native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
+import { formatNumber } from "@/lib/format"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { fetchViaQueryCache } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
@@ -215,6 +216,12 @@ export type ShowcaseFeedTabProps = {
 export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, location, onClearLocation }: ShowcaseFeedTabProps) {
   // i18n: label tab mengikuti bahasa aktif.
   const feedTabs = useFeedTabs()
+  // DC-012: filter harga (state lokal — tidak perlu param rute). String untuk
+  // input; dinormalisasi ke integer >= 0 saat diterapkan.
+  const [minPriceInput, setMinPriceInput] = useState("")
+  const [maxPriceInput, setMaxPriceInput] = useState("")
+  const [priceFilter, setPriceFilter] = useState<{ min?: number; max?: number }>({})
+  const [priceOpen, setPriceOpen] = useState(false)
   const params = useLocalSearchParams<{ kind?: string; search?: string }>()
   const kind: ShowcaseFeedKind = params.kind === "following" || params.kind === "latest" || params.kind === "popular" ? params.kind : "forYou"
   // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
@@ -320,11 +327,38 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     setFollowingGuest(true)
   }, [])
 
-  /** Filter aktif — kunci himpunan hasil (tab × search × kategori × lokasi). */
+  /** Filter aktif — kunci himpunan hasil (tab × search × kategori × lokasi × harga). */
   const filter: ShowcaseFeedFilter = useMemo(
-    () => ({ search: activeSearch || undefined, category: category || undefined, location: location || undefined }),
-    [activeSearch, category, location],
+    () => ({
+      search: activeSearch || undefined,
+      category: category || undefined,
+      location: location || undefined,
+      minPrice: priceFilter.min,
+      maxPrice: priceFilter.max,
+    }),
+    [activeSearch, category, location, priceFilter],
   )
+
+  /** DC-012: terapkan filter harga dari input (integer >= 0; kosong = lepas). */
+  const applyPriceFilter = useCallback(() => {
+    const toInt = (s: string): number | undefined => {
+      const digits = s.replace(/[^0-9]/g, "")
+      if (!digits) return undefined
+      const n = Math.floor(Number(digits))
+      return Number.isFinite(n) && n >= 0 ? n : undefined
+    }
+    const min = toInt(minPriceInput)
+    const max = toInt(maxPriceInput)
+    // Min > maks tidak valid — abaikan maks (bukan error yang menghalangi).
+    setPriceFilter({ min, max: min !== undefined && max !== undefined && max < min ? undefined : max })
+    setPriceOpen(false)
+  }, [minPriceInput, maxPriceInput])
+
+  const clearPriceFilter = useCallback(() => {
+    setMinPriceInput("")
+    setMaxPriceInput("")
+    setPriceFilter({})
+  }, [])
 
   /**
    * Muat daftar akun yang diikuti (A-03: maks FOLLOWING_INDEX_MAX_PAGES × 50,
@@ -429,6 +463,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         search: filter.search,
         category: filter.category,
         location: filter.location,
+        minPrice: filter.minPrice,
+        maxPrice: filter.maxPrice,
       }
       try {
         let incoming: ShowcaseSocialItem[] = []
@@ -765,6 +801,82 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     </View>
   ) : null
 
+  /** DC-012: label rentang harga aktif untuk chip. */
+  const priceLabel = (() => {
+    const { min, max } = priceFilter
+    if (min === undefined && max === undefined) return null
+    const fmt = (n: number) => `Rp${formatNumber(n)}`
+    if (min !== undefined && max !== undefined) return `${fmt(min)} – ${fmt(max)}`
+    if (min !== undefined) return `≥ ${fmt(min)}`
+    return `≤ ${fmt(max!)}`
+  })()
+
+  /** DC-012: chip harga aktif + panel input min–maks. */
+  const priceFilterUi = (
+    <View className="mx-5 mt-3 gap-2">
+      {priceLabel ? (
+        <View className="flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5">
+          <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+            {translate("Harga: {x}", { x: priceLabel })}
+          </Text>
+          <IconButton
+            icon={X}
+            variant="ghost"
+            size="sm"
+            accessibilityLabel={translate("Hapus filter harga")}
+            onPress={clearPriceFilter}
+          />
+        </View>
+      ) : (
+        <Button
+          variant="secondary"
+          size="sm"
+          fullWidth={false}
+          leftIcon={CurrencyCircleDollar}
+          onPress={() => setPriceOpen((v) => !v)}
+          accessibilityLabel={translate("Filter harga")}
+        >
+          {translate("Harga")}
+        </Button>
+      )}
+      {priceOpen && !priceLabel ? (
+        <View className="gap-2 rounded-md border border-border bg-surface p-3">
+          <View className="flex-row gap-2">
+            <View className="flex-1">
+              <Text variant="caption" tone="secondary">
+                {translate("Min (Rp)")}
+              </Text>
+              <TextInput
+                value={minPriceInput}
+                onChangeText={setMinPriceInput}
+                keyboardType="numeric"
+                placeholder="0"
+                accessibilityLabel={translate("Harga minimum")}
+                className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-base text-foreground"
+              />
+            </View>
+            <View className="flex-1">
+              <Text variant="caption" tone="secondary">
+                {translate("Maks (Rp)")}
+              </Text>
+              <TextInput
+                value={maxPriceInput}
+                onChangeText={setMaxPriceInput}
+                keyboardType="numeric"
+                placeholder="—"
+                accessibilityLabel={translate("Harga maksimum")}
+                className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-base text-foreground"
+              />
+            </View>
+          </View>
+          <Button variant="primary" size="sm" fullWidth onPress={applyPriceFilter}>
+            {translate("Terapkan")}
+          </Button>
+        </View>
+      ) : null}
+    </View>
+  )
+
   return (
     <View className="flex-1">
       {/* ── Header showcase — pensil kelola · logo · notifikasi + tab feed ── */}
@@ -810,8 +922,11 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         bottomPadding={bottomPadding}
         header={
           searchChip || categoryChip || locationChip || followingPartialNotice ? (
-            <View>{searchChip}{categoryChip}{locationChip}{followingPartialNotice}</View>
-          ) : undefined
+            <View>{searchChip}{categoryChip}{locationChip}{priceFilterUi}{followingPartialNotice}</View>
+          ) : (
+            // DC-012: tombol filter harga tetap tersedia walau tak ada chip lain.
+            <View>{priceFilterUi}</View>
+          )
         }
         loadingPlaceholder={
           <SkeletonGroup className="gap-10 py-4">

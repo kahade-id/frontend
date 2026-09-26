@@ -84,7 +84,7 @@ type ResultRow = { id: string } & (
   | { kind: "showcase"; showcase: ShowcaseSocialItem }
   | { kind: "order"; order: Order }
   | { kind: "transaction"; transaction: WalletTransaction }
-  | { kind: "article"; article: { id: string; slug: string; title: string; snippet?: string } }
+  | { kind: "article"; article: import("@/lib/api/search").SearchHelpArticle }
 )
 
 /** Cakupan hasil — "all" mengirim semua jenis, sisanya menyaring per sumber. */
@@ -107,7 +107,8 @@ function useScopes(): ReadonlyArray<{ value: Scope; label: string }> {
 
 /** Parameter `types` untuk GET /v1/search per cakupan (postingan di luar endpoint ini). */
 const SCOPE_TYPES: Record<Exclude<Scope, "posts">, string> = {
-  all: "users,orders,transactions",
+  // DC-002: cakupan "all" meminta help-center agar section Bantuan hidup.
+  all: "users,orders,transactions,help-center",
   users: "users",
   orders: "orders",
   transactions: "transactions",
@@ -171,6 +172,9 @@ export default function SearchScreen() {
   const [locationSeed, setLocationSeed] = useState("")
   const [locationNonce, setLocationNonce] = useState(0)
   const [clearingHistory, setClearingHistory] = useState(false)
+  // DC-020: umpan balik bila hapus riwayat gagal (sebelumnya catch kosong —
+  // user mengira riwayat terhapus padahal tidak).
+  const [historyError, setHistoryError] = useState<string | null>(null)
   const enabled = keyword.trim().length >= MIN_KEYWORD
   const wantUsers = scope === "all" || scope === "users"
   const wantPosts = scope === "all" || scope === "posts"
@@ -246,13 +250,16 @@ export default function SearchScreen() {
   const handleClearHistory = async () => {
     if (clearingHistory) return
     setClearingHistory(true)
+    setHistoryError(null)
     try {
       await api.search.clearSearchHistory()
       historyQuery.setData([])
-    } catch {
+    } catch (err) {
       // #6c (audit Discovery 2026-09-26): gagal clear = riwayat tetap tampil;
       // pengguna bisa mengulang lewat pull-to-refresh (kini aktif juga saat
-      // kolom kosong).
+      // kolom kosong). DC-020: beri tahu user + catat untuk observabilitas.
+      logWarn("search:history-clear", err)
+      setHistoryError(translate("Gagal menghapus riwayat. Coba lagi."))
     } finally {
       setClearingHistory(false)
     }
@@ -291,7 +298,7 @@ export default function SearchScreen() {
           transaction,
         }),
       ),
-      ...(scope === "all" ? (result.data?.articles ?? []) : []).map((article) => ({
+      ...(scope === "all" ? (result.data?.helpCenter ?? []) : []).map((article) => ({
         id: `article:${article.id}`,
         kind: "article" as const,
         article,
@@ -299,18 +306,31 @@ export default function SearchScreen() {
     ]
   }, [result.data, usersResult.data, usersResult.error, postsResult.data, scope, wantUsers, wantPosts])
 
-  /** Jumlah per jenis — ditampilkan di judul kelompok. */
+  /**
+   * Jumlah per jenis — DC-014: pakai totals dari server bila ada (angka benar
+   * saat limit memotong: 20 tampil dari 40 total → "40", bukan "20").
+   * Fallback ke hitungan rows lokal bila totals absen.
+   */
   const counts = useMemo(() => {
-    const next: Record<ResultRow["kind"], number> = {
+    const totals = result.data?.totals
+    const local: Record<ResultRow["kind"], number> = {
       user: 0,
       showcase: 0,
       order: 0,
       transaction: 0,
       article: 0,
     }
-    for (const row of rows) next[row.kind] += 1
-    return next
-  }, [rows])
+    for (const row of rows) local[row.kind] += 1
+    return {
+      // user & showcase dilayani endpoint lain — totals /v1/search tidak
+      // mencakupnya; tetap hitung lokal.
+      user: local.user,
+      showcase: local.showcase,
+      order: totals && !usersOnly && !postsOnly ? Math.max(totals.orders, local.order) : local.order,
+      transaction: totals && !usersOnly && !postsOnly ? Math.max(totals.transactions, local.transaction) : local.transaction,
+      article: totals ? Math.max(totals.helpCenter, local.article) : local.article,
+    } as Record<ResultRow["kind"], number>
+  }, [rows, result.data?.totals, usersOnly, postsOnly])
 
   /**
    * Chip saran HANYA boleh berisi string.
@@ -468,6 +488,7 @@ export default function SearchScreen() {
             <RecentSearches
               entries={history.slice(0, 8).map((entry) => entry.query)}
               clearing={clearingHistory}
+              error={historyError}
               onPick={applyQuery}
               onClear={() => void handleClearHistory()}
             />
@@ -578,7 +599,11 @@ export default function SearchScreen() {
               title={enabled ? translate("Tidak ada hasil") : translate("Mulai mencari")}
               description={
                 enabled
-                  ? translate("Coba kata kunci yang lebih spesifik, atau perluas cakupan ke Semua.")
+                  ? // DC-011: hint backend ditampilkan apa adanya (lebih
+                    // spesifik dari kalimat generik — mis. "tapi ada artikel
+                    // bantuan yang cocok").
+                    (result.data?.hint ??
+                    translate("Coba kata kunci yang lebih spesifik, atau perluas cakupan ke Semua."))
                   : translate("Masukkan setidaknya dua karakter untuk mencari postingan, pengguna, pesanan, dan mutasi.")
               }
               action={
@@ -647,11 +672,14 @@ export default function SearchScreen() {
 function RecentSearches({
   entries,
   clearing,
+  error,
   onPick,
   onClear,
 }: {
   entries: readonly string[]
   clearing: boolean
+  /** DC-020: pesan bila hapus riwayat gagal. */
+  error: string | null
   onPick: (query: string) => void
   onClear: () => void
 }) {
@@ -671,6 +699,11 @@ function RecentSearches({
           {translate("Hapus riwayat")}
         </Button>
       </View>
+      {error ? (
+        <Text variant="caption" tone="danger">
+          {error}
+        </Text>
+      ) : null}
       <Card variant="elevated" className="gap-0 p-0">
         {entries.map((query, index) => (
           <View key={`${query}-${index}`}>

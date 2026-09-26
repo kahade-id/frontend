@@ -50,6 +50,7 @@ import {
   isCancellable,
   isDisputable,
   isExtendable,
+  isRatingWindowOpen,
   nextOrderStatus,
   type AverageDurations,
 } from "@/lib/api/orders"
@@ -659,11 +660,15 @@ export default function OrderDetailScreen() {
   // F6 (audit 2026-09-26): jangan tampilkan ajakan menilai bila user sudah menilai —
   // field `rated`/`isRated` sudah dinormalisasi dari payload order.
   const alreadyRated = order.rated === true || order.isRated === true
-  const canRate = knownRole && order.status === "COMPLETED" && !alreadyRated
+  // EO-009 (audit 2026-09-26): CTA rating hanya dalam jendela 7 hari backend
+  // (isRatingWindowOpen; fail-closed bila completedAt hilang).
+  const canRate = knownRole && order.status === "COMPLETED" && !alreadyRated && isRatingWindowOpen(order.completedAt)
   const ratingReminderVisible = canRate && !isRatingSnoozed(order.id)
   const canCancel = knownRole && isCancellable(order.status)
   const canDispute = knownRole && isDisputable(order.status)
-  const canExtend = knownRole && isExtendable(order.status)
+  // EO-003 (audit 2026-09-26): perpanjangan tenggat HANYA seller
+  // (backend: sellerId !== requesterId → 403).
+  const canExtend = isSeller && isExtendable(order.status)
   const isDisputed = order.status === "DISPUTED"
   const cancelValid =
     Boolean(cancelReason.code) &&

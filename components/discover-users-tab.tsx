@@ -18,16 +18,19 @@
  *     menolak (toast galat), `pendingId` mencegah double-tap.
  */
 import { useCallback, useState } from "react"
+import { View } from "react-native"
 import { router } from "expo-router"
 import { Compass, LockKey } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import type { DiscoveredUser } from "@/lib/api/users"
 import { useHasSession } from "@/lib/guest-gate"
+import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { Button } from "@/components/ui/button"
+import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { UserDiscoverResultItem } from "@/components/ui/user-discover-result-item"
@@ -38,9 +41,13 @@ const PAGE_LIMIT = 20
 export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
   const toast = useToast()
   const hasSession = useHasSession()
+  // DC-013: filter rating minimum (backend minRating). Satu chip agar tidak
+  // berlebihan; mengubah key → usePaginatedQuery refetch dari halaman 1.
+  const [minRating, setMinRating] = useState<number | undefined>(undefined)
   const query = usePaginatedQuery<DiscoveredUser>(
-    "discover",
-    (page, signal) => api.users.discoverUsers({ page, limit: PAGE_LIMIT }, signal),
+    `discover:${minRating ?? "all"}`,
+    (page, signal) =>
+      api.users.discoverUsers({ page, limit: PAGE_LIMIT, minRating }, signal),
     { enabled: hasSession },
   )
   const { setData } = query
@@ -70,6 +77,18 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
   )
 
   return (
+    <View className="flex-1">
+      {/* DC-013: filter rating minimum — chip toggle. */}
+      <View className="flex-row gap-2 px-5 pb-2">
+        <Chip
+          selected={minRating === 4}
+          accessibilityState={{ selected: minRating === 4 }}
+          accessibilityLabel="Hanya tampilkan pengguna rating 4 ke atas"
+          onPress={() => setMinRating((v) => (v === 4 ? undefined : 4))}
+        >
+          {translate("Rating 4+")}
+        </Chip>
+      </View>
     <PaginatedList
       {...query}
       onRefresh={query.refresh}
@@ -111,5 +130,6 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
         />
       )}
     />
+    </View>
   )
 }

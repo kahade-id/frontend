@@ -9,11 +9,98 @@ import { normalizeOrder, type Order } from "@/lib/api/orders"
 import type { UserProfile } from "@/lib/api/users"
 import type { WalletTransaction } from "@/lib/api/wallet"
 
+/**
+ * Artikel bantuan dari pencarian global.
+ *
+ * DC-002 (audit Discovery 2026-09-26): backend mengirim kunci `helpCenter`
+ * (bukan `articles`) dengan item `{id, question, answer, categoryId,
+ * createdAt}` dari tabel faq_items — BUKAN {id, slug, title, snippet}.
+ * Normalizer ini memetakan ke bentuk tampilan; `slug` = id karena tidak ada
+ * endpoint GET item-by-id (detail memakai pola ROUTES.helpArticle yang sudah
+ * ada: /help/[slug] + article=id + q=question).
+ */
+export type SearchHelpArticle = {
+  id: string
+  slug: string
+  title: string
+  snippet?: string
+}
+
+export function parseSearchHelpArticle(raw: unknown): SearchHelpArticle | null {
+  const record = asRecord(raw)
+  if (!record || typeof record.id !== "string" || !record.id) return null
+  const title =
+    typeof record.question === "string" && record.question.trim()
+      ? record.question.trim()
+      : typeof record.title === "string" && record.title.trim()
+        ? record.title.trim()
+        : ""
+  if (!title) return null
+  return {
+    id: record.id,
+    slug: typeof record.slug === "string" && record.slug ? record.slug : record.id,
+    title,
+    snippet:
+      typeof record.answer === "string" && record.answer.trim()
+        ? record.answer.trim().slice(0, 200)
+        : typeof record.snippet === "string" && record.snippet.trim()
+          ? record.snippet.trim().slice(0, 200)
+          : undefined,
+  }
+}
+
+/**
+ * Postingan etalase dari GET /v1/search?types=showcase.
+ *
+ * DC-019 (audit Discovery 2026-09-26): backend `searchShowcase` mengembalikan
+ * bentuk MINIMAL {id, title, description, userId, createdAt} — tanpa images,
+ * author lengkap, likeCount, dsb. — sehingga tidak kompatibel langsung dengan
+ * `ShowcaseSocialItem`. Normalizer ini memetakan ke bentuk yang kompatibel
+ * dengan default aman untuk field yang tidak dikirim.
+ */
+export function parseSearchShowcaseItem(raw: unknown): import("@/lib/api/showcase").ShowcaseSocialItem | null {
+  const record = asRecord(raw)
+  if (!record || typeof record.id !== "string" || !record.id) return null
+  const userId = typeof record.userId === "string" ? record.userId : ""
+  return {
+    id: record.id,
+    title:
+      typeof record.title === "string" && record.title.trim() ? record.title.trim() : "Tanpa judul",
+    description: typeof record.description === "string" ? record.description : null,
+    images: [],
+    likeCount: 0,
+    commentCount: 0,
+    viewCount: 0,
+    shareCount: 0,
+    descriptionHtml: null,
+    createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
+    updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : "",
+    author: {
+      userId,
+      username: userId,
+      fullName: null,
+      avatarUrl: null,
+      membershipRank: null,
+      isKycVerified: false,
+      isVip: false,
+      badges: [],
+      sealTier: null,
+    },
+  }
+}
+
 export type GlobalSearchResults = {
   users?: UserProfile[]
   orders?: Array<Order>
   transactions?: WalletTransaction[]
-  articles?: Array<{ id: string; slug: string; title: string; snippet?: string }>
+  /** DC-002: kunci backend `helpCenter` (dulu salah dibaca `articles`). */
+  helpCenter?: SearchHelpArticle[]
+  /** DC-019: bentuk minimal backend, dinormalisasi ke ShowcaseSocialItem. */
+  showcase?: Array<import("@/lib/api/showcase").ShowcaseSocialItem>
+  /** DC-014: total per jenis dari server (bukan hitungan rows lokal). */
+  totals?: { users: number; orders: number; transactions: number; showcase: number; helpCenter: number }
+  /** DC-011: hint berbahasa Indonesia dari backend (2 kasus, tampil apa adanya). */
+  hint?: string
   total?: number
 }
 
@@ -23,17 +110,50 @@ export function globalSearch(
 ) {
   return http
     .get<unknown>("/v1/search", {
-      // Production accepts only users, orders, and transactions. An empty
-      // `types` query is rejected with SEARCH_INVALID_TYPES.
-      query: { types: "users,orders,transactions", limit: 20, ...query },
+      // DC-016 (audit Discovery 2026-09-26): komentar lama ("hanya users,
+      // orders, transactions") kedaluwarsa — ALLOWED_SEARCH_TYPES backend =
+      // {users,orders,transactions,showcase,help-center}. Cakupan "all" kini
+      // meminta help-center juga (DC-002); showcase TIDAK diminta di sini
+      // (postingan dilayani feed etalase — paritas app/search.tsx).
+      // `types` kosong ditolak backend (SEARCH_INVALID_TYPES).
+      query: { types: "users,orders,transactions,help-center", limit: 20, ...query },
       auth: "required",
       retry: 1,
       signal,
     })
     .then((raw) => {
       const result = readEntity<Record<string, unknown>>(raw, "results")
-      if (![result.users, result.orders, result.transactions, result.articles].some(Array.isArray))
+      // DC-002: kunci backend `helpCenter`, bukan `articles`.
+      if (
+        ![result.users, result.orders, result.transactions, result.helpCenter, result.showcase].some(
+          Array.isArray,
+        )
+      )
         throw invalidResponse("search.results")
+      // DC-014: totals dari server (angka judul kelompok yang benar saat
+      // limit memotong). Fallback ke hitungan lokal bila backend tak kirim.
+      const totalsRaw = asRecord(result.totals)
+      const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0)
+      const transactions = (Array.isArray(result.transactions) ? result.transactions : []).map((item) => {
+        const transaction = item as Record<string, unknown>
+        return {
+          ...transaction,
+          // DC-004 (audit Discovery 2026-09-26): preseden DIBALIK agar sama
+          // dengan normalizeWalletTransaction (txId ?? id). `id` dari search
+          // adalah cuid internal yang TIDAK valid untuk endpoint detail
+          // (where: {txId}); txId publik-lah namespace navigasi yang benar.
+          id: String(transaction.txId ?? transaction.id ?? ""),
+          referenceId: transaction.referenceId ?? transaction.reference_id,
+        } as WalletTransaction
+      })
+      const helpCenter = (Array.isArray(result.helpCenter) ? result.helpCenter : []).flatMap((item) => {
+        const parsed = parseSearchHelpArticle(item)
+        return parsed ? [parsed] : []
+      })
+      const showcase = (Array.isArray(result.showcase) ? result.showcase : []).flatMap((item) => {
+        const parsed = parseSearchShowcaseItem(item)
+        return parsed ? [parsed] : []
+      })
       return {
         ...result,
         users: (Array.isArray(result.users) ? result.users : []).map((item) => {
@@ -47,14 +167,18 @@ export function globalSearch(
         orders: (Array.isArray(result.orders) ? result.orders : []).map((item) =>
           normalizeOrder(item as Order & Record<string, unknown>),
         ),
-        transactions: (Array.isArray(result.transactions) ? result.transactions : []).map((item) => {
-          const transaction = item as Record<string, unknown>
-          return {
-            ...transaction,
-            id: String(transaction.id ?? transaction.txId ?? ""),
-            referenceId: transaction.referenceId ?? transaction.reference_id,
-          } as WalletTransaction
-        }),
+        transactions,
+        helpCenter,
+        showcase,
+        totals: {
+          users: num(totalsRaw?.users),
+          orders: num(totalsRaw?.orders),
+          transactions: num(totalsRaw?.transactions),
+          showcase: num(totalsRaw?.showcase),
+          helpCenter: num(totalsRaw?.helpCenter),
+        },
+        // DC-011: hint backend ditampilkan apa adanya (komentar S2 backend).
+        hint: typeof result.hint === "string" && result.hint.trim() ? result.hint.trim() : undefined,
       } as GlobalSearchResults
     })
 }
@@ -109,6 +233,10 @@ export function readSuggestionList(rows: readonly unknown[]): string[] {
     }
     const record = asRecord(row)
     if (!record) continue
+    // DC-001 (audit Discovery 2026-09-26): backend mengirim {label, type}
+    // (search.service.ts: label = fullName/title). `label` ditaruh TERAKHIR
+    // agar tebakan lama (query/suggestion/...) tidak berubah perilaku bila
+    // backend mengirim keduanya.
     const text = [
       record.query,
       record.suggestion,
@@ -116,6 +244,8 @@ export function readSuggestionList(rows: readonly unknown[]): string[] {
       record.value,
       record.keyword,
       record.title,
+      record.label,
+      record.name,
     ].find((candidate): candidate is string => typeof candidate === "string" && !!candidate.trim())
     if (text) out.push(text.trim())
   }

@@ -96,44 +96,72 @@ export type OrderStatus =
  */
 
 /**
- * Sengketa masuk akal sejak dana/order benar-benar berjalan: PAID/PROCESSING
- * sampai barang dinyatakan tiba (IN_DELIVERY), PLUS WAITING_CONFIRMATION
- * (A-05 audit escrow 2026-09-24) — order yang ditahan/ditolak diam-diam
- * penjual tetap butuh kanal klaim ("saya sudah janjian/transfer, penjual
- * tidak merespons"); `SubmitDisputeDto` tidak membatasi status. WAITING_PAYMENT
- * sengaja di luar: dananya belum ada, jadi yang benar adalah membatalkan.
+ * Sengketa — SELARAS dengan backend `disputes.service.ts#submitDispute`
+ * (EO-002, audit 2026-09-26).
+ *
+ * Backend hanya menerima PROCESSING / IN_DELIVERY / sengketa pasca-completion
+ * (dalam jendela server) — status lain → 400 INVALID_ORDER_STATUS. Komentar
+ * lama (A-05) salah kaprah: memang `SubmitDisputeDto` tidak membatasi status,
+ * tapi BATASAN ADA DI SERVICE, bukan di DTO. WAITING_CONFIRMATION dikeluarkan:
+ * order yang belum dikonfirmasi penjual belum punya dana/perjanjian berjalan —
+ * yang benar adalah membatalkan, bukan bersengketa. Sengketa pasca-COMPLETED
+ * sengaja tetap disembunyikan di klien: jendelanya dihitung server
+ * (`postCompletionDisputeDeadlineAt`), menampilkan tombol tanpa tahu jendela
+ * = janji palsu. Alias PAID/SHIPPED/DELIVERED tidak perlu di sini:
+ * `normalizeOrder` sudah memetakannya ke PROCESSING/IN_DELIVERY di pintu masuk.
  */
 export function isDisputable(status: OrderStatus): boolean {
-  return ["WAITING_CONFIRMATION", "PROCESSING", "IN_DELIVERY", "PAID", "SHIPPED", "DELIVERED"].includes(
-    status,
-  )
+  return ["PROCESSING", "IN_DELIVERY"].includes(status)
 }
 
 /**
- * Perpanjangan tenggat hanya selama pekerjaan belum dikirim.
+ * Perpanjangan tenggat pengiriman — SELARAS dengan backend
+ * `order-extensions.service.ts` (EO-003, audit 2026-09-26).
  *
- * F-03 (audit escrow 2026-09-24): versi lama memuat `IN_DELIVERY`/`SHIPPED`
- * (barang sudah di jalan — memperpanjang tenggat kirim tidak ada gunanya) dan
- * tidak memuat alias konsisten `PENDING_PAYMENT`. Kini hanya fase pra-kirim
- * (menunggu pembayaran / pekerjaan berjalan) + alias lamanya.
+ * Backend HANYA menerima IN_DELIVERY (barang sudah di jalan; memperpanjang
+ * tenggat kirim sebelum barang dikirim tidak ada gunanya — kebalikan dari
+ * asumsi lama F-03) dan HANYA dari seller (`sellerId !== requesterId` → 403).
+ * Gate ini murni status; gate peran ada di layar (`myRole === "SELLER"`).
+ * Backend juga menolak bila sudah lewat `deliveryDeadlineAt` — itu validasi
+ * server, bukan gerbang tombol.
  */
 export function isExtendable(status: OrderStatus): boolean {
-  return ["WAITING_PAYMENT", "PENDING_PAYMENT", "PROCESSING", "PAID"].includes(status)
+  return ["IN_DELIVERY"].includes(status)
 }
 
 /**
- * Pembatalan hanya selama barang BELUM dikirim — sesudahnya penyelesaian dana
- * lewat sengketa (adjudikasi), bukan tombol batal (A-04/A-06 audit escrow
- * 2026-09-24). Versi lama membuka "Batalkan" sampai DELIVERED sehingga dua CTA
- * destruktif (batal + sengketa) tampil berdampingan untuk order yang barangnya
- * sudah di jalan, dengan janji refund penuh yang belum tentu benar.
- * WAITING_CONFIRMATION ikut: order yang belum diterima penjual adalah kasus
- * pembatalan paling umum.
+ * Pembatalan — SELARAS dengan backend `order-state.service.ts#cancelOrder`
+ * (EO-001, audit 2026-09-26).
+ *
+ * Backend hanya mengizinkan WAITING_CONFIRMATION & WAITING_PAYMENT, untuk
+ * buyer DAN seller — status lain → 400 INVALID_ORDER_STATUS. Asumsi lama
+ * ("batal boleh selama pra-kirim", A-04) salah: begitu dana masuk escrow
+ * (PROCESSING dst.) pembatalan sepihak tidak ada, penyelesaiannya lewat
+ * sengketa/adjudikasi. Alias PENDING_PAYMENT tidak perlu di sini:
+ * `normalizeOrder` sudah memetakannya ke WAITING_PAYMENT di pintu masuk.
  */
 export function isCancellable(status: OrderStatus): boolean {
-  return ["WAITING_CONFIRMATION", "WAITING_PAYMENT", "PENDING_PAYMENT", "PROCESSING", "PAID"].includes(
-    status,
-  )
+  return ["WAITING_CONFIRMATION", "WAITING_PAYMENT"].includes(status)
+}
+
+/**
+ * Jendela rating backend: ulasan hanya bisa diberikan dalam N hari setelah
+ * order COMPLETED (EO-009, audit 2026-09-26).
+ *
+ * Diselaraskan dengan `RATING_WINDOW_DAYS` di
+ * `backend/src/common/constants/app.constants.ts` (didefinisikan lokal karena
+ * frontend tidak boleh mengimpor backend). Backend menolak lewat jendela
+ * (`RATING_WINDOW_CLOSED`) DAN menolak bila `completedAt` null — jadi
+ * `completedAt` yang hilang/invalid = fail-closed (CTA disembunyikan),
+ * bukan ditampilkan lalu pasti error.
+ */
+export const RATING_WINDOW_DAYS = 7
+
+export function isRatingWindowOpen(completedAt: string | null | undefined): boolean {
+  if (!completedAt) return false
+  const t = Date.parse(completedAt)
+  if (!Number.isFinite(t)) return false
+  return Date.now() - t <= RATING_WINDOW_DAYS * 24 * 60 * 60 * 1000
 }
 
 /**
@@ -304,6 +332,14 @@ export type Order = {
   /** A-03: pembayaran sudah masuk (penanda "WAITING_PAYMENT sudah dibayar"). */
   paidAt?: string | null
   /**
+   * EO-009 (audit 2026-09-26): waktu order COMPLETED — WAJIB dipertahankan
+   * agar klien bisa menegakkan jendela rating 7 hari backend
+   * (`ratings.service.ts`, RATING_WINDOW_CLOSED) sebelum menampilkan CTA
+   * "Ulas sekarang". Versi lama membuangnya di normalizer sehingga CTA tampil
+   * selamanya → user menekan setelah jendela tutup → error backend.
+   */
+  completedAt?: string | null
+  /**
    * M-49 (audit end-to-end, issue #67): penanda order SUDAH dinilai — dipakai
    * guard anti-rating-ganda di `app/rate/[orderId].tsx`. Whitelist normalize
    * tanpa field ini membuat guard mustahil aktif (user bisa kirim ulasan dua
@@ -438,6 +474,9 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     courierName: optionalText(record.courierName ?? record.courier_name),
     voucherCode: pickString(record, ["voucherCode", "voucher_code", "voucher"]) ?? null,
     paidAt: pickString(record, ["paidAt", "paid_at"]) ?? null,
+    // EO-009: completedAt DIPERTAHANKAN (pola sama seperti paidAt) — gate
+    // jendela rating di layar bergantung padanya.
+    completedAt: pickString(record, ["completedAt", "completed_at"]) ?? null,
     // M-49 (audit end-to-end, issue #67): penanda sudah-dinilai DIPERTAHANKAN
     // (boolean strict) — guard rating ganda di layar bergantung padanya.
     rated: pickBoolean(record, ["rated", "is_rated", "alreadyRated", "already_rated"]) ?? undefined,

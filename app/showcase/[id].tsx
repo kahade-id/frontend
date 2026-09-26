@@ -11,6 +11,7 @@ import {
 import { useLocalSearchParams, router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
+import { formatNumber } from "@/lib/format"
 
 import {
   ChatCircle,
@@ -712,7 +713,14 @@ function ShowcaseDetailContent({
         </Text>
       </View>
 
-      {item.description ? (
+      {/* DC-007 (audit Discovery 2026-09-26): descriptionHtml (Kahade+ benefit 7)
+          diutamakan bila ada — render TERSANITASI via <ShowcaseHtmlView>.
+          description plaintext tetap fallback. */}
+      {item.descriptionHtml ? (
+        <View className="px-5 pt-1">
+          <ShowcaseHtmlView html={item.descriptionHtml} />
+        </View>
+      ) : item.description ? (
         showcaseHtmlHasFormatting(item.description) ? (
           /* Benefit 7 Kahade+: deskripsi HTML anggota Plus di-render
              tersanitasi via <ShowcaseHtmlView> — JANGAN render mentah. */
@@ -742,6 +750,12 @@ function ShowcaseDetailContent({
         onToggleSave={toggleSave}
         onShare={() => void share()}
       />
+      {/* DC-008: metrik share dari backend — tampil ringan bila ada. */}
+      {(item.shareCount ?? 0) > 0 ? (
+        <Text variant="caption" tone="tertiary" className="px-5">
+          {translate("{x} kali dibagikan", { x: formatNumber(item.shareCount ?? 0) })}
+        </Text>
+      ) : null}
 
       {/* Separator bawah aksi — inset */}
       <Divider inset className="mt-1" />
