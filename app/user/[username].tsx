@@ -56,7 +56,8 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { VerifiedSeal, VerificationSheet, getSealTier } from "@/components/ui/verified-seal"
+import { VerificationSheet, getSealTier } from "@/components/ui/verified-seal"
+import { VerifiedName } from "@/components/ui/verified-name"
 import { GreyCheckBadge } from "@/components/ui/grey-check-badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
@@ -785,6 +786,8 @@ export default function UserProfileScreen() {
                   radius="none"
                   bordered={false}
                   resizeMode="cover"
+                  className="w-full"
+                  style={{ width: "100%", aspectRatio: undefined }}
                 />
               </View>
             ) : profile ? (
@@ -896,15 +899,17 @@ export default function UserProfileScreen() {
                   (permintaan produk 2026-09-21). Bila profil tanpa nama,
                   handle naik jadi nama supaya baris ini tidak kosong. */}
               <View className="flex-row items-center gap-1">
-                <Text variant="h2" weight={700} tone="primary">
-                  {profile.fullName || `@${handle}`}
-                </Text>
-                {/* Seal-check 3 tier (emas/biru/abu) — ketuk untuk detail. */}
-                <VerifiedSeal badges={badges} verified={profile.verified} size={18} />
+                <VerifiedName
+                  name={profile.fullName || `@${handle}`}
+                  variant="h2"
+                  badges={badges}
+                  verified={profile.verified}
+                  textProps={{ weight: 700, tone: "primary" }}
+                />
                 {/*
                  * Benefit 2 Kahade+ ("centang abu"): lencana keanggotaan Plus
                  * MILIK VIEWER — hanya di profil sendiri (isSelf), tidak di
-                 * profil orang lain. <VerifiedSeal> di atas tidak diubah.
+                 * profil orang lain. <VerifiedName> di atas tidak diubah.
                  */}
                 {isSelf ? <GreyCheckBadge size={18} /> : null}
               </View>

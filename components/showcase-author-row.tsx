@@ -23,7 +23,7 @@ import { Badge } from "@/components/ui/badge"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
-import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { VerifiedName } from "@/components/ui/verified-name"
 
 type ShowcaseAuthorRowProps = {
   item: Pick<ShowcaseSocialItem, "id" | "author" | "createdAt">
@@ -64,17 +64,14 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
         <View className="flex-1 gap-0.5">
           {/* S1: seal 3-tier di samping nama (sumber: badge backend, sama
               dengan profil); fallback boolean KYC bila badge belum ada. */}
-          <View className="flex-row items-center gap-1">
-            <Text variant="body" weight={600} numberOfLines={1} className="min-w-0 shrink">
-              {item.author.fullName ?? item.author.username}
-            </Text>
-            <VerifiedSeal
-              badges={item.author.badges as unknown as VerificationBadge[]}
-              verified={item.author.isKycVerified === true}
-              tier={item.author.sealTier ?? null}
-              size={14}
-            />
-          </View>
+          <VerifiedName
+            name={item.author.fullName ?? item.author.username}
+            variant="body"
+            badges={item.author.badges as unknown as VerificationBadge[]}
+            verified={item.author.isKycVerified === true}
+            tier={item.author.sealTier ?? null}
+            textProps={{ weight: 600 }}
+          />
           <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
             {`@${item.author.username} · ${formatDateTime(item.createdAt)}`}
           </Text>

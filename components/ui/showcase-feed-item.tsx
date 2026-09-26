@@ -25,7 +25,7 @@
  */
 
 import { memo, useCallback } from "react"
-import { BookmarkSimple, ChatCircle, Export, Flag, FunnelSimple } from "phosphor-react-native"
+import { BookmarkSimple, ChatCircle, DotsThreeCircle, Export, Flag } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
@@ -41,7 +41,7 @@ import { ROUTES } from "@/lib/routes"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 
 import { Avatar } from "@/components/ui/avatar"
-import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { VerifiedName } from "@/components/ui/verified-name"
 import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
@@ -68,6 +68,12 @@ export type ShowcaseFeedItemProps = {
   onShare?: () => void
   onReport?: () => void
   onOptions?: () => void
+  /**
+   * Opsi untuk karya MILIK SENDIRI (edit/hapus) — ditampilkan sebagai
+   * DotsThreeCircle di profile. Jika tidak disediakan, tombol disembunyikan
+   * untuk karya sendiri (lapor tidak masuk akal untuk karya sendiri).
+   */
+  onManage?: () => void
   divider?: boolean
   className?: string
 }
@@ -145,6 +151,7 @@ function ShowcaseFeedItemBase({
   onShare,
   onReport,
   onOptions,
+  onManage,
   divider = false,
   className,
 }: ShowcaseFeedItemProps) {
@@ -235,26 +242,25 @@ function ShowcaseFeedItemBase({
           <View className="min-w-0 flex-1 justify-center">
             {/* S1: seal 3-tier di samping nama (sumber: badge backend, sama
                 dengan profil); fallback boolean KYC bila badge belum ada. */}
-            <View className="flex-row items-center gap-1">
-              <Text variant="body" weight={600} numberOfLines={1} className="min-w-0 shrink">
-                {item.author.fullName?.trim() || item.author.username}
-              </Text>
-              <VerifiedSeal
-                badges={item.author.badges as unknown as VerificationBadge[]}
-                verified={item.author.isKycVerified === true}
-                tier={item.author.sealTier ?? null}
-                size={14}
-              />
-            </View>
+            <VerifiedName
+              name={item.author.fullName?.trim() || item.author.username}
+              variant="body"
+              badges={item.author.badges as unknown as VerificationBadge[]}
+              verified={item.author.isKycVerified === true}
+              tier={item.author.sealTier ?? null}
+              textProps={{ weight: 600 }}
+            />
             <Text variant="caption" tone="secondary" numberOfLines={1}>
               {`@${item.author.username} · ${formatRelativeTime(item.createdAt)}`}
             </Text>
           </View>
         </PressableScale>
-        {/* B-05: lapor tidak masuk akal untuk karya sendiri (selaras detail). */}
+        {/* B-05: lapor tidak masuk akal untuk karya sendiri (selaras detail).
+            Untuk karya sendiri tampilkan DotsThreeCircle (kelola: edit/hapus)
+            bila onManage disediakan. */}
         {!item.isOwner ? (
           <IconButton
-            icon={onOptions ? FunnelSimple : Flag}
+            icon={onOptions ? DotsThreeCircle : Flag}
             variant="ghost"
             size="sm"
             accessibilityLabel={onOptions ? translate("Pilihan karya") : translate("Laporkan karya")}
@@ -262,6 +268,15 @@ function ShowcaseFeedItemBase({
             // bisa berubah — isi sheet tidak dijanjikan di muka.
             accessibilityHint={onOptions ? translate("Buka opsi karya") : translate("Laporkan karya ini")}
             onPress={onOptions ?? handleReport}
+          />
+        ) : onManage ? (
+          <IconButton
+            icon={DotsThreeCircle}
+            variant="ghost"
+            size="sm"
+            accessibilityLabel={translate("Kelola karya")}
+            accessibilityHint={translate("Buka opsi kelola karya")}
+            onPress={onManage}
           />
         ) : null}
       </View>

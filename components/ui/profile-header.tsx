@@ -227,6 +227,8 @@ function ProfileCoverBand({ cover, loading }: { cover: ProfileCover; loading: bo
           radius="none"
           bordered={false}
           resizeMode="cover"
+          className="w-full"
+          style={{ width: "100%", aspectRatio: undefined }}
         />
       ) : (
         <View

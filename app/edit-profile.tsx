@@ -556,6 +556,8 @@ export default function EditProfileScreen() {
                     height={COVER_HEIGHT}
                     radius="none"
                     bordered={false}
+                    className="w-full"
+                    style={{ width: "100%", aspectRatio: undefined }}
                   />
                 ) : (
                   <View

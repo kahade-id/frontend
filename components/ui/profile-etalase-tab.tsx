@@ -77,11 +77,13 @@ const EtalaseCard = memo(function EtalaseCard({
   divider,
   onOpenComments,
   onReport,
+  onManage,
 }: {
   item: ShowcaseSocialItem
   divider: boolean
   onOpenComments: (item: ShowcaseSocialItem) => void
   onReport: (item: ShowcaseSocialItem) => void
+  onManage: (item: ShowcaseSocialItem) => void
 }) {
   const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible } =
     useShowcaseSocialActions(item)
@@ -102,6 +104,7 @@ const EtalaseCard = memo(function EtalaseCard({
         savePending={savedPending}
         onShare={share}
         onReport={() => onReport(item)}
+        onManage={() => onManage(item)}
         divider={divider}
       />
       <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={() => setShareSheetVisible(false)} />
@@ -264,6 +267,7 @@ export function ProfileEtalaseTab({
                 divider={index < Math.min(renderLimit, patchedItems.length) - 1}
                 onOpenComments={handleOpenComments}
                 onReport={handleOpenReport}
+                onManage={(item) => router.push(ROUTES.showcaseDetail(item.id))}
               />
             ))}
             {patchedItems.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 20)}>{translate("Tampilkan karya lainnya")}</Button> : null}

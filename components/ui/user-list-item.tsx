@@ -30,7 +30,8 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { useLanguage } from "@/lib/i18n"
 import { translate } from "@/lib/i18n/translate"
-import { VerifiedSeal, type SealTier } from "@/components/ui/verified-seal"
+import { type SealTier } from "@/components/ui/verified-seal"
+import { VerifiedName } from "@/components/ui/verified-name"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
@@ -98,12 +99,14 @@ export function UserListItem({
     >
       <Avatar source={avatar?.source} name={name} size="md" verified={showVerified} sealTier={sealTier ?? undefined} />
       <View className="flex-1 gap-0.5">
-        <View className="flex-row items-center gap-1">
-          <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1} className="min-w-0 shrink">
-            {name}
-          </Text>
-          <VerifiedSeal badges={null} verified={verified} tier={sealTier ?? null} size={14} />
-        </View>
+        <VerifiedName
+          name={name}
+          variant="body"
+          badges={null}
+          verified={verified}
+          tier={sealTier ?? null}
+          textProps={{ weight: 500, tone: "primary", ellipsizeMode: "tail" }}
+        />
         {handle || stat ? (
           <View className="flex-row flex-wrap items-center gap-x-2">
             {handle ? (

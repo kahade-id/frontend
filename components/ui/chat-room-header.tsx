@@ -41,7 +41,8 @@ import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { ScreenInsetsContext } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
-import { VerifiedSeal, type SealTier } from "@/components/ui/verified-seal"
+import { type SealTier } from "@/components/ui/verified-seal"
+import { VerifiedName } from "@/components/ui/verified-name"
 import { useDocumentTitle } from "@/components/ui/header"
 import { cn } from "@/lib/cn"
 import { focusRing, focusRingInset } from "@/lib/focus-ring"
@@ -130,21 +131,15 @@ export function ChatRoomHeader({
       </View>
 
       <View className="min-w-0 flex-1">
-        <View className="flex-row items-center gap-1">
-          <Text
-            ellipsizeMode="tail"
-            accessibilityRole="header"
-            variant="body"
-            weight={600}
-            tone="primary"
-            numberOfLines={1}
-            className="min-w-0 shrink"
-          >
-            {loading ? "Memuat…" : title}
-          </Text>
-          {/* R1: <VerifiedSeal> di samping nama — tier dari payload room. */}
-          <VerifiedSeal badges={null} verified={verified} tier={sealTier ?? null} size={14} />
-        </View>
+        {/* R1: <VerifiedName> di samping nama — tier dari payload room. */}
+        <VerifiedName
+          name={loading ? "Memuat…" : title}
+          variant="body"
+          badges={null}
+          verified={verified}
+          tier={sealTier ?? null}
+          textProps={{ weight: 600, tone: "primary", ellipsizeMode: "tail", accessibilityRole: "header" }}
+        />
 
         {status || orderId ? (
           <View className="flex-row items-center gap-1">
