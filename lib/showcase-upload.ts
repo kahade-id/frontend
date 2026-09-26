@@ -1,4 +1,4 @@
-/** Upload-only workflow. Never fall back to a legacy endpoint that auto-publishes an item. */
+/** Upload-only workflow. Direct upload ke server (self-hosted storage, 2026-09-26). */
 import { api } from "@/lib/api"
 import { ApiError, isApiError } from "@/lib/api/errors"
 import type { PickedImage } from "@/lib/image-picker"
@@ -16,35 +16,27 @@ export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSign
   try {
     check()
     let blob = await pickedImageToBlob(asset)
-    // Android: blob.type bisa kosong → paksa mime dari asset agar presigned header benar
+    // Android: blob.type bisa kosong → paksa mime dari asset
     if (!blob.type && asset.mimeType) {
       blob = new Blob([blob], { type: asset.mimeType })
     }
-    // Fallback ukuran: presigned butuh fileSize akurat, blob.size 0 di Android lama → pakai asset.size
-    const effectiveSize = blob.size > 0 ? blob.size : asset.size > 0 ? asset.size : blob.size
-    if (effectiveSize <= 0) throw new ApiError({ code: "VALIDATION", message: "Berkas kosong atau tidak terbaca." })
-    check()
-    stage = "presign"
-    const upload = await api.upload.requestPresignedUrl({
-      purpose: "SHOWCASE_IMAGE", fileName: asset.name, contentType: asset.mimeType, fileSize: effectiveSize,
-    }, signal)
-    if (!upload.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
-    fileKey = upload.fileKey
+    if (blob.size <= 0) throw new ApiError({ code: "VALIDATION", message: "Berkas kosong atau tidak terbaca." })
     check()
     stage = "transfer"
-    await api.upload.uploadToPresignedUrl(upload, blob, asset.name, 60_000, signal)
+    // Self-hosted (2026-09-26): tidak ada presigned URL R2 lagi.
+    // Upload langsung multipart ke server: POST /v1/upload/direct
+    const formData = new FormData()
+    formData.append("file", blob as unknown as Blob, asset.name)
+    formData.append("purpose", "SHOWCASE_IMAGE")
+    const result = await api.upload.uploadDirect(formData, signal)
+    if (!result.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
+    fileKey = result.fileKey
     check()
-    stage = "confirm"
-    await api.upload.confirmUpload({ fileKey }, signal)
-    check()
+    // uploadDirect sudah auto-confirm di server — tidak perlu /upload/confirm
     return { kind: "fileKey", fileKey }
   } catch (error) {
     // No file is attached in this workflow: compensating cleanup is safe even after confirm.
     if (fileKey) await cleanupPendingShowcaseKeys([fileKey])
-    // BUG #2: telemetri sebelumnya memakai pesan generik "failed" sehingga
-    // penyebab (mis. R2 SignatureDoesNotMatch) tak terlacak. Sertakan
-    // code:status:backendCode — aman karena tidak memuat nama file, URL,
-    // maupun fileKey (lihat komentar redaksi di bawah).
     const diag = isApiError(error)
       ? `${error.code}${error.status ? `:${error.status}` : ""}${
           error.backendCode ? `:${error.backendCode}` : ""
