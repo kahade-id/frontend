@@ -23,6 +23,8 @@
 export const queryKeys = {
   /** `GET /v1/wallet` — saldo & ringkasan dompet. */
   wallet: () => "wallet",
+  /** `GET /v1/wallet/limits` — batas nominal efektif dari server (FX-010). */
+  walletLimits: () => "wallet-limits",
   /** `GET /v1/users/me` — profil akun yang sedang login. */
   me: () => "me",
   /** `GET /v1/bank-accounts` — daftar rekening bank milik pengguna. */

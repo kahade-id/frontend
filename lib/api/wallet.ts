@@ -296,6 +296,51 @@ export function getPaymentMethods(signal?: AbortSignal) {
     }) as WalletPaymentMethod))
 }
 
+/**
+ * FX-010 — batas nominal dompet dari server (`GET /v1/wallet/limits`).
+ *
+ * Backend mengembalikan constraint EFEKTIF yang benar-benar mengikat
+ * (DTO statis ∩ guard env service). Salinan statis `AMOUNT_LIMITS` tetap jadi
+ * fallback bila request gagal / field tak valid — validasi client tidak boleh
+ * lebih longgar dari sebelumnya hanya karena fetch gagal.
+ */
+export type WalletAmountLimit = { minimum: number; maximum: number }
+export type WalletLimits = {
+  withdraw: WalletAmountLimit
+  topup: WalletAmountLimit
+  transfer: WalletAmountLimit
+}
+
+function pickLimit(raw: unknown, fallback: WalletAmountLimit): WalletAmountLimit {
+  const record = (raw ?? {}) as Record<string, unknown>
+  const minimum = pickNumber(record, ["minimum"])
+  const maximum = pickNumber(record, ["maximum"])
+  return {
+    minimum:
+      minimum !== undefined && Number.isSafeInteger(minimum) && minimum > 0
+        ? minimum
+        : fallback.minimum,
+    maximum:
+      maximum !== undefined && Number.isSafeInteger(maximum) && maximum > 0
+        ? maximum
+        : fallback.maximum,
+  }
+}
+
+/** GET /v1/wallet/limits — batas nominal efektif (server = guard of record). */
+export function getWalletLimits(signal?: AbortSignal): Promise<WalletLimits> {
+  return http
+    .get<unknown>("/v1/wallet/limits", { auth: "required", retry: 1, signal })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      return {
+        withdraw: pickLimit(record.withdraw, AMOUNT_LIMITS.withdraw),
+        topup: pickLimit(record.topup, AMOUNT_LIMITS.topup),
+        transfer: pickLimit(record.transfer, AMOUNT_LIMITS.transfer),
+      }
+    })
+}
+
 /** GET /v1/wallet/transfer/lookup?q= — cari penerima transfer. */
 export function lookupTransferRecipient(q: string, signal?: AbortSignal) {
   return http

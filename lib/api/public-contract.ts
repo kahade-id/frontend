@@ -105,9 +105,13 @@ export function normalizeSubscriptionPlans(raw: unknown): SubscriptionPlan[] {
   return readList<unknown>(raw, ["plans"]).map((item) => {
     const plan = asRecord(item)
     const key = plan?.plan ?? plan?.key
+    // SP-029: backend mengirim `YEARLY` (enum Prisma SubscriptionPlan);
+    // normalizer lama hanya mengenal `ANNUAL` dan me-throw untuk YEARLY.
+    // Petakan YEARLY → ANNUAL (kosakata legacy tipe ini), jangan buang baris.
+    const legacyKey = key === "YEARLY" ? "ANNUAL" : key
     if (
       !plan ||
-      (key !== "MONTHLY" && key !== "ANNUAL") ||
+      (legacyKey !== "MONTHLY" && legacyKey !== "ANNUAL") ||
       !isNumber(plan.price) ||
       (plan.price as number) < 0
     )
@@ -115,11 +119,11 @@ export function normalizeSubscriptionPlans(raw: unknown): SubscriptionPlan[] {
     const benefits = plan.features ?? plan.benefits
     const duration = plan.durationDays ?? plan.duration_days
     return {
-      id: string(plan.id) ?? (key as string),
-      key: key as "MONTHLY" | "ANNUAL",
+      id: string(plan.id) ?? (legacyKey as string),
+      key: legacyKey as "MONTHLY" | "ANNUAL",
       // Production `/subscriptions/plans` returns plan/price/durationDays
       // without a display name; keep the screen usable with a stable label.
-      name: string(plan.name) ?? (key === "MONTHLY" ? "Bulanan" : "Tahunan"),
+      name: string(plan.name) ?? (legacyKey === "MONTHLY" ? "Bulanan" : "Tahunan"),
       price: plan.price as number,
       durationDays: isNumber(duration) ? duration : undefined,
       periodLabel: string(plan.period ?? plan.period_label ?? plan.periodLabel),

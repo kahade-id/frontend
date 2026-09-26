@@ -60,11 +60,11 @@ import { TransactionSummary } from "@/components/ui/transaction-summary"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
 
-const MIN_AMOUNT = AMOUNT_LIMITS.withdraw.minimum
-const MAX_AMOUNT = AMOUNT_LIMITS.withdraw.maximum
 const PRESETS = AMOUNT_PRESETS.withdraw
 // Alur: nominal + rekening (satu layar, rekening dipilih lewat BottomSheet)
 // → verifikasi PIN/OTP (sheet) → selesai.
+// (FX-010: MIN/MAX nominal kini dari `withdrawLimits` di dalam komponen —
+// batas server via `GET /v1/wallet/limits`, fallback statis bila fetch gagal.)
 const TOTAL_STEPS = 3
 
 type Step = "amount" | "verify" | "done"
@@ -79,6 +79,16 @@ const DEFAULT_OTP_COOLDOWN_S = 60
 export default function WithdrawScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  /**
+   * FX-010 (audit): batas nominal diambil dari server (`GET /v1/wallet/limits`)
+   * agar selaras dengan guard of record. Fallback = salinan statis
+   * `AMOUNT_LIMITS.withdraw` bila fetch gagal — validasi client tidak boleh
+   * lebih longgar dari sebelumnya hanya karena jaringan gagal.
+   */
+  const limitsQuery = useApiQuery(queryKeys.walletLimits(), (signal) =>
+    api.wallet.getWalletLimits(signal),
+  )
+  const withdrawLimits = limitsQuery.data?.withdraw ?? AMOUNT_LIMITS.withdraw
   /**
    * J-02/J-04 (audit): `?resume=<txId>` membuka kembali langkah OTP untuk
    * penarikan PENDING_OTP yang ditinggalkan (banner "aksi menunggu" di
@@ -97,7 +107,7 @@ export default function WithdrawScreen() {
     ? params.resumeAmount[0]
     : params.resumeAmount
   const resumeAmountCandidate = Number(resumeAmountRaw ?? Number.NaN)
-  const resumeAmount = isValidAmount(resumeAmountCandidate, AMOUNT_LIMITS.withdraw)
+  const resumeAmount = isValidAmount(resumeAmountCandidate, withdrawLimits)
     ? resumeAmountCandidate
     : 0
 
@@ -190,7 +200,7 @@ export default function WithdrawScreen() {
   const progress = stepIndex[step] / TOTAL_STEPS
 
   const canContinueAmount =
-    isValidAmount(amount, AMOUNT_LIMITS.withdraw) &&
+    isValidAmount(amount, withdrawLimits) &&
     !!selected &&
     accounts.some((a) => a.id === accountId) &&
     !loading &&
@@ -417,8 +427,8 @@ export default function WithdrawScreen() {
             <AmountKeypad
               value={amount}
               onChange={setAmount}
-              min={MIN_AMOUNT}
-              max={balance && balance > 0 ? Math.min(MAX_AMOUNT, balance) : MAX_AMOUNT}
+              min={withdrawLimits.minimum}
+              max={balance && balance > 0 ? Math.min(withdrawLimits.maximum, balance) : withdrawLimits.maximum}
               presets={PRESETS}
               balance={balance}
               slot={

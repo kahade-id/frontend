@@ -1,11 +1,12 @@
 /**
  * Kahade — daftar 7 benefit Kahade+ (copy produk Bahasa Indonesia).
  *
- * Copy ini didefinisikan di sisi frontend karena kontrak baru
- * GET /v1/subscriptions/plans hanya mengembalikan { plan, label, price,
- * durationDays } — tidak ada daftar benefit. Bila backend kelak menyediakan
- * endpoint benefit untuk kontrak baru, ganti sumber data ini (bentuk item
- * disamakan dengan props <SubscriptionBenefitList> supaya layar tidak berubah).
+ * Copy pemasaran ini SENGAJA didefinisikan di sisi frontend: backend
+ * (GET /v1/subscriptions/benefits, GET /v1/subscriptions/plans → field
+ * `benefits`) menyediakan daftar benefit ringkas berbahasa Inggris sebagai
+ * source of truth mesin, sedangkan layar pemasaran memakai copy produk
+ * Indonesia yang sudah dikurasi (7 item, urutan sesuai dokumen produk).
+ * Bila daftar benefit produk berubah, perbarui KEDUA sisi.
  *
  * Urutan diselaraskan dengan penomoran benefit di dokumen produk:
  *  2 = centang abu, 5 = tema eksklusif, 6 = akses awal, 7 = custom etalase.

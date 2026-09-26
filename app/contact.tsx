@@ -8,6 +8,7 @@ import { router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, userMessage } from "@/lib/api"
+import { pickImages } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
@@ -35,6 +36,9 @@ const TICKET_CATEGORIES = [
 
 type TicketCategory = (typeof TICKET_CATEGORIES)[number]["value"]
 
+/** Maksimal lampiran per tiket — selaras CreateTicketDto (maxItems 5). */
+const MAX_ATTACHMENTS = 5
+
 export default function ContactScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
@@ -42,6 +46,52 @@ export default function ContactScreen() {
   const [message, setMessage] = useState("")
   const [category, setCategory] = useState<TicketCategory>("GENERAL")
   const [submitting, setSubmitting] = useState(false)
+  // SP-024: lampiran tiket — backend POST /v1/support/tickets sudah menerima
+  // `attachments` (fileKey, max 5, diverifikasi); form mengekspos picker-nya.
+  const [attachments, setAttachments] = useState<string[]>([])
+  const [uploading, setUploading] = useState(false)
+
+  const handlePickAttachments = useCallback(async () => {
+    const remaining = MAX_ATTACHMENTS - attachments.length
+    if (remaining <= 0) return
+    let picked: Awaited<ReturnType<typeof pickImages>>
+    try {
+      picked = await pickImages({ selectionLimit: remaining })
+    } catch (err) {
+      toast.show({
+        title: "Gagal memilih foto",
+        description: userMessage(err),
+        tone: "danger",
+      })
+      return
+    }
+    if (picked.status === "denied") {
+      toast.show({ title: "Akses galeri ditolak", tone: "danger" })
+      return
+    }
+    if (picked.status !== "picked") return
+    setUploading(true)
+    try {
+      const keys: string[] = []
+      for (const asset of picked.assets) {
+        const { fileKey } = await api.upload.uploadDirectImage(asset, "CHAT_ATTACHMENT")
+        keys.push(fileKey)
+      }
+      setAttachments((prev) => [...prev, ...keys].slice(0, MAX_ATTACHMENTS))
+    } catch (err) {
+      toast.show({
+        title: "Gagal mengunggah lampiran",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setUploading(false)
+    }
+  }, [attachments.length, toast])
+
+  const handleRemoveAttachment = useCallback((fileKey: string) => {
+    setAttachments((prev) => prev.filter((k) => k !== fileKey))
+  }, [])
 
   const handleSubmit = useCallback(async () => {
     if (!subject.trim() || !message.trim()) return
@@ -51,7 +101,7 @@ export default function ContactScreen() {
         subject: subject.trim(),
         message: message.trim(),
         category,
-        attachments: [],
+        attachments,
       })
       toast.show({
         title: "Tiket terkirim",
@@ -62,6 +112,7 @@ export default function ContactScreen() {
       setSubject("")
       setMessage("")
       setCategory("GENERAL")
+      setAttachments([])
       if (res?.id) router.replace(ROUTES.supportTicket(res.id))
       else router.replace(ROUTES.support)
     } catch (err: unknown) {
@@ -141,6 +192,37 @@ export default function ContactScreen() {
               maxLength={2000}
               numberOfLines={5}
             />
+          </Field>
+          <Field label="Lampiran (opsional)">
+            <View className="gap-2">
+              {attachments.map((fileKey, index) => (
+                <View
+                  key={fileKey}
+                  className="flex-row items-center justify-between rounded-xs bg-surface px-3 py-2"
+                >
+                  <Text variant="caption" tone="secondary" className="font-mono-500">
+                    Lampiran {index + 1}
+                  </Text>
+                  <TextLink inline onPress={() => handleRemoveAttachment(fileKey)}>
+                    Hapus
+                  </TextLink>
+                </View>
+              ))}
+              {attachments.length < MAX_ATTACHMENTS ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  fullWidth={false}
+                  loading={uploading}
+                  disabled={uploading}
+                  onPress={() => void handlePickAttachments()}
+                >
+                  {attachments.length === 0
+                    ? "Tambah lampiran"
+                    : `Tambah lagi (${attachments.length}/${MAX_ATTACHMENTS})`}
+                </Button>
+              ) : null}
+            </View>
           </Field>
         </FormSection>
         <Text variant="body" tone="secondary">

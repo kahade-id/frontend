@@ -264,9 +264,11 @@ export function readSuggestionList(rows: readonly unknown[]): string[] {
 
 // ------------------------------------------------------------------
 // Riwayat pencarian (audit P2 "Lainnya") —
-// GET /v1/search/history + GET /v1/search/history/clear.
-// Endpoint clear memakai GET (bentuk backend apa adanya; cek:retry hanya
-// melarang `retry` pada mutasi, dan di sini tidak ada retry).
+// GET /v1/search/history + DELETE /v1/search/history.
+// DC-017 (audit Discovery 2026-09-26): clear memakai DELETE KANONIS —
+// `GET /v1/search/history/clear` hanya alias [DEPRECATED] di backend dan
+// melanggar semantik REST (risiko prefetch/cache menghapus data).
+// `retry` tidak dipakai pada mutasi (kontrak cek:retry).
 // ------------------------------------------------------------------
 
 export type SearchHistoryEntry = {
@@ -313,7 +315,7 @@ export function getSearchHistory(signal?: AbortSignal) {
     })
 }
 
-/** GET /v1/search/history/clear — hapus riwayat pencarian user. */
+/** DELETE /v1/search/history — hapus riwayat pencarian user (kanonis, DC-017). */
 export function clearSearchHistory(signal?: AbortSignal) {
-  return http.get<unknown>("/v1/search/history/clear", { auth: "required", signal })
+  return http.delete<unknown>("/v1/search/history", { auth: "required", signal })
 }

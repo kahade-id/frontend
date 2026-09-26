@@ -34,7 +34,9 @@ import {
 
 import { api } from "@/lib/api"
 import { useCopy } from "@/lib/clipboard"
+import { profileUrl } from "@/lib/deeplinks"
 import { useHasSession } from "@/lib/guest-gate"
+import { translate } from "@/lib/i18n/translate"
 import { pickImage } from "@/lib/image-picker"
 import { ROUTES } from "@/lib/routes"
 
@@ -112,7 +114,12 @@ export default function ScanScreen() {
 
   const me = meQuery.data
   const myUsername = me?.username ?? ""
-  const myProfileUrl = myUsername ? `https://kahade.id/u/${myUsername}` : "https://kahade.id"
+  // FX-002 (audit Frontend-UX 2026-09-26): URL profil KANONIS dari
+  // lib/deeplinks — `https://kahade.id/user/<username>`. Bentuk lama `/u/`
+  // 404 di web bagi pemindai eksternal (tanpa aplikasi Kahade).
+  // FX-014: bila username kosong (profil belum/gagal dimuat), JANGAN render
+  // QR yang menyesatkan ke homepage — null memicu tampilan penjelasan.
+  const myProfileUrl = myUsername ? profileUrl(myUsername) : null
 
   const parseCode = useCallback(
     (raw: string): ParsedTarget => {
@@ -345,44 +352,61 @@ export default function ScanScreen() {
                 </View>
               </View>
 
-              {/* Tampilan Kode QR Resmi */}
-              <View className="items-center justify-center rounded-xl bg-surface-raised p-4 border border-border">
-                <QRCodeDisplay
-                  value={myProfileUrl}
-                  size={200}
-                  caption={myProfileUrl}
-                  accessibilityLabel="Kode QR Profil Saya"
-                />
-              </View>
+              {/* Tampilan Kode QR Resmi — FX-014: tanpa URL profil yang valid,
+                  QR disembunyikan dan diganti penjelasan (bukan QR ke
+                  homepage yang menyesatkan). */}
+              {myProfileUrl ? (
+                <>
+                  <View className="items-center justify-center rounded-xl bg-surface-raised p-4 border border-border">
+                    <QRCodeDisplay
+                      value={myProfileUrl}
+                      size={200}
+                      caption={myProfileUrl}
+                      accessibilityLabel="Kode QR Profil Saya"
+                    />
+                  </View>
 
-              <Text variant="caption" tone="secondary" className="text-center px-2">
-                Tunjukkan kode ini kepada pembeli atau mitra untuk membuka profil dan bertransaksi escrow secara aman.
-              </Text>
+                  <Text variant="caption" tone="secondary" className="text-center px-2">
+                    Tunjukkan kode ini kepada pembeli atau mitra untuk membuka profil dan bertransaksi escrow secara aman.
+                  </Text>
 
-              {/* Aksi Berbagi */}
-              <View className="w-full flex-row gap-3 pt-1">
-                <Button
-                  variant="secondary"
-                  size="md"
-                  leftIcon={Copy}
-                  onPress={() => {
-                    void copy(myProfileUrl)
-                    toast.show({ title: "Tautan disalin ke papan klip", tone: "success" })
-                  }}
-                  className="flex-1"
-                >
-                  Salin
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  leftIcon={ShareNetwork}
-                  onPress={() => void handleShareProfile()}
-                  className="flex-1"
-                >
-                  Bagikan
-                </Button>
-              </View>
+                  {/* Aksi Berbagi */}
+                  <View className="w-full flex-row gap-3 pt-1">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      leftIcon={Copy}
+                      onPress={() => {
+                        void copy(myProfileUrl)
+                        toast.show({ title: "Tautan disalin ke papan klip", tone: "success" })
+                      }}
+                      className="flex-1"
+                    >
+                      Salin
+                    </Button>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      leftIcon={ShareNetwork}
+                      onPress={() => void handleShareProfile()}
+                      className="flex-1"
+                    >
+                      Bagikan
+                    </Button>
+                  </View>
+                </>
+              ) : (
+                <View className="w-full items-center gap-2 rounded-xl border border-border bg-surface-raised p-6">
+                  <Icon icon={QrCode} size="lg" tone="default" />
+                  <Text variant="body" tone="secondary" className="text-center">
+                    {meQuery.loading
+                      ? translate("Memuat profil Anda…")
+                      : translate(
+                          "Profil belum dapat dimuat, sehingga kode QR belum tersedia. Periksa koneksi lalu buka kembali tab ini.",
+                        )}
+                  </Text>
+                </View>
+              )}
             </View>
           ) : (
             <View className="w-full max-w-sm items-center gap-4 rounded-2xl border border-border bg-surface p-6 text-center">

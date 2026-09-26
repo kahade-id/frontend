@@ -568,10 +568,11 @@ export default function VouchersScreen() {
         ) : (
           usage.map((u, index) => (
             <VoucherUsageListItem
-              key={u.usageId ?? `${u.code}:${index}`}
-              title={u.title ?? u.code}
+              key={u.usageId || `${u.code}:${index}`}
+              title={u.title}
               code={u.code}
               savedAmount={u.discountValue ?? Number.NaN}
+              orderId={u.orderId}
               usedAt={u.usedAt ? formatDateTime(u.usedAt) : undefined}
             />
           ))

@@ -234,25 +234,39 @@ export function getReferralLeaderboard(limit = 50, signal?: AbortSignal) {
       return rows
         .map((row, index) => {
           const record = (row ?? {}) as Record<string, unknown>
+          // SP-035: backend mengirim user BERSARANG
+          // ({ rank, user: { username, fullName, avatarUrl }, code,
+          // totalReferrals, successfulReferrals, totalRewardEarned (IDR) }) —
+          // baca objek user dulu, lalu alias datar lama sebagai fallback.
+          const nestedUser =
+            record.user && typeof record.user === "object" && !Array.isArray(record.user)
+              ? (record.user as Record<string, unknown>)
+              : null
           const username =
-            typeof record.username === "string" && record.username
+            (nestedUser && typeof nestedUser.username === "string" && nestedUser.username) ||
+            (typeof record.username === "string" && record.username
               ? record.username
               : typeof record.fullName === "string" && record.fullName
                 ? record.fullName
-                : ""
+                : "")
           if (!username) return null
           const entry: ReferralLeaderboardEntry = {
             rank: pickNumber(record, ["rank", "position"]) || index + 1,
             username,
             fullName:
-              typeof record.fullName === "string" && record.fullName
-                ? record.fullName
-                : undefined,
+              (nestedUser && typeof nestedUser.fullName === "string" && nestedUser.fullName) ||
+              (typeof record.fullName === "string" && record.fullName ? record.fullName : undefined) ||
+              undefined,
             avatarUrl:
-              typeof record.avatarUrl === "string"
+              (nestedUser && typeof nestedUser.avatarUrl === "string" && nestedUser.avatarUrl) ||
+              (typeof record.avatarUrl === "string"
                 ? record.avatarUrl
-                : (typeof record.avatar === "string" ? record.avatar : null),
+                : typeof record.avatar === "string"
+                  ? record.avatar
+                  : null),
             invitedCount: pickNumber(record, [
+              "totalReferrals",
+              "successfulReferrals",
               "invitedCount",
               "totalInvited",
               "invited",
@@ -260,6 +274,7 @@ export function getReferralLeaderboard(limit = 50, signal?: AbortSignal) {
               "count",
             ]),
             totalReward: pickNumber(record, [
+              "totalRewardEarned",
               "totalReward",
               "totalRewardAmount",
               "reward",
