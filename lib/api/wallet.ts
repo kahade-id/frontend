@@ -69,6 +69,8 @@ export type Wallet = {
   escrowBalance?: number
   /** Saldo yang bisa ditarik setelah dikurangi hold */
   availableBalance?: number
+  /** Apakah user sudah punya PIN wallet (dari backend GET /v1/wallet) */
+  hasPin?: boolean
   updatedAt?: string
 }
 

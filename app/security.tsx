@@ -68,6 +68,7 @@ import { logWarn } from "@/lib/telemetry"
 import { DataScreen } from "@/components/ui/data-screen"
 import { ListItem } from "@/components/ui/list-item"
 import { SensitiveText } from "@/components/ui/sensitive-text"
+import { Text } from "@/components/ui/text"
 import { MenuGroupLabel } from "@/components/ui/section"
 
 const NO_BIOMETRIC: BiometricCapability = { available: false, kind: "none", label: "biometrik" }
@@ -76,24 +77,35 @@ type SecurityHub = {
   me: UserProfile
   twoFactor: TwoFactorStatus | null
   biometric: BiometricCapability
+  hasPin: boolean | null
 }
 
 export default function SecurityScreen() {
   const query = useApiQuery<SecurityHub>("security-hub", async (signal) => {
-    const [me, twoFactor, biometric] = await Promise.all([
+    const [me, twoFactor, biometric, wallet] = await Promise.all([
       api.users.getMe(signal),
       api.auth.get2faStatus(signal).catch((err) => {
         logWarn("security:2fa-status", err)
         return null
       }),
       getBiometricCapability().catch(() => NO_BIOMETRIC),
+      api.wallet.getWallet(signal).catch((err) => {
+        logWarn("security:wallet-pin-status", err)
+        return null
+      }),
     ])
-    return { me, twoFactor, biometric }
+    return {
+      me,
+      twoFactor,
+      biometric,
+      hasPin: wallet && typeof wallet.hasPin === "boolean" ? wallet.hasPin : null,
+    }
   })
 
   const me = query.data?.me
   const twoFactor = query.data?.twoFactor
   const biometric = query.data?.biometric ?? NO_BIOMETRIC
+  const hasPin = query.data?.hasPin
 
   const twoFactorLabel = twoFactor ? (twoFactor.enabled ? "Aktif" : "Nonaktif") : undefined
   const biometricLabel = biometric.available ? biometric.label : "Tidak tersedia"
@@ -155,11 +167,18 @@ export default function SecurityScreen() {
             href={ROUTES.changePassword}
           />
           <ListItem
-            title="Ganti PIN"
+            title={hasPin === false ? "Buat PIN" : "Ganti PIN"}
             titleVariant="bodyLarge"
             leading={LockKey}
             chevron
             href={ROUTES.changePin}
+            trailing={
+              hasPin === false ? (
+                <Text variant="caption" tone="warning">
+                  Belum dibuat
+                </Text>
+              ) : undefined
+            }
           />
         </View>
 

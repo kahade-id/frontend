@@ -38,6 +38,7 @@ export function normalizeWallet(raw: unknown): Wallet {
     availableBalance: available ?? (held === undefined ? undefined : derivedBalance - held),
     holdBalance: held,
     escrowBalance: escrow,
+    hasPin: typeof wallet.hasPin === "boolean" ? wallet.hasPin : undefined,
     updatedAt: typeof wallet.updatedAt === "string" ? wallet.updatedAt : undefined,
   } as Wallet
 }

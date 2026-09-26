@@ -1,21 +1,26 @@
 /**
- * Screen — Ubah PIN (POST /v1/wallet/set-pin).
+ * Screen — Buat/Ubah PIN (POST /v1/wallet/set-pin).
  *
  * `SetPinDto` = { pin, currentPin?, password }. `currentPin` wajib saat PIN
- * sudah pernah dibuat — PIN selalu dibuat di onboarding (Buat Keamanan),
- * jadi layar ini SELALU meminta PIN lama.
+ * sudah pernah dibuat; TIDAK wajib saat user belum punya PIN (registrasi baru
+ * tidak membuat PIN — user membuatnya di sini).
  *
- * Alur: password akun → PIN lama (diverifikasi lewat POST /v1/wallet/verify-pin
- * supaya kesalahan ketahuan sebelum memilih PIN baru) → PIN baru (mode
- * "setup": masukkan + ulangi) → simpan → kembali ke layar sebelumnya.
+ * Alur (punya PIN): password akun → PIN lama (diverifikasi lewat
+ * POST /v1/wallet/verify-pin supaya kesalahan ketahuan sebelum memilih PIN
+ * baru) → PIN baru (mode "setup": masukkan + ulangi) → simpan.
+ *
+ * Alur (belum punya PIN): password akun → langsung PIN baru → simpan.
  *
  * Keputusan non-obvious:
  *   - Validasi panjang password memakai `PASSWORD_MIN` dari lib/auth-constants
  *     (12), bukan angka literal — sama dengan aturan registrasi.
  *   - Bila `verify-pin` gagal karena jaringan (bukan PIN salah), pengguna
  *     tetap boleh lanjut: backend memvalidasi ulang `currentPin` di set-pin.
+ *   - `hasPin` diambil dari GET /v1/wallet; jika gagal diambil (offline),
+ *     fallback ke mode "ubah" (minta PIN lama) karena itu yang paling aman —
+ *     backend akan menolak dengan pesan jelas jika ternyata belum punya PIN.
  */
-import { useCallback, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -47,6 +52,27 @@ export default function ChangePinScreen() {
   const [newError, setNewError] = useState<string | undefined>()
   const [verifying, setVerifying] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  /** null = belum diketahui (loading/gagal), true/false = status dari server */
+  const [hasPin, setHasPin] = useState<boolean | null>(null)
+
+  // Ambil status PIN dari wallet — menentukan apakah langkah "PIN lama" perlu.
+  useEffect(() => {
+    let cancelled = false
+    api.wallet
+      .getWallet()
+      .then((w) => {
+        if (!cancelled && typeof w?.hasPin === "boolean") setHasPin(w.hasPin)
+      })
+      .catch(() => {
+        /* fallback: null → mode ubah (aman) */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /** true jika user dipastikan belum punya PIN → lewati langkah PIN lama */
+  const isSetupMode = hasPin === false
 
   const passwordOk = password.length >= PASSWORD_MIN
 
@@ -81,22 +107,33 @@ export default function ChangePinScreen() {
 
   const handleNewPin = useCallback(
     async (pin: string) => {
-      if (pin === currentPin) {
+      if (!isSetupMode && pin === currentPin) {
         setNewError("PIN baru harus berbeda dari PIN lama.")
         return
       }
       setSubmitting(true)
       setNewError(undefined)
       try {
-        await api.wallet.setWalletPin({ pin, currentPin, password })
-        toast.show({ title: "PIN berhasil diubah", tone: "success" })
+        // Mode setup (belum punya PIN): currentPin tidak dikirim — backend
+        // hanya butuh password + PIN baru.
+        await api.wallet.setWalletPin(
+          isSetupMode ? { pin, password } : { pin, currentPin, password },
+        )
+        toast.show({
+          title: isSetupMode ? "PIN berhasil dibuat" : "PIN berhasil diubah",
+          tone: "success",
+        })
         goBackOrNavigate(ROUTES.settings)
       } catch (err: unknown) {
         // §14: percobaan PIN dibatasi. Bila backend mengunci akun, pesan itulah
         // yang harus dibaca pengguna — bukan saran "periksa password" yang
         // membuatnya mencoba lagi dan memperpanjang penguncian.
         const msg = userMessage(err)
-        toast.show({ title: "Gagal mengubah PIN", description: msg, tone: "danger" })
+        toast.show({
+          title: isSetupMode ? "Gagal membuat PIN" : "Gagal mengubah PIN",
+          description: msg,
+          tone: "danger",
+        })
         // A-18 (audit): error transient (jaringan/timeout/5xx) TIDAK lagi
         // melempar pengguna ke langkah password dan membuang PIN baru yang
         // sudah diketik dua kali — tetap di langkah "new". Hanya penolakan
@@ -109,8 +146,18 @@ export default function ChangePinScreen() {
         setSubmitting(false)
       }
     },
-    [currentPin, password, toast.show],
+    [currentPin, isSetupMode, password, toast.show],
   )
+
+  // Setelah password OK: ke "new" langsung jika belum punya PIN, else "current".
+  const afterPassword = useCallback(() => {
+    setStep(isSetupMode ? "new" : "current")
+  }, [isSetupMode])
+
+  // Tombol kembali dari langkah "new": ke "current" jika ada, else ke "password".
+  const backFromNew = useCallback(() => {
+    setStep(isSetupMode ? "password" : "current")
+  }, [isSetupMode])
 
   return (
     <Screen
@@ -120,14 +167,14 @@ export default function ChangePinScreen() {
       footer={
         step === "password" ? (
           <View>
-            <Button fullWidth disabled={!passwordOk} onPress={() => setStep("current")}>
+            <Button fullWidth disabled={!passwordOk} onPress={afterPassword}>
               Lanjut
             </Button>
           </View>
         ) : undefined
       }
     >
-      <Header title="Ubah PIN" />
+      <Header title={isSetupMode ? "Buat PIN" : "Ubah PIN"} />
       <ScrollView
         keyboardShouldPersistTaps="handled"
         contentContainerClassName="gap-4 px-5"
@@ -137,7 +184,9 @@ export default function ChangePinScreen() {
           <>
             <SectionHeader title="Verifikasi kata sandi" />
             <Text variant="body" tone="secondary">
-              Masukkan kata sandi akun untuk mengizinkan perubahan PIN.
+              {isSetupMode
+                ? "Masukkan kata sandi akun untuk membuat PIN dompet."
+                : "Masukkan kata sandi akun untuk mengizinkan perubahan PIN."}
             </Text>
             <PasswordField
               label="Kata sandi akun"
@@ -146,7 +195,7 @@ export default function ChangePinScreen() {
               required
               autoFocus
               returnKeyType="next"
-              onSubmitEditing={() => passwordOk && setStep("current")}
+              onSubmitEditing={() => passwordOk && afterPassword()}
             />
           </>
         ) : step === "current" ? (
@@ -172,9 +221,9 @@ export default function ChangePinScreen() {
           </>
         ) : (
           <>
-            <SectionHeader title="PIN baru" />
+            <SectionHeader title={isSetupMode ? "PIN baru" : "PIN baru"} />
             <Text variant="body" tone="secondary">
-              Pilih PIN 6 digit baru. Jangan gunakan tanggal lahir atau angka berurutan.
+              Pilih PIN 6 digit. Jangan gunakan tanggal lahir atau angka berurutan.
             </Text>
             <PinInput
               mode="setup"
@@ -185,7 +234,7 @@ export default function ChangePinScreen() {
             <Button
               variant="ghost"
               fullWidth={false}
-              onPress={() => setStep("current")}
+              onPress={backFromNew}
               disabled={submitting}
             >
               Kembali
