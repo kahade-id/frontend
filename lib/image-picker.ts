@@ -4,7 +4,7 @@
  *
  * Satu tempat untuk pola yang sebelumnya ditulis ulang di setup-profile,
  * showcase, KYC, dan sengketa: minta izin → buka picker → ambil asset →
- * bungkus jadi FormData (endpoint `/direct`) atau Blob (`uploadPresigned`).
+ * bungkus jadi FormData (endpoint `/direct`) atau Blob (legacy).
  *
  * Keputusan non-obvious:
  *   - Izin hanya diminta di native; di web expo-image-picker memakai
@@ -114,7 +114,7 @@ export async function pickImage(opts: PickImageOptions = {}): Promise<PickImageR
   }
 }
 
-/** Blob untuk `api.upload.uploadPresigned` (PUT ke presigned URL).
+/** Blob dari asset lokal (legacy — `uploadPresigned` sudah dimatikan backend).
  * Android: `fetch(file://)` / `content://` tidak andal di Hermes/new-arch,
  * jadi coba fetch dulu lalu fallback ke expo-file-system (File API) yang
  * membaca byte langsung. Mime dipertahankan dari PickedImage.

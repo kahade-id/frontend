@@ -3,8 +3,9 @@
  *
  * GET /v1/kyc/status + /v1/kyc/history → kartu status + riwayat.
  * POST /v1/kyc/submit (pertama kali) atau /v1/kyc/resubmit (setelah
- * REJECTED/REVOKED) dengan NIK + fileKey KTP & selfie — upload presigned
- * (purpose KYC_KTP / KYC_SELFIE) lewat `api.upload.uploadPresigned`.
+ * REJECTED/REVOKED) dengan NIK + fileKey KTP & selfie — upload langsung
+ * (purpose KYC_KTP / KYC_SELFIE) lewat `api.upload.uploadDirectImage`
+ * (self-hosted storage, 2026-09-26; presigned URL sudah dimatikan backend).
  *
  * Keputusan non-obvious:
  *   - Status dari server dinormalkan `toKycUiStatus()` (lib/api/kyc.ts):
@@ -31,7 +32,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { toKycUiStatus, type KycHistoryEntry, type KycState } from "@/lib/api/kyc"
-import type { PresignedUrlDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
 import { logWarn } from "@/lib/telemetry"
 // D-08 (audit): validasi STRUKTUR NIK (kode wilayah, tanggal lahir terkode
@@ -40,7 +40,6 @@ import { logWarn } from "@/lib/telemetry"
 import { NIK_LENGTH, nikRejectionMessage, validateNikStructure } from "@/lib/nik"
 import {
   pickImage,
-  pickedImageToBlob,
   type PickedImage,
   type PickImageOptions,
 } from "@/lib/image-picker"
@@ -174,11 +173,12 @@ export default function KycScreen() {
   )
 
   const uploadDoc = useCallback(
-    async (key: DocKey, purpose: PresignedUrlDto["purpose"], img: PickedImage): Promise<string> => {
+    async (key: DocKey, purpose: string, img: PickedImage): Promise<string> => {
       setUploadStatus((u) => ({ ...u, [key]: "uploading" }))
       try {
-        const blob = await pickedImageToBlob(img)
-        const { fileKey } = await api.upload.uploadPresigned(purpose, img.name, img.mimeType, blob)
+        // Self-hosted (2026-09-26): presigned URL dimatikan backend —
+        // upload langsung multipart ke POST /v1/upload/direct.
+        const { fileKey } = await api.upload.uploadDirectImage(img, purpose)
         setUploadStatus((u) => ({ ...u, [key]: "done" }))
         return fileKey
       } catch (err) {

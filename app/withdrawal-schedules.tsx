@@ -27,6 +27,7 @@ import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
+import { PinInput } from "@/components/ui/pin-input"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { ScheduleField, type ScheduleValue } from "@/components/ui/schedule-field"
 import { Screen } from "@/components/ui/screen"
@@ -72,6 +73,17 @@ export default function WithdrawalSchedulesScreen() {
   const [deleteTarget, setDeleteTarget] = useState<WithdrawalSchedule | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  /**
+   * WF-003: setiap perubahan jadwal wajib diotorisasi PIN wallet.
+   * `pendingAction` menyimpan aksi yang menunggu PIN dimasukkan.
+   */
+  const [pinSheetOpen, setPinSheetOpen] = useState(false)
+  const [pinError, setPinError] = useState<string | undefined>()
+  const [pendingAction, setPendingAction] = useState<
+    | { kind: "save" }
+    | { kind: "toggle"; item: WithdrawalSchedule; next: boolean }
+    | null
+  >(null)
 
   const openCreate = useCallback(() => {
     setEditing(null)
@@ -100,7 +112,7 @@ export default function WithdrawalSchedulesScreen() {
       ? `Minimum ${formatRupiah(AMOUNT_LIMITS.withdraw.minimum)}.`
       : undefined
 
-  const handleSubmit = useCallback(async () => {
+  const handleSubmit = useCallback(() => {
     const targetBankAccountId = editing ? editing.bankAccount.id : selectedBankAccountId
     if (!targetBankAccountId && !editing) {
       toast.show({
@@ -110,60 +122,81 @@ export default function WithdrawalSchedulesScreen() {
       })
       return
     }
-    setSubmitting(true)
-    try {
-      if (editing) {
-        const dto: UpdateScheduleDto = {
-          dayOfWeek: schedule.dayOfWeek ?? 1,
-          minAmount: (schedule.minAmount ?? 0) > 0 ? (schedule.minAmount ?? undefined) : undefined,
-          bankAccountId: editing.bankAccount.id,
-          isActive: editing.isActive,
-        }
-        await api.withdrawals.updateWithdrawalSchedule(editing.id, dto)
-      } else {
-        const dto: CreateScheduleDto = {
-          dayOfWeek: schedule.dayOfWeek ?? 1,
-          minAmount: (schedule.minAmount ?? 0) > 0 ? (schedule.minAmount ?? undefined) : undefined,
-          bankAccountId: targetBankAccountId,
-        }
-        await api.withdrawals.createWithdrawalSchedule(dto)
-      }
-      toast.show({ title: "Jadwal disimpan", tone: "success", duration: 3000 })
-      setCreating(false)
-      setEditing(null)
-      await query.refresh()
-    } catch (err) {
-      toast.show({
-        title: "Gagal menyimpan jadwal",
-        description: userMessage(err),
-        tone: "danger",
-      })
-    } finally {
-      setSubmitting(false)
-    }
-  }, [editing, schedule, selectedBankAccountId, toast.show, query])
+    // WF-003: buka konfirmasi PIN dulu — submit aktual terjadi di handlePinComplete.
+    setPinError(undefined)
+    setPendingAction({ kind: "save" })
+    setPinSheetOpen(true)
+  }, [editing, selectedBankAccountId, toast.show])
 
-  const handleToggle = useCallback(
-    async (item: WithdrawalSchedule, next: boolean) => {
-      setTogglingId(item.id)
+  const handlePinComplete = useCallback(
+    async (pin: string) => {
+      const action = pendingAction
+      if (!action) return
+      setPinError(undefined)
+      setSubmitting(true)
       try {
-        await api.withdrawals.updateWithdrawalSchedule(item.id, { isActive: next })
-        // Optimistic update lewat `setData` milik useApiQuery — sama seperti
-        // `setItems` sebelumnya, hanya sumber datanya kini milik hook.
-        query.setData((prev) =>
-          (prev ?? []).map((x) => (x.id === item.id ? { ...x, isActive: next } : x)),
-        )
-      } catch (err: unknown) {
-        toast.show({
-          title: "Gagal memperbarui jadwal",
-          description: userMessage(err),
-          tone: "danger",
-        })
+        if (action.kind === "save") {
+          const targetBankAccountId = editing ? editing.bankAccount.id : selectedBankAccountId
+          if (editing) {
+            const dto: UpdateScheduleDto = {
+              dayOfWeek: schedule.dayOfWeek ?? 1,
+              minAmount: (schedule.minAmount ?? 0) > 0 ? (schedule.minAmount ?? undefined) : undefined,
+              bankAccountId: editing.bankAccount.id,
+              isActive: editing.isActive,
+              pin,
+            }
+            await api.withdrawals.updateWithdrawalSchedule(editing.id, dto)
+          } else {
+            const dto: CreateScheduleDto = {
+              dayOfWeek: schedule.dayOfWeek ?? 1,
+              minAmount: (schedule.minAmount ?? 0) > 0 ? (schedule.minAmount ?? undefined) : undefined,
+              bankAccountId: targetBankAccountId,
+              pin,
+            }
+            await api.withdrawals.createWithdrawalSchedule(dto)
+          }
+          toast.show({ title: "Jadwal disimpan", tone: "success", duration: 3000 })
+          setPinSheetOpen(false)
+          setPendingAction(null)
+          setCreating(false)
+          setEditing(null)
+          await query.refresh()
+        } else {
+          setTogglingId(action.item.id)
+          try {
+            await api.withdrawals.updateWithdrawalSchedule(action.item.id, {
+              isActive: action.next,
+              pin,
+            })
+            setPinSheetOpen(false)
+            setPendingAction(null)
+            // Optimistic update lewat `setData` milik useApiQuery — sama seperti
+            // `setItems` sebelumnya, hanya sumber datanya kini milik hook.
+            query.setData((prev) =>
+              (prev ?? []).map((x) => (x.id === action.item.id ? { ...x, isActive: action.next } : x)),
+            )
+          } finally {
+            setTogglingId(null)
+          }
+        }
+      } catch (err) {
+        // PIN salah / rate-limited: tampilkan di sheet PIN, biarkan user coba lagi.
+        setPinError(userMessage(err))
       } finally {
-        setTogglingId(null)
+        setSubmitting(false)
       }
     },
-    [toast.show],
+    [pendingAction, editing, schedule, selectedBankAccountId, toast.show, query],
+  )
+
+  const handleToggle = useCallback(
+    (item: WithdrawalSchedule, next: boolean) => {
+      // WF-003: toggle aktif/nonaktif juga wajib PIN.
+      setPinError(undefined)
+      setPendingAction({ kind: "toggle", item, next })
+      setPinSheetOpen(true)
+    },
+    [],
   )
 
   const handleDelete = useCallback(async () => {
@@ -330,6 +363,42 @@ export default function WithdrawalSchedulesScreen() {
             setBankSheetOpen(false)
           }}
         />
+      </BottomSheet>
+
+      {/*
+        WF-003: konfirmasi PIN wallet sebelum setiap perubahan jadwal
+        (buat, ubah, aktif/nonaktif). PIN tidak disimpan di state.
+      */}
+      <BottomSheet
+        visible={pinSheetOpen}
+        onRequestClose={() => {
+          if (!submitting) {
+            setPinSheetOpen(false)
+            setPendingAction(null)
+            setPinError(undefined)
+          }
+        }}
+        title="Masukkan PIN Wallet"
+        description="Jadwal penarikan otomatis memindahkan dana Anda. Masukkan PIN wallet untuk mengotorisasi."
+      >
+        <View className="gap-4 py-2">
+          <PinInput
+            mode="enter"
+            onComplete={(pin) => void handlePinComplete(pin)}
+            errorText={pinError}
+            disabled={submitting}
+          />
+          {pinError ? (
+            <Text variant="body" tone="danger" className="text-center">
+              {pinError}
+            </Text>
+          ) : null}
+          {submitting ? (
+            <Text variant="caption" tone="tertiary" className="text-center">
+              Memverifikasi…
+            </Text>
+          ) : null}
+        </View>
       </BottomSheet>
 
       <Dialog

@@ -1368,6 +1368,11 @@ export type CreateScheduleDto = {
    * min 1
    */
   minAmount?: number
+  /**
+   * 6-digit wallet PIN — authorizes creation of an automated withdrawal
+   * schedule (WF-003). minLength 6 · maxLength 6
+   */
+  pin: string
 }
 
 export type UpdateScheduleDto = {
@@ -1385,6 +1390,11 @@ export type UpdateScheduleDto = {
   isActive?: boolean
   /** Bank account ID to withdraw to */
   bankAccountId?: string
+  /**
+   * 6-digit wallet PIN — required to authorize any change to a schedule
+   * (WF-003). minLength 6 · maxLength 6
+   */
+  pin: string
 }
 
 export type CreateTemplateDto = {

@@ -38,7 +38,7 @@ import { Package } from "phosphor-react-native"
 import { api, createIdempotencyKey, isApiError, userMessage, type Order } from "@/lib/api"
 import { showMutationError } from "@/lib/mutation-toast"
 import { orderPartyName, type DeliveryProof } from "@/lib/api/orders"
-import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
+import { pickImage } from "@/lib/image-picker"
 import { formatDateTime } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 
@@ -336,13 +336,9 @@ export default function DeliveryProofScreen() {
     }
     setUploading(true)
     try {
-      const blob = await pickedImageToBlob(asset)
-      const { fileKey } = await api.upload.uploadPresigned(
-        "DELIVERY_PROOF",
-        asset.name,
-        asset.mimeType,
-        blob,
-      )
+      // Self-hosted (2026-09-26): presigned URL dimatikan backend —
+      // upload langsung multipart ke POST /v1/upload/direct.
+      const { fileKey } = await api.upload.uploadDirectImage(asset, "DELIVERY_PROOF")
       setUploads((prev) => [
         ...prev,
         {

@@ -4,8 +4,9 @@
  * GET /v1/business-verification/status + /history → kartu status + riwayat.
  * POST /v1/business-verification/submit (pertama kali) atau /resubmit
  * (setelah REJECTED, cooldown 24 jam) dengan businessName + npwpNumber +
- * (deedNumber | siupNumber) + 1–5 fileKey dokumen — upload presigned
- * (purpose BUSINESS_DOCUMENT) lewat `api.upload.uploadPresigned`.
+ * (deedNumber | siupNumber) + 1–5 fileKey dokumen — upload langsung
+ * (purpose BUSINESS_DOCUMENT) lewat `api.upload.uploadDirectImage`
+ * (self-hosted storage, 2026-09-26; presigned URL sudah dimatikan backend).
  *
  * Keputusan non-obvious:
  *   - Kerangka layar via <DataScreen> (aturan S3 check:screens): urutan
@@ -37,7 +38,6 @@ import type { SubmitBusinessVerificationDto } from "@/lib/api/types"
 import { formatDateTime } from "@/lib/format"
 import {
   pickImage,
-  pickedImageToBlob,
   type PickedImage,
   type PickImageOptions,
 } from "@/lib/image-picker"
@@ -163,8 +163,9 @@ export default function BusinessVerificationScreen() {
     try {
       const documentFileKeys: string[] = []
       for (const img of docs) {
-        const blob = await pickedImageToBlob(img)
-        const { fileKey } = await api.upload.uploadPresigned("BUSINESS_DOCUMENT", img.name, img.mimeType, blob)
+        // Self-hosted (2026-09-26): presigned URL dimatikan backend —
+        // upload langsung multipart ke POST /v1/upload/direct.
+        const { fileKey } = await api.upload.uploadDirectImage(img, "BUSINESS_DOCUMENT")
         documentFileKeys.push(fileKey)
       }
       const dto: SubmitBusinessVerificationDto = {

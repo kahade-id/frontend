@@ -3,8 +3,8 @@
  *
  * Cermin dari `kyc.ts`: submit / resubmit / status / history. Dokumen
  * (NPWP / akta / SIUP, jpg·png·pdf, maks 10MB, maks 5 berkas) diupload
- * terpisah lewat `api.upload.uploadPresigned("BUSINESS_DOCUMENT", …)`
- * lalu `fileKey`-nya dikirim lewat submit.
+ * terpisah lewat `api.upload.uploadDirectImage(img, "BUSINESS_DOCUMENT")`
+ * (self-hosted, 2026-09-26) lalu `fileKey`-nya dikirim lewat submit.
  *
  * Keputusan non-obvious:
  *   - Hanya akun `accountType === "BUSINESS"` yang boleh submit (backend

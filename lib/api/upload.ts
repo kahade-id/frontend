@@ -1,9 +1,10 @@
 /**
- * Kahade — domain `upload` (presigned URL, confirm, direct, cleanup).
+ * Kahade — domain `upload` (direct, confirm, cleanup).
  *
- * Direct multipart dipakai avatar (lihat users.uploadAvatarDirect) untuk
- * memangkas round-trip; KYC / bukti sengketa memakai presigned URL karena
- * server menuntut `fileKey` dari S3.
+ * Self-hosted storage (2026-09-26): SEMUA upload lewat `POST /v1/upload/direct`
+ * (multipart). Alur presigned URL sudah dimatikan backend (DEPRECATED 400) —
+ * `uploadPresigned` di bawah hanya dipertahankan sebagai stub deprecated dan
+ * tidak boleh dipakai kode baru.
  */
 import { assertDtoConstraints } from "@/lib/financial"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
@@ -11,6 +12,7 @@ import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES } from "@/lib/api/erro
 import { safeHttpsUrl } from "@/lib/version"
 import { http, seg } from "@/lib/api/client"
 import type { CleanupFilesDto, ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
+import { pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
 
 /** Hasil POST /v1/upload/presigned-url. */
 export type PresignedUpload = {
@@ -213,6 +215,32 @@ export function cleanupUploads(fileKeys: string[]) {
 }
 
 /**
+ * Upload gambar/video dari asset lokal langsung ke server (multipart
+ * `POST /v1/upload/direct`). Pengganti `uploadPresigned` untuk SEMUA
+ * purpose — backend sudah mematikan presigned URL (ST-014, 2026-09-26).
+ *
+ * Memakai `pickedImageToFormData` (format {uri,name,type}) karena Blob
+ * langsung tidak terbaca Multer di React Native. Server auto-confirm,
+ * jadi tidak perlu `/upload/confirm`.
+ */
+export async function uploadDirectImage(
+  img: PickedImage,
+  purpose: string,
+  signal?: AbortSignal,
+): Promise<{ fileKey: string }> {
+  const formData = await pickedImageToFormData(img, "file")
+  formData.append("purpose", purpose)
+  const result = await uploadDirect(formData, signal)
+  if (!result.fileKey) throw new ApiError({ code: "PARSE", message: "Kunci unggahan tidak tersedia." })
+  return { fileKey: result.fileKey }
+}
+
+/**
+ * @deprecated Backend mematikan `POST /v1/upload/presigned-url` (DEPRECATED 400,
+ * ST-014, 2026-09-26). JANGAN dipakai untuk kode baru — pakai `uploadDirectImage`
+ * atau `uploadDirect`. Fungsi ini dipertahankan agar tidak merusak pemanggil
+ * lama yang belum termigrasi; akan selalu gagal di server.
+ *
  * Upload dari asset lokal (dipakai form bukti/KYC): ambil blob, minta
  * presigned URL, PUT, lalu confirm. Kembalikan fileKey siap kirim.
  *

@@ -49,7 +49,7 @@ import type {
 } from "@/lib/api/disputes"
 import { useApiQuery } from "@/lib/use-api-query"
 import { usePolling } from "@/lib/use-polling"
-import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
+import { pickImage } from "@/lib/image-picker"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
@@ -400,13 +400,9 @@ export default function DisputeDetailScreen() {
       setUploadingEvidence(true)
     try {
       const asset = picked.asset
-      const blob = await pickedImageToBlob(asset)
-      const { fileKey } = await api.upload.uploadPresigned(
-        "DISPUTE_EVIDENCE",
-        asset.name,
-        asset.mimeType,
-        blob,
-      )
+      // Self-hosted (2026-09-26): presigned URL dimatikan backend —
+      // upload langsung multipart ke POST /v1/upload/direct.
+      const { fileKey } = await api.upload.uploadDirectImage(asset, "DISPUTE_EVIDENCE")
       await api.disputes.submitDisputeEvidence(id, {
         // R2 (audit ronde-2, butir #41): deskripsi = nama berkas mentah
         // (IMG_20260924_183344.heic) mengotori arsip mediasi. Karena belum ada

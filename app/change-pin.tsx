@@ -14,8 +14,10 @@
  * Keputusan non-obvious:
  *   - Validasi panjang password memakai `PASSWORD_MIN` dari lib/auth-constants
  *     (12), bukan angka literal — sama dengan aturan registrasi.
- *   - Bila `verify-pin` gagal karena jaringan (bukan PIN salah), pengguna
- *     tetap boleh lanjut: backend memvalidasi ulang `currentPin` di set-pin.
+ *   - WF-025 (fail-closed): bila `verify-pin` gagal karena jaringan, pengguna
+ *     TIDAK boleh lanjut — tampilkan pesan jelas dan tetap di langkah PIN
+ *     lama. Backend tetap memvalidasi ulang `currentPin` di set-pin sebagai
+ *     pertahanan berlapis.
  *   - `hasPin` diambil dari GET /v1/wallet; jika gagal diambil (offline),
  *     fallback ke mode "ubah" (minta PIN lama) karena itu yang paling aman —
  *     backend akan menolak dengan pesan jelas jika ternyata belum punya PIN.
@@ -88,18 +90,20 @@ export default function ChangePinScreen() {
       setCurrentPin(pin)
       setStep("new")
     } catch (err) {
-      // Error transient (jaringan/timeout/5xx) → lanjut, backend memvalidasi
-      // ulang saat set-pin. Selain itu anggap PIN ditolak.
+      // WF-025 (fail-closed): error transient (jaringan/timeout/5xx) TIDAK
+      // boleh lanjut — tampilkan pesan jelas dan tetap di langkah PIN lama.
+      // Sebelumnya kode lanjut ke langkah PIN baru dengan asumsi backend
+      // validasi ulang, yang menyesatkan bila PIN salah + jaringan buruk.
       if (isApiError(err) && err.code === "RATE_LIMITED") {
         setCurrentError("Terlalu banyak percobaan PIN. Coba lagi dalam 15 menit.")
         return
       }
-      if (!isApiError(err) || !err.isTransient) {
-        setCurrentError("PIN lama salah. Coba lagi.")
+      if (isApiError(err) && err.isTransient) {
+        setCurrentError("Tidak dapat memverifikasi PIN lama. Periksa koneksi internet lalu coba lagi.")
         return
       }
-      setCurrentPin(pin)
-      setStep("new")
+      setCurrentError("PIN lama salah. Coba lagi.")
+      return
     } finally {
       setVerifying(false)
     }
