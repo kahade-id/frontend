@@ -643,18 +643,14 @@ export default function OrderDetailScreen() {
    * confirm → pay → …) memastikan `/confirm` (ACCEPT/REJECT) adalah giliran
    * PENJUAL sebelum pembeli membayar.
    *
-   * M-29 (audit end-to-end, issue #22): `canProcess` MEMAKAI `rawStatus`
-   * (pra-alias) — normalisasi mengubah "PAID" → "PROCESSING" (A-08), sehingga
-   * `order.status === "PAID"` mustahil true dan tombol "Mulai proses" tidak
-   * pernah muncul. Dengan `rawStatus === "PAID"` gerbang legacy hidup lagi
-   * TANPA mengubah tampilan status. `canShip` MENGEKUALIKAN `rawStatus !==
-   * "PAID"` — kalau tidak, dua tombol ("Mulai proses" DAN "Isi resi") muncul
-   * bersamaan untuk order yang sama.
+   * EO-011 (audit 2026-09-26): cabang legacy `rawStatus === "PAID"` adalah
+   * kode mati — enum backend OrderStatus tak punya PAID, jadi `rawStatus`
+   * order tak pernah "PAID"; tombol "Mulai proses" tak pernah tampil.
+   * Dibersihkan tanpa mengubah perilaku.
    */
   const canPay = (order.status === "WAITING_PAYMENT" || order.status === "PENDING_PAYMENT") && isBuyer
   const canConfirm = order.status === "WAITING_CONFIRMATION" && isSeller
-  const canProcess = order.rawStatus === "PAID" && isSeller
-  const canShip = order.status === "PROCESSING" && order.rawStatus !== "PAID" && isSeller
+  const canShip = order.status === "PROCESSING" && isSeller
   const canReviewDelivery =
     (order.status === "IN_DELIVERY" ||
       order.status === "SHIPPED" ||
@@ -878,20 +874,6 @@ export default function OrderDetailScreen() {
                   Tolak pesanan
                 </Button>
               </>
-            ) : null}
-            {canProcess ? (
-              <Button
-                loading={submitting}
-                onPress={() =>
-                  void runAction(
-                    () => api.orders.processOrder(order.id),
-                    "Order mulai diproses",
-                    "Gagal memproses order",
-                  )
-                }
-              >
-                Mulai proses
-              </Button>
             ) : null}
             {canShip ? (
               <>

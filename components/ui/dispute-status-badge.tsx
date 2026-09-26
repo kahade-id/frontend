@@ -6,25 +6,22 @@
  * menerjemahkan status sengketa backend menjadi tone + label, dipakai oleh
  * DisputeCard, header detail sengketa, NotificationListItem, Timeline.
  *
- * Siklus sengketa (diturunkan dari endpoint: dispute -> claim -> evidence ->
- * messages/call -> mutual-resolution -> keputusan admin):
+ * Siklus sengketa = enum backend `DisputeStatus` (DP-003, audit 2026-09-26;
+ * dulu kosakata UI ditebak dan tak cocok dengan server):
  *
- *   OPEN                 warning  baru dibuka, menunggu klaim/bukti kedua pihak
- *   AWAITING_RESPONSE    warning  menunggu tanggapan pihak lawan
- *   UNDER_REVIEW         info     sedang ditinjau tim Kahade
- *   MUTUAL_RESOLUTION    info     ada proposal penyelesaian bersama yang aktif
- *   RESOLVED_BUYER       success  diputuskan untuk pembeli (refund)
- *   RESOLVED_SELLER      success  diputuskan untuk penjual (dana dilepas)
- *   RESOLVED_MUTUAL      success  disepakati kedua pihak (split)
- *   CLOSED               neutral  ditutup tanpa keputusan / ditarik
- *   ESCALATED            danger   dieskalasi (indikasi fraud / pelanggaran)
+ *   OPEN               warning  baru dibuka, menunggu klaim/bukti kedua pihak
+ *   ASSIGNED           info     ditugaskan ke mediator
+ *   UNDER_REVIEW       info     sedang ditinjau tim Kahade
+ *   WAITING_RESPONSE   warning  menunggu tanggapan salah satu pihak
+ *   RESOLVED           success  ada keputusan (arah dana di kartu putusan)
+ *   ESCALATED          danger   dieskalasi (indikasi fraud / pelanggaran)
  *
  * Keputusan non-obvious:
- *   - Semua RESOLVED_* memakai tone `success` terlepas siapa yang menang:
- *     dari sudut pandang produk, sengketa yang SELESAI adalah hasil baik;
- *     arah dana dibaca dari label ("untuk pembeli"/"untuk penjual"), bukan
- *     dari warna. Warna merah untuk "kalah" akan terasa menghukum (§1 tenang).
- *   - `role` menggeser tone AWAITING_RESPONSE: kalau yang ditunggu adalah
+ *   - RESOLVED memakai tone `success`: dari sudut pandang produk, sengketa
+ *     yang SELESAI adalah hasil baik; arah dana dibaca dari kartu "Hasil
+ *     putusan" (DP-005), bukan dari warna. Warna merah untuk "kalah" akan
+ *     terasa menghukum (§1 tenang).
+ *   - `role` menggeser tone WAITING_RESPONSE: kalau yang ditunggu adalah
  *     USER (respondent), tone warning = "Anda harus bertindak"; kalau user
  *     adalah pihak yang menunggu, info.
  *   - Status asing dari server -> neutral + label apa adanya + console.warn
@@ -42,26 +39,20 @@ export type DisputeParty = "claimant" | "respondent"
 
 export const DISPUTE_STATUSES: readonly DisputeStatus[] = [
   "OPEN",
-  "AWAITING_RESPONSE",
+  "ASSIGNED",
   "UNDER_REVIEW",
-  "MUTUAL_RESOLUTION",
-  "RESOLVED_BUYER",
-  "RESOLVED_SELLER",
-  "RESOLVED_MUTUAL",
-  "CLOSED",
+  "WAITING_RESPONSE",
+  "RESOLVED",
   "ESCALATED",
 ]
 
 
 const BASE_TONE: Record<DisputeStatus, BadgeTone> = {
   OPEN: "warning",
-  AWAITING_RESPONSE: "warning",
+  ASSIGNED: "info",
   UNDER_REVIEW: "info",
-  MUTUAL_RESOLUTION: "info",
-  RESOLVED_BUYER: "success",
-  RESOLVED_SELLER: "success",
-  RESOLVED_MUTUAL: "success",
-  CLOSED: "neutral",
+  WAITING_RESPONSE: "warning",
+  RESOLVED: "success",
   ESCALATED: "danger",
 }
 
@@ -75,13 +66,15 @@ export function disputeStatusTone(status: string, party?: DisputeParty): BadgeTo
     return "neutral"
   }
   // Klaiman yang menunggu tanggapan lawan hanya menunggu -> info
-  if (party === "claimant" && status === "AWAITING_RESPONSE") return "info"
+  if (party === "claimant" && status === "WAITING_RESPONSE") return "info"
   return BASE_TONE[status]
 }
 
 /** Sengketa yang masih hidup (belum final) — untuk filter "Aktif" */
 export function isDisputeActive(status: string): boolean {
-  return isDisputeStatus(status) && !status.startsWith("RESOLVED_") && status !== "CLOSED"
+  // DP-003: backend tak punya CLOSED/RESOLVED_* — final = RESOLVED.
+  // ESCALATED tetap aktif (masih dalam penanganan).
+  return isDisputeStatus(status) && status !== "RESOLVED"
 }
 
 export type DisputeStatusBadgeProps = Omit<BadgeProps, "children" | "tone" | "dot"> & {

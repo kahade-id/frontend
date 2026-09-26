@@ -71,6 +71,7 @@ import { DisputeMessagesSection } from "@/components/dispute-messages-section"
 import {
   DisputeActionDialogs,
   DisputeCallsSection,
+  DisputeDecisionSection,
   DisputeDetailHeader,
   DisputeMutualSection,
   DisputeProposeSheet,
@@ -123,6 +124,8 @@ export default function DisputeDetailScreen() {
     dispute: DisputeDetail
     order: Order | null
     evidence: DisputeEvidence[]
+    /** DP-020: total bukti dari paginasi backend; undefined bila tak dikirim. */
+    evidenceTotal?: number
     messages: DisputeMessage[]
     proposals: MutualResolutionProposal[]
     calls: DisputeCall[]
@@ -154,7 +157,8 @@ export default function DisputeDetailScreen() {
       return {
         dispute: d,
         order: o,
-        evidence: ev ?? [],
+        evidence: ev.items ?? [],
+        evidenceTotal: ev.total,
         messages: msgs ?? [],
         proposals: props ?? [],
         calls: cl ?? [],
@@ -166,6 +170,8 @@ export default function DisputeDetailScreen() {
   const dispute = bundle?.dispute ?? null
   const order = bundle?.order ?? null
   const evidence = bundle?.evidence ?? []
+  // DP-020: total dari paginasi backend; undefined bila tak dikirim (null-safe).
+  const evidenceTotal = bundle?.evidenceTotal
   const messages = bundle?.messages ?? []
   const proposals = bundle?.proposals ?? []
   const calls = bundle?.calls ?? []
@@ -226,7 +232,8 @@ export default function DisputeDetailScreen() {
   const [callSpeaker, setCallSpeaker] = useState(false)
   const [callVideo, setCallVideo] = useState(true)
 
-  const activeCall = calls.find((c) => c.status === "ONGOING")
+  // DP-004: status panggilan backend = IN_PROGRESS (bukan "ONGOING").
+  const activeCall = calls.find((c) => c.status === "IN_PROGRESS")
 
   const handleEscalate = useCallback(async () => {
     if (!id) return
@@ -342,6 +349,14 @@ export default function DisputeDetailScreen() {
     async (content: string) => {
       const text = content.trim()
       if (!id || !text) return
+      // TODO(DP-025): file picker lampiran pesan sengketa. API
+      // `sendDisputeMessage(id, text, attachments)` sudah mendukung attachments
+      // [{fileKey,fileName,fileType,fileSize}]; yang belum: (1) pilih file via
+      // expo-document-picker di composer, (2) upload via jalur direct-upload
+      // dispute-evidence + konfirmasi fileKey (syarat backend:
+      // verifyEvidenceFileKeysBatch, maks 5 file @ ≤10MB, total ≤20MB),
+      // (3) antrean lampiran di atas composer dengan state upload/error.
+      // Unduhan lampiran juga follow-up (butuh endpoint signed-URL baru).
       setSending(true)
       try {
         await api.disputes.sendDisputeMessage(id, text)
@@ -417,7 +432,9 @@ export default function DisputeDetailScreen() {
       toast.show({ title: "Bukti terkirim", tone: "success", duration: 3000 })
       try {
         const rows = await api.disputes.getDisputeEvidence(id)
-        query.setData((prev) => (prev ? { ...prev, evidence: rows } : prev))
+        query.setData((prev) =>
+          prev ? { ...prev, evidence: rows.items, evidenceTotal: rows.total } : prev,
+        )
       } catch {
         // Bukti sudah tersimpan — daftar menyusul saat penyegaran berikutnya.
       }
@@ -435,7 +452,9 @@ export default function DisputeDetailScreen() {
       ) {
         try {
           const rows = await api.disputes.getDisputeEvidence(id)
-          query.setData((prev) => (prev ? { ...prev, evidence: rows } : prev))
+          query.setData((prev) =>
+            prev ? { ...prev, evidence: rows.items, evidenceTotal: rows.total } : prev,
+          )
         } catch {
           /* daftar menyusul saat penyegaran berikutnya */
         }
@@ -471,7 +490,9 @@ export default function DisputeDetailScreen() {
       ) {
         try {
           const rows = await api.disputes.getDisputeEvidence(id)
-          query.setData((prev) => (prev ? { ...prev, evidence: rows } : prev))
+          query.setData((prev) =>
+            prev ? { ...prev, evidence: rows.items, evidenceTotal: rows.total } : prev,
+          )
         } catch {
           /* daftar menyusul saat penyegaran berikutnya */
         }
@@ -772,7 +793,8 @@ export default function DisputeDetailScreen() {
 
   const pendingProposal = proposals.find((p) => p.status === "PENDING")
   const hasCallInProgress = calls.some((c) =>
-    ["REQUESTED", "ACCEPTED", "ONGOING"].includes(c.status),
+    // DP-004: enum backend DisputeCallStatus — "ONGOING" tak pernah dikirim.
+    ["REQUESTED", "ACCEPTED", "IN_PROGRESS"].includes(c.status),
   )
 
   return (
@@ -831,6 +853,9 @@ export default function DisputeDetailScreen() {
               onEscalate={() => setEscalateOpen(true)}
             />
 
+            {/* DP-005: hasil putusan admin; null-safe (tak tampil bila belum ada). */}
+            <DisputeDecisionSection decision={dispute.decision} />
+
             <DisputeClaimForm
               value={claim}
               onChange={setClaim}
@@ -844,7 +869,14 @@ export default function DisputeDetailScreen() {
 
             <SectionHeader
               title="Bukti"
-              subtitle="Ketuk untuk melihat; bukti Anda bisa dihapus dari pratinjau."
+              subtitle={
+                // DP-020: tampilkan hanya bila backend melaporkan lebih banyak
+                // dari yang dimuat (halaman pertama). Null-safe: total tak
+                // dikirim → subtitle standar.
+                typeof evidenceTotal === "number" && evidenceTotal > evidence.length
+                  ? `Menampilkan ${evidence.length} dari ${evidenceTotal} bukti — ketuk untuk melihat.`
+                  : "Ketuk untuk melihat; bukti Anda bisa dihapus dari pratinjau."
+              }
             />
             <EvidenceGrid
               items={evidenceItems}

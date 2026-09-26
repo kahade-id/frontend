@@ -47,18 +47,37 @@ export type DisputeEvidence = {
   createdAt: string
 }
 
+/** Lampiran pesan mediasi — bentuk Json backend {fileKey,fileName,fileType,fileSize}. */
+export type DisputeMessageAttachment = {
+  fileKey: string
+  fileName: string
+  fileType: string
+  fileSize?: number
+}
+
 /** Pesan dalam ruang sengketa. */
 export type DisputeMessage = {
   id: string
   text: string
   fromUser: boolean
   createdAt: string
+  /** Lampiran; pesan khusus-lampiran punya text "" (DP-006). */
+  attachments?: DisputeMessageAttachment[]
 }
 
-/** Panggilan (record) — UNVERIFIED. */
+/** Panggilan (record) — enum backend DisputeCallStatus. */
 export type DisputeCall = {
   id: string
-  status: "REQUESTED" | "ACCEPTED" | "REJECTED" | "ENDED" | "MISSED" | "CANCELLED" | string
+  status:
+    | "REQUESTED"
+    | "ACCEPTED"
+    | "IN_PROGRESS"
+    | "ENDED"
+    | "REJECTED"
+    | "EXPIRED"
+    | "MISSED"
+    | "CANCELLED"
+    | string
   requesterId?: string
   requestedAt?: string
   startedAt?: string
@@ -86,6 +105,28 @@ export type MutualResolutionProposal = {
   expiresAt?: string | null
 }
 
+/** Hasil putusan admin atas sengketa (relasi `decision`, DP-005).
+ *
+ * Kontrak respons aktual `getDisputeDetail`: decision { id, decisionType,
+ * buyerAmount, sellerAmount, buyerPercent, sellerPercent, createdAt }.
+ * PENTING: buyerAmount/sellerAmount SUDAH dalam IDR — backend mengonversi
+ * dari sen ("FIX ×100", disputes.service.ts:260-264); JANGAN konversi lagi.
+ * buyerPercent/sellerPercent Decimal(5,2) tiba sebagai string ("50.00").
+ * `decisionNotes` ada di model tapi TIDAK di-select backend → tak ada di
+ * respons; dipetakan defensif bila kelak ditambahkan. decision null =
+ * belum ada putusan (musyawarah ditangani backend 2a; tetap null-safe).
+ */
+export type DisputeDecision = {
+  id: string
+  decisionType: "FULL_BUYER" | "FULL_SELLER" | "SPLIT" | string
+  buyerAmount?: number
+  sellerAmount?: number
+  buyerPercent?: number
+  sellerPercent?: number
+  decisionNotes?: string
+  decidedAt?: string
+}
+
 /** Sengketa penuh (GET /v1/disputes/{disputeId}). */
 export type DisputeDetail = {
   id: string
@@ -99,6 +140,40 @@ export type DisputeDetail = {
   createdAt: string
   updatedAt?: string
   messages?: DisputeMessage[]
+  /** Hasil putusan admin; null/undefined bila belum diputuskan. */
+  decision?: DisputeDecision | null
+}
+
+/**
+ * Parser persen toleran: backend mengirim Decimal sebagai string ("50.00")
+ * atau number. `toAmount` hanya menerima string integer — tidak cocok.
+ */
+function toPercent(value: unknown): number | undefined {
+  const n =
+    typeof value === "number"
+      ? value
+      : typeof value === "string" && value.trim() !== "" && Number.isFinite(Number(value))
+        ? Number(value)
+        : undefined
+  return typeof n === "number" && n >= 0 && n <= 100 ? n : undefined
+}
+
+/** Normalisasi relasi decision (DP-005) — null-safe, tanpa konversi unit. */
+function normalizeDisputeDecision(raw: unknown): DisputeDecision | null {
+  const d = (raw ?? {}) as Record<string, unknown>
+  const id = pickString(d, ["id", "decisionId", "decision_id"])
+  if (!id) return null
+  const createdAtRaw = d.createdAt ?? d.created_at ?? d.decidedAt ?? d.decided_at
+  return {
+    id,
+    decisionType: pickString(d, ["decisionType", "decision_type", "type"]) ?? "",
+    buyerAmount: toAmount(d.buyerAmount ?? d.buyer_amount),
+    sellerAmount: toAmount(d.sellerAmount ?? d.seller_amount),
+    buyerPercent: toPercent(d.buyerPercent ?? d.buyer_percent),
+    sellerPercent: toPercent(d.sellerPercent ?? d.seller_percent),
+    decisionNotes: pickString(d, ["decisionNotes", "decision_notes", "notes"]),
+    decidedAt: typeof createdAtRaw === "string" ? createdAtRaw : undefined,
+  }
 }
 
 /**
@@ -127,6 +202,8 @@ function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
     createdAt: pickString(d, ["createdAt", "created_at", "openedAt", "opened_at"]) ?? "",
     updatedAt: pickString(d, ["updatedAt", "updated_at", "lastUpdatedAt"]),
     messages: Array.isArray(d.messages) ? (d.messages as DisputeMessage[]) : undefined,
+    // DP-005: jangan buang relasi decision dari backend.
+    decision: normalizeDisputeDecision(d.decision),
   }
 }
 
@@ -206,6 +283,12 @@ export function getDispute(disputeId: string, signal?: AbortSignal) {
     .then(normalizeDisputeDetail)
 }
 
+/**
+ * DP-020: kembalikan juga `total` dari respons paginasi backend
+ * (PaginatedResponse {data,total,page,limit,...}) agar UI bisa menampilkan
+ * "Menampilkan X dari Y bukti". Bila backend tak mengirim total, undefined —
+ * UI null-safe (indikator disembunyikan).
+ */
 export function getDisputeEvidence(disputeId: string, signal?: AbortSignal) {
   return http
     .get<DisputeEvidence[]>(`/v1/disputes/${seg(disputeId)}/evidence`, {
@@ -213,7 +296,11 @@ export function getDisputeEvidence(disputeId: string, signal?: AbortSignal) {
       retry: 1,
       signal,
     })
-    .then((raw) => readList<DisputeEvidence>(raw, ["evidence", "evidences"]))
+    .then((raw) => {
+      const page = readPage<DisputeEvidence>(raw, { page: 1, limit: 50 }, ["evidence", "evidences"])
+      const total = Number.isFinite(page.meta.total) ? page.meta.total : undefined
+      return { items: page.data, total }
+    })
 }
 
 export function submitDisputeEvidence(disputeId: string, dto: SubmitEvidenceDto) {
@@ -259,9 +346,28 @@ export function getDisputeMessages(disputeId: string, signal?: AbortSignal) {
 /**
  * D-13 (audit escrow 2026-09-24): DTO produksi memakai `message`, tipe klien
  * lama membaca `text` — bubble kosong bila server mengirim `message`.
- * `text` dinormalisasi dari `text|message|content`; tanpa isi yang terbaca,
- * baris dibuang (pesan kosong bukan bukti komunikasi).
+ * `text` dinormalisasi dari `text|message|content`.
+ *
+ * DP-006 (audit 2026-09-26): JANGAN buang attachments dan JANGAN buang pesan
+ * khusus-lampiran. Backend `sendMessage` valid bila teks ATAU attachments ada
+ * (keduanya kosong → 400); pesan hanya-lampiran adalah kasus nyata.
+ * `getMessages` tidak menyertakan signed URL — hanya fileKey/fileName/
+ * fileType/fileSize; unduhan butuh endpoint baru (follow-up backend).
  */
+function normalizeDisputeMessageAttachment(raw: unknown): DisputeMessageAttachment | null {
+  const a = (raw ?? {}) as Record<string, unknown>
+  const fileKey = pickString(a, ["fileKey", "file_key", "key"])
+  const fileName = pickString(a, ["fileName", "file_name", "name"])
+  if (!fileKey && !fileName) return null
+  const size = a.fileSize ?? a.file_size ?? a.size
+  return {
+    fileKey: fileKey ?? "",
+    fileName: fileName ?? "Lampiran",
+    fileType: pickString(a, ["fileType", "file_type", "mimeType", "mime_type"]) ?? "",
+    fileSize: typeof size === "number" && Number.isFinite(size) ? size : undefined,
+  }
+}
+
 function normalizeDisputeMessage(raw: DisputeMessage): DisputeMessage | null {
   const record = raw as unknown as Record<string, unknown>
   const text =
@@ -272,7 +378,13 @@ function normalizeDisputeMessage(raw: DisputeMessage): DisputeMessage | null {
         : typeof record.content === "string" && record.content
           ? record.content
           : ""
-  if (!text) return null
+  const attachments = Array.isArray(record.attachments)
+    ? record.attachments
+        .map(normalizeDisputeMessageAttachment)
+        .filter((a): a is DisputeMessageAttachment => a !== null)
+    : []
+  // DP-006: buang hanya bila tak ada teks DAN tak ada lampiran.
+  if (!text && attachments.length === 0) return null
   // M-55 (audit end-to-end 2026-09-24, issue #55): cast mentah dibatasi —
   // `fromUser` membaca alias `mine|fromMe` dan `direction` ("OUT"/"SENT" =
   // milik saya), `createdAt` tipe-ketat (D-03). Dulu `direction`/timestamp
@@ -291,16 +403,39 @@ function normalizeDisputeMessage(raw: DisputeMessage): DisputeMessage | null {
     text,
     fromUser,
     createdAt: typeof createdAtRaw === "string" ? createdAtRaw : "",
+    ...(attachments.length > 0 ? { attachments } : {}),
   }
 }
 
-export function sendDisputeMessage(disputeId: string, text: string) {
+/** Input lampiran untuk kirim pesan (DP-025): fileKey dari upload terkonfirmasi. */
+export type DisputeMessageAttachmentInput = {
+  fileKey: string
+  fileName: string
+  fileType: string
+  fileSize: number
+}
+
+export function sendDisputeMessage(
+  disputeId: string,
+  text: string,
+  attachments?: DisputeMessageAttachmentInput[],
+) {
   // DTO produksi: DisputeMessageDto { message?, attachments? } — bukan { text }.
   // I-22: lihat submitDisputeEvidence (assert pesan kosong/terlalu panjang).
-  assertDtoConstraints({ message: text }, API_CONSTRAINTS.DisputeMessageDto)
+  // DP-025: backend menolak bila teks DAN attachments kosong — cegah di klien.
+  const cleanAttachments = (attachments ?? []).filter(
+    (a) => a && typeof a.fileKey === "string" && a.fileKey.length > 0,
+  )
+  assertDtoConstraints({ message: text, attachments: cleanAttachments }, API_CONSTRAINTS.DisputeMessageDto)
+  if (!text.trim() && cleanAttachments.length === 0) {
+    throw new Error("Pesan atau lampiran wajib diisi.")
+  }
   return http.post<DisputeMessage, DisputeMessageDto>(
     `/v1/disputes/${seg(disputeId)}/messages`,
-    { message: text },
+    {
+      message: text,
+      ...(cleanAttachments.length > 0 ? { attachments: cleanAttachments } : {}),
+    },
     { auth: "required" },
   )
 }
@@ -360,10 +495,23 @@ export function getDisputeCalls(disputeId: string, signal?: AbortSignal) {
       readList<unknown>(raw, ["calls", "records"]).map((entry) => {
         const c = (entry ?? {}) as unknown as Record<string, unknown>
         const createdAtRaw = c.createdAt ?? c.created_at ?? c.requestedAt ?? c.requested_at
+        // DP-004: backend tak pernah mengirim "ONGOING" (enum: REQUESTED,
+        // ACCEPTED, IN_PROGRESS, ENDED, REJECTED, EXPIRED) — petakan defensif
+        // bila ada payload lama/asing yang masih memakainya.
+        const rawStatus = pickString(c, ["status", "callStatus", "call_status"]) ?? ""
+        const status = rawStatus === "ONGOING" ? "IN_PROGRESS" : rawStatus
         return {
           id: pickString(c, ["id", "callId", "call_id"]) ?? "",
-          status: (pickString(c, ["status", "callStatus", "call_status"]) ?? "") as DisputeCall["status"],
-          requesterId: pickString(c, ["requesterId", "requester_id", "callerId", "caller_id"]),
+          status: status as DisputeCall["status"],
+          // DP-015: field kanonik backend = requestedById (bukan requesterId).
+          requesterId: pickString(c, [
+            "requestedById",
+            "requested_by_id",
+            "requesterId",
+            "requester_id",
+            "callerId",
+            "caller_id",
+          ]),
           requestedAt: pickString(c, ["requestedAt", "requested_at"]),
           startedAt: pickString(c, ["startedAt", "started_at"]),
           endedAt: pickString(c, ["endedAt", "ended_at"]),

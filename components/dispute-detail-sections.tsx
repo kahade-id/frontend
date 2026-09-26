@@ -10,7 +10,7 @@ import { View } from "react-native"
 import { router } from "expo-router"
 import { Handshake, VideoCamera } from "phosphor-react-native"
 
-import type { DisputeCall, DisputeDetail, MutualResolutionProposal } from "@/lib/api/disputes"
+import type { DisputeCall, DisputeDecision, DisputeDetail, MutualResolutionProposal } from "@/lib/api/disputes"
 import type { Order } from "@/lib/api/orders"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { mapValue } from "@/lib/has-own"
@@ -38,10 +38,76 @@ type RespondAction = "ACCEPT" | "REJECT" | "WITHDRAW"
 const CALL_OUTCOME: Partial<Record<string, DisputeCallOutcome>> = {
   REQUESTED: "REQUESTED",
   ACCEPTED: "ACCEPTED",
+  // DP-004: backend mengirim IN_PROGRESS (bukan "ONGOING").
+  IN_PROGRESS: "ONGOING",
   ONGOING: "ONGOING",
   ENDED: "COMPLETED",
   MISSED: "MISSED",
   CANCELLED: "CANCELLED",
+}
+
+/* ------------------------------------------------------------------ */
+/* Hasil putusan admin (DP-005)                                        */
+/* ------------------------------------------------------------------ */
+
+/** Label pemenang putusan dari decisionType backend. */
+function decisionWinnerLabel(decisionType: string): string {
+  if (decisionType === "FULL_BUYER") return "Dana kembali ke pembeli"
+  if (decisionType === "FULL_SELLER") return "Dana diteruskan ke penjual"
+  if (decisionType === "SPLIT") return "Dana dibagi kedua pihak"
+  return decisionType || "Keputusan"
+}
+
+/**
+ * Kartu hasil putusan admin. Null-safe: decision null/undefined (belum ada
+ * putusan — musyawarah ditangani backend 2a) → tidak merender apa pun.
+ * Nominal SUDAH IDR dari backend (jangan konversi lagi — DP-005).
+ */
+export function DisputeDecisionSection({ decision }: { decision?: DisputeDecision | null }) {
+  if (!decision) return null
+  const rows: Array<{ label: string; value: string }> = []
+  if (typeof decision.buyerAmount === "number") {
+    const pct =
+      typeof decision.buyerPercent === "number" ? ` (${decision.buyerPercent}%)` : ""
+    rows.push({ label: "Pembeli menerima", value: `${formatRupiah(decision.buyerAmount)}${pct}` })
+  }
+  if (typeof decision.sellerAmount === "number") {
+    const pct =
+      typeof decision.sellerPercent === "number" ? ` (${decision.sellerPercent}%)` : ""
+    rows.push({ label: "Penjual menerima", value: `${formatRupiah(decision.sellerAmount)}${pct}` })
+  }
+  return (
+    <>
+      <SectionHeader
+        title="Hasil putusan"
+        subtitle={
+          decision.decidedAt
+            ? `Diputuskan ${formatDateTime(decision.decidedAt)}`
+            : "Keputusan mediator/admin"
+        }
+      />
+      <View className="gap-2 rounded-2xl bg-surface p-4">
+        <Text variant="body" weight={600}>
+          {decisionWinnerLabel(decision.decisionType)}
+        </Text>
+        {rows.map((r) => (
+          <View key={r.label} className="flex-row items-center justify-between gap-3">
+            <Text variant="body" tone="secondary">
+              {r.label}
+            </Text>
+            <Text variant="body" weight={600}>
+              {r.value}
+            </Text>
+          </View>
+        ))}
+        {decision.decisionNotes ? (
+          <Text variant="caption" tone="secondary">
+            {decision.decisionNotes}
+          </Text>
+        ) : null}
+      </View>
+    </>
+  )
 }
 
 /* ------------------------------------------------------------------ */

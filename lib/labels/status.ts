@@ -26,13 +26,10 @@ import type { OrderStatus } from "@/lib/api/orders"
 export type KycStatus = "NOT_SUBMITTED" | "PENDING" | "APPROVED" | "REJECTED" | "REVOKED"
 export type DisputeStatus =
   | "OPEN"
-  | "AWAITING_RESPONSE"
+  | "ASSIGNED"
   | "UNDER_REVIEW"
-  | "MUTUAL_RESOLUTION"
-  | "RESOLVED_BUYER"
-  | "RESOLVED_SELLER"
-  | "RESOLVED_MUTUAL"
-  | "CLOSED"
+  | "WAITING_RESPONSE"
+  | "RESOLVED"
   | "ESCALATED"
 export type TicketStatus = "OPEN" | "IN_PROGRESS" | "WAITING_USER" | "RESOLVED" | "CLOSED"
 export type SubscriptionStatus = "NONE" | "ACTIVE" | "EXPIRING" | "EXPIRED" | "CANCELLED"
@@ -56,15 +53,17 @@ export const ORDER_STATUS_LABELS: Record<OrderStatus, string> = {
   EXPIRED: "Kedaluwarsa",
 }
 
+/**
+ * Label status sengketa. Kunci = enum backend `DisputeStatus`
+ * (OPEN, ASSIGNED, UNDER_REVIEW, WAITING_RESPONSE, RESOLVED, ESCALATED).
+ * Arah dana hasil putusan dibaca dari kartu "Hasil putusan", bukan label.
+ */
 export const DISPUTE_STATUS_LABELS: Record<DisputeStatus, string> = {
   OPEN: "Terbuka",
-  AWAITING_RESPONSE: "Menunggu tanggapan",
+  ASSIGNED: "Ditugaskan ke mediator",
   UNDER_REVIEW: "Ditinjau mediator",
-  MUTUAL_RESOLUTION: "Musyawarah",
-  RESOLVED_BUYER: "Selesai · dana ke pembeli",
-  RESOLVED_SELLER: "Selesai · dana ke penjual",
-  RESOLVED_MUTUAL: "Sepakat",
-  CLOSED: "Ditutup",
+  WAITING_RESPONSE: "Menunggu tanggapan",
+  RESOLVED: "Selesai",
   ESCALATED: "Dieskalasi",
 }
 
