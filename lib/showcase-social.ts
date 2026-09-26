@@ -132,6 +132,7 @@ function getInitialIsLiked(raw: Partial<SocialItem>): boolean {
 
 function authorOf(raw: Partial<SocialItem>, owner: ShowcaseOwner): ShowcaseAuthor {
   const a = raw.author
+  const rawTier = (a as { sealTier?: unknown } | undefined)?.sealTier
   return {
     userId: a?.userId ?? owner.id,
     username: a?.username ?? owner.username,
@@ -140,6 +141,15 @@ function authorOf(raw: Partial<SocialItem>, owner: ShowcaseOwner): ShowcaseAutho
     membershipRank: a?.membershipRank ?? null,
     isKycVerified: a?.isKycVerified ?? owner.verified === true,
     isVip: a?.isVip ?? false,
+    // SS-010 (audit 2026-09-26): badges & sealTier sebelumnya dibuang —
+    // tab Etalase profil kehilangan seal di samping nama. Salin & validasi
+    // seperti normalizer lib/api/showcase.ts.
+    badges: Array.isArray(a?.badges)
+      ? a.badges
+          .filter((b) => b && typeof (b as { type?: unknown }).type === "string")
+          .map((b) => ({ type: (b as { type: string }).type }))
+      : [],
+    sealTier: rawTier === "gold" || rawTier === "blue" || rawTier === "gray" ? rawTier : null,
   }
 }
 

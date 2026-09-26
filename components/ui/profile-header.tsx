@@ -19,11 +19,9 @@
  *     identitas, cukup berbeda weight untuk tidak bersaing. Prefix "@"
  *     ditulis pemanggil (komponen tidak menambah karakter agar i18n/alias
  *     non-username tetap bisa).
- *   - `verified` diteruskan ke <Avatar verified> (SealCheck) DAN ditulis
- *     eksplisit sebagai Badge "Terverifikasi" di baris handle: ikon kecil di
- *     avatar saja mudah terlewat, sementara status KYC adalah sinyal trust
- *     utama di escrow. Badge memakai tone neutral (KYC bukan status
- *     transaksi, §2.3).
+ *   - Aturan badge (keputusan user, audit 2026-09-26 SS-011): badge verifikasi
+ *     HANYA di samping nama via <VerifiedName> — tidak di foto (Avatar tanpa
+ *     `verified`) dan tanpa chip "Terverifikasi" terpisah.
  *   - Statistik: nilai Mono Body (angka data §3.1) + label caption. Nilai
  *     sudah diformat pemanggil (formatNumber / "4,8"), komponen tidak
  *     memformat karena tipe nilainya beragam (jumlah, rating, persen).
@@ -44,13 +42,15 @@ import { Image as ImageIcon } from "phosphor-react-native"
 
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Divider } from "@/components/ui/divider"
 import { Icon } from "@/components/ui/icon"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { VerifiedName } from "@/components/ui/verified-name"
+import type { SealTier } from "@/components/ui/verified-seal"
+import type { VerificationBadge } from "@/lib/api/users"
 import { cn } from "@/lib/cn"
 import { focusRingInset } from "@/lib/focus-ring"
 import { resolveMediaUrl } from "@/lib/media"
@@ -88,14 +88,17 @@ export type ProfileHeaderProps = Omit<ViewProps, "children"> & {
   avatar?: Pick<AvatarProps, "source">
   /** Foto sampul di atas baris identitas (lihat ProfileCover) */
   cover?: ProfileCover
-  /** KYC terverifikasi: SealCheck di avatar + Badge */
+  /**
+   * KYC terverifikasi — seal HANYA di samping nama (aturan badge).
+   * `badges`/`tier` opsional: bila tidak diisi, fallback ke boolean `verified`.
+   */
   verified?: boolean
+  badges?: VerificationBadge[] | null
+  tier?: SealTier | null
   bio?: string
   stats?: readonly ProfileStat[]
   /** Slot aksi: <FollowButton/>, <Button variant="secondary">Edit profil</Button>, dst */
   action?: ReactNode
-  /** Teks badge KYC (i18n) — default "Terverifikasi" */
-  verifiedLabel?: string
   loading?: boolean
   className?: string
 }
@@ -106,10 +109,11 @@ export function ProfileHeader({
   avatar,
   cover,
   verified = false,
+  badges,
+  tier,
   bio,
   stats,
   action,
-  verifiedLabel = "Terverifikasi",
   loading = false,
   className,
   ...rest
@@ -129,7 +133,8 @@ export function ProfileHeader({
         {loading ? (
           <Skeleton shape="circle" width={56} height={56} />
         ) : (
-          <Avatar source={avatar?.source} name={name} size="lg" verified={verified} />
+          /* SS-011: Avatar TANPA seal — badge hanya di samping nama. */
+          <Avatar source={avatar?.source} name={name} size="lg" />
         )}
 
         <View className="flex-1 gap-1">
@@ -140,12 +145,17 @@ export function ProfileHeader({
             </>
           ) : (
             <>
-              <Text ellipsizeMode="tail" variant="h2" numberOfLines={2}>
-                {name}
-              </Text>
-              {handle || verified ? (
+              {/* SS-011: seal 3-tier di samping nama (aturan badge). */}
+              <VerifiedName
+                name={name}
+                variant="h2"
+                badges={badges}
+                verified={verified}
+                tier={tier ?? null}
+                textProps={{ numberOfLines: 2, ellipsizeMode: "tail" }}
+              />
+              {handle ? (
                 <View className="flex-row flex-wrap items-center gap-2">
-                  {handle ? (
                     /*
                      * `bodyLarge` (16/26), bukan `caption` (12/18).
                      *
@@ -162,8 +172,10 @@ export function ProfileHeader({
                     <Text variant="bodyLarge" tone="secondary" numberOfLines={1}>
                       {handle}
                     </Text>
-                  ) : null}
-                  {verified ? <Badge tone="neutral">{verifiedLabel}</Badge> : null}
+                    {/*
+                      SS-011: chip "Terverifikasi" dihapus — seal sudah tampil
+                      di samping nama via <VerifiedName> (aturan badge).
+                    */}
                 </View>
               ) : null}
             </>

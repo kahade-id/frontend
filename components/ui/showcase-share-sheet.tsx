@@ -13,12 +13,14 @@
  * atau langsung dari item bila sudah ada.
  */
 import { Linking, View } from "react-native"
+import { useRef } from "react"
 import { ChatCircle, Copy, PaperPlaneTilt, ShareNetwork } from "phosphor-react-native"
 
 import { copyToClipboard } from "@/lib/clipboard"
 import { showcaseUrl } from "@/lib/deeplinks"
 import { safeHttpsLink, safeWhatsAppLink } from "@/lib/external-url"
 import { shareContent } from "@/lib/share"
+import { recordShowcaseShare } from "@/lib/api/showcase"
 import { showcasePriceLabel } from "@/lib/showcase-labels"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import { translate } from "@/lib/i18n/translate"
@@ -39,7 +41,17 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
   // i18n: label mengikuti bahasa aktif.
   useLanguage()
   const toast = useToast()
+
+  // SS-005: catat SATU kejadian share nyata ke backend saat user menyelesaikan
+  // aksi berbagi (bukan saat sheet dibuka). Best-effort, fire-and-forget.
+  // Hooks WAJIB di atas early return (rules-of-hooks); guard di-reset per item.
+  const recordedRef = useRef<string | null>(null)
   if (!item) return null
+  const recordShare = () => {
+    if (recordedRef.current === item.id) return
+    recordedRef.current = item.id
+    void recordShowcaseShare(item.id)
+  }
 
   // S10 (audit 2026-09-26): `item.shareUrl` dari server disanitasi — satu-satunya
   // URL yang masuk clipboard/share tanpa validasi sebelumnya. Gagal validasi
@@ -52,6 +64,7 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(shareUrl)
+    if (ok) recordShare()
     toast.show({ title: ok ? translate("Tautan disalin") : translate("Gagal menyalin"), tone: ok ? "success" : "danger", duration: 2500 })
     onClose()
   }
@@ -67,6 +80,7 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
       await handleCopy()
       return
     }
+    if (outcome === "shared") recordShare()
     onClose()
   }
 
@@ -88,6 +102,7 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
       await handleSystem()
       return
     }
+    recordShare()
     onClose()
   }
 

@@ -59,7 +59,6 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
           source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
           name={item.author.fullName ?? item.author.username}
           size="md"
-          verified={item.author.isKycVerified === true}
         />
         <View className="flex-1 gap-0.5">
           {/* S1: seal 3-tier di samping nama (sumber: badge backend, sama

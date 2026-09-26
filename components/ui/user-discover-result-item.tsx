@@ -42,7 +42,7 @@ import { Highlight } from "@/components/ui/highlight"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Rating } from "@/components/ui/rating"
 import { Text } from "@/components/ui/text"
-import { VerifiedSeal } from "@/components/ui/verified-seal"
+import { VerifiedSeal, type SealTier } from "@/components/ui/verified-seal"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
@@ -54,6 +54,11 @@ export type UserDiscoverResultItemProps = Omit<ViewProps, "children"> & {
   handle?: string
   avatar?: AvatarProps["source"]
   verified?: boolean
+  /**
+   * SS-004: tier seal dari payload — diutamakan di atas fallback boolean
+   * (tanpa ini tier emas/biru tampil abu-abu).
+   */
+  sealTier?: SealTier | null
   /** Jumlah transaksi selesai */
   transactionCount?: number
   /** Rating rata-rata 0–5 */
@@ -78,6 +83,7 @@ export function UserDiscoverResultItem({
   handle,
   avatar,
   verified = false,
+  sealTier,
   transactionCount,
   rating,
   query,
@@ -111,7 +117,7 @@ export function UserDiscoverResultItem({
             numberOfLines={1}
             className="min-w-0 shrink"
           />
-          {verified ? <VerifiedSeal badges={null} verified={verified} size={13} /> : null}
+          {verified || sealTier ? <VerifiedSeal badges={null} verified={verified} tier={sealTier ?? null} size={13} /> : null}
         </View>
         {meta.length > 0 || rating != null ? (
           <View className="flex-row items-center gap-2">

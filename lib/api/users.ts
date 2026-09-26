@@ -28,6 +28,11 @@ import type {
 } from "@/lib/api/types"
 import type { SealTier } from "@/components/ui/verified-seal"
 
+/** Tier seal yang valid dari backend (`sealTier`); nilai lain dibuang. */
+function asSealTier(value: unknown): SealTier | null {
+  return value === "gold" || value === "blue" || value === "gray" ? value : null
+}
+
 // ------------------------------------------------------------------
 // Tipe response — UNVERIFIED (spec auth tidak menyertakan response schema)
 // ------------------------------------------------------------------
@@ -345,6 +350,18 @@ export type PublicUserProfile = {
   contactPhone?: string | null
   showContactEmail?: boolean
   showContactPhone?: boolean
+  /**
+   * SS-009 (audit 2026-09-26): counter sosial dari payload profil —
+   * dipakai sebagai sumber utama agar tidak tampil "0 palsu" saat request
+   * list tambahan gagal. Backend mengirim `social.{followersCount,
+   * followingCount}` sekaligus alias top-level.
+   */
+  social?: {
+    followersCount?: number | null
+    followingCount?: number | null
+  } | null
+  followersCount?: number | null
+  followingCount?: number | null
   showcase?: unknown
   ratings?: unknown
 }
@@ -454,6 +471,12 @@ export type DiscoveredUser = {
   fullName?: string
   avatarUrl?: string | null
   verified?: boolean
+  /**
+   * SS-004 (audit 2026-09-26): tier seal dari GET /v1/users/discover —
+   * sebelumnya dibuang mapping sehingga <VerifiedSeal> jatuh ke fallback
+   * abu-abu untuk tier emas/biru.
+   */
+  sealTier?: SealTier | null
   transactionCount?: number
   rating?: number
   following?: boolean
@@ -505,6 +528,8 @@ export function discoverUsers(
           ...user,
           id: String(user.id ?? user.userId ?? ""),
           verified: user.verified ?? user.isKycVerified,
+          // SS-004: teruskan sealTier agar tier emas/biru tidak turun ke abu-abu.
+          sealTier: asSealTier(user.sealTier),
           rating: user.rating ?? user.avgRating,
           transactionCount: user.transactionCount ?? user.totalOrdersCompleted,
         })) as DiscoveredUser[],

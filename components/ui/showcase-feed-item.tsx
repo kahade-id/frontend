@@ -237,7 +237,6 @@ function ShowcaseFeedItemBase({
             source={item.author.avatarUrl ? { uri: item.author.avatarUrl } : undefined}
             name={item.author.fullName?.trim() || item.author.username}
             size="md"
-            verified={item.author.isKycVerified === true}
           />
           <View className="min-w-0 flex-1 justify-center">
             {/* S1: seal 3-tier di samping nama (sumber: badge backend, sama

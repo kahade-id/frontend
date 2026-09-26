@@ -118,6 +118,7 @@ export function UsersTab({ bottomPadding }: { bottomPadding: number }) {
           handle={`@${item.username}`}
           avatar={item.avatarUrl ?? undefined}
           verified={item.verified}
+          sealTier={item.sealTier ?? null}
           transactionCount={item.transactionCount}
           rating={item.rating}
           onPress={() => router.push(ROUTES.userProfile(item.username))}

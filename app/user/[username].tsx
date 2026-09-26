@@ -354,6 +354,16 @@ export default function UserProfileScreen() {
       setMeUsername(me?.username ?? null)
       const targetName = res.username ?? username
 
+      // SS-009/SS-019 (audit 2026-09-26): counter sosial dari payload profil
+      // sebagai sumber utama — tersedia seketika bersama profil, sehingga
+      // tidak pernah tampil "0 palsu" bila request list tambahan gagal.
+      // Request list di bawah hanya merekonsiliasi agar angka sama dengan
+      // total yang terlihat saat counter diketuk (membuka daftar).
+      const finiteCount = (v: unknown) =>
+        typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null
+      setFollowerCount(finiteCount(res.social?.followersCount) ?? finiteCount(res.followersCount))
+      setFollowingCount(finiteCount(res.social?.followingCount) ?? finiteCount(res.followingCount))
+
       // Fetch tab data
       void fetchTabContents(targetName)
 
@@ -385,22 +395,25 @@ export default function UserProfileScreen() {
           if (current()) setBadges([])
         })
 
+      // Rekonsiliasi dengan total list (SS-019): angka profil disamakan dengan
+      // yang terlihat di daftar pengikut. Gagal → pertahankan nilai payload
+      // (jangan null → "0 palsu", SS-009).
       void api.users
         .getFollowers(targetName, { page: 1, limit: 1 })
         .then((rows) => {
-          if (current()) setFollowerCount(rows.meta.total ?? null)
+          if (current() && typeof rows.meta.total === "number") setFollowerCount(rows.meta.total)
         })
         .catch(() => {
-          if (current()) setFollowerCount(null)
+          /* pertahankan nilai dari payload profil */
         })
 
       void api.users
         .getFollowing(targetName, { page: 1, limit: 1 })
         .then((rows) => {
-          if (current()) setFollowingCount(rows.meta.total ?? null)
+          if (current() && typeof rows.meta.total === "number") setFollowingCount(rows.meta.total)
         })
         .catch(() => {
-          if (current()) setFollowingCount(null)
+          /* pertahankan nilai dari payload profil */
         })
 
       if (me?.username) {

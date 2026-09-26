@@ -45,6 +45,8 @@ import { Avatar } from "@/components/ui/avatar"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
+import type { VerificationBadge } from "@/lib/api/users"
 
 
 /**
@@ -144,11 +146,34 @@ export function ShowcaseCommentRow({
             }
             containerClassName={cn("min-w-0 flex-1 rounded-sm", focusRing)}
           >
-            <Text variant="caption" tone="secondary" weight={400} numberOfLines={1} className="tabular-nums">
-              @{username} • {timeLabel}
-              {edited ? ` ${translate("(diedit)")}` : null}
-              {isMine ? ` • ${translate("Anda")}` : null}
-            </Text>
+            {/*
+              SS-003 (audit 2026-09-26): seal verifikasi penulis — rantai data
+              sudah benar (backend kirim sealTier, normalizer meneruskan
+              badges/sealTier), yang hilang hanya render. Seal HANYA di sini
+              (samping nama); Avatar kolom kiri tetap tanpa seal.
+            */}
+            <View className="flex-row items-center gap-1">
+              <Text variant="caption" tone="secondary" weight={400} numberOfLines={1} className="shrink">
+                @{username}
+              </Text>
+              <VerifiedSeal
+                badges={comment.author.badges as unknown as VerificationBadge[]}
+                verified={comment.author.isKycVerified === true}
+                tier={comment.author.sealTier ?? null}
+                size={12}
+              />
+              <Text
+                variant="caption"
+                tone="secondary"
+                weight={400}
+                numberOfLines={1}
+                className="min-w-0 shrink tabular-nums"
+              >
+                • {timeLabel}
+                {edited ? ` ${translate("(diedit)")}` : null}
+                {isMine ? ` • ${translate("Anda")}` : null}
+              </Text>
+            </View>
           </PressableScale>
           {menuable && onOpenMenu ? (
             <IconButton

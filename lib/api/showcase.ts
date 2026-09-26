@@ -374,6 +374,53 @@ export function getShowcaseSharePayload(showcaseId: string, signal?: AbortSignal
   })
 }
 
+/**
+ * POST /v1/showcase/:showcaseId/share — catat SATU aksi share nyata (SS-005).
+ * Dipanggil saat user menyelesaikan aksi berbagi (salin tautan / share sheet /
+ * buka aplikasi eksternal), BUKAN saat sheet dibuka. Publik + throttled.
+ * Best-effort: kegagalan tidak boleh mengganggu alur berbagi.
+ */
+export function recordShowcaseShare(showcaseId: string): Promise<{ shareCount?: number }> {
+  return http
+    .post<{ shareCount?: number }, Record<string, never>>(`/v1/showcase/${seg(showcaseId)}/share`, {}, { auth: "none", retry: 0 })
+    .catch(() => ({ shareCount: undefined }))
+}
+
+/** Item dari GET /v1/users/me/showcase/deleted (SS-012). */
+export type DeletedShowcaseItem = {
+  id: string
+  title?: string
+  deletedAt?: string
+  /** Sisa hari sebelum hard-delete otomatis (jendela 30 hari). */
+  daysRemaining?: number
+  /** Masih bisa dipulihkan. */
+  restorable?: boolean
+}
+
+/** Respons GET /v1/users/me/showcase/deleted. */
+export type DeletedShowcaseList = {
+  items: DeletedShowcaseItem[]
+  total: number
+  page: number
+  limit: number
+}
+
+/**
+ * GET /v1/users/me/showcase/deleted — item etalase milik sendiri yang
+ * di-soft-delete, beserta sisa masa pemulihan (SS-012).
+ */
+export function getDeletedShowcase(params?: { page?: number; limit?: number }, signal?: AbortSignal) {
+  const q = new URLSearchParams()
+  if (params?.page) q.set("page", String(params.page))
+  if (params?.limit) q.set("limit", String(params.limit))
+  const qs = q.toString()
+  return http.get<DeletedShowcaseList>(`/v1/users/me/showcase/deleted${qs ? `?${qs}` : ""}`, {
+    auth: "required",
+    retry: 1,
+    signal,
+  })
+}
+
 /** Item kategori populer dari GET /v1/showcase/categories. */
 export type PopularCategory = {
   category: string
