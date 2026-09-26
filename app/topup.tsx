@@ -473,7 +473,11 @@ export default function TopupScreen() {
                       result?.status === "PENDING" ? "PENDING" : "UNKNOWN",
                     )
                   }
-                  amount={result?.amount ?? amount}
+                  // WF-008 (Batch 1-money): tampilkan total tagihan SEBENARNYA
+                  // dari server (grossAmount = nominal + fee channel), bukan
+                  // rekonstruksi client. Estimasi client hanya dipakai di
+                  // langkah konfirmasi sebelum POST (berlabel "estimasi").
+                  amount={result?.grossAmount ?? result?.amount ?? amount}
                   method={result?.method ?? methodId ?? ""}
                   methodLabel={
                     methods.find((m) => m.id === (result?.method ?? methodId))?.name ??

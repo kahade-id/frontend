@@ -239,6 +239,13 @@ export type TopupResult = {
   qrString?: string | null
   expiresAt?: string | null
   reference?: string | null
+  /**
+   * WF-008 (Batch 1-money): backend MENGEMBALIKAN kedua field ini
+   * (wallet.service.ts → paymentFee, grossAmount) — total tagihan sebenarnya.
+   * Opsional agar kontrak lama tetap valid; UI memakai grossAmount bila ada.
+   */
+  paymentFee?: number | null
+  grossAmount?: number | null
 }
 
 /** Hasil POST /v1/wallet/withdraw — UNVERIFIED. */

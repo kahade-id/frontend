@@ -129,7 +129,11 @@ export function formatPaymentFee(fee: PaymentMethodFee | undefined, freeLabel: s
     const bounds = [
       fee.minFee != null ? `min ${formatRupiah(fee.minFee)}` : null,
       fee.maxFee != null ? `maks ${formatRupiah(fee.maxFee)}` : null,
-      fee.freeLimit != null ? `gratis hingga ${formatRupiah(fee.freeLimit)}` : null,
+      // WF-009 (Batch 1-money): logika pemanggil membebaskan biaya saat
+      // amount >= freeLimit, jadi labelnya "gratis mulai X" — BUKAN "gratis
+      // hingga X" yang terbaca sebagai "gratis untuk nominal sampai X".
+      // (freeLimit tidak ada di backend; ini murni semantik frontend.)
+      fee.freeLimit != null ? `gratis mulai ${formatRupiah(fee.freeLimit)}` : null,
     ].filter(Boolean)
     return [...parts, ...bounds].join(" · ") || freeLabel
   }

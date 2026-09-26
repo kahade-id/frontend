@@ -15,8 +15,9 @@
  *   - Porsi biaya per pihak dihitung DI SINI hanya untuk tampilan dari
  *     `feeAmount` + `feeResponsibility` (SPLIT = dibagi dua, pembulatan ke
  *     atas di pembeli agar jumlah pas). Angka akhir `buyerPays`/`sellerGets`
- *     tetap dari server bila pemanggil mengirimnya — server adalah sumber
- *     kebenaran; hitungan lokal hanya fallback saat pratinjau.
+ *     WAJIB dari server — server adalah sumber kebenaran; bila pemanggil
+ *     tidak mengirimnya, baris total menampilkan "—" (WF-024), bukan
+ *     hitungan lokal yang berpotensi beda dari backend.
  *   - Diskon voucher: <Amount> bernilai NEGATIF tone success ("-Rp10.000") —
  *     pola sama dengan VoucherRedeemBox & InvoiceReceiptView. Satu-satunya
  *     warna di kartu.
@@ -124,10 +125,8 @@ export function FeeBreakdown({
    * baris "Potongan voucher" pernah menampilkan angka yang lebih kecil dari
    * yang dipakai backend.
    *
-   * B-06: model fallback lokal memuaskan invariant `pays - gets == fee -
-   * discount` (diuji di tests/orders-domain.test.ts). Saat server mengirim
-   * `buyerPays`/`sellerGets`, angka server itulah yang tampil (B-01) —
-   * fallback hanya untuk preview create-order yang belum punya angka server.
+   * B-06 (diperbarui WF-024 Batch 1-money): fallback lokal DIHAPUS — total
+   * akhir hanya dari server (`buyerPays`/`sellerGets`); tanpanya tampil "—".
    */
   const discount = Math.max(Math.trunc(discountAmount) || 0, 0)
   // M-11 (audit end-to-end 2026-09-24, issue #16-17): voucher = potongan
@@ -136,8 +135,12 @@ export function FeeBreakdown({
   // (BUKAN orderValue − fee.seller + share voucher — itu membuat penjual
   // "menerima" 195rb dari order 150rb). Invariant B-06 tetap terjaga:
   // pays − gets = (s.b − D) − (−s.s) = fee − discount.
-  const pays = buyerPays ?? orderValue + share.buyer - discount
-  const gets = sellerGets ?? orderValue - share.seller
+  //
+  // WF-024 (Batch 1-money): FAIL-EXPLICIT — bila angka server tidak dikirim,
+  // JANGAN hitung lokal diam-diam (pernah menampilkan total yang beda dari
+  // backend). Baris total menampilkan "—" sampai server mengirim angkanya.
+  const pays = buyerPays
+  const gets = sellerGets
 
   if (loading) {
     return (
@@ -168,8 +171,29 @@ export function FeeBreakdown({
 
       <Divider />
 
-      <KeyValue label={t.buyerPays} emphasis={role === "BUYER"} value={<Amount value={pays} size={role === "BUYER" ? "large" : "body"} />} />
-      <KeyValue label={t.sellerGets} emphasis={role === "SELLER"} value={<Amount value={gets} size={role === "SELLER" ? "large" : "body"} />} />
+      {/* WF-024: angka server tidak ada → placeholder, bukan hitungan lokal. */}
+      <KeyValue
+        label={t.buyerPays}
+        emphasis={role === "BUYER"}
+        value={
+          pays != null ? (
+            <Amount value={pays} size={role === "BUYER" ? "large" : "body"} />
+          ) : (
+            <Text variant="body" tone="tertiary">—</Text>
+          )
+        }
+      />
+      <KeyValue
+        label={t.sellerGets}
+        emphasis={role === "SELLER"}
+        value={
+          gets != null ? (
+            <Amount value={gets} size={role === "SELLER" ? "large" : "body"} />
+          ) : (
+            <Text variant="body" tone="tertiary">—</Text>
+          )
+        }
+      />
 
       {feeResponsibility === "SPLIT" ? (
         <Text variant="caption" tone="secondary">

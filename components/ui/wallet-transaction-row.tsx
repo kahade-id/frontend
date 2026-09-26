@@ -5,6 +5,7 @@ import { formatRupiah, formatDateTime } from "@/lib/format"
 import {
   WALLET_TXN_KIND,
   WALLET_TXN_LABELS,
+  WALLET_TXN_STATUS_LABELS,
   walletTransactionStatus,
   walletTransactionType,
 } from "@/lib/wallet-labels"
@@ -35,7 +36,10 @@ export function WalletTransactionRow({
             ? "Dana keluar"
             : "Arah belum tersedia",
         formatRupiah(tx.amount),
-        tx.status ?? "Status belum tersedia",
+        // WF-028 (Batch 1-money): screen reader mendengar label yang sama
+        // dengan visual ("Diproses"), bukan enum mentah ("PENDING_OTP").
+        // Status asing tetap memakai enum-nya (jujur, bukan label tebakan).
+        tx.status ? (WALLET_TXN_STATUS_LABELS[tx.status] ?? tx.status) : "Status belum tersedia",
         formatDateTime(tx.createdAt),
         tx.referenceId ?? undefined,
       ])}

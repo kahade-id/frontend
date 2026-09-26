@@ -12,7 +12,7 @@
   },
   {
    "s": "Gagal memuat",
-   "n": 28
+   "n": 27
   },
   {
    "s": "{x}: {y}",
@@ -31,15 +31,15 @@
    "n": 15
   },
   {
-   "s": "Tutup",
-   "n": 13
-  },
-  {
    "s": "Kembali",
    "n": 12
   },
   {
    "s": "Minimal {x} karakter",
+   "n": 12
+  },
+  {
+   "s": "Tutup",
    "n": 12
   },
   {
@@ -55,10 +55,6 @@
    "n": 10
   },
   {
-   "s": "Masuk",
-   "n": 10
-  },
-  {
    "s": "Mengikuti",
    "n": 10
   },
@@ -71,6 +67,14 @@
    "n": 10
   },
   {
+   "s": "Deskripsi",
+   "n": 9
+  },
+  {
+   "s": "Gagal mengunggah foto",
+   "n": 9
+  },
+  {
    "s": "Hapus dari tersimpan",
    "n": 9
   },
@@ -80,6 +84,10 @@
   },
   {
    "s": "Lihat profil {x}",
+   "n": 9
+  },
+  {
+   "s": "Masuk",
    "n": 9
   },
   {
@@ -120,10 +128,6 @@
   },
   {
    "s": "Gagal menghapus",
-   "n": 7
-  },
-  {
-   "s": "Gagal mengunggah foto",
    "n": 7
   },
   {
@@ -196,6 +200,10 @@
   },
   {
    "s": "Coba lagi",
+   "n": 6
+  },
+  {
+   "s": "Eksklusif Kahade+: format teks dengan HTML ringan.",
    "n": 6
   },
   {
@@ -319,6 +327,10 @@
    "n": 5
   },
   {
+   "s": "Centang abu-abu",
+   "n": 5
+  },
+  {
    "s": "Dompet",
    "n": 5
   },
@@ -387,6 +399,10 @@
    "n": 4
   },
   {
+   "s": "Aktif",
+   "n": 4
+  },
+  {
    "s": "Aktifkan di pengaturan perangkat.",
    "n": 4
   },
@@ -403,15 +419,15 @@
    "n": 4
   },
   {
-   "s": "Belum ada riwayat",
-   "n": 4
-  },
-  {
    "s": "Buang",
    "n": 4
   },
   {
    "s": "Buat karya baru",
+   "n": 4
+  },
+  {
+   "s": "Buat PIN",
    "n": 4
   },
   {
@@ -432,10 +448,6 @@
   },
   {
    "s": "Catatan",
-   "n": 4
-  },
-  {
-   "s": "Deskripsi",
    "n": 4
   },
   {
@@ -539,10 +551,6 @@
    "n": 4
   },
   {
-   "s": "Metode pembayaran",
-   "n": 4
-  },
-  {
    "s": "Minimal {x} karakter.",
    "n": 4
   },
@@ -579,6 +587,10 @@
    "n": 4
   },
   {
+   "s": "PIN baru",
+   "n": 4
+  },
+  {
    "s": "Pindai QR",
    "n": 4
   },
@@ -592,6 +604,10 @@
   },
   {
    "s": "Skor Kepercayaan",
+   "n": 4
+  },
+  {
+   "s": "Status",
    "n": 4
   },
   {
@@ -723,6 +739,10 @@
    "n": 3
   },
   {
+   "s": "{x}, {y}, {z}",
+   "n": 3
+  },
+  {
    "s": "{x}. {y}",
    "n": 3
   },
@@ -740,10 +760,6 @@
   },
   {
    "s": "Ajukan pertanyaan atau negosiasi sebelum transaksi.",
-   "n": 3
-  },
-  {
-   "s": "Aktif",
    "n": 3
   },
   {
@@ -800,6 +816,10 @@
   },
   {
    "s": "Belum ada pertanyaan dari pengguna lain.",
+   "n": 3
+  },
+  {
+   "s": "Belum ada riwayat",
    "n": 3
   },
   {
@@ -880,6 +900,10 @@
   },
   {
    "s": "Buka opsi karya",
+   "n": 3
+  },
+  {
+   "s": "Buka opsi kelola karya",
    "n": 3
   },
   {
@@ -1055,14 +1079,6 @@
    "n": 3
   },
   {
-   "s": "Hadiah undangan · {x}",
-   "n": 3
-  },
-  {
-   "s": "Hadiah undangan {x}, {y}, {z}",
-   "n": 3
-  },
-  {
    "s": "Halaman {x} dari {y}",
    "n": 3
   },
@@ -1183,7 +1199,7 @@
    "n": 3
   },
   {
-   "s": "Keluar",
+   "s": "Kelola karya",
    "n": 3
   },
   {
@@ -1251,10 +1267,6 @@
    "n": 3
   },
   {
-   "s": "Langganan",
-   "n": 3
-  },
-  {
    "s": "Lanjutkan pencarian pada halaman berikutnya.",
    "n": 3
   },
@@ -1295,6 +1307,10 @@
    "n": 3
   },
   {
+   "s": "Lencana centang abu-abu Kahade+",
+   "n": 3
+  },
+  {
    "s": "Lihat detail verifikasi akun",
    "n": 3
   },
@@ -1304,6 +1320,10 @@
   },
   {
    "s": "Lihat kategori {x}",
+   "n": 3
+  },
+  {
+   "s": "Lihat keterangan lencana",
    "n": 3
   },
   {
@@ -1359,6 +1379,14 @@
    "n": 3
   },
   {
+   "s": "Masukkan PIN dompet Anda untuk berlangganan {x} sebesar {y}.",
+   "n": 3
+  },
+  {
+   "s": "Masukkan PIN dompet Anda untuk berlangganan.",
+   "n": 3
+  },
+  {
    "s": "Masukkan PIN dompet Anda untuk menarik {x} ke {y} {z}.",
    "n": 3
   },
@@ -1408,6 +1436,10 @@
   },
   {
    "s": "Menunggu konfirmasi",
+   "n": 3
+  },
+  {
+   "s": "Metode pembayaran",
    "n": 3
   },
   {
@@ -1508,6 +1540,10 @@
   },
   {
    "s": "Percakapan ditutup dan tidak bisa dilanjutkan. Anda tetap bisa membukanya kembali kapan saja bila masalahnya belum selesai.",
+   "n": 3
+  },
+  {
+   "s": "Pergantian ikon aplikasi membutuhkan pembaruan aplikasi dari toko — pilihan Anda tersimpan dan diterapkan saat tersedia.",
    "n": 3
   },
   {
@@ -1655,7 +1691,7 @@
    "n": 3
   },
   {
-   "s": "Status",
+   "s": "Sisa {x} dari {y} periode ini",
    "n": 3
   },
   {
@@ -1724,6 +1760,10 @@
   },
   {
    "s": "Tautan sudah kedaluwarsa",
+   "n": 3
+  },
+  {
+   "s": "Tema eksklusif",
    "n": 3
   },
   {
@@ -1887,6 +1927,10 @@
    "n": 2
   },
   {
+   "s": "{x} dari {y} foto gagal diunggah",
+   "n": 2
+  },
+  {
    "s": "{x} file bukti tidak dapat dimuat server. Periksa dengan penjual sebelum mengonfirmasi.",
    "n": 2
   },
@@ -1980,6 +2024,10 @@
   },
   {
    "s": "Aktifkan karya",
+   "n": 2
+  },
+  {
+   "s": "Akun ini berlangganan Kahade+ dan telah menyelesaikan verifikasi identitas. Lencana ini dihitung otomatis oleh sistem.",
    "n": 2
   },
   {
@@ -2087,11 +2135,11 @@
    "n": 2
   },
   {
-   "s": "Belum Verifikasi",
+   "s": "Belum berlangganan",
    "n": 2
   },
   {
-   "s": "Beralih ke {x} (prorasi)",
+   "s": "Belum Verifikasi",
    "n": 2
   },
   {
@@ -2279,6 +2327,14 @@
    "n": 2
   },
   {
+   "s": "Daftar bernomor",
+   "n": 2
+  },
+  {
+   "s": "Daftar bullet",
+   "n": 2
+  },
+  {
    "s": "Dalam pengiriman",
    "n": 2
   },
@@ -2292,6 +2348,14 @@
   },
   {
    "s": "Dana escrow akan DIBEKUKAN sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak. Pastikan klaim sudah jelas — bukti foto/video bisa ditambahkan setelah sengketa dibuat.",
+   "n": 2
+  },
+  {
+   "s": "Dana keluar",
+   "n": 2
+  },
+  {
+   "s": "Dana masuk",
    "n": 2
   },
   {
@@ -2316,6 +2380,10 @@
   },
   {
    "s": "Disembunyikan karena melanggar pedoman komunitas.",
+   "n": 2
+  },
+  {
+   "s": "Ditagih setiap bulan",
    "n": 2
   },
   {
@@ -2471,6 +2539,14 @@
    "n": 2
   },
   {
+   "s": "Ganti PIN",
+   "n": 2
+  },
+  {
+   "s": "Garis bawah",
+   "n": 2
+  },
+  {
    "s": "Gratis",
    "n": 2
   },
@@ -2520,6 +2596,10 @@
   },
   {
    "s": "Harga minimum (opsional)",
+   "n": 2
+  },
+  {
+   "s": "Hari ini",
    "n": 2
   },
   {
@@ -2691,7 +2771,15 @@
    "n": 2
   },
   {
+   "s": "Keluar",
+   "n": 2
+  },
+  {
    "s": "Keluarkan percakapan terpilih dari arsip",
+   "n": 2
+  },
+  {
+   "s": "Kemarin",
    "n": 2
   },
   {
@@ -2704,6 +2792,10 @@
   },
   {
    "s": "Ketuk untuk mengubah pilihan",
+   "n": 2
+  },
+  {
+   "s": "Khusus anggota Kahade+",
    "n": 2
   },
   {
@@ -2791,11 +2883,19 @@
    "n": 2
   },
   {
+   "s": "Kunci unggahan tidak tersedia.",
+   "n": 2
+  },
+  {
    "s": "Kurangi",
    "n": 2
   },
   {
    "s": "Lampiran #{x}",
+   "n": 2
+  },
+  {
+   "s": "Langganan",
    "n": 2
   },
   {
@@ -2839,6 +2939,10 @@
    "n": 2
   },
   {
+   "s": "Lihat paket",
+   "n": 2
+  },
+  {
    "s": "Lihat pesanan",
    "n": 2
   },
@@ -2864,6 +2968,10 @@
   },
   {
    "s": "Maksimal {x} karakter",
+   "n": 2
+  },
+  {
+   "s": "Masih ada foto yang gagal diunggah",
    "n": 2
   },
   {
@@ -2939,7 +3047,7 @@
    "n": 2
   },
   {
-   "s": "Memproses langganan {x}…",
+   "s": "Memproses langganan…",
    "n": 2
   },
   {
@@ -3004,6 +3112,10 @@
   },
   {
    "s": "Minimal {x} · maksimal {y} karakter",
+   "n": 2
+  },
+  {
+   "s": "Miring",
    "n": 2
   },
   {
@@ -3295,6 +3407,10 @@
    "n": 2
   },
   {
+   "s": "Pratinjau",
+   "n": 2
+  },
+  {
    "s": "Privat",
    "n": 2
   },
@@ -3320,6 +3436,10 @@
   },
   {
    "s": "Refund Order",
+   "n": 2
+  },
+  {
+   "s": "Ringkasan mutasi",
    "n": 2
   },
   {
@@ -3379,6 +3499,10 @@
    "n": 2
   },
   {
+   "s": "Selamat datang di Kahade+",
+   "n": 2
+  },
+  {
    "s": "Selamat datang, {x}!",
    "n": 2
   },
@@ -3387,7 +3511,15 @@
    "n": 2
   },
   {
+   "s": "Selisih",
+   "n": 2
+  },
+  {
    "s": "Sembunyikan kata sandi",
+   "n": 2
+  },
+  {
+   "s": "Sembunyikan pratinjau",
    "n": 2
   },
   {
@@ -3491,11 +3623,19 @@
    "n": 2
   },
   {
+   "s": "Tampilkan pratinjau",
+   "n": 2
+  },
+  {
    "s": "Tampilkan semua {x} template",
    "n": 2
   },
   {
    "s": "Tampilkan semua notifikasi",
+   "n": 2
+  },
+  {
+   "s": "Tanggal tidak tersedia",
    "n": 2
   },
   {
@@ -3507,11 +3647,19 @@
    "n": 2
   },
   {
+   "s": "Tautan",
+   "n": 2
+  },
+  {
    "s": "Tautan profil disalin",
    "n": 2
   },
   {
    "s": "Tautan undangan disalin",
+   "n": 2
+  },
+  {
+   "s": "Tebal",
    "n": 2
   },
   {
@@ -3671,6 +3819,10 @@
    "n": 2
   },
   {
+   "s": "Ubah PIN",
+   "n": 2
+  },
+  {
    "s": "Ubah template",
    "n": 2
   },
@@ -3680,6 +3832,10 @@
   },
   {
    "s": "Ukuran berkas melebihi {x} MB.",
+   "n": 2
+  },
+  {
+   "s": "Ukuran berkas melebihi batas penyimpanan.",
    "n": 2
   },
   {
@@ -3700,6 +3856,10 @@
   },
   {
    "s": "Undang teman",
+   "n": 2
+  },
+  {
+   "s": "Unggahan dibatalkan.",
    "n": 2
   },
   {
@@ -3823,6 +3983,10 @@
    "n": 1
   },
   {
+   "s": "{x} keuntungan Kahade+",
+   "n": 1
+  },
+  {
    "s": "{x} Komentar",
    "n": 1
   },
@@ -3903,6 +4067,14 @@
    "n": 1
   },
   {
+   "s": "~{x}/bulan",
+   "n": 1
+  },
+  {
+   "s": "~{x}/bulan · hemat ~{y}%",
+   "n": 1
+  },
+  {
    "s": "Ada data yang belum benar. Periksa kembali isian Anda.",
    "n": 1
   },
@@ -3931,11 +4103,43 @@
    "n": 1
   },
   {
+   "s": "Aksen biru laut yang tenang.",
+   "n": 1
+  },
+  {
+   "s": "Aksen emas khas anggota premium.",
+   "n": 1
+  },
+  {
+   "s": "Aksen hijau pinus yang sejuk.",
+   "n": 1
+  },
+  {
+   "s": "Aksen ungu anggrek yang berani.",
+   "n": 1
+  },
+  {
+   "s": "Akses awal fitur baru",
+   "n": 1
+  },
+  {
    "s": "Akses cepat",
    "n": 1
   },
   {
    "s": "Akses kamera ditolak",
+   "n": 1
+  },
+  {
+   "s": "Akses ke penyimpanan ditolak. Coba lagi; bila berlanjut, hubungi bantuan.",
+   "n": 1
+  },
+  {
+   "s": "Akses premium tetap berlaku sampai akhir periode.",
+   "n": 1
+  },
+  {
+   "s": "Akses premium tetap berlaku sampai periode berjalan berakhir.",
    "n": 1
   },
   {
@@ -3971,7 +4175,7 @@
    "n": 1
   },
   {
-   "s": "Aktifkan kembali langganan",
+   "s": "Aktifkan Kahade+ untuk membuka {x} keuntungan premium.",
    "n": 1
   },
   {
@@ -4035,6 +4239,10 @@
    "n": 1
   },
   {
+   "s": "Analitik etalase",
+   "n": 1
+  },
+  {
    "s": "Anda akan diberi tahu saat lawan menerima.",
    "n": 1
   },
@@ -4051,7 +4259,7 @@
    "n": 1
   },
   {
-   "s": "Anda tetap dapat mengakses fitur premium sampai periode berakhir.",
+   "s": "Anda tetap dapat mengakses semua fitur premium sampai periode berakhir. Langganan tidak akan diperpanjang otomatis.",
    "n": 1
   },
   {
@@ -4191,6 +4399,14 @@
    "n": 1
   },
   {
+   "s": "Batalkan kapan saja — akses premium tetap sampai periode berakhir.",
+   "n": 1
+  },
+  {
+   "s": "Batalkan langganan",
+   "n": 1
+  },
+  {
    "s": "Batalkan langganan?",
    "n": 1
   },
@@ -4235,7 +4451,15 @@
    "n": 1
   },
   {
+   "s": "Bayar dengan QRIS",
+   "n": 1
+  },
+  {
    "s": "Bayar sekarang",
+   "n": 1
+  },
+  {
+   "s": "Bebas biaya layanan",
    "n": 1
   },
   {
@@ -4371,7 +4595,7 @@
    "n": 1
   },
   {
-   "s": "Belum berlangganan",
+   "s": "Belum dibuat",
    "n": 1
   },
   {
@@ -4419,7 +4643,7 @@
    "n": 1
   },
   {
-   "s": "Berkas kosong atau tidak terbaca.",
+   "s": "Berkas rusak saat diunggah. Coba lagi.",
    "n": 1
   },
   {
@@ -4431,7 +4655,19 @@
    "n": 1
   },
   {
+   "s": "Berlaku untuk seluruh aplikasi, mengikuti mode terang/gelap.",
+   "n": 1
+  },
+  {
    "s": "Berlaku untuk seluruh aplikasi.",
+   "n": 1
+  },
+  {
+   "s": "Berlangganan Kahade+ untuk membuka pilihan warna aksen dan ikon aplikasi eksklusif.",
+   "n": 1
+  },
+  {
+   "s": "Berlangganan untuk membuka tema eksklusif.",
    "n": 1
   },
   {
@@ -4460,6 +4696,10 @@
   },
   {
    "s": "Biaya ditanggung",
+   "n": 1
+  },
+  {
+   "s": "Biaya layanan transaksi digratiskan sampai batas kuota setiap periode langganan.",
    "n": 1
   },
   {
@@ -4823,6 +5063,10 @@
    "n": 1
   },
   {
+   "s": "Coba fitur Patungan dan Split Bill sebelum dibuka untuk semua pengguna.",
+   "n": 1
+  },
+  {
    "s": "Coba lagi foto gagal",
    "n": 1
   },
@@ -4948,6 +5192,10 @@
   },
   {
    "s": "Dengan mengirim, Anda setuju masukan ini (beserta kontak di atas, bila diisi) disimpan sementara di perangkat ini maksimal {x} hari saat offline, lalu dikirim otomatis dan dihapus. Antrean lokal juga dibersihkan saat Anda keluar dari akun.",
+   "n": 1
+  },
+  {
+   "s": "Deskripsi karya dengan format teks kaya (HTML) dan hingga {x} foto per karya.",
    "n": 1
   },
   {
@@ -5103,6 +5351,10 @@
    "n": 1
   },
   {
+   "s": "Dukungan prioritas",
+   "n": 1
+  },
+  {
    "s": "durasi {x}",
    "n": 1
   },
@@ -5191,6 +5443,10 @@
    "n": 1
   },
   {
+   "s": "Etalase kustom",
+   "n": 1
+  },
+  {
    "s": "Favorit",
    "n": 1
   },
@@ -5200,10 +5456,6 @@
   },
   {
    "s": "Fitur ini khusus pengguna yang sudah punya akun Kahade. Masuk atau daftar untuk melanjutkan, lalu Anda kembali ke halaman yang dituju.",
-   "n": 1
-  },
-  {
-   "s": "Fitur premium dinonaktifkan sampai Anda mengaktifkannya kembali. Periode langganan yang sudah berjalan tetap berjalan selama masa jeda.",
    "n": 1
   },
   {
@@ -5295,6 +5547,10 @@
    "n": 1
   },
   {
+   "s": "Gagal membuat PIN",
+   "n": 1
+  },
+  {
    "s": "Gagal membuat QRIS",
    "n": 1
   },
@@ -5328,10 +5584,6 @@
   },
   {
    "s": "Gagal meminta panggilan",
-   "n": 1
-  },
-  {
-   "s": "Gagal memperbarui jadwal",
    "n": 1
   },
   {
@@ -5575,10 +5827,6 @@
    "n": 1
   },
   {
-   "s": "Gagal menjeda langganan",
-   "n": 1
-  },
-  {
    "s": "Gagal menolak bukti",
    "n": 1
   },
@@ -5604,10 +5852,6 @@
   },
   {
    "s": "Gagal menyimpan balasan",
-   "n": 1
-  },
-  {
-   "s": "Gagal menyimpan jadwal",
    "n": 1
   },
   {
@@ -5663,10 +5907,6 @@
    "n": 1
   },
   {
-   "s": "Ganti PIN",
-   "n": 1
-  },
-  {
    "s": "Geser atau ketuk lintasan sampai penanda sejajar dengan garis tujuan.",
    "n": 1
   },
@@ -5704,6 +5944,14 @@
   },
   {
    "s": "hadiah {x} rupiah",
+   "n": 1
+  },
+  {
+   "s": "Hadiah undangan",
+   "n": 1
+  },
+  {
+   "s": "Hadiah undangan · {x}",
    "n": 1
   },
   {
@@ -5807,10 +6055,6 @@
    "n": 1
   },
   {
-   "s": "Hari ini",
-   "n": 1
-  },
-  {
    "s": "hemat {x} rupiah",
    "n": 1
   },
@@ -5844,6 +6088,14 @@
   },
   {
    "s": "Identitas pengguna tujuan tidak tersedia. Muat ulang halaman lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Ikon aplikasi",
+   "n": 1
+  },
+  {
+   "s": "Ikon mengikuti tema",
    "n": 1
   },
   {
@@ -5927,6 +6179,10 @@
    "n": 1
   },
   {
+   "s": "Jadwal penarikan otomatis memindahkan dana Anda. Masukkan PIN wallet untuk mengotorisasi.",
+   "n": 1
+  },
+  {
    "s": "Jaga nada tetap ramah dan profesional.",
    "n": 1
   },
@@ -5948,18 +6204,6 @@
   },
   {
    "s": "Jawaban terkirim",
-   "n": 1
-  },
-  {
-   "s": "Jeda",
-   "n": 1
-  },
-  {
-   "s": "Jeda langganan",
-   "n": 1
-  },
-  {
-   "s": "Jeda langganan?",
    "n": 1
   },
   {
@@ -6064,6 +6308,14 @@
   },
   {
    "s": "Kahade. Seluruh hak cipta dilindungi.",
+   "n": 1
+  },
+  {
+   "s": "Kahade+",
+   "n": 1
+  },
+  {
+   "s": "Kahade+ saya",
    "n": 1
   },
   {
@@ -6199,10 +6451,6 @@
    "n": 1
   },
   {
-   "s": "Kemarin",
-   "n": 1
-  },
-  {
    "s": "Kembali ke beranda",
    "n": 1
   },
@@ -6276,14 +6524,6 @@
   },
   {
    "s": "Ketuk untuk mengubah reaksi",
-   "n": 1
-  },
-  {
-   "s": "Keuntungan",
-   "n": 1
-  },
-  {
-   "s": "Keuntungan belum dapat dimuat",
    "n": 1
   },
   {
@@ -6455,6 +6695,10 @@
    "n": 1
   },
   {
+   "s": "Kode QR kedaluwarsa. Silakan ulangi pemesanan.",
+   "n": 1
+  },
+  {
    "s": "Kode QR Profil Saya",
    "n": 1
   },
@@ -6599,11 +6843,11 @@
    "n": 1
   },
   {
-   "s": "Kunci unggahan tidak tersedia.",
+   "s": "Kunjungi profil saya di Kahade: {x}",
    "n": 1
   },
   {
-   "s": "Kunjungi profil saya di Kahade: {x}",
+   "s": "Kuota bebas biaya layanan",
    "n": 1
   },
   {
@@ -6627,7 +6871,11 @@
    "n": 1
   },
   {
-   "s": "Langganan aktif",
+   "s": "Langganan Anda dijadwalkan berakhir pada akhir periode. Lanjutkan sebelum periode berakhir agar tidak terputus.",
+   "n": 1
+  },
+  {
+   "s": "Langganan berakhir",
    "n": 1
   },
   {
@@ -6635,15 +6883,7 @@
    "n": 1
   },
   {
-   "s": "Langganan dijeda",
-   "n": 1
-  },
-  {
    "s": "Langganan dilanjutkan",
-   "n": 1
-  },
-  {
-   "s": "Langganan diperpanjang",
    "n": 1
   },
   {
@@ -6663,15 +6903,15 @@
    "n": 1
   },
   {
-   "s": "Lanjut ·",
-   "n": 1
-  },
-  {
    "s": "Lanjut ke verifikasi",
    "n": 1
   },
   {
    "s": "Lanjutkan draft?",
+   "n": 1
+  },
+  {
+   "s": "Lanjutkan langganan",
    "n": 1
   },
   {
@@ -6708,6 +6948,14 @@
   },
   {
    "s": "Legal",
+   "n": 1
+  },
+  {
+   "s": "Lencana centang abu-abu tampil di profil Anda sebagai akun terverifikasi penuh.",
+   "n": 1
+  },
+  {
+   "s": "Lencana verifikasi penuh di profil",
    "n": 1
   },
   {
@@ -6776,6 +7024,10 @@
   },
   {
    "s": "Lihat skema biaya platform",
+   "n": 1
+  },
+  {
+   "s": "Lihat statistik kunjungan dan performa etalase Anda secara detail.",
    "n": 1
   },
   {
@@ -6903,6 +7155,10 @@
    "n": 1
   },
   {
+   "s": "Masukkan kata sandi akun untuk membuat PIN dompet.",
+   "n": 1
+  },
+  {
    "s": "Masukkan kata sandi akun untuk mengizinkan perubahan PIN.",
    "n": 1
   },
@@ -6939,35 +7195,11 @@
    "n": 1
   },
   {
-   "s": "Masukkan PIN dompet Anda untuk berlangganan {x} sebesar {y}.",
-   "n": 1
-  },
-  {
-   "s": "Masukkan PIN dompet Anda untuk berlangganan.",
-   "n": 1
-  },
-  {
    "s": "Masukkan PIN dompet Anda untuk melanjutkan.",
    "n": 1
   },
   {
-   "s": "Masukkan PIN dompet Anda untuk memperpanjang langganan {x} sebesar {y}.",
-   "n": 1
-  },
-  {
-   "s": "Masukkan PIN dompet Anda untuk memperpanjang langganan.",
-   "n": 1
-  },
-  {
    "s": "Masukkan PIN dompet Anda untuk menyetujui transfer. PIN digunakan untuk melindungi setiap transaksi keluar dari dompet.",
-   "n": 1
-  },
-  {
-   "s": "Masukkan PIN dompet Anda untuk upgrade ke {x}. Sisa nilai paket lama dipotong dari biaya baru (prorasi).",
-   "n": 1
-  },
-  {
-   "s": "Masukkan PIN dompet Anda untuk upgrade. Sisa nilai paket lama dipotong dari biaya baru (prorasi).",
    "n": 1
   },
   {
@@ -6976,6 +7208,10 @@
   },
   {
    "s": "Masukkan PIN dompet yang sedang aktif.",
+   "n": 1
+  },
+  {
+   "s": "Masukkan PIN Wallet",
    "n": 1
   },
   {
@@ -7039,6 +7275,10 @@
    "n": 1
   },
   {
+   "s": "Memproses…",
+   "n": 1
+  },
+  {
    "s": "Memuat analitik",
    "n": 1
   },
@@ -7080,6 +7320,10 @@
   },
   {
    "s": "Memuat order…",
+   "n": 1
+  },
+  {
+   "s": "Memuat paket Kahade+…",
    "n": 1
   },
   {
@@ -7127,6 +7371,10 @@
    "n": 1
   },
   {
+   "s": "Memuat status langganan…",
+   "n": 1
+  },
+  {
    "s": "Memuat status verifikasi",
    "n": 1
   },
@@ -7164,6 +7412,10 @@
   },
   {
    "s": "Memuat…",
+   "n": 1
+  },
+  {
+   "s": "Memverifikasi…",
    "n": 1
   },
   {
@@ -7247,6 +7499,10 @@
    "n": 1
   },
   {
+   "s": "Menunggu pembayaran…",
+   "n": 1
+  },
+  {
    "s": "Menunggu pembayaran… status diperbarui otomatis.",
    "n": 1
   },
@@ -7272,6 +7528,10 @@
   },
   {
    "s": "Menyalin teks pesan yang dipilih",
+   "n": 1
+  },
+  {
+   "s": "Menyiapkan kode QR…",
    "n": 1
   },
   {
@@ -7631,6 +7891,14 @@
    "n": 1
   },
   {
+   "s": "Paket",
+   "n": 1
+  },
+  {
+   "s": "Paket tidak dikenal.",
+   "n": 1
+  },
+  {
    "s": "Panduan otomatis; buat tiket untuk bantuan resmi",
    "n": 1
   },
@@ -7879,6 +8147,14 @@
    "n": 1
   },
   {
+   "s": "Penyimpanan sedang gangguan. Coba lagi nanti.",
+   "n": 1
+  },
+  {
+   "s": "Penyimpanan sedang sibuk. Tunggu sebentar lalu coba lagi.",
+   "n": 1
+  },
+  {
    "s": "Peran",
    "n": 1
   },
@@ -8031,6 +8307,10 @@
    "n": 1
   },
   {
+   "s": "Periode berjalan",
+   "n": 1
+  },
+  {
    "s": "Permintaan diterima oleh layanan. Ikuti informasi resmi Kahade mengenai proses selanjutnya.",
    "n": 1
   },
@@ -8063,10 +8343,6 @@
    "n": 1
   },
   {
-   "s": "Permintaan perpanjangan diterima",
-   "n": 1
-  },
-  {
    "s": "Permintaan terkirim",
    "n": 1
   },
@@ -8076,6 +8352,10 @@
   },
   {
    "s": "Permintaan tidak valid.",
+   "n": 1
+  },
+  {
+   "s": "Permintaan unggah tidak valid. Coba dengan foto lain.",
    "n": 1
   },
   {
@@ -8100,6 +8380,10 @@
   },
   {
    "s": "Personal",
+   "n": 1
+  },
+  {
+   "s": "Pertanyaan dan laporan Anda ditangani lebih dulu oleh tim Kahade.",
    "n": 1
   },
   {
@@ -8263,7 +8547,7 @@
    "n": 1
   },
   {
-   "s": "Pilih PIN {x} digit baru. Jangan gunakan tanggal lahir atau angka berurutan.",
+   "s": "Pilih PIN {x} digit. Jangan gunakan tanggal lahir atau angka berurutan.",
    "n": 1
   },
   {
@@ -8291,7 +8575,19 @@
    "n": 1
   },
   {
+   "s": "Pilih warna aksen dan ikon aplikasi khusus anggota Kahade+.",
+   "n": 1
+  },
+  {
    "s": "Pilih yang mau Anda kerjakan.",
+   "n": 1
+  },
+  {
+   "s": "Pilihan tema eksklusif Anda tersimpan dan akan aktif lagi begitu Anda berlangganan kembali.",
+   "n": 1
+  },
+  {
+   "s": "Pilihan tersimpan di perangkat ini. Jika langganan berakhir, tampilan kembali ke standar secara otomatis.",
    "n": 1
   },
   {
@@ -8299,7 +8595,7 @@
    "n": 1
   },
   {
-   "s": "PIN baru",
+   "s": "PIN berhasil dibuat",
    "n": 1
   },
   {
@@ -8308,6 +8604,10 @@
   },
   {
    "s": "PIN dan biometrik di setiap transaksi",
+   "n": 1
+  },
+  {
+   "s": "PIN dompet harus {x} digit angka.",
    "n": 1
   },
   {
@@ -8324,6 +8624,10 @@
   },
   {
    "s": "Pindai Lagi",
+   "n": 1
+  },
+  {
+   "s": "Pindai QR ini dengan aplikasi pembayaran Anda",
    "n": 1
   },
   {
@@ -8420,6 +8724,10 @@
   },
   {
    "s": "QRIS sudah kedaluwarsa",
+   "n": 1
+  },
+  {
+   "s": "R{x}_HTTP_ERROR",
    "n": 1
   },
   {
@@ -8527,10 +8835,6 @@
    "n": 1
   },
   {
-   "s": "Ringkasan mutasi",
-   "n": 1
-  },
-  {
    "s": "Riwayat belum tersedia",
    "n": 1
   },
@@ -8560,10 +8864,6 @@
   },
   {
    "s": "Riwayat dompet siap dibagikan",
-   "n": 1
-  },
-  {
-   "s": "Riwayat langganan",
    "n": 1
   },
   {
@@ -8624,6 +8924,10 @@
   },
   {
    "s": "Saldo tersedia",
+   "n": 1
+  },
+  {
+   "s": "Saldo Wallet",
    "n": 1
   },
   {
@@ -8759,10 +9063,6 @@
    "n": 1
   },
   {
-   "s": "Selisih",
-   "n": 1
-  },
-  {
    "s": "Sembunyikan pengingat aksi menggantung",
    "n": 1
   },
@@ -8856,6 +9156,10 @@
   },
   {
    "s": "Sesi dicabut",
+   "n": 1
+  },
+  {
+   "s": "Sesi unggah kedaluwarsa. Coba unggah ulang.",
    "n": 1
   },
   {
@@ -8956,6 +9260,10 @@
   },
   {
    "s": "Slide pengenalan",
+   "n": 1
+  },
+  {
+   "s": "Standar Kahade",
    "n": 1
   },
   {
@@ -9147,6 +9455,10 @@
    "n": 1
   },
   {
+   "s": "Tanda tangan unggahan tidak cocok. Pilih ulang foto lalu coba unggah kembali.",
+   "n": 1
+  },
+  {
    "s": "Tandai berguna",
    "n": 1
   },
@@ -9160,10 +9472,6 @@
   },
   {
    "s": "Tandai yang dipilih dibaca",
-   "n": 1
-  },
-  {
-   "s": "Tanggal tidak tersedia",
    "n": 1
   },
   {
@@ -9619,6 +9927,10 @@
    "n": 1
   },
   {
+   "s": "Tujuan penyimpanan tidak tersedia. Coba lagi nanti.",
+   "n": 1
+  },
+  {
    "s": "Tulis balasan",
    "n": 1
   },
@@ -9711,10 +10023,6 @@
    "n": 1
   },
   {
-   "s": "Ubah PIN",
-   "n": 1
-  },
-  {
    "s": "Ukuran berkas terlalu besar.",
    "n": 1
   },
@@ -9783,10 +10091,6 @@
    "n": 1
   },
   {
-   "s": "Unggah berkas gagal. Silakan coba kembali.",
-   "n": 1
-  },
-  {
    "s": "Unggah bukti pengiriman",
    "n": 1
   },
@@ -9803,11 +10107,11 @@
    "n": 1
   },
   {
-   "s": "Unggah terlalu lama. Periksa koneksi lalu coba kembali.",
+   "s": "Unggah ke penyimpanan gagal (HTTP {x}{x}). Coba lagi.",
    "n": 1
   },
   {
-   "s": "Unggahan dibatalkan.",
+   "s": "Unggah terlalu lama. Periksa koneksi lalu coba kembali.",
    "n": 1
   },
   {
@@ -10012,6 +10316,14 @@
   },
   {
    "s": "Wallet",
+   "n": 1
+  },
+  {
+   "s": "Warna aksen",
+   "n": 1
+  },
+  {
+   "s": "Warna bawaan aplikasi",
    "n": 1
   },
   {

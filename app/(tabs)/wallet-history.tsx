@@ -39,8 +39,9 @@
  *     identik dengan chip "90 hari" di sebelahnya. Dua chip yang melakukan hal
  *     sama, salah satunya berbohong, lebih buruk daripada tiga chip jujur.
  *   - Baris memakai `href` ke detail mutasi agar di web menjadi tautan nyata.
- *   - Pengelompokan memakai TANGGAL LOKAL perangkat (bukan UTC): mutasi jam
- *     00:30 WIB tidak boleh masuk "kemarin" hanya karena UTC-nya masih H-1.
+ *   - Pengelompokan memakai TANGGAL WIB (Asia/Jakarta — zona kerja backend,
+ *     WF-026), bukan tanggal lokal perangkat: mutasi jam 00:30 WIB tidak
+ *     boleh masuk "kemarin" di perangkat WITA/WIT.
  *   - Ringkasan dihitung dari item yang sudah dimuat (halaman 1..N), dan
  *     DITULIS begitu ("N mutasi dimuat") — bukan total akun. Menampilkannya
  *     sebagai total akun adalah angka yang salah secara harfiah.
@@ -57,7 +58,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, type WalletTransaction } from "@/lib/api"
-import { formatDate, formatDateLong, formatNumber } from "@/lib/format"
+import { formatDate, formatDateLong, formatNumber, WIB_TIME_ZONE } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { WALLET_TXN_FILTERS, walletTransactionType } from "@/lib/wallet-labels"
@@ -116,11 +117,11 @@ const DEFAULT_RANGE_DAYS = 90
 const RANGE_MARGIN_MS = 60 * 60 * 1000
 
 // ------------------------------------------------------------------
-// Pengelompokan per hari (tanggal lokal perangkat)
+// Pengelompokan per hari (tanggal WIB — zona kerja backend, WF-026)
 // ------------------------------------------------------------------
 
 type DayGroup = {
-  /** Key stabil untuk FlatList (`day:2026-09-08`). */
+  /** Key stabil untuk FlatList (`day:2026-9-8`). */
   id: string
   /** "Hari ini" / "Kemarin" / "Senin, 8 September 2026". */
   label: string
@@ -131,32 +132,60 @@ type DayGroup = {
   out: number
 }
 
-function startOfDay(d: Date): Date {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate())
+/**
+ * WF-026 (Batch 1-money): tanggal kalender di Asia/Jakarta.
+ * Mengembalikan kunci grup + Date "tengah malam WIB sebagai lokal" — HANYA
+ * untuk pelabelan kalender (formatDateLong/formatDate), bukan cap waktu.
+ * Sebelumnya memakai getFullYear()/getMonth()/getDate() perangkat sehingga
+ * user WITA/WIT melihat mutasi 00:30 WIB di hari yang berbeda dari backend.
+ */
+function wibCalendarDay(d: Date): { key: string; date: Date } | null {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: WIB_TIME_ZONE,
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    }).formatToParts(d)
+    const value = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? NaN)
+    const year = value("year")
+    const month = value("month")
+    const day = value("day")
+    if (![year, month, day].every(Number.isFinite)) return null
+    return { key: `${year}-${month}-${day}`, date: new Date(year, month - 1, day) }
+  } catch {
+    return null
+  }
 }
 
 function groupByDay(items: WalletTransaction[]): DayGroup[] {
-  const today = startOfDay(new Date()).getTime()
+  const todayKey = wibCalendarDay(new Date())?.key ?? null
+  const yesterdayKey = wibCalendarDay(new Date(Date.now() - 86_400_000))?.key ?? null
   const byKey = new Map<string, DayGroup>()
   for (const tx of items) {
     const date = new Date(tx.createdAt)
     const valid = !Number.isNaN(date.getTime())
-    const day = valid ? startOfDay(date) : startOfDay(new Date(0))
-    const key = `${day.getFullYear()}-${day.getMonth()}-${day.getDate()}`
+    const wib = valid ? wibCalendarDay(date) : null
+    const key = wib?.key ?? "invalid"
     let group = byKey.get(key)
     if (!group) {
-      const diffDays = Math.round((today - day.getTime()) / 86_400_000)
       group = {
         id: `day:${key}`,
         label:
-          diffDays === 0
-            ? "Hari ini"
-            : diffDays === 1
-              ? "Kemarin"
-              : valid
-                ? formatDateLong(date)
-                : "Tanggal tidak tersedia",
-        sub: diffDays === 0 || diffDays === 1 ? (valid ? formatDate(date) : null) : null,
+          todayKey != null && key === todayKey
+            ? translate("Hari ini")
+            : yesterdayKey != null && key === yesterdayKey
+              ? translate("Kemarin")
+              : wib
+                ? formatDateLong(wib.date)
+                : translate("Tanggal tidak tersedia"),
+        sub:
+          (todayKey != null && key === todayKey) ||
+          (yesterdayKey != null && key === yesterdayKey)
+            ? wib
+              ? formatDate(wib.date)
+              : null
+            : null,
         txns: [],
         in: 0,
         out: 0,
@@ -164,8 +193,10 @@ function groupByDay(items: WalletTransaction[]): DayGroup[] {
       byKey.set(key, group)
     }
     group.txns.push(tx)
-    if (walletTransactionType(tx) === "CREDIT") group.in += tx.amount || 0
-    else if (walletTransactionType(tx) === "DEBIT") group.out += tx.amount || 0
+    // WF-029: Math.abs — satu nilai negatif dari backend tidak boleh
+    // mengkontaminasi total "Masuk"/"Keluar" secara diam-diam.
+    if (walletTransactionType(tx) === "CREDIT") group.in += Math.abs(tx.amount || 0)
+    else if (walletTransactionType(tx) === "DEBIT") group.out += Math.abs(tx.amount || 0)
   }
   return [...byKey.values()]
 }
@@ -240,12 +271,13 @@ export default function WalletHistoryScreen() {
   const groups = useMemo(() => groupByDay(items), [items])
 
   /** Ringkasan mutasi yang SUDAH dimuat — bukan total akun (lihat catatan file). */
+  // WF-029: Math.abs — tahan terhadap amount negatif dari backend.
   const loadedIn = items
     .filter((tx) => walletTransactionType(tx) === "CREDIT")
-    .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+    .reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
   const loadedOut = items
     .filter((tx) => walletTransactionType(tx) === "DEBIT")
-    .reduce((sum, tx) => sum + (tx.amount || 0), 0)
+    .reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
   const inShare = loadedIn + loadedOut > 0 ? loadedIn / (loadedIn + loadedOut) : 0.5
   /**
    * Selisih masuk-keluar adalah angka yang sebenarnya dicari orang di riwayat
@@ -333,7 +365,7 @@ export default function WalletHistoryScreen() {
                 >
                   <View className="flex-row items-baseline justify-between gap-3">
                     <Text variant="caption" tone="secondary">
-                      Ringkasan mutasi
+                      {translate("Ringkasan mutasi")}
                     </Text>
                     <Text variant="caption" tone="tertiary">
                       {formatNumber(items.length)} mutasi dimuat
@@ -344,7 +376,9 @@ export default function WalletHistoryScreen() {
                       <View className="flex-row items-center gap-1.5">
                         <Icon icon={ArrowCircleDown} size="xs" tone="success" />
                         <Text variant="caption" tone="secondary">
-                          Masuk
+                          {/* WF-027: "Masuk" mentah bertabrakan dengan entri
+                              katalog "Masuk"→"Sign in" — pakai frasa tak-ambigu. */}
+                          {translate("Dana masuk")}
                         </Text>
                       </View>
                       <Amount value={loadedIn} sign="always" tone="success" />
@@ -352,7 +386,7 @@ export default function WalletHistoryScreen() {
                     <View className="flex-1 items-end gap-1">
                       <View className="flex-row items-center gap-1.5">
                         <Text variant="caption" tone="secondary">
-                          Keluar
+                          {translate("Dana keluar")}
                         </Text>
                         <Icon icon={ArrowCircleUp} size="xs" tone="default" />
                       </View>
@@ -368,7 +402,7 @@ export default function WalletHistoryScreen() {
                   </View>
                   <View className="flex-row items-baseline justify-between gap-3 border-t border-border pt-3">
                     <Text variant="caption" tone="secondary">
-                      Selisih
+                      {translate("Selisih")}
                     </Text>
                     <Amount value={net} sign="always" tone={net >= 0 ? "success" : "primary"} />
                   </View>
