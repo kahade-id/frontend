@@ -120,7 +120,11 @@ export default function ShowcaseCreateScreen() {
   const revision = useSessionRevision()
 
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
-  const [formError, setFormError] = useState<string | undefined>()
+  // T2 (audit 2026-09-26): error per field — satu `formError` membuat pesan
+  // foto/harga menempel di input yang salah.
+  const [titleError, setTitleError] = useState<string | undefined>()
+  const [photoError, setPhotoError] = useState<string | undefined>()
+  const [priceError, setPriceError] = useState<string | undefined>()
   const [previews, setPreviews] = useState<Preview[]>([])
   const [failedAssets, setFailedAssets] = useState<PickedImage[]>([])
   const [uploading, setUploading] = useState(false)
@@ -264,6 +268,7 @@ export default function ShowcaseCreateScreen() {
       const next = [...previews, ...uploaded]
       pendingKeys.current = next.map((entry) => entry.fileKey)
       setPreviews(next)
+      setPhotoError(undefined)
       setFailedAssets((current) => [...current, ...failures])
     } catch (error) {
       void cleanupPendingShowcaseKeys(uploaded.map((entry) => entry.fileKey))
@@ -309,6 +314,7 @@ export default function ShowcaseCreateScreen() {
       }
       pendingKeys.current = next.map((entry) => entry.fileKey)
       setPreviews(next)
+      setPhotoError(undefined)
       setFailedAssets(failures)
     } finally {
       uploadBusy.current = false
@@ -341,22 +347,25 @@ export default function ShowcaseCreateScreen() {
 
   // ── Simpan ──────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
-    if (saveBusy.current || uploadBusy.current || uncertainCreate) return
+    // T1 (audit 2026-09-26): `uncertainCreate` TIDAK memblokir retry —
+    // copy menjanjikan "Coba Terbitkan lagi" memakai idempotency key yang
+    // sama. `saveBusy`/`uploadBusy` tetap dijaga.
+    if (saveBusy.current || uploadBusy.current) return
     const title = form.title.trim()
     if (!title) {
-      setFormError(translate("Judul wajib diisi."))
+      setTitleError(translate("Judul wajib diisi."))
       return
     }
     if (previews.length === 0) {
-      setFormError(translate("Pilih minimal satu foto karya."))
+      setPhotoError(translate("Pilih minimal satu foto karya."))
       return
     }
     if (failedAssets.length > 0) {
-      setFormError(translate("Selesaikan unggahan foto yang gagal terlebih dahulu."))
+      setPhotoError(translate("Selesaikan unggahan foto yang gagal terlebih dahulu."))
       return
     }
     if (form.priceMin != null && form.priceMax != null && form.priceMax < form.priceMin) {
-      setFormError(translate("Harga maksimum harus ≥ harga minimum."))
+      setPriceError(translate("Harga maksimum harus ≥ harga minimum."))
       return
     }
     saveBusy.current = true
@@ -391,7 +400,7 @@ export default function ShowcaseCreateScreen() {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
     }
-  }, [failedAssets.length, form, previews, revision, toast, uncertainCreate])
+  }, [failedAssets.length, form, previews, revision, toast])
 
   const busy = uploading || saving
 
@@ -407,7 +416,7 @@ export default function ShowcaseCreateScreen() {
             variant="primary"
             fullWidth
             loading={saving}
-            disabled={uploading || uncertainCreate || previews.length === 0}
+            disabled={uploading || previews.length === 0}
             onPress={() => void handleSave()}
           >
             Terbitkan karya
@@ -492,6 +501,12 @@ export default function ShowcaseCreateScreen() {
             {previews.length > 0 ? "Tambah foto" : "Pilih foto"}
           </Button>
 
+          {photoError ? (
+            <Text tone="danger" accessibilityLiveRegion="polite">
+              {photoError}
+            </Text>
+          ) : null}
+
           {uploading ? (
             <View className="gap-2">
               <Text accessibilityLiveRegion="polite" variant="caption" tone="secondary">
@@ -551,12 +566,12 @@ export default function ShowcaseCreateScreen() {
             value={form.title}
             onChangeText={(text) => {
               setForm((current) => ({ ...current, title: text }))
-              setFormError(undefined)
+              setTitleError(undefined)
             }}
             autoCapitalize="sentences"
             returnKeyType="next"
             maxLength={TITLE_MAX}
-            errorText={formError && !form.title.trim() ? formError : undefined}
+            errorText={titleError}
             required
             disabled={busy || uncertainCreate}
           />
@@ -587,7 +602,7 @@ export default function ShowcaseCreateScreen() {
               if (!/^\d*$/.test(raw)) return
               const value = raw === "" ? null : Number(raw)
               setForm((current) => ({ ...current, priceMin: value }))
-              setFormError(undefined)
+              setPriceError(undefined)
             }}
             helperText={
               form.priceMin != null && form.priceMax == null
@@ -605,9 +620,9 @@ export default function ShowcaseCreateScreen() {
               if (!/^\d*$/.test(raw)) return
               const value = raw === "" ? null : Number(raw)
               setForm((current) => ({ ...current, priceMax: value }))
-              setFormError(undefined)
+              setPriceError(undefined)
             }}
-            errorText={formError && form.title.trim() ? formError : undefined}
+            errorText={priceError}
             disabled={busy || uncertainCreate}
           />
 

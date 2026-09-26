@@ -15,7 +15,7 @@ import {
   PaperPlaneRight,
   Trash,
 } from "phosphor-react-native"
-import { api, isApiError, userMessage } from "@/lib/api"
+import { api, createIdempotencyKey, isApiError, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import {
   addShowcaseComment,
@@ -40,7 +40,7 @@ import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
 import { showcaseImages } from "@/lib/showcase-social"
-import { queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
+import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
@@ -165,6 +165,13 @@ function ShowcaseDetailContent({
   const [replyTo, setReplyTo] = useState<ShowcaseComment | null>(null)
   const [draft, setDraft] = useState("")
   const [sendingComment, setSendingComment] = useState(false)
+  /**
+   * T4 (audit 2026-09-26): satu kunci idempotency per (item × isi komentar),
+   * dipakai ulang saat retry setelah timeout — tiru pola
+   * `showcase-comments-sheet.tsx`. Komponen ini me-remount per item
+   * (`key={`${revision}:${item.id}`}`), jadi tidak perlu reset per item.
+   */
+  const sendKey = useRef<{ item: string; content: string; key: string } | null>(null)
 
   const [commentMenu, setCommentMenu] = useState<ShowcaseComment | null>(null)
   const [editTarget, setEditTarget] = useState<ShowcaseComment | null>(null)
@@ -174,6 +181,9 @@ function ShowcaseDetailContent({
   const [confirmKind, setConfirmKind] = useState<"delete" | "hide">("delete")
   const [confirmBusy, setConfirmBusy] = useState(false)
   const [hideReason, setHideReason] = useState<Reason>("SPAM")
+  /** T5 (audit 2026-09-26): hapus karya dari layar detail (pemilik saja). */
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   /** A-11: sheet laporan bersama — null = tertutup. */
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
@@ -291,10 +301,20 @@ function ShowcaseDetailContent({
     commentsAbort.current?.abort()
     setSendingComment(true)
     try {
-      const saved = await addShowcaseComment(id, {
-        content,
-        parentId: replyTo?.id,
-      })
+      const keyed =
+        sendKey.current?.item === id && sendKey.current?.content === content
+          ? sendKey.current.key
+          : (sendKey.current = { item: id, content, key: createIdempotencyKey() }).key
+      const saved = await addShowcaseComment(
+        id,
+        {
+          content,
+          parentId: replyTo?.id,
+        },
+        keyed,
+      )
+      // Kiriman ini tuntas — teks yang sama berikutnya adalah aksi BARU.
+      sendKey.current = null
       // F-01/C-01 (audit 2026-09-24): delta ke ledger — feed/profil ikut naik
       // TANPA refetch yang membuang halaman 2..N.
       queueShowcaseCommentCount(id, 1)
@@ -474,6 +494,32 @@ function ShowcaseDetailContent({
     router.push(hasSession ? target : ROUTES.loginRequired(`/showcase/${encodeURIComponent(item.id)}`))
   }, [item, hasSession])
 
+  /** T5 (audit 2026-09-26): hapus karya milik sendiri dari layar detail. */
+  const handleDeleteItem = useCallback(async () => {
+    if (!isOwner) return
+    const task = operation.begin()
+    if (!task) return
+    setDeleting(true)
+    try {
+      await api.users.deleteShowcase(id)
+      if (!task.valid()) return
+      markShowcaseFeedDirty()
+      toast.show({ title: "Karya dihapus", tone: "success", duration: 2500 })
+      setDeleteOpen(false)
+      router.back()
+    } catch (err) {
+      if (!task.valid()) return
+      toast.show({
+        title: "Gagal menghapus",
+        description: isApiError(err) ? userMessage(err) : undefined,
+        tone: "danger",
+      })
+    } finally {
+      if (task.valid()) setDeleting(false)
+      task.finish()
+    }
+  }, [id, isOwner, operation, toast.show])
+
   return (
     <DataScreen
       title="Etalase"
@@ -605,13 +651,28 @@ function ShowcaseDetailContent({
 
       <View className="px-5 pt-4">
         {!isOwner ? (
-          <Button fullWidth onPress={handleCreateTransaction}>
-            Buat Transaksi
-          </Button>
+          // T3 (audit 2026-09-26): karya nonaktif tidak bisa ditransaksikan —
+          // gagal-cepat di UI, bukan di tengah alur transaksi.
+          <View className="gap-2">
+            <Button fullWidth disabled={item.isActive === false} onPress={handleCreateTransaction}>
+              Buat Transaksi
+            </Button>
+            {item.isActive === false ? (
+              <Text variant="caption" tone="secondary" className="text-center">
+                Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.
+              </Text>
+            ) : null}
+          </View>
         ) : (
-          <Text variant="caption" tone="secondary" className="text-center">
-            Karya Anda — komentar di sini bisa Anda moderasi.
-          </Text>
+          // T5 (audit 2026-09-26): pemilik bisa menghapus karyanya dari sini.
+          <View className="gap-2">
+            <Text variant="caption" tone="secondary" className="text-center">
+              Karya Anda — komentar di sini bisa Anda moderasi.
+            </Text>
+            <Button variant="ghost" fullWidth onPress={() => setDeleteOpen(true)}>
+              Hapus karya
+            </Button>
+          </View>
         )}
       </View>
 
@@ -779,6 +840,20 @@ function ShowcaseDetailContent({
           </View>
         ) : null}
       </Dialog>
+
+      {/* T5 (audit 2026-09-26): konfirmasi hapus karya (pemilik). */}
+      <Dialog
+        title="Hapus karya ini?"
+        description="Karya dihapus permanen beserta foto, suka, dan komentarnya."
+        visible={deleteOpen}
+        destructive
+        loading={deleting}
+        confirmLabel="Hapus"
+        cancelLabel="Batal"
+        onConfirm={() => void handleDeleteItem()}
+        onCancel={() => setDeleteOpen(false)}
+        onRequestClose={() => setDeleteOpen(false)}
+      />
 
       {/* A-11: SATU sheet laporan (copy seragam "Laporkan Karya"). */}
       <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />

@@ -4,11 +4,11 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 54
+   "n": 55
   },
   {
    "s": "Hapus",
-   "n": 28
+   "n": 29
   },
   {
    "s": "{x}: {y}",
@@ -288,6 +288,10 @@
   },
   {
    "s": "Gagal memuat — coba lagi",
+   "n": 4
+  },
+  {
+   "s": "Gagal menghapus",
    "n": 4
   },
   {
@@ -720,10 +724,6 @@
   },
   {
    "s": "Gagal memulai percakapan",
-   "n": 3
-  },
-  {
-   "s": "Gagal menghapus",
    "n": 3
   },
   {
@@ -1887,6 +1887,10 @@
    "n": 2
   },
   {
+   "s": "Hapus karya ini?",
+   "n": 2
+  },
+  {
    "s": "Hapus komentar ini?",
    "n": 2
   },
@@ -1980,6 +1984,10 @@
   },
   {
    "s": "Karya diaktifkan; pengaturan publik atau privat tetap berlaku",
+   "n": 2
+  },
+  {
+   "s": "Karya dihapus",
    "n": 2
   },
   {
@@ -5247,7 +5255,7 @@
    "n": 1
   },
   {
-   "s": "Hapus karya ini?",
+   "s": "Hapus karya",
    "n": 1
   },
   {
@@ -5643,7 +5651,7 @@
    "n": 1
   },
   {
-   "s": "Karya dihapus",
+   "s": "Karya dihapus permanen beserta foto, suka, dan komentarnya.",
    "n": 1
   },
   {
@@ -5656,6 +5664,10 @@
   },
   {
    "s": "Karya Etalase",
+   "n": 1
+  },
+  {
+   "s": "Karya ini sedang tidak aktif, jadi belum bisa ditransaksikan.",
    "n": 1
   },
   {
