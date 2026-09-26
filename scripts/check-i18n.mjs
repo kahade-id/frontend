@@ -75,6 +75,7 @@ const COGNATE_ALLOWLIST = new Map([
   ["Bank", "serapan baku"],
   ["Bank / e-wallet", "serapan baku + istilah produk"],
   ["Bio", "label singkat profil"],
+  ["Live Support", "nama fitur (ID/EN identik)"],
   ["Personal", "nama jenis akun"],
   ["Rating", "serapan baku"],
   ["Reward", "serapan baku"],
