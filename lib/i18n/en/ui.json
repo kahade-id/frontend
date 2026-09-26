@@ -5,7 +5,10 @@
   "Ada masalah? Kami berdiri di tengah.": "Having trouble? We stand in the middle.",
   "Ada pembaruan": "An update is available",
   "Akun palsu": "Fake account",
+  "Akun {x}": "Account {x}",
   "Alasan laporan": "Report reason",
+  "Ketuk untuk melihat detail verifikasi": "Tap to see verification details",
+  "Lihat detail verifikasi akun": "See account verification details",
   "Aplikasi autentikator": "Authenticator app",
   "Baca versi resmi dan terbaru dari": "Read the official and latest version of",
   "Bagikan etalase": "Share showcase",
@@ -195,5 +198,7 @@
   "{x} nomor {y}": "{x} number {y}",
   "{x} {y} dari {z}": "{x} {y} of {z}",
   "{x} {y} rupiah": "{x} {y} rupiah",
-  "{x}: {y}": "{x}: {y}"
+  "{x}: {y}": "{x}: {y}",
+  "Sejak {x}": "Since {x}",
+  "Verifikasi akun": "Account verification"
 }

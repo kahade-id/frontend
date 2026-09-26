@@ -54,6 +54,7 @@ import { logWarn } from "@/lib/telemetry"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { VerifiedSeal, VerificationSheet, getSealTier } from "@/components/ui/verified-seal"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Button } from "@/components/ui/button"
@@ -120,6 +121,7 @@ const QA_HIDE_REASONS = [
  * tetap terrender.
  */
 const BADGE_ICON: Partial<Record<string, IconComponent>> = {
+  "seal-check": SealCheck,
   "badge-check": IdentificationBadge,
   "briefcase-check": Briefcase,
   sparkles: Sparkle,
@@ -152,6 +154,7 @@ export default function UserProfileScreen() {
   const [saveLoading, setSaveLoading] = useState(false)
   /** Badge verifikasi aktif (GET /v1/users/{username}/badges). */
   const [badges, setBadges] = useState<VerificationBadge[]>([])
+  const [verifySheetOpen, setVerifySheetOpen] = useState(false)
   const [following, setFollowing] = useState<boolean | null>(null)
   const [followLoading, setFollowLoading] = useState(false)
   const [followerCount, setFollowerCount] = useState<number | null>(null)
@@ -847,27 +850,39 @@ export default function UserProfileScreen() {
                 <Text variant="h2" weight={700} tone="primary">
                   {profile.fullName || `@${handle}`}
                 </Text>
-                {profile.verified ? (
-                  <Icon icon={SealCheck} size="sm" active weight="fill" />
-                ) : null}
+                {/* Seal-check 3 tier (emas/biru/abu) — ketuk untuk detail. */}
+                <VerifiedSeal badges={badges} verified={profile.verified} size={18} />
               </View>
 
-              {/* Badge verifikasi aktif — icon + shortLabel, label a11y =
-                  "label: description" agar detail terbaca screen reader. */}
+              {/* Badge verifikasi aktif — ketuk untuk melihat keterangan tiap badge. */}
               {badges.length > 0 ? (
-                <View className="flex-row flex-wrap items-center gap-1.5 pt-0.5">
-                  {badges.map((b) => (
-                    <Badge
-                      key={b.type}
-                      tone="neutral"
-                      variant="soft"
-                      icon={BADGE_ICON[b.icon] ?? SealCheck}
-                      accessibilityLabel={`${b.label}: ${b.description}`}
-                    >
-                      {b.shortLabel}
-                    </Badge>
-                  ))}
-                </View>
+                <>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={translate("Lihat detail verifikasi akun")}
+                    onPress={() => setVerifySheetOpen(true)}
+                  >
+                    <View className="flex-row flex-wrap items-center gap-1.5 pt-0.5">
+                      {badges.map((b) => (
+                        <Badge
+                          key={b.type}
+                          tone="neutral"
+                          variant="soft"
+                          icon={BADGE_ICON[b.icon] ?? SealCheck}
+                          accessibilityLabel={`${b.label}: ${b.description}`}
+                        >
+                          {b.shortLabel}
+                        </Badge>
+                      ))}
+                    </View>
+                  </Pressable>
+                  <VerificationSheet
+                    visible={verifySheetOpen}
+                    onRequestClose={() => setVerifySheetOpen(false)}
+                    badges={badges}
+                    tier={getSealTier(badges) ?? "gray"}
+                  />
+                </>
               ) : null}
 
               {profile.bio ? (

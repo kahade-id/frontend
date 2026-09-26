@@ -37,6 +37,13 @@ export const SecureKeys = {
   accessToken: "kahade.auth.accessToken",
   refreshToken: "kahade.auth.refreshToken",
   /**
+   * Token akses admin panel (sesi TERPISAH dari sesi user — admin bisa login
+   * sebagai admin tanpa mengganggu sesi user di perangkat yang sama).
+   * Sama seperti token user: memory-only di web (tidak masuk
+   * WEB_PERSISTENT_KEYS).
+   */
+  adminAccessToken: "kahade.admin.accessToken",
+  /**
    * "1" bila pengguna mengaktifkan kunci aplikasi biometrik (app-lock §14:
    * re-autentikasi setelah background > 1 menit — lib/app-lock.ts).
    *

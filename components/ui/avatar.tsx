@@ -31,6 +31,7 @@
  */
 import { Image } from "expo-image"
 import { SealCheck, User } from "phosphor-react-native"
+import { SEAL_TIER_COLOR } from "@/components/ui/verified-seal"
 import { useEffect, useMemo, useState } from "react"
 import { View, type ImageSourcePropType, type ViewProps } from "react-native"
 
@@ -49,8 +50,13 @@ export type AvatarProps = Omit<ViewProps, "children"> & {
   /** Nama untuk inisial fallback + accessibilityLabel */
   name?: string
   size?: AvatarSize
-  /** Badge SealCheck KYC terverifikasi */
+  /** Badge SealCheck terverifikasi */
   verified?: boolean
+  /**
+   * Tier warna seal (emas/biru/abu) dari getSealTier().
+   * Bila tidak diisi dan verified=true, dipakai biru (perilaku lama).
+   */
+  sealTier?: "gold" | "blue" | "gray"
   className?: string
 }
 
@@ -81,6 +87,7 @@ export function Avatar({
   name,
   size = "md",
   verified = false,
+  sealTier,
   className,
   ...rest
 }: AvatarProps) {
@@ -155,7 +162,12 @@ export function Avatar({
 
       {verified ? (
         <View className="absolute -bottom-0.5 -right-0.5 rounded-full border-badge border-background bg-background">
-          <Icon icon={SealCheck} size={sealSize[size]} weight="fill" tone="active" />
+          <Icon
+            icon={SealCheck}
+            size={sealSize[size]}
+            weight="fill"
+            color={SEAL_TIER_COLOR[sealTier ?? "blue"]}
+          />
         </View>
       ) : null}
     </View>
