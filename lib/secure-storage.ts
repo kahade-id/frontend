@@ -86,6 +86,12 @@ export const SecureKeys = {
    */
   feedbackQueue: "kahade.feedback.queue",
   /**
+   * Karya etalase yang di-soft-delete (JSON — lib/showcase-deleted.ts).
+   * BUKAN rahasia: hanya id/judul/tanggal hapus untuk daftar "Baru dihapus"
+   * agar user bisa memulihkan dalam 30 hari. Dihapus `clearSession()` saat logout.
+   */
+  deletedShowcaseItems: "kahade.showcase.deleted",
+  /**
    * Preferensi UI non-sensitif (JSON kecil — lib/ui-prefs.ts): saldo
    * disembunyikan, tab transaksi terakhir, snooze pengingat ulasan.
    * BUKAN rahasia; boleh persist di localStorage web (tanpa PII/angka uang).

@@ -695,6 +695,13 @@ export function deleteShowcase(id: string) {
   })
 }
 
+/** Pulihkan karya yang di-soft-delete (dalam 30 hari). POST /v1/users/me/showcase/:id/restore. */
+export function restoreShowcaseItem(id: string) {
+  return http.post<{ message: string }>(`/v1/users/me/showcase/${seg(id)}/restore`, undefined, {
+    auth: "required",
+  })
+}
+
 export function getPublicShowcase(username: string, signal?: AbortSignal) {
   return http
     .get<unknown>(`/v1/users/${seg(username)}/showcase`, {

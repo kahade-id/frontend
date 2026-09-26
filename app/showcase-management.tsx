@@ -34,6 +34,13 @@ import { showcasePriceLabel } from "@/lib/showcase-labels"
 import { showcaseCoverOf, untitledShowcaseTitle } from "@/lib/showcase-social"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 import { cleanupPendingShowcaseKeys, uploadShowcasePhoto } from "@/lib/showcase-upload"
+import {
+  getDeletedShowcaseItems,
+  markShowcaseDeleted,
+  restoreDaysLeft,
+  unmarkShowcaseDeleted,
+  type DeletedShowcaseItem,
+} from "@/lib/showcase-deleted"
 import { tokens } from "@/lib/tokens"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -156,6 +163,16 @@ function ShowcaseManagement() {
   const [deleteTarget, setDeleteTarget] = useState<ShowcaseItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [toggling, setToggling] = useState(false)
+
+  /** Daftar karya yang di-soft-delete (lokal, untuk dipulihkan dalam 30 hari). */
+  const [deletedItems, setDeletedItems] = useState<DeletedShowcaseItem[]>([])
+  const [restoringId, setRestoringId] = useState<string | null>(null)
+  const refreshDeleted = useCallback(async () => {
+    setDeletedItems(await getDeletedShowcaseItems())
+  }, [])
+  useEffect(() => {
+    void refreshDeleted()
+  }, [refreshDeleted])
 
   const [editor, setEditor] = useState<Editor>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
@@ -315,13 +332,22 @@ function ShowcaseManagement() {
     const task = mutations.begin()
     if (!task) return
     setDeleting(true)
+    const target = deleteTarget
     try {
-      await api.users.deleteShowcase(deleteTarget.id)
+      await api.users.deleteShowcase(target.id)
       if (!task.valid()) return
-      toast.show({ title: "Karya dihapus", tone: "success", duration: 3000 })
+      // Soft-delete: catat lokal agar bisa dipulihkan dalam 30 hari.
+      await markShowcaseDeleted({
+        id: target.id,
+        title: target.title?.trim() || untitledShowcaseTitle(),
+        deletedAt: new Date().toISOString(),
+        coverUrl: showcaseCoverOf(target) ?? undefined,
+      })
+      toast.show({ title: "Karya dihapus. Dapat dipulihkan dalam 30 hari.", tone: "success", duration: 3000 })
       setDeleteTarget(null)
       touchFeed()
       await query.refresh()
+      await refreshDeleted()
     } catch (err) {
       if (!task.valid()) return
       toast.show({ title: "Gagal menghapus", description: userMessage(err), tone: "danger" })
@@ -329,7 +355,28 @@ function ShowcaseManagement() {
       task.finish()
       if (task.valid()) setDeleting(false)
     }
-  }, [deleteTarget, toast, query, touchFeed, mutations])
+  }, [deleteTarget, toast, query, touchFeed, mutations, refreshDeleted])
+
+  /** Pulihkan karya yang di-soft-delete. */
+  const handleRestore = useCallback(
+    async (item: DeletedShowcaseItem) => {
+      if (restoringId) return
+      setRestoringId(item.id)
+      try {
+        await api.users.restoreShowcaseItem(item.id)
+        await unmarkShowcaseDeleted(item.id)
+        toast.show({ title: "Karya dipulihkan", tone: "success", duration: 2500 })
+        touchFeed()
+        await query.refresh()
+        await refreshDeleted()
+      } catch (err) {
+        toast.show({ title: "Gagal memulihkan", description: userMessage(err), tone: "danger" })
+      } finally {
+        setRestoringId(null)
+      }
+    },
+    [restoringId, toast, query, touchFeed, refreshDeleted],
+  )
 
   /**
    * Lampirkan foto tambahan — MULTI-PICK (D-11): pilih beberapa sekaligus,
@@ -601,6 +648,52 @@ function ShowcaseManagement() {
             <Text variant="caption" tone="secondary">
               Ketuk karya untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
+
+            {/* Soft-delete: karya yang dihapus bisa dipulihkan dalam 30 hari. */}
+            {deletedItems.length > 0 ? (
+              <View className="gap-2">
+                <SectionHeader
+                  title="Baru dihapus"
+                  subtitle="Dapat dipulihkan dalam 30 hari"
+                />
+                {deletedItems.map((item) => {
+                  const daysLeft = restoreDaysLeft(item.deletedAt)
+                  return (
+                    <View
+                      key={item.id}
+                      className="flex-row items-center gap-3 rounded-2xl border border-line bg-surface p-3"
+                    >
+                      {item.coverUrl ? (
+                        <Picture
+                          source={item.coverUrl}
+                          alt={item.title}
+                          className="h-12 w-12 rounded-xl"
+                        />
+                      ) : null}
+                      <View className="flex-1 gap-0.5">
+                        <Text variant="body" numberOfLines={1}>
+                          {item.title}
+                        </Text>
+                        <Text variant="caption" tone="secondary">
+                          {daysLeft > 0
+                            ? `Sisa ${daysLeft} hari untuk memulihkan`
+                            : "Segera dihapus permanen"}
+                        </Text>
+                      </View>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        loading={restoringId === item.id}
+                        disabled={restoringId !== null}
+                        onPress={() => void handleRestore(item)}
+                      >
+                        Pulihkan
+                      </Button>
+                    </View>
+                  )
+                })}
+              </View>
+            ) : null}
             {/*
               Buat karya = HALAMAN PENUH (/showcase/create, 2026-09-26):
               form + pratinjau yang bisa diurutkan terlalu tinggi untuk sheet.
@@ -714,7 +807,7 @@ function ShowcaseManagement() {
 
       <Dialog
         title="Hapus karya ini?"
-        description="Karya akan dihapus permanen dari etalase Anda."
+        description="Karya akan dihapus dan dapat dipulihkan dalam 30 hari."
         visible={!!deleteTarget}
         destructive
         loading={deleting}

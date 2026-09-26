@@ -40,6 +40,7 @@ import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
 import { showcaseImages } from "@/lib/showcase-social"
+import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 
@@ -503,8 +504,15 @@ function ShowcaseDetailContent({
     try {
       await api.users.deleteShowcase(id)
       if (!task.valid()) return
+      // Soft-delete: catat lokal agar bisa dipulihkan dari Kelola Etalase.
+      await markShowcaseDeleted({
+        id,
+        title: item?.title?.trim() || "Karya tanpa judul",
+        deletedAt: new Date().toISOString(),
+        coverUrl: item ? (showcaseImages(item)?.[0]?.url ?? undefined) : undefined,
+      })
       markShowcaseFeedDirty()
-      toast.show({ title: "Karya dihapus", tone: "success", duration: 2500 })
+      toast.show({ title: "Karya dihapus. Dapat dipulihkan dalam 30 hari.", tone: "success", duration: 2500 })
       setDeleteOpen(false)
       router.back()
     } catch (err) {
@@ -844,7 +852,7 @@ function ShowcaseDetailContent({
       {/* T5 (audit 2026-09-26): konfirmasi hapus karya (pemilik). */}
       <Dialog
         title="Hapus karya ini?"
-        description="Karya dihapus permanen beserta foto, suka, dan komentarnya."
+        description="Karya dihapus dan dapat dipulihkan dalam 30 hari."
         visible={deleteOpen}
         destructive
         loading={deleting}

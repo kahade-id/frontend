@@ -1987,7 +1987,7 @@
    "n": 2
   },
   {
-   "s": "Karya dihapus",
+   "s": "Karya dihapus. Dapat dipulihkan dalam {x} hari.",
    "n": 2
   },
   {
@@ -3567,6 +3567,10 @@
    "n": 1
   },
   {
+   "s": "Baru dihapus",
+   "n": 1
+  },
+  {
    "s": "Baru saja",
    "n": 1
   },
@@ -4315,6 +4319,10 @@
    "n": 1
   },
   {
+   "s": "Dapat dipulihkan dalam {x} hari",
+   "n": 1
+  },
+  {
    "s": "dari {x}",
    "n": 1
   },
@@ -4864,6 +4872,10 @@
   },
   {
    "s": "Gagal memuat saldo",
+   "n": 1
+  },
+  {
+   "s": "Gagal memulihkan",
    "n": 1
   },
   {
@@ -5639,7 +5651,7 @@
    "n": 1
   },
   {
-   "s": "Karya akan dihapus permanen dari etalase Anda.",
+   "s": "Karya akan dihapus dan dapat dipulihkan dalam {x} hari.",
    "n": 1
   },
   {
@@ -5651,7 +5663,11 @@
    "n": 1
   },
   {
-   "s": "Karya dihapus permanen beserta foto, suka, dan komentarnya.",
+   "s": "Karya dihapus dan dapat dipulihkan dalam {x} hari.",
+   "n": 1
+  },
+  {
+   "s": "Karya dipulihkan",
    "n": 1
   },
   {
@@ -5672,6 +5688,10 @@
   },
   {
    "s": "Karya langsung tampil di feed Etalase dan profil publik Anda.",
+   "n": 1
+  },
+  {
+   "s": "Karya tanpa judul",
    "n": 1
   },
   {
@@ -8067,6 +8087,10 @@
    "n": 1
   },
   {
+   "s": "Pulihkan",
+   "n": 1
+  },
+  {
    "s": "Punya kode dari promo atau kampanye? Periksa di sini.",
    "n": 1
   },
@@ -8391,6 +8415,10 @@
    "n": 1
   },
   {
+   "s": "Segera dihapus permanen",
+   "n": 1
+  },
+  {
    "s": "sejak {x}",
    "n": 1
   },
@@ -8592,6 +8620,10 @@
   },
   {
    "s": "Simpan template",
+   "n": 1
+  },
+  {
+   "s": "Sisa {x} hari untuk memulihkan",
    "n": 1
   },
   {
