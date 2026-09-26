@@ -9,3 +9,5 @@
  * ini ke `scripts/gen-api-constraints.mjs` dan tarik dari sana.
  */
 export const SHOWCASE_MAX_IMAGES = 8
+/** S6: maks 5MB per foto — selaras backend `UploadPurpose.SHOWCASE_IMAGE`. */
+export const SHOWCASE_IMAGE_MAX_BYTES = 5 * 1024 * 1024

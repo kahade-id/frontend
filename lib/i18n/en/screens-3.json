@@ -1,4 +1,6 @@
 {
+  "Ada ketikan karya yang belum diterbitkan. Lanjutkan dari draft tersebut?": "There's an unpublished work draft. Continue from that draft?",
+  "Buang draft": "Discard draft",
   "Buang karya ini?": "Discard this work?",
   "Buat Karya": "Create work",
   "Buat karya baru": "Create new work",
@@ -10,6 +12,7 @@
   "Foto pertama menjadi cover · {x}/{y} foto": "First photo becomes the cover · {x}/{y} photos",
   "Foto sudah penuh": "Photo limit reached",
   "Foto yang sudah diunggah dan ketikan Anda akan dibuang.": "Your uploaded photos and typing will be discarded.",
+  "Foto {x} melebihi {y} MB.": "Photo {x} exceeds {y} MB.",
   "Gagal memilih foto": "Couldn't pick the photo",
   "Gagal menghapus bukti": "Couldn't delete the evidence",
   "Gagal menghapus foto": "Couldn't delete the photo",
@@ -69,6 +72,7 @@
   "Hapus template?": "Delete this template?",
   "Harga maksimum (opsional)": "Maximum price (optional)",
   "Harga minimum (opsional)": "Minimum price (optional)",
+  "Harga {x} ditampilkan sebagai Gratis.": "A price of {x} is shown as Free.",
   "Hari ini": "Today",
   "Hubungi Kami": "Contact us",
   "Hubungi kami": "Contact us",
@@ -80,6 +84,7 @@
   "Instruksi pembayaran dibuat": "Payment instructions created",
   "Invoice Kahade": "Kahade invoice",
   "Isi Saldo": "Top up",
+  "Isi harga minimum dulu bila memakai harga maksimum.": "Fill in the minimum price first when using a maximum price.",
   "JNE, SiCepat, …": "JNE, SiCepat, …",
   "Jadikan utama": "Make primary",
   "Jadilah yang pertama bertanya pada profil ini.": "Be the first to ask a question on this profile.",
@@ -107,6 +112,8 @@
   "Karya Etalase": "Showcase work",
   "Karya baru": "New work",
   "Karya langsung tampil di feed Etalase dan profil publik Anda.": "Your work appears in the Showcase feed and your public profile right away.",
+  "Karya tidak ditemukan": "Work not found",
+  "Karya ini mungkin sudah dihapus atau tidak lagi tersedia.": "This work may have been deleted or is no longer available.",
   "Kata sandi akun": "Account password",
   "Ke beranda": "Go to home",
   "Ke penjual:": "To the seller:",
@@ -155,6 +162,7 @@
   "Kunci Perangkat": "Device lock",
   "Kunci manual": "Manual key",
   "Lihat profil saya, @{x}": "View my profile, @{x}",
+  "Lanjutkan draft?": "Continue draft?",
   "Paling banyak {x} foto": "Up to {x} photos",
   "Periksa daftar etalase": "Check your showcase list",
   "Pilih foto": "Choose photos",
@@ -169,5 +177,7 @@
   "Tanpa harga maksimum, ini ditampilkan sebagai harga pasti.": "Without a maximum price, this is shown as a fixed price.",
   "Terbitkan karya": "Publish work",
   "Tidak dibagikan": "Not shared",
-  "Utas": "Threads"
+  "Ubah karya ini": "Edit this work",
+  "Utas": "Threads",
+  "tanpa nama": "unnamed"
 }

@@ -89,7 +89,9 @@ export function DeliveryProofForm({
           columns={3}
         />
         <Text variant="caption" tone="secondary">
-          {translate("Foto paket, tangkapan layar pengiriman, atau PDF. Maks {x} berkas.", {
+          {/* F5 (audit 2026-09-26): caption lama menjanjikan PDF padahal picker
+              hanya mendukung foto/video. Jujurkan kemampuannya. */}
+          {translate("Foto atau video paket, tangkapan layar pengiriman. Maks {x} berkas.", {
             x: maxItems,
           })}
         </Text>
@@ -108,7 +110,9 @@ export function DeliveryProofForm({
       ) : null}
 
       <TextArea
-        label="Catatan untuk pembeli (opsional)"
+        // F4 (audit 2026-09-26): label lama "(opsional)" menyesatkan — submit
+        // menolak catatan < 10 karakter. Jujurkan syaratnya di label.
+        label="Catatan untuk pembeli (min. 10 karakter)"
         value={v.note}
         onChangeText={(note) => set({ ...v, note })}
         placeholder="Mis. dikirim via JNE, estimasi 2 hari"

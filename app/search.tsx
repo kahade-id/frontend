@@ -37,7 +37,7 @@
  *     State `loading` SENGAJA tidak diumumkan — kata kunci berubah tiap
  *     ketikan dan "mencari…" akan menumpuk di antrean.
  */
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowUpLeft, ClockCounterClockwise, Images, MagnifyingGlass } from "phosphor-react-native"
@@ -203,6 +203,17 @@ export default function SearchScreen() {
   )
   const history = historyQuery.data ?? []
 
+  // #6a (audit Discovery 2026-09-26): riwayat basi setelah mencari — backend
+  // menyimpan riwayat secara async saat pencarian berjalan, jadi segarkan
+  // saat kolom dikosongkan agar kata kunci barusan muncul tanpa remount.
+  const wasSearching = useRef(false)
+  useEffect(() => {
+    if (wasSearching.current && !enabled) {
+      void historyQuery.refresh()
+    }
+    wasSearching.current = enabled
+  }, [enabled, historyQuery])
+
   const handleClearHistory = async () => {
     if (clearingHistory) return
     setClearingHistory(true)
@@ -210,7 +221,9 @@ export default function SearchScreen() {
       await api.search.clearSearchHistory()
       historyQuery.setData([])
     } catch {
-      // Gagal clear = riwayat tetap tampil; pull-to-refresh akan mengulang.
+      // #6c (audit Discovery 2026-09-26): gagal clear = riwayat tetap tampil;
+      // pengguna bisa mengulang lewat pull-to-refresh (kini aktif juga saat
+      // kolom kosong).
     } finally {
       setClearingHistory(false)
     }
@@ -333,7 +346,7 @@ export default function SearchScreen() {
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
-        title="Pencarian"
+        title={translate("Pencarian")}
         center={
           <DebouncedSearchField
             key={seedNonce}
@@ -364,7 +377,7 @@ export default function SearchScreen() {
                     accessibilityState={{ selected: scope === option.value }}
                     onPress={() => setScope(option.value)}
                   >
-                    {option.label}
+                    {translate(option.label)}
                   </Chip>
                 ))}
               </ScrollRow>
@@ -384,7 +397,7 @@ export default function SearchScreen() {
               {suggestionChips.length ? (
                 <View className="gap-2">
                   <Text variant="caption" tone="tertiary">
-                    Saran pencarian
+                    {translate("Saran pencarian")}
                   </Text>
                   <View className="flex-row flex-wrap gap-2">
                     {suggestionChips.map((s) => (
@@ -394,6 +407,13 @@ export default function SearchScreen() {
                     ))}
                   </View>
                 </View>
+              ) : null}
+              {/* #12 (audit Discovery 2026-09-26): chip saran hanya hidup di
+                  cakupan "Semua" — beri tahu alasannya agar tidak dikira bug. */}
+              {scope !== "all" ? (
+                <Text variant="caption" tone="tertiary">
+                  {translate("Saran pencarian hanya tampil pada cakupan Semua.")}
+                </Text>
               ) : null}
             </View>
           ) : history.length > 0 ? (
@@ -479,7 +499,7 @@ export default function SearchScreen() {
                    bawahnya tanpa menggulir. */
                 <View className="flex-row items-baseline justify-between gap-3 pt-1">
                   <Text variant="label" tone="secondary">
-                    {SECTION_TITLE[item.kind]}
+                    {translate(SECTION_TITLE[item.kind])}
                   </Text>
                   <Text variant="caption" tone="tertiary">
                     {formatNumber(counts[item.kind])}
@@ -495,7 +515,7 @@ export default function SearchScreen() {
             <ListLoading />
           ) : searchError ? (
             <ErrorState
-              title="Gagal mencari"
+              title={translate("Gagal mencari")}
               description={searchError}
               onRetry={() => {
                 void result.reload()
@@ -506,11 +526,11 @@ export default function SearchScreen() {
           ) : (
             <EmptyState
               icon={MagnifyingGlass}
-              title={enabled ? "Tidak ada hasil" : "Mulai mencari"}
+              title={enabled ? translate("Tidak ada hasil") : translate("Mulai mencari")}
               description={
                 enabled
-                  ? "Coba kata kunci yang lebih spesifik, atau perluas cakupan ke Semua."
-                  : "Masukkan setidaknya dua karakter untuk mencari postingan, pengguna, pesanan, dan mutasi."
+                  ? translate("Coba kata kunci yang lebih spesifik, atau perluas cakupan ke Semua.")
+                  : translate("Masukkan setidaknya dua karakter untuk mencari postingan, pengguna, pesanan, dan mutasi.")
               }
               action={
                 enabled ? (
@@ -550,8 +570,10 @@ export default function SearchScreen() {
           void result.refresh()
           void usersResult.refresh()
           void postsResult.refresh()
+          // #6c: segarkan juga riwayat saat kolom kosong.
+          void historyQuery.refresh()
         }}
-        refreshEnabled={enabled && !loading}
+        refreshEnabled={!loading}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         initialNumToRender={8}
@@ -585,7 +607,7 @@ function RecentSearches({
     <View className="gap-2 pb-4 pt-1">
       <View className="flex-row items-center justify-between gap-3">
         <Text variant="label" tone="secondary">
-          Riwayat pencarian
+          {translate("Riwayat pencarian")}
         </Text>
         <Button
           variant="ghost"
@@ -594,7 +616,7 @@ function RecentSearches({
           loading={clearing}
           onPress={onClear}
         >
-          Hapus riwayat
+          {translate("Hapus riwayat")}
         </Button>
       </View>
       <Card variant="elevated" className="gap-0 p-0">

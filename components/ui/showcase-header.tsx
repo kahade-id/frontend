@@ -157,7 +157,7 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
 
       {/* ── Strip tab feed ── */}
       <Tabs
-        items={tabs.map((tab) => ({ ...tab, icon: TAB_ICONS[tab.value] }))}
+        items={tabs.map((tab) => ({ ...tab, icon: TAB_ICONS[tab.value], label: translate(tab.label) }))}
         value={kind}
         onChange={onKindChange}
         scrollable

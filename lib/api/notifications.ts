@@ -54,6 +54,8 @@ export type AppNotification = {
   /** Deep-link atau referensi entitas terkait (opsional). */
   referenceId?: string | null
   referenceType?: string | null
+  /** Path backend (mis. `/chat/<id>`) — dipakai fallback routing bila reference kosong. */
+  actionUrl?: string | null
 }
 
 type NotificationPayload = Omit<AppNotification, "id"> & {
@@ -61,11 +63,16 @@ type NotificationPayload = Omit<AppNotification, "id"> & {
   notifId?: string
 }
 
-/** Production API calls this field `notifId`; list keys and actions use `id`. */
+/**
+ * Production API calls this field `notifId`; list keys and actions use `id`.
+ * `actionUrl` dipertahankan agar layar detail bisa menaut ke entitas terkait
+ * (backend tidak mengirim `referenceType`/`referenceId`).
+ */
 export function normalizeNotification(raw: NotificationPayload): AppNotification {
   return {
     ...raw,
     id: raw.id ?? raw.notifId ?? "",
+    actionUrl: raw.actionUrl ?? null,
   }
 }
 

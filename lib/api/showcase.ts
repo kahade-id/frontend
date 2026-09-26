@@ -40,6 +40,9 @@ export type ShowcaseAuthor = {
   membershipRank?: string | null
   isKycVerified?: boolean
   isVip?: boolean
+  /** S1 (audit 2026-09-26): badge verifikasi 3-tier dari backend — dipakai
+   * <VerifiedSeal>; fallback ke isKycVerified bila kosong/belum dimuat. */
+  badges?: Array<{ type: string }>
 }
 
 /**
@@ -408,6 +411,12 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
       membershipRank: str(author.membershipRank),
       isKycVerified: author.isKycVerified === true,
       isVip: author.isVip === true,
+      // S1: teruskan badge 3-tier dari backend untuk <VerifiedSeal>.
+      badges: Array.isArray(author.badges)
+        ? author.badges
+            .filter((b) => b && typeof (b as { type?: unknown }).type === "string")
+            .map((b) => ({ type: (b as { type: string }).type }))
+        : [],
     },
     likeCount: count(value.likeCount), commentCount: count(value.commentCount), viewCount: count(value.viewCount),
     isLiked: value.isLiked === true, isOwner: value.isOwner === true,

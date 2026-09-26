@@ -87,6 +87,7 @@ import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import type { AppliedVoucher } from "@/components/ui/voucher-redeem-box"
 import { translate } from "@/lib/i18n/translate"
+import { formatDateLong } from "@/lib/format"
 
 const DEBOUNCE_MS = 400
 const MIN_ORDER_VALUE = AMOUNT_LIMITS.order.minimum
@@ -688,7 +689,18 @@ export default function CreateTransactionScreen() {
             <Field
               label="Tenggat pengiriman (hari)"
               required
-              helperText={translate("{x}–{y} hari", { x: 1, y: MAX_DEADLINE_DAYS })}
+              helperText={
+                // T3 (audit 2026-09-26): tampilkan tanggal konkret agar user tahu persis
+                // apa arti "N hari". Ini estimasi — tenggat final dihitung backend saat
+                // pembayaran (deliveryDeadlineAt).
+                deadlineDays >= 1
+                  ? translate("{x}–{y} hari · estimasi tenggat {z}", {
+                      x: 1,
+                      y: MAX_DEADLINE_DAYS,
+                      z: formatDateLong(new Date(Date.now() + deadlineDays * 86_400_000)),
+                    })
+                  : translate("{x}–{y} hari", { x: 1, y: MAX_DEADLINE_DAYS })
+              }
             >
               <Input
                 value={deadlineDraft}

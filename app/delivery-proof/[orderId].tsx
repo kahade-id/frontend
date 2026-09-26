@@ -539,6 +539,16 @@ export default function DeliveryProofScreen() {
                     )}
                   </Text>
                 ) : null}
+                {(latest.unresolvedFileCount ?? 0) > 0 ? (
+                  // S5 (audit 2026-09-26): file yang gagal dimuat server — buyer
+                  // jangan mengonfirmasi dari bukti yang tidak lengkap.
+                  <Text variant="caption" tone="warning">
+                    {translate(
+                      "{x} file bukti tidak dapat dimuat server. Periksa dengan penjual sebelum mengonfirmasi.",
+                      { x: latest.unresolvedFileCount ?? 0 },
+                    )}
+                  </Text>
+                ) : null}
               </>
             ) : !showSellerForm ? (
               <EmptyState

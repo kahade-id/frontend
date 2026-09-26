@@ -60,8 +60,11 @@ export default function DeleteAccountScreen() {
     const hasBalance = wallet.balance !== 0
     if (hasBalance)
       blockers.push(`Saldo ${formatRupiah(wallet.balance)} belum diselesaikan`)
-    if (wallet.holdBalance == null) blockers.push("Status dana tertahan belum terkonfirmasi")
-    else if (wallet.holdBalance !== 0) blockers.push("Masih ada dana tertahan di escrow")
+    // Backend GET /v1/wallet mengirim `escrowBalance` (bukan `holdBalance`):
+    // pakai fallback agar pengecekan dana tertahan tidak selalu "belum terkonfirmasi".
+    const heldFunds = wallet.holdBalance ?? wallet.escrowBalance
+    if (heldFunds == null) blockers.push("Status dana tertahan belum terkonfirmasi")
+    else if (heldFunds !== 0) blockers.push("Masih ada dana tertahan di escrow")
     if (orders.data.length > 0) blockers.push("Masih ada pesanan aktif")
     return { requireMfa: twoFa.enabled, blockers, hasBalance }
   })

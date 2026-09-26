@@ -366,6 +366,11 @@ export function DisputeActionDialogs({
   onChangeEscalateReason,
   onConfirmEscalate,
   onCloseEscalate,
+  acceptOpen,
+  accepting,
+  acceptSummary,
+  onConfirmAccept,
+  onCloseAccept,
 }: {
   deleteOpen: boolean
   deleting: boolean
@@ -377,6 +382,12 @@ export function DisputeActionDialogs({
   onChangeEscalateReason: (value: string) => void
   onConfirmEscalate: () => void
   onCloseEscalate: () => void
+  /** SEC-DSP-FE-01: konfirmasi wajib sebelum ACCEPT usulan musyawarah (dana escrow terbagi, final). */
+  acceptOpen: boolean
+  accepting: boolean
+  acceptSummary: string
+  onConfirmAccept: () => void
+  onCloseAccept: () => void
 }) {
   return (
     <>
@@ -391,6 +402,18 @@ export function DisputeActionDialogs({
         onConfirm={onConfirmDelete}
         onCancel={onCloseDelete}
         onRequestClose={onCloseDelete}
+      />
+
+      <Dialog
+        title="Setujui usulan penyelesaian?"
+        description={translate("Dana escrow akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan kamu sudah setuju dengan pembagiannya.", { x: acceptSummary })}
+        visible={acceptOpen}
+        loading={accepting}
+        confirmLabel="Ya, setujui"
+        cancelLabel="Batal"
+        onConfirm={onConfirmAccept}
+        onCancel={onCloseAccept}
+        onRequestClose={onCloseAccept}
       />
 
       <Dialog

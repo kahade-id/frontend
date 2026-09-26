@@ -16,7 +16,7 @@ import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
 import { api, userMessage } from "@/lib/api"
@@ -141,6 +141,9 @@ function ShowcaseManagement() {
   const mutations = useShowcaseOperation("management")
   const navigation = useNavigation()
   const pendingNavigation = useRef<NavigationAction | null>(null)
+  // S8 (audit 2026-09-26): deep link edit — `?edit=<id>` dari tombol "Ubah
+  // karya" di detail langsung membuka editor item tersebut, bukan daftar.
+  const { edit: editParam } = useLocalSearchParams<{ edit?: string }>()
 
   /**
    * Audit: state async dirakit manual. Cacat terbukti dari kode lama:
@@ -260,6 +263,18 @@ function ShowcaseManagement() {
   }, [dirtyEditor])
   const cancelDiscard = () => { pendingNavigation.current = null; setDiscardOpen(false) }
 
+  // S8: buka editor otomatis bila datang via `?edit=<id>` (dari detail).
+  // Hanya sekali per nilai param; abaikan bila item tidak ada di daftar.
+  const deepLinkedEdit = useRef<string | null>(null)
+  useEffect(() => {
+    if (!editParam || deepLinkedEdit.current === editParam || loading || items.length === 0) return
+    const target = items.find((it) => it.id === editParam)
+    if (target) {
+      deepLinkedEdit.current = editParam
+      openEdit(target)
+    }
+  }, [editParam, items, loading, openEdit])
+
   const handleSave = useCallback(async () => {
     if (!editor || saveBusy.current || uploadBusy.current) return
     const title = form.title.trim()
@@ -269,6 +284,11 @@ function ShowcaseManagement() {
     }
     if (form.priceMin != null && form.priceMax != null && form.priceMax < form.priceMin) {
       setFormError(translate("Harga maksimum harus ≥ harga minimum."))
+      return
+    }
+    // S5: tolak harga maksimum tanpa minimum — rentang tak bermakna.
+    if (form.priceMin == null && form.priceMax != null) {
+      setFormError(translate("Isi harga minimum dulu bila memakai harga maksimum."))
       return
     }
     if (editor.item.priceMin != null && form.priceMin == null) {
@@ -281,13 +301,13 @@ function ShowcaseManagement() {
     try {
       await api.users.updateShowcase(editor.item.id, payload)
       if (!mounted.current || revision !== getSessionRevision()) return
-      toast.show({ title: "Detail diperbarui", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Detail diperbarui"), tone: "success", duration: 3000 })
       setEditor(null)
       touchFeed()
       await query.refresh()
     } catch (err) {
       if (!mounted.current || revision !== getSessionRevision()) return
-      toast.show({ title: "Gagal menyimpan", description: userMessage(err), tone: "danger" })
+      toast.show({ title: translate("Gagal menyimpan"), description: userMessage(err), tone: "danger" })
     } finally {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
@@ -315,7 +335,7 @@ function ShowcaseManagement() {
       } catch (err) {
       if (!task.valid()) return
         toast.show({
-          title: "Gagal mengubah visibilitas",
+          title: translate("Gagal mengubah visibilitas"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -343,14 +363,14 @@ function ShowcaseManagement() {
         deletedAt: new Date().toISOString(),
         coverUrl: showcaseCoverOf(target) ?? undefined,
       })
-      toast.show({ title: "Karya dihapus. Dapat dipulihkan dalam 30 hari.", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Karya dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 3000 })
       setDeleteTarget(null)
       touchFeed()
       await query.refresh()
       await refreshDeleted()
     } catch (err) {
       if (!task.valid()) return
-      toast.show({ title: "Gagal menghapus", description: userMessage(err), tone: "danger" })
+      toast.show({ title: translate("Gagal menghapus"), description: userMessage(err), tone: "danger" })
     } finally {
       task.finish()
       if (task.valid()) setDeleting(false)
@@ -365,12 +385,12 @@ function ShowcaseManagement() {
       try {
         await api.users.restoreShowcaseItem(item.id)
         await unmarkShowcaseDeleted(item.id)
-        toast.show({ title: "Karya dipulihkan", tone: "success", duration: 2500 })
+        toast.show({ title: translate("Karya dipulihkan"), tone: "success", duration: 2500 })
         touchFeed()
         await query.refresh()
         await refreshDeleted()
       } catch (err) {
-        toast.show({ title: "Gagal memulihkan", description: userMessage(err), tone: "danger" })
+        toast.show({ title: translate("Gagal memulihkan"), description: userMessage(err), tone: "danger" })
       } finally {
         setRestoringId(null)
       }
@@ -399,12 +419,12 @@ function ShowcaseManagement() {
       const picked = await pickImages({ selectionLimit: slots })
       if (picked.status === "denied") {
         toast.show({
-          title: "Akses galeri ditolak",
-          description: "Izinkan akses foto di pengaturan perangkat untuk memilih karya.",
+          title: translate("Akses galeri ditolak"),
+          description: translate("Izinkan akses foto di pengaturan perangkat untuk memilih karya."),
           tone: "danger",
           // G-22 (audit 2026-09-23): tanpa jalan pintas, pengguna harus
           // mencari sendiri halaman izin di OS.
-          action: { label: "Buka pengaturan", onPress: () => void Linking.openSettings() },
+          action: { label: translate("Buka pengaturan"), onPress: () => void Linking.openSettings() },
         })
         return
       }
@@ -424,7 +444,7 @@ function ShowcaseManagement() {
       toast.show({ title: "Foto dilampirkan", tone: "success" })
     } catch (error) {
       if (!controller.signal.aborted && task.valid()) toast.show({
-        title: submitted ? "Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi." : "Gagal mengunggah foto",
+        title: submitted ? translate("Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.") : translate("Gagal mengunggah foto"),
         description: userMessage(error), tone: "danger",
       })
     } finally {
@@ -489,10 +509,10 @@ function ShowcaseManagement() {
       setImagesItemId(null)
       touchFeed()
       await query.refresh()
-      toast.show({ title: "Urutan foto disimpan", tone: "success" })
+      toast.show({ title: translate("Urutan foto disimpan"), tone: "success" })
     } catch (error) {
       if (!task.valid()) return
-      toast.show({ title: "Gagal mengubah urutan foto", description: userMessage(error), tone: "danger" })
+      toast.show({ title: translate("Gagal mengubah urutan foto"), description: userMessage(error), tone: "danger" })
       // Keep the sheet and draft open; closing again retries the same order.
     } finally {
       task.finish()
@@ -508,14 +528,14 @@ function ShowcaseManagement() {
     try {
       await api.users.deleteShowcaseImage(deleteImage.id)
       if (!task.valid()) return
-      toast.show({ title: "Foto dihapus", tone: "success", duration: 2500 })
+      toast.show({ title: translate("Foto dihapus"), tone: "success", duration: 2500 })
       setDeleteImage(null)
       setOrderDraft(null)
       touchFeed()
       await query.refresh()
     } catch (err) {
       if (!task.valid()) return
-      toast.show({ title: "Gagal menghapus foto", description: userMessage(err), tone: "danger" })
+      toast.show({ title: translate("Gagal menghapus foto"), description: userMessage(err), tone: "danger" })
     } finally {
       task.finish()
       if (task.valid()) setDeletingImage(false)
@@ -875,11 +895,18 @@ function ShowcaseManagement() {
             value={form.priceMin == null ? "" : String(form.priceMin)}
             maxLength={15}
             onChangeText={(raw) => {
-              if (!/^\d*$/.test(raw)) return
-              const v = raw === "" ? null : Number(raw)
+              // S4: terima paste "1.000.000" — buang pemisah ribuan.
+              const digits = raw.replace(/[.\s,]/g, "")
+              if (!/^\d*$/.test(digits)) return
+              const v = digits === "" ? null : Number(digits)
               setForm((f) => ({ ...f, priceMin: v }))
               setFormError(undefined)
             }}
+            helperText={
+              form.priceMin === 0
+                ? translate("Harga {x} ditampilkan sebagai Gratis.", { x: 0 })
+                : undefined
+            }
             disabled={saving}
           />
           <Input
@@ -888,8 +915,10 @@ function ShowcaseManagement() {
             value={form.priceMax == null ? "" : String(form.priceMax)}
             maxLength={15}
             onChangeText={(raw) => {
-              if (!/^\d*$/.test(raw)) return
-              const v = raw === "" ? null : Number(raw)
+              // S4: terima paste "1.000.000" — buang pemisah ribuan.
+              const digits = raw.replace(/[.\s,]/g, "")
+              if (!/^\d*$/.test(digits)) return
+              const v = digits === "" ? null : Number(digits)
               setForm((f) => ({ ...f, priceMax: v }))
               setFormError(undefined)
             }}

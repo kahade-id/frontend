@@ -180,7 +180,9 @@ export default function WalletScreen() {
               <View className="pt-3 gap-3">
                 <HomeOverviewCard
                   available={wallet?.availableBalance}
-                  held={wallet?.holdBalance}
+                  // Backend mengirim `escrowBalance` (bukan `holdBalance`);
+                  // fallback agar dana tertahan di escrow tetap tampil.
+                  held={wallet?.holdBalance ?? wallet?.escrowBalance}
                   // J-05 (audit): "sembunyikan saldo" = preferensi persisten
                   // yang dibagi dengan Beranda (privasi bahu-penumpang
                   // konsisten antar layar).

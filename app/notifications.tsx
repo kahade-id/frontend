@@ -261,6 +261,26 @@ export default function NotificationsScreen() {
     }
   }, [batchBusy])
 
+  /** Tandai semua dibaca — tombol Checks di header mode normal. */
+  const handleReadAll = useCallback(async () => {
+    if (batchBusy || !hasUnread) return
+    setBatchBusy(true)
+    try {
+      await api.notifications.markAllNotificationsRead()
+      setNotifs((prev) => prev.map((n) => ({ ...n, isRead: true })))
+      void refreshUnreadCount()
+      toast.show({ title: "Semua notifikasi ditandai dibaca", tone: "success", duration: 2000 })
+    } catch (err: unknown) {
+      toast.show({
+        title: "Notifikasi belum dapat ditandai",
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setBatchBusy(false)
+    }
+  }, [batchBusy, hasUnread])
+
   const menuActions: ActionSheetItem[] = [
     {
       key: "select",
@@ -321,6 +341,16 @@ export default function NotificationsScreen() {
           title="Notifikasi"
           right={
             <>
+              {hasUnread ? (
+                <IconButton
+                  icon={Checks}
+                  variant="ghost"
+                  accessibilityLabel="Tandai semua dibaca"
+                  accessibilityHint="Menandai seluruh notifikasi sebagai sudah dibaca"
+                  disabled={batchBusy}
+                  onPress={() => void handleReadAll()}
+                />
+              ) : null}
               <IconButton
                 icon={FunnelSimple}
                 variant="ghost"

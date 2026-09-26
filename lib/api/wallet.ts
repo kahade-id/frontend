@@ -65,6 +65,8 @@ export type Wallet = {
   status?: "ACTIVE" | "SUSPENDED" | "FROZEN" | (string & {})
   /** Saldo tertahan (escrow order aktif) */
   holdBalance?: number
+  /** Saldo tertahan di escrow — nama field dari backend GET /v1/wallet */
+  escrowBalance?: number
   /** Saldo yang bisa ditarik setelah dikurangi hold */
   availableBalance?: number
   updatedAt?: string

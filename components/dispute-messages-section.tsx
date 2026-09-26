@@ -15,7 +15,20 @@ export type MessageRow = {
   createdAt: string
 }
 
-export function DisputeMessagesSection({ messages }: { messages: MessageRow[] }) {
+export function DisputeMessagesSection({
+  messages,
+  sending,
+}: {
+  messages: MessageRow[]
+  /** SEC-DSP-FE-04: tampilkan "Mengirim" pada pesan sendiri yang sedang dikirim. */
+  sending?: boolean
+}) {
+  const lastOutgoingIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].fromUser) return i
+    }
+    return -1
+  })()
   return (
     <>
       <SectionHeader title="Pesan" />
@@ -31,6 +44,13 @@ export function DisputeMessagesSection({ messages }: { messages: MessageRow[] })
             text={m.text}
             time={formatDateTime(m.createdAt)}
             grouped={messages[i - 1]?.fromUser === m.fromUser}
+            status={
+              m.fromUser
+                ? sending && i === lastOutgoingIdx
+                  ? "sending"
+                  : "sent"
+                : undefined
+            }
           />
         ))
       )}

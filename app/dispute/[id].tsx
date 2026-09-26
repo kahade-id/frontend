@@ -50,11 +50,12 @@ import type {
 import { useApiQuery } from "@/lib/use-api-query"
 import { usePolling } from "@/lib/use-polling"
 import { pickImage, pickedImageToBlob } from "@/lib/image-picker"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTime, formatRupiah } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { Button } from "@/components/ui/button"
+import { ActionSheet } from "@/components/ui/action-sheet"
 import { ChatComposer } from "@/components/ui/chat-composer"
 import { DisputeClaimForm } from "@/components/ui/dispute-claim-form"
 import { ErrorState } from "@/components/ui/error-state"
@@ -209,6 +210,10 @@ export default function DisputeDetailScreen() {
     null,
   )
   const [requestingCall, setRequestingCall] = useState(false)
+
+  // SEC-DSP-FE-01: ACCEPT usulan musyawarah WAJIB lewat dialog konfirmasi —
+  // satu ketuk "Setuju" langsung membagi dana escrow (final, tak bisa dibatalkan).
+  const [acceptTarget, setAcceptTarget] = useState<MutualResolutionProposal | null>(null)
 
   // Eskalasi manual ke admin (8.3): maksimal 2x per sengketa (aturan backend),
   // hanya oleh pihak sengketa, dan tidak untuk status RESOLVED/ESCALATED.
@@ -377,17 +382,22 @@ export default function DisputeDetailScreen() {
     [id, toast.show, query],
   )
 
-  const handleAddEvidence = useCallback(async () => {
-    if (!id) return
-    // R2 (audit ronde-2, butir #34): bukti video (rekaman unboxing) diizinkan
-    // — kontrak SubmitEvidenceDto mendukung video/mp4|quicktime|webm.
-    const picked = await pickImage({ allowVideos: true })
-    if (picked.status === "denied") {
-      toast.show({ title: "Akses galeri ditolak", tone: "danger" })
-      return
-    }
-    if (picked.status !== "picked") return
-    setUploadingEvidence(true)
+  // SEC-DSP-FE-03: pilihan sumber bukti — kamera untuk foto kerusakan saat itu juga,
+  // galeri untuk file yang sudah ada.
+  const [evidenceSourceOpen, setEvidenceSourceOpen] = useState(false)
+
+  const doPickEvidence = useCallback(
+    async (source: "camera" | "library") => {
+      if (!id) return
+      // R2 (audit ronde-2, butir #34): bukti video (rekaman unboxing) diizinkan
+      // — kontrak SubmitEvidenceDto mendukung video/mp4|quicktime|webm.
+      const picked = await pickImage({ allowVideos: true, source })
+      if (picked.status === "denied") {
+        toast.show({ title: source === "camera" ? "Akses kamera ditolak" : "Akses galeri ditolak", tone: "danger" })
+        return
+      }
+      if (picked.status !== "picked") return
+      setUploadingEvidence(true)
     try {
       const asset = picked.asset
       const blob = await pickedImageToBlob(asset)
@@ -438,6 +448,10 @@ export default function DisputeDetailScreen() {
       setUploadingEvidence(false)
     }
   }, [id, toast.show, query])
+
+  const handleAddEvidence = useCallback(() => {
+    setEvidenceSourceOpen(true)
+  }, [])
 
   const handleDeleteEvidence = useCallback(async () => {
     if (!id || !deleteEvidenceId) return
@@ -830,7 +844,7 @@ export default function DisputeDetailScreen() {
               updatedAt={dispute.updatedAt ? formatDateTime(dispute.updatedAt) : undefined}
             />
 
-            <DisputeMessagesSection messages={messages} />
+            <DisputeMessagesSection messages={messages} sending={sending} />
 
             <SectionHeader
               title="Bukti"
@@ -854,7 +868,12 @@ export default function DisputeDetailScreen() {
               hasPendingProposal={Boolean(pendingProposal)}
               respondNote={respondNote}
               onChangeRespondNote={setRespondNote} respondingAction={respondingAction}
-              onRespond={(p, action, note) => void handleRespond(p, action, note)}
+              onRespond={(p, action, note) => {
+                // SEC-DSP-FE-01: ACCEPT tidak langsung dieksekusi — buka dialog
+                // konfirmasi dulu karena dana escrow langsung terbagi (final).
+                if (action === "ACCEPT") setAcceptTarget(p)
+                else void handleRespond(p, action, note)
+              }}
               onOpenPropose={() => setProposeOpen(true)}
             />
 
@@ -900,6 +919,23 @@ export default function DisputeDetailScreen() {
         onChangeEscalateReason={setEscalateReason}
         onConfirmEscalate={() => void handleEscalate()}
         onCloseEscalate={() => setEscalateOpen(false)}
+        acceptOpen={acceptTarget != null}
+        accepting={respondingAction === "ACCEPT"}
+        acceptSummary={(() => {
+          const p = acceptTarget
+          if (!p) return ""
+          const total = Number.isFinite(orderValue) ? orderValue : 0
+          const buyerAmount = p.buyerAmount ?? p.amount ?? (p.buyerPercent != null && total > 0 ? Math.round((p.buyerPercent / 100) * total) : undefined)
+          const sellerAmount = p.sellerAmount ?? (buyerAmount != null ? Math.max(0, total - buyerAmount) : undefined)
+          const fmt = (n?: number) => (n == null ? "—" : formatRupiah(n))
+          return `Ke pembeli: ${fmt(buyerAmount)}\nKe penjual: ${fmt(sellerAmount)}`
+        })()}
+        onConfirmAccept={() => {
+          const p = acceptTarget
+          setAcceptTarget(null)
+          if (p) void handleRespond(p, "ACCEPT", respondNote)
+        }}
+        onCloseAccept={() => setAcceptTarget(null)}
       />
 
       <DisputeProposeSheet
@@ -911,6 +947,30 @@ export default function DisputeDetailScreen() {
         noteMax={PROPOSAL_NOTE_MAX}
         proposing={proposing}
         onSubmit={() => void handlePropose()}
+      />
+
+      {/* SEC-DSP-FE-03: pilih sumber bukti — kamera atau galeri. */}
+      <ActionSheet
+        title="Tambah bukti"
+        description="Foto langsung atau pilih dari galeri. Maksimal 10 MB per file."
+        visible={evidenceSourceOpen}
+        onRequestClose={() => setEvidenceSourceOpen(false)}
+        showCancel
+        cancelLabel="Batal"
+        actions={[
+          {
+            key: "camera",
+            label: "Ambil foto",
+            description: "Gunakan kamera untuk foto saat ini",
+            onPress: () => void doPickEvidence("camera"),
+          },
+          {
+            key: "library",
+            label: "Pilih dari galeri",
+            description: "Foto atau video yang sudah tersimpan",
+            onPress: () => void doPickEvidence("library"),
+          },
+        ]}
       />
     </Screen>
   )

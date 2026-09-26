@@ -21,7 +21,10 @@
  *      COMPLETED → /verify-otp (kode sudah dibalas bot).
  *   4. FAILED/EXPIRED → Alert + tombol "Minta kode baru" (trigger baru via
  *      requestOtpTrigger — TIDAK ADA jalur kirim langsung; dihapus di
- *      auth-rework 2026-09-26).
+ *      auth-rework 2026-09-26). Alert juga membawa tautan lintas-alur
+ *      ("Sudah punya akun? Masuk" / "Belum punya akun? Daftar") — jalan
+ *      keluar untuk nomor yang salah alur (mis. nomor terdaftar mencoba
+ *      daftar ulang mendapat decoy yang selalu EXPIRED).
  *
  * Deeplink: `Linking.openURL` bekerja di web (wa.me) dan native (WhatsApp).
  * Bila WhatsApp tidak terpasang, wa.me tetap membuka fallback web chat.
@@ -87,6 +90,15 @@ export default function WhatsappTriggerScreen() {
   const waUrl = safeWhatsAppLink(flowRef.current?.whatsappUrl)
 
   const [formError, setFormError] = useState<string | null>(null)
+  /**
+   * Jalan keluar saat trigger gagal/kedaluwarsa — tanpa ini user yang nomornya
+   * sudah terdaftar (purpose=register) terjebak loop "minta kode baru" tanpa
+   * akhir: backend sengaja mengembalikan payload decoy 200 (anti-enumerasi)
+   * yang tidak pernah selesai, jadi satu-satunya jalan benar adalah Masuk.
+   * Tautan ini tampil untuk SEMUA kegagalan/kedaluwarsa apa pun penyebabnya,
+   * sehingga tidak menjadi sinyal pembeda nomor terdaftar vs tidak.
+   */
+  const [altAuth, setAltAuth] = useState<"login" | "register" | null>(null)
   const [done, setDone] = useState(false)
   const [requesting, setRequesting] = useState(false)
 
@@ -122,6 +134,11 @@ export default function WhatsappTriggerScreen() {
           goVerifyOtp()
         } else if (status === "FAILED" || status === "EXPIRED") {
           stopPolling()
+          // Escape hatch lintas-alur (lihat state altAuth): generic untuk
+          // semua penyebab — bukan sinyal enumerasi.
+          setAltAuth(
+            purpose === "register" ? "login" : purpose === "login" ? "register" : null,
+          )
           setFormError(
             status === "FAILED"
               ? "Pengiriman kode gagal. Minta kode baru di bawah, lalu kirim pesan lagi ke WhatsApp resmi Kahade."
@@ -171,6 +188,7 @@ export default function WhatsappTriggerScreen() {
     if (requesting || !phoneNumber || !purpose) return
     setRequesting(true)
     setFormError(null)
+    setAltAuth(null)
     try {
       const trigger = await api.auth.requestOtpTrigger({
         phoneNumber,
@@ -264,7 +282,26 @@ export default function WhatsappTriggerScreen() {
           </View>
 
           {formError ? (
-            <Alert tone="danger" title="Belum berhasil" onDismiss={() => setFormError(null)}>
+            <Alert
+              tone="danger"
+              title="Belum berhasil"
+              onDismiss={() => {
+                setFormError(null)
+                setAltAuth(null)
+              }}
+              action={
+                altAuth ? (
+                  <TextLink
+                    onPress={() => {
+                      stopPolling()
+                      router.replace(altAuth === "login" ? ROUTES.login : ROUTES.register)
+                    }}
+                  >
+                    {altAuth === "login" ? "Sudah punya akun? Masuk" : "Belum punya akun? Daftar"}
+                  </TextLink>
+                ) : undefined
+              }
+            >
               {formError}
             </Alert>
           ) : null}

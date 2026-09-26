@@ -120,6 +120,45 @@ function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
   }
 }
 
+/**
+ * Item daftar sengketa (GET /v1/disputes/my) — membawa field mentah yang
+ * dibutuhkan kartu daftar: pihak pembuka, waktu klaim tiap pihak, dan
+ * ringkasan order (judul, nilai tertahan, id pembeli/penjual).
+ * `adminNotes` TIDAK dibawa — backend men-strip-nya sebelum serialisasi.
+ */
+export type DisputeListItem = DisputeDetail & {
+  initiatedBy?: "BUYER" | "SELLER" | string
+  buyerClaimedAt?: string
+  sellerClaimedAt?: string
+  order?: {
+    orderId?: string
+    title?: string
+    orderValue?: number
+    buyerId?: string
+    sellerId?: string
+  }
+}
+
+function normalizeDisputeListItem(raw: unknown): DisputeListItem {
+  const d = normalizeDisputeDetail(raw as DisputeDetail)
+  const r = (raw ?? {}) as Record<string, unknown>
+  const o = (r.order ?? {}) as Record<string, unknown>
+  const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : undefined)
+  return {
+    ...d,
+    initiatedBy: pickString(r, ["initiatedBy", "initiated_by"]),
+    buyerClaimedAt: pickString(r, ["buyerClaimedAt", "buyer_claimed_at"]),
+    sellerClaimedAt: pickString(r, ["sellerClaimedAt", "seller_claimed_at"]),
+    order: {
+      orderId: pickString(o, ["orderId", "order_id"]),
+      title: pickString(o, ["title"]),
+      orderValue: num(o.orderValue),
+      buyerId: pickString(o, ["buyerId", "buyer_id"]),
+      sellerId: pickString(o, ["sellerId", "seller_id"]),
+    },
+  }
+}
+
 /** E-09/R2: seluruh 7 MIME kontrak bukti (sentral di lib/, bukan layar). */
 export type EvidenceFileType = SubmitEvidenceDto["fileTypes"][number]
 export const EVIDENCE_FILE_TYPES: readonly EvidenceFileType[] = [
@@ -144,7 +183,7 @@ export function listMyDisputes(query?: { page?: number; limit?: number }, signal
       return {
         ...page,
         data: page.data.map((entry, index) => {
-          const d = normalizeDisputeDetail((entry ?? {}) as DisputeDetail)
+          const d = normalizeDisputeListItem(entry)
           return d.id ? d : { ...d, id: `d-${page.meta.page}-${index}` }
         }),
       }

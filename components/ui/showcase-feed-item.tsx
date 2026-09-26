@@ -32,6 +32,7 @@ import { translate } from "@/lib/i18n/translate"
 
 import { formatCountCompact, formatRelativeTime } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
+import type { VerificationBadge } from "@/lib/api/users"
 import { useHasSession } from "@/lib/guest-gate"
 import { showcaseImages } from "@/lib/showcase-social"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
@@ -39,6 +40,7 @@ import { ROUTES } from "@/lib/routes"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 
 import { Avatar } from "@/components/ui/avatar"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
@@ -180,7 +182,7 @@ function ShowcaseFeedItemBase({
     <LikeAction
       liked={liked}
       count={item.likeCount}
-      label="Suka"
+      label={translate("Suka")}
       busy={likePending}
       onPress={onToggleLike}
     />
@@ -190,7 +192,7 @@ function ShowcaseFeedItemBase({
     <CountAction
       icon={ChatCircle}
       count={item.commentCount}
-      label="Komentar"
+      label={translate("Komentar")}
       // A-02 (audit 2026-09-24): label a11y TIDAK lagi mengulang teks visual
       // ("Komentar" di layar + "Komentar" di pembaca layar) — kini angka yang
       // dibacakan, sesuai informasi yang dicari pengguna.
@@ -228,9 +230,18 @@ function ShowcaseFeedItemBase({
             verified={item.author.isKycVerified === true}
           />
           <View className="min-w-0 flex-1 justify-center">
-            <Text variant="body" weight={600} numberOfLines={1}>
-              {item.author.fullName?.trim() || item.author.username}
-            </Text>
+            {/* S1: seal 3-tier di samping nama (sumber: badge backend, sama
+                dengan profil); fallback boolean KYC bila badge belum ada. */}
+            <View className="flex-row items-center gap-1">
+              <Text variant="body" weight={600} numberOfLines={1} className="min-w-0 shrink">
+                {item.author.fullName?.trim() || item.author.username}
+              </Text>
+              <VerifiedSeal
+                badges={item.author.badges as unknown as VerificationBadge[]}
+                verified={item.author.isKycVerified === true}
+                size={14}
+              />
+            </View>
             <Text variant="caption" tone="secondary" numberOfLines={1}>
               {`@${item.author.username} · ${formatRelativeTime(item.createdAt)}`}
             </Text>

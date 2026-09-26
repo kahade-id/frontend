@@ -637,10 +637,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       return (
         <EmptyState
           icon={Images}
-          title="Masuk untuk melihat feed mengikuti"
-          description="Masuk terlebih dahulu agar kami bisa menampilkan karya dari akun yang Anda ikuti."
+          title={translate("Masuk untuk melihat feed mengikuti")}
+          description={translate("Masuk terlebih dahulu agar kami bisa menampilkan karya dari akun yang Anda ikuti.")}
           action={
-            <Button onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>Masuk</Button>
+            <Button onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>{translate("Masuk")}</Button>
           }
         />
       )
@@ -649,10 +649,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       return (
         <EmptyState
           icon={Images}
-          title="Anda belum mengikuti siapa pun"
-          description="Temukan penjual lewat tab Temukan, ikuti mereka, dan karyanya akan muncul di sini."
+          title={translate("Anda belum mengikuti siapa pun")}
+          description={translate("Temukan penjual lewat tab Temukan, ikuti mereka, dan karyanya akan muncul di sini.")}
           // A-18 (audit 2026-09-23): tombol ke tujuan yang disebut copy-nya.
-          action={<Button onPress={() => router.push(ROUTES.discover)}>Buka Temukan</Button>}
+          action={<Button onPress={() => router.push(ROUTES.discover)}>{translate("Buka Temukan")}</Button>}
         />
       )
     }
@@ -806,7 +806,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
       {/* Komentar dibaca & ditulis di sheet — pengguna tidak kehilangan posisi feed. */}
       <ShowcaseCommentsSheet item={commentItem} onRequestClose={() => setCommentItem(null)} />
 
-      <BottomSheet visible={!!actionItem} onRequestClose={() => setActionItem(null)} title="Pilihan karya">
+      <BottomSheet visible={!!actionItem} onRequestClose={() => setActionItem(null)} title={translate("Pilihan karya")}>
         <View className="gap-3">
           <Button variant="ghost" onPress={() => {
             if (actionItem) {
@@ -815,16 +815,16 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
               // S-04 (audit 2026-09-24): tindakan yang menghilangkan kartu
               // tanpa jejak harus bisa dibatalkan.
               toast.show({
-                title: "Karya disembunyikan dari feed",
-                action: { label: "Urungkan", onPress: () => undismissShowcase(dismissed) },
+                title: translate("Karya disembunyikan dari feed"),
+                action: { label: translate("Urungkan"), onPress: () => undismissShowcase(dismissed) },
               })
             }
             setActionItem(null)
-          }}>Tidak tertarik</Button>
+          }}>{translate("Tidak tertarik")}</Button>
           <Button variant="ghost" onPress={() => {
             setReportItem(actionItem)
             setActionItem(null)
-          }}>Laporkan karya</Button>
+          }}>{translate("Laporkan karya")}</Button>
         </View>
       </BottomSheet>
 

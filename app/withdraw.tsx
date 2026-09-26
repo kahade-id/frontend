@@ -30,7 +30,7 @@ import { ROUTES } from "@/lib/routes"
 import { serverNow } from "@/lib/server-time"
 import { tokens } from "@/lib/tokens"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS, isValidAmount } from "@/lib/financial"
-import { useApiQuery } from "@/lib/use-api-query"
+import { invalidateQueryCache, useApiQuery } from "@/lib/use-api-query"
 import { useResultTimer } from "@/lib/use-result-timer"
 import { recordPendingAction, resolvePendingAction, toEpochMs } from "@/lib/pending-actions"
 import { walletTransactionStatus } from "@/lib/wallet-labels"
@@ -122,7 +122,10 @@ export default function WithdrawScreen() {
     true,
     {
       retry: 1,
-      select: (w) => ({ balance: w.balance ?? 0 }),
+      // Batas keypad memakai saldo TERSEDIA (bukan total): dana yang
+      // tertahan di escrow tidak bisa ditarik, jadi user tidak perlu
+      // ditolak server setelah memasukkan PIN.
+      select: (w) => ({ balance: w.availableBalance ?? w.balance ?? 0 }),
     },
   )
   const balance = balanceQuery.data?.balance
@@ -217,6 +220,9 @@ export default function WithdrawScreen() {
         )
         withdrawKeyRef.current = null
         setResult(res)
+        // Saldo tersedia sudah berkurang saat reservasi dibuat — segarkan
+        // cache dompet agar tab Dompet tidak menampilkan angka basi.
+        invalidateQueryCache()
         if ((res.requiresOtp || res.status === "PENDING_OTP") && res.txId) {
           // Lanjut ke langkah OTP: overlay ditutup, sheet berganti mode OTP.
           setTxId(res.txId)

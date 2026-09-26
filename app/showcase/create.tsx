@@ -47,12 +47,20 @@ import { getSessionRevision } from "@/lib/api/session"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { pickImages, type PickedImage } from "@/lib/image-picker"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
-import { SHOWCASE_MAX_IMAGES } from "@/lib/showcase-limits"
+import { SHOWCASE_MAX_IMAGES, SHOWCASE_IMAGE_MAX_BYTES } from "@/lib/showcase-limits"
 import { cleanupPendingShowcaseKeys, uploadShowcasePhoto } from "@/lib/showcase-upload"
+import {
+  saveShowcaseDraft,
+  loadShowcaseDraft,
+  clearShowcaseDraft,
+  isDraftMeaningful,
+  type ShowcaseDraft,
+} from "@/lib/showcase-draft"
 import { tokens } from "@/lib/tokens"
 import { translate } from "@/lib/i18n/translate"
 
 import { Button } from "@/components/ui/button"
+import { ProgressBar } from "@/components/ui/progress-bar"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
@@ -116,6 +124,10 @@ function formToPayload(form: FormState) {
 export default function ShowcaseCreateScreen() {
   const router = useRouter()
   const navigation = useNavigation()
+
+  // S7: cek draft tersimpan saat layar dibuka — tawarkan lanjutkan.
+  // (Dijalankan sekali; guard ref supaya StrictMode double-effect aman.)
+  const draftChecked = useRef(false)
   const toast = useToast()
   const revision = useSessionRevision()
 
@@ -129,6 +141,8 @@ export default function ShowcaseCreateScreen() {
   const [failedAssets, setFailedAssets] = useState<PickedImage[]>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState("")
+  // S6: progres 0..1 untuk ProgressBar (upload konkuren).
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [saving, setSaving] = useState(false)
   /**
    * `POST` yang hasilnya BELUM pasti (timeout/5xx) tidak boleh dibersihkan
@@ -136,6 +150,36 @@ export default function ShowcaseCreateScreen() {
    */
   const [uncertainCreate, setUncertainCreate] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
+  // S7: draft tersimpan untuk dialog "Lanjutkan draft?".
+  const [resumeDraft, setResumeDraft] = useState<ShowcaseDraft | null>(null)
+
+  // S7: tawarkan lanjutkan draft sekali saat layar dibuka.
+  useEffect(() => {
+    if (draftChecked.current) return
+    draftChecked.current = true
+    void loadShowcaseDraft().then((d) => {
+      if (d && isDraftMeaningful(d)) setResumeDraft(d)
+    })
+  }, [])
+
+  // S7: autosave teks (debounce 1 dtk) — TANPA foto.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const meaningful =
+        form.title.trim() || form.description.trim() || form.category.trim() ||
+        form.priceMin != null || form.priceMax != null
+      if (!meaningful) return
+      void saveShowcaseDraft({
+        title: form.title,
+        description: form.description,
+        category: form.category,
+        priceMin: form.priceMin,
+        priceMax: form.priceMax,
+        isPublic: form.isPublic,
+      })
+    }, 1000)
+    return () => clearTimeout(t)
+  }, [form])
   /**
    * Keluar yang disengaja — terbit sukses, "Periksa daftar etalase", atau
    * konfirmasi "Buang". `usePreventRemove` HARUS sudah mati saat navigasi
@@ -180,6 +224,8 @@ export default function ShowcaseCreateScreen() {
   const confirmDiscard = useCallback(() => {
     void cleanupPendingShowcaseKeys(pendingKeys.current)
     pendingKeys.current = []
+    // S7: buang juga draft teks yang tersimpan.
+    void clearShowcaseDraft()
     setDiscardOpen(false)
     // Jangan dispatch di sini: penjaga masih aktif sampai commit berikutnya
     // dan `beforeRemove` akan membuka dialog lagi. Effect `intentionalLeave`
@@ -245,22 +291,51 @@ export default function ShowcaseCreateScreen() {
         return
       }
       if (picked.status !== "picked" || controller.signal.aborted) return
+      // S6: validasi ukuran SEBELUM upload — maks 5MB (selaras backend
+      // UploadPurpose.SHOWCASE_IMAGE). Tampilkan nama file yang ditolak.
+      const tooBig = picked.assets.filter((a) => (a.size ?? 0) > SHOWCASE_IMAGE_MAX_BYTES)
+      if (tooBig.length > 0) {
+        setPhotoError(
+          translate("Foto {x} melebihi {y} MB.", {
+            x: tooBig.map((a) => a.name ?? translate("tanpa nama")).join(", "),
+            y: SHOWCASE_IMAGE_MAX_BYTES / 1024 / 1024,
+          }),
+        )
+        return
+      }
       setUploading(true)
-      for (const [index, asset] of picked.assets.entries()) {
+      setUploadProgress(0)
+      // S6: upload konkuren maks 2 — lebih cepat dari sekuensial, tetap ramah
+      // memori/jaringan dibanding Promise.all tak terbatas.
+      const CONCURRENCY = 2
+      let completed = 0
+      const bump = () => {
+        completed += 1
+        setUploadProgress(completed / picked.assets.length)
         setProgress(
           translate("Mengunggah foto {x} dari {y}", {
-            x: index + 1,
+            x: completed,
             y: picked.assets.length,
           }),
         )
-        try {
-          const outcome = await uploadShowcasePhoto(asset, controller.signal)
-          uploaded.push({ fileKey: outcome.fileKey, asset })
-        } catch {
-          if (controller.signal.aborted) throw new Error("aborted")
-          failures.push(asset)
-        }
       }
+      const queue = [...picked.assets]
+      const workers = Array.from({ length: Math.min(CONCURRENCY, queue.length) }, async () => {
+        while (queue.length > 0) {
+          if (controller.signal.aborted) return
+          const asset = queue.shift()!
+          try {
+            const outcome = await uploadShowcasePhoto(asset, controller.signal)
+            uploaded.push({ fileKey: outcome.fileKey, asset })
+          } catch {
+            if (controller.signal.aborted) throw new Error("aborted")
+            failures.push(asset)
+          } finally {
+            bump()
+          }
+        }
+      })
+      await Promise.all(workers)
       if (controller.signal.aborted || revision !== getSessionRevision()) {
         void cleanupPendingShowcaseKeys(uploaded.map((entry) => entry.fileKey))
         return
@@ -368,6 +443,11 @@ export default function ShowcaseCreateScreen() {
       setPriceError(translate("Harga maksimum harus ≥ harga minimum."))
       return
     }
+    // S5: tolak harga maksimum tanpa minimum — rentang tak bermakna.
+    if (form.priceMin == null && form.priceMax != null) {
+      setPriceError(translate("Isi harga minimum dulu bila memakai harga maksimum."))
+      return
+    }
     saveBusy.current = true
     setSaving(true)
     const payload = { title, ...formToPayload(form) }
@@ -381,6 +461,8 @@ export default function ShowcaseCreateScreen() {
       await api.users.createShowcase(createAttempt.current.dto, createAttempt.current.key)
       createAttempt.current = null
       pendingKeys.current = []
+      // S7: terbit sukses → hapus draft teks.
+      void clearShowcaseDraft()
       if (!mounted.current || revision !== getSessionRevision()) return
       markShowcaseFeedDirty()
       toast.show({ title: "Karya ditambahkan", tone: "success", duration: 3000 })
@@ -509,6 +591,8 @@ export default function ShowcaseCreateScreen() {
 
           {uploading ? (
             <View className="gap-2">
+              {/* S6: progress bar + teks "x dari y". */}
+              <ProgressBar value={Math.round(uploadProgress * 100)} showValue accessibilityLabel={progress} />
               <Text accessibilityLiveRegion="polite" variant="caption" tone="secondary">
                 {progress}
               </Text>
@@ -599,15 +683,19 @@ export default function ShowcaseCreateScreen() {
             value={form.priceMin == null ? "" : String(form.priceMin)}
             maxLength={15}
             onChangeText={(raw) => {
-              if (!/^\d*$/.test(raw)) return
-              const value = raw === "" ? null : Number(raw)
+              // S4: terima paste "1.000.000" / "1,000,000" — buang pemisah ribuan.
+              const digits = raw.replace(/[.\s,]/g, "")
+              if (!/^\d*$/.test(digits)) return
+              const value = digits === "" ? null : Number(digits)
               setForm((current) => ({ ...current, priceMin: value }))
               setPriceError(undefined)
             }}
             helperText={
-              form.priceMin != null && form.priceMax == null
-                ? "Tanpa harga maksimum, ini ditampilkan sebagai harga pasti."
-                : undefined
+              form.priceMin === 0
+                ? translate("Harga {x} ditampilkan sebagai Gratis.", { x: 0 })
+                : form.priceMin != null && form.priceMax == null
+                  ? "Tanpa harga maksimum, ini ditampilkan sebagai harga pasti."
+                  : undefined
             }
             disabled={busy || uncertainCreate}
           />
@@ -617,8 +705,10 @@ export default function ShowcaseCreateScreen() {
             value={form.priceMax == null ? "" : String(form.priceMax)}
             maxLength={15}
             onChangeText={(raw) => {
-              if (!/^\d*$/.test(raw)) return
-              const value = raw === "" ? null : Number(raw)
+              // S4: terima paste "1.000.000" / "1,000,000" — buang pemisah ribuan.
+              const digits = raw.replace(/[.\s,]/g, "")
+              if (!/^\d*$/.test(digits)) return
+              const value = digits === "" ? null : Number(digits)
               setForm((current) => ({ ...current, priceMax: value }))
               setPriceError(undefined)
             }}
@@ -682,6 +772,34 @@ export default function ShowcaseCreateScreen() {
           pendingNavigation.current = null
           setDiscardOpen(false)
         }}
+      />
+
+      {/* S7: tawarkan lanjutkan draft teks yang tersimpan. */}
+      <Dialog
+        title="Lanjutkan draft?"
+        description="Ada ketikan karya yang belum diterbitkan. Lanjutkan dari draft tersebut?"
+        visible={resumeDraft != null}
+        confirmLabel="Lanjutkan"
+        cancelLabel="Buang draft"
+        onConfirm={() => {
+          const d = resumeDraft
+          if (d) {
+            setForm({
+              title: d.title,
+              description: d.description,
+              priceMin: d.priceMin,
+              priceMax: d.priceMax,
+              category: d.category,
+              isPublic: d.isPublic,
+            })
+          }
+          setResumeDraft(null)
+        }}
+        onCancel={() => {
+          void clearShowcaseDraft()
+          setResumeDraft(null)
+        }}
+        onRequestClose={() => setResumeDraft(null)}
       />
     </Screen>
   )

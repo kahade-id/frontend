@@ -11,9 +11,10 @@
  *     spec tidak mendefinisikan enum, komponen memakai kosakata
  *     NOT_SUBMITTED/APPROVED/REVOKED sementara tipe API memakai
  *     UNSUBMITTED/VERIFIED/EXPIRED.
- *   - Endpoint dipilih dari status: `resubmit` untuk REJECTED/REVOKED,
- *     `submit` untuk NOT_SUBMITTED — memanggil `submit` setelah penolakan
- *     ditolak backend.
+ *   - Endpoint dipilih dari status: `resubmit` HANYA untuk REJECTED,
+ *     `submit` untuk NOT_SUBMITTED. REVOKED tidak bisa submit/resubmit
+ *     (backend 403 KYC_REVOKED) — user diarahkan hubungi dukungan, bukan
+ *     memanggil endpoint yang pasti ditolak backend.
  *   - Form tidak selalu terbuka: tombol "Ajukan"/"Kirim ulang" di kartu yang
  *     membukanya (`onSubmit`/`onResubmit`). Sebelumnya kedua callback no-op.
  *   - Metadata berkas (`size`, `mimeType`) diambil dari asset picker (lib/
@@ -115,8 +116,21 @@ export default function KycScreen() {
 
 
   const uiStatus = toKycUiStatus(state?.status)
-  const isResubmit = uiStatus === "REJECTED" || uiStatus === "REVOKED"
+  // REVOKED: backend menolak submit & resubmit (403 KYC_REVOKED) — pencabutan
+  // hanya bisa dibuka lewat dukungan. Menampilkan tombol "Kirim ulang" di
+  // sini adalah jalan buntu yang pasti gagal, jadi CTA disembunyikan dan
+  // deskripsi diganti panduan hubungi dukungan.
+  const isResubmit = uiStatus === "REJECTED"
   const canSubmit = uiStatus === "NOT_SUBMITTED" || isResubmit
+  const revokedLabels =
+    uiStatus === "REVOKED"
+      ? {
+          descriptions: {
+            REVOKED:
+              "Verifikasi Anda dicabut oleh tim kami. Untuk mengaktifkan kembali, hubungi dukungan melalui menu Bantuan.",
+          },
+        }
+      : undefined
 
   const resetForm = useCallback(() => {
     setNik("")
@@ -273,6 +287,7 @@ export default function KycScreen() {
                     ? formatDateTime(state.reviewedAt)
                     : undefined
                 }
+                labels={revokedLabels}
                 onSubmit={canSubmit && !formOpen ? openForm : undefined}
                 onResubmit={canSubmit && !formOpen ? openForm : undefined}
               />

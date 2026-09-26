@@ -243,8 +243,10 @@ export default function LoginScreen() {
       router.push(ROUTES.whatsappTrigger)
     } catch (err) {
       if (isApiError(err)) {
-        // 404 = nomor belum terdaftar → arahkan ke registrasi (jalan keluar
-        // yang benar, bukan mengulang request).
+        // Defensif: endpoint /v1/auth/otp-trigger tidak melempar 404 —
+        // nomor yang belum terdaftar mendapat trigger asli dan mengalir ke
+        // registrasi (status new_user di /verify-otp). Cabang ini
+        // dipertahankan bila kontrak berubah.
         if (err.code === "NOT_FOUND") {
           setFormError("Nomor HP ini belum terdaftar. Silakan daftar akun baru terlebih dahulu.")
           return

@@ -7,6 +7,7 @@
  * adanya; state & mutasi tetap di layar, komponen ini murni presentasi +
  * meneruskan callback. `OrderPaymentSheet` juga dipakai tes komponen.
  */
+import { useState } from "react"
 import { View } from "react-native"
 import { router } from "expo-router"
 import { ChatCircleDots, Receipt, ShieldWarning, Timer } from "phosphor-react-native"
@@ -225,6 +226,8 @@ export function OrderActionSheets({
   disputeClaimMin: number
   disputeClaimMax: number
 }) {
+  // SEC-DSP-FE-02: konfirmasi akhir sebelum sengketa dibuka (dana dibekukan, tak bisa batal sepihak).
+  const [disputeConfirmOpen, setDisputeConfirmOpen] = useState(false)
   return (
     <>
       {/* ── Batalkan ──────────────────────────────────────────── */}
@@ -316,33 +319,14 @@ export function OrderActionSheets({
         visible={sheet === "dispute"}
         onRequestClose={onClose}
         title="Ajukan sengketa"
-        description="Dana escrow dibekukan sampai mediator Kahade memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat."
+        description="Dana escrow dibekukan sampai mediator Kahade memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat — siapkan foto unboxing/kerusakan, resi, atau screenshot chat yang relevan."
         footer={
           <Button
             variant="destructive"
             fullWidth
             loading={submitting}
             disabled={disputeClaim.trim().length < disputeClaimMin || !disputeCategory}
-            onPress={() => {
-              // R2 (audit ronde-2, butir #53): respons submitDispute membawa
-              // id sengketa baru — navigasi langsung ke sana, jangan buang.
-              void runAction(
-                () =>
-                  submitDispute(order.id, {
-                    claim: disputeClaim.trim(),
-                    category: disputeCategory as SubmitDisputeDto["category"],
-                  }),
-                "Sengketa dibuka",
-                "Gagal membuka sengketa",
-              ).then((result) => {
-                const disputeId =
-                  result && typeof result === "object"
-                    ? (result as { id?: unknown }).id
-                    : undefined
-                if (typeof disputeId === "string" && disputeId)
-                  router.push(ROUTES.disputeDetail(disputeId))
-              })
-            }}
+            onPress={() => setDisputeConfirmOpen(true)}
           >
             Buka sengketa
           </Button>
@@ -377,6 +361,40 @@ export function OrderActionSheets({
           />
         </Field>
       </BottomSheet>
+
+      {/* SEC-DSP-FE-02: dialog konfirmasi akhir — dana dibekukan, tak bisa batal sepihak. */}
+      <Dialog
+        title="Buka sengketa?"
+        description={`Dana escrow akan DIBEKUKAN sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak.\n\nPastikan klaim sudah jelas — bukti foto/video bisa ditambahkan setelah sengketa dibuat.`}
+        visible={disputeConfirmOpen}
+        destructive
+        loading={submitting}
+        confirmLabel="Ya, buka sengketa"
+        cancelLabel="Periksa lagi"
+        onConfirm={() => {
+          setDisputeConfirmOpen(false)
+          // R2 (audit ronde-2, butir #53): respons submitDispute membawa
+          // id sengketa baru — navigasi langsung ke sana, jangan buang.
+          void runAction(
+            () =>
+              submitDispute(order.id, {
+                claim: disputeClaim.trim(),
+                category: disputeCategory as SubmitDisputeDto["category"],
+              }),
+            "Sengketa dibuka",
+            "Gagal membuka sengketa",
+          ).then((result) => {
+            const disputeId =
+              result && typeof result === "object"
+                ? (result as { id?: unknown }).id
+                : undefined
+            if (typeof disputeId === "string" && disputeId)
+              router.push(ROUTES.disputeDetail(disputeId))
+          })
+        }}
+        onCancel={() => setDisputeConfirmOpen(false)}
+        onRequestClose={() => setDisputeConfirmOpen(false)}
+      />
 
       {/* ── Resi / kirim (penjual) ────────────────────────────── */}
       <BottomSheet

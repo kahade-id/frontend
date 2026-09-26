@@ -91,6 +91,8 @@ export const SecureKeys = {
    * agar user bisa memulihkan dalam 30 hari. Dihapus `clearSession()` saat logout.
    */
   deletedShowcaseItems: "kahade.showcase.deleted",
+  /** S7: draft teks form "Buat karya" (autosave lokal). */
+  showcaseDraft: "kahade.showcase.draft",
   /**
    * Preferensi UI non-sensitif (JSON kecil — lib/ui-prefs.ts): saldo
    * disembunyikan, tab transaksi terakhir, snooze pengingat ulasan.

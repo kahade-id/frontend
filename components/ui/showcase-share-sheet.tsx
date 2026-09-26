@@ -38,7 +38,10 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
   const toast = useToast()
   if (!item) return null
 
-  const shareUrl = item.shareUrl || showcaseUrl(item.id)
+  // S10 (audit 2026-09-26): `item.shareUrl` dari server disanitasi — satu-satunya
+  // URL yang masuk clipboard/share tanpa validasi sebelumnya. Gagal validasi
+  // → fallback ke deep link kanonis.
+  const shareUrl = safeHttpsLink(item.shareUrl) || showcaseUrl(item.id)
   const price = showcasePriceLabel(item)
   const priceSuffix = price ? ` — ${price}` : ""
   const title = item.title

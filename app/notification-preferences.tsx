@@ -72,6 +72,9 @@ export default function NotificationPreferencesScreen() {
       <NotificationPreferencesMatrix
         value={value}
         onChange={(n, k) => void handleChange(n, k)}
+        // Keamanan akun tidak boleh dimatikan total: peringatan login baru,
+        // perubahan kata sandi, dan 2FA adalah §14 — selalu aktif.
+        lockedKeys={["securityInApp", "securityPush"]}
       />
     </DataScreen>
   )

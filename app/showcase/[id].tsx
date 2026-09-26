@@ -97,13 +97,38 @@ export default function ShowcaseDetailScreen() {
   // D-09: "" juga harus jatuh ke "Etalase" ("" ?? x tetap "").
   useDocumentTitle(item?.title || translate("Etalase"))
 
+  // S3 (audit 2026-09-26): 404 (karya dihapus/privat/tak ada) → EmptyState khusus
+  // TANPA tombol retry — "Coba lagi" untuk 404 tidak akan pernah berhasil.
+  // Error lain tetap lewat DataScreen (ErrorState + retry).
+  const isNotFound =
+    !item && !!query.error && isApiError(query.error) && query.error.status === 404
+  if (isNotFound) {
+    return (
+      <DataScreen
+        title={translate("Etalase")}
+        state={{
+          loading: false,
+          refreshing: false,
+          error: null,
+          refresh: query.refresh,
+          reload: query.reload,
+        }}
+        empty={{
+          icon: ChatCircle,
+          title: translate("Karya tidak ditemukan"),
+          description: translate("Karya ini mungkin sudah dihapus atau tidak lagi tersedia."),
+        }}
+      />
+    )
+  }
+
   // D-01 (audit 2026-09-23): error refresh/fokus-ulang TIDAK menggantikan
   // konten yang masih ada — draf komentar & posisi scroll tetap hidup.
   // ErrorState hanya saat belum ada data sama sekali.
   if (!item) {
     return (
       <DataScreen
-        title="Etalase"
+        title={translate("Etalase")}
         state={{
           loading: query.loading,
           refreshing: query.refreshing,
@@ -150,6 +175,8 @@ function ShowcaseDetailContent({
     comment?: string
   }>()
   const [meId, setMeId] = useState<string | null>(null)
+  // S9: username untuk komentar optimistis.
+  const [meUsername, setMeUsername] = useState<string | null>(null)
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
   const composerRef = useRef<TextInput>(null)
 
@@ -192,9 +219,13 @@ function ShowcaseDetailContent({
   useEffect(() => {
     let alive = true
     setMeId(null)
+    setMeUsername(null)
     if (hasSession) void api.users.getMeCached().then((me) => {
-      if (alive) setMeId(me.id ?? null)
-    }).catch(() => { if (alive) setMeId(null) })
+      if (alive) {
+        setMeId(me.id ?? null)
+        setMeUsername(me.username ?? null)
+      }
+    }).catch(() => { if (alive) { setMeId(null); setMeUsername(null) } })
     return () => { alive = false }
   }, [hasSession, revision])
 
@@ -301,6 +332,28 @@ function ShowcaseDetailContent({
     mutationPending.current = true
     commentsAbort.current?.abort()
     setSendingComment(true)
+
+    // S9 (audit 2026-09-26): insert optimistis — komentar langsung tampil
+    // dengan ID sementara; sukses → diganti data server, gagal → dihapus
+    // (rollback). Idempotency-Key T4 dipertahankan supaya retry tidak dobel.
+    const tempId = `optimistic-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const optimistic: ShowcaseComment = {
+      id: tempId,
+      showcaseId: id,
+      parentId: replyTo?.id ?? null,
+      content,
+      createdAt: new Date().toISOString(),
+      author: {
+        userId: meId ?? "",
+        username: meUsername ?? translate("Anda"),
+        fullName: null,
+      },
+    }
+    insertLocalComment(optimistic)
+    // Kosongkan draft segera — UX terasa instan.
+    setDraft("")
+    setReplyTo(null)
+
     try {
       const keyed =
         sendKey.current?.item === id && sendKey.current?.content === content
@@ -320,11 +373,29 @@ function ShowcaseDetailContent({
       // TANPA refetch yang membuang halaman 2..N.
       queueShowcaseCommentCount(id, 1)
       if (!task.valid()) return
-      setDraft((current) => current.trim() === content ? "" : current)
-      setReplyTo(null)
-      insertLocalComment(saved)
+      // Ganti baris optimistis dengan data server (ID asli).
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === tempId
+            ? { ...saved, replies: c.replies ?? [] }
+            : {
+                ...c,
+                replies: c.replies?.map((r) => (r.id === tempId ? { ...saved } : r)),
+              },
+        ),
+      )
     } catch (err) {
       if (!task.valid()) return
+      // Rollback: hapus baris optimistis.
+      setComments((prev) =>
+        prev
+          .filter((c) => c.id !== tempId)
+          .map((c) => ({
+            ...c,
+            replies: c.replies?.filter((r) => r.id !== tempId),
+          })),
+      )
+      setCommentTotal((n) => Math.max(0, n - 1))
       toast.show({
         title: SHOWCASE_COMMENT_MESSAGES.sendFailed,
         description: isApiError(err) ? userMessage(err) : undefined,
@@ -338,7 +409,7 @@ function ShowcaseDetailContent({
       mutationPending.current = false
       task.finish()
     }
-  }, [id, draft, replyTo, insertLocalComment, toast.show, hasSession, operation, fetchComments, commentsPage])
+  }, [id, draft, replyTo, insertLocalComment, toast.show, hasSession, operation, fetchComments, commentsPage, meId, meUsername])
 
   const handleSaveEdit = useCallback(async () => {
     if (!editTarget) return
@@ -530,7 +601,7 @@ function ShowcaseDetailContent({
 
   return (
     <DataScreen
-      title="Etalase"
+      title={translate("Etalase")}
       padded={false}
       state={{
         loading: false,
@@ -713,7 +784,7 @@ function ShowcaseDetailContent({
       <ActionSheet
         visible={commentMenu != null}
         onRequestClose={() => setCommentMenu(null)}
-        title="Komentar"
+        title={translate("Komentar")}
         actions={[
           ...(commentMenu && canReply(commentMenu)
             ? [
@@ -793,7 +864,7 @@ function ShowcaseDetailContent({
         avoidKeyboard
         visible={editTarget != null}
         onRequestClose={() => setEditTarget(null)}
-        title="Edit komentar"
+        title={translate("Edit komentar")}
         footer={
           <View className="gap-2">
             <Button
@@ -851,8 +922,8 @@ function ShowcaseDetailContent({
 
       {/* T5 (audit 2026-09-26): konfirmasi hapus karya (pemilik). */}
       <Dialog
-        title="Hapus karya ini?"
-        description="Karya dihapus dan dapat dipulihkan dalam 30 hari."
+        title={translate("Hapus karya ini?")}
+        description={translate("Karya dihapus dan dapat dipulihkan dalam 30 hari.")}
         visible={deleteOpen}
         destructive
         loading={deleting}

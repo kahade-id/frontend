@@ -15,15 +15,17 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatDateTime } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
+import type { VerificationBadge } from "@/lib/api/users"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { VerifiedSeal } from "@/components/ui/verified-seal"
 
 type ShowcaseAuthorRowProps = {
-  item: Pick<ShowcaseSocialItem, "author" | "createdAt">
+  item: Pick<ShowcaseSocialItem, "id" | "author" | "createdAt">
   isOwner: boolean
   hasSession: boolean
   /** Buka sheet laporan untuk item ini. */
@@ -57,9 +59,18 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
           verified={item.author.isKycVerified === true}
         />
         <View className="flex-1 gap-0.5">
-          <Text variant="body" weight={600} numberOfLines={1}>
-            {item.author.fullName ?? item.author.username}
-          </Text>
+          {/* S1: seal 3-tier di samping nama (sumber: badge backend, sama
+              dengan profil); fallback boolean KYC bila badge belum ada. */}
+          <View className="flex-row items-center gap-1">
+            <Text variant="body" weight={600} numberOfLines={1} className="min-w-0 shrink">
+              {item.author.fullName ?? item.author.username}
+            </Text>
+            <VerifiedSeal
+              badges={item.author.badges as unknown as VerificationBadge[]}
+              verified={item.author.isKycVerified === true}
+              size={14}
+            />
+          </View>
           <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
             {`@${item.author.username} · ${formatDateTime(item.createdAt)}`}
           </Text>
@@ -70,17 +81,21 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
       {!isOwner ? (
         <IconButton icon={Flag} variant="ghost" size="sm" accessibilityLabel="Laporkan" onPress={onReport} />
       ) : null}
-      {/* D-21 (audit 2026-09-23): shortcut "Ubah karya" di detail untuk pemilik —
-          dulu hanya lewat Pengaturan › showcase saya. Menuju halaman manajemen
-          (daftar karya sendiri → edit). */}
+      {/* S8 (audit 2026-09-26): "Ubah karya" langsung membuka editor ITEM INI
+          via `?edit=<id>` — bukan sekadar daftar kelola. */}
       {isOwner ? (
         <IconButton
           icon={PencilSimple}
           variant="ghost"
           size="sm"
           accessibilityLabel="Ubah karya"
-          accessibilityHint={translate("Buka pengelolaan karya etalase")}
-          onPress={() => router.push(ROUTES.showcaseManagement)}
+          accessibilityHint={translate("Ubah karya ini")}
+          onPress={() =>
+            router.push({
+              pathname: ROUTES.showcaseManagement,
+              params: { edit: item.id },
+            } as never)
+          }
         />
       ) : null}
     </View>

@@ -38,6 +38,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   FlatList,
+  Keyboard,
   View,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -94,6 +95,7 @@ import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
 import { type ChatComposerPayload, type ComposerAttachment } from "@/components/ui/chat-composer"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
+import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
 import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
@@ -174,6 +176,8 @@ export default function ChatRoomScreen() {
   const [attachments, setAttachments] = useState<LocalAttachment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  /** Room dihapus/dinonaktifkan (404) — tampilkan EmptyState khusus, bukan error generik. */
+  const [roomGone, setRoomGone] = useState(false)
   const [sending, setSending] = useState(false)
 
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
@@ -260,6 +264,7 @@ export default function ChatRoomScreen() {
     initialRequest.current = controller
     setLoading(true)
     setError(null)
+    setRoomGone(false)
     try {
       const [page, rooms] = await Promise.all([
         api.chat.getChatMessages(roomId, { limit: CHAT_PAGE_SIZE }, controller.signal),
@@ -284,7 +289,13 @@ export default function ChatRoomScreen() {
       // angka unread turun segera, bukan menunggu poll 60 detik.
       void refreshUnreadCount()
     } catch (err) {
-      if (!controller.signal.aborted) setError(userMessage(err))
+      if (controller.signal.aborted) return
+      // 404 = room dihapus/dinonaktifkan — retry tidak akan pernah berhasil.
+      if (isApiError(err) && err.status === 404) {
+        setRoomGone(true)
+      } else {
+        setError(userMessage(err))
+      }
     } finally {
       if (initialRequest.current === controller && !controller.signal.aborted) setLoading(false)
     }
@@ -387,7 +398,15 @@ export default function ChatRoomScreen() {
         if (!changed) return prev
         // Pesan masuk dari lawan bicara → badge tab Notifikasi harus turun
         // segera (ruang terbuka = terbaca), bukan menunggu poll 60 detik.
-        if (added > 0 && fresh.some((m) => !m.fromUser) && roomIdRef.current) {
+        // Namun HANYA bila user sedang di dasar thread: yang sedang scroll
+        // ke atas membaca riwayat belum melihat pesan baru — menandainya
+        // "dibaca" akan menampilkan centang ganda palsu ke lawan bicara.
+        if (
+          added > 0 &&
+          fresh.some((m) => !m.fromUser) &&
+          roomIdRef.current &&
+          atBottomRef.current
+        ) {
           void api.chat
             .markChatRoomRead(roomIdRef.current)
             .catch((err) => logWarn("chat:mark-read", err))
@@ -461,6 +480,14 @@ export default function ChatRoomScreen() {
       if (atBottomRef.current !== bottom) {
         atBottomRef.current = bottom
         setAtBottom(bottom)
+        // Kembali ke dasar thread = pesan baru kini terlihat → tandai dibaca.
+        // (mergeIncoming menahan mark-as-read selama user menelusuri riwayat.)
+        if (bottom && roomIdRef.current) {
+          void api.chat
+            .markChatRoomRead(roomIdRef.current)
+            .catch((err) => logWarn("chat:mark-read-scroll", err))
+          void refreshUnreadCount()
+        }
       }
     },
     [],
@@ -1091,6 +1118,8 @@ export default function ChatRoomScreen() {
         contentContainerClassName="px-5"
         contentContainerStyle={{ paddingBottom: insets.bottom + tokens.space[4], flexGrow: 1 }}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+        onScrollBeginDrag={() => Keyboard.dismiss()}
         onContentSizeChange={handleContentSizeChange}
         onScroll={handleScroll}
         scrollEventThrottle={SCROLL_EVENT_THROTTLE}
@@ -1111,6 +1140,17 @@ export default function ChatRoomScreen() {
             <View className="pt-3">
               <ListLoading />
             </View>
+          ) : roomGone ? (
+            <EmptyState
+              icon={Chats}
+              title="Percakapan tidak tersedia"
+              description="Ruang chat ini telah dihapus atau dinonaktifkan."
+              action={
+                <Button onPress={() => router.replace(ROUTES.chat)}>
+                  Kembali ke daftar chat
+                </Button>
+              }
+            />
           ) : error ? (
             <ErrorState
               title="Gagal memuat"

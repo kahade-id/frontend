@@ -30,8 +30,10 @@
  *   - Validasi nomor terjadi saat submit (bukan on-change) — memerahkan field
  *     saat user baru mengetik 3 digit terasa menghakimi (§12 tone tenang).
  *     Error hilang begitu user mengubah nilai.
- *   - 409 (nomor sudah terdaftar) ditangani khusus: Alert + tautan "Masuk" —
- *     ini jalan keluar yang benar, bukan mengulang request.
+ *   - 409 defensif: endpoint /v1/auth/otp-trigger TIDAK melempar 409 untuk
+ *     nomor yang sudah terdaftar (backend mengembalikan payload "decoy" 200
+ *     demi anti-enumerasi; lihat whatsapp-trigger). Cabang CONFLICT
+ *     dipertahankan sebagai pengaman bila kontrak berubah.
  *   - Error validasi backend yang menyebut nomor ditempel ke field; sisanya ke
  *     <Alert tone="danger"> (sudah role=alert + live region assertive).
  *   - State alur (nomor + refCode + deeplink WA) disimpan di memori modul
@@ -170,9 +172,9 @@ export default function RegisterScreen() {
                 Masukkan nomor HP Anda
               </Heading>
               <Text variant="body" tone="secondary" className="text-pretty">
-                Kami akan mengirim kode verifikasi 6 digit lewat WhatsApp ke
-                nomor ini. Nomor HP dipakai untuk masuk dan pemberitahuan
-                transaksi.
+                Kode verifikasi 6 digit akan dibalas lewat WhatsApp setelah
+                Anda mengirim pesan ke nomor resmi Kahade. Nomor HP dipakai
+                untuk masuk dan pemberitahuan transaksi.
               </Text>
             </View>
 

@@ -655,6 +655,12 @@ export type DeliveryProof = {
   status: "SUBMITTED" | "CONFIRMED" | "REJECTED" | (string & {})
   note?: string | null
   createdAt: string
+  /**
+   * S5 (audit 2026-09-26): jumlah file yang gagal di-resolve server (mis. object
+   * upload kedaluwarsa). Buyer harus tahu buktinya tidak lengkap sebelum
+   * mengonfirmasi penerimaan.
+   */
+  unresolvedFileCount?: number
 }
 
 export type OrderLink = {

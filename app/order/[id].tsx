@@ -638,7 +638,10 @@ export default function OrderDetailScreen() {
       order.status === "SHIPPED" ||
       order.status === "DELIVERED") &&
     isBuyer
-  const canRate = knownRole && order.status === "COMPLETED"
+  // F6 (audit 2026-09-26): jangan tampilkan ajakan menilai bila user sudah menilai —
+  // field `rated`/`isRated` sudah dinormalisasi dari payload order.
+  const alreadyRated = order.rated === true || order.isRated === true
+  const canRate = knownRole && order.status === "COMPLETED" && !alreadyRated
   const ratingReminderVisible = canRate && !isRatingSnoozed(order.id)
   const canCancel = knownRole && isCancellable(order.status)
   const canDispute = knownRole && isDisputable(order.status)

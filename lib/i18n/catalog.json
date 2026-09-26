@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 55
+   "n": 57
   },
   {
    "s": "Hapus",
@@ -17,6 +17,10 @@
   {
    "s": "Gagal memuat",
    "n": 24
+  },
+  {
+   "s": "Etalase",
+   "n": 18
   },
   {
    "s": "Lainnya",
@@ -35,15 +39,19 @@
    "n": 12
   },
   {
-   "s": "Etalase",
-   "n": 11
-  },
-  {
    "s": "Tutup",
    "n": 11
   },
   {
    "s": "{x} hari",
+   "n": 10
+  },
+  {
+   "s": "Komentar",
+   "n": 10
+  },
+  {
+   "s": "Masuk",
    "n": 10
   },
   {
@@ -59,11 +67,11 @@
    "n": 9
   },
   {
-   "s": "Masuk",
-   "n": 9
+   "s": "Sembunyikan",
+   "n": 7
   },
   {
-   "s": "Sembunyikan",
+   "s": "Tidak ada hasil",
    "n": 7
   },
   {
@@ -72,6 +80,10 @@
   },
   {
    "s": "{x} komentar",
+   "n": 6
+  },
+  {
+   "s": "Akses galeri ditolak",
    "n": 6
   },
   {
@@ -99,6 +111,10 @@
    "n": 6
   },
   {
+   "s": "Gagal menyimpan",
+   "n": 6
+  },
+  {
    "s": "Geser foto {x} ke kanan",
    "n": 6
   },
@@ -115,7 +131,11 @@
    "n": 6
   },
   {
-   "s": "Komentar",
+   "s": "Harga {x} ditampilkan sebagai Gratis.",
+   "n": 6
+  },
+  {
+   "s": "Lanjutkan",
    "n": 6
   },
   {
@@ -143,15 +163,15 @@
    "n": 6
   },
   {
+   "s": "Pilihan karya",
+   "n": 6
+  },
+  {
    "s": "Selesai",
    "n": 6
   },
   {
    "s": "Tanpa judul",
-   "n": 6
-  },
-  {
-   "s": "Tidak ada hasil",
    "n": 6
   },
   {
@@ -167,7 +187,7 @@
    "n": 5
   },
   {
-   "s": "Akses galeri ditolak",
+   "s": "Anda",
    "n": 5
   },
   {
@@ -183,7 +203,11 @@
    "n": 5
   },
   {
-   "s": "Gagal menyimpan",
+   "s": "Gagal menghapus",
+   "n": 5
+  },
+  {
+   "s": "Gagal mengunggah foto",
    "n": 5
   },
   {
@@ -199,7 +223,7 @@
    "n": 5
   },
   {
-   "s": "Lanjutkan",
+   "s": "Laporkan karya",
    "n": 5
   },
   {
@@ -239,7 +263,7 @@
    "n": 4
   },
   {
-   "s": "Anda",
+   "s": "Ambil foto",
    "n": 4
   },
   {
@@ -291,15 +315,11 @@
    "n": 4
   },
   {
-   "s": "Gagal menghapus",
-   "n": 4
-  },
-  {
    "s": "Gagal mengirim pesan",
    "n": 4
   },
   {
-   "s": "Gagal mengunggah foto",
+   "s": "Hapus karya ini?",
    "n": 4
   },
   {
@@ -347,10 +367,6 @@
    "n": 4
   },
   {
-   "s": "Laporkan karya",
-   "n": 4
-  },
-  {
    "s": "Memuat",
    "n": 4
   },
@@ -375,7 +391,7 @@
    "n": 4
   },
   {
-   "s": "Pilihan karya",
+   "s": "Pilih dari galeri",
    "n": 4
   },
   {
@@ -392,6 +408,10 @@
   },
   {
    "s": "Spam",
+   "n": 4
+  },
+  {
+   "s": "Suka",
    "n": 4
   },
   {
@@ -515,6 +535,10 @@
    "n": 3
   },
   {
+   "s": "{x}–{y} hari · estimasi tenggat {z}",
+   "n": 3
+  },
+  {
    "s": "{x}–{y} hari · tenggat baru {z}",
    "n": 3
   },
@@ -547,7 +571,7 @@
    "n": 3
   },
   {
-   "s": "Ambil foto",
+   "s": "Anda belum mengikuti siapa pun",
    "n": 3
   },
   {
@@ -627,7 +651,7 @@
    "n": 3
   },
   {
-   "s": "Buka pengelolaan karya etalase",
+   "s": "Buka pengaturan",
    "n": 3
   },
   {
@@ -648,6 +672,14 @@
   },
   {
    "s": "Chat",
+   "n": 3
+  },
+  {
+   "s": "Coba kata kunci yang lebih spesifik, atau perluas cakupan ke Semua.",
+   "n": 3
+  },
+  {
+   "s": "Dana escrow akan langsung dibagi sesuai usulan berikut dan tidak bisa dibatalkan: {x} Pastikan kamu sudah setuju dengan pembagiannya.",
    "n": 3
   },
   {
@@ -676,6 +708,10 @@
   },
   {
    "s": "Durasi {x}",
+   "n": 3
+  },
+  {
+   "s": "Edit komentar",
    "n": 3
   },
   {
@@ -724,6 +760,14 @@
   },
   {
    "s": "Gagal memulai percakapan",
+   "n": 3
+  },
+  {
+   "s": "Gagal mencari",
+   "n": 3
+  },
+  {
+   "s": "Gagal menghapus foto",
    "n": 3
   },
   {
@@ -807,6 +851,10 @@
    "n": 3
   },
   {
+   "s": "Izinkan akses foto di pengaturan perangkat untuk memilih karya.",
+   "n": 3
+  },
+  {
    "s": "Jadikan {x} penerima favorit",
    "n": 3
   },
@@ -816,6 +864,14 @@
   },
   {
    "s": "Jenis",
+   "n": 3
+  },
+  {
+   "s": "Karya dihapus dan dapat dipulihkan dalam {x} hari.",
+   "n": 3
+  },
+  {
+   "s": "Karya dihapus. Dapat dipulihkan dalam {x} hari.",
    "n": 3
   },
   {
@@ -951,7 +1007,19 @@
    "n": 3
   },
   {
+   "s": "Masuk terlebih dahulu agar kami bisa menampilkan karya dari akun yang Anda ikuti.",
+   "n": 3
+  },
+  {
+   "s": "Masuk untuk melihat feed mengikuti",
+   "n": 3
+  },
+  {
    "s": "Masukkan PIN dompet Anda untuk menarik {x} ke {y} {z}.",
+   "n": 3
+  },
+  {
+   "s": "Masukkan setidaknya dua karakter untuk mencari postingan, pengguna, pesanan, dan mutasi.",
    "n": 3
   },
   {
@@ -996,6 +1064,10 @@
   },
   {
    "s": "Mode aplikasi",
+   "n": 3
+  },
+  {
+   "s": "Mulai mencari",
    "n": 3
   },
   {
@@ -1047,6 +1119,10 @@
    "n": 3
   },
   {
+   "s": "Pencarian",
+   "n": 3
+  },
+  {
    "s": "Pengaturan",
    "n": 3
   },
@@ -1072,10 +1148,6 @@
   },
   {
    "s": "Pesan terpin: {x}",
-   "n": 3
-  },
-  {
-   "s": "Pilih dari galeri",
    "n": 3
   },
   {
@@ -1191,6 +1263,10 @@
    "n": 3
   },
   {
+   "s": "Temukan penjual lewat tab Temukan, ikuti mereka, dan karyanya akan muncul di sini.",
+   "n": 3
+  },
+  {
    "s": "Tenggat pengiriman menjadi {x}. Dana tetap di escrow.",
    "n": 3
   },
@@ -1247,6 +1323,10 @@
    "n": 3
   },
   {
+   "s": "Ubah karya ini",
+   "n": 3
+  },
+  {
    "s": "Ulasan transaksi dengan @{x} akan muncul di sini.",
    "n": 3
   },
@@ -1300,6 +1380,10 @@
   },
   {
    "s": "{x} dari {x}",
+   "n": 2
+  },
+  {
+   "s": "{x} file bukti tidak dapat dimuat server. Periksa dengan penjual sebelum mengonfirmasi.",
    "n": 2
   },
   {
@@ -1639,15 +1723,15 @@
    "n": 2
   },
   {
-   "s": "Buka pengaturan",
-   "n": 2
-  },
-  {
    "s": "Buka percakapan, atau tekan lama untuk memilih beberapa",
    "n": 2
   },
   {
    "s": "Buka profil",
+   "n": 2
+  },
+  {
+   "s": "Buka Temukan",
    "n": 2
   },
   {
@@ -1707,10 +1791,6 @@
    "n": 2
   },
   {
-   "s": "Coba kata kunci yang lebih spesifik, atau perluas cakupan ke Semua.",
-   "n": 2
-  },
-  {
    "s": "Contoh: @johndoe — tanpa @",
    "n": 2
   },
@@ -1719,7 +1799,15 @@
    "n": 2
   },
   {
+   "s": "Dana escrow akan DIBEKUKAN sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak. Pastikan klaim sudah jelas — bukti foto/video bisa ditambahkan setelah sengketa dibuat.",
+   "n": 2
+  },
+  {
    "s": "Detail (opsional)",
+   "n": 2
+  },
+  {
+   "s": "Detail diperbarui",
    "n": 2
   },
   {
@@ -1791,11 +1879,15 @@
    "n": 2
   },
   {
+   "s": "Foto atau video paket, tangkapan layar pengiriman. Maks {x} berkas.",
+   "n": 2
+  },
+  {
    "s": "Foto cover akan digantikan foto berikutnya.",
    "n": 2
   },
   {
-   "s": "Foto paket, tangkapan layar pengiriman, atau PDF. Maks {x} berkas.",
+   "s": "Foto dihapus",
    "n": 2
   },
   {
@@ -1835,11 +1927,11 @@
    "n": 2
   },
   {
-   "s": "Gagal mengaktifkan notifikasi",
+   "s": "Gagal memulihkan",
    "n": 2
   },
   {
-   "s": "Gagal menghapus foto",
+   "s": "Gagal mengaktifkan notifikasi",
    "n": 2
   },
   {
@@ -1848,6 +1940,14 @@
   },
   {
    "s": "Gagal mengirim pertanyaan",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengubah urutan foto",
+   "n": 2
+  },
+  {
+   "s": "Gagal mengubah visibilitas",
    "n": 2
   },
   {
@@ -1887,15 +1987,15 @@
    "n": 2
   },
   {
-   "s": "Hapus karya ini?",
-   "n": 2
-  },
-  {
    "s": "Hapus komentar ini?",
    "n": 2
   },
   {
    "s": "Hapus notifikasi yang sudah dibaca?",
+   "n": 2
+  },
+  {
+   "s": "Hapus riwayat",
    "n": 2
   },
   {
@@ -1935,15 +2035,15 @@
    "n": 2
   },
   {
+   "s": "Isi harga minimum dulu bila memakai harga maksimum.",
+   "n": 2
+  },
+  {
    "s": "Isian {x} tidak sesuai ketentuan layanan.",
    "n": 2
   },
   {
    "s": "Item etalase",
-   "n": 2
-  },
-  {
-   "s": "Izinkan akses foto di pengaturan perangkat untuk memilih karya.",
    "n": 2
   },
   {
@@ -1987,15 +2087,27 @@
    "n": 2
   },
   {
-   "s": "Karya dihapus. Dapat dipulihkan dalam {x} hari.",
-   "n": 2
-  },
-  {
    "s": "Karya dinonaktifkan",
    "n": 2
   },
   {
+   "s": "Karya dipulihkan",
+   "n": 2
+  },
+  {
+   "s": "Karya disembunyikan dari feed",
+   "n": 2
+  },
+  {
+   "s": "Karya ini mungkin sudah dihapus atau tidak lagi tersedia.",
+   "n": 2
+  },
+  {
    "s": "Karya sudah dilaporkan",
+   "n": 2
+  },
+  {
+   "s": "Karya tidak ditemukan",
    "n": 2
   },
   {
@@ -2271,10 +2383,6 @@
    "n": 2
   },
   {
-   "s": "Masukkan setidaknya dua karakter untuk mencari postingan, pengguna, pesanan, dan mutasi.",
-   "n": 2
-  },
-  {
    "s": "Matikan kamera",
    "n": 2
   },
@@ -2403,10 +2511,6 @@
    "n": 2
   },
   {
-   "s": "Mulai mencari",
-   "n": 2
-  },
-  {
    "s": "Mulai percakapan dan Tim Kahade akan menindaklanjuti. Riwayat percakapan tersimpan di akun Anda.",
    "n": 2
   },
@@ -2476,6 +2580,10 @@
   },
   {
    "s": "Nonaktif",
+   "n": 2
+  },
+  {
+   "s": "Notifikasi belum dapat ditandai",
    "n": 2
   },
   {
@@ -2727,6 +2835,10 @@
    "n": 2
   },
   {
+   "s": "Riwayat pencarian",
+   "n": 2
+  },
+  {
    "s": "Riwayat pengajuan",
    "n": 2
   },
@@ -2744,6 +2856,14 @@
   },
   {
    "s": "Salin",
+   "n": 2
+  },
+  {
+   "s": "Saran pencarian",
+   "n": 2
+  },
+  {
+   "s": "Saran pencarian hanya tampil pada cakupan Semua.",
    "n": 2
   },
   {
@@ -2815,15 +2935,15 @@
    "n": 2
   },
   {
+   "s": "Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.",
+   "n": 2
+  },
+  {
    "s": "Status tidak dikenal",
    "n": 2
   },
   {
    "s": "Sudah punya akun?",
-   "n": 2
-  },
-  {
-   "s": "Suka",
    "n": 2
   },
   {
@@ -2963,6 +3083,10 @@
    "n": 2
   },
   {
+   "s": "Tidak tertarik",
+   "n": 2
+  },
+  {
    "s": "Tipe Akun",
    "n": 2
   },
@@ -3076,6 +3200,14 @@
   },
   {
    "s": "Untuk jasa/digital, resi opsional — pembeli akan diminta memeriksa hasil.",
+   "n": 2
+  },
+  {
+   "s": "Urungkan",
+   "n": 2
+  },
+  {
+   "s": "Urutan foto disimpan",
    "n": 2
   },
   {
@@ -3275,6 +3407,10 @@
    "n": 1
   },
   {
+   "s": "Ada ketikan karya yang belum diterbitkan. Lanjutkan dari draft tersebut?",
+   "n": 1
+  },
+  {
    "s": "Ada masalah? Kami berdiri di tengah.",
    "n": 1
   },
@@ -3300,6 +3436,10 @@
   },
   {
    "s": "Akses cepat",
+   "n": 1
+  },
+  {
+   "s": "Akses kamera ditolak",
    "n": 1
   },
   {
@@ -3408,10 +3548,6 @@
   },
   {
    "s": "Anda belum menambahkan karya atau produk ke etalase.",
-   "n": 1
-  },
-  {
-   "s": "Anda belum mengikuti siapa pun",
    "n": 1
   },
   {
@@ -3779,6 +3915,10 @@
    "n": 1
   },
   {
+   "s": "Belum punya akun? Daftar",
+   "n": 1
+  },
+  {
    "s": "Belum Verifikasi",
    "n": 1
   },
@@ -3912,6 +4052,10 @@
   },
   {
    "s": "Bonus Topup",
+   "n": 1
+  },
+  {
+   "s": "Buang draft",
    "n": 1
   },
   {
@@ -4059,7 +4203,7 @@
    "n": 1
   },
   {
-   "s": "Buka Temukan",
+   "s": "Buka sengketa?",
    "n": 1
   },
   {
@@ -4195,7 +4339,7 @@
    "n": 1
   },
   {
-   "s": "Catatan untuk pembeli (opsional)",
+   "s": "Catatan untuk pembeli (min. {x} karakter)",
    "n": 1
   },
   {
@@ -4315,7 +4459,7 @@
    "n": 1
   },
   {
-   "s": "Dana escrow dibekukan sampai mediator Kahade memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat.",
+   "s": "Dana escrow dibekukan sampai mediator Kahade memutuskan. Bukti foto bisa ditambahkan setelah sengketa dibuat — siapkan foto unboxing/kerusakan, resi, atau screenshot chat yang relevan.",
    "n": 1
   },
   {
@@ -4360,10 +4504,6 @@
   },
   {
    "s": "Dengan mengirim, Anda setuju masukan ini (beserta kontak di atas, bila diisi) disimpan sementara di perangkat ini maksimal {x} hari saat offline, lalu dikirim otomatis dan dihapus. Antrean lokal juga dibersihkan saat Anda keluar dari akun.",
-   "n": 1
-  },
-  {
-   "s": "Detail diperbarui",
    "n": 1
   },
   {
@@ -4531,10 +4671,6 @@
    "n": 1
   },
   {
-   "s": "Edit komentar",
-   "n": 1
-  },
-  {
    "s": "Edit nama",
    "n": 1
   },
@@ -4647,7 +4783,15 @@
    "n": 1
   },
   {
+   "s": "Foto {x} melebihi {y} MB.",
+   "n": 1
+  },
+  {
    "s": "Foto {x} yang Anda unggah",
+   "n": 1
+  },
+  {
+   "s": "Foto atau video yang sudah tersimpan",
    "n": 1
   },
   {
@@ -4659,15 +4803,15 @@
    "n": 1
   },
   {
-   "s": "Foto dihapus",
-   "n": 1
-  },
-  {
    "s": "Foto dilampirkan",
    "n": 1
   },
   {
    "s": "Foto KTP",
+   "n": 1
+  },
+  {
+   "s": "Foto langsung atau pilih dari galeri. Maksimal {x} MB per file.",
    "n": 1
   },
   {
@@ -4875,10 +5019,6 @@
    "n": 1
   },
   {
-   "s": "Gagal memulihkan",
-   "n": 1
-  },
-  {
    "s": "Gagal menambahkan rekening",
    "n": 1
   },
@@ -4896,10 +5036,6 @@
   },
   {
    "s": "Gagal mencabut sesi lain",
-   "n": 1
-  },
-  {
-   "s": "Gagal mencari",
    "n": 1
   },
   {
@@ -5040,14 +5176,6 @@
   },
   {
    "s": "Gagal mengubah PIN",
-   "n": 1
-  },
-  {
-   "s": "Gagal mengubah urutan foto",
-   "n": 1
-  },
-  {
-   "s": "Gagal mengubah visibilitas",
    "n": 1
   },
   {
@@ -5203,6 +5331,10 @@
    "n": 1
   },
   {
+   "s": "Gunakan kamera untuk foto saat ini",
+   "n": 1
+  },
+  {
    "s": "Gunakan PIN",
    "n": 1
   },
@@ -5300,10 +5432,6 @@
   },
   {
    "s": "Hapus rekening?",
-   "n": 1
-  },
-  {
-   "s": "Hapus riwayat",
    "n": 1
   },
   {
@@ -5627,10 +5755,6 @@
    "n": 1
   },
   {
-   "s": "Kami akan mengirim kode verifikasi {x} digit lewat WhatsApp ke nomor ini. Nomor HP dipakai untuk masuk dan pemberitahuan transaksi.",
-   "n": 1
-  },
-  {
    "s": "Kami akan menyiapkan arsip data akun Anda. Prosesnya bisa memakan waktu; Anda akan diberi tahu saat siap.",
    "n": 1
   },
@@ -5660,18 +5784,6 @@
   },
   {
    "s": "Karya baru",
-   "n": 1
-  },
-  {
-   "s": "Karya dihapus dan dapat dipulihkan dalam {x} hari.",
-   "n": 1
-  },
-  {
-   "s": "Karya dipulihkan",
-   "n": 1
-  },
-  {
-   "s": "Karya disembunyikan dari feed",
    "n": 1
   },
   {
@@ -5780,6 +5892,10 @@
   },
   {
    "s": "Kembali ke beranda",
+   "n": 1
+  },
+  {
+   "s": "Kembali ke daftar chat",
    "n": 1
   },
   {
@@ -6087,6 +6203,10 @@
    "n": 1
   },
   {
+   "s": "Kode verifikasi {x} digit akan dibalas lewat WhatsApp setelah Anda mengirim pesan ke nomor resmi Kahade. Nomor HP dipakai untuk masuk dan pemberitahuan transaksi.",
+   "n": 1
+  },
+  {
    "s": "Kode verifikasi email {x} digit",
    "n": 1
   },
@@ -6248,6 +6368,10 @@
   },
   {
    "s": "Lanjut ke verifikasi",
+   "n": 1
+  },
+  {
+   "s": "Lanjutkan draft?",
    "n": 1
   },
   {
@@ -6456,14 +6580,6 @@
   },
   {
    "s": "Masuk Sekarang",
-   "n": 1
-  },
-  {
-   "s": "Masuk terlebih dahulu agar kami bisa menampilkan karya dari akun yang Anda ikuti.",
-   "n": 1
-  },
-  {
-   "s": "Masuk untuk melihat feed mengikuti",
    "n": 1
   },
   {
@@ -6779,11 +6895,7 @@
    "n": 1
   },
   {
-   "s": "Menang pembeli",
-   "n": 1
-  },
-  {
-   "s": "Menang penjual",
+   "s": "Menandai seluruh notifikasi sebagai sudah dibaca",
    "n": 1
   },
   {
@@ -7167,10 +7279,6 @@
    "n": 1
   },
   {
-   "s": "Notifikasi belum dapat ditandai",
-   "n": 1
-  },
-  {
    "s": "Notifikasi browser",
    "n": 1
   },
@@ -7403,10 +7511,6 @@
    "n": 1
   },
   {
-   "s": "Pencarian",
-   "n": 1
-  },
-  {
    "s": "Pencucian uang",
    "n": 1
   },
@@ -7619,6 +7723,10 @@
    "n": 1
   },
   {
+   "s": "Percakapan tidak tersedia",
+   "n": 1
+  },
+  {
    "s": "Percakapan yang Anda arsipkan akan tersimpan di sini.",
    "n": 1
   },
@@ -7668,6 +7776,10 @@
   },
   {
    "s": "Periksa koneksi, lalu coba lagi.",
+   "n": 1
+  },
+  {
+   "s": "Periksa lagi",
    "n": 1
   },
   {
@@ -8267,10 +8379,6 @@
    "n": 1
   },
   {
-   "s": "Riwayat pencarian",
-   "n": 1
-  },
-  {
    "s": "Riwayat status pesanan",
    "n": 1
   },
@@ -8304,6 +8412,10 @@
   },
   {
    "s": "Rp {x} – {y}",
+   "n": 1
+  },
+  {
+   "s": "Ruang chat ini telah dihapus atau dinonaktifkan.",
    "n": 1
   },
   {
@@ -8348,10 +8460,6 @@
   },
   {
    "s": "Saran dan masukan untuk Kahade",
-   "n": 1
-  },
-  {
-   "s": "Saran pencarian",
    "n": 1
   },
   {
@@ -8439,6 +8547,14 @@
    "n": 1
   },
   {
+   "s": "Selesai · dana ke pembeli",
+   "n": 1
+  },
+  {
+   "s": "Selesai · dana ke penjual",
+   "n": 1
+  },
+  {
    "s": "Selesaikan transaksi untuk membuka lencana.",
    "n": 1
   },
@@ -8484,6 +8600,10 @@
   },
   {
    "s": "Semua layar langsung mengikuti, tanpa perlu menutup aplikasi.",
+   "n": 1
+  },
+  {
+   "s": "Semua notifikasi ditandai dibaca",
    "n": 1
   },
   {
@@ -8568,6 +8688,10 @@
   },
   {
    "s": "Setelah kata sandi tersimpan, Anda akan diarahkan untuk masuk kembali dengan kata sandi baru.",
+   "n": 1
+  },
+  {
+   "s": "Setujui usulan penyelesaian?",
    "n": 1
   },
   {
@@ -8671,10 +8795,6 @@
    "n": 1
   },
   {
-   "s": "Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.",
-   "n": 1
-  },
-  {
    "s": "Status metode belum terkonfirmasi",
    "n": 1
   },
@@ -8747,6 +8867,10 @@
    "n": 1
   },
   {
+   "s": "Sudah punya akun? Masuk",
+   "n": 1
+  },
+  {
    "s": "Sudah punya kode? Masukkan di atas",
    "n": 1
   },
@@ -8768,6 +8892,10 @@
   },
   {
    "s": "Tagihan berlaku sampai {x}",
+   "n": 1
+  },
+  {
+   "s": "Tambah bukti",
    "n": 1
   },
   {
@@ -8871,6 +8999,10 @@
    "n": 1
   },
   {
+   "s": "Tandai semua dibaca",
+   "n": 1
+  },
+  {
    "s": "Tandai yang dipilih dibaca",
    "n": 1
   },
@@ -8884,6 +9016,10 @@
   },
   {
    "s": "Tanpa lampiran yang dapat ditampilkan",
+   "n": 1
+  },
+  {
+   "s": "tanpa nama",
    "n": 1
   },
   {
@@ -9032,10 +9168,6 @@
   },
   {
    "s": "Temukan pengguna",
-   "n": 1
-  },
-  {
-   "s": "Temukan penjual lewat tab Temukan, ikuti mereka, dan karyanya akan muncul di sini.",
    "n": 1
   },
   {
@@ -9220,10 +9352,6 @@
   },
   {
    "s": "Tidak tersedia pada lingkungan ini",
-   "n": 1
-  },
-  {
-   "s": "Tidak tertarik",
    "n": 1
   },
   {
@@ -9599,14 +9727,6 @@
    "n": 1
   },
   {
-   "s": "Urungkan",
-   "n": 1
-  },
-  {
-   "s": "Urutan foto disimpan",
-   "n": 1
-  },
-  {
    "s": "User",
    "n": 1
   },
@@ -9811,11 +9931,19 @@
    "n": 1
   },
   {
+   "s": "Ya, buka sengketa",
+   "n": 1
+  },
+  {
    "s": "Ya, keluarkan semua",
    "n": 1
   },
   {
    "s": "Ya, membantu",
+   "n": 1
+  },
+  {
+   "s": "Ya, setujui",
    "n": 1
   },
   {

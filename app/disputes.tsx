@@ -11,11 +11,12 @@
 import { ShieldWarning } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
-import type { DisputeDetail } from "@/lib/api/disputes"
+import type { DisputeListItem } from "@/lib/api/disputes"
 import { formatDateTime } from "@/lib/format"
 import { orderFallbackLabel } from "@/lib/short-id"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 
 import { DisputeCard } from "@/components/ui/dispute-card"
@@ -30,7 +31,11 @@ const PAGE_LIMIT = 50
 
 export default function DisputesScreen() {
   const insets = useSafeAreaInsets()
-  const query = usePaginatedQuery<DisputeDetail>(
+  // Identitas sendiri (cache bersama 5 dtk, C-02) — untuk peran di tiap kartu:
+  // siapa pembuka, siapa lawan, dan apakah giliran saya yang ditunggu.
+  const meQuery = useApiQuery("me", (signal) => api.users.getMeCached(signal))
+  const meId = meQuery.data?.id
+  const query = usePaginatedQuery<DisputeListItem>(
     "disputes",
     (page, signal) => api.disputes.listMyDisputes({ page, limit: PAGE_LIMIT }, signal),
     // R2 (audit ronde-2, butir #26): kembali dari detail sengketa (yang status
@@ -55,18 +60,37 @@ export default function DisputesScreen() {
             description="Sengketa pesanan akan muncul di sini."
           />
         }
-        renderItem={({ item }) => (
-          <DisputeCard
-            disputeId={item.id}
-            // R2 (audit ronde-2, butir #38): fallback short-id — UUID mentah
-            // 36 karakter tidak bisa dikenali manusia; judul order asli belum
-            // dibawa endpoint daftar sengketa.
-            orderTitle={orderFallbackLabel(item.orderId)}
-            status={item.status}
-            updatedAt={formatDateTime(item.updatedAt ?? item.createdAt)}
-            href={ROUTES.disputeDetail(item.id)}
-          />
-        )}
+        renderItem={({ item }) => {
+          // Kartu diperkaya dari field daftar (bukan lagi terdegradasi):
+          // peran saya dari buyerId/sellerId order + id sendiri.
+          const order = item.order
+          const myRole =
+            meId && order
+              ? order.buyerId === meId
+                ? "buyer"
+                : order.sellerId === meId
+                  ? "seller"
+                  : undefined
+              : undefined
+          const openedByMe =
+            myRole && item.initiatedBy
+              ? (item.initiatedBy === "BUYER") === (myRole === "buyer")
+              : undefined
+          // Giliran saya: status masih aktif dan klaim pihak saya belum masuk.
+          const myClaimedAt = myRole === "buyer" ? item.buyerClaimedAt : myRole === "seller" ? item.sellerClaimedAt : undefined
+          return (
+            <DisputeCard
+              disputeId={item.id}
+              orderTitle={order?.title || orderFallbackLabel(item.orderId)}
+              status={item.status}
+              openedByMe={openedByMe}
+              heldAmount={order?.orderValue}
+              awaitingYou={myRole != null && myClaimedAt == null}
+              updatedAt={formatDateTime(item.updatedAt ?? item.createdAt)}
+              href={ROUTES.disputeDetail(item.id)}
+            />
+          )
+        }}
       />
     </Screen>
   )
