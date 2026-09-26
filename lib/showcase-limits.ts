@@ -9,5 +9,16 @@
  * ini ke `scripts/gen-api-constraints.mjs` dan tarik dari sana.
  */
 export const SHOWCASE_MAX_IMAGES = 8
+/** Benefit 7 Kahade+ ("custom etalase"): anggota aktif boleh memakai lebih banyak foto. */
+export const SHOWCASE_MAX_IMAGES_PLUS = 18
+
+/**
+ * Batas foto dinamis dari status langganan — SATU-SATUNYA cara menentukan
+ * limit di UI. Baca `useKahadePlus().isActive` di komponen, teruskan hasilnya
+ * ke sini; jangan membaca store dari fungsi non-hook ini.
+ */
+export function getShowcasePhotoLimit(isPlusActive: boolean): number {
+  return isPlusActive ? SHOWCASE_MAX_IMAGES_PLUS : SHOWCASE_MAX_IMAGES
+}
 /** S6: maks 5MB per foto — selaras backend `UploadPurpose.SHOWCASE_IMAGE`. */
 export const SHOWCASE_IMAGE_MAX_BYTES = 5 * 1024 * 1024

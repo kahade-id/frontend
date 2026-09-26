@@ -62,6 +62,13 @@ export const SecureKeys = {
    */
   lastNotificationResponse: "kahade.push.lastResponse",
   /**
+   * Pilihan tema eksklusif Kahade+ (id tema — lib/kahade-plus-theme.ts).
+   * Preferensi UI level perangkat seperti `themePreference`: boleh persist di
+   * web, dan TIDAK dihapus `clearSession()` (pilihan dikunci oleh status
+   * langganan saat dipakai, bukan saat disimpan — lihat effectiveThemeId).
+   */
+  kahadePlusTheme: "kahade.plus.theme",
+  /**
    * "1" bila user sudah melewati onboarding (slide intro). BUKAN rahasia —
    * pengecualian yang disengaja, sama seperti `deviceId`: repo ini tidak
    * memasang AsyncStorage dan SecureStore adalah satu-satunya storage
@@ -138,6 +145,7 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.lastNotificationResponse,
   SecureKeys.uiPrefs,
   SecureKeys.showcaseBookmarks,
+  SecureKeys.kahadePlusTheme,
 ])
 /**
  * D-07 (audit): apakah kunci ini BERTAHAN di web? Dipakai modul yang harus

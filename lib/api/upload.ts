@@ -7,7 +7,7 @@
  */
 import { assertDtoConstraints } from "@/lib/financial"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
-import { ApiError } from "@/lib/api/errors"
+import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES } from "@/lib/api/errors"
 import { safeHttpsUrl } from "@/lib/version"
 import { http, seg } from "@/lib/api/client"
 import type { CleanupFilesDto, ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
@@ -88,30 +88,87 @@ export async function uploadToPresignedUrl(
   if (signal?.aborted) controller.abort()
   let timer: ReturnType<typeof setTimeout> | undefined
   try {
-    const response = await Promise.race([
-      fetch(url, { method, body, headers, credentials: "omit", signal: controller.signal }),
-      new Promise<never>((_, reject) => {
-        timer = setTimeout(() => {
-          controller.abort()
-          reject(
-            new ApiError({
-              code: "TIMEOUT",
-              message: "Unggah terlalu lama. Periksa koneksi lalu coba kembali.",
-            }),
-          )
-        }, timeoutMs)
-      }),
-    ])
-    if (!response.ok)
-      throw new ApiError({
-        code: "SERVER",
-        status: response.status,
-        message: "Unggah berkas gagal. Silakan coba kembali.",
-      })
+    let response: Response
+    try {
+      response = await Promise.race([
+        fetch(url, { method, body, headers, credentials: "omit", signal: controller.signal }),
+        new Promise<never>((_, reject) => {
+          timer = setTimeout(() => {
+            controller.abort()
+            reject(
+              new ApiError({
+                code: "TIMEOUT",
+                message: "Unggah terlalu lama. Periksa koneksi lalu coba kembali.",
+              }),
+            )
+          }, timeoutMs)
+        }),
+      ])
+    } catch (err) {
+      // BUG #2: fetch yang gagal total (offline/DNS) sebelumnya lolos sebagai
+      // TypeError mentah → userMessage() menampilkan UNKNOWN yang generik.
+      if (err instanceof ApiError) throw err // TIMEOUT dari race di atas.
+      if ((err as { name?: string } | null)?.name === "AbortError")
+        throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
+      throw new ApiError({ code: "NETWORK", message: DEFAULT_ERROR_MESSAGES.NETWORK, cause: err })
+    }
+    if (!response.ok) throw await storageUploadError(response)
   } finally {
     clearTimeout(timer)
     signal?.removeEventListener("abort", abort)
   }
+}
+
+/**
+ * BUG #2 (2026-09-26): error PUT/POST ke object storage (R2/S3) sebelumnya
+ * dibuang dan diganti pesan generik "Unggah berkas gagal" — penyebab asli
+ * (mis. 403 SignatureDoesNotMatch) tak pernah terlacak. R2 menjawab error
+ * dengan XML `<Error><Code>…</Code><Message>…</Message></Error>`; kode itu
+ * sekarang diteruskan ke `ApiError.backendCode` (`R2_<Code>`) untuk
+ * diagnostik, dan dipetakan ke copy Indonesia yang bisa ditindaklanjuti user.
+ */
+function parseStorageErrorCode(bodyText: string): string | undefined {
+  const match = /<Code>([^<]{1,120})<\/Code>/i.exec(bodyText)
+  const code = match?.[1]?.trim()
+  return code || undefined
+}
+
+/** Copy Indonesia per kode error R2 yang umum saat PUT presigned gagal. */
+const STORAGE_ERROR_COPY: Record<string, string> = {
+  SignatureDoesNotMatch:
+    "Tanda tangan unggahan tidak cocok. Pilih ulang foto lalu coba unggah kembali.",
+  AccessDenied: "Akses ke penyimpanan ditolak. Coba lagi; bila berlanjut, hubungi bantuan.",
+  ExpiredToken: "Sesi unggah kedaluwarsa. Coba unggah ulang.",
+  EntityTooLarge: "Ukuran berkas melebihi batas penyimpanan.",
+  MaxMessageLengthExceeded: "Ukuran berkas melebihi batas penyimpanan.",
+  InvalidRequest: "Permintaan unggah tidak valid. Coba dengan foto lain.",
+  BadDigest: "Berkas rusak saat diunggah. Coba lagi.",
+  NoSuchBucket: "Tujuan penyimpanan tidak tersedia. Coba lagi nanti.",
+  InternalError: "Penyimpanan sedang gangguan. Coba lagi nanti.",
+  SlowDown: "Penyimpanan sedang sibuk. Tunggu sebentar lalu coba lagi.",
+}
+
+async function storageUploadError(response: Response): Promise<ApiError> {
+  const bodyText = await response.text().catch(() => "")
+  const storageCode = parseStorageErrorCode(bodyText)
+  const copy = (storageCode && STORAGE_ERROR_COPY[storageCode]) || undefined
+  return new ApiError({
+    // codeFromStatus: 4xx → FORBIDDEN/BAD_REQUEST/dsb. sehingga userMessage()
+    // menampilkan pesan informatif di bawah (bukan generik); 5xx → SERVER
+    // (pesan generik memang tepat untuk gangguan server).
+    code: codeFromStatus(response.status, false),
+    status: response.status,
+    backendCode: storageCode ? `R2_${storageCode}` : "R2_HTTP_ERROR",
+    message:
+      copy ??
+      `Unggah ke penyimpanan gagal (HTTP ${response.status}${
+        storageCode ? `, ${storageCode}` : ""
+      }). Coba lagi.`,
+    // Body XML bisa memuat fileKey di <Resource> — batasi panjangnya dan
+    // JANGAN tampilkan ke user (getter `raw` tidak ikut serialisasi).
+    raw: bodyText.slice(0, 2000) || undefined,
+    path: "object-storage",
+  })
 }
 export async function putToPresignedUrl(
   url: string,

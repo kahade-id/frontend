@@ -110,9 +110,16 @@ export type DisputeDetail = {
 function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
   const d = (raw ?? {}) as unknown as Record<string, unknown>
   const claimRaw = d.claim ?? d.reason ?? d.title ?? d.description
+  // DRIFT-03 (fix 2026-09-26): backend mengirim public order ID di nested
+  // `order.orderId` (bukan top-level) — baca sebagai fallback agar tombol
+  // "Lihat transaksi" tidak hilang.
+  const nestedOrder = d.order as Record<string, unknown> | undefined
   return {
     id: pickString(d, ["id", "disputeId", "dispute_id"]) ?? "",
-    orderId: pickString(d, ["orderId", "order_id", "transactionId", "transaction_id"]) ?? "",
+    orderId:
+      pickString(d, ["orderId", "order_id", "transactionId", "transaction_id"]) ??
+      pickString(nestedOrder ?? {}, ["orderId", "order_id"]) ??
+      "",
     status: pickString(d, ["status", "state"]) ?? "",
     claim: typeof claimRaw === "string" ? claimRaw : "",
     category: pickString(d, ["category"]) ?? null,

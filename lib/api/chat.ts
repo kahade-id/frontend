@@ -24,7 +24,8 @@ export type ChatRoom = {
   id: string
   counterpart?: {
     id: string
-    username: string
+    /** Nullable — registrasi via HP tidak wajib mengisi username. */
+    username: string | null
     fullName?: string
     avatarUrl?: string | null
     /** R1 (audit 2026-09-26): tier seal lawan bicara dari GET /v1/chat/rooms (otherUser.sealTier). */
@@ -122,6 +123,32 @@ function normalizeChatMessage(raw: ChatMessage & Record<string, unknown>): ChatM
   }
 }
 
+/**
+ * DRIFT-05 (fix 2026-09-26): backend mengirim `userId` (public user ID), bukan
+ * `id`; `username` nullable (registrasi via HP). Normalisasi di sini supaya
+ * tipe jujur — sebelumnya `counterpart.id` selalu `undefined` di runtime.
+ */
+function normalizeCounterpart(
+  other: Record<string, unknown> | undefined,
+  counterpart: Record<string, unknown> | undefined,
+  sealTier: SealTier | null,
+): ChatRoom["counterpart"] | undefined {
+  if (!other && !counterpart) return undefined
+  const merged = { ...other, ...counterpart }
+  const id =
+    typeof merged.id === "string" && merged.id
+      ? merged.id
+      : typeof merged.userId === "string"
+        ? merged.userId
+        : ""
+  return {
+    ...merged,
+    id,
+    username: typeof merged.username === "string" ? merged.username : null,
+    sealTier,
+  } as ChatRoom["counterpart"]
+}
+
 function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): ChatRoom {
   const other = raw.otherUser as (ChatRoom["counterpart"] & Record<string, unknown>) | undefined
   const last = raw.lastMessage as (ChatMessage & Record<string, unknown>) | null | undefined
@@ -133,22 +160,30 @@ function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): ChatRoom {
     ?? null
   return {
     ...raw,
-    // R1: hasil merge di-assert ke tipe counterpart — `other` datang dari
-    // `Record<string, unknown>` sehingga id/username terbaca opsional oleh
-    // TS; runtime tetap objek merge yang sama (tanpa perubahan perilaku).
-    counterpart: (raw.counterpart || other
-      ? { ...(other ?? {}), ...(raw.counterpart ?? {}), sealTier }
-      : undefined) as ChatRoom["counterpart"],
+    counterpart: normalizeCounterpart(
+      other as Record<string, unknown> | undefined,
+      raw.counterpart as Record<string, unknown> | undefined,
+      sealTier,
+    ),
     lastMessage: last ? normalizeChatMessage(last) : null,
     unreadCount: typeof raw.unreadCount === "number" ? raw.unreadCount : 0,
   }
 }
 
 export function listChatRooms(
-  options: { page?: number; limit?: number } = {},
+  options: { page?: number; limit?: number; archived?: boolean } = {},
   signal?: AbortSignal,
 ) {
-  const query = { page: options.page ?? 1, limit: options.limit ?? CHAT_PAGE_SIZE }
+  const query: Record<string, number | boolean> = {
+    page: options.page ?? 1,
+    limit: options.limit ?? CHAT_PAGE_SIZE,
+  }
+  // B4 (fix 2026-09-26): backend memfilter arsip SERVER-SIDE — tanpa
+  // `archived=true`, room terarsip tidak pernah dikembalikan
+  // (ParseBoolPipe di GET /v1/chat/rooms). Tab "Diarsipkan" wajib memakai
+  // query terpisah dengan param ini; JANGAN filter arsip client-side dari
+  // query utama (itu yang membuat arsip "menguap" tiap refetch).
+  if (options.archived !== undefined) query.archived = options.archived
   return http
     .get<unknown>("/v1/chat/rooms", {
       query,

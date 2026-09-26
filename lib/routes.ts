@@ -333,6 +333,12 @@ export const ROUTES = {
     }) as unknown as Href,
   /** Langganan premium */
   subscriptions: "/subscriptions" as Href,
+  /** Kahade+ — kontrak API baru: daftar paket + alur berlangganan */
+  kahadePlusPlans: "/kahade-plus/plans" as Href,
+  /** Kahade+ — kontrak API baru: status & kelola langganan */
+  kahadePlusManage: "/kahade-plus/manage" as Href,
+  /** Kahade+ — kontrak API baru: pemilih tema eksklusif */
+  kahadePlusTheme: "/kahade-plus/theme" as Href,
   /** Referral */
   referral: "/referral" as Href,
   /** Ulasan saya (GET /v1/ratings/my) */

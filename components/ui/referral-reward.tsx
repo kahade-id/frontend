@@ -48,8 +48,14 @@ export const REFERRAL_REWARD_STATUS_LABELS: Record<ReferralRewardStatus, string>
 }
 
 export type ReferralRewardListItemProps = Omit<ListItemProps, "title" | "subtitle" | "leading" | "trailing"> & {
-  /** Nama orang yang diundang */
-  referredName: string
+  /**
+   * Nama orang yang diundang.
+   *
+   * DRIFT-REF-02 (2026-09-26): opsional — backend `GET /v1/referral/rewards`
+   * tidak mengirim nama/kode orang yang diundang. Tanpa nama, judul menjadi
+   * "Hadiah undangan" saja.
+   */
+  referredName?: string
   amount: number
   status: ReferralRewardStatus | string
   /** Sudah diformat (§13) */
@@ -69,11 +75,15 @@ export function ReferralRewardListItem({
   const credited = status === "CREDITED"
   const cancelled = status === "CANCELLED"
   const statusLabel = t[status as ReferralRewardStatus] ?? status
+  // DRIFT-REF-02: tanpa nama orang yang diundang, judul generik saja.
+  const title = referredName
+    ? translate("Hadiah undangan \u00B7 {x}", { x: referredName })
+    : translate("Hadiah undangan")
 
   return (
     <ListItem
       leading={<IconBox icon={Gift} size="md" variant={credited ? "success" : "surface"} />}
-      title={translate("Hadiah undangan \u00B7 {x}", { x: referredName })}
+      title={title}
       subtitle={
         <View className="flex-row flex-wrap items-center gap-2 tabular-nums">
           <Text variant="caption" tone="secondary">
@@ -95,7 +105,7 @@ export function ReferralRewardListItem({
           className={cn(cancelled && "line-through")}
         />
       }
-      accessibilityLabel={translate("Hadiah undangan {x}, {y}, {z}", { x: referredName, y: statusLabel, z: date })}
+      accessibilityLabel={translate("{x}, {y}, {z}", { x: title, y: statusLabel, z: date })}
       {...rest}
     />
   )

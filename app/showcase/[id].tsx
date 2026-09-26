@@ -36,6 +36,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ROUTES } from "@/lib/routes"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
+import { showcaseHtmlHasFormatting } from "@/lib/showcase-html"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -64,6 +65,7 @@ import { ShowcaseAuthorRow } from "@/components/showcase-author-row"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
+import { ShowcaseHtmlView } from "@/components/ui/showcase-html-description-editor"
 import { ShowcaseDetailComments } from "@/components/showcase-detail-comments"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
@@ -227,7 +229,10 @@ function ShowcaseDetailContent({
     setMeUsername(null)
     if (hasSession) void api.users.getMeCached().then((me) => {
       if (alive) {
-        setMeId(me.id ?? null)
+        // BUG#1 (2026-09-26): meId dipakai untuk dibandingkan dengan
+        // author.userId (public USR-XXX dari backend) — pakai me.userId,
+        // BUKAN me.id (cuid internal) yang tidak pernah cocok.
+        setMeId(me.userId ?? me.id ?? null)
         setMeUsername(me.username ?? null)
       }
     }).catch(() => { if (alive) { setMeId(null); setMeUsername(null) } })
@@ -708,9 +713,17 @@ function ShowcaseDetailContent({
       </View>
 
       {item.description ? (
-        <Text variant="body" tone="primary" className="px-5 pt-1">
-          {item.description}
-        </Text>
+        showcaseHtmlHasFormatting(item.description) ? (
+          /* Benefit 7 Kahade+: deskripsi HTML anggota Plus di-render
+             tersanitasi via <ShowcaseHtmlView> — JANGAN render mentah. */
+          <View className="px-5 pt-1">
+            <ShowcaseHtmlView html={item.description} />
+          </View>
+        ) : (
+          <Text variant="body" tone="primary" className="px-5 pt-1">
+            {item.description}
+          </Text>
+        )
       ) : null}
 
       {/* Separator atas aksi — inset mx-5, bukan full */}

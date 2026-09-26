@@ -1216,7 +1216,7 @@ export default function ChatRoomScreen() {
       <ChatRoomMenu
         open={roomMenuOpen}
         room={room}
-        counterpartUsername={counterpartUsername}
+        counterpartUsername={counterpartUsername ?? undefined}
         onClose={() => setRoomMenuOpen(false)}
         onSearch={openSearch}
         onRoomChange={(patch) => setRoom((prev) => (prev ? { ...prev, ...patch } : prev))}

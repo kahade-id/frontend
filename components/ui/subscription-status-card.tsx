@@ -41,7 +41,7 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { hasOwn } from "@/lib/has-own"
 
-export type SubscriptionPeriod = "MONTHLY" | "ANNUAL"
+export type SubscriptionPeriod = "MONTHLY" | "YEARLY"
 import { SUBSCRIPTION_STATUS_LABELS, type SubscriptionStatus } from "@/lib/labels/status"
 
 export type { SubscriptionStatus }

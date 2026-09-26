@@ -35,6 +35,12 @@ import type { SealTier } from "@/components/ui/verified-seal"
 /** Profil user — subset field yang dipakai UI. */
 export type UserProfile = {
   id: string
+  /**
+   * Public user ID format USR-XXXXXXXX (dikirim GET /v1/users/me).
+   * BUG#1: dipakai untuk pencocokan peran — JANGAN pakai `id` (cuid internal)
+   * untuk dibandingkan dengan buyer/seller.id order (public namespace).
+   */
+  userId?: string
   fullName?: string
   username?: string | null
   email?: string
@@ -275,6 +281,17 @@ export function getUserByUsername(username: string, signal?: AbortSignal) {
     .then((raw) => {
       const profile = readEntity<Record<string, unknown>>(raw, "user")
       const stats = asRecord(profile.stats)
+      // BUG#5: backend (sejak redesign commit 8224427) mengirim profil publik
+      // sebagai section NESTED (identity/about/contact) — baca dari sana,
+      // bukan dari key flat kontrak lama yang sudah tidak dikirim.
+      const about = asRecord(profile.about) ?? {}
+      const contact = asRecord(profile.contact) ?? {}
+      const contactEmail =
+        firstString(profile, ["contactEmail", "contact_email"]) ??
+        firstString(contact, ["email"])
+      const contactPhone =
+        firstString(profile, ["contactPhone", "contact_phone"]) ??
+        firstString(contact, ["phone"])
       return {
         ...profile,
         // `pickUserId` memindai `id`/`userId`/`_id` dan satu tingkat sarang
@@ -287,16 +304,25 @@ export function getUserByUsername(username: string, signal?: AbortSignal) {
         verified: profile.verified ?? profile.isKycVerified,
         trustScore: profile.trustScore ?? stats?.trustScore,
         rating: profile.rating ?? stats?.rating,
-        createdAt: profile.createdAt ?? profile.created_at,
+        createdAt:
+          profile.createdAt ??
+          profile.created_at ??
+          firstString(about, ["memberSince", "member_since"]),
         avatarUrl: firstString(profile, ["avatarUrl", "avatar_url", "avatar"]),
         headerUrl: firstString(profile, ["headerUrl", "header_url", "headerImage", "coverUrl"]),
-        // Kontak PUBLIK — backend hanya mengirimnya bila pemilik mengaktifkan
-        // "tampilkan di profil" (showContact*). Flag ikut dibaca sebagai
-        // pengaman: UI tidak boleh menampilkan kontak bila flag=false.
-        contactEmail: firstString(profile, ["contactEmail", "contact_email"]),
-        contactPhone: firstString(profile, ["contactPhone", "contact_phone"]),
-        showContactEmail: firstBoolean(profile, ["showContactEmail", "show_contact_email"]),
-        showContactPhone: firstBoolean(profile, ["showContactPhone", "show_contact_phone"]),
+        // Kontak PUBLIK — backend hanya mengirim contact.email/phone bila
+        // pemilik mengaktifkan "tampilkan di profil" (showContact*), jadi
+        // keberadaan nilainya sendiri adalah sinyal publik. Flag eksplisit
+        // tetap dibaca bila backend mengirimnya; UI menyembunyikan kontak
+        // bila flag=false (lihat ProfileAboutTab).
+        contactEmail,
+        contactPhone,
+        showContactEmail:
+          firstBoolean(profile, ["showContactEmail", "show_contact_email"]) ??
+          (contactEmail != null ? true : undefined),
+        showContactPhone:
+          firstBoolean(profile, ["showContactPhone", "show_contact_phone"]) ??
+          (contactPhone != null ? true : undefined),
       } as PublicUserProfile
     })
 }
@@ -753,6 +779,16 @@ export type QuestionListResponse =
       data: QuestionItem[]
       meta?: { page: number; limit: number; total: number; totalPages: number }
     }
+  | {
+      /** Bentuk lama/konvensi readList — tetap dibaca `readQuestionList`. */
+      questions: QuestionItem[]
+      meta?: { page: number; limit: number; total: number; totalPages: number }
+    }
+  | {
+      /** Konvensi readList `{ items: [...] }`. */
+      items: QuestionItem[]
+      meta?: { page: number; limit: number; total: number; totalPages: number }
+    }
 
 /** Ambil array pertama dari kunci-kunci kandidat; undefined bila tak ada. */
 function firstArray(source: Record<string, unknown>, keys: readonly string[]): unknown[] | undefined {
@@ -770,12 +806,31 @@ function readTotalPages(record: Record<string, unknown>): number | undefined {
   return typeof value === "number" ? value : undefined
 }
 
+/**
+ * BUG#5: backend mengirim teks pertanyaan sebagai `content`
+ * (profile-qa.service.ts: `content: q.question`), sedangkan tipe QuestionItem
+ * dan seluruh UI memakai `question`. Normalisasi di SATU titik ini supaya
+ * QACard, daftar "Utas", dan "Pertanyaan saya" menerima bentuk konsisten.
+ */
+function normalizeQuestionItem(item: unknown): QuestionItem {
+  const record = asRecord(item) ?? {}
+  const rawQuestion = record.question
+  const rawContent = record.content
+  const question =
+    typeof rawQuestion === "string" && rawQuestion.trim()
+      ? rawQuestion
+      : typeof rawContent === "string"
+        ? rawContent
+        : ""
+  return { ...(record as object), question } as QuestionItem
+}
+
 export function readQuestionList(body: QuestionListResponse | null | undefined): {
   items: QuestionItem[]
   totalPages?: number
 } {
   if (!body) return { items: [] }
-  if (Array.isArray(body)) return { items: body }
+  if (Array.isArray(body)) return { items: body.map(normalizeQuestionItem) }
   const record = body as unknown as Record<string, unknown>
   /**
    * Cacat nyata (list profil tampil kosong padahal user punya pertanyaan):
@@ -785,7 +840,7 @@ export function readQuestionList(body: QuestionListResponse | null | undefined):
    * tanpa error, jadi EmptyState dirender di atas data yang sebenarnya ada.
    */
   const list = firstArray(record, ["questions", "data", "items"])
-  if (list) return { items: list as QuestionItem[], totalPages: readTotalPages(record) }
+  if (list) return { items: list.map(normalizeQuestionItem), totalPages: readTotalPages(record) }
   const nested = asRecord(record.data)
   if (nested) return readQuestionList(nested as QuestionListResponse)
   return { items: [] }

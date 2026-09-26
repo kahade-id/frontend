@@ -64,14 +64,8 @@ export default function ReferralScreen() {
   const query = useApiQuery<{
     code: string
     stats: { totalReferred: number; qualified: number; totalReward: number } | null
-    history: Array<{
-      id: string
-      invitedUsername: string
-      status: string
-      reward?: number
-      createdAt: string
-    }>
-    rewards: Array<{ id: string; code: string; amount: number; status: string; createdAt: string }>
+    history: import("@/lib/api/referrals").ReferralHistoryEntry[]
+    rewards: import("@/lib/api/referrals").ReferralReward[]
   }>("referral", async (signal) => {
     const [c, s, h, r] = await Promise.all([
       api.referrals.getMyReferralCode(signal),
@@ -304,7 +298,6 @@ export default function ReferralScreen() {
                 {rewards.map((r) => (
                   <ReferralRewardListItem
                     key={r.id}
-                    referredName={r.code}
                     amount={r.amount}
                     status={r.status}
                     date={formatDateTime(r.createdAt)}

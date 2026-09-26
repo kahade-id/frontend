@@ -26,6 +26,7 @@
 import { http, seg } from "./client"
 import { readList, asRecord, invalidResponse } from "./response"
 import { translate } from "@/lib/i18n/translate"
+import { logWarn } from "@/lib/telemetry"
 import type { SealTier } from "@/components/ui/verified-seal"
 
 /** Tier seal yang valid dari backend (`sealTier`); nilai lain dibuang. */
@@ -186,7 +187,17 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
         throw invalidResponse("showcase:cursor")
       }
       return {
-        items: readList<unknown>(record, ["items"]).map(parseShowcaseItem),
+        // DRIFT-04 (fix 2026-09-26): SATU item buruk tidak boleh meruntuhkan
+        // seluruh halaman feed — lewati per-item (pola sama seperti `related`
+        // di parseShowcaseItem).
+        items: readList<unknown>(record, ["items"]).flatMap((rawItem) => {
+          try {
+            return [parseShowcaseItem(rawItem)]
+          } catch (err) {
+            logWarn("showcase:feed:skip-item", err)
+            return []
+          }
+        }),
         sort: record.sort === "popular" ? "popular" : "latest",
         limit: typeof record.limit === "number" ? record.limit : 20,
         hasMore: record.hasMore === true,
@@ -408,9 +419,18 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
   const value = asRecord(raw)
   const author = asRecord(value?.author)
   if (!value || typeof value.id !== "string" || !value.id ||
-      !author || typeof author.userId !== "string" || typeof author.username !== "string") {
+      !author || typeof author.userId !== "string") {
     throw invalidResponse("showcase:item")
   }
+  // DRIFT-04 (fix 2026-09-26): `author.username` NULLABLE di DB (registrasi via
+  // HP) — jangan lempar untuk satu field null; fallback berlapis supaya tipe
+  // `username: string` tetap terpenuhi dan UI tidak render "@null".
+  const authorUsername =
+    typeof author.username === "string" && author.username
+      ? author.username
+      : typeof author.fullName === "string" && author.fullName
+        ? author.fullName
+        : author.userId
   const count = (v: unknown) => typeof v === "number" && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0
   const str = (v: unknown): string | null => (typeof v === "string" ? v : null)
   const num = (v: unknown): number | null =>
@@ -456,7 +476,7 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
     priceMax: num(value.priceMax),
     author: {
       userId: author.userId,
-      username: author.username,
+      username: authorUsername,
       fullName: typeof author.fullName === "string" ? author.fullName : null,
       avatarUrl: str(author.avatarUrl),
       membershipRank: str(author.membershipRank),
@@ -497,9 +517,17 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
   const value = asRecord(raw)
   const author = asRecord(value?.author)
   if (!value || typeof value.id !== "string" || typeof value.content !== "string" ||
-      !author || typeof author.userId !== "string" || typeof author.username !== "string") {
+      !author || typeof author.userId !== "string") {
     throw invalidResponse("showcase:comment")
   }
+  // DRIFT-04 (fix 2026-09-26): pola sama seperti parseShowcaseItem — username
+  // nullable di DB; fallback berlapis agar satu komentar tidak meruntuhkan list.
+  const commentAuthorUsername =
+    typeof author.username === "string" && author.username
+      ? author.username
+      : typeof author.fullName === "string" && author.fullName
+        ? author.fullName
+        : author.userId
   const reason = value.hiddenReason
   return {
     id: value.id,
@@ -521,7 +549,7 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
         : undefined,
     author: {
       userId: author.userId,
-      username: author.username,
+      username: commentAuthorUsername,
       fullName: typeof author.fullName === "string" ? author.fullName : null,
       avatarUrl: typeof author.avatarUrl === "string" ? author.avatarUrl : null,
     },

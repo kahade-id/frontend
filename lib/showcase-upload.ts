@@ -1,6 +1,6 @@
 /** Upload-only workflow. Never fall back to a legacy endpoint that auto-publishes an item. */
 import { api } from "@/lib/api"
-import { ApiError } from "@/lib/api/errors"
+import { ApiError, isApiError } from "@/lib/api/errors"
 import type { PickedImage } from "@/lib/image-picker"
 import { pickedImageToBlob } from "@/lib/image-picker"
 import { logWarn } from "@/lib/telemetry"
@@ -41,8 +41,17 @@ export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSign
   } catch (error) {
     // No file is attached in this workflow: compensating cleanup is safe even after confirm.
     if (fileKey) await cleanupPendingShowcaseKeys([fileKey])
+    // BUG #2: telemetri sebelumnya memakai pesan generik "failed" sehingga
+    // penyebab (mis. R2 SignatureDoesNotMatch) tak terlacak. Sertakan
+    // code:status:backendCode — aman karena tidak memuat nama file, URL,
+    // maupun fileKey (lihat komentar redaksi di bawah).
+    const diag = isApiError(error)
+      ? `${error.code}${error.status ? `:${error.status}` : ""}${
+          error.backendCode ? `:${error.backendCode}` : ""
+        }`
+      : "unknown"
     // Deliberately omit file names, signed URLs and keys from telemetry.
-    logWarn(`showcase:upload:${stage}`, new Error(signal?.aborted ? "cancelled" : "failed"))
+    logWarn(`showcase:upload:${stage}:${diag}`, new Error(signal?.aborted ? "cancelled" : "failed"))
     throw error
   }
 }

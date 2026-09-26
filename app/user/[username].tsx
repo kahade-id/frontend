@@ -57,6 +57,7 @@ import { logWarn } from "@/lib/telemetry"
 import { Avatar } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { VerifiedSeal, VerificationSheet, getSealTier } from "@/components/ui/verified-seal"
+import { GreyCheckBadge } from "@/components/ui/grey-check-badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { Button } from "@/components/ui/button"
@@ -165,6 +166,9 @@ export default function UserProfileScreen() {
   // Profile data state
   const [profile, setProfile] = useState<PublicUserProfile | null>(null)
   const [meId, setMeId] = useState<string | null>(null)
+  // BUG#1 (2026-09-26): public USR-XXX untuk perbandingan dengan profile.id
+  // (public namespace). meId tetap cuid internal (dipakai untuk authorId).
+  const [meUserId, setMeUserId] = useState<string | null>(null)
   const [meUsername, setMeUsername] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -254,7 +258,7 @@ export default function UserProfileScreen() {
 
   const handle = profile?.username ?? username
   const isSelf = Boolean(
-    (meId && profile?.id && meId === profile.id) ||
+    (meUserId && profile?.id && meUserId === profile.id) ||
       (meUsername &&
         (username.toLowerCase() === meUsername.toLowerCase() ||
           (profile?.username && profile.username.toLowerCase() === meUsername.toLowerCase()))),
@@ -345,6 +349,7 @@ export default function UserProfileScreen() {
       if (!current()) return
       setProfile(res)
       setMeId(me?.id ?? null)
+      setMeUserId(me?.userId ?? null)
       setMeUsername(me?.username ?? null)
       const targetName = res.username ?? username
 
@@ -896,6 +901,12 @@ export default function UserProfileScreen() {
                 </Text>
                 {/* Seal-check 3 tier (emas/biru/abu) — ketuk untuk detail. */}
                 <VerifiedSeal badges={badges} verified={profile.verified} size={18} />
+                {/*
+                 * Benefit 2 Kahade+ ("centang abu"): lencana keanggotaan Plus
+                 * MILIK VIEWER — hanya di profil sendiri (isSelf), tidak di
+                 * profil orang lain. <VerifiedSeal> di atas tidak diubah.
+                 */}
+                {isSelf ? <GreyCheckBadge size={18} /> : null}
               </View>
 
               {/* Badge verifikasi aktif — ketuk untuk melihat keterangan tiap badge. */}

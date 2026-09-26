@@ -24,7 +24,10 @@ import { api, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
 import { validImageOrder, showcaseIsHidden } from "@/lib/showcase-state"
-import { SHOWCASE_MAX_IMAGES } from "@/lib/showcase-limits"
+import { getShowcasePhotoLimit } from "@/lib/showcase-limits"
+import { useKahadePlus } from "@/lib/use-kahade-plus"
+import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
+import { sanitizeShowcaseHtml } from "@/lib/showcase-html"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { getSessionRevision } from "@/lib/api/session"
@@ -171,6 +174,14 @@ function ShowcaseManagement() {
   const [deleting, setDeleting] = useState(false)
   const [toggling, setToggling] = useState(false)
 
+  /**
+   * Benefit 7 Kahade+ ("custom etalase"): anggota aktif mendapat editor
+   * deskripsi HTML + limit 18 foto (bukan 8). Status dibaca dari
+   * `useKahadePlus()` — satu-satunya sumber status langganan di UI.
+   */
+  const { isActive: isPlusActive } = useKahadePlus()
+  const photoLimit = getShowcasePhotoLimit(isPlusActive)
+
   /** Daftar karya yang di-soft-delete (lokal, untuk dipulihkan dalam 30 hari). */
   const [deletedItems, setDeletedItems] = useState<DeletedShowcaseItem[]>([])
   const [restoringId, setRestoringId] = useState<string | null>(null)
@@ -302,6 +313,9 @@ function ShowcaseManagement() {
     saveBusy.current = true
     setSaving(true)
     const payload = { title, ...formToPayload(form) }
+    // Benefit 7 Kahade+: deskripsi HTML disanitasi allowlist SEBELUM dikirim —
+    // jangan pernah mengirim HTML mentah ketikan user ke backend.
+    if (isPlusActive) payload.description = sanitizeShowcaseHtml(payload.description)
     try {
       await api.users.updateShowcase(editor.item.id, payload)
       if (!mounted.current || revision !== getSessionRevision()) return
@@ -316,7 +330,7 @@ function ShowcaseManagement() {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
     }
-  }, [editor, form, toast, query, touchFeed, revision])
+  }, [editor, form, toast, query, touchFeed, revision, isPlusActive])
 
   const handleToggleActive = useCallback(
     async (item: ShowcaseItem) => {
@@ -410,7 +424,7 @@ function ShowcaseManagement() {
    */
   const handleAttachImage = useCallback(async (item: ShowcaseItem) => {
     if (uploadBusy.current || committingOrder || deletingImage) return
-    const slots = SHOWCASE_MAX_IMAGES - (item.images?.length ?? 0)
+    const slots = photoLimit - (item.images?.length ?? 0)
     if (slots <= 0) return
     const task = mutations.begin()
     if (!task) return
@@ -459,7 +473,7 @@ function ShowcaseManagement() {
       if (uploadAbort.current === controller) uploadAbort.current = null
       if (task.valid()) setAttaching(false)
     }
-  }, [committingOrder, deletingImage, toast, query, touchFeed, mutations])
+  }, [committingOrder, deletingImage, toast, query, touchFeed, mutations, photoLimit])
 
   // ── D-10: reorder foto — draft lokal, SATU commit saat sheet tutup ──
   const openImagesSheet = useCallback((item: ShowcaseItem) => {
@@ -653,7 +667,7 @@ function ShowcaseManagement() {
                     // setelah membuka editor galeri; sekarang tampil di sel.
                     meta: translate("{x}/{y} foto", {
                       x: it.images?.length ?? 0,
-                      y: SHOWCASE_MAX_IMAGES,
+                      y: photoLimit,
                     }),
                   }
                 })}
@@ -750,7 +764,7 @@ function ShowcaseManagement() {
         title={imagesItem ? translate("Foto: {x}", { x: labelOf(imagesItem) }) : "Foto karya"}
         description={translate("{x} dari {y} foto. Foto pertama menjadi cover karya.", {
           x: imagesItem?.images?.length ?? 0,
-          y: SHOWCASE_MAX_IMAGES,
+          y: photoLimit,
         })}
         footer={
           <Button
@@ -758,7 +772,7 @@ function ShowcaseManagement() {
             fullWidth
             variant="secondary"
             loading={attaching}
-            disabled={committingOrder || deletingImage || (imagesItem?.images?.length ?? 0) >= SHOWCASE_MAX_IMAGES}
+            disabled={committingOrder || deletingImage || (imagesItem?.images?.length ?? 0) >= photoLimit}
             onPress={() => imagesItem && void handleAttachImage(imagesItem)}
           >
             Tambah foto
@@ -874,15 +888,31 @@ function ShowcaseManagement() {
             required
             disabled={saving}
           />
-          <TextArea
-            label="Deskripsi"
-            value={form.description}
-            onChangeText={(t) => setForm((f) => ({ ...f, description: t }))}
-            maxLength={DESC_MAX}
-            showCount
-            rows={3}
-            disabled={saving}
-          />
+          {/*
+           * Benefit 7 Kahade+ ("custom etalase"): anggota aktif mendapat
+           * editor deskripsi HTML (dengan pratinjau tersanitasi); pengguna
+           * biasa tetap plaintext.
+           */}
+          {isPlusActive ? (
+            <ShowcaseHtmlDescriptionEditor
+              label="Deskripsi"
+              value={form.description}
+              onChangeText={(t) => setForm((f) => ({ ...f, description: t }))}
+              maxLength={DESC_MAX}
+              hint={translate("Eksklusif Kahade+: format teks dengan HTML ringan.")}
+              disabled={saving}
+            />
+          ) : (
+            <TextArea
+              label="Deskripsi"
+              value={form.description}
+              onChangeText={(t) => setForm((f) => ({ ...f, description: t }))}
+              maxLength={DESC_MAX}
+              showCount
+              rows={3}
+              disabled={saving}
+            />
+          )}
           {/* D-02: kategori (kontrak menganggur sebelum audit) — S4: saran populer */}
           <ShowcaseCategoryInput
             label={translate("Kategori (opsional)")}

@@ -86,7 +86,11 @@ export default function OrderLinkScreen() {
   const isOwnLink =
     link != null &&
     meQuery.data != null &&
-    ((link.creator?.id != null && link.creator.id === meQuery.data.id) ||
+    // BUG#1 (2026-09-26): creator.id dinormalisasi dari `userId` backend
+    // (public USR-XXX) — bandingkan dengan `me.userId`, BUKAN `me.id` (cuid).
+    ((link.creator?.id != null &&
+      meQuery.data.userId != null &&
+      link.creator.id === meQuery.data.userId) ||
       (link.creator?.username != null &&
         meQuery.data.username != null &&
         link.creator.username.toLowerCase() === meQuery.data.username.toLowerCase()))

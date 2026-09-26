@@ -47,7 +47,10 @@ import { getSessionRevision } from "@/lib/api/session"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { pickImages, type PickedImage } from "@/lib/image-picker"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
-import { SHOWCASE_MAX_IMAGES, SHOWCASE_IMAGE_MAX_BYTES } from "@/lib/showcase-limits"
+import { SHOWCASE_IMAGE_MAX_BYTES, getShowcasePhotoLimit } from "@/lib/showcase-limits"
+import { useKahadePlus } from "@/lib/use-kahade-plus"
+import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
+import { sanitizeShowcaseHtml } from "@/lib/showcase-html"
 import { cleanupPendingShowcaseKeys, uploadShowcasePhoto } from "@/lib/showcase-upload"
 import {
   saveShowcaseDraft,
@@ -103,6 +106,13 @@ const EMPTY_FORM: FormState = {
 type Preview = { fileKey: string; asset: PickedImage }
 
 /**
+ * BUG #2 (2026-09-26): kegagalan per-foto sebelumnya hanya menyimpan asset
+ * tanpa alasan — user tidak pernah tahu kenapa gagal. Sekarang pesan error
+ * asli (dari userMessage) ikut disimpan agar bisa ditampilkan.
+ */
+type FailedPhoto = { asset: PickedImage; message: string }
+
+/**
  * Harga minimum TANPA harga maksimum berarti HARGA PASTI.
  *
  * Kolom formnya memang dua ("minimum" & "maksimum"), tetapi penjual yang
@@ -142,7 +152,7 @@ export default function ShowcaseCreateScreen() {
   const [photoError, setPhotoError] = useState<string | undefined>()
   const [priceError, setPriceError] = useState<string | undefined>()
   const [previews, setPreviews] = useState<Preview[]>([])
-  const [failedAssets, setFailedAssets] = useState<PickedImage[]>([])
+  const [failedAssets, setFailedAssets] = useState<FailedPhoto[]>([])
   const [uploading, setUploading] = useState(false)
   const [progress, setProgress] = useState("")
   // S6: progres 0..1 untuk ProgressBar (upload konkuren).
@@ -202,6 +212,14 @@ export default function ShowcaseCreateScreen() {
   const saveBusy = useRef(false)
   const mounted = useRef(true)
   const pendingNavigation = useRef<NavigationAction | null>(null)
+
+  /**
+   * Benefit 7 Kahade+ ("custom etalase"): anggota aktif mendapat editor
+   * deskripsi HTML + limit 18 foto (bukan 8). Status dibaca dari
+   * `useKahadePlus()` — satu-satunya sumber status langganan di UI.
+   */
+  const { isActive: isPlusActive } = useKahadePlus()
+  const photoLimit = getShowcasePhotoLimit(isPlusActive)
 
   useEffect(() => {
     mounted.current = true
@@ -267,12 +285,12 @@ export default function ShowcaseCreateScreen() {
   // ── Pilih & unggah foto ─────────────────────────────────────────────
   const handlePickPhotos = useCallback(async () => {
     if (uploadBusy.current || saveBusy.current) return
-    const slots = SHOWCASE_MAX_IMAGES - previews.length
+    const slots = photoLimit - previews.length
     if (slots <= 0) {
       toast.show({
         title: translate("Foto sudah penuh"),
         description: translate("Satu karya dapat memuat paling banyak {x} foto.", {
-          x: SHOWCASE_MAX_IMAGES,
+          x: photoLimit,
         }),
         tone: "info",
       })
@@ -282,7 +300,7 @@ export default function ShowcaseCreateScreen() {
     const controller = new AbortController()
     uploadAbort.current = controller
     const uploaded: Preview[] = []
-    const failures: PickedImage[] = []
+    const failures: FailedPhoto[] = []
     try {
       const picked = await pickImages({ selectionLimit: slots })
       if (picked.status === "denied") {
@@ -331,9 +349,11 @@ export default function ShowcaseCreateScreen() {
           try {
             const outcome = await uploadShowcasePhoto(asset, controller.signal)
             uploaded.push({ fileKey: outcome.fileKey, asset })
-          } catch {
+          } catch (err) {
             if (controller.signal.aborted) throw new Error("aborted")
-            failures.push(asset)
+            // BUG #2: sebelumnya hanya asset yang disimpan tanpa pesan —
+            // user tidak pernah tahu penyebab gagalnya.
+            failures.push({ asset, message: userMessage(err) })
           } finally {
             bump()
           }
@@ -343,6 +363,28 @@ export default function ShowcaseCreateScreen() {
       if (controller.signal.aborted || revision !== getSessionRevision()) {
         void cleanupPendingShowcaseKeys(uploaded.map((entry) => entry.fileKey))
         return
+      }
+      // BUG #2: kegagalan per-foto sebelumnya ditelan tanpa toast; bila SEMUA
+      // foto gagal, Promise.all tetap resolve sehingga toast error luar tidak
+      // pernah muncul. Tampilkan ringkasan dengan pesan asli error pertama.
+      if (failures.length > 0 && mounted.current) {
+        const detail = failures[0].message
+        if (uploaded.length === 0) {
+          toast.show({
+            title: translate("Gagal mengunggah foto"),
+            description: detail,
+            tone: "danger",
+          })
+        } else {
+          toast.show({
+            title: translate("{x} dari {y} foto gagal diunggah", {
+              x: failures.length,
+              y: picked.assets.length,
+            }),
+            description: detail,
+            tone: "warning",
+          })
+        }
       }
       const next = [...previews, ...uploaded]
       pendingKeys.current = next.map((entry) => entry.fileKey)
@@ -362,7 +404,7 @@ export default function ShowcaseCreateScreen() {
         setProgress("")
       }
     }
-  }, [previews, revision, toast])
+  }, [previews, revision, toast, photoLimit])
 
   const retryFailedPhotos = useCallback(async () => {
     if (uploadBusy.current || saveBusy.current || failedAssets.length === 0) return
@@ -371,9 +413,9 @@ export default function ShowcaseCreateScreen() {
     const controller = new AbortController()
     uploadAbort.current = controller
     const next = [...previews]
-    const failures: PickedImage[] = []
+    const failures: FailedPhoto[] = []
     try {
-      for (const [index, asset] of failedAssets.entries()) {
+      for (const [index, failed] of failedAssets.entries()) {
         setProgress(
           translate("Mengunggah foto {x} dari {y}", {
             x: index + 1,
@@ -381,10 +423,11 @@ export default function ShowcaseCreateScreen() {
           }),
         )
         try {
-          const result = await uploadShowcasePhoto(asset, controller.signal)
-          next.push({ fileKey: result.fileKey, asset })
-        } catch {
-          failures.push(asset)
+          const result = await uploadShowcasePhoto(failed.asset, controller.signal)
+          next.push({ fileKey: result.fileKey, asset: failed.asset })
+        } catch (err) {
+          // BUG #2: pola yang sama — simpan pesan asli agar user tahu penyebabnya.
+          failures.push({ asset: failed.asset, message: userMessage(err) })
         }
       }
       if (!mounted.current || revision !== getSessionRevision()) {
@@ -395,6 +438,13 @@ export default function ShowcaseCreateScreen() {
       setPreviews(next)
       setPhotoError(undefined)
       setFailedAssets(failures)
+      if (failures.length > 0 && mounted.current && !controller.signal.aborted) {
+        toast.show({
+          title: translate("Masih ada foto yang gagal diunggah"),
+          description: failures[0].message,
+          tone: "warning",
+        })
+      }
     } finally {
       uploadBusy.current = false
       uploadAbort.current = null
@@ -455,6 +505,9 @@ export default function ShowcaseCreateScreen() {
     saveBusy.current = true
     setSaving(true)
     const payload = { title, ...formToPayload(form) }
+    // Benefit 7 Kahade+: deskripsi HTML disanitasi allowlist SEBELUM dikirim —
+    // jangan pernah mengirim HTML mentah ketikan user ke backend.
+    if (isPlusActive) payload.description = sanitizeShowcaseHtml(payload.description)
     try {
       // Idempotency-Key: mengirim ulang setelah timeout memakai kunci yang
       // SAMA, jadi karya tidak tercatat dua kali.
@@ -486,7 +539,7 @@ export default function ShowcaseCreateScreen() {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
     }
-  }, [failedAssets.length, form, previews, revision, toast])
+  }, [failedAssets.length, form, previews, revision, toast, isPlusActive])
 
   const busy = uploading || saving
 
@@ -524,9 +577,9 @@ export default function ShowcaseCreateScreen() {
               previews.length
                 ? translate("Foto pertama menjadi cover · {x}/{y} foto", {
                     x: previews.length,
-                    y: SHOWCASE_MAX_IMAGES,
+                    y: photoLimit,
                   })
-                : translate("Paling banyak {x} foto", { x: SHOWCASE_MAX_IMAGES })
+                : translate("Paling banyak {x} foto", { x: photoLimit })
             }
           />
           {previews.length > 0 ? (
@@ -581,7 +634,7 @@ export default function ShowcaseCreateScreen() {
             leftIcon={Plus}
             variant="secondary"
             loading={uploading}
-            disabled={saving || previews.length >= SHOWCASE_MAX_IMAGES}
+            disabled={saving || previews.length >= photoLimit}
             onPress={() => void handlePickPhotos()}
           >
             {previews.length > 0 ? "Tambah foto" : "Pilih foto"}
@@ -612,9 +665,13 @@ export default function ShowcaseCreateScreen() {
                 Foto berikut gagal diunggah. Coba lagi atau keluarkan dari pilihan sebelum
                 menyimpan.
               </Text>
-              {failedAssets.map((asset, index) => (
-                <View key={`${asset.uri}-${index}`} className="gap-1">
-                  <Text>{asset.name}</Text>
+              {failedAssets.map((failed, index) => (
+                <View key={`${failed.asset.uri}-${index}`} className="gap-1">
+                  <Text>{failed.asset.name}</Text>
+                  {/* BUG #2: tampilkan penyebab kegagalan per foto (pesan asli). */}
+                  <Text variant="caption" tone="danger">
+                    {failed.message}
+                  </Text>
                   <Button
                     variant="ghost"
                     disabled={uploading}
@@ -663,15 +720,31 @@ export default function ShowcaseCreateScreen() {
             required
             disabled={busy || uncertainCreate}
           />
-          <TextArea
-            label="Deskripsi"
-            value={form.description}
-            onChangeText={(text) => setForm((current) => ({ ...current, description: text }))}
-            maxLength={DESC_MAX}
-            showCount
-            rows={3}
-            disabled={busy || uncertainCreate}
-          />
+          {/*
+           * Benefit 7 Kahade+ ("custom etalase"): anggota aktif mendapat
+           * editor deskripsi HTML (dengan pratinjau tersanitasi); pengguna
+           * biasa tetap plaintext.
+           */}
+          {isPlusActive ? (
+            <ShowcaseHtmlDescriptionEditor
+              label="Deskripsi"
+              value={form.description}
+              onChangeText={(text) => setForm((current) => ({ ...current, description: text }))}
+              maxLength={DESC_MAX}
+              hint={translate("Eksklusif Kahade+: format teks dengan HTML ringan.")}
+              disabled={busy || uncertainCreate}
+            />
+          ) : (
+            <TextArea
+              label="Deskripsi"
+              value={form.description}
+              onChangeText={(text) => setForm((current) => ({ ...current, description: text }))}
+              maxLength={DESC_MAX}
+              showCount
+              rows={3}
+              disabled={busy || uncertainCreate}
+            />
+          )}
           {/* S4 (audit 2026-09-26): kategori bukan lagi teks bebas — saran
               kategori populer dari server + tetap bisa ketik sendiri. */}
           <ShowcaseCategoryInput

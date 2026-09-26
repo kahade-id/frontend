@@ -181,15 +181,18 @@ export default function OrderDetailScreen() {
             logWarn("order:me-fallback", err)
             return null
           })
-      // A-12 (audit escrow 2026-09-24): inferensi dari USERNAME DIHAPUS —
-      // username bisa berubah setelah order dibuat sehingga peran tertukar dan
-      // tombol aksi pihak salah menyala. Fallback hanya cocokkan `me.id`;
-      // tidak ketemu → `undefined` dan layar menyembunyikan aksi (`knownRole`).
+      // BUG#1 (2026-09-26): backend kini mengirim `myRole` eksplisit — pakai
+      // sebagai sumber utama. Fallback hanya untuk kompatibilitas: cocokkan
+      // `me.userId` (public USR-XXX) dengan buyer/seller.id yang dinormalisasi
+      // dari field `userId` backend. JANGAN pakai `me.id` (cuid internal) —
+      // dua namespace berbeda sehingga perbandingan tidak pernah cocok.
+      // (A-12: inferensi dari username tetap dihapus — username bisa berubah.)
+      const publicId = me?.userId
       const role =
         o.myRole ??
-        (me?.id && o.buyer?.id === me.id
+        (publicId && o.buyer?.id === publicId
           ? "BUYER"
-          : me?.id && o.seller?.id === me.id
+          : publicId && o.seller?.id === publicId
             ? "SELLER"
             : undefined)
       const resolvedOrder = normalizeOrder({ ...o, myRole: role })

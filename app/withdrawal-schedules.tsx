@@ -15,7 +15,7 @@ import { api, type CreateScheduleDto, type UpdateScheduleDto, userMessage } from
 import type { BankAccount } from "@/lib/api/bank-accounts"
 import { AMOUNT_LIMITS, AMOUNT_PRESETS } from "@/lib/financial"
 import type { WithdrawalSchedule } from "@/lib/api/withdrawals"
-import { formatRupiah, maskAccountNumber } from "@/lib/format"
+import { formatRupiah, formatDate, formatRelativeTime, maskAccountNumber } from "@/lib/format"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -215,7 +215,18 @@ export default function WithdrawalSchedulesScreen() {
                 dayOfWeek={item.dayOfWeek}
                 minAmount={item.minAmount}
                 isActive={item.isActive}
-                bankAccount={item.bankAccount}
+                bankAccount={{
+                  bankName: item.bankAccount.bankName,
+                  // DRIFT-01: backend mengirim nomor tersamar — teruskan apa
+                  // adanya; maskAccountNumber di kartu aman untuk input
+                  // "****1234".
+                  accountNumber: item.bankAccount.maskedAccountNumber,
+                  accountHolder: item.bankAccount.accountName || undefined,
+                }}
+                // DRIFT-02: teruskan label ke kartu — sebelumnya tidak dioper
+                // sehingga selalu tampil "—" / "Belum pernah".
+                nextRunLabel={item.nextRunAt ? formatDate(item.nextRunAt) : undefined}
+                lastRunLabel={item.lastRunAt ? formatRelativeTime(item.lastRunAt) : undefined}
                 toggling={togglingId === item.id}
                 onToggleActive={(next) => void handleToggle(item, next)}
                 onEdit={() => openEdit(item)}

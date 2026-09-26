@@ -1300,15 +1300,13 @@ export type ValidateVoucherDto = {
 
 export type SubscribeDto = {
   /** Subscription plan */
-  plan: "MONTHLY" | "ANNUAL"
-  /** Wallet PIN for paid subscription verification. Optional only when useTrial=true. */
+  plan: "MONTHLY" | "YEARLY"
+  /** Wallet PIN for paid subscription verification. Not needed for free promo-code subscriptions. */
   pin?: string
   /** Payment method */
   paymentMethod?: "VIRTUAL_ACCOUNT_BCA" | "VIRTUAL_ACCOUNT_BNI" | "VIRTUAL_ACCOUNT_BRI" | "VIRTUAL_ACCOUNT_MANDIRI" | "VIRTUAL_ACCOUNT_CIMB" | "VIRTUAL_ACCOUNT_PERMATA" | "VIRTUAL_ACCOUNT_OTHER" | "QRIS" | "GOPAY" | "SHOPEEPAY" | "OVO" | "DANA" | "LINKAJA" | "CREDIT_CARD" | "ALFAMART" | "INDOMARET" | "AKULAKU" | "KREDIVO" | "KAHADE_WALLET"
-  /** Active SUBSCRIPTION_DISCOUNT campaign promo code for the first paid period */
+  /** Kode promo: kode GRATIS dari admin (durasi ditentukan admin) atau kode campaign SUBSCRIPTION_DISCOUNT */
   promoCode?: string
-  /** Start the one-lifetime free trial instead of charging wallet balance */
-  useTrial?: boolean
 }
 
 export type PauseSubscriptionDto = {

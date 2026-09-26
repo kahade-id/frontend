@@ -26,6 +26,11 @@
  *     sebagian gagal tetap memperbarui yang berhasil dan melaporkan sisanya
  *     (bukan rollback senyap).
  *   - Ruang terarsip ditampilkan di "Daftar terarsip" (bukan disembunyikan).
+ *     B4 (fix 2026-09-26): tab arsip = query TERPISAH ke ?archived=true
+ *     (bukan filter client-side dari query utama) — backend menyembunyikan
+ *     arsip secara server-side, dan setiap refetch akan "menguapkan" arsip
+ *     bila hanya mengandalkan patch lokal. Setelah aksi arsip/unarsip,
+ *     kedua query di-refresh agar server jadi source of truth.
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { View } from "react-native"
@@ -83,7 +88,8 @@ function ChatSkeletonRow() {
 export default function ChatScreen() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
-  const query = usePaginatedQuery<ChatRoom>(
+  const [archiveOpen, setArchiveOpen] = useState(false)
+  const mainQuery = usePaginatedQuery<ChatRoom>(
     "chat-rooms",
     (page, signal) => api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
     // F-01 (audit): kembali dari ruang chat — unread/lastMessage di daftar
@@ -91,23 +97,45 @@ export default function ChatScreen() {
     // C-08 (audit): percakapan yang baru dibalas harus naik ke atas.
     { refreshOnFocus: true, compare: byTimestampDesc<ChatRoom>((room) => room.updatedAt) },
   )
-  const [archiveOpen, setArchiveOpen] = useState(false)
+  // B4 (fix 2026-09-26): daftar terarsip = QUERY TERPISAH ke ?archived=true.
+  // Backend menyembunyikan room arsip di query utama secara server-side,
+  // jadi memfilter arsip client-side dari satu query membuat arsip "menguap"
+  // setiap refetch (refreshOnFocus / pull-to-refresh). Server adalah source
+  // of truth keanggotaan tiap tab.
+  const archivedQuery = usePaginatedQuery<ChatRoom>(
+    "chat-rooms-archived",
+    (page, signal) =>
+      api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE, archived: true }, signal),
+    {
+      refreshOnFocus: true,
+      compare: byTimestampDesc<ChatRoom>((room) => room.updatedAt),
+      // Jangan tembak API sebelum tab arsip dibuka — saat `enabled` flip,
+      // identitas `load` berubah sehingga effect hook memuat halaman pertama.
+      enabled: archiveOpen,
+    },
+  )
 
   // ── Mode pilih (aksi massal arsip/bisu, tanpa ActionSheet) ──
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
   const [batchBusy, setBatchBusy] = useState(false)
 
-  const archivedRooms = query.data.filter((r) => r.isArchived)
-  const visibleRooms = query.data.filter((r) => !r.isArchived)
-  const shownRooms = archiveOpen ? archivedRooms : visibleRooms
+  // Query aktif mengikuti tab — tiap tab datanya sudah difilter server
+  // (utama = non-arsip, arsip = ?archived=true). Tidak ada lagi filter
+  // client-side `isArchived` di sini (B4).
+  const activeQuery = archiveOpen ? archivedQuery : mainQuery
+  const shownRooms = activeQuery.data
 
   // Terapkan hasil arsip/mute ke baris list tanpa memuat ulang seluruhnya.
+  // Untuk arsip, ini hanya umpan balik instan — `handleBatchArchive`
+  // merekonsiliasi kedua query dengan server setelahnya (keanggotaan tab
+  // berubah di server, bukan cuma flag lokal).
+  const activeSetData = activeQuery.setData
   const patchRoom = useCallback(
     (id: string, patch: Partial<ChatRoom>) => {
-      query.setData((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+      activeSetData((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
     },
-    [query.setData],
+    [activeSetData],
   )
 
   const selectedRooms = useMemo(
@@ -210,10 +238,10 @@ export default function ChatScreen() {
     )
   }, [anyUnmuted, runBatch])
 
-  const handleBatchArchive = useCallback(() => {
+  const handleBatchArchive = useCallback(async () => {
     // Di daftar terarsip aksi yang sama berarti "buka arsip" — satu ikon,
     // arah mengikuti ruang yang dipilih (bukan mode tampilan).
-    return runBatch(
+    await runBatch(
       async (room) => {
         const res = await setRoomArchived(room.id, !room.isArchived)
         return { isArchived: res.isArchived }
@@ -221,7 +249,14 @@ export default function ChatScreen() {
       archiveOpen ? "Percakapan dikeluarkan dari arsip" : "Percakapan diarsipkan",
       "Gagal memperbarui arsip percakapan",
     )
-  }, [archiveOpen, runBatch])
+    // B4: arsip/unarsip memindahkan room antar tab DI SERVER. Patch lokal
+    // di atas hanya umpan balik instan — rekonsiliasi kedua query agar
+    // daftar selalu mencerminkan server (bukan memori yang bisa basi).
+    // refresh() = senyap (baris lama tetap tampil), dan aman dipanggil saat
+    // query arsip nonaktif (tidak menembak API).
+    mainQuery.refresh()
+    archivedQuery.refresh()
+  }, [archiveOpen, runBatch, mainQuery, archivedQuery])
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -293,15 +328,15 @@ export default function ChatScreen() {
       )}
       <ModeShiftFade>
       <PaginatedList
-        {...query}
+        {...activeQuery}
         // ChatRoomListItem memasang px-4 sendiri. `padded` default menambah
         // paddingHorizontal 20px lagi di contentContainer -> baris menjorok
         // dan tidak sejajar Header di atasnya. Sama seperti app/notifications.tsx.
         padded={false}
         data={shownRooms}
-        onRefresh={query.refresh}
-        onRetry={query.reload}
-        onLoadMore={query.loadMore}
+        onRefresh={activeQuery.refresh}
+        onRetry={activeQuery.reload}
+        onLoadMore={activeQuery.loadMore}
         // Baris chat punya padding vertikal sendiri; gap antar baris 0 menjaga
         // irama rapat ala aplikasi pesan (satu layar memuat lebih banyak ruang).
         gap={0}

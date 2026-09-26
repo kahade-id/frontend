@@ -175,9 +175,12 @@ export default function ExtensionScreen() {
     try {
       // C-02 (audit): cache bersama `queryKeys.me()` — peran pesanan
       // diselesaikan dari identitas yang sama dengan layar lain.
+      // BUG#1 (2026-09-26): bandingkan `me.userId` (public USR-XXX), BUKAN
+      // `me.id` (cuid internal) — buyer/seller.id dinormalisasi dari `userId`.
       const me = await api.users.getMeCached(signal)
-      if (me?.id && me.id === o.seller?.id) return "SELLER"
-      if (me?.id && me.id === o.buyer?.id) return "BUYER"
+      const publicId = me?.userId
+      if (publicId && publicId === o.seller?.id) return "SELLER"
+      if (publicId && publicId === o.buyer?.id) return "BUYER"
     } catch {
       /* fallback: tanpa peran → hanya baca */
     }

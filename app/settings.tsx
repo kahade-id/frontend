@@ -57,7 +57,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, type UserProfile } from "@/lib/api"
-import type { SubscriptionStatus } from "@/lib/api/subscriptions"
+import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { queryKeys } from "@/lib/query-keys"
 import { clearSession } from "@/lib/api/session"
 import { unregisterPushDevice } from "@/lib/push-notifications"
@@ -114,21 +114,19 @@ export default function SettingsScreen() {
   const profileQuery = useApiQuery<UserProfile>(queryKeys.me(), (signal) => api.users.getMe(signal))
   const profile = profileQuery.data
 
-  // Subscription status query
-  const subscriptionQuery = useApiQuery<SubscriptionStatus | null>(
-    "subscription-status",
-    (signal) =>
-      api.subscriptions.getSubscriptionStatus(signal).catch((err) => {
-        logWarn("settings:subscription-status", err)
-        return null
-      }),
-  )
-  const subStatus = subscriptionQuery.data
-  const isSubscribed = Boolean(subStatus?.active)
+  // Status langganan — WAJIB lewat `useKahadePlus()` (satu-satunya sumber
+  // status langganan di UI); jangan menembak endpoint status langsung.
+  const { isActive: isSubscribed, refetch: refetchPlus } = useKahadePlus()
+  const [plusRefreshing, setPlusRefreshing] = useState(false)
 
   const handleRefresh = useCallback(async () => {
-    await Promise.allSettled([profileQuery.refresh(), subscriptionQuery.refresh()])
-  }, [profileQuery, subscriptionQuery])
+    setPlusRefreshing(true)
+    try {
+      await Promise.allSettled([profileQuery.refresh(), refetchPlus()])
+    } finally {
+      setPlusRefreshing(false)
+    }
+  }, [profileQuery, refetchPlus])
 
 
   const performLogout = useCallback(async () => {
@@ -241,7 +239,7 @@ export default function SettingsScreen() {
 
       <PullToRefresh
         onRefresh={handleRefresh}
-        refreshing={profileQuery.refreshing || subscriptionQuery.refreshing}
+        refreshing={profileQuery.refreshing || plusRefreshing}
         scrollViewProps={{
           contentContainerStyle: {
             paddingBottom: insets.bottom + tokens.space[16],
@@ -283,7 +281,7 @@ export default function SettingsScreen() {
              efek tekan tetap, tetapi web mendapat <a href> sungguhan dan
              screen reader mengumumkan "tautan", bukan "tombol". */}
           <RouteLink
-            href={ROUTES.subscriptions}
+            href={ROUTES.kahadePlusPlans}
             accessibilityLabel="Menu Langganan Kahade Plus"
             containerClassName="w-full"
             className="w-full overflow-hidden rounded-md bg-surface p-4"

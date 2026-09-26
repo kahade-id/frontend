@@ -2,7 +2,7 @@
  * Kahade — domain `referral` (kode undangan, riwayat, reward).
  */
 
-import { readList } from "@/lib/api/response"
+import { pickNumber as pickStrictNumber, pickString, readList } from "@/lib/api/response"
 
 import { http } from "@/lib/api/client"
 import type { ApplyReferralDto } from "@/lib/api/types"
@@ -21,9 +21,18 @@ export type ReferralStats = {
   totalReward: number
 }
 
+/**
+ * Satu reward referral.
+ *
+ * DRIFT-REF-02 (2026-09-26): backend mengirim `{ id, feeAmount, rewardAmount
+ * (IDR), isCredited, creditedAt, createdAt }` — TIDAK ADA `code`/nama orang
+ * yang diundang di response ini, jadi field `code` dihapus dari tipe
+ * (memakai kode referral milik sendiri sebagai nama orang yang diundang
+ * adalah salah semantik). `status` mengikuti enum `ReferralRewardStatus`
+ * ("CREDITED" | "PENDING") di components/ui/referral-reward.tsx.
+ */
 export type ReferralReward = {
   id: string
-  code: string
   amount: number
   status: string
   createdAt: string
@@ -38,6 +47,116 @@ export type ReferralHistoryEntry = {
   createdAt: string
 }
 
+/**
+ * DRIFT-REF-01 (2026-09-26): backend `GET /v1/referral/stats` mengirim
+ * `{ code, totalReferrals, successfulReferrals, totalRewardEarned (IDR),
+ * pendingRewardCount, remainingSlots, maxSlots }`. Normalizer ini memetakan
+ * ke bentuk yang dipakai UI. `totalRewardEarned` sudah IDR di backend
+ * (toIdr di getStats) — JANGAN dibagi 100 lagi.
+ */
+export function normalizeReferralStats(raw: unknown): ReferralStats {
+  const record = (raw ?? {}) as Record<string, unknown>
+  return {
+    totalInvited:
+      pickStrictNumber(record, ["totalReferrals", "total_referrals", "totalInvited", "total_invited"]) ?? 0,
+    completed:
+      pickStrictNumber(record, ["successfulReferrals", "successful_referrals", "completed"]) ?? 0,
+    pending:
+      pickStrictNumber(record, ["pendingRewardCount", "pending_reward_count", "pending"]) ?? 0,
+    totalReward:
+      pickStrictNumber(record, ["totalRewardEarned", "total_reward_earned", "totalReward", "total_reward"]) ?? 0,
+  }
+}
+
+const KNOWN_REWARD_STATUSES = new Set(["CREDITED", "PENDING", "CANCELLED"])
+
+/**
+ * DRIFT-REF-02 (2026-09-26): backend `GET /v1/referral/rewards` mengirim
+ * `{ id, feeAmount, rewardAmount (IDR), isCredited, creditedAt, createdAt }`.
+ * `rewardAmount` sudah IDR di backend (toIdr di getRewards).
+ */
+export function normalizeReferralReward(raw: unknown): ReferralReward | null {
+  const record = (raw ?? {}) as Record<string, unknown>
+  const id = pickString(record, ["id"])
+  if (!id) return null
+  const rawStatus = pickString(record, ["status", "Status"])
+  const upperStatus = rawStatus?.toUpperCase()
+  const status =
+    upperStatus && KNOWN_REWARD_STATUSES.has(upperStatus)
+      ? upperStatus
+      : record["isCredited"] === true
+        ? "CREDITED"
+        : "PENDING"
+  return {
+    id,
+    amount: pickStrictNumber(record, ["rewardAmount", "reward_amount", "amount"]) ?? 0,
+    status,
+    createdAt: pickString(record, ["createdAt", "created_at"]) ?? "",
+  }
+}
+
+type RawReferralUser = {
+  userId?: unknown
+  username?: unknown
+  fullName?: unknown
+}
+
+type RawReferralHistoryReward = {
+  isCredited?: unknown
+  rewardAmount?: unknown
+  creditedAt?: unknown
+}
+
+/** username nullable di DB (registrasi via HP) — rantai fallback wajib. */
+function referralDisplayName(user: RawReferralUser | null | undefined): string {
+  const record = (user ?? {}) as Record<string, unknown>
+  return pickString(record, ["username", "fullName", "full_name", "userId", "user_id"]) ?? ""
+}
+
+/**
+ * DRIFT-REF-03 (2026-09-26): backend `GET /v1/referral/history` mengirim
+ * relasi mentah `{ id, referrerId, refereeId, referrer{...}, referee{...},
+ * rewards[], viewerRole ('REFERRER'|'REFEREE'), appliedAt, ... }`.
+ * - invitedUsername: pihak lawan relasi dari sudut pandang viewer
+ *   (REFERRER → referee yang diundang; REFEREE → referrer pengundang).
+ * - status mengikuti enum ReferralStatus ("REWARDED" | "QUALIFIED" |
+ *   "PENDING") di components/ui/referral-history-list-item.tsx.
+ * - reward/completedAt diambil dari reward yang sudah credited (nominal
+ *   sudah IDR — toIdr di serializer history backend).
+ */
+export function normalizeReferralHistoryEntry(raw: unknown): ReferralHistoryEntry | null {
+  const record = (raw ?? {}) as Record<string, unknown>
+  const id = pickString(record, ["id"])
+  if (!id) return null
+  const viewerRole = pickString(record, ["viewerRole", "viewer_role"])
+  const referrer = record["referrer"] as RawReferralUser | null | undefined
+  const referee = record["referee"] as RawReferralUser | null | undefined
+  const counterpart = viewerRole === "REFEREE" ? referrer : referee
+  const fallback = viewerRole === "REFEREE" ? referee : referrer
+  const invitedUsername = referralDisplayName(counterpart) || referralDisplayName(fallback)
+  const rewards = Array.isArray(record["rewards"])
+    ? (record["rewards"] as RawReferralHistoryReward[])
+    : []
+  const credited = rewards.find((r) => {
+    const rec = (r ?? {}) as Record<string, unknown>
+    return rec["isCredited"] === true
+  })
+  const creditedRecord = (credited ?? {}) as Record<string, unknown>
+  const isRewardActive = record["isRewardActive"] === true
+  return {
+    id,
+    invitedUsername,
+    status: credited ? "REWARDED" : isRewardActive ? "QUALIFIED" : "PENDING",
+    reward: credited
+      ? pickStrictNumber(creditedRecord, ["rewardAmount", "reward_amount", "amount"])
+      : undefined,
+    completedAt: credited
+      ? (pickString(creditedRecord, ["creditedAt", "credited_at"]) ?? null)
+      : null,
+    createdAt: pickString(record, ["appliedAt", "applied_at", "createdAt", "created_at"]) ?? "",
+  }
+}
+
 export function getMyReferralCode(signal?: AbortSignal) {
   return http.get<ReferralCode>("/v1/referral/my-code", { auth: "required", retry: 1, signal })
 }
@@ -47,19 +166,29 @@ export function regenerateReferralCode() {
 }
 
 export function getReferralStats(signal?: AbortSignal) {
-  return http.get<ReferralStats>("/v1/referral/stats", { auth: "required", signal })
+  return http
+    .get<unknown>("/v1/referral/stats", { auth: "required", signal })
+    .then(normalizeReferralStats)
 }
 
 export function getReferralRewards(signal?: AbortSignal) {
   return http
-    .get<ReferralReward[]>("/v1/referral/rewards", { auth: "required", signal })
-    .then((raw) => readList<ReferralReward>(raw, ["rewards"]))
+    .get<unknown>("/v1/referral/rewards", { auth: "required", signal })
+    .then((raw) =>
+      readList<unknown>(raw, ["rewards"])
+        .map(normalizeReferralReward)
+        .filter((r): r is ReferralReward => r !== null),
+    )
 }
 
 export function getReferralHistory(signal?: AbortSignal) {
   return http
-    .get<ReferralHistoryEntry[]>("/v1/referral/history", { auth: "required", retry: 1, signal })
-    .then((raw) => readList<ReferralHistoryEntry>(raw, ["history", "referrals"]))
+    .get<unknown>("/v1/referral/history", { auth: "required", retry: 1, signal })
+    .then((raw) =>
+      readList<unknown>(raw, ["history", "referrals"])
+        .map(normalizeReferralHistoryEntry)
+        .filter((h): h is ReferralHistoryEntry => h !== null),
+    )
 }
 
 export function applyReferralCode(dto: ApplyReferralDto) {

@@ -51,6 +51,16 @@ import { useColorScheme, vars } from "nativewind"
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
 import { toCssVariables, type ColorMode } from "@/lib/tokens"
+import {
+  ensureKahadePlusLoaded,
+  subscribeKahadePlusStore,
+} from "@/lib/use-kahade-plus"
+import {
+  ensureKahadePlusThemeLoaded,
+  getEffectiveKahadePlusThemeId,
+  kahadePlusAccentVars,
+  subscribeKahadePlusThemeStore,
+} from "@/lib/kahade-plus-theme"
 
 export type ThemePreference = ColorMode | "system"
 
@@ -132,9 +142,37 @@ export function ThemeProvider({
   // CSS variable ke seluruh subtree lewat context.
   const cssVars = useMemo(() => vars(toCssVariables(mode)), [mode])
 
+  /**
+   * Benefit 5 Kahade+ — tema eksklusif: override variabel aksen.
+   * Provider ini di luar konteks navigasi, jadi tidak bisa memakai
+   * `useKahadePlus()`/`useKahadePlusTheme()` (butuh useIsFocused); sebagai
+   * gantinya berlangganan ke store mentah + me-render ulang manual.
+   * Efektif = pilihan eksklusif hanya saat langganan aktif, selain itu
+   * fallback ke default OTOMATIS (lihat getEffectiveKahadePlusThemeId).
+   */
+  const [, setThemeTick] = useState(0)
+  useEffect(() => {
+    ensureKahadePlusLoaded()
+    ensureKahadePlusThemeLoaded()
+    const bump = () => setThemeTick((t) => t + 1)
+    // Sinkronisasi awal: status langganan bisa sudah ada sebelum subscribe.
+    setThemeTick((t) => t + 1)
+    const unsubPlus = subscribeKahadePlusStore(bump)
+    const unsubTheme = subscribeKahadePlusThemeStore(bump)
+    return () => {
+      unsubPlus()
+      unsubTheme()
+    }
+  }, [])
+  const effectiveThemeId = getEffectiveKahadePlusThemeId()
+  const accentVars = useMemo(
+    () => vars(kahadePlusAccentVars(effectiveThemeId, mode)),
+    [effectiveThemeId, mode],
+  )
+
   return (
     <ThemeContext.Provider value={value}>
-      <View style={cssVars} className="flex-1 bg-background">
+      <View style={[cssVars, accentVars]} className="flex-1 bg-background">
         {children}
       </View>
     </ThemeContext.Provider>

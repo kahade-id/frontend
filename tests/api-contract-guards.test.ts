@@ -98,9 +98,9 @@ describe("subscribe — enum paymentMethod", () => {
 
   it("tetap meloloskan saat paymentMethod tidak diisi (opsional di DTO)", async () => {
     fetchMock.mockImplementationOnce(() => reply({ active: true }))
-    // `ANNUAL`, bukan `YEARLY`: enum SubscribeDto.plan hanya MONTHLY|ANNUAL,
-    // sama seperti `SubscriptionPeriod` di components/ui/subscription-status-card.tsx:44.
-    await expect(subscribe({ plan: "ANNUAL", pin: "123456" })).resolves.toBeTruthy()
+    // `YEARLY` (bukan `ANNUAL`): enum backend SubscriptionPlan = MONTHLY|YEARLY.
+    // Contract drift ANNUAL diperbaiki 2026-09-26.
+    await expect(subscribe({ plan: "YEARLY", pin: "123456" })).resolves.toBeTruthy()
   })
 })
 

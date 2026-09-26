@@ -98,3 +98,34 @@ describe("readQuestionComments", () => {
     expect(out.totalPages).toBe(5)
   })
 })
+
+describe("readQuestionList — normalisasi content→question (BUG#5)", () => {
+  // Backend mengirim teks pertanyaan sebagai `content` (profile-qa.service.ts:
+  // `content: q.question`); UI memakai `question`. Tanpa normalisasi, kartu
+  // "Utas" tampil dengan teks kosong.
+  const backendItem = (id: string, content: string): Record<string, unknown> =>
+    ({
+      id,
+      content,
+      answer: null,
+      answeredAt: null,
+      createdAt: "2026-09-20T00:00:00Z",
+    })
+
+  it("memetakan content backend menjadi question", () => {
+    const out = readQuestionList({ questions: [backendItem("1", "Berapa harganya?") as never] })
+    expect(out.items[0].question).toBe("Berapa harganya?")
+  })
+
+  it("mempertahankan question bila sudah ada (tidak menimpa)", () => {
+    const out = readQuestionList([
+      { ...backendItem("1", "dari content"), question: "dari question" } as never,
+    ])
+    expect(out.items[0].question).toBe("dari question")
+  })
+
+  it("fallback string kosong bila keduanya tidak ada", () => {
+    const out = readQuestionList({ questions: [{ id: "1" } as never] })
+    expect(out.items[0].question).toBe("")
+  })
+})
