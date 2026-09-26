@@ -2,10 +2,15 @@
  * Kahade — <VerifiedSeal> (§verified-badge).
  *
  * Seal-check di samping nama pengguna dengan 3 tier warna:
- * - emas  = TRUSTED_BY_KAHADE — verifikasi eksklusif yang diberikan
- *            langsung oleh admin Kahade (tier tertinggi).
- * - biru  = BUSINESS_VERIFIED — badan usaha terverifikasi.
- * - abu   = verifikasi lengkap (KYC + email & HP) atau sebagian.
+ * - emas  = TRUSTED_BY_KAHADE — diberikan manual oleh admin Kahade kepada
+ *            customer pilihan (tier tertinggi). Bisa dicabut admin kapanpun.
+ * - biru  = BUSINESS_VERIFIED — verifikasi manual admin atas legalitas badan
+ *            usaha. Bisa dicabut admin kapanpun.
+ * - abu   = FULLY_VERIFIED — otomatis bila: KYC APPROVED + email verified +
+ *            HP verified + alamat lengkap + langganan Kahade+ aktif.
+ *            Bisa dicabut admin kapanpun.
+ *
+ * Badge event (mis. dari kampanye) BUKAN tier verified dan tidak memicu seal.
  *
  * Ditekan → BottomSheet berisi semua badge aktif beserta keterangannya.
  * Branching tampilan WAJIB memakai `type` badge dari backend, bukan label.
@@ -49,21 +54,22 @@ const SEAL_TIER_LABEL: Record<SealTier, string> = {
 const SEAL_TIER_DESCRIPTION: Record<SealTier, string> = {
   gold: "Akun ini diverifikasi secara eksklusif oleh admin Kahade.",
   blue: "Legalitas badan usaha akun ini sudah diverifikasi Kahade.",
-  gray: "Akun ini telah menyelesaikan verifikasi identitas dan kontak.",
+  gray: "Akun ini telah menyelesaikan verifikasi identitas, kontak, alamat, dan berlangganan Kahade+.",
 }
 
 /**
  * Tentukan tier seal dari daftar badge aktif.
- * Prioritas: emas (admin) > biru (bisnis) > abu (verifikasi identitas/kontak).
+ * Prioritas: emas (admin) > biru (bisnis) > abu (FULLY_VERIFIED).
+ * Abu HANYA dari FULLY_VERIFIED — badge parsial (KYC_VERIFIED /
+ * CONTACT_VERIFIED saja) dan badge event TIDAK memicu seal.
  */
 export function getSealTier(badges: VerificationBadge[] | undefined | null): SealTier | null {
   if (!badges || badges.length === 0) return null
   const types = new Set(badges.map((b) => b.type))
   if (types.has("TRUSTED_BY_KAHADE")) return "gold"
   if (types.has("BUSINESS_VERIFIED")) return "blue"
-  if (types.has("FULLY_VERIFIED") || types.has("KYC_VERIFIED") || types.has("CONTACT_VERIFIED"))
-    return "gray"
-  return "gray"
+  if (types.has("FULLY_VERIFIED")) return "gray"
+  return null
 }
 
 /** Ikon Phosphor per nama ikon badge dari backend (kebab-case). */
@@ -88,6 +94,20 @@ function badgeIconColor(type: string): string {
     default:
       return SEAL_TIER_COLOR.gray
   }
+}
+
+/**
+ * Deskripsi tampilan badge verifikasi — selaras dengan definisi 3 tier.
+ * Badge lain (event, Kahade+, dsb.) memakai deskripsi dari backend apa adanya.
+ * Nama `type` tidak diubah (kontrak backend); hanya teks tampilan.
+ */
+const BADGE_DISPLAY_DESCRIPTION: Partial<Record<string, string>> = {
+  FULLY_VERIFIED:
+    "Menyelesaikan seluruh verifikasi: identitas (KYC), email, nomor handphone, alamat lengkap, dan berlangganan Kahade+.",
+  BUSINESS_VERIFIED:
+    "Legalitas badan usaha (NPWP dan akta/SIUP) sudah diverifikasi manual oleh admin Kahade.",
+  TRUSTED_BY_KAHADE:
+    "Diberikan langsung oleh admin Kahade kepada akun pilihan sebagai tanda kepercayaan tertinggi.",
 }
 
 // ---------------------------------------------------------------------------
@@ -164,7 +184,7 @@ export function VerificationSheet({ visible, onRequestClose, badges, tier }: Ver
                   {b.label}
                 </Text>
                 <Text variant="caption" tone="secondary" className="pt-0.5">
-                  {b.description}
+                  {BADGE_DISPLAY_DESCRIPTION[b.type] ?? b.description}
                 </Text>
                 {b.earnedAt ? (
                   <Text variant="caption" tone="tertiary" className="pt-0.5">
