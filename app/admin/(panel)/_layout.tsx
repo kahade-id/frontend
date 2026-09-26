@@ -59,6 +59,17 @@ export default function AdminPanelLayout() {
       <Stack.Screen name="reports/[id]" options={{ title: translate("Detail Laporan") }} />
       <Stack.Screen name="chat/index" options={{ title: translate("Moderasi Chat") }} />
       <Stack.Screen name="badges/index" options={{ title: translate("Badge & Centang Emas") }} />
+      <Stack.Screen name="users" options={{ title: translate("Pengguna") }} />
+      <Stack.Screen name="users/[id]" options={{ title: translate("Detail Pengguna") }} />
+      <Stack.Screen name="finance" options={{ title: translate("Keuangan") }} />
+      <Stack.Screen name="orders" options={{ title: translate("Order") }} />
+      <Stack.Screen name="vouchers" options={{ title: translate("Voucher") }} />
+      <Stack.Screen name="analytics" options={{ title: translate("Analitik") }} />
+      <Stack.Screen name="ratings" options={{ title: translate("Rating") }} />
+      <Stack.Screen name="referral" options={{ title: translate("Referral") }} />
+      <Stack.Screen name="subscriptions" options={{ title: translate("Subscription") }} />
+      <Stack.Screen name="system" options={{ title: translate("Sistem") }} />
+      <Stack.Screen name="team" options={{ title: translate("Tim Admin") }} />
     </Stack>
   )
 }

@@ -953,5 +953,6 @@
   "Badge “{x}” akan dihapus permanen dan tidak bisa dikembalikan.": "Badge “{x}” will be permanently deleted and cannot be restored.",
   "Order {x} · {y}": "Order {x} · {y}",
   "Pelapor {x} · {y}": "Reporter {x} · {y}",
-  "{x}FA akun {y} akan direset. Admin harus menyiapkan ulang authenticator.": "{x}FA for account {y} will be reset. The admin must set up the authenticator again."
+  "{x}FA akun {y} akan direset. Admin harus menyiapkan ulang authenticator.": "{x}FA for account {y} will be reset. The admin must set up the authenticator again.",
+  "Tim Admin": "Admin Team"
 }
