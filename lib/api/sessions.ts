@@ -96,6 +96,14 @@ export function deleteOtherSessions() {
 }
 
 /**
+ * DELETE /v1/sessions — cabut SEMUA sesi & perangkat termasuk sesi saat ini.
+ * Setelah ini sesi lokal harus dihapus dan user diarahkan ke login.
+ */
+export function deleteAllSessions() {
+  return http.delete<void>("/v1/sessions", { auth: "required", responseType: "void" })
+}
+
+/**
  * PATCH /v1/users/me/devices/{deviceId}/trust — tandai perangkat tepercaya
  * (lewati 2FA saat login). Spec: method PATCH dengan body `TrustDeviceDto`
  * (objek kosong — dikirim `{}` agar `Content-Type: application/json` valid).

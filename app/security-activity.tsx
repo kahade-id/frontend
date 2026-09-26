@@ -31,6 +31,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { router } from "expo-router"
 import { ChartLine, DeviceMobile, ShieldWarning } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
@@ -150,6 +151,8 @@ export default function SecurityActivityScreen() {
   const [confirmRevoke, setConfirmRevoke] = useState<DeviceSession | null>(null)
   const [confirmOthers, setConfirmOthers] = useState(false)
   const [revokingOthers, setRevokingOthers] = useState(false)
+  const [confirmAll, setConfirmAll] = useState(false)
+  const [revokingAll, setRevokingAll] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<DeviceSession | null>(null)
   const [removingId, setRemovingId] = useState<string | null>(null)
 
@@ -220,6 +223,26 @@ export default function SecurityActivityScreen() {
       setRevokingOthers(false)
     }
   }, [sessionsQuery, toast.show])
+
+  /** Cabut SEMUA sesi termasuk perangkat ini → paksa logout lokal. */
+  const handleLogoutAll = useCallback(async () => {
+    setRevokingAll(true)
+    try {
+      await api.sessions.deleteAllSessions()
+    } catch (err: unknown) {
+      toast.show({
+        title: "Gagal mencabut semua sesi",
+        description: userMessage(err),
+        tone: "danger",
+      })
+      setRevokingAll(false)
+      return
+    }
+    setConfirmAll(false)
+    // Sesi server sudah mati semua — bersihkan sesi lokal lalu ke login.
+    await api.auth.logout().catch(() => undefined)
+    router.replace("/(auth)/login")
+  }, [toast.show])
 
   /**
    * Trust/untrust menuntut re-auth password (TrustDeviceDto produksi: `password`
@@ -358,6 +381,9 @@ export default function SecurityActivityScreen() {
                 disabled={otherSessions === 0}
               >
                 Keluar dari perangkat lain
+              </Button>
+              <Button variant="ghost" onPress={() => setConfirmAll(true)}>
+                Keluar dari semua perangkat
               </Button>
             </>
           ) : tab === "security" ? (
@@ -498,6 +524,21 @@ export default function SecurityActivityScreen() {
         onConfirm={() => void handleLogoutOthers()}
         onCancel={() => setConfirmOthers(false)}
         onRequestClose={() => setConfirmOthers(false)}
+      />
+
+      <Dialog
+        title="Keluar dari semua perangkat?"
+        description={translate(
+          "Semua sesi termasuk perangkat ini akan dicabut. Kamu harus masuk kembali di semua perangkat.",
+        )}
+        visible={confirmAll}
+        destructive
+        loading={revokingAll}
+        confirmLabel="Ya, keluarkan semua"
+        cancelLabel="Batal"
+        onConfirm={() => void handleLogoutAll()}
+        onCancel={() => setConfirmAll(false)}
+        onRequestClose={() => setConfirmAll(false)}
       />
     </Screen>
   )

@@ -57,3 +57,14 @@ export function resolveNotificationDeeplink(notificationId: string, signal?: Abo
     signal,
   })
 }
+
+/**
+ * GET /v1/deeplinks/showcase/{showcaseId} — resolusi tautan etalase.
+ */
+export function resolveShowcaseDeeplink(showcaseId: string, signal?: AbortSignal) {
+  return http.get<DeeplinkResolution>(`/v1/deeplinks/showcase/${seg(showcaseId)}`, {
+    auth: "none",
+    retry: 1,
+    signal,
+  })
+}
