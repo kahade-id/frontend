@@ -92,7 +92,6 @@ export type PhoneRegisterDto = {
 export type RequestPhoneChangeDto = {
   /** maxLength 20 */
   newPhoneNumber: string
-  method: "SMS" | "WHATSAPP"
   /** minLength 1 · maxLength 256 */
   currentPassword: string
   /** maxLength 16 */
@@ -815,6 +814,11 @@ export type CreateOrderDto = {
    * min 1 · max 14
    */
   deliveryDeadlineDays: number
+  /**
+   * Delivery deadline as ISO date (e.g. "2026-10-05") — takes precedence over
+   * `deliveryDeadlineDays` when the backend supports it.
+   */
+  deliveryDeadlineAt?: string
   /** Who pays the fee */
   feeResponsibility: "BUYER" | "SELLER" | "SPLIT"
   /**
@@ -925,6 +929,8 @@ export type CreateOrderLinkDto = {
   orderValue: number
   /** min 1 · max 14 */
   deliveryDeadlineDays: number
+  /** ISO date (e.g. "2026-10-05") — takes precedence over `deliveryDeadlineDays`. */
+  deliveryDeadlineAt?: string
   feeResponsibility: "BUYER" | "SELLER" | "SPLIT"
   /** maxLength 50 */
   counterpartUsername?: string

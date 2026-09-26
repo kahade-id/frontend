@@ -167,5 +167,11 @@
   "{x} mengikuti": "{x} follows",
   "{x} transaksi · {x}": "{x} transactions · {x}",
   "{x} ulasan": "{x} reviews",
-  "· terbaru:": "· latest:"
+  "· terbaru:": "· latest:",
+  "Membalas {x}": "Replying to {x}",
+  "Belum dijawab": "Unanswered",
+  "Dijawab {x}": "Answered {x}",
+  "Ditanya {x}": "Asked {x}",
+  "Komentar telah dihapus": "Comment deleted",
+  "Ikuti": "Follow"
 }

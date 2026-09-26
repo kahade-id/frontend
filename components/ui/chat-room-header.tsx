@@ -41,6 +41,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { ScreenInsetsContext } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
+import { VerifiedSeal, type SealTier } from "@/components/ui/verified-seal"
 import { useDocumentTitle } from "@/components/ui/header"
 import { cn } from "@/lib/cn"
 import { focusRing, focusRingInset } from "@/lib/focus-ring"
@@ -54,6 +55,12 @@ export type ChatRoomHeaderProps = Omit<ViewProps, "children"> & {
   name?: string
   avatar?: AvatarProps["source"]
   verified?: boolean
+  /**
+   * R1 (audit 2026-09-26): tier seal lawan bicara dari payload room
+   * (`counterpart.sealTier`) — ditampilkan sebagai <VerifiedSeal> di samping
+   * nama tanpa N+1 request badge.
+   */
+  sealTier?: SealTier | null
   /** Teks status siap render: "Online" / "Terakhir dilihat …" / "mengetik…" */
   status?: string
   /** Dot hijau di depan status */
@@ -83,6 +90,7 @@ export function ChatRoomHeader({
   name,
   avatar,
   verified = false,
+  sealTier,
   status,
   online = false,
   typing = false,
@@ -104,6 +112,7 @@ export function ChatRoomHeader({
   useDocumentTitle(translateProp(name ?? "Percakapan"))
 
   const title = name ?? "Percakapan"
+  const showVerified = verified || !!sealTier
   const identity = (
     <View className="min-w-0 flex-row items-center gap-2.5 py-1">
       <View className="relative shrink-0">
@@ -111,7 +120,8 @@ export function ChatRoomHeader({
           source={avatar}
           name={title}
           size="md"
-          verified={verified}
+          verified={showVerified}
+          sealTier={sealTier ?? undefined}
           className={AVATAR_CLASS}
         />
         {online ? (
@@ -120,16 +130,21 @@ export function ChatRoomHeader({
       </View>
 
       <View className="min-w-0 flex-1">
-        <Text
-          ellipsizeMode="tail"
-          accessibilityRole="header"
-          variant="body"
-          weight={600}
-          tone="primary"
-          numberOfLines={1}
-        >
-          {loading ? "Memuat…" : title}
-        </Text>
+        <View className="flex-row items-center gap-1">
+          <Text
+            ellipsizeMode="tail"
+            accessibilityRole="header"
+            variant="body"
+            weight={600}
+            tone="primary"
+            numberOfLines={1}
+            className="min-w-0 shrink"
+          >
+            {loading ? "Memuat…" : title}
+          </Text>
+          {/* R1: <VerifiedSeal> di samping nama — tier dari payload room. */}
+          <VerifiedSeal badges={null} verified={verified} tier={sealTier ?? null} size={14} />
+        </View>
 
         {status || orderId ? (
           <View className="flex-row items-center gap-1">

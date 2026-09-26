@@ -45,7 +45,6 @@ import * as wallet from "@/lib/api/wallet"
 import * as withdrawals from "@/lib/api/withdrawals"
 
 export { API_BASE_URL, API_ENV, type ApiEnv } from "@/lib/api/config"
-export { OTP_METHODS, type OtpMethod, type OtpMethodsResult } from "@/lib/api/auth"
 export {
   buildUrl,
   createIdempotencyKey,

@@ -627,12 +627,6 @@ export const API_CONSTRAINTS = {
     "newPhoneNumber": {
       "maxLength": 20
     },
-    "method": {
-      "enum": [
-        "SMS",
-        "WHATSAPP"
-      ]
-    },
     "currentPassword": {
       "minLength": 1,
       "maxLength": 256

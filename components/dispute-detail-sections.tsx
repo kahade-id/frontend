@@ -15,6 +15,7 @@ import type { Order } from "@/lib/api/orders"
 import { formatDateTime, formatRupiah } from "@/lib/format"
 import { mapValue } from "@/lib/has-own"
 import { orderFallbackLabel } from "@/lib/short-id"
+import { DISPUTE_CATEGORY_LABELS, type DisputeCategoryValue } from "@/lib/labels/dispute"
 import { translate } from "@/lib/i18n/translate"
 import { ROUTES } from "@/lib/routes"
 
@@ -73,6 +74,12 @@ export function DisputeDetailHeader({
               ? ` · ${myRole === "buyer" ? "Anda pembeli" : myRole === "seller" ? "Anda penjual" : "Peran belum terkonfirmasi"} · ${formatRupiah(order.orderValue)}`
               : ""}
           </Text>
+          {dispute.category ? (
+            <Text variant="caption" tone="secondary" className="mt-1">
+              {translate("Kategori:")}{" "}
+              {DISPUTE_CATEGORY_LABELS[dispute.category as DisputeCategoryValue] ?? dispute.category}
+            </Text>
+          ) : null}
         </View>
         <DisputeStatusBadge status={dispute.status} />
       </View>

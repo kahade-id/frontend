@@ -41,6 +41,7 @@ import { logWarn } from "@/lib/telemetry"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { translate, useLanguage } from "@/lib/i18n"
 import type { UserLinkItemDto } from "@/lib/api/types"
 import { useApiQuery } from "@/lib/use-api-query"
 
@@ -103,6 +104,8 @@ const EMPTY_FORM: ProfileForm = {
 export default function EditProfileScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
+  // i18n: label form mengikuti bahasa aktif.
+  useLanguage()
 
   const [form, setForm] = useState<ProfileForm>(EMPTY_FORM)
   const [initial, setInitial] = useState<ProfileForm>(EMPTY_FORM)
@@ -252,11 +255,11 @@ export default function EditProfileScreen() {
     async (password?: string) => {
       if (dto.username !== undefined && usernameAvailability !== "available") {
         toast.show({
-          title: usernameAvailability === "checking" ? "Tunggu sebentar" : "Nama pengguna tidak tersedia",
+          title: usernameAvailability === "checking" ? translate("Tunggu sebentar") : translate("Nama pengguna tidak tersedia"),
           description:
             usernameAvailability === "checking"
-              ? "Kami masih memeriksa nama pengguna tersebut."
-              : "Silakan pilih nama pengguna lain.",
+              ? translate("Kami masih memeriksa nama pengguna tersebut.")
+              : translate("Silakan pilih nama pengguna lain."),
           tone: "danger",
         })
         return
@@ -279,8 +282,8 @@ export default function EditProfileScreen() {
             })
           } catch {
             toast.show({
-              title: "Profil tersimpan, tautan sosial gagal disimpan",
-              description: "Periksa format URL lalu coba simpan lagi.",
+              title: translate("Profil tersimpan, tautan sosial gagal disimpan"),
+              description: translate("Periksa format URL lalu coba simpan lagi."),
               tone: "danger",
             })
             await query.refresh()
@@ -289,15 +292,15 @@ export default function EditProfileScreen() {
         }
         setPasswordOpen(false)
         setCurrentPassword("")
-        toast.show({ title: "Profil diperbarui", tone: "success" })
+        toast.show({ title: translate("Profil diperbarui"), tone: "success" })
         goBackOrNavigate(ROUTES.settings)
       } catch {
         if (password) {
-          setPasswordError("Kata sandi salah atau perubahan ditolak.")
+          setPasswordError(translate("Kata sandi salah atau perubahan ditolak."))
         } else {
           toast.show({
-            title: "Gagal menyimpan profil",
-            description: "Username mungkin sudah dipakai atau baru saja diganti.",
+            title: translate("Gagal menyimpan profil"),
+            description: translate("Username mungkin sudah dipakai atau baru saja diganti."),
             tone: "danger",
           })
         }
@@ -325,8 +328,8 @@ export default function EditProfileScreen() {
       const picked = await pickImage({ ...AVATAR_PICKER, source })
       if (picked.status === "denied") {
         toast.show({
-          title: source === "camera" ? "Izin kamera ditolak" : "Izin galeri ditolak",
-          description: "Aktifkan di pengaturan perangkat.",
+          title: source === "camera" ? translate("Izin kamera ditolak") : translate("Izin galeri ditolak"),
+          description: translate("Aktifkan di pengaturan perangkat."),
           tone: "danger",
         })
         return
@@ -349,7 +352,7 @@ export default function EditProfileScreen() {
           orphanKey = undefined
         }
         if (uploaded.avatarUrl) setAvatarUrl(uploaded.avatarUrl)
-        toast.show({ title: "Foto profil diperbarui", tone: "success" })
+        toast.show({ title: translate("Foto profil diperbarui"), tone: "success" })
       } catch (err: unknown) {
         if (orphanKey) {
           api.upload
@@ -357,7 +360,7 @@ export default function EditProfileScreen() {
             .catch((cleanupErr: unknown) => logWarn("profile:avatar-cleanup", cleanupErr))
         }
         toast.show({
-          title: "Gagal mengunggah foto",
+          title: translate("Gagal mengunggah foto"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -373,9 +376,9 @@ export default function EditProfileScreen() {
     try {
       await api.users.deleteAvatar()
       setAvatarUrl(null)
-      toast.show({ title: "Foto profil dihapus", tone: "success" })
+      toast.show({ title: translate("Foto profil dihapus"), tone: "success" })
     } catch (err: unknown) {
-      toast.show({ title: "Gagal menghapus foto", description: userMessage(err), tone: "danger" })
+      toast.show({ title: translate("Gagal menghapus foto"), description: userMessage(err), tone: "danger" })
     } finally {
       setAvatarBusy(false)
     }
@@ -384,13 +387,13 @@ export default function EditProfileScreen() {
   const avatarActions: ActionSheetItem[] = [
     {
       key: "camera",
-      label: "Ambil foto",
+      label: translate("Ambil foto"),
       icon: CameraIcon,
       onPress: () => void uploadAvatar("camera"),
     },
     {
       key: "gallery",
-      label: "Pilih dari galeri",
+      label: translate("Pilih dari galeri"),
       icon: Images,
       onPress: () => void uploadAvatar("library"),
     },
@@ -398,7 +401,7 @@ export default function EditProfileScreen() {
       ? [
           {
             key: "remove",
-            label: "Hapus foto",
+            label: translate("Hapus foto"),
             icon: Trash,
             destructive: true,
             onPress: () => void removeAvatar(),
@@ -418,8 +421,8 @@ export default function EditProfileScreen() {
       const picked = await pickImage({ ...COVER_PICKER, source })
       if (picked.status === "denied") {
         toast.show({
-          title: source === "camera" ? "Izin kamera ditolak" : "Izin galeri ditolak",
-          description: "Aktifkan di pengaturan perangkat.",
+          title: source === "camera" ? translate("Izin kamera ditolak") : translate("Izin galeri ditolak"),
+          description: translate("Aktifkan di pengaturan perangkat."),
           tone: "danger",
         })
         return
@@ -432,10 +435,10 @@ export default function EditProfileScreen() {
         )
         if (uploaded.headerKey) await api.users.confirmHeader({ headerKey: uploaded.headerKey })
         if (uploaded.headerUrl) setHeaderUrl(uploaded.headerUrl)
-        toast.show({ title: "Foto sampul diperbarui", tone: "success" })
+        toast.show({ title: translate("Foto sampul diperbarui"), tone: "success" })
       } catch (err: unknown) {
         toast.show({
-          title: "Gagal mengunggah foto sampul",
+          title: translate("Gagal mengunggah foto sampul"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -451,10 +454,10 @@ export default function EditProfileScreen() {
     try {
       await api.users.deleteHeader()
       setHeaderUrl(null)
-      toast.show({ title: "Foto sampul dihapus", tone: "success" })
+      toast.show({ title: translate("Foto sampul dihapus"), tone: "success" })
     } catch (err: unknown) {
       toast.show({
-        title: "Gagal menghapus foto sampul",
+        title: translate("Gagal menghapus foto sampul"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -466,13 +469,13 @@ export default function EditProfileScreen() {
   const headerActions: ActionSheetItem[] = [
     {
       key: "camera",
-      label: "Ambil foto",
+      label: translate("Ambil foto"),
       icon: CameraIcon,
       onPress: () => void uploadHeader("camera"),
     },
     {
       key: "gallery",
-      label: "Pilih dari galeri",
+      label: translate("Pilih dari galeri"),
       icon: Images,
       onPress: () => void uploadHeader("library"),
     },
@@ -480,7 +483,7 @@ export default function EditProfileScreen() {
       ? [
           {
             key: "remove",
-            label: "Hapus foto sampul",
+            label: translate("Hapus foto sampul"),
             icon: Trash,
             destructive: true,
             onPress: () => void removeHeader(),
@@ -511,7 +514,7 @@ export default function EditProfileScreen() {
         </View>
       }
     >
-      <Header title="Edit Profil" />
+      <Header title={translate("Edit Profil")} />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}
@@ -537,7 +540,7 @@ export default function EditProfileScreen() {
         >
           {error ? (
             <ErrorState
-              title="Gagal memuat"
+              title={translate("Gagal memuat")}
               description={error}
               onRetry={() => void query.reload()}
             />
@@ -549,7 +552,7 @@ export default function EditProfileScreen() {
                 {coverUri ? (
                   <Picture
                     source={{ uri: coverUri }}
-                    alt="Foto sampul profil"
+                    alt={translate("Foto sampul profil")}
                     height={COVER_HEIGHT}
                     radius="none"
                     bordered={false}
@@ -570,7 +573,7 @@ export default function EditProfileScreen() {
                     icon={CameraIcon}
                     variant="secondary"
                     size="sm"
-                    accessibilityLabel="Ubah foto sampul"
+                    accessibilityLabel={translate("Ubah foto sampul")}
                     loading={headerBusy}
                     disabled={headerBusy}
                     onPress={() => setHeaderSheetOpen(true)}
@@ -592,7 +595,7 @@ export default function EditProfileScreen() {
                     variant="primary"
                     size="sm"
                     shape="pill"
-                    accessibilityLabel="Ubah foto profil"
+                    accessibilityLabel={translate("Ubah foto profil")}
                     loading={avatarBusy}
                     disabled={avatarBusy}
                     onPress={() => setAvatarSheetOpen(true)}
@@ -601,13 +604,13 @@ export default function EditProfileScreen() {
               </View>
             </View>
 
-            <FormSection title="Informasi dasar">
-              <Field label="Nama lengkap" required>
+            <FormSection title={translate("Informasi dasar")}>
+              <Field label={translate("Nama lengkap")} required>
                 <Input
                   value={form.fullName}
                   onChangeText={(v) => set("fullName", v)}
                   maxLength={60}
-                  placeholder="Nama lengkap Anda"
+                  placeholder={translate("Nama lengkap Anda")}
                   // Field yang sama di (auth)/register-security sudah membawa
                   // keempat prop ini; tanpanya iOS/Android tidak menawarkan
                   // nama dari kontak dan kapitalisasi tiap kata tidak otomatis.
@@ -621,26 +624,26 @@ export default function EditProfileScreen() {
                 value={form.username}
                 onChangeText={(v) => set("username", v)}
                 availability={usernameAvailability}
-                helperText="Hanya bisa diganti sekali per bulan."
+                helperText={translate("Hanya bisa diganti sekali per bulan.")}
               />
-              <Field label="Bio" helperText="Maks. 500 karakter">
+              <Field label={translate("Bio")} helperText={translate("Maks. 500 karakter")}>
                 <TextArea
                   value={form.bio}
                   onChangeText={(v) => set("bio", v)}
                   maxLength={500}
                   numberOfLines={4}
-                  placeholder="Ceritakan tentang Anda"
+                  placeholder={translate("Ceritakan tentang Anda")}
                 />
               </Field>
             </FormSection>
 
             <FormSection
-              title="Akun"
+              title={translate("Akun")}
               divider
-              description="Email akun dipakai untuk masuk dan tidak diubah di sini."
+              description={translate("Email akun dipakai untuk masuk dan tidak diubah di sini.")}
             >
               <EmailField
-                label="Email akun"
+                label={translate("Email akun")}
                 value={accountEmail}
                 onChangeText={() => undefined}
                 validate={false}
@@ -649,7 +652,7 @@ export default function EditProfileScreen() {
               {emailVerified === false && accountEmail ? (
                 <Alert
                   tone="warning"
-                  title="Email belum diverifikasi"
+                  title={translate("Email belum diverifikasi")}
                   action={
                     <Button
                       size="sm"
@@ -665,11 +668,11 @@ export default function EditProfileScreen() {
               ) : null}
               <View className="gap-2">
                 <PhoneInput
-                  label="Nomor HP akun"
+                  label={translate("Nomor HP akun")}
                   value={form.phone}
                   onChangeText={() => undefined}
                   disabled
-                  helperText="Mengganti nomor HP akun membutuhkan verifikasi keamanan OTP."
+                  helperText={translate("Mengganti nomor HP akun membutuhkan verifikasi keamanan OTP.")}
                 />
                 <Button
                   size="sm"
@@ -682,12 +685,12 @@ export default function EditProfileScreen() {
             </FormSection>
 
             <FormSection
-              title="Kontak publik"
+              title={translate("Kontak publik")}
               divider
-              description="Ditampilkan di profil publik bila diaktifkan."
+              description={translate("Ditampilkan di profil publik bila diaktifkan.")}
             >
               <EmailField
-                label="Email kontak"
+                label={translate("Email kontak")}
                 value={form.contactEmail}
                 onChangeText={(v) => set("contactEmail", v)}
                 validate={form.contactEmail.length > 0}
@@ -695,26 +698,26 @@ export default function EditProfileScreen() {
               <Switch
                 value={form.showContactEmail}
                 onChange={(v) => set("showContactEmail", v)}
-                label="Tampilkan email kontak di profil"
+                label={translate("Tampilkan email kontak di profil")}
                 disabled={!form.contactEmail.trim()}
               />
               <PhoneInput
-                label="Nomor HP kontak"
+                label={translate("Nomor HP kontak")}
                 value={form.contactPhone}
                 onChangeText={(v) => set("contactPhone", v)}
               />
               <Switch
                 value={form.showContactPhone}
                 onChange={(v) => set("showContactPhone", v)}
-                label="Tampilkan nomor HP kontak di profil"
+                label={translate("Tampilkan nomor HP kontak di profil")}
                 disabled={!form.contactPhone}
               />
             </FormSection>
 
             <FormSection
-              title="Tautan sosial"
+              title={translate("Tautan sosial")}
               divider
-              description="Ditampilkan di profil publik Anda."
+              description={translate("Ditampilkan di profil publik Anda.")}
             >
               <SocialLinksEditor value={links} onChange={setLinks} max={MAX_LINKS} />
             </FormSection>
@@ -725,32 +728,32 @@ export default function EditProfileScreen() {
 
       <ActionSheet
         visible={avatarSheetOpen}
-        title="Foto profil"
+        title={translate("Foto profil")}
         actions={avatarActions}
         onRequestClose={() => setAvatarSheetOpen(false)}
       />
 
       <ActionSheet
         visible={headerSheetOpen}
-        title="Foto sampul"
+        title={translate("Foto sampul")}
         actions={headerActions}
         onRequestClose={() => setHeaderSheetOpen(false)}
       />
 
       <Dialog
-        title="Konfirmasi kata sandi"
-        description="Mengubah username, nomor HP, atau kontak membutuhkan kata sandi akun."
+        title={translate("Konfirmasi kata sandi")}
+        description={translate("Mengubah username, nomor HP, atau kontak membutuhkan kata sandi akun.")}
         visible={passwordOpen}
         loading={submitting}
-        confirmLabel="Simpan"
-        cancelLabel="Batal"
+        confirmLabel={translate("Simpan")}
+        cancelLabel={translate("Batal")}
         confirmButtonProps={{ disabled: !currentPassword }}
         onConfirm={() => void save(currentPassword)}
         onCancel={() => setPasswordOpen(false)}
         onRequestClose={() => setPasswordOpen(false)}
       >
         <PasswordField
-          label="Kata sandi akun"
+          label={translate("Kata sandi akun")}
           value={currentPassword}
           onChangeText={setCurrentPassword}
           errorText={passwordError}

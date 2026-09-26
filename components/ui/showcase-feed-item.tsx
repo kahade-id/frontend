@@ -29,6 +29,7 @@ import { BookmarkSimple, ChatCircle, Export, Flag, FunnelSimple } from "phosphor
 import { router, useLocalSearchParams } from "expo-router"
 import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 import { formatCountCompact, formatRelativeTime } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -147,6 +148,8 @@ function ShowcaseFeedItemBase({
   divider = false,
   className,
 }: ShowcaseFeedItemProps) {
+  // i18n: label aksesibilitas mengikuti bahasa aktif.
+  useLanguage()
   // L-01: tab feed aktif dari param rute (hook harus di body render).
   const { kind } = useLocalSearchParams<{ kind?: string }>()
   // H-04: gate tap penulis untuk tamu (profil = layar terproteksi).
@@ -239,6 +242,7 @@ function ShowcaseFeedItemBase({
               <VerifiedSeal
                 badges={item.author.badges as unknown as VerificationBadge[]}
                 verified={item.author.isKycVerified === true}
+                tier={item.author.sealTier ?? null}
                 size={14}
               />
             </View>
@@ -342,7 +346,7 @@ function ShowcaseFeedItemBase({
         {onToggleSave ? (
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
+            accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan")}
             accessibilityState={{ selected: saved, busy: savePending }}
             onPress={onToggleSave}
             containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}

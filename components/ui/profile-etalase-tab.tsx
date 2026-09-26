@@ -219,7 +219,7 @@ export function ProfileEtalaseTab({
           <View className="px-5">
             <ErrorState
               compact
-              title="Gagal memuat etalase"
+              title={translate("Gagal memuat etalase")}
               description={error}
               onRetry={onRetry}
             />
@@ -229,8 +229,8 @@ export function ProfileEtalaseTab({
             {isSelf ? (
               <EmptyState
                 icon={Images}
-                title="Belum ada etalase"
-                description="Anda belum menambahkan karya atau produk ke etalase."
+                title={translate("Belum ada etalase")}
+                description={translate("Anda belum menambahkan karya atau produk ke etalase.")}
                 action={
                   <Button
                     variant="secondary"
@@ -238,14 +238,14 @@ export function ProfileEtalaseTab({
                     leftIcon={Plus}
                     onPress={() => router.push(ROUTES.showcaseManagement)}
                   >
-                    Tambah karya
+                    {translate("Tambah karya")}
                   </Button>
                 }
               />
             ) : (
               <EmptyState
                 icon={Images}
-                title="Belum ada konten"
+                title={translate("Belum ada konten")}
                 description={translate("@{x} belum membagikan foto atau karya produk.", {
                   x: handle,
                 })}
@@ -266,14 +266,14 @@ export function ProfileEtalaseTab({
                 onReport={handleOpenReport}
               />
             ))}
-            {patchedItems.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 20)}>Tampilkan karya lainnya</Button> : null}
+            {patchedItems.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 20)}>{translate("Tampilkan karya lainnya")}</Button> : null}
             {/* E-03: taut ke layar galeri grid publik (jangan biarkan kode mati). */}
             <View className="px-5">
               <Button
                 variant="ghost"
                 onPress={() => router.push(ROUTES.userShowcase(handle))}
               >
-                Lihat sebagai galeri
+                {translate("Lihat sebagai galeri")}
               </Button>
             </View>
           </>

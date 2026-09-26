@@ -54,6 +54,7 @@ import { ErrorState } from "@/components/ui/error-state"
 import type { EvidenceItem } from "@/components/ui/evidence-grid"
 import { Header } from "@/components/ui/header"
 import { MediaViewer, fileNameFromUrl, type MediaViewerItem } from "@/components/ui/media-viewer"
+import { UPLOAD_DEFAULT_MAX_MB } from "@/components/ui/upload-field"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -321,9 +322,20 @@ export default function DeliveryProofScreen() {
       return
     }
     if (picked.status !== "picked") return
+    // F7 (audit 2026-09-26): validasi ukuran SEBELUM upload dimulai — jangan
+    // buang kuota/data mengunggah berkas yang pasti ditolak. Batas 10 MB
+    // memakai konstanta yang sama dengan <UploadField> (satu sumber).
+    const asset = picked.asset
+    if (asset.size > 0 && asset.size > UPLOAD_DEFAULT_MAX_MB * 1024 * 1024) {
+      toast.show({
+        title: "Berkas terlalu besar",
+        description: translate("Ukuran berkas melebihi {x} MB.", { x: UPLOAD_DEFAULT_MAX_MB }),
+        tone: "danger",
+      })
+      return
+    }
     setUploading(true)
     try {
-      const asset = picked.asset
       const blob = await pickedImageToBlob(asset)
       const { fileKey } = await api.upload.uploadPresigned(
         "DELIVERY_PROOF",

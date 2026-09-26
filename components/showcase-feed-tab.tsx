@@ -69,6 +69,7 @@ import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useToast } from "@/components/ui/toast"
 
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -107,12 +108,20 @@ const FOLLOWING_INDEX_PARALLEL = 4
 // ------------------------------------------------------------------
 
 /** Urutan tab meniru strip tab profil publik (bukan chip Terbaru/Populer). */
-const FEED_TABS = [
-  { value: "forYou", label: "Untuk Anda" },
-  { value: "following", label: "Mengikuti" },
-  { value: "latest", label: "Terbaru" },
-  { value: "popular", label: "Populer" },
-] as const satisfies readonly { value: ShowcaseFeedKind; label: string }[]
+function useFeedTabs() {
+  // i18n: label tab mengikuti bahasa aktif (dulu konstanta modul).
+  const language = useLanguage()
+  return useMemo(
+    () =>
+      [
+        { value: "forYou", label: translate("Untuk Anda") },
+        { value: "following", label: translate("Mengikuti") },
+        { value: "latest", label: translate("Terbaru") },
+        { value: "popular", label: translate("Populer") },
+      ] as const satisfies readonly { value: ShowcaseFeedKind; label: string }[],
+    [language],
+  )
+}
 
 /** A-04: cache daftar following per akun — lihat `followingIndexRef`. */
 type FollowingIndex = { owner: string; keys: ReadonlySet<string> }
@@ -198,9 +207,14 @@ export type ShowcaseFeedTabProps = {
   /** A-12: filter kategori aktif (dari param rute /showcase?category=…). */
   category?: string
   onClearCategory?: () => void
+  /** Filter lokasi aktif (dari param rute /showcase?location=…). */
+  location?: string
+  onClearLocation?: () => void
 }
 
-export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: ShowcaseFeedTabProps) {
+export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, location, onClearLocation }: ShowcaseFeedTabProps) {
+  // i18n: label tab mengikuti bahasa aktif.
+  const feedTabs = useFeedTabs()
   const params = useLocalSearchParams<{ kind?: string; search?: string }>()
   const kind: ShowcaseFeedKind = params.kind === "following" || params.kind === "latest" || params.kind === "popular" ? params.kind : "forYou"
   // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
@@ -306,10 +320,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
     setFollowingGuest(true)
   }, [])
 
-  /** Filter aktif — kunci himpunan hasil (tab × search × kategori). */
+  /** Filter aktif — kunci himpunan hasil (tab × search × kategori × lokasi). */
   const filter: ShowcaseFeedFilter = useMemo(
-    () => ({ search: activeSearch || undefined, category: category || undefined }),
-    [activeSearch, category],
+    () => ({ search: activeSearch || undefined, category: category || undefined, location: location || undefined }),
+    [activeSearch, category, location],
   )
 
   /**
@@ -414,6 +428,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         limit: FEED_LIMIT,
         search: filter.search,
         category: filter.category,
+        location: filter.location,
       }
       try {
         let incoming: ShowcaseSocialItem[] = []
@@ -718,6 +733,22 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
     </View>
   ) : null
 
+  /** Chip `?location=` — pola sama dengan chip kategori (A-06/A-12). */
+  const locationChip = location ? (
+    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+        {translate("Lokasi: {x}", { x: location })}
+      </Text>
+      <IconButton
+        icon={X}
+        variant="ghost"
+        size="sm"
+        accessibilityLabel={translate("Hapus filter lokasi {x}", { x: location })}
+        onPress={onClearLocation}
+      />
+    </View>
+  ) : null
+
   /** A-06: chip `?search=` kini bisa dihapus, bukan mengunci feed selamanya. */
   const searchChip = activeSearch ? (
     <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
@@ -744,7 +775,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         ]}
       >
         <Animated.View style={collapsing.contentStyle} onLayout={collapsing.onHeaderLayout}>
-          <ShowcaseHeader kind={kind} onKindChange={setKind} tabs={FEED_TABS} />
+          <ShowcaseHeader kind={kind} onKindChange={setKind} tabs={feedTabs} />
         </Animated.View>
       </Animated.View>
 
@@ -778,8 +809,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory }: Sh
         gap={tokens.space[5]}
         bottomPadding={bottomPadding}
         header={
-          searchChip || categoryChip || followingPartialNotice ? (
-            <View>{searchChip}{categoryChip}{followingPartialNotice}</View>
+          searchChip || categoryChip || locationChip || followingPartialNotice ? (
+            <View>{searchChip}{categoryChip}{locationChip}{followingPartialNotice}</View>
           ) : undefined
         }
         loadingPlaceholder={

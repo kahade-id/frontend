@@ -117,13 +117,19 @@ export type VerifiedSealProps = {
   badges: VerificationBadge[] | undefined | null
   /** Fallback boolean lama bila daftar badge belum dimuat. */
   verified?: boolean
+  /**
+   * R1 (audit 2026-09-26): tier dari payload backend (`sealTier`) — dipakai
+   * di permukaan yang tidak memuat daftar badge penuh (feed, search, chat).
+   * Diutamakan di atas komputasi dari `badges`.
+   */
+  tier?: SealTier | null
   size?: number
   className?: string
 }
 
-export function VerifiedSeal({ badges, verified = false, size = 16, className }: VerifiedSealProps) {
+export function VerifiedSeal({ badges, verified = false, tier: tierProp, size = 16, className }: VerifiedSealProps) {
   const [sheetOpen, setSheetOpen] = useState(false)
-  const tier = getSealTier(badges) ?? (verified ? "gray" : null)
+  const tier = tierProp ?? getSealTier(badges) ?? (verified ? "gray" : null)
   if (!tier) return null
 
   const color = SEAL_TIER_COLOR[tier]

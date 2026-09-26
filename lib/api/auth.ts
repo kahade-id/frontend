@@ -146,11 +146,6 @@ export type CaptchaChallenge = {
   expiresAt?: string
 }
 
-/** Metode OTP lama (dipakai alur change-phone) — enum eksplisit karena DTO
- *  RequestOtpDto sudah dihapus dari spec (endpoint request-otp = 410). */
-export type OtpMethod = "SMS" | "WHATSAPP"
-export type OtpMethodsResult = { methods: OtpMethod[] }
-
 export type TwoFactorStatus = { enabled: boolean; backupCodesRemaining?: number }
 
 export type TwoFactorSetup = {
@@ -271,49 +266,10 @@ export function correctEmail(dto: CorrectEmailDto) {
 // Registrasi / login via nomor telepon (OTP)
 // ------------------------------------------------------------------
 
-/** Semua metode yang dikenal — urutan = urutan tampil default. */
-export const OTP_METHODS: readonly OtpMethod[] = ["SMS", "WHATSAPP"]
-
-function isOtpMethod(value: unknown): value is OtpMethod {
-  return typeof value === "string" && (OTP_METHODS as readonly string[]).includes(value)
-}
-
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
     : null
-}
-
-/**
- * Normalisasi response `otp-methods` — UNVERIFIED (spec hanya `200: ""`).
- * Menerima bentuk yang lazim dari NestJS: `["SMS","WHATSAPP"]`,
- * `{ methods: [...] }`, `{ data: [...] }`, atau array objek
- * `{ method|id|name|value, enabled?|available? }`. Nilai di luar enum spec
- * dibuang, duplikat dirapikan, urutan mengikuti backend. Hasil kosong berarti
- * "backend tidak menawarkan apa pun" — pemanggil yang memutuskan fallback.
- */
-export function normalizeOtpMethods(raw: unknown): OtpMethod[] {
-  const rec = asRecord(raw)
-  const list = Array.isArray(raw) ? raw : (rec?.methods ?? rec?.data ?? rec?.availableMethods ?? rec?.available_methods)
-  if (!Array.isArray(list)) return []
-
-  const out: OtpMethod[] = []
-  for (const item of list) {
-    let candidate: unknown = item
-    const obj = asRecord(item)
-    if (obj) {
-      if (obj.enabled === false || obj.is_enabled === false || obj.available === false || obj.is_available === false) continue
-      candidate = obj.method ?? obj.id ?? obj.name ?? obj.value
-    }
-    const upper = typeof candidate === "string" ? candidate.toUpperCase() : candidate
-    if (isOtpMethod(upper) && !out.includes(upper)) out.push(upper)
-  }
-  return out
-}
-
-export async function getOtpMethods(signal?: AbortSignal): Promise<OtpMethodsResult> {
-  const raw = await http.get<unknown>("/v1/auth/otp-methods", { auth: "none", signal })
-  return { methods: normalizeOtpMethods(raw) }
 }
 
 /**

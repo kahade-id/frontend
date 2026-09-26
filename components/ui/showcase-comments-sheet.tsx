@@ -52,6 +52,7 @@ import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 import { useHasSession } from "@/lib/guest-gate"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -87,6 +88,8 @@ export function ShowcaseCommentsSheet({
   item,
   onRequestClose,
 }: ShowcaseCommentsSheetProps) {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const { height: windowHeight } = useWindowDimensions()
   const toast = useToast()
   const hasSession = useHasSession()
@@ -136,7 +139,7 @@ export function ShowcaseCommentsSheet({
     async (target: ShowcaseComment) => {
       try {
         await deleteShowcaseComment(target.id)
-        toast.show({ title: "Komentar dihapus", tone: "success" })
+        toast.show({ title: translate("Komentar dihapus"), tone: "success" })
         setLocalComments((prev) =>
           prev
             .filter((c) => c.id !== target.id)
@@ -148,7 +151,7 @@ export function ShowcaseCommentsSheet({
         void query.reload()
       } catch (err) {
         toast.show({
-          title: "Gagal menghapus komentar",
+          title: translate("Gagal menghapus komentar"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -308,7 +311,7 @@ export function ShowcaseCommentsSheet({
                 value={draft}
                 onChangeText={updateDraft}
                 placeholder={replyTo ? translate("Tulis balasan…") : "Tulis komentar…"}
-                accessibilityLabel="Komentar baru"
+                accessibilityLabel={translate("Komentar baru")}
                 containerClassName="flex-1"
                 maxLength={COMMENT_MAX}
                 onSubmitEditing={() => void handleSend()}
@@ -318,7 +321,7 @@ export function ShowcaseCommentsSheet({
                 icon={PaperPlaneRight}
                 variant="primary"
                 size="sm"
-                accessibilityLabel="Kirim komentar"
+                accessibilityLabel={translate("Kirim komentar")}
                 accessibilityHint={translate("Kirim komentar")}
                 loading={sending}
                 disabled={!draft.trim()}

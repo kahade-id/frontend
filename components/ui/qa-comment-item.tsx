@@ -21,7 +21,7 @@
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
@@ -60,11 +60,18 @@ export type QaCommentItemProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-const DEFAULT_LABELS: QaCommentLabels = {
-  owner: "Penjual",
-  reply: "Balas",
-  delete: "Hapus",
-  deleted: "Komentar telah dihapus",
+/**
+ * Label bawaan mengikuti bahasa aktif (dulu konstanta modul yang tidak
+ * reaktif). Nilai dibaca via translate() saat render.
+ */
+function useDefaultLabels(): QaCommentLabels {
+  useLanguage()
+  return {
+    owner: translate("Penjual"),
+    reply: translate("Balas"),
+    delete: translate("Hapus"),
+    deleted: translate("Komentar telah dihapus"),
+  }
 }
 
 export function QaCommentItem({
@@ -84,7 +91,7 @@ export function QaCommentItem({
   className,
   ...rest
 }: QaCommentItemProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  const t = { ...useDefaultLabels(), ...labels }
 
   return (
     // Root TANPA `accessible`: nama penulis bisa berupa <TextLink> dan `extra`
@@ -174,8 +181,8 @@ export function QaCommentComposer({
   onChangeText,
   onSubmit,
   submitting = false,
-  placeholder = "Tulis komentar…",
-  submitLabel = "Kirim",
+  placeholder,
+  submitLabel,
   maxLength = 500,
   replyingTo,
   onCancelReply,
@@ -183,18 +190,22 @@ export function QaCommentComposer({
   className,
   ...rest
 }: QaCommentComposerProps) {
+  // i18n: default mengikuti bahasa aktif (dulu hardcode di default param).
+  useLanguage()
   const canSubmit = value.trim().length > 0 && !submitting
+  const resolvedPlaceholder = placeholder ?? translate("Tulis komentar…")
+  const resolvedSubmitLabel = submitLabel ?? translate("Kirim")
 
   return (
     <View className={cn("gap-3", className)} {...rest}>
       {replyingTo ? (
         <View className="flex-row items-center justify-between gap-3">
           <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
-            Membalas {replyingTo}
+            {translate("Membalas {x}", { x: replyingTo })}
           </Text>
           {onCancelReply ? (
             <TextLink variant="caption" weight={500} onPress={onCancelReply}>
-              Batal
+              {translate("Batal")}
             </TextLink>
           ) : null}
         </View>
@@ -202,15 +213,15 @@ export function QaCommentComposer({
       <TextArea
         value={value}
         onChangeText={onChangeText}
-        placeholder={placeholder}
+        placeholder={resolvedPlaceholder}
         maxLength={maxLength}
         showCount
         errorText={errorText}
-        accessibilityLabel="Tulis komentar"
+        accessibilityLabel={translate("Tulis komentar")}
       />
       <View className="flex-row justify-end">
         <Button size="sm" onPress={onSubmit} disabled={!canSubmit} loading={submitting} fullWidth={false}>
-          {submitLabel}
+          {resolvedSubmitLabel}
         </Button>
       </View>
     </View>

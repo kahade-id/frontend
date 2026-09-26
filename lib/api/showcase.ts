@@ -26,6 +26,12 @@
 import { http, seg } from "./client"
 import { readList, asRecord, invalidResponse } from "./response"
 import { translate } from "@/lib/i18n/translate"
+import type { SealTier } from "@/components/ui/verified-seal"
+
+/** Tier seal yang valid dari backend (`sealTier`); nilai lain dibuang. */
+function asSealTier(value: unknown): SealTier | null {
+  return value === "gold" || value === "blue" || value === "gray" ? value : null
+}
 
 // ------------------------------------------------------------------
 // Tipe
@@ -43,6 +49,9 @@ export type ShowcaseAuthor = {
   /** S1 (audit 2026-09-26): badge verifikasi 3-tier dari backend — dipakai
    * <VerifiedSeal>; fallback ke isKycVerified bila kosong/belum dimuat. */
   badges?: Array<{ type: string }>
+  /** R1 (audit 2026-09-26): tier seal dari payload backend (`sealTier`) —
+   * diutamakan <VerifiedSeal> di atas komputasi dari `badges`. */
+  sealTier?: SealTier | null
 }
 
 /**
@@ -80,6 +89,8 @@ export type ShowcaseSocialItem = {
     counterpartUsername?: string
   } | null
   shareUrl?: string
+  /** Karya terkait (kategori sama → populer). Diisi backend di detail. */
+  related?: ShowcaseSocialItem[]
 }
 
 /** Komentar + balasan satu tingkat (kedalaman dibatasi backend). */
@@ -123,6 +134,11 @@ export type ShowcaseFeedQuery = {
   category?: string
   /** Cari di title, description, category, dan username penjual. */
   search?: string
+  /**
+   * Filter lokasi (opsional): hanya item yang pemiliknya punya free-text
+   * alamat (users.address) yang cocok case-insensitive, mis. "Jakarta".
+   */
+  location?: string
 }
 
 export type ShowcaseFeedPage = {
@@ -160,6 +176,7 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
         sort: query.sort ?? "latest",
         category: query.category?.trim().replace(/\s+/g, " ").slice(0, 60),
         search: query.search?.trim().slice(0, 100),
+        location: query.location?.trim().slice(0, 100) || undefined,
       },
       retry: 1,
     })
@@ -322,6 +339,40 @@ export function getShowcaseSharePayload(showcaseId: string, signal?: AbortSignal
   })
 }
 
+/** Item kategori populer dari GET /v1/showcase/categories. */
+export type PopularCategory = {
+  category: string
+  count: number
+}
+
+function parsePopularCategory(raw: unknown): PopularCategory | null {
+  const value = asRecord(raw)
+  if (!value || typeof value.category !== "string") return null
+  const count = typeof value.count === "number" && Number.isFinite(value.count) ? value.count : 0
+  return { category: value.category, count }
+}
+
+/**
+ * GET /v1/showcase/categories — daftar kategori populer beserta jumlah karya.
+ * Dipakai sebagai saran saat mengisi kategori (mengurangi fragmentasi ejaan
+ * teks bebas). Murni baca + idempoten → retry 1 aman.
+ */
+export async function getPopularCategories(
+  limit = 20,
+  signal?: AbortSignal,
+): Promise<PopularCategory[]> {
+  const body = await http.get<unknown>(`/v1/showcase/categories?limit=${limit}`, {
+    auth: "none",
+    retry: 1,
+    signal,
+  })
+  const record = asRecord(body)
+  const rawList = Array.isArray(record?.categories) ? record.categories : []
+  return rawList
+    .map(parsePopularCategory)
+    .filter((c): c is PopularCategory => c !== null && c.category.trim().length > 0)
+}
+
 /**
  * POST /v1/showcase/:showcaseId/report — laporkan item (throttle 5/jam).
  * `reason` mengikuti kategori moderasi konten backend.
@@ -417,11 +468,27 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
             .filter((b) => b && typeof (b as { type?: unknown }).type === "string")
             .map((b) => ({ type: (b as { type: string }).type }))
         : [],
+      // R1: tier seal dari payload backend — diutamakan <VerifiedSeal>.
+      sealTier: asSealTier(author.sealTier),
     },
     likeCount: count(value.likeCount), commentCount: count(value.commentCount), viewCount: count(value.viewCount),
     isLiked: value.isLiked === true, isOwner: value.isOwner === true,
     orderLink,
     shareUrl: typeof value.shareUrl === "string" && value.shareUrl ? value.shareUrl : undefined,
+    // Karya terkait (audit Discovery 2026-09-26): backend mengirim `related`
+    // (maks 6, bentuk serialize sama) di respons detail — parser sebelumnya
+    // MEMBUANG field ini sehingga section "Karya terkait" di [id].tsx tidak
+    // pernah tampil. Entri yang gagal validasi dilewati, bukan menggagalkan
+    // seluruh halaman detail.
+    related: Array.isArray(value.related)
+      ? value.related.flatMap((rawRelated) => {
+          try {
+            return [parseShowcaseItem(rawRelated)]
+          } catch {
+            return []
+          }
+        })
+      : undefined,
   }
 }
 

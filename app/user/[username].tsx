@@ -11,10 +11,11 @@ import { useProfileShowcase } from "@/lib/use-profile-showcase"
  *  - Tab navigasi in-page: Etalase, Utas (QEtalase, Tanya Jawab, Ulasan, TentangA), Ulasan, Tentang via <Tabs>.
  *  - Bottom Nav Bar hanya dirender untuk PROFIL SENDIRI.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Pressable, View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 import {
   Bookmark,
   Briefcase,
@@ -45,6 +46,7 @@ import {
 import { useCopy } from "@/lib/clipboard"
 import { profileUrl } from "@/lib/deeplinks"
 import { formatDateTime, formatDecimal, formatNumber } from "@/lib/format"
+import { useHasSession } from "@/lib/guest-gate"
 import { goBackOrNavigate } from "@/lib/navigation"
 import { resolveMediaUrl } from "@/lib/media"
 import { ROUTES } from "@/lib/routes"
@@ -88,16 +90,39 @@ import { useToast } from "@/components/ui/toast"
 type ProfileTab = "content" | "questions" | "ratings" | "about"
 
 /**
- * Item tab profil — konstanta modul agar tidak dibuat ulang tiap render.
- * Indikator aktif = garis hitam (bg-primary #000) tebal 2px yang MELUNCUR
- * antar tab dengan spring — sudah bawaan <Tabs> design system (§9.16).
+ * Item tab profil — dibuat di dalam komponen via useMemo (bukan konstanta
+ * modul) supaya label mengikuti bahasa aktif. Array di-memo agar identitasnya
+ * stabil antar render (indikator tab yang meluncur butuh referensi stabil).
  */
-const PROFILE_TABS = [
-  { value: "content", label: "Etalase" },
-  { value: "questions", label: "Utas" },
-  { value: "ratings", label: "Ulasan" },
-  { value: "about", label: "Tentang" },
-] as const satisfies readonly { value: ProfileTab; label: string }[]
+function useProfileTabs() {
+  const language = useLanguage()
+  return useMemo(
+    () =>
+      [
+        { value: "content", label: translate("Etalase") },
+        { value: "questions", label: translate("Utas") },
+        { value: "ratings", label: translate("Ulasan") },
+        { value: "about", label: translate("Tentang") },
+      ] as const satisfies readonly { value: ProfileTab; label: string }[],
+    [language],
+  )
+}
+
+/**
+ * Alasan sembunyikan komentar QA — sama: label mengikuti bahasa aktif.
+ */
+function useQaHideReasons(): readonly { value: string; label: string; description: string }[] {
+  const language = useLanguage()
+  return useMemo(
+    () => [
+      { value: "SPAM", label: translate("Spam"), description: translate("Link/jualan tidak relevan") },
+      { value: "INAPPROPRIATE", label: translate("Tidak pantas"), description: translate("Konten menyinggung") },
+      { value: "HARASSMENT", label: translate("Perundungan"), description: translate("Ancaman/pelecehan") },
+      { value: "OTHER", label: translate("Lainnya"), description: translate("Sebutkan di keterangan") },
+    ],
+    [language],
+  )
+}
 
 /**
  * Tinggi sampul kartu — SAMA dengan COVER_HEIGHT di ProfileHeader
@@ -105,12 +130,6 @@ const PROFILE_TABS = [
  */
 const COVER_HEIGHT = 120
 
-const QA_HIDE_REASONS = [
-  { value: "SPAM", label: "Spam", description: "Link/jualan tidak relevan" },
-  { value: "INAPPROPRIATE", label: "Tidak pantas", description: "Konten menyinggung" },
-  { value: "HARASSMENT", label: "Perundungan", description: "Ancaman/pelecehan" },
-  { value: "OTHER", label: "Lainnya", description: "Sebutkan di keterangan" },
-] as const
 
 /**
  * Nama ikon badge dari backend adalah string kebab-case Phosphor. Beberapa
@@ -137,6 +156,11 @@ export default function UserProfileScreen() {
   const username = rawUsername ?? ""
   const toast = useToast()
   const { copy } = useCopy()
+  // P3 (audit 2026-09-26): tamu di-gate ke login sebelum aksi sosial.
+  const hasSession = useHasSession()
+  // i18n: tab + alasan hide mengikuti bahasa aktif (dulu konstanta modul).
+  const profileTabs = useProfileTabs()
+  const qaHideReasons = useQaHideReasons()
 
   // Profile data state
   const [profile, setProfile] = useState<PublicUserProfile | null>(null)
@@ -199,7 +223,7 @@ export default function UserProfileScreen() {
     try {
       await api.users.hideQAComment(hideC.id, hideCReason)
       setHideC(null)
-      toast.show({ title: "Komentar disembunyikan", tone: "success", duration: 2500 })
+      toast.show({ title: translate("Komentar disembunyikan"), tone: "success", duration: 2500 })
       // Komentar tersembunyi tidak dikirim lagi oleh server — muat ulang thread.
       if (openQuestionId) {
         const body = await api.users.getQuestionComments(openQuestionId, { page: 1, limit: 20 })
@@ -208,7 +232,7 @@ export default function UserProfileScreen() {
       }
     } catch (err) {
       toast.show({
-        title: "Gagal menyembunyikan komentar",
+        title: translate("Gagal menyembunyikan komentar"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -408,10 +432,20 @@ export default function UserProfileScreen() {
     setRefreshing(false)
   }, [fetchProfile])
 
+  // P3 (audit 2026-09-26): gerbang tamu untuk semua aksi sosial di profil.
+  const requireSession = useCallback(() => {
+    if (hasSession) return true
+    router.push(ROUTES.loginRequired(`/user/${encodeURIComponent(handle)}`))
+    return false
+  }, [hasSession, handle])
+
   // Follow / Favorite actions
   const handleFollow = useCallback(
     async (next: boolean) => {
       if (!handle) return
+      // P3 (audit 2026-09-26): tamu diarahkan login dulu — jangan tembak
+      // endpoint lalu gagal 401 dengan toast "Gagal mengikuti".
+      if (!requireSession()) return
       setFollowing(next)
       setFollowerCount((c) => (c == null ? c : Math.max(0, c + (next ? 1 : -1))))
       setFollowLoading(true)
@@ -422,7 +456,7 @@ export default function UserProfileScreen() {
         setFollowing(!next)
         setFollowerCount((c) => (c == null ? c : Math.max(0, c + (next ? -1 : 1))))
         toast.show({
-          title: next ? "Gagal mengikuti" : "Gagal berhenti mengikuti",
+          title: next ? translate("Gagal mengikuti") : translate("Gagal berhenti mengikuti"),
           description: isApiError(err) ? userMessage(err) : undefined,
           tone: "danger",
         })
@@ -430,12 +464,13 @@ export default function UserProfileScreen() {
         setFollowLoading(false)
       }
     },
-    [handle, toast],
+    [handle, requireSession, toast],
   )
 
   const handleFavorite = useCallback(
     async (next: boolean) => {
       if (!handle) return
+      if (!requireSession()) return
       setFavLoading(true)
       try {
         if (next) await api.users.addFavorite(handle)
@@ -443,7 +478,7 @@ export default function UserProfileScreen() {
         setFavorite(next)
       } catch (err: unknown) {
         toast.show({
-          title: "Gagal memperbarui favorit",
+          title: translate("Gagal memperbarui favorit"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -451,12 +486,13 @@ export default function UserProfileScreen() {
         setFavLoading(false)
       }
     },
-    [handle, toast],
+    [handle, requireSession, toast],
   )
 
   const handleUpvote = useCallback(
     async (q: QuestionItem, next: boolean) => {
       if (upvotingId) return
+      if (!requireSession()) return
       setUpvotingId(q.id)
       const prevCount = q.upvoteCount ?? 0
       const prevActive = q.isUpvotedByViewer === true
@@ -471,7 +507,7 @@ export default function UserProfileScreen() {
       } catch (err: unknown) {
         apply({ upvoteCount: prevCount, isUpvotedByViewer: prevActive })
         toast.show({
-          title: "Gagal memperbarui dukungan",
+          title: translate("Gagal memperbarui dukungan"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -479,7 +515,7 @@ export default function UserProfileScreen() {
         setUpvotingId(null)
       }
     },
-    [upvotingId, toast],
+    [upvotingId, requireSession, toast],
   )
 
   /**
@@ -494,15 +530,15 @@ export default function UserProfileScreen() {
         if (next) {
           await api.users.saveProfile(handle)
           setSaved(true)
-          toast.show({ title: "Profil disimpan", tone: "success", duration: 2500 })
+          toast.show({ title: translate("Profil disimpan"), tone: "success", duration: 2500 })
         } else {
           await api.users.unsaveProfile(handle)
           setSaved(false)
-          toast.show({ title: "Profil dihapus dari tersimpan", tone: "success", duration: 2500 })
+          toast.show({ title: translate("Profil dihapus dari tersimpan"), tone: "success", duration: 2500 })
         }
       } catch (err: unknown) {
         toast.show({
-          title: "Gagal memperbarui tersimpan",
+          title: translate("Gagal memperbarui tersimpan"),
           description: userMessage(err),
           tone: "danger",
         })
@@ -540,7 +576,7 @@ export default function UserProfileScreen() {
       if (!url) return
       const ok = await copy(url)
       toast.show({
-        title: ok ? "Tautan profil disalin" : "Tidak bisa membagikan",
+        title: ok ? translate("Tautan profil disalin") : translate("Tidak bisa membagikan"),
         tone: ok ? "success" : "danger",
       })
     },
@@ -555,6 +591,8 @@ export default function UserProfileScreen() {
   }, [handle, profileSharePayload, shareUnavailable])
 
   const handleBlock = useCallback(async () => {
+    // P3 (audit 2026-09-26): tamu di-gate login sebelum aksi blokir.
+    if (!requireSession()) return
     // `profile.id` bisa kosong bila backend tidak mengirim id pada profil publik.
     // Versi lama langsung `return` di sini: tombol Blokir tampak tidak melakukan
     // apa pun. Sekarang username dikirim sebagai identifier cadangan (adapter
@@ -562,8 +600,8 @@ export default function UserProfileScreen() {
     // keduanya tidak ada pengguna diberi tahu — bukan didiamkan.
     if (!profile?.id && !handle) {
       toast.show({
-        title: "Gagal memblokir pengguna",
-        description: "Identitas pengguna tidak tersedia. Muat ulang halaman lalu coba lagi.",
+        title: translate("Gagal memblokir pengguna"),
+        description: translate("Identitas pengguna tidak tersedia. Muat ulang halaman lalu coba lagi."),
         tone: "danger",
       })
       return
@@ -571,27 +609,33 @@ export default function UserProfileScreen() {
     setBlocking(true)
     try {
       await api.settings.blockUser(profile?.id ?? "", handle)
-      toast.show({ title: "Pengguna diblokir", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Pengguna diblokir"), tone: "success", duration: 3000 })
       setBlockOpen(false)
       goBackOrNavigate(ROUTES.home)
     } catch (err: unknown) {
       toast.show({
-        title: "Gagal memblokir pengguna",
+        title: translate("Gagal memblokir pengguna"),
         description: userMessage(err),
         tone: "danger",
       })
     } finally {
       setBlocking(false)
     }
-  }, [profile?.id, handle, toast])
+  }, [profile?.id, handle, requireSession, toast])
 
   // Question & Comment handlers
+  // P3 (audit 2026-09-26): buka sheet tanya hanya bila sudah login.
+  const openAsk = useCallback(() => {
+    if (!requireSession()) return
+    setAskOpen(true)
+  }, [requireSession])
+
   const submitAsk = useCallback(async () => {
     if (!username || askText.trim().length < 5) return
     setAsking(true)
     try {
       await api.users.addQuestion(username, askText.trim())
-      toast.show({ title: "Pertanyaan terkirim", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Pertanyaan terkirim"), tone: "success", duration: 3000 })
       setAskOpen(false)
       setAskText("")
       const res = await api.users.getPublicQuestions(username, { page: 1, limit: 20 })
@@ -599,7 +643,7 @@ export default function UserProfileScreen() {
       setQuestions(items)
     } catch (err) {
       toast.show({
-        title: "Gagal mengirim pertanyaan",
+        title: translate("Gagal mengirim pertanyaan"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -622,7 +666,7 @@ export default function UserProfileScreen() {
         setQuestionComments({ items, loading: false })
       } catch {
         setQuestionComments({ items: [], loading: false })
-        toast.show({ title: "Gagal memuat komentar", tone: "danger" })
+        toast.show({ title: translate("Gagal memuat komentar"), tone: "danger" })
       }
     },
     [openQuestionId, toast],
@@ -637,10 +681,10 @@ export default function UserProfileScreen() {
       const body = await api.users.getQuestionComments(openQuestionId, { page: 1, limit: 20 })
       const { items } = readQuestionComments(body)
       setQuestionComments({ items, loading: false })
-      toast.show({ title: "Komentar terkirim", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Komentar terkirim"), tone: "success", duration: 3000 })
     } catch (err) {
       toast.show({
-        title: "Gagal mengirim komentar",
+        title: translate("Gagal mengirim komentar"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -657,20 +701,20 @@ export default function UserProfileScreen() {
         await api.users.deleteQuestion(deleteQ.id)
         setDeleteQ(null)
         if (openQuestionId === deleteQ.id) setOpenQuestionId(null)
-        toast.show({ title: "Pertanyaan dihapus", tone: "neutral", duration: 3000 })
+        toast.show({ title: translate("Pertanyaan dihapus"), tone: "neutral", duration: 3000 })
         const res = await api.users.getPublicQuestions(username, { page: 1, limit: 20 })
         const { items } = readQuestionList(res)
         setQuestions(items)
       } else if (deleteC && openQuestionId) {
         await api.users.deleteQuestionComment(deleteC.id)
         setDeleteC(null)
-        toast.show({ title: "Komentar dihapus", tone: "neutral", duration: 3000 })
+        toast.show({ title: translate("Komentar dihapus"), tone: "neutral", duration: 3000 })
         const body = await api.users.getQuestionComments(openQuestionId, { page: 1, limit: 20 })
         const { items } = readQuestionComments(body)
         setQuestionComments({ items, loading: false })
       }
     } catch (err) {
-      toast.show({ title: "Gagal menghapus", description: userMessage(err), tone: "danger" })
+      toast.show({ title: translate("Gagal menghapus"), description: userMessage(err), tone: "danger" })
     } finally {
       setDeleting(false)
     }
@@ -697,14 +741,14 @@ export default function UserProfileScreen() {
                 <IconButton
                   icon={DotsThreeVertical}
                   variant="ghost"
-                  accessibilityLabel="Pengaturan"
+                  accessibilityLabel={translate("Pengaturan")}
                   onPress={() => router.push(ROUTES.settings)}
                 />
               ) : (
                 <IconButton
                   icon={DotsThreeVertical}
                   variant="ghost"
-                  accessibilityLabel="Pilihan lainnya"
+                  accessibilityLabel={translate("Pilihan lainnya")}
                   onPress={() => setMoreOptionsOpen(true)}
                 />
               )
@@ -731,7 +775,7 @@ export default function UserProfileScreen() {
               <View className="absolute inset-0">
                 <Picture
                   source={{ uri: coverUri }}
-                  alt="Foto sampul profil"
+                  alt={translate("Foto sampul profil")}
                   height={COVER_HEIGHT}
                   radius="none"
                   bordered={false}
@@ -775,7 +819,7 @@ export default function UserProfileScreen() {
         >
           {error ? (
           <View className="px-5 pt-8">
-            <ErrorState title="Gagal memuat profil" description={error} onRetry={() => void fetchProfile()} />
+            <ErrorState title={translate("Gagal memuat profil")} description={error} onRetry={() => void fetchProfile()} />
           </View>
         ) : profile ? (
           <View className="w-full">
@@ -815,7 +859,7 @@ export default function UserProfileScreen() {
                       active={favorite}
                       disabled={favLoading}
                       onToggle={(next) => void handleFavorite(next)}
-                      accessibilityLabel={favorite ? "Hapus favorit" : "Simpan favorit"}
+                      accessibilityLabel={favorite ? translate("Hapus favorit") : translate("Simpan favorit")}
                       size="sm"
                       className="border border-border"
                     />
@@ -824,7 +868,7 @@ export default function UserProfileScreen() {
                       variant="secondary"
                       size="sm"
                       active={saved}
-                      accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan profil"}
+                      accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan profil")}
                       loading={saveLoading}
                       onPress={() => void handleSaveProfile(!saved)}
                     />
@@ -834,7 +878,7 @@ export default function UserProfileScreen() {
                   icon={ShareNetwork}
                   variant="secondary"
                   size="sm"
-                  accessibilityLabel="Bagikan profil"
+                  accessibilityLabel={translate("Bagikan profil")}
                   onPress={() => void handleShare()}
                 />
               </View>
@@ -891,7 +935,7 @@ export default function UserProfileScreen() {
                 </Text>
               ) : (
                 <Text variant="caption" tone="tertiary">
-                  Pengguna terdaftar Kahade Escrow & Marketplace
+                  {translate("Pengguna terdaftar Kahade Escrow & Marketplace")}
                 </Text>
               )}
 
@@ -907,7 +951,7 @@ export default function UserProfileScreen() {
                     <Text variant="body" weight={700} tone="primary">
                       {formatNumber(followingCount ?? 0)}{" "}
                     </Text>
-                    Mengikuti
+                    {translate("Mengikuti")}
                   </Text>
                 </Pressable>
 
@@ -921,7 +965,7 @@ export default function UserProfileScreen() {
                     <Text variant="body" weight={700} tone="primary">
                       {formatNumber(followerCount ?? 0)}{" "}
                     </Text>
-                    Pengikut
+                    {translate("Pengikut")}
                   </Text>
                 </Pressable>
 
@@ -936,7 +980,7 @@ export default function UserProfileScreen() {
                       <Text variant="body" weight={700} tone="primary">
                         {formatDecimal(profile.rating)} ★{" "}
                       </Text>
-                      Ulasan
+                      {translate("Ulasan")}
                     </Text>
                   </Pressable>
                 ) : null}
@@ -949,7 +993,7 @@ export default function UserProfileScreen() {
                       {profile.trustScore}
                     </Text>
                     <Text variant="caption" tone="secondary">
-                      Skor
+                      {translate("Skor")}
                     </Text>
                   </View>
                 ) : null}
@@ -978,12 +1022,14 @@ export default function UserProfileScreen() {
                         fullWidth
                         leftIcon={ChatCircleDots}
                         onPress={() => {
+                          // P3 (audit 2026-09-26): tamu di-gate login sebelum mulai percakapan.
+                          if (!requireSession()) return
                           setInquirySubject("")
                           setInquiryMessage("")
                           setInquiryOpen(true)
                         }}
                       >
-                        Kirim Pesan
+                        {translate("Kirim Pesan")}
                       </Button>
                     </View>
                   </View>
@@ -1005,7 +1051,7 @@ export default function UserProfileScreen() {
             {/* ── Tabs Bar ───────────────────────────────────────── */}
             <View className="pt-4">
               <Tabs<ProfileTab>
-                items={PROFILE_TABS}
+                items={profileTabs}
                 value={activeTab}
                 onChange={setActiveTab}
               />
@@ -1051,9 +1097,9 @@ export default function UserProfileScreen() {
                       size="sm"
                       variant="secondary"
                       fullWidth={false}
-                      onPress={() => setAskOpen(true)}
+                      onPress={openAsk}
                     >
-                      Bertanya
+                      {translate("Bertanya")}
                     </Button>
                   ) : null}
                 </View>
@@ -1063,16 +1109,16 @@ export default function UserProfileScreen() {
                 ) : questions.length === 0 ? (
                   <EmptyState
                     icon={ChatCircleDots}
-                    title="Belum ada pertanyaan"
+                    title={translate("Belum ada pertanyaan")}
                     description={
                       isSelf
-                        ? "Belum ada pertanyaan dari pengguna lain."
+                        ? translate("Belum ada pertanyaan dari pengguna lain.")
                         : translate("Jadilah yang pertama bertanya kepada @{x}.", { x: handle })
                     }
                     action={
                       !isSelf ? (
-                        <Button variant="secondary" fullWidth={false} onPress={() => setAskOpen(true)}>
-                          Ajukan pertanyaan
+                        <Button variant="secondary" fullWidth={false} onPress={openAsk}>
+                          {translate("Ajukan pertanyaan")}
                         </Button>
                       ) : undefined
                     }
@@ -1133,7 +1179,7 @@ export default function UserProfileScreen() {
                           {questionComments.loading && questionComments.items.length === 0 ? (
                             <ListLoading />
                           ) : questionComments.items.length === 0 ? (
-                            <Text variant="caption" tone="secondary">Belum ada komentar.</Text>
+                            <Text variant="caption" tone="secondary">{translate("Belum ada komentar.")}</Text>
                           ) : (
                             questionComments.items.map((c) => (
                               <QaCommentItem
@@ -1199,7 +1245,7 @@ export default function UserProfileScreen() {
             {activeTab === "about" ? <ProfileAboutTab profile={profile} /> : null}
           </View>
         ) : (
-          <EmptyState icon={UserCircle} title="Profil tidak ditemukan" />
+          <EmptyState icon={UserCircle} title={translate("Profil tidak ditemukan")} />
         )}
         </Crossfade>
       </DataScroll>
@@ -1208,12 +1254,12 @@ export default function UserProfileScreen() {
       {/* ── Dialog Bertanya ──────────────────────────────────── */}
       <Dialog
         title={translate("Bertanya kepada @{x}", { x: handle })}
-        description="Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya."
+        description={translate("Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.")}
         visible={askOpen}
         loading={asking}
-        confirmLabel="Kirim Pertanyaan"
+        confirmLabel={translate("Kirim Pertanyaan")}
         confirmButtonProps={{ disabled: askText.trim().length < 5 }}
-        cancelLabel="Batal"
+        cancelLabel={translate("Batal")}
         onConfirm={() => void submitAsk()}
         onCancel={() => setAskOpen(false)}
         onRequestClose={() => setAskOpen(false)}
@@ -1221,7 +1267,7 @@ export default function UserProfileScreen() {
         <TextArea
           value={askText}
           onChangeText={setAskText}
-          placeholder="Tulis pertanyaan Anda minimal 5 karakter…"
+          placeholder={translate("Tulis pertanyaan Anda minimal 5 karakter…")}
           maxLength={500}
           showCount
         />
@@ -1229,17 +1275,17 @@ export default function UserProfileScreen() {
 
       {/* ── Dialog Hapus Pertanyaan / Komentar ──────────────── */}
       <Dialog
-        title={deleteQ ? "Hapus pertanyaan?" : "Hapus komentar?"}
+        title={deleteQ ? translate("Hapus pertanyaan?") : translate("Hapus komentar?")}
         description={
           deleteQ
-            ? "Pertanyaan beserta jawabannya akan dihapus dari profil ini."
-            : "Komentar Anda akan dihapus dari utas ini."
+            ? translate("Pertanyaan beserta jawabannya akan dihapus dari profil ini.")
+            : translate("Komentar Anda akan dihapus dari utas ini.")
         }
         visible={!!deleteQ || !!deleteC}
         destructive
         loading={deleting}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDelete()}
         onCancel={() => {
           setDeleteQ(null)
@@ -1254,12 +1300,12 @@ export default function UserProfileScreen() {
       {/* ── Dialog Blokir ────────────────────────────────────── */}
       <Dialog
         title={translate("Blokir @{x}?", { x: handle })}
-        description="Anda tidak akan lagi melihat aktivitas atau dapat bertransaksi dengan pengguna ini."
+        description={translate("Anda tidak akan lagi melihat aktivitas atau dapat bertransaksi dengan pengguna ini.")}
         visible={blockOpen}
         destructive
         loading={blocking}
-        confirmLabel="Blokir"
-        cancelLabel="Batal"
+        confirmLabel={translate("Blokir")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleBlock()}
         onCancel={() => setBlockOpen(false)}
         onRequestClose={() => setBlockOpen(false)}
@@ -1267,10 +1313,10 @@ export default function UserProfileScreen() {
 
       {/* ── Dialog Pilihan Lainnya ──────────────────────────── */}
       <Dialog
-        title="Pilihan Akun"
+        title={translate("Pilihan Akun")}
         visible={moreOptionsOpen}
         hideCancel
-        confirmLabel="Tutup"
+        confirmLabel={translate("Tutup")}
         onConfirm={() => setMoreOptionsOpen(false)}
         onRequestClose={() => setMoreOptionsOpen(false)}
       >
@@ -1335,8 +1381,8 @@ export default function UserProfileScreen() {
         avoidKeyboard
         visible={hideC != null}
         onRequestClose={() => setHideC(null)}
-        title="Sembunyikan komentar"
-        description="Komentar tidak lagi tampil untuk pengguna lain. Tindakan dapat dibatalkan lewat moderasi."
+        title={translate("Sembunyikan komentar")}
+        description={translate("Komentar tidak lagi tampil untuk pengguna lain. Tindakan dapat dibatalkan lewat moderasi.")}
         footer={
           <Button
             fullWidth
@@ -1350,7 +1396,7 @@ export default function UserProfileScreen() {
       >
         <View className="px-5 pb-2">
           <RadioGroup value={hideCReason} onChange={(v) => setHideCReason(v as HiddenReason)}>
-            {QA_HIDE_REASONS.map((r) => (
+            {qaHideReasons.map((r) => (
               <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
             ))}
           </RadioGroup>
@@ -1361,13 +1407,13 @@ export default function UserProfileScreen() {
         avoidKeyboard
         visible={inquiryOpen}
         onRequestClose={() => setInquiryOpen(false)}
-        title="Mulai percakapan"
+        title={translate("Mulai percakapan")}
         description={
           profile?.fullName
             ? translate("Ajukan pertanyaan atau negosiasi dengan {x} sebelum transaksi.", {
                 x: profile.fullName,
               })
-            : "Ajukan pertanyaan atau negosiasi sebelum transaksi."
+            : translate("Ajukan pertanyaan atau negosiasi sebelum transaksi.")
         }
         footer={
           <Button
@@ -1391,7 +1437,7 @@ export default function UserProfileScreen() {
                 })
                 .catch((err) => {
                   toast.show({
-                    title: "Gagal memulai percakapan",
+                    title: translate("Gagal memulai percakapan"),
                     description: isApiError(err) ? userMessage(err) : undefined,
                     tone: "danger",
                   })
@@ -1405,19 +1451,19 @@ export default function UserProfileScreen() {
       >
         <View className="gap-3 px-5 pb-2">
           <Input
-            label="Subjek (opsional)"
+            label={translate("Subjek (opsional)")}
             value={inquirySubject}
             onChangeText={setInquirySubject}
-            placeholder="Mis. Harga grosir 10 pcs"
+            placeholder={translate("Mis. Harga grosir 10 pcs")}
             containerClassName="mb-1"
           />
           <TextArea
-            label="Pesan"
+            label={translate("Pesan")}
             value={inquiryMessage}
             onChangeText={setInquiryMessage}
             rows={4}
-            placeholder="Tulis pertanyaan atau tawaran Anda…"
-            accessibilityLabel="Pesan inquiry"
+            placeholder={translate("Tulis pertanyaan atau tawaran Anda…")}
+            accessibilityLabel={translate("Pesan inquiry")}
           />
         </View>
       </BottomSheet>

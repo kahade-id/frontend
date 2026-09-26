@@ -26,7 +26,7 @@ import {
 import { Text } from "@/components/ui/text"
 import { VoucherRedeemBox, type AppliedVoucher } from "@/components/ui/voucher-redeem-box"
 import type { FeeSchedule } from "@/lib/api/public"
-import { formatDecimal, formatRupiah } from "@/lib/format"
+import { formatDateLong, formatDecimal, formatRupiah } from "@/lib/format"
 
 type Mode = "direct" | "link"
 
@@ -244,7 +244,7 @@ export function OrderSummarySection({
   title,
   orderType,
   orderValue,
-  deadlineDays,
+  deadlineDate,
   feeResponsibility,
   voucherCode,
 }: {
@@ -255,7 +255,8 @@ export function OrderSummarySection({
   title: string
   orderType: OrderType
   orderValue: number
-  deadlineDays: number
+  /** Tanggal tenggat terpilih (null = belum dipilih — tidak terjadi di layar tinjau). */
+  deadlineDate: Date | null
   feeResponsibility: "BUYER" | "SELLER" | "SPLIT"
   voucherCode?: string
 }) {
@@ -270,7 +271,7 @@ export function OrderSummarySection({
         <KeyValue label="Judul" value={title.trim()} />
         <KeyValue label="Jenis" value={ORDER_TYPE_LABELS[orderType]} />
         <KeyValue label="Nilai transaksi" value={formatRupiah(orderValue)} />
-        <KeyValue label="Tenggat" value={`${deadlineDays} hari`} />
+        <KeyValue label="Tenggat" value={deadlineDate ? formatDateLong(deadlineDate) : "—"} />
         <KeyValue
           label="Pembayar biaya"
           value={FEE_RESPONSIBILITY_LABELS[feeResponsibility]}

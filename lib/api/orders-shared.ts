@@ -281,6 +281,12 @@ export type Order = {
   deliveryDeadlineDays: number
   deliveryDeadlineAt?: string | null
   /**
+   * Batas auto-release dana (auto-complete) — untuk status IN_DELIVERY nilainya
+   * = deliveryDeadlineAt. Diekspos backend agar klien bisa menampilkan
+   * countdown "dana cair otomatis".
+   */
+  autoCompleteAt?: string | null
+  /**
    * Pihak order TIDAK dijamin ada: `getOrder` hanya `readEntity`, dan backend
    * bisa mengembalikan `null`/menghilangkan pihak yang akunnya sudah dihapus.
    * Jadi keduanya opsional — deref tanpa penjaga akan melempar TypeError di
@@ -415,6 +421,7 @@ export function normalizeOrder(raw: Order & Record<string, unknown>): Order {
     ]) ?? "SPLIT") as FeeResponsibility,
     deliveryDeadlineDays,
     deliveryDeadlineAt: optionalText(record.deliveryDeadlineAt ?? record.delivery_deadline_at),
+    autoCompleteAt: optionalText(record.autoCompleteAt ?? record.auto_complete_at),
     buyer: normalizeParty(record.buyer),
     seller: normalizeParty(record.seller),
     myRole: (pickString(record, ["myRole", "role", "my_role"]) ?? undefined) as OrderRole | undefined,

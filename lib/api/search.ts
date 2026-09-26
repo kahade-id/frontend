@@ -18,7 +18,7 @@ export type GlobalSearchResults = {
 }
 
 export function globalSearch(
-  query: { q: string; types?: string; limit?: number },
+  query: { q: string; types?: string; limit?: number; location?: string },
   signal?: AbortSignal,
 ) {
   return http

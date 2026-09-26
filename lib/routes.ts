@@ -395,8 +395,11 @@ export const ROUTES = {
    * L-01 (audit 2026-09-23): `kind` (tab aktif) diteruskan supaya mendarat
    * di tab yang sama — tanpa ini selalu jatuh ke default `forYou`.
    */
-  showcaseSearch: (search: string) =>
-    ({ pathname: "/showcase", params: { search } }) as unknown as Href,
+  showcaseSearch: (search: string, location?: string) =>
+    ({
+      pathname: "/showcase",
+      params: location?.trim() ? { search, location: location.trim() } : { search },
+    }) as unknown as Href,
   showcaseWithCategory: (category: string, kind?: string) =>
     ({ pathname: "/showcase", params: kind ? { category, kind } : { category } }) as unknown as Href,
   /** Showcase milik sendiri (CRUD), dibuka dari aksi tambah di feed. */

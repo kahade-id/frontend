@@ -3,11 +3,14 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
+  Image,
+  ScrollView,
   View,
   type TextInput,
 } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 import {
   ChatCircle,
@@ -80,6 +83,8 @@ const COMMENT_RENDER_STEP = 40
 const COMMENT_MAX = API_CONSTRAINTS.CreateShowcaseCommentDto.content.maxLength
 
 export default function ShowcaseDetailScreen() {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const { id } = useLocalSearchParams<{ id: string }>()
   const revision = useSessionRevision()
 
@@ -136,8 +141,8 @@ export default function ShowcaseDetailScreen() {
           refresh: query.refresh,
           reload: query.reload,
         }}
-        loadingMessage="Memuat karya"
-        errorTitle="Gagal memuat"
+        loadingMessage={translate("Memuat karya")}
+        errorTitle={translate("Gagal memuat")}
       />
     )
   }
@@ -578,18 +583,18 @@ function ShowcaseDetailContent({
       // Soft-delete: catat lokal agar bisa dipulihkan dari Kelola Etalase.
       await markShowcaseDeleted({
         id,
-        title: item?.title?.trim() || "Karya tanpa judul",
+        title: item?.title?.trim() || translate("Karya tanpa judul"),
         deletedAt: new Date().toISOString(),
         coverUrl: item ? (showcaseImages(item)?.[0]?.url ?? undefined) : undefined,
       })
       markShowcaseFeedDirty()
-      toast.show({ title: "Karya dihapus. Dapat dipulihkan dalam 30 hari.", tone: "success", duration: 2500 })
+      toast.show({ title: translate("Karya dihapus. Dapat dipulihkan dalam 30 hari."), tone: "success", duration: 2500 })
       setDeleteOpen(false)
       router.back()
     } catch (err) {
       if (!task.valid()) return
       toast.show({
-        title: "Gagal menghapus",
+        title: translate("Gagal menghapus"),
         description: isApiError(err) ? userMessage(err) : undefined,
         tone: "danger",
       })
@@ -621,7 +626,7 @@ function ShowcaseDetailContent({
               </Text>
               <PressableScale
                 accessibilityRole="button"
-                accessibilityLabel="Batalkan balasan"
+                accessibilityLabel={translate("Batalkan balasan")}
                 onPress={() => setReplyTo(null)}
               >
                 <Text variant="caption" tone="primary">
@@ -637,8 +642,8 @@ function ShowcaseDetailContent({
                 disabled={sendingComment}
                 value={draft}
                 onChangeText={setDraft}
-                placeholder="Tulis komentar…"
-                accessibilityLabel="Komentar baru"
+                placeholder={translate("Tulis komentar…")}
+                accessibilityLabel={translate("Komentar baru")}
                 containerClassName="flex-1"
                 maxLength={COMMENT_MAX}
                 onSubmitEditing={() => void handleSendComment()}
@@ -648,7 +653,7 @@ function ShowcaseDetailContent({
                 icon={PaperPlaneRight}
                 variant="primary"
                 size="sm"
-                accessibilityLabel="Kirim komentar"
+                accessibilityLabel={translate("Kirim komentar")}
                 loading={sendingComment}
                 disabled={!draft.trim()}
                 onPress={() => void handleSendComment()}
@@ -781,6 +786,57 @@ function ShowcaseDetailContent({
         onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
       />
 
+      {/* Karya terkait — kategori sama, lalu populer sebagai pengisi. */}
+      {item.related && item.related.length > 0 ? (
+        <View className="pt-4">
+          <Divider inset className="mb-3" />
+          <Text variant="h3" className="px-5 pb-3">
+            {translate("Karya terkait")}
+          </Text>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-3 px-5 pb-2"
+          >
+            {item.related.map((rel) => {
+              const cover = rel.coverImageUrl ?? rel.imageUrl ?? undefined
+              return (
+                <PressableScale
+                  key={rel.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={rel.title}
+                  onPress={() => router.push(ROUTES.showcaseDetail(rel.id))}
+                  containerClassName={cn("w-36 overflow-hidden rounded-xl bg-surface-elevated", focusRing)}
+                >
+                  {cover ? (
+                    <Image
+                      source={{ uri: cover }}
+                      className="h-24 w-36"
+                      resizeMode="cover"
+                      accessibilityLabel={rel.title}
+                    />
+                  ) : (
+                    <View className="h-24 w-36 items-center justify-center bg-surface">
+                      <Text variant="caption" tone="secondary">
+                        {translate("Etalase")}
+                      </Text>
+                    </View>
+                  )}
+                  <View className="p-2">
+                    <Text variant="caption" weight={600} numberOfLines={2}>
+                      {rel.title}
+                    </Text>
+                    <Text variant="caption" tone="secondary" numberOfLines={1} className="tabular-nums">
+                      {showcasePriceLabelOrFallback(rel)}
+                    </Text>
+                  </View>
+                </PressableScale>
+              )
+            })}
+          </ScrollView>
+        </View>
+      ) : null}
+
       <ActionSheet
         visible={commentMenu != null}
         onRequestClose={() => setCommentMenu(null)}
@@ -790,7 +846,7 @@ function ShowcaseDetailContent({
             ? [
                 {
                   key: "reply",
-                  label: "Balas",
+                  label: translate("Balas"),
                   icon: ChatCircle,
                   onPress: () => setReplyTo(commentMenu),
                 },
@@ -813,7 +869,7 @@ function ShowcaseDetailContent({
             ? [
                 {
                   key: "hide",
-                  label: "Sembunyikan",
+                  label: translate("Sembunyikan"),
                   icon: undefined,
                   onPress: () => {
                     setConfirmKind("hide")
@@ -826,7 +882,7 @@ function ShowcaseDetailContent({
             ? [
                 {
                   key: "unhide",
-                  label: "Tampilkan kembali",
+                  label: translate("Tampilkan kembali"),
                   icon: undefined,
                   onPress: () => void handleUnhide(commentMenu),
                 },
@@ -837,7 +893,7 @@ function ShowcaseDetailContent({
             ? [
                 {
                   key: "report",
-                  label: "Laporkan pengguna",
+                  label: translate("Laporkan pengguna"),
                   icon: Flag,
                   onPress: () => handleReportComment(commentMenu),
                 },
@@ -847,7 +903,7 @@ function ShowcaseDetailContent({
             ? [
                 {
                   key: "delete",
-                  label: "Hapus",
+                  label: translate("Hapus"),
                   icon: Trash,
                   destructive: true,
                   onPress: () => {
@@ -884,24 +940,24 @@ function ShowcaseDetailContent({
             onChangeText={setEditText}
             rows={3}
             maxLength={COMMENT_MAX}
-            placeholder="Tulis ulang komentar"
-            accessibilityLabel="Komentar yang diedit"
+            placeholder={translate("Tulis ulang komentar")}
+            accessibilityLabel={translate("Komentar yang diedit")}
           />
         </View>
       </BottomSheet>
 
       <Dialog
-        title={confirmKind === "hide" ? "Sembunyikan komentar ini?" : "Hapus komentar ini?"}
+        title={confirmKind === "hide" ? translate("Sembunyikan komentar ini?") : translate("Hapus komentar ini?")}
         description={
           confirmKind === "hide"
-            ? "Komentar tidak lagi terlihat publik, tetapi tetap bisa Anda tampilkan kembali."
-            : "Komentar dihapus permanen."
+            ? translate("Komentar tidak lagi terlihat publik, tetapi tetap bisa Anda tampilkan kembali.")
+            : translate("Komentar dihapus permanen.")
         }
         visible={confirmTarget != null}
         destructive
         loading={confirmBusy}
-        confirmLabel={confirmKind === "hide" ? "Sembunyikan" : "Hapus"}
-        cancelLabel="Batal"
+        confirmLabel={confirmKind === "hide" ? translate("Sembunyikan") : translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleConfirmAction()}
         onCancel={() => setConfirmTarget(null)}
         onRequestClose={() => setConfirmTarget(null)}
@@ -927,8 +983,8 @@ function ShowcaseDetailContent({
         visible={deleteOpen}
         destructive
         loading={deleting}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDeleteItem()}
         onCancel={() => setDeleteOpen(false)}
         onRequestClose={() => setDeleteOpen(false)}

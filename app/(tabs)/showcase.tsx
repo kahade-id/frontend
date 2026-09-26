@@ -23,9 +23,14 @@ export default function SocialShowcaseScreen() {
   const insets = useSafeAreaInsets()
   useDocumentTitle(translate("Etalase"))
 
-  const params = useLocalSearchParams<{ category?: string }>()
+  const params = useLocalSearchParams<{ category?: string; location?: string }>()
   const category = typeof params.category === "string" && params.category.trim()
     ? params.category.trim().slice(0, 60)
+    : undefined
+  // Filter lokasi dari layar Pencarian ("Lihat semua di Etalase") — pola sama
+  // dengan kategori: state hidup di param rute, bukan state lokal tab.
+  const location = typeof params.location === "string" && params.location.trim()
+    ? params.location.trim().slice(0, 100)
     : undefined
 
   return (
@@ -34,6 +39,8 @@ export default function SocialShowcaseScreen() {
         bottomPadding={insets.bottom + tokens.space[8]}
         category={category}
         onClearCategory={() => router.setParams({ category: undefined })}
+        location={location}
+        onClearLocation={() => router.setParams({ location: undefined })}
       />
     </Screen>
   )

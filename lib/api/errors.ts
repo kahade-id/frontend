@@ -30,6 +30,7 @@ export type ApiErrorCode =
   | "PAYLOAD_TOO_LARGE" // 413 — upload melebihi batas
   | "UNPROCESSABLE" // 422
   | "RATE_LIMITED" // 429 — OTP/login throttling
+  | "PIN_RATE_LIMITED" // 403 + code PIN_RATE_LIMITED — kebanyakan salah PIN, kunci 15 menit
   | "SERVER" // 5xx
   | "PARSE" // body bukan JSON padahal diharapkan JSON
   | "UNKNOWN"
@@ -262,6 +263,9 @@ export function codeFromBackend(backendCode: string | undefined): ApiErrorCode |
   if (!backendCode) return undefined
   const k = backendCode.toUpperCase().replace(/[^A-Z0-9]+/g, "_")
   // Urutan penting: "INVALID_TOKEN" mengandung "VALID" — cek sesi dulu.
+  // PIN_RATE_LIMITED dicek sebelum FORBIDDEN agar pesan klien yang jelas
+  // (tunggu 15 menit) dipakai, bukan "tidak memiliki akses".
+  if (k.includes("PIN") && k.includes("RATE_LIMIT")) return "PIN_RATE_LIMITED"
   if (
     k.includes("UNAUTHORIZED") ||
     k.includes("INVALID_TOKEN") ||
@@ -307,6 +311,7 @@ export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   PAYLOAD_TOO_LARGE: "Ukuran berkas terlalu besar.",
   UNPROCESSABLE: "Permintaan tidak dapat diproses.",
   RATE_LIMITED: "Terlalu banyak percobaan. Tunggu sebentar lalu coba lagi.",
+  PIN_RATE_LIMITED: "Terlalu banyak percobaan PIN. Tunggu 15 menit lalu coba lagi.",
   SERVER: "Terjadi gangguan di server kami. Coba lagi nanti.",
   PARSE: "Respons server tidak dapat dibaca.",
   UNKNOWN: "Terjadi kesalahan. Coba lagi.",
@@ -315,6 +320,11 @@ export const DEFAULT_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
 /** Pesan siap tampil: pakai message backend bila ada, selain itu default per kode. */
 export function userMessage(err: unknown): string {
   if (isApiError(err)) {
+    // Rate-limit PIN selalu pakai copy ID klien yang jelas — pesan backend
+    // berbahasa Inggris dan tidak menyebut durasi kunci. Dicek lewat code
+    // maupun backendCode karena error HTTP dinormalisasi via codeFromStatus
+    // (403 → FORBIDDEN) sementara kode backend mentah tersimpan terpisah.
+    if (isPinRateLimited(err)) return DEFAULT_ERROR_MESSAGES.PIN_RATE_LIMITED
     // Untuk error jaringan/server, wording backend (bila ada) biasanya teknis — pakai default.
     if (
       err.code === "NETWORK" ||
@@ -327,6 +337,18 @@ export function userMessage(err: unknown): string {
     return err.message || DEFAULT_ERROR_MESSAGES[err.code]
   }
   return DEFAULT_ERROR_MESSAGES.UNKNOWN
+}
+
+/**
+ * true bila error ini adalah rate-limit PIN (kunci 15 menit).
+ * Dicek lewat `code` (jalur `success:false`) maupun `backendCode` mentah
+ * (jalur error HTTP — `toApiError` memetakan 403 ke FORBIDDEN generik).
+ */
+export function isPinRateLimited(err: unknown): boolean {
+  if (!isApiError(err)) return false
+  if (err.code === "PIN_RATE_LIMITED") return true
+  const k = (err.backendCode ?? "").toUpperCase().replace(/[^A-Z0-9]+/g, "_")
+  return k.includes("PIN") && k.includes("RATE_LIMIT")
 }
 
 /**

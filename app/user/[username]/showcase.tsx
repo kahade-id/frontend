@@ -25,6 +25,7 @@ import { useSessionRevision } from "@/lib/guest-gate"
 import { api } from "@/lib/api"
 import type { ShowcaseItem } from "@/lib/api/users"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { showcaseCoverOf } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
@@ -43,6 +44,8 @@ import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
 const GALLERY_RENDER_STEP = 60
 
 export default function PublicShowcaseScreen() {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const { username } = useLocalSearchParams<{ username: string }>()
   const insets = useSafeAreaInsets()
   const revision = useSessionRevision()
@@ -83,7 +86,7 @@ export default function PublicShowcaseScreen() {
         <Crossfade loading={showcase.loading} skeleton={<ShowcaseGalleryGrid items={[]} loading />}>
           {showcase.error ? (
             <ErrorState
-              title="Gagal memuat etalase"
+              title={translate("Gagal memuat etalase")}
               description={showcase.error}
               onRetry={() => void showcase.reload()}
             />
@@ -102,8 +105,8 @@ export default function PublicShowcaseScreen() {
               empty={
                 <EmptyState
                   icon={Images}
-                  title="Belum ada etalase"
-                  description="Foto produk atau hasil kerja belum diunggah."
+                  title={translate("Belum ada etalase")}
+                  description={translate("Foto produk atau hasil kerja belum diunggah.")}
                 />
               }
             />

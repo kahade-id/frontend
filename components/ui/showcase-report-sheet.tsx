@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 import { router } from "expo-router"
 import { ROUTES } from "@/lib/routes"
@@ -40,6 +41,10 @@ export type ShowcaseReportSheetProps = {
 }
 
 export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportSheetProps) {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const toast = useToast()
   const hasSession = useHasSession()
   const revision = useSessionRevision()
@@ -93,8 +98,8 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
       // Laporan tuntas — percobaan berikutnya (bila ada) adalah aksi baru.
       reportKey.current = null
       toast.show({
-        title: "Laporan terkirim",
-        description: "Terima kasih telah membantu menjaga keamanan komunitas Kahade.",
+        title: translate("Laporan terkirim"),
+        description: translate("Terima kasih telah membantu menjaga keamanan komunitas Kahade."),
         tone: "success",
         duration: 4000,
       })
@@ -102,7 +107,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
     } catch (err) {
       if (!task.valid()) return
       toast.show({
-        title: "Gagal mengirim laporan",
+        title: translate("Gagal mengirim laporan"),
         description: userMessage(err),
         tone: "danger",
       })
@@ -116,7 +121,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
     <BottomSheet
       visible={!!item}
       onRequestClose={onRequestClose}
-      title="Laporkan Karya"
+      title={translate("Laporkan Karya")}
       description={
         item
           ? translate('Laporkan postingan "{x}" jika melanggar panduan komunitas.', {
@@ -182,7 +187,7 @@ export function ShowcaseReportSheet({ item, onRequestClose }: ShowcaseReportShee
             disabled={submitting || !hasSession}
             value={detail}
             onChangeText={setDetail}
-            placeholder="Jelaskan secara singkat detail pelanggaran..."
+            placeholder={translate("Jelaskan secara singkat detail pelanggaran...")}
             maxLength={API_CONSTRAINTS.CreateShowcaseReportDto.description.maxLength}
             multiline
             numberOfLines={3}

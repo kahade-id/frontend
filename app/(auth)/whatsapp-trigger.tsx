@@ -17,7 +17,8 @@
  *   2. User WAJIB mengirim pesan dulu ke nomor resmi Kahade +6285786035715
  *      (tombol "Kirim lewat WhatsApp" membuka chat dengan teks terisi —
  *      tinggal tekan kirim; atau kirim manual berisi kode referensi).
- *   3. Layar polling `GET /v1/auth/otp-trigger/status/:refCode` tiap 2.5 dtk.
+ *   3. Layar polling `GET /v1/auth/otp-trigger/status/:refCode` dengan
+ *      exponential backoff (2.5 → 5 → 10 → 15 dtk maks).
  *      COMPLETED → /verify-otp (kode sudah dibalas bot).
  *   4. FAILED/EXPIRED → Alert + tombol "Minta kode baru" (trigger baru via
  *      requestOtpTrigger — TIDAK ADA jalur kirim langsung; dihapus di
@@ -61,8 +62,19 @@ import { ROUTES } from "@/lib/routes"
 /** Nomor WhatsApp resmi Kahade — satu-satunya nomor bot yang sah. */
 export const KAHADE_WHATSAPP_NUMBER = "+6285786035715"
 
-/** Interval polling status trigger (ms) — cukup cepat terasa instan, hemat request. */
-const POLL_INTERVAL_MS = 2500
+/**
+ * S-6 (audit 2026-09-26): polling memakai exponential backoff agar tidak
+ * menghantam server ~240 request selama 10 menit. Tanpa mengubah UX:
+ * respons pertama tetap secepat sebelumnya (2.5 dtk), lalu jeda memanjang
+ * 2.5 → 5 → 10 → 15 dtk (maks). Status terminal tetap ditentukan server
+ * (COMPLETED/FAILED/EXPIRED), bukan oleh client.
+ */
+const POLL_BASE_DELAY_MS = 2500
+const POLL_MAX_DELAY_MS = 15000
+
+function nextPollDelayMs(attempt: number): number {
+  return Math.min(POLL_MAX_DELAY_MS, POLL_BASE_DELAY_MS * 2 ** attempt)
+}
 
 export default function WhatsappTriggerScreen() {
   const router = useRouter()
@@ -102,34 +114,39 @@ export default function WhatsappTriggerScreen() {
   const [done, setDone] = useState(false)
   const [requesting, setRequesting] = useState(false)
 
-  // Polling status — satu interval, dibersihkan saat unmount/selesai.
-  // Batas total mengikuti expiresInSeconds dari trigger (default 10 menit).
-  const pollTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Polling status — rantai setTimeout dengan backoff, dibersihkan saat
+  // unmount/selesai. Batas total mengikuti expiresInSeconds dari trigger
+  // (default 10 menit); server yang menandai EXPIRED.
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const startedAt = useRef<number>(Date.now())
-
-  const goVerifyOtp = useCallback(() => {
-    setDone(true)
-    if (pollTimer.current) {
-      clearInterval(pollTimer.current)
-      pollTimer.current = null
-    }
-    router.replace(ROUTES.verifyOtp)
-  }, [router])
 
   const stopPolling = useCallback(() => {
     if (pollTimer.current) {
-      clearInterval(pollTimer.current)
+      clearTimeout(pollTimer.current)
       pollTimer.current = null
     }
   }, [])
 
+  const goVerifyOtp = useCallback(() => {
+    setDone(true)
+    stopPolling()
+    router.replace(ROUTES.verifyOtp)
+  }, [router, stopPolling])
+
   useEffect(() => {
     if (!refCode || done) return
     startedAt.current = Date.now()
+    let attempt = 0
+    let cancelled = false
+
+    const scheduleNext = () => {
+      pollTimer.current = setTimeout(() => void tick(), nextPollDelayMs(attempt))
+    }
 
     const tick = async () => {
       try {
         const { status } = await api.auth.getOtpTriggerStatus(refCode)
+        if (cancelled) return
         if (status === "COMPLETED") {
           goVerifyOtp()
         } else if (status === "FAILED" || status === "EXPIRED") {
@@ -144,22 +161,27 @@ export default function WhatsappTriggerScreen() {
               ? "Pengiriman kode gagal. Minta kode baru di bawah, lalu kirim pesan lagi ke WhatsApp resmi Kahade."
               : "Waktu permintaan habis. Minta kode baru di bawah, lalu kirim pesan lagi ke WhatsApp resmi Kahade.",
           )
+        } else {
+          // WAITING → tick berikutnya dengan jeda backoff yang lebih panjang.
+          attempt += 1
+          scheduleNext()
         }
-        // WAITING → tick berikutnya.
       } catch {
-        // Jaringan bergetar saat polling: biarkan tick berikutnya mencoba lagi.
+        // Jaringan bergetar saat polling: coba lagi dengan backoff, jangan
+        // reset jeda — kegagalan jaringan bukan sinyal balasan sudah dekat.
+        if (!cancelled) {
+          attempt += 1
+          scheduleNext()
+        }
       }
     }
 
     void tick()
-    pollTimer.current = setInterval(() => void tick(), POLL_INTERVAL_MS)
     return () => {
-      if (pollTimer.current) {
-        clearInterval(pollTimer.current)
-        pollTimer.current = null
-      }
+      cancelled = true
+      stopPolling()
     }
-  }, [refCode, done, goVerifyOtp, stopPolling])
+  }, [refCode, done, goVerifyOtp, stopPolling, purpose])
 
   const openWhatsapp = useCallback(() => {
     // B-08: URL yang tidak lolos whitelist TIDAK dibuka apa pun adanya —

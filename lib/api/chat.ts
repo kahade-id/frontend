@@ -16,6 +16,7 @@ import { readList, readPage } from "@/lib/api/response"
 
 import { http, seg } from "@/lib/api/client"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
+import type { SealTier } from "@/components/ui/verified-seal"
 
 export const CHAT_PAGE_SIZE = 30
 
@@ -26,6 +27,8 @@ export type ChatRoom = {
     username: string
     fullName?: string
     avatarUrl?: string | null
+    /** R1 (audit 2026-09-26): tier seal lawan bicara dari GET /v1/chat/rooms (otherUser.sealTier). */
+    sealTier?: SealTier | null
   }
   orderId?: string | null
   lastMessage?: ChatMessage | null
@@ -120,11 +123,22 @@ function normalizeChatMessage(raw: ChatMessage & Record<string, unknown>): ChatM
 }
 
 function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): ChatRoom {
-  const other = raw.otherUser as ChatRoom["counterpart"] | undefined
+  const other = raw.otherUser as (ChatRoom["counterpart"] & Record<string, unknown>) | undefined
   const last = raw.lastMessage as (ChatMessage & Record<string, unknown>) | null | undefined
+  // R1 (audit 2026-09-26): `otherUser` membawa sealTier lawan bicara, tapi
+  // `counterpart` backend tidak — gabungkan agar header chat bisa render
+  // <VerifiedSeal> tanpa N+1.
+  const sealTier = (other?.sealTier as SealTier | null | undefined)
+    ?? (raw.counterpart as ChatRoom["counterpart"] | undefined)?.sealTier
+    ?? null
   return {
     ...raw,
-    counterpart: raw.counterpart ?? other,
+    // R1: hasil merge di-assert ke tipe counterpart — `other` datang dari
+    // `Record<string, unknown>` sehingga id/username terbaca opsional oleh
+    // TS; runtime tetap objek merge yang sama (tanpa perubahan perilaku).
+    counterpart: (raw.counterpart || other
+      ? { ...(other ?? {}), ...(raw.counterpart ?? {}), sealTier }
+      : undefined) as ChatRoom["counterpart"],
     lastMessage: last ? normalizeChatMessage(last) : null,
     unreadCount: typeof raw.unreadCount === "number" ? raw.unreadCount : 0,
   }

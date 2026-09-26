@@ -42,7 +42,7 @@ import { Receipt } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTimeWIB } from "@/lib/format"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -296,7 +296,7 @@ export default function TransactionsScreen() {
                 name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
                 avatar: counterpart?.avatarUrl ?? undefined,
               }}
-              timestamp={formatDateTime(item.createdAt)}
+              timestamp={formatDateTimeWIB(item.createdAt)}
               deadlineAt={
                 // M-54 (audit end-to-end, issue #72): `toEpochMs` (domain jam
                 // C-04) — `new Date("1700000000")` string epoch-detik = Invalid

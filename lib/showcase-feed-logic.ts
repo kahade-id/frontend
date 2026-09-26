@@ -46,10 +46,12 @@ export function resetFeedPageState(state: FeedPageState): FeedPageState {
   return state
 }
 
-/** Filter query yang ikut membentuk himpunan hasil (tab × search × kategori). */
+/** Filter query yang ikut membentuk himpunan hasil (tab × search × kategori × lokasi). */
 export type ShowcaseFeedFilter = {
   search?: string
   category?: string
+  /** Filter lokasi free-text (users.address milik owner, case-insensitive). */
+  location?: string
 }
 
 /**
@@ -60,9 +62,12 @@ export type ShowcaseFeedFilter = {
 export function sameFeedFilter(a: ShowcaseFeedFilter, b: ShowcaseFeedFilter): boolean {
   // G-20 (audit 2026-09-23): identitas cache membanding kategori tanpa
   // membedakan huruf besar/kecil — filter "Kriya"/"kriya" = kueri yang sama.
+  // Lokasi ikut dibanding case-insensitive: backend memakai ILIKE, jadi
+  // "jakarta"/"Jakarta" adalah himpunan hasil yang sama.
   return (
     (a.search ?? "") === (b.search ?? "") &&
-    (a.category ?? "").toLocaleLowerCase() === (b.category ?? "").toLocaleLowerCase()
+    (a.category ?? "").toLocaleLowerCase() === (b.category ?? "").toLocaleLowerCase() &&
+    (a.location ?? "").toLocaleLowerCase() === (b.location ?? "").toLocaleLowerCase()
   )
 }
 

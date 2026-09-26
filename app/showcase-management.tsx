@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 import { api, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
@@ -56,6 +57,7 @@ import { Picture } from "@/components/ui/picture"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
 import { ShowcaseGalleryGrid } from "@/components/ui/showcase-gallery-grid"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
@@ -135,6 +137,8 @@ export default function ShowcaseScreen() {
 }
 
 function ShowcaseManagement() {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const insets = useSafeAreaInsets()
   const toast = useToast()
   const revision = useSessionRevision()
@@ -441,7 +445,7 @@ function ShowcaseManagement() {
       touchFeed()
       setOrderDraft(null)
       await query.refresh()
-      toast.show({ title: "Foto dilampirkan", tone: "success" })
+      toast.show({ title: translate("Foto dilampirkan"), tone: "success" })
     } catch (error) {
       if (!controller.signal.aborted && task.valid()) toast.show({
         title: submitted ? translate("Status lampiran belum dapat dipastikan. Segarkan sebelum mencoba lagi.") : translate("Gagal mengunggah foto"),
@@ -546,8 +550,8 @@ function ShowcaseManagement() {
     ? [
         {
           key: "view",
-          label: "Lihat detail",
-          description: "Halaman sosial: suka, komentar, bagikan",
+          label: translate("Lihat detail"),
+          description: translate("Halaman sosial: suka, komentar, bagikan"),
           icon: Eye,
           onPress: () => {
             const it = menuItem
@@ -557,7 +561,7 @@ function ShowcaseManagement() {
         },
         {
           key: "edit",
-          label: "Ubah detail",
+          label: translate("Ubah detail"),
           description: showcasePriceLabel(menuItem) ?? undefined,
           icon: PencilSimple,
           onPress: () => {
@@ -568,7 +572,7 @@ function ShowcaseManagement() {
         },
         {
           key: "images",
-          label: "Kelola foto",
+          label: translate("Kelola foto"),
           description: translate("{x} foto — tambah, urutkan, hapus", { x: menuItem.images?.length ?? 1 }),
           icon: Images,
           onPress: () => {
@@ -579,14 +583,14 @@ function ShowcaseManagement() {
         },
         {
           key: "toggle",
-          label: (menuItem.isActive ?? true) ? "Nonaktifkan karya" : "Aktifkan karya",
+          label: (menuItem.isActive ?? true) ? translate("Nonaktifkan karya") : translate("Aktifkan karya"),
           icon: (menuItem.isActive ?? true) ? EyeSlash : Eye,
           disabled: toggling,
           onPress: () => void handleToggleActive(menuItem),
         },
         {
           key: "delete",
-          label: "Hapus",
+          label: translate("Hapus"),
           icon: Trash,
           destructive: true,
           onPress: () => {
@@ -664,7 +668,7 @@ function ShowcaseManagement() {
                 }
               />
             </Crossfade>
-            {items.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 60)}>Tampilkan karya lainnya</Button> : null}
+            {items.length > renderLimit ? <Button variant="ghost" onPress={() => setRenderLimit((limit) => limit + 60)}>{translate("Tampilkan karya lainnya")}</Button> : null}
             <Text variant="caption" tone="secondary">
               Ketuk karya untuk mengubah detail, menyembunyikan, atau menghapus.
             </Text>
@@ -697,7 +701,7 @@ function ShowcaseManagement() {
                         <Text variant="caption" tone="secondary">
                           {daysLeft > 0
                             ? `Sisa ${daysLeft} hari untuk memulihkan`
-                            : "Segera dihapus permanen"}
+                            : translate("Segera dihapus permanen")}
                         </Text>
                       </View>
                       <Button
@@ -729,12 +733,12 @@ function ShowcaseManagement() {
         )}
       </PullToRefresh>
 
-      <Dialog visible={discardOpen} title="Buang perubahan?" description="Perubahan dan foto yang belum disimpan akan dibuang." confirmLabel="Buang" cancelLabel="Lanjut mengedit" destructive onConfirm={closeEditor} onCancel={cancelDiscard} onRequestClose={cancelDiscard} />
+      <Dialog visible={discardOpen} title={translate("Buang perubahan?")} description={translate("Perubahan dan foto yang belum disimpan akan dibuang.")} confirmLabel={translate("Buang")} cancelLabel={translate("Lanjut mengedit")} destructive onConfirm={closeEditor} onCancel={cancelDiscard} onRequestClose={cancelDiscard} />
       <ActionSheet
         visible={!!menuItem}
         onRequestClose={() => setMenuItem(null)}
         title={menuItem ? labelOf(menuItem) : undefined}
-        description={menuItem?.isActive === false ? "Disembunyikan dari profil publik" : undefined}
+        description={menuItem?.isActive === false ? translate("Disembunyikan dari profil publik") : undefined}
         actions={menuActions}
       />
 
@@ -772,7 +776,7 @@ function ShowcaseManagement() {
                 <Text variant="body" weight={500} tone="primary">
                   Foto {i + 1}
                 </Text>
-                {i === 0 ? <Text variant="caption" tone="secondary">Cover karya</Text> : null}
+                {i === 0 ? <Text variant="caption" tone="secondary">{translate("Cover karya")}</Text> : null}
               </View>
               <IconButton
                 icon={CaretLeft}
@@ -809,30 +813,30 @@ function ShowcaseManagement() {
       </BottomSheet>
 
       <Dialog
-        title="Hapus foto ini?"
+        title={translate("Hapus foto ini?")}
         description={
           deleteImage && imagesItem?.images?.[0]?.id === deleteImage.id
-            ? "Foto cover akan digantikan foto berikutnya."
-            : "Foto akan dihapus permanen dari karya ini."
+            ? translate("Foto cover akan digantikan foto berikutnya.")
+            : translate("Foto akan dihapus permanen dari karya ini.")
         }
         visible={!!deleteImage}
         destructive
         loading={deletingImage}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDeleteImage()}
         onCancel={() => setDeleteImage(null)}
         onRequestClose={() => setDeleteImage(null)}
       />
 
       <Dialog
-        title="Hapus karya ini?"
-        description="Karya akan dihapus dan dapat dipulihkan dalam 30 hari."
+        title={translate("Hapus karya ini?")}
+        description={translate("Karya akan dihapus dan dapat dipulihkan dalam 30 hari.")}
         visible={!!deleteTarget}
         destructive
         loading={deleting}
-        confirmLabel="Hapus"
-        cancelLabel="Batal"
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
         onConfirm={() => void handleDelete()}
         onCancel={() => setDeleteTarget(null)}
         onRequestClose={() => setDeleteTarget(null)}
@@ -879,12 +883,12 @@ function ShowcaseManagement() {
             rows={3}
             disabled={saving}
           />
-          {/* D-02: kategori (kontrak menganggur sebelum audit) */}
-          <Input
-            label="Kategori (opsional)"
+          {/* D-02: kategori (kontrak menganggur sebelum audit) — S4: saran populer */}
+          <ShowcaseCategoryInput
+            label={translate("Kategori (opsional)")}
             value={form.category}
             onChangeText={(t) => setForm((f) => ({ ...f, category: t }))}
-            placeholder="Jasa desain, kerajinan, digital…"
+            placeholder={translate("Jasa desain, kerajinan, digital…")}
             autoCapitalize="sentences"
             maxLength={CATEGORY_MAX}
             disabled={saving}
@@ -940,7 +944,7 @@ function ShowcaseManagement() {
             <Switch
               value={form.isPublic}
               onChange={(v) => setForm((f) => ({ ...f, isPublic: v }))}
-              accessibilityLabel="Tampilkan secara publik"
+              accessibilityLabel={translate("Tampilkan secara publik")}
               disabled={saving}
             />
           </View>

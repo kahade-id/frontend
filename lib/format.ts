@@ -598,6 +598,27 @@ export function formatCountdown(totalSeconds: number, placeholder = "—"): stri
 }
 
 /**
+ * Sisa waktu detik -> kata verbal ("3 hari 5 jam", "5 jam 12 menit", "40 menit").
+ *
+ * Versi prose dari `formatCountdown` untuk kalimat seperti "Dana akan cair
+ * otomatis dalam X hari Y jam" — gaya jam "04:59" tidak cocok dibaca sebagai
+ * kalimat. Dua unit terbesar yang tidak nol (minimal satu); label lewat
+ * kamus (G-05) supaya mengikuti bahasa aktif.
+ */
+export function formatDurationWords(totalSeconds: number, placeholder = "—"): string {
+  if (!Number.isFinite(totalSeconds)) return placeholder
+  const s = Math.max(0, Math.floor(totalSeconds))
+  const days = Math.floor(s / 86400)
+  const h = Math.floor((s % 86400) / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const parts: string[] = []
+  if (days > 0) parts.push(translate("{x} hari", { x: days }))
+  if (h > 0 || days > 0) parts.push(translate("{x} jam", { x: h }))
+  if (parts.length === 0) parts.push(translate("{x} menit", { x: m }))
+  return parts.join(" ")
+}
+
+/**
  * Nomor rekening: tampilkan 4 digit terakhir, sisanya bullet, dikelompokkan
  * per 4 agar terbaca dalam Mono: "•••• •••• 1234".
  *

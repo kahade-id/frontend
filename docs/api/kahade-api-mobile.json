@@ -11030,20 +11030,12 @@
         "type": "object",
         "required": [
           "newPhoneNumber",
-          "method",
           "currentPassword"
         ],
         "properties": {
           "newPhoneNumber": {
             "type": "string",
             "maxLength": 20
-          },
-          "method": {
-            "type": "string",
-            "enum": [
-              "SMS",
-              "WHATSAPP"
-            ]
           },
           "currentPassword": {
             "type": "string",

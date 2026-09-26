@@ -10,6 +10,7 @@ import { router } from "expo-router"
 import { Flag, PencilSimple } from "phosphor-react-native"
 
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
@@ -33,6 +34,8 @@ type ShowcaseAuthorRowProps = {
 }
 
 export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: ShowcaseAuthorRowProps) {
+  // i18n: label aksesibilitas mengikuti bahasa aktif.
+  useLanguage()
   return (
     <View className="flex-row items-center gap-3 px-5 pt-4">
       <PressableScale
@@ -68,6 +71,7 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
             <VerifiedSeal
               badges={item.author.badges as unknown as VerificationBadge[]}
               verified={item.author.isKycVerified === true}
+              tier={item.author.sealTier ?? null}
               size={14}
             />
           </View>
@@ -79,7 +83,7 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
       </PressableScale>
       {/* B-05 selaras: bendera disembunyikan untuk item sendiri. */}
       {!isOwner ? (
-        <IconButton icon={Flag} variant="ghost" size="sm" accessibilityLabel="Laporkan" onPress={onReport} />
+        <IconButton icon={Flag} variant="ghost" size="sm" accessibilityLabel={translate("Laporkan")} onPress={onReport} />
       ) : null}
       {/* S8 (audit 2026-09-26): "Ubah karya" langsung membuka editor ITEM INI
           via `?edit=<id>` — bukan sekadar daftar kelola. */}
@@ -88,7 +92,7 @@ export function ShowcaseAuthorRow({ item, isOwner, hasSession, onReport }: Showc
           icon={PencilSimple}
           variant="ghost"
           size="sm"
-          accessibilityLabel="Ubah karya"
+          accessibilityLabel={translate("Ubah karya")}
           accessibilityHint={translate("Ubah karya ini")}
           onPress={() =>
             router.push({

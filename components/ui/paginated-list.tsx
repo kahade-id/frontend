@@ -9,7 +9,7 @@ import {
 import { Skeleton, SkeletonGroup, SkeletonText } from "@/components/ui/skeleton"
 import { tokens } from "@/lib/tokens"
 
-export type PaginatedListProps<T extends { id: string }> = {
+export type PaginatedListProps<T extends { id?: string }> = {
   data: T[]
   renderItem: ListRenderItem<T>
   loading: boolean
@@ -22,6 +22,11 @@ export type PaginatedListProps<T extends { id: string }> = {
   onRetry: () => void | Promise<void>
   onLoadMore: () => void | Promise<void>
   empty: ReactElement
+  /**
+   * Kunci unik baris. Default `item.id`; timpa bila payload tidak membawa id
+   * (mis. followers/following — backend tidak membocorkan id internal).
+   */
+  keyExtractor?: (item: T) => string
   /**
    * Event scroll scroller (web/iOS) — mis. header yang melipat saat scroll.
    * Di Android `onScroll` JS tidak berjalan (lihat pull-to-refresh); kirim
@@ -79,7 +84,7 @@ export function DetailLoading() {
 }
 
 /** Reuses the design system while keeping long histories virtualized on native AND web. */
-export function PaginatedList<T extends { id: string }>({
+export function PaginatedList<T extends { id?: string }>({
   data,
   renderItem,
   loading,
@@ -101,6 +106,7 @@ export function PaginatedList<T extends { id: string }>({
   gap = tokens.space[3],
   bottomPadding = tokens.space[8],
   contentContainerStyle,
+  keyExtractor: keyExtractorProp,
 }: PaginatedListProps<T>) {
   /*
    * Audit performa — semua prop di bawah ini DULU ditulis inline di JSX.
@@ -135,7 +141,10 @@ export function PaginatedList<T extends { id: string }>({
     [padded, bottomPadding, contentContainerStyle],
   )
 
-  const keyExtractor = useCallback((item: T) => item.id, [])
+  const keyExtractor = useCallback(
+    (item: T) => (keyExtractorProp ? keyExtractorProp(item) : (item.id ?? "")),
+    [keyExtractorProp],
+  )
   /*
    * REVISI 2026-09-23 — wrapper `Animated.View layout` DIHAPUS.
    *

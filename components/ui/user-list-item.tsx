@@ -28,6 +28,9 @@ import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
+import { useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
+import { VerifiedSeal, type SealTier } from "@/components/ui/verified-seal"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { focusRingInset } from "@/lib/focus-ring"
@@ -39,6 +42,12 @@ export type UserListItemProps = Omit<ViewProps, "children"> & {
   username?: string
   avatar?: Pick<AvatarProps, "source">
   verified?: boolean
+  /**
+   * R1 (audit 2026-09-26): tier seal dari payload backend (`sealTier`,
+   * mis. GET /v1/users/search) — dirender sebagai <VerifiedSeal> di samping
+   * nama tanpa N+1 request badge.
+   */
+  sealTier?: SealTier | null
   /** Mis. "128 transaksi · 4,9" */
   stat?: string
   /** Slot kanan: FollowButton / Button "Buka blokir" / Badge */
@@ -59,6 +68,7 @@ export function UserListItem({
   username,
   avatar,
   verified = false,
+  sealTier,
   stat,
   action,
   chevron = false,
@@ -68,26 +78,32 @@ export function UserListItem({
   className,
   ...rest
 }: UserListItemProps) {
+  // i18n: label aksesibilitas mengikuti bahasa aktif.
+  useLanguage()
   const handle = username ? `@${username}` : undefined
   const a11yLabel = [
     name,
     handle,
-    verified ? "terverifikasi" : undefined,
+    sealTier ?? (verified ? translate("terverifikasi") : undefined),
     stat,
     blocked ? "diblokir" : undefined,
   ]
     .filter(Boolean)
     .join(", ")
 
+  const showVerified = verified || !!sealTier
   const body = (
     <View
       className={cn("min-h-14 flex-1 flex-row items-center gap-3 py-3", blocked && "opacity-60")}
     >
-      <Avatar source={avatar?.source} name={name} size="md" verified={verified} />
+      <Avatar source={avatar?.source} name={name} size="md" verified={showVerified} sealTier={sealTier ?? undefined} />
       <View className="flex-1 gap-0.5">
-        <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1}>
-          {name}
-        </Text>
+        <View className="flex-row items-center gap-1">
+          <Text ellipsizeMode="tail" variant="body" weight={500} tone="primary" numberOfLines={1} className="min-w-0 shrink">
+            {name}
+          </Text>
+          <VerifiedSeal badges={null} verified={verified} tier={sealTier ?? null} size={14} />
+        </View>
         {handle || stat ? (
           <View className="flex-row flex-wrap items-center gap-x-2">
             {handle ? (
@@ -114,7 +130,7 @@ export function UserListItem({
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={a11yLabel}
-            accessibilityHint="Buka profil"
+            accessibilityHint={translate("Buka profil")}
             scaleOnPress={false}
             onPress={onPress}
             containerClassName={cn("flex-1", focusRingInset)}

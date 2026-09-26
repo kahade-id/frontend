@@ -15,14 +15,23 @@ import { Chip } from "@/components/ui/chip"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { RatingReviewCard, type RatingPerson } from "@/components/ui/rating-review-card"
+import { useMemo } from "react"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
-export const RATING_FILTERS: { value: PublicRatingFilter; label: string }[] = [
-  { value: "all", label: "Semua" },
-  { value: "positive", label: "Positif" },
-  { value: "neutral", label: "Netral" },
-  { value: "negative", label: "Negatif" },
-]
+/** i18n: label filter mengikuti bahasa aktif (dulu konstanta modul). */
+function useRatingFilters(): { value: PublicRatingFilter; label: string }[] {
+  const language = useLanguage()
+  return useMemo(
+    () => [
+      { value: "all", label: translate("Semua") },
+      { value: "positive", label: translate("Positif") },
+      { value: "neutral", label: translate("Netral") },
+      { value: "negative", label: translate("Negatif") },
+    ],
+    [language],
+  )
+}
 
 export type ProfileRatingsTabProps = {
   ratings: Rating[]
@@ -43,10 +52,11 @@ export function ProfileRatingsTab({
   handle,
   isSelf = false,
 }: ProfileRatingsTabProps) {
+  const ratingFilters = useRatingFilters()
   return (
     <View className="px-5 pt-4 gap-4">
       <View className="flex-row flex-wrap gap-2">
-        {RATING_FILTERS.map((f) => (
+        {ratingFilters.map((f) => (
           <Chip key={f.value} selected={filter === f.value} onPress={() => onFilterChange(f.value)}>
             {f.label}
           </Chip>
@@ -59,20 +69,20 @@ export function ProfileRatingsTab({
         isSelf ? (
           <EmptyState
             icon={Star}
-            title="Belum ada ulasan"
-            description="Ulasan transaksi Anda akan muncul di sini."
+            title={translate("Belum ada ulasan")}
+            description={translate("Ulasan transaksi Anda akan muncul di sini.")}
           />
         ) : (
           <EmptyState
             icon={Star}
-            title="Belum ada ulasan"
+            title={translate("Belum ada ulasan")}
             description={translate("Ulasan transaksi dengan @{x} akan muncul di sini.", { x: handle })}
           />
         )
       ) : (
         ratings.map((r) => {
           const reviewer: RatingPerson = {
-            name: r.authorUsername ?? "Pengguna",
+            name: r.authorUsername ?? translate("Pengguna"),
             avatar: r.authorAvatarUrl ? { uri: r.authorAvatarUrl } : undefined,
           }
           return (

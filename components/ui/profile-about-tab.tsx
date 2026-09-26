@@ -14,6 +14,8 @@ import { View } from "react-native"
 
 import type { PublicUserProfile } from "@/lib/api/users"
 import { formatDate } from "@/lib/format"
+import { useLanguage } from "@/lib/i18n"
+import { translate } from "@/lib/i18n/translate"
 
 import { Badge } from "@/components/ui/badge"
 import { Text } from "@/components/ui/text"
@@ -42,34 +44,36 @@ function ContactValue({ value }: { value?: string | null }) {
     </Text>
   ) : (
     <Text variant="caption" tone="tertiary">
-      Tidak dibagikan
+      {translate("Tidak dibagikan")}
     </Text>
   )
 }
 
 export function ProfileAboutTab({ profile }: ProfileAboutTabProps) {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   return (
     <View className="px-5 pt-4 gap-4">
       <View className="w-full gap-3 rounded-md border border-border bg-surface p-4">
         <Text variant="body" weight={600} tone="primary">
-          Informasi Akun
+          {translate("Informasi Akun")}
         </Text>
         <View className="gap-2">
-          <InfoRow label="Status Verifikasi (KYC)">
+          <InfoRow label={translate("Status Verifikasi (KYC)")}>
             <Badge tone={profile.verified ? "success" : "neutral"}>
-              {profile.verified ? "Terverifikasi" : "Belum Verifikasi"}
+              {profile.verified ? translate("Terverifikasi") : translate("Belum Verifikasi")}
             </Badge>
           </InfoRow>
-          <InfoRow label="Skor Kepercayaan">
+          <InfoRow label={translate("Skor Kepercayaan")}>
             {/* D-09 (audit): fallback 100/100 = sinyal trust palsu untuk
                 profil yang skornya tidak dikirim/gagal dimuat. Tanpa data →
                 tampilkan "—" + keterangan. */}
             <Text variant="body" weight={600} tone="primary">
-              {profile.trustScore != null ? `${profile.trustScore} / 100` : "— (belum ada skor)"}
+              {profile.trustScore != null ? `${profile.trustScore} / 100` : translate("— (belum ada skor)")}
             </Text>
           </InfoRow>
           {/* B.2 — "Bergabung sejak" (join date) */}
-          <InfoRow label="Bergabung Sejak">
+          <InfoRow label={translate("Bergabung Sejak")}>
             <Text variant="caption" tone="primary">
               {profile.createdAt ? formatDate(profile.createdAt) : "—"}
             </Text>
@@ -83,15 +87,15 @@ export function ProfileAboutTab({ profile }: ProfileAboutTabProps) {
           daripada merahasiakan keberadaan fitur. */}
       <View className="w-full gap-3 rounded-md border border-border bg-surface p-4">
         <Text variant="body" weight={600} tone="primary">
-          Kontak publik
+          {translate("Kontak publik")}
         </Text>
         <View className="gap-2">
-          <InfoRow label="Email kontak">
+          <InfoRow label={translate("Email kontak")}>
             <ContactValue
               value={profile.showContactEmail === false ? null : profile.contactEmail}
             />
           </InfoRow>
-          <InfoRow label="Nomor HP kontak">
+          <InfoRow label={translate("Nomor HP kontak")}>
             <ContactValue
               value={profile.showContactPhone === false ? null : profile.contactPhone}
             />

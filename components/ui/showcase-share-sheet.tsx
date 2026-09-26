@@ -22,6 +22,7 @@ import { shareContent } from "@/lib/share"
 import { showcasePriceLabel } from "@/lib/showcase-labels"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
@@ -35,6 +36,8 @@ type Props = {
 }
 
 export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const toast = useToast()
   if (!item) return null
 
@@ -49,7 +52,7 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
 
   const handleCopy = async () => {
     const ok = await copyToClipboard(shareUrl)
-    toast.show({ title: ok ? "Tautan disalin" : "Gagal menyalin", tone: ok ? "success" : "danger", duration: 2500 })
+    toast.show({ title: ok ? translate("Tautan disalin") : translate("Gagal menyalin"), tone: ok ? "success" : "danger", duration: 2500 })
     onClose()
   }
 
@@ -93,7 +96,7 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
   const xUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(message)}`
 
   return (
-    <BottomSheet visible={visible} onRequestClose={onClose} title="Bagikan etalase" description={title} padding="none">
+    <BottomSheet visible={visible} onRequestClose={onClose} title={translate("Bagikan etalase")} description={title} padding="none">
       <View className="gap-2 px-5 pb-2">
         <Text variant="caption" tone="secondary">
           {translate("Pilih tujuan berbagi. Tautan akan disalin jika aplikasi tidak tersedia.")}

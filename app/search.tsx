@@ -40,7 +40,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ArrowUpLeft, ClockCounterClockwise, Images, MagnifyingGlass } from "phosphor-react-native"
+import { ArrowUpLeft, ClockCounterClockwise, Images, MagnifyingGlass, MapPin } from "phosphor-react-native"
 import { router } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -48,6 +48,7 @@ import { showcaseImages } from "@/lib/showcase-social"
 import { formatDateTime, formatNumber } from "@/lib/format"
 import { resolveMediaUrl } from "@/lib/media"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/routes"
 import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
@@ -89,13 +90,20 @@ type ResultRow = { id: string } & (
 /** Cakupan hasil — "all" mengirim semua jenis, sisanya menyaring per sumber. */
 type Scope = "all" | "users" | "posts" | "orders" | "transactions"
 
-const SCOPES: ReadonlyArray<{ value: Scope; label: string }> = [
-  { value: "all", label: "Semua" },
-  { value: "users", label: "Pengguna" },
-  { value: "posts", label: "Postingan" },
-  { value: "orders", label: "Pesanan" },
-  { value: "transactions", label: "Mutasi" },
-]
+/** i18n: label cakupan mengikuti bahasa aktif (dulu konstanta modul). */
+function useScopes(): ReadonlyArray<{ value: Scope; label: string }> {
+  const language = useLanguage()
+  return useMemo(
+    () => [
+      { value: "all", label: translate("Semua") },
+      { value: "users", label: translate("Pengguna") },
+      { value: "posts", label: translate("Postingan") },
+      { value: "orders", label: translate("Pesanan") },
+      { value: "transactions", label: translate("Mutasi") },
+    ],
+    [language],
+  )
+}
 
 /** Parameter `types` untuk GET /v1/search per cakupan (postingan di luar endpoint ini). */
 const SCOPE_TYPES: Record<Exclude<Scope, "posts">, string> = {
@@ -106,18 +114,27 @@ const SCOPE_TYPES: Record<Exclude<Scope, "posts">, string> = {
 }
 
 /** Judul kelompok + jumlah hasil (dipakai di header tiap kelompok). */
-const SECTION_TITLE: Record<ResultRow["kind"], string> = {
-  user: "Pengguna",
-  showcase: "Postingan",
-  order: "Pesanan",
-  transaction: "Mutasi",
-  article: "Bantuan",
+/** i18n: judul seksi mengikuti bahasa aktif (dulu konstanta modul). */
+function useSectionTitle(): Record<ResultRow["kind"], string> {
+  const language = useLanguage()
+  return useMemo(
+    () => ({
+      user: translate("Pengguna"),
+      showcase: translate("Postingan"),
+      order: translate("Pesanan"),
+      transaction: translate("Mutasi"),
+      article: translate("Bantuan"),
+    }),
+    [language],
+  )
 }
 
 /** Minimal kata kunci sebelum request ditembakkan. */
 const MIN_KEYWORD = 2
 
 export default function SearchScreen() {
+  const scopes = useScopes()
+  const sectionTitle = useSectionTitle()
   const insets = useSafeAreaInsets()
   /*
    * Hanya kata kunci yang sudah tenang yang tinggal di layar ini; teks mentah
@@ -142,6 +159,17 @@ export default function SearchScreen() {
   const [seed, setSeed] = useState("")
   const [seedNonce, setSeedNonce] = useState(0)
   const [scope, setScope] = useState<Scope>("all")
+  /*
+   * Filter lokasi (free-text, mis. "Jakarta"): hanya memengaruhi hasil
+   * POSTINGAN — backend mencocokkan `users.address` milik owner
+   * (case-insensitive) di feed etalase dan /v1/search jenis `showcase`.
+   * State mentah dikurung di <DebouncedSearchField> (pola yang sama dengan
+   * kata kunci): layar hanya menerima nilai yang sudah tenang supaya daftar
+   * tidak refetch tiap ketukan huruf.
+   */
+  const [location, setLocation] = useState("")
+  const [locationSeed, setLocationSeed] = useState("")
+  const [locationNonce, setLocationNonce] = useState(0)
   const [clearingHistory, setClearingHistory] = useState(false)
   const enabled = keyword.trim().length >= MIN_KEYWORD
   const wantUsers = scope === "all" || scope === "users"
@@ -154,10 +182,10 @@ export default function SearchScreen() {
   const postsOnly = scope === "posts"
 
   const result = useApiQuery(
-    `search:${scope}:${keyword}`,
+    `search:${scope}:${keyword}:${location}`,
     (signal) =>
       api.search.globalSearch(
-        { q: keyword, types: SCOPE_TYPES[scope as Exclude<Scope, "posts">], limit: 20 },
+        { q: keyword, types: SCOPE_TYPES[scope as Exclude<Scope, "posts">], limit: 20, location: location || undefined },
         signal,
       ),
     enabled && !usersOnly && !postsOnly,
@@ -169,9 +197,10 @@ export default function SearchScreen() {
   )
   // Postingan etalase — feed publik (auth:"optional"), 12 hasil cukup untuk
   // satu layar; penelusuran lanjutan hidup di tab Etalase itu sendiri.
+  // Filter lokasi diteruskan ke feed (backend: users.address ILIKE).
   const postsResult = useApiQuery(
-    `search-posts:${keyword}`,
-    (signal) => getShowcaseFeed({ search: keyword, limit: 12 }, signal),
+    `search-posts:${keyword}:${location}`,
+    (signal) => getShowcaseFeed({ search: keyword, limit: 12, location: location || undefined }, signal),
     enabled && wantPosts,
   )
   // Keadaan daftar = gabungan ketiga request. Tanpa ini, cakupan "Pengguna"/
@@ -240,6 +269,7 @@ export default function SearchScreen() {
               username: u.username ?? null,
               fullName: u.fullName ?? "",
               avatarUrl: u.avatarUrl ?? null,
+              sealTier: (u as { sealTier?: UserSearchResult["sealTier"] }).sealTier ?? null,
             }))
           : []))
     return [
@@ -370,7 +400,7 @@ export default function SearchScreen() {
           enabled ? (
             <View className="gap-3 pb-4 pt-1">
               <ScrollRow bleed gap={2} accessibilityLabel={translate("Saring hasil pencarian")}>
-                {SCOPES.map((option) => (
+                {scopes.map((option) => (
                   <Chip
                     key={option.value}
                     selected={scope === option.value}
@@ -381,6 +411,24 @@ export default function SearchScreen() {
                   </Chip>
                 ))}
               </ScrollRow>
+              {/*
+               * Filter lokasi — hanya relevan untuk POSTINGAN (backend
+               * mencocokkan users.address milik owner). Cakupan pengguna/
+               * pesanan/mutasi tidak mengenal lokasi, jadi kolom ini
+               * disembunyikan di sana agar tidak menjanjikan filter yang
+               * tidak bekerja.
+               */}
+              {wantPosts ? (
+                <DebouncedSearchField
+                  key={locationNonce}
+                  initialQuery={locationSeed}
+                  onQueryChange={setLocation}
+                  leftIcon={MapPin}
+                  placeholder={translate("Lokasi (cth. Jakarta)")}
+                  accessibilityLabel={translate("Filter lokasi")}
+                  accessibilityHint={translate("Batasi hasil postingan ke lokasi penjual")}
+                />
+              ) : null}
               {/* Ringkasan hasil. Sengaja DISEMBUNYIKAN saat daftar kosong —
                   <EmptyState> di bawah sudah mengatakannya, dan dua kalimat
                   untuk satu keadaan hanya menambah kebisingan. */}
@@ -436,6 +484,7 @@ export default function SearchScreen() {
                 name={item.user.fullName || item.user.username || "Identitas belum tersedia"}
                 username={item.user.username ?? undefined}
                 avatar={item.user.avatarUrl ? { source: item.user.avatarUrl } : undefined}
+                sealTier={item.user.sealTier ?? null}
                 chevron
                 onPress={
                   item.user.username
@@ -499,7 +548,7 @@ export default function SearchScreen() {
                    bawahnya tanpa menggulir. */
                 <View className="flex-row items-baseline justify-between gap-3 pt-1">
                   <Text variant="label" tone="secondary">
-                    {translate(SECTION_TITLE[item.kind])}
+                    {sectionTitle[item.kind]}
                   </Text>
                   <Text variant="caption" tone="tertiary">
                     {formatNumber(counts[item.kind])}
@@ -543,6 +592,9 @@ export default function SearchScreen() {
                       setSeed("")
                       setKeyword("")
                       setSeedNonce((n) => n + 1)
+                      setLocationSeed("")
+                      setLocation("")
+                      setLocationNonce((n) => n + 1)
                     }}
                   >
                     Atur ulang pencarian
@@ -559,7 +611,7 @@ export default function SearchScreen() {
             <Button
               variant="ghost"
               fullWidth
-              onPress={() => router.push(ROUTES.showcaseSearch(keyword.trim()))}
+              onPress={() => router.push(ROUTES.showcaseSearch(keyword.trim(), location || undefined))}
             >
               Lihat semua di Etalase
             </Button>

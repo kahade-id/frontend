@@ -12,7 +12,7 @@ import { Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import type { WalletTransaction } from "@/lib/api/wallet"
-import { formatDateTime } from "@/lib/format"
+import { formatDateTimeWIB } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { shortId } from "@/lib/short-id"
 import { translate } from "@/lib/i18n/translate"
@@ -113,7 +113,7 @@ export default function WalletTransactionScreen() {
                     : "Status belum tersedia"
                 }
               />
-              <KeyValue label="Waktu" value={formatDateTime(txn.createdAt)} />
+              <KeyValue label="Waktu" value={formatDateTimeWIB(txn.createdAt)} />
               {txn.referenceId ? (
                 // R2 (audit ronde-2, butir #81): referensi mutasi escrow adalah
                 // TAUTAN ke entitas terkait, bukan jalan buntu salin-tempel.

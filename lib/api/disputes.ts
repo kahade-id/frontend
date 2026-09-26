@@ -92,6 +92,8 @@ export type DisputeDetail = {
   orderId: string
   status: string
   claim: string
+  /** Kategori sengketa (enum backend DisputeCategory) — nullable untuk data lama. */
+  category?: string | null
   /** Pihak pembuka sengketa — UNVERIFIED */
   openedById?: string
   createdAt: string
@@ -113,6 +115,7 @@ function normalizeDisputeDetail(raw: DisputeDetail): DisputeDetail {
     orderId: pickString(d, ["orderId", "order_id", "transactionId", "transaction_id"]) ?? "",
     status: pickString(d, ["status", "state"]) ?? "",
     claim: typeof claimRaw === "string" ? claimRaw : "",
+    category: pickString(d, ["category"]) ?? null,
     openedById: pickString(d, ["openedById", "opened_by_id", "claimantId", "claimant_id", "reporterId"]),
     createdAt: pickString(d, ["createdAt", "created_at", "openedAt", "opened_at"]) ?? "",
     updatedAt: pickString(d, ["updatedAt", "updated_at", "lastUpdatedAt"]),

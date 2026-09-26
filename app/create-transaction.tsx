@@ -38,6 +38,7 @@ import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { AMOUNT_LIMITS, isValidAmount } from "@/lib/financial"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
+import { CalendarBlank } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
@@ -59,11 +60,13 @@ import { ButtonGroup } from "@/components/ui/button-group"
 import {
   type CounterpartState,
 } from "@/components/ui/counterpart-validation-card"
+import { DatePickerSheet, addDays, normalizePickerDate } from "@/components/ui/date-picker-sheet"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Field } from "@/components/ui/field"
 import { FormSection } from "@/components/ui/form-section"
 import { Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
+import { Icon } from "@/components/ui/icon"
 import { Input } from "@/components/ui/input"
 import { Dialog } from "@/components/ui/modal"
 import {
@@ -81,12 +84,14 @@ import {
   VoucherSection,
 } from "@/components/create-transaction-review"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import type { AppliedVoucher } from "@/components/ui/voucher-redeem-box"
 import { translate } from "@/lib/i18n/translate"
+import { cn } from "@/lib/cn"
 import { formatDateLong } from "@/lib/format"
 
 const DEBOUNCE_MS = 400
@@ -232,11 +237,17 @@ export default function CreateTransactionScreen() {
   const [description, setDescription] = useState(templatePrefill.description ?? "")
   const [orderType, setOrderType] = useState<OrderType>(templatePrefill.orderType ?? "SERVICE")
   const [orderValue, setOrderValue] = useState(templatePrefill.amount ?? 0)
-  const [deadlineDays, setDeadlineDays] = useState(templatePrefill.deadline ?? 3)
-  // Draf terpisah untuk field tenggat: tanpa ini, mengosongkan field langsung
-  // melompat ke "1" (NaN-parsing) sehingga pengguna tidak pernah melihat
-  // keadaan kosong dan tidak yakin ketikannya terekam.
-  const [deadlineDraft, setDeadlineDraft] = useState(String(templatePrefill.deadline ?? 3))
+  // F10 (audit 2026-09-26): tenggat dipilih lewat kalender <DatePickerSheet>,
+  // BUKAN input angka hari. `null` = belum dipilih → placeholder "Pilih
+  // tanggal", validasi menahan "Lanjut". TIDAK ada auto-fill diam-diam ke
+  // "1" seperti perilaku onBlur input angka sebelumnya.
+  const [deadlineDate, setDeadlineDate] = useState<Date | null>(() =>
+    templatePrefill.deadline != null ? addDays(new Date(), templatePrefill.deadline) : null,
+  )
+  const [deadlineSheetOpen, setDeadlineSheetOpen] = useState(false)
+  // Sheet pernah dibuka-tutup tanpa memilih tanggal → error "pilih tanggal"
+  // boleh tampil (user tahu kenapa "Lanjut" tertahan).
+  const [deadlineTouched, setDeadlineTouched] = useState(false)
   const [feeResponsibility, setFeeResponsibility] = useState<"BUYER" | "SELLER" | "SPLIT">(
     templatePrefill.fee ?? "SPLIT",
   )
@@ -291,12 +302,27 @@ export default function CreateTransactionScreen() {
   const counterpartConfirmed =
     confirmedCounterpart === counterpart.trim() && counterpartState === "found"
   const counterpartValid = mode === "link" ? !counterpart.trim() || counterpartConfirmed : counterpartConfirmed
+  // F3 (audit 2026-09-26): error per-field — tombol "Lanjut" tetap di-disable
+  // saat tidak valid, tapi user tahu kenapa (bukan menebak-nebak).
+  const titleTrimmed = title.trim()
+  const descriptionTrimmed = description.trim()
+  const titleError =
+    titleTrimmed.length > 0 && titleTrimmed.length < MIN_TITLE
+      ? translate("Minimal {x} karakter.", { x: MIN_TITLE })
+      : undefined
+  const descriptionError =
+    descriptionTrimmed.length > 0 && descriptionTrimmed.length < MIN_DESCRIPTION
+      ? translate("Minimal {x} karakter.", { x: MIN_DESCRIPTION })
+      : undefined
+  const deadlineError =
+    deadlineTouched && deadlineDate == null
+      ? translate("Pilih tanggal tenggat pengiriman terlebih dahulu.")
+      : undefined
   const detailValid =
-    title.trim().length >= MIN_TITLE &&
-    description.trim().length >= MIN_DESCRIPTION &&
+    titleTrimmed.length >= MIN_TITLE &&
+    descriptionTrimmed.length >= MIN_DESCRIPTION &&
     isValidAmount(orderValue, AMOUNT_LIMITS.order) &&
-    deadlineDays >= 1 &&
-    deadlineDays <= MAX_DEADLINE_DAYS
+    deadlineDate != null
   const feeValid = confirmedFeeKey === feeKey && !feeLoading && !!fee
   const stepValid = [true, counterpartValid, detailValid, feeValid && counterpartValid && detailValid]
   const canSubmit =
@@ -452,16 +478,33 @@ export default function CreateTransactionScreen() {
 
   const handleSubmit = useCallback(async () => {
     if (!canSubmit || submitLock.current) return
+    // Dijaga `canSubmit` (detailValid menuntut deadlineDate != null); pengaman
+    // TS karena narrowing tidak menembus closure `canSubmit`.
+    if (deadlineDate == null) return
     submitLock.current = true
     setSubmitting(true)
     try {
+      // Backend memakai `deliveryDeadlineAt` bila ada; `deliveryDeadlineDays`
+      // tetap dikirim sebagai fallback = selisih hari kalender dari hari ini
+      // (min 1, max ikut batas picker 14).
+      const deadlineDaysFallback = Math.min(
+        MAX_DEADLINE_DAYS,
+        Math.max(
+          1,
+          Math.round(
+            (normalizePickerDate(deadlineDate).getTime() - normalizePickerDate(new Date()).getTime()) /
+              86_400_000,
+          ),
+        ),
+      )
       const base = {
         role,
         title: title.trim(),
         description: description.trim(),
         orderType,
         orderValue,
-        deliveryDeadlineDays: deadlineDays,
+        deliveryDeadlineDays: deadlineDaysFallback,
+        deliveryDeadlineAt: deadlineDate.toISOString(),
         feeResponsibility,
       }
       if (mode === "link") {
@@ -541,7 +584,7 @@ export default function CreateTransactionScreen() {
     description,
     orderType,
     orderValue,
-    deadlineDays,
+    deadlineDate,
     feeResponsibility,
     voucher?.code,
     toast.show,
@@ -655,7 +698,7 @@ export default function CreateTransactionScreen() {
 
         {step === 2 ? (
           <FormSection title="Detail pesanan">
-            <Field label="Judul" required>
+            <Field label="Judul" required errorText={titleError}>
               <Input
                 value={title}
                 onChangeText={setTitle}
@@ -663,7 +706,7 @@ export default function CreateTransactionScreen() {
                 maxLength={100}
               />
             </Field>
-            <Field label="Deskripsi" required>
+            <Field label="Deskripsi" required errorText={descriptionError}>
               <TextArea
                 value={description}
                 onChangeText={setDescription}
@@ -686,48 +729,56 @@ export default function CreateTransactionScreen() {
               max={MAX_ORDER_VALUE}
               label="Nilai transaksi"
             />
+            {/* F10 (audit 2026-09-26): input angka hari diganti kalender
+                <DatePickerSheet> — tanpa native module (OTA-compatible).
+                Belum pilih = placeholder "Pilih tanggal", bukan auto-fill "1". */}
             <Field
-              label="Tenggat pengiriman (hari)"
+              label="Tenggat pengiriman"
               required
-              helperText={
-                // T3 (audit 2026-09-26): tampilkan tanggal konkret agar user tahu persis
-                // apa arti "N hari". Ini estimasi — tenggat final dihitung backend saat
-                // pembayaran (deliveryDeadlineAt).
-                deadlineDays >= 1
-                  ? translate("{x}–{y} hari · estimasi tenggat {z}", {
-                      x: 1,
-                      y: MAX_DEADLINE_DAYS,
-                      z: formatDateLong(new Date(Date.now() + deadlineDays * 86_400_000)),
-                    })
-                  : translate("{x}–{y} hari", { x: 1, y: MAX_DEADLINE_DAYS })
-              }
+              helperText={translate("Tanggal yang bisa dipilih: besok hingga {x} hari ke depan.", {
+                x: MAX_DEADLINE_DAYS,
+              })}
+              errorText={deadlineError}
             >
-              <Input
-                value={deadlineDraft}
-                onChangeText={(raw) => {
-                  const digits = raw.replace(/\D/g, "").slice(0, 2)
-                  setDeadlineDraft(digits)
-                  const n = digits ? Number.parseInt(digits, 10) : Number.NaN
-                  // Kosong = 0 (belum valid) supaya `canSubmit` menahan kirim;
-                  // angka di luar rentang dijepit ke batas terdekat.
-                  //
-                  // N-03 (audit escrow 2026-09-24): dulu hanya nilai TERKIRIM
-                  // yang dijepit — input "20" tetap tampil "20" sementara
-                  // `deliveryDeadlineDays` yang dikirim 14. Draft ikut ditulis
-                  // ulang ke angka yang benar-benar dikirim.
-                  const clamped = Number.isFinite(n) ? Math.min(MAX_DEADLINE_DAYS, Math.max(0, n)) : 0
-                  setDeadlineDays(clamped)
-                  if (digits && clamped !== n) setDeadlineDraft(clamped >= 1 ? String(clamped) : "")
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel="Tenggat pengiriman"
+                accessibilityValue={{
+                  text: deadlineDate ? formatDateLong(deadlineDate) : translate("Pilih tanggal"),
                 }}
-                onBlur={() => {
-                  if (deadlineDraft) return
-                  setDeadlineDraft("1")
-                  setDeadlineDays(1)
-                }}
-                keyboardType="number-pad"
-                maxLength={2}
-              />
+                onPress={() => setDeadlineSheetOpen(true)}
+                className={cn(
+                  "h-14 w-full flex-row items-center rounded-sm border bg-background px-4",
+                  deadlineError ? "border-error" : "border-border-control",
+                )}
+              >
+                <Text
+                  variant="body"
+                  tone={deadlineDate ? undefined : "tertiary"}
+                  numberOfLines={1}
+                  className="flex-1"
+                >
+                  {deadlineDate ? formatDateLong(deadlineDate) : translate("Pilih tanggal")}
+                </Text>
+                <Icon icon={CalendarBlank} size="sm" tone="default" />
+              </PressableScale>
             </Field>
+            <DatePickerSheet
+              visible={deadlineSheetOpen}
+              onRequestClose={() => {
+                setDeadlineSheetOpen(false)
+                // Sheet ditutup (tanpa memilih) = field sudah disentuh — error
+                // "pilih tanggal" boleh tampil. Jalur pilih-tanggal juga lewat
+                // sini (auto-close), tapi tanggalnya sudah terisi sehingga
+                // `deadlineError` tetap null.
+                setDeadlineTouched(true)
+              }}
+              value={deadlineDate}
+              onSelect={(date) => {
+                setDeadlineDate(date)
+                setDeadlineTouched(false)
+              }}
+            />
           </FormSection>
         ) : null}
 
@@ -764,7 +815,7 @@ export default function CreateTransactionScreen() {
               title={title}
               orderType={orderType}
               orderValue={orderValue}
-              deadlineDays={deadlineDays}
+              deadlineDate={deadlineDate}
               feeResponsibility={feeResponsibility}
               voucherCode={voucher?.code}
             />

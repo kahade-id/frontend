@@ -1,9 +1,8 @@
-/** Secure two-step phone change: request a sensitive-action OTP, then confirm it. */
-import { useCallback, useEffect, useMemo, useState } from "react"
+/** Secure two-step phone change: request a sensitive-action OTP via WhatsApp, then confirm it. */
+import { useCallback, useMemo, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { router } from "expo-router"
 
-import { OtpMethodSelector } from "@/components/register/otp-method-selector"
 import { Alert } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
@@ -15,7 +14,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { SensitiveText } from "@/components/ui/sensitive-text"
 import { useToast } from "@/components/ui/toast"
-import { api, clearSession, isApiError, type OtpMethod, type UserProfile, userMessage } from "@/lib/api"
+import { api, clearSession, isApiError, type UserProfile, userMessage } from "@/lib/api"
 import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import { useApiQuery } from "@/lib/use-api-query"
@@ -25,39 +24,32 @@ type Step = "request" | "confirm"
 export default function ChangePhoneScreen() {
   const toast = useToast()
   const profile = useApiQuery<UserProfile>(queryKeys.me(), (signal) => api.users.getMe(signal))
-  const methods = useApiQuery("change-phone-otp-methods", (signal) => api.auth.getOtpMethods(signal))
   const currentPhone = profile.data?.phoneNumber ?? ""
 
   const [step, setStep] = useState<Step>("request")
   const [phone, setPhone] = useState("")
   const [password, setPassword] = useState("")
-  const [method, setMethod] = useState<OtpMethod>()
   const [mfaCode, setMfaCode] = useState("")
   const [mfaRequired, setMfaRequired] = useState(false)
   const [code, setCode] = useState("")
   const [error, setError] = useState<string>()
   const [submitting, setSubmitting] = useState(false)
 
-  useEffect(() => {
-    const offered = methods.data?.methods ?? []
-    if (!method && offered.length) setMethod(offered[0])
-  }, [method, methods.data])
-
   const newPhone = useMemo(() => (isValidPhoneId(phone) ? toE164Id(phone) : ""), [phone])
   const unchanged = !!newPhone && newPhone === currentPhone
   const mfaValid = !mfaRequired || /^(?:\d{6}|[A-Za-z0-9]{10,16})$/.test(mfaCode)
-  const canRequest = !!newPhone && !unchanged && !!password && !!method && mfaValid && !submitting
+  const canRequest = !!newPhone && !unchanged && !!password && mfaValid && !submitting
   const canConfirm = code.length === 6 && !submitting
 
   const requestCode = useCallback(async () => {
-    if (!canRequest || !method) return
+    if (!canRequest) return
     setSubmitting(true)
     setError(undefined)
     try {
+      // OTP hanya via WhatsApp (kebijakan produk) — tidak ada pilihan metode.
       await api.auth.requestPhoneChange({
         newPhoneNumber: newPhone,
         currentPassword: password,
-        method,
         mfaCode: mfaCode || undefined,
       })
       // Password/MFA are only needed for step one. Do not retain them longer than necessary.
@@ -70,7 +62,7 @@ export default function ChangePhoneScreen() {
     } finally {
       setSubmitting(false)
     }
-  }, [canRequest, method, newPhone, password, mfaCode])
+  }, [canRequest, newPhone, password, mfaCode])
 
   const confirmCode = useCallback(async () => {
     if (!canConfirm) return
@@ -124,17 +116,16 @@ export default function ChangePhoneScreen() {
             onChangeText={(value) => setMfaCode(value.replace(/[^A-Za-z0-9]/g, "").slice(0, 16))}
             autoCapitalize="characters" autoCorrect={false} maxLength={16} required
             helperText="Masukkan 6 digit autentikator atau kode backup Anda." /> : null}
-          <SectionHeader title="Kirim kode melalui" />
-          {methods.error ? <Alert tone="warning">Metode pengiriman OTP tidak dapat dimuat. Coba lagi.</Alert> : null}
-          <OtpMethodSelector methods={methods.data?.methods ?? []} value={method} onChange={setMethod}
-            loading={methods.loading} disabled={submitting} />
+          <Alert tone="info" title="Kode via WhatsApp">
+            Kode verifikasi 6 digit akan dikirim ke nomor baru melalui WhatsApp.
+          </Alert>
         </> : <>
           <SectionHeader title="Masukkan kode verifikasi" />
-          <Alert tone="info">Kode 6 digit telah dikirim ke <SensitiveText value={newPhone} mask="phone" toggleable={false} />.</Alert>
+          <Alert tone="info">Kode 6 digit telah dikirim via WhatsApp ke <SensitiveText value={newPhone} mask="phone" toggleable={false} />.</Alert>
           <OtpInput value={code} onChange={(value) => { setCode(value); setError(undefined) }}
             errorText={error} autoFocus disabled={submitting} />
           <Button variant="ghost" disabled={submitting} onPress={() => { setCode(""); setError(undefined); setStep("request") }}>
-            Ubah nomor atau metode
+            Ubah nomor
           </Button>
         </>}
       </ScrollView>

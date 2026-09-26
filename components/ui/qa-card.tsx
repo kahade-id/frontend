@@ -46,7 +46,7 @@ import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatDate, formatNumber } from "@/lib/format"
-import { translate } from "@/lib/i18n/translate"
+import { translate, useLanguage } from "@/lib/i18n"
 
 export type QAPerson = {
   name: string
@@ -84,14 +84,29 @@ export type QACardProps = Omit<CardProps, "children" | "padded"> & {
   questionLines?: number
   answerLines?: number
   /** Teks i18n */
-  labels?: Partial<typeof DEFAULT_LABELS>
+  labels?: Partial<QACardLabels>
 }
 
-const DEFAULT_LABELS = {
-  seller: "Penjual",
-  unanswered: "Belum dijawab",
-  askedBy: (name: string) => `Ditanya ${name}`,
-  answeredBy: (name: string) => `Dijawab ${name}`,
+/** Teks i18n */
+export type QACardLabels = {
+  seller: string
+  unanswered: string
+  askedBy: (name: string) => string
+  answeredBy: (name: string) => string
+}
+
+/**
+ * Label bawaan mengikuti bahasa aktif (dulu konstanta modul yang tidak
+ * reaktif). Fungsi askedBy/answeredBy memakai translate() dengan token.
+ */
+function useDefaultLabels(): QACardLabels {
+  useLanguage()
+  return {
+    seller: translate("Penjual"),
+    unanswered: translate("Belum dijawab"),
+    askedBy: (name: string) => translate("Ditanya {x}", { x: name }),
+    answeredBy: (name: string) => translate("Dijawab {x}", { x: name }),
+  }
 }
 
 export function QACard({
@@ -108,7 +123,7 @@ export function QACard({
   className,
   ...cardProps
 }: QACardProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  const t = { ...useDefaultLabels(), ...labels }
 
   return (
     // Grouping SR (audit #4): pertanyaan dan jawaban masing-masing SATU elemen
@@ -179,7 +194,7 @@ function UpvoteChip({
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={active ? "Tarik dukungan" : "Dukung pertanyaan"}
+      accessibilityLabel={active ? translate("Tarik dukungan") : translate("Dukung pertanyaan")}
       accessibilityHint={translate("Saat ini {x} dukungan", { x: formatNumber(count) })}
       disabled={loading}
       scaleOnPress={false}

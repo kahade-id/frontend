@@ -41,7 +41,6 @@
   "Template disimpan": "Template saved",
   "Template ini akan dihapus dari daftar.": "This template will be removed from the list.",
   "Tenggat (hari)": "Deadline (days)",
-  "Tenggat pengiriman (hari)": "Shipping deadline (days)",
   "Tenggat saat ini": "Current deadline",
   "Tentang": "About",
   "Terapkan kode": "Apply code",
@@ -83,7 +82,6 @@
   "Ubah detail": "Edit details",
   "Ubah foto profil": "Change profile photo",
   "Ubah foto sampul": "Change cover photo",
-  "Ubah nomor atau metode": "Change number or method",
   "Ulangi kata sandi baru": "Repeat the new password",
   "Ulasan diperbarui": "Review updated",
   "Ulasan pesanan akan muncul di sini.": "Order reviews will appear here.",
@@ -121,5 +119,15 @@
   "Waktu": "Time",
   "Ya, sudah diterima": "Yes, it's been received",
   "Zona Berbahaya": "Danger zone",
-  "telah dikirim ke @": "was sent to @"
+  "telah dikirim ke @": "was sent to @",
+  "Pilih tanggal": "Select date",
+  "Tanggal yang bisa dipilih: besok hingga {x} hari ke depan.": "Available dates: tomorrow up to {x} days ahead.",
+  "Pilih tanggal tenggat pengiriman terlebih dahulu.": "Select a delivery deadline date first.",
+  "Tenggat pengiriman": "Delivery deadline",
+  "Ukuran berkas melebihi {x} MB.": "File size exceeds {x} MB.",
+  "Berkas terlalu besar": "File too large",
+  "Ulasan dapat diberikan dalam {x} hari setelah transaksi selesai.": "Reviews can be submitted within {x} days after the transaction is completed.",
+  "Dana akan cair otomatis dalam {x}.": "Funds will be released automatically in {x}.",
+  "Dana akan segera diteruskan ke penjual.": "Funds will soon be forwarded to the seller.",
+  "Jika tidak ada konfirmasi atau sengketa sebelum {x}, dana otomatis diteruskan ke penjual.": "If there is no confirmation or dispute before {x}, the funds will automatically be forwarded to the seller."
 }

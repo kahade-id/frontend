@@ -26,6 +26,7 @@ import type {
   UpdateShowcaseItemDto,
   UserLinkItemDto,
 } from "@/lib/api/types"
+import type { SealTier } from "@/components/ui/verified-seal"
 
 // ------------------------------------------------------------------
 // Tipe response — UNVERIFIED (spec auth tidak menyertakan response schema)
@@ -518,10 +519,13 @@ export function getFavorites(signal?: AbortSignal) {
 }
 
 export type UserConnection = {
-  id: string
+  /** R1 (audit 2026-09-26): backend followers/following tidak membocorkan id internal. */
+  id?: string
   username: string
   fullName?: string
   avatarUrl?: string | null
+  /** R1 (audit 2026-09-26, lanjutan): tier seal dari GET followers/following. */
+  sealTier?: SealTier | null
 }
 export function getFollowers(
   username: string,
@@ -532,7 +536,9 @@ export function getFollowers(
   return http
     .get<unknown>(`/v1/users/${seg(username)}/followers`, {
       query,
-      auth: "required",
+      // P2 (audit 2026-09-26): endpoint backend @Public — tamu boleh lihat
+      // daftar pengikut; viewerId opsional hanya untuk filter blokir.
+      auth: "optional",
       retry: 1,
       signal,
     })
@@ -547,7 +553,9 @@ export function getFollowing(
   return http
     .get<unknown>(`/v1/users/${seg(username)}/following`, {
       query,
-      auth: "required",
+      // P2 (audit 2026-09-26): endpoint backend @Public — tamu boleh lihat
+      // daftar mengikuti; viewerId opsional hanya untuk filter blokir.
+      auth: "optional",
       retry: 1,
       signal,
     })
@@ -961,6 +969,8 @@ export type UserSearchResult = {
   fullName: string
   avatarUrl?: string | null
   membershipRank?: string | null
+  /** R1 (audit 2026-09-26): tier seal dari GET /v1/users/search — dirender <VerifiedSeal> tanpa N+1. */
+  sealTier?: SealTier | null
 }
 
 export function searchUsers(

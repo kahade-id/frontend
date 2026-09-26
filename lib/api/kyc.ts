@@ -80,6 +80,8 @@ type RawKycLatestRequest = {
   attemptNumber?: number
   createdAt?: string
   reviewedAt?: string | null
+  nikMasked?: string | null
+  fullName?: string | null
 }
 
 type RawKycStatusResponse = {
@@ -94,6 +96,8 @@ export function getKycStatus(signal?: AbortSignal) {
       const latest = raw?.latestRequest ?? null
       return {
         status: raw?.status ?? "UNVERIFIED",
+        fullName: latest?.fullName ?? undefined,
+        nikMasked: latest?.nikMasked ?? undefined,
         submittedAt: latest?.createdAt ?? null,
         reviewedAt: latest?.reviewedAt ?? null,
         rejectionReason: latest?.rejectionReason ?? null,

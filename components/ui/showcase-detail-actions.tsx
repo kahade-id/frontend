@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { formatCountCompact } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 type Props = {
   liked: boolean
@@ -47,6 +48,8 @@ export function ShowcaseDetailActions({
   onToggleSave,
   onShare,
 }: Props) {
+  // i18n: label aksesibilitas mengikuti bahasa aktif.
+  useLanguage()
   return (
     <View className="flex-row items-center px-2 pt-1">
       <LikeAction
@@ -58,7 +61,7 @@ export function ShowcaseDetailActions({
       />
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel="Tulis komentar"
+        accessibilityLabel={translate("Tulis komentar")}
         accessibilityHint={translate("{x} komentar", { x: formatCountCompact(commentTotal) })}
         onPress={onCommentPress}
         containerClassName={cn(
@@ -78,8 +81,8 @@ export function ShowcaseDetailActions({
       <View className="flex-1" />
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel="Bagikan"
-        accessibilityHint="Bagikan karya ini"
+        accessibilityLabel={translate("Bagikan")}
+        accessibilityHint={translate("Bagikan karya ini")}
         onPress={onShare}
         containerClassName={cn(
           "min-h-11 min-w-11 items-center justify-center rounded-md",
@@ -90,7 +93,7 @@ export function ShowcaseDetailActions({
       </PressableScale>
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={saved ? "Hapus dari tersimpan" : "Simpan"}
+        accessibilityLabel={saved ? translate("Hapus dari tersimpan") : translate("Simpan")}
         accessibilityHint={translate("Simpan karya ini")}
         accessibilityState={{ selected: saved, busy: savedPending }}
         onPress={onToggleSave}

@@ -58,6 +58,7 @@ import {
 } from "@/lib/showcase-draft"
 import { tokens } from "@/lib/tokens"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 import { Button } from "@/components/ui/button"
 import { ProgressBar } from "@/components/ui/progress-bar"
@@ -70,6 +71,7 @@ import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
@@ -122,6 +124,8 @@ function formToPayload(form: FormState) {
 }
 
 export default function ShowcaseCreateScreen() {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
   const router = useRouter()
   const navigation = useNavigation()
 
@@ -266,7 +270,7 @@ export default function ShowcaseCreateScreen() {
     const slots = SHOWCASE_MAX_IMAGES - previews.length
     if (slots <= 0) {
       toast.show({
-        title: "Foto sudah penuh",
+        title: translate("Foto sudah penuh"),
         description: translate("Satu karya dapat memuat paling banyak {x} foto.", {
           x: SHOWCASE_MAX_IMAGES,
         }),
@@ -283,10 +287,10 @@ export default function ShowcaseCreateScreen() {
       const picked = await pickImages({ selectionLimit: slots })
       if (picked.status === "denied") {
         toast.show({
-          title: "Akses galeri ditolak",
-          description: "Izinkan akses foto di pengaturan perangkat untuk memilih karya.",
+          title: translate("Akses galeri ditolak"),
+          description: translate("Izinkan akses foto di pengaturan perangkat untuk memilih karya."),
           tone: "danger",
-          action: { label: "Buka pengaturan", onPress: () => void Linking.openSettings() },
+          action: { label: translate("Buka pengaturan"), onPress: () => void Linking.openSettings() },
         })
         return
       }
@@ -348,7 +352,7 @@ export default function ShowcaseCreateScreen() {
     } catch (error) {
       void cleanupPendingShowcaseKeys(uploaded.map((entry) => entry.fileKey))
       if (!controller.signal.aborted && mounted.current) {
-        toast.show({ title: "Gagal mengunggah foto", description: userMessage(error), tone: "danger" })
+        toast.show({ title: translate("Gagal mengunggah foto"), description: userMessage(error), tone: "danger" })
       }
     } finally {
       uploadBusy.current = false
@@ -465,7 +469,7 @@ export default function ShowcaseCreateScreen() {
       void clearShowcaseDraft()
       if (!mounted.current || revision !== getSessionRevision()) return
       markShowcaseFeedDirty()
-      toast.show({ title: "Karya ditambahkan", tone: "success", duration: 3000 })
+      toast.show({ title: translate("Karya ditambahkan"), tone: "success", duration: 3000 })
       // Jangan `router.back()` langsung di sini: dispatch expo-router
       // tertunda ke effect berikutnya, saat itu `saveBusy` sudah false dan
       // dialog "Buang karya ini?" akan terbuka. Tandai keluar disengaja;
@@ -477,7 +481,7 @@ export default function ShowcaseCreateScreen() {
       const rejected = isApiError(error) && [400, 403, 404, 413, 422].includes(error.status ?? 0)
       if (rejected) createAttempt.current = null
       setUncertainCreate(!rejected)
-      toast.show({ title: "Gagal menyimpan", description: userMessage(error), tone: "danger" })
+      toast.show({ title: translate("Gagal menyimpan"), description: userMessage(error), tone: "danger" })
     } finally {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
@@ -668,11 +672,13 @@ export default function ShowcaseCreateScreen() {
             rows={3}
             disabled={busy || uncertainCreate}
           />
-          <Input
-            label="Kategori (opsional)"
+          {/* S4 (audit 2026-09-26): kategori bukan lagi teks bebas — saran
+              kategori populer dari server + tetap bisa ketik sendiri. */}
+          <ShowcaseCategoryInput
+            label={translate("Kategori (opsional)")}
             value={form.category}
             onChangeText={(text) => setForm((current) => ({ ...current, category: text }))}
-            placeholder="Jasa desain, kerajinan, digital…"
+            placeholder={translate("Jasa desain, kerajinan, digital…")}
             autoCapitalize="sentences"
             maxLength={CATEGORY_MAX}
             disabled={busy || uncertainCreate}
@@ -730,7 +736,7 @@ export default function ShowcaseCreateScreen() {
             <Switch
               value={form.isPublic}
               onChange={(value) => setForm((current) => ({ ...current, isPublic: value }))}
-              accessibilityLabel="Tampilkan secara publik"
+              accessibilityLabel={translate("Tampilkan secara publik")}
               disabled={busy || uncertainCreate}
             />
           </View>

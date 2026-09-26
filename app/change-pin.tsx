@@ -64,6 +64,10 @@ export default function ChangePinScreen() {
     } catch (err) {
       // Error transient (jaringan/timeout/5xx) → lanjut, backend memvalidasi
       // ulang saat set-pin. Selain itu anggap PIN ditolak.
+      if (isApiError(err) && err.code === "RATE_LIMITED") {
+        setCurrentError("Terlalu banyak percobaan PIN. Coba lagi dalam 15 menit.")
+        return
+      }
       if (!isApiError(err) || !err.isTransient) {
         setCurrentError("PIN lama salah. Coba lagi.")
         return

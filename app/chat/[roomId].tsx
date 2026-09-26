@@ -1076,6 +1076,7 @@ export default function ChatRoomScreen() {
           avatar={
             room?.counterpart?.avatarUrl ? { uri: room.counterpart.avatarUrl } : undefined
           }
+          sealTier={room?.counterpart?.sealTier ?? null}
           status={statusText}
           online={presence?.isOnline === true}
           loading={loading && !room}

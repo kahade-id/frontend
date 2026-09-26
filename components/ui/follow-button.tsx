@@ -31,6 +31,7 @@
 import { Check, Plus } from "phosphor-react-native"
 
 import { Button, type ButtonProps } from "@/components/ui/button"
+import { translate, useLanguage } from "@/lib/i18n"
 
 export type FollowButtonLabels = {
   follow: string
@@ -49,16 +50,25 @@ export type FollowButtonProps = Omit<
   labels?: FollowButtonLabels
 }
 
-const DEFAULT_LABELS: FollowButtonLabels = {
-  follow: "Ikuti",
-  following: "Mengikuti",
+/**
+ * Label bawaan mengikuti bahasa aktif (dulu konstanta modul "Ikuti"/
+ * "Mengikuti" yang tidak reaktif). Pemanggil tetap boleh mengganti lewat
+ * `labels` untuk kasus khusus.
+ */
+function useDefaultLabels(): FollowButtonLabels {
+  // Berlangganan bahasa aktif; translate() membaca bahasa saat dipanggil.
+  useLanguage()
+  return {
+    follow: translate("Ikuti"),
+    following: translate("Mengikuti"),
+  }
 }
 
 export function FollowButton({
   following,
   onToggle,
   showIcon = true,
-  labels = DEFAULT_LABELS,
+  labels,
   size = "sm",
   fullWidth = false,
   loading,
@@ -67,6 +77,8 @@ export function FollowButton({
   accessibilityState,
   ...rest
 }: FollowButtonProps) {
+  const defaultLabels = useDefaultLabels()
+  const resolved = labels ?? defaultLabels
   return (
     <Button
       variant={following ? "secondary" : "primary"}
@@ -76,11 +88,11 @@ export function FollowButton({
       disabled={disabled}
       leftIcon={showIcon ? (following ? Check : Plus) : undefined}
       onPress={() => onToggle(!following)}
-      accessibilityLabel={accessibilityLabel ?? (following ? labels.following : labels.follow)}
+      accessibilityLabel={accessibilityLabel ?? (following ? resolved.following : resolved.follow)}
       accessibilityState={{ selected: following, ...accessibilityState }}
       {...rest}
     >
-      {following ? labels.following : labels.follow}
+      {following ? resolved.following : resolved.follow}
     </Button>
   )
 }

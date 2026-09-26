@@ -55,6 +55,7 @@ import {
 } from "@/lib/api/orders"
 import { RATING_SNOOZE_MS, isRatingSnoozed, snoozeRatingReminder, useUiPrefs } from "@/lib/ui-prefs"
 import { usePolling } from "@/lib/use-polling"
+import { useClockTick } from "@/lib/use-clock-tick"
 import { useQrisPayment } from "@/lib/use-qris-payment"
 import { useResultTimer } from "@/lib/use-result-timer"
 import type { DisputeCategoryValue } from "@/lib/labels/dispute"
@@ -65,6 +66,7 @@ import {
   durationHoursParts,
   formatDateTime,
   formatDateTimeWIB,
+  formatDurationWords,
   formatRupiah,
 } from "@/lib/format"
 import { translate } from "@/lib/i18n"
@@ -575,6 +577,23 @@ export default function OrderDetailScreen() {
    * ditampilkan") tepat saat data masuk. `order` dijaga di dalam callback.
    */
   useUiPrefs()
+  /**
+   * Countdown auto-release dana (IN_DELIVERY + `autoCompleteAt` dari backend).
+   * Detak 1-Hz bersama via `useClockTick` (aktif hanya selama kartu tampil)
+   * dan jam server (E-03/F-13) agar perangkat dengan jam meleset tidak melihat
+   * hitungan yang salah. Hook di sini (sebelum early return) — lihat J-14.
+   */
+  const autoReleaseTicking = order?.status === "IN_DELIVERY" && !!order?.autoCompleteAt
+  const nowMs = useClockTick(autoReleaseTicking)
+  const autoRelease = useMemo(() => {
+    if (!order || order.status !== "IN_DELIVERY" || !order.autoCompleteAt) return null
+    const target = new Date(order.autoCompleteAt).getTime()
+    if (!Number.isFinite(target)) return null
+    return {
+      at: order.autoCompleteAt,
+      secondsLeft: Math.max(0, Math.floor((target - nowMs) / 1000)),
+    }
+  }, [order, nowMs])
   const snoozeRatingReminderForOrder = useCallback(() => {
     if (!order) return
     // E-03: snooze dibandingkan terhadap jam SERVER (serverNow) di ui-prefs,
@@ -781,9 +800,17 @@ export default function OrderDetailScreen() {
 
           {ratingReminderVisible ? (
             <View className="gap-3 rounded-lg bg-info-soft p-3">
-              <Text variant="caption" tone="secondary">
-                Transaksi selesai — ulasanmu membantu pengguna lain memutuskan.
-              </Text>
+              <View className="gap-1">
+                <Text variant="caption" tone="secondary">
+                  Transaksi selesai — ulasanmu membantu pengguna lain memutuskan.
+                </Text>
+                {/* F9 (audit 2026-09-26): komunikasikan jendela ulasan 7 hari
+                    (RATING_WINDOW_DAYS backend) agar user tidak mengira tombol
+                    "Ulas sekarang" tersedia selamanya. */}
+                <Text variant="caption" tone="secondary">
+                  {translate("Ulasan dapat diberikan dalam 7 hari setelah transaksi selesai.")}
+                </Text>
+              </View>
               <View className="flex-row flex-wrap gap-2">
                 <Button size="sm" onPress={() => router.push(ROUTES.rateOrder(order.id))}>
                   Ulas sekarang
@@ -797,6 +824,28 @@ export default function OrderDetailScreen() {
 
           {/* ── Aksi utama sesuai status ─────────────────────────── */}
           <View className="gap-2">
+            {/*
+             * Countdown auto-release dana: IN_DELIVERY + `autoCompleteAt` dari
+             * backend (= deliveryDeadlineAt). Dana cair otomatis bila tidak
+             * ada konfirmasi/sengketa sebelum tanggal tersebut.
+             */}
+            {autoRelease ? (
+              <View className="gap-1 rounded-lg bg-warning-soft p-3">
+                <Text variant="body" weight={600}>
+                  {autoRelease.secondsLeft > 0
+                    ? translate("Dana akan cair otomatis dalam {x}.", {
+                        x: formatDurationWords(autoRelease.secondsLeft),
+                      })
+                    : translate("Dana akan segera diteruskan ke penjual.")}
+                </Text>
+                <Text variant="caption" tone="secondary">
+                  {translate(
+                    "Jika tidak ada konfirmasi atau sengketa sebelum {x}, dana otomatis diteruskan ke penjual.",
+                    { x: formatDateTimeWIB(autoRelease.at) },
+                  )}
+                </Text>
+              </View>
+            ) : null}
             {canPay ? (
               <>
                 {!fee || fee.buyerPays == null ? (

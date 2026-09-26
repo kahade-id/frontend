@@ -7,6 +7,7 @@ import type { UserConnection } from "@/lib/api/users"
 import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { translate, useLanguage } from "@/lib/i18n"
 import { usePaginatedQuery } from "@/lib/use-paginated-query"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
@@ -19,6 +20,8 @@ type Tab = "followers" | "following"
 export default function FollowersScreen() {
   const { username, tab: initialTab } = useLocalSearchParams<{ username: string; tab?: Tab }>()
   const [tab, setTab] = useState<Tab>(initialTab === "following" ? "following" : "followers")
+  // i18n: label tab mengikuti bahasa aktif.
+  useLanguage()
   const insets = useSafeAreaInsets()
   // C-08 (audit): sengaja TANPA `compare` — `UserConnection` tidak membawa
   // tanda waktu apa pun (`lib/api/users.ts`), jadi daftar ini tidak punya
@@ -31,23 +34,27 @@ export default function FollowersScreen() {
       tab === "followers"
         ? api.users.getFollowers(username, { page, limit: 20 }, signal)
         : api.users.getFollowing(username, { page, limit: 20 }, signal),
+    // R1 (audit 2026-09-26): backend tidak mengirim id — dedup pakai username (unik).
+    { getKey: (item) => item.username },
   )
   return (
     <Screen edges={["top"]} padded={false}>
-      <Header title={tab === "followers" ? "Pengikut" : "Mengikuti"} />
+      <Header title={tab === "followers" ? translate("Pengikut") : translate("Mengikuti")} />
       <View className="px-5 py-4">
         <SegmentedControl<Tab>
-          accessibilityLabel="Daftar pengikut"
+          accessibilityLabel={translate("Daftar pengikut")}
           value={tab}
           onChange={setTab}
           items={[
-            { value: "followers", label: "Pengikut" },
-            { value: "following", label: "Mengikuti" },
+            { value: "followers", label: translate("Pengikut") },
+            { value: "following", label: translate("Mengikuti") },
           ]}
         />
       </View>
       <PaginatedList
         {...query}
+        // R1 (audit 2026-09-26): backend tidak mengirim id — pakai username (unik) sebagai kunci.
+        keyExtractor={(item) => item.username}
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
@@ -56,7 +63,11 @@ export default function FollowersScreen() {
         empty={
           <EmptyState
             icon={Users}
-            title={tab === "followers" ? "Belum ada pengikut" : "Belum mengikuti siapa pun"}
+            title={
+              tab === "followers"
+                ? translate("Belum ada pengikut")
+                : translate("Belum mengikuti siapa pun")
+            }
           />
         }
         renderItem={({ item }) => (
@@ -65,6 +76,7 @@ export default function FollowersScreen() {
             name={item.fullName ?? item.username}
             username={item.username}
             avatar={{ source: item.avatarUrl ?? undefined }}
+            sealTier={item.sealTier ?? null}
             chevron
             divider
             onPress={() => router.push(ROUTES.userProfile(item.username))}

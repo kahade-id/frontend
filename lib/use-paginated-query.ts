@@ -4,11 +4,15 @@ import { userMessage } from "@/lib/api/errors"
 import { useGuestPathBlocked } from "@/lib/guest-gate"
 import type { Page } from "@/lib/api/response"
 
-export function mergeById<T extends { id: string }>(previous: T[], incoming: T[]): T[] {
+export function mergeById<T extends { id?: string }>(
+  previous: T[],
+  incoming: T[],
+  getKey: (item: T) => string = (item) => item.id ?? "",
+): T[] {
   if (previous.length === 0) return incoming
   if (incoming.length === 0) return previous
-  const values = new Map(previous.map((item) => [item.id, item]))
-  for (const item of incoming) values.set(item.id, item)
+  const values = new Map(previous.map((item) => [getKey(item), item]))
+  for (const item of incoming) values.set(getKey(item), item)
   return [...values.values()]
 }
 
@@ -23,7 +27,7 @@ export function mergeById<T extends { id: string }>(previous: T[], incoming: T[]
  * pengisiannya satu baris dan konsisten (terbaru di atas, toleran tanda waktu
  * yang hilang/tidak valid).
  */
-export function byTimestampDesc<T extends { id: string }>(
+export function byTimestampDesc<T extends { id?: string }>(
   pick: (item: T) => string | null | undefined,
 ) {
   const timeOf = (value: string | null | undefined) => {
@@ -39,12 +43,20 @@ export function byTimestampDesc<T extends { id: string }>(
     // digabung/urut ulang.
     const diff = timeOf(pick(b)) - timeOf(pick(a))
     if (diff !== 0) return diff
-    if (a.id === b.id) return 0
-    return a.id < b.id ? 1 : -1
+    const aId = a.id ?? ""
+    const bId = b.id ?? ""
+    if (aId === bId) return 0
+    return aId < bId ? 1 : -1
   }
 }
 
 export type UsePaginatedQueryOptions<T> = {
+  /**
+   * Kunci unik baris untuk dedup merge. Default `item.id`; timpa bila payload
+   * tidak membawa id (mis. followers/following — backend tidak membocorkan id
+   * internal). R1 (audit 2026-09-26).
+   */
+  getKey?: (item: T) => string
   /**
    * Muat ulang halaman pertama (diam, mode `refresh`) saat layar kembali
    * fokus — paritas dengan `useApiQuery.refreshOnFocus` (F-01).
@@ -83,7 +95,7 @@ export type UsePaginatedQueryOptions<T> = {
 }
 
 /** Shared pagination for every long list: latest query wins, load-more single-flight, retry keeps rows. */
-export function usePaginatedQuery<T extends { id: string }>(
+export function usePaginatedQuery<T extends { id?: string }>(
   key: string,
   fetcher: (page: number, signal: AbortSignal) => Promise<Page<T>>,
   opts: UsePaginatedQueryOptions<T> = {},
@@ -92,6 +104,9 @@ export function usePaginatedQuery<T extends { id: string }>(
   fetchRef.current = fetcher
   const compareRef = useRef(opts.compare)
   compareRef.current = opts.compare
+  // R1 (audit 2026-09-26): kunci dedup mengikuti `getKey` bila diberikan.
+  const getKeyRef = useRef(opts.getKey)
+  getKeyRef.current = opts.getKey
   const activeRequest = useRef<AbortController | null>(null)
   /**
    * Jenis request yang sedang terbang — C-10 (audit).
@@ -158,9 +173,10 @@ export function usePaginatedQuery<T extends { id: string }>(
         const result = await fetchRef.current(page, controller.signal)
         if (controller.signal.aborted) return
         if (reset) ids.current.clear()
-        for (const item of result.data) ids.current.add(item.id)
+        const getKey = getKeyRef.current ?? ((item: T) => item.id ?? "")
+        for (const item of result.data) ids.current.add(getKey(item))
         setData((previous) => {
-          const merged = mergeById(reset ? [] : previous, result.data)
+          const merged = mergeById(reset ? [] : previous, result.data, getKey)
           const compare = compareRef.current
           return compare ? [...merged].sort(compare) : merged
         })

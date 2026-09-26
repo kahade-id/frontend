@@ -30,7 +30,7 @@
  *     CreateRatingDto) — tampilkan placeholder tertiary "Tanpa komentar"
  *     supaya tinggi kartu stabil dan pembaca tahu ini bukan bug.
  */
-import type { ReactNode } from "react"
+import { useMemo, type ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
@@ -46,6 +46,7 @@ import { TextLink } from "@/components/ui/text-link"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
 
 export type RatingPerson = {
   name: string
@@ -76,14 +77,21 @@ export type RatingReviewCardLabels = {
   orderPrefix: string
 }
 
-const DEFAULT_LABELS: RatingReviewCardLabels = {
-  noComment: "Tanpa komentar",
-  reply: "Balas ulasan",
-  edit: "Ubah",
-  remove: "Hapus",
-  buyer: "Pembeli",
-  seller: "Penjual",
-  orderPrefix: "Order",
+/** Label bawaan mengikuti bahasa aktif (dulu konstanta modul yang tidak reaktif). */
+function useDefaultLabels(): RatingReviewCardLabels {
+  const language = useLanguage()
+  return useMemo(
+    () => ({
+      noComment: translate("Tanpa komentar"),
+      reply: translate("Balas ulasan"),
+      edit: translate("Ubah"),
+      remove: translate("Hapus"),
+      buyer: translate("Pembeli"),
+      seller: translate("Penjual"),
+      orderPrefix: translate("Order"),
+    }),
+    [language],
+  )
 }
 
 export type RatingReviewCardProps = Omit<CardProps, "children" | "padded" | "onPress"> & {
@@ -121,7 +129,8 @@ export function RatingReviewCard({
   className,
   ...rest
 }: RatingReviewCardProps) {
-  const t = { ...DEFAULT_LABELS, ...labels }
+  const defaultLabels = useDefaultLabels()
+  const t = { ...defaultLabels, ...labels }
   const hasComment = !!comment?.trim()
 
   // Ringkasan header saja. Komentar & balasan memakai <ReadMore> yang punya
@@ -224,7 +233,7 @@ export function RatingReviewCardSkeleton({ className, ...rest }: Omit<ViewProps,
   return (
     <View accessible accessibilityRole="progressbar"
       className={cn("w-full gap-3 rounded-md border border-border bg-surface p-5", className)}
-      accessibilityLabel="Memuat ulasan"
+      accessibilityLabel={translate("Memuat ulasan")}
       {...rest}
     >
       <View className="flex-row items-center justify-between gap-3">
