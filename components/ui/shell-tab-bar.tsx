@@ -47,6 +47,7 @@ import {
 import { translate, useLanguage } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { useUnreadCountState } from "@/lib/unread-count"
+import { useChatUnreadCountState } from "@/lib/chat-unread-count"
 
 /**
  * Tombol tengah mode E-Wallet = PEMINDAI (revisi 2026-09-26): sebelumnya ia
@@ -87,6 +88,8 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
   const pathname = usePathname()
   const router = useRouter()
   const unread = useUnreadCountState()
+  // CN-011: badge tab Pesan = unread chat, BUKAN total unread notifikasi.
+  const chatUnread = useChatUnreadCountState()
   const shift = getModeShift()
 
   /**
@@ -124,7 +127,9 @@ export function ShellTabBar({ navigation }: { navigation?: ShellTabNavigation })
     [mode, pathname, router],
   )
 
-  const items: BottomTabItem[] = shellSlots(mode).map((slot) => toItem(slot, mode, unread.count))
+  const items: BottomTabItem[] = shellSlots(mode).map((slot) =>
+    toItem(slot, mode, slot.href === "/chat" ? chatUnread.count : unread.count),
+  )
   const activeId = activeShellSlot(pathname, mode)
   const value = activeId ? shellSlots(mode).find((slot) => slot.id === activeId)?.key ?? "" : ""
 

@@ -27,21 +27,32 @@ import { DataScreen } from "@/components/ui/data-screen"
 import {
   NotificationPreferencesMatrix,
   type NotificationPreferenceKey,
-  type NotificationPreferences,
+  type NotificationPreferences as MatrixPreferences,
 } from "@/components/ui/notification-preferences-matrix"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 
 export default function NotificationPreferencesScreen() {
   const toast = useToast()
-  const query = useApiQuery<NotificationPreferences>("notification-preferences", (signal) =>
-    api.notifications.getNotificationPreferences(signal).then((res) => res ?? {}),
+  const query = useApiQuery<import("@/lib/api/notifications").NotificationPreferences>(
+    "notification-preferences",
+    (signal) => api.notifications.getNotificationPreferences(signal).then((res) => res ?? {}),
   )
-  const value = query.data ?? {}
+  const value: MatrixPreferences = query.data ?? {}
   const { setData } = query
 
+  // CN-008: kirim timezone perangkat sekali saat preferensi dimuat,
+  // agar quiet hours dievaluasi di zona waktu pengguna, bukan selalu WIB.
+  const prefsTz = query.data?.quietHoursTimezone
+  useEffect(() => {
+    if (query.data) {
+      void api.notifications.syncQuietHoursTimezone(prefsTz ?? null)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query.data])
+
   const handleChange = useCallback(
-    async (next: NotificationPreferences, key: NotificationPreferenceKey) => {
+    async (next: MatrixPreferences, key: NotificationPreferenceKey) => {
       const previous = value[key]
       setData(next)
       try {

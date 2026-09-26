@@ -278,7 +278,24 @@ function AppShell() {
       if (source === "cold-start" && !resolved) return
       const target = resolved ?? ROUTES.notifications
       router.push(session.token ? target : ROUTES.login)
-      if (session.token) void refreshUnreadCount()
+      if (session.token) {
+        // CN-012: tap push = notifikasi dibaca. Backend menyertakan
+        // `notificationId` (notifId publik) di payload push.
+        const d = (data ?? {}) as Record<string, unknown>
+        const notifId =
+          typeof d.notificationId === "string"
+            ? d.notificationId
+            : typeof d.notifId === "string"
+              ? d.notifId
+              : null
+        if (notifId) {
+          api.notifications.markNotificationRead(notifId).catch(() => {
+            // Sunyi: badge di-refresh di bawah; kegagalan sesekali tidak
+            // boleh mengganggu navigasi.
+          })
+        }
+        void refreshUnreadCount()
+      }
     })
   }, [router, session.restoring, session.error, session.token])
 

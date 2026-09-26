@@ -57,6 +57,7 @@ import {
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getOrder, type Order } from "@/lib/api/orders"
 import { refreshUnreadCount } from "@/lib/unread-count"
+import { refreshChatUnreadCount } from "@/lib/chat-unread-count"
 import { usePolling } from "@/lib/use-polling"
 import {
   CHAT_PAGE_SIZE,
@@ -112,6 +113,27 @@ type LocalAttachment = ComposerAttachment & { picked?: PickedImage }
 
 /** Jarak poll pesan baru saat ruang AKTIF. Push tetap pemicu utama. */
 const CHAT_POLL_MS = 8000
+/**
+ * CN-013 (audit 2026-09-26): chat memakai polling REST, BUKAN WebSocket —
+ * dan itu KEPUTUSAN SADAR, bukan kelalaian.
+ *
+ * Backend memancarkan `chat.new_message` / `chat.reaction_updated` /
+ * `chat.typing` via socket, tetapi payload-nya SALAH untuk adopsi klien:
+ * - CN-004: `chat.new_message` diserialisasi dengan `viewerId` PENGIRIM untuk
+ *   semua penerima → pesan masuk dirender sebagai pesan keluar.
+ * - CN-005: `chat.reaction_updated` memakai `reactedByMe` milik aktor untuk
+ *   semua peserta.
+ * Mengadopsi socket sekarang = mengintroduksi bug tersebut ke UI.
+ *
+ * Prasyarat adopsi realtime:
+ * 1. Backend perbaiki CN-004/CN-005 (serialisasi per penerima).
+ * 2. Frontend bangun klien socket (auth, reconnect, dedupe vs polling).
+ * 3. CN-014 (indikator mengetik) hidup otomatis setelah (2) — endpoint kirim
+ *    `POST /v1/chat/rooms/{id}/typing` sudah ada; yang hilang hanya transport
+ *    penerima.
+ *
+ * Sementara itu polling dipertahankan (dengan idle backoff di bawah).
+ */
 /**
  * F-07 (audit): setelah IDLE_AFTER_EMPTY_POLLS poll beruntun tanpa pesan
  * baru, interval naik ke sini (idle backoff). Kembali cepat begitu ada pesan
@@ -288,6 +310,7 @@ export default function ChatRoomScreen() {
       // Ruang sudah dibuka dan ditandai terbaca → segarkan badge tab agar
       // angka unread turun segera, bukan menunggu poll 60 detik.
       void refreshUnreadCount()
+      void refreshChatUnreadCount()
     } catch (err) {
       if (controller.signal.aborted) return
       // 404 = room dihapus/dinonaktifkan — retry tidak akan pernah berhasil.
@@ -411,6 +434,7 @@ export default function ChatRoomScreen() {
             .markChatRoomRead(roomIdRef.current)
             .catch((err) => logWarn("chat:mark-read", err))
           void refreshUnreadCount()
+          void refreshChatUnreadCount()
         }
         return sortByTime([...patched, ...fresh])
       })
@@ -487,6 +511,7 @@ export default function ChatRoomScreen() {
             .markChatRoomRead(roomIdRef.current)
             .catch((err) => logWarn("chat:mark-read-scroll", err))
           void refreshUnreadCount()
+          void refreshChatUnreadCount()
         }
       }
     },
@@ -605,6 +630,17 @@ export default function ChatRoomScreen() {
       return
     }
     if (picked.status !== "picked") return
+    // CN-016: validasi ukuran di klien — backend menolak > 10 MB.
+    // `size` 0 = platform tidak melaporkan; lewatkan (server tetap gate).
+    const CHAT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+    if (picked.asset.size > CHAT_ATTACHMENT_MAX_BYTES) {
+      toast.show({
+        title: "File terlalu besar",
+        description: "Ukuran lampiran maksimal 10 MB.",
+        tone: "danger",
+      })
+      return
+    }
     const localId = `${Date.now()}-${picked.asset.name}`
     setAttachments((prev) => [
       ...prev,
@@ -632,6 +668,7 @@ export default function ChatRoomScreen() {
         return
       }
       // Optimistic message: tampilkan langsung agar tidak ada jeda kosong.
+      // CN-015: sendStatus "sending" — bila gagal jadi "failed" + bisa retry.
       const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2)}`
       const optimisticMsg: ChatMessage = {
         id: tempId,
@@ -655,6 +692,7 @@ export default function ChatRoomScreen() {
         })),
         replyToId: payload.replyToId ?? null,
         createdAt: new Date().toISOString(),
+        sendStatus: "sending",
       }
       setMessages((prev) => [...prev, optimisticMsg])
       setSending(true)
@@ -688,8 +726,10 @@ export default function ChatRoomScreen() {
         void sendChatTyping(roomId, false).catch((err) => logWarn("chat:typing-stop", err))
         void refreshReadReceipts()
       } catch (err) {
-        // Hapus optimistic message jika gagal.
-        setMessages((prev) => prev.filter((m) => m.id !== tempId))
+        // CN-015: JANGAN hapus pesan — tandai gagal agar pengguna bisa retry.
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
+        )
         toast.show({
           title: "Gagal mengirim pesan",
           description: isApiError(err) ? userMessage(err) : undefined,
@@ -700,6 +740,56 @@ export default function ChatRoomScreen() {
       }
     },
     [roomId, attachments, toast.show, mergeIncoming],
+  )
+
+  /**
+   * CN-015: kirim ulang pesan yang gagal. Memakai konten & lampiran yang
+   * tersimpan di pesan optimistis; ID temp diganti agar tidak bentrok.
+   */
+  const handleRetry = useCallback(
+    async (failed: ChatMessage) => {
+      if (!roomId || failed.sendStatus !== "failed") return
+      const tempId = failed.id
+      setMessages((prev) =>
+        prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "sending" as const } : m)),
+      )
+      try {
+        // messageType ChatMessage bisa string bebas; DTO hanya terima union —
+        // validasi defensif, fallback TEXT.
+        const messageType = ["TEXT", "IMAGE", "FILE", "VIDEO", "VOICE"].includes(failed.messageType)
+          ? (failed.messageType as "TEXT" | "IMAGE" | "FILE" | "VIDEO" | "VOICE")
+          : "TEXT"
+        const msg = await api.chat.sendChatMessage(roomId, {
+          messageType,
+          content: failed.text || undefined,
+          attachments: failed.attachments?.length
+            ? failed.attachments.map(({ fileName, fileUrl, mimeType, fileSize, thumbnailUrl }) => ({
+                fileName,
+                fileUrl,
+                mimeType,
+                fileSize,
+                thumbnailUrl,
+              }))
+            : undefined,
+          replyToId: failed.replyToId ?? undefined,
+        })
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)))
+        mergeIncoming([msg], roomId)
+        emptyPolls.current = 0
+        setPollInterval(CHAT_POLL_MS)
+        void refreshReadReceipts()
+      } catch (err) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, sendStatus: "failed" as const } : m)),
+        )
+        toast.show({
+          title: "Gagal mengirim pesan",
+          description: isApiError(err) ? userMessage(err) : undefined,
+          tone: "danger",
+        })
+      }
+    },
+    [roomId, mergeIncoming, toast.show],
   )
 
   // ── Mode pilih: masuk / keluar / toggle ────────────────────────────────
@@ -1208,6 +1298,8 @@ export default function ChatRoomScreen() {
             onPress={(target) => (selecting ? toggleSelect(target.id) : enterSelect(target.id))}
             onReact={(target, emoji) => void handleReact(target, emoji)}
             onAttachmentPress={openAttachment}
+            // CN-015: kirim ulang pesan yang gagal.
+            onRetry={(target) => void handleRetry(target)}
           />
         )}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap

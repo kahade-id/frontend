@@ -33,6 +33,7 @@ import {
 } from "@/lib/notification-routing"
 import {
   notificationCategoryLabel,
+  notificationTypeUiCategory,
   notificationUiCategory,
 } from "@/lib/notification-category"
 import { refreshUnreadCount } from "@/lib/unread-count"
@@ -77,13 +78,19 @@ export default function NotificationDetailScreen() {
 
   // Dibuka = dibaca — sekali per notifikasi (ref guard, bukan state, agar
   // tidak memicu render ulang dan tidak mengulang saat refresh).
+  // CN-009: setelah mark sukses, override lokal agar badge "Baru" hilang
+  // seketika tanpa menunggu refetch.
   const markedRead = useRef<string | null>(null)
+  const [readLocally, setReadLocally] = useState(false)
   useEffect(() => {
     if (!notif || notif.isRead || markedRead.current === notif.id) return
     markedRead.current = notif.id
     api.notifications
       .markNotificationRead(notif.id)
-      .then(() => refreshUnreadCount())
+      .then(() => {
+        setReadLocally(true)
+        refreshUnreadCount()
+      })
       .catch(() => {
         markedRead.current = null
       })
@@ -128,7 +135,8 @@ export default function NotificationDetailScreen() {
     )
   }
 
-  const uiCategory = notificationUiCategory(notif?.category)
+  const uiCategory =
+    notificationTypeUiCategory(notif?.type) ?? notificationUiCategory(notif?.category)
 
   return (
     <DataScreen
@@ -169,7 +177,7 @@ export default function NotificationDetailScreen() {
                   {formatDateTime(notif.createdAt)}
                 </Text>
               </View>
-              {!notif.isRead ? (
+              {!notif.isRead && !readLocally ? (
                 <Badge tone="info" variant="soft">
                   Baru
                 </Badge>

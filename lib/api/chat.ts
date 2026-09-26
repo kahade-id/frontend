@@ -61,6 +61,15 @@ export type ChatMessage = {
   /** Pesan teks sudah diedit pengirimnya. */
   isEdited?: boolean
   editedAt?: string | null
+  /** CN-003: pesan dihapus — backend kirim content null + isDeleted true. */
+  isDeleted?: boolean
+  /**
+   * CN-015: status kirim lokal (hanya untuk pesan optimistis).
+   * - "sending": sedang dikirim ke server
+   * - "failed": gagal — tampil tombol "Coba lagi", jangan hapus diam-diam
+   * - undefined: pesan dari server (status baca dihitung dari read receipt)
+   */
+  sendStatus?: "sending" | "failed"
   /** Kapan pesan terbaca per pembaca (userId → ISO), atau ISO tunggal. */
   readAt?: Record<string, string> | string | null
   /** Reaksi emoji tersummari (emoji, count, reactedByMe, users). */
@@ -120,6 +129,8 @@ function normalizeChatMessage(raw: ChatMessage & Record<string, unknown>): ChatM
     // Backend memakai `content`/`isEdited`; raw tetap dipertahankan lewat ...raw.
     isPinned: raw.isPinned === true,
     isEdited: raw.isEdited === true,
+    // CN-003: pesan terhapus — jangan andalkan content null saja.
+    isDeleted: raw.isDeleted === true,
   }
 }
 

@@ -1116,6 +1116,8 @@ export type UpdatePreferencesDto = {
   quietHoursStart?: string
   /** Quiet hours end (HH:mm) */
   quietHoursEnd?: string
+  /** IANA timezone untuk quiet hours (batch 4: CN-008) */
+  quietHoursTimezone?: string
   /** Preferred language */
   language?: "id" | "en"
 }

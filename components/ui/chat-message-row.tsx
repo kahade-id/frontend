@@ -56,6 +56,8 @@ export type ChatMessageRowProps = {
   onReact?: (message: ChatMessage, emoji: string) => void
   /** Lampiran dibuka (gambar → MediaViewer, berkas → eksternal). */
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
+  /** CN-015: kirim ulang pesan yang gagal. */
+  onRetry?: (message: ChatMessage) => void
 }
 
 export function ChatMessageRow({
@@ -68,6 +70,7 @@ export function ChatMessageRow({
   onPress,
   onReact,
   onAttachmentPress,
+  onRetry,
 }: ChatMessageRowProps) {
   const showDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt)
   const grouped =
@@ -82,7 +85,8 @@ export function ChatMessageRow({
       {showDay ? <ChatDaySeparator label={dayLabel(message.createdAt)} /> : null}
       <ChatMessageBubble
         direction={message.fromUser ? "outgoing" : "incoming"}
-        text={message.text}
+        // CN-003: pesan terhapus — placeholder, bukan gelembung kosong.
+        text={message.isDeleted ? "Pesan ini telah dihapus" : message.text}
         time={formatTime(message.createdAt)}
         grouped={grouped}
         /*
@@ -97,13 +101,26 @@ export function ChatMessageRow({
         avatarUrl={message.fromUser ? undefined : counterpart?.avatarUrl}
         // Status baca pesan saya: read-receipt dari lawan bicara
         // (GET /read-receipts) naik ke ikon centang ganda "read".
-        status={message.fromUser ? (readByCounterpart ? "read" : "sent") : undefined}
+        // CN-015: pesan optimistis pakai sendStatus lokal (sending/failed).
+        status={
+          message.fromUser
+            ? (message.sendStatus === "failed"
+                ? "failed"
+                : message.sendStatus === "sending"
+                  ? "sending"
+                  : readByCounterpart
+                    ? "read"
+                    : "sent")
+            : undefined
+        }
+        onRetry={message.sendStatus === "failed" && onRetry ? () => onRetry(message) : undefined}
         reactions={message.reactions}
         onReact={selecting || !onReact ? undefined : (emoji) => onReact(message, emoji)}
         isPinned={message.isPinned}
         isEdited={message.isEdited}
-        onPress={() => onPress(message)}
-        onLongPress={() => onPress(message)}
+        isDeleted={message.isDeleted}
+        onPress={message.isDeleted ? undefined : () => onPress(message)}
+        onLongPress={message.isDeleted ? undefined : () => onPress(message)}
         className={selected ? "rounded-md bg-surface" : undefined}
       >
         {message.attachments?.length ? (

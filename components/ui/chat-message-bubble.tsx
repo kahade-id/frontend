@@ -114,6 +114,8 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   isPinned?: boolean
   /** Tampilkan "diedit" di baris meta. */
   isEdited?: boolean
+  /** CN-003: pesan terhapus — teks jadi placeholder italic/muted. */
+  isDeleted?: boolean
   labels?: { retry?: string; failed?: string; edited?: string }
   className?: string
 }
@@ -142,6 +144,7 @@ export function ChatMessageBubble({
   onReact,
   isPinned = false,
   isEdited = false,
+  isDeleted = false,
   labels,
   avatarUrl,
   avatarName,
@@ -184,7 +187,12 @@ export function ChatMessageBubble({
     >
       {children ? <View className="gap-2">{children}</View> : null}
       {text ? (
-        <Text variant="body" tone={outgoing ? "inverse" : "primary"} selectable>
+        <Text
+          variant="body"
+          tone={isDeleted ? "secondary" : outgoing ? "inverse" : "primary"}
+          className={isDeleted ? "italic" : undefined}
+          selectable={!isDeleted}
+        >
           {text}
         </Text>
       ) : null}

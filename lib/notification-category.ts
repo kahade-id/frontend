@@ -29,6 +29,34 @@ export function notificationUiCategory(category: string | null | undefined): UiC
   return mapValue(NOTIFICATION_UI_CATEGORY, category ?? "", "system")
 }
 
+/**
+ * CN-010: peta tipe presisi backend (NotificationType) → kategori UI.
+ * Backend meruntuhkan chat/keamanan/KYC ke INFORMASI dan dompet/sengketa ke
+ * TRANSAKSI; memakai `type` mengembalikan ikon yang tepat (chat, wallet,
+ * dispute, security, referral, promo) alih-alih tiga generik.
+ * Return `null` bila tipe tak dikenal — pemanggil fallback ke kategori.
+ */
+export function notificationTypeUiCategory(type: string | null | undefined): UiCategory | null {
+  if (!type) return null
+  if (type.startsWith("ORDER_")) return "order"
+  if (type.startsWith("WALLET_")) return "wallet"
+  if (type.startsWith("CHAT_")) return "chat"
+  if (type.startsWith("DISPUTE_")) return "dispute"
+  if (type.startsWith("SECURITY_") || type.startsWith("KYC_") || type.startsWith("BUSINESS_VERIFICATION_"))
+    return "security"
+  if (type.startsWith("REFERRAL_")) return "referral"
+  if (
+    type.startsWith("VOUCHER_") ||
+    type.startsWith("CAMPAIGN_") ||
+    type.startsWith("TOPUP_BONUS_") ||
+    type.startsWith("SUBSCRIPTION_")
+  )
+    return "promo"
+  if (type.startsWith("RATING_") || type.startsWith("BADGE_") || type.startsWith("RANK_"))
+    return "system"
+  return null
+}
+
 export function notificationCategoryLabel(category: string | null | undefined): string {
   if (!category) return "Notifikasi"
   return mapValue(NOTIFICATION_CATEGORY_LABELS, category, category)

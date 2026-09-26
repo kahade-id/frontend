@@ -53,8 +53,10 @@ import { translate } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { notificationUiCategory } from "@/lib/notification-category"
+import { notificationTypeUiCategory, notificationUiCategory } from "@/lib/notification-category"
+import { routeForNotificationReference } from "@/lib/notification-routing"
 import { refreshUnreadCount } from "@/lib/unread-count"
+import { logWarn } from "@/lib/telemetry"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Dialog } from "@/components/ui/modal"
@@ -167,15 +169,25 @@ export default function NotificationsScreen() {
     setSelecting(false)
   }, [category, unreadOnly])
 
-  const handleRead = useCallback((id: string) => {
-    setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
-    api.notifications
-      .markNotificationRead(id)
-      .then(() => refreshUnreadCount())
-      .catch(() =>
-        setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n))),
-      )
-  }, [])
+  const handleRead = useCallback(
+    (id: string) => {
+      setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: true } : n)))
+      api.notifications
+        .markNotificationRead(id)
+        .then(() => refreshUnreadCount())
+        .catch((err: unknown) => {
+          // CN-018: rollback TIDAK boleh diam-diam — beri tahu pengguna.
+          setNotifs((prev) => prev.map((n) => (n.id === id ? { ...n, isRead: false } : n)))
+          logWarn("notifications:mark-read", err)
+          toast.show({
+            title: "Gagal menandai dibaca",
+            description: "Periksa koneksi Anda lalu coba lagi.",
+            tone: "danger",
+          })
+        })
+    },
+    [toast.show],
+  )
 
   const exitSelect = useCallback(() => {
     setSelecting(false)
@@ -421,7 +433,7 @@ export default function NotificationsScreen() {
           <NotificationListItem
             title={item.title}
             body={item.body || undefined}
-            category={notificationUiCategory(item.category)}
+            category={notificationTypeUiCategory(item.type) ?? notificationUiCategory(item.category)}
             timestamp={formatDateTime(item.createdAt)}
             unread={!item.isRead}
             selected={selecting && selected.has(item.id)}
@@ -432,9 +444,11 @@ export default function NotificationsScreen() {
                 return
               }
               if (!item.isRead) handleRead(item.id)
-              // Selalu buka DETAIL dulu (`/notification/[id]`): isi penuh +
-              // CTA "Lihat ..." ke entitas terkait bila referensinya dikenali.
-              router.push(ROUTES.notificationDetail(item.id))
+              // CN-017: satu ketukan — bila entitas terkait bisa di-resolve
+              // (referenceType/referenceId atau actionUrl), langsung ke sana
+              // seperti tap push; bila tidak, baru ke layar detail.
+              const direct = routeForNotificationReference(item)
+              router.push(direct ?? ROUTES.notificationDetail(item.id))
             }}
             // Tekan lama = masuk mode pilih (bukan ActionSheet per item).
             // Di web affordance tekan-lama tidak ada, jadi hint baris

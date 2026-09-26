@@ -17,9 +17,9 @@
  *     3 kolom Switch 44px + label kategori tidak muat tanpa memotong teks.
  *     Daftar bertumpuk lebih panjang, tapi tiap Switch punya label sendiri
  *     (a11y) dan tidak ada ambiguitas baris/kolom.
- *   - Kanal yang tidak tersedia untuk kategori (mis. chat tidak punya email,
- *     marketing hanya email) TIDAK dirender sebagai Switch disabled — cukup
- *     tidak ada. Matriks `CATEGORY_CHANNELS` = sumber kebenaran bentuk DTO.
+ *   - Kanal yang tidak tersedia untuk kategori (mis. chat tidak punya email)
+ *     TIDAK dirender sebagai Switch disabled — cukup tidak ada. Matriks
+ *     `CATEGORY_CHANNELS` = sumber kebenaran bentuk DTO.
  *   - Komponen controlled: `value` + `onChange(next)`; tidak menyimpan state
  *     sendiri. Pemanggil bebas debounce PUT atau menyimpan lewat tombol.
  *   - `securityInApp` & `securityPush` boleh dikunci lewat `lockedKeys`
@@ -52,7 +52,7 @@ export const CATEGORY_CHANNELS: Record<NotificationCategory, readonly Notificati
   chat: ["InApp", "Push"],
   dispute: ["InApp", "Push", "Email"],
   ranking: ["InApp", "Push"],
-  marketing: ["Email"],
+  marketing: ["InApp", "Push", "Email"],
 }
 
 export const CATEGORY_ORDER: readonly NotificationCategory[] = ["order", "wallet", "security", "dispute", "chat", "ranking", "marketing"]

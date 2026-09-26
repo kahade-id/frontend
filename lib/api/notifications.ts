@@ -49,6 +49,11 @@ export type AppNotification = {
   title: string
   body: string
   category: NotificationCategory
+  /**
+   * CN-010: tipe presisi backend (NotificationType, mis. CHAT_NEW_MESSAGE).
+   * Dipakai memilih ikon; `category` hanya fallback.
+   */
+  type?: string | null
   isRead: boolean
   createdAt: string
   /** Deep-link atau referensi entitas terkait (opsional). */
@@ -67,11 +72,18 @@ type NotificationPayload = Omit<AppNotification, "id"> & {
  * Production API calls this field `notifId`; list keys and actions use `id`.
  * `actionUrl` dipertahankan agar layar detail bisa menaut ke entitas terkait
  * (backend tidak mengirim `referenceType`/`referenceId`).
+ * CN-010: `type` dipertahankan eksplisit (bukan via ...raw) agar mapping ikon
+ * tidak diam-diam kehilangan data bila backend mengubah bentuk payload.
+ * CN-019: `referenceType`/`referenceId` juga dipertahankan eksplisit.
  */
 export function normalizeNotification(raw: NotificationPayload): AppNotification {
   return {
     ...raw,
     id: raw.id ?? raw.notifId ?? "",
+    type: typeof raw.type === "string" ? raw.type : null,
+    referenceType:
+      typeof raw.referenceType === "string" ? raw.referenceType : null,
+    referenceId: typeof raw.referenceId === "string" ? raw.referenceId : null,
     actionUrl: raw.actionUrl ?? null,
   }
 }
@@ -194,6 +206,8 @@ export type NotificationPreferences = {
   rankingInApp?: boolean
   rankingPush?: boolean
   marketingEmail?: boolean
+  /** IANA timezone untuk quiet hours (batch 4: CN-008) */
+  quietHoursTimezone?: string
 }
 
 export type NotificationPreferenceKey = keyof NotificationPreferences
@@ -212,6 +226,31 @@ export function updateNotificationPreferences(dto: UpdatePreferencesDto) {
     dto,
     { auth: "required" },
   )
+}
+
+/**
+ * Sinkronkan timezone perangkat ke preferensi quiet hours (batch 4: CN-008).
+ *
+ * Backend memakai `quietHoursTimezone` (IANA) untuk mengevaluasi quiet hours;
+ * tanpa ini, semua pengguna memakai default `Asia/Jakarta`. Fungsi idempoten:
+ * hanya PUT bila zona perangkat berbeda dari yang tersimpan. Kegagalan
+ * disenyapkan agar tidak mengganggu layar utama (best-effort).
+ */
+export async function syncQuietHoursTimezone(
+  stored?: string | null,
+): Promise<void> {
+  let deviceTz: string | undefined
+  try {
+    deviceTz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  } catch {
+    return
+  }
+  if (!deviceTz || deviceTz === stored) return
+  try {
+    await updateNotificationPreferences({ quietHoursTimezone: deviceTz })
+  } catch {
+    // best-effort
+  }
 }
 
 export function markNotificationsReadBatch(notifIds: string[]) {

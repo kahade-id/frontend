@@ -21,6 +21,7 @@ import { Tabs } from "expo-router"
 import { TAB_ROUTE_NAMES } from "@/lib/routes"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { useUnreadCount } from "@/lib/unread-count"
+import { useChatUnreadCount } from "@/lib/chat-unread-count"
 import { registerShellTabNavigator } from "@/lib/app-mode"
 import type { ShellTabNavigation } from "@/components/ui/shell-tab-bar"
 
@@ -38,6 +39,8 @@ export default function TabsLayout() {
   // B-05: poll DIGATE sesi — tamu web tidak menembak endpoint auth tiap 60 dtk.
   const session = useAuthSession()
   useUnreadCount({ enabled: Boolean(session.token) })
+  // CN-011: badge tab Pesan memakai unread CHAT (bukan total notifikasi).
+  useChatUnreadCount({ enabled: Boolean(session.token) })
 
   const renderTabBar = useCallback(
     (props: TabsTabBarProps) => <TabsRegistrar navigation={props.navigation} />,
