@@ -132,6 +132,16 @@ export default function ShowcaseCreateScreen() {
    */
   const [uncertainCreate, setUncertainCreate] = useState(false)
   const [discardOpen, setDiscardOpen] = useState(false)
+  /**
+   * Keluar yang disengaja — terbit sukses, "Periksa daftar etalase", atau
+   * konfirmasi "Buang". `usePreventRemove` HARUS sudah mati saat navigasi
+   * berjalan: `beforeRemove` membaca nilai `preventRemove` dari render
+   * terakhir, sementara `router.back()` expo-router menunda dispatch ke
+   * effect berikutnya (saat itu `saveBusy` sudah false). Karena itu navigasi
+   * yang disengaja selalu menyalakan flag ini dulu dan dieksekusi dari
+   * effect di bawah — bukan langsung di handler.
+   */
+  const [intentionalLeave, setIntentionalLeave] = useState(false)
 
   const pendingKeys = useRef<string[]>([])
   const createAttempt = useRef<{ key: string; dto: CreateShowcaseItemDto } | null>(null)
@@ -167,17 +177,27 @@ export default function ShowcaseCreateScreen() {
     void cleanupPendingShowcaseKeys(pendingKeys.current)
     pendingKeys.current = []
     setDiscardOpen(false)
-    const action = pendingNavigation.current
-    pendingNavigation.current = null
-    if (action) navigation.dispatch(action)
-    else router.back()
-  }, [navigation, router])
+    // Jangan dispatch di sini: penjaga masih aktif sampai commit berikutnya
+    // dan `beforeRemove` akan membuka dialog lagi. Effect `intentionalLeave`
+    // yang mengeksekusi navigasi tertunda (aksi tersimpan dibaca di sana).
+    setIntentionalLeave(true)
+  }, [])
 
-  usePreventRemove(dirty, ({ data }) => {
+  usePreventRemove(dirty && !intentionalLeave, ({ data }) => {
     if (saveBusy.current || uploadBusy.current) return
     pendingNavigation.current = data.action
     setDiscardOpen(true)
   })
+
+  // Navigasi keluar yang disengaja — berjalan setelah `intentionalLeave`
+  // commit, sehingga `beforeRemove` tidak lagi dicegat.
+  useEffect(() => {
+    if (!intentionalLeave) return
+    const action = pendingNavigation.current
+    pendingNavigation.current = null
+    if (action) navigation.dispatch(action)
+    else router.back()
+  }, [intentionalLeave, navigation, router])
 
   // Web: peringatan bawaan browser sebelum menutup tab dengan draf hidup.
   useEffect(() => {
@@ -355,7 +375,11 @@ export default function ShowcaseCreateScreen() {
       if (!mounted.current || revision !== getSessionRevision()) return
       markShowcaseFeedDirty()
       toast.show({ title: "Karya ditambahkan", tone: "success", duration: 3000 })
-      router.back()
+      // Jangan `router.back()` langsung di sini: dispatch expo-router
+      // tertunda ke effect berikutnya, saat itu `saveBusy` sudah false dan
+      // dialog "Buang karya ini?" akan terbuka. Tandai keluar disengaja;
+      // effect `intentionalLeave` yang menavigasi setelah penjaga mati.
+      setIntentionalLeave(true)
     } catch (error) {
       if (!mounted.current || revision !== getSessionRevision()) return
       // Hanya penolakan TEGAS yang aman dianggap belum tersimpan.
@@ -367,7 +391,7 @@ export default function ShowcaseCreateScreen() {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
     }
-  }, [failedAssets.length, form, previews, revision, router, toast, uncertainCreate])
+  }, [failedAssets.length, form, previews, revision, toast, uncertainCreate])
 
   const busy = uploading || saving
 
@@ -516,7 +540,7 @@ export default function ShowcaseCreateScreen() {
                 Status simpan belum pasti. Coba Terbitkan lagi untuk melanjutkan permintaan yang
                 sama, atau periksa daftar etalase Anda sebelum membuat karya baru.
               </Text>
-              <Button variant="secondary" onPress={() => router.back()}>
+              <Button variant="secondary" onPress={() => setIntentionalLeave(true)}>
                 Periksa daftar etalase
               </Button>
             </View>
