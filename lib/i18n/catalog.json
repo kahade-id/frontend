@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 88
+   "n": 96
   },
   {
    "s": "Hapus",
@@ -23,16 +23,32 @@
    "n": 24
   },
   {
+   "s": "Pengguna",
+   "n": 22
+  },
+  {
+   "s": "Selesai",
+   "n": 22
+  },
+  {
    "s": "Coba lagi",
    "n": 20
   },
   {
-   "s": "Selesai",
+   "s": "Muat lebih banyak",
    "n": 20
   },
   {
-   "s": "Pengguna",
-   "n": 19
+   "s": "Aktif",
+   "n": 18
+  },
+  {
+   "s": "Belum ada data",
+   "n": 18
+  },
+  {
+   "s": "Semua",
+   "n": 18
   },
   {
    "s": "Simpan",
@@ -43,6 +59,10 @@
    "n": 18
   },
   {
+   "s": "Email",
+   "n": 17
+  },
+  {
    "s": "Alasan penolakan",
    "n": 16
   },
@@ -51,11 +71,7 @@
    "n": 15
   },
   {
-   "s": "Belum ada data",
-   "n": 14
-  },
-  {
-   "s": "Email",
+   "s": "Buka {x}",
    "n": 14
   },
   {
@@ -67,16 +83,8 @@
    "n": 14
   },
   {
-   "s": "Muat lebih banyak",
-   "n": 14
-  },
-  {
    "s": "Setujui",
    "n": 14
-  },
-  {
-   "s": "Aktif",
-   "n": 13
   },
   {
    "s": "Catatan (opsional)",
@@ -87,15 +95,23 @@
    "n": 13
   },
   {
+   "s": "Dibuat",
+   "n": 13
+  },
+  {
    "s": "Kembali",
    "n": 13
   },
   {
-   "s": "Semua",
-   "n": 13
+   "s": "Filter {x}",
+   "n": 12
   },
   {
-   "s": "Filter {label}",
+   "s": "Filter status {x}",
+   "n": 12
+  },
+  {
+   "s": "Gagal memuat detail",
    "n": 12
   },
   {
@@ -131,11 +147,19 @@
    "n": 10
   },
   {
-   "s": "Dibuat",
+   "s": "Ditinjau",
    "n": 10
   },
   {
-   "s": "Ditinjau",
+   "s": "Lanjut",
+   "n": 10
+  },
+  {
+   "s": "Nonaktif",
+   "n": 10
+  },
+  {
+   "s": "Ringkasan",
    "n": 10
   },
   {
@@ -147,15 +171,11 @@
    "n": 9
   },
   {
+   "s": "Dibatalkan",
+   "n": 9
+  },
+  {
    "s": "Ditolak",
-   "n": 9
-  },
-  {
-   "s": "Filter status {label}",
-   "n": 9
-  },
-  {
-   "s": "Gagal memuat detail",
    "n": 9
   },
   {
@@ -171,6 +191,10 @@
    "n": 9
   },
   {
+   "s": "Menunggu",
+   "n": 9
+  },
+  {
    "s": "Pembeli",
    "n": 9
   },
@@ -180,6 +204,10 @@
   },
   {
    "s": "Pesan",
+   "n": 9
+  },
+  {
+   "s": "Sembunyikan",
    "n": 9
   },
   {
@@ -207,10 +235,6 @@
    "n": 8
   },
   {
-   "s": "Menunggu",
-   "n": 8
-  },
-  {
    "s": "Nama lengkap",
    "n": 8
   },
@@ -221,6 +245,10 @@
   {
    "s": "Verifikasi Bisnis",
    "n": 8
+  },
+  {
+   "s": "Alasan",
+   "n": 7
   },
   {
    "s": "Dokumen",
@@ -247,14 +275,6 @@
    "n": 7
   },
   {
-   "s": "Ringkasan",
-   "n": 7
-  },
-  {
-   "s": "Sembunyikan",
-   "n": 7
-  },
-  {
    "s": "Status",
    "n": 7
   },
@@ -272,6 +292,10 @@
   },
   {
    "s": "Alasan intervensi",
+   "n": 6
+  },
+  {
+   "s": "Alasan minimal {x} karakter.",
    "n": 6
   },
   {
@@ -300,10 +324,6 @@
   },
   {
    "s": "Buat badge baru",
-   "n": 6
-  },
-  {
-   "s": "Buka {x}",
    "n": 6
   },
   {
@@ -375,10 +395,6 @@
    "n": 6
   },
   {
-   "s": "Lanjut",
-   "n": 6
-  },
-  {
    "s": "Laporan Pengguna",
    "n": 6
   },
@@ -407,10 +423,6 @@
    "n": 6
   },
   {
-   "s": "Nonaktif",
-   "n": 6
-  },
-  {
    "s": "Notifikasi",
    "n": 6
   },
@@ -427,7 +439,23 @@
    "n": 6
   },
   {
+   "s": "Rating",
+   "n": 6
+  },
+  {
+   "s": "Setelah lanjut, akan ada dialog konfirmasi kedua.",
+   "n": 6
+  },
+  {
    "s": "Setujui penarikan",
+   "n": 6
+  },
+  {
+   "s": "Statistik",
+   "n": 6
+  },
+  {
+   "s": "Tampilkan",
    "n": 6
   },
   {
@@ -471,11 +499,11 @@
    "n": 6
   },
   {
-   "s": "{count} pemegang",
+   "s": "{x} dari {y} lencana diraih",
    "n": 5
   },
   {
-   "s": "{x} dari {y} lencana diraih",
+   "s": "{x} pemegang",
    "n": 5
   },
   {
@@ -512,10 +540,6 @@
   },
   {
    "s": "Buat voucher baru",
-   "n": 5
-  },
-  {
-   "s": "Buka {label}",
    "n": 5
   },
   {
@@ -587,6 +611,10 @@
    "n": 5
   },
   {
+   "s": "Kode referral",
+   "n": 5
+  },
+  {
    "s": "Lanjutkan",
    "n": 5
   },
@@ -604,6 +632,10 @@
   },
   {
    "s": "Order Link",
+   "n": 5
+  },
+  {
+   "s": "Pembayaran",
    "n": 5
   },
   {
@@ -640,14 +672,6 @@
   },
   {
    "s": "Akun",
-   "n": 4
-  },
-  {
-   "s": "Alasan",
-   "n": 4
-  },
-  {
-   "s": "Alasan minimal {x} karakter.",
    "n": 4
   },
   {
@@ -715,11 +739,11 @@
    "n": 4
   },
   {
-   "s": "Dibatalkan",
+   "s": "Dieskalasi",
    "n": 4
   },
   {
-   "s": "Dieskalasi",
+   "s": "Disembunyikan",
    "n": 4
   },
   {
@@ -744,6 +768,14 @@
   },
   {
    "s": "Gagal memuat data",
+   "n": 4
+  },
+  {
+   "s": "Gagal memuat rating",
+   "n": 4
+  },
+  {
+   "s": "Gagal memuat subscription",
    "n": 4
   },
   {
@@ -867,6 +899,10 @@
    "n": 4
   },
   {
+   "s": "Referral",
+   "n": 4
+  },
+  {
    "s": "Resolve",
    "n": 4
   },
@@ -880,10 +916,6 @@
   },
   {
    "s": "Spam",
-   "n": 4
-  },
-  {
-   "s": "Tampilkan",
    "n": 4
   },
   {
@@ -907,7 +939,7 @@
    "n": 4
   },
   {
-   "s": "Tidak dapat membuka {label}.",
+   "s": "Tidak dapat membuka {x}.",
    "n": 4
   },
   {
@@ -939,6 +971,10 @@
    "n": 4
   },
   {
+   "s": "Ya, batalkan",
+   "n": 4
+  },
+  {
    "s": "Ya, selesaikan",
    "n": 4
   },
@@ -947,27 +983,7 @@
    "n": 4
   },
   {
-   "s": "{count} menunggu",
-   "n": 3
-  },
-  {
-   "s": "{count} menunggu persetujuan",
-   "n": 3
-  },
-  {
-   "s": "{count} order aktif",
-   "n": 3
-  },
-  {
-   "s": "{count} order tercatat",
-   "n": 3
-  },
-  {
-   "s": "{n} / {x} karakter minimum",
-   "n": 3
-  },
-  {
-   "s": "{x} – {max}",
+   "s": "{x} – {y}",
    "n": 3
   },
   {
@@ -980,6 +996,14 @@
   },
   {
    "s": "{x} {y} dari {z}",
+   "n": 3
+  },
+  {
+   "s": "{x} / {y} karakter minimum",
+   "n": 3
+  },
+  {
+   "s": "{x} → {y}",
    "n": 3
   },
   {
@@ -1019,11 +1043,31 @@
    "n": 3
   },
   {
+   "s": "{x} kode",
+   "n": 3
+  },
+  {
    "s": "{x} lencana diraih ditampilkan",
    "n": 3
   },
   {
+   "s": "{x} menunggu",
+   "n": 3
+  },
+  {
+   "s": "{x} menunggu persetujuan",
+   "n": 3
+  },
+  {
    "s": "{x} nomor {y}",
+   "n": 3
+  },
+  {
+   "s": "{x} order aktif",
+   "n": 3
+  },
+  {
+   "s": "{x} order tercatat",
    "n": 3
   },
   {
@@ -1103,6 +1147,18 @@
    "n": 3
   },
   {
+   "s": "Alasan moderasi rating",
+   "n": 3
+  },
+  {
+   "s": "Alasan pembatalan",
+   "n": 3
+  },
+  {
+   "s": "Alasan pembatalan subscription",
+   "n": 3
+  },
+  {
    "s": "Alasan penyesuaian",
    "n": 3
   },
@@ -1112,6 +1168,10 @@
   },
   {
    "s": "Ambil foto",
+   "n": 3
+  },
+  {
+   "s": "Analitik",
    "n": 3
   },
   {
@@ -1132,6 +1192,10 @@
   },
   {
    "s": "Balasan tiket bantuan",
+   "n": 3
+  },
+  {
+   "s": "Batalkan paksa subscription",
    "n": 3
   },
   {
@@ -1247,10 +1311,6 @@
    "n": 3
   },
   {
-   "s": "Buka {menu}",
-   "n": 3
-  },
-  {
    "s": "Buka aksi menggantung: {x}",
    "n": 3
   },
@@ -1267,31 +1327,31 @@
    "n": 3
   },
   {
-   "s": "Buka detail {name}",
+   "s": "Buka detail {x}",
    "n": 3
   },
   {
-   "s": "Buka detail badge {name}",
+   "s": "Buka detail badge {x}",
    "n": 3
   },
   {
-   "s": "Buka detail KYC {name}",
+   "s": "Buka detail KYC {x}",
    "n": 3
   },
   {
-   "s": "Buka detail laporan {reason}",
+   "s": "Buka detail laporan {x}",
    "n": 3
   },
   {
-   "s": "Buka detail sengketa {id}",
+   "s": "Buka detail sengketa {x}",
    "n": 3
   },
   {
-   "s": "Buka detail tiket {subject}",
+   "s": "Buka detail tiket {x}",
    "n": 3
   },
   {
-   "s": "Buka detail verifikasi {name}",
+   "s": "Buka detail verifikasi {x}",
    "n": 3
   },
   {
@@ -1335,7 +1395,7 @@
    "n": 3
   },
   {
-   "s": "Cabut badge dari {name}",
+   "s": "Cabut badge dari {x}",
    "n": 3
   },
   {
@@ -1435,6 +1495,10 @@
    "n": 3
   },
   {
+   "s": "Contoh: komentar mengandung kata kasar…",
+   "n": 3
+  },
+  {
    "s": "Contoh: nama rekening tidak sesuai…",
    "n": 3
   },
@@ -1495,6 +1559,10 @@
    "n": 3
   },
   {
+   "s": "Detail subscription",
+   "n": 3
+  },
+  {
    "s": "Diabaikan",
    "n": 3
   },
@@ -1544,6 +1612,30 @@
   },
   {
    "s": "Filter kategori {x}",
+   "n": 3
+  },
+  {
+   "s": "Filter kode aktif",
+   "n": 3
+  },
+  {
+   "s": "Filter kode nonaktif",
+   "n": 3
+  },
+  {
+   "s": "Filter plan {x}",
+   "n": 3
+  },
+  {
+   "s": "Filter rating disembunyikan",
+   "n": 3
+  },
+  {
+   "s": "Filter semua kode",
+   "n": 3
+  },
+  {
+   "s": "Filter semua rating",
    "n": 3
   },
   {
@@ -1683,7 +1775,7 @@
    "n": 3
   },
   {
-   "s": "Hapus badge {name}",
+   "s": "Hapus badge {x}",
    "n": 3
   },
   {
@@ -1808,6 +1900,10 @@
   },
   {
    "s": "Kata sandi baru",
+   "n": 3
+  },
+  {
+   "s": "Kedaluwarsa",
    "n": 3
   },
   {
@@ -1975,7 +2071,11 @@
    "n": 3
   },
   {
-   "s": "Lihat detail order {id}",
+   "s": "Lihat detail order {x}",
+   "n": 3
+  },
+  {
+   "s": "Lihat detail subscription",
    "n": 3
   },
   {
@@ -2051,6 +2151,10 @@
    "n": 3
   },
   {
+   "s": "Memuat analitik…",
+   "n": 3
+  },
+  {
    "s": "Memuat antrean KYC…",
    "n": 3
   },
@@ -2068,6 +2172,10 @@
   },
   {
    "s": "Memuat data keuangan…",
+   "n": 3
+  },
+  {
+   "s": "Memuat data referral…",
    "n": 3
   },
   {
@@ -2099,6 +2207,10 @@
    "n": 3
   },
   {
+   "s": "Memuat detail subscription…",
+   "n": 3
+  },
+  {
    "s": "Memuat detail tiket…",
    "n": 3
   },
@@ -2127,11 +2239,19 @@
    "n": 3
   },
   {
+   "s": "Memuat rating…",
+   "n": 3
+  },
+  {
    "s": "Memuat sengketa…",
    "n": 3
   },
   {
    "s": "Memuat statistik moderasi…",
+   "n": 3
+  },
+  {
+   "s": "Memuat subscription…",
    "n": 3
   },
   {
@@ -2167,6 +2287,10 @@
    "n": 3
   },
   {
+   "s": "Metrik {x}",
+   "n": 3
+  },
+  {
    "s": "Min. {x} karakter: huruf besar, kecil, angka, dan simbol.",
    "n": 3
   },
@@ -2180,6 +2304,10 @@
   },
   {
    "s": "Minimal {x} karakter untuk dokumentasi audit…",
+   "n": 3
+  },
+  {
+   "s": "Minimal {x} karakter, contoh: penipuan terkonfirmasi tim…",
    "n": 3
   },
   {
@@ -2343,6 +2471,10 @@
    "n": 3
   },
   {
+   "s": "Pengguna teratas",
+   "n": 3
+  },
+  {
    "s": "Penyesuaian manual tercatat sebagai mutasi admin.",
    "n": 3
   },
@@ -2367,11 +2499,23 @@
    "n": 3
   },
   {
+   "s": "Periode {x}",
+   "n": 3
+  },
+  {
+   "s": "Periode {x}: {y} order",
+   "n": 3
+  },
+  {
    "s": "Permintaan diterima",
    "n": 3
   },
   {
    "s": "Pertanyaan dihapus",
+   "n": 3
+  },
+  {
+   "s": "Pertumbuhan pengguna",
    "n": 3
   },
   {
@@ -2428,10 +2572,6 @@
   },
   {
    "s": "Rank minimum (opsional)",
-   "n": 3
-  },
-  {
-   "s": "Rating",
    "n": 3
   },
   {
@@ -2511,6 +2651,14 @@
    "n": 3
   },
   {
+   "s": "Sembunyikan rating",
+   "n": 3
+  },
+  {
+   "s": "Sembunyikan rating ini",
+   "n": 3
+  },
+  {
    "s": "Semua laporan chat sudah ditinjau pada filter ini.",
    "n": 3
   },
@@ -2559,7 +2707,7 @@
    "n": 3
   },
   {
-   "s": "Statistik",
+   "s": "Statistik order",
    "n": 3
   },
   {
@@ -2576,6 +2724,10 @@
   },
   {
    "s": "Status tiket: {x}",
+   "n": 3
+  },
+  {
+   "s": "Subscription",
    "n": 3
   },
   {
@@ -2611,6 +2763,14 @@
    "n": 3
   },
   {
+   "s": "Tampilkan kembali rating ini",
+   "n": 3
+  },
+  {
+   "s": "Tampilkan rating",
+   "n": 3
+  },
+  {
    "s": "Tandai dikirim",
    "n": 3
   },
@@ -2620,6 +2780,10 @@
   },
   {
    "s": "Tandai sengketa sebagai under review",
+   "n": 3
+  },
+  {
+   "s": "Tanggal {x}: {y} pengguna baru",
    "n": 3
   },
   {
@@ -2695,11 +2859,11 @@
    "n": 3
   },
   {
-   "s": "Tidak ditemukan untuk “{q}”.",
+   "s": "Tidak ditemukan untuk “{x}”.",
    "n": 3
   },
   {
-   "s": "Tinjau laporan {kind}",
+   "s": "Tinjau laporan {x}",
    "n": 3
   },
   {
@@ -2723,6 +2887,10 @@
    "n": 3
   },
   {
+   "s": "Total kumulatif: {x}",
+   "n": 3
+  },
+  {
    "s": "Transaksi terakhir",
    "n": 3
   },
@@ -2735,7 +2903,7 @@
    "n": 3
   },
   {
-   "s": "Tulis alasan pemblokiran {name}.",
+   "s": "Tulis alasan pemblokiran {x}.",
    "n": 3
   },
   {
@@ -2771,7 +2939,7 @@
    "n": 3
   },
   {
-   "s": "Ubah config: {key}",
+   "s": "Ubah config: {x}",
    "n": 3
   },
   {
@@ -2819,19 +2987,7 @@
    "n": 2
   },
   {
-   "s": "{buyer} beli · {seller} jual · {done} selesai",
-   "n": 2
-  },
-  {
-   "s": "{count} penerima.",
-   "n": 2
-  },
-  {
-   "s": "{count} voucher personal diterbitkan.",
-   "n": 2
-  },
-  {
-   "s": "{n}",
+   "s": "{x}",
    "n": 2
   },
   {
@@ -2848,6 +3004,10 @@
   },
   {
    "s": "{x} {y}%, {z} rupiah",
+   "n": 2
+  },
+  {
+   "s": "{x} beli · {y} jual · {z} selesai",
    "n": 2
   },
   {
@@ -2871,11 +3031,27 @@
    "n": 2
   },
   {
+   "s": "{x} order",
+   "n": 2
+  },
+  {
+   "s": "{x} penerima.",
+   "n": 2
+  },
+  {
+   "s": "{x} referral",
+   "n": 2
+  },
+  {
    "s": "{x} transaksi · {x}",
    "n": 2
   },
   {
    "s": "{x} undangan",
+   "n": 2
+  },
+  {
+   "s": "{x} voucher personal diterbitkan.",
    "n": 2
   },
   {
@@ -3011,11 +3187,11 @@
    "n": 2
   },
   {
-   "s": "Badge “{name}” akan dihapus permanen dan tidak bisa dikembalikan.",
+   "s": "Badge “{x}” akan dihapus permanen dan tidak bisa dikembalikan.",
    "n": 2
   },
   {
-   "s": "Badge akan dicabut dari {name}.",
+   "s": "Badge akan dicabut dari {x}.",
    "n": 2
   },
   {
@@ -3055,11 +3231,23 @@
    "n": 2
   },
   {
+   "s": "Batalkan paksa",
+   "n": 2
+  },
+  {
+   "s": "Batalkan paksa — tulis alasan",
+   "n": 2
+  },
+  {
    "s": "Batalkan penarikan",
    "n": 2
   },
   {
    "s": "Batalkan pesanan",
+   "n": 2
+  },
+  {
+   "s": "Batalkan subscription?",
    "n": 2
   },
   {
@@ -3080,6 +3268,22 @@
   },
   {
    "s": "Belum ada balasan.",
+   "n": 2
+  },
+  {
+   "s": "Belum ada data analitik platform.",
+   "n": 2
+  },
+  {
+   "s": "Belum ada data pengguna teratas.",
+   "n": 2
+  },
+  {
+   "s": "Belum ada data pertumbuhan.",
+   "n": 2
+  },
+  {
+   "s": "Belum ada data referral.",
    "n": 2
   },
   {
@@ -3127,11 +3331,23 @@
    "n": 2
   },
   {
+   "s": "Belum ada rating",
+   "n": 2
+  },
+  {
    "s": "Belum ada rekening",
    "n": 2
   },
   {
    "s": "Belum ada sengketa",
+   "n": 2
+  },
+  {
+   "s": "Belum ada statistik order.",
+   "n": 2
+  },
+  {
+   "s": "Belum ada subscription",
    "n": 2
   },
   {
@@ -3215,7 +3431,7 @@
    "n": 2
   },
   {
-   "s": "Broadcast akan dikirim ke {audience}. Lanjutkan?",
+   "s": "Broadcast akan dikirim ke {x}. Lanjutkan?",
    "n": 2
   },
   {
@@ -3323,6 +3539,10 @@
    "n": 2
   },
   {
+   "s": "Bulanan",
+   "n": 2
+  },
+  {
    "s": "Butuh bantuan?",
    "n": 2
   },
@@ -3423,7 +3643,7 @@
    "n": 2
   },
   {
-   "s": "Diberi {date}",
+   "s": "Diberi {x}",
    "n": 2
   },
   {
@@ -3435,6 +3655,10 @@
    "n": 2
   },
   {
+   "s": "Disengketakan",
+   "n": 2
+  },
+  {
    "s": "Disetujui",
    "n": 2
   },
@@ -3443,7 +3667,7 @@
    "n": 2
   },
   {
-   "s": "Ditugaskan ke {id}",
+   "s": "Ditugaskan ke {x}",
    "n": 2
   },
   {
@@ -3519,6 +3743,10 @@
    "n": 2
   },
   {
+   "s": "Gagal membatalkan subscription",
+   "n": 2
+  },
+  {
    "s": "Gagal memberi badge",
    "n": 2
   },
@@ -3555,7 +3783,15 @@
    "n": 2
   },
   {
+   "s": "Gagal memproses rating",
+   "n": 2
+  },
+  {
    "s": "Gagal memproses verifikasi bisnis",
+   "n": 2
+  },
+  {
+   "s": "Gagal memuat analitik",
    "n": 2
   },
   {
@@ -3568,6 +3804,10 @@
   },
   {
    "s": "Gagal memuat dasbor",
+   "n": 2
+  },
+  {
+   "s": "Gagal memuat data referral",
    "n": 2
   },
   {
@@ -3592,6 +3832,10 @@
   },
   {
    "s": "Gagal memuat etalase",
+   "n": 2
+  },
+  {
+   "s": "Gagal memuat kode referral",
    "n": 2
   },
   {
@@ -3683,6 +3927,10 @@
    "n": 2
   },
   {
+   "s": "Hanya untuk status Aktif/Menunggu. Tercatat di audit log.",
+   "n": 2
+  },
+  {
    "s": "Hanya yang belum dibaca",
    "n": 2
   },
@@ -3759,6 +4007,10 @@
    "n": 2
   },
   {
+   "s": "INTERVENSI DARURAT",
+   "n": 2
+  },
+  {
    "s": "Isi akta atau SIUP — minimal satu.",
    "n": 2
   },
@@ -3811,7 +4063,7 @@
    "n": 2
   },
   {
-   "s": "Kampanye {name} akan dihapus. Tindakan ini tidak dapat dibatalkan.",
+   "s": "Kampanye {x} akan dihapus. Tindakan ini tidak dapat dibatalkan.",
    "n": 2
   },
   {
@@ -3875,10 +4127,6 @@
    "n": 2
   },
   {
-   "s": "Kedaluwarsa",
-   "n": 2
-  },
-  {
    "s": "Kelola",
    "n": 2
   },
@@ -3903,7 +4151,7 @@
    "n": 2
   },
   {
-   "s": "Keputusan yang dipilih: {label}",
+   "s": "Keputusan yang dipilih: {x}",
    "n": 2
   },
   {
@@ -3988,10 +4236,6 @@
   },
   {
    "s": "Kode cadangan baru",
-   "n": 2
-  },
-  {
-   "s": "Kode referral",
    "n": 2
   },
   {
@@ -4471,7 +4715,7 @@
    "n": 2
   },
   {
-   "s": "Order {id} · {date}",
+   "s": "Order {x} · {y}",
    "n": 2
   },
   {
@@ -4543,11 +4787,7 @@
    "n": 2
   },
   {
-   "s": "Pelapor {id} · {date}",
-   "n": 2
-  },
-  {
-   "s": "Pembayaran",
+   "s": "Pelapor {x} · {y}",
    "n": 2
   },
   {
@@ -4611,7 +4851,15 @@
    "n": 2
   },
   {
-   "s": "Pengguna {id}",
+   "s": "Pengguna {x}",
+   "n": 2
+  },
+  {
+   "s": "Pengguna aktif",
+   "n": 2
+  },
+  {
+   "s": "Pengguna baru",
    "n": 2
   },
   {
@@ -4691,6 +4939,10 @@
    "n": 2
   },
   {
+   "s": "Periode berakhir",
+   "n": 2
+  },
+  {
    "s": "Permintaan dibatalkan.",
    "n": 2
   },
@@ -4743,7 +4995,7 @@
    "n": 2
   },
   {
-   "s": "Perubahan config {key} akan dibatalkan.",
+   "s": "Perubahan config {x} akan dibatalkan.",
    "n": 2
   },
   {
@@ -4808,6 +5060,22 @@
   },
   {
    "s": "Pusat Bantuan",
+   "n": 2
+  },
+  {
+   "s": "Rating akan terlihat kembali oleh pengguna.",
+   "n": 2
+  },
+  {
+   "s": "Rating disembunyikan",
+   "n": 2
+  },
+  {
+   "s": "Rating ditampilkan kembali",
+   "n": 2
+  },
+  {
+   "s": "Rating tidak akan terlihat lagi oleh pengguna, tetapi tercatat di audit log.",
    "n": 2
   },
   {
@@ -4899,6 +5167,10 @@
    "n": 2
   },
   {
+   "s": "Sembunyikan rating?",
+   "n": 2
+  },
+  {
    "s": "Semua notifikasi pada kategori ini sudah Anda baca.",
    "n": 2
   },
@@ -4924,10 +5196,6 @@
   },
   {
    "s": "Sengketa ditugaskan",
-   "n": 2
-  },
-  {
-   "s": "Setelah lanjut, akan ada dialog konfirmasi kedua.",
    "n": 2
   },
   {
@@ -4959,7 +5227,7 @@
    "n": 2
   },
   {
-   "s": "Status baru: {label}",
+   "s": "Status baru: {x}",
    "n": 2
   },
   {
@@ -4972,6 +5240,18 @@
   },
   {
    "s": "Status tiket diperbarui",
+   "n": 2
+  },
+  {
+   "s": "Subscription akan dibatalkan segera oleh admin. Tindakan ini tidak bisa dibatalkan.",
+   "n": 2
+  },
+  {
+   "s": "Subscription dibatalkan",
+   "n": 2
+  },
+  {
+   "s": "Subscription pada status ini tidak bisa dibatalkan paksa.",
    "n": 2
   },
   {
@@ -5039,6 +5319,10 @@
    "n": 2
   },
   {
+   "s": "Tampilkan kembali rating?",
+   "n": 2
+  },
+  {
    "s": "Tampilkan semua {x} template",
    "n": 2
   },
@@ -5099,7 +5383,7 @@
    "n": 2
   },
   {
-   "s": "Terdaftar {date}",
+   "s": "Terdaftar {x}",
    "n": 2
   },
   {
@@ -5124,6 +5408,10 @@
   },
   {
    "s": "Tidak ada gambar",
+   "n": 2
+  },
+  {
+   "s": "Tidak ada kode referral pada filter ini.",
    "n": 2
   },
   {
@@ -5159,7 +5447,19 @@
    "n": 2
   },
   {
+   "s": "Tidak ada rating pada filter ini.",
+   "n": 2
+  },
+  {
+   "s": "Tidak ada rating yang disembunyikan.",
+   "n": 2
+  },
+  {
    "s": "Tidak ada sengketa pada filter ini.",
+   "n": 2
+  },
+  {
+   "s": "Tidak ada subscription pada filter ini.",
    "n": 2
   },
   {
@@ -5203,7 +5503,15 @@
    "n": 2
   },
   {
+   "s": "Total order",
+   "n": 2
+  },
+  {
    "s": "Total pembayaran belum terkonfirmasi. Muat ulang rincian biaya sebelum membayar.",
+   "n": 2
+  },
+  {
+   "s": "Total pengguna",
    "n": 2
   },
   {
@@ -5244,6 +5552,10 @@
   },
   {
    "s": "Tugaskan",
+   "n": 2
+  },
+  {
+   "s": "Tulis alasan moderasi. Alasan wajib diisi dan tercatat di audit log.",
    "n": 2
   },
   {
@@ -5343,7 +5655,7 @@
    "n": 2
   },
   {
-   "s": "Voucher {code} tidak bisa lagi dipakai pengguna.",
+   "s": "Voucher {x} tidak bisa lagi dipakai pengguna.",
    "n": 2
   },
   {
@@ -5379,7 +5691,11 @@
    "n": 2
   },
   {
-   "s": "Ya, batalkan",
+   "s": "Ya, sembunyikan",
+   "n": 2
+  },
+  {
+   "s": "Ya, tampilkan",
    "n": 2
   },
   {
@@ -5415,10 +5731,6 @@
    "n": 1
   },
   {
-   "s": "(\"GET\", path, opts), post:",
-   "n": 1
-  },
-  {
    "s": "(+{x} lainnya)",
    "n": 1
   },
@@ -5435,10 +5747,6 @@
    "n": 1
   },
   {
-   "s": "{name} akan bisa masuk dan bertransaksi kembali.",
-   "n": 1
-  },
-  {
    "s": "{x} — segera hadir",
    "n": 1
   },
@@ -5448,6 +5756,10 @@
   },
   {
    "s": "{x} ({x} percakapan)",
+   "n": 1
+  },
+  {
+   "s": "{x} akan bisa masuk dan bertransaksi kembali.",
    "n": 1
   },
   {
@@ -5555,7 +5867,7 @@
    "n": 1
   },
   {
-   "s": "{x}FA akun {name} akan direset. Admin harus menyiapkan ulang authenticator.",
+   "s": "{x}FA akun {y} akan direset. Admin harus menyiapkan ulang authenticator.",
    "n": 1
   },
   {
@@ -5615,7 +5927,7 @@
    "n": 1
   },
   {
-   "s": "Aktif {date}",
+   "s": "Aktif {x}",
    "n": 1
   },
   {
@@ -5643,11 +5955,11 @@
    "n": 1
   },
   {
-   "s": "Akun {name} akan dibuka dan bisa login kembali.",
+   "s": "Akun {x} akan dibuka dan bisa login kembali.",
    "n": 1
   },
   {
-   "s": "Akun {name} akan dinonaktifkan (soft-delete).",
+   "s": "Akun {x} akan dinonaktifkan (soft-delete).",
    "n": 1
   },
   {
@@ -6771,10 +7083,6 @@
    "n": 1
   },
   {
-   "s": "Disengketakan",
-   "n": 1
-  },
-  {
    "s": "Diskon fee (nominal)",
    "n": 1
   },
@@ -6784,6 +7092,10 @@
   },
   {
    "s": "Diskon langganan",
+   "n": 1
+  },
+  {
+   "s": "Dispute rate",
    "n": 1
   },
   {
@@ -6819,7 +7131,7 @@
    "n": 1
   },
   {
-   "s": "Dokumen {n}",
+   "s": "Dokumen {x}",
    "n": 1
   },
   {
@@ -6979,7 +7291,7 @@
    "n": 1
   },
   {
-   "s": "Flag moderasi otomatis pada {name} akan dihapus.",
+   "s": "Flag moderasi otomatis pada {x} akan dihapus.",
    "n": 1
   },
   {
@@ -7723,6 +8035,10 @@
    "n": 1
   },
   {
+   "s": "Harian",
+   "n": 1
+  },
+  {
    "s": "hemat {x} rupiah",
    "n": 1
   },
@@ -7788,10 +8104,6 @@
   },
   {
    "s": "Instruksi pembayaran dibuat",
-   "n": 1
-  },
-  {
-   "s": "INTERVENSI DARURAT",
    "n": 1
   },
   {
@@ -8352,6 +8664,10 @@
   },
   {
    "s": "Kode / Tautan",
+   "n": 1
+  },
+  {
+   "s": "Kode aktif",
    "n": 1
   },
   {
@@ -9311,6 +9627,10 @@
    "n": 1
   },
   {
+   "s": "Mingguan",
+   "n": 1
+  },
+  {
    "s": "Minimal {x} karakter, atau kosongkan bila tidak dikirim dari sini.",
    "n": 1
   },
@@ -9659,6 +9979,14 @@
    "n": 1
   },
   {
+   "s": "Order selesai",
+   "n": 1
+  },
+  {
+   "s": "Order terbanyak",
+   "n": 1
+  },
+  {
    "s": "Order tidak diketahui",
    "n": 1
   },
@@ -9868,14 +10196,6 @@
   },
   {
    "s": "Pengaturan tersimpan",
-   "n": 1
-  },
-  {
-   "s": "Pengguna aktif",
-   "n": 1
-  },
-  {
-   "s": "Pengguna baru",
    "n": 1
   },
   {
@@ -10587,11 +10907,11 @@
    "n": 1
   },
   {
-   "s": "Referensi",
+   "s": "Rating tertinggi",
    "n": 1
   },
   {
-   "s": "Referral",
+   "s": "Referensi",
    "n": 1
   },
   {
@@ -10639,6 +10959,10 @@
    "n": 1
   },
   {
+   "s": "Relasi referral",
+   "n": 1
+  },
+  {
    "s": "Rentang nominal",
    "n": 1
   },
@@ -10667,6 +10991,10 @@
    "n": 1
   },
   {
+   "s": "Revenue",
+   "n": 1
+  },
+  {
    "s": "Revenue bulan ini",
    "n": 1
   },
@@ -10679,11 +11007,19 @@
    "n": 1
   },
   {
+   "s": "Reward menunggu",
+   "n": 1
+  },
+  {
    "s": "Reward referral",
    "n": 1
   },
   {
    "s": "Reward Referral",
+   "n": 1
+  },
+  {
+   "s": "Reward terbayar",
    "n": 1
   },
   {
@@ -10971,7 +11307,11 @@
    "n": 1
   },
   {
-   "s": "Semua sesi aktif {name} akan dicabut.",
+   "s": "Semua plan",
+   "n": 1
+  },
+  {
+   "s": "Semua sesi aktif {x} akan dicabut.",
    "n": 1
   },
   {
@@ -11255,6 +11595,10 @@
    "n": 1
   },
   {
+   "s": "Tahunan",
+   "n": 1
+  },
+  {
    "s": "Tambah catatan untuk penerima",
    "n": 1
   },
@@ -11443,7 +11787,7 @@
    "n": 1
   },
   {
-   "s": "Tautan reset akan dikirim ke email {email}.",
+   "s": "Tautan reset akan dikirim ke email {x}.",
    "n": 1
   },
   {
@@ -11803,11 +12147,11 @@
    "n": 1
   },
   {
-   "s": "Total order",
+   "s": "Total kode",
    "n": 1
   },
   {
-   "s": "Total pengguna",
+   "s": "Total reward",
    "n": 1
   },
   {
@@ -12288,6 +12632,10 @@
   },
   {
    "s": "Visibilitas profil",
+   "n": 1
+  },
+  {
+   "s": "Volume terbesar",
    "n": 1
   },
   {

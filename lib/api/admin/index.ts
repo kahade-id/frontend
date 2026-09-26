@@ -10,8 +10,34 @@ export * from "@/lib/api/admin/chat"
 export * from "@/lib/api/admin/badges"
 export * from "@/lib/api/admin/finance"
 export * from "@/lib/api/admin/orders"
+export * from "@/lib/api/admin/users"
 export * from "@/lib/api/admin/vouchers"
 export * from "@/lib/api/admin/campaigns"
 export * from "@/lib/api/admin/system"
 export * from "@/lib/api/admin/management"
+export * from "@/lib/api/admin/ratings"
+export * from "@/lib/api/admin/referral"
+export * from "@/lib/api/admin/subscriptions"
+/**
+ * Analytics diekspor eksplisit (bukan `export *`) karena `getUserGrowth`
+ * juga diekspor `dashboard` — dialiaskan agar keduanya tetap tersedia.
+ */
+export {
+  getAnalyticsOverview,
+  getOrderStats,
+  getTopUsers,
+  getUserGrowth as getAnalyticsUserGrowth,
+  type AnalyticsOverview,
+  type OrderStatRow,
+  type OrderStatsGroupBy,
+  type TopUser,
+  type TopUserMetric,
+  type UserGrowthRow,
+} from "@/lib/api/admin/analytics"
+/**
+ * Disambiguasi `KycStatus`: diekspor `kyc` maupun `users` — dipilih versi
+ * `kyc` agar barrel tidak ambigu (TS2308). Koordinator layar user dapat
+ * meninjau ulang pilihan ini bila butuh varian `users`.
+ */
+export { KycStatus } from "@/lib/api/admin/kyc"
 export { AdminAuthError } from "@/lib/api/admin-client"

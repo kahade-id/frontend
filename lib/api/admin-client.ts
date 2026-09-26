@@ -139,13 +139,42 @@ async function request<T>(
   return unwrapResponse(json) as T
 }
 
+async function adminGet<T>(path: string, opts: AdminHttpOptions = {}): Promise<T> {
+  return request<T>("GET", path, opts)
+}
+
+async function adminPost<T>(
+  path: string,
+  body?: unknown,
+  opts: AdminHttpOptions = {},
+): Promise<T> {
+  return request<T>("POST", path, { ...opts, body })
+}
+
+async function adminPut<T>(
+  path: string,
+  body?: unknown,
+  opts: AdminHttpOptions = {},
+): Promise<T> {
+  return request<T>("PUT", path, { ...opts, body })
+}
+
+async function adminPatch<T>(
+  path: string,
+  body?: unknown,
+  opts: AdminHttpOptions = {},
+): Promise<T> {
+  return request<T>("PATCH", path, { ...opts, body })
+}
+
+async function adminDelete<T>(path: string, opts: AdminHttpOptions = {}): Promise<T> {
+  return request<T>("DELETE", path, opts)
+}
+
 export const adminHttp = {
-  get: <T>(path: string, opts?: AdminHttpOptions) => request<T>("GET", path, opts),
-  post: <T>(path: string, body?: unknown, opts?: AdminHttpOptions) =>
-    request<T>("POST", path, { ...opts, body }),
-  put: <T>(path: string, body?: unknown, opts?: AdminHttpOptions) =>
-    request<T>("PUT", path, { ...opts, body }),
-  patch: <T>(path: string, body?: unknown, opts?: AdminHttpOptions) =>
-    request<T>("PATCH", path, { ...opts, body }),
-  delete: <T>(path: string, opts?: AdminHttpOptions) => request<T>("DELETE", path, opts),
+  get: adminGet,
+  post: adminPost,
+  put: adminPut,
+  patch: adminPatch,
+  delete: adminDelete,
 }
