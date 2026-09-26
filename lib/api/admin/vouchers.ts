@@ -81,7 +81,7 @@ export function listVouchers(
   params?: VoucherListQuery,
 ): Promise<Paginated<AdminVoucherItem>> {
   return adminHttp.get<Paginated<AdminVoucherItem>>("/v1/admin/vouchers", {
-    query: params,
+    query: params as Record<string, string | number | boolean | null | undefined>,
   })
 }
 

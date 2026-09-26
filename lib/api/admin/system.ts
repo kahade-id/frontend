@@ -148,7 +148,7 @@ export function listAuditLogs(
 ): Promise<Paginated<AdminAuditLogItem>> {
   return adminHttp.get<Paginated<AdminAuditLogItem>>(
     "/v1/admin/system/audit-logs",
-    { query: params },
+    { query: params as Record<string, string | number | boolean | null | undefined> },
   )
 }
 
@@ -158,7 +158,7 @@ export function listWebhookLogs(
 ): Promise<Paginated<AdminWebhookLogItem>> {
   return adminHttp.get<Paginated<AdminWebhookLogItem>>(
     "/v1/admin/system/webhook-logs",
-    { query: params },
+    { query: params as Record<string, string | number | boolean | null | undefined> },
   )
 }
 
