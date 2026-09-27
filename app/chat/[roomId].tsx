@@ -50,6 +50,7 @@ import {
   ArrowBendUpLeft,
   Chats,
   Copy,
+  MagnifyingGlass,
   PaperPlaneRight,
   PencilSimple,
   PushPin,
@@ -102,19 +103,24 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { ChatEditSheet } from "@/components/ui/chat-edit-sheet"
 import { ChatForwardSheet } from "@/components/ui/chat-forward-sheet"
+import { IconButton } from "@/components/ui/icon-button"
 import { ChatMessageRow } from "@/components/ui/chat-message-row"
 import { ChatPinnedBar } from "@/components/ui/chat-pinned-bar"
 import { ChatReactionPopover } from "@/components/ui/chat-reaction-popover"
 import { ChatRoomHeader } from "@/components/ui/chat-room-header"
 import { ChatRoomMenu } from "@/components/ui/chat-room-menu"
 import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
+import { ChatInlineSearchBar } from "@/components/ui/chat-inline-search"
+import { findMessageMatches } from "@/lib/chat-search"
 import { type ChatComposerPayload, type ComposerAttachment, type ComposerReplyTarget } from "@/components/ui/chat-composer"
+import { clearChatDraft, loadChatDraft, saveChatDraft } from "@/lib/chat-drafts"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
 import { ErrorState } from "@/components/ui/error-state"
 import { LoadMore, type LoadMoreStatus } from "@/components/ui/load-more"
-import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
+import { MediaViewer, isImageMedia, type MediaViewerItem } from "@/components/ui/media-viewer"
+import { ImageViewer, type ImageViewerItem } from "@/components/ui/image-viewer"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { ChatRoomFooter } from "@/components/ui/chat-room-footer"
@@ -208,6 +214,31 @@ export default function ChatRoomScreen() {
   const [nextCursor, setNextCursor] = useState<string | null>(null)
   const [olderStatus, setOlderStatus] = useState<LoadMoreStatus>("idle")
   const [draft, setDraft] = useState("")
+  /**
+   * Draft ketikan per-room (lib/chat-drafts): teks ditulis ke store sinkron
+   * tiap ketikan (persist di-debounce ke SecureStore), dimuat sekali saat
+   * room dibuka, dan dihapus saat pesan terkirim. Menutup room lalu kembali
+   * — atau restart app — tidak lagi menghilangkan ketikan.
+   */
+  const handleDraftChange = useCallback(
+    (text: string) => {
+      setDraft(text)
+      if (roomId) saveChatDraft(roomId, text)
+    },
+    [roomId],
+  )
+  useEffect(() => {
+    if (!roomId) return
+    let cancelled = false
+    void loadChatDraft(roomId).then((stored) => {
+      if (cancelled || !stored) return
+      // Jangan timpa ketikan yang sudah ada (mis. restore cepat + ketik).
+      setDraft((prev) => (prev ? prev : stored))
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [roomId])
   const [attachments, setAttachments] = useState<LocalAttachment[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -220,6 +251,11 @@ export default function ChatRoomScreen() {
   const [voiceSheetOpen, setVoiceSheetOpen] = useState(false)
 
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
+  /**
+   * Viewer gambar layar penuh (pinch-zoom + swipe): gambar dibuka di sini,
+   * berkas non-gambar tetap lewat <MediaViewer> (tombol "Buka eksternal").
+   */
+  const [imageViewer, setImageViewer] = useState<{ images: ImageViewerItem[]; index: number } | null>(null)
   /**
    * Mode pilih pesan (v3 2026-09-21). Tekan lama / ketuk satu pesan
    * mengaktifkannya; header ruang digantikan <SelectionBar> berisi reaksi
@@ -336,6 +372,68 @@ export default function ChatRoomScreen() {
   // sudah ada sejak API-GAP 2026-09-15, UI-nya yang belum. Kata kunci,
   // debounce, dan hasilnya hidup di <ChatSearchSheet>; layar hanya membuka.
   const [searchOpen, setSearchOpen] = useState(false)
+
+  /**
+   * Pencarian inline client-side (2026-09-28, batch UI/UX): pelengkap sheet
+   * di atas — mencari HANYA di pesan yang sudah dimuat (tanpa endpoint),
+   * hasil di-highlight di thread dan dilompati via next/prev ala Ctrl+F.
+   * Dipicu ikon kaca pembesar di header (slot `extra` <ChatRoomHeader>).
+   */
+  const [inlineSearchOpen, setInlineSearchOpen] = useState(false)
+  const [inlineQuery, setInlineQuery] = useState("")
+  /** Id hasil yang sedang aktif — index diturunkan dari `inlineMatches`. */
+  const [inlineActiveId, setInlineActiveId] = useState<string | undefined>(undefined)
+  const inlineMatches = useMemo(
+    () => (inlineSearchOpen ? findMessageMatches(messages, inlineQuery) : []),
+    [inlineSearchOpen, messages, inlineQuery],
+  )
+  const inlineMatchIds = useMemo(() => new Set(inlineMatches), [inlineMatches])
+  const inlineIndex = inlineActiveId ? inlineMatches.indexOf(inlineActiveId) : -1
+  const closeInlineSearch = useCallback(() => {
+    setInlineSearchOpen(false)
+    setInlineQuery("")
+    setInlineActiveId(undefined)
+  }, [])
+
+  const jumpToInlineMatch = useCallback(
+    (messageId: string) => {
+      const index = messages.findIndex((m) => m.id === messageId)
+      if (index < 0) return
+      try {
+        scrollRef.current?.scrollToIndex({ index, animated: true, viewPosition: 0.5 })
+      } catch {
+        // Item belum terukur (riwayat baru dimuat) — abaikan, user bisa
+        // menekan next/prev lagi setelah layout stabil.
+      }
+    },
+    [messages],
+  )
+
+  // Hasil berubah (ketikan/pesan baru dari poll): pertahankan hasil aktif
+  // bila masih ada; bila tidak, kembali ke hasil pertama + lompat.
+  useEffect(() => {
+    if (!inlineSearchOpen) return
+    if (inlineMatches.length === 0) {
+      setInlineActiveId(undefined)
+      return
+    }
+    setInlineActiveId((prev) => {
+      const next = prev && inlineMatches.includes(prev) ? prev : inlineMatches[0]
+      if (next !== prev) jumpToInlineMatch(next)
+      return next
+    })
+  }, [inlineSearchOpen, inlineMatches, jumpToInlineMatch])
+
+  const stepInlineMatch = useCallback(
+    (dir: 1 | -1) => {
+      if (inlineMatches.length === 0) return
+      const cur = inlineActiveId ? inlineMatches.indexOf(inlineActiveId) : -1
+      const next = inlineMatches[(cur + dir + inlineMatches.length) % inlineMatches.length]
+      setInlineActiveId(next)
+      jumpToInlineMatch(next)
+    },
+    [inlineMatches, inlineActiveId, jumpToInlineMatch],
+  )
 
   const fetchMessages = useCallback(async () => {
     if (!roomId) return
@@ -894,6 +992,7 @@ export default function ChatRoomScreen() {
         emptyPolls.current = 0
         setPollInterval(CHAT_POLL_MS)
         setDraft("")
+        clearChatDraft(roomId)
         setAttachments([])
         setReplyTarget(null)
         // Hentikan indikator mengetik setelah pesan terkirim.
@@ -1193,8 +1292,25 @@ export default function ChatRoomScreen() {
   }, [])
 
   const openAttachment = useCallback((a: ChatAttachmentDto) => {
+    if (isImageMedia({ url: a.fileUrl, mimeType: a.mimeType })) {
+      // Kumpulkan SEMUA gambar di pesan yang sama supaya bisa swipe antar
+      // foto di viewer (bukan satu gambar saja).
+      const owner = messages.find((m) =>
+        m.attachments?.some((att) => att === a || att.fileUrl === a.fileUrl),
+      )
+      const candidates = owner?.attachments?.length ? owner.attachments : [a]
+      const imgs = candidates.filter((att) =>
+        isImageMedia({ url: att.fileUrl, mimeType: att.mimeType }),
+      )
+      const at = Math.max(0, imgs.findIndex((att) => att === a || att.fileUrl === a.fileUrl))
+      setImageViewer({
+        images: imgs.map((att) => ({ url: att.fileUrl, alt: att.fileName ?? undefined })),
+        index: at,
+      })
+      return
+    }
     setViewerItem({ url: a.fileUrl, mimeType: a.mimeType, title: a.fileName, fileName: a.fileName })
-  }, [])
+  }, [messages])
 
   const counterpartUsername = room?.counterpart?.username
   const composerAttachments = attachments
@@ -1351,7 +1467,7 @@ export default function ChatRoomScreen() {
           orderId={room?.orderId}
           onOpenOrder={(id) => router.push(ROUTES.orderDetail(id))}
           draft={draft}
-          onDraftChange={setDraft}
+          onDraftChange={handleDraftChange}
           onSend={(p) => void handleSend(p)}
           attachments={composerAttachments}
           onAttach={() => setAttachSheetOpen(true)}
@@ -1406,8 +1522,33 @@ export default function ChatRoomScreen() {
           }
           onBack={() => (router.canGoBack() ? router.back() : router.replace(ROUTES.home))}
           onMenuPress={() => setRoomMenuOpen(true)}
+          // Pencarian inline client-side (2026-09-28): ikon kaca pembesar di
+          // kiri menu — membuka bar cari di bawah header (highlight +
+          // next/prev di pesan yang sudah dimuat, tanpa endpoint).
+          extra={
+            <IconButton
+              icon={MagnifyingGlass}
+              variant="ghost"
+              size="sm"
+              accessibilityLabel={translate("Cari di percakapan")}
+              onPress={() => setInlineSearchOpen(true)}
+            />
+          }
         />
       )}
+
+      {/* Bar pencarian inline: di bawah header, di atas thread. */}
+      {!selecting && inlineSearchOpen ? (
+        <ChatInlineSearchBar
+          query={inlineQuery}
+          onQueryChange={setInlineQuery}
+          matches={inlineMatches}
+          activeIndex={inlineIndex}
+          onPrev={() => stepInlineMatch(-1)}
+          onNext={() => stepInlineMatch(1)}
+          onClose={closeInlineSearch}
+        />
+      ) : null}
 
       {/* Baris pesan terpin: SATU baris ringkas (bukan deretan chip scroll).
           Ketuk = lompat ke pesannya; tekan lama = lepas pin. Tingginya diukur
@@ -1526,6 +1667,12 @@ export default function ChatRoomScreen() {
             onAttachmentPress={openAttachment}
             // CN-015: kirim ulang pesan yang gagal.
             onRetry={(target) => void handleRetry(target)}
+            // Pencarian inline: sorot kata kunci; hasil aktif lebih tegas.
+            searchHighlight={
+              inlineSearchOpen && inlineMatchIds.has(m.id)
+                ? { query: inlineQuery, focused: m.id === inlineActiveId }
+                : undefined
+            }
           />
         )}
         // Scroll ke puncak = muat riwayat lebih lama (tombol eksplisit tetap
@@ -1553,6 +1700,13 @@ export default function ChatRoomScreen() {
         item={viewerItem}
         onClose={() => setViewerItem(null)}
         onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
+      />
+
+      <ImageViewer
+        visible={imageViewer != null}
+        images={imageViewer?.images ?? []}
+        index={imageViewer?.index ?? 0}
+        onClose={() => setImageViewer(null)}
       />
 
       {/* Pemilih reaksi MENGAMBANG (revisi 2026-09-27): pil emoji di dekat

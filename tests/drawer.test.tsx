@@ -6,8 +6,9 @@
  *  2. <AppDrawer> tidak merender apa pun saat tertutup; saat dibuka
  *     menampilkan struktur tetap (tanpa mode aplikasi):
  *     header profil → kartu Kahade Plus → menu utama
- *     (Profile, Dompet, Etalase, Template, Order Link, Laporan) →
- *     menu bawah (Pengaturan, Pusat Bantuan, Bisnis).
+ *     (Lihat Profil, Dompet Saya, Kelola Etalase, Template Transaksi,
+ *     Order Link, Laporan & Analitik, Pesan — revisi label 2026-09-28) →
+ *     menu bawah (Umpan Balik, Bantuan Langsung, Tiket Bantuan).
  *  3. TIDAK ada ModeSwitcher ("Mode aplikasi") dan TIDAK ada menu lama
  *     berbasis mode (tersimpan, sengketa, isi saldo, dsb.).
  *  4. Setiap baris menu memuat tepat 1 ikon (tanpa chevron, tanpa
@@ -39,6 +40,11 @@ vi.mock("@/lib/use-auth-session", () => ({
 vi.mock("@/lib/use-api-query", () => ({
   useApiQuery: () => ({ data: null, isLoading: false }),
 }))
+// Badge unread memakai store global chat (side-effect ringan di modul).
+vi.mock("@/lib/chat-unread-count", () => ({
+  useChatUnreadCountState: () => ({ status: "idle", count: null }),
+  refreshChatUnreadCount: () => Promise.resolve(),
+}))
 // lib/api menarik graf native dalam (expo-image-picker, dsb.) — drawer hanya
 // butuh tipenya; query-nya sendiri sudah di-mock di atas.
 vi.mock("@/lib/api", () => ({
@@ -53,18 +59,19 @@ function renderDrawer() {
   )
 }
 
-/** Urutan menuitem yang diharapkan (tamu): Plus → utama → bawah. */
+/** Urutan menuitem yang diharapkan (tamu — tanpa badge unread). */
 const EXPECTED_MENUITEM_ORDER = [
   "Menu langganan Kahade Plus",
-  "Buka profil saya",
-  "Buka dompet",
-  "Buka etalase",
+  "Lihat profil saya",
+  "Buka dompet saya",
+  "Kelola etalase saya",
   "Buka template transaksi",
   "Buka order link",
-  "Buka laporan saya",
-  "Buka pengaturan",
-  "Buka pusat bantuan",
-  "Buka verifikasi bisnis",
+  "Buka laporan dan analitik",
+  "Buka pesan",
+  "Buka umpan balik",
+  "Buka bantuan langsung",
+  "Buka tiket bantuan",
 ]
 
 beforeEach(() => {

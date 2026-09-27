@@ -79,6 +79,7 @@ import { translate } from "@/lib/i18n/translate"
 import { summarize } from "@/lib/a11y"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { tokens } from "@/lib/tokens"
+import { splitHighlightSpans } from "@/lib/chat-search"
 import {
   REACTION_BADGE_ANCHOR,
   SWIPE_REPLY_MAX_PX,
@@ -110,6 +111,13 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   quote?: { senderName?: string | null; preview: string } | null
   /** Slot lampiran, dirender di atas teks */
   children?: ReactNode
+  /**
+   * Pencarian inline dalam thread (2026-09-28): sorot kemunculan `query` di
+   * teks pesan. `focused=true` menandai hasil yang sedang aktif (lebih
+   * tegas: teks warning + bold). Warna dari token (`bg-warning-soft`),
+   * bukan hex literal.
+   */
+  searchHighlight?: { query: string; focused: boolean }
   onLongPress?: () => void
   /**
    * Tekan lama BESERTA jangkar posisi bubble di window — dipakai pemanggil
@@ -208,6 +216,7 @@ export function ChatMessageBubble({
   senderName,
   quote,
   children,
+  searchHighlight,
   onLongPress,
   onLongPressAt,
   onPress,
@@ -358,7 +367,25 @@ export function ChatMessageBubble({
           className={isDeleted ? "italic" : undefined}
           selectable={!isDeleted}
         >
-          {text}
+          {searchHighlight && searchHighlight.query.trim() && !isDeleted
+            ? splitHighlightSpans(text, searchHighlight.query).map((span, i) =>
+                span.hit ? (
+                  <Text
+                    key={i}
+                    variant="inherit"
+                    tone={searchHighlight.focused ? "warning" : "inherit"}
+                    weight={searchHighlight.focused ? 700 : undefined}
+                    className="bg-warning-soft"
+                  >
+                    {span.text}
+                  </Text>
+                ) : (
+                  <Text key={i} variant="inherit">
+                    {span.text}
+                  </Text>
+                ),
+              )
+            : text}
         </Text>
       ) : null}
     </View>

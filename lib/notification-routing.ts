@@ -70,6 +70,12 @@ export function routeForNotificationReference(ref: NotificationReference): Href 
     case "chat":
     case "chatroom":
     case "message":
+    // Nilai `type`/`notificationType` di payload push backend untuk pesan chat:
+    // `type: "CHAT_NEW"` (chat.service) dan enum `CHAT_NEW_MESSAGE`. Tanpa
+    // alias ini, push chat yang tiba TANPA `actionUrl` jatuh ke tab Notifikasi
+    // alih-alih membuka ruang chat.
+    case "chatnew":
+    case "chatnewmessage":
       return id ? ROUTES.chatRoom(id) : ROUTES.chat
     case "supportticket":
     case "ticket":
@@ -142,6 +148,8 @@ export function labelForNotificationReference(ref: NotificationReference): strin
     case "chat":
     case "chatroom":
     case "message":
+    case "chatnew":
+    case "chatnewmessage":
       return "Buka chat"
     case "supportticket":
     case "ticket":
@@ -224,7 +232,10 @@ export function routeForPushData(data: unknown): Href | null {
   if (fromActionUrl) return fromActionUrl
 
   // 2. Fallback ke referenceType/referenceId atau type + id.
-  const referenceType = str("referenceType") ?? str("type") ?? str("kind")
+  // `notificationType` ikut dibaca: payload push backend selalu menyertakan
+  // enum kanonisnya (mis. CHAT_NEW_MESSAGE) walau `type`-nya alias
+  // (CHAT_NEW) — keduanya dinormalisasi ke alias tabel di atas.
+  const referenceType = str("referenceType") ?? str("type") ?? str("notificationType") ?? str("kind")
   const referenceId =
     str("referenceId") ??
     str("id") ??
@@ -266,6 +277,9 @@ export function routeForActionUrl(actionUrl: string | null | undefined): Href | 
   if (segments.length >= 2) {
     const [head, ...rest] = segments
     const id = decodeURIComponent(rest.join("/"))
+    // Query diparse di sini juga: bentuk `/wallet/transaction?id=<txId>`
+    // (payload push backend) punya DUA segmen, bukan satu.
+    const params = new URLSearchParams(query ?? "")
     switch (head) {
       case "chat":
         return ROUTES.chatRoom(id)
@@ -276,6 +290,11 @@ export function routeForActionUrl(actionUrl: string | null | undefined): Href | 
         return ROUTES.disputeDetail(id)
       case "showcase":
         return ROUTES.showcaseDetail(id)
+      case "wallet": {
+        // /wallet/transaction?id=<txId> → detail mutasi; /wallet/<lainnya> → dompet.
+        const txId = params.get("id")
+        return txId ? ROUTES.walletTransaction(txId) : ROUTES.wallet
+      }
       case "questions":
         // Discovery Q&A — belum ada route khusus, arahkan ke daftar.
         return ROUTES.notifications
@@ -289,13 +308,9 @@ export function routeForActionUrl(actionUrl: string | null | undefined): Href | 
       case "notifications":
         return ROUTES.notifications
       case "wallet": {
-        // /wallet/transaction?id=<txId>
-        if (query) {
-          const params = new URLSearchParams(query)
-          const txId = params.get("id")
-          if (txId) return ROUTES.walletTransaction(txId)
-        }
-        return ROUTES.wallet
+        // Bentuk satu-segmen ber-query (`/wallet?id=<txId>`) — robustness.
+        const txId = new URLSearchParams(query ?? "").get("id")
+        return txId ? ROUTES.walletTransaction(txId) : ROUTES.wallet
       }
       case "badges":
         return ROUTES.notifications

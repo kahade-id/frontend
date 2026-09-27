@@ -53,7 +53,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import type { EvidenceItem } from "@/components/ui/evidence-grid"
 import { Header } from "@/components/ui/header"
-import { MediaViewer, fileNameFromUrl, type MediaViewerItem } from "@/components/ui/media-viewer"
+import { MediaViewer, fileNameFromUrl, isImageMedia, type MediaViewerItem } from "@/components/ui/media-viewer"
+import { ImageViewer, type ImageViewerItem } from "@/components/ui/image-viewer"
 import { UPLOAD_DEFAULT_MAX_MB } from "@/components/ui/upload-field"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
@@ -159,6 +160,29 @@ export default function DeliveryProofScreen() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rejecting, setRejecting] = useState(false)
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
+  /**
+   * Viewer gambar layar penuh (pinch-zoom + swipe antar foto bukti).
+   * PDF tetap lewat <MediaViewer> (tombol "Buka eksternal").
+   */
+  const [imageViewer, setImageViewer] = useState<{ images: ImageViewerItem[]; index: number } | null>(null)
+
+  /** Buka gambar-gambar bukti di viewer; kembalikan false bila bukan gambar. */
+  const openImagesViewer = useCallback(
+    (items: DeliveryProofAttachment[], index: number) => {
+      const imgs = items.filter((x) => x.kind !== "pdf")
+      if (imgs.length === 0) return false
+      const at = Math.max(0, imgs.findIndex((x) => x.uri === items[index]?.uri))
+      setImageViewer({
+        images: imgs.map((x, i) => ({
+          url: x.uri,
+          alt: translate("Bukti {x} dari {y}", { x: i + 1, y: imgs.length }),
+        })),
+        index: at,
+      })
+      return true
+    },
+    [],
+  )
 
   // Sisi penjual
   const [uploads, setUploads] = useState<UploadedProof[]>([])
@@ -440,29 +464,33 @@ export default function DeliveryProofScreen() {
     (index: number) => {
       const a = attachments[index]
       if (!a || !latest) return
+      // Gambar → viewer layar penuh (pinch-zoom + swipe); PDF → MediaViewer.
+      if (a.kind !== "pdf" && openImagesViewer(attachments, index)) return
       setViewerItem({
         url: a.uri,
-        mimeType: a.kind === "pdf" ? "application/pdf" : "image/jpeg",
+        mimeType: "application/pdf",
         title: translate("Bukti {x} dari {y}", { x: index + 1, y: attachments.length }),
         caption: [latest.description, formatDateTime(latest.createdAt)].filter(Boolean).join(" · "),
         fileName: a.kind === "pdf" ? a.name : undefined,
       })
     },
-    [attachments, latest],
+    [attachments, latest, openImagesViewer],
   )
 
   /** R2 (butir #46): buka lampiran pertama bukti riwayat dalam viewer yang sama. */
   const openProofAttachment = useCallback((proof: DeliveryProof) => {
-    const first = toAttachments(proof).items[0]
+    const items = toAttachments(proof).items
+    const first = items[0]
     if (!first) return
+    if (first.kind !== "pdf" && openImagesViewer(items, 0)) return
     setViewerItem({
       url: first.uri,
-      mimeType: first.kind === "pdf" ? "application/pdf" : "image/jpeg",
+      mimeType: "application/pdf",
       title: proofHistoryLabel(proof.status),
       caption: [proof.description, formatDateTime(proof.createdAt)].filter(Boolean).join(" · "),
       fileName: first.kind === "pdf" ? first.name : undefined,
     })
-  }, [])
+  }, [openImagesViewer])
 
   const showSellerForm = isSeller && latest?.status !== "CONFIRMED"
 
@@ -499,7 +527,12 @@ export default function DeliveryProofScreen() {
                     setUploads((prev) => prev.filter((u) => u.id !== item.id))
                   }
                   onOpenEvidence={(item) =>
-                    setViewerItem({ url: item.url, mimeType: item.mimeType, title: "Foto bukti" })
+                    isImageMedia({ url: item.url, mimeType: item.mimeType })
+                      ? setImageViewer({
+                          images: [{ url: item.url, alt: translate("Foto bukti") }],
+                          index: 0,
+                        })
+                      : setViewerItem({ url: item.url, mimeType: item.mimeType, title: "Foto bukti" })
                   }
                   maxItems={MAX_PROOF_FILES}
                   value={form}
@@ -625,6 +658,14 @@ export default function DeliveryProofScreen() {
         item={viewerItem}
         onClose={() => setViewerItem(null)}
         onOpenError={(m) => toast.show({ title: m, tone: "danger" })}
+      />
+
+      <ImageViewer
+        visible={imageViewer != null}
+        images={imageViewer?.images ?? []}
+        index={imageViewer?.index ?? 0}
+        onClose={() => setImageViewer(null)}
+        title={translate("Bukti pengiriman")}
       />
 
       <Dialog

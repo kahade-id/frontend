@@ -39,6 +39,10 @@ import * as Notifications from "expo-notifications"
 import { Platform } from "react-native"
 
 import { invalidateQueryCache } from "@/lib/query-cache"
+import {
+  ensureLocalNotificationPrefs,
+  localKindForPushData,
+} from "@/lib/notification-local-prefs"
 import { SecureKeys, deleteSecureItem, getOrCreateDeviceId, getSecureItem, setSecureItem } from "@/lib/secure-storage"
 import { logWarn } from "@/lib/telemetry"
 
@@ -78,6 +82,20 @@ export const NOTIFICATION_CHANNELS = {
   default: "default",
   /** Status order & escrow — uang bergerak. Sengaja paling menonjol. */
   transaksi: "transaksi",
+  /**
+   * Channel yang dipakai backend (`getAndroidChannelId` di push.service):
+   * tipe CHAT_* dan DISPUTE_* → "chat", ORDER_* → "orders", WALLET_* →
+   * "wallet", SECURITY_* / KYC_* / SYSTEM_* → "security". SEBELUMNYA tidak
+   * dibuat di klien: FCM jatuh ke channel "default" bila channel tujuan belum
+   * ada, sehingga mis. push chat tampil tanpa kanal yang benar dan pengguna
+   * tidak bisa mengatur chat terpisah dari pengumuman umum. "transaksi"
+   * dipertahankan apa adanya (write-once; sudah ada di perangkat pengguna
+   * lama).
+   */
+  chat: "chat",
+  orders: "orders",
+  wallet: "wallet",
+  security: "security",
 } as const
 
 export type NotificationChannelId =
@@ -149,12 +167,26 @@ export function subscribeNotificationOpened(
 export async function setupNotifications(): Promise<void> {
   if (!handlerInstalled) {
     Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowBanner: true,
-        shouldShowList: true,
-        shouldPlaySound: false,
-        shouldSetBadge: true,
-      }),
+      handleNotification: async (notification) => {
+        // Toggle granular lokal (layar "Pengaturan Notifikasi"): jenis yang
+        // dimatikan pengguna tidak memunculkan banner/tray saat app
+        // foreground. Fail-open: tipe tak dikenal (`null`) tetap tampil.
+        // Badge tetap dihitung — tab Notifikasi in-app tidak disembunyikan.
+        let show = true
+        try {
+          const prefs = await ensureLocalNotificationPrefs()
+          const kind = localKindForPushData(notification.request.content.data)
+          show = kind === null ? true : prefs[kind]
+        } catch (error) {
+          logWarn("push:foreground-prefs", error)
+        }
+        return {
+          shouldShowBanner: show,
+          shouldShowList: show,
+          shouldPlaySound: false,
+          shouldSetBadge: true,
+        }
+      },
     })
     /**
      * R2 (audit ronde-2, butir #20): listener notifikasi FOREGROUND. Dulu
@@ -182,6 +214,46 @@ export async function setupNotifications(): Promise<void> {
         "Status order, dana masuk/keluar rekening escrow, dan batas waktu pembayaran. Sangat disarankan tetap aktif.",
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+      sound: "default",
+      enableVibrate: true,
+    })
+
+    await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.orders, {
+      name: "Pesanan & escrow",
+      description:
+        "Status pesanan: pembayaran diterima, pengiriman, dan penyelesaian escrow.",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+      sound: "default",
+      enableVibrate: true,
+    })
+
+    await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.wallet, {
+      name: "Dompet",
+      description: "Dana dompet: top-up, penarikan, transfer, dan pencairan escrow.",
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+      sound: "default",
+      enableVibrate: true,
+    })
+
+    await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.chat, {
+      name: "Chat",
+      description: "Pesan chat baru dari lawan transaksi atau admin.",
+      importance: Notifications.AndroidImportance.HIGH,
+      lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
+      sound: "default",
+      enableVibrate: true,
+    })
+
+    await Notifications.setNotificationChannelAsync(NOTIFICATION_CHANNELS.security, {
+      name: "Keamanan",
+      description:
+        "Peringatan keamanan akun: login baru, perubahan kata sandi, dan verifikasi.",
+      importance: Notifications.AndroidImportance.HIGH,
       lockscreenVisibility: Notifications.AndroidNotificationVisibility.PRIVATE,
       sound: "default",
       enableVibrate: true,

@@ -56,9 +56,9 @@ import { DataScreen } from "@/components/ui/data-screen"
 import { Divider } from "@/components/ui/divider"
 import { useDocumentTitle } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
+import { ImageViewer } from "@/components/ui/image-viewer"
 import { Input } from "@/components/ui/input"
 import type { LoadMoreStatus } from "@/components/ui/load-more"
-import { MediaViewer, type MediaViewerItem } from "@/components/ui/media-viewer"
 import { Dialog } from "@/components/ui/modal"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -189,7 +189,8 @@ function ShowcaseDetailContent({
   const [meId, setMeId] = useState<string | null>(null)
   // S9: username untuk komentar optimistis.
   const [meUsername, setMeUsername] = useState<string | null>(null)
-  const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
+  /** Index foto yang dibuka di <ImageViewer>; null = viewer tertutup. */
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null)
   const composerRef = useRef<TextInput>(null)
 
   const [comments, setComments] = useState<ShowcaseCommentWithReplies[]>([])
@@ -295,14 +296,10 @@ function ShowcaseDetailContent({
 
   const resolvedImages = showcaseImages(item)
 
+  /** Ketuk media → viewer layar penuh (pinch-zoom + swipe antar foto). */
   const openViewer = (index: number) => {
-    const image = resolvedImages[index]
-    if (!image) return
-    setViewerItem({
-      url: image.url,
-      title: item.title,
-      caption: item.description ?? undefined,
-    })
+    if (!resolvedImages[index]) return
+    setViewerIndex(index)
   }
 
   const focusComposer = () => composerRef.current?.focus()
@@ -813,10 +810,12 @@ function ShowcaseDetailContent({
         }}
       />
 
-      <MediaViewer
-        item={viewerItem}
-        onClose={() => setViewerItem(null)}
-        onOpenError={(msg) => toast.show({ title: msg, tone: "danger" })}
+      <ImageViewer
+        visible={viewerIndex != null}
+        images={resolvedImages.map((image) => ({ url: image.url, alt: item.title }))}
+        index={viewerIndex ?? 0}
+        onClose={() => setViewerIndex(null)}
+        title={item.title}
       />
 
       {/* Karya terkait — kategori sama, lalu populer sebagai pengisi. */}

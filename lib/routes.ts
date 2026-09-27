@@ -279,6 +279,11 @@ export const ROUTES = {
   passkeys: "/passkeys" as Href,
   notificationPreferences: "/notification-preferences" as Href,
   /**
+   * Toggle notifikasi granular per jenis — PREFERENSI LOKAL perangkat
+   * (lib/notification-local-prefs.ts), bukan preferensi server.
+   */
+  notificationSettings: "/notification-settings" as Href,
+  /**
    * Tampilan: mode terang/gelap/sistem.
    *
    * Audit: design system punya set token dark lengkap, <ThemeProvider>

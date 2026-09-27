@@ -30,15 +30,14 @@
  *  - F-04: item yang sudah dilaporkan sesi ini disembunyikan dari feed.
  */
 import { useCallback, useEffect, useMemo, useRef, useState, memo } from "react"
-import { TextInput, View } from "react-native"
+import { View } from "react-native"
 import Animated from "react-native-reanimated"
-import { CurrencyCircleDollar, Images, X } from "phosphor-react-native"
+import { Images, X } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useIsFocused } from "@react-navigation/native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseFeedSort, type ShowcaseSocialItem } from "@/lib/api/showcase"
-import { formatNumber } from "@/lib/format"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { fetchViaQueryCache } from "@/lib/query-cache"
 import { queryKeys } from "@/lib/query-keys"
@@ -63,8 +62,8 @@ import {
   useShowcaseDirtyVersion,
 } from "@/lib/showcase-social-prefs"
 import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
+import { showcaseImages } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
-import { normalizePriceFilter } from "@/lib/showcase-price-filter"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useToast } from "@/components/ui/toast"
@@ -76,8 +75,10 @@ import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { IconButton } from "@/components/ui/icon-button"
+import { ImageViewer } from "@/components/ui/image-viewer"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
+import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
@@ -103,9 +104,6 @@ const FOLLOWING_MAX_PAGES = 3
  */
 const FOLLOWING_INDEX_MAX_PAGES = 20
 const FOLLOWING_INDEX_PARALLEL = 4
-
-// UI-F019: implementasi dipindah ke lib/showcase-price-filter.ts (murni &
-// teruji); komponen hanya mengimpor.
 
 // ------------------------------------------------------------------
 // Tab Showcase (cursor/keyset) — header lipat + tab feed gaya profil publik
@@ -186,11 +184,18 @@ const FeedCard = memo(function FeedCard({
   )
   const handleComments = useCallback(() => onOpenComments(item), [onOpenComments, item])
   const handleReport = useCallback(() => onReport(item), [onReport, item])
+  /** Viewer gambar layar penuh: ketuk media (bukan judul) membuka ini. */
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null)
+  const viewerImages = useMemo(
+    () => showcaseImages(item).map((g) => ({ url: g.url, alt: item.title })),
+    [item],
+  )
   return (
     <>
       <ShowcaseFeedItem
         item={display}
         onPress={handlePress}
+        onOpenMedia={setViewerIndex}
         onToggleLike={toggleLike}
         onOpenComments={handleComments}
         onToggleSave={toggleSave}
@@ -202,6 +207,15 @@ const FeedCard = memo(function FeedCard({
         divider={divider}
       />
       <ShowcaseShareSheet visible={shareSheetVisible} item={display} onClose={() => setShareSheetVisible(false)} />
+      {viewerIndex != null ? (
+        <ImageViewer
+          visible
+          images={viewerImages}
+          index={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+          title={item.title}
+        />
+      ) : null}
     </>
   )
 })
@@ -219,12 +233,6 @@ export type ShowcaseFeedTabProps = {
 export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, location, onClearLocation }: ShowcaseFeedTabProps) {
   // i18n: label tab mengikuti bahasa aktif.
   const feedTabs = useFeedTabs()
-  // DC-012: filter harga (state lokal — tidak perlu param rute). String untuk
-  // input; dinormalisasi ke integer >= 0 saat diterapkan.
-  const [minPriceInput, setMinPriceInput] = useState("")
-  const [maxPriceInput, setMaxPriceInput] = useState("")
-  const [priceFilter, setPriceFilter] = useState<{ min?: number; max?: number }>({})
-  const [priceOpen, setPriceOpen] = useState(false)
   const params = useLocalSearchParams<{ kind?: string; search?: string }>()
   const kind: ShowcaseFeedKind = params.kind === "following" || params.kind === "latest" || params.kind === "popular" ? params.kind : "forYou"
   // Pencarian inline DIHAPUS dari header (2026-09-23): satu-satunya kolom
@@ -330,29 +338,15 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     setFollowingGuest(true)
   }, [])
 
-  /** Filter aktif — kunci himpunan hasil (tab × search × kategori × lokasi × harga). */
+  /** Filter aktif — kunci himpunan hasil (tab × search × kategori × lokasi). */
   const filter: ShowcaseFeedFilter = useMemo(
     () => ({
       search: activeSearch || undefined,
       category: category || undefined,
       location: location || undefined,
-      minPrice: priceFilter.min,
-      maxPrice: priceFilter.max,
     }),
-    [activeSearch, category, location, priceFilter],
+    [activeSearch, category, location],
   )
-
-  /** DC-012: terapkan filter harga dari input (integer >= 0; kosong = lepas). */
-  const applyPriceFilter = useCallback(() => {
-    setPriceFilter(normalizePriceFilter(minPriceInput, maxPriceInput))
-    setPriceOpen(false)
-  }, [minPriceInput, maxPriceInput])
-
-  const clearPriceFilter = useCallback(() => {
-    setMinPriceInput("")
-    setMaxPriceInput("")
-    setPriceFilter({})
-  }, [])
 
   /**
    * Muat daftar akun yang diikuti (A-03: maks FOLLOWING_INDEX_MAX_PAGES × 50,
@@ -457,8 +451,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         search: filter.search,
         category: filter.category,
         location: filter.location,
-        minPrice: filter.minPrice,
-        maxPrice: filter.maxPrice,
       }
       try {
         let incoming: ShowcaseSocialItem[] = []
@@ -764,81 +756,6 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   ) : null
 
   /** DC-012: label rentang harga aktif untuk chip. */
-  const priceLabel = (() => {
-    const { min, max } = priceFilter
-    if (min === undefined && max === undefined) return null
-    const fmt = (n: number) => `Rp${formatNumber(n)}`
-    if (min !== undefined && max !== undefined) return `${fmt(min)} – ${fmt(max)}`
-    if (min !== undefined) return `≥ ${fmt(min)}`
-    return `≤ ${fmt(max!)}`
-  })()
-
-  /** DC-012: chip harga aktif + panel input min–maks. */
-  const priceFilterUi = (
-    <View className="mx-5 mt-3 gap-2">
-      {priceLabel ? (
-        <View className="flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5">
-          <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
-            {translate("Harga: {x}", { x: priceLabel })}
-          </Text>
-          <IconButton
-            icon={X}
-            variant="ghost"
-            size="sm"
-            accessibilityLabel={translate("Hapus filter harga")}
-            onPress={clearPriceFilter}
-          />
-        </View>
-      ) : (
-        <Button
-          variant="secondary"
-          size="sm"
-          fullWidth={false}
-          leftIcon={CurrencyCircleDollar}
-          onPress={() => setPriceOpen((v) => !v)}
-          accessibilityLabel={translate("Filter harga")}
-        >
-          {translate("Harga")}
-        </Button>
-      )}
-      {priceOpen && !priceLabel ? (
-        <View className="gap-2 rounded-md border border-border bg-surface p-3">
-          <View className="flex-row gap-2">
-            <View className="flex-1">
-              <Text variant="caption" tone="secondary">
-                {translate("Min (Rp)")}
-              </Text>
-              <TextInput
-                value={minPriceInput}
-                onChangeText={setMinPriceInput}
-                keyboardType="numeric"
-                placeholder="0"
-                accessibilityLabel={translate("Harga minimum")}
-                className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-base text-foreground"
-              />
-            </View>
-            <View className="flex-1">
-              <Text variant="caption" tone="secondary">
-                {translate("Maks (Rp)")}
-              </Text>
-              <TextInput
-                value={maxPriceInput}
-                onChangeText={setMaxPriceInput}
-                keyboardType="numeric"
-                placeholder="—"
-                accessibilityLabel={translate("Harga maksimum")}
-                className="mt-1 rounded-md border border-border bg-background px-3 py-2 text-base text-foreground"
-              />
-            </View>
-          </View>
-          <Button variant="primary" size="sm" fullWidth onPress={applyPriceFilter}>
-            {translate("Terapkan")}
-          </Button>
-        </View>
-      ) : null}
-    </View>
-  )
-
   return (
     <View className="flex-1">
       {/* ── Header showcase — pensil kelola · logo · notifikasi + tab feed ── */}
@@ -884,10 +801,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         bottomPadding={bottomPadding}
         header={
           searchChip || categoryChip || locationChip || followingPartialNotice ? (
-            <View>{searchChip}{categoryChip}{locationChip}{priceFilterUi}{followingPartialNotice}</View>
+            <View>{searchChip}{categoryChip}{locationChip}{followingPartialNotice}<OnboardingChecklistCard /></View>
           ) : (
-            // DC-012: tombol filter harga tetap tersedia walau tak ada chip lain.
-            <View>{priceFilterUi}</View>
+            <OnboardingChecklistCard />
           )
         }
         // Skeleton sebentuk <ShowcaseFeedItem> (anatomi: penulis · media ·

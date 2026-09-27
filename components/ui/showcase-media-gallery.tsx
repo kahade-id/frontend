@@ -16,16 +16,35 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { translate } from "@/lib/i18n/translate"
 
-export function ShowcaseMediaGallery({ images, title, onOpen }: {
+/**
+ * Jeda maksimum antar dua ketukan agar dihitung ketuk-ganda (ala Instagram).
+ * Ketuk tunggal DITUNDA selama jeda ini bila `onDoubleTap` disediakan —
+ * supaya ketuk-ganda tidak ikut membuka aksi ketuk-tunggal.
+ */
+const DOUBLE_TAP_MS = 300
+
+export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
   images: { id: string; url: string }[]
   title: string
   onOpen: (index: number) => void
+  /** Ketuk-ganda pada slide → mis. suka (opsional; tanpa ini ketuk-tunggal langsung). */
+  onDoubleTap?: (index: number) => void
 }) {
   const scroll = useRef<ScrollView>(null)
   const [width, setWidth] = useState(0)
   const [page, setPage] = useState(0)
   const pageRef = useRef(page)
   pageRef.current = page
+  /** Ref untuk handler (dipakai di dalam timeout) agar identitas stabil. */
+  const onOpenRef = useRef(onOpen)
+  onOpenRef.current = onOpen
+  const onDoubleTapRef = useRef(onDoubleTap)
+  onDoubleTapRef.current = onDoubleTap
+  const lastTapRef = useRef<{ index: number; at: number } | null>(null)
+  const pendingSingleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => () => {
+    if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
+  }, [])
   const signature = images.map((image) => image.id).join("|")
   useEffect(() => { setPage(0); scroll.current?.scrollTo({ x: 0, animated: false }) }, [signature])
   useEffect(() => { scroll.current?.scrollTo({ x: pageRef.current * width, animated: false }) }, [width])
@@ -33,6 +52,34 @@ export function ShowcaseMediaGallery({ images, title, onOpen }: {
     const next = Math.max(0, Math.min(images.length - 1, index))
     setPage(next)
     scroll.current?.scrollTo({ x: next * width, animated: false })
+  }
+  /**
+   * Ketuk pada slide: deteksi ketuk-ganda manual (bukan RNGH) supaya tidak
+   * berebut gesture dengan ScrollView paging horizontal di bawahnya — pola
+   * yang sama dipakai web (tidak ada gesture handler) & native.
+   */
+  const handleSlidePress = (index: number) => {
+    if (!onDoubleTapRef.current) {
+      onOpenRef.current(index)
+      return
+    }
+    const now = Date.now()
+    const prev = lastTapRef.current
+    if (prev && prev.index === index && now - prev.at <= DOUBLE_TAP_MS) {
+      if (pendingSingleRef.current) {
+        clearTimeout(pendingSingleRef.current)
+        pendingSingleRef.current = null
+      }
+      lastTapRef.current = null
+      onDoubleTapRef.current(index)
+      return
+    }
+    lastTapRef.current = { index, at: now }
+    if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
+    pendingSingleRef.current = setTimeout(() => {
+      pendingSingleRef.current = null
+      onOpenRef.current(index)
+    }, DOUBLE_TAP_MS)
   }
   /** B-01: jendela render ±1 slide — di luar itu placeholder seukuran. */
   const inWindow = (index: number) => Math.abs(index - page) <= 1
@@ -56,7 +103,7 @@ export function ShowcaseMediaGallery({ images, title, onOpen }: {
               {inWindow(index) ? (
                 <PressableScale accessibilityRole="button"
                   accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: images.length })}
-                  onPress={() => onOpen(index)} containerClassName="w-full">
+                  onPress={() => handleSlidePress(index)} containerClassName="w-full">
                   <Picture source={image.url} alt={title} aspectRatio={1} radius="none" bordered={false} recyclingKey={image.id} preventDownload />
                 </PressableScale>
               ) : (

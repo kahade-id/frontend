@@ -156,3 +156,23 @@ export function rateSupportTicket(ticketId: string, rating: number, comment?: st
     { auth: "required" },
   )
 }
+
+/**
+ * Status tiket yang dianggap "perlu perhatian" untuk dot di menu drawer
+ * "Tiket Bantuan".
+ *
+ * Keterbatasan jujur: backend TIDAK punya penanda "belum dibaca" per tiket
+ * (tidak ada endpoint unread khusus support), jadi unread SEJATI tidak bisa
+ * dihitung tanpa API baru. Fallback yang dipakai drawer: dot menyala bila
+ * ada tiket berstatus terbuka — itu sinyal terbaik dari data yang ada hari
+ * ini. Dipisah sebagai fungsi murni supaya bisa di-unit-test.
+ */
+const OPEN_TICKET_STATUSES: ReadonlySet<string> = new Set([
+  "OPEN",
+  "IN_PROGRESS",
+  "WAITING_USER",
+])
+
+export function hasOpenSupportTicket(tickets: readonly SupportTicket[]): boolean {
+  return tickets.some((t) => OPEN_TICKET_STATUSES.has(t.status))
+}

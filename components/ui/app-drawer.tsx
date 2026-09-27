@@ -5,13 +5,19 @@
  *   1. Header profil: foto di atas, nama + username di bawahnya (vertikal,
  *      rata kiri). TANPA chevron. Tombol X tepat di pojok kanan atas header.
  *   2. Kahade Plus — kartu section tersendiri yang menonjol.
- *   3. Menu utama: Profile, Dompet, Etalase, Template, Order Link, Laporan.
+ *   3. Menu utama: Lihat Profil, Dompet Saya, Kelola Etalase,
+ *      Template Transaksi, Order Link, Laporan & Analitik, Pesan
+ *      (revisi label 2026-09-28). Dot unread di "Pesan" (store yang sama
+ *      dengan badge tab — lib/chat-unread-count) dan "Tiket Bantuan"
+ *      (dot = ada tiket terbuka; backend tidak punya unread per tiket).
  *   4. Menu bawah: Umpan Balik, Bantuan Langsung, Tiket Bantuan
  *      (revisi 2026-09-28, permintaan produk).
- *   5. Utility bar di kaki drawer (revisi 2026-09-28): pil berisi
- *      gear (Pengaturan), pill pencarian expandable (→ /search?q=…),
- *      dan pensil (sheet global "Buat baru"). Motion saat diklik +
- *      expand/collapse pencarian; reduced motion = instan.
+ *   5. Utility bar di kaki drawer (revisi 2026-09-28): TIGA circle card
+ *      terpisah — gear (Pengaturan), search expandable (ketuk → melebar
+ *      jadi kolom input di tempat, submit → /search?q=…), dan pensil
+ *      (sheet global "Buat baru"). Masing-masing lingkaran ber-background
+ *      modes[themeMode].primary + ikon inverse. Motion saat diklik +
+ *      reduced motion = instan.
  *
  * Desain list: ikon TANPA background, varian Phosphor bold, judul BOLD,
  * TANPA chevron di semua item. Light/dark via token.
@@ -38,6 +44,7 @@ import Reanimated, {
 } from "react-native-reanimated"
 import {
   ChartBar,
+  ChatCenteredText,
   ChatCircle,
   CrownSimple,
   FileText,
@@ -62,6 +69,8 @@ import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { api, type UserProfile } from "@/lib/api"
+import { hasOpenSupportTicket } from "@/lib/api/support"
+import { refreshChatUnreadCount, useChatUnreadCountState } from "@/lib/chat-unread-count"
 import { closeDrawer, drawerProgress, useDrawerOpen } from "@/lib/drawer"
 import { openCreateSheet } from "@/lib/create-sheet"
 import { elevationStyle } from "@/lib/elevation"
@@ -74,6 +83,11 @@ import { useAuthSession } from "@/lib/use-auth-session"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { useTheme } from "@/components/theme-provider"
+import {
+  BOTTOM_MENU_META,
+  MAIN_MENU_META,
+  type DrawerMenuMeta,
+} from "@/lib/drawer-menu"
 
 /** Lebar panel: 85% layar, maksimal 340dp. */
 export const DRAWER_WIDTH = Math.min(
@@ -81,32 +95,39 @@ export const DRAWER_WIDTH = Math.min(
   Math.round(Dimensions.get("window").width * 0.85),
 )
 
-type DrawerMenuItem = {
-  id: string
-  label: string
+type DrawerMenuItem = DrawerMenuMeta & {
   icon: IconComponent
-  /** Salah satu: href statis, atau aksi khusus (mis. profil yang sadar tamu). */
-  href?: Href
   onPress?: () => void
-  accessibilityLabel: string
 }
 
-/** Menu utama — urutan sesuai spesifikasi user. */
-const MAIN_MENU: readonly DrawerMenuItem[] = [
-  { id: "profile", label: "Profile", icon: User, accessibilityLabel: "Buka profil saya" },
-  { id: "wallet", label: "Dompet", icon: Wallet, href: ROUTES.wallet, accessibilityLabel: "Buka dompet" },
-  { id: "etalase", label: "Etalase", icon: Storefront, href: ROUTES.showcaseManagement, accessibilityLabel: "Buka etalase" },
-  { id: "templates", label: "Template", icon: FileText, href: ROUTES.transactionTemplates, accessibilityLabel: "Buka template transaksi" },
-  { id: "order-links", label: "Order Link", icon: LinkSimple, href: ROUTES.orderLinks, accessibilityLabel: "Buka order link" },
-  { id: "reports", label: "Laporan", icon: ChartBar, href: ROUTES.reports(), accessibilityLabel: "Buka laporan saya" },
-]
+/**
+ * Ikon per id menu — metadata (label/href) hidup di `lib/drawer-menu.ts`
+ * (modul murni, bisa di-unit-test); ikon Phosphor hanya ada di lapisan UI.
+ */
+const MENU_ICONS: Record<string, IconComponent> = {
+  profile: User,
+  wallet: Wallet,
+  etalase: Storefront,
+  templates: FileText,
+  "order-links": LinkSimple,
+  reports: ChartBar,
+  messages: ChatCenteredText,
+  feedback: ChatCircle,
+  "live-support": Headset,
+  "support-tickets": Ticket,
+}
+
+function withIcons(
+  meta: readonly DrawerMenuMeta[],
+): readonly DrawerMenuItem[] {
+  return meta.map((m) => ({ ...m, icon: MENU_ICONS[m.id] ?? User }))
+}
+
+/** Menu utama — label & urutan dari MAIN_MENU_META (revisi 2026-09-28). */
+export const MAIN_MENU: readonly DrawerMenuItem[] = withIcons(MAIN_MENU_META)
 
 /** Menu bawah — revisi 2026-09-28 (permintaan produk). */
-const BOTTOM_MENU: readonly DrawerMenuItem[] = [
-  { id: "feedback", label: "Umpan Balik", icon: ChatCircle, href: ROUTES.feedback, accessibilityLabel: "Buka umpan balik" },
-  { id: "live-support", label: "Bantuan Langsung", icon: Headset, href: ROUTES.liveSupport, accessibilityLabel: "Buka bantuan langsung" },
-  { id: "support-tickets", label: "Tiket Bantuan", icon: Ticket, href: ROUTES.support, accessibilityLabel: "Buka tiket bantuan" },
-]
+export const BOTTOM_MENU: readonly DrawerMenuItem[] = withIcons(BOTTOM_MENU_META)
 
 const SPRING = tokens.motion.spring
 
@@ -114,21 +135,31 @@ const SPRING = tokens.motion.spring
 export function DrawerMenuRow({
   item,
   onNavigate,
+  badge = false,
 }: {
   item: DrawerMenuItem
   onNavigate: (item: DrawerMenuItem) => void
+  /** Dot unread di kanan judul (Pesan, Tiket Bantuan). */
+  badge?: boolean
 }) {
   return (
     <PressableScale
       onPress={() => onNavigate(item)}
       accessibilityRole="menuitem"
-      accessibilityLabel={translate(item.accessibilityLabel)}
+      accessibilityLabel={
+        badge
+          ? translate("{x} — ada yang belum dibaca", {
+              x: translate(item.accessibilityLabel),
+            })
+          : translate(item.accessibilityLabel)
+      }
       className="flex-row items-center gap-4 px-5 py-3"
     >
       <Icon icon={item.icon} size="md" tone="active" weight="bold" />
       <Text variant="bodyLarge" weight={600} className="flex-1">
         {translate(item.label)}
       </Text>
+      {badge ? <View className="h-2 w-2 rounded-full bg-danger" /> : null}
     </PressableScale>
   )
 }
@@ -136,13 +167,16 @@ export function DrawerMenuRow({
 /**
  * Utility bar di kaki drawer (revisi 2026-09-28, permintaan produk):
  *
- *   [ ⚙ ]  [ 🔍 Pencarian ]  [ ✏ ]
+ *   ( ⚙ )   ( 🔍 )              ( ✏ )
+ *
+ * TIGA circle card TERPISAH (bukan satu pil) — masing-masing lingkaran
+ * dengan background `modes[themeMode].primary` dan ikon `inverse`, sesuai
+ * gambar referensi awal user.
  *
  * - Gear → Pengaturan. Pensil → sheet global "Buat baru".
- * - Pill pencarian EXPANDABLE: ketuk → bar berubah jadi kolom input
- *   (fade in; reduced motion = instan), submit → /search?q=… , X → tutup.
- * - Pil hitam mode-aware: `primary` (hitam di light, putih di dark) dengan
- *   ikon/teks `inverse` — sesuai gambar referensi user.
+ * - Search EXPANDABLE: ketuk ikon search → lingkaran tengah melebar jadi
+ *   kolom input di tempat (fade in; reduced motion = instan),
+ *   submit → /search?q=… , X → tutup kembali jadi lingkaran.
  * - Motion saat diklik: PressableScale di tiap tombol + haptic ringan.
  */
 function DrawerUtilityBar() {
@@ -200,17 +234,32 @@ function DrawerUtilityBar() {
   }, [])
 
   return (
-    <View className="px-5 pb-1 pt-2">
-      <View
-        className="h-14 flex-row items-center rounded-full px-2"
-        style={{ backgroundColor: barBg }}
-        accessibilityRole="toolbar"
-        accessibilityLabel={translate("Aksi cepat")}
+    <View
+      className="flex-row items-center gap-3 px-5 pb-1 pt-2"
+      accessibilityRole="toolbar"
+      accessibilityLabel={translate("Aksi cepat")}
+    >
+      {/* Lingkaran 1: Pengaturan. */}
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={translate("Pengaturan")}
+        haptic
+        onPress={goSettings}
+        className="h-12 w-12 items-center justify-center rounded-full bg-primary"
       >
+        <Icon icon={Gear} size="md" tone="inverse" weight="bold" />
+      </PressableScale>
+
+      {/* Lingkaran 2: pencarian — ketuk → melebar jadi kolom input di tempat. */}
+      <View className="flex-1 flex-row items-center">
         {searchOpen ? (
           <Reanimated.View
-            className="flex-1 flex-row items-center gap-1 pl-2"
             entering={reducedMotion ? undefined : FadeIn.duration(160)}
+            // backgroundColor INLINE dari token (bukan className="bg-..."):
+            // className di Reanimated.View tidak ter-compile ke background di
+            // web (bug 2026-09-27).
+            style={{ backgroundColor: barBg }}
+            className="h-12 flex-1 flex-row items-center gap-1 rounded-full pl-4 pr-1"
           >
             <Icon icon={MagnifyingGlass} size="md" tone="inverse" weight="bold" />
             <TextInput
@@ -239,47 +288,30 @@ function DrawerUtilityBar() {
             </PressableScale>
           </Reanimated.View>
         ) : (
-          <>
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={translate("Pengaturan")}
-              haptic
-              onPress={goSettings}
-              className="h-11 w-11 items-center justify-center rounded-full"
-            >
-              <Icon icon={Gear} size="md" tone="inverse" weight="bold" />
-            </PressableScale>
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={translate("Pencarian")}
-              accessibilityHint={translate("Buka kolom pencarian")}
-              haptic
-              onPress={openSearch}
-              className="flex-1 flex-row items-center justify-center gap-2"
-            >
-              <Icon icon={MagnifyingGlass} size="md" tone="inverse" weight="bold" />
-              <Text
-                variant="body"
-                weight={600}
-                style={{ color: onBar }}
-                numberOfLines={1}
-              >
-                {translate("Pencarian")}
-              </Text>
-            </PressableScale>
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={translate("Buat baru")}
-              accessibilityHint={translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")}
-              haptic
-              onPress={openCompose}
-              className="h-11 w-11 items-center justify-center rounded-full"
-            >
-              <Icon icon={Pencil} size="md" tone="inverse" weight="bold" />
-            </PressableScale>
-          </>
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={translate("Pencarian")}
+            accessibilityHint={translate("Buka kolom pencarian")}
+            haptic
+            onPress={openSearch}
+            className="h-12 w-12 items-center justify-center rounded-full bg-primary"
+          >
+            <Icon icon={MagnifyingGlass} size="md" tone="inverse" weight="bold" />
+          </PressableScale>
         )}
       </View>
+
+      {/* Lingkaran 3: Buat baru. */}
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={translate("Buat baru")}
+        accessibilityHint={translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")}
+        haptic
+        onPress={openCompose}
+        className="h-12 w-12 items-center justify-center rounded-full bg-primary"
+      >
+        <Icon icon={Pencil} size="md" tone="inverse" weight="bold" />
+      </PressableScale>
     </View>
   )
 }
@@ -304,6 +336,34 @@ export function AppDrawer() {
     open && Boolean(token),
   )
   const profile: UserProfile | null = profileQuery.data ?? null
+
+  // Badge unread "Pesan": store yang SAMA dengan badge tab chat
+  // (lib/chat-unread-count) — drawer hanya membaca snapshot; bila store
+  // masih idle (mis. drawer dibuka dari layar non-tab), picu satu refresh
+  // ringan ke endpoint yang sama dengan polling tab.
+  const chatUnread = useChatUnreadCountState()
+  useEffect(() => {
+    if (open && token && chatUnread.status === "idle") {
+      void refreshChatUnreadCount()
+    }
+  }, [open, token, chatUnread.status])
+
+  // Badge "Tiket Bantuan": daftar tiket hanya diambil saat drawer dibuka —
+  // endpoint yang sama dengan layar daftar tiket, hasilnya di-cache
+  // useApiQuery per key. Backend tidak punya penanda unread per tiket
+  // (tanpa API baru), jadi dot = ada tiket berstatus terbuka.
+  const ticketsQuery = useApiQuery(
+    "drawer:support-tickets",
+    (signal) => api.support.listSupportTickets(signal),
+    open && Boolean(token),
+  )
+  const hasOpenTicket = hasOpenSupportTicket(ticketsQuery.data ?? [])
+
+  const badgeFor = (id: string): boolean => {
+    if (id === "messages") return (chatUnread.count ?? 0) > 0
+    if (id === "support-tickets") return hasOpenTicket
+    return false
+  }
   const isKycVerified = Boolean(
     (profile as unknown as { isKycVerified?: boolean } | null)?.isKycVerified,
   )
@@ -536,7 +596,12 @@ export function AppDrawer() {
             {/* Menu utama. */}
             <View className="py-1">
               {MAIN_MENU.map((item) => (
-                <DrawerMenuRow key={item.id} item={item} onNavigate={onNavigate} />
+                <DrawerMenuRow
+                  key={item.id}
+                  item={item}
+                  onNavigate={onNavigate}
+                  badge={badgeFor(item.id)}
+                />
               ))}
             </View>
 
@@ -547,7 +612,12 @@ export function AppDrawer() {
             {/* Menu bawah. */}
             <View className="pb-2">
               {BOTTOM_MENU.map((item) => (
-                <DrawerMenuRow key={item.id} item={item} onNavigate={onNavigate} />
+                <DrawerMenuRow
+                  key={item.id}
+                  item={item}
+                  onNavigate={onNavigate}
+                  badge={badgeFor(item.id)}
+                />
               ))}
             </View>
           </ScrollView>

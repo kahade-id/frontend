@@ -78,6 +78,13 @@ export const SecureKeys = {
    */
   onboardingSeen: "kahade.onboarding.seen",
   /**
+   * "1" bila checklist onboarding (KYC + rekening + etalase pertama) sudah
+   * selesai SEMUA — kartu checklist disembunyikan permanen. BUKAN rahasia,
+   * preferensi level perangkat seperti `onboardingSeen`: boleh persist di
+   * web, TIDAK dihapus `clearSession()`.
+   */
+  onboardingChecklistDone: "kahade.onboarding.checklistDone",
+  /**
    * Bahasa antarmuka ("id" | "en"). BUKAN rahasia — sama seperti
    * `themePreference` & `onboardingSeen`: 2 byte, tidak ikut cadangan cloud,
    * dan TIDAK dihapus `clearSession()` (logout bukan alasan untuk mengembalikan
@@ -136,6 +143,14 @@ export const SecureKeys = {
    */
   coachMarkCreateSeen: "kahade.coachMark.createSeen",
   coachMarkQrSeen: "kahade.coachMark.qrSeen",
+  /**
+   * Toggle notifikasi granular per jenis (JSON — lib/notification-local-prefs.ts):
+   * Chat, Transaksi, Etalase, Promo. BUKAN rahasia — hanya boolean preferensi
+   * tampilan banner, tanpa PII/angka uang: boleh persist di web seperti
+   * `uiPrefs`, dan TIDAK dihapus `clearSession()` (preferensi perangkat,
+   * bukan sesi).
+   */
+  notificationLocalPrefs: "kahade.notifications.localPrefs",
 } as const
 
 export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
@@ -158,6 +173,8 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.kahadePlusTheme,
   SecureKeys.coachMarkCreateSeen,
   SecureKeys.coachMarkQrSeen,
+  SecureKeys.notificationLocalPrefs,
+  SecureKeys.onboardingChecklistDone,
 ])
 /**
  * D-07 (audit): apakah kunci ini BERTAHAN di web? Dipakai modul yang harus
@@ -243,6 +260,48 @@ export async function clearSession(): Promise<void> {
     deleteSecureItem(SecureKeys.recentRecipients),
     deleteSecureItem(SecureKeys.showcaseBookmarks),
   ])
+}
+
+/**
+ * Kunci dinamis draft chat per-room (lib/chat-drafts.ts) — satu-satunya kunci
+ * dinamis yang diizinkan modul ini. Draft BUKAN rahasia (teks ketikan user),
+ * tapi SecureStore adalah satu-satunya storage persisten yang terpasang
+ * (repo tidak memakai AsyncStorage). Di web sengaja memory-only (tidak masuk
+ * WEB_PERSISTENT_KEYS) — isi chat tidak boleh mendarat di localStorage.
+ *
+ * roomId dinormalisasi: hanya [a-zA-Z0-9_-] yang lolos, sisanya diganti "-"
+ * supaya kunci tetap valid & tidak bisa menyuntik path/key lain.
+ */
+export function chatDraftKey(roomId: string): string {
+  const safe = String(roomId ?? "").replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 128)
+  return `kahade.chat.draft.${safe}`
+}
+
+/**
+ * Akses mentah untuk kunci dinamis (lihat `chatDraftKey`). Aturan yang sama
+ * dengan API ber-tipe: di web kunci mentah TIDAK persist ke localStorage
+ * (memory proses saja) — pemanggil yang butuh persist web harus menambah
+ * kunci tetap ke SecureKeys + WEB_PERSISTENT_KEYS, bukan memakai ini.
+ */
+export async function getRawItem(key: string): Promise<string | null> {
+  if (isWeb) return memory.get(key) ?? null
+  return SecureStore.getItemAsync(key, OPTIONS)
+}
+
+export async function setRawItem(key: string, value: string): Promise<void> {
+  if (isWeb) {
+    memory.set(key, value)
+    return
+  }
+  await SecureStore.setItemAsync(key, value, OPTIONS)
+}
+
+export async function deleteRawItem(key: string): Promise<void> {
+  if (isWeb) {
+    memory.delete(key)
+    return
+  }
+  await SecureStore.deleteItemAsync(key, OPTIONS)
 }
 
 /**

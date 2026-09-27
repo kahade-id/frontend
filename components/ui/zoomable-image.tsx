@@ -14,10 +14,11 @@
  *   lepas dari bingkai).
  * - Reset saat `source` berganti (navigasi antar lampiran).
  */
-import { useEffect } from "react"
+import { useEffect, useRef } from "react"
 import { StyleSheet } from "react-native"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Animated, {
+  runOnJS,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -34,11 +35,21 @@ export function ZoomableImage({
   alt = "",
   width,
   height,
+  onZoomChange,
+  resizeMode = "cover",
 }: {
   source: string
   alt?: string
   width: number
   height: number
+  /**
+   * Dipanggil saat status zoom berubah (melewati 1×). Dipakai pager induk
+   * untuk menonaktifkan swipe antar foto selama gambar diperbesar — kalau
+   * tidak, geser satu jari berebut antara pan gambar vs pindah slide.
+   */
+  onZoomChange?: (zoomed: boolean) => void
+  /** "contain" untuk viewer layar penuh; default "cover" (perilaku lama). */
+  resizeMode?: "cover" | "contain"
 }) {
   const scale = useSharedValue(1)
   const savedScale = useSharedValue(1)
@@ -46,6 +57,17 @@ export function ZoomableImage({
   const translateY = useSharedValue(0)
   const savedX = useSharedValue(0)
   const savedY = useSharedValue(0)
+  const onZoomChangeRef = useRef(onZoomChange)
+  onZoomChangeRef.current = onZoomChange
+  const zoomedRef = useRef(false)
+  /** Hanya panggil JS saat status zoom benar-benar berubah (hindari spam). */
+  const notifyZoom = (s: number) => {
+    const zoomed = s > MIN_SCALE + 0.01
+    if (zoomed !== zoomedRef.current) {
+      zoomedRef.current = zoomed
+      onZoomChangeRef.current?.(zoomed)
+    }
+  }
 
   // Ganti lampiran → reset zoom.
   useEffect(() => {
@@ -55,6 +77,8 @@ export function ZoomableImage({
     translateY.value = 0
     savedX.value = 0
     savedY.value = 0
+    zoomedRef.current = false
+    onZoomChangeRef.current?.(false)
   }, [source, scale, savedScale, translateX, translateY, savedX, savedY])
 
   const clampPan = (s: number, tx: number, ty: number) => {
@@ -87,6 +111,7 @@ export function ZoomableImage({
         savedX.value = 0
         savedY.value = 0
       }
+      runOnJS(notifyZoom)(scale.value)
     })
 
   const pan = Gesture.Pan()
@@ -112,6 +137,7 @@ export function ZoomableImage({
       translateY.value = withTiming(0)
       savedX.value = 0
       savedY.value = 0
+      runOnJS(notifyZoom)(target)
     })
 
   const animatedStyle = useAnimatedStyle(() => ({
@@ -131,7 +157,7 @@ export function ZoomableImage({
         accessibilityLabel={alt || "Gambar lampiran — cubit untuk memperbesar"}
       >
         <Animated.View style={animatedStyle}>
-          <Picture source={source} alt={alt} width={width} height={height} radius="none" bordered={false} />
+          <Picture source={source} alt={alt} width={width} height={height} radius="none" bordered={false} resizeMode={resizeMode} />
         </Animated.View>
       </Animated.View>
     </GestureDetector>

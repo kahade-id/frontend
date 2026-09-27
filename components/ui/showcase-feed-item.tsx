@@ -27,10 +27,18 @@
  * sehingga satu tap ♥ tidak me-render ulang seluruh sel (audit A-08).
  */
 
-import { memo, useCallback } from "react"
-import { BookmarkSimple, ChatCircle, DotsThreeCircle, Export, Flag } from "phosphor-react-native"
+import { memo, useCallback, useState } from "react"
+import { BookmarkSimple, ChatCircle, DotsThreeCircle, Flag, Heart, ShareNetwork } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { View } from "react-native"
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withTiming,
+} from "react-native-reanimated"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 
@@ -39,6 +47,7 @@ import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import type { VerificationBadge } from "@/lib/api/users"
 import { useHasSession } from "@/lib/guest-gate"
 import { showcaseImages } from "@/lib/showcase-social"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { ROUTES } from "@/lib/routes"
 
@@ -52,10 +61,16 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
+import { shouldFireDoubleTapLike } from "@/lib/showcase-like-guard"
 
 export type ShowcaseFeedItemProps = {
   item: ShowcaseSocialItem
   onPress?: () => void
+  /**
+   * Ketuk media → buka pratinjau gambar (index slide). Bila tidak disediakan,
+   * ketuk media jatuh ke `onPress` (perilaku lama: buka detail karya).
+   */
+  onOpenMedia?: (index: number) => void
   onToggleLike?: () => void
   onOpenComments?: () => void
   onToggleSave?: () => void
@@ -144,6 +159,7 @@ function CountAction({
 function ShowcaseFeedItemBase({
   item,
   onPress,
+  onOpenMedia,
   onToggleLike,
   onOpenComments,
   onToggleSave,
@@ -166,6 +182,44 @@ function ShowcaseFeedItemBase({
   const gallery = showcaseImages(item)
 
   const liked = item.isLiked === true
+
+  /**
+   * Ketuk-ganda pada media → suka (ala Instagram). Guard ganda:
+   *  - `likePending`: request suka sedang berjalan — jangan tembak lagi;
+   *  - `liked`: ketuk-ganda TIDAK unlike (hanya animasi hati), jadi tidak
+   *    ada toggle bolak-balik dari satu gesture. Guard antre/di-dalam
+   *    `toggleLike` (useShowcaseSocialActions) tetap menjadi pertahanan
+   *    terakhir bila race tetap terjadi.
+   */
+  const reducedMotion = useReducedMotion()
+  const [heartVisible, setHeartVisible] = useState(false)
+  const heartScale = useSharedValue(0)
+  const heartOpacity = useSharedValue(0)
+  const heartStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: heartScale.value }],
+    opacity: heartOpacity.value,
+  }))
+  const playHeartBurst = useCallback(() => {
+    if (reducedMotion) return
+    setHeartVisible(true)
+    heartScale.value = 0
+    heartOpacity.value = 1
+    heartScale.value = withSequence(
+      withTiming(1.25, { duration: 160 }),
+      withTiming(1, { duration: 120 }),
+    )
+    // Tahan sekejap lalu memudar; unmount via JS agar state konsisten.
+    heartOpacity.value = withDelay(
+      450,
+      withTiming(0, { duration: 220 }, (finished) => {
+        if (finished) runOnJS(setHeartVisible)(false)
+      }),
+    )
+  }, [reducedMotion, heartScale, heartOpacity])
+  const handleMediaDoubleTap = useCallback(() => {
+    if (shouldFireDoubleTapLike({ liked, likePending, hasHandler: !!onToggleLike })) onToggleLike?.()
+    playHeartBurst()
+  }, [onToggleLike, likePending, liked, playHeartBurst])
   // B-05 (audit 2026-09-23): hint dirakit lewat `translate` + token —
   // template literal mentah tidak bisa diterjemahkan ("12 Komentar" di EN).
   const commentCountLabel = translate("{x} Komentar", { x: formatCountCompact(item.commentCount) })
@@ -275,9 +329,34 @@ function ShowcaseFeedItemBase({
         ) : null}
       </View>
 
-      {/* ── Media CARD (mx-5) swipe ── */}
+      {/* ── Media CARD (mx-5) swipe ──
+          Ketuk-ganda = suka + semburan hati (Instagram); ketuk-tunggal =
+          buka viewer gambar bila `onOpenMedia` ada, kalau tidak ke detail
+          (`onPress`, perilaku lama — mis. tab Etalase di profil). */}
       <View className="mx-5 pt-3">
-        <ShowcaseMediaGallery images={gallery} title={item.title} onOpen={() => onPress?.()} />
+        <View className="relative">
+          <ShowcaseMediaGallery
+            images={gallery}
+            title={item.title}
+            onOpen={(index) => (onOpenMedia ? onOpenMedia(index) : onPress?.())}
+            onDoubleTap={onToggleLike ? handleMediaDoubleTap : undefined}
+          />
+          {heartVisible ? (
+            <View
+              pointerEvents="none"
+              className="absolute inset-0 items-center justify-center"
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <Animated.View style={heartStyle}>
+                {/* Hati merah = bahasa suka aplikasi (LikeAction); putih
+                    butuh pengecualian allowlist — merah cukup terbaca di
+                    atas foto tanpa scrim tambahan. */}
+                <Icon icon={Heart} weight="fill" tone="danger" size={84} />
+              </Animated.View>
+            </View>
+          ) : null}
+        </View>
       </View>
 
       {/* ── Kategori · judul · deskripsi (tap ke detail) ──
@@ -340,7 +419,7 @@ function ShowcaseFeedItemBase({
             onPress={onShare}
             containerClassName={cn("min-h-11 min-w-11 items-center justify-center rounded-md", focusRing)}
           >
-            <Icon icon={Export} size="md" tone="active" />
+            <Icon icon={ShareNetwork} size="md" tone="active" />
           </PressableScale>
         ) : null}
         {onToggleSave ? (

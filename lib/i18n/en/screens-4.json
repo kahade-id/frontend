@@ -57,7 +57,6 @@
   "Memuat favorit…": "Loading favourites…",
   "Memuat lencana…": "Loading badges…",
   "Memuat notifikasi": "Loading notifications",
-  "Memuat order…": "Loading orders…",
   "Memuat pengaturan keamanan": "Loading security settings",
   "Memuat pengaturan privasi…": "Loading privacy settings…",
   "Memuat preferensi bahasa…": "Loading language preferences…",
@@ -103,10 +102,8 @@
   "Nomor HP kontak": "Contact phone number",
   "Nomor baru": "New number",
   "Nomor baru telah diverifikasi. Silakan masuk kembali.": "The new number is verified. Please sign in again.",
-  "Nomor referensi": "Reference number",
   "Nomor rekening": "Account number",
   "Nomor saat ini": "Current number",
-  "Nomor transaksi": "Transaction number",
   "Notifikasi dihapus": "Notification deleted",
   "Notifikasi ini akan dihapus dari daftar dan tidak bisa dikembalikan.": "This notification will be removed from the list and can't be restored.",
   "Notifikasi ini tidak menaut ke halaman lain.": "This notification doesn't link to another page.",
@@ -147,6 +144,5 @@
   "Pindai Lagi": "Scan again",
   "Pindai QR": "Scan QR",
   "Salin Kode": "Copy code",
-  "Template": "Templates",
-  "mutasi dimuat": "transactions loaded"
+  "Template Transaksi": "Transaction Templates"
 }

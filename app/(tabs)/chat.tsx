@@ -323,7 +323,8 @@ export default function ChatScreen() {
           separator={false}
           elevated={elevated}
           titleAlign="left"
-          title={archiveOpen ? "Diarsipkan" : "Chat"}
+          titleVariant="h2"
+          title={archiveOpen ? "Diarsipkan" : "Pesan"}
           right={
             <IconButton
               icon={Archive}

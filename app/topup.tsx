@@ -550,7 +550,12 @@ export default function TopupScreen() {
                     setStatusError(null)
                     setStep("method")
                   }}
-                  onCopy={(value) => void copy(value)}
+                  // Salin 1-ketuk nomor VA/kode bayar + toast "Tersalin" (§9.11).
+                  onCopy={(value) => {
+                    void copy(value).then((ok) => {
+                      if (ok) toast.show({ title: "Tersalin", tone: "success" })
+                    })
+                  }}
                   copied={copied}
                     />
                   )

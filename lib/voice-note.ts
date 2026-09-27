@@ -74,3 +74,31 @@ export function voiceNoteValidationMessage(reason: Exclude<VoiceNoteValidation, 
       return "Durasi voice note maksimal 5 menit."
   }
 }
+
+/**
+ * Pola bar waveform DEKORATIF untuk <VoiceNotePlayer> — deterministik
+ * (xorshift32 dari hash FNV-1a `seed`, biasanya id pesan) supaya stabil
+ * antar render & sesi.
+ *
+ * JUJUR: ini BUKAN amplitudo audio yang sebenarnya — backend tidak menyimpan
+ * data amplitudo. Jangan pernah mengklaim/menampilkannya sebagai
+ * visualisasi asli. Nilai 0.25..1 (proporsi tinggi bar maksimum).
+ */
+export function decorativeWaveform(seed: string, count: number): number[] {
+  let h = 0x811c9dc5
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i)
+    h = Math.imul(h, 0x01000193)
+  }
+  let state = h || 0x9e3779b9
+  const out: number[] = []
+  for (let i = 0; i < count; i++) {
+    state ^= state << 13
+    state ^= state >>> 17
+    state ^= state << 5
+    const r = (state >>> 0) / 0xffffffff
+    // Tinggi 25%..100% — hindari bar yang nyaris tak terlihat.
+    out.push(0.25 + r * 0.75)
+  }
+  return out
+}

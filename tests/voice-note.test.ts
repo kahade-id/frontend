@@ -10,6 +10,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
+  decorativeWaveform,
   formatVoiceNoteDuration,
   isAudioMime,
   validateVoiceNoteFile,
@@ -79,5 +80,27 @@ describe("validateVoiceNoteFile", () => {
   })
   it("size 0 (platform tak melaporkan) diloloskan — server tetap gate", () => {
     expect(validateVoiceNoteFile({ size: 0, durationMs: 5_000 })).toEqual({ ok: true })
+  })
+})
+
+describe("decorativeWaveform", () => {
+  it("deterministik: seed sama → pola sama", () => {
+    const a = decorativeWaveform("msg-123", 32)
+    const b = decorativeWaveform("msg-123", 32)
+    expect(a).toEqual(b)
+    expect(a).toHaveLength(32)
+  })
+
+  it("seed berbeda → pola (sangat mungkin) berbeda", () => {
+    const a = decorativeWaveform("msg-123", 32)
+    const b = decorativeWaveform("msg-456", 32)
+    expect(a).not.toEqual(b)
+  })
+
+  it("nilai dalam rentang 0.25..1", () => {
+    for (const v of decorativeWaveform("msg-123", 64)) {
+      expect(v).toBeGreaterThanOrEqual(0.25)
+      expect(v).toBeLessThanOrEqual(1)
+    }
   })
 })

@@ -48,7 +48,9 @@ export const AUTHENTICATED_SCREENS = [
   "milestones/[id]", // detail milestone escrow — GET ber-auth (Tim C, integrasi 2026-09-27)
   "notification/[id]",
   "notification-preferences",
+  "notification-settings", // toggle granular lokal — tanpa API ber-auth
   "notifications",
+  "onboarding-checklist", // kartu progres KYC + rekening + etalase pertama (batch UI/UX 2026-09-28)
   "order/[id]",
   "order-links",
   "passkeys", // kelola passkey — endpoint auth required (Tim A, integrasi 2026-09-27)

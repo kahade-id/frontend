@@ -25,7 +25,7 @@
  *   - Di web dibatasi `md:max-w-content` (§11), sejajar kolom konten.
  */
 import { useContext, useEffect, useState, type ReactNode } from "react"
-import { Platform, View, type ViewProps } from "react-native"
+import { Platform, View, type ViewProps, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowLeft, X } from "phosphor-react-native"
 import { useRouter } from "expo-router"
@@ -117,6 +117,13 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
    * judul menempel ke tepi kiri. Diabaikan bila `center` diisi.
    */
   titleAlign?: "left" | "center"
+  /**
+   * Ukuran judul teks: "h3" (default, 18px) atau "h2" (22px, lebih besar).
+   * Header tab utama (Transaksi, Pesan, Notifikasi) memakai "h2" —
+   * permintaan produk 2026-09-28: judul tab lebih besar, tetap rapi di
+   * kedua mode.
+   */
+  titleVariant?: "h2" | "h3"
   /** Safe area top ikut dipadding (default true; false bila SafeAreaView di luar) */
   safeArea?: boolean
   className?: string
@@ -136,6 +143,7 @@ export function Header({
   separator = true,
   elevated = false,
   titleAlign = "center",
+  titleVariant = "h3",
   safeArea,
   className,
   ...rest
@@ -186,6 +194,19 @@ export function Header({
         // tetap lembut (blur 18px) namun cukup pekat untuk dibaca sebagai
         // bayangan. Bukan border — separator statis tetap tidak dipakai.
         elevated && !transparent ? elevationStyle("medium", themeMode) : undefined,
+        // Web-only (laporan user 2026-09-28: shadow tidak muncul di web).
+        // Root cause: class `z-sticky` hanya memberi z-index — tanpa
+        // `position`, CSS mengabaikan z-index, sehingga header tidak
+        // membentuk stacking context dan box-shadow-nya TERTUTUP oleh
+        // background konten di bawahnya (paint order normal-flow: sibling
+        // yang datang belakangan menutup shadow sibling sebelumnya).
+        // `position: relative` web-only mengaktifkan z-index → shadow tampil
+        // di atas konten. Native TIDAK disentuh — shadow di sana sudah benar.
+        // backdropFilter sengaja tidak dipakai: background header opaque,
+        // jadi blur backdrop tidak memberi efek visual apa pun.
+        elevated && !transparent && Platform.OS === "web"
+          ? ({ position: "relative" } as ViewStyle)
+          : undefined,
       ]}
       {...rest}
     >
@@ -214,7 +235,7 @@ export function Header({
               {title ? (
                 <Text ellipsizeMode="tail"
                   accessibilityRole="header"
-                  variant="h3"
+                  variant={titleVariant}
                   numberOfLines={1}
                   className="flex-1 text-left"
                 >
@@ -227,7 +248,7 @@ export function Header({
               {title ? (
                 <Text ellipsizeMode="tail"
                   accessibilityRole="header"
-                  variant="h3"
+                  variant={titleVariant}
                   numberOfLines={1}
                   className="text-center"
                 >

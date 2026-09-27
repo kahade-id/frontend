@@ -40,6 +40,8 @@ import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { isImageMedia } from "@/components/ui/media-viewer"
+import { VoiceNotePlayer } from "@/components/ui/voice-note-player"
+import { isAudioMime } from "@/lib/voice-note"
 import { type SealTier } from "@/components/ui/verified-seal"
 
 /**
@@ -125,6 +127,11 @@ export type ChatMessageRowProps = {
    * Dinonaktifkan saat mode pilih aktif atau pesan terhapus.
    */
   onSwipeReply?: (message: ChatMessage) => void
+  /**
+   * Pencarian inline dalam thread (2026-09-28): diteruskan ke bubble untuk
+   * meng-highlight kemunculan kata kunci. `undefined` = tidak mencari.
+   */
+  searchHighlight?: { query: string; focused: boolean }
 }
 
 export function ChatMessageRow({
@@ -142,6 +149,7 @@ export function ChatMessageRow({
   onRetry,
   showSenderIdentity = true,
   onSwipeReply,
+  searchHighlight,
 }: ChatMessageRowProps) {
   const showDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt)
   const grouped =
@@ -165,6 +173,15 @@ export function ChatMessageRow({
     onTap: () => onPress(message),
     onLongPress: (anchor) => onLongPress(message, anchor),
   })
+  /**
+   * Voice note (2026-09-28): pesan VOICE dengan lampiran audio dirender
+   * sebagai <VoiceNotePlayer> (putar/jeda, 1x/2x, waveform dekoratif) —
+   * bukan baris ikon generik yang tidak bisa diputar.
+   */
+  const voiceAttachment = message.isDeleted
+    ? undefined
+    : message.attachments?.find((a) => isAudioMime(a.mimeType))
+  const isVoiceMessage = message.messageType === "VOICE" && !!voiceAttachment?.fileUrl
 
   return (
     <View className="gap-1">
@@ -213,6 +230,8 @@ export function ChatMessageRow({
             ? () => onSwipeReply(message)
             : undefined
         }
+        // Pencarian inline: sorot kata kunci di teks pesan ini.
+        searchHighlight={searchHighlight}
         // Status baca pesan saya: read-receipt dari lawan bicara
         // (GET /read-receipts) naik ke ikon centang ganda "read".
         // CN-015: pesan optimistis pakai sendStatus lokal (sending/failed).
@@ -237,7 +256,13 @@ export function ChatMessageRow({
         onLongPressAt={pressHandlers.onLongPressAt}
         className={selected ? "rounded-md bg-surface" : undefined}
       >
-        {message.attachments?.length ? (
+        {isVoiceMessage ? (
+          <VoiceNotePlayer
+            uri={voiceAttachment!.fileUrl}
+            messageId={message.id}
+            direction={message.fromUser ? "outgoing" : "incoming"}
+          />
+        ) : message.attachments?.length ? (
           <View className="gap-2">
             {message.attachments.map((a, j) => (
               <ChatAttachmentItem

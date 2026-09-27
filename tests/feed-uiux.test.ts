@@ -3,15 +3,16 @@
  * yang di-fix:
  * - UI-F006: `productStatusBadgeTone` — badge status produk kini bertone
  *   semantik (Draf/Aktif/Stok habis/Diarsipkan terbedakan visual).
- * - UI-F019: `normalizePriceFilter` — normalisasi input filter harga feed.
+ * (UI-F019 `normalizePriceFilter` DIHAPUS 2026-09-28: tombol filter harga
+ * dihilangkan dari feed Etalase — lib + test-nya ikut dibuang.)
  */
 import { describe, expect, it } from "vitest"
 
+import { shouldFireDoubleTapLike } from "../lib/showcase-like-guard"
 import {
   productStatusBadgeTone,
   type ProductStatus,
 } from "../lib/api/products"
-import { normalizePriceFilter } from "../lib/showcase-price-filter"
 
 describe("productStatusBadgeTone (UI-F006)", () => {
   it("memetakan tiap status ke tone semantiknya", () => {
@@ -29,37 +30,35 @@ describe("productStatusBadgeTone (UI-F006)", () => {
   })
 })
 
-describe("normalizePriceFilter (UI-F019)", () => {
-  it("kosong = lepas (keduanya undefined)", () => {
-    expect(normalizePriceFilter("", "")).toEqual({})
-    expect(normalizePriceFilter("   ", "")).toEqual({ min: undefined, max: undefined })
+describe("shouldFireDoubleTapLike (guard ketuk-ganda suka)", () => {
+  it("menembak tepat sekali saat belum disukai dan tidak ada request berjalan", () => {
+    expect(
+      shouldFireDoubleTapLike({ liked: false, likePending: false, hasHandler: true }),
+    ).toBe(true)
   })
 
-  it("hanya min atau hanya maks", () => {
-    expect(normalizePriceFilter("50000", "")).toEqual({ min: 50000, max: undefined })
-    expect(normalizePriceFilter("", "100000")).toEqual({ min: undefined, max: 100000 })
+  it("tidak menembak saat request like masih berjalan (debounce)", () => {
+    expect(
+      shouldFireDoubleTapLike({ liked: false, likePending: true, hasHandler: true }),
+    ).toBe(false)
   })
 
-  it("rentang valid min <= maks dipertahankan", () => {
-    expect(normalizePriceFilter("50000", "100000")).toEqual({ min: 50000, max: 100000 })
-    expect(normalizePriceFilter("50000", "50000")).toEqual({ min: 50000, max: 50000 })
+  it("tidak menjadi unlike saat item sudah disukai", () => {
+    expect(
+      shouldFireDoubleTapLike({ liked: true, likePending: false, hasHandler: true }),
+    ).toBe(false)
   })
 
-  it("min > maks: maks dibuang diam-diam (keputusan produk, bukan error)", () => {
-    expect(normalizePriceFilter("100000", "50000")).toEqual({ min: 100000, max: undefined })
+  it("tidak menembak tanpa handler suka", () => {
+    expect(
+      shouldFireDoubleTapLike({ liked: false, likePending: false, hasHandler: false }),
+    ).toBe(false)
   })
 
-  it("menerima format ketikan/paste Indonesia", () => {
-    expect(normalizePriceFilter("1.500.000", "2.000.000")).toEqual({ min: 1500000, max: 2000000 })
-    expect(normalizePriceFilter("Rp 5000", "")).toEqual({ min: 5000, max: undefined })
-    expect(normalizePriceFilter(" 2500 ", "")).toEqual({ min: 2500, max: undefined })
-  })
-
-  it("nol adalah nilai valid (bukan 'kosong')", () => {
-    expect(normalizePriceFilter("0", "")).toEqual({ min: 0, max: undefined })
-  })
-
-  it("tanpa digit = lepas", () => {
-    expect(normalizePriceFilter("abc", "Rp")).toEqual({ min: undefined, max: undefined })
+  it("pending + sudah disukai tetap tidak menembak", () => {
+    expect(
+      shouldFireDoubleTapLike({ liked: true, likePending: true, hasHandler: true }),
+    ).toBe(false)
   })
 })
+
