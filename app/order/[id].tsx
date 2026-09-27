@@ -31,16 +31,11 @@
  *     gagal → tanpa estimasi.
  */
 
-import { LoadingScreen } from "@/components/ui/loading-screen"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import {
-  ClockCounterClockwise,
-  Package,
-  Truck,
-} from "phosphor-react-native"
+import { ClockCounterClockwise } from "phosphor-react-native"
 
 import { api, isApiError, userMessage, type Order } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
@@ -68,8 +63,6 @@ import {
   durationHoursParts,
   formatDateTime,
   formatDateTimeWIB,
-  formatDurationWords,
-  formatRupiah,
 } from "@/lib/format"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
@@ -85,7 +78,7 @@ import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { KeyValue, KeyValueList } from "@/components/ui/key-value"
 import { OrderHistoryTimeline } from "@/components/ui/order-history-timeline"
-import { ORDER_STATUS_LABELS, OrderStatusBadge } from "@/components/ui/order-status-badge"
+import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import {
@@ -103,9 +96,16 @@ import { shareReceipt } from "@/components/receipt/shareReceipt"
 import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
 import { receiptDateRows } from "@/lib/receipt"
 import { shortId } from "@/lib/short-id"
-import { Text } from "@/components/ui/text"
-import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
+import { buildOrderJourney } from "@/lib/order-journey"
+import { OrderDetailActions, OrderRatingReminder } from "@/components/order-detail-actions"
+import { OrderStatusHero } from "@/components/ui/order-status-hero"
+import { OrderJourney } from "@/components/ui/order-journey"
+import { OrderProductCard } from "@/components/ui/order-product-card"
+import { OrderPartiesCard } from "@/components/ui/order-parties-card"
+import { OrderEscrowCard } from "@/components/ui/order-escrow-card"
+import { OrderHelpCard } from "@/components/ui/order-help-card"
+import { OrderDetailSkeleton } from "@/components/ui/order-detail-skeleton"
 
 const HISTORY_LIMIT = 50
 
@@ -269,6 +269,25 @@ export default function OrderDetailScreen() {
   const historyHasMore = query.data?.historyHasMore ?? false
   const durations = query.data?.durations ?? null
   const fee = query.data?.fee ?? null
+  /**
+   * Lima langkah perjalanan order untuk <OrderJourney> — diturunkan murni
+   * dari data server (createdAt/paidAt/completedAt + riwayat), tanpa request
+   * tambahan dan tanpa mengubah logika status apa pun.
+   */
+  const journeySteps = useMemo(
+    () =>
+      buildOrderJourney({
+        status: order?.status ?? "",
+        createdAt: order?.createdAt ?? null,
+        paidAt: order?.paidAt ?? null,
+        completedAt: order?.completedAt ?? null,
+        history: history.map((h) => ({
+          toStatus: String(h.toStatus ?? ""),
+          createdAt: h.createdAt,
+        })),
+      }),
+    [order?.status, order?.createdAt, order?.paidAt, order?.completedAt, history],
+  )
   /**
    * G-08 (audit escrow 2026-09-24): riwayat order dibatasi `HISTORY_LIMIT`
    * (50) entri per halaman; sisa riwayat sebelumnya tidak bisa dibuka. Tombol
@@ -624,12 +643,7 @@ export default function OrderDetailScreen() {
   }, [order, toast.show])
 
   if (loading && !order) {
-    return (
-      <Screen edges={["top"]}>
-        <Header title="Detail Order" />
-        <LoadingScreen message="Memuat order…" />
-      </Screen>
-    )
+    return <OrderDetailSkeleton />
   }
 
   if (error && !order) {
@@ -647,7 +661,6 @@ export default function OrderDetailScreen() {
   const knownRole = myRole === "BUYER" || myRole === "SELLER"
   const isSeller = myRole === "SELLER"
   const isBuyer = myRole === "BUYER"
-  const counterpart = isBuyer ? order.seller : isSeller ? order.buyer : undefined
   /**
    * Gerbang aksi mengikuti enum backend (WAITING_CONFIRMATION → WAITING_PAYMENT
    * → PROCESSING → IN_DELIVERY → COMPLETED), bukan nama lama hasil tebakan —
@@ -704,27 +717,17 @@ export default function OrderDetailScreen() {
             reveal ulang karena komponen tidak me-remount. */}
         <FadeIn key={order.id} duration="fast">
         <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-          {/*
-           * Urutan baca (audit komposisi): STATUS -> JUDUL -> deskripsi -> ID.
-           * Sebelumnya baris pertama layar adalah ID order (monoBody 14px,
-           * tone secondary) sementara judul order baru muncul dua blok di
-           * bawah — elemen paling tidak penting mendapat posisi paling
-           * menonjol. ID dipindah ke bawah deskripsi sebagai caption; badge
-           * status naik ke baris judul karena itulah yang dicari user saat
-           * membuka layar ini.
-           */}
-          <View className="flex-row items-start justify-between gap-3">
-            <View className="flex-1">
-              <Text variant="h2" numberOfLines={3}>
-                {order.title}
-              </Text>
-            </View>
-            <OrderStatusBadge
-              status={order.status}
-              role={isBuyer ? "buyer" : isSeller ? "seller" : undefined}
-              size="md"
-            />
-          </View>
+          {/* 1 — Hero: status menonjol + judul + ID transaksi + tanggal/waktu.
+              Hierarki baca: STATUS → JUDUL → ID TRANSAKSI → TANGGAL/WAKTU. */}
+          <OrderStatusHero
+            status={order.status}
+            title={order.title}
+            transactionId={order.id}
+            createdAt={order.createdAt}
+            role={isBuyer ? ("buyer" as const) : isSeller ? ("seller" as const) : undefined}
+            copied={copied}
+            onCopyId={() => void copy(order.id)}
+          />
 
           {!knownRole ? (
             <ErrorState
@@ -735,45 +738,126 @@ export default function OrderDetailScreen() {
             />
           ) : null}
 
-          <Text variant="body" tone="secondary">
-            {order.description}
-          </Text>
+          {/* 2 — Perjalanan order: dibuat → dibayar (escrow) → dikirim →
+              diterima → dana cair, masing-masing dengan timestamp. */}
+          <OrderJourney steps={journeySteps} />
 
-          <Text variant="monoBody" tone="tertiary" numberOfLines={1} selectable>
-            {order.id}
-          </Text>
+          {/* 3 — Aksi kontekstual sesuai status × peran (gerbang milik layar,
+              komponen hanya me-render yang diminta). */}
+          <OrderDetailActions
+            canPay={canPay}
+            canConfirm={canConfirm}
+            canShip={canShip}
+            canReviewDelivery={canReviewDelivery}
+            canRate={canRate}
+            canViewProof={
+              !isBuyer &&
+              (order.status === "IN_DELIVERY" ||
+                order.status === "SHIPPED" ||
+                order.status === "DELIVERED")
+            }
+            buyerPays={fee?.buyerPays}
+            shippingRequired={shippingRequired}
+            submitting={submitting}
+            autoRelease={autoRelease}
+            onPay={() => setSheet("pay")}
+            onAccept={() => setConfirmAccept(true)}
+            onReject={() => setSheet("reject")}
+            onShipping={() => setSheet("shipping")}
+            onDeliveryProof={() => router.push(ROUTES.deliveryProof(order.id))}
+            onComplete={() =>
+              void runAction(
+                async () => {
+                  // M-28: spesifikasi `POST /v1/orders/{id}/complete` TANPA
+                  // requestBody — jejak bukti melekat pada order di server.
+                  await api.orders.completeOrder(
+                    order.id,
+                    // R2 butir #17: kunci idempotensi per siklus — retry
+                    // pasca-timeout tidak melepas dana dua kali di server
+                    // yang mendukung header. Dibersihkan setelah SUKSES.
+                    completeKeyRef.current ??
+                      (completeKeyRef.current = createIdempotencyKey()),
+                  )
+                  completeKeyRef.current = null
+                },
+                "Order selesai",
+                "Gagal menyelesaikan order",
+              )
+            }
+            onRate={() => router.push(ROUTES.rateOrder(order.id))}
+            onReload={() => void query.reload()}
+          />
 
+          {/* 4 — Pengingat ulasan (jendela 7 hari backend, bisa ditunda). */}
+          <OrderRatingReminder
+            visible={ratingReminderVisible}
+            onRate={() => router.push(ROUTES.rateOrder(order.id))}
+            onSnooze={snoozeRatingReminderForOrder}
+          />
+
+          {/* 5 — Produk */}
+          <OrderProductCard
+            title={order.title}
+            description={order.description}
+            orderType={order.orderType}
+            orderValue={order.orderValue}
+          />
+
+          {/* 6 — Rincian pembayaran bergaya invoice */}
+          {fee && knownRole ? (
+            <>
+              <SectionHeader title="Rincian pembayaran" />
+              <FeeBreakdown
+                orderValue={order.orderValue}
+                feeAmount={fee.platformFee}
+                feeResponsibility={order.feeResponsibility}
+                role={isBuyer ? "BUYER" : "SELLER"}
+                discountAmount={fee.discount}
+                // B-01: teruskan angka FINAL server — dulu kartu menghitung
+                // ulang lokal sehingga angka kartu bisa berbeda dari tombol
+                // "Bayar".
+                buyerPays={fee.buyerPays}
+                sellerGets={fee.sellerReceives}
+              />
+            </>
+          ) : null}
+
+          {/* 7 — Pihak transaksi */}
+          <OrderPartiesCard
+            buyer={order.buyer}
+            seller={order.seller}
+            myRole={knownRole ? myRole : undefined}
+            onOpenProfile={(username) => router.push(ROUTES.userProfile(username))}
+          />
+
+          {/* 8 — Pengiriman: kurir + resi (salin/lacak) */}
+          <ShippingInfoCard
+            shipping={
+              order.trackingNumber || order.courierName
+                ? {
+                    courierName: order.courierName ?? undefined,
+                    trackingNumber: order.trackingNumber ?? undefined,
+                  }
+                : null
+            }
+            canEdit={canShip}
+            onEdit={() => setSheet("shipping")}
+            onTrack={() => void openTracking()}
+            onCopy={(v) => void copy(v)}
+            copied={copied}
+          />
+
+          {/* 9 — Dana escrow: penjelasan menenangkan sesuai status */}
+          <OrderEscrowCard
+            status={order.status}
+            amount={fee?.buyerPays ?? order.orderValue}
+            myRole={knownRole ? myRole : undefined}
+            completedAt={order.completedAt}
+          />
+
+          {/* 10 — Info transaksi */}
+          <SectionHeader title="Info transaksi" />
           <KeyValueList>
-            <KeyValue
-              label="Nilai transaksi"
-              value={<Text variant="monoBody">{formatRupiah(order.orderValue)}</Text>}
-              emphasis
-            />
-            {/*
-             * Sebelumnya <Button variant="ghost"> dipakai sebagai NILAI baris:
-             * tinggi 40px + padding tombol membuat baris ini melompat keluar
-             * irama KeyValueList, dan secara hierarki tombol (aksi) menyaingi
-             * "Nilai transaksi" di atasnya. Navigasi ke profil = navigasi
-             * dalam konteks teks -> <TextLink> (§2.3 link = primary +
-             * underline). Tanpa counterpart, nilainya jadi teks biasa.
-             */}
-            <KeyValue
-              label={isBuyer ? "Penjual" : isSeller ? "Pembeli" : "Lawan transaksi"}
-              value={
-                counterpart ? (
-                  <TextLink
-                    onPress={() => router.push(ROUTES.userProfile(counterpart.username))}
-                    accessibilityLabel={translate("Lihat profil @{x}", { x: counterpart.username })}
-                  >
-                    {`@${counterpart.username}`}
-                  </TextLink>
-                ) : (
-                  <Text variant="body" tone="tertiary">
-                    Identitas belum tersedia
-                  </Text>
-                )
-              }
-            />
             <KeyValue
               label="Tenggat"
               value={
@@ -782,26 +866,16 @@ export default function OrderDetailScreen() {
                   : `${order.deliveryDeadlineDays} hari`
               }
             />
-            <KeyValue label="Dibuat" value={formatDateTime(order.createdAt)} />
+            {order.paidAt ? (
+              <KeyValue label="Dibayar pada" value={formatDateTime(order.paidAt)} />
+            ) : null}
+            {order.completedAt ? (
+              <KeyValue label="Diselesaikan pada" value={formatDateTime(order.completedAt)} />
+            ) : null}
           </KeyValueList>
 
-          {fee && knownRole ? (
-            <FeeBreakdown
-              orderValue={order.orderValue}
-              feeAmount={fee.platformFee}
-              feeResponsibility={order.feeResponsibility}
-              role={isBuyer ? "BUYER" : "SELLER"}
-              discountAmount={fee.discount}
-              // B-01 (audit escrow 2026-09-24): teruskan angka FINAL server —
-              // dulu kartu menghitung ulang lokal sehingga angka kartu bisa
-              // berbeda dari tombol "Bayar".
-              buyerPays={fee.buyerPays}
-              sellerGets={fee.sellerReceives}
-            />
-          ) : null}
-
-          {/* Bukti pembayaran — struk tiket. Hanya tampil bila order sudah
-              dibayar (`paidAt` ada); logika order tidak diubah. */}
+          {/* 11 — Bukti pembayaran — struk tiket. Hanya tampil bila order
+              sudah dibayar (`paidAt` ada); logika order tidak diubah. */}
           {order.paidAt ? (
             <>
               <SectionHeader title="Bukti pembayaran" />
@@ -821,182 +895,14 @@ export default function OrderDetailScreen() {
             </>
           ) : null}
 
-          {/* Escrow bertahap (GAP-C): hanya tampil bila order punya milestone.
-              Order satu tahap tidak berubah perilakunya — seksi ini tidak
-              merender apa pun bila daftar tahap kosong. */}
+          {/* 12 — Escrow bertahap (GAP-C): hanya tampil bila order punya
+              milestone. Order satu tahap tidak berubah perilakunya. */}
           <MilestoneSection
             orderId={order.id}
             role={isBuyer ? "BUYER" : isSeller ? "SELLER" : undefined}
           />
 
-          <ShippingInfoCard
-            shipping={
-              order.trackingNumber || order.courierName
-                ? {
-                    courierName: order.courierName ?? undefined,
-                    trackingNumber: order.trackingNumber ?? undefined,
-                  }
-                : null
-            }
-            canEdit={canShip}
-            onEdit={() => setSheet("shipping")}
-            onTrack={() => void openTracking()}
-            onCopy={(v) => void copy(v)}
-            copied={copied}
-          />
-
-          {ratingReminderVisible ? (
-            <View className="gap-3 rounded-lg bg-info-soft p-3">
-              <View className="gap-1">
-                <Text variant="caption" tone="secondary">
-                  Transaksi selesai — ulasanmu membantu pengguna lain memutuskan.
-                </Text>
-                {/* F9 (audit 2026-09-26): komunikasikan jendela ulasan 7 hari
-                    (RATING_WINDOW_DAYS backend) agar user tidak mengira tombol
-                    "Ulas sekarang" tersedia selamanya. */}
-                <Text variant="caption" tone="secondary">
-                  {translate("Ulasan dapat diberikan dalam 7 hari setelah transaksi selesai.")}
-                </Text>
-              </View>
-              <View className="flex-row flex-wrap gap-2">
-                <Button size="sm" onPress={() => router.push(ROUTES.rateOrder(order.id))}>
-                  Ulas sekarang
-                </Button>
-                <Button size="sm" variant="ghost" onPress={snoozeRatingReminderForOrder}>
-                  Ingatkan nanti
-                </Button>
-              </View>
-            </View>
-          ) : null}
-
-          {/* ── Aksi utama sesuai status ─────────────────────────── */}
-          <View className="gap-2">
-            {/*
-             * Countdown auto-release dana: IN_DELIVERY + `autoCompleteAt` dari
-             * backend (= deliveryDeadlineAt). Dana cair otomatis bila tidak
-             * ada konfirmasi/sengketa sebelum tanggal tersebut.
-             */}
-            {autoRelease ? (
-              <View className="gap-1 rounded-lg bg-warning-soft p-3">
-                <Text variant="body" weight={600}>
-                  {autoRelease.secondsLeft > 0
-                    ? translate("Dana akan cair otomatis dalam {x}.", {
-                        x: formatDurationWords(autoRelease.secondsLeft),
-                      })
-                    : translate("Dana akan segera diteruskan ke penjual.")}
-                </Text>
-                <Text variant="caption" tone="secondary">
-                  {translate(
-                    "Jika tidak ada konfirmasi atau sengketa sebelum {x}, dana otomatis diteruskan ke penjual.",
-                    { x: formatDateTimeWIB(autoRelease.at) },
-                  )}
-                </Text>
-              </View>
-            ) : null}
-            {canPay ? (
-              <>
-                {!fee || fee.buyerPays == null ? (
-                  <ErrorState
-                    compact
-                    title="Rincian biaya belum tersedia"
-                    description="Muat ulang untuk menampilkan jumlah yang harus dibayar."
-                    onRetry={() => void query.reload()}
-                  />
-                ) : null}
-                {/* M-30 (audit end-to-end, issue #91): tombol Bayar terkunci
-                    SELAMA nominal belum terlihat — dulu `disabled={!fee}` tetap
-                    mengizinkan bayar saat `fee` ada tapi `buyerPays` kosong
-                    (label "Bayar —" = membayar tanpa nominal terlihat). */}
-                <Button disabled={!fee || fee.buyerPays == null} onPress={() => setSheet("pay")}>
-                  {/* B-05 (audit escrow 2026-09-24): label tidak pernah mencetak
-                      `orderValue` sebagai total bayar (tanpa fee/diskon) — saat
-                      fee belum terhitung tampil "—", bukan angka yang lebih kecil. */}
-                  Bayar {fee?.buyerPays != null ? formatRupiah(fee.buyerPays) : "—"}
-                </Button>
-              </>
-            ) : null}
-            {canConfirm ? (
-              <>
-                <Button onPress={() => setConfirmAccept(true)}>Terima pesanan</Button>
-                <Button variant="secondary" onPress={() => setSheet("reject")}>
-                  Tolak pesanan
-                </Button>
-              </>
-            ) : null}
-            {canShip ? (
-              <>
-                <Button leftIcon={Truck} onPress={() => setSheet("shipping")}>
-                  {shippingRequired ? "Isi resi pengiriman" : "Tandai dikirim"}
-                </Button>
-                <Button
-                  variant="secondary"
-                  leftIcon={Package}
-                  onPress={() => router.push(ROUTES.deliveryProof(order.id))}
-                >
-                  Unggah bukti pengiriman
-                </Button>
-              </>
-            ) : null}
-            {canReviewDelivery ? (
-              <>
-                <Button
-                  leftIcon={Package}
-                  onPress={() => router.push(ROUTES.deliveryProof(order.id))}
-                >
-                  Periksa bukti pengiriman
-                </Button>
-                <Button
-                  variant="secondary"
-                  loading={submitting}
-                  onPress={() =>
-                    void runAction(
-                      async () => {
-                        // M-28 (audit end-to-end, issue #23-25): spesifikasi
-                        // `POST /v1/orders/{id}/complete` TANPA requestBody —
-                        // jejak bukti melekat pada order di sisi server. Komentar
-                        // A-13 lama (mengklaim `ConfirmDeliveryDto` dipakai di
-                        // sini) MENYESATKAN dan menghasilkan panggilan
-                        // `completeOrder(id, {proofId})` yang ditolak validator.
-                        await api.orders.completeOrder(
-                          order.id,
-                          // R2 (audit ronde-2, butir #17): kunci idempotensi
-                          // per siklus (pola payOrder di atas) — retry pasca-
-                          // timeout tidak melepas dana dua kali di server yang
-                          // mendukung header. Dibersihkan setelah SUKSES.
-                          completeKeyRef.current ??
-                            (completeKeyRef.current = createIdempotencyKey()),
-                        )
-                        completeKeyRef.current = null
-                      },
-                      "Order selesai",
-                      "Gagal menyelesaikan order",
-                    )
-                  }
-                >
-                  Tandai selesai
-                </Button>
-              </>
-            ) : null}
-            {!isBuyer &&
-            (order.status === "IN_DELIVERY" ||
-              order.status === "SHIPPED" ||
-              order.status === "DELIVERED") ? (
-              <Button
-                variant="secondary"
-                leftIcon={Package}
-                onPress={() => router.push(ROUTES.deliveryProof(order.id))}
-              >
-                Bukti pengiriman
-              </Button>
-            ) : null}
-            {canRate ? (
-              <Button variant="secondary" onPress={() => router.push(ROUTES.rateOrder(order.id))}>
-                Beri ulasan
-              </Button>
-            ) : null}
-          </View>
-
-          {/* ── Aksi sekunder ────────────────────────────────────── */}
+          {/* 13 — Aksi sekunder */}
           <SectionHeader title="Lainnya" />
           <OrderSecondaryActions
             order={order}
@@ -1011,6 +917,10 @@ export default function OrderDetailScreen() {
             onOpenSheet={(kind) => setSheet(kind)}
           />
 
+          {/* 14 — Butuh bantuan? */}
+          <OrderHelpCard onContactSupport={() => router.push(ROUTES.liveSupport)} />
+
+          {/* 15 — Riwayat */}
           <SectionHeader title="Riwayat" />
           {history.length > 0 ? (
             <OrderHistoryTimeline
@@ -1026,8 +936,6 @@ export default function OrderDetailScreen() {
               expectedNext={expectedNext}
             />
           ) : (
-            // Sebelumnya <Text> polos — satu-satunya "kosong" di layar ini
-            // yang tidak memakai bentuk EmptyState seperti layar lain.
             <EmptyState
               compact
               icon={ClockCounterClockwise}
