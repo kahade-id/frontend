@@ -28,6 +28,7 @@ import {
   Image as ImageIcon,
   PencilSimple,
   Prohibit,
+  QrCode,
   SealCheck,
   ShareNetwork,
   ShieldCheck,
@@ -83,6 +84,9 @@ import { QaCommentComposer, QaCommentItem } from "@/components/ui/qa-comment-ite
 import { ProfileAboutTab } from "@/components/ui/profile-about-tab"
 import { ProfileEtalaseTab } from "@/components/ui/profile-etalase-tab"
 import { ProfileRatingsTab } from "@/components/ui/profile-ratings-tab"
+import { ProfileEditSheet } from "@/components/ui/profile-edit-sheet"
+import { ProfileHighlightsStrip } from "@/components/ui/profile-highlights-strip"
+import { QRCodeDisplay } from "@/components/ui/qr-code-display"
 import { Screen } from "@/components/ui/screen"
 import { ShareSheetTrigger } from "@/components/ui/share-sheet-trigger"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -159,7 +163,7 @@ export default function UserProfileScreen() {
   }>()
   const username = rawUsername ?? ""
   const toast = useToast()
-  const { copy } = useCopy()
+  const { copy, copiedKey } = useCopy()
   // P3 (audit 2026-09-26): tamu di-gate ke login sebelum aksi sosial.
   const hasSession = useHasSession()
   // i18n: tab + alasan hide mengikuti bahasa aktif (dulu konstanta modul).
@@ -219,6 +223,10 @@ export default function UserProfileScreen() {
   const [hideC, setHideC] = useState<QuestionComment | null>(null)
   const [hideCReason, setHideCReason] = useState<HiddenReason>("SPAM")
   const [hidingC, setHidingC] = useState(false)
+  /** Item 19 (2026-09-28): sheet Kode QR profil (deep link profil). */
+  const [qrOpen, setQrOpen] = useState(false)
+  /** Item 22 (2026-09-28): sheet edit profil inline (tanpa pindah halaman). */
+  const [editOpen, setEditOpen] = useState(false)
 
   const submitHideComment = useCallback(async () => {
     if (!hideC || hidingC) return
@@ -949,7 +957,10 @@ export default function UserProfileScreen() {
                     size="sm"
                     fullWidth={false}
                     leftIcon={PencilSimple}
-                    onPress={() => router.push(ROUTES.editProfile)}
+                    // Item 22 (2026-09-28): edit inline lewat bottom sheet —
+                    // tanpa pindah halaman. Layar edit lengkap
+                    // (app/edit-profile.tsx) tetap ada via link di sheet.
+                    onPress={() => setEditOpen(true)}
                   >
                     {translate("Edit profil")}
                   </Button>
@@ -974,6 +985,15 @@ export default function UserProfileScreen() {
                     />
                   </>
                 )}
+                {/* Item 19 (2026-09-28): Kode QR profil — deep link
+                    https://kahade.id/user/<username>, dipindai kamera. */}
+                <IconButton
+                  icon={QrCode}
+                  variant="secondary"
+                  size="sm"
+                  accessibilityLabel={translate("Kode QR profil")}
+                  onPress={() => setQrOpen(true)}
+                />
                 <IconButton
                   icon={ShareNetwork}
                   variant="secondary"
@@ -1175,6 +1195,13 @@ export default function UserProfileScreen() {
 
             {/* ── Tabs Bar ───────────────────────────────────────── */}
             <View className="pt-4">
+              {/* Item 20 (2026-09-28): strip highlight etalase — disembunyikan
+                  sendiri sampai kontrak TIM A tiba (lihat komponen). */}
+              <ProfileHighlightsStrip
+                username={handle}
+                isSelf={isSelf}
+                showcaseItems={showcaseItems}
+              />
               <Tabs<ProfileTab>
                 items={profileTabs}
                 value={activeTab}
@@ -1511,6 +1538,42 @@ export default function UserProfileScreen() {
         )}
       </ShareSheetTrigger>
 
+      {/* Inquiry — buka ruang pra-transaksi (POST /v1/chat/inquiries) lalu
+          langsung masuk ke ruang chat hasil inquiry. */}
+      {/* ── Item 19 (2026-09-28): Kode QR profil ─────────────────
+          QR berisi deep link profil https://kahade.id/user/<username>
+          (lib/deeplinks.ts `profileUrl`), dipindai kamera HP lain. */}
+      <BottomSheet
+        visible={qrOpen}
+        onRequestClose={() => setQrOpen(false)}
+        title={translate("Kode QR profil")}
+        description={translate("Pindai kode ini untuk membuka profil @{x}.", { x: handle })}
+      >
+        <View className="items-center px-5 pb-4">
+          <QRCodeDisplay
+            value={profileUrl(handle)}
+            caption={translate("kahade.id/user/{x}", { x: handle })}
+            onCopy={(value) => void copy(value, "profile-qr")}
+            copied={copiedKey === "profile-qr"}
+            accessibilityLabel={translate("Kode QR profil @{x}", { x: handle })}
+          />
+        </View>
+      </BottomSheet>
+
+      {/* ── Item 22 (2026-09-28): edit profil inline ────────────── */}
+      {isSelf ? (
+        <ProfileEditSheet
+          visible={editOpen}
+          onRequestClose={() => setEditOpen(false)}
+          profile={{
+            fullName: profile?.fullName,
+            username: profile?.username,
+            bio: profile?.bio,
+            avatarUrl: profile?.avatarUrl,
+          }}
+          onSaved={() => void fetchProfile()}
+        />
+      ) : null}
       {/* Inquiry — buka ruang pra-transaksi (POST /v1/chat/inquiries) lalu
           langsung masuk ke ruang chat hasil inquiry. */}
       <BottomSheet

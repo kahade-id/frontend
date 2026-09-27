@@ -47,6 +47,7 @@ import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { RATING_COMMENT_MAX, RatingForm, type RatingFormValue } from "@/components/ui/rating-form"
+import { RatingDistributionBars } from "@/components/ui/rating-distribution"
 import { RatingReviewCard, type RatingReply } from "@/components/ui/rating-review-card"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -215,6 +216,15 @@ export default function RatingsScreen() {
     [items, segment, isGivenByMe],
   )
 
+  // Item 21 (2026-09-28): filter bintang dari bar distribusi — menyambung ke
+  // daftar yang SUDAH ADA (bukan filter baru/duplikat). Komponen bar
+  // menyembunyikan dirinya sendiri sampai kontrak TIM A tiba.
+  const [starsFilter, setStarsFilter] = useState<number | null>(null)
+  const filtered = useMemo(
+    () => (starsFilter === null ? visible : visible.filter((r) => r.stars === starsFilter)),
+    [visible, starsFilter],
+  )
+
   // ── Balasan ────────────────────────────────────────────────────────
   const openReply = useCallback((rating: Rating) => {
     setReplyEditor({ rating, mode: "create" })
@@ -323,8 +333,16 @@ export default function RatingsScreen() {
           accessibilityLabel="Jenis ulasan"
           items={SEGMENTS.map((sg) => ({ ...sg, label: translate(sg.label) }))}
           value={segment}
-          onChange={setSegment}
+          onChange={(v) => {
+            setStarsFilter(null)
+            setSegment(v)
+          }}
         />
+      </View>
+      {/* Item 21 (2026-09-28): bar distribusi 1–5★ — hidden sampai kontrak
+          TIM A tiba; mengetuk bar menyaring daftar yang sudah ada. */}
+      <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
+        <RatingDistributionBars selectedStars={starsFilter} onSelectStars={setStarsFilter} />
       </View>
       <PullToRefresh
         onRefresh={() => void query.refresh()}
@@ -341,7 +359,7 @@ export default function RatingsScreen() {
             description={error}
             onRetry={() => void query.reload()}
           />
-        ) : visible.length === 0 ? (
+        ) : filtered.length === 0 ? (
           <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
             <EmptyState
               icon={Star}
@@ -369,7 +387,7 @@ export default function RatingsScreen() {
             <SectionHeader
               title={segment === "RECEIVED" ? translate("Ulasan masuk") : translate("Ulasan yang Anda beri")}
             />
-            {visible.map((r) => {
+            {filtered.map((r) => {
               const reply = replyOf(r)
               const received = segment === "RECEIVED"
               const helpful = helpfulState[r.id]

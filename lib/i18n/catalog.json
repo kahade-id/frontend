@@ -4,11 +4,11 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 100
+   "n": 103
   },
   {
    "s": "Hapus",
-   "n": 56
+   "n": 60
   },
   {
    "s": "Gagal memuat",
@@ -59,6 +59,10 @@
    "n": 13
   },
   {
+   "s": "Transaksi",
+   "n": 13
+  },
+  {
    "s": "Buat baru",
    "n": 12
   },
@@ -79,10 +83,6 @@
    "n": 12
   },
   {
-   "s": "Transaksi",
-   "n": 12
-  },
-  {
    "s": "Tutup",
    "n": 12
   },
@@ -96,6 +96,10 @@
   },
   {
    "s": "Gagal mengunggah foto",
+   "n": 11
+  },
+  {
+   "s": "Selesai",
    "n": 11
   },
   {
@@ -243,10 +247,6 @@
    "n": 8
   },
   {
-   "s": "Selesai",
-   "n": 8
-  },
-  {
    "s": "Aktif",
    "n": 7
   },
@@ -284,6 +284,10 @@
   },
   {
    "s": "Pengaturan",
+   "n": 7
+  },
+  {
+   "s": "Semua",
    "n": 7
   },
   {
@@ -431,6 +435,10 @@
    "n": 6
   },
   {
+   "s": "Kode QR profil",
+   "n": 6
+  },
+  {
    "s": "Komentar Anda akan dihapus dari utas ini.",
    "n": 6
   },
@@ -500,10 +508,6 @@
   },
   {
    "s": "Reaksi {x}",
-   "n": 6
-  },
-  {
-   "s": "Semua",
    "n": 6
   },
   {
@@ -775,6 +779,10 @@
    "n": 4
   },
   {
+   "s": "Diarsipkan",
+   "n": 4
+  },
+  {
    "s": "Dibatalkan",
    "n": 4
   },
@@ -891,6 +899,10 @@
    "n": 4
   },
   {
+   "s": "Lepas",
+   "n": 4
+  },
+  {
    "s": "Membalas {x}",
    "n": 4
   },
@@ -903,6 +915,10 @@
    "n": 4
   },
   {
+   "s": "Mengerti",
+   "n": 4
+  },
+  {
    "s": "Menunggu",
    "n": 4
   },
@@ -912,6 +928,10 @@
   },
   {
    "s": "Minimal {x} karakter.",
+   "n": 4
+  },
+  {
+   "s": "Mulai",
    "n": 4
   },
   {
@@ -1191,7 +1211,15 @@
    "n": 3
   },
   {
+   "s": "Aktif sekarang",
+   "n": 3
+  },
+  {
    "s": "Aktifkan bila kuota terbatas. Berlaku untuk perangkat ini saja.",
+   "n": 3
+  },
+  {
+   "s": "Aktifkan jadwal jangan-ganggu",
    "n": 3
   },
   {
@@ -1212,6 +1240,10 @@
   },
   {
    "s": "Anda tidak akan lagi melihat aktivitas atau dapat bertransaksi dengan pengguna ini.",
+   "n": 3
+  },
+  {
+   "s": "Aturan: chat transaksi hanya bisa dihapus setelah order selesai.",
    "n": 3
   },
   {
@@ -1475,10 +1507,6 @@
    "n": 3
   },
   {
-   "s": "Diarsipkan",
-   "n": 3
-  },
-  {
    "s": "Disembunyikan dari profil publik",
    "n": 3
   },
@@ -1643,6 +1671,10 @@
    "n": 3
   },
   {
+   "s": "Gagal menyimpan preferensi",
+   "n": 3
+  },
+  {
    "s": "Gagal menyimpan template",
    "n": 3
   },
@@ -1735,6 +1767,10 @@
    "n": 3
   },
   {
+   "s": "Hapus percakapan?",
+   "n": 3
+  },
+  {
    "s": "Hapus suka",
    "n": 3
   },
@@ -1799,11 +1835,27 @@
    "n": 3
   },
   {
+   "s": "Jadwal harian tanpa bunyi notifikasi push.",
+   "n": 3
+  },
+  {
    "s": "Jaga nada tetap ramah dan profesional.",
    "n": 3
   },
   {
    "s": "Jam",
+   "n": 3
+  },
+  {
+   "s": "Jam mulai",
+   "n": 3
+  },
+  {
+   "s": "Jam selesai",
+   "n": 3
+  },
+  {
+   "s": "Jangan ganggu",
    "n": 3
   },
   {
@@ -1844,6 +1896,10 @@
   },
   {
    "s": "Jumlah",
+   "n": 3
+  },
+  {
+   "s": "kahade.id/user/{x}",
    "n": 3
   },
   {
@@ -1959,6 +2015,10 @@
    "n": 3
   },
   {
+   "s": "Kode QR profil @{x}",
+   "n": 3
+  },
+  {
    "s": "Kode QR: {x}",
    "n": 3
   },
@@ -1996,6 +2056,10 @@
   },
   {
    "s": "Komentar yang diedit",
+   "n": 3
+  },
+  {
+   "s": "Konfirmasi gagal",
    "n": 3
   },
   {
@@ -2052,10 +2116,6 @@
   },
   {
    "s": "Lencana centang abu-abu Kahade+",
-   "n": 3
-  },
-  {
-   "s": "Lepas",
    "n": 3
   },
   {
@@ -2152,6 +2212,10 @@
   },
   {
    "s": "Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase",
+   "n": 3
+  },
+  {
+   "s": "Memeriksa status order…",
    "n": 3
   },
   {
@@ -2363,6 +2427,10 @@
    "n": 3
   },
   {
+   "s": "Percakapan ini akan dihapus dari daftar Anda. Tindakan ini tidak dapat dibatalkan.",
+   "n": 3
+  },
+  {
    "s": "Pergantian ikon aplikasi membutuhkan pembaruan aplikasi dari toko — pilihan Anda tersimpan dan diterapkan saat tersedia.",
    "n": 3
   },
@@ -2463,6 +2531,10 @@
    "n": 3
   },
   {
+   "s": "Pindai kode ini untuk membuka profil @{x}.",
+   "n": 3
+  },
+  {
    "s": "Positif",
    "n": 3
   },
@@ -2476,6 +2548,10 @@
   },
   {
    "s": "Pratinjau gambar",
+   "n": 3
+  },
+  {
+   "s": "Preferensi tersimpan",
    "n": 3
   },
   {
@@ -2815,6 +2891,10 @@
    "n": 3
   },
   {
+   "s": "Tunggu",
+   "n": 3
+  },
+  {
    "s": "Tutup editor highlight",
    "n": 3
   },
@@ -3063,6 +3143,10 @@
    "n": 2
   },
   {
+   "s": "Aktifkan jadwal",
+   "n": 2
+  },
+  {
    "s": "Aktifkan karya",
    "n": 2
   },
@@ -3088,6 +3172,14 @@
   },
   {
    "s": "Ambang stok menipis",
+   "n": 2
+  },
+  {
+   "s": "Anda bukan anggota percakapan ini.",
+   "n": 2
+  },
+  {
+   "s": "Anda tidak perlu melakukan apa pun — cukup coba lagi nanti.",
    "n": 2
   },
   {
@@ -3319,10 +3411,6 @@
    "n": 2
   },
   {
-   "s": "Buka daftar terarsip",
-   "n": 2
-  },
-  {
    "s": "Buka detail mutasi",
    "n": 2
   },
@@ -3464,6 +3552,10 @@
   },
   {
    "s": "Dana escrow akan DIBEKUKAN sampai mediator Kahade memutuskan. Sengketa yang sudah dibuka tidak bisa dibatalkan sepihak. Pastikan klaim sudah jelas — bukti foto/video bisa ditambahkan setelah sengketa dibuat.",
+   "n": 2
+  },
+  {
+   "s": "Dana escrow diteruskan ke penjual.",
    "n": 2
   },
   {
@@ -3675,6 +3767,10 @@
    "n": 2
   },
   {
+   "s": "Gagal menghapus percakapan",
+   "n": 2
+  },
+  {
    "s": "Gagal menghapus pertanyaan",
    "n": 2
   },
@@ -3728,10 +3824,6 @@
   },
   {
    "s": "Gagal menyimpan balasan",
-   "n": 2
-  },
-  {
-   "s": "Gagal menyimpan preferensi",
    "n": 2
   },
   {
@@ -4035,6 +4127,10 @@
    "n": 2
   },
   {
+   "s": "Kemungkinan sudah dihapus sebelumnya.",
+   "n": 2
+  },
+  {
    "s": "Keputusan mediator/admin",
    "n": 2
   },
@@ -4168,6 +4264,10 @@
   },
   {
    "s": "Konfirmasi OTP",
+   "n": 2
+  },
+  {
+   "s": "Konfirmasi terima",
    "n": 2
   },
   {
@@ -4735,7 +4835,19 @@
    "n": 2
   },
   {
+   "s": "Percakapan diarsipkan",
+   "n": 2
+  },
+  {
    "s": "Percakapan dibuka kembali",
+   "n": 2
+  },
+  {
+   "s": "Percakapan dihapus",
+   "n": 2
+  },
+  {
+   "s": "Percakapan dikeluarkan dari arsip",
    "n": 2
   },
   {
@@ -4748,6 +4860,10 @@
   },
   {
    "s": "Percakapan live chat dimulai.",
+   "n": 2
+  },
+  {
+   "s": "Percakapan sudah tidak ada",
    "n": 2
   },
   {
@@ -4815,6 +4931,10 @@
    "n": 2
   },
   {
+   "s": "Pesanan dikonfirmasi diterima",
+   "n": 2
+  },
+  {
    "s": "Pilih",
    "n": 2
   },
@@ -4867,10 +4987,6 @@
    "n": 2
   },
   {
-   "s": "Preferensi tersimpan",
-   "n": 2
-  },
-  {
    "s": "Privat",
    "n": 2
   },
@@ -4904,6 +5020,10 @@
   },
   {
    "s": "Pusat Bantuan",
+   "n": 2
+  },
+  {
+   "s": "Push tidak dibunyikan pada jam berikut.",
    "n": 2
   },
   {
@@ -5371,7 +5491,15 @@
    "n": 2
   },
   {
+   "s": "Tidak aktif",
+   "n": 2
+  },
+  {
    "s": "Tidak bisa diputar",
+   "n": 2
+  },
+  {
+   "s": "Tidak bisa menghapus",
    "n": 2
   },
   {
@@ -5443,10 +5571,6 @@
    "n": 2
   },
   {
-   "s": "Transaksi dan saldo Anda aman — tidak ada data yang hilang selama pemeliharaan.",
-   "n": 2
-  },
-  {
    "s": "Transaksi ini membutuhkan verifikasi identitas (KYC).",
    "n": 2
   },
@@ -5460,10 +5584,6 @@
   },
   {
    "s": "Tunggu sebentar",
-   "n": 2
-  },
-  {
-   "s": "Tutup daftar terarsip",
    "n": 2
   },
   {
@@ -5564,6 +5684,10 @@
   },
   {
    "s": "Ya, terima & cairkan",
+   "n": 2
+  },
+  {
+   "s": "Zona waktu: {x}",
    "n": 2
   },
   {
@@ -5684,6 +5808,14 @@
   },
   {
    "s": "{x} × {x} — {x}. Harga & stok terkonfirmasi server.",
+   "n": 1
+  },
+  {
+   "s": "{x} aksi terkirim, {x} gagal — coba lagi manual.",
+   "n": 1
+  },
+  {
+   "s": "{x} aksi yang tertunda terkirim.",
    "n": 1
   },
   {
@@ -7559,6 +7691,10 @@
    "n": 1
   },
   {
+   "s": "Akan dikirim otomatis saat tersambung kembali.",
+   "n": 1
+  },
+  {
    "s": "Akhir Kebijakan Privasi Kahade — Draf Versi {x}.{x}, disusun {x} September {x}; berlaku sejak tanggal publikasi resmi.",
    "n": 1
   },
@@ -7623,11 +7759,11 @@
    "n": 1
   },
   {
-   "s": "Aksi transaksi dinonaktifkan sampai peran Anda pada order ini diketahui.",
+   "s": "Aksi sosial",
    "n": 1
   },
   {
-   "s": "Aktif sekarang",
+   "s": "Aksi transaksi dinonaktifkan sampai peran Anda pada order ini diketahui.",
    "n": 1
   },
   {
@@ -7868,6 +8004,10 @@
   },
   {
    "s": "Arahkan kamera ke kode QR untuk memindai transaksi, profil pengguna, atau tautan Kahade.",
+   "n": 1
+  },
+  {
+   "s": "Arsip",
    "n": 1
   },
   {
@@ -8279,6 +8419,10 @@
    "n": 1
   },
   {
+   "s": "Belum ada chat transaksi",
+   "n": 1
+  },
+  {
    "s": "Belum ada data pelacakan",
    "n": 1
   },
@@ -8415,6 +8559,10 @@
    "n": 1
   },
   {
+   "s": "Belum dibaca",
+   "n": 1
+  },
+  {
    "s": "Belum dibuat",
    "n": 1
   },
@@ -8464,6 +8612,10 @@
   },
   {
    "s": "Berhasil diunggah",
+   "n": 1
+  },
+  {
+   "s": "Berhenti mengikuti",
    "n": 1
   },
   {
@@ -8676,6 +8828,10 @@
   },
   {
    "s": "Buat ulang QRIS?",
+   "n": 1
+  },
+  {
+   "s": "Buka",
    "n": 1
   },
   {
@@ -9075,6 +9231,10 @@
    "n": 1
   },
   {
+   "s": "Chat dengan lawan transaksi Anda akan muncul di sini.",
+   "n": 1
+  },
+  {
    "s": "Chat Langsung",
    "n": 1
   },
@@ -9088,6 +9248,10 @@
   },
   {
    "s": "Chat penjual hilang, uang ikut melayang.",
+   "n": 1
+  },
+  {
+   "s": "Chat transaksi hanya bisa dihapus setelah order selesai (COMPLETED).",
    "n": 1
   },
   {
@@ -10143,6 +10307,10 @@
    "n": 1
   },
   {
+   "s": "Gagal memperbarui arsip percakapan",
+   "n": 1
+  },
+  {
    "s": "Gagal memperbarui komentar",
    "n": 1
   },
@@ -10844,6 +11012,10 @@
   },
   {
    "s": "Ikuti",
+   "n": 1
+  },
+  {
+   "s": "Ikuti pengguna",
    "n": 1
   },
   {
@@ -11847,6 +12019,10 @@
    "n": 1
   },
   {
+   "s": "Konfirmasi penerimaan untuk meneruskan dana escrow ke penjual.",
+   "n": 1
+  },
+  {
    "s": "Konfirmasi transfer",
    "n": 1
   },
@@ -12835,10 +13011,6 @@
    "n": 1
   },
   {
-   "s": "Mengerti",
-   "n": 1
-  },
-  {
    "s": "Menghitung biaya…",
    "n": 1
   },
@@ -13091,10 +13263,6 @@
    "n": 1
   },
   {
-   "s": "Mulai",
-   "n": 1
-  },
-  {
    "s": "Mulai chat dengan lawan transaksi Anda.",
    "n": 1
   },
@@ -13343,6 +13511,10 @@
    "n": 1
   },
   {
+   "s": "Notifikasi ini tidak menaut ke order yang valid.",
+   "n": 1
+  },
+  {
    "s": "Notifikasi promosi",
    "n": 1
   },
@@ -13360,6 +13532,10 @@
   },
   {
    "s": "NPWP badan usaha",
+   "n": 1
+  },
+  {
+   "s": "Offline — {x} diantrekan",
    "n": 1
   },
   {
@@ -14075,15 +14251,11 @@
    "n": 1
   },
   {
-   "s": "Percakapan diarsipkan",
-   "n": 1
-  },
-  {
    "s": "Percakapan dibisukan",
    "n": 1
   },
   {
-   "s": "Percakapan dikeluarkan dari arsip",
+   "s": "Percakapan disematkan",
    "n": 1
   },
   {
@@ -14440,6 +14612,10 @@
   },
   {
    "s": "Pesanan ini tidak memenuhi syarat retur.",
+   "n": 1
+  },
+  {
+   "s": "Pesanan sudah sampai?",
    "n": 1
   },
   {
@@ -15255,6 +15431,14 @@
    "n": 1
   },
   {
+   "s": "Semat",
+   "n": 1
+  },
+  {
+   "s": "Semat percakapan dilepas",
+   "n": 1
+  },
+  {
    "s": "Sembunyikan jumlah rating.",
    "n": 1
   },
@@ -15300,6 +15484,10 @@
   },
   {
    "s": "Semua perangkat lain dicabut",
+   "n": 1
+  },
+  {
+   "s": "Semua percakapan sudah Anda baca.",
    "n": 1
   },
   {
@@ -16143,6 +16331,10 @@
    "n": 1
   },
   {
+   "s": "Tersambung kembali",
+   "n": 1
+  },
+  {
    "s": "Tersedia",
    "n": 1
   },
@@ -16216,6 +16408,10 @@
   },
   {
    "s": "Tidak ada transaksi untuk diunduh",
+   "n": 1
+  },
+  {
+   "s": "Tidak ada yang belum dibaca",
    "n": 1
   },
   {

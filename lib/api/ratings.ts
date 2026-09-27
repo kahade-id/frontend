@@ -158,3 +158,30 @@ export function deleteMyRating(ratingId: string) {
     auth: "required",
   })
 }
+
+// ------------------------------------------------------------------
+// Distribusi bintang (item 21, 2026-09-28)
+// ------------------------------------------------------------------
+
+/**
+ * KONTRAK TIM A — distribusi bintang ulasan BELUM didefinisikan.
+ * Modul ini adalah TITIK INTEGRASI: tipe + signature sudah ditetapkan dan
+ * dipakai `components/ui/rating-distribution.tsx`; implementasi nyata hanya
+ * mengganti badan fungsi ini begitu kontrak tiba. JANGAN menebak
+ * path/metode.
+ *
+ * Bentuk data yang diusulkan ke TIM A (bukan kontrak final):
+ *   GET /v1/ratings/distribution?scope=my → { counts: [c1, c2, c3, c4, c5], total }
+ */
+export type RatingDistribution = {
+  /** counts[0] = jumlah 1★ … counts[4] = jumlah 5★. */
+  counts: [number, number, number, number, number]
+  total: number
+}
+
+/** Menolak dengan pesan kontrak — komponen distribusi menyembunyikan diri. */
+export function readRatingDistribution(): Promise<RatingDistribution> {
+  return Promise.reject(
+    new Error("Distribusi bintang belum tersedia: menunggu kontrak endpoint dari TIM A."),
+  )
+}

@@ -54,6 +54,7 @@ import { ChatAttachmentItem, type ChatAttachment, type ChatAttachmentStatus } fr
 import { canSendMessage } from "@/lib/chat-send-ready"
 export { canSendMessage }
 import { IconButton } from "@/components/ui/icon-button"
+import { QuickReplyPicker } from "@/components/ui/quick-reply-picker"
 import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
@@ -121,6 +122,12 @@ export type ChatComposerProps = Omit<ViewProps, "children"> & {
   disabled?: boolean
   maxLength?: number
   labels?: Partial<ChatComposerLabels>
+  /**
+   * Item 23 (2026-09-28): balasan cepat — ketik "/" di awal teks memunculkan
+   * picker template (disimpan per perangkat, lib/quick-replies.ts).
+   * Default true; matikan bila konteks tidak cocok.
+   */
+  quickReplies?: boolean
   className?: string
   inputProps?: Omit<TextInputProps, "value" | "onChangeText" | "multiline" | "style" | "className">
 }
@@ -140,6 +147,7 @@ export function ChatComposer({
   disabled = false,
   maxLength = CHAT_MESSAGE_MAX,
   labels,
+  quickReplies = true,
   className,
   inputProps,
   ...rest
@@ -150,6 +158,12 @@ export function ChatComposer({
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
   const [focused, setFocused] = useState(false)
+
+  // Item 23: "/" di awal teks (tanpa baris baru) → picker template. Memilih
+  // template mengganti token "/..." dengan teks template.
+  const quickReplyActive =
+    quickReplies && !disabled && value.startsWith("/") && !value.includes("\n")
+  const quickReplyQuery = quickReplyActive ? value.slice(1) : ""
 
   const lineHeight = tokens.typography.bodyLarge.lineHeight
   const maxInputHeight = lineHeight * MAX_LINES
@@ -187,10 +201,19 @@ export function ChatComposer({
 
   return (
     <View
-      className={cn("w-full gap-2 border-t border-border bg-background px-4 pb-2 pt-2", className)}
+      className={cn("relative w-full gap-2 border-t border-border bg-background px-4 pb-2 pt-2", className)}
       accessibilityRole="toolbar"
       {...rest}
     >
+      {quickReplyActive ? (
+        <QuickReplyPicker
+          query={quickReplyQuery}
+          onSelect={(text) => onChangeText(text)}
+          // Menutup picker melepas pemicu "/" supaya user bisa melanjutkan
+          // mengetik tanpa picker muncul lagi di ketikan berikutnya.
+          onClose={() => onChangeText(value.replace(/^\//, ""))}
+        />
+      ) : null}
       {replyTo ? (
         <View className="flex-row items-center gap-3 rounded-sm border-l-2 border-border-focus bg-surface py-2 pl-3 pr-1">
           <View className="flex-1">

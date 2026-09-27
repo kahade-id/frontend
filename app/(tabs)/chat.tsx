@@ -1,50 +1,51 @@
 /**
  * Screen — Ruang Chat (GET /v1/chat/rooms). List ChatRoomListItem.
  *
- * v3 (2026-09-21, permintaan pemilik produk):
- *   - Baris list = DUA baris teks (nama · order id / preview · waktu), tanpa
- *     chevron dan TANPA garis pemisah sama sekali — termasuk di baris pertama.
- *     Garis di atas baris pertama dulu terbaca sebagai "separator nyangkut"
- *     karena header sudah punya border-b sendiri (§6: satu pemisah, satu kali).
- *   - Tekan lama TIDAK lagi membuka ActionSheet: baris masuk MODE PILIH
- *     (pola yang sama dengan layar Notifikasi), lalu aksi massal
- *     Bisukan/Arsipkan tersedia sebagai ikon di header. Satu ketukan panjang
- *     = satu langkah, bukan dua (buka sheet → pilih aksi).
- *   - Umpan balik ripple di setiap baris (PressableScale `ripple`).
- *   - Skeleton muat-pertama sebentuk baris chat (bukan 4 kartu h-24 milik
- *     <ListLoading/>) supaya daftar tidak "melompat" saat data tiba.
- *
- * Header: icon BACK di kiri (konsisten layar stack lain) + icon ARSIP di kanan
- * untuk membuka/menutup "Daftar terarsip" — pintu masuk tetap ada walau ruang
- * terarsip tidak pernah boleh lenyap diam-diam.
- *
- * Fitur lanjutan (spec backend chat):
- *   - Dot online dari `isOnline`/`lastSeenAt` + ikon bel-slash untuk `isMuted`.
- *   - Mode pilih: Arsipkan/Buka arsip (PUT /archive) dan Bisukan/Bukakan
- *     (PUT /mute) untuk BANYAK ruang sekaligus. Backend tidak punya endpoint
- *     batch, jadi permintaan dikirim paralel dengan `Promise.allSettled`:
- *     sebagian gagal tetap memperbarui yang berhasil dan melaporkan sisanya
- *     (bukan rollback senyap).
- *   - Ruang terarsip ditampilkan di "Daftar terarsip" (bukan disembunyikan).
- *     B4 (fix 2026-09-26): tab arsip = query TERPISAH ke ?archived=true
- *     (bukan filter client-side dari query utama) — backend menyembunyikan
- *     arsip secara server-side, dan setiap refetch akan "menguapkan" arsip
- *     bila hanya mengandalkan patch lokal. Setelah aksi arsip/unarsip,
- *     kedua query di-refresh agar server jadi source of truth.
+ * v4 (2026-09-28, TIM D item 17 & 18):
+ *   - FILTER CHIP (item 17): baris chip di bawah header — Semua / Belum
+ *     dibaca / Transaksi / Diarsipkan. "Diarsipkan" memakai query terpisah
+ *     `?archived=true` (server-side, B4 — arsip tidak pernah difilter
+ *     client-side dari query utama supaya tidak "menguap" tiap refetch).
+ *     "Belum dibaca" (`unreadCount > 0`) & "Transaksi" (punya `orderId` /
+ *     type ORDER) adalah filter tampilan di atas halaman yang sudah dimuat
+ *     (backend hanya mendukung filter `archived` di GET /v1/chat/rooms —
+ *     dicatat supaya tidak disangka query server). Chip "Grup" tidak dibuat:
+ *     tidak ada indikasi grup di data room existing (chat 1:1 & transaksi).
+ *   - SWIPE (item 18): tiap baris = <SwipeableListItem> —
+ *       swipe KANAN (aksi di kiri)  → Pin / Lepas pin (per perangkat, local)
+ *       swipe KIRI  (aksi di kanan) → Arsip / Buka arsip, Hapus (destruktif)
+ *     Pin disimpan per perangkat (lib/chat-pinned-rooms, SecureStore) karena
+ *     backend belum punya endpoint pin RUANG (hanya pin PESAN). Sinkronisasi
+ *     akun butuh keputusan produk + kerja backend — dicatat, tidak di sini.
+ *     Hapus: dialog konfirmasi WAJIB (1-by-1, tanpa bulk). Aturan backend:
+ *     room transaksi hanya boleh dihapus bila order COMPLETED — diperiksa via
+ *     getOrder(orderId) (API existing) SEBELUM dialog; bila belum boleh, opsi
+ *     hapus tidak dieksekusi dan dialog pesan jelas tampil. Room DM (tanpa
+ *     orderId) bebas dihapus pemiliknya. Kontrak TIM B (2026-09-28):
+ *     DELETE /v1/chat/rooms/:roomId → { deleted, roomId, permanent };
+ *     permanent=true = DM hard delete, permanent=false = room order COMPLETED
+ *     soft delete (riwayat untuk audit). 404 NOT_FOUND / 403
+ *     NOT_ORDER_PARTICIPANT / 409 CHAT_ROOM_DELETE_ORDER_NOT_COMPLETED
+ *     (fail closed, termasuk CANCELLED/DISPUTED) dipetakan ke pesan jelas.
+ *   - Tekan lama tetap masuk MODE PILIH (aksi massal Bisukan/Arsipkan);
+ *     swipe dimatikan selama mode pilih supaya gesture tidak bentrok.
  */
 import { useCallback, useEffect, useMemo, useState } from "react"
-import { View } from "react-native"
-import { Archive, BellSlash, BellZ, Chats, X } from "phosphor-react-native"
+import { ScrollView, View } from "react-native"
+import { Archive, BellSlash, BellZ, Chats, PushPin, Trash, X } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import {
   CHAT_PAGE_SIZE,
+  canDeleteChatRoom,
   chatRoomPreview,
+  deleteChatRoom,
   setRoomArchived,
   setRoomMuted,
   type ChatRoom,
 } from "@/lib/api/chat"
+import { ORDER_STATUS_LABELS } from "@/lib/labels/status"
 import { formatTimeAgo, truncateMiddle } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n"
@@ -53,9 +54,18 @@ import { tokens } from "@/lib/tokens"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
+import {
+  ensurePinnedLoaded,
+  isRoomPinned,
+  sortRoomsPinnedFirst,
+  subscribePinnedRooms,
+  toggleRoomPinned,
+} from "@/lib/chat-pinned-rooms"
 
 import { ChatRoomListItem } from "@/components/ui/chat-room-list-item"
 import { Button } from "@/components/ui/button"
+import { ChipGroup, type ChipOption } from "@/components/ui/chip"
+import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { IconButton } from "@/components/ui/icon-button"
@@ -63,6 +73,11 @@ import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
+import {
+  SwipeableListItem,
+  useSwipeableGroup,
+  type SwipeSide,
+} from "@/components/ui/swipeable-list-item"
 import { useToast } from "@/components/ui/toast"
 import { useScrollElevation } from "@/lib/use-scroll-elevation"
 
@@ -76,6 +91,15 @@ const SELECTION_MAX = 50
 /** Baris skeleton saat muat pertama — sebentuk <ChatRoomListItem>. */
 const SKELETON_COUNT = 7
 
+/** Item 17 — filter daftar chat. "archived" = query server terpisah (B4). */
+type ChatFilter = "all" | "unread" | "transaction" | "archived"
+const FILTER_OPTIONS: readonly ChipOption<ChatFilter>[] = [
+  { value: "all", label: "Semua" },
+  { value: "unread", label: "Belum dibaca" },
+  { value: "transaction", label: "Transaksi" },
+  { value: "archived", label: "Diarsipkan" },
+]
+
 function ChatSkeletonRow() {
   return (
     <View className="flex-row items-center gap-3 px-4 py-2.5">
@@ -88,10 +112,16 @@ function ChatSkeletonRow() {
   )
 }
 
+/** "Transaksi" = punya orderId atau type ORDER (DRIFT-06: backend mengirim `type`). */
+function isTransactionRoom(room: ChatRoom): boolean {
+  return Boolean(room.orderId) || (room.type ?? room.roomType) === "ORDER"
+}
+
 export default function ChatScreen() {
   const toast = useToast()
   const insets = useSafeAreaInsets()
-  const [archiveOpen, setArchiveOpen] = useState(false)
+  const [filter, setFilter] = useState<ChatFilter>("all")
+  const archiveOpen = filter === "archived"
   const mainQuery = usePaginatedQuery<ChatRoom>(
     "chat-rooms",
     (page, signal) => api.chat.listChatRooms({ page, limit: CHAT_PAGE_SIZE }, signal),
@@ -118,6 +148,15 @@ export default function ChatScreen() {
     },
   )
 
+  // ── Item 18: pin per-perangkat — daftar subscribe agar toggle pin
+  // memperbarui urutan tanpa refetch. ────────────────────────────────
+  const [, setPinVersion] = useState(0)
+  useEffect(() => {
+    void ensurePinnedLoaded().then(() => setPinVersion((v) => v + 1))
+    return subscribePinnedRooms(() => setPinVersion((v) => v + 1))
+  }, [])
+  const swipeGroup = useSwipeableGroup()
+
   // ── Mode pilih (aksi massal arsip/bisu, tanpa ActionSheet) ──
   const [selecting, setSelecting] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(() => new Set())
@@ -126,10 +165,19 @@ export default function ChatScreen() {
   const { elevated, onScrollWorklet } = useScrollElevation()
 
   // Query aktif mengikuti tab — tiap tab datanya sudah difilter server
-  // (utama = non-arsip, arsip = ?archived=true). Tidak ada lagi filter
-  // client-side `isArchived` di sini (B4).
+  // (utama = non-arsip, arsip = ?archived=true). "Belum dibaca"/"Transaksi"
+  // filter client-side di atas halaman yang dimuat (lihat catatan item 17).
   const activeQuery = archiveOpen ? archivedQuery : mainQuery
-  const shownRooms = activeQuery.data
+  const shownRooms = useMemo(() => {
+    const base = activeQuery.data
+    const filtered =
+      filter === "unread"
+        ? base.filter((r) => r.unreadCount > 0)
+        : filter === "transaction"
+          ? base.filter(isTransactionRoom)
+          : base
+    return sortRoomsPinnedFirst(filtered)
+  }, [activeQuery.data, filter])
 
   // Terapkan hasil arsip/mute ke baris list tanpa memuat ulang seluruhnya.
   // Untuk arsip, ini hanya umpan balik instan — `handleBatchArchive`
@@ -139,6 +187,14 @@ export default function ChatScreen() {
   const patchRoom = useCallback(
     (id: string, patch: Partial<ChatRoom>) => {
       activeSetData((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
+    },
+    [activeSetData],
+  )
+
+  /** Hapus baris room dari daftar lokal (umpan balik instan setelah DELETE). */
+  const removeRoom = useCallback(
+    (id: string) => {
+      activeSetData((prev) => prev.filter((r) => r.id !== id))
     },
     [activeSetData],
   )
@@ -177,11 +233,11 @@ export default function ChatScreen() {
     haptic("select")
   }, [])
 
-  // Ganti daftar (arsip ↔ aktif) membatalkan pilihan: id yang dipilih bisa
-  // tidak ada lagi di daftar yang sedang tampil.
+  // Ganti filter membatalkan pilihan: id yang dipilih bisa tidak ada lagi di
+  // daftar yang sedang tampil.
   useEffect(() => {
     exitSelect()
-  }, [archiveOpen, exitSelect])
+  }, [filter, exitSelect])
 
   /**
    * Jalankan satu aksi untuk semua ruang terpilih. `Promise.allSettled` (bukan
@@ -263,6 +319,165 @@ export default function ChatScreen() {
     archivedQuery.refresh()
   }, [archiveOpen, runBatch, mainQuery, archivedQuery])
 
+  // ── Item 18: swipe per-baris ─────────────────────────────────────────
+  const handleTogglePin = useCallback(
+    async (room: ChatRoom) => {
+      const pinned = await toggleRoomPinned(room.id)
+      haptic("select")
+      toast.show({
+        title: pinned ? "Percakapan disematkan" : "Semat percakapan dilepas",
+        tone: "neutral",
+        duration: 2000,
+      })
+    },
+    [toast.show],
+  )
+
+  const handleSingleArchive = useCallback(
+    async (room: ChatRoom) => {
+      const unarchive = room.isArchived === true
+      try {
+        const res = await setRoomArchived(room.id, !unarchive)
+        patchRoom(room.id, { isArchived: res.isArchived })
+        haptic("success")
+        toast.show({
+          title: unarchive ? "Percakapan dikeluarkan dari arsip" : "Percakapan diarsipkan",
+          tone: "neutral",
+          duration: 2000,
+        })
+        mainQuery.refresh()
+        archivedQuery.refresh()
+      } catch (err: unknown) {
+        toast.show({
+          title: "Gagal memperbarui arsip percakapan",
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    },
+    [patchRoom, toast.show, mainQuery, archivedQuery],
+  )
+
+  // ── Item 18: hapus — dialog konfirmasi + gate aturan backend ─────────
+  /** Room yang menunggu konfirmasi hapus (null = dialog tutup). */
+  const [deleteRoom, setDeleteRoom] = useState<ChatRoom | null>(null)
+  /** Pesan "belum boleh" bila aturan hapus tidak terpenuhi. */
+  const [deleteBlockedMessage, setDeleteBlockedMessage] = useState<string | null>(null)
+  const [deleteChecking, setDeleteChecking] = useState(false)
+  const [deleteBusy, setDeleteBusy] = useState(false)
+
+  const closeDelete = useCallback(() => {
+    setDeleteRoom(null)
+    setDeleteBlockedMessage(null)
+  }, [])
+
+  const requestDelete = useCallback(
+    (room: ChatRoom) => {
+      // Room DM (tanpa orderId) bebas dihapus pemiliknya — langsung konfirmasi.
+      if (!room.orderId) {
+        setDeleteBlockedMessage(null)
+        setDeleteRoom(room)
+        return
+      }
+      // Room transaksi: PATUHI aturan backend — hanya bila order COMPLETED.
+      // Status dicek dari API existing (getOrder), bukan dari tebakan.
+      setDeleteChecking(true)
+      api.orders
+        .getOrder(room.orderId)
+        .then((order) => {
+          if (canDeleteChatRoom(order.status)) {
+            setDeleteBlockedMessage(null)
+            setDeleteRoom(room)
+          } else {
+            const label =
+              ORDER_STATUS_LABELS[order.status as keyof typeof ORDER_STATUS_LABELS] ??
+              order.status
+            setDeleteBlockedMessage(
+              `Chat transaksi hanya bisa dihapus setelah order selesai. Status order ini: ${label}.`,
+            )
+            setDeleteRoom(room)
+          }
+        })
+        .catch(() => {
+          setDeleteBlockedMessage(
+            "Status order tidak bisa diperiksa saat ini. Coba lagi nanti.",
+          )
+          setDeleteRoom(room)
+        })
+        .finally(() => setDeleteChecking(false))
+    },
+    [],
+  )
+
+  const confirmDelete = useCallback(async () => {
+    if (!deleteRoom || deleteBusy) return
+    const roomId = deleteRoom.id
+    setDeleteBusy(true)
+    try {
+      // Kontrak TIM B: DELETE /v1/chat/rooms/:roomId → { deleted, roomId,
+      // permanent }. permanent=true = DM hard delete; permanent=false = room
+      // order COMPLETED soft delete (riwayat dipertahankan untuk audit).
+      // Efek di UI sama: room hilang dari daftar.
+      await deleteChatRoom(roomId)
+      // Umpan balik instan + rekonsiliasi kedua query dengan server (seperti arsip).
+      removeRoom(roomId)
+      haptic("success")
+      toast.show({ title: translate("Percakapan dihapus"), tone: "neutral" })
+      closeDelete()
+      mainQuery.refresh()
+      archivedQuery.refresh()
+    } catch (err: unknown) {
+      const backendCode = isApiError(err) ? err.backendCode : undefined
+      const status = isApiError(err) ? err.status : undefined
+      if (backendCode === "NOT_FOUND" || status === 404) {
+        // Room sudah tidak ada di server — selaraskan daftar lokal.
+        removeRoom(roomId)
+        closeDelete()
+        mainQuery.refresh()
+        archivedQuery.refresh()
+        toast.show({
+          title: translate("Percakapan sudah tidak ada"),
+          description: translate("Kemungkinan sudah dihapus sebelumnya."),
+          tone: "neutral",
+        })
+      } else if (
+        backendCode === "CHAT_ROOM_DELETE_ORDER_NOT_COMPLETED" ||
+        status === 409
+      ) {
+        // Fail closed server: order belum COMPLETED (termasuk CANCELLED /
+        // DISPUTED) — atau status berubah setelah pengecekan getOrder.
+        // Tampilkan sebagai pesan jelas di dialog (pola yang sama dengan
+        // gate pra-konfirmasi di requestDelete).
+        setDeleteBlockedMessage(
+          translate("Chat transaksi hanya bisa dihapus setelah order selesai (COMPLETED)."),
+        )
+      } else if (backendCode === "NOT_ORDER_PARTICIPANT" || status === 403) {
+        toast.show({
+          title: translate("Tidak bisa menghapus"),
+          description: translate("Anda bukan anggota percakapan ini."),
+          tone: "danger",
+        })
+        closeDelete()
+      } else {
+        toast.show({
+          title: translate("Gagal menghapus percakapan"),
+          description: userMessage(err),
+          tone: "danger",
+        })
+      }
+    } finally {
+      setDeleteBusy(false)
+    }
+  }, [deleteRoom, deleteBusy, closeDelete, toast.show, removeRoom, mainQuery, archivedQuery])
+
+  const fullSwipeAction = useCallback(
+    (room: ChatRoom, side: SwipeSide) => {
+      if (side === "left") void handleTogglePin(room)
+      else void handleSingleArchive(room)
+    },
+    [handleTogglePin, handleSingleArchive],
+  )
+
   return (
     <Screen edges={["top"]} padded={false}>
       {selecting ? (
@@ -325,19 +540,26 @@ export default function ChatScreen() {
           titleAlign="left"
           titleVariant="h2"
           title={archiveOpen ? "Diarsipkan" : "Pesan"}
-          right={
-            <IconButton
-              icon={Archive}
-              size="md"
-              variant="ghost"
-              ripple
-              active={archiveOpen}
-              accessibilityLabel={archiveOpen ? "Tutup daftar terarsip" : "Buka daftar terarsip"}
-              onPress={() => setArchiveOpen((v) => !v)}
-            />
-          }
         />
       )}
+      {!selecting ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerClassName="gap-2 px-4 pb-2"
+          accessibilityRole="tablist"
+        >
+          <ChipGroup
+            single
+            options={FILTER_OPTIONS.map((o) => ({ ...o, label: translate(o.label) }))}
+            value={[filter]}
+            onChange={(next) => {
+              const picked = next[0]
+              if (picked) setFilter(picked)
+            }}
+          />
+        </ScrollView>
+      ) : null}
       <ModeShiftFade>
       <PaginatedList
         {...activeQuery}
@@ -368,6 +590,18 @@ export default function ChatScreen() {
               title="Belum ada percakapan terarsip"
               description="Percakapan yang Anda arsipkan akan tersimpan di sini."
             />
+          ) : filter === "unread" ? (
+            <EmptyState
+              icon={Chats}
+              title="Tidak ada yang belum dibaca"
+              description="Semua percakapan sudah Anda baca."
+            />
+          ) : filter === "transaction" ? (
+            <EmptyState
+              icon={Chats}
+              title="Belum ada chat transaksi"
+              description="Chat dengan lawan transaksi Anda akan muncul di sini."
+            />
           ) : (
             <EmptyState
               icon={Chats}
@@ -383,61 +617,134 @@ export default function ChatScreen() {
             />
           )
         }
-        renderItem={({ item }) => (
-          <ChatRoomListItem
-            name={item.counterpart?.fullName ?? `@${item.counterpart?.username ?? "—"}`}
-            avatar={item.counterpart?.avatarUrl ? { uri: item.counterpart.avatarUrl } : undefined}
-            online={item.isOnline === true}
-            muted={item.isMuted === true}
-            lastMessage={
-              item.lastMessage
-                ? {
-                    // UI-C002: pesan terakhir berisi lampiran saja (tanpa
-                    // teks) menampilkan "(lampiran)", bukan baris kosong —
-                    // konsisten dengan pinned-bar & sheet pencarian.
-                    text: chatRoomPreview(item.lastMessage, translate("(lampiran)")),
-                    fromSelf: item.lastMessage.fromUser,
+        renderItem={({ item }) => {
+          const pinned = isRoomPinned(item.id)
+          return (
+            <SwipeableListItem
+              id={item.id}
+              group={swipeGroup}
+              disabled={selecting}
+              leftActions={[
+                {
+                  key: "pin",
+                  label: pinned ? "Lepas" : "Semat",
+                  icon: PushPin,
+                  onPress: () => void handleTogglePin(item),
+                },
+              ]}
+              rightActions={[
+                {
+                  key: "archive",
+                  label: item.isArchived === true ? "Buka" : "Arsip",
+                  icon: Archive,
+                  onPress: () => void handleSingleArchive(item),
+                },
+                {
+                  key: "delete",
+                  label: "Hapus",
+                  icon: Trash,
+                  destructive: true,
+                  onPress: () => requestDelete(item),
+                },
+              ]}
+              // Swipe penuh = aksi primer tiap sisi; hapus (destruktif) TIDAK
+              // pernah dieksekusi dari swipe penuh — harus lewat dialog.
+              onSwipeFull={(side) => fullSwipeAction(item, side)}
+              confirmFull={["left", "right"]}
+            >
+              <ChatRoomListItem
+                name={item.counterpart?.fullName ?? `@${item.counterpart?.username ?? "—"}`}
+                avatar={item.counterpart?.avatarUrl ? { uri: item.counterpart.avatarUrl } : undefined}
+                online={item.isOnline === true}
+                muted={item.isMuted === true}
+                pinned={pinned}
+                lastMessage={
+                  item.lastMessage
+                    ? {
+                        // UI-C002: pesan terakhir berisi lampiran saja (tanpa
+                        // teks) menampilkan "(lampiran)", bukan baris kosong —
+                        // konsisten dengan pinned-bar & sheet pencarian.
+                        text: chatRoomPreview(item.lastMessage, translate("(lampiran)")),
+                        fromSelf: item.lastMessage.fromUser,
+                      }
+                    : undefined
+                }
+                // UI-C001 (revisi 2026-09-28): cap waktu relatif `formatTimeAgo`
+                // ("5 menit lalu" / "Kemarin") agar konsisten dengan feed,
+                // notifikasi & transaksi; `formatChatListTime` pola WhatsApp
+                // ("14:32") tetap dipakai header ruang & "Terakhir dilihat".
+                time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
+                unreadCount={item.unreadCount}
+                // Order id saja (tanpa kata "Pesanan") — metadata ringkas di kanan
+                // baris pertama; panjangnya dipotong di tengah agar nomor tetap
+                // bisa dikenali dari kepala & ekornya.
+                context={item.orderId ? truncateMiddle(item.orderId, 6, 4) : undefined}
+                selecting={selecting}
+                selected={selected.has(item.id)}
+                onPress={() => {
+                  if (selecting) {
+                    toggleSelect(item.id)
+                    return
                   }
-                : undefined
-            }
-            // UI-C001 (revisi 2026-09-28): cap waktu relatif `formatTimeAgo`
-            // ("5 menit lalu" / "Kemarin") agar konsisten dengan feed,
-            // notifikasi & transaksi; `formatChatListTime` pola WhatsApp
-            // ("14:32") tetap dipakai header ruang & "Terakhir dilihat".
-            time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
-            unreadCount={item.unreadCount}
-            // Order id saja (tanpa kata "Pesanan") — metadata ringkas di kanan
-            // baris pertama; panjangnya dipotong di tengah agar nomor tetap
-            // bisa dikenali dari kepala & ekornya.
-            context={item.orderId ? truncateMiddle(item.orderId, 6, 4) : undefined}
-            selecting={selecting}
-            selected={selected.has(item.id)}
-            onPress={() => {
-              if (selecting) {
-                toggleSelect(item.id)
-                return
-              }
-              router.push(
-                ROUTES.chatRoom(
-                  item.id,
-                  // C-06 (audit): layar ruang hanya mencari judul di 30 ruang
-                  // pertama — nama dikirim lewat param agar ruang ke-31+ tidak
-                  // jatuh ke "Percakapan".
-                  item.counterpart?.fullName ??
-                    (item.counterpart?.username
-                      ? `@${item.counterpart.username}`
-                      : (item.subject ?? undefined)),
-                ),
-              )
-            }}
-            onLongPress={() => {
-              if (selecting) toggleSelect(item.id)
-              else enterSelect(item.id)
-            }}
-          />
-        )}
+                  router.push(
+                    ROUTES.chatRoom(
+                      item.id,
+                      // C-06 (audit): layar ruang hanya mencari judul di 30 ruang
+                      // pertama — nama dikirim lewat param agar ruang ke-31+ tidak
+                      // jatuh ke "Percakapan".
+                      item.counterpart?.fullName ??
+                        (item.counterpart?.username
+                          ? `@${item.counterpart.username}`
+                          : (item.subject ?? undefined)),
+                    ),
+                  )
+                }}
+                onLongPress={() => {
+                  if (selecting) toggleSelect(item.id)
+                  else enterSelect(item.id)
+                }}
+              />
+            </SwipeableListItem>
+          )
+        }}
       />
       </ModeShiftFade>
+
+      {/* Item 18: hapus 1-by-1 — dialog konfirmasi, atau pesan jelas bila
+          aturan backend melarang (room transaksi, order belum COMPLETED). */}
+      <Dialog
+        title={translate("Hapus percakapan?")}
+        description={
+          deleteBlockedMessage
+            ? deleteBlockedMessage
+            : translate("Percakapan ini akan dihapus dari daftar Anda. Tindakan ini tidak dapat dibatalkan.")
+        }
+        visible={deleteRoom !== null}
+        destructive={!deleteBlockedMessage}
+        hideCancel={deleteBlockedMessage !== null}
+        confirmLabel={deleteBlockedMessage ? translate("Mengerti") : translate("Hapus")}
+        cancelLabel={translate("Batal")}
+        loading={deleteBusy}
+        onConfirm={() => {
+          if (deleteBlockedMessage) closeDelete()
+          else void confirmDelete()
+        }}
+        onCancel={closeDelete}
+        onRequestClose={closeDelete}
+      />
+      {/* Status pemeriksaan aturan hapus (dialog diganti sementara). */}
+      {deleteChecking ? (
+        <Dialog
+          title={translate("Memeriksa status order…")}
+          description={translate("Aturan: chat transaksi hanya bisa dihapus setelah order selesai.")}
+          visible
+          hideCancel
+          confirmLabel={translate("Tunggu")}
+          confirmButtonProps={{ disabled: true, loading: true }}
+          onConfirm={() => undefined}
+          onRequestClose={() => undefined}
+        />
+      ) : null}
     </Screen>
   )
 }

@@ -585,6 +585,50 @@ export function setRoomArchived(roomId: string, archived = true) {
   )
 }
 
+/**
+ * KONTRAK TIM B (item 18, 2026-09-28) — DELETE /v1/chat/rooms/:roomId.
+ *
+ * Auth JWT, hanya anggota room. Tanpa bulk — 1-by-1.
+ * 200 → { deleted: true, roomId, permanent }
+ *   - permanent=true  → DM/inquiry tanpa transaksi: HARD DELETE permanen.
+ *   - permanent=false → room order yang COMPLETED: SOFT DELETE (riwayat
+ *     dipertahankan untuk audit).
+ * 404 { code: "NOT_FOUND" } — room tidak ada / sudah dihapus.
+ * 403 { code: "NOT_ORDER_PARTICIPANT" } — pemanggil bukan anggota room.
+ * 409 { code: "CHAT_ROOM_DELETE_ORDER_NOT_COMPLETED" } — order belum
+ *   COMPLETED (termasuk CANCELLED/DISPUTED — fail closed di server).
+ *
+ * UI (daftar chat → swipe kiri → "Hapus") memanggil ini SETELAH dialog
+ * konfirmasi. Untuk room transaksi, status order dicek dulu via getOrder
+ * (lihat `canDeleteChatRoom`); 409 di atas adalah jaring pengaman bila
+ * status berubah di antara pengecekan dan eksekusi.
+ */
+export type DeleteChatRoomResult = {
+  deleted: boolean
+  roomId: string
+  permanent: boolean
+}
+
+export function deleteChatRoom(roomId: string): Promise<DeleteChatRoomResult> {
+  return http.delete<DeleteChatRoomResult>(`/v1/chat/rooms/${seg(roomId)}`, {
+    auth: "required",
+  })
+}
+
+/**
+ * Aturan hapus ruang TRANSAKSI (item 18): room yang terikat order hanya boleh
+ * dihapus bila order-nya COMPLETED. Pemanggil WAJIB memeriksa ini lewat
+ * `getOrder(orderId)` (API existing) SEBELUM menampilkan opsi hapus; bila
+ * belum boleh, opsi disembunyikan dan pesan jelas ditampilkan.
+ *
+ * Room DM (tanpa orderId) tidak terikat aturan ini.
+ */
+export function canDeleteChatRoom(orderStatus: string | null | undefined): boolean {
+  // Room DM (tidak ada order) → bebas dihapus oleh pemiliknya.
+  if (orderStatus === null || orderStatus === undefined) return true
+  return orderStatus === "COMPLETED"
+}
+
 /** PUT /v1/chat/rooms/{roomId}/mute — bisukan (opsional `durationHours` 1–720). */
 export function setRoomMuted(roomId: string, muted = true, durationHours?: number) {
   return http.put<{ roomId: string; isMuted: boolean; mutedUntil: string | null }, { muted: boolean; durationHours?: number }>(
