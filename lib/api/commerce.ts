@@ -29,14 +29,14 @@ export const PRODUCT_TYPE_LABELS: Record<ProductType, string> = {
 
 export type UpdateProductCommerceDto = {
   productType?: ProductType
-  /** Harga coret (IDR, harus > harga jual). */
-  originalPriceIdr?: number
+  /** Harga coret IDR (server mengonversi ke sen). null = hapus. */
+  originalPriceIdr?: number | null
   /** Tenggat pengerjaan (hari) — wajib bila JASA. */
-  serviceDeadlineDays?: number
+  serviceDeadlineDays?: number | null
   /** Info pengiriman digital (produk DIGITAL). */
-  digitalDeliveryInfo?: string
-  /** Jadwal publish (ISO). String kosong = publish manual. */
-  scheduledAt?: string
+  digitalDeliveryInfo?: string | null
+  /** Jadwal publish (ISO). null = hapus jadwal. */
+  scheduledAt?: string | null
 }
 
 /**

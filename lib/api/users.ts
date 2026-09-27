@@ -775,6 +775,9 @@ export type ShowcaseImage = {
    * Untuk video, `thumbnailUrl` adalah poster yang dipakai sebagai cover.
    */
   imageUrl: string
+  /** Batch 43 (item 15): fileKey owner-only dari response — dipakai untuk
+   * PUT replace media (backend memverifikasi fileKey sebagai upload confirmed). */
+  fileKey?: string
   sortOrder: number
   kind?: "image" | "video" | "spin360"
   thumbnailUrl?: string

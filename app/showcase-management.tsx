@@ -20,9 +20,16 @@ import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 
-import { api, userMessage } from "@/lib/api"
+import { api, isApiError, userMessage } from "@/lib/api"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
+import { buildMediaReplacePayload } from "@/lib/showcase-media-replace"
+import { getCommerceFieldsCache, setCommerceFieldsCache } from "@/lib/commerce-fields"
+import {
+  CommerceProductFields,
+  EMPTY_COMMERCE_FORM,
+  type CommerceFormValues,
+} from "@/components/ui/commerce-product-fields"
 import { validImageOrder, showcaseIsHidden } from "@/lib/showcase-state"
 import { getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
@@ -200,6 +207,10 @@ function ShowcaseManagement() {
   const [editor, setEditor] = useState<Editor>(null)
   const [form, setForm] = useState<FormState>(EMPTY_FORM)
   const [formError, setFormError] = useState<string | undefined>()
+  // Batch 43 (commerce): field commerce editor — prefill dari cache sesi
+  // (backend belum mengeksposnya lewat GET showcase mana pun).
+  const [commerce, setCommerce] = useState<CommerceFormValues>(EMPTY_COMMERCE_FORM)
+  const initialCommerce = useRef<CommerceFormValues>(EMPTY_COMMERCE_FORM)
   const [saving, setSaving] = useState(false)
   const uploadAbort = useRef<AbortController | null>(null)
   const uploadBusy = useRef(false)
@@ -251,6 +262,20 @@ function ShowcaseManagement() {
     initialForm.current = nextForm
     setForm(nextForm)
     setFormError(undefined)
+    // Batch 43: prefill commerce dari cache sesi (bila pernah di-PATCH di
+    // sesi ini); kalau tidak ada, default kosong tanpa menebak.
+    const cached = getCommerceFieldsCache(item.id)
+    const nextCommerce: CommerceFormValues = cached
+      ? {
+          productType: cached.productType ?? "LAINNYA",
+          originalPriceIdr: cached.originalPriceIdr,
+          serviceDeadlineDays: cached.serviceDeadlineDays,
+          digitalDeliveryInfo: cached.digitalDeliveryInfo ?? "",
+          scheduledAt: cached.scheduledAt,
+        }
+      : EMPTY_COMMERCE_FORM
+    initialCommerce.current = nextCommerce
+    setCommerce(nextCommerce)
     setEditor({ mode: "edit", item })
   }, [])
 
@@ -265,11 +290,17 @@ function ShowcaseManagement() {
   }, [editor, navigation])
   const requestCloseEditor = useCallback(() => {
     if (saveBusy.current || uploadBusy.current) return
-    if (JSON.stringify(form) !== JSON.stringify(initialForm.current)) setDiscardOpen(true)
+    if (
+      JSON.stringify(form) !== JSON.stringify(initialForm.current) ||
+      JSON.stringify(commerce) !== JSON.stringify(initialCommerce.current)
+    ) setDiscardOpen(true)
     else closeEditor()
-  }, [editor, form, closeEditor])
+  }, [editor, form, commerce, closeEditor])
 
-  const dirtyEditor = editor != null && JSON.stringify(form) !== JSON.stringify(initialForm.current)
+  const dirtyEditor =
+    editor != null &&
+    (JSON.stringify(form) !== JSON.stringify(initialForm.current) ||
+      JSON.stringify(commerce) !== JSON.stringify(initialCommerce.current))
   usePreventRemove(dirtyEditor, ({ data }) => {
     if (saveBusy.current || uploadBusy.current) return
     pendingNavigation.current = data.action
@@ -315,27 +346,89 @@ function ShowcaseManagement() {
       setFormError(translate("Harga yang sudah terisi belum dapat dikosongkan. Masukkan nominal baru, termasuk 0 untuk gratis."))
       return
     }
+    // Batch 43: validasi field commerce (sama seperti layar buat).
+    if (commerce.productType === "JASA" && commerce.serviceDeadlineDays == null) {
+      setFormError(translate("Produk jasa wajib memiliki tenggat pengerjaan."))
+      return
+    }
+    const salePrice = form.priceMin ?? form.priceMax
+    if (commerce.originalPriceIdr != null && salePrice != null && commerce.originalPriceIdr <= salePrice) {
+      setFormError(translate("Harga coret harus lebih besar dari harga jual."))
+      return
+    }
     saveBusy.current = true
     setSaving(true)
     const payload = { title, ...formToPayload(form) }
     // Benefit 7 Kahade+: deskripsi HTML disanitasi allowlist SEBELUM dikirim —
     // jangan pernah mengirim HTML mentah ketikan user ke backend.
     if (isPlusActive) payload.description = sanitizeShowcaseHtml(payload.description)
+    // Batch 43 (item 15): replace media existing via PUT penuh memakai fileKey
+    // owner-only. Return null bila tidak mungkin (video/spin360 tanpa
+    // fileKey lengkap) → detail disimpan tanpa menyentuh media.
+    const media = buildMediaReplacePayload(editor.item.images ?? [])
+    const savePayload = media ? { ...payload, media } : payload
     try {
-      await api.users.updateShowcase(editor.item.id, payload)
+      await api.users.updateShowcase(editor.item.id, savePayload)
       if (!mounted.current || revision !== getSessionRevision()) return
-      toast.show({ title: translate("Detail diperbarui"), tone: "success", duration: 3000 })
+      // Batch 43: PATCH commerce (best-effort; detail sudah tersimpan).
+      let commerceWarned = false
+      try {
+        const updated = await api.commerce.updateProductCommerce(editor.item.id, {
+          productType: commerce.productType,
+          originalPriceIdr: commerce.originalPriceIdr,
+          serviceDeadlineDays: commerce.serviceDeadlineDays,
+          digitalDeliveryInfo: commerce.digitalDeliveryInfo.trim() || undefined,
+          scheduledAt: commerce.scheduledAt,
+        })
+        if (updated) setCommerceFieldsCache(editor.item.id, updated)
+      } catch (commerceErr) {
+        commerceWarned = true
+        if (mounted.current && revision === getSessionRevision()) {
+          toast.show({
+            title: translate("Detail diperbarui"),
+            description: translate("Field commerce gagal disimpan — coba lagi nanti."),
+            tone: "warning",
+            duration: 4000,
+          })
+        }
+      }
+      if (!commerceWarned) {
+        toast.show({ title: translate("Detail diperbarui"), tone: "success", duration: 3000 })
+      }
       setEditor(null)
       touchFeed()
       await query.refresh()
     } catch (err) {
       if (!mounted.current || revision !== getSessionRevision()) return
+      // Kontrak server: fileKey existing bisa ditolak (UPLOAD_NOT_CONFIRMED,
+      // konfirmasi one-time) — fallback simpan detail TANPA media supaya
+      // edit detail tidak ikut gagal.
+      if (media && isApiError(err) && err.backendCode === "UPLOAD_NOT_CONFIRMED") {
+        try {
+          await api.users.updateShowcase(editor.item.id, payload)
+          if (mounted.current && revision === getSessionRevision()) {
+            toast.show({
+              title: translate("Detail diperbarui"),
+              description: translate("Media tidak ikut tersimpan (server menolak fileKey lama) — ubah media lewat Kelola Foto."),
+              tone: "warning",
+              duration: 5000,
+            })
+            setEditor(null)
+            touchFeed()
+            await query.refresh()
+          }
+          return
+        } catch (retryErr) {
+          toast.show({ title: translate("Gagal menyimpan"), description: userMessage(retryErr), tone: "danger" })
+          return
+        }
+      }
       toast.show({ title: translate("Gagal menyimpan"), description: userMessage(err), tone: "danger" })
     } finally {
       saveBusy.current = false
       if (mounted.current) setSaving(false)
     }
-  }, [editor, form, toast, query, touchFeed, revision, isPlusActive])
+  }, [editor, form, toast, query, touchFeed, revision, isPlusActive, commerce])
 
   const handleToggleActive = useCallback(
     async (item: ShowcaseItem) => {
@@ -980,6 +1073,14 @@ function ShowcaseManagement() {
               })}
             </Text>
           ) : null}
+          {/* Batch 43 (commerce): tipe produk, harga coret, tenggat jasa,
+              info digital, jadwal publish. */}
+          <CommerceProductFields
+            value={commerce}
+            onChange={setCommerce}
+            salePriceIdr={form.priceMin ?? form.priceMax}
+            disabled={saving}
+          />
           {/* D-02: visibilitas PUBLIC/PRIVATE */}
           <View className="flex-row items-center justify-between gap-3">
             <View className="flex-1 gap-1">
