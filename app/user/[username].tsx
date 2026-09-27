@@ -38,7 +38,8 @@ import {
 import { api, isApiError, userMessage } from "@/lib/api"
 import type { HiddenReason, PublicUserProfile, QuestionComment, QuestionItem, VerificationBadge } from "@/lib/api/users"
 import { readMyRatings, type PublicRatingFilter, type Rating } from "@/lib/api/ratings"
-import { createInquiry } from "@/lib/api/chat"
+import { getOrCreateDm } from "@/lib/api/chat"
+import { resolveFollowStatus } from "@/lib/api/users"
 import {
   readQuestionComments,
   readQuestionList,
@@ -71,7 +72,6 @@ import { FavoriteIconButton } from "@/components/ui/favorite-icon-button"
 import { FollowButton } from "@/components/ui/follow-button"
 import { Header } from "@/components/ui/header"
 import { Icon, type IconComponent } from "@/components/ui/icon"
-import { Input } from "@/components/ui/input"
 import { Picture } from "@/components/ui/picture"
 import { IconButton } from "@/components/ui/icon-button"
 import { Crossfade } from "@/components/ui/fade-in"
@@ -190,11 +190,7 @@ export default function UserProfileScreen() {
   const [followerCount, setFollowerCount] = useState<number | null>(null)
   const [followingCount, setFollowingCount] = useState<number | null>(null)
 
-  // Inquiry (nego sebelum transaksi) state
-  const [inquiryOpen, setInquiryOpen] = useState(false)
-  const [inquirySubject, setInquirySubject] = useState("")
-  const [inquiryMessage, setInquiryMessage] = useState("")
-  const [inquirySending, setInquirySending] = useState(false)
+
 
   // Active tab state
   const [activeTab, setActiveTab] = useState<ProfileTab>("content")
@@ -417,17 +413,13 @@ export default function UserProfileScreen() {
           /* pertahankan nilai dari payload profil */
         })
 
-      if (me?.username) {
-        void api.users
-          .getFollowers(targetName, { page: 1, limit: 20, search: me.username })
-          .then((result) => {
-            const found = result.data.some((user) => user.id === me.id)
-            if (current()) setFollowing(found ? true : result.meta.totalPages <= 1 ? false : null)
-          })
-          .catch(() => {
-            if (current()) setFollowing(null)
-          })
-      }
+      // PRF-003: status follow dibaca LANGSUNG dari payload profil
+      // (`social.isFollowing` yang dihitung backend dari tabel follow).
+      // Versi lama menurunkannya dari GET followers?search= — daftar itu
+      // tidak menyertakan id internal (R1), sehingga perbandingan
+      // `user.id === me.id` selalu false dan tombol "Ikuti" balik sendiri
+      // setiap refresh (bug yang dilaporkan user). Pola itu dihapus total.
+      if (current()) setFollowing(resolveFollowStatus(res))
     } catch (err) {
       if (current()) {
         setError(
@@ -458,6 +450,31 @@ export default function UserProfileScreen() {
     router.push(ROUTES.loginRequired(`/user/${encodeURIComponent(handle)}`))
     return false
   }, [hasSession, handle])
+  const [dmLoading, setDmLoading] = useState(false)
+  /**
+   * PRF-002: "Kirim Pesan" langsung ke halaman chat seperti WhatsApp —
+   * get-or-create room DM tanpa wajib mengisi pesan pertama (backend
+   * memakai ulang room INQUIRY bila sudah ada). Berbeda dengan pesan dalam
+   * transaksi (room ORDER — admin bisa masuk saat dispute); room DM tidak
+   * bisa dimasuki admin.
+   */
+  const handleSendMessage = useCallback(async () => {
+    // P3 (audit 2026-09-26): tamu di-gate login sebelum mulai percakapan.
+    if (!requireSession() || !handle || dmLoading) return
+    setDmLoading(true)
+    try {
+      const room = await getOrCreateDm(handle)
+      router.push(ROUTES.chatRoom(room.id, profile?.fullName ?? `@${handle}`))
+    } catch (err) {
+      toast.show({
+        title: translate("Gagal membuka chat"),
+        description: userMessage(err),
+        tone: "danger",
+      })
+    } finally {
+      setDmLoading(false)
+    }
+  }, [requireSession, handle, dmLoading, profile?.fullName, toast])
 
   // Follow / Favorite actions
   const handleFollow = useCallback(
@@ -752,7 +769,11 @@ export default function UserProfileScreen() {
     }
   }, [deleting, deleteQ, deleteC, openQuestionId, username, toast])
 
-  const isMyQuestion = (q: QuestionItem) => !!meId && q.asker?.id === meId
+  // PRF-001: kepemilikan pertanyaan dibandingkan via `askerId` (id internal,
+  // dikirim backend). Versi lama memakai `q.asker?.id` — field itu tidak
+  // pernah dikirim backend (select hanya username/fullName/avatarUrl),
+  // sehingga tombol Hapus pertanyaan sendiri tak pernah muncul.
+  const isMyQuestion = (q: QuestionItem) => !!meId && (q.askerId === meId || q.asker?.id === meId)
   const isMyComment = (c: QuestionComment) => !!meId && c.authorId === meId
 
   return (
@@ -1063,13 +1084,8 @@ export default function UserProfileScreen() {
                         size="sm"
                         fullWidth
                         leftIcon={ChatCircleDots}
-                        onPress={() => {
-                          // P3 (audit 2026-09-26): tamu di-gate login sebelum mulai percakapan.
-                          if (!requireSession()) return
-                          setInquirySubject("")
-                          setInquiryMessage("")
-                          setInquiryOpen(true)
-                        }}
+                        loading={dmLoading}
+                        onPress={() => void handleSendMessage()}
                       >
                         {translate("Kirim Pesan")}
                       </Button>
@@ -1189,6 +1205,21 @@ export default function UserProfileScreen() {
                                 date: q.answeredAt ?? q.createdAt,
                               }
                             : undefined
+                        }
+                        // PRF-001: pemilik profil melihat pertanyaan yang belum
+                        // dijawab di tab Utas — beri jalan pintas ke inbox
+                        // Tanya Jawab miliknya untuk menjawab.
+                        answerAction={
+                          isSelf && !q.answer ? (
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              fullWidth={false}
+                              onPress={() => router.push(ROUTES.questions)}
+                            >
+                              {translate("Jawab")}
+                            </Button>
+                          ) : undefined
                         }
                         footer={
                           <View className="flex-row items-center gap-3">
@@ -1442,71 +1473,6 @@ export default function UserProfileScreen() {
               <Radio key={r.value} value={r.value} label={r.label} description={r.description} />
             ))}
           </RadioGroup>
-        </View>
-      </BottomSheet>
-
-      <BottomSheet
-        avoidKeyboard
-        visible={inquiryOpen}
-        onRequestClose={() => setInquiryOpen(false)}
-        title={translate("Mulai percakapan")}
-        description={
-          profile?.fullName
-            ? translate("Ajukan pertanyaan atau negosiasi dengan {x} sebelum transaksi.", {
-                x: profile.fullName,
-              })
-            : translate("Ajukan pertanyaan atau negosiasi sebelum transaksi.")
-        }
-        footer={
-          <Button
-            fullWidth
-            loading={inquirySending}
-            disabled={!inquiryMessage.trim()}
-            onPress={() => {
-              if (!profile?.id) return
-              setInquirySending(true)
-              createInquiry({
-                counterpartId: profile.id,
-                subject: inquirySubject.trim() || undefined,
-                message: inquiryMessage.trim(),
-              })
-                .then((res) => {
-                  setInquiryOpen(false)
-                  // C-06: nama lawan bicara = pemilik profil layar ini.
-                  router.push(
-                    ROUTES.chatRoom(res.room.id, profile?.fullName ?? `@${handle}`),
-                  )
-                })
-                .catch((err) => {
-                  toast.show({
-                    title: translate("Gagal memulai percakapan"),
-                    description: isApiError(err) ? userMessage(err) : undefined,
-                    tone: "danger",
-                  })
-                })
-                .finally(() => setInquirySending(false))
-            }}
-          >
-            Kirim
-          </Button>
-        }
-      >
-        <View className="gap-3 px-5 pb-2">
-          <Input
-            label={translate("Subjek (opsional)")}
-            value={inquirySubject}
-            onChangeText={setInquirySubject}
-            placeholder={translate("Mis. Harga grosir 10 pcs")}
-            containerClassName="mb-1"
-          />
-          <TextArea
-            label={translate("Pesan")}
-            value={inquiryMessage}
-            onChangeText={setInquiryMessage}
-            rows={4}
-            placeholder={translate("Tulis pertanyaan atau tawaran Anda…")}
-            accessibilityLabel={translate("Pesan inquiry")}
-          />
         </View>
       </BottomSheet>
     </Screen>

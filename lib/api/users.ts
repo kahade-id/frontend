@@ -368,15 +368,38 @@ export type PublicUserProfile = {
    * dipakai sebagai sumber utama agar tidak tampil "0 palsu" saat request
    * list tambahan gagal. Backend mengirim `social.{followersCount,
    * followingCount}` sekaligus alias top-level.
+   *
+   * PRF-003: `isFollowing`/`isFollowedBy` dibaca LANGSUNG dari payload profil
+   * (backend menghitungnya dari tabel follow). JANGAN diturunkan dari daftar
+   * followers — daftar itu tidak menyertakan id internal (R1), sehingga
+   * perbandingan id selalu false dan tombol "Ikuti" balik sendiri tiap
+   * refresh (bug yang dilaporkan user).
    */
   social?: {
     followersCount?: number | null
     followingCount?: number | null
+    isFollowing?: boolean | null
+    isFollowedBy?: boolean | null
   } | null
   followersCount?: number | null
   followingCount?: number | null
+  /** Alias deprecated backend — `social.isFollowing` lebih utama. */
+  isFollowing?: boolean | null
   showcase?: unknown
   ratings?: unknown
+}
+
+/**
+ * PRF-003: turunkan status follow dari payload profil — satu-satunya sumber
+ * kebenaran. Urutan: `social.isFollowing` → alias top-level → null (belum tahu).
+ */
+export function resolveFollowStatus(profile: PublicUserProfile | null | undefined): boolean | null {
+  if (!profile) return null
+  const fromSocial = profile.social?.isFollowing
+  if (typeof fromSocial === "boolean") return fromSocial
+  const fromAlias = profile.isFollowing
+  if (typeof fromAlias === "boolean") return fromAlias
+  return null
 }
 
 // ------------------------------------------------------------------
@@ -817,7 +840,9 @@ export type QuestionItem = {
   answer?: string | null
   answeredAt?: string | null
   createdAt: string
-  asker?: { id: string; username: string; fullName?: string; avatarUrl?: string | null }
+  /** PRF-001: id internal penanya (dikirim backend) — untuk cek kepemilikan. */
+  askerId?: string | null
+  asker?: { id?: string; username: string; fullName?: string; avatarUrl?: string | null }
   /** Pemilik profil yang ditanya (ada pada daftar "asked") — UNVERIFIED */
   target?: { id: string; username: string; fullName?: string; avatarUrl?: string | null }
   commentCount?: number
@@ -937,7 +962,10 @@ export function getPublicQuestions(
 ) {
   return http.get<QuestionListResponse>(`/v1/users/${seg(username)}/questions`, {
     query,
-    auth: "required",
+    // PRF-001: endpoint backend bersifat @Public() (viewerId opsional).
+    // Tamu bisa melihat pertanyaan yang sudah dijawab; pemilik/penanya yang
+    // login melihat juga yang belum dijawab.
+    auth: "optional",
     signal,
   })
 }

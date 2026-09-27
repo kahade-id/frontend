@@ -367,6 +367,21 @@ export function createInquiry(dto: {
   )
 }
 
+/**
+ * PRF-002: POST /v1/chat/dm — buka (atau pakai ulang) room DM dengan username,
+ * tanpa pesan pertama. Dipakai tombol "Kirim Pesan" di profil (WhatsApp-like).
+ * Backend memakai ulang room INQUIRY yang sudah ada bila tersedia.
+ */
+export function getOrCreateDm(username: string) {
+  return http
+    .post<unknown, { username: string }>("/v1/chat/dm", { username }, { auth: "required" })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const roomRaw = (record.room ?? record) as ChatRoom & Record<string, unknown>
+      return normalizeChatRoom(roomRaw)
+    })
+}
+
 /** GET /v1/chat/search — cari isi pesan di SEMUA percakapan pengguna. */
 export function searchAllMessages(q: string, options: { limit?: number } = {}, signal?: AbortSignal) {
   return http
