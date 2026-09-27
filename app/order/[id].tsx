@@ -91,6 +91,7 @@ import {
 } from "@/components/order-action-sheets"
 import { SectionHeader } from "@/components/ui/section"
 import { MilestoneSection } from "@/components/order-milestones"
+import { InstallmentOfferSection } from "@/components/order-installment-offer"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
 import { shareReceipt } from "@/components/receipt/shareReceipt"
@@ -299,6 +300,8 @@ export default function OrderDetailScreen() {
   const [historyLoadingMore, setHistoryLoadingMore] = useState(false)
   // R2 (butir #54): affordance loading tombol Chat.
   const [chatBusy, setChatBusy] = useState(false)
+  // Batch 43 (item 3): remount MilestoneSection setelah skema cicilan dibuat.
+  const [milestoneNonce, setMilestoneNonce] = useState(0)
   const historyPage = query.data?.historyPage ?? 1
   const loadMoreHistory = useCallback(async () => {
     if (!order || historyLoadingMore) return
@@ -918,9 +921,21 @@ export default function OrderDetailScreen() {
           {/* 12 — Escrow bertahap (GAP-C): hanya tampil bila order punya
               milestone. Order satu tahap tidak berubah perilakunya. */}
           <MilestoneSection
+            key={`milestones-${milestoneNonce}`}
             orderId={order.id}
             role={isBuyer ? "BUYER" : isSeller ? "SELLER" : undefined}
           />
+
+          {/* 12b — Batch 43 (item 3): tawaran cicilan/DP oleh penjual,
+              hanya sebelum order dibayar. */}
+          {isSeller &&
+          (order.status === "WAITING_PAYMENT" || order.status === "PENDING_PAYMENT") ? (
+            <InstallmentOfferSection
+              orderId={order.id}
+              orderValueIdr={order.orderValue}
+              onPlanCreated={() => setMilestoneNonce((n) => n + 1)}
+            />
+          ) : null}
 
           {/* 13 — Aksi sekunder */}
           <SectionHeader title="Lainnya" />
