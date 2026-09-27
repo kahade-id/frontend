@@ -93,6 +93,7 @@ import { SectionHeader } from "@/components/ui/section"
 import { MilestoneSection } from "@/components/order-milestones"
 import { InstallmentOfferSection } from "@/components/order-installment-offer"
 import { OrderAgreementSection } from "@/components/order-agreement-section"
+import { DigitalAssetsBuyerSection } from "@/components/showcase/digital-asset-section"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
 import { shareReceipt } from "@/components/receipt/shareReceipt"
@@ -942,6 +943,12 @@ export default function OrderDetailScreen() {
               kedua pihak ketuk setuju. */}
           {isBuyer || isSeller ? (
             <OrderAgreementSection orderId={order.id} role={isSeller ? "SELLER" : "BUYER"} />
+          ) : null}
+
+          {/* 12d — Batch 43 (item 14): aset digital otomatis terbuka
+              setelah bayar (server fail-closed bila belum). */}
+          {order.orderType === "DIGITAL_GOODS" && order.showcaseId ? (
+            <DigitalAssetsBuyerSection showcaseId={order.showcaseId} />
           ) : null}
 
           {/* 13 — Aksi sekunder */}

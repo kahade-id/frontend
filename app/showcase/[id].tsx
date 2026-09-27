@@ -72,6 +72,8 @@ import {
   ServiceSlotSection,
 } from "@/components/showcase/product-commerce-section"
 import { ProductStatsSection } from "@/components/showcase/product-stats-section"
+import { DigitalAssetsSellerManager } from "@/components/showcase/digital-asset-section"
+import { getCommerceFieldsCache } from "@/lib/commerce-fields"
 import { Spin360Viewer } from "@/components/ui/spin360-viewer"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseHtmlView } from "@/components/ui/showcase-html-description-editor"
@@ -849,6 +851,15 @@ function ShowcaseDetailContent({
 
       {/* Batch 43 (item 6): statistik produk — hanya pemilik. */}
       {isOwner ? <ProductStatsSection showcaseId={id} /> : null}
+
+      {/* Batch 43 (item 14): kelola aset digital — hanya pemilik produk
+          DIGITAL. Tipe produk tidak dikembalikan GET publik/owner, jadi
+          andalkan cache sesi (diisi saat PATCH commerce di Kelola Etalase). */}
+      {isOwner && getCommerceFieldsCache(id)?.productType === "DIGITAL" ? (
+        <View className="px-5 pt-4">
+          <DigitalAssetsSellerManager showcaseId={id} />
+        </View>
+      ) : null}
 
       {/* Separator bawah aksi — inset */}
       <Divider inset className="mt-1" />
