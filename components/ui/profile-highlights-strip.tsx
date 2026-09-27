@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
+import { ImageViewer } from "@/components/ui/image-viewer"
 import { Dialog } from "@/components/ui/modal"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -60,6 +61,12 @@ export function ProfileHighlightsStrip({
   useLanguage()
   const [highlights, setHighlights] = useState<ProfileHighlightPreview[] | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
+  /**
+   * Item 74b (keputusan batch-19 #3, mega-batch 2026-09-28): highlight di
+   * profil ORANG LAIN yang diklik membuka VIEWER (konten publik — pratinjau
+   * gambar highlight), BUKAN editor. Editor hanya milik sendiri.
+   */
+  const [viewerHighlight, setViewerHighlight] = useState<ProfileHighlightPreview | null>(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -101,7 +108,7 @@ export function ProfileHighlightsStrip({
             key={h.id}
             label={h.title}
             cover={h.coverUrl ?? h.previewImageUrls[0] ?? null}
-            onPress={() => setEditorOpen(true)}
+            onPress={() => (isSelf ? setEditorOpen(true) : setViewerHighlight(h))}
           />
         ))}
       </ScrollView>
@@ -114,6 +121,17 @@ export function ProfileHighlightsStrip({
             setEditorOpen(false)
             void refresh()
           }}
+        />
+      ) : null}
+      {/* Item 74b: viewer highlight profil orang lain — pratinjau publik. */}
+      {viewerHighlight ? (
+        <ImageViewer
+          visible={viewerHighlight != null}
+          images={(viewerHighlight.coverUrl ? [viewerHighlight.coverUrl] : viewerHighlight.previewImageUrls).map(
+            (url) => ({ url, alt: viewerHighlight.title }),
+          )}
+          title={viewerHighlight.title}
+          onClose={() => setViewerHighlight(null)}
         />
       ) : null}
     </View>

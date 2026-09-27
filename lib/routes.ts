@@ -428,11 +428,19 @@ export const ROUTES = {
    * Feed etalase terfilter kategori (A-12: badge kategori → feed terfilter).
    * L-01 (audit 2026-09-23): `kind` (tab aktif) diteruskan supaya mendarat
    * di tab yang sama — tanpa ini selalu jatuh ke default `forYou`.
+   *
+   * Item 85 (mega-batch 2026-09-28): "Lihat semua di Etalase" dari layar
+   * Pencarian mendarat di tab "Terbaru" (`kind=latest`) — netral untuk kata
+   * kunci (tidak terpersonalisasi seperti "Untuk Anda").
    */
   showcaseSearch: (search: string, location?: string) =>
     ({
       pathname: "/showcase",
-      params: location?.trim() ? { search, location: location.trim() } : { search },
+      params: {
+        search,
+        kind: "latest",
+        ...(location?.trim() ? { location: location.trim() } : {}),
+      },
     }) as unknown as Href,
   showcaseWithCategory: (category: string, kind?: string) =>
     ({ pathname: "/showcase", params: kind ? { category, kind } : { category } }) as unknown as Href,

@@ -26,11 +26,16 @@ import { logWarn } from "@/lib/telemetry"
 
 export type TransactionsTab = "buyer" | "seller"
 
+/** Cakupan hasil layar /search — diingat perangkat (item 77, mega-batch 2026-09-28). */
+export type SearchScope = "all" | "users" | "posts" | "orders" | "transactions"
+
 export type UiPrefs = {
   /** Saldo disembunyikan (privasi bahu-penumpang) — dipakai Beranda & Dompet. */
   balanceHidden: boolean
   /** Tab Transaksi terakhir yang dipilih pengguna. */
   transactionsTab: TransactionsTab
+  /** Cakupan chip terakhir layar Pencarian (item 77, 2026-09-28). */
+  searchScope: SearchScope
   /**
    * Mode navbar (E-Commerce / E-Wallet). Preferensi perangkat, sama seperti
    * `balanceHidden`: logout tidak boleh mengembalikannya ke commerce.
@@ -49,6 +54,7 @@ export type UiPrefs = {
 const DEFAULT_PREFS: UiPrefs = {
   balanceHidden: false,
   transactionsTab: "buyer",
+  searchScope: "all",
   appMode: "commerce",
   ratingSnoozeUntil: {},
   dataSaver: false,
@@ -99,12 +105,20 @@ function sanitizePrefs(raw: unknown): UiPrefs {
   return {
     balanceHidden: rec.balanceHidden === true,
     transactionsTab: rec.transactionsTab === "seller" ? "seller" : "buyer",
+    // Item 77 (2026-09-28): cakupan chip Pencarian terakhir — sanitize ke
+    // salah satu nilai yang valid, selain itu "all".
+    searchScope: isSearchScope(rec.searchScope) ? rec.searchScope : "all",
     // Field-by-field: lupa menyalin appMode di sini membuat mode hilang saat load.
     appMode: rec.appMode === "wallet" ? "wallet" : "commerce",
     ratingSnoozeUntil: snooze,
     // Batch 19 (item 15): default OFF bila belum pernah disimpan.
     dataSaver: rec.dataSaver === true,
   }
+}
+
+/** Validasi nilai searchScope dari storage — bukan enum terbuka. */
+function isSearchScope(v: unknown): v is SearchScope {
+  return v === "all" || v === "users" || v === "posts" || v === "orders" || v === "transactions"
 }
 
 function sanitizeRecents(raw: unknown): RecentRecipient[] {
