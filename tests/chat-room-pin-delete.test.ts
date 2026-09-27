@@ -1,7 +1,12 @@
 /**
- * Item 18 (2026-09-28) — pin ruang chat: penyimpanan lokal per perangkat +
+ * Item 18 (2026-09-28) + revisi batch 43 FE-CHAT (2026-09-28): pin ruang chat
+ * TERSINKRON BACKEND (GET /v1/chat/pinned, POST/DELETE …/rooms/{id}/pin) +
  * hapus ruang (kontrak TIM B: DELETE /v1/chat/rooms/:roomId) +
  * aturan pra-hapus client-side (canDeleteChatRoom).
+ *
+ * Storage lokal lama (`chat.pinnedRooms.v1`) tidak lagi dipakai — pin lama
+ * per perangkat diabaikan (bukan dimigrasi). Kegagalan backend bersifat
+ * graceful: hydrate kosong; toggle melempar agar pemanggil menampilkan toast.
  *
  * CATATAN: `@/lib/api/chat` di-stub pada `@/lib/api/client` — uncommitted
  * work tim lain di `lib/api/client.ts` (offline queue, "Item #27") saat ini
@@ -33,7 +38,7 @@ import {
   subscribePinnedRooms,
   toggleRoomPinned,
 } from "@/lib/chat-pinned-rooms"
-import { deleteRawItem, getRawItem, setRawItem } from "@/lib/secure-storage"
+import { deleteRawItem, setRawItem } from "@/lib/secure-storage"
 
 const STORAGE_KEY = "chat.pinnedRooms.v1"
 
@@ -87,18 +92,57 @@ describe("aturan hapus ruang chat (item 18)", () => {
   })
 })
 
-describe("pin ruang chat lokal (item 18)", () => {
-  it("toggle menambah dan menghapus pin, mengembalikan state baru", async () => {
+describe("pin ruang chat tersinkron backend (batch 43)", () => {
+  it("hydrate dari GET /v1/chat/pinned", async () => {
+    vi.mocked(http.get).mockResolvedValue({ pinnedRooms: [{ roomId: "room-a", position: 0 }] })
     await ensurePinnedLoaded()
-    expect(isRoomPinned("room-a")).toBe(false)
+    expect(isRoomPinned("room-a")).toBe(true)
+    expect(isRoomPinned("room-b")).toBe(false)
+    expect(vi.mocked(http.get)).toHaveBeenCalledWith("/v1/chat/pinned", {
+      auth: "required",
+      retry: 1,
+      signal: undefined,
+    })
+  })
+
+  it("toggle: belum pin → POST …/pin; sudah pin → DELETE …/pin", async () => {
+    vi.mocked(http.get).mockResolvedValue({ pinnedRooms: [] })
+    await ensurePinnedLoaded()
+    vi.mocked(http.post).mockResolvedValue({ roomId: "room-a", position: 0 })
     expect(await toggleRoomPinned("room-a")).toBe(true)
     expect(isRoomPinned("room-a")).toBe(true)
+    expect(vi.mocked(http.post)).toHaveBeenCalledWith(
+      "/v1/chat/rooms/room-a/pin",
+      {},
+      { auth: "required" },
+    )
+    vi.mocked(http.delete).mockResolvedValue({ unpinned: true })
     expect(await toggleRoomPinned("room-a")).toBe(false)
+    expect(isRoomPinned("room-a")).toBe(false)
+    expect(vi.mocked(http.delete)).toHaveBeenCalledWith("/v1/chat/rooms/room-a/pin", {
+      auth: "required",
+    })
+  })
+
+  it("gagal hydrate → graceful, daftar pin kosong tanpa crash", async () => {
+    vi.mocked(http.get).mockRejectedValue(new Error("offline"))
+    await ensurePinnedLoaded()
+    expect(isRoomPinned("room-a")).toBe(false)
+  })
+
+  it("gagal toggle → melempar agar pemanggil bisa toast (tanpa fallback lokal)", async () => {
+    vi.mocked(http.get).mockResolvedValue({ pinnedRooms: [] })
+    await ensurePinnedLoaded()
+    vi.mocked(http.post).mockRejectedValue(new Error("batas pin tercapai"))
+    await expect(toggleRoomPinned("room-a")).rejects.toThrow("batas pin tercapai")
     expect(isRoomPinned("room-a")).toBe(false)
   })
 
   it("subscriber diberitahu setiap perubahan pin", async () => {
+    vi.mocked(http.get).mockResolvedValue({ pinnedRooms: [] })
     await ensurePinnedLoaded()
+    vi.mocked(http.post).mockResolvedValue({ roomId: "room-a", position: 0 })
+    vi.mocked(http.delete).mockResolvedValue({ unpinned: true })
     const calls: number[] = []
     const unsub = subscribePinnedRooms(() => calls.push(1))
     await toggleRoomPinned("room-a")
@@ -108,29 +152,22 @@ describe("pin ruang chat lokal (item 18)", () => {
     expect(calls).toHaveLength(2)
   })
 
-  it("pin dipersist dan terbaca ulang dari storage (simulasi buka ulang)", async () => {
-    await ensurePinnedLoaded()
-    await toggleRoomPinned("room-a")
-    await toggleRoomPinned("room-b")
-    expect(await getRawItem(STORAGE_KEY)).not.toBeNull()
-    // Simulasi buka ulang: kosongkan memory, storage tidak ikut di-reset.
+  it("storage lokal lama diabaikan — bukan sumber kebenaran", async () => {
+    await setRawItem(STORAGE_KEY, JSON.stringify(["room-legacy"]))
+    vi.mocked(http.get).mockResolvedValue({ pinnedRooms: [] })
     __resetPinnedRoomsForTest()
     await ensurePinnedLoaded()
-    expect(isRoomPinned("room-a")).toBe(true)
-    expect(isRoomPinned("room-b")).toBe(true)
+    expect(isRoomPinned("room-legacy")).toBe(false)
   })
 
-  it("payload rusak di storage diabaikan tanpa crash", async () => {
-    await setRawItem(STORAGE_KEY, "bukan json {{{")
-    __resetPinnedRoomsForTest()
+  it("sortRoomsPinnedFirst menempatkan room terpin di atas (position kecil = atas), urutan lain stabil", async () => {
+    vi.mocked(http.get).mockResolvedValue({
+      pinnedRooms: [
+        { roomId: "b", position: 1 },
+        { roomId: "a", position: 0 },
+      ],
+    })
     await ensurePinnedLoaded()
-    expect(isRoomPinned("room-a")).toBe(false)
-  })
-
-  it("sortRoomsPinnedFirst menempatkan room terpin di atas, urutan lain stabil", async () => {
-    await ensurePinnedLoaded()
-    await toggleRoomPinned("b")
-    await toggleRoomPinned("a")
     const rooms = [
       { id: "c", name: "C" },
       { id: "a", name: "A" },
@@ -141,6 +178,7 @@ describe("pin ruang chat lokal (item 18)", () => {
   })
 
   it("tidak mengubah array input (immutable)", async () => {
+    vi.mocked(http.get).mockResolvedValue({ pinnedRooms: [] })
     await ensurePinnedLoaded()
     const rooms = [{ id: "x" }]
     sortRoomsPinnedFirst(rooms)

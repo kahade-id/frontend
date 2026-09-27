@@ -14,6 +14,7 @@
 import { File, Image, Microphone, VideoCamera } from "phosphor-react-native"
 
 import { ActionSheet } from "@/components/ui/action-sheet"
+import type { IconComponent } from "@/components/ui/icon"
 
 export type ChatAttachmentSheetProps = {
   visible: boolean
@@ -25,6 +26,17 @@ export type ChatAttachmentSheetProps = {
   onPickVideo: () => void
   onPickFile: () => void
   onRecordVoice: () => void
+  /**
+   * Aksi tambahan (batch 43 FE-CHAT): lokasi / polling / kartu produk.
+   * Rendered setelah Voice Note; diabaikan bila tidak diisi.
+   */
+  extraActions?: {
+    key: string
+    label: string
+    description?: string
+    icon: IconComponent
+    onPress: () => void
+  }[]
 }
 
 export function ChatAttachmentSheet({
@@ -36,6 +48,7 @@ export function ChatAttachmentSheet({
   onPickVideo,
   onPickFile,
   onRecordVoice,
+  extraActions = [],
 }: ChatAttachmentSheetProps) {
   return (
     <ActionSheet
@@ -74,6 +87,7 @@ export function ChatAttachmentSheet({
           icon: Microphone,
           onPress: onRecordVoice,
         },
+        ...extraActions,
       ]}
     />
   )

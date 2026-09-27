@@ -41,8 +41,10 @@ import {
   asProductCard,
   createOrderFromChat,
   createPoll,
+  exportChatRoom,
   getChatPrivacy,
   getOrCreateSelfRoom,
+  isDmNotAllowedError,
   listPinnedChatRooms,
   listStarredMessages,
   translateChatMessage,
@@ -205,5 +207,45 @@ describe("card type guards", () => {
     })
     expect(card?.orderCode).toBe("KHD-1")
     expect(asOrderCard({ kind: "PRODUCT_CARD" })).toBeNull()
+  })
+})
+
+describe("exportChatRoom", () => {
+  it("GET …/export?format=txt → { filename, content }", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response("chat log…", { status: 200, headers: { "Content-Type": "text/plain" } }),
+    )
+    const res = await exportChatRoom("room1", "txt")
+    expect(res.filename).toBe("chat-export-room1.txt")
+    expect(res.content).toBe("chat log…")
+  })
+})
+
+describe("isDmNotAllowedError", () => {
+  it("true untuk backendCode CHAT_DM_NOT_ALLOWED", () => {
+    expect(isDmNotAllowedError({ backendCode: "CHAT_DM_NOT_ALLOWED" })).toBe(true)
+    expect(isDmNotAllowedError({ backendCode: "OTHER" })).toBe(false)
+    expect(isDmNotAllowedError(null)).toBe(false)
+  })
+})
+
+describe("exportAndSaveChatRoom", () => {
+  it("membungkus konten TXT menjadi Blob + saveBlobFile", async () => {
+    const saveBlobFile = vi.fn().mockResolvedValue({ uri: "file://x" })
+    vi.doMock("@/lib/export-file", () => ({ saveBlobFile }))
+    const { exportAndSaveChatRoom } = await import("@/lib/chat-export")
+    fetchMock.mockResolvedValueOnce(
+      new Response("isi chat", { status: 200, headers: { "Content-Type": "text/plain" } }),
+    )
+    const res = await exportAndSaveChatRoom("room9")
+    expect(res.saved).toBe(true)
+    expect(res.filename).toBe("chat-export-room9.txt")
+    expect(saveBlobFile).toHaveBeenCalledTimes(1)
+    const [blob, filename, mime] = saveBlobFile.mock.calls[0]
+    expect(filename).toBe("chat-export-room9.txt")
+    expect(mime).toContain("text/plain")
+    expect(blob).toBeInstanceOf(Blob)
+    expect(await blob.text()).toBe("isi chat")
+    vi.doUnmock("@/lib/export-file")
   })
 })

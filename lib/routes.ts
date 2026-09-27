@@ -350,14 +350,22 @@ export const ROUTES = {
       : ("/disputes" as Href),
   /** Daftar ruang chat (GET /v1/chat/rooms) */
   chat: "/chat" as Href,
+  /** Pengaturan chat: privasi + template balasan (batch 43 FE-CHAT) */
+  chatSettings: "/chat/settings" as Href,
   /** Satu ruang chat */
-  chatRoom: (roomId: string, title?: string) =>
+  chatRoom: (roomId: string, title?: string, self?: boolean) =>
     ({
       pathname: "/chat/[roomId]",
       // C-06 (audit): `title` = nama lawan bicara dari layar asal; layar
       // ruang memakainya sebagai fallback header (GET /rooms tanpa endpoint
       // detail; lookup lokal hanya 30 ruang pertama).
-      params: title ? { roomId, title } : { roomId },
+      // Batch 43: `self=1` menandai self-chat ("Pesan untuk diri sendiri") —
+      // blokir/lapor & buat transaksi disembunyikan di ruang.
+      params: {
+        roomId,
+        ...(title ? { title } : null),
+        ...(self ? { self: "1" } : null),
+      },
     }) as unknown as Href,
   /** Langganan premium */
   subscriptions: "/subscriptions" as Href,

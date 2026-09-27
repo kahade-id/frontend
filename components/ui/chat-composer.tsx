@@ -55,6 +55,8 @@ import { canSendMessage } from "@/lib/chat-send-ready"
 export { canSendMessage }
 import { IconButton } from "@/components/ui/icon-button"
 import { QuickReplyPicker } from "@/components/ui/quick-reply-picker"
+import { ChatFormatBar } from "@/components/ui/chat-format-bar"
+import { applyChatFormat, type ChatTextFormat } from "@/lib/chat-format"
 import { Text } from "@/components/ui/text"
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
@@ -128,6 +130,12 @@ export type ChatComposerProps = Omit<ViewProps, "children"> & {
    * Default true; matikan bila konteks tidak cocok.
    */
   quickReplies?: boolean
+  /**
+   * Batch 43: tampilkan toolbar format teks (tebal/miring/mono/garis
+   * bawah/spoiler/tautan) di atas baris input. Memakai seleksi teks
+   * TextInput; tanpa seleksi, format diterapkan di ujung teks.
+   */
+  formatBar?: boolean
   className?: string
   inputProps?: Omit<TextInputProps, "value" | "onChangeText" | "multiline" | "style" | "className">
 }
@@ -148,6 +156,7 @@ export function ChatComposer({
   maxLength = CHAT_MESSAGE_MAX,
   labels,
   quickReplies = true,
+  formatBar = false,
   className,
   inputProps,
   ...rest
@@ -158,6 +167,25 @@ export function ChatComposer({
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
   const [focused, setFocused] = useState(false)
+  // Batch 43: seleksi teks untuk toolbar format (onSelectionChange).
+  const [selection, setSelection] = useState<{ start: number; end: number } | undefined>(undefined)
+
+  /**
+   * Batch 43: terapkan format markdown ke teks terpilih (atau kursor bila
+   * tidak ada seleksi) via `applyChatFormat` murni; kursor/seleksi baru
+   * ikut diatur agar pengetikan berlanjut mulus.
+   */
+  const handleFormat = useCallback(
+    (format: ChatTextFormat) => {
+      if (disabled || sending) return
+      const start = selection?.start ?? value.length
+      const end = selection?.end ?? value.length
+      const edit = applyChatFormat(value, start, end, format)
+      onChangeText(edit.value)
+      setSelection({ start: edit.start, end: edit.end })
+    },
+    [disabled, sending, onChangeText, value, selection],
+  )
 
   // Item 23: "/" di awal teks (tanpa baris baru) → picker template. Memilih
   // template mengganti token "/..." dengan teks template.
@@ -246,6 +274,9 @@ export function ChatComposer({
         </ScrollView>
       ) : null}
 
+      {/* Batch 43: toolbar format teks (B/I/mono/underline/spoiler/tautan). */}
+      {formatBar && !disabled ? <ChatFormatBar onFormat={handleFormat} /> : null}
+
       <View className="flex-row items-end gap-2">
         {onAttach ? (
           <IconButton
@@ -280,6 +311,8 @@ export function ChatComposer({
             allowFontScaling={false}
             onFocus={() => setFocused(true)}
             onBlur={() => setFocused(false)}
+            onSelectionChange={(e) => setSelection(e.nativeEvent.selection)}
+            selection={selection}
             onKeyPress={onKeyPress}
             blurOnSubmit={false}
             accessibilityLabel={translateProp(t.placeholder)}
