@@ -92,6 +92,7 @@ import {
 import { SectionHeader } from "@/components/ui/section"
 import { MilestoneSection } from "@/components/order-milestones"
 import { InstallmentOfferSection } from "@/components/order-installment-offer"
+import { OrderAgreementSection } from "@/components/order-agreement-section"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
 import { shareReceipt } from "@/components/receipt/shareReceipt"
@@ -935,6 +936,12 @@ export default function OrderDetailScreen() {
               orderValueIdr={order.orderValue}
               onPlanCreated={() => setMilestoneNonce((n) => n + 1)}
             />
+          ) : null}
+
+          {/* 12c — Batch 43 (item 13): SPK ringan — teks kesepakatan +
+              kedua pihak ketuk setuju. */}
+          {isBuyer || isSeller ? (
+            <OrderAgreementSection orderId={order.id} role={isSeller ? "SELLER" : "BUYER"} />
           ) : null}
 
           {/* 13 — Aksi sekunder */}
