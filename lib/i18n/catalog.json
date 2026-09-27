@@ -4,7 +4,7 @@
  "strings": [
   {
    "s": "Batal",
-   "n": 97
+   "n": 100
   },
   {
    "s": "Hapus",
@@ -24,10 +24,14 @@
   },
   {
    "s": "Simpan",
-   "n": 21
+   "n": 24
   },
   {
    "s": "Deskripsi",
+   "n": 14
+  },
+  {
+   "s": "Kata sandi akun",
    "n": 14
   },
   {
@@ -87,7 +91,11 @@
    "n": 11
   },
   {
-   "s": "Kata sandi akun",
+   "s": "Coba lagi",
+   "n": 11
+  },
+  {
+   "s": "Gagal mengunggah foto",
    "n": 11
   },
   {
@@ -143,6 +151,10 @@
    "n": 9
   },
   {
+   "s": "Ambil foto",
+   "n": 9
+  },
+  {
    "s": "Belum ada ulasan",
    "n": 9
   },
@@ -151,15 +163,11 @@
    "n": 9
   },
   {
-   "s": "Coba lagi",
-   "n": 9
-  },
-  {
    "s": "Foto karya",
    "n": 9
   },
   {
-   "s": "Gagal mengunggah foto",
+   "s": "Foto profil",
    "n": 9
   },
   {
@@ -171,6 +179,10 @@
    "n": 9
   },
   {
+   "s": "Izin galeri ditolak",
+   "n": 9
+  },
+  {
    "s": "Kirim komentar",
    "n": 9
   },
@@ -179,8 +191,20 @@
    "n": 9
   },
   {
+   "s": "Pilih dari galeri",
+   "n": 9
+  },
+  {
+   "s": "Putar video",
+   "n": 9
+  },
+  {
    "s": "Tanpa judul",
    "n": 9
+  },
+  {
+   "s": "Atur ulang",
+   "n": 8
   },
   {
    "s": "Bagikan",
@@ -207,6 +231,10 @@
    "n": 8
   },
   {
+   "s": "Konfirmasi kata sandi",
+   "n": 8
+  },
+  {
    "s": "Lanjutkan",
    "n": 8
   },
@@ -227,7 +255,7 @@
    "n": 7
   },
   {
-   "s": "Ambil foto",
+   "s": "Baru",
    "n": 7
   },
   {
@@ -235,7 +263,7 @@
    "n": 7
   },
   {
-   "s": "Izin galeri ditolak",
+   "s": "Izin kamera ditolak",
    "n": 7
   },
   {
@@ -247,11 +275,15 @@
    "n": 7
   },
   {
-   "s": "Pengaturan",
+   "s": "Mode hemat data",
    "n": 7
   },
   {
-   "s": "Pilih dari galeri",
+   "s": "Nama lengkap",
+   "n": 7
+  },
+  {
+   "s": "Pengaturan",
    "n": 7
   },
   {
@@ -264,6 +296,10 @@
   },
   {
    "s": "{x} dipilih",
+   "n": 6
+  },
+  {
+   "s": "Aktifkan di pengaturan perangkat.",
    "n": 6
   },
   {
@@ -295,11 +331,19 @@
    "n": 6
   },
   {
+   "s": "Bio",
+   "n": 6
+  },
+  {
    "s": "Buang",
    "n": 6
   },
   {
    "s": "Buat PIN",
+   "n": 6
+  },
+  {
+   "s": "Ceritakan tentang Anda",
    "n": 6
   },
   {
@@ -327,23 +371,7 @@
    "n": 6
   },
   {
-   "s": "Foto {x} dari {y}",
-   "n": 6
-  },
-  {
-   "s": "Foto berikutnya",
-   "n": 6
-  },
-  {
-   "s": "Foto profil",
-   "n": 6
-  },
-  {
    "s": "Foto sampul profil",
-   "n": 6
-  },
-  {
-   "s": "Foto sebelumnya",
    "n": 6
   },
   {
@@ -355,11 +383,19 @@
    "n": 6
   },
   {
+   "s": "Gagal menghapus foto",
+   "n": 6
+  },
+  {
    "s": "Geser foto {x} ke kanan",
    "n": 6
   },
   {
    "s": "Geser foto {x} ke kiri",
+   "n": 6
+  },
+  {
+   "s": "Hanya bisa diganti sekali per bulan.",
    "n": 6
   },
   {
@@ -423,6 +459,10 @@
    "n": 6
   },
   {
+   "s": "Nama lengkap Anda",
+   "n": 6
+  },
+  {
    "s": "Nomor HP kontak",
    "n": 6
   },
@@ -452,6 +492,10 @@
   },
   {
    "s": "Pilihan karya",
+   "n": 6
+  },
+  {
+   "s": "Produk",
    "n": 6
   },
   {
@@ -499,7 +543,15 @@
    "n": 6
   },
   {
+   "s": "Ubah foto profil",
+   "n": 6
+  },
+  {
    "s": "{x} dari {y} lencana diraih",
+   "n": 5
+  },
+  {
+   "s": "Anda sedang offline",
    "n": 5
   },
   {
@@ -543,6 +595,10 @@
    "n": 5
   },
   {
+   "s": "Edit profil",
+   "n": 5
+  },
+  {
    "s": "Foto {x}",
    "n": 5
   },
@@ -567,15 +623,11 @@
    "n": 5
   },
   {
-   "s": "Izin kamera ditolak",
-   "n": 5
-  },
-  {
    "s": "Kebijakan Privasi",
    "n": 5
   },
   {
-   "s": "Konfirmasi kata sandi",
+   "s": "Kelola template",
    "n": 5
   },
   {
@@ -631,11 +683,19 @@
    "n": 5
   },
   {
+   "s": "Ubah template",
+   "n": 5
+  },
+  {
    "s": "Ubah ulasan",
    "n": 5
   },
   {
    "s": "Verifikasi",
+   "n": 5
+  },
+  {
+   "s": "Video",
    "n": 5
   },
   {
@@ -659,15 +719,7 @@
    "n": 4
   },
   {
-   "s": "Aktifkan di pengaturan perangkat.",
-   "n": 4
-  },
-  {
    "s": "Alasan: {x}",
-   "n": 4
-  },
-  {
-   "s": "Atur ulang",
    "n": 4
   },
   {
@@ -735,6 +787,14 @@
    "n": 4
   },
   {
+   "s": "Foto profil dihapus",
+   "n": 4
+  },
+  {
+   "s": "Foto profil diperbarui",
+   "n": 4
+  },
+  {
    "s": "Gagal memblokir pengguna",
    "n": 4
   },
@@ -743,11 +803,11 @@
    "n": 4
   },
   {
-   "s": "Gagal menghapus foto",
+   "s": "Gagal mengirim pertanyaan",
    "n": 4
   },
   {
-   "s": "Gagal mengirim pertanyaan",
+   "s": "Hapus foto",
    "n": 4
   },
   {
@@ -855,10 +915,6 @@
    "n": 4
   },
   {
-   "s": "Nama lengkap",
-   "n": 4
-  },
-  {
    "s": "Nomor HP akun",
    "n": 4
   },
@@ -895,6 +951,10 @@
    "n": 4
   },
   {
+   "s": "Profil diperbarui",
+   "n": 4
+  },
+  {
    "s": "Progres {x} persen",
    "n": 4
   },
@@ -907,11 +967,23 @@
    "n": 4
   },
   {
+   "s": "Simpan perubahan",
+   "n": 4
+  },
+  {
+   "s": "Simpan template",
+   "n": 4
+  },
+  {
    "s": "Skor",
    "n": 4
   },
   {
    "s": "Syarat & Ketentuan",
+   "n": 4
+  },
+  {
+   "s": "Tambah",
    "n": 4
   },
   {
@@ -932,6 +1004,10 @@
   },
   {
    "s": "Tenggat dalam {x}",
+   "n": 4
+  },
+  {
+   "s": "Terapkan",
    "n": 4
   },
   {
@@ -975,11 +1051,19 @@
    "n": 4
   },
   {
+   "s": "{n} ulasan bintang {s}",
+   "n": 3
+  },
+  {
    "s": "{x} — {y} periode",
    "n": 3
   },
   {
    "s": "{x} — ada yang belum dibaca",
+   "n": 3
+  },
+  {
+   "s": "{x} — tampilan putar: frame {y} dari {z}",
    "n": 3
   },
   {
@@ -1107,6 +1191,10 @@
    "n": 3
   },
   {
+   "s": "Aktifkan bila kuota terbatas. Berlaku untuk perangkat ini saja.",
+   "n": 3
+  },
+  {
    "s": "Akun {x}",
    "n": 3
   },
@@ -1183,6 +1271,10 @@
    "n": 3
   },
   {
+   "s": "Belum ada produk di etalase",
+   "n": 3
+  },
+  {
    "s": "Belum ada ulasan masuk",
    "n": 3
   },
@@ -1208,10 +1300,6 @@
   },
   {
    "s": "Berlaku sampai {x} · {y}",
-   "n": 3
-  },
-  {
-   "s": "Bio",
    "n": 3
   },
   {
@@ -1339,10 +1427,6 @@
    "n": 3
   },
   {
-   "s": "Ceritakan tentang Anda",
-   "n": 3
-  },
-  {
    "s": "Chat dengan CS",
    "n": 3
   },
@@ -1399,6 +1483,10 @@
    "n": 3
   },
   {
+   "s": "Distribusi bintang: rata-rata {x} dari {n} ulasan",
+   "n": 3
+  },
+  {
    "s": "Ditampilkan di profil publik Anda.",
    "n": 3
   },
@@ -1451,6 +1539,10 @@
    "n": 3
   },
   {
+   "s": "Filter etalase",
+   "n": 3
+  },
+  {
    "s": "Filter kategori {x}",
    "n": 3
   },
@@ -1471,7 +1563,15 @@
    "n": 3
   },
   {
+   "s": "Foto {x} dari {y}",
+   "n": 3
+  },
+  {
    "s": "Foto akan dihapus permanen dari karya ini.",
+   "n": 3
+  },
+  {
+   "s": "Foto berikutnya",
    "n": 3
   },
   {
@@ -1499,11 +1599,27 @@
    "n": 3
   },
   {
+   "s": "Foto sebelumnya",
+   "n": 3
+  },
+  {
    "s": "Foto yang sudah diunggah dan ketikan Anda akan dibuang.",
    "n": 3
   },
   {
    "s": "Foto: {x}",
+   "n": 3
+  },
+  {
+   "s": "Frame berikutnya",
+   "n": 3
+  },
+  {
+   "s": "Frame sebelumnya",
+   "n": 3
+  },
+  {
+   "s": "Frekuensi ringkasan notifikasi",
    "n": 3
   },
   {
@@ -1519,7 +1635,19 @@
    "n": 3
   },
   {
+   "s": "Gagal menghapus template",
+   "n": 3
+  },
+  {
    "s": "Gagal mengirim laporan",
+   "n": 3
+  },
+  {
+   "s": "Gagal menyimpan template",
+   "n": 3
+  },
+  {
+   "s": "Gambar dan video di feed tidak dimuat sampai diketuk.",
    "n": 3
   },
   {
@@ -1532,10 +1660,6 @@
   },
   {
    "s": "Hanya berlaku di perangkat ini",
-   "n": 3
-  },
-  {
-   "s": "Hanya bisa diganti sekali per bulan.",
    "n": 3
   },
   {
@@ -1591,6 +1715,10 @@
    "n": 3
   },
   {
+   "s": "Hapus highlight",
+   "n": 3
+  },
+  {
    "s": "Hapus karya tersimpan",
    "n": 3
   },
@@ -1611,11 +1739,27 @@
    "n": 3
   },
   {
+   "s": "Hapus template",
+   "n": 3
+  },
+  {
    "s": "Hapus ulasan ini?",
    "n": 3
   },
   {
    "s": "Hapus yang dipilih",
+   "n": 3
+  },
+  {
+   "s": "Hemat data",
+   "n": 3
+  },
+  {
+   "s": "Highlight baru",
+   "n": 3
+  },
+  {
+   "s": "Highlight etalase",
    "n": 3
   },
   {
@@ -1656,6 +1800,10 @@
   },
   {
    "s": "Jaga nada tetap ramah dan profesional.",
+   "n": 3
+  },
+  {
+   "s": "Jam",
    "n": 3
   },
   {
@@ -1736,6 +1884,10 @@
   },
   {
    "s": "Kekuatan kata sandi: {x}",
+   "n": 3
+  },
+  {
+   "s": "Kelola highlight",
    "n": 3
   },
   {
@@ -1852,6 +2004,10 @@
   },
   {
    "s": "Konten sensitif disembunyikan",
+   "n": 3
+  },
+  {
+   "s": "Kumpulkan notifikasi menjadi satu ringkasan berkala.",
    "n": 3
   },
   {
@@ -1983,6 +2139,18 @@
    "n": 3
   },
   {
+   "s": "Media {x} dari {y}",
+   "n": 3
+  },
+  {
+   "s": "Media berikutnya",
+   "n": 3
+  },
+  {
+   "s": "Media sebelumnya",
+   "n": 3
+  },
+  {
    "s": "Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase",
    "n": 3
   },
@@ -2039,6 +2207,10 @@
    "n": 3
   },
   {
+   "s": "Mengganti username membutuhkan kata sandi akun.",
+   "n": 3
+  },
+  {
    "s": "Mengirim…",
    "n": 3
   },
@@ -2048,6 +2220,10 @@
   },
   {
    "s": "Mengubah username, nomor HP, atau kontak membutuhkan kata sandi akun.",
+   "n": 3
+  },
+  {
+   "s": "Menit",
    "n": 3
   },
   {
@@ -2083,6 +2259,18 @@
    "n": 3
   },
   {
+   "s": "Mode hemat data aktif. Ketuk untuk memuat gambar.",
+   "n": 3
+  },
+  {
+   "s": "Mode hemat data aktif. Ketuk untuk memuat video.",
+   "n": 3
+  },
+  {
+   "s": "Muat gambar: {x}",
+   "n": 3
+  },
+  {
    "s": "Mulai mencari",
    "n": 3
   },
@@ -2091,7 +2279,11 @@
    "n": 3
   },
   {
-   "s": "Nama lengkap Anda",
+   "s": "Nama highlight",
+   "n": 3
+  },
+  {
+   "s": "Nama highlight, mis. Promo {x}.{x}",
    "n": 3
   },
   {
@@ -2159,6 +2351,10 @@
    "n": 3
   },
   {
+   "s": "Perbesar ukuran teks",
+   "n": 3
+  },
+  {
    "s": "Percakapan",
    "n": 3
   },
@@ -2168,6 +2364,14 @@
   },
   {
    "s": "Pergantian ikon aplikasi membutuhkan pembaruan aplikasi dari toko — pilihan Anda tersimpan dan diterapkan saat tersedia.",
+   "n": 3
+  },
+  {
+   "s": "Perkecil atau perbesar semua teks di aplikasi.",
+   "n": 3
+  },
+  {
+   "s": "Perkecil ukuran teks",
    "n": 3
   },
   {
@@ -2235,6 +2439,10 @@
    "n": 3
   },
   {
+   "s": "Pilih produk dari etalase Anda untuk ditampilkan di profil.",
+   "n": 3
+  },
+  {
    "s": "Pilih rekening tujuan",
    "n": 3
   },
@@ -2271,10 +2479,6 @@
    "n": 3
   },
   {
-   "s": "Produk",
-   "n": 3
-  },
-  {
    "s": "Profil dihapus dari tersimpan",
    "n": 3
   },
@@ -2283,7 +2487,15 @@
    "n": 3
   },
   {
+   "s": "Putar video: {x}",
+   "n": 3
+  },
+  {
    "s": "Putar voice note",
+   "n": 3
+  },
+  {
+   "s": "Putar/jeda video",
    "n": 3
   },
   {
@@ -2295,7 +2507,15 @@
    "n": 3
   },
   {
+   "s": "Rentang harga",
+   "n": 3
+  },
+  {
    "s": "Ringkasan {x} hari terakhir, {y}",
+   "n": 3
+  },
+  {
+   "s": "Ringkasan notifikasi",
    "n": 3
   },
   {
@@ -2315,11 +2535,23 @@
    "n": 3
   },
   {
+   "s": "Saring berdasarkan kondisi barang",
+   "n": 3
+  },
+  {
+   "s": "Saring berdasarkan rating penjual minimum",
+   "n": 3
+  },
+  {
    "s": "Saring daftar antara semua dan belum dibaca",
    "n": 3
   },
   {
    "s": "Saring hasil pencarian",
+   "n": 3
+  },
+  {
+   "s": "Sedang dalam pemeliharaan",
    "n": 3
   },
   {
@@ -2340,6 +2572,10 @@
   },
   {
    "s": "Semua sesi termasuk perangkat ini akan dicabut. Anda harus masuk kembali di semua perangkat.",
+   "n": 3
+  },
+  {
+   "s": "Server Kahade sedang menjalani pemeliharaan terjadwal. Coba lagi dalam beberapa menit.",
    "n": 3
   },
   {
@@ -2407,11 +2643,23 @@
    "n": 3
   },
   {
+   "s": "Tambah highlight",
+   "n": 3
+  },
+  {
    "s": "Tambah rekening",
    "n": 3
   },
   {
    "s": "Tambahkan foto produk atau hasil kerja Anda.",
+   "n": 3
+  },
+  {
+   "s": "Tambahkan produk ke etalase dulu untuk membuat highlight.",
+   "n": 3
+  },
+  {
+   "s": "Tampilan {x} derajat. Seret untuk memutar.",
    "n": 3
   },
   {
@@ -2463,7 +2711,19 @@
    "n": 3
   },
   {
+   "s": "Teks template",
+   "n": 3
+  },
+  {
    "s": "Tema eksklusif",
+   "n": 3
+  },
+  {
+   "s": "Template balasan cepat",
+   "n": 3
+  },
+  {
+   "s": "Template baru…",
    "n": 3
   },
   {
@@ -2511,6 +2771,10 @@
    "n": 3
   },
   {
+   "s": "Tidak bisa menyimpan",
+   "n": 3
+  },
+  {
    "s": "Tidak dapat memuat percakapan",
    "n": 3
   },
@@ -2551,7 +2815,19 @@
    "n": 3
   },
   {
+   "s": "Tutup editor highlight",
+   "n": 3
+  },
+  {
+   "s": "Tutup kelola",
+   "n": 3
+  },
+  {
    "s": "Tutup percakapan?",
+   "n": 3
+  },
+  {
+   "s": "Tutup template",
    "n": 3
   },
   {
@@ -2560,10 +2836,6 @@
   },
   {
    "s": "Ubah balasan",
-   "n": 3
-  },
-  {
-   "s": "Ubah foto profil",
    "n": 3
   },
   {
@@ -2576,6 +2848,14 @@
   },
   {
    "s": "Ubah karya ini",
+   "n": 3
+  },
+  {
+   "s": "Ubah template…",
+   "n": 3
+  },
+  {
+   "s": "Ukuran teks",
    "n": 3
   },
   {
@@ -2616,6 +2896,10 @@
   },
   {
    "s": "Verifikasi gagal",
+   "n": 3
+  },
+  {
+   "s": "Video: {x}. Ketuk untuk putar atau jeda.",
    "n": 3
   },
   {
@@ -2731,6 +3015,10 @@
    "n": 2
   },
   {
+   "s": "{x}/{y}",
+   "n": 2
+  },
+  {
    "s": "{x}/{y} tersimpan di perangkat ini. Simpanan dihapus saat keluar akun.",
    "n": 2
   },
@@ -2831,6 +3119,10 @@
    "n": 2
   },
   {
+   "s": "Balasan cepat",
+   "n": 2
+  },
+  {
    "s": "Balasan dihapus",
    "n": 2
   },
@@ -2908,6 +3200,10 @@
   },
   {
    "s": "Belum berlangganan",
+   "n": 2
+  },
+  {
+   "s": "Belum bisa menyimpan highlight",
    "n": 2
   },
   {
@@ -3235,7 +3531,7 @@
    "n": 2
   },
   {
-   "s": "Edit profil",
+   "s": "Edit lengkap",
    "n": 2
   },
   {
@@ -3244,6 +3540,10 @@
   },
   {
    "s": "Email diperbarui",
+   "n": 2
+  },
+  {
+   "s": "Email, nomor HP, kontak publik, dan tautan sosial diubah di Edit lengkap.",
    "n": 2
   },
   {
@@ -3279,14 +3579,6 @@
    "n": 2
   },
   {
-   "s": "Foto profil dihapus",
-   "n": 2
-  },
-  {
-   "s": "Foto profil diperbarui",
-   "n": 2
-  },
-  {
    "s": "Foto sampul dihapus",
    "n": 2
   },
@@ -3296,6 +3588,10 @@
   },
   {
    "s": "Foto sudah penuh",
+   "n": 2
+  },
+  {
+   "s": "Frame {x} dari {y}",
    "n": 2
   },
   {
@@ -3435,6 +3731,10 @@
    "n": 2
   },
   {
+   "s": "Gagal menyimpan preferensi",
+   "n": 2
+  },
+  {
    "s": "Gagal menyimpan profil",
    "n": 2
   },
@@ -3487,10 +3787,6 @@
    "n": 2
   },
   {
-   "s": "Hapus foto",
-   "n": 2
-  },
-  {
    "s": "Hapus foto sampul",
    "n": 2
   },
@@ -3508,6 +3804,10 @@
   },
   {
    "s": "Harga maksimum harus ≥ harga minimum.",
+   "n": 2
+  },
+  {
+   "s": "Highlight disimpan",
    "n": 2
   },
   {
@@ -3667,6 +3967,10 @@
    "n": 2
   },
   {
+   "s": "Kata sandi salah atau perubahan ditolak.",
+   "n": 2
+  },
+  {
    "s": "Katalog Produk",
    "n": 2
   },
@@ -3739,7 +4043,15 @@
    "n": 2
   },
   {
+   "s": "Ketik \"/\" lalu kata kunci untuk menyaring.",
+   "n": 2
+  },
+  {
    "s": "Ketuk atau tekan lama untuk opsi pesan",
+   "n": 2
+  },
+  {
+   "s": "Ketuk highlight untuk mengedit, atau tambah yang baru.",
    "n": 2
   },
   {
@@ -3748,6 +4060,14 @@
   },
   {
    "s": "Ketuk untuk melihat; bukti Anda bisa dihapus dari pratinjau.",
+   "n": 2
+  },
+  {
+   "s": "Ketuk untuk memuat gambar",
+   "n": 2
+  },
+  {
+   "s": "Ketuk untuk memuat video",
    "n": 2
   },
   {
@@ -3840,6 +4160,10 @@
   },
   {
    "s": "Kode voucher {x}",
+   "n": 2
+  },
+  {
+   "s": "Kondisi barang",
    "n": 2
   },
   {
@@ -4100,6 +4424,10 @@
   },
   {
    "s": "Memuat profil Anda…",
+   "n": 2
+  },
+  {
+   "s": "Memuat template…",
    "n": 2
   },
   {
@@ -4487,6 +4815,10 @@
    "n": 2
   },
   {
+   "s": "Pilih",
+   "n": 2
+  },
+  {
    "s": "Pilih dokumen",
    "n": 2
   },
@@ -4504,6 +4836,10 @@
   },
   {
    "s": "Pilih percakapan",
+   "n": 2
+  },
+  {
+   "s": "Pilih produk ({n} dipilih):",
    "n": 2
   },
   {
@@ -4527,6 +4863,14 @@
    "n": 2
   },
   {
+   "s": "Pratinjau: teks contoh mengikuti ukuran yang dipilih.",
+   "n": 2
+  },
+  {
+   "s": "Preferensi tersimpan",
+   "n": 2
+  },
+  {
    "s": "Privat",
    "n": 2
   },
@@ -4536,10 +4880,6 @@
   },
   {
    "s": "Profil belum dapat dimuat, sehingga kode QR belum tersedia. Periksa koneksi lalu buka kembali tab ini.",
-   "n": 2
-  },
-  {
-   "s": "Profil diperbarui",
    "n": 2
   },
   {
@@ -4575,6 +4915,10 @@
    "n": 2
   },
   {
+   "s": "Rating penjual",
+   "n": 2
+  },
+  {
    "s": "Referensi",
    "n": 2
   },
@@ -4600,6 +4944,10 @@
   },
   {
    "s": "Ringkasan mutasi",
+   "n": 2
+  },
+  {
+   "s": "Ringkasan terakhir dikirim {x}",
    "n": 2
   },
   {
@@ -4711,6 +5059,10 @@
    "n": 2
   },
   {
+   "s": "Seret untuk memutar",
+   "n": 2
+  },
+  {
    "s": "Seseorang",
    "n": 2
   },
@@ -4731,7 +5083,7 @@
    "n": 2
   },
   {
-   "s": "Simpan perubahan",
+   "s": "Simpan highlight",
    "n": 2
   },
   {
@@ -4748,6 +5100,10 @@
   },
   {
    "s": "Slide {x} dari {y}",
+   "n": 2
+  },
+  {
+   "s": "spin{x}-{x}",
    "n": 2
   },
   {
@@ -4787,6 +5143,10 @@
    "n": 2
   },
   {
+   "s": "Suka & ikuti akan terkirim otomatis saat tersambung. Aksi lain (termasuk yang menyentuh uang) tidak bisa dilakukan saat offline.",
+   "n": 2
+  },
+  {
    "s": "Tab Lainnya",
    "n": 2
   },
@@ -4804,10 +5164,6 @@
   },
   {
    "s": "Tahap {x}: {x}",
-   "n": 2
-  },
-  {
-   "s": "Tambah",
    "n": 2
   },
   {
@@ -4923,6 +5279,22 @@
    "n": 2
   },
   {
+   "s": "Template diperbarui",
+   "n": 2
+  },
+  {
+   "s": "Template ditambahkan",
+   "n": 2
+  },
+  {
+   "s": "Template tersimpan di perangkat ini saja. Sinkronisasi akun belum tersedia.",
+   "n": 2
+  },
+  {
+   "s": "Template tersimpan di perangkat ini.",
+   "n": 2
+  },
+  {
    "s": "Template Transaksi",
    "n": 2
   },
@@ -4948,10 +5320,6 @@
   },
   {
    "s": "Tentang Kami",
-   "n": 2
-  },
-  {
-   "s": "Terapkan",
    "n": 2
   },
   {
@@ -4988,6 +5356,10 @@
   },
   {
    "s": "Tidak ada notifikasi belum dibaca",
+   "n": 2
+  },
+  {
+   "s": "Tidak ada template yang cocok. Ketik untuk membuat baru lewat Kelola.",
    "n": 2
   },
   {
@@ -5071,6 +5443,10 @@
    "n": 2
   },
   {
+   "s": "Transaksi dan saldo Anda aman — tidak ada data yang hilang selama pemeliharaan.",
+   "n": 2
+  },
+  {
    "s": "Transaksi ini membutuhkan verifikasi identitas (KYC).",
    "n": 2
   },
@@ -5100,10 +5476,6 @@
   },
   {
    "s": "Ubah PIN",
-   "n": 2
-  },
-  {
-   "s": "Ubah template",
    "n": 2
   },
   {
@@ -5188,10 +5560,6 @@
   },
   {
    "s": "Versi Aplikasi",
-   "n": 2
-  },
-  {
-   "s": "Video",
    "n": 2
   },
   {
@@ -5432,6 +5800,10 @@
   },
   {
    "s": "{x}, biaya {y}",
+   "n": 1
+  },
+  {
+   "s": "{x},{x}+ ke atas",
    "n": 1
   },
   {
@@ -7011,6 +7383,10 @@
    "n": 1
   },
   {
+   "s": "{x}+ ke atas",
+   "n": 1
+  },
+  {
    "s": "© {x} Kahade",
    "n": 1
   },
@@ -7775,11 +8151,11 @@
    "n": 1
   },
   {
-   "s": "Baru",
+   "s": "Batal suka",
    "n": 1
   },
   {
-   "s": "Batal suka",
+   "s": "Batal suka karya",
    "n": 1
   },
   {
@@ -7872,6 +8248,10 @@
   },
   {
    "s": "Bebas biaya layanan",
+   "n": 1
+  },
+  {
+   "s": "Bekas",
    "n": 1
   },
   {
@@ -9011,6 +9391,10 @@
    "n": 1
   },
   {
+   "s": "Data order tidak valid.",
+   "n": 1
+  },
+  {
    "s": "Data pihak lain, rahasia dagang, informasi keamanan, kewajiban retensi, sengketa, dan pengecualian hukum ditinjau sebelum respons.",
    "n": 1
   },
@@ -9939,10 +10323,6 @@
    "n": 1
   },
   {
-   "s": "Gagal menghapus template",
-   "n": 1
-  },
-  {
    "s": "Gagal mengirim balasan",
    "n": 1
   },
@@ -10067,19 +10447,15 @@
    "n": 1
   },
   {
-   "s": "Gagal menyimpan preferensi",
-   "n": 1
-  },
-  {
    "s": "Gagal menyimpan produk",
    "n": 1
   },
   {
-   "s": "Gagal menyimpan template",
+   "s": "Gagal menyimpan tipe akun",
    "n": 1
   },
   {
-   "s": "Gagal menyimpan tipe akun",
+   "s": "Gagal menyimpan: {x}",
    "n": 1
   },
   {
@@ -10227,6 +10603,10 @@
    "n": 1
   },
   {
+   "s": "Hanya pembeli yang dapat konfirmasi terima.",
+   "n": 1
+  },
+  {
    "s": "Hanya tampilkan pengguna rating {x} ke atas",
    "n": 1
   },
@@ -10323,6 +10703,18 @@
    "n": 1
   },
   {
+   "s": "Harga maksimum",
+   "n": 1
+  },
+  {
+   "s": "Harga minimum",
+   "n": 1
+  },
+  {
+   "s": "Harga minimum tidak boleh lebih besar dari maksimum",
+   "n": 1
+  },
+  {
    "s": "Harga tidak boleh menipu melalui diskon palsu, biaya tersembunyi, pembatalan berulang untuk menaikkan harga, atau syarat yang baru diungkap setelah pembayaran. Kelangkaan, hitung mundur, hadiah, dan testimoni tidak boleh direkayasa.",
    "n": 1
   },
@@ -10332,6 +10724,10 @@
   },
   {
    "s": "hari. Setelah tanggal itu data dihapus permanen dan tidak bisa dipulihkan.",
+   "n": 1
+  },
+  {
+   "s": "Harian",
    "n": 1
   },
   {
@@ -10876,10 +11272,6 @@
   },
   {
    "s": "Kata sandi saat ini",
-   "n": 1
-  },
-  {
-   "s": "Kata sandi salah atau perubahan ditolak.",
    "n": 1
   },
   {
@@ -12103,6 +12495,10 @@
    "n": 1
   },
   {
+   "s": "Mati",
+   "n": 1
+  },
+  {
    "s": "Matikan",
    "n": 1
   },
@@ -12579,6 +12975,10 @@
    "n": 1
   },
   {
+   "s": "Mingguan",
+   "n": 1
+  },
+  {
    "s": "Minimal {x} karakter, atau kosongkan bila tidak dikirim dari sini.",
    "n": 1
   },
@@ -12719,6 +13119,10 @@
    "n": 1
   },
   {
+   "s": "Nama minimal {x} karakter.",
+   "n": 1
+  },
+  {
    "s": "Nama passkey diperbarui",
    "n": 1
   },
@@ -12728,6 +13132,10 @@
   },
   {
    "s": "Nama pengguna tersedia",
+   "n": 1
+  },
+  {
+   "s": "Nama pengguna tidak tersedia. Pilih yang lain.",
    "n": 1
   },
   {
@@ -12748,6 +13156,10 @@
   },
   {
    "s": "Nama template wajib diisi",
+   "n": 1
+  },
+  {
+   "s": "Nama wajib diisi.",
    "n": 1
   },
   {
@@ -12919,6 +13331,10 @@
    "n": 1
   },
   {
+   "s": "Notifikasi dikirim seperti biasa, tanpa ringkasan.",
+   "n": 1
+  },
+  {
    "s": "Notifikasi ini akan dihapus dari daftar dan tidak bisa dikembalikan.",
    "n": 1
   },
@@ -13008,6 +13424,10 @@
   },
   {
    "s": "Order tidak berlanjut — dana escrow telah dikembalikan ke pembeli oleh {x}.",
+   "n": 1
+  },
+  {
+   "s": "Order tidak dalam status yang bisa dikonfirmasi.",
    "n": 1
   },
   {
@@ -14239,10 +14659,6 @@
    "n": 1
   },
   {
-   "s": "Preferensi tersimpan",
-   "n": 1
-  },
-  {
    "s": "Privasi",
    "n": 1
   },
@@ -14871,6 +15287,10 @@
    "n": 1
   },
   {
+   "s": "Semua kondisi",
+   "n": 1
+  },
+  {
    "s": "Semua layar langsung mengikuti, tanpa perlu menutup aplikasi.",
    "n": 1
   },
@@ -14880,6 +15300,10 @@
   },
   {
    "s": "Semua perangkat lain dicabut",
+   "n": 1
+  },
+  {
+   "s": "Semua rating",
    "n": 1
   },
   {
@@ -15084,10 +15508,6 @@
   },
   {
    "s": "Simpan rekening",
-   "n": 1
-  },
-  {
-   "s": "Simpan template",
    "n": 1
   },
   {
@@ -15296,6 +15716,10 @@
   },
   {
    "s": "Suka dan komentar pada karya etalase.",
+   "n": 1
+  },
+  {
+   "s": "Suka karya",
    "n": 1
   },
   {
@@ -15671,6 +16095,14 @@
    "n": 1
   },
   {
+   "s": "Terima satu ringkasan notifikasi setiap hari.",
+   "n": 1
+  },
+  {
+   "s": "Terima satu ringkasan notifikasi setiap minggu.",
+   "n": 1
+  },
+  {
    "s": "Terjadi gangguan di server kami. Coba lagi nanti.",
    "n": 1
   },
@@ -15792,6 +16224,10 @@
   },
   {
    "s": "Tidak bisa membuka WhatsApp otomatis? Kirim pesan berisi kode di atas secara manual ke",
+   "n": 1
+  },
+  {
+   "s": "Tidak dapat memuat status order saat ini.",
    "n": 1
   },
   {
@@ -16044,6 +16480,10 @@
   },
   {
    "s": "Tunggu {x} lampiran selesai diunggah sebelum mengirim.",
+   "n": 1
+  },
+  {
+   "s": "Tunggu pemeriksaan nama pengguna selesai.",
    "n": 1
   },
   {

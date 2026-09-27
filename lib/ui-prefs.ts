@@ -38,6 +38,12 @@ export type UiPrefs = {
   appMode: "commerce" | "wallet"
   /** orderId → epoch ms sampai kapan pengingat ulasan ditunda (J-14). */
   ratingSnoozeUntil: Record<string, number>
+  /**
+   * Batch 19 (item 15) — Mode hemat data. Default OFF. Saat ON, gambar feed
+   * (dan video) TIDAK dimuat sampai diketuk — menghemat kuota pengguna.
+   * Preferensi perangkat (bukan akun): logout tidak meresetnya.
+   */
+  dataSaver: boolean
 }
 
 const DEFAULT_PREFS: UiPrefs = {
@@ -45,6 +51,7 @@ const DEFAULT_PREFS: UiPrefs = {
   transactionsTab: "buyer",
   appMode: "commerce",
   ratingSnoozeUntil: {},
+  dataSaver: false,
 }
 
 export type RecentRecipient = {
@@ -95,6 +102,8 @@ function sanitizePrefs(raw: unknown): UiPrefs {
     // Field-by-field: lupa menyalin appMode di sini membuat mode hilang saat load.
     appMode: rec.appMode === "wallet" ? "wallet" : "commerce",
     ratingSnoozeUntil: snooze,
+    // Batch 19 (item 15): default OFF bila belum pernah disimpan.
+    dataSaver: rec.dataSaver === true,
   }
 }
 
@@ -173,9 +182,9 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
  * `ratingSnoozeUntil` berkunci `orderId` akun yang sedang login — akun
  * berikutnya di perangkat yang sama tidak boleh mewarisi jejak transaksi itu
  * (alasan yang sama dengan `pendingActions`/`recentRecipients` di
- * `clearSession()`). `balanceHidden`, `transactionsTab`, dan `appMode`
- * sengaja TIDAK disentuh: ketiganya preferensi perangkat yang berlaku untuk
- * siapa pun yang memakai perangkat ini.
+ * `clearSession()`). `balanceHidden`, `transactionsTab`, `appMode`, dan
+ * `dataSaver` sengaja TIDAK disentuh: keempatnya preferensi perangkat yang
+ * berlaku untuk siapa pun yang memakai perangkat ini.
  *
  * Tidak ada I/O saat tidak ada yang perlu dibersihkan (kasus paling sering:
  * logout tanpa pernah menunda pengingat ulasan).
@@ -250,6 +259,21 @@ export function useUiPrefs() {
     void loadUiPrefs()
   }, [])
   return { prefs: snapshot, setPrefs: set }
+}
+
+/**
+ * Batch 19 (item 15) — baca status mode hemat data + pastikan pemuatan
+ * dimulai. Dipakai <Picture dataSaverGate>, <ShowcaseMediaGallery>, dan
+ * <FeedVideo>/galeri video.
+ */
+export function useDataSaver(): boolean {
+  const { prefs } = useUiPrefs()
+  return prefs.dataSaver
+}
+
+/** Batch 19 (item 15) — ubah mode hemat data (persist lokal). */
+export function setDataSaver(enabled: boolean): void {
+  setUiPrefs({ dataSaver: enabled })
 }
 
 /** Hook daftar penerima terakhir (sudah terurut terbaru dulu). */

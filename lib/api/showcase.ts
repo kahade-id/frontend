@@ -100,6 +100,59 @@ export type ShowcaseSocialItem = {
   shareUrl?: string
   /** Karya terkait (kategori sama → populer). Diisi backend di detail. */
   related?: ShowcaseSocialItem[]
+  /**
+   * Batch 19 (item 11/12/16) — lampiran media kaya: video & tampilan 360°.
+   * KONTRAK TIM A PENDING: bentuk final field ini menunggu kontrak backend.
+   * Parser toleran (lihat `parseShowcaseMedia`): entri tak dikenal dilewati,
+   * sehingga payload lama (tanpa `media`) tetap valid.
+   */
+  media?: ShowcaseMedia[]
+}
+
+/**
+ * Satu lampiran media karya.
+ * - `image`: foto biasa (cermin `images[]` lama).
+ * - `video`: `url` = berkas video, `posterUrl` opsional = thumbnail.
+ * - `spin360`: `frames` = URL frame berurutan satu putaran penuh.
+ */
+export type ShowcaseMediaKind = "image" | "video" | "spin360"
+
+export type ShowcaseMedia = {
+  id: string
+  kind: ShowcaseMediaKind
+  url?: string
+  posterUrl?: string
+  frames?: string[]
+}
+
+/**
+ * Parser toleran untuk `media[]` — KONTRAK TIM A PENDING. Aturan:
+ * - kind di luar whitelist → entri DIBUANG (bukan fail-open ke image);
+ * - video/spin360 tanpa url/frames yang valid → dibuang;
+ * - image tanpa url → dibuang (konsisten dengan parser `images`).
+ */
+export function parseShowcaseMedia(raw: unknown, fallbackId = ""): ShowcaseMedia[] {
+  if (!Array.isArray(raw)) return []
+  return raw.flatMap((entry, index): ShowcaseMedia[] => {
+    const rec = asRecord(entry)
+    if (!rec) return []
+    const id = typeof rec.id === "string" && rec.id ? rec.id : `${fallbackId}-media-${index}`
+    const kind = rec.kind
+    if (kind === "image" || kind === "video") {
+      const url = typeof rec.url === "string" && rec.url ? rec.url : null
+      if (!url) return []
+      const posterUrl = typeof rec.posterUrl === "string" && rec.posterUrl ? rec.posterUrl : undefined
+      return [{ id, kind, url, ...(posterUrl ? { posterUrl } : {}) }]
+    }
+    if (kind === "spin360") {
+      const frames = Array.isArray(rec.frames)
+        ? rec.frames.filter((f): f is string => typeof f === "string" && !!f)
+        : []
+      if (frames.length < 2) return []
+      return [{ id, kind, frames }]
+    }
+    return []
+  })
 }
 
 /** Komentar + balasan satu tingkat (kedalaman dibatasi backend). */
@@ -533,6 +586,11 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
     createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : "",
     images,
+    // Batch 19 (item 11/12/16): lampiran media kaya — kontrak TIM A pending,
+    // parser toleran (payload tanpa `media` → undefined, UI fallback ke images).
+    media: parseShowcaseMedia(value.media, value.id).length > 0
+      ? parseShowcaseMedia(value.media, value.id)
+      : undefined,
     description: typeof value.description === "string" ? value.description : null,
     // G-20 (audit 2026-09-23): kategori bebas-teks dinormalisasi (trim + spasi
     // ganda) supaya "Kriya " / "Kriya  Jaya" tidak jadi kelompok sendiri.

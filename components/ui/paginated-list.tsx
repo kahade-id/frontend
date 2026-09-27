@@ -48,6 +48,13 @@ export type PaginatedListProps<T extends { id?: string }> = {
   gap?: number
   bottomPadding?: number
   contentContainerStyle?: StyleProp<ViewStyle>
+  /**
+   * Batch 19 (item 16): diteruskan apa adanya ke FlatList — dipakai feed
+   * untuk autoplay video (hanya item terlihat yang `shouldPlay`). Opsional;
+   * daftar lain tidak terpengaruh.
+   */
+  onViewableItemsChanged?: PullToRefreshFlatListProps<T>["onViewableItemsChanged"]
+  viewabilityConfig?: PullToRefreshFlatListProps<T>["viewabilityConfig"]
 }
 
 /** Style konstan: literal `{ flex: 1 }` inline membuat prop baru tiap render. */
@@ -107,8 +114,9 @@ export function PaginatedList<T extends { id?: string }>({
   bottomPadding = tokens.space[8],
   contentContainerStyle,
   keyExtractor: keyExtractorProp,
-}: PaginatedListProps<T>) {
-  /*
+  onViewableItemsChanged,
+  viewabilityConfig,
+}: PaginatedListProps<T>) {  /*
    * Audit performa — semua prop di bawah ini DULU ditulis inline di JSX.
    *
    * FlatList adalah PureComponent: ia membandingkan prop-nya secara dangkal
@@ -233,6 +241,8 @@ export function PaginatedList<T extends { id?: string }>({
       windowSize={7}
       removeClippedSubviews={false}
       collapsable={false}
+      onViewableItemsChanged={onViewableItemsChanged}
+      viewabilityConfig={viewabilityConfig}
     />
   )
 }

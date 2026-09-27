@@ -1,20 +1,31 @@
 /** Shared, keyboard-operable media pager. At most eight images per item.
  *
- * B-01 (audit 2026-09-23): hanya slide aktif ±1 yang me-render <Picture> —
+ * B-01 (audit 2026-09-23): hanya slide aktif ±1 yang me-render konten —
  * slide lain jadi placeholder seukuran. Dulu SEMUA foto ter-mount per kartu
  * (hingga 8 gambar × N kartu di feed). Klaim window di docblock
  * <ShowcaseFeedItem> kini benar-benar berlaku.
  * B-08: placeholder "Tidak ada gambar" ber-`aspect-square` — tinggi kartu
  * tanpa gambar = tinggi slide 1:1, ritme feed tetap konsisten.
+ *
+ * Batch 19 (item 11/12/15/16): slide bisa berupa VIDEO selain gambar.
+ * `media` dari `showcaseMedia(item)` (lib/showcase-social). Video autoplay
+ * muted saat slide aktif & galeri terlihat (`autoplayActive`), pause
+ * off-screen (item 16); mode hemat data menunda unduhan gambar & video
+ * sampai diketuk (item 15).
  */
 import { useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { CaretLeft, CaretRight } from "phosphor-react-native"
+import { CaretLeft, CaretRight, Play } from "phosphor-react-native"
 import { cn } from "@/lib/cn"
 import { Picture } from "@/components/ui/picture"
-import { PressableScale } from "@/components/ui/pressable-scale"
+import { FeedVideo } from "@/components/ui/feed-video"
+import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
+import { useDataSaver } from "@/lib/ui-prefs"
+import type { GalleryMedia } from "@/lib/showcase-social"
 
 /**
  * Jeda maksimum antar dua ketukan agar dihitung ketuk-ganda (ala Instagram).
@@ -23,13 +34,22 @@ import { translate } from "@/lib/i18n/translate"
  */
 const DOUBLE_TAP_MS = 300
 
-export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
-  images: { id: string; url: string }[]
+export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autoplayActive = true }: {
+  /** Urutan media persis seperti yang dipakai `onOpen` (indeks = indeks media). */
+  media: GalleryMedia[]
   title: string
   onOpen: (index: number) => void
   /** Ketuk-ganda pada slide → mis. suka (opsional; tanpa ini ketuk-tunggal langsung). */
   onDoubleTap?: (index: number) => void
+  /**
+   * true = galeri terlihat di layar → slide video aktif autoplay (item 16).
+   * Kartu feed mengirim "kartu terlihat"; halaman detail mengirim true.
+   */
+  autoplayActive?: boolean
 }) {
+  // i18n: label mengikuti bahasa aktif.
+  useLanguage()
+  const dataSaver = useDataSaver()
   const scroll = useRef<ScrollView>(null)
   const [width, setWidth] = useState(0)
   const [page, setPage] = useState(0)
@@ -42,14 +62,18 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
   onDoubleTapRef.current = onDoubleTap
   const lastTapRef = useRef<{ index: number; at: number } | null>(null)
   const pendingSingleRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** Batch 19 (item 16): pause manual per video (ketuk video = toggle). */
+  const [paused, setPaused] = useState<Record<string, boolean>>({})
+  /** Batch 19 (item 15): video yang sudah diketuk di mode hemat data. */
+  const [manualPlay, setManualPlay] = useState<Record<string, boolean>>({})
   useEffect(() => () => {
     if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
   }, [])
-  const signature = images.map((image) => image.id).join("|")
+  const signature = media.map((m) => m.id).join("|")
   useEffect(() => { setPage(0); scroll.current?.scrollTo({ x: 0, animated: false }) }, [signature])
   useEffect(() => { scroll.current?.scrollTo({ x: pageRef.current * width, animated: false }) }, [width])
   const move = (index: number) => {
-    const next = Math.max(0, Math.min(images.length - 1, index))
+    const next = Math.max(0, Math.min(media.length - 1, index))
     setPage(next)
     scroll.current?.scrollTo({ x: next * width, animated: false })
   }
@@ -57,10 +81,21 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
    * Ketuk pada slide: deteksi ketuk-ganda manual (bukan RNGH) supaya tidak
    * berebut gesture dengan ScrollView paging horizontal di bawahnya — pola
    * yang sama dipakai web (tidak ada gesture handler) & native.
+   *
+   * Batch 19: ketuk-tunggal pada slide VIDEO = toggle play/pause (bukan buka
+   * viewer gambar); ketuk-ganda tetap "suka".
    */
   const handleSlidePress = (index: number) => {
-    if (!onDoubleTapRef.current) {
+    const slide = media[index]
+    const singleTap = () => {
+      if (slide?.kind === "video") {
+        setPaused((prev) => ({ ...prev, [slide.id]: !prev[slide.id] }))
+        return
+      }
       onOpenRef.current(index)
+    }
+    if (!onDoubleTapRef.current) {
+      singleTap()
       return
     }
     const now = Date.now()
@@ -78,14 +113,14 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
     if (pendingSingleRef.current) clearTimeout(pendingSingleRef.current)
     pendingSingleRef.current = setTimeout(() => {
       pendingSingleRef.current = null
-      onOpenRef.current(index)
+      singleTap()
     }, DOUBLE_TAP_MS)
   }
   /** B-01: jendela render ±1 slide — di luar itu placeholder seukuran. */
   const inWindow = (index: number) => Math.abs(index - page) <= 1
   return (
     <View className="overflow-hidden rounded-sm border border-border" onLayout={(event) => setWidth(event.nativeEvent.layout.width)}>
-      {images.length === 0 ? (
+      {media.length === 0 ? (
         // B-08: seukuran slide (1:1), bukan h-64.
         <View className="aspect-square w-full items-center justify-center bg-surface"><Text>{translate("Tidak ada gambar")}</Text></View>
       ) : (
@@ -93,19 +128,32 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
           scrollEventThrottle={32}
           onScroll={(event) => {
             if (width > 0) {
-              const next = Math.max(0, Math.min(images.length - 1, Math.round(event.nativeEvent.contentOffset.x / width)))
+              const next = Math.max(0, Math.min(media.length - 1, Math.round(event.nativeEvent.contentOffset.x / width)))
               // Update render window from scrolling, not momentum events (which differ on web).
               if (next !== page) setPage(next)
             }
           }}>
-          {images.map((image, index) => (
-            <View key={image.id} style={{ width }}>
+          {media.map((m, index) => (
+            <View key={m.id} style={{ width }}>
               {inWindow(index) ? (
-                <PressableScale accessibilityRole="button"
-                  accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: images.length })}
-                  onPress={() => handleSlidePress(index)} containerClassName="w-full">
-                  <Picture source={image.url} alt={title} aspectRatio={1} radius="none" bordered={false} recyclingKey={image.id} preventDownload />
-                </PressableScale>
+                m.kind === "video" ? (
+                  <VideoSlide
+                    media={m}
+                    title={title}
+                    // Item 16: autoplay hanya bila slide aktif & terlihat & tidak di-pause manual.
+                    shouldPlay={autoplayActive && index === page && !paused[m.id]}
+                    // Item 15: tunda unduhan video sampai diketuk.
+                    gated={dataSaver && !manualPlay[m.id]}
+                    onTap={() => handleSlidePress(index)}
+                    onRequestPlay={() => setManualPlay((prev) => ({ ...prev, [m.id]: true }))}
+                  />
+                ) : (
+                  <PressableScale accessibilityRole="button"
+                    accessibilityLabel={translate("Lihat foto {x} dari {y}", { x: index + 1, y: media.length })}
+                    onPress={() => handleSlidePress(index)} containerClassName="w-full">
+                    <Picture source={m.url} alt={title} aspectRatio={1} radius="none" bordered={false} recyclingKey={m.id} preventDownload dataSaverGate />
+                  </PressableScale>
+                )
               ) : (
                 // Placeholder seukuran (B-01): tata letak pager tidak bergeser.
                 <View className="aspect-square w-full bg-surface" />
@@ -114,7 +162,7 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
           ))}
         </ScrollView>
       )}
-      {images.length > 1 ? (
+      {media.length > 1 ? (
         // B-11 (audit 2026-09-23): kontrol + indikator TITIK di-overlay di
         // kaki gambar (scrim hitam kedua mode, sama dengan "+N" pada
         // <ShowcaseGalleryGrid>) — dulu baris terpisah di bawah gambar membuat
@@ -126,7 +174,7 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
         <View className="absolute inset-x-0 bottom-0 flex-row items-center justify-between bg-overlay-media px-1.5 py-1">
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={translate("Foto sebelumnya")}
+            accessibilityLabel={translate("Media sebelumnya")}
             disabled={page === 0}
             onPress={() => move(page - 1)}
             containerClassName="min-h-8 min-w-8 items-center justify-center rounded-full"
@@ -134,10 +182,10 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
             <CaretLeft size={18} color="#FFFFFF" weight="bold" />
           </PressableScale>
           <View className="flex-row items-center gap-3">
-            <View accessible accessibilityLabel={translate("Foto {x} dari {y}", { x: page + 1, y: images.length })} accessibilityLiveRegion="polite" className="flex-row items-center gap-1.5">
-              {images.map((image, index) => (
+            <View accessible accessibilityLabel={translate("Media {x} dari {y}", { x: page + 1, y: media.length })} accessibilityLiveRegion="polite" className="flex-row items-center gap-1.5">
+              {media.map((m, index) => (
                 <View
-                  key={`dot-${image.id}`}
+                  key={`dot-${m.id}`}
                   className={cn(
                     "h-1.5 w-1.5 rounded-full",
                     index === page ? "bg-white" : "bg-white opacity-40",
@@ -149,8 +197,8 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
           </View>
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={translate("Foto berikutnya")}
-            disabled={page >= images.length - 1}
+            accessibilityLabel={translate("Media berikutnya")}
+            disabled={page >= media.length - 1}
             onPress={() => move(page + 1)}
             containerClassName="min-h-8 min-w-8 items-center justify-center rounded-full"
           >
@@ -159,5 +207,69 @@ export function ShowcaseMediaGallery({ images, title, onOpen, onDoubleTap }: {
         </View>
       ) : null}
     </View>
+  )
+}
+
+/**
+ * Slide video (item 15/16). `gated` = mode hemat data & belum diketuk:
+ * tampilkan poster + tombol putar; video baru diunduh setelah ketukan.
+ */
+function VideoSlide({
+  media,
+  title,
+  shouldPlay,
+  gated,
+  onTap,
+  onRequestPlay,
+}: {
+  media: GalleryMedia
+  title: string
+  shouldPlay: boolean
+  gated: boolean
+  onTap: () => void
+  onRequestPlay: () => void
+}) {
+  if (gated) {
+    return (
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={translate("Putar video: {x}", { x: title })}
+        accessibilityHint={translate("Mode hemat data aktif. Ketuk untuk memuat video.")}
+        onPress={onRequestPlay}
+        containerClassName="w-full"
+      >
+        <View className="relative aspect-square w-full items-center justify-center gap-1.5 bg-surface px-8">
+          {media.posterUrl ? (
+            <Picture
+              source={media.posterUrl}
+              alt={title}
+              aspectRatio={1}
+              radius="none"
+              bordered={false}
+              className="absolute inset-0"
+            />
+          ) : null}
+          <View className="items-center justify-center rounded-full bg-overlay-media p-4">
+            <Icon icon={Play} size="lg" weight="fill" tone="inverse" />
+          </View>
+          <Text variant="caption" tone="secondary" className="text-center">
+            {translate("Mode hemat data")}
+          </Text>
+          <Text variant="caption" tone="tertiary" className="text-center">
+            {translate("Ketuk untuk memuat video")}
+          </Text>
+        </View>
+      </PressableScale>
+    )
+  }
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={translate("Video: {x}. Ketuk untuk putar atau jeda.", { x: title })}
+      onPress={onTap}
+      containerClassName="w-full"
+    >
+      <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={shouldPlay} />
+    </PressableScale>
   )
 }

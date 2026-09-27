@@ -62,7 +62,7 @@ import {
   useShowcaseDirtyVersion,
 } from "@/lib/showcase-social-prefs"
 import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
-import { showcaseImages } from "@/lib/showcase-social"
+import { showcaseMedia } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
@@ -156,6 +156,8 @@ function followedBy(keys: ReadonlySet<string>, item: ShowcaseSocialItem): boolea
 type FeedCardProps = {
   item: ShowcaseSocialItem
   divider: boolean
+  /** Batch 19 (item 16): true = kartu terlihat di layar → video autoplay. */
+  visible: boolean
   onOpenComments: (item: ShowcaseSocialItem) => void
   onReport: (item: ShowcaseSocialItem) => void
 }
@@ -163,6 +165,7 @@ type FeedCardProps = {
 const FeedCard = memo(function FeedCard({
   item,
   divider,
+  visible,
   onOpenComments,
   onReport,
 }: FeedCardProps) {
@@ -186,16 +189,30 @@ const FeedCard = memo(function FeedCard({
   const handleReport = useCallback(() => onReport(item), [onReport, item])
   /** Viewer gambar layar penuh: ketuk media (bukan judul) membuka ini. */
   const [viewerIndex, setViewerIndex] = useState<number | null>(null)
+  // Batch 19: slide galeri (gambar/video). Viewer hanya menampilkan gambar —
+  // indeks media dipetakan ke indeks gambar (video tidak masuk viewer).
+  const media = useMemo(() => showcaseMedia(display), [display])
   const viewerImages = useMemo(
-    () => showcaseImages(item).map((g) => ({ url: g.url, alt: item.title })),
-    [item],
+    () => media.filter((m) => m.kind === "image").map((m) => ({ url: m.url, alt: item.title })),
+    [media, item.title],
+  )
+  const handleOpenMedia = useCallback(
+    (mediaIndex: number) => {
+      const slide = media[mediaIndex]
+      const imageIndex = media
+        .filter((m) => m.kind === "image")
+        .findIndex((m) => m.id === slide?.id)
+      if (imageIndex >= 0) setViewerIndex(imageIndex)
+    },
+    [media],
   )
   return (
     <>
       <ShowcaseFeedItem
         item={display}
         onPress={handlePress}
-        onOpenMedia={setViewerIndex}
+        onOpenMedia={handleOpenMedia}
+        autoplayActive={visible}
         onToggleLike={toggleLike}
         onOpenComments={handleComments}
         onToggleSave={toggleSave}
@@ -309,6 +326,19 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   }, [items, hiddenIds])
   const itemsLengthRef = useRef(0)
   itemsLengthRef.current = visibleItems.length
+  /**
+   * Batch 19 (item 16): id item yang terlihat di layar — penggerak autoplay
+   * video (hanya item terlihat yang `autoplayActive`). `onViewableItemsChanged`
+   * harus stabil (FlatList memaksa identitas) → useCallback kosong.
+   */
+  const [visibleIds, setVisibleIds] = useState<ReadonlySet<string>>(() => new Set())
+  const viewabilityConfig = useRef({ itemVisiblePercentThreshold: 60, minimumViewTime: 250 }).current
+  const handleViewableItemsChanged = useCallback(
+    ({ viewableItems }: { viewableItems: { item: ShowcaseSocialItem }[] }) => {
+      setVisibleIds(new Set(viewableItems.map((v) => v.item.id)))
+    },
+    [],
+  )
   /**
    * A-04: cache daftar following per akun — hidup selama tab terpasang
    * (antar pindah tab TANPA fetch ulang), dibuang saat ganti sesi/akun
@@ -624,17 +654,23 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     setActionItem(item)
   }, [])
 
-  /** A-07: renderItem STABIL — divider dihitung lewat ref, bukan closure items. */
+  /** A-07: renderItem STABIL — divider dihitung lewat ref, bukan closure items.
+   * Batch 19 (item 16): `visibleIds` masuk deps supaya `visible` tiap kartu
+   * akurat — trade-off sadar: perubahan visibilitas memang memicu re-render
+   * sel (itu tujuannya: play/pause video), tetapi frekuensinya dibatasi
+   * `minimumViewTime` 250ms di viewabilityConfig.
+   */
   const renderItem = useCallback(
     ({ item, index }: { item: ShowcaseSocialItem; index: number }) => (
       <FeedCard
         item={item}
         divider={index < itemsLengthRef.current - 1}
+        visible={visibleIds.has(item.id)}
         onOpenComments={handleOpenComments}
         onReport={handleOpenReport}
       />
     ),
-    [handleOpenComments, handleOpenReport],
+    [handleOpenComments, handleOpenReport, visibleIds],
   )
 
   const emptyState = (() => {
@@ -811,6 +847,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         loadingPlaceholder={<ShowcaseFeedSkeleton />}
         empty={emptyState}
         renderItem={renderItem}
+        // Batch 19 (item 16): lacak item terlihat untuk autoplay video feed.
+        onViewableItemsChanged={handleViewableItemsChanged}
+        viewabilityConfig={viewabilityConfig}
       />
       </ModeShiftFade>
 

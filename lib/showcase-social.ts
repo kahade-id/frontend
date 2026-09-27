@@ -249,3 +249,40 @@ export function showcaseImages(item: ShowcaseSocialItem): { id: string; url: str
   const cover = resolveMediaUrl(item.coverImageUrl) ?? resolveMediaUrl(item.imageUrl)
   return images.length ? images : cover ? [{ id: item.id, url: cover }] : []
 }
+
+/**
+ * Satu slide galeri: gambar atau video.
+ * `kind` sudah disaring parser (`parseShowcaseMedia`); di sini `spin360`
+ * sengaja TIDAK dimasukkan — viewer 360° dirender terpisah di halaman detail
+ * (<Spin360Viewer>), bukan sebagai slide karosel.
+ */
+export type GalleryMedia = { id: string; kind: "image" | "video"; url: string; posterUrl?: string }
+
+/**
+ * Daftar slide galeri karya (batch 19, item 11/12/16).
+ *
+ * Prioritas: `item.media` (backend baru) bila ada entri valid; fallback ke
+ * `showcaseImages` (images[] lama + cover) bila `media` kosong/tak ada —
+ * payload lama tetap tampil persis seperti sebelum batch 19.
+ * Hasil di-cache per instance item (WeakMap) agar referensi stabil antar
+ * render (memo galeri tidak re-render sia-sia).
+ */
+const mediaCache = new WeakMap<ShowcaseSocialItem, GalleryMedia[]>()
+export function showcaseMedia(item: ShowcaseSocialItem): GalleryMedia[] {
+  const cached = mediaCache.get(item)
+  if (cached) return cached
+  const rich = (item.media ?? []).flatMap((m): GalleryMedia[] => {
+    if ((m.kind === "image" || m.kind === "video") && m.url) {
+      const url = resolveMediaUrl(m.url)
+      if (!url) return []
+      const poster = m.posterUrl ? resolveMediaUrl(m.posterUrl) ?? undefined : undefined
+      return poster ? [{ id: m.id, kind: m.kind, url, posterUrl: poster }] : [{ id: m.id, kind: m.kind, url }]
+    }
+    return []
+  })
+  const result: GalleryMedia[] = rich.length > 0
+    ? rich
+    : showcaseImages(item).map((g) => ({ id: g.id, kind: "image" as const, url: g.url }))
+  mediaCache.set(item, result)
+  return result
+}

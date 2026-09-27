@@ -1,0 +1,52 @@
+/**
+ * Kahade — tipe & helper filter feed etalase (batch 19, item 14).
+ *
+ * Dipisah dari <ShowcaseFilterSheet> agar bisa di-unit-test tanpa runtime
+ * React Native (pola yang sama dipakai lib/wallet-history-grouping.ts).
+ *
+ * ── KONTRAK TIM A PENDING ──
+ * Nilai enum di sini adalah kosakata UI draf; nama query param API final
+ * menunggu kontrak backend TIM A (jangan kirim ke API sebelum kontrak).
+ *
+ * `PriceRange` sengaja didefinisikan ulang di sini (bukan import dari
+ * components/ui/currency-range-field) agar modul ini tetap MURNI — tidak
+ * menyeret rantai import react-native ke unit test. Strukturnya identik
+ * dengan `CurrencyRange` sehingga assignment antar keduanya aman.
+ */
+export type PriceRange = { min: number | null; max: number | null }
+
+/** Kondisi barang. */
+export type ShowcaseConditionFilter = "ALL" | "NEW" | "USED"
+/** Rating penjual minimum. */
+export type ShowcaseRatingFilter = "ALL" | "4" | "4_5"
+
+export type ShowcaseFeedFilters = {
+  condition: ShowcaseConditionFilter
+  minRating: ShowcaseRatingFilter
+  price: PriceRange
+}
+
+export const DEFAULT_SHOWCASE_FILTERS: ShowcaseFeedFilters = {
+  condition: "ALL",
+  minRating: "ALL",
+  price: { min: null, max: null },
+}
+
+/** True bila tidak ada filter aktif (untuk badge tombol funnel). */
+export function isDefaultShowcaseFilters(f: ShowcaseFeedFilters): boolean {
+  return (
+    f.condition === "ALL" &&
+    f.minRating === "ALL" &&
+    f.price.min == null &&
+    f.price.max == null
+  )
+}
+
+/** Jumlah dimensi filter yang aktif — badge di tombol funnel. */
+export function showcaseFilterBadgeCount(f: ShowcaseFeedFilters): number {
+  let n = 0
+  if (f.condition !== "ALL") n += 1
+  if (f.minRating !== "ALL") n += 1
+  if (f.price.min != null || f.price.max != null) n += 1
+  return n
+}

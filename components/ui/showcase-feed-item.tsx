@@ -27,7 +27,7 @@
  * sehingga satu tap ♥ tidak me-render ulang seluruh sel (audit A-08).
  */
 
-import { memo, useCallback, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { BookmarkSimple, ChatCircle, DotsThreeCircle, Flag, Heart, ShareNetwork } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { View } from "react-native"
@@ -46,7 +46,7 @@ import { formatCountCompact, formatTimeAgo } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import type { VerificationBadge } from "@/lib/api/users"
 import { useHasSession } from "@/lib/guest-gate"
-import { showcaseImages } from "@/lib/showcase-social"
+import { showcaseMedia } from "@/lib/showcase-social"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { ROUTES } from "@/lib/routes"
@@ -85,6 +85,11 @@ export type ShowcaseFeedItemProps = {
   onShare?: () => void
   onReport?: () => void
   onOptions?: () => void
+  /**
+   * Batch 19 (item 16): true = kartu terlihat di layar → video autoplay.
+   * Default true agar pemanggil lama (profil) tidak berubah perilaku.
+   */
+  autoplayActive?: boolean
   /**
    * Opsi untuk karya MILIK SENDIRI (edit/hapus) — ditampilkan sebagai
    * DotsThreeCircle di profile. Jika tidak disediakan, tombol disembunyikan
@@ -170,6 +175,7 @@ function ShowcaseFeedItemBase({
   onReport,
   onOptions,
   onManage,
+  autoplayActive = true,
   divider = false,
   className,
 }: ShowcaseFeedItemProps) {
@@ -179,7 +185,9 @@ function ShowcaseFeedItemBase({
   const { kind } = useLocalSearchParams<{ kind?: string }>()
   // H-04: gate tap penulis untuk tamu (profil = layar terproteksi).
   const hasSession = useHasSession()
-  const gallery = showcaseImages(item)
+  // Batch 19: slide galeri (gambar/video) — referensi stabil via cache WeakMap
+  // di `showcaseMedia` agar memo galeri tidak re-render sia-sia.
+  const gallery = useMemo(() => showcaseMedia(item), [item])
 
   const liked = item.isLiked === true
 
@@ -336,10 +344,11 @@ function ShowcaseFeedItemBase({
       <View className="mx-5 pt-3">
         <View className="relative">
           <ShowcaseMediaGallery
-            images={gallery}
+            media={gallery}
             title={item.title}
             onOpen={(index) => (onOpenMedia ? onOpenMedia(index) : onPress?.())}
             onDoubleTap={onToggleLike ? handleMediaDoubleTap : undefined}
+            autoplayActive={autoplayActive}
           />
           {heartVisible ? (
             <View

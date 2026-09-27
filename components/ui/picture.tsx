@@ -50,13 +50,18 @@
  */
 
 import { Image, type ImageProps as ExpoImageProps, type ImageSource } from "expo-image"
-import { ImageBroken } from "phosphor-react-native"
+import { CloudSlash, ImageBroken } from "phosphor-react-native"
 import { useEffect, useState } from "react"
 import { View, type ImageResizeMode, type ViewProps } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
+import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
+import { useDataSaver } from "@/lib/ui-prefs"
 import { resolveMediaSource, type MediaSource } from "@/lib/media"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { tokens } from "@/lib/tokens"
@@ -85,6 +90,13 @@ export type PictureProps = Omit<ViewProps, "children"> & {
   className?: string
   /** Cegah download/save gambar (privacy showcase) — blok context menu & drag di web */
   preventDownload?: boolean
+  /**
+   * Batch 19 (item 15) — mode hemat data. Bila true DAN mode hemat data aktif,
+   * gambar TIDAK diunduh: tampil placeholder bergaris + ikon awan, baru dimuat
+   * penuh setelah diketuk. Dipakai untuk gambar feed/etalase — JANGAN dipakai
+   * untuk konten yang HARUS tampil (avatar, bukti KYC, dsb.).
+   */
+  dataSaverGate?: boolean
 }
 
 const radiusClass: Record<PictureRadius, string> = {
@@ -119,8 +131,11 @@ export function Picture({
   className,
   style,
   preventDownload = false,
+  dataSaverGate = false,
   ...rest
 }: PictureProps) {
+  // i18n: teks placeholder mode hemat data mengikuti bahasa aktif.
+  useLanguage()
   /*
    * URL gambar dari backend tidak selalu absolut (`/uploads/x.jpg`,
    * `//cdn/x.jpg`, `http://api…/x.jpg`) dan di web path relatif diselesaikan
@@ -138,6 +153,13 @@ export function Picture({
   useEffect(() => setStatus(hasSource ? "loading" : "error"), [sourceKey, hasSource])
   const reducedMotion = useReducedMotion()
   const decorative = alt === ""
+
+  // Batch 19 (item 15) — mode hemat data: tunda unduhan gambar sampai diketuk.
+  // `deferred` di-reset ke true tiap sumber berubah (daftar di-recycle).
+  const dataSaver = useDataSaver()
+  const [deferred, setDeferred] = useState(true)
+  useEffect(() => setDeferred(true), [sourceKey])
+  const gated = dataSaverGate && dataSaver && deferred
 
   const dimension =
     width != null && height != null
@@ -178,7 +200,26 @@ export function Picture({
       {...protectionHandlers}
       {...rest}
     >
-      {status !== "error" ? (
+      {gated ? (
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={translate("Muat gambar: {x}", { x: alt })}
+          accessibilityHint={translate("Mode hemat data aktif. Ketuk untuk memuat gambar.")}
+          onPress={() => setDeferred(false)}
+        >
+          <View className="absolute inset-0 items-center justify-center gap-1.5 px-6">
+            <View className="items-center justify-center rounded-full bg-background p-3.5">
+              <Icon icon={CloudSlash} size="lg" tone="default" />
+            </View>
+            <Text variant="caption" tone="secondary" className="text-center">
+              {translate("Mode hemat data")}
+            </Text>
+            <Text variant="caption" tone="tertiary" className="text-center">
+              {translate("Ketuk untuk memuat gambar")}
+            </Text>
+          </View>
+        </PressableScale>
+      ) : status !== "error" ? (
         <Image
           key={sourceKey}
           source={src}
@@ -200,7 +241,7 @@ export function Picture({
       ) : null}
 
       {/* Overlay loading/error di atas area yang sama agar ukuran tidak berubah */}
-      {status === "loading" ? (
+      {status === "loading" && !gated ? (
         <View className="absolute inset-0">
           <Skeleton shape="rect" className="h-full w-full rounded-none" />
         </View>

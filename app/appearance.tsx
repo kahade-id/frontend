@@ -20,13 +20,26 @@
 import { View } from "react-native"
 
 import { useTheme } from "@/components/theme-provider"
+import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
 import { KeyValue } from "@/components/ui/key-value"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { ThemeModeSelector } from "@/components/ui/theme-toggle-button"
+import {
+  FONT_SCALE_MAX,
+  FONT_SCALE_MIN,
+  decreaseFontScale,
+  increaseFontScale,
+  resetFontScale,
+  useFontScale,
+} from "@/lib/font-scale"
 import { mapValue } from "@/lib/has-own"
+import { translate } from "@/lib/i18n/translate"
+import { useLanguage } from "@/lib/i18n"
+import { setDataSaver, useDataSaver } from "@/lib/ui-prefs"
 
 const PREFERENCE_HINT: Record<string, string> = {
   system: "Mengikuti pengaturan terang/gelap perangkat Anda.",
@@ -41,6 +54,13 @@ const MODE_LABEL: Record<string, string> = {
 
 export default function AppearanceScreen() {
   const { mode, preference } = useTheme()
+  // i18n: label mengikuti bahasa aktif. Batch 19 (item 15): mode hemat data.
+  useLanguage()
+  const dataSaver = useDataSaver()
+  // Item #28 — skala font A-/A+ (0.85–1.3), persisten per perangkat.
+  const fontScale = useFontScale()
+  const atMin = fontScale <= FONT_SCALE_MIN
+  const atMax = fontScale >= FONT_SCALE_MAX
 
   return (
     <Screen edges={["top"]} padded={false}>
@@ -53,6 +73,59 @@ export default function AppearanceScreen() {
         </Text>
 
         <KeyValue label="Sedang aktif" value={mapValue(MODE_LABEL, mode, mode)} />
+
+        {/* Batch 19 (item 15): mode hemat data — default MATI, tersimpan lokal. */}
+        <SectionHeader
+          title={translate("Mode hemat data")}
+          subtitle={translate("Gambar dan video di feed tidak dimuat sampai diketuk.")}
+        />
+        <Switch
+          value={dataSaver}
+          onChange={setDataSaver}
+          label={translate("Hemat data")}
+          description={translate(
+            "Aktifkan bila kuota terbatas. Berlaku untuk perangkat ini saja.",
+          )}
+        />
+
+        {/* Item #28 — ukuran font A-/A+: 85%–130%, tersimpan di perangkat. */}
+        <SectionHeader
+          title={translate("Ukuran teks")}
+          subtitle={translate("Perkecil atau perbesar semua teks di aplikasi.")}
+        />
+        <View className="flex-row items-center justify-between gap-3 rounded-xl border border-border bg-surface p-4">
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() => decreaseFontScale()}
+            disabled={atMin}
+            accessibilityLabel={translate("Perkecil ukuran teks")}
+          >
+            A−
+          </Button>
+          <Text variant="h2" tone="primary" className="tabular-nums">
+            {`${Math.round(fontScale * 100)}%`}
+          </Text>
+          <Button
+            size="sm"
+            variant="secondary"
+            onPress={() => increaseFontScale()}
+            disabled={atMax}
+            accessibilityLabel={translate("Perbesar ukuran teks")}
+          >
+            A+
+          </Button>
+        </View>
+        <View className="flex-row items-center justify-between">
+          <Text variant="caption" tone="secondary">
+            {translate("Pratinjau: teks contoh mengikuti ukuran yang dipilih.")}
+          </Text>
+          {fontScale !== 1 ? (
+            <Button size="sm" variant="ghost" onPress={() => resetFontScale()}>
+              {translate("Atur ulang")}
+            </Button>
+          ) : null}
+        </View>
       </View>
     </Screen>
   )

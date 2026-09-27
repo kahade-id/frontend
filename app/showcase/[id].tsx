@@ -1,7 +1,7 @@
 /** Public Etalase detail with optional viewer authentication and fenced comment mutations.
  * Comment reads reconcile complete loaded pages after a mutation. Server authorization remains authoritative. */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ScrollView,
   View,
@@ -43,7 +43,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
-import { showcaseImages } from "@/lib/showcase-social"
+import { showcaseImages, showcaseMedia } from "@/lib/showcase-social"
 import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
@@ -65,6 +65,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { ShowcaseAuthorRow } from "@/components/showcase-author-row"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
+import { Spin360Viewer } from "@/components/ui/spin360-viewer"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseHtmlView } from "@/components/ui/showcase-html-description-editor"
 import { ShowcaseDetailComments } from "@/components/showcase-detail-comments"
@@ -294,12 +295,24 @@ function ShowcaseDetailContent({
 
   const isOwner = item.isOwner === true || (hasSession && meId === item.author.userId)
 
-  const resolvedImages = showcaseImages(item)
+  // Batch 19: slide galeri (gambar/video); viewer layar penuh hanya gambar.
+  const resolvedMedia = useMemo(() => showcaseMedia(item), [item])
+  const spin360Frames = useMemo(
+    () =>
+      (item.media ?? []).flatMap((m) =>
+        m.kind === "spin360" && m.frames && m.frames.length > 1 ? [m.frames] : [],
+      ),
+    [item],
+  )
 
   /** Ketuk media → viewer layar penuh (pinch-zoom + swipe antar foto). */
   const openViewer = (index: number) => {
-    if (!resolvedImages[index]) return
-    setViewerIndex(index)
+    // `index` = indeks slide media; petakan ke indeks gambar (video dilewati).
+    const slide = resolvedMedia[index]
+    const imageIndex = resolvedMedia
+      .filter((m) => m.kind === "image")
+      .findIndex((m) => m.id === slide?.id)
+    if (imageIndex >= 0) setViewerIndex(imageIndex)
   }
 
   const focusComposer = () => composerRef.current?.focus()
@@ -688,8 +701,20 @@ function ShowcaseDetailContent({
 
       {/* ── Media: CARD pager (mx-5, selaras avatar) — bukan full-bleed ── */}
       <View className="mx-5 pt-3">
-        <ShowcaseMediaGallery images={resolvedImages} title={item.title} onOpen={openViewer} />
+        <ShowcaseMediaGallery
+          media={resolvedMedia}
+          title={item.title}
+          onOpen={openViewer}
+          autoplayActive={viewerIndex == null}
+        />
       </View>
+
+      {/* ── Tampilan 360° (batch 19, item 12) — di bawah galeri, kontrak TIM A pending ── */}
+      {spin360Frames.map((frames, spinIndex) => (
+        <View key={`spin360-${spinIndex}`} className="mx-5 pt-3">
+          <Spin360Viewer frames={frames} alt={item.title} />
+        </View>
+      ))}
 
       {/* ── Harga · kategori ── */}
       <View className="flex-row flex-wrap items-center gap-2 px-5 pt-3">
@@ -812,7 +837,9 @@ function ShowcaseDetailContent({
 
       <ImageViewer
         visible={viewerIndex != null}
-        images={resolvedImages.map((image) => ({ url: image.url, alt: item.title }))}
+        images={resolvedMedia
+          .filter((m) => m.kind === "image")
+          .map((m) => ({ url: m.url, alt: item.title }))}
         index={viewerIndex ?? 0}
         onClose={() => setViewerIndex(null)}
         title={item.title}
