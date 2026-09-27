@@ -79,7 +79,6 @@ import { IconButton } from "@/components/ui/icon-button"
 import { ImageViewer } from "@/components/ui/image-viewer"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
-import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { ShowcaseFilterSheet } from "@/components/ui/showcase-filter-sheet"
 import {
@@ -886,10 +885,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         bottomPadding={bottomPadding}
         header={
           searchChip || categoryChip || locationChip || followingPartialNotice ? (
-            <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{followingPartialNotice}<OnboardingChecklistCard /></View>
-          ) : (
-            <OnboardingChecklistCard />
-          )
+            <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{followingPartialNotice}</View>
+          ) : undefined
         }
         // Skeleton sebentuk <ShowcaseFeedItem> (anatomi: penulis · media ·
         // teks · baris aksi) — layout tidak melompat saat data tiba.

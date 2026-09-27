@@ -128,6 +128,10 @@ export function SwipeableListItem({
 }: SwipeableListItemProps) {
   const translateX = useSharedValue(0)
   const rowWidth = useSharedValue(0)
+  // Posisi translateX saat gesture dimulai — dipakai sebagai basis
+  // onChange (bug 2026-09-28: `translateX.value - e.changeX + e.changeX`
+  // selalu no-op sehingga baris tidak pernah bergerak).
+  const gestureStartX = useSharedValue(0)
   const [, setOpenState] = useState<SwipeSide | null>(null)
 
   const leftWidth = leftActions.length * actionWidth
@@ -160,14 +164,16 @@ export function SwipeableListItem({
         .activeOffsetX([-ACTIVE_OFFSET_X, ACTIVE_OFFSET_X])
         .failOffsetY([-FAIL_OFFSET_Y, FAIL_OFFSET_Y])
         .onBegin(() => {
+          // Simpan posisi awal — onChange memakai translationX total.
+          gestureStartX.value = translateX.value
           if (group && group.openId.value !== rowId) {
             group.openId.value = rowId
           }
         })
         .onChange((e) => {
-          // Posisi awal = state terbuka saat ini; batasi ke sisi yang punya aksi.
-          const start = translateX.value - e.changeX
-          let next = start + e.changeX
+          // Basis = posisi saat gesture dimulai + total pergeseran.
+          // Batasi ke sisi yang punya aksi.
+          let next = gestureStartX.value + e.translationX
           if (leftWidth === 0) next = Math.min(0, next)
           if (rightWidth === 0) next = Math.max(0, next)
           // Rubber-band setelah melewati lebar aksi (setengah kecepatan)
@@ -209,7 +215,7 @@ export function SwipeableListItem({
         .onFinalize((_e, success) => {
           if (!success) translateX.value = withSpring(0, tokens.motion.spring)
         }),
-    [disabled, fireFull, group, leftWidth, rightWidth, rowId, rowWidth, setOpen, translateX],
+    [disabled, fireFull, gestureStartX, group, leftWidth, rightWidth, rowId, rowWidth, setOpen, translateX],
   )
 
   // Tutup bila baris lain di group dibuka (worklet reaktif via animated style).

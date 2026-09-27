@@ -323,7 +323,15 @@ export function uploadDirectVideo(
     timeoutMs?: number
   } = {},
 ): Promise<DirectVideoUpload> {
-  const { purpose = "SHOWCASE_VIDEO", onProgress, signal, timeoutMs = 180_000 } = opts
+  // Timeout adaptif (bug 2026-09-28): 180 detik terlalu pendek untuk video
+  // besar di koneksi HP Indonesia (100MB @ 2Mbps ≈ 400 detik upload saja).
+  // Rumus: 120 detik basis (server: ffprobe 30s + ffmpeg 60s + margin) +
+  // waktu upload pada 100 KB/s (konservatif). Min 10 menit, maks 30 menit.
+  const fileBytes = asset.size ?? 0
+  const adaptiveTimeout = fileBytes > 0
+    ? Math.min(1_800_000, Math.max(600_000, 120_000 + fileBytes / 100))
+    : 600_000
+  const { purpose = "SHOWCASE_VIDEO", onProgress, signal, timeoutMs = adaptiveTimeout } = opts
   return new Promise<DirectVideoUpload>((resolvePromise, rejectPromise) => {
     let settled = false
     const resolve = (v: DirectVideoUpload) => {

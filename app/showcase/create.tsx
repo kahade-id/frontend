@@ -526,8 +526,12 @@ export default function ShowcaseCreateScreen() {
       const outcome = await uploadShowcaseVideo(asset, {
         onProgress: (fraction) => {
           setUploadProgress(fraction)
+          // 100% = berkas terkirim, server sedang memproses (ffprobe+ffmpeg).
+          // Tampilkan status berbeda agar tidak terlihat "stuck".
           setProgress(
-            translate("Mengunggah video… {x}%", { x: Math.round(fraction * 100) }),
+            fraction >= 1
+              ? translate("Memproses video…")
+              : translate("Mengunggah video… {x}%", { x: Math.round(fraction * 100) }),
           )
         },
         signal: controller.signal,

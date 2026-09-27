@@ -43,6 +43,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
+import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
 import { useCallback } from "react"
 import { View } from "react-native"
 import { Wallet as WalletIcon } from "phosphor-react-native"
@@ -176,6 +177,9 @@ export default function WalletScreen() {
         header={
           <FadeIn duration="base" distance={tokens.space[3]}>
             <View className="gap-6 pt-3">
+              {/* Kartu "Lengkapi akunmu" — hanya di halaman Dompet
+                  (keputusan 2026-09-28): etalase/feed tampil bersih. */}
+              <OnboardingChecklistCard />
               {/*
                * Kartu saldo hero — fill gelap premium + toggle mata
                * (preferensi dibagi Beranda) + dana tertahan escrow.
