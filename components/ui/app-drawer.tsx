@@ -65,7 +65,7 @@ import { elevationStyle } from "@/lib/elevation"
 import { haptic } from "@/lib/haptics"
 import { useLanguage, translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
-import { tokens } from "@/lib/tokens"
+import { modes, tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { useAuthSession } from "@/lib/use-auth-session"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
@@ -221,10 +221,13 @@ export function AppDrawer() {
         />
       </Reanimated.View>
 
-      {/* Panel kiri. */}
+      {/* Panel kiri.
+          backgroundColor INLINE (bukan className="bg-background"): className
+          di Reanimated.View tidak ter-compile ke background di web
+          (panel jadi transparan — bug 2026-09-27). Inline dari modes[]
+          mode-aware dan konsisten di native + web. */}
       <GestureDetector gesture={pan}>
         <Reanimated.View
-          className="bg-background"
           style={[
             {
               position: "absolute",
@@ -232,6 +235,7 @@ export function AppDrawer() {
               bottom: 0,
               left: 0,
               width: DRAWER_WIDTH,
+              backgroundColor: modes[themeMode].background,
               borderTopRightRadius: 20,
               borderBottomRightRadius: 20,
               paddingTop: insets.top,
