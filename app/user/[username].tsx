@@ -105,8 +105,7 @@ type ProfileTab = "content" | "questions" | "ratings" | "about"
  */
 let sessionProfileTab: ProfileTab | null = null
 
-/** Panjang bio di atas ambang ini mendapat toggle "Selengkapnya" (item 61). */
-const BIO_PREVIEW_CHARS = 160
+import { bioNeedsToggle } from "@/lib/profile-bio"
 
 /**
  * Item tab profil — dibuat di dalam komponen via useMemo (bukan konstanta
@@ -1120,7 +1119,7 @@ export default function UserProfileScreen() {
                   <Text variant="body" tone="secondary" numberOfLines={bioExpanded ? undefined : 4}>
                     {profile.bio}
                   </Text>
-                  {profile.bio.length > BIO_PREVIEW_CHARS ? (
+                  {bioNeedsToggle(profile.bio) ? (
                     <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={bioExpanded ? translate("Tutup bio") : translate("Tampilkan bio selengkapnya")}

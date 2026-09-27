@@ -42,9 +42,11 @@ function useRatingFilters(): { value: PublicRatingFilter; label: string }[] {
  * Item 70 (mega-batch 2026-09-28): urutan ulasan di profil publik —
  * Terbaru (urutan server, createdAt desc) atau Rating tertinggi (stars desc).
  * Sort murni di klien atas halaman yang sudah dimuat (backend tidak
- * menyediakan parameter sort di endpoint ini).
+ * menyediakan parameter sort di endpoint ini). Implementasi di
+ * `lib/ratings-sort.ts` (murni, unit-testable) — di sini hanya re-export tipe.
  */
-export type ProfileRatingSort = "newest" | "top"
+export type { ProfileRatingSort } from "@/lib/ratings-sort"
+import { sortProfileRatings, type ProfileRatingSort } from "@/lib/ratings-sort"
 
 function useRatingSorts(): { value: ProfileRatingSort; label: string }[] {
   const language = useLanguage()
@@ -55,19 +57,6 @@ function useRatingSorts(): { value: ProfileRatingSort; label: string }[] {
     ],
     [language],
   )
-}
-
-/**
- * Terapkan urutan ke daftar yang sudah dimuat. "Terbaru" = urutan server
- * (createdAt desc, tiebreak id — stabil, jangan diacak ulang). "Rating
- * tertinggi" = stars desc, lalu createdAt desc sebagai tiebreak.
- */
-export function sortProfileRatings(ratings: readonly Rating[], sort: ProfileRatingSort): Rating[] {
-  if (sort !== "top") return [...ratings]
-  return [...ratings].sort((a, b) => {
-    if (b.stars !== a.stars) return b.stars - a.stars
-    return String(b.createdAt).localeCompare(String(a.createdAt))
-  })
 }
 
 export type ProfileRatingsTabProps = {
