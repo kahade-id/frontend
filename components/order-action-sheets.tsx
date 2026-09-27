@@ -472,6 +472,7 @@ export function OrderSecondaryActions({
   canDispute,
   canCancel,
   canReturn,
+  returnIsPrimary,
   submitting,
   onOpenSheet,
 }: {
@@ -484,6 +485,11 @@ export function OrderSecondaryActions({
   canCancel: boolean
   /** Pembeli + order COMPLETED — layar /returns/new memverifikasi ulang syarat via server. */
   canReturn: boolean
+  /**
+   * Item 46: true bila "Ajukan retur" sudah naik jadi aksi PRIMER di
+   * OrderDetailActions — tombol sekunder yang sama disembunyikan.
+   */
+  returnIsPrimary: boolean
   submitting: boolean
   onOpenSheet: (sheet: "dispute" | "cancel") => void
 }) {
@@ -554,7 +560,7 @@ export function OrderSecondaryActions({
           Ajukan sengketa
         </Button>
       ) : null}
-      {canReturn ? (
+      {canReturn && !returnIsPrimary ? (
         <Button
           variant="secondary"
           size="sm"
@@ -582,6 +588,10 @@ export function OrderConfirmDialogs({
   recreateLoading,
   onRecreateConfirm,
   onRecreateClose,
+  completeOpen,
+  completeLoading,
+  onCompleteConfirm,
+  onCompleteClose,
 }: {
   acceptOpen: boolean
   acceptLoading: boolean
@@ -591,6 +601,11 @@ export function OrderConfirmDialogs({
   recreateLoading: boolean
   onRecreateConfirm: () => void
   onRecreateClose: () => void
+  /** Item 32: dialog konfirmasi SEBELUM dana escrow dilepas. */
+  completeOpen: boolean
+  completeLoading: boolean
+  onCompleteConfirm: () => void
+  onCompleteClose: () => void
 }) {
   return (
     <>
@@ -620,6 +635,18 @@ export function OrderConfirmDialogs({
         onConfirm={onRecreateConfirm}
         onCancel={onRecreateClose}
         onRequestClose={onRecreateClose}
+      />
+
+      <Dialog
+        title="Konfirmasi terima barang?"
+        description="Dana akan diteruskan ke penjual dan tidak bisa dibatalkan. Pastikan barang/jasa sudah Anda terima dan sesuai kesepakatan."
+        visible={completeOpen}
+        loading={completeLoading}
+        confirmLabel="Ya, konfirmasi terima"
+        cancelLabel="Belum"
+        onConfirm={onCompleteConfirm}
+        onCancel={onCompleteClose}
+        onRequestClose={onCompleteClose}
       />
     </>
   )

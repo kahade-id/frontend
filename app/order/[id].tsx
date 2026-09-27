@@ -33,7 +33,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
-import { useLocalSearchParams, router } from "expo-router"
+import { useLocalSearchParams, router, type Href } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ClockCounterClockwise } from "phosphor-react-native"
 
@@ -163,6 +163,12 @@ export default function OrderDetailScreen() {
     historyPage: number
     durations: AverageDurations | null
     fee: Awaited<ReturnType<typeof api.orders.calculateFee>> | null
+    /**
+     * Item 46: kelayakan retur dari server (GET /v1/returns/eligibility) —
+     * hanya dicek untuk pembeli + order COMPLETED; `null` = tidak dicek /
+     * gagal (fallback ke tombol sekunder lama, fail-closed).
+     */
+    returnEligible: boolean | null
   }>(
     `order-detail:${id}`,
     async (signal) => {
@@ -235,6 +241,20 @@ export default function OrderDetailScreen() {
       // riwayat diambil PARALEL dengan detail+durasi (Promise.all), sehingga
       // tidak pernah menambah RTT. Versi lama punya susulan serial fee/riwayat
       // yang ikut menahan TTI order terminal.
+      //
+      // Item 46: kelayakan retur dicek PARALEL juga — hanya untuk pembeli +
+      // COMPLETED. Gagal = null (fallback tombol sekunder, bukan hilang).
+      const resolvedForReturnCheck = resolvedOrder
+      const returnElig =
+        resolvedForReturnCheck.myRole === "BUYER" && resolvedForReturnCheck.status === "COMPLETED"
+          ? await api.returns
+              .getReturnEligibility(oid, signal)
+              .then((e) => e?.eligible === true)
+              .catch((err) => {
+                logWarn("order:return-eligibility", err)
+                return null
+              })
+          : null
       return {
         order: resolvedOrder,
         history: h?.data ?? [],
@@ -244,6 +264,7 @@ export default function OrderDetailScreen() {
         historyPage: 1,
         durations: d,
         fee,
+        returnEligible: returnElig,
       }
     },
     Boolean(id),
@@ -353,6 +374,8 @@ export default function OrderDetailScreen() {
 
   const [sheet, setSheet] = useState<SheetKind>(null)
   const [confirmAccept, setConfirmAccept] = useState(false)
+  // Item 32: dialog konfirmasi SEBELUM dana escrow dilepas.
+  const [confirmComplete, setConfirmComplete] = useState(false)
 
   // Pembayaran
   const [payMethod, setPayMethod] = useState<PayMethod>("balance")
@@ -378,7 +401,7 @@ export default function OrderDetailScreen() {
    * "pembayaran kedua" bila yang pertama sebenarnya sudah terdebit.
    */
   const payKeyRef = useRef<string | null>(null)
-  // R2 (audit ronde-2, butir #17): kunci untuk "Tandai selesai" (rilis escrow);
+  // R2 (audit ronde-2, butir #17): kunci untuk "Konfirmasi terima" (rilis escrow);
   // dibersihkan setelah SUKSES — uncertain-fail mempertahankan untuk retry.
   const completeKeyRef = useRef<string | null>(null)
 
@@ -587,6 +610,32 @@ export default function OrderDetailScreen() {
     }
   }, [order])
 
+  /**
+   * Item 32: eksekusi rilis escrow — hanya dipanggil dari dialog konfirmasi
+   * "Konfirmasi terima barang?" (copy: dana diteruskan & tidak bisa dibatalkan).
+   */
+  const handleCompleteOrder = useCallback(() => {
+    if (!order) return
+    setConfirmComplete(false)
+    void runAction(
+      async () => {
+        // M-28: spesifikasi `POST /v1/orders/{id}/complete` TANPA
+        // requestBody — jejak bukti melekat pada order di server.
+        await api.orders.completeOrder(
+          order.id,
+          // R2 butir #17: kunci idempotensi per siklus — retry
+          // pasca-timeout tidak melepas dana dua kali di server
+          // yang mendukung header. Dibersihkan setelah SUKSES.
+          completeKeyRef.current ??
+            (completeKeyRef.current = createIdempotencyKey()),
+        )
+        completeKeyRef.current = null
+      },
+      "Order selesai",
+      "Gagal menyelesaikan order",
+    )
+  }, [order, runAction])
+
   const expectedNext = useMemo(() => {
     if (!order) return undefined
     const next = nextOrderStatus(order.status)
@@ -595,11 +644,20 @@ export default function OrderDetailScreen() {
     // G-05: frasa diterjemahkan lewat kunci berkatalog ({x} = angkanya), bukan
     // kalimat Indonesia yang dirakit di lapisan format.
     const parts = hours != null ? durationHoursParts(hours) : null
+    if (!parts) return undefined
+    // Item 37: estimasi rata-rata TIDAK ditampilkan bila melebihi tenggat
+    // aktual order — estimasi yang menjanjikan "biasanya 3 hari" padahal
+    // tenggatnya besok adalah informasi yang menyesatkan.
+    if (hours != null && order.deliveryDeadlineAt) {
+      const deadlineMs = new Date(order.deliveryDeadlineAt).getTime()
+      if (Number.isFinite(deadlineMs) && serverNow() + hours * 3_600_000 > deadlineMs) {
+        return undefined
+      }
+    }
     return {
       title: ORDER_STATUS_LABELS[next] ?? next,
-      description: !parts
-        ? undefined
-        : parts.unit === "day"
+      description:
+        parts.unit === "day"
           ? translate("Biasanya sekitar {x} hari", { x: parts.value })
           : translate("Biasanya sekitar {x} jam", { x: parts.value }),
     }
@@ -773,9 +831,12 @@ export default function OrderDetailScreen() {
                 order.status === "SHIPPED" ||
                 order.status === "DELIVERED")
             }
+            canReturnPrimary={query.data?.returnEligible === true}
             buyerPays={fee?.buyerPays}
             shippingRequired={shippingRequired}
             submitting={submitting}
+            status={order.status}
+            myRole={knownRole ? myRole : undefined}
             autoRelease={autoRelease}
             shippingCountdown={shippingCountdown}
             onPay={() => setSheet("pay")}
@@ -783,26 +844,10 @@ export default function OrderDetailScreen() {
             onReject={() => setSheet("reject")}
             onShipping={() => setSheet("shipping")}
             onDeliveryProof={() => router.push(ROUTES.deliveryProof(order.id))}
-            onComplete={() =>
-              void runAction(
-                async () => {
-                  // M-28: spesifikasi `POST /v1/orders/{id}/complete` TANPA
-                  // requestBody — jejak bukti melekat pada order di server.
-                  await api.orders.completeOrder(
-                    order.id,
-                    // R2 butir #17: kunci idempotensi per siklus — retry
-                    // pasca-timeout tidak melepas dana dua kali di server
-                    // yang mendukung header. Dibersihkan setelah SUKSES.
-                    completeKeyRef.current ??
-                      (completeKeyRef.current = createIdempotencyKey()),
-                  )
-                  completeKeyRef.current = null
-                },
-                "Order selesai",
-                "Gagal menyelesaikan order",
-              )
-            }
+            // Item 32: rilis escrow WAJIB lewat dialog konfirmasi dulu.
+            onComplete={() => setConfirmComplete(true)}
             onRate={() => router.push(ROUTES.rateOrder(order.id))}
+            onReturn={() => router.push(ROUTES.newReturn(order.id))}
             onReload={() => void query.reload()}
           />
 
@@ -850,22 +895,25 @@ export default function OrderDetailScreen() {
             onOpenProfile={(username) => router.push(ROUTES.userProfile(username))}
           />
 
-          {/* 8 — Pengiriman: kurir + resi (salin/lacak) */}
-          <ShippingInfoCard
-            shipping={
-              order.trackingNumber || order.courierName
-                ? {
-                    courierName: order.courierName ?? undefined,
-                    trackingNumber: order.trackingNumber ?? undefined,
-                  }
-                : null
-            }
-            canEdit={canShip}
-            onEdit={() => setSheet("shipping")}
-            onTrack={() => void openTracking()}
-            onCopy={(v) => void copy(v)}
-            copied={copied}
-          />
+          {/* 8 — Pengiriman: kurir + resi (salin/lacak). Item 43: khusus
+              PHYSICAL_GOODS — jasa/digital TIDAK menampilkan info kirim. */}
+          {shippingRequired ? (
+            <ShippingInfoCard
+              shipping={
+                order.trackingNumber || order.courierName
+                  ? {
+                      courierName: order.courierName ?? undefined,
+                      trackingNumber: order.trackingNumber ?? undefined,
+                    }
+                  : null
+              }
+              canEdit={canShip}
+              onEdit={() => setSheet("shipping")}
+              onTrack={() => void openTracking()}
+              onCopy={(v) => void copy(v)}
+              copied={copied}
+            />
+          ) : null}
 
           {/* 9 — Dana escrow: penjelasan menenangkan sesuai status */}
           <OrderEscrowCard
@@ -933,12 +981,22 @@ export default function OrderDetailScreen() {
             canDispute={canDispute}
             canCancel={canCancel}
             canReturn={isBuyer && order.status === "COMPLETED"}
+            returnIsPrimary={query.data?.returnEligible === true}
             submitting={submitting}
             onOpenSheet={(kind) => setSheet(kind)}
           />
 
           {/* 14 — Butuh bantuan? */}
-          <OrderHelpCard onContactSupport={() => router.push(ROUTES.liveSupport)} />
+          {/* Item 133: prefill kategori PESANAN + orderId agar tiket langsung
+              terhubung ke order ini. */}
+          <OrderHelpCard
+            onContactSupport={() =>
+              router.push({
+                pathname: ROUTES.contact,
+                params: { category: "ORDER", orderId: order.id },
+              } as Href)
+            }
+          />
 
           {/* 15 — Riwayat */}
           <SectionHeader title="Riwayat" />
@@ -1062,6 +1120,10 @@ export default function OrderDetailScreen() {
           void handlePayQris()
         }}
         onRecreateClose={() => setConfirmRecreateQris(false)}
+        completeOpen={confirmComplete}
+        completeLoading={submitting}
+        onCompleteConfirm={handleCompleteOrder}
+        onCompleteClose={() => setConfirmComplete(false)}
       />
 
       <OrderPayProgressOverlay

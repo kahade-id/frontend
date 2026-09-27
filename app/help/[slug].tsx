@@ -8,10 +8,12 @@
 import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { useLocalSearchParams } from "expo-router"
-import { Article, Check, X } from "phosphor-react-native"
+import { useLocalSearchParams, router, type Href } from "expo-router"
+import { Article, Check, ShareNetwork, X } from "phosphor-react-native"
 import { api } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
+import { helpArticleUrl } from "@/lib/deeplinks"
+import { shareContent } from "@/lib/share"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
@@ -19,7 +21,9 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
+import { HelpArticleContent } from "@/components/ui/help-article-content"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
+import { IconButton } from "@/components/ui/icon-button"
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
@@ -44,9 +48,27 @@ function FeedbackBlock({ articleId }: { articleId: string }) {
         Apakah artikel ini membantu?
       </Text>
       {sent ? (
-        <Text variant="body" tone="primary" weight={500}>
-          {sent === "yes" ? "Terima kasih, catatan Anda sudah dicatat." : "Terima kasih atas umpan baliknya."}
-        </Text>
+        <View className="items-center gap-2">
+          <Text variant="body" tone="primary" weight={500}>
+            {sent === "yes" ? "Terima kasih, catatan Anda sudah dicatat." : "Terima kasih atas umpan baliknya."}
+          </Text>
+          {/* Item 123: "Tidak membantu" → tawarkan buat tiket, artikel
+              terkait terisi otomatis (relatedArticleId). */}
+          {sent === "no" ? (
+            <Button
+              variant="secondary"
+              size="sm"
+              onPress={() =>
+                router.push({
+                  pathname: ROUTES.contact,
+                  params: { relatedArticleId: articleId },
+                } as Href)
+              }
+            >
+              Buat tiket
+            </Button>
+          ) : null}
+        </View>
       ) : (
         <View className="flex-row gap-3">
           <Button variant="secondary" size="sm" leftIcon={Check} onPress={() => send(true)}>
@@ -85,6 +107,19 @@ export default function HelpScreen() {
   useEffect(() => {
     if (selected?.id) void api.helpCenter.trackHelpArticleView(selected.id).catch((err) => logWarn("help:track-view", err))
   }, [selected?.id])
+  // Item 120: artikel terkait = artikel lain di kategori yang sama (maks 3).
+  const related = selected
+    ? (query.data?.articles ?? []).filter((item) => item.id !== selected.id).slice(0, 3)
+    : []
+  // Item 122: bagikan via tautan kanonis web (membuka deep link / web app).
+  const shareArticle = useCallback(() => {
+    if (!selected) return
+    void shareContent({
+      message: selected.title,
+      url: helpArticleUrl(selected.slug ?? selected.id, slug),
+      title: selected.title,
+    }).catch((err) => logWarn("help:share", err))
+  }, [selected, slug])
   return (
     <Screen edges={["top"]} padded={false}>
       {/* Header di LUAR area scroll: artikel bantuan bisa sangat panjang —
@@ -92,6 +127,16 @@ export default function HelpScreen() {
       <Header
         title={
           article ? (selected?.title ?? "Artikel") : (query.data?.name ?? "Kategori Bantuan")
+        }
+        right={
+          selected ? (
+            <IconButton
+              icon={ShareNetwork}
+              variant="ghost"
+              onPress={shareArticle}
+              accessibilityLabel="Bagikan artikel"
+            />
+          ) : null
         }
       />
       <ScrollView
@@ -106,10 +151,26 @@ export default function HelpScreen() {
         ) : article ? (
           selected ? (
             <View className="gap-4">
-              <Text variant="body">
-                {selected.content || "Isi artikel belum tersedia dari server."}
-              </Text>
+              {/* Item 121: render markdown aman (tanpa WebView/HTML). */}
+              <HelpArticleContent
+                content={selected.content || "Isi artikel belum tersedia dari server."}
+              />
               <FeedbackBlock articleId={selected.id} />
+              {related.length > 0 ? (
+                <View className="gap-2">
+                  <Text variant="h3" weight={700}>
+                    Artikel terkait
+                  </Text>
+                  {related.map((item) => (
+                    <HelpArticleListItem
+                      padded={false}
+                      key={item.id}
+                      title={item.title}
+                      href={ROUTES.helpArticle(item.slug ?? item.id, slug)}
+                    />
+                  ))}
+                </View>
+              ) : null}
             </View>
           ) : (
             <EmptyState

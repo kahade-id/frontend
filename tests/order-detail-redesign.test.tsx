@@ -25,6 +25,10 @@ import { ThemeProvider } from "@/components/theme-provider"
 import { OrderDetailActions, OrderRatingReminder } from "@/components/order-detail-actions"
 import { OrderEscrowCard } from "@/components/ui/order-escrow-card"
 import { OrderHelpCard } from "@/components/ui/order-help-card"
+import {
+  mapOrderHistoryToTimeline,
+  type OrderHistoryEntry,
+} from "@/components/ui/order-history-timeline"
 import { OrderJourney } from "@/components/ui/order-journey"
 import { OrderPartiesCard } from "@/components/ui/order-parties-card"
 import { OrderProductCard } from "@/components/ui/order-product-card"
@@ -147,7 +151,10 @@ describe("<OrderDetailActions>", () => {
     canViewProof: false,
     buyerPays: null as number | null,
     shippingRequired: true,
+    canReturnPrimary: false,
     submitting: false,
+    status: "WAITING_PAYMENT",
+    myRole: "BUYER" as const,
     autoRelease: null,
     shippingCountdown: null,
     onPay: noop,
@@ -157,6 +164,7 @@ describe("<OrderDetailActions>", () => {
     onDeliveryProof: noop,
     onComplete: noop,
     onRate: noop,
+    onReturn: noop,
     onReload: noop,
   }
 
@@ -201,6 +209,62 @@ describe("<OrderDetailActions>", () => {
     fireEvent.click(screen.getByRole("button", { name: /terima pesanan/i }))
     expect(onAccept).toHaveBeenCalledTimes(1)
   })
+
+  it("item 31: tombol rilis escrow bernama 'Konfirmasi terima'", () => {
+    renderWithTheme(<OrderDetailActions {...baseProps} canReviewDelivery />)
+    expect(screen.getByRole("button", { name: "Konfirmasi terima" })).toBeTruthy()
+    expect(document.body.textContent).not.toMatch(/Tandai selesai/)
+  })
+
+  it("item 34: area aksi kosong → hint langkah berikutnya per status × peran", () => {
+    const { rerender } = renderWithTheme(
+      <OrderDetailActions {...baseProps} status="WAITING_CONFIRMATION" myRole="SELLER" />,
+    )
+    expect(document.body.textContent).toMatch(/menunggu penjual mengonfirmasi|konfirmasi order ini/i)
+
+    rerender(
+      <ThemeProvider>
+        <OrderDetailActions {...baseProps} status="WAITING_PAYMENT" myRole="SELLER" />
+      </ThemeProvider>,
+    )
+    expect(document.body.textContent).toMatch(/menunggu pembeli membayar/i)
+  })
+
+  it("item 35: countdown memakai label kontekstual Batas kirim / Batas konfirmasi", () => {
+    renderWithTheme(
+      <OrderDetailActions
+        {...baseProps}
+        shippingCountdown={{
+          kind: "countdown",
+          secondsLeft: 3600,
+          at: "2026-09-28T10:00:00+07:00",
+        }}
+      />,
+    )
+    expect(screen.getByText("Batas kirim")).toBeTruthy()
+
+    renderWithTheme(
+      <OrderDetailActions
+        {...baseProps}
+        shippingCountdown={null}
+        autoRelease={{ secondsLeft: 7200, at: "2026-09-29T10:00:00+07:00" }}
+        myRole="BUYER"
+        status="IN_DELIVERY"
+      />,
+    )
+    expect(screen.getByText("Batas konfirmasi")).toBeTruthy()
+    // Item 45: pembeli masih bisa sengketa sampai tenggat.
+    expect(document.body.textContent).toMatch(/masih bisa memeriksa barang/i)
+  })
+
+  it("item 46: 'Ajukan retur' primer bila canReturnPrimary", () => {
+    const onReturn = vi.fn()
+    renderWithTheme(
+      <OrderDetailActions {...baseProps} canReturnPrimary onReturn={onReturn} />,
+    )
+    fireEvent.click(screen.getByRole("button", { name: "Ajukan retur" }))
+    expect(onReturn).toHaveBeenCalledTimes(1)
+  })
 })
 
 describe("<OrderEscrowCard>", () => {
@@ -209,7 +273,9 @@ describe("<OrderEscrowCard>", () => {
       <OrderEscrowCard status="WAITING_PAYMENT" amount={250000} myRole="BUYER" />,
     )
     expect(document.body.textContent).toMatch(/PT Kawal Hak Dengan Aman/)
-    expect(screen.getByText(/dana aman di escrow/i)).toBeTruthy()
+    // Item 33: pra-bayar — dana BELUM ditahan, copy jujur mengatakannya.
+    expect(screen.getByText(/dana akan ditahan di escrow/i)).toBeTruthy()
+    expect(document.body.textContent).toMatch(/Dana akan ditahan setelah Anda membayar/)
 
     rerender(
       <ThemeProvider>
@@ -226,10 +292,66 @@ describe("<OrderEscrowCard>", () => {
     // Judul + badan sama-sama mengandung frasa — keduanya harus tampil.
     expect(screen.getAllByText(/telah diteruskan/i)).toHaveLength(2)
   })
+
+  it("WAITING_CONFIRMATION untuk penjual: dana ditahan SETELAH pembeli membayar", () => {
+    renderWithTheme(
+      <OrderEscrowCard status="WAITING_CONFIRMATION" amount={250000} myRole="SELLER" />,
+    )
+    expect(document.body.textContent).toMatch(/Dana akan ditahan setelah pembeli membayar/)
+  })
 })
 
-describe("<OrderHelpCard> & <OrderRatingReminder>", () => {
-  it("tombol Hubungi CS memanggil onContactSupport", () => {
+describe("mapOrderHistoryToTimeline (item 44)", () => {
+  const labels = {
+    by: "oleh",
+    actors: {
+      BUYER: "Pembeli",
+      SELLER: "Penjual",
+      SYSTEM: "Sistem",
+      ADMIN: "Admin Kahade",
+    },
+    statuses: {},
+  }
+  const baseEntry: OrderHistoryEntry = {
+    id: "h1",
+    fromStatus: "IN_DELIVERY",
+    toStatus: "COMPLETED",
+    actor: "SYSTEM",
+    timestamp: "28 Sep 2026, 10:00",
+  }
+  const toItems = (entries: OrderHistoryEntry[]) =>
+    mapOrderHistoryToTimeline(entries, "COMPLETED", labels)
+
+  it("entri sistem tanpa catatan mendapat alasan manusiawi", () => {
+    const items = toItems([baseEntry])
+    expect(items).toHaveLength(1)
+    expect(items[0].description).toMatch(/oleh sistem/i)
+    expect(items[0].description).toMatch(/dikonfirmasi otomatis setelah tenggat habis/i)
+  })
+
+  it("entri sistem EXPIRED → 'tenggat habis tanpa sengketa'", () => {
+    const items = mapOrderHistoryToTimeline(
+      [{ ...baseEntry, fromStatus: "IN_DELIVERY", toStatus: "EXPIRED" }],
+      "EXPIRED",
+      labels,
+    )
+    expect(items[0].description).toMatch(/tenggat habis tanpa sengketa/i)
+  })
+
+  it("catatan asli tidak ditimpa alasan bawaan", () => {
+    const items = toItems([{ ...baseEntry, note: "dibayar via QRIS" }])
+    expect(items[0].description).toMatch(/dibayar via QRIS/)
+    expect(items[0].description).not.toMatch(/tenggat habis/i)
+  })
+
+  it("aktor bukan sistem tanpa catatan tetap 'oleh X' saja", () => {
+    const items = toItems([{ ...baseEntry, actor: "BUYER" }])
+    expect(items[0].description).toMatch(/oleh pembeli/i)
+    expect(items[0].description).not.toMatch(/tenggat habis/i)
+  })
+})
+
+describe("<OrderHelpCard> & <OrderRatingReminder>", () => {  it("tombol Hubungi CS memanggil onContactSupport", () => {
     const onContactSupport = vi.fn()
     renderWithTheme(<OrderHelpCard onContactSupport={onContactSupport} />)
     fireEvent.click(screen.getByRole("button", { name: /hubungi cs/i }))
@@ -247,6 +369,8 @@ describe("<OrderHelpCard> & <OrderRatingReminder>", () => {
     const onSnooze = vi.fn()
     renderWithTheme(<OrderRatingReminder visible onRate={noop} onSnooze={onSnooze} />)
     expect(screen.getByText(/7 hari/i)).toBeTruthy()
+    // Item 39: copy formal "Anda" (bukan "ulasanmu").
+    expect(document.body.textContent).toMatch(/ulasan Anda/i)
     fireEvent.click(screen.getByRole("button", { name: /ingatkan nanti/i }))
     expect(onSnooze).toHaveBeenCalledTimes(1)
   })

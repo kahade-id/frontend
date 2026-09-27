@@ -23,6 +23,7 @@ import { useCallback, useEffect, useSyncExternalStore } from "react"
 import { getSecureItem, setSecureItem, SecureKeys } from "@/lib/secure-storage"
 import { serverNow } from "@/lib/server-time"
 import { logWarn } from "@/lib/telemetry"
+import type { NotificationCategory } from "@/lib/api"
 
 export type TransactionsTab = "buyer" | "seller"
 
@@ -44,6 +45,11 @@ export type UiPrefs = {
    * Preferensi perangkat (bukan akun): logout tidak meresetnya.
    */
   dataSaver: boolean
+  /**
+   * Item mega-batch 40 — kategori terakhir tab Notifikasi (pola yang sama
+   * dengan `transactionsTab`). Preferensi perangkat: logout tidak mereset.
+   */
+  notificationsCategory: NotificationCategory
 }
 
 const DEFAULT_PREFS: UiPrefs = {
@@ -52,6 +58,7 @@ const DEFAULT_PREFS: UiPrefs = {
   appMode: "commerce",
   ratingSnoozeUntil: {},
   dataSaver: false,
+  notificationsCategory: "TRANSAKSI",
 }
 
 export type RecentRecipient = {
@@ -104,6 +111,12 @@ function sanitizePrefs(raw: unknown): UiPrefs {
     ratingSnoozeUntil: snooze,
     // Batch 19 (item 15): default OFF bila belum pernah disimpan.
     dataSaver: rec.dataSaver === true,
+    // Item mega-batch 40: kategori notifikasi terakhir — validasi ketat ke
+    // enum API supaya nilai basi/rusak jatuh ke TRANSAKSI.
+    notificationsCategory:
+      rec.notificationsCategory === "PROMOSI" || rec.notificationsCategory === "INFORMASI"
+        ? rec.notificationsCategory
+        : "TRANSAKSI",
   }
 }
 
@@ -182,9 +195,9 @@ export function setUiPrefs(patch: Partial<UiPrefs>): void {
  * `ratingSnoozeUntil` berkunci `orderId` akun yang sedang login — akun
  * berikutnya di perangkat yang sama tidak boleh mewarisi jejak transaksi itu
  * (alasan yang sama dengan `pendingActions`/`recentRecipients` di
- * `clearSession()`). `balanceHidden`, `transactionsTab`, `appMode`, dan
- * `dataSaver` sengaja TIDAK disentuh: keempatnya preferensi perangkat yang
- * berlaku untuk siapa pun yang memakai perangkat ini.
+ * `clearSession()`). `balanceHidden`, `transactionsTab`, `appMode`,
+ * `dataSaver`, dan `notificationsCategory` sengaja TIDAK disentuh: semuanya
+ * preferensi perangkat yang berlaku untuk siapa pun yang memakai perangkat ini.
  *
  * Tidak ada I/O saat tidak ada yang perlu dibersihkan (kasus paling sering:
  * logout tanpa pernah menunda pengingat ulasan).

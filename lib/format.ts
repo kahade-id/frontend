@@ -642,6 +642,26 @@ export function formatDateLong(d: Date | number | string): string {
   return `${dayNames()[date.getDay()]}, ${formatDate(date, { long: true })}`
 }
 
+/**
+ * Item mega-batch 38: singkatan zona waktu PERANGKAT ("WIB", "WITA", "WIT",
+ * "UTC+7", …) untuk cap waktu aktivitas — bukan "WIB" yang di-hardcode.
+ *
+ * `timeZoneName: "short"` lewat `Intl` (Hermes RN ≥ 0.65 full-ICU); bila tidak
+ * tersedia → "" dan pemanggil menghilangkan labelnya (tanpa label lebih baik
+ * daripada label yang salah — pola E-05/E-08).
+ */
+export function deviceTimeZoneShort(): string {
+  try {
+    const tz = new Intl.DateTimeFormat("id-ID", { timeZoneName: "short" })
+      .formatToParts(new Date())
+      .find((p) => p.type === "timeZoneName")?.value
+      ?.trim()
+    return tz ?? ""
+  } catch {
+    return ""
+  }
+}
+
 /** Sisa waktu detik -> "04:59" atau "1:04:59" (countdown OTP/lockout/deadline).
  *
  * I-06 (audit escrow 2026-09-24): durasi ≥ 24 jam kini menyebut hari

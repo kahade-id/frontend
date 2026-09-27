@@ -57,6 +57,26 @@ function escrowCopy(
           { x: COMPANY },
         ),
       }
+    // Item 33: pra-bayar — dana BELUM ditahan. Copy lama ("Uang Anda
+    // ditahan…") berbohong untuk order yang belum dibayar.
+    case "WAITING_CONFIRMATION":
+    case "WAITING_PAYMENT":
+    case "PENDING_PAYMENT":
+      return myRole === "SELLER"
+        ? {
+            title: translate("Dana akan ditahan di escrow"),
+            body: translate(
+              "Dana akan ditahan setelah pembeli membayar. Anda dapat memproses order setelah pembayaran masuk ke escrow {x}.",
+              { x: COMPANY },
+            ),
+          }
+        : {
+            title: translate("Dana akan ditahan di escrow"),
+            body: translate(
+              "Dana akan ditahan setelah Anda membayar. {x} menahan dana dengan aman sampai Anda mengonfirmasi penerimaan.",
+              { x: COMPANY },
+            ),
+          }
     default:
       return myRole === "SELLER"
         ? {

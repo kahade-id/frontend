@@ -53,6 +53,7 @@ import {
   Checks,
   DotsThreeVertical,
   FunnelSimple,
+  GearSix,
   Megaphone,
   Receipt,
   Trash,
@@ -65,6 +66,7 @@ import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
+import { useUiPrefs } from "@/lib/ui-prefs"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { notificationTypeUiCategory, notificationUiCategory } from "@/lib/notification-category"
 import { notificationDayGroup } from "@/lib/notification-grouping"
@@ -191,8 +193,9 @@ function MarkAllReadButton({
       className="h-10 flex-row items-center gap-1.5 rounded-full bg-surface px-4"
     >
       <Icon icon={Checks} size="sm" tone="active" />
+      {/* Item 42: teks terlihat selaras dengan label aksesibilitas. */}
       <Text variant="body" weight={600} tone="primary">
-        {translate("Tandai dibaca")}
+        {translate("Tandai semua dibaca")}
       </Text>
     </PressableScale>
   )
@@ -229,7 +232,19 @@ function NotificationsScreen() {
   const { elevated, onScrollWorklet } = useScrollElevation()
   const insets = useSafeAreaInsets()
 
-  const [category, setCategory] = useState<NotificationCategory>("TRANSAKSI")
+  const [categoryState, setCategoryState] = useState<NotificationCategory | null>(null)
+  // Item 40: kategori tersimpan di preferensi perangkat (useUiPrefs) —
+  // pilihan tidak hilang setiap buka tab (pola sama dengan tab Transaksi).
+  // State lokal menampung pemilihan sampai preferensi termuat.
+  const { prefs, setPrefs } = useUiPrefs()
+  const category = categoryState ?? prefs.notificationsCategory
+  const setCategory = useCallback(
+    (next: NotificationCategory) => {
+      setCategoryState(next)
+      setPrefs({ notificationsCategory: next })
+    },
+    [setPrefs],
+  )
   /** Funnel kanan header: true = hanya "Belum dibaca" (query isRead=false). */
   const [unreadOnly, setUnreadOnly] = useState(false)
 
@@ -457,6 +472,16 @@ function NotificationsScreen() {
       onPress: () => {
         setMenuOpen(false)
         setSelecting(true)
+      },
+    },
+    // Item 41: jalan pintas ke pengaturan notifikasi dari menu.
+    {
+      key: "settings",
+      label: "Pengaturan notifikasi",
+      icon: GearSix,
+      onPress: () => {
+        setMenuOpen(false)
+        router.push(ROUTES.notificationSettings)
       },
     },
     {

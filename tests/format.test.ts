@@ -421,3 +421,32 @@ describe("formatTimeAgo (2026-09-28)", () => {
     expect(formatTimeAgo("", now)).toBe("—")
   })
 })
+
+describe("deviceTimeZoneShort (item 38)", () => {
+  it("membaca singkatan zona dari Intl perangkat — bukan 'WIB' hardcoded", async () => {
+    const { deviceTimeZoneShort } = await import("@/lib/format")
+    const orig = Intl.DateTimeFormat
+    const fake = function (this: unknown) {
+      return {
+        formatToParts: () => [{ type: "timeZoneName", value: "WITA" }],
+      }
+    } as unknown as typeof Intl.DateTimeFormat
+    ;(Intl as { DateTimeFormat: typeof Intl.DateTimeFormat }).DateTimeFormat = fake
+    try {
+      expect(deviceTimeZoneShort()).toBe("WITA")
+    } finally {
+      ;(Intl as { DateTimeFormat: typeof Intl.DateTimeFormat }).DateTimeFormat = orig
+    }
+  })
+
+  it("fallback '' (tanpa label) bila Intl tidak tersedia — tanpa melempar", async () => {
+    const { deviceTimeZoneShort } = await import("@/lib/format")
+    const orig = Intl.DateTimeFormat
+    ;(Intl as { DateTimeFormat?: unknown }).DateTimeFormat = undefined
+    try {
+      expect(deviceTimeZoneShort()).toBe("")
+    } finally {
+      ;(Intl as { DateTimeFormat: typeof Intl.DateTimeFormat }).DateTimeFormat = orig
+    }
+  })
+})

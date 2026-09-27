@@ -52,3 +52,12 @@ export function profileUrl(username: string): string {
 export function showcaseUrl(id: string): string {
   return https(`/showcase/${encodeURIComponent(id)}`)
 }
+
+/**
+ * Item mega-batch 122: `https://kahade.id/help/<category>?article=<slug>` —
+ * tautan kanonis artikel bantuan untuk dibagikan (dibuka web app / deep link).
+ */
+export function helpArticleUrl(article: string, category?: string): string {
+  const cat = encodeURIComponent(category ?? article)
+  return https(`/help/${cat}?article=${encodeURIComponent(article)}`)
+}

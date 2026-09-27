@@ -29,7 +29,7 @@ import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
-import { formatDate, formatTime } from "@/lib/format"
+import { formatDate, formatTime, deviceTimeZoneShort } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import type { JourneyStep, JourneyStepKey, JourneyStepState, JourneyStepTone } from "@/lib/order-journey"
 
@@ -62,9 +62,14 @@ const STATE_LABEL: Record<JourneyStepState, string> = {
 }
 
 function formatJourneyTime(iso: string): string {
+  // Item 38: cap waktu aktivitas memakai ZONA PERANGKAT — singkatan zona
+  // diambil dari Intl perangkat (WIB/WITA/WIT/…), bukan "WIB" yang di-hardcode.
+  // Tanpa dukungan Intl → tanpa label (label salah lebih buruk, pola E-05).
   const date = formatDate(iso, { long: true })
   const time = formatTime(iso)
-  return time === "—" ? date : `${date} · ${time} WIB`
+  if (time === "—") return date
+  const zone = deviceTimeZoneShort()
+  return zone ? `${date} · ${time} ${zone}` : `${date} · ${time}`
 }
 
 function StepNode({ step: s }: { step: JourneyStep }) {
