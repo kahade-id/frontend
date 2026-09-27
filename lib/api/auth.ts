@@ -42,6 +42,7 @@ import {
   stringList,
 } from "@/lib/api/response"
 import { clearSession, getDeviceId, getDeviceInfo, startSession } from "@/lib/api/session"
+import { withDeviceLocation, type WithDeviceLocation } from "@/lib/api/device-location"
 import type {
   ChangePasswordDto,
   ConfirmPhoneChangeDto,
@@ -258,8 +259,13 @@ export function resendVerification(dto: ResendVerificationDto) {
   })
 }
 
-export function correctEmail(dto: CorrectEmailDto) {
-  return http.post<MessageResult, CorrectEmailDto>("/v1/auth/correct-email", dto, { auth: "none" })
+export async function correctEmail(dto: CorrectEmailDto) {
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
+  return http.post<MessageResult, WithDeviceLocation<CorrectEmailDto>>(
+    "/v1/auth/correct-email",
+    await withDeviceLocation(dto),
+    { auth: "none" },
+  )
 }
 
 // ------------------------------------------------------------------
@@ -633,9 +639,10 @@ export function normalizePhoneChangeResult(raw: unknown): MessageResult {
 
 /** Request a sensitive-action OTP. Device identity is already sent by the HTTP boundary header. */
 export async function requestPhoneChange(dto: RequestPhoneChangeDto): Promise<MessageResult> {
-  const result = await http.post<unknown, RequestPhoneChangeDto>(
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
+  const result = await http.post<unknown, WithDeviceLocation<RequestPhoneChangeDto>>(
     "/v1/auth/phone-change/request",
-    dto,
+    await withDeviceLocation(dto),
     { auth: "required" },
   )
   return normalizePhoneChangeResult(result)
@@ -643,9 +650,10 @@ export async function requestPhoneChange(dto: RequestPhoneChangeDto): Promise<Me
 
 /** Confirming revokes all account sessions server-side, including the current session. */
 export async function confirmPhoneChange(dto: ConfirmPhoneChangeDto): Promise<MessageResult> {
-  const result = await http.post<unknown, ConfirmPhoneChangeDto>(
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
+  const result = await http.post<unknown, WithDeviceLocation<ConfirmPhoneChangeDto>>(
     "/v1/auth/phone-change/confirm",
-    dto,
+    await withDeviceLocation(dto),
     { auth: "required" },
   )
   return normalizePhoneChangeResult(result)

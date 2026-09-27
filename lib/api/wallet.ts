@@ -40,6 +40,7 @@ import {
 } from "@/lib/api/wallet-contract"
 import { AMOUNT_LIMITS, assertValidAmount } from "@/lib/financial"
 import { http, seg } from "@/lib/api/client"
+import { withDeviceLocation, type WithDeviceLocation } from "@/lib/api/device-location"
 import type {
   ConfirmWithdrawOtpDto,
   ResendWithdrawOtpDto,
@@ -376,7 +377,9 @@ export function lookupTransferRecipient(q: string, signal?: AbortSignal) {
 export async function createTopup(dto: TopupDto, idempotencyKey?: string) {
   assertDtoConstraints(dto, API_CONSTRAINTS.TopupDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.topup)
-  const result = await http.post<TopupResult, TopupDto>("/v1/wallet/topup", dto, {
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
+  const body = await withDeviceLocation(dto)
+  const result = await http.post<TopupResult, WithDeviceLocation<TopupDto>>("/v1/wallet/topup", body, {
     auth: "required",
     // I-16 (audit end-to-end): satu kunci per formulir top-up — retry manual
     // setelah timeout tidak lagi berpeluang membuat dua transaksi topup.
@@ -410,11 +413,17 @@ export async function getTopupStatus(paymentTxId: string) {
 export async function createWithdraw(dto: WithdrawDto, idempotencyKey?: string) {
   assertDtoConstraints(dto, API_CONSTRAINTS.WithdrawDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.withdraw)
-  const result = await http.post<WithdrawResult, WithdrawDto>("/v1/wallet/withdraw", dto, {
-    auth: "required",
-    // I-16: lihat createTopup — penarikan ganda = dua kali keluar dana.
-    ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
-  })
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
+  const body = await withDeviceLocation(dto)
+  const result = await http.post<WithdrawResult, WithDeviceLocation<WithdrawDto>>(
+    "/v1/wallet/withdraw",
+    body,
+    {
+      auth: "required",
+      // I-16: lihat createTopup — penarikan ganda = dua kali keluar dana.
+      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+    },
+  )
   return {
     ...result,
     txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,
@@ -426,9 +435,16 @@ export async function createWithdraw(dto: WithdrawDto, idempotencyKey?: string) 
 
 /** POST /v1/wallet/withdraw/confirm-otp — konfirmasi penarikan besar. */
 export async function confirmWithdrawOtp(dto: ConfirmWithdrawOtpDto) {
-  const result = await http.post<WithdrawResult, ConfirmWithdrawOtpDto>("/v1/wallet/withdraw/confirm-otp", dto, {
-    auth: "required",
-  })
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27): langkah
+  // konfirmasi OTP adalah otorisasi final keluarnya dana.
+  const body = await withDeviceLocation(dto)
+  const result = await http.post<WithdrawResult, WithDeviceLocation<ConfirmWithdrawOtpDto>>(
+    "/v1/wallet/withdraw/confirm-otp",
+    body,
+    {
+      auth: "required",
+    },
+  )
   return {
     ...result,
     txId: pickString(result, ["txId", "tx_id"]) ?? result.txId,
@@ -482,7 +498,9 @@ export function cancelWithdraw(dto: { txId: string }) {
 export async function transferFunds(dto: TransferDto, idempotencyKey?: string) {
   assertDtoConstraints(dto, API_CONSTRAINTS.TransferDto)
   assertValidAmount(dto.amount, AMOUNT_LIMITS.transfer)
-  const result = await http.post<TransferResult, TransferDto>("/v1/wallet/transfer", dto, {
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
+  const body = await withDeviceLocation(dto)
+  const result = await http.post<TransferResult, WithDeviceLocation<TransferDto>>("/v1/wallet/transfer", body, {
     auth: "required",
     // I-16: lihat createTopup — transfer ganda = dua kali kirim dana.
     ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
@@ -522,8 +540,12 @@ export function verifyWalletPin(dto: VerifyPinDto) {
 }
 
 /** POST /v1/wallet/set-pin — set/ubah PIN wallet. */
-export function setWalletPin(dto: SetPinDto) {
-  return http.post<MessageResult, SetPinDto>("/v1/wallet/set-pin", dto, { auth: "required" })
+export async function setWalletPin(dto: SetPinDto) {
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
+  const body = await withDeviceLocation(dto)
+  return http.post<MessageResult, WithDeviceLocation<SetPinDto>>("/v1/wallet/set-pin", body, {
+    auth: "required",
+  })
 }
 
 /** GET /v1/wallet/topup-history — riwayat topup (bentuk paginated sama). */

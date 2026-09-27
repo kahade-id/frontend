@@ -15,6 +15,7 @@
 
 import { http } from "@/lib/api/client"
 import { asRecord, invalidResponse, pickBoolean, pickNumber, pickString } from "@/lib/api/response"
+import { withDeviceLocation, type WithDeviceLocation } from "@/lib/api/device-location"
 
 export type DeletionRequestStatus =
   | "PENDING"
@@ -64,10 +65,15 @@ type RequestDeletionDto = {
 }
 
 export async function requestAccountDeletion(dto: RequestDeletionDto): Promise<DeletionRequestResult> {
-  const raw = await http.post<unknown, RequestDeletionDto>("/v1/users/me/delete-request", dto, {
-    auth: "required",
-    headers: dto.idempotencyKey ? { "x-idempotency-key": dto.idempotencyKey } : undefined,
-  })
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27).
+  const raw = await http.post<unknown, WithDeviceLocation<RequestDeletionDto>>(
+    "/v1/users/me/delete-request",
+    await withDeviceLocation(dto),
+    {
+      auth: "required",
+      headers: dto.idempotencyKey ? { "x-idempotency-key": dto.idempotencyKey } : undefined,
+    },
+  )
   const record = asRecord(raw)
   if (!record) throw invalidResponse("delete-request")
   const referenceCode = pickString(record, ["referenceCode"])

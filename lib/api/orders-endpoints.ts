@@ -22,6 +22,11 @@ import {
   readPage,
 } from "@/lib/api/response"
 import { http, seg } from "@/lib/api/client"
+import {
+  deviceLocationOnlyBody,
+  withDeviceLocation,
+  type WithDeviceLocation,
+} from "@/lib/api/device-location"
 import { getSessionRevision } from "@/lib/api/session"
 import { onQueryCacheInvalidation } from "@/lib/query-cache"
 import {
@@ -46,6 +51,7 @@ import type {
   CancelOrderDto,
   ConfirmOrderDto,
   CreateOrderDto,
+  LocationDto,
   PayOrderDto,
   SubmitDisputeDto,
   UpdateShippingDto,
@@ -87,13 +93,20 @@ export function validateCounterpart(dto: ValidateCounterpartDto) {
  * yang timeout-di-klien berlipat jadi dua order. Kunci disimpan sampai hasil
  * final diketahui, lalu layar membuat kunci baru untuk kiriman berikutnya.
  */
-export function createOrder(dto: CreateOrderDto, idempotencyKey?: string) {
+export async function createOrder(dto: CreateOrderDto, idempotencyKey?: string) {
   assertDtoConstraints(dto, API_CONSTRAINTS.CreateOrderDto)
   assertValidAmount(dto.orderValue, AMOUNT_LIMITS.order)
-  return http.post<Order & Record<string, unknown>, CreateOrderDto>("/v1/orders", dto, {
-    auth: "required",
-    ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
-  }).then((raw) => normalizeOrder(readEntity<Order & Record<string, unknown>>(raw, "order")))
+  // Lokasi presisi aksi sensitif (kontrak lintas tim 2026-09-27): diambil
+  // tepat sebelum request dikirim, setelah validasi lolos.
+  const body = await withDeviceLocation(dto)
+  return http.post<Order & Record<string, unknown>, WithDeviceLocation<CreateOrderDto>>(
+    "/v1/orders",
+    body,
+    {
+      auth: "required",
+      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+    },
+  ).then((raw) => normalizeOrder(readEntity<Order & Record<string, unknown>>(raw, "order")))
 }
 
 /**
@@ -229,20 +242,25 @@ export function confirmOrder(orderId: string, dto: ConfirmOrderDto) {
  * C-06 (audit escrow 2026-09-24): `idempotencyKey` opsional dari pemanggil —
  * lihat `createOrder`. Debit PIN ganda karena retry manual = dua kali debit.
  */
-export function payOrder(orderId: string, dto: PayOrderDto, idempotencyKey?: string) {
+export async function payOrder(orderId: string, dto: PayOrderDto, idempotencyKey?: string) {
   // R2 (butir #102): PayOrderDto absen dari API_CONSTRAINTS (spec tanpa
   // constraint key) — divalidasi lewat batasan lokal; jangan mengirim PIN
   // yang pasti ditolak backend.
   assertDtoConstraints(dto, LOCAL_CONSTRAINTS.PayOrderDto)
-  return http.post<Order, PayOrderDto>(`/v1/orders/${seg(orderId)}/pay`, dto, {
+  const body = await withDeviceLocation(dto)
+  return http.post<Order, WithDeviceLocation<PayOrderDto>>(`/v1/orders/${seg(orderId)}/pay`, body, {
     auth: "required",
     ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
   })
 }
 
-export function payOrderQris(orderId: string, idempotencyKey?: string) {
+export async function payOrderQris(orderId: string, idempotencyKey?: string) {
+  // Kontrak lintas tim 2026-09-27: body membawa deviceLocation opsional.
+  const body = await deviceLocationOnlyBody()
   return http
-    .post<unknown>(`/v1/orders/${seg(orderId)}/pay-qris`, undefined, {
+    .post<unknown, { deviceLocation: LocationDto | null }>(
+      `/v1/orders/${seg(orderId)}/pay-qris`,
+      body, {
       auth: "required",
       // I-07 (audit end-to-end): intent QRIS ganda = dua tagihan untuk satu
     // order saat retry manual — kunci pemanggil (satu per sesi intent).
@@ -362,29 +380,44 @@ export function updateShipping(orderId: string, dto: UpdateShippingDto) {
  * I-08 (audit end-to-end 2026-09-24): `POST /v1/orders/{id}/complete` di
  * spesifikasi TANPA `requestBody` — komentar A-13 lama mengklaim rilis dana
  * membawa `ConfirmDeliveryDto`, padahal body `{}`/`{proofId}` hanya sah di
- * `/delivery-proof/confirm`. Kirim tanpa body mengikuti kontrak; validator
- * strict backend tidak lagi berpeluang menolak rilis dana dengan 400.
+ * `/delivery-proof/confirm`. Sejak kontrak lintas tim 2026-09-27, body HANYA
+ * boleh membawa `deviceLocation` opsional — validator backend menerimanya.
  */
-export function completeOrder(orderId: string, idempotencyKey?: string) {
+export async function completeOrder(orderId: string, idempotencyKey?: string) {
   // R2 (audit ronde-2, butir #17): pelepasan dana berlindung idempotensi
   // (pola C-06 createOrder/payOrder) — aman bila backend mengabaikan header.
-  return http.post<Order>(`/v1/orders/${seg(orderId)}/complete`, undefined, {
-    auth: "required",
-    ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
-  })
+  const body = await deviceLocationOnlyBody()
+  return http.post<Order, { deviceLocation: LocationDto | null }>(
+    `/v1/orders/${seg(orderId)}/complete`,
+    body,
+    {
+      auth: "required",
+      ...(idempotencyKey ? { headers: { "Idempotency-Key": idempotencyKey } } : {}),
+    },
+  )
 }
 
-export function cancelOrder(orderId: string, dto: CancelOrderDto) {
+export async function cancelOrder(orderId: string, dto: CancelOrderDto) {
   assertDtoConstraints(dto, API_CONSTRAINTS.CancelOrderDto)
-  return http.post<Order, CancelOrderDto>(`/v1/orders/${seg(orderId)}/cancel`, dto, {
-    auth: "required",
-  })
+  const body = await withDeviceLocation(dto)
+  return http.post<Order, WithDeviceLocation<CancelOrderDto>>(
+    `/v1/orders/${seg(orderId)}/cancel`,
+    body,
+    {
+      auth: "required",
+    },
+  )
 }
 
-export function submitDispute(orderId: string, dto: SubmitDisputeDto) {
-  return http.post<Dispute, SubmitDisputeDto>(`/v1/orders/${seg(orderId)}/dispute`, dto, {
-    auth: "required",
-  })
+export async function submitDispute(orderId: string, dto: SubmitDisputeDto) {
+  const body = await withDeviceLocation(dto)
+  return http.post<Dispute, WithDeviceLocation<SubmitDisputeDto>>(
+    `/v1/orders/${seg(orderId)}/dispute`,
+    body,
+    {
+      auth: "required",
+    },
+  )
 }
 
 /**

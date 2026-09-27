@@ -35,6 +35,9 @@ export default defineConfig({
       "expo-clipboard": stub("expo-clipboard"),
       // `expo-sharing` ditarik lib/share (sheet OS share) — native EventEmitter.
       "expo-sharing": stub("expo-sharing"),
+      // `expo-location` ditarik lib/location (getAuthLocation) — kini di graf
+      // impor facade API aksi sensitif; stub mengembalikan "izin ditolak".
+      "expo-location": stub("expo-location"),
     },
   },
   /**
