@@ -645,13 +645,26 @@ export default function OrderDetailScreen() {
     // kalimat Indonesia yang dirakit di lapisan format.
     const parts = hours != null ? durationHoursParts(hours) : null
     if (!parts) return undefined
-    // Item 37: estimasi rata-rata TIDAK ditampilkan bila melebihi tenggat
-    // aktual order — estimasi yang menjanjikan "biasanya 3 hari" padahal
-    // tenggatnya besok adalah informasi yang menyesatkan.
-    if (hours != null && order.deliveryDeadlineAt) {
-      const deadlineMs = new Date(order.deliveryDeadlineAt).getTime()
-      if (Number.isFinite(deadlineMs) && serverNow() + hours * 3_600_000 > deadlineMs) {
-        return undefined
+    // Item 37 (final review): estimasi rata-rata TIDAK ditampilkan bila
+    // melebihi tenggat AKTUAL yang mengatur transisi berikutnya — bukan
+    // selalu deliveryDeadlineAt:
+    //   PROCESSING → IN_DELIVERY : batas kirim penjual (shippingDeadline)
+    //   IN_DELIVERY → COMPLETED  : auto-complete (autoCompleteAt)
+    //   lainnya                  : deliveryDeadlineAt (fallback lama)
+    // Estimasi yang menjanjikan "biasanya 3 hari" padahal tenggatnya besok
+    // adalah informasi yang menyesatkan.
+    if (hours != null) {
+      const relevantDeadline =
+        next === "IN_DELIVERY"
+          ? (order.shippingDeadline ?? order.deliveryDeadlineAt)
+          : next === "COMPLETED"
+            ? (order.autoCompleteAt ?? order.deliveryDeadlineAt)
+            : order.deliveryDeadlineAt
+      if (relevantDeadline) {
+        const deadlineMs = new Date(relevantDeadline).getTime()
+        if (Number.isFinite(deadlineMs) && serverNow() + hours * 3_600_000 > deadlineMs) {
+          return undefined
+        }
       }
     }
     return {
