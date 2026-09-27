@@ -2,9 +2,11 @@
  * Kosakata ikon header Etalase & bottom navbar (revisi 2026-09-27, redesign
  * navigasi mobile).
  *
- *   - Header Etalase: hamburger = List (buka drawer), cari = MagnifyingGlass,
- *     keduanya weight regular (bukan bold/fill). Pensil & lonceng DIHAPUS
- *     dari header (pensil → tombol (+) bar; lonceng → tab Notifikasi).
+ *   - Header Etalase: tombol menu = Equals (ikon equal, buka drawer),
+ *     cari = MagnifyingGlass, keduanya weight regular (bukan bold/fill).
+ *     Pensil & lonceng DIHAPUS dari header (pensil → tombol (+) bar;
+ *     lonceng → tab Notifikasi). Revisi 2026-09-27: hamburger List → Equals
+ *     atas permintaan produk.
  *   - Bottom navbar TETAP: Etalase = CardsThree, Transaksi = ShoppingBag,
  *     Pesan = ChatCenteredText, Notifikasi = BellSimple.
  *
@@ -62,7 +64,7 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe("kosakata ikon header Etalase", () => {
-  it("hamburger & cari = List / MagnifyingGlass, weight regular; tanpa pensil & lonceng", () => {
+  it("tombol menu & cari = Equals / MagnifyingGlass, weight regular; tanpa pensil & lonceng", () => {
     render(
       <ThemeProvider>
         <ShowcaseHeader kind="forYou" onKindChange={() => undefined} tabs={TABS} />
@@ -72,7 +74,7 @@ describe("kosakata ikon header Etalase", () => {
     const menu = iconsIn(screen.getByRole("button", { name: "Menu" }))
     const search = iconsIn(screen.getByRole("button", { name: "Cari" }))
 
-    expect(menu).toEqual([{ name: "List", weight: "regular" }])
+    expect(menu).toEqual([{ name: "Equals", weight: "regular" }])
     expect(search).toEqual([{ name: "MagnifyingGlass", weight: "regular" }])
     // Pensil pindah ke tombol (+) bar; lonceng pindah ke tab Notifikasi.
     expect(screen.queryByRole("button", { name: "Buat karya baru" })).toBeNull()

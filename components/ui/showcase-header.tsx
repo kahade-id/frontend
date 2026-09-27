@@ -9,7 +9,7 @@
  *   1. Baris atas TIGA elemen simetris: hamburger (BUKA DRAWER) di kiri,
  *      logo Kahade tepat di tengah, pencarian di kanan. Ikon memakai weight
  *      "regular" (BUKAN bold/fill) dan TANPA background.
- *      Glif: List (list/hamburger) dan MagnifyingGlass.
+ *      Glif: Equals (ikon equal, buka drawer) dan MagnifyingGlass.
  *   2. Pensil "buat karya" PINDAH ke tombol (+) di bottom navbar (action
  *      sheet "Buat Karya" → /showcase/create) — satu pintu pembuatan untuk
  *      seluruh app.
@@ -27,7 +27,7 @@ import { View } from "react-native"
 import { useRouter } from "expo-router"
 import {
   ClockCounterClockwise,
-  List,
+  Equals,
   MagnifyingGlass,
   Sparkle,
   TrendUp,
@@ -74,8 +74,8 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
       {/* ── Baris atas: menu (hamburger) · logo · cari ── */}
       <View className="w-full flex-row items-center justify-between px-5 pb-2.5 pt-3">
         {/*
-          Hamburger = BUKA DRAWER/SIDEBAR (revisi 2026-09-27): menggantikan
-          pensil "buat karya" yang pindah ke tombol (+) bottom navbar.
+          Tombol menu = BUKA DRAWER/SIDEBAR (revisi 2026-09-27): ikon Equal
+          menggantikan hamburger List atas permintaan produk.
         */}
         <View className="flex-row items-center justify-start min-w-[84px]">
           <PressableScale
@@ -88,7 +88,7 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
             containerClassName={cn("rounded-md", focusRing)}
             className="h-10 w-10 items-center justify-center"
           >
-            <Icon icon={List} size="md" weight="regular" tone="active" />
+            <Icon icon={Equals} size="md" weight="regular" tone="active" />
           </PressableScale>
         </View>
 
