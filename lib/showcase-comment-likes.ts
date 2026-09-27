@@ -13,7 +13,7 @@
  * sinkronisasinya. Optimistic-only + fail-open: toggle tidak pernah melempar.
  */
 
-import { useSyncExternalStore } from "react"
+import { useMemo, useSyncExternalStore } from "react"
 
 import { getSessionRevision, subscribeSession } from "@/lib/api/session"
 
@@ -22,13 +22,28 @@ export type ShowcaseCommentLikeState = { isLiked: boolean; likeCount: number }
 /** Override isLiked per commentId untuk sesi berjalan. */
 const overrides = new Map<string, boolean>()
 const listeners = new Set<() => void>()
+/**
+ * Counter versi store — dipakai sebagai snapshot `useSyncExternalStore`
+ * (angka stabil secara referensi), BUKAN hasil `resolve…` yang membangun
+ * object baru tiap panggilan dan bisa memicu loop render.
+ */
+let storeVersion = 0
 
 function subscribe(listener: () => void) {
   listeners.add(listener)
   return () => void listeners.delete(listener)
 }
 
+function getVersion() {
+  return storeVersion
+}
+
+function getServerVersion() {
+  return 0
+}
+
 function emit() {
+  storeVersion += 1
   for (const listener of listeners) listener()
 }
 
@@ -76,10 +91,14 @@ export function useShowcaseCommentLike(
   commentId: string,
   base?: { isLiked?: boolean; likeCount?: number },
 ): ShowcaseCommentLikeState {
-  return useSyncExternalStore(
-    subscribe,
-    () => resolveShowcaseCommentLike(commentId, base),
-    () => ({ isLiked: false, likeCount: 0 }),
+  // Snapshot berupa angka versi (stabil) — object hasil resolve dibangun
+  // lewat useMemo agar referentially stable antar render.
+  const version = useSyncExternalStore(subscribe, getVersion, getServerVersion)
+  const isLiked = base?.isLiked ?? false
+  const likeCount = base?.likeCount ?? 0
+  return useMemo(
+    () => resolveShowcaseCommentLike(commentId, { isLiked, likeCount }),
+    [commentId, isLiked, likeCount, version],
   )
 }
 

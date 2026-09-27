@@ -31,7 +31,7 @@
  *    ketikan; kembali ke item lama memulihkannya. Ganti sesi membuang semua.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { ChatCircle, Copy, Flag, PaperPlaneRight, Trash, X } from "phosphor-react-native"
 import { ScrollView, View, useWindowDimensions } from "react-native"
 import { router } from "expo-router"
@@ -48,6 +48,10 @@ import { createIdempotencyKey, isApiError, userMessage } from "@/lib/api"
 import { getMeCached, pickPublicUserId } from "@/lib/api/users"
 import { useCopy } from "@/lib/clipboard"
 import { queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
+import {
+  sortShowcaseComments,
+  type ShowcaseCommentOrder,
+} from "@/lib/showcase-social"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { formatNumber } from "@/lib/format"
@@ -60,6 +64,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { ActionSheet } from "@/components/ui/action-sheet"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { Chip } from "@/components/ui/chip"
 import { Divider } from "@/components/ui/divider"
 import { ErrorState } from "@/components/ui/error-state"
 import { Icon } from "@/components/ui/icon"
@@ -104,6 +109,8 @@ export function ShowcaseCommentsSheet({
     { useCache: false },
   )
 
+  /** Item 49 (FE-IMP-1): urutan komentar — Terbaru / Terlama. */
+  const [commentOrder, setCommentOrder] = useState<ShowcaseCommentOrder>("newest")
   /** Komentar yang ditulis dari komposer sheet (belum tentu ada di query). */
   const [localComments, setLocalComments] = useState<ShowcaseCommentWithReplies[]>([])
   const [draft, setDraft] = useState("")
@@ -259,7 +266,12 @@ export function ShowcaseCommentsSheet({
 
   const localIds = new Set(localComments.map((c) => c.id))
   const serverComments = query.data?.data.filter((c) => !localIds.has(c.id)) ?? []
-  const comments = [...localComments, ...serverComments]
+  // Item 49: urutkan sisi klien (backend tidak punya param sort untuk
+  // komentar) — deterministik, seri dipecah id.
+  const comments = useMemo(
+    () => sortShowcaseComments([...localComments, ...serverComments], commentOrder),
+    [localComments, serverComments, commentOrder],
+  )
 
   /**
    * G-01: total = total server + komentar lokal yang BELUM tercakup server.
@@ -356,6 +368,32 @@ export function ShowcaseCommentsSheet({
           menyambung dua tepi layar seperti header sheet, bukan mengikuti
           indent konten). */}
       <Divider className="mb-3" />
+
+      {/* Item 49 (FE-IMP-1): pengatur urutan komentar — Terbaru / Terlama.
+          Hanya tampil bila ada ≥2 komentar yang bisa diurutkan. */}
+      {comments.length >= 2 ? (
+        <View className="flex-row items-center justify-end gap-2 px-5 pb-2">
+          <Text variant="caption" tone="secondary">
+            {translate("Urutkan:")}
+          </Text>
+          <Chip
+            selected={commentOrder === "newest"}
+            accessibilityState={{ selected: commentOrder === "newest" }}
+            accessibilityLabel={translate("Urutkan komentar terbaru dulu")}
+            onPress={() => setCommentOrder("newest")}
+          >
+            {translate("Terbaru")}
+          </Chip>
+          <Chip
+            selected={commentOrder === "oldest"}
+            accessibilityState={{ selected: commentOrder === "oldest" }}
+            accessibilityLabel={translate("Urutkan komentar terlama dulu")}
+            onPress={() => setCommentOrder("oldest")}
+          >
+            {translate("Terlama")}
+          </Chip>
+        </View>
+      ) : null}
 
       {loading ? (
         <SkeletonGroup className="gap-4 px-5 py-2">

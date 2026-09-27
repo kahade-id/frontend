@@ -9,12 +9,14 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { View } from "react-native"
+import { router } from "expo-router"
 
 import { Heart, BookmarkSimple } from "phosphor-react-native"
 import { Avatar } from "@/components/ui/avatar"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Tabs, type TabItem } from "@/components/ui/tabs"
 import { Text } from "@/components/ui/text"
@@ -24,9 +26,13 @@ import {
   type ShowcaseLiker,
 } from "@/lib/api/showcase"
 import { isApiError } from "@/lib/api"
+import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
 import { formatRelativeTime } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
+import { ROUTES } from "@/lib/routes"
+import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
 
 export type LikersTab = "likers" | "savers"
@@ -80,6 +86,8 @@ export function ShowcaseLikersSheet({
   initialTab = "likers",
 }: Props) {
   useLanguage()
+  // H-04: profil = layar terproteksi — tamu diarahkan ke loginRequired.
+  const hasSession = useHasSession()
   const [tab, setTab] = useState<LikersTab>(initialTab)
   /**
    * 403 saat memuat penyimpan = viewer ternyata bukan pemilik (mis. item
@@ -202,7 +210,25 @@ export function ShowcaseLikersSheet({
         ) : (
           <View>
             {active.data.map((person) => (
-              <View key={person.key} className="flex-row items-center gap-3 py-2.5">
+              <PressableScale
+                key={person.key}
+                accessibilityRole="button"
+                accessibilityLabel={translate("Lihat profil {x}", {
+                  x: person.fullName?.trim() || (person.username ? `@${person.username}` : person.key),
+                })}
+                // Item 52 (FE-IMP-1): baris penyuka/penyimpan BISA diketuk → profil.
+                onPress={() => {
+                  onClose()
+                  if (!person.username) return
+                  router.push(
+                    hasSession
+                      ? ROUTES.userProfile(person.username)
+                      : ROUTES.loginRequired(`/user/${encodeURIComponent(person.username)}`),
+                  )
+                }}
+                containerClassName={cn("-mx-2 rounded-md px-2", focusRing)}
+                className="flex-row items-center gap-3 py-2.5"
+              >
                 <Avatar source={person.avatarUrl ?? undefined} name={displayName(person)} size="md" />
                 <View className="flex-1">
                   <Text variant="label" numberOfLines={1}>
@@ -219,7 +245,7 @@ export function ShowcaseLikersSheet({
                     {formatRelativeTime(person.at)}
                   </Text>
                 ) : null}
-              </View>
+              </PressableScale>
             ))}
             {active.status === "idle" && active.hasNext ? (
               <Button

@@ -15,13 +15,14 @@
  */
 import { useEffect, useRef, useState } from "react"
 import { ScrollView, View } from "react-native"
-import { CaretLeft, CaretRight, Play } from "phosphor-react-native"
+import { CaretLeft, CaretRight, Play, SpeakerHigh, SpeakerSimpleX } from "phosphor-react-native"
 import { cn } from "@/lib/cn"
 import { Picture } from "@/components/ui/picture"
 import { FeedVideo } from "@/components/ui/feed-video"
 import { Icon } from "@/components/ui/icon"
 import { Text } from "@/components/ui/text"
 import { PressableScale } from "@/components/ui/pressable-scale"
+import { formatCountdown } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 import { useDataSaver } from "@/lib/ui-prefs"
@@ -162,6 +163,19 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
           ))}
         </ScrollView>
       )}
+      {/* Item 156 (FE-IMP-1): penghitung posisi "3/8" — konsisten dengan
+          <ImageViewer> yang sudah punya "3 dari 8". */}
+      {media.length > 1 ? (
+        <View
+          className="absolute right-2 top-2 rounded-full bg-overlay-media px-2 py-0.5"
+          accessible
+          accessibilityLabel={translate("Media {x} dari {y}", { x: page + 1, y: media.length })}
+        >
+          <Text variant="caption" weight={600} className="text-white tabular-nums">
+            {page + 1}/{media.length}
+          </Text>
+        </View>
+      ) : null}
       {media.length > 1 ? (
         // B-11 (audit 2026-09-23): kontrol + indikator TITIK di-overlay di
         // kaki gambar (scrim hitam kedua mode, sama dengan "+N" pada
@@ -182,13 +196,20 @@ export function ShowcaseMediaGallery({ media, title, onOpen, onDoubleTap, autopl
             <CaretLeft size={18} color="#FFFFFF" weight="bold" />
           </PressableScale>
           <View className="flex-row items-center gap-3">
+            {/* Item 155 (FE-IMP-1): titik indikator BISA diketuk → lompat ke
+                slide. Dulu <View> mati (hanya panah yang bisa dipakai). */}
             <View accessible accessibilityLabel={translate("Media {x} dari {y}", { x: page + 1, y: media.length })} accessibilityLiveRegion="polite" className="flex-row items-center gap-1.5">
               {media.map((m, index) => (
-                <View
+                <PressableScale
                   key={`dot-${m.id}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={translate("Ke media {x}", { x: index + 1 })}
+                  accessibilityState={{ selected: index === page }}
+                  onPress={() => move(index)}
+                  containerClassName="min-h-8 min-w-6 items-center justify-center rounded-full"
                   className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    index === page ? "bg-white" : "bg-white opacity-40",
+                    "h-1.5 rounded-full",
+                    index === page ? "w-4 bg-white" : "w-1.5 bg-white opacity-40",
                   )}
                 />
               ))}
@@ -229,47 +250,96 @@ function VideoSlide({
   onTap: () => void
   onRequestPlay: () => void
 }) {
-  if (gated) {
-    return (
+  /**
+   * Item 50 (FE-IMP-1): toggle speaker per video. State lokal per slide —
+   * default muted (perilaku feed sosial); ketuk ikon untuk dengar suara.
+   * Tombol di-render SEBAGAI SAUDARA (bukan anak) PressableScale luar supaya
+   * ketuk speaker tidak ikut memicu toggle play/pause ketuk-tunggal.
+   */
+  const [muted, setMuted] = useState(true)
+  // Item 59 (FE-IMP-1): eksplisit — saat gated (hemat data, belum diketuk),
+  // autoplay TIDAK BOLEH jalan; `shouldPlay` hanya berlaku setelah video
+  // dimuat manual oleh pengguna.
+  const effectiveShouldPlay = gated ? false : shouldPlay
+  const toggleMute = () => setMuted((m) => !m)
+
+  const muteButton = (
+    <View className="absolute bottom-2 right-2">
       <PressableScale
         accessibilityRole="button"
-        accessibilityLabel={translate("Putar video: {x}", { x: title })}
-        accessibilityHint={translate("Mode hemat data aktif. Ketuk untuk memuat video.")}
-        onPress={onRequestPlay}
-        containerClassName="w-full"
+        accessibilityLabel={muted ? translate("Nyalakan suara video") : translate("Bisukan video")}
+        onPress={toggleMute}
+        containerClassName="rounded-full"
       >
-        <View className="relative aspect-square w-full items-center justify-center gap-1.5 bg-surface px-8">
-          {media.posterUrl ? (
-            <Picture
-              source={media.posterUrl}
-              alt={title}
-              aspectRatio={1}
-              radius="none"
-              bordered={false}
-              className="absolute inset-0"
-            />
-          ) : null}
-          <View className="items-center justify-center rounded-full bg-overlay-media p-4">
-            <Icon icon={Play} size="lg" weight="fill" tone="inverse" />
-          </View>
-          <Text variant="caption" tone="secondary" className="text-center">
-            {translate("Mode hemat data")}
-          </Text>
-          <Text variant="caption" tone="tertiary" className="text-center">
-            {translate("Ketuk untuk memuat video")}
-          </Text>
+        <View className="items-center justify-center rounded-full bg-overlay-media p-2">
+          <Icon icon={muted ? SpeakerSimpleX : SpeakerHigh} size="sm" tone="inverse" />
         </View>
       </PressableScale>
+    </View>
+  )
+
+  if (gated) {
+    return (
+      <View className="relative w-full">
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={translate("Putar video: {x}", { x: title })}
+          accessibilityHint={translate("Mode hemat data aktif. Ketuk untuk memuat video.")}
+          onPress={onRequestPlay}
+          containerClassName="w-full"
+        >
+          <View className="relative aspect-square w-full items-center justify-center gap-1.5 bg-surface px-8">
+            {media.posterUrl ? (
+              <Picture
+                source={media.posterUrl}
+                alt={title}
+                aspectRatio={1}
+                radius="none"
+                bordered={false}
+                className="absolute inset-0"
+              />
+            ) : null}
+            <View className="items-center justify-center rounded-full bg-overlay-media p-4">
+              <Icon icon={Play} size="lg" weight="fill" tone="inverse" />
+            </View>
+            <Text variant="caption" tone="secondary" className="text-center">
+              {translate("Mode hemat data")}
+            </Text>
+            <Text variant="caption" tone="tertiary" className="text-center">
+              {translate("Ketuk untuk memuat video")}
+            </Text>
+          </View>
+        </PressableScale>
+        {/* Item 57: badge durasi juga tampil di poster gated. */}
+        {media.durationSec != null ? (
+          <View className="absolute bottom-2 left-2 rounded-full bg-overlay-media px-2 py-0.5">
+            <Text variant="caption" weight={600} className="text-white tabular-nums">
+              {formatCountdown(media.durationSec)}
+            </Text>
+          </View>
+        ) : null}
+      </View>
     )
   }
   return (
-    <PressableScale
-      accessibilityRole="button"
-      accessibilityLabel={translate("Video: {x}. Ketuk untuk putar atau jeda.", { x: title })}
-      onPress={onTap}
-      containerClassName="w-full"
-    >
-      <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={shouldPlay} />
-    </PressableScale>
+    <View className="relative w-full">
+      <PressableScale
+        accessibilityRole="button"
+        accessibilityLabel={translate("Video: {x}. Ketuk untuk putar atau jeda.", { x: title })}
+        onPress={onTap}
+        containerClassName="w-full"
+      >
+        <FeedVideo source={media.url} poster={media.posterUrl} alt={title} shouldPlay={effectiveShouldPlay} muted={muted} />
+      </PressableScale>
+      {muteButton}
+      {/* Item 57: badge durasi ala TikTok/IG di thumbnail video. */}
+      {media.durationSec != null ? (
+        <View className="absolute bottom-2 left-2 rounded-full bg-overlay-media px-2 py-0.5">
+          <Text variant="caption" weight={600} className="text-white tabular-nums">
+            {formatCountdown(media.durationSec)}
+          </Text>
+        </View>
+      ) : null}
+    </View>
   )
 }

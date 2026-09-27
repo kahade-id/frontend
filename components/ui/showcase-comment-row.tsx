@@ -28,20 +28,25 @@ import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
  *   - Semua aksi (menu, balas) OPSIONAL: sheet hanya membaca, jadi barisnya
  *     cukup tampil statis tanpa affordance yang tidak berfungsi.
  */
-import { DotsThree } from "phosphor-react-native"
+import { DotsThree, Heart } from "phosphor-react-native"
 import type { ReactNode } from "react"
 import { View } from "react-native"
-import { router } from "expo-router"
+import { router, usePathname } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
 import type { ShowcaseComment } from "@/lib/api/showcase"
-import { formatRelativeTime } from "@/lib/format"
+import { formatRelativeTime, formatCountCompact } from "@/lib/format"
 import { useHasSession } from "@/lib/guest-gate"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { ROUTES } from "@/lib/routes"
+import {
+  toggleShowcaseCommentLike,
+  useShowcaseCommentLike,
+} from "@/lib/showcase-comment-likes"
 
 import { Avatar } from "@/components/ui/avatar"
+import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -101,11 +106,30 @@ export function ShowcaseCommentRow({
   avatarSize = "sm",
 }: ShowcaseCommentRowProps) {
   const hasSession = useHasSession()
+  const pathname = usePathname()
   const hidden = comment.isHidden === true
   const authorName = comment.author.fullName ?? comment.author.username
   const username = comment.author.username
   const edited = isEditedComment(comment.createdAt, comment.updatedAt)
   const timeLabel = formatRelativeTime(comment.createdAt)
+  /**
+   * Item 48 (FE-IMP-1): like komentar. Backend BELUM punya endpoint like
+   * komentar → state lokal sesi ini (lib/showcase-comment-likes.ts);
+   * `likeCount`/`isLiked` dari server dipakai bila suatu hari dikirim.
+   */
+  const commentLike = useShowcaseCommentLike(comment.id, {
+    isLiked: comment.isLiked,
+    likeCount: comment.likeCount,
+  })
+  const handleCommentLike = () => {
+    // P3: tamu diarahkan login dulu — jangan "like" lokal yang tak tersimpan.
+    if (!hasSession) {
+      router.push(ROUTES.loginRequired(pathname))
+      return
+    }
+    if (hidden) return
+    toggleShowcaseCommentLike(comment.id, { isLiked: comment.isLiked, likeCount: comment.likeCount })
+  }
 
   return (
     <View className={cn("flex-row gap-2", className)}>
@@ -203,8 +227,10 @@ export function ShowcaseCommentRow({
           </Text>
         ) : null}
 
-        {canReply && onReply ? (
-          <View className="flex-row items-center pt-0.5">
+        {/* Item 48: baris aksi komentar — Balas + Suka (hati kecil + hitungan).
+            Selalu tampil supaya like bisa dipakai di sheet maupun detail. */}
+        <View className="flex-row items-center gap-4 pt-0.5">
+          {canReply && onReply ? (
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={translate("Balas komentar")}
@@ -215,8 +241,41 @@ export function ShowcaseCommentRow({
                 {translate("Balas")}
               </Text>
             </PressableScale>
-          </View>
-        ) : null}
+          ) : null}
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={
+              commentLike.isLiked
+                ? translate("Batal sukai komentar")
+                : translate("Sukai komentar")
+            }
+            accessibilityHint={
+              commentLike.likeCount > 0
+                ? translate("{x} suka", { x: formatCountCompact(commentLike.likeCount) })
+                : undefined
+            }
+            onPress={handleCommentLike}
+            containerClassName={cn("rounded-sm", focusRing)}
+            className="flex-row items-center gap-1 py-1"
+          >
+            <Icon
+              icon={Heart}
+              size="xs"
+              weight={commentLike.isLiked ? "fill" : "regular"}
+              tone={commentLike.isLiked ? "danger" : "default"}
+            />
+            {commentLike.likeCount > 0 ? (
+              <Text
+                variant="caption"
+                tone={commentLike.isLiked ? "danger" : "secondary"}
+                weight={500}
+                className="tabular-nums"
+              >
+                {formatCountCompact(commentLike.likeCount)}
+              </Text>
+            ) : null}
+          </PressableScale>
+        </View>
 
         {/* Balasan hidup di kolom yang SAMA dengan komentar induk, sehingga
             garis utas di kiri benar-benar menyambung keduanya. */}

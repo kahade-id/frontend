@@ -32,6 +32,17 @@ export type TransactionsTab = "buyer" | "seller"
  */
 export type ShowcaseFeedTab = "forYou" | "following" | "latest" | "popular"
 
+/**
+ * Item 47 (FE-IMP-1): parser fail-closed untuk tab feed — dipakai param URL
+ * deep link maupun nilai yang dibaca dari SecureStore. Nilai asing/undefined
+ * → "forYou" (tab default).
+ */
+export function parseShowcaseFeedTab(raw: unknown): ShowcaseFeedTab {
+  return raw === "following" || raw === "latest" || raw === "popular" || raw === "forYou"
+    ? raw
+    : "forYou"
+}
+
 export type UiPrefs = {
   /** Saldo disembunyikan (privasi bahu-penumpang) — dipakai Beranda & Dompet. */
   balanceHidden: boolean

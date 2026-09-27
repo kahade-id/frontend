@@ -129,8 +129,12 @@ export function ShowcaseShareSheet({ visible, item, onClose }: Props) {
           <Button variant="secondary" leftIcon={ShareNetwork} onPress={() => void openUrl(xUrl)} fullWidth>
             X (Twitter)
           </Button>
-          <Button variant="ghost" leftIcon={ShareNetwork} onPress={() => void handleSystem()} fullWidth>
-            Lainnya (aplikasi lain)
+          {/* Item 51 (FE-IMP-1): "Aplikasi lain" membuka system share sheet OS
+              (daftar aplikasi terinstal) — bukan sekadar salin tautan. */}
+          <Button variant="ghost" leftIcon={ShareNetwork} onPress={() => void handleSystem()} fullWidth
+            accessibilityHint={translate("Buka daftar aplikasi di perangkat untuk berbagi")}
+          >
+            {translate("Aplikasi lain")}
           </Button>
         </View>
         <View className="gap-1 pt-2">

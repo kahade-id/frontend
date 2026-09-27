@@ -40,6 +40,7 @@ import {
   useRef,
   useState,
   type ReactNode,
+  type Ref,
 } from "react"
 import {
   Animated,
@@ -844,6 +845,11 @@ export type PullToRefreshFlatListProps<ItemT> = Omit<
   onScroll?: FlatListProps<ItemT>["onScroll"]
   /** Worklet scroll per-frame (jalur Android — dipanggil dari JS thread; web/iOS pakai onScroll). */
   onScrollWorklet?: (offsetY: number) => void
+  /**
+   * Ref ke FlatList dalam (mis. tombol "Kembali ke atas" di feed).
+   * React 19: ref diteruskan eksplisit, bukan lewat rest-spread.
+   */
+  listRef?: Ref<FlatList<ItemT>>
 }
 
 /** FlatList virtual dengan gesture custom yang sama, tanpa ScrollView luar. */
@@ -855,6 +861,7 @@ export function PullToRefreshFlatList<ItemT>({
   onRefreshThresholdReached,
   onScroll,
   onScrollWorklet,
+  listRef,
   ...listProps
 }: PullToRefreshFlatListProps<ItemT>) {
   // Android: PTR kustom RNGH (lihat catatan NativePullGestureSurface).
@@ -870,7 +877,7 @@ export function PullToRefreshFlatList<ItemT>({
         onScrollWorklet={onScrollWorklet}
         className="flex-1"
       >
-        {(scrollBindings) => <FlatList removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
+        {(scrollBindings) => <FlatList ref={listRef} removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
       </NativePullGestureSurface>
     )
   }
@@ -885,7 +892,7 @@ export function PullToRefreshFlatList<ItemT>({
       onScroll={onScroll}
       className="flex-1"
     >
-      {(scrollBindings) => <FlatList removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
+      {(scrollBindings) => <FlatList ref={listRef} removeClippedSubviews={false} collapsable={false} {...listProps} {...scrollBindings} />}
     </PullGestureSurface>
   )
 }
