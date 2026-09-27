@@ -1220,8 +1220,11 @@ export type SendMessageDto = {
   /**
    * Message type (TEXT, IMAGE, FILE, or VOICE). SYSTEM is reserved for internal use.
    * default "TEXT"
+   *
+   * Batch 43: LOCATION (kirim koordinat), PRODUCT_CARD / ORDER_CARD
+   * (snapshot dibekukan backend saat kirim).
    */
-  messageType?: "TEXT" | "IMAGE" | "FILE" | "VIDEO" | "VOICE"
+  messageType?: "TEXT" | "IMAGE" | "FILE" | "VIDEO" | "VOICE" | "LOCATION" | "PRODUCT_CARD" | "ORDER_CARD"
   /**
    * Message content
    * maxLength 2000
@@ -1241,6 +1244,19 @@ export type SendMessageDto = {
    * maxLength 500
    */
   caption?: string
+  /** Batch 43: lokasi untuk pesan LOCATION ({ lat, lng, label? }). */
+  location?: { lat: number; lng: number; label?: string }
+  /** Batch 43: ID etalase untuk pesan PRODUCT_CARD. */
+  showcaseId?: string
+  /** Batch 43: ID order (cuid internal) untuk pesan ORDER_CARD. */
+  orderId?: string
+  /**
+   * Batch 43: TTL pesan sementara dalam detik (5–604800). Pesan dihapus
+   * permanen setelah kedaluwarsa.
+   */
+  ephemeralTtlSeconds?: number
+  /** Batch 43: pesan sekali-lihat — hilang setelah dibaca lawan bicara. */
+  viewOnce?: boolean
 }
 
 export type EditMessageDto = {
