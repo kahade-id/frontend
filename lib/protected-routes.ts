@@ -19,6 +19,7 @@ export const AUTHENTICATED_SCREENS = [
   "(tabs)",
   "(auth)/setup-profile",
   "account-type",
+  "addresses",
   "analytics",
   "badges",
   "bank-accounts",

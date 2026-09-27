@@ -49,6 +49,7 @@ import {
   Headset,
   Info,
   Lifebuoy,
+  MapPin,
   Moon,
   Scales,
   Shield,
@@ -139,6 +140,8 @@ export default function SettingsScreen() {
   const accountItems: MenuItemData[] = [
     { id: "saved", label: "Profil Tersimpan", icon: Bookmark, route: ROUTES.saved },
     { id: "edit-profile", label: "Edit Profil", icon: User, route: ROUTES.editProfile },
+    // Batch 43 (item 2): buku alamat pengiriman.
+    { id: "addresses", label: "Buku Alamat", icon: MapPin, route: ROUTES.addresses },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
     { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security },
     { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },

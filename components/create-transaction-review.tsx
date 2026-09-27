@@ -247,6 +247,7 @@ export function OrderSummarySection({
   deadlineDate,
   feeResponsibility,
   voucherCode,
+  shippingAddressLabel,
 }: {
   mode: "direct" | "link"
   role: OrderRoleValue
@@ -259,6 +260,8 @@ export function OrderSummarySection({
   deadlineDate: Date | null
   feeResponsibility: "BUYER" | "SELLER" | "SPLIT"
   voucherCode?: string
+  /** Batch 43 (item 2): alamat pengiriman terpilih (hanya FISIK). */
+  shippingAddressLabel?: string
 }) {
   return (
     <FormSection title="Ringkasan" divider>
@@ -270,6 +273,9 @@ export function OrderSummarySection({
         ) : null}
         <KeyValue label="Judul" value={title.trim()} />
         <KeyValue label="Jenis" value={ORDER_TYPE_LABELS[orderType]} />
+        {shippingAddressLabel ? (
+          <KeyValue label="Alamat kirim" value={shippingAddressLabel} />
+        ) : null}
         <KeyValue label="Nilai transaksi" value={formatRupiah(orderValue)} />
         <KeyValue label="Tenggat" value={deadlineDate ? formatDateLong(deadlineDate) : "—"} />
         <KeyValue

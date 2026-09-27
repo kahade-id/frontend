@@ -373,6 +373,8 @@ export const ROUTES = {
   ratings: "/ratings" as Href,
   /** Voucher (available + my-usage + redeem) */
   vouchers: "/vouchers" as Href,
+  /** Buku alamat (batch 43, item 2 — GET/POST/PATCH/DELETE /v1/addresses) */
+  addresses: "/addresses" as Href,
   /** Badge (GET /v1/badges + /my) */
   badges: "/badges" as Href,
   /** Pencarian global (GET /v1/search) */

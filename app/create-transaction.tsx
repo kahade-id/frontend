@@ -90,6 +90,9 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import type { AppliedVoucher } from "@/components/ui/voucher-redeem-box"
+import { AddressPicker } from "@/components/ui/address-picker"
+import type { Address } from "@/lib/api/commerce"
+import { addressLabelText } from "@/lib/api/commerce"
 import { translate } from "@/lib/i18n/translate"
 import { cn } from "@/lib/cn"
 import { formatDateLong } from "@/lib/format"
@@ -291,6 +294,9 @@ export default function CreateTransactionScreen() {
   }, [schedule, scheduleLoading])
   const [voucher, setVoucher] = useState<AppliedVoucher | null>(null)
   const [applyingVoucher, setApplyingVoucher] = useState(false)
+  // Batch 43 (item 2): alamat pengiriman terpilih — hanya untuk FISIK.
+  // Belum dikirim ke server (CreateOrderDto belum punya field alamat).
+  const [shippingAddress, setShippingAddress] = useState<Address | null>(null)
   const [voucherError, setVoucherError] = useState<string | undefined>()
   const [submitting, setSubmitting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
@@ -775,6 +781,15 @@ export default function CreateTransactionScreen() {
                 labels={ORDER_TYPE_LABELS}
               />
             </Field>
+            {/* Batch 43 (item 2): alamat pengiriman hanya untuk barang FISIK. */}
+            {orderType === "PHYSICAL_GOODS" ? (
+              <Field
+                label={translate("Alamat pengiriman")}
+                helperText={translate("Alamat tujuan barang dikirim — bisa diubah di buku alamat.")}
+              >
+                <AddressPicker selected={shippingAddress} onSelect={setShippingAddress} />
+              </Field>
+            ) : null}
             <AmountInput
               value={orderValue}
               onChange={setOrderValue}
@@ -871,6 +886,11 @@ export default function CreateTransactionScreen() {
               deadlineDate={deadlineDate}
               feeResponsibility={feeResponsibility}
               voucherCode={voucher?.code}
+              shippingAddressLabel={
+                orderType === "PHYSICAL_GOODS" && shippingAddress
+                  ? `${addressLabelText(shippingAddress)} — ${shippingAddress.recipientName}, ${shippingAddress.addressLine}, ${shippingAddress.city} ${shippingAddress.postalCode}`
+                  : undefined
+              }
             />
           </>
         ) : null}
