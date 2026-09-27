@@ -52,3 +52,20 @@ export function profileUrl(username: string): string {
 export function showcaseUrl(id: string): string {
   return https(`/showcase/${encodeURIComponent(id)}`)
 }
+
+/**
+ * FE-IMP-4 item 26/27: URL transfer universal — `https://kahade.id/transfer?to=<username>&amount=<n>`.
+ *
+ * Bentuk https (bukan skema `kahade://`): pemindai tanpa aplikasi tetap
+ * membuka web app sebagai fallback (prinsip file ini), sedangkan di perangkat
+ * dengan aplikasi terverifikasi (App Links / Universal Links) tautan yang
+ * sama langsung membuka layar Transfer. `amount` opsional — "minta nominal
+ * tertentu" (item 27); layar Transfer memvalidasi ulang nominalnya.
+ */
+export function transferUrl(username: string, amount?: number): string {
+  const params = new URLSearchParams({ to: username })
+  if (amount != null && Number.isSafeInteger(amount) && amount > 0) {
+    params.set("amount", String(amount))
+  }
+  return https(`/transfer?${params.toString()}`)
+}

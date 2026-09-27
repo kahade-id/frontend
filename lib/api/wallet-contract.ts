@@ -40,6 +40,13 @@ export function normalizeWallet(raw: unknown): Wallet {
     escrowBalance: escrow,
     hasPin: typeof wallet.hasPin === "boolean" ? wallet.hasPin : undefined,
     updatedAt: typeof wallet.updatedAt === "string" ? wallet.updatedAt : undefined,
+    // FE-IMP-4 item 13: limit harian dari server (display-only "sisa limit").
+    todayTopupAmount: moneyNumber(wallet.todayTopupAmount ?? wallet.today_topup_amount),
+    todayWithdrawAmount: moneyNumber(wallet.todayWithdrawAmount ?? wallet.today_withdraw_amount),
+    todayTransferAmount: moneyNumber(wallet.todayTransferAmount ?? wallet.today_transfer_amount),
+    dailyTopupLimit: moneyNumber(wallet.dailyTopupLimit ?? wallet.daily_topup_limit),
+    dailyWithdrawLimit: moneyNumber(wallet.dailyWithdrawLimit ?? wallet.daily_withdraw_limit),
+    dailyTransferLimit: moneyNumber(wallet.dailyTransferLimit ?? wallet.daily_transfer_limit),
   } as Wallet
 }
 export function normalizeWalletTransaction(raw: unknown): WalletTransaction {
