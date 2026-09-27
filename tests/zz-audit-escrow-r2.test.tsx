@@ -333,9 +333,11 @@ describe("PROBE escrow r2 (guard) — render & i18n", () => {
 
   it("Q-27 (#65): daftar transaksi meneruskan EPOCH MS primitif sebagai until (prop stabil)", () => {
     const listScreen = src("app/(tabs)/transactions.tsx")
-    expect(listScreen).toContain("toEpochMs(item.deliveryDeadlineAt) ?? undefined")
+    // Nilai primitif epoch-ms diteruskan sebagai deadlineAt (nama variabel
+    // lokal boleh berubah saat refactor — yang dikunci adalah polanya):
+    expect(listScreen).toMatch(/toEpochMs\(\w+\.deliveryDeadlineAt\) \?\? undefined/)
     // Bentuk lama (`new Date(...)` per render → identitas baru tiap render) hilang:
-    expect(listScreen).not.toContain("new Date(toEpochMs(item.deliveryDeadlineAt) as number)")
+    expect(listScreen).not.toContain("new Date(toEpochMs(")
     // Memo: nilai primitif sama → re-render identitas stabil:
     expect(1_700_000_000_000).toBe(1_700_000_000_000)
   })

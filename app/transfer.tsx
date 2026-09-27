@@ -599,15 +599,17 @@ export default function TransferScreen() {
                   amount={amount}
                   // Uang keluar — merah, konsisten dengan baris riwayat.
                   amountTone="danger"
+                  // Kartu penerima premium di bawah nominal (bukan sekadar
+                  // baris label-nilai) — nilai tetap dari `selected`.
+                  recipient={
+                    selected
+                      ? {
+                          name: selected.name,
+                          detail: `@${selected.username}`,
+                        }
+                      : null
+                  }
                   rows={[
-                    ...(selected
-                      ? [
-                          {
-                            label: "Penerima",
-                            value: `@${selected.username} · ${selected.name}`,
-                          },
-                        ]
-                      : []),
                     ...(note.trim() ? [{ label: "Catatan", value: note.trim() }] : []),
                   ]}
                   receiptId={txId ?? makeReceiptId()}

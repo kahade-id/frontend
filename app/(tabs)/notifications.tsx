@@ -2,8 +2,9 @@
  * Tab Notifikasi (redesign navigasi 2026-09-27; redesign tampilan 2026-09-27).
  *
  * List notifikasi dari `GET /v1/notifications` (read + unread) dengan:
- *  - Tab kategori (dengan IKON — pola tab profil publik, bukan chip scroll):
- *    TRANSAKSI / PROMOSI / INFORMASI, nilai PERSIS enum API (query `category`).
+ *  - Segmen kategori gaya pill (<SegmentedControl> — selaras dengan tab peran
+ *    di halaman Transaksi): TRANSAKSI / PROMOSI / INFORMASI, nilai PERSIS
+ *    enum API (query `category`).
  *  - Tidak ada lagi tab "Semua" / "Belum dibaca": filter baca dibalik satu
  *    tombol FUNNEL di kanan header (toggle Semua ↔ Belum dibaca, query
  *    `isRead=false`).
@@ -30,7 +31,7 @@
  *  - Infinite scroll (page/limit, spec: max 100, default 20) + pull-to-refresh.
  *  - Skeleton loading pertama, EmptyState, ErrorState eksplisit.
  *
- * Komponen sistem yang dipakai: Tabs-with-icon lokal (basis <Tabs>/§9.16),
+ * Komponen sistem yang dipakai: <SegmentedControl> (§9.16),
  * NotificationListItem, LoadMore, ErrorState, EmptyState, Skeleton.
  */
 
@@ -71,12 +72,13 @@ import { Dialog } from "@/components/ui/modal"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { EmptyState } from "@/components/ui/empty-state"
+import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { NotificationListItem } from "@/components/ui/notification-list-item"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
+import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
-import { Tabs, type TabItem } from "@/components/ui/tabs"
 import { Text } from "@/components/ui/text"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { useAuthSession } from "@/lib/use-auth-session"
@@ -85,12 +87,13 @@ import { useAuthSession } from "@/lib/use-auth-session"
 // Konstanta layar
 // ------------------------------------------------------------------
 
-/** Tab kategori — selaras dengan <Tabs> profil (tanpa ikon). */
+/** Segmen kategori — gaya pill <SegmentedControl>, selaras dengan tab
+    peran di halaman Transaksi (bukan underline <Tabs>). */
 const CATEGORY_TABS = [
   { value: "TRANSAKSI", label: "Transaksi" },
   { value: "PROMOSI", label: "Promosi" },
   { value: "INFORMASI", label: "Informasi" },
-] as const satisfies readonly TabItem<NotificationCategory>[]
+] as const satisfies readonly SegmentItem<NotificationCategory>[]
 
 /** Ikon EmptyState per kategori filter (nilai enum API, bukan label). */
 const EMPTY_ICON: Record<NotificationCategory, typeof Bell> = {
@@ -437,6 +440,9 @@ function NotificationsScreen() {
       ) : (
         <Header
           title="Notifikasi"
+          // Tab top-level (bottom navbar) — tidak ada layar "sebelumnya"
+          // untuk kembali (seperti <Header title="Transaksi" showBack={false}/>).
+          showBack={false}
           right={
             <>
               {hasUnread ? (
@@ -466,14 +472,18 @@ function NotificationsScreen() {
         />
       )}
 
-      {/* Tab kategori — selaras dengan pola <Tabs> profil publik (tanpa ikon).
-          Kalau sedang memilih (mode batch) tab tetap tampil agar konteks
+      {/* Segmen kategori — gaya pill <SegmentedControl> seperti tab peran di
+          halaman Transaksi (konsisten antar tab top-level).
+          Kalau sedang memilih (mode batch) segmen tetap tampil agar konteks
           kategori yang sedang dipilih tidak hilang. */}
-      <Tabs<NotificationCategory>
-        items={CATEGORY_TABS}
-        value={category}
-        onChange={setCategory}
-      />
+      <FadeIn duration="fast" translate={false} className="bg-background px-5 pb-3 pt-3">
+        <SegmentedControl<NotificationCategory>
+          accessibilityLabel={translate("Kategori notifikasi")}
+          items={CATEGORY_TABS}
+          value={category}
+          onChange={setCategory}
+        />
+      </FadeIn>
 
       <PaginatedList
         {...query}

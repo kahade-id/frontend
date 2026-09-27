@@ -5,9 +5,9 @@
  * penarikan, bukti pembayaran order.
  *
  * Anatomi: notch perforasi kiri/kanan -> header status -> garis putus-putus
- * -> nominal besar -> baris label-nilai -> ID struk (mono) -> QR verifikasi
- * -> tombol bagikan. Watermark logo Kahade diagonal di belakang konten
- * (opacity 0.05, tidak mengganggu keterbacaan).
+ * -> nominal besar -> kartu penerima (bila ada) -> baris label-nilai -> garis
+ * putus-putus -> ID transaksi (mono) -> QR verifikasi -> tombol bagikan &
+ * chat CS -> info perusahaan.
  *
  * Keputusan non-obvious:
  *   - Notch = View lingkaran penuh dengan background WARNA PAGE (bukan
@@ -26,10 +26,12 @@
  */
 import { Image, View, type ViewProps } from "react-native"
 import type { RefObject } from "react"
+import { router } from "expo-router"
 import {
   ArrowUDownLeft,
   CheckCircle,
   Clock,
+  Headset,
   ShareNetwork,
   XCircle,
 } from "phosphor-react-native"
@@ -44,6 +46,7 @@ import { Text } from "@/components/ui/text"
 import { elevationStyle } from "@/lib/elevation"
 import { cn } from "@/lib/cn"
 import { RECEIPT_STATUS_LABEL, type ReceiptStatus } from "@/lib/receipt"
+import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 export type ReceiptRow = {
@@ -51,6 +54,18 @@ export type ReceiptRow = {
   value: string
   /** Nilai dirender mono (ID, nomor referensi) */
   mono?: boolean
+}
+
+/**
+ * Penerima transfer — dirender sebagai kartu menonjol di bawah nominal,
+ * bukan sekadar baris label-nilai. Hanya presentasi: nilai tetap persis
+ * dari pemanggil.
+ */
+export type ReceiptRecipient = {
+  /** Nama penerima — ditampilkan menonjol */
+  name: string
+  /** Info tujuan tambahan, mis. "@budi" / "BCA · ••••1234" */
+  detail?: string | null
 }
 
 export type ReceiptTicketProps = Omit<ViewProps, "children"> & {
@@ -62,13 +77,19 @@ export type ReceiptTicketProps = Omit<ViewProps, "children"> & {
   amountTone?: "primary" | "success" | "danger"
   /** Baris label-nilai di bawah nominal */
   rows?: ReceiptRow[]
-  /** ID struk unik — dirender mono font */
+  /** Penerima transfer — dirender sebagai kartu menonjol di bawah nominal */
+  recipient?: ReceiptRecipient | null
+  /** Label kartu penerima — default "Penerima" */
+  recipientLabel?: string
+  /** ID transaksi unik — dirender mono font */
   receiptId: string
   /** Data URL PNG QR verifikasi; kosong = QR tidak dirender (tanpa crash) */
   qrDataUrl?: string | null
   /** Ref untuk capture (shareReceipt) — ditempel ke kartu tiket */
   ticketRef?: RefObject<View | null>
   onShare?: () => void
+  /** Override tombol "Chat dengan CS" — default membuka /live-support */
+  onChatSupport?: () => void
   onCopyReceiptId?: (id: string) => void
   className?: string
 }
@@ -172,16 +193,21 @@ export function ReceiptTicket({
   amount,
   amountTone = "primary",
   rows = [],
+  recipient,
+  recipientLabel = "Penerima",
   receiptId,
   qrDataUrl,
   ticketRef,
   onShare,
+  onChatSupport,
   onCopyReceiptId,
   className,
   ...rest
 }: ReceiptTicketProps) {
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
+  const recipientName = recipient?.name?.trim() ? recipient.name : "—"
+  const recipientDetail = recipient?.detail?.trim() ? recipient.detail : null
 
   return (
     <View
@@ -220,6 +246,25 @@ export function ReceiptTicket({
         <Amount value={amount} size="large" tone={amountTone} sign="never" animated={false} />
       </View>
 
+      {/* Kartu penerima — "transfer ke siapa", menonjol di bawah nominal */}
+      {recipient ? (
+        <View className="px-5 pb-1">
+          <View className="gap-1 rounded-md border border-border bg-surface p-3">
+            <Text variant="caption" tone="tertiary">
+              {recipientLabel}
+            </Text>
+            <Text variant="body" className="font-sans-700">
+              {recipientName}
+            </Text>
+            {recipientDetail ? (
+              <Text variant="caption" tone="secondary">
+                {recipientDetail}
+              </Text>
+            ) : null}
+          </View>
+        </View>
+      ) : null}
+
       {/* Baris label-nilai */}
       {rows.length > 0 ? (
         <View className="gap-3 px-5 pb-1">
@@ -233,17 +278,17 @@ export function ReceiptTicket({
         <DashedLine />
       </View>
 
-      {/* ID struk */}
+      {/* ID transaksi */}
       <View className="items-center gap-1 px-5 py-4">
         <Text variant="caption" tone="tertiary">
-          ID Struk
+          ID Transaksi
         </Text>
         <Text
           variant="monoBody"
           tone="secondary"
           selectable
           onPress={onCopyReceiptId ? () => onCopyReceiptId(receiptId) : undefined}
-          accessibilityLabel={`ID struk ${receiptId.split("").join(" ")}`}
+          accessibilityLabel={`ID transaksi ${receiptId.split("").join(" ")}`}
         >
           {receiptId}
         </Text>
@@ -270,14 +315,44 @@ export function ReceiptTicket({
         </View>
       ) : null}
 
-      {/* Aksi bagikan */}
-      {onShare ? (
-        <View className="px-5 pb-5">
-          <Button variant="secondary" leftIcon={ShareNetwork} onPress={onShare}>
-            Bagikan struk
-          </Button>
+      {/* Aksi: bagikan & chat CS */}
+      <View className="px-5 pb-5">
+        <View className="flex-row gap-2">
+          {onShare ? (
+            <View className="flex-1">
+              <Button variant="secondary" leftIcon={ShareNetwork} onPress={onShare}>
+                Bagikan struk
+              </Button>
+            </View>
+          ) : null}
+          <View className="flex-1">
+            <Button
+              variant="secondary"
+              leftIcon={Headset}
+              onPress={onChatSupport ?? (() => router.push(ROUTES.liveSupport))}
+              accessibilityLabel="Chat dengan CS"
+            >
+              Chat dengan CS
+            </Button>
+          </View>
         </View>
-      ) : null}
+      </View>
+
+      {/* Info perusahaan */}
+      <View className="px-5 pb-5">
+        <DashedLine className="mb-4" />
+        <View className="items-center gap-0.5">
+          <Text variant="caption" tone="secondary" className="text-center font-sans-700">
+            PT Kawal Hak Dengan Aman
+          </Text>
+          <Text variant="caption" tone="tertiary" className="text-center">
+            NPWP 1000 0000 0827 0425
+          </Text>
+          <Text variant="caption" tone="tertiary" className="text-center">
+            Jl Cihideung Udik, Kec. Ciampea Kab. Bogor 16620
+          </Text>
+        </View>
+      </View>
     </View>
   )
 }

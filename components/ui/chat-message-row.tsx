@@ -40,6 +40,7 @@ import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
 import { isImageMedia } from "@/components/ui/media-viewer"
+import { type SealTier } from "@/components/ui/verified-seal"
 
 /**
  * Jendela pengelompokan bubble (ms): pesan berurutan dari pengirim yang sama
@@ -68,8 +69,12 @@ export type ChatMessageRowProps = {
    * Lawan bicara ruang ini — foto & nama untuk gelembung MASUK (revisi
    * 2026-09-26). Opsional: ruang tanpa data pihak (mis. obrolan sistem)
    * tetap tampil seperti sebelumnya, tanpa kolom avatar.
+   *
+   * Revisi 2026-09-27 (UI polish): `sealTier` diteruskan ke bubble agar seal
+   * verifikasi tampil di SAMPING nama pengirim — tidak pernah di-overlay di
+   * foto profil.
    */
-  counterpart?: { name?: string | null; avatarUrl?: string | null }
+  counterpart?: { name?: string | null; avatarUrl?: string | null; sealTier?: SealTier | null }
   /**
    * Ketuk bubble — revisi 2026-09-27: di luar mode pilih ini NO-OP (tidak
    * membuka apa pun); saat mode pilih aktif, men-toggle pilihan pesan.
@@ -145,6 +150,9 @@ export function ChatMessageRow({
         senderName={message.fromUser ? undefined : (counterpart?.name ?? undefined)}
         avatarName={message.fromUser ? undefined : (counterpart?.name ?? undefined)}
         avatarUrl={message.fromUser ? undefined : counterpart?.avatarUrl}
+        // Revisi 2026-09-27 (UI polish): seal verifikasi di samping nama
+        // pengirim — avatar bubble TIDAK pernah menerima `verified`.
+        senderSealTier={message.fromUser ? undefined : (counterpart?.sealTier ?? null)}
         // Status baca pesan saya: read-receipt dari lawan bicara
         // (GET /read-receipts) naik ke ikon centang ganda "read".
         // CN-015: pesan optimistis pakai sendStatus lokal (sending/failed).

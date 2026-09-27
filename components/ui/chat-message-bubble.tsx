@@ -62,6 +62,8 @@ import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+import { VerifiedName } from "@/components/ui/verified-name"
+import { type SealTier } from "@/components/ui/verified-seal"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
@@ -131,6 +133,13 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
    */
   avatarUrl?: string | null
   avatarName?: string | null
+  /**
+   * Tier seal verifikasi PENGIRIM gelembung masuk (revisi 2026-09-27, UI
+   * polish): seal tampil di SAMPING nama pengirim, bukan di-overlay di foto
+   * profil — konsisten dengan header ruang chat. `null`/undefined = tanpa
+   * seal (nama tampil polos seperti sebelumnya).
+   */
+  senderSealTier?: SealTier | null
   /** Kirim ulang saat status "failed" */
   onRetry?: () => void
   /**
@@ -181,6 +190,7 @@ export function ChatMessageBubble({
   labels,
   avatarUrl,
   avatarName,
+  senderSealTier,
   className,
   ...rest
 }: ChatMessageBubbleProps) {
@@ -440,9 +450,19 @@ export function ChatMessageBubble({
             </View>
             <View className="min-w-0 flex-1 gap-1">
               {senderName && !grouped ? (
-                <Text variant="caption" tone="secondary" weight={500} numberOfLines={1}>
-                  {senderName}
-                </Text>
+                /*
+                 * Revisi 2026-09-27 (UI polish): seal verifikasi tampil di
+                 * SAMPING nama pengirim — bukan di-overlay di foto profil
+                 * (lihat <Avatar>: tidak lagi menerima `verified` di sini).
+                 * <VerifiedName> merender nama polos bila tier null.
+                 */
+                <VerifiedName
+                  name={senderName}
+                  variant="caption"
+                  badges={null}
+                  tier={senderSealTier ?? null}
+                  textProps={{ weight: 500, tone: "secondary", numberOfLines: 1 }}
+                />
               ) : null}
               {bubbleBlock}
               {metaBlock}

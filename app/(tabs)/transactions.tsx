@@ -35,22 +35,35 @@
  *   - Saringan STATUS hidup di bloknya sendiri di bawah pil peran (revisi
  *     2026-09-26): menempel langsung di bawah <SegmentedControl> membuat dua
  *     kontrol berbeda terbaca sebagai satu kelompok tab.
+ *
+ * Redesign premium 2026-09-27 (presentasi saja — logika/filter/API identik):
+ *   - Segmen peran memakai ikon (ShoppingBag = Pembeli, Storefront = Penjual)
+ *     dan diurutkan Pembeli dulu — mayoritas pengguna escrow adalah pembeli
+ *     (konsisten dengan default preferensi J-08).
+ *   - Label "Filter status" memakai ikon funnel kecil; struktur blok tidak berubah.
+ *   - Daftar dikelompokkan per hari kalender WIB ("Hari ini"/"Kemarin"/tanggal)
+ *     lewat `groupOrdersByDay` (lib/transaction-grouping.ts, murni & ter-test)
+ *     — pola yang sama dengan Riwayat Dompet. Tiap kelompok: kepala hari
+ *     (label + tanggal pendek + "N transaksi") lalu kartu-kartu order.
+ *   - Loading pertama memakai <OrderCardSkeleton> sebentuk kartu asli
+ *     (bukan kartu generik) supaya layout tidak melompat saat data masuk.
  */
-import { useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
-import { Receipt } from "phosphor-react-native"
+import { FunnelSimple, Receipt, ShoppingBag, Storefront } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
-import { formatDateTimeWIB } from "@/lib/format"
+import { formatDateTimeWIB, formatNumber } from "@/lib/format"
+import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { groupOrdersByDay, type OrderDayGroup } from "@/lib/transaction-grouping"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
 import type { Order } from "@/lib/api/orders"
 import { useHasSession } from "@/lib/guest-gate"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
-import { useCallback, useEffect, useRef } from "react"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
@@ -59,8 +72,9 @@ import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
+import { Icon } from "@/components/ui/icon"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
-import { OrderCard } from "@/components/ui/order-card"
+import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
@@ -70,9 +84,13 @@ import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-co
 /** Peran pengguna pada order — nilai yang dikirim ke `GET /v1/orders?role=`. */
 type RoleTab = "seller" | "buyer"
 
+/**
+ * Urutan segmen: Pembeli dulu — mayoritas pengguna escrow adalah pembeli
+ * (konsisten dengan default preferensi `transactionsTab: "buyer"` di J-08).
+ */
 const ROLE_TABS: readonly SegmentItem<RoleTab>[] = [
-  { value: "seller", label: "Penjual" },
-  { value: "buyer", label: "Pembeli" },
+  { value: "buyer", label: "Pembeli", icon: ShoppingBag },
+  { value: "seller", label: "Penjual", icon: Storefront },
 ]
 
 const ROLE_PARAM: Record<RoleTab, "SELLER" | "BUYER"> = {
@@ -96,6 +114,97 @@ const STATUS_CHIPS: ReadonlyArray<{ label: string; value: string }> = [
     label: ORDER_STATUS_LABELS[status] ?? status,
   })),
 ]
+
+/**
+ * Kepala kelompok hari: label hari (600) + tanggal pendek + jumlah order.
+ * Dipisah sebagai komponen supaya `renderItem` PaginatedList tetap ramping.
+ */
+function TransactionDayHeader({
+  label,
+  sub,
+  count,
+}: {
+  label: string
+  sub: string | null
+  count: number
+}) {
+  return (
+    <View className="flex-row items-baseline justify-between gap-3 px-1">
+      <View className="min-w-0 flex-1 flex-row items-baseline gap-2">
+        <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+          {label}
+        </Text>
+        {sub ? (
+          <Text variant="caption" tone="secondary" numberOfLines={1}>
+            {sub}
+          </Text>
+        ) : null}
+      </View>
+      <Text variant="caption" tone="tertiary" className="shrink-0 tabular-nums">
+        {translate("{n} transaksi", { n: formatNumber(count) })}
+      </Text>
+    </View>
+  )
+}
+
+/**
+ * Satu kartu order — pemetaan Order → props <OrderCard> yang sama persis
+ * seperti sebelum redesign (peran, lawan transaksi, timestamp WIB, tenggat
+ * epoch-ms). Hanya dibungkus supaya daftar kelompok bisa memetakannya.
+ */
+function TransactionOrderCard({
+  order,
+  onDeadline,
+}: {
+  order: Order
+  onDeadline: () => void
+}) {
+  const cardRole =
+    order.myRole === "SELLER" ? "seller" : order.myRole === "BUYER" ? "buyer" : undefined
+  const counterpart =
+    cardRole === "seller" ? order.buyer : cardRole === "buyer" ? order.seller : undefined
+  return (
+    <OrderCard
+      orderId={order.id}
+      title={order.title}
+      amount={order.orderValue}
+      status={order.status}
+      role={cardRole}
+      counterpart={{
+        name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
+        avatar: counterpart?.avatarUrl ?? undefined,
+      }}
+      timestamp={formatDateTimeWIB(order.createdAt)}
+      deadlineAt={
+        // M-54 (audit end-to-end, issue #72): `toEpochMs` (domain jam
+        // C-04) — `new Date("1700000000")` string epoch-detik = Invalid
+        // Date dan countdown tenggat menampilkan "—".
+        // R2 (audit ronde-2, butir #65): teruskan EPOCH MS primitif,
+        // bukan `new Date()` per render — identitas prop yang baru tiap
+        // render merangkai-ulang effect countdown tanpa alasan.
+        toEpochMs(order.deliveryDeadlineAt) ?? undefined
+      }
+      onDeadline={onDeadline}
+      href={ROUTES.orderDetail(order.id)}
+    />
+  )
+}
+
+/** Skeleton sebentuk kartu transaksi (3 kartu) — layout tidak melompat. */
+function TransactionListSkeleton() {
+  return (
+    <View
+      accessible
+      accessibilityRole="progressbar"
+      accessibilityLabel="Memuat transaksi"
+      className="gap-3 pt-1"
+    >
+      <OrderCardSkeleton />
+      <OrderCardSkeleton />
+      <OrderCardSkeleton />
+    </View>
+  )
+}
 
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets()
@@ -165,6 +274,13 @@ export default function TransactionsScreen() {
     },
     [],
   )
+  /**
+   * Pengelompokan per hari kalender WIB — murni presentasi atas `query.data`
+   * (urutan & isi tidak berubah; `byTimestampDesc` di query menjaga urutan
+   * server). Pagination yang memotong satu hari menjadi dua kelompok adalah
+   * perilaku yang sama dengan Riwayat Dompet — diterima.
+   */
+  const groups = useMemo<OrderDayGroup<Order>[]>(() => groupOrdersByDay(query.data), [query.data])
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
@@ -212,9 +328,12 @@ export default function TransactionsScreen() {
         className="gap-2 border-b border-border bg-surface px-5 pb-3 pt-3"
       >
         <View className="flex-row items-center justify-between gap-3">
-          <Text variant="caption" tone="secondary">
-            Filter status
-          </Text>
+          <View className="flex-row items-center gap-1.5">
+            <Icon icon={FunnelSimple} size="xs" tone="default" />
+            <Text variant="caption" tone="secondary">
+              Filter status
+            </Text>
+          </View>
           {filtered ? (
             <Button
               variant="ghost"
@@ -242,10 +361,12 @@ export default function TransactionsScreen() {
       </FadeIn>
       <PaginatedList
         {...query}
+        data={groups}
         onRefresh={query.refresh}
         onRetry={query.reload}
         onLoadMore={query.loadMore}
         bottomPadding={insets.bottom + TAB_BAR_HEIGHT + tokens.space[4]}
+        loadingPlaceholder={<TransactionListSkeleton />}
         empty={
           <EmptyState
             icon={Receipt}
@@ -280,37 +401,14 @@ export default function TransactionsScreen() {
             }
           />
         }
-        renderItem={({ item }) => {
-          const cardRole =
-            item.myRole === "SELLER" ? "seller" : item.myRole === "BUYER" ? "buyer" : undefined
-          const counterpart =
-            cardRole === "seller" ? item.buyer : cardRole === "buyer" ? item.seller : undefined
-          return (
-            <OrderCard
-              orderId={item.id}
-              title={item.title}
-              amount={item.orderValue}
-              status={item.status}
-              role={cardRole}
-              counterpart={{
-                name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
-                avatar: counterpart?.avatarUrl ?? undefined,
-              }}
-              timestamp={formatDateTimeWIB(item.createdAt)}
-              deadlineAt={
-                // M-54 (audit end-to-end, issue #72): `toEpochMs` (domain jam
-                // C-04) — `new Date("1700000000")` string epoch-detik = Invalid
-                // Date dan countdown tenggat menampilkan "—".
-                // R2 (audit ronde-2, butir #65): teruskan EPOCH MS primitif,
-                // bukan `new Date()` per render — identitas prop yang baru tiap
-                // render merangkai-ulang effect countdown tanpa alasan.
-                toEpochMs(item.deliveryDeadlineAt) ?? undefined
-              }
-              onDeadline={scheduleRefresh}
-              href={ROUTES.orderDetail(item.id)}
-            />
-          )
-        }}
+        renderItem={({ item: group }) => (
+          <View className="gap-3">
+            <TransactionDayHeader label={group.label} sub={group.sub} count={group.count} />
+            {group.orders.map((order) => (
+              <TransactionOrderCard key={order.id} order={order} onDeadline={scheduleRefresh} />
+            ))}
+          </View>
+        )}
       />
       </ModeShiftFade>
     </Screen>

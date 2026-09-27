@@ -3,12 +3,24 @@
  * "shared element: kartu transaksi di list -> detail", §3.1 Mono untuk ID &
  * nominal, §13 format, §2.3 status semantik).
  *
- * Satu baris data `GET /v1/orders` untuk tab Transaksi & beranda. Anatomi:
+ * Satu baris data `GET /v1/orders` untuk tab Transaksi & beranda. Anatomi
+ * (redesign 2026-09-27):
  *   baris 1 : ID order (Mono caption, text-secondary) ..... OrderStatusBadge
  *   baris 2 : judul barang/jasa (body 600, 2 baris maks)
  *   baris 3 : Avatar xs + nama lawan transaksi + peran ("Pembeli"/"Penjual")
- *   baris 4 : nominal <Amount> ..... waktu (caption tabular)
- *   opsional: strip tenggat (Countdown) untuk status yang punya deadline
+ *   baris 4 : chip arah dana + nominal <Amount> ..... waktu (caption tabular)
+ *   opsional: strip tenggat (ikon jam + Countdown) untuk status yang punya deadline
+ *
+ * Warna nominal mengikuti ARAH dana dari sudut pandang pengguna — preseden
+ * dari riwayat dompet ("Dana masuk" success / "Dana keluar" primary):
+ *   - role "seller" (dana MASUK ke pengguna): chip ArrowDownLeft
+ *     `bg-success-soft` + nominal tone success.
+ *   - role "buyer" (dana KELUAR dari pengguna): chip ArrowUpRight `bg-primary`
+ *     (inverse, pola chip kategori NotificationListItem) + nominal tone primary.
+ *   - role tidak diketahui: tanpa chip, nominal primary (perilaku lama).
+ * Nilai nominal TIDAK berubah — hanya tone & chip arah yang menjelaskan.
+ * Keluar memakai primary (bukan danger): keluar dana di escrow adalah alur
+ * normal, bukan kesalahan; danger dicadangkan untuk status (§2.3).
  *
  * Keputusan non-obvious:
  *   - Dibangun di atas <Card onPress> (bukan ListItem): §8 menyebut kartu
@@ -44,6 +56,7 @@
  */
 import { useEffect, useRef, useState } from "react"
 import { View, type ViewProps } from "react-native"
+import { ArrowDownLeft, ArrowUpRight, Clock } from "phosphor-react-native"
 import { translate } from "@/lib/i18n/translate"
 import { translateProp } from "@/lib/i18n"
 import { formatCountdown } from "@/lib/format"
@@ -54,6 +67,7 @@ import { Amount } from "@/components/ui/amount"
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Card, type CardProps } from "@/components/ui/card"
 import { Dot } from "@/components/ui/dot"
+import { Icon, type IconComponent } from "@/components/ui/icon"
 import { type BadgeTone } from "@/components/ui/badge"
 import {
   hasLiveDeadline,
@@ -113,6 +127,45 @@ const STATUS_ACCENT: Record<BadgeTone, string | null> = {
   neutral: null,
 }
 
+export type OrderDirectionConfig = {
+  icon: IconComponent
+  chipClass: string
+  iconTone: "success" | "inverse"
+  amountTone: "success" | "primary"
+  /** Kata untuk ringkasan aksesibilitas ("Dana masuk"/"Dana keluar"). */
+  a11y: string
+}
+
+/**
+ * Konfigurasi visual arah dana per peran pengguna (murni — dikunci test).
+ *
+ * Penjual = dana MASUK (success); pembeli = dana KELUAR (primary solid,
+ * BUKAN danger — keluar dana di escrow adalah alur normal, bukan kesalahan;
+ * danger dicadangkan untuk status §2.3). Tanpa peran → `null`: tanpa chip
+ * arah, nominal primary (perilaku lama, tidak menebak arah).
+ */
+export function orderDirectionConfig(role: OrderRole | undefined): OrderDirectionConfig | null {
+  if (role === "seller") {
+    return {
+      icon: ArrowDownLeft,
+      chipClass: "bg-success-soft",
+      iconTone: "success",
+      amountTone: "success",
+      a11y: translate("Dana masuk"),
+    }
+  }
+  if (role === "buyer") {
+    return {
+      icon: ArrowUpRight,
+      chipClass: "bg-primary",
+      iconTone: "inverse",
+      amountTone: "primary",
+      a11y: translate("Dana keluar"),
+    }
+  }
+  return null
+}
+
 // `role` di-Omit dari CardProps: ViewProps RN 0.81 punya `role?: Role`
 // (aksesibilitas) yang literal-nya disjoint dengan OrderRole — kalau tidak
 // di-Omit, TS mereduksi seluruh intersection menjadi `never`.
@@ -159,6 +212,12 @@ export function OrderCard({
   const showDeadline = deadlineAt != null && hasLiveDeadline(status)
   const statusAccent = STATUS_ACCENT[orderStatusTone(status, role)]
 
+  /**
+   * Arah dana dari sudut pandang pengguna — chip panah di samping nominal.
+   * Lihat `orderDirectionConfig`: satu sumber kebenaran (dikunci test).
+   */
+  const direction = orderDirectionConfig(role)
+
   const a11y =
     accessibilityLabel ??
     summarize([
@@ -170,6 +229,7 @@ export function OrderCard({
       // K-02 (audit escrow 2026-09-24): nominal dan STATUS — dua informasi
       // finansial terpenting kartu — kini ikut diumumkan pembaca layar.
       hasOwn(ORDER_STATUS_LABELS, status) ? ORDER_STATUS_LABELS[status as OrderStatus] : undefined,
+      direction?.a11y,
       formatRupiah(amount),
       `${counterpartRole} ${counterpart.name}`,
       timestamp,
@@ -187,6 +247,7 @@ export function OrderCard({
       elevation="flat"
       onPress={onPress}
       href={href}
+      testID="order-card"
       accessibilityLabel={a11y}
       accessibilityHint={onPress || href ? "Buka detail transaksi" : undefined}
       className={cn("gap-3 bg-surface", className)}
@@ -240,11 +301,31 @@ export function OrderCard({
         </Text>
       </View>
 
-      {/* Baris 4: nominal + waktu */}
-      <View className="flex-row items-end justify-between gap-3">
-        <Amount value={amount} size="body" tone="primary" />
+      {/* Baris 4: chip arah + nominal ..... waktu */}
+      <View className="flex-row items-center justify-between gap-3">
+        <View className="flex-1 flex-row items-center gap-2">
+          {direction ? (
+            <View
+              testID="order-direction-chip"
+              accessibilityRole="none"
+              importantForAccessibility="no"
+              className={cn(
+                "h-6 w-6 shrink-0 items-center justify-center rounded-full",
+                direction.chipClass,
+              )}
+            >
+              <Icon icon={direction.icon} size="xs" tone={direction.iconTone} weight="bold" />
+            </View>
+          ) : null}
+          <Amount
+            testID="order-card-amount"
+            value={amount}
+            size="body"
+            tone={direction?.amountTone ?? "primary"}
+          />
+        </View>
         {timestamp ? (
-          <Text variant="caption" tone="secondary" className="tabular-nums">
+          <Text variant="caption" tone="secondary" className="shrink-0 tabular-nums">
             {timestamp}
           </Text>
         ) : null}
@@ -253,9 +334,12 @@ export function OrderCard({
       {/* Tenggat — hanya status aktif; garis atas memisahkan dari isi */}
       {showDeadline ? (
         <View className="flex-row items-center justify-between border-t border-border pt-3">
-          <Text variant="caption" tone="secondary">
-            {t.deadline}
-          </Text>
+          <View className="flex-row items-center gap-1.5">
+            <Icon icon={Clock} size="xs" tone="default" />
+            <Text variant="caption" tone="secondary">
+              {t.deadline}
+            </Text>
+          </View>
           {/* tone primary: tenggat adalah informasi, bukan bahaya — warna
               semantik disimpan untuk Badge status (§2.3) */}
           <OrderCardDeadline until={deadlineAt} onComplete={onDeadline} />
@@ -341,7 +425,10 @@ export function OrderCardSkeleton({
         <Skeleton height={12} className="w-40" />
       </View>
       <View className="flex-row items-center justify-between">
-        <Skeleton height={16} className="w-28" />
+        <View className="flex-row items-center gap-2">
+          <Skeleton shape="circle" width={24} height={24} />
+          <Skeleton height={16} className="w-28" />
+        </View>
         <Skeleton height={12} className="w-24" />
       </View>
     </View>

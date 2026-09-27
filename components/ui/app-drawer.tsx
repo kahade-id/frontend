@@ -245,14 +245,15 @@ export function AppDrawer() {
             panelStyle,
           ]}
         >
-          {/* Kepala: profil + tombol tutup. */}
-          <View className="flex-row items-center gap-3 px-5 pb-4 pt-2">
+          {/* Kepala: profil (tumpukan vertikal — foto di atas, nama +
+              username di bawahnya rata kiri) + tombol tutup di kanan atas. */}
+          <View className="flex-row items-start gap-3 px-5 pb-4 pt-2">
             {token && profile ? (
               <PressableScale
                 onPress={goProfile}
                 accessibilityRole="button"
                 accessibilityLabel={translate("Buka profil saya")}
-                className="flex-1 flex-row items-center gap-3"
+                className="flex-1 gap-3"
               >
                 <Avatar
                   source={profile.avatarUrl ? { uri: profile.avatarUrl } : undefined}
@@ -260,18 +261,20 @@ export function AppDrawer() {
                   size="lg"
                   verified={isKycVerified}
                 />
-                <View className="flex-1 gap-0.5">
-                  <View className="flex-row items-center gap-1.5">
-                    <Text variant="bodyLarge" weight={600} numberOfLines={1}>
-                      {profile.fullName || profile.username}
+                <View className="flex-row items-center gap-2">
+                  <View className="flex-1 gap-0.5">
+                    <View className="flex-row items-center gap-1.5">
+                      <Text variant="bodyLarge" weight={600} numberOfLines={1}>
+                        {profile.fullName || profile.username}
+                      </Text>
+                      {isKycVerified ? <Badge tone="success">KYC</Badge> : null}
+                    </View>
+                    <Text variant="caption" tone="secondary" numberOfLines={1}>
+                      @{profile.username}
                     </Text>
-                    {isKycVerified ? <Badge tone="success">KYC</Badge> : null}
                   </View>
-                  <Text variant="caption" tone="secondary" numberOfLines={1}>
-                    @{profile.username}
-                  </Text>
+                  <Icon icon={CaretRight} size="sm" tone="default" />
                 </View>
-                <Icon icon={CaretRight} size="sm" tone="default" />
               </PressableScale>
             ) : (
               <View className="flex-1 flex-row items-center gap-3">

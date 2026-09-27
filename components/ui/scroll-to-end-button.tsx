@@ -15,6 +15,11 @@
  *   - `pointerEvents` tidak dipakai (ditolak audit #5): tombol ini selalu
  *     menerima sentuhan, dan saat tersembunyi ia tidak dirender sama sekali —
  *     tidak ada lapisan transparan yang bisa menahan ketukan di atas composer.
+ *   - Revisi 2026-09-27 (UI polish): circle KOMPAK 40dp, ikon panah-bawah di
+ *     tengah, shadow lembut. Dirender in-flow di atas composer (items-end +
+ *     margin aman), BUKAN absolute mengambang — supaya tidak pernah menutupi
+ *     konten chat. Target sentuh efektif 44dp lewat hitSlop (visual tetap
+ *     40dp), sesuai konvensi UI-C005.
  */
 import { View } from "react-native"
 
@@ -26,6 +31,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { cn } from "@/lib/cn"
 import { elevationStyle } from "@/lib/elevation"
 import { focusRing } from "@/lib/focus-ring"
+import { hitSlopToReach } from "@/lib/hit-slop"
 
 export type ScrollToEndButtonProps = {
   /** Tampilkan hanya saat pembaca meninggalkan ujung daftar. */
@@ -54,11 +60,14 @@ export function ScrollToEndButton({
     <View className={cn("items-end", className)}>
       <View style={elevationStyle("medium", mode)} className="rounded-full">
         <PressableScale
+          testID="scroll-to-end-button"
           accessibilityRole="button"
           accessibilityLabel={label}
           scaleOnPress={false}
           ripple
           onPress={onPress}
+          // Visual tetap circle 40dp; target sentuh efektif 44dp (UI-C005).
+          hitSlop={hitSlopToReach(40, 40)}
           containerClassName={cn("rounded-full border border-border bg-background", focusRing)}
           className="h-10 w-10 items-center justify-center rounded-full"
         >

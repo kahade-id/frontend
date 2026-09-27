@@ -521,15 +521,16 @@ export default function WithdrawScreen() {
                       amount={amount}
                       // Uang keluar — merah, konsisten dengan baris riwayat.
                       amountTone="danger"
-                      rows={
+                      // Kartu "Rekening tujuan" premium di bawah nominal —
+                      // nilai tetap dari `selected` (bank · no. rekening · a.n.).
+                      recipientLabel="Rekening tujuan"
+                      recipient={
                         selected
-                          ? [
-                              {
-                                label: "Rekening tujuan",
-                                value: `${selected.bankName ?? selected.bankCode} ${maskAccountNumber(selected.accountNumber)} a.n. ${selected.accountName ?? "—"}`,
-                              },
-                            ]
-                          : []
+                          ? {
+                              name: selected.accountName ?? "—",
+                              detail: `${selected.bankName ?? selected.bankCode} · ${maskAccountNumber(selected.accountNumber)}`,
+                            }
+                          : null
                       }
                       receiptId={result?.txId ?? txId ?? makeReceiptId()}
                       qrDataUrl={withdrawQr}

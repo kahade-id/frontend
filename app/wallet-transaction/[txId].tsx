@@ -6,13 +6,13 @@
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
+import { useRef } from "react"
 import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 
 import { api } from "@/lib/api"
 import type { WalletTransaction } from "@/lib/api/wallet"
-import { formatDateTimeWIB } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { shortId } from "@/lib/short-id"
 import { translate } from "@/lib/i18n/translate"
@@ -26,7 +26,7 @@ import {
   isWalletCredit,
 } from "@/lib/wallet-labels"
 import { useCopy } from "@/lib/clipboard"
-import type { ReceiptStatus } from "@/lib/receipt"
+import { receiptDateRows, type ReceiptStatus } from "@/lib/receipt"
 
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
@@ -34,6 +34,7 @@ import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { TextLink } from "@/components/ui/text-link"
 import { ReceiptTicket, type ReceiptRow } from "@/components/receipt/ReceiptTicket"
+import { shareReceipt } from "@/components/receipt/shareReceipt"
 import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
 import { mapValue } from "@/lib/has-own"
 
@@ -62,6 +63,7 @@ export default function WalletTransactionScreen() {
   const txn = query.data
   // QR verifikasi struk — defensif: null = tiket tanpa QR (lihat lib/receipt).
   const qrDataUrl = useReceiptQr("WALLET_TX", txn?.id)
+  const ticketRef = useRef<View | null>(null)
 
   const status = walletTransactionStatus(txn?.status)
   const direction = txn ? walletTransactionType(txn) : "UNKNOWN"
@@ -97,7 +99,7 @@ export default function WalletTransactionScreen() {
                       ? mapValue(WALLET_TXN_STATUS_LABELS, txn.status, txn.status)
                       : "Status belum tersedia",
                   },
-                  { label: "Waktu", value: formatDateTimeWIB(txn.createdAt) },
+                  ...receiptDateRows(txn.createdAt),
                   ...(txn.referenceId
                     ? [{ label: "Referensi", value: shortId(txn.referenceId), mono: true }]
                     : []),
@@ -118,6 +120,8 @@ export default function WalletTransactionScreen() {
                     rows={rows}
                     receiptId={txn.id}
                     qrDataUrl={qrDataUrl}
+                    ticketRef={ticketRef}
+                    onShare={() => void shareReceipt(ticketRef.current)}
                     onCopyReceiptId={(id) => void copy(id)}
                   />
                 )

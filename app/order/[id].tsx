@@ -101,6 +101,7 @@ import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
 import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
 import { shareReceipt } from "@/components/receipt/shareReceipt"
 import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
+import { receiptDateRows } from "@/lib/receipt"
 import { shortId } from "@/lib/short-id"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
@@ -810,10 +811,7 @@ export default function OrderDetailScreen() {
                 amount={fee?.buyerPays ?? order.orderValue}
                 amountTone="success"
                 rows={[
-                  {
-                    label: "Waktu bayar",
-                    value: formatDateTimeWIB(order.paidAt),
-                  },
+                  ...receiptDateRows(order.paidAt),
                 ]}
                 receiptId={order.id}
                 qrDataUrl={orderPaymentQr}

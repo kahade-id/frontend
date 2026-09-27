@@ -161,7 +161,10 @@ export function Avatar({
       </View>
 
       {verified ? (
-        <View className="absolute -bottom-0.5 -right-0.5 rounded-full border-badge border-background bg-background">
+        <View
+          testID="avatar-verified-badge"
+          className="absolute -bottom-0.5 -right-0.5 rounded-full border-badge border-background bg-background"
+        >
           <Icon
             icon={SealCheck}
             size={sealSize[size]}

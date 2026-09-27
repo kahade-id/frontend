@@ -1378,7 +1378,13 @@ export default function ChatRoomScreen() {
             selected={selectedIds.has(m.id)}
             readByCounterpart={readByCounterpart.has(m.id)}
             // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
-            counterpart={{ name: counterpartName, avatarUrl: room?.counterpart?.avatarUrl }}
+            // Revisi 2026-09-27 (UI polish): sealTier ikut diteruskan agar
+            // seal verifikasi tampil di samping nama pengirim bubble.
+            counterpart={{
+              name: counterpartName,
+              avatarUrl: room?.counterpart?.avatarUrl,
+              sealTier: room?.counterpart?.sealTier ?? null,
+            }}
             // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
             // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
             // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama

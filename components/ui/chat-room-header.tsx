@@ -11,6 +11,9 @@
  *
  *   - `←`  : kembali (ArrowLeft, sama dengan header layar stack lain).
  *   - avatar 36px + Dot online — wajah adalah penanda percakapan tercepat.
+ *     Badge verified TIDAK di-overlay di foto (revisi 2026-09-27, UI polish):
+ *     seal verifikasi hanya tampil di SAMPING nama (<VerifiedName>) —
+ *     satu penanda cukup, overlay di foto menambah noise visual.
  *   - nama `body` 600 satu baris; di bawahnya status (online / terakhir
  *     dilihat / mengetik…) lalu TITIK TENGAH dan order id ruang. Order id
  *     sengaja tidak dipisah baris: ia metadata, dan titik tengah sudah
@@ -113,7 +116,9 @@ export function ChatRoomHeader({
   useDocumentTitle(translateProp(name ?? "Percakapan"))
 
   const title = name ?? "Percakapan"
-  const showVerified = verified || !!sealTier
+  // Revisi 2026-09-27 (UI polish): badge verified TIDAK lagi di-overlay di
+  // foto profil — seal hanya tampil di samping nama (<VerifiedName> di bawah).
+  // `sealTier` tetap dipakai untuk warna seal di samping nama.
   const identity = (
     <View className="min-w-0 flex-row items-center gap-2.5 py-1">
       <View className="relative shrink-0">
@@ -121,8 +126,6 @@ export function ChatRoomHeader({
           source={avatar}
           name={title}
           size="md"
-          verified={showVerified}
-          sealTier={sealTier ?? undefined}
           className={AVATAR_CLASS}
         />
         {online ? (

@@ -20,7 +20,7 @@
  * Dijalankan dengan config komponen (repo convention):
  *   npx vitest run --config vitest.components.config.ts tests/notifications-redesign.test.tsx
  */
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react"
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { useState, type ReactElement } from "react"
 import { router } from "expo-router"
@@ -372,5 +372,55 @@ describe("badge unread sinkron dengan data daftar", () => {
     expect(screen.queryByTestId("notification-unread-dot")).toBeNull()
     // Tombol hanya tampil bila ada unread.
     expect(screen.queryByText("Tandai dibaca")).toBeNull()
+  })
+})
+
+// ------------------------------------------------------------------
+// 6. Polish 2026-09-27: tanpa tombol back; segmen kategori gaya pill
+//    (<SegmentedControl> seperti tab peran di halaman Transaksi)
+// ------------------------------------------------------------------
+
+describe("polish header & segmen kategori", () => {
+  it("tidak merender tombol back (tab top-level bottom navbar)", () => {
+    mocks.items = []
+    renderTab()
+    expect(screen.queryByRole("button", { name: "Kembali" })).toBeNull()
+    // Aksi fungsional header tetap ada: funnel filter + menu ⋮.
+    expect(
+      screen.getByRole("button", { name: "Hanya yang belum dibaca" }),
+    ).toBeTruthy()
+  })
+
+  it("kategori memakai SegmentedControl pill (radiogroup), bukan underline Tabs", () => {
+    mocks.items = []
+    renderTab()
+
+    // <SegmentedControl> = radiogroup + opsi radio (bukan tablist).
+    const group = screen.getByRole("radiogroup", { name: "Kategori notifikasi" })
+    const options = within(group).getAllByRole("radio")
+    expect(options).toHaveLength(3)
+    // TRANSAKSI aktif secara default; pill aktif = radio ter-check.
+    expect(options.map((o) => o.getAttribute("aria-checked"))).toEqual([
+      "true",
+      "false",
+      "false",
+    ])
+    // Strip tab underline (<Tabs>) tidak dipakai lagi.
+    expect(screen.queryByRole("tablist")).toBeNull()
+  })
+
+  it("memilih segmen Promosi mengaktifkan segmen itu", () => {
+    mocks.items = []
+    renderTab()
+
+    const group = screen.getByRole("radiogroup", { name: "Kategori notifikasi" })
+    fireEvent.click(within(group).getByRole("radio", { name: "Promosi" }))
+
+    const options = within(group).getAllByRole("radio")
+    expect(options.map((o) => o.getAttribute("aria-checked"))).toEqual([
+      "false",
+      "true",
+      "false",
+    ])
   })
 })

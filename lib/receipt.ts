@@ -13,6 +13,7 @@
 import QRCode from "qrcode"
 
 import { http } from "@/lib/api/client"
+import { formatDate, formatTime, WIB_TIME_ZONE } from "@/lib/format"
 
 /** Status yang bisa ditampilkan struk tiket (kosakata struk, bukan enum backend). */
 export type ReceiptStatus = "SUCCESS" | "PENDING" | "FAILED" | "REFUND"
@@ -28,7 +29,7 @@ export const RECEIPT_STATUS_LABEL: Record<ReceiptStatus, string> = {
 }
 
 /**
- * ID struk unik untuk tampilan bila tidak ada ID server yang cocok,
+ * ID transaksi unik untuk tampilan bila tidak ada ID server yang cocok,
  * mis. transfer yang `txId`-nya kosong. Format: `KHD-<base36 waktu>-<acak 6>`.
  */
 export function makeReceiptId(now: number = Date.now()): string {
@@ -70,6 +71,29 @@ export async function fetchReceiptToken(
   } catch {
     return null
   }
+}
+
+/**
+ * Baris "Tanggal" + "Waktu" untuk struk — dua baris/field TERPISAH (bukan satu
+ * gabungan), zona WIB eksplisit.
+ *
+ * Fail closed: nilai kosong/tidak valid = placeholder netral "—" (bukan angka
+ * palsu, bukan label zona untuk data yang tidak ada).
+ */
+export function receiptDateRows(
+  d: Date | number | string | null | undefined,
+): Array<{ label: string; value: string }> {
+  if (d == null || d === "") {
+    return [
+      { label: "Tanggal", value: "—" },
+      { label: "Waktu", value: "—" },
+    ]
+  }
+  const time = formatTime(d, { timeZone: WIB_TIME_ZONE })
+  return [
+    { label: "Tanggal", value: formatDate(d, { long: true, timeZone: WIB_TIME_ZONE }) },
+    { label: "Waktu", value: time === "—" ? "—" : `${time} WIB` },
+  ]
 }
 
 /**
