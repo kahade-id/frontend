@@ -1,6 +1,6 @@
 /**
  * Test unit DrawerMenuRow — mengunci kontrak presentasi baris menu drawer:
- * judul memakai weight 700 (bold), ikon Phosphor varian bold, tepat satu
+ * judul memakai bodyLarge weight 600 (seperti menu Pengaturan), ikon Phosphor varian bold, tepat satu
  * ikon per baris (tanpa chevron, tanpa background ikon).
  *
  * `Text` di-mock agar prop weight teramati: di env test ini className
@@ -34,7 +34,7 @@ afterEach(() => {
 })
 
 describe("DrawerMenuRow", () => {
-  it("judul bold (weight 700), ikon bold, tepat satu ikon tanpa chevron", () => {
+  it("judul bodyLarge weight 600, ikon bold, tepat satu ikon tanpa chevron", () => {
     const onNavigate = vi.fn()
     render(
       <ThemeProvider>
@@ -55,7 +55,7 @@ describe("DrawerMenuRow", () => {
 
     const title = row.querySelector("[data-text-weight]")
     expect(title?.textContent).toBe("Dompet")
-    expect(title?.getAttribute("data-text-weight")).toBe("700")
+    expect(title?.getAttribute("data-text-weight")).toBe("600")
 
     const icons = row.querySelectorAll("[data-icon]")
     expect(icons.length).toBe(1)

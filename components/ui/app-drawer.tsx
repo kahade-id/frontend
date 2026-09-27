@@ -116,7 +116,7 @@ export function DrawerMenuRow({
       className="flex-row items-center gap-4 px-5 py-3"
     >
       <Icon icon={item.icon} size="md" tone="active" weight="bold" />
-      <Text variant="body" weight={700} className="flex-1">
+      <Text variant="bodyLarge" weight={600} className="flex-1">
         {translate(item.label)}
       </Text>
     </PressableScale>
