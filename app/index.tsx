@@ -2,11 +2,12 @@
  * Kahade — gate rute awal (`/`).
  *
  * Memutuskan ke mana user diarahkan saat app dibuka:
- *   - WEB: selalu ke tab pertama (Etalase — Beranda dihapus). Pengunjung boleh
- *     menelusuri aplikasi tanpa login (guest mode); layar yang butuh akun
- *     menampilkan ajakan login (<LoginRequiredScreen>, digerakkan dari root
- *     layout). Splash/onboarding seperti aplikasi native juga tidak dipakai
- *     di web.
+ *   - WEB, BELUM login → /landing (landing page). Pengunjung boleh
+ *     menelusuri aplikasi tanpa login (guest mode) lewat tombol
+ *     "Buka Web App" di landing; layar yang butuh akun menampilkan ajakan
+ *     login (<LoginRequiredScreen>, digerakkan dari root layout).
+ *     Splash/onboarding seperti aplikasi native juga tidak dipakai di web.
+ *   - WEB, SUDAH login (ada access token) → tab pertama (Etalase).
  *   - NATIVE, masih punya access token → ROUTES.home (= /showcase, sesi
  *     lanjut; bila token kedaluwarsa, client akan refresh atau memancarkan
  *     `sessionExpired` yang di root layout mengarahkan ke /login)
@@ -25,7 +26,7 @@
  */
 import { useCallback, useEffect, useState } from "react"
 import { Platform } from "react-native"
-import { Redirect } from "expo-router"
+import { Redirect, type Href } from "expo-router"
 
 import { getAccessToken } from "@/lib/api"
 import { hasSeenOnboarding } from "@/lib/onboarding"
@@ -35,7 +36,7 @@ import { ROUTES } from "@/lib/routes"
 import { ErrorState } from "@/components/ui/error-state"
 import { Screen } from "@/components/ui/screen"
 
-type Gate = "home" | "login" | "onboarding"
+type Gate = "home" | "login" | "onboarding" | "landing"
 
 export default function Index() {
   const [gate, setGate] = useState<Gate | null>(null)
@@ -50,12 +51,24 @@ export default function Index() {
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
 
   useEffect(() => {
-    // Web: guest mode — langsung beranda tanpa splash/onboarding/login.
-    if (Platform.OS === "web") {
-      setGate("home")
-      return
-    }
     let alive = true
+    // WEB: pengunjung BELUM login → /landing (landing page); yang SUDAH
+    // login → beranda seperti sebelumnya. Mode tamu tetap bisa dijelajahi
+    // lewat tombol "Buka Web App" di landing. Gagal baca sesi di web
+    // diperlakukan sebagai tamu (bukan layar error) — tidak ada sesi login
+    // yang dipertaruhkan di sini.
+    if (Platform.OS === "web") {
+      getAccessToken()
+        .then((token) => {
+          if (alive) setGate(token ? "home" : "landing")
+        })
+        .catch(() => {
+          if (alive) setGate("landing")
+        })
+      return () => {
+        alive = false
+      }
+    }
     setStorageError(false)
     Promise.all([
       getAccessToken().catch((err) => {
@@ -88,6 +101,9 @@ export default function Index() {
     )
   }
   if (gate === null) return null
+  // Cast Href agar tidak bergantung pada typegen expo-router (route /landing
+  // baru ditambahkan batch ini); pola yang sama dipakai ROUTES.* di bawah.
+  if (gate === "landing") return <Redirect href={"/landing" as Href} />
   return (
     <Redirect
       href={gate === "home" ? ROUTES.home : gate === "login" ? ROUTES.login : ROUTES.onboarding}

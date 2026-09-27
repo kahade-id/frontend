@@ -1,6 +1,5 @@
 import type { PropsWithChildren } from "react"
 import { ScrollViewStyleReset } from "expo-router/html"
-import config from "../app.json"
 
 /** Static web document; no session/token access during server rendering. */
 export default function Html({ children }: PropsWithChildren) {
@@ -9,7 +8,7 @@ export default function Html({ children }: PropsWithChildren) {
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-        <title>{config.expo.name}</title>
+        <title>Kahade — Jual Beli Aman dengan Escrow &amp; Sosial Commerce</title>
         {/*
           Audit web statis: sebelumnya <head> hanya berisi title + viewport.
           Akibatnya tab browser memakai ikon default, bookmark tanpa ikon,
@@ -19,21 +18,25 @@ export default function Html({ children }: PropsWithChildren) {
         */}
         <meta
           name="description"
-          content="Kahade — platform transaksi aman dengan escrow: kirim dan terima pembayaran, kelola dompet, dan selesaikan pesanan dalam satu aplikasi."
+          content="Kahade — jual beli online tanpa takut ditipu. Dana pembeli ditahan escrow sampai barang diterima, plus etalase sosial: like, komen, dan share produk favoritmu."
         />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Kahade" />
-        <meta property="og:title" content="Kahade — Transaksi aman dengan escrow" />
+        <meta property="og:url" content="https://kahade.id/" />
+        <meta
+          property="og:title"
+          content="Kahade — Jual Beli Aman dengan Escrow & Sosial Commerce"
+        />
         <meta
           property="og:description"
-          content="Kirim dan terima pembayaran, kelola dompet, dan selesaikan pesanan dalam satu aplikasi."
+          content="Bayar aman lewat escrow — dana cair ke penjual setelah barang diterima. Jualan dan belanja semudah main media sosial."
         />
         <meta property="og:image" content="https://kahade.id/icon-512.png" />
         <meta name="twitter:card" content="summary" />
-        <meta name="twitter:title" content="Kahade — Transaksi aman dengan escrow" />
+        <meta name="twitter:title" content="Kahade — Jual Beli Aman dengan Escrow & Sosial Commerce" />
         <meta
           name="twitter:description"
-          content="Platform transaksi aman dengan escrow, dompet, dan penyelesaian pesanan."
+          content="Escrow aman untuk setiap transaksi, etalase sosial untuk jualan dan belanja. Jual beli online tanpa takut ditipu."
         />
         <meta name="twitter:image" content="https://kahade.id/icon-512.png" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
