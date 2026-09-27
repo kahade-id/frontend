@@ -9,10 +9,11 @@
  *     ArrowUpRight; tanpa peran = tanpa chip, primary), badge status tetap
  *     memakai label ORDER_STATUS_LABELS, nama lawan transaksi tampil, nilai
  *     nominal EXACT dari prop (tanpa tanda +/- tambahan).
- *  2. Layar: segmen peran "Pembeli"/"Penjual" berikon tampil; chip status
- *     ("Semua status", "Aktif", + enum) tampil; daftar dikelompokkan per hari
- *     WIB ("Hari ini"/"Kemarin"); empty state saat daftar kosong; pemanggilan
- *     awal `listOrders` memakai role=BUYER tanpa param status.
+ *  2. Layar: segmen peran "Pembeli"/"Penjual" berikon tampil; filter cukup
+ *     ikon funnel di header (tanpa blok chip — opsi status di sheet);
+ *     daftar dikelompokkan per hari WIB ("Hari ini"/"Kemarin"); empty state
+ *     saat daftar kosong; pemanggilan awal `listOrders` memakai role=BUYER
+ *     tanpa param status.
  *
  * Dijalankan dengan config komponen (repo convention):
  *   npx vitest run --config vitest.components.config.ts tests/transactions-redesign.test.tsx
@@ -21,6 +22,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
+import { PortalHost, PortalProvider } from "@/components/ui/portal"
 import { OrderCard, orderDirectionConfig } from "@/components/ui/order-card"
 import type { Order } from "@/lib/api/orders"
 
@@ -107,7 +109,10 @@ function renderCard(ui: React.ReactElement) {
 function renderScreen() {
   return render(
     <ThemeProvider>
-      <TransactionsScreen />
+      <PortalProvider>
+        <TransactionsScreen />
+        <PortalHost />
+      </PortalProvider>
     </ThemeProvider>,
   )
 }
@@ -229,7 +234,7 @@ describe("orderDirectionConfig (murni — warna masuk/keluar)", () => {
 // ------------------------------------------------------------------
 
 describe("layar Transaksi (redesign)", () => {
-  it("segmen peran berikon + chip status tampil", async () => {
+  it("segmen peran berikon tampil; filter cukup ikon funnel (tanpa blok chip)", async () => {
     renderScreen()
     await waitFor(() => expect(mocks.listOrders).toHaveBeenCalled())
     // Segmen peran — Pembeli dulu (mayoritas pengguna escrow).
@@ -237,11 +242,12 @@ describe("layar Transaksi (redesign)", () => {
     expect(screen.getByText("Penjual")).toBeTruthy()
     expect(document.querySelector('[data-icon="ShoppingBag"]')).toBeTruthy()
     expect(document.querySelector('[data-icon="Storefront"]')).toBeTruthy()
-    // Blok filter status.
-    expect(screen.getByText("Filter status")).toBeTruthy()
+    // v2 (2026-09-27): filter cukup ikon funnel di header — tanpa label
+    // "Filter status" dan tanpa chip; opsi status hidup di sheet.
     expect(document.querySelector('[data-icon="FunnelSimple"]')).toBeTruthy()
-    expect(screen.getByText("Semua status")).toBeTruthy()
-    expect(screen.getByText("Aktif")).toBeTruthy()
+    expect(screen.queryByText("Filter status")).toBeNull()
+    expect(screen.queryByText("Semua status")).toBeNull()
+    expect(screen.queryByText("Aktif")).toBeNull()
   })
 
   it("pemanggilan awal: role=BUYER, tanpa param status", async () => {
@@ -293,7 +299,10 @@ describe("layar Transaksi (redesign)", () => {
   it("empty state saat filter aktif menawarkan hapus filter", async () => {
     renderScreen()
     await waitFor(() => expect(mocks.listOrders).toHaveBeenCalled())
-    fireEvent.click(screen.getByRole("button", { name: "Aktif" }))
+    // v2: filter lewat funnel di header → sheet pilihan status.
+    fireEvent.click(screen.getByRole("button", { name: "Filter status transaksi" }))
+    await waitFor(() => expect(screen.getByText("Aktif")).toBeTruthy())
+    fireEvent.click(screen.getByText("Aktif"))
     await waitFor(() => expect(screen.getByText("Tidak ada hasil")).toBeTruthy())
     expect(
       screen.getByText("Tidak ada transaksi yang cocok dengan saringan ini."),

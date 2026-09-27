@@ -38,7 +38,6 @@ import { useHasSession } from "@/lib/guest-gate"
 import { showcaseImages } from "@/lib/showcase-social"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { ROUTES } from "@/lib/routes"
-import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 
 import { Avatar } from "@/components/ui/avatar"
 import { VerifiedName } from "@/components/ui/verified-name"
@@ -162,18 +161,11 @@ function ShowcaseFeedItemBase({
   // H-04: gate tap penulis untuk tamu (profil = layar terproteksi).
   const hasSession = useHasSession()
   const gallery = showcaseImages(item)
-  const priceLabel = showcasePriceLabelOrFallback(item)
 
   const liked = item.isLiked === true
   // B-05 (audit 2026-09-23): hint dirakit lewat `translate` + token —
   // template literal mentah tidak bisa diterjemahkan ("12 Komentar" di EN).
   const commentCountLabel = translate("{x} Komentar", { x: formatCountCompact(item.commentCount) })
-  // M-03 (audit 2026-09-23): istilah "showcase" diganti "karya" untuk user.
-  const summary = translate("Karya {x}, {y}, oleh {z}", {
-    x: item.title,
-    y: priceLabel,
-    z: item.author.fullName ?? item.author.username,
-  })
 
   const handleReport = useCallback(() => {
     if (onReport) onReport()
@@ -285,26 +277,17 @@ function ShowcaseFeedItemBase({
         <ShowcaseMediaGallery images={gallery} title={item.title} onOpen={() => onPress?.()} />
       </View>
 
-      {/* ── Harga · judul · deskripsi (tap ke detail) ──
+      {/* ── Kategori · judul · deskripsi (tap ke detail) ──
+          Revisi 2026-09-27 (permintaan produk): harga DIHAPUS dari list
+          feed agar bersih — harga tetap tampil di halaman detail karya.
+          `priceLabel` dipertahankan untuk ringkasan aksesibilitas.
           B-03 (audit 2026-09-23): badge kategori kini SAUDARA (bukan anak)
           pressable ringkasan — button di dalam role=button = HTML tidak valid
           & iOS `accessible` induk menyembunyikan tombol kategori dari
-          VoiceOver. Susunan visual (baris harga+badge, lalu judul & deskripsi)
-          tetap sama. */}
+          VoiceOver. */}
       <View className="gap-1 px-5 pt-3">
-        <View className="flex-row flex-wrap items-center gap-2">
-          <PressableScale
-            accessibilityRole={onPress ? "button" : undefined}
-            accessibilityLabel={onPress ? summary : undefined}
-            accessibilityHint={onPress ? translate("Buka detail karya") : undefined}
-            onPress={onPress}
-            containerClassName={cn("rounded-sm", focusRing)}
-          >
-            <Text variant="h2" weight={700} className="tabular-nums">
-              {priceLabel}
-            </Text>
-          </PressableScale>
-          {item.category ? (
+        {item.category ? (
+          <View className="flex-row flex-wrap items-center gap-2">
             <PressableScale
               accessibilityRole="button"
               accessibilityLabel={translate("Filter kategori {x}", { x: item.category })}
@@ -316,8 +299,8 @@ function ShowcaseFeedItemBase({
                 {item.category}
               </Text>
             </PressableScale>
-          ) : null}
-        </View>
+          </View>
+        ) : null}
         <PressableScale
           accessibilityRole={onPress ? "button" : undefined}
           accessibilityLabel={onPress ? item.title : undefined}

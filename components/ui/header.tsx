@@ -102,6 +102,9 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
   progress?: number
   /** Tanpa border & bg — untuk hero */
   transparent?: boolean
+  /** Tampilkan garis pemisah di bawah header (default true). Tab Transaksi,
+      Pesan, dan Notifikasi mematikannya atas permintaan produk (2026-09-27). */
+  separator?: boolean
   /** Safe area top ikut dipadding (default true; false bila SafeAreaView di luar) */
   safeArea?: boolean
   className?: string
@@ -118,6 +121,7 @@ export function Header({
   right,
   progress,
   transparent = false,
+  separator = true,
   safeArea,
   className,
   ...rest
@@ -155,7 +159,8 @@ export function Header({
     <View
       className={cn(
         "z-sticky w-full items-center",
-        transparent ? "bg-transparent" : "bg-background border-b border-border",
+        transparent ? "bg-transparent" : "bg-background",
+        !transparent && separator && "border-b border-border",
         className,
       )}
       style={(safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined}

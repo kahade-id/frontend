@@ -67,19 +67,18 @@ import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { useUiPrefs } from "@/lib/ui-prefs"
 import { ORDER_STATUS_LABELS } from "@/components/ui/order-status-badge"
 import { Button } from "@/components/ui/button"
-import { Chip } from "@/components/ui/chip"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
-import { Icon } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { OrderCard, OrderCardSkeleton } from "@/components/ui/order-card"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
-import { ScrollRow } from "@/components/ui/scroll-row"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
+import { TransactionStatusSheet } from "@/components/ui/transaction-status-sheet"
 
 /** Peran pengguna pada order — nilai yang dikirim ke `GET /v1/orders?role=`. */
 type RoleTab = "seller" | "buyer"
@@ -221,6 +220,7 @@ export default function TransactionsScreen() {
   const { prefs, setPrefs } = useUiPrefs()
   const role: RoleTab = prefs.transactionsTab
   const [status, setStatus] = useState(ALL_STATUS)
+  const [sheetOpen, setSheetOpen] = useState(false)
   /**
    * B-02 (audit): tab Transaksi terbuka bagi tamu web
    * (WEB_GUEST_TAB_SCREENS), sedangkan `GET /v1/orders` `auth:"required"` —
@@ -286,6 +286,7 @@ export default function TransactionsScreen() {
       <Screen edges={["top"]} padded={false}>
         <Header title="Transaksi" showBack={false} />
         <GuestLoginPrompt bare next="/transactions" />
+        <GuestLoginPrompt bare next="/transactions" />
       </Screen>
     )
   }
@@ -299,7 +300,25 @@ export default function TransactionsScreen() {
        * Etalase. Empat ikon itu membuat judul "Transaksi" tergeser dan
        * menghabiskan sisi kanan header untuk pintu yang duplikat.
        */}
-      <Header title="Transaksi" showBack={false} />
+      {/* v2: header tanpa separator (permintaan produk 2026-09-27); filter
+          cukup ikon funnel di kanan — sheet pilihan status, tanpa blok chip. */}
+      <Header
+        title="Transaksi"
+        showBack={false}
+        separator={false}
+        right={
+          <IconButton
+            icon={FunnelSimple}
+            variant="ghost"
+            active={filtered}
+            accessibilityLabel={translate("Filter status transaksi")}
+            accessibilityHint={
+              filtered ? translate("Filter aktif, ketuk untuk mengubah") : translate("Ketuk untuk memfilter")
+            }
+            onPress={() => setSheetOpen(true)}
+          />
+        }
+      />
       <ModeShiftFade>
       {/* v2: kontrol filter fade-in cepat TANPA geser — kontrol fungsional
           harus terasa stabil, tidak "naik". Item list sendiri mendapat Layout
@@ -312,53 +331,16 @@ export default function TransactionsScreen() {
           onChange={(next) => setPrefs({ transactionsTab: next })}
         />
       </FadeIn>
-      {/*
-       * Saringan status = BLOK TERSENDIRI (permintaan produk 2026-09-26).
-       *
-       * Sebelumnya chip status menempel langsung di bawah <SegmentedControl>
-       * tanpa pemisah apa pun, sehingga dua kontrol berbeda terbaca sebagai
-       * satu kelompok tab — pengguna menyangka chip itu halaman lain yang
-       * bisa digeser. Kini ia berdiri di atas bidang `bg-surface` dengan
-       * border bawah, berlabel "Filter status", dan punya tombol reset yang
-       * hanya muncul saat saringan aktif.
-       */}
-      <FadeIn
-        duration="fast"
-        translate={false}
-        className="gap-2 border-b border-border bg-surface px-5 pb-3 pt-3"
-      >
-        <View className="flex-row items-center justify-between gap-3">
-          <View className="flex-row items-center gap-1.5">
-            <Icon icon={FunnelSimple} size="xs" tone="default" />
-            <Text variant="caption" tone="secondary">
-              Filter status
-            </Text>
-          </View>
-          {filtered ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              fullWidth={false}
-              accessibilityLabel="Tampilkan semua status"
-              onPress={() => setStatus(ALL_STATUS)}
-            >
-              Tampilkan semua
-            </Button>
-          ) : null}
-        </View>
-        <ScrollRow bleed gap={2} accessibilityLabel="Saring transaksi berdasarkan status">
-          {STATUS_CHIPS.map((chip) => (
-            <Chip
-              key={chip.value}
-              selected={status === chip.value}
-              accessibilityState={{ selected: status === chip.value }}
-              onPress={() => setStatus(chip.value)}
-            >
-              {chip.label}
-            </Chip>
-          ))}
-        </ScrollRow>
-      </FadeIn>
+      {/* v2 (2026-09-27): blok saringan chip DIHAPUS atas permintaan produk —
+          filter cukup ikon funnel di header yang membuka sheet pilihan status.
+          Logika `status`/`filtered`/query tidak berubah. */}
+      <TransactionStatusSheet
+        visible={sheetOpen}
+        onRequestClose={() => setSheetOpen(false)}
+        options={STATUS_CHIPS}
+        value={status}
+        onSelect={setStatus}
+      />
       <PaginatedList
         {...query}
         data={groups}

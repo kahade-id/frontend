@@ -410,6 +410,7 @@ function NotificationsScreen() {
         <Header
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih notifikasi"}
           showBack={false}
+          separator={false}
           left={
             <IconButton
               icon={X}
@@ -443,6 +444,7 @@ function NotificationsScreen() {
           // Tab top-level (bottom navbar) — tidak ada layar "sebelumnya"
           // untuk kembali (seperti <Header title="Transaksi" showBack={false}/>).
           showBack={false}
+          separator={false}
           right={
             <>
               {hasUnread ? (

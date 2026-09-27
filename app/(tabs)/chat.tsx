@@ -269,6 +269,7 @@ export default function ChatScreen() {
           // objek, dan argumen translate()), jadi copy dinamis harus dibungkus.
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih percakapan"}
           showBack={false}
+          separator={false}
           left={
             <IconButton
               icon={X}
@@ -314,6 +315,7 @@ export default function ChatScreen() {
           // Satu-satunya keluar adalah slot navbar di bawah — pola yang sama
           // dengan tab Transaksi/Dompet.
           showBack={false}
+          separator={false}
           title={archiveOpen ? "Diarsipkan" : "Chat"}
           right={
             <IconButton
