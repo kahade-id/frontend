@@ -11,7 +11,11 @@
  *  - Baris <NotificationListItem> premium: chip ikon kategori BERWARNA
  *    (order=primary, wallet=success, promo=amber, keamanan=danger,
  *    sistem=netral), unread = dot + tint halus, judul 2 baris + preview +
- *    timestamp relatif ("5 menit").
+ *    timestamp relatif ("5 menit lalu").
+ *  - Agregasi tampilan notifikasi sosial (lib/notification-social-grouping,
+ *    2026-09-28): like/follow berurutan & dekat waktunya digabung satu baris
+ *    ("Budi dan 12 lainnya menyukai karya Anda"). HANYA tipe allowlist
+ *    (SHOWCASE_LIKE, USER_FOLLOW) — transaksi/keuangan TIDAK PERNAH digabung.
  *  - Header grup hari WIB: "Hari ini" / "Kemarin" / tanggal
  *    (lib/notification-grouping).
  *  - Header: judul "Notifikasi" + pil "Tandai dibaca" (hanya bila ada unread).
@@ -56,7 +60,7 @@ import {
 } from "phosphor-react-native"
 
 import { api, type AppNotification, type NotificationCategory, userMessage } from "@/lib/api"
-import { formatRelativeTime } from "@/lib/format"
+import { formatTimeAgo } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
@@ -64,6 +68,13 @@ import { ROUTES } from "@/lib/routes"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { notificationTypeUiCategory, notificationUiCategory } from "@/lib/notification-category"
 import { notificationDayGroup } from "@/lib/notification-grouping"
+import {
+  describeSocialGroup,
+  groupSocialNotifications,
+  notificationRowHead,
+  notificationRowId,
+  type NotificationRow,
+} from "@/lib/notification-social-grouping"
 import { routeForNotificationReference } from "@/lib/notification-routing"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
@@ -245,6 +256,12 @@ function NotificationsScreen() {
   )
   const { data: notifs, setData: setNotifs } = query
 
+  // Agregasi tampilan (2026-09-28): notifikasi sosial (like/follow) yang
+  // berurutan & dekat waktunya digabung satu baris. Murni tampilan — tidak
+  // mengubah data/API. Transaksi/keuangan tidak pernah masuk grup (allowlist
+  // di lib/notification-social-grouping).
+  const rows = useMemo<NotificationRow[]>(() => groupSocialNotifications(notifs), [notifs])
+
   // Menu "⋮" + mode pilih (batch read/delete) + konfirmasi hapus
   const [menuOpen, setMenuOpen] = useState(false)
   const [selecting, setSelecting] = useState(false)
@@ -280,6 +297,53 @@ function NotificationsScreen() {
     },
     [toast.show],
   )
+
+  /**
+   * Tap satu baris GRUP: tandai SEMUA anggotanya dibaca (batch, di-chunk
+   * BATCH_MAX = batas BatchNotificationIdsDto) lalu rute ke entitas target
+   * (referenceType/referenceId sama untuk semua anggota grup).
+   */
+  const handleReadGroup = useCallback(
+    (items: AppNotification[]) => {
+      const ids = items.map((i) => i.id)
+      const idSet = new Set(ids)
+      setNotifs((prev) => prev.map((n) => (idSet.has(n.id) ? { ...n, isRead: true } : n)))
+      const chunks: string[][] = []
+      for (let i = 0; i < ids.length; i += BATCH_MAX) chunks.push(ids.slice(i, i + BATCH_MAX))
+      Promise.all(chunks.map((c) => api.notifications.markNotificationsReadBatch(c)))
+        .then(() => refreshUnreadCount())
+        .catch((err: unknown) => {
+          // Rollback tidak diam-diam (pola CN-018 di handleRead).
+          setNotifs((prev) => prev.map((n) => (idSet.has(n.id) ? { ...n, isRead: false } : n)))
+          logWarn("notifications:mark-read-group", err)
+          toast.show({
+            title: "Gagal menandai dibaca",
+            description: "Periksa koneksi Anda lalu coba lagi.",
+            tone: "danger",
+          })
+        })
+    },
+    [setNotifs, toast.show],
+  )
+
+  /** Tekan lama satu baris grup → mode pilih dengan SEMUA anggotanya terpilih. */
+  const enterSelectGroup = useCallback((items: AppNotification[]) => {
+    haptic("select")
+    setSelecting(true)
+    setSelected(new Set(items.map((i) => i.id)))
+  }, [])
+
+  /** Toggle pilih satu baris grup saat mode pilih aktif. */
+  const toggleSelectGroup = useCallback((items: AppNotification[]) => {
+    haptic("select")
+    setSelected((prev) => {
+      const next = new Set(prev)
+      const ids = items.map((i) => i.id)
+      if (ids.every((id) => next.has(id))) ids.forEach((id) => next.delete(id))
+      else for (const id of ids) if (next.size < BATCH_MAX) next.add(id)
+      return next
+    })
+  }, [])
 
   const exitSelect = useCallback(() => {
     setSelecting(false)
@@ -496,6 +560,10 @@ function NotificationsScreen() {
 
       <PaginatedList
         {...query}
+        // `data` diganti baris tampilan (hasil agregasi sosial); `query`
+        // tetap membawa loading/error/pagination.
+        data={rows}
+        keyExtractor={notificationRowId}
         onScrollWorklet={onScrollWorklet}
         padded={false}
         // Audit: default <ListLoading/> merender 4 kartu h-24; baris
@@ -534,48 +602,68 @@ function NotificationsScreen() {
             }
           />
         }
-        renderItem={({ item, index }) => {
+        renderItem={({ item: row, index }) => {
           // Header grup hari (WIB): tampil di baris pertama tiap hari.
           // Daftar diurutkan terbaru-di-atas (byTimestampDesc), jadi hari-hari
-          // selalu berurutan — tidak perlu struktur SectionList.
-          const group = notificationDayGroup(item.createdAt)
-          const prev = index > 0 ? notifs[index - 1] : undefined
+          // selalu berurutan — tidak perlu struktur SectionList. Untuk baris
+          // grup, hari diambil dari item terbarunya (head).
+          const head = notificationRowHead(row)
+          const group = notificationDayGroup(head.createdAt)
+          const prevHead = index > 0 ? notificationRowHead(rows[index - 1]) : undefined
           const showHeader =
-            index === 0 || (prev != null && notificationDayGroup(prev.createdAt).key !== group.key)
+            index === 0 || (prevHead != null && notificationDayGroup(prevHead.createdAt).key !== group.key)
           // Divider hanya antar baris dalam hari yang sama; antar grup yang
           // memisahkan adalah header harinya sendiri.
-          const next = index < notifs.length - 1 ? notifs[index + 1] : undefined
+          const nextHead = index < rows.length - 1 ? notificationRowHead(rows[index + 1]) : undefined
           const sameDayAsNext =
-            next != null && notificationDayGroup(next.createdAt).key === group.key
+            nextHead != null && notificationDayGroup(nextHead.createdAt).key === group.key
+
+          const isGroup = row.kind === "group"
+          const members = isGroup ? row.items : [head]
           return (
             <View>
               {showHeader ? <NotificationDayHeader label={group.label} sub={group.sub} /> : null}
               <NotificationListItem
-                title={item.title}
-                body={item.body || undefined}
-                category={notificationTypeUiCategory(item.type) ?? notificationUiCategory(item.category)}
-                // Timestamp relatif ("5 menit", "2 jam") — format eksplisit
-                // tetap tersedia di layar detail bila dibutuhkan.
-                timestamp={formatRelativeTime(item.createdAt)}
-                unread={!item.isRead}
-                selected={selecting && selected.has(item.id)}
+                title={isGroup ? describeSocialGroup(head.type ?? "", row.items) : head.title}
+                body={isGroup ? undefined : head.body || undefined}
+                category={notificationTypeUiCategory(head.type) ?? notificationUiCategory(head.category)}
+                // Timestamp relatif ("5 menit lalu", "Kemarin") — format
+                // eksplisit tetap tersedia di layar detail bila dibutuhkan.
+                timestamp={formatTimeAgo(head.createdAt)}
+                unread={isGroup ? true : !head.isRead}
+                selected={selecting && members.every((m) => selected.has(m.id))}
                 haptic
                 onPress={() => {
                   if (selecting) {
-                    toggleSelect(item.id)
+                    if (isGroup) toggleSelectGroup(row.items)
+                    else toggleSelect(head.id)
                     return
                   }
-                  if (!item.isRead) handleRead(item.id)
+                  if (isGroup) {
+                    // Grup hanya berisi yang belum dibaca (aturan agregasi).
+                    handleReadGroup(row.items)
+                  } else if (!head.isRead) {
+                    handleRead(head.id)
+                  }
                   // CN-017: satu ketukan — bila entitas terkait bisa di-resolve
                   // (referenceType/referenceId atau actionUrl), langsung ke sana
                   // seperti tap push; bila tidak, baru ke layar detail.
-                  const direct = routeForNotificationReference(item)
-                  router.push(direct ?? ROUTES.notificationDetail(item.id))
+                  // Grup: reference sama untuk semua anggota → pakai head.
+                  const direct = routeForNotificationReference(head)
+                  router.push(direct ?? ROUTES.notificationDetail(head.id))
                 }}
                 // Tekan lama = masuk mode pilih (bukan ActionSheet per item).
                 // Di web affordance tekan-lama tidak ada, jadi hint baris
                 // menyebutnya eksplisit (lihat NotificationListItem).
-                onLongPress={() => (selecting ? toggleSelect(item.id) : enterSelect(item.id))}
+                onLongPress={() =>
+                  isGroup
+                    ? selecting
+                      ? toggleSelectGroup(row.items)
+                      : enterSelectGroup(row.items)
+                    : selecting
+                      ? toggleSelect(head.id)
+                      : enterSelect(head.id)
+                }
                 ripple
                 divider={sameDayAsNext}
               />

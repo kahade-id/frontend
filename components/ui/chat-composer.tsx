@@ -9,9 +9,14 @@
  * navigasi & upload berjalan di luar komponen.
  *
  * Anatomi (bawah -> atas):
- *   [ + ] [ TextInput multiline auto-grow (maks 5 baris) ] [ kirim ]
+ *   [ + ] [ TextInput multiline auto-grow (maks 5 baris) ] [ mic | kirim ]
  *   baris lampiran (chip <ChatAttachmentItem layout="chip">, scroll horizontal)
  *   strip balasan ("Membalas Nama · cuplikan" + X) bila `replyTo`
+ *
+ * Tombol kanan bersifat kontekstual ala WhatsApp: saat teks & lampiran kosong
+ * dan `onMicPress` diset, yang tampil tombol mic (membuka perekam voice
+ * note); begitu ada isi/lampiran, tombol kirim menggantikannya. Tanpa
+ * `onMicPress` (mis. live-support), tombol kirim selalu tampil seperti dulu.
  *
  * Keputusan non-obvious:
  *   - TIDAK memakai <Input>: Input membawa floating label, tinggi tetap 56,
@@ -32,7 +37,7 @@
  *   - Komponen tidak mengurus KeyboardAvoiding/safe-area: bungkus dengan
  *     <KeyboardAvoiding> + <SafeAreaSpacer> di layar (lihar §4 safe area).
  */
-import { PaperPlaneRight, Plus, X } from "phosphor-react-native"
+import { Microphone, PaperPlaneRight, Plus, X } from "phosphor-react-native"
 import { useCallback, useState } from "react"
 import {
   Platform,
@@ -82,6 +87,8 @@ export type ChatComposerLabels = {
   placeholder: string
   attach: string
   send: string
+  /** Label aksesibilitas tombol mic (voice note). */
+  mic: string
   replyingTo: string
   cancelReply: string
 }
@@ -90,6 +97,7 @@ const DEFAULT_LABELS: ChatComposerLabels = {
   placeholder: "Tulis pesan",
   attach: "Tambah lampiran",
   send: "Kirim pesan",
+  mic: "Rekam voice note",
   replyingTo: "Membalas",
   cancelReply: "Batalkan balasan",
 }
@@ -100,6 +108,11 @@ export type ChatComposerProps = Omit<ViewProps, "children"> & {
   onSend: (payload: ChatComposerPayload) => void
   attachments?: ComposerAttachment[]
   onAttach?: () => void
+  /**
+   * Mic ala WhatsApp: tampil menggantikan tombol kirim saat teks & lampiran
+   * kosong. Opsional — tanpa ini tombol kirim selalu tampil (live-support).
+   */
+  onMicPress?: () => void
   onRemoveAttachment?: (localId: string) => void
   onRetryAttachment?: (localId: string) => void
   replyTo?: ComposerReplyTarget
@@ -118,6 +131,7 @@ export function ChatComposer({
   onSend,
   attachments = [],
   onAttach,
+  onMicPress,
   onRemoveAttachment,
   onRetryAttachment,
   replyTo,
@@ -141,6 +155,9 @@ export function ChatComposer({
   const maxInputHeight = lineHeight * MAX_LINES
   const ready = canSendMessage(value, attachments) && !sending && !disabled
   const showCount = value.length >= Math.floor(maxLength * 0.9)
+  // Mic menggantikan tombol kirim hanya saat benar-benar idle: ada teks atau
+  // lampiran → kirim; sedang mengirim → kirim (loading).
+  const showMic = !!onMicPress && value.trim().length === 0 && attachments.length === 0 && !sending
 
   const submit = useCallback(() => {
     if (!ready) return
@@ -212,6 +229,7 @@ export function ChatComposer({
             icon={Plus}
             variant="secondary"
             size="md"
+            shape="pill"
             accessibilityLabel={t.attach}
             onPress={onAttach}
             disabled={disabled || sending}
@@ -258,16 +276,29 @@ export function ChatComposer({
           ) : null}
         </View>
 
-        <IconButton
-          icon={PaperPlaneRight}
-          variant="primary"
-          size="md"
-          weight="fill"
-          accessibilityLabel={translateProp(t.send) ?? t.send}
-          onPress={submit}
-          disabled={!ready}
-          loading={sending}
-        />
+        {showMic ? (
+          <IconButton
+            icon={Microphone}
+            variant="secondary"
+            size="md"
+            shape="pill"
+            accessibilityLabel={translateProp(t.mic) ?? t.mic}
+            onPress={onMicPress}
+            disabled={disabled}
+          />
+        ) : (
+          <IconButton
+            icon={PaperPlaneRight}
+            variant="primary"
+            size="md"
+            shape="pill"
+            weight="fill"
+            accessibilityLabel={translateProp(t.send) ?? t.send}
+            onPress={submit}
+            disabled={!ready}
+            loading={sending}
+          />
+        )}
       </View>
     </View>
   )

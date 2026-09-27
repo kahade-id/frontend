@@ -113,6 +113,12 @@
           "microphonePermission": false
         }
       ],
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Kahade butuh akses mikrofon untuk merekam voice note di chat."
+        }
+      ],
       "expo-file-system",
       [
         "expo-notifications",

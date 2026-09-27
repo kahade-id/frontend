@@ -7,12 +7,13 @@
  * DELETE /v1/chat/rooms/{roomId}/messages/{messageId}
  *
  * Keputusan non-obvious:
- *   - Lampiran: tombol klip di ChatComposer → galeri → unggah ke endpoint
- *     upload ruang (bukan presigned umum, supaya file tercatat di ruang dan
- *     muncul di GET /attachments). Sambil diunggah status "uploading";
+ *   - Lampiran: tombol + di ChatComposer → <ChatAttachmentSheet> (Gambar /
+ *     Video / File / Voice Note) → unggah ke endpoint upload ruang (bukan
+ *     presigned umum, supaya file tercatat di ruang dan muncul di
+ *     GET /attachments). Sambil diunggah status "uploading";
  *     gagal → "error" + coba lagi. Saat kirim, `messageType` = IMAGE bila
- *     semua lampiran gambar, FILE bila ada non-gambar, TEXT bila tanpa
- *     lampiran.
+ *     semua lampiran gambar, VOICE bila semua audio (voice note), FILE bila
+ *     ada non-gambar/non-audio, TEXT bila tanpa lampiran.
  *   - Pesan lama dimuat ke ATAS lewat <LoadMore> (dan otomatis saat scroll
  *     mencapai puncak list) dengan kursor (`nextCursor` dari server, fallback
  *     id pesan tertua) + `excludeIds` TERBATAS (EXCLUDE_IDS_MAX id terbaru;
@@ -67,6 +68,7 @@ import {
   getPinnedMessages,
   getReadReceipts,
   getRoomPresence,
+  isOneToOneChatRoom,
   normalizeChatMessage,
   pinChatMessage,
   removeReaction,
@@ -81,6 +83,7 @@ import {
   applyDeletedTombstone,
   applyReactionSummary,
 } from "@/lib/realtime/chat-events"
+import { mergeChatMessages } from "@/lib/chat-dedupe"
 import { useChatRoomRealtime } from "@/lib/realtime/use-chat-room"
 import type { ChatAttachmentDto, SendMessageDto } from "@/lib/api/types"
 import { useCopy } from "@/lib/clipboard"
@@ -88,6 +91,10 @@ import { formatChatListTime, truncateMiddle } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { logWarn } from "@/lib/telemetry"
 import { pickImage, pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
+import * as DocumentPicker from "expo-document-picker"
+import { ChatAttachmentSheet } from "@/components/ui/chat-attachment-sheet"
+import { VoiceNoteRecorder, type VoiceNoteFile } from "@/components/ui/voice-note-recorder"
+import { isAudioMime, validateVoiceNoteFile, voiceNoteValidationMessage } from "@/lib/voice-note"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
@@ -172,7 +179,12 @@ function messageTypeFor(
   // TypeError tepat saat tombol kirim ditekan — pesan tak pernah terkirim dan
   // layar jatuh ke error boundary. Lampiran tanpa MIME dianggap bukan gambar.
   const isImage = (a: ChatAttachmentDto) => isImageMime(a.mimeType)
-  return attachments.every(isImage) ? "IMAGE" : "FILE"
+  if (attachments.every(isImage)) return "IMAGE"
+  // Voice note: semua lampiran audio → VOICE (sudah ada di kontrak
+  // SendMessageDto; bubble menampilkan label "Pesan suara").
+  const isAudio = (a: ChatAttachmentDto) => isAudioMime(a.mimeType)
+  if (attachments.every(isAudio)) return "VOICE"
+  return "FILE"
 }
 
 function sortByTime(items: ChatMessage[]): ChatMessage[] {
@@ -202,6 +214,10 @@ export default function ChatRoomScreen() {
   /** Room dihapus/dinonaktifkan (404) — tampilkan EmptyState khusus, bukan error generik. */
   const [roomGone, setRoomGone] = useState(false)
   const [sending, setSending] = useState(false)
+  /** Sheet lampiran (+) composer: Gambar / Video / File / Voice Note. */
+  const [attachSheetOpen, setAttachSheetOpen] = useState(false)
+  /** Sheet perekam voice note. */
+  const [voiceSheetOpen, setVoiceSheetOpen] = useState(false)
 
   const [viewerItem, setViewerItem] = useState<MediaViewerItem | null>(null)
   /**
@@ -265,6 +281,14 @@ export default function ChatRoomScreen() {
     room?.counterpart?.fullName ??
     (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined) ??
     titleParam
+
+  /**
+   * Workstream C (2026-09-28, produk): di DM 1:1 bubble lawan TIDAK
+   * menampilkan foto + nama (ala WhatsApp — hanya bubble). Di ruang
+   * transaksi/grup (admin bisa masuk) identitas pengirim tetap tampil.
+   * `room` null (daftar ruang belum termuat) → perilaku lama (tampil).
+   */
+  const showPeerIdentity = !isOneToOneChatRoom(room)
 
   /**
    * Target balasan → strip preview di atas composer ("Membalas {nama} ·
@@ -425,41 +449,17 @@ export default function ChatRoomScreen() {
       if (sourceRoom !== undefined && sourceRoom !== roomIdRef.current) return 0
       let added = 0
       setMessages((prev) => {
-        const known = new Map(prev.map((m) => [m.id, m]))
-        const fresh = incoming.filter((m) => !known.has(m.id))
-        added = fresh.length
-        // C-07 (audit): pesan yang SUDAH ada di thread ikut disegarkan dari
-        // data poll (reaksi, pin, edit, teks) — sebelumnya reaksi/read dari
-        // lawan bicara tidak pernah muncul sampai keluar-masuk ruang.
-        let changed = added > 0
-        const patched = prev.map((m) => {
-          const next = known.get(m.id) ? incoming.find((i) => i.id === m.id) : undefined
-          if (!next) return m
-          const same =
-            next.isPinned === m.isPinned &&
-            next.isEdited === m.isEdited &&
-            next.text === m.text &&
-            JSON.stringify(next.reactions ?? []) === JSON.stringify(m.reactions ?? [])
-          if (same) return m
-          changed = true
-          return {
-            ...m,
-            text: next.text,
-            isPinned: next.isPinned,
-            isEdited: next.isEdited,
-            editedAt: next.editedAt ?? m.editedAt,
-            reactions: next.reactions,
-          }
-        })
-        if (!changed) return prev
+        const result = mergeChatMessages(prev, incoming)
+        added = result.added
+        if (!result.changed) return prev
         // Pesan masuk dari lawan bicara → badge tab Notifikasi harus turun
         // segera (ruang terbuka = terbaca), bukan menunggu poll 60 detik.
         // Namun HANYA bila user sedang di dasar thread: yang sedang scroll
         // ke atas membaca riwayat belum melihat pesan baru — menandainya
         // "dibaca" akan menampilkan centang ganda palsu ke lawan bicara.
         if (
-          added > 0 &&
-          fresh.some((m) => !m.fromUser) &&
+          result.added > 0 &&
+          result.hasFreshFromOther &&
           roomIdRef.current &&
           atBottomRef.current
         ) {
@@ -469,7 +469,7 @@ export default function ChatRoomScreen() {
           void refreshUnreadCount()
           void refreshChatUnreadCount()
         }
-        return sortByTime([...patched, ...fresh])
+        return result.next
       })
       return added
     },
@@ -721,39 +721,99 @@ export default function ChatRoomScreen() {
     [roomId],
   )
 
-  const handleAttach = useCallback(async () => {
+  /**
+   * Antrekan satu berkas ke composer lalu unggah ke endpoint upload ruang.
+   * Bentuk `PickedImage` dipakai ulang untuk semua jenis berkas (gambar,
+   * video, dokumen, voice note) — `pickedImageToFormData` hanya butuh
+   * { uri, name, mimeType }.
+   */
+  const enqueueAndUpload = useCallback(
+    async (picked: PickedImage) => {
+      // CN-016: validasi ukuran di klien — backend menolak > 10 MB.
+      // `size` 0 = platform tidak melaporkan; lewatkan (server tetap gate).
+      const CHAT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
+      if (picked.size > CHAT_ATTACHMENT_MAX_BYTES) {
+        toast.show({
+          title: "File terlalu besar",
+          description: "Ukuran lampiran maksimal 10 MB.",
+          tone: "danger",
+        })
+        return
+      }
+      const localId = `${Date.now()}-${picked.name}`
+      setAttachments((prev) => [
+        ...prev,
+        {
+          localId,
+          fileName: picked.name,
+          fileUrl: picked.uri,
+          mimeType: picked.mimeType,
+          fileSize: picked.size,
+          status: "uploading",
+          picked,
+        },
+      ])
+      await uploadAttachment(localId, picked)
+    },
+    [toast.show, uploadAttachment],
+  )
+
+  const handlePickImage = useCallback(async () => {
+    setAttachSheetOpen(false)
     const picked = await pickImage()
     if (picked.status === "denied") {
       toast.show({ title: "Akses galeri ditolak", tone: "danger" })
       return
     }
     if (picked.status !== "picked") return
-    // CN-016: validasi ukuran di klien — backend menolak > 10 MB.
-    // `size` 0 = platform tidak melaporkan; lewatkan (server tetap gate).
-    const CHAT_ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024
-    if (picked.asset.size > CHAT_ATTACHMENT_MAX_BYTES) {
-      toast.show({
-        title: "File terlalu besar",
-        description: "Ukuran lampiran maksimal 10 MB.",
-        tone: "danger",
-      })
+    await enqueueAndUpload(picked.asset)
+  }, [toast.show, enqueueAndUpload])
+
+  const handlePickVideo = useCallback(async () => {
+    setAttachSheetOpen(false)
+    const picked = await pickImage({ videoOnly: true })
+    if (picked.status === "denied") {
+      toast.show({ title: "Akses galeri ditolak", tone: "danger" })
       return
     }
-    const localId = `${Date.now()}-${picked.asset.name}`
-    setAttachments((prev) => [
-      ...prev,
-      {
-        localId,
-        fileName: picked.asset.name,
-        fileUrl: picked.asset.uri,
-        mimeType: picked.asset.mimeType,
-        fileSize: picked.asset.size,
-        status: "uploading",
-        picked: picked.asset,
-      },
-    ])
-    await uploadAttachment(localId, picked.asset)
-  }, [toast.show, uploadAttachment])
+    if (picked.status !== "picked") return
+    await enqueueAndUpload(picked.asset)
+  }, [toast.show, enqueueAndUpload])
+
+  const handlePickFile = useCallback(async () => {
+    setAttachSheetOpen(false)
+    const result = await DocumentPicker.getDocumentAsync({
+      type: "*/*",
+      copyToCacheDirectory: true,
+      multiple: false,
+    })
+    const asset = result.canceled ? null : result.assets[0]
+    if (!asset) return
+    await enqueueAndUpload({
+      uri: asset.uri,
+      name: asset.name,
+      mimeType: asset.mimeType ?? "application/octet-stream",
+      size: asset.size ?? 0,
+    })
+  }, [enqueueAndUpload])
+
+  const handleVoiceRecorded = useCallback(
+    async (file: VoiceNoteFile) => {
+      setVoiceSheetOpen(false)
+      const validation = validateVoiceNoteFile({ size: file.size, durationMs: file.durationMs })
+      if (!validation.ok) {
+        toast.show({ title: "Voice note tidak valid", description: voiceNoteValidationMessage(validation.reason), tone: "danger" })
+        return
+      }
+      await enqueueAndUpload({
+        uri: file.uri,
+        name: file.name,
+        mimeType: file.mimeType,
+        size: file.size,
+      })
+    },
+    [toast.show, enqueueAndUpload],
+  )
 
   const handleSend = useCallback(
     async (payload: ChatComposerPayload) => {
@@ -822,8 +882,13 @@ export default function ChatRoomScreen() {
           attachments: dtoAttachments.length ? dtoAttachments : undefined,
           replyToId: payload.replyToId,
         })
-        // Ganti optimistic dengan pesan asli dari server.
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)))
+        // Ganti optimistic dengan pesan asli dari server. Cocokkan juga
+        // berdasar id server: bila gema realtime tiba lebih dulu, entri
+        // optimistis sudah diganti gema (fix duplikat 2026-09-28) — tanpa
+        // ini pesan server akan ter-append dua kali.
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)),
+        )
         mergeIncoming([msg], roomId)
         // Pengguna aktif → poll kembali cepat bila sedang idle.
         emptyPolls.current = 0
@@ -884,7 +949,9 @@ export default function ChatRoomScreen() {
             : undefined,
           replyToId: failed.replyToId ?? undefined,
         })
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? msg : m)))
+        // Samakan dengan jalur kirim: cocokkan id temp ATAU id server
+        // (gema bisa tiba sebelum POST resolve — fix duplikat 2026-09-28).
+        setMessages((prev) => prev.map((m) => (m.id === tempId || m.id === msg.id ? msg : m)))
         mergeIncoming([msg], roomId)
         emptyPolls.current = 0
         setPollInterval(CHAT_POLL_MS)
@@ -1287,7 +1354,8 @@ export default function ChatRoomScreen() {
           onDraftChange={setDraft}
           onSend={(p) => void handleSend(p)}
           attachments={composerAttachments}
-          onAttach={() => void handleAttach()}
+          onAttach={() => setAttachSheetOpen(true)}
+          onMicPress={() => setVoiceSheetOpen(true)}
           onRemoveAttachment={(localId) =>
             setAttachments((prev) => prev.filter((a) => a.localId !== localId))
           }
@@ -1430,11 +1498,19 @@ export default function ChatRoomScreen() {
             // Foto + nama lawan bicara untuk gelembung masuk (2026-09-26).
             // Revisi 2026-09-27 (UI polish): sealTier ikut diteruskan agar
             // seal verifikasi tampil di samping nama pengirim bubble.
+            // Revisi 2026-09-28 (produk): DM 1:1 → disembunyikan total
+            // (showSenderIdentity=false); ruang transaksi/grup → tetap tampil.
             counterpart={{
               name: counterpartName,
               avatarUrl: room?.counterpart?.avatarUrl,
               sealTier: room?.counterpart?.sealTier ?? null,
             }}
+            showSenderIdentity={showPeerIdentity}
+            // Swipe kanan bubble = jalan pintas balas (2026-09-28).
+            // Tekan lama "Balas" di SelectionBar TETAP ADA — gesture ini
+            // hanya memanggil setReplyTarget yang sama. Nonaktif saat mode
+            // pilih agar tidak bentrok dengan toggle pilihan.
+            onSwipeReply={selecting ? undefined : (m) => setReplyTarget(m)}
             // Revisi 2026-09-27: KETUKAN bubble teks = NO-OP di luar mode
             // pilih (tidak membuka apa pun); saat mode pilih aktif ketukan
             // men-toggle pilihan. Aksi (menu/reaksi) HANYA lewat tekan lama
@@ -1554,6 +1630,26 @@ export default function ChatRoomScreen() {
         onConfirm={() => void handleDeleteSelected()}
         onCancel={() => setDeleteOpen(false)}
         onRequestClose={() => setDeleteOpen(false)}
+      />
+
+      {/* Menu lampiran (+) composer: Gambar / Video / File / Voice Note. */}
+      <ChatAttachmentSheet
+        visible={attachSheetOpen}
+        onRequestClose={() => setAttachSheetOpen(false)}
+        onPickImage={() => void handlePickImage()}
+        onPickVideo={() => void handlePickVideo()}
+        onPickFile={() => void handlePickFile()}
+        onRecordVoice={() => {
+          setAttachSheetOpen(false)
+          setVoiceSheetOpen(true)
+        }}
+      />
+
+      {/* Perekam voice note — hasil diantrekan ke unggahan ruang. */}
+      <VoiceNoteRecorder
+        visible={voiceSheetOpen}
+        onRequestClose={() => setVoiceSheetOpen(false)}
+        onRecorded={(file) => void handleVoiceRecorded(file)}
       />
     </Screen>
   )

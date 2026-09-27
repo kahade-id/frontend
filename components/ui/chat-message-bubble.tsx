@@ -53,9 +53,17 @@
  *     `scaleOnPress={false}` karena baris chat yang ikut mengecil terasa
  *     "goyang" saat scroll cepat.
  */
-import { useRef, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, type ReactNode } from "react"
 import { View, type GestureResponderEvent, type ViewProps } from "react-native"
-import { Check, Checks, Clock, PushPin, WarningCircle } from "phosphor-react-native"
+import { Gesture, GestureDetector } from "react-native-gesture-handler"
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useSharedValue,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated"
+import { ArrowBendUpLeft, Check, Checks, Clock, PushPin, WarningCircle } from "phosphor-react-native"
 
 import { Avatar } from "@/components/ui/avatar"
 import { Icon } from "@/components/ui/icon"
@@ -69,9 +77,13 @@ import { focusRing } from "@/lib/focus-ring"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { translate } from "@/lib/i18n/translate"
 import { summarize } from "@/lib/a11y"
+import { useReducedMotion } from "@/lib/use-reduced-motion"
+import { tokens } from "@/lib/tokens"
 import {
   REACTION_BADGE_ANCHOR,
+  SWIPE_REPLY_MAX_PX,
   chatBubbleGeometry,
+  shouldTriggerSwipeReply,
   type ChatBubbleAnchor,
 } from "@/lib/chat-bubble"
 
@@ -163,6 +175,17 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   isEdited?: boolean
   /** CN-003: pesan terhapus — teks jadi placeholder italic/muted. */
   isDeleted?: boolean
+  /**
+   * DM 1:1 (2026-09-28): sembunyikan baris nama pengirim di blok kutipan
+   * balasan — ala WhatsApp, kutipan hanya menampilkan cuplikan pesan.
+   */
+  hideQuoteSenderName?: boolean
+  /**
+   * Swipe kanan pada bubble → balas pesan ini (jalan pintas, 2026-09-28).
+   * Tekan lama "Balas" tetap ada — ini hanya jalur tambahan. Bila diisi,
+   * bubble bisa digeser ke kanan; melewati ambang memicu callback ini.
+   */
+  onSwipeReply?: () => void
   labels?: { retry?: string; failed?: string; edited?: string }
   className?: string
 }
@@ -194,6 +217,8 @@ export function ChatMessageBubble({
   isPinned = false,
   isEdited = false,
   isDeleted = false,
+  hideQuoteSenderName = false,
+  onSwipeReply,
   labels,
   avatarUrl,
   avatarName,
@@ -211,6 +236,58 @@ export function ChatMessageBubble({
    * dioptimasi hilang di Android.
    */
   const bubbleRef = useRef<View | null>(null)
+
+  /**
+   * Swipe-to-reply (2026-09-28) — jalan pintas; tekan lama "Balas" TETAP ADA.
+   * Hooks ditaruh SEBELUM early-return `system` (aturan hooks).
+   */
+  const swipeX = useSharedValue(0)
+  const reduceMotion = useReducedMotion()
+  const swipeReplyRef = useRef(onSwipeReply)
+  useEffect(() => {
+    swipeReplyRef.current = onSwipeReply
+  }, [onSwipeReply])
+  const canSwipeReply = !!onSwipeReply && direction !== "system" && !isDeleted
+  /**
+   * Pan horizontal ala <SwipeableListItem>: `activeOffsetX(12)` +
+   * `failOffsetY(8)` — pan hanya diklaim setelah gerakan horizontal jelas,
+   * scroll vertikal FlatList tidak terganggu.
+   */
+  const swipePan = useMemo(
+    () =>
+      Gesture.Pan()
+        .activeOffsetX(12)
+        .failOffsetY(8)
+        .onUpdate((e) => {
+          "worklet"
+          swipeX.value = Math.max(0, Math.min(e.translationX, SWIPE_REPLY_MAX_PX))
+        })
+        .onEnd((e) => {
+          "worklet"
+          if (shouldTriggerSwipeReply(swipeX.value, e.velocityX)) {
+            const cb = swipeReplyRef.current
+            if (cb) runOnJS(cb)()
+          }
+          // Reduce Motion: snap-back INSTAN tanpa spring — yang
+          // dipertahankan hanya translasi mengikuti jari (esensial untuk
+          // fungsi, pengecualian WCAG 2.3.3).
+          swipeX.value = reduceMotion
+            ? withTiming(0, { duration: 0 })
+            : withSpring(0, tokens.motion.spring)
+        }),
+    [reduceMotion, swipeX],
+  )
+  const swipeBubbleStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: swipeX.value }],
+  }))
+  /**
+   * Hint visual: ikon reply fade+scale (bukan gerak) di ruang yang terbuka
+   * di kiri bubble saat digeser.
+   */
+  const swipeHintStyle = useAnimatedStyle(() => {
+    const p = Math.min(1, swipeX.value / SWIPE_REPLY_MAX_PX)
+    return { opacity: p, transform: [{ scale: 0.5 + 0.5 * p }] }
+  })
 
   if (direction === "system") {
     return (
@@ -251,15 +328,18 @@ export function ChatMessageBubble({
             outgoing ? "border-white/70 bg-black/15" : "border-border-focus bg-background",
           )}
         >
-          <Text
-            variant="caption"
-            weight={600}
-            tone={outgoing ? "inverse" : "primary"}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {quote.senderName ?? "Pesan"}
-          </Text>
+          {/* DM 1:1 — baris nama pengirim kutipan disembunyikan total. */}
+          {hideQuoteSenderName ? null : (
+            <Text
+              variant="caption"
+              weight={600}
+              tone={outgoing ? "inverse" : "primary"}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {quote.senderName ?? "Pesan"}
+            </Text>
+          )}
           <Text
             variant="caption"
             tone={outgoing ? "inverse" : "secondary"}
@@ -323,19 +403,12 @@ export function ChatMessageBubble({
     .filter(Boolean)
     .join(", ")
 
-  const bubbleBlock = (
-    <View
-      ref={bubbleRef}
-      collapsable={false}
-      className={cn(
-        // `relative` = jangkar badge reaksi; `overflow-visible` supaya badge
-        // yang menjulur keluar bubble tidak terpotong (khususnya Android).
-        "relative overflow-visible",
-        // REACTION_BADGE_CLEARANCE_PX: badge menjulur 12px di bawah bubble —
-        // beri napas 16px supaya tidak menabrak baris jam/bubble berikut.
-        hasReactions && "mb-4",
-      )}
-    >
+  /**
+   * Isi bubble (pressable + badge reaksi) — dipakai di kedua cabang
+   * `bubbleBlock` (swipe / non-swipe) di bawah.
+   */
+  const bubbleCore = (
+    <>
       {onLongPress || onLongPressAt || onPress ? (
         <PressableScale
           accessibilityRole="text"
@@ -400,6 +473,68 @@ export function ChatMessageBubble({
           ))}
         </View>
       ) : null}
+    </>
+  )
+
+  /**
+   * Pembungkus bubble. Cabang swipe (2026-09-28): ikon hint reply (absolute,
+   * di kiri) + GestureDetector > Animated.View (hanya `style` — className
+   * tetap di <View> dalam, sesuai konvensi proyek) + className di View dalam.
+   * Cabang biasa: struktur lama tanpa berubah.
+   */
+  const bubbleBlock = canSwipeReply ? (
+    <View className="relative">
+      {/* Hint visual saat swipe: lingkaran ikon reply yang fade+scale masuk
+          di ruang yang terbuka di kiri bubble. */}
+      <Animated.View
+        pointerEvents="none"
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+        style={swipeHintStyle}
+      >
+        <View className="absolute -left-11 top-1/2 -mt-5">
+          <View className="rounded-full border border-border bg-surface-elevated p-2">
+            <Icon icon={ArrowBendUpLeft} size="sm" tone="active" />
+          </View>
+        </View>
+      </Animated.View>
+      <GestureDetector gesture={swipePan}>
+        <Animated.View
+          ref={bubbleRef}
+          collapsable={false}
+          style={swipeBubbleStyle}
+        >
+          <View
+            className={cn(
+              // `relative` = jangkar badge reaksi; `overflow-visible` supaya
+              // badge yang menjulur keluar bubble tidak terpotong (khususnya
+              // Android).
+              "relative overflow-visible",
+              // REACTION_BADGE_CLEARANCE_PX: badge menjulur 12px di bawah
+              // bubble — beri napas 16px supaya tidak menabrak baris
+              // jam/bubble berikut.
+              hasReactions && "mb-4",
+            )}
+          >
+            {bubbleCore}
+          </View>
+        </Animated.View>
+      </GestureDetector>
+    </View>
+  ) : (
+    <View
+      ref={bubbleRef}
+      collapsable={false}
+      className={cn(
+        // `relative` = jangkar badge reaksi; `overflow-visible` supaya badge
+        // yang menjulur keluar bubble tidak terpotong (khususnya Android).
+        "relative overflow-visible",
+        // REACTION_BADGE_CLEARANCE_PX: badge menjulur 12px di bawah bubble —
+        // beri napas 16px supaya tidak menabrak baris jam/bubble berikut.
+        hasReactions && "mb-4",
+      )}
+    >
+      {bubbleCore}
     </View>
   )
 

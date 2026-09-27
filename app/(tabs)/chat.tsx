@@ -45,7 +45,7 @@ import {
   setRoomMuted,
   type ChatRoom,
 } from "@/lib/api/chat"
-import { formatChatListTime, truncateMiddle } from "@/lib/format"
+import { formatTimeAgo, truncateMiddle } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate } from "@/lib/i18n"
 import { ROUTES } from "@/lib/routes"
@@ -375,7 +375,7 @@ export default function ChatScreen() {
               // UI-C004: empty state wajib punya jalan keluar yang bisa
               // diketuk — chat selalu bermula dari sebuah transaksi.
               action={
-                <Button onPress={() => router.push(ROUTES.transactions)}>
+                <Button fullWidth={false} onPress={() => router.push(ROUTES.transactions)}>
                   Lihat transaksi
                 </Button>
               }
@@ -399,10 +399,11 @@ export default function ChatScreen() {
                   }
                 : undefined
             }
-            // UI-C001: cap waktu ringkas pola WhatsApp ("14:32" / "Kemarin" /
-            // "12 Mar"), bukan formatDateTime penuh yang memadati baris —
-            // sesuai kontrak terdokumentasi <ChatRoomListItem>.
-            time={item.lastMessage ? formatChatListTime(item.lastMessage.createdAt) : undefined}
+            // UI-C001 (revisi 2026-09-28): cap waktu relatif `formatTimeAgo`
+            // ("5 menit lalu" / "Kemarin") agar konsisten dengan feed,
+            // notifikasi & transaksi; `formatChatListTime` pola WhatsApp
+            // ("14:32") tetap dipakai header ruang & "Terakhir dilihat".
+            time={item.lastMessage ? formatTimeAgo(item.lastMessage.createdAt) : undefined}
             unreadCount={item.unreadCount}
             // Order id saja (tanpa kata "Pesanan") — metadata ringkas di kanan
             // baris pertama; panjangnya dipotong di tengah agar nomor tetap

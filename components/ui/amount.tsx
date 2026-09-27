@@ -24,10 +24,14 @@
  *     digit count-up 800ms kurva enter (via useCountUp) — bukan melompat.
  *     Mount pertama tidak animasi; instan saat reduced motion. Matikan untuk
  *     angka yang berubah tiap detik (timer) agar tidak animasi konstan.
+ *   - `tabular-nums` selalu dipasang: digit tidak bergeser horizontal saat
+ *     nominal berubah (bersama count-up di atas) — hanya rendering, nilai
+ *     dan format angka tidak berubah.
  */
 import type { TextProps as RNTextProps } from "react-native"
 
 import { Text, type TextProps, type TextTone } from "@/components/ui/text"
+import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 import { useCountUp } from "@/lib/use-count-up"
 
@@ -74,7 +78,9 @@ export function Amount({
       minimumFontScale={0.7}
       accessibilityLabel={hidden ? HIDDEN_ACCESSIBILITY : text}
       accessibilityHint={hidden ? "Nominal disembunyikan untuk privasi" : undefined}
-      className={className}
+      // tabular-nums: digit mono tidak "bergoyang" saat nominal berubah
+      // (count-up) atau saat angka di sebelahnya berubah lebarnya.
+      className={cn("tabular-nums", className)}
       {...rest}
     >
       {text}

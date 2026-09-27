@@ -54,7 +54,7 @@ import { Funnel, Receipt, ShoppingBag, Storefront } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
-import { formatDateTimeWIB, formatNumber } from "@/lib/format"
+import { formatTimeAgo, formatNumber } from "@/lib/format"
 import { translate } from "@/lib/i18n/translate"
 import { toEpochMs } from "@/lib/pending-actions"
 import { ROUTES } from "@/lib/routes"
@@ -174,7 +174,10 @@ function TransactionOrderCard({
         name: counterpart?.fullName ?? counterpart?.username ?? "Identitas belum tersedia",
         avatar: counterpart?.avatarUrl ?? undefined,
       }}
-      timestamp={formatDateTimeWIB(order.createdAt)}
+      // Revisi 2026-09-28: daftar memakai waktu relatif ("5 menit lalu"/
+      // "Kemarin") agar konsisten dengan feed/chat/notifikasi; cap waktu
+      // WIB eksplisit tetap tampil di layar detail transaksi (§13).
+      timestamp={formatTimeAgo(order.createdAt)}
       deadlineAt={
         // M-54 (audit end-to-end, issue #72): `toEpochMs` (domain jam
         // C-04) — `new Date("1700000000")` string epoch-detik = Invalid

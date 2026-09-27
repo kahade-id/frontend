@@ -50,7 +50,7 @@
  *     disentuh di web/mobile pada area tengah tab.
  */
 import { useEffect, useRef, useState, type ReactNode } from "react"
-import { Animated, Easing, View, type ViewProps } from "react-native"
+import { Animated, Easing, View, type ViewProps, type View as RNView } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { type Href } from "expo-router"
 import {
@@ -64,6 +64,7 @@ import {
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Avatar } from "@/components/ui/avatar"
 import { NotificationDot } from "@/components/ui/badge"
+import { CoachMark, type CoachMarkId } from "@/components/ui/coach-mark"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import type { BottomTabBarProps as RNNBottomTabBarProps } from "@react-navigation/bottom-tabs"
 
@@ -205,6 +206,17 @@ export type BottomTabCenter = {
   onPress: () => void
 }
 
+/**
+ * Konfigurasi coach mark "sekali saja" untuk tombol tengah (2026-09-28).
+ * Dipakai shell bar untuk ikon QR yang baru ("Ketuk untuk pindai QR").
+ */
+export type BottomTabCenterCoachMark = {
+  id: CoachMarkId
+  message: string
+  /** Jeda sebelum tampil; default 1200ms (setelah coach mark header). */
+  delayMs?: number
+}
+
 export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "children"> & {
   items: readonly BottomTabItem<K>[]
   value: K
@@ -219,6 +231,8 @@ export type BottomTabBarProps<K extends string = string> = Omit<ViewProps, "chil
   centerAction?: boolean | readonly ActionSheetItem[]
   /** Tombol tengah kustom (posisi & bentuk tetap; ikon/aksi dari pemanggil). */
   center?: BottomTabCenter
+  /** Coach mark sekali saja untuk tombol tengah (lihat BottomTabCenterCoachMark). */
+  centerCoachMark?: BottomTabCenterCoachMark
   /**
    * Ganti nilai ini untuk memudarkan ikon/label slot (bukan menggeser
    * lingkaran tengah). Shell mengirim mode aktif.
@@ -370,31 +384,46 @@ function CenterActionButton({
   accessibilityLabel,
   accessibilityHint,
   motionKey,
+  coachMark,
 }: {
   onPress: () => void
   icon?: IconComponent
   accessibilityLabel?: string
   accessibilityHint?: string
   motionKey?: string
+  coachMark?: BottomTabCenterCoachMark
 }) {
   useLanguage()
+  // Ref ukur untuk coach mark — di wrapper View (bukan PressableScale) agar
+  // selalu menunjuk host View yang bisa di-measureInWindow.
+  const targetRef = useRef<RNView>(null)
   return (
     <View className="w-16 flex-col items-center justify-center">
-      <PressableScale
-        accessibilityRole="button"
-        accessibilityLabel={accessibilityLabel ?? "Buat baru"}
-        accessibilityHint={
-          accessibilityHint ??
-          translate("Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase")
-        }
-        scaleOnPress={false}
-        ripple
-        onPress={onPress}
-        containerClassName={cn("rounded-full bg-primary", focusRingInset)}
-        className="h-11 w-11 items-center justify-center rounded-full"
-      >
-        <CenterGlyph icon={icon} motionKey={motionKey} />
-      </PressableScale>
+      <View ref={targetRef} collapsable={false}>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={accessibilityLabel ?? "Buat baru"}
+          accessibilityHint={
+            accessibilityHint ??
+            translate("Membuka pilihan cepat: isi saldo, buat transaksi, atau tambah etalase")
+          }
+          scaleOnPress={false}
+          ripple
+          onPress={onPress}
+          containerClassName={cn("rounded-full bg-primary", focusRingInset)}
+          className="h-11 w-11 items-center justify-center rounded-full"
+        >
+          <CenterGlyph icon={icon} motionKey={motionKey} />
+        </PressableScale>
+      </View>
+      {coachMark ? (
+        <CoachMark
+          id={coachMark.id}
+          targetRef={targetRef}
+          message={coachMark.message}
+          delayMs={coachMark.delayMs ?? 1200}
+        />
+      ) : null}
     </View>
   )
 }
@@ -467,6 +496,7 @@ export function BottomTabBar<K extends string = string>({
   onLongPress,
   centerAction,
   center,
+  centerCoachMark,
   motionKey,
   motionDir = 1,
   enterOnMount,
@@ -552,6 +582,7 @@ export function BottomTabBar<K extends string = string>({
               accessibilityLabel={center?.accessibilityLabel}
               accessibilityHint={center?.accessibilityHint}
               motionKey={motionKey}
+              coachMark={centerCoachMark}
               onPress={() => {
                 haptic("light")
                 if (center) center.onPress()

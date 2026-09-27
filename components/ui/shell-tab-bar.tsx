@@ -92,6 +92,11 @@ export function ShellTabBar() {
         accessibilityHint: translate("Membuka pemindai kode QR"),
         onPress: onScan,
       }}
+      // Coach mark sekali saja (2026-09-28): pengenal ikon QR yang baru.
+      centerCoachMark={{
+        id: "qr",
+        message: translate("Ketuk untuk pindai QR"),
+      }}
       accessibilityLabel={translate("Navigasi utama")}
     />
   )

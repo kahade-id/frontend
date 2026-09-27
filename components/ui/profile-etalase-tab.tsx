@@ -39,7 +39,7 @@ import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
-import { ListLoading } from "@/components/ui/paginated-list"
+import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
@@ -214,9 +214,9 @@ export function ProfileEtalaseTab({
     <>
       <View className="pt-4" style={{ gap: tokens.space[5] }}>
         {loading ? (
-          <View className="px-5">
-            <ListLoading />
-          </View>
+          // Prinsip A.5: list ini SAMA PERSIS dengan feed Etalase — skeleton
+          // pun sebentuk <ShowcaseFeedItem>, bukan kartu generik <ListLoading/>.
+          <ShowcaseFeedSkeleton count={2} />
         ) : error ? (
           // C-01: gagal memuat ≠ kosong — selalu ada jalan mencoba ulang.
           <View className="px-5">

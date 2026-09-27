@@ -512,6 +512,40 @@ export function formatRelativeTime(d: Date | number | string, now: Date | number
 }
 
 /**
+ * Waktu relatif LENGKAP Indonesia untuk daftar (feed, chat, notifikasi,
+ * transaksi): "Baru saja" → "5 menit lalu" → "2 jam lalu" → "Kemarin" →
+ * tanggal eksplisit ("3 Sep 2026").
+ *
+ * Beda dengan `formatRelativeTime` (cap waktu feed sosial gaya "2 jam" tanpa
+ * "lalu", lalu "{x} hari" sampai 7 hari): fungsi ini memakai sufiks "lalu"
+ * dan "Kemarin" berbasis hari kalender zona perangkat — pola yang sama
+ * dengan `formatChatListTime` untuk batas "Kemarin" supaya tidak bergeser
+ * karena UTC. Setelah kemarin langsung jatuh ke `formatDate` eksplisit.
+ *
+ * `now` bisa disuntik untuk test. Masa depan (delta negatif) dijepit ke 0
+ * → "Baru saja" (jam perangkat/server bisa selisih sedikit).
+ */
+export function formatTimeAgo(d: Date | number | string, now: Date | number = Date.now()): string {
+  const then = displayDate(d)?.getTime()
+  if (then == null || !Number.isFinite(then)) return "—"
+  const base = typeof now === "number" ? now : now.getTime()
+  const deltaSec = Math.max(0, Math.floor((base - then) / 1000))
+  if (deltaSec < 60) return translate("Baru saja")
+  const minutes = Math.floor(deltaSec / 60)
+  if (minutes < 60) return translate("{x} menit lalu", { x: minutes })
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return translate("{x} jam lalu", { x: hours })
+  // "Kemarin" = hari kalender kemarin di zona perangkat (bukan sekadar
+  // delta 24 jam — 26 jam lalu bisa masih "kemarin" atau sudah lusa).
+  const date = new Date(then)
+  const baseDate = new Date(base)
+  const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime()
+  if (Math.round((startOf(baseDate) - startOf(date)) / 86_400_000) === 1)
+    return translate("Kemarin")
+  return formatDate(d)
+}
+
+/**
  * Cap waktu RINGKAS untuk daftar chat & status kehadiran — pola WhatsApp:
  * hari ini → "14:32", kemarin → "Kemarin", tahun berjalan → "12 Sep",
  * tahun lain → "12 Sep 2026". Batas hari dihitung di zona perangkat (sama

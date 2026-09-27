@@ -83,7 +83,7 @@ import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { ShowcaseHeader, type ShowcaseFeedKind } from "@/components/ui/showcase-header"
-import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
+import { ShowcaseFeedSkeleton } from "@/components/ui/showcase-feed-skeleton"
 import { Text } from "@/components/ui/text"
 
 const FEED_LIMIT = 20
@@ -653,7 +653,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           title={translate("Masuk untuk melihat feed mengikuti")}
           description={translate("Masuk terlebih dahulu agar kami bisa menampilkan karya dari akun yang Anda ikuti.")}
           action={
-            <Button onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>{translate("Masuk")}</Button>
+            <Button fullWidth={false} onPress={() => router.push(ROUTES.loginRequired("/showcase?kind=following"))}>{translate("Masuk")}</Button>
           }
         />
       )
@@ -665,7 +665,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
           title={translate("Anda belum mengikuti siapa pun")}
           description={translate("Temukan penjual lewat tab Temukan, ikuti mereka, dan karyanya akan muncul di sini.")}
           // A-18 (audit 2026-09-23): tombol ke tujuan yang disebut copy-nya.
-          action={<Button onPress={() => router.push(ROUTES.discover)}>{translate("Buka Temukan")}</Button>}
+          action={<Button fullWidth={false} onPress={() => router.push(ROUTES.discover)}>{translate("Buka Temukan")}</Button>}
         />
       )
     }
@@ -692,8 +692,8 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         // A-20 (audit 2026-09-23): CTA isi etalase untuk pemilik akun.
         action={
           hasSession ? (
-            <Button variant="secondary" onPress={() => router.push(ROUTES.showcaseManagement)}>
-              Tambah karya
+            <Button variant="secondary" fullWidth={false} onPress={() => router.push(ROUTES.showcaseManagement)}>
+              {translate("Tambah karya")}
             </Button>
           ) : undefined
         }
@@ -890,22 +890,9 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
             <View>{priceFilterUi}</View>
           )
         }
-        loadingPlaceholder={
-          <SkeletonGroup className="gap-10 py-4">
-            {Array.from({ length: 2 }, (_, index) => (
-              <View key={index} className="gap-3">
-                <View className="flex-row items-center gap-3 px-5">
-                  <Skeleton shape="circle" className="h-10 w-10" />
-                  <Skeleton className="h-4 w-2/5" />
-                </View>
-                <View className="mx-5">
-                  <Skeleton shape="card" className="aspect-square w-full" />
-                </View>
-                <Skeleton className="mx-5 h-4 w-3/5" />
-              </View>
-            ))}
-          </SkeletonGroup>
-        }
+        // Skeleton sebentuk <ShowcaseFeedItem> (anatomi: penulis · media ·
+        // teks · baris aksi) — layout tidak melompat saat data tiba.
+        loadingPlaceholder={<ShowcaseFeedSkeleton />}
         empty={emptyState}
         renderItem={renderItem}
       />

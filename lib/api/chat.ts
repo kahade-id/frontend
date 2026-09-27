@@ -37,6 +37,11 @@ export type ChatRoom = {
   updatedAt: string
   /** INQUIRY = ruang pra-transaksi; ORDER = ruang order (naming backend). */
   roomType?: string
+  /**
+   * DRIFT-06 (2026-09-28): backend mengirim `type` (bukan `roomType`) di
+   * GET /v1/chat/rooms — `normalizeChatRoom` meneruskannya via spread.
+   */
+  type?: string
   subject?: string | null
   isArchived?: boolean
   isMuted?: boolean
@@ -214,6 +219,27 @@ function normalizeChatRoom(raw: ChatRoom & Record<string, unknown>): ChatRoom {
     lastMessage: last ? normalizeChatMessage(last) : null,
     unreadCount: typeof raw.unreadCount === "number" ? raw.unreadCount : 0,
   }
+}
+
+/**
+ * DM 1:1 vs ruang transaksi/grup (2026-09-28, permintaan produk).
+ *
+ * Backend hanya mengenal dua tipe ruang (`ChatRoomType`: ORDER/INQUIRY) —
+ * DM "Kirim Pesan" dibuat sebagai INQUIRY tanpa order (`getOrCreateDm`).
+ * Admin hanya bisa masuk ke ruang ber-order (jalur sengketa), sehingga
+ * "DM 1-by-1" = ruang TANPA `orderId` dan bukan ORDER.
+ *
+ * Dipakai untuk menyembunyikan foto + nama lawan bicara di bubble DM
+ * (ala WhatsApp — hanya bubble), sementara di ruang transaksi/grup
+ * identitas pengirim tetap tampil. Murni logika tampilan: tanpa mengubah
+ * kontrak API.
+ */
+export function isOneToOneChatRoom(
+  room: Pick<ChatRoom, "orderId" | "roomType" | "type"> | null | undefined,
+): boolean {
+  if (!room) return false
+  const t = room.type ?? room.roomType
+  return !room.orderId && t !== "ORDER"
 }
 
 export function listChatRooms(

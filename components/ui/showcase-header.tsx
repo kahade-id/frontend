@@ -35,6 +35,8 @@ import {
   TrendUp,
   Users,
 } from "phosphor-react-native"
+import { useRef } from "react"
+import type { View as RNView } from "react-native"
 
 import { openCreateSheet } from "@/lib/create-sheet"
 import { openDrawer } from "@/lib/drawer"
@@ -43,6 +45,7 @@ import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
 import { translate } from "@/lib/i18n"
 
+import { CoachMark } from "@/components/ui/coach-mark"
 import { Logo } from "@/components/ui/logo"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
@@ -69,6 +72,9 @@ const ACTION_BOX = 40
 const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
 export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps) {
+  // Target ukur coach mark "sekali saja" untuk tombol (+) — View pembungkus
+  // (bukan PressableScale) supaya ref selalu ke host View yang terukur.
+  const createRef = useRef<RNView>(null)
   return (
     <View className="bg-background">
       {/* ── Baris atas: menu (hamburger) · logo · cari ── */}
@@ -106,18 +112,27 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
             (revisi 2026-09-28): kiri = menu drawer, kanan = buat baru.
             Pencarian pindah ke utility bar bawah drawer. */}
         <View className="flex-row items-center justify-end gap-1 min-w-[84px]">
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={translate("Buat baru")}
-            accessibilityHint={translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")}
-            haptic
-            hitSlop={ACTION_HIT_SLOP}
-            onPress={openCreateSheet}
-            containerClassName={cn("rounded-md", focusRing)}
-            className="h-10 w-10 items-center justify-center"
-          >
-            <Icon icon={Plus} size="md" weight="regular" tone="active" />
-          </PressableScale>
+          <View ref={createRef} collapsable={false}>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Buat baru")}
+              accessibilityHint={translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")}
+              haptic
+              hitSlop={ACTION_HIT_SLOP}
+              onPress={openCreateSheet}
+              containerClassName={cn("rounded-md", focusRing)}
+              className="h-10 w-10 items-center justify-center"
+            >
+              <Icon icon={Plus} size="md" weight="regular" tone="active" />
+            </PressableScale>
+          </View>
+          {/* Coach mark sekali saja (2026-09-28): pengenal tombol (+) baru. */}
+          <CoachMark
+            id="create"
+            targetRef={createRef}
+            message={translate("Ketuk + untuk buat karya")}
+            delayMs={700}
+          />
         </View>
       </View>
 

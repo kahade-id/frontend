@@ -126,6 +126,16 @@ export const SecureKeys = {
    * siapa yang login).
    */
   lastUpdateId: "kahade.ota.lastUpdateId",
+  /**
+   * Coach mark "sekali saja" untuk elemen baru (lib/coach-mark.ts):
+   * tombol (+) di header Etalase ("create") dan ikon QR di bottom navbar
+   * ("qr"). "1" bila tooltip pengenalnya sudah pernah tampil/ditutup.
+   * BUKAN rahasia — preferensi level perangkat seperti `onboardingSeen`:
+   * boleh persist di web, TIDAK dihapus `clearSession()` (logout bukan
+   * alasan menampilkan ulang pengenal elemen).
+   */
+  coachMarkCreateSeen: "kahade.coachMark.createSeen",
+  coachMarkQrSeen: "kahade.coachMark.qrSeen",
 } as const
 
 export type SecureKey = (typeof SecureKeys)[keyof typeof SecureKeys]
@@ -146,6 +156,8 @@ const WEB_PERSISTENT_KEYS = new Set<SecureKey>([
   SecureKeys.uiPrefs,
   SecureKeys.showcaseBookmarks,
   SecureKeys.kahadePlusTheme,
+  SecureKeys.coachMarkCreateSeen,
+  SecureKeys.coachMarkQrSeen,
 ])
 /**
  * D-07 (audit): apakah kunci ini BERTAHAN di web? Dipakai modul yang harus

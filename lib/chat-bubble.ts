@@ -178,3 +178,34 @@ export function placeReactionPopover(
   )
   return { top, left }
 }
+
+/**
+ * Swipe-to-reply (2026-09-28): geser bubble ke kanan untuk membalas pesan —
+ * jalan pintas di samping tekan lama "Balas" (yang tetap ada).
+ *
+ * - `activeOffsetX(12)` + `failOffsetY(8)` (pola <SwipeableListItem>): pan
+ *   hanya diklaim setelah gerakan horizontal jelas; scroll vertikal list
+ *   tidak terganggu.
+ * - Translasi dijepit 0..MAX; ikon reply muncul (fade+scale, bukan gerak)
+ *   di ruang yang terbuka di kiri bubble sebagai hint visual.
+ * - Reduce Motion: translasi mengikuti jari (esensial, pengecualian WCAG
+ *   2.3.3 seperti <SwipeableListItem>), tapi snap-back tanpa spring —
+ *   pemanggil memakai `withTiming({duration: 0})` bila reduce-motion aktif.
+ */
+export const SWIPE_REPLY_THRESHOLD_PX = 56
+export const SWIPE_REPLY_MAX_PX = 72
+/** px/detik — fling cepat ke kanan langsung memicu balas. */
+export const SWIPE_REPLY_FLING_VELOCITY_PX_S = 800
+
+/**
+ * Murni — bisa di-unit-test: apakah gesture pan berakhir sebagai "balas"?
+ */
+export function shouldTriggerSwipeReply(
+  translationX: number,
+  velocityX: number,
+): boolean {
+  return (
+    translationX >= SWIPE_REPLY_THRESHOLD_PX ||
+    velocityX >= SWIPE_REPLY_FLING_VELOCITY_PX_S
+  )
+}

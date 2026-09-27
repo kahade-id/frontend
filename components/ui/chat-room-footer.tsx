@@ -38,6 +38,8 @@ export type ChatRoomFooterProps = {
   onSend: (payload: ChatComposerPayload) => void
   attachments: ComposerAttachment[]
   onAttach: () => void
+  /** Mic ala WhatsApp di composer (opsional) — buka perekam voice note. */
+  onMicPress?: () => void
   onRemoveAttachment: (localId: string) => void
   onRetryAttachment: (localId: string) => void
   sending: boolean
@@ -59,6 +61,7 @@ export function ChatRoomFooter({
   onSend,
   attachments,
   onAttach,
+  onMicPress,
   onRemoveAttachment,
   onRetryAttachment,
   sending,
@@ -100,6 +103,7 @@ export function ChatRoomFooter({
           onSend={onSend}
           attachments={attachments}
           onAttach={onAttach}
+          onMicPress={onMicPress}
           onRemoveAttachment={onRemoveAttachment}
           onRetryAttachment={onRetryAttachment}
           replyTo={replyTo}

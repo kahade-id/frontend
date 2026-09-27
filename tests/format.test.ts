@@ -29,6 +29,7 @@ import {
   formatPhoneId,
   formatRupiah,
   formatTime,
+  formatTimeAgo,
   WIB_TIME_ZONE,
   groupAccountNumber,
   groupThousands,
@@ -378,5 +379,45 @@ describe("durationHoursParts (K-09, G-05)", () => {
     expect(durationHoursParts(0)).toBeNull()
     expect(durationHoursParts(-5)).toBeNull()
     expect(durationHoursParts(NaN)).toBeNull()
+  })
+})
+
+describe("formatTimeAgo (2026-09-28)", () => {
+  // Tanggal lokal agar "Kemarin"/tanggal tidak bergantung TZ mesin CI.
+  const now = new Date(2026, 8, 28, 12, 0, 0) // 28 Sep 2026 12:00 lokal
+  const ago = (ms: number) => new Date(now.getTime() - ms)
+
+  it("tangga satuan: baru saja → menit → jam", () => {
+    expect(formatTimeAgo(ago(10_000), now)).toBe("Baru saja")
+    expect(formatTimeAgo(ago(59_000), now)).toBe("Baru saja")
+    expect(formatTimeAgo(ago(60_000), now)).toBe("1 menit lalu")
+    expect(formatTimeAgo(ago(5 * 60_000), now)).toBe("5 menit lalu")
+    expect(formatTimeAgo(ago(59 * 60_000), now)).toBe("59 menit lalu")
+    expect(formatTimeAgo(ago(60 * 60_000), now)).toBe("1 jam lalu")
+    expect(formatTimeAgo(ago(2 * 3600_000), now)).toBe("2 jam lalu")
+    expect(formatTimeAgo(ago(23 * 3600_000), now)).toBe("23 jam lalu")
+  })
+
+  it("\"Kemarin\" untuk hari kalender kemarin di luar 24 jam", () => {
+    // 27 Sep 01:00 → delta 35 jam, tapi hari kalender kemarin.
+    const yesterdayEarly = new Date(2026, 8, 27, 1, 0, 0)
+    expect(formatTimeAgo(yesterdayEarly, now)).toBe("Kemarin")
+    // Di dalam 24 jam tetap bucket jam, walau sudah ganti hari kalender.
+    const yesterdayEvening = new Date(2026, 8, 27, 23, 0, 0)
+    expect(formatTimeAgo(yesterdayEvening, now)).toBe("13 jam lalu")
+  })
+
+  it("lewat kemarin langsung tanggal eksplisit (tanpa \"N hari lalu\")", () => {
+    const twoDaysAgo = new Date(2026, 8, 26, 12, 0, 0)
+    expect(formatTimeAgo(twoDaysAgo, now)).toBe("26 Sep 2026")
+  })
+
+  it("masa depan dijepit ke \"Baru saja\" (selisih jam server/perangkat)", () => {
+    expect(formatTimeAgo(new Date(now.getTime() + 30_000), now)).toBe("Baru saja")
+  })
+
+  it("input invalid → placeholder §13", () => {
+    expect(formatTimeAgo("bukan-tanggal", now)).toBe("—")
+    expect(formatTimeAgo("", now)).toBe("—")
   })
 })

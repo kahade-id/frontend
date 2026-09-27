@@ -57,6 +57,11 @@ export type PickImageOptions = {
    * `allowsEditing` diabaikan untuk video oleh expo-image-picker.
    */
   allowVideos?: boolean
+  /**
+   * Hanya video (dipakai sheet lampiran chat: aksi "Video" terpisah dari
+   * "Gambar"). Mengalahkan `allowVideos`.
+   */
+  videoOnly?: boolean
 }
 
 const DEFAULT_MIME = "image/jpeg"
@@ -88,7 +93,7 @@ export async function pickImage(opts: PickImageOptions = {}): Promise<PickImageR
   }
 
   const pickerOptions: ImagePicker.ImagePickerOptions = {
-    mediaTypes: opts.allowVideos ? ["images", "videos"] : ["images"],
+    mediaTypes: opts.videoOnly ? ["videos"] : opts.allowVideos ? ["images", "videos"] : ["images"],
     allowsEditing: opts.allowsEditing ?? opts.square ?? false,
     aspect: opts.square
       ? [1, 1]

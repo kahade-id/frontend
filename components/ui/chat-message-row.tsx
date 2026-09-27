@@ -112,6 +112,19 @@ export type ChatMessageRowProps = {
   onAttachmentPress: (attachment: ChatAttachmentDto) => void
   /** CN-015: kirim ulang pesan yang gagal. */
   onRetry?: (message: ChatMessage) => void
+  /**
+   * DM 1:1 (2026-09-28, permintaan produk): `false` menyembunyikan foto +
+   * nama lawan bicara di gelembung masuk — ala WhatsApp, hanya bubble.
+   * Di ruang transaksi/grup (admin bisa masuk) identitas pengirim tetap
+   * tampil. Default `true` (perilaku lama).
+   */
+  showSenderIdentity?: boolean
+  /**
+   * Swipe kanan pada bubble → balas pesan ini (jalan pintas). Tekan lama
+   * "Balas" di mode pilih TETAP ADA — ini hanya jalur tambahan.
+   * Dinonaktifkan saat mode pilih aktif atau pesan terhapus.
+   */
+  onSwipeReply?: (message: ChatMessage) => void
 }
 
 export function ChatMessageRow({
@@ -127,6 +140,8 @@ export function ChatMessageRow({
   onReact,
   onAttachmentPress,
   onRetry,
+  showSenderIdentity = true,
+  onSwipeReply,
 }: ChatMessageRowProps) {
   const showDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt)
   const grouped =
@@ -173,18 +188,31 @@ export function ChatMessageRow({
         time={showTime ? formatTime(message.createdAt) : undefined}
         grouped={grouped}
         /*
-         * Penanda arah (2026-09-26): geoembung MASUK membawa foto & nama
+         * Penanda arah (2026-09-26): gelembung MASUK membawa foto & nama
          * lawan bicara, pesan KELUAR tetap murni kanan + bg-primary. Nama
          * hanya muncul di pesan pertama kelompok (aturan ada di dalam
          * <ChatMessageBubble>), jadi percakapan panjang tidak berubah jadi
          * daftar nama.
+         *
+         * Revisi 2026-09-28 (produk): di DM 1:1 (`showSenderIdentity=false`)
+         * foto + nama disembunyikan total — ala WhatsApp, hanya bubble.
          */
-        senderName={message.fromUser ? undefined : (counterpart?.name ?? undefined)}
-        avatarName={message.fromUser ? undefined : (counterpart?.name ?? undefined)}
-        avatarUrl={message.fromUser ? undefined : counterpart?.avatarUrl}
+        senderName={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.name ?? undefined)}
+        avatarName={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.name ?? undefined)}
+        avatarUrl={!showSenderIdentity || message.fromUser ? undefined : counterpart?.avatarUrl}
         // Revisi 2026-09-27 (UI polish): seal verifikasi di samping nama
         // pengirim — avatar bubble TIDAK pernah menerima `verified`.
-        senderSealTier={message.fromUser ? undefined : (counterpart?.sealTier ?? null)}
+        senderSealTier={!showSenderIdentity || message.fromUser ? undefined : (counterpart?.sealTier ?? null)}
+        // DM 1:1: nama pengirim di blok kutipan balasan juga disembunyikan
+        // (ala WhatsApp — kutipan hanya menampilkan cuplikan pesan).
+        hideQuoteSenderName={!showSenderIdentity}
+        // Swipe kanan = jalan pintas balas (2026-09-28). Tekan lama "Balas"
+        // tetap ada; gesture dimatikan saat mode pilih / pesan terhapus.
+        onSwipeReply={
+          !selecting && !message.isDeleted && onSwipeReply
+            ? () => onSwipeReply(message)
+            : undefined
+        }
         // Status baca pesan saya: read-receipt dari lawan bicara
         // (GET /read-receipts) naik ke ikon centang ganda "read".
         // CN-015: pesan optimistis pakai sendStatus lokal (sending/failed).

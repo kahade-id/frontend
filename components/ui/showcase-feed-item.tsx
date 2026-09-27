@@ -13,7 +13,10 @@
  *  - B-04: `onLayout` diketik `LayoutChangeEvent`, bukan `any`.
  *  - B-05: bendera lapor disembunyikan untuk item milik sendiri (feed
  *    sejajar dengan halaman detail).
- *  - B-10: cap waktu relatif (`formatRelativeTime`) khas feed sosial.
+ *  - B-10: cap waktu relatif khas feed sosial (revisi 2026-09-28: memakai
+ *    `formatTimeAgo` — "5 menit lalu"/"Kemarin" — agar konsisten dengan
+ *    daftar chat/notifikasi/transaksi; `formatRelativeTime` gaya "2 jam"
+ *    tetap dipakai komentar & QA card).
  *  - A-12: badge kategori bisa ditekan → feed terfilter kategori itu
  *    (param `category` pada rute tab /showcase).
  *  - H-04: tap penulis untuk tamu → loginRequired(next=profil).
@@ -31,7 +34,7 @@ import { View } from "react-native"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
 
-import { formatCountCompact, formatRelativeTime } from "@/lib/format"
+import { formatCountCompact, formatTimeAgo } from "@/lib/format"
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 import type { VerificationBadge } from "@/lib/api/users"
 import { useHasSession } from "@/lib/guest-gate"
@@ -242,7 +245,7 @@ function ShowcaseFeedItemBase({
               textProps={{ weight: 600 }}
             />
             <Text variant="caption" tone="secondary" numberOfLines={1}>
-              {`@${item.author.username} · ${formatRelativeTime(item.createdAt)}`}
+              {`@${item.author.username} · ${formatTimeAgo(item.createdAt)}`}
             </Text>
           </View>
         </PressableScale>
