@@ -344,14 +344,11 @@ export function ShowcaseCommentsSheet({
                 onPress={() => void handleSend()}
               />
             </View>
-            {/* D-19 (audit 2026-09-23): batas 2000 dulu memotong senyap di tengah
-                kalimat. Konter muncul saat mendekati batas supaya jeda penulisan
-                tidak mengejutkan. */}
-            {draft.length >= COMMENT_MAX - 200 ? (
-              <Text className="mt-1 text-right text-2xs text-neutral-400">
-                {draft.length}/{COMMENT_MAX}
-              </Text>
-            ) : null}
+            {/* Item 162 (FE-IMP-1): konter SELALU "X karakter tersisa"
+                (bukan format ganda "n/2000"). */}
+            <Text variant="caption" tone="secondary" className="pt-1 text-right tabular-nums">
+              {translate("{x} karakter tersisa", { x: COMMENT_MAX - draft.length })}
+            </Text>
           </View>
         ) : (
           // A-05 (kelas): tamu tidak melihat komposer — ajakan login.

@@ -20,7 +20,7 @@
  *   scroll-snap RN-web.
  * - Hormat `useReducedMotion`: modal tanpa animasi fade.
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   FlatList,
   Modal,
@@ -31,6 +31,7 @@ import {
 } from "react-native"
 import { CaretLeft, CaretRight, X } from "phosphor-react-native"
 
+import { FeedVideo } from "@/components/ui/feed-video"
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { ZoomableImage } from "@/components/ui/zoomable-image"
@@ -41,6 +42,11 @@ export type ImageViewerItem = {
   url: string
   /** Label aksesibilitas per gambar (default: judul viewer). */
   alt?: string
+  /**
+   * Item 158 (FE-IMP-1): "video" → slide memutar video (fullscreen).
+   * Default "image" — pemanggil lama tidak berubah perilaku.
+   */
+  kind?: "image" | "video"
 }
 
 export type ImageViewerProps = {
@@ -52,6 +58,12 @@ export type ImageViewerProps = {
   title?: string
   onClose: () => void
   onIndexChange?: (index: number) => void
+  /**
+   * Item 159 (FE-IMP-1): slot aksi di chrome bawah (mis. tombol Bagikan /
+   * Simpan milik layar pemanggil). Tidak disediakan → chrome bawah seperti
+   * semula (hanya navigasi foto).
+   */
+  actions?: ReactNode
 }
 
 export function ImageViewer({
@@ -61,6 +73,7 @@ export function ImageViewer({
   title,
   onClose,
   onIndexChange,
+  actions,
 }: ImageViewerProps) {
   const { width, height } = useWindowDimensions()
   const reducedMotion = useReducedMotion()
@@ -109,17 +122,36 @@ export function ImageViewer({
   )
 
   const renderItem = useCallback(
-    ({ item, index: i }: { item: ImageViewerItem; index: number }) => (
-      <ZoomableImage
-        source={item.url}
-        alt={item.alt ?? title ?? translate("Foto {x} dari {y}", { x: i + 1, y: images.length })}
-        width={width}
-        height={height}
-        resizeMode="contain"
-        onZoomChange={setZoomed}
-      />
-    ),
-    [width, height, title, images.length],
+    ({ item, index: i }: { item: ImageViewerItem; index: number }) => {
+      const alt = item.alt ?? title ?? translate("Foto {x} dari {y}", { x: i + 1, y: images.length })
+      // Item 158: slide video — diputar fullscreen; hanya slide aktif yang
+      // berbunyi/berjalan. Zoom cubit tidak berlaku untuk video.
+      if (item.kind === "video") {
+        return (
+          <View style={{ width, height }} className="items-center justify-center">
+            <FeedVideo
+              source={item.url}
+              alt={alt}
+              shouldPlay={visible && i === current}
+              muted={false}
+              allowTapToggle
+              className="max-h-full"
+            />
+          </View>
+        )
+      }
+      return (
+        <ZoomableImage
+          source={item.url}
+          alt={alt}
+          width={width}
+          height={height}
+          resizeMode="contain"
+          onZoomChange={setZoomed}
+        />
+      )
+    },
+    [width, height, title, images.length, visible, current],
   )
 
   if (!visible || images.length === 0) return null
@@ -193,33 +225,41 @@ export function ImageViewer({
           </View>
         </View>
 
-        {/* Chrome bawah: sebelum/berikutnya (keyboard/SR; swipe tetap utama). */}
-        {images.length > 1 ? (
-          <View className="absolute inset-x-0 bottom-0 items-center pb-10">
-            <View className="flex-row items-center gap-2 rounded-full bg-surface-elevated p-1.5">
-              <IconButton
-                icon={CaretLeft}
-                variant="ghost"
-                accessibilityLabel={translate("Foto sebelumnya")}
-                onPress={() => goTo(safeCurrent - 1)}
-                disabled={safeCurrent === 0}
-              />
-              <Text
-                variant="caption"
-                weight={600}
-                className="min-w-16 text-center tabular-nums"
-                accessibilityLabel={counterLabel}
-              >
-                {counterLabel}
-              </Text>
-              <IconButton
-                icon={CaretRight}
-                variant="ghost"
-                accessibilityLabel={translate("Foto berikutnya")}
-                onPress={() => goTo(safeCurrent + 1)}
-                disabled={safeCurrent >= images.length - 1}
-              />
-            </View>
+        {/* Chrome bawah: aksi pemanggil (item 159) + sebelum/berikutnya
+            (keyboard/SR; swipe tetap utama). */}
+        {images.length > 1 || actions ? (
+          <View className="absolute inset-x-0 bottom-0 items-center gap-2 pb-10">
+            {actions ? (
+              <View className="flex-row items-center gap-1 rounded-full bg-surface-elevated p-1.5">
+                {actions}
+              </View>
+            ) : null}
+            {images.length > 1 ? (
+              <View className="flex-row items-center gap-2 rounded-full bg-surface-elevated p-1.5">
+                <IconButton
+                  icon={CaretLeft}
+                  variant="ghost"
+                  accessibilityLabel={translate("Foto sebelumnya")}
+                  onPress={() => goTo(safeCurrent - 1)}
+                  disabled={safeCurrent === 0}
+                />
+                <Text
+                  variant="caption"
+                  weight={600}
+                  className="min-w-16 text-center tabular-nums"
+                  accessibilityLabel={counterLabel}
+                >
+                  {counterLabel}
+                </Text>
+                <IconButton
+                  icon={CaretRight}
+                  variant="ghost"
+                  accessibilityLabel={translate("Foto berikutnya")}
+                  onPress={() => goTo(safeCurrent + 1)}
+                  disabled={safeCurrent >= images.length - 1}
+                />
+              </View>
+            ) : null}
           </View>
         ) : null}
       </View>

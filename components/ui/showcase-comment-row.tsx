@@ -29,13 +29,13 @@ import { CONTENT_REPORT_REASONS } from "@/lib/labels/report"
  *     cukup tampil statis tanpa affordance yang tidak berfungsi.
  */
 import { DotsThree, Heart } from "phosphor-react-native"
-import type { ReactNode } from "react"
+import { useState, type ReactNode } from "react"
 import { View } from "react-native"
 import { router, usePathname } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 
 import type { ShowcaseComment } from "@/lib/api/showcase"
-import { formatRelativeTime, formatCountCompact } from "@/lib/format"
+import { formatCountCompact, formatDateTime, formatRelativeTime } from "@/lib/format"
 import { useHasSession } from "@/lib/guest-gate"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
@@ -111,7 +111,12 @@ export function ShowcaseCommentRow({
   const authorName = comment.author.fullName ?? comment.author.username
   const username = comment.author.username
   const edited = isEditedComment(comment.createdAt, comment.updatedAt)
-  const timeLabel = formatRelativeTime(comment.createdAt)
+  // Item 165 (FE-IMP-1): waktu relatif secara default; ketuk untuk melihat
+  // waktu absolut (tanggal + jam), ketuk lagi untuk kembali relatif.
+  const [showAbsoluteTime, setShowAbsoluteTime] = useState(false)
+  const timeLabel = showAbsoluteTime
+    ? formatDateTime(comment.createdAt)
+    : formatRelativeTime(comment.createdAt)
   /**
    * Item 48 (FE-IMP-1): like komentar. Backend BELUM punya endpoint like
    * komentar → state lokal sesi ini (lib/showcase-comment-likes.ts);
@@ -193,10 +198,32 @@ export function ShowcaseCommentRow({
                 numberOfLines={1}
                 className="min-w-0 shrink tabular-nums"
               >
-                • {timeLabel}
-                {edited ? ` ${translate("(diedit)")}` : null}
                 {isMine ? ` • ${translate("Anda")}` : null}
               </Text>
+              {/* Item 165: waktu bisa diketuk — beralih relatif ↔ absolut. */}
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={
+                  showAbsoluteTime
+                    ? translate("Tampilkan waktu relatif")
+                    : translate("Tampilkan waktu pasti")
+                }
+                accessibilityHint={translate("Ketuk untuk beralih format waktu")}
+                onPress={() => setShowAbsoluteTime((prev) => !prev)}
+                containerClassName={cn("rounded-sm", focusRing)}
+                hitSlop={8}
+              >
+                <Text
+                  variant="caption"
+                  tone="secondary"
+                  weight={400}
+                  numberOfLines={1}
+                  className="tabular-nums"
+                >
+                  • {timeLabel}
+                  {edited ? ` ${translate("(diedit)")}` : null}
+                </Text>
+              </PressableScale>
             </View>
           </PressableScale>
           {menuable && onOpenMenu ? (
