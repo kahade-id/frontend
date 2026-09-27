@@ -8,14 +8,16 @@
  * (chip "Riwayat Top-up", "Riwayat Penarikan", "Jadwal Penarikan") sehingga
  * tidak ada satu tempat untuk melihat seluruh pergerakan dana berurutan.
  * Sekarang Tab Dompet menampilkan 10 mutasi terbaru + "Lihat semua" ke layar
- * ini, dan filter jenis menjadi chip di dalam SATU daftar (bukan layar
- * terpisah per kategori).
+ * ini.
  *
  * Anatomi (desain):
- *   1. Kartu ringkasan — total masuk vs keluar dari mutasi yang SUDAH dimuat
+ *   1. Kolom pencarian (client-side, atas item yang sudah dimuat).
+ *   2. Chip ringkasan filter aktif + "Atur ulang".
+ *   3. Kartu ringkasan — total masuk vs keluar dari mutasi yang tampil
  *      + bar proporsi keduanya. Bukan total akun (lihat catatan di bawah).
- *   2. Chip filter jenis (satu daftar, bukan layar per kategori).
- *   3. Mutasi dikelompokkan per hari ("Hari ini", "Kemarin", tanggal) dalam
+ *   4. Ikon funnel di header membuka <WalletHistoryFilterSheet>:
+ *      arah dana, jenis transaksi, rentang tanggal, status.
+ *   5. Mutasi dikelompokkan per hari ("Hari ini", "Kemarin", tanggal) dalam
  *      kartu rounded — tiap kelompok menampilkan net hariannya.
  *
  * Keputusan non-obvious:
@@ -29,9 +31,15 @@
  *     `Invalid transaction type: "TOPUP"` → tiap chip jenis menghasilkan layar
  *     error, bukan daftar. Peta label boleh berisi alias untuk MENAMPILKAN
  *     data lama; nilai yang DIKIRIM ke API tidak boleh.
- *   - Mengganti filter = key query baru (`wallet-history:${type}`) sehingga
- *     `usePaginatedQuery` meng-abort request filter lama dan memulai dari
- *     halaman 1. Tanpa itu, hasil filter lama bisa masuk setelah filter baru.
+ *   - Kontrak API hanya mendukung page/limit/type/from/to — TIDAK ada search
+ *     atau filter status/arahan di server. Maka jenis + rentang tanggal =
+ *     server-side (query key baru → `usePaginatedQuery` meng-abort request
+ *     lama dan mulai dari halaman 1); arah dana + status + pencarian =
+ *     client-side atas item yang sudah dimuat, dan UI jujur soal itu
+ *     ("Mencari di N mutasi yang dimuat").
+ *   - Mengganti filter server-side = key query baru
+ *     (`wallet-history:${type}:${rangeDays}d`). Tanpa itu, hasil filter lama
+ *     bisa masuk setelah filter baru.
  *   - Rentang tanggal dinyatakan ke pengguna lewat teks bantuan, bukan
  *     disembunyikan: tanpa keterangan itu mutasi lama terlihat "hilang".
  *     Preset "Semua waktu" DIHAPUS — backend membatasi rentang 90 hari, jadi
@@ -41,10 +49,15 @@
  *   - Baris memakai `href` ke detail mutasi agar di web menjadi tautan nyata.
  *   - Pengelompokan memakai TANGGAL WIB (Asia/Jakarta — zona kerja backend,
  *     WF-026), bukan tanggal lokal perangkat: mutasi jam 00:30 WIB tidak
- *     boleh masuk "kemarin" di perangkat WITA/WIT.
- *   - Ringkasan dihitung dari item yang sudah dimuat (halaman 1..N), dan
- *     DITULIS begitu ("N mutasi dimuat") — bukan total akun. Menampilkannya
- *     sebagai total akun adalah angka yang salah secara harfiah.
+ *     boleh masuk "kemarin" di perangkat WITA/WIT. Logika grouping tinggal di
+ *     lib/wallet-history-grouping.ts (murni, bisa di-test tanpa render).
+ *   - Ringkasan dihitung dari item yang TAMPIL (setelah filter client-side),
+ *     dan DITULIS begitu: tanpa filter aktif "{N} mutasi dimuat"; dengan
+ *     filter/pencarian aktif "{M} dari {N} mutasi". Menampilkannya sebagai
+ *     total akun adalah angka yang salah secara harfiah.
+ *   - Sheet filter bekerja dengan DRAF: pilihan di dalam sheet belum mengubah
+ *     apa pun sampai "Terapkan" ditekan — mengetuk chip jenis tidak boleh
+ *     memicu refetch beruntun.
  */
 import { useMemo, useState } from "react"
 import { View } from "react-native"
@@ -54,16 +67,26 @@ import {
   ArrowCircleDown,
   ArrowCircleUp,
   FileCsv,
+  Funnel,
   Printer,
   Wallet as WalletIcon,
 } from "phosphor-react-native"
 
 import { api, type WalletTransaction } from "@/lib/api"
-import { formatDate, formatDateLong, formatNumber, WIB_TIME_ZONE } from "@/lib/format"
+import { formatNumber } from "@/lib/format"
 import { ROUTES } from "@/lib/routes"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { WALLET_TXN_FILTERS, walletTransactionType } from "@/lib/wallet-labels"
 import { useWalletExport } from "@/lib/use-wallet-export"
+import {
+  buildHistoryRange,
+  DEFAULT_HISTORY_FILTERS,
+  DEFAULT_RANGE_DAYS,
+  filterWalletTransactions,
+  groupByDay,
+  HISTORY_STATUS_FILTERS,
+  type WalletHistoryFilters,
+} from "@/lib/wallet-history-grouping"
 import { tokens } from "@/lib/tokens"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
@@ -71,6 +94,7 @@ import { TAB_BAR_HEIGHT } from "@/components/ui/bottom-tab-bar"
 import { Amount } from "@/components/ui/amount"
 import { Button } from "@/components/ui/button"
 import { Chip } from "@/components/ui/chip"
+import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { EmptyState } from "@/components/ui/empty-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
@@ -82,126 +106,11 @@ import { Screen } from "@/components/ui/screen"
 import { ScrollRow } from "@/components/ui/scroll-row"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { WalletHistoryFilterSheet } from "@/components/ui/wallet-history-filter-sheet"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 
 const PAGE_SIZE = 20
-const ALL = "ALL"
-
-/**
- * Chip filter: "Semua jenis" + satu chip per nilai enum yang DITERIMA API.
- * Label "Semua jenis" (bukan "Semua") sengaja: baris chip di bawahnya juga
- * menyaring, dan dua chip bernama "Semua" di kolom yang sama membuat pengguna
- * menebak-nebak filter mana yang sedang aktif.
- */
-const TYPE_FILTERS: Array<{ label: string; value: string }> = [
-  { label: "Semua jenis", value: ALL },
-  ...WALLET_TXN_FILTERS.map(({ value, label }) => ({ value, label })),
-]
-
-/**
- * J-09 (audit): filter rentang tanggal — `GET /v1/wallet/transactions`
- * sudah menerima `from`/`to` (dan adapter lib/api/wallet.ts meneruskannya),
- * tapi tidak pernah dipakai layar. Preset hari, bukan date-picker: cukup
- * untuk rekonsiliasi bulanan tanpa menambah komponen baru.
- */
-const RANGE_FILTERS: Array<{ label: string; days: number }> = [
-  { label: "7 hari", days: 7 },
-  { label: "30 hari", days: 30 },
-  { label: "90 hari", days: 90 },
-]
-/** Preset default = rentang terlebar yang benar-benar dilayani backend. */
-const DEFAULT_RANGE_DAYS = 90
-/**
- * Backend menolak rentang lebih dari 90 hari. Preset "90 hari" ditarik mundur
- * 1 jam agar tidak jatuh tepat di batas (helper lib/api/wallet.ts memakai
- * margin yang sama: 89 hari untuk default-nya).
- */
-const RANGE_MARGIN_MS = 60 * 60 * 1000
-
-// ------------------------------------------------------------------
-// Pengelompokan per hari (tanggal WIB — zona kerja backend, WF-026)
-// ------------------------------------------------------------------
-
-type DayGroup = {
-  /** Key stabil untuk FlatList (`day:2026-9-8`). */
-  id: string
-  /** "Hari ini" / "Kemarin" / "Senin, 8 September 2026". */
-  label: string
-  /** Sub-label tanggal pendek untuk "Hari ini"/"Kemarin" ("8 Sep 2026"). */
-  sub: string | null
-  txns: WalletTransaction[]
-  in: number
-  out: number
-}
-
-/**
- * WF-026 (Batch 1-money): tanggal kalender di Asia/Jakarta.
- * Mengembalikan kunci grup + Date "tengah malam WIB sebagai lokal" — HANYA
- * untuk pelabelan kalender (formatDateLong/formatDate), bukan cap waktu.
- * Sebelumnya memakai getFullYear()/getMonth()/getDate() perangkat sehingga
- * user WITA/WIT melihat mutasi 00:30 WIB di hari yang berbeda dari backend.
- */
-function wibCalendarDay(d: Date): { key: string; date: Date } | null {
-  try {
-    const parts = new Intl.DateTimeFormat("en-US", {
-      timeZone: WIB_TIME_ZONE,
-      year: "numeric",
-      month: "numeric",
-      day: "numeric",
-    }).formatToParts(d)
-    const value = (type: string) => Number(parts.find((p) => p.type === type)?.value ?? NaN)
-    const year = value("year")
-    const month = value("month")
-    const day = value("day")
-    if (![year, month, day].every(Number.isFinite)) return null
-    return { key: `${year}-${month}-${day}`, date: new Date(year, month - 1, day) }
-  } catch {
-    return null
-  }
-}
-
-function groupByDay(items: WalletTransaction[]): DayGroup[] {
-  const todayKey = wibCalendarDay(new Date())?.key ?? null
-  const yesterdayKey = wibCalendarDay(new Date(Date.now() - 86_400_000))?.key ?? null
-  const byKey = new Map<string, DayGroup>()
-  for (const tx of items) {
-    const date = new Date(tx.createdAt)
-    const valid = !Number.isNaN(date.getTime())
-    const wib = valid ? wibCalendarDay(date) : null
-    const key = wib?.key ?? "invalid"
-    let group = byKey.get(key)
-    if (!group) {
-      group = {
-        id: `day:${key}`,
-        label:
-          todayKey != null && key === todayKey
-            ? translate("Hari ini")
-            : yesterdayKey != null && key === yesterdayKey
-              ? translate("Kemarin")
-              : wib
-                ? formatDateLong(wib.date)
-                : translate("Tanggal tidak tersedia"),
-        sub:
-          (todayKey != null && key === todayKey) ||
-          (yesterdayKey != null && key === yesterdayKey)
-            ? wib
-              ? formatDate(wib.date)
-              : null
-            : null,
-        txns: [],
-        in: 0,
-        out: 0,
-      }
-      byKey.set(key, group)
-    }
-    group.txns.push(tx)
-    // WF-029: Math.abs — satu nilai negatif dari backend tidak boleh
-    // mengkontaminasi total "Masuk"/"Keluar" secara diam-diam.
-    if (walletTransactionType(tx) === "CREDIT") group.in += Math.abs(tx.amount || 0)
-    else if (walletTransactionType(tx) === "DEBIT") group.out += Math.abs(tx.amount || 0)
-  }
-  return [...byKey.values()]
-}
 
 // ------------------------------------------------------------------
 // Skeleton sebentuk konten (kartu ringkasan + baris mutasi)
@@ -242,22 +151,20 @@ function HistorySkeleton() {
 
 export default function WalletHistoryScreen() {
   const insets = useSafeAreaInsets()
-  const [type, setType] = useState(ALL)
-  const [rangeDays, setRangeDays] = useState(DEFAULT_RANGE_DAYS)
+  const [filters, setFilters] = useState<WalletHistoryFilters>(DEFAULT_HISTORY_FILTERS)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  /** Teks pencarian yang sudah di-debounce (milik layar; kolomnya di bawah). */
+  const [search, setSearch] = useState("")
   const { exporting, exportWallet } = useWalletExport()
 
   // Rentang dihitung saat query dimulai (bukan per render) supaya key stabil.
-  const range = useMemo(() => {
-    const to = new Date()
-    const from = new Date(to.getTime() - rangeDays * 24 * 60 * 60 * 1000 + RANGE_MARGIN_MS)
-    return { from: from.toISOString(), to: to.toISOString() }
-  }, [rangeDays])
+  const range = useMemo(() => buildHistoryRange(filters.rangeDays), [filters.rangeDays])
 
   const query = usePaginatedQuery<WalletTransaction>(
-    `wallet-history:${type}:${rangeDays}d`,
+    `wallet-history:${filters.type}:${filters.rangeDays}d`,
     (page, signal) =>
       api.wallet.getWalletTransactions(
-        { page, limit: PAGE_SIZE, type, from: range.from, to: range.to },
+        { page, limit: PAGE_SIZE, type: filters.type, from: range.from, to: range.to },
         signal,
       ),
     // F-01 (audit): top-up/withdraw diselesaikan di layar lain — mutasi baru
@@ -270,14 +177,56 @@ export default function WalletHistoryScreen() {
     },
   )
   const items = query.data
-  const groups = useMemo(() => groupByDay(items), [items])
 
-  /** Ringkasan mutasi yang SUDAH dimuat — bukan total akun (lihat catatan file). */
+  // Filter client-side (arah, status, pencarian) atas item yang SUDAH dimuat —
+  // server tidak mendukungnya sebagai query.
+  const visibleItems = useMemo(
+    () =>
+      filterWalletTransactions(items, {
+        direction: filters.direction,
+        status: filters.status,
+        query: search,
+      }),
+    [items, filters.direction, filters.status, search],
+  )
+  const groups = useMemo(() => groupByDay(visibleItems), [visibleItems])
+
+  const searching = search.trim() !== ""
+  const clientFiltered = filters.direction !== "ALL" || filters.status !== "ALL"
+  /** Tampilan menyempit oleh filter client-side/pencarian (bukan sekadar jenis/rentang). */
+  const narrowed = searching || clientFiltered
+
+  /** Chip ringkasan filter aktif — mengetuknya membuka sheet untuk mengubah. */
+  const activeChips: Array<{ key: string; label: string }> = []
+  if (filters.direction === "CREDIT")
+    activeChips.push({ key: "direction", label: translate("Dana masuk") })
+  else if (filters.direction === "DEBIT")
+    activeChips.push({ key: "direction", label: translate("Dana keluar") })
+  if (filters.type !== "ALL")
+    activeChips.push({
+      key: "type",
+      label: WALLET_TXN_FILTERS.find((f) => f.value === filters.type)?.label ?? filters.type,
+    })
+  if (filters.rangeDays !== DEFAULT_RANGE_DAYS)
+    activeChips.push({ key: "range", label: `${filters.rangeDays} hari` })
+  if (filters.status !== "ALL")
+    activeChips.push({
+      key: "status",
+      label: HISTORY_STATUS_FILTERS.find((f) => f.value === filters.status)?.label ?? filters.status,
+    })
+  const hasActiveFilters = activeChips.length > 0
+
+  const resetAll = () => {
+    setFilters(DEFAULT_HISTORY_FILTERS)
+    setSearch("")
+  }
+
+  /** Ringkasan mutasi yang TAMPIL — bukan total akun (lihat catatan file). */
   // WF-029: Math.abs — tahan terhadap amount negatif dari backend.
-  const loadedIn = items
+  const loadedIn = visibleItems
     .filter((tx) => walletTransactionType(tx) === "CREDIT")
     .reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
-  const loadedOut = items
+  const loadedOut = visibleItems
     .filter((tx) => walletTransactionType(tx) === "DEBIT")
     .reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
   const inShare = loadedIn + loadedOut > 0 ? loadedIn / (loadedIn + loadedOut) : 0.5
@@ -287,13 +236,39 @@ export default function WalletHistoryScreen() {
    * dua totalnya dan membiarkan pengguna menghitung sendiri.
    */
   const net = loadedIn - loadedOut
+  const summaryCaption = narrowed
+    ? translate("{m} dari {n} mutasi", {
+        m: formatNumber(visibleItems.length),
+        n: formatNumber(items.length),
+      })
+    : translate("{n} mutasi dimuat", { n: formatNumber(items.length) })
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    // SEC-404 (selective): riwayat mutasi menampilkan nominal dana —
+    // blokir screenshot/recording per-layar, bukan app-wide.
+    <ScreenCaptureGuard>
+      <Screen edges={["top"]} padded={false}>
       <Header
         title="Riwayat Dompet"
         right={
           <>
+            <View>
+              <IconButton
+                icon={Funnel}
+                size="md"
+                variant="ghost"
+                accessibilityLabel={translate("Buka filter riwayat")}
+                onPress={() => setSheetOpen(true)}
+              />
+              {hasActiveFilters ? (
+                <View
+                  className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary"
+                  pointerEvents="none"
+                  accessibilityElementsHidden
+                  importantForAccessibility="no-hide-descendants"
+                />
+              ) : null}
+            </View>
             <IconButton
               icon={FileCsv}
               size="md"
@@ -329,40 +304,49 @@ export default function WalletHistoryScreen() {
           // angka ringkasan adalah bintangnya, jadi ia masuk dengan gerak.
           <FadeIn duration="fast">
             <View className="gap-3 pb-1">
-              <ScrollRow bleed gap={2} accessibilityLabel="Saring riwayat berdasarkan jenis">
-                {TYPE_FILTERS.map((filter) => (
-                  <Chip
-                    key={filter.value}
-                    selected={type === filter.value}
-                    accessibilityState={{ selected: type === filter.value }}
-                    onPress={() => setType(filter.value)}
-                  >
-                    {filter.label}
-                  </Chip>
-                ))}
-              </ScrollRow>
+              {/* Pencarian client-side — teks tidak pernah keluar kolom
+                  sampai debounce (lihat <DebouncedSearchField>). */}
+              <DebouncedSearchField
+                initialQuery={search}
+                onQueryChange={setSearch}
+                placeholder={translate("Cari mutasi…")}
+                accessibilityLabel={translate("Cari mutasi dompet")}
+              />
+              {searching ? (
+                <Text variant="caption" tone="tertiary">
+                  {translate("Mencari di {n} mutasi yang dimuat", {
+                    n: formatNumber(items.length),
+                  })}
+                </Text>
+              ) : null}
 
-              <ScrollRow bleed gap={2} accessibilityLabel="Saring riwayat berdasarkan rentang tanggal">
-                {RANGE_FILTERS.map((filter) => (
-                  <Chip
-                    key={filter.label}
-                    selected={rangeDays === filter.days}
-                    accessibilityState={{ selected: rangeDays === filter.days }}
-                    onPress={() => setRangeDays(filter.days)}
-                  >
-                    {filter.label}
+              {/* Chip ringkasan filter aktif + atur ulang */}
+              {hasActiveFilters ? (
+                <ScrollRow bleed gap={2} accessibilityLabel="Filter riwayat yang aktif">
+                  {activeChips.map((chip) => (
+                    <Chip
+                      key={chip.key}
+                      selected
+                      accessibilityState={{ selected: true }}
+                      onPress={() => setSheetOpen(true)}
+                    >
+                      {chip.label}
+                    </Chip>
+                  ))}
+                  <Chip onPress={resetAll} accessibilityLabel="Atur ulang semua filter riwayat">
+                    {translate("Atur ulang")}
                   </Chip>
-                ))}
-              </ScrollRow>
+                </ScrollRow>
+              ) : null}
 
               {/* ── Kartu ringkasan masuk vs keluar ─────────────── */}
-              {items.length > 0 ? (
+              {visibleItems.length > 0 ? (
                 <View
                   className="gap-3 rounded-md bg-surface p-4"
                   accessible
-                  accessibilityLabel={translate("Ringkasan {x} hari terakhir, {y} mutasi dimuat", {
-                    x: rangeDays,
-                    y: formatNumber(items.length),
+                  accessibilityLabel={translate("Ringkasan {x} hari terakhir, {y}", {
+                    x: filters.rangeDays,
+                    y: summaryCaption,
                   })}
                 >
                   <View className="flex-row items-baseline justify-between gap-3">
@@ -370,7 +354,7 @@ export default function WalletHistoryScreen() {
                       {translate("Ringkasan mutasi")}
                     </Text>
                     <Text variant="caption" tone="tertiary">
-                      {formatNumber(items.length)} mutasi dimuat
+                      {summaryCaption}
                     </Text>
                   </View>
                   <View className="flex-row gap-4">
@@ -422,28 +406,38 @@ export default function WalletHistoryScreen() {
           </View>
         }
         empty={
-          <EmptyState
-            icon={WalletIcon}
-            title={type === ALL ? "Belum ada riwayat" : "Tidak ada mutasi jenis ini"}
-            description={
-              type === ALL
-                ? "Semua pergerakan dana Anda (top-up, penarikan, transfer, escrow) akan muncul di sini."
-                : "Coba jenis lain atau hapus filter untuk melihat seluruh mutasi."
-            }
-            // UI-W012: teks menyuruh "hapus filter" tapi tak ada tombolnya;
-            // saat benar-benar kosong beri jalan ke isi saldo.
-            action={
-              type === ALL ? (
+          hasActiveFilters || searching ? (
+            <EmptyState
+              icon={Funnel}
+              title={translate("Tidak ada mutasi yang cocok")}
+              description={
+                searching
+                  ? translate(
+                      'Tidak ada mutasi yang cocok dengan "{q}" di {n} mutasi yang dimuat.',
+                      { q: search.trim(), n: formatNumber(items.length) },
+                    )
+                  : translate("Coba longgarkan filter untuk melihat lebih banyak mutasi.")
+              }
+              action={
+                <Button fullWidth={false} variant="secondary" onPress={resetAll}>
+                  {translate("Atur ulang filter")}
+                </Button>
+              }
+            />
+          ) : (
+            <EmptyState
+              icon={WalletIcon}
+              title={translate("Belum ada riwayat")}
+              description={translate(
+                "Semua pergerakan dana Anda (top-up, penarikan, transfer, escrow) akan muncul di sini.",
+              )}
+              action={
                 <Button fullWidth={false} onPress={() => router.push(ROUTES.topup)}>
-                  Isi saldo
+                  {translate("Isi saldo")}
                 </Button>
-              ) : (
-                <Button fullWidth={false} variant="secondary" onPress={() => setType(ALL)}>
-                  Hapus filter
-                </Button>
-              )
-            }
-          />
+              }
+            />
+          )
         }
         renderItem={({ item }) => {
           const net = item.in - item.out
@@ -485,6 +479,14 @@ export default function WalletHistoryScreen() {
         }}
       />
       </ModeShiftFade>
-    </Screen>
+
+      <WalletHistoryFilterSheet
+        visible={sheetOpen}
+        onRequestClose={() => setSheetOpen(false)}
+        initial={filters}
+        onApply={setFilters}
+      />
+      </Screen>
+    </ScreenCaptureGuard>
   )
 }

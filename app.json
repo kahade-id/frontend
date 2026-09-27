@@ -123,12 +123,6 @@
           "sounds": []
         }
       ],
-      [
-        "./plugins/with-flag-secure",
-        {
-          "enabled": true
-        }
-      ],
       "expo-web-browser"
     ],
     "experiments": {

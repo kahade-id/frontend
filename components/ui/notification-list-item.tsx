@@ -2,35 +2,34 @@
  * Kahade — <NotificationListItem> baris notifikasi in-app (§9.17 List Item,
  * §9.14 indikator "ada yang baru", §2.3 semantic hanya untuk status, §13).
  *
- * Satu baris `GET /v1/notifications`. Anatomi (v3 2026-09-21):
- *   - Kiri: ikon kategori di dalam chip lingkaran 32px (bukan ikon 16px
- *     menggantung di samping judul) — notifikasi dikenali dari jenisnya
- *     sekilas, dan chip memberi kolom vertikal yang rapi untuk 1–2 baris isi.
- *   - Baris judul: judul (1 baris) → waktu meta di kanan.
- *   - Isi 2 baris di bawah, sejajar judul.
+ * Anatomi (redesign 2026-09-27, kompak & sentuh-friendly):
+ *   - Kiri: ikon kategori dalam lingkaran 40px BERWARNA per kategori
+ *     (transaksi = primary, wallet = success, promo = amber, keamanan/
+ *     sengketa = danger, chat = info, sistem = netral) — jenis notifikasi
+ *     dikenali sekilas tanpa membaca judulnya.
+ *   - Kolom teks: judul (maks 2 baris, 600 bila belum dibaca) → preview isi
+ *     (2 baris) → baris meta berisi timestamp relatif ("5 menit") yang
+ *     diformat pemanggil (§13).
+ *   - Unread = DOT 8px `bg-primary` di kanan baris judul + tint `bg-surface`
+ *     yang halus pada baris — BUKAN blok warna mencolok. Chip netral dibalik
+ *     jadi `bg-background` supaya tetap terbaca di atas baris bertint.
+ *   - Baris `min-h-[68px]` (target sentuh ≥ 48px), padding vertikal 12px:
+ *     tidak terlalu kecil, tidak terlalu besar.
  *   - TIDAK ada chevron dan TIDAK ada tombol ⋮ per baris (permintaan produk
- *     2026-09-21): tap membuka detail, tekan lama masuk mode pilih — sama
- *     seperti daftar chat. Chevron menjanjikan "ada yang bisa digeser"
- *     padahal seluruh baris memang tombol, dan ⋮ menduplikasi aksi yang
- *     sudah ada di header mode pilih (tandai dibaca / hapus).
+ *     2026-09-21): tap membuka detail, tekan lama masuk mode pilih.
  *
  * Keputusan non-obvious:
- *   - Unread = judul weight 600 + `bg-surface` pada baris; chip ikonnya
- *     dibalik jadi `bg-background` supaya tetap terbaca di atas baris
- *     bertint (pola inversi yang sama dipakai ubin QuickActionGrid di dark).
- *   - `tone="danger"` (keamanan/sengketa) memberi chip `bg-danger-soft` +
- *     ikon danger: status, bukan kategori (§2.3 — warna hanya untuk makna).
  *   - `selected` = chip jadi lingkaran primary berisi Check inverse (bukan
  *     sekadar mengganti ikon): di tengah daftar panjang, tanda pilih harus
  *     terlihat tanpa membaca judulnya lagi.
+ *   - `tone="danger"` (kompatibilitas — pemanggil lama) memaksa chip danger;
+ *     pemanggil baru cukup mengirim `category` ("security"/"dispute").
  *   - Ripple hidup secara default: baris list adalah permukaan sapuan jari
  *     (lihat PressableScale). Matikan lewat `ripple={false}` bila baris
  *     dibungkus gesture lain.
  *   - Aksi swipe (hapus / tandai dibaca) TIDAK di sini — bungkus dengan
  *     <SwipeableListItem> di layar, supaya komponen ini tetap bisa dipakai
  *     di tempat tanpa gesture (web, sheet ringkasan).
- *   - Waktu caption tabular (bukan Mono): meta, bukan timestamp teknis
- *     (§3.1); format eksplisit dari pemanggil (§13, tanpa relative time).
  */
 import {
   Bell,
@@ -44,7 +43,7 @@ import {
 } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
-import { Icon, type IconComponent } from "@/components/ui/icon"
+import { Icon, type IconComponent, type IconTone } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
@@ -79,16 +78,36 @@ export const NOTIFICATION_CATEGORY_ICON: Record<NotificationCategory, IconCompon
   system: Bell,
 }
 
+/**
+ * Warna chip ikon per kategori — HANYA kategori yang memang ada di backend
+ * (lihat `notificationTypeUiCategory` di lib/notification-category):
+ * transaksi/order = primary, wallet/uang = success, promo = amber,
+ * keamanan/sengketa = danger, chat = info, sistem/rujukan-netral = netral.
+ */
+export const NOTIFICATION_CATEGORY_CHIP: Record<
+  NotificationCategory,
+  { chip: string; tone: IconTone }
+> = {
+  order: { chip: "bg-primary", tone: "inverse" },
+  wallet: { chip: "bg-success-soft", tone: "success" },
+  chat: { chip: "bg-info-soft", tone: "info" },
+  dispute: { chip: "bg-danger-soft", tone: "danger" },
+  security: { chip: "bg-danger-soft", tone: "danger" },
+  promo: { chip: "bg-warning-soft", tone: "warning" },
+  referral: { chip: "bg-success-soft", tone: "success" },
+  system: { chip: "bg-surface", tone: "default" },
+}
+
 export type NotificationListItemProps = Omit<ViewProps, "children"> & {
   title: string
   body?: string
   category?: NotificationCategory
   /** Ikon kustom — menimpa ikon kategori */
   icon?: IconComponent
-  /** Sudah diformat pemanggil (§13): "3 Sep 2026, 14:30" */
+  /** Sudah diformat pemanggil (§13): relatif ("5 menit") atau eksplisit */
   timestamp?: string
   unread?: boolean
-  /** Peringatan (keamanan, sengketa) — chip + ikon status danger */
+  /** Peringatan (keamanan, sengketa) — memaksa chip danger (kompatibilitas) */
   tone?: "neutral" | "danger"
   /** Mode pilih-banyak */
   selected?: boolean
@@ -102,8 +121,19 @@ export type NotificationListItemProps = Omit<ViewProps, "children"> & {
   className?: string
 }
 
-/** Chip ikon: 32px, cukup untuk ikon sm (20px) + napas 6px tiap sisi. */
-const ICON_CHIP_SIZE = tokens.icon.size.sm + tokens.space[3]
+/** Chip ikon: 40px — ikon sm (20px) + napas 10px tiap sisi, seimbang dengan judul 2 baris. */
+const ICON_CHIP_SIZE = 40
+/** Dot unread: 8px, cukup terlihat tanpa mendominasi baris. */
+const UNREAD_DOT_SIZE = 8
+
+/**
+ * Tint baris (murni — dikunci test): unread/selected → tint halus `bg-surface`;
+ * selain itu tanpa tint. Disatukan di sini supaya komponen dan test membaca
+ * keputusan yang sama.
+ */
+export function notificationRowTintClass(unread: boolean, selected: boolean): string | null {
+  return unread || selected ? "bg-surface" : null
+}
 
 export function NotificationListItem({
   title,
@@ -133,61 +163,73 @@ export function NotificationListItem({
   /** Baris bertint (belum dibaca / terpilih) → chip dibalik agar terbaca. */
   const tinted = unread || selected
   const danger = tone === "danger" && !selected
+  const chipStyle = danger
+    ? { chip: "bg-danger-soft", tone: "danger" as IconTone }
+    : (NOTIFICATION_CATEGORY_CHIP[category] ?? NOTIFICATION_CATEGORY_CHIP.system)
+  // Chip netral (bg-surface) tenggelam di atas baris bertint → balik ke bg-background.
+  const chipClass = !selected && tinted && chipStyle.chip === "bg-surface" ? "bg-background" : chipStyle.chip
 
   const row = (
     <View
       className={cn(
-        "min-h-16 w-full flex-row items-start gap-3 px-5 py-3",
-        tinted && "bg-surface",
+        "min-h-[68px] w-full flex-row items-start gap-3 px-5 py-3",
+        notificationRowTintClass(unread, selected),
       )}
     >
-      {/* Chip ikon kategori / status */}
+      {/* Chip ikon kategori berwarna */}
       <View
         className={cn(
           "shrink-0 items-center justify-center rounded-full",
-          selected
-            ? "bg-primary"
-            : danger
-              ? "bg-danger-soft"
-              : tinted
-                ? "bg-background"
-                : "bg-surface",
+          selected ? "bg-primary" : chipClass,
         )}
         style={{ height: ICON_CHIP_SIZE, width: ICON_CHIP_SIZE }}
       >
         <Icon
           icon={selected ? Check : (icon ?? NOTIFICATION_CATEGORY_ICON[category])}
           size="sm"
-          tone={
-            selected ? "inverse" : danger ? "danger" : unread ? "active" : "default"
-          }
+          tone={selected ? "inverse" : chipStyle.tone}
           weight={selected || danger ? "bold" : undefined}
         />
       </View>
 
-      <View className="min-w-0 flex-1 gap-1">
-        {/* Baris judul: judul → waktu */}
-        <View className="flex-row items-baseline gap-2">
+      <View className="min-w-0 flex-1">
+        {/* Baris judul: judul (maks 2 baris) → dot unread di kanan */}
+        <View className="flex-row items-start gap-2">
           <Text
             ellipsizeMode="tail"
             variant="body"
             weight={unread ? 600 : 500}
             tone="primary"
-            numberOfLines={1}
+            numberOfLines={2}
             className="min-w-0 flex-1"
           >
             {title}
           </Text>
-          {timestamp ? (
-            <Text variant="caption" tone="secondary" className="shrink-0 tabular-nums">
-              {timestamp}
-            </Text>
+          {unread ? (
+            <View
+              testID="notification-unread-dot"
+              accessibilityRole="none"
+              importantForAccessibility="no"
+              className="mt-[5px] shrink-0 rounded-full bg-primary"
+              style={{ height: UNREAD_DOT_SIZE, width: UNREAD_DOT_SIZE }}
+            />
           ) : null}
         </View>
 
         {body ? (
-          <Text variant="caption" tone={unread ? "primary" : "secondary"} numberOfLines={2}>
+          <Text
+            variant="caption"
+            tone={unread ? "primary" : "secondary"}
+            numberOfLines={2}
+            className="mt-0.5"
+          >
             {body}
+          </Text>
+        ) : null}
+
+        {timestamp ? (
+          <Text variant="caption" tone="secondary" className="mt-1 shrink-0 tabular-nums">
+            {timestamp}
           </Text>
         ) : null}
       </View>
@@ -225,7 +267,7 @@ export function NotificationListItem({
   return (
     <View className={cn("w-full", className)} {...rest}>
       {content}
-      {/* Inset = px-5 (20) + chip 32 + gap-3 (12) = sejajar teks judul */}
+      {/* Inset = px-5 (20) + chip 40 + gap-3 (12) = sejajar teks judul */}
       {divider ? (
         <View
           accessibilityRole="none"

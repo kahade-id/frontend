@@ -1,18 +1,23 @@
 /**
- * Tab #3 — Dompet
+ * Tab #3 — Dompet (redesign 2026-09-27, TIM WALLET PAGE)
  *
- * Menampilkan:
- *  - <HomeOverviewCard> — kartu saldo hero (saldo tersedia + tertahan
- *    escrow) dengan EMPAT aksi cepat gaya quick-menu Beranda: Isi saldo /
- *    Kirim / Terima / Tarik saldo. Kartu saldo lama (WalletBalanceCard) dan
- *    tombol unduh CSV/PDF di header dihapus: unduh sejarah sudah tersedia di
- *    layar Riwayat Dompet — tidak perlu diduplikasi di tab ringkasan.
- *  - 10 mutasi TERBARU `GET /v1/wallet/transactions` + "Lihat semua" ke
- *    layar Riwayat Dompet (`/wallet-history`) yang memuat seluruh riwayat
- *    dengan filter jenis dan tombol unduh.
+ * Tampilan ala e-wallet premium (DANA/OVO/GoPay):
+ *  - <WalletHeroCard> — kartu saldo hero gelap premium: "Saldo Dompet" besar
+ *    + toggle mata (prefs.balanceHidden dari useUiPrefs, dibagi dengan
+ *    Beranda — J-05) + sub-baris "Rp X ditahan di escrow". Skeleton saat
+ *    loading; ErrorState + retry saat error (fail closed: tidak pernah
+ *    menampilkan Rp 0 palsu).
+ *  - <WalletPrimaryActions> — tiga tombol besar: Isi Saldo / Transfer /
+ *    Tarik Dana.
+ *  - <WalletQuickMenu> — lima menu cepat ikon-bertumpuk-label: Terima/QR,
+ *    Riwayat, Voucher, Bank, Bantuan. Semua memetakan ke route yang ada di
+ *    lib/routes.ts — tidak ada tombol mati/mock.
+ *  - "Transaksi terakhir" — 10 mutasi terbaru dalam satu kartu rounded
+ *    premium (<WalletTransactionRow vivid> + divider) + "Lihat semua" ke
+ *    /wallet-history.
  *
- * Kontrak API:
- *  - GET /v1/wallet → saldo
+ * Kontrak API (TIDAK berubah):
+ *  - GET /v1/wallet → saldo (exact, via <Amount>, tanpa pembulatan tampilan)
  *  - GET /v1/wallet/transactions?page&limit&type&from&to → riwayat
  *    (spec menandai `type/from/to` required; helper lib/api/wallet.ts
  *    mengisi default yang terdokumentasi di sana).
@@ -21,9 +26,14 @@
  *  - Tab ini sengaja TIDAK memuat riwayat panjang: `limit` 10 dan
  *    `hasMore={false}` — riwayat lengkap (paginasi + filter jenis + unduh
  *    CSV/PDF) hidup di /wallet-history, satu daftar.
- *  - ModeSwitcher TIDAK ada di header ini lagi (2026-09-23): satu-satunya
- *    switch mode kini halaman profil sendiri, supaya satu kontrol punya satu
- *    rumah. Slot navbar bawah tetap mengikuti mode.
+ *  - ModeSwitcher TIDAK ada di header ini (2026-09-23): satu-satunya switch
+ *    mode kini halaman profil sendiri. Slot navbar bawah tetap mengikuti mode.
+ *  - Kartu "Transaksi terakhir" dibentuk dari baris-baris FlatList
+ *    (rounded-t di baris pertama, rounded-b di baris terakhir, border-x di
+ *    semua) — bukan satu <Card> pembungkus — supaya pull-to-refresh,
+ *    loading, error, dan empty state PaginatedList tetap bekerja apa adanya.
+ *  - Tidak ada seksi promo/banner: tidak ada sumber data promo nyata di
+ *    repo — mock dilarang.
  *  - Pull-to-refresh me-refresh saldo DAN riwayat bersamaan (`Promise.all`).
  */
 
@@ -35,32 +45,26 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
 import { useCallback } from "react"
 import { View } from "react-native"
-import { router, type Href } from "expo-router"
-import {
-  ArrowCircleDown,
-  ArrowCircleUp,
-  PaperPlaneTilt,
-  QrCode,
-  Wallet as WalletIcon,
-} from "phosphor-react-native"
+import { Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api, type WalletTransaction } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
+import { cn } from "@/lib/cn"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
-import { ErrorState } from "@/components/ui/error-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
 import { useUiPrefs } from "@/lib/ui-prefs"
-import { HomeOverviewCard } from "@/components/ui/home-overview-card"
 import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
+import { WalletHeroCard } from "@/components/wallet/wallet-hero-card"
+import { WalletPrimaryActions, WalletQuickMenu } from "@/components/wallet/wallet-menu"
 
 // ------------------------------------------------------------------
 // Konstanta layar
@@ -71,14 +75,6 @@ import { GuestLoginPrompt } from "@/components/web-guest-gate"
  * (dengan paginasi & filter) ada di /wallet-history.
  */
 const RECENT_LIMIT = 10
-
-/** Peta aksi cepat → route (semua screen sudah ada di lib/routes.ts). */
-const ACTION_ROUTE: Record<"topup" | "send" | "receive" | "withdraw", Href> = {
-  topup: ROUTES.topup,
-  send: ROUTES.transfer,
-  receive: ROUTES.receive,
-  withdraw: ROUTES.withdraw,
-}
 
 // ------------------------------------------------------------------
 // Screen
@@ -116,9 +112,6 @@ export default function WalletScreen() {
   const handleRefresh = useCallback(async () => {
     await Promise.all([balance.refresh(), history.refresh()])
   }, [balance.refresh, history.refresh])
-  const handleAction = useCallback((key: keyof typeof ACTION_ROUTE) => {
-    router.push(ACTION_ROUTE[key])
-  }, [])
 
   const recent = history.data
 
@@ -145,101 +138,86 @@ export default function WalletScreen() {
         // Layar ringkasan tidak memuat halaman berikutnya: riwayat lengkap
         // (paginasi + filter jenis) ada di /wallet-history.
         hasMore={false}
+        // Baris-baris riwayat membentuk SATU kartu: tanpa gap antar-baris
+        // (kartu dirakit di renderItem).
+        gap={0}
         onRefresh={handleRefresh}
         refreshing={balance.refreshing || history.refreshing}
         onRetry={history.reload}
         onLoadMore={history.loadMore}
         renderItem={({ item, index }) => (
-          <WalletTransactionRow
-            transaction={item}
-            href={ROUTES.walletTransaction(item.id)}
-            divider={index < recent.length - 1}
-          />
+          // Kartu "Transaksi terakhir": baris pertama = sudut atas kartu,
+          // baris terakhir = sudut bawah kartu, semua = border kiri-kanan.
+          <View
+            className={cn(
+              "border-border bg-surface-elevated px-5",
+              index === 0 && "mt-3 rounded-t-md border-x border-t pt-2",
+              index > 0 && "border-x",
+              index === recent.length - 1 && "rounded-b-md border-b pb-2",
+            )}
+          >
+            <WalletTransactionRow
+              transaction={item}
+              href={ROUTES.walletTransaction(item.id)}
+              divider={index < recent.length - 1}
+              vivid
+            />
+          </View>
         )}
         empty={
-          <EmptyState
-            icon={WalletIcon}
-            title="Belum ada riwayat"
-            description="Transaksi dompet Anda akan muncul di sini."
-          />
+          <View className="mt-3 rounded-md border border-border bg-surface-elevated px-5 py-4">
+            <EmptyState
+              icon={WalletIcon}
+              title="Belum ada riwayat"
+              description="Transaksi dompet Anda akan muncul di sini."
+            />
+          </View>
         }
         header={
           <FadeIn duration="base" distance={tokens.space[3]}>
-            {/*
-             * Kartu saldo hero — gaya quick-menu Beranda: empat aksi (Isi
-             * saldo / Kirim / Terima / Tarik saldo) sebagai ikon bertumpuk
-             * label, bukan baris tombol teks.
-             */}
-            {walletError ? (
-              <View className="pt-3">
-                <ErrorState
-                  compact
-                  title="Gagal memuat saldo"
-                  description={walletError}
-                  onRetry={() => void fetchWallet()}
-                />
-              </View>
-            ) : (
-              <View className="pt-3 gap-3">
-                <HomeOverviewCard
-                  available={wallet?.availableBalance}
-                  // Backend mengirim `escrowBalance` (bukan `holdBalance`);
-                  // fallback agar dana tertahan di escrow tetap tampil.
-                  held={wallet?.holdBalance ?? wallet?.escrowBalance}
-                  // J-05 (audit): "sembunyikan saldo" = preferensi persisten
-                  // yang dibagi dengan Beranda (privasi bahu-penumpang
-                  // konsisten antar layar).
-                  hidden={prefs.balanceHidden}
-                  onToggleHidden={() => setPrefs({ balanceHidden: !prefs.balanceHidden })}
-                  elevation="low"
-                  walletLoading={walletLoading}
-                  onRetryWallet={() => void fetchWallet()}
-                  walletActions={[
-                    {
-                      key: "topup",
-                      label: "Isi saldo",
-                      icon: ArrowCircleDown,
-                      onPress: () => handleAction("topup"),
-                    },
-                    {
-                      key: "send",
-                      label: "Kirim",
-                      icon: PaperPlaneTilt,
-                      onPress: () => handleAction("send"),
-                    },
-                    {
-                      key: "receive",
-                      label: "Terima",
-                      icon: QrCode,
-                      onPress: () => handleAction("receive"),
-                    },
-                    {
-                      key: "withdraw",
-                      label: "Tarik saldo",
-                      icon: ArrowCircleUp,
-                      onPress: () => handleAction("withdraw"),
-                    },
-                  ]}
-                />
-              </View>
-            )}
-
-            <View className="pt-4">
-              <SectionHeader
-                title="Riwayat"
-                level="h3"
-                action={
-                  <RouteLink
-                    href={ROUTES.walletHistory}
-                    accessibilityLabel="Lihat semua riwayat dompet"
-                    containerClassName="rounded-xs"
-                  >
-                    <Text variant="body" weight={600} tone="primary">
-                      Lihat semua
-                    </Text>
-                  </RouteLink>
-                }
+            <View className="gap-6 pt-3">
+              {/*
+               * Kartu saldo hero — fill gelap premium + toggle mata
+               * (preferensi dibagi Beranda) + dana tertahan escrow.
+               */}
+              <WalletHeroCard
+                available={wallet?.availableBalance}
+                // Backend mengirim `escrowBalance` (bukan `holdBalance`);
+                // fallback agar dana tertahan di escrow tetap tampil.
+                held={wallet?.holdBalance ?? wallet?.escrowBalance}
+                // J-05 (audit): "sembunyikan saldo" = preferensi persisten
+                // yang dibagi dengan Beranda (privasi bahu-penumpang
+                // konsisten antar layar).
+                hidden={prefs.balanceHidden}
+                onToggleHidden={() => setPrefs({ balanceHidden: !prefs.balanceHidden })}
+                loading={walletLoading}
+                error={walletError}
+                onRetry={() => void fetchWallet()}
               />
+
+              {/* Tiga CTA primer: Isi Saldo / Transfer / Tarik Dana. */}
+              <WalletPrimaryActions />
+
+              {/* Menu cepat: Terima/QR, Riwayat, Voucher, Bank, Bantuan. */}
+              <WalletQuickMenu />
+
+              <View>
+                <SectionHeader
+                  title="Transaksi terakhir"
+                  level="h3"
+                  action={
+                    <RouteLink
+                      href={ROUTES.walletHistory}
+                      accessibilityLabel="Lihat semua riwayat dompet"
+                      containerClassName="rounded-xs"
+                    >
+                      <Text variant="body" weight={600} tone="primary">
+                        Lihat semua
+                      </Text>
+                    </RouteLink>
+                  }
+                />
+              </View>
             </View>
           </FadeIn>
         }

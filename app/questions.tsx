@@ -19,30 +19,31 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ChatCircleDots } from "phosphor-react-native"
 import { router } from "expo-router"
 
 import { api, userMessage } from "@/lib/api"
-import { readQuestionList, type MyQuestionsType, type QuestionItem } from "@/lib/api/users"
+import { readQuestionList, type MyQuestionsType, type QuestionItem, type UserProfile } from "@/lib/api/users"
 import { CONTENT_REPORT_REASONS, type ContentReportReason } from "@/lib/labels/report"
 import { ROUTES } from "@/lib/routes"
+import { queryKeys } from "@/lib/query-keys"
 import { tokens } from "@/lib/tokens"
+import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Dialog } from "@/components/ui/modal"
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QACard } from "@/components/ui/qa-card"
+import { QaCommentComposer } from "@/components/ui/qa-comment-item"
+import { QaEmptyState } from "@/components/ui/qa-empty-state"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { SegmentedControl, type SegmentItem } from "@/components/ui/segmented-control"
-import { TextArea } from "@/components/ui/text-area"
 import { useToast } from "@/components/ui/toast"
 import { translate, useLanguage } from "@/lib/i18n"
 
@@ -108,6 +109,24 @@ export default function QuestionsScreen() {
   )
   const items = query.data
   const [upvotingId, setUpvotingId] = useState<string | null>(null)
+
+  // Avatar + nama penulis untuk composer jawaban (proyeksi ringan dari cache me).
+  const meQuery = useApiQuery<
+    UserProfile,
+    { fullName?: string; username?: string | null; avatarUrl?: string | null }
+  >(
+    queryKeys.me(),
+    (signal) => api.users.getMe(signal),
+    true,
+    {
+      select: (me) => ({
+        fullName: me.fullName,
+        username: me.username,
+        avatarUrl: me.avatarUrl,
+      }),
+    },
+  )
+  const me = meQuery.data
   const [hideTarget, setHideTarget] = useState<QuestionItem | null>(null)
   const [hideReason, setHideReason] = useState<HiddenReason>("SPAM")
   const [hiding, setHiding] = useState(false)
@@ -242,10 +261,12 @@ export default function QuestionsScreen() {
             onRetry={() => void query.reload()}
           />
         ) : items.length === 0 ? (
-          <EmptyState
-            icon={ChatCircleDots}
+          <QaEmptyState
+            isSelf={received}
             title={
-              received ? translate("Belum ada pertanyaan masuk") : translate("Belum ada pertanyaan yang Anda ajukan")
+              received
+                ? translate("Belum ada pertanyaan masuk")
+                : translate("Belum ada pertanyaan yang Anda ajukan")
             }
             description={
               received
@@ -254,7 +275,7 @@ export default function QuestionsScreen() {
             }
           />
         ) : (
-          <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
+          <View style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title={translate("Pertanyaan")} />
             {items.map((q) => {
               const other = received ? q.asker : q.target
@@ -269,10 +290,15 @@ export default function QuestionsScreen() {
                     loading: upvotingId === q.id,
                     onToggle: (next) => void handleUpvote(q, next),
                   }}
+                  commentCount={q.commentCount ?? 0}
                   question={q.question}
                   asker={
                     received
-                      ? { name: otherName, avatar: q.asker?.avatarUrl ?? undefined }
+                      ? {
+                          name: otherName,
+                          username: q.asker?.username,
+                          avatar: q.asker?.avatarUrl ?? undefined,
+                        }
                       : { name: translate("Anda") }
                   }
                   date={q.createdAt}
@@ -344,28 +370,30 @@ export default function QuestionsScreen() {
         </Crossfade>
       </PullToRefresh>
 
-      <Dialog
+      <BottomSheet
+        avoidKeyboard
+        visible={!!answerTarget}
+        onRequestClose={() => setAnswerTarget(null)}
         title={translate("Jawab pertanyaan")}
         description={translate("Dari {x}", {
           x: answerTarget?.asker?.fullName ?? answerTarget?.asker?.username ?? translate("Pengguna"),
         })}
-        visible={!!answerTarget}
-        loading={answering}
-        confirmLabel={translate("Kirim Jawaban")}
-        confirmButtonProps={{ disabled: answerText.trim().length < ANSWER_MIN }}
-        cancelLabel={translate("Batal")}
-        onConfirm={() => void submitAnswer()}
-        onCancel={() => setAnswerTarget(null)}
-        onRequestClose={() => setAnswerTarget(null)}
       >
-        <TextArea
-          value={answerText}
-          onChangeText={setAnswerText}
-          placeholder={translate("Tulis jawaban Anda…")}
-          maxLength={ANSWER_MAX}
-          showCount
-        />
-      </Dialog>
+        <View className="px-5 pb-4">
+          <QaCommentComposer
+            value={answerText}
+            onChangeText={setAnswerText}
+            onSubmit={() => void submitAnswer()}
+            submitting={answering}
+            minLength={ANSWER_MIN}
+            maxLength={ANSWER_MAX}
+            authorName={me?.fullName ?? me?.username ?? translate("Anda")}
+            authorAvatar={me?.avatarUrl ? { source: me.avatarUrl } : undefined}
+            placeholder={translate("Tulis jawaban Anda…")}
+            submitLabel={translate("Kirim jawaban")}
+          />
+        </View>
+      </BottomSheet>
 
       <BottomSheet
         avoidKeyboard

@@ -1,19 +1,23 @@
 /**
- * Kahade — <ScreenCaptureGuard> (SEC-404).
+ * Kahade — <ScreenCaptureGuard> (SEC-404, selective).
  *
- * Proteksi screen-capture iOS untuk layar sensitif (PIN/OTP/saldo).
- * Android TIDAK disentuh: FLAG_SECURE sudah aktif app-wide via
- * plugins/with-flag-secure.js (screenshot, recording, dan thumbnail
- * app-switcher terblokir di sana).
+ * Proteksi screen-capture per-layar untuk layar sensitif (PIN/OTP/saldo/
+ * rekening bank). Ini SATU-SATUNYA mekanisme blokir screenshot — plugin
+ * config app-wide `with-flag-secure` sudah DIHAPUS agar layar biasa tetap
+ * bisa di-screenshot (kebijakan per 2026-09-27: blokir selektif).
  *
- * Selama guard terpasang, di iOS:
- *  1. `preventScreenCaptureAsync` — mencegah screenshot (iOS 13+) dan screen
- *     recording (iOS 11+). Di Android panggilan ini no-op karena FLAG_SECURE.
+ * Selama guard terpasang:
+ *  1. `preventScreenCaptureAsync(key)` — di iOS mencegah screenshot (13+)
+ *     dan screen recording (11+); di Android MEN-SET FLAG_SECURE untuk
+ *     activity aktif — FLAG_SECURE ref-counted per `key`, jadi beberapa
+ *     guard bertumpuk (layar di atas layar) aman: flag hanya di-clear saat
+ *     semua key dikembalikan lewat `allowScreenCaptureAsync(key)`.
  *  2. `enableAppSwitcherProtectionAsync` — overlay blur saat app tidak fokus
- *     (app switcher / snapshot background), pola umum aplikasi bank.
+ *     (app switcher / snapshot background), pola umum aplikasi bank
+ *     (iOS saja; Android tidak punya API setara di modul ini).
  *  3. Listener screenshot → overlay opaque menutupi konten sensitif sampai
- *     user menutupnya. Lapis cadangan untuk iOS lama di mana pencegahan (1)
- *     tidak tersedia.
+ *     user menutupnya. Lapis cadangan untuk platform/versi OS di mana
+ *     pencegahan (1) tidak tersedia.
  *
  * `expo-screen-capture` dimuat dinamis dalam try/catch: bila modul native
  * tidak ada (binary lama, Expo Go), guard menjadi no-op alih-alih crash.

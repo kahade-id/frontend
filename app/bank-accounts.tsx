@@ -1,14 +1,20 @@
 /**
- * Screen — Rekening Bank (CRUD + set utama).
+ * Screen — Rekening Bank (redesign premium 2026-09-27, TIM BANK).
  *
  * GET /v1/bank-accounts → list; POST → tambah; DELETE → hapus;
- * POST /{id}/set-primary → utama. Form memakai BankSelect dari
- * GET /v1/public/banks (logo resmi berwarna).
+ * POST /{id}/set-primary → utama; PATCH → edit nama. Form memakai BankSelect
+ * dari GET /v1/public/banks (logo resmi berwarna).
+ *
+ * REDESIGN INI PRESENTASI MURNI: seluruh logika & kontrak API (payload
+ * AddBankAccountDto, endpoint, urutan refresh, pesan toast, validasi form)
+ * tidak berubah — hanya tampilan: kartu rekening premium
+ * (<BankAccountCard>: avatar bank, nomor termasker, badge "Utama", baris
+ * aksi), CTA primer tegas, empty state dengan aksi, dialog konfirmasi hapus.
  */
 import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Bank, PencilSimpleLine, Plus, Trash } from "phosphor-react-native"
+import { Bank, Plus } from "phosphor-react-native"
 
 import { api, type AddBankAccountDto, userMessage } from "@/lib/api"
 import type { BankAccount } from "@/lib/api/bank-accounts"
@@ -16,9 +22,10 @@ import { maskAccountNumber } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 
-import { BankAccountListItem } from "@/components/ui/bank-account-list-item"
+import { BankAccountCard } from "@/components/ui/bank-account-card"
 import { BankSelect, type BankOption } from "@/components/ui/bank-select"
 import { Button } from "@/components/ui/button"
+import { Card } from "@/components/ui/card"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
@@ -31,6 +38,7 @@ import { ListLoading } from "@/components/ui/paginated-list"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
 
@@ -38,7 +46,7 @@ export default function BankAccountsScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
 
-  /**
+  /*
    * Audit: layar ini merakit sendiri state async (loading/error/refreshing +
    * useEffect). Tiga akibat yang terbukti dari kode lama:
    *   1. Tarik-untuk-menyegarkan memakai fungsi yang SAMA dengan muat-awal,
@@ -217,7 +225,10 @@ export default function BankAccountsScreen() {
   }, [editTarget, editName, toast.show, query])
 
   return (
-    <Screen keyboardAvoiding edges={["top"]} padded={false}>
+    // SEC-404 (selective): layar rekening bank menampilkan data sensitif
+    // (nomor rekening, nama pemilik) — blokir screenshot/recording per-layar.
+    <ScreenCaptureGuard>
+      <Screen keyboardAvoiding edges={["top"]} padded={false}>
       <Header title="Rekening Bank" />
       <PullToRefresh
         onRefresh={() => void query.refresh()}
@@ -230,141 +241,118 @@ export default function BankAccountsScreen() {
         <SectionHeader title="Rekening terdaftar" />
         <Crossfade loading={loading} skeleton={<ListLoading />}>
           {error ? (
-          <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
-        ) : accounts.length === 0 ? (
-          <EmptyState
-            // UI-W017: ikon tempat sampah untuk state kosong terbaca sebagai
-            // aksi hapus — pakai ikon bank yang netral.
-            icon={Bank}
-            title="Belum ada rekening"
-            description="Tambahkan rekening bank untuk menarik dana."
-          />
-        ) : (
-          <View className="gap-2">
-            {accounts.map((acc, i) => (
-              <BankAccountListItem
-                key={acc.id}
-                bankName={acc.bankName ?? acc.bankCode}
-                bankCode={acc.bankCode}
-                accountNumber={acc.accountNumber}
-                accountHolder={acc.accountName}
-                // UI-W003: logo harus dari bank milik baris ini — dulu memakai
-                // bank yang sedang dipilih di form tambah (salah untuk semua baris).
-                logo={banks.find((b) => b.code === acc.bankCode)?.logo ?? undefined}
-                primary={acc.isPrimary}
-                verified={acc.isVerified}
-                divider={i < accounts.length - 1}
+            <ErrorState title="Gagal memuat" description={error} onRetry={() => void query.reload()} />
+          ) : accounts.length === 0 ? (
+            <Card>
+              <EmptyState
+                // UI-W017: ikon tempat sampah untuk state kosong terbaca sebagai
+                // aksi hapus — pakai ikon bank yang netral.
+                icon={Bank}
+                title="Belum ada rekening"
+                description="Tambahkan rekening bank untuk menarik dana."
+                action={
+                  <Button fullWidth={false} leftIcon={Plus} onPress={() => setAdding(true)}>
+                    Tambah rekening
+                  </Button>
+                }
               />
-            ))}
-            <View className="gap-2 pt-2">
+            </Card>
+          ) : (
+            <View className="gap-3">
               {accounts.map((acc) => (
-                <View key={`actions-${acc.id}`} className="flex-row gap-2">
-                  {!acc.isPrimary ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      fullWidth={false}
-                      onPress={() => void handleSetPrimary(acc)}
-                    >
-                      Jadikan utama
-                    </Button>
-                  ) : null}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    fullWidth={false}
-                    leftIcon={PencilSimpleLine}
-                    onPress={() => {
-                      setEditTarget(acc)
-                      setEditName(acc.accountName ?? "")
-                    }}
-                  >
-                    Edit nama
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    fullWidth={false}
-                    leftIcon={Trash}
-                    onPress={() => setDeleteTarget(acc)}
-                  >
-                    Hapus
-                  </Button>
-                </View>
+                <BankAccountCard
+                  key={acc.id}
+                  bankName={acc.bankName ?? acc.bankCode}
+                  bankCode={acc.bankCode}
+                  accountNumber={acc.accountNumber}
+                  accountHolder={acc.accountName}
+                  // UI-W003: logo harus dari bank milik baris ini — dulu memakai
+                  // bank yang sedang dipilih di form tambah (salah untuk semua baris).
+                  logo={banks.find((b) => b.code === acc.bankCode)?.logo ?? undefined}
+                  primary={acc.isPrimary}
+                  verified={acc.isVerified}
+                  onSetPrimary={() => void handleSetPrimary(acc)}
+                  onEdit={() => {
+                    setEditTarget(acc)
+                    setEditName(acc.accountName ?? "")
+                  }}
+                  onDelete={() => setDeleteTarget(acc)}
+                />
               ))}
             </View>
-          </View>
-        )}
+          )}
+        </Crossfade>
 
         <SectionHeader title="Tambah rekening" />
         {!adding ? (
-          <Button variant="secondary" leftIcon={Plus} onPress={() => setAdding(true)}>
+          <Button leftIcon={Plus} onPress={() => setAdding(true)}>
             Tambah rekening
           </Button>
         ) : (
-          <FormSection
-            title="Data rekening baru"
-            /*
-             * F-06 (audit 2026-09-22): tombol simpan terkunci selama ada isian
-             * yang kurang, dan sebelumnya TIDAK ADA satu pun pesan — pengguna
-             * pembaca layar menekan tombol yang tidak merespons apa pun tanpa
-             * tahu bagian mana yang belum benar. Pesan per-field dipakai bila
-             * field itu memang sudah disentuh, sisanya dirangkum di sini
-             * sebagai satu live region.
-             */
-            errorText={sectionError}
-          >
-            <BankSelect
-              banks={banks}
-              value={bankCode}
-              onChange={(code) => {
-                setBankCode(code)
-                setBankName((prev) => prev || (banks.find((b) => b.code === code)?.name ?? ""))
-              }}
-              label="Bank"
-            />
-            <Field label="Nomor rekening" required>
-              <Input
-                value={accountNumber}
-                onChangeText={(t) => setAccountNumber(t.replace(/[^\d]/g, ""))}
-                keyboardType="number-pad"
-                returnKeyType="next"
-                placeholder="1234567890"
-                maxLength={20}
-              />
-            </Field>
-            <Field label="Nama pemilik rekening" required>
-              <Input
-                value={accountName}
-                onChangeText={setAccountName}
-                placeholder="Sesuai rekening"
-                // Nama orang: kapitalisasi otomatis + isi dari kontak, dan tombol
-                // "Selesai" karena ini field terakhir sebelum CTA.
-                autoCapitalize="words"
-                autoComplete="name"
-                textContentType="name"
-                returnKeyType="done"
-                maxLength={100}
-              />
-            </Field>
-            <Button
-              loading={submitting}
-              onPress={() => void handleAdd()}
-              disabled={!canSaveAccount}
+          <Card>
+            <FormSection
+              title="Data rekening baru"
+              /*
+               * F-06 (audit 2026-09-22): tombol simpan terkunci selama ada isian
+               * yang kurang, dan sebelumnya TIDAK ADA satu pun pesan — pengguna
+               * pembaca layar menekan tombol yang tidak merespons apa pun tanpa
+               * tahu bagian mana yang belum benar. Pesan per-field dipakai bila
+               * field itu memang sudah disentuh, sisanya dirangkum di sini
+               * sebagai satu live region.
+               */
+              errorText={sectionError}
             >
-              Simpan rekening
-            </Button>
-            <Button
-              variant="ghost"
-              fullWidth={false}
-              onPress={() => setAdding(false)}
-              disabled={submitting}
-            >
-              Batal
-            </Button>
+              <BankSelect
+                banks={banks}
+                value={bankCode}
+                onChange={(code) => {
+                  setBankCode(code)
+                  setBankName((prev) => prev || (banks.find((b) => b.code === code)?.name ?? ""))
+                }}
+                label="Bank"
+              />
+              <Field label="Nomor rekening" required>
+                <Input
+                  value={accountNumber}
+                  onChangeText={(t) => setAccountNumber(t.replace(/[^\d]/g, ""))}
+                  keyboardType="number-pad"
+                  returnKeyType="next"
+                  placeholder="1234567890"
+                  maxLength={20}
+                />
+              </Field>
+              <Field label="Nama pemilik rekening" required>
+                <Input
+                  value={accountName}
+                  onChangeText={setAccountName}
+                  placeholder="Sesuai rekening"
+                  // Nama orang: kapitalisasi otomatis + isi dari kontak, dan tombol
+                  // "Selesai" karena ini field terakhir sebelum CTA.
+                  autoCapitalize="words"
+                  autoComplete="name"
+                  textContentType="name"
+                  returnKeyType="done"
+                  maxLength={100}
+                />
+              </Field>
+              <Button
+                loading={submitting}
+                onPress={() => void handleAdd()}
+                disabled={!canSaveAccount}
+              >
+                Simpan rekening
+              </Button>
+              <Button
+                variant="ghost"
+                fullWidth={false}
+                onPress={() => setAdding(false)}
+                disabled={submitting}
+              >
+                Batal
+              </Button>
             </FormSection>
-          )}
-        </Crossfade>
+          </Card>
+        )}
       </PullToRefresh>
 
       <Dialog
@@ -417,6 +405,7 @@ export default function BankAccountsScreen() {
           maxLength={100}
         />
       </Dialog>
-    </Screen>
+      </Screen>
+    </ScreenCaptureGuard>
   )
 }

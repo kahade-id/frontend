@@ -27,7 +27,6 @@ import { useCallback, useState } from "react"
 import { View } from "react-native"
 import { useLocalSearchParams, router } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ChatCircleDots } from "phosphor-react-native"
 
 import { api, userMessage } from "@/lib/api"
 import {
@@ -37,7 +36,6 @@ import {
   type QuestionComment,
   type QuestionItem,
 } from "@/lib/api/users"
-import { formatDateTime } from "@/lib/format"
 import { atHandle } from "@/lib/profile-uiux"
 import { ROUTES } from "@/lib/routes"
 import { useHasSession } from "@/lib/guest-gate"
@@ -47,19 +45,19 @@ import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 
+import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import { Dialog } from "@/components/ui/modal"
-import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { LoadMore } from "@/components/ui/load-more"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { QACard } from "@/components/ui/qa-card"
 import { QaCommentComposer, QaCommentItem } from "@/components/ui/qa-comment-item"
+import { QaEmptyState } from "@/components/ui/qa-empty-state"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
-import { TextArea } from "@/components/ui/text-area"
+import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { translate, useLanguage } from "@/lib/i18n"
 
@@ -109,13 +107,24 @@ export default function PublicQuestionsScreen() {
    * proyeksi `select` (layar ini hanya butuh id untuk menandai pertanyaan milik
    * sendiri), bukan kunci pribadi "questions-me".
    */
-  const meQuery = useApiQuery<UserProfile, { id?: string }>(
+  const meQuery = useApiQuery<
+    UserProfile,
+    { id?: string; fullName?: string; username?: string | null; avatarUrl?: string | null }
+  >(
     queryKeys.me(),
     (signal) => api.users.getMe(signal),
     true,
-    { select: (me) => ({ id: me.id ?? undefined }) },
+    {
+      select: (me) => ({
+        id: me.id ?? undefined,
+        fullName: me.fullName,
+        username: me.username,
+        avatarUrl: me.avatarUrl,
+      }),
+    },
   )
   const meId = meQuery.data?.id
+  const me = meQuery.data
 
   /**
    * PENTING — `readQuestionList` mengembalikan `totalPages?: number` dan bisa
@@ -341,16 +350,16 @@ export default function PublicQuestionsScreen() {
           {error ? (
           <ErrorState title={translate("Gagal memuat")} description={error} onRetry={() => void query.reload()} />
         ) : items.length === 0 ? (
-          <EmptyState
-            icon={ChatCircleDots}
-            title={translate("Belum ada pertanyaan")}
-            description={translate("Jadilah yang pertama bertanya pada profil ini.")}
+          <QaEmptyState
+            onAsk={() => {
+              if (requireSession()) setAskOpen(true)
+            }}
           />
         ) : (
-          <View className="gap-3" style={{ paddingTop: tokens.space[3] }}>
+          <View style={{ paddingTop: tokens.space[3] }}>
             <SectionHeader title={atHandle(username)} />
             {items.map((q) => (
-              <View key={q.id} className="gap-3">
+              <View key={q.id}>
                 <QACard
                   upvote={{
                     count: q.upvoteCount ?? 0,
@@ -358,9 +367,14 @@ export default function PublicQuestionsScreen() {
                     loading: upvotingId === q.id,
                     onToggle: (next) => void handleUpvote(q, next),
                   }}
+                  commentCount={q.commentCount ?? 0}
+                  commentsOpen={openId === q.id}
+                  onToggleComments={() => void toggleComments(q)}
+                  onDelete={isMyQuestion(q) ? () => setDeleteQ(q) : undefined}
                   question={q.question}
                   asker={{
                     name: q.asker?.fullName ?? q.asker?.username ?? translate("Seseorang"),
+                    username: q.asker?.username,
                     avatar: q.asker?.avatarUrl ?? undefined,
                   }}
                   date={q.createdAt}
@@ -368,34 +382,24 @@ export default function PublicQuestionsScreen() {
                     q.answer
                       ? {
                           text: q.answer,
-                          by: { name: atHandle(username) },
+                          by: { name: atHandle(username), username: username ?? undefined },
                           date: q.answeredAt ?? q.createdAt,
                         }
                       : undefined
                   }
                   questionLines={undefined}
-                  footer={
-                    <View className="flex-row flex-wrap gap-2">
-                      <Button size="sm" variant="ghost" onPress={() => void toggleComments(q)}>
-                        {openId === q.id ? translate("Tutup komentar") : translate("Komentar")}
-                      </Button>
-                      {isMyQuestion(q) ? (
-                        <Button size="sm" variant="ghost" onPress={() => setDeleteQ(q)}>
-                          {translate("Hapus pertanyaan")}
-                        </Button>
-                      ) : null}
-                    </View>
-                  }
                 />
                 {openId === q.id ? (
-                  <Card padded className="gap-3">
+                  <View className="-mx-5 border-b border-border px-5 py-2">
                     {comments.loading && comments.items.length === 0 ? (
                       <ListLoading />
                     ) : comments.items.length === 0 ? (
-                      <EmptyState icon={ChatCircleDots} title={translate("Belum ada komentar")} />
+                      <Text variant="caption" tone="secondary" className="py-2">
+                        {translate("Belum ada balasan. Jadilah yang pertama membalas.")}
+                      </Text>
                     ) : (
-                      <View className="gap-3">
-                        {comments.items.map((c) => (
+                      <View>
+                        {comments.items.map((c, i) => (
                           <QaCommentItem
                             key={c.id}
                             authorName={c.authorName ?? c.authorUsername ?? "Pengguna"}
@@ -404,32 +408,36 @@ export default function PublicQuestionsScreen() {
                             }
                             isOwner={c.isOwner}
                             content={c.content}
-                            timestamp={formatDateTime(c.createdAt)}
-                            reply={c.reply || !!c.parentId}
+                            createdAt={c.createdAt}
+                            hasNext={i < comments.items.length - 1 || comments.hasMore}
                             deleted={c.deleted}
                             onDelete={
                               isMyComment(c) && !c.deleted ? () => setDeleteC(c) : undefined
                             }
                           />
                         ))}
-                        {comments.hasMore ? (
-                          <LoadMore
-                            status={comments.loading ? "loading" : "idle"}
-                            onLoadMore={() => void loadComments(q.id, comments.page + 1)}
-                            idleLabel={translate("Muat komentar lainnya")}
-                          />
-                        ) : null}
                       </View>
                     )}
-                    <QaCommentComposer
-                      value={commentText}
-                      onChangeText={setCommentText}
-                      onSubmit={() => void submitComment()}
-                      submitting={commentSending}
-                      maxLength={COMMENT_MAX}
-                      placeholder={translate("Tulis komentar untuk @{x}…", { x: username ?? "" })}
-                    />
-                  </Card>
+                    {comments.hasMore ? (
+                      <LoadMore
+                        status={comments.loading ? "loading" : "idle"}
+                        onLoadMore={() => void loadComments(q.id, comments.page + 1)}
+                        idleLabel={translate("Lihat balasan lainnya")}
+                      />
+                    ) : null}
+                    <View className="py-3">
+                      <QaCommentComposer
+                        value={commentText}
+                        onChangeText={setCommentText}
+                        onSubmit={() => void submitComment()}
+                        submitting={commentSending}
+                        maxLength={COMMENT_MAX}
+                        authorName={me?.fullName ?? me?.username ?? undefined}
+                        authorAvatar={me?.avatarUrl ? { source: me.avatarUrl } : undefined}
+                        placeholder={translate("Tulis balasan untuk @{x}…", { x: username ?? "" })}
+                      />
+                    </View>
+                  </View>
                 ) : null}
               </View>
             ))}
@@ -448,26 +456,28 @@ export default function PublicQuestionsScreen() {
         </Crossfade>
       </PullToRefresh>
 
-      <Dialog
+      <BottomSheet
+        avoidKeyboard
+        visible={askOpen}
+        onRequestClose={() => setAskOpen(false)}
         title={translate("Bertanya kepada @{x}", { x: username ?? "" })}
         description={translate("Pertanyaan Anda akan tampil di profil ini dan dijawab oleh pemiliknya.")}
-        visible={askOpen}
-        loading={asking}
-        confirmLabel={translate("Kirim Pertanyaan")}
-        confirmButtonProps={{ disabled: askText.trim().length < QUESTION_MIN }}
-        cancelLabel={translate("Batal")}
-        onConfirm={() => void submitAsk()}
-        onCancel={() => setAskOpen(false)}
-        onRequestClose={() => setAskOpen(false)}
       >
-        <TextArea
-          value={askText}
-          onChangeText={setAskText}
-          placeholder={translate("Tulis pertanyaan Anda…")}
-          maxLength={QUESTION_MAX}
-          showCount
-        />
-      </Dialog>
+        <View className="px-5 pb-4">
+          <QaCommentComposer
+            value={askText}
+            onChangeText={setAskText}
+            onSubmit={() => void submitAsk()}
+            submitting={asking}
+            minLength={QUESTION_MIN}
+            maxLength={QUESTION_MAX}
+            authorName={me?.fullName ?? me?.username ?? undefined}
+            authorAvatar={me?.avatarUrl ? { source: me.avatarUrl } : undefined}
+            placeholder={translate("Tulis pertanyaan Anda…")}
+            submitLabel={translate("Kirim pertanyaan")}
+          />
+        </View>
+      </BottomSheet>
 
       <Dialog
         title={deleteQ ? translate("Hapus pertanyaan?") : translate("Hapus komentar?")}

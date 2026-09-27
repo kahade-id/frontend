@@ -1,36 +1,51 @@
 /**
- * Kahade — <QaCommentItem> + <QaCommentComposer> (§9.17, §9.4 Avatar, §13).
+ * Kahade — <QaCommentItem> + <QaCommentComposer> ala Threads (redesign 2026-09-27, TIM QA).
  * API: GET/POST /v1/users/questions/{questionId}/comments,
  *      DELETE /v1/users/comments/{commentId}
  *
- * Satu komentar di utas Tanya-Jawab profil penjual: Avatar sm -> nama +
- * waktu -> isi -> aksi (Balas · Hapus). Composer terpisah di bawah utas.
+ * Satu balasan di utas Tanya-Jawab: avatar sm -> nama + waktu relatif ->
+ * isi -> aksi (Balas · Hapus). Balasan yang bersambung dihubungkan garis
+ * vertikal di kolom avatar (`hasNext`) — kosakata Threads untuk utas.
+ * Composer: avatar penulis + placeholder elegan + counter karakter +
+ * tombol kirim lingkaran yang aktif hanya bila valid.
+ *
+ * Kontrak presentasi — BUKAN logika: endpoint, payload, batas karakter
+ * (pertanyaan 5–500, komentar 1–1000), paginasi 20, dan aturan hapus milik
+ * sendiri tidak berubah di sini.
  *
  * Keputusan non-obvious:
- *   - Avatar `sm` (32) bukan `md`: komentar adalah konten sekunder di bawah
- *     pertanyaan; avatar besar membuat utas terasa seperti daftar pengguna.
- *   - Balasan (`reply`) di-inset pl-11 (avatar sm 32 + gap-3 12) tanpa garis
- *     vertikal: utas Kahade hanya satu level; garis "thread" menyiratkan
- *     kedalaman yang tidak ada.
- *   - Badge "Penjual" untuk `isOwner` (pemilik profil menjawab) — satu-satunya
- *     penanda semantik (tone info), karena pembaca perlu tahu jawaban resmi.
- *   - Aksi "Hapus" hanya muncul bila `onDelete` diberikan (komentar sendiri).
- *     TextLink caption, bukan IconButton: aksi jarang, tidak boleh dominan.
- *   - Composer: TextArea + Button sm; tombol disabled saat kosong; Enter
- *     tidak submit (multiline) — kirim eksplisit via tombol.
+ *   - Garis konektor (`hasNext`) menggantikan inset `pl-11` yang lama:
+ *     utas Kahade satu level, tapi garis justru memberi tahu "masih ada
+ *     lanjutan di bawah" — persis fungsi garis di Threads. Item terakhir
+ *     (atau satu-satunya) tidak menggambar garis.
+ *   - `createdAt` (baru) diformat relatif di dalam ("5 menit"); prop lama
+ *     `timestamp` (string pra-format) tetap didukung untuk pemanggil lama —
+ *     bila keduanya ada, `createdAt` menang.
+ *   - Aksi "Hapus" hanya muncul bila `onDelete` diberikan (milik sendiri).
+ *   - Composer generik: dipakai untuk pertanyaan (minLength 5, maxLength 500)
+ *     maupun balasan (minLength 1, maxLength 1000). Tombol kirim TERKUNCI
+ *     bila panjang < minLength atau > maxLength — aturan SAMA dengan
+ *     validasi layar (bukan sekadar `maxLength` input).
+ *   - Counter memakai `showCount` bawaan <TextArea> ("12/500"); di bawah
+ *     minimum, teks bantuan menampilkan syarat minimum ("min. 5 karakter").
  */
 import type { ReactNode } from "react"
 import { View, type ViewProps } from "react-native"
-import { translate, useLanguage } from "@/lib/i18n"
+
+import { ArrowUp } from "phosphor-react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import { Icon } from "@/components/ui/icon"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { TextLink } from "@/components/ui/text-link"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
+import { focusRing } from "@/lib/focus-ring"
+import { formatRelativeTime } from "@/lib/format"
+import { translate, useLanguage } from "@/lib/i18n"
 
 export type QaCommentLabels = {
   owner: string
@@ -46,10 +61,17 @@ export type QaCommentItemProps = Omit<ViewProps, "children"> & {
   /** Penulis = pemilik profil (penjual) -> Badge */
   isOwner?: boolean
   content: string
-  /** Sudah diformat (§13) */
-  timestamp: string
-  /** Komentar ini adalah balasan -> inset */
+  /** String pra-format (kompat lama) — kalah dari `createdAt` bila keduanya ada */
+  timestamp?: string
+  /** Waktu mentah — diformat relatif ("5 menit") di dalam */
+  createdAt?: Date | number | string
+  /**
+   * (Lama, dipertahankan) Komentar ini adalah balasan. Tidak lagi
+   * meng-inset — konektor garis + indentasi konsisten menggantikannya.
+   */
   reply?: boolean
+  /** Ada balasan lanjutan di bawah -> gambar garis konektor vertikal */
+  hasNext?: boolean
   /** Komentar sudah dihapus (soft) -> placeholder abu */
   deleted?: boolean
   onReply?: () => void
@@ -61,8 +83,8 @@ export type QaCommentItemProps = Omit<ViewProps, "children"> & {
 }
 
 /**
- * Label bawaan mengikuti bahasa aktif (dulu konstanta modul yang tidak
- * reaktif). Nilai dibaca via translate() saat render.
+ * Label bawaan mengikuti bahasa aktif (dulu hardcode di default param).
+ * Nilai dibaca via translate() saat render.
  */
 function useDefaultLabels(): QaCommentLabels {
   useLanguage()
@@ -81,7 +103,9 @@ export function QaCommentItem({
   isOwner = false,
   content,
   timestamp,
+  createdAt,
   reply = false,
+  hasNext = false,
   deleted = false,
   onReply,
   onDelete,
@@ -92,13 +116,23 @@ export function QaCommentItem({
   ...rest
 }: QaCommentItemProps) {
   const t = { ...useDefaultLabels(), ...labels }
+  // `reply` dipertahankan di signature untuk kompatibilitas; tidak lagi
+  // memengaruhi layout (lihat docblock modul).
+  void reply
+  const time = createdAt != null ? formatRelativeTime(createdAt) : (timestamp ?? "")
 
   return (
     // Root TANPA `accessible`: nama penulis bisa berupa <TextLink> dan `extra`
-    // memuat aksi (suka/laporkan) yang wajib fokusable. Ringkasan dipasang di
-    // blok isi komentar (audit #4).
-    <View className={cn("flex-row gap-3 py-3", reply && "pl-11", className)} {...rest}>
-      <Avatar source={authorAvatar?.source} name={authorName} size="sm" verified={authorVerified} />
+    // memuat aksi yang wajib fokusable. Ringkasan dipasang di blok isi (audit #4).
+    <View className={cn("flex-row gap-3 py-3", className)} {...rest}>
+      {/* Kolom avatar + garis konektor utas */}
+      <View className="items-center">
+        <Avatar source={authorAvatar?.source} name={authorName} size="sm" verified={authorVerified} />
+        {hasNext ? (
+          <View testID="qa-thread-line" className="w-0.5 flex-1 bg-border" style={{ marginTop: 6 }} />
+        ) : null}
+      </View>
+
       <View className="flex-1 gap-1">
         <View className="flex-row flex-wrap items-center gap-x-2 gap-y-1">
           {onPressAuthor ? (
@@ -115,14 +149,14 @@ export function QaCommentItem({
               {t.owner}
             </Badge>
           ) : null}
-          <Text variant="monoBody" tone="secondary">
-            {timestamp}
+          <Text variant="caption" tone="secondary" className="tabular-nums">
+            {time}
           </Text>
         </View>
 
         {deleted ? (
           <Text
-            accessibilityLabel={summarize([authorName, isOwner ? t.owner : undefined, timestamp, t.deleted])}
+            accessibilityLabel={summarize([authorName, isOwner ? t.owner : undefined, time, t.deleted])}
             variant="body"
             tone="secondary"
             className="italic"
@@ -131,10 +165,10 @@ export function QaCommentItem({
           </Text>
         ) : (
           <Text
-            accessibilityLabel={summarize([authorName, isOwner ? t.owner : undefined, timestamp, content])}
+            accessibilityLabel={summarize([authorName, isOwner ? t.owner : undefined, time, content])}
             variant="body"
             tone="primary"
-            className="leading-6"
+            className="leading-7"
           >
             {content}
           </Text>
@@ -148,7 +182,12 @@ export function QaCommentItem({
               </TextLink>
             ) : null}
             {onDelete ? (
-              <TextLink variant="caption" weight={500} onPress={onDelete} accessibilityLabel={translate("{x} komentar", { x: t.delete })}>
+              <TextLink
+                variant="caption"
+                weight={500}
+                onPress={onDelete}
+                accessibilityLabel={translate("{x} balasan", { x: t.delete })}
+              >
                 {t.delete}
               </TextLink>
             ) : null}
@@ -167,12 +206,19 @@ export type QaCommentComposerProps = Omit<ViewProps, "children"> & {
   onSubmit: () => void
   submitting?: boolean
   placeholder?: string
+  /** Label aksesibilitas tombol kirim (kompat lama) */
   submitLabel?: string
+  /** Batas maksimum karakter (kompat lama: komentar 1000) */
   maxLength?: number
+  /** Batas minimum karakter — tombol terkunci di bawah ini. Pertanyaan: 5. */
+  minLength?: number
   /** Nama yang dibalas, mis. "@budisantoso" — tampil sebagai caption */
   replyingTo?: string
   onCancelReply?: () => void
   errorText?: string
+  /** Avatar penulis di sisi input (inisial bila tanpa foto) */
+  authorName?: string
+  authorAvatar?: Pick<AvatarProps, "source">
   className?: string
 }
 
@@ -183,21 +229,27 @@ export function QaCommentComposer({
   submitting = false,
   placeholder,
   submitLabel,
-  maxLength = 500,
+  maxLength = 1000,
+  minLength = 1,
   replyingTo,
   onCancelReply,
   errorText,
+  authorName,
+  authorAvatar,
   className,
   ...rest
 }: QaCommentComposerProps) {
   // i18n: default mengikuti bahasa aktif (dulu hardcode di default param).
   useLanguage()
-  const canSubmit = value.trim().length > 0 && !submitting
-  const resolvedPlaceholder = placeholder ?? translate("Tulis komentar…")
-  const resolvedSubmitLabel = submitLabel ?? translate("Kirim")
+  const trimmedLength = value.trim().length
+  const tooShort = trimmedLength < minLength
+  const tooLong = maxLength != null && trimmedLength > maxLength
+  const canSubmit = !tooShort && !tooLong && !submitting
+  const resolvedPlaceholder = placeholder ?? translate("Tulis balasan…")
+  const resolvedSubmitLabel = submitLabel ?? translate("Kirim balasan")
 
   return (
-    <View className={cn("gap-3", className)} {...rest}>
+    <View className={cn("gap-2", className)} {...rest}>
       {replyingTo ? (
         <View className="flex-row items-center justify-between gap-3">
           <Text variant="caption" tone="secondary" numberOfLines={1} className="flex-1">
@@ -210,20 +262,51 @@ export function QaCommentComposer({
           ) : null}
         </View>
       ) : null}
-      <TextArea
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={resolvedPlaceholder}
-        maxLength={maxLength}
-        showCount
-        errorText={errorText}
-        accessibilityLabel={translate("Tulis komentar")}
-      />
-      <View className="flex-row justify-end">
-        <Button size="sm" onPress={onSubmit} disabled={!canSubmit} loading={submitting} fullWidth={false}>
-          {resolvedSubmitLabel}
-        </Button>
+
+      <View className="flex-row items-start gap-3">
+        <Avatar source={authorAvatar?.source} name={authorName} size="sm" />
+        <View className="flex-1">
+          <TextArea
+            value={value}
+            onChangeText={onChangeText}
+            placeholder={resolvedPlaceholder}
+            maxLength={maxLength}
+            showCount
+            rows={3}
+            errorText={errorText}
+            accessibilityLabel={translate("Tulis balasan")}
+          />
+        </View>
+      </View>
+
+      <View className="flex-row items-center justify-between pl-11">
+        <Text variant="caption" tone={tooShort && trimmedLength > 0 ? "warning" : "secondary"}>
+          {tooShort && trimmedLength > 0
+            ? translate("min. {x} karakter", { x: minLength })
+            : translate("maks. {x} karakter", { x: maxLength })}
+        </Text>
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={resolvedSubmitLabel}
+          accessibilityState={{ disabled: !canSubmit, busy: submitting }}
+          disabled={!canSubmit}
+          onPress={onSubmit}
+          hitSlop={8}
+          containerClassName={cn("rounded-full", focusRing)}
+          className={cn(
+            "h-11 w-11 items-center justify-center rounded-full",
+            canSubmit ? "bg-primary" : "bg-surface-elevated opacity-50",
+          )}
+        >
+          <Icon icon={ArrowUp} size="sm" weight="bold" tone={canSubmit ? "inverse" : "default"} />
+        </PressableScale>
       </View>
     </View>
   )
+}
+
+/** Validasi panjang composer — diekspor untuk test & dokumentasi aturan. */
+export function isQaComposerValid(value: string, minLength: number, maxLength: number): boolean {
+  const len = value.trim().length
+  return len >= minLength && len <= maxLength
 }

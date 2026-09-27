@@ -55,6 +55,7 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TopupStatusCard, type PaymentStatus } from "@/components/ui/topup-status-card"
 import { TransactionSummary } from "@/components/ui/transaction-summary"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
 import { shareReceipt } from "@/components/receipt/shareReceipt"
 import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
@@ -282,7 +283,10 @@ export default function TopupScreen() {
   }, [goBack, router])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    // SEC-404 (selective): layar top-up menampilkan nominal + kode bayar —
+    // blokir screenshot/recording per-layar, bukan app-wide.
+    <ScreenCaptureGuard>
+      <Screen edges={["top"]} padded={false}>
       <Header
         title="Isi Saldo"
         progress={progress}
@@ -613,6 +617,7 @@ export default function TopupScreen() {
           />
         )}
       </BottomSheet>
-    </Screen>
+      </Screen>
+    </ScreenCaptureGuard>
   )
 }

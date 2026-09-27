@@ -1,55 +1,59 @@
 /**
- * Kahade — <QACard> (§9.6 Card, §3 tipografi, §13 format tanggal).
+ * Kahade — <QACard> ala Threads (redesign 2026-09-27, TIM QA).
  *
- * Kartu tanya-jawab publik di halaman etalase/profil penjual: calon pembeli
- * bertanya, penjual menjawab. Anatomi: penanya (Avatar xs + nama + tanggal)
- * -> pertanyaan -> blok jawaban (atau state "Belum dijawab") -> footer aksi.
+ * Kartu pertanyaan publik: avatar + nama + @username + cap waktu relatif,
+ * isi pertanyaan dengan line-height lega, jawaban resmi pemilik profil
+ * sebagai balasan ber-utas (garis konektor kiri), dan bar aksi gaya Threads
+ * (balas / suka / bagikan + hitungan, target sentuh 44px).
  *
- * Dibangun di atas <Card variant="default" padded={false}> supaya border,
- * radius `md`, dan pressed-scale (bila `onPress` untuk buka detail) sama
- * dengan kartu lain; QACard hanya menyusun isi.
+ * Kontrak presentasi — BUKAN logika: endpoint, payload, batas karakter,
+ * paginasi, dan aturan hapus milik sendiri tidak berubah di sini.
  *
  * Keputusan non-obvious:
- *   - Jawaban dibedakan dari pertanyaan lewat FILL (`bg-surface-elevated`
- *     di dalam kartu `bg-surface`) + border-top, BUKAN garis aksen kiri
- *     atau indentasi: hierarki §6 dibentuk dari fill + border. Nama penjawab
- *     diberi Badge "Penjual" (neutral — peran, bukan status transaksi §2.3)
- *     supaya pembaca tahu jawaban resmi, bukan komentar pengguna lain.
- *   - Pertanyaan `body` weight 500 text-primary; jawaban `body` 400
- *     text-primary. Pertanyaan sedikit lebih berat karena itu "judul" kartu
- *     saat di-scan dalam daftar.
- *   - Tanggal selalu eksplisit "3 Sep 2026" lewat formatDate (§13: tidak
- *     ada "2 jam lalu"). Pemanggil kirim Date/ISO/epoch; format di sini agar
- *     seluruh kartu Q&A seragam.
- *   - Belum dijawab: teks caption text-secondary + slot `answerAction`
- *     (mis. <Button size="sm" variant="secondary">Jawab</Button>) yang hanya
- *     relevan untuk pemilik etalase — komponen tidak tahu peran user,
- *     pemanggil yang memutuskan mengirim slot atau tidak.
- *   - "Membantu" (helpful) dibuat sebagai slot `footer`, bukan prop count
- *     bawaan: kebutuhan berbeda antar layar (vote, laporkan, bagikan) dan
- *     FavoriteIconButton sudah menyediakan toggle + count bila dibutuhkan.
- *   - `numberOfLines` pertanyaan/jawaban opsional untuk mode ringkas di
- *     daftar; detail penuh (Push §10) mengirim undefined.
+ *   - Flat + hairline divider (bukan <Card> berbordir): utas Threads adalah
+ *     aliran percakapan, bukan tumpukan kartu. Root memakai `-mx-5` supaya
+ *     divider full-bleed di dalam induk ber-padding `px-5` (daftar feed).
+ *   - Cap waktu RELATIF (`formatRelativeTime`: "5 menit", "2 jam") — untuk
+ *     feed sosial memang itu kontrasnya; lewat 7 hari jatuh ke tanggal
+ *     eksplisit (§13).
+ *   - Jawaban resmi dirender sebagai balasan ber-utas dengan garis konektor
+ *     di bawah avatar penanya (sejajar tengah avatar md = ml-5), bukan blok
+ *     fill seperti dulu: hierarki utas dibentuk dari garis, bukan fill.
+ *   - "Suka" = Heart (bukan ThumbsUp): kosakata Threads; aktif = fill +
+ *     tone danger (konvensi hati merah), mengikuti bentuk prop `upvote`
+ *     yang lama `{ count, active, loading, onToggle }` supaya pemanggil
+ *     tidak berubah.
+ *   - Ikon balas berfungsi ganda: bila `onToggleComments` diberikan ia jadi
+ *     tombol buka/tutup utas; bila tidak, ia indikator statis jumlah
+ *     balasan. Ikon bagikan HANYA dirender bila `onShare` diberikan — tombol
+ *     mati dilarang.
+ *   - Hapus milik sendiri lewat menu overflow (DotsThree) di header: menu
+ *     hanya ada bila `onDelete` diberikan, jadi pemanggil (= pemilik)
+ *     yang menentukan visibilitas — komponen tidak tahu sesi.
+ *   - Slot lama `answerAction` (tombol "Jawab" inbox) dan `footer` (aksi
+ *     tambahan: sembunyikan/hapus/lihat profil) dipertahankan agar layar
+ *     inbox tidak perlu berubah logika.
  */
-import type { ReactNode } from "react"
-import { View } from "react-native"
+import { useState, type ReactNode } from "react"
+import { View, type ViewProps } from "react-native"
 
-import { ThumbsUp } from "phosphor-react-native"
+import { ChatCircle, DotsThree, Heart, PaperPlaneTilt, Trash } from "phosphor-react-native"
 
 import { Avatar, type AvatarProps } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { Card, type CardProps } from "@/components/ui/card"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { focusRing } from "@/lib/focus-ring"
-import { formatDate, formatNumber } from "@/lib/format"
+import { formatNumber, formatRelativeTime } from "@/lib/format"
 import { translate, useLanguage } from "@/lib/i18n"
 
 export type QAPerson = {
   name: string
+  /** Handle TANPA "@" — ditampilkan sebagai @username di bawah nama */
+  username?: string
   avatar?: AvatarProps["source"]
   verified?: boolean
 }
@@ -60,31 +64,41 @@ export type QAAnswer = {
   date: Date | number | string
 }
 
-export type QACardProps = Omit<CardProps, "children" | "padded"> & {
+/** Bentuk prop tidak berubah dari desain lama (chip ThumbsUp) — hanya presentasinya jadi Heart. */
+export type QAUpvote = {
+  count: number
+  active: boolean
+  loading?: boolean
+  onToggle: (next: boolean) => void
+}
+
+export type QACardProps = Omit<ViewProps, "children"> & {
   question: string
   asker: QAPerson
   date: Date | number | string
   answer?: QAAnswer
   /** Slot saat belum dijawab (mis. tombol "Jawab") — hanya untuk pemilik */
   answerAction?: ReactNode
-  /** Slot bawah: helpful toggle, laporkan, dsb. */
+  /** Slot bawah: aksi tambahan (sembunyikan, hapus, lihat profil, dsb.) */
   footer?: ReactNode
-  /**
-   * Toggle upvote (POST/DELETE /v1/users/questions/{id}/upvote). Dirender
-   * sebagai chip di baris footer kanan; `count` memakai angka final dari
-   * respons `{ upvoted, upvoteCount }` setelah request selesai.
-   */
-  upvote?: {
-    count: number
-    active: boolean
-    loading?: boolean
-    onToggle: (next: boolean) => void
-  }
+  /** Toggle suka — dirender sebagai Heart + hitungan di bar aksi */
+  upvote?: QAUpvote
+  /** Jumlah balasan — indikator di ikon balas */
+  commentCount?: number
+  /** Utas balasan sedang dibuka (ikon balas menyala) */
+  commentsOpen?: boolean
+  /** Toggle buka/tutup utas balasan — tanpa ini ikon balas jadi indikator statis */
+  onToggleComments?: () => void
+  /** Bagikan — tanpa ini ikon bagikan tidak dirender (tanpa tombol mati) */
+  onShare?: () => void
+  /** Hapus milik sendiri — menu "⋯" hanya muncul bila ini diberikan */
+  onDelete?: () => void
   /** Batas baris di mode daftar; undefined = penuh */
   questionLines?: number
   answerLines?: number
   /** Teks i18n */
   labels?: Partial<QACardLabels>
+  className?: string
 }
 
 /** Teks i18n */
@@ -93,12 +107,14 @@ export type QACardLabels = {
   unanswered: string
   askedBy: (name: string) => string
   answeredBy: (name: string) => string
+  reply: string
+  like: string
+  unlike: string
+  share: string
+  moreOptions: string
+  delete: string
 }
 
-/**
- * Label bawaan mengikuti bahasa aktif (dulu konstanta modul yang tidak
- * reaktif). Fungsi askedBy/answeredBy memakai translate() dengan token.
- */
 function useDefaultLabels(): QACardLabels {
   useLanguage()
   return {
@@ -106,6 +122,12 @@ function useDefaultLabels(): QACardLabels {
     unanswered: translate("Belum dijawab"),
     askedBy: (name: string) => translate("Ditanya {x}", { x: name }),
     answeredBy: (name: string) => translate("Dijawab {x}", { x: name }),
+    reply: translate("Balas"),
+    like: translate("Suka"),
+    unlike: translate("Batal suka"),
+    share: translate("Bagikan"),
+    moreOptions: translate("Opsi lainnya"),
+    delete: translate("Hapus"),
   }
 }
 
@@ -117,131 +139,235 @@ export function QACard({
   answerAction,
   footer,
   upvote,
+  commentCount,
+  commentsOpen = false,
+  onToggleComments,
+  onShare,
+  onDelete,
   questionLines,
   answerLines,
   labels,
   className,
-  ...cardProps
+  ...rest
 }: QACardProps) {
   const t = { ...useDefaultLabels(), ...labels }
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  const replyCount = commentCount ?? 0
+  const showReplyAction = onToggleComments != null || replyCount > 0
 
   return (
-    // Grouping SR (audit #4): pertanyaan dan jawaban masing-masing SATU elemen
-    // ("Ditanya Budi, 3 Sep: Apakah ..."), bukan 3 fragmen (nama, tanggal,
-    // teks). Tidak digrup di root karena `answerAction` ("Jawab") dan `footer`
-    // berisi kontrol yang harus tetap fokusable terpisah.
-    <Card padded={false} className={cn("gap-0", className)} {...cardProps}>
-      {/* Pertanyaan */}
-      <View
-        accessible
-        accessibilityLabel={summarize([t.askedBy(asker.name), formatDate(date), question])}
-        className="gap-3 p-5"
-      >
-        <PersonRow person={asker} date={date} />
-        <Text ellipsizeMode="tail" variant="body" weight={500} numberOfLines={questionLines}>
-          {question}
-        </Text>
+    // Divider full-bleed: induk daftar memakai px-5, jadi -mx-5 + px-5.
+    <View
+      className={cn("-mx-5 border-b border-border px-5 py-4", className)}
+      {...rest}
+    >
+      <View className="flex-row gap-3">
+        <Avatar source={asker.avatar} name={asker.name} size="md" verified={asker.verified} />
+
+        <View className="flex-1 gap-1.5">
+          {/* Header: nama + waktu relatif + overflow */}
+          <View className="flex-row items-center gap-2">
+            <Text variant="body" weight={600} numberOfLines={1} className="shrink">
+              {asker.name}
+            </Text>
+            <Text variant="caption" tone="secondary" numberOfLines={1} className="ml-auto shrink-0 tabular-nums">
+              {formatRelativeTime(date)}
+            </Text>
+            {onDelete ? (
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={t.moreOptions}
+                accessibilityState={{ expanded: menuOpen }}
+                onPress={() => setMenuOpen((v) => !v)}
+                hitSlop={12}
+                containerClassName={cn("-mr-2 rounded-full", focusRing)}
+              >
+                <Icon icon={DotsThree} size="sm" weight="bold" />
+              </PressableScale>
+            ) : null}
+          </View>
+
+          {asker.username ? (
+            <Text variant="caption" tone="secondary" numberOfLines={1} className="-mt-1">
+              @{asker.username}
+            </Text>
+          ) : null}
+
+          {/* Menu overflow: hanya Hapus (milik sendiri) */}
+          {onDelete && menuOpen ? (
+            <View className="flex-row justify-end">
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={t.delete}
+                onPress={() => {
+                  setMenuOpen(false)
+                  onDelete()
+                }}
+                hitSlop={12}
+                containerClassName={cn("rounded-full", focusRing)}
+                className="flex-row items-center gap-1.5 rounded-full border border-border px-3 py-1.5"
+              >
+                <Icon icon={Trash} size="xs" tone="danger" />
+                <Text variant="caption" weight={600} tone="danger">
+                  {t.delete}
+                </Text>
+              </PressableScale>
+            </View>
+          ) : null}
+
+          {/* Isi pertanyaan — line-height lega untuk keterbacaan */}
+          <Text
+            accessibilityLabel={summarize([t.askedBy(asker.name), formatRelativeTime(date), question])}
+            ellipsizeMode="tail"
+            variant="body"
+            numberOfLines={questionLines}
+            className="leading-7"
+          >
+            {question}
+          </Text>
+
+          {/* Jawaban resmi sebagai balasan ber-utas */}
+          {answer ? (
+            <View className="ml-5 border-l-2 border-border pl-4 pt-1">
+              <View
+                accessible
+                accessibilityLabel={summarize([
+                  t.answeredBy(answer.by.name),
+                  t.seller,
+                  formatRelativeTime(answer.date),
+                  answer.text,
+                ])}
+                className="gap-1.5"
+              >
+                <View className="flex-row items-center gap-2">
+                  <Avatar source={answer.by.avatar} name={answer.by.name} size="xs" verified={answer.by.verified} />
+                  <Text variant="caption" weight={600} numberOfLines={1} className="shrink">
+                    {answer.by.name}
+                  </Text>
+                  <Badge tone="neutral">{t.seller}</Badge>
+                  <Text variant="caption" tone="secondary" numberOfLines={1} className="ml-auto shrink-0 tabular-nums">
+                    {formatRelativeTime(answer.date)}
+                  </Text>
+                </View>
+                <Text variant="body" numberOfLines={answerLines} className="leading-7">
+                  {answer.text}
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View className="flex-row items-center justify-between gap-3 pt-1">
+              <Text variant="caption" tone="secondary">
+                {t.unanswered}
+              </Text>
+              {answerAction}
+            </View>
+          )}
+
+          {/* Bar aksi gaya Threads */}
+          <View className="flex-row items-center gap-6 pt-2">
+            {showReplyAction ? (
+              <ThreadAction
+                icon={ChatCircle}
+                label={t.reply}
+                count={replyCount}
+                active={commentsOpen}
+                onPress={onToggleComments}
+                accessibilityHint={
+                  commentsOpen ? translate("Tutup utas balasan") : translate("Buka utas balasan")
+                }
+              />
+            ) : null}
+            {upvote ? (
+              <ThreadAction
+                icon={Heart}
+                label={upvote.active ? t.unlike : t.like}
+                count={upvote.count}
+                active={upvote.active}
+                activeTone="danger"
+                fillWhenActive
+                disabled={upvote.loading}
+                onPress={() => upvote.onToggle(!upvote.active)}
+                accessibilityHint={translate("Saat ini {x} suka", { x: formatNumber(upvote.count) })}
+              />
+            ) : null}
+            {onShare ? (
+              <ThreadAction icon={PaperPlaneTilt} label={t.share} onPress={onShare} />
+            ) : null}
+          </View>
+
+          {footer ? <View className="pt-1">{footer}</View> : null}
+        </View>
       </View>
-
-      {/* Jawaban / belum dijawab */}
-      {answer ? (
-        <View
-          accessible
-          accessibilityLabel={summarize([
-            t.answeredBy(answer.by.name),
-            t.seller,
-            formatDate(answer.date),
-            answer.text,
-          ])}
-          className="gap-3 border-t border-border bg-surface-elevated p-5"
-        >
-          <PersonRow person={answer.by} date={answer.date} badge={t.seller} />
-          <Text variant="body" numberOfLines={answerLines}>
-            {answer.text}
-          </Text>
-        </View>
-      ) : (
-        <View className="flex-row items-center justify-between gap-3 border-t border-border px-5 py-3">
-          <Text variant="caption" tone="secondary">
-            {t.unanswered}
-          </Text>
-          {answerAction}
-        </View>
-      )}
-
-      {footer || upvote ? (
-        <View className="flex-row items-center gap-3 border-t border-border px-5 py-3">
-          {footer ? <View className="flex-row flex-1 flex-wrap gap-2">{footer}</View> : null}
-          {upvote ? <UpvoteChip {...upvote} /> : null}
-        </View>
-      ) : null}
-    </Card>
+    </View>
   )
 }
 
-/** Chip upvote: ikon ThumbsUp + count. Aktif = fill + tone active. */
-function UpvoteChip({
+/** Satu aksi di bar Threads: ikon 20px + hitungan, target sentuh 44px via hitSlop. */
+function ThreadAction({
+  icon,
+  label,
   count,
-  active,
-  loading,
-  onToggle,
+  active = false,
+  activeTone = "active",
+  fillWhenActive = false,
+  disabled = false,
+  onPress,
+  accessibilityHint,
 }: {
-  count: number
-  active: boolean
-  loading?: boolean
-  onToggle: (next: boolean) => void
+  icon: typeof Heart
+  label: string
+  count?: number
+  active?: boolean
+  activeTone?: "active" | "danger"
+  fillWhenActive?: boolean
+  disabled?: boolean
+  onPress?: () => void
+  accessibilityHint?: string
 }) {
+  const content = (
+    <>
+      <Icon
+        icon={icon}
+        size="sm"
+        tone={active ? activeTone : "default"}
+        weight={active && fillWhenActive ? "fill" : "regular"}
+      />
+      {count != null && count > 0 ? (
+        <Text
+          variant="caption"
+          tone={active ? (activeTone === "danger" ? "danger" : "primary") : "secondary"}
+          weight={500}
+          className="tabular-nums"
+        >
+          {formatNumber(count)}
+        </Text>
+      ) : null}
+    </>
+  )
+
+  if (!onPress) {
+    // Indikator statis (tanpa tombol mati): mis. jumlah balasan di inbox.
+    return (
+      <View accessible accessibilityRole="text" accessibilityLabel={`${label}, ${formatNumber(count ?? 0)}`} className="flex-row items-center gap-1.5 py-1">
+        {content}
+      </View>
+    )
+  }
+
   return (
     <PressableScale
       accessibilityRole="button"
-      accessibilityLabel={active ? translate("Tarik dukungan") : translate("Dukung pertanyaan")}
-      accessibilityHint={translate("Saat ini {x} dukungan", { x: formatNumber(count) })}
-      disabled={loading}
-      scaleOnPress={false}
-      onPress={() => onToggle(!active)}
-      containerClassName={cn(
-        "flex-row items-center gap-1 rounded-full border px-2.5 py-1",
-        active ? "border-primary bg-surface-elevated" : "border-border bg-surface",
-        focusRing,
-      )}
+      accessibilityLabel={label}
+      accessibilityHint={accessibilityHint}
+      accessibilityState={{ selected: active }}
+      disabled={disabled}
+      onPress={onPress}
+      hitSlop={12}
+      containerClassName={cn("rounded-full", focusRing)}
+      className="flex-row items-center gap-1.5 px-1 py-1"
     >
-      <Icon
-        icon={ThumbsUp}
-        size="xs"
-        tone={active ? "active" : "default"}
-        weight={active ? "fill" : "regular"}
-      />
-      <Text
-        variant="caption"
-        tone={active ? "primary" : "secondary"}
-        weight={600}
-        className="tabular-nums"
-      >
-        {formatNumber(count)}
-      </Text>
+      {content}
     </PressableScale>
-  )
-}
-
-function PersonRow({
-  person,
-  date,
-  badge,
-}: {
-  person: QAPerson
-  date: Date | number | string
-  badge?: string
-}) {
-  return (
-    <View className="flex-row items-center gap-2">
-      <Avatar source={person.avatar} name={person.name} size="xs" verified={person.verified} />
-      <Text variant="caption" weight={500} tone="primary" numberOfLines={1} className="shrink">
-        {person.name}
-      </Text>
-      {badge ? <Badge tone="neutral">{badge}</Badge> : null}
-      <Text variant="caption" tone="secondary" numberOfLines={1} className="ml-auto">
-        {formatDate(date)}
-      </Text>
-    </View>
   )
 }

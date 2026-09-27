@@ -1,12 +1,19 @@
 /**
- * Layar Stack — Notifikasi (dibuka dari Bell di header Beranda)
+ * Tab Notifikasi (redesign navigasi 2026-09-27; redesign tampilan 2026-09-27).
  *
  * List notifikasi dari `GET /v1/notifications` (read + unread) dengan:
  *  - Tab kategori (dengan IKON — pola tab profil publik, bukan chip scroll):
  *    TRANSAKSI / PROMOSI / INFORMASI, nilai PERSIS enum API (query `category`).
  *  - Tidak ada lagi tab "Semua" / "Belum dibaca": filter baca dibalik satu
  *    tombol FUNNEL di kanan header (toggle Semua ↔ Belum dibaca, query
- *    `isRead=false`), dan tombol BACK standar di kiri header.
+ *    `isRead=false`).
+ *  - Baris <NotificationListItem> premium: chip ikon kategori BERWARNA
+ *    (order=primary, wallet=success, promo=amber, keamanan=danger,
+ *    sistem=netral), unread = dot + tint halus, judul 2 baris + preview +
+ *    timestamp relatif ("5 menit").
+ *  - Header grup hari WIB: "Hari ini" / "Kemarin" / tanggal
+ *    (lib/notification-grouping).
+ *  - Header: judul "Notifikasi" + pil "Tandai dibaca" (hanya bila ada unread).
  *  - Tap otomatis mark-as-read (`POST /v1/notifications/:id/read`, optimistic)
  *    lalu buka DETAIL notifikasi (`/notification/[id]`) — isi penuh + CTA ke
  *    entitas terkait via `routeForNotificationReference`
@@ -47,26 +54,30 @@ import {
 } from "phosphor-react-native"
 
 import { api, type AppNotification, type NotificationCategory, userMessage } from "@/lib/api"
-import { formatDateTime } from "@/lib/format"
+import { formatRelativeTime } from "@/lib/format"
 import { haptic } from "@/lib/haptics"
 import { translate, useLanguage } from "@/lib/i18n"
 import { tokens } from "@/lib/tokens"
 import { ROUTES } from "@/lib/routes"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { notificationTypeUiCategory, notificationUiCategory } from "@/lib/notification-category"
+import { notificationDayGroup } from "@/lib/notification-grouping"
 import { routeForNotificationReference } from "@/lib/notification-routing"
 import { refreshUnreadCount } from "@/lib/unread-count"
 import { logWarn } from "@/lib/telemetry"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
 import { Dialog } from "@/components/ui/modal"
+import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Header } from "@/components/ui/header"
 import { NotificationListItem } from "@/components/ui/notification-list-item"
+import { PressableScale } from "@/components/ui/pressable-scale"
 import { Screen } from "@/components/ui/screen"
 import { Skeleton, SkeletonGroup } from "@/components/ui/skeleton"
 import { Tabs, type TabItem } from "@/components/ui/tabs"
+import { Text } from "@/components/ui/text"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { useAuthSession } from "@/lib/use-auth-session"
 
@@ -104,19 +115,71 @@ function NotifSkeletonRow() {
       style={{
         flexDirection: "row",
         alignItems: "flex-start",
-        // Sebentuk baris aslinya: chip ikon 32 + gap 12 + padding layar 20.
+        // Sebentuk baris aslinya: chip ikon 40 + gap 12 + padding layar 20.
         gap: tokens.space[3],
         paddingHorizontal: tokens.layout.screenPaddingX,
         paddingVertical: tokens.space[3],
       }}
     >
-      <Skeleton shape="circle" width={32} height={32} />
+      <Skeleton shape="circle" width={40} height={40} />
       <View style={{ flex: 1, gap: tokens.space[2] }}>
-        <Skeleton height={14} style={{ width: "60%" }} />
+        <Skeleton height={14} style={{ width: "70%" }} />
         <Skeleton height={12} style={{ width: "88%" }} />
         <Skeleton height={12} style={{ width: "45%" }} />
       </View>
     </View>
+  )
+}
+
+// ------------------------------------------------------------------
+// Header grup hari ("Hari ini" / "Kemarin" / tanggal)
+// ------------------------------------------------------------------
+
+function NotificationDayHeader({ label, sub }: { label: string; sub: string | null }) {
+  return (
+    <View className="px-5 pb-1.5 pt-4">
+      <View className="flex-row items-baseline gap-2">
+        <Text variant="body" weight={600} tone="primary">
+          {label}
+        </Text>
+        {sub ? (
+          <Text variant="caption" tone="secondary">
+            {sub}
+          </Text>
+        ) : null}
+      </View>
+    </View>
+  )
+}
+
+// ------------------------------------------------------------------
+// Tombol "Tandai semua dibaca" — pil berlabel, bukan ikon kriptik.
+// Hanya dirender bila ada unread (lihat pemanggil).
+// ------------------------------------------------------------------
+
+function MarkAllReadButton({
+  busy,
+  onPress,
+}: {
+  busy: boolean
+  onPress: () => void
+}) {
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={translate("Tandai semua dibaca")}
+      accessibilityHint={translate("Menandai seluruh notifikasi sebagai sudah dibaca")}
+      scaleOnPress={false}
+      ripple
+      disabled={busy}
+      onPress={onPress}
+      className="h-10 flex-row items-center gap-1.5 rounded-full bg-surface px-4"
+    >
+      <Icon icon={Checks} size="sm" tone="active" />
+      <Text variant="body" weight={600} tone="primary">
+        {translate("Tandai dibaca")}
+      </Text>
+    </PressableScale>
   )
 }
 
@@ -377,14 +440,7 @@ function NotificationsScreen() {
           right={
             <>
               {hasUnread ? (
-                <IconButton
-                  icon={Checks}
-                  variant="ghost"
-                  accessibilityLabel={translate("Tandai semua dibaca")}
-                  accessibilityHint={translate("Menandai seluruh notifikasi sebagai sudah dibaca")}
-                  disabled={batchBusy}
-                  onPress={() => void handleReadAll()}
-                />
+                <MarkAllReadButton busy={batchBusy} onPress={() => void handleReadAll()} />
               ) : null}
               <IconButton
                 icon={FunnelSimple}
@@ -445,44 +501,67 @@ function NotificationsScreen() {
             title={
               unreadOnly
                 ? "Tidak ada notifikasi belum dibaca"
-                : "Tidak ada notifikasi"
+                : "Belum ada notifikasi"
             }
             description={
               unreadOnly
                 ? "Semua notifikasi pada kategori ini sudah Anda baca."
-                : "Notifikasi untuk Anda akan muncul di sini."
+                : category === "TRANSAKSI"
+                  ? "Notifikasi transaksi Anda akan muncul di sini."
+                  : category === "PROMOSI"
+                    ? "Promo dan penawaran menarik untuk Anda akan muncul di sini."
+                    : "Info penting dari Kahade akan muncul di sini."
             }
           />
         }
-        renderItem={({ item, index }) => (
-          <NotificationListItem
-            title={item.title}
-            body={item.body || undefined}
-            category={notificationTypeUiCategory(item.type) ?? notificationUiCategory(item.category)}
-            timestamp={formatDateTime(item.createdAt)}
-            unread={!item.isRead}
-            selected={selecting && selected.has(item.id)}
-            haptic
-            onPress={() => {
-              if (selecting) {
-                toggleSelect(item.id)
-                return
-              }
-              if (!item.isRead) handleRead(item.id)
-              // CN-017: satu ketukan — bila entitas terkait bisa di-resolve
-              // (referenceType/referenceId atau actionUrl), langsung ke sana
-              // seperti tap push; bila tidak, baru ke layar detail.
-              const direct = routeForNotificationReference(item)
-              router.push(direct ?? ROUTES.notificationDetail(item.id))
-            }}
-            // Tekan lama = masuk mode pilih (bukan ActionSheet per item).
-            // Di web affordance tekan-lama tidak ada, jadi hint baris
-            // menyebutnya eksplisit (lihat NotificationListItem).
-            onLongPress={() => (selecting ? toggleSelect(item.id) : enterSelect(item.id))}
-            ripple
-            divider={index < notifs.length - 1}
-          />
-        )}
+        renderItem={({ item, index }) => {
+          // Header grup hari (WIB): tampil di baris pertama tiap hari.
+          // Daftar diurutkan terbaru-di-atas (byTimestampDesc), jadi hari-hari
+          // selalu berurutan — tidak perlu struktur SectionList.
+          const group = notificationDayGroup(item.createdAt)
+          const prev = index > 0 ? notifs[index - 1] : undefined
+          const showHeader =
+            index === 0 || (prev != null && notificationDayGroup(prev.createdAt).key !== group.key)
+          // Divider hanya antar baris dalam hari yang sama; antar grup yang
+          // memisahkan adalah header harinya sendiri.
+          const next = index < notifs.length - 1 ? notifs[index + 1] : undefined
+          const sameDayAsNext =
+            next != null && notificationDayGroup(next.createdAt).key === group.key
+          return (
+            <View>
+              {showHeader ? <NotificationDayHeader label={group.label} sub={group.sub} /> : null}
+              <NotificationListItem
+                title={item.title}
+                body={item.body || undefined}
+                category={notificationTypeUiCategory(item.type) ?? notificationUiCategory(item.category)}
+                // Timestamp relatif ("5 menit", "2 jam") — format eksplisit
+                // tetap tersedia di layar detail bila dibutuhkan.
+                timestamp={formatRelativeTime(item.createdAt)}
+                unread={!item.isRead}
+                selected={selecting && selected.has(item.id)}
+                haptic
+                onPress={() => {
+                  if (selecting) {
+                    toggleSelect(item.id)
+                    return
+                  }
+                  if (!item.isRead) handleRead(item.id)
+                  // CN-017: satu ketukan — bila entitas terkait bisa di-resolve
+                  // (referenceType/referenceId atau actionUrl), langsung ke sana
+                  // seperti tap push; bila tidak, baru ke layar detail.
+                  const direct = routeForNotificationReference(item)
+                  router.push(direct ?? ROUTES.notificationDetail(item.id))
+                }}
+                // Tekan lama = masuk mode pilih (bukan ActionSheet per item).
+                // Di web affordance tekan-lama tidak ada, jadi hint baris
+                // menyebutnya eksplisit (lihat NotificationListItem).
+                onLongPress={() => (selecting ? toggleSelect(item.id) : enterSelect(item.id))}
+                ripple
+                divider={sameDayAsNext}
+              />
+            </View>
+          )
+        }}
       />
 
       <ActionSheet
