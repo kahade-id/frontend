@@ -35,6 +35,7 @@ import { View } from "react-native"
 
 import { BottomSheet, type BottomSheetProps } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
+import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
@@ -95,8 +96,10 @@ export function ActionSheet({
       {...sheetProps}
     >
       <View accessibilityRole="menu">
-        {/* Revisi 2026-09-27: kedua Divider dihapus atas permintaan produk —
-            list aksi tampil bersih tanpa garis pemisah. */}
+        {/* Revisi 2026-09-27: Divider bawah (di atas aksi terakhir) dihapus
+            atas permintaan produk; Divider di bawah judul dipertahankan
+            sebagai bingkai atas grup aksi. */}
+        {actions.length > 0 ? <Divider /> : null}
         {actions.map((item) => (
           <View key={item.key}>
             <PressableScale
