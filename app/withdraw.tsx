@@ -53,6 +53,7 @@ import { KeyValue } from "@/components/ui/key-value"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OtpInput } from "@/components/ui/otp-input"
 import { PinInput } from "@/components/ui/pin-input"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
@@ -376,7 +377,9 @@ export default function WithdrawScreen() {
   }, [txId, toast.show])
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    // SEC-404: proteksi screen-capture iOS di layar tarik dana (PIN + nominal).
+    <ScreenCaptureGuard>
+      <Screen edges={["top"]} padded={false}>
       <Header title="Tarik Dana" progress={progress} safeArea={false} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
@@ -688,6 +691,7 @@ export default function WithdrawScreen() {
         onConfirm={() => void handleCancelOtp()}
         onRequestClose={() => setCloseConfirmOpen(false)}
       />
-    </Screen>
+      </Screen>
+    </ScreenCaptureGuard>
   )
 }

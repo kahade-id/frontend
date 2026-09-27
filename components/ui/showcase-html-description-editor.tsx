@@ -17,6 +17,7 @@ import { LinkSimple, ListBullets, ListNumbers, TextB, TextItalic, TextUnderline 
 import { IconButton } from "@/components/ui/icon-button"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
+import { safeHttpsLink } from "@/lib/external-url"
 import { translate } from "@/lib/i18n/translate"
 import {
   parseShowcaseHtmlBlocks,
@@ -51,7 +52,15 @@ function SegmentText({ segment }: { segment: ShowcaseHtmlSegment }) {
       accessibilityRole="link"
       accessibilityLabel={segment.href}
       onPress={() => {
-        Linking.openURL(segment.href!).catch((error) => logWarn("showcase-html:open-link", error))
+        // SEC-402: validasi ulang di call-site — hanya https yang lolos.
+        // Parser (lib/showcase-html.ts) sudah membuang skema berbahaya, ini
+        // lapis kedua agar regresi parser tidak menjadi scheme-injection.
+        const url = safeHttpsLink(segment.href)
+        if (!url) {
+          logWarn("showcase-html:open-link-rejected", { href: segment.href })
+          return
+        }
+        Linking.openURL(url).catch((error) => logWarn("showcase-html:open-link", error))
       }}
     >
       <Text variant="inherit" tone="info">

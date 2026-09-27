@@ -1,8 +1,12 @@
 import { execFileSync } from "node:child_process"
+import { existsSync } from "node:fs"
 import { fileURLToPath } from "node:url"
 
 const cli = fileURLToPath(new URL("../node_modules/expo/bin/cli", import.meta.url))
-const raw = execFileSync(process.execPath, [cli, "config", "--type", "public", "--json"], {
+// Pakai "introspect": tipe "public" menyembunyikan field code signing
+// (codeSigningCertificate/codeSigningMetadata) sehingga SEC-401 tidak bisa
+// diperiksa.
+const raw = execFileSync(process.execPath, [cli, "config", "--type", "introspect", "--json"], {
   encoding: "utf8",
   env: { ...process.env, EXPO_OFFLINE: "1" },
 })
@@ -18,6 +22,33 @@ if (config.runtimeVersion?.policy !== "fingerprint")
   problems.push(
     "Gunakan runtime fingerprint untuk mencegah OTA lintas native binary yang tidak kompatibel.",
   )
+// SEC-401: EAS Update code signing wajib aktif — tanpa ini siapa pun yang
+// memegang akses proyek EAS bisa menerbitkan bundle JS berbahaya yang
+// terinstal otomatis (checkAutomatically: ON_LOAD).
+const codeSigningCertificate = config.updates?.codeSigningCertificate
+const codeSigningMetadata = config.updates?.codeSigningMetadata
+if (typeof codeSigningCertificate !== "string" || !codeSigningCertificate.trim()) {
+  problems.push(
+    "SEC-401: EAS Update code signing belum aktif — updates.codeSigningCertificate belum diset di app config.",
+  )
+} else {
+  const certPath = fileURLToPath(
+    new URL(`../${codeSigningCertificate.replace(/^\.\//, "")}`, import.meta.url),
+  )
+  if (!existsSync(certPath))
+    problems.push(
+      `SEC-401: sertifikat code signing tidak ditemukan di ${codeSigningCertificate} (relatif ke root proyek).`,
+    )
+}
+if (
+  typeof codeSigningMetadata?.keyid !== "string" ||
+  !codeSigningMetadata.keyid ||
+  codeSigningMetadata.alg !== "rsa-v1_5-sha256"
+) {
+  problems.push(
+    "SEC-401: updates.codeSigningMetadata harus berisi keyid + alg rsa-v1_5-sha256.",
+  )
+}
 if (!config.version || !/^\d+\.\d+\.\d+$/.test(config.version))
   problems.push("Versi native release harus berupa x.y.z yang disetujui.")
 

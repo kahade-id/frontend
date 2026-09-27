@@ -43,6 +43,7 @@ import { KeypadOptionCard } from "@/components/ui/keypad-option-card"
 import { KeyValue } from "@/components/ui/key-value"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
 import { PinInput } from "@/components/ui/pin-input"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
@@ -334,7 +335,9 @@ export default function TransferScreen() {
   // mengganti pilihan sebelum masuk ke langkah nominal. Kita TIDAK auto-advance
   // supaya user tetap merasa memegang kendali (§12).
   return (
-    <Screen edges={["top"]} padded={false}>
+    // SEC-404: proteksi screen-capture iOS di layar transfer (PIN + nominal).
+    <ScreenCaptureGuard>
+      <Screen edges={["top"]} padded={false}>
       <Header
         title="Transfer Dana"
         progress={progress}
@@ -696,6 +699,7 @@ export default function TransferScreen() {
           disabled={submitting}
         />
       </BottomSheet>
-    </Screen>
+      </Screen>
+    </ScreenCaptureGuard>
   )
 }

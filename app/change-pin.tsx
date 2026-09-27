@@ -33,6 +33,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { Button } from "@/components/ui/button"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Header } from "@/components/ui/header"
 import { PasswordField } from "@/components/ui/password-field"
 import { PinInput } from "@/components/ui/pin-input"
@@ -164,7 +165,9 @@ export default function ChangePinScreen() {
   }, [isSetupMode])
 
   return (
-    <Screen
+    // SEC-404: proteksi screen-capture iOS di layar PIN.
+    <ScreenCaptureGuard>
+      <Screen
       keyboardAvoiding
       edges={["top"]}
       padded={false}
@@ -246,6 +249,7 @@ export default function ChangePinScreen() {
           </>
         )}
       </ScrollView>
-    </Screen>
+      </Screen>
+    </ScreenCaptureGuard>
   )
 }

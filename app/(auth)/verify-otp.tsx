@@ -50,6 +50,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter } from "expo-router"
 
 import { OtpInput, type OtpInputHandle } from "@/components/ui/otp-input"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { FadeIn } from "@/components/ui/fade-in"
 import { FooterBar } from "@/components/ui/footer-bar"
 import { Alert } from "@/components/ui/alert"
@@ -268,7 +269,9 @@ export default function VerifyOtpScreen() {
   if (!flow || !phoneNumber || !purpose) return null
 
   return (
-    <Screen padded={false} edges={["top"]}>
+    // SEC-404: proteksi screen-capture iOS di layar OTP.
+    <ScreenCaptureGuard>
+      <Screen padded={false} edges={["top"]}>
       <Header title="Verifikasi OTP" progress={STEP_PROGRESS} safeArea={false} />
 
       <KeyboardAvoiding offset={insets.top + HEADER_BAR_HEIGHT}>
@@ -359,6 +362,7 @@ export default function VerifyOtpScreen() {
           </Text>
         </FooterBar>
       </KeyboardAvoiding>
-    </Screen>
+      </Screen>
+    </ScreenCaptureGuard>
   )
 }

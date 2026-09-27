@@ -15,7 +15,12 @@
       "enabled": true,
       "url": "https://u.expo.dev/c3931e6f-c945-44d3-8ae8-1665c54fdf94",
       "checkAutomatically": "ON_LOAD",
-      "fallbackToCacheTimeout": 0
+      "fallbackToCacheTimeout": 0,
+      "codeSigningCertificate": "./certificates/certificate.pem",
+      "codeSigningMetadata": {
+        "keyid": "main",
+        "alg": "rsa-v1_5-sha256"
+      }
     },
     "extra": {
       "eas": {

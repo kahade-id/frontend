@@ -49,6 +49,7 @@ import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 
 import { EmptyState } from "@/components/ui/empty-state"
+import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { ErrorState } from "@/components/ui/error-state"
 import { FadeIn } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
@@ -133,7 +134,9 @@ export default function WalletScreen() {
   }
 
   return (
-    <Screen edges={["top"]} padded={false}>
+    // SEC-404: proteksi screen-capture iOS di layar saldo.
+    <ScreenCaptureGuard>
+      <Screen edges={["top"]} padded={false}>
       <Header showBack={false} title="Dompet" />
 
       <ModeShiftFade>
@@ -242,6 +245,7 @@ export default function WalletScreen() {
         }
       />
       </ModeShiftFade>
-    </Screen>
+      </Screen>
+    </ScreenCaptureGuard>
   )
 }
