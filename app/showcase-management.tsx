@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Linking, Platform, View } from "react-native"
 import { useNavigation, usePreventRemove, type NavigationAction } from "@react-navigation/native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
+import { CalendarBlank, CaretLeft, CaretRight, Eye, EyeSlash, Images, PencilSimple, Plus, Trash } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { translate } from "@/lib/i18n/translate"
 import { useLanguage } from "@/lib/i18n"
@@ -25,6 +25,7 @@ import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
 import { buildMediaReplacePayload } from "@/lib/showcase-media-replace"
 import { getCommerceFieldsCache, setCommerceFieldsCache } from "@/lib/commerce-fields"
+import { ServiceSlotManagerSheet } from "@/components/showcase/service-slot-manager"
 import {
   CommerceProductFields,
   EMPTY_COMMERCE_FORM,
@@ -180,6 +181,8 @@ function ShowcaseManagement() {
   const { loading, error, refreshing } = query
 
   const [menuItem, setMenuItem] = useState<ShowcaseItem | null>(null)
+  // Batch 43 (item 12): sheet kelola slot jasa per produk.
+  const [slotManagerItem, setSlotManagerItem] = useState<ShowcaseItem | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<ShowcaseItem | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [toggling, setToggling] = useState(false)
@@ -693,14 +696,32 @@ function ShowcaseManagement() {
             openImagesSheet(it)
           },
         },
+        // Batch 43 (item 12): kalender slot hanya untuk produk JASA. Tipe
+        // produk tidak dikembalikan GET owner — andalkan cache sesi; bila
+        // tidak diketahui, tampilkan dan biarkan server memvalidasi.
+        ...(getCommerceFieldsCache(menuItem.id)?.productType !== undefined &&
+        getCommerceFieldsCache(menuItem.id)?.productType !== "JASA"
+          ? []
+          : [
+              {
+                key: "slots",
+                label: translate("Kelola slot jasa"),
+                description: translate("Kalender ketersediaan untuk booking"),
+                icon: CalendarBlank,
+                onPress: () => {
+                  const it = menuItem
+                  setMenuItem(null)
+                  setSlotManagerItem(it)
+                },
+              } as ActionSheetItem,
+            ]),
         {
           key: "toggle",
           label: (menuItem.isActive ?? true) ? translate("Nonaktifkan karya") : translate("Aktifkan karya"),
           icon: (menuItem.isActive ?? true) ? EyeSlash : Eye,
           disabled: toggling,
           onPress: () => void handleToggleActive(menuItem),
-        },
-        {
+        },        {
           key: "delete",
           label: translate("Hapus"),
           icon: Trash,
@@ -860,6 +881,16 @@ function ShowcaseManagement() {
         description={menuItem?.isActive === false ? translate("Disembunyikan dari profil publik") : undefined}
         actions={menuActions}
       />
+
+      {/* Batch 43 (item 12): kalender slot jasa per produk. */}
+      {slotManagerItem ? (
+        <ServiceSlotManagerSheet
+          visible={slotManagerItem != null}
+          onRequestClose={() => setSlotManagerItem(null)}
+          showcaseId={slotManagerItem.id}
+          productTitle={labelOf(slotManagerItem)}
+        />
+      ) : null}
 
       {/* ── Kelola foto item (multi-image; D-10 reorder lokal) ─────── */}
       <BottomSheet
