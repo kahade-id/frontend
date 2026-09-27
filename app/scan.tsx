@@ -1,35 +1,40 @@
 /**
  * Kahade — Layar Pindai QR (/scan).
  *
- * Menyediakan dua fungsi utama:
- *   1. Pindai Kode: Viewfinder dengan animasi laser, tombol senter, pemilih
- *      gambar galeri, dan input kode manual untuk fleksibilitas pengguna.
- *   2. QR Saya: Menampilkan kode QR profil pengguna terautentikasi untuk
- *      mempermudah pembayaran, transaksi langsung, dan pembagian profil.
+ * FE-IMP-4 (item 17–24): pemindaian kamera BENAR-BENAR memakai expo-camera
+ * (CameraView + onBarcodeScanned), bukan viewfinder dekoratif. Kode baru
+ * aktif setelah APK baru (plugin native) — build menunggu perintah user.
  *
- * Mematuhi aturan desain Kahade:
- *   - Tanpa literal hex (menggunakan token & semantic tailwind).
- *   - Menggunakan ROUTES untuk seluruh navigasi.
- *   - Menggunakan QRCodeDisplay resmi dari design system.
+ * Dua tab:
+ *   1. "Pindai QR": kamera nyata (native) / panel fallback (web), decode dari
+ *      galeri via `scanFromURLAsync`, input manual dengan validasi live,
+ *      riwayat pindaian per perangkat, dan sheet konfirmasi untuk SEMUA
+ *      hasil — termasuk anti-phishing untuk URL asing (tidak auto-open).
+ *   2. "QR Saya": QR profil + label eksplisit, mode layar penuh dengan
+ *      kecerahan maksimal (restore otomatis), simpan sebagai gambar.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import {
-  Animated,
-  Easing,
-  Share,
-  View,
-} from "react-native"
+import { Linking, Platform, Share, View } from "react-native"
 import { useRouter } from "expo-router"
+import { CameraView, scanFromURLAsync, useCameraPermissions } from "expo-camera"
+import * as Brightness from "expo-brightness"
+import { captureRef } from "react-native-view-shot"
 import {
+  ArrowsOut,
+  Camera,
   CheckCircle,
   Copy,
+  DownloadSimple,
   Image as ImageIcon,
   Keyboard,
   Lightning,
   QrCode,
   ShareNetwork,
+  Trash,
   User,
+  Warning,
+  X,
 } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
@@ -38,9 +43,19 @@ import { profileUrl } from "@/lib/deeplinks"
 import { useHasSession } from "@/lib/guest-gate"
 import { translate } from "@/lib/i18n/translate"
 import { pickImage } from "@/lib/image-picker"
+import { parseQrCode, type QrTarget } from "@/lib/qr-parse"
 import { ROUTES } from "@/lib/routes"
+import {
+  addScanHistory,
+  clearScanHistory,
+  getScanHistory,
+  removeScanHistory,
+  type ScanHistoryItem,
+} from "@/lib/scan-history"
+import { shareContent } from "@/lib/share"
 
 import { Avatar } from "@/components/ui/avatar"
+import { Alert } from "@/components/ui/alert"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Button } from "@/components/ui/button"
 import { Header } from "@/components/ui/header"
@@ -61,12 +76,19 @@ const SCAN_TABS: readonly SegmentItem<ScanTab>[] = [
   { value: "my-qr", label: "Kode QR Saya" },
 ]
 
-type ParsedTarget = {
-  type: "profile" | "order" | "order-link" | "showcase" | "chat" | "other"
-  label: string
-  detail: string
-  action: () => void
+const isWeb = Platform.OS === "web"
+
+type DetectedResult = {
+  target: QrTarget
+  raw: string
 }
+
+/** Contoh ketuk-isi untuk input manual (FE-IMP-4 item 20). */
+const MANUAL_EXAMPLES = [
+  "@kahade",
+  "KHD-8921",
+  "https://kahade.id/transfer?to=kahade&amount=50000",
+] as const
 
 export default function ScanScreen() {
   const router = useRouter()
@@ -78,160 +100,206 @@ export default function ScanScreen() {
   const [torchOn, setTorchOn] = useState(false)
   const [manualInputOpen, setManualInputOpen] = useState(false)
   const [manualCode, setManualCode] = useState("")
-  const [detectedResult, setDetectedResult] = useState<ParsedTarget | null>(null)
+  const [detected, setDetected] = useState<DetectedResult | null>(null)
+  const [history, setHistory] = useState<ScanHistoryItem[]>([])
 
-  // Animasi garis pemindai (laser bar)
-  const laserY = useRef(new Animated.Value(0)).current
+  // Kamera nyata (expo-camera). Izin diminta eksplisit — tidak auto-request
+  // saat layar dibuka agar tidak mengejutkan pengguna.
+  const [permission, requestPermission] = useCameraPermissions()
+  // Kunci anti-spam: satu kode diproses sekali sampai sheet ditutup.
+  const scanLock = useRef(false)
 
-  useEffect(() => {
-    if (activeTab !== "scan") return
-    const anim = Animated.loop(
-      Animated.sequence([
-        Animated.timing(laserY, {
-          toValue: 210,
-          duration: 1800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(laserY, {
-          toValue: 0,
-          duration: 1800,
-          easing: Easing.inOut(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-    )
-    anim.start()
-    return () => anim.stop()
-  }, [laserY, activeTab])
-
-  // Muat profil pengguna saat tab QR Saya aktif
   const meQuery = useApiQuery(
     "scan:me",
     (signal) => (hasSession ? api.users.getMe(signal) : Promise.resolve(null)),
     hasSession,
   )
-
   const me = meQuery.data
   const myUsername = me?.username ?? ""
-  // FX-002 (audit Frontend-UX 2026-09-26): URL profil KANONIS dari
-  // lib/deeplinks — `https://kahade.id/user/<username>`. Bentuk lama `/u/`
-  // 404 di web bagi pemindai eksternal (tanpa aplikasi Kahade).
-  // FX-014: bila username kosong (profil belum/gagal dimuat), JANGAN render
-  // QR yang menyesatkan ke homepage — null memicu tampilan penjelasan.
+  // FX-002: URL profil kanonis `https://kahade.id/user/<username>`.
+  // FX-014: username kosong → jangan render QR menyesatkan.
   const myProfileUrl = myUsername ? profileUrl(myUsername) : null
 
-  const parseCode = useCallback(
-    (raw: string): ParsedTarget => {
-      const text = raw.trim()
+  // ── Riwayat pindaian ──────────────────────────────────────────────
+  useEffect(() => {
+    void getScanHistory().then(setHistory)
+  }, [])
 
-      // 1. Tautan atau path profil pengguna
-      const userMatch = text.match(/(?:kahade\.id\/(?:u|user)\/|^@?)([a-zA-Z0-9_.-]{3,30})$/)
-      if (userMatch && !text.includes("/order/") && !text.includes("/link/")) {
-        const username = userMatch[1]
-        return {
-          type: "profile",
-          label: "Profil Pengguna",
-          detail: `@${username}`,
-          action: () => {
-            setDetectedResult(null)
-            router.push(ROUTES.userProfile(username))
-          },
-        }
-      }
+  const handleDetected = useCallback((raw: string) => {
+    const text = raw.trim()
+    if (!text) return
+    const target = parseQrCode(text)
+    // FE-IMP-4 item 21: catat ke riwayat per perangkat.
+    void addScanHistory({
+      raw: text,
+      type: target.type,
+      label: target.label,
+      detail: target.detail,
+    }).then(setHistory)
+    setDetected({ target, raw: text })
+  }, [])
 
-      // 2. Tautan atau kode pesanan
-      const orderMatch = text.match(/(?:kahade\.id\/order\/|^)(KHD-[a-zA-Z0-9]+|[a-f0-9-]{8,36})/i)
-      if (orderMatch) {
-        const orderId = orderMatch[1]
-        return {
-          type: "order",
-          label: "Pesanan Escrow",
-          detail: `ID: ${orderId}`,
-          action: () => {
-            setDetectedResult(null)
-            router.push(ROUTES.orderDetail(orderId))
-          },
-        }
-      }
-
-      // 3. Tautan order-link
-      const linkMatch = text.match(/(?:kahade\.id\/(?:order-link|link)\/)([a-zA-Z0-9_-]+)/i)
-      if (linkMatch) {
-        const token = linkMatch[1]
-        return {
-          type: "order-link",
-          label: "Tautan Transaksi",
-          detail: `Token: ${token}`,
-          action: () => {
-            setDetectedResult(null)
-            router.push(ROUTES.orderLink(token))
-          },
-        }
-      }
-
-      // 4. Karya etalase
-      const showcaseMatch = text.match(/(?:kahade\.id\/showcase\/)([a-zA-Z0-9_-]+)/i)
-      if (showcaseMatch) {
-        const showcaseId = showcaseMatch[1]
-        return {
-          type: "showcase",
-          label: "Karya Etalase",
-          detail: `ID: ${showcaseId}`,
-          action: () => {
-            setDetectedResult(null)
-            router.push(ROUTES.showcaseDetail(showcaseId))
-          },
-        }
-      }
-
-      // 5. Format teks umum
-      return {
-        type: "other",
-        label: "Kode / Tautan",
-        detail: text,
-        action: () => {
-          setDetectedResult(null)
-          void copy(text)
-        },
-      }
+  const handleBarcodeScanned = useCallback(
+    ({ data }: { data: string }) => {
+      if (scanLock.current) return
+      scanLock.current = true
+      handleDetected(data)
     },
-    [router, copy],
+    [handleDetected],
   )
 
+  const closeResult = useCallback(() => {
+    setDetected(null)
+    // Buka kunci agar bisa memindai kode berikutnya.
+    scanLock.current = false
+  }, [])
+
+  // ── Galeri: decode QR dari gambar via expo-camera (FE-IMP-4 item 19) ──
   const handlePickFromGallery = useCallback(async () => {
     try {
       const res = await pickImage({ source: "library" })
       if (res.status === "picked") {
-        toast.show({
-          title: "Gambar dipilih",
-          description: "Menganalisis kode QR dari gambar…",
-          tone: "info",
-        })
-        // Buka dialog konfirmasi masukan kode
-        setManualInputOpen(true)
+        if (isWeb) {
+          toast.show({
+            title: "Hanya tersedia di aplikasi",
+            description: "Pindai dari galeri membutuhkan aplikasi Kahade.",
+            tone: "info",
+          })
+          return
+        }
+        const results = await scanFromURLAsync(res.asset.uri, ["qr"])
+        const data = results[0]?.data?.trim()
+        if (data) {
+          handleDetected(data)
+        } else {
+          toast.show({
+            title: "Tidak ada kode QR",
+            description: "Tidak ditemukan kode QR pada gambar tersebut.",
+            tone: "warning",
+          })
+        }
       } else if (res.status === "denied") {
         toast.show({
           title: "Izin galeri ditolak",
-          description: "Aktifkan izin penyimpanan untuk memilih foto dari galeri.",
+          description: "Aktifkan izin galeri untuk memilih foto.",
           tone: "danger",
         })
       }
     } catch {
+      toast.show({ title: "Gagal membaca gambar", tone: "danger" })
+    }
+  }, [toast, handleDetected])
+
+  // ── Input manual + validasi live (FE-IMP-4 item 20) ──
+  const manualTarget = manualCode.trim() ? parseQrCode(manualCode) : null
+  const handleManualSubmit = useCallback(() => {
+    if (!manualCode.trim()) return
+    setManualInputOpen(false)
+    handleDetected(manualCode)
+    setManualCode("")
+  }, [manualCode, handleDetected])
+
+  // ── Aksi hasil pindaian (FE-IMP-4 item 23: konfirmasi sebelum navigasi) ──
+  const handleResultAction = useCallback(
+    (result: DetectedResult) => {
+      const { target } = result
+      closeResult()
+      switch (target.type) {
+        case "profile":
+          if (target.username) router.push(ROUTES.userProfile(target.username))
+          break
+        case "order":
+          if (target.orderId) router.push(ROUTES.orderDetail(target.orderId))
+          break
+        case "order-link":
+          if (target.linkToken) router.push(ROUTES.orderLink(target.linkToken))
+          break
+        case "showcase":
+          if (target.showcaseId) router.push(ROUTES.showcaseDetail(target.showcaseId))
+          break
+        case "transfer": {
+          // FE-IMP-4 item 27: nominal dari QR di-prefill di layar transfer.
+          const params =
+            target.amount != null
+              ? `?to=${encodeURIComponent(target.username ?? "")}&amount=${target.amount}`
+              : `?to=${encodeURIComponent(target.username ?? "")}`
+          router.push(`/transfer${params}` as never)
+          break
+        }
+        case "external-url":
+          // Anti-phishing: hanya dibuka atas ketukan eksplisit di sheet.
+          if (target.url) void Linking.openURL(target.url).catch(() => undefined)
+          break
+        case "text":
+          void copy(result.raw)
+          toast.show({ title: "Kode disalin", tone: "success" })
+          break
+      }
+    },
+    [closeResult, router, copy, toast],
+  )
+
+  // ── QR Saya: layar penuh + kecerahan (FE-IMP-4 item 28) ──
+  const [qrZoomed, setQrZoomed] = useState(false)
+  const prevBrightness = useRef<number | null>(null)
+  const openQrZoom = useCallback(async () => {
+    setQrZoomed(true)
+    if (!isWeb) {
+      try {
+        if (await Brightness.isAvailableAsync()) {
+          prevBrightness.current = await Brightness.getBrightnessAsync()
+          await Brightness.setBrightnessAsync(1)
+        }
+      } catch {
+        // Abaikan — QR tetap tampil, hanya tanpa boost kecerahan.
+      }
+    }
+  }, [])
+  const closeQrZoom = useCallback(async () => {
+    setQrZoomed(false)
+    if (!isWeb && prevBrightness.current != null) {
+      try {
+        await Brightness.setBrightnessAsync(prevBrightness.current)
+      } catch {
+        // Abaikan — sistem mengembalikan kecerahan saat app dijeda.
+      }
+      prevBrightness.current = null
+    }
+  }, [])
+
+  // ── QR Saya: simpan sebagai gambar (FE-IMP-4 item 29) ──
+  const qrCardRef = useRef<View | null>(null)
+  const handleSaveQr = useCallback(async () => {
+    try {
+      const uri = await captureRef(qrCardRef, {
+        format: "png",
+        quality: 1,
+        result: isWeb ? "data-uri" : "tmpfile",
+      })
+      if (!uri) throw new Error("capture-empty")
+      if (isWeb && typeof document !== "undefined") {
+        const anchor = document.createElement("a")
+        anchor.href = uri
+        anchor.download = `qr-profil-${myUsername || "kahade"}.png`
+        document.body.appendChild(anchor)
+        anchor.click()
+        document.body.removeChild(anchor)
+        toast.show({ title: "Gambar QR diunduh", tone: "success" })
+      } else {
+        await shareContent({
+          fileUri: uri,
+          mimeType: "image/png",
+          dialogTitle: "QR Profil Kahade",
+        })
+      }
+    } catch {
       toast.show({
-        title: "Gagal memilih foto",
+        title: "Gagal menyimpan gambar",
+        description: "Coba lagi, atau gunakan tombol Bagikan.",
         tone: "danger",
       })
     }
-  }, [toast])
-
-  const handleManualSubmit = useCallback(() => {
-    if (!manualCode.trim()) return
-    const parsed = parseCode(manualCode)
-    setManualInputOpen(false)
-    setManualCode("")
-    setDetectedResult(parsed)
-  }, [manualCode, parseCode])
+  }, [myUsername, toast])
 
   const handleShareProfile = useCallback(async () => {
     if (!myProfileUrl) return
@@ -246,14 +314,15 @@ export default function ScanScreen() {
     }
   }, [myProfileUrl])
 
+  const cameraGranted = !isWeb && permission?.granted === true
+
   return (
     <Screen edges={["top"]} padded={false} className="bg-background">
-      {/* ── Header ── */}
       <Header
         title="Pindai QR"
         showBack
         right={
-          activeTab === "scan" ? (
+          activeTab === "scan" && cameraGranted ? (
             <IconButton
               icon={Lightning}
               variant={torchOn ? "primary" : "ghost"}
@@ -266,7 +335,6 @@ export default function ScanScreen() {
         }
       />
 
-      {/* ── Segment Selector ── */}
       <View className="px-5 pt-3 pb-2">
         <SegmentedControl
           items={SCAN_TABS}
@@ -276,65 +344,164 @@ export default function ScanScreen() {
         />
       </View>
 
-      {/* ── Mode 1: Pindai QR ── */}
       {activeTab === "scan" ? (
-        <View className="flex-1 items-center justify-between px-5 pb-8 pt-4">
+        <View className="flex-1 px-5 pb-8 pt-4">
           <Text variant="caption" tone="secondary" className="text-center px-4">
             Arahkan kamera ke kode QR untuk memindai transaksi, profil pengguna, atau tautan Kahade.
           </Text>
 
-          {/* ── Viewfinder Box ── */}
-          <View className="relative h-64 w-64 items-center justify-center overflow-hidden rounded-2xl border border-border bg-surface-raised">
-            {/* Sudut-sudut bingkai pemindai */}
-            <View className="absolute left-2 top-2 h-6 w-6 border-l-2 border-t-2 border-primary rounded-tl-md" />
-            <View className="absolute right-2 top-2 h-6 w-6 border-r-2 border-t-2 border-primary rounded-tr-md" />
-            <View className="absolute bottom-2 left-2 h-6 w-6 border-b-2 border-l-2 border-primary rounded-bl-md" />
-            <View className="absolute bottom-2 right-2 h-6 w-6 border-b-2 border-r-2 border-primary rounded-br-md" />
-
-            {/* Ikon latar watermark */}
-            <View className="opacity-10">
-              <Icon icon={QrCode} size="xl" tone="default" />
-            </View>
-
-            {/* Animasi garis laser pemindai */}
-            <Animated.View
-              style={{
-                transform: [{ translateY: laserY }],
-              }}
-              className="absolute left-4 right-4 h-0.5 bg-primary shadow-sm"
-            />
+          {/* ── Area kamera nyata / fallback ── */}
+          <View className="items-center py-4">
+            {isWeb ? (
+              // Fallback web rapi (FE-IMP-4 item 17): kamera tidak tersedia.
+              <View className="w-64 items-center gap-3 rounded-2xl border border-border bg-surface-raised p-6">
+                <Icon icon={Camera} size="lg" tone="default" />
+                <Text variant="body" weight={600} className="text-center">
+                  Kamera tidak tersedia di web
+                </Text>
+                <Text variant="caption" tone="secondary" className="text-center">
+                  Buka aplikasi Kahade untuk memindai dengan kamera, atau ketik kode secara manual.
+                </Text>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  leftIcon={Keyboard}
+                  onPress={() => setManualInputOpen(true)}
+                >
+                  Ketik Manual
+                </Button>
+              </View>
+            ) : cameraGranted ? (
+              <View className="relative h-64 w-64 overflow-hidden rounded-2xl bg-black">
+                <CameraView
+                  style={{ flex: 1 }}
+                  facing="back"
+                  enableTorch={torchOn}
+                  barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+                  onBarcodeScanned={handleBarcodeScanned}
+                />
+                {/* Bingkai sudut di atas preview */}
+                <View className="pointer-events-none absolute inset-0">
+                  <View className="absolute left-2 top-2 h-6 w-6 border-l-2 border-t-2 border-primary rounded-tl-md" />
+                  <View className="absolute right-2 top-2 h-6 w-6 border-r-2 border-t-2 border-primary rounded-tr-md" />
+                  <View className="absolute bottom-2 left-2 h-6 w-6 border-b-2 border-l-2 border-primary rounded-bl-md" />
+                  <View className="absolute bottom-2 right-2 h-6 w-6 border-b-2 border-b-2 border-r-2 border-primary rounded-br-md" />
+                </View>
+              </View>
+            ) : (
+              // Status izin kamera (FE-IMP-4 item 17).
+              <View className="w-64 items-center gap-3 rounded-2xl border border-border bg-surface-raised p-6">
+                <Icon icon={Camera} size="lg" tone="default" />
+                {permission == null ? (
+                  <>
+                    <Text variant="body" weight={600} className="text-center">
+                      Izinkan akses kamera
+                    </Text>
+                    <Text variant="caption" tone="secondary" className="text-center">
+                      Kamera dipakai untuk memindai kode QR.
+                    </Text>
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onPress={() => void requestPermission()}
+                    >
+                      Aktifkan Kamera
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Text variant="body" weight={600} className="text-center">
+                      Akses kamera ditolak
+                    </Text>
+                    <Text variant="caption" tone="secondary" className="text-center">
+                      Aktifkan izin kamera di pengaturan perangkat untuk memindai kode QR.
+                    </Text>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onPress={() => void Linking.openSettings().catch(() => undefined)}
+                    >
+                      Buka Pengaturan
+                    </Button>
+                  </>
+                )}
+              </View>
+            )}
           </View>
 
-          {/* ── Tombol Aksi Tambahan Bawah ── */}
-          <View className="w-full gap-3">
-            <View className="flex-row items-center gap-3">
-              <Button
-                variant="secondary"
-                size="md"
-                leftIcon={ImageIcon}
-                onPress={() => void handlePickFromGallery()}
-                containerClassName="flex-1"
-              >
-                Dari Galeri
-              </Button>
-              <Button
-                variant="secondary"
-                size="md"
-                leftIcon={Keyboard}
-                onPress={() => setManualInputOpen(true)}
-                containerClassName="flex-1"
-              >
-                Ketik Manual
-              </Button>
+          {/* ── Tombol aksi ── */}
+          {!isWeb ? (
+            <View className="w-full gap-3">
+              <View className="flex-row items-center gap-3">
+                <Button
+                  variant="secondary"
+                  size="md"
+                  leftIcon={ImageIcon}
+                  onPress={() => void handlePickFromGallery()}
+                  containerClassName="flex-1"
+                >
+                  Dari Galeri
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  leftIcon={Keyboard}
+                  onPress={() => setManualInputOpen(true)}
+                  containerClassName="flex-1"
+                >
+                  Ketik Manual
+                </Button>
+              </View>
             </View>
-          </View>
+          ) : null}
+
+          {/* ── Riwayat pindaian (FE-IMP-4 item 21) ── */}
+          {history.length > 0 ? (
+            <View className="mt-6 gap-2">
+              <View className="flex-row items-center justify-between">
+                <Text variant="label" tone="secondary">
+                  Riwayat pindaian
+                </Text>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  fullWidth={false}
+                  onPress={() => void clearScanHistory().then(setHistory)}
+                >
+                  Hapus semua
+                </Button>
+              </View>
+              {history.slice(0, 5).map((item) => (
+                <View
+                  key={item.id}
+                  className="flex-row items-center gap-3 rounded-md border border-border bg-surface px-3 py-2"
+                >
+                  <Icon icon={QrCode} size="sm" tone="default" />
+                  <View className="min-w-0 flex-1">
+                    <Text variant="body" weight={600} numberOfLines={1}>
+                      {item.label}
+                    </Text>
+                    <Text variant="caption" tone="secondary" numberOfLines={1}>
+                      {item.detail}
+                    </Text>
+                  </View>
+                  <IconButton
+                    icon={Trash}
+                    size="sm"
+                    variant="ghost"
+                    accessibilityLabel={`Hapus riwayat ${item.label}`}
+                    onPress={() => void removeScanHistory(item.id).then(setHistory)}
+                  />
+                </View>
+              ))}
+            </View>
+          ) : null}
         </View>
       ) : (
         /* ── Mode 2: Kode QR Saya ── */
         <View className="flex-1 items-center justify-center px-5 pb-8 pt-2">
           {hasSession ? (
             <View className="w-full max-w-sm items-center gap-5 rounded-2xl border border-border bg-surface p-6 shadow-sm">
-              {/* Info Pengguna */}
               <View className="items-center gap-2">
                 <Avatar
                   source={me?.avatarUrl ? { uri: me.avatarUrl } : undefined}
@@ -352,17 +519,22 @@ export default function ScanScreen() {
                 </View>
               </View>
 
-              {/* Tampilan Kode QR Resmi — FX-014: tanpa URL profil yang valid,
-                  QR disembunyikan dan diganti penjelasan (bukan QR ke
-                  homepage yang menyesatkan). */}
               {myProfileUrl ? (
                 <>
-                  <View className="items-center justify-center rounded-xl bg-surface-raised p-4 border border-border">
+                  {/* FE-IMP-4 item 30: label eksplisit "Kode QR Profil". */}
+                  <Text variant="label" tone="secondary">
+                    Kode QR Profil
+                  </Text>
+                  <View
+                    ref={qrCardRef}
+                    collapsable={false}
+                    className="items-center justify-center rounded-xl bg-surface-raised p-4 border border-border"
+                  >
                     <QRCodeDisplay
                       value={myProfileUrl}
                       size={200}
                       caption={myProfileUrl}
-                      accessibilityLabel="Kode QR Profil Saya"
+                      accessibilityLabel="Kode QR profil saya"
                     />
                   </View>
 
@@ -370,8 +542,28 @@ export default function ScanScreen() {
                     Tunjukkan kode ini kepada pembeli atau mitra untuk membuka profil dan bertransaksi escrow secara aman.
                   </Text>
 
-                  {/* Aksi Berbagi */}
                   <View className="w-full flex-row gap-3 pt-1">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      leftIcon={ArrowsOut}
+                      onPress={() => void openQrZoom()}
+                      containerClassName="flex-1"
+                      accessibilityLabel="Perbesar kode QR"
+                    >
+                      Perbesar
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      leftIcon={DownloadSimple}
+                      onPress={() => void handleSaveQr()}
+                      containerClassName="flex-1"
+                    >
+                      Simpan
+                    </Button>
+                  </View>
+                  <View className="w-full flex-row gap-3">
                     <Button
                       variant="secondary"
                       size="md"
@@ -429,7 +621,7 @@ export default function ScanScreen() {
         </View>
       )}
 
-      {/* ── Dialog Input Manual ── */}
+      {/* ── Dialog input manual + validasi live ── */}
       <BottomSheet
         visible={manualInputOpen}
         onRequestClose={() => setManualInputOpen(false)}
@@ -467,51 +659,145 @@ export default function ScanScreen() {
             returnKeyType="go"
             onSubmitEditing={handleManualSubmit}
           />
+          {/* Contoh ketuk-isi */}
+          <View className="flex-row flex-wrap gap-2">
+            {MANUAL_EXAMPLES.map((example) => (
+              <Button
+                key={example}
+                variant="ghost"
+                size="sm"
+                fullWidth={false}
+                onPress={() => setManualCode(example)}
+              >
+                {example.length > 24 ? `${example.slice(0, 24)}…` : example}
+              </Button>
+            ))}
+          </View>
+          {/* Validasi live */}
+          {manualTarget ? (
+            <View className="flex-row items-center gap-3 rounded-xl bg-surface p-4 border border-border">
+              <Icon
+                icon={manualTarget.risky ? Warning : CheckCircle}
+                size="md"
+                tone={manualTarget.risky ? "warning" : "active"}
+              />
+              <View className="flex-1 min-w-0">
+                <Text variant="label" tone="secondary">
+                  {manualTarget.label}
+                </Text>
+                <Text variant="bodyLarge" weight={600} numberOfLines={2}>
+                  {manualTarget.detail || manualCode.trim()}
+                </Text>
+              </View>
+            </View>
+          ) : null}
         </View>
       </BottomSheet>
 
-      {/* ── Hasil Pemindaian Sheet ── */}
+      {/* ── Hasil pindaian: konfirmasi sebelum aksi (FE-IMP-4 item 23) ── */}
       <BottomSheet
-        visible={detectedResult !== null}
-        onRequestClose={() => setDetectedResult(null)}
+        visible={detected !== null}
+        onRequestClose={closeResult}
         title="Kode Terdeteksi"
         footer={
           <View className="flex-row gap-3">
             <Button
               variant="secondary"
-              onPress={() => setDetectedResult(null)}
+              onPress={closeResult}
               containerClassName="flex-1"
             >
               Pindai Lagi
             </Button>
-            <Button
-              variant="primary"
-              onPress={() => detectedResult?.action()}
-              containerClassName="flex-1"
-            >
-              {detectedResult?.type === "other" ? "Salin Kode" : "Buka Sekarang"}
-            </Button>
+            {detected?.target.type === "external-url" ? (
+              <>
+                <Button
+                  variant="secondary"
+                  onPress={() => {
+                    if (detected?.target.url) void copy(detected.target.url)
+                    closeResult()
+                  }}
+                  containerClassName="flex-1"
+                >
+                  Salin Tautan
+                </Button>
+                <Button
+                  variant="primary"
+                  onPress={() => detected && handleResultAction(detected)}
+                  containerClassName="flex-1"
+                >
+                  Buka Tautan
+                </Button>
+              </>
+            ) : (
+              <Button
+                variant="primary"
+                onPress={() => detected && handleResultAction(detected)}
+                containerClassName="flex-1"
+              >
+                {detected?.target.type === "text" ? "Salin Kode" : "Buka Sekarang"}
+              </Button>
+            )}
           </View>
         }
       >
-        {detectedResult ? (
+        {detected ? (
           <View className="gap-3 px-5 py-3">
             <View className="flex-row items-center gap-3 rounded-xl bg-surface p-4 border border-border">
               <View className="h-10 w-10 items-center justify-center rounded-full bg-surface-raised">
-                <Icon icon={CheckCircle} size="md" tone="active" />
+                <Icon
+                  icon={detected.target.risky ? Warning : CheckCircle}
+                  size="md"
+                  tone={detected.target.risky ? "warning" : "active"}
+                />
               </View>
               <View className="flex-1 min-w-0">
                 <Text variant="label" tone="secondary">
-                  {detectedResult.label}
+                  {detected.target.label}
                 </Text>
                 <Text variant="bodyLarge" weight={600} numberOfLines={2}>
-                  {detectedResult.detail}
+                  {detected.target.detail || detected.raw}
                 </Text>
               </View>
             </View>
+            {detected.target.risky ? (
+              // Anti-phishing: kode asing tidak pernah dibuka otomatis.
+              <Alert tone="warning" title="Tautan luar Kahade">
+                Kode ini mengarah ke situs di luar Kahade. Pastikan Anda
+                percaya sumbernya sebelum membuka — Kahade tidak bertanggung
+                jawab atas situs luar.
+              </Alert>
+            ) : null}
           </View>
         ) : null}
       </BottomSheet>
+
+      {/* ── QR layar penuh + kecerahan maksimal (FE-IMP-4 item 28) ── */}
+      {qrZoomed && myProfileUrl ? (
+        <View className="absolute inset-0 z-50 items-center justify-center bg-black px-8">
+          <View className="items-center gap-6">
+            <Text variant="label" className="text-white">
+              Kode QR Profil
+            </Text>
+            <View className="rounded-2xl bg-white p-6">
+              <QRCodeDisplay
+                value={myProfileUrl}
+                size={280}
+                accessibilityLabel="Kode QR profil saya, layar penuh"
+              />
+            </View>
+            <Text variant="body" className="text-white text-center">
+              @{myUsername}
+            </Text>
+            <Button
+              variant="secondary"
+              leftIcon={X}
+              onPress={() => void closeQrZoom()}
+            >
+              Tutup
+            </Button>
+          </View>
+        </View>
+      ) : null}
     </Screen>
   )
 }

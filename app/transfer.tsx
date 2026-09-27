@@ -78,8 +78,15 @@ type ProgressState = "PROCESSING" | "SUCCESS" | "FAILURE"
 export default function TransferScreen() {
   const insets = useSafeAreaInsets()
   const toast = useToast()
-  const params = useLocalSearchParams<{ to?: string }>()
+  const params = useLocalSearchParams<{ to?: string; amount?: string }>()
   const presetUsername = typeof params.to === "string" ? params.to : undefined
+  // FE-IMP-4 item 27: QR "minta transfer" boleh membawa nominal
+  // (`transfer?to=&amount=`) — di-prefill tapi tetap bisa diubah user dan
+  // tetap divalidasi ulang oleh batas keypad + server.
+  const presetAmount =
+    typeof params.amount === "string" && /^\d+$/.test(params.amount)
+      ? Math.min(Number(params.amount), AMOUNT_LIMITS.transfer.maximum)
+      : undefined
   // Ambil saldo dompet untuk batas transfer & tampilkan di keypad.
   // A-09 (audit): error TIDAK lagi disamarkan menjadi `{ balance: 0 }` —
   // saldo gagal dimuat ditampilkan apa adanya + retry, karena "Rp0" adalah
@@ -114,7 +121,7 @@ export default function TransferScreen() {
   // bukan state lokal yang hilang tiap masuk layar.
   const recent = useRecentRecipients()
   const [selected, setSelected] = useState<TransferRecipient | null>(null)
-  const [amount, setAmount] = useState(0)
+  const [amount, setAmount] = useState(presetAmount ?? 0)
   const [note, setNote] = useState("")
   const [noteDraft, setNoteDraft] = useState("")
   const [noteSheetOpen, setNoteSheetOpen] = useState(false)
