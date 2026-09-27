@@ -200,6 +200,16 @@ export const ROUTES = {
       params: { title, amount: String(totalLockedIdr), orderType: "PHYSICAL_GOODS" },
     }) as unknown as Href,
   /**
+   * Buat transaksi escrow untuk iuran patungan: nominal = amountIdr
+   * partisipasi. Peserta menautkan order via
+   * POST /v1/patungan/participants/:id/link-order (batch 43, item 16).
+   */
+  createTransactionPatungan: (title: string, amountIdr: number) =>
+    ({
+      pathname: "/create-transaction",
+      params: { title, amount: String(amountIdr), orderType: "OTHER" },
+    }) as unknown as Href,
+  /**
    * Buat transaksi ter-prefill dari template (layar Template Transaksi → "Pakai").
    * Parameter dibaca sekali saat layar mount; validasi & langkah tetap seperti biasa.
    */
@@ -547,6 +557,13 @@ export const ROUTES = {
     tripId
       ? ({ pathname: "/jastip/[id]", params: { id: tripId } } as unknown as Href)
       : ("/jastip" as Href),
+  /** Patungan — daftar grup publik (batch 43, item 16 — /v1/patungan) */
+  patungan: "/patungan" as Href,
+  /** Patungan — detail grup */
+  patunganDetail: (groupId: string) =>
+    groupId
+      ? ({ pathname: "/patungan/[id]", params: { id: groupId } } as unknown as Href)
+      : ("/patungan" as Href),
 } as const
 
 /**
