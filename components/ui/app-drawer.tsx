@@ -1,15 +1,17 @@
 /**
- * Kahade — <AppDrawer>: sidebar navigasi kiri (redesign navigasi mobile
- * 2026-09-27).
+ * Kahade — <AppDrawer>: sidebar navigasi kiri (redesign drawer 2026-09-27).
  *
- * Menggantikan tab "Lainnya" dan menampung semua fitur yang tidak lagi punya
- * slot di bottom navbar:
+ * Struktur (sesuai spesifikasi user, dari atas):
+ *   1. Header profil: foto di atas, nama + username di bawahnya (vertikal,
+ *      rata kiri). TANPA chevron. Tombol X tepat di pojok kanan atas header.
+ *   2. Kahade Plus — kartu section tersendiri yang menonjol.
+ *   3. Menu utama: Profile, Dompet, Etalase, Template, Order Link, Laporan.
+ *   4. Menu bawah: Pengaturan, Pusat Bantuan, Bisnis.
  *
- *   Profil Saya | Tersimpan | Template | Order Link | Kelola Etalase |
- *   Dompet | History | Voucher | Rekening Bank | Isi Saldo | Tarik Dana |
- *   Kahade Plus | Pengaturan (+ switcher mode Wallet/Etalase di dalamnya)
+ * Desain list: ikon TANPA background, varian Phosphor bold, judul BOLD,
+ * TANPA chevron di semua item. Light/dark via token.
  *
- * Motion premium ala X:
+ * Motion premium ala X (tidak diubah):
  * - panel meluncur dari kiri dengan spring `tokens.motion.spring`,
  * - backdrop memudar (fade),
  * - konten utama sedikit terdorong + mengecil (progress dibaca root layout
@@ -29,22 +31,15 @@ import Reanimated, {
   withSpring,
 } from "react-native-reanimated"
 import {
-  ArrowUpRight,
-  Bank,
-  BookmarkSimple,
-  CaretRight,
+  Briefcase,
+  ChartBar,
   CrownSimple,
   FileText,
   Gear,
+  Lifebuoy,
   LinkSimple,
-  PencilSimpleLine,
-  Plus,
-  PlusCircle,
-  Question,
-  Scales,
-  Scroll,
   SignIn,
-  Ticket,
+  Storefront,
   User,
   Wallet,
   X,
@@ -55,11 +50,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Divider } from "@/components/ui/divider"
 import { Icon, type IconComponent } from "@/components/ui/icon"
-import { ModeSwitcher } from "@/components/ui/mode-switcher"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { api, type UserProfile } from "@/lib/api"
-import { useAppMode } from "@/lib/app-mode"
 import { closeDrawer, drawerProgress, useDrawerOpen } from "@/lib/drawer"
 import { elevationStyle } from "@/lib/elevation"
 import { haptic } from "@/lib/haptics"
@@ -82,41 +75,62 @@ type DrawerMenuItem = {
   id: string
   label: string
   icon: IconComponent
-  href: Href
+  /** Salah satu: href statis, atau aksi khusus (mis. profil yang sadar tamu). */
+  href?: Href
+  onPress?: () => void
   accessibilityLabel: string
 }
 
-/** Menu mode Etalase/E-commerce. */
-const COMMERCE_MENU: readonly DrawerMenuItem[] = [
-  { id: "saved", label: "Tersimpan", icon: BookmarkSimple, href: ROUTES.saved, accessibilityLabel: "Buka daftar tersimpan" },
-  { id: "showcase-create", label: "Buat Karya", icon: Plus, href: ROUTES.showcaseCreate, accessibilityLabel: "Buat karya baru" },
-  { id: "showcase-manage", label: "Kelola Etalase", icon: PencilSimpleLine, href: ROUTES.showcaseManagement, accessibilityLabel: "Kelola etalase" },
-  { id: "order-links", label: "Order Link", icon: LinkSimple, href: ROUTES.orderLinks, accessibilityLabel: "Buka order link" },
+/** Menu utama — urutan sesuai spesifikasi user. */
+const MAIN_MENU: readonly DrawerMenuItem[] = [
+  { id: "profile", label: "Profile", icon: User, accessibilityLabel: "Buka profil saya" },
+  { id: "wallet", label: "Dompet", icon: Wallet, href: ROUTES.wallet, accessibilityLabel: "Buka dompet" },
+  { id: "etalase", label: "Etalase", icon: Storefront, href: ROUTES.showcaseManagement, accessibilityLabel: "Buka etalase" },
   { id: "templates", label: "Template", icon: FileText, href: ROUTES.transactionTemplates, accessibilityLabel: "Buka template transaksi" },
-  { id: "disputes", label: "Sengketa", icon: Scales, href: ROUTES.disputes, accessibilityLabel: "Buka sengketa" },
+  { id: "order-links", label: "Order Link", icon: LinkSimple, href: ROUTES.orderLinks, accessibilityLabel: "Buka order link" },
+  { id: "reports", label: "Laporan", icon: ChartBar, href: ROUTES.reports(), accessibilityLabel: "Buka laporan saya" },
 ]
 
-/** Menu mode Wallet/Dompet. */
-const WALLET_MENU: readonly DrawerMenuItem[] = [
-  { id: "wallet", label: "Dompet Saya", icon: Wallet, href: ROUTES.wallet, accessibilityLabel: "Buka dompet" },
-  { id: "wallet-history", label: "History", icon: Scroll, href: ROUTES.walletHistory, accessibilityLabel: "Buka riwayat dompet" },
-  { id: "vouchers", label: "Voucher", icon: Ticket, href: ROUTES.vouchers, accessibilityLabel: "Buka voucher" },
-  { id: "bank-accounts", label: "Rekening Bank", icon: Bank, href: ROUTES.bankAccounts, accessibilityLabel: "Buka rekening bank" },
-  { id: "topup", label: "Isi Saldo", icon: PlusCircle, href: ROUTES.topup, accessibilityLabel: "Isi saldo" },
-  { id: "withdraw", label: "Tarik Dana", icon: ArrowUpRight, href: ROUTES.withdraw, accessibilityLabel: "Tarik dana" },
+/** Menu bawah — urutan sesuai spesifikasi user. */
+const BOTTOM_MENU: readonly DrawerMenuItem[] = [
+  { id: "settings", label: "Pengaturan", icon: Gear, href: ROUTES.settings, accessibilityLabel: "Buka pengaturan" },
+  { id: "help", label: "Pusat Bantuan", icon: Lifebuoy, href: ROUTES.support, accessibilityLabel: "Buka pusat bantuan" },
+  { id: "business", label: "Bisnis", icon: Briefcase, href: ROUTES.businessVerification, accessibilityLabel: "Buka verifikasi bisnis" },
 ]
 
 const SPRING = tokens.motion.spring
+
+/** Baris menu: ikon bold tanpa background + judul bold, tanpa chevron. */
+export function DrawerMenuRow({
+  item,
+  onNavigate,
+}: {
+  item: DrawerMenuItem
+  onNavigate: (item: DrawerMenuItem) => void
+}) {
+  return (
+    <PressableScale
+      onPress={() => onNavigate(item)}
+      accessibilityRole="menuitem"
+      accessibilityLabel={translate(item.accessibilityLabel)}
+      className="flex-row items-center gap-4 px-5 py-3"
+    >
+      <Icon icon={item.icon} size="md" tone="active" weight="bold" />
+      <Text variant="body" weight={700} className="flex-1">
+        {translate(item.label)}
+      </Text>
+    </PressableScale>
+  )
+}
 
 export function AppDrawer() {
   useLanguage()
   const insets = useSafeAreaInsets()
   const router = useRouter()
   const open = useDrawerOpen()
-  const mode = useAppMode()
   const { token } = useAuthSession()
   const reducedMotion = useReducedMotion()
-  // Status langganan untuk badge item menu Kahade Plus (satu-satunya sumber
+  // Status langganan untuk badge kartu Kahade Plus (satu-satunya sumber
   // status langganan di UI; aman untuk tamu — tidak menembak endpoint).
   const { isActive: isPlusActive } = useKahadePlus()
   const { mode: themeMode } = useTheme()
@@ -175,6 +189,17 @@ export function AppDrawer() {
     router.push(ROUTES.login)
   }, [router])
 
+  const onNavigate = useCallback(
+    (item: DrawerMenuItem) => {
+      if (item.id === "profile") {
+        goProfile()
+        return
+      }
+      if (item.href) go(item.href)
+    },
+    [go, goProfile],
+  )
+
   const panelStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: (drawerProgress.value - 1) * DRAWER_WIDTH }],
   }))
@@ -201,8 +226,6 @@ export function AppDrawer() {
     })
 
   if (!mounted) return null
-
-  const menu = mode === "wallet" ? WALLET_MENU : COMMERCE_MENU
 
   return (
     <View
@@ -245,15 +268,16 @@ export function AppDrawer() {
             panelStyle,
           ]}
         >
-          {/* Kepala: profil (tumpukan vertikal — foto di atas, nama +
-              username di bawahnya rata kiri) + tombol tutup di kanan atas. */}
-          <View className="flex-row items-start gap-3 px-5 pb-4 pt-2">
+          {/* Kepala: tumpukan vertikal (foto di atas, nama + username di
+              bawahnya rata kiri) — tanpa chevron. Tombol X absolute tepat
+              di pojok kanan atas header. */}
+          <View className="relative px-5 pb-5 pt-2">
             {token && profile ? (
               <PressableScale
                 onPress={goProfile}
                 accessibilityRole="button"
                 accessibilityLabel={translate("Buka profil saya")}
-                className="flex-1 gap-3"
+                className="gap-3 pr-12"
               >
                 <Avatar
                   source={profile.avatarUrl ? { uri: profile.avatarUrl } : undefined}
@@ -261,30 +285,25 @@ export function AppDrawer() {
                   size="lg"
                   verified={isKycVerified}
                 />
-                <View className="flex-row items-center gap-2">
-                  <View className="flex-1 gap-0.5">
-                    <View className="flex-row items-center gap-1.5">
-                      <Text variant="bodyLarge" weight={600} numberOfLines={1}>
-                        {profile.fullName || profile.username}
-                      </Text>
-                      {isKycVerified ? <Badge tone="success">KYC</Badge> : null}
-                    </View>
-                    <Text variant="caption" tone="secondary" numberOfLines={1}>
-                      @{profile.username}
+                <View className="gap-0.5">
+                  <View className="flex-row items-center gap-1.5">
+                    <Text variant="bodyLarge" weight={700} numberOfLines={1}>
+                      {profile.fullName || profile.username}
                     </Text>
+                    {isKycVerified ? <Badge tone="success">KYC</Badge> : null}
                   </View>
-                  <Icon icon={CaretRight} size="sm" tone="default" />
+                  <Text variant="caption" tone="secondary" numberOfLines={1}>
+                    @{profile.username}
+                  </Text>
                 </View>
               </PressableScale>
             ) : (
-              <View className="flex-1 flex-row items-center gap-3">
-                <View
-                  className="h-12 w-12 items-center justify-center rounded-full bg-surface"
-                >
-                  <Icon icon={User} size="md" tone="default" />
+              <View className="flex-row items-center gap-3 pr-12">
+                <View className="h-12 w-12 items-center justify-center rounded-full bg-surface">
+                  <Icon icon={User} size="md" tone="active" weight="bold" />
                 </View>
-                <View className="flex-1">
-                  <Text variant="bodyLarge" weight={600}>
+                <View className="flex-1 gap-0.5">
+                  <Text variant="bodyLarge" weight={700}>
                     {translate("Selamat datang")}
                   </Text>
                   <Text variant="caption" tone="secondary">
@@ -296,130 +315,79 @@ export function AppDrawer() {
                 </Button>
               </View>
             )}
-            <PressableScale
-              onPress={closeDrawer}
-              accessibilityRole="button"
-              accessibilityLabel={translate("Tutup menu")}
-              className="h-10 w-10 items-center justify-center rounded-full"
-            >
-              <Icon icon={X} size="md" tone="default" />
-            </PressableScale>
+            {/* Tombol X: dibungkus View ber-style inline absolute agar tepat di
+                pojok kanan atas header di semua platform (termasuk web).
+                Style inline untuk positioning — bukan background — jadi aman
+                dari masalah compile className di web. */}
+            <View style={{ position: "absolute", right: 12, top: 4 }}>
+              <PressableScale
+                onPress={closeDrawer}
+                accessibilityRole="button"
+                accessibilityLabel={translate("Tutup menu")}
+                className="h-10 w-10 items-center justify-center"
+              >
+                <Icon icon={X} size="md" tone="default" weight="bold" />
+              </PressableScale>
+            </View>
           </View>
-
-          <Divider />
 
           <ScrollView
             className="flex-1"
-            contentContainerStyle={{ paddingVertical: 8 }}
+            contentContainerStyle={{ paddingVertical: 4 }}
             showsVerticalScrollIndicator={false}
           >
-            {/* Switcher mode Wallet/Etalase — pindahan dari tab bar lama,
-                logikanya tidak diubah (ModeSwitcher yang sama). */}
-            <View className="gap-2 px-5 py-3">
-              <Text variant="caption" tone="secondary" weight={600}>
-                {translate("Mode aplikasi").toUpperCase()}
-              </Text>
-              <ModeSwitcher showLabels />
-            </View>
-
-            <Divider />
-
-            {/* Menu utama mengikuti mode aktif. */}
-            <View className="py-2">
-              <PressableScale
-                onPress={goProfile}
-                accessibilityRole="menuitem"
-                accessibilityLabel={translate("Buka profil saya")}
-                className="flex-row items-center gap-4 px-5 py-3"
-              >
-                <View
-                  className="h-10 w-10 items-center justify-center rounded-full bg-surface"
-                >
-                  <Icon icon={User} size="md" tone="default" />
-                </View>
-                <Text variant="body" weight={500} className="flex-1">
-                  {translate("Profil Saya")}
-                </Text>
-                <Icon icon={CaretRight} size="sm" tone="default" />
-              </PressableScale>
-              {menu.map((item) => (
-                <PressableScale
-                  key={item.id}
-                  onPress={() => go(item.href)}
-                  accessibilityRole="menuitem"
-                  accessibilityLabel={translate(item.accessibilityLabel)}
-                  className="flex-row items-center gap-4 px-5 py-3"
-                >
-                  <View
-                    className="h-10 w-10 items-center justify-center rounded-full bg-surface"
-                  >
-                    <Icon icon={item.icon} size="md" tone="default" />
-                  </View>
-                  <Text variant="body" weight={500} className="flex-1">
-                    {translate(item.label)}
-                  </Text>
-                  <Icon icon={CaretRight} size="sm" tone="default" />
-                </PressableScale>
-              ))}
-            </View>
-
-            <Divider />
-
-            {/* Menu bawah: Kahade Plus + Pengaturan + Bantuan. */}
-            <View className="py-2">
+            {/* Kahade Plus — section tersendiri yang menonjol.
+                backgroundColor INLINE dari token (mode-aware, aman di web). */}
+            <View className="px-5 pb-3">
               <PressableScale
                 onPress={() => go(ROUTES.kahadePlusPlans)}
                 accessibilityRole="menuitem"
                 accessibilityLabel={translate("Menu langganan Kahade Plus")}
-                className="flex-row items-center gap-4 px-5 py-3"
               >
                 <View
-                  className="h-10 w-10 items-center justify-center rounded-full bg-surface"
+                  style={{
+                    backgroundColor: tokens.colors.accent[themeMode].bgSoft,
+                    borderRadius: 16,
+                    padding: 16,
+                  }}
+                  className="flex-row items-center gap-3"
                 >
-                  <Icon icon={CrownSimple} size="md" tone="default" />
+                  <Icon icon={CrownSimple} size="lg" tone="accent" weight="bold" />
+                  <View className="flex-1 gap-0.5">
+                    <Text variant="body" weight={700}>
+                      {translate("Kahade Plus")}
+                    </Text>
+                    <Text variant="caption" tone="secondary" numberOfLines={1}>
+                      {isPlusActive
+                        ? translate("Langganan aktif")
+                        : translate("Buka semua fitur premium")}
+                    </Text>
+                  </View>
+                  {isPlusActive ? (
+                    <Badge tone="success" variant="soft">
+                      {translate("Aktif")}
+                    </Badge>
+                  ) : null}
                 </View>
-                <Text variant="body" weight={500} className="flex-1">
-                  {translate("Kahade Plus")}
-                </Text>
-                {isPlusActive ? (
-                  <Badge tone="success" variant="soft">
-                    {translate("Aktif")}
-                  </Badge>
-                ) : null}
-                <Icon icon={CaretRight} size="sm" tone="default" />
               </PressableScale>
-              <PressableScale
-                onPress={() => go(ROUTES.settings)}
-                accessibilityRole="menuitem"
-                accessibilityLabel={translate("Buka pengaturan")}
-                className="flex-row items-center gap-4 px-5 py-3"
-              >
-                <View
-                  className="h-10 w-10 items-center justify-center rounded-full bg-surface"
-                >
-                  <Icon icon={Gear} size="md" tone="default" />
-                </View>
-                <Text variant="body" weight={500} className="flex-1">
-                  {translate("Pengaturan")}
-                </Text>
-                <Icon icon={CaretRight} size="sm" tone="default" />
-              </PressableScale>
-              <PressableScale
-                onPress={() => go(ROUTES.support)}
-                accessibilityRole="menuitem"
-                accessibilityLabel={translate("Buka bantuan")}
-                className="flex-row items-center gap-4 px-5 py-3"
-              >
-                <View
-                  className="h-10 w-10 items-center justify-center rounded-full bg-surface"
-                >
-                  <Icon icon={Question} size="md" tone="default" />
-                </View>
-                <Text variant="body" weight={500} className="flex-1">
-                  {translate("Bantuan")}
-                </Text>
-                <Icon icon={CaretRight} size="sm" tone="default" />
-              </PressableScale>
+            </View>
+
+            {/* Menu utama. */}
+            <View className="py-1">
+              {MAIN_MENU.map((item) => (
+                <DrawerMenuRow key={item.id} item={item} onNavigate={onNavigate} />
+              ))}
+            </View>
+
+            <View className="px-5 py-3">
+              <Divider />
+            </View>
+
+            {/* Menu bawah. */}
+            <View className="pb-2">
+              {BOTTOM_MENU.map((item) => (
+                <DrawerMenuRow key={item.id} item={item} onNavigate={onNavigate} />
+              ))}
             </View>
           </ScrollView>
 

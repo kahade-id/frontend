@@ -1,12 +1,19 @@
 /**
- * Test drawer/sidebar navigasi (redesign navigasi mobile 2026-09-27).
+ * Test drawer/sidebar navigasi (redesign drawer 2026-09-27).
  *
  * Kontrak yang dikunci:
  *  1. Store: openDrawer/closeDrawer/toggleDrawer + useDrawerOpen konsisten.
  *  2. <AppDrawer> tidak merender apa pun saat tertutup; saat dibuka
- *     menampilkan menu mengikuti mode aktif (commerce → menu etalase,
- *     wallet → menu dompet) + ModeSwitcher + Pengaturan di bawah.
- *  3. Ketuk backdrop ("Tutup menu") menutup drawer (store).
+ *     menampilkan struktur tetap (tanpa mode aplikasi):
+ *     header profil → kartu Kahade Plus → menu utama
+ *     (Profile, Dompet, Etalase, Template, Order Link, Laporan) →
+ *     menu bawah (Pengaturan, Pusat Bantuan, Bisnis).
+ *  3. TIDAK ada ModeSwitcher ("Mode aplikasi") dan TIDAK ada menu lama
+ *     berbasis mode (tersimpan, sengketa, isi saldo, dsb.).
+ *  4. Setiap baris menu memuat tepat 1 ikon (tanpa chevron, tanpa
+ *     background ikon) — dicek lewat jumlah <svg> per baris.
+ *  5. Tombol X tepat di pojok kanan atas header (absolute).
+ *  6. Ketuk backdrop ("Tutup menu") menutup drawer (store).
  *
  * Catatan stub: `withSpring` di stub reanimated langsung snap ke target
  * TANPA menjalankan callback selesai — jadi di test, drawer yang ditutup
@@ -18,7 +25,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppDrawer } from "@/components/ui/app-drawer"
-import { resetAppModeForTest, setAppMode } from "@/lib/app-mode"
 import {
   closeDrawer,
   isDrawerOpen,
@@ -47,8 +53,21 @@ function renderDrawer() {
   )
 }
 
+/** Urutan menuitem yang diharapkan (tamu): Plus → utama → bawah. */
+const EXPECTED_MENUITEM_ORDER = [
+  "Menu langganan Kahade Plus",
+  "Buka profil saya",
+  "Buka dompet",
+  "Buka etalase",
+  "Buka template transaksi",
+  "Buka order link",
+  "Buka laporan saya",
+  "Buka pengaturan",
+  "Buka pusat bantuan",
+  "Buka verifikasi bisnis",
+]
+
 beforeEach(() => {
-  resetAppModeForTest()
   resetDrawerForTest()
 })
 
@@ -73,47 +92,89 @@ describe("store drawer", () => {
   })
 })
 
-describe("<AppDrawer>", () => {
+describe("<AppDrawer> — struktur baru", () => {
   it("tidak merender menu saat tertutup", () => {
     renderDrawer()
     expect(screen.queryByRole("menu", { name: "Menu navigasi" })).toBeNull()
   })
 
-  it("menampilkan menu commerce + ModeSwitcher + Pengaturan saat dibuka", () => {
-    setAppMode("commerce")
+  it("menampilkan item dalam urutan yang diminta saat dibuka", () => {
     renderDrawer()
     act(() => openDrawer())
 
     expect(screen.getByRole("menu", { name: "Menu navigasi" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka profil saya" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka daftar tersimpan" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Kelola etalase" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka order link" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka template transaksi" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka sengketa" })).toBeTruthy()
-    // Switcher mode ada di dalam drawer.
-    expect(screen.getByRole("radiogroup", { name: "Mode aplikasi" })).toBeTruthy()
-    // Pengaturan di bawah.
-    expect(screen.getByRole("menuitem", { name: "Buka pengaturan" })).toBeTruthy()
-    // Kahade Plus: item menu tersendiri di sidebar (bukan di halaman Pengaturan).
-    expect(screen.getByRole("menuitem", { name: "Menu langganan Kahade Plus" })).toBeTruthy()
-    // Menu wallet TIDAK tampil di mode commerce.
-    expect(screen.queryByRole("menuitem", { name: "Buka dompet" })).toBeNull()
+    const items = screen.getAllByRole("menuitem")
+    const labels = items.map((el) => el.getAttribute("aria-label"))
+    expect(labels).toEqual(EXPECTED_MENUITEM_ORDER)
   })
 
-  it("menampilkan menu wallet saat mode = wallet", () => {
-    setAppMode("wallet")
+  it("tidak ada ModeSwitcher dan tidak ada menu lama berbasis mode", () => {
     renderDrawer()
     act(() => openDrawer())
 
-    expect(screen.getByRole("menuitem", { name: "Buka dompet" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka riwayat dompet" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka voucher" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka rekening bank" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Isi saldo" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Tarik dana" })).toBeTruthy()
-    // Menu commerce TIDAK tampil di mode wallet.
-    expect(screen.queryByRole("menuitem", { name: "Kelola etalase" })).toBeNull()
+    expect(screen.queryByRole("radiogroup", { name: "Mode aplikasi" })).toBeNull()
+    expect(screen.queryByText(/mode aplikasi/i)).toBeNull()
+    // Menu lama yang sudah dihapus:
+    for (const gone of [
+      "Buka daftar tersimpan",
+      "Kelola etalase",
+      "Buka sengketa",
+      "Buka dompet saya",
+      "Buka riwayat dompet",
+      "Buka voucher",
+      "Buka rekening bank",
+      "Isi saldo",
+      "Tarik dana",
+      "Buat karya baru",
+    ]) {
+      expect(screen.queryByRole("menuitem", { name: gone })).toBeNull()
+    }
+  })
+
+  it("setiap baris menu memuat tepat satu ikon bold (tanpa chevron)", () => {
+    renderDrawer()
+    act(() => openDrawer())
+
+    // Di env test, <Icon> merender <span data-icon data-weight> (bukan <svg>).
+    for (const item of screen.getAllByRole("menuitem")) {
+      const icons = (item as HTMLElement).querySelectorAll("[data-icon]")
+      expect(icons.length).toBe(1)
+      expect(icons[0]!.getAttribute("data-weight")).toBe("bold")
+    }
+  })
+
+  it("tombol X absolute di pojok kanan atas header", () => {
+    renderDrawer()
+    act(() => openDrawer())
+
+    // Dua tombol "Tutup menu": backdrop (pertama di DOM) + tombol X panel.
+    const closers = screen.getAllByRole("button", { name: "Tutup menu" })
+    expect(closers.length).toBe(2)
+    // X dibungkus View ber-style inline position:absolute (bukan className,
+    // karena className di-compile menjadi atomic di env test/web).
+    let node = (closers[1] as HTMLElement).parentElement
+    let positioned: HTMLElement | null = null
+    while (node) {
+      if (node.style?.position === "absolute") {
+        positioned = node
+        break
+      }
+      node = node.parentElement
+    }
+    expect(positioned).not.toBeNull()
+    expect(positioned!.style.right).not.toBe("")
+    expect(positioned!.style.top).not.toBe("")
+  })
+
+  it("kartu Kahade Plus tampil menonjol sebelum menu utama", () => {
+    renderDrawer()
+    act(() => openDrawer())
+
+    const plus = screen.getByRole("menuitem", { name: "Menu langganan Kahade Plus" })
+    expect(plus.textContent).toMatch(/Kahade Plus/)
+    const profile = screen.getByRole("menuitem", { name: "Buka profil saya" })
+    const FOLLOWING = Node.DOCUMENT_POSITION_FOLLOWING
+    expect(plus.compareDocumentPosition(profile) & FOLLOWING).toBeTruthy()
   })
 
   it("ketuk backdrop menutup drawer", () => {
@@ -121,9 +182,7 @@ describe("<AppDrawer>", () => {
     act(() => openDrawer())
     expect(isDrawerOpen()).toBe(true)
 
-    // Dua tombol "Tutup menu": backdrop (pertama di DOM) + tombol X panel.
     const closers = screen.getAllByRole("button", { name: "Tutup menu" })
-    expect(closers.length).toBe(2)
     fireEvent.click(closers[0]!)
     expect(isDrawerOpen()).toBe(false)
   })

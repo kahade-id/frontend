@@ -4,8 +4,11 @@
  * Mengunci kontrak presentasi baru (hanya tampilan, tanpa logika):
  *  1. Foto profil di ATAS, nama + username di BAWAH foto — dicek lewat urutan
  *     DOM (atas → bawah), bukan snapshot rapuh.
- *  2. Tombol tutup (X) tetap di kanan atas (bersama backdrop: 2x "Tutup menu").
- *  3. Menu di bawah header tidak rusak (menu mode commerce tetap tampil).
+ *  2. TIDAK ada chevron di samping nama/username.
+ *  3. Tombol tutup (X) absolute di pojok kanan atas header
+ *     (bersama backdrop: 2x "Tutup menu").
+ *  4. Menu di bawah header mengikuti struktur baru (Kahade Plus + menu utama
+ *     + menu bawah, tanpa ModeSwitcher).
  *
  * Dijalankan dengan config komponen (repo convention):
  *   npx vitest run --config vitest.components.config.ts tests/drawer-header-polish.test.tsx
@@ -15,7 +18,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 import { ThemeProvider } from "@/components/theme-provider"
 import { AppDrawer } from "@/components/ui/app-drawer"
-import { resetAppModeForTest, setAppMode } from "@/lib/app-mode"
 import { openDrawer, resetDrawerForTest } from "@/lib/drawer"
 
 const profile = {
@@ -51,7 +53,6 @@ function renderDrawer() {
 }
 
 beforeEach(() => {
-  resetAppModeForTest()
   resetDrawerForTest()
 })
 
@@ -86,21 +87,46 @@ describe("header profil drawer — tumpukan vertikal", () => {
     expect(column!.className).not.toMatch(/(^|\s)flex-row(\s|$)/)
   })
 
-  it("tombol tutup (X) tetap ada di kanan atas", () => {
+  it("tidak ada chevron di samping nama/username", () => {
+    renderDrawer()
+    act(() => openDrawer())
+
+    const headerButton = screen.getByRole("button", { name: "Buka profil saya" })
+    // Header hanya berisi foto (img) + teks — tidak ada ikon lain.
+    expect(headerButton.querySelectorAll("[data-icon]").length).toBe(0)
+  })
+
+  it("tombol tutup (X) absolute di pojok kanan atas header", () => {
     renderDrawer()
     act(() => openDrawer())
 
     // Backdrop + tombol X di panel — keduanya berlabel "Tutup menu".
-    expect(screen.getAllByRole("button", { name: "Tutup menu" })).toHaveLength(2)
+    const closers = screen.getAllByRole("button", { name: "Tutup menu" })
+    expect(closers).toHaveLength(2)
+    // X dibungkus View ber-style inline position:absolute (bukan className,
+    // karena className di-compile menjadi atomic di env test/web).
+    let node = (closers[1] as HTMLElement).parentElement
+    let positioned: HTMLElement | null = null
+    while (node) {
+      if (node.style?.position === "absolute") {
+        positioned = node
+        break
+      }
+      node = node.parentElement
+    }
+    expect(positioned).not.toBeNull()
   })
 
-  it("menu di bawah header tidak rusak", () => {
-    setAppMode("commerce")
+  it("menu di bawah header mengikuti struktur baru", () => {
     renderDrawer()
     act(() => openDrawer())
 
+    expect(screen.getByRole("menuitem", { name: "Menu langganan Kahade Plus" })).toBeTruthy()
     expect(screen.getByRole("menuitem", { name: "Buka profil saya" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Buka daftar tersimpan" })).toBeTruthy()
-    expect(screen.getByRole("menuitem", { name: "Kelola etalase" })).toBeTruthy()
+    expect(screen.getByRole("menuitem", { name: "Buka dompet" })).toBeTruthy()
+    expect(screen.getByRole("menuitem", { name: "Buka etalase" })).toBeTruthy()
+    expect(screen.getByRole("menuitem", { name: "Buka pusat bantuan" })).toBeTruthy()
+    // ModeSwitcher sudah dihapus.
+    expect(screen.queryByRole("radiogroup", { name: "Mode aplikasi" })).toBeNull()
   })
 })
