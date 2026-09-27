@@ -35,6 +35,8 @@ import {
   groupThousands,
   initials,
   maskAccountNumber,
+  maskEmail,
+  maskPhone,
   parseRupiah,
   parseRupiahPartial,
   truncateMiddle,
@@ -419,5 +421,25 @@ describe("formatTimeAgo (2026-09-28)", () => {
   it("input invalid → placeholder §13", () => {
     expect(formatTimeAgo("bukan-tanggal", now)).toBe("—")
     expect(formatTimeAgo("", now)).toBe("—")
+  })
+})
+
+describe("maskEmail / maskPhone (FE-IMP-3 #103 — baris menu Keamanan)", () => {
+  it("maskEmail menyisakan huruf pertama + domain", () => {
+    expect(maskEmail("budi@gmail.com")).toBe("b\u2022\u2022\u2022@gmail.com")
+    expect(maskEmail("x@yahoo.co.id")).toBe("x\u2022\u2022\u2022@yahoo.co.id")
+  })
+  it("maskEmail input aneh → placeholder §13", () => {
+    expect(maskEmail("")).toBe("\u2022\u2022\u2022")
+    expect(maskEmail("tanpa-at")).toBe("\u2022\u2022\u2022")
+    expect(maskEmail("a@")).toBe("\u2022\u2022\u2022")
+  })
+  it("maskPhone: 4 digit terakhir terlihat, sisanya mask per 4", () => {
+    expect(maskPhone("081234567890")).toBe("•••• •••• 7890")
+    expect(maskPhone("+6281234567890")).toBe("•••• •••• • 7890") // 13 digit: sisa 1 ikut grup mask
+  })
+  it("maskPhone nomor pendek → placeholder", () => {
+    expect(maskPhone("")).toBe("")
+    expect(maskPhone("12")).toBe("12")
   })
 })

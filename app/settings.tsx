@@ -73,6 +73,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { ROUTES } from "@/lib/routes"
 import { languageLabel, useLanguage } from "@/lib/i18n"
 import { installedAppVersion } from "@/lib/runtime-info"
+import { maskEmail, maskPhone } from "@/lib/format"
 import { tokens } from "@/lib/tokens"
 import { logWarn } from "@/lib/telemetry"
 
@@ -128,6 +129,15 @@ export default function SettingsScreen() {
   const notifTrailing =
     summarizeNotificationPreferences(notifPrefsQuery.data ?? null) ?? undefined
 
+  // FE-IMP-3 #103 — identitas tersamarkan di baris menu Keamanan (nomor HP
+  // bila ada, kalau tidak email) — cegah shoulder-surfing identitas akun
+  // penuh. Belum dimuat/gagal → tanpa trailing.
+  const securityTrailing = me?.phoneNumber
+    ? maskPhone(me.phoneNumber)
+    : me?.email
+      ? maskEmail(me.email)
+      : undefined
+
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
     try {
@@ -162,7 +172,7 @@ export default function SettingsScreen() {
     { id: "saved", label: "Profil Tersimpan", icon: Bookmark, route: ROUTES.saved },
     { id: "edit-profile", label: "Edit Profil", icon: User, route: ROUTES.editProfile },
     { id: "reports", label: "Laporan & Analitik", icon: FileText, route: ROUTES.analytics },
-    { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security },
+    { id: "security", label: "Keamanan", icon: ShieldCheck, route: ROUTES.security, trailing: securityTrailing },
     { id: "account-type", label: "Tipe Akun", icon: Briefcase, route: ROUTES.accountType },
     {
       id: "business-verification",

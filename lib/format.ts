@@ -745,6 +745,27 @@ export function groupAccountNumber(account: string): string {
 }
 
 /**
+ * FE-IMP-3 #103 — samarkan email untuk baris menu Keamanan: "b••••@gmail.com".
+ * Hanya karakter pertama bagian lokal yang terlihat, domain utuh (supaya
+ * pengguna tetap mengenali provider-nya).
+ */
+export function maskEmail(email: string): string {
+  const clean = asText(email).trim()
+  const at = clean.indexOf("@")
+  if (at < 1 || at === clean.length - 1) return "\u2022\u2022\u2022"
+  return `${clean[0]}\u2022\u2022\u2022${clean.slice(at)}`
+}
+
+/**
+ * FE-IMP-3 #103 — samarkan nomor HP untuk baris menu Keamanan:
+ * "•••• •••• 7890" (4 digit terakhir terlihat). Mendelegasikan ke
+ * maskAccountNumber (format mask PII yang sudah baku).
+ */
+export function maskPhone(phone: string): string {
+  return maskAccountNumber(asText(phone).replace(/\D/g, ""))
+}
+
+/**
  * Nomor HP Indonesia -> "+62 812-3456-7890".
  *
  * Prefix trunk "0" dan kode negara "62" bisa datang dalam urutan apa pun

@@ -145,6 +145,7 @@ describe("<OrderDetailActions>", () => {
     canReviewDelivery: false,
     canRate: false,
     canViewProof: false,
+    canReturn: false,
     buyerPays: null as number | null,
     shippingRequired: true,
     submitting: false,
@@ -157,6 +158,7 @@ describe("<OrderDetailActions>", () => {
     onDeliveryProof: noop,
     onComplete: noop,
     onRate: noop,
+    onReturn: noop,
     onReload: noop,
   }
 
