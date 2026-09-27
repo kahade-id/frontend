@@ -172,9 +172,12 @@ export function Header({
       )}
       style={[
         (safeArea ?? !providedInsets.top) ? { paddingTop: insets.top } : undefined,
-        // Efek scroll: bayangan lembut saat konten lewat di bawah header.
-        // Bukan border — separator statis sudah dihapus atas permintaan produk.
-        elevated && !transparent ? elevationStyle("low", themeMode) : undefined,
+        // Efek scroll: bayangan lembut tapi KASATMATA saat konten lewat di
+        // bawah header — "terangkat" dari konten. Level "low" (opacity 5.5%)
+        // terbukti tidak terlihat di web (laporan user 2026-09-28); "medium"
+        // tetap lembut (blur 18px) namun cukup pekat untuk dibaca sebagai
+        // bayangan. Bukan border — separator statis tetap tidak dipakai.
+        elevated && !transparent ? elevationStyle("medium", themeMode) : undefined,
       ]}
       {...rest}
     >
