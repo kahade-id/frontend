@@ -26,11 +26,19 @@ import { logWarn } from "@/lib/telemetry"
 
 export type TransactionsTab = "buyer" | "seller"
 
+/**
+ * Tab feed Etalase terakhir yang dibuka (mega-batch FE-IMP-1, item 47).
+ * Persist level perangkat seperti `appMode` — logout tidak meresetnya.
+ */
+export type ShowcaseFeedTab = "forYou" | "following" | "latest" | "popular"
+
 export type UiPrefs = {
   /** Saldo disembunyikan (privasi bahu-penumpang) — dipakai Beranda & Dompet. */
   balanceHidden: boolean
   /** Tab Transaksi terakhir yang dipilih pengguna. */
   transactionsTab: TransactionsTab
+  /** Tab feed Etalase terakhir yang dibuka (item 47). */
+  showcaseFeedTab: ShowcaseFeedTab
   /**
    * Mode navbar (E-Commerce / E-Wallet). Preferensi perangkat, sama seperti
    * `balanceHidden`: logout tidak boleh mengembalikannya ke commerce.
@@ -49,6 +57,7 @@ export type UiPrefs = {
 const DEFAULT_PREFS: UiPrefs = {
   balanceHidden: false,
   transactionsTab: "buyer",
+  showcaseFeedTab: "forYou",
   appMode: "commerce",
   ratingSnoozeUntil: {},
   dataSaver: false,
@@ -99,6 +108,13 @@ function sanitizePrefs(raw: unknown): UiPrefs {
   return {
     balanceHidden: rec.balanceHidden === true,
     transactionsTab: rec.transactionsTab === "seller" ? "seller" : "buyer",
+    // Item 47: hanya 4 nilai tab yang sah; nilai asing → default "forYou".
+    showcaseFeedTab:
+      rec.showcaseFeedTab === "following" ||
+      rec.showcaseFeedTab === "latest" ||
+      rec.showcaseFeedTab === "popular"
+        ? rec.showcaseFeedTab
+        : "forYou",
     // Field-by-field: lupa menyalin appMode di sini membuat mode hilang saat load.
     appMode: rec.appMode === "wallet" ? "wallet" : "commerce",
     ratingSnoozeUntil: snooze,
@@ -195,8 +211,7 @@ export function clearAccountPrefs(): void {
 }
 
 /**
- * J-14: lama penundaan pengingat ulasan sekali tekan "Ingatkan nanti".
- *
+ * J-14: lama penundaan pengingat ulasan sekali tekan "Ingatkan nanti". *
  * Tinggal bersama fungsi snooze-nya (bukan di layar detail order) karena ini
  * kebijakan fitur, bukan angka presentasi: layar mana pun yang nanti ikut
  * menunda pengingat harus memakai jendela yang sama.

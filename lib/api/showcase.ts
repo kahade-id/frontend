@@ -210,6 +210,14 @@ export type ShowcaseComment = {
   /** true = disembunyikan pemilik item (hanya pemilik yang melihat). */
   isHidden?: boolean
   hiddenReason?: "SPAM" | "INAPPROPRIATE" | "HARASSMENT" | "OTHER" | null
+  /**
+   * Like komentar (mega-batch item 48). DIBACA defensif bila backend
+   * mengirimkan field ini; backend saat ini BELUM punya endpoint like
+   * komentar, jadi nilai ini umumnya undefined dan like ditangani
+   * lokal per perangkat (lib/showcase-comment-likes.ts).
+   */
+  likeCount?: number
+  isLiked?: boolean
   createdAt: string
   updatedAt?: string
   author: ShowcaseAuthor
@@ -595,6 +603,81 @@ function parseShowcaseLikersPage(raw: unknown, timeField: "likedAt" | "savedAt")
 }
 
 /**
+ * GET /v1/showcase/saved — koleksi "disimpan" per-akun dari backend
+ * (mega-batch FE-IMP-1, item 54). Kartu publik bentuk feed + `savedAt`;
+ * pagination OFFSET.
+ */
+export type SavedShowcaseEntry = { item: ShowcaseSocialItem; savedAt: string }
+export type SavedShowcasesPage = {
+  data: SavedShowcaseEntry[]
+  offset: number
+  limit: number
+  total: number
+  hasMore: boolean
+}
+
+export function getSavedShowcases(
+  params: { offset?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  return http
+    .get<unknown>("/v1/showcase/saved", {
+      auth: "required",
+      query: { offset: params.offset ?? 0, limit: params.limit ?? 20 },
+      retry: 1,
+      signal,
+    })
+    .then((raw) => {
+      const record = (raw ?? {}) as Record<string, unknown>
+      const offset = typeof record.offset === "number" ? record.offset : 0
+      const limit = typeof record.limit === "number" ? record.limit : 20
+      const total = typeof record.total === "number" ? record.total : 0
+      // DRIFT-04: item rusak dilewati per-item, jangan runtuhkan koleksi.
+      const data = readList<unknown>(record, ["data"]).flatMap((rawItem) => {
+        try {
+          const asRec = (rawItem ?? {}) as Record<string, unknown>
+          const item = parseShowcaseItem(asRec.item ?? rawItem)
+          const savedAt =
+            typeof asRec.savedAt === "string"
+              ? asRec.savedAt
+              : typeof asRec.createdAt === "string"
+                ? asRec.createdAt
+                : new Date(0).toISOString()
+          return [{ item, savedAt }]
+        } catch (err) {
+          logWarn("showcase:saved:skip-item", err)
+          return []
+        }
+      })
+      return {
+        data,
+        offset,
+        limit,
+        total,
+        hasMore:
+          record.hasMore === true ? true : total > 0 ? offset + data.length < total : false,
+      } satisfies SavedShowcasesPage
+    })
+}
+
+/** POST /v1/showcase/saved/:showcaseId — simpan ke koleksi backend (item 54). */
+export function addSavedShowcase(showcaseId: string) {
+  return http.post<void, Record<string, never>>(
+    `/v1/showcase/saved/${seg(showcaseId)}`,
+    {},
+    { auth: "required", retry: 1 },
+  )
+}
+
+/** DELETE /v1/showcase/saved/:showcaseId — hapus dari koleksi backend (item 54). */
+export function removeSavedShowcase(showcaseId: string) {
+  return http.delete<void>(`/v1/showcase/saved/${seg(showcaseId)}`, {
+    auth: "required",
+    retry: 1,
+  })
+}
+
+/**
  * GET /v1/showcase/:id/likers?page&limit — PUBLIK (kontrak final Tim A).
  * Idempoten → retry 1 aman.
  */
@@ -890,6 +973,13 @@ export function parseShowcaseComment(raw: unknown): ShowcaseComment {
         ? reason
         : null,
     createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
+    // Item 48: baca likeCount/isLiked defensif — backend saat ini tidak
+    // mengirimkannya, jangan throw bila tak ada.
+    likeCount:
+      typeof value.likeCount === "number" && Number.isFinite(value.likeCount) && value.likeCount >= 0
+        ? Math.floor(value.likeCount)
+        : undefined,
+    isLiked: value.isLiked === true ? true : undefined,
     // K-04 (audit 2026-09-24): `updatedAt` dipakai UI untuk penanda "(diedit)"
     // — bentuknya dinormalkan di sini supaya nilai tak terurai tidak pernah
     // sampai ke perbandingan waktu (lihat isEditedComment).
