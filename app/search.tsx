@@ -41,7 +41,7 @@ import { useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { ArrowUpLeft, ClockCounterClockwise, Images, MagnifyingGlass, MapPin } from "phosphor-react-native"
-import { router } from "expo-router"
+import { router, useLocalSearchParams } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { showcaseImages } from "@/lib/showcase-social"
@@ -52,7 +52,6 @@ import { buildResultMessage } from "@/lib/search-ui"
 import { useLanguage } from "@/lib/i18n"
 import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/routes"
-import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
@@ -373,6 +372,19 @@ export default function SearchScreen() {
     setSeed(next)
     setKeyword(next.trim())
   }
+
+  /*
+   * Query awal dari deep link /search?q=… (revisi 2026-09-28): pencarian dari
+   * utility bar drawer mendorong rute ini dengan param `q`. Diterapkan sekali
+   * saat mount — setelah itu kolom dikendalikan state lokal.
+   */
+  const params = useLocalSearchParams<{ q?: string | string[] }>()
+  useEffect(() => {
+    const raw = params.q
+    const q = Array.isArray(raw) ? raw[0] : raw
+    if (typeof q === "string" && q.trim()) applyQuery(q.trim())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /*
    * Tata letak (revisi 2026-09-26, permintaan produk): KOLOM CARI DI HEADER.
@@ -785,7 +797,7 @@ function ShowcaseResultRow({ item }: { item: ShowcaseSocialItem }) {
           ) : null}
         </View>
         <Text variant="caption" tone="secondary" numberOfLines={1}>
-          {`${showcasePriceLabelOrFallback(item)} · @${item.author.username}`}
+          @{item.author.username}
         </Text>
       </View>
       <Text variant="caption" tone="tertiary" className="tabular-nums">

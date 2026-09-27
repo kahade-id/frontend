@@ -4,11 +4,12 @@
  * Struktur baru 2026-09-27 (redesign navigasi mobile): bar TETAP dan tidak
  * lagi mengikuti mode aplikasi —
  *
- *   Etalase | Transaksi | (+) | Pesan | Notifikasi
+ *   Etalase | Transaksi | (QR) | Pesan | Notifikasi
  *
  * - Notifikasi kini tab sejati dengan badge unread (dulu lonceng di header).
- * - Tombol tengah (+) membuka action sheet "buat baru" (mengambil alih fungsi
- *   pensil lama → /showcase/create).
+ * - Tombol tengah kini ikon QR — ketuk langsung membuka pemindai /scan
+ *   (revisi 2026-09-28). Sheet "Buat baru" pindah ke tombol (+) di header
+ *   Etalase dan pensil di drawer (reusable <CreateSheet>).
  * - Switcher mode Wallet/Etalase pindah ke drawer/sidebar; `appMode` tidak
  *   lagi memengaruhi bar ini.
  *
@@ -18,12 +19,14 @@
  */
 import { useCallback, useMemo } from "react"
 import { usePathname, useRouter } from "expo-router"
+import { QrCode } from "phosphor-react-native"
 
 import {
   BottomTabBar,
-  CENTER_ACTION_ITEMS,
   type BottomTabItem,
 } from "@/components/ui/bottom-tab-bar"
+import { haptic } from "@/lib/haptics"
+import { ROUTES } from "@/lib/routes"
 import { useLanguage, translate } from "@/lib/i18n"
 import { useChatUnreadCountState } from "@/lib/chat-unread-count"
 import {
@@ -73,12 +76,22 @@ export function ShellTabBar() {
     [router, activeKey],
   )
 
+  const onScan = useCallback(() => {
+    haptic("light")
+    router.push(ROUTES.scan)
+  }, [router])
+
   return (
     <BottomTabBar
       items={items}
       value={activeKey ?? ""}
       onChange={onChange}
-      centerAction={CENTER_ACTION_ITEMS}
+      center={{
+        icon: QrCode,
+        accessibilityLabel: translate("Pindai QR"),
+        accessibilityHint: translate("Membuka pemindai kode QR"),
+        onPress: onScan,
+      }}
       accessibilityLabel={translate("Navigasi utama")}
     />
   )

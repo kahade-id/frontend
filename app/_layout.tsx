@@ -69,6 +69,7 @@ import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
 import { AppLockGate } from "@/components/app-lock-gate"
 import { ShellTabBar, isShellTabPath } from "@/components/ui/shell-tab-bar"
 import { AppDrawer } from "@/components/ui/app-drawer"
+import { CreateSheet } from "@/components/ui/create-sheet"
 import { drawerProgress } from "@/lib/drawer"
 import { useToast } from "@/components/ui/toast"
 
@@ -535,6 +536,9 @@ function AppShell() {
             di bawah AppLockGate — kunci aplikasi tetap menutupi semuanya.
           */}
           <AppDrawer />
+          {/* Sheet global "Buat baru" (2026-09-28): dibuka dari (+) header
+              Etalase & pensil drawer via `openCreateSheet()`. */}
+          <CreateSheet />
           {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
               menit). Dirender SETELAH konten agar menutupi seluruh tree saat
               terkunci; no-op di web dan tanpa sesi. */}

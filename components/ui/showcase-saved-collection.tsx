@@ -25,7 +25,6 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import { getShowcaseDetail, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { getSessionRevision } from "@/lib/api/session"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
-import { showcasePriceLabelOrFallback } from "@/lib/showcase-labels"
 import {
   loadShowcaseBookmarks,
   toggleShowcaseSaved,
@@ -225,7 +224,7 @@ export function ShowcaseSavedCollection() {
                     {item.title || translate("Tanpa judul")}
                   </Text>
                   <Text variant="caption" tone="secondary" numberOfLines={1}>
-                    @{item.author.username} · {showcasePriceLabelOrFallback(item)}
+                    @{item.author.username}
                   </Text>
                 </View>
               </View>

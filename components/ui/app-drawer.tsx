@@ -6,7 +6,12 @@
  *      rata kiri). TANPA chevron. Tombol X tepat di pojok kanan atas header.
  *   2. Kahade Plus — kartu section tersendiri yang menonjol.
  *   3. Menu utama: Profile, Dompet, Etalase, Template, Order Link, Laporan.
- *   4. Menu bawah: Pengaturan, Pusat Bantuan, Bisnis.
+ *   4. Menu bawah: Umpan Balik, Bantuan Langsung, Tiket Bantuan
+ *      (revisi 2026-09-28, permintaan produk).
+ *   5. Utility bar di kaki drawer (revisi 2026-09-28): pil berisi
+ *      gear (Pengaturan), pill pencarian expandable (→ /search?q=…),
+ *      dan pensil (sheet global "Buat baru"). Motion saat diklik +
+ *      expand/collapse pencarian; reduced motion = instan.
  *
  * Desain list: ikon TANPA background, varian Phosphor bold, judul BOLD,
  * TANPA chevron di semua item. Light/dark via token.
@@ -20,26 +25,30 @@
  *
  * Reduced motion: buka/tutup instan tanpa spring maupun efek dorong.
  */
-import { useCallback, useEffect, useState } from "react"
-import { Dimensions, Pressable, ScrollView, View } from "react-native"
+import { useCallback, useEffect, useRef, useState } from "react"
+import { Dimensions, Pressable, ScrollView, TextInput, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useRouter, type Href } from "expo-router"
 import { Gesture, GestureDetector } from "react-native-gesture-handler"
 import Reanimated, {
+  FadeIn,
   runOnJS,
   useAnimatedStyle,
   withSpring,
 } from "react-native-reanimated"
 import {
-  Briefcase,
   ChartBar,
+  ChatCircle,
   CrownSimple,
   FileText,
   Gear,
-  Lifebuoy,
+  Headset,
   LinkSimple,
+  MagnifyingGlass,
+  Pencil,
   SignIn,
   Storefront,
+  Ticket,
   User,
   Wallet,
   X,
@@ -54,6 +63,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { Text } from "@/components/ui/text"
 import { api, type UserProfile } from "@/lib/api"
 import { closeDrawer, drawerProgress, useDrawerOpen } from "@/lib/drawer"
+import { openCreateSheet } from "@/lib/create-sheet"
 import { elevationStyle } from "@/lib/elevation"
 import { haptic } from "@/lib/haptics"
 import { useLanguage, translate } from "@/lib/i18n"
@@ -91,11 +101,11 @@ const MAIN_MENU: readonly DrawerMenuItem[] = [
   { id: "reports", label: "Laporan", icon: ChartBar, href: ROUTES.reports(), accessibilityLabel: "Buka laporan saya" },
 ]
 
-/** Menu bawah — urutan sesuai spesifikasi user. */
+/** Menu bawah — revisi 2026-09-28 (permintaan produk). */
 const BOTTOM_MENU: readonly DrawerMenuItem[] = [
-  { id: "settings", label: "Pengaturan", icon: Gear, href: ROUTES.settings, accessibilityLabel: "Buka pengaturan" },
-  { id: "help", label: "Pusat Bantuan", icon: Lifebuoy, href: ROUTES.support, accessibilityLabel: "Buka pusat bantuan" },
-  { id: "business", label: "Bisnis", icon: Briefcase, href: ROUTES.businessVerification, accessibilityLabel: "Buka verifikasi bisnis" },
+  { id: "feedback", label: "Umpan Balik", icon: ChatCircle, href: ROUTES.feedback, accessibilityLabel: "Buka umpan balik" },
+  { id: "live-support", label: "Bantuan Langsung", icon: Headset, href: ROUTES.liveSupport, accessibilityLabel: "Buka bantuan langsung" },
+  { id: "support-tickets", label: "Tiket Bantuan", icon: Ticket, href: ROUTES.support, accessibilityLabel: "Buka tiket bantuan" },
 ]
 
 const SPRING = tokens.motion.spring
@@ -120,6 +130,157 @@ export function DrawerMenuRow({
         {translate(item.label)}
       </Text>
     </PressableScale>
+  )
+}
+
+/**
+ * Utility bar di kaki drawer (revisi 2026-09-28, permintaan produk):
+ *
+ *   [ ⚙ ]  [ 🔍 Pencarian ]  [ ✏ ]
+ *
+ * - Gear → Pengaturan. Pensil → sheet global "Buat baru".
+ * - Pill pencarian EXPANDABLE: ketuk → bar berubah jadi kolom input
+ *   (fade in; reduced motion = instan), submit → /search?q=… , X → tutup.
+ * - Pil hitam mode-aware: `primary` (hitam di light, putih di dark) dengan
+ *   ikon/teks `inverse` — sesuai gambar referensi user.
+ * - Motion saat diklik: PressableScale di tiap tombol + haptic ringan.
+ */
+function DrawerUtilityBar() {
+  useLanguage()
+  const router = useRouter()
+  const { mode: themeMode } = useTheme()
+  const reducedMotion = useReducedMotion()
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [query, setQuery] = useState("")
+  const inputRef = useRef<TextInput>(null)
+
+  const barBg = modes[themeMode].primary
+  const onBar = modes[themeMode].primaryForeground
+
+  // Fokus ke input setelah expand (beri jeda animasi fade-in).
+  useEffect(() => {
+    if (!searchOpen) return
+    const t = setTimeout(
+      () => inputRef.current?.focus(),
+      reducedMotion ? 0 : 160,
+    )
+    return () => clearTimeout(t)
+  }, [searchOpen, reducedMotion])
+
+  const goSettings = useCallback(() => {
+    haptic("select")
+    closeDrawer()
+    router.push(ROUTES.settings)
+  }, [router])
+
+  const openSearch = useCallback(() => {
+    haptic("light")
+    setSearchOpen(true)
+  }, [])
+
+  const closeSearch = useCallback(() => {
+    setSearchOpen(false)
+    setQuery("")
+  }, [])
+
+  const submitSearch = useCallback(() => {
+    const q = query.trim()
+    haptic("select")
+    closeDrawer()
+    closeSearch()
+    router.push(
+      (q ? { pathname: ROUTES.search, params: { q } } : ROUTES.search) as Href,
+    )
+  }, [query, router, closeSearch])
+
+  const openCompose = useCallback(() => {
+    haptic("select")
+    closeDrawer()
+    openCreateSheet()
+  }, [])
+
+  return (
+    <View className="px-5 pb-1 pt-2">
+      <View
+        className="h-14 flex-row items-center rounded-full px-2"
+        style={{ backgroundColor: barBg }}
+        accessibilityRole="toolbar"
+        accessibilityLabel={translate("Aksi cepat")}
+      >
+        {searchOpen ? (
+          <Reanimated.View
+            className="flex-1 flex-row items-center gap-1 pl-2"
+            entering={reducedMotion ? undefined : FadeIn.duration(160)}
+          >
+            <Icon icon={MagnifyingGlass} size="md" tone="inverse" weight="bold" />
+            <TextInput
+              ref={inputRef}
+              value={query}
+              onChangeText={setQuery}
+              onSubmitEditing={submitSearch}
+              returnKeyType="search"
+              placeholder={translate("Cari di Kahade…")}
+              placeholderTextColor={`${onBar}99`}
+              selectionColor={onBar}
+              allowFontScaling
+              maxFontSizeMultiplier={2}
+              className="flex-1 py-2 font-sans-400 text-bodyLarge"
+              style={{ color: onBar }}
+              accessibilityLabel={translate("Kolom pencarian")}
+            />
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Tutup pencarian")}
+              haptic
+              onPress={closeSearch}
+              className="h-10 w-10 items-center justify-center rounded-full"
+            >
+              <Icon icon={X} size="md" tone="inverse" weight="bold" />
+            </PressableScale>
+          </Reanimated.View>
+        ) : (
+          <>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Pengaturan")}
+              haptic
+              onPress={goSettings}
+              className="h-11 w-11 items-center justify-center rounded-full"
+            >
+              <Icon icon={Gear} size="md" tone="inverse" weight="bold" />
+            </PressableScale>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Pencarian")}
+              accessibilityHint={translate("Buka kolom pencarian")}
+              haptic
+              onPress={openSearch}
+              className="flex-1 flex-row items-center justify-center gap-2"
+            >
+              <Icon icon={MagnifyingGlass} size="md" tone="inverse" weight="bold" />
+              <Text
+                variant="body"
+                weight={600}
+                style={{ color: onBar }}
+                numberOfLines={1}
+              >
+                {translate("Pencarian")}
+              </Text>
+            </PressableScale>
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Buat baru")}
+              accessibilityHint={translate("Membuka pilihan: buat karya, buat transaksi, atau isi saldo")}
+              haptic
+              onPress={openCompose}
+              className="h-11 w-11 items-center justify-center rounded-full"
+            >
+              <Icon icon={Pencil} size="md" tone="inverse" weight="bold" />
+            </PressableScale>
+          </>
+        )}
+      </View>
+    </View>
   )
 }
 
@@ -390,6 +551,10 @@ export function AppDrawer() {
               ))}
             </View>
           </ScrollView>
+
+          {/* Utility bar: gear · pill pencarian expandable · pensil
+              (revisi 2026-09-28) — tetap di kaki, tidak ikut scroll. */}
+          <DrawerUtilityBar />
 
           {/* Kaki: ajakan masuk untuk tamu. */}
           {!token ? (

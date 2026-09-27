@@ -52,15 +52,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { Animated, Easing, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { router, type Href } from "expo-router"
+import { type Href } from "expo-router"
 import {
   BellSimple,
   CardsThree,
   ChatCenteredText,
-  Lightning,
   Plus,
   ShoppingBag,
-  Wallet,
 } from "phosphor-react-native"
 
 import { ActionSheet, type ActionSheetItem } from "@/components/ui/action-sheet"
@@ -76,7 +74,7 @@ import { focusRingInset } from "@/lib/focus-ring"
 import { haptic } from "@/lib/haptics"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { translate, useLanguage } from "@/lib/i18n"
-import { ROUTES, TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
+import { TAB_ROUTE_NAMES, type TabRouteName } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { motionDuration, useReducedMotion } from "@/lib/use-reduced-motion"
 
@@ -192,38 +190,13 @@ export function visibleTabBarItems(
 }
 
 /**
- * Isi sheet tombol (+): tiga aksi "membuat sesuatu" yang paling sering
- * dipakai. Dikelompokkan di satu tombol karena ketiganya bukan TEMPAT
- * (tab) melainkan aksi sesekali — menempatkannya sebagai tab membuat bar
- * penuh label yang jarang disentuh.
- *
- * Revisi 2026-09-27 (redesign navigasi mobile): tombol (+) mengambil alih
- * fungsi pensil lama di header Etalase — "Buat Karya" membuka alur buat baru
- * /showcase/create.
+ * Isi sheet "Buat baru" — DIPINDAH ke `@/components/ui/create-sheet`
+ * (2026-09-28) agar reusable dari header Etalase & drawer. Re-export di sini
+ * untuk kompatibilitas (shell-tab-bar); impor lokal untuk pemakaian internal
+ * (`centerAction === true`).
  */
-export const CENTER_ACTION_ITEMS: readonly ActionSheetItem[] = [
-  {
-    key: "create-showcase",
-    label: "Buat Karya",
-    description: "Unggah karya atau produk baru ke etalase Anda",
-    icon: CardsThree,
-    onPress: () => router.push(ROUTES.showcaseCreate),
-  },
-  {
-    key: "create-transaction",
-    label: "Buat transaksi",
-    description: "Jual atau beli dengan dana dijaga escrow",
-    icon: Lightning,
-    onPress: () => router.push(ROUTES.createTransaction),
-  },
-  {
-    key: "topup",
-    label: "Isi saldo dompet",
-    description: "Top up lewat bank, QRIS, atau gerai ritel",
-    icon: Wallet,
-    onPress: () => router.push(ROUTES.topup),
-  },
-]
+import { CENTER_ACTION_ITEMS as CREATE_ITEMS } from "@/components/ui/create-sheet"
+export { CENTER_ACTION_ITEMS } from "@/components/ui/create-sheet"
 
 export type BottomTabCenter = {
   icon: IconComponent
@@ -506,7 +479,7 @@ export function BottomTabBar<K extends string = string>({
   const actions = center
     ? undefined
     : centerAction === true
-      ? CENTER_ACTION_ITEMS
+      ? CREATE_ITEMS
       : centerAction
         ? centerAction
         : undefined
