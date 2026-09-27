@@ -55,6 +55,10 @@ import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TopupStatusCard, type PaymentStatus } from "@/components/ui/topup-status-card"
 import { TransactionSummary } from "@/components/ui/transaction-summary"
+import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
+import { shareReceipt } from "@/components/receipt/shareReceipt"
+import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
+import { makeReceiptId, type ReceiptStatus } from "@/lib/receipt"
 import { useToast } from "@/components/ui/toast"
 import { mapValue } from "@/lib/has-own"
 import { translate } from "@/lib/i18n/translate"
@@ -125,6 +129,10 @@ export default function TopupScreen() {
   // Progress bar — nilai kontinu mengikuti langkah aktif (register-style).
   const stepIndex: Record<Step, number> = { amount: 1, method: 2, result: 3 }
   const progress = stepIndex[step] / TOTAL_STEPS
+
+  // QR verifikasi struk top-up — defensif: null = tiket tanpa QR (lib/receipt).
+  const topupTicketRef = useRef<View | null>(null)
+  const topupQr = useReceiptQr("TOPUP", result?.paymentTxId)
 
   useEffect(() => {
     if (methods.length === 0) return
@@ -468,14 +476,53 @@ export default function TopupScreen() {
           >
             <FadeIn duration="fast">
               <View className="gap-4">
-                <TopupStatusCard
-                  status={
-                    mapValue(
-                      STATUS,
-                      result?.status,
-                      result?.status === "PENDING" ? "PENDING" : "UNKNOWN",
+                {(() => {
+                  // Status final (SUCCESS/FAILED/EXPIRED/CANCELLED) → struk
+                  // tiket; instruksi pembayaran (PENDING) tetap di
+                  // TopupStatusCard.
+                  const finalStatus = mapValue(STATUS, result?.status, undefined)
+                  if (finalStatus) {
+                    const ok = finalStatus === "SUCCESS"
+                    const receiptStatus: ReceiptStatus = ok ? "SUCCESS" : "FAILED"
+                    const methodLabel =
+                      methods.find((m) => m.id === (result?.method ?? methodId))?.name ??
+                      result?.method ??
+                      ""
+                    return (
+                      <ReceiptTicket
+                        status={receiptStatus}
+                        title={ok ? "Top-up berhasil" : "Top-up gagal"}
+                        amount={result?.grossAmount ?? result?.amount ?? amount}
+                        // Dana masuk — hijau, konsisten dengan baris riwayat.
+                        amountTone={ok ? "success" : "primary"}
+                        rows={[
+                          ...(methodLabel
+                            ? [{ label: "Metode pembayaran", value: methodLabel }]
+                            : []),
+                          ...(result?.paymentCode
+                            ? [{ label: "Kode pembayaran", value: result.paymentCode, mono: true }]
+                            : []),
+                          ...(result?.reference
+                            ? [{ label: "Referensi", value: result.reference, mono: true }]
+                            : []),
+                        ]}
+                        receiptId={result?.paymentTxId ?? makeReceiptId()}
+                        qrDataUrl={topupQr}
+                        ticketRef={topupTicketRef}
+                        onShare={() => void shareReceipt(topupTicketRef.current)}
+                        onCopyReceiptId={(id) => void copy(id)}
+                      />
                     )
                   }
+                  return (
+                    <TopupStatusCard
+                      status={
+                        mapValue(
+                          STATUS,
+                          result?.status,
+                          result?.status === "PENDING" ? "PENDING" : "UNKNOWN",
+                        )
+                      }
                   // WF-008 (Batch 1-money): tampilkan total tagihan SEBENARNYA
                   // dari server (grossAmount = nominal + fee channel), bukan
                   // rekonstruksi client. Estimasi client hanya dipakai di
@@ -501,7 +548,9 @@ export default function TopupScreen() {
                   }}
                   onCopy={(value) => void copy(value)}
                   copied={copied}
-                />
+                    />
+                  )
+                })()}
                 {pollStopped && !mapValue(STATUS, result?.status, undefined) ? (
                   <Alert tone="info" title="Pemantauan otomatis dihentikan">
                     Status tidak lagi diperbarui otomatis setelah 15 menit. Pembayaran yang masuk

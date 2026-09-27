@@ -57,8 +57,13 @@ export function WalletHistoryScreen({ kind }: { kind: "topup" | "withdraw" }) {
           />
         }
         renderItem={({ item }) => (
+          // Gaya "vivid" (permintaan produk 2026-09-27): ikon berwarna
+          // mengikuti status (hijau sukses, kuning proses, merah gagal),
+          // nominal tegas (hijau masuk / merah keluar), tanggal selalu WIB
+          // (konsisten — lihat UI-W001 di wallet-transaction-row).
           <WalletTransactionRow
             transaction={item}
+            vivid
             onPress={() => router.push(ROUTES.walletTransaction(item.id))}
           />
         )}

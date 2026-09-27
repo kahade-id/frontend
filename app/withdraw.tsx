@@ -49,7 +49,6 @@ import { FadeIn } from "@/components/ui/fade-in"
 import { HEADER_BAR_HEIGHT, Header } from "@/components/ui/header"
 import { Heading } from "@/components/ui/heading"
 import { KeyboardAvoiding } from "@/components/ui/keyboard-avoiding"
-import { KeyValue } from "@/components/ui/key-value"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OtpInput } from "@/components/ui/otp-input"
 import { PinInput } from "@/components/ui/pin-input"
@@ -57,7 +56,10 @@ import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Screen } from "@/components/ui/screen"
 import { Text } from "@/components/ui/text"
 import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
-import { TransactionSummary } from "@/components/ui/transaction-summary"
+import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
+import { shareReceipt } from "@/components/receipt/shareReceipt"
+import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
+import { makeReceiptId, type ReceiptStatus } from "@/lib/receipt"
 import { useToast } from "@/components/ui/toast"
 import { translate } from "@/lib/i18n/translate"
 
@@ -200,6 +202,10 @@ export default function WithdrawScreen() {
 
   const stepIndex: Record<Step, number> = { amount: 1, verify: 2, done: 3 }
   const progress = stepIndex[step] / TOTAL_STEPS
+
+  // QR verifikasi struk penarikan — defensif: null = tiket tanpa QR (lib/receipt).
+  const withdrawTicketRef = useRef<View | null>(null)
+  const withdrawQr = useReceiptQr("WITHDRAWAL", result?.txId ?? txId)
 
   const canContinueAmount =
     isValidAmount(amount, withdrawLimits) &&
@@ -494,32 +500,44 @@ export default function WithdrawScreen() {
           >
             <FadeIn duration="fast">
               <View className="gap-4">
-                <TransactionSummary
-                  label={
-                    walletTransactionStatus(result?.status) === "SUCCESS"
-                      ? "Penarikan berhasil"
-                      : walletTransactionStatus(result?.status) === "FAILED"
-                        ? "Penarikan gagal"
-                        : "Permintaan diterima"
-                  }
-                  amount={amount}
-                  amountTone={
-                    walletTransactionStatus(result?.status) === "SUCCESS"
-                      ? "success"
-                      : walletTransactionStatus(result?.status) === "FAILED"
-                        ? "danger"
-                        : "primary"
-                  }
-                  subtitle={
-                    selected
-                      ? `${selected.bankName ?? selected.bankCode} ${maskAccountNumber(selected.accountNumber)} a.n. ${selected.accountName ?? "—"}`
-                      : undefined
-                  }
-                >
-                  {result?.txId ? (
-                    <KeyValue label="Nomor referensi" value={result.txId} mono />
-                  ) : null}
-                </TransactionSummary>
+                {(() => {
+                  const doneStatus = walletTransactionStatus(result?.status)
+                  const receiptStatus: ReceiptStatus =
+                    doneStatus === "SUCCESS"
+                      ? "SUCCESS"
+                      : doneStatus === "FAILED"
+                        ? "FAILED"
+                        : "PENDING"
+                  return (
+                    <ReceiptTicket
+                      status={receiptStatus}
+                      title={
+                        doneStatus === "SUCCESS"
+                          ? "Penarikan berhasil"
+                          : doneStatus === "FAILED"
+                            ? "Penarikan gagal"
+                            : "Permintaan diterima"
+                      }
+                      amount={amount}
+                      // Uang keluar — merah, konsisten dengan baris riwayat.
+                      amountTone="danger"
+                      rows={
+                        selected
+                          ? [
+                              {
+                                label: "Rekening tujuan",
+                                value: `${selected.bankName ?? selected.bankCode} ${maskAccountNumber(selected.accountNumber)} a.n. ${selected.accountName ?? "—"}`,
+                              },
+                            ]
+                          : []
+                      }
+                      receiptId={result?.txId ?? txId ?? makeReceiptId()}
+                      qrDataUrl={withdrawQr}
+                      ticketRef={withdrawTicketRef}
+                      onShare={() => void shareReceipt(withdrawTicketRef.current)}
+                    />
+                  )
+                })()}
 
                 <Text variant="body" tone="secondary" className="text-pretty">
                   {walletTransactionStatus(result?.status) === "SUCCESS"

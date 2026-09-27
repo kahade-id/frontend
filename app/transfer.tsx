@@ -49,6 +49,10 @@ import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
 import { TransactionProgressOverlay } from "@/components/ui/transaction-progress-overlay"
 import { TransactionSummary } from "@/components/ui/transaction-summary"
+import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
+import { shareReceipt } from "@/components/receipt/shareReceipt"
+import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
+import { makeReceiptId, type ReceiptStatus } from "@/lib/receipt"
 import {
   TransferRecipientPicker,
   type TransferRecipient,
@@ -197,6 +201,21 @@ export default function TransferScreen() {
     },
     [togglingFavoriteId, favoritesQuery.data, favoritesQuery.refresh, toast],
   )
+  // QR verifikasi struk transfer — defensif: null = tiket tanpa QR (lib/receipt).
+  const ticketRef = useRef<View | null>(null)
+  const transferQr = useReceiptQr("TRANSFER", txId)
+  const transferReceiptStatus: ReceiptStatus =
+    walletTransactionStatus(transferStatus) === "SUCCESS"
+      ? "SUCCESS"
+      : walletTransactionStatus(transferStatus) === "FAILED"
+        ? "FAILED"
+        : "PENDING"
+  const transferReceiptTitle =
+    walletTransactionStatus(transferStatus) === "SUCCESS"
+      ? "Transfer berhasil"
+      : walletTransactionStatus(transferStatus) === "FAILED"
+        ? "Transfer gagal"
+        : "Transfer diajukan"
   // Sub-langkah di dalam langkah "form": penerima dulu, baru nominal.
   const [formSubStep, setFormSubStep] = useState<"recipient" | "amount">("recipient")
   const stepIndex: Record<Step, number> = { form: 1, confirm: 2, pin: 2, done: 3 }
@@ -574,31 +593,28 @@ export default function TransferScreen() {
           >
             <FadeIn duration="fast">
               <View className="gap-4">
-                <TransactionSummary
-                  label={
-                    walletTransactionStatus(transferStatus) === "SUCCESS"
-                      ? "Transfer berhasil"
-                      : walletTransactionStatus(transferStatus) === "FAILED"
-                        ? "Transfer gagal"
-                        : "Transfer diajukan"
-                  }
+                <ReceiptTicket
+                  status={transferReceiptStatus}
+                  title={transferReceiptTitle}
                   amount={amount}
-                  amountTone={
-                    walletTransactionStatus(transferStatus) === "SUCCESS"
-                      ? "success"
-                      : walletTransactionStatus(transferStatus) === "FAILED"
-                        ? "danger"
-                        : "primary"
-                  }
-                  subtitle={selected ? `Ke @${selected.username} · ${selected.name}` : undefined}
-                >
-                  {txId ? <KeyValue label="Nomor transaksi" value={txId} mono /> : null}
-                  {note.trim() ? <KeyValue label="Catatan" value={note.trim()} /> : null}
-                </TransactionSummary>
-                <Text variant="body" tone="secondary" className="text-pretty">
-                  {formatRupiah(amount)} telah dikirim ke @{selected?.username}.
-                  Periksa detail transaksi untuk status terakhir.
-                </Text>
+                  // Uang keluar — merah, konsisten dengan baris riwayat.
+                  amountTone="danger"
+                  rows={[
+                    ...(selected
+                      ? [
+                          {
+                            label: "Penerima",
+                            value: `@${selected.username} · ${selected.name}`,
+                          },
+                        ]
+                      : []),
+                    ...(note.trim() ? [{ label: "Catatan", value: note.trim() }] : []),
+                  ]}
+                  receiptId={txId ?? makeReceiptId()}
+                  qrDataUrl={transferQr}
+                  ticketRef={ticketRef}
+                  onShare={() => void shareReceipt(ticketRef.current)}
+                />
                 {txId ? (
                   <Button
                     variant="secondary"

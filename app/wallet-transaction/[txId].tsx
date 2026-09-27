@@ -1,14 +1,14 @@
 /**
  * Screen — Detail Mutasi Wallet (GET /v1/wallet/transactions/{txId}).
- * KeyValue rows sistem + Amount; PullToRefresh.
+ * Detail dirender sebagai struk tiket (<ReceiptTicket>): header status,
+ * nominal besar, baris label-nilai, ID mutasi mono, QR verifikasi.
  */
 
 import { Crossfade } from "@/components/ui/fade-in"
 import { DetailLoading } from "@/components/ui/paginated-list"
-import { Pressable, View } from "react-native"
+import { View } from "react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { Wallet as WalletIcon } from "phosphor-react-native"
 
 import { api } from "@/lib/api"
 import type { WalletTransaction } from "@/lib/api/wallet"
@@ -25,22 +25,28 @@ import {
   walletTransactionType,
   isWalletCredit,
 } from "@/lib/wallet-labels"
+import { useCopy } from "@/lib/clipboard"
+import type { ReceiptStatus } from "@/lib/receipt"
 
-import { Amount } from "@/components/ui/amount"
-import { Card } from "@/components/ui/card"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
-import { IconBox } from "@/components/ui/icon-box"
-import { KeyValue } from "@/components/ui/key-value"
 import { PullToRefresh } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
-import { StatusIndicator } from "@/components/ui/status-indicator"
-import { Text } from "@/components/ui/text"
+import { TextLink } from "@/components/ui/text-link"
+import { ReceiptTicket, type ReceiptRow } from "@/components/receipt/ReceiptTicket"
+import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
 import { mapValue } from "@/lib/has-own"
+
+function toReceiptStatus(status: string): ReceiptStatus {
+  if (status === "SUCCESS") return "SUCCESS"
+  if (status === "FAILED") return "FAILED"
+  return "PENDING"
+}
 
 export default function WalletTransactionScreen() {
   const { txId } = useLocalSearchParams<{ txId: string }>()
   const insets = useSafeAreaInsets()
+  const { copy } = useCopy()
 
   /**
    * `useApiQuery`, bukan rakitan useState/useEffect: request dibatalkan saat
@@ -54,6 +60,8 @@ export default function WalletTransactionScreen() {
     Boolean(txId),
   )
   const txn = query.data
+  // QR verifikasi struk — defensif: null = tiket tanpa QR (lihat lib/receipt).
+  const qrDataUrl = useReceiptQr("WALLET_TX", txn?.id)
 
   const status = walletTransactionStatus(txn?.status)
   const direction = txn ? walletTransactionType(txn) : "UNKNOWN"
@@ -71,55 +79,53 @@ export default function WalletTransactionScreen() {
       >
         <Crossfade loading={query.loading} skeleton={<DetailLoading />}>
           {query.error || !txn ? (
-          <ErrorState
-            title="Gagal memuat"
-            description={query.error ?? "Mutasi tidak ditemukan."}
-            onRetry={() => void query.reload()}
-          />
-        ) : (
-          <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
-            <Card padded className="items-center gap-3">
-              <IconBox
-                icon={WalletIcon}
-                size="lg"
-                variant={status === "FAILED" ? "danger" : "surface"}
-              />
-              <Amount
-                value={direction === "DEBIT" ? -Math.abs(txn.amount) : Math.abs(txn.amount)}
-                size="large"
-                sign={
-                  direction === "UNKNOWN" ? "never" : direction === "CREDIT" ? "always" : "auto"
-                }
-                tone={
-                  status !== "SUCCESS" ? "secondary" : isWalletCredit(txn) ? "success" : "primary"
-                }
-              />
-              {status === "PENDING" ? (
-                <StatusIndicator label="Menunggu" tone="warning" size="sm" />
-              ) : status === "FAILED" ? (
-                <StatusIndicator label="Gagal" tone="danger" size="sm" />
-              ) : null}
-            </Card>
-
-            <Card padded className="gap-3">
-              <KeyValue label="Jenis" value={mapValue(WALLET_TXN_LABELS, txn.type, txn.type)} />
-              <KeyValue
-                label="Status"
-                // R2 (audit ronde-2, butir #80): enum mentah tidak dipaparkan;
-                // nilai tak dikenal tetap lolos apa adanya (pola mapValue).
-                value={
-                  txn.status
-                    ? mapValue(WALLET_TXN_STATUS_LABELS, txn.status, txn.status)
-                    : "Status belum tersedia"
-                }
-              />
-              <KeyValue label="Waktu" value={formatDateTimeWIB(txn.createdAt)} />
+            <ErrorState
+              title="Gagal memuat"
+              description={query.error ?? "Mutasi tidak ditemukan."}
+              onRetry={() => void query.reload()}
+            />
+          ) : (
+            <View className="gap-4" style={{ paddingTop: tokens.space[3] }}>
+              {(() => {
+                const rows: ReceiptRow[] = [
+                  { label: "Jenis", value: mapValue(WALLET_TXN_LABELS, txn.type, txn.type) },
+                  {
+                    label: "Status",
+                    // R2 (audit ronde-2, butir #80): enum mentah tidak dipaparkan;
+                    // nilai tak dikenal tetap lolos apa adanya (pola mapValue).
+                    value: txn.status
+                      ? mapValue(WALLET_TXN_STATUS_LABELS, txn.status, txn.status)
+                      : "Status belum tersedia",
+                  },
+                  { label: "Waktu", value: formatDateTimeWIB(txn.createdAt) },
+                  ...(txn.referenceId
+                    ? [{ label: "Referensi", value: shortId(txn.referenceId), mono: true }]
+                    : []),
+                  ...(txn.description ? [{ label: "Deskripsi", value: txn.description }] : []),
+                ]
+                return (
+                  <ReceiptTicket
+                    status={toReceiptStatus(status)}
+                    title={mapValue(WALLET_TXN_LABELS, txn.type, txn.type)}
+                    amount={direction === "DEBIT" ? -Math.abs(txn.amount) : Math.abs(txn.amount)}
+                    amountTone={
+                      status !== "SUCCESS"
+                        ? "primary"
+                        : isWalletCredit(txn)
+                          ? "success"
+                          : "danger"
+                    }
+                    rows={rows}
+                    receiptId={txn.id}
+                    qrDataUrl={qrDataUrl}
+                    onCopyReceiptId={(id) => void copy(id)}
+                  />
+                )
+              })()}
               {txn.referenceId ? (
                 // R2 (audit ronde-2, butir #81): referensi mutasi escrow adalah
                 // TAUTAN ke entitas terkait, bukan jalan buntu salin-tempel.
-                <Pressable
-                  accessibilityRole="link"
-                  accessibilityLabel={translate("Buka referensi {x}", { x: txn.referenceId })}
+                <TextLink
                   onPress={() => {
                     router.push(
                       txn.type === "DISPUTE_RELEASE"
@@ -127,25 +133,11 @@ export default function WalletTransactionScreen() {
                         : ROUTES.orderDetail(txn.referenceId!),
                     )
                   }}
-                  className="flex-row items-center justify-between gap-2"
+                  accessibilityLabel={translate("Buka referensi {x}", { x: txn.referenceId })}
                 >
-                  <Text variant="body" tone="secondary">
-                    Referensi
-                  </Text>
-                  <Text variant="monoBody" tone="primary" numberOfLines={1}>
-                    {shortId(txn.referenceId)} ›
-                  </Text>
-                </Pressable>
+                  {translate("Buka referensi {x}", { x: shortId(txn.referenceId) })}
+                </TextLink>
               ) : null}
-              {txn.description ? <KeyValue label="Deskripsi" value={txn.description} /> : null}
-            </Card>
-
-            <Text variant="caption" tone="tertiary" className="text-center">
-              ID mutasi:{" "}
-              <Text variant="monoBody" selectable>
-                {txn.id}
-              </Text>
-            </Text>
             </View>
           )}
         </Crossfade>

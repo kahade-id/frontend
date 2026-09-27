@@ -18,12 +18,18 @@ export function WalletTransactionRow({
   onPress,
   href,
   divider = true,
+  vivid = false,
 }: {
   transaction: WalletTransaction
   onPress?: () => void
   /** Rute detail transaksi — membuat baris jadi tautan nyata di web. */
   href?: Href
   divider?: boolean
+  /**
+   * Gaya "vivid" (permintaan produk 2026-09-27): ikon berwarna mengikuti
+   * status, nominal tegas hijau masuk / merah keluar. Dipakai layar riwayat.
+   */
+  vivid?: boolean
 }) {
   return (
     <WalletTransactionListItem
@@ -53,6 +59,7 @@ export function WalletTransactionRow({
       statusLabel={walletStatusLabel(tx.status)}
       timestamp={formatDateTimeWIB(tx.createdAt)}
       reference={tx.referenceId ?? undefined}
+      statusAccent={vivid}
       onPress={onPress}
       href={href}
       divider={divider}

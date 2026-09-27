@@ -98,6 +98,10 @@ import {
 import { SectionHeader } from "@/components/ui/section"
 import { MilestoneSection } from "@/components/order-milestones"
 import { ShippingInfoCard } from "@/components/ui/shipping-info-card"
+import { ReceiptTicket } from "@/components/receipt/ReceiptTicket"
+import { shareReceipt } from "@/components/receipt/shareReceipt"
+import { useReceiptQr } from "@/components/receipt/use-receipt-qr"
+import { shortId } from "@/lib/short-id"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
 import { useToast } from "@/components/ui/toast"
@@ -243,6 +247,10 @@ export default function OrderDetailScreen() {
     Boolean(id),
   )
   const order = query.data?.order ?? null
+  // QR verifikasi struk bukti pembayaran — defensif: null = tiket tanpa QR
+  // (lib/receipt). Hook selalu dipanggil; referenceId null = tidak fetch.
+  const orderTicketRef = useRef<View | null>(null)
+  const orderPaymentQr = useReceiptQr("ORDER_PAYMENT", order?.id ?? null)
   // R2 (audit ronde-2, butir #21): status pihak lawan (bayar/kirim/konfirmasi)
   // menyegar otomatis tiap 15 detik selama layar terbuka — tanpa pull-to-
   // refresh. Order status terminal berhenti dipoll. Galat ditelan oleh
@@ -789,6 +797,30 @@ export default function OrderDetailScreen() {
               buyerPays={fee.buyerPays}
               sellerGets={fee.sellerReceives}
             />
+          ) : null}
+
+          {/* Bukti pembayaran — struk tiket. Hanya tampil bila order sudah
+              dibayar (`paidAt` ada); logika order tidak diubah. */}
+          {order.paidAt ? (
+            <>
+              <SectionHeader title="Bukti pembayaran" />
+              <ReceiptTicket
+                status={order.status === "CANCELLED" ? "REFUND" : "SUCCESS"}
+                title={`Pembayaran order #${shortId(order.id)}`}
+                amount={fee?.buyerPays ?? order.orderValue}
+                amountTone="success"
+                rows={[
+                  {
+                    label: "Waktu bayar",
+                    value: formatDateTimeWIB(order.paidAt),
+                  },
+                ]}
+                receiptId={order.id}
+                qrDataUrl={orderPaymentQr}
+                ticketRef={orderTicketRef}
+                onShare={() => void shareReceipt(orderTicketRef.current)}
+              />
+            </>
           ) : null}
 
           {/* Escrow bertahap (GAP-C): hanya tampil bila order punya milestone.

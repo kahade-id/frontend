@@ -47,6 +47,7 @@ import type { IconComponent } from "@/components/ui/icon"
 import { IconBox } from "@/components/ui/icon-box"
 import { ListItem, type ListItemProps } from "@/components/ui/list-item"
 import { StatusIndicator } from "@/components/ui/status-indicator"
+import { cn } from "@/lib/cn"
 import { truncateMiddle } from "@/lib/format"
 
 export type WalletTxType = "CREDIT" | "DEBIT" | "UNKNOWN"
@@ -123,6 +124,13 @@ export type WalletTransactionListItemProps = Omit<
   timestamp?: string
   /** Nomor referensi / ID transaksi — dirender Mono, dipotong di tengah */
   reference?: string
+  /**
+   * Gaya "vivid" (permintaan produk 2026-09-27, layar riwayat): ikon berwarna
+   * mengikuti STATUS (hijau sukses, kuning proses, merah gagal) dan nominal
+   * tegas (hijau masuk / merah keluar, semibold). Default false = gaya lama
+   * (ikon monokrom, DEBIT netral) yang tetap dipakai overview & pencarian.
+   */
+  statusAccent?: boolean
   labels?: Partial<WalletTransactionListItemLabels>
 }
 
@@ -135,6 +143,7 @@ export function WalletTransactionListItem({
   statusLabel = "Status belum tersedia",
   timestamp,
   reference,
+  statusAccent = false,
   labels,
   onPress,
   href,
@@ -144,11 +153,38 @@ export function WalletTransactionListItem({
   const t = { ...DEFAULT_LABELS, ...labels }
   const isCredit = type === "CREDIT"
   const failed = status === "FAILED"
+  const pending = status === "PENDING"
+  const succeeded = status === "SUCCESS"
   const signed = isCredit
     ? Math.abs(amount)
     : type === "DEBIT"
       ? -Math.abs(amount)
       : Math.abs(amount)
+
+  // Gaya vivid: ikon mengikuti status; default: monokrom (kategori ≠ status).
+  const iconVariant = statusAccent
+    ? failed
+      ? "danger"
+      : pending
+        ? "warning"
+        : succeeded
+          ? "success"
+          : "surface"
+    : failed
+      ? "danger"
+      : "surface"
+
+  // Gaya vivid: nominal tegas — hijau masuk, merah keluar. Default: DEBIT
+  // netral (uang keluar yang disengaja bukan kabar buruk).
+  const amountTone = statusAccent
+    ? isCredit
+      ? "success"
+      : "danger"
+    : status !== "SUCCESS"
+      ? "secondary"
+      : isCredit
+        ? "success"
+        : "primary"
 
   const subtitle = [timestamp, reference ? truncateMiddle(reference, 6, 4) : undefined]
     .filter(Boolean)
@@ -173,15 +209,15 @@ export function WalletTransactionListItem({
     <ListItem
       title={title}
       subtitle={subtitle || undefined}
-      leading={<IconBox icon={KIND_ICON[kind]} size="md" variant={failed ? "danger" : "surface"} />}
+      leading={<IconBox icon={KIND_ICON[kind]} size="md" variant={iconVariant} />}
       trailing={
         <View className="items-end gap-1 tabular-nums">
           <Amount
             value={signed}
             size="body"
             sign={type === "UNKNOWN" ? "never" : isCredit ? "always" : "auto"}
-            tone={status !== "SUCCESS" ? "secondary" : isCredit ? "success" : "primary"}
-            className={failed ? "line-through" : undefined}
+            tone={amountTone}
+            className={cn(failed && "line-through", statusAccent && "font-sans-600")}
           />
           {status === "PENDING" ? (
             <StatusIndicator label={t.pending} tone="warning" size="sm" />
