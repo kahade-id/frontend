@@ -3,6 +3,9 @@
  *
  * - `ProductBadges`: GET /v1/commerce/products/:id/badges (publik) —
  *   chip TERLARIS / DISKON. Gagal fetch = tidak render (bukan error).
+ * - `CommerceBadgesCompact`: versi ringkas untuk kartu feed — dipakai di
+ *   sebelah badge kategori, HANYA untuk item dengan `orderLink` (produk
+ *   commerce). Cache modul-level agar feed tidak N+1 request.
  * - `DiscountPrice`: harga coret dari cache sesi (hanya pemilik yang pernah
  *   PATCH di sesi ini — backend belum expose via serializer publik, jadi
  *   tidak ada data = tidak ditampilkan, bukan ditebak).
@@ -67,6 +70,61 @@ export function ProductBadges({ showcaseId }: { showcaseId: string }) {
         </Badge>
       ) : null}
     </View>
+  )
+}
+
+/**
+ * Cache modul-level untuk badge kartu feed — satu produk satu request per
+ * sesi, tidak N+1 setiap kartu re-render.
+ */
+const compactBadgeCache = new Map<string, string[]>()
+const compactBadgeInflight = new Map<string, Promise<string[]>>()
+
+/**
+ * Chip TERLARIS / DISKON ringkas untuk kartu feed (batch 43, item "badge
+ * commerce pada kartu/feed"). Render HANYA bila pemanggil memastikan item
+ * adalah produk commerce (`orderLink` ada) — endpoint publik, gagal = diam.
+ */
+export function CommerceBadgesCompact({ showcaseId }: { showcaseId: string }) {
+  const [badges, setBadges] = useState<string[] | null>(
+    () => compactBadgeCache.get(showcaseId) ?? null,
+  )
+
+  useEffect(() => {
+    if (compactBadgeCache.has(showcaseId)) return
+    let alive = true
+    let pending = compactBadgeInflight.get(showcaseId)
+    if (!pending) {
+      pending = api.commerce
+        .getProductBadges(showcaseId)
+        .then((b) => b?.badges ?? [])
+        .catch(() => [])
+      compactBadgeInflight.set(showcaseId, pending)
+    }
+    pending.then((list) => {
+      compactBadgeCache.set(showcaseId, list)
+      compactBadgeInflight.delete(showcaseId)
+      if (alive) setBadges(list)
+    })
+    return () => {
+      alive = false
+    }
+  }, [showcaseId])
+
+  if (!badges || badges.length === 0) return null
+  return (
+    <>
+      {badges.includes("TERLARIS") ? (
+        <Badge tone="warning" icon={Flame}>
+          {translate("Terlaris")}
+        </Badge>
+      ) : null}
+      {badges.includes("DISKON") ? (
+        <Badge tone="danger" icon={Tag}>
+          {translate("Diskon")}
+        </Badge>
+      ) : null}
+    </>
   )
 }
 

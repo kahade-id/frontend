@@ -49,6 +49,7 @@ import { useHasSession } from "@/lib/guest-gate"
 import { showcaseMedia } from "@/lib/showcase-social"
 import { useReducedMotion } from "@/lib/use-reduced-motion"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
+import { CommerceBadgesCompact } from "@/components/showcase/product-commerce-section"
 import { ROUTES } from "@/lib/routes"
 
 import { Avatar } from "@/components/ui/avatar"
@@ -377,19 +378,24 @@ function ShowcaseFeedItemBase({
           & iOS `accessible` induk menyembunyikan tombol kategori dari
           VoiceOver. */}
       <View className="gap-1 px-5 pt-3">
-        {item.category ? (
+        {item.category || item.orderLink ? (
           <View className="flex-row flex-wrap items-center gap-2">
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={translate("Filter kategori {x}", { x: item.category })}
-              accessibilityHint={translate("Tampilkan feed kategori ini")}
-              onPress={handleCategoryPress}
-              containerClassName={cn("rounded-sm", focusRing)}
-            >
-              <Text variant="caption" tone="secondary" numberOfLines={1}>
-                {item.category}
-              </Text>
-            </PressableScale>
+            {item.category ? (
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={translate("Filter kategori {x}", { x: item.category })}
+                accessibilityHint={translate("Tampilkan feed kategori ini")}
+                onPress={handleCategoryPress}
+                containerClassName={cn("rounded-sm", focusRing)}
+              >
+                <Text variant="caption" tone="secondary" numberOfLines={1}>
+                  {item.category}
+                </Text>
+              </PressableScale>
+            ) : null}
+            {/* Batch 43: badge commerce (Terlaris/Diskon) di kartu feed —
+                hanya untuk produk commerce (orderLink ada). */}
+            {item.orderLink ? <CommerceBadgesCompact showcaseId={item.id} /> : null}
           </View>
         ) : null}
         <PressableScale
