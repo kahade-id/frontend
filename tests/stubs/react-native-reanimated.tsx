@@ -116,6 +116,24 @@ export function useSharedValue<T>(initial: T): { value: T } {
 }
 
 /**
+ * `makeMutable` — shared value di luar React (dipakai lib/drawer.ts untuk
+ * `drawerProgress`). Semantik sama dengan useSharedValue: penulisan
+ * membangunkan pemakai yang berlangganan.
+ */
+export function makeMutable<T>(initial: T): { value: T } {
+  let current = initial
+  return {
+    get value() {
+      return current
+    },
+    set value(next: T) {
+      current = next
+      notify()
+    },
+  }
+}
+
+/**
  * Dipanggil setiap render — nilai shared terbaca apa adanya. Komponen pemanggil
  * ikut berlangganan notifikasi: di runtime asli shared value memperbarui view
  * native langsung, di sini perubahan nilai memicu render ulang komponen yang

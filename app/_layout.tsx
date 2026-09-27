@@ -27,6 +27,7 @@ import "../global.css"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { AppState, Linking, Platform, View } from "react-native"
 import { GestureHandlerRootView } from "react-native-gesture-handler"
+import Reanimated, { useAnimatedStyle } from "react-native-reanimated"
 import { Stack, usePathname, useRouter } from "expo-router"
 import { StatusBar } from "expo-status-bar"
 import * as SplashScreen from "expo-splash-screen"
@@ -66,8 +67,9 @@ import { consumeOtaUpdateNotice } from "@/lib/ota-notice"
 import { translate } from "@/lib/i18n/translate"
 import { getLanguage, subscribeLanguage } from "@/lib/i18n/store"
 import { AppLockGate } from "@/components/app-lock-gate"
-import { ShellTabBar } from "@/components/ui/shell-tab-bar"
-import { resolveShellBar, useAppMode } from "@/lib/app-mode"
+import { ShellTabBar, isShellTabPath } from "@/components/ui/shell-tab-bar"
+import { AppDrawer } from "@/components/ui/app-drawer"
+import { drawerProgress } from "@/lib/drawer"
 import { useToast } from "@/components/ui/toast"
 
 export { AppErrorBoundary as ErrorBoundary } from "@/components/app-error-boundary"
@@ -210,6 +212,20 @@ function AppShell() {
   const session = useAuthSession()
   const reducedMotion = useReducedMotion()
   const [skipRestoreError, setSkipRestoreError] = useState(false)
+
+  // Efek dorong konten ala X saat drawer dibuka (2026-09-27): konten sedikit
+  // bergeser kanan + mengecil dengan sudut membulat, mengikuti progress
+  // animasi drawer (`drawerProgress`). Reduced motion: tanpa transform.
+  const drawerContentStyle = useAnimatedStyle(() => {
+    "worklet"
+    if (reducedMotion) return {}
+    const p = drawerProgress.value
+    return {
+      transform: [{ translateX: p * 48 }, { scale: 1 - p * 0.05 }],
+      borderRadius: p * 24,
+      overflow: "hidden" as const,
+    }
+  }, [reducedMotion])
 
   // Web guest mode: seluruh Stack terdaftar (guard tak pernah mencabut
   // layar), lalu tamu tanpa akun yang membuka layar ber-auth melihat
@@ -443,6 +459,18 @@ function AppShell() {
         */}
         <RealtimeProvider token={session.token}>
         <View className="flex-1 items-center">
+          {/*
+            Efek dorong konten ala X saat drawer dibuka (2026-09-27):
+            konten sedikit bergeser kanan + mengecil dengan sudut membulat.
+            Progress dibaca dari `drawerProgress` (ditulis komponen drawer).
+            Reduced motion: tanpa transform.
+          */}
+          <Reanimated.View
+            style={[
+              { flex: 1, width: "100%", alignItems: "center" },
+              drawerContentStyle,
+            ]}
+          >
           <ContentContainer bordered>
             <PortalScene>
               {session.restoring ? (
@@ -501,6 +529,12 @@ function AppShell() {
             <PersistentShellBar />
             <PortalHost />
           </ContentContainer>
+          </Reanimated.View>
+          {/*
+            Drawer/sidebar navigasi (2026-09-27): overlay di atas konten,
+            di bawah AppLockGate — kunci aplikasi tetap menutupi semuanya.
+          */}
+          <AppDrawer />
           {/* A-04 (audit): kunci aplikasi (§14 re-auth setelah background >1
               menit). Dirender SETELAH konten agar menutupi seluruh tree saat
               terkunci; no-op di web dan tanpa sesi. */}
@@ -562,27 +596,18 @@ function AppShell() {
 }
 
 /**
- * Persistent bottom nav — satu instance untuk semua shell destinations
- * (tab + stack shell seperti /chat, /vouchers, /wallet-history, own profile).
- * Sebelumnya bar dibuat PER HALAMAN (Tabs bar + per-page <ShellTabBar/>),
- * sehingga navigasi antar mode (mis. wallet → history) membuat bar ikut
- * hilang/replace dengan animasi slide. Kini bar hidup di root (di dalam
- * ContentContainer yang sama, di bawah Stack), jadi tetap ada saat Stack
- * berpindah — flow identik etalase↔transaksi yang memang tab. Ditampilkan
- * hanya untuk shell destinations (resolveShellBar !== null) agar layar
- * detail (order, chat room, settings) tidak tertutup.
+ * Persistent bottom nav — satu instance untuk semua halaman tab.
  *
- * `resolveShellBar` — bukan `activeShellSlot` (2026-09-25): halaman milik
- * mode LAIN (mis. /showcase saat preferensi mode = wallet) harus TETAP punya
- * bar. Sebelumnya bar hilang di sana dan sempat berkedip saat hydration
- * (render pertama memakai preferensi default commerce).
+ * Revisi 2026-09-27 (redesign navigasi mobile): bar TETAP berisi
+ * Etalase | Transaksi | (+) | Pesan | Notifikasi — tidak lagi mengikuti mode
+ * aplikasi. Ditampilkan hanya di empat halaman tab persis (`isShellTabPath`)
+ * agar layar detail (order, chat room, settings) tidak tertutup.
  */
 function PersistentShellBar() {
   const pathname = usePathname()
-  const mode = useAppMode()
-  // resolveShellBar mengembalikan null untuk rute non-shell (detail, form,
-  // dll) — bar disembunyikan di sana agar tidak menutupi konten detail.
-  const visible = resolveShellBar(pathname, mode) != null
+  // Bar disembunyikan untuk rute non-tab (detail, form, dll) agar tidak
+  // menutupi konten detail.
+  const visible = isShellTabPath(pathname)
   if (!visible) return null
   return <ShellTabBar />
 }

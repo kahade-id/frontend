@@ -195,12 +195,15 @@ function PillLabel({
   progress,
   inverse,
   secondary,
+  showLabels = false,
 }: {
   label: string
   index: number
   progress: SharedValue<number>
   inverse: SharedValue<string>
   secondary: SharedValue<string>
+  /** Tampilkan label di semua breakpoint (untuk drawer/sidebar). */
+  showLabels?: boolean
 }) {
   useLanguage()
   const style = useAnimatedStyle(() => ({
@@ -216,8 +219,9 @@ function PillLabel({
     // Visibility class ada di <View> biasa, BUKAN di Reanimated.Text: lib
     // Reanimated tidak di-interop NativeWind, className di komponennya tidak
     // pernah menjadi style (pola yang sama dengan thumb). Label hanya tampil
-    // di layar md+ (web/tablet); di ponsel pil tetap ikon-saja.
-    <View className="hidden md:flex">
+    // di layar md+ (web/tablet); di ponsel pil tetap ikon-saja — kecuali
+    // `showLabels` (drawer/sidebar) yang selalu menampilkannya.
+    <View className={showLabels ? "flex" : "hidden md:flex"}>
       <Reanimated.Text
         style={[
           {
@@ -242,7 +246,14 @@ function PillLabel({
   )
 }
 
-export function ModeSwitcher({ className }: { className?: string }) {
+export function ModeSwitcher({
+  className,
+  showLabels = false,
+}: {
+  className?: string
+  /** Selalu tampilkan label segmen (untuk drawer/sidebar). Default false. */
+  showLabels?: boolean
+}) {
   useLanguage()
   const mode = useAppMode()
   const switchMode = useSwitchAppMode()
@@ -375,6 +386,7 @@ export function ModeSwitcher({ className }: { className?: string }) {
               progress={progress}
               inverse={inverse}
               secondary={secondary}
+              showLabels={showLabels}
             />
           </PressableScale>
         )

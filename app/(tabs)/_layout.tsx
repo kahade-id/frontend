@@ -23,9 +23,15 @@ import { useAuthSession } from "@/lib/use-auth-session"
 import { useUnreadCount } from "@/lib/unread-count"
 import { useChatUnreadCount } from "@/lib/chat-unread-count"
 import { registerShellTabNavigator } from "@/lib/app-mode"
-import type { ShellTabNavigation } from "@/components/ui/shell-tab-bar"
 
 type TabsTabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>["tabBar"]>>[0]
+/**
+ * Tipe navigation dari tabBar — dulu diimpor dari shell-tab-bar
+ * (`ShellTabNavigation`); kini didefinisikan lokal karena shell-tab-bar
+ * baru tidak lagi mengekspornya. Dipakai hanya untuk parkir navigator tab
+ * (`parkShellTab`, dipakai logika pindah mode).
+ */
+type ShellTabNavigation = TabsTabBarProps["navigation"]
 
 function TabsRegistrar({ navigation }: { navigation: ShellTabNavigation }) {
   useEffect(() => {

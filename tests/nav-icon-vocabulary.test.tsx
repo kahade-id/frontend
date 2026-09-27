@@ -1,9 +1,12 @@
 /**
- * Kosakata ikon header Etalase & bottom navbar (permintaan produk 2026-09-23).
+ * Kosakata ikon header Etalase & bottom navbar (revisi 2026-09-27, redesign
+ * navigasi mobile).
  *
- *   - Header Etalase: pensil = PencilSimpleLine, lonceng = BellSimple,
- *     keduanya weight regular (bukan bold/fill).
- *   - Bottom navbar: Pesan = ChatCenteredText, History wallet = Scroll.
+ *   - Header Etalase: hamburger = List (buka drawer), cari = MagnifyingGlass,
+ *     keduanya weight regular (bukan bold/fill). Pensil & lonceng DIHAPUS
+ *     dari header (pensil → tombol (+) bar; lonceng → tab Notifikasi).
+ *   - Bottom navbar TETAP: Etalase = CardsThree, Transaksi = ShoppingBag,
+ *     Pesan = ChatCenteredText, Notifikasi = BellSimple.
  *
  * Glif dikunci lewat `data-icon` stub Phosphor, bukan snapshot SVG.
  */
@@ -59,24 +62,22 @@ beforeEach(() => {
 afterEach(cleanup)
 
 describe("kosakata ikon header Etalase", () => {
-  it("pensil & lonceng = PencilSimpleLine / BellSimple, weight regular", () => {
+  it("hamburger & cari = List / MagnifyingGlass, weight regular; tanpa pensil & lonceng", () => {
     render(
       <ThemeProvider>
         <ShowcaseHeader kind="forYou" onKindChange={() => undefined} tabs={TABS} />
       </ThemeProvider>,
     )
 
-    /*
-      Revisi 2026-09-26 (item #10): ikon pensil kini MEMBUKA HALAMAN
-      pembuatan karya (/showcase/create), bukan halaman kelola etalase —
-      jadi labelnya "Buat karya baru". Glifnya tetap PencilSimpleLine.
-    */
-    const manage = iconsIn(screen.getByRole("button", { name: "Buat karya baru" }))
-    const bell = iconsIn(screen.getByRole("button", { name: "Notifikasi" }))
+    const menu = iconsIn(screen.getByRole("button", { name: "Menu" }))
+    const search = iconsIn(screen.getByRole("button", { name: "Cari" }))
 
-    expect(manage).toEqual([{ name: "PencilSimpleLine", weight: "regular" }])
-    expect(bell).toEqual([{ name: "BellSimple", weight: "regular" }])
-    expect(manage.concat(bell).some((icon) => icon.weight === "bold")).toBe(false)
+    expect(menu).toEqual([{ name: "List", weight: "regular" }])
+    expect(search).toEqual([{ name: "MagnifyingGlass", weight: "regular" }])
+    // Pensil pindah ke tombol (+) bar; lonceng pindah ke tab Notifikasi.
+    expect(screen.queryByRole("button", { name: "Buat karya baru" })).toBeNull()
+    expect(screen.queryByRole("button", { name: "Notifikasi" })).toBeNull()
+    expect(menu.concat(search).some((icon) => icon.weight === "bold")).toBe(false)
   })
 })
 
@@ -92,23 +93,21 @@ function renderShell() {
 }
 
 describe("kosakata ikon bottom navbar", () => {
-  it("mode commerce: slot pesan memakai ChatCenteredText", () => {
-    setAppMode("commerce")
-    __setPathname("/showcase")
-    const { container } = renderShell()
-    const names = iconsIn(container).map((icon) => icon.name)
-    expect(names).toContain("ChatCenteredText")
-    expect(names).not.toContain("Chats")
-    expect(names).not.toContain("Scroll")
-  })
-
-  it("mode wallet: slot history memakai Scroll", () => {
-    setAppMode("wallet")
-    __setPathname("/wallet")
-    const { container } = renderShell()
-    const names = iconsIn(container).map((icon) => icon.name)
-    expect(names).toContain("Scroll")
-    expect(names).not.toContain("ClockCounterClockwise")
-    expect(names).not.toContain("ChatCenteredText")
+  it("empat tab memakai CardsThree / ShoppingBag / ChatCenteredText / BellSimple — di kedua mode", () => {
+    for (const mode of ["commerce", "wallet"] as const) {
+      setAppMode(mode)
+      const { container, unmount } = renderShell()
+      const names = iconsIn(container).map((icon) => icon.name)
+      expect(names).toContain("CardsThree")
+      expect(names).toContain("ShoppingBag")
+      expect(names).toContain("ChatCenteredText")
+      expect(names).toContain("BellSimple")
+      // Kosakata lama tidak boleh muncul di bar.
+      expect(names).not.toContain("Wallet")
+      expect(names).not.toContain("Percent")
+      expect(names).not.toContain("Scroll")
+      expect(names).not.toContain("SquaresFour")
+      unmount()
+    }
   })
 })

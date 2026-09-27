@@ -529,16 +529,17 @@ export const ROUTES = {
  *
  * "home" DIHAPUS (2026-09-23): layar Beranda tidak ada lagi — tab pertama
  * kini Etalase (`showcase`) dan URL `/home` diarahkan ke sana lewat
- * redirect `app/home.tsx`.
+ * Struktur baru 2026-09-27 (redesign navigasi mobile): bottom navbar tetap
+ * berisi Etalase | Transaksi | Pesan | Notifikasi (+ tombol tengah). Rute
+ * wallet / vouchers / wallet-history keluar dari grup tab — mereka tetap ada
+ * sebagai layar stack dan dijangkau lewat drawer/sidebar; /more dihapus
+ * (digantikan drawer) dengan redirect `app/more.tsx` untuk deep link lama.
  */
 export const TAB_ROUTE_NAMES = [
   "showcase",
   "transactions",
   "chat",
-  "wallet",
-  "vouchers",
-  "wallet-history",
-  "more",
+  "notifications",
 ] as const
 export type TabRouteName = (typeof TAB_ROUTE_NAMES)[number]
 

@@ -54,14 +54,12 @@ import { Animated, Easing, View, type ViewProps } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { router, type Href } from "expo-router"
 import {
+  BellSimple,
   CardsThree,
   ChatCenteredText,
   Lightning,
-  Percent,
   Plus,
-  Scroll,
   ShoppingBag,
-  SquaresFour,
   Wallet,
 } from "phosphor-react-native"
 
@@ -104,16 +102,12 @@ export type AppTabBarItem = Omit<BottomTabItem<TabRouteName>, "key"> & {
 
 /**
  * SATU sumber kebenaran visual bottom navigation (label + ikon + a11y +
- * rute). Dipakai dua tempat yang HARUS selalu identik:
- *   1. app/(tabs)/_layout.tsx — tab bar utama expo-router.
- *   2. app/user/[username].tsx — <BottomTabBar> kustom yang hanya dirender
- *      saat pengguna melihat profilnya SENDIRI.
+ * rute). Dipakai shell bar utama (components/ui/shell-tab-bar.tsx).
  *
- * Slot "discover" (file app/(tabs)/discover.tsx) dibrandakan ulang sebagai
- * "Profil" (permintaan produk): label/ikon berganti, dan penekanan tab-nya
- * dialihkan ke profil publik milik sendiri (/user/[username]) oleh
- * ShellTabBar — bukan listener tabPress. Layar /discover tetap ada untuk
- * tautan langsung, hanya tidak lagi menjadi tujuan tab.
+ * Struktur baru 2026-09-27 (redesign navigasi mobile): bar TETAP berisi
+ * Etalase | Transaksi | Pesan | Notifikasi (+ tombol tengah). Slot lama
+ * Wallet / Promo / History / Lainnya dihapus dari bar; layar-layar itu tetap
+ * ada sebagai rute stack dan dijangkau lewat drawer/sidebar.
  *
  * Urutan mengikuti TAB_ROUTE_NAMES (guard di bawah mengunci kelengkapan
  * peta terhadap registri rute di compile-time).
@@ -122,26 +116,17 @@ export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
   // "home" DIHAPUS (2026-09-23): layar Beranda sudah tidak ada — tab pertama
   // kini Etalase (entri `showcase` di bawah), dan URL /home di-redirect ke
   // sana (app/home.tsx).
+  showcase: {
+    label: "Etalase",
+    icon: CardsThree,
+    accessibilityLabel: "Tab Etalase",
+    route: "/showcase" as Href,
+  },
   transactions: {
     label: "Transaksi",
     icon: ShoppingBag,
     accessibilityLabel: "Tab Transaksi",
     route: "/transactions" as Href,
-  },
-  wallet: {
-    label: "Dompet",
-    icon: Wallet,
-    accessibilityLabel: "Tab Dompet",
-    route: "/wallet" as Href,
-  },
-  showcase: {
-    // "Etalase" + CardsThree — SATU nama & ikon dengan slot primer mode
-    // commerce (lib/app-mode.ts) dan switcher mode: tujuannya sama
-    // (/showcase), jangan sampai tiga sebutan untuk satu tempat.
-    label: "Etalase",
-    icon: CardsThree,
-    accessibilityLabel: "Tab Etalase",
-    route: "/showcase" as Href,
   },
   chat: {
     label: "Pesan",
@@ -149,23 +134,12 @@ export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
     accessibilityLabel: "Tab Pesan",
     route: "/chat" as Href,
   },
-  vouchers: {
-    label: "Promo",
-    icon: Percent,
-    accessibilityLabel: "Tab Promo",
-    route: "/vouchers" as Href,
-  },
-  "wallet-history": {
-    label: "History",
-    icon: Scroll,
-    accessibilityLabel: "Tab History",
-    route: "/wallet-history" as Href,
-  },
-  more: {
-    label: "Lainnya",
-    icon: SquaresFour,
-    accessibilityLabel: "Tab Lainnya",
-    route: "/more" as Href,
+  notifications: {
+    // Naik menjadi tab sejati 2026-09-27 (dulu ikon lonceng di header).
+    label: "Notifikasi",
+    icon: BellSimple,
+    accessibilityLabel: "Tab Notifikasi",
+    route: "/notifications" as Href,
   },
 }
 
@@ -174,16 +148,12 @@ export const TAB_BAR_ITEMS: Record<TabRouteName, AppTabBarItem> = {
 void TAB_ROUTE_NAMES
 
 /**
- * Rute tab yang TIDAK ditampilkan di bottom bar (permintaan produk
- * 2026-09-21). Peta di atas sengaja tetap lengkap — ia sumber kebenaran
- * label/ikon/rute, dan `showcase` masih dipakai untuk menavigasi ke
- * halamannya walau tidak lagi jadi tab.
- *
- * Kenapa dikeluarkan: lima tab + tombol (+) di tengah meninggalkan ±64dp per
- * tab di layar 360dp — label 12px terpotong dan target sentuh mepet. Empat
- * tab + satu tombol aksi adalah batas yang masih terbaca sekali lihat.
+ * Rute tab yang TIDAK ditampilkan di bottom bar. Sejak redesign navigasi
+ * 2026-09-27 bar selalu menampilkan keempat tab (Etalase, Transaksi, Pesan,
+ * Notifikasi) — daftar ini dipertahankan sebagai titik ekstensi bila suatu
+ * hari ada tab yang perlu disembunyikan lagi.
  */
-export const HIDDEN_TAB_ROUTES: readonly TabRouteName[] = ["showcase"]
+export const HIDDEN_TAB_ROUTES: readonly TabRouteName[] = []
 
 /** Rute tab yang dirender, urut TAB_ROUTE_NAMES (tanpa yang disembunyikan). */
 export const VISIBLE_TAB_ROUTES: readonly TabRouteName[] = TAB_ROUTE_NAMES.filter(
@@ -226,14 +196,18 @@ export function visibleTabBarItems(
  * dipakai. Dikelompokkan di satu tombol karena ketiganya bukan TEMPAT
  * (tab) melainkan aksi sesekali — menempatkannya sebagai tab membuat bar
  * penuh label yang jarang disentuh.
+ *
+ * Revisi 2026-09-27 (redesign navigasi mobile): tombol (+) mengambil alih
+ * fungsi pensil lama di header Etalase — "Buat Karya" membuka alur buat baru
+ * /showcase/create.
  */
 export const CENTER_ACTION_ITEMS: readonly ActionSheetItem[] = [
   {
-    key: "topup",
-    label: "Isi saldo dompet",
-    description: "Top up lewat bank, QRIS, atau gerai ritel",
-    icon: Wallet,
-    onPress: () => router.push(ROUTES.topup),
+    key: "create-showcase",
+    label: "Buat Karya",
+    description: "Unggah karya atau produk baru ke etalase Anda",
+    icon: CardsThree,
+    onPress: () => router.push(ROUTES.showcaseCreate),
   },
   {
     key: "create-transaction",
@@ -243,11 +217,11 @@ export const CENTER_ACTION_ITEMS: readonly ActionSheetItem[] = [
     onPress: () => router.push(ROUTES.createTransaction),
   },
   {
-    key: "add-showcase",
-    label: "Tambah etalase",
-    description: "Unggah karya atau produk ke etalase Anda",
-    icon: CardsThree,
-    onPress: () => router.push(ROUTES.showcaseManagement),
+    key: "topup",
+    label: "Isi saldo dompet",
+    description: "Top up lewat bank, QRIS, atau gerai ritel",
+    icon: Wallet,
+    onPress: () => router.push(ROUTES.topup),
   },
 ]
 

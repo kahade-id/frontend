@@ -119,8 +119,12 @@ export const AUTHENTICATED_SCREENS = [
  * aksi yang butuh akun di dalam tab (suka/komentar/simpan/lapor, saldo,
  * kelola, notifikasi) masing-masing digate sesi. Menutup tab ini dulu hanya
  * menutup corong penemuan pasar yang backend-nya sendiri izinkan.
+ *
+ * REVISI 2026-09-27 (redesign navigasi mobile): "wallet" dan "more" keluar
+ * dari daftar tab (keduanya bukan lagi layar tab — dijangkau lewat drawer).
+ * "chat" dan "notifications" tetap butuh login (audit chat B-01).
  */
-export const WEB_GUEST_TAB_SCREENS = ["transactions", "wallet", "showcase", "more"] as const
+export const WEB_GUEST_TAB_SCREENS = ["transactions", "showcase"] as const
 
 /**
  * Path yang boleh diakses tanpa login di web. Selain layar tab di atas:

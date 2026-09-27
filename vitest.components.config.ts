@@ -49,6 +49,12 @@ export default defineConfig({
       "expo-clipboard": stub("expo-clipboard"),
       // Sheet OS share (lib/share dari shareShowcaseById) — native EventEmitter.
       "expo-sharing": stub("expo-sharing"),
+      // `expo-location` ditarik lib/location (getAuthLocation) — di graf impor
+      // facade API aksi sensitif (mis. komponen yang mengimpor lib/api).
+      "expo-location": stub("expo-location"),
+      // `expo-image-picker` ditarik lib/image-picker (dipakai lib/api/upload)
+      // — native EventEmitter, tidak ada di jsdom.
+      "expo-image-picker": stub("expo-image-picker"),
       // nativewind me-require `react-native` asli dari CJS (Flow) — stub.
       // Subpath JSX HARUS di-alias eksplisit dan DULUAN: Vitest 5 (oxc)
       // mengompilasi JSX test ke `nativewind/jsx-dev-runtime` karena

@@ -7,19 +7,23 @@
  *    yang membuat layar ramai dan memaksa baris jadi dua kali lebih tinggi.
  *  - Pengecualian: teks di KANAN baris tetap ada karena itu STATUS, bukan
  *    penjelasan — Tampilan (Sistem/Terang/Gelap), Bahasa (bahasa aktif),
- *    Versi Aplikasi (vX.Y.Z), dan badge langganan.
+ *    Versi Aplikasi (vX.Y.Z).
  *  - Kartu cukup LATAR (`bg-surface`) + `rounded-md`, tanpa border dan tanpa
  *    pemisah antar baris. Kelompok ditandai label kecil + jarak + sudut
  *    membulat, jadi layar terbaca sebagai daftar pengaturan yang rapi,
- *    bukan tumpukan kartu bersiku. Kartu Langganan dan kotak ikonnya memakai
- *    `rounded-md` yang SAMA dengan kelompok menu: radius yang berbeda di layar
- *    yang sama terbaca sebagai "kartu ini dari sistem lain".
+ *    bukan tumpukan kartu bersiku.
+ *
+ * Keputusan produk 2026-09-27:
+ *  - TANPA header profil (avatar + nama + @username) — identitas pengguna
+ *    sudah ada di atas sidebar; menampilkannya lagi di halaman ini hanya
+ *    duplikasi.
+ *  - TANPA kartu Langganan — menu Kahade+ (langganan) adalah item menu
+ *    tersendiri di sidebar, bukan di dalam halaman Pengaturan.
  *
  * Struktur:
- *  - ProfileHeader: avatar + nama + @username (tanpa foto sampul — lihat
- *    catatan di pemanggilannya).
- *  - Kartu utama: Langganan (Kahade Plus).
- *  - Akun: Edit Profil, Laporan & Analitik, Keamanan, Tipe Akun.
+ *  - Akun: Profil Tersimpan, Edit Profil, Laporan & Analitik, Keamanan,
+ *    Tipe Akun, Verifikasi Bisnis.
+ *  - Toko & Pesanan: Katalog Produk, Retur Saya, Produk Saya.
  *  - Preferensi: Tampilan, Notifikasi, Bahasa, Versi Aplikasi.
  *  - Bantuan: Tentang Kami, Umpan Balik, Asisten Bantuan, Tiket Bantuan.
  *  - Legal: Syarat & ketentuan, Kebijakan privasi.
@@ -32,7 +36,7 @@
  *    transaksi/dompet + tautan ke daftar laporan (/reports).
  */
 import { useCallback, useState } from "react"
-import { Platform, View } from "react-native"
+import { Platform, ScrollView, View } from "react-native"
 import { router, type Href } from "expo-router"
 import Constants from "expo-constants"
 import {
@@ -40,9 +44,7 @@ import {
   Bell,
   Briefcase,
   Buildings,
-  CaretRight,
   ChatTeardropDots,
-  CrownSimple,
   FileText,
   Headset,
   Info,
@@ -59,9 +61,7 @@ import {
   Bookmark,
 } from "phosphor-react-native"
 
-import { api, type UserProfile } from "@/lib/api"
-import { useKahadePlus } from "@/lib/use-kahade-plus"
-import { queryKeys } from "@/lib/query-keys"
+import { api } from "@/lib/api"
 import { clearSession } from "@/lib/api/session"
 import { unregisterPushDevice } from "@/lib/push-notifications"
 import { unregisterWebPushDevice } from "@/lib/web-push"
@@ -69,25 +69,18 @@ import { ROUTES } from "@/lib/routes"
 import { languageLabel, useLanguage } from "@/lib/i18n"
 import { installedAppVersion } from "@/lib/runtime-info"
 import { tokens } from "@/lib/tokens"
-import { useApiQuery } from "@/lib/use-api-query"
 import { logWarn } from "@/lib/telemetry"
 
 import { useTheme } from "@/components/theme-provider"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ErrorState } from "@/components/ui/error-state"
 import { Stagger } from "@/components/ui/fade-in"
 import { Header } from "@/components/ui/header"
-import { Icon, type IconComponent } from "@/components/ui/icon"
+import { type IconComponent } from "@/components/ui/icon"
 import { ListItem } from "@/components/ui/list-item"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { Dialog } from "@/components/ui/modal"
-import { ProfileHeader } from "@/components/ui/profile-header"
-import { PullToRefresh } from "@/components/ui/pull-to-refresh"
-import { RouteLink } from "@/components/ui/route-link"
 import { MenuGroupLabel } from "@/components/ui/section"
 import { Screen } from "@/components/ui/screen"
-import { Text } from "@/components/ui/text"
 
 // ------------------------------------------------------------------
 // Data Menu
@@ -112,25 +105,6 @@ export default function SettingsScreen() {
 
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [loggingOut, setLoggingOut] = useState(false)
-
-  // Profile data query
-  const profileQuery = useApiQuery<UserProfile>(queryKeys.me(), (signal) => api.users.getMe(signal))
-  const profile = profileQuery.data
-
-  // Status langganan — WAJIB lewat `useKahadePlus()` (satu-satunya sumber
-  // status langganan di UI); jangan menembak endpoint status langsung.
-  const { isActive: isSubscribed, refetch: refetchPlus } = useKahadePlus()
-  const [plusRefreshing, setPlusRefreshing] = useState(false)
-
-  const handleRefresh = useCallback(async () => {
-    setPlusRefreshing(true)
-    try {
-      await Promise.allSettled([profileQuery.refresh(), refetchPlus()])
-    } finally {
-      setPlusRefreshing(false)
-    }
-  }, [profileQuery, refetchPlus])
-
 
   const performLogout = useCallback(async () => {
     setLoggingOut(true)
@@ -248,78 +222,17 @@ export default function SettingsScreen() {
     <Screen edges={["top"]} padded={false}>
       <Header title="Pengaturan" />
 
-      <PullToRefresh
-        onRefresh={handleRefresh}
-        refreshing={profileQuery.refreshing || plusRefreshing}
-        scrollViewProps={{
-          contentContainerStyle: {
-            paddingBottom: insets.bottom + tokens.space[16],
-          },
+      <ScrollView
+        contentContainerStyle={{
+          paddingBottom: insets.bottom + tokens.space[16],
         }}
+        showsVerticalScrollIndicator={false}
       >
-        {/* ── Profile Header (sampul + avatar) ───────────────── */}
-        <View className="pt-2 pb-1">
-          {profileQuery.error ? (
-            <ErrorState
-              compact
-              title="Gagal memuat profil"
-              description={profileQuery.error}
-              onRetry={() => void profileQuery.reload()}
-              retrying={profileQuery.loading}
-            />
-          ) : (
-            /*
-             * TANPA `cover`. Foto sampul adalah milik halaman profil dan
-             * /edit-profile — di layar Pengaturan ia hanya mendorong menu ke
-             * bawah lipatan layar tanpa menambah satu pun tindakan yang belum
-             * tersedia di baris "Edit Profil". Yang dibutuhkan layar ini dari
-             * identitas pengguna adalah "akun mana yang sedang saya atur":
-             * avatar + nama + @username cukup, dan sampul justru membuatnya
-             * terlihat seperti halaman profil kedua.
-             */
-            <ProfileHeader
-              name={profile?.fullName ?? "—"}
-              handle={profile?.username ? `@${profile.username}` : undefined}
-              avatar={{ source: profile?.avatarUrl ?? undefined }}
-              loading={profileQuery.loading}
-            />
-          )}
-        </View>
-
         <View className="gap-4 px-5 pt-3">
-          {/* ── Kartu utama: Langganan ────────────────────────── */}
-          {/* <RouteLink> membungkus <Link asChild> di atas PressableScale:
-             efek tekan tetap, tetapi web mendapat <a href> sungguhan dan
-             screen reader mengumumkan "tautan", bukan "tombol". */}
-          <RouteLink
-            href={ROUTES.kahadePlusPlans}
-            accessibilityLabel="Menu Langganan Kahade Plus"
-            containerClassName="w-full"
-            className="w-full overflow-hidden rounded-md bg-surface p-4"
-          >
-            <View className="flex-row items-center gap-3">
-              <View className="h-11 w-11 items-center justify-center rounded-md bg-primary">
-                <Icon icon={CrownSimple} size="sm" tone="inverse" weight="fill" />
-              </View>
-
-              <View className="flex-1 flex-row items-center gap-2">
-                <Text variant="bodyLarge" weight={600} tone="primary">
-                  Langganan
-                </Text>
-                <Badge tone={isSubscribed ? "success" : "neutral"} variant="soft">
-                  {isSubscribed ? "Plus Aktif" : "Kahade Plus"}
-                </Badge>
-              </View>
-
-              <Icon icon={CaretRight} size="sm" tone="default" />
-            </View>
-          </RouteLink>
-
           {/*
            * v2: 4 grup menu reveal bertingkat. Jarak geser kecil (4px, bukan
-           * 8px) karena daftar menu rapat — gerak mengikuti densitas. Kartu
-           * Langganan, komunitas, dan tombol Keluar SENGAJA statis: hero di
-           * atas harus stabil, dan tombol destruktif tidak boleh bergeser
+           * 8px) karena daftar menu rapat — gerak mengikuti densitas. Tombol
+           * Keluar SENGAJA statis: tombol destruktif tidak boleh bergeser
            * saat jari mendekat.
            */}
           <Stagger duration="fast" step={50} distance={tokens.space[1]}>
@@ -366,7 +279,7 @@ export default function SettingsScreen() {
             </Button>
           </View>
         </View>
-      </PullToRefresh>
+      </ScrollView>
 
       {/* ── Dialog Konfirmasi Logout ────────────────────────── */}
       <Dialog

@@ -1,24 +1,22 @@
 /**
  * Kahade — <ShowcaseHeader> (bar atas tab Etalase; revisi 2026-09-23b).
  *
- * Layout (permintaan produk 2026-09-23):
+ * Layout (revisi 2026-09-27, redesign navigasi mobile):
  *
- *      [ ✎ kelola ]  [ (logo) ]  [ 🔔 notifikasi ]
+ *      [ ☰ menu ]  [ (logo) ]  [ 🔍 cari ]
  *      [ tab feed: Untuk Anda · Mengikuti · Terbaru · Populer ]
  *
- *   1. Baris atas TIGA elemen simetris: pensil (BUAT karya) di kiri,
- *      logo Kahade tepat di tengah, lonceng notifikasi di kanan. Kedua ikon
- *      memakai weight "regular" (BUKAN bold/fill) dan TANPA background —
- *      jejak visualnya satu guratan tipis, bukan kartu/kotak berisi.
- *      Glif: PencilSimpleLine (pencil-simple-line) dan BellSimple
- *      (bell-simple) — permintaan produk 2026-09-23.
- *   2. Balance pill DIHAPUS dari header: saldo bukan konteks etalase; angka
- *      dompet tetap hidup di tab Dompet (mode wallet).
- *   3. Baris pencarian + tombol (+) DIHAPUS. Pencarian dipusatkan di SATU
- *      layar (`/search`, pintu dari tab Transaksi) yang kini juga mencari
- *      postingan etalase; kelola etalase pindah ke ikon pensil di baris atas.
- *   4. ModeSwitcher DIHAPUS dari sini — satu-satunya rumah switch mode kini
- *      halaman profil sendiri (app/user/[username].tsx).
+ *   1. Baris atas TIGA elemen simetris: hamburger (BUKA DRAWER) di kiri,
+ *      logo Kahade tepat di tengah, pencarian di kanan. Ikon memakai weight
+ *      "regular" (BUKAN bold/fill) dan TANPA background.
+ *      Glif: List (list/hamburger) dan MagnifyingGlass.
+ *   2. Pensil "buat karya" PINDAH ke tombol (+) di bottom navbar (action
+ *      sheet "Buat Karya" → /showcase/create) — satu pintu pembuatan untuk
+ *      seluruh app.
+ *   3. Lonceng notifikasi DIHAPUS dari header — Notifikasi kini tab sejati di
+ *      bottom navbar dengan badge unread.
+ *   4. Balance pill DIHAPUS dari header: saldo bukan konteks etalase; angka
+ *      dompet tetap hidup di layar Dompet (menu drawer mode wallet).
  *   5. Strip tab feed tetap: satu-satunya kontrol memilih jenis feed.
  *
  * Semua hex literal tetap dilarang (`npm run check:tokens`);
@@ -26,27 +24,24 @@
  */
 
 import { View } from "react-native"
-import { useRouter, type Href } from "expo-router"
+import { useRouter } from "expo-router"
 import {
-  BellSimple,
   ClockCounterClockwise,
+  List,
   MagnifyingGlass,
-  PencilSimpleLine,
   Sparkle,
   TrendUp,
   Users,
 } from "phosphor-react-native"
 
 import { ROUTES } from "@/lib/routes"
-import { useHasSession } from "@/lib/guest-gate"
-import { useUnreadCountState } from "@/lib/unread-count"
+import { openDrawer } from "@/lib/drawer"
 import { cn } from "@/lib/cn"
 import { hitSlopToReach } from "@/lib/hit-slop"
 import { focusRing } from "@/lib/focus-ring"
 import { translate } from "@/lib/i18n"
 
 import { Logo } from "@/components/ui/logo"
-import { NotificationDot } from "@/components/ui/badge"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Tabs } from "@/components/ui/tabs"
@@ -73,38 +68,27 @@ const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
 export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps) {
   const router = useRouter()
-  const unread = useUnreadCountState()
-  // A-10 (audit 2026-09-23): kelola & notifikasi = layar terproteksi —
-  // tamu diarahkan ke loginRequired(next=…) dengan konteks, bukan menabrak
-  // dinding login (polanya sama dengan aksi sosial di feed).
-  const hasSession = useHasSession()
-  const goProtected = (target: Href, path: string) => {
-    router.push(hasSession ? target : ROUTES.loginRequired(path))
-  }
 
   return (
     <View className="bg-background">
-      {/* ── Baris atas: kelola (pensil) · logo · notifikasi & search ── */}
+      {/* ── Baris atas: menu (hamburger) · logo · cari ── */}
       <View className="w-full flex-row items-center justify-between px-5 pb-2.5 pt-3">
         {/*
-          Pensil = BUAT KARYA (revisi 2026-09-26): ikon ini dulu membuka
-          halaman Kelola Etalase, padahal niat pengguna yang menekan ikon
-          "tulis/kelola" di puncak feed hampir selalu "saya mau menambahkan
-          karya". Kelola tetap satu ketukan dari sana lewat lingkaran di
-          halaman Lainnya dan dari halaman pembuatan.
+          Hamburger = BUKA DRAWER/SIDEBAR (revisi 2026-09-27): menggantikan
+          pensil "buat karya" yang pindah ke tombol (+) bottom navbar.
         */}
         <View className="flex-row items-center justify-start min-w-[84px]">
           <PressableScale
             accessibilityRole="button"
-            accessibilityLabel={translate("Buat karya baru")}
-            accessibilityHint={translate("Buka halaman untuk menambah karya ke etalase Anda")}
+            accessibilityLabel={translate("Menu")}
+            accessibilityHint={translate("Buka menu navigasi")}
             haptic
             hitSlop={ACTION_HIT_SLOP}
-            onPress={() => goProtected(ROUTES.showcaseCreate, "/showcase/create")}
+            onPress={openDrawer}
             containerClassName={cn("rounded-md", focusRing)}
             className="h-10 w-10 items-center justify-center"
           >
-            <Icon icon={PencilSimpleLine} size="md" weight="regular" tone="active" />
+            <Icon icon={List} size="md" weight="regular" tone="active" />
           </PressableScale>
         </View>
 
@@ -118,28 +102,8 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
           <Logo variant="mark" size="md" />
         </View>
 
-        {/* Notifikasi & Search di kanan */}
+        {/* Cari di kanan (lonceng notifikasi pindah ke tab bottom navbar). */}
         <View className="flex-row items-center justify-end gap-1 min-w-[84px]">
-          <PressableScale
-            accessibilityRole="button"
-            accessibilityLabel={
-              unread.count
-                ? translate("Notifikasi, {x} belum dibaca", { x: unread.count })
-                : translate("Notifikasi")
-            }
-            accessibilityHint={translate("Buka notifikasi")}
-            haptic
-            hitSlop={ACTION_HIT_SLOP}
-            onPress={() => goProtected(ROUTES.notifications, "/notifications")}
-            containerClassName={cn("rounded-md", focusRing)}
-            className="h-10 w-10 items-center justify-center"
-          >
-            <View className="relative">
-              <Icon icon={BellSimple} size="md" weight="regular" tone="active" />
-              <NotificationDot visible={(unread.count ?? 0) > 0} />
-            </View>
-          </PressableScale>
-
           <PressableScale
             accessibilityRole="button"
             accessibilityLabel={translate("Cari")}
