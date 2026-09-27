@@ -236,9 +236,14 @@ export default function OrderLinksScreen() {
           />
         }
         footer={
-          <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
-            Buat tautan baru
-          </Button>
+          // Tombol bawah disembunyikan saat daftar kosong — empty state sudah
+          // punya tombol "Buat tautan baru" yang sama (dobel bila keduanya
+          // tampil; laporan produk 2026-09-28).
+          items.length > 0 ? (
+            <Button variant="secondary" onPress={() => router.push(ROUTES.createTransaction)}>
+              Buat tautan baru
+            </Button>
+          ) : null
         }
       />
 

@@ -49,6 +49,26 @@ import { type SealTier } from "@/components/ui/verified-seal"
  */
 const GROUP_WINDOW_MS = 5 * 60 * 1000
 
+/**
+ * Label cadangan cuplikan kutipan balasan bila pesan yang dibalas tidak
+ * punya teks (mis. hanya gambar/berkas). Dipakai <ChatMessageRow> untuk
+ * prop `quote` bubble.
+ */
+function quoteFallbackLabel(messageType?: string): string {
+  switch ((messageType ?? "").toUpperCase()) {
+    case "IMAGE":
+      return "Gambar"
+    case "VIDEO":
+      return "Video"
+    case "VOICE":
+      return "Pesan suara"
+    case "FILE":
+      return "Berkas"
+    default:
+      return "Pesan"
+  }
+}
+
 export type ChatMessageRowProps = {
   message: ChatMessage
   /** Pesan tepat di atasnya — penentu pemisah hari + grouping. */
@@ -138,6 +158,18 @@ export function ChatMessageRow({
         direction={message.fromUser ? "outgoing" : "incoming"}
         // CN-003: pesan terhapus — placeholder, bukan gelembung kosong.
         text={message.isDeleted ? "Pesan ini telah dihapus" : message.text}
+        // Kutipan balasan: backend mengirim `replyTo` (id, content,
+        // messageType, isDeleted, senderName) bila pesan ini membalas pesan lain.
+        quote={
+          message.replyTo
+            ? {
+                senderName: message.replyTo.senderName,
+                preview: message.replyTo.isDeleted
+                  ? "Pesan ini telah dihapus"
+                  : (message.replyTo.content?.trim() || quoteFallbackLabel(message.replyTo.messageType)),
+              }
+            : null
+        }
         time={showTime ? formatTime(message.createdAt) : undefined}
         grouped={grouped}
         /*

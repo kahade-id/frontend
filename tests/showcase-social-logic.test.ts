@@ -127,11 +127,13 @@ describe("feed page-state (A-01/A-02)", () => {
     const state = emptyFeedPageState()
     state.cursors.latest = "abc"
     state.cursors.popular = "def"
+    state.cursors.forYou = "ghi"
     state.hasMore.latest = true
     state.hasMore.popular = true
+    state.hasMore.forYou = true
     resetFeedPageState(state)
-    expect(state.cursors).toEqual({ latest: null, popular: null })
-    expect(state.hasMore).toEqual({ latest: false, popular: false })
+    expect(state.cursors).toEqual({ latest: null, popular: null, forYou: null })
+    expect(state.hasMore).toEqual({ latest: false, popular: false, forYou: false })
   })
   it("sameFeedFilter: ganti search/category = himpunan lain → kursor tidak sah", () => {
     expect(sameFeedFilter({}, {})).toBe(true)

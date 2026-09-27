@@ -63,6 +63,7 @@ import { VerifiedName } from "@/components/ui/verified-name"
 import { GreyCheckBadge } from "@/components/ui/grey-check-badge"
 import { BottomSheet } from "@/components/ui/bottom-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
+import { ActionSheet } from "@/components/ui/action-sheet"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Dialog } from "@/components/ui/modal"
@@ -1460,69 +1461,55 @@ export default function UserProfileScreen() {
         onRequestClose={() => setBlockOpen(false)}
       />
 
-      {/* ── Dialog Pilihan Lainnya ──────────────────────────── */}
-      <Dialog
-        title={translate("Pilihan Akun")}
-        visible={moreOptionsOpen}
-        hideCancel
-        confirmLabel={translate("Tutup")}
-        onConfirm={() => setMoreOptionsOpen(false)}
-        onRequestClose={() => setMoreOptionsOpen(false)}
+      {/* ── Bottom Sheet Pilihan Lainnya ────────────────────────
+          Titik-tiga profil memakai bottom sheet (permintaan produk
+          2026-09-28), bukan dialog tengah: Bagikan profil, Laporkan,
+          Blokir. ShareSheetTrigger tetap membungkus agar guard "sedang
+          berbagi" dan pemetaan outcome tidak hilang; closeOnSelect menutup
+          sheet ini DULU sebelum sheet OS muncul (§9.9 satu overlay pada
+          satu waktu). */}
+      <ShareSheetTrigger
+        payload={profileSharePayload}
+        disabled={!handle}
+        onUnavailable={(payload) => void shareUnavailable(payload)}
       >
-        <View className="gap-2 pt-2">
-          {/* ShareSheetTrigger menggantikan tombol Bagikan tulisan tangan:
-              guard "sedang berbagi" (dua tap tidak lagi bisa membuka dua
-              sheet bertumpuk) dan pemetaan outcome pindah ke komponen.
-              Mode render-prop DIPAKAI, bukan mode Button bawaan, karena
-              dialog "Pilihan Akun" harus ditutup LEBIH DULU sebelum sheet OS
-              muncul (§9.9 satu overlay pada satu waktu). */}
-          <ShareSheetTrigger
-            payload={profileSharePayload}
-            disabled={!handle}
-            onUnavailable={(payload) => void shareUnavailable(payload)}
-          >
-            {(share, state) => (
-              <Button
-                variant="ghost"
-                leftIcon={ShareNetwork}
-                loading={state.sharing}
-                disabled={state.sharing}
-                onPress={() => {
-                  setMoreOptionsOpen(false)
-                  share()
-                }}
-              >
-                Bagikan profil
-              </Button>
-            )}
-          </ShareSheetTrigger>
-          <Button
-            variant="ghost"
-            leftIcon={Flag}
-            onPress={() => {
-              setMoreOptionsOpen(false)
-              // Tanpa `id` pun laporan tetap bisa dibuka: username dipakai
-              // sebagai identifier cadangan oleh api.settings.reportUser.
-              if (profile?.id || handle)
-                router.push(
-                  ROUTES.reports({ targetId: profile?.id || handle, targetName: handle }),
-                )
-            }}
-          >
-            {translate("Laporkan pengguna")}
-          </Button>
-          <Button
-            variant="destructive"
-            leftIcon={Prohibit}
-            onPress={() => {
-              setMoreOptionsOpen(false)
-              setBlockOpen(true)
-            }}
-          >
-            {translate("Blokir pengguna")}
-          </Button>
-        </View>
-      </Dialog>
+        {(share, state) => (
+          <ActionSheet
+            title={translate("Pilihan Akun")}
+            visible={moreOptionsOpen}
+            onRequestClose={() => setMoreOptionsOpen(false)}
+            actions={[
+              {
+                key: "share",
+                label: translate("Bagikan profil"),
+                icon: ShareNetwork,
+                disabled: !handle || state.sharing,
+                onPress: () => share(),
+              },
+              {
+                key: "report",
+                label: translate("Laporkan pengguna"),
+                icon: Flag,
+                onPress: () => {
+                  // Tanpa `id` pun laporan tetap bisa dibuka: username dipakai
+                  // sebagai identifier cadangan oleh api.settings.reportUser.
+                  if (profile?.id || handle)
+                    router.push(
+                      ROUTES.reports({ targetId: profile?.id || handle, targetName: handle }),
+                    )
+                },
+              },
+              {
+                key: "block",
+                label: translate("Blokir pengguna"),
+                icon: Prohibit,
+                destructive: true,
+                onPress: () => setBlockOpen(true),
+              },
+            ]}
+          />
+        )}
+      </ShareSheetTrigger>
 
       {/* Inquiry — buka ruang pra-transaksi (POST /v1/chat/inquiries) lalu
           langsung masuk ke ruang chat hasil inquiry. */}

@@ -271,6 +271,7 @@ export default function ChatScreen() {
           // tidak terbaca generator katalog i18n (hanya children JSX, properti
           // objek, dan argumen translate()), jadi copy dinamis harus dibungkus.
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih percakapan"}
+          titleAlign="left"
           showBack={false}
           separator={false}
           elevated={elevated}
@@ -321,6 +322,7 @@ export default function ChatScreen() {
           showBack={false}
           separator={false}
           elevated={elevated}
+          titleAlign="left"
           title={archiveOpen ? "Diarsipkan" : "Chat"}
           right={
             <IconButton

@@ -283,11 +283,15 @@ export default function TransactionTemplatesScreen() {
               </Button>
             ) : null}
 
-            {!creating ? (
+            {/* Tombol bawah disembunyikan saat daftar kosong — empty state sudah
+                punya tombol "Buat template" yang sama (dobel bila keduanya
+                tampil; laporan produk 2026-09-28). */}
+            {!creating && items.length > 0 ? (
               <Button variant="secondary" onPress={openCreate}>
                 Buat template
               </Button>
-            ) : (
+            ) : null}
+            {creating ? (
               <FormSection title={editing ? "Ubah template" : "Template baru"}>
                 <Field label="Nama template" required>
                   <Input
@@ -391,7 +395,7 @@ export default function TransactionTemplatesScreen() {
                   Batal
                 </Button>
               </FormSection>
-            )}
+            ) : null}
             </View>
           )}
         </Crossfade>

@@ -110,6 +110,13 @@ export type HeaderProps = Omit<ViewProps, "children"> & {
   /** Bayangan lembut di bawah header saat konten di-scroll — efek elevasi
       dinamis (permintaan produk 2026-09-27). Pasangan `useScrollElevation`. */
   elevated?: boolean
+  /**
+   * Rata judul teks: "center" (default) atau "left". Dipakai header tab
+   * utama (Transaksi, Pesan, Notifikasi — permintaan produk 2026-09-28):
+   * kolom kiri di-skip, node kiri (back/X) tampil inline sebelum judul,
+   * judul menempel ke tepi kiri. Diabaikan bila `center` diisi.
+   */
+  titleAlign?: "left" | "center"
   /** Safe area top ikut dipadding (default true; false bila SafeAreaView di luar) */
   safeArea?: boolean
   className?: string
@@ -128,6 +135,7 @@ export function Header({
   transparent = false,
   separator = true,
   elevated = false,
+  titleAlign = "center",
   safeArea,
   className,
   ...rest
@@ -183,10 +191,13 @@ export function Header({
     >
       <View className="w-full md:max-w-content">
         <View className="min-h-14 w-full flex-row items-center px-3 py-1">
-          {/* Kolom kiri: lebar tetap 1 slot */}
-          <View style={{ width: sideWidth }} className="items-start justify-center">
-            <View onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}>{leftNode}</View>
-          </View>
+          {/* Kolom kiri: lebar tetap 1 slot. Di-skip saat judul rata kiri —
+              judul menempel ke tepi kiri, node kiri tampil inline. */}
+          {titleAlign === "left" ? null : (
+            <View style={{ width: sideWidth }} className="items-start justify-center">
+              <View onLayout={(e) => setLeftWidth(e.nativeEvent.layout.width)}>{leftNode}</View>
+            </View>
+          )}
 
           {/*
             Kolom tengah: judul teks (default) atau slot kustom penuh lebar
@@ -196,6 +207,21 @@ export function Header({
           */}
           {center ? (
             <View className="flex-1 flex-row items-center">{center}</View>
+          ) : titleAlign === "left" ? (
+            /* Judul rata kiri: node kiri (back/X) inline sebelum judul. */
+            <View className="flex-1 flex-row items-center justify-start gap-1 px-2">
+              {leftNode}
+              {title ? (
+                <Text ellipsizeMode="tail"
+                  accessibilityRole="header"
+                  variant="h3"
+                  numberOfLines={1}
+                  className="flex-1 text-left"
+                >
+                  {title}
+                </Text>
+              ) : null}
+            </View>
           ) : (
             <View className="flex-1 items-center justify-center px-2">
               {title ? (

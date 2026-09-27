@@ -15,19 +15,19 @@
 import type { ShowcaseSocialItem } from "@/lib/api/showcase"
 
 /** Kursor per sisi untuk SATU tab feed. */
-export type KindCursors = { latest: string | null; popular: string | null }
+export type KindCursors = { latest: string | null; popular: string | null; forYou: string | null }
 /** Flag hasMore per sisi untuk SATU tab feed. */
-export type KindMoreFlags = { latest: boolean; popular: boolean }
+export type KindMoreFlags = { latest: boolean; popular: boolean; forYou: boolean }
 
 /** State paginasi satu tab — kursor + hasMore selalu berpasangan. */
 export type FeedPageState = { cursors: KindCursors; hasMore: KindMoreFlags }
 
 export function emptyKindCursors(): KindCursors {
-  return { latest: null, popular: null }
+  return { latest: null, popular: null, forYou: null }
 }
 
 export function emptyKindMoreFlags(): KindMoreFlags {
-  return { latest: false, popular: false }
+  return { latest: false, popular: false, forYou: false }
 }
 
 export function emptyFeedPageState(): FeedPageState {
@@ -41,8 +41,10 @@ export function emptyFeedPageState(): FeedPageState {
 export function resetFeedPageState(state: FeedPageState): FeedPageState {
   state.cursors.latest = null
   state.cursors.popular = null
+  state.cursors.forYou = null
   state.hasMore.latest = false
   state.hasMore.popular = false
+  state.hasMore.forYou = false
   return state
 }
 

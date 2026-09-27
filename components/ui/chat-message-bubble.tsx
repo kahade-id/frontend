@@ -90,6 +90,12 @@ export type ChatMessageBubbleProps = Omit<ViewProps, "children"> & {
   grouped?: boolean
   /** Nama pengirim di atas gelembung — untuk grup >2 orang (mis. admin sengketa) */
   senderName?: string
+  /**
+   * Kutipan pesan yang dibalas — dirender sebagai blok kecil di atas isi
+   * gelembung (permintaan produk 2026-09-28). `senderName` = nama pengirim
+   * pesan asli, `preview` = cuplikannya (sudah dipotong pemanggil).
+   */
+  quote?: { senderName?: string | null; preview: string } | null
   /** Slot lampiran, dirender di atas teks */
   children?: ReactNode
   onLongPress?: () => void
@@ -177,6 +183,7 @@ export function ChatMessageBubble({
   status,
   grouped = false,
   senderName,
+  quote,
   children,
   onLongPress,
   onLongPressAt,
@@ -237,6 +244,32 @@ export function ChatMessageBubble({
         outgoing ? "bg-primary" : "border border-border bg-surface",
       )}
     >
+      {quote ? (
+        <View
+          className={cn(
+            "rounded-sm border-l-2 px-2 py-1",
+            outgoing ? "border-white/70 bg-black/15" : "border-border-focus bg-background",
+          )}
+        >
+          <Text
+            variant="caption"
+            weight={600}
+            tone={outgoing ? "inverse" : "primary"}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {quote.senderName ?? "Pesan"}
+          </Text>
+          <Text
+            variant="caption"
+            tone={outgoing ? "inverse" : "secondary"}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            {quote.preview}
+          </Text>
+        </View>
+      ) : null}
       {children ? <View className="gap-2">{children}</View> : null}
       {text ? (
         <Text

@@ -46,6 +46,7 @@ import {
 import { useLocalSearchParams, router } from "expo-router"
 
 import {
+  ArrowBendUpLeft,
   Chats,
   Copy,
   PaperPlaneRight,
@@ -100,7 +101,7 @@ import { ChatReactionPopover } from "@/components/ui/chat-reaction-popover"
 import { ChatRoomHeader } from "@/components/ui/chat-room-header"
 import { ChatRoomMenu } from "@/components/ui/chat-room-menu"
 import { ChatSearchSheet } from "@/components/ui/chat-search-sheet"
-import { type ChatComposerPayload, type ComposerAttachment } from "@/components/ui/chat-composer"
+import { type ChatComposerPayload, type ComposerAttachment, type ComposerReplyTarget } from "@/components/ui/chat-composer"
 import { Dialog } from "@/components/ui/modal"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Button } from "@/components/ui/button"
@@ -254,6 +255,33 @@ export default function ChatRoomScreen() {
   // ── Fitur lanjutan: reaksi, pin, edit, forward, read receipt, presence ──
   const [forwardTarget, setForwardTarget] = useState<ChatMessage[] | null>(null)
   const [editTarget, setEditTarget] = useState<ChatMessage | null>(null)
+  /** Pesan yang sedang dibalas — strip preview di atas composer (permintaan produk 2026-09-28). */
+  const [replyTarget, setReplyTarget] = useState<ChatMessage | null>(null)
+
+  // C-06 (audit): ruang di luar 30 pertama tidak ditemukan di GET /rooms —
+  // nama lawan bicara jatuh ke param navigasi `title` sebelum "Percakapan".
+  // Dideklarasikan awal karena dipakai handleSend (pesan optimistis) juga.
+  const counterpartName =
+    room?.counterpart?.fullName ??
+    (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined) ??
+    titleParam
+
+  /**
+   * Target balasan → strip preview di atas composer ("Membalas {nama} ·
+   * cuplikan" + X). Nama pengirim pesan sendiri = "Anda".
+   */
+  const composerReplyTo: ComposerReplyTarget | undefined = replyTarget
+    ? {
+        id: replyTarget.id,
+        senderName: replyTarget.fromUser ? "Anda" : (counterpartName ?? "Pesan"),
+        preview: (
+          replyTarget.isDeleted
+            ? "Pesan ini telah dihapus"
+            : replyTarget.text?.trim() ||
+              (replyTarget.attachments?.length ? "Lampiran" : "Pesan")
+        ).slice(0, 80),
+      }
+    : undefined
   const [pinned, setPinned] = useState<ChatMessage[]>([])
   const [presence, setPresence] = useState<ChatPresence | null>(null)
   /**
@@ -761,6 +789,18 @@ export default function ChatRoomScreen() {
           thumbnailUrl,
         })),
         replyToId: payload.replyToId ?? null,
+        // Kutipan langsung tampil di pesan optimistis (diganti objek asli
+        // dari server setelah terkirim).
+        replyTo:
+          payload.replyToId && replyTarget && replyTarget.id === payload.replyToId
+            ? {
+                id: replyTarget.id,
+                content: replyTarget.text ?? null,
+                messageType: replyTarget.messageType,
+                isDeleted: replyTarget.isDeleted ?? false,
+                senderName: composerReplyTo?.senderName ?? null,
+              }
+            : null,
         createdAt: new Date().toISOString(),
         sendStatus: "sending",
       }
@@ -790,6 +830,7 @@ export default function ChatRoomScreen() {
         setPollInterval(CHAT_POLL_MS)
         setDraft("")
         setAttachments([])
+        setReplyTarget(null)
         // Hentikan indikator mengetik setelah pesan terkirim.
         if (typingTimer.current) clearTimeout(typingTimer.current)
         typingActive.current = false
@@ -809,7 +850,7 @@ export default function ChatRoomScreen() {
         setSending(false)
       }
     },
-    [roomId, attachments, toast.show, mergeIncoming],
+    [roomId, attachments, toast.show, mergeIncoming, replyTarget, composerReplyTo],
   )
 
   /**
@@ -1088,12 +1129,6 @@ export default function ChatRoomScreen() {
     setViewerItem({ url: a.fileUrl, mimeType: a.mimeType, title: a.fileName, fileName: a.fileName })
   }, [])
 
-  // C-06 (audit): ruang di luar 30 pertama tidak ditemukan di GET /rooms —
-  // nama lawan bicara jatuh ke param navigasi `title` sebelum "Percakapan".
-  const counterpartName =
-    room?.counterpart?.fullName ??
-    (room?.counterpart?.username ? `@${room.counterpart.username}` : undefined) ??
-    titleParam
   const counterpartUsername = room?.counterpart?.username
   const composerAttachments = attachments
 
@@ -1126,6 +1161,19 @@ export default function ChatRoomScreen() {
       singleSelected.messageType === "TEXT" &&
       !!singleSelected.text
     const actions: SelectionAction[] = []
+    if (singleSelected) {
+      const target = singleSelected
+      actions.push({
+        key: "reply",
+        label: "Balas",
+        icon: ArrowBendUpLeft,
+        accessibilityHint: "Membalas pesan yang dipilih",
+        onPress: () => {
+          exitSelect()
+          setReplyTarget(target)
+        },
+      })
+    }
     if (singleSelected) {
       const target = singleSelected
       actions.push({
@@ -1249,6 +1297,8 @@ export default function ChatRoomScreen() {
           }}
           sending={sending}
           disabled={loading}
+          replyTo={composerReplyTo}
+          onCancelReply={() => setReplyTarget(null)}
         />
         )
       }

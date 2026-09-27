@@ -55,6 +55,18 @@ export type ChatMessage = {
   fromUser: boolean
   attachments?: ChatAttachmentDto[]
   replyToId?: string | null
+  /**
+   * Pesan yang dikutip (balasan) — dikirim backend bila `replyToId` terisi.
+   * `normalizeChatMessage` meneruskannya via spread; tipe ini membuatnya
+   * eksplisit untuk render kutipan di bubble.
+   */
+  replyTo?: {
+    id: string
+    content?: string | null
+    messageType?: string
+    isDeleted?: boolean
+    senderName?: string | null
+  } | null
   createdAt: string
   /** Terpin di room (backend membatasi jumlah per room). */
   isPinned?: boolean

@@ -250,11 +250,8 @@ export default function BankAccountsScreen() {
                 icon={Bank}
                 title="Belum ada rekening"
                 description="Tambahkan rekening bank untuk menarik dana."
-                action={
-                  <Button fullWidth={false} leftIcon={Plus} onPress={() => setAdding(true)}>
-                    Tambah rekening
-                  </Button>
-                }
+                // Tanpa `action`: tombol "Tambah rekening" sudah ada di seksi
+                // bawah (dobel bila keduanya tampil; laporan produk 2026-09-28).
               />
             </Card>
           ) : (

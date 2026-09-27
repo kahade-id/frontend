@@ -37,7 +37,7 @@ import { router, useLocalSearchParams } from "expo-router"
 import { useIsFocused } from "@react-navigation/native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
-import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
+import { getShowcaseFeed, type ShowcaseFeedSort, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { formatNumber } from "@/lib/format"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
 import { fetchViaQueryCache } from "@/lib/query-cache"
@@ -45,7 +45,6 @@ import { queryKeys } from "@/lib/query-keys"
 import { ROUTES } from "@/lib/routes"
 import {
   emptyFeedPageState,
-  interleave,
   mergeById,
   resetFeedPageState,
   sameFeedFilter,
@@ -467,52 +466,20 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         /** F-05: di-set di cabang `following` bila plafon sisi klien tercapai. */
         let truncatedFollowing = false
 
-        if (kind === "latest" || kind === "popular") {
+        if (kind === "latest" || kind === "popular" || kind === "forYou") {
+          // "Untuk Anda" diranking di server via sort=foryou (personal per
+          // user dari sinyal like/follow/view; permintaan produk 2026-09-28)
+          // — tidak lagi interleave latest+popular di klien.
+          const sort: ShowcaseFeedSort = kind === "forYou" ? "foryou" : kind
+          const cursorKey = kind === "forYou" ? "forYou" : kind
           const page = await getShowcaseFeed(
-            { ...query, sort: kind, cursor: slot.cursors[kind] ?? undefined },
+            { ...query, sort, cursor: slot.cursors[cursorKey] ?? undefined },
             controller.signal,
           )
-          slot.cursors[kind] = page.nextCursor
-          slot.hasMore[kind] = page.hasMore
+          slot.cursors[cursorKey] = page.nextCursor
+          slot.hasMore[cursorKey] = page.hasMore
           incoming = page.items
           nextHasMore = page.hasMore
-        } else if (kind === "forYou") {
-          // Dua sumber paralel; sisi yang habis (hasMore false) tidak
-          // ditembak ulang pada load-more berikutnya.
-          const pages = await Promise.allSettled([
-            mode !== "more" || slot.hasMore.latest
-              ? getShowcaseFeed({ ...query, sort: "latest", cursor: slot.cursors.latest ?? undefined }, controller.signal)
-              : Promise.resolve(null),
-            mode !== "more" || slot.hasMore.popular
-              ? getShowcaseFeed({ ...query, sort: "popular", cursor: slot.cursors.popular ?? undefined }, controller.signal)
-              : Promise.resolve(null),
-          ])
-          if (controller.signal.aborted) return
-          if (pages.every((result) => result.status === "rejected")) {
-            throw (pages[0] as PromiseRejectedResult).reason
-          }
-          const latestPage = pages[0].status === "fulfilled" ? pages[0].value : null
-          const popularPage = pages[1].status === "fulfilled" ? pages[1].value : null
-          if (pages[0].status === "rejected") slot.hasMore.latest = true
-          if (pages[1].status === "rejected") slot.hasMore.popular = true
-          if (pages.some((result) => result.status === "rejected")) {
-            // A-05: saat load-more, error PARSIAL tampil di footer (retry
-            // melanjutkan kursor) — jangan tukar seluruh list dengan banner
-            // di atas yang "Coba lagi"-nya membuang halaman 2..N.
-            const partial = translate("Sebagian karya belum dapat dimuat. Coba lagi.")
-            if (mode === "more") setLoadMoreError(partial)
-            else setError(partial)
-          }
-          if (latestPage) {
-            slot.cursors.latest = latestPage.nextCursor
-            slot.hasMore.latest = latestPage.hasMore
-          }
-          if (popularPage) {
-            slot.cursors.popular = popularPage.nextCursor
-            slot.hasMore.popular = popularPage.hasMore
-          }
-          incoming = interleave(latestPage?.items ?? [], popularPage?.items ?? [])
-          nextHasMore = (latestPage?.hasMore ?? slot.hasMore.latest) || (popularPage?.hasMore ?? slot.hasMore.popular)
         } else {
           // following: feed latest difilter ke akun yang diikuti (sisi klien).
           if (mode !== "more") setFollowingGuest(false)

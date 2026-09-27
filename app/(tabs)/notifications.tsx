@@ -412,6 +412,7 @@ function NotificationsScreen() {
       {selecting ? (
         <Header
           title={selectedCount > 0 ? translate(`${selectedCount} dipilih`) : "Pilih notifikasi"}
+          titleAlign="left"
           showBack={false}
           separator={false}
           elevated={elevated}
@@ -445,6 +446,7 @@ function NotificationsScreen() {
       ) : (
         <Header
           title="Notifikasi"
+          titleAlign="left"
           // Tab top-level (bottom navbar) — tidak ada layar "sebelumnya"
           // untuk kembali (seperti <Header title="Transaksi" showBack={false}/>).
           showBack={false}

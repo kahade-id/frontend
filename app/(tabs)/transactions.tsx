@@ -50,7 +50,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
-import { FunnelSimple, Receipt, ShoppingBag, Storefront } from "phosphor-react-native"
+import { Funnel, Receipt, ShoppingBag, Storefront } from "phosphor-react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { api } from "@/lib/api"
 import { ORDER_STATUS_FILTERS } from "@/lib/api/orders"
@@ -287,7 +287,7 @@ export default function TransactionsScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header title="Transaksi" showBack={false} separator={false} />
+        <Header title="Transaksi" showBack={false} separator={false} titleAlign="left" />
         <GuestLoginPrompt bare next="/transactions" />
       </Screen>
     )
@@ -306,12 +306,13 @@ export default function TransactionsScreen() {
           cukup ikon funnel di kanan — sheet pilihan status, tanpa blok chip. */}
       <Header
         title="Transaksi"
+        titleAlign="left"
         showBack={false}
         separator={false}
         elevated={elevated}
         right={
           <IconButton
-            icon={FunnelSimple}
+            icon={Funnel}
             variant="ghost"
             active={filtered}
             accessibilityLabel={translate("Filter status transaksi")}

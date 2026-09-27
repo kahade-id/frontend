@@ -133,7 +133,7 @@ export type ShowcaseSharePayload = {
   appUrl?: string
 }
 
-export type ShowcaseFeedSort = "latest" | "popular"
+export type ShowcaseFeedSort = "latest" | "popular" | "foryou"
 
 export type ShowcaseFeedQuery = {
   /** Token opaque dari `nextCursor` respons sebelumnya. */

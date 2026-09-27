@@ -16,7 +16,7 @@ import { CheckCircle } from "phosphor-react-native"
 import { View } from "react-native"
 
 import { Button } from "@/components/ui/button"
-import { ChatComposer, type ChatComposerPayload, type ComposerAttachment } from "@/components/ui/chat-composer"
+import { ChatComposer, type ChatComposerPayload, type ComposerAttachment, type ComposerReplyTarget } from "@/components/ui/chat-composer"
 import { Icon } from "@/components/ui/icon"
 import { ScrollToEndButton } from "@/components/ui/scroll-to-end-button"
 import { Text } from "@/components/ui/text"
@@ -42,6 +42,9 @@ export type ChatRoomFooterProps = {
   onRetryAttachment: (localId: string) => void
   sending: boolean
   disabled: boolean
+  /** Target balasan — strip "Membalas …" di atas composer (permintaan produk 2026-09-28). */
+  replyTo?: ComposerReplyTarget
+  onCancelReply?: () => void
 }
 
 export function ChatRoomFooter({
@@ -60,6 +63,8 @@ export function ChatRoomFooter({
   onRetryAttachment,
   sending,
   disabled,
+  replyTo,
+  onCancelReply,
 }: ChatRoomFooterProps) {
   return (
     <View>
@@ -97,6 +102,8 @@ export function ChatRoomFooter({
           onAttach={onAttach}
           onRemoveAttachment={onRemoveAttachment}
           onRetryAttachment={onRetryAttachment}
+          replyTo={replyTo}
+          onCancelReply={onCancelReply}
           sending={sending}
           disabled={disabled}
         />
