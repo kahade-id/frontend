@@ -40,7 +40,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ArrowUpLeft, ClockCounterClockwise, Images, MagnifyingGlass, MapPin } from "phosphor-react-native"
+import { ArrowUpLeft, ClockCounterClockwise, Images, MagnifyingGlass, MapPin, TrendUp } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
@@ -235,6 +235,24 @@ export default function SearchScreen() {
       })) ?? [],
   )
   const history = historyQuery.data ?? []
+
+  // Batch 43 (item 7): trending keywords — publik, tampil saat kolom kosong.
+  const trendingQuery = useApiQuery(
+    "search-trending",
+    (signal) => api.commerce.getSearchTrends(10, signal),
+    true,
+  )
+  const trending = trendingQuery.data ?? []
+
+  // Batch 43 (item 7): catat pencarian — fire-and-forget, sekali per keyword.
+  const recordedKeyword = useRef<string | null>(null)
+  useEffect(() => {
+    if (!enabled) return
+    const q = keyword.trim()
+    if (recordedKeyword.current === q) return
+    recordedKeyword.current = q
+    void api.commerce.recordSearchTrend(q)
+  }, [enabled, keyword])
 
   // #6a (audit Discovery 2026-09-26): riwayat basi setelah mencari — backend
   // menyimpan riwayat secara async saat pencarian berjalan, jadi segarkan
@@ -495,14 +513,21 @@ export default function SearchScreen() {
                 </Text>
               ) : null}
             </View>
-          ) : history.length > 0 ? (
-            <RecentSearches
-              entries={history.slice(0, 8).map((entry) => entry.query)}
-              clearing={clearingHistory}
-              error={historyError}
-              onPick={applyQuery}
-              onClear={() => void handleClearHistory()}
-            />
+          ) : history.length > 0 || trending.length > 0 ? (
+            <View className="gap-2 pb-4 pt-1">
+              {trending.length > 0 ? (
+                <TrendingSearches entries={trending} onPick={applyQuery} />
+              ) : null}
+              {history.length > 0 ? (
+                <RecentSearches
+                  entries={history.slice(0, 8).map((entry) => entry.query)}
+                  clearing={clearingHistory}
+                  error={historyError}
+                  onPick={applyQuery}
+                  onClear={() => void handleClearHistory()}
+                />
+              ) : null}
+            </View>
           ) : null
         }
         ItemSeparatorComponent={() => <View className="h-3" />}
@@ -742,6 +767,36 @@ function RecentSearches({
 
 /** Ukuran thumbnail hasil postingan — sejajar avatar baris Pengguna. */
 const THUMB = 48
+
+/**
+ * Batch 43 (item 7): kata kunci sedang tren — chip berikon, ketuk mengisi
+ * kolom pencarian (pola sama dengan chip saran).
+ */
+function TrendingSearches({
+  entries,
+  onPick,
+}: {
+  entries: readonly { keyword: string; searchCount: number }[]
+  onPick: (query: string) => void
+}) {
+  return (
+    <View className="gap-2">
+      <View className="flex-row items-center gap-2">
+        <Icon icon={TrendUp} size="sm" tone="default" />
+        <Text variant="label" tone="secondary">
+          {translate("Sedang tren")}
+        </Text>
+      </View>
+      <View className="flex-row flex-wrap gap-2">
+        {entries.map((entry) => (
+          <Chip key={entry.keyword} onPress={() => onPick(entry.keyword)}>
+            {entry.keyword}
+          </Chip>
+        ))}
+      </View>
+    </View>
+  )
+}
 
 /**
  * Baris hasil POSTINGAN etalase (revisi 2026-09-23 — pencarian terpusat).
