@@ -71,6 +71,7 @@ import {
   ProductBadges,
   ServiceSlotSection,
 } from "@/components/showcase/product-commerce-section"
+import { ProductStatsSection } from "@/components/showcase/product-stats-section"
 import { Spin360Viewer } from "@/components/ui/spin360-viewer"
 import { ShowcaseDetailActions } from "@/components/ui/showcase-detail-actions"
 import { ShowcaseHtmlView } from "@/components/ui/showcase-html-description-editor"
@@ -845,6 +846,9 @@ function ShowcaseDetailContent({
           {translate("{x} kali dibagikan", { x: formatNumber(item.shareCount ?? 0) })}
         </Text>
       ) : null}
+
+      {/* Batch 43 (item 6): statistik produk — hanya pemilik. */}
+      {isOwner ? <ProductStatsSection showcaseId={id} /> : null}
 
       {/* Separator bawah aksi — inset */}
       <Divider inset className="mt-1" />
