@@ -28,8 +28,14 @@
 import { View } from "react-native"
 
 import type { ChatAttachmentDto } from "@/lib/api/types"
-import type { ChatMessage } from "@/lib/api/chat"
+import {
+  asOrderCard,
+  asProductCard,
+  type ChatMessage,
+  type ChatProductCardPayload,
+} from "@/lib/api/chat"
 import { formatTime } from "@/lib/format"
+import { ephemeralCountdownLabel, isMessageExpired } from "@/lib/chat-ephemeral"
 import {
   isLastInMinuteGroup,
   resolveBubblePressHandlers,
@@ -37,8 +43,12 @@ import {
 } from "@/lib/chat-bubble"
 
 import { ChatAttachmentItem } from "@/components/ui/chat-attachment-item"
+import { ChatOrderCard, ChatProductCard } from "@/components/ui/chat-cards"
 import { ChatDaySeparator, dayKey, dayLabel } from "@/components/ui/chat-day-separator"
+import { ChatFormattedText } from "@/components/ui/chat-formatted-text"
+import { ChatLocationCard } from "@/components/ui/chat-location-card"
 import { ChatMessageBubble } from "@/components/ui/chat-message-bubble"
+import { ChatViewOnce } from "@/components/ui/chat-view-once"
 import { isImageMedia } from "@/components/ui/media-viewer"
 import { VoiceNotePlayer } from "@/components/ui/voice-note-player"
 import { isAudioMime } from "@/lib/voice-note"
@@ -66,6 +76,13 @@ function quoteFallbackLabel(messageType?: string): string {
       return "Pesan suara"
     case "FILE":
       return "Berkas"
+    // Batch 43: tipe pesan baru.
+    case "LOCATION":
+      return "Lokasi"
+    case "PRODUCT_CARD":
+      return "Kartu produk"
+    case "ORDER_CARD":
+      return "Kartu order"
     default:
       return "Pesan"
   }
@@ -132,6 +149,16 @@ export type ChatMessageRowProps = {
    * meng-highlight kemunculan kata kunci. `undefined` = tidak mencari.
    */
   searchHighlight?: { query: string; focused: boolean }
+  /**
+   * Batch 43 (2026-09-28): terjemahan yang diterapkan user untuk pesan ini
+   * — dirender sebagai blok di bawah teks asli.
+   */
+  translation?: { text: string; sourceLang: string | null; targetLang: string } | null
+  /**
+   * Batch 43: tombol "Beli" pada kartu produk → layar membuka sheet buat
+   * transaksi escrow untuk etalase tersebut.
+   */
+  onBuyProductCard?: (card: ChatProductCardPayload) => void
 }
 
 export function ChatMessageRow({
@@ -150,6 +177,8 @@ export function ChatMessageRow({
   showSenderIdentity = true,
   onSwipeReply,
   searchHighlight,
+  translation,
+  onBuyProductCard,
 }: ChatMessageRowProps) {
   const showDay = !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt)
   const grouped =
@@ -183,13 +212,89 @@ export function ChatMessageRow({
     : message.attachments?.find((a) => isAudioMime(a.mimeType))
   const isVoiceMessage = message.messageType === "VOICE" && !!voiceAttachment?.fileUrl
 
+  // ── Batch 43 (2026-09-28): konten khusus ──────────────────────────
+  const isSystemMessage = message.messageType === "SYSTEM"
+  const outgoing = message.fromUser && !isSystemMessage
+  const locationPayload =
+    !message.isDeleted && message.messageType === "LOCATION" && message.location
+      ? message.location
+      : null
+  const productCard = !message.isDeleted ? asProductCard(message.card) : null
+  const orderCard = !message.isDeleted ? asOrderCard(message.card) : null
+  const isViewOnceMessage = !message.isDeleted && message.viewOnce === true
+  /** Chip hitung mundur pesan sementara — null bila bukan ephemeral/kedaluwarsa. */
+  const ephemeralChip =
+    !message.isDeleted && !isMessageExpired(message)
+      ? ephemeralCountdownLabel(message.expiresAt)
+      : null
+
+  const mediaBlock = isVoiceMessage ? (
+    <VoiceNotePlayer
+      uri={voiceAttachment!.fileUrl}
+      messageId={message.id}
+      direction={message.fromUser ? "outgoing" : "incoming"}
+    />
+  ) : message.attachments?.length ? (
+    <View className="gap-2">
+      {message.attachments.map((a, j) => (
+        <ChatAttachmentItem
+          key={`${message.id}-${j}`}
+          attachment={a}
+          layout={isImageMedia({ url: a.fileUrl, mimeType: a.mimeType }) ? "tile" : "row"}
+          onPress={() => onAttachmentPress(a)}
+        />
+      ))}
+    </View>
+  ) : undefined
+
+  const hasSpecialContent =
+    !!locationPayload || !!productCard || !!orderCard || !!mediaBlock
+
+  const specialBlock = (
+    <>
+      {locationPayload ? (
+        <ChatLocationCard location={locationPayload} outgoing={outgoing} />
+      ) : null}
+      {productCard ? (
+        <ChatProductCard card={productCard} outgoing={outgoing} onBuy={onBuyProductCard} />
+      ) : null}
+      {orderCard ? <ChatOrderCard card={orderCard} outgoing={outgoing} /> : null}
+      {mediaBlock}
+    </>
+  )
+
+  // Sekali-lihat: teks + media dibungkus (blur sampai diketuk). Kartu
+  // lokasi/produk/order tidak dikombinasikan dengan viewOnce oleh backend.
+  const bubbleChildren = isViewOnceMessage ? (
+    <ChatViewOnce message={message} outgoing={outgoing}>
+      {message.text ? (
+        <ChatFormattedText text={message.text} outgoing={outgoing} selectable={false} />
+      ) : null}
+      {hasSpecialContent ? specialBlock : null}
+    </ChatViewOnce>
+  ) : hasSpecialContent ? (
+    specialBlock
+  ) : undefined
+
+  // Kartu sudah membawa label/judulnya sendiri — teks pesan disembunyikan
+  // agar tidak duplikat.
+  const bubbleText = message.isDeleted
+    ? "Pesan ini telah dihapus"
+    : isViewOnceMessage || locationPayload || productCard || orderCard
+      ? undefined
+      : message.text
+
   return (
     <View className="gap-1">
       {showDay ? <ChatDaySeparator label={dayLabel(message.createdAt)} /> : null}
       <ChatMessageBubble
-        direction={message.fromUser ? "outgoing" : "incoming"}
+        direction={isSystemMessage ? "system" : message.fromUser ? "outgoing" : "incoming"}
         // CN-003: pesan terhapus — placeholder, bukan gelembung kosong.
-        text={message.isDeleted ? "Pesan ini telah dihapus" : message.text}
+        text={bubbleText}
+        // Batch 43: blok terjemahan + chip ephemeral + penanda bintang.
+        translation={translation}
+        ephemeralChip={ephemeralChip}
+        starred={message.isStarred === true}
         // Kutipan balasan: backend mengirim `replyTo` (id, content,
         // messageType, isDeleted, senderName) bila pesan ini membalas pesan lain.
         quote={
@@ -224,9 +329,10 @@ export function ChatMessageRow({
         // (ala WhatsApp — kutipan hanya menampilkan cuplikan pesan).
         hideQuoteSenderName={!showSenderIdentity}
         // Swipe kanan = jalan pintas balas (2026-09-28). Tekan lama "Balas"
-        // tetap ada; gesture dimatikan saat mode pilih / pesan terhapus.
+        // tetap ada; gesture dimatikan saat mode pilih / pesan terhapus /
+        // pesan sistem (batch 43).
         onSwipeReply={
-          !selecting && !message.isDeleted && onSwipeReply
+          !selecting && !message.isDeleted && !isSystemMessage && onSwipeReply
             ? () => onSwipeReply(message)
             : undefined
         }
@@ -235,8 +341,9 @@ export function ChatMessageRow({
         // Status baca pesan saya: read-receipt dari lawan bicara
         // (GET /read-receipts) naik ke ikon centang ganda "read".
         // CN-015: pesan optimistis pakai sendStatus lokal (sending/failed).
+        // Batch 43: pesan sistem tidak punya status kirim.
         status={
-          message.fromUser
+          !isSystemMessage && message.fromUser
             ? (message.sendStatus === "failed"
                 ? "failed"
                 : message.sendStatus === "sending"
@@ -256,24 +363,7 @@ export function ChatMessageRow({
         onLongPressAt={pressHandlers.onLongPressAt}
         className={selected ? "rounded-md bg-surface" : undefined}
       >
-        {isVoiceMessage ? (
-          <VoiceNotePlayer
-            uri={voiceAttachment!.fileUrl}
-            messageId={message.id}
-            direction={message.fromUser ? "outgoing" : "incoming"}
-          />
-        ) : message.attachments?.length ? (
-          <View className="gap-2">
-            {message.attachments.map((a, j) => (
-              <ChatAttachmentItem
-                key={`${message.id}-${j}`}
-                attachment={a}
-                layout={isImageMedia({ url: a.fileUrl, mimeType: a.mimeType }) ? "tile" : "row"}
-                onPress={() => onAttachmentPress(a)}
-              />
-            ))}
-          </View>
-        ) : undefined}
+        {bubbleChildren}
       </ChatMessageBubble>
     </View>
   )
