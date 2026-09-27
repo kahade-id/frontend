@@ -43,7 +43,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { byTimestampDesc, usePaginatedQuery } from "@/lib/use-paginated-query"
 import { PaginatedList } from "@/components/ui/paginated-list"
 import { WalletTransactionRow } from "@/components/ui/wallet-transaction-row"
-import { useCallback } from "react"
+import { useCallback, useMemo, useState } from "react"
 import { View } from "react-native"
 import { Wallet as WalletIcon } from "phosphor-react-native"
 
@@ -51,6 +51,8 @@ import { api, type WalletTransaction } from "@/lib/api"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { cn } from "@/lib/cn"
+import { computeEscrowHolds, totalEscrowHeld } from "@/lib/wallet-escrow-holds"
+import { formatDate } from "@/lib/format"
 
 import { EmptyState } from "@/components/ui/empty-state"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
@@ -62,6 +64,11 @@ import { RouteLink } from "@/components/ui/route-link"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
+import { BottomSheet } from "@/components/ui/bottom-sheet"
+import { Button } from "@/components/ui/button"
+import { Amount } from "@/components/ui/amount"
+import { ListLoading } from "@/components/ui/paginated-list"
+import { ErrorState } from "@/components/ui/error-state"
 import { GuestLoginPrompt } from "@/components/web-guest-gate"
 import { WalletHeroCard } from "@/components/wallet/wallet-hero-card"
 import { WalletPrimaryActions, WalletQuickMenu } from "@/components/wallet/wallet-menu"
@@ -114,6 +121,30 @@ export default function WalletScreen() {
   }, [balance.refresh, history.refresh])
 
   const recent = history.data
+
+  // FE-IMP-4 item 1: rincian order penahan escrow (read-only). Dimuat malas
+  // hanya saat sheet dibuka; dihitung dari mutasi ORDER_LOCK yang belum ada
+  // pelepasannya (lihat lib/wallet-escrow-holds.ts).
+  const [holdsOpen, setHoldsOpen] = useState(false)
+  const holdsQuery = useApiQuery<WalletTransaction[]>(
+    "wallet-escrow-holds",
+    (signal) =>
+      api.wallet
+        .getWalletTransactions({ page: 1, limit: 100 }, signal)
+        .then((page) => page.data),
+    hasSession && holdsOpen,
+  )
+  const holds = useMemo(
+    () => computeEscrowHolds(holdsQuery.data ?? []),
+    [holdsQuery.data],
+  )
+  const heldValue = wallet?.holdBalance ?? wallet?.escrowBalance ?? 0
+
+  // FE-IMP-4 item 13: sisa limit tarik hari ini (server; display-only).
+  const withdrawLimitLeft =
+    wallet?.dailyWithdrawLimit != null && wallet?.todayWithdrawAmount != null
+      ? Math.max(0, wallet.dailyWithdrawLimit - wallet.todayWithdrawAmount)
+      : undefined
 
   // Tamu: kartu saldo kosong/"Rp 0" akan menyesatkan — tampilkan ajakan masuk
   // (komponen yang sama dengan gate root layout) alih-alih dompet palsu.
@@ -193,6 +224,11 @@ export default function WalletScreen() {
                 loading={walletLoading}
                 error={walletError}
                 onRetry={() => void fetchWallet()}
+                // FE-IMP-4 item 1: sub-baris escrow bisa diketuk → sheet
+                // rincian order penahan (read-only).
+                onPressHeld={heldValue > 0 ? () => setHoldsOpen(true) : undefined}
+                // FE-IMP-4 item 13: sisa limit tarik harian dari server.
+                withdrawLimitLeft={withdrawLimitLeft}
               />
 
               {/* Tiga CTA primer: Isi Saldo / Transfer / Tarik Dana. */}
@@ -224,6 +260,75 @@ export default function WalletScreen() {
       />
       </ModeShiftFade>
       </Screen>
+
+      {/* FE-IMP-4 item 1: rincian dana ditahan escrow — read-only. */}
+      <BottomSheet
+        visible={holdsOpen}
+        onRequestClose={() => setHoldsOpen(false)}
+        title="Dana ditahan di escrow"
+        description="Order yang masih menahan dana Anda. Dana cair otomatis saat order selesai atau dibatalkan."
+        footer={
+          <Button onPress={() => setHoldsOpen(false)} containerClassName="flex-1">
+            Tutup
+          </Button>
+        }
+      >
+        {holdsQuery.loading ? (
+          <ListLoading />
+        ) : holdsQuery.error ? (
+          <ErrorState
+            compact
+            title="Gagal memuat rincian"
+            description={holdsQuery.error}
+            onRetry={() => void holdsQuery.reload()}
+          />
+        ) : holds.length === 0 ? (
+          <View className="px-5 py-6">
+            <EmptyState
+              icon={WalletIcon}
+              title="Tidak ada order penahan"
+              description="Tidak ditemukan order yang masih menahan dana pada 100 mutasi terakhir."
+            />
+          </View>
+        ) : (
+          <View className="gap-2 px-5 py-2">
+            <View className="flex-row items-baseline justify-between rounded-md bg-surface px-4 py-3">
+              <Text variant="caption" tone="secondary">
+                Total ditahan
+              </Text>
+              <Amount
+                value={totalEscrowHeld(holds)}
+                tone="primary"
+                hidden={prefs.balanceHidden}
+              />
+            </View>
+            {holds.map((hold) => (
+              <View
+                key={hold.orderId}
+                className="flex-row items-center justify-between gap-3 rounded-md border border-border bg-surface px-4 py-3"
+              >
+                <View className="flex-1 gap-0.5">
+                  <Text variant="body" weight={600} numberOfLines={1}>
+                    {hold.orderId}
+                  </Text>
+                  <Text variant="caption" tone="secondary">
+                    Ditahan sejak {formatDate(hold.lockedAt)}
+                  </Text>
+                </View>
+                <Amount
+                  value={hold.amount}
+                  tone="primary"
+                  hidden={prefs.balanceHidden}
+                />
+              </View>
+            ))}
+            <Text variant="caption" tone="tertiary" className="px-1 pt-1">
+              Dihitung dari 100 mutasi terakhir. Daftar ini hanya untuk
+              informasi — bukan untuk mengubah status order.
+            </Text>
+          </View>
+        )}
+      </BottomSheet>
     </ScreenCaptureGuard>
   )
 }

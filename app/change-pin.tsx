@@ -25,6 +25,7 @@
 import { useCallback, useEffect, useState } from "react"
 import { ScrollView, View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
+import { router } from "expo-router"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { PASSWORD_MIN } from "@/lib/auth-constants"
@@ -36,6 +37,7 @@ import { Button } from "@/components/ui/button"
 import { ScreenCaptureGuard } from "@/components/security/screen-capture-guard"
 import { Header } from "@/components/ui/header"
 import { PasswordField } from "@/components/ui/password-field"
+import { TextLink } from "@/components/ui/text-link"
 import { PinInput } from "@/components/ui/pin-input"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
@@ -204,6 +206,23 @@ export default function ChangePinScreen() {
               returnKeyType="next"
               onSubmitEditing={() => passwordOk && afterPassword()}
             />
+            {/* FE-IMP-4 item 12: tidak ada alur reset/lupa PIN wallet via OTP
+                di backend (OtpType tidak punya wallet-PIN reset; `set-pin`
+                selalu butuh password + PIN lama). JANGAN memalsukan alur —
+                arahkan ke reset kata sandi akun via WhatsApp, lalu PIN bisa
+                diubah di sini dengan kata sandi baru. */}
+            <Text variant="caption" tone="secondary" className="text-pretty">
+              Lupa PIN? Atur ulang kata sandi akun terlebih dahulu, lalu buat
+              PIN baru di sini.{" "}
+              <TextLink
+                variant="caption"
+                inline
+                onPress={() => router.push(ROUTES.forgotPassword())}
+                accessibilityLabel="Buka halaman lupa kata sandi"
+              >
+                Lupa kata sandi
+              </TextLink>
+            </Text>
           </>
         ) : step === "current" ? (
           <>

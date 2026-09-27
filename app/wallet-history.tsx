@@ -320,6 +320,23 @@ export default function WalletHistoryScreen() {
                 </Text>
               ) : null}
 
+              {/* FE-IMP-4 item 15: chip cepat "Dalam proses" — menyaring
+                  mutasi yang masih pending tanpa membuka sheet filter. */}
+              <ScrollRow bleed gap={2} accessibilityLabel="Filter cepat status mutasi">
+                <Chip
+                  selected={filters.status === "PENDING"}
+                  accessibilityState={{ selected: filters.status === "PENDING" }}
+                  onPress={() =>
+                    setFilters((f) => ({
+                      ...f,
+                      status: f.status === "PENDING" ? "ALL" : "PENDING",
+                    }))
+                  }
+                >
+                  {translate("Dalam proses")}
+                </Chip>
+              </ScrollRow>
+
               {/* Chip ringkasan filter aktif + atur ulang */}
               {hasActiveFilters ? (
                 <ScrollRow bleed gap={2} accessibilityLabel="Filter riwayat yang aktif">
