@@ -58,24 +58,25 @@ describe("parseShowcaseMedia — parser toleran (item 11/12/16)", () => {
     expect(parseShowcaseMedia(null)).toEqual([])
     expect(parseShowcaseMedia({})).toEqual([])
   })
-  it("image & video valid lolos; posterUrl opsional dipertahankan", () => {
+  it("image & video valid lolos; thumbnailUrl opsional dipertahankan", () => {
     const out = parseShowcaseMedia([
-      { id: "a", kind: "image", url: "https://x.id/a.jpg" },
-      { id: "b", kind: "video", url: "https://x.id/b.mp4", posterUrl: "https://x.id/b.jpg" },
+      { id: "a", kind: "image", imageUrl: "https://x.id/a.jpg" },
+      { id: "b", kind: "video", imageUrl: "https://x.id/b.mp4", thumbnailUrl: "https://x.id/b.jpg" },
     ])
     expect(out).toHaveLength(2)
-    expect(out[0]).toMatchObject({ id: "a", kind: "image", url: "https://x.id/a.jpg" })
-    expect(out[1]).toMatchObject({ kind: "video", posterUrl: "https://x.id/b.jpg" })
+    expect(out[0]).toMatchObject({ id: "a", kind: "image", imageUrl: "https://x.id/a.jpg" })
+    expect(out[1]).toMatchObject({ kind: "video", thumbnailUrl: "https://x.id/b.jpg" })
   })
-  it("spin360 butuh ≥2 frame valid", () => {
+  it("spin360 butuh groupKey + groupOrder (kontrak final)", () => {
     expect(
-      parseShowcaseMedia([{ id: "s", kind: "spin360", frames: ["https://x.id/1.jpg"] }]),
+      parseShowcaseMedia([{ id: "s", kind: "spin360", imageUrl: "https://x.id/1.jpg" }]),
     ).toEqual([])
     const out = parseShowcaseMedia([
-      { id: "s", kind: "spin360", frames: ["https://x.id/1.jpg", "https://x.id/2.jpg", 42, null] },
+      { id: "s1", kind: "spin360", imageUrl: "https://x.id/1.jpg", groupKey: "g1", groupOrder: 0 },
+      { id: "s2", kind: "spin360", imageUrl: "https://x.id/2.jpg", groupKey: "g1", groupOrder: 1 },
     ])
-    expect(out).toHaveLength(1)
-    expect(out[0]).toMatchObject({ kind: "spin360", frames: ["https://x.id/1.jpg", "https://x.id/2.jpg"] })
+    expect(out).toHaveLength(2)
+    expect(out[0]).toMatchObject({ kind: "spin360", groupKey: "g1", groupOrder: 0 })
   })
   it("kind asing DIBUANG — tidak fail-open ke image", () => {
     const out = parseShowcaseMedia([
@@ -89,7 +90,7 @@ describe("parseShowcaseMedia — parser toleran (item 11/12/16)", () => {
     expect(parseShowcaseMedia([{ id: "i", kind: "image", url: "" }])).toEqual([])
   })
   it("id hilang → fallback deterministik", () => {
-    const out = parseShowcaseMedia([{ kind: "image", url: "https://x.id/a.jpg" }], "item-1")
+    const out = parseShowcaseMedia([{ kind: "image", imageUrl: "https://x.id/a.jpg" }], "item-1")
     expect(out[0]?.id).toBe("item-1-media-0")
   })
 })
@@ -129,9 +130,10 @@ describe("showcaseMedia — prioritas & fallback (item 11/16)", () => {
   it("media kaya valid → dipakai, spin360 TIDAK jadi slide karosel", () => {
     const item = {
       ...base,
-      media: [
-        { id: "v1", kind: "video", url: "https://x.id/v.mp4", posterUrl: "https://x.id/p.jpg" },
-        { id: "s1", kind: "spin360", frames: ["https://x.id/1.jpg", "https://x.id/2.jpg"] },
+      images: [
+        { id: "v1", kind: "video", imageUrl: "https://x.id/v.mp4", thumbnailUrl: "https://x.id/p.jpg", sortOrder: 0 },
+        { id: "s1", kind: "spin360", imageUrl: "https://x.id/1.jpg", groupKey: "g1", groupOrder: 0, sortOrder: 1 },
+        { id: "s2", kind: "spin360", imageUrl: "https://x.id/2.jpg", groupKey: "g1", groupOrder: 1, sortOrder: 2 },
       ],
     } as unknown as ShowcaseSocialItem
     const out = showcaseMedia(item)

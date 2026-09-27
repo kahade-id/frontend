@@ -762,11 +762,29 @@ export type ShowcaseItem = {
   visibility?: "PUBLIC" | "PRIVATE"
 }
 
-/** Satu gambar item showcase (GET /v1/users/me/showcase → items[].images). */
+/**
+ * Satu gambar item showcase (GET /v1/users/me/showcase → items[].images).
+ * KONTRAK FINAL Tim A (2026-09-28): entri bisa berupa video atau frame
+ * spin360 — field kaya opsional di bawah; payload lama (tanpa kind) tetap
+ * valid sebagai image.
+ */
 export type ShowcaseImage = {
   id: string
+  /**
+   * image: URL gambar; video: URL berkas video; spin360: URL satu frame.
+   * Untuk video, `thumbnailUrl` adalah poster yang dipakai sebagai cover.
+   */
   imageUrl: string
   sortOrder: number
+  kind?: "image" | "video" | "spin360"
+  thumbnailUrl?: string
+  /** video: durasi detik. */
+  durationSec?: number
+  width?: number
+  height?: number
+  /** spin360: kunci grup + urutan frame dalam grup. */
+  groupKey?: string
+  groupOrder?: number
 }
 
 export function getMyShowcase(signal?: AbortSignal) {

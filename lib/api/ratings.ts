@@ -2,7 +2,7 @@
  * Kahade — domain `ratings` (ulasan pesanan masuk/keluar).
  */
 
-import { readList } from "@/lib/api/response"
+import { asRecord, invalidResponse, readList } from "@/lib/api/response"
 
 import { http, seg } from "@/lib/api/client"
 import type { CreateRatingDto, RatingReplyDto, UpdateRatingDto } from "@/lib/api/types"
@@ -164,14 +164,9 @@ export function deleteMyRating(ratingId: string) {
 // ------------------------------------------------------------------
 
 /**
- * KONTRAK TIM A — distribusi bintang ulasan BELUM didefinisikan.
- * Modul ini adalah TITIK INTEGRASI: tipe + signature sudah ditetapkan dan
- * dipakai `components/ui/rating-distribution.tsx`; implementasi nyata hanya
- * mengganti badan fungsi ini begitu kontrak tiba. JANGAN menebak
- * path/metode.
- *
- * Bentuk data yang diusulkan ke TIM A (bukan kontrak final):
- *   GET /v1/ratings/distribution?scope=my → { counts: [c1, c2, c3, c4, c5], total }
+ * KONTRAK FINAL TIM A (2026-09-28): `GET /v1/users/:username/ratings`
+ * menyertakan `distribution: {"1": n, …, "5": n}` dan `averageRating` —
+ * TIDAK dipengaruhi parameter filter.
  */
 export type RatingDistribution = {
   /** counts[0] = jumlah 1★ … counts[4] = jumlah 5★. */
@@ -179,9 +174,60 @@ export type RatingDistribution = {
   total: number
 }
 
-/** Menolak dengan pesan kontrak — komponen distribusi menyembunyikan diri. */
-export function readRatingDistribution(): Promise<RatingDistribution> {
-  return Promise.reject(
-    new Error("Distribusi bintang belum tersedia: menunggu kontrak endpoint dari TIM A."),
-  )
+/** Ringkasan rating publik: distribusi + rata-rata dari server. */
+export type PublicRatingSummary = {
+  distribution: RatingDistribution
+  /** `averageRating` server; null bila backend tidak mengirimnya. */
+  averageRating: number | null
+}
+
+function parseDistributionCounts(raw: unknown): [number, number, number, number, number] | null {
+  const d = asRecord(raw)
+  if (!d) return null
+  const counts = [1, 2, 3, 4, 5].map((star) => {
+    const v = d[String(star)]
+    return typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.floor(v) : 0
+  })
+  return counts as [number, number, number, number, number]
+}
+
+/**
+ * Parse ringkasan dari respons `GET /v1/users/:username/ratings`.
+ * Mengembalikan null bila respons tidak memuat `distribution` (kontrak lama
+ * atau bentuk tak dikenal) — pemanggil menyembunyikan komponen (fail closed).
+ */
+export function parsePublicRatingSummary(body: unknown): PublicRatingSummary | null {
+  const root = asRecord(body)
+  if (!root) return null
+  const counts = parseDistributionCounts(root.distribution)
+  if (!counts) return null
+  const total = counts.reduce((a, b) => a + b, 0)
+  const avg = root.averageRating
+  return {
+    distribution: { counts, total },
+    averageRating: typeof avg === "number" && Number.isFinite(avg) ? avg : null,
+  }
+}
+
+/**
+ * Ambil ringkasan distribusi + rata-rata milik username.
+ * `limit=1` — daftar ulasannya tidak dibutuhkan; distribusi tidak dipengaruhi
+ * filter maupun paginasi.
+ */
+export function getPublicRatingSummary(
+  username: string,
+  signal?: AbortSignal,
+): Promise<PublicRatingSummary> {
+  return http
+    .get<unknown>(`/v1/users/${seg(username)}/ratings`, {
+      query: { page: 1, limit: 1 },
+      auth: "optional",
+      retry: 1,
+      signal,
+    })
+    .then((body) => {
+      const summary = parsePublicRatingSummary(body)
+      if (!summary) throw invalidResponse("rating-summary")
+      return summary
+    })
 }

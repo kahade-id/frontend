@@ -43,7 +43,7 @@ import { useApiQuery } from "@/lib/use-api-query"
 import { useSessionRevision } from "@/lib/guest-gate"
 import { useShowcaseOperation } from "@/lib/use-showcase-operation"
 import { mergeComments, patchComments } from "@/lib/showcase-state"
-import { showcaseImages, showcaseMedia } from "@/lib/showcase-social"
+import { showcaseImages, showcaseMedia, showcaseSpin360Groups } from "@/lib/showcase-social"
 import { markShowcaseDeleted } from "@/lib/showcase-deleted"
 import { markShowcaseFeedDirty, queueShowcaseCommentCount } from "@/lib/showcase-social-prefs"
 import { SHOWCASE_COMMENT_MESSAGES } from "@/lib/showcase-comment-messages"
@@ -63,6 +63,7 @@ import { Dialog } from "@/components/ui/modal"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { ShowcaseAuthorRow } from "@/components/showcase-author-row"
+import { ShowcaseLikersSheet, type LikersTab } from "@/components/ui/showcase-likers-sheet"
 import { Radio, RadioGroup } from "@/components/ui/radio"
 import { ShowcaseMediaGallery } from "@/components/ui/showcase-media-gallery"
 import { Spin360Viewer } from "@/components/ui/spin360-viewer"
@@ -179,7 +180,7 @@ function ShowcaseDetailContent({
    * A-05/A-06/A-07: suka & simpan lewat store bersama — sinkron dengan feed
    * & profil dalam satu sesi; tamu diarahkan ke layar login oleh hook.
    */
-  const { liked, likeCount, saved, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible, hasSession } =
+  const { liked, likeCount, saved, saveCount, likePending, savedPending, toggleLike, toggleSave, share, shareSheetVisible, setShareSheetVisible, hasSession } =
     useShowcaseSocialActions(item)
 
   // L-01/L-06 (audit 2026-09-23): param rute untuk tab asal & highlight.
@@ -226,6 +227,11 @@ function ShowcaseDetailContent({
   /** T5 (audit 2026-09-26): hapus karya dari layar detail (pemilik saja). */
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  /**
+   * Kontrak final Tim A #5 (2026-09-28): sheet daftar penyuka/penyimpan.
+   * null = tertutup; selain itu tab awal yang dibuka.
+   */
+  const [likersSheetTab, setLikersSheetTab] = useState<LikersTab | null>(null)
 
   /** A-11: sheet laporan bersama — null = tertutup. */
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
@@ -297,13 +303,9 @@ function ShowcaseDetailContent({
 
   // Batch 19: slide galeri (gambar/video); viewer layar penuh hanya gambar.
   const resolvedMedia = useMemo(() => showcaseMedia(item), [item])
-  const spin360Frames = useMemo(
-    () =>
-      (item.media ?? []).flatMap((m) =>
-        m.kind === "spin360" && m.frames && m.frames.length > 1 ? [m.frames] : [],
-      ),
-    [item],
-  )
+  // Kontrak final Tim A (2026-09-28): spin360 dirangkai dari entri images
+  // (groupKey + groupOrder), bukan field `frames` terpisah.
+  const spin360Frames = useMemo(() => showcaseSpin360Groups(item), [item])
 
   /** Ketuk media → viewer layar penuh (pinch-zoom + swipe antar foto). */
   const openViewer = (index: number) => {
@@ -778,6 +780,43 @@ function ShowcaseDetailContent({
         onToggleSave={toggleSave}
         onShare={() => void share()}
       />
+      {/* Kontrak final Tim A #4/#5 (2026-09-28): hitungan suka & simpan dari
+          server — ketuk untuk membuka daftar penyuka/penyimpan. */}
+      <View className="flex-row items-center px-5 pt-1">
+        <PressableScale
+          accessibilityRole="button"
+          accessibilityLabel={translate("Lihat penyuka")}
+          onPress={() => setLikersSheetTab("likers")}
+          className="py-1 pr-1"
+        >
+          <Text variant="caption" tone="secondary" className="tabular-nums">
+            {translate("{x} suka", { x: formatNumber(likeCount) })}
+          </Text>
+        </PressableScale>
+        <Text variant="caption" tone="tertiary" className="px-1">
+          {"·"}
+        </Text>
+        {/* Kontrak final Tim A #4/#5 (2026-09-28): hitungan suka & simpan dari
+            server — ketuk untuk membuka daftar penyuka/penyimpan.
+            Tab Disimpan hanya untuk pemilik (fail closed: savers 403) —
+            non-pemilik hanya melihat angka sebagai teks statis. */}
+        {isOwner ? (
+          <PressableScale
+            accessibilityRole="button"
+            accessibilityLabel={translate("Lihat penyimpan")}
+            onPress={() => setLikersSheetTab("savers")}
+            className="py-1 pl-1"
+          >
+            <Text variant="caption" tone="secondary" className="tabular-nums">
+              {translate("{x} menyimpan", { x: formatNumber(saveCount) })}
+            </Text>
+          </PressableScale>
+        ) : (
+          <Text variant="caption" tone="secondary" className="py-1 pl-1 tabular-nums">
+            {translate("{x} menyimpan", { x: formatNumber(saveCount) })}
+          </Text>
+        )}
+      </View>
       {/* DC-008: metrik share dari backend — tampil ringan bila ada. */}
       {(item.shareCount ?? 0) > 0 ? (
         <Text variant="caption" tone="tertiary" className="px-5">
@@ -1056,6 +1095,16 @@ function ShowcaseDetailContent({
       {/* A-11: SATU sheet laporan (copy seragam "Laporkan Karya"). */}
       <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />
       <ShowcaseShareSheet visible={shareSheetVisible} item={item} onClose={() => setShareSheetVisible(false)} />
+      {/* Kontrak final Tim A #5: daftar penyuka (publik) & penyimpan (pemilik). */}
+      <ShowcaseLikersSheet
+        visible={likersSheetTab !== null}
+        onClose={() => setLikersSheetTab(null)}
+        itemId={item.id}
+        likeCount={likeCount}
+        saveCount={saveCount}
+        canViewSavers={isOwner}
+        initialTab={likersSheetTab ?? "likers"}
+      />
     </DataScreen>
   )
 }

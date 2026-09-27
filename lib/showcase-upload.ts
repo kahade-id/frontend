@@ -7,6 +7,19 @@ import { logWarn } from "@/lib/telemetry"
 
 export type ShowcaseUploadOutcome = { kind: "fileKey"; fileKey: string }
 
+/**
+ * Hasil upload video showcase — siap dilampirkan sebagai
+ * `{ kind: "video", fileKey, thumbnailFileKey, durationSec }` di `media[]`
+ * (kontrak final Tim A #2: video WAJIB thumbnailFileKey).
+ */
+export type ShowcaseVideoUploadOutcome = {
+  kind: "video"
+  fileKey: string
+  thumbnailFileKey: string
+  durationSec?: number
+  thumbnailUrl?: string
+}
+
 export async function uploadShowcasePhoto(asset: PickedImage, signal?: AbortSignal): Promise<ShowcaseUploadOutcome> {
   let fileKey: string | undefined
   let stage = "read"
@@ -49,6 +62,69 @@ export async function cleanupPendingShowcaseKeys(fileKeys: string[]): Promise<vo
     } catch {
       logWarn("showcase:cleanup", new Error("Pending upload cleanup failed"))
     }
+  }
+}
+
+/**
+ * Upload SATU video showcase (kontrak final Tim A #1, 2026-09-28).
+ *
+ * Alur: POST /v1/upload/direct (multipart file + purpose=SHOWCASE_VIDEO)
+ * dengan laporan progress 0–1 via `onProgress`. Backend memproses video
+ * (thumbnail otomatis) — hasilnya WAJIB menyertakan `thumbnailFileKey`
+ * (fail-closed: tanpa itu, kirim sebagai video DITOLAK dengan pesan jelas,
+ * bukan fail-open jadi gambar).
+ *
+ * Error backend (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, VIDEO_TOO_LONG,
+ * VIDEO_UNPROCESSABLE, UPLOAD_FAILED) sudah dipetakan ke pesan Indonesia
+ * di `api.upload.uploadDirectVideo`.
+ */
+export async function uploadShowcaseVideo(
+  asset: PickedImage,
+  opts: {
+    onProgress?: (fraction: number) => void
+    signal?: AbortSignal
+  } = {},
+): Promise<ShowcaseVideoUploadOutcome> {
+  const { onProgress, signal } = opts
+  let fileKey: string | undefined
+  let thumbnailFileKey: string | undefined
+  try {
+    if (signal?.aborted) throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
+    const result = await api.upload.uploadDirectVideo(asset, {
+      purpose: "SHOWCASE_VIDEO",
+      onProgress,
+      signal,
+    })
+    fileKey = result.fileKey
+    // Kontrak #2: video WAJIB thumbnailFileKey — fail-closed bila backend
+    // tidak mengembalikannya (jangan kirim video tanpa thumbnail).
+    if (!result.thumbnailFileKey) {
+      throw new ApiError({
+        code: "PARSE",
+        message: "Video berhasil diunggah tetapi thumbnail tidak tersedia. Coba lagi.",
+      })
+    }
+    thumbnailFileKey = result.thumbnailFileKey
+    if (signal?.aborted) throw new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." })
+    const outcome: ShowcaseVideoUploadOutcome = {
+      kind: "video",
+      fileKey: result.fileKey,
+      thumbnailFileKey: result.thumbnailFileKey,
+    }
+    if (result.durationSec != null) outcome.durationSec = result.durationSec
+    if (result.thumbnailUrl) outcome.thumbnailUrl = result.thumbnailUrl
+    return outcome
+  } catch (error) {
+    // Best-effort: bersihkan fileKey yang sudah terlanjur terunggah.
+    const keys = [fileKey, thumbnailFileKey].filter((k): k is string => !!k)
+    if (keys.length > 0) await cleanupPendingShowcaseKeys(keys)
+    const diag = isApiError(error)
+      ? `${error.code}${error.status ? `:${error.status}` : ""}${
+          error.backendCode ? `:${error.backendCode}` : ""
+        }`
+      : "unknown"
+    logWarn(`showcase:upload-video:${diag}`, new Error(signal?.aborted ? "cancelled" : "failed"))
+    throw error
   }
 }
 

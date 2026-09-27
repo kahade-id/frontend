@@ -1,18 +1,19 @@
 /**
- * Kahade — <RatingDistribution> (item 21, 2026-09-28).
+ * Kahade — <RatingDistribution> (item 21).
  *
  * Bar distribusi 1–5★ di halaman ulasan: rata-rata + total di kiri, lima bar
  * horizontal (5★ → 1★) dengan jumlah. Mengetuk bar menyaring daftar ke bintang
  * tersebut (mengintegrasikan dengan filter ulasan yang SUDAH ADA — bukan
  * filter baru; `onSelectStars` disambung ke state filter pemanggil).
  *
- * DATA MENUNGGU KONTRAK TIM A: `readRatingDistribution()` saat ini menolak,
- * jadi komponen menyembunyikan dirinya sendiri (tidak menampilkan angka
- * perkiraan dari halaman yang dimuat — itu menyesatkan). Begitu kontrak tiba,
- * komponen otomatis tampil tanpa perubahan UI.
+ * KONTRAK FINAL TIM A (2026-09-28): distribusi + rata-rata dibaca dari
+ * `GET /v1/users/:username/ratings` (`distribution`, `averageRating`).
+ * Respons tanpa `distribution` = komponen menyembunyikan diri (fail closed —
+ * tidak menampilkan angka perkiraan dari halaman yang dimuat; itu
+ * menyesatkan).
  */
 import { Star } from "phosphor-react-native"
-import { useCallback, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { View } from "react-native"
 
 import { Icon } from "@/components/ui/icon"
@@ -21,9 +22,15 @@ import { Text } from "@/components/ui/text"
 import { cn } from "@/lib/cn"
 import { formatDecimal } from "@/lib/format"
 import { translate, useLanguage } from "@/lib/i18n"
-import { readRatingDistribution, type RatingDistribution } from "@/lib/api/ratings"
+import { getPublicRatingSummary, type PublicRatingSummary } from "@/lib/api/ratings"
 
 export type RatingDistributionProps = {
+  /**
+   * Username pemilik ulasan — distribusi diambil dari ringkasan publik
+   * miliknya. Wajib: tanpa username komponen tidak bisa fetch dan
+   * menyembunyikan diri.
+   */
+  username: string
   /**
    * Bintang yang sedang difilter pemanggil (null = semua). Bar yang cocok
    * ditandai terpilih; mengetuk bar yang sama menghapus filter.
@@ -32,28 +39,37 @@ export type RatingDistributionProps = {
   onSelectStars?: (stars: number | null) => void
 }
 
-export function RatingDistributionBars({ selectedStars = null, onSelectStars }: RatingDistributionProps) {
+export function RatingDistributionBars({ username, selectedStars = null, onSelectStars }: RatingDistributionProps) {
   useLanguage()
-  const [data, setData] = useState<RatingDistribution | null>(null)
-
-  const refresh = useCallback(async () => {
-    try {
-      setData(await readRatingDistribution())
-    } catch {
-      // Kontrak TIM A belum tiba — sembunyikan (bukan error).
-      setData(null)
-    }
-  }, [])
+  const [summary, setSummary] = useState<PublicRatingSummary | null>(null)
 
   useEffect(() => {
-    void refresh()
-  }, [refresh])
+    let cancelled = false
+    const controller = new AbortController()
+    if (!username) {
+      setSummary(null)
+      return
+    }
+    getPublicRatingSummary(username, controller.signal)
+      .then((s) => {
+        if (!cancelled) setSummary(s)
+      })
+      .catch(() => {
+        if (!cancelled) setSummary(null)
+      })
+    return () => {
+      cancelled = true
+      controller.abort()
+    }
+  }, [username])
 
-  if (!data) return null
+  if (!summary) return null
 
-  const { counts, total } = data
-  const sum = counts.reduce((acc, c, i) => acc + c * (i + 1), 0)
-  const average = total > 0 ? sum / total : 0
+  const { counts, total } = summary.distribution
+  // Rata-rata dari server; fallback = hitung dari distribusi server (bukan
+  // dari halaman daftar yang dimuat — itu menyesatkan).
+  const fallbackSum = counts.reduce((acc, c, i) => acc + c * (i + 1), 0)
+  const average = summary.averageRating ?? (total > 0 ? fallbackSum / total : 0)
 
   return (
     <View

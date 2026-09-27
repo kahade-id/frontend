@@ -339,11 +339,19 @@ export default function RatingsScreen() {
           }}
         />
       </View>
-      {/* Item 21 (2026-09-28): bar distribusi 1–5★ — hidden sampai kontrak
-          TIM A tiba; mengetuk bar menyaring daftar yang sudah ada. */}
-      <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
-        <RatingDistributionBars selectedStars={starsFilter} onSelectStars={setStarsFilter} />
-      </View>
+      {/* Item 21: bar distribusi 1–5★ dari ringkasan publik milik sendiri
+          (GET /v1/users/:username/ratings → distribution + averageRating).
+          Hanya relevan untuk segmen "Diterima"; mengetuk bar menyaring
+          daftar yang sudah ada. */}
+      {segment === "RECEIVED" && me?.username ? (
+        <View className="px-5" style={{ paddingTop: tokens.space[3] }}>
+          <RatingDistributionBars
+            username={me.username}
+            selectedStars={starsFilter}
+            onSelectStars={setStarsFilter}
+          />
+        </View>
+      ) : null}
       <PullToRefresh
         onRefresh={() => void query.refresh()}
         refreshing={refreshing}

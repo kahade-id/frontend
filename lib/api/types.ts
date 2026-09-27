@@ -458,6 +458,12 @@ export type CreateShowcaseItemDto = {
   sortOrder?: number
   /** Object key hasil upload presigned (purpose SHOWCASE_IMAGE) yang sudah dikonfirmasi lewat POST /upload/confirm. Maksimum 8 gambar. */
   imageFileKeys?: Array<string>
+  /**
+   * KONTRAK FINAL Tim A (2026-09-28): lampiran media kaya.
+   * JANGAN dikirim bersamaan dengan `imageFileKeys` (→ 400).
+   * PUT = replace penuh seluruh media.
+   */
+  media?: Array<ShowcaseMediaInput>
 }
 
 export type UpdateShowcaseItemDto = {
@@ -477,6 +483,29 @@ export type UpdateShowcaseItemDto = {
   sortOrder?: number
   /** Bila diisi, seluruh gambar diganti dengan daftar key ini. */
   imageFileKeys?: Array<string>
+  /**
+   * KONTRAK FINAL Tim A (2026-09-28): lampiran media kaya (replace penuh).
+   * JANGAN dikirim bersamaan dengan `imageFileKeys` (→ 400).
+   */
+  media?: Array<ShowcaseMediaInput>
+}
+
+/**
+ * Satu entri `media[]` untuk POST/PUT /v1/users/me/showcase[/:id] —
+ * KONTRAK FINAL Tim A (2026-09-28).
+ * - video WAJIB `thumbnailFileKey` (backend confirmed).
+ * - spin360: 8–24 frame per `groupKey`, `groupOrder` 0..n-1 kontinu.
+ */
+export type ShowcaseMediaInput = {
+  fileKey: string
+  kind: "image" | "video" | "spin360"
+  thumbnailFileKey?: string
+  /** video: durasi detik. */
+  durationSec?: number
+  /** spin360: kunci grup frame. */
+  groupKey?: string
+  /** spin360: urutan frame dalam grup. */
+  groupOrder?: number
 }
 
 export type AttachShowcaseImagesDto = {

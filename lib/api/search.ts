@@ -72,6 +72,7 @@ export function parseSearchShowcaseItem(raw: unknown): import("@/lib/api/showcas
     commentCount: 0,
     viewCount: 0,
     shareCount: 0,
+    saveCount: 0,
     descriptionHtml: null,
     createdAt: typeof record.createdAt === "string" ? record.createdAt : "",
     updatedAt: typeof record.updatedAt === "string" ? record.updatedAt : "",

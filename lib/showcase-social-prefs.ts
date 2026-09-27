@@ -54,8 +54,7 @@ function subscribe(listener: () => void) {
  */
 export const SHOWCASE_SAVED_LIMIT = 25
 
-export function toggleShowcaseSaved(id: string) {
-  const saved = { ...state.saved }
+export function toggleShowcaseSaved(id: string) {  const saved = { ...state.saved }
   if (saved[id]) delete saved[id]
   else {
     if (Object.keys(saved).length >= SHOWCASE_SAVED_LIMIT) {
@@ -76,6 +75,22 @@ export function toggleShowcaseSaved(id: string) {
 
 export function isShowcaseSaved(id: string): boolean {
   return state.saved[id] === true
+}
+
+/**
+ * Set eksplisit status simpan satu item (kontrak final Tim A #4, 2026-09-28).
+ *
+ * Dipakai untuk (a) seed dari `isSaved` server saat item dimuat, dan
+ * (b) commit hasil POST/DELETE /v1/showcase/:id/save. Server adalah source
+ * of truth; store lokal tetap dipersist sebagai cache koleksi "Tersimpan".
+ * Tidak ada batas 25 di sini — itu batas workaround lokal lama.
+ */
+export function setShowcaseSavedState(id: string, saved: boolean) {
+  const next = { ...state.saved }
+  if (saved) next[id] = true
+  else delete next[id]
+  emit({ saved: next })
+  persistBookmarks()
 }
 
 /**

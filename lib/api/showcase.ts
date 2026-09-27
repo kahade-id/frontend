@@ -72,17 +72,32 @@ export type ShowcaseSocialItem = {
   category?: string | null
   visibility?: string
   isActive?: boolean
-  images: { id: string; imageUrl: string; sortOrder: number }[]
+  /**
+   * KONTRAK FINAL Tim A (2026-09-28): `images[]` berisi objek kaya
+   * `ShowcaseMedia` — image | video (imageUrl = berkas video, thumbnailUrl =
+   * poster) | spin360 (imageUrl = satu frame, groupKey + groupOrder).
+   * Selalu array (bisa kosong); diurutkan sortOrder oleh parser.
+   */
+  images: ShowcaseMedia[]
   coverImageUrl?: string | null
   /** Alias deprecated `imageUrl` = cover; tetap dikirim backend. */
   imageUrl?: string | null
   priceMin?: number | null
   priceMax?: number | null
+  /**
+   * Kondisi barang dari backend ("BARU" | "BEKAS" | null) — kontrak final
+   * Tim A (2026-09-28). null = tidak diisi penjual.
+   */
+  condition?: "BARU" | "BEKAS" | null
   likeCount: number
   commentCount: number
   viewCount: number
   /** DC-008: berapa kali deep link share item ini dibuka (backend S-4). */
   shareCount?: number
+  /** Berapa kali item ini disimpan (kontrak final Tim A, 2026-09-28). */
+  saveCount: number
+  /** viewer menyimpan item ini (butuh auth; false bila anonim). */
+  isSaved?: boolean
   /** viewer menyukai item ini (butuh auth; false bila anonim). */
   isLiked?: boolean
   /** viewer adalah pemilik item (moderasi komentar terbuka). */
@@ -100,59 +115,90 @@ export type ShowcaseSocialItem = {
   shareUrl?: string
   /** Karya terkait (kategori sama → populer). Diisi backend di detail. */
   related?: ShowcaseSocialItem[]
-  /**
-   * Batch 19 (item 11/12/16) — lampiran media kaya: video & tampilan 360°.
-   * KONTRAK TIM A PENDING: bentuk final field ini menunggu kontrak backend.
-   * Parser toleran (lihat `parseShowcaseMedia`): entri tak dikenal dilewati,
-   * sehingga payload lama (tanpa `media`) tetap valid.
-   */
-  media?: ShowcaseMedia[]
 }
 
 /**
- * Satu lampiran media karya.
- * - `image`: foto biasa (cermin `images[]` lama).
- * - `video`: `url` = berkas video, `posterUrl` opsional = thumbnail.
- * - `spin360`: `frames` = URL frame berurutan satu putaran penuh.
+ * Satu entri `images[]` respons backend — KONTRAK FINAL Tim A (2026-09-28).
+ * - `image`: `imageUrl` = URL gambar.
+ * - `video`: `imageUrl` = URL berkas video, `thumbnailUrl` = poster/thumbnail
+ *   (wajib ada menurut kontrak upload; viewer memakai ini sebagai cover).
+ * - `spin360`: `imageUrl` = URL SATU frame; frame se-grup berbagi `groupKey`
+ *   dan diurutkan `groupOrder` (0..n-1 kontinu; viewer wrap-around).
  */
 export type ShowcaseMediaKind = "image" | "video" | "spin360"
 
 export type ShowcaseMedia = {
   id: string
   kind: ShowcaseMediaKind
-  url?: string
-  posterUrl?: string
-  frames?: string[]
+  imageUrl: string
+  thumbnailUrl?: string
+  /** video: durasi detik (dari upload). */
+  durationSec?: number
+  width?: number
+  height?: number
+  /** spin360: kunci grup frame. */
+  groupKey?: string
+  /** spin360: urutan frame dalam grup (0..n-1). */
+  groupOrder?: number
+  sortOrder: number
 }
 
 /**
- * Parser toleran untuk `media[]` — KONTRAK TIM A PENDING. Aturan:
- * - kind di luar whitelist → entri DIBUANG (bukan fail-open ke image);
- * - video/spin360 tanpa url/frames yang valid → dibuang;
- * - image tanpa url → dibuang (konsisten dengan parser `images`).
+ * Parser kontrak final `images[]` (Tim A, 2026-09-28). Aturan:
+ * - `kind` hilang/null → "image" (payload lama tetap valid);
+ * - `kind` string di luar whitelist → entri DIBUANG (bukan fail-open);
+ * - `imageUrl` wajib non-kosong untuk semua kind;
+ * - `spin360` tanpa `groupKey`/`groupOrder` valid → dibuang (tak bisa
+ *   dirangkai jadi putaran);
+ * - hasil diurutkan `sortOrder` (fallback indeks).
  */
 export function parseShowcaseMedia(raw: unknown, fallbackId = ""): ShowcaseMedia[] {
   if (!Array.isArray(raw)) return []
-  return raw.flatMap((entry, index): ShowcaseMedia[] => {
+  const out: ShowcaseMedia[] = []
+  raw.forEach((entry, index) => {
     const rec = asRecord(entry)
-    if (!rec) return []
+    if (!rec) return
     const id = typeof rec.id === "string" && rec.id ? rec.id : `${fallbackId}-media-${index}`
-    const kind = rec.kind
-    if (kind === "image" || kind === "video") {
-      const url = typeof rec.url === "string" && rec.url ? rec.url : null
-      if (!url) return []
-      const posterUrl = typeof rec.posterUrl === "string" && rec.posterUrl ? rec.posterUrl : undefined
-      return [{ id, kind, url, ...(posterUrl ? { posterUrl } : {}) }]
+    const kindRaw = rec.kind
+    if (typeof kindRaw === "string" && kindRaw !== "image" && kindRaw !== "video" && kindRaw !== "spin360") {
+      return
     }
-    if (kind === "spin360") {
-      const frames = Array.isArray(rec.frames)
-        ? rec.frames.filter((f): f is string => typeof f === "string" && !!f)
-        : []
-      if (frames.length < 2) return []
-      return [{ id, kind, frames }]
-    }
-    return []
+    const kind: ShowcaseMediaKind =
+      kindRaw === "video" || kindRaw === "spin360" ? kindRaw : "image"
+    const imageUrl = typeof rec.imageUrl === "string" && rec.imageUrl ? rec.imageUrl : null
+    if (!imageUrl) return
+    const thumbnailUrl =
+      typeof rec.thumbnailUrl === "string" && rec.thumbnailUrl ? rec.thumbnailUrl : undefined
+    const num = (v: unknown): number | undefined =>
+      typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined
+    const groupKey =
+      typeof rec.groupKey === "string" && rec.groupKey ? rec.groupKey : undefined
+    const groupOrderRaw = num(rec.groupOrder)
+    const groupOrder = groupOrderRaw == null ? undefined : Math.floor(groupOrderRaw)
+    if (kind === "spin360" && (groupKey == null || groupOrder == null)) return
+    const sortOrder =
+      typeof rec.sortOrder === "number" && Number.isFinite(rec.sortOrder) ? rec.sortOrder : index
+    out.push({
+      id,
+      kind,
+      imageUrl,
+      sortOrder,
+      ...(thumbnailUrl ? { thumbnailUrl } : {}),
+      ...(() => {
+        const extra: Partial<ShowcaseMedia> = {}
+        const durationSec = num(rec.durationSec)
+        if (durationSec != null) extra.durationSec = durationSec
+        const width = num(rec.width)
+        if (width != null) extra.width = width
+        const height = num(rec.height)
+        if (height != null) extra.height = height
+        if (groupKey != null) extra.groupKey = groupKey
+        if (groupOrder != null) extra.groupOrder = groupOrder
+        return extra
+      })(),
+    })
   })
+  return out.sort((a, b) => a.sortOrder - b.sortOrder)
 }
 
 /** Komentar + balasan satu tingkat (kedalaman dibatasi backend). */
@@ -208,6 +254,13 @@ export type ShowcaseFeedQuery = {
    */
   minPrice?: number
   maxPrice?: number
+  /**
+   * KONTRAK FINAL Tim A (2026-09-28): filter kondisi & rating penjual.
+   * `condition`: "baru" | "bekas" (backend: ?condition=baru|bekas).
+   * `minSellerRating`: mis. 4.0 / 4.5 (backend: ?minSellerRating=4.0).
+   */
+  condition?: "baru" | "bekas"
+  minSellerRating?: number
 }
 
 export type ShowcaseFeedPage = {
@@ -254,6 +307,17 @@ export function getShowcaseFeed(query: ShowcaseFeedQuery = {}, signal?: AbortSig
         maxPrice:
           typeof query.maxPrice === "number" && Number.isFinite(query.maxPrice) && query.maxPrice >= 0
             ? Math.floor(query.maxPrice)
+            : undefined,
+        // Kontrak final Tim A (2026-09-28): ?condition=baru|bekas,
+        // ?minSellerRating=4.0. Nilai di luar kontrak tidak dikirim
+        // (fail-closed — bukan menebak param).
+        condition: query.condition === "baru" || query.condition === "bekas" ? query.condition : undefined,
+        minSellerRating:
+          typeof query.minSellerRating === "number" &&
+          Number.isFinite(query.minSellerRating) &&
+          query.minSellerRating >= 0 &&
+          query.minSellerRating <= 5
+            ? query.minSellerRating
             : undefined,
       },
       retry: 1,
@@ -428,6 +492,147 @@ export function unlikeShowcase(showcaseId: string, fallbackCount = 0) {
     .then((raw) => toLikeState(raw, fallbackCount))
 }
 
+/**
+ * State simpan final server — KONTRAK FINAL Tim A (2026-09-28).
+ * K-04: `saveCount` yang hilang → `fallbackCount` (nilai optimistis
+ * pemanggil), BUKAN 0.
+ */
+function toSaveState(raw: unknown, fallbackCount = 0): { saved: boolean; saveCount: number } {
+  const record = (raw ?? {}) as Record<string, unknown>
+  const fallback = Number.isFinite(fallbackCount) ? Math.max(0, Math.floor(fallbackCount)) : 0
+  return {
+    saved: record.saved === true,
+    saveCount:
+      typeof record.saveCount === "number" && Number.isFinite(record.saveCount)
+        ? Math.max(0, Math.floor(record.saveCount))
+        : fallback,
+  }
+}
+
+/**
+ * POST /v1/showcase/:showcaseId/save → `{ saved: true, saveCount }`.
+ * 409 SHOWCASE_ALREADY_SAVED = sudah tersimpan (diperlakukan sebagai sukses
+ * idempoten oleh pemanggil — bukan error fatal).
+ */
+export function saveShowcase(showcaseId: string, fallbackCount = 0) {
+  return http
+    .post<unknown>(`/v1/showcase/${seg(showcaseId)}/save`, undefined, {
+      auth: "required",
+      offlineBehavior: "enqueue-social",
+      offlineLabel: "Simpan karya",
+    })
+    .then((raw) => toSaveState(raw, fallbackCount))
+}
+
+/**
+ * DELETE /v1/showcase/:showcaseId/save → `{ saved: false, saveCount }`.
+ * 404 SHOWCASE_NOT_SAVED = tidak tersimpan (diperlakukan sebagai sukses
+ * idempoten oleh pemanggil).
+ */
+export function unsaveShowcase(showcaseId: string, fallbackCount = 0) {
+  return http
+    .delete<unknown>(`/v1/showcase/${seg(showcaseId)}/save`, {
+      auth: "required",
+      offlineBehavior: "enqueue-social",
+      offlineLabel: "Batal simpan karya",
+    })
+    .then((raw) => toSaveState(raw, fallbackCount))
+}
+
+/** Satu entri daftar likers/savers (kontrak final Tim A, 2026-09-28). */
+export type ShowcaseLiker = {
+  userId: string
+  username: string
+  fullName: string | null
+  avatarUrl?: string | null
+  /** likers → likedAt; savers → savedAt. */
+  at: string
+}
+
+export type ShowcaseLikersPage = {
+  data: ShowcaseLiker[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
+}
+
+function parseShowcaseLikersPage(raw: unknown, timeField: "likedAt" | "savedAt"): ShowcaseLikersPage {
+  const record = (raw ?? {}) as Record<string, unknown>
+  const data = readList<unknown>(record, ["data"]).flatMap((entry) => {
+    const rec = asRecord(entry)
+    if (!rec || typeof rec.userId !== "string" || !rec.userId) return []
+    const username =
+      typeof rec.username === "string" && rec.username
+        ? rec.username
+        : typeof rec.fullName === "string" && rec.fullName
+          ? rec.fullName
+          : rec.userId
+    const at = rec[timeField]
+    return [
+      {
+        userId: rec.userId,
+        username,
+        fullName: typeof rec.fullName === "string" ? rec.fullName : null,
+        avatarUrl: typeof rec.avatarUrl === "string" ? rec.avatarUrl : null,
+        at: typeof at === "string" ? at : "",
+      },
+    ]
+  })
+  const num = (v: unknown, fallback: number) =>
+    typeof v === "number" && Number.isFinite(v) ? Math.floor(v) : fallback
+  return {
+    data,
+    total: num(record.total, data.length),
+    page: num(record.page, 1),
+    limit: num(record.limit, 20),
+    totalPages: num(record.totalPages, 1),
+    hasNext: record.hasNext === true,
+    hasPrev: record.hasPrev === true,
+  }
+}
+
+/**
+ * GET /v1/showcase/:id/likers?page&limit — PUBLIK (kontrak final Tim A).
+ * Idempoten → retry 1 aman.
+ */
+export function getShowcaseLikers(
+  showcaseId: string,
+  params: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  return http
+    .get<unknown>(`/v1/showcase/${seg(showcaseId)}/likers`, {
+      auth: "optional",
+      query: { page: params.page ?? 1, limit: params.limit ?? 20 },
+      retry: 1,
+      signal,
+    })
+    .then((raw) => parseShowcaseLikersPage(raw, "likedAt"))
+}
+
+/**
+ * GET /v1/showcase/:id/savers?page&limit — HANYA PEMILIK (kontrak final Tim A).
+ * anon → 401; bukan pemilik → 403 SHOWCASE_FORBIDDEN (pemanggil WAJIB
+ * menyembunyikan tab, bukan menampilkan error).
+ */
+export function getShowcaseSavers(
+  showcaseId: string,
+  params: { page?: number; limit?: number } = {},
+  signal?: AbortSignal,
+) {
+  return http
+    .get<unknown>(`/v1/showcase/${seg(showcaseId)}/savers`, {
+      auth: "required",
+      query: { page: params.page ?? 1, limit: params.limit ?? 20 },
+      retry: 1,
+      signal,
+    })
+    .then((raw) => parseShowcaseLikersPage(raw, "savedAt"))
+}
+
 /** GET /v1/showcase/:showcaseId/share — metadata deep link (publik). */
 export function getShowcaseSharePayload(showcaseId: string, signal?: AbortSignal) {
   return http.get<ShowcaseSharePayload>(`/v1/showcase/${seg(showcaseId)}/share`, {
@@ -569,14 +774,7 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
   const str = (v: unknown): string | null => (typeof v === "string" ? v : null)
   const num = (v: unknown): number | null =>
     typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null
-  const images = Array.isArray(value.images) ? value.images.flatMap((rawImage, index) => {
-    const image = asRecord(rawImage)
-    return image && typeof image.imageUrl === "string" ? [{
-      id: typeof image.id === "string" ? image.id : `${value.id}-${index}`,
-      imageUrl: image.imageUrl,
-      sortOrder: typeof image.sortOrder === "number" ? image.sortOrder : index,
-    }] : []
-  }).sort((a, b) => a.sortOrder - b.sortOrder) : []
+  const images = parseShowcaseMedia(value.images, value.id)
   /** `orderLink` dipakai prefill transaksi — semua bagian harus bertipe benar. */
   const rawLink = asRecord(value.orderLink)
   const orderLink = rawLink
@@ -596,11 +794,6 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
     createdAt: typeof value.createdAt === "string" ? value.createdAt : "",
     updatedAt: typeof value.updatedAt === "string" ? value.updatedAt : "",
     images,
-    // Batch 19 (item 11/12/16): lampiran media kaya — kontrak TIM A pending,
-    // parser toleran (payload tanpa `media` → undefined, UI fallback ke images).
-    media: parseShowcaseMedia(value.media, value.id).length > 0
-      ? parseShowcaseMedia(value.media, value.id)
-      : undefined,
     description: typeof value.description === "string" ? value.description : null,
     // G-20 (audit 2026-09-23): kategori bebas-teks dinormalisasi (trim + spasi
     // ganda) supaya "Kriya " / "Kriya  Jaya" tidak jadi kelompok sendiri.
@@ -645,6 +838,11 @@ export function parseShowcaseItem(raw: unknown): ShowcaseSocialItem {
       ? value.descriptionHtml
       : null,
     isLiked: value.isLiked === true, isOwner: value.isOwner === true,
+    // Kontrak final Tim A (2026-09-28): simpan & kondisi barang.
+    saveCount: count(value.saveCount),
+    isSaved: value.isSaved === true,
+    condition:
+      value.condition === "BARU" || value.condition === "BEKAS" ? value.condition : null,
     orderLink,
     shareUrl: typeof value.shareUrl === "string" && value.shareUrl ? value.shareUrl : undefined,
     // Karya terkait (audit Discovery 2026-09-26): backend mengirim `related`

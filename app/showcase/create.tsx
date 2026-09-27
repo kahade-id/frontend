@@ -35,24 +35,31 @@ import {
   Eye,
   EyeSlash,
   Images,
+  Play,
   Plus,
   Trash,
+  VideoCamera,
 } from "phosphor-react-native"
 
 import { api, isApiError, userMessage } from "@/lib/api"
 import { createIdempotencyKey } from "@/lib/api/client"
-import type { CreateShowcaseItemDto } from "@/lib/api/types"
+import type { CreateShowcaseItemDto, ShowcaseMediaInput } from "@/lib/api/types"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { getSessionRevision } from "@/lib/api/session"
 import { useSessionRevision } from "@/lib/guest-gate"
-import { pickImages, pickedImageToBlob, type PickedImage } from "@/lib/image-picker"
+import { pickImage, pickImages, pickedImageToBlob, type PickedImage } from "@/lib/image-picker"
 import { markShowcaseFeedDirty } from "@/lib/showcase-social-prefs"
 import { partitionAssetsBySize, resolveCreateAttempt } from "@/lib/showcase-state"
 import { SHOWCASE_IMAGE_MAX_BYTES, getShowcasePhotoLimit } from "@/lib/showcase-limits"
 import { useKahadePlus } from "@/lib/use-kahade-plus"
 import { ShowcaseHtmlDescriptionEditor } from "@/components/ui/showcase-html-description-editor"
 import { sanitizeShowcaseHtml } from "@/lib/showcase-html"
-import { cleanupPendingShowcaseKeys, uploadShowcasePhoto } from "@/lib/showcase-upload"
+import {
+  cleanupPendingShowcaseKeys,
+  uploadShowcasePhoto,
+  uploadShowcaseVideo,
+  type ShowcaseVideoUploadOutcome,
+} from "@/lib/showcase-upload"
 import {
   saveShowcaseDraft,
   loadShowcaseDraft,
@@ -105,7 +112,35 @@ const EMPTY_FORM: FormState = {
   isPublic: true,
 }
 
-type Preview = { fileKey: string; asset: PickedImage }
+/**
+ * Pratinjau media karya: foto, atau video (kontrak final Tim A #1/#2,
+ * 2026-09-28). `video` terisi = entri video yang sudah diunggah
+ * (fileKey + thumbnailFileKey wajib).
+ */
+type Preview = { fileKey: string; asset: PickedImage; video?: ShowcaseVideoUploadOutcome }
+
+/** Semua key server milik satu preview (video punya thumbnailFileKey juga). */
+function previewServerKeys(preview: Preview): string[] {
+  const keys = [preview.fileKey]
+  if (preview.video?.thumbnailFileKey) keys.push(preview.video.thumbnailFileKey)
+  return keys
+}
+
+/** Bangun `media[]` kontrak #2 dari previews (video wajib thumbnailFileKey). */
+function previewsToMediaInput(previews: Preview[]): ShowcaseMediaInput[] {
+  return previews.map((preview): ShowcaseMediaInput => {
+    if (preview.video) {
+      const input: ShowcaseMediaInput = {
+        fileKey: preview.video.fileKey,
+        kind: "video",
+        thumbnailFileKey: preview.video.thumbnailFileKey,
+      }
+      if (preview.video.durationSec != null) input.durationSec = preview.video.durationSec
+      return input
+    }
+    return { fileKey: preview.fileKey, kind: "image" }
+  })
+}
 
 /**
  * BUG #2 (2026-09-26): kegagalan per-foto sebelumnya hanya menyimpan asset
@@ -431,6 +466,102 @@ export default function ShowcaseCreateScreen() {
     }
   }, [previews, revision, toast, photoLimit])
 
+  /**
+   * Pilih & unggah SATU video karya (kontrak final Tim A #1, 2026-09-28).
+   *
+   * Alur: expo-image-picker (videoOnly) → POST /v1/upload/direct
+   * (purpose=SHOWCASE_VIDEO, progress 0–1) → preview memakai thumbnail
+   * backend. Error backend (FILE_TOO_LARGE, MIME_TYPE_MISMATCH,
+   * VIDEO_TOO_LONG, VIDEO_UNPROCESSABLE, UPLOAD_FAILED) sudah dipetakan ke
+   * pesan Indonesia di `uploadShowcaseVideo` — tampilkan via toast danger.
+   * Video menempati 1 slot dari `photoLimit` (sama seperti foto).
+   */
+  const handlePickVideo = useCallback(async () => {
+    if (uploadBusy.current || saveBusy.current) return
+    const slots = photoLimit - previews.length
+    if (slots <= 0) {
+      toast.show({
+        title: translate("Media sudah penuh"),
+        description: translate("Satu karya dapat memuat paling banyak {x} media.", {
+          x: photoLimit,
+        }),
+        tone: "info",
+      })
+      return
+    }
+    uploadBusy.current = true
+    const controller = new AbortController()
+    uploadAbort.current = controller
+    try {
+      const picked = await pickImage({ videoOnly: true })
+      if (picked.status === "denied") {
+        toast.show({
+          title: translate("Akses galeri ditolak"),
+          description: translate("Izinkan akses media di pengaturan perangkat untuk memilih video."),
+          tone: "danger",
+          action: { label: translate("Buka pengaturan"), onPress: () => void Linking.openSettings() },
+        })
+        return
+      }
+      if (picked.status !== "picked" || controller.signal.aborted) return
+      const asset = picked.asset
+      // Ukuran tak terbaca (0, Android lama) → tolak dengan pesan jelas
+      // (pola SH-F-005 untuk foto); batas atas diserahkan ke server yang
+      // menjawab FILE_TOO_LARGE dengan pesan yang sudah dipetakan.
+      if (asset.size <= 0) {
+        try {
+          const blob = await pickedImageToBlob(asset)
+          if (blob.size <= 0) {
+            setPhotoError(translate("Ukuran video tidak dapat dibaca. Pilih ulang video tersebut."))
+            return
+          }
+        } catch {
+          setPhotoError(translate("Ukuran video tidak dapat dibaca. Pilih ulang video tersebut."))
+          return
+        }
+      }
+      setUploading(true)
+      setUploadProgress(0)
+      setProgress(translate("Mengunggah video…"))
+      const outcome = await uploadShowcaseVideo(asset, {
+        onProgress: (fraction) => {
+          setUploadProgress(fraction)
+          setProgress(
+            translate("Mengunggah video… {x}%", { x: Math.round(fraction * 100) }),
+          )
+        },
+        signal: controller.signal,
+      })
+      if (controller.signal.aborted || revision !== getSessionRevision()) {
+        void cleanupPendingShowcaseKeys(previewServerKeys({ fileKey: outcome.fileKey, asset, video: outcome }))
+        return
+      }
+      const next = [...previews, { fileKey: outcome.fileKey, asset, video: outcome }]
+      pendingKeys.current = next.flatMap(previewServerKeys)
+      setPreviews(next)
+      setPhotoError(undefined)
+      toast.show({ title: translate("Video ditambahkan"), tone: "success", duration: 2000 })
+    } catch (error) {
+      if (controller.signal.aborted) return
+      if (mounted.current) {
+        // Pesan sudah Indonesia & spesifik (dipetakan dari kode backend).
+        toast.show({
+          title: translate("Gagal mengunggah video"),
+          description: userMessage(error),
+          tone: "danger",
+        })
+      }
+    } finally {
+      uploadBusy.current = false
+      if (uploadAbort.current === controller) uploadAbort.current = null
+      if (mounted.current) {
+        setUploading(false)
+        setProgress("")
+        setUploadProgress(0)
+      }
+    }
+  }, [previews, revision, toast, photoLimit])
+
   const retryFailedPhotos = useCallback(async () => {
     if (uploadBusy.current || saveBusy.current || failedAssets.length === 0) return
     uploadBusy.current = true
@@ -480,20 +611,21 @@ export default function ShowcaseCreateScreen() {
     }
   }, [failedAssets, previews, revision])
 
-  /** Geser atau buang satu foto pratinjau (indeks 0 = cover). */
+  /** Geser atau buang satu pratinjau media (indeks 0 = cover). */
   const movePreview = useCallback(
     (index: number, direction: -1 | 0 | 1) => {
       if (uploadBusy.current || saveBusy.current || uncertainCreate) return
       const next = [...previews]
       if (direction === 0) {
         const [removed] = next.splice(index, 1)
-        if (removed) void cleanupPendingShowcaseKeys([removed.fileKey])
+        // Video: bersihkan thumbnailFileKey juga (jangan sisakan orphan).
+        if (removed) void cleanupPendingShowcaseKeys(previewServerKeys(removed))
       } else {
         const destination = index + direction
         if (destination < 0 || destination >= next.length) return
         ;[next[index], next[destination]] = [next[destination], next[index]]
       }
-      pendingKeys.current = next.map((entry) => entry.fileKey)
+      pendingKeys.current = next.flatMap(previewServerKeys)
       setPreviews(next)
     },
     [previews, uncertainCreate],
@@ -539,9 +671,18 @@ export default function ShowcaseCreateScreen() {
       // SH-F-006 (audit 2026-09-27): retry memakai kunci yang SAMA tetapi DTO
       // dibangun ulang dari form TERKINI — pengguna boleh mengedit form saat
       // status belum pasti; DTO basi percobaan pertama tidak boleh terkirim.
+      // Kontrak final Tim A #2 (2026-09-28): bila ada video, SELURUH media
+      // dikirim sebagai `media[]` (video wajib thumbnailFileKey+durationSec);
+      // JANGAN campur dengan `imageFileKeys` (→ 400). Tanpa video, jalur
+      // foto lama (`imageFileKeys`) tidak berubah.
+      const hasVideo = previews.some((entry) => entry.video != null)
+      const mediaPayload = hasVideo ? previewsToMediaInput(previews) : undefined
       createAttempt.current = resolveCreateAttempt(
         createAttempt.current?.key ?? null,
-        () => ({ ...payload, imageFileKeys: previews.map((entry) => entry.fileKey) }),
+        () => ({
+          ...payload,
+          ...(mediaPayload ? { media: mediaPayload } : { imageFileKeys: previews.map((entry) => entry.fileKey) }),
+        }),
         createIdempotencyKey,
       )
       await api.users.createShowcase(createAttempt.current.dto, createAttempt.current.key)
@@ -613,21 +754,39 @@ export default function ShowcaseCreateScreen() {
           />
           {previews.length > 0 ? (
             <View className="flex-row flex-wrap gap-2">
-              {previews.map((preview, index) => (
+              {previews.map((preview, index) => {
+                // Video: pratinjau memakai thumbnail backend + lencana play.
+                const thumb = preview.video?.thumbnailUrl ?? preview.asset.uri
+                const label = preview.video
+                  ? translate("Video {x}", { x: index + 1 })
+                  : translate("Foto {x}", { x: index + 1 })
+                return (
                 <View key={preview.fileKey} className="gap-1">
-                  <Picture
-                    source={preview.asset.uri}
-                    alt={translate("Foto {x}", { x: index + 1 })}
-                    width={88}
-                    height={88}
-                    radius="sm"
-                  />
+                  <View className="relative">
+                    <Picture
+                      source={thumb}
+                      alt={label}
+                      width={88}
+                      height={88}
+                      radius="sm"
+                    />
+                    {preview.video ? (
+                      <View
+                        className="absolute inset-0 items-center justify-center"
+                        accessibilityLabel={translate("Video")}
+                      >
+                        <View className="items-center justify-center rounded-full bg-overlay-media p-2">
+                          <Icon icon={Play} size="sm" weight="fill" tone="inverse" />
+                        </View>
+                      </View>
+                    ) : null}
+                  </View>
                   <View className="flex-row items-center justify-between">
                     <IconButton
                       icon={CaretLeft}
                       size="sm"
                       variant="ghost"
-                      accessibilityLabel={translate("Geser foto {x} ke kiri", { x: index + 1 })}
+                      accessibilityLabel={translate("Geser media {x} ke kiri", { x: index + 1 })}
                       disabled={busy || uncertainCreate || index === 0}
                       onPress={() => movePreview(index, -1)}
                     />
@@ -635,7 +794,7 @@ export default function ShowcaseCreateScreen() {
                       icon={Trash}
                       size="sm"
                       variant="ghost"
-                      accessibilityLabel={translate("Hapus foto {x}", { x: index + 1 })}
+                      accessibilityLabel={translate("Hapus media {x}", { x: index + 1 })}
                       disabled={busy || uncertainCreate}
                       onPress={() => movePreview(index, 0)}
                     />
@@ -643,13 +802,14 @@ export default function ShowcaseCreateScreen() {
                       icon={CaretRight}
                       size="sm"
                       variant="ghost"
-                      accessibilityLabel={translate("Geser foto {x} ke kanan", { x: index + 1 })}
+                      accessibilityLabel={translate("Geser media {x} ke kanan", { x: index + 1 })}
                       disabled={busy || uncertainCreate || index === previews.length - 1}
                       onPress={() => movePreview(index, 1)}
                     />
                   </View>
                 </View>
-              ))}
+                )
+              })}
             </View>
           ) : (
             <EmptyState
@@ -667,6 +827,17 @@ export default function ShowcaseCreateScreen() {
             onPress={() => void handlePickPhotos()}
           >
             {previews.length > 0 ? translate("Tambah foto") : translate("Pilih foto")}
+          </Button>
+
+          {/* Kontrak final Tim A #1 (2026-09-28): tambah video showcase. */}
+          <Button
+            leftIcon={VideoCamera}
+            variant="secondary"
+            disabled={uploading || saving || previews.length >= photoLimit}
+            onPress={() => void handlePickVideo()}
+            accessibilityHint={translate("Video diunggah dengan thumbnail otomatis")}
+          >
+            {translate("Tambah video")}
           </Button>
 
           {photoError ? (

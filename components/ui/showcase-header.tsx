@@ -30,6 +30,7 @@ import { View } from "react-native"
 import {
   ClockCounterClockwise,
   Equals,
+  Funnel,
   Plus,
   Sparkle,
   TrendUp,
@@ -50,6 +51,7 @@ import { Logo } from "@/components/ui/logo"
 import { Icon } from "@/components/ui/icon"
 import { PressableScale } from "@/components/ui/pressable-scale"
 import { Tabs } from "@/components/ui/tabs"
+import { Text } from "@/components/ui/text"
 import type { IconComponent } from "@/components/ui/icon"
 
 export type ShowcaseFeedKind = "forYou" | "following" | "latest" | "popular"
@@ -58,6 +60,14 @@ export type ShowcaseHeaderProps = {
   kind: ShowcaseFeedKind
   onKindChange: (k: ShowcaseFeedKind) => void
   tabs: readonly { value: ShowcaseFeedKind; label: string }[]
+  /**
+   * Kontrak final Tim A #D (2026-09-28): bila diisi, tombol funnel filter
+   * tampil di kanan header (sebelum tombol +). Opsional — pemakai lama
+   * tidak terpengaruh.
+   */
+  onFilterPress?: () => void
+  /** Jumlah filter aktif — badge di tombol funnel (0/sembunyi = tidak ada). */
+  filterBadgeCount?: number
 }
 
 const TAB_ICONS: Record<ShowcaseFeedKind, IconComponent> = {
@@ -71,7 +81,7 @@ const TAB_ICONS: Record<ShowcaseFeedKind, IconComponent> = {
 const ACTION_BOX = 40
 const ACTION_HIT_SLOP = hitSlopToReach(ACTION_BOX)
 
-export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps) {
+export function ShowcaseHeader({ kind, onKindChange, tabs, onFilterPress, filterBadgeCount = 0 }: ShowcaseHeaderProps) {
   // Target ukur coach mark "sekali saja" untuk tombol (+) — View pembungkus
   // (bukan PressableScale) supaya ref selalu ke host View yang terukur.
   const createRef = useRef<RNView>(null)
@@ -112,6 +122,34 @@ export function ShowcaseHeader({ kind, onKindChange, tabs }: ShowcaseHeaderProps
             (revisi 2026-09-28): kiri = menu drawer, kanan = buat baru.
             Pencarian pindah ke utility bar bawah drawer. */}
         <View className="flex-row items-center justify-end gap-1 min-w-[84px]">
+          {onFilterPress ? (
+            <PressableScale
+              accessibilityRole="button"
+              accessibilityLabel={translate("Filter etalase")}
+              accessibilityHint={translate("Buka filter kondisi, rating, dan harga")}
+              haptic
+              hitSlop={ACTION_HIT_SLOP}
+              onPress={onFilterPress}
+              containerClassName={cn("rounded-md", focusRing)}
+              className="h-10 w-10 items-center justify-center"
+            >
+              <View>
+                <Icon
+                  icon={Funnel}
+                  size="md"
+                  weight={filterBadgeCount > 0 ? "fill" : "regular"}
+                  tone="active"
+                />
+                {filterBadgeCount > 0 ? (
+                  <View className="absolute -right-1 -top-1 h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1">
+                    <Text variant="caption" tone="inverse" className="text-[10px] tabular-nums">
+                      {filterBadgeCount}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+            </PressableScale>
+          ) : null}
           <View ref={createRef} collapsable={false}>
             <PressableScale
               accessibilityRole="button"

@@ -9,11 +9,12 @@
 import {
   getShowcaseSharePayload,
   type ShowcaseAuthor,
+  type ShowcaseMedia,
   type ShowcaseSharePayload,
   type ShowcaseSocialItem,
   type ShowcaseSocialItem as SocialItem,
 } from "@/lib/api/showcase"
-import type { ShowcaseItem } from "@/lib/api/users"
+import type { ShowcaseImage, ShowcaseItem } from "@/lib/api/users"
 import { showcaseUrl } from "@/lib/deeplinks"
 import { copyToClipboard } from "@/lib/clipboard"
 import { translate } from "@/lib/i18n/translate"
@@ -99,15 +100,68 @@ export type ShowcaseOwner = {
  * kanonik baru `coverImageUrl`/`images[0]`, lalu alias lama `imageUrl`,
  * terakhir `fileKey`. SATU resolver agar grid manajemen, galeri publik,
  * dan normalisasi sosial tidak lagi memilih key yang berbeda (E-01).
+ *
+ * Kontrak final Tim A (2026-09-28): entri video memakai `thumbnailUrl`
+ * sebagai cover (imageUrl-nya = berkas video, bukan gambar).
  */
 export function showcaseCoverOf(item: ShowcaseItem): string | undefined {
-  const fromImages = Array.isArray(item.images) ? item.images[0]?.imageUrl : undefined
+  const first = Array.isArray(item.images) ? item.images[0] : undefined
+  const firstUrl =
+    first?.kind === "video"
+      ? (first.thumbnailUrl ?? first.imageUrl)
+      : first?.imageUrl
+  const fromImages = firstUrl
   return (
     resolveMediaUrl(item.coverImageUrl) ??
     resolveMediaUrl(fromImages) ??
     resolveMediaUrl(item.imageUrl) ??
     resolveMediaUrl(item.fileKey)
   )
+}
+
+/**
+ * Normalisasi SATU entri images kaya (kontrak final Tim A) dari bentuk
+ * mentah `ShowcaseItem` (users.ts) ke `ShowcaseMedia` (showcase.ts).
+ * Entri tanpa imageUrl dibuang; kind asing → "image" HANYA bila kind tidak
+ * dikirim (payload lama), kind string asing yang eksplisit dibuang.
+ */
+function toRichMedia(
+  image: ShowcaseImage | undefined,
+  index: number,
+  fallbackId: string,
+): ShowcaseMedia | null {
+  const url = resolveMediaUrl(image?.imageUrl)
+  if (!url) return null
+  const kindRaw = image?.kind
+  if (typeof kindRaw === "string" && kindRaw !== "image" && kindRaw !== "video" && kindRaw !== "spin360") {
+    return null
+  }
+  const kind = kindRaw === "video" || kindRaw === "spin360" ? kindRaw : "image"
+  const groupKey =
+    typeof image?.groupKey === "string" && image.groupKey ? image.groupKey : undefined
+  const groupOrder =
+    typeof image?.groupOrder === "number" && Number.isFinite(image.groupOrder)
+      ? Math.floor(image.groupOrder)
+      : undefined
+  if (kind === "spin360" && (groupKey == null || groupOrder == null)) return null
+  const sortOrder =
+    typeof image?.sortOrder === "number" && Number.isFinite(image.sortOrder)
+      ? image.sortOrder
+      : index
+  const thumbnailUrl = resolveMediaUrl(image?.thumbnailUrl) ?? undefined
+  const media: ShowcaseMedia = {
+    id: image?.id ?? `${fallbackId}-${index}`,
+    kind,
+    imageUrl: url,
+    sortOrder,
+  }
+  if (thumbnailUrl) media.thumbnailUrl = thumbnailUrl
+  if (typeof image?.durationSec === "number" && Number.isFinite(image.durationSec) && image.durationSec >= 0) {
+    media.durationSec = image.durationSec
+  }
+  if (groupKey != null) media.groupKey = groupKey
+  if (groupOrder != null) media.groupOrder = groupOrder
+  return media
 }
 
 /**
@@ -122,37 +176,29 @@ export function toSocialShowcaseItem(
   isSelf = false,
 ): ShowcaseSocialItem {
   const raw = item as ShowcaseItem & Partial<SocialItem>
-  const images = Array.isArray(raw.images)
-    ? raw.images
-        .map((image, index) => {
-          const url = resolveMediaUrl(image?.imageUrl)
-          // SH-F-010: sortOrder asing → fallback indeks (selaras parseShowcaseItem).
-          const sortOrder =
-            typeof image?.sortOrder === "number" && Number.isFinite(image.sortOrder)
-              ? image.sortOrder
-              : index
-          return url
-            ? {
-                id: image.id ?? `${item.id}-${index}`,
-                imageUrl: url,
-                sortOrder,
-              }
-            : null
-        })
-        .filter((image): image is { id: string; imageUrl: string; sortOrder: number } => image != null)
-        // SH-F-010: urutkan by sortOrder seperti parseShowcaseItem — cover di
-        // tab Etalase profil tidak boleh beda urutan dari feed/detail.
-        .sort((a, b) => a.sortOrder - b.sortOrder)
-    : []
+  const images = (
+    Array.isArray(raw.images)
+      ? raw.images
+          .map((image, index) => toRichMedia(image, index, item.id))
+          .filter((m): m is ShowcaseMedia => m != null)
+          // SH-F-010: urutkan by sortOrder seperti parseShowcaseItem — cover di
+          // tab Etalase profil tidak boleh beda urutan dari feed/detail.
+          .sort((a, b) => a.sortOrder - b.sortOrder)
+      : []
+  )
   if (images.length === 0) {
     const cover = showcaseCoverOf(item)
-    if (cover) images.push({ id: item.id, imageUrl: cover, sortOrder: 0 })
+    if (cover)
+      images.push({ id: item.id, kind: "image", imageUrl: cover, sortOrder: 0 })
   }
   return {
     id: item.id,
     title: item.title ?? item.caption ?? untitledShowcaseTitle(),
     description: item.description ?? item.caption ?? null,
     category: raw.category ?? null,
+    // Kontrak final Tim A (2026-09-28): kondisi barang.
+    condition:
+      raw.condition === "BARU" || raw.condition === "BEKAS" ? raw.condition : null,
     images,
     coverImageUrl: item.coverImageUrl ?? item.imageUrl ?? null,
     imageUrl: item.imageUrl ?? null,
@@ -161,6 +207,9 @@ export function toSocialShowcaseItem(
     likeCount: clampShowcaseCount(raw.likeCount),
     commentCount: clampShowcaseCount(raw.commentCount),
     viewCount: clampShowcaseCount(raw.viewCount),
+    // Kontrak final Tim A (2026-09-28): simpan.
+    saveCount: clampShowcaseCount(raw.saveCount),
+    isSaved: raw.isSaved === true ? true : undefined,
     isLiked: getInitialIsLiked(raw),
     isOwner: raw.isOwner === true || isSelf ? true : undefined,
     createdAt: item.createdAt,
@@ -240,10 +289,17 @@ export async function shareShowcaseById(id: string, item?: ShowcaseSocialItem): 
   return { outcome, payload }
 }
 
-/** Identical media fallback and ordering on feed, detail and gallery. */
+/**
+ * Identical media fallback and ordering on feed, detail and gallery.
+ *
+ * Kontrak final Tim A (2026-09-28): entri video memakai `thumbnailUrl`
+ * sebagai gambar wakil (imageUrl-nya = berkas video); spin360 tidak
+ * dimasukkan (dirender terpisah via `showcaseSpin360Groups`).
+ */
 export function showcaseImages(item: ShowcaseSocialItem): { id: string; url: string }[] {
   const images = item.images.flatMap((image) => {
-    const url = resolveMediaUrl(image.imageUrl)
+    const rawUrl = image.kind === "video" ? (image.thumbnailUrl ?? image.imageUrl) : image.imageUrl
+    const url = resolveMediaUrl(rawUrl)
     return url ? [{ id: image.id, url }] : []
   })
   const cover = resolveMediaUrl(item.coverImageUrl) ?? resolveMediaUrl(item.imageUrl)
@@ -252,31 +308,33 @@ export function showcaseImages(item: ShowcaseSocialItem): { id: string; url: str
 
 /**
  * Satu slide galeri: gambar atau video.
- * `kind` sudah disaring parser (`parseShowcaseMedia`); di sini `spin360`
- * sengaja TIDAK dimasukkan — viewer 360° dirender terpisah di halaman detail
- * (<Spin360Viewer>), bukan sebagai slide karosel.
+ * `spin360` sengaja TIDAK dimasukkan — viewer 360° dirender terpisah di
+ * halaman detail (<Spin360Viewer> via `showcaseSpin360Groups`), bukan
+ * sebagai slide karosel.
  */
 export type GalleryMedia = { id: string; kind: "image" | "video"; url: string; posterUrl?: string }
 
 /**
- * Daftar slide galeri karya (batch 19, item 11/12/16).
+ * Daftar slide galeri karya (kontrak final Tim A, 2026-09-28).
  *
- * Prioritas: `item.media` (backend baru) bila ada entri valid; fallback ke
- * `showcaseImages` (images[] lama + cover) bila `media` kosong/tak ada —
- * payload lama tetap tampil persis seperti sebelum batch 19.
- * Hasil di-cache per instance item (WeakMap) agar referensi stabil antar
- * render (memo galeri tidak re-render sia-sia).
+ * Dibangun dari `item.images` yang kaya: image → slide gambar, video →
+ * slide video (url = berkas video, posterUrl = thumbnail). Hasil di-cache
+ * per instance item (WeakMap) agar referensi stabil antar render.
  */
 const mediaCache = new WeakMap<ShowcaseSocialItem, GalleryMedia[]>()
 export function showcaseMedia(item: ShowcaseSocialItem): GalleryMedia[] {
   const cached = mediaCache.get(item)
   if (cached) return cached
-  const rich = (item.media ?? []).flatMap((m): GalleryMedia[] => {
-    if ((m.kind === "image" || m.kind === "video") && m.url) {
-      const url = resolveMediaUrl(m.url)
+  const rich = item.images.flatMap((m): GalleryMedia[] => {
+    if (m.kind === "video") {
+      const url = resolveMediaUrl(m.imageUrl)
       if (!url) return []
-      const poster = m.posterUrl ? resolveMediaUrl(m.posterUrl) ?? undefined : undefined
+      const poster = m.thumbnailUrl ? (resolveMediaUrl(m.thumbnailUrl) ?? undefined) : undefined
       return poster ? [{ id: m.id, kind: m.kind, url, posterUrl: poster }] : [{ id: m.id, kind: m.kind, url }]
+    }
+    if (m.kind === "image") {
+      const url = resolveMediaUrl(m.imageUrl)
+      return url ? [{ id: m.id, kind: m.kind, url }] : []
     }
     return []
   })
@@ -285,4 +343,32 @@ export function showcaseMedia(item: ShowcaseSocialItem): GalleryMedia[] {
     : showcaseImages(item).map((g) => ({ id: g.id, kind: "image" as const, url: g.url }))
   mediaCache.set(item, result)
   return result
+}
+
+/**
+ * Grup frame spin360 untuk <Spin360Viewer> (kontrak final Tim A, 2026-09-28).
+ *
+ * Mengelompokkan entri `kind: "spin360"` per `groupKey`, mengurutkan tiap
+ * grup menurut `groupOrder` (0..n-1 kontinu), dan mengembalikan daftar frame
+ * (URL) per grup. Grup dengan < 2 frame yang valid dibuang (tak bisa
+ * diputar). Urutan grup mengikuti `sortOrder` terkecil tiap grup.
+ */
+export function showcaseSpin360Groups(item: ShowcaseSocialItem): string[][] {
+  const byGroup = new Map<string, { order: number; sortOrder: number; url: string }[]>()
+  for (const m of item.images) {
+    if (m.kind !== "spin360" || !m.groupKey || m.groupOrder == null) continue
+    const url = resolveMediaUrl(m.imageUrl)
+    if (!url) continue
+    const list = byGroup.get(m.groupKey) ?? []
+    list.push({ order: m.groupOrder, sortOrder: m.sortOrder, url })
+    byGroup.set(m.groupKey, list)
+  }
+  const groups = [...byGroup.values()]
+    .map((list) => {
+      list.sort((a, b) => a.order - b.order)
+      return list
+    })
+    .filter((list) => list.length >= 2)
+    .sort((a, b) => a[0]!.sortOrder - b[0]!.sortOrder)
+  return groups.map((list) => list.map((e) => e.url))
 }

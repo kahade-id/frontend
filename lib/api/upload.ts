@@ -10,7 +10,8 @@ import { assertDtoConstraints } from "@/lib/financial"
 import { API_CONSTRAINTS } from "@/lib/api/constraints"
 import { ApiError, codeFromStatus, DEFAULT_ERROR_MESSAGES } from "@/lib/api/errors"
 import { safeHttpsUrl } from "@/lib/version"
-import { http, seg } from "@/lib/api/client"
+import { buildUrl, http, refreshAccessToken, seg } from "@/lib/api/client"
+import { getAccessToken } from "@/lib/api/session"
 import type { CleanupFilesDto, ConfirmUploadDto, PresignedUrlDto } from "@/lib/api/types"
 import { pickedImageToFormData, type PickedImage } from "@/lib/image-picker"
 
@@ -212,6 +213,233 @@ export function uploadDirect(formData: FormData, signal?: AbortSignal) {
 export function cleanupUploads(fileKeys: string[]) {
   const dto: CleanupFilesDto = { fileKeys }
   return http.post<void, CleanupFilesDto>("/v1/upload/cleanup", dto, { auth: "required" })
+}
+
+// ------------------------------------------------------------------
+// Upload video showcase (kontrak final Tim A, 2026-09-28)
+// ------------------------------------------------------------------
+
+/**
+ * Hasil POST /v1/upload/direct dengan purpose=SHOWCASE_VIDEO.
+ * Backend memproses video (ffmpeg) dan mengembalikan thumbnail otomatis —
+ * `thumbnailFileKey` WAJIB dilampirkan saat membuat item etalase (#2).
+ */
+export type DirectVideoUpload = {
+  fileKey: string
+  fileUrl?: string
+  thumbnailFileKey?: string
+  thumbnailUrl?: string
+  durationSec?: number
+  width?: number
+  height?: number
+}
+
+/** Copy Indonesia per kode error upload video backend (kontrak #1). */
+const VIDEO_UPLOAD_ERROR_COPY: Record<string, string> = {
+  FILE_TOO_LARGE: "Video terlalu besar. Pilih video yang lebih kecil lalu coba lagi.",
+  MIME_TYPE_MISMATCH: "Format video tidak didukung. Gunakan MP4, MOV, atau WebM.",
+  VIDEO_TOO_LONG: "Durasi video melebihi batas yang diizinkan. Pilih video yang lebih pendek.",
+  VIDEO_UNPROCESSABLE: "Video tidak dapat diproses. Coba dengan video lain.",
+  UPLOAD_FAILED: "Unggah video gagal. Periksa koneksi lalu coba lagi.",
+}
+
+/** Ambil kode error backend dari body respons (bentuk NestJS umum). */
+function videoUploadBackendCode(bodyText: string): string | undefined {
+  try {
+    const body = JSON.parse(bodyText) as Record<string, unknown>
+    const code =
+      (typeof body.code === "string" && body.code) ||
+      (typeof (body.error as Record<string, unknown> | undefined)?.code === "string" &&
+        (body.error as Record<string, unknown>).code) ||
+      undefined
+    return typeof code === "string" ? code : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function videoUploadError(status: number, bodyText: string): ApiError {
+  const backendCode = videoUploadBackendCode(bodyText)
+  const copy = (backendCode && VIDEO_UPLOAD_ERROR_COPY[backendCode]) || undefined
+  return new ApiError({
+    code: codeFromStatus(status, false),
+    status,
+    backendCode: backendCode ?? "UPLOAD_HTTP_ERROR",
+    message: copy ?? `Unggah video gagal (HTTP ${status}). Coba lagi.`,
+    path: "/v1/upload/direct",
+  })
+}
+
+function parseVideoUploadResponse(bodyText: string): DirectVideoUpload {
+  let body: Record<string, unknown>
+  try {
+    body = JSON.parse(bodyText) as Record<string, unknown>
+  } catch {
+    throw new ApiError({ code: "PARSE", message: "Respons unggah video tidak valid." })
+  }
+  const str = (v: unknown): string | undefined =>
+    typeof v === "string" && v ? v : undefined
+  const num = (v: unknown): number | undefined =>
+    typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : undefined
+  const fileKey = str(body.fileKey)
+  if (!fileKey)
+    throw new ApiError({ code: "PARSE", message: "Respons unggah video tidak memuat kunci berkas." })
+  const out: DirectVideoUpload = { fileKey }
+  const fileUrl = str(body.fileUrl)
+  if (fileUrl) out.fileUrl = fileUrl
+  const thumbnailFileKey = str(body.thumbnailFileKey)
+  if (thumbnailFileKey) out.thumbnailFileKey = thumbnailFileKey
+  const thumbnailUrl = str(body.thumbnailUrl)
+  if (thumbnailUrl) out.thumbnailUrl = thumbnailUrl
+  const durationSec = num(body.durationSec)
+  if (durationSec != null) out.durationSec = durationSec
+  const width = num(body.width)
+  if (width != null) out.width = width
+  const height = num(body.height)
+  if (height != null) out.height = height
+  return out
+}
+
+/**
+ * Upload video showcase via `POST /v1/upload/direct` (multipart
+ * `file` + `purpose=SHOWCASE_VIDEO`) dengan LAPORAN PROGRESS.
+ *
+ * `fetch` tidak melaporkan progress upload, jadi jalur ini memakai
+ * `XMLHttpRequest` (`xhr.upload.onprogress` — didukung React Native & web).
+ * Auth: Bearer token dari sesi (satu kali refresh-and-retry bila 401,
+ * selaras perilaku client.ts).
+ *
+ * Error backend (FILE_TOO_LARGE, MIME_TYPE_MISMATCH, VIDEO_TOO_LONG,
+ * VIDEO_UNPROCESSABLE, UPLOAD_FAILED) dipetakan ke pesan Indonesia yang
+ * bisa ditindaklanjuti (lihat VIDEO_UPLOAD_ERROR_COPY).
+ */
+export function uploadDirectVideo(
+  asset: PickedImage,
+  opts: {
+    purpose?: string
+    /** Fraksi 0–1 kemajuan upload. */
+    onProgress?: (fraction: number) => void
+    signal?: AbortSignal
+    timeoutMs?: number
+  } = {},
+): Promise<DirectVideoUpload> {
+  const { purpose = "SHOWCASE_VIDEO", onProgress, signal, timeoutMs = 180_000 } = opts
+  return new Promise<DirectVideoUpload>((resolvePromise, rejectPromise) => {
+    let settled = false
+    const resolve = (v: DirectVideoUpload) => {
+      if (!settled) {
+        settled = true
+        resolvePromise(v)
+      }
+    }
+    const reject = (e: unknown) => {
+      if (!settled) {
+        settled = true
+        rejectPromise(e)
+      }
+    }
+    if (signal?.aborted) {
+      reject(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
+      return
+    }
+
+    const sendOnce = async (token: string): Promise<void> => {
+      const formData = await pickedImageToFormData(asset, "file")
+      formData.append("purpose", purpose)
+      await new Promise<void>((resolveXhr, rejectXhr) => {
+        const xhr = new XMLHttpRequest()
+        const onAbort = () => xhr.abort()
+        signal?.addEventListener("abort", onAbort, { once: true })
+        xhr.upload.onprogress = (event) => {
+          if (event.lengthComputable && event.total > 0) {
+            onProgress?.(Math.min(1, Math.max(0, event.loaded / event.total)))
+          }
+        }
+        xhr.timeout = timeoutMs
+        xhr.ontimeout = () => {
+          signal?.removeEventListener("abort", onAbort)
+          rejectXhr(
+            new ApiError({
+              code: "TIMEOUT",
+              message: "Unggah video terlalu lama. Periksa koneksi lalu coba lagi.",
+              path: "/v1/upload/direct",
+            }),
+          )
+        }
+        xhr.onabort = () => {
+          signal?.removeEventListener("abort", onAbort)
+          rejectXhr(new ApiError({ code: "ABORTED", message: "Unggahan dibatalkan." }))
+        }
+        xhr.onerror = () => {
+          signal?.removeEventListener("abort", onAbort)
+          rejectXhr(
+            new ApiError({
+              code: "NETWORK",
+              message: DEFAULT_ERROR_MESSAGES.NETWORK,
+              path: "/v1/upload/direct",
+            }),
+          )
+        }
+        xhr.onload = () => {
+          signal?.removeEventListener("abort", onAbort)
+          const bodyText = typeof xhr.responseText === "string" ? xhr.responseText : ""
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              resolveXhr()
+              resolve(parseVideoUploadResponse(bodyText))
+            } catch (err) {
+              rejectXhr(err)
+            }
+            return
+          }
+          if (xhr.status === 401) {
+            // Selaras client.ts: satu kali refresh token lalu ulangi.
+            rejectXhr({ retriable401: true as const })
+            return
+          }
+          rejectXhr(videoUploadError(xhr.status, bodyText))
+        }
+        xhr.open("POST", buildUrl("/v1/upload/direct"))
+        xhr.setRequestHeader("Accept", "application/json")
+        xhr.setRequestHeader("Authorization", `Bearer ${token}`)
+        // JANGAN set Content-Type — XHR mengisi multipart boundary sendiri.
+        // RN: FormData diterima XMLHttpRequest.send; tipe lib DOM tidak
+        // mengenalnya sehingga cast ke parameter send yang sahih.
+        xhr.send(formData as unknown as Parameters<XMLHttpRequest["send"]>[0])
+      })
+    }
+
+    const run = async () => {
+      try {
+        let token = await getAccessToken()
+        if (!token)
+          throw new ApiError({
+            code: "UNAUTHORIZED",
+            message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+            path: "/v1/upload/direct",
+          })
+        try {
+          await sendOnce(token)
+        } catch (err) {
+          const retriable =
+            err && typeof err === "object" && (err as { retriable401?: unknown }).retriable401 === true
+          if (!retriable || signal?.aborted) throw err
+          const fresh = await refreshAccessToken()
+          if (!fresh)
+            throw new ApiError({
+              code: "UNAUTHORIZED",
+              message: DEFAULT_ERROR_MESSAGES.UNAUTHORIZED,
+              path: "/v1/upload/direct",
+            })
+          token = fresh
+          await sendOnce(token)
+        }
+      } catch (err) {
+        reject(err)
+      }
+    }
+    void run()
+  })
 }
 
 /**

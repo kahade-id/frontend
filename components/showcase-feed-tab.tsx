@@ -64,6 +64,7 @@ import {
 import { applyShowcaseCommentCountDelta } from "@/lib/showcase-social"
 import { showcaseMedia } from "@/lib/showcase-social"
 import { tokens } from "@/lib/tokens"
+import { describeSheetFilters } from "@/lib/showcase-filters"
 import { useCollapsingHeader } from "@/lib/use-collapsing-header"
 import { useShowcaseSocialActions } from "@/lib/use-showcase-social-actions"
 import { useToast } from "@/components/ui/toast"
@@ -80,6 +81,13 @@ import { PaginatedList } from "@/components/ui/paginated-list"
 import { ShowcaseCommentsSheet } from "@/components/ui/showcase-comments-sheet"
 import { OnboardingChecklistCard } from "@/components/ui/onboarding-checklist"
 import { ShowcaseFeedItem } from "@/components/ui/showcase-feed-item"
+import { ShowcaseFilterSheet } from "@/components/ui/showcase-filter-sheet"
+import {
+  DEFAULT_SHOWCASE_FILTERS,
+  isDefaultShowcaseFilters,
+  showcaseFilterBadgeCount,
+  type ShowcaseFeedFilters,
+} from "@/components/ui/showcase-filter-sheet"
 import { ShowcaseReportSheet } from "@/components/ui/showcase-report-sheet"
 import { ShowcaseShareSheet } from "@/components/ui/showcase-share-sheet"
 import { ModeShiftFade } from "@/components/ui/mode-switcher"
@@ -290,6 +298,12 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   const hiddenIds = useShowcaseHiddenIds()
   const [actionItem, setActionItem] = useState<ShowcaseSocialItem | null>(null)
   const [reportItem, setReportItem] = useState<ShowcaseSocialItem | null>(null)
+  /**
+   * Kontrak final Tim A #D (2026-09-28): filter sheet (kondisi, rating
+   * penjual, harga) → dipetakan ke query server di `filter` di bawah.
+   */
+  const [sheetFilters, setSheetFilters] = useState<ShowcaseFeedFilters>(DEFAULT_SHOWCASE_FILTERS)
+  const [filterSheetVisible, setFilterSheetVisible] = useState(false)
   const activeRequest = useRef<AbortController | null>(null)
   const loadMoreBusy = useRef(false)
   /**
@@ -368,14 +382,24 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
     setFollowingGuest(true)
   }, [])
 
-  /** Filter aktif — kunci himpunan hasil (tab × search × kategori × lokasi). */
+  /**
+   * Filter aktif — kunci himpunan hasil (tab × search × kategori × lokasi ×
+   * kondisi × rating × harga). Perubahan nilai → `sameFeedFilter` false →
+   * kursor & cache di-reset (A-01).
+   */
   const filter: ShowcaseFeedFilter = useMemo(
     () => ({
       search: activeSearch || undefined,
       category: category || undefined,
       location: location || undefined,
+      // Kontrak final Tim A #D: NEW/USED → baru/bekas; 4/4_5 → 4.0/4.5.
+      condition: sheetFilters.condition === "NEW" ? "baru" : sheetFilters.condition === "USED" ? "bekas" : undefined,
+      minSellerRating:
+        sheetFilters.minRating === "4" ? 4 : sheetFilters.minRating === "4_5" ? 4.5 : undefined,
+      minPrice: sheetFilters.price.min ?? undefined,
+      maxPrice: sheetFilters.price.max ?? undefined,
     }),
-    [activeSearch, category, location],
+    [activeSearch, category, location, sheetFilters],
   )
 
   /**
@@ -481,6 +505,10 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         search: filter.search,
         category: filter.category,
         location: filter.location,
+        condition: filter.condition,
+        minSellerRating: filter.minSellerRating,
+        minPrice: filter.minPrice,
+        maxPrice: filter.maxPrice,
       }
       try {
         let incoming: ShowcaseSocialItem[] = []
@@ -792,6 +820,21 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
   ) : null
 
   /** DC-012: label rentang harga aktif untuk chip. */
+  const sheetFilterChip = !isDefaultShowcaseFilters(sheetFilters) ? (
+    <View className="mt-3 flex-row items-center justify-between gap-2 rounded-full border border-border bg-surface py-1.5 pl-4 pr-1.5 mx-5">
+      <Text variant="caption" tone="secondary" className="flex-1" numberOfLines={1}>
+        {describeSheetFilters(sheetFilters)}
+      </Text>
+      <IconButton
+        icon={X}
+        variant="ghost"
+        size="sm"
+        accessibilityLabel={translate("Hapus semua filter")}
+        onPress={() => setSheetFilters(DEFAULT_SHOWCASE_FILTERS)}
+      />
+    </View>
+  ) : null
+
   return (
     <View className="flex-1">
       {/* ── Header showcase — pensil kelola · logo · notifikasi + tab feed ── */}
@@ -802,7 +845,13 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         ]}
       >
         <Animated.View style={collapsing.contentStyle} onLayout={collapsing.onHeaderLayout}>
-          <ShowcaseHeader kind={kind} onKindChange={setKind} tabs={feedTabs} />
+          <ShowcaseHeader
+            kind={kind}
+            onKindChange={setKind}
+            tabs={feedTabs}
+            onFilterPress={() => setFilterSheetVisible(true)}
+            filterBadgeCount={showcaseFilterBadgeCount(sheetFilters)}
+          />
         </Animated.View>
       </Animated.View>
 
@@ -837,7 +886,7 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
         bottomPadding={bottomPadding}
         header={
           searchChip || categoryChip || locationChip || followingPartialNotice ? (
-            <View>{searchChip}{categoryChip}{locationChip}{followingPartialNotice}<OnboardingChecklistCard /></View>
+            <View>{searchChip}{categoryChip}{locationChip}{sheetFilterChip}{followingPartialNotice}<OnboardingChecklistCard /></View>
           ) : (
             <OnboardingChecklistCard />
           )
@@ -880,6 +929,14 @@ export function ShowcaseFeedTab({ bottomPadding, category, onClearCategory, loca
 
       {/* A-11: SATU sheet laporan (audit: disalin dari versi inline lama). */}
       <ShowcaseReportSheet item={reportItem} onRequestClose={() => setReportItem(null)} />
+
+      {/* Kontrak final Tim A #D: sheet filter kondisi/rating/harga. */}
+      <ShowcaseFilterSheet
+        visible={filterSheetVisible}
+        initial={sheetFilters}
+        onApply={setSheetFilters}
+        onRequestClose={() => setFilterSheetVisible(false)}
+      />
     </View>
   )
 }

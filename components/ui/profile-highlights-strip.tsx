@@ -1,19 +1,16 @@
 /**
- * Kahade — <ProfileHighlightsStrip> (item 20, 2026-09-28).
+ * Kahade — <ProfileHighlightsStrip> (item 20).
  *
  * Strip horizontal ala Instagram di atas tab profil: lingkaran highlight
- * (cover + nama). Pemilik profil (isSelf) mendapat lingkaran "+" untuk
- * membuka editor "Kelola highlight" — memilih produk dari etalase sendiri.
+ * (cover + judul). Pemilik profil (isSelf) mendapat lingkaran "+" untuk
+ * membuka editor — membuat, mengubah, atau menghapus highlight.
  *
- * DATA MENUNGGU KONTRAK TIM A (lihat lib/api/showcase-highlights.ts):
- * daftar highlight saat ini tidak bisa dimuat dari server, jadi strip
- * menyembunyikan dirinya sendiri (tidak menampilkan placeholder palsu).
- * Editor "Kelola" SUDAH berfungsi penuh di sisi UI (pilih produk, beri nama,
- * urutan) — tombol Simpan memanggil `saveProfileHighlights` dan menampilkan
- * pesan kontrak bila backend belum siap. Begitu kontrak tiba, tidak ada
- * perubahan UI yang dibutuhkan: strip otomatis tampil.
+ * KONTRAK FINAL TIM A (2026-09-28) — lib/api/showcase-highlights.ts:
+ * strip membaca GET /v1/users/:username/highlights (publik); editor memakai
+ * CRUD /v1/highlights (milik sendiri). Gagal muat = strip disembunyikan
+ * (fail closed, bukan placeholder palsu).
  */
-import { Check, Plus, Sparkle, Trash, X } from "phosphor-react-native"
+import { Check, Plus, Sparkle, Warning, X } from "phosphor-react-native"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { ScrollView, TextInput, View } from "react-native"
 
@@ -22,20 +19,28 @@ import { Button } from "@/components/ui/button"
 import { EmptyState } from "@/components/ui/empty-state"
 import { Icon } from "@/components/ui/icon"
 import { IconButton } from "@/components/ui/icon-button"
+import { Dialog } from "@/components/ui/modal"
 import { Picture } from "@/components/ui/picture"
 import { PressableScale } from "@/components/ui/pressable-scale"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
 import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/cn"
 import { tokens } from "@/lib/tokens"
 import { translate, useLanguage } from "@/lib/i18n"
+import { isApiError, userMessage } from "@/lib/api"
 import {
+  HIGHLIGHTS_MAX,
+  HIGHLIGHT_TITLE_MAX,
+  createHighlight,
+  deleteHighlight,
   highlightCoverOf,
+  listMyHighlights,
   readProfileHighlights,
-  saveProfileHighlights,
+  updateHighlight,
   type ProfileHighlight,
-  type ProfileHighlightInput,
+  type ProfileHighlightPreview,
 } from "@/lib/api/showcase-highlights"
 import type { ShowcaseItem } from "@/lib/api/users"
 
@@ -47,22 +52,20 @@ export type ProfileHighlightsStripProps = {
   showcaseItems: ShowcaseItem[]
 }
 
-const HIGHLIGHT_NAME_MAX = 30
-
 export function ProfileHighlightsStrip({
   username,
   isSelf,
   showcaseItems,
 }: ProfileHighlightsStripProps) {
   useLanguage()
-  const [highlights, setHighlights] = useState<ProfileHighlight[] | null>(null)
+  const [highlights, setHighlights] = useState<ProfileHighlightPreview[] | null>(null)
   const [editorOpen, setEditorOpen] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
       setHighlights(await readProfileHighlights(username))
     } catch {
-      // Kontrak TIM A belum tiba — sembunyikan strip (bukan error).
+      // Fail closed: sembunyikan strip, bukan error/placeholder palsu.
       setHighlights([])
     }
   }, [username])
@@ -71,11 +74,11 @@ export function ProfileHighlightsStrip({
     void refresh()
   }, [refresh])
 
-  // Strip disembunyikan bila kosong — untuk profil orang lain tidak ada
-  // apa-apa; untuk profil sendiri editor tetap bisa dibuka dari… (lihat
-  // catatan di bawah: tombol kelola juga disembunyikan sampai kontrak ada
-  // karena menyimpan belum bisa). Bila kontrak tiba, strip tampil otomatis.
-  if (!highlights || highlights.length === 0) return null
+  if (!highlights) return null
+  // Profil orang lain tanpa highlight = tidak ada apa-apa. Profil sendiri
+  // SELALU dapat tombol "Baru" (bahkan saat kosong) — inilah pintu masuk
+  // create flow.
+  if (highlights.length === 0 && !isSelf) return null
 
   return (
     <View className="pt-3">
@@ -96,22 +99,23 @@ export function ProfileHighlightsStrip({
         {highlights.map((h) => (
           <HighlightCircle
             key={h.id}
-            label={h.name}
-            cover={h.coverImageUrl}
+            label={h.title}
+            cover={h.coverUrl ?? h.previewImageUrls[0] ?? null}
             onPress={() => setEditorOpen(true)}
           />
         ))}
       </ScrollView>
-      <HighlightEditor
-        visible={editorOpen}
-        showcaseItems={showcaseItems}
-        initial={highlights}
-        onRequestClose={() => setEditorOpen(false)}
-        onSaved={() => {
-          setEditorOpen(false)
-          void refresh()
-        }}
-      />
+      {isSelf ? (
+        <HighlightEditor
+          visible={editorOpen}
+          showcaseItems={showcaseItems}
+          onRequestClose={() => setEditorOpen(false)}
+          onSaved={() => {
+            setEditorOpen(false)
+            void refresh()
+          }}
+        />
+      ) : null}
     </View>
   )
 }
@@ -155,26 +159,18 @@ function HighlightCircle({
   )
 }
 
-// ── Editor "Kelola highlight" ───────────────────────────────────────────
+// ── Editor highlight (create / patch / delete per item) ───────────────────
 
-type DraftHighlight = {
-  /** Id sementara lokal; diawali "local:" = belum ada di server. */
-  key: string
-  id?: string
-  name: string
-  itemIds: string[]
-}
+const NEW_KEY = "new"
 
 function HighlightEditor({
   visible,
   showcaseItems,
-  initial,
   onRequestClose,
   onSaved,
 }: {
   visible: boolean
   showcaseItems: ShowcaseItem[]
-  initial: ProfileHighlight[]
   onRequestClose: () => void
   onSaved: () => void
 }) {
@@ -182,87 +178,122 @@ function HighlightEditor({
   const toast = useToast()
   const { mode } = useTheme()
   const palette = tokens.colors[mode]
-  const [drafts, setDrafts] = useState<DraftHighlight[]>([])
+  /** Daftar milik sendiri dari server; null = memuat. */
+  const [items, setItems] = useState<ProfileHighlight[] | null>(null)
+  /** Id highlight yang diedit, atau NEW_KEY untuk buat baru. */
   const [activeKey, setActiveKey] = useState<string | null>(null)
+  const [name, setName] = useState("")
+  const [productIds, setProductIds] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  // Fail closed: kegagalan memuat daftar milik sendiri TIDAK dianggap
+  // daftar kosong — tampilkan error + coba lagi, jangan buka editor
+  // dengan asumsi kosong (bisa menutupi highlight yang sebenarnya ada).
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const [loadSeq, setLoadSeq] = useState(0)
 
   useEffect(() => {
-    if (visible) {
-      setDrafts(
-        initial.map((h, i) => ({
-          key: h.id || `local:${i}`,
-          id: h.id,
-          name: h.name,
-          itemIds: [...h.showcaseItemIds],
-        })),
-      )
-      setActiveKey(null)
+    if (!visible) return
+    setItems(null)
+    setLoadError(null)
+    setActiveKey(null)
+    setName("")
+    setProductIds([])
+    setConfirmDelete(false)
+    let alive = true
+    listMyHighlights()
+      .then((list) => {
+        if (alive) setItems(list)
+      })
+      .catch((err: unknown) => {
+        if (alive) {
+          setLoadError(userMessage(err))
+        }
+      })
+    return () => {
+      alive = false
     }
-  }, [visible, initial])
+  }, [visible, loadSeq])
 
   const itemsById = useMemo(
     () => new Map(showcaseItems.map((it) => [it.id, it])),
     [showcaseItems],
   )
-  const active = drafts.find((d) => d.key === activeKey) ?? null
 
-  const patchActive = useCallback(
-    (patch: Partial<DraftHighlight>) => {
-      if (!activeKey) return
-      setDrafts((prev) => prev.map((d) => (d.key === activeKey ? { ...d, ...patch } : d)))
-    },
-    [activeKey],
-  )
-
-  const toggleItem = useCallback(
-    (itemId: string) => {
-      if (!active) return
-      const has = active.itemIds.includes(itemId)
-      patchActive({
-        itemIds: has ? active.itemIds.filter((id) => id !== itemId) : [...active.itemIds, itemId],
-      })
-    },
-    [active, patchActive],
-  )
-
-  const addHighlight = useCallback(() => {
-    const key = `local:${Date.now().toString(36)}`
-    setDrafts((prev) => [...prev, { key, name: "", itemIds: [] }])
-    setActiveKey(key)
+  const startNew = useCallback(() => {
+    setActiveKey(NEW_KEY)
+    setName("")
+    setProductIds([])
+    setConfirmDelete(false)
   }, [])
 
-  const removeHighlight = useCallback(
-    (key: string) => {
-      setDrafts((prev) => prev.filter((d) => d.key !== key))
-      if (activeKey === key) setActiveKey(null)
-    },
-    [activeKey],
-  )
+  const startEdit = useCallback((h: ProfileHighlight) => {
+    setActiveKey(h.id)
+    setName(h.title)
+    setProductIds([...h.productIds])
+    setConfirmDelete(false)
+  }, [])
+
+  const toggleItem = useCallback((itemId: string) => {
+    setProductIds((prev) =>
+      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId],
+    )
+  }, [])
 
   const handleSave = useCallback(async () => {
-    if (saving) return
-    const input: ProfileHighlightInput[] = drafts
-      .filter((d) => d.name.trim().length > 0 && d.itemIds.length > 0)
-      .map((d) => ({
-        ...(d.id && !d.id.startsWith("local:") ? { id: d.id } : {}),
-        name: d.name.trim().slice(0, HIGHLIGHT_NAME_MAX),
-        showcaseItemIds: d.itemIds,
-      }))
+    if (saving || !activeKey) return
     setSaving(true)
     try {
-      await saveProfileHighlights(input)
+      if (activeKey === NEW_KEY) {
+        await createHighlight({ title: name, productIds })
+      } else {
+        await updateHighlight(activeKey, { title: name, productIds })
+      }
       toast.show({ title: translate("Highlight disimpan"), tone: "success" })
       onSaved()
     } catch (err: unknown) {
+      const backendCode = isApiError(err) ? err.backendCode : undefined
+      const limitReached = backendCode === "HIGHLIGHT_LIMIT_REACHED"
       toast.show({
-        title: translate("Belum bisa menyimpan highlight"),
-        description: err instanceof Error ? err.message : undefined,
+        title: limitReached
+          ? translate("Batas highlight tercapai")
+          : translate("Gagal menyimpan highlight"),
+        description: limitReached
+          ? translate("Maksimal {x} highlight per akun. Hapus salah satu dulu.", {
+              x: String(HIGHLIGHTS_MAX),
+            })
+          : err instanceof Error
+            ? err.message
+            : undefined,
         tone: "danger",
       })
     } finally {
       setSaving(false)
     }
-  }, [drafts, saving, onSaved, toast.show])
+  }, [saving, activeKey, name, productIds, toast, onSaved])
+
+  const handleDelete = useCallback(async () => {
+    if (deleting || !activeKey || activeKey === NEW_KEY) return
+    setDeleting(true)
+    try {
+      await deleteHighlight(activeKey)
+      toast.show({ title: translate("Highlight dihapus"), tone: "success" })
+      onSaved()
+    } catch (err: unknown) {
+      toast.show({
+        title: translate("Gagal menghapus highlight"),
+        description: err instanceof Error ? err.message : undefined,
+        tone: "danger",
+      })
+    } finally {
+      setDeleting(false)
+      setConfirmDelete(false)
+    }
+  }, [deleting, activeKey, toast, onSaved])
+
+  const activeIsNew = activeKey === NEW_KEY
+  const activeExisting = activeKey && !activeIsNew ? items?.find((h) => h.id === activeKey) ?? null : null
 
   return (
     <BottomSheet
@@ -272,86 +303,111 @@ function HighlightEditor({
       description={translate("Pilih produk dari etalase Anda untuk ditampilkan di profil.")}
       avoidKeyboard
       footer={
-        <Button fullWidth loading={saving} onPress={() => void handleSave()}>
-          {translate("Simpan highlight")}
-        </Button>
+        activeKey ? (
+          <View className="gap-2">
+            <Button fullWidth loading={saving} onPress={() => void handleSave()}>
+              {translate("Simpan highlight")}
+            </Button>
+            {!activeIsNew ? (
+              <Button
+                variant="ghost"
+                fullWidth
+                loading={deleting}
+                onPress={() => setConfirmDelete(true)}
+              >
+                {translate("Hapus highlight")}
+              </Button>
+            ) : null}
+          </View>
+        ) : undefined
       }
     >
       <View className="gap-3 px-5 pb-2">
-        {/* Daftar highlight (draft) */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerClassName="gap-2"
-        >
-          {drafts.map((d) => {
-            const cover = highlightCoverOf(itemsById.get(d.itemIds[0]))
-            const selected = d.key === activeKey
-            return (
-              <View key={d.key} className="relative">
+        {/* Daftar highlight milik sendiri */}
+        {loadError ? (
+          <EmptyState
+            icon={Warning}
+            title={translate("Gagal memuat highlight")}
+            description={loadError}
+            action={
+              <Button onPress={() => setLoadSeq((n) => n + 1)}>
+                {translate("Coba lagi")}
+              </Button>
+            }
+          />
+        ) : items === null ? (
+          <View className="flex-row gap-2">
+            {[0, 1, 2].map((i) => (
+              <View key={i} className="items-center gap-1">
+                <Skeleton className="h-14 w-14 rounded-full" />
+                <Skeleton className="h-3 w-10 rounded" />
+              </View>
+            ))}
+          </View>
+        ) : (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerClassName="gap-2"
+          >
+            {items.map((h) => {
+              const cover = h.coverUrl ?? highlightCoverOf(itemsById.get(h.productIds[0]))
+              const selected = h.id === activeKey
+              return (
                 <PressableScale
+                  key={h.id}
                   className={cn(
                     "w-16 items-center gap-1 rounded-md p-1",
                     selected && "bg-surface",
                   )}
                   accessibilityRole="button"
-                  accessibilityLabel={d.name || translate("Highlight baru")}
+                  accessibilityLabel={h.title}
                   accessibilityState={{ selected }}
-                  onPress={() => setActiveKey(selected ? null : d.key)}
+                  onPress={() => (selected ? setActiveKey(null) : startEdit(h))}
                 >
                   <View className="h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-border-control">
                     {cover ? (
-                      <Picture source={{ uri: cover }} alt={d.name} width={56} height={56} bordered={false} />
+                      <Picture source={{ uri: cover }} alt={h.title} width={56} height={56} bordered={false} />
                     ) : (
                       <Icon icon={Sparkle} size="md" tone="default" />
                     )}
                   </View>
                   <Text variant="caption" tone="secondary" numberOfLines={1}>
-                    {d.name || translate("Baru")}
+                    {h.title}
                   </Text>
                 </PressableScale>
-                <View className="absolute -right-1 -top-1">
-                  <IconButton
-                    icon={Trash}
-                    size="sm"
-                    variant="secondary"
-                    shape="pill"
-                    accessibilityLabel={translate("Hapus highlight")}
-                    onPress={() => removeHighlight(d.key)}
-                  />
-                </View>
+              )
+            })}
+            <PressableScale
+              className="w-16 items-center gap-1 p-1"
+              accessibilityRole="button"
+              accessibilityLabel={translate("Tambah highlight")}
+              onPress={startNew}
+            >
+              <View className="h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-border-control bg-surface">
+                <Icon icon={Plus} size="md" tone="default" />
               </View>
-            )
-          })}
-          <PressableScale
-            className="w-16 items-center gap-1 p-1"
-            accessibilityRole="button"
-            accessibilityLabel={translate("Tambah highlight")}
-            onPress={addHighlight}
-          >
-            <View className="h-14 w-14 items-center justify-center rounded-full border-2 border-dashed border-border-control bg-surface">
-              <Icon icon={Plus} size="md" tone="default" />
-            </View>
-            <Text variant="caption" tone="secondary">
-              {translate("Tambah")}
-            </Text>
-          </PressableScale>
-        </ScrollView>
+              <Text variant="caption" tone="secondary">
+                {translate("Tambah")}
+              </Text>
+            </PressableScale>
+          </ScrollView>
+        )}
 
         {/* Editor highlight aktif */}
-        {active ? (
+        {activeKey ? (
           <View className="gap-2 rounded-md border border-border bg-surface p-3">
             <TextInput
-              value={active.name}
-              onChangeText={(v) => patchActive({ name: v.slice(0, HIGHLIGHT_NAME_MAX) })}
+              value={name}
+              onChangeText={(v) => setName(v.slice(0, HIGHLIGHT_TITLE_MAX))}
               placeholder={translate("Nama highlight, mis. Promo 9.9")}
               placeholderTextColor={palette.textSecondary}
               className="rounded-sm border border-border-control bg-background px-3 py-2 font-sans-400 text-bodyLarge text-text-primary"
-              maxLength={HIGHLIGHT_NAME_MAX}
+              maxLength={HIGHLIGHT_TITLE_MAX}
               accessibilityLabel={translate("Nama highlight")}
             />
             <Text variant="caption" tone="secondary">
-              {translate("Pilih produk ({n} dipilih):", { n: String(active.itemIds.length) })}
+              {translate("Pilih produk ({n} dipilih):", { n: String(productIds.length) })}
             </Text>
             {showcaseItems.length === 0 ? (
               <EmptyState
@@ -367,7 +423,7 @@ function HighlightEditor({
               >
                 {showcaseItems.map((item) => {
                   const cover = highlightCoverOf(item)
-                  const chosen = active.itemIds.includes(item.id)
+                  const chosen = productIds.includes(item.id)
                   return (
                     <PressableScale
                       key={item.id}
@@ -412,10 +468,26 @@ function HighlightEditor({
           </View>
         ) : (
           <Text variant="caption" tone="secondary">
-            {translate("Ketuk highlight untuk mengedit, atau tambah yang baru.")}
+            {translate("Ketuk highlight untuk mengedit, tambah baru, atau hapus.")}
           </Text>
         )}
       </View>
+
+      {/* Konfirmasi hapus */}
+      <Dialog
+        visible={confirmDelete}
+        title={translate("Hapus highlight?")}
+        description={translate("Highlight \"{x}\" akan dihapus dari profil Anda.", {
+          x: activeExisting?.title ?? "",
+        })}
+        destructive
+        loading={deleting}
+        confirmLabel={translate("Hapus")}
+        cancelLabel={translate("Batal")}
+        onConfirm={() => void handleDelete()}
+        onCancel={() => setConfirmDelete(false)}
+        onRequestClose={() => setConfirmDelete(false)}
+      />
     </BottomSheet>
   )
 }

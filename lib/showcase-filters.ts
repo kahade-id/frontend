@@ -13,6 +13,8 @@
  * menyeret rantai import react-native ke unit test. Strukturnya identik
  * dengan `CurrencyRange` sehingga assignment antar keduanya aman.
  */
+import { formatRupiah } from "@/lib/format"
+
 export type PriceRange = { min: number | null; max: number | null }
 
 /** Kondisi barang. */
@@ -49,4 +51,21 @@ export function showcaseFilterBadgeCount(f: ShowcaseFeedFilters): number {
   if (f.minRating !== "ALL") n += 1
   if (f.price.min != null || f.price.max != null) n += 1
   return n
+}
+
+/**
+ * Label ringkas filter aktif untuk chip (kontrak final Tim A #D).
+ * Murni — unit-testable.
+ */
+export function describeSheetFilters(f: ShowcaseFeedFilters): string {
+  const parts: string[] = []
+  if (f.condition === "NEW") parts.push("Baru")
+  else if (f.condition === "USED") parts.push("Bekas")
+  if (f.minRating === "4") parts.push("Rating 4+")
+  else if (f.minRating === "4_5") parts.push("Rating 4,5+")
+  const { min, max } = f.price
+  if (min != null && max != null) parts.push(`${formatRupiah(min)}–${formatRupiah(max)}`)
+  else if (min != null) parts.push(`≥ ${formatRupiah(min)}`)
+  else if (max != null) parts.push(`≤ ${formatRupiah(max)}`)
+  return parts.join(" · ")
 }

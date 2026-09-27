@@ -6,7 +6,9 @@ import { api, isApiError, userMessage } from "@/lib/api"
 import {
   getShowcaseDetail,
   likeShowcase,
+  saveShowcase,
   unlikeShowcase,
+  unsaveShowcase,
   type ShowcaseSocialItem,
 } from "@/lib/api/showcase"
 import { useHasSession, useSessionRevision } from "@/lib/guest-gate"
@@ -20,12 +22,13 @@ import {
   getShowcaseLikeOverride,
   setShowcaseLikeState,
   setShowcaseSavedPending,
-  toggleShowcaseSaved,
+  setShowcaseSavedState,
   useShowcaseLikeOverride,
   useShowcaseSaved,
   useShowcaseSavedPending,
 } from "@/lib/showcase-social-prefs"
 import { useToast } from "@/components/ui/toast"
+import { translate } from "@/lib/i18n/translate"
 
 /**
  * C-03 (audit 2026-09-23): tujuan kembali setelah login = LAYAR SAAT INI
@@ -50,6 +53,11 @@ export type ShowcaseSocialActions = {
   liked: boolean
   likeCount: number
   saved: boolean
+  /**
+   * Kontrak final Tim A #4 (2026-09-28): jumlah penyimpan dari server
+   * (`saveCount`), dengan override optimistis sesi ini bila ada.
+   */
+  saveCount: number
   hasSession: boolean
   /**
    * S-01/S-02 (audit 2026-09-24): request suka/simpan sedang berjalan. UI
@@ -75,6 +83,41 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
   const saved = useShowcaseSaved(item.id)
   const savedPending = useShowcaseSavedPending(item.id)
   const [likePending, setLikePending] = useState(false)
+  /**
+   * Kontrak final Tim A #4 (2026-09-28): override jumlah simpan sesi ini.
+   * null = ikut `item.saveCount` dari server. Direset tiap ganti item.
+   */
+  const [saveCountOverride, setSaveCountOverride] = useState<number | null>(null)
+  useEffect(() => {
+    setSaveCountOverride(null)
+  }, [item.id])
+  const saveCount = saveCountOverride ?? item.saveCount ?? 0
+  /**
+   * Seed status simpan dari `isSaved` server — server adalah source of truth
+   * (kontrak #4); store lokal hanya cache koleksi "Tersimpan". Dijalankan
+   * SETELAH hidrasi bookmark lokal supaya tidak ditimpa data storage lama.
+   * Payload tanpa `isSaved` (kontrak lama) tidak di-seed — nilai lokal tetap.
+   */
+  useEffect(() => {
+    if (!hasSession || item.isSaved === undefined) return
+    const isSaved = item.isSaved
+    const id = item.id
+    let alive = true
+    void (async () => {
+      try {
+        const me = await api.users.getMeCached()
+        if (!alive || getSessionRevision() !== sessionRevision) return
+        await loadShowcaseBookmarks(me.id)
+        if (!alive || getSessionRevision() !== sessionRevision) return
+        setShowcaseSavedState(id, isSaved)
+      } catch {
+        // Hidrasi gagal — tombol tetap pakai nilai lokal, tidak merusak.
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [item.id, item.isSaved, hasSession, sessionRevision])
   /** S-01: satu toggle ditahan saat request suka sebelumnya masih berjalan. */
   const queuedLike = useRef(false)
   const runLikeRef = useRef<() => void>(() => {})
@@ -233,29 +276,58 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
    * (supaya penulisan lokal tidak ditimpa pembacaan storage), dan override
    * dilepas saat commit selesai/gagal.
    */
+  /**
+   * Simpan/batal simpan — kontrak final Tim A #4 (2026-09-28).
+   *
+   * Server (`POST/DELETE /v1/showcase/:id/save`) adalah source of truth;
+   * store lokal hanya di-commit sebagai cache koleksi "Tersimpan".
+   * Optimistis: pending + hitungan langsung berubah; rollback bila gagal.
+   * 409 `SHOWCASE_ALREADY_SAVED` / 404 `SHOWCASE_NOT_SAVED` = idempoten,
+   * diperlakukan sebagai sukses (keadaan akhir sudah sesuai keinginan).
+   */
   const toggleSave = useCallback(() => {
     if (!hasSession) {
       requireLogin()
       return
     }
+    // Rapid-toggle guard: abaikan ketukan kedua selama request masih jalan,
+    // agar POST/DELETE save tidak balapan dan count tidak salah.
+    if (savedPending) return
     const revision = getSessionRevision()
     const wanted = !saved
+    const optimisticCount = Math.max(0, saveCount + (wanted ? 1 : -1))
     setShowcaseSavedPending(item.id, wanted)
+    setSaveCountOverride(optimisticCount)
     void (async () => {
       try {
-        const me = await api.users.getMeCached()
+        const res = wanted
+          ? await saveShowcase(item.id, optimisticCount)
+          : await unsaveShowcase(item.id, optimisticCount)
         if (revision !== getSessionRevision()) return
-        await loadShowcaseBookmarks(me.id)
-        if (revision !== getSessionRevision()) return
-        toggleShowcaseSaved(item.id)
+        setShowcaseSavedState(item.id, res.saved)
+        setSaveCountOverride(res.saveCount)
       } catch (error) {
-        // C-01: userMessage(ApiError) meneruskan pesan batas 25 apa adanya.
-        toast.show({ title: "Gagal menyimpan karya", description: userMessage(error), tone: "danger" })
+        if (revision !== getSessionRevision()) return
+        const backendCode = isApiError(error) ? error.backendCode : undefined
+        const idempotent =
+          (wanted && backendCode === "SHOWCASE_ALREADY_SAVED") ||
+          (!wanted && backendCode === "SHOWCASE_NOT_SAVED")
+        if (idempotent) {
+          // Keadaan akhir sudah sesuai — commit tanpa toast error.
+          setShowcaseSavedState(item.id, wanted)
+        } else {
+          setSaveCountOverride(null)
+          toast.show({
+            title: translate("Gagal menyimpan karya"),
+            description: userMessage(error),
+            tone: "danger",
+          })
+        }
       } finally {
         setShowcaseSavedPending(item.id, null)
       }
     })()
-  }, [hasSession, requireLogin, item.id, saved, toast])
+  }, [hasSession, requireLogin, item.id, saved, saveCount, savedPending, toast])
 
   const [shareSheetVisible, setShareSheetVisible] = useState(false)
   const share = useCallback(() => setShareSheetVisible(true), [])
@@ -264,6 +336,7 @@ export function useShowcaseSocialActions(item: ShowcaseSocialItem): ShowcaseSoci
     liked,
     likeCount,
     saved,
+    saveCount,
     hasSession,
     likePending,
     savedPending,

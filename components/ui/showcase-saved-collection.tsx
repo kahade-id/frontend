@@ -191,7 +191,10 @@ export function ShowcaseSavedCollection() {
           )
         }
         const item = state.item
-        const cover = item.images[0]?.imageUrl
+        // Kontrak final Tim A (2026-09-28): entri video memakai thumbnailUrl
+        // sebagai cover (imageUrl-nya = berkas video).
+        const first = item.images[0]
+        const cover = first?.kind === "video" ? (first.thumbnailUrl ?? first.imageUrl) : first?.imageUrl
         return (
           <View key={id} className="flex-row items-center gap-3 rounded-md border border-border p-3">
             <Button

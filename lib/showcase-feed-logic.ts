@@ -57,6 +57,10 @@ export type ShowcaseFeedFilter = {
   /** DC-012: filter harga (IDR). */
   minPrice?: number
   maxPrice?: number
+  /** Kontrak final Tim A (2026-09-28): condition=baru|bekas. */
+  condition?: "baru" | "bekas"
+  /** Kontrak final Tim A (2026-09-28): rating minimal penjual (mis. 4.0). */
+  minSellerRating?: number
 }
 
 /**
@@ -75,7 +79,11 @@ export function sameFeedFilter(a: ShowcaseFeedFilter, b: ShowcaseFeedFilter): bo
     (a.location ?? "").toLocaleLowerCase() === (b.location ?? "").toLocaleLowerCase() &&
     // DC-012: harga ikut identitas himpunan hasil.
     (a.minPrice ?? -1) === (b.minPrice ?? -1) &&
-    (a.maxPrice ?? -1) === (b.maxPrice ?? -1)
+    (a.maxPrice ?? -1) === (b.maxPrice ?? -1) &&
+    // Kontrak final Tim A (2026-09-28): kondisi & rating ikut identitas —
+    // kursor himpunan "baru" tidak valid untuk "bekas".
+    (a.condition ?? "") === (b.condition ?? "") &&
+    (a.minSellerRating ?? -1) === (b.minSellerRating ?? -1)
   )
 }
 
