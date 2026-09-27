@@ -4,8 +4,9 @@
  *
  * Kotak "Punya kode voucher?" di layar pembayaran/checkout. Tiga state:
  *   - idle     : Input kode + tombol "Pakai" (secondary) sebaris.
- *   - applied  : kartu ringkas: kode Mono + Badge success "Terpasang" +
- *                potongan "-Rp10.000" + tombol hapus (X).
+ *   - applied  : tiket mini (<TicketShell> + <TicketDivider>): kode Mono +
+ *                Badge success "Terpasang" + potongan "-Rp10.000", perforasi,
+ *                lalu tombol hapus (X) + petunjuk ganti kode.
  *   - error    : Input border-error + pesan dari server (`POST /v1/vouchers/
  *                validate`), tombol tetap aktif untuk mencoba lagi.
  *
@@ -45,6 +46,7 @@ import { IconButton } from "@/components/ui/icon-button"
 import { Input } from "@/components/ui/input"
 import { Text } from "@/components/ui/text"
 import { TextLink } from "@/components/ui/text-link"
+import { TicketDivider, TicketShell } from "@/components/ui/voucher-ticket"
 import { cn } from "@/lib/cn"
 import { translate } from "@/lib/i18n/translate"
 import { summarize } from "@/lib/a11y"
@@ -68,6 +70,8 @@ export type VoucherRedeemBoxLabels = {
   applied: string
   remove: string
   browse: string
+  /** Petunjuk di potongan tiket terpasang */
+  swapHint: string
 }
 
 export type VoucherRedeemBoxProps = Omit<ViewProps, "children"> & {
@@ -91,6 +95,7 @@ const DEFAULT_LABELS: VoucherRedeemBoxLabels = {
   applied: "Terpasang",
   remove: "Hapus voucher",
   browse: "Lihat voucher tersedia",
+  swapHint: "Hapus untuk mengganti kode",
 }
 
 /** "abc 123" -> "ABC123" */
@@ -124,50 +129,59 @@ export function VoucherRedeemBox({
     return (
       // Root TANPA `accessible`: IconButton "Hapus" harus tetap fokusable.
       // Ringkasan dipasang pada blok teks kode voucher (audit #4).
-      <View
-        className={cn(
-          "flex-row items-center gap-3 rounded-md border border-border bg-surface px-4 py-3",
-          className,
-        )}
+      // Rev. tiket 2026-09-27: state terpasang = tiket mini — badan (kode +
+      // Badge "Terpasang" + nominal), perforasi, potongan (petunjuk + hapus).
+      <TicketShell
+        className={className}
         {...rest}
       >
-        <Icon icon={Tag} size="sm" tone="active" weight="fill" />
-        <View
-          accessible
-          accessibilityLabel={summarize([
-            translate(t.heading),
-            applied.code.split("").join(" "),
-            translate(t.applied),
-            applied.title ? translate(applied.title) : undefined,
-          ])}
-          className="flex-1 gap-0 tabular-nums"
-        >
-          <View className="flex-row items-center gap-2">
-            <Text ellipsizeMode="tail" variant="monoBody" numberOfLines={1} className="shrink">
-              {applied.code}
-            </Text>
-            <Badge tone="success">{t.applied}</Badge>
+        <View className="flex-row items-center gap-3 px-4 pb-3 pt-4">
+          <Icon icon={Tag} size="sm" tone="active" weight="fill" />
+          <View
+            accessible
+            accessibilityLabel={summarize([
+              translate(t.heading),
+              applied.code.split("").join(" "),
+              translate(t.applied),
+              applied.title ? translate(applied.title) : undefined,
+            ])}
+            className="flex-1 gap-0 tabular-nums"
+          >
+            <View className="flex-row items-center gap-2">
+              <Text ellipsizeMode="tail" variant="monoBody" numberOfLines={1} className="shrink tracking-mono">
+                {applied.code}
+              </Text>
+              <Badge tone="success">{t.applied}</Badge>
+            </View>
+            {applied.title ? (
+              <Text variant="caption" tone="secondary" numberOfLines={1}>
+                {applied.title}
+              </Text>
+            ) : null}
           </View>
-          {applied.title ? (
-            <Text variant="caption" tone="secondary" numberOfLines={1}>
-              {applied.title}
-            </Text>
+          {Number.isFinite(applied.discount) ? (
+            <Amount value={-Math.abs(applied.discount as number)} tone="success" />
           ) : null}
         </View>
-        {Number.isFinite(applied.discount) ? (
-          <Amount value={-Math.abs(applied.discount as number)} tone="success" />
-        ) : null}
-        {onRemove ? (
-          <IconButton
-            icon={X}
-            size="sm"
-            variant="ghost"
-            accessibilityLabel={t.remove}
-            onPress={onRemove}
-            className="-mr-2"
-          />
-        ) : null}
-      </View>
+
+        <TicketDivider />
+
+        <View className="flex-row items-center justify-between gap-3 px-4 py-3">
+          <Text variant="caption" tone="secondary" className="shrink">
+            {t.swapHint}
+          </Text>
+          {onRemove ? (
+            <IconButton
+              icon={X}
+              size="sm"
+              variant="ghost"
+              accessibilityLabel={t.remove}
+              onPress={onRemove}
+              className="-mr-2"
+            />
+          ) : null}
+        </View>
+      </TicketShell>
     )
   }
 

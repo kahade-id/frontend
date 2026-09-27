@@ -16,7 +16,7 @@
  * dibuat, seluruh pesan diteruskan ke Tim Kahade dan tersimpan di akun.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { ScrollView, View } from "react-native"
+import { Platform, ScrollView, View, type ViewStyle } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
 import { useIsFocused } from "@react-navigation/native"
 import { Lifebuoy } from "phosphor-react-native"
@@ -411,16 +411,28 @@ export default function LiveSupportScreen() {
 
           {!isClosedLike ? (
             <>
-              {/* Topik cepat — satu baris di atas composer */}
+              {/* Topik cepat — satu baris di atas composer.
+                  FIX 2026-09-27: di web (kahade.id) gesture geser horizontal
+                  bisa diblokir ancestor yang memasang touch-action pan-y,
+                  sehingga baris chip tidak bisa di-scroll dan chip terakhir
+                  terlihat kepotong. touchAction pan-x pan-y mengembalikan
+                  gesture horizontal. shrink-0 mencegah chip menyusut di web
+                  (default flex-shrink CSS = 1). */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
+                style={
+                  Platform.OS === "web"
+                    ? ({ touchAction: "pan-x pan-y" } as unknown as ViewStyle)
+                    : undefined
+                }
                 contentContainerClassName="gap-2 px-4 py-2"
               >
                 {QUICK_TOPICS.map((topic) => (
                   <Chip
                     key={topic.label}
+                    className="shrink-0"
                     onPress={() =>
                       ticketId ? void sendText(topic.text) : void startConversation(topic.text)
                     }

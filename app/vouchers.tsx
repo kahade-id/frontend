@@ -5,6 +5,11 @@
  * Susunan mengikuti cara pengguna memikirkan promo, bukan urutan endpoint:
  *   1. KODE PROMO    — tukar kode dari kampanye (POST /v1/vouchers/validate).
  *   2. VOUCHER AKTIF — yang bisa dipakai sekarang, diurut paling mendesak.
+ *      Tiap voucher tampil sebagai TIKET (<VoucherCard> + <TicketShell>,
+ *      satu bahasa dengan struk <ReceiptTicket>): Badge status AKTIF
+ *      (hijau) / TERPAKAI (abu) / KEDALUWARSA (merah), nominal/diskon
+ *      besar, kode Mono + tombol salin, expiry jelas, garis putus-putus
+ *      sebagai pemisah "potongan tiket".
  *   3. UNDANG TEMAN  — kode referral + statistik + bagikan (GET my-code &
  *      stats) — aksi "Lihat semua" membuka /referral untuk riwayat/reward.
  *      Termasuk PAPAN PERINGKAT 3 teratas (GET /v1/referral/leaderboard).
@@ -74,7 +79,7 @@ import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { Text } from "@/components/ui/text"
 import { useToast } from "@/components/ui/toast"
-import { VoucherCard } from "@/components/ui/voucher-card"
+import { VoucherCard, type VoucherStatus } from "@/components/ui/voucher-card"
 import {
   VoucherRedeemBox,
   type AppliedVoucher,
@@ -117,6 +122,21 @@ function expiresSoon(v: Voucher): boolean {
   if (!v.expiresAt) return false
   const time = new Date(v.expiresAt).getTime()
   return Number.isFinite(time) && time - Date.now() < EXPIRES_SOON_MS
+}
+
+/**
+ * Status tiket voucher untuk Badge AKTIF (hijau) / TERPAKAI (abu) /
+ * KEDALUWARSA (merah) — satu definisi dipakai semua kartu di layar ini
+ * (komponen hanya memetakan status -> Badge, tidak menebak sendiri).
+ */
+function voucherStatusOf(v: Voucher): VoucherStatus {
+  if (v.usedAt) return "used"
+  if (!v.active) return "expired"
+  if (v.expiresAt) {
+    const time = new Date(v.expiresAt).getTime()
+    if (Number.isFinite(time) && time < Date.now()) return "expired"
+  }
+  return "active"
 }
 
 /** Paling mendesak dulu: hampir hangus → tenggat terdekat → potongan terbesar. */
@@ -365,6 +385,18 @@ export default function VouchersScreen() {
     setPromoError(null)
   }, [])
 
+  const handleCopyVoucherCode = useCallback(
+    async (code: string) => {
+      const ok = await copy(code)
+      if (ok) haptic("select")
+      toast.show({
+        title: ok ? `Kode ${code} disalin` : "Gagal menyalin kode",
+        tone: ok ? "success" : "danger",
+      })
+    },
+    [copy, toast],
+  )
+
   const handleShareReferral = useCallback(async () => {
     if (!referralCode) return
     const url = referralUrl(referralCode)
@@ -475,6 +507,8 @@ export default function VouchersScreen() {
               minOrderValue={v.minOrderValue}
               expiresAt={v.expiresAt ? formatDateTimeWIB(v.expiresAt) : undefined}
               expiresSoon={expiresSoon(v)}
+              status={voucherStatusOf(v)}
+              onCopyCode={() => void handleCopyVoucherCode(v.code)}
               onUse={() => router.push(ROUTES.createTransactionWithVoucher(v.code))}
             />
           ))

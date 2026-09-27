@@ -1,48 +1,56 @@
 /**
- * Kahade — <VoucherCard> kartu voucher yang bisa dipakai (§9.6 Card, §9.7
+ * Kahade — <VoucherCard> tiket voucher yang bisa dipakai (§9.6 Card, §9.7
  * Badge, §3.1 Mono untuk kode & nominal, §13 format).
  *
  * Satu item `GET /v1/vouchers/available` (query `applicableTo`), dipilih
  * user saat membuat order/menghitung fee (`voucherCode` di CreateOrderDto /
- * CalculateFeeDto). Anatomi:
- *   kiri : IconBox Ticket
- *   isi  : nilai potongan (Mono, tegas) + judul/deskripsi
- *          baris syarat: min. order · berlaku untuk (BUYER/SELLER) · kadaluarsa
- *   kanan: kode Mono kecil + CTA "Pakai" / tanda terpilih
+ * CalculateFeeDto). Satu bahasa dengan struk <ReceiptTicket> (rev.
+ * 2026-09-27): cangkang <TicketShell> + <TicketDivider> (notch perforasi
+ * kiri-kanan, watermark, garis putus-putus). Anatomi:
+ *   badan    : Badge status (AKTIF/TERPAKAI/KEDALUWARSA) + nilai potongan
+ *              besar (Mono) + judul/deskripsi + Badge pembeli/penjual
+ *   perforasi: garis putus-putus + notch
+ *   potongan : kode Mono besar + tombol salin, baris syarat (min. order ·
+ *              maks. diskon · kadaluarsa), CTA "Pakai" / tanda terpilih
  *
  * Keputusan non-obvious:
- *   - Voucher BUKAN kupon berwarna dengan gerigi — sistem flat monokrom (§1).
- *     Card standar; yang membedakan dari kartu lain hanya IconBox Ticket dan
- *     nilai potongan Mono besar-ish (monoBody 600).
- *   - `discountType`: PERCENTAGE ("10%", opsional "maks Rp50.000") atau FIXED
- *     (<Amount>). Nilai persen dirender Mono juga — angka presisi (§1).
- *   - `applicableTo` (BUYER | SELLER | ALL) tampil sebagai Badge neutral
- *     kecil hanya bila bukan ALL — default yang tidak perlu dikatakan.
+ *   - `status` ("active" | "used" | "expired") dihitung PEMANGGIL dari data
+ *     voucher (usedAt / active / expiresAt) — komponen hanya memetakan ke
+ *     Badge; tidak menebak sendiri supaya satu definisi status dipakai
+ *     semua layar.
+ *   - Kode disalin lewat `onCopyCode` milik pemanggil (clipboard + toast di
+ *     sana), bukan di dalam komponen — komponen tidak menyentuh perangkat.
+ *   - `discountType`: PERCENTAGE ("25%", Mono besar) atau FIXED (<Amount>
+ *     large). Nilai persen dirender Mono — angka presisi (§1).
  *   - `disabled` (mis. min. order belum tercapai) menonaktifkan CTA dan
  *     menampilkan `disabledReason` sebagai caption; kartu tetap terbaca
  *     (tidak opacity keseluruhan) agar user tahu syaratnya.
  *   - Kadaluarsa dekat (`expiresSoon`) memakai tone warning pada teks
  *     tanggal saja — bukan Badge — supaya kartu tidak "berteriak".
- *   - `selected` menebalkan border (Card selected) untuk mode pemilihan di
- *     alur buat order; di mode pemilihan CTA berubah jadi ikon Check.
+ *   - `selected` menebalkan border ke border-focus (pola Card selected)
+ *     untuk mode pemilihan di alur buat order; di mode pemilihan CTA
+ *     berubah jadi ikon Check.
  */
-import { Check, Ticket } from "phosphor-react-native"
+import { Check, Copy, Ticket } from "phosphor-react-native"
 import { View, type ViewProps } from "react-native"
 
 import { Amount } from "@/components/ui/amount"
-import { Badge } from "@/components/ui/badge"
+import { Badge, type BadgeTone } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, type CardProps } from "@/components/ui/card"
 import { Icon } from "@/components/ui/icon"
-import { IconBox } from "@/components/ui/icon-box"
+import { IconButton } from "@/components/ui/icon-button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Text } from "@/components/ui/text"
+import { TicketDivider, TicketShell } from "@/components/ui/voucher-ticket"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
 import { formatRupiah } from "@/lib/format"
 
 export type VoucherDiscountType = "PERCENTAGE" | "FIXED"
 export type VoucherApplicableTo = "BUYER" | "SELLER" | "ALL"
+
+/** Status tiket voucher — dihitung pemanggil, bukan komponen. */
+export type VoucherStatus = "active" | "used" | "expired"
 
 export type VoucherCardLabels = {
   use: string
@@ -51,6 +59,12 @@ export type VoucherCardLabels = {
   validUntil: string
   buyer: string
   seller: string
+  active: string
+  used: string
+  expired: string
+  code: string
+  copyCode: string
+  unavailable: string
 }
 
 const DEFAULT_LABELS: VoucherCardLabels = {
@@ -60,9 +74,27 @@ const DEFAULT_LABELS: VoucherCardLabels = {
   validUntil: "Berlaku s.d.",
   buyer: "Pembeli",
   seller: "Penjual",
+  active: "Aktif",
+  used: "Terpakai",
+  expired: "Kedaluwarsa",
+  code: "Kode voucher",
+  copyCode: "Salin kode voucher",
+  unavailable: "Belum tersedia",
 }
 
-export type VoucherCardProps = Omit<CardProps, "children" | "variant" | "padded"> & {
+const STATUS_BADGE_TONE: Record<VoucherStatus, BadgeTone> = {
+  active: "success",
+  used: "neutral",
+  expired: "danger",
+}
+
+const STATUS_BADGE_LABEL: Record<VoucherStatus, keyof Pick<VoucherCardLabels, "active" | "used" | "expired">> = {
+  active: "active",
+  used: "used",
+  expired: "expired",
+}
+
+export type VoucherCardProps = Omit<ViewProps, "children"> & {
   code: string
   title: string
   description?: string
@@ -76,12 +108,19 @@ export type VoucherCardProps = Omit<CardProps, "children" | "variant" | "padded"
   /** Sudah diformat pemanggil (§13) */
   expiresAt?: string
   expiresSoon?: boolean
+  /** Badge status tiket — dihitung pemanggil dari usedAt/active/expiresAt */
+  status?: VoucherStatus
   /** Mode pemilihan: kartu terpilih */
   selected?: boolean
   onUse?: () => void
+  /** Tombol salin di samping kode; tidak dirender bila tidak diberikan */
+  onCopyCode?: () => void
+  onPress?: () => void
   disabled?: boolean
   disabledReason?: string
   labels?: Partial<VoucherCardLabels>
+  accessibilityLabel?: string
+  className?: string
 }
 
 export function VoucherCard({
@@ -95,12 +134,14 @@ export function VoucherCard({
   applicableTo = "ALL",
   expiresAt,
   expiresSoon = false,
+  status = "active",
   selected = false,
   onUse,
+  onCopyCode,
+  onPress,
   disabled = false,
   disabledReason,
   labels,
-  onPress,
   accessibilityLabel,
   className,
   ...rest
@@ -108,7 +149,7 @@ export function VoucherCard({
   const t = { ...DEFAULT_LABELS, ...labels }
   const isPercent = discountType === "PERCENTAGE"
   const discountText = !Number.isFinite(discountValue)
-    ? "Belum tersedia"
+    ? t.unavailable
     : isPercent
       ? `${discountValue}%`
       : formatRupiah(discountValue)
@@ -122,6 +163,7 @@ export function VoucherCard({
     accessibilityLabel ??
     summarize([
       `Voucher ${code}`,
+      t[STATUS_BADGE_LABEL[status]],
       `potongan ${discountText}`,
       title,
       ...conditions,
@@ -130,31 +172,40 @@ export function VoucherCard({
     ])
 
   return (
-    <Card
+    <TicketShell
       onPress={onPress}
-      selected={selected}
       accessibilityLabel={a11y}
-      className={cn("gap-4", className)}
+      className={cn(selected && "border-focus border-border-focus", className)}
       {...rest}
     >
-      <View className="flex-row items-start gap-3">
-        <IconBox icon={Ticket} size="md" variant="surface" active={selected} />
+      {/* ── Badan tiket ─────────────────────────────────── */}
+      <View className="gap-3 px-5 pb-4 pt-5">
+        <View className="flex-row items-center gap-2">
+          <Badge tone={STATUS_BADGE_TONE[status]} dot>
+            {t[STATUS_BADGE_LABEL[status]]}
+          </Badge>
+          {applicableTo !== "ALL" ? (
+            <Badge tone="neutral" variant="outline">
+              {applicableTo === "BUYER" ? t.buyer : t.seller}
+            </Badge>
+          ) : null}
+          <View className="flex-1" />
+          {selected ? (
+            <Icon icon={Check} size="sm" tone="active" weight="bold" accessibilityLabel="Terpilih" />
+          ) : (
+            <Icon icon={Ticket} size="md" tone="default" accessibilityLabel="Voucher" />
+          )}
+        </View>
 
-        <View className="flex-1 gap-1">
-          <View className="flex-row items-center gap-2">
-            {isPercent ? (
-              <Text variant="monoBody" weight={600} tone="primary" className="tabular-nums">
-                {discountText}
-              </Text>
-            ) : (
-              <Amount value={discountValue} size="body" tone="primary" />
-            )}
-            {applicableTo !== "ALL" ? (
-              <Badge tone="neutral" variant="outline">
-                {applicableTo === "BUYER" ? t.buyer : t.seller}
-              </Badge>
-            ) : null}
-          </View>
+        {isPercent ? (
+          <Text variant="monoLarge" tone="primary" className="tabular-nums">
+            {discountText}
+          </Text>
+        ) : (
+          <Amount value={discountValue} size="large" tone="primary" sign="never" animated={false} />
+        )}
+
+        <View className="gap-0.5">
           <Text ellipsizeMode="tail" variant="body" weight={600} tone="primary" numberOfLines={2}>
             {title}
           </Text>
@@ -164,14 +215,41 @@ export function VoucherCard({
             </Text>
           ) : null}
         </View>
-
-        {selected ? (
-          <Icon icon={Check} size="sm" tone="active" weight="bold" accessibilityLabel="Terpilih" />
-        ) : null}
       </View>
 
-      <View className="flex-row items-end justify-between gap-3 border-t border-border pt-3">
-        <View className="flex-1 gap-0.5">
+      <TicketDivider />
+
+      {/* ── Potongan tiket: kode + syarat + CTA ───────────── */}
+      <View className="gap-3 px-5 py-4">
+        <View className="gap-1">
+          <Text variant="caption" tone="tertiary">
+            {t.code}
+          </Text>
+          <View className="flex-row items-center gap-1">
+            <Text
+              variant="monoBody"
+              weight={600}
+              tone="primary"
+              selectable
+              className="shrink tracking-mono"
+              accessibilityLabel={`Kode voucher ${code.split("").join(" ")}`}
+            >
+              {code.toUpperCase()}
+            </Text>
+            {onCopyCode ? (
+              <IconButton
+                icon={Copy}
+                size="sm"
+                variant="ghost"
+                accessibilityLabel={t.copyCode}
+                onPress={onCopyCode}
+                className="-my-1"
+              />
+            ) : null}
+          </View>
+        </View>
+
+        <View className="gap-0.5">
           {conditions.length > 0 ? (
             <Text variant="caption" tone="secondary" numberOfLines={2}>
               {conditions.join(" · ")}
@@ -193,11 +271,8 @@ export function VoucherCard({
           ) : null}
         </View>
 
-        <View className="items-end gap-2">
-          <Text variant="caption" tone="secondary" className="font-mono-500 tracking-mono">
-            {code.toUpperCase()}
-          </Text>
-          {onUse && !selected ? (
+        {onUse && !selected ? (
+          <View className="flex-row justify-end">
             <Button
               variant="secondary"
               size="sm"
@@ -207,10 +282,10 @@ export function VoucherCard({
             >
               {t.use}
             </Button>
-          ) : null}
-        </View>
+          </View>
+        ) : null}
       </View>
-    </Card>
+    </TicketShell>
   )
 }
 
@@ -222,7 +297,7 @@ export function VoucherCardSkeleton({
     <View
       accessible
       accessibilityRole="progressbar"
-      className={cn("w-full gap-4 rounded-md border border-border bg-surface p-5", className)}
+      className={cn("w-full gap-4 rounded-lg border border-border bg-surface p-5", className)}
       accessibilityLabel="Memuat voucher"
       {...rest}
     >

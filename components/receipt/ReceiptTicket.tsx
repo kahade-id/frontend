@@ -113,8 +113,13 @@ export function DashedLine({ className }: { className?: string }) {
   )
 }
 
-/** Watermark logo Kahade diagonal berulang, opacity 0.05. */
-function Watermark() {
+/**
+ * Watermark logo Kahade diagonal berulang, opacity 0.05.
+ *
+ * Diekspor untuk dipakai ulang chrome tiket lain (mis. voucher) — jangan
+ * diduplikasi; satu sumber kebenaran watermark tiket.
+ */
+export function Watermark() {
   const { mode } = useTheme()
   const fill = tokens.colors[mode].primary
   return (
@@ -136,8 +141,15 @@ function Watermark() {
   )
 }
 
-/** Notch setengah lingkaran di tepi kartu (efek perforasi tiket). */
-function Notch({ side, color }: { side: "left" | "right"; color: string }) {
+/**
+ * Notch setengah lingkaran di tepi kartu (efek perforasi tiket).
+ *
+ * Diekspor untuk dipakai ulang chrome tiket lain (mis. voucher) — jangan
+ * diduplikasi. `color` = warna permukaan di belakang kartu (bukan
+ * transparan): lingkaran penuh menutupi border kartu meniru lubang
+ * perforasi.
+ */
+export function Notch({ side, color }: { side: "left" | "right"; color: string }) {
   return (
     <View
       accessible={false}
