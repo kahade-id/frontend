@@ -298,6 +298,17 @@ export default function CreateTransactionScreen() {
   // Belum dikirim ke server (CreateOrderDto belum punya field alamat).
   const [shippingAddress, setShippingAddress] = useState<Address | null>(null)
   const [voucherError, setVoucherError] = useState<string | undefined>()
+  // Batch 43 (item 9): voucher toko penjual — validasi via
+  // POST /v1/seller-vouchers/validate (butuh sellerId). Saling eksklusif
+  // dengan voucher platform: hanya satu kode yang dikirim sebagai
+  // `voucherCode` (server me-resolve dari tabel voucher yang sama).
+  const [sellerVoucher, setSellerVoucher] = useState<AppliedVoucher | null>(null)
+  const [applyingSellerVoucher, setApplyingSellerVoucher] = useState(false)
+  const [sellerVoucherError, setSellerVoucherError] = useState<string | undefined>()
+  const [counterpartUserId, setCounterpartUserId] = useState<string | null>(null)
+  const [myUserId, setMyUserId] = useState<string | null>(null)
+  /** Kode voucher efektif (satu-satunya yang dikirim ke server). */
+  const effectiveVoucherCode = sellerVoucher?.code ?? voucher?.code
   const [submitting, setSubmitting] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   /**
@@ -317,7 +328,7 @@ export default function CreateTransactionScreen() {
    * order GANDA.
    */
   const submitKeyRef = useRef<string | null>(null)
-  const feeKey = JSON.stringify([orderValue, feeResponsibility, role, voucher?.code, voucher?.discount])
+  const feeKey = JSON.stringify([orderValue, feeResponsibility, role, effectiveVoucherCode, voucher?.discount, sellerVoucher?.discount])
   const draft = useRef({ feeKey, counterpart: counterpart.trim() })
   draft.current = { feeKey, counterpart: counterpart.trim() }
   const [confirmedFeeKey, setConfirmedFeeKey] = useState<string | null>(null)
@@ -366,7 +377,7 @@ export default function CreateTransactionScreen() {
       const res = await api.orders.calculateFee({
         orderValue,
         feeResponsibility,
-        voucherCode: voucher?.code,
+        voucherCode: effectiveVoucherCode,
         role,
       })
       if (draft.current.feeKey !== started) return
@@ -398,6 +409,9 @@ export default function CreateTransactionScreen() {
         api.orders.validateCounterpart({ username: q }),
         api.users.getMeCached().catch(() => null),
       ])
+      // Batch 43 (item 9): simpan ID internal untuk validasi voucher toko.
+      setCounterpartUserId(res.user?.id ?? null)
+      setMyUserId(me?.id ?? null)
       if (draft.current.counterpart !== q) return
       const isSelf =
         (me?.id != null && res.user?.id != null && me.id === res.user.id) ||
@@ -484,6 +498,8 @@ export default function CreateTransactionScreen() {
           discount: Number.isFinite(v?.discountValue) ? v?.discountValue : undefined,
           title: v?.title,
         })
+        // Saling eksklusif dengan voucher toko (item 9).
+        setSellerVoucher(null)
       } catch (err) {
         // M-26 (audit end-to-end, issue #18): "Voucher tidak valid" HANYA untuk
         // penolakan pasti server. PARSE/jaringan = pemeriksaan gagal — voucher
@@ -500,6 +516,45 @@ export default function CreateTransactionScreen() {
       }
     },
     [orderValue, role],
+  )
+
+  // Batch 43 (item 9): validasi voucher toko penjual. sellerId = lawan bila
+  // saya pembeli, atau diri sendiri bila saya penjual. Saling eksklusif
+  // dengan voucher platform — yang baru dipasang menggantikan yang lama.
+  const sellerIdForVoucher = role === "SELLER" ? myUserId : counterpartUserId
+  const handleApplySellerVoucher = useCallback(
+    async (code: string) => {
+      if (!sellerIdForVoucher) {
+        setSellerVoucherError(translate("Penjual belum teridentifikasi — pastikan lawan transaksi valid."))
+        return
+      }
+      setApplyingSellerVoucher(true)
+      setSellerVoucherError(undefined)
+      try {
+        const res = await api.commerce.validateSellerVoucher(code, orderValue, sellerIdForVoucher)
+        if (!res.valid) {
+          setSellerVoucherError(res.message ?? "Kode voucher toko tidak berlaku.")
+          return
+        }
+        setSellerVoucher({
+          code: res.code ?? code.toUpperCase(),
+          discount: Number.isFinite(res.discountIdr) ? (res.discountIdr as number) : undefined,
+          title: res.name ?? undefined,
+        })
+        setVoucher(null)
+      } catch (err) {
+        const uncertain =
+          !isApiError(err) || err.isTransient || err.code === "ABORTED" || err.code === "PARSE"
+        setSellerVoucherError(
+          uncertain
+            ? "Gagal memeriksa voucher — periksa koneksi, lalu coba lagi."
+            : userMessage(err),
+        )
+      } finally {
+        setApplyingSellerVoucher(false)
+      }
+    },
+    [orderValue, sellerIdForVoucher],
   )
 
   const handleSubmit = useCallback(async () => {
@@ -573,7 +628,7 @@ export default function CreateTransactionScreen() {
       const dto: CreateOrderDto = {
         ...base,
         counterpartUsername: counterpart.trim(),
-        voucherCode: voucher?.code,
+        voucherCode: effectiveVoucherCode,
       }
       const order = await api.orders.createOrder(
         dto,
@@ -875,6 +930,19 @@ export default function CreateTransactionScreen() {
               />
             ) : null}
 
+            {/* Batch 43 (item 9): voucher toko milik penjual — hanya bila
+                penjual teridentifikasi (lawan tervalidasi / diri sendiri). */}
+            {mode === "direct" && sellerIdForVoucher ? (
+              <VoucherSection
+                title={translate("Voucher toko penjual")}
+                applied={sellerVoucher ?? undefined}
+                onApply={(code) => void handleApplySellerVoucher(code)}
+                onRemove={() => setSellerVoucher(null)}
+                applying={applyingSellerVoucher}
+                errorText={sellerVoucherError}
+              />
+            ) : null}
+
             <OrderSummarySection
               mode={mode}
               role={role}
@@ -885,7 +953,7 @@ export default function CreateTransactionScreen() {
               orderValue={orderValue}
               deadlineDate={deadlineDate}
               feeResponsibility={feeResponsibility}
-              voucherCode={voucher?.code}
+              voucherCode={effectiveVoucherCode}
               shippingAddressLabel={
                 orderType === "PHYSICAL_GOODS" && shippingAddress
                   ? `${addressLabelText(shippingAddress)} — ${shippingAddress.recipientName}, ${shippingAddress.addressLine}, ${shippingAddress.city} ${shippingAddress.postalCode}`

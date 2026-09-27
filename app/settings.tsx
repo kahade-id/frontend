@@ -57,6 +57,7 @@ import {
   ShoppingBag,
   SignOut,
   Storefront,
+  Ticket,
   Translate,
   User,
   Bookmark,
@@ -158,6 +159,8 @@ export default function SettingsScreen() {
     { id: "products", label: "Katalog Produk", icon: ShoppingBag, route: ROUTES.products },
     { id: "returns", label: "Retur Saya", icon: ArrowUDownLeft, route: ROUTES.returns },
     { id: "seller-products", label: "Produk Saya", icon: Storefront, route: ROUTES.sellerProducts },
+    // Batch 43 (item 9): voucher toko penjual.
+    { id: "seller-vouchers", label: "Voucher Toko", icon: Ticket, route: ROUTES.sellerVouchers },
   ]
 
   // ── Preferensi ──────────────────────────────────────────────────

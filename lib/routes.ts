@@ -528,6 +528,8 @@ export const ROUTES = {
     productId
       ? ({ pathname: "/seller/products/[id]", params: { id: productId } } as unknown as Href)
       : ("/seller/products" as Href),
+  /** Voucher toko penjual (batch 43, item 9 — /v1/seller-vouchers) */
+  sellerVouchers: "/seller/vouchers" as Href,
 } as const
 
 /**

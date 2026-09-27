@@ -214,6 +214,7 @@ export function VoucherSection({
   onRemove,
   applying,
   errorText,
+  title = "Voucher",
 }: {
   initialCode?: string
   applied?: AppliedVoucher
@@ -221,9 +222,11 @@ export function VoucherSection({
   onRemove: () => void
   applying: boolean
   errorText?: string
+  /** Batch 43 (item 9): judul khusus untuk voucher toko penjual. */
+  title?: string
 }) {
   return (
-    <FormSection title="Voucher" divider>
+    <FormSection title={title} divider>
       <VoucherRedeemBox
         initialCode={initialCode}
         applied={applied}
