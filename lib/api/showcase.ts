@@ -605,33 +605,36 @@ function parseShowcaseLikersPage(raw: unknown, timeField: "likedAt" | "savedAt")
 /**
  * GET /v1/showcase/saved — koleksi "disimpan" per-akun dari backend
  * (mega-batch FE-IMP-1, item 54). Kartu publik bentuk feed + `savedAt`;
- * pagination OFFSET.
+ * pagination HALAMAN (?page&limit, kontrak final backend BE-IMP item 54).
  */
 export type SavedShowcaseEntry = { item: ShowcaseSocialItem; savedAt: string }
 export type SavedShowcasesPage = {
   data: SavedShowcaseEntry[]
-  offset: number
+  page: number
   limit: number
   total: number
-  hasMore: boolean
+  totalPages: number
+  hasNext: boolean
+  hasPrev: boolean
 }
 
 export function getSavedShowcases(
-  params: { offset?: number; limit?: number } = {},
+  params: { page?: number; limit?: number } = {},
   signal?: AbortSignal,
 ) {
   return http
     .get<unknown>("/v1/showcase/saved", {
       auth: "required",
-      query: { offset: params.offset ?? 0, limit: params.limit ?? 20 },
+      query: { page: params.page ?? 1, limit: params.limit ?? 20 },
       retry: 1,
       signal,
     })
     .then((raw) => {
       const record = (raw ?? {}) as Record<string, unknown>
-      const offset = typeof record.offset === "number" ? record.offset : 0
+      const page = typeof record.page === "number" ? record.page : 1
       const limit = typeof record.limit === "number" ? record.limit : 20
       const total = typeof record.total === "number" ? record.total : 0
+      const totalPages = typeof record.totalPages === "number" ? record.totalPages : 0
       // DRIFT-04: item rusak dilewati per-item, jangan runtuhkan koleksi.
       const data = readList<unknown>(record, ["data"]).flatMap((rawItem) => {
         try {
@@ -651,11 +654,12 @@ export function getSavedShowcases(
       })
       return {
         data,
-        offset,
+        page,
         limit,
         total,
-        hasMore:
-          record.hasMore === true ? true : total > 0 ? offset + data.length < total : false,
+        totalPages,
+        hasNext: record.hasNext === true,
+        hasPrev: record.hasPrev === true,
       } satisfies SavedShowcasesPage
     })
 }

@@ -84,6 +84,7 @@ import { Picture } from "@/components/ui/picture"
 import { Screen } from "@/components/ui/screen"
 import { SectionHeader } from "@/components/ui/section"
 import { ShowcaseCategoryInput } from "@/components/ui/showcase-category-input"
+import { ShowcaseConditionInput } from "@/components/ui/showcase-condition-input"
 import { Switch } from "@/components/ui/switch"
 import { Text } from "@/components/ui/text"
 import { TextArea } from "@/components/ui/text-area"
@@ -101,6 +102,11 @@ type FormState = {
   priceMax: number | null
   category: string
   isPublic: boolean
+  /**
+   * Item 53 (FE-IMP-1): kondisi barang — "" = belum dipilih (tidak dikirim
+   * ke backend; kontrak opsional).
+   */
+  condition: "" | "BARU" | "BEKAS"
 }
 
 const EMPTY_FORM: FormState = {
@@ -110,6 +116,7 @@ const EMPTY_FORM: FormState = {
   priceMax: null,
   category: "",
   isPublic: true,
+  condition: "",
 }
 
 /**
@@ -167,6 +174,10 @@ function formToPayload(form: FormState) {
     priceMax,
     category: form.category.trim().replace(/\s+/g, " "),
     visibility: form.isPublic ? ("PUBLIC" as const) : ("PRIVATE" as const),
+    // Item 53: hanya kirim bila dipilih — backend opsional & case-insensitive.
+    ...(form.condition === "BARU" || form.condition === "BEKAS"
+      ? { condition: form.condition }
+      : null),
   }
 }
 
@@ -218,7 +229,7 @@ export default function ShowcaseCreateScreen() {
     const t = setTimeout(() => {
       const meaningful =
         form.title.trim() || form.description.trim() || form.category.trim() ||
-        form.priceMin != null || form.priceMax != null
+        form.priceMin != null || form.priceMax != null || form.condition !== ""
       if (!meaningful) return
       void saveShowcaseDraft({
         title: form.title,
@@ -227,6 +238,8 @@ export default function ShowcaseCreateScreen() {
         priceMin: form.priceMin,
         priceMax: form.priceMax,
         isPublic: form.isPublic,
+        // Item 53: kondisi ikut tersimpan di draft.
+        condition: form.condition,
       })
     }, 1000)
     return () => clearTimeout(t)
@@ -954,6 +967,12 @@ export default function ShowcaseCreateScreen() {
             maxLength={CATEGORY_MAX}
             disabled={busy || uncertainCreate}
           />
+          {/* Item 53 (FE-IMP-1): kondisi barang BARU/BEKAS. */}
+          <ShowcaseConditionInput
+            value={form.condition}
+            onChange={(condition) => setForm((current) => ({ ...current, condition }))}
+            disabled={busy || uncertainCreate}
+          />
           <Input
             label={translate("Harga minimum (opsional)")}
             keyboardType="number-pad"
@@ -1078,6 +1097,8 @@ export default function ShowcaseCreateScreen() {
               priceMax: d.priceMax,
               category: d.category,
               isPublic: d.isPublic,
+              // Item 53: draft lama (sebelum field ini ada) → "".
+              condition: d.condition === "BARU" || d.condition === "BEKAS" ? d.condition : "",
             })
           }
           setResumeDraft(null)

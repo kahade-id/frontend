@@ -14,6 +14,8 @@ export type ShowcaseDraft = {
   priceMin: number | null
   priceMax: number | null
   isPublic: boolean
+  /** Item 53 (FE-IMP-1): kondisi barang — "" = belum dipilih. */
+  condition: "" | "BARU" | "BEKAS"
   /** ISO timestamp terakhir disimpan. */
   savedAt: string
 }
@@ -42,6 +44,8 @@ export async function loadShowcaseDraft(): Promise<ShowcaseDraft | null> {
       priceMin: typeof parsed.priceMin === "number" ? parsed.priceMin : null,
       priceMax: typeof parsed.priceMax === "number" ? parsed.priceMax : null,
       isPublic: parsed.isPublic !== false,
+      // Item 53: draft lama tidak punya field ini → "" (fail-closed).
+      condition: parsed.condition === "BARU" || parsed.condition === "BEKAS" ? parsed.condition : "",
       savedAt: typeof parsed.savedAt === "string" ? parsed.savedAt : new Date().toISOString(),
     }
   } catch {
@@ -64,6 +68,8 @@ export function isDraftMeaningful(d: ShowcaseDraft): boolean {
     d.description.trim().length > 0 ||
     d.category.trim().length > 0 ||
     d.priceMin != null ||
-    d.priceMax != null
+    d.priceMax != null ||
+    d.condition === "BARU" ||
+    d.condition === "BEKAS"
   )
 }

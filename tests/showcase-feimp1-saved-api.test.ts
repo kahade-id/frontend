@@ -11,14 +11,22 @@ const work = { id: "work", title: "A", images: null, author: { userId: "u", user
 beforeEach(() => vi.resetAllMocks())
 
 describe("Saved collection backend contract (FE-IMP-1 item 54)", () => {
-  it("GET /v1/showcase/saved memakai auth required + query offset/limit", async () => {
-    mocks.get.mockResolvedValue({ data: [], offset: 10, limit: 20, total: 0, hasMore: false })
-    const page = await getSavedShowcases({ offset: 10, limit: 20 })
+  it("GET /v1/showcase/saved memakai auth required + query page/limit (kontrak backend BE-IMP)", async () => {
+    mocks.get.mockResolvedValue({
+      data: [],
+      total: 0,
+      page: 2,
+      limit: 20,
+      totalPages: 0,
+      hasNext: false,
+      hasPrev: true,
+    })
+    const page = await getSavedShowcases({ page: 2, limit: 20 })
     expect(mocks.get).toHaveBeenCalledWith(
       "/v1/showcase/saved",
-      expect.objectContaining({ auth: "required", query: { offset: 10, limit: 20 } }),
+      expect.objectContaining({ auth: "required", query: { page: 2, limit: 20 } }),
     )
-    expect(page).toMatchObject({ data: [], offset: 10, total: 0, hasMore: false })
+    expect(page).toMatchObject({ data: [], page: 2, total: 0, hasNext: false, hasPrev: true })
   })
 
   it("parse entry: kartu feed + savedAt, item rusak dilewati per-item", async () => {
@@ -27,10 +35,12 @@ describe("Saved collection backend contract (FE-IMP-1 item 54)", () => {
         { item: work, savedAt: "2026-09-28T00:00:00.000Z" },
         { item: { id: "bad", title: "x", images: null, author: null }, savedAt: "2026-09-28T00:00:00.000Z" },
       ],
-      offset: 0,
-      limit: 20,
       total: 2,
-      hasMore: false,
+      page: 1,
+      limit: 20,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
     })
     const page = await getSavedShowcases()
     expect(page.data).toHaveLength(1)
@@ -38,15 +48,20 @@ describe("Saved collection backend contract (FE-IMP-1 item 54)", () => {
     expect(page.data[0].savedAt).toBe("2026-09-28T00:00:00.000Z")
   })
 
-  it("hasMore fallback: offset+data < total", async () => {
+  it("entry datar (backend merge item + savedAt) juga diparse", async () => {
     mocks.get.mockResolvedValue({
-      data: [{ item: work, savedAt: "2026-09-28T00:00:00.000Z" }],
-      offset: 0,
+      data: [{ ...work, savedAt: "2026-09-28T00:00:00.000Z" }],
+      total: 1,
+      page: 1,
       limit: 20,
-      total: 2,
+      totalPages: 1,
+      hasNext: false,
+      hasPrev: false,
     })
     const page = await getSavedShowcases()
-    expect(page.hasMore).toBe(true)
+    expect(page.data).toHaveLength(1)
+    expect(page.data[0].item.id).toBe("work")
+    expect(page.data[0].savedAt).toBe("2026-09-28T00:00:00.000Z")
   })
 
   it("POST/DELETE /v1/showcase/saved/:id memakai path ter-encode + auth required", async () => {

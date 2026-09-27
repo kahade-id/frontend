@@ -459,6 +459,11 @@ export type CreateShowcaseItemDto = {
   /** Object key hasil upload presigned (purpose SHOWCASE_IMAGE) yang sudah dikonfirmasi lewat POST /upload/confirm. Maksimum 8 gambar. */
   imageFileKeys?: Array<string>
   /**
+   * Item 53 (FE-IMP-1): kondisi barang — kontrak backend
+   * CreateShowcaseItemDto.condition ("BARU" | "BEKAS", opsional).
+   */
+  condition?: "BARU" | "BEKAS"
+  /**
    * KONTRAK FINAL Tim A (2026-09-28): lampiran media kaya.
    * JANGAN dikirim bersamaan dengan `imageFileKeys` (→ 400).
    * PUT = replace penuh seluruh media.
@@ -483,6 +488,11 @@ export type UpdateShowcaseItemDto = {
   sortOrder?: number
   /** Bila diisi, seluruh gambar diganti dengan daftar key ini. */
   imageFileKeys?: Array<string>
+  /**
+   * Item 53 (FE-IMP-1): kondisi barang — kontrak backend
+   * UpdateShowcaseItemDto.condition ("BARU" | "BEKAS", opsional).
+   */
+  condition?: "BARU" | "BEKAS"
   /**
    * KONTRAK FINAL Tim A (2026-09-28): lampiran media kaya (replace penuh).
    * JANGAN dikirim bersamaan dengan `imageFileKeys` (→ 400).
