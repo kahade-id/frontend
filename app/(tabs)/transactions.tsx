@@ -287,8 +287,7 @@ export default function TransactionsScreen() {
   if (!hasSession) {
     return (
       <Screen edges={["top"]} padded={false}>
-        <Header title="Transaksi" showBack={false} />
-        <GuestLoginPrompt bare next="/transactions" />
+        <Header title="Transaksi" showBack={false} separator={false} />
         <GuestLoginPrompt bare next="/transactions" />
       </Screen>
     )
