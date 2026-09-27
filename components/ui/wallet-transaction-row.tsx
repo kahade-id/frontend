@@ -19,6 +19,7 @@ export function WalletTransactionRow({
   href,
   divider = true,
   vivid = false,
+  highlight,
 }: {
   transaction: WalletTransaction
   onPress?: () => void
@@ -30,6 +31,11 @@ export function WalletTransactionRow({
    * status, nominal tegas hijau masuk / merah keluar. Dipakai layar riwayat.
    */
   vivid?: boolean
+  /**
+   * Item 80 (mega-batch 2026-09-28): substring yang ditonjolkan di judul
+   * (hasil pencarian).
+   */
+  highlight?: string
 }) {
   return (
     <WalletTransactionListItem
@@ -60,6 +66,7 @@ export function WalletTransactionRow({
       timestamp={formatDateTimeWIB(tx.createdAt)}
       reference={tx.referenceId ?? undefined}
       statusAccent={vivid}
+      highlight={highlight}
       onPress={onPress}
       href={href}
       divider={divider}

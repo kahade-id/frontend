@@ -51,7 +51,11 @@ function isIconComponent(x: unknown): x is IconComponent {
 }
 
 export type ListItemProps = Omit<PressableScaleProps, "children" | "className"> & {
-  title: string
+  /**
+   * Item 80 (mega-batch 2026-09-28): judul boleh ReactNode (mis. <Highlight>
+   * hasil pencarian) — string tetap didukung seperti sebelumnya.
+   */
+  title: string | ReactNode
   /**
    * Skala tipografi judul (default `body` = 14/22 weight 500).
    *
@@ -182,8 +186,15 @@ export function ListItem({
   // Subtitle node tidak bisa dibaca SR dari sini — pemanggil wajib mengirim accessibilityLabel
   // E-02 (audit): label hasil rakitan (title + subtitle mentah) diterjemahkan
   // di sini — PressableScale di bawah hanya menerjemahkan label eksplisit.
+  // Item 80: title boleh ReactNode (<Highlight>) — summarize hanya menerima
+  // string; pemanggil yang mengirim node WAJIB mengirim accessibilityLabel
+  // eksplisit (WalletTransactionListItem sudah melakukannya).
   const a11yLabel = translateProp(
-    accessibilityLabel ?? summarize([title, typeof subtitle === "string" ? subtitle : undefined]),
+    accessibilityLabel ??
+      summarize([
+        typeof title === "string" ? title : undefined,
+        typeof subtitle === "string" ? subtitle : undefined,
+      ]),
   )
 
   // Statis hanya bila TIDAK ada onPress DAN tidak ada href: baris berhref

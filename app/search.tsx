@@ -40,12 +40,12 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { View } from "react-native"
 import { useSafeAreaInsets } from "react-native-safe-area-context"
-import { ArrowUpLeft, ClockCounterClockwise, Images, MagnifyingGlass, MapPin } from "phosphor-react-native"
+import { ArrowUpLeft, ChatCircleText, ClockCounterClockwise, Images, MagnifyingGlass, MapPin, X } from "phosphor-react-native"
 import { router, useLocalSearchParams } from "expo-router"
 import { api, type Order, type UserSearchResult, type WalletTransaction } from "@/lib/api"
 import { getShowcaseFeed, type ShowcaseSocialItem } from "@/lib/api/showcase"
 import { showcaseImages } from "@/lib/showcase-social"
-import { formatDateTime, formatNumber } from "@/lib/format"
+import { formatDateTime, formatNumber, formatRupiah } from "@/lib/format"
 import { resolveMediaUrl } from "@/lib/media"
 import { translate } from "@/lib/i18n/translate"
 import { buildResultMessage } from "@/lib/search-ui"
@@ -54,7 +54,10 @@ import { cn } from "@/lib/cn"
 import { ROUTES } from "@/lib/routes"
 import { tokens } from "@/lib/tokens"
 import { useApiQuery } from "@/lib/use-api-query"
+import { useUiPrefs, type SearchScope } from "@/lib/ui-prefs"
+import { useHasSession } from "@/lib/guest-gate"
 import { logWarn } from "@/lib/telemetry"
+import type { ChatSearchResult } from "@/lib/api/chat"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
@@ -64,7 +67,9 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ErrorState } from "@/components/ui/error-state"
 import { Header } from "@/components/ui/header"
 import { HelpArticleListItem } from "@/components/ui/help-article-list-item"
+import { Highlight } from "@/components/ui/highlight"
 import { Icon } from "@/components/ui/icon"
+import { IconButton } from "@/components/ui/icon-button"
 import { LiveRegion } from "@/components/ui/live-region"
 import { ListLoading } from "@/components/ui/paginated-list"
 import { OrderCard } from "@/components/ui/order-card"
@@ -73,6 +78,7 @@ import { PressableScale } from "@/components/ui/pressable-scale"
 import { PullToRefreshFlatList } from "@/components/ui/pull-to-refresh"
 import { Screen } from "@/components/ui/screen"
 import { ScrollRow } from "@/components/ui/scroll-row"
+import { Spinner } from "@/components/ui/spinner"
 import { Text } from "@/components/ui/text"
 import { DebouncedSearchField } from "@/components/ui/debounced-search-field"
 import { UserListItem } from "@/components/ui/user-list-item"
@@ -85,10 +91,15 @@ type ResultRow = { id: string } & (
   | { kind: "order"; order: Order }
   | { kind: "transaction"; transaction: WalletTransaction }
   | { kind: "article"; article: import("@/lib/api/search").SearchHelpArticle }
+  | { kind: "chat"; chat: ChatSearchResult }
 )
 
-/** Cakupan hasil — "all" mengirim semua jenis, sisanya menyaring per sumber. */
-type Scope = "all" | "users" | "posts" | "orders" | "transactions"
+/**
+ * Cakupan hasil — "all" mengirim semua jenis, sisanya menyaring per sumber.
+ * Item 77 (mega-batch 2026-09-28): nilai ini kini PERSISTEN via ui-prefs
+ * (`prefs.searchScope`) — pilihan cakupan terakhir diingat antar sesi.
+ */
+type Scope = SearchScope
 
 /** i18n: label cakupan mengikuti bahasa aktif (dulu konstanta modul). */
 function useScopes(): ReadonlyArray<{ value: Scope; label: string }> {
@@ -100,13 +111,15 @@ function useScopes(): ReadonlyArray<{ value: Scope; label: string }> {
       { value: "posts", label: translate("Postingan") },
       { value: "orders", label: translate("Pesanan") },
       { value: "transactions", label: translate("Mutasi") },
+      // Item 87 (mega-batch 2026-09-28): pencarian lintas-room.
+      { value: "chats", label: translate("Pesan") },
     ],
     [language],
   )
 }
 
-/** Parameter `types` untuk GET /v1/search per cakupan (postingan di luar endpoint ini). */
-const SCOPE_TYPES: Record<Exclude<Scope, "posts">, string> = {
+/** Parameter `types` untuk GET /v1/search per cakupan (postingan & chat di luar endpoint ini). */
+const SCOPE_TYPES: Record<Exclude<Scope, "posts" | "chats">, string> = {
   // DC-002: cakupan "all" meminta help-center agar section Bantuan hidup.
   all: "users,orders,transactions,help-center",
   users: "users",
@@ -125,6 +138,7 @@ function useSectionTitle(): Record<ResultRow["kind"], string> {
       order: translate("Pesanan"),
       transaction: translate("Mutasi"),
       article: translate("Bantuan"),
+      chat: translate("Pesan"),
     }),
     [language],
   )
@@ -159,7 +173,11 @@ export default function SearchScreen() {
   const [keyword, setKeyword] = useState("")
   const [seed, setSeed] = useState("")
   const [seedNonce, setSeedNonce] = useState(0)
-  const [scope, setScope] = useState<Scope>("all")
+  // Item 77 (mega-batch 2026-09-28): cakupan PERSISTEN via ui-prefs — pilihan
+  // terakhir ("Semua" | "Pengguna" | …) diingat antar sesi.
+  const { prefs, setPrefs } = useUiPrefs()
+  const scope: Scope = prefs.searchScope
+  const setScope = (next: Scope) => setPrefs({ searchScope: next })
   /*
    * Filter lokasi (free-text, mis. "Jakarta"): hanya memengaruhi hasil
    * POSTINGAN — backend mencocokkan `users.address` milik owner
@@ -175,24 +193,34 @@ export default function SearchScreen() {
   // DC-020: umpan balik bila hapus riwayat gagal (sebelumnya catch kosong —
   // user mengira riwayat terhapus padahal tidak).
   const [historyError, setHistoryError] = useState<string | null>(null)
+  // Item 76 (mega-batch 2026-09-28): riwayat dibatasi 8 dengan toggle
+  // "Tampilkan semua".
+  const [historyExpanded, setHistoryExpanded] = useState(false)
+  // Item 75 (mega-batch 2026-09-28): hapus per item + umpan balik gagal.
+  const [deletingItem, setDeletingItem] = useState<string | null>(null)
+  const [deleteItemError, setDeleteItemError] = useState<string | null>(null)
   const enabled = keyword.trim().length >= MIN_KEYWORD
   const wantUsers = scope === "all" || scope === "users"
   const wantPosts = scope === "all" || scope === "posts"
+  // Item 87: chat lintas-room — endpoint dedikasi GET /v1/chat/search.
+  const wantChats = scope === "all" || scope === "chats"
   // Cakupan "Pengguna" dilayani endpoint dedikasi saja — tidak ada alasan
   // menembakkan GET /v1/search untuk daftar yang hasilnya dibuang.
   const usersOnly = scope === "users"
   // Cakupan "Postingan" juga DI LUAR /v1/search (jenis itu tidak didukung
   // endpoint) — dilayani feed etalase dengan parameter `search`.
   const postsOnly = scope === "posts"
+  // Cakupan "Pesan" DI LUAR /v1/search — dilayani GET /v1/chat/search.
+  const chatsOnly = scope === "chats"
 
   const result = useApiQuery(
     `search:${scope}:${keyword}:${location}`,
     (signal) =>
       api.search.globalSearch(
-        { q: keyword, types: SCOPE_TYPES[scope as Exclude<Scope, "posts">], limit: 20, location: location || undefined },
+        { q: keyword, types: SCOPE_TYPES[scope as Exclude<Scope, "posts" | "chats">], limit: 20, location: location || undefined },
         signal,
       ),
-    enabled && !usersOnly && !postsOnly,
+    enabled && !usersOnly && !postsOnly && !chatsOnly,
   )
   const usersResult = useApiQuery(
     `search-users:${keyword}`,
@@ -207,16 +235,29 @@ export default function SearchScreen() {
     (signal) => getShowcaseFeed({ search: keyword, limit: 12, location: location || undefined }, signal),
     enabled && wantPosts,
   )
-  // Keadaan daftar = gabungan ketiga request. Tanpa ini, cakupan "Pengguna"/
-  // "Postingan" mengumumkan "Tidak ada hasil" sepersekian detik lebih awal
-  // (query lain dimatikan sehingga `loading`-nya false) dan kesalahannya
-  // tidak pernah tampil karena ErrorState hanya membaca `result.error`.
-  const loading = enabled && (result.loading || usersResult.loading || postsResult.loading)
+  // Item 87 (mega-batch 2026-09-28): pencarian lintas-room — GET
+  // /v1/chat/search (`lib/api/chat.ts` searchAllMessages). auth:"required":
+  // tamu tidak punya percakapan; query dimatikan untuk tamu agar error auth
+  // tidak meracuni state error cakupan "Semua".
+  const hasSession = useHasSession()
+  const chatsResult = useApiQuery(
+    `search-chats:${keyword}`,
+    (signal) => api.chat.searchAllMessages(keyword, { limit: 20 }, signal),
+    enabled && wantChats && hasSession,
+  )
+  // Keadaan daftar = gabungan keempat request. Tanpa ini, cakupan
+  // "Pengguna"/"Postingan"/"Pesan" mengumumkan "Tidak ada hasil" sepersekian
+  // detik lebih awal (query lain dimatikan sehingga `loading`-nya false) dan
+  // kesalahannya tidak pernah tampil karena ErrorState hanya membaca
+  // `result.error`.
+  const loading = enabled && (result.loading || usersResult.loading || postsResult.loading || chatsResult.loading)
   const searchError = usersOnly
     ? usersResult.error
     : postsOnly
       ? postsResult.error
-      : (result.error ?? postsResult.error)
+      : chatsOnly
+        ? chatsResult.error
+        : (result.error ?? postsResult.error ?? chatsResult.error)
   const suggestions = useApiQuery(
     `suggestions:${keyword}`,
     (signal) => api.search.getSearchSuggestions({ q: keyword }, signal),
@@ -265,6 +306,27 @@ export default function SearchScreen() {
     }
   }
 
+  /**
+   * Item 75 (mega-batch 2026-09-28): hapus SATU entri riwayat — optimistis
+   * (baris langsung hilang), rollback + pesan error bila request gagal.
+   */
+  const handleDeleteHistoryItem = async (query: string) => {
+    if (deletingItem) return
+    setDeletingItem(query)
+    setDeleteItemError(null)
+    const prev = historyQuery.data ?? []
+    historyQuery.setData(prev.filter((entry) => entry.query !== query))
+    try {
+      await api.search.deleteSearchHistoryItem(query)
+    } catch (err) {
+      historyQuery.setData(prev)
+      logWarn("search:history-delete-item", err)
+      setDeleteItemError(translate("Gagal menghapus \"{x}\". Coba lagi.", { x: query }))
+    } finally {
+      setDeletingItem(null)
+    }
+  }
+
   const rows = useMemo<ResultRow[]>(() => {
     const dedicated = usersResult.data?.users
     const users: UserSearchResult[] = !wantUsers
@@ -286,12 +348,12 @@ export default function SearchScreen() {
         kind: "showcase" as const,
         showcase,
       })),
-      ...(scope === "users" || scope === "posts" ? [] : (result.data?.orders ?? [])).map((order) => ({
+      ...(scope === "users" || scope === "posts" || scope === "chats" ? [] : (result.data?.orders ?? [])).map((order) => ({
         id: `order:${order.id}`,
         kind: "order" as const,
         order,
       })),
-      ...(scope === "users" || scope === "posts" ? [] : (result.data?.transactions ?? [])).map(
+      ...(scope === "users" || scope === "posts" || scope === "chats" ? [] : (result.data?.transactions ?? [])).map(
         (transaction) => ({
           id: `transaction:${transaction.id}`,
           kind: "transaction" as const,
@@ -303,8 +365,14 @@ export default function SearchScreen() {
         kind: "article" as const,
         article,
       })),
+      // Item 87: hasil chat lintas-room — pesan yang cocok + info room.
+      ...(!wantChats ? [] : (chatsResult.data?.results ?? [])).map((chat) => ({
+        id: `chat:${chat.room.id}:${chat.message.id}`,
+        kind: "chat" as const,
+        chat,
+      })),
     ]
-  }, [result.data, usersResult.data, usersResult.error, postsResult.data, scope, wantUsers, wantPosts])
+  }, [result.data, usersResult.data, usersResult.error, postsResult.data, chatsResult.data, scope, wantUsers, wantPosts, wantChats])
 
   /**
    * Jumlah per jenis — DC-014: pakai totals dari server bila ada (angka benar
@@ -319,18 +387,26 @@ export default function SearchScreen() {
       order: 0,
       transaction: 0,
       article: 0,
+      chat: 0,
     }
     for (const row of rows) local[row.kind] += 1
     return {
-      // user & showcase dilayani endpoint lain — totals /v1/search tidak
+      // user, showcase & chat dilayani endpoint lain — totals /v1/search tidak
       // mencakupnya; tetap hitung lokal.
       user: local.user,
       showcase: local.showcase,
-      order: totals && !usersOnly && !postsOnly ? Math.max(totals.orders, local.order) : local.order,
-      transaction: totals && !usersOnly && !postsOnly ? Math.max(totals.transactions, local.transaction) : local.transaction,
+      chat: local.chat,
+      order: totals && !usersOnly && !postsOnly && !chatsOnly ? Math.max(totals.orders, local.order) : local.order,
+      transaction: totals && !usersOnly && !postsOnly && !chatsOnly ? Math.max(totals.transactions, local.transaction) : local.transaction,
       article: totals ? Math.max(totals.helpCenter, local.article) : local.article,
     } as Record<ResultRow["kind"], number>
-  }, [rows, result.data?.totals, usersOnly, postsOnly])
+  }, [rows, result.data?.totals, usersOnly, postsOnly, chatsOnly])
+
+  /**
+   * Item 78 (mega-batch 2026-09-28): ringkasan utama memakai TOTAL server
+   * (bukan rows.length yang terpotong limit) — jumlah per jenis dijumlahkan.
+   */
+  const totalResults = counts.user + counts.showcase + counts.order + counts.transaction + counts.article + counts.chat
 
   /**
    * Chip saran HANYA boleh berisi string.
@@ -364,7 +440,7 @@ export default function SearchScreen() {
     enabled,
     error: searchError,
     loading,
-    count: rows.length,
+    count: totalResults,
   })
 
   /** Isi kolom dari chip saran/riwayat, atau kosongkan lewat `applyQuery("")`. */
@@ -375,16 +451,23 @@ export default function SearchScreen() {
 
   /*
    * Query awal dari deep link /search?q=… (revisi 2026-09-28): pencarian dari
-   * utility bar drawer mendorong rute ini dengan param `q`. Diterapkan sekali
-   * saat mount — setelah itu kolom dikendalikan state lokal.
+   * utility bar drawer mendorong rute ini dengan param `q`.
+   *
+   * Item 86 (mega-batch 2026-09-28): effect kini MERESPONS perubahan `q`
+   * (bukan hanya sekali saat mount) — mendorong /search?q=baru selagi layar
+   * sudah terbuka kini benar-benar mengganti kata kunci.
    */
   const params = useLocalSearchParams<{ q?: string | string[] }>()
+  const deepLinkQ = Array.isArray(params.q) ? params.q[0] : params.q
+  const lastAppliedQ = useRef<string | null>(null)
   useEffect(() => {
-    const raw = params.q
-    const q = Array.isArray(raw) ? raw[0] : raw
-    if (typeof q === "string" && q.trim()) applyQuery(q.trim())
+    const q = typeof deepLinkQ === "string" ? deepLinkQ.trim() : ""
+    if (q && q !== lastAppliedQ.current) {
+      lastAppliedQ.current = q
+      applyQuery(q)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [deepLinkQ])
 
   /*
    * Tata letak (revisi 2026-09-26, permintaan produk): KOLOM CARI DI HEADER.
@@ -404,6 +487,14 @@ export default function SearchScreen() {
    * BARIS berikon — bukan kumpulan chip — supaya polanya sama dengan daftar di
    * layar lain dan tiap entri punya target sentuh penuh lebar.
    */
+  /**
+   * Item 82: kondisi CTA "Lihat semua" — hasil terpotong limit (20 untuk
+   * pesanan/mutasi; postingan memakai hasMore dari feed).
+   */
+  const showAllPosts = wantPosts && (postsResult.data?.hasMore ?? false)
+  const showAllOrders = (scope === "all" || scope === "orders") && counts.order >= 20
+  const showAllTransactions = (scope === "all" || scope === "transactions") && counts.transaction >= 20
+
   return (
     <Screen edges={["top"]} padded={false}>
       <Header
@@ -445,20 +536,46 @@ export default function SearchScreen() {
               {/*
                * Filter lokasi — hanya relevan untuk POSTINGAN (backend
                * mencocokkan users.address milik owner). Cakupan pengguna/
-               * pesanan/mutasi tidak mengenal lokasi, jadi kolom ini
+               * pesanan/mutasi/pesan tidak mengenal lokasi, jadi kontrol ini
                * disembunyikan di sana agar tidak menjanjikan filter yang
                * tidak bekerja.
+               *
+               * Item 83 (mega-batch 2026-09-28): setelah diterapkan, lokasi
+               * tampil sebagai CHIP yang bisa dihapus (satu ketukan) — bukan
+               * kolom teks yang terus memakan tempat.
                */}
               {wantPosts ? (
-                <DebouncedSearchField
-                  key={locationNonce}
-                  initialQuery={locationSeed}
-                  onQueryChange={setLocation}
-                  leftIcon={MapPin}
-                  placeholder={translate("Lokasi (cth. Jakarta)")}
-                  accessibilityLabel={translate("Filter lokasi")}
-                  accessibilityHint={translate("Batasi hasil postingan ke lokasi penjual")}
-                />
+                location ? (
+                  <View className="flex-row">
+                    <PressableScale
+                      accessibilityRole="button"
+                      accessibilityLabel={translate("Hapus filter lokasi {x}", { x: location })}
+                      onPress={() => {
+                        setLocation("")
+                        setLocationSeed("")
+                        setLocationNonce((n) => n + 1)
+                      }}
+                      containerClassName="rounded-full"
+                      className="flex-row items-center gap-1.5 rounded-full bg-surface px-3 py-1.5"
+                    >
+                      <Icon icon={MapPin} size="sm" tone="default" />
+                      <Text variant="caption" weight={600}>
+                        {location}
+                      </Text>
+                      <Icon icon={X} size="sm" tone="default" />
+                    </PressableScale>
+                  </View>
+                ) : (
+                  <DebouncedSearchField
+                    key={locationNonce}
+                    initialQuery={locationSeed}
+                    onQueryChange={setLocation}
+                    leftIcon={MapPin}
+                    placeholder={translate("Lokasi (cth. Jakarta)")}
+                    accessibilityLabel={translate("Filter lokasi")}
+                    accessibilityHint={translate("Batasi hasil postingan ke lokasi penjual")}
+                  />
+                )
               ) : null}
               {/* Ringkasan hasil. Sengaja DISEMBUNYIKAN saat daftar kosong —
                   <EmptyState> di bawah sudah mengatakannya, dan dua kalimat
@@ -468,23 +585,36 @@ export default function SearchScreen() {
                   {loading
                     ? translate("Mencari…")
                     : translate("{x} hasil untuk {y}", {
-                        x: formatNumber(rows.length),
+                        x: formatNumber(totalResults),
                         y: keyword.trim(),
                       })}
                 </Text>
               ) : null}
-              {suggestionChips.length ? (
+              {/* Item 81 (mega-batch 2026-09-28): saran menampilkan status
+                  loading & error — sebelumnya gagal diam-diam. */}
+              {scope === "all" ? (
                 <View className="gap-2">
-                  <Text variant="caption" tone="tertiary">
-                    {translate("Saran pencarian")}
-                  </Text>
-                  <View className="flex-row flex-wrap gap-2">
-                    {suggestionChips.map((s) => (
-                      <Chip key={s} onPress={() => applyQuery(s)}>
-                        {s}
-                      </Chip>
-                    ))}
+                  <View className="flex-row items-center gap-2">
+                    <Text variant="caption" tone="tertiary">
+                      {translate("Saran pencarian")}
+                    </Text>
+                    {suggestions.loading ? (
+                      <Spinner size="sm" accessibilityLabel={translate("Memuat saran")} />
+                    ) : null}
                   </View>
+                  {suggestions.error ? (
+                    <Text variant="caption" tone="danger">
+                      {translate("Gagal memuat saran.")}
+                    </Text>
+                  ) : suggestionChips.length ? (
+                    <View className="flex-row flex-wrap gap-2">
+                      {suggestionChips.map((s) => (
+                        <Chip key={s} onPress={() => applyQuery(s)}>
+                          {s}
+                        </Chip>
+                      ))}
+                    </View>
+                  ) : null}
                 </View>
               ) : null}
               {/* #12 (audit Discovery 2026-09-26): chip saran hanya hidup di
@@ -497,11 +627,17 @@ export default function SearchScreen() {
             </View>
           ) : history.length > 0 ? (
             <RecentSearches
-              entries={history.slice(0, 8).map((entry) => entry.query)}
+              entries={historyExpanded ? history : history.slice(0, 8)}
+              totalCount={history.length}
+              expanded={historyExpanded}
+              onToggleExpanded={() => setHistoryExpanded((v) => !v)}
               clearing={clearingHistory}
               error={historyError}
+              deleteError={deleteItemError}
+              deletingItem={deletingItem}
               onPick={applyQuery}
               onClear={() => void handleClearHistory()}
+              onDeleteItem={(query) => void handleDeleteHistoryItem(query)}
             />
           ) : null
         }
@@ -517,6 +653,14 @@ export default function SearchScreen() {
                 username={item.user.username ?? undefined}
                 avatar={item.user.avatarUrl ? { source: item.user.avatarUrl } : undefined}
                 sealTier={item.user.sealTier ?? null}
+                // Item 80: keyword ditonjolkan di nama. Item 84: rank
+                // keanggotaan tampil di baris hasil (dari GET /v1/users/search).
+                highlight={keyword}
+                stat={
+                  item.user.membershipRank
+                    ? translate("Anggota {x}", { x: item.user.membershipRank })
+                    : undefined
+                }
                 chevron
                 onPress={
                   item.user.username
@@ -528,6 +672,7 @@ export default function SearchScreen() {
               <WalletTransactionRow
                 transaction={item.transaction}
                 href={ROUTES.walletTransaction(item.transaction.id)}
+                highlight={keyword}
               />
             ) : item.kind === "article" ? (
               <HelpArticleListItem
@@ -538,7 +683,9 @@ export default function SearchScreen() {
                 href={ROUTES.helpArticle(item.article.slug, undefined, item.article.title)}
               />
             ) : item.kind === "showcase" ? (
-              <ShowcaseResultRow item={item.showcase} />
+              <ShowcaseResultRow item={item.showcase} keyword={keyword} />
+            ) : item.kind === "chat" ? (
+              <ChatResultRow result={item.chat} keyword={keyword} />
             ) : (
               (() => {
                 const role =
@@ -568,6 +715,7 @@ export default function SearchScreen() {
                     }}
                     timestamp={formatDateTime(item.order.createdAt)}
                     href={ROUTES.orderDetail(item.order.id)}
+                    highlight={keyword}
                   />
                 )
               })()
@@ -602,6 +750,7 @@ export default function SearchScreen() {
                 void result.reload()
                 void usersResult.reload()
                 void postsResult.reload()
+                void chatsResult.reload()
               }}
             />
           ) : (
@@ -642,22 +791,39 @@ export default function SearchScreen() {
         }
         // L-03 (audit 2026-09-23): postingan dibatasi 12 — tautan penelusuran
         // lanjutan ke feed Etalase (search=) saat hasil masih terpotong.
+        // Item 82 (mega-batch 2026-09-28): CTA "Lihat semua" juga untuk
+        // pesanan & mutasi — hasil pencarian dibatasi 20 per jenis.
         ListFooterComponent={
-          wantPosts && postsResult.data?.hasMore ? (
-            <Button
-              variant="ghost"
-              fullWidth
-              onPress={() => router.push(ROUTES.showcaseSearch(keyword.trim(), location || undefined))}
-            >
-              Lihat semua di Etalase
-            </Button>
+          enabled && (showAllPosts || showAllOrders || showAllTransactions) ? (
+            <View className="gap-2 pt-2">
+              {showAllPosts ? (
+                <Button
+                  variant="ghost"
+                  fullWidth
+                  onPress={() => router.push(ROUTES.showcaseSearch(keyword.trim(), location || undefined))}
+                >
+                  Lihat semua di Etalase
+                </Button>
+              ) : null}
+              {showAllOrders ? (
+                <Button variant="ghost" fullWidth onPress={() => router.push(ROUTES.transactions)}>
+                  {translate("Lihat semua pesanan")}
+                </Button>
+              ) : null}
+              {showAllTransactions ? (
+                <Button variant="ghost" fullWidth onPress={() => router.push(ROUTES.walletHistory)}>
+                  {translate("Lihat semua mutasi")}
+                </Button>
+              ) : null}
+            </View>
           ) : null
         }
-        refreshing={result.refreshing || usersResult.refreshing || postsResult.refreshing}
+        refreshing={result.refreshing || usersResult.refreshing || postsResult.refreshing || chatsResult.refreshing}
         onRefresh={() => {
           void result.refresh()
           void usersResult.refresh()
           void postsResult.refresh()
+          void chatsResult.refresh()
           // #6c: segarkan juga riwayat saat kolom kosong.
           void historyQuery.refresh()
         }}
@@ -679,20 +845,38 @@ export default function SearchScreen() {
  * (bukan membuka halaman baru). Sebelumnya riwayat berupa chip yang menumpuk
  * di satu baris melipat — kata kunci panjang terpotong dan tidak ada ruang
  * untuk tombol hapus yang jelas.
+ *
+ * Item 75 (mega-batch 2026-09-28): tiap baris punya tombol hapus (X) —
+ * optimistis dengan rollback bila gagal. Item 76: bila riwayat > 8, toggle
+ * "Tampilkan semua" membuka seluruh daftar.
  */
 function RecentSearches({
   entries,
+  totalCount,
+  expanded,
+  onToggleExpanded,
   clearing,
   error,
+  deleteError,
+  deletingItem,
   onPick,
   onClear,
+  onDeleteItem,
 }: {
-  entries: readonly string[]
+  entries: readonly import("@/lib/api/search").SearchHistoryEntry[]
+  totalCount: number
+  expanded: boolean
+  onToggleExpanded: () => void
   clearing: boolean
   /** DC-020: pesan bila hapus riwayat gagal. */
   error: string | null
+  /** Item 75: pesan bila hapus satu entri gagal. */
+  deleteError: string | null
+  /** Item 75: query yang sedang dihapus (spinner di tombolnya). */
+  deletingItem: string | null
   onPick: (query: string) => void
   onClear: () => void
+  onDeleteItem: (query: string) => void
 }) {
   return (
     <View className="gap-2 pb-4 pt-1">
@@ -715,27 +899,52 @@ function RecentSearches({
           {error}
         </Text>
       ) : null}
+      {deleteError ? (
+        <Text variant="caption" tone="danger">
+          {deleteError}
+        </Text>
+      ) : null}
       <Card variant="elevated" className="gap-0 p-0">
-        {entries.map((query, index) => (
-          <View key={`${query}-${index}`}>
+        {entries.map((entry, index) => (
+          <View key={`${entry.query}-${index}`}>
             {index > 0 ? <Divider /> : null}
-            <PressableScale
-              accessibilityRole="button"
-              accessibilityLabel={translate("Cari {x}", { x: query })}
-              accessibilityHint={translate("Mengisi kolom pencarian dengan kata kunci ini")}
-              onPress={() => onPick(query)}
-              containerClassName="w-full rounded-xs"
-              className="w-full flex-row items-center gap-3 px-4 py-3"
-            >
-              <Icon icon={ClockCounterClockwise} size="sm" tone="default" />
-              <Text variant="body" numberOfLines={1} className="min-w-0 flex-1">
-                {query}
-              </Text>
-              <Icon icon={ArrowUpLeft} size="sm" tone="default" />
-            </PressableScale>
+            <View className="w-full flex-row items-center gap-1 px-2 py-1">
+              <PressableScale
+                accessibilityRole="button"
+                accessibilityLabel={translate("Cari {x}", { x: entry.query })}
+                accessibilityHint={translate("Mengisi kolom pencarian dengan kata kunci ini")}
+                onPress={() => onPick(entry.query)}
+                containerClassName="min-w-0 flex-1 rounded-xs"
+                className="min-w-0 flex-1 flex-row items-center gap-3 px-2 py-2"
+              >
+                <Icon icon={ClockCounterClockwise} size="sm" tone="default" />
+                <Text variant="body" numberOfLines={1} className="min-w-0 flex-1">
+                  {entry.query}
+                </Text>
+                <Icon icon={ArrowUpLeft} size="sm" tone="default" />
+              </PressableScale>
+              {/* Item 75: hapus satu entri — di luar Pressable pengisi kolom
+                  agar tap X tidak ikut mengisi kata kunci. */}
+              <IconButton
+                icon={X}
+                size="sm"
+                variant="ghost"
+                accessibilityLabel={translate("Hapus \"{x}\" dari riwayat", { x: entry.query })}
+                loading={deletingItem === entry.query}
+                disabled={deletingItem != null}
+                onPress={() => onDeleteItem(entry.query)}
+              />
+            </View>
           </View>
         ))}
       </Card>
+      {totalCount > 8 ? (
+        <Button variant="ghost" size="sm" fullWidth={false} onPress={onToggleExpanded}>
+          {expanded
+            ? translate("Tampilkan lebih sedikit")
+            : translate("Tampilkan semua ({x})", { x: formatNumber(totalCount) })}
+        </Button>
+      ) : null}
     </View>
   )
 }
@@ -750,11 +959,22 @@ const THUMB = 48
  * untuk mengenali karya tanpa menggandakan bobot kartu feed. Ketukan membuka
  * halaman detail (bukan memutar galeri) supaya polanya sama dengan jenis
  * hasil lain di layar ini.
+ *
+ * Item 79 (mega-batch 2026-09-28): harga tampil di baris hasil — sebelumnya
+ * hanya judul + penjual, pengguna harus membuka detail untuk tahu harga.
+ * Item 80: judul memakai <Highlight> untuk keyword.
  */
-function ShowcaseResultRow({ item }: { item: ShowcaseSocialItem }) {
+function ShowcaseResultRow({ item, keyword }: { item: ShowcaseSocialItem; keyword: string }) {
   // L-02 (audit 2026-09-23): SATU resolver gambar bersama (showcaseImages),
   // bukan rantai `images[0] ?? coverImageUrl ?? imageUrl` milik sendiri.
   const image = showcaseImages(item)[0]?.url ?? null
+  // Harga: rentang bila min≠max, tunggal bila sama, sembunyikan bila kosong.
+  const priceLabel =
+    item.priceMin != null && item.priceMax != null && item.priceMax > item.priceMin
+      ? `${formatRupiah(item.priceMin)} – ${formatRupiah(item.priceMax)}`
+      : item.priceMin != null
+        ? formatRupiah(item.priceMin)
+        : null
   return (
     <PressableScale
       accessibilityRole="button"
@@ -784,9 +1004,16 @@ function ShowcaseResultRow({ item }: { item: ShowcaseSocialItem }) {
       )}
       <View className="min-w-0 flex-1 gap-0.5">
         <View className="flex-row items-center gap-1.5">
-          <Text variant="body" weight={600} numberOfLines={1} className="min-w-0 flex-1">
-            {item.title}
-          </Text>
+          <Highlight
+            text={item.title}
+            query={keyword}
+            variant="body"
+            weight={600}
+            tone="primary"
+            matchWeight={600}
+            numberOfLines={1}
+            className="min-w-0 flex-1"
+          />
           {/* P-03 (audit 2026-09-24): pemilik tidak bisa membedakan karyanya
               sendiri (privat/nonaktif) dari karya publik di hasil pencarian.
               Badge hanya untuk pemilik — pengunjung tidak perlu tahu. */}
@@ -797,12 +1024,63 @@ function ShowcaseResultRow({ item }: { item: ShowcaseSocialItem }) {
           ) : null}
         </View>
         <Text variant="caption" tone="secondary" numberOfLines={1}>
-          @{item.author.username}
+          {priceLabel ? `${priceLabel} · ` : ""}@{item.author.username}
         </Text>
       </View>
       <Text variant="caption" tone="tertiary" className="tabular-nums">
         {formatDateTime(item.createdAt)}
       </Text>
+    </PressableScale>
+  )
+}
+
+/**
+ * Baris hasil PESAN — pencarian lintas-room (item 87, mega-batch 2026-09-28).
+ *
+ * GET /v1/chat/search mengembalikan pesan yang cocok beserta info room:
+ * nama lawan bicara / subjek room + snippet isi pesan dengan keyword
+ * ditonjolkan. Ketukan membuka room chat yang bersangkutan.
+ */
+function ChatResultRow({ result, keyword }: { result: ChatSearchResult; keyword: string }) {
+  const { message, room } = result
+  const counterpartName =
+    room.counterpart?.fullName ?? room.counterpart?.username ?? null
+  const roomLabel =
+    room.subject?.trim() ||
+    (room.order?.title ? translate("Transaksi: {x}", { x: room.order.title }) : null) ||
+    counterpartName ||
+    translate("Percakapan")
+  const snippet = message.text?.trim() || translate("(lampiran)")
+  return (
+    <PressableScale
+      accessibilityRole="button"
+      accessibilityLabel={translate("Pesan di {x}: {y}", { x: roomLabel, y: snippet })}
+      accessibilityHint={translate("Buka percakapan")}
+      onPress={() => router.push(ROUTES.chatRoom(room.id, roomLabel))}
+      containerClassName={cn("min-h-14 w-full rounded-md", focusRing)}
+      className="flex-row items-center gap-3 py-2"
+    >
+      <View className="h-12 w-12 items-center justify-center rounded-sm bg-surface">
+        <Icon icon={ChatCircleText} size="sm" tone="default" />
+      </View>
+      <View className="min-w-0 flex-1 gap-0.5">
+        <Text variant="body" weight={600} tone="primary" numberOfLines={1}>
+          {roomLabel}
+        </Text>
+        <Highlight
+          text={snippet}
+          query={keyword}
+          variant="caption"
+          tone="secondary"
+          numberOfLines={1}
+          className="min-w-0"
+        />
+      </View>
+      {message.createdAt ? (
+        <Text variant="caption" tone="tertiary" className="tabular-nums">
+          {formatDateTime(message.createdAt)}
+        </Text>
+      ) : null}
     </PressableScale>
   )
 }

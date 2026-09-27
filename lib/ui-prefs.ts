@@ -27,7 +27,8 @@ import { logWarn } from "@/lib/telemetry"
 export type TransactionsTab = "buyer" | "seller"
 
 /** Cakupan hasil layar /search — diingat perangkat (item 77, mega-batch 2026-09-28). */
-export type SearchScope = "all" | "users" | "posts" | "orders" | "transactions"
+/** Item 87 (mega-batch 2026-09-28): cakupan "chats" — pencarian lintas-room. */
+export type SearchScope = "all" | "users" | "posts" | "orders" | "transactions" | "chats"
 
 export type UiPrefs = {
   /** Saldo disembunyikan (privasi bahu-penumpang) — dipakai Beranda & Dompet. */
@@ -118,7 +119,14 @@ function sanitizePrefs(raw: unknown): UiPrefs {
 
 /** Validasi nilai searchScope dari storage — bukan enum terbuka. */
 function isSearchScope(v: unknown): v is SearchScope {
-  return v === "all" || v === "users" || v === "posts" || v === "orders" || v === "transactions"
+  return (
+    v === "all" ||
+    v === "users" ||
+    v === "posts" ||
+    v === "orders" ||
+    v === "transactions" ||
+    v === "chats"
+  )
 }
 
 function sanitizeRecents(raw: unknown): RecentRecipient[] {

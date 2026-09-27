@@ -77,6 +77,7 @@ import {
   type OrderStatus,
 } from "@/components/ui/order-status-badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Highlight } from "@/components/ui/highlight"
 import { Text } from "@/components/ui/text"
 import { summarize } from "@/lib/a11y"
 import { cn } from "@/lib/cn"
@@ -186,6 +187,11 @@ export type OrderCardProps = Omit<CardProps, "children" | "variant" | "padded" |
   /** Ada pembaruan yang belum dilihat */
   unread?: boolean
   labels?: Partial<OrderCardLabels>
+  /**
+   * Item 80 (mega-batch 2026-09-28): substring yang ditonjolkan di judul
+   * (hasil pencarian). Kosong = render polos seperti sebelumnya.
+   */
+  highlight?: string
 }
 
 export function OrderCard({
@@ -200,6 +206,7 @@ export function OrderCard({
   onDeadline,
   unread = false,
   labels,
+  highlight,
   onPress,
   href,
   accessibilityLabel,
@@ -280,9 +287,13 @@ export function OrderCard({
       </View>
 
       {/* Baris 2: judul */}
-      <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
-        {title}
-      </Text>
+      {highlight ? (
+        <Highlight text={title} query={highlight} variant="body" weight={600} tone="primary" numberOfLines={2} />
+      ) : (
+        <Text variant="body" weight={600} tone="primary" numberOfLines={2}>
+          {title}
+        </Text>
+      )}
 
       {/* Baris 3: lawan transaksi */}
       <View className="flex-row items-center gap-2">
